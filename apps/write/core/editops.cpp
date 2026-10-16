@@ -19,9 +19,10 @@ namespace jp::write {
 
 namespace {
 
-// The properties that go with the end of a paragraph (what a break after it, a section ending in it, and the XML after it belong to),
-// and with its beginning.
-const int kTail[] = {prop::JoinNext, flow::fp::SectionBreakAfter, prop::SectionData, prop::RawAfter};
+// The properties that go with the end of a paragraph (what a section ending in it and the XML after it belong to: the paragraph mark's own), and
+// with its beginning (the XML before it, the attributes it had in the file). When a paragraph is cut in two, the second half has the mark's, and
+// the first keeps the beginning's; when two become one, the result has the first's beginning and the last's end.
+const int kTail[] = {flow::fp::SectionBreakAfter, prop::SectionData, prop::RawAfter};
 const int kHead[] = {prop::RawBefore, prop::ParaAttrs};
 
 void copyTail(const QTextBlockFormat &from, QTextBlockFormat *to)
@@ -30,28 +31,39 @@ void copyTail(const QTextBlockFormat &from, QTextBlockFormat *to)
         if (from.hasProperty(key)) to->setProperty(key, from.property(key));
         else to->clearProperty(key);
     }
-    QTextFormat::PageBreakFlags flags = to->pageBreakPolicy();
-    flags &= ~QTextFormat::PageBreak_AlwaysAfter;
-    if (from.pageBreakPolicy() & QTextFormat::PageBreak_AlwaysAfter) flags |= QTextFormat::PageBreak_AlwaysAfter;
-    to->setPageBreakPolicy(flags);
+}
+
+void copyHead(const QTextBlockFormat &from, QTextBlockFormat *to)
+{
+    for (int key : kHead) {
+        if (from.hasProperty(key)) to->setProperty(key, from.property(key));
+        else to->clearProperty(key);
+    }
 }
 
 void clearTail(QTextBlockFormat *f)
 {
     for (int key : kTail) f->clearProperty(key);
-    f->setPageBreakPolicy(f->pageBreakPolicy() & ~QTextFormat::PageBreak_AlwaysAfter);
 }
 
 void clearHead(QTextBlockFormat *f)
 {
     for (int key : kHead) f->clearProperty(key);
-    f->clearProperty(prop::Continued);
 }
 
 void setBlockFormatKeepingList(QTextBlock block, QTextBlockFormat nf)
 {
     nf.setObjectIndex(block.blockFormat().objectIndex());
     QTextCursor(block).setBlockFormat(nf);
+}
+
+// Gives a paragraph a format of its own making (a style's, a copy's), with `list` its list (none: it is in no list).
+void setBlockFormatInList(QTextBlock block, QTextBlockFormat nf, QTextList *list)
+{
+    nf.setObjectIndex(-1);
+    if (QTextList *old = block.textList()) old->remove(block);
+    QTextCursor(block).setBlockFormat(nf);
+    if (list) list->add(block);
 }
 
 bool isZeroWidth(const QTextCharFormat &f) { return isAtom(f) && f.stringProperty(tp::Field) == QLatin1String("raw:"); }
@@ -75,6 +87,83 @@ QTextCharFormat typingFormat(const QTextCursor &c)
         if (!isAtom(t)) return t;
     }
     return withoutAtom(b.charFormat());
+}
+
+// The place of the visible character before (after) `position` in its paragraph; -1 when the paragraph has none that way.
+int visibleBefore(QTextDocument *d, int position)
+{
+    const int start = d->findBlock(position).position();
+    for (int p = position - 1; p >= start; --p)
+        if (!isZeroWidth(charAt(d, p))) return p;
+    return -1;
+}
+
+int visibleAfter(QTextDocument *d, int position)
+{
+    const QTextBlock b = d->findBlock(position);
+    const int end = b.position() + b.length() - 1;
+    for (int p = position; p < end; ++p)
+        if (!isZeroWidth(charAt(d, p))) return p;
+    return -1;
+}
+
+// A tag that has a start and an end in a paragraph (a hyperlink, a content control, a tracked change...), open where the paragraph is cut:
+// what the first half must close, and the second open again.
+struct Wrapper {
+    QTextCharFormat openFormat, closeFormat;
+};
+
+QVector<Wrapper> wrappersOpenAt(const QTextBlock &b, int position)
+{
+    struct Item { office::wml::Inline atom; QTextCharFormat format; int at; };
+    QVector<Item> items;
+    for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+        const QTextFragment f = it.fragment();
+        const QTextCharFormat cf = f.charFormat();
+        if (!cf.hasProperty(prop::Atom)) continue;
+        const Inline a = unpackAtom(storedBytes(cf, prop::Atom));
+        if (a.kind != Inline::ParaAtom || (a.role != Inline::Open && a.role != Inline::Close)) continue;
+        const QString t = f.text();
+        for (int k = 0; k < t.size(); ++k)
+            if (t[k] == QChar::ObjectReplacementCharacter) items.push_back({a, cf, f.position() + k});
+    }
+    QVector<int> stack;
+    QVector<QPair<int, int>> pairs;
+    for (int i = 0; i < items.size(); ++i) {
+        if (items[i].atom.role == Inline::Open) {
+            stack.push_back(i);
+        } else if (!stack.isEmpty() && items[stack.back()].atom.tag == items[i].atom.tag) {
+            pairs.push_back({stack.back(), i});
+            stack.removeLast();
+        }
+    }
+    QVector<Wrapper> out;
+    std::sort(pairs.begin(), pairs.end());
+    for (const auto &pr : std::as_const(pairs))
+        if (items[pr.first].at < position && items[pr.second].at >= position) out.push_back({items[pr.first].format, items[pr.second].format});
+    return out;
+}
+
+// Where the cursor is as the person sees it: before the first visible character and after the last, whatever pieces kept as XML
+// that show nothing are beside it (a cut there is a cut at the start or the end of the paragraph).
+void settleAtEdges(QTextCursor &c)
+{
+    QTextDocument *d = c.document();
+    const QTextBlock b = c.block();
+    if (visibleAfter(d, c.position()) < 0) c.setPosition(b.position() + b.length() - 1);
+    else if (visibleBefore(d, c.position()) < 0) c.setPosition(b.position());
+}
+
+// Closes, at the end of `first`, the wrappers that were open where it was cut from `second`, and opens them again at the start of `second`.
+void rewrap(const QVector<Wrapper> &wrappers, QTextBlock first, QTextBlock second)
+{
+    if (wrappers.isEmpty()) return;
+    QTextCursor t(first);
+    t.movePosition(QTextCursor::EndOfBlock);
+    for (int i = int(wrappers.size()) - 1; i >= 0; --i) t.insertText(QString(QChar::ObjectReplacementCharacter), wrappers[i].closeFormat);
+    QTextCursor u(second);
+    u.setPosition(second.position());
+    for (const Wrapper &w : wrappers) u.insertText(QString(QChar::ObjectReplacementCharacter), w.openFormat);
 }
 
 } // namespace
@@ -115,17 +204,6 @@ void insertText(WriteDoc &doc, QTextCursor &c, const QString &text)
     }
 }
 
-// The pieces of a paragraph that Enter cut in two: the head stays with the first, the tail goes with the second.
-static void fixSplit(const QTextBlock &first, const QTextBlock &second)
-{
-    QTextBlockFormat a = first.blockFormat(), b = second.blockFormat();
-    clearTail(&a);
-    clearHead(&b);
-    a.clearProperty(prop::JoinNext);
-    setBlockFormatKeepingList(first, a);
-    setBlockFormatKeepingList(second, b);
-}
-
 static void removeFromList(WriteDoc &doc, QTextBlock block)
 {
     if (QTextList *l = block.textList()) l->remove(block);
@@ -139,6 +217,26 @@ static void removeFromList(WriteDoc &doc, QTextBlock block)
     nf.setTextIndent(base.textIndent());
     nf.setObjectIndex(-1);
     QTextCursor(block).setBlockFormat(nf);
+}
+
+// Cuts the paragraph at the cursor in two, as Enter does: the first half keeps what comes before the paragraph (the XML kept before it, its
+// attributes in the file), the second has the paragraph mark's own (a section that ends here, the XML after it), and what is open where it is
+// cut (a hyperlink, a content control, a tracked change) is closed in the first and opened again in the second. The cursor is at the start of
+// the second. Returns the first half.
+static QTextBlock splitParagraph(QTextCursor &c)
+{
+    settleAtEdges(c);
+    const QVector<Wrapper> wrappers = wrappersOpenAt(c.block(), c.position());
+    c.insertBlock();
+    QTextBlock first = c.block().previous(), second = c.block();
+    QTextBlockFormat a = first.blockFormat(), b = second.blockFormat();
+    clearTail(&a);
+    clearHead(&b);
+    setBlockFormatKeepingList(first, a);
+    setBlockFormatKeepingList(second, b);
+    rewrap(wrappers, first, second);
+    c.setPosition(second.position() + int(wrappers.size()));
+    return first;
 }
 
 void insertParagraph(WriteDoc &doc, QTextCursor &c)
@@ -160,19 +258,20 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
         c.endEditBlock();
         return;
     }
+    settleAtEdges(c);
     const bool atEnd = c.atBlockEnd();
     const QString style = cur.blockFormat().stringProperty(tp::StyleName);
-    c.insertBlock();
-    fixSplit(c.block().previous(), c.block());
-    // At the end of a paragraph, the next one is in the style the style says follows it (a heading is followed by body text).
+    splitParagraph(c);
+    // At the end of a paragraph, the next one is in the style the style says follows it (a heading is followed by body text); it is a paragraph of
+    // that style, with the paragraph mark's own (a section that ends here...) that the end of the paragraph had.
     if (atEnd) {
         const Style *s = doc.styleSheet().find(style);
         if (s && !s->next.isEmpty() && s->next != style && doc.ensureStyle(s->next)) {
             QTextBlock b = c.block();
+            const QTextBlockFormat tailOwner = b.blockFormat();
             QTextBlockFormat nf = doc.styleBlockFormat(s->next);
-            nf.setObjectIndex(-1);
-            if (QTextList *l = b.textList()) l->remove(b);
-            QTextCursor(b).setBlockFormat(nf);
+            copyTail(tailOwner, &nf);
+            setBlockFormatInList(b, nf, nullptr);
             QTextCursor(b).setBlockCharFormat(doc.styleCharFormat(s->next));
             c.setCharFormat(doc.styleCharFormat(s->next));
         }
@@ -182,36 +281,13 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
 
 void insertPageBreak(WriteDoc &doc, QTextCursor &c)
 {
-    Q_UNUSED(doc);
     if (isLocked(c.block())) return;
     c.beginEditBlock();
     if (c.hasSelection()) removeSelection(doc, c);
-    c.insertBlock();
-    QTextBlock first = c.block().previous(), second = c.block();
-    QTextBlockFormat a = first.blockFormat(), b = second.blockFormat();
-    // The rest of the paragraph goes on the next page: the first part ends it, and the second continues it.
-    QTextBlockFormat tail = a;
-    clearHead(&b);
-    for (int key : {int(prop::NumId), int(prop::NumLevel), int(tp::BulletChar)}) b.clearProperty(key);
-    b.setPageBreakPolicy(b.pageBreakPolicy() & ~QTextFormat::PageBreak_AlwaysBefore);
-    b.setProperty(prop::Continued, true);
-    // (Whatever the paragraph already had at its end goes to the second part.)
-    b.setObjectIndex(-1);
-    if (QTextList *l = second.textList()) l->remove(second);
-    clearTail(&a);
-    a.setPageBreakPolicy(a.pageBreakPolicy() | QTextFormat::PageBreak_AlwaysAfter);
-    a.setProperty(prop::JoinNext, true);
-    // A paragraph that already ended in a page break keeps ending in it (the second part carries that on).
-    if (tail.boolProperty(prop::JoinNext)) {
-        b.setProperty(prop::JoinNext, true);
-        b.setPageBreakPolicy(b.pageBreakPolicy() | QTextFormat::PageBreak_AlwaysAfter);
-    }
-    for (int key : kTail) {
-        if (key == prop::JoinNext) continue;
-        if (tail.hasProperty(key)) b.setProperty(key, tail.property(key));
-    }
-    setBlockFormatKeepingList(first, a);
-    QTextCursor(second).setBlockFormat(b);
+    // The break is a character of the paragraph (the page ends after the line that has it); what follows it goes on in a paragraph of its own,
+    // as the program a person may be used to does it, so that the cursor is at the top of the next page.
+    c.insertText(QString(flow::kPageBreak), typingFormat(c));
+    splitParagraph(c);
     c.endEditBlock();
 }
 
@@ -221,12 +297,8 @@ void insertSectionBreak(WriteDoc &doc, QTextCursor &c)
     c.beginEditBlock();
     if (c.hasSelection()) removeSelection(doc, c);
     // The paragraph the cursor is in ends the section; the cursor goes to a new paragraph in the section that follows.
-    c.insertBlock();
-    QTextBlock first = c.block().previous(), second = c.block();
-    fixSplit(first, second);
-    QTextBlock tailOwner = first;
-    // A page break the paragraph had at its end stays with the rest.
-    doc.insertSectionBreak(tailOwner);
+    const QTextBlock first = splitParagraph(c);
+    doc.insertSectionBreak(first);
     c.endEditBlock();
 }
 
@@ -245,10 +317,8 @@ void removeSelection(WriteDoc &doc, QTextCursor &c)
                 QTextCursor t(d);
                 t.setPosition(a.position() - 1);
                 t.setPosition(a.position() + a.length() - 1, QTextCursor::KeepAnchor);
-                const QTextBlockFormat tail = a.blockFormat();
                 t.removeSelectedText();
                 QTextBlock m = d->findBlock(std::max(0, a.position() - 1));
-                Q_UNUSED(tail);
                 c.setPosition(std::min(m.position() + m.length() - 1, d->characterCount() - 1));
             } else {
                 c.removeSelectedText();
@@ -265,47 +335,49 @@ void removeSelection(WriteDoc &doc, QTextCursor &c)
     const QTextBlockFormat aFormat = a.blockFormat(), bFormat = b.blockFormat();
     const QTextCharFormat bMark = b.charFormat();
     const bool aLocked = isLocked(a);
+    // The XML kept between the two paragraphs' text stays: it ends up after the paragraph they become, in its order (a content control's end
+    // that was before the last paragraph is before what comes after the result, and so still ends it).
+    QVector<Block> between;
+    auto carry = [&](const QTextBlockFormat &f, int key) {
+        if (f.hasProperty(key)) between += unpackBlocks(storedBytes(f, key));
+    };
+    carry(aFormat, prop::RawAfter);
+    for (QTextBlock m = a.next(); m.isValid() && m != b; m = m.next()) {
+        const QTextBlockFormat mf = m.blockFormat();
+        carry(mf, prop::RawBefore);
+        carry(mf, prop::RawAfter);
+    }
+    carry(bFormat, prop::RawBefore);
     c.removeSelectedText();
     QTextBlock m = d->findBlock(from);
     QTextBlockFormat nf = m.blockFormat();
-    copyTail(bFormat, &nf);
+    clearTail(&nf);
+    for (int key : {int(flow::fp::SectionBreakAfter), int(prop::SectionData)})
+        if (bFormat.hasProperty(key)) nf.setProperty(key, bFormat.property(key));
+    QVector<Block> rawAfter = between;
+    rawAfter += unpackBlocks(storedBytes(bFormat, prop::RawAfter));
     if (aLocked) {
-        // What is left of the second paragraph takes the place of the one that was kept as XML.
-        const bool before = aFormat.hasProperty(prop::RawBefore);
-        const QByteArray rawBefore = storedBytes(aFormat, prop::RawBefore);
+        // What is left of the last paragraph takes the place of the one that was kept as XML, with the XML that was before that one, and what was
+        // between them before it.
+        const QByteArray before = storedBytes(aFormat, prop::RawBefore);
         const int list = nf.objectIndex();
         nf = bFormat;
         nf.setObjectIndex(list);
         clearHead(&nf);
-        if (before) setStored(nf, prop::RawBefore, rawBefore);
+        clearTail(&nf);
+        for (int key : {int(flow::fp::SectionBreakAfter), int(prop::SectionData)})
+            if (bFormat.hasProperty(key)) nf.setProperty(key, bFormat.property(key));
+        QVector<Block> head = unpackBlocks(before);
+        head += between;
+        rawAfter = unpackBlocks(storedBytes(bFormat, prop::RawAfter));
+        if (!head.isEmpty()) setStored(nf, prop::RawBefore, packBlocks(head));
         QTextCursor(m).setBlockCharFormat(bMark);
     }
+    if (!rawAfter.isEmpty()) setStored(nf, prop::RawAfter, packBlocks(rawAfter));
     QTextCursor(m).setBlockFormat(nf);
     c.setPosition(from);
     c.endEditBlock();
 }
-
-namespace {
-
-// The place of the visible character before (after) `position` in its paragraph; -1 when the paragraph has none that way.
-int visibleBefore(QTextDocument *d, int position)
-{
-    const int start = d->findBlock(position).position();
-    for (int p = position - 1; p >= start; --p)
-        if (!isZeroWidth(charAt(d, p))) return p;
-    return -1;
-}
-
-int visibleAfter(QTextDocument *d, int position)
-{
-    const QTextBlock b = d->findBlock(position);
-    const int end = b.position() + b.length() - 1;
-    for (int p = position; p < end; ++p)
-        if (!isZeroWidth(charAt(d, p))) return p;
-    return -1;
-}
-
-} // namespace
 
 void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
 {
@@ -411,24 +483,60 @@ void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &f
         const QString style = doc.defaultParagraphStyle();
         c.insertBlock(doc.styleBlockFormat(style), doc.styleCharFormat(style));
     }
+    QTextDocument *d = c.document();
+    // The paragraph pasted into: its paragraph's look and what it keeps stay with the part of it that is there after the paste (the text
+    // after the cursor), and what it keeps before it with the part before. (The text engine's own way of pasting gives the paragraph the
+    // look of what was copied where the cursor is at its start, and takes its section break away.)
+    const QTextBlock target = c.block();
+    const QTextBlockFormat tf = target.blockFormat();
+    const QTextCharFormat tmark = target.charFormat();
+    QTextList *targetList = target.textList();
+    const bool atStart = c.position() == target.position();
+    const QVector<Wrapper> wrappers = wrappersOpenAt(target, c.position());
     const int from = c.position();
     c.insertFragment(fragment);
     const int to = c.position();
-    QTextDocument *d = c.document();
-    // The ids a paragraph carries in the file are its own: a copy has none.
+    const QTextBlock first = d->findBlock(from), last = d->findBlock(to);
+    const bool several = first != last;
+    auto sameLook = [](QTextBlockFormat x, QTextBlockFormat y) {
+        x.setObjectIndex(-1);
+        y.setObjectIndex(-1);
+        return x == y;
+    };
+    if (!several) {
+        if (!sameLook(first.blockFormat(), tf) || (first.textList() != targetList)) setBlockFormatInList(first, tf, targetList);
+        if (first.charFormat() != tmark) QTextCursor(first).setBlockCharFormat(tmark);
+    } else {
+        for (QTextBlock b = first;; b = b.next()) {
+            QTextBlockFormat nf = b.blockFormat();
+            if (b == first) {
+                clearTail(&nf);
+                if (atStart) clearHead(&nf);
+                copyHead(tf, &nf);
+                if (nf.hasProperty(prop::RawBlock) && b.length() != 2) nf.clearProperty(prop::RawBlock);
+                if (nf != b.blockFormat()) setBlockFormatKeepingList(b, nf);
+            } else if (b == last) {
+                QTextBlockFormat rest = tf;
+                clearHead(&rest);
+                setBlockFormatInList(b, rest, targetList);
+                QTextCursor(b).setBlockCharFormat(tmark);
+            } else {
+                clearHead(&nf);
+                clearTail(&nf);
+                if (nf.hasProperty(prop::RawBlock) && b.length() != 2) nf.clearProperty(prop::RawBlock);
+                if (nf != b.blockFormat()) setBlockFormatKeepingList(b, nf);
+            }
+            if (b == last) break;
+        }
+        rewrap(wrappers, first, last);
+    }
+    // The ids a paragraph carries in the file are its own: a copy has none (the first, if it is the target's, kept them above).
     for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() <= to; b = b.next()) {
         QTextBlockFormat nf = b.blockFormat();
-        bool changed = false;
-        if (nf.hasProperty(prop::ParaAttrs)) {
+        if (b != first && nf.hasProperty(prop::ParaAttrs)) {
             nf.clearProperty(prop::ParaAttrs);
-            changed = true;
+            setBlockFormatKeepingList(b, nf);
         }
-        // A stand-in for a piece kept as XML that text was pasted into is no stand-in (the paragraph holds only its stand-in character).
-        if (nf.hasProperty(prop::RawBlock) && b.length() != 2) {
-            nf.clearProperty(prop::RawBlock);
-            changed = true;
-        }
-        if (changed) setBlockFormatKeepingList(b, nf);
     }
     // And the stand-in characters that came without their paragraph (or the piece they stood for) go.
     QVector<QPair<int, int>> strays;
@@ -862,9 +970,8 @@ static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleI
     const QString was = bf.stringProperty(tp::StyleName).isEmpty() ? doc.defaultParagraphStyle() : bf.stringProperty(tp::StyleName);
     QTextBlockFormat nf = doc.styleBlockFormat(styleId);
     // What belongs to the paragraph in the file, not to its style.
-    for (int key : {int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs), int(prop::JoinNext), int(prop::Continued), int(flow::fp::SectionBreakAfter), int(prop::SectionData)})
+    for (int key : {int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs), int(flow::fp::SectionBreakAfter), int(prop::SectionData)})
         if (bf.hasProperty(key)) nf.setProperty(key, bf.property(key));
-    nf.setPageBreakPolicy(nf.pageBreakPolicy() | (bf.pageBreakPolicy() & QTextFormat::PageBreak_AlwaysAfter));
     const int numId = nf.intProperty(prop::NumId), level = nf.intProperty(prop::NumLevel);
     const bool wasList = bf.hasProperty(prop::NumId);
     nf.clearProperty(prop::NumId);

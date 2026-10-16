@@ -62,45 +62,32 @@ void WriteDoc::exportBody(QVector<Block> *out)
         Paragraph &p = blk.para;
         if (bf.hasProperty(prop::ParaAttrs)) p.attrs = storedBytes(bf, prop::ParaAttrs);
 
-        QTextBlock part = b;
-        QTextBlock lastPart = b;
-        for (;;) {
-            lastPart = part;
-            for (QTextBlock::iterator it = part.begin(); !it.atEnd(); ++it) {
-                const QTextFragment f = it.fragment();
-                const QTextCharFormat cf = f.charFormat();
-                const QString text = f.text();
-                RunProps run = runPropsOf(cf);
-                RunProps diff = run.differences(sheet.run(styleId, run.style));
-                diff.style = run.style;
-                if (cf.hasProperty(prop::Atom)) {
-                    Inline a = unpackAtom(storedBytes(cf, prop::Atom));
-                    a.props = diff;
-                    for (const QChar ch : text)
-                        if (ch == QChar::ObjectReplacementCharacter) p.content.push_back(a);
-                    continue;
-                }
-                QString clean = text;
-                clean.remove(QChar::ObjectReplacementCharacter);
-                if (clean.isEmpty()) continue;
-                if (!p.content.isEmpty() && p.content.last().kind == Inline::Text && p.content.last().props == diff) {
-                    p.content.last().text += clean;
-                } else {
-                    Inline t;
-                    t.props = diff;
-                    t.text = clean;
-                    p.content.push_back(t);
-                }
+        const QTextBlock lastPart = b;
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            const QTextCharFormat cf = f.charFormat();
+            const QString text = f.text();
+            RunProps run = runPropsOf(cf);
+            RunProps diff = run.differences(sheet.run(styleId, run.style));
+            diff.style = run.style;
+            if (cf.hasProperty(prop::Atom)) {
+                Inline a = unpackAtom(storedBytes(cf, prop::Atom));
+                a.props = diff;
+                for (const QChar ch : text)
+                    if (ch == QChar::ObjectReplacementCharacter) p.content.push_back(a);
+                continue;
             }
-            const QTextBlock next = part.next();
-            if (!part.blockFormat().boolProperty(prop::JoinNext) || !next.isValid()) break;
-            Inline br;
-            br.kind = Inline::RunAtom;
-            br.raw = "<w:br w:type=\"page\"/>";
-            br.tag = QStringLiteral("br");
-            br.key = QStringLiteral("page");
-            p.content.push_back(br);
-            part = next;
+            QString clean = text;
+            clean.remove(QChar::ObjectReplacementCharacter);
+            if (clean.isEmpty()) continue;
+            if (!p.content.isEmpty() && p.content.last().kind == Inline::Text && p.content.last().props == diff) {
+                p.content.last().text += clean;
+            } else {
+                Inline t;
+                t.props = diff;
+                t.text = clean;
+                p.content.push_back(t);
+            }
         }
 
         // The paragraph mark's own formatting: the last paragraph's.
@@ -117,7 +104,7 @@ void WriteDoc::exportBody(QVector<Block> *out)
         const QTextBlockFormat lastFormat = lastPart.blockFormat();
         if (lastFormat.hasProperty(prop::RawAfter))
             for (const Block &r : unpackBlocks(storedBytes(lastFormat, prop::RawAfter))) out->push_back(r);
-        b = lastPart.next();
+        b = b.next();
     }
 }
 

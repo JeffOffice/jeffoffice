@@ -220,22 +220,6 @@ void WriteDoc::buildStory(const QVector<Block> &body)
                 if (!in.text.isEmpty()) c.insertText(in.text, formatOf(styleId, in.props));
                 continue;
             }
-            if (in.kind == Inline::RunAtom && in.tag == QLatin1String("br") && in.key == QLatin1String("page")) {
-                // A page break ends the page here: the rest of the paragraph is a paragraph of its own that goes on the next page.
-                QTextBlockFormat cur = c.blockFormat();
-                cur.setPageBreakPolicy(cur.pageBreakPolicy() | QTextFormat::PageBreak_AlwaysAfter);
-                cur.setProperty(prop::JoinNext, true);
-                c.setBlockFormat(cur);
-                QTextBlockFormat next = cur;
-                next.setPageBreakPolicy(QTextFormat::PageBreak_Auto);
-                for (int key : {int(prop::JoinNext), int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::NumId), int(prop::NumLevel), int(tp::BulletChar),
-                                int(flow::fp::SectionBreakAfter), int(prop::SectionData)})
-                    next.clearProperty(key);
-                next.setObjectIndex(-1);
-                next.setProperty(prop::Continued, true);
-                c.insertBlock(next, markFormat);
-                continue;
-            }
             QTextCharFormat af = formatOf(styleId, in.props);
             setStored(af, prop::Atom, packAtom(in));
             af.setProperty(tp::Field, QStringLiteral("raw:") + in.display);

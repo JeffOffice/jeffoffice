@@ -130,16 +130,24 @@ public:
         m_inlines.resize(n);
         for (int b = 0; b < n; ++b) m_inlines[b].assign(doc.body[b].para.content.size(), true);
 
+        // Tags with a start and an end (hyperlink, content controls...), in the body and in each paragraph. An end closes the nearest start of its
+        // tag that is open; a start that is open above that one (a stray one, from a copy that took the start of a tag and not its end) is left
+        // out, and the pair is kept.
         QVector<int> stack;
-        // Tags with a start and an end (hyperlink, content controls...), in the body and in each paragraph.
         for (int b = 0; b < n; ++b) {
             const Block &blk = doc.body[b];
             if (blk.isRaw) {
                 if (blk.role == Inline::Open) {
                     stack.push_back(b);
                 } else if (blk.role == Inline::Close) {
-                    if (!stack.isEmpty() && doc.body[stack.back()].tag == blk.tag) stack.removeLast();
-                    else m_blocks[b] = false;
+                    int at = int(stack.size()) - 1;
+                    while (at >= 0 && doc.body[stack[at]].tag != blk.tag) --at;
+                    if (at < 0) {
+                        m_blocks[b] = false;
+                    } else {
+                        for (int k = at + 1; k < stack.size(); ++k) m_blocks[stack[k]] = false;
+                        stack.resize(at);
+                    }
                 }
                 continue;
             }
@@ -150,8 +158,14 @@ public:
                 if (content[i].role == Inline::Open) {
                     inner.push_back(i);
                 } else if (content[i].role == Inline::Close) {
-                    if (!inner.isEmpty() && content[inner.back()].tag == content[i].tag) inner.removeLast();
-                    else m_inlines[b][i] = false;
+                    int at = int(inner.size()) - 1;
+                    while (at >= 0 && content[inner[at]].tag != content[i].tag) --at;
+                    if (at < 0) {
+                        m_inlines[b][i] = false;
+                    } else {
+                        for (int k = at + 1; k < inner.size(); ++k) m_inlines[b][inner[k]] = false;
+                        inner.resize(at);
+                    }
                 }
             }
             for (int i : std::as_const(inner)) m_inlines[b][i] = false;
@@ -243,39 +257,58 @@ public:
             if (i == -1) m_blocks[b] = false;
             else if (i >= 0) m_inlines[b][i] = false;
         };
-        struct Open { int block, inl; QString newId; };
-        QHash<QString, QVector<Open>> open;
-        QSet<QString> started;
+        // The starts and ends of each Id, paired the way they nest (an end closes the last start of its Id that is open).
+        struct Pair { Event start; const Event *end = nullptr; };
+        QVector<Pair> pairs;
+        QHash<QString, QVector<int>> open;   // the pairs that have no end yet, by kind and Id
         for (const Event &ev : std::as_const(events)) {
             const QString key = ev.kind + QLatin1Char('/') + ev.id;
             if (ev.start) {
-                const bool again = started.contains(key);
-                started.insert(key);
-                Open o{ev.block, ev.inl, QString()};
-                if (again) {
-                    // (Another of the Id. A bookmark gets an Id of its own; the others of the kind, tied to what has the Id, can't.)
-                    if (ev.kind == QLatin1String("bookmarkStart") && ev.droppable) {
-                        o.newId = QString::number(++mostId);
-                        m_newId.insert(coord(ev.block, ev.inl), o.newId.toLatin1());
-                    } else if (ev.droppable) {
-                        drop(ev.block, ev.inl);
-                        continue;
-                    }
-                }
-                open[key].push_back(o);
+                open[key].push_back(int(pairs.size()));
+                pairs.push_back({ev, nullptr});
             } else {
                 auto it = open.find(key);
                 if (it == open.end() || it->isEmpty()) {
-                    if (ev.droppable) drop(ev.block, ev.inl);
+                    if (ev.droppable) drop(ev.block, ev.inl);   // an end with no start
                     continue;
                 }
-                const Open o = it->takeLast();
-                if (!o.newId.isEmpty() && ev.droppable) m_newId.insert(coord(ev.block, ev.inl), o.newId.toLatin1());
+                pairs[it->takeLast()].end = &ev;
             }
         }
-        for (auto it = open.cbegin(); it != open.cend(); ++it)
-            for (const Open &o : it.value())
-                if (o.inl != -2) drop(o.block, o.inl);
+        // A start with no end is left out (one inside a kept piece can't be).
+        QHash<QString, QVector<int>> byId;
+        for (int i = 0; i < pairs.size(); ++i) {
+            const Pair &pr = pairs[i];
+            if (!pr.end) {
+                if (pr.start.droppable) drop(pr.start.block, pr.start.inl);
+                continue;
+            }
+            byId[pr.start.kind + QLatin1Char('/') + pr.start.id].push_back(i);
+        }
+        // An Id used by more than one bookmark: the one that has an end inside a kept piece (whose Id can't change), or the first, keeps it; each
+        // of the others has an Id of its own if it can (its start and its end are both in paragraphs), and else is left out. The others of a
+        // kind that is tied to what has the Id (comment ranges) are left out.
+        for (auto it = byId.cbegin(); it != byId.cend(); ++it) {
+            if (it->size() < 2) continue;
+            int owner = it->first();
+            for (int i : it.value())
+                if (!pairs[i].start.droppable || !pairs[i].end->droppable) {
+                    owner = i;
+                    break;
+                }
+            for (int i : it.value()) {
+                if (i == owner) continue;
+                const Pair &pr = pairs[i];
+                if (pr.start.kind == QLatin1String("bookmarkStart") && pr.start.droppable && pr.end->droppable) {
+                    const QByteArray id = QByteArray::number(++mostId);
+                    m_newId.insert(coord(pr.start.block, pr.start.inl), id);
+                    m_newId.insert(coord(pr.end->block, pr.end->inl), id);
+                } else {
+                    if (pr.start.droppable) drop(pr.start.block, pr.start.inl);
+                    if (pr.end->droppable) drop(pr.end->block, pr.end->inl);
+                }
+            }
+        }
         // (An end that came for a start of a raw piece, and the like, that never ended, is the piece's own.)
         QSet<QString> usedRevisions;
         for (const Event &r : std::as_const(revisions)) {
@@ -372,6 +405,7 @@ void writeRunText(QByteArray &out, const RunProps &props, const QString &text)
         const ushort u = c.unicode();
         if (u == '\t') { flush(); out += "<w:tab/>"; }
         else if (u == QChar::LineSeparator || u == '\n') { flush(); out += "<w:br/>"; }
+        else if (u == 0x000C) { flush(); out += "<w:br w:type=\"page\"/>"; }
         else if (u == 0x2011) { flush(); out += "<w:noBreakHyphen/>"; }
         else seg += c;
     }

@@ -1065,7 +1065,9 @@ private Q_SLOTS:
         QCOMPARE(doc->story()->blockCount(), 4);
     }
 
-    void aPageBreakCutsTheParagraphAndTheFileKeepsItWhole()
+    // A page break is a character of its paragraph (the page ends after the line that has it); Insert > Page Break puts one in and goes on in a
+    // paragraph of its own, as the file does it, and the file keeps what it was given: the break in the paragraph's runs, one for one.
+    void aPageBreakIsACharacterOfItsParagraphAndTheFileKeepsItWhole()
     {
         auto doc = WriteDoc::blank();
         QTextCursor c(doc->story());
@@ -1074,21 +1076,32 @@ private Q_SLOTS:
         insertPageBreak(*doc, c);
         QCOMPARE(doc->pager().pageCount(), 2);
         QCOMPARE(doc->story()->blockCount(), 2);
+        QCOMPARE(doc->story()->findBlockByNumber(0).text(), QStringLiteral("before ") + flow::kPageBreak);
+        QCOMPARE(c.block().text(), QStringLiteral("after"));   // (the cursor is at the top of the next page)
+        QCOMPARE(c.position(), doc->story()->findBlockByNumber(1).position());
         const QByteArray x = documentXml(doc->toDocx());
-        // One paragraph with a break in it, as the file says.
-        QCOMPARE(int(x.count("<w:p>")) + int(x.count("<w:p ")), 1);
-        QVERIFY2(x.contains("<w:br w:type=\"page\"/>"), x.constData());
+        QCOMPARE(int(x.count("<w:p>")) + int(x.count("<w:p ")), 2);
+        QCOMPARE(int(x.count("<w:br w:type=\"page\"/>")), 1);
+        QVERIFY2(x.indexOf("<w:br w:type=\"page\"/>") < x.indexOf("</w:p>"), "the break ends the first paragraph");
         auto back = open(doc->toDocx());
         QCOMPARE(back->story()->blockCount(), 2);
         QCOMPARE(back->pager().pageCount(), 2);
         QCOMPARE(documentXml(back->toDocx()), x);
-        // Backspace at the start of the second part takes the break out.
+        // Backspace at the start of the second takes the paragraph mark out, and again the break.
         QTextCursor d(back->story());
         d.setPosition(back->story()->findBlockByNumber(1).position());
         deleteBack(*back, d, false);
         QCOMPARE(back->story()->blockCount(), 1);
+        QCOMPARE(back->pager().pageCount(), 2);
+        deleteBack(*back, d, false);
         QCOMPARE(back->pager().pageCount(), 1);
         QVERIFY(!documentXml(back->toDocx()).contains("w:br"));
+        // A break in the middle of a paragraph of a file, a run of its own or in the text's, is read as the character, and written as before.
+        auto mid = open(makeDocx("<w:p><w:r><w:t>one</w:t><w:br w:type=\"page\"/><w:t>two</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>three</w:t></w:r></w:p>"));
+        QCOMPARE(mid->story()->findBlockByNumber(0).text(), QStringLiteral("one") + flow::kPageBreak + QStringLiteral("two") + flow::kPageBreak + QStringLiteral("three"));
+        QCOMPARE(mid->story()->blockCount(), 1);
+        QCOMPARE(mid->pager().pageCount(), 3);
+        QCOMPARE(int(documentXml(mid->toDocx()).count("<w:br w:type=\"page\"/>")), 2);
     }
 
     void aSectionThatEndsTheFileLeavesABlankLastPageThatIsDrawn()
@@ -1669,6 +1682,154 @@ private Q_SLOTS:
         for (const QString &l : loss) QVERIFY2(!l.startsWith(QLatin1String("element counts")) || (!l.contains(QLatin1String("bookmark")) && !l.contains(QLatin1String("commentRange"))), qPrintable(l));
     }
 
+    // Enter inside a hyperlink, a content control, a tracked change, or a tag keeps the wrapper on both halves, with its attributes (and so its
+    // link): one of each kind becomes two, and the second revision mark gets an Id of its own.
+    void enterInsideAWrapperKeepsItOnBothHalves()
+    {
+        struct Case { const char *tag, *inText; int offset; };
+        const Case cases[] = {{"w:hyperlink", "link text in the middle", 9}, {"w:sdt", "content control text", 7}, {"w:ins", "inserted words", 4}, {"w:smartTag", "Paris", 2}};
+        for (const Case &k : cases) {
+            auto doc = open(richDocx());
+            QVERIFY(doc);
+            const QMap<QString, int> before = rt::keptCountsOf(doc->toDocx());
+            QTextCursor c(doc->story());
+            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) {
+                const int at = b.text().indexOf(QString::fromLatin1(k.inText));
+                if (at >= 0) {
+                    c.setPosition(b.position() + at + k.offset);
+                    break;
+                }
+            }
+            insertParagraph(*doc, c);
+            const QByteArray saved = doc->toDocx();
+            const QStringList strict = rt::strictProblems(saved);
+            QVERIFY2(strict.isEmpty(), qPrintable(QStringLiteral("%1: %2").arg(QString::fromLatin1(k.tag), strict.join(QLatin1Char('\n')))));
+            const QMap<QString, int> now = rt::keptCountsOf(saved);
+            QVERIFY2(now.value(QString::fromLatin1(k.tag)) == before.value(QString::fromLatin1(k.tag)) + 1, qPrintable(QStringLiteral("%1: %2 before, %3 now").arg(QString::fromLatin1(k.tag)).arg(before.value(QString::fromLatin1(k.tag))).arg(now.value(QString::fromLatin1(k.tag)))));
+            const QByteArray x = documentXml(saved);
+            if (QByteArray(k.tag) == "w:hyperlink") QCOMPARE(int(x.count("r:id=\"rIdLink\"")), 2);
+            if (QByteArray(k.tag) == "w:ins") {
+                QSet<QByteArray> ids;
+                for (qsizetype at = x.indexOf("<w:ins "); at >= 0; at = x.indexOf("<w:ins ", at + 1)) ids.insert(x.mid(at, x.indexOf('>', at) - at).split('"')[1]);
+                for (qsizetype at = x.indexOf("<w:del "); at >= 0; at = x.indexOf("<w:del ", at + 1)) ids.insert(x.mid(at, x.indexOf('>', at) - at).split('"')[1]);
+                QCOMPARE(int(ids.size()), 3);   // (the file's two and the new one)
+            }
+        }
+    }
+
+    // Enter at the end of a paragraph leaves the paragraph mark's own with the second half: a section that ends in the paragraph, and the XML
+    // kept after it. The first keeps what comes before.
+    void enterAtTheEndOfAParagraphMovesTheMarksPropertiesToTheNewOne()
+    {
+        auto doc = open(richDocx());
+        QVERIFY(doc);
+        QCOMPARE(doc->sectionCount(), 2);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->findBlockByNumber(0).position() + doc->story()->findBlockByNumber(0).length() - 1);   // the end of the heading that ends the first section
+        insertParagraph(*doc, c);
+        QCOMPARE(doc->sectionCount(), 2);
+        QVERIFY(!doc->story()->findBlockByNumber(0).blockFormat().boolProperty(flow::fp::SectionBreakAfter));
+        QVERIFY(doc->story()->findBlockByNumber(1).blockFormat().boolProperty(flow::fp::SectionBreakAfter));
+        QCOMPARE(doc->story()->findBlockByNumber(0).blockFormat().stringProperty(tp::StyleName), QStringLiteral("Heading1"));
+        QCOMPARE(doc->story()->findBlockByNumber(1).blockFormat().stringProperty(tp::StyleName), QStringLiteral("Normal"));   // (what follows a heading)
+        QCOMPARE(int(documentXml(doc->toDocx()).count("<w:sectPr")), 2);
+        auto back = open(doc->toDocx());
+        QCOMPARE(back->sectionCount(), 2);
+        // The XML kept after the last paragraph: a block content control's end.
+        auto d = open(makeDocx("<w:sdt><w:sdtPr><w:alias w:val=\"B\"/></w:sdtPr><w:sdtContent><w:p><w:r><w:t>in the control</w:t></w:r></w:p></w:sdtContent></w:sdt>"));
+        QTextCursor e(d->story());
+        e.movePosition(QTextCursor::End);
+        insertParagraph(*d, e);
+        const QByteArray x = documentXml(d->toDocx());
+        QVERIFY2(rt::strictProblems(d->toDocx()).isEmpty(), x.constData());
+        QCOMPARE(int(x.count("<w:sdt>")), 1);
+        QVERIFY2(x.indexOf("<w:sdt>") < x.indexOf("in the control") && x.indexOf("in the control") < x.indexOf("</w:p><w:p") && x.indexOf("</w:p><w:p") < x.indexOf("</w:sdtContent>"), x.constData());
+    }
+
+    // Backspace at the start of a paragraph that has XML kept before it (a block content control's end) joins it to the one before, and the
+    // control stays.
+    void backspaceIntoAParagraphWithXmlBeforeItKeepsTheXml()
+    {
+        for (int how = 0; how < 2; ++how) {
+            auto doc = open(richDocx());
+            QVERIFY(doc);
+            const QMap<QString, int> before = rt::keptCountsOf(doc->toDocx());
+            QTextCursor c(doc->story());
+            QTextBlock after = doc->story()->begin();
+            for (; after.isValid(); after = after.next())
+                if (after.text().startsWith(QLatin1String("After the block control"))) break;
+            QVERIFY(after.isValid());
+            const int blocks = doc->story()->blockCount();
+            if (how == 0) {
+                c.setPosition(after.position());
+                deleteBack(*doc, c, false);
+            } else {
+                c.setPosition(after.previous().position() + after.previous().length() - 1);
+                deleteForward(*doc, c, false);
+            }
+            QCOMPARE(doc->story()->blockCount(), blocks - 1);
+            const QByteArray saved = doc->toDocx();
+            const QStringList strict = rt::strictProblems(saved);
+            QVERIFY2(strict.isEmpty(), qPrintable(strict.join(QLatin1Char('\n'))));
+            const QMap<QString, int> now = rt::keptCountsOf(saved);
+            QCOMPARE(now.value(QStringLiteral("w:sdt")), before.value(QStringLiteral("w:sdt")));
+            QVERIFY(documentXml(saved).contains("Inside a block controlAfter the block control"));
+        }
+    }
+
+    // Pasting before a heading that ends a section leaves the heading its style and its section break, whether what is pasted is words or
+    // paragraphs; the section break is not moved to what was pasted.
+    void pastingBeforeAHeadingThatEndsASectionLeavesItAlone()
+    {
+        for (int paragraphs = 1; paragraphs <= 2; ++paragraphs) {
+            auto doc = open(richDocx());
+            QVERIFY(doc);
+            QTextDocument *story = doc->story();
+            QTextCursor sel(story);
+            const QTextBlock src = story->findBlockByNumber(1);
+            sel.setPosition(src.position() + 2);
+            sel.setPosition(paragraphs == 1 ? src.position() + 12 : story->findBlockByNumber(2).position() + 6, QTextCursor::KeepAnchor);
+            const QTextDocumentFragment held = selectionFragment(sel);
+            QTextCursor at(story);
+            at.setPosition(0);
+            pasteFragment(*doc, at, held);
+            QCOMPARE(doc->sectionCount(), 2);
+            // The block that holds the heading's own words is the last of what was pasted into, and it is the heading.
+            QTextBlock heading = story->begin();
+            while (heading.isValid() && !heading.text().endsWith(QLatin1String("Heading that ends a section"))) heading = heading.next();
+            QVERIFY(heading.isValid());
+            QCOMPARE(heading.blockFormat().stringProperty(tp::StyleName), QStringLiteral("Heading1"));
+            QVERIFY(heading.blockFormat().boolProperty(flow::fp::SectionBreakAfter));
+            int breaks = 0;
+            for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) breaks += b.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
+            QCOMPARE(breaks, 1);
+            QCOMPARE(int(documentXml(doc->toDocx()).count("<w:sectPr")), 2);
+        }
+    }
+
+    // A copy that took the start of a tag (a content control) and not its end, pasted inside another tag (a hyperlink), leaves the other tag as
+    // it was: the stray start is the one that is left out.
+    void aStrayStartOfATagPastedInsideAnotherLeavesTheOthersWhole()
+    {
+        auto doc = open(richDocx());
+        QVERIFY(doc);
+        const QMap<QString, int> before = rt::keptCountsOf(doc->toDocx());
+        QTextDocument *story = doc->story();
+        const QTextBlock control = story->findBlockByNumber(3), link = story->findBlockByNumber(1);
+        QTextCursor sel(story);
+        sel.setPosition(control.position() + 2);                       // inside "A control: "
+        sel.setPosition(control.position() + control.text().indexOf(QChar::ObjectReplacementCharacter) + 4, QTextCursor::KeepAnchor);   // past the start of the control and a little text
+        const QTextDocumentFragment held = selectionFragment(sel);
+        QTextCursor at(story);
+        at.setPosition(link.position() + link.text().indexOf(QStringLiteral("link text")) + 4);   // inside the hyperlink's text
+        pasteFragment(*doc, at, held);
+        const QByteArray saved = doc->toDocx();
+        QVERIFY2(rt::strictProblems(saved).isEmpty(), qPrintable(rt::strictProblems(saved).join(QLatin1Char('\n'))));
+        const QMap<QString, int> now = rt::keptCountsOf(saved);
+        QCOMPARE(now.value(QStringLiteral("w:hyperlink")), before.value(QStringLiteral("w:hyperlink")));
+        QCOMPARE(now.value(QStringLiteral("w:sdt")), before.value(QStringLiteral("w:sdt")));
+    }
+
     void aRichDocumentComesBackFaithfulAndWellFormed()
     {
         const QByteArray original = richDocx();
@@ -1721,6 +1882,24 @@ private Q_SLOTS:
                         thisSeed.insert(key);
                         failed[key] += 1;
                         if (!example.contains(key)) example[key] = QStringLiteral("seed %1: %2\nlast steps: %3").arg(seed).arg(detail, log.mid(std::max<qsizetype>(0, log.size() - 4)).join(QStringLiteral(" | ")));
+                        if (qEnvironmentVariableIsSet("JW_FUZZ_DUMP")) {
+                            QString dump;
+                            for (QTextBlock bk = doc->story()->begin(); bk.isValid(); bk = bk.next()) {
+                                QString line;
+                                for (QTextBlock::iterator it = bk.begin(); !it.atEnd(); ++it) {
+                                    const QTextFragment fr = it.fragment();
+                                    if (fr.charFormat().hasProperty(prop::Atom)) {
+                                        const wml::Inline a = unpackAtom(storedBytes(fr.charFormat(), prop::Atom));
+                                        const QString mark = (a.role == wml::Inline::Open ? QStringLiteral("<") : a.role == wml::Inline::Close ? QStringLiteral("</") : QStringLiteral("[")) + a.tag + (a.role == wml::Inline::Single ? QStringLiteral("]") : QStringLiteral(">"));
+                                        for (QChar ch : fr.text()) line += ch == QChar::ObjectReplacementCharacter ? mark : QString(ch);
+                                    } else {
+                                        line += fr.text();
+                                    }
+                                }
+                                dump += QStringLiteral("  [%1] %2%3%4\n").arg(bk.blockNumber()).arg(line.left(200), bk.blockFormat().boolProperty(flow::fp::SectionBreakAfter) ? QStringLiteral(" SECT") : QString(), isLocked(bk) ? QStringLiteral(" LOCKED") : QString());
+                            }
+                            qInfo("seed %d mode %d %s: %s\n%s", int(seed), mode, qPrintable(check), qPrintable(detail), qPrintable(dump));
+                        }
                     }
                     seedFailed = seedFailed || fatal;
                     seedsFailing.insert(QStringLiteral("%1/%2").arg(mode).arg(seed));
@@ -1758,7 +1937,12 @@ private Q_SLOTS:
                     for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) breaks += b.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
                     if (doc->sectionCount() != breaks + 1 || back->sectionCount() != doc->sectionCount()) fail(QStringLiteral("sections"), QStringLiteral("%1 sections, %2 breaks, %3 after reopening").arg(doc->sectionCount()).arg(breaks).arg(back->sectionCount()));
                     const QByteArray again = documentXml(back->toDocx());
-                    if (again != documentXml(zip)) fail(QStringLiteral("drifts"), QStringLiteral("the second save differs from the first"));
+                    if (again != documentXml(zip)) {
+                        const QByteArray one = documentXml(zip);
+                        int at = 0;
+                        while (at < one.size() && at < again.size() && one[at] == again[at]) ++at;
+                        fail(QStringLiteral("drifts"), QStringLiteral("the second save differs from the first at %1: %2 | %3").arg(at).arg(QString::fromUtf8(one.mid(std::max(0, at - 150), 330)), QString::fromUtf8(again.mid(std::max(0, at - 150), 330))));
+                    }
                     if (mode == 0) {
                         const QMap<QString, int> now = rt::keptCountsOf(zip);
                         for (auto it = start.cbegin(); it != start.cend(); ++it)
@@ -1853,7 +2037,7 @@ private Q_SLOTS:
                     QString dump;
                     for (QTextBlock bk = doc->story()->begin(); bk.isValid(); bk = bk.next()) {
                         const QString t = bk.text();
-                        dump += QStringLiteral("[%1 len %2 locked=%3 join=%4 sect=%5] %6\n").arg(bk.blockNumber()).arg(bk.length()).arg(isLocked(bk)).arg(bk.blockFormat().boolProperty(prop::JoinNext)).arg(bk.blockFormat().boolProperty(flow::fp::SectionBreakAfter)).arg(t.left(30).replace(QChar::ObjectReplacementCharacter, QLatin1Char('#')));
+                        dump += QStringLiteral("[%1 len %2 locked=%3 sect=%5] %6\n").arg(bk.blockNumber()).arg(bk.length()).arg(isLocked(bk)).arg(bk.blockFormat().boolProperty(flow::fp::SectionBreakAfter)).arg(t.left(30).replace(QChar::ObjectReplacementCharacter, QLatin1Char('#')));
                     }
                     qWarning("%s", qPrintable(dump));
                     QFAIL(qPrintable(QStringLiteral("seed %1 step %2: the text differs at %3 (blocks %6 and %7):\n%4\n---\n%5\n=== xml:\n%8").arg(seed).arg(step).arg(d).arg(a.mid(std::max(0, d - 60), 120).toHtmlEscaped(), b.mid(std::max(0, d - 60), 120).toHtmlEscaped()).arg(doc->story()->blockCount()).arg(back->story()->blockCount()).arg(QString::fromUtf8(x.mid(std::max<qsizetype>(0, x.indexOf("judgment evidence court of.") - 1500), 3500)))));

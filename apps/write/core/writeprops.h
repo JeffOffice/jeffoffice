@@ -1,6 +1,6 @@
 #pragma once
 // What JeffWrite keeps in its text's formats beyond Qt's and libs/text's own properties: pieces of the file kept as XML, the
-// properties of a paragraph or run that have no field here, a paragraph's list, and its place in a paragraph that a page break split.
+// properties of a paragraph or run that have no field here, and a paragraph's list.
 
 #include "wml/wml.h"
 
@@ -30,8 +30,6 @@ enum : int {
     NumLevel,                                 // int: its level, 0 to 8
     Outline,                                  // int: outline level 0 to 8, 9 for body text
     Contextual,                               // bool: don't add space between paragraphs of the same style
-    JoinNext,                                 // bool: a page break follows, and the next paragraph is the rest of this one
-    Continued,                                // bool: this paragraph is the rest of the one before, after a page break
     SectionData,                              // QByteArray: the section this paragraph ends (packSection), with flow::fp::SectionBreakAfter
     SpacingAttrs,                             // QByteArray: attributes of w:spacing that have no field, as written
     IndAttrs,                                 // QByteArray: the same for w:ind
