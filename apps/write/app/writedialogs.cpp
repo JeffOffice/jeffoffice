@@ -21,30 +21,26 @@
 
 namespace jp::write {
 
-namespace {
-QString tr(const char *text) { return QCoreApplication::translate("jp::write::Dialogs", text); }
-}
-
 void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
 {
     if (!doc || !cursor) return;
     const QTextBlockFormat start = cursor->block().blockFormat();
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("paragraphDialog"));
-    dlg.setWindowTitle(tr("Paragraph"));
+    dlg.setWindowTitle(QCoreApplication::translate("jp::write::Dialogs", "Paragraph"));
     auto *v = new QVBoxLayout(&dlg);
     auto *form = new QFormLayout;
     v->addLayout(form);
 
     auto *align = new QComboBox(&dlg);
     align->setObjectName(QStringLiteral("alignment"));
-    align->addItem(tr("Left"), int(Qt::AlignLeft));
-    align->addItem(tr("Centered"), int(Qt::AlignHCenter));
-    align->addItem(tr("Right"), int(Qt::AlignRight));
-    align->addItem(tr("Justified"), int(Qt::AlignJustify));
+    align->addItem(QCoreApplication::translate("jp::write::Dialogs", "Left"), int(Qt::AlignLeft));
+    align->addItem(QCoreApplication::translate("jp::write::Dialogs", "Centered"), int(Qt::AlignHCenter));
+    align->addItem(QCoreApplication::translate("jp::write::Dialogs", "Right"), int(Qt::AlignRight));
+    align->addItem(QCoreApplication::translate("jp::write::Dialogs", "Justified"), int(Qt::AlignJustify));
     const Qt::Alignment al = start.alignment() & Qt::AlignHorizontal_Mask;
     align->setCurrentIndex(al == Qt::AlignHCenter ? 1 : (al == Qt::AlignRight || al == Qt::AlignTrailing) ? 2 : al == Qt::AlignJustify ? 3 : 0);
-    form->addRow(tr("Alignment:"), align);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Alignment:"), align);
 
     auto *left = new MeasureSpin(&dlg), *right = new MeasureSpin(&dlg), *by = new MeasureSpin(&dlg);
     left->setObjectName(QStringLiteral("left"));
@@ -54,15 +50,15 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     right->setPoints(start.rightMargin());
     auto *special = new QComboBox(&dlg);
     special->setObjectName(QStringLiteral("special"));
-    special->addItems({tr("(none)"), tr("First line"), tr("Hanging")});
+    special->addItems({QCoreApplication::translate("jp::write::Dialogs", "(none)"), QCoreApplication::translate("jp::write::Dialogs", "First line"), QCoreApplication::translate("jp::write::Dialogs", "Hanging")});
     special->setCurrentIndex(start.textIndent() > 0.01 ? 1 : start.textIndent() < -0.01 ? 2 : 0);
     by->setPoints(std::abs(start.textIndent()));
-    form->addRow(tr("Indentation, left:"), left);
-    form->addRow(tr("Indentation, right:"), right);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Indentation, left:"), left);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Indentation, right:"), right);
     auto *row = new QHBoxLayout;
     row->addWidget(special);
     row->addWidget(by);
-    form->addRow(tr("Special:"), row);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Special:"), row);
 
     auto *before = new MeasureSpin(&dlg), *after = new MeasureSpin(&dlg), *at = new MeasureSpin(&dlg);
     before->setObjectName(QStringLiteral("before"));
@@ -70,11 +66,11 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     at->setObjectName(QStringLiteral("at"));
     before->setPoints(start.topMargin());
     after->setPoints(start.bottomMargin());
-    form->addRow(tr("Spacing, before:"), before);
-    form->addRow(tr("Spacing, after:"), after);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Spacing, before:"), before);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Spacing, after:"), after);
     auto *lineType = new QComboBox(&dlg);
     lineType->setObjectName(QStringLiteral("lineSpacing"));
-    lineType->addItems({tr("Single"), tr("1.5 lines"), tr("Double"), tr("At least"), tr("Exactly"), tr("Multiple")});
+    lineType->addItems({QCoreApplication::translate("jp::write::Dialogs", "Single"), QCoreApplication::translate("jp::write::Dialogs", "1.5 lines"), QCoreApplication::translate("jp::write::Dialogs", "Double"), QCoreApplication::translate("jp::write::Dialogs", "At least"), QCoreApplication::translate("jp::write::Dialogs", "Exactly"), QCoreApplication::translate("jp::write::Dialogs", "Multiple")});
     auto *multiple = new QDoubleSpinBox(&dlg);
     multiple->setObjectName(QStringLiteral("multiple"));
     multiple->setRange(0.1, 20);
@@ -100,7 +96,7 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     lineRow->addWidget(lineType);
     lineRow->addWidget(at);
     lineRow->addWidget(multiple);
-    form->addRow(tr("Line spacing:"), lineRow);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Line spacing:"), lineRow);
     auto show = [=] {
         const int k = lineType->currentIndex();
         at->setVisible(k == 3 || k == 4);
@@ -148,14 +144,15 @@ void zoomDialog(QWidget *parent, PageView *view)
 {
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("zoomDialog"));
-    dlg.setWindowTitle(tr("Zoom"));
+    dlg.setWindowTitle(QCoreApplication::translate("jp::write::Dialogs", "Zoom"));
     auto *v = new QVBoxLayout(&dlg);
-    auto *box = new QGroupBox(tr("Zoom to"), &dlg);
+    auto *box = new QGroupBox(QCoreApplication::translate("jp::write::Dialogs", "Zoom to"), &dlg);
     auto *bv = new QVBoxLayout(box);
     auto *group = new QButtonGroup(&dlg);
     struct Choice { const char *name; int id; };
     QVector<QRadioButton *> radios;
-    const Choice choices[] = {{"200%", 200}, {"100%", 100}, {"75%", 75}, {"Page width", -1}, {"Whole page", -2}, {"Many pages", -3}, {"Percent:", 0}};
+    const Choice choices[] = {{"200%", 200}, {"100%", 100}, {"75%", 75}, {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Page width"), -1}, {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Whole page"), -2},
+                              {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Many pages"), -3}, {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Percent:"), 0}};
     for (const Choice &c : choices) {
         auto *r = new QRadioButton(QCoreApplication::translate("jp::write::Dialogs", c.name), box);
         r->setProperty("zoomChoice", c.id);
@@ -174,7 +171,7 @@ void zoomDialog(QWidget *parent, PageView *view)
     across->setRange(1, 4);
     across->setValue(std::max(2, view->pagesAcross()));
     auto *acrossRow = new QHBoxLayout;
-    acrossRow->addWidget(new QLabel(tr("Pages across:"), box));
+    acrossRow->addWidget(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "Pages across:"), box));
     acrossRow->addWidget(across);
     bv->addLayout(acrossRow);
     v->addWidget(box);

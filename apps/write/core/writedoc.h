@@ -80,6 +80,7 @@ public:
     // numbered with several levels in it).
     QTextListFormat listFormat(int numId, int level, int start = -1) const;
     office::wml::ParaProps levelParagraph(int numId, int level) const;   // the indents the level gives its paragraphs
+    int deepestLevel(int numId) const;   // the deepest level the definition has (0 to 8), -1 for none
 
     // ---- the file
     QString filePath;

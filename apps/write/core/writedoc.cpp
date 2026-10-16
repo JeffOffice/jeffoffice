@@ -361,6 +361,15 @@ ParaProps WriteDoc::levelParagraph(int numId, int level) const
     return a->levels[level].pPr;
 }
 
+int WriteDoc::deepestLevel(int numId) const
+{
+    const AbstractNum *a = m_wml.numbering.abstractOf(numId);
+    if (!a) return -1;
+    for (int i = 8; i >= 0; --i)
+        if (a->levels[i].present) return i;
+    return -1;
+}
+
 ParaProps WriteDoc::baselineParagraph(const QString &paragraphStyle, int numId, int level) const
 {
     const QString style = paragraphStyle.isEmpty() ? defaultParagraphStyle() : paragraphStyle;

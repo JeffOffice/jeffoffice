@@ -414,12 +414,37 @@ void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &f
     const int from = c.position();
     c.insertFragment(fragment);
     const int to = c.position();
+    QTextDocument *d = c.document();
     // The ids a paragraph carries in the file are its own: a copy has none.
-    for (QTextBlock b = c.document()->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
-        if (!b.blockFormat().hasProperty(prop::ParaAttrs)) continue;
+    for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() <= to; b = b.next()) {
         QTextBlockFormat nf = b.blockFormat();
-        nf.clearProperty(prop::ParaAttrs);
-        setBlockFormatKeepingList(b, nf);
+        bool changed = false;
+        if (nf.hasProperty(prop::ParaAttrs)) {
+            nf.clearProperty(prop::ParaAttrs);
+            changed = true;
+        }
+        // A stand-in for a piece kept as XML that text was pasted into is no stand-in (the paragraph holds only its stand-in character).
+        if (nf.hasProperty(prop::RawBlock) && b.length() != 2) {
+            nf.clearProperty(prop::RawBlock);
+            changed = true;
+        }
+        if (changed) setBlockFormatKeepingList(b, nf);
+    }
+    // And the stand-in characters that came without their paragraph (or the piece they stood for) go.
+    QVector<QPair<int, int>> strays;
+    for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() <= to; b = b.next()) {
+        if (isLocked(b)) continue;
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            const QTextCharFormat cf = f.charFormat();
+            if (!cf.hasProperty(prop::Atom) && cf.stringProperty(tp::Field).startsWith(QLatin1String("raw:"))) strays.push_back({f.position(), f.length()});
+        }
+    }
+    for (int i = int(strays.size()) - 1; i >= 0; --i) {
+        QTextCursor t(d);
+        t.setPosition(strays[i].first);
+        t.setPosition(strays[i].first + strays[i].second, QTextCursor::KeepAnchor);
+        t.removeSelectedText();
     }
     c.endEditBlock();
 }
@@ -757,6 +782,7 @@ ListKind listKindOf(const WriteDoc &doc, const QTextBlock &block)
 // a new one).
 static void setBlockList(WriteDoc &doc, QTextBlock block, int numId, int level, QTextList *join)
 {
+    level = std::clamp(level, 0, std::max(0, doc.deepestLevel(numId)));   // (a definition may have fewer than nine levels)
     const QTextListFormat lf = doc.listFormat(numId, level);
     if (!join) {
         for (QTextBlock p = block.previous(); p.isValid(); p = p.previous()) {

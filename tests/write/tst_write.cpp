@@ -3,6 +3,7 @@
 #include "app/pageview.h"
 #include "app/filescreen.h"
 #include "app/help.h"
+#include "app/recovery.h"
 #include "app/ribbon.h"
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
@@ -15,6 +16,13 @@
 #include "wml/wml.h"
 
 #include <QApplication>
+#include <QComboBox>
+#include <QDateTime>
+#include <QDialog>
+#include <QDoubleSpinBox>
+#include <QRadioButton>
+#include <QSpinBox>
+#include <QTimer>
 #include <QElapsedTimer>
 #include <QDir>
 #include <QDirIterator>
@@ -204,6 +212,75 @@ private Q_SLOTS:
         QCOMPARE(b.document()->story()->toPlainText(), QStringLiteral("Dear reader,\nThis is the letter."));
         QCOMPARE(b.filePath(), a.filePath());
         QVERIFY(!b.isModified());
+    }
+
+    void unsavedWorkIsKeptAndComesBack()
+    {
+        QTemporaryDir dir;
+        recovery::setRoot(dir.path());
+        recovery::setCopySuffix(QStringLiteral(".docx"));
+        WriteWindow a;
+        QVERIFY(a.recoveryCopy().isEmpty());
+        a.autoRecover();   // (nothing is changed yet: no copy)
+        QVERIFY(a.recoveryCopy().isEmpty());
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("Work that is not saved"));
+        a.autoRecover();
+        QVERIFY(!a.recoveryCopy().isEmpty());
+        QVERIFY(QFileInfo::exists(a.recoveryCopy()));
+        const QString copy = a.recoveryCopy();
+        // A run that crashed leaves its copy: it opens as unsaved work, and the old copy goes once this run has one of its own.
+        recovery::Recovered r;
+        r.file = copy;
+        r.title = QStringLiteral("Lost letter");
+        r.saved = QDateTime::currentDateTime();
+        WriteWindow b;
+        WriteWindow *opened = b.openRecovered(r);
+        QVERIFY(opened);
+        QCOMPARE(opened->document()->story()->toPlainText(), QStringLiteral("Work that is not saved"));
+        QVERIFY(opened->isModified());
+        QCOMPARE(opened->displayName(), QStringLiteral("Lost letter"));
+        QVERIFY(!opened->recoveryCopy().isEmpty());
+        // Saving takes the copy away.
+        opened->setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("letter.docx")); });
+        const QString second = opened->recoveryCopy();
+        QVERIFY(opened->save());
+        QVERIFY(!QFileInfo::exists(second));
+        QVERIFY(opened->recoveryCopy().isEmpty());
+    }
+
+    void theParagraphDialogChangesWhatWasChanged()
+    {
+        WriteWindow w;
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("one\ntwo"));
+        w.view()->selectAll();
+        QTimer::singleShot(0, [&] {
+            auto *dlg = w.findChild<QDialog *>(QStringLiteral("paragraphDialog"));
+            QVERIFY(dlg);
+            dlg->findChild<QComboBox *>(QStringLiteral("alignment"))->setCurrentIndex(1);
+            auto *left = dlg->findChild<QDoubleSpinBox *>(QStringLiteral("left"));
+            left->setValue(36);
+            dlg->findChild<QComboBox *>(QStringLiteral("lineSpacing"))->setCurrentIndex(2);
+            dlg->accept();
+        });
+        w.act("para.dialog")->trigger();
+        for (int i = 0; i < 2; ++i) {
+            const QTextBlockFormat bf = w.document()->story()->findBlockByNumber(i).blockFormat();
+            QCOMPARE(bf.alignment() & Qt::AlignHorizontal_Mask, Qt::AlignHCenter);
+            QCOMPARE(bf.leftMargin(), 36.0);
+            QCOMPARE(bf.lineHeight(), 200.0);
+            QCOMPARE(bf.rightMargin(), 0.0);   // (not changed: left as it was)
+        }
+        QTimer::singleShot(0, [&] {
+            auto *dlg = w.findChild<QDialog *>(QStringLiteral("zoomDialog"));
+            QVERIFY(dlg);
+            dlg->findChild<QSpinBox *>(QStringLiteral("percent"))->setValue(150);
+            for (auto *r : dlg->findChildren<QRadioButton *>())
+                if (r->property("zoomChoice").toInt() == 0) r->setChecked(true);
+            dlg->accept();
+        });
+        w.act("zoom.dialog")->trigger();
+        QCOMPARE(w.view()->zoom(), 1.5);
     }
 
     void exportPdfWritesAPdfWithAPagePerPage()
@@ -581,25 +658,97 @@ private Q_SLOTS:
         QCOMPARE(w.document()->story()->firstBlock().blockFormat().stringProperty(tp::StyleName), QStringLiteral("Normal"));
     }
 
-    // A developer's hook, not a test: JW_ROUNDTRIP_IN names a folder of .docx files, JW_ROUNDTRIP_OUT where each is written again by JeffWrite
-    // (to be opened by other programs); JW_SHOTS a folder to put screenshots of them in.
+    // A developer's hook, not a test: JW_ROUNDTRIP_IN names a folder (searched through) of .docx files; each is opened, written again, and opened
+    // again, and a summary says which could not be, and which came back with other text or other sections. JW_ROUNDTRIP_OUT, if set, is where
+    // the files JeffWrite wrote go (to be opened by other programs); JW_ROUNDTRIP_LIMIT stops after that many files.
     void developerRoundTripOfAFolder()
     {
         const QString in = qEnvironmentVariable("JW_ROUNDTRIP_IN"), out = qEnvironmentVariable("JW_ROUNDTRIP_OUT");
-        if (in.isEmpty() || out.isEmpty()) QSKIP("JW_ROUNDTRIP_IN and JW_ROUNDTRIP_OUT are not set");
-        QDir().mkpath(out);
-        for (const QFileInfo &fi : QDir(in).entryInfoList({QStringLiteral("*.docx")}, QDir::Files)) {
-            QFile f(fi.absoluteFilePath());
-            QVERIFY(f.open(QIODevice::ReadOnly));
+        if (in.isEmpty()) QSKIP("JW_ROUNDTRIP_IN is not set");
+        if (!out.isEmpty()) QDir().mkpath(out);
+        const int limit = qEnvironmentVariableIntValue("JW_ROUNDTRIP_LIMIT") > 0 ? qEnvironmentVariableIntValue("JW_ROUNDTRIP_LIMIT") : 1 << 30;
+        int files = 0, opened = 0, refused = 0, changed = 0;
+        qint64 largest = 0;
+        double slowest = 0;
+        QStringList refusals, changes;
+        for (QDirIterator it(in, {QStringLiteral("*.docx")}, QDir::Files, QDirIterator::Subdirectories); it.hasNext() && files < limit;) {
+            const QString path = it.next();
+            ++files;
+            QFile f(path);
+            if (!f.open(QIODevice::ReadOnly)) continue;
+            const QByteArray bytes = f.readAll();
+            largest = std::max<qint64>(largest, bytes.size());
+            QElapsedTimer t;
+            t.start();
             QString err;
-            auto doc = WriteDoc::fromDocx(f.readAll(), &err);
-            QVERIFY2(doc, qPrintable(fi.fileName() + ": " + err));
+            auto doc = WriteDoc::fromDocx(bytes, &err);
+            if (!doc) {
+                ++refused;
+                refusals << QFileInfo(path).fileName() + QStringLiteral(": ") + err.left(80);
+                continue;
+            }
+            ++opened;
             const QByteArray zip = doc->toDocx(&err);
-            QVERIFY2(!zip.isEmpty(), qPrintable(err));
-            QFile o(QDir(out).filePath(fi.fileName()));
-            QVERIFY(o.open(QIODevice::WriteOnly));
-            o.write(zip);
-            qInfo("%s: %d paragraphs, %d pages", qPrintable(fi.fileName()), doc->story()->blockCount(), doc->pager().pageCount());
+            doc->pager().pageCount();
+            slowest = std::max(slowest, t.elapsed() / 1000.0);
+            if (zip.isEmpty()) {
+                ++changed;
+                changes << QFileInfo(path).fileName() + QStringLiteral(": not written: ") + err;
+                continue;
+            }
+            auto back = WriteDoc::fromDocx(zip, &err);
+            QString a = doc->story()->toPlainText(), b = back ? back->story()->toPlainText() : QString();
+            a.remove(QChar::ObjectReplacementCharacter);
+            b.remove(QChar::ObjectReplacementCharacter);
+            if (!back || a != b || back->sectionCount() != doc->sectionCount()) {
+                ++changed;
+                changes << QFileInfo(path).fileName() + (back ? QStringLiteral(": text or sections differ") : QStringLiteral(": does not open again: ") + err);
+            } else if (!out.isEmpty()) {
+                QFile o(QDir(out).filePath(QFileInfo(path).fileName()));
+                if (o.open(QIODevice::WriteOnly)) o.write(zip);
+            }
+        }
+        qInfo("round trip: %d files, %d opened, %d refused, %d came back changed; the largest %lld bytes, the slowest %.1f s", files, opened, refused, changed, largest, slowest);
+        for (const QString &r : std::as_const(refusals)) qInfo("refused: %s", qPrintable(r));
+        for (const QString &c : std::as_const(changes)) qInfo("changed: %s", qPrintable(c));
+    }
+
+    // A developer's hook, not a test: JW_SHOTS names a folder to put screenshots of the window in (each ribbon tab, the File screen's pages, the
+    // text selected, the paragraph marks, Help), of the document JW_SHOTS_DOC names.
+    void developerScreenshots()
+    {
+        const QString dir = qEnvironmentVariable("JW_SHOTS"), doc = qEnvironmentVariable("JW_SHOTS_DOC");
+        if (dir.isEmpty()) QSKIP("JW_SHOTS is not set");
+        QDir().mkpath(dir);
+        WriteWindow w;
+        w.resize(1400, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        if (!doc.isEmpty()) QVERIFY(w.openFile(doc));
+        w.view()->paginateAll();
+        w.view()->setCaretWithoutFocus(true);
+        for (const char *tab : {"Insert", "Layout", "View"}) {
+            w.ribbon()->showTab(w.ribbon()->tab(QString::fromLatin1(tab)));
+            QTest::qWait(100);
+            w.grab().save(QDir(dir).filePath(QStringLiteral("tab-%1.png").arg(QString::fromLatin1(tab).toLower())));
+        }
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Home")));
+        // Text selected across two paragraphs, and the paragraph marks.
+        QTextCursor &c = w.view()->cursor();
+        c.setPosition(w.document()->story()->findBlockByNumber(3).position() + 10);
+        c.setPosition(w.document()->story()->findBlockByNumber(4).position() + 30, QTextCursor::KeepAnchor);
+        w.view()->setCursor(c);
+        w.act("view.marks")->trigger();
+        QTest::qWait(150);
+        w.grab().save(QDir(dir).filePath(QStringLiteral("selection-marks.png")));
+        w.act("view.marks")->trigger();
+        w.showHelp(QStringLiteral("start"));
+        QTest::qWait(150);
+        w.grab().save(QDir(dir).filePath(QStringLiteral("help.png")));
+        for (const char *page : {"new", "open", "print", "export", "about"}) {
+            w.showFileScreen(QString::fromLatin1(page));
+            QTest::qWait(250);
+            w.grab().save(QDir(dir).filePath(QStringLiteral("file-%1.png").arg(QString::fromLatin1(page))));
         }
     }
 
@@ -1093,6 +1242,102 @@ private Q_SLOTS:
         QVERIFY(big->pager().materialize(0));
         QVERIFY(!big->toDocx().isEmpty());
         QCOMPARE(big->story()->blockCount(), 30000);
+    }
+
+    void randomEditingKeepsTheDocumentWhole()
+    {
+        // A document with lists, a section, pieces kept as XML, and a page break; hundreds of random commands on it, and after each few the
+        // file it makes opens again with the same text, the same sections, and pages that can be made.
+        const QByteArray numbering =
+            "<w:abstractNum w:abstractNumId=\"0\"><w:multiLevelType w:val=\"hybridMultilevel\"/><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/><w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl>"
+            "<w:lvl w:ilvl=\"1\"><w:start w:val=\"1\"/><w:numFmt w:val=\"lowerLetter\"/><w:lvlText w:val=\"%2)\"/><w:pPr><w:ind w:left=\"1440\" w:hanging=\"360\"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        QByteArray body;
+        for (int i = 0; i < 4; ++i) body += "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"" + QByteArray::number(i % 2) + "\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:t>item " + QByteArray::number(i) + "</w:t></w:r></w:p>";
+        body += "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:bookmarkStart w:id=\"1\" w:name=\"a\"/><w:r><w:t>A heading</w:t></w:r><w:bookmarkEnd w:id=\"1\"/></w:p>";
+        body += paragraphs(6, 40);
+        body += "<w:tbl><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+        body += "<w:p><w:r><w:t>before break </w:t></w:r><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>after break</w:t></w:r></w:p>";
+        body += "<w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr></w:pPr><w:r><w:t>end of one</w:t></w:r></w:p>";
+        body += paragraphs(5, 30);
+        const int seeds = qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") > 0 ? qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") : 8;   // (more, to look further)
+        for (unsigned seed = std::max(1, qEnvironmentVariableIntValue("JW_FUZZ_FROM")); seed <= unsigned(seeds); ++seed) {
+            auto doc = open(makeDocx(body, kStyles, numbering));
+            QVERIFY(doc);
+            std::mt19937 rng(seed);
+            QTextCursor c(doc->story());
+            auto pick = [&](int n) { return int(rng() % unsigned(std::max(1, n))); };
+            auto place = [&] { c.setPosition(pick(doc->story()->characterCount() - 1)); };
+            auto selectSome = [&] {
+                const int a = pick(doc->story()->characterCount() - 1), len = pick(60);
+                c.setPosition(a);
+                c.setPosition(std::min(a + len, doc->story()->characterCount() - 1), QTextCursor::KeepAnchor);
+            };
+            QTextDocumentFragment held;
+            QStringList log;
+            for (int step = 0; step < 300; ++step) {
+                const int op = pick(17);
+                log << QStringLiteral("%1:op%2 pos=%3 anchor=%4 blocks=%5").arg(step).arg(op).arg(c.position()).arg(c.anchor()).arg(doc->story()->blockCount());
+                switch (op) {
+                case 0: place(); typeText(*doc, c, QStringLiteral("word ")); break;
+                case 1: place(); insertParagraph(*doc, c); break;
+                case 2: place(); deleteBack(*doc, c, pick(2)); break;
+                case 3: place(); deleteForward(*doc, c, pick(2)); break;
+                case 4: selectSome(); removeSelection(*doc, c); break;
+                case 5: selectSome(); toggleBold(*doc, c); toggleItalic(*doc, c); setFontSize(*doc, c, 9 + pick(20)); break;
+                case 6: selectSome(); toggleList(*doc, c, pick(2)); break;
+                case 7: place(); applyParagraphStyle(*doc, c, pick(3) == 0 ? QStringLiteral("Heading1") : QStringLiteral("Normal")); break;
+                case 8: place(); insertPageBreak(*doc, c); break;
+                case 9: if (pick(4) == 0) { place(); insertSectionBreak(*doc, c); } break;
+                case 10: doc->story()->undo(&c); break;
+                case 11: doc->story()->redo(&c); break;
+                case 12: selectSome(); changeIndent(*doc, c, pick(2) ? 36 : -36); break;
+                case 13: selectSome(); setAlignment(*doc, c, pick(2) ? Qt::AlignRight : Qt::AlignJustify); break;
+                case 14: selectSome(); held = selectionFragment(c); break;
+                case 15: place(); pasteFragment(*doc, c, held); break;
+                default: place(); moveCursor(c, pick(2) ? QTextCursor::NextCharacter : QTextCursor::PreviousCharacter, pick(2), 1 + pick(3)); break;
+                }
+                QVERIFY(doc->story()->blockCount() >= 1);
+                // A paragraph that stands for a piece kept as XML holds that and nothing else.
+                for (QTextBlock bk = doc->story()->begin(); bk.isValid(); bk = bk.next())
+                    if (isLocked(bk) && bk.length() != 2) QFAIL(qPrintable(QStringLiteral("seed %1: after %2 the stand-in holds %3 characters\nlast steps:\n%4").arg(seed).arg(log.last()).arg(bk.length() - 1).arg(log.mid(std::max<qsizetype>(0, log.size() - 5)).join(QLatin1Char('\n')))));
+                if (step % 12 != 0) continue;
+                // The document is whole: sections as the break paragraphs say, pages that can be made, a file that opens to the same.
+                int breaks = 0;
+                for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) breaks += b.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
+                QCOMPARE(doc->sectionCount(), breaks + 1);
+                const int pages = doc->pager().pageCount();
+                QVERIFY(pages >= 1);
+                QVERIFY(doc->pager().materialize(pick(pages)));
+                QString err;
+                const QByteArray zip = doc->toDocx(&err);
+                QVERIFY2(!zip.isEmpty(), qPrintable(QStringLiteral("seed %1 step %2: %3").arg(seed).arg(step).arg(err)));
+                auto back = open(zip);
+                QVERIFY2(back, qPrintable(QStringLiteral("seed %1 step %2").arg(seed).arg(step)));
+                QString a = doc->story()->toPlainText(), b = back->story()->toPlainText();
+                a.remove(QChar::ObjectReplacementCharacter);
+                b.remove(QChar::ObjectReplacementCharacter);
+                if (a != b) {
+                    int d = 0;
+                    while (d < a.size() && d < b.size() && a[d] == b[d]) ++d;
+                    const QByteArray x = documentXml(zip);
+                    QString dump;
+                    for (QTextBlock bk = doc->story()->begin(); bk.isValid(); bk = bk.next()) {
+                        const QString t = bk.text();
+                        dump += QStringLiteral("[%1 len %2 locked=%3 join=%4 sect=%5] %6\n").arg(bk.blockNumber()).arg(bk.length()).arg(isLocked(bk)).arg(bk.blockFormat().boolProperty(prop::JoinNext)).arg(bk.blockFormat().boolProperty(flow::fp::SectionBreakAfter)).arg(t.left(30).replace(QChar::ObjectReplacementCharacter, QLatin1Char('#')));
+                    }
+                    qWarning("%s", qPrintable(dump));
+                    QFAIL(qPrintable(QStringLiteral("seed %1 step %2: the text differs at %3 (blocks %6 and %7):\n%4\n---\n%5\n=== xml:\n%8").arg(seed).arg(step).arg(d).arg(a.mid(std::max(0, d - 60), 120).toHtmlEscaped(), b.mid(std::max(0, d - 60), 120).toHtmlEscaped()).arg(doc->story()->blockCount()).arg(back->story()->blockCount()).arg(QString::fromUtf8(x.mid(std::max<qsizetype>(0, x.indexOf("judgment evidence court of.") - 1500), 3500)))));
+                }
+                QCOMPARE(back->sectionCount(), doc->sectionCount());
+                // (And what it writes again is what it wrote: nothing drifts.)
+                const QByteArray x1 = documentXml(zip), x2 = documentXml(back->toDocx());
+                if (x1 != x2) {
+                    int d = 0;
+                    while (d < x1.size() && d < x2.size() && x1[d] == x2[d]) ++d;
+                    QFAIL(qPrintable(QStringLiteral("seed %1 step %2: drift at %3:\n%4\n---\n%5").arg(seed).arg(step).arg(d).arg(QString::fromUtf8(x1.mid(std::max(0, d - 200), 400)), QString::fromUtf8(x2.mid(std::max(0, d - 200), 400)))));
+                }
+            }
+        }
     }
 
     void theBlankDocumentSavesAndOpensAndKeepsItsStyles()

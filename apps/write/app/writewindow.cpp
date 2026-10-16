@@ -53,6 +53,8 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     }));
     m_untitled = tr("Document%1").arg(++s_untitledCount);
     m_view = new write::PageView(this);
+    m_view->setAccessibleName(tr("Document"));
+    m_view->setAccessibleDescription(tr("The pages of the document. Type to write; the arrow keys move the caret."));
     m_ribbon = new Ribbon(this);
     setMenuWidget(m_ribbon);
     setCentralWidget(m_view);
@@ -252,8 +254,8 @@ void WriteWindow::changeSection(const std::function<void(flow::Section &)> &chan
 void WriteWindow::createLayoutActions()
 {
     struct Margins { const char *id; const char *text; double top, right, bottom, left; };
-    for (const Margins &m : {Margins{"normal", "Normal", 72, 72, 72, 72}, Margins{"narrow", "Narrow", 36, 36, 36, 36}, Margins{"moderate", "Moderate", 72, 54, 72, 54},
-                             Margins{"wide", "Wide", 72, 144, 72, 144}}) {
+    for (const Margins &m : {Margins{"normal", QT_TRANSLATE_NOOP("jp::WriteWindow", "Normal"), 72, 72, 72, 72}, Margins{"narrow", QT_TRANSLATE_NOOP("jp::WriteWindow", "Narrow"), 36, 36, 36, 36}, Margins{"moderate", QT_TRANSLATE_NOOP("jp::WriteWindow", "Moderate"), 72, 54, 72, 54},
+                             Margins{"wide", QT_TRANSLATE_NOOP("jp::WriteWindow", "Wide"), 72, 144, 72, 144}}) {
         const double t = m.top, r = m.right, b = m.bottom, l = m.left;
         mk(QStringLiteral("layout.margins.") + QLatin1String(m.id), QCoreApplication::translate("jp::WriteWindow", m.text), "", QKeySequence(), [this, t, r, b, l] {
             changeSection([=](flow::Section &s) { s.margins = QMarginsF(l, t, r, b); });
@@ -279,8 +281,8 @@ void WriteWindow::createLayoutActions()
             });
         }, true);
     struct Paper { const char *id; const char *text; double w, h; };
-    for (const Paper &p : {Paper{"letter", "Letter", 612, 792}, Paper{"legal", "Legal", 612, 1008}, Paper{"executive", "Executive", 522, 756}, Paper{"a3", "A3", 841.9, 1190.55},
-                           Paper{"a4", "A4", 595.3, 841.9}, Paper{"a5", "A5", 419.55, 595.3}, Paper{"b5", "B5", 498.95, 708.75}}) {
+    for (const Paper &p : {Paper{"letter", QT_TRANSLATE_NOOP("jp::WriteWindow", "Letter"), 612, 792}, Paper{"legal", QT_TRANSLATE_NOOP("jp::WriteWindow", "Legal"), 612, 1008}, Paper{"executive", QT_TRANSLATE_NOOP("jp::WriteWindow", "Executive"), 522, 756}, Paper{"a3", QT_TRANSLATE_NOOP("jp::WriteWindow", "A3"), 841.9, 1190.55},
+                           Paper{"a4", QT_TRANSLATE_NOOP("jp::WriteWindow", "A4"), 595.3, 841.9}, Paper{"a5", QT_TRANSLATE_NOOP("jp::WriteWindow", "A5"), 419.55, 595.3}, Paper{"b5", QT_TRANSLATE_NOOP("jp::WriteWindow", "B5"), 498.95, 708.75}}) {
         const double w = p.w, h = p.h;
         mk(QStringLiteral("layout.size.") + QLatin1String(p.id), QCoreApplication::translate("jp::WriteWindow", p.text), "", QKeySequence(), [this, w, h] {
             changeSection([w, h](flow::Section &s) { s.paper = QSizeF(w, h); });
