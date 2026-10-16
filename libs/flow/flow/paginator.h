@@ -38,6 +38,10 @@ struct MaterializedPage {
     // The first line of the page may be the rest of a paragraph that began on the page before; and the last, the beginning of one that
     // goes on onto the next.
     bool continuesFromBefore = false, continuesOnAfter = false;
+    // The page shows how many pages the document has (a NUMPAGES or SECTIONPAGES field in its text, header, or footer), which was `pageTotal` when it was made: it is
+    // made again when the document has another.
+    bool showsTotal = false;
+    int pageTotal = 0;
 };
 
 class Paginator {

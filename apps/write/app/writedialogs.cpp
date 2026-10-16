@@ -131,8 +131,8 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
         if (leftChanged) bf.setLeftMargin(left->value());
         if (rightChanged) bf.setRightMargin(right->value());
         if (firstChanged) bf.setTextIndent(firstNow);
-        if (beforeChanged) bf.setTopMargin(before->value());
-        if (afterChanged) bf.setBottomMargin(after->value());
+        if (beforeChanged) write::setSpaceBefore(bf, before->value());
+        if (afterChanged) write::setSpaceAfter(bf, after->value());
         if (lineChanged) {
             if (k == 0) bf.setLineHeight(100, QTextBlockFormat::ProportionalHeight);
             else if (k == 1) bf.setLineHeight(150, QTextBlockFormat::ProportionalHeight);

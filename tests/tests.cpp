@@ -22364,6 +22364,34 @@ private Q_SLOTS:
         const QString out = qEnvironmentVariable("JP_RENDER_OUT");
         if (!out.isEmpty()) img.save(out);
     }
+
+    // A drop cap is the first character of its paragraph, and the line beside it begins after it: the line's first position, where Home goes, and where
+    // a click at the line's start lands are the position after the cap (a text engine that has the word processor's hidden text must not give them as
+    // the cap's own).
+    void aDropCapLineBeginsAfterTheCap()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextBlockFormat bf;
+        bf.setProperty(tp::DropCapLines, 3);
+        bf.setProperty(tp::DropCapChars, 1);
+        c.setBlockFormat(bf);
+        QTextCharFormat cf;
+        cf.setFontPointSize(11);
+        c.insertText(QStringLiteral("Dropcap paragraph text that runs on for a few lines so the layout has something to wrap around the big letter at its start."), cf);
+        StoryLayout lay;
+        FrameSpec fs;
+        fs.size = QSizeF(300, 400);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        fs.hyphenate = false;
+        lay.build(&doc, {fs}, LayoutEnv());
+        const auto lines = lay.lineInfo(0);
+        QVERIFY(lines.size() > 2);
+        QCOMPARE(lines[0].docPos, 1);
+        QCOMPARE(lay.lineBriefs().first().pos, 1);
+        QCOMPARE(lay.firstPosition(0), 1);
+        QVERIFY2(lay.hitTest(0, QPointF(lines[0].rect.left() + 0.5, lines[0].rect.center().y())) >= 1, "a click at the start of the first line lands after the cap");
+    }
 };
 
 QTEST_MAIN(Tests)

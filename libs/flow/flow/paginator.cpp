@@ -25,6 +25,18 @@ constexpr int kWindow = 6000;
 constexpr int kLeastWindow = 300;
 constexpr int kDenseNotes = 64;
 
+// Whether the page shows the number of pages (in its text, its header, or its footer), and what number it was made with.
+void markTotals(MaterializedPage *out, const Document &d)
+{
+    for (const auto &story : d.stories)
+        for (QTextBlock b = story->doc->begin(); b.isValid() && !out->showsTotal; b = b.next())
+            for (auto it = b.begin(); !it.atEnd() && !out->showsTotal; ++it) {
+                const QString code = it.fragment().charFormat().stringProperty(tp::Field);
+                out->showsTotal = code == QLatin1String("pages") || code == QLatin1String("sectionpages");
+            }
+    out->pageTotal = d.flowPageTotal;
+}
+
 } // namespace
 
 // What a paragraph asks of the pages.
@@ -741,6 +753,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     if (run.blank) {
         out->storyFrom = m_doc->story()->characterCount();
         addFurniture(d.get(), furniture, sec, st.section, out->number);
+        markTotals(out.get(), *d);
         out->doc = std::move(d);
         return out;
     }
@@ -820,6 +833,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         }
         if (!ids.isEmpty()) addNotes(d.get(), run.notes, run.rules, run.firstFrame, ids, run.cols, furniture.body);
     }
+    markTotals(out.get(), *d);
     out->doc = std::move(d);
     return out;
 }

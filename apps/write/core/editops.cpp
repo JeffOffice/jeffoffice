@@ -1067,11 +1067,44 @@ void setIndents(WriteDoc &doc, QTextCursor &c, double left, double right, double
     });
 }
 
+namespace {
+// What the paragraph's spacing says on one side that a measure set by a person replaces: that the spacing is automatic, and a number of lines.
+void dropSpacingAttributes(QTextBlockFormat &bf, const char *side)
+{
+    if (!bf.hasProperty(prop::SpacingAttrs)) return;
+    QByteArray attrs = storedBytes(bf, prop::SpacingAttrs);
+    for (const char *suffix : {"Autospacing", "Lines"}) {
+        const QByteArray name = QByteArray(" w:") + side + suffix + "=\"";
+        for (int at = attrs.indexOf(name); at >= 0; at = attrs.indexOf(name)) {
+            const int end = attrs.indexOf('"', at + name.size());
+            if (end < 0) break;
+            attrs.remove(at, end + 1 - at);
+        }
+    }
+    if (attrs.isEmpty()) bf.clearProperty(prop::SpacingAttrs);
+    else setStored(bf, prop::SpacingAttrs, attrs);
+}
+} // namespace
+
+void setSpaceBefore(QTextBlockFormat &bf, double points)
+{
+    bf.setTopMargin(std::max(0.0, points));
+    bf.clearProperty(tp::SpaceBeforeAuto);
+    dropSpacingAttributes(bf, "before");
+}
+
+void setSpaceAfter(QTextBlockFormat &bf, double points)
+{
+    bf.setBottomMargin(std::max(0.0, points));
+    bf.clearProperty(tp::SpaceAfterAuto);
+    dropSpacingAttributes(bf, "after");
+}
+
 void setSpacing(WriteDoc &doc, QTextCursor &c, double before, double after)
 {
     changeBlockFormat(doc, c, [&](QTextBlockFormat &bf) {
-        bf.setTopMargin(std::max(0.0, before));
-        bf.setBottomMargin(std::max(0.0, after));
+        setSpaceBefore(bf, before);
+        setSpaceAfter(bf, after);
     });
 }
 
