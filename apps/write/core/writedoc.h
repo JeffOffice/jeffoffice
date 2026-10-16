@@ -142,7 +142,10 @@ private:
     WriteDoc();
     void build(office::wml::Document &&doc);
     void buildStory(const QVector<office::wml::Block> &body);
-    void fillStory(QTextDocument *story, const QVector<office::wml::Block> &body, bool header);
+    void fillStory(QTextDocument *story, const QVector<office::wml::Block> &body, bool header, const QString &part = QString());
+    // Makes of a drawn object of a run (its atom) what the pages show: a picture in the line is an inline object of the character, the rest are objects set at
+    // places on the page of the paragraph they are anchored to. False when it makes none (nothing drawn, or a picture the file does not hold).
+    bool drawnObjects(const office::wml::Inline &atom, const QString &part, QTextCharFormat *format);
     // The story of the header or footer part a relationship names (made once, kept); none for a link that is not a part, or past the limit of parts.
     std::shared_ptr<QTextDocument> headerStory(const QString &relationshipId);
     // Gives the flowing sections from `from` on the stories of their headers and footers, those they state and the section before's for the rest.
@@ -169,6 +172,7 @@ private:
     QVector<int> m_sectionKeys;                    // the key of each section's record (the break paragraphs', then the last's), as of the last sync
     qint64 m_sectionsMade = 0;
     std::unique_ptr<NoteFields> m_noteFields;
+    QString m_notePart;                                               // the footnotes part's name
     QHash<QString, QVector<office::wml::Block>> m_noteBlocks;         // by "fn" and Id
     QHash<QString, std::shared_ptr<QTextDocument>> m_noteStories;     // the stories made of them
     QHash<QString, std::shared_ptr<QTextDocument>> m_headerStories;   // by part name

@@ -127,13 +127,36 @@ private:
     double storyHeight(const QTextDocument *story, double width, int number);
     // Puts the page's header and footer (a copy of each story, in a text box) on a page made for painting, and the counts its fields show.
     void addFurniture(Document *d, const Furniture &f, const Section &sec, int section, int number);
+    // The places the objects of a page are anchored: the anchor's object, its column's left edge, and where its paragraph and its line are (the page's y), and
+    // the anchor's place across (x). The page's header and footer have theirs.
+    struct Anchor {
+        int object = 0;
+        double columnLeft = 0, paragraphTop = 0, lineTop = 0, x = 0;
+    };
+    // A line of a story as the page holds it (page coordinates), for finding where an anchor is.
+    struct AnchorLine {
+        int block = 0, pos = 0, end = 0;
+        QRectF rect;
+        double columnLeft = 0;
+    };
+    // The anchors in a story from `from` to `to` (document positions), given the lines that hold it.
+    QVector<Anchor> anchorsIn(const QTextDocument *story, int from, int to, const QVector<AnchorLine> &lines) const;
+    // Puts the objects of the anchors on a page made for painting: pictures (their data in the page's document), rules, boxes, and text boxes, behind the
+    // text or over it, with the wrap each asks of the text.
+    void addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number);
+    // Changes the pictures of the inline objects in a story to the Ids they have in the page's document.
+    void resolveImages(QTextDocument *story, Document *d);
+    QString imageIdOf(Document *d, int image);
+    QHash<int, QString> m_imageIds;   // the Ids of the pictures in the page being made
+    bool m_wrapObjects = false;       // the text goes round the objects that ask it
     // How many footnote and endnote references the story has from `from` to `to`, document positions.
     void countNotes(int from, int to, int *footnotes, int *endnotes) const;
     // A page made for painting has the footnotes its lines refer to, each in a text box at the place the layout gave it, with the rule above them: the
     // places are the layout's own (`places`, `rules`: its notes, and the frames the columns are in) and `ids` the notes the page's lines cite.
     void addNotes(Document *d, const QVector<StoryLayout::NotePlace> &places, const QVector<StoryLayout::Rule> &rules, int firstFrame, const QStringList &ids,
-                  const Section &sec, const QRectF &body);
-    std::map<std::tuple<const QTextDocument *, int, int>, double> m_storyHeights;   // by story, its width in hundredths of a point, and its revision
+                  const QVector<QRectF> &cols, const QRectF &body);
+    std::map<std::tuple<const QTextDocument *, int, int>, double> m_storyHeights;
+    std::map<std::tuple<const QTextDocument *, int, int>, QVector<StoryLayout::LineInfo>> m_storyLines;   // the lines of each, from the same layout   // by story, its width in hundredths of a point, and its revision
 
     FlowDocument *m_doc;
     std::unique_ptr<QObject> m_watch;

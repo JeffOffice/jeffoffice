@@ -39,6 +39,7 @@ void WriteDoc::loadNotes()
     for (const Relationship &r : m_wml.mainRelationships)
         if (!r.external && r.type.endsWith(QLatin1String("/footnotes"))) {
             part = r.target;
+            m_notePart = r.target;
             break;
         }
     if (part.isEmpty()) return;
@@ -87,7 +88,7 @@ const QTextDocument *WriteDoc::noteStory(const QString &id)
     doc->setDocumentMargin(0);
     doc->setDefaultFont(story()->defaultFont());
     doc->setUndoRedoEnabled(false);
-    fillStory(doc.get(), blocks.value(), true);
+    fillStory(doc.get(), blocks.value(), true, m_notePart);
     m_noteStories.insert(id, doc);
     return doc.get();
 }

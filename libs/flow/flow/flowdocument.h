@@ -26,6 +26,8 @@ namespace fp {
 enum : int {
     // bool: the last paragraph of a section. The pages of the next section follow, from a page of their own.
     SectionBreakAfter = QTextFormat::UserProperty + 300,
+    // int, of a character: the object (FlowDocument::objects, counted from 1) that is set on the page where the character is.
+    AnchorId = QTextFormat::UserProperty + 301,
 };
 } // namespace fp
 
@@ -34,6 +36,31 @@ enum : int {
 // and the text area gives way to one that is taller than its margin leaves room for.
 struct HeaderFooter {
     std::shared_ptr<QTextDocument> first, odd, even;
+};
+
+// A picture, rule, box, or text box that is set at a place on the page its anchor (a character in a story, fp::AnchorId) is on, rather than in a line:
+// where it goes is worked out when the page is made. The item has its size and look; the page gives it its place (and a picture its data).
+struct FloatingObject {
+    enum class Rel { Margin, Page, Column, Paragraph, Line, Character };
+    enum class Align { None, Start, Center, End };
+    enum class Wrap { None, Square, Tight, TopBottom };
+    ItemPtr item;                           // a PictureItem, ShapeItem, LineItem, or TextItem
+    int image = -1;                         // a picture's place in FlowDocument::images
+    std::shared_ptr<QTextDocument> story;   // a text box's text
+    QMarginsF insets{7.2, 3.6, 7.2, 3.6};   // of a text box
+    Rel hRel = Rel::Column, vRel = Rel::Paragraph;
+    Align hAlign = Align::None, vAlign = Align::None;
+    double dx = 0, dy = 0;                  // from where it is measured (a line's ends are in the item's p1 and p2, from there too)
+    bool behind = false;                    // behind the text
+    Wrap wrap = Wrap::None;
+    QMarginsF gap;                          // the room the text round it leaves
+    int next = 0;                           // the one after it at the same anchor (counted from 1), or none
+};
+
+// A picture's bytes, shared by every page that shows it (a page of the document holds a copy of the reference).
+struct FlowImage {
+    QByteArray bytes;
+    QString format;
 };
 
 // The character in a story that ends the page. A paragraph that holds one is still one block: the text engine ends the line with it (as it does
@@ -58,6 +85,13 @@ struct Section {
     double headerDistance = 36, footerDistance = 36;   // from the page's edge
     bool differentFirstPage = false;         // the first page uses the header and footer's first slot
     bool differentOddEven = false;           // odd and even pages use their own slots
+    // The section begins on the page the one before ends on (a continuous section break) when the two have the same page and margins; any other
+    // begins a page of its own. (With other columns it begins below the text of the one before, as the page's text area is of the first's columns above
+    // and the second's below; the same columns, and it is the same text area.)
+    bool continuous = false;
+    bool sameSheetAs(const Section &o) const { return paper == o.paper && orientation == o.orientation && margins == o.margins; }
+    bool sameColumnsAs(const Section &o) const { return columns == o.columns && columnGap == o.columnGap; }
+    bool samePageAs(const Section &o) const { return sameSheetAs(o) && sameColumnsAs(o); }
     std::optional<int> firstPageNumber;      // the number the section's first page has (0 is a number; none: it goes on from the section before)
     QString pageNumberFormat;                // "", "roman", "ROMAN", "alpha", or "ALPHA" (the fields' own)
 
@@ -88,6 +122,10 @@ public:
     QVector<Section> sections;
     const Section &section(int index) const;
 
+    // The objects set at places (FloatingObject), and the pictures they and the text hold (an inline picture is a tp::InlineObject whose picture is
+    // "flow-img:" and a place in `images`, which a page changes to the picture's Id in the page's own document).
+    QVector<FloatingObject> objects;
+    QVector<FlowImage> images;
     // Colors, fonts, and the default tab stop the text is laid out with.
     LayoutEnv env;
     // What fields read (page numbers, notes); none by default.

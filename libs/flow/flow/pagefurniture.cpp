@@ -35,6 +35,8 @@ double Paginator::storyHeight(const QTextDocument *story, double width, int numb
     StoryLayout layout;
     layout.build(story, {fs}, m_doc->env);
     const double height = layout.usedHeight(0);
+    if (m_storyLines.size() > 4096) m_storyLines.clear();
+    m_storyLines[key] = layout.lineInfo(0);
     // (A story is measured once, at the first page that uses it: a page number is no wider on the next.)
     if (m_storyHeights.size() > 4096) m_storyHeights.clear();
     m_storyHeights.emplace(key, height);
@@ -79,11 +81,23 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
     for (const PageStart &s : m_starts) inSection += s.section == section;
     d->flowSectionPageTotal = std::max(1, inSection);
     const QRectF content = sec.content();
+    QVector<Anchor> anchors;
     auto place = [&](const QTextDocument *story, double top, double height, const char *name) {
         if (!story) return;
         auto s = std::make_shared<Story>();
         s->id = QStringLiteral("flow-%1-%2").arg(QLatin1String(name)).arg(d->pages[0]->id);
         s->doc.reset(story->clone());
+        resolveImages(s->doc.get(), d);
+        if (!m_doc->objects.isEmpty()) {
+            // The objects set in the header or footer are where its lines put them.
+            storyHeight(story, content.width(), number);
+            const auto lines = m_storyLines.find(std::make_tuple(story, int(std::lround(content.width() * 100)), story->revision()));
+            if (lines != m_storyLines.end()) {
+                QVector<AnchorLine> held;
+                for (const StoryLayout::LineInfo &l : lines->second) held << AnchorLine{l.docStart, l.docPos, l.docEnd, l.rect.translated(content.left(), top), content.left()};
+                anchors << anchorsIn(story, 0, story->characterCount(), held);
+            }
+        }
         d->stories.insert(s->id, s);
         auto t = std::make_shared<TextItem>();
         t->id = QStringLiteral("flow-%1-box-%2").arg(QLatin1String(name)).arg(d->pages[0]->id);
@@ -97,17 +111,18 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
     };
     place(f.header, sec.headerDistance, f.headerHeight, "header");
     place(f.footer, sec.pageSize().height() - sec.footerDistance - f.footerHeight, f.footerHeight, "footer");
+    if (!anchors.isEmpty()) addObjects(d, anchors, sec, number);
 }
 
 void Paginator::addNotes(Document *d, const QVector<StoryLayout::NotePlace> &places, const QVector<StoryLayout::Rule> &rules, int firstFrame, const QStringList &ids,
-                         const Section &sec, const QRectF &body)
+                         const QVector<QRectF> &cols, const QRectF &body)
 {
     if (!m_doc->fields) return;
     auto at = [&](int frame) { return frame - firstFrame; };
     int made = 0;
     for (const StoryLayout::NotePlace &pl : places) {
         const int column = at(pl.frame);
-        if (column < 0 || column >= sec.columnCount() || !ids.contains(pl.storyId) || made >= 2000) continue;
+        if (column < 0 || column >= cols.size() || !ids.contains(pl.storyId) || made >= 2000) continue;
         const QTextDocument *source = m_doc->fields->storyDoc(pl.storyId);
         if (!source) continue;
         // The note's text from where this part of it starts, with its number where the text begins.
@@ -137,11 +152,12 @@ void Paginator::addNotes(Document *d, const QVector<StoryLayout::NotePlace> &pla
         auto s = std::make_shared<Story>();
         s->id = QStringLiteral("flow-note-%1-%2").arg(d->pages[0]->id).arg(made);
         s->doc = std::move(text);
+        resolveImages(s->doc.get(), d);
         d->stories.insert(s->id, s);
-        const QRectF col = sec.columnRect(column);
+        const QRectF col = cols[column];
         auto t = std::make_shared<TextItem>();
         t->id = QStringLiteral("flow-note-box-%1-%2").arg(d->pages[0]->id).arg(made);
-        t->rect = QRectF(col.left() + pl.rect.left(), body.top() + pl.rect.top(), pl.rect.width(), pl.rect.height() + 0.005);
+        t->rect = QRectF(col.left() + pl.rect.left(), body.top() + col.top() + pl.rect.top(), pl.rect.width(), pl.rect.height() + 0.005);
         t->insets = QMarginsF(0, 0, 0, 0);
         t->columns = 1;
         t->hyphenate = m_doc->hyphenate;
@@ -155,12 +171,12 @@ void Paginator::addNotes(Document *d, const QVector<StoryLayout::NotePlace> &pla
     int ruled = 0;
     for (const StoryLayout::Rule &r : rules) {
         const int column = at(r.frame);
-        if (column < 0 || column >= sec.columnCount() || made == 0 || ruled >= sec.columnCount()) continue;
-        const QRectF col = sec.columnRect(column);
+        if (column < 0 || column >= cols.size() || made == 0 || ruled >= cols.size()) continue;
+        const QRectF col = cols[column];
         auto line = std::make_shared<LineItem>();
         line->id = QStringLiteral("flow-note-rule-%1-%2").arg(d->pages[0]->id).arg(ruled++);
-        line->p1 = QPointF(col.left() + r.line.x1(), body.top() + r.line.y1());
-        line->p2 = QPointF(col.left() + r.line.x2(), body.top() + r.line.y2());
+        line->p1 = QPointF(col.left() + r.line.x1(), body.top() + col.top() + r.line.y1());
+        line->p2 = QPointF(col.left() + r.line.x2(), body.top() + col.top() + r.line.y2());
         line->stroke.width = 0.5;
         line->stroke.color = ColorRef::fromString(QStringLiteral("#000000"));
         line->syncRect();
