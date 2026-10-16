@@ -349,6 +349,12 @@ private Q_SLOTS:
     {
         Q_INIT_RESOURCE(resources);
         initCore();   // (the program's own fonts, as the other tests' programs have them)
+        // Stories made here without a family use the application's font: one the program brings (Arimo), so line counts and
+        // pages are the same on every system (the system's own default differs on macOS, and two tests failed there).
+        QFont font(QStringLiteral("Arimo"));
+        font.setPointSizeF(11);
+        QGuiApplication::setFont(font);
+        QVERIFY(QFontInfo(font).family().contains(QStringLiteral("Arimo")));
     }
 
     // A section's page is the paper as it is turned, with the text area inside the margins; its columns share that width.
