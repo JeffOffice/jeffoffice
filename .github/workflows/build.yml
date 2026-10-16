@@ -113,7 +113,7 @@ jobs:
         env:
           CCACHE_DIR: ${{ github.workspace }}/.ccache
           CCACHE_BASEDIR: ${{ github.workspace }}
-          CCACHE_MAXSIZE: 1500M
+          CCACHE_MAXSIZE: 3G   # (macOS builds for two processors, so it keeps two of everything: about 1.3 GB)
           CCACHE_COMPILERCHECK: content
         run: |
           ccache --zero-stats
