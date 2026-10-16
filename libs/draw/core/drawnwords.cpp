@@ -28,13 +28,17 @@ constexpr qsizetype kMaxTextBytes = 1 << 20;
 
 QString drawnWordsToText(const QVector<DrawnWord> &words)
 {
+    // No more than the reader takes (kMaxTextBytes), so that what is written is not dropped whole: the words are written to that many bytes.
     QJsonArray list;
+    qint64 bytes = 2;   // the brackets
     for (const DrawnWord &w : words) {
         if (list.size() >= kMaxDrawnWords) break;
         if (w.text.isEmpty()) continue;
         QJsonObject o{{"t", w.text.left(kMaxDrawnWordChars)}, {"f", w.family}, {"x", w.at.x()}, {"y", w.at.y()}, {"s", w.size}};
         if (w.bold) o["b"] = true;
         if (w.italic) o["i"] = true;
+        bytes += QJsonDocument(o).toJson(QJsonDocument::Compact).size() + 1;   // and a comma
+        if (bytes > kMaxTextBytes) break;
         list.append(o);
     }
     return list.isEmpty() ? QString() : QString::fromUtf8(QJsonDocument(list).toJson(QJsonDocument::Compact));

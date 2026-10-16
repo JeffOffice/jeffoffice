@@ -10790,6 +10790,30 @@ private Q_SLOTS:
         QVERIFY(plain && !plain->shrinks && near(plain->fitScale, 1.0, 1e-6));
     }
 
+    // The words kept with a Macintosh picture's PNG are no more than the reader takes: a picture of as many words as the writer allows, each as long as
+    // it allows, has its words cut to what fits in the reader's limit (a megabyte) instead of being dropped whole, and they come back through the PNG.
+    void drawnWordsFitTheLimitOfTheReader()
+    {
+        QVector<jp::DrawnWord> many;
+        for (int i = 0; i < jp::kMaxDrawnWords; ++i)
+            many.push_back({QString(jp::kMaxDrawnWordChars, QChar(0x00E9)) + QString::number(i), QStringLiteral("Arimo"), QPointF(0.1, 0.2), 0.05, i % 2 == 0, false});
+        const QString text = jp::drawnWordsToText(many);
+        QVERIFY(!text.isEmpty());
+        QVERIFY2(text.toUtf8().size() <= (1 << 20), qPrintable(QString::number(text.toUtf8().size())));
+        const QVector<jp::DrawnWord> back = jp::drawnWordsFromText(text);
+        QVERIFY2(back.size() > 100, qPrintable(QString::number(back.size())));
+        QCOMPARE(back.first().text, many.first().text.left(jp::kMaxDrawnWordChars));
+        // Through a PNG's own text.
+        QImage img(8, 8, QImage::Format_ARGB32);
+        img.fill(Qt::white);
+        img.setText(QString::fromLatin1(jp::kDrawnWordsKey), text);
+        QByteArray png;
+        QBuffer buf(&png);
+        QVERIFY(buf.open(QIODevice::WriteOnly) && img.save(&buf, "PNG"));
+        QCOMPARE(QImage::fromData(png).text(QString::fromLatin1(jp::kDrawnWordsKey)), text);
+        QCOMPARE(int(jp::drawnWordsFromText(QImage::fromData(png).text(QString::fromLatin1(jp::kDrawnWordsKey))).size()), int(back.size()));
+    }
+
     void dmlTextTakesTheStylesFontReference()
     {
         DmlEnv env;
