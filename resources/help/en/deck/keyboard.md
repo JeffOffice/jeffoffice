@@ -26,6 +26,8 @@ Click the slide. Then:
 - The **arrow keys** move the selected object a small step. Hold **Alt** for the smallest step.
 - **Enter** or **F2** edits the text of the selected text box, placeholder, shape, or table. You can also just start typing.
 - **Delete** removes the selected object.
+- **Shift+F10** or the **Menu** key opens the right-click menu at the selected object or the text cursor.
+- **Ctrl+F** finds words on the slides and in the notes. **Ctrl+H** replaces them.
 - **Esc** stops editing text. The box stays selected. Press Esc again to clear the selection.
 
 While you type in a table, **Tab** moves to the next cell. Tab in the last cell adds a row.

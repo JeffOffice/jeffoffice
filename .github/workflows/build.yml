@@ -69,7 +69,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ninja-build libgl1-mesa-dev libxkbcommon-dev libfuse2 libpulse-dev
 
       # Each shared library uses only the ones below it (libs/base < draw <
-      # text < office < shell < page < apps), and no app reaches into another.
+      # text < office < shell < page < flow < apps), and no app reaches into another.
       - name: Layer check
         if: runner.os == 'Linux'
         run: python3 tools/check_layers.py
@@ -132,6 +132,13 @@ jobs:
           echo "--- jdtests-results.txt"; cat jdtests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
           echo "jdtests exit code: $dcode"
           if [ "$code" -eq 0 ]; then code=$dcode; fi
+          # The flowing document's tests (libs/flow, and what it needs of the layers below).
+          if [ "$RUNNER_OS" = "Windows" ]; then W=build/flowtests.exe; else W=build/flowtests; fi
+          "$W" -v1 -o flowtests-results.txt,txt -o -,txt
+          wcode=$?
+          echo "--- flowtests-results.txt"; cat flowtests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
+          echo "flowtests exit code: $wcode"
+          if [ "$code" -eq 0 ]; then code=$wcode; fi
           exit $code
         env:
           QT_QPA_PLATFORM: offscreen

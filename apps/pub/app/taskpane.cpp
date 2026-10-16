@@ -2,6 +2,7 @@
 
 #include "app/appfuncs.h"
 #include "app/dialogs.h"
+#include "app/findreplace.h"
 #include "app/help.h"
 #include "app/onlinepictures.h"
 #include "app/icons.h"
@@ -252,6 +253,7 @@ public:
         row->addWidget(all);
         v->addLayout(row);
         m_status = new QLabel(this);
+        m_status->setTextFormat(Qt::PlainText);   // it says what was searched for, which may look like markup
         m_status->setWordWrap(true);
         v->addWidget(m_status);
         v->addStretch(1);
@@ -263,35 +265,6 @@ public:
     Q_INVOKABLE void refresh() {}
 
 private:
-    struct Hit { QString itemId, storyId; int row = -1, col = -1; int page = -1; QString master; int half = 0; };
-    QVector<Hit> stories()
-    {
-        // Every story once, in page order, using the first frame of each chain.
-        QVector<Hit> out;
-        QSet<QString> seen;
-        Document *d = m_win->editor()->doc();
-        auto visit = [&](const ItemList &items, int page, const QString &master) {
-            walkItems(items, [&](const ItemPtr &it) {
-                if (it->type() == ItemType::Text) {
-                    auto *t = static_cast<TextItem *>(it.get());
-                    if (!seen.contains(t->storyId)) { seen.insert(t->storyId); out << Hit{d->chainOf(t->id).value(0, t)->id, t->storyId, -1, -1, page, master}; }
-                } else if (it->type() == ItemType::Shape) {
-                    auto *s = static_cast<ShapeItem *>(it.get());
-                    if (!s->storyId.isEmpty() && !seen.contains(s->storyId)) { seen.insert(s->storyId); out << Hit{s->id, s->storyId, -1, -1, page, master}; }
-                } else if (it->type() == ItemType::Table) {
-                    auto *tb = static_cast<TableItem *>(it.get());
-                    for (int r = 0; r < tb->rows; ++r)
-                        for (int c = 0; c < tb->cols; ++c) {
-                            out << Hit{tb->id, tb->cell(r, c).storyId, r, c, page, master};
-                            if (tb->cell(r, c).divided() && !tb->cell(r, c).storyId2.isEmpty()) out << Hit{tb->id, tb->cell(r, c).storyId2, r, c, page, master, 1};
-                        }
-                }
-            });
-        };
-        for (int p = 0; p < d->pages.size(); ++p) visit(d->pages[p]->items, p, QString());
-        for (const auto &m : d->masters) visit(m->items, -1, m->id);
-        return out;
-    }
     QTextDocument::FindFlags flags() const
     {
         QTextDocument::FindFlags f;
@@ -305,7 +278,7 @@ private:
         Editor *ed = m_win->editor();
         const QString q = m_find->text();
         if (q.isEmpty()) return false;
-        const QVector<Hit> all = stories();
+        const QVector<FindStory> all = findStories(*ed->doc());
         if (all.isEmpty()) return false;
         int start = 0;
         int pos = 0;
@@ -317,26 +290,14 @@ private:
             start = all.size() - 1;
             pos = -1;
         }
-        for (int k = 0; k <= all.size(); ++k) {
-            const int i = m_up->isChecked() ? (start - k + all.size() * 2) % all.size() : (start + k) % all.size();
-            const Hit &h = all[i];
-            QTextDocument *doc = ed->doc()->storyDoc(h.storyId);
-            if (!doc) continue;
-            int from = (k == 0) ? pos : (m_up->isChecked() ? doc->characterCount() : 0);
-            if (from < 0) from = doc->characterCount();
-            const QTextCursor found = doc->find(q, from, flags());
-            if (found.isNull()) continue;
-            if (!h.master.isEmpty()) ed->setMasterView(h.master);
-            else if (h.page >= 0) ed->setCurrentPage(h.page);
-            ed->beginTextEdit(h.itemId, found.selectionStart(), h.row, h.col, h.half);
-            QTextCursor c = ed->cursor();
-            c.setPosition(found.selectionStart());
-            c.setPosition(found.selectionEnd(), QTextCursor::KeepAnchor);
-            ed->setCursor(c);
+        int story = 0;
+        QTextCursor found;
+        if (findInStories(*ed->doc(), all, q, flags(), start, pos, &story, &found)) {
+            showFindMatch(ed, all[story], found);
             m_status->clear();
             return true;
         }
-        m_status->setText(tr("JeffPub finished searching the publication. \"%1\" was not found.").arg(q));
+        m_status->setText(tr("JeffPub finished searching the publication. \"%1\" was not found.").arg(findTextForMessage(q)));
         return false;
     }
     void replaceOne()
@@ -357,16 +318,9 @@ private:
         ed->endTextEdit();
         int n = 0;
         ed->change(tr("Replace All"), [&] {
-            for (const Hit &h : stories()) {
-                QTextDocument *doc = ed->doc()->storyDoc(h.storyId);
-                if (!doc) continue;
-                QTextCursor c = doc->find(q, 0, flags() & ~QTextDocument::FindBackward);
-                while (!c.isNull()) {
-                    c.insertText(m_replace->text());
-                    ++n;
-                    c = doc->find(q, c, flags() & ~QTextDocument::FindBackward);
-                }
-            }
+            QVector<FindStory> changed;
+            n = replaceInStories(*ed->doc(), findStories(*ed->doc()), q, flags(), m_replace->text(), &changed);
+            refitFoundStories(ed, changed);
         });
         m_status->setText(tr("JeffPub made %1 replacement(s).").arg(n));
     }

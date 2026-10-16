@@ -249,6 +249,7 @@ FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNu
     s.ctx.pageNumber = loc.page >= 0 ? loc.page + 1 : pageNumber;
     s.ctx.pageCount = doc.pages.size();
     s.ctx.mergeRecord = opt.mergeRecord;
+    if (opt.now.isValid()) s.ctx.now = opt.now;
     // For "next page" and "previous page" numbers: the linked boxes' pages.
     if (!t.nextId.isEmpty()) {
         const auto nl = doc.find(t.nextId);
@@ -270,10 +271,10 @@ FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNu
     return s;
 }
 
-static QString specSig(const FrameSpec &s)
+static QString specSig(const FrameSpec &s, bool withClock)
 {
     QString k = QStringLiteral("%1x%2|%3,%4,%5,%6|%7|%8|%9|%10;").arg(s.size.width()).arg(s.size.height()).arg(s.insets.left()).arg(s.insets.top())
-                    .arg(s.insets.right()).arg(s.insets.bottom()).arg(s.columns).arg(s.gap).arg(int(s.valign)).arg(s.ctx.key());
+                    .arg(s.insets.right()).arg(s.insets.bottom()).arg(s.columns).arg(s.gap).arg(int(s.valign)).arg(s.ctx.key(withClock));
     k += QStringLiteral("h%1,%2|b%3,%4;").arg(int(s.hyphenate)).arg(s.hyphenZone).arg(s.baselineGrid).arg(s.baselineOrigin);
     if (s.fitToShape) k += QLatin1Char('s');
     if (s.runsOver) k += QLatin1Char('r');
@@ -285,6 +286,18 @@ static QString specSig(const FrameSpec &s)
         k += QStringLiteral("o%1,%2,%3,%4,%5,%6").arg(b.x(), 0, 'f', 1).arg(b.y(), 0, 'f', 1).arg(b.width(), 0, 'f', 1).arg(b.height(), 0, 'f', 1).arg(o.size()).arg(sum, 0, 'f', 1);
     }
     return k;
+}
+
+QString LayoutCache::fieldsKey(const Document &doc, const Story &story, const FieldContext &ctx)
+{
+    FieldNote &n = m_fields[story.serial];
+    const int revision = story.doc->revision();
+    if (n.revision != revision || n.notes != notesKey(n.fields.notes, &doc)) {
+        n.fields = storyFields(story.doc.get(), &doc);
+        n.revision = revision;
+        n.notes = notesKey(n.fields.notes, &doc);
+    }
+    return fieldValuesKey(n.fields, ctx) + QString::number(n.notes);
 }
 
 LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextItem &frame, int pageNumber, const RenderOptions &opt)
@@ -301,8 +314,9 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
     for (int i = 0; i < chain.size(); ++i) {
         if (chain[i]->id == frame.id) out.frame = i;
         specs << Renderer::frameSpec(doc, *chain[i], pageNumber, opt);
-        sig += specSig(specs.last());
+        sig += specSig(specs.last(), false);
     }
+    sig += fieldsKey(doc, *story, specs.first().ctx);
     LayoutEnv env = Renderer::layoutEnv(doc);
     sig += env.key();
     // A slide's text the presentation program shrank keeps the size it was given (its file says it) until it is edited here.
@@ -374,7 +388,7 @@ const StoryLayout *LayoutCache::storyBox(const Document &doc, const QString &sto
     Story *story = doc.story(storyId);
     if (!story) return nullptr;
     LayoutEnv env = Renderer::layoutEnv(doc);
-    const QString sig = QStringLiteral("%1/%2/").arg(story->serial).arg(story->doc->revision()) + specSig(spec) + env.key();
+    const QString sig = QStringLiteral("%1/%2/").arg(story->serial).arg(story->doc->revision()) + specSig(spec, false) + fieldsKey(doc, *story, spec.ctx) + env.key();
     Entry &e = m_entries[key + QStringLiteral("#") + storyId];
     if (e.sig != sig || !e.layout) {
         e.layout = std::make_shared<StoryLayout>();
