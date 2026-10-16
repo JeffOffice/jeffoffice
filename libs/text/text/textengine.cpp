@@ -1314,6 +1314,7 @@ struct WordFontRow {
 };
 static const WordFontRow kWordFonts[] = {
     {"times new roman", 1825, 443, 1825, 443, 87}, {"arial", 1854, 434, 1854, 434, 67}, {"courier new", 1705, 615, 1705, 615, 0},
+    {"times", 1825, 443, 1825, 443, 87}, {"helvetica", 1854, 434, 1854, 434, 67}, {"courier", 1705, 615, 1705, 615, 0},
     {"calibri", 1950, 550, 1536, 512, 452}, {"cambria", 1946, 455, 1946, 455, 0}, {"symbol", 2059, 450, 2059, 450, 0},
     {"wingdings", 1841, 432, 1841, 432, 0}, {"verdana", 2059, 430, 2059, 430, 0}, {"tahoma", 2049, 423, 2049, 423, 0},
     {"georgia", 1878, 449, 1878, 449, 0}, {"trebuchet ms", 1923, 455, 1923, 455, 0}, {"arial black", 2254, 634, 2254, 634, 0},
@@ -1347,6 +1348,11 @@ static WordLine wordFaceOf(const QFont &f)
             found = true;
             break;
         }
+    // A family the word processor doesn't have on the machine is set in its stand-in, which is Calibri's line.
+    if (!found && !QFontDatabase::hasFamily(requestedFamily(f))) {
+        line = make(1950, 550, 1536, 512, 452, 2048);
+        found = true;
+    }
     if (!found) {
         const QRawFont raw = QRawFont::fromFont(f);
         auto be16 = [](const QByteArray &t, int off) { return off + 2 <= t.size() ? qint16((uchar(t[off]) << 8) | uchar(t[off + 1])) : qint16(0); };
@@ -2933,7 +2939,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         };
         // (The first paragraph of a stretch may have lines that went before it.)
         const int firstBreak = first ? m_span.firstBreakAfter : -1;
-        placeLines(false, firstBreak);
+        // A paragraph whose text and mark are both hidden is no paragraph: it takes no room.
+        if (!(env.wordLines && B->disp.isEmpty() && b.charFormat().boolProperty(tp::HiddenText) && !tail)) placeLines(false, firstBreak);
         // Where each line landed: the first line in another column or box.
         auto splitAt = [&] {
             for (int i = 1; i < B->lines.size(); ++i)
