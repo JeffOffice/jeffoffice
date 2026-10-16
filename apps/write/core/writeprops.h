@@ -5,6 +5,7 @@
 #include "wml/wml.h"
 
 #include <QByteArray>
+#include <QTextCharFormat>
 #include <QTextFormat>
 #include <QVector>
 
@@ -33,6 +34,8 @@ enum : int {
     SectionData,                              // QByteArray: the section this paragraph ends (packSection), with flow::fp::SectionBreakAfter
     LastSection,                              // a key of bytes (packSection), on the FIRST paragraph: the properties of the document's last section, which
                                               // belong to no paragraph; being a paragraph's property, a change to them undoes with the text
+    MarkFormat,                               // a key of bytes (packFormat), on the FIRST paragraph only: its mark's character format, as the engine's own record of it (the
+                                              // block's character format) can't be undone for the first block; readers take it from here (markFormat in editops.h)
     SpacingAttrs,                             // QByteArray: attributes of w:spacing that have no field, as written
     IndAttrs,                                 // QByteArray: the same for w:ind
     FontsOther,                               // QString: the fonts of the scripts the engine has none for, as a run says them (packOtherFonts)
@@ -52,6 +55,10 @@ void setStored(QTextFormat &format, int property, const QByteArray &bytes);
 QByteArray storedBytes(const QTextFormat &format, int property);
 void clearByteStore();
 quint64 byteStoreGeneration();
+
+// A character format as bytes, and back.
+QByteArray packFormat(const QTextCharFormat &format);
+QTextCharFormat unpackFormat(const QByteArray &packed);
 
 // A piece kept as XML, with what the writer needs to keep it whole.
 QByteArray packAtom(const office::wml::Inline &atom);

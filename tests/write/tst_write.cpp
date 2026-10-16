@@ -1135,6 +1135,28 @@ private Q_SLOTS:
         }
     }
 
+    // A style given to the first paragraph, and undone: the file is what it was (the engine can't undo a change to the first paragraph's mark
+    // by itself; the program keeps it where it can).
+    void undoingAStyleOnTheFirstParagraphRestoresItsMark()
+    {
+        auto doc = open(makeDocx("<w:p><w:r><w:t>first</w:t></w:r></w:p><w:p><w:r><w:t>second</w:t></w:r></w:p>", kStyles));
+        QVERIFY(doc);
+        const QByteArray before = documentXml(doc->toDocx());
+        for (int block = 0; block < 2; ++block) {
+            QTextCursor c(doc->story());
+            c.setPosition(doc->story()->findBlockByNumber(block).position());
+            applyParagraphStyle(*doc, c, QStringLiteral("Heading1"));
+            QVERIFY(documentXml(doc->toDocx()) != before);
+            QVERIFY(markFormat(doc->story()->findBlockByNumber(block)).fontPointSize() == 17.0);
+            doc->story()->undo();
+            QCOMPARE(documentXml(doc->toDocx()), before);
+            doc->story()->redo();
+            QVERIFY(markFormat(doc->story()->findBlockByNumber(block)).fontPointSize() == 17.0);
+            doc->story()->undo();
+        }
+        QCOMPARE(documentXml(doc->toDocx()), before);
+    }
+
     void aSectionThatEndsTheFileLeavesABlankLastPageThatIsDrawn()
     {
         // The only paragraph ends a next-page section and nothing follows: the second section has no text, so its page has no lines.
@@ -2109,12 +2131,13 @@ private Q_SLOTS:
         QMap<QString, int> failed;
         QMap<QString, QString> example;
         QSet<QString> seedsFailing;
-        for (int mode = 0; mode < 2; ++mode) {   // 0: commands that only add; 1: those that take away too
+        for (int mode = 0; mode < 3; ++mode) {   // 0: commands that only add; 1: those that take away too; 2: those, and then every one undone
             auto base = open(original);
             QVERIFY(base);
             const QMap<QString, int> start = rt::keptCountsOf(base->toDocx());
             for (unsigned seed = std::max(1, qEnvironmentVariableIntValue("JW_FUZZ_FROM")); seed <= unsigned(seeds); ++seed) {
                 auto doc = open(original);
+                const QByteArray baseline = documentXml(doc->toDocx());
                 std::mt19937 rng(seed * 2 + mode);
                 QTextCursor c(doc->story());
                 auto pick = [&](int n) { return int(rng() % unsigned(std::max(1, n))); };
@@ -2157,7 +2180,8 @@ private Q_SLOTS:
                     seedsFailing.insert(QStringLiteral("%1/%2").arg(mode).arg(seed));
                 };
                 for (int step = 0; step < 120 && !seedFailed; ++step) {
-                    const int op = pick(mode == 0 ? 12 : 17);
+                    const int op = pick(mode == 0 ? 12 : mode == 1 ? 17 : 17);
+                    if (mode == 2 && (op == 10 || op == 11)) continue;   // (no undo or redo among the commands: they are all undone at the end)
                     log << QStringLiteral("op%1@%2").arg(op).arg(c.position());
                     switch (op) {
                     case 0: place(); typeText(*doc, c, QStringLiteral("word ")); break;
@@ -2194,6 +2218,7 @@ private Q_SLOTS:
                         }
                         qInfo("step %d op%d@%d: %s", step, op, c.position(), qPrintable(line));
                     }
+                    if (mode == 2) continue;
                     if (step % 6 != 5) continue;
                     QString err;
                     const QByteArray zip = doc->toDocx(&err);
@@ -2218,12 +2243,26 @@ private Q_SLOTS:
                             if (now.value(it.key()) < it.value()) fail(QStringLiteral("lost ") + it.key(), QStringLiteral("%1 %2->%3").arg(it.key()).arg(it.value()).arg(now.value(it.key())));
                     }
                 }
+                if (mode == 2) {
+                    // Every command undone: the file it makes is what the document made before them.
+                    int undone = 0;
+                    while (doc->story()->isUndoAvailable() && undone < 100000) {
+                        doc->story()->undo();
+                        ++undone;
+                    }
+                    const QByteArray now = documentXml(doc->toDocx());
+                    if (now != baseline) {
+                        int at = 0;
+                        while (at < now.size() && at < baseline.size() && now[at] == baseline[at]) ++at;
+                        fail(QStringLiteral("undo leaves a change"), QStringLiteral("after %1 undos, the file differs from the one before the commands at %2: %3 | %4").arg(undone).arg(at).arg(QString::fromUtf8(baseline.mid(std::max(0, at - 100), 260)), QString::fromUtf8(now.mid(std::max(0, at - 100), 260))));
+                    }
+                }
             }
         }
         QStringList report;
         for (auto it = failed.cbegin(); it != failed.cend(); ++it) report << QStringLiteral("%1: %2 seeds\n  %3").arg(it.key()).arg(it.value()).arg(example.value(it.key()));
-        if (qEnvironmentVariableIsSet("JW_FUZZ_COUNTS")) qInfo("fuzz: %d of %d runs failed:\n%s", int(seedsFailing.size()), 2 * seeds, qPrintable(report.join(QLatin1Char('\n'))));
-        QVERIFY2(failed.isEmpty(), qPrintable(QStringLiteral("%1 of %2 runs failed:\n%3").arg(seedsFailing.size()).arg(2 * seeds).arg(report.join(QLatin1Char('\n')))));
+        if (qEnvironmentVariableIsSet("JW_FUZZ_COUNTS")) qInfo("fuzz: %d of %d runs failed:\n%s", int(seedsFailing.size()), 3 * seeds, qPrintable(report.join(QLatin1Char('\n'))));
+        QVERIFY2(failed.isEmpty(), qPrintable(QStringLiteral("%1 of %2 runs failed:\n%3").arg(seedsFailing.size()).arg(3 * seeds).arg(report.join(QLatin1Char('\n')))));
     }
 
     void randomEditingKeepsTheDocumentWhole()

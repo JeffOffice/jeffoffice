@@ -23,7 +23,7 @@ namespace {
 // with its beginning (the XML before it, the attributes it had in the file). When a paragraph is cut in two, the second half has the mark's, and
 // the first keeps the beginning's; when two become one, the result has the first's beginning and the last's end.
 const int kTail[] = {flow::fp::SectionBreakAfter, prop::SectionData, prop::RawAfter};
-const int kHead[] = {prop::RawBefore, prop::ParaAttrs, prop::LastSection};
+const int kHead[] = {prop::RawBefore, prop::ParaAttrs, prop::LastSection, prop::MarkFormat};
 
 void copyTail(const QTextBlockFormat &from, QTextBlockFormat *to)
 {
@@ -86,7 +86,7 @@ QTextCharFormat typingFormat(const QTextCursor &c)
         const QTextCharFormat t = charAt(c.document(), p);
         if (!isAtom(t)) return t;
     }
-    return withoutAtom(b.charFormat());
+    return withoutAtom(markFormat(b));
 }
 
 // The place of the visible character before (after) `position` in its paragraph; -1 when the paragraph has none that way.
@@ -176,6 +176,22 @@ void rewrap(const QVector<Wrapper> &wrappers, QTextBlock first, QTextBlock secon
 bool isLocked(const QTextBlock &block) { return block.isValid() && block.blockFormat().hasProperty(prop::RawBlock); }
 
 bool isInvisibleAtom(const QTextCharFormat &format) { return isZeroWidth(format); }
+
+QTextCharFormat markFormat(const QTextBlock &block)
+{
+    if (!block.previous().isValid() && block.blockFormat().hasProperty(prop::MarkFormat)) return unpackFormat(storedBytes(block.blockFormat(), prop::MarkFormat));
+    return block.charFormat();
+}
+
+void setMarkFormat(QTextBlock block, const QTextCharFormat &format)
+{
+    QTextCursor(block).setBlockCharFormat(format);
+    if (!block.previous().isValid()) {
+        QTextBlockFormat bf = block.blockFormat();
+        setStored(bf, prop::MarkFormat, packFormat(format));
+        QTextCursor(block).setBlockFormat(bf);
+    }
+}
 
 QVector<QTextBlock> selectedBlocks(const QTextCursor &c)
 {
@@ -277,7 +293,7 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
             QTextBlockFormat nf = doc.styleBlockFormat(s->next);
             copyTail(tailOwner, &nf);
             setBlockFormatInList(b, nf, nullptr);
-            QTextCursor(b).setBlockCharFormat(doc.styleCharFormat(s->next));
+            setMarkFormat(b, doc.styleCharFormat(s->next));
             c.setCharFormat(doc.styleCharFormat(s->next));
         }
     }
@@ -338,7 +354,7 @@ void removeSelection(WriteDoc &doc, QTextCursor &c)
         return;
     }
     const QTextBlockFormat aFormat = a.blockFormat(), bFormat = b.blockFormat();
-    const QTextCharFormat bMark = b.charFormat();
+    const QTextCharFormat bMark = markFormat(b);
     const bool aLocked = isLocked(a);
     // The XML kept between the two paragraphs' text stays: it ends up after the paragraph they become, in its order (a content control's end
     // that was before the last paragraph is before what comes after the result, and so still ends it).
@@ -378,6 +394,7 @@ void removeSelection(WriteDoc &doc, QTextCursor &c)
         rawAfter = unpackBlocks(storedBytes(bFormat, prop::RawAfter));
         if (!head.isEmpty()) setStored(nf, prop::RawBefore, packBlocks(head));
         QTextCursor(m).setBlockCharFormat(bMark);
+        if (!m.previous().isValid()) setStored(nf, prop::MarkFormat, packFormat(bMark));
     }
     if (!rawAfter.isEmpty()) setStored(nf, prop::RawAfter, packBlocks(rawAfter));
     QTextCursor(m).setBlockFormat(nf);
@@ -503,7 +520,7 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
     // look of what was copied where the cursor is at its start, and takes its section break away.)
     const QTextBlock target = c.block();
     const QTextBlockFormat tf = target.blockFormat();
-    const QTextCharFormat tmark = target.charFormat();
+    const QTextCharFormat tmark = markFormat(target);
     QTextList *targetList = target.textList();
     const bool atStart = c.position() == target.position();
     const QVector<Wrapper> wrappers = wrappersOpenAt(target, c.position());
@@ -520,7 +537,7 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
     };
     if (!several) {
         if (!sameLook(first.blockFormat(), tf) || (first.textList() != targetList)) setBlockFormatInList(first, tf, targetList);
-        if (first.charFormat() != tmark) QTextCursor(first).setBlockCharFormat(tmark);
+        if (markFormat(first) != tmark) setMarkFormat(first, tmark);
     } else {
         for (QTextBlock b = first;; b = b.next()) {
             QTextBlockFormat nf = b.blockFormat();
@@ -534,7 +551,7 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
                 QTextBlockFormat rest = tf;
                 clearHead(&rest);
                 setBlockFormatInList(b, rest, targetList);
-                QTextCursor(b).setBlockCharFormat(tmark);
+                setMarkFormat(b, tmark);
             } else {
                 clearHead(&nf);
                 clearTail(&nf);
@@ -815,9 +832,9 @@ void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QT
         change(f);
         c.setCharFormat(f);
         if (c.block().length() <= 1) {
-            QTextCharFormat mark = c.block().charFormat();
+            QTextCharFormat mark = markFormat(c.block());
             change(mark);
-            c.setBlockCharFormat(mark);
+            setMarkFormat(c.block(), mark);
         }
         return;
     }
@@ -835,9 +852,9 @@ void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QT
             if (nf != f.charFormat()) edits.push_back({fs, fe, nf});
         }
         if (from <= b.position() && to > b.position() + b.length() - 1 && !isLocked(b)) {
-            QTextCharFormat nf = b.charFormat();
+            QTextCharFormat nf = markFormat(b);
             change(nf);
-            if (nf != b.charFormat()) marks.push_back({b, nf});
+            if (nf != markFormat(b)) marks.push_back({b, nf});
         }
     }
     c.beginEditBlock();
@@ -847,7 +864,7 @@ void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QT
         t.setPosition(e.to, QTextCursor::KeepAnchor);
         t.setCharFormat(e.format);
     }
-    for (const auto &m : std::as_const(marks)) QTextCursor(m.first).setBlockCharFormat(m.second);
+    for (const auto &m : std::as_const(marks)) setMarkFormat(m.first, m.second);
     c.endEditBlock();
 }
 
@@ -1159,7 +1176,7 @@ static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleI
     const QString was = bf.stringProperty(tp::StyleName).isEmpty() ? doc.defaultParagraphStyle() : bf.stringProperty(tp::StyleName);
     QTextBlockFormat nf = doc.styleBlockFormat(styleId);
     // What belongs to the paragraph in the file, not to its style.
-    for (int key : {int(prop::LastSection), int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs), int(flow::fp::SectionBreakAfter), int(prop::SectionData)})
+    for (int key : {int(prop::MarkFormat), int(prop::LastSection), int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs), int(flow::fp::SectionBreakAfter), int(prop::SectionData)})
         if (bf.hasProperty(key)) nf.setProperty(key, bf.property(key));
     const int numId = nf.intProperty(prop::NumId), level = nf.intProperty(prop::NumLevel);
     const bool wasList = bf.hasProperty(prop::NumId);
@@ -1191,7 +1208,7 @@ static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleI
         t.setPosition(std::get<1>(e), QTextCursor::KeepAnchor);
         t.setCharFormat(std::get<2>(e));
     }
-    QTextCursor(b).setBlockCharFormat(restyled(b.charFormat(), oldBase, newBase));
+    setMarkFormat(b, restyled(markFormat(b), oldBase, newBase));
 }
 
 void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)

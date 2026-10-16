@@ -144,6 +144,24 @@ void clearByteStore()
 
 quint64 byteStoreGeneration() { return byteStore().generation; }
 
+QByteArray packFormat(const QTextCharFormat &format)
+{
+    QByteArray out;
+    QDataStream s(&out, QIODevice::WriteOnly);
+    s.setVersion(QDataStream::Qt_6_0);
+    s << static_cast<const QTextFormat &>(format);
+    return out;
+}
+
+QTextCharFormat unpackFormat(const QByteArray &packed)
+{
+    QDataStream s(packed);
+    s.setVersion(QDataStream::Qt_6_0);
+    QTextFormat f;
+    s >> f;
+    return s.status() == QDataStream::Ok ? f.toCharFormat() : QTextCharFormat();
+}
+
 QString packOtherFonts(const Fonts &f)
 {
     const QChar sep(0x1f);

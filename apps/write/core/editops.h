@@ -14,6 +14,10 @@ namespace jp::write {
 
 // A paragraph that stands for an element kept as XML (a table): not edited.
 bool isLocked(const QTextBlock &block);
+// The character format of a paragraph's mark (what an empty paragraph is drawn with, and the paragraph mark's own formatting in the file). The engine
+// can't undo a change to the first paragraph's, so that one is kept in the paragraph's format as well, and read from there.
+QTextCharFormat markFormat(const QTextBlock &block);
+void setMarkFormat(QTextBlock block, const QTextCharFormat &format);
 // Text that is kept as XML and shows nothing (a bookmark, a field's code).
 bool isInvisibleAtom(const QTextCharFormat &format);
 
