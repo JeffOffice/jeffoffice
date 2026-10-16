@@ -9,6 +9,7 @@
 // which block). Styles are the file's: a paragraph or run's format is the whole of what it looks like (the style's with what it says
 // itself on top), and what the writer calls "direct formatting" is what differs from the style's.
 
+#include "core/tablemodel.h"
 #include "flow/flowdocument.h"
 #include "flow/paginator.h"
 #include "office/package.h"
@@ -121,7 +122,8 @@ private:
     WriteDoc();
     void build(office::wml::Document &&doc);
     void buildStory(const QVector<office::wml::Block> &body);
-    void exportBody(QVector<office::wml::Block> *body);
+    void exportBody(QVector<office::wml::Block> *body, QVector<TableExporter::Opened> *tables = nullptr);
+    void settleTables();
     void setUpEnvironment();
     void storyChanged(int position, int removed, int added);
     // The style sheet to read a style's look from: the document's, or for a built-in style it lacks, a copy with that style added.

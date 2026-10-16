@@ -29,6 +29,12 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
         }
     }
     Renderer::paintPage(p, ctx, 0);
+    flow::TablePaint tables;
+    tables.output = d.textOutput;
+    tables.marks = d.marks;
+    tables.selFrom = d.selectionFrom;
+    tables.selTo = d.selectionTo;
+    flow::paintTables(p, page, tables);
 }
 
 } // namespace jp::write

@@ -1501,30 +1501,32 @@ private Q_SLOTS:
                                 "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>7</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:p>"
                                 "<w:sdt><w:sdtPr><w:id w:val=\"9\"/></w:sdtPr><w:sdtContent><w:p><w:r><w:t>in a control</w:t></w:r></w:p></w:sdtContent></w:sdt>";
         auto doc = open(makeDocx(body, kStyles));
-        // The table is a stand-in paragraph; the picture, the field, and the control have none that shows beyond their text.
+        // The table is its cell's paragraph in the story; the picture, the field, and the control have nothing that shows beyond their text.
         QTextDocument *s = doc->story();
-        QVERIFY(isLocked(s->findBlockByNumber(1)));
-        QVERIFY(s->findBlockByNumber(1).text().size() == 1);
+        QVERIFY(!isLocked(s->findBlockByNumber(1)));
+        QCOMPARE(s->findBlockByNumber(1).text(), QStringLiteral("cell"));
+        QVERIFY(s->findBlockByNumber(1).blockFormat().intProperty(flow::fp::Cell) > 0);
         QVERIFY(s->toPlainText().contains(QLatin1String("in a control")));
         const QByteArray x = documentXml(doc->toDocx());
-        QVERIFY(x.contains(table));
+        QVERIFY(x.contains(table));   // (a table that was not changed is written as it was)
         QVERIFY(x.contains("<wp:inline xmlns:wp=\"urn:wp\">"));
         QVERIFY(x.contains("<w:instrText> PAGE </w:instrText>"));
         QVERIFY(x.contains("<w:sdt><w:sdtPr><w:id w:val=\"9\"/></w:sdtPr><w:sdtContent>"));
         QVERIFY(x.contains("</w:sdtContent></w:sdt>"));
-        // Editing around them keeps them; the stand-in can't be typed into, and Enter goes after it.
+        // Editing around them keeps them; typing in the cell changes the table's text and keeps the rest of it, and Enter in the cell makes another paragraph in it.
         QTextCursor c(s);
         c.setPosition(s->findBlockByNumber(1).position());
         insertText(*doc, c, QStringLiteral("zzz"));
-        QCOMPARE(s->findBlockByNumber(1).text().size(), 1);
+        QCOMPARE(s->findBlockByNumber(1).text(), QStringLiteral("zzzcell"));
         insertParagraph(*doc, c);
-        QCOMPARE(s->blockCount(), 5);   // (a paragraph was added after the stand-in)
-        QCOMPARE(documentXml(doc->toDocx()).count(table), 1);
-        // Deleting the stand-in takes the table out.
-        c.setPosition(s->findBlockByNumber(1).position());
-        c.setPosition(s->findBlockByNumber(1).position() + 1, QTextCursor::KeepAnchor);
-        removeSelection(*doc, c);
-        QVERIFY(!documentXml(doc->toDocx()).contains("<w:tbl>"));
+        QCOMPARE(s->blockCount(), 5);
+        QCOMPARE(s->findBlockByNumber(2).blockFormat().intProperty(flow::fp::Cell), s->findBlockByNumber(1).blockFormat().intProperty(flow::fp::Cell));
+        const QByteArray y = documentXml(doc->toDocx());
+        QVERIFY(!y.contains(table));
+        QCOMPARE(int(y.count("<w:tbl>")), 1);
+        QVERIFY(y.contains("<w:tblW w:w=\"0\" w:type=\"auto\"/>"));
+        QVERIFY(y.contains("<w:gridCol w:w=\"2000\"/>"));
+        QVERIFY(y.contains("zzz</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>"));
     }
 
     void aSavedDocumentRoundTripsItsOwnParagraphFormatting()

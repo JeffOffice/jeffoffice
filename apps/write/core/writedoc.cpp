@@ -187,6 +187,7 @@ void WriteDoc::build(office::wml::Document &&doc)
     m_last = m_wml.lastSection;
     setUpEnvironment();
     buildStory(body);
+    settleTables();
     syncSections();
     m_pager = std::make_unique<flow::Paginator>(m_flow.get());
     QTextDocument *s = story();
