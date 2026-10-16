@@ -3,6 +3,7 @@
 // text engine that the paginator uses.
 
 #include "core/document.h"
+#include "core/fonts.h"
 #include "flow/flowdocument.h"
 #include "flow/paginator.h"
 #include "render/renderer.h"
@@ -302,6 +303,12 @@ class FlowTests : public QObject {
     Q_OBJECT
 
 private Q_SLOTS:
+    void initTestCase()
+    {
+        Q_INIT_RESOURCE(resources);
+        initCore();   // (the program's own fonts, as the other tests' programs have them)
+    }
+
     // A section's page is the paper as it is turned, with the text area inside the margins; its columns share that width.
     void sectionsKnowTheirGeometry()
     {

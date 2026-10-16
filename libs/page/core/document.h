@@ -13,12 +13,12 @@
 #include <QImage>
 #include <QJsonObject>
 #include <QMap>
+#include <QMutex>
 #include <QSizeF>
 #include <QTextBlockFormat>
 #include <QTextCharFormat>
 #include <algorithm>
 #include <memory>
-#include <mutex>
 
 class QTextDocument;
 
@@ -490,7 +490,7 @@ private:
     void indexItems() const;
     mutable QHash<QString, ItemSpot> m_itemSpots;
     mutable qsizetype m_spotsMade = 0;          // how many it was made for
-    mutable std::mutex m_spotsLock;
+    mutable QMutex m_spotsLock;
     mutable int m_scans = 0;
 };
 
