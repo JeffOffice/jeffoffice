@@ -13,6 +13,7 @@
 #include "office/package.h"
 #include "office/theme.h"
 #include "office/xml.h"
+#include "core/drawnwords.h"
 #include "core/fontfiles.h"
 #include "core/fonts.h"
 #include "core/sfnt.h"
@@ -4525,6 +4526,37 @@ private Q_SLOTS:
         // What it can't read, or what is cut short, is no picture and no crash.
         QVERIFY(odrawBlip(odMetafileBlip(0xF01C, 0x542, odPict(200, 100, QByteArray()).left(30), true), nullptr).isEmpty());
         QVERIFY(odrawBlip(odMetafileBlip(0xF01C, 0x542, QByteArray("not a picture at all"), true), nullptr).isEmpty());
+    }
+
+    // The words a picture draws are kept with the PNG it is drawn as, in the file's own text: each string, the font's family, style, and size, and
+    // where its baseline starts, as shares of the picture's width and height, for a PDF to say them as text. A picture with no text keeps none.
+    void odrawBlipKeepsTheWordsOfAPict()
+    {
+        // The font with a number (21), a size (12, which is 0.12 of a picture 100 high), bold (1) and italic (2) together as the style 3, and a
+        // string started at 20 across and 90 down, then a second string, at 100 more across, from where the first started.
+        const QByteArray ops = pictU16(0x0003) + pictU16(21) + pictU16(0x000D) + pictU16(12) + pictU16(0x0004) + pictU16(3 << 8)
+                               + pictU16(0x0028) + pictU16(90) + pictU16(20) + QByteArray("\x08" "Axis 2.5") + QByteArray(1, '\0') + pictU16(0x0029) + QByteArray("\x64\x04" "Plot");
+        const QImage img = pictImage(odPict(200, 100, ops));
+        QVERIFY(!img.isNull());
+        const QVector<jp::DrawnWord> words = jp::drawnWordsFromText(img.text(QString::fromLatin1(jp::kDrawnWordsKey)));
+        QCOMPARE(int(words.size()), 2);
+        QCOMPARE(words[0].text, QStringLiteral("Axis 2.5"));
+        QVERIFY(!words[0].family.isEmpty());
+        QVERIFY(qAbs(words[0].at.x() - 20.0 / 200) < 0.002);
+        QVERIFY(qAbs(words[0].at.y() - 90.0 / 100) < 0.002);
+        QVERIFY(qAbs(words[0].size - 0.12) < 0.002);
+        QVERIFY(words[0].bold && words[0].italic);
+        QCOMPARE(words[1].text, QStringLiteral("Plot"));
+        QVERIFY(qAbs(words[1].at.x() - 120.0 / 200) < 0.002);
+        // The numbers of a picture with a finer grid than its frame are shares of the grid's rectangle, as the image is.
+        const QImage fine = pictImage(odPict(200, 100, ops, QRect(0, 0, 400, 200)));
+        const QVector<jp::DrawnWord> shares = jp::drawnWordsFromText(fine.text(QString::fromLatin1(jp::kDrawnWordsKey)));
+        QCOMPARE(int(shares.size()), 2);
+        QVERIFY(qAbs(shares[0].at.x() - 20.0 / 400) < 0.002);
+        // A picture that draws a rectangle only has no words.
+        const QImage plain = pictImage(odPict(200, 100, pictColor(0x001A, 255, 0, 0) + pictU16(0x0031) + pictRect(10, 20, 60, 120)));
+        QVERIFY(!plain.isNull());
+        QVERIFY(plain.text(QString::fromLatin1(jp::kDrawnWordsKey)).isEmpty());
     }
 
     // Arcs go clockwise from north, and an arc as a shape is a pie.
@@ -10738,6 +10770,50 @@ private Q_SLOTS:
         QVERIFY(it->fill.isNone() && it->stroke.isNone());
     }
 
+    // A shape that says its text shrinks to fit (a:normAutofit) keeps the scale and the line spacing taken off, as a text box does; one that says no
+    // fit, or none, doesn't shrink.
+    void dmlShapeReadsNormAutofit()
+    {
+        DmlEnv env;
+        auto shape = [&](const QString &prst, const QString &bodyPr) {
+            return dmlAs<ShapeItem>(dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 40) + QStringLiteral("<a:prstGeom prst=\"%1\"/>").arg(prst), dmlBody(QStringLiteral("Hello"), bodyPr))));
+        };
+        auto round = shape(QStringLiteral("roundRect"), QStringLiteral("<a:bodyPr><a:normAutofit fontScale=\"62500\" lnSpcReduction=\"20000\"/></a:bodyPr>"));
+        QVERIFY(round);
+        QVERIFY(round->shrinks);
+        QVERIFY(near(round->fitScale, 0.625, 1e-6) && near(round->fitLineCut, 20, 1e-6));
+        auto oval = shape(QStringLiteral("ellipse"), QStringLiteral("<a:bodyPr><a:normAutofit/></a:bodyPr>"));
+        QVERIFY(oval && oval->shrinks && near(oval->fitScale, 1.0, 1e-6) && near(oval->fitLineCut, 0, 1e-6));
+        auto none = shape(QStringLiteral("roundRect"), QStringLiteral("<a:bodyPr><a:noAutofit/></a:bodyPr>"));
+        QVERIFY(none && !none->shrinks);
+        auto plain = shape(QStringLiteral("roundRect"), QStringLiteral("<a:bodyPr/>"));
+        QVERIFY(plain && !plain->shrinks && near(plain->fitScale, 1.0, 1e-6));
+    }
+
+    // The words kept with a Macintosh picture's PNG are no more than the reader takes: a picture of as many words as the writer allows, each as long as
+    // it allows, has its words cut to what fits in the reader's limit (a megabyte) instead of being dropped whole, and they come back through the PNG.
+    void drawnWordsFitTheLimitOfTheReader()
+    {
+        QVector<jp::DrawnWord> many;
+        for (int i = 0; i < jp::kMaxDrawnWords; ++i)
+            many.push_back({QString(jp::kMaxDrawnWordChars, QChar(0x00E9)) + QString::number(i), QStringLiteral("Arimo"), QPointF(0.1, 0.2), 0.05, i % 2 == 0, false});
+        const QString text = jp::drawnWordsToText(many);
+        QVERIFY(!text.isEmpty());
+        QVERIFY2(text.toUtf8().size() <= (1 << 20), qPrintable(QString::number(text.toUtf8().size())));
+        const QVector<jp::DrawnWord> back = jp::drawnWordsFromText(text);
+        QVERIFY2(back.size() > 100, qPrintable(QString::number(back.size())));
+        QCOMPARE(back.first().text, many.first().text.left(jp::kMaxDrawnWordChars));
+        // Through a PNG's own text.
+        QImage img(8, 8, QImage::Format_ARGB32);
+        img.fill(Qt::white);
+        img.setText(QString::fromLatin1(jp::kDrawnWordsKey), text);
+        QByteArray png;
+        QBuffer buf(&png);
+        QVERIFY(buf.open(QIODevice::WriteOnly) && img.save(&buf, "PNG"));
+        QCOMPARE(QImage::fromData(png).text(QString::fromLatin1(jp::kDrawnWordsKey)), text);
+        QCOMPARE(int(jp::drawnWordsFromText(QImage::fromData(png).text(QString::fromLatin1(jp::kDrawnWordsKey))).size()), int(back.size()));
+    }
+
     void dmlTextTakesTheStylesFontReference()
     {
         DmlEnv env;
@@ -10746,33 +10822,49 @@ private Q_SLOTS:
         const QDomElement other = env.element(QStringLiteral("<a:lstStyle><a:lvl1pPr algn=\"ctr\"/></a:lstStyle>"));
         const QDomElement style = env.element(dmlStyle(QStringLiteral("1"), QStringLiteral("1")));
         QDomDocument keep;
-        // As one more list style, above the others: the font reference's color (light 1 here) at every level.
+        // As one more list style, above the others: the font reference's color (light 1 here) at every level; and the theme's body font as one just above
+        // the default text style (the first), under every other, so that what a placeholder inherits is not overridden.
+        auto bodyFont = [&](const QDomElement &list) { return attr(child(child(child(list, a, QStringLiteral("lvl1pPr")), a, QStringLiteral("defRPr")), a, QStringLiteral("latin")), QStringLiteral("typeface")); };
         TextStyleStack stack = withFontReference({base}, style, QDomElement(), &keep);
-        QCOMPARE(int(stack.size()), 2);
+        QCOMPARE(int(stack.size()), 3);
         QVERIFY(stack[0] == base);
+        QCOMPARE(bodyFont(stack[1]), QStringLiteral("+mn-lt"));
         for (int level = 1; level <= 9; ++level) {
-            const QDomElement run = child(child(stack[1], a, QStringLiteral("lvl%1pPr").arg(level)), a, QStringLiteral("defRPr"));
+            const QDomElement run = child(child(stack[2], a, QStringLiteral("lvl%1pPr").arg(level)), a, QStringLiteral("defRPr"));
             QVERIFY(!run.isNull());
             QCOMPARE(attr(child(child(run, a, QStringLiteral("solidFill")), a, QStringLiteral("schemeClr")), QStringLiteral("val")), QStringLiteral("lt1"));
+            QVERIFY(child(run, a, QStringLiteral("latin")).isNull());
         }
-        // Below the shape's own list, when the stack ends in it.
+        // The color below the shape's own list, when the stack ends in it.
         stack = withFontReference({other, base}, style, base, &keep);
-        QCOMPARE(int(stack.size()), 3);
-        QVERIFY(stack[0] == other && stack[2] == base);
-        QVERIFY(!child(stack[1], a, QStringLiteral("lvl3pPr")).isNull());
+        QCOMPARE(int(stack.size()), 4);
+        QVERIFY(stack[0] == other && stack[3] == base);
+        QCOMPARE(bodyFont(stack[1]), QStringLiteral("+mn-lt"));
+        QVERIFY(!child(stack[2], a, QStringLiteral("lvl3pPr")).isNull());
         stack = withFontReference({base, other}, style, base, &keep);
-        QVERIFY(stack.last() != other && stack.size() == 3);
-        // The heading font, with or without a color; no reference, nothing to say, no change.
+        QVERIFY(stack.last() != other && stack.size() == 4);
+        // The heading font, with or without a color; and the body font the same, over the default text style's own font; no reference, nothing to say,
+        // no change.
         const QDomElement major = env.element(QStringLiteral("<p:style><a:fontRef idx=\"major\"/></p:style>"));
         stack = withFontReference({base}, major, QDomElement(), &keep);
         QCOMPARE(int(stack.size()), 2);
         const QDomElement run = child(child(stack[1], a, QStringLiteral("lvl1pPr")), a, QStringLiteral("defRPr"));
         QCOMPARE(attr(child(run, a, QStringLiteral("latin")), QStringLiteral("typeface")), QStringLiteral("+mj-lt"));
         QVERIFY(child(run, a, QStringLiteral("solidFill")).isNull());
-        QCOMPARE(int(withFontReference({base}, env.element(QStringLiteral("<p:style><a:fontRef idx=\"minor\"/></p:style>")), QDomElement(), &keep).size()), 1);
+        const QDomElement minorOnly = env.element(QStringLiteral("<p:style><a:fontRef idx=\"minor\"/></p:style>"));
+        stack = withFontReference({base}, minorOnly, QDomElement(), &keep);
+        QCOMPARE(int(stack.size()), 2);
+        QCOMPARE(bodyFont(stack[1]), QStringLiteral("+mn-lt"));
+        QVERIFY(child(child(child(stack[1], a, QStringLiteral("lvl1pPr")), a, QStringLiteral("defRPr")), a, QStringLiteral("solidFill")).isNull());
+        // Under what a placeholder inherits: the stack of a default style, a master's style, and a layout's, and its own, has the body font second.
+        stack = withFontReference({base, other, base}, minorOnly, other, &keep);
+        QCOMPARE(int(stack.size()), 4);
+        QVERIFY(stack[0] == base && stack[2] == other);
+        QCOMPARE(bodyFont(stack[1]), QStringLiteral("+mn-lt"));
+
         QCOMPARE(int(withFontReference({base}, env.element(QStringLiteral("<p:style/>")), QDomElement(), &keep).size()), 1);
         QCOMPARE(int(withFontReference({base}, QDomElement(), QDomElement(), &keep).size()), 1);
-        QCOMPARE(int(withFontReference({}, style, QDomElement(), &keep).size()), 1);
+        QCOMPARE(int(withFontReference({}, style, QDomElement(), &keep).size()), 2);   // (the body font, and the color)
         // A shape that has the style reads its text with it.
         const QString rect = dmlXfrm(0, 0, 100, 40) + QStringLiteral("<a:prstGeom prst=\"rect\"/>");
         env.useFormats();

@@ -56,6 +56,11 @@ ItemPtr pictureShapes(const QByteArray &svg, const PictureItem &pic, bool *parti
 // run cut to its clip as the painter's own clip (kept as a vector in PDFs
 // and prints), in the order the parts were drawn.
 void paint(QSvgRenderer &renderer, const QByteArray &svg, QPainter *p, const QRectF &bounds);
+// Says the words of the drawing's text with no ink (drawUnseenText), over `bounds` as `paint` stretches the drawing onto them, for a PDF made of the
+// drawing: Qt's renderer draws the text as outlines, which a PDF holds as paths, and this keeps the words in it as text that can be found and copied.
+// Text that is hidden (display none, hidden visibility, in defs) is left out, and so is any that falls outside `only` (in the painter's coordinates,
+// when it is given), a few thousand of them at most.
+void paintText(const QByteArray &svg, QPainter *p, const QRectF &bounds, const QRectF &only = QRectF());
 // An SVG elliptical arc from p0 to p1, as cubic Béziers.
 void arcTo(QPainterPath &path, QPointF p0, double rx, double ry, double phiDeg, bool large, bool sweep, QPointF p1);
 

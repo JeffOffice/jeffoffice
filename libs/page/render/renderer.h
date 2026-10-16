@@ -52,7 +52,8 @@ public:
     // boxes on master pages, which show the number of the page being drawn.
     FrameLayout textFrame(const Document &doc, const TextItem &frame, int pageNumber, const RenderOptions &opt);
     // Layout for a single story in one box (shape text, table cells).
-    const StoryLayout *storyBox(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key);
+    // `fitScale` and `lineCut` are what a shape's text that shrinks to fit is drawn at (see ShapeItem::shrinks).
+    const StoryLayout *storyBox(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key, double fitScale = 1.0, double lineCut = 0);
     void clear() { m_entries.clear(); m_fields.clear(); }
 
 private:

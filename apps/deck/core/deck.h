@@ -156,6 +156,11 @@ struct FooterOptions {
     // The date shows as the field that keeps it current ("date", or the field's code, say "datetime:M/d/yyyy", in `dateCode`); a fixed date is
     // the text it is, in `dateText`.
     QString dateText, dateCode;
+    // The date, or the number, is the text typed in the place that its slide's own layout has for it (a .ppt's master holds "Page 3 of 12" or a
+    // line of its own in its date place): each slide gets the text its layout has, so that each master's stays its own. U+FFFC stands for the
+    // field in a text; the number's, and this date's, are `numberText` and `dateText` as they are made for a layout, and aren't kept.
+    QString numberText;
+    bool dateFromMaster = false, numberFromMaster = false;
     bool skipTitleSlide = false;   // not on slides whose layout is Title Slide
     bool any() const { return date || slideNumber || footer; }
     // Whether a slide with this layout type shows the placeholder of that type ("dt", "ftr", "sldNum").
@@ -175,6 +180,10 @@ void applyFooters(Document &d, const FooterOptions &o, Page *only = nullptr);
 void addMissingFooters(Document &d, const FooterOptions &o, Page &slide);
 // The text the footer place of a slide's layout (or its master) holds: empty when it has no footer place, or none in it.
 QString layoutFooterText(const Document &d, const Page &slide);
+// The text typed in the place of that type ("dt", "sldNum") of a layout (or its master), with U+FFFC where it holds a field (the code of the first
+// is given in `fieldCode`), cut at a thousand letters; empty when it has no such place, none in it, or only the field (the program's own date or
+// number, not text).
+QString layoutTypedText(const Document &d, const MasterPage &layout, const QString &type, QString *fieldCode = nullptr);
 
 // A solid background for one slide; for all of them, the slide master's,
 // with the slides' and layouts' own cleared so they follow it.

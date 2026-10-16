@@ -48,6 +48,7 @@
 #include "core/animation.h"
 #include "core/comments.h"
 #include "core/deck.h"
+#include "core/drawnwords.h"
 #include "core/embeddedfonts.h"
 #include "core/fontfiles.h"
 #include "core/fonts.h"
@@ -79,6 +80,7 @@
 #include "office/eot.h"
 #include "office/package.h"
 #include "office/xml.h"
+#include "render/pdfpage.h"
 #include "render/renderer.h"
 #include "render/shapes.h"
 #include "render/textart.h"
@@ -2140,10 +2142,11 @@ private:
     }
     // A placeholder shape: a rectangle at `top, left, right, bottom` (master units), the placeholder it is, and what it holds (and its property record,
     // its flags, and its kind of shape).
-    static QByteArray pptShape(quint32 id, int placeholder, const QByteArray &textbox, int top = 100, int left = 200, int right = 5000, int bottom = 900, const QByteArray &props = QByteArray(), quint32 flags = 0xA00, quint16 type = 1)
+    static QByteArray pptShape(quint32 id, int placeholder, const QByteArray &textbox, int top = 100, int left = 200, int right = 5000, int bottom = 900, const QByteArray &props = QByteArray(), quint32 flags = 0xA00, quint16 type = 1,
+                               const QByteArray &clientExtra = QByteArray())
     {
         const QByteArray anchor = le(top, 2) + le(left, 2) + le(right, 2) + le(bottom, 2);
-        const QByteArray data = pptBox(0xF011, pptRec(3011, le(0xFFFFFFFF, 4) + raw({placeholder, 0, 0, 0})));
+        const QByteArray data = pptBox(0xF011, pptRec(3011, le(0xFFFFFFFF, 4) + raw({placeholder, 0, 0, 0})) + clientExtra);
         return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(flags, 4), type, 2) + props + pptRec(0xF010, anchor) + data + (textbox.isEmpty() ? QByteArray() : pptBox(0xF00D, textbox)));
     }
     static QByteArray outlineRef(int index) { return pptRec(3998, le(index, 4)); }
@@ -2172,11 +2175,11 @@ private:
     // `bodyGroup` stands for the first slide's body text; `drawingGroup` is the document's drawing group, `firstSlideShapes` more
     // shapes for the first slide's drawing, `masterTitleProps` a property record for the main master's title shape, `masterBackground`
     // a shape for its drawing, `masterExtra` more records for the main master, `documentExtra` more records for the document, and `firstSlideExtra` more
-    // records for the first slide (a headers and footers record of its own).
+    // records for the first slide (a headers and footers record of its own), and `titleMasterShapes` shapes for the title master's drawing.
     static QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray(),
                                const QByteArray &drawingGroup = QByteArray(), const QByteArray &firstSlideShapes = QByteArray(), const QByteArray &masterTitleProps = QByteArray(), const QByteArray &masterBackground = QByteArray(),
                                const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016, const QByteArray &documentExtra = QByteArray(),
-                               const QByteArray &firstSlideExtra = QByteArray())
+                               const QByteArray &firstSlideExtra = QByteArray(), const QByteArray &titleMasterShapes = QByteArray())
     {
         constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
         const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")) + fontEntity(QStringLiteral("Symbol")) + fontEntity(QStringLiteral("Wingdings 2")) + fontEntity(QStringLiteral("Wingdings")));
@@ -2222,7 +2225,7 @@ private:
             // The centered title and the subtitle, with only their sizes (the levels of these two start with their number).
             + pptRec(4003, le(1, 2) + le(0, 2) + le(0x800, 4) + le(1, 2) + le(0x20000, 4) + le(54, 2), 6)
             + pptRec(4003, le(1, 2) + le(0, 2) + le(0, 4) + le(0x20000, 4) + le(30, 2), 5)
-            + pptDrawing());
+            + pptDrawing(titleMasterShapes));
 
         auto slide = [&](int geom, const QByteArray &placeholders, quint32 master, quint32 notes, bool hidden, const QByteArray &shapes, const QByteArray &transition = QByteArray(), const QByteArray &extra = QByteArray()) {
             QByteArray info = le(0, 4) + le(0, 4) + raw({2, 0}) + le(hidden ? 0x4 : 0x400, 2) + raw({2, 0, 0, 0});
@@ -2320,12 +2323,17 @@ private:
         if (!footer.isEmpty()) body += pptRec(4026, utf16(footer), 2);
         return pptBox(4057, body, 3);
     }
-    // The master's places for the date (7), the footer (9), and the slide number (8); the footer's and the date's hold the given texts.
-    static QByteArray masterFooterPlaces(const QString &footerText = QString(), const QString &dateText = QString())
+    // The master's places for the date (7), the footer (9), and the slide number (8); each holds the text it is given, with the field of its kind (the
+    // generic date's, the slide number's) at the position given in the text, when there is one.
+    static QByteArray masterFooterPlaces(const QString &footerText = QString(), const QString &dateText = QString(), const QString &numberText = QString(), int numberFieldAt = -1,
+                                         int dateFieldAt = -1)
     {
-        auto text = [](const QString &s) { return s.isEmpty() ? QByteArray() : pptRec(3999, le(4, 4)) + pptRec(4000, utf16(s)); };
-        return pptShape(0x410, 7, text(dateText), 4000, 200, 2000, 4300) + pptShape(0x411, 9, text(footerText), 4000, 2100, 3900, 4300)
-               + pptShape(0x412, 8, QByteArray(), 4000, 4000, 5500, 4300);
+        auto text = [](const QString &s, int fieldType = 0, int fieldAt = -1) {
+            if (s.isEmpty()) return QByteArray();
+            return pptRec(3999, le(4, 4)) + pptRec(4000, utf16(s)) + (fieldAt >= 0 ? pptRec(fieldType, le(fieldAt, 4)) : QByteArray());
+        };
+        return pptShape(0x410, 7, text(dateText, 4088, dateFieldAt), 4000, 200, 2000, 4300) + pptShape(0x411, 9, text(footerText), 4000, 2100, 3900, 4300)
+               + pptShape(0x412, 8, text(numberText, 4056, numberFieldAt), 4000, 4000, 5500, 4300);
     }
     // How many placeholders of that type ("dt", "ftr", "sldNum") a slide has.
     static int placeholdersOf(const Page &p, const QString &type)
@@ -9083,6 +9091,32 @@ private Q_SLOTS:
         one.findChild<QPushButton *>(QStringLiteral("apply"))->click();
         QCOMPARE(one.result(), int(QDialog::Accepted));
         QVERIFY(!one.applyToAll());
+    }
+
+    // The dialog gives back what it doesn't show as it was: a fixed date's text, the date's field, and that the date or the number is the text typed in
+    // the master, so that Apply to All with only the footer's text changed leaves them.
+    void headerFooterDialogKeepsWhatItDoesNotShow()
+    {
+        deck::FooterOptions o;
+        o.date = true;
+        o.slideNumber = true;
+        o.footer = true;
+        o.footerText = QStringLiteral("Quarterly");
+        o.dateText = QStringLiteral("May 19, 2003");
+        o.dateCode = QStringLiteral("datetime:M/d/yyyy");
+        o.dateFromMaster = true;
+        o.numberFromMaster = true;
+        HeaderFooterDialog dlg(o);
+        dlg.findChild<QLineEdit *>(QStringLiteral("footerText"))->setText(QStringLiteral("Q3 review"));
+        const deck::FooterOptions got = dlg.options();
+        QCOMPARE(got.footerText, QStringLiteral("Q3 review"));
+        QVERIFY(got.date && got.slideNumber && got.footer);
+        QCOMPARE(got.dateText, o.dateText);
+        QCOMPARE(got.dateCode, o.dateCode);
+        QVERIFY(got.dateFromMaster && got.numberFromMaster);
+        // What it does show it changes: the date turned off.
+        dlg.findChild<QCheckBox *>(QStringLiteral("date"))->setChecked(false);
+        QVERIFY(!dlg.options().date);
     }
 
     // New Slide's gallery shows each layout as a picture and says which was chosen.
@@ -22761,6 +22795,133 @@ private Q_SLOTS:
         }
     }
 
+    // The text of a shape on a slide is all shown, running out of the shape that is too small for it (the presentation program doesn't cut it at the
+    // shape's edge, as a text box's): a shape 30 points tall lays out as many lines as one 400 tall.
+    void shapeTextOnASlideRunsOutOfAShapeThatIsTooSmall()
+    {
+        auto d = deck::newPresentation();
+        QVERIFY(d->slideText);
+        auto shape = [&](double height) {
+            auto s = std::make_shared<ShapeItem>();
+            s->shape = QStringLiteral("roundRect");
+            s->rect = QRectF(100, 100, 150, height);
+            s->storyId = d->createStory();
+            d->storyDoc(s->storyId)->setPlainText(QStringLiteral("one two three four five six seven eight nine ten eleven twelve ").repeated(4));
+            d->pages[0]->items.push_back(s);
+            return s;
+        };
+        const auto tall = shape(400), small = shape(30);
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = d.get();
+        ctx.cache = &cache;
+        QPointF origin;
+        const StoryLayout *all = Renderer::shapeTextLayout(ctx, *tall, &origin);
+        const StoryLayout *cut = Renderer::shapeTextLayout(ctx, *small, &origin);
+        QVERIFY(all && cut);
+        QVERIFY(all->lineInfo(0).size() > 3);
+        QCOMPARE(cut->lineInfo(0).size(), all->lineInfo(0).size());
+    }
+
+    // The text of a shape on a slide is not hyphenated (the presentation program breaks a line at a space), where a publication's shapes hyphenate: a long
+    // word in a narrow shape is broken across lines without a hyphen.
+    void shapeTextOnASlideIsNotHyphenated()
+    {
+        auto d = deck::newPresentation();
+        QVERIFY(d->slideText);
+        auto s = std::make_shared<ShapeItem>();
+        s->shape = QStringLiteral("roundRect");
+        s->rect = QRectF(100, 100, 110, 400);
+        s->storyId = d->createStory();
+        QTextDocument *story = d->storyDoc(s->storyId);
+        story->setPlainText(QStringLiteral("internationalization internationalization internationalization"));
+        // (The language is said, so that the dictionary is a known one.)
+        QTextCursor language(story);
+        language.select(QTextCursor::Document);
+        QTextCharFormat english;
+        english.setProperty(tp::Language, QStringLiteral("en-US"));
+        language.mergeCharFormat(english);
+        d->pages[0]->items.push_back(s);
+        auto linesOf = [&] {
+            LayoutCache cache;
+            PaintContext ctx;
+            ctx.doc = d.get();
+            ctx.cache = &cache;
+            QPointF origin;
+            QStringList out;
+            for (const auto &line : Renderer::shapeTextLayout(ctx, *s, &origin)->lineInfo(0)) out << line.text;
+            return out;
+        };
+        const QStringList slide = linesOf();
+        QVERIFY(slide.size() > 3);
+        for (const QString &line : slide) QVERIFY2(!line.contains(QLatin1Char('-')) && !line.contains(QChar::SoftHyphen), qPrintable(slide.join('|')));
+        d->slideText = false;
+        const QStringList publication = linesOf();
+        bool hyphenated = false;
+        for (const QString &line : publication) hyphenated = hyphenated || line.contains(QLatin1Char('-')) || line.contains(QChar::SoftHyphen);
+        QVERIFY2(hyphenated, qPrintable(publication.join('|')));
+    }
+
+    // A shape that says its text shrinks to fit (a:normAutofit, here with the scale 62.5%) shows it at that scale: the size of its letters is the
+    // scale of the size the text has (24 points, drawn at 15), where a shape that doesn't say so keeps the size, and the scale is kept in the file.
+    void shapeTextOnASlideShrinksAsItsAutofitSays()
+    {
+        auto d = deck::newPresentation();
+        auto shape = [&](const char *name, bool shrinks) {
+            auto s = std::make_shared<ShapeItem>();
+            s->name = QString::fromLatin1(name);
+            s->shape = QStringLiteral("roundRect");
+            s->rect = QRectF(100, 100, 150, 60);
+            s->storyId = d->createStory();
+            QTextDocument *story = d->storyDoc(s->storyId);
+            story->setPlainText(QStringLiteral("alpha beta gamma delta epsilon zeta eta theta"));
+            QTextCursor c(story);
+            c.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontPointSize(24);
+            c.mergeCharFormat(f);
+            s->shrinks = shrinks;
+            s->fitScale = 0.625;
+            s->fitLineCut = 10;
+            d->pages[0]->items.push_back(s);
+            return s;
+        };
+        const auto plain = shape("Plain", false), shrunk = shape("Shrunk", true);
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = d.get();
+        ctx.cache = &cache;
+        QPointF origin;
+        const auto big = Renderer::shapeTextLayout(ctx, *plain, &origin)->lineInfo(0), small = Renderer::shapeTextLayout(ctx, *shrunk, &origin)->lineInfo(0);
+        QVERIFY(!big.isEmpty() && !small.isEmpty());
+        QVERIFY2(qAbs(small[0].pointSize / big[0].pointSize - 0.625) < 0.01, qPrintable(QStringLiteral("%1 and %2").arg(small[0].pointSize).arg(big[0].pointSize)));
+        QVERIFY(small.size() < big.size());
+        // The scale is kept in the item's data, and in a .pptx (as a:normAutofit's fontScale and lnSpcReduction).
+        ShapeItem again;
+        again.fromJson(shrunk->toJson());
+        QVERIFY(again.shrinks && qAbs(again.fitScale - 0.625) < 1e-9 && qAbs(again.fitLineCut - 10) < 1e-9);
+        ShapeItem plainAgain;
+        plainAgain.fromJson(plain->toJson());
+        QVERIFY(!plainAgain.shrinks);
+        QString err;
+        auto back = viaPptx(*d, &err);
+        QVERIFY2(back, qPrintable(err));
+        int found = 0;
+        for (const auto &it : back->pages[0]->items) {
+            if (it->type() != ItemType::Shape) continue;
+            const auto *sh = static_cast<const ShapeItem *>(it.get());
+            if (it->name == QLatin1String("Shrunk")) {
+                ++found;
+                QVERIFY(sh->shrinks);
+                QVERIFY(qAbs(sh->fitScale - 0.625) < 0.01 && qAbs(sh->fitLineCut - 10) < 0.5);
+            } else if (it->name == QLatin1String("Plain")) {
+                ++found;
+                QVERIFY(!sh->shrinks);
+            }
+        }
+        QCOMPARE(found, 2);
+    }
+
     // The same, in a shape that holds text: its frame has the flag too, and its text is set unwrapped.
     void importBinaryShapesWithNoWrapSetTheirTextOnOneLine()
     {
@@ -24973,6 +25134,41 @@ private Q_SLOTS:
         }
     }
 
+    // A text box keeps the numbering of its own text in its client data (the same extension, in the shape's tag): the paragraphs of the second run
+    // are numbered "1.", "2." and the first run (a heading) has none and no bullet.
+    void importBinaryNumbersTheParagraphsOfAShapesOwnText()
+    {
+        auto entry = [&](quint32 masks, const QByteArray &fields) { return le(masks, 4) + fields + le(0, 4) + le(0, 4); };
+        const QByteArray atom = entry(0, QByteArray()) + entry(0x02000000, le(1, 2));
+        const QByteArray tags = pptBox(5000, pptBox(5002, pptRec(4026, utf16(QStringLiteral("___PPT9"))) + pptRec(5003, pptRec(4012, atom))));
+        // "References" (11 with its paragraph mark) with no bullet, then two paragraphs with bullets on (the flag 1) the master's text would show as bullets.
+        const QByteArray text = pptRec(3999, le(4, 4)) + pptRec(4000, utf16(QStringLiteral("References\rFirst item\rSecond item")))
+                                + pptRec(4001, pfRun(11, 0, 0) + pfRun(23, 0, 0x1, le(1, 2)) + cfRun(34, 0));
+        QString err;
+        auto build = [&](const QByteArray &clientExtra) {
+            return deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), pptShape(0x470, 0, text, 1000, 200, 5000, 3800, QByteArray(), 0xA00, 1, clientExtra)), &err);
+        };
+        auto d = build(tags);
+        QVERIFY2(d, qPrintable(err));
+        const QTextDocument *story = storyBeginning(*d, *d->pages[0], QStringLiteral("References"));
+        QVERIFY(story);
+        QCOMPARE(story->blockCount(), 3);
+        const QTextBlock heading = story->firstBlock(), first = heading.next(), second = first.next();
+        QVERIFY(!heading.textList());
+        QVERIFY(first.textList() && second.textList());
+        QVERIFY(first.textList() == second.textList());
+        QCOMPARE(first.textList()->format().style(), QTextListFormat::ListDecimal);
+        QCOMPARE(first.textList()->format().numberSuffix(), QStringLiteral("."));
+        QCOMPARE(first.textList()->itemNumber(first), 0);
+        QCOMPARE(second.textList()->itemNumber(second), 1);
+        // Without the extension the same paragraphs are bulleted.
+        auto plain = build(QByteArray());
+        QVERIFY2(plain, qPrintable(err));
+        const QTextDocument *plainStory = storyBeginning(*plain, *plain->pages[0], QStringLiteral("References"));
+        QVERIFY(plainStory && plainStory->firstBlock().next().textList());
+        QCOMPARE(plainStory->firstBlock().next().textList()->format().style(), QTextListFormat::ListDisc);
+    }
+
     // A shape that shows the slide's text (an outline reference) can keep a text ruler beside the reference: the margins it sets are those
     // of the text in that shape (here the first level's, 720 master units, which is 90 points), where another shape that shows the same
     // text with no ruler of its own has the master's.
@@ -25589,6 +25785,127 @@ private Q_SLOTS:
         auto silent = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), places), &err);
         QVERIFY2(silent, qPrintable(err));
         for (const auto &p : silent->pages) QCOMPARE(placeholdersOf(*p, ftr), 0);
+    }
+
+    // A date typed in the master's date place (a whole line, not the program's date field) is what each slide shows that the record says shows a
+    // date without saying which: not today's, and none of its own text. A record that names the text, or says it is today's, wins over it; a
+    // slide whose own record hides the date has none, and a document with no record shows none.
+    void importBinaryShowsTheDateTextOfTheMastersDatePlace()
+    {
+        const QString line = QStringLiteral("Seminar, Berlin, July 2nd 2008"), dt = QStringLiteral("dt"), ph = QStringLiteral("ph:dt");
+        const QByteArray places = masterFooterPlaces(QString(), line);
+        auto open = [&](const QByteArray &document, const QByteArray &own = QByteArray(), const QByteArray &masterPlaces = QByteArray()) {
+            QString err;
+            auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterPlaces.isEmpty() ? places : masterPlaces, QByteArray(), 1016,
+                                                             document, own), &err);
+            if (!d) qWarning("%s", qPrintable(err));
+            return d;
+        };
+        // The flag of the date (1) and nothing more: the master's line, as text, on both slides.
+        auto shown = open(footersBox(0, 0x1));
+        QVERIFY(shown);
+        QCOMPARE(int(shown->pages.size()), 2);
+        for (const auto &p : shown->pages) {
+            QCOMPARE(placeholdersOf(*p, dt), 1);
+            QCOMPARE(placeholderText(*shown, *p, ph), line);
+            QVERIFY(storyFieldCode(placeholderStory(*shown, *p, ph)).isEmpty());
+        }
+        // The user's own date (4) without its text says the same.
+        auto own = open(footersBox(0, 0x1 | 0x4));
+        QVERIFY(own);
+        for (const auto &p : own->pages) QCOMPARE(placeholderText(*own, *p, ph), line);
+        // New slides will show it too: the options kept for them say the date is the one typed in the slide's own master.
+        QVERIFY(deck::footerOptions(*shown).date && deck::footerOptions(*shown).dateFromMaster);
+        QVERIFY(deck::footerOptions(*shown).dateText.isEmpty());
+        // The first slide has a record of its own that shows only the number (8): no date there, the line on the second.
+        auto hidden = open(footersBox(0, 0x1), footersBox(0, 0x8));
+        QVERIFY(hidden);
+        QCOMPARE(placeholdersOf(*hidden->pages[0], dt), 0);
+        QCOMPARE(placeholderText(*hidden, *hidden->pages[1], ph), line);
+        // A document that shows no date (the number only) has none, though the master holds the line; one with no record says nothing at all.
+        auto numbers = open(footersBox(0, 0x8));
+        QVERIFY(numbers);
+        for (const auto &p : numbers->pages) QCOMPARE(placeholdersOf(*p, dt), 0);
+        QString err;
+        auto silent = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), places), &err);
+        QVERIFY2(silent, qPrintable(err));
+        for (const auto &p : silent->pages) QCOMPARE(placeholdersOf(*p, dt), 0);
+        // The text the record holds wins, and so does today's date (the flag 2, a field that shows the day).
+        auto named = open(footersBox(0, 0x1 | 0x4, QStringLiteral("May 19, 2003")));
+        QVERIFY(named);
+        QCOMPARE(placeholderText(*named, *named->pages[1], ph), QStringLiteral("May 19, 2003"));
+        auto today = open(footersBox(0, 0x3));
+        QVERIFY(today);
+        QVERIFY(storyFieldCode(placeholderStory(*today, *today->pages[1], ph)).startsWith(QLatin1String("datetime:")));
+        QCOMPARE(placeholderText(*today, *today->pages[1], ph), QString(QChar::ObjectReplacementCharacter));
+        // A master whose date place holds nothing typed (here no text; a place holding only the date's field is the same) has nothing to show.
+        auto empty = open(footersBox(0, 0x1), QByteArray(), masterFooterPlaces());
+        QVERIFY(empty);
+        for (const auto &p : empty->pages) QCOMPARE(placeholdersOf(*p, dt), 0);
+        auto fieldOnly = open(footersBox(0, 0x1), QByteArray(), masterFooterPlaces(QString(), QStringLiteral("*"), QString(), -1, 0));
+        QVERIFY(fieldOnly);
+        for (const auto &p : fieldOnly->pages) QCOMPARE(placeholdersOf(*p, dt), 0);
+        // Typed text with the date's field in it: the text and the field, in the place.
+        auto mixed = open(footersBox(0, 0x1), QByteArray(), masterFooterPlaces(QString(), QStringLiteral("Seminar, *"), QString(), -1, 9));
+        QVERIFY(mixed);
+        QCOMPARE(placeholderText(*mixed, *mixed->pages[1], ph), QStringLiteral("Seminar, ") + QChar(QChar::ObjectReplacementCharacter));
+        QCOMPARE(storyFieldCode(placeholderStory(*mixed, *mixed->pages[1], ph)), QStringLiteral("date"));
+    }
+
+    // The slide number's place of the master holds the number's field and perhaps text around it ("Page 4 of 12"): a slide that shows its number
+    // without a place of its own has that text with its own number in it. A place that holds only the field is the number alone.
+    void importBinaryKeepsTheTextAroundTheFieldOfTheMastersNumberPlace()
+    {
+        const QString number = QStringLiteral("sldNum"), ph = QStringLiteral("ph:sldNum"), field(QChar(QChar::ObjectReplacementCharacter));
+        auto open = [&](const QByteArray &masterPlaces) {
+            QString err;
+            auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterPlaces, QByteArray(), 1016, footersBox(0, 0x8)), &err);
+            if (!d) qWarning("%s", qPrintable(err));
+            return d;
+        };
+        auto around = open(masterFooterPlaces(QString(), QString(), QStringLiteral("Page * of 12"), 5));
+        QVERIFY(around);
+        for (const auto &p : around->pages) {
+            QCOMPARE(placeholdersOf(*p, number), 1);
+            QCOMPARE(placeholderText(*around, *p, ph), QStringLiteral("Page ") + field + QStringLiteral(" of 12"));
+            QCOMPARE(storyFieldCode(placeholderStory(*around, *p, ph)), QStringLiteral("page"));
+        }
+        // Text with no field in it is what the slide shows.
+        auto typed = open(masterFooterPlaces(QString(), QString(), QStringLiteral("Draft")));
+        QVERIFY(typed);
+        QCOMPARE(placeholderText(*typed, *typed->pages[1], ph), QStringLiteral("Draft"));
+        // The field alone is the number alone.
+        auto alone = open(masterFooterPlaces(QString(), QString(), QStringLiteral("*"), 0));
+        QVERIFY(alone);
+        QCOMPARE(placeholderText(*alone, *alone->pages[1], ph), field);
+        QCOMPARE(storyFieldCode(placeholderStory(*alone, *alone->pages[1], ph)), QStringLiteral("page"));
+    }
+
+    // The text a master's number place holds around its field belongs to that master: slides on the main master and on the title master each show
+    // their own, and a slide added on either afterward shows the one its own layout has (not the first slide's master's).
+    void importBinaryNumberTextBelongsToEachMaster()
+    {
+        const QString number = QStringLiteral("sldNum"), ph = QStringLiteral("ph:sldNum"), field(QChar(QChar::ObjectReplacementCharacter));
+        const QByteArray mainPlaces = masterFooterPlaces(QString(), QString(), QStringLiteral("Page * of 12"), 5);
+        const QByteArray titlePlaces = masterFooterPlaces(QString(), QString(), QStringLiteral("Slide *"), 6);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(true, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), mainPlaces, QByteArray(), 1016, footersBox(0, 0x8), QByteArray(), titlePlaces), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 3);
+        const QString onMain = QStringLiteral("Page ") + field + QStringLiteral(" of 12"), onTitle = QStringLiteral("Slide ") + field;
+        QCOMPARE(placeholderText(*d, *d->pages[0], ph), onMain);
+        QCOMPARE(placeholderText(*d, *d->pages[2], ph), onTitle);
+        // Slides added now, one on each master's layout.
+        const MasterPage *mainLayout = d->masterFor(*d->pages[0]), *titleLayout = d->masterFor(*d->pages[2]);
+        QVERIFY(mainLayout && titleLayout && mainLayout != titleLayout);
+        const int onTitleLayout = deck::addSlide(*d, *titleLayout), onMainLayout = deck::addSlide(*d, *mainLayout);
+        QCOMPARE(placeholderText(*d, *d->pages[onTitleLayout], ph), onTitle);
+        QCOMPARE(placeholderText(*d, *d->pages[onMainLayout], ph), onMain);
+        // And the footers applied again (the dialog's Apply to All) keep each as it is.
+        deck::applyFooters(*d, deck::footerOptions(*d));
+        QCOMPARE(placeholderText(*d, *d->pages[0], ph), onMain);
+        QCOMPARE(placeholderText(*d, *d->pages[2], ph), onTitle);
+        Q_UNUSED(number);
     }
 
     // A slide can set its own footers in a record of its own: its date (the user's, here), its footer text, and no number, where the next slide
@@ -31368,6 +31685,30 @@ private Q_SLOTS:
     }
 
 private:
+    // The text of a page (0-based) of a PDF as a reader that copies it gets it, its white space single spaces.
+    static QString pdfText(const QByteArray &pdf, int page = 0)
+    {
+        const PdfDocument doc(pdf);
+        return doc.isValid() ? doc.text(page).simplified() : QString();
+    }
+    // The PDF of a presentation's slides (empty when it can't be made).
+    static QByteArray pdfOf(const Document &d, QString *err = nullptr)
+    {
+        QTemporaryDir dir;
+        if (!dir.isValid()) return QByteArray();
+        const QString path = dir.filePath(QStringLiteral("out.pdf"));
+        return deck::exportPdf(d, path, deck::OutputOptions(), err) ? fileBytes(path) : QByteArray();
+    }
+    // A picture on a slide, `rect` big, showing the image `id` in `imgRect` (its own frame when none is given).
+    static PictureItem *addPicture(Page &slide, const QString &id, const QRectF &rect, const QRectF &imgRect = QRectF())
+    {
+        auto pic = std::make_shared<PictureItem>();
+        pic->imageId = id;
+        pic->rect = rect;
+        pic->imgRect = imgRect.isNull() ? QRectF(QPointF(0, 0), rect.size()) : imgRect;
+        slide.items.push_back(pic);
+        return pic.get();
+    }
     // The pages a PDF's page tree holds (a "/Type /Pages" node is not one).
     static int pdfPageCount(const QByteArray &pdf)
     {
@@ -31649,6 +31990,309 @@ private Q_SLOTS:
         QVERIFY(!err.isEmpty());
         QCOMPARE(fileBytes(kept), before);
         QVERIFY(!deck::exportPdf(*d, kept, o, nullptr));   // no place for the reason is fine
+    }
+
+    // The PDF's text names each letter the page draws, so that it can be found and copied: a ligature (the bundled Carlito has "ti", "tt", "ft",
+    // and the others) is one glyph that stands for several letters, and a reader can name none of them ("Objectives" copies as "Objec ves"). The
+    // PDF's text is set without ligatures.
+    void exportPdfTextNamesEveryLetterItDraws()
+    {
+        auto d = showDeck(1);
+        QTextDocument *story = d->storyDoc(static_cast<TextItem *>(d->pages[0]->items[0].get())->storyId);
+        story->setPlainText(QStringLiteral("Objectives: creative attitude, fifty flies, offline"));
+        QTextCursor c(story);
+        c.select(QTextCursor::Document);
+        QTextCharFormat f;
+        f.setFontFamilies({QStringLiteral("Carlito")});
+        f.setFontPointSize(32);
+        c.mergeCharFormat(f);
+        QString err;
+        const QByteArray pdf = pdfOf(*d, &err);
+        QVERIFY2(!pdf.isEmpty(), qPrintable(err));
+        const QString text = pdfText(pdf);
+        for (const char *word : {"Objectives", "creative", "attitude", "fifty", "flies", "offline"}) QVERIFY2(text.contains(QLatin1String(word)), qPrintable(text));
+    }
+
+    // A drawing's text is in the PDF as text with no ink, where the drawing's own letters are outlines (Qt's renderer draws an SVG's text as
+    // paths): an SVG picture's words (a chart's labels), turned and anchored as the drawing says, and not the words that are hidden.
+    void exportPdfCarriesTheTextOfAnSvgPicture()
+    {
+        const QByteArray svg =
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"200\" viewBox=\"0 0 300 200\">"
+            "<rect x=\"0\" y=\"0\" width=\"300\" height=\"200\" fill=\"#eeeeee\"/>"
+            "<text x=\"150\" y=\"40\" text-anchor=\"middle\" font-family=\"Arimo\" font-size=\"20\">Sales by region</text>"
+            "<text x=\"10\" y=\"80\" font-family=\"Carlito\" font-size=\"20\">Objectives: craft attitude</text>"
+            "<g transform=\"translate(30,180) rotate(-90)\"><text x=\"0\" y=\"0\" font-family=\"Arimo\" font-size=\"12\">Revenue axis</text></g>"
+            "<g display=\"none\"><text x=\"10\" y=\"10\" font-size=\"12\">Hidden words</text></g>"
+            "<defs><text id=\"t\" x=\"10\" y=\"10\" font-size=\"12\">Defined only</text></defs>"
+            "<text x=\"60\" y=\"190\" font-size=\"10\"><tspan>Tick </tspan><tspan>2.5</tspan></text></svg>";
+        auto d = deck::newPresentation();
+        addPicture(*d->pages[0], d->addImage(svg, QStringLiteral("svg")), QRectF(100, 100, 300, 200));
+        QString err;
+        const QByteArray pdf = pdfOf(*d, &err);
+        QVERIFY2(!pdf.isEmpty(), qPrintable(err));
+        const QString text = pdfText(pdf);
+        QVERIFY2(text.contains(QStringLiteral("Sales by region")), qPrintable(text));
+        // (Said without ligatures, as the PDF's own text is: "ti" and "ft" are one glyph each in the bundled Carlito.)
+        QVERIFY2(text.contains(QStringLiteral("Objectives: craft attitude")), qPrintable(text));
+        // (A reader that copies turned text may set a space between its letters.)
+        QVERIFY2(QString(text).remove(QLatin1Char(' ')).contains(QStringLiteral("Revenueaxis")), qPrintable(text));
+        QVERIFY2(text.contains(QStringLiteral("Tick 2.5")), qPrintable(text));
+        QVERIFY2(!text.contains(QStringLiteral("Hidden")), qPrintable(text));
+        QVERIFY2(!text.contains(QStringLiteral("Defined")), qPrintable(text));
+    }
+
+    // A drawing can't make the PDF hold more words than it may: at most five thousand texts of one drawing are said, and at most two hundred thousand
+    // letters, each text cut at a thousand. (Counted in the text that comes back, not timed.)
+    void exportPdfBoundsTheTextOfAnSvgPicture()
+    {
+        QString err;
+        auto say = [&](const QByteArray &svg) {
+            auto d = deck::newPresentation();
+            addPicture(*d->pages[0], d->addImage(svg, QStringLiteral("svg")), QRectF(100, 100, 300, 200));
+            const QByteArray pdf = pdfOf(*d, &err);
+            return pdf.isEmpty() ? QString() : pdfText(pdf);
+        };
+        // Many small texts, each one letter of its own place on a grid (5,300 of them, 100 to a row): five thousand are said, and the first are among them.
+        QByteArray many = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"200\" viewBox=\"0 0 300 200\">";
+        for (int i = 0; i < 5300; ++i)
+            many += "<text x=\"" + QByteArray::number(2 + (i % 100) * 2.9) + "\" y=\"" + QByteArray::number(5 + (i / 100) * 3.2) + "\" font-size=\"2\">" + (i < 5000 ? "a" : "q") + "</text>";
+        many += "</svg>";
+        const QString first = say(many);
+        QVERIFY2(!first.isEmpty(), qPrintable(err));
+        const int as = first.count(QLatin1Char('a'));
+        QVERIFY2(as >= 4000 && as <= 5000, qPrintable(QString::number(as)));
+        QCOMPARE(first.count(QLatin1Char('q')), 0);   // (the ones after the five thousandth)
+        // Long texts: each is cut at a thousand letters, and the letters said stop at two hundred thousand (250 texts of 5,000 give 200). (They are
+        // texts the renderer is told not to draw, as a diagram's are, so that the picture isn't a million outlines.)
+        QByteArray long_ = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"200\" viewBox=\"0 0 300 200\">";
+        for (int i = 0; i < 250; ++i)
+            long_ += "<text class=\"jo-words\" display=\"none\" x=\"2\" y=\"" + QByteArray::number(3 + i * 0.75) + "\" font-size=\"2\">" + QByteArray(5000, 'z') + "</text>";
+        long_ += "</svg>";
+        const QString second = say(long_);
+        QVERIFY2(!second.isEmpty(), qPrintable(err));
+        const int zs = second.count(QLatin1Char('z'));
+        QCOMPARE(zs, 200000);
+    }
+
+    // Text the picture doesn't show isn't said: that a style sheet hides (display none, hidden visibility) or sizes to nothing, text in a nested drawing
+    // or in a group another element uses, and (a style sheet with a rule this can't read that sets them) any text at all, as what shows can't be told.
+    // The text that shows, sized by the style sheet, is said.
+    void exportPdfLeavesOutSvgTextThePictureDoesNotShow()
+    {
+        QString err;
+        auto say = [&](const QByteArray &svg) {
+            auto d = deck::newPresentation();
+            addPicture(*d->pages[0], d->addImage(svg, QStringLiteral("svg")), QRectF(100, 100, 300, 200));
+            const QByteArray pdf = pdfOf(*d, &err);
+            return pdf.isEmpty() ? QString() : pdfText(pdf);
+        };
+        const QByteArray svg =
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"300\" height=\"200\" viewBox=\"0 0 300 200\">"
+            "<style>.gone{display:none} #ghost{visibility:hidden} .tiny{font-size:0.1px} .cap{font-size:20px}</style>"
+            "<text class=\"gone\" x=\"10\" y=\"20\" font-size=\"20\" font-family=\"Arimo\">CssGone</text>"
+            "<text id=\"ghost\" x=\"10\" y=\"45\" font-size=\"20\" font-family=\"Arimo\">CssGhost</text>"
+            "<text class=\"tiny\" x=\"10\" y=\"70\" font-size=\"20\" font-family=\"Arimo\">CssTiny</text>"
+            "<text class=\"cap\" x=\"10\" y=\"95\" font-family=\"Arimo\">CssSized</text>"
+            "<svg x=\"150\" y=\"10\" width=\"100\" height=\"50\" viewBox=\"0 0 10 5\"><text x=\"1\" y=\"4\" font-size=\"3\" font-family=\"Arimo\">InsideNested</text></svg>"
+            "<g id=\"again\"><text x=\"10\" y=\"125\" font-size=\"20\" font-family=\"Arimo\">UsedTwice</text></g><use xlink:href=\"#again\" x=\"100\"/>"
+            "<text x=\"10\" y=\"185\" font-size=\"20\" font-family=\"Arimo\">PlainWords</text></svg>";
+        const QString text = say(svg);
+        QVERIFY2(!text.isEmpty(), qPrintable(err));
+        QVERIFY2(text.contains(QStringLiteral("CssSized")) && text.contains(QStringLiteral("PlainWords")), qPrintable(text));
+        for (const char *hidden : {"CssGone", "CssGhost", "CssTiny", "InsideNested", "UsedTwice"}) QVERIFY2(!text.contains(QLatin1String(hidden)), qPrintable(QLatin1String(hidden) + QStringLiteral(": ") + text));
+        // A rule of a kind this doesn't read (a descendant) that hides: what shows can't be told, so no text is said.
+        const QString unsure = say("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"200\" viewBox=\"0 0 300 200\"><style>g text{display:none}</style>"
+                                   "<g><text x=\"10\" y=\"30\" font-size=\"20\" font-family=\"Arimo\">Descendant</text></g><text x=\"10\" y=\"90\" font-size=\"20\" font-family=\"Arimo\">Elsewhere</text></svg>");
+        QVERIFY2(!unsure.contains(QStringLiteral("Descendant")) && !unsure.contains(QStringLiteral("Elsewhere")), qPrintable(unsure));
+    }
+
+    // A PDF page breaks its lines where the screen does: the presentation's text is laid out without ligatures wherever it is set (the presentation
+    // program applies none), so a ligature-rich paragraph in a tight box has the same lines in the PDF as on the screen, at any width of the box.
+    void exportPdfBreaksLinesAsTheScreenDoes()
+    {
+        const QString words = QStringLiteral("The official office staff offered fifty beautiful flowers, affiliated artifacts, and attitude; the effective traffic of stuff after offline "
+                                             "workflows; creative objectives often fit. Definitive effort, fluffy waffle, differing first flights, little shuffle, notification, "
+                                             "certificate, sufficient.");
+        for (const double width : {100.0, 100.75, 131.5, 163.25, 200.0, 233.25, 290.5, 340.0}) {
+            auto d = deck::newPresentation();
+            auto t = std::make_shared<TextItem>();
+            t->rect = QRectF(20, 20, width, 480);
+            t->hyphenate = false;
+            t->storyId = d->createStory();
+            QTextDocument *story = d->storyDoc(t->storyId);
+            QTextCursor c(story);
+            QTextCharFormat f;
+            f.setFontFamilies({QStringLiteral("Carlito")});
+            f.setFontPointSize(18);
+            c.insertText(words, f);
+            d->pages[0]->items.push_back(t);
+            LayoutCache cache;
+            const auto screen = cache.textFrame(*d, *t, 1, RenderOptions());
+            QVERIFY(screen.layout);
+            QStringList onScreen;
+            for (const auto &line : screen.layout->lineInfo(0)) onScreen << line.text.simplified();
+            QString err;
+            const QByteArray pdf = pdfOf(*d, &err);
+            QVERIFY2(!pdf.isEmpty(), qPrintable(err));
+            const PdfDocument doc(pdf);
+            QStringList inPdf;
+            for (const QString &line : doc.lines(0)) inPdf << line.simplified();
+            QVERIFY2(onScreen == inPdf, qPrintable(QStringLiteral("width %1\n screen: %2\n pdf:    %3").arg(width).arg(onScreen.join('|'), inPdf.join('|'))));
+        }
+    }
+
+    // A diagram (SmartArt) is a picture of its drawing, whose letters are outlines: the PDF has its words as text too, and the picture itself looks as
+    // it did (what says the words draws nothing: the picture without any text element is the same pixels).
+    void exportPdfCarriesTheTextOfADiagram()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(smartArtPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QByteArray pdf = pdfOf(*d, &err);
+        QVERIFY2(!pdf.isEmpty(), qPrintable(err));
+        // (The shapes are narrower than their words, which break where the line ends: the words are whole across it.)
+        const QString text = QString(pdfText(pdf)).remove(QRegularExpression(QStringLiteral("\\s")));
+        for (const char *word : {"First", "Second", "Third"}) QVERIFY2(text.contains(QLatin1String(word)), qPrintable(text));
+        const PictureItem *pic = keptPicture(*d, *d->pages[0], QStringLiteral("diagram"));
+        QVERIFY(pic);
+        QByteArray svg = d->images.value(pic->imageId).bytes;
+        auto draw = [](const QByteArray &bytes) {
+            QSvgRenderer r(bytes);
+            QImage img(288, 144, QImage::Format_ARGB32_Premultiplied);
+            img.fill(Qt::transparent);
+            QPainter painter(&img);
+            r.render(&painter);
+            return img;
+        };
+        QString stripped = QString::fromUtf8(svg);
+        stripped.remove(QRegularExpression(QStringLiteral("<text\\b.*?</text>"), QRegularExpression::DotMatchesEverythingOption));
+        const QByteArray without = stripped.toUtf8();
+        QVERIFY(without.size() < svg.size());   // (the words are in the drawing as text elements)
+        QVERIFY(draw(svg) == draw(without));
+    }
+
+    // A diagram's text takes the theme's body font (the drawing's style names it: fontRef minor) over the one the presentation's default text style
+    // sets: the picture of the diagram is the same whether that style says the theme's body font (+mn-lt) or Arial (here the theme's body font is Verdana).
+    void diagramTextTakesTheThemesBodyFontItsStyleNames()
+    {
+        QString err;
+        auto picture = [&](const QString &defaultFont) {
+            Parts p = smartArtPptx();
+            QString pres = QString::fromUtf8(p.data["/ppt/presentation.xml"].xml);
+            if (defaultFont != QLatin1String("+mn-lt")) pres.replace(QStringLiteral("<a:latin typeface=\"+mn-lt\"/>"), QStringLiteral("<a:latin typeface=\"%1\"/>").arg(defaultFont));
+            p.data["/ppt/presentation.xml"].xml = pres.toUtf8();
+            auto d = deck::importPresentation(pack(p), &err);
+            if (!d) return QByteArray();
+            const PictureItem *pic = keptPicture(*d, *d->pages[0], QStringLiteral("diagram"));
+            return pic ? d->images.value(pic->imageId).bytes : QByteArray();
+        };
+        const QByteArray themed = picture(QStringLiteral("+mn-lt")), arial = picture(QStringLiteral("Arial"));
+        QVERIFY2(!themed.isEmpty() && !arial.isEmpty(), qPrintable(err));
+        // (A pattern in the picture has a number of its own each time: the same picture is the same but for that.)
+        auto same = [](QByteArray svg) { return QString::fromUtf8(svg).replace(QRegularExpression(QStringLiteral("texpattern_[0-9a-f]+")), QStringLiteral("texpattern")); };
+        QVERIFY(same(themed) == same(arial));
+    }
+
+    // A style's body font doesn't take the place of a font a placeholder inherits: the title of a slide whose shape style says fontRef minor keeps
+    // the heading font its master's title style names.
+    void pptxPlaceholderKeepsTheFontItInherits()
+    {
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        const QString at = QStringLiteral("<p:spPr></p:spPr><p:txBody>");
+        QVERIFY(xml.contains(at));
+        xml.replace(xml.indexOf(at), at.size(),
+                    QStringLiteral("<p:spPr></p:spPr><p:style><a:lnRef idx=\"0\"><a:scrgbClr r=\"0\" g=\"0\" b=\"0\"/></a:lnRef><a:fillRef idx=\"0\"><a:scrgbClr r=\"0\" g=\"0\" b=\"0\"/></a:fillRef>"
+                                   "<a:effectRef idx=\"0\"><a:scrgbClr r=\"0\" g=\"0\" b=\"0\"/></a:effectRef><a:fontRef idx=\"minor\"><a:schemeClr val=\"tx1\"/></a:fontRef></p:style><p:txBody>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QTextDocument *title = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:title"));
+        QVERIFY(title && !title->isEmpty());
+        const QTextCharFormat f = title->begin().begin().fragment().charFormat();
+        QCOMPARE(f.stringProperty(tp::ThemeFont), QStringLiteral("major"));
+    }
+
+    // The words a picture's pixels hold (kept with a Macintosh picture's PNG) are in the PDF as text with no ink, where they were drawn, and not the
+    // ones that fall outside the part of the picture the slide shows.
+    void exportPdfCarriesTheWordsKeptWithAPicture()
+    {
+        QImage img(400, 100, QImage::Format_ARGB32);
+        img.fill(Qt::white);
+        img.setText(QString::fromLatin1(kDrawnWordsKey), drawnWordsToText({{QStringLiteral("Outside 1.5"), QStringLiteral("Arimo"), QPointF(0.1, 0.5), 0.1, false, false},
+                                                                           {QStringLiteral("Inside 2.5"), QStringLiteral("Arimo"), QPointF(0.6, 0.5), 0.1, true, false}}));
+        QByteArray png;
+        QBuffer buf(&png);
+        QVERIFY(buf.open(QIODevice::WriteOnly) && img.save(&buf, "PNG"));
+        QVERIFY(QImage::fromData(png).text(QString::fromLatin1(kDrawnWordsKey)).contains(QLatin1String("Inside 2.5")));
+        auto d = deck::newPresentation();
+        // A picture 200 wide that shows the right half of the image (twice its width, cropped): the first word is cropped out.
+        addPicture(*d->pages[0], d->addImage(png, QStringLiteral("png")), QRectF(100, 100, 200, 100), QRectF(-200, 0, 400, 100));
+        QString err;
+        const QByteArray pdf = pdfOf(*d, &err);
+        QVERIFY2(!pdf.isEmpty(), qPrintable(err));
+        const QString text = pdfText(pdf);
+        QVERIFY2(text.contains(QStringLiteral("Inside 2.5")), qPrintable(text));
+        QVERIFY2(!text.contains(QStringLiteral("Outside")), qPrintable(text));
+    }
+
+    // The text of a metafile picture (a chart pasted as a picture, an embedded object's preview), in either kind of metafile, is in the PDF as text.
+    void exportPdfCarriesTheTextOfAMetafilePicture()
+    {
+        auto words = [](std::initializer_list<int> v) { return wmfWords(v); };
+        auto ints = [](std::initializer_list<qint32> v) {
+            QByteArray b;
+            for (qint32 w : v) b += le(quint32(w), 4);
+            return b;
+        };
+        const QString text = QStringLiteral("Axis 2.5");
+        // A metafile of the older kind: a window, a font (24 units tall, Arimo), the text color, and the string at 20 across and 60 down.
+        QByteArray font = words({-24, 0, 0, 0, 400});
+        font.append(char(0)).append(char(0)).append(char(0)).append(char(0));
+        font += QByteArray(4, '\0') + QByteArray("Arimo") + '\0';
+        QByteArray line = words({int(text.size())}) + text.toLatin1();
+        line += words({60, 20});   // y, then x
+        QByteArray body = wmfRecord(0x020B, words({0, 0})) + wmfRecord(0x020C, words({300, 400})) + wmfRecord(0x0102, words({1})) + wmfRecord(0x02FB, font) + wmfRecord(0x012D, words({0}))
+                          + wmfRecord(0x0209, QByteArray(4, '\0')) + wmfRecord(0x0521, line) + wmfRecord(0x0000, QByteArray());
+        QByteArray head = wmfDword(0x9AC6CDD7u) + wmfWords({0, 0, 0, 400, 300, 72}) + wmfDword(0);
+        quint16 sum = 0;
+        for (int i = 0; i < 20; i += 2) sum ^= quint16(quint8(head[i]) | (quint8(head[i + 1]) << 8));
+        head += wmfWords({int(sum)});
+        const QByteArray standard = wmfWords({1, 9, 0x300}) + wmfDword(quint32((18 + body.size()) / 2)) + wmfWords({2}) + wmfDword(60) + wmfWords({0});
+        const QByteArray older = head + standard + body;
+        // The same in the newer kind: records with a type and their length in bytes, the text in UTF-16.
+        auto record = [&](quint32 type, const QByteArray &payload) {
+            QByteArray pad = payload;
+            while (pad.size() % 4) pad.append('\0');
+            return le(type, 4) + le(quint32(8 + pad.size()), 4) + pad;
+        };
+        QByteArray lf = ints({1, -24, 0, 0, 0, 400});
+        lf.append(char(0)).append(char(0)).append(char(0)).append(char(0));
+        lf += QByteArray(4, '\0');
+        QByteArray name(64, '\0');
+        const QString face = QStringLiteral("Arimo");
+        for (int i = 0; i < face.size(); ++i) name[2 * i] = char(face[i].unicode());
+        QByteArray chars;
+        for (QChar c : text) chars += le(c.unicode(), 2);
+        while (chars.size() % 4) chars.append('\0');
+        const int fixed = 8 + 16 + 12 + 40;
+        // (No widths for the letters: the string is drawn whole.)
+        const QByteArray run = ints({0, 0, 0, 0, 1}) + QByteArray(8, '\0') + ints({20, 60, int(text.size()), fixed, 0, 0, 0, 0, 0, 0}) + chars;
+        QByteArray newer = record(1, ints({0, 0, 399, 299, 0, 0, 10583, 7937, qint32(0x464D4520u), 0x10000, 0, 1, 1, 0, 0, 0, 3840, 2880, 1016, 762}))
+                           + record(18, ints({1})) + record(82, lf + name) + record(37, ints({1})) + record(24, ints({0})) + record(84, run) + record(14, ints({0, 16, 20}));
+        qToLittleEndian<quint32>(quint32(newer.size()), newer.data() + 48);
+        for (const auto &kind : {qMakePair(older, QStringLiteral("wmf")), qMakePair(newer, QStringLiteral("emf"))}) {
+            auto d = deck::newPresentation();
+            const QString id = d->addImage(kind.first, kind.second);
+            QVERIFY2(!id.isEmpty(), qPrintable(kind.second));
+            addPicture(*d->pages[0], id, QRectF(100, 100, 400, 300));
+            QString err;
+            const QByteArray pdf = pdfOf(*d, &err);
+            QVERIFY2(!pdf.isEmpty(), qPrintable(err));
+            QVERIFY2(pdfText(pdf).contains(text), qPrintable(kind.second + QLatin1Char(' ') + pdfText(pdf)));
+        }
     }
 
     // A notes page has the slide framed in its upper half and the speaker
