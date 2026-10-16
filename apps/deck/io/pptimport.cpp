@@ -60,6 +60,8 @@ constexpr int kMaxNotes = 20;
 // The XML a writer kept for a shape or a theme: the most of one that is read, and of all of them.
 // The most pixels of a picture that has its brightness or contrast applied to them, or its tiles moved.
 constexpr qint64 kMaxAdjustedPixels = 16'000'000;
+// A pattern is a bitmap of a few pixels (8 by 8); one this large is not taken for one.
+constexpr qint64 kMaxPatternPixels = 65'536;
 // A shape's is a few kilobytes, packed and unpacked; a theme's package may
 // hold the theme's pictures as well. Each is held to its size unpacked too
 // (a few packed bytes can unpack to gigabytes), and all of them together.
@@ -887,6 +889,7 @@ private:
     TextGroup readTextGroup(Records &rs, const QVector<Rec> &recs);
     QString pictureId(int blipIndex);
     QString adjustedPicture(const QString &id, double brightness, double contrast);
+    QString patternedPicture(const QString &id, const QColor &fillColor, const QColor &backColor);
 
     // The masters.
     void readMasters();
@@ -1381,6 +1384,45 @@ QString Importer::adjustedPicture(const QString &id, double brightness, double c
         QBuffer buffer(&png);
         buffer.open(QIODevice::WriteOnly);
         if (img.save(&buffer, "PNG")) result = m_doc.addImage(png, QStringLiteral("png"), QString(), img);
+    }
+    m_adjusted.insert(key, result);
+    return result;
+}
+
+// A pattern's bitmap (black and white) drawn in the shape's colors, as the presentation program draws a pattern fill: its white bits in the
+// fill color and its black ones in the back color (checked against the program's pictures of a master's striped background, whose bitmap has
+// three rows of black to one of white and whose pictures show three rows of the back color to one of the fill color). The picture itself
+// when it isn't a bitmap of black and white.
+QString Importer::patternedPicture(const QString &id, const QColor &fillColor, const QColor &backColor)
+{
+    const QString key = QStringLiteral("pattern|%1|%2|%3").arg(id, fillColor.name(QColor::HexArgb), backColor.name(QColor::HexArgb));
+    if (const auto it = m_adjusted.constFind(key); it != m_adjusted.constEnd()) return it.value();
+    // Past the limit on the pictures made, the bitmap stays as it is.
+    if (m_adjusted.size() >= 200) return id;
+    QString result = id;
+    // (The size is asked first: a big picture is not decoded for each pair of colors.)
+    const QSize size = m_doc.imageSize(id);
+    const QImage img = size.isValid() && qint64(size.width()) * size.height() <= kMaxPatternPixels ? m_doc.image(id) : QImage();
+    if (!img.isNull()) {
+        QImage tile = img.convertToFormat(QImage::Format_ARGB32);
+        bool twoTone = true;
+        for (int y = 0; y < tile.height() && twoTone; ++y) {
+            QRgb *line = reinterpret_cast<QRgb *>(tile.scanLine(y));
+            for (int x = 0; x < tile.width(); ++x) {
+                const int v = qGray(line[x]);
+                if (qAlpha(line[x]) < 255 || (v > 8 && v < 247)) {
+                    twoTone = false;
+                    break;
+                }
+                line[x] = (v <= 8 ? backColor : fillColor).rgba();
+            }
+        }
+        if (twoTone) {
+            QByteArray png;
+            QBuffer buffer(&png);
+            buffer.open(QIODevice::WriteOnly);
+            if (tile.save(&buffer, "PNG")) result = m_doc.addImage(png, QStringLiteral("png"), QString(), tile);
+        }
     }
     m_adjusted.insert(key, result);
     return result;
@@ -2390,6 +2432,7 @@ office::OdrawContext Importer::drawingContext()
     ctx.schemeColor = [this](int index) { return m_state && m_state->scheme && index >= 0 && index < 8 ? m_state->scheme[index] : QColor(); };
     ctx.picture = [this](int index) { return pictureId(index); };
     ctx.adjusted = [this](const QString &id, double brightness, double contrast) { return adjustedPicture(id, brightness, contrast); };
+    ctx.patterned = [this](const QString &id, const QColor &fillColor, const QColor &backColor) { return patternedPicture(id, fillColor, backColor); };
     ctx.client = [this](Item &item, const QByteArray &textbox, const QByteArray &clientData) {
         if (m_state) clientShape(item, textbox, clientData);
     };
