@@ -58,6 +58,7 @@ constexpr int kMaxRuns = 20000, kMaxParagraphs = 10000;
 constexpr qint64 kMaxTotalParagraphs = 200000, kMaxTotalPieces = 500000;
 // The notes said of a file: more than this are counted, not listed.
 constexpr int kMaxNotes = 20;
+constexpr int kMaxFooterChars = 1000;   // of a footer or a date text
 // The XML a writer kept for a shape or a theme: the most of one that is read, and of all of them.
 // The most pixels of a picture that has its brightness or contrast applied to them, or its tiles moved.
 constexpr qint64 kMaxAdjustedPixels = 16'000'000;
@@ -881,6 +882,14 @@ private:
     QVector<qint64> m_start;
 };
 
+// What a headers and footers record says (HeadersFootersAtom's flags, and the texts of its strings).
+struct FooterSpec {
+    bool set = false;
+    quint16 flags = 0;
+    QString date, footer;
+};
+enum : quint16 { FootHasDate = 0x1, FootTodayDate = 0x2, FootUserDate = 0x4, FootSlideNumber = 0x8, FootHasFooter = 0x20 };
+
 class Importer {
 public:
     Importer(const QByteArray &file, Document &doc) : m_file(file), m_doc(doc) {}
@@ -920,6 +929,8 @@ private:
 
     // The slides.
     void readSlide(int number, const SlideEntry &e);
+    FooterSpec readFooterSpec(const Rec &box);
+    void showFooters(const FooterSpec &document);
     MasterInfo *masterByRef(quint32 ref) const;
     void finishItems(ItemList &items, PageState &st, bool slide);
     QString readNotes(const SlideEntry &slide, quint32 notesRef, const MasterInfo &master);
@@ -981,6 +992,7 @@ private:
     bool m_charLimitSaid = false, m_paragraphLimitSaid = false;
     int m_layoutCount = 0;
     bool m_footers = false;
+    QHash<const Page *, FooterSpec> m_slideFooters;   // the headers and footers a slide sets for itself
     QStringList m_notes;
     int m_extraNotes = 0;
 
@@ -2026,6 +2038,10 @@ void Importer::readSlide(int number, const SlideEntry &e)
     ItemList items = readShapes(drawing, st);
     finishItems(items, st, true);
     page->items = std::move(items);
+    if (const Rec *hf = find(kids, RT_HeadersFooters)) {
+        const FooterSpec own = readFooterSpec(*hf);
+        if (own.set) m_slideFooters.insert(page.get(), own);
+    }
     for (const auto &it : page->items) {
         const QString type = placeholderType(*it);
         if (isTitleType(type) && it->type() == ItemType::Text) {
@@ -2038,6 +2054,63 @@ void Importer::readSlide(int number, const SlideEntry &e)
     page->masterId = layout->id;
     page->notesStoryId = readNotes(e, notesRef, *source);
     m_doc.pages << page;
+}
+
+// The flags and strings of a headers and footers record: the user's date (instance 0) and the footer (2), each cut short past a line's worth.
+FooterSpec Importer::readFooterSpec(const Rec &box)
+{
+    FooterSpec spec;
+    const QByteArray &d = m_ppt.data();
+    for (const Rec &k : m_ppt.in(box)) {
+        if (k.type == RT_HeadersFootersAtom && k.len >= 4) {
+            Cursor c(d, k.off, k.end());
+            c.u16();
+            spec.flags = c.u16();
+            spec.set = c.ok();
+        } else if (k.type == RT_CString && (k.inst == 0 || k.inst == 2)) {
+            const QString text = readChars(d, k, true).section(QChar(0), 0, 0).left(kMaxFooterChars);
+            (k.inst == 0 ? spec.date : spec.footer) = text;
+        }
+    }
+    return spec;
+}
+
+// The date, slide number, and footer the document (or a slide) says its slides show, on the slides that have no place for them of their own,
+// where their layout has the place: a slide with such a place keeps what it has.
+void Importer::showFooters(const FooterSpec &document)
+{
+    auto optionsOf = [](const FooterSpec &f) {
+        FooterOptions o;
+        o.date = (f.flags & FootHasDate) && ((f.flags & FootTodayDate) || ((f.flags & FootUserDate) && !f.date.isEmpty()));
+        o.slideNumber = f.flags & FootSlideNumber;
+        o.footer = (f.flags & FootHasFooter) && !f.footer.isEmpty();
+        o.footerText = f.footer;
+        return o;
+    };
+    if (document.set) {
+        m_doc.appData[QStringLiteral("footerOptions")] = optionsOf(document).toJson();
+        if (optionsOf(document).any()) m_footers = true;
+    }
+    for (const auto &page : m_doc.pages) {
+        const bool own = std::any_of(page->items.cbegin(), page->items.cend(), [](const ItemPtr &it) { return isFooterType(placeholderType(*it)); });
+        if (own) continue;
+        const auto set = m_slideFooters.constFind(page.get());
+        const FooterSpec &spec = set != m_slideFooters.cend() ? set.value() : document;
+        if (!spec.set) continue;
+        const FooterOptions o = optionsOf(spec);
+        if (!o.any()) continue;
+        applyFooters(m_doc, o, page.get());
+        // The date as the user typed it, not the one that is today's.
+        if (!(spec.flags & FootTodayDate) && !spec.date.isEmpty())
+            for (const auto &it : page->items) {
+                if (placeholderType(*it) != QLatin1String("dt") || it->type() != ItemType::Text) continue;
+                if (QTextDocument *story = m_doc.storyDoc(static_cast<TextItem &>(*it).storyId)) {
+                    QTextCursor c(story);
+                    c.select(QTextCursor::Document);
+                    c.insertText(spec.date);
+                }
+            }
+    }
 }
 
 // The text box of a placeholder in a drawing, looking into its groups too.
@@ -2641,6 +2714,14 @@ bool Importer::run(QString *error)
         readSlide(number, e);
     }
     assembleMasters();
+    // (The record of the document that is for slides: the notes have their own.)
+    FooterSpec documentFooters;
+    for (const Rec &r : kids)
+        if (r.type == RT_HeadersFooters && r.inst == 3) {
+            documentFooters = readFooterSpec(r);
+            break;
+        }
+    showFooters(documentFooters);
 
     // The theme: the first master's colors (the scheme's text and background are the theme's dark 1 and light 1, its
     // title text and shadow dark 2 and light 2, its fills and accent the first two accents, and its two hyperlink

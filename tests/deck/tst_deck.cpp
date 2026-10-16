@@ -2169,10 +2169,10 @@ private:
     // `titleMasterRecord` is the kind of record the title master is kept in (the presentation program keeps it as a slide record).
     // `bodyGroup` stands for the first slide's body text; `drawingGroup` is the document's drawing group, `firstSlideShapes` more
     // shapes for the first slide's drawing, `masterTitleProps` a property record for the main master's title shape, `masterBackground`
-    // a shape for its drawing, and `masterExtra` more records for the main master.
+    // a shape for its drawing, `masterExtra` more records for the main master, and `documentExtra` more records for the document.
     static QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray(),
                                const QByteArray &drawingGroup = QByteArray(), const QByteArray &firstSlideShapes = QByteArray(), const QByteArray &masterTitleProps = QByteArray(), const QByteArray &masterBackground = QByteArray(),
-                               const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016)
+                               const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016, const QByteArray &documentExtra = QByteArray())
     {
         constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
         const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")) + fontEntity(QStringLiteral("Symbol")) + fontEntity(QStringLiteral("Wingdings 2")) + fontEntity(QStringLiteral("Wingdings")));
@@ -2186,6 +2186,7 @@ private:
         const QByteArray document = pptBox(1000, pptRec(1001, le(5760, 4) + le(4320, 4) + le(4320, 4) + le(5760, 4) + le(5, 4) + le(10, 4) + le(0, 4) + le(0, 4) + le(1, 2) + le(0, 2) + le(0, 4))
             + environment
             + drawingGroup
+            + documentExtra
             + (links ? pptBox(1033, pptRec(1034, le(1, 4)) + pptBox(4055, pptRec(4051, le(7, 4)) + pptRec(4026, utf16(QStringLiteral("the site")), 0) + pptRec(4026, utf16(QStringLiteral("https://example.org/site")), 1)))
                      : QByteArray())
             + pptBox(4080, slidePersist(3, 0, kMaster) + (titleMaster ? slidePersist(7, 0, kTitleMaster) : QByteArray()), 1)
@@ -24729,6 +24730,43 @@ private Q_SLOTS:
         const QColor inside = img.pixelColor(img.width() / 4, img.height() / 4), outside = img.pixelColor(img.width() * 3 / 4, img.height() * 3 / 4);
         QVERIFY2(qAbs(inside.red() - 100) <= 2 && inside.alpha() == 255, qPrintable(inside.name(QColor::HexArgb)));
         QVERIFY2(outside.alpha() == 0 || outside.red() > 200, qPrintable(outside.name(QColor::HexArgb)));
+    }
+
+    // A presentation whose document says (in its headers and footers record) that the slides show a slide number and a footer text shows
+    // them on the slides that have none of their own, wherever the slide's master has the place for them; a slide that has a footer
+    // place of its own keeps just what it has. A document that says nothing of them shows none.
+    void importBinaryShowsTheFootersTheDocumentSetsOnSlidesWithoutThem()
+    {
+        // The flags: slide number (8) and footer (0x20); the footer's text is the string of instance 2.
+        const QByteArray footers = pptBox(4057, pptRec(4058, le(0, 2) + le(0x28, 2)) + pptRec(4026, utf16(QStringLiteral("Quarterly review")), 2), 3);
+        // The master's places for the footer (9) and the slide number (8), and the first slide's own number (8), holding 7.
+        const QByteArray masterPlaces = pptShape(0x410, 9, QByteArray(), 4000, 200, 3000, 4300) + pptShape(0x411, 8, QByteArray(), 4000, 4000, 5500, 4300);
+        const QByteArray ownNumber = pptShape(0x420, 8, pptRec(3999, le(4, 4)) + pptRec(4000, utf16(QStringLiteral("7"))), 4000, 4000, 5500, 4300);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), ownNumber, QByteArray(), masterPlaces, QByteArray(), 1016, footers), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 2);
+        auto count = [](const Page &p, const QString &type) {
+            int n = 0;
+            for (const auto &it : p.items) n += deck::placeholderType(*it) == type;
+            return n;
+        };
+        // The second slide has both, the footer with the text and the number as the field of the slide's number.
+        QCOMPARE(count(*d->pages[1], QStringLiteral("ftr")), 1);
+        QCOMPARE(count(*d->pages[1], QStringLiteral("sldNum")), 1);
+        QCOMPARE(count(*d->pages[1], QStringLiteral("dt")), 0);
+        QCOMPARE(placeholderText(*d, *d->pages[1], QStringLiteral("ph:ftr")), QStringLiteral("Quarterly review"));
+        const QTextDocument *number = placeholderStory(*d, *d->pages[1], QStringLiteral("ph:sldNum"));
+        QVERIFY(number);
+        QCOMPARE(number->toPlainText(), QString(QChar::ObjectReplacementCharacter));
+        // The first slide keeps its own number and gets nothing more.
+        QCOMPARE(count(*d->pages[0], QStringLiteral("sldNum")), 1);
+        QCOMPARE(count(*d->pages[0], QStringLiteral("ftr")), 0);
+        QCOMPARE(placeholderText(*d, *d->pages[0], QStringLiteral("ph:sldNum")), QStringLiteral("7"));
+        // With no record of them, no slide shows them.
+        auto plain = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterPlaces), &err);
+        QVERIFY2(plain, qPrintable(err));
+        for (const auto &p : plain->pages) QCOMPARE(count(*p, QStringLiteral("ftr")) + count(*p, QStringLiteral("sldNum")), 0);
     }
 
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.
