@@ -40,6 +40,8 @@ void DeckWindow::buildRibbon()
     if (f.open(QIODevice::ReadOnly)) json = f.readAll();
     addShowParts(parts);
     addMediaParts(parts);
+    addTableParts(parts);
+    addCropParts(parts);
     addInsertParts(parts);
     addAnimationParts(parts);
     addDesignParts(parts);
