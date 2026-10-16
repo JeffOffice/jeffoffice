@@ -3,7 +3,7 @@
 #include "app/deckwindow.h"
 
 #include "app/editor.h"
-#include "app/findpane.h"
+#include "app/deckfindpane.h"
 
 #include <QAction>
 #include <QDockWidget>
@@ -27,7 +27,7 @@ void DeckWindow::showFindPane(bool replace)
         m_findDock = new QDockWidget(tr("Find and Replace"), this);
         m_findDock->setObjectName(QStringLiteral("findDock"));
         m_findDock->setFeatures(QDockWidget::DockWidgetClosable);
-        m_find = new FindPane(this, m_findDock);
+        m_find = new DeckFindPane(this, m_findDock);
         m_findDock->setWidget(m_find);
         addDockWidget(Qt::RightDockWidgetArea, m_findDock);
         resizeDocks({m_findDock}, {300}, Qt::Horizontal);

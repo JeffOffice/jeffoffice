@@ -49,7 +49,7 @@ Three buttons change the whole box and not just a paragraph. **Text Direction** 
 
 To look for words, press **Ctrl+F**, or click **Home > Editing > Find**. The **Find and Replace** pane opens on the right. Type the words in **Find what**. Then press Enter, or click **Find Next**.
 
-JeffDeck starts on the slide you are on. It looks at titles, text boxes, shapes, tables, and speaker notes. When it finds the words, it shows that slide and selects the words. A match in the speaker notes is selected in the notes box under the slide. Click **Find Next** again to go to the next match. After the last slide, it goes back to the first.
+JeffDeck starts on the slide you are on. It looks at titles, text boxes, shapes, tables, Text Art, and speaker notes. It also looks at hidden slides. When it finds the words, it shows that slide and selects the words. For Text Art, it selects the whole Text Art. A match in the speaker notes is selected in the notes box under the slide. Click **Find Next** again to go to the next match. After the last slide, it goes back to the first.
 
 - **Match case** finds only words with the same capital letters. "Plan" does not find "plan."
 - **Find whole words only** skips longer words that hold yours. "plan" does not find "planet."

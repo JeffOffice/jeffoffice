@@ -7,7 +7,7 @@
 #include "app/commentspane.h"
 #include "app/deckfilescreen.h"
 #include "app/editor.h"
-#include "app/findpane.h"
+#include "app/deckfindpane.h"
 #include "app/help.h"
 #include "app/notespane.h"
 #include "app/onlinepictures.h"
