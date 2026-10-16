@@ -384,20 +384,80 @@ bool TableLayout::splittable(int r) const
     return true;
 }
 
+namespace {
+
+using LineList = std::vector<std::pair<double, double>>;
+
+void contentLines(const CellContent &content, double y0, LineList *out);
+
+// Where a table in a cell can be cut: between its rows, and inside a row that may be split, between what the lines of its cells leave clear (a table joined down
+// anywhere is one piece, as is a row that must stay whole).
+void tableLines(const TableFragment &nested, double y0, LineList *out)
+{
+    TableLayout &t = *nested.layout;
+    bool joined = false;
+    for (int i = 0; i < t.cellCount() && !joined; ++i) joined = t.cell(i).rows > 1;
+    if (joined) {
+        out->push_back({y0, y0 + nested.height});
+        return;
+    }
+    double y = y0;
+    for (int r = nested.firstRow; r < nested.endRow; ++r) {
+        const double h = nested.heightOf(r);
+        LineList inRow;
+        if (t.splittable(r)) {
+            const TableLayout::Row &row = t.row(r);
+            for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
+                const TableLayout::Cell &c = t.cell(i);
+                if (c.covered) continue;
+                const std::shared_ptr<CellContent> content = t.contentOf(c);
+                const double inner = h - c.margins.top() - c.margins.bottom();
+                const double free = std::max(0.0, inner - content->height);
+                const double drop = c.rec->cell.valign == CellAlign::Center ? free / 2 : c.rec->cell.valign == CellAlign::Bottom ? free : 0;
+                contentLines(*content, y + c.margins.top() + drop, &inRow);
+            }
+        }
+        if (inRow.empty()) {
+            out->push_back({y, y + h});
+        } else {
+            // The cells' lines side by side: those that overlap in height are one piece.
+            std::sort(inRow.begin(), inRow.end());
+            std::pair<double, double> run = inRow.front();
+            for (size_t k = 1; k < inRow.size(); ++k) {
+                if (inRow[k].first < run.second - 0.01) {
+                    run.second = std::max(run.second, inRow[k].second);
+                } else {
+                    out->push_back(run);
+                    run = inRow[k];
+                }
+            }
+            out->push_back(run);
+        }
+        y += h;
+    }
+}
+
+void contentLines(const CellContent &content, double y0, LineList *out)
+{
+    for (const CellContent::Part &part : content.parts) {
+        if (part.text) {
+            for (const StoryLayout::LineBrief &l : part.text->lineBriefs())
+                if (l.frame >= 0) out->push_back({y0 + part.y + l.rect.top(), y0 + part.y + l.rect.bottom()});
+        } else if (part.table) {
+            tableLines(*part.table, y0 + part.y, out);
+        }
+    }
+}
+
+} // namespace
+
 std::shared_ptr<const TableLayout::Units> TableLayout::unitsOf(int index)
 {
     const auto found = m_units.constFind(index);
     if (found != m_units.constEnd()) return found.value();
     auto u = std::make_shared<Units>();
     const std::shared_ptr<CellContent> content = contentOf(m_cells[size_t(index)]);
-    for (const CellContent::Part &part : content->parts) {
-        if (part.text) {
-            for (const StoryLayout::LineBrief &l : part.text->lineBriefs())
-                if (l.frame >= 0) u->lines.push_back({part.y + l.rect.top(), part.y + l.rect.bottom()});
-        } else if (part.table) {
-            u->lines.push_back({part.y, part.y + part.table->height});
-        }
-    }
+    contentLines(*content, 0, &u->lines);
     u->height = content->height;
     m_units.insert(index, u);
     return u;
@@ -450,6 +510,7 @@ TableLayout::Piece TableLayout::pieceOf(int r, int state, double room, double fu
         if (j == k) {
             piece.progress = progress;
             piece.offsets = offs;
+            piece.ends = more ? next : QVector<double>(n, kEnd);
             if (more) {
                 piece.height = avail;
                 piece.next = pieceState(k + 1, first);
@@ -566,8 +627,12 @@ std::vector<TableFragment::Placed> TableFragment::place() const
                 drop = 0;
                 const int at = items[size_t(n)].cell - layout->row(c.row).cell0;
                 if (at >= 0 && at < part->piece.offsets.size()) offset = std::min(part->piece.offsets[at], items[size_t(n)].content->height);
+                p.text = QPointF(p.rect.left() + c.margins.left(), p.rect.top() + c.margins.top() + drop - offset);
+                // (What is left for the next part is not drawn in the space under the last line that is in this one.)
+                if (at >= 0 && at < part->piece.ends.size() && part->piece.ends[at] < 1e17) p.cut = p.text.y() + part->piece.ends[at];
+            } else {
+                p.text = QPointF(p.rect.left() + c.margins.left(), p.rect.top() + c.margins.top() + drop - offset);
             }
-            p.text = QPointF(p.rect.left() + c.margins.left(), p.rect.top() + c.margins.top() + drop - offset);
             out.push_back(p);
         }
         y += tops.back();
@@ -683,8 +748,12 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
     po.selTo = o.selTo;
     for (const Placed &pl : placed) {
         const CellContent &content = *items[size_t(pl.item)].content;
+        // (A table in the cell has its lines on the cell's edges when the cell has no margin: they are drawn whole.)
+        const bool hasTable = std::any_of(content.parts.begin(), content.parts.end(), [](const CellContent::Part &part) { return part.table != nullptr; });
         p->save();
-        p->setClipRect(pl.clip, Qt::IntersectClip);
+        QRectF area = hasTable ? pl.clip.adjusted(-2, -2, 2, 2) : pl.clip;
+        if (pl.cut < area.bottom()) area.setBottom(pl.cut);
+        p->setClipRect(area, Qt::IntersectClip);
         for (const CellContent::Part &part : content.parts) {
             p->save();
             p->translate(pl.text.x(), pl.text.y() + part.y);
