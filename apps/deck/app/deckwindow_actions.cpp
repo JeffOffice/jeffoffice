@@ -12,6 +12,7 @@
 #include "app/outlineview.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
+#include "app/textdialogs.h"
 #include "canvas/canvas.h"
 #include "core/deck.h"
 #include "text/textprops.h"
@@ -192,6 +193,14 @@ void DeckWindow::createFormatActions()
         QStringList ids;
         for (const auto &it : ed->surfaceItems()) ids << it->id;
         ed->select(ids);
+    });
+
+    // Types in the selected box, shape, or table; asks for the words of a Text Art.
+    mk("edit.text", tr("Edit Text"), "text-cursor", QKeySequence(), [this, ed] {
+        Item *it = ed->single();
+        if (!it) return;
+        if (it->type() == ItemType::TextArt) textArtTextDialog(this, ed, it->id);
+        else if (it->type() == ItemType::Text || it->type() == ItemType::Shape || it->type() == ItemType::Table) ed->beginTextEdit(it->id);
     });
 }
 

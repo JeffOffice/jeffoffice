@@ -162,6 +162,7 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
         for (const QString &path : paths)
             if (insertPicture(path, where) && where.x() >= 0) where += QPointF(18, 18);
     });
+    connect(m_canvas, &Canvas::contextMenuWanted, this, &DeckWindow::showSlideContextMenu);
     m_canvas->zoomToFit(Canvas::Fit::WholePage);
     resize(1280, 800);
     updateTitle();

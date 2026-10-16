@@ -29,6 +29,7 @@
 #include "app/reusepane.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
+#include "app/spelling.h"
 #include "app/showdialogs.h"
 #include "app/slideshow.h"
 #include "app/showmedia.h"
@@ -133,6 +134,8 @@
 #include <QTranslator>
 #include <QToolButton>
 #include <QUrl>
+#include <QAccessible>
+#include <QWidgetAction>
 #include <QXmlStreamWriter>
 #include <cmath>
 #include <functional>
@@ -27590,6 +27593,290 @@ private Q_SLOTS:
         });
         w.act("file.exportPicture")->trigger();
         QCOMPARE(label, QStringLiteral("OK"));
+    }
+
+private:
+    // What a menu offers, by id: each command by its action's id (a spelling suggestion by its words), each submenu as [its title],
+    // and what is in it with the title and a colon before.
+    static QStringList menuIds(const QMenu *menu, const QString &prefix = QString())
+    {
+        QStringList out;
+        for (const QAction *a : menu->actions()) {
+            if (a->isSeparator()) continue;
+            if (a->menu()) {
+                out << prefix + QStringLiteral("[%1]").arg(a->text());
+                out << menuIds(a->menu(), a->text() + QLatin1Char(':'));
+            } else {
+                out << prefix + (a->objectName().isEmpty() ? a->text() : a->objectName());
+            }
+        }
+        return out;
+    }
+    // The ids of the slide's menu; with JP_SHOT_DIR set it is also opened and a picture of it saved under `shotName`.
+    static QStringList slideMenu(DeckWindow &w, const QString &shotName = QString())
+    {
+        std::unique_ptr<QMenu> menu(w.slideContextMenu());
+        if (!shotName.isEmpty() && !qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) {
+            menu->popup(w.canvas()->mapToGlobal(QPoint(380, 260)));
+            QApplication::processEvents();
+            shot(menu.get(), shotName);
+            menu->close();
+        }
+        return menuIds(menu.get());
+    }
+    static TextItem *placeholderOfSlide(const Document &d, int i, int n) { return static_cast<TextItem *>(d.pages[i]->items[n].get()); }
+    static QString storyText(DeckWindow &w, const QString &storyId) { return w.editor()->doc()->storyDoc(storyId)->toPlainText(); }
+
+private Q_SLOTS:
+    // Right-click menu of the slide: nothing selected offers the slide's commands, an object offers its own, text being typed in
+    // offers the text's.
+    void slideMenuOffersWhatTheSelectionCanDo()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        Editor *ed = w.editor();
+        QStringList ids = slideMenu(w, QStringLiteral("menu-empty-slide"));
+        for (const char *id : {"edit.paste", "slide.reset", "design.formatBackground", "view.rulers", "comment.new", "[Layout]", "[Grid and Guides]",
+                               "Grid and Guides:view.gridlines", "Grid and Guides:view.guides"})
+            QVERIFY2(ids.contains(QLatin1String(id)), qPrintable(QLatin1String(id) + QLatin1String(" in ") + ids.join(QLatin1Char(' '))));
+        for (const char *id : {"edit.cut", "edit.copy", "edit.text", "arr.group", "insert.link", "fmt.fontDialog"}) QVERIFY2(!ids.contains(QLatin1String(id)), id);
+
+        // A placeholder: clipboard, delete, edit text, order, align text, link, comment; no slide commands.
+        const QString titleId = placeholderOfSlide(*ed->doc(), 0, 0)->id;
+        ed->select(titleId);
+        ids = slideMenu(w, QStringLiteral("menu-object"));
+        for (const char *id : {"edit.cut", "edit.copy", "edit.paste", "edit.delete", "edit.text", "[Order]", "Order:arr.front", "Order:arr.forward", "Order:arr.backward",
+                               "Order:arr.back", "[Alignment]", "Alignment:fmt.alignLeft", "Alignment:fmt.alignCenter", "Alignment:fmt.alignRight", "Alignment:fmt.justify",
+                               "insert.link", "comment.new"})
+            QVERIFY2(ids.contains(QLatin1String(id)), qPrintable(QLatin1String(id) + QLatin1String(" in ") + ids.join(QLatin1Char(' '))));
+        for (const char *id : {"arr.group", "arr.ungroup", "[Layout]", "slide.reset", "design.formatBackground"}) QVERIFY2(!ids.contains(QLatin1String(id)), id);
+
+        // Two objects can be grouped; the group can be taken apart.
+        ed->select(QStringList{titleId, placeholderOfSlide(*ed->doc(), 0, 1)->id});
+        ids = slideMenu(w);
+        QVERIFY(ids.contains(QStringLiteral("arr.group")) && !ids.contains(QStringLiteral("arr.ungroup")));
+        w.act(QStringLiteral("arr.group"))->trigger();
+        QCOMPARE(ed->selectionKind(), QStringLiteral("group"));
+        ids = slideMenu(w);
+        QVERIFY(ids.contains(QStringLiteral("arr.ungroup")) && !ids.contains(QStringLiteral("arr.group")));
+        ed->undo();
+
+        // A picture has no words to edit or align.
+        QTemporaryDir dir;
+        QImage img(40, 30, QImage::Format_ARGB32);
+        img.fill(Qt::red);
+        QVERIFY(img.save(dir.filePath(QStringLiteral("red.png"))));
+        QVERIFY(w.insertPicture(dir.filePath(QStringLiteral("red.png"))));
+        QCOMPARE(ed->selectionKind(), QStringLiteral("picture"));
+        ids = slideMenu(w);
+        QVERIFY(ids.contains(QStringLiteral("edit.cut")) && ids.contains(QStringLiteral("[Order]")) && ids.contains(QStringLiteral("insert.link")));
+        QVERIFY(!ids.contains(QStringLiteral("edit.text")) && !ids.contains(QStringLiteral("[Alignment]")));
+
+        // A table can be typed in.
+        w.insertTable(2, 2);
+        QCOMPARE(ed->selectionKind(), QStringLiteral("table"));
+        QVERIFY(slideMenu(w).contains(QStringLiteral("edit.text")));
+
+        // Text being typed in: the text's commands, not the object's.
+        ed->beginTextEdit(titleId);
+        ids = slideMenu(w, QStringLiteral("menu-text"));
+        for (const char *id : {"edit.cut", "edit.copy", "edit.paste", "fmt.fontDialog", "para.dialog", "para.bullets", "para.numbers", "insert.link", "review.thesaurus"})
+            QVERIFY2(ids.contains(QLatin1String(id)), qPrintable(QLatin1String(id) + QLatin1String(" in ") + ids.join(QLatin1Char(' '))));
+        for (const char *id : {"edit.delete", "edit.text", "[Order]", "[Layout]"}) QVERIFY2(!ids.contains(QLatin1String(id)), id);
+    }
+
+    // Every command in the menu is the very action the ribbon has (so it is enabled and checked as the ribbon's is, and counts the
+    // same); Reset Slide is the ribbon's Reset under a clearer name, and calls it.
+    void slideMenuCommandsAreTheRibbonsActions()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        std::function<void(const QMenu *)> check = [&](const QMenu *menu) {
+            for (QAction *a : menu->actions()) {
+                if (a->menu()) {
+                    check(a->menu());
+                } else if (!a->isSeparator() && !a->objectName().isEmpty() && a->objectName() != QLatin1String("slide.reset")) {
+                    QVERIFY2(w.act(a->objectName()), qPrintable(a->objectName()));
+                    QCOMPARE(a, w.act(a->objectName()));
+                }
+            }
+        };
+        auto checkMenu = [&] {
+            std::unique_ptr<QMenu> menu(w.slideContextMenu());
+            QVERIFY(menu->actions().size() > 3);
+            check(menu.get());
+        };
+        checkMenu();
+        ed->select(placeholderOfSlide(*ed->doc(), 0, 0)->id);
+        checkMenu();
+        ed->beginTextEdit(placeholderOfSlide(*ed->doc(), 0, 0)->id);
+        checkMenu();
+        // Reset Slide puts the placeholders back where the layout has them.
+        ed->endTextEdit();
+        ed->clearSelection();
+        const QRectF home = placeholderOfSlide(*ed->doc(), 0, 0)->rect;
+        ed->change(QStringLiteral("Move"), [&] { placeholderOfSlide(*ed->doc(), 0, 0)->rect.translate(40, 30); });
+        QVERIFY(placeholderOfSlide(*ed->doc(), 0, 0)->rect != home);
+        std::unique_ptr<QMenu> menu(w.slideContextMenu());
+        QAction *reset = nullptr;
+        for (QAction *a : menu->actions())
+            if (a->text() == QLatin1String("Reset Slide")) reset = a;
+        QVERIFY(reset);
+        QCOMPARE(reset->objectName(), QStringLiteral("slide.reset"));
+        reset->trigger();
+        QCOMPARE(placeholderOfSlide(*ed->doc(), 0, 0)->rect, home);
+        // The menu's Edit Text is the action that types in the selected box.
+        ed->select(placeholderOfSlide(*ed->doc(), 0, 1)->id);
+        std::unique_ptr<QMenu> objectMenu(w.slideContextMenu());
+        QVERIFY(objectMenu->actions().contains(w.act(QStringLiteral("edit.text"))));
+        QVERIFY(!ed->isEditingText());
+        w.act(QStringLiteral("edit.text"))->trigger();
+        QVERIFY(ed->isEditingText());
+        QCOMPARE(ed->textTarget().itemId, placeholderOfSlide(*ed->doc(), 0, 1)->id);
+    }
+
+    // A right click on the slide opens the menu for what is there; a click in the layout gallery of its Layout submenu changes the layout and closes
+    // every menu.
+    void rightClickingTheSlideOpensItsMenu()
+    {
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        QStringList ids;
+        rightClick(w.canvas()->viewport(), QPoint(300, 200), [&](QMenu *m) { ids = menuIds(m); });
+        QVERIFY2(ids.contains(QStringLiteral("slide.reset")), qPrintable(ids.join(QLatin1Char(' '))));
+        ed->select(placeholderOfSlide(*ed->doc(), 0, 0)->id);
+        ids.clear();
+        rightClick(w.canvas()->viewport(), QPoint(300, 200), [&](QMenu *m) { ids = menuIds(m); });
+        QVERIFY2(ids.contains(QStringLiteral("edit.cut")), qPrintable(ids.join(QLatin1Char(' '))));
+        // The same menu is not opened over itself.
+        ed->clearSelection();
+        bool again = false;
+        QTimer::singleShot(0, [&] {
+            untilDone([&] {
+                auto *m = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+                if (!m) return false;
+                w.showSlideContextMenu(QPoint(10, 10));   // returns at once
+                again = true;
+                m->close();
+                return true;
+            });
+        });
+        w.showSlideContextMenu(w.canvas()->mapToGlobal(QPoint(300, 200)));
+        QVERIFY(again);
+        // Layout: choosing one changes the slide and closes the menu.
+        QCOMPARE(deck::layoutType(*ed->doc()->masterFor(*ed->doc()->pages[0])), QStringLiteral("title"));
+        bool chose = false;
+        QTimer::singleShot(0, [&] {
+            untilDone([&] {
+                auto *m = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+                if (!m) return false;
+                for (QAction *a : m->actions())
+                    if (a->menu() && a->text() == QLatin1String("Layout"))
+                        if (auto *wa = qobject_cast<QWidgetAction *>(a->menu()->actions().value(0)))
+                            if (auto *gallery = qobject_cast<LayoutGallery *>(wa->defaultWidget())) {
+                                gallery->reload();
+                                Q_EMIT gallery->chosen(QStringLiteral("titleOnly"));
+                                chose = true;
+                            }
+                if (!chose) m->close();
+                return true;
+            });
+        });
+        w.showSlideContextMenu(w.canvas()->mapToGlobal(QPoint(300, 200)));   // comes back only once every menu is closed
+        QVERIFY(chose);
+        QCOMPARE(deck::layoutType(*ed->doc()->masterFor(*ed->doc()->pages[0])), QStringLiteral("titleOnly"));
+    }
+
+    // Shift+F10 and the Menu key ask for the menu where the selection is: under the text cursor, else in the middle of the selected object,
+    // else in the middle of the view.
+    void shiftF10AndTheMenuKeyOpenTheMenuAtTheSelection()
+    {
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        Canvas *cv = w.canvas();
+        cv->setFocus();
+        QObject::disconnect(cv, &Canvas::contextMenuWanted, &w, nullptr);   // only to see where the menu would open
+        QSignalSpy asked(cv, &Canvas::contextMenuWanted);
+        auto where = [&](Qt::Key key, Qt::KeyboardModifiers mods) {
+            asked.clear();
+            QTest::keyClick(cv, key, mods);
+            return asked.count() == 1 ? asked.takeFirst().at(0).toPoint() : QPoint(-9999, -9999);
+        };
+        TextItem *title = placeholderOfSlide(*ed->doc(), 0, 0);
+        ed->select(title->id);
+        for (const auto &[key, mods] : {std::pair{Qt::Key_F10, Qt::KeyboardModifiers(Qt::ShiftModifier)}, std::pair{Qt::Key_Menu, Qt::KeyboardModifiers()}}) {
+            const QPoint at = where(key, mods);
+            QVERIFY2(cv->screenRect(title->bounds()).contains(at), qPrintable(QStringLiteral("%1,%2").arg(at.x()).arg(at.y())));
+        }
+        // The platform's own request for the menu from the keyboard comes to the same place.
+        asked.clear();
+        QContextMenuEvent keyboard(QContextMenuEvent::Keyboard, QPoint(1, 1), cv->mapToGlobal(QPoint(1, 1)));
+        QApplication::sendEvent(cv->viewport(), &keyboard);
+        QCOMPARE(asked.count(), 1);
+        QVERIFY(cv->screenRect(title->bounds()).contains(asked.first().at(0).toPoint()));
+        // A mouse request stays where the mouse is.
+        asked.clear();
+        QContextMenuEvent mouse(QContextMenuEvent::Mouse, QPoint(7, 8), cv->viewport()->mapToGlobal(QPoint(7, 8)));
+        QApplication::sendEvent(cv->viewport(), &mouse);
+        QCOMPARE(asked.first().at(0).toPoint(), cv->viewport()->mapToGlobal(QPoint(7, 8)));
+        // Typing in the box: just under the caret.
+        ed->beginTextEdit(title->id);
+        const QPoint under = where(Qt::Key_F10, Qt::ShiftModifier);
+        const QRect caret = cv->caretScreenRect(ed->cursor().position());
+        QVERIFY2(under.y() >= caret.bottom() && under.y() <= caret.bottom() + 8 && under.x() >= caret.left() - 2 && under.x() <= caret.right() + 2,
+                 qPrintable(QStringLiteral("%1,%2 for %3,%4 %5x%6").arg(under.x()).arg(under.y()).arg(caret.x()).arg(caret.y()).arg(caret.width()).arg(caret.height())));
+        // Nothing selected: somewhere in the view.
+        ed->endTextEdit();
+        ed->clearSelection();
+        const QPoint mid = where(Qt::Key_Menu, Qt::NoModifier);
+        QVERIFY(cv->viewport()->rect().contains(cv->viewport()->mapFromGlobal(mid)));
+        // The menu itself: a key press opens it, and it comes back when it is closed.
+        QObject::connect(cv, &Canvas::contextMenuWanted, &w, &DeckWindow::showSlideContextMenu);
+        bool opened = false;
+        QTimer::singleShot(0, [&] {
+            untilDone([&] {
+                auto *m = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+                if (!m) return false;
+                opened = true;
+                m->close();
+                return true;
+            });
+        });
+        QTest::keyClick(cv, Qt::Key_F10, Qt::ShiftModifier);
+        QVERIFY(opened);
+    }
+
+    // Right-clicking a misspelled word being typed offers the dictionary's suggestions first; choosing one replaces the word.
+    void slideMenuOffersSpellingSuggestions()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        Editor *ed = w.editor();
+        const QString titleId = placeholderOfSlide(*ed->doc(), 0, 0)->id, storyId = placeholderOfSlide(*ed->doc(), 0, 0)->storyId;
+        QTextCursor(ed->doc()->storyDoc(storyId)).insertText(QStringLiteral("This is teh test"));
+        ed->beginTextEdit(titleId, 10);
+        slideMenu(w, QStringLiteral("menu-spelling"));
+        std::unique_ptr<QMenu> menu(w.slideContextMenu());
+        const QList<QAction *> actions = menu->actions();
+        QVERIFY(actions.size() > 6);
+        const QStringList suggestions = spellingSuggestions(QStringLiteral("teh"));
+        QVERIFY(suggestions.contains(actions.first()->text()));
+        QVERIFY(actions.first()->font().bold());
+        QStringList texts;
+        for (const QAction *a : actions) texts << a->text();
+        QVERIFY(texts.contains(QStringLiteral("Ignore All")) && texts.contains(QStringLiteral("Add to Dictionary")));
+        QVERIFY(texts.indexOf(QStringLiteral("Ignore All")) < texts.indexOf(QStringLiteral("Cut")));
+        const QString chosen = actions.first()->text();
+        actions.first()->trigger();
+        QCOMPARE(storyText(w, storyId), QStringLiteral("This is %1 test").arg(chosen));
+        // Off a misspelled word there are none.
+        ed->beginTextEdit(titleId, 2);
+        std::unique_ptr<QMenu> plain(w.slideContextMenu());
+        QCOMPARE(plain->actions().first()->objectName(), QStringLiteral("edit.cut"));
     }
 };
 
