@@ -1867,6 +1867,7 @@ int Importer::effectiveGeometry(int geom, const QStringList &types) const
 ItemPtr textBoxFor(const ShapeItem &s)
 {
     auto t = std::make_shared<TextItem>();
+    t->noWrap = s.noWrap;
     t->name = s.name;
     t->role = s.role;
     t->altText = s.altText;

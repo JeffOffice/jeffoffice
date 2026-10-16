@@ -22739,6 +22739,33 @@ private Q_SLOTS:
         QVERIFY(!flag(*fromOdp, QStringLiteral("PlainBox"), &found) && found);
     }
 
+    // A placeholder the drawing gives as a plain rectangle, with no text of its own in the drawing, is a text box in place of it, and keeps
+    // what the rectangle said of its text: a title and a body that say wrapText 2 don't wrap.
+    void importBinaryRectanglePlaceholdersKeepNoWrap()
+    {
+        const QByteArray none = pptRec(0xF00B, le(0x0085, 2) + le(2, 4), 1, 3);
+        // A title (0xD) and a body (0xE) of their own, below the slide's, each a rectangle with no text in its record.
+        const QByteArray shapes = pptShape(0x600, 0xD, QByteArray(), 2000, 200, 5000, 2400, none) + pptShape(0x601, 0xE, QByteArray(), 2600, 200, 5000, 3800, none);
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        const TextItem *title = nullptr, *body = nullptr;
+        for (const auto &it : d->pages[0]->items) {
+            if (it->type() != ItemType::Text) continue;
+            if (std::abs(it->rect.top() - 250) < 0.5) title = static_cast<const TextItem *>(it.get());
+            if (std::abs(it->rect.top() - 325) < 0.5) body = static_cast<const TextItem *>(it.get());
+        }
+        QVERIFY(title && body);
+        QVERIFY(title->role.startsWith(QLatin1String("ph:title")));
+        QVERIFY(body->role.startsWith(QLatin1String("ph:body")));
+        QVERIFY(title->noWrap);
+        QVERIFY(body->noWrap);
+        // The slide's own placeholders, which say nothing of it, wrap.
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role.startsWith(QLatin1String("ph:")) && it.get() != title && it.get() != body)
+                QVERIFY2(!static_cast<const TextItem *>(it.get())->noWrap, qPrintable(it->role));
+    }
+
     // Spacing as the file has it, set as the presentation program sets it (the text engine's slide lines): a line of a share (100 for a
     // single line) of 1.2 times the text size whatever the font, its extra spacing above it, and no space before the paragraph at the
     // top of the box.
