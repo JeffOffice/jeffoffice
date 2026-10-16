@@ -120,7 +120,22 @@ target_link_libraries(jeffpub PRIVATE jpcore)
 set_target_properties(jeffpub PROPERTIES OUTPUT_NAME "JeffPub")
 
 enable_testing()
-qt_add_executable(jptests tests/tests.cpp)
+qt_add_executable(jptests
+  tests/testrunner.cpp
+  tests/pub/pubhelpers.cpp
+  tests/pub/tst_pub_commands.cpp
+  tests/pub/tst_pub_export.cpp
+  tests/pub/tst_pub_file.cpp
+  tests/pub/tst_pub_find.cpp
+  tests/pub/tst_pub_fonts.cpp
+  tests/pub/tst_pub_objects.cpp
+  tests/pub/tst_pub_pages.cpp
+  tests/pub/tst_pub_pdf.cpp
+  tests/pub/tst_pub_pictures.cpp
+  tests/pub/tst_pub_tables.cpp
+  tests/pub/tst_pub_text.cpp
+  tests/pub/tst_pub_update.cpp
+  tests/pub/tst_pub_window.cpp)
 target_link_libraries(jptests PRIVATE jpcore jp_libmspub Qt6::Test)
 # libmspub's shape table, for checking its defaults against Publisher's.
 target_include_directories(jptests PRIVATE ${CMAKE_SOURCE_DIR}/third_party/libmspub/src ${CMAKE_SOURCE_DIR}/third_party/compat)
