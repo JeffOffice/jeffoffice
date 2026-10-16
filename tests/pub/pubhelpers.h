@@ -69,6 +69,7 @@
 #include "app/textartgallery.h"
 #include "app/formatpane.h"
 #include "app/paneframe.h"
+#include "app/propertyeditors.h"
 #include "app/widgets.h"
 #include "app/settings.h"
 #include "canvas/canvas.h"

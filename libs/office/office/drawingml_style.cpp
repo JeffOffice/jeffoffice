@@ -245,12 +245,18 @@ void applyLine(const QDomElement &ln, const StyleContext &sc, Stroke *s)
         const QString name = c.localName();
         if (name == QLatin1String("noFill")) {
             s->color = ColorRef();
+            s->gradient = Fill();
         } else if (name == QLatin1String("solidFill") || name == QLatin1String("gradFill") || name == QLatin1String("pattFill")) {
-            // A gradient line is the color of its first stop; a pattern's is its foreground.
+            // A gradient line is drawn in its stops, and its color is the first stop's; a pattern's is its foreground.
             QDomElement holder = c;
             if (name == QLatin1String("gradFill")) holder = childNamed(childNamed(c, "gsLst"), "gs");
             else if (name == QLatin1String("pattFill")) holder = childNamed(c, "fgClr");
             const QColor color = colorIn(holder, sc);
+            s->gradient = Fill();
+            if (name == QLatin1String("gradFill")) {
+                Fill g;
+                if (fillFromElement(c, sc, &g) && g.type == Fill::Gradient) s->gradient = g;
+            }
             if (color.isValid()) {
                 s->color = rgbRef(color);
                 s->transparency = transparencyOf(color);
