@@ -5435,6 +5435,46 @@ private Q_SLOTS:
         QVERIFY(readOdrawShapes(odDrawing(odShape(1, 0xA00, {{0x0180, 7}, red, blue, {0x01BF, 0x00100000}}, odClientAnchor(0, 0, 1, 1))), odContext())[0]->fill.isNone());
     }
 
+    // A pattern fill (fillType 1) is a bitmap the host puts the shape's colors in (the fill color and the back color, each with its opacity
+    // as its alpha): the fill is then that picture, tiled, and clear only through its colors. A host that can't, or doesn't, has the bitmap
+    // as it stands, with the fill's opacity; a texture is never asked for.
+    void odrawPatternFillsAskTheHostForTheirColors()
+    {
+        QVector<QColor> asked;
+        OdrawContext ctx = odContext();
+        ctx.patterned = [&](const QString &id, const QColor &fill, const QColor &back) {
+            asked << fill << back;
+            return id == QLatin1String("pic8") ? id : QStringLiteral("colored:") + id;
+        };
+        auto fillOf = [&](const QVector<OdProp> &more, const OdrawContext &c) {
+            QVector<OdProp> props = {{0x01BF, 0x00100010}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}};
+            props += more;
+            return readOdrawShapes(odDrawing(odShape(1, 0xA00, props, odClientAnchor(0, 0, 10, 10))), c)[0]->fill;
+        };
+        Fill f = fillOf({{0x0180, 1}, {0x0186, 7, {}, true}, {0x0182, 0x8000}}, ctx);
+        QVERIFY(f.type == Fill::Texture && f.tile);
+        QCOMPARE(f.imageId, QStringLiteral("colored:pic7"));
+        QCOMPARE(f.transparency, 0.0);
+        QCOMPARE(int(asked.size()), 2);
+        QCOMPARE(asked[0].rgb(), QColor(255, 0, 0).rgb());
+        QVERIFY(qAbs(asked[0].alphaF() - 0.5) < 0.01);
+        QCOMPARE(asked[1].rgb(), QColor(0, 0, 255).rgb());
+        QCOMPARE(asked[1].alpha(), 255);
+        // The host leaves it as it is: the picture, and the fill's opacity.
+        f = fillOf({{0x0180, 1}, {0x0186, 8, {}, true}, {0x0182, 0x8000}}, ctx);
+        QCOMPARE(f.imageId, QStringLiteral("pic8"));
+        QVERIFY(qAbs(f.transparency - 0.5) < 1e-6);
+        // No host hook: as it always was.
+        f = fillOf({{0x0180, 1}, {0x0186, 7, {}, true}, {0x0182, 0x8000}}, odContext());
+        QCOMPARE(f.imageId, QStringLiteral("pic7"));
+        QVERIFY(qAbs(f.transparency - 0.5) < 1e-6);
+        // A texture and a picture are not patterns.
+        asked.clear();
+        QCOMPARE(fillOf({{0x0180, 2}, {0x0186, 7, {}, true}}, ctx).imageId, QStringLiteral("pic7"));
+        QCOMPARE(fillOf({{0x0180, 3}, {0x0186, 7, {}, true}}, ctx).imageId, QStringLiteral("pic7"));
+        QVERIFY(asked.isEmpty());
+    }
+
     void odrawReadsArrowheadsShadowsAndHyperlinks()
     {
         const QByteArray at = odClientAnchor(0, 0, 100, 50);

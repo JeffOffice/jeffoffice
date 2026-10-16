@@ -220,6 +220,18 @@ Fill readFill(const Props &p, const OdrawContext &ctx, bool filledByDefault, con
         const int index = int(p.value(kFillBlip, 0));
         QString image = index > 0 && ctx.picture ? ctx.picture(index) : QString();
         if (image.isEmpty()) break;
+        // A pattern is a bitmap of two tones that the shape's colors are put in.
+        bool recolored = false;
+        if (type == 1 && ctx.patterned) {
+            QColor front = fillColor, back = backColor;
+            front.setAlphaF(opacity);
+            back.setAlphaF(backOpacity);
+            const QString colored = ctx.patterned(image, front, back);
+            if (!colored.isEmpty() && colored != image) {
+                image = colored;
+                recolored = true;
+            }
+        }
         if (ctx.adjusted && (pictureBrightness(p) != 0 || pictureContrast(p) != 0)) {
             const QString changed = ctx.adjusted(image, pictureBrightness(p), pictureContrast(p));
             if (!changed.isEmpty()) image = changed;
@@ -229,7 +241,7 @@ Fill readFill(const Props &p, const OdrawContext &ctx, bool filledByDefault, con
         f.color = ColorRef::rgb(fillColor);
         f.imageId = image;
         f.tile = type != 3;
-        f.transparency = 1 - opacity;
+        f.transparency = recolored ? 0 : 1 - opacity;
         return f;
     }
     case 4: case 5: case 6: case 7: case 8:

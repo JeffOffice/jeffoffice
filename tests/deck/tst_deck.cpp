@@ -21546,6 +21546,97 @@ private Q_SLOTS:
         QCOMPARE(washed[0].red(), 255);
     }
 
+    // A pattern fill (fillType 1) is a bitmap of black and white that the shape's own colors are put in, as the presentation program draws
+    // it: the bitmap's white bits in the fill color, its black ones in the back color (a master's striped background has three rows of black
+    // to one of white, and is drawn with three rows of the back color to one of the fill color), each with its opacity. A bitmap of
+    // more colors is a picture and keeps them.
+    void importBinaryPatternsTakeTheShapesColors()
+    {
+        // An 8 by 8 bitmap of one bit a pixel: white on its left half, black on its right (a DIB's palette is white, then black).
+        QByteArray dib = le(40, 4) + le(8, 4) + le(8, 4) + le(1, 2) + le(1, 2) + le(0, 4) + le(32, 4) + le(2834, 4) + le(2834, 4) + le(2, 4) + le(2, 4)
+                         + raw({0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0});
+        for (int row = 0; row < 8; ++row) dib += raw({0x0F, 0, 0, 0});
+        QImage photo(2, 1, QImage::Format_ARGB32);
+        photo.setPixelColor(0, 0, QColor(255, 0, 0));
+        photo.setPixelColor(1, 0, QColor(0, 0, 128));
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        photo.save(&buffer, "PNG");
+        const QByteArray bitmap = pptRec(0xF01F, QByteArray(16, 'u') + QByteArray(1, '\xFF') + dib, 0x7A0), picture = pptRec(0xF01E, QByteArray(16, 'v') + QByteArray(1, '\xFF') + png, 0x6E0);
+        auto entry = [&](const QByteArray &blip, char uid) {
+            return pptRec(0xF007, QByteArray(1, '\x06') + QByteArray(1, '\0') + QByteArray(16, uid) + le(0xFF, 2) + le(quint32(blip.size()), 4) + le(1, 4) + le(0xFFFFFFFF, 4) + le(0, 4) + blip, 6, 2);
+        };
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + pptBox(0xF001, entry(bitmap, 's') + entry(picture, 't'), 2)));
+        auto table = [&](const QVector<QPair<int, quint32>> &props) {
+            QByteArray t;
+            for (const auto &p : props) t += le(quint16(p.first), 2) + le(p.second, 4);
+            return pptRec(0xF00B, t, quint16(props.size()), 3);
+        };
+        // The background's pixels in its first row: red where the fill color shows (the fill color is red, the back color blue).
+        double transparency = -1;
+        auto pixels = [&](int blip, const QVector<QPair<int, quint32>> &more) {
+            QVector<QPair<int, quint32>> props = {{0x0180, 1}, {0x4186, quint32(blip)}, {0x0181, 0x0000FF}, {0x0183, 0xFF0000}, {0x01BF, 0x00100010}};
+            props += more;
+            const QByteArray background = pptBox(0xF004, pptRec(0xF00A, le(0x1000, 4) + le(0xC00, 4), 1, 2) + table(props));
+            QString err;
+            auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, QByteArray(), QByteArray(), background), &err);
+            QList<QColor> out;
+            if (!d) qWarning("%s", qPrintable(err));
+            if (!d || d->masters.isEmpty() || d->masters.first()->background.type != Fill::Texture) return out;
+            transparency = d->masters.first()->background.transparency;
+            const QImage im = d->image(d->masters.first()->background.imageId);
+            for (int x = 0; x < im.width(); ++x) out << im.pixelColor(x, 0);
+            return out;
+        };
+        const QList<QColor> plain = pixels(1, {});
+        QCOMPARE(transparency, 0.0);   // (the colors hold the opacity)
+        QCOMPARE(int(plain.size()), 8);
+        for (int x = 0; x < 8; ++x) QCOMPARE(plain[x], x < 4 ? QColor(255, 0, 0) : QColor(0, 0, 255));
+        // Half as opaque a fill color, and a back color half as opaque.
+        const QList<QColor> half = pixels(1, {{0x0182, 0x8000}, {0x0184, 0x4000}});
+        QCOMPARE(int(half.size()), 8);
+        QCOMPARE(half[0].rgb(), QColor(255, 0, 0).rgb());
+        QVERIFY2(std::abs(half[0].alpha() - 128) <= 1, qPrintable(QString::number(half[0].alpha())));
+        QCOMPARE(half[7].rgb(), QColor(0, 0, 255).rgb());
+        QVERIFY2(std::abs(half[7].alpha() - 64) <= 1, qPrintable(QString::number(half[7].alpha())));
+        // A picture of other colors than black and white is drawn as it is.
+        const QList<QColor> kept = pixels(2, {});
+        QCOMPARE(int(kept.size()), 2);
+        QCOMPARE(kept[0], QColor(255, 0, 0));
+        QCOMPARE(kept[1], QColor(0, 0, 128));
+    }
+
+    // A file with a pattern fill for each of hundreds of colors makes a picture for no more than 200 of them (and none of a big bitmap):
+    // the others keep the bitmap, so no file can make the reader do the work again and again.
+    void importBinaryPatternsInManyColorsAreBounded()
+    {
+        QByteArray dib = le(40, 4) + le(8, 4) + le(8, 4) + le(1, 2) + le(1, 2) + le(0, 4) + le(32, 4) + le(2834, 4) + le(2834, 4) + le(2, 4) + le(2, 4)
+                         + raw({0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0});
+        for (int row = 0; row < 8; ++row) dib += raw({0x0F, 0, 0, 0});
+        const QByteArray blip = pptRec(0xF01F, QByteArray(16, 'u') + QByteArray(1, '\xFF') + dib, 0x7A0);
+        const QByteArray entry = pptRec(0xF007, QByteArray(1, '\x06') + QByteArray(1, '\0') + QByteArray(16, 's') + le(0xFF, 2) + le(quint32(blip.size()), 4) + le(1, 4) + le(0xFFFFFFFF, 4) + le(0, 4) + blip, 6, 2);
+        const QByteArray group = pptBox(1035, pptBox(0xF000, pptRec(0xF006, QByteArray(16, '\0')) + pptBox(0xF001, entry, 1)));
+        QByteArray shapes;
+        for (int i = 0; i < 400; ++i) {
+            const QByteArray props = le(0x0180, 2) + le(1, 4) + le(0x4186, 2) + le(1, 4) + le(0x0181, 2) + le(quint32(0x010000 + i * 0x300), 4) + le(0x01BF, 2) + le(0x00100010, 4);
+            shapes += pptBox(0xF004, pptRec(0xF00A, le(0x500 + i, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF00B, props, 4, 3) + pptRec(0xF010, le(100, 2) + le(100, 2) + le(300, 2) + le(300, 2)));
+        }
+        QString err;
+        QElapsedTimer timer;
+        timer.start();
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(timer.elapsed() < 30000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(d->images.size() <= 202, qPrintable(QString::number(d->images.size())));
+        QVERIFY(d->images.size() >= 100);
+        int tiles = 0;
+        for (const auto &it : d->pages[0]->items) tiles += it->fill.type == Fill::Texture;
+        QCOMPARE(tiles, 400);
+    }
+
+    }
+
     // The presentation of the sample with its first slide's picture (a small square of one color, 182, 66, 15) given `blip`.
     static std::unique_ptr<Document> deckWithPictureBlip(const QString &blip, QString *err)
     {
