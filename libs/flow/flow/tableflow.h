@@ -209,6 +209,8 @@ public:
     };
     // The most parts a row is shown in: what a row has left after that many is in the last part, whole (so that a row, however much it holds, ends).
     static constexpr int kMostParts = 50000;
+    // The most footnotes of one row (or of one part of it) the page makes room for: a file with more has the rest of its references set without notes.
+    static constexpr int kMostRowNotes = 2000;
     // How far down the cell's text area the line of the position is (the top of the line; -1 when the cell has no line with it).
     double lineTopIn(int cell, int position) const;
     // Whether row `r` can go over a page break: not one that says it can't, one of an exact height, or one with cells joined down in it (or covered by those).
