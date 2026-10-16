@@ -326,8 +326,12 @@ std::shared_ptr<CellContent> TableLayout::contentFor(const Cell &c, bool keep) c
     if (cache && c.rec) {
         if (auto found = cache->find(c.rec->key, width)) return found;
     }
+    if (m_ctx.laidOut) ++*m_ctx.laidOut;
     auto content = layoutCellContent(m_ctx, c.r0, c.r1, m_depth + 1, width);
-    if (cache && c.rec && keep) cache->insert(c.rec->key, width, content, std::max(1, c.r1 - c.r0));
+    if (cache && c.rec) {
+        if (keep) cache->insert(c.rec->key, width, content, std::max(1, c.r1 - c.r0));
+        else cache->insertJustMeasured(c.rec->key, width, content);
+    }
     return content;
 }
 
@@ -338,9 +342,18 @@ namespace {
 constexpr int kContentBudget = 8192;
 } // namespace
 
+void CellContentCache::insertJustMeasured(int key, double width, const std::shared_ptr<CellContent> &content)
+{
+    m_recent[m_recentAt] = {keyOf(key, width), content};
+    m_recentAt = (m_recentAt + 1) % kJustMeasured;
+}
+
 std::shared_ptr<CellContent> CellContentCache::find(int key, double width)
 {
-    const auto it = m_entries.find(keyOf(key, width));
+    const qint64 k = keyOf(key, width);
+    for (const Recent &r : m_recent)
+        if (r.key == k) return r.content;
+    const auto it = m_entries.find(k);
     if (it == m_entries.end()) return nullptr;
     m_order.splice(m_order.begin(), m_order, it->at);
     return it->content;
@@ -366,6 +379,7 @@ void CellContentCache::insert(int key, double width, const std::shared_ptr<CellC
 
 void CellContentCache::clear()
 {
+    for (Recent &r : m_recent) r = Recent();
     m_order.clear();
     m_entries.clear();
     m_paragraphs = 0;
@@ -1218,6 +1232,7 @@ TableContext TableFlow::context()
     c.index = &m_index;
     c.heights = &m_heights;
     c.measured = &m_measured;
+    c.laidOut = &m_laidOut;
     c.contents = &m_contents;
     c.live = m_live;
     c.at = m_live->epoch;

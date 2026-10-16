@@ -2260,6 +2260,29 @@ private Q_SLOTS:
         QVERIFY2(forty < 8 * std::max<qint64>(first, 50) + 500, qPrintable(QStringLiteral("the first page %1 ms, forty more %2 ms").arg(first).arg(forty)));
     }
 
+    // A cell is laid out once to find the heights of the rows (in a pass over all of them) and once more for a page that shows it, and a header's cells, which every page of the
+    // table shows, are laid out once for all of them.
+    void eachCellIsLaidOutOnceToMeasureAndOnceMoreForAPageThatShowsIt()
+    {
+        FlowDocument fd;
+        TestTable spec;
+        spec.rows = 1500;
+        spec.cols = 3;
+        spec.columnWidth = 120;
+        spec.setRow = [](int r, RowData &row) { row.header = r == 0; };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages > 20);
+        const qint64 cells = 1500 * 3;
+        QVERIFY2(pg.tableCellsLaidOut() <= cells + 10, qPrintable(QString::number(pg.tableCellsLaidOut())));
+        const qint64 before = pg.tableCellsLaidOut();
+        for (int k = 0; k < 6; ++k) QVERIFY(pg.materialize(k));
+        for (int k = 0; k < 6; ++k) QVERIFY(pg.materialize(k));   // (the same pages again: the cells are the ones laid out lately)
+        const int perPage = int(cells / pages) + 3 + 3;
+        QVERIFY2(pg.tableCellsLaidOut() - before <= 6 * perPage, qPrintable(QStringLiteral("%1 cells laid out for six pages of about %2").arg(pg.tableCellsLaidOut() - before).arg(perPage)));
+    }
+
     // A table whose indent is to the text of its first cell (the way tables were set before the program of 2013) has its left edge left of that by the cell's margin; a
     // centered one is in the middle of the text area, and a right one at its right edge.
     void aTableIsIndentedToTheTextOfItsFirstCellOrCenteredOrRight()
