@@ -84,7 +84,7 @@ Click a table to select it, or click a cell to type in it. The **Table Design** 
 
 - **Select** picks the cell, the row, the column, or the whole table you are in.
 - **Delete** removes the rows or the columns you picked, or the whole table. A table keeps at least one row and one column.
-- **Insert Above**, **Insert Below**, **Insert Left**, and **Insert Right** add a row or a column next to the one you are in.
+- **Insert Above**, **Insert Below**, **Insert Left**, and **Insert Right** add a row or a column next to the one you are in. A table can have at most 256 rows and 256 columns.
 - **Merge Cells** joins the cells you picked into one cell that holds all their words. **Split Cells** makes a merged cell into separate cells again.
 - **Height** and **Width** set how tall the picked rows are and how wide the picked columns are. **Distribute Rows** and **Distribute Columns** make all the rows, or all the columns, the same size.
 - The buttons under **Alignment** put the words at the left, the center, or the right of a cell, and at its top, middle, or bottom. **Text Direction** turns the words a quarter turn. **Cell Margins** says how much room is left between the words and the edges of the cell.

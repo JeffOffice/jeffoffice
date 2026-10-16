@@ -211,8 +211,23 @@ void tableDeleteCols(TableItem *t, int c0, int c1)
 }
 
 
+namespace {
+
+// A table has at most kMaxTableRowsOrColumns rows and as many columns (a file with more can't be read back), so a command that would make one more says so.
+bool roomFor(Editor *ed, bool rows)
+{
+    const TableItem *t = selectedTable(ed);
+    if (!t || (rows ? t->rows : t->cols) < kMaxTableRowsOrColumns) return true;
+    Q_EMIT ed->status((rows ? QCoreApplication::translate("TableEdit", "A table has at most %1 rows.") : QCoreApplication::translate("TableEdit", "A table has at most %1 columns."))
+                          .arg(kMaxTableRowsOrColumns));
+    return false;
+}
+
+} // namespace
+
 Editor::TableEdit insertTableRows(Editor *ed, bool below)
 {
+    if (!roomFor(ed, true)) return {};
     return editRowsAndColumns(ed, QCoreApplication::translate("TableEdit", "Insert Row"), [ed, below](TableItem *t, const CellRange &rg) {
         const int at = below ? (rg.valid() ? rg.r1 + 1 : t->rows) : std::max(0, rg.r0);
         tableInsertRow(ed, t, at);
@@ -222,6 +237,7 @@ Editor::TableEdit insertTableRows(Editor *ed, bool below)
 
 Editor::TableEdit insertTableColumns(Editor *ed, bool right)
 {
+    if (!roomFor(ed, false)) return {};
     return editRowsAndColumns(ed, QCoreApplication::translate("TableEdit", "Insert Column"), [ed, right](TableItem *t, const CellRange &rg) {
         const int at = right ? (rg.valid() ? rg.c1 + 1 : t->cols) : std::max(0, rg.c0);
         tableInsertCol(ed, t, at);
@@ -582,11 +598,11 @@ void restyleText(QTextDocument *doc, const TextLook &was, const TextLook &now)
 
 } // namespace
 
-void giveTableStyle(Editor *ed, TableItem *t, const QString &styleId, const TableStyleParts &parts, const office::Theme &theme, bool reset)
+void giveTableStyle(Editor *ed, TableItem *t, const QString &styleId, const TableStyleParts &parts, const TableStyles &styles, bool reset)
 {
     // What the old style gave, to tell it from what the person did.
     office::TableStyleEffect was, now;
-    const bool hadStyle = office::tableStyleEffect(t->format, *t, theme, &was);
+    const bool hadStyle = office::tableStyleEffect(t->format, *t, styles.theme, &was, &styles.defs);
     t->header = parts.header;
     t->totalRow = parts.totalRow;
     t->firstCol = parts.firstCol;
@@ -594,7 +610,7 @@ void giveTableStyle(Editor *ed, TableItem *t, const QString &styleId, const Tabl
     t->banded = parts.banded;
     t->bandedCols = parts.bandedCols;
     t->format = styleId;
-    if (!office::tableStyleEffect(styleId, *t, theme, &now)) {
+    if (!office::tableStyleEffect(styleId, *t, styles.theme, &now, &styles.defs)) {
         // One of JeffPub's own: its parts are header and banded rows, and applying it again shows them.
         if (!styleId.isEmpty() && !styleId.startsWith(QLatin1Char('{'))) ed->applyTableFormat(t, styleId);
         return;
@@ -603,33 +619,34 @@ void giveTableStyle(Editor *ed, TableItem *t, const QString &styleId, const Tabl
     const Stroke none;
     for (int r = 0; r < t->rows; ++r)
         for (int c = 0; c < t->cols; ++c) {
+            // Every cell, one a merged cell covers too: it is what a split makes of it.
             TableCell &cell = t->cell(r, c);
-            if (cell.covered) continue;
             const size_t at = size_t(r) * t->cols + c;
+            const int bottom = std::min(r + cell.rowSpan, t->rows), right = std::min(c + cell.colSpan, t->cols);
             if (reset || cell.fill == (hadStyle ? was.fill[at] : Fill())) cell.fill = now.fill[at];
             const auto take = [&](Stroke &edge, const Stroke &before, const Stroke &after) {
                 if (reset || edge == (hadStyle ? before : none)) edge = after;
             };
             take(cell.border.top, hadStyle ? was.above(r, c) : none, now.above(r, c));
-            take(cell.border.bottom, hadStyle ? was.above(r + cell.rowSpan, c) : none, now.above(r + cell.rowSpan, c));
+            take(cell.border.bottom, hadStyle ? was.above(bottom, c) : none, now.above(bottom, c));
             take(cell.border.left, hadStyle ? was.leftOf(r, c) : none, now.leftOf(r, c));
-            take(cell.border.right, hadStyle ? was.leftOf(r, c + cell.colSpan) : none, now.leftOf(r, c + cell.colSpan));
+            take(cell.border.right, hadStyle ? was.leftOf(r, right) : none, now.leftOf(r, right));
             TextLook before, after;
             if (hadStyle) {
                 before.bold = was.bold[at];
                 before.italic = was.italic[at];
-                before.color = styleColor(was.color[at], theme);
+                before.color = styleColor(was.color[at], styles.theme);
             }
             after.bold = now.bold[at];
             after.italic = now.italic[at];
-            after.color = styleColor(now.color[at], theme);
+            after.color = styleColor(now.color[at], styles.theme);
             restyleText(ed->doc()->storyDoc(cell.storyId), before, after);
             restyleText(ed->doc()->storyDoc(cell.storyId2), before, after);
         }
     ed->fitTableRows(t);   // bold words are wider, and the first row may now be taller
 }
 
-void keepTableStyle(Editor *ed, TableItem *t, const Editor::TableEdit &edit, const office::Theme &theme)
+void keepTableStyle(Editor *ed, TableItem *t, const Editor::TableEdit &edit, const TableStyles &styles)
 {
     // The table as it was: the same style and parts, and the rows or columns it had then.
     TableItem was;
@@ -642,7 +659,7 @@ void keepTableStyle(Editor *ed, TableItem *t, const Editor::TableEdit &edit, con
     was.banded = t->banded;
     was.bandedCols = t->bandedCols;
     office::TableStyleEffect before, now;
-    if (was.rows <= 0 || was.cols <= 0 || !office::tableStyleEffect(t->format, was, theme, &before) || !office::tableStyleEffect(t->format, *t, theme, &now)) return;
+    if (was.rows <= 0 || was.cols <= 0 || !office::tableStyleEffect(t->format, was, styles.theme, &before, &styles.defs) || !office::tableStyleEffect(t->format, *t, styles.theme, &now, &styles.defs)) return;
     // Which row (column) of the table before is now at i: none for a new one.
     const auto oldIndex = [&](int i) {
         if (edit.count > 0) return i < edit.at ? i : i < edit.at + edit.count ? -1 : i - edit.count;
@@ -652,7 +669,6 @@ void keepTableStyle(Editor *ed, TableItem *t, const Editor::TableEdit &edit, con
     for (int r = 0; r < t->rows; ++r)
         for (int c = 0; c < t->cols; ++c) {
             TableCell &cell = t->cell(r, c);
-            if (cell.covered) continue;
             const int oldRow = edit.rows ? oldIndex(r) : r, oldCol = edit.rows ? c : oldIndex(c);
             const bool fresh = oldRow < 0 || oldCol < 0;
             const size_t at = size_t(r) * t->cols + c, oldAt = fresh ? 0 : size_t(oldRow) * was.cols + oldCol;
@@ -660,31 +676,32 @@ void keepTableStyle(Editor *ed, TableItem *t, const Editor::TableEdit &edit, con
             const auto take = [&](Stroke &edge, const Stroke &after, bool exists, const Stroke &old) {
                 if (fresh || (exists && edge == old)) edge = after;
             };
+            const int bottom = std::min(r + cell.rowSpan, t->rows), right = std::min(c + cell.colSpan, t->cols);
             const int oldBottom = oldRow + cell.rowSpan, oldRight = oldCol + cell.colSpan;
             take(cell.border.top, now.above(r, c), !fresh, fresh ? none : before.above(oldRow, oldCol));
-            take(cell.border.bottom, now.above(r + cell.rowSpan, c), !fresh && oldBottom <= was.rows, fresh || oldBottom > was.rows ? none : before.above(oldBottom, oldCol));
+            take(cell.border.bottom, now.above(bottom, c), !fresh && oldBottom <= was.rows, fresh || oldBottom > was.rows ? none : before.above(oldBottom, oldCol));
             take(cell.border.left, now.leftOf(r, c), !fresh, fresh ? none : before.leftOf(oldRow, oldCol));
-            take(cell.border.right, now.leftOf(r, c + cell.colSpan), !fresh && oldRight <= was.cols, fresh || oldRight > was.cols ? none : before.leftOf(oldRow, oldRight));
+            take(cell.border.right, now.leftOf(r, right), !fresh && oldRight <= was.cols, fresh || oldRight > was.cols ? none : before.leftOf(oldRow, oldRight));
             TextLook oldLook, newLook;
             if (!fresh) {
                 oldLook.bold = before.bold[oldAt];
                 oldLook.italic = before.italic[oldAt];
-                oldLook.color = styleColor(before.color[oldAt], theme);
+                oldLook.color = styleColor(before.color[oldAt], styles.theme);
             }
             newLook.bold = now.bold[at];
             newLook.italic = now.italic[at];
-            newLook.color = styleColor(now.color[at], theme);
+            newLook.color = styleColor(now.color[at], styles.theme);
             restyleText(ed->doc()->storyDoc(cell.storyId), oldLook, newLook);
             restyleText(ed->doc()->storyDoc(cell.storyId2), oldLook, newLook);
         }
     ed->fitTableRows(t);
 }
 
-void setTableStyle(Editor *ed, TableItem *t, const QString &styleId, const TableStyleParts &parts, const office::Theme &theme, bool reset)
+void setTableStyle(Editor *ed, TableItem *t, const QString &styleId, const TableStyleParts &parts, const TableStyles &styles, bool reset)
 {
     if (!t) return;
     ed->endTextEdit();
-    ed->change(QCoreApplication::translate("TableEdit", "Table Style"), [&] { giveTableStyle(ed, t, styleId, parts, theme, reset); });
+    ed->change(QCoreApplication::translate("TableEdit", "Table Style"), [&] { giveTableStyle(ed, t, styleId, parts, styles, reset); });
     ed->select(t->id);
 }
 
