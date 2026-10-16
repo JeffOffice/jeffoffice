@@ -1366,7 +1366,7 @@ private Q_SLOTS:
         w.resize(1200, 900);
         w.show();
         w.showBackstage(QStringLiteral("about"));
-        const QStringList rows = {QStringLiteral("JeffPub, Publications, You're using it"), QStringLiteral("JeffDeck, Presentations, Preview"),
+        const QStringList rows = {QStringLiteral("JeffPub, Publications, You're using it"), QStringLiteral("JeffDeck, Presentations, Available"),
                                   QStringLiteral("JeffWrite, Documents, Coming soon"), QStringLiteral("JeffCrunch, Spreadsheets, Coming soon"),
                                   QStringLiteral("JeffMail, Email and calendar, Coming soon"), QStringLiteral("JeffBase, Databases, Coming soon")};
         QStringList named;
