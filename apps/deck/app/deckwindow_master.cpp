@@ -4,21 +4,18 @@
 
 #include "app/deckwindow.h"
 
-#include "app/deckwidgets.h"
 #include "app/editor.h"
-#include "app/icons.h"
 #include "app/masterdialogs.h"
 #include "app/masterpane.h"
 #include "app/notespane.h"
-#include "app/outlineview.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
-#include "app/slidespane.h"
 #include "app/themegallery.h"
 #include "core/masteredit.h"
 
 #include <QAction>
 #include <QInputDialog>
+#include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
 #include <QMessageBox>
@@ -216,6 +213,11 @@ void DeckWindow::refreshMasterActions()
     const MasterPage *page = inMaster && d ? d->master(m_ed->masterView()) : nullptr;
     const bool layout = page && deck::isLayout(*page), master = page && deck::isSlideMaster(*page);
     for (const char *id : {"master.insertMaster", "master.insertLayout", "master.delete", "master.rename", "master.preserve", "master.close"}) act(id)->setEnabled(page != nullptr);
+    if (page && m_slideLabel) {
+        // Where the editor is, in the place the slide number has in Normal view.
+        m_slideLabel->setText((master ? tr("Slide master: %1") : tr("Layout: %1")).arg(page->name));
+        m_slideLabel->setMinimumWidth(std::max(110, m_slideLabel->fontMetrics().horizontalAdvance(m_slideLabel->text()) + 12));
+    }
     act("master.preserve")->setChecked(page && deck::isPreserved(*page));
     act("master.layout")->setEnabled(master);
     for (QAction *a : m_actions)
@@ -226,10 +228,20 @@ void DeckWindow::refreshMasterActions()
     act("master.footers")->setChecked(layout && deck::layoutHasFooters(*page));
     act("master.hideBackground")->setEnabled(layout);
     act("master.hideBackground")->setChecked(layout && !page->showMasterItems);
-    // Slides can't be added, copied, or taken away from a master.
-    for (const char *id : {"slide.new", "slide.duplicate", "slide.delete", "slide.hide", "slide.reset", "view.notes", "insert.headerFooter"})
-        if (inMaster) act(id)->setEnabled(false);
-        else if (QLatin1String(id) != QLatin1String("slide.delete")) act(id)->setEnabled(true);
+    // What works on a slide waits while a master or layout is open (the ones that were available come back with the view).
+    static const char *const kSlideOnly[] = {"slide.new", "slide.duplicate", "slide.hide", "slide.reset", "slide.reuse", "view.notes", "insert.headerFooter", "insert.video",
+                                             "insert.audio", "comment.new", "section.add", "section.rename", "section.remove", "section.removeAll"};
+    if (inMaster) {
+        for (const char *id : kSlideOnly)
+            if (QAction *a = act(id); a && a->isEnabled()) {
+                a->setEnabled(false);
+                m_waiting << QString::fromLatin1(id);
+            }
+    } else if (!m_waiting.isEmpty()) {
+        for (const QString &id : std::as_const(m_waiting))
+            if (QAction *a = act(id)) a->setEnabled(true);
+        m_waiting.clear();
+    }
 }
 
 // ---- the commands

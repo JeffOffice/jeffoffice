@@ -501,10 +501,10 @@ MasterPage *addStandardMaster(Document &d, const DeckTheme &theme, int at)
     auto master = std::make_shared<MasterPage>();
     master->id = freePageId(d, QStringLiteral("SM"));
     master->abbr = QStringLiteral("SM");
-    master->name = QCoreApplication::translate("Deck", "Slide Master");
+    master->name = QStringLiteral("Slide Master");   // a name is saved as it is: the same whatever language the program speaks
     if (!d.masters.isEmpty())
         for (int n = 2;; ++n) {
-            const QString name = QCoreApplication::translate("Deck", "Slide Master %1").arg(n);
+            const QString name = QStringLiteral("Slide Master %1").arg(n);
             if (std::none_of(d.masters.begin(), d.masters.end(), [&](const auto &m) { return m->name == name; })) {
                 master->name = name;
                 break;
@@ -589,9 +589,9 @@ MasterPage *addLayout(Document &d, const QString &masterId, const QString &after
     if (!master || !isSlideMaster(*master)) return nullptr;
     auto layout = std::make_shared<MasterPage>();
     layout->id = freePageId(d, QStringLiteral("L"));
-    layout->name = QCoreApplication::translate("Deck", "Custom Layout");
+    layout->name = QStringLiteral("Custom Layout");
     for (int n = 2; std::any_of(d.masters.begin(), d.masters.end(), [&](const auto &m) { return m->name == layout->name; }); ++n)
-        layout->name = QCoreApplication::translate("Deck", "Custom Layout %1").arg(n);
+        layout->name = QStringLiteral("Custom Layout %1").arg(n);
     layout->baseId = master->id;
     layout->props[QStringLiteral("kind")] = QStringLiteral("layout");
     layout->props[QStringLiteral("type")] = QStringLiteral("cust");

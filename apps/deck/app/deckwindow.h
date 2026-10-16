@@ -8,6 +8,7 @@
 #include <QHash>
 #include <QKeySequence>
 #include <QPointer>
+#include <QSet>
 #include <QTimer>
 #include <functional>
 #include <memory>
@@ -339,6 +340,7 @@ private:
     OutlineView *m_outline = nullptr;    // in the split, where the thumbnails are in Normal view
     MasterPane *m_masterPane = nullptr;  // in the split, in Slide Master view
     bool m_notesWereShown = true;        // the notes box before Slide Master view hid it
+    QSet<QString> m_waiting;             // the commands Slide Master view turned off
     bool m_switchingView = false;        // setView is changing what the editor shows: its signals are its own
     QString m_masterFirst;               // the page Slide Master view opens on, when asked for one
     bool m_carryEdits = true;            // an edit of a master or layout reaches what follows it (not a change of theme, colors, fonts, or size, which do)
