@@ -4890,8 +4890,8 @@ private Q_SLOTS:
             QVERIFY2(bt->cell(2, 1).vertical, format);
         }
         const QString slide = savedSlideXml(*ed->doc());
-        QVERIFY(slide.contains(QStringLiteral("anchor=\"b\"")));
-        QVERIFY(slide.contains(QStringLiteral("vert=\"vert\"")));
+        QVERIFY(QRegularExpression(QStringLiteral("<a:tcPr[^>]*anchor=\"b\"")).match(slide).hasMatch());
+        QVERIFY(QRegularExpression(QStringLiteral("<a:tcPr[^>]*vert=\"vert\"")).match(slide).hasMatch());
         QVERIFY(slide.contains(QStringLiteral("marL=\"182880\"")));   // 14.4 points
         QVERIFY(slide.contains(QStringLiteral("<a:lnL")) && slide.contains(QStringLiteral("123456")));
     }

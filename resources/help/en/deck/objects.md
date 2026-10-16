@@ -78,7 +78,7 @@ While you type in a cell, the font, size, color, and alignment buttons on the **
 
 ### Change a table
 
-Click in a cell, or click the table's edge. The **Table Design** and **Table Layout** tabs show. To pick several cells, drag across them, or click one and then Shift+click another. Every button below works on the cells you picked, or on the whole table if you picked none. Each change is one step, so **Ctrl+Z** takes it back.
+Click a table to select it, or click a cell to type in it. The **Table Design** and **Table Layout** tabs show. To pick several cells, drag across them, or click one and then Shift+click another. Most buttons below work on the cells you picked, or on the whole table if you picked none. Each change is one step, so **Ctrl+Z** takes it back.
 
 **Table Layout** is for the shape of the table:
 
