@@ -90,6 +90,7 @@
 #include <QDialog>
 #include <QTimer>
 #include <QElapsedTimer>
+#include <limits>
 #include <QBuffer>
 #include <QAbstractItemView>
 #include <QPainter>
@@ -14738,6 +14739,193 @@ private Q_SLOTS:
         QVERIFY(jp::spellingSuggestions(QStringLiteral("teh")).contains(first->text()));
         first->trigger();
         QVERIFY(!w.editor()->doc()->storyDoc(t->storyId)->toPlainText().contains(QLatin1String("teh")));
+    }
+
+    // A linked chain is searched once, at its first frame, wherever its frames sit in the page's list.
+    void findStoriesUseTheFirstFrameOfAChain()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto a = std::make_shared<jp::TextItem>(), b = std::make_shared<jp::TextItem>(), c = std::make_shared<jp::TextItem>();
+        a->rect = QRectF(72, 72, 200, 100);
+        b->rect = QRectF(300, 72, 200, 100);
+        c->rect = QRectF(72, 300, 200, 100);
+        a->storyId = b->storyId = doc->createStory(QStringLiteral("one story in two frames"));
+        c->storyId = doc->createStory(QStringLiteral("alone"));
+        a->nextId = b->id;
+        doc->pages[0]->items.push_back(c);
+        doc->pages[0]->items.push_back(b);
+        doc->pages[0]->items.push_back(a);
+        const auto stories = jp::findStories(*doc);
+        QCOMPARE(stories.size(), 2);
+        QCOMPARE(stories[0].itemId, c->id);
+        QCOMPARE(stories[1].itemId, a->id);
+        QCOMPARE(stories[1].storyId, a->storyId);
+    }
+
+    // The walk over the stories takes about as long again for each slide: four times the slides take about four times as long,
+    // not sixteen (every text box once asked the whole document for the frame before it).
+    void findStoriesTakesTimeInProportionToThePages()
+    {
+        auto timeFor = [](int pages) {
+            auto doc = jp::Document::blank(QSizeF(960, 540));
+            for (int p = 0; p < pages; ++p) {
+                if (p) doc->addPage();
+                for (int k = 0; k < 2; ++k) {
+                    auto t = std::make_shared<jp::TextItem>();
+                    t->rect = QRectF(72, 72 + k * 200, 300, 100);
+                    t->storyId = doc->createStory(QStringLiteral("text %1").arg(p));
+                    doc->pages[p]->items.push_back(t);
+                }
+            }
+            qint64 best = std::numeric_limits<qint64>::max();
+            for (int i = 0; i < 5; ++i) {
+                QElapsedTimer timer;
+                timer.start();
+                const auto stories = jp::findStories(*doc);
+                best = std::min(best, timer.nsecsElapsed());
+                if (stories.size() != pages * 2) return qint64(-1);
+            }
+            return best;
+        };
+        const qint64 small = timeFor(600), big = timeFor(2400);
+        QVERIFY(small > 0 && big > 0);
+        QVERIFY2(big < small * 9, qPrintable(QStringLiteral("600 pages: %1 us, 2400 pages: %2 us").arg(small / 1000).arg(big / 1000)));
+    }
+
+    // A Text Art's words are searched when the scope says so (not for JeffPub, whose pane does not follow a match into one): found,
+    // replaced as a whole pass, and put back in the Text Art; a single match replaced where the search found it.
+    void findEngineSearchesTextArtWhenAsked()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<jp::TextItem>();
+        t->rect = QRectF(72, 72, 300, 100);
+        t->storyId = doc->createStory(QStringLiteral("a red box"));
+        auto art = std::make_shared<jp::TextArtItem>();
+        art->rect = QRectF(72, 300, 300, 100);
+        art->text = QStringLiteral("Red and\nred again");
+        auto empty = std::make_shared<jp::TextArtItem>();
+        empty->rect = QRectF(72, 500, 300, 100);
+        empty->text.clear();
+        doc->pages[0]->items.push_back(art);
+        doc->pages[0]->items.push_back(t);
+        doc->pages[0]->items.push_back(empty);
+        QCOMPARE(jp::findStories(*doc).size(), 1);
+        jp::FindScope scope;
+        scope.textArt = true;
+        const auto stories = jp::findStories(*doc, scope);
+        QCOMPARE(stories.size(), 2);   // not the empty one
+        QVERIFY(stories[0].art && stories[0].itemId == art->id && stories[0].storyId.isEmpty());
+        QVERIFY(!stories[1].art);
+        int story = -1;
+        QTextCursor found;
+        const QTextDocument::FindFlags none;
+        QVERIFY(jp::findInStories(*doc, stories, QStringLiteral("red"), none, 0, 4, &story, &found));
+        QCOMPARE(story, 0);
+        QCOMPARE(found.selectionStart(), 8);   // after the line break, which counts as one
+        QVERIFY(!jp::replaceArtWords(*doc, art->id, 8, 11, QStringLiteral("blue"), Qt::CaseInsensitive, QStringLiteral("x")));
+        QVERIFY(jp::replaceArtWords(*doc, art->id, 8, 11, QStringLiteral("RED"), Qt::CaseInsensitive, QStringLiteral("blue")));
+        QCOMPARE(art->text, QStringLiteral("Red and\nblue again"));
+        QVector<jp::FindStory> changed;
+        // (The Text Art's words in a story are a copy made when the stories were listed: list them again.)
+        QCOMPARE(jp::replaceInStories(*doc, jp::findStories(*doc, scope), QStringLiteral("red"), none, QStringLiteral("green"), &changed), 2);
+        QCOMPARE(art->text, QStringLiteral("green and\nblue again"));
+        QCOMPARE(doc->storyDoc(t->storyId)->toPlainText(), QStringLiteral("a green box"));
+        QCOMPARE(changed.size(), 2);
+    }
+
+    // What a message says of a search text: short, and breakable where it has no spaces.
+    void findTextForMessageIsShortAndBreakable()
+    {
+        QCOMPARE(jp::findTextForMessage(QStringLiteral("two short words")), QStringLiteral("two short words"));
+        QCOMPARE(jp::findTextForMessage(QString()), QString());
+        const QString cut = jp::findTextForMessage(QString(100, QLatin1Char('x')));
+        QString plain = cut;
+        plain.remove(QChar(0x200B));
+        QCOMPARE(plain, QString(40, QLatin1Char('x')) + QChar(0x2026));
+        QVERIFY(cut.size() > plain.size());
+        for (const QString &run : cut.split(QChar(0x200B))) QVERIFY(run.size() <= 13);
+        // A pair of UTF-16 units is not cut in two.
+        const QString emoji = QString(39, QLatin1Char('x')) + QStringLiteral("\U0001F600\U0001F600");
+        const QString shown = jp::findTextForMessage(emoji);
+        QVERIFY(!shown.contains(QChar::ReplacementCharacter));
+        QVERIFY(shown.endsWith(QChar(0x2026)));
+        QVERIFY(!QChar::isHighSurrogate(shown.at(shown.size() - 2).unicode()));
+    }
+
+    // Replace All fits a box that grows to fit its words and a table's rows to the new words, as typing them would, in the same
+    // step (so one Undo gives back the sizes too).
+    void findPaneReplaceAllRefitsBoxesAndTables()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        ed->setDocument(std::move(doc));
+        auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 200, 30), QStringLiteral("word")));
+        box->autofit = jp::TextItem::GrowBox;
+        ed->addItem(box);
+        auto table = std::static_pointer_cast<jp::TableItem>(ed->newTable(QRectF(72, 300, 300, 40), 1, 2));
+        ed->addItem(table);
+        QTextCursor(ed->doc()->storyDoc(table->cell(0, 0).storyId)).insertText(QStringLiteral("word"));
+        const QString boxId = box->id, tableId = table->id;
+        const double boxHeight = box->rect.height(), rowHeight = table->rowH[0];
+        w.showTaskPane(QStringLiteral("find"));
+        auto *tp = w.findChild<jp::TaskPane *>();
+        QVERIFY(tp);
+        QLineEdit *find = nullptr, *replace = nullptr;
+        for (QLineEdit *e : tp->findChildren<QLineEdit *>()) (e->objectName() == QLatin1String("replace") ? replace : find) = e;
+        QVERIFY(find && replace);
+        find->setText(QStringLiteral("word"));
+        QString longer;
+        for (int i = 0; i < 40; ++i) longer += QStringLiteral("longer words ");
+        replace->setText(longer);
+        for (QPushButton *b : tp->findChildren<QPushButton *>())
+            if (b->text() == QLatin1String("Replace All")) b->click();
+        auto *grown = static_cast<jp::TextItem *>(ed->doc()->item(boxId));
+        auto *fitted = static_cast<jp::TableItem *>(ed->doc()->item(tableId));
+        QVERIFY2(grown->rect.height() > boxHeight + 50, qPrintable(QString::number(grown->rect.height())));
+        QVERIFY2(fitted->rowH[0] > rowHeight + 50, qPrintable(QString::number(fitted->rowH[0])));
+        // Already fitted: fitting again changes nothing.
+        const double h = grown->rect.height(), r = fitted->rowH[0];
+        ed->autoGrowText(grown);
+        ed->fitTableRows(fitted);
+        QCOMPARE(grown->rect.height(), h);
+        QCOMPARE(fitted->rowH[0], r);
+        ed->undo();
+        QCOMPARE(static_cast<jp::TextItem *>(ed->doc()->item(boxId))->rect.height(), boxHeight);
+        QCOMPARE(static_cast<jp::TableItem *>(ed->doc()->item(tableId))->rowH[0], rowHeight);
+    }
+
+    // The pane's message is plain text, and a long search text can't stretch the pane: it is cut short and may break anywhere.
+    void findPaneMessageIsPlainTextAndNarrow()
+    {
+        jp::MainWindow w;
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<jp::TextItem>();
+        t->rect = QRectF(72, 72, 300, 100);
+        t->storyId = doc->createStory(QStringLiteral("some words"));
+        doc->pages[0]->items.push_back(t);
+        w.editor()->setDocument(std::move(doc));
+        w.showTaskPane(QStringLiteral("find"));
+        auto *tp = w.findChild<jp::TaskPane *>();
+        QVERIFY(tp);
+        QLineEdit *find = nullptr;
+        for (QLineEdit *e : tp->findChildren<QLineEdit *>())
+            if (e->objectName() != QLatin1String("replace")) find = e;
+        QLabel *status = nullptr;
+        for (QLabel *l : tp->findChildren<QLabel *>())
+            if (l->wordWrap()) status = l;
+        QPushButton *next = nullptr;
+        for (QPushButton *b : tp->findChildren<QPushButton *>())
+            if (b->text() == QLatin1String("Find Next")) next = b;
+        QVERIFY(find && status && next);
+        find->setText(QStringLiteral("<b>x"));
+        next->click();
+        QCOMPARE(status->textFormat(), Qt::PlainText);
+        QVERIFY2(status->text().contains(QStringLiteral("\"<b>x\" was not found")), qPrintable(status->text()));
+        find->setText(QString(120, QLatin1Char('x')));
+        next->click();
+        QVERIFY2(status->text().size() < 200, qPrintable(QString::number(status->text().size())));
+        QVERIFY2(status->minimumSizeHint().width() < 300, qPrintable(QString::number(status->minimumSizeHint().width())));
     }
 
     // Right-clicking a misspelled word in the text being typed offers the dictionary's

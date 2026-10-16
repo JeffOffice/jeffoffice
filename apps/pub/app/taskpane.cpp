@@ -253,6 +253,7 @@ public:
         row->addWidget(all);
         v->addLayout(row);
         m_status = new QLabel(this);
+        m_status->setTextFormat(Qt::PlainText);   // it says what was searched for, which may look like markup
         m_status->setWordWrap(true);
         v->addWidget(m_status);
         v->addStretch(1);
@@ -296,7 +297,7 @@ private:
             m_status->clear();
             return true;
         }
-        m_status->setText(tr("JeffPub finished searching the publication. \"%1\" was not found.").arg(q));
+        m_status->setText(tr("JeffPub finished searching the publication. \"%1\" was not found.").arg(findTextForMessage(q)));
         return false;
     }
     void replaceOne()
@@ -316,7 +317,11 @@ private:
         if (q.isEmpty()) return;
         ed->endTextEdit();
         int n = 0;
-        ed->change(tr("Replace All"), [&] { n = replaceInStories(*ed->doc(), findStories(*ed->doc()), q, flags(), m_replace->text()); });
+        ed->change(tr("Replace All"), [&] {
+            QVector<FindStory> changed;
+            n = replaceInStories(*ed->doc(), findStories(*ed->doc()), q, flags(), m_replace->text(), &changed);
+            refitFoundStories(ed, changed);
+        });
         m_status->setText(tr("JeffPub made %1 replacement(s).").arg(n));
     }
     MainWindow *m_win;
