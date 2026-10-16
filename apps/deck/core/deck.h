@@ -153,6 +153,9 @@ void fitPageToSize(Document &d, PageBase &page, const QSizeF &from, const QSizeF
 struct FooterOptions {
     bool date = false, slideNumber = false, footer = false;
     QString footerText;
+    // The date shows as the field that keeps it current ("date", or the field's code, say "datetime:M/d/yyyy", in `dateCode`); a fixed date is
+    // the text it is, in `dateText`.
+    QString dateText, dateCode;
     bool skipTitleSlide = false;   // not on slides whose layout is Title Slide
     bool any() const { return date || slideNumber || footer; }
     // Whether a slide with this layout type shows the placeholder of that type ("dt", "ftr", "sldNum").
@@ -167,6 +170,11 @@ FooterOptions footerOptions(const Document &d);
 // placeholders the options want, with the date, number, and text in them,
 // and takes away the ones they don't.
 void applyFooters(Document &d, const FooterOptions &o, Page *only = nullptr);
+// Gives a slide the placeholders the options want that it doesn't have, where its layout has the place for them, with the date, number, and text
+// in them. The ones the slide has are left as they are, and none is taken away.
+void addMissingFooters(Document &d, const FooterOptions &o, Page &slide);
+// The text the footer place of a slide's layout (or its master) holds: empty when it has no footer place, or none in it.
+QString layoutFooterText(const Document &d, const Page &slide);
 
 // A solid background for one slide; for all of them, the slide master's,
 // with the slides' and layouts' own cleared so they follow it.

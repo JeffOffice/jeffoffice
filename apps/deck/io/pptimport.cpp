@@ -895,7 +895,7 @@ private:
 // What a headers and footers record says (HeadersFootersAtom's flags, and the texts of its strings).
 struct FooterSpec {
     bool set = false;
-    quint16 flags = 0;
+    quint16 formatId = 0, flags = 0;   // the format of an automatic date (an index into the program's list of them)
     QString date, footer;
 };
 enum : quint16 { FootHasDate = 0x1, FootTodayDate = 0x2, FootUserDate = 0x4, FootSlideNumber = 0x8, FootHasFooter = 0x20 };
@@ -943,6 +943,7 @@ private:
     void readSlide(int number, const SlideEntry &e);
     FooterSpec readFooterSpec(const Rec &box);
     void showFooters(const FooterSpec &document);
+    QString masterFooterText(const Page &slide) const;
     MasterInfo *masterByRef(quint32 ref) const;
     void finishItems(ItemList &items, PageState &st, bool slide);
     QString readNotes(const SlideEntry &slide, quint32 notesRef, const MasterInfo &master);
@@ -2171,7 +2172,7 @@ FooterSpec Importer::readFooterSpec(const Rec &box)
     for (const Rec &k : m_ppt.in(box)) {
         if (k.type == RT_HeadersFootersAtom && k.len >= 4) {
             Cursor c(d, k.off, k.end());
-            c.u16();
+            spec.formatId = c.u16();
             spec.flags = c.u16();
             spec.set = c.ok();
         } else if (k.type == RT_CString && (k.inst == 0 || k.inst == 2)) {
@@ -2182,41 +2183,76 @@ FooterSpec Importer::readFooterSpec(const Rec &box)
     return spec;
 }
 
-// The date, slide number, and footer the document (or a slide) says its slides show, on the slides that have no place for them of their own,
-// where their layout has the place: a slide with such a place keeps what it has.
+// The generic date a story holds (the field the date place of a slide has, which takes the format of the headers and footers record) made a field
+// of the code given. (The fields are found first, then changed: a change splits the story's fragments.)
+static void retargetGenericDate(QTextDocument *story, const QString &code)
+{
+    constexpr int kMostFields = 100;
+    QVector<QPair<int, int>> found;
+    for (QTextBlock b = story->begin(); b.isValid() && found.size() < kMostFields; b = b.next())
+        for (auto it = b.begin(); !it.atEnd() && found.size() < kMostFields; ++it)
+            if (it.fragment().charFormat().stringProperty(tp::Field) == QLatin1String("date")) found << qMakePair(it.fragment().position(), it.fragment().length());
+    for (const auto &f : std::as_const(found)) {
+        QTextCursor c(story);
+        c.setPosition(f.first);
+        c.setPosition(f.first + f.second, QTextCursor::KeepAnchor);
+        QTextCharFormat format;
+        format.setProperty(tp::Field, code);
+        c.mergeCharFormat(format);
+    }
+}
+
+// What a record says is shown: the date (the user's own as the text it is, or today's in the format the record names), the slide number, and
+// the footer (the text the record holds, else the one the master's footer place holds, which a slide shows when it shows its footer).
+static FooterOptions footerOptionsOf(const FooterSpec &f)
+{
+    FooterOptions o;
+    const bool today = f.flags & FootTodayDate;
+    o.date = (f.flags & FootHasDate) && (today || ((f.flags & FootUserDate) && !f.date.isEmpty()));
+    if (o.date) {
+        if (today) o.dateCode = QStringLiteral("datetime:") + dateFormat(f.formatId > 12 ? 0 : f.formatId);
+        else o.dateText = f.date;
+    }
+    o.slideNumber = f.flags & FootSlideNumber;
+    o.footer = f.flags & FootHasFooter;
+    o.footerText = f.footer;
+    return o;
+}
+
+// The text a slide's master holds in its footer place ("*" stands for the field there, not for text), cut at a footer's most (each slide shows it).
+QString Importer::masterFooterText(const Page &slide) const
+{
+    const QString held = layoutFooterText(m_doc, slide);
+    return held == QLatin1String("*") ? QString() : held.left(kMaxFooterChars);
+}
+
+// The date, slide number, and footer the document (or a slide) says its slides show, each on the slides that lack it, where their layout has the
+// place for it: a slide keeps the places it has of its own.
 void Importer::showFooters(const FooterSpec &document)
 {
-    auto optionsOf = [](const FooterSpec &f) {
-        FooterOptions o;
-        o.date = (f.flags & FootHasDate) && ((f.flags & FootTodayDate) || ((f.flags & FootUserDate) && !f.date.isEmpty()));
-        o.slideNumber = f.flags & FootSlideNumber;
-        o.footer = (f.flags & FootHasFooter) && !f.footer.isEmpty();
-        o.footerText = f.footer;
-        return o;
-    };
     if (document.set) {
-        m_doc.appData[QStringLiteral("footerOptions")] = optionsOf(document).toJson();
-        if (optionsOf(document).any()) m_footers = true;
+        FooterOptions all = footerOptionsOf(document);
+        // (What new slides will show: the footer's text, if the record has none, is the first slide's master's.)
+        if (all.footer && all.footerText.isEmpty() && !m_doc.pages.isEmpty()) all.footerText = masterFooterText(*m_doc.pages.first());
+        if (all.footer && all.footerText.isEmpty()) all.footer = false;
+        m_doc.appData[QStringLiteral("footerOptions")] = all.toJson();
+        if (all.any()) m_footers = true;
     }
     for (const auto &page : m_doc.pages) {
-        const bool own = std::any_of(page->items.cbegin(), page->items.cend(), [](const ItemPtr &it) { return isFooterType(placeholderType(*it)); });
-        if (own) continue;
         const auto set = m_slideFooters.constFind(page.get());
         const FooterSpec &spec = set != m_slideFooters.cend() ? set.value() : document;
         if (!spec.set) continue;
-        const FooterOptions o = optionsOf(spec);
+        FooterOptions o = footerOptionsOf(spec);
+        // A footer whose text the record leaves out is the master's footer place's.
+        if (o.footer && o.footerText.isEmpty()) o.footerText = masterFooterText(*page);
+        if (o.footer && o.footerText.isEmpty()) o.footer = false;
+        // A date place the slide has of its own, holding the generic date field, shows it in the format the record names.
+        if (!o.dateCode.isEmpty())
+            for (const auto &it : page->items)
+                if (placeholderType(*it) == QLatin1String("dt") && it->type() == ItemType::Text)
+                    if (QTextDocument *story = m_doc.storyDoc(static_cast<TextItem &>(*it).storyId)) retargetGenericDate(story, o.dateCode);
         if (!o.any()) continue;
-        applyFooters(m_doc, o, page.get());
-        // The date as the user typed it, not the one that is today's.
-        if (!(spec.flags & FootTodayDate) && !spec.date.isEmpty())
-            for (const auto &it : page->items) {
-                if (placeholderType(*it) != QLatin1String("dt") || it->type() != ItemType::Text) continue;
-                if (QTextDocument *story = m_doc.storyDoc(static_cast<TextItem &>(*it).storyId)) {
-                    QTextCursor c(story);
-                    c.select(QTextCursor::Document);
-                    c.insertText(spec.date);
-                }
-            }
+        addMissingFooters(m_doc, o, *page);
     }
 }
 

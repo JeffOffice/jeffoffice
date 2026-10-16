@@ -301,6 +301,7 @@ private:
     int m_layoutCount = 0;
     bool m_footers = false;
     QHash<QString, QString> m_footerDecls, m_dateDecls;
+    QSet<QString> m_fixedDates;   // the names of the date declarations that are a fixed date (their text is the date)
     int m_transitionsLost = 0, m_animations = 0;
     QSizeF m_slideSize;
     Fill m_pageFill;                        // the background of the page being read, for objects filled with it

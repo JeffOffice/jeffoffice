@@ -517,7 +517,11 @@ void Reader::readNotes(const QDomElement &pageElement, Page &page)
 void Reader::readSlides(const QDomElement &presentation)
 {
     for (const QDomElement &d : kids(presentation, "presentation:footer-decl")) m_footerDecls.insert(at(d, "presentation:name"), d.text().trimmed());
-    for (const QDomElement &d : kids(presentation, "presentation:date-time-decl")) m_dateDecls.insert(at(d, "presentation:name"), d.text().trimmed());
+    for (const QDomElement &d : kids(presentation, "presentation:date-time-decl")) {
+        m_dateDecls.insert(at(d, "presentation:name"), d.text().trimmed());
+        // (A date is fixed unless it says it is the current one.)
+        if (at(d, "presentation:source") != QLatin1String("current-date")) m_fixedDates.insert(at(d, "presentation:name"));
+    }
     int number = 0;
     for (const QDomElement &p : kids(presentation, "draw:page")) {
         if (++number > kMaxSlides) {
@@ -600,7 +604,13 @@ void Reader::readFooters(const QDomElement &pageElement, const Bag &style, Page 
     const QString footer = m_footerDecls.value(a.get("presentation:use-footer-name"));
     o.footerText = footer;
     o.footer = style.get(Graphic, "presentation:display-footer") == QLatin1String("true") && !footer.isEmpty();
-    o.date = style.get(Graphic, "presentation:display-date-time") == QLatin1String("true") && m_dateDecls.contains(a.get("presentation:use-date-time-name"));
+    const QString dateName = a.get("presentation:use-date-time-name");
+    o.date = style.get(Graphic, "presentation:display-date-time") == QLatin1String("true") && m_dateDecls.contains(dateName);
+    // A fixed date is the text it is; one with no text shows nothing.
+    if (o.date && m_fixedDates.contains(dateName)) {
+        o.dateText = m_dateDecls.value(dateName);
+        o.date = !o.dateText.isEmpty();
+    }
     if (!o.any()) return;
     m_pendingFooters.append({&page, o});
     m_footers = true;
