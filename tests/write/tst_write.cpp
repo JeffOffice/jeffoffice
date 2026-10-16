@@ -785,6 +785,8 @@ private Q_SLOTS:
                     if (!l.trimmed().isEmpty()) paths << QString::fromLocal8Bit(l.trimmed());
         }
         int files = 0, refused = 0, notWritten = 0, malformed = 0, lost = 0, story = 0, clean = 0;
+        double slowest = 0;
+        QString slowestName;
         QMap<QString, int> kinds;
         QStringList lines;
         for (const QString &path : std::as_const(paths)) {
@@ -794,12 +796,18 @@ private Q_SLOTS:
             const QByteArray bytes = f.readAll();
             ++files;
             QString err;
+            QElapsedTimer fileTimer;
+            fileTimer.start();
             auto doc = WriteDoc::fromDocx(bytes, &err);
             if (!doc) {
                 ++refused;
                 continue;
             }
             const QByteArray zip = doc->toDocx(&err);
+            if (fileTimer.elapsed() / 1000.0 > slowest) {
+                slowest = fileTimer.elapsed() / 1000.0;
+                slowestName = QFileInfo(path).fileName();
+            }
             if (zip.isEmpty()) {
                 ++notWritten;
                 lines << QFileInfo(path).fileName() + QStringLiteral(": not written: ") + err;
@@ -827,7 +835,7 @@ private Q_SLOTS:
                 if (o.open(QIODevice::WriteOnly)) o.write(zip);
             }
         }
-        qInfo("strict round trip: %d files, %d refused, %d not written, %d not well-formed, %d lost or changed something, %d came back with another story, %d clean", files, refused, notWritten, malformed, lost, story, clean);
+        qInfo("strict round trip: %d files, %d refused, %d not written, %d not well-formed, %d lost or changed something, %d came back with another story, %d clean; the slowest to open and save, %s, %.1f s", files, refused, notWritten, malformed, lost, story, clean, qPrintable(slowestName), slowest);
         for (auto it = kinds.cbegin(); it != kinds.cend(); ++it) qInfo("  %s: %d", qPrintable(it.key()), it.value());
         for (const QString &l : std::as_const(lines)) qInfo("  %s", qPrintable(l));
     }

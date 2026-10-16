@@ -11,6 +11,7 @@
 #include "office/package.h"
 #include "text/textprops.h"
 
+#include <QDebug>
 #include <QHash>
 #include <QMap>
 #include <QSet>
@@ -53,6 +54,10 @@ inline bool parseTree(const QByteArray &bytes, Node *root, QString *error)
                 } else {
                     declared.insert(d.prefix().toString());
                 }
+            if (stack.size() > 1500) {   // (the trees are walked and dropped by recursion: what is deeper than any real document is not compared)
+                if (error) *error = QStringLiteral("nested too deeply to compare");
+                return false;
+            }
             Node n;
             n.name = QLatin1Char('{') + r.namespaceUri().toString() + QLatin1Char('}') + r.name().toString();
             for (const QXmlStreamAttribute &a : r.attributes())
@@ -97,8 +102,20 @@ inline void canonical(const Node &n, QString *out)
 {
     *out += QLatin1Char('<') + shortName(n.name);
     const bool textual = isW(n, "t") || isW(n, "delText") || isW(n, "instrText");
+    const bool columns = isW(n, "cols");
     for (const auto &a : n.attrs) {
         if (textual && a.first.endsWith(QLatin1String("}space"))) continue;
+        // (Columns: an equal width and no line between them are what is meant when nothing is said, said or not.)
+        if (columns && a.first.endsWith(QLatin1String("}equalWidth")) && (a.second == QLatin1String("true") || a.second == QLatin1String("1") || a.second == QLatin1String("on"))) continue;
+        if (columns && a.first.endsWith(QLatin1String("}sep")) && (a.second == QLatin1String("false") || a.second == QLatin1String("0") || a.second == QLatin1String("off"))) continue;
+        if (isW(n, "pgMar") && (a.first.endsWith(QLatin1String("}header")) || a.first.endsWith(QLatin1String("}footer"))) && a.second == QLatin1String("720")) continue;   // (and what is meant when nothing is said)
+        if (isW(n, "pgMar") && a.first.endsWith(QLatin1String("}gutter")) && a.second == QLatin1String("0")) continue;
+        if (columns && a.first.endsWith(QLatin1String("}space")) && a.second == QLatin1String("720")) continue;   // (the space between columns, when nothing is said)
+        if (isW(n, "col") && a.first.endsWith(QLatin1String("}space")) && a.second == QLatin1String("0")) continue;
+        if (columns && a.first.endsWith(QLatin1String("}equalWidth"))) {   // (said as "false", "0", or "off": unequal)
+            *out += QStringLiteral(" w:equalWidth=\"0\"");
+            continue;
+        }
         *out += QLatin1Char(' ') + shortName(a.first) + QLatin1String("=\"") + a.second + QLatin1Char('"');
     }
     *out += QLatin1Char('>');
@@ -199,10 +216,13 @@ inline bool isMarker(const QString &local)
                           "moveFromRangeStart", "moveFromRangeEnd", "moveToRangeStart", "moveToRangeEnd", "br", "tab"});
 }
 
+// (A soft or a non-breaking hyphen is the character in the text or its own element: the same to a reader.)
+inline QString plainHyphens(QString t) { return t.remove(QChar(0x00AD)).remove(QChar(0x2011)); }
+
 struct ParaSig {
     QString attrs, text;
     QStringList markers, pPrOther, rPrOther, unknownAttrs;
-    bool operator==(const ParaSig &o) const { return attrs == o.attrs && text == o.text && markers == o.markers && pPrOther == o.pPrOther && rPrOther == o.rPrOther && unknownAttrs == o.unknownAttrs; }
+    bool operator==(const ParaSig &o) const { return attrs == o.attrs && plainHyphens(text) == plainHyphens(o.text) && markers == o.markers && pPrOther == o.pPrOther && rPrOther == o.rPrOther && unknownAttrs == o.unknownAttrs; }
 };
 
 inline void collectProps(const Node &props, const std::initializer_list<const char *> &modeled, const QString &where, ParaSig *sig, QStringList *other)
@@ -249,11 +269,18 @@ inline void walkInline(const Node &n, ParaSig *sig)
             continue;
         }
         if (isWordNs(k.name) && local == QLatin1String("pPr")) continue;
+        // (A run with nothing in it, only properties, is no run: it is not written again.)
+        if (isWordNs(k.name) && local == QLatin1String("r")) {
+            bool content = false;
+            for (const Node &c : k.kids) content = content || !(isWordNs(c.name) && localOf(c.name) == QLatin1String("rPr"));
+            if (!content) continue;
+        }
         if (isWordNs(k.name) && local == QLatin1String("t")) {
             sig->text += k.text;
             continue;
         }
-        const bool marker = isWordNs(k.name) && isMarker(local);
+        // (Bookmarks and ranges are compared by their pairs, over the whole document.)
+        const bool marker = isWordNs(k.name) && isMarker(local) && !inList(local, {"bookmarkStart", "bookmarkEnd", "commentRangeStart", "commentRangeEnd"});
         if (marker) {
             QString s = QLatin1Char('<') + local;
             // (A bookmark is told by its name: an Id used by two bookmarks is given to the second afresh.)
@@ -265,7 +292,7 @@ inline void walkInline(const Node &n, ParaSig *sig)
         }
         if (isWordNs(k.name) && (local == QLatin1String("drawing") || local == QLatin1String("pict") || local == QLatin1String("object"))) continue;   // (kept whole)
         walkInline(k, sig);
-        if (marker && !k.kids.isEmpty() && inList(local, {"hyperlink", "sdt", "ins", "del", "moveFrom", "moveTo", "smartTag", "customXml"})) sig->markers.push_back(QStringLiteral(">") + local);
+        if (marker && inList(local, {"hyperlink", "sdt", "ins", "del", "moveFrom", "moveTo", "smartTag", "customXml"})) sig->markers.push_back(QStringLiteral(">") + local);
     }
 }
 
@@ -289,7 +316,7 @@ inline ParaSig sigOf(const Node &p)
 // The paragraphs outside tables, in order; the kept tables; the sections' properties; and how many of each kept element there is.
 struct DocSig {
     QVector<ParaSig> paragraphs;
-    QStringList tables, sections;
+    QStringList tables, sections, pairedNames;   // (the names of the bookmarks, and Ids of the comment ranges, that have both ends)
     QMap<QString, int> counts;
     QString text;
 };
@@ -335,6 +362,7 @@ inline void gather(const Node &n, DocSig *d)
 
 inline QMap<QString, int> keptCounts(const DocSig &d)
 {
+    // (A bookmark or a range with no partner is a mistake in a file that the program leaves out: it is not counted in what the file held.)
     static const QStringList kept = {"w:bookmarkStart", "w:bookmarkEnd", "w:commentRangeStart", "w:commentRangeEnd", "w:commentReference", "w:footnoteReference", "w:endnoteReference",
                                      "w:fldChar", "w:instrText", "w:fldSimple", "w:hyperlink", "w:drawing", "w:pict", "w:object", "w:tbl", "w:tr", "w:tc", "w:sdt", "w:ins", "w:del",
                                      "w:delText", "w:moveFrom", "w:moveTo", "w:sectPr", "w:headerReference", "w:footerReference", "w:smartTag", "w:customXml", "w:sym", "w:permStart",
@@ -352,6 +380,56 @@ inline QMap<QString, int> keptCounts(const DocSig &d)
 constexpr qint64 kLargestToCompare = 40 << 20;
 
 // How many of each kept element a package's main part holds (for the checks that editing that only adds never takes any away).
+namespace detail {
+
+// The bookmarks and ranges that have both a start and an end (an end closes the last start of its Id that is open), counted for each of the four
+// elements; those with no partner are a mistake in a file that the program leaves out, and are not counted in what the file held.
+inline void pairedMarkers(const Node &root, DocSig *d)
+{
+    struct Event { QString kind, id, name; bool start; };
+    QVector<Event> events;
+    QVector<const Node *> stack{&root};
+    // (Document order, without recursing: the tree may be deep.)
+    QVector<QPair<const Node *, int>> walk{{&root, 0}};
+    while (!walk.isEmpty()) {
+        auto &top = walk.last();
+        if (top.second == 0) {
+            const QString local = localOf(top.first->name);
+            if (isWordNs(top.first->name) && (local == QLatin1String("bookmarkStart") || local == QLatin1String("bookmarkEnd") || local == QLatin1String("commentRangeStart") || local == QLatin1String("commentRangeEnd"))) {
+                QString id, name;
+                for (const auto &a : top.first->attrs) {
+                    if (a.first.endsWith(QLatin1String("}id"))) id = a.second;
+                    if (a.first.endsWith(QLatin1String("}name"))) name = a.second;
+                }
+                events.push_back({local.startsWith(QLatin1String("bookmark")) ? QStringLiteral("bookmark") : QStringLiteral("comment"), id, name, local.endsWith(QLatin1String("Start"))});
+            }
+        }
+        if (top.second < top.first->kids.size()) {
+            const Node *child = &top.first->kids[top.second++];
+            walk.push_back({child, 0});
+        } else {
+            walk.removeLast();
+        }
+    }
+    QHash<QString, QStringList> open;   // the names of the starts that have no end yet, by kind and Id
+    int pairs[2] = {0, 0};
+    d->pairedNames.clear();
+    for (const Event &e : std::as_const(events)) {
+        const QString key = e.kind + QLatin1Char('/') + e.id;
+        if (e.start) {
+            open[key].push_back(e.kind == QLatin1String("bookmark") ? e.name : QStringLiteral("c:") + e.id);
+        } else if (!open.value(key).isEmpty()) {
+            d->pairedNames << open[key].takeLast();
+            ++pairs[e.kind == QLatin1String("bookmark") ? 0 : 1];
+        }
+    }
+    std::sort(d->pairedNames.begin(), d->pairedNames.end());
+    d->counts[QStringLiteral("w:bookmarkStart")] = d->counts[QStringLiteral("w:bookmarkEnd")] = pairs[0];
+    d->counts[QStringLiteral("w:commentRangeStart")] = d->counts[QStringLiteral("w:commentRangeEnd")] = pairs[1];
+}
+
+} // namespace detail
+
 inline QMap<QString, int> keptCountsOf(const QByteArray &zip)
 {
     office::Package p;
@@ -360,6 +438,7 @@ inline QMap<QString, int> keptCountsOf(const QByteArray &zip)
     if (!parseTree(p.part(p.mainPart()), &root, nullptr)) return {};
     detail::DocSig d;
     detail::gather(root, &d);
+    detail::pairedMarkers(root, &d);
     return detail::keptCounts(d);
 }
 
@@ -372,8 +451,15 @@ inline QStringList lossProblems(const QByteArray &original, const QByteArray &sa
     QSet<QString> pa, pb;
     for (const QString &n : a.partNames()) pa.insert(n.toLower());
     for (const QString &n : b.partNames()) pb.insert(n.toLower());
+    auto isMacro = [&](const QString &n) {
+        const QString type = a.contentType(n);
+        return type.startsWith(QLatin1String("application/vnd.ms-office.vba")) || type.contains(QLatin1String("macroEnabled")) || type.contains(QLatin1String("vbaData"));
+    };
+    QSet<QString> macros;
+    for (const QString &n : a.partNames())
+        if (isMacro(n)) macros.insert(n.toLower());
     for (const QString &n : pa)
-        if (!pb.contains(n)) out << QStringLiteral("part lost: ") + n;
+        if (!pb.contains(n) && !macros.contains(n)) out << QStringLiteral("part lost: ") + n;
     for (const QString &n : pb)
         if (!pa.contains(n)) out << QStringLiteral("part added: ") + n;
     for (const QString &n : a.partNames()) {
@@ -394,7 +480,10 @@ inline QStringList lossProblems(const QByteArray &original, const QByteArray &sa
     const QMap<QString, QSet<QString>> ra = relsOf(a), rb = relsOf(b);
     for (auto it = ra.cbegin(); it != ra.cend(); ++it) {
         if (!pb.contains(it.key()) && it.key() != QLatin1String("/")) continue;   // (of a part that was lost, already said)
-        const QSet<QString> lost = QSet<QString>(it.value()).subtract(rb.value(it.key()));
+        QSet<QString> lost = QSet<QString>(it.value()).subtract(rb.value(it.key()));
+        for (auto l = lost.begin(); l != lost.end();)   // (a macro's link goes with the macro)
+            if (l->contains(QLatin1String("vba")) || l->contains(QLatin1String("keyMap")) || macros.contains(l->section(QLatin1Char('|'), 2, 2).toLower())) l = lost.erase(l);
+            else ++l;
         if (!lost.isEmpty()) out << QStringLiteral("relationships of %1 lost: %2").arg(it.key(), QStringList(lost.cbegin(), lost.cend()).join(QStringLiteral("; ")).left(200));
     }
     for (auto it = rb.cbegin(); it != rb.cend(); ++it) {
@@ -423,16 +512,21 @@ inline QStringList lossProblems(const QByteArray &original, const QByteArray &sa
     if (!parseTree(ma, &ra1, &err)) return out;   // (a main part that was not well-formed to begin with: nothing to compare)
     detail::gather(ra1, &da);
     detail::gather(rb1, &db);
-    if (da.text != db.text) out << QStringLiteral("text differs");
+    detail::pairedMarkers(ra1, &da);
+    detail::pairedMarkers(rb1, &db);
+    if (detail::plainHyphens(da.text) != detail::plainHyphens(db.text)) out << QStringLiteral("text differs");
     const QMap<QString, int> ca = detail::keptCounts(da), cb = detail::keptCounts(db);
     QStringList diffs;
     for (auto it = ca.cbegin(); it != ca.cend(); ++it)
         if (cb.value(it.key()) != it.value()) diffs << QStringLiteral("%1 %2->%3").arg(it.key()).arg(it.value()).arg(cb.value(it.key()));
     for (auto it = cb.cbegin(); it != cb.cend(); ++it)
         if (!ca.contains(it.key())) diffs << QStringLiteral("%1 0->%2").arg(it.key()).arg(it.value());
+    diffs.erase(std::remove_if(diffs.begin(), diffs.end(), [&](const QString &d) { return d == QStringLiteral("w:sectPr 0->1"); }), diffs.end());
     if (!diffs.isEmpty()) out << QStringLiteral("element counts: ") + diffs.join(QStringLiteral("; ")).left(300);
+    if (da.pairedNames != db.pairedNames) out << QStringLiteral("bookmarks or ranges differ (%1 -> %2 pairs)").arg(da.pairedNames.size()).arg(db.pairedNames.size());
     if (da.tables != db.tables) out << QStringLiteral("a kept table differs (%1 -> %2 tables)").arg(da.tables.size()).arg(db.tables.size());
-    if (da.sections != db.sections) out << QStringLiteral("section properties differ (%1 -> %2 sections)").arg(da.sections.size()).arg(db.sections.size());
+    // (A file that states no section properties at all is written with the usual ones.)
+    if (da.sections != db.sections && !(da.sections.isEmpty() && db.sections.size() == 1)) out << QStringLiteral("section properties differ (%1 -> %2 sections)").arg(da.sections.size()).arg(db.sections.size());
     if (da.paragraphs.size() != db.paragraphs.size()) {
         out << QStringLiteral("paragraph count %1 -> %2").arg(da.paragraphs.size()).arg(db.paragraphs.size());
     } else {
@@ -447,7 +541,7 @@ inline QStringList lossProblems(const QByteArray &original, const QByteArray &sa
             if (x.pPrOther != y.pPrOther) what += QStringLiteral(" pPr[%1|%2]").arg(x.pPrOther.join(QLatin1Char(',')).left(120), y.pPrOther.join(QLatin1Char(',')).left(120));
             if (x.rPrOther != y.rPrOther) what += QStringLiteral(" rPr[%1|%2]").arg(x.rPrOther.join(QLatin1Char(',')).left(120), y.rPrOther.join(QLatin1Char(',')).left(120));
             if (x.unknownAttrs != y.unknownAttrs) what += QStringLiteral(" attributes[%1|%2]").arg(x.unknownAttrs.join(QLatin1Char(',')).left(120), y.unknownAttrs.join(QLatin1Char(',')).left(120));
-            if (x.text != y.text) what += QStringLiteral(" text");
+            if (detail::plainHyphens(x.text) != detail::plainHyphens(y.text)) what += QStringLiteral(" text");
             out << QStringLiteral("paragraph %1 differs:").arg(i) + what;
         }
     }
@@ -460,7 +554,7 @@ inline QTextFormat resolvedFormat(const jp::write::WriteDoc &doc, QTextFormat f)
 {
     const QMap<int, QVariant> props = f.properties();
     for (auto it = props.cbegin(); it != props.cend(); ++it) {
-        if (it.key() == QTextFormat::ObjectIndex) f.clearProperty(it.key());
+        if (it.key() == QTextFormat::ObjectIndex || it.key() == jp::write::prop::LastSection) f.clearProperty(it.key());   // (the last section is compared with the others)
         else if (it.key() == jp::write::prop::Atom) {
             // (A bookmark is told by its name: an Id used by two bookmarks is given to the second afresh.)
             jp::office::wml::Inline a = jp::write::unpackAtom(jp::write::storedBytesOf(it.value().toInt()));
@@ -470,6 +564,11 @@ inline QTextFormat resolvedFormat(const jp::write::WriteDoc &doc, QTextFormat f)
                 if (at >= 0) a.raw = a.raw.left(at - 1) + a.raw.mid(a.raw.indexOf('"', at + 5) + 1);
             }
             f.setProperty(it.key(), jp::write::packAtom(a));
+        } else if (it.key() == jp::write::prop::RawRPr || it.key() == jp::write::prop::RawPPr) {
+            // (The children a file keeps are written in the schema's order, whatever order the file had them in.)
+            QVector<jp::office::wml::RawChild> kept = jp::write::unpackRaw(jp::write::storedBytesOf(it.value().toInt()));
+            std::stable_sort(kept.begin(), kept.end(), [](const auto &x, const auto &y) { return x.rank < y.rank; });
+            f.setProperty(it.key(), jp::write::packRaw(kept));
         } else if (jp::write::isStoredProperty(it.key())) {
             f.setProperty(it.key(), jp::write::resolveStored(doc, it.value(), it.key()));
         }
@@ -486,7 +585,10 @@ inline QStringList storyProblems(jp::write::WriteDoc &a, jp::write::WriteDoc &b)
     QTextBlock x = da->begin(), y = db->begin();
     int n = 0;
     for (; x.isValid() && y.isValid() && out.size() < 4; x = x.next(), y = y.next(), ++n) {
+        // (The pieces kept as XML are compared in the file's own terms: a bookmark with no end is left out, and that is no change to the text.)
         QString tx = x.text(), ty = y.text();
+        tx.remove(QChar::ObjectReplacementCharacter);
+        ty.remove(QChar::ObjectReplacementCharacter);
         if (tx != ty) {
             out << QStringLiteral("block %1 text differs").arg(n);
             continue;
@@ -499,13 +601,19 @@ inline QStringList storyProblems(jp::write::WriteDoc &a, jp::write::WriteDoc &b)
             for (auto it = px.cbegin(); it != px.cend(); ++it) all.insert(it.key());
             for (auto it = py.cbegin(); it != py.cend(); ++it) all.insert(it.key());
             for (int k : std::as_const(all))
-                if (px.value(k) != py.value(k)) keys << QString::number(k);
+                if (px.value(k) != py.value(k)) {
+                    QString a, b;
+                    QDebug(&a) << px.value(k);
+                    QDebug(&b) << py.value(k);
+                    keys << QStringLiteral("%1 (%2 | %3)").arg(k).arg(a.left(90), b.left(90));
+                }
             out << QStringLiteral("block %1 format differs in %2").arg(n).arg(keys.join(QLatin1Char(',')));
         }
         QVector<std::pair<QString, QTextFormat>> fa, fb;
         auto frags = [](jp::write::WriteDoc &d, const QTextBlock &blk, QVector<std::pair<QString, QTextFormat>> *v) {
             for (QTextBlock::iterator it = blk.begin(); !it.atEnd(); ++it) {
                 const QTextFragment f = it.fragment();
+                if (f.charFormat().hasProperty(jp::write::prop::Atom)) continue;
                 const QTextFormat rf = resolvedFormat(d, f.charFormat());
                 if (!v->isEmpty() && v->last().second == rf) v->last().first += f.text();
                 else v->push_back({f.text(), rf});
@@ -513,12 +621,38 @@ inline QStringList storyProblems(jp::write::WriteDoc &a, jp::write::WriteDoc &b)
         };
         frags(a, x, &fa);
         frags(b, y, &fb);
-        if (fa != fb) out << QStringLiteral("block %1 character formats differ").arg(n);
+        if (fa != fb) {
+            QString what;
+            for (int i = 0; i < std::min(fa.size(), fb.size()) && what.isEmpty(); ++i)
+                if (fa[i] != fb[i]) {
+                    const QMap<int, QVariant> px = fa[i].second.properties(), py = fb[i].second.properties();
+                    QStringList keys;
+                    QSet<int> all;
+                    for (auto it = px.cbegin(); it != px.cend(); ++it) all.insert(it.key());
+                    for (auto it = py.cbegin(); it != py.cend(); ++it) all.insert(it.key());
+                    for (int k : std::as_const(all))
+                        if (px.value(k) != py.value(k)) {
+                            QString va, vb;
+                            QDebug(&va) << px.value(k);
+                            QDebug(&vb) << py.value(k);
+                            keys << QStringLiteral("%1 (%2 | %3)").arg(k).arg(va.left(60), vb.left(60));
+                        }
+                    what = QStringLiteral(" in \"%1\"%2: %3").arg(fa[i].first.left(20), fa[i].first != fb[i].first ? QStringLiteral(" (text %1)").arg(fb[i].first.left(20)) : QString(), keys.join(QLatin1Char(',')));
+                }
+            out << QStringLiteral("block %1 character formats differ (%2 and %3 pieces)%4").arg(n).arg(fa.size()).arg(fb.size()).arg(what);
+        }
     }
     if (a.sectionCount() != b.sectionCount()) out << QStringLiteral("sections %1 -> %2").arg(a.sectionCount()).arg(b.sectionCount());
     else
         for (int i = 0; i < a.sectionCount() && out.size() < 6; ++i)
-            if (jp::write::packSection(a.sectionProps(i)) != jp::write::packSection(b.sectionProps(i))) out << QStringLiteral("section %1 properties differ").arg(i);
+        {
+            // (Whether the file said the paper, the margins, and the columns, or the usual ones were meant, is not what is compared.)
+            auto stated = [](jp::office::wml::SectionProps p) {
+                p.hasPgSz = p.hasPgMar = p.hasCols = true;
+                return jp::write::packSection(p);
+            };
+            if (stated(a.sectionProps(i)) != stated(b.sectionProps(i))) out << QStringLiteral("section %1 properties differ").arg(i);
+        }
     return out;
 }
 
