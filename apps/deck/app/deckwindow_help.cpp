@@ -7,6 +7,7 @@
 #include "app/commentspane.h"
 #include "app/deckfilescreen.h"
 #include "app/editor.h"
+#include "app/findpane.h"
 #include "app/help.h"
 #include "app/notespane.h"
 #include "app/onlinepictures.h"
@@ -80,6 +81,7 @@ QString DeckWindow::helpContext() const
     else if (inside(m_comments)) key = QStringLiteral("pane:comments");
     else if (inside(m_reuse)) key = QStringLiteral("pane:reuse");
     else if (inside(m_online)) key = QStringLiteral("pane:online");
+    else if (inside(m_find)) key = QStringLiteral("pane:find");
     else if (inside(m_animPane)) key = QStringLiteral("pane:animation");
     else if (inside(m_slides)) key = QStringLiteral("pane:slides");
     else if (inside(m_outline)) key = QStringLiteral("view:outline");

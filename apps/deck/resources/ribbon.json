@@ -359,6 +359,32 @@
               ]
             }
           ]
+        },
+        {
+          "name": "Editing",
+          "keytip": "ZE",
+          "items": [
+            {
+              "small": "edit.find",
+              "keytip": "FD"
+            },
+            {
+              "small": "edit.replace",
+              "keytip": "RP"
+            },
+            {
+              "small": {
+                "id": "ribbon.select",
+                "text": "Select",
+                "icon": "mouse-pointer-2"
+              },
+              "keytip": "SL",
+              "menu": [
+                "edit.selectAll",
+                "edit.selectObjects"
+              ]
+            }
+          ]
         }
       ]
     },
