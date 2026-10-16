@@ -21,6 +21,7 @@
 #include "app/dialogs.h"
 #include "app/icons.h"
 #include "app/pagespane.h"
+#include "app/proofingdialogs.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
@@ -1541,35 +1542,7 @@ void MainWindow::contextMenu(const QPoint &global)
     const QString kind = m_ed->selectionKind();
     if (m_ed->isEditingText()) {
         // Spelling suggestions for the misspelled word under the caret.
-        const QTextCursor cur = m_ed->cursor();
-        const int pos = cur.position();
-        for (const auto &m : m_ed->misspelledIn(m_ed->textTarget().storyId)) {
-            if (pos < m.first || pos > m.second || cur.hasSelection()) continue;
-            QTextCursor wc = cur;
-            wc.setPosition(m.first);
-            wc.setPosition(m.second, QTextCursor::KeepAnchor);
-            const QString word = wc.selectedText();
-            QTextCursor lc = cur;
-            lc.setPosition(m.first + 1);
-            const QStringList sugg = spellingSuggestions(word, lc.charFormat().stringProperty(tp::Language)).mid(0, 6);
-            QFont bold = menu.font();
-            bold.setBold(true);
-            for (const QString &sgg : sugg) {
-                QAction *a = menu.addAction(sgg, this, [this, m, sgg] {
-                    m_ed->editText([&](QTextCursor &c) {
-                        c.setPosition(m.first);
-                        c.setPosition(m.second, QTextCursor::KeepAnchor);
-                        c.insertText(sgg);
-                    });
-                });
-                a->setFont(bold);
-            }
-            if (sugg.isEmpty()) menu.addAction(tr("(No spelling suggestions)"))->setEnabled(false);
-            menu.addAction(tr("Ignore All"), this, [this, word] { spellingIgnore(word); m_ed->invalidateSpelling(); });
-            menu.addAction(tr("Add to Dictionary"), this, [this, word] { spellingAdd(word); m_ed->invalidateSpelling(); });
-            menu.addSeparator();
-            break;
-        }
+        addSpellingSuggestions(menu, m_ed);
         menu.addAction(act("edit.cut"));
         menu.addAction(act("edit.copy"));
         menu.addAction(act("edit.paste"));
