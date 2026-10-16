@@ -8,6 +8,7 @@
 #include "text/textprops.h"
 
 #include <QTextBlock>
+#include <algorithm>
 #include <QTextCursor>
 #include <QTextDocument>
 
@@ -126,6 +127,16 @@ QByteArray WriteDoc::toDocx(QString *error, bool template_)
         }
         out.mainRelationships.push_back(office::Relationship{QStringLiteral("rId%1").arg(id), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"), out.stylesName, false});
     }
+    // Macros are not kept: a file that had them is saved without, as a plain document.
+    for (int i = int(out.parts.size()) - 1; i >= 0; --i)
+        if (out.parts[i].contentType.startsWith(QLatin1String("application/vnd.ms-office.vba")) || out.parts[i].contentType.contains(QLatin1String("macroEnabled"))) {
+            out.partRelationships.remove(out.parts[i].name);
+            out.parts.removeAt(i);
+        }
+    auto dropMacroLinks = [](QVector<office::Relationship> *rels) {
+        rels->erase(std::remove_if(rels->begin(), rels->end(), [](const office::Relationship &r) { return r.type.endsWith(QLatin1String("/vbaProject")) || r.type.endsWith(QLatin1String("/vbaProjectSignature")); }), rels->end());
+    };
+    dropMacroLinks(&out.mainRelationships);
     out.mainContentType = template_ ? QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml")
                                     : QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml");
     return writeDocx(out, error);
