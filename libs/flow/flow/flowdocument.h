@@ -92,6 +92,8 @@ public:
     LayoutEnv env;
     // What fields read (page numbers, notes); none by default.
     const FieldSource *fields = nullptr;
+    // The notes' numbers begin again at 1 in each section (a word processor's option), where they go on through the document otherwise.
+    bool restartNotesInSections = false;
     // Automatic hyphenation (off, as a word processor's is).
     bool hyphenate = false;
     double hyphenZone = 18;

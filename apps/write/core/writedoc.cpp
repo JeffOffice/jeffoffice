@@ -186,7 +186,9 @@ void WriteDoc::build(office::wml::Document &&doc)
     body.swap(m_wml.body);
     m_last = m_wml.lastSection;
     setUpEnvironment();
+    loadNotes();
     buildStory(body);
+    measureNoteSeparator();
     syncSections();
     m_pager = std::make_unique<flow::Paginator>(m_flow.get());
     QTextDocument *s = story();
@@ -218,6 +220,8 @@ void WriteDoc::setUpEnvironment()
     }
     f.env.defaultTab = std::max(1, m_wml.defaultTabStop) / 20.0;
     f.env.wordLines = true;
+    // The file's own compatibility option: no punctuation hangs past the margin.
+    if (!m_wml.settingsName.isEmpty()) f.env.wordNoHang = partData(m_wml.settingsName).contains("doNotWrapTextWithPunct");
     QFont body(f.env.fonts.body);
     body.setPointSizeF(m_wml.styles.defaultRun.size.value_or(22) / 2.0);
     f.story()->setDefaultFont(body);

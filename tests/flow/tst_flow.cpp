@@ -401,6 +401,50 @@ QMap<QString, TextItem *> boxesByText(const MaterializedPage &page)
     return out;
 }
 
+
+// Notes for a flowing document: each a paragraph that begins with its mark and says `words` more.
+void addNote(TestNotes *notes, const QString &id, int words, const QString &name)
+{
+    auto doc = std::make_unique<QTextDocument>();
+    doc->setDocumentMargin(0);
+    QTextCursor c(doc.get());
+    QTextCharFormat mark, text;
+    mark.setFontPointSize(10);
+    mark.setVerticalAlignment(QTextCharFormat::AlignSuperScript);
+    mark.setProperty(tp::Field, QStringLiteral("notemark"));
+    text.setFontPointSize(10);
+    c.insertText(QString(QChar(0xFFFC)), mark);
+    QString t = QStringLiteral(" ") + name;
+    for (int i = 0; i < words; ++i) t += QStringLiteral(" word%1").arg(i);
+    c.insertText(t, text);
+    notes->docs[id] = std::move(doc);
+}
+
+// A reference to a note, put into the story at a position.
+void addReference(QTextDocument *story, int position, const QString &id)
+{
+    QTextCursor c(story);
+    c.setPosition(position);
+    QTextCharFormat ref;
+    ref.setFontPointSize(11);
+    ref.setVerticalAlignment(QTextCharFormat::AlignSuperScript);
+    ref.setProperty(tp::Field, QStringLiteral("footnote:") + id);
+    c.insertText(QString(QChar(0xFFFC)), ref);
+}
+
+// The story of a materialized page's text box that holds `text` (its plain text).
+const TextItem *boxHolding(const MaterializedPage &page, const QString &text, QString *story = nullptr)
+{
+    for (const auto &item : page.doc->pages[0]->items)
+        if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+            if (const Story *st = page.doc->story(t->storyId))
+                if (st->doc->toPlainText().contains(text)) {
+                    if (story) *story = st->doc->toPlainText();
+                    return t;
+                }
+    return nullptr;
+}
+
 } // namespace
 
 class FlowTests : public QObject {
@@ -1699,6 +1743,73 @@ private Q_SLOTS:
         QVERIFY(std::abs((all[4].rect.top() - all[3].rect.bottom()) - 14) < 0.01);
     }
 
+    // A word processor's tab stops are measured from the text area's edge, not from the paragraph's indent, and the default stops go on after the last
+    // of the paragraph's own.
+    void tabStopsAreFromTheEdgeAndTheDefaultOnesFollowTheLast()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setLeftMargin(20);
+        QTextOption::Tab stop;
+        stop.position = 100;
+        stop.type = QTextOption::LeftTab;
+        bf.setTabPositions({stop});
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("ab\tcd\tef"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        env.defaultTab = 36;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(400, 100)}, env);
+        auto xOf = [&](int from) { return lay.rangeRects(0, from, from + 1).first().left(); };
+        QVERIFY2(std::abs(xOf(3) - 100) < 0.05, qPrintable(QString::number(xOf(3))));   // "cd": at the stop, from the edge
+        QVERIFY2(std::abs(xOf(6) - 144) < 0.05, qPrintable(QString::number(xOf(6))));   // "ef": the next default stop past "cd" (4 times 36)
+        QVERIFY(xOf(0) > 19.9 && xOf(0) < 20.1);                                         // (the text begins at the indent)
+    }
+
+    // A mark of punctuation at the end of a line may hang past the margin in a word processor's text: a word that fits but for its period is the last
+    // of the line, unless the file says no punctuation hangs; a word that is itself too long, or a mark that isn't one that hangs, is not let.
+    void punctuationAtTheEndOfALineHangsPastTheMargin()
+    {
+        auto lineCount = [&](const QString &text, double room, bool noHang, bool word = true) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            c.insertText(text, run);
+            LayoutEnv env;
+            env.wordLines = word;
+            env.wordNoHang = noHang;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(room, 300)}, env);
+            return int(lay.lineInfo(0).size());
+        };
+        // The room: the width the text takes up to its last mark.
+        const QString text = QStringLiteral("alpha beta gamma delta epsilon.");
+        QTextDocument measure;
+        QTextCursor mc(&measure);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        mc.insertText(text, run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout wide;
+        wide.build(&measure, {plainFrame(1000, 100)}, env);
+        const double upToMark = wide.rangeRects(0, text.size() - 1, text.size()).first().left();
+        const double room = upToMark + 0.5;   // (half a point past the word, not the room the period needs)
+        QCOMPARE(lineCount(text, room, false), 1);                // it hangs
+        QCOMPARE(lineCount(text, room, true), 2);                 // (not where the file says no punctuation hangs)
+        QCOMPARE(lineCount(text, room, false, false), 2);         // (nor in a publication's text)
+        QCOMPARE(lineCount(QStringLiteral("alpha beta gamma delta epsilon-"), room, false), 2);   // (a hyphen is no mark that hangs)
+        QCOMPARE(lineCount(text, upToMark - 5, false), 2);        // (the word itself doesn't fit)
+    }
+
     // The space between two paragraphs is the larger of the first's space after and the second's space before, not their sum; a paragraph that asks
     // for contextual spacing has none between it and a paragraph of its own style.
     void wordSpaceBetweenParagraphsIsTheLarger()
@@ -1884,6 +1995,110 @@ private Q_SLOTS:
         own.pageCount = 7;
         QCOMPARE(own.resolve(QStringLiteral("pages")), QStringLiteral("7"));
         QCOMPARE(own.resolve(QStringLiteral("sectionpages")), QStringLiteral("7"));
+    }
+
+    // A footnote is at the foot of the page that cites it, in a text box of its own at the bottom of the text area with a rule above it, and its
+    // number is where the reference is counted: the references go on through the pages, and the page's text has less room for the notes.
+    void footnotesAreAtTheFootOfThePageThatCitesThem()
+    {
+        TestNotes notes;
+        addNote(&notes, QStringLiteral("a"), 12, QStringLiteral("NOTEA"));
+        addNote(&notes, QStringLiteral("b"), 12, QStringLiteral("NOTEB"));
+        auto build = [&](bool withNotes) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fillStory(fd->story(), 70, 12);
+            if (withNotes) {
+                fd->fields = &notes;
+                addReference(fd->story(), fd->story()->findBlockByNumber(2).position() + 5, QStringLiteral("a"));
+                addReference(fd->story(), fd->story()->findBlockByNumber(30).position() + 5, QStringLiteral("b"));
+            }
+            return fd;
+        };
+        auto with = build(true), without = build(false);
+        Paginator pg(with.get()), plain(without.get());
+        QVERIFY(pg.pageCount() >= 3);
+        // The first page: the note, its rule, and fewer lines than the page without notes holds.
+        const auto first = pg.materialize(0);
+        QString noteStory;
+        const TextItem *note = boxHolding(*first, QStringLiteral("NOTEA"), &noteStory);
+        QVERIFY(note);
+        QVERIFY(!boxHolding(*first, QStringLiteral("NOTEB")));
+        const double bottom = with->sections[0].content().bottom();
+        QVERIFY2(std::abs(note->rect.bottom() - bottom) < 0.05, qPrintable(QString::number(note->rect.bottom())));
+        QVERIFY(noteStory.contains(QStringLiteral("raw")) == false);   // (the mark is its number)
+        QVERIFY(pg.lines(0).size() < plain.lines(0).size());
+        const LineItem *rule = nullptr;
+        for (const auto &item : first->doc->pages[0]->items)
+            if (const auto *l = dynamic_cast<const LineItem *>(item.get())) rule = l;
+        QVERIFY(rule);
+        QVERIFY(std::abs((rule->p2.x() - rule->p1.x()) - 144) < 0.01);
+        QVERIFY(rule->p1.y() < note->rect.top() && rule->p1.y() > note->rect.top() - 20);
+        // The reference in the text shows its number; the number goes on through the pages (the second note is 2 wherever it is).
+        const TextItem *body = boxHolding(*first, QStringLiteral("court"));
+        QVERIFY(body);
+        const Story *bodyStory = first->doc->story(body->storyId);
+        bool numbered = false;
+        for (QTextBlock b = bodyStory->doc->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) numbered |= it.fragment().charFormat().stringProperty(tp::Field) == QLatin1String("raw:1");
+        QVERIFY(numbered);
+        int notePage = -1;
+        for (int k = 1; k < pg.pageCount() && notePage < 0; ++k)
+            if (boxHolding(*pg.materialize(k), QStringLiteral("NOTEB"))) notePage = k;
+        QVERIFY(notePage > 0);
+        const auto later = pg.materialize(notePage);
+        const TextItem *bNote = boxHolding(*later, QStringLiteral("NOTEB"));
+        bool two = false;
+        for (QTextBlock b = later->doc->story(bNote->storyId)->doc->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) two |= it.fragment().charFormat().stringProperty(tp::Field) == QLatin1String("raw:2");
+        QVERIFY(two);
+        QCOMPARE(pg.page(notePage).start.foot, 1);   // (one note came before the page's first paragraph)
+        QVERIFY(std::abs(bNote->rect.bottom() - bottom) < 0.05);
+        // A page that cites none has no note and no rule.
+        const auto bare = pg.materialize(1 == notePage ? 2 : 1);
+        QVERIFY(!boxHolding(*bare, QStringLiteral("NOTE")));
+        for (const auto &item : bare->doc->pages[0]->items) QVERIFY(!dynamic_cast<const LineItem *>(item.get()));
+    }
+
+    // A footnote too long for the room at the foot of the page is cut there, and the rest of it begins the notes of the next page.
+    void aLongFootnoteGoesOnOnTheNextPage()
+    {
+        TestNotes notes;
+        addNote(&notes, QStringLiteral("long"), 900, QStringLiteral("LONGNOTE"));
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.fields = &notes;
+        fillStory(fd.story(), 40, 14);
+        addReference(fd.story(), fd.story()->findBlockByNumber(1).position() + 5, QStringLiteral("long"));
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 3);
+        QVERIFY(!pg.page(1).start.carried.isEmpty());
+        const auto first = pg.materialize(0), second = pg.materialize(1);
+        QVERIFY(boxHolding(*first, QStringLiteral("LONGNOTE")));
+        QString rest;
+        const TextItem *tail = boxHolding(*second, QStringLiteral("word"), &rest);
+        QVERIFY(tail);
+        QVERIFY(!rest.contains(QStringLiteral("LONGNOTE")));   // (the second part begins in the middle of the note's text)
+        // The note's text is all on the pages it is on: every word once.
+        QSet<QString> seen;
+        int count = 0;
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const auto page = pg.materialize(k);
+            for (const auto &item : page->doc->pages[0]->items)
+                if (const auto *t = dynamic_cast<const TextItem *>(item.get())) {
+                    const Story *st = page->doc->story(t->storyId);
+                    if (!st->doc->toPlainText().contains(QStringLiteral("word"))) continue;
+                    if (st->doc->toPlainText().contains(QStringLiteral("court"))) continue;   // (the text, not a note)
+                    LayoutCache cache;
+                    const auto fl = cache.textFrame(*page->doc, *t, 1, RenderOptions());
+                    if (!fl.layout) continue;
+                    for (const auto &li : fl.layout->lineInfo(fl.frame))
+                        for (const QString &w : li.text.split(QLatin1Char(' '), Qt::SkipEmptyParts))
+                            if (w.startsWith(QStringLiteral("word"))) { seen.insert(w); ++count; }
+                }
+        }
+        QCOMPARE(int(seen.size()), 900);
+        QCOMPARE(count, 900);
     }
 
     // Where a position is on the pages.

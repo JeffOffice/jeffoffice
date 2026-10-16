@@ -216,6 +216,7 @@ LayoutEnv Renderer::layoutEnv(const Document &doc)
     env.defaultTab = doc.defaultTabStop;
     env.slideLines = doc.slideText;
     env.wordLines = doc.wordText;
+    env.wordNoHang = doc.wordNoHang;
     env.familyAliases = doc.fontAliases;
     return env;
 }

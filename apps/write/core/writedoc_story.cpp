@@ -152,7 +152,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     QHash<QString, ParaProps> baselines;
     QVector<Block> pending;   // body elements kept as XML that wait for the next paragraph
 
-    int paragraphsMade = 0;
+    int paragraphsMade = 0, endnoteNumber = 0;
     for (const Block &blk : body) {
         if (header && (blk.isRaw || ++paragraphsMade > kMostHeaderParagraphs)) continue;
         if (blk.isRaw) {
@@ -314,6 +314,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     } else if (in.key == QLatin1String("end") && !fields.isEmpty()) {
                         finish();
                     }
+                } else if (in.kind == Inline::RunAtom && (in.tag == QLatin1String("footnoteRef") || in.tag == QLatin1String("endnoteRef"))) {
+                    // (The mark that begins a note's text shows the note's number: the pages give it.)
+                    QTextCharFormat mark = formatOf(styleId, in.props);
+                    mark.setProperty(tp::Field, QStringLiteral("notemark"));
+                    put(QString(QChar::ObjectReplacementCharacter), mark);
                 } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("instrText")) {
                     if (!fields.isEmpty() && !fields.last().inResult) fields.last().instruction += textOfXml(in.raw);
                 } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Open) {
@@ -336,7 +341,12 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             }
             QTextCharFormat af = formatOf(styleId, in.props);
             setStored(af, prop::Atom, packAtom(in));
-            af.setProperty(tp::Field, QStringLiteral("raw:") + in.display);
+            // A reference to a footnote of the file is the note's (the pages lay it out at their foot); one to an endnote shows its number, in the lower
+            // case roman numerals a word processor's endnotes have.
+            QString field = QStringLiteral("raw:") + in.display;
+            if (in.tag == QLatin1String("footnoteReference") && m_noteBlocks.contains(QStringLiteral("fn") + in.key)) field = QStringLiteral("footnote:fn") + in.key;
+            else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + roman(++endnoteNumber, false);
+            af.setProperty(tp::Field, field);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);
         }
         if (direct.section) {
