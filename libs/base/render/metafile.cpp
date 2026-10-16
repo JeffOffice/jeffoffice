@@ -29,6 +29,7 @@ constexpr double kMaxWork = 2500000;
 // use thousands of the first and tens of the second.
 constexpr int kMaxPathElements = 1000000;
 constexpr int kMaxSavedStates = 1000;
+constexpr double kMaxFontPixels = 16384;   // a font's height once drawn, at most
 
 // Reads little-endian values from a picture's bytes, never outside them: a
 // read past the end gives 0 and stops further reads, and moves by lengths
@@ -412,8 +413,13 @@ private:
         m_p->scale(flipX ? -1 : 1, flipY ? -1 : 1);
         if (m_dc.escapement) m_p->rotate(-m_dc.escapement);
         QFont f = m_dc.font;
-        f.setPixelSize(std::max(1, int(std::lround(m_dc.fontHeight))));
-        if (m_dc.fontHeight < 4) f.setPointSizeF(m_dc.fontHeight * 0.75);
+        // A font as tall as no real metafile asks for is held to a size every system's font engine can draw (a damaged
+        // height asked Windows for glyphs tens of thousands of pixels tall and crashed it).
+        double height = m_dc.fontHeight;
+        const double onScreen = std::sqrt(std::abs(m_p->worldTransform().determinant()));
+        if (onScreen > 0 && height * onScreen > kMaxFontPixels) height = kMaxFontPixels / onScreen;
+        f.setPixelSize(std::max(1, int(std::lround(height))));
+        if (height < 4) f.setPointSizeF(height * 0.75);
         m_p->setFont(f);
         const QFontMetricsF fm(f);
         double w = 0;

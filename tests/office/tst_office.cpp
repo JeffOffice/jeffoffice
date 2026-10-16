@@ -4487,6 +4487,18 @@ private Q_SLOTS:
             }
             QVERIFY2(damaged.elapsed() < 20000, qPrintable(QString::number(damaged.elapsed())));
         }
+        // A damaged text size (61,756) is no text, at once: some systems' font engines fail on glyphs that large (it crashed the
+        // damaged-bytes loop above on Windows).
+        {
+            QElapsedTimer huge;
+            huge.start();
+            img = draw(pictU16(0x0003) + pictU16(21) + pictU16(0x000D) + pictU16(61756) + pictU16(0x0028) + pictU16(90) + pictU16(20) + QByteArray("\x01" "H"));
+            int dark = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x) dark += qAlpha(img.pixel(x, y)) > 128;
+            QCOMPARE(dark, 0);
+            QVERIFY2(huge.elapsed() < 5000, qPrintable(QString::number(huge.elapsed())));
+        }
         // What it can't read, or what is cut short, is no picture and no crash.
         QVERIFY(odrawBlip(odMetafileBlip(0xF01C, 0x542, odPict(200, 100, QByteArray()).left(30), true), nullptr).isEmpty());
         QVERIFY(odrawBlip(odMetafileBlip(0xF01C, 0x542, QByteArray("not a picture at all"), true), nullptr).isEmpty());
