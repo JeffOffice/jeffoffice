@@ -25422,6 +25422,32 @@ private Q_SLOTS:
         QVERIFY2(atSlash < int(lines.size()) - 1, qPrintable(QStringLiteral("%1 of %2").arg(atSlash).arg(lines.size() - 1)));
     }
 
+    // Numbering goes on past the cut a long list is made in (a list is cut into lists of 400 for its cost): the 401st numbered paragraph is 401,
+    // not 1, as in a presentation the other format holds.
+    void importBinaryNumberingGoesOnPastTheCutOfALongList()
+    {
+        auto entry = [&](quint32 masks, const QByteArray &fields) { return le(masks, 4) + fields + le(0, 4) + le(0, 4); };
+        const QByteArray outline = pptBox(4014, pptRec(4015, le(0x100, 4) + le(1, 4), 1) + pptRec(4012, entry(0x02000000, le(1, 2))));
+        const QByteArray tags = pptBox(5000, pptBox(5002, pptRec(4026, utf16(QStringLiteral("___PPT9"))) + pptRec(5003, outline)));
+        QString text;
+        for (int i = 0; i < 450; ++i) text += QLatin1String(i < 449 ? "a\r" : "a");
+        // One run of paragraphs, so one entry numbers them all.
+        const QByteArray body = pptText(1, text, pfRun(int(text.size()) + 1, 0, 0) + cfRun(int(text.size()) + 1, 0));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1016, tags), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(story);
+        QCOMPARE(story->blockCount(), 450);
+        QTextBlock b = story->firstBlock();
+        for (int i = 0; i < 450; ++i, b = b.next()) {
+            QVERIFY2(b.textList(), qPrintable(QString::number(i)));
+            QCOMPARE(b.textList()->format().style(), QTextListFormat::ListDecimal);
+            const int shown = b.textList()->format().start() + b.textList()->itemNumber(b);
+            if (i == 0 || i == 398 || i == 399 || i == 400 || i == 401 || i == 449) QVERIFY2(shown == i + 1, qPrintable(QStringLiteral("paragraph %1 is numbered %2").arg(i + 1).arg(shown)));
+        }
+    }
+
     // Blank paragraphs that end a slide's text count in the place the text is centered at, but not as text that runs over: the text of two lines in
     // a box that holds them, with the empty paragraph after them that it doesn't, is not too tall for it (nothing is shrunk or marked for it), and
     // the same text in a .pptx.
