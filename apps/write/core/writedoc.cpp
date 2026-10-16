@@ -83,6 +83,7 @@ flow::Section flowSectionOf(const SectionProps &p, bool evenAndOdd)
                          : p.pageFormat == QLatin1String("upperRoman") ? QStringLiteral("ROMAN")
                          : p.pageFormat == QLatin1String("lowerLetter") ? QStringLiteral("alpha")
                          : p.pageFormat == QLatin1String("upperLetter") ? QStringLiteral("ALPHA")
+                         : p.pageFormat == QLatin1String("numberInDash") ? QStringLiteral("dash")
                                                                        : QString();
     return s;
 }
@@ -121,6 +122,7 @@ void updateSectionProps(SectionProps *p, const flow::Section &s)
                         : s.pageNumberFormat == QLatin1String("ROMAN") ? QStringLiteral("upperRoman")
                         : s.pageNumberFormat == QLatin1String("alpha") ? QStringLiteral("lowerLetter")
                         : s.pageNumberFormat == QLatin1String("ALPHA") ? QStringLiteral("upperLetter")
+                        : s.pageNumberFormat == QLatin1String("dash") ? QStringLiteral("numberInDash")
                                                                        : QString();
 }
 

@@ -1596,6 +1596,18 @@ private Q_SLOTS:
         QVERIFY(std::abs(height(missing, {{missing.toLower(), QStringLiteral("Times New Roman")}}) - (1825 + 443 + 87) / 2048.0 * 12) < 0.01);
     }
 
+    // A section's page numbers in dashes are the number between two hyphens, a space each side.
+    void pageNumbersInDashes()
+    {
+        struct Dashed : TestNotes {
+            QString pageNumberFormat() const override { return QStringLiteral("dash"); }
+        } source;
+        FieldContext ctx;
+        ctx.doc = &source;
+        ctx.pageNumber = 3;
+        QCOMPARE(ctx.resolve(QStringLiteral("page")), QStringLiteral("- 3 -"));
+    }
+
     // A number that isn't hanging is followed by a tab: the text begins at the next stop past the number, the paragraph's own or the default ones.
     void numberIsFollowedByATab()
     {
