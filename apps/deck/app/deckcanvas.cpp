@@ -4,6 +4,7 @@
 #include "app/editormedia.h"
 #include "core/comments.h"
 #include "core/deck.h"
+#include "core/masteredit.h"
 
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -133,12 +134,41 @@ void DeckCanvas::keyPressEvent(QKeyEvent *e)
     Canvas::keyPressEvent(e);
 }
 
+// On a slide master or layout every placeholder has its dotted outline, and one that holds a kind of content (a picture, a chart, a table)
+// says which, as it has no sample text to say it.
+void DeckCanvas::paintMasterPlaceholders()
+{
+    const Document *d = editor()->doc();
+    const MasterPage *m = d ? d->master(editor()->masterView()) : nullptr;
+    if (!m) return;
+    QPainter p(viewport());
+    p.setRenderHint(QPainter::Antialiasing);
+    p.setPen(QPen(QColor(0x80, 0x84, 0x8C), 1, Qt::DotLine));
+    p.setBrush(Qt::NoBrush);
+    for (const auto &it : m->items) {
+        if (it->type() != ItemType::Text || deck::placeholderType(*it).isEmpty()) continue;
+        QPolygonF poly;
+        for (const QPointF &pt : it->outline()) poly << pageToView(pt);
+        p.drawPolygon(poly);
+        const QString label = deck::placeholderLabel(deck::placeholderType(*it));
+        const QTextDocument *story = d->storyDoc(static_cast<const TextItem &>(*it).storyId);
+        if (label.isEmpty() || (story && !story->isEmpty())) continue;
+        p.setPen(QColor(0x60, 0x64, 0x6C));
+        p.drawText(QRectF(pageToView(it->rect.topLeft()), pageToView(it->rect.bottomRight())), Qt::AlignCenter, label);
+        p.setPen(QPen(QColor(0x80, 0x84, 0x8C), 1, Qt::DotLine));
+    }
+}
+
 void DeckCanvas::paintEvent(QPaintEvent *e)
 {
     Canvas::paintEvent(e);
     const Document *d = editor()->doc();
     const int page = editor()->currentPage();
-    if (!d || !editor()->masterView().isEmpty() || page < 0 || page >= d->pages.size()) return;
+    if (d && !editor()->masterView().isEmpty()) {
+        paintMasterPlaceholders();
+        return;
+    }
+    if (!d || page < 0 || page >= d->pages.size()) return;
     QPainter p(viewport());
     const QSizeF ps = d->pageSize();
     const QRectF slide(pageToView(QPointF(0, 0)), pageToView(QPointF(ps.width(), ps.height())));
