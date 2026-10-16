@@ -1481,7 +1481,8 @@ void Importer::readMasters()
             break;
         }
         Rec c;
-        if (!containerAt(e.persist, RT_MainMaster, &c)) {
+        // A main master is kept in a master record, and a title master in a slide record.
+        if (!containerAt(e.persist, RT_MainMaster, &c) && !containerAt(e.persist, RT_Slide, &c)) {
             note(say("A slide master was left out: it can't be found in the file."));
             continue;
         }

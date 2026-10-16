@@ -2155,12 +2155,13 @@ private:
     // has a field, a link, a language, and a ruler, and that fades in. `cycle`
     // makes the older edit point back at the newer. `notesByAtom` leaves the
     // first slide without the id of its notes, which then name the slide.
+    // `titleMasterRecord` is the kind of record the title master is kept in (the presentation program keeps it as a slide record).
     // `bodyGroup` stands for the first slide's body text; `drawingGroup` is the document's drawing group, `firstSlideShapes` more
     // shapes for the first slide's drawing, `masterTitleProps` a property record for the main master's title shape, `masterBackground`
     // a shape for its drawing, and `masterExtra` more records for the main master.
     static QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray(),
                                const QByteArray &drawingGroup = QByteArray(), const QByteArray &firstSlideShapes = QByteArray(), const QByteArray &masterTitleProps = QByteArray(), const QByteArray &masterBackground = QByteArray(),
-                               const QByteArray &masterExtra = QByteArray())
+                               const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016)
     {
         constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
         const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")));
@@ -2201,7 +2202,7 @@ private:
             + pptRec(4003, le(1, 2) + le(0x800, 4) + le(1, 2) + le(0x70000, 4) + le(1, 2) + le(44, 2) + pptColor(0, 0, 0, 3), 0)
             + masterExtra
             + pptDrawing(pptShape(0x402, 1, QByteArray(), 100, 200, 5000, 900, masterTitleProps) + pptShape(0x403, 2, QByteArray()) + masterBackground));
-        const QByteArray titleMasterRec = pptBox(1016, slideAtom(3, QByteArray("\x03\x04\x07\x08\x09", 5), 0, 0, 1) + colorScheme(1)
+        const QByteArray titleMasterRec = pptBox(titleMasterRecord, slideAtom(3, QByteArray("\x03\x04\x07\x08\x09", 5), 0, 0, 1) + colorScheme(1)
             // The centered title and the subtitle, with only their sizes (the levels of these two start with their number).
             + pptRec(4003, le(1, 2) + le(0, 2) + le(0x800, 4) + le(1, 2) + le(0x20000, 4) + le(54, 2), 6)
             + pptRec(4003, le(1, 2) + le(0, 2) + le(0, 4) + le(0x20000, 4) + le(30, 2), 5)
@@ -2439,6 +2440,24 @@ private Q_SLOTS:
         QVERIFY(ctr);
         QCOMPARE(ctr->begin().begin().fragment().charFormat().fontPointSize(), 54.0);
         QVERIFY((ctr->begin().blockFormat().alignment() & Qt::AlignHorizontal_Mask) == Qt::AlignHCenter);
+    }
+
+    // The presentation program keeps a title master in a slide record, not in a master record: it is found all the same, and its
+    // own objects and sizes make the title layout.
+    void binaryPresentationTitleMasterKeptAsASlideRecord()
+    {
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(true, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1006), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(!err.contains(QStringLiteral("master was left out")), qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 3);
+        const Page &welcome = *d->pages[2];
+        const MasterPage *layout = d->masterFor(welcome);
+        QVERIFY(layout);
+        QCOMPARE(deck::layoutType(*layout), QStringLiteral("title"));
+        QTextDocument *ctr = placeholderStory(*d, welcome, QStringLiteral("ph:ctrTitle"));
+        QVERIFY(ctr);
+        QCOMPARE(ctr->begin().begin().fragment().charFormat().fontPointSize(), 54.0);
     }
 
     // A text's fields, links, languages, and ruler come through, and so does how a
