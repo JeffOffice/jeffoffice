@@ -1,0 +1,160 @@
+#pragma once
+// The view of the document's pages: a continuous column of pages on a gray ground, or several across, drawn at a zoom of 10% to 500%.
+// Only the pages in view are made (the paginator keeps where each starts, and makes a page when it is asked for) and the rest of the
+// document is laid out in the background, so the first page shows at once, and the number of pages grows while a long document is
+// worked out. The view also takes the keyboard and the mouse: the caret is drawn on the page that holds it, and what is typed goes to
+// the story through the commands of core/editops.h.
+
+#include "core/writedoc.h"
+
+#include <QAbstractScrollArea>
+#include <QPixmap>
+#include <QTextCursor>
+#include <QTimer>
+#include <memory>
+
+class QMenu;
+
+namespace jp {
+class LayoutCache;
+}
+
+namespace jp::write {
+
+class PageView : public QAbstractScrollArea {
+    Q_OBJECT
+public:
+    enum class ZoomMode { Percent, PageWidth, OnePage, ManyPages };
+
+    explicit PageView(QWidget *parent = nullptr);
+    ~PageView() override;
+
+    // The document shown (not owned; it must outlast the view or be taken away with null first).
+    void setDocument(WriteDoc *doc);
+    WriteDoc *document() const { return m_doc; }
+    QTextCursor &cursor() { return m_cursor; }
+    const QTextCursor &cursor() const { return m_cursor; }
+    void setCursor(const QTextCursor &c);
+
+    // ---- zoom: 1 is 100%, from 0.1 to 5
+    static constexpr double kLeastZoom = 0.1, kMostZoom = 5.0;
+    double zoom() const { return m_zoom; }
+    ZoomMode zoomMode() const { return m_mode; }
+    void setZoom(double zoom);
+    // Page Width fits the page to the width of the window, One Page the whole page in the window, Many Pages `across` pages by `down`.
+    void setZoomMode(ZoomMode mode, int across = 2, int down = 1);
+    int pagesAcross() const { return m_across; }
+
+    // ---- pages
+    int pageCount() const;         // the pages laid out so far
+    bool pagesComplete() const;    // whether those are all the document has
+    int currentPage() const;       // the page the caret is on, from 0
+    int topPage() const;           // the page at the top of the window
+    void goToPage(int index);
+    // The pages that are drawn: the rectangle of page `index` in the window.
+    QRect pageRect(int index) const;
+    // A page made into a picture `width` pixels wide, as printed (for tests and thumbnails).
+    QImage pageImage(int index, int width);
+    // The caret: where it is in the window, if it is on a page that is shown.
+    bool caretRect(QRect *rect);
+    // Draws the caret while the view has not the keyboard (for screenshots).
+    void setCaretWithoutFocus(bool on) { m_caretWithoutFocus = on; viewport()->update(); }
+
+    // ---- showing
+    void setShowMarks(bool on);
+    bool showMarks() const { return m_marks; }
+
+    // ---- editing (each is a step that undoes)
+    void undo();
+    void redo();
+    void cut();
+    void copy();
+    void paste();
+    void selectAll();
+    void insertText(const QString &text);
+    void typeKey(int key, Qt::KeyboardModifiers modifiers);   // the keys that edit and move, as the keyboard sends them
+
+    // Lays out every page now (for the count).
+    void paginateAll();
+    // The pages the window is set to show, laid out and drawn once more.
+    void refresh();
+
+Q_SIGNALS:
+    void zoomChanged(double zoom);
+    void pagesChanged();                    // how many pages there are, or whether all are known
+    void caretChanged();                    // the caret moved or the selection changed
+    void contentChanged();                  // the text was edited
+    void contextMenuWanted(const QPoint &globalPos);
+
+protected:
+    void paintEvent(QPaintEvent *e) override;
+    void resizeEvent(QResizeEvent *e) override;
+    void scrollContentsBy(int dx, int dy) override;
+    void wheelEvent(QWheelEvent *e) override;
+    void keyPressEvent(QKeyEvent *e) override;
+    void mousePressEvent(QMouseEvent *e) override;
+    void mouseMoveEvent(QMouseEvent *e) override;
+    void mouseReleaseEvent(QMouseEvent *e) override;
+    void mouseDoubleClickEvent(QMouseEvent *e) override;
+    void contextMenuEvent(QContextMenuEvent *e) override;
+    void focusInEvent(QFocusEvent *e) override;
+    void focusOutEvent(QFocusEvent *e) override;
+    void inputMethodEvent(QInputMethodEvent *e) override;
+    QVariant inputMethodQuery(Qt::InputMethodQuery q) const override;
+    bool focusNextPrevChild(bool next) override;
+
+private:
+    struct Rendered;
+    struct Hit {
+        int page = -1;
+        QPointF point;       // on the page, in points
+    };
+    std::shared_ptr<Rendered> rendered(int index);
+    void dropRendered(int fromPage);
+    void relayout();
+    void applyZoomMode();
+    void setScrollRanges();
+    Hit hitAt(const QPoint &viewportPos);
+    int positionAt(const Hit &hit);
+    bool caretLine(int position, int *page, QLineF *line);   // in points on the page
+    int moveVertical(int position, int direction);
+    int lineEdge(int position, bool end);
+    void caretMoved(bool keepWanted = false);
+    void ensureCaretVisible();
+    void documentChanged(int position, int removed, int added);
+    void paginationStep();
+    void startPagination();
+    void blink();
+    double scale() const { return m_zoom * 96.0 / 72.0; }
+    QRectF contentRect(int page) const { return m_rects.value(page); }
+    void startAutoscroll();
+
+    WriteDoc *m_doc = nullptr;
+    QTextCursor m_cursor;
+    double m_zoom = 1.0;
+    ZoomMode m_mode = ZoomMode::Percent;
+    int m_across = 1, m_down = 1;
+    bool m_marks = false;
+    bool m_caretWithoutFocus = false;
+
+    // Where each page is, in the content (pixels at the zoom), and how big the content is.
+    QVector<QRectF> m_rects;
+    QVector<double> m_rowTops;
+    QSizeF m_content;
+    int m_knownPages = 0;
+    bool m_complete = false;
+
+    QHash<int, std::shared_ptr<Rendered>> m_rendered;
+    QList<int> m_recent;
+    QTimer m_pagination, m_blink, m_autoscroll;
+    bool m_caretOn = true;
+    double m_wantedX = -1;          // the x that Up and Down keep (frame-local), -1 for none
+    bool m_dragging = false;
+    int m_clicks = 0;
+    QPoint m_lastPos;
+    qint64 m_lastClickTime = 0;
+    bool m_relayouting = false;
+    QTextDocument *m_connected = nullptr;
+};
+
+} // namespace jp::write
