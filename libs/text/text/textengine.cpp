@@ -1521,7 +1521,7 @@ QVector<QTextLayout::FormatRange> applyLetterWidths(const QVector<QTextLayout::F
         // letter spacing: word spacing does nothing on macOS. want[j]: the
         // space after character j.
         const int end = std::min(r.start + r.length, int(disp.size()));
-        auto transparent = [](QChar c) { return c.unicode() == 0x00AD || c.unicode() == 0x200B || c.unicode() == 0xFFFC; };
+        auto transparent = [](QChar c) { return c.unicode() == 0x00AD || c.unicode() == 0x200B || c.unicode() == 0x2060 || c.unicode() == 0xFFFC; };
         QVector<double> diff(end - r.start, 0.0), shift(end - r.start, 0.0), want(end - r.start, 0.0);
         bool first = true;
         for (int i = r.start; i < end; ++i) {
@@ -1555,13 +1555,25 @@ QVector<QTextLayout::FormatRange> applyLetterWidths(const QVector<QTextLayout::F
         bool started = false;
         auto flush = [&](int to) {
             if (to <= pieceStart) return;
-            QTextLayout::FormatRange x = r;
-            x.start = pieceStart;
-            x.length = to - pieceStart;
-            x.format.setFontLetterSpacingType(QFont::AbsoluteSpacing);
-            x.format.setFontLetterSpacing(base + pieceDelta);
-            if (kerns) x.format.setFontKerning(false);
-            out << x;
+            auto emit = [&](int from, int upTo, double spacing) {
+                if (upTo <= from) return;
+                QTextLayout::FormatRange x = r;
+                x.start = from;
+                x.length = upTo - from;
+                x.format.setFontLetterSpacingType(QFont::AbsoluteSpacing);
+                x.format.setFontLetterSpacing(spacing);
+                if (kerns) x.format.setFontKerning(false);
+                out << x;
+            };
+            // A word joiner (set after a slash, so that no line breaks there) is no letter, and takes no spacing, where it would be a gap.
+            int from = pieceStart;
+            for (int t = pieceStart; t < to; ++t)
+                if (disp[t] == QChar(0x2060)) {
+                    emit(from, t, base + pieceDelta);
+                    emit(t, t + 1, 0);
+                    from = t + 1;
+                }
+            emit(from, to, base + pieceDelta);
         };
         for (int i = r.start, prev = -1; i < end; ++i) {
             if (transparent(disp[i])) continue;
@@ -2063,6 +2075,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 // Publisher breaks there, Qt's rules keep the number whole.
                 for (int i = 1; i + 1 < int(raw.size()); ++i)
                     if (raw[i] == QLatin1Char('-') && raw[i - 1].isLetterOrNumber() && raw[i + 1].isDigit()) cuts.append({i + 1, QChar(0x200B)});
+                // A slide's line doesn't break after a slash ("expression/regulation", an address): the presentation program breaks at spaces
+                // and hyphens, and a word that is longer than the line anywhere. A word joiner after it keeps Qt's rules from breaking there.
+                if (env.slideLines)
+                    for (int i = 0; i + 1 < int(raw.size()); ++i)
+                        if (raw[i] == QLatin1Char('/') && !raw[i + 1].isSpace() && raw[i + 1] != QChar::LineSeparator) cuts.append({i + 1, QChar(0x2060)});
                 std::sort(cuts.begin(), cuts.end(), [](const auto &x, const auto &y) { return x.first < y.first; });
                 int piece = 0;
                 for (const auto &[cut, mark] : cuts) {
@@ -2113,6 +2130,17 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         }
                     for (QChar &ch : shown)
                         if (ch.isLower()) ch = ch.toUpper();
+                } else if (fr.format.fontLetterSpacing() != 0 && shown.contains(QChar(0x2060))) {
+                    // (A word joiner takes no letter spacing: it is no letter, and would be a gap where it stands.)
+                    QTextCharFormat none = fr.format;
+                    none.setFontLetterSpacing(0);
+                    int from = 0;
+                    for (int at = int(shown.indexOf(QChar(0x2060))); at >= 0; at = int(shown.indexOf(QChar(0x2060), at + 1))) {
+                        if (at > from) ranges << QTextLayout::FormatRange{fr.start + from, at - from, fr.format};
+                        ranges << QTextLayout::FormatRange{fr.start + at, 1, none};
+                        from = at + 1;
+                    }
+                    if (from < int(shown.size())) ranges << QTextLayout::FormatRange{fr.start + from, int(shown.size()) - from, fr.format};
                 } else {
                     ranges << fr;
                 }
@@ -2404,7 +2432,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 for (; i < n; ++i) {
                     const QChar ch = B->disp[i];
                     if (ch.isSpace() && ch.unicode() != 0x00A0 && ch.unicode() != 0x202F) break;
-                    if (ch.unicode() == 0x00AD || ch.unicode() == 0x200B) continue;
+                    if (ch.unicode() == 0x00AD || ch.unicode() == 0x200B || ch.unicode() == 0x2060) continue;
                     pen += advanceAt(i);
                     if (ch == QLatin1Char('-')) break;
                 }
