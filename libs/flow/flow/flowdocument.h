@@ -29,8 +29,9 @@ enum : int {
 };
 } // namespace fp
 
-// What a section's header or footer holds on its first page, its odd pages, and its even pages: a story each, or none (the section before's
-// goes on). Only the slots are here; the pages don't draw them yet.
+// What a section's header or footer holds on its first page, its odd pages, and its even pages: a story each, or none. (A reader gives a section the
+// stories of the section before for the slots it states none of: the file's rule.) The pages draw them at the section's header and footer distances,
+// and the text area gives way to one that is taller than its margin leaves room for.
 struct HeaderFooter {
     std::shared_ptr<QTextDocument> first, odd, even;
 };
@@ -59,6 +60,11 @@ struct Section {
     bool differentOddEven = false;           // odd and even pages use their own slots
     std::optional<int> firstPageNumber;      // the number the section's first page has (0 is a number; none: it goes on from the section before)
     QString pageNumberFormat;                // "", "roman", "ROMAN", "alpha", or "ALPHA" (the fields' own)
+
+    // The header and footer story a page uses, or none: the first page's of the section when the section asks for one and it is the section's
+    // first page, else the even pages' when it asks for those and the page's number is even, else the odd pages' (the ordinary one).
+    const QTextDocument *headerFor(bool firstOfSection, int pageNumber) const;
+    const QTextDocument *footerFor(bool firstOfSection, int pageNumber) const;
 
     int columnCount() const;                 // `columns`, from 1 to kMostColumns
     QSizeF pageSize() const;                 // as the paper is turned

@@ -329,6 +329,9 @@ public:
     // or hiding as a publication's does. Set by the app that makes the
     // document; not saved.
     bool slideText = false;
+    // The pages a flowing document (libs/flow) has, and the pages of the section this page is in, which its NUMPAGES and SECTIONPAGES fields show;
+    // 0 leaves them to the document's own page count. Set by the app that makes the document; not saved.
+    int flowPageTotal = 0, flowSectionPageTotal = 0;
     // Text is set as a word processor sets its lines (LayoutEnv::wordLines). Set by the app that makes the document; not saved.
     bool wordText = false;
     // A picture's brightness, contrast, black and white, and transparent color change its colors as the presentation program changes a
@@ -358,6 +361,8 @@ public:
     // What its fields read (FieldSource).
     int firstPageNumber() const override { return setup.firstPageNumber; }
     QString pageNumberFormat() const override { return setup.pageNumberFormat; }
+    int pageTotal() const override { return flowPageTotal; }
+    int sectionPageTotal() const override { return flowSectionPageTotal; }
     QString businessField(const QString &key) const override { return business().field(key); }
     QStringList mergeFields() const override { return merge.fields; }
     QString mergeValue(int record, const QString &field) const override { return merge.value(record, field); }
