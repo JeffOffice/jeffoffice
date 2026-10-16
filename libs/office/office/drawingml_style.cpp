@@ -285,7 +285,7 @@ void applyLine(const QDomElement &ln, const StyleContext &sc, Stroke *s)
     }
 }
 
-// Effects an a:effectLst has: a shadow (outer, else inner), a glow, and soft edges.
+// Effects an a:effectLst has: a shadow (outer, else inner), a reflection, a glow, and soft edges.
 void applyEffects(const QDomElement &list, const StyleContext &sc, Effects *fx)
 {
     const QDomElement outer = childNamed(list, "outerShdw"), inner = childNamed(list, "innerShdw");
@@ -299,6 +299,18 @@ void applyEffects(const QDomElement &list, const StyleContext &sc, Effects *fx)
         fx->shadow.blur = std::clamp(parseLength(attr(shadow, QStringLiteral("blurRad")), 0), 0.0, kMaxEffectRadius);
         fx->shadow.distance = std::clamp(parseLength(attr(shadow, QStringLiteral("dist")), 0), 0.0, 1584.0);
         fx->shadow.angle = std::fmod(parseAngle(attr(shadow, QStringLiteral("dir")), 0), 360.0);
+        // A shadow of another size than the object's (sx and sy, in percent; one size for both).
+        if (outer.isNull()) fx->shadow.size = 100;
+        else fx->shadow.size = std::clamp(parsePercent(attr(shadow, QStringLiteral("sx")), 1.0) * 100, 1.0, 1000.0);
+    }
+    const QDomElement reflection = childNamed(list, "reflection");
+    if (!reflection.isNull()) {
+        // A copy turned over under the object, fading from its start opacity to nothing at endPos of its height.
+        fx->reflection.on = true;
+        fx->reflection.transparency = std::clamp(1.0 - parsePercent(attr(reflection, QStringLiteral("stA")), 1.0), 0.0, 1.0);
+        fx->reflection.size = std::clamp(parsePercent(attr(reflection, QStringLiteral("endPos")), 1.0), 0.0, 1.0);
+        fx->reflection.distance = std::clamp(parseLength(attr(reflection, QStringLiteral("dist")), 0), 0.0, 1584.0);
+        fx->reflection.blur = std::clamp(parseLength(attr(reflection, QStringLiteral("blurRad")), 0), 0.0, kMaxEffectRadius);
     }
     const QDomElement glow = childNamed(list, "glow");
     if (!glow.isNull()) {

@@ -232,9 +232,12 @@ QPointF ShadowFx::offset() const
 QJsonObject Effects::toJson() const
 {
     QJsonObject o;
-    if (shadow.on)
-        o["shadow"] = QJsonObject{{"color", shadow.color.toString()}, {"t", shadow.transparency}, {"blur", shadow.blur},
-                                  {"dist", shadow.distance}, {"angle", shadow.angle}, {"inner", shadow.inner}};
+    if (shadow.on) {
+        QJsonObject s{{"color", shadow.color.toString()}, {"t", shadow.transparency}, {"blur", shadow.blur},
+                      {"dist", shadow.distance}, {"angle", shadow.angle}, {"inner", shadow.inner}};
+        if (shadow.size != 100) s["size"] = shadow.size;
+        o["shadow"] = s;
+    }
     if (glow.on) o["glow"] = QJsonObject{{"color", glow.color.toString()}, {"size", glow.size}, {"t", glow.transparency}};
     if (softEdge > 0) o["softEdge"] = softEdge;
     if (reflection.on)
@@ -256,6 +259,7 @@ Effects Effects::fromJson(const QJsonObject &o)
         e.shadow.distance = s["dist"].toDouble(3);
         e.shadow.angle = s["angle"].toDouble(45);
         e.shadow.inner = s["inner"].toBool();
+        e.shadow.size = s["size"].toDouble(100);
     }
     if (o.contains("glow")) {
         const auto g = o["glow"].toObject();

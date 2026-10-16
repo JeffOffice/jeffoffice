@@ -1157,7 +1157,18 @@ void Renderer::paintItem(QPainter *p, const PaintContext &ctx, const Item &it)
             inv.scale(it.flipH ? -1 : 1, it.flipV ? -1 : 1);
             inv.rotate(-it.rotation);
             const QPointF off = inv.map(fx.shadow.offset());
-            p->drawImage(lr.translated(off), colorize(s, c));
+            if (fx.shadow.size != 100 && fx.shadow.size > 0) {
+                // Larger or smaller than the object, about its middle, and then moved off.
+                const QPointF mid(it.rect.width() / 2, it.rect.height() / 2);
+                p->save();
+                p->translate(mid + off);
+                p->scale(fx.shadow.size / 100, fx.shadow.size / 100);
+                p->translate(-mid);
+                p->drawImage(lr, colorize(s, c));
+                p->restore();
+            } else {
+                p->drawImage(lr.translated(off), colorize(s, c));
+            }
         }
         if (fx.reflection.on) {
             QImage rimg = img.mirrored(false, true);
