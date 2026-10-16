@@ -80,6 +80,7 @@ QString FieldContext::resolve(const QString &code) const
                 const QString one(QChar((style == "alpha" ? 'a' : 'A') + (n - 1) % 26));
                 return one.repeated((n - 1) / 26 + 1);
             }
+            if (style == "dash") return QStringLiteral("- %1 -").arg(n);
             return QString::number(n);
         };
         // The next or previous linked box's page; "#" without one, as in Publisher.
