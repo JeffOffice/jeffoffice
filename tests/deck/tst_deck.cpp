@@ -22768,6 +22768,34 @@ private Q_SLOTS:
         }
     }
 
+    // The text of a shape on a slide is all shown, running out of the shape that is too small for it (the presentation program doesn't cut it at the
+    // shape's edge, as a text box's): a shape 30 points tall lays out as many lines as one 400 tall.
+    void shapeTextOnASlideRunsOutOfAShapeThatIsTooSmall()
+    {
+        auto d = deck::newPresentation();
+        QVERIFY(d->slideText);
+        auto shape = [&](double height) {
+            auto s = std::make_shared<ShapeItem>();
+            s->shape = QStringLiteral("roundRect");
+            s->rect = QRectF(100, 100, 150, height);
+            s->storyId = d->createStory();
+            d->storyDoc(s->storyId)->setPlainText(QStringLiteral("one two three four five six seven eight nine ten eleven twelve ").repeated(4));
+            d->pages[0]->items.push_back(s);
+            return s;
+        };
+        const auto tall = shape(400), small = shape(30);
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = d.get();
+        ctx.cache = &cache;
+        QPointF origin;
+        const StoryLayout *all = Renderer::shapeTextLayout(ctx, *tall, &origin);
+        const StoryLayout *cut = Renderer::shapeTextLayout(ctx, *small, &origin);
+        QVERIFY(all && cut);
+        QVERIFY(all->lineInfo(0).size() > 3);
+        QCOMPARE(cut->lineInfo(0).size(), all->lineInfo(0).size());
+    }
+
     // The same, in a shape that holds text: its frame has the flag too, and its text is set unwrapped.
     void importBinaryShapesWithNoWrapSetTheirTextOnOneLine()
     {
