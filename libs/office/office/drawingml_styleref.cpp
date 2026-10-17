@@ -3,16 +3,26 @@
 #include "office/drawingml_style.h"
 #include "office/xml.h"
 
+#include <cmath>
+
 namespace jp::office {
 
 namespace {
 
-// The color a reference holds: a theme color or an RGB one, with the changes made to it. False for another kind, or one the standard has no name for.
+// The color a reference holds: a theme color or an RGB one, with the changes made to it; a preset, system, or scRGB color is kept as the RGB
+// color it is. False for another kind, or one the standard has no name for.
 bool readColorOf(const QDomElement &ref, StyleColor *out)
 {
     const QDomElement c = ref.firstChildElement();
     if (c.isNull()) return true;
     const QString kind = c.localName();
+    if (kind == QLatin1String("sysClr") || kind == QLatin1String("prstClr") || kind == QLatin1String("scrgbClr")) {
+        const QColor color = readColor(ref, Theme(), ColorMap());
+        if (!color.isValid()) return false;
+        out->name = QLatin1Char('#') + color.name(QColor::HexRgb).mid(1).toUpper();
+        if (color.alpha() < 255) out->mods.append({QStringLiteral("alpha"), int(std::lround(color.alphaF() * 100000))});
+        return true;
+    }
     if (kind == QLatin1String("schemeClr")) out->name = attr(c, QStringLiteral("val"));
     else if (kind == QLatin1String("srgbClr")) out->name = QLatin1Char('#') + attr(c, QStringLiteral("val")).toUpper();
     else return false;
