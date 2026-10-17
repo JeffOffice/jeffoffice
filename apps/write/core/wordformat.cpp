@@ -393,15 +393,13 @@ RunProps runPropsOf(const QTextCharFormat &f)
     if (us == QTextCharFormat::NoUnderline) {
         u.val = QStringLiteral("none");
     } else {
-        // The one with this line and these flags; else the plainest with the line, or a single line.
+        // The one with this line and these flags; with flags that no name has together (JeffPub's double and thick, kind 5), the one that has most of them, and of
+        // equal ones the first of double, words only, and thick; else the plain line.
         const UnderlineVal *best = nullptr;
+        auto bits = [](int n) { return (n & 1) + ((n >> 1) & 1) + ((n >> 2) & 1) + ((n >> 3) & 1); };
         for (const UnderlineVal &v : kUnderlineVals) {
-            if (v.style != us) continue;
-            if (v.kind == kind) {
-                best = &v;
-                break;
-            }
-            if (!best || v.kind < best->kind) best = &v;
+            if (v.style != us || (v.kind & ~kind) != 0) continue;
+            if (!best || bits(v.kind) > bits(best->kind) || (bits(v.kind) == bits(best->kind) && v.kind < best->kind)) best = &v;
         }
         u.val = QString::fromLatin1(best ? best->val : "single");
     }

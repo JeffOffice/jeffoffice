@@ -33,7 +33,7 @@ For example, to change "color" to "colour" everywhere: type **color** in **Find 
 
 ## What the search looks at
 
-- It looks at the text of the document, including the text in tables.
+- It looks at the text of the document, including the text in tables. A bookmark in the middle of some words, which some files have, does not stop them from being found. **Replace** and **Replace All** keep the bookmark.
 - It does not look in headers, footers, footnotes, or endnotes yet. Words there are not found, and **Replace All** does not change them.
 - It skips text that is set to **Hidden**, because that text is not shown. See [Change how text looks](font).
 

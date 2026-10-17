@@ -129,20 +129,40 @@ int replaceInStories(const Document &doc, const QVector<FindStory> &stories, con
 int replaceInStories(const FindWords &words, const QVector<FindStory> &stories, const QString &q, QTextDocument::FindFlags flags, const QString &with, QVector<FindStory> *changed)
 {
     int n = 0;
+    const QTextDocument::FindFlags forward = flags & ~QTextDocument::FindBackward;
     for (const FindStory &h : stories) {
         QTextDocument *sd = words.story(h);
         if (!sd) continue;
-        const int was = n;
-        QTextCursor c = sd->find(q, 0, flags & ~QTextDocument::FindBackward);
-        while (!c.isNull()) {
-            if (!(words.skip && words.skip(c))) {
+        // The matches, as places in the words before any is replaced. A swap in a long paragraph costs about the paragraph, so swapping from the first match on
+        // costs the paragraph for each match; from the last to the first it does not, and a swap does not move the matches before it.
+        QVector<QPair<int, int>> found;
+        bool touching = false;
+        for (QTextCursor c = sd->find(q, 0, forward); !c.isNull(); c = sd->find(q, c, forward)) {
+            if (words.skip && words.skip(c)) continue;
+            if (!found.isEmpty() && found.last().second == c.selectionStart()) touching = true;
+            found.push_back({c.selectionStart(), c.selectionEnd()});
+        }
+        if (found.isEmpty()) continue;
+        if (touching && (flags & QTextDocument::FindWholeWords) && !words.put) {
+            // Whole words are told by the letter before a match, which for a match that follows another is the last of the words put in place of it: one by one.
+            QTextCursor c = sd->find(q, 0, forward);
+            while (!c.isNull()) {
+                if (!(words.skip && words.skip(c))) {
+                    c.insertText(with);
+                    ++n;
+                }
+                c = sd->find(q, c, forward);
+            }
+        } else {
+            for (int i = int(found.size()) - 1; i >= 0; --i) {
+                QTextCursor c(sd);
+                c.setPosition(found[i].first);
+                c.setPosition(found[i].second, QTextCursor::KeepAnchor);
                 if (words.put) words.put(c, with);
                 else c.insertText(with);
-                ++n;
             }
-            c = sd->find(q, c, flags & ~QTextDocument::FindBackward);
+            n += int(found.size());
         }
-        if (n == was) continue;
         if (changed) *changed << h;
     }
     return n;
