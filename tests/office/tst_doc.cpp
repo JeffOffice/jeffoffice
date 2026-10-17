@@ -28,6 +28,13 @@ using jp::office::Package;
 
 namespace {
 
+// How long a file made to cost a great deal may take to read: two seconds (ten times that where the build is slow, with no optimization or with a sanitizer).
+#ifdef NDEBUG
+constexpr qint64 kFastMs = 2000;
+#else
+constexpr qint64 kFastMs = 20000;
+#endif
+
 QString paragraphText(const Block &b)
 {
     QString t;
@@ -645,7 +652,7 @@ private Q_SLOTS:
         t.start();
         Document d;
         QVERIFY(read(simple(text).build(), &d));
-        QVERIFY2(t.elapsed() < 2000, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        QVERIFY2(t.elapsed() < kFastMs, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
         int begins = 0, ends = 0;
         for (const Inline &in : d.body[0].para.content)
             if (in.kind == Inline::RunAtom && in.tag == QLatin1String("fldChar")) {
@@ -1217,7 +1224,7 @@ private Q_SLOTS:
         Document d;
         ReadNotes notes;
         QVERIFY(read(file, &d, &notes));
-        QVERIFY2(t.elapsed() < 2000, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        QVERIFY2(t.elapsed() < kFastMs, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
         QVERIFY(notes.leftOut);
     }
 
@@ -1264,7 +1271,7 @@ private Q_SLOTS:
         ReadNotes notes;
         QString error;
         QVERIFY2(read(file, &d, &notes, &error), qPrintable(error));
-        QVERIFY2(t.elapsed() < 2000, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        QVERIFY2(t.elapsed() < kFastMs, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
         QVERIFY(notes.leftOut);
         QVERIFY(notes.notes.join(QLatin1Char(' ')).contains(QLatin1String("longer than this program can open")));
         // (What came before the cut is there, whole paragraphs of it.)
@@ -1287,7 +1294,7 @@ private Q_SLOTS:
         ReadNotes notes;
         QString error;
         QVERIFY2(read(file, &d, &notes, &error), qPrintable(error));
-        QVERIFY2(t.elapsed() < 2000, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        QVERIFY2(t.elapsed() < kFastMs, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
         QVERIFY(notes.leftOut);
         QVERIFY(notes.notes.join(QLatin1Char(' ')).contains(QLatin1String("longer than this program can open")));
         const QStringList texts = bodyTexts(d);
@@ -1308,7 +1315,7 @@ private Q_SLOTS:
         ReadNotes notes;
         QString error;
         QVERIFY2(read(file, &d, &notes, &error), qPrintable(error));
-        QVERIFY2(t.elapsed() < 2000, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        QVERIFY2(t.elapsed() < kFastMs, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
         QVERIFY(notes.leftOut);
         QVERIFY(notes.notes.join(QLatin1Char(' ')).contains(QLatin1String("longer than this program can open")));
         const QStringList texts = bodyTexts(d);
@@ -1337,7 +1344,7 @@ private Q_SLOTS:
         ReadNotes notes;
         QString error;
         QVERIFY2(read(file, &d, &notes, &error), qPrintable(error));
-        QVERIFY2(t.elapsed() < 2000, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        QVERIFY2(t.elapsed() < kFastMs, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
         qint64 bytes = 0;
         int media = 0;
         for (const wml::KeptPart &p : d.parts)
