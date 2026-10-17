@@ -677,7 +677,7 @@ void Paginator::countNotes(int from, int to, int *footnotes, int *endnotes, bool
             if (code.isEmpty()) continue;
             const int lo = std::max(frag.position(), from), hi = std::min(frag.position() + frag.length(), to);
             if (hi <= lo) continue;
-            if (code.startsWith(QLatin1String("footnote:"))) *footnotes += hi - lo;
+            if (code.startsWith(QLatin1String("footnote:"))) *footnotes += frag.charFormat().boolProperty(tp::NoteMarkCustom) ? 0 : hi - lo;   // (a custom mark takes no number)
             else if (code.startsWith(QLatin1String("endnote:"))) *endnotes += hi - lo;
         }
     }
@@ -1081,7 +1081,8 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
             if (foot || end) {
                 for (const QChar ch : text) {
                     QTextCharFormat cf = frag.charFormat();
-                    cf.setProperty(tp::Field, QLatin1String("raw:") + (foot ? QString::number(footnote++) : roman(endnote++)));
+                    const bool custom = foot && cf.boolProperty(tp::NoteMarkCustom);   // (shows nothing: its mark is the text after it)
+                    cf.setProperty(tp::Field, QLatin1String("raw:") + (custom ? QString() : foot ? QString::number(footnote++) : roman(endnote++)));
                     dst.insertText(QString(ch), cf);
                 }
                 continue;
