@@ -4326,6 +4326,46 @@ private Q_SLOTS:
         QVERIFY2(std::abs(rows[1].rect.height() - (line + 6 + 4.5)) < 0.05, qPrintable(QString::number(rows[1].rect.height())));
     }
 
+    // A table that goes on after a page break has the table's outer lines there: its top line at the first row of the next page, and its foot line at the last row of the page.
+    void aTableThatGoesOnAfterAPageBreakHasItsOuterLinesAtTheBreak()
+    {
+        FlowDocument fd;
+        TestTable spec;
+        spec.rows = 90;
+        spec.cols = 2;
+        spec.columnWidth = 150;
+        spec.setTable = [](TableData &t) {
+            TableLine outer, inner;
+            outer.style = inner.style = TableLine::Style::Single;
+            outer.width = 2;
+            outer.color = QColor(255, 0, 0);
+            inner.width = 0.5;
+            inner.color = QColor(0, 0, 255);
+            t.top = t.bottom = outer;
+            t.insideH = inner;
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        auto reddish = [&](const std::shared_ptr<TableFragment> &f, double dy) {
+            QImage image(int(fd.section(0).pageSize().width()) * 4, int(fd.section(0).pageSize().height()) * 4, QImage::Format_ARGB32_Premultiplied);
+            image.fill(Qt::white);
+            {
+                QPainter painter(&image);
+                painter.scale(4, 4);
+                f->paint(&painter, TablePaint());
+            }
+            const QColor c = image.pixelColor(int((f->origin.x() + 140) * 4), int((dy < 0 ? f->origin.y() + f->height + dy : f->origin.y() + dy) * 4));
+            return c.red() > 200 && c.green() < 80 && c.blue() < 80;
+        };
+        const auto first = pg.materialize(0), next = pg.materialize(1);
+        QVERIFY(first && next && !first->tables.isEmpty() && !next->tables.isEmpty());
+        // (The first page has the table's own top, and its last row ends with the foot line; the next begins with the top line.)
+        QVERIFY(reddish(first->tables[0], 0.75));
+        QVERIFY(reddish(first->tables[0], -0.75));
+        QVERIFY(reddish(next->tables[0], 0.75));
+    }
+
     // A row set to a height of at least so much is that tall and has its lines besides; one set to exactly so much is that tall, lines and all.
     void aRowOfASetHeightHasItsLinesOutsideItWhenAtLeastAndInsideItWhenExact()
     {
