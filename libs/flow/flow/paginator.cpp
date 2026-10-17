@@ -728,9 +728,14 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         }
         run.next.hard = hard;
         run.next.section = nextSection;
-        // A section of odd or even pages whose first page would be of the other kind (by the numbers as they go on) has a blank page of the section before it.
+        // A section of odd or even pages whose first page would be of the other kind, or one that restarts the numbers (where the pages are of odd and even kinds) at a
+        // number of the other kind than the page it begins, has a blank page of the section before it.
         const Section &entered = m_doc->section(nextSection);
-        if (sectionEnds && nextSection != current && !entered.continuous && entered.startParity != Section::Parity::Any && ((number + 1) % 2 != 0) != (entered.startParity == Section::Parity::Odd)) {
+        const bool oddPhysical = (index + 2) % 2 != 0;   // (the page the section would begin, by its place in the document)
+        bool wrong = false;
+        if (entered.startParity != Section::Parity::Any) wrong = oddPhysical != (entered.startParity == Section::Parity::Odd);
+        else if (entered.differentOddEven && entered.firstPageNumber) wrong = oddPhysical != (std::abs(*entered.firstPageNumber) % 2 != 0);
+        if (sectionEnds && nextSection != current && !entered.continuous && wrong) {
             run.next.blank = true;
             run.next.section = current;
             run.next.firstOfSection = false;

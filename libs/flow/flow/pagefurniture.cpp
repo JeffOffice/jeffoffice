@@ -49,6 +49,7 @@ Paginator::Furniture Paginator::furnitureOf(int index, const PageStart &st, int 
     const Section &sec = m_doc->section(st.section);
     Furniture f;
     f.body = sec.content();
+    if (st.blank) return f;   // (a blank page that a section break leaves has no header or footer)
     const bool first = index <= 0 || st.firstOfSection;
     f.header = sec.headerFor(first, number);
     f.footer = sec.footerFor(first, number);

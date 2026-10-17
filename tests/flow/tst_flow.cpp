@@ -3617,6 +3617,41 @@ private Q_SLOTS:
             QCOMPARE(pe.pageCount(), 4);
             QCOMPARE(numbers(even.get(), pe), (QVector<int>{10, 20, 30, 41}));
         }
+        {   // Where the pages are of odd and even kinds, a section that restarts the numbers at a number of the other kind than the page it begins (by its place in the
+            // document) has a blank page before it too, with no header or footer: after one page, a restart at 1 (the page is the second); after two, a restart at 2.
+            auto restartAt = [&](int pages, int number) {
+                auto fd = build(pages, Section::Parity::Any, true);
+                fd->sections[1].firstPageNumber = number;
+                for (Section &sec : fd->sections) {
+                    sec.differentOddEven = true;
+                    sec.header.odd = furnitureStory({QStringLiteral("HEADER")});
+                    sec.header.even = furnitureStory({QStringLiteral("HEADER")});
+                }
+                return fd;
+            };
+            auto one = restartAt(1, 1);
+            Paginator p1(one.get());
+            QCOMPARE(p1.pageCount(), 3);
+            QCOMPARE(numbers(one.get(), p1), (QVector<int>{10, 20, 11}));
+            const auto blank = p1.materialize(1);
+            QVERIFY(blank);
+            QVERIFY(blank->doc->pages[0]->items.empty());
+            const auto before = p1.materialize(0), after = p1.materialize(2);
+            QVERIFY(before && after);
+            QVERIFY(!before->doc->pages[0]->items.empty() && !after->doc->pages[0]->items.empty());
+            auto two = restartAt(2, 1);
+            Paginator p2(two.get());
+            QCOMPARE(p2.pageCount(), 3);   // (the third page is odd: a restart at 1 is the same kind)
+            auto twoAt2 = restartAt(2, 2);
+            Paginator p3(twoAt2.get());
+            QCOMPARE(p3.pageCount(), 4);
+            QCOMPARE(numbers(twoAt2.get(), p3), (QVector<int>{10, 20, 30, 21}));
+            // (With the pages not of odd and even kinds, no blank page is left.)
+            auto plain = restartAt(1, 1);
+            for (Section &sec : plain->sections) sec.differentOddEven = false;
+            Paginator pp(plain.get());
+            QCOMPARE(pp.pageCount(), 2);
+        }
         {   // A continuous section asks nothing of the page it is on.
             auto fd = build(1, Section::Parity::Odd, false);
             fd->sections[1].continuous = true;
