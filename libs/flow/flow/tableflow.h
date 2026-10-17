@@ -179,6 +179,8 @@ public:
     const TableData &data() const { return *m_data; }
     double width() const { return m_width; }                // all the columns
     int depth() const { return m_depth; }
+    // Where grid column `col` begins, from the table's left edge (the table's width for one past the last).
+    double columnLeft(int col) const { return m_xs.isEmpty() ? 0.0 : m_xs[std::clamp(col, 0, int(m_xs.size()) - 1)]; }
     // The most rows a cell covers (1 when none is joined down).
     int mostRowsJoined() const { return m_maxRows; }
     // The row that has the position (the last, for one after them all; -1 for a table with none).

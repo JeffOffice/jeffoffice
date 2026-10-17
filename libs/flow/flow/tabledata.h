@@ -18,12 +18,14 @@ namespace jp::flow {
 
 // One edge of a table or of a cell.
 struct TableLine {
-    enum class Style : quint8 { None, Single, Double, Dotted, Dashed };
+    enum class Style : quint8 { None, Single, Double, Dotted, Dashed, Triple };
     Style style = Style::None;
     double width = 0;       // points, of each line
     QColor color;           // invalid: automatic (black)
     bool visible() const { return style != Style::None && width > 0; }
-    double extent() const { return style == Style::Double ? width * 3 : width; }   // all it takes: two lines and the space between
+    double extent() const { return style == Style::Double ? width * 3 : style == Style::Triple ? width * 5 : width; }   // all it takes: the lines and the spaces between them
+    // Which of two lines at an edge is the line: the one of the greater weight, a line's width times the number of lines it is drawn with.
+    double weight() const { return !visible() ? 0.0 : style == Style::Double ? width * 2 : style == Style::Triple ? width * 3 : width; }
     bool operator==(const TableLine &o) const { return style == o.style && width == o.width && color == o.color; }
     bool operator!=(const TableLine &o) const { return !(*this == o); }
 };

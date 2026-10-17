@@ -4722,6 +4722,20 @@ private Q_SLOTS:
         QVERIFY2(std::abs(apart[2] - (together[2] + 2)) < 0.01, qPrintable(QString::number(apart[2] - together[2])));
     }
 
+    // A triple line takes the room of its three lines and the two spaces between them (five times its width), and is read as such, not as a double one.
+    void aTripleLineTakesRoomForItsThreeLinesAndTheSpaces()
+    {
+        auto table = [](const QByteArray &borders) {
+            return tableX(rowX(cellX(cellP("a"))) + rowX(cellX(cellP("b"))), 1, 2400, "<w:tblW w:w=\"0\" w:type=\"auto\"/>" + borders);
+        };
+        const QVector<double> bare = rowHeightsOf(table(QByteArray()));
+        const QVector<double> triple = rowHeightsOf(table("<w:tblBorders>" + lineX("insideH", "triple", 8) + "</w:tblBorders>")), twice = rowHeightsOf(table("<w:tblBorders>" + lineX("insideH", "double", 8) + "</w:tblBorders>"));
+        QCOMPARE(bare.size(), 2);
+        QCOMPARE(triple.size(), 2);
+        QVERIFY2(std::abs(triple[1] - (bare[1] + 5)) < 0.01, qPrintable(QString::number(triple[1] - bare[1])));
+        QVERIFY2(std::abs(twice[1] - (bare[1] + 3)) < 0.01, qPrintable(QString::number(twice[1] - bare[1])));
+    }
+
     // The saved document is well formed and opens again with the same text.
     static void checkWhole(WriteDoc &doc)
     {

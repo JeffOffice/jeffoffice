@@ -4366,6 +4366,98 @@ private Q_SLOTS:
         QVERIFY(reddish(next->tables[0], 0.75));
     }
 
+    // A cell across columns has the line between it and each cell above it: the heaviest of them is the room it takes, and each part of the cell has its own.
+    void aCellAcrossColumnsHasTheLineOfEveryCellAboveIt()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 2, 3, {}, 4, 6);
+        QTextCursor c(fd.story());
+        c.movePosition(QTextCursor::End);
+        QTextCharFormat body;
+        body.setFontPointSize(11);
+        auto table = std::make_shared<TableData>();
+        table->columns << 100 << 100;
+        table->margins = QMarginsF(4, 3, 4, 3);
+        auto paragraph = [&](int key, const QString &text) {
+            QTextBlockFormat bf;
+            bf.setProperty(fp::Cell, key);
+            c.insertBlock(bf, body);
+            c.insertText(text, body);
+        };
+        auto lineOf = [](double width, QColor color) {
+            TableLine line;
+            line.style = TableLine::Style::Single;
+            line.width = width;
+            line.color = color;
+            return line;
+        };
+        auto first = std::make_shared<RowData>(), second = std::make_shared<RowData>();
+        for (int col = 0; col < 2; ++col) {
+            CellRecord rec;
+            rec.table = table;
+            rec.row = first;
+            rec.cell.bottom = col == 0 ? lineOf(1, QColor(0, 0, 0)) : lineOf(5, QColor(0, 0, 255));
+            paragraph(fd.tables.add(rec), QStringLiteral("a%1").arg(col));
+        }
+        CellRecord wide;
+        wide.table = table;
+        wide.row = second;
+        wide.cell.span = 2;
+        paragraph(fd.tables.add(wide), QStringLiteral("wide"));
+        Paginator pg(&fd);
+        const double line = lineHeightOf(fd);
+        const auto rows = rowLines(pg, fd, 0);
+        QCOMPARE(rows.size(), 2);
+        QVERIFY2(std::abs(rows[1].rect.height() - (line + 6 + 5)) < 0.05, qPrintable(QString::number(rows[1].rect.height())));
+        const auto page = pg.materialize(0);
+        QVERIFY(page && page->tables.size() == 1);
+        const TableFragment &f = *page->tables[0];
+        QImage image(int(fd.section(0).pageSize().width()) * 4, int(fd.section(0).pageSize().height()) * 4, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::white);
+        {
+            QPainter painter(&image);
+            painter.scale(4, 4);
+            f.paint(&painter, TablePaint());
+        }
+        const double top = f.heightOf(0);
+        auto at = [&](double x, double dy) { return image.pixelColor(int((f.origin.x() + x) * 4), int((f.origin.y() + top + dy) * 4)); };
+        // Over the first column the line is the black one of a point, over the second the blue one of five.
+        QVERIFY(at(90, 0.25).red() < 100 && at(90, 0.25).blue() < 100);
+        QVERIFY(qGray(at(90, 3).rgb()) > 240);
+        QVERIFY(at(190, 2.5).blue() > 200 && at(190, 2.5).red() < 100);
+        QVERIFY(at(190, 4.5).blue() > 200 && at(190, 4.5).red() < 100);
+    }
+
+    // Of two lines at a cell edge the one of the greater weight is the line, a double line weighing twice its width: a double line of a point is lighter than a single one of two
+    // and a half, though it takes more room.
+    void ofTwoLinesAtAnEdgeTheOneOfTheGreaterWeightIsTheLine()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 2, 3, {}, 4, 6);
+        TestTable spec;
+        spec.rows = 2;
+        spec.cols = 2;
+        spec.columnWidth = 150;
+        spec.setCell = [](int r, int, CellData &cell) {
+            TableLine line;
+            if (r == 0) {
+                line.style = TableLine::Style::Double;
+                line.width = 1;
+                cell.bottom = line;
+            } else {
+                line.style = TableLine::Style::Single;
+                line.width = 2.5;
+                cell.top = line;
+            }
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        const double line = lineHeightOf(fd);
+        const auto rows = rowLines(pg, fd, 0);
+        QCOMPARE(rows.size(), 2);
+        QVERIFY2(std::abs(rows[1].rect.height() - (line + 6 + 2.5)) < 0.05, qPrintable(QString::number(rows[1].rect.height())));
+    }
+
     // A row set to a height of at least so much has that for the room inside its cells' margins, and its lines (the margins and the lines come in addition); one set to exactly
     // so much is that tall, margins, lines, and all.
     void aRowOfASetHeightHasItsMarginsAndLinesBesidesWhenAtLeastAndInsideItWhenExact()
