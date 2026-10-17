@@ -85,6 +85,7 @@ void WriteWindow::buildRibbon()
     QFile f(QStringLiteral(":/write/ribbon.json"));
     QByteArray json;
     if (f.open(QIODevice::ReadOnly)) json = f.readAll();
+    parts.launchers[QStringLiteral("font")] = [this] { act("fmt.fontDialog")->trigger(); };
     parts.launchers[QStringLiteral("paragraph")] = [this] { act("para.dialog")->trigger(); };
     jp::buildRibbon(m_ribbon, json, parts, this, &m_ribbonErrors);
 }
