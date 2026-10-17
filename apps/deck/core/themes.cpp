@@ -801,6 +801,16 @@ QByteArray themePartXml(const DeckTheme &t)
         const QRegularExpression list(QStringLiteral("<a:%1>.*?</a:%1>").arg(QLatin1String(tag)), QRegularExpression::DotMatchesEverythingOption);
         xml.replace(list, QStringLiteral("<a:%1>%2%3%4</a:%1>").arg(QLatin1String(tag), flat, gradient(94, 90), gradient(88, 74)));
     }
+    // Effects: none, a soft shadow, and a deeper one (the shadows the Quick Styles of the second and third kind give).
+    const QRegularExpression effects(QStringLiteral("<a:effectStyleLst>.*?</a:effectStyleLst>"), QRegularExpression::DotMatchesEverythingOption);
+    auto shadow = [](int blur, int distance, int alpha) {
+        return QStringLiteral("<a:effectStyle><a:effectLst><a:outerShdw blurRad=\"%1\" dist=\"%2\" dir=\"5400000\" algn=\"ctr\" rotWithShape=\"0\">"
+                              "<a:srgbClr val=\"000000\"><a:alpha val=\"%3\"/></a:srgbClr></a:outerShdw></a:effectLst></a:effectStyle>")
+            .arg(blur)
+            .arg(distance)
+            .arg(alpha * 1000);
+    };
+    xml.replace(effects, QStringLiteral("<a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle>%1%2</a:effectStyleLst>").arg(shadow(40000, 23000, 35), shadow(57150, 38100, 45)));
     return xml.toUtf8();
 }
 
@@ -848,5 +858,13 @@ QByteArray patchThemePart(const QByteArray &xml, const DeckTheme &t)
 }
 
 } // namespace detail
+
+QByteArray themePart(const DeckTheme &t) { return detail::themePartXml(t); }
+
+QByteArray themePartOf(const Document &d, const MasterPage &master)
+{
+    const QByteArray kept = detail::masterThemeXml(d, master);
+    return kept.isEmpty() ? detail::themePartXml(detail::masterTheme(d, master)) : kept;
+}
 
 } // namespace jp::deck

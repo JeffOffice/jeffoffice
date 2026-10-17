@@ -6,6 +6,7 @@
 #include <QLinearGradient>
 #include <QPainter>
 #include <QRadialGradient>
+#include <QRegularExpression>
 #include <QtMath>
 
 namespace jp {
@@ -292,6 +293,89 @@ Effects Effects::fromJson(const QJsonObject &o)
         e.rot3d.perspective = r["p"].toDouble();
     }
     return e;
+}
+
+bool isStyleColorName(const QString &name)
+{
+    static const QStringList themeColors = {"dk1", "lt1", "dk2", "lt2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink", "tx1", "tx2", "bg1", "bg2"};
+    static const QRegularExpression rgb(QStringLiteral("^#[0-9A-Fa-f]{6}$"));
+    return themeColors.contains(name) || rgb.match(name).hasMatch();
+}
+
+bool isStyleColorChange(const QString &name)
+{
+    static const QStringList changes = {"alpha", "alphaMod", "alphaOff", "hue", "hueMod", "hueOff", "sat", "satMod", "satOff", "lum", "lumMod", "lumOff", "red", "redMod", "redOff",
+                                        "green", "greenMod", "greenOff", "blue", "blueMod", "blueOff", "shade", "tint"};
+    return changes.contains(name);
+}
+
+namespace {
+
+QJsonObject styleColorJson(const StyleColor &c)
+{
+    QJsonObject o;
+    o["name"] = c.name;
+    if (!c.mods.isEmpty()) {
+        QJsonArray mods;
+        for (const auto &m : c.mods) mods.append(QJsonArray{m.first, m.second});
+        o["mods"] = mods;
+    }
+    return o;
+}
+
+StyleColor styleColorFrom(const QJsonObject &o)
+{
+    // (Names and changes are written into a file as the standard has them: what is not one is left out, a color it is not for with it.)
+    StyleColor c;
+    if (const QString name = o["name"].toString(); isStyleColorName(name)) c.name = name.startsWith(QLatin1Char('#')) ? name.toUpper() : name;
+    if (c.name.isEmpty()) return c;
+    for (const QJsonValue &v : o["mods"].toArray()) {
+        const QJsonArray pair = v.toArray();
+        if (pair.size() == 2 && c.mods.size() < 16 && isStyleColorChange(pair[0].toString())) c.mods.append({pair[0].toString(), std::clamp(pair[1].toInt(), -10000000, 10000000)});
+    }
+    return c;
+}
+
+QJsonObject stylePartJson(const StyleRef::Part &p)
+{
+    QJsonObject o = styleColorJson(p.color);
+    o["idx"] = p.idx;
+    return o;
+}
+
+StyleRef::Part stylePartFrom(const QJsonObject &o)
+{
+    StyleRef::Part p;
+    p.idx = std::clamp(o["idx"].toInt(), 0, 1000000);
+    p.color = styleColorFrom(o);
+    return p;
+}
+
+} // namespace
+
+QJsonObject StyleRef::toJson() const
+{
+    QJsonObject o;
+    o["ln"] = stylePartJson(line);
+    o["fill"] = stylePartJson(fill);
+    o["fx"] = stylePartJson(effect);
+    o["font"] = font;
+    o["fontColor"] = styleColorJson(fontColor);
+    return o;
+}
+
+StyleRef StyleRef::fromJson(const QJsonObject &o)
+{
+    StyleRef r;
+    if (o.isEmpty()) return r;
+    r.on = true;
+    r.line = stylePartFrom(o["ln"].toObject());
+    r.fill = stylePartFrom(o["fill"].toObject());
+    r.effect = stylePartFrom(o["fx"].toObject());
+    const QString face = o["font"].toString();
+    r.font = face == QLatin1String("major") || face == QLatin1String("minor") ? face : QString();
+    r.fontColor = styleColorFrom(o["fontColor"].toObject());
+    return r;
 }
 
 QJsonObject Wrap::toJson() const

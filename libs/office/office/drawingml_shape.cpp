@@ -8,6 +8,7 @@
 
 #include "office/drawingml_geometry.h"
 #include "office/drawingml_style.h"
+#include "office/drawingml_styleref.h"
 #include "office/xml.h"
 #include "render/shapes.h"
 
@@ -341,6 +342,7 @@ private:
     const TextStyleStack &m_styles;
     int m_count = 0;
     int m_depth = 0;
+    QDomElement m_ownStyle;   // the p:style the shape being read has itself (not one it inherits: that is the layout's), for decorate
     bool m_noText = false;   // reading a shape whose text is read apart (diagramShape)
     const Fill *m_groupFill = nullptr;
     QHash<QString, QString> m_images;
@@ -454,6 +456,8 @@ void Reader::decorate(Item &it, const QDomElement &cNvPr, const Frame &frame, co
     it.fill = resolveFill(properties, style, sc);
     it.stroke = resolveLine(properties, style, sc);
     it.fx = resolveEffects(properties, style, sc);
+    // The reference is the shape's own: a placeholder's look that comes from its layout's style is written as properties, as before.
+    it.styleRef = !style.isNull() && style == m_ownStyle ? readStyleRef(style) : StyleRef();
 }
 
 void Reader::fillText(const QDomElement &body, const QString &storyId, const QDomElement &style)
@@ -508,6 +512,7 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
     const QDomElement ph = childNamed(childNamed(nv, "nvPr"), "ph");
     const bool textBox = !connector && !m_noText && parseBool(attr(childNamed(nv, "cNvSpPr"), QStringLiteral("txBox")));
     const QDomElement style = firstWith(QVector<QDomElement>{e} + inheritsFrom, "style");
+    m_ownStyle = childNamed(e, "style");
     // The geometry is the first said, among the shape's own and those it inherits from.
     QDomElement geom;
     for (const QDomElement &p : properties) {

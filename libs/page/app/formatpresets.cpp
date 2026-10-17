@@ -90,6 +90,45 @@ void applyGlow(Effects &fx, int i, const ColorRef &color)
     fx.glow = g;
 }
 
+void applyTextShadow(TextEffects &fx, int i)
+{
+    const ShadowPreset &p = kShadows[std::clamp(i, 0, shadowCount() - 1)];
+    TextShadow s;
+    s.on = true;
+    s.color = QColor(0, 0, 0, 102);   // (black, the shape shadow's 60 percent clear)
+    s.blur = p.blur;
+    s.distance = p.distance;
+    s.angle = p.angle;
+    fx.outer = s;
+    fx.xml.clear();
+}
+
+void applyTextReflection(TextEffects &fx, int i)
+{
+    TextReflection r;
+    r.on = true;
+    r.blur = 0.5;
+    r.startAlpha = 0.52;   // (the shape reflection's 48 percent clear)
+    r.endAlpha = 0.003;
+    r.startPos = 0;
+    r.endPos = kReflections[std::clamp(i, 0, reflectionCount() - 1)].size;
+    r.distance = 0;
+    r.sy = -1;   // turned over, about the foot of the letters
+    fx.reflection = r;
+    fx.xml.clear();
+}
+
+void applyTextGlow(TextEffects &fx, int i, const QColor &color)
+{
+    TextGlow g;
+    g.on = true;
+    g.color = color;
+    g.color.setAlphaF(0.4f);   // (the shape glow's 60 percent clear)
+    g.radius = kGlows[std::clamp(i, 0, glowCount() - 1)];
+    fx.glow = g;
+    fx.xml.clear();
+}
+
 int softEdgeCount() { return int(std::size(kSoftEdges)); }
 
 QString softEdgeName(int i)

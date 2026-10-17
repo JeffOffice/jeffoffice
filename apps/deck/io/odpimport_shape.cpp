@@ -14,6 +14,7 @@
 
 #include <QCoreApplication>
 #include <QImage>
+#include <QJsonDocument>
 #include <QRegularExpression>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -177,6 +178,7 @@ ItemPtr Reader::readShape(const QDomElement &e, Scope &sc, const QTransform &t)
         // What we keep in attributes of our own.
         if (a.get("jo:decorative") == QLatin1String("true")) it->decorative = true;
         if (const QString lock = a.get("jo:lock-aspect"); !lock.isEmpty()) it->lockAspect = lock == QLatin1String("true");
+        if (const QByteArray ref = a.get("jo:style-ref").toUtf8(); !ref.isEmpty()) it->styleRef = StyleRef::fromJson(QJsonDocument::fromJson(ref).object());
         if (it->hyperlink.isEmpty())
             for (const QDomElement &l : kids(kid(e, "office:event-listeners"), "presentation:event-listener")) {
                 const QString href = at(l, "xlink:href");
