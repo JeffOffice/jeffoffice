@@ -7,8 +7,25 @@
 #include <QSet>
 #include <QStringList>
 #include <algorithm>
+#include <utility>
 
 namespace jp::write {
+
+namespace {
+
+// A page number as typed: the digits alone, and at least 1. Too many digits is a number past any page. False for anything else (and for 0).
+bool pageNumber(const QString &text, qint64 *number)
+{
+    if (text.isEmpty() || !std::all_of(text.cbegin(), text.cend(), [](QChar c) { return c >= QLatin1Char('0') && c <= QLatin1Char('9'); })) return false;
+    bool ok = false;
+    const qint64 n = text.size() > 9 ? qint64(1) << 40 : text.toLongLong(&ok);
+    if (text.size() > 9) ok = true;
+    if (!ok || n < 1) return false;
+    *number = n;
+    return true;
+}
+
+} // namespace
 
 QVector<int> parsePageRange(const QString &text, int pageCount)
 {
@@ -20,13 +37,15 @@ QVector<int> parsePageRange(const QString &text, int pageCount)
         if (ends.size() > 2) continue;
         const QString a = ends.value(0).trimmed(), b = ends.size() > 1 ? ends.value(1).trimmed() : a;
         if (a.isEmpty() && b.isEmpty()) continue;
-        bool okFrom = true, okTo = true;
-        const int from = a.isEmpty() ? 1 : a.toInt(&okFrom), to = b.isEmpty() ? pageCount : b.toInt(&okTo);
-        if (!okFrom || !okTo) continue;
-        for (int p = std::max(1, std::min(from, to)); p <= std::min(pageCount, std::max(from, to)); ++p)
-            if (!seen.contains(p)) {
-                seen.insert(p);
-                out << p - 1;
+        // A range with an open end runs to the last page (or from the first) and no further; one with both ends may be given backwards.
+        qint64 from = 1, to = pageCount;
+        if (!a.isEmpty() && !pageNumber(a, &from)) continue;
+        if (!b.isEmpty() && !pageNumber(b, &to)) continue;
+        if (!a.isEmpty() && !b.isEmpty() && from > to) std::swap(from, to);
+        for (qint64 p = from; p <= std::min<qint64>(to, pageCount); ++p)
+            if (!seen.contains(int(p))) {
+                seen.insert(int(p));
+                out << int(p) - 1;
             }
     }
     return out;

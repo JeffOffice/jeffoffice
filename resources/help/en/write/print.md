@@ -15,6 +15,10 @@ Pages print in the order you type them, once each. A number that is not a page o
 
 Click **Print** to send the pages. The Print page closes when the printer has them.
 
+## Page ranges count places, not printed numbers
+
+The numbers you type for **Pages** are places in the document: 1 is the first page, 2 is the second, and so on, whatever number each page shows. If a section starts its numbering again, such as page 1 of a new chapter, or starts at a different number, the number a page shows can differ from its place. Type the place. The line under the preview, such as **Page 5 of 12**, gives the place of the page you are looking at, so you can find the number to type.
+
 ## The paper comes from the document
 
 Each section of a document has its own paper size and its own way up, set on the **Layout** tab. JeffWrite prints every page on the paper of its section, and turns a landscape page on its side. If the pages you chose use more than one kind of paper, the **Paper** line says so. Load the paper that each page needs.

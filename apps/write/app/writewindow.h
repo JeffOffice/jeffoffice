@@ -12,6 +12,7 @@
 
 class QDockWidget;
 class QLabel;
+class QPrinter;
 class QSlider;
 
 namespace jp {
@@ -79,6 +80,8 @@ public:
     // What a short message to the person (a sentence said at Save, or on a refusal to write over a file) is shown with: a message box, unless this stands in for it
     // (tests): the title and the sentence.
     void setNotifier(const std::function<void(const QString &title, const QString &text)> &notifier) { m_notifier = notifier; }
+    // What a printer is made ready with after the window has set it up (tests: a printer that writes to a file stands in for a real one).
+    void setPrinterPreparer(const std::function<void(QPrinter &)> &preparer) { m_printerPreparer = preparer; }
     // AutoRecover: a copy of unsaved work (the timer writes it at the interval Options sets), and the copies a run that crashed left.
     void autoRecover();
     QString recoveryCopy() const { return m_recoveryCopy; }
@@ -157,6 +160,7 @@ private:
     bool m_updatingFields = false;
     std::function<QString(const QString &, const QString &)> m_pathChooser;
     std::function<void(const QString &, const QString &)> m_notifier;
+    std::function<void(QPrinter &)> m_printerPreparer;
     bool m_macrosNoted = false;     // (the person was told that the macros are not saved)
     QString m_protectedPath;        // the file a document that has had something left out (see WriteDoc::leftSomethingOut) was opened from: not written over
 };
