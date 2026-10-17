@@ -584,7 +584,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 bool ok = false;
                 const uint code = attributeOfTag(in.raw, QStringLiteral("char")).toUInt(&ok, 16);
                 const bool symbols = lower == QLatin1String("symbol") || lower.contains(QLatin1String("dings")) || lower.contains(QLatin1String("marlett")) || lower.contains(QLatin1String("mt extra"));
-                // A symbol of a symbol font is set in that font (its picture is as wide as that font makes it), whatever font the run is in.
+                // A symbol of a symbol font is set in that font whatever font the run is in, as its character is (where the machine lacks the font the page shows the picture the
+                // character stands for, as wide as the font makes it).
                 if (!font.isEmpty() && symbols) af.setProperty(tp::DisplayFamily, font);
                 if (ok && !font.isEmpty() && !symbols && !QFontDatabase::hasFamily(font)) {
                     const uint ch = code >= 0xF000 && code <= 0xF0FF ? code - 0xF000 : code;

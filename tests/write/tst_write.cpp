@@ -187,6 +187,36 @@ std::unique_ptr<WriteDoc> textDoc(const QStringList &paragraphs, const QByteArra
     return open(makeDocx(body, styles));
 }
 
+// The stretches of ink along the first line of a page whose first paragraph begins as the XML says (where each begins, and ends, in points from the page's left edge; a
+// gap of a point and a half between two), for the checks of what a symbol takes of the line.
+QVector<QPair<double, double>> inkAlongFirstLine(const QByteArray &start)
+{
+    const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+    QVector<QPair<double, double>> out;
+    const QByteArray body = "<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\"/></w:pPr>" + start + "<w:r><w:t xml:space=\"preserve\"> Food products are usually imported</w:t></w:r></w:p>";
+    auto doc = open(makeDocx(body, kStyles, QByteArray(), sect));
+    if (!doc) return out;
+    PageView view;
+    view.resize(1000, 700);
+    view.setDocument(doc.get());
+    const QImage img = view.pageImage(0, 816);
+    const double perPoint = 816 / 612.0;
+    double begin = -1, last = -1;
+    for (int x = int(60 * perPoint); x < int(300 * perPoint); ++x) {
+        bool ink = false;
+        for (int y = int(72 * perPoint); y < int(90 * perPoint) && !ink; ++y) ink = qGray(img.pixel(x, y)) < 160;
+        if (!ink) continue;
+        if (begin >= 0 && x / perPoint - last > 1.5) {
+            out.push_back({begin, last});
+            begin = -1;
+        }
+        if (begin < 0) begin = x / perPoint;
+        last = x / perPoint;
+    }
+    if (begin >= 0) out.push_back({begin, last});
+    return out;
+}
+
 // The words a spelling check flags in the whole story, in order.
 QStringList flaggedWords(SpellCheck &sc, WriteDoc &doc)
 {
@@ -4333,6 +4363,63 @@ private Q_SLOTS:
         QVERIFY2(saved.contains(QLatin1String("w:sym")) && !saved.contains(QLatin1String("DisplayFamily")), qPrintable(saved));
         QCOMPARE(family("Symbol"), QStringLiteral("Symbol"));
         QCOMPARE(family("Webdings"), QStringLiteral("Webdings"));
+    }
+
+    // The picture a symbol of a symbol font stands for is drawn, with room of its own before the text that follows (the font's width for it, not none): a file's diamond bullet.
+    void aSymbolOfASymbolFontIsDrawnWithRoomOfItsOwn()
+    {
+        const auto with = inkAlongFirstLine("<w:r><w:sym w:font=\"Symbol\" w:char=\"F0A8\"/></w:r>"), without = inkAlongFirstLine(QByteArray());
+        QVERIFY(with.size() >= 2 && without.size() >= 1);
+        // The symbol's picture is drawn (a stretch of ink of its own, at the margin), and the text begins after it, further in than it does with no symbol.
+        QVERIFY2(with[0].first < 76 && with[0].second - with[0].first >= 2, qPrintable(QStringLiteral("the first ink is %1 to %2 points").arg(with[0].first).arg(with[0].second)));
+        QVERIFY2(with[1].first > without[0].first + 3, qPrintable(QStringLiteral("the text begins at %1 points with the symbol, at %2 without").arg(with[1].first).arg(without[0].first)));
+    }
+
+    // A symbol takes as much of the line as its own font makes its picture (a round bullet of Wingdings, a diamond of Symbol, set in 11.5 points): the text after it begins
+    // that far on.
+    void aSymbolTakesItsAdvanceFromItsFont()
+    {
+        struct Case { const char *font, *code; char16_t picture; };
+        for (const Case &c : {Case{"Wingdings", "F06C", 0x25CF}, Case{"Symbol", "F0A8", 0x2666}}) {
+            const QString font = QString::fromLatin1(c.font);
+            if (QFontDatabase::hasFamily(font)) continue;   // (installed: its own glyphs are drawn)
+            const QHash<char16_t, double> *widths = symbolFontLetterWidths(font);
+            QVERIFY2(widths && widths->contains(c.picture), c.font);
+            const auto with = inkAlongFirstLine("<w:r><w:sym w:font=\"" + QByteArray(c.font) + "\" w:char=\"" + QByteArray(c.code) + "\"/></w:r>"), without = inkAlongFirstLine(QByteArray());
+            QVERIFY2(with.size() >= 2 && without.size() >= 1, c.font);
+            const double advance = with[1].first - without[0].first, wanted = widths->value(c.picture) * 11.5;
+            QVERIFY2(std::abs(advance - wanted) < 0.8, qPrintable(QStringLiteral("%1: the symbol takes %2 points, the font's picture is %3").arg(font).arg(advance).arg(wanted)));
+        }
+    }
+
+    // A symbol sets the line as its own font does: a line with a big diamond of Symbol is as tall as Symbol makes it, not as the run's font does.
+    void aSymbolSetsTheLineOfItsFont()
+    {
+        // The point from the page's top where the second of two paragraphs, each of one line, has its first ink.
+        auto secondBegins = [&](const QByteArray &start) {
+            const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+            const QByteArray none = "<w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/></w:pPr>";
+            const QByteArray body = "<w:p>" + none + start + "<w:r><w:t>First</w:t></w:r></w:p><w:p>" + none + "<w:r><w:t>Second</w:t></w:r></w:p>";
+            auto doc = open(makeDocx(body, kStyles, QByteArray(), sect));
+            if (!doc) return -1.0;
+            PageView view;
+            view.resize(1000, 700);
+            view.setDocument(doc.get());
+            const QImage img = view.pageImage(0, 816);
+            const double perPoint = 816 / 612.0;
+            bool inFirst = false;
+            int gapRows = 0;
+            for (int y = int(70 * perPoint); y < int(200 * perPoint); ++y) {
+                bool ink = false;
+                for (int x = int(60 * perPoint); x < int(200 * perPoint) && !ink; ++x) ink = qGray(img.pixel(x, y)) < 160;
+                if (ink && gapRows > 0 && inFirst) return y / perPoint;
+                if (ink) { inFirst = true; gapRows = 0; } else if (inFirst) ++gapRows;
+            }
+            return -1.0;
+        };
+        const double with = secondBegins("<w:r><w:rPr><w:sz w:val=\"96\"/></w:rPr><w:sym w:font=\"Symbol\" w:char=\"F0A8\"/></w:r>"), plain = secondBegins("<w:r><w:rPr><w:sz w:val=\"96\"/></w:rPr><w:t>x</w:t></w:r>");
+        QVERIFY(with > 0 && plain > 0);
+        QVERIFY2(with > plain + 1.5, qPrintable(QStringLiteral("the second paragraph begins at %1 points after a symbol, at %2 after a letter").arg(with).arg(plain)));
     }
 
     // The round-trip check itself: a run that gains a property the file never had is a difference, though what it adds is one the program understands.

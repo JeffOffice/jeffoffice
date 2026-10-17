@@ -780,10 +780,18 @@ QString wordStandInFor(const QString &alternate, const QString &family, const QS
     return {};
 }
 
+// Whether a run set in a symbol font (a symbol of it: DisplayFamily) that the machine lacks shows its pictures in the run's own family: they take the font's widths.
+static bool picturesInRunsFamily(const QString &family)
+{
+    return isSymbolFont(family) && !hasFamilyCached(family) && symbolFontLetterWidths(family);
+}
+
 QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutEnv &env)
 {
     QTextCharFormat f = original;
-    if (env.wordLines && f.hasProperty(tp::DisplayFamily)) f.setFontFamilies({f.stringProperty(tp::DisplayFamily)});
+    // (Not a symbol font this machine lacks, whose pictures the run's own family draws, by that font's widths below: fontconfig stands a symbol-encoded face in
+    // for the name Symbol, which leaves a bullet and a diamond blank.)
+    if (env.wordLines && f.hasProperty(tp::DisplayFamily) && !picturesInRunsFamily(f.stringProperty(tp::DisplayFamily))) f.setFontFamilies({f.stringProperty(tp::DisplayFamily)});
     // A word processor sets a family that isn't on its machine in Calibri (its stand-in): the names it knows, the ones this machine has, and those the
     // document carries a font of are not such.
     if (env.wordLines && f.hasProperty(QTextFormat::FontFamilies)) {
@@ -876,7 +884,11 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
     {
         const QStringList fams = r.fontFamilies().toStringList();
         const bool bold = f.hasProperty(QTextFormat::FontWeight) && f.fontWeight() >= QFont::DemiBold, italic = f.fontItalic();
-        if (!fams.isEmpty() && !substituteFor(fams.first()).isEmpty() && originalLetterWidths(fams.first(), bold, italic))
+        if (env.wordLines && f.hasProperty(tp::DisplayFamily) && picturesInRunsFamily(f.stringProperty(tp::DisplayFamily))) {
+            // (A symbol of the font: its picture is as wide as the font makes it, and its line is the font's.)
+            r.setProperty(kLetterWidths, f.stringProperty(tp::DisplayFamily) + QStringLiteral("|0|0"));
+            r.setFontFamilies(fams + QStringList{f.stringProperty(tp::DisplayFamily)});
+        } else if (!fams.isEmpty() && !substituteFor(fams.first()).isEmpty() && originalLetterWidths(fams.first(), bold, italic))
             r.setProperty(kLetterWidths, fams.first() + (bold ? QStringLiteral("|1") : QStringLiteral("|0")) + (italic ? QStringLiteral("|1") : QStringLiteral("|0")));
         else if (env.wordLines && !fams.isEmpty() && isSymbolFont(fams.first()) && !hasFamilyCached(fams.first()) && symbolFontLetterWidths(fams.first()))
             r.setProperty(kLetterWidths, fams.first() + QStringLiteral("|0|0"));   // (its characters are shown as their pictures, by the widths of the font's)
@@ -1504,7 +1516,9 @@ static bool wordKnowsFamily(const QString &lower)
 static QString metricFamilyOf(const QFont &f)
 {
     const QStringList families = f.families();
-    return families.size() >= 2 && families.first() == kThinCourier ? families[1] : requestedFamily(f);
+    // (And for a run that shows the pictures of a symbol font the machine lacks, drawn in the run's own family: the font follows it in the list.)
+    const bool pictures = families.size() >= 2 && isSymbolFont(families[1]) && !isSymbolFont(families.first()) && !hasFamilyCached(families[1]);
+    return families.size() >= 2 && (families.first() == kThinCourier || pictures) ? families[1] : requestedFamily(f);
 }
 
 // A font's ascent, descent, and leading in ems, as the word processor lays a line out with it (by the family the text asked for): the one place a line is
@@ -1793,7 +1807,8 @@ QVector<QTextLayout::FormatRange> applyLetterWidths(const QVector<QTextLayout::F
         const QString key = r.format.stringProperty(kLetterWidths);
         if (key.isEmpty() || r.length <= 0) { out << r; continue; }
         const QStringList k = key.split(QLatin1Char('|'));
-        const QHash<char16_t, double> *table = isSymbolFont(k.value(0)) && !hasFamilyCached(k.value(0)) ? symbolFontLetterWidths(k.value(0))
+        const bool ofSymbols = isSymbolFont(k.value(0)) && !hasFamilyCached(k.value(0));
+        const QHash<char16_t, double> *table = ofSymbols ? symbolFontLetterWidths(k.value(0))
                                                : originalLetterWidths(k.value(0), k.value(1) == QLatin1String("1"), k.value(2) == QLatin1String("1"));
         QFont plain = r.format.font();
         if (!table || (plain.letterSpacingType() == QFont::PercentageSpacing && plain.letterSpacing() != 0 && plain.letterSpacing() != 100)) { out << r; continue; }
@@ -1823,7 +1838,7 @@ QVector<QTextLayout::FormatRange> applyLetterWidths(const QVector<QTextLayout::F
             double worst = 0;
             for (char16_t c : u"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
                 if (auto t = table->constFind(c); t != table->constEnd()) worst = std::max(worst, std::abs(*t - adv(QChar(c)) / em));
-            nit = needed.insert(nk, worst > 0.004);
+            nit = needed.insert(nk, ofSymbols || worst > 0.004);   // (a symbol font's pictures are none of the letters and digits the stand-in is compared by)
         }
         const auto space = table->constFind(u' ');
         // Kerning (from the size it applies at) is the original's pairs: a
