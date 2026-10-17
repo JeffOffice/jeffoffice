@@ -1797,6 +1797,31 @@ private Q_SLOTS:
         QCOMPARE(lp.pageCount(), 1);
     }
 
+    // A break that is on the last line the page has room for, with no room left for the empty line after it, still opens the page after it with the
+    // paragraph that follows (the text after the break is not lost).
+    void aPageBreakOnTheLastLineThatFitsStillOpensTheNextPage()
+    {
+        FlowDocument fd;
+        const double line = 24, body = fd.section(0).content().height();
+        const int filler = int(body / line) - 1;
+        QTextBlockFormat bf;
+        bf.setLineHeight(line, QTextBlockFormat::FixedHeight);
+        QTextCursor c(fd.story());
+        for (int i = 0; i < filler; ++i) {
+            if (i) c.insertBlock(bf); else c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("filler"));
+        }
+        c.insertBlock(bf);
+        c.insertText(QStringLiteral("ends with a break") + flow::kPageBreak);
+        c.insertBlock(bf);
+        c.insertText(QStringLiteral("after the break"));
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 2);
+        QCOMPARE(pg.lines(1).size(), 1);
+        QCOMPARE(pg.lines(1)[0].block, fd.story()->findBlockByNumber(filler + 1).position());
+        QVERIFY(pg.page(1).start.hard);
+    }
+
     // Two breaks in a row make the page between them; one at the start of a paragraph moves its text to the next page.
     void pageBreakCharactersFollowOneAnotherAndOpenAParagraph()
     {
