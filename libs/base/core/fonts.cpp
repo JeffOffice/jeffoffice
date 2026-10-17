@@ -722,14 +722,15 @@ QString symbolToUnicode(const QString &family, uint code)
     static const QHash<uint, uint> wingdings = {
         {0x6C, 0x25CF}, {0x6E, 0x25A0}, {0x6F, 0x25A1}, {0x71, 0x2751}, {0x72, 0x2752}, {0x75, 0x25C6}, {0x76, 0x2756},
         {0x77, 0x2B25}, {0x9F, 0x2022}, {0xA1, 0x25CB}, {0xA7, 0x25AA}, {0xA8, 0x25FB}, {0xAB, 0x2605}, {0xD8, 0x27A2},
-        {0xD7, 0x2B9C}, {0xE8, 0x2794}, {0xF0, 0x21E8}, {0xFB, 0x2718}, {0xFC, 0x2714}, {0xFD, 0x2612}, {0xFE, 0x2611}};
+        {0xD7, 0x2B9C}, {0xE7, 0x2B05}, {0xE8, 0x2794}, {0xE9, 0x2B06}, {0xEA, 0x2B07}, {0xF0, 0x21E8}, {0xFB, 0x2718}, {0xFC, 0x2714}, {0xFD, 0x2612},
+        {0xFE, 0x2611}};
     // The second and third sets: the round and square bullets, triangles,
     // and tags that presentation themes use (as the fonts draw them).
     static const QHash<uint, uint> wingdings2 = {{0x96, 0x2022}, {0x97, 0x25CF}, {0xA0, 0x25AA}, {0xA1, 0x25A0}, {0xA8, 0x25A3}};
     static const QHash<uint, uint> wingdings3 = {{0x75, 0x25B6}, {0x7D, 0x25BA}, {0x84, 0x25B6}, {0xAD, 0x25AA}, {0xB4, 0x2B53}};
-    // Webdings' triangles, pointing left, right, up, and down: the pictures that bullets and arrows use most. Other codes are left out
-    // until their pictures are confirmed, and a code left out stays as it is.
-    static const QHash<uint, uint> webdings = {{0x33, 0x25C2}, {0x34, 0x25B8}, {0x35, 0x25B4}, {0x36, 0x25BE}};
+    // Webdings' triangles, pointing left, right, up, and down: the pictures that bullets and arrows use most, and the solid block that banners
+    // are made of (code 0x67). Other codes are left out until their pictures are confirmed, and a code left out stays as it is.
+    static const QHash<uint, uint> webdings = {{0x33, 0x25C2}, {0x34, 0x25B8}, {0x35, 0x25B4}, {0x36, 0x25BE}, {0x67, 0x2588}};
     const QString f = family.toLower();
     const QHash<uint, uint> *map = f == QLatin1String("symbol")        ? &symbol
                                    : f == QLatin1String("wingdings")   ? &wingdings
@@ -990,6 +991,34 @@ const QHash<char16_t, double> *originalLetterWidths(const QString &family, bool 
     return nullptr;
 }
 
+
+QChar symbolPictureOf(const QString &family, uint code)
+{
+    const QString picture = symbolTextToUnicode(family, code);
+    return picture.size() == 1 || (picture.size() == 2 && picture[1] == QChar(0xFE0E)) ? picture[0] : QChar();
+}
+
+const QHash<char16_t, double> *symbolFontLetterWidths(const QString &family)
+{
+    static QHash<QString, QHash<char16_t, double>> cache;   // main thread only, like all layout
+    const QString key = family.toLower();
+    if (const auto it = cache.constFind(key); it != cache.constEnd()) return it->isEmpty() ? nullptr : &*it;
+    QHash<char16_t, double> widths;
+    if (const QHash<char16_t, double> *byCode = originalLetterWidths(family, false, false); byCode && isSymbolFont(family))
+        for (uint code = 0x20; code <= 0xFF; ++code) {
+            const auto w = byCode->constFind(char16_t(code));
+            if (w == byCode->constEnd()) continue;
+            const QChar picture = symbolPictureOf(family, code);
+            if (!picture.isNull() && picture.unicode() != code) {
+                widths.insert(picture.unicode(), *w);
+            } else {
+                widths.insert(char16_t(code), *w);
+                widths.insert(char16_t(0xF000 + code), *w);
+            }
+        }
+    const auto it = cache.insert(key, widths);
+    return it->isEmpty() ? nullptr : &*it;
+}
 
 const QHash<quint32, double> *originalKerning(const QString &family, bool bold, bool italic)
 {

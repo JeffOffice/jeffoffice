@@ -130,6 +130,23 @@ private Q_SLOTS:
         QCOMPARE(t.count(), 3);
     }
 
+    // A symbol (w:sym) of a symbol font shows as the picture it is where the font is missing: a degree sign from Symbol, an arrow from Wingdings, a banner's block
+    // from Webdings; one of any other font, or a symbol that has no known picture, shows a box. The element is kept as written.
+    void aSymbolOfASymbolFontShowsItsPicture()
+    {
+        Made m;
+        m.body = R"(<w:p><w:r><w:sym w:font="Symbol" w:char="F0B0"/></w:r><w:r><w:sym w:font="Wingdings" w:char="F0EA"/></w:r><w:r><w:sym w:font="Webdings" w:char="F067"/></w:r>)"
+                 R"(<w:r><w:sym w:font="No Such Face" w:char="F0B0"/></w:r><w:r><w:sym w:font="Wingdings" w:char="F021"/></w:r></w:p>)";
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        QCOMPARE(d.body.size(), 1);
+        QStringList shown;
+        for (const Inline &in : d.body[0].para.content)
+            if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym")) shown << in.display;
+        QCOMPARE(shown, (QStringList{QString(QChar(0x00B0)), QString(QChar(0x2B07)), QString(QChar(0x2588)), QString(QChar(0x25A1)), QString(QChar(0x25A1))}));
+        QVERIFY(d.body[0].para.content[0].raw.contains("F0B0"));
+    }
+
     void readsParagraphsRunsAndTheirProperties()
     {
         Made m;

@@ -3,6 +3,7 @@
 #include "wml/wml.h"
 
 #include "wml/xmltree.h"
+#include "core/fonts.h"
 
 #include <QCoreApplication>
 #include <QSet>
@@ -311,7 +312,12 @@ public:
                 if (name == "br" || name == "fldChar") a.key = t.attr(c, name == "br" ? "type" : "fldCharType");
                 if (name == "footnoteReference") a.display = QString::number(++footnotes);
                 else if (name == "endnoteReference") a.display = QString::number(++endnotes);
-                else if (name == "sym") a.display = QString(QChar(0x25A1));
+                else if (name == "sym") {
+                    // (A symbol font's character is its picture where the font is missing; any other, or a picture not known, is a box.)
+                    bool ok = false;
+                    const QChar picture = symbolPictureOf(t.attr(c, "font"), t.attr(c, "char").toUInt(&ok, 16));
+                    a.display = QString(ok && !picture.isNull() ? picture : QChar(0x25A1));
+                }
                 else if (name == "drawing") {
                     for (int k = t.firstChild(c); k >= 0; k = t.next(k))
                         if (t.localName(k) == "inline") a.display = QCoreApplication::translate("jp::office::wml", "[picture]");

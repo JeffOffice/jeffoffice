@@ -872,6 +872,8 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
         const bool bold = f.hasProperty(QTextFormat::FontWeight) && f.fontWeight() >= QFont::DemiBold, italic = f.fontItalic();
         if (!fams.isEmpty() && !substituteFor(fams.first()).isEmpty() && originalLetterWidths(fams.first(), bold, italic))
             r.setProperty(kLetterWidths, fams.first() + (bold ? QStringLiteral("|1") : QStringLiteral("|0")) + (italic ? QStringLiteral("|1") : QStringLiteral("|0")));
+        else if (env.wordLines && !fams.isEmpty() && isSymbolFont(fams.first()) && !hasFamilyCached(fams.first()) && symbolFontLetterWidths(fams.first()))
+            r.setProperty(kLetterWidths, fams.first() + QStringLiteral("|0|0"));   // (its characters are shown as their pictures, by the widths of the font's)
     }
     // Sizes within the other program's range (to 1,638 pt): a file can claim
     // anything, and a huge size makes drawing a single glyph very costly.
@@ -1744,7 +1746,8 @@ QVector<QTextLayout::FormatRange> applyLetterWidths(const QVector<QTextLayout::F
         const QString key = r.format.stringProperty(kLetterWidths);
         if (key.isEmpty() || r.length <= 0) { out << r; continue; }
         const QStringList k = key.split(QLatin1Char('|'));
-        const QHash<char16_t, double> *table = originalLetterWidths(k.value(0), k.value(1) == QLatin1String("1"), k.value(2) == QLatin1String("1"));
+        const QHash<char16_t, double> *table = isSymbolFont(k.value(0)) && !hasFamilyCached(k.value(0)) ? symbolFontLetterWidths(k.value(0))
+                                               : originalLetterWidths(k.value(0), k.value(1) == QLatin1String("1"), k.value(2) == QLatin1String("1"));
         QFont plain = r.format.font();
         if (!table || (plain.letterSpacingType() == QFont::PercentageSpacing && plain.letterSpacing() != 0 && plain.letterSpacing() != 100)) { out << r; continue; }
         const double base = plain.letterSpacingType() == QFont::AbsoluteSpacing ? plain.letterSpacing() : 0;
@@ -2470,6 +2473,17 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     const bool up = rf.fontCapitalization() == QFont::AllUppercase;
                     for (QChar &ch : shown) ch = up ? ch.toUpper() : ch.toLower();
                     rf.setFontCapitalization(QFont::MixedCase);
+                }
+                // The characters of a symbol font that this machine lacks are shown as the pictures they stand for (the font's own widths are given
+                // them in applyLetterWidths): a degree sign from Symbol, an arrow from Wingdings, a banner's block from Webdings.
+                if (env.wordLines) {
+                    const QString family = rf.fontFamilies().toStringList().value(0);
+                    if (isSymbolFont(family) && !hasFamilyCached(family))
+                        for (QChar &ch : shown) {
+                            const uint code = ch.unicode() >= 0xF020 && ch.unicode() <= 0xF0FF ? ch.unicode() - 0xF000 : ch.unicode();
+                            if (code < 0x20 || code > 0xFF) continue;
+                            if (const QChar picture = symbolPictureOf(family, code); !picture.isNull()) ch = picture;
+                        }
                 }
                 const int len = int(shown.size());
                 QTextLayout::FormatRange fr{int(B->disp.size()), len, rf};
