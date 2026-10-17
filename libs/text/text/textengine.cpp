@@ -3030,6 +3030,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 if (lineNo == breakAfter && f < nF && !columnEmpty) advance();   // widow control: carry this line over
 
                 bool placed = false;
+                double lineHeightAtWalls = -1;   // (what the objects are checked against for this line, in a column: once, not at each step down)
+                int measuredFrame = -1, measuredColumn = -1;
                 for (int guard = 0; guard < 2000 && !placed; ++guard) {
                     if (f >= nF) {
                         line.setLineWidth(nF ? std::max(10.0, colRect(nF - 1, 0).width() - indL - indR) : 300);
@@ -3055,8 +3057,13 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         // line a paragraph goes on with, in smaller type, is no taller than that.)
                         double wrapH = estText;
                         if (env.wordLines && !frames[f].obstacles.isEmpty()) {
-                            line.setLineWidth(std::max(1.0, x1 - x0));
-                            wrapH = std::min(estText, wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base, env, &B->disp, &markFont, markSize).total());
+                            if (lineHeightAtWalls < 0 || measuredFrame != f || measuredColumn != c) {
+                                line.setLineWidth(std::max(1.0, x1 - x0));
+                                lineHeightAtWalls = std::min(estText, wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base, env, &B->disp, &markFont, markSize).total());
+                                measuredFrame = f;
+                                measuredColumn = c;
+                            }
+                            wrapH = lineHeightAtWalls;
                         }
                         QVector<Iv> ivs = freeIntervals(frames[f].obstacles, x0, x1, col.top() + y + touch, col.top() + y + wrapH - touch);
                         QVector<Iv> ok;

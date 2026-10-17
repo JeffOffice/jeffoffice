@@ -7649,6 +7649,31 @@ private Q_SLOTS:
         QVERIFY(!tight.cut);
     }
 
+    // A line beside an object that the engine moves down in steps (one that is not a rectangle) is measured once, not at each step: the cost of a paragraph of many runs does not grow
+    // with the height of the object.
+    void aLineBelowATallObjectCostsNothingForEachStep()
+    {
+        auto build = [&](bool plain) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat a, b;
+            a.setFontFamilies({QStringLiteral("Times New Roman")});
+            a.setFontPointSize(12);
+            b = a;
+            b.setFontItalic(true);
+            for (int i = 0; i < 6000; ++i) c.insertText(QStringLiteral("w "), i % 2 ? a : b);
+            FrameSpec fs = plainFrame(300, 100000);
+            // (A tall triangle across the column: a line meets it from the top to the foot, by steps of two points; a rectangle of the same height is gone round at once.)
+            fs.obstacles << (plain ? QPolygonF(QRectF(-1e5, 0, 2e5, 3000)) : QPolygonF({QPointF(-1e5, 0), QPointF(1e5, 0), QPointF(1e5, 3000), QPointF(-1e5, 3001)}));
+            LayoutEnv env;
+            env.wordLines = true;
+            return bestNanoseconds([&] { StoryLayout lay; lay.build(&doc, {fs}, env); }, 3);
+        };
+        build(true);   // (the first of anything is slow)
+        const double rectangle = std::max(build(true) / 1e6, 5.0), stepped = build(false) / 1e6;
+        QVERIFY2(stepped < 1.2 * rectangle + 15, qPrintable(QStringLiteral("a line below a tall object that is not a rectangle %1 ms, below a rectangle %2 ms").arg(stepped).arg(rectangle)));
+    }
+
     // A line that a paragraph goes on with, in smaller type than its first run, is checked against the objects at the height its own text has, not the first run's: an object
     // that begins below the line (and above where the big type's line would end) is no wall for it.
     void aLineInSmallTypeIsNotMovedByAnObjectBelowIt()
