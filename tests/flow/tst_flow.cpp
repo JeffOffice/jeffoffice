@@ -2455,6 +2455,30 @@ private Q_SLOTS:
         QVERIFY(indented.rect.height() > single12 + 1);
     }
 
+    // A file that asks for the spacing of an older word processor (w:suppressTopSpacingWP, LayoutEnv::kWholePointLines) has lines of whole points: a font's single
+    // line, taken up to the next whole point (10 points of Times New Roman, 11.5 points high, are 12; 11 points, 12.65 high, are 13; 12, 13.8, are 14), with the
+    // baseline a descent above the bottom (the leading and what is added are above the text); one that doesn't ask has the font's own. Another that asks for no leading (w:noLeading, LayoutEnv::kNoLeading) has the line of the
+    // font's Windows ascent and descent alone: 1.1074 em for Times New Roman.
+    void aFileCanAskForWholePointLinesOrNoLeading()
+    {
+        auto lines = [&](const std::function<void(LayoutEnv &)> &setup) {
+            return wordLinesOf({{QStringLiteral("Times New Roman"), 10}, {QStringLiteral("Times New Roman"), 11}, {QStringLiteral("Arial"), 12}, {QStringLiteral("Courier New"), 12}}, {}, true, setup);
+        };
+        const double descents[] = {443 / 2048.0 * 10, 443 / 2048.0 * 11, 434 / 2048.0 * 12, 615 / 2048.0 * 12};
+        const auto whole = lines([](LayoutEnv &env) { env.standIns.insert(QString::fromLatin1(LayoutEnv::kWholePointLines), QString()); });
+        QCOMPARE(whole.size(), 4);
+        const double wholeHeights[] = {12, 13, 14, 14};   // (13.59 of Courier New 12 up to 14)
+        double top = 0;
+        for (int i = 0; i < 4; ++i) {
+            QVERIFY2(std::abs(whole[i].rect.height() - wholeHeights[i]) < 0.01, qPrintable(QStringLiteral("line %1 is %2 tall").arg(i).arg(whole[i].rect.height())));
+            QVERIFY2(std::abs(whole[i].baseline - (top + wholeHeights[i] - descents[i])) < 0.02, qPrintable(QStringLiteral("line %1's baseline is at %2").arg(i).arg(whole[i].baseline)));
+            top += wholeHeights[i];
+        }
+        const auto plain = lines({});
+        QVERIFY(std::abs(plain[0].rect.height() - (1825 + 443 + 87) / 2048.0 * 10) < 0.01);
+        const auto none = lines([](LayoutEnv &env) { env.standIns.insert(QString::fromLatin1(LayoutEnv::kNoLeading), QString()); });
+        const double noLeading[] = {(1825 + 443) / 2048.0 * 10, (1825 + 443) / 2048.0 * 11, (1854 + 434) / 2048.0 * 12, (1705 + 615) / 2048.0 * 12};
+        for (int i = 0; i < 4; ++i) QVERIFY2(std::abs(none[i].rect.height() - noLeading[i]) < 0.01, qPrintable(QStringLiteral("line %1 is %2 tall").arg(i).arg(none[i].rect.height())));
     }
 
     // The stand-in a file's font table names for a family (the environment's stand-ins, LayoutEnv::standIns) is the line a missing family is set in.

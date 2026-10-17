@@ -249,7 +249,7 @@ QString FieldContext::key(bool withClock) const
 
 QString LayoutEnv::key() const
 {
-    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (wordNoHangStop ? "|h" : "") + (wordNoNumberIndentStop ? "|i" : "") + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
+    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (wordNoHangStop ? "|h" : "") + (wordNoNumberIndentStop ? "|i" : "") + (wordWholePointLines() ? "|u" : "") + (wordNoLeading() ? "|z" : "") + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
     if (defaultTab != 36) k += QStringLiteral("|t%1").arg(defaultTab);
     for (auto it = familyAliases.cbegin(); it != familyAliases.cend(); ++it) k += QStringLiteral("|a") + it.key() + QLatin1Char('=') + it.value();
     for (auto it = standIns.cbegin(); it != standIns.cend(); ++it) k += QStringLiteral("|i") + it.key() + QLatin1Char('=') + it.value();
@@ -1535,7 +1535,7 @@ static WordLine mergeWord(const WordLine &a, const WordLine &b) { return a.total
 // The line a stretch of text sets, from its runs. The spaces and tabs that end the line (`disp` is the paragraph's text) take no part in its
 // height, as a word processor sets them; a line that shows nothing else is the paragraph mark's (`markFont`, at `markSize`), not the font of
 // its blanks.
-static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback, const QString *disp = nullptr, const QFont *markFont = nullptr, double markSize = 0)
+static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback, const LayoutEnv &env, const QString *disp = nullptr, const QFont *markFont = nullptr, double markSize = 0)
 {
     WordLine m;
     auto add = [&](const QFont &f, double size) {
@@ -1544,7 +1544,7 @@ static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int 
         WordLine run;
         run.ascent = face.ascent * em;
         run.descent = face.descent * em;
-        run.leading = face.leading * em;
+        run.leading = env.wordNoLeading() ? 0.0 : face.leading * em;
         m = m.total() > 0 ? mergeWord(m, run) : run;
     };
     int shown = from + len;   // (where the line's text ends, trailing spaces and tabs not counted)
@@ -1570,6 +1570,11 @@ static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int 
         }
     if (m.total() <= 0 && markFont) add(*markFont, markSize);
     if (m.total() <= 0) add(fallback, fallback.pointSizeF());
+    // An older word processor's spacing: the line is of whole points, the leading and what is added to reach them going above the text.
+    if (env.wordWholePointLines()) {
+        m.ascent = std::ceil(m.total() - 1e-6) - m.descent;
+        m.leading = 0;
+    }
     return m;
 }
 
@@ -2030,7 +2035,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     const double scale = env.slideLines ? 1.0 : env.fontScale;
     const int nF = frames.size();
     auto singleOf = [&](const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback) {
-        return env.slideLines ? slideSingle(ranges, from, len, fallback) : env.wordLines ? wordLineOf(ranges, from, len, fallback).total() : singleSpacing(ranges, from, len, fallback);
+        return env.slideLines ? slideSingle(ranges, from, len, fallback) : env.wordLines ? wordLineOf(ranges, from, len, fallback, env).total() : singleSpacing(ranges, from, len, fallback);
     };
 
     auto colRect = [&](int f, int c) {
@@ -2729,7 +2734,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 const double em = mf.pointSizeF() / fontPointFactor();
                 markerWord.ascent = face.ascent * em;
                 markerWord.descent = face.descent * em;
-                markerWord.leading = face.leading * em;
+                markerWord.leading = env.wordNoLeading() ? 0.0 : face.leading * em;
                 markerSingle = markerWord.total();
             } else {
                 markerSingle = env.slideLines ? 0.0 : B->markerFont.pointSizeF() / fontPointFactor() * (known > 0 ? known : lineEmOf(B->markerFont, mfam));
@@ -3139,7 +3144,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // spacing adds under that (an exact height keeps the baseline a descent above the line's bottom, an at-least height the single
                     // line's place for it). The whole line must fit.
                     if (env.wordLines) {
-                        WordLine wl = wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base, &B->disp, &markFont, markSize);
+                        WordLine wl = wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base, env, &B->disp, &markFont, markSize);
                         // (A number or bullet counts by its ascent over the text's descent, without a leading of its own or any room below its baseline: it raises the
                         // first line when that is taller than the text's line.)
                         if (line.textStart() == 0 && markerWord.ascent + wl.descent > wl.total()) {

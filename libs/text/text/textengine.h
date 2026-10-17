@@ -191,6 +191,13 @@ struct LayoutEnv {
     // What a word processor sets a family it doesn't have in (wordLines): the family wordStandInFor chose from the file's font table for each (lower-cased), if
     // that is one it has; any other is set in Calibri.
     QHash<QString, QString> standIns;
+    // Options of the file that change how a word processor sets its lines (wordLines) ride in `standIns` under names no family has, as it is the one table of the
+    // file that a page's layout is given besides the flags above: lines of whole points, each a font's single line taken up to the next whole point (the older
+    // word processor's spacing that a file asks for with w:suppressTopSpacingWP; the leading and what is added are above the text), and fonts with no leading but their
+    // Windows ascent and descent (w:noLeading).
+    static constexpr const char *kWholePointLines = "\x01whole-point-lines", *kNoLeading = "\x01no-leading";
+    bool wordWholePointLines() const { return standIns.contains(QString::fromLatin1(kWholePointLines)); }
+    bool wordNoLeading() const { return standIns.contains(QString::fromLatin1(kNoLeading)); }
     QString aliasOf(const QString &family) const { return familyAliases.isEmpty() ? family : familyAliases.value(family.toLower(), family); }
     QString key() const;
 };
