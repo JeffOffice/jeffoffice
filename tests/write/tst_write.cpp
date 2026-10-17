@@ -4869,6 +4869,34 @@ private Q_SLOTS:
         QCOMPARE(levelsScannedForOutlineForTest() - before, 1);
     }
 
+    // The separator is cut to a quarter of the text area of the page it is on, not of the smallest page of the file: a section with a body of forty points does not shorten it on the
+    // full-size pages (a rule twelve above the note, the separator's thirty less its eighteen); on its own pages it is ten, and the rule four above the note.
+    void theNoteSeparatorIsCutPerSection()
+    {
+        const QByteArray exact = "<w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/></w:pPr>";
+        auto text = [](const char *t) { return QByteArray("<w:r><w:t xml:space=\"preserve\">") + t + "</w:t></w:r>"; };
+        auto note = [&](int id, const char *t) { return "<w:footnote w:id=\"" + QByteArray::number(id) + "\"><w:p>" + exact + "<w:r><w:footnoteRef/></w:r>" + text(t) + "</w:p></w:footnote>"; };
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"600\" w:lineRule=\"exact\"/></w:pPr>"
+                                 "<w:r><w:separator/></w:r></w:p></w:footnote>" + note(2, " BIG note") + note(3, " SMALL note") + "</w:footnotes>";
+        const QByteArray full = "<w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/>";
+        const QByteArray small = "<w:pgSz w:w=\"12240\" w:h=\"2240\"/><w:pgMar w:top=\"720\" w:right=\"1440\" w:bottom=\"720\" w:left=\"1440\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/>";
+        const QByteArray body = "<w:p>" + exact.left(exact.size() - 8) + "<w:sectPr>" + full + "</w:sectPr></w:pPr>" + text("Big") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>"
+                                "<w:p>" + exact + text("Small") + "<w:r><w:footnoteReference w:id=\"3\"/></w:r></w:p>";
+        auto doc = open(makeDocxWithParts(body, "<w:sectPr>" + small + "</w:sectPr>", {{QStringLiteral("/word/footnotes.xml"), notes}}));
+        QVERIFY(doc);
+        QCOMPARE(doc->pager().pageCount(), 2);
+        auto gap = [&](int index, const QString &needle) {
+            const auto page = doc->pager().materialize(index);
+            const TextItem *n = boxWithText(*page, needle);
+            double rule = -1;
+            for (const auto &item : page->doc->pages[0]->items)
+                if (const auto *line = dynamic_cast<const LineItem *>(item.get())) rule = line->p1.y();
+            return n && rule > 0 ? n->rect.top() - rule : -1.0;
+        };
+        QVERIFY2(std::abs(gap(0, QStringLiteral("BIG note")) - 12) < 0.05, qPrintable(QString::number(gap(0, QStringLiteral("BIG note")))));
+        QVERIFY2(std::abs(gap(1, QStringLiteral("SMALL note")) - 4) < 0.05, qPrintable(QString::number(gap(1, QStringLiteral("SMALL note")))));
+    }
+
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
     // thousand sections makes no more than the sections it changed (counted, not timed).
     void editingSectionsTouchesOnlyWhatChanged()
