@@ -1903,6 +1903,56 @@ private Q_SLOTS:
         QCOMPARE(QString::fromUtf8(zip2.value(QStringLiteral("content.xml"))).count(QStringLiteral("style:shrink-to-fit=\"true\"")), shrinking - 1);
     }
 
+    // A shape whose text shrinks to fit keeps that too: the text is written at the size it was shrunk to, with the shrink set, and read back
+    // it is drawn as it was.
+    void odpKeepsAShapesShrinkToFit()
+    {
+        auto d = deck::newPresentation();
+        auto s = std::make_shared<ShapeItem>();
+        s->name = QStringLiteral("Shrunk");
+        s->shape = QStringLiteral("roundRect");
+        s->rect = QRectF(100, 100, 150, 60);
+        s->storyId = d->createStory();
+        QTextDocument *story = d->storyDoc(s->storyId);
+        story->setPlainText(QStringLiteral("alpha beta gamma delta epsilon zeta eta theta"));
+        QTextCursor c(story);
+        c.select(QTextCursor::Document);
+        QTextCharFormat f;
+        f.setFontPointSize(24);
+        c.mergeCharFormat(f);
+        s->shrinks = true;
+        s->fitScale = 0.625;
+        s->fitLineCut = 10;
+        d->pages[0]->items.push_back(s);
+        LayoutCache cacheA, cacheB;
+        PaintContext ctxA;
+        ctxA.doc = d.get();
+        ctxA.cache = &cacheA;
+        QPointF origin;
+        const auto before = Renderer::shapeTextLayout(ctxA, *s, &origin)->lineInfo(0);
+        QVERIFY(!before.isEmpty());
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        auto back = deck::importOdp(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const ShapeItem *again = nullptr;
+        for (const auto &it : back->pages[0]->items)
+            if (it->name == QStringLiteral("Shrunk") && it->type() == ItemType::Shape) again = static_cast<const ShapeItem *>(it.get());
+        QVERIFY(again);
+        QVERIFY(again->shrinks);
+        PaintContext ctxB;
+        ctxB.doc = back.get();
+        ctxB.cache = &cacheB;
+        const auto after = Renderer::shapeTextLayout(ctxB, *again, &origin)->lineInfo(0);
+        QCOMPARE(after.size(), before.size());
+        QVERIFY2(qAbs(after[0].pointSize - before[0].pointSize) < 0.01, qPrintable(QStringLiteral("%1 vs %2").arg(after[0].pointSize).arg(before[0].pointSize)));
+        QVERIFY2(std::abs(after[1].baseline - after[0].baseline - (before[1].baseline - before[0].baseline)) < 0.1,
+                 qPrintable(QStringLiteral("%1 vs %2").arg(after[1].baseline - after[0].baseline).arg(before[1].baseline - before[0].baseline)));
+    }
+
     // The space around shrunk paragraphs goes into the other kind of file as it is drawn here: the points as written, the share of a line
     // at the size the text was shrunk to; read back, the lines are where they were.
     void odpWritesShrunkTextsSpaceAsItIsDrawn()
