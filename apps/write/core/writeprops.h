@@ -2,6 +2,7 @@
 // What JeffWrite keeps in its text's formats beyond Qt's and libs/text's own properties: pieces of the file kept as XML, the
 // properties of a paragraph or run that have no field here, and a paragraph's list.
 
+#include <optional>
 #include "wml/wml.h"
 
 #include <QByteArray>
@@ -68,6 +69,9 @@ QTextCharFormat unpackFormat(const QByteArray &packed);
 // A piece kept as XML, with what the writer needs to keep it whole.
 QByteArray packAtom(const office::wml::Inline &atom);
 office::wml::Inline unpackAtom(const QByteArray &packed);
+// The place from the page's top, in points, that an atom asks for if it is the instruction of an ADVANCE field with the \\y switch (the text after it is set so far down the
+// page); none for any other atom.
+std::optional<double> advanceTopOf(const office::wml::Inline &atom);
 
 // Body elements kept as XML.
 QByteArray packBlocks(const QVector<office::wml::Block> &blocks);

@@ -563,7 +563,6 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         }
         int deletedDepth = 0;   // (inside the content a tracked change deleted)
         double advanceTop = -1;   // (a field that sets the text after it at a place from the page's top, ADVANCE with \\y: the paragraph is no higher than that)
-        static const QRegularExpression advance(QStringLiteral("^\\s*ADVANCE\\b.*?\\\\y\\s*(-?[0-9]+(?:\\.[0-9]+)?)"), QRegularExpression::CaseInsensitiveOption);
         for (const Inline &in : p.content) {
             if (in.kind == Inline::ParaAtom && isDeletedRevision(in.tag)) deletedDepth = std::max(0, deletedDepth + (in.role == Inline::Open ? 1 : in.role == Inline::Close ? -1 : 0));
             const bool deleted = deletedDepth > 0 && !(in.kind == Inline::ParaAtom && in.role != Inline::Single && isDeletedRevision(in.tag));
@@ -571,10 +570,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 if (!in.text.isEmpty()) c.insertText(in.text, deleted ? asDeleted(formatOf(styleId, in.props)) : formatOf(styleId, in.props));
                 continue;
             }
-            if (in.kind == Inline::RunAtom && !deleted && advanceTop < 0 && in.tag == QLatin1String("instrText")) {
-                const QRegularExpressionMatch m = advance.match(textOfXml(in.raw));
-                if (m.hasMatch()) advanceTop = std::clamp(m.captured(1).toDouble(), 0.0, 1584.0);   // (no page is taller than 22 inches)
-            }
+            if (!deleted && advanceTop < 0)
+                if (const std::optional<double> asked = advanceTopOf(in)) advanceTop = *asked;
             QTextCharFormat af = formatOf(styleId, in.props);
             if (deleted) af = asDeleted(af);
             setStored(af, prop::Atom, packAtom(in));

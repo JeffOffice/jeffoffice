@@ -71,6 +71,17 @@ Inline unpackAtom(const QByteArray &packed)
     return a;
 }
 
+std::optional<double> advanceTopOf(const Inline &atom)
+{
+    if (atom.kind != Inline::RunAtom || atom.tag != QLatin1String("instrText")) return std::nullopt;
+    static const QRegularExpression advance(QStringLiteral("^\\s*ADVANCE\\b.*?\\\\y\\s*(-?[0-9]+(?:\\.[0-9]+)?)"), QRegularExpression::CaseInsensitiveOption);
+    QString text = QString::fromUtf8(atom.raw);
+    text.remove(QRegularExpression(QStringLiteral("<[^>]*>")));
+    const QRegularExpressionMatch m = advance.match(text);
+    if (!m.hasMatch()) return std::nullopt;
+    return std::clamp(m.captured(1).toDouble(), 0.0, 1584.0);   // (no page is taller than 22 inches)
+}
+
 QByteArray packBlocks(const QVector<Block> &blocks)
 {
     QByteArray out;

@@ -24,7 +24,7 @@ namespace {
 // with its beginning (the XML before it, the attributes it had in the file). When a paragraph is cut in two, the second half has the mark's, and
 // the first keeps the beginning's; when two become one, the result has the first's beginning and the last's end.
 const int kTail[] = {flow::fp::SectionBreakAfter, prop::SectionData, prop::RawAfter};
-const int kHead[] = {prop::RawBefore, prop::ParaAttrs, prop::LastSection, prop::MarkFormat};
+const int kHead[] = {prop::RawBefore, prop::ParaAttrs, prop::LastSection, prop::MarkFormat, flow::fp::AdvanceTop};
 
 void copyTail(const QTextBlockFormat &from, QTextBlockFormat *to)
 {
@@ -304,6 +304,38 @@ QVector<QTextBlock> selectedBlocks(const QTextCursor &c)
 
 // ---- typing
 
+namespace {
+
+// Whether a paragraph has the instruction of an ADVANCE field (with \\y) among its characters.
+bool hasAdvanceField(const QTextBlock &block)
+{
+    for (QTextBlock::iterator it = block.begin(); !it.atEnd(); ++it) {
+        const QTextCharFormat f = it.fragment().charFormat();
+        if (isAtom(f) && advanceTopOf(unpackAtom(storedBytes(f, prop::Atom)))) return true;
+    }
+    return false;
+}
+
+// A paragraph asks for a place (fp::AdvanceTop) by its ADVANCE field, and only while it has it: when an edit has taken the field out of the paragraph the cursor is in, the ask
+// goes too, as part of that edit (one undo brings back both).
+struct AdvanceGuard {
+    explicit AdvanceGuard(const QTextCursor &cursor) : c(cursor) {}
+    ~AdvanceGuard()
+    {
+        const QTextBlock b = c.block();
+        if (!b.isValid() || !b.blockFormat().hasProperty(flow::fp::AdvanceTop) || hasAdvanceField(b)) return;
+        QTextCursor t(b);
+        t.joinPreviousEditBlock();
+        QTextBlockFormat f = b.blockFormat();
+        f.clearProperty(flow::fp::AdvanceTop);
+        t.setBlockFormat(f);
+        t.endEditBlock();
+    }
+    const QTextCursor &c;
+};
+
+} // namespace
+
 void insertText(WriteDoc &doc, QTextCursor &c, const QString &text)
 {
     Q_UNUSED(doc);
@@ -465,6 +497,7 @@ static bool removeSelectionAcrossFrames(WriteDoc &doc, QTextCursor &c)
 void removeSelection(WriteDoc &doc, QTextCursor &c)
 {
     if (!c.hasSelection()) return;
+    const AdvanceGuard advance(c);
     {
         // A selection that begins or ends in a paragraph that shows nothing (a tracked change deleted it) begins or ends where the paragraphs that show do:
         // what is left is never put in the deleted paragraph, with its deleted mark.
@@ -588,6 +621,7 @@ static void joinAcrossDeleted(WriteDoc &doc, QTextCursor &c, const QTextBlock &v
 
 void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
 {
+    const AdvanceGuard advance(c);
     if (c.hasSelection()) {
         removeSelection(doc, c);
         return;
@@ -639,6 +673,7 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
 
 void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
 {
+    const AdvanceGuard advance(c);
     if (c.hasSelection()) {
         removeSelection(doc, c);
         return;
@@ -1458,7 +1493,7 @@ static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleI
     const QString was = bf.stringProperty(tp::StyleName).isEmpty() ? doc.defaultParagraphStyle() : bf.stringProperty(tp::StyleName);
     QTextBlockFormat nf = doc.styleBlockFormat(styleId);
     // What belongs to the paragraph in the file, not to its style.
-    for (int key : {int(prop::MarkFormat), int(prop::LastSection), int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs), int(flow::fp::SectionBreakAfter), int(prop::SectionData), int(flow::fp::Cell), int(flow::fp::Frame), int(tp::OutOfLayout)})
+    for (int key : {int(prop::MarkFormat), int(prop::LastSection), int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs), int(flow::fp::SectionBreakAfter), int(prop::SectionData), int(flow::fp::Cell), int(flow::fp::Frame), int(tp::OutOfLayout), int(flow::fp::AdvanceTop)})
         if (bf.hasProperty(key)) nf.setProperty(key, bf.property(key));
     const int numId = nf.intProperty(prop::NumId), level = nf.intProperty(prop::NumLevel);
     const bool wasList = bf.hasProperty(prop::NumId);

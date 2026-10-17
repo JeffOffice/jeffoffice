@@ -4576,6 +4576,63 @@ private Q_SLOTS:
         }
     }
 
+    // Three paragraphs, the second with an ADVANCE field that asks for 200 points; the place a block asks for (-1: none).
+    static QByteArray askingParagraphs()
+    {
+        const QByteArray field = "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> ADVANCE \\y 200 </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        return plainP("one") + "<w:p>" + field + "<w:r><w:t>two words</w:t></w:r></w:p>" + plainP("three");
+    }
+    static double askedPlace(WriteDoc &doc, int block)
+    {
+        const QTextBlockFormat f = doc.story()->findBlockByNumber(block).blockFormat();
+        return f.hasProperty(flow::fp::AdvanceTop) ? f.doubleProperty(flow::fp::AdvanceTop) : -1.0;
+    }
+
+    // A paragraph that asks for a place (its ADVANCE field) keeps the ask as the person edits it. A style applied to it keeps the ask.
+    void aStyleAppliedToAParagraphThatAsksForAPlaceKeepsTheAsk()
+    {
+        auto doc = open(makeDocx(askingParagraphs(), kStyles));
+        QVERIFY(doc && askedPlace(*doc, 1) == 200.0);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->findBlockByNumber(1).position() + 4);
+        applyParagraphStyle(*doc, c, QStringLiteral("Heading1"));
+        QVERIFY2(askedPlace(*doc, 1) == 200.0, "the style took the ask away");
+    }
+
+    // Enter in it leaves the ask with the first half only (and the field).
+    void enterInAParagraphThatAsksForAPlaceLeavesTheAskWithTheFirstHalf()
+    {
+        auto doc = open(makeDocx(askingParagraphs(), kStyles));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->findBlockByNumber(1).position() + 5);   // (after the three characters of the field, and "tw")
+        insertParagraph(*doc, c);
+        QCOMPARE(doc->story()->blockCount(), 4);
+        QVERIFY2(askedPlace(*doc, 1) == 200.0, "the first half lost the ask");
+        QVERIFY2(askedPlace(*doc, 2) < 0, "the second half has the ask too");
+    }
+
+    // Taking its field out takes the ask away (other text taken out leaves it), and one undo brings the field and the ask back.
+    void takingOutAnAdvanceFieldTakesTheAskAway()
+    {
+        auto doc = open(makeDocx(askingParagraphs(), kStyles));
+        QVERIFY(doc);
+        const int at = doc->story()->findBlockByNumber(1).position() + 1;   // (the field's instruction is the second of its three characters)
+        QCOMPARE(doc->story()->characterAt(at), QChar::ObjectReplacementCharacter);
+        QTextCursor t(doc->story());
+        t.setPosition(doc->story()->findBlockByNumber(1).position() + 3);
+        t.setPosition(doc->story()->findBlockByNumber(1).position() + 5, QTextCursor::KeepAnchor);
+        removeSelection(*doc, t);
+        QVERIFY2(askedPlace(*doc, 1) == 200.0, "other text taken out took the ask away");
+        QTextCursor c(doc->story());
+        c.setPosition(at);
+        c.setPosition(at + 1, QTextCursor::KeepAnchor);
+        removeSelection(*doc, c);
+        QVERIFY2(askedPlace(*doc, 1) < 0, "the ask is still there with its field gone");
+        doc->story()->undo();
+        QVERIFY2(askedPlace(*doc, 1) == 200.0 && doc->story()->characterAt(at) == QChar::ObjectReplacementCharacter, "one undo did not bring the field and the ask back");
+    }
+
     // The page color of a file (w:background) is the pages' color, and the file comes back with it.
     void aFilesPageColorFillsItsPages()
     {
