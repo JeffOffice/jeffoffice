@@ -468,6 +468,26 @@ private Q_SLOTS:
         QVERIFY(!Item::fromJsonAny(picture->toJson())->lockAspect);
     }
 
+    // What is read from a document is held to what the program can lay out and draw: a gradient has no more stops than there are, each at a place
+    // on it; a shadow's size, a shape's and a text box's columns are within their ranges.
+    void hostileDocumentValuesAreHeld()
+    {
+        QJsonArray stops;
+        for (int i = 0; i < 100000; ++i) stops.append(QJsonObject{{"pos", 5.0 - i}, {"color", QStringLiteral("#00ff00")}, {"t", 7.0}});
+        const Fill fill = Fill::fromJson(QJsonObject{{"type", QStringLiteral("gradient")}, {"stops", stops}});
+        QVERIFY(fill.stops.size() > 0 && fill.stops.size() <= 256);
+        for (const GradientStop &s : fill.stops) QVERIFY(s.pos >= 0 && s.pos <= 1 && s.transparency >= 0 && s.transparency <= 1);
+        const Effects big = Effects::fromJson(QJsonObject{{"shadow", QJsonObject{{"size", 1e12}}}});
+        QVERIFY(big.shadow.size >= 1 && big.shadow.size <= 1000);
+        const Effects small = Effects::fromJson(QJsonObject{{"shadow", QJsonObject{{"size", -5}}}});
+        QVERIFY(small.shadow.size >= 1);
+        auto text = Item::fromJsonAny(QJsonObject{{"type", QStringLiteral("text")}, {"rect", QJsonArray{0, 0, 10, 10}}, {"columns", 2000000000}});
+        QVERIFY(static_cast<TextItem *>(text.get())->columns <= 99);
+        auto shape = Item::fromJsonAny(QJsonObject{{"type", QStringLiteral("shape")}, {"rect", QJsonArray{0, 0, 10, 10}}, {"columns", 2000000000}, {"columnGap", 1e12}});
+        QVERIFY(static_cast<ShapeItem *>(shape.get())->columns <= 16);
+        QVERIFY(static_cast<ShapeItem *>(shape.get())->columnGap <= 1000);
+    }
+
     // A measure is in points and shows in the unit of Options; a value typed with a unit is read.
     void numberFieldMeasuresInTheUnitOfOptions()
     {

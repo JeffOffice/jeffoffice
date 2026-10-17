@@ -169,7 +169,10 @@ ItemPtr Reader::readShape(const QDomElement &e, Scope &sc, const QTransform &t)
         const QString name = a.get("draw:name");
         if (it->name.isEmpty()) it->name = name;
         // The description the object has for those who can't see it, and the address a click on it goes to.
-        if (it->altText.isEmpty()) it->altText = kid(e, "svg:desc").text().trimmed();
+        // The description is alt text; a file with only a title (and no description at all, not an empty one: that is how we say there is none)
+        // has it as its alt text, as before. The title is the title too.
+        const QDomElement description = kid(e, "svg:desc");
+        if (it->altText.isEmpty()) it->altText = !description.isNull() ? description.text().trimmed() : kid(e, "svg:title").text().trimmed();
         if (it->altTitle.isEmpty()) it->altTitle = kid(e, "svg:title").text().trimmed();
         // What we keep in attributes of our own.
         if (a.get("jo:decorative") == QLatin1String("true")) it->decorative = true;

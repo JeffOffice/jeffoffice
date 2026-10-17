@@ -140,7 +140,8 @@ void Exporter::writeCommon(X &x, const Item &it)
 void Exporter::writeInside(X &x, const Item &it)
 {
     if (!it.altTitle.isEmpty()) x.open("svg:title").text(it.altTitle).close();
-    if (!it.altText.isEmpty()) x.open("svg:desc").text(it.altText).close();
+    // (An empty description beside a title says there is none, so that reading it back doesn't take the title for it.)
+    if (!it.altText.isEmpty() || !it.altTitle.isEmpty()) x.open("svg:desc").text(it.altText).close();
     if (!it.hyperlink.isEmpty()) {
         x.open("office:event-listeners");
         x.open("presentation:event-listener").attr("script:event-name", "dom:click").attr("presentation:action", "show");

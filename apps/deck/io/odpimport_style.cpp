@@ -668,11 +668,16 @@ Effects Reader::effectsOf(const Bag &bag)
     fx.softEdge = std::clamp(lengthOr(bag.get(Graphic, "loext:softedge-radius"), 0), 0.0, 1584.0);
     // A reflection, in the attribute of our own that holds it.
     if (const QStringList parts = bag.get(Graphic, "jo:reflection").split(QLatin1Char(' '), Qt::SkipEmptyParts); parts.size() == 4) {
-        fx.reflection.on = true;
-        fx.reflection.transparency = std::clamp(parts[0].toDouble(), 0.0, 1.0);
-        fx.reflection.size = std::clamp(parts[1].toDouble(), 0.0, 1.0);
-        fx.reflection.distance = std::clamp(parts[2].toDouble(), 0.0, 1584.0);
-        fx.reflection.blur = std::clamp(parts[3].toDouble(), 0.0, 1584.0);
+        double v[4] = {0, 0, 0, 0};
+        bool ok = true;
+        for (int i = 0; i < 4; ++i) ok = parseNumber(parts[i], &v[i]) && ok;   // (a number that isn't one, or isn't finite, is no reflection)
+        if (ok) {
+            fx.reflection.on = true;
+            fx.reflection.transparency = std::clamp(v[0], 0.0, 1.0);
+            fx.reflection.size = std::clamp(v[1], 0.0, 1.0);
+            fx.reflection.distance = std::clamp(v[2], 0.0, 1584.0);
+            fx.reflection.blur = std::clamp(v[3], 0.0, 1584.0);
+        }
     }
     return fx;
 }

@@ -16,6 +16,9 @@ class QImage;
 
 namespace jp {
 
+// The most stops a gradient is given: real ones have a handful, so a file that lists more has the rest left out.
+constexpr int kMaxGradientStops = 256;
+
 struct GradientStop {
     double pos = 0;
     ColorRef color;

@@ -437,15 +437,6 @@ static std::optional<bool> aspectLockOf(const QDomElement &cNvPr)
     return std::nullopt;
 }
 
-// Whether the object is marked as only decoration (the extension a:ext with the decorative flag, in p:cNvPr's a:extLst).
-static bool decorativeOf(const QDomElement &cNvPr)
-{
-    for (QDomElement ext = childNamed(cNvPr, "extLst").firstChildElement(); !ext.isNull(); ext = ext.nextSiblingElement())
-        for (QDomElement c = ext.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
-            if (c.localName() == QLatin1String("decorative")) return parseBool(attr(c, QStringLiteral("val")));
-    return false;
-}
-
 void Reader::decorate(Item &it, const QDomElement &cNvPr, const Frame &frame, const QVector<QDomElement> &properties, const QDomElement &style)
 {
     it.rect = frame.rect;
@@ -823,7 +814,8 @@ ItemPtr Reader::withCutPicture(const ItemPtr &item, const QDomElement &spPr)
     pic->altText = shape->altText;
     pic->altTitle = shape->altTitle;
     pic->decorative = shape->decorative;
-    pic->lockAspect = shape->lockAspect;
+    // A picture keeps its proportions unless the file says the shape it was cut from doesn't (a shape that says nothing about it is not a lock off).
+    if (const std::optional<bool> lock = aspectLockOf(childNamed(childNamed(spPr.parentNode().toElement(), "nvSpPr"), "cNvPr"))) pic->lockAspect = *lock;
     pic->rect = shape->rect;
     pic->rotation = shape->rotation;
     pic->flipH = shape->flipH;

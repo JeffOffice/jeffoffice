@@ -1560,6 +1560,158 @@ private Q_SLOTS:
         QCOMPARE(r.shape(1)->fill.stops.size(), 3);
     }
 
+    // A table's alt text title and its decorative mark are kept by a .pptx and by an .odp.
+    void tableKeepsItsAltTitleAndDecorativeMark()
+    {
+        Rig r(0);
+        auto t = r.ed.newTable(QRectF(40, 60, 200, 100), 2, 2);
+        t->name = QStringLiteral("Table 1");
+        t->altTitle = QStringLiteral("Sales");
+        t->altText = QStringLiteral("Sales by quarter");
+        t->decorative = true;
+        r.ed.addItem(t, false);
+        for (int how = 0; how < 2; ++how) {
+            const QByteArray label = how ? "odp" : "pptx";
+            std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+            QVERIFY(d);
+            Item *it = Rig::named(*d, QStringLiteral("Table 1"));
+            QVERIFY2(it && it->type() == ItemType::Table, label);
+            QVERIFY2(it->decorative, label);
+            QVERIFY2(it->altTitle == QStringLiteral("Sales") && it->altText == QStringLiteral("Sales by quarter"), label);
+        }
+        // Not marked: not read as marked.
+        r.ed.doc()->item(t->id)->decorative = false;
+        QVERIFY(!Rig::named(*r.viaPptx(), QStringLiteral("Table 1"))->decorative);
+    }
+
+    // A .odp that has only a title for an object (and no description) has it as the object's alt text, as it always did, and as its title; one of
+    // ours that has a title and no description says so with an empty description, and reads back as it was.
+    void odpWithOnlyATitleKeepsItAsAltText()
+    {
+        Rig r(2);
+        r.shape(0)->altTitle = QStringLiteral("Only a title");   // no description
+        r.shape(1)->altTitle = QStringLiteral("Both");
+        r.shape(1)->altText = QStringLiteral("A description");
+        std::unique_ptr<Document> ours = r.viaOdp();
+        QVERIFY(ours);
+        QCOMPARE(Rig::named(*ours, QStringLiteral("Shape 1"))->altTitle, QStringLiteral("Only a title"));
+        QVERIFY(Rig::named(*ours, QStringLiteral("Shape 1"))->altText.isEmpty());   // not taken from the title
+        QCOMPARE(Rig::named(*ours, QStringLiteral("Shape 2"))->altText, QStringLiteral("A description"));
+        QCOMPARE(Rig::named(*ours, QStringLiteral("Shape 2"))->altTitle, QStringLiteral("Both"));
+        // Another program's file: a title and no svg:desc at all.
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*r.ed.doc(), false, &err);
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        const int first = content.indexOf(QStringLiteral("<svg:title>Only a title</svg:title>"));
+        QVERIFY(first >= 0);
+        const QRegularExpression emptyDesc(QStringLiteral("(<svg:title>Only a title</svg:title>)<svg:desc(/>|></svg:desc>)"));
+        QVERIFY(emptyDesc.match(content).hasMatch());
+        content.replace(emptyDesc, QStringLiteral("\\1"));
+        ZipWriter w;
+        w.add(QStringLiteral("mimetype"), zip.value(QStringLiteral("mimetype")));
+        for (auto it = zip.begin(); it != zip.end(); ++it)
+            if (it.key() != QLatin1String("mimetype") && it.key() != QLatin1String("content.xml")) w.add(it.key(), it.value(), true);
+        w.add(QStringLiteral("content.xml"), content.toUtf8(), true);
+        std::unique_ptr<Document> theirs = deck::importOdp(w.finish(), &err);
+        QVERIFY2(theirs, qPrintable(err));
+        QCOMPARE(Rig::named(*theirs, QStringLiteral("Shape 1"))->altText, QStringLiteral("Only a title"));
+        QCOMPARE(Rig::named(*theirs, QStringLiteral("Shape 1"))->altTitle, QStringLiteral("Only a title"));
+    }
+
+    // Values in the attributes of ours that a hostile .odp could bend: a reflection that isn't numbers, a gradient with a hundred thousand stops
+    // (held to the most there are, each at a place on the line), shadows and columns out of range. The file is read, and drawn, quickly.
+    void hostileValuesInOurOdpAttributesAreHeld()
+    {
+        Rig r(1, 1);
+        r.shape(0)->fx.reflection.on = true;
+        r.shape(0)->fx.reflection.size = 0.5;
+        r.shape(0)->fx.shadow.on = true;
+        r.shape(0)->fx.shadow.size = 150;
+        r.shape(0)->columns = 2;
+        r.shape(0)->columnGap = 10;
+        r.line(1)->stroke = Stroke::line(ColorRef::rgb(Qt::red), 12);
+        r.line(1)->stroke.gradient = Fill::gradient(ColorRef::rgb(Qt::red), ColorRef::rgb(Qt::blue), 0);
+        r.line(1)->stroke.gradient.stops = {{0, ColorRef::rgb(Qt::red), 0}, {1, ColorRef::rgb(Qt::blue), 0}};
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*r.ed.doc(), false, &err);
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        auto attribute = [&](const QString &x, const QString &name, int *from, int *to) {
+            *from = x.indexOf(name + QStringLiteral("=\""));
+            if (*from < 0) return false;
+            *from += name.size() + 2;
+            *to = x.indexOf(QLatin1Char('"'), *from);
+            return *to > *from;
+        };
+        auto reopen = [&](const QString &xml, QString *why) {
+            ZipWriter w;
+            w.add(QStringLiteral("mimetype"), zip.value(QStringLiteral("mimetype")));
+            for (auto it = zip.begin(); it != zip.end(); ++it)
+                if (it.key() != QLatin1String("mimetype") && it.key() != QLatin1String("content.xml")) w.add(it.key(), it.value(), true);
+            w.add(QStringLiteral("content.xml"), xml.toUtf8(), true);
+            return deck::importOdp(w.finish(), why);
+        };
+        auto with = [&](const QString &name, const QString &value) {
+            QString x = content;
+            int a = 0, b = 0;
+            [&] { QVERIFY2(attribute(x, name, &a, &b), qPrintable(name)); }();
+            x.replace(a, b - a, value);
+            return x;
+        };
+        // A reflection that is not numbers is no reflection (and no NaN is drawn).
+        {
+            QString why;
+            auto d = reopen(with(QStringLiteral("jo:reflection"), QStringLiteral("nan nan nan nan")), &why);
+            QVERIFY2(d, qPrintable(why));
+            const ReflectionFx &x = Rig::named(*d, QStringLiteral("Shape 1"))->fx.reflection;
+            QVERIFY(!x.on || (std::isfinite(x.transparency) && std::isfinite(x.size) && std::isfinite(x.distance) && std::isfinite(x.blur)));
+            QVERIFY(!x.on);
+            d = reopen(with(QStringLiteral("jo:reflection"), QStringLiteral("2 9 1e9 -4")), &why);
+            QVERIFY(d);
+            const ReflectionFx &y = Rig::named(*d, QStringLiteral("Shape 1"))->fx.reflection;
+            QVERIFY(y.on && y.transparency <= 1 && y.size <= 1 && y.distance <= 1584 && y.blur >= 0);
+        }
+        // A shadow of any size, columns of any number.
+        {
+            QString why;
+            auto d = reopen(with(QStringLiteral("jo:shadow-size"), QStringLiteral("1e300")), &why);
+            QVERIFY(d);
+            QVERIFY(Rig::named(*d, QStringLiteral("Shape 1"))->fx.shadow.size <= 1000);
+            d = reopen(with(QStringLiteral("jo:columns"), QStringLiteral("2000000000")), &why);
+            QVERIFY(d);
+            QVERIFY(static_cast<ShapeItem *>(Rig::named(*d, QStringLiteral("Shape 1")))->columns <= 16);
+        }
+        // A hundred thousand stops: the line has the most there are, in order, in range; and it is drawn at once.
+        {
+            QJsonObject o;
+            o["type"] = QStringLiteral("gradient");
+            o["gradType"] = QStringLiteral("linear");
+            o["angle"] = 0;
+            o["color"] = QStringLiteral("#ff0000");
+            QJsonArray stops;
+            const int n = 100000;
+            for (int i = 0; i < n; ++i) stops.append(QJsonObject{{"pos", 3.0 - 6.0 * i / n}, {"color", QStringLiteral("#00ff00")}, {"t", 0.0}});
+            o["stops"] = stops;
+            QString json = QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact));
+            json.replace(QLatin1Char('"'), QStringLiteral("&quot;"));
+            QElapsedTimer clock;
+            clock.start();
+            QString why;
+            auto d = reopen(with(QStringLiteral("jo:stroke-gradient"), json), &why);
+            QVERIFY2(d, qPrintable(why));
+            Item *line = Rig::named(*d, QStringLiteral("Line 1"));
+            QVERIFY(line);
+            const Fill &g = line->stroke.gradient;
+            QVERIFY2(g.type == Fill::Gradient && g.stops.size() >= 2 && g.stops.size() <= 256, qPrintable(QString::number(g.stops.size()) + QStringLiteral(" stops")));
+            for (const GradientStop &s : g.stops) QVERIFY(s.pos >= 0 && s.pos <= 1);
+            QVERIFY(!slideImage(*d).isNull());
+            QVERIFY2(clock.elapsed() < 20000, qPrintable(QString::number(clock.elapsed()) + QStringLiteral(" ms")));
+        }
+    }
+
     // A held arrow on a ribbon box (Height or Width of the Shape Format tab) is one step, taken when it is let go of; a number typed is one step.
     void ribbonSizeBoxesMakeOneStepForAHeldArrow()
     {

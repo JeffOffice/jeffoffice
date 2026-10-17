@@ -157,9 +157,11 @@ Fill Fill::fromJson(const QJsonObject &o)
     f.gradType = GradType(qMax(0, gt.indexOf(o["gradType"].toString())));
     f.angle = o["angle"].toDouble(90);
     f.color2 = ColorRef::fromString(o["color2"].toString());
+    // (A file's stops are held to the most there are, each at a place on the gradient, as a presentation file's are read.)
     for (const auto &v : o["stops"].toArray()) {
+        if (f.stops.size() >= kMaxGradientStops) break;
         const auto s = v.toObject();
-        f.stops.push_back({s["pos"].toDouble(), ColorRef::fromString(s["color"].toString()), s["t"].toDouble()});
+        f.stops.push_back({std::clamp(s["pos"].toDouble(), 0.0, 1.0), ColorRef::fromString(s["color"].toString()), std::clamp(s["t"].toDouble(), 0.0, 1.0)});
     }
     f.imageId = o["image"].toString();
     f.tile = o["tile"].toBool();
@@ -259,7 +261,7 @@ Effects Effects::fromJson(const QJsonObject &o)
         e.shadow.distance = s["dist"].toDouble(3);
         e.shadow.angle = s["angle"].toDouble(45);
         e.shadow.inner = s["inner"].toBool();
-        e.shadow.size = s["size"].toDouble(100);
+        e.shadow.size = std::clamp(s["size"].toDouble(100), 1.0, 1000.0);
     }
     if (o.contains("glow")) {
         const auto g = o["glow"].toObject();
