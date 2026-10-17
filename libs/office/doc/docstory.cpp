@@ -40,6 +40,12 @@ public:
         m_body += xml;
         m_has = true;
     }
+    // An element between the runs (a bookmark's start or end).
+    void between(const QByteArray &xml)
+    {
+        flushRun();
+        paragraph += xml;
+    }
     // An element of a run of its own (a field's marks, as the .docx files have them).
     void alone(const QByteArray &xml)
     {
@@ -126,6 +132,13 @@ private:
     QVector<TableOut> tables;
     QVector<Field> fields;
     int nextSection = 0;
+    int nextBookmark = 0;
+    // The bookmarks that begin or end at or before `cp`, as elements between the runs.
+    void bookmarksUpTo(qint64 cp, RunBuilder &rb)
+    {
+        if (kind != Converter::Kind::Main) return;
+        while (nextBookmark < c.bookmarkEvents.size() && c.bookmarkEvents[nextBookmark].cp <= cp) rb.between(c.bookmarkEvents[nextBookmark++].xml);
+    }
 };
 
 bool StoryWriter::isEnd(qint64 cp) const
@@ -235,7 +248,9 @@ void StoryWriter::paragraph(qint64 first, qint64 last, bool terminated)
 
     RunBuilder rb(c);
     const qint64 contentEnd = terminated ? last : last + 1;
+    bookmarksUpTo(first - 1, rb);
     content(first, contentEnd, istd, rb);
+    bookmarksUpTo(last, rb);
     rb.flushRun();
 
     ParaContext ctx;
@@ -317,6 +332,12 @@ void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, int istd, R
         plain.clear();
     };
     for (qint64 q = from; q < to; ++q) {
+        if (nextBookmark < c.bookmarkEvents.size() && kind == Converter::Kind::Main && c.bookmarkEvents[nextBookmark].cp <= q) {
+            flushPlain();
+            bookmarksUpTo(q - 1, rb);   // (those that are at this character begin before it)
+            while (nextBookmark < c.bookmarkEvents.size() && c.bookmarkEvents[nextBookmark].cp == q) rb.between(c.bookmarkEvents[nextBookmark++].xml);
+            rb.setRun(rpr, revision, chp.revisionAuthor);
+        }
         const QChar qc = T[q];
         const ushort ch = qc.unicode();
         if (ch >= 0x20 && !(ch == 0x28 && chp.symbolFont >= 0)) {
@@ -324,7 +345,6 @@ void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, int istd, R
             continue;
         }
         const bool instruction = !fields.isEmpty() && !fields.last().result;
-        const bool hidden = instruction && !fields.last().real;
         switch (ch) {
         case 0x09:
             flushPlain();

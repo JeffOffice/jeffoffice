@@ -229,6 +229,43 @@ int DocWriter::addPicture(const QByteArray &png, int widthTwips, int heightTwips
     return at;
 }
 
+int DocWriter::addRule(int heightTwips)
+{
+    const int at = int(data.size());
+    auto record = [](int version, int instance, int type, const QByteArray &d) {
+        QByteArray r;
+        add16(r, (instance << 4) | version);
+        add16(r, type);
+        add32(r, quint32(d.size()));
+        r.append(d);
+        return r;
+    };
+    QByteArray fsp;
+    add32(fsp, 1025);
+    add32(fsp, 0x0A00);
+    QByteArray props;
+    auto prop = [&](int id, quint32 value) {
+        add16(props, id);
+        add32(props, value);
+    };
+    prop(0x181, 0x808080);
+    prop(0x1BF, 0x110010);
+    prop(0x1FF, 0x80000);
+    prop(0x394, 1);
+    QByteArray shape = record(0xF, 0, 0xF004, record(2, 1, 0xF00A, fsp) + record(3, 4, 0xF00B, props));
+    QByteArray picf(68, '\0');
+    put32(picf, 0, quint32(68 + shape.size()));
+    put16(picf, 4, 68);
+    put16(picf, 6, 100);
+    put16(picf, 28, 0);
+    put16(picf, 30, heightTwips);
+    put16(picf, 32, 1000);
+    put16(picf, 34, 1000);
+    data.append(picf);
+    data.append(shape);
+    return at;
+}
+
 QByteArray DocWriter::build() const
 {
     QString footnoteText;
@@ -692,11 +729,36 @@ QByteArray DocWriter::build() const
         }
         put(50, dgg);
     }
+    // The bookmarks: their names, where each begins (in the order of that), and where each ends.
+    if (!bookmarks.isEmpty()) {
+        QVector<BookmarkSpec> order = bookmarks;
+        std::sort(order.begin(), order.end(), [](const BookmarkSpec &x, const BookmarkSpec &y) { return x.from < y.from; });
+        QByteArray names, starts, ends;
+        add16(names, 0xFFFF);
+        add16(names, int(order.size()));
+        add16(names, 0);
+        for (const BookmarkSpec &b : order) {
+            add16(names, int(b.name.size()));
+            names.append(utf16(b.name));
+        }
+        for (const BookmarkSpec &b : order) add32(starts, quint32(b.from));
+        add32(starts, quint32(ccpText));
+        for (int i = 0; i < order.size(); ++i) {
+            add16(starts, i);
+            add16(starts, 0);
+        }
+        for (const BookmarkSpec &b : order) add32(ends, quint32(b.to));
+        add32(ends, quint32(ccpText));
+        put(21, names);
+        put(22, starts);
+        put(23, ends);
+    }
     // The document's own settings.
     {
         QByteArray dop(84, '\0');
         dop[0] = char(evenAndOddHeaders ? 1 : 0);
         put16(dop, 10, defaultTab);
+        put16(dop, 54, (footnoteFormat << 2) | (2 << 6) | 0x1000);
         put(31, dop);
     }
 

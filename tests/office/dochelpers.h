@@ -53,6 +53,10 @@ struct ListLevelSpec {
     int start = 1;
     QByteArray paragraph, character;
 };
+struct BookmarkSpec {
+    QString name;
+    int from, to;                      // characters [from, to) of the main text
+};
 struct SectionSpec {
     int end;                           // the character after the section's last
     QByteArray sprms;
@@ -89,6 +93,7 @@ public:
     QStringList footnotes;             // each note's text (its own mark first, \r last)
     QVector<int> footnoteRefs;         // where each is cited in the main text
     QStringList headerStories;         // six for the notes' separators then six for each section; a story's text without the mark that ends it
+    QVector<BookmarkSpec> bookmarks;
     QVector<ShapeSpec> shapes;
     QVector<QVector<ListLevelSpec>> lists;   // each list's levels; the instance of list i is number i + 1
     bool evenAndOddHeaders = false;
@@ -99,6 +104,9 @@ public:
 
     // A picture (PNG bytes) set in the data stream, shown at the size in twips; the place to give a run (sprm::picture).
     int addPicture(const QByteArray &png, int widthTwips, int heightTwips);
+    // A rule across the line, in the data stream as a shape with no picture; the place to give a run (sprm::picture).
+    int addRule(int heightTwips);
+    int footnoteFormat = 0;            // how the document numbers its footnotes (4 lower-case letters)
     // The file: a compound file with the three streams.
     QByteArray build() const;
 };

@@ -17,6 +17,7 @@ struct Picture {
     QString extension;                    // png, jpeg, emf, wmf, bmp, or tiff
     double width = 0, height = 0;         // as shown, in points
     double cropL = 0, cropT = 0, cropR = 0, cropB = 0;   // the parts cut off, as fractions of the whole
+    QByteArray shape;                     // a shape with no picture of its own (a rule, a box): its drawing record, and the size above
 };
 
 class Converter {
@@ -62,6 +63,11 @@ public:
     QVector<qint64> footnoteRefs, endnoteRefs;      // where the references to the notes are in the text
     QVector<qint64> footnoteText, endnoteText;      // where each note's text begins, and the end of the last
     QStringList authors;
+    struct BookmarkEvent {
+        qint64 cp;
+        QByteArray xml;
+    };
+    QVector<BookmarkEvent> bookmarkEvents;           // where the bookmarks of the main text begin and end, in order
     PackageWriter pkg;
     int paragraphs = 0;                  // made so far, in all the stories
     int tableCells = 0;                  // the cells of all the tables so far
@@ -75,11 +81,15 @@ private:
     void readDrawings();
     Picture *storedPicture(int index);
     bool readPicture(qint32 position, Picture *out);
+    QByteArray drawingXml(const Picture &pic, const QString &rid);
+    QByteArray inlineShapeXml(const Picture &pic, const QString &part);
     QString addMedia(const QString &part, const Picture &pic, const QString &key);
     void readFontTable();
     void readSections();
     void readNotePlcs();
+    void readBookmarks();
     QByteArray fontTableXml() const;
+    Sep withNoteFormats(Sep sep) const;
     QByteArray settingsXml() const;
     QByteArray documentXml(const QByteArray &body, const QByteArray &lastSection) const;
 

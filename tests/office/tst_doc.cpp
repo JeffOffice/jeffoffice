@@ -6,6 +6,8 @@
 #include "io/cfb.h"
 #include "wml/wml.h"
 
+#include <QDir>
+#include <QDirIterator>
 #include <QElapsedTimer>
 #include <QRandomGenerator>
 #include <QXmlStreamReader>
@@ -420,6 +422,30 @@ private Q_SLOTS:
         QCOMPARE(found.trimmed(), QStringLiteral("The note itself."));
     }
 
+    // ---- bookmarks
+
+    void bookmarksAreWhereTheFileSays()
+    {
+        DocWriter w = simple(QStringLiteral("Hello world\rSecond\r"));
+        w.bookmarks = {{QStringLiteral("Greeting"), 0, 5}, {QStringLiteral("Second_one"), 12, 18}};
+        Document d;
+        QVERIFY(read(w.build(), &d));
+        QCOMPARE(bodyTexts(d), (QStringList{"Hello world", "Second"}));
+        auto marks = [&](int paragraph) {
+            QStringList out;
+            QString text;
+            for (const Inline &in : d.body[paragraph].para.content) {
+                if (in.kind == Inline::Text) text += in.text;
+                else if (in.kind == Inline::ParaAtom && (in.tag == QLatin1String("bookmarkStart") || in.tag == QLatin1String("bookmarkEnd")))
+                    out << QStringLiteral("%1@%2").arg(in.tag.mid(8), QString::number(text.size()));
+            }
+            return out;
+        };
+        QCOMPARE(marks(0), (QStringList{"Start@0", "End@5"}));
+        QCOMPARE(marks(1), (QStringList{"Start@0", "End@6"}));
+        QVERIFY(QString::fromUtf8(d.body[0].para.content.first().raw).contains(QLatin1String("Greeting")));
+    }
+
     // ---- fields
 
     void aFieldKeepsItsInstructionAndShowsItsResult()
@@ -568,6 +594,56 @@ private Q_SLOTS:
         for (const wml::KeptPart &p : d.parts)
             if (p.name.startsWith(QLatin1String("/word/media/")) && p.data.startsWith(QByteArray("\x89PNG"))) media = true;
         QVERIFY(media);
+    }
+
+    void aRuleInTheLineIsAShapeWithNoPicture()
+    {
+        DocWriter w = simple(QStringLiteral("a\x01""b\r"));
+        const int at = w.addRule(30);   // one and a half points high
+        w.chars = {{1, 2, sprm1(sprm::special, 1) + sprm4(sprm::picture, quint32(at))}};
+        Document d;
+        ReadNotes notes;
+        QVERIFY(read(w.build(), &d, &notes));
+        QVERIFY(!notes.leftOut);
+        const Inline *pict = nullptr;
+        for (const Inline &in : d.body[0].para.content)
+            if (in.kind == Inline::RunAtom && in.tag == QLatin1String("pict")) pict = &in;
+        QVERIFY(pict);
+        QVERIFY(QString::fromUtf8(pict->raw).contains(QLatin1String("o:hr=\"t\"")));
+        const QVector<wml::Shape> shapes = wml::readShapes(pict->raw);
+        QCOMPARE(shapes.size(), qsizetype(1));
+        QCOMPARE(shapes[0].kind, wml::Shape::Rect);
+        QVERIFY(!shapes[0].floating);
+        QCOMPARE(shapes[0].height, 1.5);
+        QVERIFY(shapes[0].filled);
+        QCOMPARE(shapes[0].fillColor, QStringLiteral("808080"));
+    }
+
+    void thePageNumberRestartsOnlyWhereTheSectionSaysSo()
+    {
+        const QByteArray start = sprm2(0x501C, 5);   // (the number to start at, as a section states it with or without the restart)
+        DocWriter w = simple(QStringLiteral("x\r"));
+        w.sections = {{int(w.text.size()) + 1, start}};
+        Document d;
+        QVERIFY(read(w.build(), &d));
+        QVERIFY(!d.lastSection.pageStart.has_value());
+        DocWriter r = simple(QStringLiteral("x\r"));
+        r.sections = {{int(r.text.size()) + 1, start + sprm1(0x3011, 1)}};
+        Document e;
+        QVERIFY(read(r.build(), &e));
+        QCOMPARE(e.lastSection.pageStart.value_or(-1), 5);
+    }
+
+    void notesAreNumberedAsTheDocumentSays()
+    {
+        DocWriter w = simple(QStringLiteral("x\r"));
+        w.footnoteFormat = 4;
+        Document d;
+        QVERIFY(read(w.build(), &d));
+        bool found = false;
+        for (const wml::RawChild &c : d.lastSection.extra)
+            if (c.xml.contains("footnotePr") && c.xml.contains("lowerLetter")) found = true;
+        QVERIFY(found);
     }
 
     void aPictureThatIsNotThereIsLeftOut()
@@ -965,6 +1041,63 @@ private Q_SLOTS:
         }
         QVERIFY(read1 > 0);
         QVERIFY(total.elapsed() < 120000);
+    }
+
+    // A developer's hook, not a test: JO_DOC_SWEEP_IN names a folder (searched through) of .doc files; each is read as it is, and again with bytes
+    // of it changed, JO_DOC_SWEEP_ROUNDS times (20 if not said; the same changes each run), and what a sanitizer build says is what it is for.
+    void sweepOfRealFiles()
+    {
+        const QString in = qEnvironmentVariable("JO_DOC_SWEEP_IN");
+        if (in.isEmpty()) QSKIP("JO_DOC_SWEEP_IN is not set");
+        const int rounds = qEnvironmentVariableIsSet("JO_DOC_SWEEP_ROUNDS") ? qEnvironmentVariableIntValue("JO_DOC_SWEEP_ROUNDS") : 20;
+        QRandomGenerator rng(20261018);
+        int files = 0, readable = 0;
+        QDirIterator it(in, {QStringLiteral("*.doc")}, QDir::Files, QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            QFile f(it.next());
+            if (!f.open(QIODevice::ReadOnly)) continue;
+            const QByteArray bytes = f.readAll();
+            ++files;
+            Document d;
+            QElapsedTimer t;
+            t.start();
+            if (read(bytes, &d)) ++readable;
+            QVERIFY2(t.elapsed() < 60000, qPrintable(f.fileName()));
+            jp::cfb::File cf;
+            const bool whole = jp::cfb::read(bytes, &cf);
+            for (int round = 0; round < rounds; ++round) {
+                QByteArray bad;
+                if (whole && round % 2 == 0) {
+                    jp::cfb::File g = cf;
+                    const QStringList names = {QStringLiteral("WordDocument"), QStringLiteral("1Table"), QStringLiteral("0Table"), QStringLiteral("Data")};
+                    const QString name = names[int(rng.bounded(quint32(names.size())))];
+                    QByteArray st = g.stream(name);
+                    if (st.isEmpty()) continue;
+                    const int changes = 1 + int(rng.bounded(10));
+                    for (int i = 0; i < changes; ++i) {
+                        const int at = int(rng.bounded(quint32(st.size())));
+                        switch (rng.bounded(3u)) {
+                        case 0: st[at] = char(rng.bounded(256u)); break;
+                        case 1: st[at] = char(0xFF); break;
+                        default: st[at] = char(0); break;
+                        }
+                    }
+                    g.setStream(name, st);
+                    bad = jp::cfb::write(g);
+                } else {
+                    bad = bytes;
+                    const int changes = 1 + int(rng.bounded(10));
+                    for (int i = 0; i < changes; ++i) bad[int(rng.bounded(quint32(bad.size())))] = char(rng.bounded(256u));
+                    if (round % 7 == 3) bad.truncate(int(rng.bounded(quint32(bad.size()))));
+                }
+                Document e;
+                QElapsedTimer one;
+                one.start();
+                read(bad, &e);
+                QVERIFY2(one.elapsed() < 60000, qPrintable(f.fileName()));
+            }
+        }
+        qInfo("sweep: %d files, %d read whole, %d changed copies each", files, readable, rounds);
     }
 
     void changedStreamsNeverCrashOrHang()
