@@ -765,14 +765,18 @@ QString wordStandInFor(const QString &alternate, const QString &family, const QS
 {
     if (!alternate.isEmpty() && wordHasFamily(alternate, LayoutEnv())) return alternate;
     if (charset == QLatin1String("02")) return QStringLiteral("Wingdings");
-    if (panose.size() == 20 && panose.startsWith(QLatin1String("02"))) {
+    // A PANOSE of Latin text (digits 1-2 are 02) says its stroke in digits 3-4 (0B to 0F sans, 02 to 0A serif) and its proportion in digits 7-8 (09 is monospaced).
+    const bool latin = panose.size() == 20 && panose.startsWith(QLatin1String("02"));
+    // A fixed-pitch font, or one whose PANOSE says monospaced, is a typewriter's whatever its strokes or its kind say (Courier New's own PANOSE has a serif's).
+    if (pitch == QLatin1String("fixed") || (latin && panose.mid(6, 2) == QLatin1String("09"))) return QStringLiteral("Courier New");
+    if (latin) {
         bool ok = false;
         const int style = panose.mid(2, 2).toInt(&ok, 16);
         if (ok && style >= 0x0B && style <= 0x0F) return QStringLiteral("Arial");
         if (ok && style >= 0x02 && style <= 0x0A) return QStringLiteral("Times New Roman");
     }
     if (family == QLatin1String("roman")) return QStringLiteral("Times New Roman");
-    if (family == QLatin1String("modern") || (pitch == QLatin1String("fixed") && family != QLatin1String("swiss"))) return QStringLiteral("Courier New");
+    if (family == QLatin1String("modern")) return QStringLiteral("Courier New");
     return {};
 }
 

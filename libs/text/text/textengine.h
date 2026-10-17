@@ -474,8 +474,9 @@ double naturalLineEm(const QFont &f, const QString &requestedFamily);
 
 QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env);
 // The family a word processor sets a font in where its machine lacks the font (LayoutEnv::standIns), from what the file's font table says of it: its alternate when the
-// machine has that; a symbol font for a symbol character set (charset "02"); otherwise by its PANOSE class (digits 3-4, hexadecimal: 0B to 0F sans, 02 to 0A serif)
-// or its kind (roman: Times New Roman; modern, or auto of fixed pitch: Courier New). Empty when the entry says nothing to go by (it is then set in Calibri).
+// machine has that; a symbol font for a symbol character set (charset "02"); Courier New for a fixed pitch or a PANOSE whose proportion (digits 7-8) is 09, monospaced;
+// otherwise by its PANOSE class (digits 3-4, hexadecimal: 0B to 0F sans, 02 to 0A serif) or its kind (roman: Times New Roman; modern: Courier New). Empty when the
+// entry says nothing to go by (it is then set in Calibri).
 QString wordStandInFor(const QString &alternate, const QString &family, const QString &pitch, const QString &panose, const QString &charset);
 
 // A slide's text shrunk to fit by `scale` (a:normAutofit's fontScale), as the presentation program draws it (see LayoutEnv::slideLines): a
