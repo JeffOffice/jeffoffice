@@ -4455,6 +4455,36 @@ private Q_SLOTS:
         QVERIFY2(std::abs(startOf(flag, "<w:tabs><w:tab w:val=\"num\" w:pos=\"1080\"/></w:tabs>", "<w:tabs><w:tab w:val=\"clear\" w:pos=\"1080\"/></w:tabs>") - 36) < 2, "cleared stop");
     }
 
+    // A bullet whose level asks for the outline effect (w:outline) is drawn hollow, as an outlined box is: the middle of a big black square is dark, and that of the same
+    // square outlined is not.
+    void theCheckBoxOfAnOutlinedBulletIsHollow()
+    {
+        auto middleOf = [&](const QByteArray &effect) {
+            const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"bullet\"/><w:lvlText w:val=\"\xE2\x96\xA0\"/>"
+                                         "<w:pPr><w:ind w:left=\"1440\" w:hanging=\"720\"/></w:pPr><w:rPr><w:rFonts w:ascii=\"Arial\" w:hAnsi=\"Arial\"/>" + effect + "<w:sz w:val=\"96\"/></w:rPr></w:lvl></w:abstractNum>"
+                                         "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+            const QByteArray body = "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:t>Item</w:t></w:r></w:p>";
+            const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+            auto doc = open(makeDocxWithParts(body, sect, {}, QByteArray(), kStyles, numbering));
+            PageView view;
+            view.resize(1000, 700);
+            view.setDocument(doc.get());
+            const QImage img = view.pageImage(0, 816);
+            // The marker's dark pixels: left of the text, which begins at 72 + 72 points from the page's edge.
+            const double perPoint = 816 / 612.0;
+            QRect ink;
+            for (int y = int(60 * perPoint); y < int(300 * perPoint); ++y)
+                for (int x = int(72 * perPoint); x < int(140 * perPoint); ++x)
+                    if (qGray(img.pixel(x, y)) < 215) ink = ink.isNull() ? QRect(x, y, 1, 1) : ink.united(QRect(x, y, 1, 1));   // (a hairline is a pale gray)
+            if (ink.width() < 8) return -1;
+            return qGray(img.pixel(ink.center()));
+        };
+        const int solid = middleOf(QByteArray()), hollow = middleOf("<w:outline/>"), notOutlined = middleOf("<w:outline w:val=\"0\"/>");
+        QVERIFY2(solid >= 0 && solid < 100, qPrintable(QString::number(solid)));
+        QVERIFY2(notOutlined >= 0 && notOutlined < 100, qPrintable(QString::number(notOutlined)));
+        QVERIFY2(hollow > 235, qPrintable(QString::number(hollow)));
+    }
+
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
     // thousand sections makes no more than the sections it changed (counted, not timed).
     void editingSectionsTouchesOnlyWhatChanged()

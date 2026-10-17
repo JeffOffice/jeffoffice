@@ -6,6 +6,7 @@
 
 #include <QDataStream>
 #include <QLocale>
+#include <QRegularExpression>
 #include <QSet>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -773,6 +774,13 @@ QTextListFormat WriteDoc::listFormat(int numId, int level, int start) const
         if (!text.isEmpty()) lf.setProperty(tp::BulletChar, text);
         if (!font.isEmpty()) lf.setProperty(tp::BulletFont, font);
         if (l.rPr.size) lf.setProperty(tp::BulletSize, *l.rPr.size / 2.0);
+        // The outline effect (w:outline, on unless it says off) draws the bullet hollow.
+        static const QRegularExpression outline(QStringLiteral("^<[^\\s:>/]+:outline[\\s/>]"));
+        static const QRegularExpression off(QStringLiteral("[\\s:]val\\s*=\\s*\"(0|false|off)\""));
+        for (const RawChild &ch : l.rPr.extra) {
+            const QString xml = QString::fromUtf8(ch.xml.left(120));
+            if (outline.match(xml).hasMatch() && !off.match(xml).hasMatch()) lf.setProperty(tp::BulletOutline, true);
+        }
         return lf;
     }
     QTextListFormat::Style style = QTextListFormat::ListDecimal;

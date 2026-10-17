@@ -631,6 +631,36 @@ void drawPlainText(QPainter *p, const QPointF &baseline, const QFont &font, cons
     drawFine(p, baseline - QPointF(0, line.ascent() / kFine), line.glyphRuns());
 }
 
+// `text` drawn as an outline (the effect of a word processor's outline text): the shapes of its letters stroked with a hairline, and not filled.
+static void drawOutlinedText(QPainter *p, const QPointF &baseline, const QFont &font, const QString &text, const QColor &color)
+{
+    if (text.isEmpty()) return;
+    QTextLayout tl(text, fineFont(font));
+    tl.setCacheEnabled(true);
+    tl.beginLayout();
+    QTextLine line = tl.createLine();
+    if (!line.isValid()) { tl.endLayout(); return; }
+    line.setLineWidth(1e7);
+    line.setPosition(QPointF(0, 0));
+    tl.endLayout();
+    QPainterPath outline;
+    for (const QGlyphRun &g : line.glyphRuns()) {
+        const QRawFont raw = g.rawFont();
+        const QList<quint32> glyphs = g.glyphIndexes();
+        const QList<QPointF> places = g.positions();
+        for (int i = 0; i < glyphs.size() && i < places.size(); ++i) outline.addPath(raw.pathForGlyph(glyphs[i]).translated(places[i]));
+    }
+    p->save();
+    p->translate(baseline - QPointF(0, line.ascent() / kFine));
+    p->scale(1 / kFine, 1 / kFine);
+    QPen pen(color, 0.25 * kFine);
+    pen.setJoinStyle(Qt::MiterJoin);
+    p->setPen(pen);
+    p->setBrush(Qt::NoBrush);
+    p->drawPath(outline);
+    p->restore();
+}
+
 static int s_fittedOutlinesBuilt = 0;
 int fittedMarkerOutlinesBuiltForTest() { return s_fittedOutlinesBuilt; }
 
@@ -2573,6 +2603,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 }
             }
             B->markerColor = mf.foreground().color();
+            B->markerOutline = env.wordLines && lf.boolProperty(tp::BulletOutline);
             const QString bc = lf.stringProperty(tp::BulletColor);
             if (!bc.isEmpty()) B->markerColor = ColorRef::fromString(bc).resolve(env.colors);
             if (B->markerAdv <= 0) B->markerAdv = advanceOf(B->markerFont, B->marker);
@@ -4522,7 +4553,8 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
             if (!B->marker.isEmpty()) {
                 p->setPen(B->markerColor);
                 const QPointF at(B->markerX, l0.position().y() - frameY(frame) + l0.ascent());
-                if (B->markerFit) drawFittedMarker(p, at, B->markerFont, B->marker, B->markerInk, B->markerRound, B->markerColor);
+                if (B->markerOutline) drawOutlinedText(p, at, B->markerFont, B->marker, B->markerColor);
+                else if (B->markerFit) drawFittedMarker(p, at, B->markerFont, B->marker, B->markerInk, B->markerRound, B->markerColor);
                 else drawPlainText(p, at, B->markerFont, B->marker);
             }
             if (!B->dropText.isEmpty()) {

@@ -92,6 +92,7 @@ enum : int {
     OutOfLayout,                                 // bool: the paragraph is set apart from the text (a word processor's frame, which the page sets where it asks): it has no lines and no room, and shows nothing (LayoutEnv::wordLines)
     NoHangPunct,                                 // bool: no mark of punctuation hangs past the margin in the paragraph (a word processor's overflowPunct turned off; LayoutEnv::wordLines)
     ListKey,                                     // int (list format): which list an item is in, where a file's lists are told apart (a word processor's numbering id; 0 when none)
+    BulletOutline,                               // bool (list format): the marker is drawn hollow, as its level's outline effect asks (LayoutEnv::wordLines)
     NumberTab,                                   // double (block): the list tab stop the paragraph's numbering gives it (a word processor's "num" tab), in points from the text area's edge (LayoutEnv::wordLines)
     NoteMarkCustom,                              // bool: a note's reference whose mark is the text after it (w:customMarkFollows): it shows no number and takes none (LayoutEnv::wordLines)
 };
