@@ -2284,9 +2284,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             Note n;
                             n.storyId = field.section(QLatin1Char(':'), 1);
                             n.endnote = field.startsWith(QLatin1String("endnote:"));
-                            n.number = n.endnote ? ++endCount : ++footCount;
+                            const bool customMark = env.wordLines && cf.boolProperty(tp::NoteMarkCustom);
+                            n.number = customMark ? 0 : n.endnote ? ++endCount : ++footCount;
                             n.refPos = b.position() + rel + i;
-                            v = QString::number(n.number);
+                            if (!customMark) v = QString::number(n.number);
                             B->noteRefs << qMakePair(int(B->disp.size()), int(m_notes.size()));
                             m_notes << n;
                         }

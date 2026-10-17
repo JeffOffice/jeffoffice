@@ -552,7 +552,12 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 }
             }
             if (in.kind == Inline::RunAtom && !deleted && drawnTag(in.tag) && drawnObjects(in, part, &af)) field = QStringLiteral("raw:");
-            else if (in.tag == QLatin1String("footnoteReference") && m_noteBlocks.contains(QStringLiteral("fn") + in.key)) field = QStringLiteral("footnote:fn") + in.key;
+            else if (in.tag == QLatin1String("footnoteReference") && m_noteBlocks.contains(QStringLiteral("fn") + in.key)) {
+                field = QStringLiteral("footnote:fn") + in.key;
+                // (A reference whose mark follows it as text, in the run: it shows no number of its own and takes none.)
+                const QString custom = attributeOfTag(in.raw, QStringLiteral("customMarkFollows"));
+                if (!custom.isEmpty() && custom != QLatin1String("0") && custom != QLatin1String("false") && custom != QLatin1String("off")) af.setProperty(tp::NoteMarkCustom, true);
+            }
             else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + roman(deleted ? endnoteNumber + 1 : ++endnoteNumber, false);   // (a deleted one takes no number)
             af.setProperty(tp::Field, field);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);
