@@ -4721,11 +4721,13 @@ private Q_SLOTS:
     }
 
     // A paragraph put in between the paragraphs of a frame cuts it in two: the paragraph that the frame was set from now has the second half only (a shorter box, and a wall of
-    // another height), and the pages from there on are laid out again (they are those of a new paginator).
+    // another height); one put in after the frame is the paragraph it is set from, and the paragraph that it was set from has no frame: the pages from there on are laid out
+    // again (they are those of a new paginator).
     void aParagraphPutInsideAFrameLaysOutThePageOfTheParagraphItWasSetFrom()
     {
         QStringList failures;
-        for (unsigned seed = 1; seed <= 12; ++seed) {
+        for (unsigned seed = 1; seed <= 24; ++seed) {
+            const bool after = seed > 12;   // (the paragraph put in after the frame, which it is set from now, and not the paragraph that followed the frame)
             FlowDocument fd;
             fd.env.wordLines = true;
             // (The paragraph the frame is set from begins the second page, so that the page before ends where the edit's end is.)
@@ -4741,7 +4743,7 @@ private Q_SLOTS:
             QVERIFY(pg.pageCount() >= 3);
             const QSet<int> frame = frameBlocksOf(fd);
             QCOMPARE(int(frame.size()), 2);
-            const int first = *std::min_element(frame.begin(), frame.end());
+            const int first = after ? *std::max_element(frame.begin(), frame.end()) : *std::min_element(frame.begin(), frame.end());
             const QTextBlock firstBlock = fd.story()->findBlock(first);
             QTextCursor c(fd.story());
             c.setPosition(firstBlock.position() + firstBlock.length() - 1);
