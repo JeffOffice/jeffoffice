@@ -5989,6 +5989,27 @@ private Q_SLOTS:
         QCOMPARE(int(x.count("<w:kern ")), 1);   // (the styled run's is its style's, and the zero one is the default)
     }
 
+    // A w:kern that is negative, enormous, or not a number is read without harm: below zero and a word that is no number kern nothing, one that is far past
+    // any size kerns from there (so never), and the file is written back whatever they said. (This reads as it did: the test is for what is kept.)
+    void hostileKernValuesAreReadWithoutHarm()
+    {
+        const QByteArray body = "<w:p><w:r><w:rPr><w:kern w:val=\"-5\"/></w:rPr><w:t>negative</w:t></w:r><w:r><w:rPr><w:kern w:val=\"2147483647\"/></w:rPr><w:t>enormous</w:t></w:r>"
+                                "<w:r><w:rPr><w:kern w:val=\"abc\"/></w:rPr><w:t>word</w:t></w:r><w:r><w:rPr><w:kern w:val=\"99999999999999\"/></w:rPr><w:t>overflow</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles));
+        QVERIFY(doc);
+        auto kernAt = [&](int pos) {
+            QTextCursor c(doc->story());
+            c.setPosition(pos + 1);
+            const QTextCharFormat f = c.charFormat();
+            return f.hasProperty(tp::KernAbove) ? f.property(tp::KernAbove).toDouble() : -1.0;
+        };
+        QCOMPARE(kernAt(0), -1.0);                   // "negative"
+        QVERIFY2(kernAt(8) < 0 || kernAt(8) > 1000, qPrintable(QString::number(kernAt(8))));   // "enormous": from a size no text has (the file's numbers are clamped as all are)
+        QCOMPARE(kernAt(16), -1.0);                  // "word"
+        QVERIFY2(kernAt(20) < 0 || kernAt(20) > 1000, qPrintable(QString::number(kernAt(20))));   // "overflow": clamped, and from a size no text has
+        QVERIFY(!doc->toDocx().isEmpty());
+    }
+
     void whatAParagraphSaysThatHasNoFieldIsKept()
     {
         // Shading, a suppressed line number, and attributes of spacing and indent that this program has no field for come back as they were.
