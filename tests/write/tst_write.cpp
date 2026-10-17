@@ -3711,6 +3711,104 @@ private Q_SLOTS:
         QVERIFY(!rt::lossProblems(base, file("<w:vanish/>", "<w:vanish/>", "gone!")).isEmpty());   // (the deleted text changed)
     }
 
+    // Text typed beside what a tracked change deleted is never inside the deletion in the file: typed before it or just inside its start, it goes before it;
+    // typed after its content, just inside its end, or after it, it goes after it.
+    void textTypedBesideADeletionIsOutsideIt()
+    {
+        const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
+        const QByteArray body = "<w:p><w:r><w:t>one</w:t></w:r><w:del" + rev + "><w:r><w:delText>gone</w:delText></w:r></w:del><w:r><w:t>tail</w:t></w:r></w:p>";
+        // (In the story: "one" 0 to 2, the deletion's start 3, its text 4, its end 5, "tail" from 6.)
+        for (int at = 3; at <= 6; ++at) {
+            auto doc = open(makeDocx(body));
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            c.setPosition(at);
+            insertText(*doc, c, QStringLiteral("ZZ"));
+            const QByteArray x = documentXml(doc->toDocx());
+            const int open = x.indexOf("<w:del "), close = x.indexOf("</w:del>"), typed = x.indexOf("ZZ");
+            QVERIFY2(open >= 0 && close > open && typed >= 0, x.constData());
+            QVERIFY2(typed < open || typed > close, qPrintable(QStringLiteral("typed at %1 is inside the deletion: %2").arg(at).arg(QString::fromUtf8(x))));
+            QVERIFY2((at <= 4) == (typed < open), qPrintable(QStringLiteral("typed at %1 is on the wrong side: %2").arg(at).arg(QString::fromUtf8(x))));
+            QVERIFY(x.contains("<w:delText>gone</w:delText>"));
+        }
+    }
+
+    // Editing acts on what shows: Backspace at the start of a paragraph after one a tracked change deleted joins it with the paragraph that shows before, Delete at
+    // the end of one before such a paragraph does the same, and what is deleted stays, as paragraphs of its own: no paragraph that has text keeps the deleted mark.
+    void editingJoinsTheParagraphsThatShowAcrossADeletedOne()
+    {
+        const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"", mark = " w:id=\"9\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
+        const QByteArray body = "<w:p><w:r><w:t>one</w:t></w:r></w:p><w:p><w:pPr><w:rPr><w:del" + mark + "/></w:rPr></w:pPr><w:del" + rev + "><w:r><w:delText>gone</w:delText></w:r></w:del></w:p>"
+                                "<w:p><w:r><w:t>two</w:t></w:r></w:p>";
+        // The paragraphs of the saved file that have text, and whether the deleted one is still there.
+        auto check = [&](WriteDoc &doc, const QString &what) {
+            const QByteArray x = documentXml(doc.toDocx());
+            QVERIFY2(x.contains("<w:delText>gone</w:delText>") && x.contains("w:id=\"9\""), qPrintable(what + QLatin1String(": the deletion is gone: ") + QString::fromUtf8(x)));
+            QVector<QByteArray> withText;
+            for (int from = x.indexOf("<w:p>"); from >= 0; from = x.indexOf("<w:p>", from + 1)) {
+                const QByteArray para = x.mid(from, x.indexOf("</w:p>", from) - from);
+                if (para.contains("<w:t>") || para.contains("<w:t ")) withText << para;
+            }
+            QCOMPARE(withText.size(), 1);   // (one, and two, are one paragraph)
+            QVERIFY2(!withText[0].contains("w:id=\"9\"") && withText[0].contains("one") && withText[0].contains("two"), qPrintable(what + QLatin1String(": ") + QString::fromUtf8(withText[0])));
+            QCOMPARE(doc.pager().lines(0).size(), 1);
+        };
+        {
+            auto doc = open(makeDocx(body));
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            c.setPosition(doc->story()->findBlockByNumber(2).position());
+            deleteBack(*doc, c, false);
+            check(*doc, QStringLiteral("Backspace"));
+        }
+        {
+            auto doc = open(makeDocx(body));
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            c.setPosition(doc->story()->findBlockByNumber(0).position() + 3);
+            deleteForward(*doc, c, false);
+            check(*doc, QStringLiteral("Delete"));
+        }
+    }
+
+    // A selection that begins or ends in a paragraph that shows nothing because a tracked change deleted it begins or ends where the paragraphs that show do:
+    // what survives is never left in the deleted paragraph.
+    void aSelectionAtADeletedParagraphLeavesNoTextInIt()
+    {
+        const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"", mark = " w:id=\"9\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
+        const QByteArray body = "<w:p><w:r><w:t>one</w:t></w:r></w:p><w:p><w:pPr><w:rPr><w:del" + mark + "/></w:rPr></w:pPr><w:del" + rev + "><w:r><w:delText>gone</w:delText></w:r></w:del></w:p>"
+                                "<w:p><w:r><w:t>two</w:t></w:r></w:p>";
+        auto textParagraphsKeepNoDeletedMark = [&](WriteDoc &doc, const QString &what) {
+            const QByteArray x = documentXml(doc.toDocx());
+            for (int from = x.indexOf("<w:p>"); from >= 0; from = x.indexOf("<w:p>", from + 1)) {
+                const QByteArray para = x.mid(from, x.indexOf("</w:p>", from) - from);
+                if ((para.contains("<w:t>") || para.contains("<w:t ")) && para.contains("w:id=\"9\"")) return QStringLiteral("%1: text in the deleted paragraph: %2").arg(what, QString::fromUtf8(para));
+            }
+            return QString();
+        };
+        auto run = [&](const char *name, std::function<void(QTextDocument *, QTextCursor &)> select, const QString &expected) {
+            auto doc = open(makeDocx(body));
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            select(doc->story(), c);
+            deleteBack(*doc, c, false);
+            QVERIFY2(textParagraphsKeepNoDeletedMark(*doc, QString::fromLatin1(name)).isEmpty(), qPrintable(textParagraphsKeepNoDeletedMark(*doc, QString::fromLatin1(name))));
+            QString shown;
+            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) shown += b.text().remove(QChar::ObjectReplacementCharacter) + QLatin1Char('|');
+            QCOMPARE(shown, expected);
+        };
+        // From the start of the deleted paragraph to inside the next: the next loses its letters; the deleted one is not what was selected.
+        run("from the deleted paragraph", [](QTextDocument *d, QTextCursor &c) {
+            c.setPosition(d->findBlockByNumber(1).position());
+            c.setPosition(d->findBlockByNumber(2).position() + 1, QTextCursor::KeepAnchor);
+        }, QStringLiteral("one||wo|"));
+        // From inside the paragraph before to the start of the deleted one: only the letters go.
+        run("to the deleted paragraph", [](QTextDocument *d, QTextCursor &c) {
+            c.setPosition(d->findBlockByNumber(0).position() + 1);
+            c.setPosition(d->findBlockByNumber(1).position(), QTextCursor::KeepAnchor);
+        }, QStringLiteral("o||two|"));
+    }
+
     // A file that says its hanging indents add no tab stop (noTabHangInd) is read so, by its value.
     void hangingIndentsAreNoTabStopsWhereTheFileSaysSo()
     {
