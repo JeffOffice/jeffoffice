@@ -650,10 +650,10 @@ bool Paginator::floatsTable(int span)
     if (!table || table->rowCount() < 1 || table->rowCount() > kMostFloatingRows) return false;
     double height = 0;
     for (int r = 0; r < table->rowCount(); ++r) height += table->rowHeight(r);
-    // (One that is taller than a page's text area, or wider than a page, is in the text: it could not be set at a place that the page has room for. The pages are those of the
-    // section the paragraph it is set from is in.)
+    // (One that is taller than a page's text area, or wider than a page, is in the text: it could not be set at a place that the page has room for. One wider than the text
+    // area is set over a margin, as it is in a word processor. The pages are those of the section the paragraph it is set from is in.)
     const Section &sec = m_doc->section(fx.refs[size_t(ref.value())].section);
-    return height <= sec.content().height() * 0.9 && table->width() <= sec.content().width();
+    return height <= sec.content().height() * 0.9 && table->width() <= sec.pageSize().width();
 }
 
 std::shared_ptr<const FloatingObject> Paginator::tableObject(int span, double columnWidth)

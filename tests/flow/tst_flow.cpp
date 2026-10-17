@@ -6317,6 +6317,43 @@ private Q_SLOTS:
         QVERIFY2(moved >= 5, qPrintable(QString::number(moved)));   // (the text round the taller table has other lines)
     }
 
+    // A table set at a place may be wider than the text area (it goes over a margin, as a word processor's does): it still floats, at the place it says. Only one wider than the
+    // page is in the text.
+    void aFloatingTableWiderThanTheTextAreaStillFloats()
+    {
+        auto make = [](double columnWidth) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fillStory(fd->story(), 4, 33, {}, 3, 6);
+            TestTable spec;
+            spec.rows = 3;
+            spec.cols = 2;
+            spec.columnWidth = columnWidth;
+            spec.text = [](int r, int c) { return QStringLiteral("r%1c%2").arg(r).arg(c); };
+            spec.setTable = [](TableData &t) { TableData::Place p; p.across = TableData::Place::From::Margin; p.down = TableData::Place::From::Margin; p.y = -30; t.place = p; };
+            addTableAfter(*fd, 0, spec);
+            return fd;
+        };
+        auto floating = [&](double columnWidth, QRectF *content = nullptr) {
+            auto fd = make(columnWidth);
+            Paginator pg(fd.get());
+            const auto page = pg.materialize(0);
+            QVector<QRectF> out;
+            if (page)
+                for (const auto &t : page->tables)
+                    if (t->floating) out << t->rect();
+            if (content) *content = pg.page(0).content;
+            return out;
+        };
+        QCOMPARE(int(floating(100).size()), 1);   // (the setup floats a table that fits)
+        QRectF content;
+        const auto wide = floating(250, &content);   // (500 points across, 468 of text)
+        QVERIFY2(content.width() < 499 && content.width() > 400, qPrintable(QString::number(content.width())));
+        QCOMPARE(int(wide.size()), 1);
+        QVERIFY2(std::abs(wide[0].top() - (content.top() - 30)) < 0.01, qPrintable(audit::rectText(wide[0]) + QStringLiteral(" for the text area ") + audit::rectText(content)));
+        QCOMPARE(int(floating(320).size()), 0);   // (a table wider than the page is in the text)
+    }
+
     // A table set at a place a distance down from its paragraph that would go over the foot of the text area, but that has room between the paragraph's top and the foot, is
     // slid up to end at the foot: it is on the page of its paragraph, in the text area, and not above its paragraph.
     void aFloatingTableOffsetOverTheFootIsSlidUpToTheTextArea()
