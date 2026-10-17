@@ -204,7 +204,7 @@ QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, cons
     return out;
 }
 
-void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number, const QVector<Wrapped> &wrapped, const QVector<QRectF> &columns, MaterializedPage *page)
+void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number, const QVector<Wrapped> &wrapped, const QVector<QRectF> &columns, MaterializedPage *page, size_t front)
 {
     // The objects are drawn in the order of their heights (the file's: z-index, relative height), and in the order of their anchors where those are the same: those behind the
     // text before the text, the rest after it.
@@ -265,43 +265,49 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
                 box->columns = 1;
                 box->hyphenate = false;
             }
-            // The text goes round the objects the page was laid out with as walls (and only those: the pages' lines, and so the page layer's, are of them).
-            item->wrap.mode = wall ? Wrap::Square : Wrap::None;
-            item->wrap.side = o.side == FloatingObject::Side::Left ? Wrap::LeftOnly : o.side == FloatingObject::Side::Right ? Wrap::RightOnly : o.side == FloatingObject::Side::Largest ? Wrap::Largest : Wrap::Both;
-            item->wrap.left = o.gap.left();
-            item->wrap.top = o.gap.top();
-            item->wrap.right = o.gap.right();
-            item->wrap.bottom = o.gap.bottom();
-            if (wall && o.wrap == FloatingObject::Wrap::TopBottom) {
-                // No text beside it: the room round it reaches across the columns it is in (a square wall that wide, for the page layer's wall of this kind is as wide as the page).
-                const QRectF room = wall->rect.adjusted(-o.gap.left(), -o.gap.top(), o.gap.right(), o.gap.bottom());
-                double lo = room.left(), hi = room.right();
-                for (const QRectF &col : columns)
-                    if (room.intersects(col)) {
-                        lo = std::min(lo, col.left());
-                        hi = std::max(hi, col.right());
+            // The text goes round the objects the page was laid out with as walls (and only those: the pages' lines, and so the page layer's, are of them). A wall is a shape of its
+            // own that draws nothing, after the page's text and clipped to the text area: the header and the footer, which are drawn before the page's objects, are in the way of
+            // none of them, and the objects (which wrap nothing themselves) are over the header and the footer as they are over the text.
+            item->wrap.mode = Wrap::None;
+            if (wall) {
+                const Wrap::Side side = o.side == FloatingObject::Side::Left ? Wrap::LeftOnly : o.side == FloatingObject::Side::Right ? Wrap::RightOnly : o.side == FloatingObject::Side::Largest ? Wrap::Largest : Wrap::Both;
+                QRectF room = wall->rect.adjusted(-o.gap.left(), -o.gap.top(), o.gap.right(), o.gap.bottom());
+                if (o.wrap == FloatingObject::Wrap::TopBottom) {
+                    // No text beside it: the room round it reaches across the columns it is in (a square wall that wide, for the page layer's wall of this kind is as wide as the page),
+                    // to the columns' edges and no further (a wall that reached 0.5 point into a column that the room touches only, as the paginator's does not, would make its
+                    // lines narrower).
+                    double lo = room.left(), hi = room.right();
+                    for (const QRectF &col : columns)
+                        if (room.intersects(col)) {
+                            lo = std::min(lo, col.left());
+                            hi = std::max(hi, col.right());
+                        }
+                    room.setLeft(lo);
+                    room.setRight(hi);
+                }
+                double top = room.top(), bottom = room.bottom();
+                if (!columns.isEmpty()) {
+                    double bodyTop = columns.first().top(), bodyBottom = columns.first().bottom();
+                    for (const QRectF &col : columns) {
+                        bodyTop = std::min(bodyTop, col.top());
+                        bodyBottom = std::max(bodyBottom, col.bottom());
                     }
-                // (To the columns' edges and no further: a wall that reached 0.5 point into a column that the room touches only, as the paginator's does not, would make its lines narrower.)
-                item->wrap.side = Wrap::Both;
-                item->wrap.left = wall->rect.left() - lo;
-                item->wrap.right = hi - wall->rect.right();
+                    top = std::max(top, bodyTop);
+                    bottom = std::min(bottom, bodyBottom);
+                }
+                if (bottom > top) {
+                    auto shape = std::make_shared<ShapeItem>();
+                    shape->id = QStringLiteral("flow-wall-%1-%2-%3").arg(d->pages[0]->id).arg(id).arg(made);
+                    shape->rect = QRectF(QPointF(room.left(), top), QPointF(room.right(), bottom));
+                    shape->fill = Fill::none();
+                    shape->stroke = Stroke::none();
+                    shape->wrap.mode = Wrap::Square;
+                    shape->wrap.side = o.wrap == FloatingObject::Wrap::TopBottom ? Wrap::Both : side;
+                    shape->wrap.left = shape->wrap.top = shape->wrap.right = shape->wrap.bottom = 0;
+                    made_.push_back({o.z, shape, false});
+                }
             }
-            if (wall && item->type() == ItemType::Text) {
-                // A text box does not push another box's text aside unless its own frame reaches into that text (the page layer's rule, for boxes that are set edge to edge), and the
-                // room round it does not count: a wall that is a text box's room alone would be one for the paginator and none for the page layer. So the box wraps nothing, and an
-                // invisible wall of its rectangle (and its room) is what the text goes round.
-                auto shape = std::make_shared<ShapeItem>();
-                shape->id = QStringLiteral("flow-wall-%1-%2-%3").arg(d->pages[0]->id).arg(id).arg(made);
-                shape->rect = item->bounds();
-                shape->fill = Fill::none();
-                shape->stroke = Stroke::none();
-                shape->wrap = item->wrap;
-                item->wrap.mode = Wrap::None;
-                made_.push_back({o.z, item, o.behind});
-                made_.push_back({o.z, shape, false});
-            } else {
-                made_.push_back({o.z, item, o.behind});
-            }
+            made_.push_back({o.z, item, o.behind});
             // A table set at a place is drawn there: its rows, in a fragment that the page paints with the others (the object is the room it takes, which draws nothing).
             if (a.table >= 0 && page) {
                 const std::shared_ptr<TableLayout> table = m_tables->layout(a.table);
@@ -319,7 +325,7 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
     auto &items = d->pages[0]->items;
     size_t behindCount = 0;
     for (const Made &m : made_) {
-        if (m.behind) items.insert(items.begin() + behindCount++, m.item);
+        if (m.behind) items.insert(items.begin() + std::min(front, items.size()) + behindCount++, m.item);
         else items.push_back(m.item);
     }
     Q_UNUSED(number);
