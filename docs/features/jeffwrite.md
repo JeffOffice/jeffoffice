@@ -73,7 +73,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [ ] **later** Customize a template's color scheme and font scheme before creating the document from it *(shared: the idea in JeffPub's template page)*
 
 ### Open, Save, Save As, and Close
-- [~] **first release** Open `.docx`, `.doc`, `.rtf`, and `.odt` (and `.dotx`, `.dot`, `.ott` templates), from the Recent list with pinning, from Browse, by drag-and-drop, and from the command line *(shared: the recent list and file pages in libs/shell)*
+- [~] **first release** Open `.docx`, `.doc`, `.rtf`, and `.odt` (and `.dotx`, `.dot`, `.ott` templates), from the Recent list with pinning, from Browse, by drag-and-drop, and from the command line *(shared: the recent list and file pages in libs/shell; `.doc` and `.dot` open since `libs/office/doc` reads the binary file into the model the `.docx` reader makes, text and styles and lists and sections and headers and notes and fields and tables and pictures and drawings; comments, form-field state, and macros are left out and the person is told, and Save asks for a `.docx` name)*
 - [~] **first release** Save as `.docx` by default; Save As lists every format JeffWrite writes; Ctrl+S, Ctrl+Shift+S, and Close with a prompt to save
 - [~] **first release** AutoRecover (unsaved work offered again after a crash, cleaned up once saved) *(shared: libs/shell recovery)*
 - [~] **1.0** Backup copy kept on every save *(shared: JeffPub's option)*

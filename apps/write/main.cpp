@@ -1,6 +1,6 @@
 // JeffWrite entry point.
 //
-//   JeffWrite [file ...]                 open documents (.docx, .docm, .dotx, .dotm), or start a new one
+//   JeffWrite [file ...]                 open documents (.docx, .docm, .dotx, .dotm, .doc, .dot), or start a new one
 //   JeffWrite --screenshot <png> [--size WxH] [--zoom percent|width|page|pages] [--page N]
 //                                         render the window to a PNG and quit
 //                                         (works with QT_QPA_PLATFORM=offscreen)
