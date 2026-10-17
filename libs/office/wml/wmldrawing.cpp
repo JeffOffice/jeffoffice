@@ -260,7 +260,8 @@ public:
             if (name == "imagedata") {
                 s.kind = Shape::Picture;
                 s.embed = t.attr(c, "id", NsR);
-                if (s.embed.isEmpty()) s.embed = t.attr(c, "pict", NsR);
+                s.pictEmbed = t.attr(c, "pict", NsR);
+                if (s.embed.isEmpty()) s.embed = s.pictEmbed;
                 s.cropL = cropOf(t.attr(c, "cropleft"));
                 s.cropT = cropOf(t.attr(c, "croptop"));
                 s.cropR = cropOf(t.attr(c, "cropright"));

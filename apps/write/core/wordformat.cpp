@@ -625,6 +625,17 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
     return bf;
 }
 
+bool isDarkFill(const QColor &fill)
+{
+    return fill.isValid() && fill.alpha() > 0 && 0.299 * fill.red() + 0.587 * fill.green() + 0.114 * fill.blue() < 64;
+}
+
+bool paragraphFillIsDark(const QTextBlockFormat &format)
+{
+    const QString spec = format.stringProperty(tp::Borders);
+    return !spec.isEmpty() && isDarkFill(tp::ParaBox::parse(spec).fill);
+}
+
 ParaProps paraPropsOf(const QTextBlockFormat &f)
 {
     ParaProps p;

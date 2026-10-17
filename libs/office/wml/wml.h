@@ -238,6 +238,7 @@ struct TableMark {
     int height = 0;                   // trHeight, twentieths of a point (0: not stated)
     QString heightRule;               // atLeast (when empty), exact, auto
     bool cantSplit = false, header = false;
+    bool hidden = false;              // hidden: the row is not shown
     // ---- a cell (tcPr)
     TableWidth cellWidth;             // tcW
     int span = 1;                     // gridSpan
@@ -471,6 +472,7 @@ struct Shape {
     bool flipH = false, flipV = false;
     bool arrowEnd = false, arrowStart = false;
     QString embed;                        // a picture's relationship Id
+    QString pictEmbed;                    // the Id of the picture's other form (VML's r:pict: a compressed picture the program keeps beside it)
     QString alt;                          // its description
     QByteArray textBox;                   // the w:txbxContent element of a text box, as written (insets: below)
     double inset[4] = {7.2, 3.6, 7.2, 3.6};   // left, top, right, bottom

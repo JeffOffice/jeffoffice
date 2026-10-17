@@ -50,6 +50,11 @@ public:
     // The key of the cell the next paragraph is in (0: none), and what its table's style gives its paragraphs.
     int key() const { return m_cells.isEmpty() ? 0 : m_cells.last(); }
     const office::wml::TableLayer *layer() const;
+    // The width in points of the text area of the cell the next paragraph is in (the cell's columns less the table's margins in the cell), 0 when it is in no
+    // cell or its table has no grid to say.
+    double cellWidth() const;
+    // Whether the cell the next paragraph is in has a dark fill (its own, or its table's): the automatic color of its text is white (see isDarkFill).
+    bool cellFillIsDark() const;
     // Pieces that come after a cell's last paragraph when that is not a paragraph of its own (the cell ends in a table), kept with the cell.
     void addTail(const QVector<office::wml::Block> &pieces);
 
@@ -61,12 +66,15 @@ private:
         std::shared_ptr<TablePart> tablePart;
         std::shared_ptr<RowPart> rowPart;
         std::shared_ptr<CellPart> cellPart;
-        int rows = 0;
+        int rows = 0, hiddenRows = 0;                   // (a table: how many rows it has, and how many of them are hidden)
+        bool hidden = false;                            // (a row)
         QVector<double> firstRow;                       // (a table: the widths its first row's cells say, for a grid the file left out)
         const office::wml::TableStyleDef *style = nullptr;   // (a table)
         QString styleId;
         int look = 0, rowCount = 0, columns = 0, rowBand = 1, colBand = 1;
         int col = 0;                                    // (a row: the grid column the next cell is at)
+        int colFirst = 0, colSpan = 1;                  // (a cell: its first grid column, and how many it takes)
+        bool dark = false;                              // (a cell: its fill is dark)
     };
     flow::FlowDocument *m_flow;
     const office::wml::StyleSheet *m_sheet;

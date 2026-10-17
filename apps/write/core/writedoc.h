@@ -166,7 +166,8 @@ private:
     void fillStory(QTextDocument *story, const QVector<office::wml::Block> &body, bool header, const QString &part = QString());
     // Makes of a drawn object of a run (its atom) what the pages show: a picture in the line is an inline object of the character, the rest are objects set at
     // places on the page of the paragraph they are anchored to. False when it makes none (nothing drawn, or a picture the file does not hold).
-    bool drawnObjects(const office::wml::Inline &atom, const QString &part, QTextCharFormat *format);
+    // (`cellWidth` is the width of the text area of the table cell the object is in, 0 for none: what a share of the text's width is a share of.)
+    bool drawnObjects(const office::wml::Inline &atom, const QString &part, QTextCharFormat *format, double cellWidth = 0);
     // The story of the header or footer part a relationship names (made once, kept); none for a link that is not a part, or past the limit of parts.
     std::shared_ptr<QTextDocument> headerStory(const QString &relationshipId);
     // Gives the flowing sections from `from` on the stories of their headers and footers, those they state and the section before's for the rest.

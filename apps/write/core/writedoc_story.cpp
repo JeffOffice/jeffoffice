@@ -279,7 +279,10 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     QTextCursor c(story);
     c.beginEditBlock();
     bool firstBlock = true;
+    bool onDark = false;   // the paragraph being made is on a dark fill (its own, or its cell's): text of the automatic color is white
+    TableBuilder *cellOf = nullptr;
     auto startBlock = [&](const QTextBlockFormat &bf, const QTextCharFormat &cf) {
+        onDark = paragraphFillIsDark(bf) || (cellOf && cellOf->cellFillIsDark());
         if (firstBlock) {
             c.setBlockFormat(bf);
             c.setBlockCharFormat(cf);
@@ -292,7 +295,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     QHash<QByteArray, QTextCharFormat> formats;
     const TableLayer *layer = nullptr;   // what the style of the table that the paragraphs are in gives them
     auto formatOf = [&](const QString &paraStyle, const RunProps &props) {
-        const QByteArray key = paraStyle.toUtf8() + '\x01' + runPropsXml(props) + (layer ? '\x02' + layer->key.toUtf8() : QByteArray());
+        const QByteArray key = paraStyle.toUtf8() + '\x01' + runPropsXml(props) + (layer ? '\x02' + layer->key.toUtf8() : QByteArray()) + (onDark ? "\x03" : "");
         auto it = formats.constFind(key);
         if (it != formats.constEnd()) return it.value();
         RunProps resolved = sheet.run(paraStyle, props.style, layer);
@@ -300,6 +303,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         resolved.extra = props.extra;
         resolved.style = props.style;
         QTextCharFormat f = charFormatOf(resolved, thm, &props);
+        if (onDark && !f.hasProperty(QTextFormat::ForegroundBrush)) f.setForeground(Qt::white);
         if (!f.hasProperty(tp::Language))
             if (const QString language = styleLanguage(paraStyle, props.style); !language.isEmpty() && language != proofingLanguage()) f.setProperty(tp::Language, language);
         formats.insert(key, f);
@@ -311,6 +315,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     QHash<QString, ParaProps> baselines;
     QVector<Block> pending;   // body elements kept as XML that wait for the next paragraph
     TableBuilder tables(m_flow.get(), &sheet, m_wml.compatMode, body);
+    cellOf = &tables;
 
     // The paragraphs that end a section whose next one is continuous.
     QVector<bool> continuousAfter(header ? 0 : int(body.size()), false);
@@ -546,7 +551,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     put(QString(QChar::ObjectReplacementCharacter), mark);
                 } else if (in.kind == Inline::RunAtom && drawnTag(in.tag)) {
                     QTextCharFormat object = formatOf(styleId, in.props);
-                    if (drawnObjects(in, part, &object)) put(QString(QChar::ObjectReplacementCharacter), object);
+                    if (drawnObjects(in, part, &object, tables.cellWidth())) put(QString(QChar::ObjectReplacementCharacter), object);
                 } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("instrText")) {
                     if (!fields.isEmpty() && !fields.last().inResult) fields.last().instruction += textOfXml(in.raw);
                 } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Open) {
@@ -596,7 +601,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     }
                 }
             }
-            if (in.kind == Inline::RunAtom && !deleted && drawnTag(in.tag) && drawnObjects(in, part, &af)) field = QStringLiteral("raw:");
+            if (in.kind == Inline::RunAtom && !deleted && drawnTag(in.tag) && drawnObjects(in, part, &af, tables.cellWidth())) field = QStringLiteral("raw:");
             else if (in.tag == QLatin1String("footnoteReference") && m_noteBlocks.contains(QStringLiteral("fn") + in.key)) {
                 field = QStringLiteral("footnote:fn") + in.key;
                 if (markFollows(in.raw)) af.setProperty(tp::NoteMarkCustom, true);
@@ -642,7 +647,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     c.endEditBlock();
 }
 
-bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFormat *format)
+bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFormat *format, double cellWidth)
 {
     const QVector<Shape> shapes = readShapes(atom.raw);
     if (shapes.isEmpty()) return false;
@@ -655,13 +660,20 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         for (const Relationship &r : links)
             if (r.id == s.embed && !r.external) target = r.target;
         if (target.isEmpty()) return -1;
-        const QByteArray bytes = partData(target);
+        QByteArray bytes = partData(target);
+        // (A picture whose other form is one that is not drawn is shown as a picture that cannot be.)
+        bool missing = false;
+        for (const Relationship &r : links)
+            if (!s.pictEmbed.isEmpty() && r.id == s.pictEmbed && !r.external && isUndrawnPictureTarget(r.target) && s.width > 0 && s.height > 0) {
+                bytes = missingPicturePng(s.width, s.height);
+                missing = true;
+            }
         if (bytes.isEmpty()) return -1;
         for (int i = 0; i < f.images.size(); ++i)
             if (f.images[i].bytes == bytes) return i;
         flow::FlowImage image;
         image.bytes = bytes;
-        image.format = QFileInfo(target).suffix().toLower();
+        image.format = missing ? QStringLiteral("png") : QFileInfo(target).suffix().toLower();
         f.images.push_back(image);
         return int(f.images.size()) - 1;
     };
@@ -671,7 +683,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
     for (const Shape &s : shapes) {
         // Lettering on a path and a horizontal rule that are not set at a place are set in the line, as a picture is.
         if (!s.floating && !inlinePicture && (s.rule || !s.pathText.isEmpty())) {
-            const ItemPtr set = s.rule ? ruleItem(s, std::max(1.0, (m_last.pageW - m_last.left - m_last.right) / 20.0)) : letteringItem(s);
+            const ItemPtr set = s.rule ? ruleItem(s, cellWidth > 0 ? cellWidth : std::max(1.0, (m_last.pageW - m_last.left - m_last.right) / 20.0)) : letteringItem(s);
             if (set) {
                 if (!s.rule) set->wrap.left = set->wrap.right = set->wrap.top = set->wrap.bottom = 0;
                 format->setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(set->toJson()).toJson(QJsonDocument::Compact)));
@@ -765,7 +777,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             } else {
                 auto shape = std::make_shared<ShapeItem>();
                 shape->rect = QRectF(0, 0, s.width, s.height);
-                shape->shape = presetOf(s);
+                shapeOfKind(*shape, s);
                 item = shape;
             }
             // (A shape that says it has no fill or no line has none: a shape's own are a color and a line that it was not given.)

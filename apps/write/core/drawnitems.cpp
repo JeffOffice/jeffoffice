@@ -2,7 +2,10 @@
 
 #include "core/shapetypes.h"
 
+#include <QBuffer>
 #include <QColor>
+#include <QImage>
+#include <QPainter>
 #include <algorithm>
 #include <cmath>
 
@@ -31,6 +34,36 @@ void dressPicture(PictureItem &pic, const Shape &s)
         pic.transparentColor = QColor(QLatin1Char('#') + s.clearColor);
     }
     if (s.borderWeight > 0) pic.stroke = Stroke::line(colorOf(s.borderColor.isEmpty() ? QStringLiteral("000000") : s.borderColor), s.borderWeight);
+}
+
+bool isUndrawnPictureTarget(const QString &target) { return target.endsWith(QLatin1String(".pcz"), Qt::CaseInsensitive); }
+
+QByteArray missingPicturePng(double width, double height)
+{
+    // (Three pixels to the point, and no more than 1,600 across: the frame is drawn as large as it is, and the picture is mostly white.)
+    const double scale = std::min({3.0, 1600 / std::max(1.0, width), 1600 / std::max(1.0, height)});
+    QImage image(std::max(1, int(std::lround(width * scale))), std::max(1, int(std::lround(height * scale))), QImage::Format_RGB32);
+    image.fill(Qt::white);
+    QPainter p(&image);
+    p.scale(scale, scale);
+    p.setPen(QPen(Qt::black, 1.0 / scale * std::max(1.0, scale * 0.75)));
+    p.setBrush(Qt::NoBrush);
+    p.drawRect(QRectF(0.4, 0.4, width - 0.8, height - 0.8));
+    if (width > 24 && height > 24) {
+        const QRectF mark(5, 6, 11, 11);
+        p.setPen(QPen(QColor(120, 120, 120), 0.6));
+        p.setBrush(QColor(245, 245, 245));
+        p.drawRect(mark);
+        p.setPen(QPen(QColor(230, 20, 20), 1.6, Qt::SolidLine, Qt::FlatCap));
+        p.drawLine(mark.topLeft() + QPointF(2.5, 2.5), mark.bottomRight() - QPointF(2.5, 2.5));
+        p.drawLine(mark.topRight() + QPointF(-2.5, 2.5), mark.bottomLeft() + QPointF(2.5, -2.5));
+    }
+    p.end();
+    QByteArray png;
+    QBuffer buffer(&png);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "PNG");
+    return png;
 }
 
 ItemPtr letteringItem(const Shape &s)
@@ -88,6 +121,19 @@ QString presetOf(const Shape &s)
         if (!own.isEmpty()) return own;
     }
     return QStringLiteral("rect");
+}
+
+void shapeOfKind(ShapeItem &item, const Shape &s)
+{
+    item.shape = presetOf(s);
+    if (s.shapeType == 19 && s.kind == Shape::Rect) {
+        const double w = item.rect.width(), h = item.rect.height();
+        const QRectF ellipse(-w, 0, 2 * w, 2 * h);
+        QPainterPath arc;
+        arc.arcMoveTo(ellipse, 90);
+        arc.arcTo(ellipse, 90, -90);
+        item.customPath = arc;
+    }
 }
 
 } // namespace jp::write

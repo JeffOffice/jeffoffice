@@ -406,6 +406,15 @@ private Q_SLOTS:
         QVERIFY(std::abs(shapes[0].cropR - 0.125) < 1e-9);
         QCOMPARE(shapes[0].clearColor, QStringLiteral("000000"));
         QVERIFY(std::abs(shapes[0].borderWeight - 1.5) < 1e-9);
+        // The other form of a picture (r:pict) is kept beside the picture's own (r:id); a picture that has only that one is that one.
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='sp' type='#_x0000_t75' style='width:54pt;height:36pt'><v:imagedata r:id='rId4' r:pict='rId5'/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].embed, QStringLiteral("rId4"));
+        QCOMPARE(shapes[0].pictEmbed, QStringLiteral("rId5"));
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='sq' type='#_x0000_t75' style='width:54pt;height:36pt'><v:imagedata r:pict='rId6'/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].embed, QStringLiteral("rId6"));
+        QCOMPARE(shapes[0].pictEmbed, QStringLiteral("rId6"));
         // A negative cut is room round the picture; a picture that says none is whole, with no clear color or border.
         shapes = readShapes("<w:pict " + ns + "><v:shape id='s2' type='#_x0000_t75' style='width:54pt;height:36pt'><v:imagedata r:id='rId5' croptop='-3277f' chromakey='#FFFFFF'/></v:shape></w:pict>");
         QCOMPARE(int(shapes.size()), 1);
@@ -900,7 +909,7 @@ private Q_SLOTS:
             R"(<w:tc><w:tcPr><w:tcW w:w="5000" w:type="dxa"/><w:gridSpan w:val="2"/><w:vMerge w:val="restart"/><w:tcBorders><w:bottom w:val="single" w:sz="12" w:space="0" w:color="00FF00"/></w:tcBorders><w:shd w:val="clear" w:color="auto" w:fill="FFFF00"/><w:vAlign w:val="center"/></w:tcPr><w:p><w:r><w:t>A</w:t></w:r></w:p>)" + nested + R"(<w:p/></w:tc>)"
             R"(<w:tc><w:tcPr><w:tcW w:w="4000" w:type="dxa"/><w:tcMar><w:left w:w="50" w:type="dxa"/></w:tcMar><w:noWrap/></w:tcPr><w:p><w:r><w:t>B</w:t></w:r></w:p><w:p><w:r><w:t>B2</w:t></w:r></w:p></w:tc></w:tr>)"
             R"(<w:bookmarkStart w:id="3" w:name="between"/><w:bookmarkEnd w:id="3"/>)"
-            R"(<w:tr><w:trPr><w:gridBefore w:val="1"/><w:wBefore w:w="2000" w:type="dxa"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="3000" w:type="dxa"/><w:vMerge/></w:tcPr><w:p/></w:tc><w:tc><w:p><w:r><w:t>C</w:t></w:r></w:p></w:tc></w:tr></w:tbl>)";
+            R"(<w:tr><w:trPr><w:gridBefore w:val="1"/><w:wBefore w:w="2000" w:type="dxa"/><w:hidden/></w:trPr><w:tc><w:tcPr><w:tcW w:w="3000" w:type="dxa"/><w:vMerge/></w:tcPr><w:p/></w:tc><w:tc><w:p><w:r><w:t>C</w:t></w:r></w:p></w:tc></w:tr></w:tbl>)";
         Made m;
         m.body = "<w:p><w:r><w:t>before</w:t></w:r></w:p>" + table + R"(<w:p><w:r><w:t>after</w:t></w:r></w:p>)";
         Document d;
@@ -958,6 +967,7 @@ private Q_SLOTS:
         QCOMPARE(firstRow->height, 500);
         QCOMPARE(firstRow->heightRule, QStringLiteral("exact"));
         QCOMPARE(secondRow->gridBefore, 1);
+        QVERIFY(secondRow->hidden && !firstRow->hidden);   // (a row that says it is hidden is)
         QCOMPARE(secondRow->widthBefore.w, 2000);
         QCOMPARE(firstCell->span, 2);
         QCOMPARE(firstCell->vMerge, QStringLiteral("restart"));

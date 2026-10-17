@@ -21,6 +21,10 @@ office::wml::RunProps runPropsOf(const QTextCharFormat &format);
 QString languageOf(const QVector<office::wml::RawChild> &extra);
 
 QTextBlockFormat blockFormatOf(const office::wml::ParaProps &resolved);
+// Whether text of the automatic color is white on this fill: it is dark (its brightness, by the weights of a gray picture of it, is under a quarter of the range).
+bool isDarkFill(const QColor &fill);
+// Whether the paragraph is filled with a dark color (its shading).
+bool paragraphFillIsDark(const QTextBlockFormat &format);
 office::wml::ParaProps paraPropsOf(const QTextBlockFormat &format);
 
 // The fifteen highlight colors, by the names the file uses.
