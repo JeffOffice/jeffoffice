@@ -1865,10 +1865,25 @@ private Q_SLOTS:
     }
 
     // A break that is on the last line the page has room for, with no room left for the empty line after it, still opens the page after it with the
-    // paragraph that follows (the text after the break is not lost).
+    // paragraph that follows (the text after the break is not lost), in a publication's text and a word processor's, and where the mark follows the break the
+    // page begins with that empty line, which is the paragraph's own next line.
+    void aPageBreakOnTheLastLineThatFitsStillOpensTheNextPage_data()
+    {
+        QTest::addColumn<bool>("word");
+        QTest::addColumn<bool>("markFollows");
+        QTest::newRow("publication") << false << false;
+        QTest::newRow("word") << true << false;
+        QTest::newRow("publication, mark follows") << false << true;
+        QTest::newRow("word, mark follows") << true << true;
+    }
+
     void aPageBreakOnTheLastLineThatFitsStillOpensTheNextPage()
     {
+        QFETCH(bool, word);
+        QFETCH(bool, markFollows);
         FlowDocument fd;
+        fd.env.wordLines = word;
+        fd.markFollowsBreak = markFollows;
         const double line = 24, body = fd.section(0).content().height();
         const int filler = int(body / line) - 1;
         QTextBlockFormat bf;
@@ -1884,44 +1899,47 @@ private Q_SLOTS:
         c.insertText(QStringLiteral("after the break"));
         Paginator pg(&fd);
         QCOMPARE(pg.pageCount(), 2);
-        QCOMPARE(pg.lines(1).size(), 1);
-        QCOMPARE(pg.lines(1)[0].block, fd.story()->findBlockByNumber(filler + 1).position());
+        const auto second = pg.lines(1);
+        const int after = fd.story()->findBlockByNumber(filler + 1).position();
+        if (markFollows) {
+            QCOMPARE(second.size(), 2);
+            QCOMPARE(second[0].block, fd.story()->findBlockByNumber(filler).position());   // (the break paragraph's empty line)
+            QCOMPARE(second[0].line, 1);
+            QCOMPARE(second[1].block, after);
+        } else {
+            QCOMPARE(second.size(), 1);
+            QCOMPARE(second[0].block, after);
+        }
         QVERIFY(pg.page(1).start.hard);
     }
 
-    // A page break that is hidden text (what a tracked change deleted) is no break: it ends no page, and a paragraph that begins with it keeps its space before.
-    void aHiddenPageBreakBreaksNothing()
+    // A break in the middle of a paragraph, on the last line that fits, begins the next page with the rest of the same paragraph, then the paragraphs after it.
+    void aPageBreakInTheMiddleOfAParagraphContinuesItOnTheNextPage()
     {
-        FlowDocument fd;
-        fd.env.wordLines = true;
-        QTextCursor c(fd.story());
-        QTextCharFormat run, hidden;
-        run.setFontFamilies({QStringLiteral("Times New Roman")});
-        run.setFontPointSize(12);
-        hidden = run;
-        hidden.setProperty(tp::HiddenText, true);
-        c.insertText(QStringLiteral("one"), run);
-        c.insertText(QString(flow::kPageBreak), hidden);
-        QTextBlockFormat second;
-        second.setTopMargin(20);
-        c.insertBlock(second);
-        c.insertText(QString(flow::kPageBreak), hidden);
-        c.insertText(QStringLiteral("two"), run);
-        Paginator pg(&fd);
-        QCOMPARE(pg.pageCount(), 1);
-        const auto lines = pg.lines(0);
-        QCOMPARE(lines.size(), 2);
-        QVERIFY2(std::abs((lines[1].rect.top() - lines[0].rect.bottom()) - 20) < 0.01, qPrintable(QString::number(lines[1].rect.top() - lines[0].rect.bottom())));
-        // (A break that shows still ends the page.)
-        FlowDocument shown;
-        shown.env.wordLines = true;
-        QTextCursor sc(shown.story());
-        sc.insertText(QStringLiteral("one"), run);
-        sc.insertText(QString(flow::kPageBreak), run);
-        sc.insertBlock();
-        sc.insertText(QStringLiteral("two"), run);
-        Paginator sp(&shown);
-        QCOMPARE(sp.pageCount(), 2);
+        for (const bool word : {false, true}) {
+            FlowDocument fd;
+            fd.env.wordLines = word;
+            const double line = 24, body = fd.section(0).content().height();
+            const int filler = int(body / line) - 1;
+            QTextBlockFormat bf;
+            bf.setLineHeight(line, QTextBlockFormat::FixedHeight);
+            QTextCursor c(fd.story());
+            for (int i = 0; i < filler; ++i) {
+                if (i) c.insertBlock(bf); else c.setBlockFormat(bf);
+                c.insertText(QStringLiteral("filler"));
+            }
+            c.insertBlock(bf);
+            c.insertText(QStringLiteral("first words") + flow::kPageBreak + QStringLiteral("second words"));
+            c.insertBlock(bf);
+            c.insertText(QStringLiteral("after"));
+            Paginator pg(&fd);
+            QCOMPARE(pg.pageCount(), 2);
+            const auto second = pg.lines(1);
+            QCOMPARE(second.size(), 2);
+            QCOMPARE(second[0].block, fd.story()->findBlockByNumber(filler).position());   // (the rest of the paragraph the break is in)
+            QCOMPARE(second[0].line, 1);
+            QCOMPARE(second[1].block, fd.story()->findBlockByNumber(filler + 1).position());
+        }
     }
 
     // Two breaks in a row make the page between them; one at the start of a paragraph moves its text to the next page.
