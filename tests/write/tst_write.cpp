@@ -4229,6 +4229,23 @@ private Q_SLOTS:
         QVERIFY2(std::abs(lines[3].rect.top() - lines[2].rect.top() - 26) < 0.01, qPrintable(QString::number(lines[3].rect.top() - lines[2].rect.top())));
     }
 
+    // A line of a word processor's text is not broken after a slash ("and/or", an address): it breaks at spaces and hyphens, and a word longer than the line anywhere.
+    void aLineIsNotBrokenAfterASlash()
+    {
+        const char *words[] = {"alpha/beta/gamma", "delta/epsilon", "zeta/eta/theta/iota", "kappa", "lambda/mu"};
+        QByteArray text;
+        for (int i = 0; i < 90; ++i) text += QByteArray(words[(i * 7) % 5]) + " ";
+        auto doc = open(makeDocx("<w:p><w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r></w:p>", kStyles));
+        QVERIFY(doc);
+        const auto lines = doc->pager().lines(0);
+        QVERIFY(lines.size() > 8);
+        const QString plain = doc->story()->toPlainText();
+        for (const auto &l : lines) {
+            const QString shown = plain.mid(l.pos, l.end - l.pos).trimmed();
+            QVERIFY2(!shown.endsWith(QLatin1Char('/')), qPrintable(shown));
+        }
+    }
+
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
     // thousand sections makes no more than the sections it changed (counted, not timed).
     void editingSectionsTouchesOnlyWhatChanged()
