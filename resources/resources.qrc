@@ -1722,6 +1722,8 @@
     <file alias="en/write/index.md">help/en/write/index.md</file>
     <file alias="en/write/keyboard.md">help/en/write/keyboard.md</file>
     <file alias="en/write/open-save.md">help/en/write/open-save.md</file>
+    <file alias="en/write/print.md">help/en/write/print.md</file>
+    <file alias="en/write/spelling.md">help/en/write/spelling.md</file>
     <file alias="en/write/start.md">help/en/write/start.md</file>
     <file alias="es/accessibility.md">help/es/accessibility.md</file>
     <file alias="es/arrange.md">help/es/arrange.md</file>
