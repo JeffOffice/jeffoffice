@@ -175,7 +175,8 @@ Picture *Converter::storedPicture(int index)
                 QString format;
                 pic.bytes = odrawBlip(blip, &format, &m_pictureWork);
                 pic.extension = format;
-                if (pic.bytes.size() > kMaxPictureBytes || format.isEmpty()) pic.bytes.clear();
+                if (pic.bytes.size() > kMaxPictureBytes || format.isEmpty() || m_pictureBytes + pic.bytes.size() > kMaxPictureTotal) pic.bytes.clear();
+                m_pictureBytes += pic.bytes.size();
             }
         }
         // (The size a picture is shown at is its shape's, not its own.)
@@ -322,7 +323,7 @@ QByteArray Converter::shapeXml(qint64 cp, Kind kind, const QString &part)
             }
             textBox = dr.boxOf[which].value(s.spid, -1);
         }
-        Picture *pic = pib ? storedPicture(pib) : nullptr;
+        Picture *pic = pib && textBox < 0 ? storedPicture(pib) : nullptr;   // (a text box's picture is not shown, so not read)
         if (textBox >= 0) what = TextBox;
         else if (pic) what = PictureFrame;
         else if (s.type == 20) what = Line;

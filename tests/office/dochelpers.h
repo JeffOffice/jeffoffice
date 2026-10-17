@@ -107,6 +107,8 @@ public:
 
     // A picture (PNG bytes) set in the data stream, shown at the size in twips; the place to give a run (sprm::picture).
     int addPicture(const QByteArray &png, int widthTwips, int heightTwips);
+    // A picture that is a metafile of that many bytes (all zero), kept deflated as such pictures are: a few kilobytes of file that make that many once read.
+    int addMetafile(int inflatedBytes, int widthTwips, int heightTwips);
     // A rule across the line, in the data stream as a shape with no picture; the place to give a run (sprm::picture).
     int addRule(int heightTwips);
     int footnoteFormat = 0;            // how the document numbers its footnotes (4 lower-case letters)

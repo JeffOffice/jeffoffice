@@ -181,16 +181,16 @@ QByteArray tinyPng(int width, int height)
     return bytes;
 }
 
-int DocWriter::addPicture(const QByteArray &png, int widthTwips, int heightTwips)
+namespace {
+
+// A picture in the data stream: the header with the size it is shown at, an empty drawing, and the file block that holds the picture's record (of the
+// kind `kind`, the BLIP record type, with `instance` and `body` after its header).
+int addPictureRecord(QByteArray &data, int kind, int instance, const QByteArray &body, int widthTwips, int heightTwips)
 {
     const int at = int(data.size());
-    // The drawing records: an empty shape container, then the picture's file block holding its record.
-    QByteArray body(16, 'u');
-    body.append('\xFF');
-    body.append(png);
     QByteArray blipRecord;
-    add16(blipRecord, 0x06E0 << 4);   // (instance in the high twelve bits)
-    add16(blipRecord, 0xF01E);
+    add16(blipRecord, instance << 4);   // (instance in the high twelve bits)
+    add16(blipRecord, kind);
     add32(blipRecord, quint32(body.size()));
     blipRecord.append(body);
     QByteArray fbse;
@@ -228,6 +228,31 @@ int DocWriter::addPicture(const QByteArray &png, int widthTwips, int heightTwips
     data.append(shape);
     data.append(fbseRecord);
     return at;
+}
+
+} // namespace
+
+int DocWriter::addPicture(const QByteArray &png, int widthTwips, int heightTwips)
+{
+    QByteArray body(16, 'u');
+    body.append('\xFF');
+    body.append(png);
+    return addPictureRecord(data, 0xF01E, 0x6E0, body, widthTwips, heightTwips);
+}
+
+int DocWriter::addMetafile(int inflatedBytes, int widthTwips, int heightTwips)
+{
+    // An enhanced metafile of `inflatedBytes` zero bytes, kept deflated (a few kilobytes in the file).
+    const QByteArray deflated = qCompress(QByteArray(inflatedBytes, '\0'), 9).mid(4);
+    QByteArray body(16, 'u');
+    add32(body, quint32(inflatedBytes));   // its size once inflated
+    body.append(QByteArray(16, '\0'));     // its bounds
+    body.append(QByteArray(8, '\0'));      // its size
+    add32(body, quint32(deflated.size()));
+    add8(body, 0);                         // deflated
+    add8(body, 0xFE);
+    body.append(deflated);
+    return addPictureRecord(data, 0xF01A, 0x3D4, body, widthTwips, heightTwips);
 }
 
 int DocWriter::addRule(int heightTwips)
