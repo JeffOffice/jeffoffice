@@ -4450,6 +4450,59 @@ private Q_SLOTS:
         return makeDocx("<w:p><w:r><w:t>before</w:t></w:r></w:p>" + t + "<w:p><w:r><w:t>after</w:t></w:r></w:p>", kStyles);
     }
 
+    // The heights of the rows of the first table on the first page.
+    static QVector<double> rowHeightsOf(const QByteArray &body)
+    {
+        auto doc = open(makeDocx(body, kStyles));
+        QVector<double> out;
+        const auto page = doc->pager().materialize(0);
+        if (!page || page->tables.isEmpty()) return out;
+        const flow::TableFragment &f = *page->tables[0];
+        for (int r = f.firstRow; r < f.endRow; ++r) out << f.heightOf(r);
+        return out;
+    }
+    static QByteArray lineX(const char *side, const char *val, int sz) { return "<w:" + QByteArray(side) + " w:val=\"" + val + "\" w:sz=\"" + QByteArray::number(sz) + "\" w:space=\"0\" w:color=\"auto\"/>"; }
+
+    // The lines a file gives a table take room in its rows (a row is as tall as its cells and the line at its top; the last, the table's foot line too): the heights with lines
+    // are those without them and the lines' widths (a size of 8 is a point).
+    void theLinesOfATableTakeRoomInItsRowsAsTheFileGivesThem()
+    {
+        auto table = [](const QByteArray &borders, const QByteArray &firstCellPr = QByteArray(), const QByteArray &otherCellPr = QByteArray()) {
+            return tableX(rowX(cellX(cellP("a"), firstCellPr)) + rowX(cellX(cellP("b"), otherCellPr)) + rowX(cellX(cellP("c"), otherCellPr)), 1, 2400, "<w:tblW w:w=\"0\" w:type=\"auto\"/>" + borders);
+        };
+        const QVector<double> bare = rowHeightsOf(table(QByteArray()));
+        QCOMPARE(bare.size(), 3);
+        const QByteArray lines = "<w:tblBorders>" + lineX("top", "single", 8) + lineX("bottom", "single", 12) + lineX("insideH", "single", 8) + "</w:tblBorders>";
+        const QVector<double> got = rowHeightsOf(table(lines));
+        QCOMPARE(got.size(), 3);
+        QVERIFY2(std::abs(got[0] - (bare[0] + 1)) < 0.01, qPrintable(QString::number(got[0] - bare[0])));
+        QVERIFY2(std::abs(got[1] - (bare[1] + 1)) < 0.01, qPrintable(QString::number(got[1] - bare[1])));
+        QVERIFY2(std::abs(got[2] - (bare[2] + 1 + 1.5)) < 0.01, qPrintable(QString::number(got[2] - bare[2])));
+        // A cell that says none for a line, with the cell beyond it saying nothing, leaves the table's line; both saying none take it out.
+        const QVector<double> oneSays = rowHeightsOf(table(lines, "<w:tcBorders>" + lineX("bottom", "nil", 0) + "</w:tcBorders>"));
+        QVERIFY2(std::abs(oneSays[1] - (bare[1] + 1)) < 0.01, qPrintable(QString::number(oneSays[1] - bare[1])));
+        const QVector<double> bothSay = rowHeightsOf(table(lines, "<w:tcBorders>" + lineX("bottom", "nil", 0) + "</w:tcBorders>", "<w:tcBorders>" + lineX("top", "nil", 0) + "</w:tcBorders>"));
+        QVERIFY2(std::abs(bothSay[1] - bare[1]) < 0.01, qPrintable(QString::number(bothSay[1] - bare[1])));
+    }
+
+    // A table that says it has space between its cells, even none, has its lines round the lot of them and not the cells' own (so a cell that says none of its lines does not
+    // take the table's away): the first row has the top line and the last the foot line.
+    void aTableWithSpaceBetweenItsCellsHasItsLinesRoundThem()
+    {
+        const QByteArray none = "<w:tcBorders>" + lineX("top", "nil", 0) + lineX("left", "nil", 0) + lineX("bottom", "nil", 0) + lineX("right", "nil", 0) + "</w:tcBorders>";
+        auto table = [&](const QByteArray &spacing) {
+            const QByteArray pr = "<w:tblW w:w=\"0\" w:type=\"auto\"/>" + spacing + "<w:tblBorders>" + lineX("top", "single", 12) + lineX("left", "single", 12) + lineX("bottom", "single", 16) + lineX("right", "single", 12) + "</w:tblBorders>";
+            return tableX(rowX(cellX(cellP("a"), none)) + rowX(cellX(cellP("b"), none)) + rowX(cellX(cellP("c"), none)), 1, 2400, pr);
+        };
+        const QVector<double> apart = rowHeightsOf(table("<w:tblCellSpacing w:w=\"0\" w:type=\"dxa\"/>")), together = rowHeightsOf(table(QByteArray()));
+        QCOMPARE(apart.size(), 3);
+        QCOMPARE(together.size(), 3);
+        // (Without the space, the cells say none of the lines they have at the edge of the table, and none is left.)
+        QVERIFY2(std::abs(apart[0] - (together[0] + 1.5)) < 0.01, qPrintable(QString::number(apart[0] - together[0])));
+        QVERIFY2(std::abs(apart[1] - together[1]) < 0.01, qPrintable(QString::number(apart[1] - together[1])));
+        QVERIFY2(std::abs(apart[2] - (together[2] + 2)) < 0.01, qPrintable(QString::number(apart[2] - together[2])));
+    }
+
     // The saved document is well formed and opens again with the same text.
     static void checkWhole(WriteDoc &doc)
     {
