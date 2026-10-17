@@ -6,6 +6,8 @@
 #include "core/writedoc.h"
 
 #include <QColor>
+#include <QHash>
+#include <QRegularExpression>
 #include <algorithm>
 #include <cmath>
 
@@ -16,6 +18,42 @@ namespace jp::write {
 namespace {
 
 bool tagIs(const Block &b, const char *tag) { return b.tag == QLatin1String(tag); }
+
+// Where a table that is set at a place says it goes (its w:tblpPr, found in the table's own bytes: the properties come first in them), as the flowing document has it; the
+// distances are twentieths of a point in the file.
+std::optional<flow::TableData::Place> floatingPlaceOf(const QByteArray &original)
+{
+    using Place = flow::TableData::Place;
+    static const QRegularExpression element(QStringLiteral("<(?:[\\w.-]+:)?tblpPr\\b([^>]*)>"));
+    static const QRegularExpression attribute(QStringLiteral("\\s(?!xmlns)(?:[\\w.-]+:)?([\\w.-]+)\\s*=\\s*\"([^\"]*)\""));
+    const QRegularExpressionMatch found = element.match(QString::fromUtf8(original.left(20000)));
+    if (!found.hasMatch()) return std::nullopt;
+    QHash<QString, QString> at;
+    auto it = attribute.globalMatch(found.captured(1));
+    while (it.hasNext()) {
+        const QRegularExpressionMatch m = it.next();
+        at.insert(m.captured(1), m.captured(2));
+    }
+    auto points = [&](const char *name) {
+        const double v = at.value(QString::fromLatin1(name)).toDouble() / 20.0;
+        return std::isfinite(v) ? std::clamp(v, -10000.0, 10000.0) : 0.0;
+    };
+    auto from = [&](const QString &v, Place::From def) { return v == QLatin1String("margin") ? Place::From::Margin : v == QLatin1String("page") ? Place::From::Page : v == QLatin1String("text") ? Place::From::Text : def; };
+    auto spec = [&](const QString &v) {
+        return v == QLatin1String("center") ? Place::Spec::Center : v == QLatin1String("right") || v == QLatin1String("bottom") || v == QLatin1String("outside") ? Place::Spec::End
+               : v == QLatin1String("left") || v == QLatin1String("top") || v == QLatin1String("inside") ? Place::Spec::Start : Place::Spec::None;
+    };
+    Place p;
+    p.across = from(at.value(QStringLiteral("horzAnchor")), Place::From::Text);
+    p.down = from(at.value(QStringLiteral("vertAnchor")), Place::From::Text);
+    p.acrossSpec = spec(at.value(QStringLiteral("tblpXSpec")));
+    p.downSpec = spec(at.value(QStringLiteral("tblpYSpec")));
+    p.x = points("tblpX");
+    p.y = points("tblpY");
+    p.room = QMarginsF(std::max(0.0, points("leftFromText")), std::max(0.0, points("topFromText")), std::max(0.0, points("rightFromText")), std::max(0.0, points("bottomFromText")));
+    // (tblOverlap, whether the table may be over another that is set at a place, is kept in the file as it is and is not used: such tables are drawn where they ask.)
+    return p;
+}
 
 QColor colorOfHex(const QString &hex)
 {
@@ -177,6 +215,7 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
             // (Before the 2013 program, the indent is to the first cell's text, and the table's edge is left of it by the cell's margin.)
             t.indent = points(m.indent);
             t.indentToText = m_compat < 15;
+            if (direct.floating) t.place = floatingPlaceOf(direct.original);
             l.tablePart = std::make_shared<TablePart>();
             l.tablePart->open = blk.raw;
             l.tablePart->mark = blk.table;

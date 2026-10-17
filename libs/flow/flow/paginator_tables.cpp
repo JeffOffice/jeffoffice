@@ -264,6 +264,12 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
     for (;;) {
         // A table: its rows, from the one at the position, each as one line.
         if (const int sp = ix.spanAt(pos); sp >= 0) {
+            // (One that is set at a place has no lines: the text goes round it, and the page draws its rows where it is, at the paragraph after it.)
+            if (floatsTable(sp)) {
+                pos = ix.spans()[size_t(sp)].to;
+                if (!story->findBlock(pos).isValid() || (span.end >= 0 && pos >= span.end)) return out;
+                continue;
+            }
             const std::shared_ptr<TableLayout> table = m_tables->layout(sp);
             if (!table) return out;
             const int first = table->rowOfPosition(pos);
@@ -393,6 +399,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                 fr = frames.mid(f);
                 base = f;
                 t = StoryLayout::Span();
+                t.inLayout = span.inLayout;
                 t.keepRules = span.keepRules;
                 t.window = span.window;
                 t.overLines = span.overLines;

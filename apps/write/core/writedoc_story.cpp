@@ -167,6 +167,67 @@ QTextCharFormat asDeleted(QTextCharFormat format)
     return format;
 }
 
+// The properties of a frame (w:framePr, an element of a paragraph's properties kept as written), by their local names; empty for something that is not one.
+QHash<QString, QString> framePropertiesOf(const QVector<RawChild> &extra, QByteArray *xml)
+{
+    static const QRegularExpression isFrame(QStringLiteral("^<(?:[\\w.-]+:)?framePr[\\s/>]"));
+    static const QRegularExpression attribute(QStringLiteral("\\s(?!xmlns)(?:[\\w.-]+:)?([\\w.-]+)\\s*=\\s*\"([^\"]*)\""));
+    QHash<QString, QString> out;
+    for (const RawChild &ch : extra) {
+        const QString head = QString::fromUtf8(ch.xml.left(3000));
+        if (!isFrame.match(head).hasMatch()) continue;
+        *xml = ch.xml;
+        const int close = head.indexOf(QLatin1Char('>'));
+        auto it = attribute.globalMatch(head.left(close < 0 ? head.size() : close));
+        while (it.hasNext()) {
+            const QRegularExpressionMatch m = it.next();
+            out.insert(m.captured(1), m.captured(2));
+        }
+        break;
+    }
+    return out;
+}
+
+// The object a frame is, from its properties: where it is set (from the text, the margin, or the page, by an offset or at the start, middle, or end), how wide and how tall,
+// the room round it, and how the text goes round it.
+flow::FloatingObject frameObjectOf(const QHash<QString, QString> &at)
+{
+    using FO = flow::FloatingObject;
+    auto points = [&](const char *name) { return std::clamp(std::isfinite(at.value(QString::fromLatin1(name)).toDouble()) ? at.value(QString::fromLatin1(name)).toDouble() / 20.0 : 0.0, -10000.0, 10000.0); };
+    FO o;
+    o.item = std::make_shared<TextItem>();
+    o.frameWidth = std::max(0.0, points("w"));
+    // (A height that is given is at least that, unless the frame says its height is the text's, or exactly that.)
+    const QString rule = at.value(QStringLiteral("hRule"));
+    o.frameHeight = rule == QLatin1String("auto") ? 0.0 : std::max(0.0, points("h"));
+    o.frameExactHeight = rule == QLatin1String("exact");
+    const QString hAnchor = at.value(QStringLiteral("hAnchor")), vAnchor = at.value(QStringLiteral("vAnchor"));
+    o.hRel = hAnchor == QLatin1String("margin") ? FO::Rel::Margin : hAnchor == QLatin1String("page") ? FO::Rel::Page : FO::Rel::Column;
+    o.vRel = vAnchor == QLatin1String("margin") ? FO::Rel::Margin : vAnchor == QLatin1String("page") ? FO::Rel::Page : FO::Rel::Paragraph;
+    o.dx = points("x");
+    o.dy = points("y");
+    const QString xAlign = at.value(QStringLiteral("xAlign")), yAlign = at.value(QStringLiteral("yAlign"));
+    o.hAlign = xAlign == QLatin1String("center") ? FO::Align::Center : xAlign == QLatin1String("right") || xAlign == QLatin1String("outside") ? FO::Align::End
+               : xAlign == QLatin1String("left") || xAlign == QLatin1String("inside") ? FO::Align::Start : FO::Align::None;
+    o.vAlign = yAlign == QLatin1String("center") ? FO::Align::Center : yAlign == QLatin1String("bottom") || yAlign == QLatin1String("outside") ? FO::Align::End
+               : yAlign == QLatin1String("top") || yAlign == QLatin1String("inside") ? FO::Align::Start : FO::Align::None;
+    const double hSpace = std::max(0.0, points("hSpace")), vSpace = std::max(0.0, points("vSpace"));
+    o.gap = QMarginsF(hSpace, vSpace, hSpace, vSpace);
+    const QString wrap = at.value(QStringLiteral("wrap"));
+    o.wrap = wrap == QLatin1String("none") ? FO::Wrap::None : wrap == QLatin1String("notBeside") ? FO::Wrap::TopBottom : FO::Wrap::Square;
+    // A drop cap is a frame at the start of its paragraph, which the text goes round.
+    if (!at.value(QStringLiteral("dropCap")).isEmpty() && at.value(QStringLiteral("dropCap")) != QLatin1String("none")) {
+        o.hRel = FO::Rel::Column;
+        o.vRel = FO::Rel::Paragraph;
+        o.dx = o.dy = 0;
+        o.hAlign = FO::Align::Start;
+        o.vAlign = FO::Align::None;
+        o.wrap = FO::Wrap::Square;
+        o.frameShrinks = true;
+    }
+    return o;
+}
+
 } // namespace
 
 // Fills `story` from the elements of a body or of a header or footer. A header's or footer's (`header`) fields for the page's number and the page
@@ -223,9 +284,13 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             }
     }
     int paragraphsMade = 0, endnoteNumber = 0, blockNumber = -1;
+    // The frame of the paragraph before (its properties as written, and its key): the paragraphs next to one another that have the same properties are one frame.
+    QByteArray lastFrameXml;
+    int lastFrameKey = 0;
     for (const Block &blk : body) {
         ++blockNumber;
         if (header && (blk.isRaw || ++paragraphsMade > kMostHeaderParagraphs)) continue;
+        if (tables.isStructural(blk) || blk.isRaw) lastFrameKey = 0;
         if (tables.isStructural(blk)) {
             // The parts of a table (its start, rows, and cells) become the records of the cells that its paragraphs are given. What was kept after a cell's last
             // paragraph goes after it; for a cell that ends in a table, with the cell.
@@ -292,6 +357,33 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         resolved.ilvl = level;
         QTextBlockFormat bf = blockFormatOf(resolved);
         if (tables.key()) bf.setProperty(flow::fp::Cell, tables.key());
+        // A paragraph of a frame in the body is set apart from the text: no lines and no room there, and a text box where the frame asks, at the paragraph after it.
+        if (!header && !tables.key()) {
+            QByteArray frameXml;
+            const QHash<QString, QString> frameAt = framePropertiesOf(direct.extra, &frameXml);
+            if (frameXml.isEmpty()) {
+                lastFrameKey = 0;
+                lastFrameXml.clear();
+            } else {
+                if (lastFrameKey == 0 || frameXml != lastFrameXml) {
+                    lastFrameKey = 0;
+                    if (m_flow->objects.size() < kMostObjects) {
+                        m_flow->objects.push_back(frameObjectOf(frameAt));
+                        const int id = int(m_flow->objects.size());
+                        m_flow->objects[id - 1].frame = int(m_flow->frames.size()) + 1;
+                        m_flow->frames.push_back(id);
+                        lastFrameKey = int(m_flow->frames.size());
+                    }
+                    lastFrameXml = frameXml;
+                }
+                if (lastFrameKey > 0) {
+                    bf.setProperty(flow::fp::Frame, lastFrameKey);
+                    bf.setProperty(tp::OutOfLayout, true);
+                }
+            }
+        } else {
+            lastFrameKey = 0;
+        }
         // An empty paragraph that is a continuous section break takes no room.
         if (!header && blockNumber < continuousAfter.size() && continuousAfter[blockNumber] && p.content.isEmpty()) bf.setProperty(tp::OutOfFlow, true);
         if (header) {
@@ -540,10 +632,25 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         }
         if (f.objects.size() >= kMostObjects) break;
         flow::FloatingObject o;
-        o.hRel = s.hRel == Shape::Margin ? flow::FloatingObject::Rel::Margin : s.hRel == Shape::Page ? flow::FloatingObject::Rel::Page
-                 : s.hRel == Shape::Character ? flow::FloatingObject::Rel::Character : flow::FloatingObject::Rel::Column;
-        o.vRel = s.vRel == Shape::Margin ? flow::FloatingObject::Rel::Margin : s.vRel == Shape::Page ? flow::FloatingObject::Rel::Page
-                 : s.vRel == Shape::LineOf ? flow::FloatingObject::Rel::Line : s.vRel == Shape::Character ? flow::FloatingObject::Rel::Line : flow::FloatingObject::Rel::Paragraph;
+        using Rel = flow::FloatingObject::Rel;
+        // (Across, a position measured from the paragraph or the line is from the column; down, one from the column is from the paragraph, and one from a character is from the line.)
+        auto relOf = [](Shape::Rel r, bool across) {
+            switch (r) {
+            case Shape::Margin: return Rel::Margin;
+            case Shape::Page: return Rel::Page;
+            case Shape::Character: return across ? Rel::Character : Rel::Line;
+            case Shape::LineOf: return across ? Rel::Column : Rel::Line;
+            case Shape::LeftMargin: return Rel::LeftMargin;
+            case Shape::RightMargin: return Rel::RightMargin;
+            case Shape::TopMargin: return Rel::TopMargin;
+            case Shape::BottomMargin: return Rel::BottomMargin;
+            case Shape::InsideMargin: return Rel::InsideMargin;
+            case Shape::OutsideMargin: return Rel::OutsideMargin;
+            default: return across ? Rel::Column : Rel::Paragraph;
+            }
+        };
+        o.hRel = relOf(s.hRel, true);
+        o.vRel = relOf(s.vRel, false);
         auto align = [](Shape::Align a) { return a == Shape::Start ? flow::FloatingObject::Align::Start : a == Shape::Center ? flow::FloatingObject::Align::Center
                                                                 : a == Shape::End ? flow::FloatingObject::Align::End : flow::FloatingObject::Align::None; };
         o.hAlign = align(s.hAlign);
@@ -551,7 +658,11 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         o.dx = s.left;
         o.dy = s.top;
         o.behind = s.behind;
-        o.wrap = s.wrap == Shape::Square || s.wrap == Shape::Tight ? flow::FloatingObject::Wrap::Square : s.wrap == Shape::TopBottom ? flow::FloatingObject::Wrap::TopBottom : flow::FloatingObject::Wrap::None;
+        o.z = s.z;
+        o.wrap = s.wrap == Shape::Square ? flow::FloatingObject::Wrap::Square : s.wrap == Shape::Tight ? flow::FloatingObject::Wrap::Tight
+                 : s.wrap == Shape::TopBottom ? flow::FloatingObject::Wrap::TopBottom : flow::FloatingObject::Wrap::None;
+        o.side = s.side == Shape::SideLeft ? flow::FloatingObject::Side::Left : s.side == Shape::SideRight ? flow::FloatingObject::Side::Right
+                 : s.side == Shape::SideLargest ? flow::FloatingObject::Side::Largest : flow::FloatingObject::Side::Both;
         o.gap = QMarginsF(s.gapLeft, s.gapTop, s.gapRight, s.gapBottom);
         if (s.kind == Shape::Picture) {
             const int image = pictureOf(s);
@@ -591,8 +702,9 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
                 shape->shape = s.kind == Shape::Oval ? QStringLiteral("ellipse") : QStringLiteral("rect");
                 item = shape;
             }
-            if (s.filled && !s.fillColor.isEmpty()) item->fill = Fill::solid(colorOf(s.fillColor));
-            if (s.stroked && s.strokeWeight > 0) item->stroke = Stroke::line(colorOf(s.strokeColor), s.strokeWeight);
+            // (A shape that says it has no fill or no line has none: a shape's own are a color and a line that it was not given.)
+            item->fill = s.filled && !s.fillColor.isEmpty() ? Fill::solid(colorOf(s.fillColor)) : Fill::none();
+            item->stroke = s.stroked && s.strokeWeight > 0 ? Stroke::line(colorOf(s.strokeColor), s.strokeWeight) : Stroke::none();
             item->rotation = s.rotation;
             item->flipH = s.flipH;
             item->flipV = s.flipV;

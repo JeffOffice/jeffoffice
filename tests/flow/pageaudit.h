@@ -8,9 +8,11 @@
 #include "core/document.h"
 #include "flow/flowdocument.h"
 #include "flow/paginator.h"
+#include "render/renderer.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 
+#include <QHash>
 #include <QMap>
 #include <QRectF>
 #include <QString>
@@ -230,6 +232,7 @@ struct NoteBox {
 struct PlacedLine {
     QRectF rect;
     QStringList cites;
+    double below = 0;   // the spacing under its text, which `rect` takes in
 };
 
 inline QStringList citesIn(const QTextDocument *story, int from, int to)
@@ -262,11 +265,272 @@ inline QVector<PlacedLine> placedLines(flow::Paginator &pg, const QTextDocument 
         if (column < 0 || column >= m.boxes.size()) continue;
         const Item *box = m.doc->item(m.boxes[column]);
         if (!box) continue;
-        out.push_back({QRectF(box->rect.left() + l.rect.left(), box->rect.top() + l.rect.top(), l.rect.width(), l.rect.height()), citesIn(story, l.pos, l.end)});
+        out.push_back({QRectF(box->rect.left() + l.rect.left(), box->rect.top() + l.rect.top(), l.rect.width(), l.rect.height()), citesIn(story, l.pos, l.end), l.below});
     }
     for (const auto &t : m.tables)
-        t->forLines([&](const StoryLayout::LineBrief &ln, const QRectF &rect) { out.push_back({rect, citesIn(story, ln.pos, ln.end)}); });
+        t->forLines([&](const StoryLayout::LineBrief &ln, const QRectF &rect) { out.push_back({rect, citesIn(story, ln.pos, ln.end), 0.0}); });
     return out;
+}
+
+// The objects of a made page that the text goes round: each with the rectangle that its text keeps out of (the object and the room round it, as its wrap says;
+// a top-and-bottom wrap is as wide as the page), and how the text may stand beside it.
+struct Wall {
+    QRectF rect;
+    bool topBottom = false;
+    Wrap::Side side = Wrap::Both;
+};
+
+inline QVector<Wall> wallsOf(const flow::MaterializedPage &m)
+{
+    QVector<Wall> out;
+    for (const auto &item : m.doc->pages[0]->items) {
+        const Wrap &w = item->wrap;
+        if (w.mode != Wrap::Square && w.mode != Wrap::Tight && w.mode != Wrap::TopBottom) continue;
+        Wall wall;
+        wall.rect = item->bounds().adjusted(-w.left, -w.top, w.right, w.bottom);
+        wall.topBottom = w.mode == Wrap::TopBottom;
+        wall.side = w.side;
+        out << wall;
+    }
+    return out;
+}
+
+// What is wrong with the way the text of page `k` goes round the objects that ask it, or nothing. From the lines' own places and the objects' rectangles: a line whose
+// height (its text, not the space under it) reaches into the height of a wall stands clear of it: with a top-and-bottom wrap it is not there at all; beside a
+// square one it is not in the rectangle, and with a side asked for it is left of it (or right of it), or on the side with more room (the larger).
+inline QString wrapProblems(flow::Paginator &pg, const QTextDocument *story, int k, const flow::MaterializedPage &m)
+{
+    const QVector<Wall> walls = wallsOf(m);
+    if (walls.isEmpty()) return QString();
+    const auto lines = pg.lines(k);
+    QVector<int> frames;
+    for (const auto &l : lines)
+        if (!story->findBlock(l.pos).blockFormat().intProperty(flow::fp::Cell) && !frames.contains(l.frame)) frames << l.frame;
+    std::sort(frames.begin(), frames.end());
+    for (const auto &l : lines) {
+        if (story->findBlock(l.pos).blockFormat().intProperty(flow::fp::Cell)) continue;
+        const int column = int(frames.indexOf(l.frame));
+        if (column < 0 || column >= m.boxes.size()) continue;
+        const Item *box = m.doc->item(m.boxes[column]);
+        if (!box) continue;
+        // (The height of its text, which the objects are kept clear of: the spacing round a line is not.)
+        const QRectF r(box->rect.left() + l.rect.left(), box->rect.top() + l.rect.top(), l.rect.width(), l.band > 0 ? l.band : l.rect.height() - l.below);
+        for (const Wall &w : walls) {
+            if (!(r.top() < w.rect.bottom() - 0.05 && r.bottom() > w.rect.top() + 0.05)) continue;   // (not beside it)
+            if (!(w.rect.right() > box->rect.left() + 0.55 && w.rect.left() < box->rect.right() - 0.55)) continue;   // (not in the column)
+            QString why;
+            if (w.topBottom) {
+                why = QStringLiteral("a line is beside an object with a wrap that leaves no text beside it");
+            } else if (w.side == Wrap::LeftOnly) {
+                if (r.right() > w.rect.left() + 0.05) why = QStringLiteral("a line reaches past the left of an object that has the text on its left only");
+            } else if (w.side == Wrap::RightOnly) {
+                if (r.left() < w.rect.right() - 0.05) why = QStringLiteral("a line begins left of the right of an object that has the text on its right only");
+            } else if (w.side == Wrap::Largest) {
+                const bool leftIsLarger = w.rect.left() - box->rect.left() >= box->rect.right() - w.rect.right();
+                if (leftIsLarger ? r.right() > w.rect.left() + 0.05 : r.left() < w.rect.right() - 0.05) why = QStringLiteral("a line is on the smaller side of an object that has the text on the larger");
+            } else if (r.left() < w.rect.right() - 0.05 && r.right() > w.rect.left() + 0.05) {
+                why = QStringLiteral("a line overlaps an object's wrap rectangle");
+            }
+            if (!why.isEmpty())
+                return QStringLiteral("page %1: %2 (the line %3-%4 at %5, the rectangle %6)").arg(k).arg(why).arg(l.pos).arg(l.end).arg(rectText(r), rectText(w.rect));
+        }
+    }
+    return QString();
+}
+
+// Whether the page layer, which draws a made page, sets the page's text where the paginator's lines say it is: the page's story laid out over its text boxes (the layer's
+// own, with the objects it puts the text of each box round), each line of the paginator's that is not a table's row found by its place in the story, in the column of it
+// and where the paginator has it. The objects that the text goes round are what makes the two differ.
+inline QString pageLayerProblems(flow::Paginator &pg, const QTextDocument *story, int k, const flow::MaterializedPage &m)
+{
+    if (m.boxes.isEmpty()) return QString();
+    const auto *first = dynamic_cast<const TextItem *>(m.doc->item(m.boxes[0]));
+    if (!first) return QString();
+    LayoutCache cache;
+    const LayoutCache::FrameLayout fl = cache.textFrame(*m.doc, *first, m.number, RenderOptions());
+    if (!fl.layout) return QStringLiteral("page %1: the page layer has no layout for the text").arg(k);
+    QMap<int, StoryLayout::LineBrief> byPos;
+    for (const StoryLayout::LineBrief &l : fl.layout->lineBriefs())
+        if (l.frame >= 0) byPos.insert(l.pos, l);
+    const auto lines = pg.lines(k);
+    QVector<int> frames;
+    for (const auto &l : lines)
+        if (!story->findBlock(l.pos).blockFormat().intProperty(flow::fp::Cell) && !frames.contains(l.frame)) frames << l.frame;
+    std::sort(frames.begin(), frames.end());
+    // (Where the boxes and walls are, and with JP_AUDIT_DUMP the lines of both, for what goes wrong.)
+    auto where = [&]() {
+        QStringList out;
+        for (const QString &id : m.boxes)
+            if (const Item *box = m.doc->item(id)) out << QStringLiteral("box %1").arg(rectText(box->rect));
+        for (const Wall &w : wallsOf(m)) out << QStringLiteral("wall %1").arg(rectText(w.rect));
+        if (qEnvironmentVariableIsSet("JP_AUDIT_DUMP")) {
+            for (const Wall &w : wallsOf(m)) out << QStringLiteral("wall exact %1 %2 %3 %4").arg(w.rect.left(), 0, 'f', 6).arg(w.rect.top(), 0, 'f', 6).arg(w.rect.right(), 0, 'f', 6).arg(w.rect.bottom(), 0, 'f', 6);
+            for (const QString &id : m.boxes)
+                if (const Item *box = m.doc->item(id)) out << QStringLiteral("box exact %1 %2 %3 %4").arg(box->rect.left(), 0, 'f', 6).arg(box->rect.top(), 0, 'f', 6).arg(box->rect.width(), 0, 'f', 6).arg(box->rect.height(), 0, 'f', 6);
+            for (const auto &o : lines)
+                if (story->findBlock(o.pos).blockFormat().intProperty(flow::fp::Cell)) {
+                    out << QStringLiteral("ROW %1-%2 f%3 %4").arg(o.pos).arg(o.end).arg(o.frame).arg(rectText(o.rect));
+                } else {
+                    const auto pl = byPos.constFind(o.pos - m.storyFrom);
+                    out << QStringLiteral("L %1-%2 f%3 top %4 band %5 | %6").arg(o.pos).arg(o.end).arg(o.frame).arg(o.rect.top(), 0, 'f', 6).arg(o.band, 0, 'f', 6)
+                               .arg(pl == byPos.constEnd() ? QStringLiteral("-") : QStringLiteral("f%1 %2").arg(pl->frame).arg(rectText(pl->rect)));
+                }
+        }
+        if (qEnvironmentVariableIsSet("JP_AUDIT_DUMP")) qInfo("AUDIT page %d:\n%s", k, qPrintable(out.join(QLatin1Char('\n'))));
+        return out.mid(0, 3).join(QStringLiteral("; "));
+    };
+    for (const auto &l : lines) {
+        if (story->findBlock(l.pos).blockFormat().intProperty(flow::fp::Cell)) continue;
+        // (The empty line that a page break leaves at the top of the next page, which the page keeps, is in no column: it is drawn nowhere.)
+        if (int(frames.indexOf(l.frame)) >= m.boxes.size()) continue;
+        const auto at = byPos.constFind(l.pos - m.storyFrom);
+        if (at == byPos.constEnd()) return QStringLiteral("page %1: the line at %2 is not in the page layer's layout of the text [%3]").arg(k).arg(l.pos).arg(where());
+        const int column = int(frames.indexOf(l.frame));
+        if (at->frame != column || std::abs(at->rect.top() - l.rect.top()) > 0.05 || std::abs(at->rect.left() - l.rect.left()) > 0.05 || std::abs(at->rect.width() - l.rect.width()) > 0.05)
+            return QStringLiteral("page %1: the line at %2 is in column %3 at %4 for the paginator, and in column %5 at %6 for the page layer [%7]").arg(k).arg(l.pos).arg(column).arg(rectText(l.rect)).arg(at->frame).arg(rectText(at->rect), where());
+    }
+    return QString();
+}
+
+// Whether the lines of the pages hold the text of the story whole, or what is wrong. Every paragraph that takes part in the layout (not one in a cell, or one of a frame that
+// is a box of its own: `floatProblems` sees to those) has lines that begin where it does, each beginning where the one before ended, the last ending where the paragraph does; the lines of the pages, in
+// order, are of no other paragraph; and none is repeated. (The words of a page that a wall or an object took the room of go on a later page: none are lost.)
+inline QString coverageProblems(flow::Paginator &pg, const QTextDocument *story)
+{
+    QVector<std::pair<int, int>> lines;
+    for (int k = 0; k < pg.pageCount(); ++k)
+        for (const auto &ln : pg.lines(k)) {
+            if (story->findBlock(ln.pos).blockFormat().intProperty(flow::fp::Cell)) continue;
+            lines.push_back({ln.pos, ln.end});
+        }
+    int at = 0;
+    // (Characters that show nothing and take no room, hidden text and the marks where an object is anchored, belong to no line: the lines go round them.)
+    auto onlyHidden = [&](const QTextBlock &b, int from, int to) {
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment frag = it.fragment();
+            if (frag.position() >= to || frag.position() + frag.length() <= from) continue;
+            const QTextCharFormat cf = frag.charFormat();
+            if (!cf.boolProperty(tp::HiddenText) && cf.intProperty(flow::fp::AnchorId) <= 0) return false;
+        }
+        return true;
+    };
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        const QTextBlockFormat f = b.blockFormat();
+        if (f.intProperty(flow::fp::Cell)) continue;
+        // (A frame's paragraph has lines when the paginator sets it in the text, as it does one that it has no place to set: all of them, then; else none, and the frame is a box.)
+        const bool apart = f.intProperty(flow::fp::Frame) || f.boolProperty(tp::OutOfLayout);
+        const int end = b.position() + b.length() - 1;
+        int next = b.position();
+        bool any = false;
+        while (at < lines.size() && lines[at].first >= b.position() && lines[at].first <= end) {
+            if (lines[at].first != next && !(lines[at].first > next && onlyHidden(b, next, lines[at].first)))
+                return QStringLiteral("the paragraph at %1 (to %2): a line begins at %3, where the one before it ended at %4").arg(b.position()).arg(end).arg(lines[at].first).arg(next);
+            next = lines[at].second;
+            ++at;
+            any = true;
+        }
+        if (!any && apart) continue;
+        if (!any) return QStringLiteral("the paragraph at %1 (to %2) is on no line of the %3 pages").arg(b.position()).arg(end).arg(pg.pageCount());
+        if (next != end && !onlyHidden(b, next, end)) return QStringLiteral("the paragraph at %1 (to %2) is laid out as far as %3 only (%4 characters lost)").arg(b.position()).arg(end).arg(next).arg(end - next);
+    }
+    if (at != lines.size()) return QStringLiteral("a line at %1 is of no paragraph that takes part, or is out of order (%2 of %3 lines used)").arg(lines[at].first).arg(at).arg(lines.size());
+    return QString();
+}
+
+// Whether every frame and every table set at a place is somewhere, once: a frame is a box of its own on one page (its paragraphs have no lines) or in the text (all of them
+// have), and a table set at a place is drawn at its place on one page (its rows have no lines) or is rows in the text. Empty if so.
+inline QString floatProblems(flow::Paginator &pg, const flow::FlowDocument &fd)
+{
+    const QTextDocument *story = fd.story();
+    struct Group {
+        int from = 0, to = 0;
+        QString text;               // a frame's, as the box it would be shows it (a paragraph for each, with the references to notes left out)
+        bool table = false;
+        int lines = 0, fragments = 0;
+    };
+    QVector<Group> groups;
+    QHash<QString, int> boxesWith;   // the boxes of the pages by their text
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        const QTextBlockFormat f = b.blockFormat();
+        if (const int cell = f.intProperty(flow::fp::Cell)) {
+            const flow::CellRecord *rec = fd.tables.get(cell);
+            while (rec && rec->parent) rec = fd.tables.get(rec->parent);
+            if (!rec || !rec->table || !rec->table->place) continue;
+            // (The cells of one table are next to one another: one group, ending where the paragraph that is not in it begins.)
+            QTextBlock e = b;
+            while (e.next().isValid()) {
+                const int k = e.next().blockFormat().intProperty(flow::fp::Cell);
+                const flow::CellRecord *r2 = k ? fd.tables.get(k) : nullptr;
+                while (r2 && r2->parent) r2 = fd.tables.get(r2->parent);
+                if (!r2 || r2->table.get() != rec->table.get()) break;
+                e = e.next();
+            }
+            Group g;
+            g.from = b.position();
+            g.to = e.position() + e.length();
+            g.table = true;
+            groups.push_back(g);
+            b = e;
+            continue;
+        }
+        if (f.intProperty(flow::fp::Frame) <= 0) continue;
+        const int key = f.intProperty(flow::fp::Frame);
+        Group g;
+        g.from = b.position();
+        QStringList paragraphs;
+        QTextBlock e = b;
+        for (;; e = e.next()) {
+            paragraphs << e.text().remove(QChar::ObjectReplacementCharacter);
+            if (!e.next().isValid() || e.next().blockFormat().intProperty(flow::fp::Frame) != key || e.next().blockFormat().intProperty(flow::fp::Cell)) break;
+        }
+        g.to = e.position() + e.length();
+        g.text = paragraphs.join(QLatin1Char('\n'));
+        groups.push_back(g);
+        b = e;
+    }
+    for (int k = 0; k < pg.pageCount(); ++k) {
+        for (const auto &ln : pg.lines(k))
+            for (Group &g : groups)
+                if (ln.pos >= g.from && ln.pos < g.to) ++g.lines;
+        const std::unique_ptr<flow::MaterializedPage> m = pg.materialize(k);
+        if (!m) continue;
+        for (const auto &fragment : m->tables)
+            for (Group &g : groups)
+                if (g.table && fragment->floating && fragment->contains(g.from)) ++g.fragments;
+        for (const auto &it : m->doc->pages[0]->items)
+            if (it->type() == ItemType::Text && it->id.startsWith(QLatin1String("flow-object-")))
+                if (const Story *st = m->doc->story(static_cast<const TextItem *>(it.get())->storyId))
+                    ++boxesWith[st->doc->toPlainText().remove(QChar::ObjectReplacementCharacter)];
+    }
+    // (Frames with the same text are told apart by number only: the boxes with a text are as many as the frames with it that have no lines.)
+    QHash<QString, int> wanted;
+    for (const Group &g : groups) {
+        if (g.table) {
+            if (!((g.fragments == 1 && g.lines == 0) || (g.fragments == 0 && g.lines >= 1)))
+                return QStringLiteral("the table set at a place at %1 is drawn %2 times at its place and has %3 lines in the text").arg(g.from).arg(g.fragments).arg(g.lines);
+            continue;
+        }
+        wanted[g.text] += g.lines > 0 ? 0 : 1;
+    }
+    for (auto it = wanted.cbegin(); it != wanted.cend(); ++it)
+        if (it.value() != boxesWith.value(it.key()))
+            return QStringLiteral("the frame \"%1\" is in %2 boxes of the pages and %3 of the frames with that text have none of their paragraphs on a line").arg(shown(it.key())).arg(boxesWith.value(it.key())).arg(it.value());
+    return QString();
+}
+
+// What is wrong with the way the text of every page goes round its objects, or nothing: the lines stand clear of the walls (`wrapProblems`), and the page layer sets the
+// text of each page where the paginator's lines are (`pageLayerProblems`), for the pages that have walls.
+inline QString wallProblems(flow::Paginator &pg, const QTextDocument *story)
+{
+    for (int k = 0; k < pg.pageCount(); ++k) {
+        const std::unique_ptr<flow::MaterializedPage> m = pg.materialize(k);
+        if (!m) continue;
+        if (wallsOf(*m).isEmpty()) continue;
+        if (const QString bad = wrapProblems(pg, story, k, *m); !bad.isEmpty()) return bad;
+        if (m->tables.isEmpty())   // (the rows of a table are a stand-in line in the page's text, which the page layer sets as it likes in columns: `placementProblems` checks them)
+            if (const QString bad = pageLayerProblems(pg, story, k, *m); !bad.isEmpty()) return bad;
+    }
+    return QString();
 }
 
 // What is wrong with the pages of the paginator, or nothing. The parts are checked against one another, from the layout's own metrics:
@@ -294,6 +558,7 @@ inline QString problems(flow::Paginator &pg, const QTextDocument *story, const Q
             if (f->rect.top() < area.bottom() - 0.05) return QStringLiteral("page %1: the footer begins at %2, above where the text area ends (%3)").arg(k).arg(num(f->rect.top()), num(area.bottom()));
         // The tables.
         for (const auto &t : m->tables) {
+            if (t->floating) continue;   // (set at a place of its own, wherever the file asks: not among the lines of the text)
             const QRectF r = t->rect();
             if (r.top() < area.top() - 0.05)
                 return QStringLiteral("page %1: rows %2 to %3 of a table begin at %4, above the text area (%5)").arg(k).arg(t->firstRow).arg(t->endRow).arg(num(r.top()), num(area.top()));
@@ -323,6 +588,9 @@ inline QString problems(flow::Paginator &pg, const QTextDocument *story, const Q
             box.number = numberShownIn(*m, n);
             boxes << box;
         }
+        if (const QString bad = wrapProblems(pg, story, k, *m); !bad.isEmpty()) return bad;
+        if (!wallsOf(*m).isEmpty() && m->tables.isEmpty())   // (the rows of a table are a stand-in line in the page's text: `placementProblems` checks those)
+            if (const QString bad = pageLayerProblems(pg, story, k, *m); !bad.isEmpty()) return bad;
         // The page's lines in page coordinates: those of the text (a box to a column), and those of the cells of the tables.
         const QVector<PlacedLine> lines = placedLines(pg, story, k, *m);
         int continuations = 0;
@@ -331,7 +599,7 @@ inline QString problems(flow::Paginator &pg, const QTextDocument *story, const Q
             if (n->rect.bottom() > area.bottom() + 0.05) return QStringLiteral("page %1: a note box ends at %2, below the text area's foot (%3)").arg(k).arg(num(n->rect.bottom()), num(area.bottom()));
             if (n->rect.top() < area.top() - 0.05) return QStringLiteral("page %1: a note box begins at %2, above the text area (%3)").arg(k).arg(num(n->rect.top()), num(area.top()));
             for (const auto &t : m->tables)
-                if (overlap(n->rect, t->rect())) return QStringLiteral("page %1: a note (%2) is over a table (%3)").arg(k).arg(rectText(n->rect), rectText(t->rect()));
+                if (!t->floating && overlap(n->rect, t->rect())) return QStringLiteral("page %1: a note (%2) is over a table (%3)").arg(k).arg(rectText(n->rect), rectText(t->rect()));
             for (const QString &bid : m->boxes)
                 if (const Item *text = m->doc->item(bid))
                     if (overlap(n->rect, text->rect)) return QStringLiteral("page %1: a note (%2) is over the text (%3)").arg(k).arg(rectText(n->rect), rectText(text->rect));
@@ -406,6 +674,8 @@ inline QString placementProblems(flow::Paginator &pg, const flow::FlowDocument &
     fs.columns = 1;
     fs.hyphenate = fd.hyphenate;
     fs.hyphenZone = fd.hyphenZone;
+    // (The objects the text goes round, as the page layer finds them for the box.)
+    fs.obstacles = Renderer::wrapObstacles(*m->doc, *box);
     StoryLayout lay;
     lay.build(st->doc.get(), {fs}, env ? *env : fd.env);
     QMap<int, StoryLayout::LineBrief> byPos;

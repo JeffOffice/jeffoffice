@@ -72,7 +72,13 @@ bool offOf(const QString &v) { return v == QLatin1String("f") || v == QLatin1Str
 
 Shape::Rel relOf(const QString &v, Shape::Rel def)
 {
-    if (v == QLatin1String("margin") || v == QLatin1String("inner-margin-area") || v == QLatin1String("outer-margin-area")) return Shape::Margin;
+    if (v == QLatin1String("margin")) return Shape::Margin;
+    if (v == QLatin1String("inner-margin-area")) return Shape::InsideMargin;
+    if (v == QLatin1String("outer-margin-area")) return Shape::OutsideMargin;
+    if (v == QLatin1String("left-margin-area")) return Shape::LeftMargin;
+    if (v == QLatin1String("right-margin-area")) return Shape::RightMargin;
+    if (v == QLatin1String("top-margin-area")) return Shape::TopMargin;
+    if (v == QLatin1String("bottom-margin-area")) return Shape::BottomMargin;
     if (v == QLatin1String("page")) return Shape::Page;
     if (v == QLatin1String("text") || v == QLatin1String("column")) return Shape::Column;
     if (v == QLatin1String("paragraph")) return Shape::Paragraph;
@@ -87,6 +93,15 @@ Shape::Align alignOf(const QString &v)
     if (v == QLatin1String("center")) return Shape::Center;
     if (v == QLatin1String("right") || v == QLatin1String("bottom") || v == QLatin1String("outside")) return Shape::End;
     return Shape::NoAlign;
+}
+
+// The side of a wrap that the text goes on (DrawingML's wrapText, VML's side): both unless it says another.
+Shape::Side sideOf(const QString &v)
+{
+    if (v == QLatin1String("left")) return Shape::SideLeft;
+    if (v == QLatin1String("right")) return Shape::SideRight;
+    if (v == QLatin1String("largest")) return Shape::SideLargest;
+    return Shape::SideBoth;
 }
 
 // The prefixes an element kept as written may use, declared (the tree of a part declares them on its root, and a slice of it is not given those).
@@ -175,6 +190,7 @@ public:
                 s.wrap = type == QLatin1String("square") ? Shape::Square : type == QLatin1String("tight") || type == QLatin1String("through") ? Shape::Tight
                          : type == QLatin1String("topAndBottom") ? Shape::TopBottom : Shape::WrapNone;
                 if (!s.floating) s.wrap = Shape::WrapNone;
+                s.side = sideOf(t.attr(c, "side"));
             } else if (name == "fill") {
                 if (offOf(t.attr(c, "on"))) s.filled = false;
                 if (const QString color = colorOf(t.attr(c, "color")); !color.isEmpty() && t.attr(n, "fillcolor").isEmpty()) s.fillColor = color;
@@ -265,6 +281,7 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
         s.floating = name == "anchor";
         s.kind = Shape::Picture;
         s.behind = t.attr(c, "behindDoc") == QLatin1String("1") || t.attr(c, "behindDoc") == QLatin1String("true");
+        s.z = int(std::clamp<qint64>(t.attr(c, "relativeHeight").toLongLong(), -2000000000, 2000000000));
         s.gapLeft = emu(t.attr(c, "distL"));
         s.gapRight = emu(t.attr(c, "distR"));
         s.gapTop = emu(t.attr(c, "distT"));
@@ -276,21 +293,25 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
                 s.height = std::clamp(emu(t.attr(k, "cy")), 0.0, 10000.0);
             } else if (tag == "positionH" || tag == "positionV") {
                 const bool horizontal = tag == "positionH";
-                const Shape::Rel rel = relOf(t.attr(k, "relativeFrom").toLower() == QLatin1String("leftmargin") || t.attr(k, "relativeFrom") == QLatin1String("insideMargin") ? QStringLiteral("margin")
-                                             : t.attr(k, "relativeFrom") == QLatin1String("topMargin") ? QStringLiteral("margin")
-                                             : t.attr(k, "relativeFrom") == QLatin1String("column") ? QStringLiteral("column")
-                                             : t.attr(k, "relativeFrom").toLower(), horizontal ? Shape::Column : Shape::Paragraph);
+                // (The strips: leftMargin and rightMargin across, topMargin and bottomMargin down; inside and outside either way.)
+                const QString from = t.attr(k, "relativeFrom");
+                static const QHash<QString, Shape::Rel> strips{{QStringLiteral("leftMargin"), Shape::LeftMargin}, {QStringLiteral("rightMargin"), Shape::RightMargin},
+                                                              {QStringLiteral("topMargin"), Shape::TopMargin}, {QStringLiteral("bottomMargin"), Shape::BottomMargin},
+                                                              {QStringLiteral("insideMargin"), Shape::InsideMargin}, {QStringLiteral("outsideMargin"), Shape::OutsideMargin}};
+                const Shape::Rel rel = strips.contains(from) ? strips.value(from) : relOf(from.toLower(), horizontal ? Shape::Column : Shape::Paragraph);
                 (horizontal ? s.hRel : s.vRel) = rel;
                 for (int p = t.firstChild(k); p >= 0; p = t.next(p)) {
                     if (t.localName(p) == "posOffset") (horizontal ? s.left : s.top) = emu(t.text(p).trimmed());
                     else if (t.localName(p) == "align") (horizontal ? s.hAlign : s.vAlign) = alignOf(t.text(p).trimmed());
                 }
-            } else if (tag == "wrapSquare") {
-                s.wrap = Shape::Square;
-            } else if (tag == "wrapTight" || tag == "wrapThrough") {
-                s.wrap = Shape::Tight;
-            } else if (tag == "wrapTopAndBottom") {
-                s.wrap = Shape::TopBottom;
+            } else if (tag == "wrapSquare" || tag == "wrapTight" || tag == "wrapThrough" || tag == "wrapTopAndBottom") {
+                s.wrap = tag == "wrapSquare" ? Shape::Square : tag == "wrapTopAndBottom" ? Shape::TopBottom : Shape::Tight;
+                s.side = sideOf(t.attr(k, "wrapText"));
+                // The wrap's own distances come before the object's.
+                if (t.has(k, "distL")) s.gapLeft = emu(t.attr(k, "distL"));
+                if (t.has(k, "distR")) s.gapRight = emu(t.attr(k, "distR"));
+                if (t.has(k, "distT")) s.gapTop = emu(t.attr(k, "distT"));
+                if (t.has(k, "distB")) s.gapBottom = emu(t.attr(k, "distB"));
             } else if (tag == "docPr") {
                 s.alt = t.attr(k, "descr");
             }
