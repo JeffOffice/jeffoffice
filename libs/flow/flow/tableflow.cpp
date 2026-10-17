@@ -1135,13 +1135,19 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
         p->save();
         p->setClipRect(QRectF(pl.clip).adjusted(-2, -2, 2, 2), Qt::IntersectClip);
         // (A line across is in the row it is the top of, from its edge down; the foot of the table is in its last row, up from the edge.)
-        const TableLine top = edgeOf(*layout, index, Side::Top);
+        // (A table that goes on after a page break has its outer lines there: the top at the page's first row, the foot at its last.)
+        const TableData &td = layout->data();
+        const CellData &cd = c.rec->cell;
+        const CellData &bottomCell = (c.last >= 0 ? layout->cell(c.last) : c).rec->cell;
+        const bool beginsPage = !header && firstRow > 0 && c.row == firstRow, endsPage = endRow < layout->rowCount() && c.row + c.rows == endRow;
+        const TableLine top = beginsPage && !td.spaced ? lineBetween(std::nullopt, cd.top, false, true, td.insideH, td.top) : edgeOf(*layout, index, Side::Top);
         const double down = roomOf(top) / 2;
         strokeLine(p, top, r.topLeft() + QPointF(0, down), r.topRight() + QPointF(0, down), picture);
         strokeLine(p, edgeOf(*layout, index, Side::Left), r.topLeft(), r.bottomLeft(), picture);
         const Part *part = c.rows == 1 ? partOf(c.row) : nullptr;
-        if (cellCovering(*layout, c.row + c.rows, c.col) < 0 || (part && part->piece.next != 0)) {   // (and the foot of a row that goes on past a page break)
-            const TableLine bottom = edgeOf(*layout, index, Side::Bottom);
+        if (cellCovering(*layout, c.row + c.rows, c.col) < 0 || endsPage || (part && part->piece.next != 0)) {   // (and the foot of a row that goes on past a page break)
+            const bool cut = endsPage || (part && part->piece.next != 0);
+            const TableLine bottom = cut && !td.spaced ? lineBetween(bottomCell.bottom, std::nullopt, true, false, td.insideH, td.bottom) : edgeOf(*layout, index, Side::Bottom);
             const double up = roomOf(bottom) / 2;
             strokeLine(p, bottom, r.bottomLeft() - QPointF(0, up), r.bottomRight() - QPointF(0, up), picture);
         }
@@ -1153,8 +1159,8 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
     if (d.spaced) {
         const QRectF whole = rect();
         const double down = roomOf(d.top) / 2, up = roomOf(d.bottom) / 2;
-        if (firstRow == 0 || header) strokeLine(p, d.top, whole.topLeft() + QPointF(0, down), whole.topRight() + QPointF(0, down), picture);
-        if (endRow >= layout->rowCount()) strokeLine(p, d.bottom, whole.bottomLeft() - QPointF(0, up), whole.bottomRight() - QPointF(0, up), picture);
+        strokeLine(p, d.top, whole.topLeft() + QPointF(0, down), whole.topRight() + QPointF(0, down), picture);
+        strokeLine(p, d.bottom, whole.bottomLeft() - QPointF(0, up), whole.bottomRight() - QPointF(0, up), picture);
         strokeLine(p, d.left, whole.topLeft(), whole.bottomLeft(), picture);
         strokeLine(p, d.right, whole.topRight(), whole.bottomRight(), picture);
     }
