@@ -4389,6 +4389,25 @@ private Q_SLOTS:
         QVERIFY2(std::abs(second[0].rect.top()) < 0.01, qPrintable(QString::number(second[0].rect.top())));   // (the section after begins at the top of its page)
     }
 
+    // A paragraph that begins with a page break and is kept with the next puts the break at the foot of the page the text before it ends on: the text after the break
+    // is on the next page, so the keeping is not of that page's room (and no page holds only the break).
+    void aKeptParagraphThatBeginsWithAPageBreakStaysOnTheFullPage()
+    {
+        // (A line of 596 of the 648 points of the text area; the break's paragraph is of 40-point text, which takes about 46 of the 52 that are left, and what follows it a line of
+        // 12-point text, which does not fit after it: kept with that, the paragraph would leave the page.)
+        const QByteArray filler = "<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"11920\" w:lineRule=\"exact\"/></w:pPr><w:r><w:t>Filling</w:t></w:r></w:p>";
+        const QByteArray big = "<w:p><w:pPr><w:keepNext/><w:spacing w:before=\"0\" w:after=\"0\"/></w:pPr><w:r><w:rPr><w:sz w:val=\"80\"/></w:rPr><w:br w:type=\"page\"/></w:r><w:r><w:rPr><w:sz w:val=\"80\"/></w:rPr><w:t>Chapter</w:t></w:r></w:p>";
+        const QByteArray after = "<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\"/></w:pPr><w:r><w:t>After.</w:t></w:r></w:p>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto doc = open(makeDocxWithParts(filler + big + after, sect, {}));
+        QVERIFY(doc);
+        QCOMPARE(doc->pager().pageCount(), 2);
+        QCOMPARE(int(doc->pager().lines(0).size()), 2);   // (the filler's line and the break's)
+        const auto second = doc->pager().lines(1);
+        QVERIFY(second.size() >= 2);
+        QVERIFY2(std::abs(second[0].rect.top()) < 0.01, qPrintable(QString::number(second[0].rect.top())));
+    }
+
     // A symbol of a font that isn't there is its character in the stand-in (Calibri): the line it is on is Calibri's, taller than Times New Roman's.
     void aSymbolOfAMissingFontMakesItsLineTheStandIns()
     {

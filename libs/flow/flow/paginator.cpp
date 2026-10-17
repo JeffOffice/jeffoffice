@@ -534,9 +534,16 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
             }
             kept = 0;
             while (kept < run.lines.size() && run.lines[kept].frame >= run.firstFrame && run.lines[kept].frame < over) ++kept;
-            // The empty paragraph that ends a section before a continuous one takes no room: it is on the page the text before it ends on, though the engine, finding no
-            // line's room left in the frame, put it in the next.
-            while (kept < run.lines.size() && run.lines[kept].frame >= over && run.lines[kept].line == 0 && flags(run.lines[kept].block).outOfFlow && flags(run.lines[kept].block).sectionAfter) ++kept;
+            // Lines that take no room are on the page the text before them ends on, though the engine, finding no room for a line in the frame (as it first reckons
+            // the line), put them in the next: the empty paragraph that ends a section before a continuous one, and the first line of a paragraph that holds only
+            // the page break it begins with.
+            while (kept < run.lines.size() && run.lines[kept].frame >= over && run.lines[kept].line == 0) {
+                const StoryLayout::LineBrief &ln = run.lines[kept];
+                const BlockFlags &bf = flags(ln.block);
+                const bool noRoom = (bf.outOfFlow && bf.sectionAfter) || (ln.rect.height() < 0.001 && ln.end == ln.pos + 1 && m_doc->story()->characterAt(ln.pos) == kPageBreak);
+                if (!noRoom) break;
+                ++kept;
+            }
             run.firstSpace = space;
             // Space before the first paragraph as tall as the page, or nearly, leaves no room for a line: it is cut to what the page holds (none).
             if (kept > 0 || !space || run.lines.isEmpty()) break;
