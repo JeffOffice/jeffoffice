@@ -84,7 +84,6 @@ struct CellContent {
         std::shared_ptr<TableFragment> table;   // or a table inside the cell, whole
         int foot = 0, end = 0;                  // the footnotes and endnotes before it, in the story
         QVector<NoteRef> notes;                 // the footnotes its text cites, in order
-        QVector<bool> tied;                     // for each line of its text (in the order of lineBriefs()): whether it is tied to the line before it (see UnitLine)
         bool dummy = false;                     // the empty paragraph that ends a cell after a table in it: the program's mark of the cell's end, which takes no room
     };
     std::vector<Part> parts;
@@ -159,7 +158,6 @@ public:
     struct UnitLine {
         double top = 0, bottom = 0;
         QVector<NoteRef> notes;
-        bool tied = false;                  // no cut may be made between it and the line before it (widow and orphan control, a paragraph kept together)
         double pad = 0;                     // the room a part that begins at it has above it: the margin and lines at the top of the cell of a table in the cell that the row goes on in
     };
     struct Row {
