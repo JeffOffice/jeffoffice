@@ -9516,6 +9516,38 @@ private Q_SLOTS:
         }
     }
 
+    // A table set at a place from its paragraph is set from the top of that paragraph, above the space before it: the offset does not count the room the paragraph leaves
+    // above its first line.
+    void aTableSetFromItsParagraphIsSetAboveTheSpaceBeforeIt()
+    {
+        auto fd = std::make_unique<FlowDocument>();
+        fd->env.wordLines = true;
+        fillStory(fd->story(), 4, 17, [](int n, QTextBlockFormat &bf) { if (n == 1) bf.setTopMargin(20); }, 3, 6);
+        TestTable spec;
+        spec.rows = 2;
+        spec.cols = 2;
+        spec.columnWidth = 60;
+        spec.setTable = [](TableData &t) { TableData::Place p; p.across = TableData::Place::From::Margin; p.acrossSpec = TableData::Place::Spec::End; p.y = 5; t.place = p; };
+        addTableAfter(*fd, 0, spec);
+        Paginator pg(fd.get());
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        QRectF table;
+        for (const auto &t : page->tables)
+            if (t->floating) table = t->rect();
+        QVERIFY(!table.isNull());
+        // (The first line of the paragraph after the table, where the text would set it: the table is beside the text, which has room.)
+        int paragraph = -1;
+        for (QTextBlock b = fd->story()->begin(); b.isValid(); b = b.next())
+            if (b.blockFormat().topMargin() == 20) paragraph = b.position();
+        double natural = -1;
+        for (const auto &l : pg.lines(0))
+            if (l.line == 0 && l.block == paragraph) natural = l.rect.top() - l.pushed;
+        QVERIFY(natural > 0);
+        const double top = pg.page(0).content.top() + natural - 20 + 5;
+        QVERIFY2(std::abs(table.top() - top) < 0.01, qPrintable(QStringLiteral("the table is at %1, the paragraph's top and the offset say %2").arg(table.top()).arg(top)));
+    }
+
     // A picture set in the text of a cell is in the page's document and is drawn with the table, where its line is.
     void aPictureInTheTextOfACellIsDrawnWithTheTable()
     {

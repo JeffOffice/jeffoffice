@@ -595,6 +595,8 @@ QVector<Paginator::Anchor> Paginator::floatAnchors(const QVector<AnchorLine> &li
                 if (!a.frame) continue;
                 a.object = 1;   // (not the document's own: `frame` is the object)
                 a.table = r.span;
+                // A table is set from the top of its paragraph, above the space before it: what the first line is below it is not in the offset.
+                a.paragraphTop -= std::max(0.0, story->findBlock(l.block).blockFormat().topMargin());
             }
             out << a;
             if (r.key <= 0 || m_doc->objects.isEmpty()) continue;
