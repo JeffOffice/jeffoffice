@@ -4277,6 +4277,23 @@ private Q_SLOTS:
         QVERIFY2(!outlined->stroke.isNone() && std::abs(outlined->stroke.width - 1.5) < 0.01, qPrintable(QString::number(outlined->stroke.width)));
     }
 
+    // A number or bullet counts in its line by its ascent over the text's descent: a thirty-six point bullet before twelve-point text makes the line its ascent and the text's
+    // descent, not its whole height (the room it has below the baseline is not the line's).
+    void aBulletRaisesItsLineByItsAscentOverTheTextsDescent()
+    {
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"bullet\"/><w:lvlText w:val=\"\xEF\x82\xB7\"/>"
+                                     "<w:rPr><w:rFonts w:ascii=\"Symbol\" w:hAnsi=\"Symbol\"/><w:sz w:val=\"72\"/></w:rPr></w:lvl></w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        const QByteArray body = "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/></w:pPr>"
+                                "<w:r><w:rPr><w:rFonts w:ascii=\"Times New Roman\" w:hAnsi=\"Times New Roman\"/><w:sz w:val=\"24\"/></w:rPr><w:t>Item</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles, numbering));
+        QVERIFY(doc);
+        const auto lines = doc->pager().lines(0);
+        QVERIFY(!lines.isEmpty());
+        // (The Symbol line has the ascent 2059 and the Times New Roman the descent 443, of 2048 to the em.)
+        const double want = 36 * 2059 / 2048.0 + 12 * 443 / 2048.0;
+        QVERIFY2(std::abs(lines[0].rect.height() - want) < 0.05, qPrintable(QString::number(lines[0].rect.height()) + " want " + QString::number(want)));
+    }
+
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
     // thousand sections makes no more than the sections it changed (counted, not timed).
     void editingSectionsTouchesOnlyWhatChanged()
