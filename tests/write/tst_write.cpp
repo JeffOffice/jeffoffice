@@ -4957,6 +4957,34 @@ private Q_SLOTS:
         QVERIFY(doc->story()->begin().textList()->format().boolProperty(tp::BulletOutline));
     }
 
+    // A bullet drawn to the box the reference pages measured (Wingdings' heavy arrow) is that box outlined when its level has the outline effect, not the font's own glyph at its own
+    // size: solid and outlined, it has the same box to a pixel or two.
+    void anOutlinedBulletOfAMeasuredFontIsItsBoxOutlined()
+    {
+        auto boxOf = [&](const QByteArray &effect) {
+            const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"bullet\"/><w:lvlText w:val=\"\xEF\x83\xA8\"/>"
+                                         "<w:pPr><w:ind w:left=\"1440\" w:hanging=\"720\"/></w:pPr><w:rPr><w:rFonts w:ascii=\"Wingdings\" w:hAnsi=\"Wingdings\"/>" + effect + "<w:sz w:val=\"96\"/></w:rPr></w:lvl></w:abstractNum>"
+                                         "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+            const QByteArray body = "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:t>Item</w:t></w:r></w:p>";
+            const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+            auto d = open(makeDocxWithParts(body, sect, {}, QByteArray(), kStyles, numbering));
+            PageView view;
+            view.resize(1000, 700);
+            view.setDocument(d.get());
+            const QImage img = view.pageImage(0, 816);
+            const double perPoint = 816 / 612.0;
+            QRect ink;
+            for (int y = int(60 * perPoint); y < int(300 * perPoint); ++y)
+                for (int x = int(60 * perPoint); x < int(140 * perPoint); ++x)
+                    if (qGray(img.pixel(x, y)) < 215) ink = ink.isNull() ? QRect(x, y, 1, 1) : ink.united(QRect(x, y, 1, 1));
+            return ink;
+        };
+        const QRect solid = boxOf(QByteArray()), hollow = boxOf("<w:outline/>");
+        QVERIFY(solid.width() > 8 && hollow.width() > 8);
+        QVERIFY2(std::abs(solid.left() - hollow.left()) <= 2 && std::abs(solid.top() - hollow.top()) <= 2 && std::abs(solid.width() - hollow.width()) <= 2 && std::abs(solid.height() - hollow.height()) <= 2,
+                 qPrintable(QStringLiteral("%1,%2 %3x%4 against %5,%6 %7x%8").arg(solid.left()).arg(solid.top()).arg(solid.width()).arg(solid.height()).arg(hollow.left()).arg(hollow.top()).arg(hollow.width()).arg(hollow.height())));
+    }
+
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
     // thousand sections makes no more than the sections it changed (counted, not timed).
     void editingSectionsTouchesOnlyWhatChanged()
