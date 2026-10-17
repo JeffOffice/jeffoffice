@@ -246,8 +246,9 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
     const Section &sec = m_doc->section(st.section);
     // (The text after a page break that begins its paragraph is the paragraph's first line: it has the space before. The rest of a paragraph after a break that has
     // something before it on its line goes on, with none.)
+    // (The break that begins the page is the paragraph's first character: not any break in it, whatever its first character is.)
     const QTextBlock atStart = m_doc->story()->findBlock(st.pos);
-    const bool breakFirst = atStart.isValid() && m_doc->story()->characterAt(atStart.position()) == kPageBreak;
+    const bool breakFirst = atStart.isValid() && st.pos == atStart.position() + 1 && m_doc->story()->characterAt(atStart.position()) == kPageBreak;
     run.keepsSpace = st.hard && st.skip > 0 && breakFirst;
     const double colW = sec.columnWidth();
     const int number = numberOf(index);

@@ -406,7 +406,8 @@ QString materializedDiffers(FlowDocument &fd, Paginator &pg, int k, LayoutCache 
                 return QStringLiteral("page %1 column %2 line %3 is in another place").arg(k).arg(c).arg(i);
             if (got[i].docPos + page->storyFrom != want.pos || got[i].docEnd + page->storyFrom != want.end)
                 return QStringLiteral("page %1 column %2 line %3 is another part of the text").arg(k).arg(c).arg(i);
-            if (got[i].text != text.mid(want.pos, want.end - want.pos)) return QStringLiteral("page %1 column %2 line %3 has other words").arg(k).arg(c).arg(i);
+            // (The page layer shows a page break as a line break.)
+            if (got[i].text != text.mid(want.pos, want.end - want.pos).replace(QChar(0x000C), QChar(0x2028))) return QStringLiteral("page %1 column %2 line %3 has other words").arg(k).arg(c).arg(i);
         }
     }
     return QString();
@@ -3951,6 +3952,33 @@ private Q_SLOTS:
         bad = differenceFromFresh(fd, pg);
         QVERIFY2(bad.isEmpty(), qPrintable(bad));
         QCOMPARE(pg.pageCount(), 3);
+    }
+
+    // The space before a paragraph is there at the top of the page that a break which begins the paragraph opens, and not after a break that has something before it on its
+    // paragraph's first line: of "break, a, break, b" the second page has it and the third has not.
+    void theSpaceBeforeIsAfterTheBreakThatBeginsTheParagraphOnly()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        QTextCursor c(fd.story());
+        QTextBlockFormat bf;
+        bf.setTopMargin(20);
+        c.setBlockFormat(bf);
+        c.insertText(QString(flow::kPageBreak) + QStringLiteral("a") + QString(flow::kPageBreak) + QStringLiteral("b"));
+        c.insertBlock(bf);
+        c.insertText(QStringLiteral("a paragraph after"));
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 3);
+        const auto second = pg.lines(1), third = pg.lines(2);
+        QVERIFY(!second.isEmpty() && !third.isEmpty());
+        QVERIFY2(std::abs(second[0].rect.top() - 20) < 0.01, qPrintable(QStringLiteral("the second page's first line is at %1").arg(second[0].rect.top())));
+        QVERIFY2(std::abs(third[0].rect.top()) < 0.01, qPrintable(QStringLiteral("the third page's first line is at %1").arg(third[0].rect.top())));
+        // The pages made for painting have the same lines.
+        LayoutCache cache;
+        for (int k = 1; k < 3; ++k) {
+            const QString differs = materializedDiffers(fd, pg, k, cache);
+            QVERIFY2(differs.isEmpty(), qPrintable(differs));
+        }
     }
 
     // A continuous section break does not end the page when the sections' sheets are the same, whatever their margins: the text of the second begins below the text of the
