@@ -27,6 +27,7 @@
 #include "../office/dochelpers.h"
 #include "../timing.h"
 #include "office/package.h"
+#include "render/renderer.h"
 #include "rtcheck.h"
 #include "app/spelling.h"
 #include "text/textprops.h"
@@ -3737,6 +3738,43 @@ private Q_SLOTS:
         QVERIFY(!standIns.contains(QStringLiteral("odd panose")));
     }
 
+    // The file's compatibility options that change how lines are set reach the layout as fields of their own, the flow document's and each page's (not in the table
+    // of stand-ins): w:suppressTopSpacingWP gives lines of whole points, w:noLeading drops the leading. The practice documents that carry w:suppressTopSpacingWP are
+    // all of the 2003 programs' compatibility mode (11); a file in the 2010 programs' mode (14) or the 2013 programs' (15) has no whole-point lines.
+    void compatibilityOptionsOfLineSpacingReachTheLayout()
+    {
+        const QByteArray old = "<w:compat><w:suppressTopSpacingWP/><w:noLeading/></w:compat>";
+        auto inMode = [](int mode) {
+            return QByteArray("<w:compat><w:suppressTopSpacingWP/><w:noLeading/><w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"") +
+                   QByteArray::number(mode) + "\"/></w:compat>";
+        };
+        struct Seen { bool wholeFlow, noLeadingFlow, wholePage, noLeadingPage, tableEmpty; };
+        auto seen = [&](const QByteArray &settings) {
+            auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {}, settings));
+            Seen s{};
+            if (!doc) return s;
+            const auto &env = doc->flow().env;
+            s.wholeFlow = env.wordWholePointLines;
+            s.noLeadingFlow = env.wordNoLeading;
+            s.tableEmpty = env.standIns.isEmpty();
+            if (const auto page = doc->pager().materialize(0)) {
+                const LayoutEnv pageEnv = Renderer::layoutEnv(*page->doc);
+                s.wholePage = pageEnv.wordWholePointLines;
+                s.noLeadingPage = pageEnv.wordNoLeading;
+            }
+            return s;
+        };
+        const Seen a = seen(old);
+        QVERIFY(a.wholeFlow && a.noLeadingFlow && a.wholePage && a.noLeadingPage);
+        QVERIFY2(a.tableEmpty, "the options are not entries of the table of stand-ins");
+        QVERIFY(seen(inMode(11)).wholeFlow && seen(inMode(12)).wholeFlow && seen(inMode(12)).wholePage);   // (the 2003 and the 2007 programs')
+        const Seen d = seen(inMode(14));
+        QVERIFY2(!d.wholeFlow && !d.wholePage, "a file of mode 14 has no whole-point lines");
+        const Seen b = seen(inMode(15));
+        QVERIFY2(!b.wholeFlow && !b.wholePage, "a file of mode 15 has no whole-point lines");
+        QVERIFY(b.noLeadingFlow && b.noLeadingPage);
+        const Seen c = seen("<w:compat/>");
+        QVERIFY(!c.wholeFlow && !c.noLeadingFlow && !c.wholePage && !c.noLeadingPage && c.tableEmpty);
     }
 
     // A font table of thousands of fonts that say nothing is read in step with its size.

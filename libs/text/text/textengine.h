@@ -181,6 +181,11 @@ struct LayoutEnv {
     // The tab after a number or bullet goes to the next tab stop past it (the paragraph's own, its list's, or a default one), not to the hanging indent (a file's
     // compatibility option, w:doNotUseIndentAsNumberingTabStop); the lines after the first are at the indent all the same (LayoutEnv::wordLines).
     bool wordNoNumberIndentStop = false;
+    // A word processor's lines are of whole points, each a font's single line taken up to the next whole point with the leading and the part added above the text (the
+    // older word processor's spacing that a file asks for with w:suppressTopSpacingWP), and a font's line has no leading but its Windows ascent and descent
+    // (w:noLeading) (LayoutEnv::wordLines).
+    bool wordWholePointLines = false;
+    bool wordNoLeading = false;
     // Percent taken off each paragraph's line spacing (a slide's text the
     // presentation program shrank to fit: a:normAutofit's lnSpcReduction).
     double lineCut = 0;
@@ -191,13 +196,6 @@ struct LayoutEnv {
     // What a word processor sets a family it doesn't have in (wordLines): the family wordStandInFor chose from the file's font table for each (lower-cased), if
     // that is one it has; any other is set in Calibri.
     QHash<QString, QString> standIns;
-    // Options of the file that change how a word processor sets its lines (wordLines) ride in `standIns` under names no family has, as it is the one table of the
-    // file that a page's layout is given besides the flags above: lines of whole points, each a font's single line taken up to the next whole point (the older
-    // word processor's spacing that a file asks for with w:suppressTopSpacingWP; the leading and what is added are above the text), and fonts with no leading but their
-    // Windows ascent and descent (w:noLeading).
-    static constexpr const char *kWholePointLines = "\x01whole-point-lines", *kNoLeading = "\x01no-leading";
-    bool wordWholePointLines() const { return standIns.contains(QString::fromLatin1(kWholePointLines)); }
-    bool wordNoLeading() const { return standIns.contains(QString::fromLatin1(kNoLeading)); }
     QString aliasOf(const QString &family) const { return familyAliases.isEmpty() ? family : familyAliases.value(family.toLower(), family); }
     QString key() const;
 };

@@ -2404,6 +2404,27 @@ private Q_SLOTS:
         QCOMPARE(lay.lineInfo(1).size(), 0);
     }
 
+    // Lines of whole points follow every kind of line spacing: a multiple is a multiple of the whole-point line (Times New Roman 11, 12.65 high, is 13), an at-least
+    // height more than that is a descent above its bottom, and one less is the whole-point line itself; an exact height keeps the parts in proportion.
+    void wholePointLinesFollowMultipleAtLeastAndExactSpacing()
+    {
+        const QString tnr = QStringLiteral("Times New Roman");
+        const double descent = 443 / 2048.0 * 11, whole = 13;
+        auto one = [&](QTextBlockFormat::LineHeightTypes type, double value) {
+            return wordLinesOf({{tnr, 11}}, [&](int, QTextBlockFormat &bf) { bf.setLineHeight(value, type); }, true, [](LayoutEnv &env) { env.wordWholePointLines = true; }).first();
+        };
+        auto twice = one(QTextBlockFormat::ProportionalHeight, 200);
+        QVERIFY2(std::abs(twice.rect.height() - 2 * whole) < 0.01, qPrintable(QString::number(twice.rect.height())));
+        QVERIFY2(std::abs(twice.baseline - (whole - descent)) < 0.02, qPrintable(QString::number(twice.baseline)));
+        auto most = one(QTextBlockFormat::MinimumHeight, 20);
+        QVERIFY(std::abs(most.rect.height() - 20) < 0.01);
+        QVERIFY2(std::abs(most.baseline - (20 - descent)) < 0.02, qPrintable(QString::number(most.baseline)));
+        auto least = one(QTextBlockFormat::MinimumHeight, 10);
+        QVERIFY(std::abs(least.rect.height() - whole) < 0.01);
+        QVERIFY2(std::abs(least.baseline - (whole - descent)) < 0.02, qPrintable(QString::number(least.baseline)));
+        auto exact = one(QTextBlockFormat::FixedHeight, 26);
+        QVERIFY(std::abs(exact.rect.height() - 26) < 0.01);
+        QVERIFY2(std::abs(exact.baseline - (whole - descent) * 26 / whole) < 0.02, qPrintable(QString::number(exact.baseline)));
     }
 
     // A font the file's font table gives an alternate for is set in that alternate when the word processor has it, whether or not this machine has it (a
@@ -2531,9 +2552,9 @@ private Q_SLOTS:
         QVERIFY(indented.rect.height() > single12 + 1);
     }
 
-    // A file that asks for the spacing of an older word processor (w:suppressTopSpacingWP, LayoutEnv::kWholePointLines) has lines of whole points: a font's single
+    // A file that asks for the spacing of an older word processor (w:suppressTopSpacingWP, LayoutEnv::wordWholePointLines) has lines of whole points: a font's single
     // line, taken up to the next whole point (10 points of Times New Roman, 11.5 points high, are 12; 11 points, 12.65 high, are 13; 12, 13.8, are 14), with the
-    // baseline a descent above the bottom (the leading and what is added are above the text); one that doesn't ask has the font's own. Another that asks for no leading (w:noLeading, LayoutEnv::kNoLeading) has the line of the
+    // baseline a descent above the bottom (the leading and what is added are above the text); one that doesn't ask has the font's own. Another that asks for no leading (w:noLeading, LayoutEnv::wordNoLeading) has the line of the
     // font's Windows ascent and descent alone: 1.1074 em for Times New Roman.
     void aFileCanAskForWholePointLinesOrNoLeading()
     {
@@ -2541,7 +2562,7 @@ private Q_SLOTS:
             return wordLinesOf({{QStringLiteral("Times New Roman"), 10}, {QStringLiteral("Times New Roman"), 11}, {QStringLiteral("Arial"), 12}, {QStringLiteral("Courier New"), 12}}, {}, true, setup);
         };
         const double descents[] = {443 / 2048.0 * 10, 443 / 2048.0 * 11, 434 / 2048.0 * 12, 615 / 2048.0 * 12};
-        const auto whole = lines([](LayoutEnv &env) { env.standIns.insert(QString::fromLatin1(LayoutEnv::kWholePointLines), QString()); });
+        const auto whole = lines([](LayoutEnv &env) { env.wordWholePointLines = true; });
         QCOMPARE(whole.size(), 4);
         const double wholeHeights[] = {12, 13, 14, 14};   // (13.59 of Courier New 12 up to 14)
         double top = 0;
@@ -2552,7 +2573,7 @@ private Q_SLOTS:
         }
         const auto plain = lines({});
         QVERIFY(std::abs(plain[0].rect.height() - (1825 + 443 + 87) / 2048.0 * 10) < 0.01);
-        const auto none = lines([](LayoutEnv &env) { env.standIns.insert(QString::fromLatin1(LayoutEnv::kNoLeading), QString()); });
+        const auto none = lines([](LayoutEnv &env) { env.wordNoLeading = true; });
         const double noLeading[] = {(1825 + 443) / 2048.0 * 10, (1825 + 443) / 2048.0 * 11, (1854 + 434) / 2048.0 * 12, (1705 + 615) / 2048.0 * 12};
         for (int i = 0; i < 4; ++i) QVERIFY2(std::abs(none[i].rect.height() - noLeading[i]) < 0.01, qPrintable(QStringLiteral("line %1 is %2 tall").arg(i).arg(none[i].rect.height())));
     }
