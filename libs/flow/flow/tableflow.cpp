@@ -369,7 +369,7 @@ void TableLayout::setLineRooms()
     for (int r = 0; r < rows; ++r) {
         Row &row = m_rows[size_t(r)];
         std::fill(here.begin(), here.end(), -1);
-        double top = 0;
+        double top = 0, outerTop = 0;
         for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
             const Cell &c = m_cells[size_t(i)];
             const int end = std::min(c.col + c.span, int(here.size()));
@@ -388,18 +388,29 @@ void TableLayout::setLineRooms()
                 previous = neighbor;
                 top = std::max(top, roomOf(lineBetween(neighbor >= 0 ? m_cells[size_t(neighbor)].rec->cell.bottom : std::nullopt, cd.top, neighbor >= 0, true, d.insideH, d.top)));
             }
+            if (!c.covered) outerTop = std::max(outerTop, roomOf(lineBetween(std::nullopt, cd.top, false, true, d.insideH, d.top)));
         }
         row.top = top + (d.spaced && r == 0 ? roomOf(d.top) : 0.0);
+        row.breakTop = d.spaced ? (r > 0 ? roomOf(d.top) : 0.0) : std::max(0.0, outerTop - row.top);
         above = here;
     }
-    // The foot: the cells that end at the table's foot have the line there (cells apart have the foot of each row), with the table's own round them.
+    // The foot: the cells that end at the table's foot have the line there (cells apart have the foot of each row), with the table's own round them. Where a page ends with a
+    // row that the table goes on from, it has the table's foot line (`breakFoot`).
     for (const Cell &c : m_cells) {
         if (c.covered) continue;
         Row &row = m_rows[size_t(std::min(c.row + c.rows - 1, rows - 1))];
-        if (d.spaced) row.foot = std::max(row.foot, roomOf(bottomOf(c).bottom.value_or(TableLine())));
-        else if (&row == &m_rows.back()) row.foot = std::max(row.foot, roomOf(lineBetween(bottomOf(c).bottom, std::nullopt, true, false, d.insideH, d.bottom)));
+        if (d.spaced) {
+            row.foot = std::max(row.foot, roomOf(bottomOf(c).bottom.value_or(TableLine())));
+        } else {
+            const double outer = roomOf(lineBetween(bottomOf(c).bottom, std::nullopt, true, false, d.insideH, d.bottom));
+            if (&row == &m_rows.back()) row.foot = std::max(row.foot, outer);
+            else row.breakFoot = std::max(row.breakFoot, outer);
+        }
     }
-    if (d.spaced) m_rows.back().foot += roomOf(d.bottom);
+    if (d.spaced) {
+        m_rows.back().foot += roomOf(d.bottom);
+        for (int r = 0; r + 1 < rows; ++r) m_rows[size_t(r)].breakFoot = roomOf(d.bottom);
+    }
     // The room is in the cells' margins, below the line at the top of the row and above the one at the foot of the table.
     for (Cell &c : m_cells) {
         if (c.covered) continue;
@@ -757,7 +768,7 @@ QVector<NoteRef> TableLayout::rowNotes(int r)
     return out;
 }
 
-TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> &from, double room, bool ruleNeeded, double ruleGap, bool force)
+TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> &from, double room, bool ruleNeeded, double ruleGap, bool force, double topExtra)
 {
     constexpr double kEnd = 1e18;
     Piece piece;
@@ -796,7 +807,7 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
         cr.lines = &lines;
         cr.a = int(std::lower_bound(lines.begin(), lines.end(), offs[i] - 0.01, [](const UnitLine &l, double off) { return l.top < off; }) - lines.begin());
         if (offs[i] > 0 && cr.a < int(lines.size())) cr.pad = lines[size_t(cr.a)].pad;
-        if (k > 0 && m_data->spaced) cr.pad += roomOf(m_data->top);   // (a row of cells apart that goes on has the table's top line again)
+        cr.pad += topExtra;   // (a part at the top of a page that the table goes on to: the table's top line is there)
         cr.margins = c.margins.top() + c.margins.bottom() + cr.pad;
         const double inner = std::max(0.0, room - cr.margins);
         cr.most = int(std::partition_point(lines.begin() + cr.a, lines.end(), [&](const UnitLine &l) { return l.bottom - offs[i] <= inner + 0.01; }) - lines.begin());
@@ -979,10 +990,15 @@ const TableFragment::Part *TableFragment::partOf(int row) const
     return nullptr;
 }
 
+double TableFragment::topExtraOf(int row) const { return !header && firstRow > 0 && row == firstRow ? layout->row(row).breakTop : 0.0; }
+
+double TableFragment::footExtraOf(int row) const { return endRow < layout->rowCount() && row == endRow - 1 ? layout->row(row).breakFoot : 0.0; }
+
 double TableFragment::heightOf(int row) const
 {
     const Part *p = partOf(row);
-    return p ? p->piece.height : layout->row(row).height;
+    // (The part of a row has the room of the table's lines at the break in it already.)
+    return p ? p->piece.height : layout->row(row).height + topExtraOf(row) + footExtraOf(row);
 }
 
 std::vector<TableFragment::Placed> TableFragment::place() const
@@ -1008,7 +1024,8 @@ std::vector<TableFragment::Placed> TableFragment::place() const
             p.rect = QRectF(origin.x() + c.x, y + top, c.w, h);
             p.clip = p.rect.intersected(slice);
             const Part *part = c.rows == 1 ? partOf(c.row) : nullptr;
-            const double inner = h - c.margins.top() - c.margins.bottom();
+            const double extraTop = c.row >= r0 && c.rows == 1 && !part ? topExtraOf(c.row) : 0.0, extraFoot = c.rows == 1 && !part ? footExtraOf(c.row) : 0.0;
+            const double inner = h - c.margins.top() - c.margins.bottom() - extraTop - extraFoot;
             const double free = std::max(0.0, inner - items[size_t(n)].content->height);
             double drop = c.rec->cell.valign == CellAlign::Center ? free / 2 : c.rec->cell.valign == CellAlign::Bottom ? free : 0;
             double offset = 0;
@@ -1023,7 +1040,7 @@ std::vector<TableFragment::Placed> TableFragment::place() const
                 // (What is left for the next part is not drawn in the space under the last line that is in this one.)
                 if (at >= 0 && at < part->piece.ends.size() && part->piece.ends[at] < 1e17) p.cut = p.text.y() + part->piece.ends[at];
             } else {
-                p.text = QPointF(p.rect.left() + c.margins.left(), p.rect.top() + c.margins.top() + drop - offset);
+                p.text = QPointF(p.rect.left() + c.margins.left(), p.rect.top() + c.margins.top() + extraTop + drop - offset);
             }
             out.push_back(p);
         }

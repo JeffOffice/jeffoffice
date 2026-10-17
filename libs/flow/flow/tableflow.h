@@ -168,6 +168,8 @@ public:
         double top = 0, foot = 0;           // the room of the lines at its top edge (the heaviest of its cells'), and for the last row the foot of the table: in its height
         double least = 0;                   // the height a row set to one has at least: that is for the room inside its cells' margins and lines (0: not set)
         bool seated = false;                // it is set to a height and has a cell with its content in the middle or at the foot: it is not begun in less room than that height
+        double breakTop = 0;                // the room more its top line takes where the table goes on after a page break (the table's own top line is there, not the one between rows)
+        double breakFoot = 0;               // and the room its foot takes where a page ends with it (the table's foot line, as the last row has)
     };
 
     // The table whose paragraphs are the index's refs()[i0, i1), its cells `depth` cells deep (0 for a table that is not in a cell).
@@ -227,8 +229,8 @@ public:
     // The part of row `r` that is number `index` and begins at `from` (for each cell of the row, how far down its content: empty for the first part, at the top): the lines
     // of each cell that fit `room` (what the page has for it, the notes already at its foot taken out), the notes its lines cite, and where the next part begins (`ends`). The
     // notes take room at the page's foot, with a rule above them (`ruleGap`) when the page has none yet (`ruleNeeded`). A part at the top of a page is given a line of each
-    // cell even if none fits (`force`), so that a row taller than a page ends.
-    Piece pieceOf(int r, int index, const QVector<double> &from, double room, bool ruleNeeded, double ruleGap, bool force);
+    // cell even if none fits (`force`), so that a row taller than a page ends. A part at the top of a page that the table goes on to has `topExtra` more room above its lines.
+    Piece pieceOf(int r, int index, const QVector<double> &from, double room, bool ruleNeeded, double ruleGap, bool force, double topExtra = 0);
     // How tall a note is when set at the column's width (set by the paginator, which has the notes' stories), for the room a part's notes take.
     void setNoteHeights(std::function<double(const QString &)> height) { m_noteHeight = std::move(height); }
     // The notes cited by the lines of the row's cells (the cells that begin in it), in order.
@@ -299,6 +301,10 @@ struct TableFragment {
     // The part of a row this shows (null for a row whole), and how tall the row is here.
     const Part *partOf(int row) const;
     double heightOf(int row) const;
+    // What the row has more of its height here for the table's outer lines at a page break (see TableLayout::Row): above, when it is the first row of a page that the table goes on to
+    // (the header rows, if the page has them, have the table's top), and below, when it is the last of a page that the table goes on from.
+    double topExtraOf(int row) const;
+    double footExtraOf(int row) const;
     void paint(QPainter *p, const TablePaint &o) const;
     // The text caret for a position in one of its cells: the line, in page coordinates. False when none of its cells has the position.
     bool caretLine(int pos, QLineF *line) const;
