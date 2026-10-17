@@ -3198,6 +3198,11 @@ private Q_SLOTS:
                 c.margins = QMarginsF(90, 60, 54, 80);
                 c.header.even = furnitureStory({QStringLiteral("C EVEN 1"), QStringLiteral("C EVEN 2"), QStringLiteral("C EVEN 3"), QStringLiteral("C EVEN 4"), QStringLiteral("C EVEN 5")});
                 fd.sections << b << c;
+                // (The third section begins on an odd page, or an even one, in two of the three kinds of document: the blank pages come and go with the edits before it.)
+                fd.sections[2].startParity = (seed + unsigned(variant)) % 3 == 1 ? Section::Parity::Odd : (seed + unsigned(variant)) % 3 == 2 ? Section::Parity::Even : Section::Parity::Any;
+                // (And in half of them the pages are not of two kinds: odd and even pages have the same headers, so that only the blank pages tell them apart.)
+                if (seed % 2 == 0)
+                    for (Section &sec : fd.sections) sec.differentOddEven = false;
                 for (const int block : {40, 22, 5, 33, 12}) addReference(fd.story(), fd.story()->findBlockByNumber(block).position() + 4, ids[rng() % 6]);
                 // Objects the text goes round, in each section and of each kind: a picture against the column's edge, one with no text beside it, one with text on its left only,
                 // one from the page with the text on its larger side, one from a line above it, and a wide one across a column (the story's first paragraphs hold them: edits that
@@ -3380,6 +3385,8 @@ private Q_SLOTS:
                                 cur.setBlockFormat(bf);
                                 Section made = fd.sections[std::min<int>(s, fd.sections.size() - 1)];
                                 made.continuous = false;
+                                made.startParity = rng() % 3 == 0 ? Section::Parity::Odd : rng() % 2 ? Section::Parity::Even : Section::Parity::Any;
+                                if (rng() % 3 == 0) made.firstPageNumber = int(rng() % 4);   // (a restart of the numbers: odd or even by it, where the pages are of two kinds)
                                 fd.sections.insert(s + 1, made);
                                 trace += QStringLiteral("section@%1 ").arg(blk.position());
                             } else {
@@ -3916,6 +3923,34 @@ private Q_SLOTS:
         QVERIFY2(std::abs(placed[0] - (plain[0] + 30)) < 0.01 && std::abs(placed[1] - (plain[1] + 90)) < 0.01,
                  qPrintable(QStringLiteral("at %1 and %2, asked for %3 and %4").arg(placed[0]).arg(placed[1]).arg(plain[0] + 30).arg(plain[1] + 90)));
         QVERIFY2(std::abs((placed[2] - placed[1]) - (plain[2] - plain[1])) < 0.01, "the paragraph after is as far below as it was");
+    }
+
+    // The pages after an edit are as they are afresh where a section begins on an odd page: an edit that adds a page before it moves it to an even place (or back), and the blank
+    // page it needs comes (or goes), though the pages after it are where they were but one.
+    void aBlankPageForAnOddPageSectionFollowsEditsThatChangeThePagesBefore()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 3, 6, [](int i, QTextBlockFormat &bf) {
+            bf.setBottomMargin(6);
+            if (i < 2) bf.setProperty(fp::SectionBreakAfter, true);
+        }, 8, 12);
+        Section b = fd.sections[0], c = fd.sections[0];
+        c.startParity = Section::Parity::Odd;
+        fd.sections << b << c;
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 3);   // (the third section would begin the third page: an odd one)
+        QTextCursor cur(fd.story());
+        cur.setPosition(4);
+        cur.insertText(QString(kPageBreak));   // (a page break typed into the first section: the third section would begin the fourth page)
+        QString bad = differenceFromFresh(fd, pg);
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        QCOMPARE(pg.pageCount(), 5);   // (the first section's two pages, the second's, the blank page, the third's)
+        cur.setPosition(4);
+        cur.deleteChar();
+        bad = differenceFromFresh(fd, pg);
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        QCOMPARE(pg.pageCount(), 3);
     }
 
     // A continuous section break does not end the page when the sections' sheets are the same, whatever their margins: the text of the second begins below the text of the

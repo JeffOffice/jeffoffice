@@ -1198,9 +1198,10 @@ void Paginator::settleStep()
     if (m_high > k) m_high -= std::min(gone, m_high - k);
     i = k + 1;
     // The pages after are as they were only if they are where they were: one more or one less before them, and odd pages are even and even pages odd, which
-    // a section with other headers or footers for each is laid out differently by.
+    // a section with other headers or footers for each is laid out differently by, and a section that begins on an odd page or an even one (or numbers
+    // from a number of one kind or the other) has its blank page by.
     bool oddAndEven = false;
-    for (const Section &s : m_doc->sections) oddAndEven |= s.differentOddEven;
+    for (const Section &s : m_doc->sections) oddAndEven |= s.differentOddEven || s.startParity != Section::Parity::Any;
     if (i < m_starts.size() && m_starts[i] == next && !(oddAndEven && (m_shift & 1))) {
         m_valid = i;
         if (next.pos >= m_dirtyEnd) {
