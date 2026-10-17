@@ -7,7 +7,8 @@
 #include "office/odraw_read.h"
 
 #include <QCoreApplication>
-#include <QImage>
+#include <QBuffer>
+#include <QImageReader>
 #include <algorithm>
 
 namespace jp::office::doc {
@@ -86,10 +87,15 @@ bool Converter::readPicture(qint32 position, Picture *out)
     if (out->extension.isEmpty()) return false;
     cropOf(rec, &out->cropL, &out->cropT, &out->cropR, &out->cropB);
     if (out->width < 1 || out->height < 1) {
-        QImage img;
-        if (out->extension != QLatin1String("emf") && out->extension != QLatin1String("wmf") && img.loadFromData(out->bytes)) {
-            out->width = img.width() * 0.75;
-            out->height = img.height() * 0.75;
+        // (Its own size, from its header: the image is not decoded, which for a small file could take a great deal of memory and time.)
+        QSize size;
+        if (out->extension != QLatin1String("emf") && out->extension != QLatin1String("wmf")) {
+            QBuffer buffer(&out->bytes);
+            if (buffer.open(QIODevice::ReadOnly)) size = QImageReader(&buffer).size();
+        }
+        if (size.isValid() && size.width() > 0 && size.height() > 0) {
+            out->width = size.width() * 0.75;
+            out->height = size.height() * 0.75;
         } else {
             out->width = out->height = 72;
         }
