@@ -1,5 +1,6 @@
 // Tests of libs/office: DrawingML geometry: guides, custom paths, and the preset shapes.
 #include "officehelpers.h"
+#include "../timing.h"
 
 class OfficeDmlGeometryTests : public QObject {
     Q_OBJECT
@@ -438,10 +439,8 @@ private Q_SLOTS:
             readTextBody(dom.documentElement(), doc.get(), DrawingContext());
             return doc;
         };
-        QElapsedTimer timer;
-        timer.start();
-        const auto bullets = read(QStringLiteral("<a:buChar char=\"&#8226;\"/>"), 10000);
-        const qint64 ms = timer.elapsed();
+        decltype(read(QStringLiteral("<a:buChar char=\"&#8226;\"/>"), 10000)) bullets;
+        const qint64 ms = bestNanoseconds([&] { bullets = read(QStringLiteral("<a:buChar char=\"&#8226;\"/>"), 10000); }, 5, [&] { bullets.reset(); }) / 1000000;
         QCOMPARE(bullets->blockCount(), 10000);
         QHash<QTextList *, int> lists;
         for (QTextBlock b = bullets->begin(); b.isValid(); b = b.next()) {

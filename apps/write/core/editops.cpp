@@ -1024,7 +1024,7 @@ namespace {
 const int kStyleDriven[] = {QTextFormat::FontFamilies,   QTextFormat::FontPointSize,    QTextFormat::FontWeight,   QTextFormat::FontItalic,   QTextFormat::TextUnderlineStyle,
                             QTextFormat::FontStrikeOut,  QTextFormat::ForegroundBrush,  QTextFormat::FontCapitalization, QTextFormat::TextVerticalAlignment,
                             QTextFormat::FontLetterSpacing, QTextFormat::FontLetterSpacingType, QTextFormat::TextUnderlineColor,
-                            tp::ThemeFont, tp::ColorRefP, tp::HighlightRefP, tp::UnderlineKind, prop::UnderlineAttrs, prop::ColorAttrs, prop::ColorAttrsRgb, prop::DoubleStrike, tp::HiddenText, prop::Raised, tp::NoProof};
+                            tp::ThemeFont, tp::ColorRefP, tp::HighlightRefP, tp::UnderlineKind, prop::UnderlineAttrs, prop::ColorAttrs, prop::ColorAttrsRgb, prop::DoubleStrike, tp::HiddenText, prop::Raised, tp::NoProof, tp::Language};
 
 // The format with what `was` gave it (and it still has) taken for what `now` gives.
 QTextCharFormat restyled(const QTextCharFormat &f, const QTextCharFormat &was, const QTextCharFormat &now)
@@ -1048,7 +1048,8 @@ void clearFormatting(WriteDoc &doc, QTextCursor &c)
     changeCharFormat(doc, c, [&](QTextCharFormat &f) {
         QTextCharFormat nf = base;
         // What makes the text a piece kept as XML, and what the file says besides, stays.
-        for (int key : {int(prop::Atom), int(tp::Field), int(prop::RawRPr)})
+        // (And the language the run states, which the file keeps: spelling follows what the file says.)
+        for (int key : {int(prop::Atom), int(tp::Field), int(prop::RawRPr), int(tp::Language)})
             if (f.hasProperty(key)) nf.setProperty(key, f.property(key));
         f = nf;
     });

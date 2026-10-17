@@ -3,6 +3,7 @@
 #include "app/icons.h"
 #include "app/pagepaint.h"
 #include "core/editops.h"
+#include "core/spellcheck.h"
 #include "render/renderer.h"
 
 #include <QApplication>
@@ -75,6 +76,8 @@ void PageView::setDocument(WriteDoc *doc)
     if (m_connected) disconnect(m_connected, nullptr, this, nullptr);
     m_connected = nullptr;
     if (m_doc) disconnect(m_doc, nullptr, this, nullptr);
+    m_spell.reset();
+    m_editEnd = -1;
     m_rendered.clear();
     m_recent.clear();
     m_doc = doc;
@@ -91,6 +94,10 @@ void PageView::setDocument(WriteDoc *doc)
     }
     m_cursor = QTextCursor(doc->story());
     m_connected = doc->story();
+    m_spell = std::make_unique<SpellCheck>(doc->story());
+    m_spell->setDefaultLanguage(doc->proofingLanguage());
+    m_spell->setEnabled(m_spellOn);
+    connect(m_spell.get(), &SpellCheck::changed, viewport(), qOverload<>(&QWidget::update));
     connect(m_connected, &QTextDocument::contentsChange, this, &PageView::documentChanged);
     connect(doc, &WriteDoc::sectionsChanged, this, [this] {
         dropRendered(0);
@@ -358,6 +365,13 @@ void PageView::setShowMarks(bool on)
     viewport()->update();
 }
 
+void PageView::setSpellingEnabled(bool on)
+{
+    m_spellOn = on;
+    if (m_spell) m_spell->setEnabled(on);
+    viewport()->update();
+}
+
 void PageView::paginateAll()
 {
     if (!m_doc) return;
@@ -395,9 +409,10 @@ void PageView::paginationStep()
     if (!done) m_pagination.start();
 }
 
-void PageView::documentChanged(int position, int, int)
+void PageView::documentChanged(int position, int, int added)
 {
     if (!m_doc) return;
+    m_editEnd = position + added;
     const int page = m_doc->pager().pageOfPosition(std::clamp(position, 0, std::max(0, m_doc->story()->characterCount() - 1)));
     dropRendered(std::max(0, page - 1));
     relayout();
@@ -422,6 +437,8 @@ void PageView::paintEvent(QPaintEvent *e)
     const double s = scale();
     flow::Paginator &pg = m_doc->pager();
     const int cols = std::max(1, m_across);
+    // (The misspelled words of the pages are found within a few milliseconds; what is left waits for idle time.)
+    SpellCheck::Pass spellingTime(*m_spell, 6);
     // The first row that reaches into the window.
     int firstRow = int(std::upper_bound(m_rowTops.begin(), m_rowTops.end(), visible.top()) - m_rowTops.begin()) - 1;
     firstRow = std::max(0, firstRow);
@@ -448,6 +465,8 @@ void PageView::paintEvent(QPaintEvent *e)
             PageDrawing d;
             d.marks = m_marks;
             d.pageCount = std::max(1, m_knownPages);
+            d.spelling = m_spell.get();
+            d.typingAt = !m_cursor.hasSelection() && m_cursor.position() == m_editEnd ? m_cursor.position() : -1;
             if (m_cursor.hasSelection()) {
                 d.selectionFrom = m_cursor.selectionStart();
                 d.selectionTo = m_cursor.selectionEnd();
@@ -687,6 +706,7 @@ void PageView::ensureCaretVisible()
 
 void PageView::caretMoved(bool keepWanted)
 {
+    m_contextAt = -1;
     if (!keepWanted) m_wantedX = -1;
     m_caretOn = true;
     if (hasFocus()) m_blink.start();

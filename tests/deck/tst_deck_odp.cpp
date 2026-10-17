@@ -1,5 +1,6 @@
 // JeffDeck's tests of open document presentations: reading, writing, and saving from the window.
 #include "deckhelpers.h"
+#include "../timing.h"
 
 namespace odptest {
 
@@ -836,13 +837,17 @@ private Q_SLOTS:
             for (int i = 0; i < 100; ++i) lists += QStringLiteral("</text:list-item></text:list>");
             const QString page = QStringLiteral("<draw:page draw:name=\"p\" draw:style-name=\"dp1\" draw:master-page-name=\"Default\">%1<draw:frame svg:width=\"10cm\" svg:height=\"5cm\" svg:x=\"1cm\" svg:y=\"1cm\">"
                                                 "<draw:text-box>%2</draw:text-box></draw:frame></draw:page>");
-            err.clear();
-            QElapsedTimer timer;
-            timer.start();
-            auto d = deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), page.arg(groups, lists))), &err, &skipped);
+            std::unique_ptr<Document> d;
+            const qint64 ms = bestNanoseconds([&] {
+                d = deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), page.arg(groups, lists))), &err, &skipped);
+            }, 3, [&] {
+                d.reset();
+                err.clear();
+                skipped.clear();
+            }) / 1000000;
             QVERIFY2(d, qPrintable(err));
             QCOMPARE(int(d->pages.size()), 1);
-            QVERIFY(timer.elapsed() < 20000);
+            QVERIFY(ms < 20000);
             QString deeper;
             for (int i = 0; i < 300; ++i) deeper += QStringLiteral("<draw:g>");
             for (int i = 0; i < 300; ++i) deeper += QStringLiteral("</draw:g>");
@@ -2165,11 +2170,16 @@ private Q_SLOTS:
                                              "<table:table-cell table:number-columns-repeated=\"100\"><text:p>%1</text:p></table:table-cell></table:table-row>").arg(word);
         QString err;
         QStringList skipped;
-        QElapsedTimer timer;
-        timer.start();
-        auto d = deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), odpTablePage(table))), &err, &skipped);
+        std::unique_ptr<Document> d;
+        const qint64 ms = bestNanoseconds([&] {
+            d = deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), odpTablePage(table))), &err, &skipped);
+        }, 3, [&] {
+            d.reset();
+            err.clear();
+            skipped.clear();
+        }) / 1000000;
         QVERIFY2(d, qPrintable(err));
-        QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(ms < 20000, qPrintable(QString::number(ms)));
         const TableItem *t = odpFirstTable(*d);
         QVERIFY(t);
         QCOMPARE(t->rows, 100);

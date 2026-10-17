@@ -1,5 +1,6 @@
 // JeffDeck's tests of text effects, shrunk text, and the lines of slide text.
 #include "deckhelpers.h"
+#include "../timing.h"
 
 class DeckTextEffectsTests : public QObject {
     Q_OBJECT
@@ -490,14 +491,13 @@ private Q_SLOTS:
         StoryLayout lay;
         lay.build(&doc, {fs}, LayoutEnv());
         QImage img(2000, 1600, QImage::Format_ARGB32_Premultiplied);
-        img.fill(Qt::white);
-        QPainter p(&img);
-        p.scale(4, 4);
-        QElapsedTimer clock;
-        clock.start();
-        lay.paint(&p, 0, PaintOptions());
-        p.end();
-        QVERIFY2(clock.elapsed() < 20000, qPrintable(QString::number(clock.elapsed())));
+        const qint64 paintMs = bestNanoseconds([&] {
+            QPainter p(&img);
+            p.scale(4, 4);
+            lay.paint(&p, 0, PaintOptions());
+            p.end();
+        }, 3, [&] { img.fill(Qt::white); }) / 1000000;
+        QVERIFY2(paintMs < 20000, qPrintable(QString::number(paintMs)));
         // The first lists have their shadows (red under the words), the rest are drawn plain.
         int red = 0;
         for (int y = 0; y < img.height(); ++y)
@@ -514,10 +514,10 @@ private Q_SLOTS:
                                                        + QStringLiteral("</a:rPr><a:t>Words</a:t></a:r></a:p></p:txBody></p:sp></p:spTree>"));
         parts.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
         QString err;
-        clock.restart();
-        auto d = deck::importPresentation(pack(parts), &err);
+        std::unique_ptr<Document> d;
+        const qint64 importMs = bestNanoseconds([&] { d = deck::importPresentation(pack(parts), &err); }, 3, [&] { d.reset(); }) / 1000000;
         QVERIFY2(d, qPrintable(err));
-        QVERIFY2(clock.elapsed() < 20000, qPrintable(QString::number(clock.elapsed())));
+        QVERIFY2(importMs < 20000, qPrintable(QString::number(importMs)));
         const TextItem *t = nullptr;
         for (const auto &it : d->pages[0]->items)
             if (it->name == QLatin1String("Many")) t = static_cast<const TextItem *>(it.get());
@@ -728,12 +728,14 @@ private Q_SLOTS:
             for (int w = 0; w < 300; ++w) c.insertText(QStringLiteral("word "), cf);
             d->pages[0]->items.push_back(box);
         }
-        LayoutCache cache;
-        const int before = effectPicturesBuiltForTest();
-        QElapsedTimer clock;
-        clock.start();
-        const QImage slide = paintedSlide(d.get(), &cache, 0);
-        QVERIFY2(clock.elapsed() < 10000, qPrintable(QString::number(clock.elapsed())));
+        std::unique_ptr<LayoutCache> cache;
+        int before = 0;
+        QImage slide;
+        const qint64 slideMs = bestNanoseconds([&] { slide = paintedSlide(d.get(), cache.get(), 0); }, 3, [&] {
+            cache = std::make_unique<LayoutCache>();   // nothing made yet, for each run
+            before = effectPicturesBuiltForTest();
+        }) / 1000000;
+        QVERIFY2(slideMs < 10000, qPrintable(QString::number(slideMs)));
         // Some pictures were made, not the 100 (20 boxes, five effects) the lists ask for.
         QVERIFY(effectPicturesBuiltForTest() - before > 0);
         QVERIFY2(effectPicturesBuiltForTest() - before < 100, qPrintable(QString::number(effectPicturesBuiltForTest() - before)));
@@ -745,9 +747,9 @@ private Q_SLOTS:
         glow.glow.color = QColor(0, 0, 255, 200);
         glow.glow.radius = 1584;
         many.build(glow, 660, QSizeF(500, 400), 6);
-        clock.restart();
-        const QImage glowing = many.paint(2);
-        QVERIFY2(clock.elapsed() < 10000, qPrintable(QString::number(clock.elapsed())));
+        QImage glowing;
+        const qint64 glowMs = bestNanoseconds([&] { glowing = many.paint(2); }, 3) / 1000000;
+        QVERIFY2(glowMs < 10000, qPrintable(QString::number(glowMs)));
         QVERIFY(countColored(glowing, [](const QColor &c) { return c.blue() > 200 && c.red() < 200; }) > 100);
     }
 

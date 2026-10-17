@@ -8,6 +8,7 @@
 #include "text/dictionaries.h"
 #include "text/textprops.h"
 
+#include <QApplication>
 #include <QCoreApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -113,7 +114,11 @@ void spellingDialog(QWidget *p, Editor *ed)
     };
     QObject::connect(ignore, &QPushButton::clicked, &dlg, [&] { next(); });
     QObject::connect(ignoreAll, &QPushButton::clicked, &dlg, [&] { Speller::get().ignore(word); next(); });
-    QObject::connect(add, &QPushButton::clicked, &dlg, [&] { Speller::get().add(word); next(); });
+    QObject::connect(add, &QPushButton::clicked, &dlg, [&] {
+        QString failure;
+        if (!Speller::get().add(word, &failure)) spellingReportFailure(&dlg, failure);
+        next();
+    });
     QObject::connect(chg, &QPushButton::clicked, &dlg, [&] {
         ed->beginChange(QCoreApplication::translate("Proofing", "Spelling"));
         ed->cursor().insertText(change->text());
@@ -329,7 +334,11 @@ bool addSpellingSuggestions(QMenu &menu, Editor *ed)
         }
         if (sugg.isEmpty()) menu.addAction(QCoreApplication::translate("Proofing", "(No spelling suggestions)"))->setEnabled(false);
         menu.addAction(QCoreApplication::translate("Proofing", "Ignore All"), &menu, [ed, word] { spellingIgnore(word); ed->invalidateSpelling(); });
-        menu.addAction(QCoreApplication::translate("Proofing", "Add to Dictionary"), &menu, [ed, word] { spellingAdd(word); ed->invalidateSpelling(); });
+        menu.addAction(QCoreApplication::translate("Proofing", "Add to Dictionary"), &menu, [ed, word] {
+            QString failure;
+            if (!spellingAdd(word, &failure)) spellingReportFailure(QApplication::activeWindow(), failure);
+            ed->invalidateSpelling();
+        });
         menu.addSeparator();
         return true;
     }
