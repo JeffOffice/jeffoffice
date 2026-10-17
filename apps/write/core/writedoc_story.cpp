@@ -294,7 +294,13 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         const QByteArray key = paraStyle.toUtf8() + '\x01' + runPropsXml(props) + (layer ? '\x02' + layer->key.toUtf8() : QByteArray());
         auto it = formats.constFind(key);
         if (it != formats.constEnd()) return it.value();
-        RunProps resolved = sheet.run(paraStyle, props.style, layer);
+        // (The link style a file puts on the runs of an entry of a table of contents, the paragraph style of which is toc 1 or the like, is not shown: an entry is as its style makes it.)
+        QString characterStyle = props.style;
+        if (!characterStyle.isEmpty()) {
+            const Style *paragraph = sheet.find(paraStyle), *character = sheet.find(characterStyle);
+            if (paragraph && character && paragraph->name.startsWith(QLatin1String("toc "), Qt::CaseInsensitive) && character->name.compare(QLatin1String("Hyperlink"), Qt::CaseInsensitive) == 0) characterStyle.clear();
+        }
+        RunProps resolved = sheet.run(paraStyle, characterStyle, layer);
         resolved.overlay(props);
         resolved.extra = props.extra;
         resolved.style = props.style;

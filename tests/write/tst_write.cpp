@@ -4422,6 +4422,29 @@ private Q_SLOTS:
         QVERIFY2(with > plain + 1.5, qPrintable(QStringLiteral("the second paragraph begins at %1 points after a symbol, at %2 after a letter").arg(with).arg(plain)));
     }
 
+    // The entries of a table of contents are in the color of their text: the link style that a file puts on their runs shows in a link of the text, not in an entry of the
+    // table (where the page's own style, toc 1 and the like, is what shows).
+    void aLinkInATableOfContentsEntryIsNotMarkedAsALink()
+    {
+        const QByteArray styles = kStyles +
+            "<w:style w:type=\"paragraph\" w:styleId=\"TOC1\"><w:name w:val=\"toc 1\"/><w:basedOn w:val=\"Normal\"/></w:style>"
+            "<w:style w:type=\"character\" w:styleId=\"Hyperlink\"><w:name w:val=\"Hyperlink\"/><w:rPr><w:color w:val=\"0000FF\"/><w:u w:val=\"single\"/></w:rPr></w:style>";
+        auto marked = [&](const char *paragraphStyle) {
+            const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"" + QByteArray(paragraphStyle) + "\"/></w:pPr><w:hyperlink w:anchor=\"x\"><w:r><w:rPr><w:rStyle w:val=\"Hyperlink\"/></w:rPr><w:t>Entry</w:t></w:r></w:hyperlink></w:p>";
+            auto doc = open(makeDocx(body, styles));
+            if (!doc) return QStringLiteral("no document");
+            for (QTextBlock::iterator it = doc->story()->begin().begin(); !it.atEnd(); ++it)
+                if (it.fragment().text().startsWith(QLatin1String("Entry"))) {
+                    const QTextCharFormat f = it.fragment().charFormat();
+                    return QStringLiteral("%1 %2").arg(f.foreground().color().name()).arg(f.fontUnderline() ? QStringLiteral("underlined") : QStringLiteral("plain"));
+                }
+            return QStringLiteral("no entry");
+        };
+        QCOMPARE(marked("Normal"), QStringLiteral("#0000ff underlined"));   // (a link in the text is marked)
+        const QString entry = marked("TOC1");
+        QVERIFY2(!entry.contains(QLatin1String("underlined")) && !entry.contains(QLatin1String("#0000ff")), qPrintable(entry));
+    }
+
     // The round-trip check itself: a run that gains a property the file never had is a difference, though what it adds is one the program understands.
     void theRoundTripCheckSeesAGainedRunProperty()
     {
