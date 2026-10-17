@@ -3361,6 +3361,11 @@ private Q_SLOTS:
                         failures << QStringLiteral("%1 restart %2, seed %3, step %4 (%5): walls: %6").arg(tables ? "tables," : "plain,").arg(restart).arg(seed).arg(step).arg(trace, walls);
                         break;
                     }
+                    // Every frame and every table set at a place is drawn once, or is in the text.
+                    if (const QString floats = bad.isEmpty() && step % 3 == 1 ? audit::floatProblems(pg, fd) : QString(); !floats.isEmpty()) {
+                        failures << QStringLiteral("%1 restart %2, seed %3, step %4 (%5): floats: %6").arg(tables ? "tables," : "plain,").arg(restart).arg(seed).arg(step).arg(trace, floats);
+                        break;
+                    }
                     if (!bad.isEmpty()) {
                         failures << QStringLiteral("%1 restart %2, seed %3, step %4 (%5): %6 (before the last edit: %7)").arg(tables ? "tables," : "plain,").arg(restart).arg(seed).arg(step).arg(trace, bad, was.left(160));
                         break;   // (the next run)
@@ -4571,39 +4576,51 @@ private Q_SLOTS:
         QVERIFY2(bad.isEmpty(), qPrintable(bad));
     }
 
-    // A file can have a frame of thousands of paragraphs: the page makes the frame of as many as it ever takes, and lays the rest of the text out as it does for any file.
-    void aFrameOfThousandsOfParagraphsIsCutAndTheTextGoesOn()
+    // A file can have a frame of thousands of paragraphs: one of no more than a frame has (kMostFrameParagraphs) is a box of its own, and one of more is paragraphs in the text, all
+    // of them, as they would be without the frame's properties.
+    void aFrameOfThousandsOfParagraphsIsInTheText()
     {
-        FlowDocument fd;
-        fd.env.wordLines = true;
-        fillStory(fd.story(), 12, 55, {}, 25, 40);
-        FloatingObject proto;
-        proto.hRel = FloatingObject::Rel::Column;
-        proto.vRel = FloatingObject::Rel::Paragraph;
-        proto.wrap = FloatingObject::Wrap::Square;
-        QStringList paragraphs;
-        for (int i = 0; i < 3000; ++i) paragraphs << QStringLiteral("frame paragraph %1").arg(i);
-        addFrame(fd, 4, paragraphs, proto, 120);
-        QElapsedTimer timer;
-        timer.start();
-        Paginator pg(&fd);
-        const int pages = pg.pageCount();
-        QVERIFY(pages >= 1);
-        const auto page = pg.materialize(0);
-        QVERIFY(page);
-        const TextItem *box = frameBoxWith(*page, QStringLiteral("frame paragraph 0"));
-        QVERIFY(box);
-        QVERIFY(page->doc->story(box->storyId)->doc->blockCount() <= kMostFrameParagraphs);
-        QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));
-        QSet<int> seen;
-        for (int k = 0; k < pages; ++k)
-            for (const auto &l : pg.lines(k)) seen.insert(l.block);
-        const QSet<int> frame = frameBlocksOf(fd);
-        for (QTextBlock b = fd.story()->begin(); b.isValid(); b = b.next())
-            if (!frame.contains(b.position())) QVERIFY2(seen.contains(b.position()), qPrintable(QString::number(b.position())));
+        for (const int count : {kMostFrameParagraphs, kMostFrameParagraphs + 1, 3000}) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), 12, 55, {}, 25, 40);
+            FloatingObject proto;
+            proto.hRel = FloatingObject::Rel::Column;
+            proto.vRel = FloatingObject::Rel::Paragraph;
+            proto.wrap = FloatingObject::Wrap::Square;
+            QStringList paragraphs;
+            for (int i = 0; i < count; ++i) paragraphs << QStringLiteral("frame paragraph %1").arg(i);
+            addFrame(fd, 4, paragraphs, proto, 120);
+            QElapsedTimer timer;
+            timer.start();
+            Paginator pg(&fd);
+            const int pages = pg.pageCount();
+            QVERIFY(pages >= 1);
+            QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));
+            const auto page = pg.materialize(0);
+            QVERIFY(page);
+            const TextItem *box = frameBoxWith(*page, QStringLiteral("frame paragraph 0"));
+            if (count <= kMostFrameParagraphs) {
+                QVERIFY(box);
+                QVERIFY(page->doc->story(box->storyId)->doc->blockCount() == count);
+            } else {
+                QVERIFY2(!box, "a frame of more paragraphs than a frame has is in the text");
+            }
+            QVERIFY2(audit::coverageProblems(pg, fd.story()).isEmpty(), qPrintable(audit::coverageProblems(pg, fd.story())));
+            QVERIFY2(audit::floatProblems(pg, fd).isEmpty(), qPrintable(audit::floatProblems(pg, fd)));
+            QVERIFY2(audit::problems(pg, fd.story()).isEmpty(), qPrintable(audit::problems(pg, fd.story())));
+            // A frame that is paragraphs of the text is no box, and no boxes of its pieces are stacked (a box as tall as the frame's pieces together is taller than a page).
+            if (count > kMostFrameParagraphs)
+                for (int k = 0; k < pg.pageCount(); ++k) {
+                    const auto m = pg.materialize(k);
+                    QVERIFY(m);
+                    for (const auto &it : m->doc->pages[0]->items) QVERIFY2(it->rect.height() <= m->size.height() + 0.01, qPrintable(audit::rectText(it->rect)));
+                }
+        }
     }
 
-    // Frames side by side before a paragraph, and one at the end of the story (nothing after it): all are made and drawn where they can be, and nothing is lost or stuck.
+    // Frames side by side before a paragraph, and one at the end of the story (nothing after it to be set from, so it is in the text): all are made and drawn where they can
+    // be, and nothing is lost or stuck.
     void framesTogetherAndAtTheEndOfTheStory()
     {
         FlowDocument fd;
@@ -4644,6 +4661,150 @@ private Q_SLOTS:
         QVERIFY(frameBoxWith(*page, QStringLiteral("RIGHTFRAME")));
         QVERIFY2(audit::problems(pg, fd.story()).isEmpty(), qPrintable(audit::problems(pg, fd.story())));
         for (int k = 0; k < pg.pageCount(); ++k) QVERIFY(pg.materialize(k));
+        // The frame at the very end has no paragraph after it to be set from: its text is lines of the text, with the rest of it.
+        QVERIFY2(audit::floatProblems(pg, fd).isEmpty(), qPrintable(audit::floatProblems(pg, fd)));
+        QVERIFY2(audit::coverageProblems(pg, fd.story()).isEmpty(), qPrintable(audit::coverageProblems(pg, fd.story())));
+        bool endLine = false;
+        for (int k = 0; k < pg.pageCount(); ++k)
+            for (const auto &l : pg.lines(k)) endLine |= fd.story()->findBlock(l.pos).text().contains(QStringLiteral("ENDFRAME"));
+        QVERIFY(endLine);
+    }
+
+    // A frame comes right before a table that is in the text: it is set from the table, at its first row, and is drawn.
+    void aFrameRightBeforeATableIsDrawnAtTheTable()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 8, 41, {}, 25, 40);
+        TestTable spec;
+        spec.rows = 3;
+        spec.cols = 2;
+        spec.columnWidth = 70;
+        addTableAfter(fd, 4, spec);
+        FloatingObject proto;
+        proto.hRel = FloatingObject::Rel::Column;
+        proto.vRel = FloatingObject::Rel::Paragraph;
+        proto.wrap = FloatingObject::Wrap::None;
+        proto.hAlign = FloatingObject::Align::End;
+        addFrame(fd, 5, {QStringLiteral("FRAMEBEFORETABLE text")}, proto, 90);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 1);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const TextItem *box = frameBoxWith(*page, QStringLiteral("FRAMEBEFORETABLE"));
+        QVERIFY(box);
+        QVERIFY(!page->tables.isEmpty());
+        QVERIFY2(std::abs(box->rect.top() - page->tables[0]->rect().top()) < 0.5, qPrintable(audit::rectText(box->rect) + QStringLiteral(" and the table at ") + audit::rectText(page->tables[0]->rect())));
+        QVERIFY2(audit::floatProblems(pg, fd).isEmpty(), qPrintable(audit::floatProblems(pg, fd)));
+        QVERIFY2(audit::coverageProblems(pg, fd.story()).isEmpty(), qPrintable(audit::coverageProblems(pg, fd.story())));
+        QVERIFY2(audit::problems(pg, fd.story()).isEmpty(), qPrintable(audit::problems(pg, fd.story())));
+    }
+
+    // A table set at a place and a frame next to one another, in either order, before a paragraph: both are drawn, and every paragraph of the text has its lines (the text
+    // after them is not lost for the frame's being between the table and it).
+    void aFloatingTableAndAFrameNextToOneAnotherAreBothDrawn()
+    {
+        for (const bool tableFirst : {true, false}) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), 8, 41, {}, 25, 40);
+            TestTable spec;
+            spec.rows = 3;
+            spec.cols = 2;
+            spec.columnWidth = 70;
+            spec.setTable = [](TableData &t) {
+                TableData::Place p;
+                p.across = TableData::Place::From::Margin;
+                p.acrossSpec = TableData::Place::Spec::End;
+                p.room = QMarginsF(9, 0, 9, 0);
+                t.place = p;
+            };
+            addTableAfter(fd, 4, spec);
+            FloatingObject proto;
+            proto.hRel = FloatingObject::Rel::Column;
+            proto.vRel = FloatingObject::Rel::Paragraph;
+            proto.wrap = FloatingObject::Wrap::Square;
+            proto.hAlign = FloatingObject::Align::Start;
+            if (tableFirst) {
+                int n = 0, after = -1;
+                for (QTextBlock b = fd.story()->begin(); b.isValid() && after < 0; b = b.next(), ++n)
+                    if (n > 4 && !b.blockFormat().intProperty(fp::Cell)) after = n;
+                addFrame(fd, after, {QStringLiteral("FRAMEAFTERTABLE text")}, proto, 90);   // (after the table's last cell, before the paragraph that follows it)
+            } else {
+                addFrame(fd, 5, {QStringLiteral("FRAMEBEFORETABLE text")}, proto, 90);   // (after block 4, before the table)
+            }
+            Paginator pg(&fd);
+            QVERIFY(pg.pageCount() >= 1);
+            QString where = tableFirst ? QStringLiteral("table, then frame") : QStringLiteral("frame, then table");
+            const auto page = pg.materialize(0);
+            QVERIFY(page);
+            QVERIFY2(frameBoxWith(*page, QStringLiteral("FRAME")), qPrintable(where));
+            QVERIFY2(!page->tables.isEmpty() && page->tables[0]->floating, qPrintable(where));
+            QVERIFY2(audit::floatProblems(pg, fd).isEmpty(), qPrintable(where + QStringLiteral(": ") + audit::floatProblems(pg, fd)));
+            QVERIFY2(audit::coverageProblems(pg, fd.story()).isEmpty(), qPrintable(where + QStringLiteral(": ") + audit::coverageProblems(pg, fd.story())));
+            QVERIFY2(audit::problems(pg, fd.story()).isEmpty(), qPrintable(where + QStringLiteral(": ") + audit::problems(pg, fd.story())));
+        }
+    }
+
+    // An object anchored in a frame's text (a picture in a frame's paragraph) is set where the frame is, and is drawn.
+    void anObjectAnchoredInAFramesTextIsDrawn()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 10, 61, {}, 25, 40);
+        FloatingObject proto;
+        proto.hRel = FloatingObject::Rel::Column;
+        proto.vRel = FloatingObject::Rel::Paragraph;
+        proto.wrap = FloatingObject::Wrap::Square;
+        proto.hAlign = FloatingObject::Align::End;
+        addFrame(fd, 4, {QStringLiteral("FRAMEWORDS text")}, proto, 100);
+        const QSet<int> frame = frameBlocksOf(fd);
+        QCOMPARE(int(frame.size()), 1);
+        auto item = std::make_shared<ShapeItem>();
+        item->rect = QRectF(0, 0, 33, 22);
+        addObject(&fd, item, *frame.begin() + 11, FloatingObject::Rel::Column, FloatingObject::Rel::Paragraph, 0, 0);   // (after "FRAMEWORDS ")
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        QVERIFY(frameBoxWith(*page, QStringLiteral("FRAMEWORDS")));
+        QVERIFY2(objectOfSize(*page, 33, 22), "the picture anchored in the frame's text is on the page");
+        int count = 0;
+        for (const auto &it : page->doc->pages[0]->items) count += it->type() == ItemType::Shape && std::abs(it->rect.width() - 33) < 0.01 && std::abs(it->rect.height() - 22) < 0.01;
+        QCOMPARE(count, 1);
+    }
+
+    // Thousands of frames one after another, each its own: the nearest few of them are boxes at the paragraph after them, and the rest are paragraphs in the text, so that no
+    // word is lost and the pages are as many as the text takes.
+    void thousandsOfFramesInARowLoseNoText()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 12, 55, {}, 25, 40);
+        FloatingObject proto;
+        proto.hRel = FloatingObject::Rel::Column;
+        proto.vRel = FloatingObject::Rel::Paragraph;
+        proto.wrap = FloatingObject::Wrap::Square;
+        const int count = 3000;
+        for (int i = 0; i < count; ++i) addFrame(fd, 4 + i, {QStringLiteral("FRAMETEXT %1").arg(i)}, proto, 50);
+        QElapsedTimer t;
+        t.start();
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY2(t.elapsed() < 30000, qPrintable(QString::number(t.elapsed())));
+        // (Each frame paragraph in the text is a line of its own, 3000 lines and more than the text's own: dozens of pages.)
+        QVERIFY2(pages >= 40, qPrintable(QString::number(pages)));
+        QVERIFY2(audit::coverageProblems(pg, fd.story()).isEmpty(), qPrintable(audit::coverageProblems(pg, fd.story())));
+        QVERIFY2(audit::floatProblems(pg, fd).isEmpty(), qPrintable(audit::floatProblems(pg, fd)));
+        int boxes = 0;
+        for (int k = 0; k < pages; ++k) {
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            int here = 0;
+            for (const auto &it : page->doc->pages[0]->items) here += it->type() == ItemType::Text && it->id.startsWith(QLatin1String("flow-object-"));
+            QVERIFY2(here <= kMostFloatsAtAParagraph, qPrintable(QStringLiteral("page %1 has %2 frame boxes").arg(k).arg(here)));
+            boxes += here;
+        }
+        QVERIFY(boxes >= 1 && boxes <= kMostFloatsAtAParagraph);
     }
 
     // ---- floating tables
@@ -4817,7 +4978,8 @@ private Q_SLOTS:
         QVERIFY2(bad.isEmpty(), qPrintable(bad));
     }
 
-    // Tables set at places one after another, before one paragraph, are all drawn, side by side where they ask; and one at the end of the story (no paragraph after it) is left out.
+    // Tables set at places one after another, before one paragraph, are all drawn, side by side where they ask; and one at the end of the story (no paragraph after it to be set
+    // from) is rows in the text.
     void floatingTablesTogetherAndAtTheEndOfTheStory()
     {
         FlowDocument fd;
@@ -4850,11 +5012,19 @@ private Q_SLOTS:
         QVERIFY(pg.pageCount() >= 1);
         const auto page = pg.materialize(0);
         QVERIFY(page);
-        QCOMPARE(int(page->tables.size()), 2);
-        QVERIFY(page->tables[0]->floating && page->tables[1]->floating);
-        QVERIFY(page->tables[0]->rect().left() < page->tables[1]->rect().left());
+        QVector<std::shared_ptr<TableFragment>> floating;
+        for (const auto &t : page->tables)
+            if (t->floating) floating << t;
+        QCOMPARE(int(floating.size()), 2);   // (the one at the end of the story is rows in the text, on this page or a later one)
+        QVERIFY(floating[0]->rect().left() < floating[1]->rect().left());
         QVERIFY2(audit::problems(pg, fd.story()).isEmpty(), qPrintable(audit::problems(pg, fd.story())));
         for (int k = 0; k < pg.pageCount(); ++k) QVERIFY(pg.materialize(k));
+        // The one at the end of the story has no paragraph to be set from: it is rows in the text, among the lines, where it is.
+        QVERIFY2(audit::floatProblems(pg, fd).isEmpty(), qPrintable(audit::floatProblems(pg, fd)));
+        bool inText = false;
+        for (int k = 0; k < pg.pageCount(); ++k)
+            for (const auto &t : pg.materialize(k)->tables) inText |= !t->floating;
+        QVERIFY(inText);
     }
 
     // ---- text round objects
