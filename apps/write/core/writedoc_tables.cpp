@@ -73,7 +73,9 @@ std::optional<flow::TableLine> lineOf(const TableBorder &b)
     if (b.val == QLatin1String("nil") || b.val == QLatin1String("none")) return line;
     line.width = std::max(0.25, std::min(12.0, b.size / 8.0));
     line.color = b.color == QLatin1String("auto") ? QColor() : colorOfHex(b.color);
-    if (b.val == QLatin1String("double") || b.val == QLatin1String("triple") || b.val.startsWith(QLatin1String("thinThick")) || b.val.startsWith(QLatin1String("thickThin")))
+    if (b.val == QLatin1String("triple"))
+        line.style = flow::TableLine::Style::Triple;
+    else if (b.val == QLatin1String("double") || b.val.startsWith(QLatin1String("thinThick")) || b.val.startsWith(QLatin1String("thickThin")))
         line.style = flow::TableLine::Style::Double;
     else if (b.val == QLatin1String("dotted"))
         line.style = flow::TableLine::Style::Dotted;
@@ -209,6 +211,7 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
             t.insideV = lineOf(m.insideV).value_or(flow::TableLine());
             t.fill = fillOf(m);
             t.spacing = points(m.spacing);
+            t.spaced = m.spacing.stated() && m.spacing.type != QLatin1String("nil");
             const QString jc = m.jc;
             t.align = jc == QLatin1String("center") ? flow::TableData::Align::Center : jc == QLatin1String("right") || jc == QLatin1String("end") ? flow::TableData::Align::Right : flow::TableData::Align::Left;
             // (Before the 2013 program, the indent is to the first cell's text, and the table's edge is left of it by the cell's margin.)

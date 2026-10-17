@@ -87,7 +87,7 @@ deleting, moving, selecting, the clipboard, character and paragraph formatting, 
 `.docx` reading and writing in `libs/office/wml` (the XML tree, the model, styles with inheritance, numbering, sections, and everything the
 program doesn't edit kept as XML or as whole parts and written back where it was); and packaging behind a switch that is off. What
 JeffWrite shows of a table, a picture, a field, a header or footer, or a note is a stand-in or nothing; it keeps them. Not yet: the pieces of
-wave 3 (notes, headers and footers, page fields, anchored pictures) and wave 4 (tables), `.doc`, `.rtf`, and `.odt`, the ruler, and Word's own PDFs to measure the pages against.
+wave 3 (notes, headers and footers, page fields, anchored pictures) and wave 4 (tables), `.rtf` and `.odt`, the ruler, and Word's own PDFs to measure the pages against.
 
 Find and Replace and the Font dialog are built too. The Find and Replace pane gives libs/page's shared search (app/findreplace.h) the one story, through `FindWords`; the
 search does not reach the headers, footers, and notes, which are stories the program does not edit yet. The Font dialog changes what the person changed, as one undo step, and every
@@ -103,6 +103,12 @@ box round the same walls, so what is drawn is what was laid out. Frames (`w:fram
 (`tp::OutOfLayout`: no lines, no room) and drawn as a text box where the file asks, at the paragraph after them; a table with `w:tblpPr` has a place, no lines among the text, and its rows
 drawn there, if it fits a page. Not yet: the outlines of tight and through wraps, editing frames and floating tables on the page, a floating table that goes over a page break, and
 objects anchored in table cells as walls.
+
+`.doc` (the binary files of 1997 to 2003) opens, in `libs/office/doc` (October 17, 2026): a reader turns the compound file (its text pieces,
+the bins of character and paragraph properties, the styles, lists, sections, headers and footers, notes, fields, tables, pictures, and the
+drawing's shapes) into the parts of a `.docx` package that the `.docx` reader then reads, so layout, editing, and saving as `.docx` are the same
+code; saving asks for a `.docx` name. On the practice half of the Word yardstick (the 75 government documents whose originals are `.doc`) the
+`.doc` renders score as well as the same documents' Word-made `.docx` (median page 1.19 for both).
 
 ## Checking it
 

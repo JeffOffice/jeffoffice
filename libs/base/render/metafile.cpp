@@ -193,6 +193,13 @@ public:
         if (m_emf) playEmf(data); else playWmf(data);
     }
 
+    // Closes the saved states a picture left open, so the painter is back at the state it had when the picture began to play.
+    void unwind()
+    {
+        while (!m_stack.isEmpty()) { m_dc = m_stack.takeLast(); m_p->restore(); }
+        m_droppedSaves = 0;
+    }
+
 private:
     QColor mapped(const QColor &c) const { return recolor ? recolor(c) : c; }
     QColor col(quint32 v) const { return mapped(colorRef(v)); }
@@ -535,7 +542,16 @@ private:
             case 0x0209: m_dc.textColor = col(a.u32()); break;
             case 0x012E: m_dc.textAlign = a.u16(); break;
             case 0x001E: if (m_stack.size() < kMaxSavedStates) { m_stack.push_back(m_dc); m_p->save(); } else ++m_droppedSaves; break;
-            case 0x0127: if (m_droppedSaves > 0) --m_droppedSaves; else if (!m_stack.isEmpty()) { m_dc = m_stack.takeLast(); m_p->restore(); } break;
+            case 0x0127: {
+                // A negative count restores that many saved states, as the EMF record does; any other restores one.
+                int levels = std::max(1, -int(a.s16()));
+                while (levels-- > 0) {
+                    if (m_droppedSaves > 0) --m_droppedSaves;
+                    else if (!m_stack.isEmpty()) { m_dc = m_stack.takeLast(); m_p->restore(); }
+                    else break;
+                }
+                break;
+            }
             case 0x02FA: {
                 Obj o; o.kind = Obj::Pen;
                 const quint16 style = a.u16(); const qint16 w = a.s16(); a.s16();
@@ -1045,6 +1061,8 @@ void Metafile::play(QPainter *p, const QRectF &target, const std::function<QColo
         pl.wmfWindowFallback = m_bounds.isValid() ? m_bounds : QRectF(0, 0, 1000, 1000);
     }
     pl.play(m_data);
+    // A picture may leave saved states open; closing them here keeps the restore below to this play's own save.
+    pl.unwind();
     p->restore();
 }
 

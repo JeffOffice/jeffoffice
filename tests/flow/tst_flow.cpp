@@ -609,6 +609,56 @@ double lineHeightOf(FlowDocument &fd)
     return l.lineBriefs().first().rect.height();
 }
 
+// The rows of a table that goes on over a page break, painted, with the lines at the break: what the lines of the page's first and last rows take, and the painted
+// fragments of the first page and the next.
+struct BreakPages {
+    std::shared_ptr<MaterializedPage> first, next;
+    QImage firstImage, nextImage;
+    double firstTop = 0, firstBottom = 0, nextTop = 0, nextBottom = 0;   // where the text of each is: from the fragment's top, the first line's top and the last line's bottom
+};
+BreakPages breakPagesOf(FlowDocument &fd, Paginator &pg)
+{
+    BreakPages out;
+    out.first = pg.materialize(0);
+    out.next = pg.materialize(1);
+    if (!out.first || !out.next || out.first->tables.isEmpty() || out.next->tables.isEmpty()) return out;
+    auto paint = [&](const TableFragment &f) {
+        QImage image(int(fd.section(0).pageSize().width()) * 4, int(fd.section(0).pageSize().height()) * 4, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::white);
+        QPainter painter(&image);
+        painter.scale(4, 4);
+        f.paint(&painter, TablePaint());
+        return image;
+    };
+    auto extent = [&](const TableFragment &f, double *top, double *bottom) {
+        *top = 1e9;
+        *bottom = -1e9;
+        f.forLines([&](const StoryLayout::LineBrief &, const QRectF &rect) {
+            *top = std::min(*top, rect.top() - f.origin.y());
+            *bottom = std::max(*bottom, rect.bottom() - f.origin.y());
+        });
+    };
+    out.firstImage = paint(*out.first->tables[0]);
+    out.nextImage = paint(*out.next->tables[0]);
+    extent(*out.first->tables[0], &out.firstTop, &out.firstBottom);
+    extent(*out.next->tables[0], &out.nextTop, &out.nextBottom);
+    return out;
+}
+// Whether a pixel of the painted fragment is the red of the lines of these tests, and the number of dark pixels (the text's) in a band of it, from `y0` to `y1` below its top.
+bool isRed(const QImage &image, const TableFragment &f, double x, double y)
+{
+    const QColor c = image.pixelColor(int((f.origin.x() + x) * 4), int((f.origin.y() + y) * 4));
+    return c.red() > 200 && c.green() < 80 && c.blue() < 80;
+}
+int darkIn(const QImage &image, const TableFragment &f, double y0, double y1)
+{
+    int dark = 0;
+    for (int y = int((f.origin.y() + y0) * 4); y < int((f.origin.y() + y1) * 4); ++y)
+        for (int x = int((f.origin.x() + 4) * 4); x < int((f.origin.x() + 290) * 4); ++x) dark += image.pixelColor(x, y).red() < 150;
+    return dark;
+}
+
+
 // A table inside a cell: `rows` by `cols` cells of `colW` points, each a paragraph, the cell of row 0 and column 0 holding another (until `maxLevel` is reached); `parent` is
 // the cell the table is in. Appended at the cursor.
 void addNestedTable(FlowDocument &fd, QTextCursor &c, int level, int maxLevel, int parent, int rows, int cols, double colW)
@@ -5676,6 +5726,484 @@ private Q_SLOTS:
         QCOMPARE(lines.last().pos, fd.story()->characterCount() - 1 - QStringLiteral("after the table").size());
     }
 
+    // The lines of a table take room in its rows, as a word processor sets them: a row is as tall as its cells (with their margins) and the line in its top edge (the table's
+    // top for the first row, the one between it and the row above for the others), and the last row has the table's foot line too.
+    void theLinesOfATableTakeRoomInItsRows()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 2, 3, {}, 4, 6);
+        TestTable spec;
+        spec.rows = 3;
+        spec.cols = 2;
+        spec.columnWidth = 150;
+        spec.setTable = [](TableData &t) {
+            TableLine line;
+            line.style = TableLine::Style::Single;
+            line.width = 1.5;
+            t.top = t.bottom = t.left = t.right = t.insideH = t.insideV = line;
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        const double line = lineHeightOf(fd);
+        const auto rows = rowLines(pg, fd, 0);
+        QCOMPARE(rows.size(), 3);
+        // (The margins are 3 above and below; a line is 1.5 points wide.)
+        QVERIFY2(std::abs(rows[0].rect.height() - (line + 6 + 1.5)) < 0.05, qPrintable(QString::number(rows[0].rect.height())));
+        QVERIFY2(std::abs(rows[1].rect.height() - (line + 6 + 1.5)) < 0.05, qPrintable(QString::number(rows[1].rect.height())));
+        QVERIFY2(std::abs(rows[2].rect.height() - (line + 6 + 1.5 + 1.5)) < 0.05, qPrintable(QString::number(rows[2].rect.height())));
+        const auto page = pg.materialize(0);
+        QVERIFY(page && page->tables.size() == 1);
+        QVERIFY(std::abs(page->tables[0]->height - (3 * (line + 6 + 1.5) + 1.5)) < 0.1);
+    }
+
+    // A line is where the row that it is the top of begins: drawn inside that row, from its top edge down; the foot line of the table, up from its foot.
+    void aLineOfATableIsDrawnInsideTheRowItIsTheTopOf()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 2, 8, {}, 5, 8);
+        TestTable spec;
+        spec.rows = 3;
+        spec.cols = 2;
+        spec.columnWidth = 150;
+        spec.setTable = [](TableData &t) {
+            TableLine line;
+            line.style = TableLine::Style::Single;
+            line.width = 3;
+            line.color = QColor(255, 0, 0);
+            t.top = t.bottom = t.insideH = line;
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page && page->tables.size() == 1);
+        const TableFragment &fragment = *page->tables[0];
+        QImage image(int(fd.section(0).pageSize().width()) * 4, int(fd.section(0).pageSize().height()) * 4, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::white);
+        {
+            QPainter painter(&image);
+            painter.scale(4, 4);
+            fragment.paint(&painter, TablePaint());
+        }
+        const auto red = [&](double y) { const QColor c = image.pixelColor(int((fragment.origin.x() + 140) * 4), int(y * 4)); return c.red() > 200 && c.green() < 60; };
+        const double top = fragment.origin.y();
+        const double second = top + fragment.heightOf(0), third = second + fragment.heightOf(1), foot = top + fragment.height;
+        for (double at : {top, second, third}) {
+            QVERIFY2(red(at + 0.5) && red(at + 2.5), qPrintable(QStringLiteral("no line down from %1").arg(at)));
+            QVERIFY2(!red(at - 0.5) && !red(at + 3.5), qPrintable(QStringLiteral("a line is not inside the row from %1").arg(at)));
+        }
+        QVERIFY(red(foot - 0.5) && red(foot - 2.5));
+        QVERIFY(!red(foot - 3.5) && !red(foot + 0.5));
+    }
+
+    // Of the two cells at a line, the one that says nothing has the table's line, and the heavier wins: a cell that says none against one that says nothing leaves the table's
+    // line; both saying none take it out.
+    void aCellThatSaysNoneAtALineDoesNotTakeItAwayFromACellThatSaysNothing()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 2, 3, {}, 4, 6);
+        TestTable spec;
+        spec.rows = 4;
+        spec.cols = 2;
+        spec.columnWidth = 150;
+        spec.setTable = [](TableData &t) {
+            TableLine line;
+            line.style = TableLine::Style::Single;
+            line.width = 2;
+            t.insideH = line;
+        };
+        spec.setCell = [](int r, int, CellData &cell) {
+            if (r == 0) cell.bottom = TableLine();   // says none; the cells of row 1 say nothing
+            if (r == 1) cell.bottom = TableLine();   // says none; so do the cells of row 2 at their tops
+            if (r == 2) cell.top = TableLine();
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        const double line = lineHeightOf(fd);
+        const auto rows = rowLines(pg, fd, 0);
+        QCOMPARE(rows.size(), 4);
+        QVERIFY2(std::abs(rows[0].rect.height() - (line + 6)) < 0.05, qPrintable(QString::number(rows[0].rect.height())));
+        QVERIFY2(std::abs(rows[1].rect.height() - (line + 6 + 2)) < 0.05, qPrintable(QString::number(rows[1].rect.height())));
+        QVERIFY2(std::abs(rows[2].rect.height() - (line + 6)) < 0.05, qPrintable(QString::number(rows[2].rect.height())));
+        QVERIFY2(std::abs(rows[3].rect.height() - (line + 6 + 2)) < 0.05, qPrintable(QString::number(rows[3].rect.height())));
+    }
+
+    // The line under cells joined down is the last of them: the cell that continues the one above has the bottom of the whole.
+    void theLineUnderCellsJoinedDownIsThatOfTheCellThatContinuesThem()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 2, 3, {}, 4, 6);
+        TestTable spec;
+        spec.rows = 3;
+        spec.cols = 2;
+        spec.columnWidth = 150;
+        spec.setCell = [](int r, int c, CellData &cell) {
+            TableLine line;
+            line.style = TableLine::Style::Single;
+            line.width = 2;
+            if (c != 0) return;
+            if (r == 0) {
+                cell.vmerge = CellData::VMerge::Restart;
+                cell.bottom = TableLine();
+            } else if (r == 1) {
+                cell.vmerge = CellData::VMerge::Continue;
+                cell.bottom = line;
+            }
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        const double line = lineHeightOf(fd);
+        const auto rows = rowLines(pg, fd, 0);
+        QCOMPARE(rows.size(), 3);
+        QVERIFY2(std::abs(rows[2].rect.height() - (line + 6 + 2)) < 0.05, qPrintable(QString::number(rows[2].rect.height())));
+    }
+
+    // The line at the top of a cell that continues the one above takes room in its row, though the cells are one.
+    void aLineAtTheTopOfACellThatContinuesTheOneAboveTakesRoomInItsRow()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 2, 3, {}, 4, 6);
+        TestTable spec;
+        spec.rows = 2;
+        spec.cols = 2;
+        spec.columnWidth = 150;
+        spec.setCell = [](int r, int c, CellData &cell) {
+            if (c != 0) return;
+            cell.vmerge = r == 0 ? CellData::VMerge::Restart : CellData::VMerge::Continue;
+            if (r == 1) {
+                TableLine line;
+                line.style = TableLine::Style::Double;
+                line.width = 1.5;
+                cell.top = line;
+            }
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        const double line = lineHeightOf(fd);
+        const auto rows = rowLines(pg, fd, 0);
+        QCOMPARE(rows.size(), 2);
+        QVERIFY2(std::abs(rows[1].rect.height() - (line + 6 + 4.5)) < 0.05, qPrintable(QString::number(rows[1].rect.height())));
+    }
+
+    // A table that goes on after a page break has the table's outer lines there, each in room of its own: the top line at the first row of the next page, and the foot line at
+    // the last row of the page. The text of those rows is clear of them (with no margins in the cells, a line that took no room would be painted over it).
+    void aTableThatGoesOnAfterAPageBreakHasItsOuterLinesAtTheBreak()
+    {
+        FlowDocument fd;
+        TestTable spec;
+        spec.rows = 90;
+        spec.cols = 2;
+        spec.columnWidth = 150;
+        spec.margins = QMarginsF(4, 0, 4, 0);
+        spec.setTable = [](TableData &t) {
+            TableLine outer, inner;
+            outer.style = inner.style = TableLine::Style::Single;
+            outer.width = 6;
+            outer.color = QColor(255, 0, 0);
+            inner.width = 0.5;
+            inner.color = QColor(0, 0, 255);
+            t.top = t.bottom = outer;
+            t.insideH = inner;
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        const BreakPages b = breakPagesOf(fd, pg);
+        QVERIFY(b.first && b.next && !b.first->tables.isEmpty() && !b.next->tables.isEmpty());
+        const TableFragment &a = *b.first->tables[0], &n = *b.next->tables[0];
+        // The lines are in the room the fragments have, and the rows' text is above and below them.
+        QVERIFY2(b.firstBottom <= a.height - 6 + 0.05, qPrintable(QStringLiteral("%1 of %2").arg(b.firstBottom).arg(a.height)));
+        QVERIFY2(b.nextTop >= 6 - 0.05, qPrintable(QString::number(b.nextTop)));
+        QVERIFY(isRed(b.firstImage, a, 140, a.height - 1) && isRed(b.firstImage, a, 140, a.height - 5));
+        QCOMPARE(darkIn(b.firstImage, a, a.height - 5.5, a.height - 0.5), 0);
+        QVERIFY(isRed(b.nextImage, n, 140, 1) && isRed(b.nextImage, n, 140, 5));
+        QCOMPARE(darkIn(b.nextImage, n, 0.5, 5.5), 0);
+        // (The lines the paginator set the fragments down by are as tall as the fragments.)
+        const auto rows = rowLines(pg, fd, 0);
+        QVERIFY(std::abs(a.height - (rows.last().rect.bottom() - rows.first().rect.top())) < 0.01);
+    }
+
+    // The same with a table whose cells are apart: its lines are a frame round the lot, at the break too, in room of their own.
+    void aSpacedTableThatGoesOnAfterAPageBreakHasItsFrameAtTheBreak()
+    {
+        FlowDocument fd;
+        TestTable spec;
+        spec.rows = 90;
+        spec.cols = 2;
+        spec.columnWidth = 150;
+        spec.margins = QMarginsF(4, 0, 4, 0);
+        spec.setTable = [](TableData &t) {
+            TableLine outer;
+            outer.style = TableLine::Style::Single;
+            outer.width = 4;
+            outer.color = QColor(255, 0, 0);
+            t.top = t.bottom = outer;
+            t.spaced = true;
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        const BreakPages b = breakPagesOf(fd, pg);
+        QVERIFY(b.first && b.next && !b.first->tables.isEmpty() && !b.next->tables.isEmpty());
+        const TableFragment &a = *b.first->tables[0], &n = *b.next->tables[0];
+        QVERIFY2(b.firstBottom <= a.height - 4 + 0.05, qPrintable(QStringLiteral("%1 of %2").arg(b.firstBottom).arg(a.height)));
+        QVERIFY2(b.nextTop >= 4 - 0.05, qPrintable(QString::number(b.nextTop)));
+        QVERIFY(isRed(b.firstImage, a, 140, a.height - 1) && isRed(b.firstImage, a, 140, a.height - 3));
+        QCOMPARE(darkIn(b.firstImage, a, a.height - 3.5, a.height - 0.5), 0);
+        QVERIFY(isRed(b.nextImage, n, 140, 1) && isRed(b.nextImage, n, 140, 3));
+        QCOMPARE(darkIn(b.nextImage, n, 0.5, 3.5), 0);
+    }
+
+    // The cells of a table with space between them each have the lines they say: all that the rows take room for are painted (the foot of every row's cell, not only the last's).
+    void aSpacedTablePaintsTheLineOfEveryCellsFoot()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 2, 3, {}, 4, 6);
+        TestTable spec;
+        spec.rows = 5;
+        spec.cols = 1;
+        spec.columnWidth = 200;
+        spec.setTable = [](TableData &t) { t.spaced = true; };
+        spec.setCell = [](int, int, CellData &cell) {
+            TableLine line;
+            line.style = TableLine::Style::Single;
+            line.width = 3;
+            line.color = QColor(255, 0, 0);
+            cell.bottom = line;
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page && page->tables.size() == 1);
+        const TableFragment &f = *page->tables[0];
+        const double line = lineHeightOf(fd);
+        QImage image(int(fd.section(0).pageSize().width()) * 4, int(fd.section(0).pageSize().height()) * 4, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::white);
+        {
+            QPainter painter(&image);
+            painter.scale(4, 4);
+            f.paint(&painter, TablePaint());
+        }
+        double bottom = 0;
+        for (int r = 0; r < 5; ++r) {
+            QVERIFY2(std::abs(f.heightOf(r) - (line + 6 + 3)) < 0.05, qPrintable(QString::number(f.heightOf(r))));
+            bottom += f.heightOf(r);
+            QVERIFY2(isRed(image, f, 100, bottom - 1.5) && isRed(image, f, 100, bottom - 0.5) && !isRed(image, f, 100, bottom - 3.5), qPrintable(QStringLiteral("row %1").arg(r)));
+        }
+    }
+
+    // A cell across columns has the line between it and each cell above it: the heaviest of them is the room it takes, and each part of the cell has its own.
+    void aCellAcrossColumnsHasTheLineOfEveryCellAboveIt()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 2, 3, {}, 4, 6);
+        QTextCursor c(fd.story());
+        c.movePosition(QTextCursor::End);
+        QTextCharFormat body;
+        body.setFontPointSize(11);
+        auto table = std::make_shared<TableData>();
+        table->columns << 100 << 100;
+        table->margins = QMarginsF(4, 3, 4, 3);
+        auto paragraph = [&](int key, const QString &text) {
+            QTextBlockFormat bf;
+            bf.setProperty(fp::Cell, key);
+            c.insertBlock(bf, body);
+            c.insertText(text, body);
+        };
+        auto lineOf = [](double width, QColor color) {
+            TableLine line;
+            line.style = TableLine::Style::Single;
+            line.width = width;
+            line.color = color;
+            return line;
+        };
+        auto first = std::make_shared<RowData>(), second = std::make_shared<RowData>();
+        for (int col = 0; col < 2; ++col) {
+            CellRecord rec;
+            rec.table = table;
+            rec.row = first;
+            rec.cell.bottom = col == 0 ? lineOf(1, QColor(0, 0, 0)) : lineOf(5, QColor(0, 0, 255));
+            paragraph(fd.tables.add(rec), QStringLiteral("a%1").arg(col));
+        }
+        CellRecord wide;
+        wide.table = table;
+        wide.row = second;
+        wide.cell.span = 2;
+        paragraph(fd.tables.add(wide), QStringLiteral("wide"));
+        Paginator pg(&fd);
+        const double line = lineHeightOf(fd);
+        const auto rows = rowLines(pg, fd, 0);
+        QCOMPARE(rows.size(), 2);
+        QVERIFY2(std::abs(rows[1].rect.height() - (line + 6 + 5)) < 0.05, qPrintable(QString::number(rows[1].rect.height())));
+        const auto page = pg.materialize(0);
+        QVERIFY(page && page->tables.size() == 1);
+        const TableFragment &f = *page->tables[0];
+        QImage image(int(fd.section(0).pageSize().width()) * 4, int(fd.section(0).pageSize().height()) * 4, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::white);
+        {
+            QPainter painter(&image);
+            painter.scale(4, 4);
+            f.paint(&painter, TablePaint());
+        }
+        const double top = f.heightOf(0);
+        auto at = [&](double x, double dy) { return image.pixelColor(int((f.origin.x() + x) * 4), int((f.origin.y() + top + dy) * 4)); };
+        // Over the first column the line is the black one of a point, over the second the blue one of five.
+        QVERIFY(at(90, 0.25).red() < 100 && at(90, 0.25).blue() < 100);
+        QVERIFY(qGray(at(90, 3).rgb()) > 240);
+        QVERIFY(at(190, 2.5).blue() > 200 && at(190, 2.5).red() < 100);
+        QVERIFY(at(190, 4.5).blue() > 200 && at(190, 4.5).red() < 100);
+    }
+
+    // Of two lines at a cell edge the one of the greater weight is the line, a double line weighing twice its width: a double line of a point is lighter than a single one of two
+    // and a half, though it takes more room.
+    void ofTwoLinesAtAnEdgeTheOneOfTheGreaterWeightIsTheLine()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 2, 3, {}, 4, 6);
+        TestTable spec;
+        spec.rows = 2;
+        spec.cols = 2;
+        spec.columnWidth = 150;
+        spec.setCell = [](int r, int, CellData &cell) {
+            TableLine line;
+            if (r == 0) {
+                line.style = TableLine::Style::Double;
+                line.width = 1;
+                cell.bottom = line;
+            } else {
+                line.style = TableLine::Style::Single;
+                line.width = 2.5;
+                cell.top = line;
+            }
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        const double line = lineHeightOf(fd);
+        const auto rows = rowLines(pg, fd, 0);
+        QCOMPARE(rows.size(), 2);
+        QVERIFY2(std::abs(rows[1].rect.height() - (line + 6 + 2.5)) < 0.05, qPrintable(QString::number(rows[1].rect.height())));
+    }
+
+    // A row set to a height of at least so much has that for the room inside its cells' margins, and its lines (the margins and the lines come in addition); one set to exactly
+    // so much is that tall, margins, lines, and all.
+    void aRowOfASetHeightHasItsMarginsAndLinesBesidesWhenAtLeastAndInsideItWhenExact()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 2, 3, {}, 4, 6);
+        TestTable spec;
+        spec.rows = 4;
+        spec.cols = 2;
+        spec.columnWidth = 150;
+        spec.setTable = [](TableData &t) {
+            TableLine line;
+            line.style = TableLine::Style::Single;
+            line.width = 2;
+            t.top = t.bottom = t.insideH = line;
+        };
+        spec.setRow = [](int r, RowData &row) {
+            row.height = r == 3 ? 5 : 40;
+            row.exact = r == 1;
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        const double line = lineHeightOf(fd);
+        const auto rows = rowLines(pg, fd, 0);
+        QCOMPARE(rows.size(), 4);
+        // (The margins are 3 above and below; a line is 2 points wide.)
+        QVERIFY2(std::abs(rows[0].rect.height() - (40 + 6 + 2)) < 0.05, qPrintable(QString::number(rows[0].rect.height())));
+        QVERIFY2(std::abs(rows[1].rect.height() - 40) < 0.05, qPrintable(QString::number(rows[1].rect.height())));
+        QVERIFY2(std::abs(rows[2].rect.height() - (40 + 6 + 2)) < 0.05, qPrintable(QString::number(rows[2].rect.height())));
+        // (The last: taller than set, so as its cells and lines need.)
+        QVERIFY2(std::abs(rows[3].rect.height() - (line + 6 + 2 + 2)) < 0.05, qPrintable(QString::number(rows[3].rect.height())));
+    }
+
+    // A double line takes the room of its two lines and the space between them.
+    void aDoubleLineTakesRoomForBothLinesAndTheSpace()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 2, 3, {}, 4, 6);
+        TestTable spec;
+        spec.rows = 2;
+        spec.cols = 2;
+        spec.columnWidth = 150;
+        spec.setTable = [](TableData &t) {
+            TableLine line;
+            line.style = TableLine::Style::Double;
+            line.width = 1;
+            t.insideH = line;
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        const double line = lineHeightOf(fd);
+        const auto rows = rowLines(pg, fd, 0);
+        QCOMPARE(rows.size(), 2);
+        QVERIFY2(std::abs(rows[0].rect.height() - (line + 6)) < 0.05, qPrintable(QString::number(rows[0].rect.height())));
+        QVERIFY2(std::abs(rows[1].rect.height() - (line + 6 + 3)) < 0.05, qPrintable(QString::number(rows[1].rect.height())));
+    }
+
+    // The last paragraph of a cell, after a table in it, is the cell's end mark, and takes no room when nothing is in it (what it asks of space above does not either); a
+    // paragraph before it, or one with words in it, does. A caret can be put in it, and has the height of a line there.
+    void theEmptyParagraphAfterATableAtTheEndOfACellTakesNoRoom()
+    {
+        double heights[4] = {0, 0, 0, 0};
+        for (int variant = 0; variant < 4; ++variant) {
+            FlowDocument fd;
+            fillStory(fd.story(), 2, 3, {}, 4, 6);
+            QTextCursor c(fd.story());
+            c.movePosition(QTextCursor::End);
+            QTextCharFormat body;
+            body.setFontPointSize(11);
+            auto outer = std::make_shared<TableData>(), inner = std::make_shared<TableData>();
+            outer->columns << 300;
+            inner->columns << 100;
+            outer->margins = inner->margins = QMarginsF(4, 3, 4, 3);
+            auto outerRow = std::make_shared<RowData>();
+            CellRecord o;
+            o.table = outer;
+            o.row = outerRow;
+            const int outerKey = fd.tables.add(o);
+            auto paragraph = [&](int key, const QString &text, double above = 0) {
+                QTextBlockFormat bf;
+                bf.setProperty(fp::Cell, key);
+                bf.setTopMargin(above);
+                c.insertBlock(bf, body);
+                c.insertText(text, body);
+            };
+            paragraph(outerKey, QStringLiteral("before"));
+            for (int r = 0; r < 2; ++r) {
+                CellRecord i;
+                i.table = inner;
+                i.row = std::make_shared<RowData>();
+                i.parent = outerKey;
+                paragraph(fd.tables.add(i), QStringLiteral("inner %1").arg(r));
+            }
+            switch (variant) {
+            case 0: paragraph(outerKey, QString()); break;
+            case 1: paragraph(outerKey, QStringLiteral("after")); break;
+            case 2: paragraph(outerKey, QString()); paragraph(outerKey, QString()); break;   // (the first of them is a paragraph like any)
+            default: paragraph(outerKey, QString(), 30); break;
+            }
+            Paginator pg(&fd);
+            const auto rows = rowLines(pg, fd, 0);
+            QCOMPARE(rows.size(), 1);
+            heights[variant] = rows[0].rect.height();
+            if (variant == 0) {
+                const auto page = pg.materialize(0);
+                QVERIFY(page && !page->tables.isEmpty());
+                QLineF caret;
+                QVERIFY(page->tables[0]->caretLine(fd.story()->lastBlock().position(), &caret));
+                QVERIFY2(caret.length() > 8, qPrintable(QString::number(caret.length())));
+            }
+        }
+        FlowDocument fdForLine;
+        const double line = lineHeightOf(fdForLine);
+        // (The outer cell: its margins, a line, and the two rows of the table in it, each a line and its margins.)
+        const double base = 6 + line + 2 * (line + 6);
+        QVERIFY2(std::abs(heights[0] - base) < 0.1, qPrintable(QString::number(heights[0])));
+        QVERIFY2(std::abs(heights[1] - (base + line)) < 0.1, qPrintable(QString::number(heights[1])));
+        QVERIFY2(std::abs(heights[2] - (base + line)) < 0.1, qPrintable(QString::number(heights[2])));
+        QVERIFY2(std::abs(heights[3] - base) < 0.1, qPrintable(QString::number(heights[3])));
+    }
+
     // A table that is taller than a page goes on onto the next, between rows, each row once and whole; the pages start at a row's first paragraph.
     void aTableBreaksBetweenRowsAcrossPages()
     {
@@ -5887,6 +6415,182 @@ private Q_SLOTS:
             QVERIFY(last.size() >= 1);
             QCOMPARE(rowLines(pg, fd, pg.pageOfPosition(table.rowStarts[2])).last().pos, table.rowStarts[2]);
         }
+    }
+
+    // A row set to a height that has a cell with its content in the middle or at the foot is not begun where the room is less than that height: it goes to the next page whole.
+    // A row with its content at the top is cut as any row is, whatever its height.
+    void aRowSetToAHeightWithContentNotAtItsTopIsNotBegunInLessRoom()
+    {
+        FlowDocument probe;
+        const double line = lineHeightOf(probe);
+        const double room = probe.section(0).content().height();
+        const int filler = int(std::floor((room - 12) / line)) - 3;
+        const double left = room - (filler * line + 6) - line;   // (what the page has for the second row, after the story's own line)
+        struct Case { double height; CellAlign align; bool whole; };
+        for (const Case &k : {Case{0.0, CellAlign::Bottom, false}, Case{10.0, CellAlign::Bottom, false}, Case{left + 20, CellAlign::Bottom, true}, Case{left + 20, CellAlign::Center, true},
+                              Case{left + 20, CellAlign::Top, false}}) {
+            FlowDocument fd;
+            TestTable spec;
+            spec.rows = 2;
+            spec.cols = 2;
+            spec.columnWidth = 150;
+            spec.text = [&](int r, int c) {
+                QStringList t;
+                const int lines = r == 0 ? (c == 0 ? filler : 1) : 8;
+                for (int i = 0; i < lines; ++i) t << QStringLiteral("line %1 of %2.%3").arg(i).arg(r).arg(c);
+                return t.join(QLatin1Char('\n'));
+            };
+            spec.setRow = [&](int r, RowData &row) {
+                if (r == 1) row.height = k.height;
+            };
+            spec.setCell = [&](int r, int, CellData &cell) {
+                if (r == 1) cell.valign = k.align;
+            };
+            addTable(fd, spec);
+            Paginator pg(&fd);
+            QVERIFY(pg.pageCount() >= 2);
+            const int piece = pg.page(1).start.piece;
+            QVERIFY2((piece == 0) == k.whole, qPrintable(QStringLiteral("height %1, align %2: the next page starts at part %3").arg(k.height).arg(int(k.align)).arg(piece)));
+        }
+    }
+
+    // A table in a cell follows the same rule: its row, set to a height and with content at its foot, is not begun in less room than that.
+    void aRowOfATableInACellSetToAHeightIsNotBegunInLessRoomEither()
+    {
+        for (const CellAlign align : {CellAlign::Bottom, CellAlign::Top}) {
+            FlowDocument fd;
+            fd.sections[0].paper = QSizeF(300, 300);
+            fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+            QTextCursor c(fd.story());
+            c.movePosition(QTextCursor::End);
+            QTextCharFormat body;
+            body.setFontPointSize(11);
+            const double line = lineHeightOf(fd);
+            const double room = fd.section(0).content().height();
+            const int filler = int(std::floor((room - 12 - 3) / line)) - 3;
+            auto outer = std::make_shared<TableData>(), inner = std::make_shared<TableData>();
+            outer->columns << 220;
+            inner->columns << 150;
+            outer->margins = inner->margins = QMarginsF(4, 3, 4, 3);
+            CellRecord o;
+            o.table = outer;
+            o.row = std::make_shared<RowData>();
+            const int outerKey = fd.tables.add(o);
+            auto paragraph = [&](int key, const QString &text) {
+                QTextBlockFormat bf;
+                bf.setProperty(fp::Cell, key);
+                c.insertBlock(bf, body);
+                c.insertText(text, body);
+            };
+            for (int k = 0; k < filler; ++k) paragraph(outerKey, QStringLiteral("fill %1").arg(k));
+            auto innerRow = std::make_shared<RowData>();
+            innerRow->height = 5 * line;   // (more than the room the page has left for it, less than what its cell holds, so that it can be cut)
+            CellRecord i;
+            i.table = inner;
+            i.row = innerRow;
+            i.parent = outerKey;
+            i.cell.valign = align;
+            const int innerKey = fd.tables.add(i);
+            for (int k = 0; k < 8; ++k) paragraph(innerKey, QStringLiteral("inner %1").arg(k));
+            paragraph(outerKey, QString());
+            Paginator pg(&fd);
+            QVERIFY(pg.pageCount() >= 2);
+            // The next page goes on in the row, from where the lines of its cell were left: the lines before that are on this page. Not begun, the nested row is where it goes on
+            // from (the filler's lines are before it); begun, some of its lines are before.
+            const auto next = pg.page(1).start;
+            QCOMPARE(next.pos, fd.story()->findBlock(next.pos).position());
+            QVERIFY(next.piece != 0 && !next.pieceAt.isEmpty());
+            const double rowTop = filler * line;
+            if (align == CellAlign::Bottom) QVERIFY2(next.pieceAt[0] <= rowTop + 0.5, qPrintable(QStringLiteral("%1 for a row at %2").arg(next.pieceAt[0]).arg(rowTop)));
+            else QVERIFY2(next.pieceAt[0] > rowTop + 3 + line / 2, qPrintable(QStringLiteral("%1 for a row at %2").arg(next.pieceAt[0]).arg(rowTop)));
+        }
+    }
+
+    // A table in a cell has its cell's margin again where its row goes on over a page break: the part of the row on the next page has the nested cell's top margin above its
+    // first line, besides the outer cell's own.
+    void aTableInACellHasItsMarginAgainWhereItsRowGoesOn()
+    {
+        FlowDocument fd;
+        fd.sections[0].paper = QSizeF(300, 300);
+        fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+        QTextCursor c(fd.story());
+        c.movePosition(QTextCursor::End);
+        QTextCharFormat body;
+        body.setFontPointSize(11);
+        auto outer = std::make_shared<TableData>(), inner = std::make_shared<TableData>();
+        outer->columns << 220;
+        inner->columns << 150;
+        outer->margins = QMarginsF(4, 3, 4, 3);
+        inner->margins = QMarginsF(4, 6, 4, 3);
+        CellRecord o;
+        o.table = outer;
+        o.row = std::make_shared<RowData>();
+        const int outerKey = fd.tables.add(o);
+        auto paragraph = [&](int key, const QString &text) {
+            QTextBlockFormat bf;
+            bf.setProperty(fp::Cell, key);
+            c.insertBlock(bf, body);
+            c.insertText(text, body);
+        };
+        CellRecord i;
+        i.table = inner;
+        i.row = std::make_shared<RowData>();
+        i.parent = outerKey;
+        const int innerKey = fd.tables.add(i);
+        for (int k = 0; k < 60; ++k) paragraph(innerKey, QStringLiteral("line %1").arg(k));
+        paragraph(outerKey, QString());
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        const auto page = pg.materialize(1);
+        QVERIFY(page && !page->tables.isEmpty());
+        const TableFragment &f = *page->tables[0];
+        QVERIFY(f.partOf(0) != nullptr);
+        double first = -1;
+        f.forLines([&](const StoryLayout::LineBrief &, const QRectF &rect) {
+            if (first < 0) first = rect.top() - f.origin.y();
+        });
+        // (The outer cell's margin is 3, the table in it has 6 at the top of its cell.)
+        QVERIFY2(std::abs(first - 9) < 0.05, qPrintable(QString::number(first)));
+    }
+
+    // The part of a row that goes on from the page before shows only its own lines: nothing of the lines that the page before showed is drawn in the margin above them.
+    void aPartOfARowDoesNotShowTheLinesOfThePartBeforeItInItsMargin()
+    {
+        FlowDocument fd;
+        fd.sections[0].paper = QSizeF(300, 300);
+        fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+        TestTable spec;
+        spec.rows = 1;
+        spec.cols = 1;
+        spec.columnWidth = 200;
+        spec.margins = QMarginsF(4, 12, 4, 3);
+        spec.text = [](int, int) {
+            QStringList t;
+            for (int i = 0; i < 60; ++i) t << QStringLiteral("MMMMMMMMMMMMMMMM %1").arg(i);
+            return t.join(QLatin1Char('\n'));
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        const auto page = pg.materialize(1);
+        QVERIFY(page && !page->tables.isEmpty());
+        const TableFragment &f = *page->tables[0];
+        QVERIFY(f.partOf(0) != nullptr);
+        QImage image(int(fd.section(0).pageSize().width()) * 4, int(fd.section(0).pageSize().height()) * 4, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::white);
+        {
+            QPainter painter(&image);
+            painter.scale(4, 4);
+            f.paint(&painter, TablePaint());
+        }
+        // (The margin is 12 points above the first line of the part: it is clear, and the line is there.)
+        int inMargin = 0, inLines = 0;
+        for (int y = int((f.origin.y() + 0.5) * 4); y < int((f.origin.y() + 11) * 4); ++y)
+            for (int x = int((f.origin.x() + 4) * 4); x < int((f.origin.x() + 190) * 4); ++x) inMargin += qGray(image.pixel(x, y)) < 200;
+        for (int y = int((f.origin.y() + 13) * 4); y < int((f.origin.y() + 24) * 4); ++y)
+            for (int x = int((f.origin.x() + 4) * 4); x < int((f.origin.x() + 190) * 4); ++x) inLines += qGray(image.pixel(x, y)) < 200;
+        QCOMPARE(inMargin, 0);
+        QVERIFY2(inLines > 50, qPrintable(QString::number(inLines)));
     }
 
     // A row whose cell holds a table goes over the page break inside that table: between its rows, and between the lines of a row of it that may be split. A page

@@ -18,12 +18,14 @@ namespace jp::flow {
 
 // One edge of a table or of a cell.
 struct TableLine {
-    enum class Style : quint8 { None, Single, Double, Dotted, Dashed };
+    enum class Style : quint8 { None, Single, Double, Dotted, Dashed, Triple };
     Style style = Style::None;
     double width = 0;       // points, of each line
     QColor color;           // invalid: automatic (black)
     bool visible() const { return style != Style::None && width > 0; }
-    double extent() const { return style == Style::Double ? width * 3 : width; }   // all it takes: two lines and the space between
+    double extent() const { return style == Style::Double ? width * 3 : style == Style::Triple ? width * 5 : width; }   // all it takes: the lines and the spaces between them
+    // Which of two lines at an edge is the line: the one of the greater weight, a line's width times the number of lines it is drawn with.
+    double weight() const { return !visible() ? 0.0 : style == Style::Double ? width * 2 : style == Style::Triple ? width * 3 : width; }
     bool operator==(const TableLine &o) const { return style == o.style && width == o.width && color == o.color; }
     bool operator!=(const TableLine &o) const { return !(*this == o); }
 };
@@ -38,6 +40,7 @@ struct TableData {
     double indent = 0;              // from the text area's edge to the table's left edge, or to the first cell's text (indentToText)
     bool indentToText = false;      // the indent is to the text of the first cell of the first row: the edge is left of it by that cell's margin
     double spacing = 0;             // between cells
+    bool spaced = false;            // the table says it has space between its cells (even none): its lines are a frame round all of them, not the cells' own
     QMarginsF margins{5.4, 0, 5.4, 0};   // the cells' own space inside (left, top, right, bottom), unless a cell says
     TableLine top, left, bottom, right, insideH, insideV;   // the table's borders: the cells on its edges take the first four, those between cells the others
     std::optional<QColor> fill;
