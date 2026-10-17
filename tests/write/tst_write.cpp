@@ -1567,18 +1567,23 @@ private Q_SLOTS:
         QVERIFY(documentXml(doc->toDocx()).contains("numberInDash"));
     }
 
-    // The option that no punctuation hangs past the margin is read by its value: stated off, it is off.
-    void noHangingPunctuationIsReadByItsValue()
+    // Punctuation hangs past the margin only in a file that has the East Asian layout on, and not where it also says no punctuation hangs; each option
+    // is read by its value: stated off, it is off.
+    void punctuationHangsOnlyWithTheEastAsianLayout()
     {
         auto hangs = [&](const QByteArray &option) {
             auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {}, "<w:compat>" + option + "</w:compat>"));
             return doc && !doc->flow().env.wordNoHang;
         };
+        QVERIFY(!hangs(""));
         QVERIFY(!hangs("<w:doNotWrapTextWithPunct/>"));
-        QVERIFY(!hangs("<w:doNotWrapTextWithPunct w:val=\"1\"/>"));
-        QVERIFY(hangs("<w:doNotWrapTextWithPunct w:val=\"0\"/>"));
-        QVERIFY(hangs("<w:doNotWrapTextWithPunct w:val=\"false\"/>"));
-        QVERIFY(hangs(""));
+        QVERIFY(!hangs("<w:useFELayout w:val=\"0\"/>"));
+        QVERIFY(hangs("<w:useFELayout/>"));
+        QVERIFY(hangs("<w:useFELayout w:val=\"1\"/>"));
+        QVERIFY(!hangs("<w:useFELayout/><w:doNotWrapTextWithPunct/>"));
+        QVERIFY(!hangs("<w:useFELayout/><w:doNotWrapTextWithPunct w:val=\"1\"/>"));
+        QVERIFY(hangs("<w:useFELayout/><w:doNotWrapTextWithPunct w:val=\"0\"/>"));
+        QVERIFY(hangs("<w:useFELayout/><w:doNotWrapTextWithPunct w:val=\"false\"/>"));
     }
 
     // Spacing a person sets on paragraphs that have automatic spacing is the spacing they have: the automatic gap goes, on the page and in the file.
