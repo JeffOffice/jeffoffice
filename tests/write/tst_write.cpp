@@ -10,12 +10,14 @@
 #include "app/writewindow.h"
 #include "core/appinfo.h"
 #include "core/editops.h"
+#include "core/spellcheck.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 #include "../flow/pageaudit.h"
 #include "office/package.h"
 #include "rtcheck.h"
+#include "app/spelling.h"
 #include "text/textprops.h"
 #include "io/zip.h"
 #include "wml/wml.h"
@@ -26,6 +28,8 @@
 #include <QDialog>
 #include <QDoubleSpinBox>
 #include <QRadioButton>
+#include <QSignalSpy>
+#include <QStandardPaths>
 #include <QSpinBox>
 #include <QTimer>
 #include <QElapsedTimer>
@@ -151,6 +155,23 @@ const QByteArray kStyles =
     "<w:style w:type=\"paragraph\" w:styleId=\"Heading1\"><w:name w:val=\"heading 1\"/><w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/><w:uiPriority w:val=\"9\"/><w:qFormat/>"
     "<w:pPr><w:keepNext/><w:spacing w:before=\"360\" w:after=\"120\"/><w:outlineLvl w:val=\"0\"/></w:pPr><w:rPr><w:rFonts w:ascii=\"Arimo\" w:hAnsi=\"Arimo\"/><w:b/><w:color w:val=\"1F3864\"/><w:sz w:val=\"34\"/></w:rPr></w:style>"
     "<w:style w:type=\"character\" w:styleId=\"Strong\"><w:name w:val=\"Strong\"/><w:qFormat/><w:rPr><w:b/></w:rPr></w:style>";
+
+// A document of plain paragraphs (one run each), in the sample styles.
+std::unique_ptr<WriteDoc> textDoc(const QStringList &paragraphs, const QByteArray &styles = kStyles)
+{
+    QByteArray body;
+    for (const QString &p : paragraphs) body += "<w:p><w:r><w:t xml:space=\"preserve\">" + p.toUtf8() + "</w:t></w:r></w:p>";
+    return open(makeDocx(body, styles));
+}
+
+// The words a spelling check flags in the whole story, in order.
+QStringList flaggedWords(SpellCheck &sc, WriteDoc &doc)
+{
+    const QString text = doc.story()->toPlainText();
+    QStringList out;
+    for (const auto &r : sc.misspelledIn(0, doc.story()->characterCount())) out << text.mid(r.first, r.second - r.first);
+    return out;
+}
 
 
 // A document with every kind of thing a file keeps beside its text, for the checks that nothing is lost: paragraph ids, hyperlinks (outside and
@@ -826,6 +847,138 @@ private Q_SLOTS:
         QTRY_VERIFY(w.act("edit.redo")->isEnabled());
         w.act("edit.redo")->trigger();
         QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("Hello\n"));
+    }
+
+    // ---------------------------------------------------------------- spelling
+    void spellCheckFindsTheMisspelledWordsOfTheStory()
+    {
+        auto doc = textDoc({"The quick brwon fox jumpd over teh lazy dog.", "A second paragraph, correctly spelled.", "NASA and abc123 are let go, so are the 3rd and 21st, but Teh is not."});
+        SpellCheck sc(doc->story());
+        QCOMPARE(flaggedWords(sc, *doc), (QStringList{"brwon", "jumpd", "teh", "Teh"}));
+        // Switched off, it finds nothing; on again, the same.
+        sc.setEnabled(false);
+        QVERIFY(flaggedWords(sc, *doc).isEmpty());
+        sc.setEnabled(true);
+        QCOMPARE(flaggedWords(sc, *doc).size(), 4);
+    }
+
+    void spellCheckKeepsItsAnswerForEachParagraph()
+    {
+        QStringList texts;
+        for (int i = 0; i < 100; ++i) texts << QStringLiteral("Paragraph number %1 has a misspeled word in it.").arg(i);
+        auto doc = textDoc(texts);
+        QTextDocument *story = doc->story();
+        SpellCheck sc(story);
+        const QTextBlock third = story->findBlockByNumber(3);
+        QCOMPARE(sc.misspelledIn(third.position(), third.position() + third.length()).size(), 1);
+        QCOMPARE(sc.paragraphsChecked(), qint64(1));
+        sc.misspelledIn(third.position(), third.position() + third.length());
+        QCOMPARE(sc.paragraphsChecked(), qint64(1));   // (kept)
+        const int end = story->characterCount();
+        QCOMPARE(sc.misspelledIn(0, end).size(), 100);
+        QCOMPARE(sc.paragraphsChecked(), qint64(100));
+        // An edit in one paragraph makes only that one checked again, and the others move without being checked.
+        QTextCursor c(story);
+        c.setPosition(third.position() + 9);   // (the end of "Paragraph")
+        insertText(*doc, c, QStringLiteral("s"));
+        QCOMPARE(sc.misspelledIn(0, story->characterCount()).size(), 100);
+        QCOMPARE(sc.paragraphsChecked(), qint64(101));
+        c.setPosition(0);
+        insertParagraph(*doc, c);
+        QCOMPARE(sc.misspelledIn(0, story->characterCount()).size(), 100);
+        QVERIFY2(sc.paragraphsChecked() <= 103, "a paragraph cut in two is checked, not the rest");
+        // Undo brings the old text back; the answers for it are made again, and right.
+        story->undo();
+        story->undo();
+        QCOMPARE(sc.misspelledIn(0, story->characterCount()).size(), 100);
+    }
+
+    void spellCheckGivesWayWhenThePassIsOutOfTimeAndFinishesInIdleTime()
+    {
+        QStringList texts;
+        for (int i = 0; i < 100; ++i) texts << QStringLiteral("Paragraph %1 has a misspeled word.").arg(i);
+        auto doc = textDoc(texts);
+        SpellCheck sc(doc->story());
+        QSignalSpy changed(&sc, &SpellCheck::changed);
+        const int end = doc->story()->characterCount();
+        QVector<QPair<int, int>> some;
+        {
+            SpellCheck::Pass pass(sc, 0);
+            some = sc.misspelledIn(0, end);
+        }
+        QVERIFY(some.size() < 100);
+        QVERIFY(sc.paragraphsChecked() < 100);
+        QVERIFY(sc.pending());
+        // The rest is done when nothing else is: the event loop's idle time, and the view is told.
+        QTRY_VERIFY(!sc.pending());
+        QVERIFY(changed.count() > 0);
+        QCOMPARE(sc.paragraphsChecked(), qint64(100));
+        QCOMPARE(sc.misspelledIn(0, end).size(), 100);
+        QCOMPARE(sc.paragraphsChecked(), qint64(100));
+    }
+
+    void spellCheckFollowsTheLanguageOfTheText()
+    {
+        // "colour" is right in British English and wrong in American.
+        const QByteArray body = "<w:p><w:r><w:rPr><w:lang w:val=\"en-GB\"/></w:rPr><w:t xml:space=\"preserve\">colour </w:t></w:r><w:r><w:t>colour</w:t></w:r></w:p>"
+                                "<w:p><w:pPr><w:pStyle w:val=\"British\"/></w:pPr><w:r><w:t xml:space=\"preserve\">colour </w:t></w:r><w:r><w:rPr><w:lang w:val=\"en-US\"/></w:rPr><w:t>colour</w:t></w:r></w:p>"
+                                "<w:p><w:r><w:rPr><w:lang w:val=\"tlh-KX\"/></w:rPr><w:t>qapla brwon</w:t></w:r></w:p>"
+                                "<w:p><w:r><w:rPr><w:noProof/></w:rPr><w:t>brwon</w:t></w:r></w:p>";
+        const QByteArray styles = kStyles + "<w:style w:type=\"paragraph\" w:styleId=\"British\"><w:name w:val=\"British\"/><w:basedOn w:val=\"Normal\"/><w:rPr><w:lang w:val=\"en-GB\"/></w:rPr></w:style>";
+        auto doc = open(makeDocx(body, styles));
+        SpellCheck sc(doc->story());
+        sc.setDefaultLanguage(doc->proofingLanguage());
+        const QString text = doc->story()->toPlainText();
+        QStringList found;
+        for (const auto &r : sc.misspelledIn(0, doc->story()->characterCount())) found << QStringLiteral("%1:%2").arg(doc->story()->findBlock(r.first).blockNumber()).arg(text.mid(r.first, r.second - r.first));
+        // A run's own language, else its style's, else the document's (American): the second "colour" of the first paragraph, and the one said American in the second.
+        // A language with no dictionary, and text marked "do not check", is let alone.
+        QCOMPARE(found, (QStringList{"0:colour", "1:colour"}));
+        // The document's own default (docDefaults) is what text that says none is: here British.
+        QByteArray british = kStyles;
+        british.replace("<w:sz w:val=\"23\"/></w:rPr></w:rPrDefault>", "<w:sz w:val=\"23\"/><w:lang w:val=\"en-GB\"/></w:rPr></w:rPrDefault>");
+        auto doc2 = textDoc({"colour and brwon"}, british);
+        QCOMPARE(doc2->proofingLanguage(), QStringLiteral("en-GB"));
+        SpellCheck sc2(doc2->story());
+        sc2.setDefaultLanguage(doc2->proofingLanguage());
+        QCOMPARE(flaggedWords(sc2, *doc2), (QStringList{"brwon"}));
+        // The file still says what it said.
+        const QByteArray saved = documentXml(doc->toDocx());
+        QVERIFY(saved.contains("<w:lang w:val=\"en-GB\"/>"));
+        QVERIFY(saved.contains("<w:lang w:val=\"tlh-KX\"/>"));
+    }
+
+    void theIgnoreListAndTheUserDictionaryChangeTheAnswers()
+    {
+        auto doc = textDoc({"The zorbifyx and the quixzotl are strange, but vlorpish is stranger."});
+        SpellCheck sc(doc->story());
+        QCOMPARE(flaggedWords(sc, *doc), (QStringList{"zorbifyx", "quixzotl", "vlorpish"}));
+        spellingIgnore(QStringLiteral("zorbifyx"));
+        QCOMPARE(flaggedWords(sc, *doc), (QStringList{"quixzotl", "vlorpish"}));
+        // (Added words go in a file of the test's own.)
+        QStandardPaths::setTestModeEnabled(true);
+        spellingAdd(QStringLiteral("quixzotl"));
+        QFile::remove(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/custom.dic"));
+        QStandardPaths::setTestModeEnabled(false);
+        QCOMPARE(flaggedWords(sc, *doc), (QStringList{"vlorpish"}));
+    }
+
+    void misspellingsAreFoundByPositionAndInOrder()
+    {
+        auto doc = textDoc({"One brwon fox", "and teh dog"});
+        SpellCheck sc(doc->story());
+        const auto first = sc.nextMisspelling(0);
+        QCOMPARE(first, qMakePair(4, 9));
+        // At or after a position: from inside the word, the word after it.
+        const auto second = sc.nextMisspelling(first.second);
+        QCOMPARE(doc->story()->toPlainText().mid(second.first, second.second - second.first), QStringLiteral("teh"));
+        QCOMPARE(sc.nextMisspelling(second.second), qMakePair(-1, -1));
+        // The word a position is in, or at the end of; not the one after the space.
+        QCOMPARE(sc.misspellingAt(4), first);
+        QCOMPARE(sc.misspellingAt(7), first);
+        QCOMPARE(sc.misspellingAt(9), first);
+        QCOMPARE(sc.misspellingAt(10), qMakePair(-1, -1));
+        QCOMPARE(sc.misspellingAt(0), qMakePair(-1, -1));
     }
 
     void theRibbonCommandsDoTheirWork()

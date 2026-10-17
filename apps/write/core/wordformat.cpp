@@ -275,6 +275,17 @@ QTextCharFormat withoutAtom(QTextCharFormat f)
 
 // ---- runs
 
+QString languageOf(const QVector<RawChild> &extra)
+{
+    static const QRegularExpression element(QStringLiteral("^<(?:\\w+:)?lang[\\s/>]")), value(QStringLiteral("\\s(?:\\w+:)?val=\"([^\"]*)\""));
+    for (const RawChild &child : extra) {
+        const QString xml = QString::fromUtf8(child.xml.left(400));
+        if (!element.match(xml).hasMatch()) continue;
+        return value.match(xml).captured(1).trimmed();
+    }
+    return QString();
+}
+
 QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme, const RunProps *direct)
 {
     QTextCharFormat cf;
@@ -316,6 +327,7 @@ QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme, const RunPro
     if (r.position && *r.position != 0) cf.setProperty(prop::Raised, *r.position);
     if (r.vanish.value_or(false)) cf.setProperty(tp::HiddenText, true);
     if (r.noProof.value_or(false)) cf.setProperty(tp::NoProof, true);
+    if (const QString language = languageOf(r.extra); !language.isEmpty()) cf.setProperty(tp::Language, language);   // (spelling follows it)
     if (!r.style.isEmpty()) cf.setProperty(tp::CharStyle, r.style);
 
     // The typefaces: a theme font names no family (the engine takes the document's font scheme).
