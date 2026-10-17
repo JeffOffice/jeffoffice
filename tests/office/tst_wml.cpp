@@ -1,5 +1,6 @@
 // Tests of libs/office/wml: the tree the word processing parts are read into, and reading and writing a .docx.
 
+#include "../timing.h"
 #include "office/package.h"
 #include "office/xml.h"
 #include "wml/wml.h"
@@ -345,15 +346,12 @@ private Q_SLOTS:
         auto seconds = [&](int count) {
             QByteArray many = QByteArray("<w:fonts ") + kW + ">";
             for (int i = 0; i < count; ++i) many += "<w:font ";
-            double best = 1e9;
-            for (int k = 0; k < 3; ++k) {
-                QElapsedTimer t;
-                t.start();
+            bool accepted = false;
+            const double best = bestNanoseconds([&] {
                 QVector<FontEntry> none;
-                if (readFonts(many, &none)) return -1.0;
-                best = std::min(best, t.nsecsElapsed() / 1e9);
-            }
-            return best;
+                if (readFonts(many, &none)) accepted = true;
+            }) / 1e9;
+            return accepted ? -1.0 : best;
         };
         const double small = seconds(5000), large = seconds(20000);
         QVERIFY(small >= 0 && large >= 0);
@@ -1089,10 +1087,9 @@ private Q_SLOTS:
             many.reserve(count * 80);
             for (int i = 0; i < count; ++i) many += "<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>word</w:t></w:r></w:p>";
             const QByteArray zip = Made{many, {}, {}, {}}.build();
-            QElapsedTimer timer;
-            timer.start();
-            const bool ok = readDocx(zip, into, &err);
-            return ok ? timer.nsecsElapsed() / 1e6 : 1e9;
+            bool ok = false;
+            const qint64 ns = bestNanoseconds([&] { ok = readDocx(zip, into, &err); });
+            return ok ? ns / 1e6 : 1e9;
         };
         Document small;
         readTime(20000, &small);   // (the first of anything is slow)

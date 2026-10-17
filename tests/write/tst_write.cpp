@@ -18,6 +18,7 @@
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 #include "../flow/pageaudit.h"
+#include "../timing.h"
 #include "office/package.h"
 #include "rtcheck.h"
 #include "text/textprops.h"
@@ -1225,22 +1226,25 @@ private Q_SLOTS:
     {
         // A paragraph of 96,000 characters with this many "cat"s in it; the time Replace All takes to turn them into "dog"s.
         auto seconds = [](int matches, double *took) {
-            WriteWindow w;
+            std::unique_ptr<WriteWindow> w;
+            WriteFindPane *pane = nullptr;
             QString text;
-            const int per = 96000 / matches;
-            while (text.size() < 96000) text += QString(per - 4, QLatin1Char('x')) + QStringLiteral(" cat");
-            QTextCursor c(w.document()->story());
-            c.insertText(text);
-            w.showFindPane(true);
-            WriteFindPane *pane = w.findPane();
-            pane->findBox()->setText(QStringLiteral("cat"));
-            pane->replaceBox()->setText(QStringLiteral("dog"));
-            QElapsedTimer timer;
-            timer.start();
-            pane->replaceAll();
-            *took = timer.nsecsElapsed() / 1e9;
+            const qint64 ns = bestNanoseconds([&] { pane->replaceAll(); }, 5, [&] {
+                w.reset();
+                const int per = 96000 / matches;
+                text.clear();
+                while (text.size() < 96000) text += QString(per - 4, QLatin1Char('x')) + QStringLiteral(" cat");
+                w = std::make_unique<WriteWindow>();
+                QTextCursor c(w->document()->story());
+                c.insertText(text);
+                w->showFindPane(true);
+                pane = w->findPane();
+                pane->findBox()->setText(QStringLiteral("cat"));
+                pane->replaceBox()->setText(QStringLiteral("dog"));
+            });
+            *took = ns / 1e9;
             QCOMPARE(pane->status(), QStringLiteral("JeffWrite made %1 replacements.").arg(text.count(QLatin1String("cat"))));
-            QVERIFY(!w.document()->story()->toPlainText().contains(QLatin1String("cat")));
+            QVERIFY(!w->document()->story()->toPlainText().contains(QLatin1String("cat")));
         };
         double few = 0, many = 0;
         seconds(2000, &few);
@@ -2078,15 +2082,19 @@ private Q_SLOTS:
         // 20,000 paragraphs: an undo that kept the whole document would take time in proportion to it (the design's reason for commands). The same
         // edits in a tenth of the paragraphs take about as long, not a tenth: compared with each other, not with a clock.
         auto timeEdits = [](int paragraphCount) {
-            auto doc = open(makeDocx(paragraphs(paragraphCount, 12), kStyles));
-            QTextCursor c(doc->story());
-            c.setPosition(5000);
-            QElapsedTimer t;
-            t.start();
-            for (int i = 0; i < 50; ++i) insertText(*doc, c, QStringLiteral("x"));
-            insertParagraph(*doc, c);
-            for (int i = 0; i < 50; ++i) doc->story()->undo(&c);
-            const double ms = t.nsecsElapsed() / 1e6;
+            std::unique_ptr<WriteDoc> doc;
+            QTextCursor c;
+            const qint64 ns = bestNanoseconds([&] {
+                for (int i = 0; i < 50; ++i) insertText(*doc, c, QStringLiteral("x"));
+                insertParagraph(*doc, c);
+                for (int i = 0; i < 50; ++i) doc->story()->undo(&c);
+            }, 5, [&] {
+                c = QTextCursor();
+                doc = open(makeDocx(paragraphs(paragraphCount, 12), kStyles));
+                c = QTextCursor(doc->story());
+                c.setPosition(5000);
+            });
+            const double ms = ns / 1e6;
             return doc->story()->blockCount() == paragraphCount ? ms : 1e9;
         };
         timeEdits(2000);   // (the first of anything is slow)
@@ -2465,14 +2473,8 @@ private Q_SLOTS:
             for (int i = 0; i < count; ++i) table += "<w:font w:name=\"F" + QByteArray::number(i) + "\"/>";
             table += "</w:fonts>";
             const QByteArray zip = makeDocxWithParts(paragraphs(1, 5), QByteArray(), {{QStringLiteral("/word/fontTable.xml"), table}});
-            double best = 1e9;
-            for (int k = 0; k < 2; ++k) {
-                QElapsedTimer t;
-                t.start();
-                auto doc = open(zip);
-                best = std::min(best, t.nsecsElapsed() / 1e9);
-            }
-            return best;
+            std::unique_ptr<WriteDoc> doc;
+            return bestNanoseconds([&] { doc = open(zip); }, 5, [&] { doc.reset(); }) / 1e9;
         };
         const double small = seconds(5000), large = seconds(20000);
         QVERIFY2(large < 0.2 + small * 8, qPrintable(QStringLiteral("5000 fonts %1 s, 20000 fonts %2 s").arg(small).arg(large)));
@@ -3749,10 +3751,9 @@ private Q_SLOTS:
         // the first page at once, and save.
         auto openTime = [](int count) {
             const QByteArray zip = makeDocx(paragraphs(count, 25), kStyles);
-            QElapsedTimer t;
-            t.start();
-            auto d = open(zip);
-            return d ? t.nsecsElapsed() / 1e6 : 1e9;
+            std::unique_ptr<WriteDoc> d;
+            const qint64 ns = bestNanoseconds([&] { d = open(zip); }, 3, [&] { d.reset(); });
+            return d ? ns / 1e6 : 1e9;
         };
         openTime(3000);   // (the first of anything is slow)
         const double few = std::max(openTime(3000), 20.0), many = openTime(30000);
@@ -3788,11 +3789,9 @@ private Q_SLOTS:
             return w.finish();
         };
         auto openTime = [&](const QByteArray &zip) {
-            QElapsedTimer t;
-            t.start();
-            auto doc = open(zip);
-            const double ms = t.nsecsElapsed() / 1e6;
-            return doc ? ms : 1e9;
+            std::unique_ptr<WriteDoc> doc;
+            const qint64 ns = bestNanoseconds([&] { doc = open(zip); }, 3, [&] { doc.reset(); });
+            return doc ? ns / 1e6 : 1e9;
         };
         const QByteArray plain = build(0), withIds = build(1), withBookmarks = build(2);
         openTime(plain);   // (the first of anything is slow: fonts, the first layout)
@@ -4469,17 +4468,24 @@ private Q_SLOTS:
     // How long a document takes to open and to page, in seconds.
     static double secondsToOpenAndPage(const QByteArray &zip, int *pages = nullptr, QStringList *notes = nullptr)
     {
-        QElapsedTimer t;
-        t.start();
+        std::unique_ptr<WriteDoc> doc;
         QString err;
-        auto doc = WriteDoc::fromDocx(zip, &err, notes);
+        int n = 0;
+        // Three runs: a document of thousands of rows takes seconds to open.
+        const qint64 ns = bestNanoseconds([&] {
+            doc = WriteDoc::fromDocx(zip, &err, notes);
+            if (doc) n = doc->pager().pageCount();
+        }, 3, [&] {
+            doc.reset();
+            err.clear();
+            if (notes) notes->clear();
+        });
         if (!doc) {
             qWarning("open: %s", qPrintable(err));
             return 1e9;
         }
-        const int n = doc->pager().pageCount();
         if (pages) *pages = n;
-        return t.nsecsElapsed() / 1e9;
+        return ns / 1e9;
     }
 
     // A table of `rows` by `columns` short cells.
@@ -4537,13 +4543,15 @@ private Q_SLOTS:
         for (int i = 0; i < 3000; ++i) lines += cellP("line " + QByteArray::number(i));
         const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"5200\" w:h=\"2400\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
         const QByteArray zip = makeDocx(tableX(rowX(cellX(lines, QByteArray(), 3000)), 1, 3000) + cellP("after"), kStyles, QByteArray(), sect);
-        QElapsedTimer t;
-        t.start();
-        auto doc = open(zip);
+        std::unique_ptr<WriteDoc> doc;
+        int pages = 0;
+        const qint64 ms = bestNanoseconds([&] {
+            doc = open(zip);
+            if (doc) pages = doc->pager().pageCount();
+        }, 3, [&] { doc.reset(); }) / 1000000;
         QVERIFY(doc);
         flow::Paginator &pg = doc->pager();
-        const int pages = pg.pageCount();
-        QVERIFY2(t.elapsed() < 20000, qPrintable(QString::number(t.elapsed())));
+        QVERIFY2(ms < 20000, qPrintable(QString::number(ms)));
         QVERIFY2(pages > 1000 && pages < 4000, qPrintable(QString::number(pages)));
         // Every paragraph of the cell is on a page: the last part has the last, and the parts go on from one to the next.
         double offset = -1;

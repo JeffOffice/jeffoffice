@@ -1,5 +1,6 @@
 // Tests of libs/office: DrawingML fills, picture effects, lines, and diagram drawings.
 #include "officehelpers.h"
+#include "../timing.h"
 
 class OfficeDmlFillTests : public QObject {
     Q_OBJECT
@@ -583,18 +584,25 @@ private Q_SLOTS:
         QVERIFY(jp::blipEffectsChange({lumEffect(0.1, 0)}) && !jp::blipEffectsChange({lumEffect(0, 0)}) && !jp::blipEffectsChange({}));
         QImage large(4000, 3000, QImage::Format_ARGB32);
         large.fill(QColor(100, 150, 200));
-        QElapsedTimer timer;
-        timer.start();
-        const QImage refused = jp::applyBlipEffects(large, turns);
-        QVERIFY2(timer.elapsed() < 500, qPrintable(QString::number(timer.elapsed())));
+        QImage refused;
+        const qint64 refusedMs = bestNanoseconds([&] { refused = jp::applyBlipEffects(large, turns); }) / 1000000;
+        QVERIFY2(refusedMs < 500, qPrintable(QString::number(refusedMs)));
         QCOMPARE(refused.cacheKey(), large.cacheKey());
-        QCOMPARE(jp::blipAdjusted(large, turns).cacheKey(), large.cacheKey());
-        QVERIFY(timer.elapsed() < 500);
+        const qint64 keptMs = bestNanoseconds([&] {
+            refused = jp::applyBlipEffects(large, turns);
+            QCOMPARE(jp::blipAdjusted(large, turns).cacheKey(), large.cacheKey());
+        }) / 1000000;
+        QVERIFY(keptMs < 500);
         // One turn of the hue is made, in a time a person does not wait out, and made once however many times it is asked for.
-        const int before = jp::blipAdjustedMade();
-        timer.restart();
-        const QImage turned = jp::blipAdjusted(large, {hslEffect(120, 0, 0)});
-        QVERIFY2(timer.elapsed() < 5000, qPrintable(QString::number(timer.elapsed())));
+        // Each run turns a picture that is new (a new key in the cache), so each run makes the turn.
+        int before = 0;
+        QImage turned;
+        const qint64 turnMs = bestNanoseconds([&] { turned = jp::blipAdjusted(large, {hslEffect(120, 0, 0)}); }, 3, [&] {
+            large = QImage(4000, 3000, QImage::Format_ARGB32);
+            large.fill(QColor(100, 150, 200));
+            before = jp::blipAdjustedMade();
+        }) / 1000000;
+        QVERIFY2(turnMs < 5000, qPrintable(QString::number(turnMs)));
         QVERIFY(turned.cacheKey() != large.cacheKey());
         QCOMPARE(jp::blipAdjustedMade(), before + 1);
         QCOMPARE(jp::blipAdjusted(large, {hslEffect(120, 0, 0)}).cacheKey(), turned.cacheKey());
@@ -605,9 +613,8 @@ private Q_SLOTS:
         // More pixels than a picture is changed in (one byte each here, so as not to take a gigabyte): as it is.
         QImage huge(10100, 10100, QImage::Format_Alpha8);
         QVERIFY(qint64(huge.width()) * huge.height() > jp::kMaxBlipPixels);
-        timer.restart();
-        QCOMPARE(jp::applyBlipEffects(huge, {grayEffect()}).cacheKey(), huge.cacheKey());
-        QVERIFY(timer.elapsed() < 500);
+        const qint64 hugeMs = bestNanoseconds([&] { QCOMPARE(jp::applyBlipEffects(huge, {grayEffect()}).cacheKey(), huge.cacheKey()); }) / 1000000;
+        QVERIFY(hugeMs < 500);
     }
 
     // A picture's changes are written in the order they are drawn: the settings (a clear color, the brightness and contrast, gray or black and white

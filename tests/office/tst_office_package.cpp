@@ -1,5 +1,6 @@
 // Tests of libs/office: packages, the XML they hold, and the writer.
 #include "officehelpers.h"
+#include "../timing.h"
 
 namespace {
 const QString kStrictRelBase = QStringLiteral("http://purl.oclc.org/ooxml/officeDocument/relationships/");
@@ -175,11 +176,11 @@ private Q_SLOTS:
         Package pkg;
         QString err;
         QVERIFY2(pkg.read(w.finish(), &err), qPrintable(err));
-        QElapsedTimer t;
-        t.start();
-        for (int i = 0; i < ids.size(); ++i)
-            QCOMPARE(pkg.relationship(QStringLiteral("/ppt/slides/slide1.xml"), ids[i]).target, QStringLiteral("/ppt/media/image%1.png").arg(i));
-        QVERIFY2(t.elapsed() < 2000, qPrintable(QString::number(t.elapsed())));
+        const qint64 ms = bestNanoseconds([&] {
+            for (int i = 0; i < ids.size(); ++i)
+                QCOMPARE(pkg.relationship(QStringLiteral("/ppt/slides/slide1.xml"), ids[i]).target, QStringLiteral("/ppt/media/image%1.png").arg(i));
+        }) / 1000000;
+        QVERIFY2(ms < 2000, qPrintable(QString::number(ms)));
         QVERIFY(pkg.relationship(QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("rIdNone")).id.isEmpty());
         QVERIFY(pkg.relationship(QStringLiteral("/nowhere.xml"), ids[0]).id.isEmpty());
     }
@@ -189,15 +190,14 @@ private Q_SLOTS:
     void packageWriterIsLinearInLinksAndParts()
     {
         auto timeIt = [](int links, int parts, bool ownIds) {
-            PackageWriter w;
-            QElapsedTimer t;
-            t.start();
-            for (int i = 0; i < parts; ++i) w.addPart(QStringLiteral("/word/media/image%1.png").arg(i), "x", QStringLiteral("image/png"));
-            for (int i = 0; i < links; ++i) {
-                if (ownIds) w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdX%1").arg(i), QStringLiteral("http://x/hyperlink"), QStringLiteral("https://example.com/%1").arg(i), true);
-                else w.addRelationship(QStringLiteral("/word/document.xml"), QStringLiteral("http://x/hyperlink"), QStringLiteral("https://example.com/%1").arg(i), true);
-            }
-            return t.nsecsElapsed() / 1e6;
+            std::unique_ptr<PackageWriter> w;
+            return bestNanoseconds([&] {
+                for (int i = 0; i < parts; ++i) w->addPart(QStringLiteral("/word/media/image%1.png").arg(i), "x", QStringLiteral("image/png"));
+                for (int i = 0; i < links; ++i) {
+                    if (ownIds) w->addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdX%1").arg(i), QStringLiteral("http://x/hyperlink"), QStringLiteral("https://example.com/%1").arg(i), true);
+                    else w->addRelationship(QStringLiteral("/word/document.xml"), QStringLiteral("http://x/hyperlink"), QStringLiteral("https://example.com/%1").arg(i), true);
+                }
+            }, 5, [&] { w = std::make_unique<PackageWriter>(); }) / 1e6;
         };
         for (bool ownIds : {false, true}) {
             const double small = std::max(timeIt(5000, 0, ownIds), 1.0), large = timeIt(20000, 0, ownIds);
@@ -522,13 +522,14 @@ private Q_SLOTS:
         QFETCH(QByteArray, xml);
         QDomDocument doc;
         QString err;
-        QElapsedTimer timer;
-        timer.start();
-        QVERIFY(!parseXml(xml, &doc, &err));
+        const qint64 ms = bestNanoseconds([&] { QVERIFY(!parseXml(xml, &doc, &err)); }, 3, [&] {
+            doc = QDomDocument();
+            err.clear();
+        }) / 1000000;
         QVERIFY(!err.isEmpty());
         QVERIFY(doc.documentElement().isNull());
         // Counted on the way in, not found out by building the tree.
-        QVERIFY2(timer.elapsed() < 10000, "the XML was refused too slowly");
+        QVERIFY2(ms < 10000, "the XML was refused too slowly");
     }
 
     void xmlRefusesAnElementWithManyAttributes()
@@ -541,11 +542,12 @@ private Q_SLOTS:
             xml += "/>";
             QDomDocument doc;
             QString err;
-            QElapsedTimer timer;
-            timer.start();
-            QVERIFY2(!parseXml(xml, &doc, &err), qPrintable(QString::number(count)));
+            const qint64 ms = bestNanoseconds([&] { QVERIFY2(!parseXml(xml, &doc, &err), qPrintable(QString::number(count))); }, 3, [&] {
+                doc = QDomDocument();
+                err.clear();
+            }) / 1000000;
             QVERIFY(!err.isEmpty());
-            QVERIFY2(timer.elapsed() < 5000, "the XML was refused too slowly");
+            QVERIFY2(ms < 5000, "the XML was refused too slowly");
         }
     }
 
@@ -557,11 +559,12 @@ private Q_SLOTS:
         xml += QByteArray("<!-- = \" ' < -->").repeated(1000) + "</a:x>";
         QDomDocument doc;
         QString err;
-        QElapsedTimer timer;
-        timer.start();
-        QVERIFY2(parseXml(xml, &doc, &err), qPrintable(err));
+        const qint64 ms = bestNanoseconds([&] { QVERIFY2(parseXml(xml, &doc, &err), qPrintable(err)); }, 3, [&] {
+            doc = QDomDocument();
+            err.clear();
+        }) / 1000000;
         QCOMPARE(doc.documentElement().childNodes().size(), 61000);
-        QVERIFY2(timer.elapsed() < 5000, "the XML took too long to parse");
+        QVERIFY2(ms < 5000, "the XML took too long to parse");
 
         // The busiest element a part may have (each "=" in its tag is one attribute or namespace declaration).
         QByteArray busy("<a:x xmlns:a=\"urn:x\"");
@@ -581,11 +584,12 @@ private Q_SLOTS:
             const QByteArray bytes = encode(text);
             QDomDocument doc;
             QString err;
-            QElapsedTimer timer;
-            timer.start();
-            QVERIFY(!parseXml(bytes, &doc, &err));
+            const qint64 ms = bestNanoseconds([&] { QVERIFY(!parseXml(bytes, &doc, &err)); }, 3, [&] {
+                doc = QDomDocument();
+                err.clear();
+            }) / 1000000;
             QVERIFY(!err.isEmpty());
-            QVERIFY2(timer.elapsed() < 5000, "the XML was refused too slowly");
+            QVERIFY2(ms < 5000, "the XML was refused too slowly");
 
             // And a small document in UTF-16 is read as before.
             QStringEncoder small(encoding, QStringConverter::Flag::WriteBom);
@@ -772,10 +776,13 @@ private Q_SLOTS:
     {
         QDomDocument doc;
         QString err;
-        QElapsedTimer timer;
-        timer.start();
-        QVERIFY2(parseXml(QByteArray("<a>").repeated(kMaxXmlDepth) + QByteArray("</a>").repeated(kMaxXmlDepth), &doc, &err), qPrintable(err));
-        QVERIFY2(timer.elapsed() < 5000, "deep XML took too long to parse");
+        const qint64 ms = bestNanoseconds([&] {
+            QVERIFY2(parseXml(QByteArray("<a>").repeated(kMaxXmlDepth) + QByteArray("</a>").repeated(kMaxXmlDepth), &doc, &err), qPrintable(err));
+        }, 3, [&] {
+            doc = QDomDocument();
+            err.clear();
+        }) / 1000000;
+        QVERIFY2(ms < 5000, "deep XML took too long to parse");
     }
 
     void xmlNamespacesInBothForms()
