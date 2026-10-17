@@ -1,5 +1,6 @@
 {
  "3-D rotation": "3D-Drehung",
+ "Accessibility": "Barrierefreiheit",
  "address block": "Adressblock",
  "Adjust": "Anpassen",
  "adjustment handle": "Anpassungsziehpunkt",
@@ -83,6 +84,7 @@
  "font scheme": "Schriftartenschema",
  "footer": "Fußzeile",
  "footnote": "Fußnote",
+ "Format": "Format",
  "Format Painter": "Format übertragen",
  "freeform": "Freihandform",
  "glow": "Leuchten",
@@ -205,6 +207,7 @@
  "shape": "Form",
  "Shape Format": "Formformat",
  "Shape Styles": "Formenarten",
+ "Shapes": "Formen",
  "Show": "Anzeigen",
  "shrink text on overflow": "Text bei Überlauf verkleinern",
  "Size": "Größe",

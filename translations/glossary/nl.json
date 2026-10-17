@@ -1,5 +1,6 @@
 {
  "3-D rotation": "3D-draaiing",
+ "Accessibility": "Toegankelijkheid",
  "address block": "adresblok",
  "Adjust": "Aanpassen",
  "adjustment handle": "aanpassingsgreep",
@@ -83,6 +84,7 @@
  "font scheme": "lettertypeschema",
  "footer": "voettekst",
  "footnote": "voetnoot",
+ "Format": "Opmaak",
  "Format Painter": "Opmaak kopiëren/plakken",
  "freeform": "vrije vorm",
  "glow": "gloed",
@@ -205,6 +207,7 @@
  "shape": "vorm",
  "Shape Format": "Vormopmaak",
  "Shape Styles": "Vormstijlen",
+ "Shapes": "Vormen",
  "Show": "Weergeven",
  "shrink text on overflow": "tekst verkleinen bij overloop",
  "Size": "Grootte",
