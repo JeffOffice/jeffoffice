@@ -49,6 +49,9 @@ public:
     // The first misspelled word that starts at or after a position, or (-1, -1) when there is none; it checks as far as it goes.
     QPair<int, int> nextMisspelling(int from);
 
+    // Tells the pages to be drawn again (the words accepted have changed: the answers kept are stale).
+    void refresh() { Q_EMIT changed(); }
+
     // How many paragraphs have been checked (a paragraph checked again counts again), for the tests.
     qint64 paragraphsChecked() const { return m_checked; }
 
@@ -76,5 +79,8 @@ private:
     QVector<QPair<int, int>> m_wanted;   // the ranges that paragraphs were left unchecked in
     QTimer m_idle;
 };
+
+// Puts `text` in place of the words [from, to) of the story, in the look of their first letter, as one step that undoes.
+void replaceWord(QTextDocument *story, int from, int to, const QString &text);
 
 } // namespace jp::write

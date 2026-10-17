@@ -1,11 +1,13 @@
 #include "core/spellcheck.h"
 
 #include "app/spelling.h"
+#include "core/writeprops.h"
 #include "text/textprops.h"
 
 #include <QTextBlock>
 #include <QTextBlockUserData>
 #include <QTextCharFormat>
+#include <QTextCursor>
 #include <QTextDocument>
 #include <QTextFragment>
 #include <algorithm>
@@ -110,7 +112,9 @@ SpellCheck::Answer *SpellCheck::check(const QTextBlock &block, int revision)
     a->key = keyOf(block, m_language);
     a->revision = revision;
     a->words.clear();
-    for (const auto &r : misspellingsIn(block, m_language)) a->words << qMakePair(r.first - block.position(), r.second - block.position());
+    // (A paragraph that stands for an element kept as XML has no text of the person's.)
+    if (!block.blockFormat().hasProperty(prop::RawBlock))
+        for (const auto &r : misspellingsIn(block, m_language)) a->words << qMakePair(r.first - block.position(), r.second - block.position());
     ++m_checked;
     ++m_doneInPass;
     return a;
@@ -189,6 +193,20 @@ QPair<int, int> SpellCheck::nextMisspelling(int from)
             if (b.position() + w.first >= from) return qMakePair(b.position() + w.first, b.position() + w.second);
     }
     return qMakePair(-1, -1);
+}
+
+void replaceWord(QTextDocument *story, int from, int to, const QString &text)
+{
+    QTextCursor look(story);
+    look.setPosition(from + 1);
+    const QTextCharFormat format = look.charFormat();
+    QTextCursor c(story);
+    c.setPosition(from);
+    c.setPosition(to, QTextCursor::KeepAnchor);
+    c.beginEditBlock();
+    c.removeSelectedText();
+    c.insertText(text, format);
+    c.endEditBlock();
 }
 
 } // namespace jp::write
