@@ -26,7 +26,7 @@ constexpr int kLeastWindow = 300;
 constexpr int kDenseNotes = 64;
 // How many times a page is laid out again to make the objects the text goes round and the lines agree about where each is, and the most the objects seen before are kept to
 // know that they go in circles.
-constexpr int kWrapPasses = 3;
+constexpr int kWrapPasses = 4;
 
 // Whether the page shows the number of pages (in its text, its header, or its footer), and what number it was made with.
 void markTotals(MaterializedPage *out, const Document &d)
@@ -131,15 +131,20 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
     // keep moving the lines, and so themselves, are left where the last layout had them.
     QVector<Wrapped> used;
     QVector<QVector<Wrapped>> seen;
+    bool agreed = true;
     for (int pass = 0; pass < kWrapPasses; ++pass) {
         const QVector<Wrapped> want = wrappersOf(run, index, st);
-        if (want == used || seen.contains(want)) break;
+        agreed = want == used;
+        if (agreed || seen.contains(want)) break;
         seen << used;
         used = want;
         run = layoutPageWith(index, st, used);
     }
-    // A page whose objects leave no room for a line would have none, and the pages would never end: it is laid out as it is without them.
-    if (!used.isEmpty() && run.kept <= 0) run = layoutPageWith(index, st, {});
+    if (!used.isEmpty() && !agreed) agreed = wrappersOf(run, index, st) == used;
+    // Objects that keep moving the lines and so themselves (or an anchor that the wrap itself puts on the next page, and the wrap with it) are not walls of this page: the
+    // lines are those of the page without them, and every wall there is has its anchor on the page. And a page whose objects leave no room for a line would have none,
+    // and the pages would never end: it is laid out as it is without them too.
+    if (!used.isEmpty() && (!agreed || run.kept <= 0)) run = layoutPageWith(index, st, {});
     return run;
 }
 
@@ -482,7 +487,6 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         }
     }
     const QVector<StoryLayout::LineBrief> &L = run.lines;
-
     // Where the page ends: where the text ran out of room, unless a break asks for less.
     int c = kept;
     bool hard = false, sectionEnds = false, forced = false, byCharacter = false;

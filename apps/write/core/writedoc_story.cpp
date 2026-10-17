@@ -223,6 +223,7 @@ flow::FloatingObject frameObjectOf(const QHash<QString, QString> &at)
         o.hAlign = FO::Align::Start;
         o.vAlign = FO::Align::None;
         o.wrap = FO::Wrap::Square;
+        o.frameShrinks = true;
     }
     return o;
 }
@@ -657,6 +658,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         o.dx = s.left;
         o.dy = s.top;
         o.behind = s.behind;
+        o.z = s.z;
         o.wrap = s.wrap == Shape::Square ? flow::FloatingObject::Wrap::Square : s.wrap == Shape::Tight ? flow::FloatingObject::Wrap::Tight
                  : s.wrap == Shape::TopBottom ? flow::FloatingObject::Wrap::TopBottom : flow::FloatingObject::Wrap::None;
         o.side = s.side == Shape::SideLeft ? flow::FloatingObject::Side::Left : s.side == Shape::SideRight ? flow::FloatingObject::Side::Right
@@ -700,8 +702,9 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
                 shape->shape = s.kind == Shape::Oval ? QStringLiteral("ellipse") : QStringLiteral("rect");
                 item = shape;
             }
-            if (s.filled && !s.fillColor.isEmpty()) item->fill = Fill::solid(colorOf(s.fillColor));
-            if (s.stroked && s.strokeWeight > 0) item->stroke = Stroke::line(colorOf(s.strokeColor), s.strokeWeight);
+            // (A shape that says it has no fill or no line has none: a shape's own are a color and a line that it was not given.)
+            item->fill = s.filled && !s.fillColor.isEmpty() ? Fill::solid(colorOf(s.fillColor)) : Fill::none();
+            item->stroke = s.stroked && s.strokeWeight > 0 ? Stroke::line(colorOf(s.strokeColor), s.strokeWeight) : Stroke::none();
             item->rotation = s.rotation;
             item->flipH = s.flipH;
             item->flipV = s.flipV;

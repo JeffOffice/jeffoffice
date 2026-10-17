@@ -2224,6 +2224,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             const QString text = whole.mid(begin, count);   // (the part wanted of a long run only is copied)
             taken += count;
             const QTextCharFormat cf = frag.charFormat();
+            // A paragraph that is set apart from the text shows nothing of it, a picture in it included.
+            if (env.wordLines && bf.boolProperty(tp::OutOfLayout)) {
+                B->map << Seg{rel, int(text.size()), int(B->disp.size()), 0, true};
+                continue;
+            }
             QTextCharFormat rf = resolveCharFormat(cf, env);
             // An object set in the text: an em dash (a line may break on
             // either side, as at a picture) in the run's own font, so the
@@ -2869,9 +2874,13 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     const QRectF col = colRect(f, c);
                     if (!rowActive) {
                         const double x0 = col.left() + indL, x1 = col.right() - indR;
-                        QVector<Iv> ivs = freeIntervals(frames[f].obstacles, x0, x1, col.top() + y, col.top() + y + estText);
+                        // (A word processor's text that only touches an object's edge is clear of it, whichever way the last digits of two places that are the same round:
+                        // the page that is drawn lays the text out again with the object's place made from another transform.)
+                        const double touch = env.wordLines ? 0.001 : 0.0;
+                        QVector<Iv> ivs = freeIntervals(frames[f].obstacles, x0, x1, col.top() + y + touch, col.top() + y + estText - touch);
                         QVector<Iv> ok;
-                        const double minW = std::max(18.0, base.pointSizeF() / fontPointFactor() * 2.5);
+                        // (A word processor's empty paragraph is only its mark: it goes in any gap that is a few points wide, between two pictures a little apart as in a wider one.)
+                        const double minW = env.wordLines && B->disp.trimmed().isEmpty() ? 2.0 : std::max(18.0, base.pointSizeF() / fontPointFactor() * 2.5);
                         // The first line of a list item starts a bullet's hang in from the
                         // first place it has: that room is part of what it needs.
                         for (const Iv &iv : ivs)
@@ -2885,7 +2894,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                                 bool plain = true;
                                 for (const QPolygonF &poly : frames[f].obstacles) {
                                     const QRectF pb = poly.boundingRect();
-                                    if (pb.bottom() <= col.top() + y || pb.top() >= col.top() + y + estText || pb.right() <= x0 || pb.left() >= x1) continue;
+                                    if (pb.bottom() <= col.top() + y + touch || pb.top() >= col.top() + y + estText - touch || pb.right() <= x0 || pb.left() >= x1) continue;
                                     plain &= poly.size() <= 5 && std::all_of(poly.cbegin(), poly.cend(), [&](const QPointF &pt) {
                                         return (std::abs(pt.x() - pb.left()) < 1e-6 || std::abs(pt.x() - pb.right()) < 1e-6) && (std::abs(pt.y() - pb.top()) < 1e-6 || std::abs(pt.y() - pb.bottom()) < 1e-6);
                                     });
@@ -3093,7 +3102,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     double band = estText;   // (the height of the line's text that the objects it goes round were kept out of)
                     if (inkH > estText * 1.05 && !frames[f].obstacles.isEmpty() && rowIdx == 0) {
                         band = inkH;
-                        const QVector<Iv> recheck = freeIntervals(frames[f].obstacles, iv.x0, iv.x1, col.top() + y, col.top() + y + inkH);
+                        const double touch = env.wordLines ? 0.001 : 0.0;
+                        const QVector<Iv> recheck = freeIntervals(frames[f].obstacles, iv.x0, iv.x1, col.top() + y + touch, col.top() + y + inkH - touch);
                         if (recheck.size() != 1 || recheck[0].x0 > iv.x0 + 0.5 || recheck[0].x1 < iv.x1 - 0.5) {
                             y += 2;
                             rowPushed += 2;
@@ -3294,7 +3304,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             stoppedEarly = true;
             break;
         }
-        if (m_span.stopAtFrame >= 0 && f >= m_span.stopAtFrame) {
+        // (A paragraph with no lines, hidden or set apart, does not end it: the text after it is what the stretch is for.)
+        if (m_span.stopAtFrame >= 0 && f >= m_span.stopAtFrame && !(m_blocks.back()->lines.isEmpty() && env.wordLines)) {
             stoppedEarly = b.next().isValid();
             break;
         }

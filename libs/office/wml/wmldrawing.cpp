@@ -281,6 +281,7 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
         s.floating = name == "anchor";
         s.kind = Shape::Picture;
         s.behind = t.attr(c, "behindDoc") == QLatin1String("1") || t.attr(c, "behindDoc") == QLatin1String("true");
+        s.z = int(std::clamp<qint64>(t.attr(c, "relativeHeight").toLongLong(), -2000000000, 2000000000));
         s.gapLeft = emu(t.attr(c, "distL"));
         s.gapRight = emu(t.attr(c, "distR"));
         s.gapTop = emu(t.attr(c, "distT"));

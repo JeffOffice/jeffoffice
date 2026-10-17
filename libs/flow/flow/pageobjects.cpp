@@ -183,6 +183,14 @@ QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, cons
 
 void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number, const QVector<Wrapped> &wrapped, const QVector<QRectF> &columns)
 {
+    // The objects are drawn in the order of their heights (the file's: z-index, relative height), and in the order of their anchors where those are the same: those behind the
+    // text before the text, the rest after it.
+    struct Made {
+        int z = 0;
+        ItemPtr item;
+        bool behind = false;
+    };
+    QVector<Made> made_;
     int made = 0;
     for (const Anchor &a : anchors) {
         for (int id = a.object; id > 0 && id <= m_doc->objects.size() && made < kMostObjects; id = objectAt(a, id).next, ++made) {
@@ -253,9 +261,15 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
                 item->wrap.left = wall->rect.left() - lo + 0.5;
                 item->wrap.right = hi - wall->rect.right() + 0.5;
             }
-            if (o.behind) d->pages[0]->items.insert(d->pages[0]->items.begin(), item);
-            else d->pages[0]->items.push_back(item);
+            made_.push_back({o.z, item, o.behind});
         }
+    }
+    std::stable_sort(made_.begin(), made_.end(), [](const Made &a, const Made &b) { return a.z < b.z; });
+    auto &items = d->pages[0]->items;
+    size_t behindCount = 0;
+    for (const Made &m : made_) {
+        if (m.behind) items.insert(items.begin() + behindCount++, m.item);
+        else items.push_back(m.item);
     }
     Q_UNUSED(number);
 }
@@ -324,9 +338,10 @@ const FloatingObject *Paginator::frameObject(int key, int from, int to, double c
     if (m_frames.size() > 400) m_frames.clear();
     FloatingObject o = m_doc->objects[id - 1];
     o.story = frameStory(from, to);
-    // As wide as it says; else as wide as the longest line of its text where nothing is wrapped (to the column's width).
-    double width = o.frameWidth;
-    if (width <= 0) {
+    // As wide as it says; else as wide as the column, or (a frame that shrinks) as the longest line of its text where nothing is wrapped (to the column's width).
+    double width = o.frameWidth > 0 ? o.frameWidth : std::max(1.0, columnWidth);
+    if (o.frameWidth <= 0 && o.frameShrinks) {
+        width = 0;
         FrameSpec wide;
         wide.size = QSizeF(100000, 100000);
         wide.insets = QMarginsF(0, 0, 0, 0);
@@ -342,7 +357,8 @@ const FloatingObject *Paginator::frameObject(int key, int from, int to, double c
     fs.hyphenate = false;
     StoryLayout lay;
     lay.build(o.story.get(), {fs}, m_doc->env);
-    double height = lay.usedHeight(0);
+    // (As tall as its text, and the lower edge of the box of its last paragraph, borders and shading, which the text's height does not take in.)
+    double height = lay.usedHeight(0) + std::max(0.0, lay.trailingRoom() - lay.trailingSpace());
     if (o.frameExactHeight && o.frameHeight > 0) height = o.frameHeight;
     else height = std::max(height, o.frameHeight);
     std::shared_ptr<TextItem> box = o.item && o.item->type() == ItemType::Text ? std::static_pointer_cast<TextItem>(o.item->clone()) : std::make_shared<TextItem>();
