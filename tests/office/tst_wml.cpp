@@ -427,16 +427,23 @@ private Q_SLOTS:
     // not XML (unclosed elements) is refused.
     void readsTheFontsOfAFontTable()
     {
-        const QByteArray part = xmlDoc(QByteArray("<w:fonts ") + kW + R"(><w:font w:name="Palatino"><w:altName w:val="Book Antiqua"/><w:charset w:val="00"/><w:family w:val="roman"/></w:font><w:font w:name="Optima"><w:family w:val="auto"/></w:font><w:font w:name="Plain"/></w:fonts>)");
+        const QByteArray part = xmlDoc(QByteArray("<w:fonts ") + kW + R"(><w:font w:name="Palatino"><w:altName w:val="Book Antiqua"/><w:panose1 w:val="02040502050505030304"/><w:charset w:val="00"/><w:family w:val="roman"/><w:pitch w:val="variable"/></w:font><w:font w:name="Optima"><w:family w:val="auto"/></w:font><w:font w:name="Plain"/><w:font w:name="Dingbats"><w:charset w:val="02"/><w:family w:val="decorative"/><w:notTrueType/><w:pitch w:val="fixed"/></w:font></w:fonts>)");
         QVector<FontEntry> fonts;
         QVERIFY(readFonts(part, &fonts));
-        QCOMPARE(int(fonts.size()), 3);
+        QCOMPARE(int(fonts.size()), 4);
         QCOMPARE(fonts[0].name, QStringLiteral("Palatino"));
         QCOMPARE(fonts[0].alternate, QStringLiteral("Book Antiqua"));
         QCOMPARE(fonts[0].family, QStringLiteral("roman"));
+        // (Its pitch, its PANOSE digits, and its character set, as written.)
+        QCOMPARE(fonts[0].pitch, QStringLiteral("variable"));
+        QCOMPARE(fonts[0].panose, QStringLiteral("02040502050505030304"));
+        QCOMPARE(fonts[0].charset, QStringLiteral("00"));
         QCOMPARE(fonts[1].family, QStringLiteral("auto"));
         QVERIFY(fonts[1].alternate.isEmpty());
+        QVERIFY(fonts[1].pitch.isEmpty() && fonts[1].panose.isEmpty() && fonts[1].charset.isEmpty());
         QVERIFY(fonts[2].family.isEmpty());
+        QCOMPARE(fonts[3].charset, QStringLiteral("02"));
+        QCOMPARE(fonts[3].pitch, QStringLiteral("fixed"));
         auto seconds = [&](int count) {
             QByteArray many = QByteArray("<w:fonts ") + kW + ">";
             for (int i = 0; i < count; ++i) many += "<w:font ";
