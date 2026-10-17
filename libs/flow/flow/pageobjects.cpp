@@ -17,8 +17,13 @@ namespace jp::flow {
 
 const QVector<std::pair<int, int>> &Paginator::anchorCharsOf(const QTextBlock &b)
 {
-    const auto found = m_anchorChars.constFind(b.position());
-    if (found != m_anchorChars.constEnd()) return found.value();
+    // (Kept for the paragraphs of the document's story, by place in it; the header's and the footer's, and any other story's, are found each time they are asked for.)
+    const bool mine = b.document() == m_doc->story();
+    static thread_local QVector<std::pair<int, int>> loose;
+    if (mine) {
+        const auto found = m_anchorChars.constFind(b.position());
+        if (found != m_anchorChars.constEnd()) return found.value();
+    }
     // The characters that anchor an object, in order, found once for the paragraph (not for each of its lines, which would look at all of its runs again): no more than a page
     // is given.
     QVector<std::pair<int, int>> chars;
@@ -27,6 +32,10 @@ const QVector<std::pair<int, int>> &Paginator::anchorCharsOf(const QTextBlock &b
         const int id = frag.charFormat().intProperty(fp::AnchorId);
         if (id <= 0 || id > m_doc->objects.size()) continue;
         for (int k = frag.position(); k < frag.position() + frag.length() && chars.size() < kMostObjects; ++k) chars.push_back({k, id});
+    }
+    if (!mine) {
+        loose = chars;
+        return loose;
     }
     if (m_anchorChars.size() >= 4096) m_anchorChars.clear();
     return m_anchorChars.insert(b.position(), chars).value();
