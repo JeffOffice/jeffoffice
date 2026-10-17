@@ -31,6 +31,30 @@ struct PageView::Rendered {
     QVector<TextItem *> boxes;
 };
 
+struct PageView::FrameSpot {
+    const TextItem *box = nullptr;
+    LayoutCache::FrameLayout fl;
+    int inFrame = 0;     // the position in the box's own text
+    int from = 0;        // where the frame's text begins in the story
+};
+
+bool PageView::frameSpotAt(Rendered &r, int position, FrameSpot *spot)
+{
+    if (!r.page) return false;
+    for (const auto &fb : r.page->frames) {
+        if (position < fb.from || position >= fb.to) continue;
+        for (const auto &it : r.page->doc->pages[0]->items) {
+            if (it->id != fb.itemId || it->type() != ItemType::Text) continue;
+            spot->box = static_cast<const TextItem *>(it.get());
+            spot->fl = r.layouts.textFrame(*r.page->doc, *spot->box, r.page->number, RenderOptions());
+            spot->from = fb.from;
+            spot->inFrame = position - fb.from;
+            return spot->fl.layout != nullptr;
+        }
+    }
+    return false;
+}
+
 PageView::PageView(QWidget *parent) : QAbstractScrollArea(parent)
 {
     setObjectName(QStringLiteral("pageView"));
@@ -544,6 +568,17 @@ bool PageView::caretLine(int position, int *pageOut, QLineF *line)
                 return true;
             }
         }
+        // A position in a frame's text is where the frame's box draws it.
+        if (FrameSpot spot; frameSpotAt(*r, position, &spot)) {
+            int frame = -1;
+            QRectF rect;
+            if (spot.fl.layout->caretRect(spot.inFrame, &frame, &rect)) {
+                const double x = spot.box->rect.left() + rect.x();
+                *line = QLineF(x, spot.box->rect.top() + rect.top(), x, spot.box->rect.top() + rect.bottom());
+                *pageOut = page;
+                return true;
+            }
+        }
         if (r->boxes.isEmpty()) continue;
         const int inPage = position - r->page->storyFrom;
         if (inPage < 0) continue;
@@ -608,6 +643,19 @@ int PageView::positionAt(const Hit &hit)
             const int at = fragment->positionAt(hit.point);
             if (at >= 0) return std::clamp(at, 0, last);
         }
+    // A point in a frame's box is in the frame's text (its paragraphs have no lines in the page's).
+    if (r && r->page)
+        for (const auto &fb : r->page->frames) {
+            for (const auto &it : r->page->doc->pages[0]->items) {
+                if (it->id != fb.itemId || it->type() != ItemType::Text || !it->rect.contains(hit.point)) continue;
+                const auto *box = static_cast<const TextItem *>(it.get());
+                const LayoutCache::FrameLayout fl = r->layouts.textFrame(*r->page->doc, *box, r->page->number, RenderOptions());
+                if (!fl.layout) continue;
+                int at = fl.layout->hitTest(0, QPointF(hit.point.x() - box->rect.left(), hit.point.y() - box->rect.top()));
+                if (at < 0) at = fl.layout->lastPosition(0);
+                return std::clamp(fb.from + at, fb.from, std::min(last, fb.to - 1));
+            }
+        }
     if (!r || !r->page || r->boxes.isEmpty()) return std::clamp(m_doc->pager().page(hit.page).start.pos, 0, last);
     // The column the point is in (else the nearest).
     int column = 0;
@@ -652,6 +700,7 @@ int PageView::lineEdge(int position, bool end)
         int edge = 0;
         if (fragment->lineEdge(position, end, &edge)) return edge;
     }
+    if (FrameSpot spot; frameSpotAt(*r, position, &spot)) return spot.from + (end ? spot.fl.layout->lineEnd(spot.inFrame) : spot.fl.layout->lineStart(spot.inFrame));
     const LayoutCache::FrameLayout fl = r->layouts.textFrame(*r->page->doc, *r->boxes.first(), r->page->number, RenderOptions());
     if (!fl.layout) return position;
     const int inPage = position - r->page->storyFrom;
@@ -670,6 +719,15 @@ int PageView::moveVertical(int position, int direction)
             if (moved != position) return moved;
             break;
         }
+    // In a frame's text: by the lines of the frame's box, and no further (the frame is no part of the page's lines).
+    if (FrameSpot spot; frameSpotAt(*r, position, &spot)) {
+        if (m_wantedX < 0) {
+            int frame = 0;
+            QRectF rect;
+            if (spot.fl.layout->caretRect(spot.inFrame, &frame, &rect)) m_wantedX = rect.x();
+        }
+        return spot.from + spot.fl.layout->moveVertical(spot.inFrame, direction, m_wantedX);
+    }
     const LayoutCache::FrameLayout fl = r->layouts.textFrame(*r->page->doc, *r->boxes.first(), r->page->number, RenderOptions());
     if (!fl.layout) return position;
     const int inPage = position - r->page->storyFrom;
