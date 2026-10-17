@@ -4559,11 +4559,12 @@ private Q_SLOTS:
         QVERIFY2(std::abs(rows[1].rect.height() - (line + 6 + 3)) < 0.05, qPrintable(QString::number(rows[1].rect.height())));
     }
 
-    // The paragraph that has to follow a table at the end of a cell is the cell's end mark, and takes no room when nothing is in it; one with words in it does.
+    // The last paragraph of a cell, after a table in it, is the cell's end mark, and takes no room when nothing is in it (what it asks of space above does not either); a
+    // paragraph before it, or one with words in it, does. A caret can be put in it, and has the height of a line there.
     void theEmptyParagraphAfterATableAtTheEndOfACellTakesNoRoom()
     {
-        double heights[2] = {0, 0};
-        for (int variant = 0; variant < 2; ++variant) {
+        double heights[4] = {0, 0, 0, 0};
+        for (int variant = 0; variant < 4; ++variant) {
             FlowDocument fd;
             fillStory(fd.story(), 2, 3, {}, 4, 6);
             QTextCursor c(fd.story());
@@ -4579,9 +4580,10 @@ private Q_SLOTS:
             o.table = outer;
             o.row = outerRow;
             const int outerKey = fd.tables.add(o);
-            auto paragraph = [&](int key, const QString &text) {
+            auto paragraph = [&](int key, const QString &text, double above = 0) {
                 QTextBlockFormat bf;
                 bf.setProperty(fp::Cell, key);
+                bf.setTopMargin(above);
                 c.insertBlock(bf, body);
                 c.insertText(text, body);
             };
@@ -4593,17 +4595,32 @@ private Q_SLOTS:
                 i.parent = outerKey;
                 paragraph(fd.tables.add(i), QStringLiteral("inner %1").arg(r));
             }
-            paragraph(outerKey, variant == 0 ? QString() : QStringLiteral("after"));
+            switch (variant) {
+            case 0: paragraph(outerKey, QString()); break;
+            case 1: paragraph(outerKey, QStringLiteral("after")); break;
+            case 2: paragraph(outerKey, QString()); paragraph(outerKey, QString()); break;   // (the first of them is a paragraph like any)
+            default: paragraph(outerKey, QString(), 30); break;
+            }
             Paginator pg(&fd);
             const auto rows = rowLines(pg, fd, 0);
             QCOMPARE(rows.size(), 1);
             heights[variant] = rows[0].rect.height();
+            if (variant == 0) {
+                const auto page = pg.materialize(0);
+                QVERIFY(page && !page->tables.isEmpty());
+                QLineF caret;
+                QVERIFY(page->tables[0]->caretLine(fd.story()->lastBlock().position(), &caret));
+                QVERIFY2(caret.length() > 8, qPrintable(QString::number(caret.length())));
+            }
         }
         FlowDocument fdForLine;
         const double line = lineHeightOf(fdForLine);
         // (The outer cell: its margins, a line, and the two rows of the table in it, each a line and its margins.)
-        QVERIFY2(std::abs(heights[0] - (6 + line + 2 * (line + 6))) < 0.1, qPrintable(QString::number(heights[0])));
-        QVERIFY2(std::abs(heights[1] - (6 + line + 2 * (line + 6) + line)) < 0.1, qPrintable(QString::number(heights[1])));
+        const double base = 6 + line + 2 * (line + 6);
+        QVERIFY2(std::abs(heights[0] - base) < 0.1, qPrintable(QString::number(heights[0])));
+        QVERIFY2(std::abs(heights[1] - (base + line)) < 0.1, qPrintable(QString::number(heights[1])));
+        QVERIFY2(std::abs(heights[2] - (base + line)) < 0.1, qPrintable(QString::number(heights[2])));
+        QVERIFY2(std::abs(heights[3] - base) < 0.1, qPrintable(QString::number(heights[3])));
     }
 
     // A table that is taller than a page goes on onto the next, between rows, each row once and whole; the pages start at a row's first paragraph.

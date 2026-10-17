@@ -198,10 +198,17 @@ std::shared_ptr<CellContent> layoutCellContent(const TableContext &ctx, int i0, 
                         for (int k = 0; k < frag.length() && part.notes.size() < TableLayout::kMostRowNotes; ++k) part.notes.push_back({frag.position() + k, code.mid(9), ++number});
                     }
             }
-            // (The paragraph that has to follow a table at the end of a cell, when nothing is in it, is the cell's end mark: it takes no room.)
-            if (j == i1 && part.to - part.from == 1 && !out->parts.empty() && out->parts.back().table) {
-                part.dummy = true;
+            // (The last paragraph of a cell, after a table in it, when nothing is in it, is the cell's end mark, which the program keeps after a table: it takes no room, what it asks
+            // of space above it too, and the paragraphs before it count as they are.)
+            const BlockRef &last = ix.refs()[size_t(j - 1)];
+            if (j == i1 && last.end - last.pos == 1 && !out->parts.empty() && out->parts.back().table) {
+                part.dummyFrom = last.pos;
                 h = 0;
+                for (const StoryLayout::LineBrief &l : part.text->lineBriefs()) {
+                    if (l.frame < 0) continue;
+                    if (l.block >= part.dummyFrom) break;
+                    h = std::max(h, l.rect.bottom());
+                }
             }
             y += h;
             i = j;
@@ -682,11 +689,10 @@ void tableLines(const TableFragment &nested, double y0, LineList *out)
 void contentLines(const CellContent &content, double y0, LineList *out)
 {
     for (const CellContent::Part &part : content.parts) {
-        if (part.dummy) continue;
         if (part.text) {
             const auto &notes = part.notes;
             for (const StoryLayout::LineBrief &l : part.text->lineBriefs()) {
-                if (l.frame < 0) continue;
+                if (l.frame < 0 || (part.dummyFrom >= 0 && l.block >= part.dummyFrom)) continue;
                 TableLayout::UnitLine line{y0 + part.y + l.rect.top(), y0 + part.y + l.rect.bottom(), {}};
                 if (!notes.isEmpty()) {
                     // (The notes whose references are on the line: the part's notes are in the order of their places.)
