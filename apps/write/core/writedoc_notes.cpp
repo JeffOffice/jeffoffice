@@ -31,6 +31,7 @@ QList<const QTextDocument *> NoteFields::storyDocs() const
 void WriteDoc::loadNotes()
 {
     m_noteBlocks.clear();
+    m_noteSeparator.clear();
     m_noteStories.clear();
     m_noteFields.reset();
     m_flow->fields = nullptr;
@@ -44,8 +45,10 @@ void WriteDoc::loadNotes()
     if (part.isEmpty()) return;
     QVector<NotePart> notes;
     if (!office::wml::readNotes(partData(part), &notes)) return;
-    for (NotePart &n : notes)
+    for (NotePart &n : notes) {
         if (n.type.isEmpty() || n.type == QLatin1String("normal")) m_noteBlocks.insert(QStringLiteral("fn%1").arg(n.id), std::move(n.blocks));
+        else if (n.type == QLatin1String("separator")) m_noteSeparator = std::move(n.blocks);
+    }
     if (m_noteBlocks.isEmpty()) return;
     m_noteFields = std::make_unique<NoteFields>(this);
     m_flow->fields = m_noteFields.get();
@@ -54,18 +57,27 @@ void WriteDoc::loadNotes()
     m_flow->restartNotesInSections = office::wml::noteNumberRestart(settings, "footnotePr") == QLatin1String("eachSect");
 }
 
-// The paragraph the pages set between their text and their notes (the file's own, holding the rule): a line of the Normal style and its space after.
+// The paragraph the pages set between their text and their notes (the file's own, holding the rule): its height as the file sets it, or, for a file
+// without one, a line of the Normal style and its space after.
 void WriteDoc::measureNoteSeparator()
 {
     if (!m_noteFields) return;
-    const QString style = defaultParagraphStyle();
     QTextDocument d;
     d.setDocumentMargin(0);
     d.setDefaultFont(story()->defaultFont());
-    QTextCursor c(&d);
-    const QTextBlockFormat bf = styleBlockFormat(style);
-    c.setBlockFormat(bf);
-    c.setBlockCharFormat(styleCharFormat(style));
+    double after = 0;
+    if (!m_noteSeparator.isEmpty()) {
+        d.setUndoRedoEnabled(false);
+        fillStory(&d, m_noteSeparator, true, m_notePart);
+        after = d.lastBlock().blockFormat().bottomMargin();
+    } else {
+        const QString style = defaultParagraphStyle();
+        QTextCursor c(&d);
+        const QTextBlockFormat bf = styleBlockFormat(style);
+        c.setBlockFormat(bf);
+        c.setBlockCharFormat(styleCharFormat(style));
+        after = bf.bottomMargin();
+    }
     FrameSpec fs;
     fs.size = QSizeF(400, 10000);
     fs.insets = QMarginsF(0, 0, 0, 0);
@@ -73,7 +85,8 @@ void WriteDoc::measureNoteSeparator()
     StoryLayout layout;
     layout.build(&d, {fs}, m_flow->env);
     const auto lines = layout.lineInfo(0);
-    m_noteFields->separator = lines.isEmpty() ? 0.0 : lines.first().rect.height() + bf.bottomMargin();
+    // (The file's own paragraph, with the space before it, to the bottom of its last line; the Normal style's line is the line and the space after it.)
+    m_noteFields->separator = lines.isEmpty() ? 0.0 : (m_noteSeparator.isEmpty() ? lines.first().rect.height() : lines.last().rect.bottom()) + after;
 }
 
 const QTextDocument *WriteDoc::noteStory(const QString &id)

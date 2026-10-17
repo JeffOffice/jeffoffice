@@ -441,6 +441,24 @@ void WriteDoc::syncSections()
 namespace {
 // The most distinct header and footer parts that are read; a file with more has the rest left out (a section's reference to one shows nothing).
 constexpr int kMostHeaderParts = 64;
+
+// A header or footer as the text stands: the paragraphs whose marks a tracked change deleted, with nothing of their own to show, are gone. (Not the last
+// paragraph, which has no mark to join the next, nor one in a table.)
+void leaveOutDeletedParagraphs(QVector<Block> *blocks)
+{
+    int last = -1;
+    for (int i = 0; i < blocks->size(); ++i)
+        if (!(*blocks)[i].isRaw && (*blocks)[i].tag.isEmpty()) last = i;
+    QVector<Block> kept;
+    int depth = 0;
+    for (int i = 0; i < blocks->size(); ++i) {
+        const Block &b = (*blocks)[i];
+        if (!b.isRaw && b.tag == QLatin1String("tbl")) depth += b.role == Inline::Open ? 1 : b.role == Inline::Close ? -1 : 0;
+        if (!b.isRaw && b.tag.isEmpty() && depth == 0 && i != last && isDeletedAway(b.para)) continue;
+        kept << b;
+    }
+    *blocks = kept;
+}
 } // namespace
 
 std::shared_ptr<QTextDocument> WriteDoc::headerStory(const QString &relationshipId)
@@ -453,6 +471,7 @@ std::shared_ptr<QTextDocument> WriteDoc::headerStory(const QString &relationship
     QVector<Block> blocks;
     auto doc = std::make_shared<QTextDocument>();
     if (readBlocks(partData(rel.target), &blocks)) {
+        leaveOutDeletedParagraphs(&blocks);
         doc->setDocumentMargin(0);
         doc->setDefaultFont(story()->defaultFont());
         doc->setUndoRedoEnabled(false);
@@ -779,6 +798,7 @@ QTextListFormat WriteDoc::listFormat(int numId, int level, int start) const
     else if (l.numFmt == QLatin1String("lowerRoman")) style = QTextListFormat::ListLowerRoman;
     else if (l.numFmt == QLatin1String("upperRoman")) style = QTextListFormat::ListUpperRoman;
     lf.setStyle(style);
+    if (l.rPr.size) lf.setProperty(tp::BulletSize, *l.rPr.size / 2.0);
     // The text around the number: "%1." is the number and a period.
     const QString own = QStringLiteral("%%1").arg(level + 1);
     const int at = l.text.indexOf(own);

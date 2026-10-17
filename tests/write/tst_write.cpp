@@ -4233,6 +4233,38 @@ private Q_SLOTS:
         QVERIFY2(std::abs(lines[1].rect.height() - 12 * (1950 + 550) / 2048.0) < 0.02, qPrintable(QString::number(lines[1].rect.height())));
     }
 
+    // A multiple of the line that is written as a negative number (a file converted from an older format has them) is the same multiple as a positive
+    // one: the line is as tall as it would be for its size, not as one with nothing in it.
+    void aNegativeMultipleOfTheLineIsReadAsItsSize()
+    {
+        auto lineOf = [](const char *line) {
+            const QByteArray body = QByteArray("<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"") + line + "\" w:lineRule=\"auto\"/></w:pPr><w:r><w:t>Words</w:t></w:r></w:p>";
+            auto doc = open(makeDocx(body));
+            return doc->pager().lines(0).first().rect.height();
+        };
+        const double single = lineOf("240");
+        QVERIFY(single > 5);
+        QVERIFY2(std::abs(lineOf("-480") - 2 * single) < 0.02, qPrintable(QString::number(lineOf("-480"))));
+        QVERIFY2(std::abs(lineOf("-120") - lineOf("120")) < 0.02, qPrintable(QString::number(lineOf("-120"))));
+    }
+
+    // A number in a list is the size its level gives it (half-points, as a bullet's is), not the text's: a ten-point number before twelve-point text.
+    void aListNumberHasTheSizeItsLevelGives()
+    {
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/>"
+                                     "<w:pPr><w:ind w:left=\"360\" w:hanging=\"360\"/></w:pPr><w:rPr><w:sz w:val=\"20\"/></w:rPr></w:lvl></w:abstractNum>"
+                                     "<w:abstractNum w:abstractNumId=\"1\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num><w:num w:numId=\"2\"><w:abstractNumId w:val=\"1\"/></w:num>";
+        const QByteArray body = "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:rPr><w:sz w:val=\"24\"/></w:rPr><w:t>Sized</w:t></w:r></w:p>"
+                                "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"2\"/></w:numPr></w:pPr><w:r><w:rPr><w:sz w:val=\"24\"/></w:rPr><w:t>Plain</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles, numbering));
+        QVERIFY(doc);
+        const QTextBlock sized = doc->story()->begin(), plain = sized.next();
+        QVERIFY(sized.textList() && plain.textList());
+        QCOMPARE(sized.textList()->format().property(tp::BulletSize).toDouble(), 10.0);
+        QVERIFY(!plain.textList()->format().hasProperty(tp::BulletSize));
+    }
+
     // A page number in a frame (set in the middle or at the side, anchored to the text) takes no room: a footer of it and an empty paragraph is
     // one line tall, and the number is set as the frame says.
     void aFrameParagraphInAFooterTakesNoRoom()
@@ -4251,6 +4283,22 @@ private Q_SLOTS:
         // As one line (the empty paragraph's), the footer leaves the text its bottom margin; as two it takes more.
         QVERIFY2(std::abs(framed.first - (792 - 54)) < 0.01, qPrintable(QString::number(framed.first)));
         QVERIFY2(plain.first < framed.first - 5, qPrintable(QString::number(plain.first)));
+    }
+
+    // A paragraph of a footer whose mark a tracked change deleted, with nothing else of its own, is gone from the footer as the text stands: it takes no room
+    // (twenty points a line here), so the text keeps what the footer leaves it.
+    void aDeletedParagraphOfAFooterTakesNoRoom()
+    {
+        const QByteArray sect = "<w:sectPr><w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"720\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray spacing = "<w:spacing w:before=\"0\" w:after=\"0\" w:line=\"400\" w:lineRule=\"exact\"/>";
+        const QByteArray gone = "<w:pPr>" + spacing + "<w:rPr><w:del w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"/></w:rPr></w:pPr>"
+                                "<w:del w:id=\"8\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"><w:r><w:delText>gone</w:delText></w:r></w:del>";
+        const QByteArray footer = headerPart("ftr", {"<w:pPr>" + spacing + "</w:pPr><w:r><w:t>ONE</w:t></w:r>", gone, "<w:pPr>" + spacing + "</w:pPr><w:r><w:t>TWO</w:t></w:r>"});
+        auto doc = open(makeDocxWithParts(paragraphs(60, 40), sect, {{QStringLiteral("/word/footer1.xml"), footer}}));
+        QVERIFY(doc);
+        // Two lines of twenty points under the footer distance of thirty-six: the text ends at 792 - 36 - 40.
+        QVERIFY2(std::abs(doc->pager().page(0).content.bottom() - (792 - 36 - 40)) < 0.01, qPrintable(QString::number(doc->pager().page(0).content.bottom())));
     }
 
     // A file's footnotes are at the foot of the pages that cite them: the note in a box at the bottom of the text area with a rule above it, its mark
@@ -4294,6 +4342,23 @@ private Q_SLOTS:
         // A page without the reference has no note.
         const auto next = doc->pager().materialize(1);
         QVERIFY(!boxWithText(*next, QStringLiteral("FOOTNOTE TWO")));
+    }
+
+    // The room between the text and the notes is the file's own separator paragraph, not a line of the Normal style: a separator thirty points tall
+    // (exactly) leaves the text fifty lines of twelve points above a note one line tall, where the Normal style's line would leave it one more.
+    void theNoteSeparatorIsTheFilesOwnParagraph()
+    {
+        const QByteArray exact = "<w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/></w:pPr>";
+        QByteArray body = "<w:p>" + exact + "<w:r><w:t>Cited</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>";
+        for (int i = 0; i < 120; ++i) body += "<w:p>" + exact + "<w:r><w:t>x</w:t></w:r></w:p>";
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"600\" w:lineRule=\"exact\"/></w:pPr>"
+                                 "<w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:id=\"2\"><w:p>" + exact + "<w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Note.</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}}));
+        QVERIFY(doc);
+        const auto lines = doc->pager().lines(0);
+        QVERIFY(lines.size() > 10);
+        QVERIFY2(std::abs(lines.last().rect.bottom() - lines.first().rect.top() - 50 * 12) < 0.01, qPrintable(QString::number(lines.last().rect.bottom() - lines.first().rect.top())));
     }
 
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
