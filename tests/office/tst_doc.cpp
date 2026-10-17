@@ -1044,13 +1044,14 @@ private Q_SLOTS:
     }
 
     // A developer's hook, not a test: JO_DOC_SWEEP_IN names a folder (searched through) of .doc files; each is read as it is, and again with bytes
-    // of it changed, JO_DOC_SWEEP_ROUNDS times (20 if not said; the same changes each run), and what a sanitizer build says is what it is for.
+    // of it changed, JO_DOC_SWEEP_ROUNDS times (20 if not said; the same changes each run unless JO_DOC_SWEEP_SEED says another), and what a sanitizer
+    // build says is what it is for.
     void sweepOfRealFiles()
     {
         const QString in = qEnvironmentVariable("JO_DOC_SWEEP_IN");
         if (in.isEmpty()) QSKIP("JO_DOC_SWEEP_IN is not set");
         const int rounds = qEnvironmentVariableIsSet("JO_DOC_SWEEP_ROUNDS") ? qEnvironmentVariableIntValue("JO_DOC_SWEEP_ROUNDS") : 20;
-        QRandomGenerator rng(20261018);
+        QRandomGenerator rng(qEnvironmentVariableIsSet("JO_DOC_SWEEP_SEED") ? quint32(qEnvironmentVariableIntValue("JO_DOC_SWEEP_SEED")) : 20261018u);
         int files = 0, readable = 0;
         QDirIterator it(in, {QStringLiteral("*.doc")}, QDir::Files, QDirIterator::Subdirectories);
         while (it.hasNext()) {
