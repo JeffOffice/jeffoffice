@@ -5000,6 +5000,34 @@ private Q_SLOTS:
         QVERIFY2(round > 149.9 && round < 170, qPrintable(QString::number(round)));
     }
 
+    // A paragraph of a header that is set at a place on the page (a frame whose position is from the page) is a text box there and takes no room in the header, whatever its
+    // offset says: one that asks to be above the page's top is at the top. The paragraph after it (its mark hidden does not join them) keeps its line.
+    void aHeaderFrameSetAtAPlaceOnThePageIsATextBoxThere()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"360\" w:right=\"1440\" w:bottom=\"720\" w:left=\"1440\" w:header=\"240\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray frame = "<w:pPr><w:framePr w:w=\"9360\" w:h=\"280\" w:hRule=\"exact\" w:wrap=\"notBeside\" w:vAnchor=\"page\" w:hAnchor=\"text\" w:y=\"-314\"/><w:jc w:val=\"right\"/><w:rPr><w:vanish/></w:rPr></w:pPr>"
+                                 "<w:r><w:t>FRAMED page</w:t></w:r>";
+        const QByteArray first = "<w:r><w:t>First line</w:t></w:r>";
+        auto open1 = [&](const QList<QByteArray> &inHeader) { return open(makeDocxWithParts(paragraphs(10, 5), sect, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", inHeader)}})); };
+        auto doc = open1({first, frame, QByteArray()});
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        // (The header's own box has the frame's paragraph in its story too, with no line of it.)
+        const TextItem *box = nullptr;
+        for (const auto &item : page->doc->pages[0]->items)
+            if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                if (!t->id.contains(QLatin1String("header-box")) && page->doc->story(t->storyId) && page->doc->story(t->storyId)->doc->toPlainText().contains(QLatin1String("FRAMED"))) box = t;
+        QVERIFY2(box, "the frame is a text box of its own");
+        QVERIFY2(box->rect.top() >= 0 && box->rect.top() < 1, qPrintable(QString::number(box->rect.top())));
+        // It takes no room in the header, and the empty paragraph after it keeps its line.
+        const double with = doc->pager().page(0).content.top();
+        const double without = open1({first, QByteArray()})->pager().page(0).content.top(), alone = open1({first})->pager().page(0).content.top();
+        QVERIFY2(std::abs(with - without) < 0.1, qPrintable(QStringLiteral("%1 with the frame, %2 without").arg(with).arg(without)));
+        QVERIFY2(without > alone + 5, qPrintable(QStringLiteral("%1 with its empty paragraph, %2 without").arg(without).arg(alone)));
+    }
+
     // A paragraph of a footer whose mark a tracked change deleted, with nothing else of its own, is gone from the footer as the text stands: it takes no room
     // (twenty points a line here), so the text keeps what the footer leaves it.
     void aDeletedParagraphOfAFooterTakesNoRoom()

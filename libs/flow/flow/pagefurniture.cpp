@@ -188,6 +188,8 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
                 anchors << anchorsIn(story, 0, story->characterCount(), held);
             }
         }
+        // The frames of the story (a letterhead's logo or a page number set at a place on the page) are text boxes where they say.
+        anchors << storyFrameAnchors(story, content.left(), content.width(), top);
         d->stories.insert(s->id, s);
         auto t = std::make_shared<TextItem>();
         t->id = QStringLiteral("flow-%1-box-%2").arg(QLatin1String(name)).arg(d->pages[0]->id);

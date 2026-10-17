@@ -402,9 +402,14 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         QTextBlockFormat bf = blockFormatOf(resolved);
         if (tables.key()) bf.setProperty(flow::fp::Cell, tables.key());
         // A paragraph of a frame in the body is set apart from the text: no lines and no room there, and a text box where the frame asks, at the paragraph after it.
-        if (!header && !tables.key()) {
-            QByteArray frameXml;
-            const QHash<QString, QString> frameAt = frameOfParagraph(sheet, styleId, direct.extra, &frameXml, &styleFrames);
+        // (A header's or a footer's frame is a text box too where it is set at a place on the page: its logo, its page number at the page's top. One set beside the text, by its
+        // alignment, is a paragraph of the story that takes no room, below.)
+        QByteArray frameXml;
+        QHash<QString, QString> frameAt;
+        if (header && !tables.key()) frameAt = frameOfParagraph(sheet, styleId, direct.extra, &frameXml, &styleFrames);
+        const bool headerFrame = header && !frameXml.isEmpty() && frameAt.value(QStringLiteral("vAnchor")) == QLatin1String("page");
+        if ((!header || headerFrame) && !tables.key()) {
+            if (!header) frameAt = frameOfParagraph(sheet, styleId, direct.extra, &frameXml, &styleFrames);
             if (frameXml.isEmpty()) {
                 lastFrameKey = 0;
                 lastFrameXml.clear();

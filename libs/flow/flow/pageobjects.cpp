@@ -176,6 +176,11 @@ QRectF Paginator::placeOf(const FloatingObject &o, const Anchor &a, const Sectio
         if (limit - size.height() >= top - 0.01) y = limit - size.height();
     }
     if (!fromArea && clamp) y = std::max(0.0, std::min(y, pageSize.height() - size.height()));
+    // A frame is on the page, whatever its offset says.
+    if (a.frame) {
+        x = std::max(0.0, std::min(x, pageSize.width() - size.width()));
+        y = std::max(0.0, std::min(y, pageSize.height() - size.height()));
+    }
     return QRectF(QPointF(x, y), size);
 }
 
@@ -340,9 +345,9 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
 }
 
 
-std::unique_ptr<QTextDocument> Paginator::frameStory(int from, int to) const
+std::unique_ptr<QTextDocument> Paginator::frameStory(int from, int to, const QTextDocument *source) const
 {
-    const QTextDocument *main = m_doc->story();
+    const QTextDocument *main = source ? source : m_doc->story();
     auto sd = std::make_unique<QTextDocument>();
     sd->setDocumentMargin(0);
     sd->setDefaultFont(main->defaultFont());
@@ -391,17 +396,19 @@ std::unique_ptr<QTextDocument> Paginator::frameStory(int from, int to) const
     return sd;
 }
 
-std::shared_ptr<const FloatingObject> Paginator::frameObject(int key, int from, int to, double columnWidth)
+std::shared_ptr<const FloatingObject> Paginator::frameObject(int key, int from, int to, double columnWidth, const QTextDocument *source)
 {
     if (key <= 0 || key > m_doc->frames.size()) return nullptr;
     const int id = m_doc->frames[key - 1];
     if (id <= 0 || id > m_doc->objects.size()) return nullptr;
     const auto cacheKey = std::make_tuple(key, from, to, int(std::lround(columnWidth * 100)), uint(qHash(m_doc->env.key())));
-    const auto found = m_frames.find(cacheKey);
-    if (found != m_frames.end()) return found->second;
-    if (m_frames.size() > 400) m_frames.clear();
+    if (!source) {
+        const auto found = m_frames.find(cacheKey);
+        if (found != m_frames.end()) return found->second;
+        if (m_frames.size() > 400) m_frames.clear();
+    }
     FloatingObject o = m_doc->objects[id - 1];
-    o.story = frameStory(from, to);
+    o.story = frameStory(from, to, source);
     // As wide as it says; else as wide as the column, or (a frame that shrinks) as the longest line of its text where nothing is wrapped (to the column's width).
     double width = o.frameWidth > 0 ? o.frameWidth : std::max(1.0, columnWidth);
     if (o.frameWidth <= 0 && o.frameShrinks) {
@@ -432,7 +439,39 @@ std::shared_ptr<const FloatingObject> Paginator::frameObject(int key, int from, 
     box->hyphenate = false;
     o.item = box;
     o.insets = QMarginsF(0, 0, 0, 0);
+    if (source) return std::make_shared<const FloatingObject>(std::move(o));
     return m_frames.emplace(cacheKey, std::make_shared<const FloatingObject>(std::move(o))).first->second;
+}
+
+QVector<Paginator::Anchor> Paginator::storyFrameAnchors(const QTextDocument *story, double columnLeft, double columnWidth, double top)
+{
+    QVector<Anchor> out;
+    if (m_doc->frames.isEmpty()) return out;
+    for (QTextBlock b = story->begin(); b.isValid() && out.size() < kMostObjects;) {
+        const int key = b.blockFormat().intProperty(fp::Frame);
+        if (key <= 0) {
+            b = b.next();
+            continue;
+        }
+        QTextBlock e = b;
+        int paragraphs = 1;
+        while (e.next().isValid() && e.next().blockFormat().intProperty(fp::Frame) == key && ++paragraphs <= kMostFrameParagraphs) e = e.next();
+        Anchor a;
+        a.pos = b.position();
+        a.paragraph = b.position();
+        a.paragraphTop = a.lineTop = top;
+        a.columnLeft = columnLeft;
+        a.x = columnLeft;
+        a.frameFrom = b.position();
+        a.frameTo = e.position() + e.length();
+        a.frame = frameObject(key, a.frameFrom, a.frameTo, columnWidth, story);
+        if (a.frame) {
+            a.object = m_doc->frames[key - 1];
+            out << a;
+        }
+        b = e.next();
+    }
+    return out;
 }
 
 // Whether a paragraph has no lines: its mark and all of its text are hidden.

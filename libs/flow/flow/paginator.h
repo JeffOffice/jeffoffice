@@ -318,8 +318,11 @@ private:
     // The anchors of a page: those of the objects anchored in the text of `held`, and of the frames and tables set from the first lines among `firstLines`.
     QVector<Anchor> anchorsOfLines(const QVector<AnchorLine> &held, const QVector<AnchorLine> &firstLines, double columnWidth);
     // The frame of paragraphs `from` to `to` (the story's positions) as an object: its text copied for the page, and its size from the frame's and the text's.
-    std::shared_ptr<const FloatingObject> frameObject(int key, int from, int to, double columnWidth);
-    std::unique_ptr<QTextDocument> frameStory(int from, int to) const;
+    // (The text of a frame is from the story's paragraphs `from` to `to`: the document's own, or `source`, a header's or a footer's, whose frames are not cached.)
+    std::shared_ptr<const FloatingObject> frameObject(int key, int from, int to, double columnWidth, const QTextDocument *source = nullptr);
+    std::unique_ptr<QTextDocument> frameStory(int from, int to, const QTextDocument *source = nullptr) const;
+    // The frames of a header's or a footer's story (paragraphs set at a place on the page, which the story's own lines leave out), each an anchor for the page's objects.
+    QVector<Anchor> storyFrameAnchors(const QTextDocument *story, double columnLeft, double columnWidth, double top);
     // A table that is set at a place (TableData::place) and that can be: of few enough rows, and not taller than a page's text area. Its rows are no lines of the text, which
     // goes round it: it is an object (`tableObject`), anchored at the paragraph after it, that has its rows drawn where it is.
     bool floatsTable(int span);
