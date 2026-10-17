@@ -802,6 +802,7 @@ QTextListFormat WriteDoc::listFormat(int numId, int level, int start) const
         return lf;
     }
     const Level &l = a->levels[level];
+    if (levelIsOutlined(*a, level)) lf.setProperty(tp::BulletOutline, true);   // (the numbers of a level are drawn hollow as well as its bullets)
     const Num *num = m_wml.numbering.num(numId);
     const int first = start >= 0 ? start : num && num->startOverrides.contains(level) ? num->startOverrides.value(level) : l.start;
     if (l.numFmt == QLatin1String("bullet") || l.numFmt == QLatin1String("none")) {
@@ -814,7 +815,6 @@ QTextListFormat WriteDoc::listFormat(int numId, int level, int start) const
         if (!text.isEmpty()) lf.setProperty(tp::BulletChar, text);
         if (!font.isEmpty()) lf.setProperty(tp::BulletFont, font);
         if (l.rPr.size) lf.setProperty(tp::BulletSize, *l.rPr.size / 2.0);
-        if (levelIsOutlined(*a, level)) lf.setProperty(tp::BulletOutline, true);
         return lf;
     }
     QTextListFormat::Style style = QTextListFormat::ListDecimal;

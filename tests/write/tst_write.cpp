@@ -4947,6 +4947,16 @@ private Q_SLOTS:
         QCOMPARE(doc->listFormat(2, 7).intProperty(tp::ListKey), 2);
     }
 
+    // A numbered level's outline effect draws its numbers hollow too.
+    void theOutlineEffectReachesNumbers()
+    {
+        auto doc = open(makeDocx("<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:t>item</w:t></w:r></w:p>", kStyles,
+                                 "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/><w:rPr><w:outline/></w:rPr></w:lvl></w:abstractNum>"
+                                 "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>"));
+        QVERIFY(doc);
+        QVERIFY(doc->story()->begin().textList()->format().boolProperty(tp::BulletOutline));
+    }
+
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
     // thousand sections makes no more than the sections it changed (counted, not timed).
     void editingSectionsTouchesOnlyWhatChanged()
