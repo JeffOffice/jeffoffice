@@ -402,6 +402,14 @@ void TableLayout::setLineRooms()
         c.margins.setTop(c.margins.top() + m_rows[size_t(c.row)].top);
         c.margins.setBottom(c.margins.bottom() + m_rows[size_t(std::min(c.row + c.rows - 1, rows - 1))].foot);
     }
+    // A row set to a height has that for the room inside the margins of its cells (and the lines): the margins come in addition.
+    for (Row &row : m_rows) {
+        if (row.data->height <= 0) continue;
+        double pad = row.top + row.foot;
+        for (int i = row.cell0; i < row.cell0 + row.cells; ++i)
+            if (!m_cells[size_t(i)].covered && m_cells[size_t(i)].rows == 1) pad = std::max(pad, m_cells[size_t(i)].margins.top() + m_cells[size_t(i)].margins.bottom());
+        row.least = row.data->height + pad;
+    }
 }
 
 int TableLayout::rowOfPosition(int pos) const
@@ -530,7 +538,7 @@ void TableLayout::measure(int r)
                 const double h = measureCell(c);
                 if (c.rows == 1) need = std::max(need, h);
             }
-        double h = exact ? rd.height : std::max(need, rd.height + row.top + row.foot);
+        double h = exact ? rd.height : std::max(need, row.least);
         // Cells joined down that end in this row need the part of their height that the rows above them do not give.
         if (!exact && m_maxRows > 1)
             for (int k = std::max(0, m_measured - m_maxRows + 1); k < m_measured; ++k) {
@@ -605,7 +613,7 @@ bool TableLayout::splittable(int r) const
     const Row &row = m_rows[size_t(r)];
     if (row.data->cantSplit || row.data->header || (row.data->exact && row.data->height > 0)) return false;
     // A row as tall as it was set to be (its cells need less) has no lines to cut it between: it goes whole, as tall as it was set.
-    if (row.data->height > 0 && row.height <= row.data->height + row.top + row.foot + 0.01) return false;
+    if (row.data->height > 0 && row.height <= row.least + 0.01) return false;
     for (int i = row.cell0; i < row.cell0 + row.cells; ++i)
         if (m_cells[size_t(i)].covered || m_cells[size_t(i)].rows > 1) return false;
     return true;
@@ -876,7 +884,7 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
     if (k >= kMostParts - 1) st.more = false;   // (the part the parts end in has all that is left)
     piece.progress = st.progress;
     // A row set to a height is not begun where the room is less than that height: it goes to the next page whole (a row is cut only where it has at least the room it was set to).
-    if (k == 0 && !force && st.more && row.data->height > 0 && room < row.data->height + row.top + row.foot - 0.01) piece.progress = false;
+    if (k == 0 && !force && st.more && row.data->height > 0 && room < row.least - 0.01) piece.progress = false;
     piece.offsets = offs;
     piece.ends = st.more ? st.next : QVector<double>(n, kEnd);
     piece.notes = st.notes;
