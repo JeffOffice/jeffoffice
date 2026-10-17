@@ -3137,13 +3137,16 @@ private Q_SLOTS:
     // A developer's hook, not a test: the strict round trip. JW_STRICT_IN names a folder (searched through) of .docx files and JW_STRICT_LIST a file
     // of paths, one to a line; each is opened and written again, and the file written is checked for well-formed XML in every part the program wrote,
     // for losing or changing what the file held (rtcheck.h), and for a story that is not the one that was opened. The summary counts the files for
-    // each kind of problem; JW_STRICT_OUT keeps the files written; JW_STRICT_LIMIT stops after that many files.
+    // each kind of problem; JW_STRICT_OUT keeps the files written; JW_STRICT_LIMIT stops after that many files; JW_STRICT_REPORT names a file to put every
+    // problem of every file in (the log shows the first sixty).
     void developerStrictRoundTrip()
     {
         const QString in = qEnvironmentVariable("JW_STRICT_IN"), list = qEnvironmentVariable("JW_STRICT_LIST"), out = qEnvironmentVariable("JW_STRICT_OUT");
         if (in.isEmpty() && list.isEmpty()) QSKIP("JW_STRICT_IN and JW_STRICT_LIST are not set");
         if (!out.isEmpty()) QDir().mkpath(out);
         const int limit = qEnvironmentVariableIntValue("JW_STRICT_LIMIT") > 0 ? qEnvironmentVariableIntValue("JW_STRICT_LIMIT") : 1 << 30;
+        QFile report(qEnvironmentVariable("JW_STRICT_REPORT"));
+        if (!report.fileName().isEmpty()) report.open(QIODevice::WriteOnly | QIODevice::Truncate);
         QStringList paths;
         if (!in.isEmpty())
             for (QDirIterator it(in, {QStringLiteral("*.docx"), QStringLiteral("*.docm"), QStringLiteral("*.dotx")}, QDir::Files, QDirIterator::Subdirectories); it.hasNext();) paths << it.next();
@@ -3197,6 +3200,9 @@ private Q_SLOTS:
                     kind = (l == &strict ? QStringLiteral("strict: ") : l == &loss ? QStringLiteral("loss: ") : QStringLiteral("story: ")) + kind.trimmed();
                     kinds[kind] += 1;
                 }
+            if (report.isOpen())
+                for (const QStringList *l : std::initializer_list<const QStringList *>{&strict, &loss, &differs})
+                    for (const QString &p : *l) report.write((QFileInfo(path).fileName() + QLatin1Char('\t') + (l == &strict ? QStringLiteral("strict") : l == &loss ? QStringLiteral("loss") : QStringLiteral("story")) + QLatin1Char('\t') + p + QLatin1Char('\n')).toUtf8());
             if (lines.size() < 60 && (!strict.isEmpty() || !loss.isEmpty() || !differs.isEmpty()))
                 lines << QFileInfo(path).fileName() + QStringLiteral(": ") + (strict + loss + differs).join(QStringLiteral(" | ")).left(300);
             if (!out.isEmpty()) {
@@ -4193,6 +4199,106 @@ private Q_SLOTS:
         QVERIFY(rt::lossProblems(gained, plain).isEmpty());   // (one left out is normalizing)
         const QStringList added = rt::lossProblems(plain, gained);
         QVERIFY2(!added.isEmpty() && added.first().contains(QLatin1String("gains run properties")), qPrintable(added.join(QLatin1String("; "))));
+    }
+
+    // The round-trip check reads a property as a reader does: an on/off property said "false", "0", or "off" is off, and one said "true", "1", "on", or with no value is on,
+    // whichever the file spelled; hidden text that is not hidden is nothing; an underline of none that names a color, and a font said for the face alone, say what the
+    // underline and the fonts said. What the file never said is still a gain, and another font is another font.
+    void theRoundTripCheckReadsPropertiesAsAReaderDoes()
+    {
+        auto withRun = [&](const QByteArray &props) { return makeDocx("<w:p><w:r><w:rPr>" + props + "</w:rPr><w:t>text</w:t></w:r></w:p>"); };
+        auto same = [&](const QByteArray &was, const QByteArray &now) { return rt::lossProblems(withRun(was), withRun(now)).isEmpty(); };
+        QVERIFY(same("<w:b w:val=\"false\"/>", "<w:b w:val=\"0\"/>"));
+        QVERIFY(same("<w:caps w:val=\"off\"/><w:smallCaps w:val=\"0\"/>", "<w:caps w:val=\"false\"/><w:smallCaps w:val=\"false\"/>"));
+        QVERIFY(same("<w:i w:val=\"true\"/><w:strike w:val=\"on\"/>", "<w:i/><w:strike w:val=\"1\"/>"));
+        QVERIFY(same("<w:vanish w:val=\"false\"/>", QByteArray()));
+        QVERIFY(same("<w:u w:val=\"none\" w:color=\"112233\"/>", "<w:u w:val=\"none\"/>"));
+        QVERIFY(same("<w:rFonts w:ascii=\"Face\" w:hAnsi=\"Face\" w:cs=\"Face\"/>", "<w:rFonts w:cs=\"Face\"/>"));
+        QVERIFY(!same(QByteArray(), "<w:b w:val=\"0\"/>"));
+        QVERIFY(!same("<w:b/>", "<w:b w:val=\"0\"/>"));
+        QVERIFY(!same("<w:rFonts w:ascii=\"Face\" w:cs=\"Face\"/>", "<w:rFonts w:cs=\"Other\"/>"));
+        QVERIFY(!same("<w:u w:val=\"none\"/>", "<w:u w:val=\"single\"/>"));
+        QVERIFY(!same("<w:vanish/>", QByteArray()));
+        QVERIFY(!same(QByteArray(), "<w:vanish/>"));
+    }
+
+    // Text holds one kind of capitals and one kind of strike-through: a run in capitals over a style that says small capitals is in capitals, and one in a double strike
+    // over a style's single strike is double. What the run says of the other kind is not "off" for the format has no room for it: it is not given an off that the file never
+    // said. A person who turns the capitals off over a style of small capitals still saves the look they see (no small capitals).
+    void capitalsAndDoubleStrikeOverTheStylesOtherKindAreSavedAsTheFileSaidThem()
+    {
+        const QByteArray styles = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                                  "<w:style w:type=\"paragraph\" w:styleId=\"Small\"><w:name w:val=\"Small\"/><w:basedOn w:val=\"Normal\"/><w:rPr><w:smallCaps/><w:strike/></w:rPr></w:style>";
+        const QByteArray original = makeDocx("<w:p><w:pPr><w:pStyle w:val=\"Small\"/></w:pPr><w:r><w:rPr><w:caps/><w:dstrike/></w:rPr><w:t>Both</w:t></w:r></w:p>", styles);
+        auto doc = open(original);
+        QVERIFY(doc);
+        const QByteArray saved = doc->toDocx();
+        const QByteArray x = documentXml(saved);
+        QVERIFY2(x.contains("<w:caps/>") && x.contains("<w:dstrike/>"), x.constData());
+        QVERIFY2(!x.contains("smallCaps") && !x.contains("<w:strike"), x.constData());
+        const QStringList loss = rt::lossProblems(original, saved);
+        QVERIFY2(loss.isEmpty(), qPrintable(loss.join(QLatin1String("; "))));
+        // (The person turns the capitals off: the text is not in small capitals on the screen, so the file says so.)
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        c.setPosition(4, QTextCursor::KeepAnchor);
+        changeCharFormat(*doc, c, [](QTextCharFormat &f) { f.setFontCapitalization(QFont::MixedCase); });
+        const QByteArray after = documentXml(doc->toDocx());
+        QVERIFY2(after.contains("<w:smallCaps w:val=\"0\"/>") && !after.contains("<w:caps"), after.constData());
+    }
+
+    // Bold in a character style over a paragraph style that is bold turns it off, as it does in the original program; a run that says bold itself over both is bold, and is saved
+    // saying so: the file's own bold is not left out as if it were the style's.
+    void aToggleOfACharacterStyleFlipsTheParagraphStylesAndADirectOneStaysSaid()
+    {
+        const QByteArray styles = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                                  "<w:style w:type=\"paragraph\" w:styleId=\"Head\"><w:name w:val=\"Head\"/><w:basedOn w:val=\"Normal\"/><w:rPr><w:b/><w:i/></w:rPr></w:style>"
+                                  "<w:style w:type=\"character\" w:styleId=\"Strong\"><w:name w:val=\"Strong\"/><w:rPr><w:b/></w:rPr></w:style>";
+        const QByteArray original = makeDocx("<w:p><w:pPr><w:pStyle w:val=\"Head\"/></w:pPr><w:r><w:rPr><w:rStyle w:val=\"Strong\"/></w:rPr><w:t>flipped</w:t></w:r>"
+                                             "<w:r><w:rPr><w:rStyle w:val=\"Strong\"/><w:b/></w:rPr><w:t>said</w:t></w:r></w:p>",
+                                             styles);
+        auto looks = [](WriteDoc &doc) {
+            QTextCursor c(doc.story());
+            c.setPosition(3);
+            const QTextCharFormat first = c.charFormat();
+            c.setPosition(doc.story()->toPlainText().indexOf(QLatin1String("said")) + 2);
+            return QVector<QTextCharFormat>{first, c.charFormat()};
+        };
+        auto doc = open(original);
+        QVERIFY(doc);
+        QVector<QTextCharFormat> f = looks(*doc);
+        QVERIFY2(f[0].fontWeight() < QFont::DemiBold && f[0].fontItalic(), "the character style's bold flips the heading's");
+        QVERIFY2(f[1].fontWeight() >= QFont::DemiBold && f[1].fontItalic(), "bold said by the run itself");
+        const QByteArray saved = doc->toDocx();
+        const QByteArray x = documentXml(saved);
+        QVERIFY2(x.contains("<w:rStyle w:val=\"Strong\"/><w:b/></w:rPr><w:t xml:space=\"preserve\">said"), x.constData());
+        QVERIFY2(x.contains("<w:rPr><w:rStyle w:val=\"Strong\"/></w:rPr><w:t xml:space=\"preserve\">flipped"), x.constData());
+        const QStringList loss = rt::lossProblems(original, saved);
+        QVERIFY2(loss.isEmpty(), qPrintable(loss.join(QLatin1String("; "))));
+        auto back = open(saved);
+        QVERIFY(back);
+        f = looks(*back);
+        QVERIFY(f[0].fontWeight() < QFont::DemiBold && f[1].fontWeight() >= QFont::DemiBold);
+    }
+
+    // A file that flags none of its paragraph styles as the default has paragraphs that say "Normal": they are saved saying it (the program takes Normal for the default of such
+    // a file, and another reader may not, so leaving it out could change the paragraph's look). A file that flags Normal as its default has it left out of the paragraphs, as before.
+    void aParagraphStyleIsSavedSaidWhenTheFileFlagsNoDefault()
+    {
+        auto saved = [&](const QByteArray &normalAttrs) {
+            const QByteArray styles = "<w:style w:type=\"paragraph\"" + normalAttrs + " w:styleId=\"Normal\"><w:name w:val=\"Normal\"/><w:rPr><w:b/></w:rPr></w:style>";
+            const QByteArray original = makeDocx("<w:p><w:pPr><w:pStyle w:val=\"Normal\"/></w:pPr><w:r><w:t>said</w:t></w:r></w:p>", styles);
+            auto doc = open(original);
+            return doc ? documentXml(doc->toDocx()) : QByteArray();
+        };
+        const QByteArray unflagged = saved(QByteArray());
+        QVERIFY2(unflagged.contains("<w:pStyle w:val=\"Normal\"/>"), unflagged.constData());
+        const QByteArray flagged = saved(" w:default=\"1\"");
+        QVERIFY2(!flagged.contains("<w:pStyle"), flagged.constData());
+        // (A file with no styles has none to say.)
+        auto bare = open(makeDocx("<w:p><w:r><w:t>none</w:t></w:r></w:p>"));
+        QVERIFY(bare);
+        QVERIFY(!documentXml(bare->toDocx()).contains("<w:pStyle"));
     }
 
     // An empty paragraph that ends a section, when the next section is continuous, takes no room; before a section on a page of its own it does.
@@ -5584,6 +5690,38 @@ private Q_SLOTS:
         for (auto it = name.cbegin(); it != name.cend(); ++it) QVERIFY2(endCount.value(it.key()) == 1, qPrintable(QStringLiteral("bookmark %1 (Id %2) has %3 ends").arg(it.value(), it.key()).arg(endCount.value(it.key()))));
         const QStringList loss = rt::lossProblems(makeDocx(body), saved);
         for (const QString &l : loss) QVERIFY2(!l.startsWith(QLatin1String("element counts")) || (!l.contains(QLatin1String("bookmark")) && !l.contains(QLatin1String("commentRange"))), qPrintable(l));
+    }
+
+    // A table nobody touched is written as the file had it, whatever the file had in it that the program would write otherwise: a bookmark that starts and has no end, and a
+    // second of one name, a style that is the default said again, an indent of nothing, a toggle spelled "false", and a row that doesn't reach the end of the grid. Once
+    // something in it changes it is written from the story, and then the bookmark with no end is left out.
+    void aTableNobodyTouchedComesBackAsTheFileHadIt()
+    {
+        const QByteArray table =
+            "<w:tbl><w:tblPr><w:tblW w:w=\"2000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"14\"/></w:tblGrid>"
+            "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"1000\" w:type=\"dxa\"/></w:tcPr><w:p><w:pPr><w:pStyle w:val=\"Normal\"/><w:ind w:left=\"0\" w:hanging=\"0\"/></w:pPr>"
+            "<w:bookmarkStart w:id=\"0\" w:name=\"Check1\"/><w:bookmarkStart w:id=\"1\" w:name=\"Check1\"/><w:bookmarkEnd w:id=\"1\"/>"
+            "<w:r><w:rPr><w:b w:val=\"false\"/></w:rPr><w:t>one</w:t></w:r></w:p></w:tc>"
+            "<w:tc><w:tcPr><w:tcW w:w=\"1000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>two</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+        const QByteArray original = makeDocx("<w:p><w:r><w:t>before</w:t></w:r></w:p>" + table + "<w:p><w:r><w:t>after</w:t></w:r></w:p>", kStyles);
+        auto doc = open(original);
+        QVERIFY(doc);
+        const QByteArray saved = doc->toDocx();
+        QVERIFY2(documentXml(saved).contains(table), documentXml(saved).constData());
+        const QStringList strict = rt::strictProblems(saved, original), loss = rt::lossProblems(original, saved);
+        QVERIFY2(strict.isEmpty() && loss.isEmpty(), qPrintable((strict + loss).join(QLatin1String("; "))));
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->toPlainText().indexOf(QLatin1String("one")));
+        insertText(*doc, c, QStringLiteral("x"));
+        const QByteArray changed = documentXml(doc->toDocx());
+        QVERIFY2(!changed.contains(table) && changed.contains("xone"), changed.constData());
+        QCOMPARE(int(changed.count("<w:bookmarkStart")), 1);
+        QCOMPARE(int(changed.count("<w:bookmarkEnd")), 1);
+        // A table written from the story is one a reader needn't repair: its rows reach the end of the grid (the file's row stops short of the last column, which the
+        // row then says it leaves empty), whatever the rows said before.
+        const QStringList shape = rt::strictProblems(doc->toDocx(), original);
+        QVERIFY2(shape.isEmpty(), qPrintable(shape.join(QLatin1String("; "))));
+        QVERIFY2(changed.contains("<w:trPr><w:gridAfter w:val=\"1\"/></w:trPr>"), changed.constData());
     }
 
     // Enter inside a hyperlink, a content control, a tracked change, or a tag keeps the wrapper on both halves, with its attributes (and so its
