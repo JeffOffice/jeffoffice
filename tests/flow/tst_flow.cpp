@@ -9548,6 +9548,42 @@ private Q_SLOTS:
         QVERIFY2(std::abs(table.top() - top) < 0.01, qPrintable(QStringLiteral("the table is at %1, the paragraph's top and the offset say %2").arg(table.top()).arg(top)));
     }
 
+    // The same for a table set at a place: its pictures are in the page's document as well, and drawn with the table where it is.
+    void aPictureInACellOfAFloatingTableIsDrawnWithTheTable()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.images.push_back({tinyPng(6, 6, Qt::blue), QStringLiteral("png")});
+        fillStory(fd.story(), 3, 12, {}, 3, 6);
+        TestTable spec;
+        spec.rows = 2;
+        spec.cols = 2;
+        spec.columnWidth = 150;
+        spec.setTable = [](TableData &t) { TableData::Place p; p.across = TableData::Place::From::Margin; p.down = TableData::Place::From::Margin; p.y = 200; t.place = p; };
+        const TestTable table = addTableAfter(fd, 0, spec);
+        auto item = std::make_shared<PictureItem>();
+        item->rect = QRectF(0, 0, 30, 20);
+        item->imgRect = QRectF(0, 0, 30, 20);
+        item->imageId = QStringLiteral("flow-img:0");
+        item->wrap.left = item->wrap.right = item->wrap.top = item->wrap.bottom = 0;
+        const int at = table.rowStarts[1] + 2;
+        {
+            QTextCursor c(fd.story());
+            c.setPosition(at);
+            QTextCharFormat inl;
+            inl.setFontPointSize(11);
+            inl.setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(item->toJson()).toJson(QJsonDocument::Compact)));
+            c.insertText(QString(QChar(0xFFFC)), inl);
+        }
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page && page->tables.size() == 1 && page->tables[0]->floating);
+        QCOMPARE(page->cellImages.size(), 1);
+        const QString id = page->cellImages.value(QStringLiteral("flow-img:0"));
+        QVERIFY(!id.isEmpty() && !id.startsWith(QStringLiteral("flow-img:")));
+        QVERIFY(page->doc->images.contains(id));
+    }
+
     // A picture set in the text of a cell is in the page's document and is drawn with the table, where its line is.
     void aPictureInTheTextOfACellIsDrawnWithTheTable()
     {

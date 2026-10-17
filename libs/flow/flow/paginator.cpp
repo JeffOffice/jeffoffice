@@ -1604,6 +1604,8 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
             QVector<QRectF> columns;
             for (const QRectF &col : run.cols) columns << QRectF(col.left(), furniture.body.top() + col.top(), col.width(), col.height());
             if (!anchors.isEmpty()) addObjects(d.get(), anchors, sec, out->number, run.wrapped, columns, out.get(), front);
+            // (The rows of the tables set at a place, which the objects made, hold pictures as the rows of the others do.)
+            if (!m_doc->images.isEmpty() && std::any_of(out->tables.begin(), out->tables.end(), [](const auto &t) { return t->floating; })) resolveCellImages(out.get(), d.get());
         }
     }
     // The notes the page's lines cite and those that go on from the page before.
