@@ -4897,6 +4897,26 @@ private Q_SLOTS:
         QVERIFY2(std::abs(gap(1, QStringLiteral("SMALL note")) - 4) < 0.05, qPrintable(QString::number(gap(1, QStringLiteral("SMALL note")))));
     }
 
+    // A note of a reference with a custom mark has no number to show for the reference mark its text begins with: it shows nothing (not a 0).
+    void aCustomNotesOwnReferenceMarkShowsNothing()
+    {
+        auto text = [](const char *t) { return QByteArray("<w:r><w:t xml:space=\"preserve\">") + t + "</w:t></w:r>"; };
+        const QByteArray body = "<w:p>" + text("Cited") + "<w:r><w:footnoteReference w:customMarkFollows=\"1\" w:id=\"2\"/><w:t>*</w:t></w:r></w:p>";
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>"
+                                 "<w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r>" + text(" BODY text") + "</w:p></w:footnote></w:footnotes>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}}));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        const TextItem *box = boxWithText(*page, QStringLiteral("BODY text"));
+        QVERIFY(box);
+        QStringList marks;
+        for (QTextBlock b = page->doc->story(box->storyId)->doc->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it)
+                if (it.fragment().charFormat().stringProperty(tp::Field).startsWith(QLatin1String("raw:"))) marks << it.fragment().charFormat().stringProperty(tp::Field);
+        QCOMPARE(marks, (QStringList{QStringLiteral("raw:")}));
+    }
+
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
     // thousand sections makes no more than the sections it changed (counted, not timed).
     void editingSectionsTouchesOnlyWhatChanged()
