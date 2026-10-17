@@ -2848,6 +2848,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // A word processor lets a mark of punctuation at the end of a line hang past the margin (a period, a comma, a closing quote or bracket),
                     // so a word followed by one can be the last of a line it is a mark too wide for: the line is tried that much wider, and kept so if
                     // it is only that last mark that is past the margin.
+                    bool markHangs = false;   // (a mark at the end of the line is past the margin)
                     if (env.wordLines && !env.wordNoHang && (al == Qt::AlignLeft || al == Qt::AlignJustify) && !bf.boolProperty(tp::Distribute)) {
                         const double hang = 0.34 * base.pointSizeF() / fontPointFactor();
                         const int endBefore = line.textStart() + line.textLength();
@@ -2859,7 +2860,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             const double end = line.cursorToX(k + 1);
                             if (end > room + 0.13) {
                                 static const QString marks = QStringLiteral(".,;:!?)]}\"'\u2019\u201D\u00BB\u2026");
-                                if (!(marks.contains(B->disp[k]) && line.cursorToX(k) <= room + 0.13 && k > s0)) line.setLineWidth(room + 0.13);
+                                markHangs = marks.contains(B->disp[k]) && line.cursorToX(k) <= room + 0.13 && k > s0;
+                                if (!markHangs) line.setLineWidth(room + 0.13);
                             } else if (al == Qt::AlignJustify) {
                                 line.setLineWidth(room + 0.13);   // (a justified line goes to the margin, not past it)
                             }
@@ -3061,17 +3063,17 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         B->boxLeft = col.left() + leftM;
                         B->boxRight = col.right() - rightM;
                     }
-                    // A slide's justified line has its words stretched to the edge: the spaces that hang at its end are not part of the width
-                    // the words are spread over (Qt counts them in it, which leaves the last word a space short of the edge). The line is laid
+                    // A slide's or a word processor's justified line has its words stretched to the edge: the spaces that hang at its end are not part of
+                    // the width the words are spread over (Qt counts them in it, which leaves the last word a space short of the edge). The line is laid
                     // out for the width with them added, and as it was if that takes another word in.
-                    if (env.slideLines && (B->tl->textOption().alignment() & Qt::AlignJustify)) {
+                    if ((env.slideLines || (env.wordLines && !markHangs)) && (B->tl->textOption().alignment() & Qt::AlignJustify)) {
                         const int s0 = line.textStart(), e = s0 + line.textLength();
                         if (e < B->disp.size() && B->disp[e - 1] != QChar::LineSeparator) {
                             double spaces = 0;
                             int k = e;
                             while (k > s0 && B->disp[k - 1] == QLatin1Char(' ')) spaces += advanceAt(--k);
                             if (k > s0 && spaces > 0) {
-                                const double room = iv.x1 - iv.x0;
+                                const double room = iv.x1 - iv.x0 + (env.wordLines ? 0.13 : 0.0);
                                 line.setLineWidth(room + spaces);
                                 if (line.textStart() + line.textLength() != e) line.setLineWidth(room);
                             }
