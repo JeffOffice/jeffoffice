@@ -436,7 +436,7 @@ private Q_SLOTS:
         QVERIFY(w.document()->leftSomethingOut());
     }
 
-    void trackedChangesOfAnOldFileComeInWithTheirAuthors()
+    void trackedChangesOfAnOldFileComeInWithTheirAuthorsAndDates()
     {
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
@@ -460,14 +460,14 @@ private Q_SLOTS:
         shown.remove(QChar(0xFFFC));
         QVERIFY2(shown.contains(QLatin1String("keep added and")), qPrintable(shown));
         QVERIFY2(!shown.contains(QLatin1String("dropped")), qPrintable(shown));
-        // Written out, each is still a tracked change with its author.
+        // Written out, each is still a tracked change, with its author and its date.
         const QByteArray x = documentXml(w.document()->toDocx());
         const qsizetype ins = x.indexOf("<w:ins ");
         const qsizetype del = x.indexOf("<w:del ");
         QVERIFY2(ins >= 0 && del > ins, x.constData());
         const QByteArray insTag = x.mid(ins, x.indexOf('>', ins) - ins), delTag = x.mid(del, x.indexOf('>', del) - del);
-        QVERIFY2(insTag.contains("w:author=\"Ann\""), insTag.constData());
-        QVERIFY2(delTag.contains("w:author=\"Bob\""), delTag.constData());
+        QVERIFY2(insTag.contains("w:author=\"Ann\"") && insTag.contains("w:date=\"2003-04-07T09:30:00Z\""), insTag.constData());
+        QVERIFY2(delTag.contains("w:author=\"Bob\"") && delTag.contains("w:date=\"2004-11-23T16:05:00Z\""), delTag.constData());
         QVERIFY(x.mid(ins, del - ins).contains("<w:t xml:space=\"preserve\">added</w:t>"));
         QVERIFY(x.mid(del, x.indexOf("</w:del>", del) - del).contains("<w:delText xml:space=\"preserve\">dropped</w:delText>"));
     }

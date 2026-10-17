@@ -32,6 +32,15 @@ struct Shd {
 enum Toggle { TogBold, TogItalic, TogStrike, TogDStrike, TogOutline, TogShadow, TogEmboss, TogImprint, TogSmallCaps, TogCaps, TogVanish,
               TogBoldBi, TogItalicBi, TogCount };
 
+// A tracked change of some text: who made it (a place in the file's list of people) and when (the date and time as the file packs them, 0 for none).
+struct Revision {
+    bool made = false;
+    int author = -1;
+    quint32 date = 0;
+    bool operator==(const Revision &o) const { return made == o.made && (!made || (author == o.author && date == o.date)); }
+    bool operator!=(const Revision &o) const { return !(*this == o); }
+};
+
 struct Chp {
     std::optional<quint8> tog[TogCount];
     std::optional<int> istd;                      // the character style
@@ -45,8 +54,7 @@ struct Chp {
     Brc brc;
     std::optional<bool> noProof, bidi, complexScripts, webHidden;
     bool special = false, data = false, object = false, ole2 = false;
-    bool deleted = false, inserted = false;       // a tracked deletion or insertion
-    int revisionAuthor = -1;
+    Revision insertion, deletion;                 // tracked changes: the text was inserted, deleted, or (when it was inserted and then deleted) both
     qint32 picture = -1;                          // where its picture is in the Data stream (-1: none)
     int symbolFont = -1, symbolChar = 0;          // a symbol from a font, drawn in place of the character
     std::optional<int> lid;
@@ -152,6 +160,8 @@ struct Sep {
 // ---- writing them as XML
 // Text for the XML: the characters it can hold, escaped (a string out of a file goes in text or an attribute only through this).
 QByteArray xmlEscape(const QString &s);
+// The attributes of the mark of a tracked change (w:ins or w:del): its Id, who made it, and when (the file's packed date and time; left out if it is none or isn't a date).
+QByteArray revisionAttributes(int id, const QString &author, quint32 date);
 // The coding of a color index (ico) and the palette of highlights.
 QString colorOfIndex(int ico);
 // The name a .docx gives a number format (the code of the old format: 0 decimal, 1 upper roman, 2 lower roman, 3 upper letter, 4 lower letter...).

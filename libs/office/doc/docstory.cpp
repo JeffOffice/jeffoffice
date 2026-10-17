@@ -19,18 +19,18 @@ public:
     QByteArray paragraph;            // the runs so far
 
     // The properties of the characters that follow; a run ends where they change.
-    void setRun(const QByteArray &rpr, int revision, int author)
+    void setRun(const QByteArray &rpr, const Revision &insertion, const Revision &deletion)
     {
-        if (rpr == m_rpr && revision == m_revision && author == m_author) return;
+        if (rpr == m_rpr && insertion == m_insertion && deletion == m_deletion) return;
         flushRun();
         m_rpr = rpr;
-        m_revision = revision;
-        m_author = author;
+        m_insertion = insertion;
+        m_deletion = deletion;
     }
     // Text in the run: as text, as the instructions of a field, or (in a deleted run) as deleted text.
     void text(const QString &s, bool instruction)
     {
-        const int mode = instruction ? 1 : m_revision == 2 ? 2 : 0;
+        const int mode = instruction ? 1 : m_deletion.made ? 2 : 0;
         if (mode != m_textMode) flushText();
         m_textMode = mode;
         m_text += s;
@@ -64,11 +64,10 @@ public:
         QByteArray r = "<w:r>";
         if (!m_rpr.isEmpty()) r += "<w:rPr>" + m_rpr + "</w:rPr>";
         r += m_body + "</w:r>";
-        if (m_revision == 1 || m_revision == 2) {
-            const QByteArray id = QByteArray::number(++c.revisionId);
-            const QByteArray tag = m_revision == 1 ? "w:ins" : "w:del";
-            r = "<" + tag + " w:id=\"" + id + "\" w:author=\"" + xmlEscape(c.revisionAuthor(m_author)) + "\">" + r + "</" + tag + ">";
-        }
+        // Text that was inserted and then deleted has both marks, the insertion around the deletion.
+        const int insertionId = m_insertion.made ? ++c.revisionId : 0, deletionId = m_deletion.made ? ++c.revisionId : 0;
+        if (m_deletion.made) r = "<w:del" + revisionAttributes(deletionId, c.revisionAuthor(m_deletion.author), m_deletion.date) + ">" + r + "</w:del>";
+        if (m_insertion.made) r = "<w:ins" + revisionAttributes(insertionId, c.revisionAuthor(m_insertion.author), m_insertion.date) + ">" + r + "</w:ins>";
         paragraph += r;
         c.spend(r);
         m_body.clear();
@@ -86,7 +85,7 @@ private:
     }
     Converter &c;
     QByteArray m_rpr, m_body;
-    int m_revision = 0, m_author = -1;   // 0 plain, 1 inserted, 2 deleted
+    Revision m_insertion, m_deletion;    // the tracked changes the run is under
     QString m_text;
     int m_textMode = 0;
     bool m_has = false;
@@ -275,7 +274,11 @@ void StoryWriter::paragraph(qint64 first, qint64 last, bool terminated)
             const StyleDef *s = c.styles.style(*mark.istd);
             if (s && s->sgc == 2 && s->sti != 65) charStyle = s->id;
         }
-        const QByteArray mrpr = runPropertiesXml(mark, c.fonts, parent, charStyle);
+        // (A paragraph mark that was inserted or deleted says so first among its properties.)
+        QByteArray mrpr;
+        if (mark.insertion.made) mrpr += "<w:ins" + revisionAttributes(++c.revisionId, c.revisionAuthor(mark.insertion.author), mark.insertion.date) + "/>";
+        if (mark.deletion.made) mrpr += "<w:del" + revisionAttributes(++c.revisionId, c.revisionAuthor(mark.deletion.author), mark.deletion.date) + "/>";
+        mrpr += runPropertiesXml(mark, c.fonts, parent, charStyle);
         if (!mrpr.isEmpty()) ppr += "<w:rPr>" + mrpr + "</w:rPr>";
     }
     if (kind == Converter::Kind::Main && depth == 0) {
@@ -328,8 +331,7 @@ void StoryWriter::content(qint64 from, qint64 to, int istd, RunBuilder &rb)
 void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, int istd, RunBuilder &rb)
 {
     const QByteArray rpr = rprOf(chp, istd);
-    const int revision = chp.deleted ? 2 : chp.inserted ? 1 : 0;
-    rb.setRun(rpr, revision, chp.revisionAuthor);
+    rb.setRun(rpr, chp.insertion, chp.deletion);
     QString plain;
     auto flushPlain = [&] {
         if (plain.isEmpty()) return;
@@ -343,7 +345,7 @@ void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, int istd, R
             flushPlain();
             bookmarksUpTo(q - 1, rb);   // (those that are at this character begin before it)
             while (nextBookmark < c.bookmarkEvents.size() && c.bookmarkEvents[nextBookmark].cp == q) rb.between(c.bookmarkEvents[nextBookmark++].xml);
-            rb.setRun(rpr, revision, chp.revisionAuthor);
+            rb.setRun(rpr, chp.insertion, chp.deletion);
         }
         const QChar qc = T[q];
         const ushort ch = qc.unicode();
@@ -410,7 +412,7 @@ void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, int istd, R
                 rb.flushRun();
                 const QByteArray drawing = c.pictureXml(chp.picture, part);
                 if (!drawing.isEmpty()) {
-                    rb.setRun(rpr, revision, chp.revisionAuthor);
+                    rb.setRun(rpr, chp.insertion, chp.deletion);
                     rb.element(drawing);
                 }
             }
