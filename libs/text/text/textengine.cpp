@@ -270,8 +270,8 @@ constexpr int kOwnUnderline = QTextFormat::UserProperty + 90;
 // Layout only: a missing stock font measured letter by letter, "family|bold|italic"
 // (applyLetterWidths gives each letter the original's width).
 constexpr int kLetterWidths = QTextFormat::UserProperty + 91;
-// Layout only: the family a run is drawn in a stand-in of, whose line it keeps (wordFaceOf).
-constexpr int kMetricFamily = QTextFormat::UserProperty + 92;
+// The face Courier New is drawn in where the machine lacks it (resolveCharFormat): its font's families are this and then the family whose line it keeps.
+const QString kThinCourier = QStringLiteral("Courier Prime");
 
 QFont fineFont(QFont f)
 {
@@ -887,8 +887,9 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
         QStringList fams = r.fontFamilies().toStringList();
         const QString lower = fams.value(0).toLower();
         if ((lower == QLatin1String("courier new") || lower == QLatin1String("courier")) && !hasFamilyCached(fams.first()) && hasFamilyCached(QStringLiteral("Courier Prime"))) {
-            r.setProperty(kMetricFamily, fams.first());
-            fams[0] = QStringLiteral("Courier Prime");
+            // (The family it is drawn in, then the one whose line it keeps: wordFaceOf reads the second wherever a line is measured, from a run's font, a paragraph's, a
+            // list marker's, or the next paragraph's.)
+            fams.insert(0, kThinCourier);
             r.setFontFamilies(fams);
         }
     }
@@ -1496,7 +1497,15 @@ static bool wordKnowsFamily(const QString &lower)
     return false;
 }
 
-// A font's ascent, descent, and leading in ems, as the word processor lays a line out with it (by the family the text asked for).
+// The family whose line a font keeps: the one the text asked for, which for Courier New drawn in its thin stand-in is the family after it in the font's list.
+static QString metricFamilyOf(const QFont &f)
+{
+    const QStringList families = f.families();
+    return families.size() >= 2 && families.first() == kThinCourier ? families[1] : requestedFamily(f);
+}
+
+// A font's ascent, descent, and leading in ems, as the word processor lays a line out with it (by the family the text asked for): the one place a line is
+// measured from a font, so the run, the mark, the number of a list item, and the paragraph after one all keep the line of the family they were set as.
 static WordLine wordFaceOf(const QFont &f)
 {
     static QHash<QString, WordLine> cache;   // main thread only, like all layout
@@ -1511,7 +1520,7 @@ static WordLine wordFaceOf(const QFont &f)
         return l;
     };
     WordLine line = make(1825, 443, 1825, 443, 87, 2048);   // (a Times New Roman, when nothing is known)
-    const QString family = requestedFamily(f).toLower();
+    const QString family = metricFamilyOf(f).toLower();
     bool found = false;
     WordFace face;
     if (wordFaceNamed(family, f.weight() >= QFont::DemiBold, f.italic(), &face)) {
@@ -1582,9 +1591,7 @@ static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int 
                 }
                 if (onlyTabs || (onlyBlanks && b - a < 2)) continue;
             }
-            QFont f = r.format.font();
-            const QString metric = r.format.stringProperty(kMetricFamily);
-            if (!metric.isEmpty()) f.setFamilies({metric});
+            const QFont f = r.format.font();
             add(f, r.format.hasProperty(tp::LineSize) ? r.format.property(tp::LineSize).toDouble() : f.pointSizeF());
         }
     if (m.total() <= 0 && markFont) add(*markFont, markSize);
@@ -2587,7 +2594,6 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         if (env.wordLines) {
             const QTextCharFormat mf = resolveCharFormat(b.charFormat(), env);
             markFont = mf.font();
-            if (const QString metric = mf.stringProperty(kMetricFamily); !metric.isEmpty()) markFont.setFamilies({metric});
             markSize = mf.hasProperty(tp::LineSize) ? mf.property(tp::LineSize).toDouble() : markFont.pointSizeF();
         }
         B->tl = std::make_unique<ParagraphLayout>(B->disp, fineFont(base));
