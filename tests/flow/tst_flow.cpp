@@ -7380,6 +7380,29 @@ private Q_SLOTS:
         QVERIFY2(std::abs(lines[1].rect.left()) < 0.01, qPrintable(QString::number(lines[1].rect.left())));
     }
 
+    // A right tab stop that is past the right indent and inside the column still takes the text after its tab (the page number of an entry in a table of contents): the line is
+    // not broken before the tab.
+    void aRightTabPastTheRightIndentKeepsItsText()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setRightMargin(36);
+        bf.setTabPositions({QTextOption::Tab(300, QTextOption::RightTab)});
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("An entry of the table\t12"), run);
+        StoryLayout lay;
+        LayoutEnv env;
+        env.wordLines = true;
+        lay.build(&doc, {plainFrame(300, 600)}, env);
+        const auto lines = lay.lineBriefs();
+        QCOMPARE(lines.size(), 1);   // (the number is on the line of its entry)
+        QCOMPARE(lines[0].end - lines[0].pos, int(doc.characterCount() - 1));
+    }
+
     // A line that a paragraph goes on with, in smaller type than its first run, is checked against the objects at the height its own text has, not the first run's: an object
     // that begins below the line (and above where the big type's line would end) is no wall for it.
     void aLineInSmallTypeIsNotMovedByAnObjectBelowIt()
