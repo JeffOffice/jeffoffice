@@ -758,6 +758,7 @@ QTextListFormat WriteDoc::listFormat(int numId, int level, int start) const
         return lf;
     }
     const Level &l = a->levels[level];
+    lf.setProperty(tp::ListKey, numId);
     const Num *num = m_wml.numbering.num(numId);
     const int first = start >= 0 ? start : num && num->startOverrides.contains(level) ? num->startOverrides.value(level) : l.start;
     if (l.numFmt == QLatin1String("bullet") || l.numFmt == QLatin1String("none")) {
