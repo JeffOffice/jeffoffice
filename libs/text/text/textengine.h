@@ -416,6 +416,7 @@ public:
     // first note (the rule is a part of it) and between notes. For a caller that sets notes of its own among them.
     QVector<double> noteReserves() const { return m_noteReserves; }
     double noteRuleGap() const { return m_ruleGap; }
+    double noteNoticeGap() const { return m_noticeGap; }   // the part of the rule gap that is kept under the last note (the notes are set that much higher)
     double noteGap() const { return m_noteGap; }
 
 private:
@@ -437,7 +438,7 @@ private:
     double m_trailingAfter = 0;
     double m_trailingRoom = 0;
     QVector<double> m_noteReserves;
-    double m_ruleGap = 0, m_noteGap = 0;
+    double m_ruleGap = 0, m_noteGap = 0, m_noticeGap = 0;
     QVector<Note> m_notes;
     QVector<Rule> m_noteRules;
     struct Heading { int frame = -1; QPointF baseline; QFont font; QColor color; };

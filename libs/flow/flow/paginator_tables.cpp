@@ -48,7 +48,7 @@ struct Paginator::Ledger {
     QVector<StoryLayout::NotePlace> places;      // the notes, as the text engine seated them (those of the text) and as the rows' were set (their rects are made again)
     QVector<StoryLayout::CarriedNote> carried;   // the notes that go on past the page
     std::set<QString> carriedIds;                // (which of them are in it already)
-    double ruleGap = -1, noteGap = 0;            // the gaps the text engine leaves above and among notes (-1: not known yet)
+    double ruleGap = -1, noteGap = 0, noticeGap = 0;   // the gaps the text engine leaves above and among notes (-1: not known yet), and the part of the first kept under the last note
     explicit Ledger(int frames) : reserve(frames, 0.0) {}
 };
 
@@ -159,14 +159,14 @@ void Paginator::restackNotes(const QVector<FrameSpec> &frames, Ledger *led, Tabl
         double total = 0;
         for (int k = i; k < j; ++k) total += led->places[k].rect.height() + led->noteGap;
         const double areaTop = std::max(0.0, height - std::max(led->reserve[f], total + std::max(0.0, led->ruleGap)));
-        double ny = areaTop + std::max(0.0, led->ruleGap);
+        double ny = areaTop + std::max(0.0, led->ruleGap) - led->noticeGap;
         for (int k = i; k < j; ++k) {
             StoryLayout::NotePlace pl = led->places[k];
             pl.rect = QRectF(0, ny, width, pl.rect.height());
             ny += pl.rect.height() + led->noteGap;
             tr->notes << pl;
         }
-        const double ruleY = areaTop + std::max(0.0, led->ruleGap) * (word ? 0.2 : 0.45);
+        const double ruleY = areaTop + (std::max(0.0, led->ruleGap) - led->noticeGap) * (word ? 0.6 : 0.45);
         const double ruleW = led->places[i].from > 0 ? width : word ? std::min(width, 144.0) : width / 3;
         tr->rules << StoryLayout::Rule{f, QLineF(0, ruleY, ruleW, ruleY)};
         i = j;
@@ -193,6 +193,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
         if (led->ruleGap < 0) {
             led->ruleGap = lay.noteRuleGap();
             led->noteGap = lay.noteGap();
+            led->noticeGap = lay.noteNoticeGap();
             m_ruleGap = led->ruleGap;
         }
         for (StoryLayout::NotePlace pl : lay.notePlaces()) {
@@ -212,6 +213,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
         lay.build(story, frames.mid(0, 1), m_doc->env, t);
         led->ruleGap = lay.noteRuleGap();
         led->noteGap = lay.noteGap();
+        led->noticeGap = lay.noteNoticeGap();
         m_ruleGap = led->ruleGap;
     };
     // The notes a row (or the part of one) cites go to the foot of the frame it is in, in the room given (the rule above them, where the frame has none yet, is a part

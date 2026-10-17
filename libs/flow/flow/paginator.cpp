@@ -572,7 +572,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
     }
     // A break that ends the page takes the lines after it off the page, but the text engine laid them out in the page's frame, and the room it kept at the foot for
     // the notes of those lines stays under the notes that are the page's: the page is laid out again as far as the break, for where its notes go.
-    if (forced && c > 0 && c < kept && stopBefore < 0 && !m_tables->any()) {
+    if (forced && c > 0 && c < kept && stopBefore < 0) {
         const QTextBlock lastBlock = m_doc->story()->findBlock(L[c - 1].block);
         const int blockEnd = lastBlock.position() + lastBlock.length();
         bool cites = false;   // (a footnote's reference, whether or not it takes a number)

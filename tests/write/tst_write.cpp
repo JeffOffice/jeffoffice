@@ -4745,6 +4745,55 @@ private Q_SLOTS:
         QVERIFY2(hollow > 235, qPrintable(QString::number(hollow)));
     }
 
+    // The notes of a page are laid out the same way when the document has a table anywhere (the page is then laid out beside its tables): a separator thirty points tall and a notice
+    // twenty tall, a note in a cell, and a section break after which the next section's first paragraph has a note of its own.
+    void theNotesOfAPageAreLaidOutTheSameWithATableInTheDocument()
+    {
+        const QByteArray exact = "<w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/></w:pPr>";
+        const QByteArray margins = "<w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/>";
+        auto text = [](const char *t) { return QByteArray("<w:r><w:t xml:space=\"preserve\">") + t + "</w:t></w:r>"; };
+        auto para = [&](const QByteArray &runs, const QByteArray &pPrExtra = QByteArray()) { return "<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/>" + pPrExtra + "</w:pPr>" + runs + "</w:p>"; };
+        auto table = [&](const QByteArray &cell) {
+            return "<w:tbl><w:tblPr><w:tblW w:w=\"3000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr>" + cell + "</w:tc></w:tr></w:tbl>";
+        };
+        auto note = [&](int id, const char *t) { return "<w:footnote w:id=\"" + QByteArray::number(id) + "\"><w:p>" + exact + "<w:r><w:footnoteRef/></w:r>" + text(t) + "</w:p></w:footnote>"; };
+        auto notesPart = [&](const QByteArray &separator, const QByteArray &notice, const QByteArray &notes) {
+            return "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\">" + separator + "</w:footnote>" + (notice.isEmpty() ? QByteArray() : "<w:footnote w:type=\"continuationNotice\" w:id=\"1\">" + notice + "</w:footnote>") + notes + "</w:footnotes>";
+        };
+        const QByteArray separator30 = "<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"600\" w:lineRule=\"exact\"/></w:pPr><w:r><w:separator/></w:r></w:p>";
+        const QByteArray notice20 = "<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"400\" w:lineRule=\"exact\"/></w:pPr><w:r><w:t>(continued)</w:t></w:r></w:p>";
+        const QByteArray sect = "<w:sectPr>" + margins + "</w:sectPr>";
+        auto ruleOf = [](const flow::MaterializedPage &page) {
+            double rule = -1;
+            for (const auto &item : page.doc->pages[0]->items)
+                if (const auto *line = dynamic_cast<const LineItem *>(item.get())) rule = line->p1.y();
+            return rule;
+        };
+        {
+            // A note in the text and one in a cell: the last ends the notice's height above the foot, the rule is 12 above the first (the separator's 30 less its 18).
+            const QByteArray body = para(text("Cited") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>") + table(para(text("In the cell") + "<w:r><w:footnoteReference w:id=\"3\"/></w:r>")) + para(text("After"));
+            auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notesPart(separator30, notice20, note(2, " ONE note") + note(3, " TWO note"))}}));
+            QVERIFY(doc);
+            const auto page = doc->pager().materialize(0);
+            const TextItem *one = boxWithText(*page, QStringLiteral("ONE note")), *two = boxWithText(*page, QStringLiteral("TWO note"));
+            QVERIFY(one && two);
+            QVERIFY2(std::abs(two->rect.bottom() - (792 - 72 - 20)) < 0.1, qPrintable(QString::number(two->rect.bottom())));
+            QVERIFY2(std::abs(one->rect.bottom() - two->rect.top()) < 0.1, qPrintable(QString::number(one->rect.bottom())));
+            QVERIFY2(std::abs(one->rect.top() - ruleOf(*page) - 12) < 0.05, qPrintable(QString::number(one->rect.top() - ruleOf(*page))));
+        }
+        {
+            // A table opens the first section, and the first paragraph of the next section has a note and is followed by one: the page before has its notes at the foot, all the same.
+            const QByteArray body = table(para(text("Top cell"))) + para(text("One") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>", "<w:sectPr>" + margins + "</w:sectPr>") +
+                                    para(text("Two") + "<w:r><w:footnoteReference w:id=\"3\"/></w:r>") + table(para(text("in a cell"))) + para(text("End"));
+            auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notesPart(separator30, QByteArray(), note(2, " FIRST note") + note(3, " SECOND note"))}}));
+            QVERIFY(doc);
+            QCOMPARE(doc->pager().pageCount(), 2);
+            const TextItem *first = boxWithText(*doc->pager().materialize(0), QStringLiteral("FIRST note"));
+            QVERIFY(first);
+            QVERIFY2(std::abs(first->rect.bottom() - (792 - 72)) < 0.1, qPrintable(QString::number(first->rect.bottom())));
+        }
+    }
+
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
     // thousand sections makes no more than the sections it changed (counted, not timed).
     void editingSectionsTouchesOnlyWhatChanged()
