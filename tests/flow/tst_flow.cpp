@@ -2457,6 +2457,38 @@ private Q_SLOTS:
         QVERIFY(a.key() != b.key());
     }
 
+    // A justified line of a word processor's text reaches the margin with its last letter, not a space short of it (the space that ends the line is not
+    // part of the width the words are spread over); the paragraph's last line is as long as its words make it.
+    void justifiedWordLinesReachTheMargin()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setAlignment(Qt::AlignJustify);
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("Alvin developed from a poorly-defined tropical wave that crossed the Atlantic Ocean and the Caribbean Sea during the second half of May and then moved "
+                                    "westward across the eastern North Pacific with little associated thunderstorm activity until the wave continued westward across the "
+                                    "eastern North Pacific waters."), run);
+        for (bool noHang : {false, true}) {
+            LayoutEnv env;
+            env.wordLines = true;
+            env.wordNoHang = noHang;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(468, 300)}, env);
+            const auto lines = lay.lineInfo(0);
+            QVERIFY(lines.size() >= 3);
+            for (int i = 0; i + 1 < lines.size(); ++i) {
+                const auto rects = lay.rangeRects(0, lines[i].docEnd - 2, lines[i].docEnd - 1);
+                QVERIFY(!rects.isEmpty());
+                QVERIFY2(std::abs(rects.last().right() - 468) < 0.3, qPrintable(QStringLiteral("line %1 ends at %2 (hang %3)").arg(i).arg(rects.last().right()).arg(!noHang)));
+            }
+            QVERIFY(lay.rangeRects(0, lines.last().docEnd - 2, lines.last().docEnd - 1).last().right() < 400);
+        }
+    }
+
     // A word processor's text has no ligatures: the letters of "ti" in Calibri's face take what they take apart, where a publication's text sets them as one
     // glyph.
     void wordTextHasNoLigatures()
