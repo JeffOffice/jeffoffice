@@ -4201,6 +4201,27 @@ private Q_SLOTS:
         QVERIFY2(!added.isEmpty() && added.first().contains(QLatin1String("gains run properties")), qPrintable(added.join(QLatin1String("; "))));
     }
 
+    // The round-trip check reads a property as a reader does: an on/off property said "false", "0", or "off" is off, and one said "true", "1", "on", or with no value is on,
+    // whichever the file spelled; hidden text that is not hidden is nothing; an underline of none that names a color, and a font said for the face alone, say what the
+    // underline and the fonts said. What the file never said is still a gain, and another font is another font.
+    void theRoundTripCheckReadsPropertiesAsAReaderDoes()
+    {
+        auto withRun = [&](const QByteArray &props) { return makeDocx("<w:p><w:r><w:rPr>" + props + "</w:rPr><w:t>text</w:t></w:r></w:p>"); };
+        auto same = [&](const QByteArray &was, const QByteArray &now) { return rt::lossProblems(withRun(was), withRun(now)).isEmpty(); };
+        QVERIFY(same("<w:b w:val=\"false\"/>", "<w:b w:val=\"0\"/>"));
+        QVERIFY(same("<w:caps w:val=\"off\"/><w:smallCaps w:val=\"0\"/>", "<w:caps w:val=\"false\"/><w:smallCaps w:val=\"false\"/>"));
+        QVERIFY(same("<w:i w:val=\"true\"/><w:strike w:val=\"on\"/>", "<w:i/><w:strike w:val=\"1\"/>"));
+        QVERIFY(same("<w:vanish w:val=\"false\"/>", QByteArray()));
+        QVERIFY(same("<w:u w:val=\"none\" w:color=\"112233\"/>", "<w:u w:val=\"none\"/>"));
+        QVERIFY(same("<w:rFonts w:ascii=\"Face\" w:hAnsi=\"Face\" w:cs=\"Face\"/>", "<w:rFonts w:cs=\"Face\"/>"));
+        QVERIFY(!same(QByteArray(), "<w:b w:val=\"0\"/>"));
+        QVERIFY(!same("<w:b/>", "<w:b w:val=\"0\"/>"));
+        QVERIFY(!same("<w:rFonts w:ascii=\"Face\" w:cs=\"Face\"/>", "<w:rFonts w:cs=\"Other\"/>"));
+        QVERIFY(!same("<w:u w:val=\"none\"/>", "<w:u w:val=\"single\"/>"));
+        QVERIFY(!same("<w:vanish/>", QByteArray()));
+        QVERIFY(!same(QByteArray(), "<w:vanish/>"));
+    }
+
     // An empty paragraph that ends a section, when the next section is continuous, takes no room; before a section on a page of its own it does.
     void anEmptyBreakParagraphBeforeAContinuousSectionTakesNoRoom()
     {
