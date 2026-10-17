@@ -3826,6 +3826,39 @@ private Q_SLOTS:
         }
     }
 
+    // The first page of a section is the page it begins at the top of: the page after the one a continuous section began in the middle of has the section's ordinary header, not
+    // its first page's.
+    void aSectionThatBeganInTheMiddleOfAPageIsNotOnItsFirstPageAfterIt()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 60, 4, [](int i, QTextBlockFormat &bf) {
+            bf.setBottomMargin(6);
+            if (i == 1) bf.setProperty(fp::SectionBreakAfter, true);
+        }, 30, 40);
+        Section &one = fd.sections[0];
+        one.differentFirstPage = true;
+        one.header.first = furnitureStory({QStringLiteral("HEADER FIRST")});
+        one.header.odd = furnitureStory({QStringLiteral("HEADER ORDINARY")});
+        Section two = one;
+        two.continuous = true;
+        two.margins.setLeft(one.margins.left() + 30);
+        fd.sections << two;
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 3);
+        auto headerText = [&](int k) {
+            const auto page = pg.materialize(k);
+            QString text;
+            for (const auto &it : page->doc->pages[0]->items)
+                if (const auto *t = dynamic_cast<const TextItem *>(it.get()))
+                    if (t->id.startsWith(QLatin1String("flow-header-box-"))) text = page->doc->story(t->storyId)->doc->toPlainText();
+            return text;
+        };
+        QCOMPARE(headerText(0), QStringLiteral("HEADER FIRST"));
+        QCOMPARE(headerText(1), QStringLiteral("HEADER ORDINARY"));   // (the second section began on the first page)
+        QCOMPARE(headerText(2), QStringLiteral("HEADER ORDINARY"));
+    }
+
     // A continuous section break does not end the page when the sections' sheets are the same, whatever their margins: the text of the second begins below the text of the
     // first, between the second's own side margins (its top and bottom margins are the page's of the page it begins at the top of).
     void aContinuousSectionWithOtherMarginsBeginsOnThePageBelowTheTextAbove()

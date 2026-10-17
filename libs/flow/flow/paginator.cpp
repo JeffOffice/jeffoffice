@@ -814,7 +814,8 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         // (The numbers begin again at a paragraph that begins a section: the page that starts with it, not the page after one that a section began in the middle of.)
         if (nb.isValid() && restartsNotesAt(nb)) run.next.foot = run.next.end = 0;
         run.next.carried = carriedOut;
-        run.next.firstOfSection = !run.next.blank && run.next.section != st.section;
+        // (The first page of a section is the one it begins at the top of: not the page after one that a continuous section began in the middle of.)
+        run.next.firstOfSection = !run.next.blank && sectionEnds && run.next.section != st.section;
     }
     return run;
 }
