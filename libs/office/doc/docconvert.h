@@ -77,6 +77,8 @@ public:
     bool truncated = false;              // the text was cut at a limit
     // Counts XML just made against what the output may hold (doc.h). False once past it: the text stops where it is.
     bool spend(const QByteArray &xml);
+    // Stops the text where it is: the rest is left out, and a note says so.
+    void cutShort();
     int revisionId = 0;
 
     struct Drawings;

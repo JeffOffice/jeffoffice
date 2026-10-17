@@ -82,8 +82,14 @@ bool Converter::spend(const QByteArray &xml)
         if (p < end && *p != '/' && *p != '?' && *p != '!') ++elements;
     }
     outputElements += elements;
-    if (outputBytes > kMaxOutputBytes || outputElements > kMaxOutputElements) truncated = true;
+    if (outputBytes > kMaxOutputBytes || outputElements > kMaxOutputElements) cutShort();
     return !truncated;
+}
+
+void Converter::cutShort()
+{
+    truncated = true;
+    left(QStringLiteral("long"), QCoreApplication::translate("jp::office::doc", "The document is longer than this program can open: the end of it was left out."));
 }
 
 Span Converter::tableRange(int slot) const

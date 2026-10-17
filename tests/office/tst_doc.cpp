@@ -1076,6 +1076,8 @@ private Q_SLOTS:
         QString error;
         QVERIFY2(read(file, &d, &notes, &error), qPrintable(error));
         QVERIFY2(t.elapsed() < 2000, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        QVERIFY(notes.leftOut);
+        QVERIFY(notes.notes.join(QLatin1Char(' ')).contains(QLatin1String("longer than this program can open")));
         // (What came before the cut is there, whole paragraphs of it.)
         const QStringList texts = bodyTexts(d);
         QVERIFY(texts.size() > 100 && texts.size() < 5000);
@@ -1097,9 +1099,32 @@ private Q_SLOTS:
         QString error;
         QVERIFY2(read(file, &d, &notes, &error), qPrintable(error));
         QVERIFY2(t.elapsed() < 2000, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        QVERIFY(notes.leftOut);
+        QVERIFY(notes.notes.join(QLatin1Char(' ')).contains(QLatin1String("longer than this program can open")));
         const QStringList texts = bodyTexts(d);
         QVERIFY(texts.size() > 1000 && texts.size() < 15000);
         QCOMPARE(texts[0], QString(1000, QLatin1Char('&')));
+    }
+
+    void aSingleParagraphLongerThanTheOutputMayBeIsCutAndSaid()
+    {
+        // The same, as one paragraph (no mark ends it): it is cut in the middle, and the cut is said.
+        DocWriter w;
+        w.text = QString(1000, QLatin1Char('&'));
+        w.repeatText = 15000;
+        const QByteArray file = w.build();
+        QElapsedTimer t;
+        t.start();
+        Document d;
+        ReadNotes notes;
+        QString error;
+        QVERIFY2(read(file, &d, &notes, &error), qPrintable(error));
+        QVERIFY2(t.elapsed() < 2000, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        QVERIFY(notes.leftOut);
+        QVERIFY(notes.notes.join(QLatin1Char(' ')).contains(QLatin1String("longer than this program can open")));
+        const QStringList texts = bodyTexts(d);
+        QVERIFY(!texts.isEmpty());
+        QVERIFY(texts[0].size() > 1000000 && texts[0].size() < 15000000);
     }
 
     void changedBytesNeverCrashOrHang()
