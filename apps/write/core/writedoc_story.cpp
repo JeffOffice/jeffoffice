@@ -175,6 +175,39 @@ QHash<QString, QString> framePropertiesOf(const QVector<RawChild> &extra, QByteA
     return out;
 }
 
+// The properties of the frame a paragraph is in: those of its style (and the styles it is based on) with its own over them, attribute by attribute. A paragraph of a
+// style that sets a frame is in one whether or not it says so. `key` is what the properties come to (the paragraphs next to one another with the same are one frame);
+// empty for a paragraph that is in none.
+QHash<QString, QString> frameOfParagraph(const StyleSheet &sheet, const QString &styleId, const QVector<RawChild> &direct, QByteArray *key)
+{
+    QVector<const Style *> chain;
+    for (QString at = styleId; !at.isEmpty() && chain.size() < 32;) {
+        const Style *st = sheet.find(at);
+        if (!st || chain.contains(st)) break;
+        chain.push_back(st);
+        at = st->basedOn;
+    }
+    QHash<QString, QString> merged;
+    QByteArray xml;
+    for (int i = int(chain.size()) - 1; i >= -1; --i) {
+        QByteArray here;
+        const QHash<QString, QString> at = framePropertiesOf(i >= 0 ? chain[i]->pPr.extra : direct, &here);
+        if (here.isEmpty()) continue;
+        xml = here;
+        for (auto it = at.cbegin(); it != at.cend(); ++it) merged.insert(it.key(), it.value());
+    }
+    if (xml.isEmpty()) {
+        key->clear();
+        return {};
+    }
+    QStringList names = merged.keys();
+    names.sort();
+    key->clear();
+    for (const QString &n : names) *key += n.toUtf8() + '=' + merged.value(n).toUtf8() + ';';
+    if (key->isEmpty()) *key = "frame";
+    return merged;
+}
+
 // The object a frame is, from its properties: where it is set (from the text, the margin, or the page, by an offset or at the start, middle, or end), how wide and how tall,
 // the room round it, and how the text goes round it.
 flow::FloatingObject frameObjectOf(const QHash<QString, QString> &at)
@@ -347,7 +380,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         // A paragraph of a frame in the body is set apart from the text: no lines and no room there, and a text box where the frame asks, at the paragraph after it.
         if (!header && !tables.key()) {
             QByteArray frameXml;
-            const QHash<QString, QString> frameAt = framePropertiesOf(direct.extra, &frameXml);
+            const QHash<QString, QString> frameAt = frameOfParagraph(sheet, styleId, direct.extra, &frameXml);
             if (frameXml.isEmpty()) {
                 lastFrameKey = 0;
                 lastFrameXml.clear();

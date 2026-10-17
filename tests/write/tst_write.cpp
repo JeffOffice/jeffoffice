@@ -7542,6 +7542,46 @@ private Q_SLOTS:
         QCOMPARE(documentXml(back->toDocx()), x);
     }
 
+    // The frame properties of a paragraph style are the frame of its paragraphs, with what a paragraph says itself over them, attribute by attribute: a paragraph that says only
+    // how the text goes round (and one that says nothing) is in the frame the style sets, and the paragraphs next to one another with the same properties are one.
+    void aParagraphStylesFrameIsItsParagraphsFrameWithTheirOwnOverIt()
+    {
+        const QByteArray styles = kStyles + "<w:style w:type=\"paragraph\" w:styleId=\"Boxed\"><w:name w:val=\"Boxed\"/><w:basedOn w:val=\"Normal\"/><w:pPr>"
+                                  "<w:framePr w:w=\"3000\" w:h=\"1440\" w:wrap=\"around\" w:vAnchor=\"page\" w:hAnchor=\"margin\" w:xAlign=\"center\" w:y=\"889\"/></w:pPr></w:style>"
+                                  "<w:style w:type=\"paragraph\" w:styleId=\"BoxedToo\"><w:name w:val=\"Boxed too\"/><w:basedOn w:val=\"Boxed\"/><w:pPr><w:framePr w:w=\"2000\"/></w:pPr></w:style>";
+        auto framed = [&](const QByteArray &style, const QByteArray &direct) {
+            return "<w:p><w:pPr><w:pStyle w:val=\"" + style + "\"/>" + direct + "</w:pPr><w:r><w:t>words</w:t></w:r></w:p>";
+        };
+        auto frameOf = [&](const QByteArray &body, int *frames) {
+            auto doc = open(makeDocx(plainP("Before") + body + plainP("After"), styles));
+            *frames = doc ? int(doc->flow().frames.size()) : -1;
+            return doc && doc->flow().frames.size() >= 1 ? doc->flow().objects[doc->flow().frames[0] - 1] : flow::FloatingObject();
+        };
+        using FO = flow::FloatingObject;
+        int frames = 0;
+        // Said only by the style.
+        FO o = frameOf(framed("Boxed", QByteArray()), &frames);
+        QCOMPARE(frames, 1);
+        QCOMPARE(o.frameWidth, 150.0);
+        QCOMPARE(o.dy, 889 / 20.0);
+        QVERIFY(o.vRel == FO::Rel::Page && o.hRel == FO::Rel::Margin && o.hAlign == FO::Align::Center);
+        // The paragraph's own attributes win; the rest are the style's.
+        o = frameOf(framed("Boxed", "<w:framePr w:wrap=\"notBeside\" w:anchorLock=\"1\"/>"), &frames);
+        QCOMPARE(frames, 1);
+        QCOMPARE(o.frameWidth, 150.0);
+        QCOMPARE(o.dy, 889 / 20.0);
+        QVERIFY(o.wrap == FO::Wrap::TopBottom);
+        // A style based on another says over it, attribute by attribute.
+        o = frameOf(framed("BoxedToo", QByteArray()), &frames);
+        QCOMPARE(o.frameWidth, 100.0);
+        QCOMPARE(o.dy, 889 / 20.0);
+        // Paragraphs with the same properties (their style's, said or not) are one frame; another property makes another.
+        frameOf(framed("Boxed", QByteArray()) + framed("Boxed", "<w:framePr w:wrap=\"around\"/>") + framed("Boxed", "<w:framePr w:wrap=\"around\" w:w=\"3000\"/>"), &frames);
+        QCOMPARE(frames, 1);
+        frameOf(framed("Boxed", QByteArray()) + framed("BoxedToo", QByteArray()), &frames);
+        QCOMPARE(frames, 2);
+    }
+
     // What the properties of a frame say: its place (from the text, the margin, or the page, by an offset or at the start, middle, or end of it), its height (at least what is
     // given, exactly that, or the text's), the room round it, and how the text goes round it; a drop cap is a frame at the start of its paragraph.
     void aFramesPropertiesAreRead()
