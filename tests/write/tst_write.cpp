@@ -4380,6 +4380,40 @@ private Q_SLOTS:
         QVERIFY2(std::abs(note->rect.top() - rule - 12) < 0.01, qPrintable(QString::number(note->rect.top() - rule)));
     }
 
+    // A separator that is taller than a quarter of the text area is cut to that quarter: one of two hundred paragraphs leaves a page its text (a hundred and sixty-two points less
+    // than the room above the note) and its note, and the document lays out.
+    void aTallNoteSeparatorIsCutToAQuarterOfThePage()
+    {
+        const QByteArray exact = "<w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/></w:pPr>";
+        QByteArray body = "<w:p>" + exact + "<w:r><w:t>Cited</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>";
+        for (int i = 0; i < 120; ++i) body += "<w:p>" + exact + "<w:r><w:t>x</w:t></w:r></w:p>";
+        QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\">";
+        for (int i = 0; i < 200; ++i) notes += "<w:p>" + exact + "<w:r><w:t>.</w:t></w:r></w:p>";
+        notes += "</w:footnote><w:footnote w:id=\"2\"><w:p>" + exact + "<w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> TALL note</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}}));
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() >= 3);
+        const auto lines = doc->pager().lines(0);
+        QVERIFY(lines.size() > 10);
+        // (The text area is 648 points: a quarter is 162; the note is twelve, so the text ends 162 + 12 above the foot: thirty-nine lines of twelve.)
+        QVERIFY2(std::abs(lines.last().rect.bottom() - lines.first().rect.top() - 39 * 12) < 0.01, qPrintable(QString::number(lines.last().rect.bottom() - lines.first().rect.top())));
+        QVERIFY(boxWithText(*doc->pager().materialize(0), QStringLiteral("TALL note")));
+        // A continuation notice of as many is cut to a quarter as well: the note, the separator, and the notice take 12 + 162 + 162, and the text, in lines of ten points, thirty-one.
+        QByteArray notice = "<w:footnote w:type=\"continuationNotice\" w:id=\"1\">";
+        for (int i = 0; i < 200; ++i) notice += "<w:p>" + exact + "<w:r><w:t>.</w:t></w:r></w:p>";
+        notice += "</w:footnote>";
+        QByteArray both = notes;
+        both.replace("<w:footnote w:id=\"2\">", notice + "<w:footnote w:id=\"2\">");
+        QByteArray tens = body;
+        tens.replace("w:line=\"240\"", "w:line=\"200\"");
+        auto second = open(makeDocxWithParts(tens, sect, {{QStringLiteral("/word/footnotes.xml"), both}}));
+        QVERIFY(second);
+        const auto more = second->pager().lines(0);
+        QVERIFY(more.size() > 10);
+        QVERIFY2(std::abs(more.last().rect.bottom() - more.first().rect.top() - 31 * 10) < 0.01, qPrintable(QString::number(more.last().rect.bottom() - more.first().rect.top())));
+    }
+
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
     // thousand sections makes no more than the sections it changed (counted, not timed).
     void editingSectionsTouchesOnlyWhatChanged()
