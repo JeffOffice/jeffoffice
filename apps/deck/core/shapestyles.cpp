@@ -165,7 +165,8 @@ void applyShapeStyle(Document &d, Item &it, const StyleRef &ref, const office::S
     if (!takesShapeStyle(it)) return;
     const office::StyleLook look = resolver.look(ref, it.rect.size());
     // The text color the style it had gave is the one a word with no color of its own was set in: it follows the new style.
-    const QColor was = it.styleRef.on ? resolver.color(it.styleRef.fontColor) : QColor();
+    // (A shape that had none is the editor's: the words typed in a shape are white until said otherwise.)
+    const QColor was = it.styleRef.on ? resolver.color(it.styleRef.fontColor) : it.type() == ItemType::Shape ? QColor(Qt::white) : QColor();
     if (it.type() != ItemType::Line) it.fill = look.fill;
     Stroke stroke = look.stroke;
     if (it.type() == ItemType::Line) {
@@ -177,6 +178,20 @@ void applyShapeStyle(Document &d, Item &it, const StyleRef &ref, const office::S
     it.stroke = stroke;
     it.fx = look.fx;
     it.styleRef = ref;
+    // A shape with no words yet gets the place for them, in the style's text color, so that what is typed in it is that color (and keeps it in a file).
+    if (it.type() == ItemType::Shape && static_cast<ShapeItem &>(it).storyId.isEmpty() && look.text.isValid()) {
+        auto &shape = static_cast<ShapeItem &>(it);
+        shape.storyId = d.createStory();
+        QTextCursor c(d.storyDoc(shape.storyId));
+        QTextBlockFormat block;
+        block.setAlignment(Qt::AlignHCenter);
+        c.mergeBlockFormat(block);
+        QTextCharFormat letters;
+        letters.setProperty(tp::ColorRefP, ColorRef::rgb(look.text).toString());
+        letters.setForeground(QBrush(look.text));
+        c.mergeBlockCharFormat(letters);
+        c.mergeCharFormat(letters);
+    }
     const QString story = it.type() == ItemType::Shape ? static_cast<ShapeItem &>(it).storyId : it.type() == ItemType::Text ? static_cast<TextItem &>(it).storyId : QString();
     retintText(d, story, was, look.text);
 }
