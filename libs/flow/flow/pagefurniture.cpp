@@ -159,7 +159,7 @@ void Paginator::addNotes(Document *d, const QVector<StoryLayout::NotePlace> &pla
             c.setPosition(m.first);
             c.setPosition(m.first + m.second, QTextCursor::KeepAnchor);
             QTextCharFormat cf;
-            cf.setProperty(tp::Field, QLatin1String("raw:") + QString::number(pl.number));
+            cf.setProperty(tp::Field, QLatin1String("raw:") + (pl.number > 0 ? QString::number(pl.number) : QString()));
             c.mergeCharFormat(cf);
         }
         auto s = std::make_shared<Story>();
