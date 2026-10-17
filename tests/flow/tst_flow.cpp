@@ -691,7 +691,8 @@ QString tableAwareDiffers(FlowDocument &fd, Paginator &pg, int k, LayoutCache &c
 
 // Paragraphs set the way a word processor sets lines (LayoutEnv::wordLines), each a line of text in the family and size given: the lines of
 // the story, in a frame of one page. `shape` sets a paragraph's format (spacing, line height, style).
-QVector<StoryLayout::LineInfo> wordLinesOf(const QVector<std::pair<QString, double>> &fonts, const std::function<void(int, QTextBlockFormat &)> &shape = {}, bool word = true)
+QVector<StoryLayout::LineInfo> wordLinesOf(const QVector<std::pair<QString, double>> &fonts, const std::function<void(int, QTextBlockFormat &)> &shape = {}, bool word = true,
+                                           const std::function<void(LayoutEnv &)> &setup = {})
 {
     auto doc = std::make_unique<QTextDocument>();
     QTextCursor c(doc.get());
@@ -707,6 +708,7 @@ QVector<StoryLayout::LineInfo> wordLinesOf(const QVector<std::pair<QString, doub
     }
     LayoutEnv env;
     env.wordLines = word;
+    if (setup) setup(env);
     StoryLayout lay;
     lay.build(doc.get(), {plainFrame(400, 700)}, env);
     return lay.lineInfo(0);
@@ -2476,6 +2478,29 @@ private Q_SLOTS:
         QVERIFY(std::abs(contextual(QStringLiteral("Body"))) < 0.01);
         QVERIFY(std::abs(contextual(QStringLiteral("Other")) - 10) < 0.01);
         Q_UNUSED(single);
+    }
+
+    // A file that turns the web page's way of spacing paragraphs off (LayoutEnv::wordSpaceSums) has the space after a paragraph and the space before
+    // the next both: their sum, as a publication's are.
+    void wordSpaceBetweenParagraphsAddsWhenTheFileAsksForIt()
+    {
+        const QString tnr = QStringLiteral("Times New Roman");
+        auto gap = [&](double after, double before, bool sums) {
+            const auto lines = wordLinesOf({{tnr, 12}, {tnr, 12}}, [&](int i, QTextBlockFormat &bf) {
+                if (i == 0) bf.setBottomMargin(after);
+                else bf.setTopMargin(before);
+            }, true, [&](LayoutEnv &env) { env.wordSpaceSums = sums; });
+            return lines[1].rect.top() - lines[0].rect.bottom();
+        };
+        QVERIFY(std::abs(gap(12, 6, true) - 18) < 0.01);
+        QVERIFY(std::abs(gap(6, 12, true) - 18) < 0.01);
+        QVERIFY(std::abs(gap(6, 6, true) - 12) < 0.01);
+        QVERIFY(std::abs(gap(12, 6, false) - 12) < 0.01);
+        QVERIFY(std::abs(gap(6, 6, false) - 6) < 0.01);
+        // (The layouts are kept apart: the same story is not found under the other's key.)
+        LayoutEnv a, b;
+        b.wordSpaceSums = true;
+        QVERIFY(a.key() != b.key());
     }
 
     // A paragraph out of the flow (a frame's, in a word processor) is set where the next paragraph begins and takes none of the room.

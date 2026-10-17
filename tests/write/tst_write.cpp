@@ -1586,6 +1586,26 @@ private Q_SLOTS:
         QVERIFY(hangs("<w:useFELayout/><w:doNotWrapTextWithPunct w:val=\"false\"/>"));
     }
 
+    // A file that does not use the web page's way of spacing paragraphs has the space after one and the space before the next added; it is the larger of the
+    // two otherwise.
+    void paragraphSpaceAddsInAFileThatTurnsTheWebWayOff()
+    {
+        auto sums = [&](const QByteArray &option) {
+            auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {}, "<w:compat>" + option + "</w:compat>"));
+            return doc && doc->flow().env.wordSpaceSums;
+        };
+        QVERIFY(!sums(""));
+        QVERIFY(sums("<w:doNotUseHTMLParagraphAutoSpacing/>"));
+        QVERIFY(sums("<w:doNotUseHTMLParagraphAutoSpacing w:val=\"1\"/>"));
+        QVERIFY(!sums("<w:doNotUseHTMLParagraphAutoSpacing w:val=\"0\"/>"));
+        // The pages the paginator makes carry it, so that a page's text is spaced as the paginator spaced it.
+        auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {}, "<w:compat><w:doNotUseHTMLParagraphAutoSpacing/></w:compat>"));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        QVERIFY(page->doc->wordSpaceSums);
+    }
+
     // Spacing a person sets on paragraphs that have automatic spacing is the spacing they have: the automatic gap goes, on the page and in the file.
     void spacingSetOnAutomaticSpacingReplacesIt()
     {
