@@ -255,7 +255,7 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
             if (item->type() == ItemType::Picture) {
                 auto *pic = static_cast<PictureItem *>(item.get());
                 pic->imageId = imageIdOf(d, o.image);
-                pic->imgRect = QRectF(QPointF(0, 0), size);
+                if (pic->imgRect.isEmpty()) pic->imgRect = QRectF(QPointF(0, 0), size);   // (a picture that is cut is placed in its frame already)
                 if (pic->imageId.isEmpty()) continue;
             }
             if (item->type() == ItemType::Text && o.story) {

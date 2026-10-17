@@ -35,6 +35,8 @@
 #include "wml/wml.h"
 
 #include <QAccessible>
+#include <QBuffer>
+#include <QImage>
 #include <QApplication>
 #include <climits>
 #include <QMenu>
@@ -105,6 +107,40 @@ QByteArray makeDocx(const QByteArray &body, const QByteArray &styles = QByteArra
         w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("numbering"), QStringLiteral("/word/numbering.xml"));
     }
     return w.finish();
+}
+
+// The namespaces a VML object in a body uses, and a package of a document whose body is `body` with a picture (20 by 10 pixels, black and white) that is related as rIdPic.
+const char kVml[] = "xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\"";
+
+QByteArray makeDocxWithPicture(const QByteArray &body)
+{
+    QImage image(20, 10, QImage::Format_RGB32);
+    image.fill(Qt::black);
+    for (int y = 0; y < 10; ++y)
+        for (int x = 10; x < 20; ++x) image.setPixel(x, y, qRgb(255, 255, 255));
+    QByteArray png;
+    QBuffer buffer(&png);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "PNG");
+    office::PackageWriter w;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>"),
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addPart(QStringLiteral("/word/media/image1.png"), png, QStringLiteral("image/png"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdPic"), rel + QStringLiteral("image"), QStringLiteral("/word/media/image1.png"));
+    return w.finish();
+}
+
+// The object set in the first paragraph's text (an inline picture, rule, or lettering), or none.
+ItemPtr inlineObjectOf(const WriteDoc &doc)
+{
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QString json = it.fragment().charFormat().stringProperty(tp::InlineObject);
+            if (!json.isEmpty()) return Item::fromJsonAny(QJsonDocument::fromJson(json.toUtf8()).object());
+        }
+    return nullptr;
 }
 
 QByteArray documentXml(const QByteArray &zip)
@@ -5083,6 +5119,106 @@ private Q_SLOTS:
         QVERIFY(outlined);
         QVERIFY(outlined->fill.isNone());
         QVERIFY2(!outlined->stroke.isNone() && std::abs(outlined->stroke.width - 1.5) < 0.01, qPrintable(QString::number(outlined->stroke.width)));
+    }
+
+    // A picture that cuts its edges (VML's crop attributes) is drawn whole, outside its frame by what is cut, so that the frame shows the rest; the color it keys out
+    // is clear, and its border is drawn round the frame. A picture in the line, and one set at a place (the page layer keeps what the file's own frame says).
+    void aPictureIsCutKeyedAndBordered()
+    {
+        const QByteArray shape = "<v:shape id=\"p\" type=\"#_x0000_t75\" style=\"STYLEwidth:100pt;height:50pt\"><v:imagedata r:id=\"rIdPic\" croptop=\"16384f\" cropbottom=\"32768f\" cropleft=\"0.1\" "
+                                 "cropright=\"0.125\" chromakey=\"black\"/><w10:bordertop type=\"single\" width=\"12\"/></v:shape>";
+        auto body = [&](const QByteArray &style) {
+            QByteArray s = shape;
+            s.replace("STYLE", style);
+            return "<w:p><w:r><w:t xml:space=\"preserve\">Before </w:t></w:r><w:r><w:pict " + QByteArray(kVml) + ">" + s + "</w:pict></w:r></w:p>";
+        };
+        // (The whole picture's size is the frame's over what the cuts leave of it: a quarter of the height, and three quarters and an eighth less than a tenth of the width.)
+        const double wholeW = 100 / (1 - 0.1 - 0.125), wholeH = 50 / (1 - 0.25 - 0.5);
+        auto check = [&](const std::shared_ptr<PictureItem> &pic, const QString &where) {
+            QVERIFY2(pic, qPrintable(where + ": no picture"));
+            QVERIFY2(std::abs(pic->rect.width() - 100) < 0.01 && std::abs(pic->rect.height() - 50) < 0.01, qPrintable(where + ": frame"));
+            QVERIFY2(std::abs(pic->imgRect.width() - wholeW) < 0.01 && std::abs(pic->imgRect.height() - wholeH) < 0.01, qPrintable(where + ": whole " + QString::number(pic->imgRect.width())));
+            QVERIFY2(std::abs(pic->imgRect.left() + 0.1 * wholeW) < 0.01 && std::abs(pic->imgRect.top() + 0.25 * wholeH) < 0.01, qPrintable(where + ": place"));
+            QVERIFY2(pic->hasTransparentColor && pic->transparentColor == QColor(Qt::black), qPrintable(where + ": clear color"));
+            QVERIFY2(!pic->stroke.isNone() && std::abs(pic->stroke.width - 1.5) < 0.01, qPrintable(where + ": border"));
+        };
+        auto inlineDoc = open(makeDocxWithPicture(body("")));
+        QVERIFY(inlineDoc);
+        check(std::dynamic_pointer_cast<PictureItem>(inlineObjectOf(*inlineDoc)), QStringLiteral("inline"));
+        auto floating = open(makeDocxWithPicture(body("position:absolute;margin-left:30pt;margin-top:10pt;z-index:5;")));
+        QVERIFY(floating);
+        std::shared_ptr<PictureItem> placed;
+        const auto page = floating->pager().materialize(0);
+        for (const auto &item : page->doc->pages[0]->items)
+            if (auto pic = std::dynamic_pointer_cast<PictureItem>(item)) placed = pic;
+        check(placed, QStringLiteral("floating"));
+    }
+
+    // Lettering on a path (a banner's text, the file's text on a path) is its text set to fill its frame, in the shape's colors, with the shadow it has.
+    void letteringOnAPathIsTextArtInTheShapesColors()
+    {
+        const QByteArray shape = "<v:shape id=\"w\" type=\"#_x0000_t136\" style=\"position:absolute;margin-left:14.4pt;margin-top:0;width:121.4pt;height:32.4pt;z-index:5\" fillcolor=\"#336699\" strokeweight=\"1.5pt\">"
+                                 "<v:shadow on=\"t\" color=\"#969696\" opacity=\"52429f\" offset=\"1pt,1pt\"/><v:textpath style=\"font-family:&quot;Arial Black&quot;;font-style:italic;v-text-kern:t\" trim=\"t\" fitpath=\"t\" string=\"LTIMP\"/></v:shape>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Text</w:t></w:r><w:r><w:pict " + QByteArray(kVml) + ">" + shape + "</w:pict></w:r></w:p>", kStyles));
+        QVERIFY(doc);
+        std::shared_ptr<TextArtItem> art;
+        const auto page = doc->pager().materialize(0);
+        for (const auto &item : page->doc->pages[0]->items)
+            if (auto a = std::dynamic_pointer_cast<TextArtItem>(item)) art = a;
+        QVERIFY(art);
+        QCOMPARE(art->text, QStringLiteral("LTIMP"));
+        QCOMPARE(art->font, QStringLiteral("Arial Black"));
+        QVERIFY(art->italic && !art->bold);
+        QVERIFY(std::abs(art->rect.width() - 121.4) < 0.01 && std::abs(art->rect.height() - 32.4) < 0.01);
+        QVERIFY(art->fill.type == Fill::Solid && art->fill.color.resolve(ColorScheme()) == QColor(0x33, 0x66, 0x99));
+        QVERIFY(!art->stroke.isNone() && std::abs(art->stroke.width - 1.5) < 0.01);
+        QVERIFY(art->fx.shadow.on);
+        // (Lettering that is set in the line is an object of it, as wide as the frame.)
+        auto inlineDoc = open(makeDocx("<w:p><w:r><w:t>Text</w:t></w:r><w:r><w:pict " + QByteArray(kVml) + ">" + QByteArray(shape).replace("position:absolute;margin-left:14.4pt;margin-top:0;", "").replace("z-index:5", "") + "</w:pict></w:r></w:p>", kStyles));
+        QVERIFY(inlineDoc);
+        auto set = std::dynamic_pointer_cast<TextArtItem>(inlineObjectOf(*inlineDoc));
+        QVERIFY(set);
+        QVERIFY(std::abs(set->rect.width() - 121.4) < 0.01);
+    }
+
+    // A horizontal rule is set in its line, as wide as its share of the text's width (all of it when it says none), as high as it says, in its fill, and set across the
+    // line as it is aligned.
+    void aHorizontalRuleIsAsWideAsItsShareOfTheText()
+    {
+        auto rule = [&](const QByteArray &attributes) {
+            return "<w:p><w:r><w:pict " + QByteArray(kVml) + "><v:rect id=\"r\" style=\"width:110.25pt;height:1pt\" o:hr=\"t\" o:hrstd=\"t\" " + attributes + "/></w:pict></w:r></w:p>";
+        };
+        // (No section is given: the page is a letter's, and its text is 468 points wide.)
+        auto doc = open(makeDocx(rule("o:hrpct=\"960\" o:hralign=\"center\" fillcolor=\"black\" stroked=\"f\""), kStyles));
+        QVERIFY(doc);
+        auto shape = std::dynamic_pointer_cast<ShapeItem>(inlineObjectOf(*doc));
+        QVERIFY(shape);
+        QVERIFY2(std::abs(shape->rect.width() - 0.96 * 468) < 0.01 && std::abs(shape->rect.height() - 1) < 0.01, qPrintable(QString::number(shape->rect.width())));
+        QVERIFY(shape->fill.type == Fill::Solid && shape->stroke.isNone());
+        QVERIFY2(std::abs(shape->wrap.left - shape->wrap.right) < 0.01 && std::abs(shape->wrap.left - 0.02 * 468) < 0.05, qPrintable(QString::number(shape->wrap.left)));
+        // All the width, when it says none; the width it gives when it gives no share.
+        auto full = std::dynamic_pointer_cast<ShapeItem>(inlineObjectOf(*open(makeDocx(rule("style=\"width:0\" fillcolor=\"gray\" stroked=\"f\"").replace("style=\"width:110.25pt;height:1pt\"", "style=\"width:0;height:2.25pt\""), kStyles))));
+        QVERIFY(full);
+        QVERIFY2(std::abs(full->rect.width() - 468) < 0.01 && std::abs(full->rect.height() - 2.25) < 0.01, qPrintable(QString::number(full->rect.width())));
+        auto fixed = std::dynamic_pointer_cast<ShapeItem>(inlineObjectOf(*open(makeDocx(rule("o:hrpct=\"0\" fillcolor=\"black\" stroked=\"f\""), kStyles))));
+        QVERIFY(fixed);
+        QVERIFY2(std::abs(fixed->rect.width() - 110.25) < 0.01, qPrintable(QString::number(fixed->rect.width())));
+    }
+
+    // A shape of the drawing format's own kind (an arc, a bracket) is that shape, not a box, and has the fill that kind has (none for these) when the file says none.
+    void aShapeOfAKindIsThatShape()
+    {
+        const QByteArray arc = "<v:shape id=\"a\" type=\"#_x0000_t19\" style=\"position:absolute;margin-left:10pt;margin-top:0;width:27pt;height:54pt;z-index:5\"/>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Text</w:t></w:r><w:r><w:pict " + QByteArray(kVml) + ">" + arc + "</w:pict></w:r></w:p>", kStyles));
+        QVERIFY(doc);
+        std::shared_ptr<ShapeItem> shape;
+        const auto page = doc->pager().materialize(0);
+        for (const auto &item : page->doc->pages[0]->items)
+            if (auto s = std::dynamic_pointer_cast<ShapeItem>(item)) shape = s;
+        QVERIFY(shape);
+        QCOMPARE(shape->shape, QStringLiteral("arc"));
+        QVERIFY(shape->fill.isNone());
+        QVERIFY(!shape->stroke.isNone());
     }
 
     // A number or bullet counts in its line by its ascent over the text's descent: a thirty-six point bullet before twelve-point text makes the line its ascent and the text's

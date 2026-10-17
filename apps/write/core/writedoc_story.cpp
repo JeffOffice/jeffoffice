@@ -3,6 +3,7 @@
 
 #include "core/writedoc.h"
 
+#include "core/drawnitems.h"
 #include "core/tablemodel.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
@@ -668,13 +669,23 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
     int firstObject = 0, lastObject = 0;
     bool inlinePicture = false;
     for (const Shape &s : shapes) {
+        // Lettering on a path and a horizontal rule that are not set at a place are set in the line, as a picture is.
+        if (!s.floating && !inlinePicture && (s.rule || !s.pathText.isEmpty())) {
+            const ItemPtr set = s.rule ? ruleItem(s, std::max(1.0, (m_last.pageW - m_last.left - m_last.right) / 20.0)) : letteringItem(s);
+            if (set) {
+                if (!s.rule) set->wrap.left = set->wrap.right = set->wrap.top = set->wrap.bottom = 0;
+                format->setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(set->toJson()).toJson(QJsonDocument::Compact)));
+                inlinePicture = true;
+                continue;
+            }
+        }
         if (s.kind == Shape::Picture && !s.floating && !inlinePicture) {
             const int image = pictureOf(s);
             if (image < 0 || s.width <= 0 || s.height <= 0) continue;
             // A picture in the line: an object set in the text, with no room round it of its own.
             auto pic = std::make_shared<PictureItem>();
             pic->rect = QRectF(0, 0, s.width, s.height);
-            pic->imgRect = QRectF(0, 0, s.width, s.height);
+            dressPicture(*pic, s);
             pic->imageId = QStringLiteral("flow-img:%1").arg(image);
             pic->wrap.left = pic->wrap.right = pic->wrap.top = pic->wrap.bottom = 0;
             pic->altText = s.alt;
@@ -716,11 +727,14 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         o.side = s.side == Shape::SideLeft ? flow::FloatingObject::Side::Left : s.side == Shape::SideRight ? flow::FloatingObject::Side::Right
                  : s.side == Shape::SideLargest ? flow::FloatingObject::Side::Largest : flow::FloatingObject::Side::Both;
         o.gap = QMarginsF(s.gapLeft, s.gapTop, s.gapRight, s.gapBottom);
-        if (s.kind == Shape::Picture) {
+        if (ItemPtr lettering = letteringItem(s)) {
+            o.item = lettering;
+        } else if (s.kind == Shape::Picture) {
             const int image = pictureOf(s);
             if (image < 0) continue;
             auto pic = std::make_shared<PictureItem>();
             pic->rect = QRectF(0, 0, s.width, s.height);
+            dressPicture(*pic, s);
             pic->altText = s.alt;
             o.item = pic;
             o.image = image;
@@ -751,7 +765,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             } else {
                 auto shape = std::make_shared<ShapeItem>();
                 shape->rect = QRectF(0, 0, s.width, s.height);
-                shape->shape = s.kind == Shape::Oval ? QStringLiteral("ellipse") : QStringLiteral("rect");
+                shape->shape = presetOf(s);
                 item = shape;
             }
             // (A shape that says it has no fill or no line has none: a shape's own are a color and a line that it was not given.)
