@@ -2381,7 +2381,7 @@ private Q_SLOTS:
     }
 
     // The spaces and tabs that end a word processor's line take no part in its height, and a line that is only such blanks is as tall as the paragraph
-    // mark's font makes it; blanks among the words count.
+    // mark's font makes it; blanks among the words count, but a lone space between runs does not.
     void blanksAtTheEndOfAWordLineTakeNoPartInItsHeight()
     {
         const QString tnr = QStringLiteral("Times New Roman");
@@ -2414,10 +2414,47 @@ private Q_SLOTS:
         // Only blanks: the mark's font.
         QVERIFY(std::abs(height({{QStringLiteral("\t\t\t"), 24}}, 9) - single(9)) < 0.01);
         QVERIFY(std::abs(height({{QStringLiteral("    "), 24}}, 14) - single(14)) < 0.01);
-        // Blanks among the words are part of the line.
+        // Blanks among the words are part of the line, but one space in a run of its own is not (a reference page of the original program: a space in the paragraph's 12 point font between
+        // two runs of 10 point text leaves the line a 10 point line's).
         QVERIFY(std::abs(height({{QStringLiteral("a"), 10}, {QStringLiteral("   "), 24}, {QStringLiteral("b"), 10}}, 10) - single(24)) < 0.01);
+        QVERIFY(std::abs(height({{QStringLiteral("a"), 10}, {QStringLiteral(" "), 24}, {QStringLiteral("b"), 10}}, 10) - single(10)) < 0.01);
+        QVERIFY(std::abs(height({{QStringLiteral("a b"), 24}}, 10) - single(24)) < 0.01);
         // And the mark doesn't make a line of text taller.
         QVERIFY(std::abs(height({{text, 10}}, 24) - single(10)) < 0.01);
+    }
+
+    // A tab is no part of a word processor's line height, where it stands: a paragraph that begins with a tab in a larger font than its text (the tab that
+    // indents a first line, in the size the paragraph's last edit left it) is as tall as its text, not as its tab (a reference page of the original program, 16 points for the tab and 12 for the
+    // words: the lines are 13.8 apart, a 12 point line's).
+    void aTabTakesNoPartInALineHeight()
+    {
+        const QString tnr = QStringLiteral("Times New Roman");
+        auto lineOf = [&](const QVector<std::pair<QString, double>> &runs) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            for (const auto &r : runs) {
+                QTextCharFormat cf;
+                cf.setFontFamilies({tnr});
+                cf.setFontPointSize(r.second);
+                c.insertText(r.first, cf);
+            }
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(400, 700)}, env);
+            return lay.lineInfo(0).value(0);
+        };
+        const double single12 = (1825 + 443 + 87) / 2048.0 * 12, ascent12 = 1825 / 2048.0 * 12;
+        const auto led = lineOf({{QStringLiteral("\t"), 16}, {QStringLiteral("Thank you very much"), 12}});
+        QVERIFY2(std::abs(led.rect.height() - single12) < 0.01, qPrintable(QString::number(led.rect.height())));
+        QVERIFY2(std::abs(led.baseline - ascent12) < 0.02, qPrintable(QString::number(led.baseline)));
+        // (Nor does a lone space, in a run of its own; a longer run of spaces is as tall as its font.)
+        const auto spaced = lineOf({{QStringLiteral(" "), 16}, {QStringLiteral("Thank you very much"), 12}});
+        QVERIFY(std::abs(spaced.rect.height() - single12) < 0.01);
+        const auto indented = lineOf({{QStringLiteral("   "), 16}, {QStringLiteral("Thank you very much"), 12}});
+        QVERIFY(indented.rect.height() > single12 + 1);
+    }
+
     }
 
     // The stand-in a file's font table names for a family (the environment's stand-ins, LayoutEnv::standIns) is the line a missing family is set in.

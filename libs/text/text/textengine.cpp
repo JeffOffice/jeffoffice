@@ -1552,6 +1552,19 @@ static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int 
         while (shown > from && shown <= disp->size() && (disp->at(shown - 1) == QLatin1Char(' ') || disp->at(shown - 1) == QLatin1Char('\t'))) --shown;
     for (const auto &r : ranges)
         if (r.length > 0 && r.start < shown && r.start + r.length > from) {   // (a mark that shows nothing is no run)
+            // A tab sets no height, whatever size it is set in and wherever it stands (the tab that indents a first line, in the size the paragraph's last edit left
+            // it), nor does a run of one space (a lone space between runs in the paragraph's own font, or before text of another size): the line is the text's.
+            // A longer run of spaces is as tall as its font makes it, as it is in a line of its own.
+            if (disp) {
+                const int a = std::max(r.start, from), b = std::min(r.start + r.length, shown);
+                bool onlyBlanks = true, onlyTabs = true;
+                for (int i = a; i < b && onlyBlanks; ++i) {
+                    const QChar c = i < disp->size() ? disp->at(i) : QLatin1Char('x');
+                    onlyBlanks = c == QLatin1Char('\t') || c == QLatin1Char(' ');
+                    onlyTabs = onlyTabs && c == QLatin1Char('\t');
+                }
+                if (onlyTabs || (onlyBlanks && b - a < 2)) continue;
+            }
             const QFont f = r.format.font();
             add(f, r.format.hasProperty(tp::LineSize) ? r.format.property(tp::LineSize).toDouble() : f.pointSizeF());
         }
