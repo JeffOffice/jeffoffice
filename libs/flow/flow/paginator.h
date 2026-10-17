@@ -284,6 +284,7 @@ private:
         bool first = false;   // it is the first line of its paragraph (frames are set where their paragraph's first line is)
         int reach = 0;        // where its anchors end: `end`, or for the last line of a paragraph the paragraph's end (characters that show nothing belong to the line after them, and a
                               // paragraph's last have none: an object anchored at the end of a paragraph is on its last line)
+        double above = 0;     // of a paragraph's first line, the space before the paragraph that the engine applied above it
         int upTo() const { return std::max(end, reach); }
     };
     // A line of a page's text as the anchors are found in it.

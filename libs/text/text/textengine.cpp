@@ -2851,8 +2851,12 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 settleCarry();
             }
             if (startNext && f < nF) advance();
+            const double yBeforeSpace = y;
             if (f < nF && y > 0) y += env.wordLines && !env.wordSpaceSums ? std::max(0.0, before - prevAfter) : before;
             else if (f < nF && !env.slideLines && !(first && !m_span.spaceBeforeFirst)) y += env.wordLines && bf.boolProperty(tp::SpaceBeforeAuto) ? 0.0 : before;  // space before also applies at the top of a frame (not a slide's, nor a word processor's automatic)
+            B->spaceAbove = y - yBeforeSpace;
+            B->spaceFrame = f;
+            B->spaceColumn = c;
             if (f < nF) y += B->boxTopRoom;   // (the line above a paragraph's text)
             // A raised cap rises above the first line: room for it.
             if (f < nF && B->dropUp && !B->dropText.isEmpty())
@@ -3360,7 +3364,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             }
                         }
                     }
-                    B->lines << Line{f, c, QRectF(iv.x0, col.top() + y, iv.x1 - iv.x0, h), below, rowPushed, band};
+                    B->lines << Line{f, c, QRectF(iv.x0, col.top() + y, iv.x1 - iv.x0, h), below, rowPushed, band, lineNo == 0 && f == B->spaceFrame && c == B->spaceColumn ? B->spaceAbove : 0.0};
                     if (!lineNotes.isEmpty()) {
                         const bool firstNotes = !reserve.contains(rkey(f, c));
                         double &room = reserve[rkey(f, c)];
@@ -3737,6 +3741,7 @@ QVector<StoryLayout::LineInfo> StoryLayout::lineInfo(int frame) const
             LineInfo li;
             li.rect = B->lines[i].rect;
             li.below = B->lines[i].below;
+            li.above = B->lines[i].above;
             li.baseline = l.y() - frameY(B->lines[i].frame) + l.ascent();
             if (i == 0 && !B->marker.isEmpty()) li.markerX = B->markerX;
             li.text = B->disp.mid(l.textStart(), l.textLength());
@@ -3769,6 +3774,7 @@ QVector<StoryLayout::LineBrief> StoryLayout::lineBriefs() const
             b.rect = B->lines[i].rect;
             b.below = B->lines[i].below;
             b.pushed = B->lines[i].pushed;
+            b.above = B->lines[i].above;
             b.band = B->lines[i].band;
             b.cut = B->cut;
             if (B->cut && i + 1 == B->lines.size()) b.end = std::min(b.end, B->docStart + B->cutAt);

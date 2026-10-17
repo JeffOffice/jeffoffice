@@ -9809,7 +9809,8 @@ private Q_SLOTS:
     {
         auto fd = std::make_unique<FlowDocument>();
         fd->env.wordLines = true;
-        fillStory(fd->story(), 6, 41, [](int n, QTextBlockFormat &bf) { if (n == 2) bf.setTopMargin(20); }, 3, 6);
+        // (The paragraph before it has 8 points after it, which the space before takes in: of the 20 before, 12 are above the first line.)
+        fillStory(fd->story(), 6, 41, [](int n, QTextBlockFormat &bf) { if (n == 2) bf.setTopMargin(20); if (n == 1) bf.setBottomMargin(8); }, 3, 6);
         int paragraph = -1;
         for (QTextBlock b = fd->story()->begin(); b.isValid(); b = b.next())
             if (b.blockFormat().topMargin() == 20) paragraph = b.position();
@@ -9826,8 +9827,75 @@ private Q_SLOTS:
         for (const auto &l : pg.lines(0))
             if (l.line == 0 && l.block == paragraph) natural = l.rect.top() - l.pushed;
         QVERIFY(natural > 0);
-        const double top = pg.page(0).content.top() + natural - 20 + 5;
+        const double top = pg.page(0).content.top() + natural - 12 + 5;
         QVERIFY2(std::abs(shape->rect.top() - top) < 0.01, qPrintable(QStringLiteral("the object is at %1, the paragraph's top and the offset say %2").arg(shape->rect.top()).arg(top)));
+    }
+
+    // An object is set from the top of its paragraph above the space before it that was kept: at the top of a page that the paragraph opens by the text's own flow the space before
+    // is not kept, and the paragraph's top is where its first line is, not the room above it that is not there.
+    void anObjectSetFromAParagraphAtTheTopOfAPageIsSetFromItsFirstLine()
+    {
+        auto layout = [&](int firstOfSecondPage, QRectF *shape, double *firstLine, int *paragraph) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fillStory(fd->story(), 80, 23, [&](int n, QTextBlockFormat &bf) { if (n == firstOfSecondPage) bf.setTopMargin(20); }, 10, 30);
+            Paginator pg(fd.get());
+            if (pg.pageCount() < 2) return -1;
+            const int at = pg.page(1).start.pos;
+            QTextBlock b = fd->story()->findBlock(at);
+            int number = 0;
+            for (QTextBlock x = fd->story()->begin(); x.isValid() && x != b; x = x.next()) ++number;
+            if (!shape) return number;
+            const int id = addWrapped(fd.get(), 40, 30, b.position() + 1, FloatingObject::Wrap::Square, 0, 5, QMarginsF(0, 0, 0, 0), FloatingObject::Side::Both, FloatingObject::Rel::Column, FloatingObject::Rel::Paragraph);
+            fd->objects[size_t(id) - 1].hAlign = FloatingObject::Align::End;
+            Paginator laid(fd.get());
+            const auto page = laid.materialize(1);
+            if (!page || !laid.page(1).start.pos == at) return -2;
+            const Item *item = objectOfSize(*page, 40, 30);
+            if (!item) return -3;
+            *shape = item->rect;
+            *paragraph = number;
+            for (const auto &l : laid.lines(1))
+                if (l.block == b.position() && l.line == 0) *firstLine = laid.page(1).content.top() + l.rect.top() - l.pushed;
+            return number;
+        };
+        // (The paragraph that opens the second page is found first; it is the one given the space before then.)
+        const int opens = layout(-1, nullptr, nullptr, nullptr);
+        QVERIFY(opens > 2);
+        QRectF shape;
+        double firstLine = -1;
+        int paragraph = -1;
+        QVERIFY(layout(opens, &shape, &firstLine, &paragraph) >= 0);
+        QVERIFY(firstLine > 0);
+        QVERIFY2(std::abs(shape.top() - (firstLine + 5)) < 0.01, qPrintable(QStringLiteral("the object is at %1, the first line is at %2 and the offset 5").arg(shape.top()).arg(firstLine)));
+    }
+
+    // And in a paragraph that goes on from the page before: its top there is its first line there, which has no space before.
+    void anObjectInTheRestOfAParagraphIsSetFromItsFirstLineOnThePage()
+    {
+        auto fd = std::make_unique<FlowDocument>();
+        fd->env.wordLines = true;
+        QTextCursor c(fd->story());
+        QTextBlockFormat bf;
+        bf.setTopMargin(20);
+        c.setBlockFormat(bf);
+        c.insertText(QString(12000, QLatin1Char('x')).replace(QRegularExpression(QStringLiteral("(x{7})")), QStringLiteral("\\1 ")));
+        Paginator probe(fd.get());
+        QVERIFY(probe.pageCount() > 2);
+        const int where = probe.page(1).start.pos + 40;   // (on the second page, in the rest of the paragraph)
+        const int id = addWrapped(fd.get(), 40, 30, where, FloatingObject::Wrap::Square, 0, 5, QMarginsF(0, 0, 0, 0), FloatingObject::Side::Both, FloatingObject::Rel::Column, FloatingObject::Rel::Paragraph);
+        fd->objects[size_t(id) - 1].hAlign = FloatingObject::Align::End;
+        Paginator pg(fd.get());
+        const int pageOf = pg.pageOfPosition(where);
+        QCOMPARE(pageOf, 1);
+        const auto page = pg.materialize(pageOf);
+        QVERIFY(page);
+        const Item *item = objectOfSize(*page, 40, 30);
+        QVERIFY(item);
+        const auto lines = pg.lines(pageOf);
+        QVERIFY(!lines.isEmpty());
+        const double firstLine = pg.page(pageOf).content.top() + lines.first().rect.top() - lines.first().pushed;
+        QVERIFY2(std::abs(item->rect.top() - (firstLine + 5)) < 0.01, qPrintable(QStringLiteral("the object is at %1, the first line is at %2 and the offset 5").arg(item->rect.top()).arg(firstLine)));
     }
 
     // A table set at a place from its paragraph is set from the top of that paragraph, above the space before it: the offset does not count the room the paragraph leaves

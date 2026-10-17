@@ -326,7 +326,7 @@ public:
     int lineEnd(int pos) const;
     QVector<QRectF> rangeRects(int frame, int from, int to) const;
     QVector<QRectF> lineRects(int frame) const;   // every line box in the frame, frame-local
-    struct LineInfo { QRectF rect; QString text; QString family; double pointSize = 0; int docStart = 0; double baseline = 0; double below = 0; double markerX = -1; int docPos = 0; int docEnd = 0; };   // docStart: where its paragraph starts; docPos, docEnd: the line's first character and just past its last, as document positions; below: line spacing under the text; markerX: where a list item's bullet is drawn (-1: none)
+    struct LineInfo { QRectF rect; QString text; QString family; double pointSize = 0; int docStart = 0; double baseline = 0; double below = 0; double markerX = -1; int docPos = 0; int docEnd = 0; double above = 0; };   // docStart: where its paragraph starts; docPos, docEnd: the line's first character and just past its last, as document positions; below: line spacing under the text; markerX: where a list item's bullet is drawn (-1: none)
     QVector<LineInfo> lineInfo(int frame) const;  // for diagnostics (jpubtool layout)
     // Every line of the story in order, with where it is and nothing else (no text or fonts): for a caller that
     // works on the lines of a stretch of text, as the paginator does.
@@ -340,6 +340,8 @@ public:
         double below = 0;         // the spacing under the text
         bool cut = false;         // its paragraph goes on past the lines laid out (Span::window); `lines` is how many there are, and the last is cut short
         double pushed = 0;        // how far down objects the text goes round moved the line, from where it would have been (0: they did not)
+        double above = 0;         // of a paragraph's first line, the space before the paragraph that is above it: what the engine applied, which is none at the top of a page the paragraph is
+                                  // the rest of, or one that begins with the paragraph unless the file keeps it, nor under a paragraph whose space after takes it
         double band = 0;          // how much of the line's height, from its top, was kept clear of those objects (its text's height: a line's spacing above and below is not)
     };
     QVector<LineBrief> lineBriefs() const;
@@ -355,13 +357,14 @@ public:
     const QVector<InlineObject> &inlineObjects() const { return m_inline; }
 
     struct Seg { int docPos, docLen, dispPos, dispLen; bool hidden = false; };   // hidden: text a word processor hides (it shows nothing, and belongs to the line that follows)
-    struct Line { int frame = -1; int column = 0; QRectF rect; double below = 0; double pushed = 0; double band = 0; };   // below: the spacing under the text; pushed: how far wrapping moved it down; band: the height of its text that wrapping kept clear of objects
+    struct Line { int frame = -1; int column = 0; QRectF rect; double below = 0; double pushed = 0; double band = 0; double above = 0; };   // below: the spacing under the text; pushed: how far wrapping moved it down; band: the height of its text that wrapping kept clear of objects; above: of a paragraph's first line, the space before the paragraph that is above it (none where the paragraph's was not kept)
     struct Block {
         int docStart = 0, docLen = 0;
         QString disp;
         QVector<Seg> map;
         std::unique_ptr<ParagraphLayout> tl;
         QVector<Line> lines;
+        double spaceAbove = 0; int spaceFrame = -1, spaceColumn = 0;   // the space before the paragraph that was applied, and where (a first line that goes to another column has none there)
         QString marker; QFont markerFont; QColor markerColor; double markerX = 0;
         double markerAdv = 0, markerGap = 0;         // the marker's advance, and the space after it
         double markerOff = 0;                        // where the text starts from the marker's origin, when the item doesn't hang

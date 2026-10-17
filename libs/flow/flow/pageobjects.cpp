@@ -64,7 +64,7 @@ QVector<Paginator::Anchor> Paginator::anchorsIn(const QTextDocument *story, int 
             a.object = at->second;
             a.pos = at->first;
             a.paragraph = b.position();
-            a.paragraphTop = top.rect.top() - top.pushed - std::max(0.0, b.blockFormat().topMargin());   // (the top of a paragraph is above the space before it)
+            a.paragraphTop = top.rect.top() - top.pushed - top.above;   // (the top of a paragraph is above the space before it, as far as that was kept)
             a.columnLeft = top.columnLeft;
             a.lineTop = top.rect.top() - top.pushed;
             a.x = top.rect.left();
@@ -85,7 +85,7 @@ QVector<Paginator::Anchor> Paginator::anchorsIn(const QTextDocument *story, int 
 
 Paginator::AnchorLine Paginator::anchorLineOf(const StoryLayout::LineBrief &ln, const QRectF &rect, double columnLeft) const
 {
-    AnchorLine l{ln.block, ln.pos, ln.end, rect, columnLeft, ln.pushed, ln.line == 0, ln.end};
+    AnchorLine l{ln.block, ln.pos, ln.end, rect, columnLeft, ln.pushed, ln.line == 0, ln.end, ln.above};
     if (!ln.cut && ln.line == ln.lines - 1) {
         const QTextBlock b = m_doc->story()->findBlock(ln.block);
         if (b.isValid()) l.reach = std::max(ln.end, b.position() + b.length() - 1);
@@ -646,7 +646,7 @@ QVector<Paginator::Anchor> Paginator::floatAnchors(const QVector<AnchorLine> &li
                 a.object = 1;   // (not the document's own: `frame` is the object)
                 a.table = r.span;
                 // A table is set from the top of its paragraph, above the space before it: what the first line is below it is not in the offset.
-                a.paragraphTop -= std::max(0.0, story->findBlock(l.block).blockFormat().topMargin());
+                a.paragraphTop -= l.above;
             }
             out << a;
             if (r.key <= 0 || m_doc->objects.isEmpty()) continue;
