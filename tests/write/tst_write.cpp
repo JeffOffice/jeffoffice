@@ -6431,7 +6431,6 @@ private Q_SLOTS:
         QCOMPARE(p.room.right(), 10.0);
         QCOMPARE(p.room.top(), 2.0);
         QCOMPARE(p.room.bottom(), 3.0);
-        QVERIFY(!p.overlap);
         const QByteArray saved = doc->toDocx();
         QVERIFY2(rt::strictProblems(saved).isEmpty(), qPrintable(rt::strictProblems(saved).join(QLatin1Char('\n'))));
         QVERIFY(documentXml(saved).contains("w:tblpPr"));

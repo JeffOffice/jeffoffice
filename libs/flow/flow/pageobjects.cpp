@@ -445,8 +445,10 @@ const Paginator::FloatIndex &Paginator::floatIndex()
     };
     QVector<int> pending;   // the refs since the last paragraph in the text
     QVector<int> strays;    // the paragraphs set out of the text that are no paragraphs of a frame that is made: lines of the text
+    int section = 0;        // the section the paragraph being looked at is in (a paragraph that ends a section is the last of it)
     auto reach = [&](int anchor) {
         if (pending.isEmpty()) return;
+        for (const int i : pending) ix.refs[size_t(i)].section = section;
         // The nearest to the paragraph are set from it; the others stay in the text.
         const int skip = std::max(0, int(pending.size()) - kMostFloatsAtAParagraph);
         QVector<int> mine;
@@ -457,11 +459,13 @@ const Paginator::FloatIndex &Paginator::floatIndex()
         ix.at.insert(anchor, mine);
         pending.clear();
     };
+    auto ends = [](const QTextBlock &x) { return x.blockFormat().boolProperty(fp::SectionBreakAfter) ? 1 : 0; };
     for (QTextBlock b = story->begin(); b.isValid();) {
         const QTextBlockFormat bf = b.blockFormat();
         if (bf.intProperty(fp::Cell)) {
             const int span = tables ? tables->spanAt(b.position()) : -1;
             if (span < 0) {
+                section += ends(b);
                 b = b.next();
                 continue;
             }
@@ -478,6 +482,7 @@ const Paginator::FloatIndex &Paginator::floatIndex()
                 // A table in the text: the first of its rows is where those before it are set from.
                 reach(sp.from);
             }
+            for (QTextBlock t = b; t.isValid() && t.position() < sp.to; t = t.next()) section += ends(t);
             b = story->findBlock(sp.to);
             if (b.position() < sp.to) b = b.next();   // (the end of the story: no block)
             continue;
@@ -501,11 +506,13 @@ const Paginator::FloatIndex &Paginator::floatIndex()
                 pending << int(ix.refs.size());
             }
             ix.refs.push_back(r);
+            for (QTextBlock t = b; t.isValid() && t.position() <= e.position(); t = t.next()) section += ends(t);
             b = e.next();
             continue;
         }
         if (bf.boolProperty(tp::OutOfLayout)) strays << b.position();
         if (!hasNoLines(b)) reach(b.position());
+        section += ends(b);
         b = b.next();
     }
     // The paragraphs of frames that are not set from a paragraph are laid out as the text's own (and so are the strays).
@@ -612,22 +619,17 @@ bool Paginator::floatsTable(int span)
     const TableIndex::Span &sp = ix.spans()[size_t(span)];
     if (!sp.table || !sp.table->place) return false;
     // (One with no paragraph to be set from is in the text.)
-    {
-        const FloatIndex &fx = floatIndex();
-        const auto ref = fx.tableRef.constFind(span);
-        if (ref == fx.tableRef.constEnd() || fx.refs[size_t(ref.value())].anchor < 0) return false;
-    }
+    const FloatIndex &fx = floatIndex();
+    const auto ref = fx.tableRef.constFind(span);
+    if (ref == fx.tableRef.constEnd() || fx.refs[size_t(ref.value())].anchor < 0) return false;
     const std::shared_ptr<TableLayout> table = m_tables->layout(span);
     if (!table || table->rowCount() < 1 || table->rowCount() > kMostFloatingRows) return false;
     double height = 0;
     for (int r = 0; r < table->rowCount(); ++r) height += table->rowHeight(r);
-    // (One that is taller than a page's text area, or wider than a page, is in the text: it could not be set at a place that the page has room for.)
-    double tallest = 0, widest = 0;
-    for (const Section &sec : m_doc->sections) {
-        tallest = std::max(tallest, sec.content().height());
-        widest = std::max(widest, sec.content().width());
-    }
-    return height <= tallest * 0.9 && table->width() <= widest;
+    // (One that is taller than a page's text area, or wider than a page, is in the text: it could not be set at a place that the page has room for. The pages are those of the
+    // section the paragraph it is set from is in.)
+    const Section &sec = m_doc->section(fx.refs[size_t(ref.value())].section);
+    return height <= sec.content().height() * 0.9 && table->width() <= sec.content().width();
 }
 
 std::shared_ptr<const FloatingObject> Paginator::tableObject(int span, double columnWidth)

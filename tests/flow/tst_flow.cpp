@@ -5236,6 +5236,48 @@ private Q_SLOTS:
         QVERIFY(pg.pagePassesForTest() - before <= 4);   // (the first after the edit finds them, the second does not)
     }
 
+    // A table set at a place floats only if it fits the text area of the section it is in: one that is taller than a page of its own section's is in the text, though it would
+    // fit a page of another section's.
+    void aTableSetAtAPlaceFloatsOnlyIfItFitsItsOwnSection()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 30, 64, [](int i, QTextBlockFormat &bf) { if (i == 14) bf.setProperty(fp::SectionBreakAfter, true); }, 20, 35);
+        Section small = fd.sections[0];
+        small.paper = QSizeF(300, 230);
+        small.margins = QMarginsF(36, 36, 36, 36);
+        small.continuous = false;
+        fd.sections << small;
+        TestTable spec;
+        spec.rows = 12;
+        spec.cols = 2;
+        spec.columnWidth = 50;
+        spec.text = [](int r, int c) { return QStringLiteral("r%1c%2").arg(r).arg(c); };
+        spec.setTable = [](TableData &t) { TableData::Place p; p.across = TableData::Place::From::Margin; p.acrossSpec = TableData::Place::Spec::End; p.room = QMarginsF(8, 0, 8, 0); t.place = p; };
+        addTableAfter(fd, 22, spec);   // (in the second section, whose pages are 158 points of text tall: the table is taller than 0.9 of that)
+        addTableAfter(fd, 6, spec);    // (in the first, whose pages are 648 tall)
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 3);
+        int floating = 0, inText = 0, secondSectionFloating = 0;
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            for (const auto &t : page->tables) {
+                if (t->floating) {
+                    ++floating;
+                    secondSectionFloating += page->section == 1;
+                } else {
+                    ++inText;
+                }
+            }
+        }
+        QCOMPARE(floating, 1);
+        QCOMPARE(secondSectionFloating, 0);
+        QVERIFY(inText >= 1);
+        QVERIFY2(audit::floatProblems(pg, fd).isEmpty(), qPrintable(audit::floatProblems(pg, fd)));
+        QVERIFY2(audit::problems(pg, fd.story()).isEmpty(), qPrintable(audit::problems(pg, fd.story())));
+    }
+
     // ---- text round objects
 
     // Text goes round an object that has a square wrap: the object is at the top of its paragraph (as the text sets that, not moved by the object), the lines beside it
