@@ -1342,6 +1342,30 @@ private Q_SLOTS:
             QVERIFY(!w.act(QStringLiteral("shape.formatPane"))->isChecked());
         }
     }
+
+    // F1 in the pane, and on the Shape Format tab, opens the topic about them; the topic names the keys the commands have.
+    void helpTellsAboutThePaneAndTheTab()
+    {
+        QCOMPARE(help::contextTopic(QStringLiteral("tab:Shape Format")), QStringLiteral("format-shape"));
+        QCOMPARE(help::contextTopic(QStringLiteral("pane:format")), QStringLiteral("format-shape"));
+        const help::Topic topic = help::topic(QStringLiteral("format-shape"));
+        QVERIFY(!topic.title.isEmpty() && topic.markdown.contains(QStringLiteral("**Ctrl+1**")));
+        PaneGuard guard;
+        DeckWindow w;
+        QCOMPARE(w.act(QStringLiteral("shape.format"))->shortcut(), QKeySequence(Qt::CTRL | Qt::Key_1));
+        w.resize(1400, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        w.editor()->surfaceItems().clear();
+        auto shape = std::make_shared<ShapeItem>();
+        shape->rect = QRectF(100, 100, 200, 100);
+        w.editor()->addItem(shape, true);
+        w.formatSelection(FormatPane::Tab::FillLine);
+        QTRY_VERIFY(w.formatPane()->frame()->tabButton(0)->hasFocus());
+        w.act(QStringLiteral("help.show"))->trigger();   // F1: the topic for where the keyboard is
+        QVERIFY(w.helpView());
+        QTRY_COMPARE(w.helpView()->currentTopic(), QStringLiteral("format-shape"));
+    }
 };
 
 JP_TEST_CLASS(DeckFormatTests)

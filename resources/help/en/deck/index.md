@@ -21,6 +21,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 
 - [Type and format text](text)
 - [Shapes, pictures, tables, and Text Art](objects)
+- [The Format Shape pane and the Shape Format tab](format-shape)
 - [Speaker notes](notes)
 - [Comments](comments)
 
