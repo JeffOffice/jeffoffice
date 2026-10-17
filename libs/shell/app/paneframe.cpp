@@ -102,8 +102,9 @@ protected:
 
 // ---------------- PaneSection ----------------
 
-PaneSection::PaneSection(const QString &title, QWidget *parent) : QWidget(parent), m_title(title)
+PaneSection::PaneSection(const QString &title, const QString &id, QWidget *parent) : QWidget(parent), m_title(title)
 {
+    if (!id.isEmpty()) setObjectName(QStringLiteral("section:") + id);
     auto *v = new QVBoxLayout(this);
     v->setContentsMargins(0, 0, 0, 0);
     v->setSpacing(0);
@@ -152,13 +153,20 @@ PanePage::PanePage(QWidget *parent) : QWidget(parent)
     m_layout->addStretch(1);
 }
 
-PaneSection *PanePage::addSection(const QString &title, bool expanded)
+PaneSection *PanePage::addSection(const QString &title, bool expanded, const QString &id)
 {
-    auto *s = new PaneSection(title, this);
+    auto *s = new PaneSection(title, id, this);
     m_layout->insertWidget(m_layout->count() - 1, s);
     m_sections << s;
     s->setExpanded(expanded);
     return s;
+}
+
+PaneSection *PanePage::sectionById(const QString &id) const
+{
+    for (PaneSection *s : m_sections)
+        if (s->objectName() == QLatin1String("section:") + id) return s;
+    return nullptr;
 }
 
 PaneSection *PanePage::section(const QString &title) const

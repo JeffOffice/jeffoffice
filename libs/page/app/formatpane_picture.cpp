@@ -44,7 +44,7 @@ NumberField *measure(QWidget *parent, const char *name, double lo, double hi)
 void buildPicturePage(FormatPane *pane, PanePage *page)
 {
     // ---- corrections
-    PaneSection *corrections = page->addSection(FormatPane::tr("Picture Corrections"));
+    PaneSection *corrections = page->addSection(FormatPane::tr("Picture Corrections"), true, QStringLiteral("corrections"));
     {
         QWidget *w = corrections->bodyWidget();
         auto *form = new QFormLayout();
@@ -62,7 +62,7 @@ void buildPicturePage(FormatPane *pane, PanePage *page)
     }
 
     // ---- color
-    PaneSection *color = page->addSection(FormatPane::tr("Picture Color"));
+    PaneSection *color = page->addSection(FormatPane::tr("Picture Color"), true, QStringLiteral("color"));
     {
         QWidget *w = color->bodyWidget();
         auto *form = new QFormLayout();
@@ -94,7 +94,7 @@ void buildPicturePage(FormatPane *pane, PanePage *page)
     }
 
     // ---- crop: where the whole picture is in the frame (what is outside the frame is cropped away)
-    PaneSection *crop = page->addSection(FormatPane::tr("Crop"), false);
+    PaneSection *crop = page->addSection(FormatPane::tr("Crop"), false, QStringLiteral("crop"));
     {
         QWidget *w = crop->bodyWidget();
         auto *form = new QFormLayout();

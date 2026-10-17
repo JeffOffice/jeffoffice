@@ -8,6 +8,7 @@
 #include "app/paneframe.h"
 #include "app/settings.h"
 
+#include <QApplication>
 #include <QFileInfo>
 #include <QHideEvent>
 #include <QShowEvent>
@@ -91,6 +92,12 @@ FormatPane::FormatPane(Editor *ed, QWidget *parent) : QWidget(parent), m_ed(ed)
         m_session->finish();
         follow();
     };
+    // Undo and Redo never wait for a control: a step it was still making ends first (so it is the step undone).
+    connect(ed, &Editor::historyAboutToChange, this, [this] { m_session->finish(); });
+    // The keyboard going out of the pane ends a step too (whatever control was held, a release elsewhere would never end it).
+    connect(qApp, &QApplication::focusChanged, this, [this](QWidget *, QWidget *now) {
+        if (m_session->isOpen() && (!now || !isAncestorOf(now))) m_session->finish();
+    });
     connect(ed, &Editor::selectionChanged, this, leave);
     connect(ed, &Editor::pageChanged, this, leave);
     connect(ed, &Editor::documentReplaced, this, leave);

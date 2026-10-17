@@ -9,6 +9,7 @@
 #include "app/formatpresets.h"
 #include "app/icons.h"
 #include "app/paneframe.h"
+#include "app/propertyeditors.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
@@ -60,7 +61,7 @@ void DeckWindow::createShapeFormatActions()
     });
     mk("shape.altText", tr("Alt Text"), "accessibility", QKeySequence(), [this] {
         formatSelection(FormatPane::Tab::SizeProperties);
-        if (PaneSection *s = m_formatPane->frame()->page(int(FormatPane::Tab::SizeProperties))->section(tr("Alt Text"))) {
+        if (PaneSection *s = m_formatPane->frame()->page(int(FormatPane::Tab::SizeProperties))->sectionById(QStringLiteral("altText"))) {
             s->setExpanded(true);
             if (auto *field = s->bodyWidget()->findChild<QWidget *>(QStringLiteral("altDescription"))) field->setFocus(Qt::OtherFocusReason);
         }
@@ -256,7 +257,10 @@ void DeckWindow::addShapeFormatParts(RibbonParts &parts)
             s->setAccessibleName(s->toolTip());
             s->setKeyboardTracking(false);
             m_shapeSizeBoxes << s;
-            connect(s, &QDoubleSpinBox::valueChanged, this, [this, height](double v) {
+            // A number typed is one step; an arrow held down is many changes and one step, which ends when it is let go of.
+            auto *hold = new HoldGate(s, HoldGate::SpinKeys);
+            connect(hold, &HoldGate::released, this, [this] { m_formatPane->session()->finish(); });
+            connect(s, &QDoubleSpinBox::valueChanged, this, [this, height, hold](double v) {
                 if (v <= 0) return;
                 m_formatPane->session()->apply(tr("Size"), [this, height, v](Item &it) {
                     QSizeF size = it.rect.size();
@@ -268,7 +272,7 @@ void DeckWindow::addShapeFormatParts(RibbonParts &parts)
                     if (height) size.setHeight(v);
                     else size.setWidth(v);
                     formatops::resizeFrame(m_ed, it, size);
-                }, FormatSession::Scope::Selected, true, false);
+                }, FormatSession::Scope::Selected, !hold->held(), false);
             });
             return s;
         };

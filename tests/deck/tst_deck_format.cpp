@@ -453,7 +453,7 @@ private Q_SLOTS:
         const QColor left = slide.pixelColor(int((r.line(0)->p1.x() + 20) * sx), int(y)), right = slide.pixelColor(int((r.line(0)->p2.x() - 20) * sx), int(y));
         QVERIFY2(left.red() > left.blue() + 60, qPrintable(left.name()));
         QVERIFY2(right.blue() > right.red() + 60, qPrintable(right.name()));
-        // The pptx keeps the gradient; the odp, which has no gradient lines, keeps the first color.
+        // Both files keep the gradient: the pptx as the standard has it, the odp in an attribute of ours (a gradient line is not in the odp standard).
         std::unique_ptr<Document> p = r.viaPptx();
         QVERIFY(p);
         const Stroke &ps = Rig::named(*p, QStringLiteral("Line 1"))->stroke;
@@ -1419,7 +1419,199 @@ private Q_SLOTS:
         w.formatPane()->showTab(FormatPane::Tab::FillLine);
         for (int i = 0; i < 5; ++i) QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
         shot(w.formatPane(), QStringLiteral("format-pane-line"));
-        QVERIFY(w.formatPane()->width() > 250);
+        QVERIFY(!w.formatPane()->grab().isNull());
+    }
+
+    // ---- what the review found
+
+    // A scale box is a percent of the size the object had when the edit began: an arrow held down is many changes of one edit, each from that
+    // size, so three steps of 1% make 3%, not 3.03%; when the edit ends the box says 100 again.
+    void scaleBoxesDoNotCompound()
+    {
+        Rig r(1);
+        r.select({0});
+        pane_page(r, FormatPane::Tab::SizeProperties);
+        auto *f = r.find<NumberField>("scaleWidth");
+        const double was = r.shape(0)->rect.width();
+        const int base = r.steps();
+        QTest::keyPress(f->box(), Qt::Key_Up);
+        QTest::keyPress(f->box(), Qt::Key_Up);
+        QTest::keyPress(f->box(), Qt::Key_Up);
+        QVERIFY2(near(r.shape(0)->rect.width(), was * 1.03, 0.001), qPrintable(QString::number(r.shape(0)->rect.width(), 'f', 3)));
+        QCOMPARE(r.steps(), base);   // held: not a step yet
+        QTest::keyRelease(f->box(), Qt::Key_Up);
+        QCOMPARE(r.steps(), base + 1);
+        QVERIFY(near(r.shape(0)->rect.width(), was * 1.03, 0.001));
+        QCOMPARE(f->value(), 100.0);
+        // Typed twice: each from the size it has then.
+        f->box()->setValue(150);
+        f->box()->setValue(150);
+        QVERIFY(near(r.shape(0)->rect.width(), was * 1.03 * 2.25, 0.001));
+        // With the lock on, the height goes with it by the same share, once.
+        r.shape(0)->lockAspect = true;
+        const QSizeF before = r.shape(0)->rect.size();
+        QTest::keyPress(f->box(), Qt::Key_Up);
+        QTest::keyPress(f->box(), Qt::Key_Up);
+        QTest::keyRelease(f->box(), Qt::Key_Up);
+        QVERIFY(near(r.shape(0)->rect.width(), before.width() * 1.02, 0.001));
+        QVERIFY(near(r.shape(0)->rect.height(), before.height() * 1.02, 0.001));
+    }
+
+    // Gradients whose stops differ are never given one another's: with different numbers of stops the stops are not edited from the pane (the type
+    // and angle still are); with the same number a change of a stop's color, place, or transparency changes that one property of that stop in each,
+    // and what the others have is kept.
+    void gradientsWithDifferentStopsKeepTheirOwn()
+    {
+        Rig r(2);
+        auto gradient = [](std::initializer_list<GradientStop> stops) {
+            Fill f;
+            f.type = Fill::Gradient;
+            f.angle = 45;
+            f.stops = stops;
+            f.color = f.stops.first().color;
+            f.color2 = f.stops.last().color;
+            return f;
+        };
+        const GradientStop red{0, ColorRef::rgb(Qt::red), 0}, blue{1, ColorRef::rgb(Qt::blue), 0}, green{0, ColorRef::rgb(Qt::green), 0}, yellow{0.3, ColorRef::rgb(Qt::yellow), 0},
+            black{1, ColorRef::rgb(Qt::black), 0};
+        r.shape(0)->fill = gradient({red, blue});
+        r.shape(1)->fill = gradient({green, yellow, black});
+        r.select({0, 1});
+        auto *editor = r.find<GradientEditor>("fillGradientEditor");
+        QVERIFY(editor);
+        auto field = [&](const char *name) { return editor->findChild<NumberField *>(QLatin1String(name)); };
+        QVERIFY(!editor->bar()->isEnabled());
+        QVERIFY(!editor->findChild<QToolButton *>(QStringLiteral("gradientAdd"))->isEnabled());
+        QVERIFY(!field("stopTransparency")->isEnabled());
+        // Edits of stops, even sent anyway, change no one's stops.
+        field("stopTransparency")->box()->setValue(50);
+        field("stopPosition")->box()->setValue(40);
+        Q_EMIT editor->findChild<ColorButton *>(QStringLiteral("stopColor"))->colorPicked(ColorRef::rgb(Qt::white));
+        editor->findChild<QToolButton *>(QStringLiteral("gradientAdd"))->click();
+        QCOMPARE(r.shape(0)->fill.stops.size(), 2);
+        QCOMPARE(r.shape(1)->fill.stops.size(), 3);
+        QCOMPARE(r.shape(1)->fill.stops[1].color, ColorRef::rgb(Qt::yellow));
+        QCOMPARE(r.shape(1)->fill.stops[0].transparency, 0.0);
+        // The angle is the gradients' own, and still changes.
+        field("gradientAngle")->box()->setValue(10);
+        QCOMPARE(r.shape(0)->fill.angle, 10.0);
+        QCOMPARE(r.shape(1)->fill.angle, 10.0);
+        QCOMPARE(r.shape(1)->fill.stops.size(), 3);
+        // The same number of stops: a stop's transparency changes in each, and each keeps its colors and its places.
+        r.shape(1)->fill = gradient({green, black});
+        r.shape(1)->fill.stops[0].pos = 0.1;
+        r.ed.notifyLive();
+        QVERIFY(editor->bar()->isEnabled());
+        QVERIFY(field("stopPosition")->isMixed());   // 0 and 10
+        QVERIFY(!field("stopTransparency")->isMixed());
+        editor->bar()->setCurrent(0);
+        const int base = r.steps();
+        field("stopTransparency")->box()->setValue(50);
+        QCOMPARE(r.steps(), base + 1);
+        QCOMPARE(r.shape(0)->fill.stops[0].transparency, 0.5);
+        QCOMPARE(r.shape(1)->fill.stops[0].transparency, 0.5);
+        QCOMPARE(r.shape(0)->fill.stops[0].color, ColorRef::rgb(Qt::red));
+        QCOMPARE(r.shape(1)->fill.stops[0].color, ColorRef::rgb(Qt::green));
+        QVERIFY(near(r.shape(1)->fill.stops[0].pos, 0.1));
+        QCOMPARE(r.shape(1)->fill.stops.size(), 2);
+        Q_EMIT editor->findChild<ColorButton *>(QStringLiteral("stopColor"))->colorPicked(ColorRef::rgb(Qt::white));
+        QCOMPARE(r.shape(0)->fill.stops[0].color, ColorRef::rgb(Qt::white));
+        QCOMPARE(r.shape(1)->fill.stops[0].color, ColorRef::rgb(Qt::white));
+        QCOMPARE(r.shape(1)->fill.stops[1].color, ColorRef::rgb(Qt::black));
+        // The Add button and the bar can't change their number.
+        QVERIFY(!editor->findChild<QToolButton *>(QStringLiteral("gradientAdd"))->isEnabled());
+        editor->bar()->addStopAt(0.5);
+        QCOMPARE(r.shape(0)->fill.stops.size(), 2);
+        QCOMPARE(r.shape(1)->fill.stops.size(), 2);
+        QCOMPARE(editor->bar()->stops().size(), 2);
+    }
+
+    // The bar shows the stops of what is selected now, whether or not it has the keyboard: with the bar focused, another shape selected, and an
+    // arrow pressed, only the new shape's stop moves, and its other stops are kept.
+    void gradientBarFollowsTheSelectionWhileItHasTheKeyboard()
+    {
+        Rig r(2);
+        r.shape(0)->fill = Fill::gradient(ColorRef::rgb(Qt::red), ColorRef::rgb(Qt::blue), 45);
+        r.shape(0)->fill.stops = {{0, ColorRef::rgb(Qt::red), 0}, {1, ColorRef::rgb(Qt::blue), 0}};
+        r.shape(1)->fill = Fill::gradient(ColorRef::rgb(Qt::green), ColorRef::rgb(Qt::black), 45);
+        r.shape(1)->fill.stops = {{0, ColorRef::rgb(Qt::green), 0}, {0.3, ColorRef::rgb(Qt::yellow), 0}, {1, ColorRef::rgb(Qt::black), 0}};
+        r.select({0});
+        QVERIFY(QTest::qWaitForWindowActive(r.pane.get()));
+        auto *editor = r.find<GradientEditor>("fillGradientEditor");
+        editor->bar()->setFocus(Qt::TabFocusReason);
+        QTRY_VERIFY(editor->bar()->hasFocus());
+        r.select({1});
+        QCOMPARE(editor->bar()->stops().size(), 3);   // the new shape's, though the bar has the keyboard
+        // An undo does the same.
+        r.shape(1)->fill.stops.removeAt(1);
+        r.ed.notifyLive();
+        QCOMPARE(editor->bar()->stops().size(), 2);
+        QTest::keyClick(editor->bar(), Qt::Key_Right);
+        QCOMPARE(r.shape(1)->fill.stops.size(), 2);
+        QCOMPARE(r.shape(1)->fill.stops[0].color, ColorRef::rgb(Qt::green));
+        QCOMPARE(r.shape(0)->fill.stops[0].pos, 0.0);   // the other shape is not touched
+        r.ed.undo();
+        QCOMPARE(r.shape(1)->fill.stops.size(), 2);
+        // Select All: the bar has the first's stops, and with the others different in number nothing of them is written.
+        r.shape(1)->fill.stops = {{0, ColorRef::rgb(Qt::green), 0}, {0.3, ColorRef::rgb(Qt::yellow), 0}, {1, ColorRef::rgb(Qt::black), 0}};
+        r.select({0, 1});
+        QTest::keyClick(editor->bar(), Qt::Key_Right);
+        QCOMPARE(r.shape(0)->fill.stops.size(), 2);
+        QCOMPARE(r.shape(1)->fill.stops.size(), 3);
+    }
+
+    // A held arrow on a ribbon box (Height or Width of the Shape Format tab) is one step, taken when it is let go of; a number typed is one step.
+    void ribbonSizeBoxesMakeOneStepForAHeldArrow()
+    {
+        PaneGuard guard;
+        DeckWindow w;
+        Editor *ed = w.editor();
+        ed->surfaceItems().clear();
+        auto shape = std::make_shared<ShapeItem>();
+        shape->rect = QRectF(100, 100, 200, 100);
+        ed->addItem(shape, true);
+        auto *height = w.ribbon()->findChild<MeasureSpin *>(QStringLiteral("shapeHeight"));
+        QVERIFY(height && height->isEnabled());
+        const int base = ed->undoStack()->index();
+        QTest::keyPress(height, Qt::Key_Up);
+        QTest::keyPress(height, Qt::Key_Up);
+        QTest::keyPress(height, Qt::Key_Up);
+        QVERIFY(near(ed->doc()->item(shape->id)->rect.height(), 100 + 3 * height->singleStep(), 0.01));
+        QCOMPARE(ed->undoStack()->index(), base);   // held
+        QTest::keyRelease(height, Qt::Key_Up);
+        QCOMPARE(ed->undoStack()->index(), base + 1);
+        ed->undo();
+        QCOMPARE(ed->doc()->item(shape->id)->rect.height(), 100.0);
+        QCOMPARE(ed->undoStack()->index(), base);
+    }
+
+    // The Alt Text button finds its section by name, not by the words on it, so it works in any language.
+    void altTextButtonWorksWhateverTheLanguage()
+    {
+        struct Renamer : QTranslator {
+            bool isEmpty() const override { return false; }
+            QString translate(const char *context, const char *source, const char *, int) const override
+            {
+                return QLatin1String(context).endsWith(QLatin1String("DeckWindow")) && QLatin1String(source) == QLatin1String("Alt Text") ? QStringLiteral("Texto alternativo") : QString();
+            }
+        } renamer;
+        QCoreApplication::installTranslator(&renamer);
+        auto remove = qScopeGuard([&] { QCoreApplication::removeTranslator(&renamer); });
+        PaneGuard guard;
+        DeckWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        w.editor()->surfaceItems().clear();
+        auto shape = std::make_shared<ShapeItem>();
+        shape->rect = QRectF(100, 100, 200, 100);
+        w.editor()->addItem(shape, true);
+        w.formatSelection(FormatPane::Tab::SizeProperties);
+        PaneSection *alt = w.formatPane()->frame()->page(int(FormatPane::Tab::SizeProperties))->sectionById(QStringLiteral("altText"));
+        QVERIFY(alt);
+        alt->setExpanded(false);
+        w.act(QStringLiteral("shape.altText"))->trigger();
+        QVERIFY(alt->isExpanded());
+        QTRY_VERIFY(w.formatPane()->findChild<TextField *>(QStringLiteral("altDescription"))->hasFocus());
     }
 };
 

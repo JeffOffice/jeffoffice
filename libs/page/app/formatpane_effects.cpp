@@ -52,7 +52,7 @@ void buildEffectsPage(FormatPane *pane, PanePage *page)
     const QString P = QStringLiteral(" pt"), Pct = QStringLiteral("%");
 
     // ---- shadow
-    PaneSection *shadow = page->addSection(FormatPane::tr("Shadow"));
+    PaneSection *shadow = page->addSection(FormatPane::tr("Shadow"), true, QStringLiteral("shadow"));
     {
         auto *form = new QFormLayout();
         form->setContentsMargins(0, 0, 0, 0);
@@ -92,7 +92,7 @@ void buildEffectsPage(FormatPane *pane, PanePage *page)
     }
 
     // ---- reflection
-    PaneSection *reflection = page->addSection(FormatPane::tr("Reflection"), false);
+    PaneSection *reflection = page->addSection(FormatPane::tr("Reflection"), false, QStringLiteral("reflection"));
     {
         auto *form = new QFormLayout();
         form->setContentsMargins(0, 0, 0, 0);
@@ -122,7 +122,7 @@ void buildEffectsPage(FormatPane *pane, PanePage *page)
     }
 
     // ---- glow
-    PaneSection *glow = page->addSection(FormatPane::tr("Glow"), false);
+    PaneSection *glow = page->addSection(FormatPane::tr("Glow"), false, QStringLiteral("glow"));
     {
         auto *form = new QFormLayout();
         form->setContentsMargins(0, 0, 0, 0);
@@ -153,7 +153,7 @@ void buildEffectsPage(FormatPane *pane, PanePage *page)
     }
 
     // ---- soft edges
-    PaneSection *soft = page->addSection(FormatPane::tr("Soft Edges"), false);
+    PaneSection *soft = page->addSection(FormatPane::tr("Soft Edges"), false, QStringLiteral("softEdges"));
     {
         auto *form = new QFormLayout();
         form->setContentsMargins(0, 0, 0, 0);
