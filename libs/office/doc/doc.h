@@ -12,8 +12,8 @@
 
 namespace jp::office::doc {
 
-// The file: the largest accepted, and what its text (all the stories together) may come to. Real files: 5 MB at the most of 1,469 public
-// documents, and some tens of thousands of characters; a book of a thousand pages is a few million.
+// The file: the largest accepted, and what its text (all the stories together) may come to. Real files (75 public documents, the largest 4.4 MB): up to about 90,000 characters at the most;
+// a book of a thousand pages is a few million.
 constexpr qint64 kMaxFileBytes = qint64(1) << 30;
 constexpr qint64 kMaxChars = 40000000;
 // The pieces of the text (a piece is a run of text stored in one place and one coding), and the runs of properties in the bins.
@@ -51,8 +51,9 @@ constexpr int kMaxParagraphs = 450000;
 constexpr qint64 kMaxPictureBytes = qint64(48) << 20;
 constexpr qint64 kMaxPictureTotal = qint64(384) << 20;
 constexpr int kMaxPictures = 20000;
-// The XML made from the file, all parts together.
-constexpr qint64 kMaxOutputBytes = qint64(768) << 20;
+// The XML made from the file, all parts together. Real files (75 public documents, the largest 4.4 MB): 10.7 MB at the most, with their pictures; the limit
+// is more than twenty times that.
+constexpr qint64 kMaxOutputBytes = qint64(256) << 20;
 
 // True when the bytes begin as a compound file does, the container of the old binary formats.
 bool looksLikeCompoundFile(const QByteArray &bytes);
