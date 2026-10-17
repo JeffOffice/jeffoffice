@@ -1945,6 +1945,38 @@ private Q_SLOTS:
         QCOMPARE(tight[2].frame, 1);
     }
 
+    // A page break that ends a line is not made one of an orphan by what shows nothing between the line's last letter and it (an object that stands where it is anchored, and takes
+    // no room): the paragraph's first line stays at the foot of its page, and the rest goes on at the next.
+    void aBreakAfterWhatShowsNothingIsNotAnOrphan()
+    {
+        const double single = (1825 + 443 + 87) / 2048.0 * 12;
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setProperty(tp::WidowControl, true);
+        for (int i = 0; i < 4; ++i) {
+            if (i == 0) c.setBlockFormat(bf); else c.insertBlock(bf);
+            c.insertText(QStringLiteral("filler %1").arg(i), run);
+        }
+        c.insertBlock(bf);
+        c.insertText(QStringLiteral("before"), run);
+        QTextCharFormat nothing = run;
+        nothing.setProperty(tp::Field, QStringLiteral("raw:"));
+        c.insertText(QString(QChar::ObjectReplacementCharacter), nothing);
+        c.insertText(QString(flow::kPageBreak) + QStringLiteral("after the break"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(300, 5 * single + 3), plainFrame(300, 500)}, env);
+        const auto lines = lay.lineBriefs();
+        QCOMPARE(lines.size(), 6);
+        QCOMPARE(lines[4].frame, 0);   // the line with the break stays where it is
+        QCOMPARE(lines[5].frame, 1);
+    }
+
     // The text after a page break that begins a paragraph is its first line, at the top of the next page with the paragraph's space before; what goes on after a break that
     // has something before it on its line (the rest of the paragraph) has none there, as a paragraph that goes on onto a page for want of room has none.
     void aBreakKeepsTheSpaceBeforeOnTheNextPageOnlyWhereItBeginsTheParagraph()

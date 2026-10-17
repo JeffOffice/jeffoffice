@@ -3424,7 +3424,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             if (at > 0 && env.wordLines) {
                 const PtLine before(B->tl->lineAt(at - 1));
                 const int last = before.textStart() + before.textLength() - 1;
-                broken = last >= 0 && doc->characterAt(B->docStart + B->docFromDisp(last)) == QChar(0x000C);   // (the display shows a page break as a line break)
+                // (The display shows a page break as a line break. What stands between the last letter and the break and shows nothing, an anchored object, is the break's too.)
+                if (last >= 0)
+                    for (int k = B->docFromDisp(last), to = std::max(B->docFromDisp(last + 1), k + 1); k < to && !broken; ++k) broken = doc->characterAt(B->docStart + k) == QChar(0x000C);
             }
             const bool split = at > 0 && B->lines[at].frame >= 0 && !broken;
             if (split && bf.boolProperty(tp::KeepTogether)) redo(true, -1);                 // keep lines together
