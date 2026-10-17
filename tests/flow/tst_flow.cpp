@@ -4299,6 +4299,33 @@ private Q_SLOTS:
         QVERIFY2(std::abs(rows[2].rect.height() - (line + 6 + 2)) < 0.05, qPrintable(QString::number(rows[2].rect.height())));
     }
 
+    // The line at the top of a cell that continues the one above takes room in its row, though the cells are one.
+    void aLineAtTheTopOfACellThatContinuesTheOneAboveTakesRoomInItsRow()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 2, 3, {}, 4, 6);
+        TestTable spec;
+        spec.rows = 2;
+        spec.cols = 2;
+        spec.columnWidth = 150;
+        spec.setCell = [](int r, int c, CellData &cell) {
+            if (c != 0) return;
+            cell.vmerge = r == 0 ? CellData::VMerge::Restart : CellData::VMerge::Continue;
+            if (r == 1) {
+                TableLine line;
+                line.style = TableLine::Style::Double;
+                line.width = 1.5;
+                cell.top = line;
+            }
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        const double line = lineHeightOf(fd);
+        const auto rows = rowLines(pg, fd, 0);
+        QCOMPARE(rows.size(), 2);
+        QVERIFY2(std::abs(rows[1].rect.height() - (line + 6 + 4.5)) < 0.05, qPrintable(QString::number(rows[1].rect.height())));
+    }
+
     // A row set to a height of at least so much is that tall and has its lines besides; one set to exactly so much is that tall, lines and all.
     void aRowOfASetHeightHasItsLinesOutsideItWhenAtLeastAndInsideItWhenExact()
     {

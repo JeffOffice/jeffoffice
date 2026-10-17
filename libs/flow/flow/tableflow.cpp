@@ -356,7 +356,7 @@ void TableLayout::setLineRooms()
     const int rows = int(m_rows.size());
     // The cell that has the line under a cell: the last of those joined down.
     auto bottomOf = [&](const Cell &c) -> const CellData & { return (c.last >= 0 ? m_cells[size_t(c.last)] : c).rec->cell; };
-    // The cells that are above the row's: for each grid column, the one that covers it.
+    // The cells that are above the row's: for each grid column, the one that is there (one joined down has a cell in each row, and its line at the top is a line of the row).
     std::vector<int> above(size_t(m_xs.size()), -1), here(above);
     for (int r = 0; r < rows; ++r) {
         Row &row = m_rows[size_t(r)];
@@ -365,10 +365,6 @@ void TableLayout::setLineRooms()
         for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
             const Cell &c = m_cells[size_t(i)];
             const int end = std::min(c.col + c.span, int(here.size()));
-            if (c.covered) {
-                for (int k = c.col; k < end; ++k) here[size_t(k)] = above[size_t(k)];
-                continue;
-            }
             for (int k = c.col; k < end; ++k) here[size_t(k)] = i;
             const CellData &cd = c.rec->cell;
             if (d.spaced) {
@@ -377,7 +373,7 @@ void TableLayout::setLineRooms()
                 continue;
             }
             const int neighbor = c.col < int(above.size()) ? above[size_t(c.col)] : -1;
-            top = std::max(top, roomOf(lineBetween(neighbor >= 0 ? bottomOf(m_cells[size_t(neighbor)]).bottom : std::nullopt, cd.top, neighbor >= 0, true, d.insideH, d.top)));
+            top = std::max(top, roomOf(lineBetween(neighbor >= 0 ? m_cells[size_t(neighbor)].rec->cell.bottom : std::nullopt, cd.top, neighbor >= 0, true, d.insideH, d.top)));
         }
         row.top = top + (d.spaced && r == 0 ? roomOf(d.top) : 0.0);
         above = here;
