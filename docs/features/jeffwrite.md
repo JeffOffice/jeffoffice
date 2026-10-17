@@ -12,6 +12,10 @@ Every item carries a tier:
 - **1.0**: needed before JeffWrite is called finished (version 1.0).
 - **later**: wanted, but not before 1.0.
 
+## The Preview bar (decided October 17, 2026)
+
+JeffWrite ships as a Preview when two things hold. First, its pages come close enough to Word's, measured against Word's own PDFs on documents never used for tuning (the reserved half of the Word yardstick in `/home/user/doc-corpus/word`, 95 documents): at least 70% of their pages scoring under 2, and every word Word shows also in JeffWrite's pages (differences only in how the two PDFs give their text don't count). A page's score is the mean difference in gray between JeffWrite's picture of it and Word's, where 0 is identical. On October 17 the reserved documents stood at 37% of pages under 2 (40 of 95 documents averaging under 2) and 2.2% of words missing. Second, five basics work: Find and Replace, the Font dialog, spell check as you type, opening old `.doc` files, and printing. The items that make up those basics are marked "(needed for the Preview)".
+
 ## How the tiers were chosen
 
 **First release** is the first public build (a preview, as JeffDeck 0.7.0 is). It must open, edit, print, and save the kinds of documents in our collection and the public collections without damaging them, and be good enough for a letter, a report, a brief, or a book chapter. **1.0** is what someone coming from Word 2021 expects to find day to day; version 1.0 is ready to ship when Word opens every file JeffWrite saves and JeffWrite's pages match Word's own PDFs about as closely as JeffPub's match Publisher's. An item is **later** when few documents use it, when it needs a piece the suite doesn't have yet, or when it depends on something outside the program.

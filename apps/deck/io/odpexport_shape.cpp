@@ -232,6 +232,13 @@ void Exporter::writeAsPicture(X &x, Scope &sc, const Item &it)
 
 // ---- text boxes
 
+// Holds the scale and the line spacing cut that text shrunk to fit is written with, for as long as its text is written.
+struct FitGuard {
+    double &scale, &cut, oldScale, oldCut;
+    FitGuard(double &s, double &c, double ns, double nc) : scale(s), cut(c), oldScale(s), oldCut(c) { scale = ns; cut = nc; }
+    ~FitGuard() { scale = oldScale; cut = oldCut; }
+};
+
 // Whether text left at the size its file says (the presentation program shrinks it to fit the box when it is edited) runs out of its box at
 // that size, as the layout here counts it.
 static bool overflowsAsStored(const Document &doc, const TextItem &t, int pageNumber)
@@ -294,11 +301,6 @@ void Exporter::writeTextBox(X &x, Scope &sc, const TextItem &t)
     x.open("draw:text-box");
     if (t.autofit == TextItem::GrowBox) x.len("fo:min-height", t.rect.height());
     // Text the presentation program shrank is written at the size it was shrunk to, as it is laid out here.
-    struct FitGuard {
-        double &scale, &cut, oldScale, oldCut;
-        FitGuard(double &s, double &c, double ns, double nc) : scale(s), cut(c), oldScale(s), oldCut(c) { scale = ns; cut = nc; }
-        ~FitGuard() { scale = oldScale; cut = oldCut; }
-    };
     FitGuard fit(m_fitScale, m_fitCut, stored ? std::clamp(t.fitScale, 0.01, 1.0) : 1.0, stored ? std::clamp(t.fitLineCut, 0.0, 99.0) : 0.0);
     if (!empty || sc.master) {
         TextOpts opts;
@@ -368,6 +370,9 @@ void Exporter::writeShape(X &x, Scope &sc, const ShapeItem &s)
     extra += attrOf("draw:textarea-vertical-align", s.valign == VAlign::Middle ? QStringLiteral("middle") : s.valign == VAlign::Bottom ? QStringLiteral("bottom") : QStringLiteral("top"));
     extra += attrOf("draw:textarea-horizontal-align", s.centerBlock ? QStringLiteral("center") : QStringLiteral("justify")) + attrOf("draw:auto-grow-height", QStringLiteral("false")) + attrOf("draw:auto-grow-width", QStringLiteral("false"));
     extra += attrOf("fo:wrap-option", s.noWrap ? QStringLiteral("no-wrap") : QStringLiteral("wrap"));
+    // Text that shrinks to fit keeps doing so, written at the size it was shrunk to, as a text box's is (see writeTextBox).
+    const bool shrunk = m_doc.slideText && s.shrinks;
+    if (shrunk) extra += attrOf("style:shrink-to-fit", QStringLiteral("true"));
     const QString style = frameStyle(sc, s, QString(), extra, QString(), attrOf("style:writing-mode", QStringLiteral("lr-tb")), true);
 
     x.open("draw:custom-shape").attr("draw:style-name", style);
@@ -380,6 +385,7 @@ void Exporter::writeShape(X &x, Scope &sc, const ShapeItem &s)
         TextOpts opts;
         opts.behind = sc.background;
         opts.shape = s.sourceId;
+        FitGuard fit(m_fitScale, m_fitCut, shrunk ? std::clamp(s.fitScale, 0.01, 1.0) : 1.0, shrunk ? std::clamp(s.fitLineCut, 0.0, 99.0) : 0.0);
         writeStory(x, sc, story, opts);
     }
     x.open("draw:enhanced-geometry");
