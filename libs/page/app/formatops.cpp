@@ -1,6 +1,7 @@
 #include "app/formatops.h"
 
 #include "app/editor.h"
+#include "render/shapes.h"
 
 #include <QCoreApplication>
 
@@ -113,6 +114,18 @@ void applyArrowStyle(Stroke &s, int i)
     s.startArrow = Arrow::None;
     s.endArrow = i == 1 || i == 2 ? Arrow::Triangle : i == 3 ? Arrow::Open : i == 4 ? Arrow::Oval : Arrow::None;
     if (i == 2) s.startArrow = Arrow::Triangle;
+}
+
+bool takesGeometry(const Item &it) { return it.type() == ItemType::Shape && !static_cast<const ShapeItem &>(it).isArt(); }
+
+bool setGeometry(Item &it, const QString &shapeId)
+{
+    if (!takesGeometry(it) || !shapeDef(shapeId)) return false;
+    auto &s = static_cast<ShapeItem &>(it);
+    s.shape = shapeId;
+    s.adj.clear();
+    s.customPath = QPainterPath();
+    return true;
 }
 
 bool keepsProportions(const Item &it) { return it.type() == ItemType::Table ? static_cast<const TableItem &>(it).lockSize : it.lockAspect; }

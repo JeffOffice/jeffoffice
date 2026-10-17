@@ -31,6 +31,13 @@ int arrowStyleCount();
 QString arrowStyleName(int i);
 void applyArrowStyle(Stroke &s, int i);
 
+// ---- geometry
+// Whether an object is a shape that another geometry from the library can go onto (not a text box, a line, a picture, or artwork).
+bool takesGeometry(const Item &it);
+// Gives a shape a geometry of the library: its text, fill, line, effects, place, size, and turn stay; the values of its handles and any
+// edited points do not. False (and nothing changes) for an object that takes none, or a shape the library doesn't have.
+bool setGeometry(Item &it, const QString &shapeId);
+
 // ---- size
 // Whether a corner dragged, and a size typed, keep the object's proportions.
 bool keepsProportions(const Item &it);
