@@ -161,6 +161,7 @@ private:
         QVector<StoryLayout::NotePlace> notes;
         QVector<StoryLayout::Rule> rules;
         QVector<StoryLayout::CarriedNote> carried;
+        QVector<double> reserve;                          // the room the notes take at the foot of each frame, the rule above them included
     };
     // The notes of a page that has tables, as they are set down: the room each frame has taken at its foot (the rule above them included), and where each note is.
     struct Ledger;
@@ -176,7 +177,8 @@ private:
         int from = 0;
     };
     NoteCut cutNote(const QString &id, double width, double room);
-    std::map<std::tuple<QString, int, int>, double> m_noteHeights;   // by note, the width in hundredths of a point, and its story's revision
+    std::map<std::tuple<QString, int, int, int, uint>, double> m_noteHeights;   // by note, the width in hundredths of a point, its story's revision and length (a revision comes again after an undo and another edit), and the environment the text is set in
+    uint m_envHash = 0;   // what the environment (the fonts, their scale, the line rules) was when the notes were measured
     double m_ruleGap = 0;   // the gap above a page's notes (the last the text engine said)
     QVector<double> m_offsOut;   // where in the row's cells the part that begins the next page starts, as the last lines of a page left it
     // The parts of row `row` of the table `span` that page `index` shows (the page laid out again).
@@ -217,7 +219,7 @@ private:
         double columnLeft = 0;
     };
     // The anchors in a story from `from` to `to` (document positions), given the lines that hold it.
-    QVector<Anchor> anchorsIn(const QTextDocument *story, int from, int to, const QVector<AnchorLine> &lines) const;
+    QVector<Anchor> anchorsIn(const QTextDocument *story, int from, int to, const QVector<AnchorLine> &lines, const QHash<int, QVector<int>> *byBlock = nullptr) const;
     // Puts the objects of the anchors on a page made for painting: pictures (their data in the page's document), rules, boxes, and text boxes, behind the
     // text or over it, with the wrap each asks of the text.
     void addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number);

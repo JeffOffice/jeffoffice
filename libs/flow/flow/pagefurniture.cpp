@@ -5,6 +5,7 @@
 
 #include <QTextBlock>
 #include <QTextCursor>
+#include <QTextDocumentFragment>
 #include <QTextDocument>
 #include <algorithm>
 #include <cmath>
@@ -126,16 +127,28 @@ void Paginator::addNotes(Document *d, const QVector<StoryLayout::NotePlace> &pla
         const QTextDocument *source = m_doc->fields->storyDoc(pl.storyId);
         if (!source) continue;
         // The note's text from where this part of it starts, with its number where the text begins.
-        std::unique_ptr<QTextDocument> text(source->clone());
-        if (pl.from > 0) {
-            QTextCursor cut(text.get());
-            cut.setPosition(0);
-            cut.setPosition(std::min(pl.from, text->characterCount() - 1), QTextCursor::KeepAnchor);
-            cut.removeSelectedText();
-            QTextCursor head(text->begin());
-            QTextBlockFormat bf = head.blockFormat();
-            bf.setTextIndent(0);
-            head.setBlockFormat(bf);
+        // (Of a note of many thousand characters, the part that its box can show, and a good deal more; a page would otherwise copy all of it.)
+        const int total = source->characterCount() - 1;
+        const int wanted = std::clamp(int(pl.rect.height() * pl.rect.width() / 8) + 2000, 4000, 4000000);
+        const bool whole = pl.from <= 0 && total <= wanted;
+        std::unique_ptr<QTextDocument> text;
+        if (whole) {
+            text.reset(source->clone());
+        } else {
+            const int from = std::clamp(pl.from, 0, std::max(0, total));
+            text = std::make_unique<QTextDocument>();
+            text->setDocumentMargin(source->documentMargin());
+            text->setDefaultFont(source->defaultFont());
+            text->setDefaultTextOption(source->defaultTextOption());
+            {
+                QTextCursor src(const_cast<QTextDocument *>(source));
+                src.setPosition(from);
+                src.setPosition(std::min(total, from + wanted), QTextCursor::KeepAnchor);
+                QTextCursor(text.get()).insertFragment(QTextDocumentFragment(src));
+            }
+            QTextBlockFormat bf = source->findBlock(from).blockFormat();
+            if (from > source->findBlock(from).position() || pl.from > 0) bf.setTextIndent(0);
+            QTextCursor(text->begin()).setBlockFormat(bf);
         }
         QVector<std::pair<int, int>> marks;
         for (QTextBlock b = text->begin(); b.isValid(); b = b.next())

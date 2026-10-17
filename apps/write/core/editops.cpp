@@ -848,12 +848,19 @@ bool allSelected(const QTextCursor &c, const std::function<bool(const QTextCharF
     if (!c.hasSelection()) return test(typingFormat(c));
     QTextDocument *d = c.document();
     const int from = c.selectionStart(), to = c.selectionEnd();
-    for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next())
-        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
-            const QTextFragment f = it.fragment();
-            if (f.position() + f.length() <= from || f.position() >= to) continue;
-            if (!test(f.charFormat())) return false;
-        }
+    // The pieces kept as XML (a bookmark, a field's code, a note's mark) are not the text's look: they are left out, unless the selection is nothing else.
+    for (const bool withAtoms : {false, true}) {
+        bool any = false;
+        for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                const QTextFragment f = it.fragment();
+                if (f.position() + f.length() <= from || f.position() >= to) continue;
+                if (!withAtoms && isAtom(f.charFormat())) continue;
+                any = true;
+                if (!test(f.charFormat())) return false;
+            }
+        if (any) return true;
+    }
     return true;
 }
 
