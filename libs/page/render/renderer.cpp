@@ -217,6 +217,9 @@ LayoutEnv Renderer::layoutEnv(const Document &doc)
     env.fonts = doc.fonts;
     env.defaultTab = doc.defaultTabStop;
     env.slideLines = doc.slideText;
+    env.wordLines = doc.wordText;
+    env.wordNoHang = doc.wordNoHang;
+    env.standIns = doc.wordStandIns;
     env.familyAliases = doc.fontAliases;
     // A slide's text has no ligatures (the presentation program applies none), wherever it is set: on the screen, on paper, and in a PDF, whose text
     // then names each letter and whose lines break where the screen's do.

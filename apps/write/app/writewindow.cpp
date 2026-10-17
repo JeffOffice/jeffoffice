@@ -12,6 +12,7 @@
 #include "app/writefilescreen.h"
 #include "core/appinfo.h"
 #include "core/editops.h"
+#include "core/tableops.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
@@ -30,6 +31,7 @@
 #include <QTextBlock>
 #include <QTextDocument>
 #include <cmath>
+#include <functional>
 
 namespace jp {
 
@@ -327,6 +329,23 @@ void WriteWindow::showContextMenu(const QPoint &globalPos)
     menu.addSeparator();
     menu.addAction(act("para.dialog"));
     menu.addAction(act("edit.selectAll"));
+    // In a table: its rows and columns.
+    if (m_doc && write::cellPlace(*m_doc, m_view->cursor()).inTable) {
+        menu.addSeparator();
+        auto table = [&](const QString &text, const std::function<void(write::WriteDoc &, QTextCursor &)> &command) {
+            menu.addAction(text, this, [this, command] {
+                command(*m_doc, m_view->cursor());
+                m_view->refresh();
+            });
+        };
+        table(tr("Insert Row Above"), [](write::WriteDoc &d, QTextCursor &c) { write::insertTableRow(d, c, false); });
+        table(tr("Insert Row Below"), [](write::WriteDoc &d, QTextCursor &c) { write::insertTableRow(d, c, true); });
+        table(tr("Insert Column Left"), [](write::WriteDoc &d, QTextCursor &c) { write::insertTableColumn(d, c, false); });
+        table(tr("Insert Column Right"), [](write::WriteDoc &d, QTextCursor &c) { write::insertTableColumn(d, c, true); });
+        table(tr("Delete Row"), [](write::WriteDoc &d, QTextCursor &c) { write::deleteTableRows(d, c); });
+        table(tr("Delete Column"), [](write::WriteDoc &d, QTextCursor &c) { write::deleteTableColumns(d, c); });
+        table(tr("Delete Table"), [](write::WriteDoc &d, QTextCursor &c) { write::deleteTable(d, c); });
+    }
     menu.exec(globalPos);
 }
 

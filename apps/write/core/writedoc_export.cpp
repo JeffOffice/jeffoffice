@@ -4,6 +4,7 @@
 #include "core/writedoc.h"
 
 #include "core/editops.h"
+#include "core/tablemodel.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
@@ -21,20 +22,41 @@ namespace jp::write {
 
 void WriteDoc::exportBody(QVector<Block> *out)
 {
+    VectorSink sink(out);
+    exportInto(sink);
+}
+
+void WriteDoc::exportInto(BlockSink &sink)
+{
     QTextDocument *story = this->story();
     const StyleSheet &sheet = m_wml.styles;
     const QString defaultStyle = defaultParagraphStyle();
     int sectionIndex = 0;
     QHash<QString, ParaProps> baselines;
+    TableExporter tables(m_flow.get());
+    // (A table is never the last thing in a body: a paragraph follows it, so what the last block was is known.)
+    bool lastClosesTable = false;
+    struct Tap : BlockSink {
+        BlockSink &to;
+        bool &lastClosesTable;
+        Tap(BlockSink &t, bool &l) : to(t), lastClosesTable(l) {}
+        void add(Block &&block) override {
+            lastClosesTable = block.isRaw && block.role == Inline::Close && block.tag == QLatin1String("tbl");
+            to.add(std::move(block));
+        }
+        void tableOpened(TablePart *p) override { to.tableOpened(p); }
+        void tableClosed(TablePart *p) override { to.tableClosed(p); }
+    } out(sink, lastClosesTable);
 
     for (QTextBlock b = story->begin(); b.isValid();) {
         const QTextBlockFormat bf = b.blockFormat();
+        tables.moveTo(bf.intProperty(flow::fp::Cell), out);   // (the end of the tables the paragraph is not in, and the start of those it is)
         if (bf.hasProperty(prop::RawBefore))
-            for (const Block &r : unpackBlocks(storedBytes(bf, prop::RawBefore))) out->push_back(r);
+            for (const Block &r : unpackBlocks(storedBytes(bf, prop::RawBefore))) out.add(Block(r));
         if (bf.hasProperty(prop::RawBlock)) {
-            for (const Block &r : unpackBlocks(storedBytes(bf, prop::RawBlock))) out->push_back(r);
+            for (const Block &r : unpackBlocks(storedBytes(bf, prop::RawBlock))) out.add(Block(r));
             if (bf.hasProperty(prop::RawAfter))
-                for (const Block &r : unpackBlocks(storedBytes(bf, prop::RawAfter))) out->push_back(r);
+                for (const Block &r : unpackBlocks(storedBytes(bf, prop::RawAfter))) out.add(Block(r));
             b = b.next();
             continue;
         }
@@ -44,8 +66,9 @@ void WriteDoc::exportBody(QVector<Block> *out)
         const QString styleId = full.style.isEmpty() ? defaultStyle : full.style;
         const int numId = full.numId.value_or(0), level = full.ilvl.value_or(0);
         const bool numberedByItself = numId > 0 && bf.boolProperty(prop::NumDirect);
-        ParaProps direct = full.differences(baselineParagraph(styleId, numId, level, numberedByItself, &baselines));
-        if (numberedByItself && sheet.paragraph(styleId).numId.value_or(0) == numId) {
+        const TableLayer *layer = tableLayerOf(bf.intProperty(flow::fp::Cell));   // (what the table's style gives the paragraphs of the cell)
+        ParaProps direct = full.differences(baselineParagraph(styleId, numId, level, numberedByItself, &baselines, layer));
+        if (numberedByItself && sheet.paragraph(styleId, layer).numId.value_or(0) == numId) {
             direct.numId = numId;   // (said again, as the file had it)
             direct.ilvl = level;
         }
@@ -56,7 +79,7 @@ void WriteDoc::exportBody(QVector<Block> *out)
             std::stable_sort(tabs.begin(), tabs.end(), [](const TabStop &a, const TabStop &b) { return a.pos < b.pos; });
             direct.tabs = tabs;
         }
-        if (numId == 0 && !sheet.paragraph(styleId).numId.value_or(0)) {
+        if (numId == 0 && !sheet.paragraph(styleId, layer).numId.value_or(0)) {
             direct.numId.reset();
             direct.ilvl.reset();
         }
@@ -70,7 +93,7 @@ void WriteDoc::exportBody(QVector<Block> *out)
             const QTextCharFormat cf = f.charFormat();
             const QString text = f.text();
             RunProps run = runPropsOf(cf);
-            RunProps diff = run.differences(sheet.run(styleId, run.style));
+            RunProps diff = run.differences(sheet.run(styleId, run.style, layer));
             diff.style = run.style;
             if (cf.hasProperty(prop::Atom)) {
                 Inline a = unpackAtom(storedBytes(cf, prop::Atom));
@@ -95,19 +118,21 @@ void WriteDoc::exportBody(QVector<Block> *out)
         // The paragraph mark's own formatting: the last paragraph's.
         {
             RunProps mark = runPropsOf(markFormat(lastPart));
-            RunProps diff = mark.differences(sheet.run(styleId, mark.style));
+            RunProps diff = mark.differences(sheet.run(styleId, mark.style, layer));
             diff.style = mark.style;
             if (!runPropsXml(diff).isEmpty()) direct.markRun = diff;
         }
         if (lastPart.blockFormat().boolProperty(flow::fp::SectionBreakAfter) && sectionIndex + 1 < int(m_sections.size()))
             direct.section = std::make_shared<SectionProps>(m_sections[sectionIndex++]);
         p.props = direct;
-        out->push_back(blk);
+        out.add(std::move(blk));
         const QTextBlockFormat lastFormat = lastPart.blockFormat();
         if (lastFormat.hasProperty(prop::RawAfter))
-            for (const Block &r : unpackBlocks(storedBytes(lastFormat, prop::RawAfter))) out->push_back(r);
+            for (const Block &r : unpackBlocks(storedBytes(lastFormat, prop::RawAfter))) out.add(Block(r));
         b = b.next();
     }
+    tables.finish(out);
+    if (lastClosesTable) out.add(Block());
 }
 
 QByteArray WriteDoc::toDocx(QString *error, bool template_)

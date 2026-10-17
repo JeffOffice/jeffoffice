@@ -835,6 +835,19 @@ private Q_SLOTS:
         QCOMPARE(b.next().textList()->format().stringProperty(jp::tp::BulletChar), QString(QChar(0xF0FC)));
     }
 
+    // Webdings' triangles point in four directions, and a code the table doesn't name (0x41) is left as it is. A triangle has no emoji
+    // picture, so it carries no U+FE0E in running text.
+    void webdingsTriangles()
+    {
+        QCOMPARE(jp::symbolToUnicode(QStringLiteral("Webdings"), 0xF034), QStringLiteral("▸"));   // a right-pointing triangle
+        QCOMPARE(jp::symbolToUnicode(QStringLiteral("webdings"), 0x33), QStringLiteral("◂"));     // a left-pointing one
+        QCOMPARE(jp::symbolToUnicode(QStringLiteral("Webdings"), 0x35), QStringLiteral("▴"));     // pointing up
+        QCOMPARE(jp::symbolToUnicode(QStringLiteral("Webdings"), 0x36), QStringLiteral("▾"));     // pointing down
+        QVERIFY(jp::symbolToUnicode(QStringLiteral("Webdings"), 0x41).isEmpty());
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Webdings"), 0xF034), QStringLiteral("▸"));
+        QVERIFY(jp::symbolTextToUnicode(QStringLiteral("Webdings"), 0x41).isEmpty());
+    }
+
     // The letters and signs of a symbol font in running text come to the Unicode character that looks like them; the ones that have a picture
     // of their own as emoji (the hands, the card suits) carry U+FE0E after them, which asks for the plain glyph, so they aren't drawn in
     // color; the others carry nothing. A circled number set in Wingdings, from the code itself (0x8C), is one in a dark circle.
@@ -997,11 +1010,50 @@ private Q_SLOTS:
         font.replace(QByteArray("\x00" "A\x00r\x00i\x00m\x00o", 10), QByteArray("\x00" "A\x00r\x00i\x00" "a\x00l", 10));
         font.replace(QByteArray("Arimo"), QByteArray("Arial"));
         const int id = QFontDatabase::addApplicationFontFromData(font);
+        jp::fontsChanged();
         QVERIFY(id >= 0);
         const bool installed = jp::substituteFor(QStringLiteral("Arial")).isEmpty();
         QFontDatabase::removeApplicationFont(id);
+        jp::fontsChanged();
         QVERIFY(installed);
         QVERIFY(!jp::substituteFor(QStringLiteral("Arial")).isEmpty());
+    }
+
+    // Whether a family is here is remembered for the text engine (it is asked for every run of a word processor's text, and a font match costs), and forgotten when fonts
+    // are added or taken away: a family that was missing is used once its font is added, and not after it is taken away; the usual way of adding fonts says so.
+    void aFontAddedOrRemovedChangesWhichFamiliesTheTextEngineKnows()
+    {
+        // The program's own fonts, added the usual way, are a change.
+        const int generation = jp::fontGeneration();
+        jp::loadBundledFonts();
+        QVERIFY(jp::fontGeneration() > generation);
+        const QString fam = QStringLiteral("Zrimo");
+        QVERIFY(!QFontDatabase::hasFamily(fam));
+        jp::LayoutEnv env;
+        env.wordLines = true;
+        auto familyOf = [&]() {
+            QTextCharFormat cf;
+            cf.setFontFamilies({fam});
+            return jp::resolveCharFormat(cf, env).fontFamilies().toStringList().value(0);
+        };
+        // (Not here: set in the word processor's stand-in, and asked about twice, which the second time is remembered.)
+        QCOMPARE(familyOf(), QStringLiteral("Calibri"));
+        QCOMPARE(familyOf(), QStringLiteral("Calibri"));
+        QFile f(QStringLiteral(JP_TEST_DATA "/../../resources/fonts/Arimo-Regular.ttf"));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QByteArray font = f.readAll();
+        font.replace(QByteArray("\x00" "A\x00r\x00i\x00m\x00o", 10), QByteArray("\x00" "Z\x00r\x00i\x00m\x00o", 10));
+        font.replace(QByteArray("Arimo"), QByteArray("Zrimo"));
+        const int id = QFontDatabase::addApplicationFontFromData(font);
+        QVERIFY(id >= 0);
+        QVERIFY(QFontDatabase::applicationFontFamilies(id).contains(fam));
+        jp::fontsChanged();
+        const QString added = familyOf();
+        QFontDatabase::removeApplicationFont(id);
+        jp::fontsChanged();
+        const QString removed = familyOf();
+        QCOMPARE(added, fam);
+        QCOMPARE(removed, QStringLiteral("Calibri"));
     }
 
     // Franklin Gothic Heavy, the missing font Publisher's own designs use
@@ -1571,12 +1623,14 @@ private Q_SLOTS:
         font.replace(QByteArray("\x00" "A\x00r\x00i\x00m\x00o", 10), QByteArray("\x00" "A\x00r\x00i\x00" "a\x00l", 10));
         font.replace(QByteArray("Arimo"), QByteArray("Arial"));
         const int id = QFontDatabase::addApplicationFontFromData(font);
+        jp::fontsChanged();
         QVERIFY(id >= 0);
         QVERIFY(QFontDatabase::applicationFontFamilies(id).contains(QStringLiteral("Arial")));
         QFont arial(QStringLiteral("Arial"));
         arial.setPointSizeF(10);
         const double installed = naturalLineEm(arial, QStringLiteral("Arial"));
         QFontDatabase::removeApplicationFont(id);
+        jp::fontsChanged();
         QVERIFY2(std::abs(installed - notInstalled) < 1e-6, qPrintable(QStringLiteral("%1 vs %2").arg(installed).arg(notInstalled)));
         QVERIFY(std::abs(notInstalled - (1491.0 + 431 + 307) / 2048) < 1e-6);
     }
