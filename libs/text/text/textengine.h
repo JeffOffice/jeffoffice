@@ -298,6 +298,8 @@ public:
         // The first paragraph is the rest of one (`continued`) and keeps its space before, as a word processor sets the text of a paragraph that a page
         // break inside it moves to the top of a page.
         bool spaceBeforeContinued = false;
+        // The same paragraph's first line has its first-line indent (the text after a break that begins it is its first line, whether or not the space before is kept).
+        bool indentContinued = false;
         // Footnotes and endnotes in the story before the first paragraph, whose numbers the notes in this stretch go on from
         // (the first paragraph's own, in the lines that went before, the layout counts itself).
         int footnotesBefore = 0, endnotesBefore = 0;

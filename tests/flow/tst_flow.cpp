@@ -1999,6 +1999,33 @@ private Q_SLOTS:
         QVERIFY2(std::abs(secondPageTop(true)) < 0.01, qPrintable(QString::number(secondPageTop(true))));
     }
 
+    // A file that suppresses the space before after a page break suppresses only that: the text after a break at the start of a paragraph is still the paragraph's first line, with
+    // its first-line indent, as the page the engine laid out and the one made for painting have it.
+    void aFileThatSuppressesTheSpaceBeforeAfterAPageBreakKeepsTheIndent()
+    {
+        for (bool suppress : {false, true}) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.spaceBeforeAfterBreak = !suppress;
+            QTextCursor c(fd.story());
+            QTextBlockFormat bf;
+            bf.setTopMargin(20);
+            bf.setTextIndent(36);
+            c.setBlockFormat(bf);
+            c.insertText(QString(flow::kPageBreak) + QStringLiteral("second words"));
+            c.insertBlock(bf);
+            c.insertText(QStringLiteral("a paragraph after"));
+            Paginator pg(&fd);
+            QCOMPARE(pg.pageCount(), 2);
+            const auto lines = pg.lines(1);
+            QVERIFY(!lines.isEmpty());
+            QVERIFY2(std::abs(lines[0].rect.left() - 36) < 0.01, qPrintable(QStringLiteral("suppressing %1: the first line begins at %2").arg(suppress).arg(lines[0].rect.left())));
+            QVERIFY2(std::abs(lines[0].rect.top() - (suppress ? 0 : 20)) < 0.01, qPrintable(QString::number(lines[0].rect.top())));
+            LayoutCache cache;
+            QVERIFY2(materializedDiffers(fd, pg, 1, cache).isEmpty(), qPrintable(materializedDiffers(fd, pg, 1, cache)));
+        }
+    }
+
     // The text after a page break that begins a paragraph is its first line, at the top of the next page with the paragraph's space before; what goes on after a break that
     // has something before it on its line (the rest of the paragraph) has none there, as a paragraph that goes on onto a page for want of room has none.
     void aBreakKeepsTheSpaceBeforeOnTheNextPageOnlyWhereItBeginsTheParagraph()

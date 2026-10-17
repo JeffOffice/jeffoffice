@@ -2655,7 +2655,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         // (The text after a page break that begins a paragraph is set as the paragraph's first line, indent and all, as a word processor sets it.)
         // (A break that is hidden text, as what a tracked change deleted is, is none.)
         const bool startsWithBreak = env.wordLines && doc->characterAt(b.position()) == QChar(0x000C) && b.length() > 1 && !b.begin().fragment().charFormat().boolProperty(tp::HiddenText);
-        const bool firstAfterBreak = startsWithBreak && (!tail || m_span.spaceBeforeContinued);
+        const bool firstAfterBreak = startsWithBreak && (!tail || m_span.indentContinued);
         const double leftM = bf.leftMargin() * scale, rightM = bf.rightMargin() * scale, textIndent = tail && !firstAfterBreak ? 0.0 : bf.textIndent() * scale;
         // A slide's space given as a share of the line is of the line at the size the text was shrunk to; one given in points is not.
         double before = tail && !m_span.spaceBeforeContinued ? 0.0 : bf.topMargin() * scale, after = bf.bottomMargin() * scale;

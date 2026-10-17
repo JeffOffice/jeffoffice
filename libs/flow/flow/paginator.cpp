@@ -63,6 +63,7 @@ struct Paginator::Run {
     bool firstSpace = true;    // space before the first paragraph is kept (it isn't if the page starts without it, or it was as tall as the page)
     bool hasNext = false;
     bool keepsSpace = false;   // the first paragraph is the rest of one after a break, and has its space before
+    bool keepsIndent = false;  // ... and its first-line indent (the file may suppress the space and not the indent)
     QVector<StoryLayout::NotePlace> notes;   // the footnotes as the page's layout put them
     QVector<StoryLayout::Rule> rules;        // and the rules above them
     PageStart next;            // where the page after starts
@@ -250,6 +251,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
     const QTextBlock atStart = m_doc->story()->findBlock(st.pos);
     const bool breakFirst = atStart.isValid() && st.pos == atStart.position() + 1 && m_doc->story()->characterAt(atStart.position()) == kPageBreak;
     run.keepsSpace = st.hard && st.skip > 0 && breakFirst && m_doc->spaceBeforeAfterBreak;
+    run.keepsIndent = st.hard && st.skip > 0 && breakFirst;
     const double colW = sec.columnWidth();
     const int number = numberOf(index);
     const QRectF body = furnitureOf(index, st, number).body;
@@ -403,6 +405,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         span.firstBreakAfter = st.skip > 0 && !tail ? st.skip : -1;
         span.continued = tail;
         span.spaceBeforeContinued = afterBreak && breakFirst && m_doc->spaceBeforeAfterBreak;
+        span.indentContinued = afterBreak && breakFirst;
         span.stopAtFrame = over;
         span.overLines = wanted + 2;
         span.restartNotesAt = notesRestartIn(st.pos, kWindow * 64);
@@ -1356,7 +1359,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         if (b == lastBlock && ((run.kept < L.size() && L[run.kept].block == L[run.kept - 1].block) || sameBox(b, b.next()))) bf.setProperty(tp::BorderBottomOff, true);
         if (tail) {
             // (As the text after a break that begins the paragraph is its first line, with the indent.)
-            if (!(run.keepsSpace && main->characterAt(b.position()) == kPageBreak && b.length() > 1)) bf.setTextIndent(0);
+            if (!(run.keepsIndent && main->characterAt(b.position()) == kPageBreak && b.length() > 1)) bf.setTextIndent(0);
             bf.clearProperty(tp::DropCapLines);
             bf.clearProperty(tp::DropCapChars);
             bf.clearProperty(tp::StartInNextBox);
