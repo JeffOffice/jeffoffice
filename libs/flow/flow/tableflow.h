@@ -84,6 +84,7 @@ struct CellContent {
         std::shared_ptr<TableFragment> table;   // or a table inside the cell, whole
         int foot = 0, end = 0;                  // the footnotes and endnotes before it, in the story
         QVector<NoteRef> notes;                 // the footnotes its text cites, in order
+        bool dummy = false;                     // the empty paragraph that ends a cell after a table in it: the program's mark of the cell's end, which takes no room
     };
     std::vector<Part> parts;
 };
@@ -150,7 +151,8 @@ public:
         int from = 0, to = 0;               // their positions
         double x = 0, w = 0;                // from the table's left edge, as wide as the columns it covers
         double need = -1;                   // the height its content needs with its margins (-1: not measured)
-        QMarginsF margins;
+        QMarginsF margins;                  // (the top and the bottom have the room of the lines at the cell's top, and at the table's foot, added)
+        int last = -1;                      // a cell joined down: the one that continues it in the last row it covers, whose bottom edge is the whole's (-1: none)
     };
     // A line of a cell's content: where it is, and the notes it cites.
     struct UnitLine {
@@ -162,6 +164,7 @@ public:
         int cell0 = 0, cells = 0;           // its cells: cells()[cell0, cell0 + cells)
         int from = 0, to = 0;               // positions
         double height = 0;
+        double top = 0, foot = 0;           // the room of the lines at its top edge (the heaviest of its cells'), and for the last row the foot of the table: in its height
     };
 
     // The table whose paragraphs are the index's refs()[i0, i1), its cells `depth` cells deep (0 for a table that is not in a cell).
@@ -231,6 +234,8 @@ private:
     friend class TableFlow;
     TableLayout() = default;
     double measureCell(Cell &c);
+    // The room of the lines in the rows and in the cells' margins (once the cells are in the grid).
+    void setLineRooms();
     // `keep`: the content is kept with the cells laid out lately (what is only measured is not, if it is small: it is not the one that will be asked for again).
     std::shared_ptr<CellContent> contentFor(const Cell &c, bool keep) const;
     std::shared_ptr<const TableData> m_data;
