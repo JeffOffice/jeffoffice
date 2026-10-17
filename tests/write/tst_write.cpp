@@ -4684,6 +4684,7 @@ private Q_SLOTS:
     void aNumbersTabSkipsTheHangingIndentWhenTheFileSaysSo()
     {
         // Where the first line's text begins, in points from the text area's left edge: the left-most dark pixel of its row past the number, in the page as it is printed.
+        double second = -1;   // where the second line of the last paragraph began
         auto startOf = [&](const QByteArray &settings, const QByteArray &levelTabs, const QByteArray &paragraphTabs) {
             const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1)\"/>"
                                          "<w:pPr>" + levelTabs + "<w:ind w:left=\"1440\" w:hanging=\"1440\"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
@@ -4693,6 +4694,8 @@ private Q_SLOTS:
                                     "<w:ind w:left=\"1440\" w:hanging=\"1440\"/></w:pPr><w:r><w:t xml:space=\"preserve\">" + words + "</w:t></w:r></w:p>";
             const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
             auto doc = open(makeDocxWithParts(body, sect, {}, settings, kStyles, numbering));
+            const auto lines = doc->pager().lines(0);
+            second = lines.size() > 1 ? lines[1].rect.left() : -1;
             PageView view;
             view.resize(1000, 700);
             view.setDocument(doc.get());
@@ -4706,8 +4709,9 @@ private Q_SLOTS:
         const QByteArray flag = "<w:compat><w:doNotUseIndentAsNumberingTabStop/></w:compat>";
         // Without the option the text begins at the indent, 72 points.
         QVERIFY2(std::abs(startOf(QByteArray(), QByteArray(), QByteArray()) - 72) < 2, qPrintable(QString::number(startOf(QByteArray(), QByteArray(), QByteArray()))));
-        // With it: the first stop after the number is the default one at 36 points (720 twentieths).
+        // With it: the first stop after the number is the default one at 36 points (720 twentieths); the lines after the first are at the indent all the same.
         QVERIFY2(std::abs(startOf(flag, QByteArray(), QByteArray()) - 36) < 2, qPrintable(QString::number(startOf(flag, QByteArray(), QByteArray()))));
+        QCOMPARE(second, 72.0);
         // The paragraph's own stop is taken (50 points), and so is the level's list tab (54 points) when the paragraph has none of its own.
         QVERIFY2(std::abs(startOf(flag, QByteArray(), "<w:tabs><w:tab w:val=\"left\" w:pos=\"1000\"/></w:tabs>") - 50) < 2, "own stop");
         QVERIFY2(std::abs(startOf(flag, "<w:tabs><w:tab w:val=\"num\" w:pos=\"1080\"/></w:tabs>", QByteArray()) - 54) < 2, "list tab");
