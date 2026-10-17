@@ -508,6 +508,12 @@ QString noteNumberRestart(const QByteArray &settings, const char *group);
 
 // Whether a compatibility option of the settings part (an element of w:compat) is on: stated, and not turned off (w:val 0, false, or off).
 bool compatOption(const QByteArray &settings, const char *name);
+// The compatibility options the layout reads, from one reading of the settings part (compatOption reads the whole part for each one, and a part may be very large).
+struct CompatOptions {
+    bool useFELayout = false, doNotWrapTextWithPunct = false, doNotUseHTMLParagraphAutoSpacing = false, noTabHangInd = false;
+    bool doNotUseIndentAsNumberingTabStop = false, splitPgBreakAndParaMark = false, suppressTopSpacingWP = false, noLeading = false;
+};
+CompatOptions readCompatOptions(const QByteArray &settings);
 
 // Reads a .docx (or .docm, .dotx) package. False, with a message, if it isn't a word processing document or is damaged beyond reading.
 // A file is held to limits: of parts together inflated, of the XML of a part (xmltree.h), and of what the body holds, past which the rest is

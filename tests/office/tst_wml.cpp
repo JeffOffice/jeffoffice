@@ -496,6 +496,23 @@ private Q_SLOTS:
         QCOMPARE(noteNumberRestart("not xml", "footnotePr"), QString());
     }
 
+    // The compatibility options that the layout reads come from one reading of the settings part (a part may be very large, and was read once for each option): each is
+    // on when it is stated in w:compat and not turned off, an option outside w:compat is none, and a part that is not XML has none.
+    void readsTheCompatibilityOptionsInOneReading()
+    {
+        auto settings = [](const QByteArray &inner) { return xmlDoc(QByteArray("<w:settings ") + kW + "><w:compat>" + inner + "</w:compat></w:settings>"); };
+        const CompatOptions all = readCompatOptions(settings("<w:useFELayout/><w:doNotWrapTextWithPunct w:val=\"1\"/><w:doNotUseHTMLParagraphAutoSpacing/><w:noTabHangInd/>"
+                                                             "<w:doNotUseIndentAsNumberingTabStop/><w:splitPgBreakAndParaMark w:val=\"true\"/><w:suppressTopSpacingWP/><w:noLeading/>"));
+        QVERIFY(all.useFELayout && all.doNotWrapTextWithPunct && all.doNotUseHTMLParagraphAutoSpacing && all.noTabHangInd);
+        QVERIFY(all.doNotUseIndentAsNumberingTabStop && all.splitPgBreakAndParaMark && all.suppressTopSpacingWP && all.noLeading);
+        const CompatOptions off = readCompatOptions(settings("<w:suppressTopSpacingWP w:val=\"0\"/><w:noLeading w:val=\"false\"/><w:noTabHangInd w:val=\"off\"/><w:useFELayout/>"));
+        QVERIFY(!off.suppressTopSpacingWP && !off.noLeading && !off.noTabHangInd && off.useFELayout);
+        const CompatOptions outside = readCompatOptions(xmlDoc(QByteArray("<w:settings ") + kW + "><w:noLeading/><w:suppressTopSpacingWP/></w:settings>"));
+        QVERIFY(!outside.noLeading && !outside.suppressTopSpacingWP);
+        const CompatOptions bad = readCompatOptions("not xml");
+        QVERIFY(!bad.noLeading && !bad.useFELayout && !bad.splitPgBreakAndParaMark);
+    }
+
     // A compatibility option of the settings counts when it is stated and not turned off.
     void readsACompatibilityOptionByItsValue()
     {

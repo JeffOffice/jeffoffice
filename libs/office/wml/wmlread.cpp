@@ -1116,6 +1116,31 @@ bool compatOption(const QByteArray &settings, const char *name)
     return !(value == QLatin1String("0") || value == QLatin1String("false") || value == QLatin1String("off"));
 }
 
+CompatOptions readCompatOptions(const QByteArray &settings)
+{
+    CompatOptions o;
+    XmlTree tree;
+    if (!tree.parse(settings, nullptr)) return o;
+    const int compat = tree.child(tree.root(), "compat");
+    if (compat < 0) return o;
+    // (As compatOption has it: stated, and not turned off.)
+    auto on = [&](const char *name) {
+        const int option = tree.child(compat, name);
+        if (option < 0) return false;
+        const QString value = tree.val(option).toLower();
+        return !(value == QLatin1String("0") || value == QLatin1String("false") || value == QLatin1String("off"));
+    };
+    o.useFELayout = on("useFELayout");
+    o.doNotWrapTextWithPunct = on("doNotWrapTextWithPunct");
+    o.doNotUseHTMLParagraphAutoSpacing = on("doNotUseHTMLParagraphAutoSpacing");
+    o.noTabHangInd = on("noTabHangInd");
+    o.doNotUseIndentAsNumberingTabStop = on("doNotUseIndentAsNumberingTabStop");
+    o.splitPgBreakAndParaMark = on("splitPgBreakAndParaMark");
+    o.suppressTopSpacingWP = on("suppressTopSpacingWP");
+    o.noLeading = on("noLeading");
+    return o;
+}
+
 bool readBlocks(const QByteArray &xml, QVector<Block> *blocks)
 {
     XmlTree tree;
