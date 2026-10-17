@@ -22,6 +22,7 @@ enum : int {
     DoubleStrike,                             // bool
     Hidden,                                   // (unused: hidden text is tp::HiddenText, which the text engine leaves out)
     Raised,                                   // int: half-points raised
+    TrackedDeleted,                           // bool: the text (or mark) is what a tracked change deleted, hidden (tp::HiddenText) for the lines but not the run's own property
     // block formats
     RawBefore = QTextFormat::UserProperty + 430,   // QByteArray: body elements kept as XML that come before the paragraph (packBlocks)
     RawAfter,                                 // QByteArray: the same after it

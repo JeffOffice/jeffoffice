@@ -1586,6 +1586,46 @@ private Q_SLOTS:
         QVERIFY(hangs("<w:useFELayout/><w:doNotWrapTextWithPunct w:val=\"false\"/>"));
     }
 
+    // What a tracked change deleted is not in the lines: a paragraph whose mark was deleted and that shows nothing else takes no room, nor do the
+    // breaks and tabs of deleted runs; one whose mark was deleted but that shows text is still there. The file is saved with the changes as they were.
+    void whatATrackedChangeDeletedTakesNoRoom()
+    {
+        const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
+        auto para = [](const char *text) { return QByteArray("<w:p><w:r><w:t>") + text + "</w:t></w:r></w:p>"; };
+        const QByteArray deletedMark = "<w:p><w:pPr><w:rPr><w:del" + rev + "/></w:rPr></w:pPr></w:p>";
+        const QByteArray deletedBreak = "<w:p><w:r><w:t>two</w:t></w:r><w:del" + rev + "><w:r><w:tab/><w:br/><w:t>x</w:t></w:r></w:del></w:p>";
+        const QByteArray keptText = "<w:p><w:pPr><w:rPr><w:del" + rev + "/></w:rPr></w:pPr><w:r><w:t>text</w:t></w:r></w:p>";
+        auto lines = [&](const QByteArray &body) {
+            auto doc = open(makeDocx(body));
+            return doc ? doc->pager().lines(0) : QVector<StoryLayout::LineBrief>();
+        };
+        const auto plain = lines(para("one") + para("two") + para("three"));
+        QCOMPARE(plain.size(), 3);
+        const auto edited = lines(para("one") + deletedMark + deletedBreak + para("three"));
+        QCOMPARE(edited.size(), plain.size());
+        for (int i = 0; i < plain.size(); ++i) {
+            QVERIFY2(std::abs(edited[i].rect.top() - plain[i].rect.top()) < 0.01, qPrintable(QStringLiteral("line %1 is at %2, not %3").arg(i).arg(edited[i].rect.top()).arg(plain[i].rect.top())));
+            QVERIFY(std::abs(edited[i].rect.height() - plain[i].rect.height()) < 0.01);
+        }
+        QCOMPARE(lines(para("one") + keptText + para("three")).size(), 3);
+        // Saved after an edit: the deleted parts are as they were, and nothing is made hidden.
+        auto doc = open(makeDocx(para("one") + deletedMark + deletedBreak + para("three")));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(1);
+        insertText(*doc, c, QStringLiteral("x"));
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(!x.contains("vanish"), x.constData());
+        QVERIFY(x.contains("<w:del"));
+        QVERIFY(x.contains("<w:br/>"));
+        // Text typed beside deleted content is not deleted.
+        QTextCursor at(doc->story());
+        at.setPosition(doc->story()->findBlockByNumber(2).position() + 3);   // (after "two", before what was deleted)
+        insertText(*doc, at, QStringLiteral("!"));
+        QVERIFY(!at.charFormat().boolProperty(tp::HiddenText));
+        QVERIFY(doc->pager().lines(0).size() == 3);
+    }
+
     // A file that does not use the web page's way of spacing paragraphs has the space after one and the space before the next added; it is the larger of the
     // two otherwise.
     void paragraphSpaceAddsInAFileThatTurnsTheWebWayOff()

@@ -125,6 +125,47 @@ QString attributeOfTag(const QByteArray &xml, const QString &name)
     return re.match(QString::fromUtf8(xml.left(4000))).captured(1);
 }
 
+// Whether a tracked change deleted (or moved away) what an element is: `tag` is a revision container's name.
+bool isDeletedRevision(const QString &tag) { return tag == QLatin1String("del") || tag == QLatin1String("moveFrom"); }
+
+// A paragraph's mark that a tracked change deleted (a revision child of the mark's run properties).
+bool markIsDeleted(const ParaProps &p)
+{
+    if (!p.markRun) return false;
+    static const QRegularExpression deleted(QStringLiteral("^<[^\\s:>/]+:(del|moveFrom)[\\s/>]"));
+    for (const RawChild &ch : p.markRun->extra)
+        if (deleted.match(QString::fromUtf8(ch.xml.left(60))).hasMatch()) return true;
+    return false;
+}
+
+// Whether a paragraph shows anything of its own once what the tracked changes deleted is left out: text, or a picture, a break, a note's mark.
+bool showsContent(const QVector<Inline> &content)
+{
+    int deleted = 0;
+    for (const Inline &in : content) {
+        if (in.kind == Inline::ParaAtom) {
+            if (isDeletedRevision(in.tag)) deleted += in.role == Inline::Open ? 1 : in.role == Inline::Close ? -1 : 0;
+            continue;
+        }
+        if (deleted > 0) continue;
+        if (in.kind == Inline::Text) {
+            if (!in.text.isEmpty()) return true;
+        } else if (in.tag == QLatin1String("drawing") || in.tag == QLatin1String("pict") || in.tag == QLatin1String("object") || in.tag == QLatin1String("footnoteReference") ||
+                   in.tag == QLatin1String("endnoteReference") || in.tag == QLatin1String("sym") || in.tag == QLatin1String("br") || in.tag == QLatin1String("ptab")) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// What a format is for text that a tracked change deleted: left out of the lines as hidden text is, but still the story's (the file keeps it).
+QTextCharFormat asDeleted(QTextCharFormat format)
+{
+    format.setProperty(tp::HiddenText, true);
+    format.setProperty(prop::TrackedDeleted, true);
+    return format;
+}
+
 } // namespace
 
 // Fills `story` from the elements of a body or of a header or footer. A header's or footer's (`header`) fields for the page's number and the page
@@ -281,7 +322,9 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             mark.extra = direct.markRun->extra;
             mark.style = direct.markRun->style;
         }
-        const QTextCharFormat markFormat = charFormatOf(mark, thm, direct.markRun ? &*direct.markRun : nullptr);
+        QTextCharFormat markFormat = charFormatOf(mark, thm, direct.markRun ? &*direct.markRun : nullptr);
+        // A paragraph whose mark a tracked change deleted, with nothing else that shows, is gone from the text as it stands (and ends no section).
+        if (!header && !direct.section && markIsDeleted(direct) && !showsContent(p.content)) markFormat = asDeleted(markFormat);
 
         // A list: the item's counter, and the marker where Qt's own counting can't make it.
         QTextListFormat lf;
@@ -385,12 +428,16 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             while (!fields.isEmpty()) finish();   // (a field the paragraph ended inside of shows what it read)
             continue;
         }
+        int deletedDepth = 0;   // (inside the content a tracked change deleted)
         for (const Inline &in : p.content) {
+            if (in.kind == Inline::ParaAtom && isDeletedRevision(in.tag)) deletedDepth = std::max(0, deletedDepth + (in.role == Inline::Open ? 1 : in.role == Inline::Close ? -1 : 0));
+            const bool deleted = deletedDepth > 0 && !(in.kind == Inline::ParaAtom && in.role != Inline::Single && isDeletedRevision(in.tag));
             if (in.kind == Inline::Text) {
-                if (!in.text.isEmpty()) c.insertText(in.text, formatOf(styleId, in.props));
+                if (!in.text.isEmpty()) c.insertText(in.text, deleted ? asDeleted(formatOf(styleId, in.props)) : formatOf(styleId, in.props));
                 continue;
             }
             QTextCharFormat af = formatOf(styleId, in.props);
+            if (deleted) af = asDeleted(af);
             setStored(af, prop::Atom, packAtom(in));
             // A reference to a footnote of the file is the note's (the pages lay it out at their foot); one to an endnote shows its number, in the lower
             // case roman numerals a word processor's endnotes have.
@@ -409,7 +456,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     }
                 }
             }
-            if (in.kind == Inline::RunAtom && drawnTag(in.tag) && drawnObjects(in, part, &af)) field = QStringLiteral("raw:");
+            if (in.kind == Inline::RunAtom && !deleted && drawnTag(in.tag) && drawnObjects(in, part, &af)) field = QStringLiteral("raw:");
             else if (in.tag == QLatin1String("footnoteReference") && m_noteBlocks.contains(QStringLiteral("fn") + in.key)) field = QStringLiteral("footnote:fn") + in.key;
             else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + roman(++endnoteNumber, false);
             af.setProperty(tp::Field, field);
