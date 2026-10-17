@@ -17,6 +17,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QRadioButton>
+#include <QShowEvent>
 #include <QStackedWidget>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -360,6 +361,21 @@ void NumberField::spinChanged(double v)
     }
 }
 
+// The label beside the field (the one that has it as its buddy) names its box for screen readers, which read the box and not the field.
+void NumberField::showEvent(QShowEvent *e)
+{
+    QWidget::showEvent(e);
+    if (!m_spin->accessibleName().isEmpty() || !window()) return;
+    for (const QLabel *label : window()->findChildren<QLabel *>())
+        if (label->buddy() == this) {
+            QString name = label->text();
+            name.remove(QLatin1Char('&'));
+            if (name.endsWith(QLatin1Char(':'))) name.chop(1);
+            setAccessibleLabel(name);
+            break;
+        }
+}
+
 bool NumberField::eventFilter(QObject *o, QEvent *e)
 {
     if (o == m_spin) {
@@ -409,6 +425,38 @@ bool NumberField::eventFilter(QObject *o, QEvent *e)
     }
     return QWidget::eventFilter(o, e);
 }
+
+// ---------------- FontField ----------------
+
+FontField::FontField(QWidget *parent) : QWidget(parent)
+{
+    auto *h = new QHBoxLayout(this);
+    h->setContentsMargins(0, 0, 0, 0);
+    h->setSpacing(6);
+    m_family = new FontCombo(this);
+    m_family->setObjectName(QStringLiteral("fontFamily"));
+    m_family->setMaximumWidth(QWIDGETSIZE_MAX);
+    m_size = new SizeCombo(this);
+    m_size->setObjectName(QStringLiteral("fontSize"));
+    h->addWidget(m_family, 1);
+    h->addWidget(m_size);
+    ignoreWheelUnlessFocused(m_family);
+    ignoreWheelUnlessFocused(m_size);
+    connect(m_family, &FontCombo::familyChosen, this, [this](const QString &f) {
+        Q_EMIT familyChosen(f);
+        Q_EMIT finished();
+    });
+    connect(m_size, &SizeCombo::sizeChosen, this, [this](double pt) {
+        Q_EMIT sizeChosen(pt);
+        Q_EMIT finished();
+    });
+}
+
+void FontField::setSchemeFonts(const QString &heading, const QString &body) { m_family->setSchemeFonts(heading, body); }
+
+void FontField::setFamily(const QString &family) { m_family->setCurrentFamily(family); }
+
+void FontField::setSize(double pt) { m_size->setSize(pt); }
 
 // ---------------- TextField ----------------
 
@@ -846,12 +894,12 @@ QString patternName(int i)
     static const char *const names[] = {"90%", "80%", "70%", "50%", "25%", "10%", "5%"};
     if (i < 7) return QStringLiteral("%1").arg(QLatin1String(names[i]));
     switch (i) {
-    case 7: return QObject::tr("Horizontal");
-    case 8: return QObject::tr("Vertical");
-    case 9: return QObject::tr("Cross");
-    case 10: return QObject::tr("Upward Diagonal");
-    case 11: return QObject::tr("Downward Diagonal");
-    default: return QObject::tr("Diagonal Cross");
+    case 7: return QCoreApplication::translate("FillEditor", "Horizontal");
+    case 8: return QCoreApplication::translate("FillEditor", "Vertical");
+    case 9: return QCoreApplication::translate("FillEditor", "Cross");
+    case 10: return QCoreApplication::translate("FillEditor", "Upward Diagonal");
+    case 11: return QCoreApplication::translate("FillEditor", "Downward Diagonal");
+    default: return QCoreApplication::translate("FillEditor", "Diagonal Cross");
     }
 }
 

@@ -30,6 +30,8 @@ class QToolButton;
 namespace jp {
 
 class ColorButton;
+class FontCombo;
+class SizeCombo;
 
 // Lets the wheel scroll the pane instead of changing a box or a slider the pointer happens to be over: the wheel counts only on the
 // control that has the keyboard.
@@ -65,6 +67,7 @@ Q_SIGNALS:
 
 protected:
     bool eventFilter(QObject *o, QEvent *e) override;
+    void showEvent(QShowEvent *e) override;
 
 private:
     class Spin;
@@ -80,6 +83,29 @@ private:
     bool m_typing = false;
     bool m_changedSinceTyping = false;
     bool m_unfinished = false;   // edits were said, and finished() has not been
+};
+
+// A font and its size, for the text of what is selected: each shows the one the objects share, and blank where they differ. Choosing one says it,
+// and finished() follows at once (a choice has nothing to drag). "+Heading" and "+Body" are the theme's fonts.
+class FontField : public QWidget {
+    Q_OBJECT
+public:
+    explicit FontField(QWidget *parent = nullptr);
+    void setSchemeFonts(const QString &heading, const QString &body);
+    // Not signalled. An empty family, or a size of 0, is blank.
+    void setFamily(const QString &family);
+    void setSize(double pt);
+    FontCombo *familyBox() const { return m_family; }
+    SizeCombo *sizeBox() const { return m_size; }
+
+Q_SIGNALS:
+    void familyChosen(const QString &family);
+    void sizeChosen(double pt);
+    void finished();
+
+private:
+    FontCombo *m_family;
+    SizeCombo *m_size;
 };
 
 // A box for some words that says what was typed when the person leaves it (Tab, a click away, or Ctrl+Enter), not at each key; in one line,

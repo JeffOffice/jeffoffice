@@ -868,6 +868,12 @@ private Q_SLOTS:
         QCOMPARE(r.steps(), base + 11);
         QCOMPARE(text()->insets, QMarginsF(10, 12, 11, 13));
         QCOMPARE(text()->columnGap, 20.0);
+        // One undo takes back the spacing and nothing else.
+        r.ed.undo();
+        QCOMPARE(text()->columnGap, 9.0);   // (a text box's own gap)
+        QCOMPARE(text()->columns, 3);
+        r.ed.redo();
+        QCOMPARE(text()->columnGap, 20.0);
         for (int how = 0; how < 2; ++how) {
             const QByteArray label = how ? "odp" : "pptx";
             std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
@@ -1059,6 +1065,12 @@ private Q_SLOTS:
             QVERIFY2(near(got.imgRect.width(), 240, 1.5) && near(got.imgRect.height(), 120, 1.5), label);
             QVERIFY2(near(got.imgRect.center().x(), 40, 1.5) && near(got.imgRect.center().y(), 40, 1.5), label);
         }
+        // One undo takes back the last change only.
+        r.ed.undo();
+        QCOMPARE(picture()->imgRect.center().y(), 30.0);   // the offset is back to the middle
+        QVERIFY(near(picture()->imgRect.center().x(), 40));
+        r.ed.redo();
+        QVERIFY(near(picture()->imgRect.center().y(), 40));
         r.find<QComboBox>("imageRecolor")->setCurrentIndex(1);
         QCOMPARE(picture()->recolor, PictureItem::Grayscale);
         QVERIFY(!r.find<NumberField>("imageThreshold")->isEnabled());
@@ -1365,6 +1377,42 @@ private Q_SLOTS:
         w.act(QStringLiteral("help.show"))->trigger();   // F1: the topic for where the keyboard is
         QVERIFY(w.helpView());
         QTRY_COMPARE(w.helpView()->currentTopic(), QStringLiteral("format-shape"));
+    }
+
+    // Pictures of the pane's pages and of the tab, for looking at (when JP_SHOT_DIR names a folder).
+    void picturesOfThePaneForLooking()
+    {
+        PaneGuard guard;
+        DeckWindow w;
+        w.resize(1500, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        Editor *ed = w.editor();
+        ed->surfaceItems().clear();
+        auto shape = std::make_shared<ShapeItem>();
+        shape->rect = QRectF(100, 100, 300, 150);
+        shape->fill = Fill::gradient(ColorRef::scheme(Accent1), ColorRef::scheme(Accent2), 45);
+        shape->fill.stops = {{0, ColorRef::scheme(Accent1), 0}, {0.5, ColorRef::scheme(Accent3), 0.2}, {1, ColorRef::scheme(Accent2), 0}};
+        shape->fx.shadow.on = true;
+        shape->storyId = ed->doc()->createStory(QStringLiteral("Text in a shape"));
+        ed->addItem(shape, true);
+        w.formatSelection(FormatPane::Tab::FillLine);
+        for (const char *name : {"fill", "effects", "size"}) {
+            w.formatPane()->frame()->setCurrentPage(w.formatPane()->frame()->indexOfPage(QLatin1String(name)));
+            for (PaneSection *section : w.formatPane()->frame()->page(w.formatPane()->frame()->currentPage())->sections()) section->setExpanded(true);
+            QCoreApplication::processEvents();
+            shot(w.formatPane(), QStringLiteral("format-pane-") + QLatin1String(name));
+        }
+        shot(&w, QStringLiteral("format-window"));
+        auto line = std::make_shared<LineItem>();
+        line->p1 = QPointF(100, 400);
+        line->p2 = QPointF(500, 400);
+        line->syncRect();
+        ed->addItem(line, true);
+        w.formatPane()->showTab(FormatPane::Tab::FillLine);
+        for (int i = 0; i < 5; ++i) QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+        shot(w.formatPane(), QStringLiteral("format-pane-line"));
+        QVERIFY(w.formatPane()->width() > 250);
     }
 };
 

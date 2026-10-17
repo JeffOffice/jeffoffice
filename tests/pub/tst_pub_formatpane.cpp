@@ -1,6 +1,8 @@
 // The tests of the format pane's frame and property editors (libs/shell): the parts every app's Format pane is made of.
 #include "pubhelpers.h"
 
+#include <QFormLayout>
+
 namespace {
 
 // What an editor said it changed, in order (a function can't ride in a QSignalSpy).
@@ -261,6 +263,21 @@ private Q_SLOTS:
         QCOMPARE(f.box()->cleanText(), QStringLiteral("9"));
     }
 
+    // The label beside a number names its box for screen readers (which read the box, not the field around it).
+    void numberBoxIsNamedByItsLabel()
+    {
+        QWidget w;
+        auto *form = new QFormLayout(&w);
+        auto *height = new NumberField(&w);
+        auto *width = new NumberField(&w);
+        form->addRow(QStringLiteral("Height"), height);
+        form->addRow(QStringLiteral("&Width:"), width);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        QCOMPARE(height->box()->accessibleName(), QStringLiteral("Height"));
+        QCOMPARE(width->box()->accessibleName(), QStringLiteral("Width"));
+    }
+
     // A measure is in points and shows in the unit of Options; a value typed with a unit is read.
     void numberFieldMeasuresInTheUnitOfOptions()
     {
@@ -280,6 +297,34 @@ private Q_SLOTS:
         Settings::get().setUnit(Unit::Point);
         f.setValue(36);
         QVERIFY(f.box()->text().startsWith(QStringLiteral("36")));
+    }
+
+    // A font and its size show the one the objects share, blank where they differ, and say a choice (and its end) when one is made; setting what
+    // is shown says nothing.
+    void fontFieldShowsTheSharedFontAndSaysChoices()
+    {
+        FontField f;   // (not shown: a box the person is typing in keeps what is typed, and the first would have the keyboard)
+        QSignalSpy family(&f, &FontField::familyChosen), size(&f, &FontField::sizeChosen), done(&f, &FontField::finished);
+        f.setFamily(QStringLiteral("Open Sans"));
+        f.setSize(18);
+        QCOMPARE(f.familyBox()->currentText(), QStringLiteral("Open Sans"));
+        QCOMPARE(f.sizeBox()->currentText(), QStringLiteral("18"));
+        QCOMPARE(family.count() + size.count() + done.count(), 0);
+        f.setFamily(QString());
+        f.setSize(0);
+        QVERIFY(f.familyBox()->currentText().isEmpty() && f.sizeBox()->currentText().isEmpty());
+        // A size typed and Enter pressed; a family chosen from the list.
+        f.sizeBox()->setEditText(QStringLiteral("24.5"));
+        QTest::keyClick(f.sizeBox()->lineEdit(), Qt::Key_Return);
+        QVERIFY(size.count() >= 1);   // (Enter in a box says it once or twice, the same size)
+        QCOMPARE(size.last().first().toDouble(), 24.5);
+        QVERIFY(done.count() >= 1);
+        const int sizeDone = done.count();
+        f.familyBox()->setEditText(QStringLiteral("Lato"));
+        QTest::keyClick(f.familyBox()->lineEdit(), Qt::Key_Return);
+        QVERIFY(family.count() >= 1);
+        QCOMPARE(family.last().first().toString(), QStringLiteral("Lato"));
+        QVERIFY(done.count() > sizeDone);
     }
 
     // The stops of a gradient: a click chooses one, a drag moves it between its neighbors and is one change, the keys do the same, a double
