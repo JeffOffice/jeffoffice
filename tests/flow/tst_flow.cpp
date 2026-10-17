@@ -2348,6 +2348,64 @@ private Q_SLOTS:
         QVERIFY2(std::abs(lines.value(0).rect.height() - (1705 + 615) / 2048.0 * 20) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
     }
 
+    // The line of Courier New is Courier New's wherever it is measured, though the text is drawn in Courier Prime (whose own line is 1.318 em, to Courier New's 1.133):
+    // the number of a list item is a run of its own on the first line, and the paragraph after a keep-with-next one is measured for room.
+    void aNumberedCourierNewItemKeepsCourierNewsLine()
+    {
+        if (QFontDatabase::hasFamily(QStringLiteral("Courier New"))) QSKIP("Courier New is installed");
+        auto doc = std::make_unique<QTextDocument>();
+        QTextCursor c(doc.get());
+        QTextListFormat lf;
+        lf.setStyle(QTextListFormat::ListDecimal);
+        lf.setNumberSuffix(QStringLiteral("."));
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Courier New")});
+        cf.setFontPointSize(20);
+        c.setBlockCharFormat(cf);
+        c.insertText(QStringLiteral("Text of the item"), cf);
+        c.createList(lf);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(doc.get(), {plainFrame(400, 700)}, env);
+        const auto lines = lay.lineInfo(0);
+        QVERIFY(!lines.isEmpty());
+        const double courierNew = (1705 + 615) / 2048.0 * 20;
+        QVERIFY2(std::abs(lines[0].rect.height() - courierNew) < 0.01, qPrintable(QStringLiteral("the first line is %1 tall, not %2").arg(lines[0].rect.height()).arg(courierNew)));
+        QVERIFY2(std::abs(lines[0].baseline - 1705 / 2048.0 * 20) < 0.02, qPrintable(QString::number(lines[0].baseline)));
+    }
+
+    void keepWithNextMeasuresTheNextParagraphInCourierNewsLine()
+    {
+        if (QFontDatabase::hasFamily(QStringLiteral("Courier New"))) QSKIP("Courier New is installed");
+        auto doc = std::make_unique<QTextDocument>();
+        QTextCursor c(doc.get());
+        QTextCharFormat times;
+        times.setFontFamilies({QStringLiteral("Times New Roman")});
+        times.setFontPointSize(12);
+        c.setBlockCharFormat(times);
+        c.insertText(QStringLiteral("A line before"), times);
+        QTextBlockFormat keep;
+        keep.setProperty(tp::KeepWithNext, true);
+        c.insertBlock(keep, times);
+        c.insertText(QStringLiteral("Heading"), times);
+        QTextCharFormat courier;
+        courier.setFontFamilies({QStringLiteral("Courier New")});
+        courier.setFontPointSize(20);
+        c.insertBlock(QTextBlockFormat(), courier);
+        c.insertText(QStringLiteral("The line after it"), courier);
+        // Room under the heading for Courier New's line (22.66) but not for the 26.37 of Courier Prime's own: the heading stays where it is.
+        const double line = (1825 + 443 + 87) / 2048.0 * 12, room = 24.5;
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(doc.get(), {plainFrame(400, 2 * line + room), plainFrame(400, 700)}, env);
+        QCOMPARE(lay.lineInfo(0).size(), 3);
+        QCOMPARE(lay.lineInfo(1).size(), 0);
+    }
+
+    }
+
     // A font the file's font table gives an alternate for is set in that alternate when the word processor has it, whether or not this machine has it (a
     // bundled look-alike stands in for it): an unknown serif face with Bookman Old Style as its alternate is not set in Calibri.
     void aFontsAlternateIsKeptWhereTheWordProcessorHasIt()
