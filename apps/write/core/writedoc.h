@@ -62,6 +62,10 @@ public:
     static std::unique_ptr<WriteDoc> blank();
     // A document from a .docx package; null, with the reason, if it can't be read. `notes` get what was left out.
     static std::unique_ptr<WriteDoc> fromDocx(const QByteArray &zip, QString *error = nullptr, QStringList *notes = nullptr);
+    // A document from an old binary file (.doc, .dot); null, with the reason, if it can't be read. `notes` get what was left out.
+    static std::unique_ptr<WriteDoc> fromDoc(const QByteArray &bytes, QString *error = nullptr, QStringList *notes = nullptr);
+    // A document from the bytes of a file of either kind: an old binary file (a compound file) is read as one, anything else as a .docx.
+    static std::unique_ptr<WriteDoc> fromFile(const QByteArray &bytes, QString *error = nullptr, QStringList *notes = nullptr);
     // The story written back into a package (empty, with the reason, if it can't be made). `template_` saves it as a template.
     QByteArray toDocx(QString *error = nullptr, bool template_ = false);
 
@@ -188,6 +192,7 @@ private:
     std::unique_ptr<NoteFields> m_noteFields;
     QString m_notePart;                                               // the footnotes part's name
     QHash<QString, QVector<office::wml::Block>> m_noteBlocks;         // by "fn" and Id
+    QVector<office::wml::Block> m_noteSeparator;                      // the paragraphs of the file's note separator (none: a line of the Normal style)
     // (The stories of the notes and of the headers and footers are made when a page needs them and are not edited: nothing in the program reaches them yet. When
     // something does, the paginator has to be told as it is of the story's edits (its measures of them are kept by the story's revision), and the pages that show
     // them made again.)

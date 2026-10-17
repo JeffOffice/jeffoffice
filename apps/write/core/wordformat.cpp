@@ -264,6 +264,33 @@ QStringList highlightNames()
     return out;
 }
 
+bool isDeletedAway(const Paragraph &paragraph)
+{
+    const ParaProps &p = paragraph.props;
+    if (!p.markRun) return false;
+    static const QRegularExpression deleted(QStringLiteral("^<[^\\s:>/]+:(del|moveFrom)[\\s/>]"));
+    bool markDeleted = false;
+    for (const RawChild &ch : p.markRun->extra)
+        markDeleted = markDeleted || deleted.match(QString::fromUtf8(ch.xml.left(60))).hasMatch();
+    if (!markDeleted) return false;
+    // What the paragraph shows once what the tracked changes deleted is left out.
+    int inDeletion = 0;
+    for (const Inline &in : paragraph.content) {
+        if (in.kind == Inline::ParaAtom) {
+            if (in.tag == QLatin1String("del") || in.tag == QLatin1String("moveFrom")) inDeletion += in.role == Inline::Open ? 1 : in.role == Inline::Close ? -1 : 0;
+            continue;
+        }
+        if (inDeletion > 0) continue;
+        if (in.kind == Inline::Text) {
+            if (!in.text.isEmpty()) return false;
+        } else if (in.tag == QLatin1String("drawing") || in.tag == QLatin1String("pict") || in.tag == QLatin1String("object") || in.tag == QLatin1String("footnoteReference") ||
+                   in.tag == QLatin1String("endnoteReference") || in.tag == QLatin1String("sym") || in.tag == QLatin1String("br") || in.tag == QLatin1String("ptab")) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool isAtom(const QTextCharFormat &format) { return format.hasProperty(prop::Atom); }
 
 QTextCharFormat withoutAtom(QTextCharFormat f)
@@ -527,7 +554,8 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
     const int line = p.line.value_or(240);
     if (p.lineRule == QLatin1String("exact")) bf.setLineHeight(std::max(1, line) / 20.0, QTextBlockFormat::FixedHeight);
     else if (p.lineRule == QLatin1String("atLeast")) bf.setLineHeight(std::max(1, line) / 20.0, QTextBlockFormat::MinimumHeight);
-    else if (line != 240) bf.setLineHeight(std::max(1, line) * 100.0 / 240.0, QTextBlockFormat::ProportionalHeight);
+    // (A multiple written as a negative number is read as its size: a file converted from an older format has them.)
+    else if (std::abs(line) != 240) bf.setLineHeight(std::max(1, std::abs(line)) * 100.0 / 240.0, QTextBlockFormat::ProportionalHeight);
     if (p.keepNext.value_or(false)) bf.setProperty(tp::KeepWithNext, true);
     if (p.keepLines.value_or(false)) bf.setProperty(tp::KeepTogether, true);
     if (p.widowControl.value_or(true)) bf.setProperty(tp::WidowControl, true);
