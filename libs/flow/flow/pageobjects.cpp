@@ -352,7 +352,7 @@ std::unique_ptr<QTextDocument> Paginator::frameStory(int from, int to) const
     return sd;
 }
 
-const FloatingObject *Paginator::frameObject(int key, int from, int to, double columnWidth)
+std::shared_ptr<const FloatingObject> Paginator::frameObject(int key, int from, int to, double columnWidth)
 {
     if (key <= 0 || key > m_doc->frames.size()) return nullptr;
     const int id = m_doc->frames[key - 1];
@@ -361,7 +361,7 @@ const FloatingObject *Paginator::frameObject(int key, int from, int to, double c
     const uint env = qHash(m_doc->env.key()) ^ uint(qHash(story->characterCount()) * 31u);
     const auto cacheKey = std::make_tuple(key, from, to, story->revision(), int(std::lround(columnWidth * 100)), env);
     const auto found = m_frames.find(cacheKey);
-    if (found != m_frames.end()) return &found->second;
+    if (found != m_frames.end()) return found->second;
     if (m_frames.size() > 400) m_frames.clear();
     FloatingObject o = m_doc->objects[id - 1];
     o.story = frameStory(from, to);
@@ -396,7 +396,7 @@ const FloatingObject *Paginator::frameObject(int key, int from, int to, double c
     box->hyphenate = false;
     o.item = box;
     o.insets = QMarginsF(0, 0, 0, 0);
-    return &m_frames.emplace(cacheKey, std::move(o)).first->second;
+    return m_frames.emplace(cacheKey, std::make_shared<const FloatingObject>(std::move(o))).first->second;
 }
 
 QVector<Paginator::Anchor> Paginator::frameAnchors(const QVector<AnchorLine> &lines, double columnWidth)
@@ -414,7 +414,7 @@ QVector<Paginator::Anchor> Paginator::frameAnchors(const QVector<AnchorLine> &li
             if (key <= 0) break;
             QTextBlock first = b;
             for (int back = 0; back < kMostFrameParagraphs && first.previous().isValid() && first.previous().blockFormat().intProperty(fp::Frame) == key; ++back) first = first.previous();
-            if (const FloatingObject *o = frameObject(key, first.position(), b.position() + b.length(), columnWidth)) {
+            if (std::shared_ptr<const FloatingObject> o = frameObject(key, first.position(), b.position() + b.length(), columnWidth)) {
                 Anchor a;
                 a.object = m_doc->frames[key - 1];
                 a.pos = first.position();
@@ -467,7 +467,7 @@ bool Paginator::floatsTable(int span)
     return height <= tallest * 0.9 && table->width() <= widest;
 }
 
-const FloatingObject *Paginator::tableObject(int span, double columnWidth)
+std::shared_ptr<const FloatingObject> Paginator::tableObject(int span, double columnWidth)
 {
     const TableIndex &ix = m_tables->index();
     if (!floatsTable(span)) return nullptr;
@@ -476,7 +476,7 @@ const FloatingObject *Paginator::tableObject(int span, double columnWidth)
     const uint env = qHash(m_doc->env.key()) ^ uint(qHash(story->characterCount()) * 31u);
     const auto cacheKey = std::make_tuple(sp.from, sp.to, story->revision(), int(std::lround(columnWidth * 100)), env);
     const auto found = m_tableObjects.find(cacheKey);
-    if (found != m_tableObjects.end()) return &found->second;
+    if (found != m_tableObjects.end()) return found->second;
     if (m_tableObjects.size() > 400) m_tableObjects.clear();
     const std::shared_ptr<TableLayout> table = m_tables->layout(span);
     double height = 0;
@@ -500,7 +500,7 @@ const FloatingObject *Paginator::tableObject(int span, double columnWidth)
     o.dy = p.y;
     o.gap = p.room;
     o.wrap = FloatingObject::Wrap::Square;
-    return &m_tableObjects.emplace(cacheKey, std::move(o)).first->second;
+    return m_tableObjects.emplace(cacheKey, std::make_shared<const FloatingObject>(std::move(o))).first->second;
 }
 
 QVector<Paginator::Anchor> Paginator::tableAnchors(const QVector<AnchorLine> &lines, double columnWidth)
@@ -521,7 +521,7 @@ QVector<Paginator::Anchor> Paginator::tableAnchors(const QVector<AnchorLine> &li
             const TableIndex::Span &sp = ix.spans()[size_t(span)];
             if (sp.to != ends) break;   // (not a table that ends there: that paragraph is not where it is set)
             ends = sp.from;
-            if (const FloatingObject *o = tableObject(span, columnWidth)) {
+            if (std::shared_ptr<const FloatingObject> o = tableObject(span, columnWidth)) {
                 Anchor a;
                 a.object = 1;   // (not the document's own: `frame` is the object)
                 a.pos = sp.from;

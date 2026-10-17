@@ -4537,6 +4537,40 @@ private Q_SLOTS:
             }
     }
 
+    // The paginator keeps the frames it has made for a few hundred edits, then lets them go; the page being laid out holds the ones it uses (a pointer to a frame that was let
+    // go is a use of freed memory, which the address sanitizer's build of this test finds). Typing past the cache's size with frames on the page, the pages stay right.
+    void framesInUseSurviveTheirCacheTurningOver()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 30, 31, {}, 30, 60);
+        FloatingObject proto;
+        proto.hRel = FloatingObject::Rel::Column;
+        proto.vRel = FloatingObject::Rel::Paragraph;
+        proto.hAlign = FloatingObject::Align::End;
+        proto.wrap = FloatingObject::Wrap::Square;
+        proto.gap = QMarginsF(9, 0, 9, 0);
+        addFrame(fd, 3, {QStringLiteral("frame one text")}, proto, 100);
+        addFrame(fd, 6, {QStringLiteral("frame two text")}, proto, 100);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        QTextCursor cur(fd.story());
+        for (int i = 0; i < 260; ++i) {
+            cur.setPosition(fd.story()->findBlockByNumber(20).position() + 3);
+            cur.insertText(QStringLiteral("x"));
+            QVERIFY(pg.pageCount() >= 2);
+            const auto page = pg.materialize(0);
+            QVERIFY(page);
+            if (i % 100 == 0) {
+                QVERIFY(frameBoxWith(*page, QStringLiteral("frame one text")));
+                QVERIFY(frameBoxWith(*page, QStringLiteral("frame two text")));
+            }
+        }
+        Paginator fresh(&fd);
+        const QString bad = audit::differenceFromFresh(pg, fresh);
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+    }
+
     // A file can have a frame of thousands of paragraphs: the page makes the frame of as many as it ever takes, and lays the rest of the text out as it does for any file.
     void aFrameOfThousandsOfParagraphsIsCutAndTheTextGoesOn()
     {
@@ -4751,6 +4785,36 @@ private Q_SLOTS:
         const auto m = pg.materialize(onPage);
         QVERIFY(m && !m->tables.isEmpty());
         QVERIFY2(m->tables[0]->height > height + 10, qPrintable(QStringLiteral("%1 then %2").arg(height).arg(m->tables[0]->height)));
+    }
+
+    // The same for the tables set at places: the objects made of them are let go from their cache while pages hold them.
+    void floatingTablesInUseSurviveTheirCacheTurningOver()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 30, 56, {}, 30, 60);
+        for (const int after : {8, 4}) {   // (both on the first page: the second is made while the first is held)
+            TestTable spec;
+            spec.rows = 2;
+            spec.cols = 2;
+            spec.columnWidth = 70;
+            spec.setTable = [](TableData &t) { TableData::Place p; p.across = TableData::Place::From::Margin; p.acrossSpec = TableData::Place::Spec::End; p.room = QMarginsF(8, 0, 8, 0); t.place = p; };
+            addTableAfter(fd, after, spec);
+        }
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        QTextCursor cur(fd.story());
+        for (int i = 0; i < 260; ++i) {
+            cur.setPosition(fd.story()->findBlockByNumber(26).position() + 3);
+            cur.insertText(QStringLiteral("x"));
+            QVERIFY(pg.pageCount() >= 2);
+            const auto page = pg.materialize(0);
+            QVERIFY(page);
+            if (i % 100 == 0) QVERIFY(!page->tables.isEmpty());
+        }
+        Paginator fresh(&fd);
+        const QString bad = audit::differenceFromFresh(pg, fresh);
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
     }
 
     // Tables set at places one after another, before one paragraph, are all drawn, side by side where they ask; and one at the end of the story (no paragraph after it) is left out.
