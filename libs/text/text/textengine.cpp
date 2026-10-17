@@ -751,6 +751,14 @@ static double scaledSize(double size, const LayoutEnv &env)
 
 namespace { static bool wordKnowsFamily(const QString &lower); }
 
+// Whether the word processor's machine has a family: the ones it measures (the tables of its fonts' lines and letters), the document's own fonts, and
+// the ones this machine has. The look-alikes JeffPub keeps for fonts a publisher's files ask for are not the fonts of that machine.
+static bool wordHasFamily(const QString &family, const LayoutEnv &env)
+{
+    const QString lower = family.toLower();
+    return wordKnowsFamily(lower) || env.familyAliases.contains(lower) || hasFamilyCached(family) || originalLetterWidths(family, false, false);
+}
+
 QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutEnv &env)
 {
     QTextCharFormat f = original;
@@ -762,9 +770,9 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
         bool changed = false;
         for (QString &family : families) {
             const QString lower = family.toLower();
-            if (family.isEmpty() || wordKnowsFamily(lower) || env.familyAliases.contains(lower) || hasFamilyCached(family) || !substituteFor(family).isEmpty() || substituteStretch(family) != 100) continue;
+            if (family.isEmpty() || wordHasFamily(family, env)) continue;
             const QString named = env.standIns.value(lower);
-            family = !named.isEmpty() && (wordKnowsFamily(named.toLower()) || hasFamilyCached(named)) ? named : QStringLiteral("Calibri");
+            family = !named.isEmpty() && wordHasFamily(named, env) ? named : QStringLiteral("Calibri");
             changed = true;
         }
         if (changed) f.setFontFamilies(families);

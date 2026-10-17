@@ -2303,6 +2303,26 @@ private Q_SLOTS:
             QVERIFY2(std::abs(lines[i].rect.height() - heights[i]) < 0.01, qPrintable(QStringLiteral("line %1 is %2 tall, not %3").arg(i).arg(lines[i].rect.height()).arg(heights[i])));
     }
 
+    // A font the file's font table gives an alternate for is set in that alternate when the word processor has it, whether or not this machine has it (a
+    // bundled look-alike stands in for it): an unknown serif face with Bookman Old Style as its alternate is not set in Calibri.
+    void aFontsAlternateIsKeptWhereTheWordProcessorHasIt()
+    {
+        LayoutEnv env;
+        env.wordLines = true;
+        env.standIns.insert(QStringLiteral("itc bookman light"), QStringLiteral("Bookman Old Style"));
+        env.standIns.insert(QStringLiteral("futura md bt"), QStringLiteral("Century Gothic"));
+        env.standIns.insert(QStringLiteral("no such face"), QStringLiteral("No Such Alternate"));
+        auto familyOf = [&](const QString &family) {
+            QTextCharFormat cf;
+            cf.setFontFamilies({family});
+            cf.setFontPointSize(10);
+            return resolveCharFormat(cf, env).fontFamilies().toStringList().value(0);
+        };
+        QCOMPARE(familyOf(QStringLiteral("ITC Bookman Light")), QStringLiteral("Bookman Old Style"));
+        QCOMPARE(familyOf(QStringLiteral("Futura Md BT")), QStringLiteral("Century Gothic"));
+        QCOMPARE(familyOf(QStringLiteral("No Such Face")), QStringLiteral("Calibri"));
+    }
+
     // The spaces and tabs that end a word processor's line take no part in its height, and a line that is only such blanks is as tall as the paragraph
     // mark's font makes it; blanks among the words count.
     void blanksAtTheEndOfAWordLineTakeNoPartInItsHeight()
