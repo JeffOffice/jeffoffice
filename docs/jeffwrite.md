@@ -87,8 +87,11 @@ deleting, moving, selecting, the clipboard, character and paragraph formatting, 
 `.docx` reading and writing in `libs/office/wml` (the XML tree, the model, styles with inheritance, numbering, sections, and everything the
 program doesn't edit kept as XML or as whole parts and written back where it was); and packaging behind a switch that is off. What
 JeffWrite shows of a table, a picture, a field, a header or footer, or a note is a stand-in or nothing; it keeps them. Not yet: the pieces of
-wave 3 (notes, headers and footers, page fields, anchored pictures) and wave 4 (tables), `.doc`, `.rtf`, and `.odt`, spelling, Find and
-Replace, the ruler, the Font dialog, and Word's own PDFs to measure the pages against.
+wave 3 (notes, headers and footers, page fields, anchored pictures) and wave 4 (tables), `.doc`, `.rtf`, and `.odt`, Find and
+Replace, the ruler, the Font dialog, and Word's own PDFs to measure the pages against. Two of the Preview's five basics came after wave 4 (October 17,
+2026): spelling as you type (a red wave under misspelled words, suggestions on right-click, and the Spelling pane on F7, checked a paragraph at a time for the
+pages in view) and printing (the File screen's Print page, with the printer, copies, collate, ranges, and a preview; printing and the PDF export draw every
+page through one function).
 
 ## Checking it
 

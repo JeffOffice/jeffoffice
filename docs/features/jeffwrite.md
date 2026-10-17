@@ -38,7 +38,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [~] **first release** Nothing in a file is lost: whatever JeffWrite can't edit yet (SmartArt, content-control bindings, custom XML, unknown elements, macros, embedded objects) is kept with the document and written back as it was
 - [~] **first release** Lines and pages break where Word breaks them in the sample documents, judged against Word's own PDFs of them *(shared: the measuring tools and the metric-compatible fonts built for JeffPub)*
 - [x] **first release** Bundled open fonts, with stand-ins that keep the widths of Calibri, Cambria, Arial, Times New Roman, and Courier New, so a document lays out the same on a computer without Microsoft's fonts
-- [~] **first release** Spelling and hyphenation work offline, in 12 languages, with no cloud service *(shared: the bundled dictionaries in libs/base/text)*
+- [~] **first release** Spelling and hyphenation work offline, in 12 languages, with no cloud service *(spelling works in JeffWrite, as you type and in the Spelling pane; hyphenation is not there yet)* *(shared: the bundled dictionaries in libs/base/text)*
 - [ ] **first release** **(alt)** Grammar and style checking that runs on your own computer, instead of Word's online Editor: Harper (open source, Apache-2.0), English first, other languages later (decided October 11, 2026)
 - [~] **1.0** EPUB export for e-book readers and stores, with chapters at each Heading 1, the contents from the headings, footnotes that pop up, and pictures and tables in place *(shared: JeffPub's EPUB writer in apps/pub/io)*
 - [~] **1.0** PDF with bookmarks from headings, tags for screen readers, and PDF/A; PDF/X-1a and PDF/X-4 for commercial printers, with a print check *(shared: JeffPub's PDF export)*
@@ -88,8 +88,8 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [ ] **later** Recover Text from Any File: open an unknown file and keep its readable text
 
 ### Print
-- [~] **first release** Print with printer choice, copies, collate, page ranges (all, current page, selection, custom, including Word's section syntax such as p2s3), one- or two-sided, orientation, paper size, margins, and printer properties *(shared: JeffPub's print)*
-- [~] **first release** Print preview with page navigation, zoom, one or many pages, and a shrink-to-fit-one-page check *(shared: JeffPub's print preview)*
+- [~] **first release** Print with printer choice, copies, collate, page ranges (all, current page, selection, custom, including Word's section syntax such as p2s3), one- or two-sided, orientation, paper size, margins, and printer properties *(done: the printer or a PDF file, copies, collate, all pages, the current page, and custom ranges such as 1-3, 5, 8-, and -2, with each page on the paper and the way up its section sets; missing: selection, the p2s3 syntax, one- or two-sided, margins, and printer properties)* *(shared: JeffPub's print)* **(needed for the Preview)**
+- [~] **first release** Print preview with page navigation, zoom, one or many pages, and a shrink-to-fit-one-page check *(done: each page as it will print, one at a time, with arrows; missing: zoom, many pages, and the check)* *(shared: JeffPub's print preview)* **(needed for the Preview)**
 - [ ] **1.0** Print only odd or even pages, in reverse order, and several pages on a sheet or scaled to a paper size
 - [ ] **1.0** What prints: markup (tracked changes and comments) or without it, hidden text, background colors and pictures, document properties, field codes, drawings, and a list of the markup; fields updated before printing
 - [~] **1.0** Book fold printing: a booklet in folding order, from the page-setup choice under Layout *(shared: JeffPub's booklet printing)*
@@ -107,7 +107,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 ### Options
 - [~] **first release** General: user name and initials, light or dark interface, display language, usage statistics (opt in), and update checks *(shared: libs/shell settings)*
 - [~] **first release** Display: show white space between pages, formatting marks, hidden text, object anchors, optional hyphens, and gridlines; print options *(shared: JeffPub's display options)*
-- [~] **first release** Proofing: AutoCorrect (replacement list, capitalization rules, smart quotes), AutoFormat as you type, spelling as you type, ignoring words in capitals or with numbers, and custom dictionaries *(shared: JeffPub's Proofing options)*
+- [~] **first release** Proofing: AutoCorrect (replacement list, capitalization rules, smart quotes), AutoFormat as you type, spelling as you type, ignoring words in capitals or with numbers, and custom dictionaries *(in JeffWrite the choices for spelling as you type and for skipping capitals and numbers work; those for AutoCorrect and AutoFormat do nothing yet)* *(shared: JeffPub's Proofing options)*
 - [ ] **1.0** Proofing exceptions (words AutoCorrect must leave alone), grammar settings, and the main dictionary for each language
 - [~] **first release** Save: default format, AutoRecover interval, default folder, and Embed fonts in the file *(shared: JeffPub's Save options)*
 - [ ] **1.0** Language: editing languages and the display language, with the default language for new text
@@ -313,8 +313,8 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 ## Review tab
 
 ### Proofing
-- [~] **first release** Spelling as you type (wavy underlines, suggestions on right-click, Ignore All, Add to Dictionary, AutoCorrect), the Spelling pane, custom and exclusion dictionaries, and "ignore words in capitals or with numbers" *(shared: libs/shell spelling and libs/base/text dictionaries, 12 languages)*
-- [~] **first release** Set the proofing language of selected text, mark text "do not check spelling," and detect the language as you type; the language shows in the status bar *(shared: JeffPub's language setting)*
+- [~] **first release** Spelling as you type (wavy underlines, suggestions on right-click, Ignore All, Add to Dictionary, AutoCorrect), the Spelling pane, custom and exclusion dictionaries, and "ignore words in capitals or with numbers" *(done: red wavy underlines, suggestions on right-click, Ignore All, Add to Dictionary, the Spelling pane (F7, Review > Spelling & Grammar) with Change, Change All, Ignore, Ignore All, and Add, and skipping capitals and words with numbers; missing: AutoCorrect, exclusion dictionaries and editing the custom one, and underlines in tables, headers, footers, and notes)* *(shared: libs/shell spelling and libs/base/text dictionaries, 12 languages)* **(needed for the Preview)**
+- [~] **first release** Set the proofing language of selected text, mark text "do not check spelling," and detect the language as you type; the language shows in the status bar *(done: the language of each run and "do not check spelling" are read from the file and spelling follows them; missing: setting them, detecting the language as you type, and the status bar)* *(shared: JeffPub's language setting)*
 - [~] **first release** Word Count: pages, words, characters with and without spaces, paragraphs, and lines, with or without text boxes, footnotes, and endnotes; the count of a selection in the status bar
 - [~] **1.0** **(alt)** Thesaurus and Research: synonyms and related words offline, in place of Microsoft's online Researcher and Insights *(shared: JeffPub's thesaurus)*
 - [ ] **1.0** Read Aloud with the system's voices: from the cursor, with the current word highlighted, and a speed and voice choice
@@ -446,7 +446,7 @@ The tabs that appear only while something is selected or being edited: a table, 
 What a right-click offers depends on what is under the pointer. The commands are the ones the ribbon already holds, put where the original puts them.
 
 - [ ] **first release** On text: Cut, Copy, and Paste Options (keep the source formatting, merge formatting, or keep text only), Font, Paragraph, Bullets and Numbering, Hyperlink, and New Comment
-- [ ] **first release** On a word the spelling check flags: suggestions, Ignore All, Add to Dictionary, and the AutoCorrect options
+- [~] **first release** On a word the spelling check flags: suggestions, Ignore All, Add to Dictionary, and the AutoCorrect options *(done: suggestions, Ignore All, and Add to Dictionary; missing: the AutoCorrect options)* **(needed for the Preview)**
 - [ ] **first release** In a table: Insert and Delete for rows, columns, and cells, Select, Merge Cells, Split Cells, Borders and Shading, AutoFit, and Table Properties
 - [ ] **1.0** On a picture, shape, or text box: Cut, Copy, Paste, Wrap Text, Bring to Front and Send to Back, Group, Edit Alt Text, Size and Position, and Format
 - [ ] **1.0** On a field, a link, a footnote, or a tracked change: Update Field, Edit Field, and Toggle Field Codes; Open, Edit, and Remove Hyperlink; Go to a note; and Accept or Reject a change
@@ -510,7 +510,7 @@ What a right-click offers depends on what is under the pointer. The commands are
 
 ### Text and languages
 - [~] **first release** Complex scripts and bidirectional text (Arabic, Hebrew, Indic, Thai), symbol fonts (Wingdings, Symbol) mapped to their letters, and a font fallback when a letter is missing *(right-to-left: ours 4%, public 10%; shared: Qt shaping in libs/text)*
-- [~] **first release** Each run carries its language; spelling and hyphenation follow it, and "no proofing" is kept *(shared: libs/base/text)*
+- [~] **first release** Each run carries its language; spelling and hyphenation follow it, and "no proofing" is kept *(done: spelling follows the run's language, else its style's, else the document's default, and "no proofing" is kept; hyphenation does not follow it yet)* *(shared: libs/base/text)*
 - [ ] **later** East Asian line breaking (kinsoku), ruby, vertical text, and half- and full-width forms
 
 ### Speed
