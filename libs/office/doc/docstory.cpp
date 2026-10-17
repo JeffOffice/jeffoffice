@@ -219,7 +219,16 @@ void StoryWriter::paragraph(qint64 first, qint64 last, bool terminated)
 
     Pap pap;
     int istd = 0;
-    if (const BinRun *pr = c.papBin.find(fcEnd)) {
+    // A paragraph that has paragraph marks inside it (they are line breaks) is as the stretch it begins in has it, not as the one it ends in.
+    const BinRun *runOf = c.papBin.find(fcEnd);
+    if (terminated && last > first) {
+        bool inside = false;
+        for (qint64 q = first; q < last && !inside; ++q) inside = T[q] == QChar(0x0D);
+        if (inside)
+            if (const Piece *startPiece = c.pieces.at(first))
+                if (const BinRun *begun = c.papBin.find(quint32(PieceTable::fcOf(*startPiece, first)))) runOf = begun;
+    }
+    if (const BinRun *pr = runOf) {
         istd = pr->istd;
         if (pr->off >= 0) pap.apply(c.wd.sub(pr->off, pr->len), c.data);
     }

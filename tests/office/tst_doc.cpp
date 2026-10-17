@@ -109,6 +109,17 @@ private Q_SLOTS:
         QCOMPARE(bodyTexts(d), (QStringList{QStringLiteral("one\u2028two"), QStringLiteral("three")}));
     }
 
+    void aParagraphWithMarksInsideHasThePropertiesItBeginsWith()
+    {
+        // The stretches of properties don't line up with the marks: one covers "one", the next the mark and a space, the last "two" and its mark.
+        DocWriter w = simple(QStringLiteral("one\r two\r"));
+        w.paras = {{0, 3, 0, sprm1(sprm::align, 1)}, {3, 5, 0, QByteArray()}, {5, 9, 0, sprm1(sprm::align, 2)}};
+        Document d;
+        QVERIFY(read(w.build(), &d));
+        QCOMPARE(bodyTexts(d), QStringList{QStringLiteral("one\u2028 two")});
+        QCOMPARE(d.body[0].para.props.jc, QStringLiteral("center"));
+    }
+
     void everyPartOfThePackageIsWellFormedXml()
     {
         // Names and texts out of a file may hold anything: control characters, quotes, and angle brackets.
