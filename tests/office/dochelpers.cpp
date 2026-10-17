@@ -838,7 +838,7 @@ QByteArray DocWriter::build() const
     }
 
     // The header.
-    put16(wd, 0, 0xA5EC);
+    put16(wd, 0, oldVersion ? 0xA5DC : 0xA5EC);   // (the header of the 1993 and 1995 programs has its own mark)
     put16(wd, 2, oldVersion ? 0x65 : 0xC1);
     put16(wd, 10, 0x0200 | (password ? 0x0100 : 0));
     put16(wd, 32, 14);
