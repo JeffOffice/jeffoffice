@@ -3265,7 +3265,18 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         // (The first paragraph of a stretch may have lines that went before it.)
         const int firstBreak = first ? m_span.firstBreakAfter : -1;
         // A paragraph whose text and mark are both hidden is no paragraph: it takes no room.
-        if (!(env.wordLines && B->disp.isEmpty() && (b.charFormat().boolProperty(tp::HiddenText) || apart) && !tail)) placeLines(false, firstBreak);
+        // A paragraph that shows nothing and follows one that shows text and whose mark a tracked change deleted is the rest of that one (the two are one
+        // paragraph without the mark): it takes no room.
+        auto showsText = [](const QTextBlock &x) {
+            for (QTextBlock::iterator it = x.begin(); !it.atEnd(); ++it) {
+                const QTextCharFormat cf = it.fragment().charFormat();
+                if (!cf.boolProperty(tp::HiddenText) && cf.stringProperty(tp::Field) != QLatin1String("raw:")) return true;
+            }
+            return false;
+        };
+        const bool restOfDeleted = env.wordLines && B->disp.isEmpty() && !tail && !b.charFormat().boolProperty(tp::HiddenText) && b.previous().isValid() &&
+                                   b.previous().charFormat().boolProperty(tp::HiddenText) && showsText(b.previous());
+        if (!(env.wordLines && B->disp.isEmpty() && (b.charFormat().boolProperty(tp::HiddenText) || apart) && !tail) && !restOfDeleted) placeLines(false, firstBreak);
         // Where each line landed: the first line in another column or box.
         auto splitAt = [&] {
             for (int i = 1; i < B->lines.size(); ++i)

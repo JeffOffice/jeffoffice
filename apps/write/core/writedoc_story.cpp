@@ -145,26 +145,6 @@ bool markIsDeleted(const ParaProps &p)
     return false;
 }
 
-// Whether a paragraph shows anything of its own once what the tracked changes deleted is left out: text, or a picture, a break, a note's mark.
-bool showsContent(const QVector<Inline> &content)
-{
-    int deleted = 0;
-    for (const Inline &in : content) {
-        if (in.kind == Inline::ParaAtom) {
-            if (isDeletedRevision(in.tag)) deleted += in.role == Inline::Open ? 1 : in.role == Inline::Close ? -1 : 0;
-            continue;
-        }
-        if (deleted > 0) continue;
-        if (in.kind == Inline::Text) {
-            if (!in.text.isEmpty()) return true;
-        } else if (in.tag == QLatin1String("drawing") || in.tag == QLatin1String("pict") || in.tag == QLatin1String("object") || in.tag == QLatin1String("footnoteReference") ||
-                   in.tag == QLatin1String("endnoteReference") || in.tag == QLatin1String("sym") || in.tag == QLatin1String("br") || in.tag == QLatin1String("ptab")) {
-            return true;
-        }
-    }
-    return false;
-}
-
 // What a format is for text that a tracked change deleted: left out of the lines as hidden text is, but still the story's (the file keeps it). The format
 // says whether it hid the text already (the file's own w:vanish, or its style's): that is what is written back, and the hiding that deleting adds is not.
 QTextCharFormat asDeleted(QTextCharFormat format)
@@ -425,8 +405,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             mark.style = direct.markRun->style;
         }
         QTextCharFormat markFormat = charFormatOf(mark, thm, direct.markRun ? &*direct.markRun : nullptr);
-        // A paragraph whose mark a tracked change deleted, with nothing else that shows, is gone from the text as it stands (and ends no section).
-        if (!header && !direct.section && markIsDeleted(direct) && !showsContent(p.content)) markFormat = asDeleted(markFormat);
+        // A paragraph whose mark a tracked change deleted is joined to the next as the text stands (and ends no section).
+        if (!header && !direct.section && markIsDeleted(direct)) markFormat = asDeleted(markFormat);
 
         // A list: the item's counter, and the marker where Qt's own counting can't make it.
         QTextListFormat lf;

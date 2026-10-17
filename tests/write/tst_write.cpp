@@ -4157,6 +4157,27 @@ private Q_SLOTS:
         QVERIFY2(std::abs(spaced - plain - 20) < 0.01, qPrintable(QStringLiteral("body top %1 against %2").arg(spaced).arg(plain)));
     }
 
+    // A paragraph whose mark a tracked change deleted is joined to the next: an empty paragraph after one that shows text is the rest of it and takes no room,
+    // but after one that shows nothing (the deleted paragraph itself takes none) it is a blank line as it was.
+    void aParagraphAfterOneWithADeletedMarkThatShowsNothingTakesNoRoom()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        auto para = [&](const char *text, bool markDeleted) {
+            return "<w:p><w:pPr>" + QByteArray(markDeleted ? deleted : QByteArray()) + "</w:pPr>" + (*text ? "<w:r><w:t>" + QByteArray(text) + "</w:t></w:r>" : QByteArray()) + "</w:p>";
+        };
+        auto gap = [&](const QByteArray &body) {
+            auto doc = open(makeDocx(body, kStyles));
+            const auto lines = doc ? doc->pager().lines(0) : QVector<StoryLayout::LineBrief>();
+            return lines.size() >= 2 ? lines.last().rect.top() - lines.first().rect.top() : -1.0;
+        };
+        const double normal = gap(para("alpha", false) + para("", false) + para("gamma", false));   // (the text, a blank line, the text)
+        const double joined = gap(para("alpha", true) + para("", false) + para("gamma", false));   // (the blank line is the rest of "alpha")
+        QVERIFY2(normal > 0 && joined > 0, "no lines");
+        QVERIFY2(std::abs(joined * 2 - normal) < 0.01, qPrintable(QStringLiteral("a line less: %1 against %2").arg(joined).arg(normal)));
+        const double nothing = gap(para("alpha", false) + para("", true) + para("", false) + para("gamma", false));   // (alpha, one blank line, gamma)
+        QVERIFY2(std::abs(nothing - normal) < 0.01, qPrintable(QStringLiteral("a deleted empty paragraph is no line: %1 against %2").arg(nothing).arg(normal)));
+    }
+
     // What a paste from another document brings that points into the first's notes and objects points at nothing of the second's: a reference to a note is
     // left out (its text isn't there), and an object's place on the page isn't carried (the object isn't there); the rest of what was copied is.
     void aPasteFromAnotherDocumentLeavesNoDanglingNoteOrObject()
