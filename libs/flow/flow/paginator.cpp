@@ -44,7 +44,7 @@ void markTotals(MaterializedPage *out, const Document &d)
 
 // What a paragraph asks of the pages.
 struct Paginator::BlockFlags {
-    bool breakBefore = false, breakAfter = false, sectionAfter = false, keepNext = false, widow = false;
+    bool breakBefore = false, breakAfter = false, sectionAfter = false, keepNext = false, widow = false, outOfFlow = false;
 };
 
 // A page laid out: the story's lines on it, and where it ended.
@@ -271,6 +271,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
             f.sectionAfter = bf.boolProperty(fp::SectionBreakAfter);
             f.keepNext = bf.boolProperty(tp::KeepWithNext);
             f.widow = bf.boolProperty(tp::WidowControl);
+            f.outOfFlow = bf.boolProperty(tp::OutOfFlow);
             it = cache.insert(blockStart, f);
         }
         return it.value();
@@ -533,6 +534,9 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
             }
             kept = 0;
             while (kept < run.lines.size() && run.lines[kept].frame >= run.firstFrame && run.lines[kept].frame < over) ++kept;
+            // The empty paragraph that ends a section before a continuous one takes no room: it is on the page the text before it ends on, though the engine, finding no
+            // line's room left in the frame, put it in the next.
+            while (kept < run.lines.size() && run.lines[kept].frame >= over && run.lines[kept].line == 0 && flags(run.lines[kept].block).outOfFlow && flags(run.lines[kept].block).sectionAfter) ++kept;
             run.firstSpace = space;
             // Space before the first paragraph as tall as the page, or nearly, leaves no room for a line: it is cut to what the page holds (none).
             if (kept > 0 || !space || run.lines.isEmpty()) break;
@@ -712,6 +716,9 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         // A break after the text's last line: the pages go on with one that has nothing on it. Or notes go on past the text's last line: with pages of their own.
         run.hasNext = true;
         run.next.pos = m_doc->story()->characterCount();
+        // (The text goes on after a section's last, empty paragraph that took the page's last place, though no line's room was left.)
+        const QTextBlock goesOn = c > 0 && flags(L[c - 1].block).outOfFlow ? m_doc->story()->findBlock(L[c - 1].pos).next() : QTextBlock();
+        if (goesOn.isValid()) run.next.pos = goesOn.position();
         run.next.skip = 0;
         run.next.hard = true;
         run.next.section = nextSection;

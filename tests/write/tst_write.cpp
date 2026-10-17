@@ -4368,6 +4368,27 @@ private Q_SLOTS:
         QCOMPARE(int(apart.size()), 2);
     }
 
+    // The empty paragraph that ends a section before a continuous section stays on the page the text before it ends on, even when the page has no room left for its
+    // line (it takes none): the section after, which needs a page of its own for its other margins, is the second page, not the third.
+    void anEmptyBreakParagraphAtTheFootOfAFullPageStaysThere()
+    {
+        auto line = [](const char *text) {
+            return "<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/></w:pPr><w:r><w:t>" + QByteArray(text) + "</w:t></w:r></w:p>";
+        };
+        QByteArray body;
+        for (int i = 0; i < 50; ++i) body += line("Filling");   // (600 points of the 648 of the text area)
+        const QByteArray margins = "<w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/>";
+        // (The break paragraph's own line is 60 points: more than the 48 that are left.)
+        body += "<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"1200\" w:lineRule=\"exact\"/><w:sectPr>" + margins + "</w:sectPr></w:pPr></w:p>" + line("Second");
+        const QByteArray last = "<w:sectPr><w:type w:val=\"continuous\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"2160\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto doc = open(makeDocxWithParts(body, last, {}));
+        QVERIFY(doc);
+        QCOMPARE(doc->pager().pageCount(), 2);
+        const auto second = doc->pager().lines(1);
+        QVERIFY(!second.isEmpty());
+        QVERIFY2(std::abs(second[0].rect.top()) < 0.01, qPrintable(QString::number(second[0].rect.top())));   // (the section after begins at the top of its page)
+    }
+
     // A symbol of a font that isn't there is its character in the stand-in (Calibri): the line it is on is Calibri's, taller than Times New Roman's.
     void aSymbolOfAMissingFontMakesItsLineTheStandIns()
     {
