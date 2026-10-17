@@ -48,8 +48,7 @@ public:
     QList<const QTextDocument *> storyDocs() const override;
     double noteSeparatorHeight() const override { return separator; }
     double noteNoticeHeight() const override { return notice; }
-    double separator = 0, notice = 0;
-    double separatorMeasured = 0, noticeMeasured = 0;   // the heights as the file sets them; `separator` and `notice` are those cut to what the pages can spare (WriteDoc::limitNoteSeparator)
+    double separator = 0, notice = 0;   // the heights of the file's separator and continuation notice (the pages cut them: FrameSpec::noteRoomLimit)
 
 private:
     WriteDoc *m_doc;
@@ -174,7 +173,6 @@ private:
     // The footnotes of the file (its footnotes part), kept as what they hold and made into stories when a page asks for one ("fn" and the note's Id).
     void loadNotes();
     void measureNoteSeparator();
-    void limitNoteSeparator();
     const QTextDocument *noteStory(const QString &id);
     friend class NoteFields;
     void exportBody(QVector<office::wml::Block> *body);

@@ -2014,9 +2014,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     QVector<int> carry;           // footnotes (in m_notes) with text left for the next column, in order
     QVector<int> seeded;          // those a stretch is given, until the lines that came before its first frame are done
     // (A word processor's notes follow a paragraph's own height under the text's last line and have no gap but their own spacing; their numbers begin their text.)
-    const double separatorH = env.wordLines && notesDoc ? notesDoc->noteSeparatorHeight() : 0.0;
+    const double roomLimit = frames.isEmpty() ? 0.0 : frames.first().noteRoomLimit;
+    auto limited = [&](double h) { return roomLimit > 0 ? std::min(h, roomLimit) : h; };
+    const double separatorH = env.wordLines && notesDoc ? limited(notesDoc->noteSeparatorHeight()) : 0.0;
     // (A word processor keeps the room of the file's continuation notice under the last note: the gap above the notes holds it, and they are set that much higher.)
-    const double noticeGap = (env.wordLines && notesDoc ? notesDoc->noteNoticeHeight() : 0.0) * scale;
+    const double noticeGap = (env.wordLines && notesDoc ? limited(notesDoc->noteNoticeHeight()) : 0.0) * scale;
     const double ruleGap = (separatorH > 0 ? separatorH : 9) * scale + noticeGap, noteGap = env.wordLines ? 0.0 : 2 * scale;
     m_ruleGap = ruleGap;
     m_noticeGap = noticeGap;

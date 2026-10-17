@@ -434,7 +434,6 @@ void WriteDoc::syncSections()
     m_sectionKeys = keys;
     if (changed) {
         attachHeaders(from);
-        limitNoteSeparator();
         if (m_pager) m_pager->invalidateFrom(from);
         Q_EMIT sectionsChanged();
     }
