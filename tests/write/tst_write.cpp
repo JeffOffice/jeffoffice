@@ -4247,6 +4247,40 @@ private Q_SLOTS:
         QVERIFY2(after.contains("<w:smallCaps w:val=\"0\"/>") && !after.contains("<w:caps"), after.constData());
     }
 
+    // Bold in a character style over a paragraph style that is bold turns it off, as it does in the original program; a run that says bold itself over both is bold, and is saved
+    // saying so: the file's own bold is not left out as if it were the style's.
+    void aToggleOfACharacterStyleFlipsTheParagraphStylesAndADirectOneStaysSaid()
+    {
+        const QByteArray styles = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                                  "<w:style w:type=\"paragraph\" w:styleId=\"Head\"><w:name w:val=\"Head\"/><w:basedOn w:val=\"Normal\"/><w:rPr><w:b/><w:i/></w:rPr></w:style>"
+                                  "<w:style w:type=\"character\" w:styleId=\"Strong\"><w:name w:val=\"Strong\"/><w:rPr><w:b/></w:rPr></w:style>";
+        const QByteArray original = makeDocx("<w:p><w:pPr><w:pStyle w:val=\"Head\"/></w:pPr><w:r><w:rPr><w:rStyle w:val=\"Strong\"/></w:rPr><w:t>flipped</w:t></w:r>"
+                                             "<w:r><w:rPr><w:rStyle w:val=\"Strong\"/><w:b/></w:rPr><w:t>said</w:t></w:r></w:p>",
+                                             styles);
+        auto looks = [](WriteDoc &doc) {
+            QTextCursor c(doc.story());
+            c.setPosition(3);
+            const QTextCharFormat first = c.charFormat();
+            c.setPosition(doc.story()->toPlainText().indexOf(QLatin1String("said")) + 2);
+            return QVector<QTextCharFormat>{first, c.charFormat()};
+        };
+        auto doc = open(original);
+        QVERIFY(doc);
+        QVector<QTextCharFormat> f = looks(*doc);
+        QVERIFY2(f[0].fontWeight() < QFont::DemiBold && f[0].fontItalic(), "the character style's bold flips the heading's");
+        QVERIFY2(f[1].fontWeight() >= QFont::DemiBold && f[1].fontItalic(), "bold said by the run itself");
+        const QByteArray saved = doc->toDocx();
+        const QByteArray x = documentXml(saved);
+        QVERIFY2(x.contains("<w:rStyle w:val=\"Strong\"/><w:b/></w:rPr><w:t xml:space=\"preserve\">said"), x.constData());
+        QVERIFY2(x.contains("<w:rPr><w:rStyle w:val=\"Strong\"/></w:rPr><w:t xml:space=\"preserve\">flipped"), x.constData());
+        const QStringList loss = rt::lossProblems(original, saved);
+        QVERIFY2(loss.isEmpty(), qPrintable(loss.join(QLatin1String("; "))));
+        auto back = open(saved);
+        QVERIFY(back);
+        f = looks(*back);
+        QVERIFY(f[0].fontWeight() < QFont::DemiBold && f[1].fontWeight() >= QFont::DemiBold);
+    }
+
     // An empty paragraph that ends a section, when the next section is continuous, takes no room; before a section on a page of its own it does.
     void anEmptyBreakParagraphBeforeAContinuousSectionTakesNoRoom()
     {
