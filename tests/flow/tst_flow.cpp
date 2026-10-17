@@ -2249,6 +2249,50 @@ private Q_SLOTS:
         QVERIFY(std::abs(old[0].rect.height() - heights[0]) > 0.5);
     }
 
+    // Each face of the fonts a word processor measures has its own Windows ascent and descent, from the font's tables: Comic Sans MS and Palatino Linotype
+    // are not set in Calibri's line, Book Antiqua Bold's line is shorter than its regular face's, and Bookman Old Style Italic's baseline is its own ascent
+    // below the line's top. A line is the Windows ascent and descent plus the header's gap less what they already hold beyond the header's own.
+    void wordLinesOfMeasuredFacesAreTheirOwn()
+    {
+        struct Face { const char *family; double size; bool bold, italic; int winAscent, winDescent, ascent, descent, gap; };
+        const Face faces[] = {
+            {"Comic Sans MS", 11, false, false, 2257, 597, 2257, 597, 0},
+            {"Palatino Linotype", 10, true, false, 2150, 613, 1499, 582, 682},
+            {"Book Antiqua", 12, false, false, 1967, 578, 1891, 578, 0},
+            {"Book Antiqua", 12, true, false, 1891, 543, 1891, 578, 0},
+            {"Bookman Old Style", 10, false, true, 1791, 475, 1929, 475, 0},
+            {"Bookman Old Style", 10, false, false, 1831, 473, 1929, 475, 0},
+            // (The math font's Windows ascent and descent, 6383 and 5045 units, are for stacking formulas: a line of its text is the header's, 1595 and 455.)
+            {"Cambria Math", 10, false, false, 1595, 455, 1595, 455, 353},
+        };
+        auto doc = std::make_unique<QTextDocument>();
+        QTextCursor c(doc.get());
+        for (int i = 0; i < int(std::size(faces)); ++i) {
+            QTextCharFormat cf;
+            cf.setFontFamilies({QString::fromLatin1(faces[i].family)});
+            cf.setFontPointSize(faces[i].size);
+            if (faces[i].bold) cf.setFontWeight(QFont::Bold);
+            cf.setFontItalic(faces[i].italic);
+            if (i == 0) c.setBlockCharFormat(cf); else c.insertBlock(QTextBlockFormat(), cf);
+            c.insertText(QStringLiteral("Line %1").arg(i), cf);
+        }
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(doc.get(), {plainFrame(400, 700)}, env);
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(lines.size(), int(std::size(faces)));
+        double top = 0;
+        for (int i = 0; i < int(std::size(faces)); ++i) {
+            const Face &f = faces[i];
+            const double leading = std::max(0, f.gap - ((f.winAscent + f.winDescent) - (f.ascent + f.descent)));
+            const double height = (f.winAscent + f.winDescent + leading) / 2048.0 * f.size;
+            QVERIFY2(std::abs(lines[i].rect.height() - height) < 0.01, qPrintable(QStringLiteral("%1 (line %2) is %3 tall, not %4").arg(f.family).arg(i).arg(lines[i].rect.height()).arg(height)));
+            QVERIFY2(std::abs(lines[i].baseline - (top + f.winAscent / 2048.0 * f.size)) < 0.02, qPrintable(QStringLiteral("%1 (line %2): baseline at %3, not %4").arg(f.family).arg(i).arg(lines[i].baseline).arg(top + f.winAscent / 2048.0 * f.size)));
+            top += height;
+        }
+    }
+
     // A family that isn't on the machine is set as its stand-in is, Calibri's line; Times and Helvetica are the names of Times New Roman and Arial.
     void wordLinesOfMissingFamiliesAreTheStandIns()
     {
