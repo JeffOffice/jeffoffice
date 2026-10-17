@@ -187,6 +187,48 @@ ColorPopup::ColorPopup(const ColorScheme &s, bool allowNone, const QString &none
     v->addWidget(drop);
 }
 
+QWidget *colorGridWidget(const ColorScheme &scheme, const std::function<void(const ColorRef &)> &picked, QWidget *parent)
+{
+    auto *w = new QWidget(parent);
+    auto *v = new QVBoxLayout(w);
+    v->setContentsMargins(8, 4, 8, 4);
+    v->setSpacing(2);
+    auto label = [&](const QString &t) {
+        auto *l = new QLabel(t, w);
+        QFont f = l->font();
+        f.setBold(true);
+        f.setPointSizeF(f.pointSizeF() * 0.9);
+        l->setFont(f);
+        v->addWidget(l);
+    };
+    auto swatch = [&](const ColorRef &c) {
+        auto *b = new Swatch(c.resolve(scheme), w);
+        b->setToolTip(c.kind() == ColorRef::Scheme ? c.displayName() : c.resolve(scheme).name(QColor::HexRgb).toUpper());
+        b->setAccessibleName(b->toolTip());
+        QObject::connect(b, &QToolButton::clicked, w, [c, picked] { picked(c); });
+        return b;
+    };
+    label(QCoreApplication::translate("jp::ColorPopup", "Scheme Colors"));
+    auto *grid = new QGridLayout();
+    grid->setSpacing(0);
+    for (int slot = 0; slot < SlotCount; ++slot) {
+        grid->addWidget(swatch(ColorRef::scheme(slot)), 0, slot);
+        const int tints[] = {20, 40, 60, 80};
+        for (int i = 0; i < 4; ++i) grid->addWidget(swatch(ColorRef::scheme(slot, tints[i])), i + 2, slot);
+        grid->addWidget(swatch(ColorRef::scheme(slot, 0, 30)), 6, slot);
+    }
+    grid->setRowMinimumHeight(1, 4);
+    v->addLayout(grid);
+    label(QCoreApplication::translate("jp::ColorPopup", "Standard Colors"));
+    auto *row = new QHBoxLayout();
+    row->setSpacing(0);
+    const char *standard[] = {"#C00000", "#FF0000", "#FFC000", "#FFFF00", "#92D050", "#00B050", "#00B0F0", "#0070C0", "#002060", "#7030A0", "#000000", "#FFFFFF"};
+    for (const char *c : standard) row->addWidget(swatch(ColorRef::rgb(QColor(c))));
+    row->addStretch(1);
+    v->addLayout(row);
+    return w;
+}
+
 QWidget *ColorPopup::swatch(const ColorRef &c, const QColor &shown, const QString &tip)
 {
     auto *b = new Swatch(shown, this);
@@ -287,7 +329,11 @@ void ColorButton::paintEvent(QPaintEvent *e)
     p.drawRoundedRect(r, 6, 6);
     // Swatch.
     const QRectF sw(r.left() + 8, r.center().y() - 8, 26, 16);
-    if (m_current.isNone()) {
+    if (m_mixed) {
+        p.setPen(QPen(dk ? QColor(0x80, 0x88, 0x94) : QColor(0xA0, 0xA6, 0xB0), 1, Qt::DashLine));
+        p.setBrush(Qt::NoBrush);
+        p.drawRoundedRect(sw, 3, 3);
+    } else if (m_current.isNone()) {
         p.setPen(QPen(dk ? QColor(0x80, 0x88, 0x94) : QColor(0xA0, 0xA6, 0xB0), 1));
         p.setBrush(Qt::NoBrush);
         p.drawRoundedRect(sw, 3, 3);
@@ -300,7 +346,8 @@ void ColorButton::paintEvent(QPaintEvent *e)
     }
     // Name.
     QString name;
-    if (m_current.isNone()) name = m_noneLabel.isEmpty() ? tr("No Color") : m_noneLabel;
+    if (m_mixed) name = QString();
+    else if (m_current.isNone()) name = m_noneLabel.isEmpty() ? tr("No Color") : m_noneLabel;
     else if (m_current.kind() == ColorRef::Scheme) name = slotName(m_current.slot());
     else name = m_current.resolve(m_scheme).name(QColor::HexRgb).toUpper();
     p.setPen(isEnabled() ? uiText() : QColor(0x9C, 0xA3, 0xAF));
@@ -326,6 +373,7 @@ void ColorButton::openPopup()
     }
     connect(pop, &ColorPopup::picked, this, [this](const ColorRef &c) {
         m_current = c;
+        m_mixed = false;
         refreshIcon();
         Q_EMIT colorPicked(c);
     });
@@ -333,6 +381,7 @@ void ColorButton::openPopup()
         pickColorFromWindow(window(), [this](const QColor &c) {
             ColorPopup::addRecent(c);
             m_current = ColorRef::rgb(c);
+            m_mixed = false;
             refreshIcon();
             Q_EMIT colorPicked(m_current);
         });

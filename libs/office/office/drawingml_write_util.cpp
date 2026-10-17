@@ -92,6 +92,19 @@ qint64 percent(double fraction)
     return rounded(fraction * 100000.0);
 }
 
+void writeDecorative(QXmlStreamWriter &w)
+{
+    w.writeStartElement(QStringLiteral("a:extLst"));
+    w.writeStartElement(QStringLiteral("a:ext"));
+    w.writeAttribute(QStringLiteral("uri"), QStringLiteral("{C183D7F6-B498-43B3-948B-1728B52AA6E4}"));
+    w.writeStartElement(QStringLiteral("adec:decorative"));
+    w.writeAttribute(QStringLiteral("xmlns:adec"), QStringLiteral("http://schemas.microsoft.com/office/drawing/2017/decorative"));
+    w.writeAttribute(QStringLiteral("val"), QStringLiteral("1"));
+    w.writeEndElement();
+    w.writeEndElement();
+    w.writeEndElement();
+}
+
 QString clean(const QString &text)
 {
     QString out;

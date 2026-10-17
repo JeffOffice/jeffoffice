@@ -3,6 +3,7 @@
 // edited with its notes below, and the status bar.
 
 #include "app/appwindow.h"
+#include "app/formatpane.h"
 #include "app/slideshow.h"
 
 #include <QHash>
@@ -116,6 +117,13 @@ public:
     // numbers by the shapes show while it, or the tab, does (deckwindow_animations.cpp).
     AnimationPane *animationPane() const { return m_animPane; }
     void showAnimationPane(bool on = true);
+    // The Format Shape pane on the right (Shape Format tab > Format Pane, Format Shape on the slide's right-click menu, Ctrl+1): the fill and line,
+    // effects, size and position, text options, picture, and alt text of what is selected. It is open or shut as the person left it, in this window and
+    // the next (deckwindow_format.cpp). formatSelection opens it on a page (Ctrl+1 on a picture opens the Picture page) and puts the keyboard on its tabs.
+    FormatPane *formatPane() const { return m_formatPane; }
+    QDockWidget *formatDock() const { return m_formatDock; }
+    void showFormatPane(bool on = true);
+    void formatSelection(FormatPane::Tab tab);
     // What the ribbon file named that the window doesn't have (empty when
     // the ribbon built cleanly).
     QString ribbonErrors() const { return m_ribbonErrors; }
@@ -338,6 +346,12 @@ private:
     void addTableParts(struct RibbonParts &parts);
     void refreshTable();
     void styleNewTable(TableItem *table);
+    void createShapeFormatActions();   // deckwindow_format.cpp
+    void addShapeFormatParts(struct RibbonParts &parts);
+    void refreshShapeFormat();
+    void fillShapeFillMenu(QMenu *menu);
+    void fillShapeOutlineMenu(QMenu *menu);
+    void fillShapeEffectsMenu(QMenu *menu);
     void createCropActions();     // deckwindow_picture.cpp
     void addCropParts(struct RibbonParts &parts);
     void refreshCrop();
@@ -366,6 +380,9 @@ private:
     QDockWidget *m_onlineDock = nullptr;
     HelpView *m_help = nullptr;
     QDockWidget *m_helpDock = nullptr;
+    FormatPane *m_formatPane = nullptr;
+    QDockWidget *m_formatDock = nullptr;
+    QList<MeasureSpin *> m_shapeSizeBoxes;   // Shape Format's Height and Width
     DeckFindPane *m_find = nullptr;
     QDockWidget *m_findDock = nullptr;
     bool m_menuOpen = false;   // the slide's right-click menu is up

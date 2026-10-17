@@ -7,6 +7,7 @@
 #include "office/drawingml_style.h"
 
 #include <QImage>
+#include <QJsonDocument>
 #include <QRegularExpression>
 #include <QtMath>
 #include <algorithm>
@@ -42,6 +43,7 @@ QString canonicalPrefix(const QString &uri)
         {QStringLiteral("http://www.w3.org/1999/xlink"), QStringLiteral("xlink")},
         {QStringLiteral("http://purl.org/dc/elements/1.1/"), QStringLiteral("dc")},
         {QStringLiteral("urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0"), QStringLiteral("loext")},
+        {QStringLiteral("urn:jeffoffice:names:extension:1.0"), QStringLiteral("jo")},
         {QStringLiteral("http://openoffice.org/2010/draw"), QStringLiteral("drawooo")},
         {QStringLiteral("http://openoffice.org/2009/office"), QStringLiteral("officeooo")},
     };
@@ -357,7 +359,7 @@ double gradientAngle(const QString &s)
 
 } // namespace
 
-Fill Reader::gradientFill(const QDomElement &gradient, double transparency, double endTransparency, bool varyTransparency)
+Fill Reader::gradientFill(const QDomElement &gradient, double transparency, double endTransparency, bool varyTransparency, const QDomElement &fade)
 {
     const Attrs g(gradient);
     const QString style = g.get("draw:style", QStringLiteral("linear"));
@@ -377,6 +379,13 @@ Fill Reader::gradientFill(const QDomElement &gradient, double transparency, doub
         from = listed.first().second;
         to = listed.last().second;
     }
+    // The opacity's own stops (a fade that is not a straight run from one share to another), as places and shares of opacity.
+    QVector<QPair<double, double>> fadeStops;
+    for (const QDomElement &s : kids(fade, "loext:opacity-stop")) {
+        double offset = 0, opacity = 1;
+        if (fadeStops.size() < 64 && parseNumber(at(s, "svg:offset"), &offset) && parseNumber(at(s, "svg:stop-opacity"), &opacity)) fadeStops.append({std::clamp(offset, 0.0, 1.0), std::clamp(opacity, 0.0, 1.0)});
+    }
+    std::stable_sort(fadeStops.begin(), fadeStops.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
     if (!from.isValid()) from = QColor(Qt::black);
     if (!to.isValid()) to = QColor(Qt::white);
 
@@ -392,7 +401,17 @@ Fill Reader::gradientFill(const QDomElement &gradient, double transparency, doub
         s.color = ColorRef::rgb(c);
         // The opacity runs the way the colors do: from the first to the last, from the edges to the middle, or from the edge to the middle.
         auto mixed = [&](double a, double b, double k) { return a + (b - a) * std::clamp(k, 0.0, 1.0); };
+        auto fadeAt = [&](double pos) {
+            if (pos <= fadeStops.first().first) return fadeStops.first().second;
+            for (int i = 1; i < fadeStops.size(); ++i)
+                if (pos <= fadeStops[i].first) {
+                    const double span = fadeStops[i].first - fadeStops[i - 1].first;
+                    return span > 0 ? mixed(fadeStops[i - 1].second, fadeStops[i].second, (pos - fadeStops[i - 1].first) / span) : fadeStops[i].second;
+                }
+            return fadeStops.last().second;
+        };
         s.transparency = !varyTransparency ? transparency
+                       : linear && fadeStops.size() >= 2 ? 1 - fadeAt(s.pos)
                        : linear ? mixed(transparency, endTransparency, s.pos)
                        : axial ? (s.pos <= 0.5 ? mixed(endTransparency, transparency, s.pos * 2) : mixed(transparency, endTransparency, (s.pos - 0.5) * 2))
                        : mixed(endTransparency, transparency, s.pos);
@@ -483,7 +502,7 @@ Fill Reader::fillOf(const Bag &bag, const StyleSheet &styles)
             f.color = f.color2 = c;
             return f;
         }
-        return gradientFill(g, transparency, endTransparency, varies);
+        return gradientFill(g, transparency, endTransparency, varies, fade);
     }
     if (mode == QLatin1String("bitmap")) {
         const QDomElement img = styles.fillImage(bag.get(Graphic, "draw:fill-image-name"));
@@ -609,24 +628,57 @@ Stroke Reader::strokeOf(const Bag &bag, const StyleSheet &styles)
     s.endArrow = arrowOf(styles.marker(bag.get(Graphic, "draw:marker-end")));
     s.startSize = arrowSize(lengthOr(bag.get(Graphic, "draw:marker-start-width"), 0), s.width);
     s.endSize = arrowSize(lengthOr(bag.get(Graphic, "draw:marker-end-width"), 0), s.width);
+    // What this kind of file has no place for, kept in attributes of our own (other programs leave them alone).
+    if (const int compound = bag.get(Graphic, "jo:compound").toInt(); compound > 0 && compound <= int(Stroke::Triple)) s.compound = Stroke::Compound(compound);
+    if (const QByteArray json = bag.get(Graphic, "jo:stroke-gradient").toUtf8(); !json.isEmpty()) {
+        const Fill g = Fill::fromJson(QJsonDocument::fromJson(json).object());
+        if (g.type == Fill::Gradient && !g.stops.isEmpty()) {
+            s.gradient = g;
+            s.color = g.stops.first().color;
+        }
+    }
     return s;
 }
 
 Effects Reader::effectsOf(const Bag &bag)
 {
     Effects fx;
-    if (bag.get(Graphic, "draw:shadow") != QLatin1String("visible")) return fx;
-    const double dx = lengthOr(bag.get(Graphic, "draw:shadow-offset-x"), 0), dy = lengthOr(bag.get(Graphic, "draw:shadow-offset-y"), 0);
-    fx.shadow.on = true;
-    const QColor c = parseColor(bag.get(Graphic, "draw:shadow-color"));
-    fx.shadow.color = ColorRef::rgb(c.isValid() ? c : QColor(Qt::gray));
-    double opacity = 1;
-    parsePercent(bag.get(Graphic, "draw:shadow-opacity"), &opacity);
-    fx.shadow.transparency = std::clamp(1 - opacity, 0.0, 1.0);
-    fx.shadow.distance = std::hypot(dx, dy);
-    fx.shadow.angle = std::fmod(qRadiansToDegrees(std::atan2(dy, dx)) + 360, 360.0);
-    const QString blur = bag.has(Graphic, "draw:shadow-blur") ? bag.get(Graphic, "draw:shadow-blur") : bag.get(Graphic, "loext:shadow-blur");
-    fx.shadow.blur = lengthOr(blur, 0);
+    if (bag.get(Graphic, "draw:shadow") == QLatin1String("visible")) {
+        const double dx = lengthOr(bag.get(Graphic, "draw:shadow-offset-x"), 0), dy = lengthOr(bag.get(Graphic, "draw:shadow-offset-y"), 0);
+        fx.shadow.on = true;
+        const QColor c = parseColor(bag.get(Graphic, "draw:shadow-color"));
+        fx.shadow.color = ColorRef::rgb(c.isValid() ? c : QColor(Qt::gray));
+        double opacity = 1;
+        parsePercent(bag.get(Graphic, "draw:shadow-opacity"), &opacity);
+        fx.shadow.transparency = std::clamp(1 - opacity, 0.0, 1.0);
+        fx.shadow.distance = std::hypot(dx, dy);
+        fx.shadow.angle = std::fmod(qRadiansToDegrees(std::atan2(dy, dx)) + 360, 360.0);
+        const QString blur = bag.has(Graphic, "draw:shadow-blur") ? bag.get(Graphic, "draw:shadow-blur") : bag.get(Graphic, "loext:shadow-blur");
+        fx.shadow.blur = lengthOr(blur, 0);
+        if (double size = 0; parseNumber(bag.get(Graphic, "jo:shadow-size"), &size)) fx.shadow.size = std::clamp(size, 1.0, 1000.0);
+    }
+    // A glow and soft edges (the producer's own attributes).
+    if (const double radius = lengthOr(bag.get(Graphic, "loext:glow-radius"), 0); radius > 0) {
+        fx.glow.on = true;
+        fx.glow.size = std::clamp(radius, 0.0, 1584.0);
+        if (const QColor c = parseColor(bag.get(Graphic, "loext:glow-color")); c.isValid()) fx.glow.color = ColorRef::rgb(c);
+        double transparency = 0;
+        if (parsePercent(bag.get(Graphic, "loext:glow-transparency"), &transparency)) fx.glow.transparency = std::clamp(transparency, 0.0, 1.0);
+    }
+    fx.softEdge = std::clamp(lengthOr(bag.get(Graphic, "loext:softedge-radius"), 0), 0.0, 1584.0);
+    // A reflection, in the attribute of our own that holds it.
+    if (const QStringList parts = bag.get(Graphic, "jo:reflection").split(QLatin1Char(' '), Qt::SkipEmptyParts); parts.size() == 4) {
+        double v[4] = {0, 0, 0, 0};
+        bool ok = true;
+        for (int i = 0; i < 4; ++i) ok = parseNumber(parts[i], &v[i]) && ok;   // (a number that isn't one, or isn't finite, is no reflection)
+        if (ok) {
+            fx.reflection.on = true;
+            fx.reflection.transparency = std::clamp(v[0], 0.0, 1.0);
+            fx.reflection.size = std::clamp(v[1], 0.0, 1.0);
+            fx.reflection.distance = std::clamp(v[2], 0.0, 1584.0);
+            fx.reflection.blur = std::clamp(v[3], 0.0, 1584.0);
+        }
+    }
     return fx;
 }
 

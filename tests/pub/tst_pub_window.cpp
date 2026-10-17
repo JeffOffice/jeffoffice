@@ -658,6 +658,10 @@ private Q_SLOTS:
         auto bare = std::make_shared<jp::PictureItem>();
         bare->rect = QRectF(300, 200, 72, 72);
         ed->addItem(bare);
+        auto decoration = std::make_shared<jp::PictureItem>();   // marked as only decoration: not asked for a description
+        decoration->rect = QRectF(400, 200, 72, 72);
+        decoration->decorative = true;
+        ed->addItem(decoration);
         cv->setFocus();
         QAccessibleInterface *page = QAccessible::queryAccessibleInterface(cv);
         QVERIFY(page);
@@ -665,7 +669,7 @@ private Q_SLOTS:
         QStringList names;
         for (int i = 0; i < page->childCount(); ++i)
             if (QAccessibleInterface *c = page->child(i); c && c->object() == nullptr) names << c->text(QAccessible::Name);
-        QCOMPARE(names, (QStringList{QStringLiteral("Text box: Spring sale"), QStringLiteral("Picture: A red barn"), QStringLiteral("Picture, no alt text")}));
+        QCOMPARE(names, (QStringList{QStringLiteral("Text box: Spring sale"), QStringLiteral("Picture: A red barn"), QStringLiteral("Picture, no alt text"), QStringLiteral("Picture, decorative")}));
         // Tab selects each object, and the selected one is the focus.
         ed->clearSelection();
         QVERIFY(!page->focusChild());
@@ -710,7 +714,7 @@ private Q_SLOTS:
         names.clear();
         for (int i = 0; i < page->childCount(); ++i)
             if (QAccessibleInterface *c = page->child(i); c && c->object() == nullptr) names << c->text(QAccessible::Name);
-        QCOMPARE(names.size(), 2);
+        QCOMPARE(names.size(), 3);
     }
 
     // A screen reader walks the page child by child; the page's list of

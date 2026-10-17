@@ -21,6 +21,7 @@ Digitare nella casella di ricerca qui sopra per trovare un argomento o un comand
 
 - [Digitare e formattare il testo](text)
 - [Forme, immagini, tabelle e Testo artistico](objects)
+- [Il riquadro Formato forma](format-shape)
 - [Note del relatore](notes)
 - [Commenti](comments)
 

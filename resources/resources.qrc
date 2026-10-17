@@ -1646,6 +1646,7 @@
     <file alias="en/deck/context.json">help/en/deck/context.json</file>
     <file alias="en/deck/design.md">help/en/deck/design.md</file>
     <file alias="en/deck/file-screen.md">help/en/deck/file-screen.md</file>
+    <file alias="en/deck/format-shape.md">help/en/deck/format-shape.md</file>
     <file alias="en/deck/index.md">help/en/deck/index.md</file>
     <file alias="en/deck/keyboard.md">help/en/deck/keyboard.md</file>
     <file alias="en/deck/notes.md">help/en/deck/notes.md</file>
