@@ -2,6 +2,7 @@
 
 #include "core/wordformat.h"
 #include "core/writeprops.h"
+#include "doc/doc.h"
 #include "text/textprops.h"
 
 #include <QDataStream>
@@ -180,6 +181,25 @@ std::unique_ptr<WriteDoc> WriteDoc::fromDocx(const QByteArray &zip, QString *err
     if (notes) *notes = rn.notes;
     doc->build(std::move(d));
     return doc;
+}
+
+std::unique_ptr<WriteDoc> WriteDoc::fromDoc(const QByteArray &bytes, QString *error, QStringList *notes)
+{
+    office::wml::Document d;
+    ReadNotes rn;
+    if (!office::doc::readDoc(bytes, &d, error, &rn)) return nullptr;
+    std::unique_ptr<WriteDoc> doc(new WriteDoc());
+    doc->readNotes = rn.notes;
+    doc->m_hadMacros = rn.hadMacros;
+    doc->m_leftOut = rn.leftOut;
+    if (notes) *notes = rn.notes;
+    doc->build(std::move(d));
+    return doc;
+}
+
+std::unique_ptr<WriteDoc> WriteDoc::fromFile(const QByteArray &bytes, QString *error, QStringList *notes)
+{
+    return office::doc::looksLikeCompoundFile(bytes) ? fromDoc(bytes, error, notes) : fromDocx(bytes, error, notes);
 }
 
 void WriteDoc::build(office::wml::Document &&doc)

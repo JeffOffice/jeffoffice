@@ -160,7 +160,10 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
 
 void WriteWindow::updateTitle()
 {
-    setWindowTitle(QStringLiteral("%1%2 - %3").arg(displayName(), isModified() ? QStringLiteral("*") : QString(), appInfo().name));
+    // A document that came from an old binary file shows its whole name, so its kind is plain until it is saved as a .docx.
+    const QString ending = QFileInfo(m_path).suffix().toLower();
+    const QString shown = ending == QLatin1String("doc") || ending == QLatin1String("dot") ? QFileInfo(m_path).fileName() : displayName();
+    setWindowTitle(QStringLiteral("%1%2 - %3").arg(shown, isModified() ? QStringLiteral("*") : QString(), appInfo().name));
 }
 
 // ---- commands

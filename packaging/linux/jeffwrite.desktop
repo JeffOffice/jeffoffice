@@ -7,6 +7,6 @@ Exec=jeffwrite %F
 Icon=jeffwrite
 Terminal=false
 Categories=Office;WordProcessor;
-MimeType=application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/vnd.openxmlformats-officedocument.wordprocessingml.template;
+MimeType=application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/vnd.openxmlformats-officedocument.wordprocessingml.template;application/msword;
 Keywords=document;word processor;letter;report;docx;
 StartupWMClass=JeffWrite
