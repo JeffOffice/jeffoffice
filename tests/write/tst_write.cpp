@@ -4855,6 +4855,20 @@ private Q_SLOTS:
         QVERIFY(documentXml(doc->toDocx()).contains("customMarkFollows"));
     }
 
+    // A level's outline effect is looked for once for the level, not once for each item that is in the list: two hundred items of one level look at its run properties once.
+    void aLevelsOutlineEffectIsLookedForOncePerLevel()
+    {
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"bullet\"/><w:lvlText w:val=\"o\"/><w:rPr><w:outline/></w:rPr></w:lvl></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        QByteArray body;
+        for (int i = 0; i < 200; ++i) body += "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:t>item</w:t></w:r></w:p>";
+        const int before = levelsScannedForOutlineForTest();
+        auto doc = open(makeDocx(body, kStyles, numbering));
+        QVERIFY(doc);
+        QVERIFY(doc->story()->begin().textList()->format().boolProperty(tp::BulletOutline));
+        QCOMPARE(levelsScannedForOutlineForTest() - before, 1);
+    }
+
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
     // thousand sections makes no more than the sections it changed (counted, not timed).
     void editingSectionsTouchesOnlyWhatChanged()
