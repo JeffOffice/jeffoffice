@@ -105,6 +105,9 @@ struct FrameSpec {
     // The most that a word processor's note separator, and its notice under the notes, may each take on the page the frame is on (0: no limit): a file's own can be taller
     // than the page, and a quarter of the text area is what the paginator leaves them.
     double noteRoomLimit = 0;
+    // The farthest left of the text area that a word processor's hanging first line may begin (0: the frame's own width): the page's width, which no indent a file states is
+    // to take a line past.
+    double outdentLimit = 0;
     // The frame is a polygon (half of a cell divided by a diagonal), the obstacles being the rest of its box:
     // a word too long for the place beside them moves down to where it fits instead of being broken, and
     // middle or bottom aligned text goes as far down as it fits.

@@ -7516,6 +7516,28 @@ private Q_SLOTS:
         QVERIFY2(std::abs(lines[1].rect.left()) < 0.01, qPrintable(QString::number(lines[1].rect.left())));
     }
 
+    // A hanging first line goes out into the margin as far as the indents say, and no farther than the page is wide: an indent a file states as a million points is not a line a million
+    // points from the text.
+    void aHangingFirstLineGoesOutNoFartherThanThePageIsWide()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        QTextCursor c(fd.story());
+        QTextBlockFormat bf;
+        bf.setLeftMargin(0);
+        bf.setTextIndent(-1e6);
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("words that hang a great way out into the margin and then are set on lines of the paragraph, which has several of them and goes on and on"));
+        Paginator pg(&fd);
+        const auto lines = pg.lines(0);
+        QVERIFY(!lines.isEmpty());
+        const double page = fd.section(0).pageSize().width();
+        QVERIFY2(lines[0].rect.left() >= -page - 0.01, qPrintable(QString::number(lines[0].rect.left())));
+        QVERIFY2(lines[0].rect.left() < -page + 1, "the line is as far out as the page is wide");
+        LayoutCache cache;
+        QVERIFY2(materializedDiffers(fd, pg, 0, cache).isEmpty(), qPrintable(materializedDiffers(fd, pg, 0, cache)));
+    }
+
     // A right tab stop that is past the right indent and inside the column still takes the text after its tab (the page number of an entry in a table of contents): the line is
     // not broken before the tab.
     void aRightTabPastTheRightIndentKeepsItsText()

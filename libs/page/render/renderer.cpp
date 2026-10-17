@@ -244,6 +244,7 @@ FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNu
     s.hyphenate = t.hyphenate;
     s.hyphenZone = t.hyphenZone;
     s.runsOver = doc.slideText;
+    s.outdentLimit = doc.setup.size.width();
     s.noWrap = t.noWrap;
     s.centerBlock = t.centerBlock;
     // Baseline guides of the page's master (for "align text to baseline guides").

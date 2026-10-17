@@ -3022,7 +3022,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // text comes one hang after the bullet, wherever that is.
                     if (hangs) {
                         // (A word processor's goes out into the margin as far as its indents say.)
-                        indL = env.wordLines ? leftM + textIndent : std::max(0.0, leftM + textIndent);
+                        indL = env.wordLines ? std::max(leftM + textIndent, -(frames[f].outdentLimit > 0 ? frames[f].outdentLimit : frames[f].size.width())) : std::max(0.0, leftM + textIndent);
                         if (!B->marker.isEmpty()) lead = env.wordNoNumberIndentStop ? leftM + textIndent + markerW - indL : -textIndent;   // (to the number's tab stop, or the indent)
                     }
                 }
