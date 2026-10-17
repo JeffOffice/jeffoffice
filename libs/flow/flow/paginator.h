@@ -153,6 +153,8 @@ public:
     // be the one that has the paragraph's place in the story: -1 when the position is not in a table).
     int pageOfTablePosition(int position);
     qint64 pagesLaidOut() const { return m_laidOut; }
+    // How many times a page has been laid out, the passes that find where its walls are included: for tests of what asking for a page costs.
+    qint64 pagePassesForTest() const { return m_passes; }
     // How many rows of tables were measured since it was made (what is measured again after an edit is the rows it touched): for tests of what edits cost.
     qint64 tableRowsMeasured() const { return m_tables ? m_tables->rowsMeasured() : 0; }
     qint64 tableCellsLaidOut() const { return m_tables ? m_tables->cellsLaidOut() : 0; }
@@ -313,12 +315,23 @@ private:
     // Whether the page has anything that is set at a place and that the text goes round: the document's objects, its frames (which are objects), or a table set at a place.
     bool hasFloaters();
     FloatIndex m_floats;
+    // The walls a page ended with when it was laid out, for the page asked for again (its lines, the page made): the objects it was laid out round, found by laying it out more than
+    // once. By the page, with what it was laid out as (where it starts, how many pages there were: a page count in its text) so that a page that is not that is found again.
+    struct WallMemo {
+        PageStart start;
+        int pages = 0;
+        QVector<Wrapped> walls;
+    };
+    std::map<int, WallMemo> m_wallMemo;
     std::shared_ptr<const FloatingObject> tableObject(int span, double columnWidth);
     QVector<Anchor> tableAnchors(const QVector<AnchorLine> &lines, double columnWidth);
     std::map<std::tuple<int, int, int, uint>, std::shared_ptr<const FloatingObject>> m_tableObjects;   // by where the table is in the story, the column's width, and the environment (edits empty it)
     std::map<std::tuple<int, int, int, int, uint>, std::shared_ptr<const FloatingObject>> m_frames;   // by key, the paragraphs' places, the width the column has, and the environment (edits empty it)
     // The anchors in a story from `from` to `to` (document positions), given the lines that hold it.
-    QVector<Anchor> anchorsIn(const QTextDocument *story, int from, int to, const QVector<AnchorLine> &lines, const QHash<int, QVector<int>> *byBlock = nullptr) const;
+    QVector<Anchor> anchorsIn(const QTextDocument *story, int from, int to, const QVector<AnchorLine> &lines, const QHash<int, QVector<int>> *byBlock = nullptr);
+    // The characters of a paragraph that anchor an object (a position and the object's number each), found once for a story as it is.
+    const QVector<std::pair<int, int>> &anchorCharsOf(const QTextBlock &b);
+    QHash<int, QVector<std::pair<int, int>>> m_anchorChars;   // by the paragraph's position
     // Where an object is on the page (page coordinates) for the anchor it has: from the page, the margin, a strip of it, the column, the paragraph, or the line, as it says, and
     // kept on the page (down from the paragraph or the line).
     QRectF placeOf(const FloatingObject &o, const Anchor &a, const Section &sec) const;
@@ -361,6 +374,7 @@ private:
     bool m_pending = false;
     int m_valid = 0, m_high = 0, m_dirtyEnd = 0;
     qint64 m_laidOut = 0;
+    qint64 m_passes = 0;
     // The number of the page asked for last, so that the next one's is one more: a walk back to the section's first page is for a page that doesn't follow it.
     mutable int m_numberOf = -1, m_number = 0;
     mutable qint64 m_numberSteps = 0;

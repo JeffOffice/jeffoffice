@@ -124,8 +124,10 @@ bool Paginator::breakContinuesAt(const StoryLayout::LineBrief &last, PageStart *
 Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
 {
     ++m_laidOut;
+    if (!hasFloaters()) return layoutPageWith(index, st, {});
+    // A page laid out before, as it is now, ends with the walls it did.
+    if (const auto memo = m_wallMemo.find(index); memo != m_wallMemo.end() && memo->second.start == st && memo->second.pages == int(m_starts.size())) return layoutPageWith(index, st, memo->second.walls);
     Run run = layoutPageWith(index, st, {});
-    if (!hasFloaters()) return run;
     // The objects the lines anchor, and the text goes round, are set where the lines say; the text goes round them there, which moves the lines, and the page is laid out
     // again until they agree (the paragraph's top an object is set from is where the paragraph would be without it: that is what the engine's `pushed` is for). Objects that
     // keep moving the lines, and so themselves, are left where the last layout had them.
@@ -145,11 +147,14 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
     // lines are those of the page without them, and every wall there is has its anchor on the page. And a page whose objects leave no room for a line would have none,
     // and the pages would never end: it is laid out as it is without them too.
     if (!used.isEmpty() && (!agreed || run.kept <= 0)) run = layoutPageWith(index, st, {});
+    if (m_wallMemo.size() >= 4096) m_wallMemo.clear();
+    m_wallMemo[index] = WallMemo{st, int(m_starts.size()), run.wrapped};
     return run;
 }
 
 Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const QVector<Wrapped> &wrapped)
 {
+    ++m_passes;
     Run run;
     run.wrapped = wrapped;
     // The page a break at the end of the text makes: it starts past the text's last character.
@@ -797,6 +802,8 @@ void Paginator::forgetFloats()
     m_floats = FloatIndex();
     m_frames.clear();
     m_tableObjects.clear();
+    m_anchorChars.clear();
+    m_wallMemo.clear();
 }
 
 void Paginator::changed(int position, int removed, int added)

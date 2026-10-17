@@ -5074,9 +5074,119 @@ private Q_SLOTS:
         // The one at the end of the story has no paragraph to be set from: it is rows in the text, among the lines, where it is.
         QVERIFY2(audit::floatProblems(pg, fd).isEmpty(), qPrintable(audit::floatProblems(pg, fd)));
         bool inText = false;
-        for (int k = 0; k < pg.pageCount(); ++k)
-            for (const auto &t : pg.materialize(k)->tables) inText |= !t->floating;
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const auto made = pg.materialize(k);
+            QVERIFY(made);
+            for (const auto &t : made->tables) inText |= !t->floating;
+        }
         QVERIFY(inText);
+    }
+
+    // ---- what the objects cost
+
+    // A paragraph of many runs (every other word in bold: 20,000 runs) costs no more with an object anchored in another paragraph than without: what a page looks for in the
+    // runs of the paragraphs it holds is found once for the paragraph, not for each of its lines.
+    void aParagraphOfManyRunsCostsNoMoreWithAnObjectOnThePage()
+    {
+        qint64 took[2] = {0, 0};
+        for (int variant = 0; variant < 2; ++variant) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), 3, 5, {}, 30, 40);
+            QTextCursor c(fd.story());
+            c.movePosition(QTextCursor::End);
+            c.insertBlock();
+            for (int i = 0; i < 20000; ++i) {
+                QTextCharFormat f;
+                f.setFontPointSize(11);
+                f.setFontWeight(i % 2 ? QFont::Bold : QFont::Normal);
+                c.insertText(QStringLiteral("word "), f);
+            }
+            if (variant == 1) {
+                auto item = std::make_shared<ShapeItem>();
+                item->rect = QRectF(0, 0, 50, 40);
+                const int id = addObject(&fd, item, fd.story()->findBlockByNumber(0).position() + 2, FloatingObject::Rel::Page, FloatingObject::Rel::Page, 500, 700);
+                fd.objects[size_t(id) - 1].wrap = FloatingObject::Wrap::None;
+            }
+            QElapsedTimer t;
+            t.start();
+            Paginator pg(&fd);
+            QVERIFY(pg.pageCount() > 20);
+            took[variant] = t.elapsed();
+        }
+        QVERIFY2(took[1] < 2 * took[0] + 300, qPrintable(QStringLiteral("%1 ms with the object, %2 ms without").arg(took[1]).arg(took[0])));
+    }
+
+    // Ten thousand objects anchored in one paragraph cost little more than the paragraph does without them (anchor marks that anchor nothing): the anchors are cut at the most a
+    // page is given as they are found, character by character, not paragraph by paragraph, and each is found by its place in the paragraph, not by looking at all its lines.
+    void manyObjectsInOneParagraphAreCutAsTheyAreFound()
+    {
+        qint64 took[2] = {0, 0};
+        for (int variant = 0; variant < 2; ++variant) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), 6, 5, {}, 80, 120);
+            const int n = 10000;
+            for (int i = 0; i < n; ++i) {
+                auto item = std::make_shared<ShapeItem>();
+                item->rect = QRectF(0, 0, 10, 10);
+                if (variant == 1) {
+                    const int id = addObject(&fd, item, fd.story()->findBlockByNumber(2).position() + 2, FloatingObject::Rel::Column, FloatingObject::Rel::Paragraph, (i % 40) * 11, (i / 40) * 11);
+                    fd.objects[size_t(id) - 1].wrap = FloatingObject::Wrap::Square;
+                    fd.objects[size_t(id) - 1].gap = QMarginsF(2, 2, 2, 2);
+                } else {
+                    // (The same marks in the text, and no object for any: the document has none.)
+                    QTextCursor c(fd.story());
+                    c.setPosition(fd.story()->findBlockByNumber(2).position() + 2);
+                    QTextCharFormat anchor;
+                    anchor.setFontPointSize(11);
+                    anchor.setProperty(fp::AnchorId, i + 1);
+                    c.insertText(QString(QChar(0xFFFC)), anchor);
+                }
+            }
+            QElapsedTimer t;
+            t.start();
+            Paginator pg(&fd);
+            const int pages = pg.pageCount();
+            for (int k = 0; k < pages; ++k) QVERIFY(pg.materialize(k));
+            took[variant] = t.elapsed();
+        }
+        QVERIFY2(took[1] < 2 * took[0] + 300, qPrintable(QStringLiteral("%1 ms with 10,000 objects, %2 ms with none").arg(took[1]).arg(took[0])));
+    }
+
+    // A page with walls is laid out again to find where they are, once; the walls it ended with are kept, and the page asked for again (its lines, the page made) is laid out
+    // once, not found again.
+    void aPageWithWallsIsLaidOutOnceWhenAskedAgain()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 40, 63, {}, 25, 45);
+        const int id = addWrapped(&fd, 150, 90, fd.story()->findBlockByNumber(3).position() + 2, FloatingObject::Wrap::Square, 0, 0);
+        fd.objects[size_t(id) - 1].hAlign = FloatingObject::Align::End;
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 3);
+        QVERIFY(pg.materialize(0));   // (the first time the page is made: its walls are found)
+        qint64 before = pg.pagePassesForTest();
+        pg.lines(0);
+        QCOMPARE(pg.pagePassesForTest() - before, qint64(1));
+        before = pg.pagePassesForTest();
+        QVERIFY(pg.materialize(0));
+        QCOMPARE(pg.pagePassesForTest() - before, qint64(1));
+        before = pg.pagePassesForTest();
+        pg.lines(0);
+        QVERIFY(pg.materialize(0));
+        QCOMPARE(pg.pagePassesForTest() - before, qint64(2));
+        // After an edit it is found again (and the pages are those of a new paginator).
+        QTextCursor c(fd.story());
+        c.setPosition(fd.story()->findBlockByNumber(1).position() + 4);
+        c.insertText(QStringLiteral("some more words typed before the object, to move it a little. "));
+        Paginator fresh(&fd);
+        const QString bad = audit::differenceFromFresh(pg, fresh);
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        before = pg.pagePassesForTest();
+        pg.lines(0);
+        pg.lines(0);
+        QVERIFY(pg.pagePassesForTest() - before <= 4);   // (the first after the edit finds them, the second does not)
     }
 
     // ---- text round objects

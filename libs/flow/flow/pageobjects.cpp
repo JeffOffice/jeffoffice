@@ -15,7 +15,24 @@
 
 namespace jp::flow {
 
-QVector<Paginator::Anchor> Paginator::anchorsIn(const QTextDocument *story, int from, int to, const QVector<AnchorLine> &lines, const QHash<int, QVector<int>> *byBlock) const
+const QVector<std::pair<int, int>> &Paginator::anchorCharsOf(const QTextBlock &b)
+{
+    const auto found = m_anchorChars.constFind(b.position());
+    if (found != m_anchorChars.constEnd()) return found.value();
+    // The characters that anchor an object, in order, found once for the paragraph (not for each of its lines, which would look at all of its runs again): no more than a page
+    // is given.
+    QVector<std::pair<int, int>> chars;
+    for (auto it = b.begin(); !it.atEnd() && chars.size() < kMostObjects; ++it) {
+        const QTextFragment frag = it.fragment();
+        const int id = frag.charFormat().intProperty(fp::AnchorId);
+        if (id <= 0 || id > m_doc->objects.size()) continue;
+        for (int k = frag.position(); k < frag.position() + frag.length() && chars.size() < kMostObjects; ++k) chars.push_back({k, id});
+    }
+    if (m_anchorChars.size() >= 4096) m_anchorChars.clear();
+    return m_anchorChars.insert(b.position(), chars).value();
+}
+
+QVector<Paginator::Anchor> Paginator::anchorsIn(const QTextDocument *story, int from, int to, const QVector<AnchorLine> &lines, const QHash<int, QVector<int>> *byBlock)
 {
     QVector<Anchor> out;
     if (m_doc->objects.isEmpty()) return out;
@@ -25,37 +42,34 @@ QVector<Paginator::Anchor> Paginator::anchorsIn(const QTextDocument *story, int 
         for (int i = 0; i < lines.size(); ++i) own[lines[i].block] << i;
         byBlock = &own;
     }
-    for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() < to && out.size() < kMostObjects; b = b.next())
-        for (auto it = b.begin(); !it.atEnd(); ++it) {
-            const QTextFragment frag = it.fragment();
-            const int id = frag.charFormat().intProperty(fp::AnchorId);
-            if (id <= 0 || id > m_doc->objects.size() || frag.position() >= to || frag.position() + frag.length() <= from) continue;
-            const auto held = byBlock->constFind(b.position());
-            if (held == byBlock->constEnd()) continue;
-            for (int k = std::max(frag.position(), from); k < std::min(frag.position() + frag.length(), to); ++k) {
-                Anchor a;
-                a.object = id;
-                a.pos = k;
-                bool paragraphSeen = false, found = false;
-                for (const int at : held.value()) {
-                    const AnchorLine &l = lines[at];
-                    if (!paragraphSeen) {
-                        a.paragraphTop = l.rect.top() - l.pushed;
-                        a.columnLeft = l.columnLeft;
-                        a.lineTop = l.rect.top() - l.pushed;
-                        a.x = l.rect.left();
-                        paragraphSeen = true;
-                    }
-                    if (!found && k >= l.pos && k < l.upTo()) {
-                        a.lineTop = l.rect.top() - l.pushed;
-                        a.x = l.rect.left();
-                        a.columnLeft = l.columnLeft;
-                        found = true;
-                    }
-                }
-                if (paragraphSeen) out << a;
+    for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() < to && out.size() < kMostObjects; b = b.next()) {
+        const auto held = byBlock->constFind(b.position());
+        if (held == byBlock->constEnd() || held.value().isEmpty()) continue;
+        const QVector<std::pair<int, int>> &chars = anchorCharsOf(b);
+        auto at = std::lower_bound(chars.cbegin(), chars.cend(), from, [](const std::pair<int, int> &c, int position) { return c.first < position; });
+        if (at == chars.cend() || at->first >= to) continue;
+        const QVector<int> &mine = held.value();
+        const AnchorLine &top = lines[mine.first()];
+        for (; at != chars.cend() && at->first < to && out.size() < kMostObjects; ++at) {
+            Anchor a;
+            a.object = at->second;
+            a.pos = at->first;
+            a.paragraphTop = top.rect.top() - top.pushed;
+            a.columnLeft = top.columnLeft;
+            a.lineTop = top.rect.top() - top.pushed;
+            a.x = top.rect.left();
+            // The first line that holds the character (the lines of a paragraph are in order: the last that begins at or before it, or the one before that if it holds it too).
+            int line = int(std::upper_bound(mine.cbegin(), mine.cend(), a.pos, [&](int position, int i) { return position < lines[i].pos; }) - mine.cbegin()) - 1;
+            while (line > 0 && a.pos >= lines[mine[line - 1]].pos && a.pos < lines[mine[line - 1]].upTo()) --line;
+            if (line >= 0 && a.pos < lines[mine[line]].upTo()) {
+                const AnchorLine &l = lines[mine[line]];
+                a.lineTop = l.rect.top() - l.pushed;
+                a.x = l.rect.left();
+                a.columnLeft = l.columnLeft;
             }
+            out << a;
         }
+    }
     return out;
 }
 
