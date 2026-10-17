@@ -608,6 +608,12 @@ double lineHeightOf(FlowDocument &fd)
     return l.lineBriefs().first().rect.height();
 }
 
+// Whether a pixel of the painted fragment is the red of the lines of these tests.
+bool isRed(const QImage &image, const TableFragment &f, double x, double y)
+{
+    const QColor c = image.pixelColor(int((f.origin.x() + x) * 4), int((f.origin.y() + y) * 4));
+    return c.red() > 200 && c.green() < 80 && c.blue() < 80;
+}
 // A table inside a cell: `rows` by `cols` cells of `colW` points, each a paragraph, the cell of row 0 and column 0 holding another (until `maxLevel` is reached); `parent` is
 // the cell the table is in. Appended at the cursor.
 void addNestedTable(FlowDocument &fd, QTextCursor &c, int level, int maxLevel, int parent, int rows, int cols, double colW)
@@ -4364,6 +4370,44 @@ private Q_SLOTS:
         QVERIFY(reddish(first->tables[0], 0.75));
         QVERIFY(reddish(first->tables[0], -0.75));
         QVERIFY(reddish(next->tables[0], 0.75));
+    }
+
+    // The cells of a table with space between them each have the lines they say: all that the rows take room for are painted (the foot of every row's cell, not only the last's).
+    void aSpacedTablePaintsTheLineOfEveryCellsFoot()
+    {
+        FlowDocument fd;
+        fillStory(fd.story(), 2, 3, {}, 4, 6);
+        TestTable spec;
+        spec.rows = 5;
+        spec.cols = 1;
+        spec.columnWidth = 200;
+        spec.setTable = [](TableData &t) { t.spaced = true; };
+        spec.setCell = [](int, int, CellData &cell) {
+            TableLine line;
+            line.style = TableLine::Style::Single;
+            line.width = 3;
+            line.color = QColor(255, 0, 0);
+            cell.bottom = line;
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page && page->tables.size() == 1);
+        const TableFragment &f = *page->tables[0];
+        const double line = lineHeightOf(fd);
+        QImage image(int(fd.section(0).pageSize().width()) * 4, int(fd.section(0).pageSize().height()) * 4, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::white);
+        {
+            QPainter painter(&image);
+            painter.scale(4, 4);
+            f.paint(&painter, TablePaint());
+        }
+        double bottom = 0;
+        for (int r = 0; r < 5; ++r) {
+            QVERIFY2(std::abs(f.heightOf(r) - (line + 6 + 3)) < 0.05, qPrintable(QString::number(f.heightOf(r))));
+            bottom += f.heightOf(r);
+            QVERIFY2(isRed(image, f, 100, bottom - 1.5) && isRed(image, f, 100, bottom - 0.5) && !isRed(image, f, 100, bottom - 3.5), qPrintable(QStringLiteral("row %1").arg(r)));
+        }
     }
 
     // A cell across columns has the line between it and each cell above it: the heaviest of them is the room it takes, and each part of the cell has its own.
