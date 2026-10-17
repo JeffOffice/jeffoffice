@@ -7,6 +7,7 @@
 #include "app/filescreen.h"
 #include "app/help.h"
 #include "app/recovery.h"
+#include "app/settings.h"
 #include "app/ribbon.h"
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
@@ -26,6 +27,7 @@
 #include "wml/wml.h"
 
 #include <QApplication>
+#include <climits>
 #include <QMenu>
 #include <QComboBox>
 #include <QDateTime>
@@ -282,22 +284,45 @@ const TextItem *boxWithText(const flow::MaterializedPage &page, const QString &t
     return nullptr;
 }
 
-// Red wave pixels in the part of a picture: the squiggle is a thin red line, so any pixel with much red and little else counts.
+// The red wave pixels in a part of a picture, and where they are: the rectangle is in the widget's own units (what caretRect and pageRect give), the picture
+// is what grab() made of it, at whatever ratio the screen has. The wave is a thin red line, so any pixel with much red and little else counts.
 QRect redBounds(const QImage &img, const QRect &within, int *count = nullptr)
 {
-    QRect bounds;
-    int n = 0;
-    for (int y = std::max(0, within.top()); y <= std::min(img.height() - 1, within.bottom()); ++y)
-        for (int x = std::max(0, within.left()); x <= std::min(img.width() - 1, within.right()); ++x) {
+    const double r = img.devicePixelRatio();
+    const int x0 = std::max(0, int(std::floor(within.left() * r))), y0 = std::max(0, int(std::floor(within.top() * r)));
+    const int x1 = std::min(img.width() - 1, int(std::ceil((within.right() + 1) * r)) - 1), y1 = std::min(img.height() - 1, int(std::ceil((within.bottom() + 1) * r)) - 1);
+    int left = INT_MAX, top = INT_MAX, right = -1, bottom = -1, n = 0;
+    for (int y = y0; y <= y1; ++y)
+        for (int x = x0; x <= x1; ++x) {
             const QColor c = img.pixelColor(x, y);
             if (c.red() > 150 && c.green() < 110 && c.blue() < 110) {
                 ++n;
-                bounds = bounds.isNull() ? QRect(x, y, 1, 1) : bounds.united(QRect(x, y, 1, 1));
+                left = std::min(left, x);
+                top = std::min(top, y);
+                right = std::max(right, x);
+                bottom = std::max(bottom, y);
             }
         }
     if (count) *count = n;
-    return bounds;
+    if (n == 0) return QRect();
+    return QRect(QPoint(int(std::floor(left / r)), int(std::floor(top / r))), QPoint(int(std::ceil((right + 1) / r)) - 1, int(std::ceil((bottom + 1) / r)) - 1));
 }
+
+// A setting the test needs to have a value (and the program's own value back after): the person's real settings are not the test's to leave changed.
+struct SettingGuard {
+    QString key;
+    QVariant before;
+    SettingGuard(const QString &k, const QVariant &value, const QVariant &normally) : key(k), before(Settings::get().value(k, normally))
+    {
+        Settings::get().setValue(key, value);
+    }
+    ~SettingGuard() { Settings::get().setValue(key, before); }
+};
+
+// Takes the observer of the page painter away however the test ends.
+struct ObserverGuard {
+    ~ObserverGuard() { write::setPaintObserver(nullptr); }
+};
 
 } // namespace
 
@@ -1054,6 +1079,7 @@ private Q_SLOTS:
     // ---------------------------------------------------------------- spelling
     void spellCheckFindsTheMisspelledWordsOfTheStory()
     {
+        const SettingGuard upper(QStringLiteral("proof/ignoreUpper"), true, true), numbers(QStringLiteral("proof/ignoreNumbers"), true, true);
         auto doc = textDoc({"The quick brwon fox jumpd over teh lazy dog.", "A second paragraph, correctly spelled.", "NASA and abc123 are let go, so are the 3rd and 21st, but Teh is not."});
         SpellCheck sc(doc->story());
         QCOMPARE(flaggedWords(sc, *doc), (QStringList{"brwon", "jumpd", "teh", "Teh"}));
@@ -1274,7 +1300,7 @@ private Q_SLOTS:
 
     void theSpellingMenuOffersSuggestionsIgnoreAllAndAddToDictionary()
     {
-        auto doc = textDoc({"This is recieve test, and this is fine."});
+        auto doc = textDoc({"This is adress test, and this is fine."});
         PageView view;
         view.resize(1000, 700);
         view.setDocument(doc.get());
@@ -1286,14 +1312,14 @@ private Q_SLOTS:
         QVERIFY(!addSpellingSuggestions(none, &view));
         QVERIFY(none.isEmpty());
         // On one (inside it, and at its end): the dictionary's first suggestions, then Ignore All and Add to Dictionary.
-        for (int at : {10, 15}) {
+        for (int at : {10, 14}) {
             c.setPosition(at);
             view.setCursor(c);
             QMenu menu;
             QVERIFY(addSpellingSuggestions(menu, &view));
             QStringList texts;
             for (QAction *a : menu.actions()) texts << a->text();
-            const QStringList wanted = spellingSuggestions(QStringLiteral("recieve")).mid(0, 6);
+            const QStringList wanted = spellingSuggestions(QStringLiteral("adress")).mid(0, 6);
             QVERIFY(!wanted.isEmpty());
             QCOMPARE(texts.mid(0, wanted.size()), wanted);
             QCOMPARE(texts[wanted.size()], QStringLiteral("Ignore All"));
@@ -1309,7 +1335,7 @@ private Q_SLOTS:
         menu.actions().first()->trigger();
         QCOMPARE(doc->story()->toPlainText(), QStringLiteral("This is %1 test, and this is fine.").arg(chosen));
         doc->story()->undo();
-        QCOMPARE(doc->story()->toPlainText(), QStringLiteral("This is recieve test, and this is fine."));
+        QCOMPARE(doc->story()->toPlainText(), QStringLiteral("This is adress test, and this is fine."));
         // Ignore All lets the word go for the session, and the pages are drawn again.
         QMenu again;
         QVERIFY(addSpellingSuggestions(again, &view));
@@ -1322,6 +1348,7 @@ private Q_SLOTS:
 
     void rightClickingAMisspelledWordInTheWindowShowsItsSuggestions()
     {
+        const SettingGuard asType(QStringLiteral("proof/asYouType"), true, true);
         WriteWindow w;
         w.setDocument(textDoc({"A word that is wrongg here."}), QString());
         w.show();
@@ -1343,6 +1370,7 @@ private Q_SLOTS:
 
     void reviewSpellingStepsThroughTheMisspellingsFromTheCaret()
     {
+        const SettingGuard asType(QStringLiteral("proof/asYouType"), true, true);
         WriteWindow w;
         w.setDocument(textDoc({"First wrongg word, and wrongg again.", "And a secnd one, plus fourh and then bluh."}), QString());
         w.show();
@@ -1365,7 +1393,7 @@ private Q_SLOTS:
         QCOMPARE(w.document()->story()->toPlainText().section(QLatin1Char('\n'), 0, 0), QStringLiteral("First %1 word, and %1 again.").arg(chosen));
         QCOMPARE(pane->word(), QStringLiteral("secnd"));
         w.document()->story()->undo();
-        QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("wrongg")));
+        QCOMPARE(w.document()->story()->toPlainText().section(QLatin1Char('\n'), 0, 0), QStringLiteral("First wrongg word, and wrongg again."));   // (both come back)
         w.document()->story()->redo();
         // Ignore passes this one by; Change takes the chosen suggestion; the pane goes on.
         button("spellIgnore")->click();
@@ -1390,6 +1418,7 @@ private Q_SLOTS:
 
     void reviewSpellingBeginsAtTheCaretAndComesBackToWhereItBegan()
     {
+        const SettingGuard asType(QStringLiteral("proof/asYouType"), true, true);
         WriteWindow w;
         w.setDocument(textDoc({"Zzalpha is first.", "Then zzbeta follows.", "And zzgamma last."}), QString());
         w.show();
@@ -1418,16 +1447,64 @@ private Q_SLOTS:
         QCOMPARE(w.view()->spelling()->misspellingAt(6), qMakePair(-1, -1));
     }
 
+    void theSpellingPaneNeverHoldsTheWindowForAWholeDocument()
+    {
+        const SettingGuard asType(QStringLiteral("proof/asYouType"), true, true);
+        WriteWindow w;
+        w.setDocument(open(makeDocx(paragraphs(1500) + "<w:p><w:r><w:t>and one recieve at the very end</w:t></w:r></w:p>", kStyles)), QString());
+        w.show();
+        w.act("review.spelling")->trigger();   // (back at once, with what a slice of time could check)
+        auto *pane = w.findChild<SpellPane *>();
+        QVERIFY(pane);
+        QVERIFY(pane->searching());
+        QVERIFY(!pane->complete());
+        QVERIFY(pane->findChild<QLabel *>(QStringLiteral("spellStatus"))->text().contains(QStringLiteral("Checking")));
+        QVERIFY(!pane->findChild<QPushButton *>(QStringLiteral("spellIgnore"))->isEnabled());
+        // The window goes on working, and the pane gets to the word.
+        QTRY_COMPARE_WITH_TIMEOUT(pane->word(), QStringLiteral("recieve"), 30000);
+        QVERIFY(!pane->searching());
+        QVERIFY(pane->findChild<QPushButton *>(QStringLiteral("spellIgnore"))->isEnabled());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("recieve"));
+    }
+
+    void changeAllGoesOnFromTheWordWhateverTheEarlierOnesChangedBy()
+    {
+        const SettingGuard asType(QStringLiteral("proof/asYouType"), true, true);
+        WriteWindow w;
+        w.setDocument(textDoc({"wrongg wrongg wrongg", "zztwo wrongg zzthree"}), QString());
+        w.show();
+        QTextCursor &c = w.view()->cursor();
+        c.setPosition(w.document()->story()->findBlockByNumber(1).position());
+        w.view()->setCursor(c);
+        w.act("review.spelling")->trigger();
+        auto *pane = w.findChild<SpellPane *>();
+        auto click = [&](const char *name) { pane->findChild<QPushButton *>(QString::fromLatin1(name))->click(); };
+        QCOMPARE(pane->word(), QStringLiteral("zztwo"));
+        click("spellIgnore");
+        QCOMPARE(pane->word(), QStringLiteral("wrongg"));
+        auto *suggestions = pane->findChild<QListWidget *>(QStringLiteral("spellSuggestions"));
+        QVERIFY(suggestions->count() > 0);
+        const QString chosen = suggestions->item(0)->text();
+        QVERIFY2(chosen.size() != 6, "a suggestion of another length shifts what follows");
+        click("spellChangeAll");
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("%1 %1 %1\nzztwo %1 zzthree").arg(chosen));
+        // The next is the one just after the word, though the three before it changed length; then the check ends where it began, not at "zztwo" again.
+        QCOMPARE(pane->word(), QStringLiteral("zzthree"));
+        click("spellIgnore");
+        QVERIFY2(pane->complete(), qPrintable(pane->word()));
+    }
+
     void checkingSpellingAsYouTypeCanBeTurnedOffInTheReviewTab()
     {
+        const SettingGuard asType(QStringLiteral("proof/asYouType"), true, true);   // (what the test begins with, and what the person had comes back)
         WriteWindow w;
         w.setDocument(textDoc({"A recieve here."}), QString());
         w.show();
-        QAction *asType = w.act("review.checkAsType");
-        QVERIFY(asType->isCheckable() && asType->isChecked());
+        QAction *action = w.act("review.checkAsType");
+        QVERIFY(action->isCheckable() && action->isChecked());
         QVERIFY(w.view()->spellingEnabled());
-        asType->trigger();
-        QVERIFY(!asType->isChecked());
+        action->trigger();
+        QVERIFY(!action->isChecked());
         QVERIFY(!w.view()->spellingEnabled());
         int count = 0;
         redBounds(w.view()->grab().toImage(), w.view()->pageRect(0), &count);
@@ -1435,10 +1512,268 @@ private Q_SLOTS:
         // A window opened after remembers the choice.
         WriteWindow other;
         QVERIFY(!other.view()->spellingEnabled());
-        asType->trigger();
+        action->trigger();
         QVERIFY(w.view()->spellingEnabled());
         WriteWindow third;
         QVERIFY(third.view()->spellingEnabled());
+    }
+
+    void aStyleThatSetsALanguageGivesItToTheTextAndTakesItAway()
+    {
+        const QByteArray styles = kStyles +
+                                  "<w:style w:type=\"paragraph\" w:styleId=\"British\"><w:name w:val=\"British\"/><w:basedOn w:val=\"Normal\"/><w:rPr><w:lang w:val=\"en-GB\"/></w:rPr></w:style>"
+                                  "<w:style w:type=\"character\" w:styleId=\"BritishChar\"><w:name w:val=\"BritishChar\"/><w:rPr><w:lang w:val=\"en-GB\"/></w:rPr></w:style>";
+        const QByteArray body = "<w:p><w:r><w:t>colour</w:t></w:r></w:p><w:p><w:r><w:t>colour</w:t></w:r></w:p><w:p><w:r><w:rPr><w:lang w:val=\"en-GB\"/></w:rPr><w:t>colour</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, styles));
+        QTextDocument *story = doc->story();
+        SpellCheck sc(story);
+        sc.setDefaultLanguage(doc->proofingLanguage());
+        auto flagged = [&] {
+            QList<int> blocks;
+            for (const auto &r : sc.misspelledIn(0, story->characterCount())) blocks << story->findBlock(r.first).blockNumber();
+            return blocks;
+        };
+        QCOMPARE(flagged(), (QList<int>{0, 1}));
+        // A paragraph style that says British gives it to the paragraph's text; another style takes it away again. What a run says itself stays.
+        QTextCursor c(story);
+        c.setPosition(story->findBlockByNumber(0).position());
+        applyParagraphStyle(*doc, c, QStringLiteral("British"));
+        QCOMPARE(flagged(), (QList<int>{1}));
+        applyParagraphStyle(*doc, c, QStringLiteral("Normal"));
+        QCOMPARE(flagged(), (QList<int>{0, 1}));
+        c.setPosition(story->findBlockByNumber(2).position());
+        applyParagraphStyle(*doc, c, QStringLiteral("Heading1"));
+        QCOMPARE(flagged(), (QList<int>{0, 1}));   // (its own British stays)
+        applyParagraphStyle(*doc, c, QStringLiteral("Normal"));
+        // A character style does the same for the letters it is given to.
+        c.setPosition(story->findBlockByNumber(1).position());
+        c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        applyCharacterStyle(*doc, c, QStringLiteral("BritishChar"));
+        QCOMPARE(flagged(), (QList<int>{0}));
+        // Clearing the formatting leaves a run's own language, as the file keeps it.
+        c.setPosition(story->findBlockByNumber(2).position());
+        c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        clearFormatting(*doc, c);
+        QCOMPARE(flagged(), (QList<int>{0}));
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:lang w:val=\"en-GB\"/>"));
+    }
+
+    void searchingForMisspellingsGoesInSlicesOfBoundedWork()
+    {
+        QStringList texts;
+        for (int i = 0; i < 400; ++i) texts << (i == 300 ? QStringLiteral("One recieve here.") : QStringLiteral("Paragraph %1 is correct and clean.").arg(i));
+        auto doc = textDoc(texts);
+        QTextDocument *story = doc->story();
+        SpellCheck sc(story);
+        int from = 0, slices = 0, next = 0;
+        QPair<int, int> found{-1, -1};
+        qint64 before = sc.paragraphsChecked();
+        SpellCheck::Step step;
+        while ((step = sc.search(from, 0, &found, &next)) == SpellCheck::Step::More) {
+            ++slices;
+            // (A slice with no time to spend does the work of one paragraph, so that the search goes on.)
+            QCOMPARE(sc.paragraphsChecked() - before, qint64(1));
+            before = sc.paragraphsChecked();
+            QVERIFY(next > from);
+            from = next;
+            QVERIFY(slices < 1000);
+        }
+        QCOMPARE(step, SpellCheck::Step::Found);
+        QCOMPARE(slices, 300);
+        QCOMPARE(story->toPlainText().mid(found.first, found.second - found.first), QStringLiteral("recieve"));
+        // On from the word: the rest of the story has none, and the search says so.
+        from = found.second;
+        while ((step = sc.search(from, 0, &found, &next)) == SpellCheck::Step::More) from = next;
+        QCOMPARE(step, SpellCheck::Step::None);
+        // What was checked is kept: the whole story again takes one slice and no checking.
+        before = sc.paragraphsChecked();
+        QCOMPARE(sc.search(0, 0, &found, &next), SpellCheck::Step::Found);
+        QCOMPARE(sc.search(found.second, 0, &found, &next), SpellCheck::Step::None);
+        QCOMPARE(sc.paragraphsChecked(), before);
+    }
+
+    void aLongParagraphIsCheckedInPiecesOfBoundedWork()
+    {
+        QString text;
+        for (int i = 0; i < 30000; ++i) text += (i % 1000 == 999 ? QStringLiteral("recieve ") : QStringLiteral("word "));
+        auto doc = textDoc({text});
+        QTextDocument *story = doc->story();
+        SpellCheck sc(story);
+        const int end = story->characterCount();
+        {
+            SpellCheck::Pass pass(sc, 0);
+            sc.misspelledIn(0, end);
+        }
+        // A pass with no time does one piece of it, not the whole; the rest is for idle time.
+        QVERIFY2(sc.wordsChecked() > 0 && sc.wordsChecked() < 3000, qPrintable(QString::number(sc.wordsChecked())));
+        QVERIFY(sc.pending());
+        QTRY_VERIFY(!sc.pending());
+        QCOMPARE(sc.wordsChecked(), qint64(30000));   // (each word once, though it took pieces)
+        QCOMPARE(sc.misspelledIn(0, end).size(), 30);
+        QCOMPARE(sc.paragraphsChecked(), qint64(1));
+        // A typed character in it: the same, one piece within the pass.
+        QTextCursor c(story);
+        c.setPosition(5);
+        insertText(*doc, c, QStringLiteral("s"));
+        const qint64 before = sc.wordsChecked();
+        {
+            SpellCheck::Pass pass(sc, 0);
+            sc.misspelledIn(0, story->characterCount());
+        }
+        QVERIFY2(sc.wordsChecked() - before > 0 && sc.wordsChecked() - before < 3000, qPrintable(QString::number(sc.wordsChecked() - before)));
+        QTRY_VERIFY(!sc.pending());
+        QCOMPARE(sc.misspelledIn(0, story->characterCount()).size(), 30);
+        QCOMPARE(sc.paragraphsChecked(), qint64(2));
+        // The search, too, goes through it in pieces: a misspelling near the start is found without checking the rest.
+        QTextCursor d(story);
+        d.setPosition(7);
+        insertText(*doc, d, QStringLiteral("s"));   // ("swsord")
+        const qint64 beforeSearch = sc.wordsChecked();
+        QPair<int, int> found;
+        int next = 0;
+        QCOMPARE(sc.search(0, 0, &found, &next), SpellCheck::Step::Found);
+        QVERIFY2(sc.wordsChecked() - beforeSearch < 3000, qPrintable(QString::number(sc.wordsChecked() - beforeSearch)));
+        QCOMPARE(story->toPlainText().mid(found.first, found.second - found.first), QStringLiteral("swsord"));
+    }
+
+    void theSpellingCacheDoesNotKeepTheTextOfTheDocument()
+    {
+        QStringList texts;
+        for (int i = 0; i < 2000; ++i) texts << QStringLiteral("Paragraph number %1 is made of ordinary words that are all spelled right, and it goes on for a while so that it is long enough to count.").arg(i);
+        auto doc = textDoc(texts);
+        SpellCheck sc(doc->story());
+        sc.misspelledIn(0, doc->story()->characterCount());
+        QCOMPARE(sc.paragraphsChecked(), qint64(2000));
+        const qint64 textBytes = qint64(doc->story()->characterCount()) * 2;
+        QVERIFY2(sc.keptBytes() * 2 < textBytes, qPrintable(QStringLiteral("%1 bytes kept for %2 bytes of text").arg(sc.keptBytes()).arg(textBytes)));
+    }
+
+    void theUserDictionaryIsReadAndWrittenSafely()
+    {
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("custom.dic"));
+        auto put = [&](const QByteArray &bytes) {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            f.write(bytes);
+        };
+        auto get = [&] {
+            QFile f(path);
+            return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+        };
+        // A file that doesn't end with a newline: the next word begins a line of its own.
+        put("alpha\nbeta");
+        QString error;
+        QVERIFY(addToUserDictionary(path, QStringLiteral("gamma"), &error));
+        QCOMPARE(get(), QByteArray("alpha\nbeta\ngamma\n"));
+        QCOMPARE(userDictionaryWords(path), (QStringList{"alpha", "beta", "gamma"}));
+        // A word that is empty or has a line in it is not written, so that no two words are made of one.
+        QVERIFY(!addToUserDictionary(path, QStringLiteral("  "), &error));
+        QVERIFY(!addToUserDictionary(path, QStringLiteral("two\nwords"), &error));
+        QCOMPARE(get(), QByteArray("alpha\nbeta\ngamma\n"));
+        // A byte order mark, Windows line ends, blanks, and spaces around a word.
+        put("\xEF\xBB\xBF" "one\r\n\r\n  two \r\nthree");
+        QCOMPARE(userDictionaryWords(path), (QStringList{"one", "two", "three"}));
+        // The read is bounded: a file of a great many words is read as far as the limit.
+        QByteArray big;
+        for (int i = 0; i < 400000; ++i) big += "word" + QByteArray::number(i) + "\n";
+        put(big);
+        const int words = int(userDictionaryWords(path).size());
+        QVERIFY2(words > 10000 && words < 400000, qPrintable(QString::number(words)));
+        // A file that can't be written is said, with the reason.
+        QVERIFY(!addToUserDictionary(dir.filePath(QStringLiteral("none/custom.dic")), QStringLiteral("x"), &error));
+        QVERIFY(!error.isEmpty());
+        QVERIFY(userDictionaryWords(dir.filePath(QStringLiteral("none/custom.dic"))).isEmpty());
+    }
+
+    void addingAWordThatCantBeSavedStillCountsAndIsSaidOnce()
+    {
+        QTemporaryDir dir;
+        struct Restore {
+            ~Restore() { Speller::setUserDictionaryPath(QString()); }
+        } restore;
+        // (The path is a folder, so nothing can be written there.)
+        Speller::setUserDictionaryPath(dir.path());
+        QString first, second;
+        QVERIFY(!spellingAdd(QStringLiteral("qzxfailone"), &first));
+        QVERIFY(!first.isEmpty());
+        QVERIFY(!spellingAdd(QStringLiteral("qzxfailtwo"), &second));
+        QVERIFY(second.isEmpty());   // (said once)
+        QVERIFY(Speller::get().check(QStringLiteral("en-US"), QStringLiteral("qzxfailone")));   // (the word is accepted for the session all the same)
+        // When a save works the next failure is news again.
+        Speller::setUserDictionaryPath(dir.filePath(QStringLiteral("custom.dic")));
+        QVERIFY(spellingAdd(QStringLiteral("qzxsaved")));
+        QVERIFY(userDictionaryWords(dir.filePath(QStringLiteral("custom.dic"))).contains(QStringLiteral("qzxsaved")));
+        Speller::setUserDictionaryPath(dir.path());
+        QString third;
+        QVERIFY(!spellingAdd(QStringLiteral("qzxfailthree"), &third));
+        QVERIFY(!third.isEmpty());
+    }
+
+    void rightClickingInsideASelectionOffersTheWordClickedNotTheCaret()
+    {
+        auto doc = textDoc({"First line has recieve in it and more text after it."});
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        QTextCursor &c = view.cursor();
+        const int word = doc->story()->toPlainText().indexOf(QStringLiteral("recieve"));
+        c.setPosition(word + 2);
+        view.setCursor(c);
+        QRect r;
+        QVERIFY(view.caretRect(&r));
+        // The paragraph is selected, the caret at its end, and the click is on the word.
+        c.setPosition(0);
+        c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        view.setCursor(c);
+        const int selected = int(view.cursor().selectedText().size());
+        QTest::mousePress(view.viewport(), Qt::RightButton, Qt::NoModifier, QPoint(r.x() + 1, r.y() + r.height() / 2));
+        QCOMPARE(int(view.cursor().selectedText().size()), selected);   // (the selection stays)
+        QMenu menu;
+        QVERIFY(addSpellingSuggestions(menu, &view));
+        const QString chosen = menu.actions().first()->text();
+        menu.actions().first()->trigger();
+        QCOMPARE(doc->story()->toPlainText(), QStringLiteral("First line has %1 in it and more text after it.").arg(chosen));
+        QTest::mouseRelease(view.viewport(), Qt::RightButton, Qt::NoModifier, QPoint(r.x() + 1, r.y() + r.height() / 2));
+    }
+
+    void aMisspelledWordInATableCellIsUnderlinedLikeAnyOther()
+    {
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/><w:gridCol w:w=\"3000\"/></w:tblGrid>"
+                                 "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>fine words</w:t></w:r></w:p></w:tc>"
+                                 "<w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>a recieve here</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>before</w:t></w:r></w:p>" + table + "<w:p><w:r><w:t>after</w:t></w:r></w:p>", kStyles));
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        view.paginateAll();
+        QTextDocument *story = doc->story();
+        int start = -1;
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            if (b.text() == QStringLiteral("a recieve here")) start = b.position() + 2;
+        QVERIFY(start > 0);
+        QTextCursor &c = view.cursor();
+        c.setPosition(start);
+        view.setCursor(c);
+        QRect from;
+        QVERIFY(view.caretRect(&from));
+        c.setPosition(start + 7);
+        view.setCursor(c);
+        QRect to;
+        QVERIFY(view.caretRect(&to));
+        c.setPosition(0);
+        view.setCursor(c);
+        int count = 0;
+        QRect wave;
+        QTRY_VERIFY((wave = redBounds(view.grab().toImage(), view.pageRect(0), &count), count > 8));
+        // Under the word, just below its letters, and nowhere else on the page (a placeholder line of the table has none).
+        QVERIFY2(wave.left() >= from.left() - 3 && wave.right() <= to.left() + 3, qPrintable(QStringLiteral("%1..%2 for the word at %3..%4").arg(wave.left()).arg(wave.right()).arg(from.left()).arg(to.left())));
+        QVERIFY2(wave.top() >= from.top() && wave.bottom() <= from.bottom() + 8, qPrintable(QStringLiteral("%1..%2 for the line at %3..%4").arg(wave.top()).arg(wave.bottom()).arg(from.top()).arg(from.bottom())));
+        // As printed, no.
+        redBounds(view.pageImage(0, 900), QRect(0, 0, 900, 1200), &count);
+        QCOMPARE(count, 0);
     }
 
     void theRibbonCommandsDoTheirWork()
