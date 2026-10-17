@@ -33,7 +33,9 @@ std::optional<flow::TableLine> lineOf(const TableBorder &b)
     if (b.val == QLatin1String("nil") || b.val == QLatin1String("none")) return line;
     line.width = std::max(0.25, std::min(12.0, b.size / 8.0));
     line.color = b.color == QLatin1String("auto") ? QColor() : colorOfHex(b.color);
-    if (b.val == QLatin1String("double") || b.val == QLatin1String("triple") || b.val.startsWith(QLatin1String("thinThick")) || b.val.startsWith(QLatin1String("thickThin")))
+    if (b.val == QLatin1String("triple"))
+        line.style = flow::TableLine::Style::Triple;
+    else if (b.val == QLatin1String("double") || b.val.startsWith(QLatin1String("thinThick")) || b.val.startsWith(QLatin1String("thickThin")))
         line.style = flow::TableLine::Style::Double;
     else if (b.val == QLatin1String("dotted"))
         line.style = flow::TableLine::Style::Dotted;

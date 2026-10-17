@@ -239,7 +239,7 @@ TableLine lineBetween(const std::optional<TableLine> &before, const std::optiona
     if (!hasBefore) return after ? *after : outside;
     if (!hasAfter) return before ? *before : outside;
     const TableLine a = before ? *before : inside, b = after ? *after : inside;
-    return roomOf(b) > roomOf(a) ? b : a;
+    return b.weight() > a.weight() ? b : a;
 }
 
 } // namespace
@@ -356,7 +356,8 @@ void TableLayout::setLineRooms()
     const int rows = int(m_rows.size());
     // The cell that has the line under a cell: the last of those joined down.
     auto bottomOf = [&](const Cell &c) -> const CellData & { return (c.last >= 0 ? m_cells[size_t(c.last)] : c).rec->cell; };
-    // The cells that are above the row's: for each grid column, the one that is there (one joined down has a cell in each row, and its line at the top is a line of the row).
+    // The cells that are above the row's: for each grid column, the one that is there (one joined down has a cell in each row, and its line at the top is a line of the row: a
+    // program that sets such a cell leaves the room for it, though the line is not drawn across the cell).
     std::vector<int> above(size_t(m_xs.size()), -1), here(above);
     for (int r = 0; r < rows; ++r) {
         Row &row = m_rows[size_t(r)];
@@ -372,8 +373,14 @@ void TableLayout::setLineRooms()
                 top = std::max(top, roomOf(cd.top.value_or(TableLine())));
                 continue;
             }
-            const int neighbor = c.col < int(above.size()) ? above[size_t(c.col)] : -1;
-            top = std::max(top, roomOf(lineBetween(neighbor >= 0 ? m_cells[size_t(neighbor)].rec->cell.bottom : std::nullopt, cd.top, neighbor >= 0, true, d.insideH, d.top)));
+            // The line between the cell and each cell above it, along the columns it covers: the heaviest of them is the room it takes.
+            int previous = -2;
+            for (int k = c.col; k < end && k < int(above.size()); ++k) {
+                const int neighbor = above[size_t(k)];
+                if (neighbor == previous) continue;
+                previous = neighbor;
+                top = std::max(top, roomOf(lineBetween(neighbor >= 0 ? m_cells[size_t(neighbor)].rec->cell.bottom : std::nullopt, cd.top, neighbor >= 0, true, d.insideH, d.top)));
+            }
         }
         row.top = top + (d.spaced && r == 0 ? roomOf(d.top) : 0.0);
         above = here;
@@ -1065,6 +1072,40 @@ TableLine edgeOf(TableLayout &t, int index, Side side)
     return TableLine();
 }
 
+struct EdgePart {
+    double x0 = 0, x1 = 0;   // along the table, from its left edge
+    TableLine line;
+};
+
+// The line along the top or the foot of a cell, in parts: a cell across columns has the line between it and each cell it meets there.
+std::vector<EdgePart> edgeParts(TableLayout &t, int index, bool top)
+{
+    const TableLayout::Cell &c = t.cell(index);
+    const TableData &d = t.data();
+    if (c.span == 1 || d.spaced) return {{c.x, c.x + c.w, edgeOf(t, index, top ? Side::Top : Side::Bottom)}};
+    const CellData &cd = c.rec->cell;
+    const CellData &bottomCell = (c.last >= 0 ? t.cell(c.last) : c).rec->cell;
+    std::vector<EdgePart> out;
+    const int row = top ? c.row - 1 : c.row + c.rows;
+    int start = c.col, last = -2;
+    auto close = [&](int end, int n) {   // the columns [start, end) meet cell n
+        const TableLayout::Cell *other = n >= 0 ? &t.cell(n) : nullptr;
+        const TableLine line = top ? lineBetween(other ? (other->last >= 0 ? t.cell(other->last) : *other).rec->cell.bottom : std::nullopt, cd.top, other != nullptr, true, d.insideH, d.top)
+                                   : lineBetween(bottomCell.bottom, other ? other->rec->cell.top : std::nullopt, true, other != nullptr, d.insideH, d.bottom);
+        out.push_back({t.columnLeft(start), t.columnLeft(end), line});
+    };
+    for (int col = c.col; col < c.col + c.span; ++col) {
+        const int n = cellCovering(t, row, col);
+        if (col > c.col && n != last) {
+            close(col, last);
+            start = col;
+        }
+        last = n;
+    }
+    close(c.col + c.span, last);
+    return out;
+}
+
 void strokeLine(QPainter *p, const TableLine &line, QPointF a, QPointF b, bool picture)
 {
     if (!line.visible()) return;
@@ -1080,11 +1121,17 @@ void strokeLine(QPainter *p, const TableLine &line, QPointF a, QPointF b, bool p
     else if (line.style == TableLine::Style::Dashed) pen.setStyle(Qt::DashLine);
     p->setPen(pen);
     p->setBrush(Qt::NoBrush);
-    if (line.style == TableLine::Style::Double) {
+    if (line.style == TableLine::Style::Double || line.style == TableLine::Style::Triple) {
         const bool horizontal = std::abs(a.y() - b.y()) < 1e-9;
         const QPointF off = horizontal ? QPointF(0, w) : QPointF(w, 0);
-        p->drawLine(a - off, b - off);
-        p->drawLine(a + off, b + off);
+        if (line.style == TableLine::Style::Triple) {
+            p->drawLine(a - off * 2, b - off * 2);
+            p->drawLine(a, b);
+            p->drawLine(a + off * 2, b + off * 2);
+        } else {
+            p->drawLine(a - off, b - off);
+            p->drawLine(a + off, b + off);
+        }
     } else {
         p->drawLine(a, b);
     }
@@ -1147,16 +1194,30 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
         const CellData &cd = c.rec->cell;
         const CellData &bottomCell = (c.last >= 0 ? layout->cell(c.last) : c).rec->cell;
         const bool beginsPage = !header && firstRow > 0 && c.row == firstRow, endsPage = endRow < layout->rowCount() && c.row + c.rows == endRow;
-        const TableLine top = beginsPage && !td.spaced ? lineBetween(std::nullopt, cd.top, false, true, td.insideH, td.top) : edgeOf(*layout, index, Side::Top);
-        const double down = roomOf(top) / 2;
-        strokeLine(p, top, r.topLeft() + QPointF(0, down), r.topRight() + QPointF(0, down), picture);
+        if (beginsPage && !td.spaced) {
+            const TableLine top = lineBetween(std::nullopt, cd.top, false, true, td.insideH, td.top);
+            const double down = roomOf(top) / 2;
+            strokeLine(p, top, r.topLeft() + QPointF(0, down), r.topRight() + QPointF(0, down), picture);
+        } else {
+            for (const EdgePart &e : edgeParts(*layout, index, true)) {
+                const double down = roomOf(e.line) / 2;
+                strokeLine(p, e.line, QPointF(r.left() + e.x0 - c.x, r.top() + down), QPointF(r.left() + e.x1 - c.x, r.top() + down), picture);
+            }
+        }
         strokeLine(p, edgeOf(*layout, index, Side::Left), r.topLeft(), r.bottomLeft(), picture);
         const Part *part = c.rows == 1 ? partOf(c.row) : nullptr;
-        if (cellCovering(*layout, c.row + c.rows, c.col) < 0 || endsPage || (part && part->piece.next != 0)) {   // (and the foot of a row that goes on past a page break)
-            const bool cut = endsPage || (part && part->piece.next != 0);
-            const TableLine bottom = cut && !td.spaced ? lineBetween(bottomCell.bottom, std::nullopt, true, false, td.insideH, td.bottom) : edgeOf(*layout, index, Side::Bottom);
-            const double up = roomOf(bottom) / 2;
-            strokeLine(p, bottom, r.bottomLeft() - QPointF(0, up), r.bottomRight() - QPointF(0, up), picture);
+        const bool cut = endsPage || (part && part->piece.next != 0);   // (the foot of a row that goes on past a page break, and of the page's last)
+        if (cut || cellCovering(*layout, c.row + c.rows, c.col) < 0) {
+            if (cut && !td.spaced) {
+                const TableLine bottom = lineBetween(bottomCell.bottom, std::nullopt, true, false, td.insideH, td.bottom);
+                const double up = roomOf(bottom) / 2;
+                strokeLine(p, bottom, r.bottomLeft() - QPointF(0, up), r.bottomRight() - QPointF(0, up), picture);
+            } else {
+                for (const EdgePart &e : edgeParts(*layout, index, false)) {
+                    const double up = roomOf(e.line) / 2;
+                    strokeLine(p, e.line, QPointF(r.left() + e.x0 - c.x, r.bottom() - up), QPointF(r.left() + e.x1 - c.x, r.bottom() - up), picture);
+                }
+            }
         }
         if (cellCovering(*layout, c.row, c.col + c.span) < 0) strokeLine(p, edgeOf(*layout, index, Side::Right), r.topRight(), r.bottomRight(), picture);
         p->restore();
