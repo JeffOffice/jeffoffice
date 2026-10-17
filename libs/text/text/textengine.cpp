@@ -1407,29 +1407,47 @@ struct WordLine {
     double total() const { return ascent + descent + leading; }
 };
 
-// The vertical metrics of the fonts a word processor's documents ask for, in 2048ths of an em: the Windows ascent and descent, then the
-// ascent, descent, and line gap of the font's horizontal header. A font's line is its Windows ascent and descent, plus the part of its gap that
-// they don't already hold (Calibri's gap is its Windows height less its header's: no leading). Read from the tables embedded in reference
-// PDFs, as the stand-ins' (Tinos, Arimo, Cousine) are the same for the three core fonts but not for the rest.
+// The vertical metrics of the fonts a word processor's documents ask for, in font units: the Windows ascent and descent, then the ascent,
+// descent, and line gap of the font's horizontal header. A font's line is its Windows ascent and descent, plus the part of its gap that
+// they don't already hold (Calibri's gap is its Windows height less its header's: no leading). The faces the word processor's machine has
+// are in the generated table (every face of each family: a bold or italic face can differ from the regular one); a few names it knows that
+// the table has no face of are read from the tables embedded in reference PDFs, as the stand-ins' (Tinos, Arimo, Cousine) are the same for
+// the three core fonts but not for the rest.
+#include "wordfontlines.inc"
+
 struct WordFontRow {
     const char *family;
     int winAscent, winDescent, ascent, descent, gap;
 };
 static const WordFontRow kWordFonts[] = {
-    {"times new roman", 1825, 443, 1825, 443, 87}, {"arial", 1854, 434, 1854, 434, 67}, {"courier new", 1705, 615, 1705, 615, 0},
-    {"times", 1825, 443, 1825, 443, 87}, {"helvetica", 1854, 434, 1854, 434, 67}, {"courier", 1705, 615, 1705, 615, 0},
-    {"calibri", 1950, 550, 1536, 512, 452}, {"cambria", 1946, 455, 1946, 455, 0}, {"symbol", 2059, 450, 2059, 450, 0},
-    {"wingdings", 1841, 432, 1841, 432, 0}, {"verdana", 2059, 430, 2059, 430, 0}, {"tahoma", 2049, 423, 2049, 423, 0},
-    {"georgia", 1878, 449, 1878, 449, 0}, {"trebuchet ms", 1923, 455, 1923, 455, 0}, {"arial black", 2254, 634, 2254, 634, 0},
-    {"arial narrow", 1888, 431, 1916, 434, 0}, {"arial rounded mt bold", 1938, 432, 1938, 432, 0}, {"book antiqua", 1967, 578, 1891, 578, 0},
-    {"century", 2019, 442, 2019, 443, 0}, {"century schoolbook", 2019, 442, 2019, 443, 0}, {"century gothic", 1989, 451, 2060, 451, 0},
-    {"garamond", 1765, 539, 1765, 539, 0}, {"monotype corsiva", 1618, 620, 1618, 620, 60}, {"broadway", 1869, 450, 1869, 450, 0},
-    {"bodoni mt black", 1878, 514, 1878, 514, 0}, {"tw cen mt condensed extra bold", 1788, 430, 1788, 430, 0},
-    {"news gothic mt", 2003, 458, 2003, 458, 0}, {"univers", 2025, 512, 2025, 512, 0},
+    {"times", 1825, 443, 1825, 443, 87},     {"helvetica", 1854, 434, 1854, 434, 67}, {"courier", 1705, 615, 1705, 615, 0},
+    {"century", 2019, 442, 2019, 443, 0},    {"monotype corsiva", 1618, 620, 1618, 620, 60}, {"broadway", 1869, 450, 1869, 450, 0},
+    {"tw cen mt condensed extra bold", 1788, 430, 1788, 430, 0}, {"news gothic mt", 2003, 458, 2003, 458, 0}, {"univers", 2025, 512, 2025, 512, 0},
 };
+
+// The measured face a family asks for, by its style: the face itself, else what a word processor makes it from (a bold italic from the
+// italic face, or from the bold one, else the regular face); null when the family has no measured face.
+struct WordFace {
+    int upm, winAscent, winDescent, ascent, descent, gap;
+};
+static bool wordFaceNamed(const QString &lower, bool bold, bool italic, WordFace *out)
+{
+    const int want[4] = {bold && italic ? 3 : bold ? 1 : italic ? 2 : 0, bold && italic ? 2 : 0, bold && italic ? 1 : 0, 0};
+    for (int k = 0; k < 4; ++k) {
+        if (k > 0 && want[k] == want[k - 1]) continue;
+        for (const auto &r : kWordFontFaces)
+            if (r.style == want[k] && lower == QLatin1String(r.family)) {
+                *out = {r.upm, r.winAscent, r.winDescent, r.ascent, r.descent, r.gap};
+                return true;
+            }
+    }
+    return false;
+}
 
 static bool wordKnowsFamily(const QString &lower)
 {
+    WordFace face;
+    if (wordFaceNamed(lower, false, false, &face)) return true;
     for (const WordFontRow &r : kWordFonts)
         if (lower == QLatin1String(r.family)) return true;
     return false;
@@ -1452,12 +1470,18 @@ static WordLine wordFaceOf(const QFont &f)
     WordLine line = make(1825, 443, 1825, 443, 87, 2048);   // (a Times New Roman, when nothing is known)
     const QString family = requestedFamily(f).toLower();
     bool found = false;
-    for (const WordFontRow &r : kWordFonts)
-        if (family == QLatin1String(r.family)) {
-            line = make(r.winAscent, r.winDescent, r.ascent, r.descent, r.gap, 2048);
-            found = true;
-            break;
-        }
+    WordFace face;
+    if (wordFaceNamed(family, f.weight() >= QFont::DemiBold, f.italic(), &face)) {
+        line = make(face.winAscent, face.winDescent, face.ascent, face.descent, face.gap, face.upm);
+        found = true;
+    }
+    if (!found)
+        for (const WordFontRow &r : kWordFonts)
+            if (family == QLatin1String(r.family)) {
+                line = make(r.winAscent, r.winDescent, r.ascent, r.descent, r.gap, 2048);
+                found = true;
+                break;
+            }
     // A family the word processor doesn't have on the machine is set in its stand-in, which is Calibri's line.
     if (!found && !hasFamilyCached(requestedFamily(f))) {
         line = make(1950, 550, 1536, 512, 452, 2048);
