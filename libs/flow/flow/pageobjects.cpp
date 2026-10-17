@@ -131,7 +131,7 @@ void Paginator::resolveCellImages(MaterializedPage *page, Document *d)
         });
 }
 
-QRectF Paginator::placeOf(const FloatingObject &o, const Anchor &a, const Section &sec) const
+QRectF Paginator::placeOf(const FloatingObject &o, const Anchor &a, const Section &sec, bool clamp) const
 {
     using Rel = FloatingObject::Rel;
     using Align = FloatingObject::Align;
@@ -161,7 +161,7 @@ QRectF Paginator::placeOf(const FloatingObject &o, const Anchor &a, const Sectio
         y = (o.vRel == Rel::Line ? a.lineTop : a.paragraphTop) - size.height();
     }
     // An object set from the text stays on the page: moved up from the foot where it would go over it (and down from the top).
-    if (!fromArea) y = std::max(0.0, std::min(y, pageSize.height() - size.height()));
+    if (!fromArea && clamp) y = std::max(0.0, std::min(y, pageSize.height() - size.height()));
     return QRectF(QPointF(x, y), size);
 }
 
@@ -562,6 +562,7 @@ QVector<Paginator::Anchor> Paginator::floatAnchors(const QVector<AnchorLine> &li
             a.x = l.rect.left();
             a.frameFrom = r.from;
             a.frameTo = r.to;
+            a.paragraph = l.block;
             if (r.key > 0) {
                 a.frame = frameObject(r.key, r.from, r.to, columnWidth);
                 if (!a.frame) continue;

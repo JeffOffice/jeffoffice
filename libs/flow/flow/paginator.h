@@ -225,9 +225,12 @@ private:
     // The page: laid out with the objects its lines anchor and the text goes round, until the objects and the lines agree about where each is (a few times at most: where
     // they don't, the last layout stands, with the objects it was made with); and, in that order, once (`layoutPageWith`) for the objects given.
     Run layoutPage(int index, const PageStart &start);
-    Run layoutPageWith(int index, const PageStart &start, const QVector<Wrapped> &wrapped);
+    // (`cutAt`, a paragraph's position, ends the page before that paragraph, if the page has lines before it: a table set at a place that would go over the foot of the page is
+    // moved to the next page with its paragraph.)
+    Run layoutPageWith(int index, const PageStart &start, const QVector<Wrapped> &wrapped, int cutAt = -1);
     // The objects that the lines of a laid-out page anchor, with the rectangle each is in, for those the text goes round (at most kMostWrapped of them, in the order of their anchors).
-    QVector<Wrapped> wrappersOf(const Run &run, int index, const PageStart &start);
+    // (`moveBefore`: the position of the first paragraph that a table set at a place from it would go over the foot of the text area from, if any.)
+    QVector<Wrapped> wrappersOf(const Run &run, int index, const PageStart &start, int *moveBefore = nullptr);
     // The frame-local polygons that a column on the page (its rectangle, page coordinates) has the objects in as places the text keeps out of (as the page layer finds them for the
     // text box that is made of the column: Renderer::wrapObstacles).
     QVector<QPolygonF> obstaclesFor(const QVector<Wrapped> &wrapped, const QRectF &column) const;
@@ -261,6 +264,7 @@ private:
         int frameFrom = 0, frameTo = 0;
         std::shared_ptr<const FloatingObject> frame;
         int table = -1;     // a floating table (its place in the index of tables): `frame` is the object that stands for it
+        int paragraph = -1; // the position of the paragraph it is set from (frames and tables)
     };
     // The object an anchor has as `id` (its own, or a frame's made of the paragraphs).
     const FloatingObject &objectAt(const Anchor &a, int id) const { return a.frame ? *a.frame : m_doc->objects[size_t(id) - 1]; }
@@ -322,6 +326,7 @@ private:
         PageStart start;
         int pages = 0;
         QVector<Wrapped> walls;
+        int cutAt = -1;
     };
     std::map<int, WallMemo> m_wallMemo;
     std::shared_ptr<const FloatingObject> tableObject(int span, double columnWidth);
@@ -335,7 +340,7 @@ private:
     QHash<int, QVector<std::pair<int, int>>> m_anchorChars;   // by the paragraph's position
     // Where an object is on the page (page coordinates) for the anchor it has: from the page, the margin, a strip of it, the column, the paragraph, or the line, as it says, and
     // kept on the page (down from the paragraph or the line).
-    QRectF placeOf(const FloatingObject &o, const Anchor &a, const Section &sec) const;
+    QRectF placeOf(const FloatingObject &o, const Anchor &a, const Section &sec, bool clamp = true) const;
     // Puts the objects of the anchors on a page made for painting: pictures (their data in the page's document), rules, boxes, and text boxes, behind the
     // text or over it. Those in `wrapped` (the objects the page was laid out with) are where it was laid out with them and ask the text to go round; any other asks nothing.
     // (An object with a wrap that leaves no text beside it is a wall as wide as the columns that it reaches into, which `columns` (their rectangles on the page) say: the page layer's

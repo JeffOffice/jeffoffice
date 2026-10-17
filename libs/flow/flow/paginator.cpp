@@ -66,6 +66,7 @@ struct Paginator::Run {
     PageStart next;            // where the page after starts
     std::vector<TableGroup> groups;   // the rows of tables among the lines kept
     QVector<Wrapped> wrapped;  // the objects the text of the page was laid out round
+    bool cut = false;          // the page ends before the paragraph it was asked to end before
 };
 
 Paginator::Paginator(FlowDocument *doc) : m_doc(doc), m_tables(std::make_unique<TableFlow>(doc)), m_watch(std::make_unique<QObject>())
@@ -126,33 +127,43 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
     ++m_laidOut;
     if (!hasFloaters()) return layoutPageWith(index, st, {});
     // A page laid out before, as it is now, ends with the walls it did.
-    if (const auto memo = m_wallMemo.find(index); memo != m_wallMemo.end() && memo->second.start == st && memo->second.pages == int(m_starts.size())) return layoutPageWith(index, st, memo->second.walls);
+    if (const auto memo = m_wallMemo.find(index); memo != m_wallMemo.end() && memo->second.start == st && memo->second.pages == int(m_starts.size()))
+        return layoutPageWith(index, st, memo->second.walls, memo->second.cutAt);
     Run run = layoutPageWith(index, st, {});
     // The objects the lines anchor, and the text goes round, are set where the lines say; the text goes round them there, which moves the lines, and the page is laid out
     // again until they agree (the paragraph's top an object is set from is where the paragraph would be without it: that is what the engine's `pushed` is for). Objects that
     // keep moving the lines, and so themselves, are left where the last layout had them.
+    // A table set at a place that goes over the foot of the page from its paragraph is moved to the next page with the paragraph: the page ends before the paragraph (and
+    // keeps to that, once it does: the table is not on this page then, and the lines are those of a page without it).
     QVector<Wrapped> used;
     QVector<QVector<Wrapped>> seen;
+    int cutAt = -1;
     bool agreed = true;
     for (int pass = 0; pass < kWrapPasses; ++pass) {
-        const QVector<Wrapped> want = wrappersOf(run, index, st);
-        agreed = want == used;
-        if (agreed || seen.contains(want)) break;
+        int moveBefore = -1;
+        const QVector<Wrapped> want = wrappersOf(run, index, st, &moveBefore);
+        const bool moved = moveBefore >= 0 && cutAt < 0 && !run.cut;
+        if (moved) cutAt = moveBefore;
+        agreed = want == used && !moved;
+        if (agreed || (!moved && seen.contains(want))) break;
         seen << used;
         used = want;
-        run = layoutPageWith(index, st, used);
+        run = layoutPageWith(index, st, used, cutAt);
     }
     if (!used.isEmpty() && !agreed) agreed = wrappersOf(run, index, st) == used;
     // Objects that keep moving the lines and so themselves (or an anchor that the wrap itself puts on the next page, and the wrap with it) are not walls of this page: the
     // lines are those of the page without them, and every wall there is has its anchor on the page. And a page whose objects leave no room for a line would have none,
     // and the pages would never end: it is laid out as it is without them too.
-    if (!used.isEmpty() && (!agreed || run.kept <= 0)) run = layoutPageWith(index, st, {});
+    if ((!used.isEmpty() || cutAt >= 0) && (!agreed || run.kept <= 0)) {
+        used.clear();
+        run = layoutPageWith(index, st, {}, cutAt);
+    }
     if (m_wallMemo.size() >= 4096) m_wallMemo.clear();
-    m_wallMemo[index] = WallMemo{st, int(m_starts.size()), run.wrapped};
+    m_wallMemo[index] = WallMemo{st, int(m_starts.size()), run.wrapped, cutAt};
     return run;
 }
 
-Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const QVector<Wrapped> &wrapped)
+Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const QVector<Wrapped> &wrapped, int cutAt)
 {
     ++m_passes;
     Run run;
@@ -512,6 +523,12 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         if (ln.line == 0 && i > 0 && bf.breakBefore) {
             c = i;
             hard = forced = true;
+            break;
+        }
+        // The page ends before a paragraph that a table set from it would go over the foot with.
+        if (cutAt >= 0 && ln.line == 0 && i > 0 && ln.block >= cutAt) {
+            c = i;
+            forced = run.cut = true;
             break;
         }
         if (ln.line == ln.lines - 1 && (bf.breakAfter || bf.sectionAfter)) {
@@ -1158,7 +1175,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
     return sd;
 }
 
-QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, const PageStart &start)
+QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, const PageStart &start, int *moveBefore)
 {
     QVector<Wrapped> out;
     if (!hasFloaters() || run.kept <= 0) return out;
@@ -1184,6 +1201,10 @@ QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, con
         for (int id = a.object; (a.frame || (id > 0 && id <= m_doc->objects.size())) && id > 0 && made < kMostObjects; id = objectAt(a, id).next, ++made) {
             const FloatingObject &o = objectAt(a, id);
             using W = FloatingObject::Wrap;
+            // A table set from its paragraph (down from the paragraph or the line) that goes over the foot of the text area is not on this page: it goes to the next with its paragraph.
+            if (moveBefore && a.table >= 0 && o.item && (o.vRel == FloatingObject::Rel::Paragraph || o.vRel == FloatingObject::Rel::Line) && a.paragraph >= 0 &&
+                placeOf(o, a, sec, false).bottom() > body.bottom() + 0.01 && (*moveBefore < 0 || a.paragraph < *moveBefore))
+                *moveBefore = a.paragraph;
             if (!o.item || o.behind || o.item->type() == ItemType::Line || (o.wrap != W::Square && o.wrap != W::Tight && o.wrap != W::TopBottom)) continue;
             QRectF r = placeOf(o, a, sec);
             if (o.item->rotation != 0) {

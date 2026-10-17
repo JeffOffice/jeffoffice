@@ -5278,6 +5278,78 @@ private Q_SLOTS:
         QVERIFY2(audit::problems(pg, fd.story()).isEmpty(), qPrintable(audit::problems(pg, fd.story())));
     }
 
+    // A table set at a place from its paragraph, near the foot of the text area, does not go over the foot (or the margin below it, to the page's edge): it is moved, with its
+    // paragraph, to the top of the next page.
+    void aFloatingTableThatWouldGoOverTheFootGoesToThePageAfter()
+    {
+        auto make = [](int tableBefore) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fillStory(fd->story(), 150, 71, {}, 3, 6);
+            if (tableBefore > 0) {
+                TestTable spec;
+                spec.rows = 6;
+                spec.cols = 2;
+                spec.columnWidth = 60;
+                spec.text = [](int r, int c) { return QStringLiteral("r%1c%2").arg(r).arg(c); };
+                spec.setTable = [](TableData &t) { TableData::Place p; p.across = TableData::Place::From::Margin; p.acrossSpec = TableData::Place::Spec::End; p.room = QMarginsF(8, 0, 8, 0); t.place = p; };
+                addTableAfter(*fd, tableBefore - 1, spec);
+            }
+            return fd;
+        };
+        // A paragraph whose line is a little above the foot of the first page (less than a table's height above it).
+        int paragraph = -1;
+        {
+            auto plain = make(0);
+            Paginator pg(plain.get());
+            const double bottom = pg.page(0).content.bottom() - pg.page(0).content.top();
+            for (const auto &l : pg.lines(0))
+                if (l.line == 0 && l.rect.top() > bottom - 70 && l.rect.top() < bottom - 25 && paragraph < 0) {
+                    int n = 0;
+                    for (QTextBlock b = plain->story()->begin(); b.isValid() && b.position() < l.block; b = b.next()) ++n;
+                    paragraph = n;
+                }
+        }
+        QVERIFY(paragraph > 3);
+        auto fd = make(paragraph);
+        Paginator pg(fd.get());
+        QVERIFY(pg.pageCount() >= 4);
+        const QTextBlock after = [&]() { QTextBlock b = fd->story()->begin(); while (b.isValid() && !b.blockFormat().intProperty(fp::Cell)) b = b.next(); while (b.isValid() && b.blockFormat().intProperty(fp::Cell)) b = b.next(); return b; }();
+        QVERIFY(after.isValid());
+        // The paragraph the table is set from is the first on the second page; the table is on that page, whole inside the text area.
+        QCOMPARE(pg.page(1).start.pos, after.position());
+        QCOMPARE(pg.page(1).start.skip, 0);
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            const flow::Paginator::Page info = pg.page(k);
+            for (const auto &t : page->tables) {
+                if (!t->floating) continue;
+                QCOMPARE(k, 1);
+                QVERIFY2(t->rect().bottom() <= info.content.bottom() + 0.05, qPrintable(audit::rectText(t->rect()) + QStringLiteral(" in ") + audit::rectText(info.content)));
+                QVERIFY(t->rect().top() >= info.content.top() - 0.05);
+            }
+        }
+        QVERIFY2(audit::floatProblems(*&pg, *fd).isEmpty(), qPrintable(audit::floatProblems(pg, *fd)));
+        QVERIFY2(audit::coverageProblems(pg, fd->story()).isEmpty(), qPrintable(audit::coverageProblems(pg, fd->story())));
+        QVERIFY2(audit::problems(pg, fd->story()).isEmpty(), qPrintable(audit::problems(pg, fd->story())));
+        // An edit before it: the pages are those of a new paginator (the move is found again on the page it was on, and the table stays with its paragraph).
+        QTextCursor c(fd->story());
+        c.setPosition(fd->story()->findBlockByNumber(2).position() + 2);
+        c.insertText(QStringLiteral("a few words typed on the first page. "));
+        Paginator fresh(fd.get());
+        const QString bad = audit::differenceFromFresh(pg, fresh);
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        // The same table with room above it is on the first page, where it goes.
+        auto roomy = make(8);
+        Paginator pr(roomy.get());
+        const auto first = pr.materialize(0);
+        QVERIFY(first);
+        int floating = 0;
+        for (const auto &t : first->tables) floating += t->floating;
+        QCOMPARE(floating, 1);
+    }
+
     // ---- text round objects
 
     // Text goes round an object that has a square wrap: the object is at the top of its paragraph (as the text sets that, not moved by the object), the lines beside it
