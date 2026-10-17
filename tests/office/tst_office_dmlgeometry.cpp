@@ -664,7 +664,9 @@ private Q_SLOTS:
                 QHash<QString, double> given;
                 for (const char *name : {"adj", "adj1", "adj2", "adj3", "adj4", "adj5"}) given.insert(QString::fromLatin1(name), v);
                 const QVector<double> adj = libraryAdjustments(prst, given, QSizeF(300, 120));
-                QVERIFY2(adj.size() <= def->defaults.size() + 1, qPrintable(prst));
+                // A block arc keeps all three of the standard's adjustments (a file needs them), though the library has one.
+                const qsizetype most = prst == QLatin1String("blockArc") ? 3 : def->defaults.size() + 1;
+                QVERIFY2(adj.size() <= most, qPrintable(prst));
                 for (double a : adj) QVERIFY2(std::isfinite(a) && a >= -1 && a <= 3, qPrintable(QStringLiteral("%1 %2 %3").arg(prst).arg(v).arg(a)));
                 // And the shape can be drawn with them (a shape with a thickness of nothing may show nothing).
                 const QPainterPath path = jp::shapePath(id, QSizeF(300, 120), adj);

@@ -32,6 +32,48 @@ private:
     }
 
 private Q_SLOTS:
+    // The arc-based presets, with adjustments of their own, are saved as their presets and opened as the same presets, with
+    // the same places and adjustments (an arc is its curve, named for it, and its sector).
+    void arcPresetsSaveAndOpenAsThemselves()
+    {
+        const QStringList names = {QStringLiteral("arc"), QStringLiteral("chord"), QStringLiteral("pie"), QStringLiteral("blockArc")};
+        const QVector<QVector<double>> adj = {{0.25, 0.5}, {0.0625, 0.25}, {0.25, 0.5}, {0.25, 0.75, 0.1}};
+        auto d = deck::newPresentation();
+        for (int i = 0; i < names.size(); ++i) {
+            auto s = std::make_shared<jp::ShapeItem>();
+            s->rect = QRectF(20 + 150 * i, 30, 136.6, 90);
+            s->shape = names[i];
+            s->adj = adj[i];
+            s->fill = jp::Fill::solid(jp::ColorRef::rgb(QColor(0x20, 0x40, 0x80)));
+            s->stroke = jp::Stroke::line(jp::ColorRef::rgb(QColor(0x80, 0x40, 0x20)), 1.5);
+            d->pages[0]->items.push_back(s);
+        }
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QVERIFY2(skipped.isEmpty(), qPrintable(skipped.join('\n')));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        // Every preset is found by its name, with its place and its adjustments.
+        std::function<const jp::ShapeItem *(const jp::ItemPtr &, const QString &)> find = [&](const jp::ItemPtr &it, const QString &name) -> const jp::ShapeItem * {
+            if (it->type() == jp::ItemType::Shape) return static_cast<const jp::ShapeItem *>(it.get())->shape == name ? static_cast<const jp::ShapeItem *>(it.get()) : nullptr;
+            if (it->type() == jp::ItemType::Group)
+                for (const jp::ItemPtr &c : static_cast<const jp::GroupItem *>(it.get())->children)
+                    if (const jp::ShapeItem *s = find(c, name)) return s;
+            return nullptr;
+        };
+        for (int i = 0; i < names.size(); ++i) {
+            const jp::ShapeItem *s = nullptr;
+            for (const jp::ItemPtr &it : back->pages[0]->items)
+                if (!s) s = find(it, names[i]);
+            QVERIFY2(s, qPrintable(names[i]));
+            QVERIFY2(qAbs(s->rect.width() - 136.6) < 0.01 && qAbs(s->rect.height() - 90) < 0.01, qPrintable(names[i]));
+            QCOMPARE(int(s->adj.size()), int(adj[i].size()));
+            for (int k = 0; k < adj[i].size(); ++k) QVERIFY2(qAbs(s->adj[k] - adj[i][k]) < 1e-6, qPrintable(names[i]));
+        }
+    }
+
     // A new presentation is written as a whole package: every part has its
     // type, every link leads to a part, and the main part, its master, the
     // layouts, the slides, and the notes are chained as the presentation

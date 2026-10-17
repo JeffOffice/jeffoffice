@@ -57,6 +57,8 @@ public:
     Fill fill;
     Stroke stroke;
     Effects fx;
+    // The format styles of the theme the look above comes from, where it does (a Quick Style, or the style a file's shape refers to).
+    StyleRef styleRef;
     Wrap wrap;
 
     // Whether objects of this kind start with their proportions kept.

@@ -51,6 +51,19 @@ class OfficeDmlWriteTests : public QObject {
         return t;
     }
 
+    // The shape, or the one in a group, that is the named preset.
+    static const ShapeItem *namedShape(const ItemPtr &it, const QString &name)
+    {
+        if (it->type() == ItemType::Shape) {
+            const auto *s = static_cast<const ShapeItem *>(it.get());
+            return s->shape == name ? s : nullptr;
+        }
+        if (it->type() == ItemType::Group)
+            for (const ItemPtr &c : static_cast<const GroupItem *>(it.get())->children)
+                if (const ShapeItem *s = namedShape(c, name)) return s;
+        return nullptr;
+    }
+
 private Q_SLOTS:
     void dmlWriteTextBoxKeepsItsFrameAndBody()
     {
@@ -635,6 +648,90 @@ private Q_SLOTS:
         WriteRound plain;
         QVERIFY2(plain.run({s}), qPrintable(plain.error));
         QCOMPARE(int(elementsNamed(plain.spTree, "gd").size()), 0);
+    }
+
+    // The arc-based presets, with values the standard's own are not, as a file gives them: angles in 60000ths of a degree,
+    // and a block arc's band as a fraction of 100,000.
+    void dmlArcPresetsKeepTheirKindAndAdjustments_data()
+    {
+        QTest::addColumn<QString>("shape");
+        QTest::addColumn<QVector<double>>("values");
+        QTest::addColumn<QVector<double>>("adj");
+        QTest::newRow("arc") << "arc" << QVector<double>{5400000, 10800000} << QVector<double>{0.25, 0.5};
+        QTest::newRow("chord") << "chord" << QVector<double>{1350000, 5400000} << QVector<double>{0.0625, 0.25};
+        QTest::newRow("pie") << "pie" << QVector<double>{5400000, 10800000} << QVector<double>{0.25, 0.5};
+        QTest::newRow("block arc") << "blockArc" << QVector<double>{5400000, 16200000, 10000} << QVector<double>{0.25, 0.75, 0.1};
+    }
+
+    // A shape of the library, given its adjustments, is written as its preset with them, and read back as it was.
+    void dmlArcPresetsKeepTheirKindAndAdjustments()
+    {
+        QFETCH(QString, shape);
+        QFETCH(QVector<double>, values);
+        QFETCH(QVector<double>, adj);
+        const QRectF frame(20, 30, 136.6, 90);
+        WriteRound r;
+        auto s = std::make_shared<ShapeItem>();
+        s->rect = frame;
+        s->shape = shape;
+        s->adj = adj;
+        s->fill = Fill::solid(ColorRef::rgb(QColor(0x20, 0x40, 0x80)));
+        s->stroke = Stroke::line(ColorRef::rgb(QColor(0x80, 0x40, 0x20)), 1.5);
+        QVERIFY2(r.run({s}), qPrintable(r.error));
+        const QVector<QDomElement> presets = elementsNamed(r.spTree, "prstGeom");
+        QCOMPARE(int(presets.size()), 1);
+        QCOMPARE(presets[0].attribute(QStringLiteral("prst")), shape);
+        QCOMPARE(int(elementsNamed(r.spTree, "custGeom").size()), 0);
+        const QVector<QDomElement> gds = elementsNamed(r.spTree, "gd");
+        QCOMPARE(int(gds.size()), int(values.size()));
+        for (int i = 0; i < values.size(); ++i) QCOMPARE(gds[i].attribute(QStringLiteral("fmla")), QStringLiteral("val %1").arg(qint64(values[i])));
+        QCOMPARE(int(r.items.size()), 1);
+        const ShapeItem *b = namedShape(r.items[0], shape);
+        QVERIFY2(b, qPrintable(shape));
+        QVERIFY2(sameRect(b->rect, frame, 0.01), qPrintable(dmlRectText(b->rect)));
+        QCOMPARE(int(b->adj.size()), int(adj.size()));
+        for (int i = 0; i < adj.size(); ++i) QVERIFY2(near(b->adj[i], adj[i]), qPrintable(QStringLiteral("adjustment %1: %2 for %3").arg(i).arg(b->adj[i]).arg(adj[i])));
+    }
+
+    void dmlArcPresetsReadFromAFileAreSavedAsThePreset_data()
+    {
+        QTest::addColumn<QString>("shape");
+        QTest::addColumn<QVector<double>>("values");
+        QTest::addColumn<QVector<double>>("adj");
+        QTest::newRow("arc") << "arc" << QVector<double>{5400000, 10800000} << QVector<double>{0.25, 0.5};
+        QTest::newRow("chord") << "chord" << QVector<double>{1350000, 5400000} << QVector<double>{0.0625, 0.25};
+        QTest::newRow("pie") << "pie" << QVector<double>{5400000, 10800000} << QVector<double>{0.25, 0.5};
+        QTest::newRow("block arc") << "blockArc" << QVector<double>{5400000, 16200000, 10000} << QVector<double>{0.25, 0.75, 0.1};
+    }
+
+    // A preset read from a .pptx is still that preset when it is moved and saved again: not a freeform, and not a rectangle.
+    void dmlArcPresetsReadFromAFileAreSavedAsThePreset()
+    {
+        QFETCH(QString, shape);
+        QFETCH(QVector<double>, values);
+        QFETCH(QVector<double>, adj);
+        QString gds;
+        for (int i = 0; i < values.size(); ++i) gds += QStringLiteral("<a:gd name=\"adj%1\" fmla=\"val %2\"/>").arg(i + 1).arg(qint64(values[i]));
+        DmlEnv env;
+        ItemPtr it = dmlOne(env, dmlSp(dmlXfrm(20, 30, 136.6, 90) + QStringLiteral("<a:prstGeom prst=\"%1\"><a:avLst>%2</a:avLst></a:prstGeom>").arg(shape, gds)
+                                       + dmlSolid(QStringLiteral("204080")) + QStringLiteral("<a:ln w=\"19050\">%1</a:ln>").arg(dmlSolid(QStringLiteral("802040")))));
+        QVERIFY2(namedShape(it, shape), qPrintable(shape));
+        it->moveBy(10, 5);
+        WriteRound r;
+        QVERIFY2(r.run({it}), qPrintable(r.error));
+        QCOMPARE(int(elementsNamed(r.spTree, "custGeom").size()), 0);
+        const QVector<QDomElement> presets = elementsNamed(r.spTree, "prstGeom");
+        QCOMPARE(int(presets.size()), 1);
+        QCOMPARE(presets[0].attribute(QStringLiteral("prst")), shape);
+        const QVector<QDomElement> written = elementsNamed(r.spTree, "gd");
+        QCOMPARE(int(written.size()), int(values.size()));
+        for (int i = 0; i < values.size(); ++i) QCOMPARE(written[i].attribute(QStringLiteral("fmla")), QStringLiteral("val %1").arg(qint64(values[i])));
+        QCOMPARE(int(r.items.size()), 1);
+        const ShapeItem *b = namedShape(r.items[0], shape);
+        QVERIFY2(b, qPrintable(shape));
+        QVERIFY2(sameRect(b->rect, QRectF(30, 35, 136.6, 90), 0.01), qPrintable(dmlRectText(b->rect)));
+        QCOMPARE(int(b->adj.size()), int(adj.size()));
+        for (int i = 0; i < adj.size(); ++i) QVERIFY2(near(b->adj[i], adj[i]), qPrintable(QStringLiteral("adjustment %1").arg(i)));
     }
 
     void dmlWriteShapeHoldsItsText()

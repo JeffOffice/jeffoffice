@@ -1302,12 +1302,26 @@
       "color": "shapeFormat",
       "groups": [
         {
+          "name": "Shapes",
+          "keytip": "ZH",
+          "items": [
+            {
+              "widget": "changeShape",
+              "keytip": "CS"
+            }
+          ]
+        },
+        {
           "name": "Shape Styles",
           "keytip": "ZS",
           "launcher": "shapeStyles",
           "launcherTip": "Format Shape",
           "launcherKeytip": "LS",
           "items": [
+            {
+              "widget": "shapeStyleGallery",
+              "keytip": "QS"
+            },
             {
               "large": {
                 "id": "ribbon.shapeFill",
@@ -1334,6 +1348,46 @@
               },
               "keytip": "SE",
               "menu": "@shapeEffectsMenu"
+            }
+          ]
+        },
+        {
+          "name": "Text Art Styles",
+          "keytip": "ZW",
+          "launcher": "textArtStyles",
+          "launcherTip": "Format Shape",
+          "launcherKeytip": "LW",
+          "items": [
+            {
+              "widget": "textArtStyleGallery",
+              "keytip": "WQ"
+            },
+            {
+              "small": {
+                "id": "ribbon.textFill",
+                "text": "Text Fill",
+                "icon": "baseline"
+              },
+              "keytip": "TF",
+              "menu": "@textFillMenu"
+            },
+            {
+              "small": {
+                "id": "ribbon.textOutline",
+                "text": "Text Outline",
+                "icon": "pen-line"
+              },
+              "keytip": "TO",
+              "menu": "@textOutlineMenu"
+            },
+            {
+              "small": {
+                "id": "ribbon.textEffects",
+                "text": "Text Effects",
+                "icon": "sparkles"
+              },
+              "keytip": "TE",
+              "menu": "@textEffectsMenu"
             }
           ]
         },

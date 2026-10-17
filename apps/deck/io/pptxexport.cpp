@@ -409,8 +409,10 @@ QByteArray presentationTheme(const Document &doc, office::Theme *out)
     for (int i = 0; i < office::Theme::ColorCount; ++i) theme.colors[i] = deckTheme.colors[i];
     theme.majorLatin = deckTheme.headingFont;
     theme.minorLatin = deckTheme.bodyFont;
+    // (The part made here has the format styles the Quick Styles are drawn from, so a shape's style reference means what the shape shows.)
+    theme.xml = themePart(deckTheme);
     *out = theme;
-    return office::writeTheme(theme);
+    return theme.xml;
 }
 
 // The same XML with the relationship ids in the attributes of the relationships' namespace (r:id, r:embed...) changed as `ids` says, all at once.
@@ -524,6 +526,7 @@ private:
     bool m_embedFonts;                           // the program's own fonts that the text uses go in the file
     QVector<EmbeddedFace> m_keptFonts;           // the fonts the file this came from carried
     FontUse m_fontUse;                           // what the parts written use
+    QHash<QString, int> m_partMaster;            // part -> the slide master (in m_masters) it follows: its theme and color map are the part's
     QHash<QString, QPair<QString, QString>> m_partFonts;   // part -> the heading and body font of the theme it follows (others follow the presentation's)
     FontsWritten m_fonts;
     QStringList m_skipped;
@@ -662,6 +665,10 @@ void Exporter::prepareThemes()
             master.theme = theme;
         }
     }
+    // Which master each master, layout, and slide follows (its theme and color map are what their drawings are written against).
+    for (size_t i = 0; i < m_masters.size(); ++i) m_partMaster.insert(m_masters[i].part, int(i));
+    for (const LayoutOut &layout : m_layouts) m_partMaster.insert(layout.part, layout.master);
+    for (int i = 0; i < int(m_doc.pages.size()); ++i) m_partMaster.insert(QStringLiteral("/ppt/slides/slide%1.xml").arg(i + 1), m_layouts[m_slideLayout[i]].master);
     // The fonts of each theme, and which theme each master, layout, and slide follows.
     if (!m_embedFonts && m_keptFonts.isEmpty()) return;
     m_fontUse.addThemeFonts(m_theme.majorLatin, m_theme.minorLatin);
@@ -685,6 +692,17 @@ office::DrawingWriteContext Exporter::context(const QString &part)
     ctx.package = &m_pkg;
     ctx.part = part;
     ctx.theme = m_theme;
+    // The master the part follows: its theme, and its color map (the one colorMapXml writes: a dark master has the background as dark 1).
+    if (const auto at = m_partMaster.constFind(part); at != m_partMaster.cend() && *at < int(m_masters.size())) {
+        const MasterOut &master = m_masters[*at];
+        ctx.theme = master.theme;
+        if (isDarkBackground(master.page->background)) {
+            ctx.colorMap.bg1 = office::Theme::Dark1;
+            ctx.colorMap.tx1 = office::Theme::Light1;
+            ctx.colorMap.bg2 = office::Theme::Dark2;
+            ctx.colorMap.tx2 = office::Theme::Light2;
+        }
+    }
     ctx.imageBytes = [this](const QString &imageId, QString *format) {
         const auto it = m_doc.images.constFind(imageId);
         if (it == m_doc.images.cend()) return QByteArray();
