@@ -75,6 +75,7 @@ QString PageObjectAccessible::text(QAccessible::Text t) const
             return s.isEmpty() ? QCoreApplication::translate("Canvas", "Empty text box") : QCoreApplication::translate("Canvas", "Text box: %1").arg(s);
         }
         case ItemType::Picture:
+            if (it->decorative) return QCoreApplication::translate("Canvas", "Picture, decorative");
             return alt.isEmpty() ? QCoreApplication::translate("Canvas", "Picture, no alt text") : QCoreApplication::translate("Canvas", "Picture: %1").arg(alt);
         case ItemType::Shape: {
             const ShapeDef *def = shapeDef(static_cast<const ShapeItem *>(it)->shape);

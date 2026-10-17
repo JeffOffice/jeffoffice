@@ -157,9 +157,11 @@ Fill Fill::fromJson(const QJsonObject &o)
     f.gradType = GradType(qMax(0, gt.indexOf(o["gradType"].toString())));
     f.angle = o["angle"].toDouble(90);
     f.color2 = ColorRef::fromString(o["color2"].toString());
+    // (A file's stops are held to the most there are, each at a place on the gradient, as a presentation file's are read.)
     for (const auto &v : o["stops"].toArray()) {
+        if (f.stops.size() >= kMaxGradientStops) break;
         const auto s = v.toObject();
-        f.stops.push_back({s["pos"].toDouble(), ColorRef::fromString(s["color"].toString()), s["t"].toDouble()});
+        f.stops.push_back({std::clamp(s["pos"].toDouble(), 0.0, 1.0), ColorRef::fromString(s["color"].toString()), std::clamp(s["t"].toDouble(), 0.0, 1.0)});
     }
     f.imageId = o["image"].toString();
     f.tile = o["tile"].toBool();
@@ -199,6 +201,7 @@ QJsonObject Stroke::toJson() const
     if (inset) o["inset"] = true;
     if (startArrow != Arrow::None) { o["startArrow"] = int(startArrow); o["startSize"] = startSize; }
     if (endArrow != Arrow::None) { o["endArrow"] = int(endArrow); o["endSize"] = endSize; }
+    if (gradient.type == Fill::Gradient) o["gradient"] = gradient.toJson();
     return o;
 }
 
@@ -218,6 +221,7 @@ Stroke Stroke::fromJson(const QJsonObject &o)
     s.endArrow = Arrow(o["endArrow"].toInt());
     s.startSize = o["startSize"].toInt(1);
     s.endSize = o["endSize"].toInt(1);
+    if (o.contains("gradient")) s.gradient = Fill::fromJson(o["gradient"].toObject());
     return s;
 }
 
@@ -230,9 +234,12 @@ QPointF ShadowFx::offset() const
 QJsonObject Effects::toJson() const
 {
     QJsonObject o;
-    if (shadow.on)
-        o["shadow"] = QJsonObject{{"color", shadow.color.toString()}, {"t", shadow.transparency}, {"blur", shadow.blur},
-                                  {"dist", shadow.distance}, {"angle", shadow.angle}, {"inner", shadow.inner}};
+    if (shadow.on) {
+        QJsonObject s{{"color", shadow.color.toString()}, {"t", shadow.transparency}, {"blur", shadow.blur},
+                      {"dist", shadow.distance}, {"angle", shadow.angle}, {"inner", shadow.inner}};
+        if (shadow.size != 100) s["size"] = shadow.size;
+        o["shadow"] = s;
+    }
     if (glow.on) o["glow"] = QJsonObject{{"color", glow.color.toString()}, {"size", glow.size}, {"t", glow.transparency}};
     if (softEdge > 0) o["softEdge"] = softEdge;
     if (reflection.on)
@@ -254,6 +261,7 @@ Effects Effects::fromJson(const QJsonObject &o)
         e.shadow.distance = s["dist"].toDouble(3);
         e.shadow.angle = s["angle"].toDouble(45);
         e.shadow.inner = s["inner"].toBool();
+        e.shadow.size = std::clamp(s["size"].toDouble(100), 1.0, 1000.0);
     }
     if (o.contains("glow")) {
         const auto g = o["glow"].toObject();

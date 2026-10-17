@@ -82,7 +82,8 @@ static ImageLookup lookupFor(const Document &doc)
 void Renderer::strokePath(QPainter *p, const QPainterPath &path, const Stroke &s, const ColorScheme &cs)
 {
     if (s.isNone()) return;
-    const QPen pen = s.pen(cs);
+    QPen pen = s.pen(cs);
+    if (s.hasGradient()) pen.setBrush(s.gradient.brush(path.controlPointRect(), cs));
     // Inside a closed outline's edge: the outline twice as wide, clipped to
     // the shape, so its inner half shows (dashes keep their lengths).
     if (s.inset && s.compound == Stroke::Single && path.elementCount() > 2 &&
@@ -932,6 +933,8 @@ const StoryLayout *Renderer::shapeTextLayout(const PaintContext &ctx, const Shap
     spec.valign = s.valign;
     spec.noWrap = s.noWrap;
     spec.centerBlock = s.centerBlock;
+    spec.columns = std::max(1, s.columns);
+    if (s.columns > 1) spec.gap = s.columnGap;
     // A slide's shape shows all its text, running out of the shape that is too small for it, as a slide's text box does, and it isn't hyphenated.
     spec.runsOver = ctx.doc->slideText;
     spec.hyphenate = !ctx.doc->slideText;
@@ -1161,7 +1164,18 @@ void Renderer::paintItem(QPainter *p, const PaintContext &ctx, const Item &it)
             inv.scale(it.flipH ? -1 : 1, it.flipV ? -1 : 1);
             inv.rotate(-it.rotation);
             const QPointF off = inv.map(fx.shadow.offset());
-            p->drawImage(lr.translated(off), colorize(s, c));
+            if (fx.shadow.size != 100 && fx.shadow.size > 0) {
+                // Larger or smaller than the object, about its middle, and then moved off.
+                const QPointF mid(it.rect.width() / 2, it.rect.height() / 2);
+                p->save();
+                p->translate(mid + off);
+                p->scale(fx.shadow.size / 100, fx.shadow.size / 100);
+                p->translate(-mid);
+                p->drawImage(lr, colorize(s, c));
+                p->restore();
+            } else {
+                p->drawImage(lr.translated(off), colorize(s, c));
+            }
         }
         if (fx.reflection.on) {
             QImage rimg = img.mirrored(false, true);

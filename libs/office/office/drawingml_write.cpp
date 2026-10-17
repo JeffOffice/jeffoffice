@@ -212,8 +212,8 @@ void writeArrowEnd(QXmlStreamWriter &w, const char *tag, Arrow arrow, int size)
 
 void writeEffects(QXmlStreamWriter &w, const Effects &fx, const DrawingWriteContext &ctx)
 {
-    const bool shadow = fx.shadow.on, glow = fx.glow.on, soft = fx.softEdge > 0;
-    if (!shadow && !glow && !soft) return;
+    const bool shadow = fx.shadow.on, glow = fx.glow.on, soft = fx.softEdge > 0, reflection = fx.reflection.on;
+    if (!shadow && !glow && !soft && !reflection) return;
     auto color = [&](const ColorRef &c, double transparency) {
         const QColor rgb = resolve(c, ctx);
         writeColor(w, rgb.isValid() ? rgb : QColor(Qt::black), transparency);
@@ -231,10 +231,28 @@ void writeEffects(QXmlStreamWriter &w, const Effects &fx, const DrawingWriteCont
         attribute(w, "dist", extent(std::clamp(fx.shadow.distance, 0.0, 1584.0)));
         attribute(w, "dir", angle(fx.shadow.angle));
         if (!fx.shadow.inner) {
+            if (fx.shadow.size != 100) {
+                attribute(w, "sx", std::clamp<qint64>(percent(fx.shadow.size / 100), 1000, 1000000));
+                attribute(w, "sy", std::clamp<qint64>(percent(fx.shadow.size / 100), 1000, 1000000));
+            }
             attribute(w, "algn", QStringLiteral("ctr"));
             attribute(w, "rotWithShape", QStringLiteral("0"));
         }
         color(fx.shadow.color, fx.shadow.transparency);
+        w.writeEndElement();
+    }
+    if (reflection) {
+        // Turned over (sy of -100%) under the object, from its start opacity to nothing at endPos of its height.
+        begin(w, "a:reflection");
+        attribute(w, "blurRad", extent(std::clamp(fx.reflection.blur, 0.0, 1584.0)));
+        attribute(w, "stA", std::clamp<qint64>(percent(1.0 - fx.reflection.transparency), 0, 100000));
+        attribute(w, "endA", QStringLiteral("0"));
+        attribute(w, "endPos", std::clamp<qint64>(percent(fx.reflection.size), 0, 100000));
+        attribute(w, "dist", extent(std::clamp(fx.reflection.distance, 0.0, 1584.0)));
+        attribute(w, "dir", QStringLiteral("5400000"));
+        attribute(w, "sy", QStringLiteral("-100000"));
+        attribute(w, "algn", QStringLiteral("bl"));
+        attribute(w, "rotWithShape", QStringLiteral("0"));
         w.writeEndElement();
     }
     if (soft) {
@@ -262,7 +280,8 @@ void writeOutline(QXmlStreamWriter &w, const char *tag, const Stroke &stroke, Dr
     static const char *const compounds[] = {"sng", "dbl", "thickThin", "thinThick", "tri"};
     attribute(w, "cmpd", QLatin1String(compounds[std::clamp(int(stroke.compound), 0, 4)]));
     attribute(w, "algn", stroke.inset ? QStringLiteral("in") : QStringLiteral("ctr"));
-    writeSolid(w, stroke.color, stroke.transparency, ctx);
+    if (stroke.hasGradient()) writeGradient(w, stroke.gradient, ctx);
+    else writeSolid(w, stroke.color, stroke.transparency, ctx);
     static const char *const dashes[] = {"solid", "dot", "sysDot", "dash", "dashDot", "lgDash", "lgDashDot", "lgDashDotDot"};
     begin(w, "a:prstDash");
     attribute(w, "val", QLatin1String(dashes[std::clamp(int(stroke.dash), 0, 7)]));
@@ -466,6 +485,7 @@ void writeIdentity(QXmlStreamWriter &w, const Item &it, int id, const QString &f
     attribute(w, "id", id);
     attribute(w, "name", it.name.isEmpty() ? QStringLiteral("%1 %2").arg(fallbackName).arg(id - 1) : clean(it.name));
     if (!it.altText.isEmpty()) attribute(w, "descr", clean(it.altText));
+    if (!it.altTitle.isEmpty()) attribute(w, "title", clean(it.altTitle));
     const QString rId = it.hyperlink.isEmpty() ? QString() : relateAddress(ctx, it.hyperlink);
     if (!rId.isEmpty()) {
         begin(w, "a:hlinkClick");
@@ -477,6 +497,18 @@ void writeIdentity(QXmlStreamWriter &w, const Item &it, int id, const QString &f
         attribute(w, "action", QStringLiteral("ppaction://media"));
         w.writeEndElement();
     }
+    if (it.decorative) writeDecorative(w);
+    w.writeEndElement();
+}
+
+// The locks of an object's non-visual properties (the element named by `locks`, in p:cNvSpPr or p:cNvPicPr): that it takes no place in a group
+// (a placeholder), and whether its proportions are kept. A shape says it only when it is on (that is what a missing lock means).
+void writeLocks(QXmlStreamWriter &w, const char *locks, const Item &it, bool noGroup, bool saysOff)
+{
+    if (!noGroup && !it.lockAspect && !saysOff) return;
+    begin(w, locks);
+    if (noGroup) attribute(w, "noGrp", QStringLiteral("1"));
+    if (it.lockAspect || saysOff) attribute(w, "noChangeAspect", it.lockAspect ? QStringLiteral("1") : QStringLiteral("0"));
     w.writeEndElement();
 }
 
@@ -596,13 +628,8 @@ void writeTextBox(QXmlStreamWriter &w, const TextItem &t, DrawingWriteContext &c
     begin(w, "p:nvSpPr");
     writeIdentity(w, t, id, ph.is ? say("Placeholder") : say("Text Box"), ctx);
     begin(w, "p:cNvSpPr");
-    if (ph.is) {
-        begin(w, "a:spLocks");
-        attribute(w, "noGrp", QStringLiteral("1"));
-        w.writeEndElement();
-    } else {
-        attribute(w, "txBox", QStringLiteral("1"));
-    }
+    if (!ph.is) attribute(w, "txBox", QStringLiteral("1"));
+    writeLocks(w, "a:spLocks", t, ph.is, Item::lockAspectByDefault(t.type()));
     w.writeEndElement();
     begin(w, "p:nvPr");
     if (ph.is) writePlaceholder(w, ph);
@@ -716,11 +743,7 @@ void writeForm(QXmlStreamWriter &w, const ShapeItem &s, DrawingWriteContext &ctx
     begin(w, "p:nvSpPr");
     writeIdentity(w, s, id, ph.is ? say("Placeholder") : say("Shape"), ctx);
     begin(w, "p:cNvSpPr");
-    if (ph.is) {
-        begin(w, "a:spLocks");
-        attribute(w, "noGrp", QStringLiteral("1"));
-        w.writeEndElement();
-    }
+    writeLocks(w, "a:spLocks", s, ph.is, Item::lockAspectByDefault(s.type()));
     w.writeEndElement();
     begin(w, "p:nvPr");
     if (ph.is) writePlaceholder(w, ph);
@@ -748,6 +771,8 @@ void writeForm(QXmlStreamWriter &w, const ShapeItem &s, DrawingWriteContext &ctx
     body.valign = s.valign;
     body.noWrap = s.noWrap;
     body.centerBlock = s.centerBlock;
+    body.columns = s.columns;
+    body.columnGap = s.columnGap;
     if (s.shrinks) {
         body.autofit = TextItem::ShrinkOnOverflow;
         body.fitScale = s.fitScale;
@@ -797,9 +822,7 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
     begin(w, "p:nvPicPr");
     writeIdentity(w, p, id, say("Picture"), ctx, !media.link.isEmpty());
     begin(w, "p:cNvPicPr");
-    begin(w, "a:picLocks");
-    attribute(w, "noChangeAspect", QStringLiteral("1"));
-    w.writeEndElement();
+    writeLocks(w, "a:picLocks", p, false, Item::lockAspectByDefault(p.type()));
     w.writeEndElement();
     begin(w, "p:nvPr");
     if (ph.is) writePlaceholder(w, ph);
