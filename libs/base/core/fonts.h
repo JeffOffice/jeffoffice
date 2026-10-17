@@ -69,6 +69,12 @@ double substituteItalicShear(const QString &family, bool bold);
 // resources/fontwidths.txt: the face asked for, else the nearest the family
 // has. Null when JeffPub has no measurements of the family.
 const QHash<char16_t, double> *originalLetterWidths(const QString &family, bool bold, bool italic);
+// The one character that shows a symbol font's character (code 0x20-0xFF or 0xF020-0xF0FF) where the font is missing: what symbolTextToUnicode gives,
+// without its variation selector; a null character where that is nothing or more than one character (a picture outside the Basic Multilingual Plane).
+QChar symbolPictureOf(const QString &family, uint code);
+// A symbol font's measured advance widths (em) for the characters that stand for its pictures where the font is missing: keyed by what
+// symbolTextToUnicode gives for each code (a picture with none, by its own code or its 0xF020-0xF0FF one). Null when there are none.
+const QHash<char16_t, double> *symbolFontLetterWidths(const QString &family);
 // The same fonts' pair kerning (em), keyed first << 16 | second, from
 // resources/fontkerning.txt. Null when JeffPub has none for the family.
 const QHash<quint32, double> *originalKerning(const QString &family, bool bold, bool italic);

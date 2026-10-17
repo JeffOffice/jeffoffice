@@ -2303,6 +2303,33 @@ private Q_SLOTS:
             QVERIFY2(std::abs(lines[i].rect.height() - heights[i]) < 0.01, qPrintable(QStringLiteral("line %1 is %2 tall, not %3").arg(i).arg(lines[i].rect.height()).arg(heights[i])));
     }
 
+    // The characters of the symbol fonts (a degree sign from Symbol, an arrow from Wingdings, a solid block from Webdings: codes 0xF020 to 0xF0FF) are drawn as
+    // the pictures they are where this machine lacks the font, each as wide as the font makes it (819, 1825, and 2048 units of 2048 for these three).
+    void symbolFontCharactersAreTheirPicturesAtTheirOwnWidths()
+    {
+        struct Case { const char *family; char16_t code, picture; int units; };
+        const Case cases[] = {{"Symbol", 0xF0B0, 0x00B0, 819}, {"Wingdings", 0xF0EA, 0x2B07, 1825}, {"Webdings", 0xF067, 0x2588, 2048}};
+        for (const Case &k : cases) {
+            if (QFontDatabase::hasFamily(QString::fromLatin1(k.family))) continue;   // (installed here: drawn by the font itself)
+            auto doc = std::make_unique<QTextDocument>();
+            QTextCursor c(doc.get());
+            QTextCharFormat cf;
+            cf.setFontFamilies({QString::fromLatin1(k.family)});
+            cf.setFontPointSize(10);
+            c.setCharFormat(cf);
+            c.insertText(QString(80, QChar(k.code)), cf);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(doc.get(), {plainFrame(105, 700)}, env);
+            const auto lines = lay.lineInfo(0);
+            QVERIFY(!lines.isEmpty());
+            const int fit = int((105 + 0.13) / (k.units / 2048.0 * 10));
+            QVERIFY2(lines[0].text.size() == fit && lines[0].text == QString(fit, QChar(k.picture)),
+                     qPrintable(QStringLiteral("%1: the first line has %2 characters, %3 fit as the font sets them; its first is U+%4").arg(k.family).arg(lines[0].text.size()).arg(fit).arg(lines[0].text.isEmpty() ? 0 : lines[0].text[0].unicode(), 0, 16)));
+        }
+    }
+
     // A font the file's font table gives an alternate for is set in that alternate when the word processor has it, whether or not this machine has it (a
     // bundled look-alike stands in for it): an unknown serif face with Bookman Old Style as its alternate is not set in Calibri.
     void aFontsAlternateIsKeptWhereTheWordProcessorHasIt()
