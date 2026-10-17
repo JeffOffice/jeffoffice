@@ -211,10 +211,14 @@ void writeArrowEnd(QXmlStreamWriter &w, const char *tag, Arrow arrow, int size)
     w.writeEndElement();
 }
 
-void writeEffects(QXmlStreamWriter &w, const Effects &fx, const DrawingWriteContext &ctx)
+// `saysNone`: with no effect to write, an empty list says so (where a style would give one, it is the shape's own word against it).
+void writeEffects(QXmlStreamWriter &w, const Effects &fx, const DrawingWriteContext &ctx, bool saysNone = false)
 {
     const bool shadow = fx.shadow.on, glow = fx.glow.on, soft = fx.softEdge > 0, reflection = fx.reflection.on;
-    if (!shadow && !glow && !soft && !reflection) return;
+    if (!shadow && !glow && !soft && !reflection) {
+        if (saysNone) leaf(w, "a:effectLst");
+        return;
+    }
     auto color = [&](const ColorRef &c, double transparency) {
         const QColor rgb = resolve(c, ctx);
         writeColor(w, rgb.isValid() ? rgb : QColor(Qt::black), transparency);
@@ -564,7 +568,8 @@ void writeLook(QXmlStreamWriter &w, const Item &it, DrawingWriteContext &ctx, bo
     const bool styled = styledLook(it, ctx, &look);
     if (fill && (!styled || !(it.fill == look.fill))) writeFill(w, it.fill, ctx);
     if (!styled || !(it.stroke == look.stroke)) writeLine(w, it.stroke, ctx);
-    if (!styled || it.fx.toJson() != look.fx.toJson()) writeEffects(w, it.fx, ctx);
+    // (A fill and a line that are none are written as none; effects with none to write are an empty list: the style would give them back.)
+    if (!styled || it.fx.toJson() != look.fx.toJson()) writeEffects(w, it.fx, ctx, styled);
 }
 
 // The item's style reference, after its properties.

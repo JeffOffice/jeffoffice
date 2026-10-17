@@ -145,6 +145,32 @@ QDomElement childByTag(const QDomElement &e, const char *tag)
     return QDomElement();
 }
 
+// A shape of a slide, with its style and what its properties say, as a file writes it.
+QString styledShape(int id, const QString &name, const QString &properties, const QString &style, const QString &words = QStringLiteral("Words"))
+{
+    return QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"%2\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>").arg(id).arg(name) + xfrm(914400 + id * 100000, 914400, 1828800, 914400)
+        + QStringLiteral("<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>") + properties + QStringLiteral("</p:spPr>") + style
+        + QStringLiteral("<p:txBody><a:bodyPr/><a:lstStyle/>") + para(words) + QStringLiteral("</p:txBody></p:sp>");
+}
+
+// A p:style: the line, fill, and effect style numbers, in one color each, and a text color.
+QString styleOf(int line, int fill, int effect, const QString &color, const QString &text)
+{
+    return QStringLiteral("<p:style><a:lnRef idx=\"%1\">%5</a:lnRef><a:fillRef idx=\"%2\">%5</a:fillRef><a:effectRef idx=\"%3\">%5</a:effectRef>"
+                          "<a:fontRef idx=\"minor\">%4</a:fontRef></p:style>")
+        .arg(line).arg(fill).arg(effect).arg(text, color);
+}
+
+// The sample presentation's theme with a shadow for its second effect style.
+QByteArray themeWithShadow(const QByteArray &theme)
+{
+    QString xml = QString::fromUtf8(theme);
+    const QString none = QStringLiteral("<a:effectStyle><a:effectLst/></a:effectStyle>");
+    xml.replace(none + none, none + QStringLiteral("<a:effectStyle><a:effectLst><a:outerShdw blurRad=\"50800\" dist=\"38100\" dir=\"5400000\" algn=\"ctr\" rotWithShape=\"0\">"
+                                                   "<a:srgbClr val=\"000000\"><a:alpha val=\"40000\"/></a:srgbClr></a:outerShdw></a:effectLst></a:effectStyle>"));
+    return xml.toUtf8();
+}
+
 } // namespace
 
 class DeckStylesTests : public QObject {
@@ -770,6 +796,79 @@ private Q_SLOTS:
             QVERIFY2(cf.stringProperty(tp::TextFill).isEmpty(), qPrintable(which));
             QVERIFY2(!cf.stringProperty(tp::OutlineRef).isEmpty(), qPrintable(which));
         }
+    }
+
+    // A fill, a line, or a shadow taken off a shape that has a style stays off: the file says so beside the style, which would give it back.
+    void aRemovedFillLineOrShadowStaysRemovedThroughSaving()
+    {
+        Rig r;
+        const QString id = r.addShape(QStringLiteral("Styled"), QStringLiteral("Words"), QRectF(100, 100, 220, 110))->id;
+        r.ed()->select(id);
+        QVERIFY(r.w.applyShapeStyle(QStringLiteral("intense:accent2")));
+        QVERIFY(r.item(id)->fx.shadow.on && !r.item(id)->fill.isNone() && !r.item(id)->stroke.isNone());
+        Rig::sub(r.menuOf("ribbon.shapeEffects"), QStringLiteral("Shadow"), QStringLiteral("No Shadow"))->trigger();
+        Rig::choose(r.menuOf("ribbon.shapeFill"), QStringLiteral("No Fill"))->trigger();
+        Rig::choose(r.menuOf("ribbon.shapeOutline"), QStringLiteral("No Outline"))->trigger();
+        QVERIFY(!r.item(id)->fx.shadow.on && r.item(id)->fill.isNone() && r.item(id)->stroke.isNone());
+        QString err;
+        Exported e;
+        QVERIFY(unpack(deck::exportPresentation(*r.ed()->doc(), &err), &e, &err));
+        QDomDocument dom;
+        const QDomElement sp = shapeNamed(part(e, QStringLiteral("/ppt/slides/slide1.xml")), QStringLiteral("Styled"), &dom);
+        QVERIFY(!sp.isNull());
+        QVERIFY(!childByTag(sp, "p:style").isNull());
+        const QDomElement spPr = childByTag(sp, "p:spPr");
+        QVERIFY(!childByTag(spPr, "a:noFill").isNull());
+        QVERIFY(!childByTag(childByTag(spPr, "a:ln"), "a:noFill").isNull());
+        const QDomElement list = childByTag(spPr, "a:effectLst");
+        QVERIFY(!list.isNull() && list.firstChildElement().isNull());
+        std::unique_ptr<Document> back = r.viaPptx();
+        QVERIFY(back);
+        const Item *again = Rig::named(*back, QStringLiteral("Styled"));
+        QVERIFY(again);
+        QVERIFY(again->fill.isNone());
+        QVERIFY(again->stroke.isNone());
+        QVERIFY(!again->fx.shadow.on);
+        QVERIFY(again->styleRef.on);
+    }
+
+    // A file that says none beside its style (no fill, no line, an empty effect list) keeps saying it; the style's own is still the style's.
+    void aFilesExplicitNoneBesideItsStyleIsKept()
+    {
+        Parts p = samplePptx();
+        p.data["/ppt/theme/theme1.xml"].xml = themeWithShadow(p.data["/ppt/theme/theme1.xml"].xml);
+        const QString style = styleOf(2, 1, 2, QStringLiteral("<a:schemeClr val=\"accent2\"/>"), QStringLiteral("<a:schemeClr val=\"lt1\"/>"));
+        const QString shapes = styledShape(20, QStringLiteral("From style"), QString(), style)
+                               + styledShape(21, QStringLiteral("Says none"), QStringLiteral("<a:noFill/><a:ln><a:noFill/></a:ln><a:effectLst/>"), style);
+        QByteArray &slide = p.data["/ppt/slides/slide1.xml"].xml;
+        slide = QString::fromUtf8(slide).replace(QStringLiteral("</p:spTree>"), shapes + QStringLiteral("</p:spTree>")).toUtf8();
+        QString err;
+        std::unique_ptr<Document> d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const Item *given = Rig::named(*d, QStringLiteral("From style")), *none = Rig::named(*d, QStringLiteral("Says none"));
+        QVERIFY(given && none);
+        QVERIFY(given->fx.shadow.on && !given->fill.isNone() && !given->stroke.isNone());
+        QVERIFY(!none->fx.shadow.on && none->fill.isNone() && none->stroke.isNone());
+        Exported e;
+        QVERIFY(unpack(deck::exportPresentation(*d, &err), &e, &err));
+        QDomDocument dom;
+        const QDomElement sp = shapeNamed(part(e, QStringLiteral("/ppt/slides/slide1.xml")), QStringLiteral("Says none"), &dom);
+        QVERIFY(!sp.isNull());
+        const QDomElement spPr = childByTag(sp, "p:spPr");
+        QVERIFY(!childByTag(spPr, "a:effectLst").isNull());
+        QVERIFY(!childByTag(spPr, "a:noFill").isNull());
+        QVERIFY(!childByTag(childByTag(spPr, "a:ln"), "a:noFill").isNull());
+        std::unique_ptr<Document> back = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+        QVERIFY(back);
+        const Item *again = Rig::named(*back, QStringLiteral("Says none")), *againGiven = Rig::named(*back, QStringLiteral("From style"));
+        QVERIFY(again && againGiven);
+        QVERIFY(!again->fx.shadow.on && again->fill.isNone() && again->stroke.isNone());
+        QVERIFY(againGiven->fx.shadow.on);
+        QCOMPARE(againGiven->fill.toJson(), given->fill.toJson());
+        // (and the one that took them from the style writes nothing beside it)
+        const QDomElement plain = shapeNamed(part(e, QStringLiteral("/ppt/slides/slide1.xml")), QStringLiteral("From style"), &dom);
+        const QDomElement plainProps = childByTag(plain, "p:spPr");
+        for (const char *tag : {"a:solidFill", "a:noFill", "a:ln", "a:effectLst"}) QVERIFY2(childByTag(plainProps, tag).isNull(), tag);
     }
 
     // ---- Change Shape
