@@ -1034,6 +1034,31 @@ private Q_SLOTS:
         QCOMPARE(env.stories.last()->begin().begin().fragment().charFormat().foreground().color(), QColor(0xFF, 0x00, 0x00));
     }
 
+    // A diagram's shape filled with a cut picture becomes a picture, and a picture keeps its proportions unless the file says the shape it was cut
+    // from doesn't: a shape that says nothing of it is not a lock turned off (that is a shape's default, not a choice).
+    void dmlCutPictureKeepsAPicturesLockUnlessTheFileSaysOtherwise()
+    {
+        DmlEnv env;
+        env.usePackage();
+        const QString fill = dmlXfrm(10, 10, 100, 50) + QStringLiteral("<a:prstGeom prst=\"ellipse\"/><a:blipFill><a:blip r:embed=\"rId1\"/><a:srcRect t=\"25000\" b=\"25000\"/>"
+                                                                       "<a:stretch><a:fillRect/></a:stretch></a:blipFill>");
+        auto locks = [&](const QString &lock) -> ItemPtr {
+            QString sp = dspSp(fill, QString(), QString());
+            if (!lock.isEmpty()) sp.replace(QStringLiteral("<dsp:cNvSpPr/>"), QStringLiteral("<dsp:cNvSpPr>%1</dsp:cNvSpPr>").arg(lock));
+            auto g = dmlAs<GroupItem>(dmlOne(env, sp));
+            return g && !g->children.empty() && g->children[0]->type() == ItemType::Picture ? g->children[0] : ItemPtr();
+        };
+        ItemPtr pic = locks(QString());
+        QVERIFY(pic);
+        QVERIFY(pic->lockAspect);   // the file says nothing: a picture's own
+        pic = locks(QStringLiteral("<a:spLocks noGrp=\"1\"/>"));
+        QVERIFY(pic && pic->lockAspect);   // locks, but none on the proportions
+        pic = locks(QStringLiteral("<a:spLocks noChangeAspect=\"0\"/>"));
+        QVERIFY(pic && !pic->lockAspect);   // the file says it is off
+        pic = locks(QStringLiteral("<a:spLocks noChangeAspect=\"1\"/>"));
+        QVERIFY(pic && pic->lockAspect);
+    }
+
     // A picture a diagram's shape is filled with is cut to fill it by spreading it past the shape (a negative a:fillRect) or by cutting it (a:srcRect):
     // a fill has no such cut, so the shape is a picture, cut to the shape's outline, with the shape's line and text over it.
     void dmlDiagramShapeWithACutPictureIsAPictureUnderTheShape()

@@ -11,7 +11,6 @@ namespace jp::office {
 
 namespace {
 
-constexpr int kMaxStops = 256;
 constexpr double kMaxLineWidth = 1584;   // points: the standard's 20,116,800 EMU
 // A blur, glow, or soft edge of more than 200 points is drawn as one of 200: the
 // reference presentations' largest are 20, 10, and 7, and one of 1,584 points
@@ -89,7 +88,7 @@ bool fillFromElement(const QDomElement &e, const StyleContext &sc, Fill *out)
     if (kind == QLatin1String("gradFill")) {
         QVector<GradientStop> stops;
         const QDomElement list = childNamed(e, "gsLst");
-        for (QDomElement gs = list.firstChildElement(); !gs.isNull() && stops.size() < kMaxStops; gs = gs.nextSiblingElement()) {
+        for (QDomElement gs = list.firstChildElement(); !gs.isNull() && stops.size() < kMaxGradientStops; gs = gs.nextSiblingElement()) {
             if (gs.localName() != QLatin1String("gs")) continue;
             const QColor c = colorIn(gs, sc);
             if (!c.isValid()) continue;
@@ -333,6 +332,14 @@ QDomElement childNamed(const QDomElement &e, const char *local)
     for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
         if (c.localName() == QLatin1String(local)) return c;
     return QDomElement();
+}
+
+bool decorativeOf(const QDomElement &cNvPr)
+{
+    for (QDomElement ext = childNamed(cNvPr, "extLst").firstChildElement(); !ext.isNull(); ext = ext.nextSiblingElement())
+        for (QDomElement c = ext.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+            if (c.localName() == QLatin1String("decorative")) return parseBool(attr(c, QStringLiteral("val")));
+    return false;
 }
 
 QString imageFormat(const QByteArray &bytes)

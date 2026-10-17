@@ -497,18 +497,7 @@ void writeIdentity(QXmlStreamWriter &w, const Item &it, int id, const QString &f
         attribute(w, "action", QStringLiteral("ppaction://media"));
         w.writeEndElement();
     }
-    if (it.decorative) {
-        // The object is only decoration (an extension; programs that don't know it leave it alone).
-        begin(w, "a:extLst");
-        begin(w, "a:ext");
-        attribute(w, "uri", QStringLiteral("{C183D7F6-B498-43B3-948B-1728B52AA6E4}"));
-        begin(w, "adec:decorative");
-        w.writeAttribute(QStringLiteral("xmlns:adec"), QStringLiteral("http://schemas.microsoft.com/office/drawing/2017/decorative"));
-        attribute(w, "val", QStringLiteral("1"));
-        w.writeEndElement();
-        w.writeEndElement();
-        w.writeEndElement();
-    }
+    if (it.decorative) writeDecorative(w);
     w.writeEndElement();
 }
 

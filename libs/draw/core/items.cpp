@@ -231,7 +231,7 @@ void TextItem::fromJson(const QJsonObject &o)
     storyId = o["story"].toString();
     nextId = o["next"].toString();
     insets = marginsFrom(o["insets"], insets);
-    columns = std::max(1, o["columns"].toInt(1));
+    columns = std::clamp(o["columns"].toInt(1), 1, 99);   // (no more than the 99 a text box's dialog has)
     columnGap = o["columnGap"].toDouble(9);
     valign = VAlign(o["valign"].toInt());
     autofit = Autofit(o["autofit"].toInt());
