@@ -78,6 +78,7 @@ struct ShapeSpec {
     int group = -1;                    // the shape that is the group this one is a member of (by place in the list)
     int groupLeft = 0, groupTop = 0, groupRight = 1000, groupBottom = 1000;   // a group shape's coordinates for its members
     int memberLeft = 0, memberTop = 0, memberRight = 0, memberBottom = 0;     // a member's place in its group's coordinates
+    QVector<int> moreAnchors;          // other characters of the main text that anchor this same shape (a hostile file does; a program's file doesn't)
 };
 
 class DocWriter {
@@ -101,6 +102,8 @@ public:
     QByteArray data;                   // the data stream: pictures
     bool password = false;             // the header says the file is protected
     bool oldVersion = false;           // a header from before 1997
+    int repeatText = 1;                // the main text's pieces are listed this many times over the same stored text, one after another (a hostile file;
+                                       // use it with no notes, headers, or shapes): the text is that many times as long
 
     // A picture (PNG bytes) set in the data stream, shown at the size in twips; the place to give a run (sprm::picture).
     int addPicture(const QByteArray &png, int widthTwips, int heightTwips);

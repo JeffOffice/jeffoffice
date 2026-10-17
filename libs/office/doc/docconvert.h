@@ -45,6 +45,8 @@ public:
     QByteArray pictureXml(qint32 position, const QString &part);
     // Remember that something of the file was left out (once for each `key`).
     void left(const QString &key, const QString &text);
+    // Whether `key` has been said already (to skip making the words of a note that would not be added).
+    bool wasLeft(const QString &key) const { return m_leftKeys.contains(key); }
     // The bytes of the table stream that a slot of the header names.
     Span tableRange(int slot) const;
     QString revisionAuthor(int index) const { return index >= 0 && index < authors.size() && !authors[index].isEmpty() ? authors[index] : QStringLiteral("Author"); }

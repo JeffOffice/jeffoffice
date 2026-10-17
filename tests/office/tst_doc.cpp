@@ -1000,6 +1000,38 @@ private Q_SLOTS:
         QVERIFY(depth <= doc::kMaxStyleDepth + 2);
     }
 
+    // ---- files made to cost a great deal (each must be read in a couple of seconds)
+
+    void aGroupAnchoredOftenIsNotWalkedOverAndOver()
+    {
+        // 20,000 members the reader shows nothing of, in one group that 1,000 anchors point to: each anchor walked the group again (20 million visits).
+        const int members = 20000, anchors = 1000;
+        DocWriter w = simple(QString(anchors, QLatin1Char('\x08')) + QLatin1Char('\r'));
+        w.chars = {{0, anchors, sprm1(sprm::special, 1)}};
+        ShapeSpec group;
+        group.spid = 2000;
+        group.type = 0;
+        group.cp = 0;
+        for (int i = 1; i < anchors; ++i) group.moreAnchors.push_back(i);
+        w.shapes.push_back(group);
+        for (int i = 0; i < members; ++i) {
+            ShapeSpec m;
+            m.spid = 3000 + i;
+            m.type = 0;
+            m.group = 0;
+            m.memberLeft = 0; m.memberTop = 0; m.memberRight = 10; m.memberBottom = 10;
+            w.shapes.push_back(m);
+        }
+        const QByteArray file = w.build();
+        QElapsedTimer t;
+        t.start();
+        Document d;
+        ReadNotes notes;
+        QVERIFY(read(file, &d, &notes));
+        QVERIFY2(t.elapsed() < 2000, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        QVERIFY(notes.leftOut);
+    }
+
     void changedBytesNeverCrashOrHang()
     {
         // A document with most of what the reader reads, with bytes of it changed at random (the same changes each run), and cut short.
