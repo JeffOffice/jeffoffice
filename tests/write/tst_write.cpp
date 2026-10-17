@@ -5546,6 +5546,33 @@ private Q_SLOTS:
         for (const QString &l : loss) QVERIFY2(!l.startsWith(QLatin1String("element counts")) || (!l.contains(QLatin1String("bookmark")) && !l.contains(QLatin1String("commentRange"))), qPrintable(l));
     }
 
+    // A table nobody touched is written as the file had it, whatever the file had in it that the program would write otherwise: a bookmark that starts and has no end, and a
+    // second of one name, a style that is the default said again, an indent of nothing, a toggle spelled "false", and a row that doesn't reach the end of the grid. Once
+    // something in it changes it is written from the story, and then the bookmark with no end is left out.
+    void aTableNobodyTouchedComesBackAsTheFileHadIt()
+    {
+        const QByteArray table =
+            "<w:tbl><w:tblPr><w:tblW w:w=\"2000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"14\"/></w:tblGrid>"
+            "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"1000\" w:type=\"dxa\"/></w:tcPr><w:p><w:pPr><w:pStyle w:val=\"Normal\"/><w:ind w:left=\"0\" w:hanging=\"0\"/></w:pPr>"
+            "<w:bookmarkStart w:id=\"0\" w:name=\"Check1\"/><w:bookmarkStart w:id=\"1\" w:name=\"Check1\"/><w:bookmarkEnd w:id=\"1\"/>"
+            "<w:r><w:rPr><w:b w:val=\"false\"/></w:rPr><w:t>one</w:t></w:r></w:p></w:tc>"
+            "<w:tc><w:tcPr><w:tcW w:w=\"1000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>two</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+        const QByteArray original = makeDocx("<w:p><w:r><w:t>before</w:t></w:r></w:p>" + table + "<w:p><w:r><w:t>after</w:t></w:r></w:p>", kStyles);
+        auto doc = open(original);
+        QVERIFY(doc);
+        const QByteArray saved = doc->toDocx();
+        QVERIFY2(documentXml(saved).contains(table), documentXml(saved).constData());
+        const QStringList strict = rt::strictProblems(saved, original), loss = rt::lossProblems(original, saved);
+        QVERIFY2(strict.isEmpty() && loss.isEmpty(), qPrintable((strict + loss).join(QLatin1String("; "))));
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->toPlainText().indexOf(QLatin1String("one")));
+        insertText(*doc, c, QStringLiteral("x"));
+        const QByteArray changed = documentXml(doc->toDocx());
+        QVERIFY2(!changed.contains(table) && changed.contains("xone"), changed.constData());
+        QCOMPARE(int(changed.count("<w:bookmarkStart")), 1);
+        QCOMPARE(int(changed.count("<w:bookmarkEnd")), 1);
+    }
+
     // Enter inside a hyperlink, a content control, a tracked change, or a tag keeps the wrapper on both halves, with its attributes (and so its
     // link): one of each kind becomes two, and the second revision mark gets an Id of its own.
     void enterInsideAWrapperKeepsItOnBothHalves()

@@ -486,7 +486,8 @@ QByteArray documentXml(const Document &doc)
     const qsizetype n = doc.body.size();
     for (qsizetype b = 0; b < n; ++b) {
         const Block &blk = doc.body[b];
-        // A table that is as it was read (its blocks come to the fingerprint they had) is written as it was.
+        // A table that is as it was read (its blocks come to the fingerprint they had) is written as it was: what the writing of a body leaves out or gives an Id of its own (a
+        // bookmark with no end, a second of an Id) is the file's own in a table nobody changed, and the fingerprint was taken of the blocks as they are.
         if (blk.isRaw && blk.role == Inline::Open && blk.tag == QLatin1String("tbl") && blk.table && !blk.table->original.isEmpty() && whole.block(int(b))) {
             qsizetype depth = 0, end = b;
             for (; end < n; ++end) {
@@ -497,7 +498,7 @@ QByteArray documentXml(const Document &doc)
             }
             if (end < n) {
                 QByteArray piece;
-                writeBlocks(piece, doc.body, b, end + 1, &whole);
+                writeBlocks(piece, doc.body, b, end + 1, nullptr);
                 if (QCryptographicHash::hash(piece, QCryptographicHash::Sha1) == blk.table->fingerprint) {
                     out += blk.table->original;
                     b = end;
