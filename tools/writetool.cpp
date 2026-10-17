@@ -2,6 +2,7 @@
 //   writetool render <file.txt|.docx> <outdir> [width=800] [options]   each page to page-001.png ...
 //   writetool pdf <file.txt|.docx> <out.pdf> [options]                 the pages as a PDF
 //   writetool info <file.txt> [options]                          the pages and where each starts
+//   writetool docpkg <file.doc> <out.docx>                       the package an old binary document is turned into (to look at what the reader made of it)
 //   writetool bench [paragraphs=26443] [options]                 a made-up long story: the time to its first page, to all of its pages, and to repaginate after a typed character,
 //                                                                against the targets (all of 26,443 paragraphs in 5 s, the first page in 0.3 s, a typed character in 50 ms); exits 1 if one is missed
 // The text: paragraphs are separated by blank lines; "# " and "## " start headings (kept with the paragraph after); "- " starts a bullet and
@@ -15,6 +16,7 @@
 #include "text/textprops.h"
 #ifdef JW_DOCX
 #include "core/writedoc.h"
+#include "doc/doc.h"
 #endif
 
 #include <QDir>
@@ -361,10 +363,24 @@ int main(int argc, char **argv)
     const QStringList args = app.arguments();
     QTextStream out(stdout);
     if (args.size() < 2 || (args[1] != "bench" && args.size() < 3) || ((args[1] == "render" || args[1] == "pdf") && args.size() < 4)) {
-        out << "usage: writetool render <file.txt|.docx> <outdir> [width=800] | pdf <file.txt|.docx> <out.pdf> | info <file.txt|.docx> | bench [paragraphs=26443]   (options for a .txt: columns=N a4 legal landscape margin=INCHES hyphenate justify)\n";
+        out << "usage: writetool render <file.txt|.docx|.doc> <outdir> [width=800] | pdf <file.txt|.docx|.doc> <out.pdf> | info <file.txt|.docx|.doc> | docpkg <file.doc> <out.docx> | bench [paragraphs=26443]   (options for a .txt: columns=N a4 legal landscape margin=INCHES hyphenate justify)\n";
         return 2;
     }
     const QString cmd = args[1];
+#ifdef JW_DOCX
+    if (cmd == "docpkg" && args.size() >= 4) {
+        QFile f(args[2]);
+        if (!f.open(QIODevice::ReadOnly)) { out << "cannot read: " << f.errorString() << "\n"; return 1; }
+        QString why;
+        jp::office::wml::ReadNotes rn;
+        const QByteArray zip = jp::office::doc::toDocxPackage(f.readAll(), &why, &rn);
+        for (const QString &n : rn.notes) out << "note\t" << n << "\n";
+        QFile w(args[3]);
+        if (zip.isEmpty() || !w.open(QIODevice::WriteOnly) || w.write(zip) != zip.size()) { out << "cannot make the package: " << why << "\n"; return 1; }
+        out << "wrote\t" << zip.size() << " bytes\n";
+        return 0;
+    }
+#endif
     Options o;
     int width = 800;
     int paragraphs = 26443;
@@ -387,14 +403,15 @@ int main(int argc, char **argv)
 #ifdef JW_DOCX
     std::unique_ptr<write::WriteDoc> wdoc;
     const QString suffix = QFileInfo(args[2]).suffix().toLower();
-    if (suffix == QLatin1String("docx") || suffix == QLatin1String("docm") || suffix == QLatin1String("dotx") || suffix == QLatin1String("dotm")) {
+    const bool old = suffix == QLatin1String("doc") || suffix == QLatin1String("dot");
+    if (old || suffix == QLatin1String("docx") || suffix == QLatin1String("docm") || suffix == QLatin1String("dotx") || suffix == QLatin1String("dotm")) {
         QFile f(args[2]);
         if (!f.open(QIODevice::ReadOnly)) {
             out << "cannot read: " << f.errorString() << "\n";
             return 1;
         }
         QStringList notes;
-        wdoc = write::WriteDoc::fromDocx(f.readAll(), &error, &notes);
+        wdoc = old ? write::WriteDoc::fromDoc(f.readAll(), &error, &notes) : write::WriteDoc::fromDocx(f.readAll(), &error, &notes);
         if (!wdoc) {
             out << "cannot read: " << error << "\n";
             return 1;

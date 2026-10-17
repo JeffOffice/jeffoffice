@@ -42,9 +42,16 @@ bool isWrittenEnding(const QString &path)
     return ending == QLatin1String("docx") || ending == QLatin1String("dotx");
 }
 
+// The old binary kinds, which are read and never written over.
+bool isOldBinary(const QString &path)
+{
+    const QString ending = QFileInfo(path).suffix().toLower();
+    return ending == QLatin1String("doc") || ending == QLatin1String("dot");
+}
+
 QString fileKind(const QString &path)
 {
-    static const QStringList kinds = {QStringLiteral("docx"), QStringLiteral("dotx"), QStringLiteral("docm"), QStringLiteral("dotm")};
+    static const QStringList kinds = {QStringLiteral("docx"), QStringLiteral("dotx"), QStringLiteral("docm"), QStringLiteral("dotm"), QStringLiteral("doc"), QStringLiteral("dot")};
     const QString ending = QFileInfo(path).suffix().toLower();
     return kinds.contains(ending) ? ending : QStringLiteral("other");
 }
@@ -60,7 +67,7 @@ void WriteWindow::createFileActions()
     });
     mk("file.open", tr("Open"), "folder-open", QKeySequence::Open, [this] {
         const QString p = QFileDialog::getOpenFileName(this, tr("Open Document"), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
-                                                       tr("Documents (*.docx *.docm *.dotx *.dotm)") + QStringLiteral(";;") + tr("All Files (*)"));
+                                                       tr("Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot)") + QStringLiteral(";;") + tr("All Files (*)"));
         if (p.isEmpty()) return;
         Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
         openFile(p);
@@ -94,7 +101,7 @@ bool WriteWindow::openFile(const QString &path)
         QFile f(path);
         if (f.open(QIODevice::ReadOnly)) bytes = f.readAll();
         else err = f.errorString();
-        if (!bytes.isEmpty()) doc = write::WriteDoc::fromDocx(bytes, &err, &notes);
+        if (!bytes.isEmpty()) doc = write::WriteDoc::fromFile(bytes, &err, &notes);
     }
     QApplication::restoreOverrideCursor();
     const QString name = QFileInfo(path).fileName();
@@ -111,11 +118,11 @@ bool WriteWindow::openFile(const QString &path)
     }
     // A template opens as a new document made from it.
     const QString ending = QFileInfo(path).suffix().toLower();
-    const bool tmpl = ending == QLatin1String("dotx") || ending == QLatin1String("dotm");
+    const bool tmpl = ending == QLatin1String("dotx") || ending == QLatin1String("dotm") || ending == QLatin1String("dot");
     const bool leftOut = doc->leftSomethingOut();
     target->setDocument(std::move(doc), tmpl ? QString() : path);
     target->m_macrosNoted = false;
-    target->m_protectedPath = leftOut && !tmpl ? path : QString();
+    target->m_protectedPath = leftOut && !tmpl && !isOldBinary(path) ? path : QString();
     if (tmpl) target->m_doc->setModified(true);
     Settings::get().addRecentFile(path);
     telemetry::count(QStringLiteral("file.open.") + fileKind(path));
@@ -131,6 +138,7 @@ bool WriteWindow::save()
         notice(tr("Save"), tr("Part of this file couldn't be opened, so saving it here would lose that part: choose a new name for the copy."));
         return saveAs();
     }
+    if (isOldBinary(m_path)) notice(tr("Save"), tr("This document came from an older .doc file, which %1 doesn't write, so it is saved as a new .docx file.").arg(appInfo().name));
     if (m_path.isEmpty() || !isWrittenEnding(m_path)) return saveAs();
     return saveTo(m_path);
 }
@@ -149,7 +157,8 @@ bool WriteWindow::saveAs()
     const QString name = from.isEmpty() ? displayName() : QFileInfo(from).completeBaseName();
     // The dialog hands back the filter text it showed, so the choice is recognized by comparing with these same (translated) texts.
     const QString docxFilter = tr("Document (*.docx)"), dotxFilter = tr("Template (*.dotx)");
-    QString selected = QFileInfo(from).suffix().compare(QLatin1String("dotx"), Qt::CaseInsensitive) == 0 ? dotxFilter : docxFilter;
+    const QString fromEnding = QFileInfo(from).suffix().toLower();
+    QString selected = fromEnding == QLatin1String("dotx") || fromEnding == QLatin1String("dot") ? dotxFilter : docxFilter;
     auto endingOf = [&](const QString &filter) { return filter == dotxFilter ? QStringLiteral(".dotx") : QStringLiteral(".docx"); };
     const QString suggested = dir + QLatin1Char('/') + name + endingOf(selected);
     QString path = m_pathChooser ? m_pathChooser(suggested, selected)
