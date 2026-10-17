@@ -89,6 +89,7 @@ enum : int {
     SpaceBeforeAuto,                             // bool: the space before is a word processor's automatic spacing (14 points), not the top margin (LayoutEnv::wordLines)
     SpaceAfterAuto,                              // bool: the same for the space after
     BorderBottomOff,                             // bool: the paragraph's box goes on after it, on the next page (no bottom border)
+    NoHangPunct,                                 // bool: no mark of punctuation hangs past the margin in the paragraph (a word processor's overflowPunct turned off; LayoutEnv::wordLines)
 };
 
 // A paragraph's borders and shading as a word processor draws them (LayoutEnv::wordLines): each side's line style, width in eighths of a point, and its

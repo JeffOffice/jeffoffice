@@ -533,6 +533,7 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
     if (p.widowControl.value_or(true)) bf.setProperty(tp::WidowControl, true);
     if (p.pageBreakBefore.value_or(false)) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore);
     if (p.contextualSpacing.value_or(false)) bf.setProperty(tp::ContextualSpacing, true);
+    if (!p.overflowPunct.value_or(true)) bf.setProperty(tp::NoHangPunct, true);
     {
         tp::ParaBox box;
         if (p.borders) {

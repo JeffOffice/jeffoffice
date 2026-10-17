@@ -3834,6 +3834,28 @@ private Q_SLOTS:
         QVERIFY(!doc->story()->begin().begin().fragment().charFormat().hasProperty(tp::Ligatures));
     }
 
+    // A paragraph that turns overflowPunct off, itself or by its style, does not let punctuation hang; the file keeps the element as it was.
+    void overflowPunctOffIsReadFromTheParagraphAndItsStyle()
+    {
+        const QByteArray styles = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                                  "<w:style w:type=\"paragraph\" w:styleId=\"Tight\"><w:name w:val=\"Tight\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:overflowPunct w:val=\"0\"/></w:pPr></w:style>";
+        auto noHang = [&](const QByteArray &props, int block) {
+            auto doc = open(makeDocx("<w:p><w:pPr>" + props + "</w:pPr><w:r><w:t>one</w:t></w:r></w:p><w:p><w:r><w:t>two</w:t></w:r></w:p>", styles));
+            return doc && doc->story()->findBlockByNumber(block).blockFormat().boolProperty(tp::NoHangPunct);
+        };
+        QVERIFY(noHang("<w:overflowPunct w:val=\"0\"/>", 0));
+        QVERIFY(!noHang("<w:overflowPunct/>", 0));
+        QVERIFY(!noHang("", 0));
+        QVERIFY(noHang("<w:pStyle w:val=\"Tight\"/>", 0));
+        QVERIFY(!noHang("<w:pStyle w:val=\"Tight\"/><w:overflowPunct/>", 0));   // (the paragraph says it does over its style)
+        QVERIFY(!noHang("<w:overflowPunct w:val=\"0\"/>", 1));               // (the next paragraph is not the one)
+        auto doc = open(makeDocx("<w:p><w:pPr><w:overflowPunct w:val=\"0\"/></w:pPr><w:r><w:t>one</w:t></w:r></w:p>", styles));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        insertText(*doc, c, QStringLiteral("x"));
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:overflowPunct w:val=\"0\"/>"));
+    }
+
     // A file that says its hanging indents add no tab stop (noTabHangInd) is read so, by its value.
     void hangingIndentsAreNoTabStopsWhereTheFileSaysSo()
     {

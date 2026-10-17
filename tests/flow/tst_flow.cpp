@@ -2616,6 +2616,42 @@ private Q_SLOTS:
         QCOMPARE(lineCount(text, upToMark - 5, false), 2);        // (the word itself doesn't fit)
     }
 
+    // A paragraph that does not let punctuation extend past the margin (tp::NoHangPunct, a word processor's overflowPunct turned off) has none hang, though the
+    // text does elsewhere.
+    void aParagraphThatTurnsHangingOffHasNone()
+    {
+        auto lineCount = [&](double room, bool paragraphOff) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            if (paragraphOff) bf.setProperty(tp::NoHangPunct, true);
+            c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("alpha beta gamma delta epsilon."), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(room, 300)}, env);
+            return int(lay.lineInfo(0).size());
+        };
+        QTextDocument measure;
+        QTextCursor mc(&measure);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        const QString text = QStringLiteral("alpha beta gamma delta epsilon.");
+        mc.insertText(text, run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout wide;
+        wide.build(&measure, {plainFrame(1000, 100)}, env);
+        const double room = wide.rangeRects(0, text.size() - 1, text.size()).first().left() + 0.5;
+        QCOMPARE(lineCount(room, false), 1);
+        QCOMPARE(lineCount(room, true), 2);
+    }
+
     // The text after a page break that begins a paragraph is its first line, with the paragraph's first-line indent (here a hanging one); after a break in
     // the middle of a paragraph the text is a line that follows.
     void textAfterABreakThatBeginsAParagraphHasItsFirstLineIndent()
