@@ -297,6 +297,11 @@ void buildSizePage(FormatPane *pane, PanePage *page)
             bool texts = false;
             for (const Item *it : s->items()) texts = texts || it->type() == ItemType::Text;
             direction->setEnabled(texts);
+            if (!texts) {   // (a shape's text runs across it)
+                direction->setProperty("loading", true);
+                direction->setCurrentIndex(0);
+                direction->setProperty("loading", false);
+            }
         });
     }
 
