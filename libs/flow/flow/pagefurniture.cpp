@@ -198,7 +198,7 @@ void Paginator::addNotes(Document *d, const QVector<StoryLayout::NotePlace> &pla
         const bool whole = pl.from <= 0 && total <= wanted;
         std::unique_ptr<QTextDocument> text;
         if (whole) {
-            text.reset(source->clone());
+            text = cloneStory(source);
         } else {
             const int from = std::clamp(pl.from, 0, std::max(0, total));
             text = std::make_unique<QTextDocument>();

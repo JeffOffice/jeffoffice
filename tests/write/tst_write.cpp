@@ -5023,6 +5023,26 @@ private Q_SLOTS:
         QVERIFY2(std::abs(plain - withGone) < 0.01, qPrintable(QStringLiteral("the text ends at %1 with the note alone, at %2 after three deleted paragraphs").arg(plain).arg(withGone)));
     }
 
+    // The note as the page draws it has the first paragraph's mark as the file has it: one that a tracked change deleted shows nothing, and the note is drawn from its text
+    // (the copy of a story loses the mark of an empty first paragraph unless it is put back).
+    void aNoteOnThePageKeepsTheDeletedMarkOfItsFirstParagraph()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:id=\"2\">"
+                           "<w:p><w:pPr><w:rPr><w:del w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"/></w:rPr></w:pPr></w:p>"
+                           "<w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> FOOTNOTE TWO says something.</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        const QByteArray body = "<w:p><w:r><w:t>First paragraph with a note</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>" + paragraphs(40, 40);
+        auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}}));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        const TextItem *note = boxWithText(*page, QStringLiteral("FOOTNOTE TWO"));
+        QVERIFY(note);
+        const auto story = page->doc->story(note->storyId);
+        QVERIFY(story && story->doc);
+        QVERIFY2(story->doc->begin().charFormat().boolProperty(tp::HiddenText), "the first paragraph's mark is hidden in the note as drawn");
+    }
+
     // The room between the text and the notes is the file's own separator paragraph, not a line of the Normal style: a separator thirty points tall
     // (exactly) leaves the text fifty lines of twelve points above a note one line tall, where the Normal style's line would leave it one more.
     void theNoteSeparatorIsTheFilesOwnParagraph()
