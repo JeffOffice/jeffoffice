@@ -8,6 +8,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTextBlock>
+#include <set>
 #include <QTextDocument>
 #include <algorithm>
 #include <cmath>
@@ -46,6 +47,7 @@ struct Paginator::Ledger {
     QVector<double> reserve;                     // by frame: what the notes there take at its foot, the rule's gap included
     QVector<StoryLayout::NotePlace> places;      // the notes, as the text engine seated them (those of the text) and as the rows' were set (their rects are made again)
     QVector<StoryLayout::CarriedNote> carried;   // the notes that go on past the page
+    std::set<QString> carriedIds;                // (which of them are in it already)
     double ruleGap = -1, noteGap = 0;            // the gaps the text engine leaves above and among notes (-1: not known yet)
     explicit Ledger(int frames) : reserve(frames, 0.0) {}
 };
@@ -54,7 +56,7 @@ double Paginator::noteHeight(const QString &id, double width)
 {
     if (!m_doc->fields) return 0;
     const QTextDocument *source = m_doc->fields->storyDoc(id);
-    const auto key = std::make_tuple(id, int(std::lround(width * 100)), source ? source->revision() : -1);
+    const auto key = std::make_tuple(id, int(std::lround(width * 100)), source ? source->revision() : -1, source ? source->characterCount() : -1, m_envHash);
     const auto found = m_noteHeights.find(key);
     if (found != m_noteHeights.end()) return found->second;
     // A note is as tall as the text engine sets it in a column of that width: a story that cites it, laid out, says.
@@ -125,9 +127,11 @@ Paginator::NoteCut Paginator::cutNote(const QString &id, double width, double ro
 QVector<StoryLayout::LineBrief> Paginator::linesWithTables(const QVector<FrameSpec> &frames, const StoryLayout::Span &span, int firstFrame, const PageStart &st, TablesRun *tr)
 {
     Ledger ledger(int(frames.size()));
+    m_envHash = qHash(m_doc->env.key());
     const QVector<StoryLayout::LineBrief> out = tableLines(frames, span, firstFrame, st, tr, &ledger);
     restackNotes(frames, &ledger, tr);
     tr->carried = ledger.carried;
+    tr->reserve = ledger.reserve;
     return out;
 }
 
@@ -135,9 +139,11 @@ void Paginator::restackNotes(const QVector<FrameSpec> &frames, Ledger *led, Tabl
 {
     tr->notes.clear();
     tr->rules.clear();
+    // (In the order of their references in the text, which is the order of their numbers, but for numbers that begin again in a section; the rest of a note that went on
+    // from the page before has no reference here and comes first.)
     std::stable_sort(led->places.begin(), led->places.end(), [](const StoryLayout::NotePlace &a, const StoryLayout::NotePlace &b) {
         if (a.frame != b.frame) return a.frame < b.frame;
-        if (a.number != b.number) return a.number < b.number;
+        if (a.refPos != b.refPos) return a.refPos < b.refPos;
         return a.from < b.from;
     });
     const bool word = m_doc->env.wordLines;
@@ -193,11 +199,8 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
             pl.frame += base;
             led->places << pl;
         }
-        for (const StoryLayout::CarriedNote &cn : lay.carriedNotes(lay.frameCount() - 1)) {
-            bool known = false;
-            for (const StoryLayout::CarriedNote &c : std::as_const(led->carried)) known |= c.storyId == cn.storyId && c.number == cn.number;
-            if (!known) led->carried << cn;
-        }
+        for (const StoryLayout::CarriedNote &cn : lay.carriedNotes(lay.frameCount() - 1))
+            if (led->carriedIds.insert(cn.storyId + QLatin1Char('|') + QString::number(cn.number)).second) led->carried << cn;
     };
     // The gaps the text engine leaves among notes, found by laying out no text at all, for a page that has notes of rows and no text before them.
     auto knowGaps = [&]() {
@@ -221,7 +224,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
         for (const NoteRef &nr : refs) {
             const double h = noteHeight(nr.id, width);
             if (!cutDone && used + h + std::max(0.0, led->noteGap) <= room + 0.05) {
-                led->places << StoryLayout::NotePlace{nr.id, nr.number, frame, 0, QRectF(0, 0, width, h), 0};
+                led->places << StoryLayout::NotePlace{nr.id, nr.number, frame, 0, QRectF(0, 0, width, h), 0, nr.pos};
                 used += h + std::max(0.0, led->noteGap);
                 continue;
             }
@@ -232,7 +235,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
             // The first that does not fit is cut in what is left of the room, and goes on from there.
             const NoteCut cut = cutNote(nr.id, width, std::max(0.0, room - used));
             if (cut.height > 0) {
-                led->places << StoryLayout::NotePlace{nr.id, nr.number, frame, 0, QRectF(0, 0, width, cut.height), 0};
+                led->places << StoryLayout::NotePlace{nr.id, nr.number, frame, 0, QRectF(0, 0, width, cut.height), 0, nr.pos};
                 used += cut.height + std::max(0.0, led->noteGap);
                 if (cut.from == 0) continue;   // (it fits after all)
             }
@@ -317,7 +320,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                     if (state != 0 || table->splittable(r)) {
                         // The row, or what is left of it, over the foot of the column: the lines of its cells that fit, and the rest on the next.
                         if (cites) knowGaps();
-                        const TableLayout::Piece part = table->pieceOf(r, state, offs, avail, led->reserve[f] <= 0, led->ruleGap > 0 ? led->ruleGap : 0, atTop || state != 0);
+                        const TableLayout::Piece part = table->pieceOf(r, state, offs, avail, led->reserve[f] <= 0, led->ruleGap > 0 ? led->ruleGap : 0, atTop);
                         if (part.progress) {
                             ln.frame = f;
                             ln.line = state;
@@ -345,26 +348,30 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
             }
             piece = 0;
             pos = ix.spans()[size_t(sp)].to;
-            if (!story->findBlock(pos).isValid()) return out;
+            if (!story->findBlock(pos).isValid() || (span.end >= 0 && pos >= span.end)) return out;
             firstRun = false;
             atTop = false;
             continue;
         }
         // Text, up to the next table.
         const int next = ix.firstFrom(pos);
-        const int end = next < int(ix.spans().size()) ? ix.spans()[size_t(next)].from : -1;
+        int end = next < int(ix.spans().size()) ? ix.spans()[size_t(next)].from : -1;
+        bool toSpanEnd = false;   // (the stretch the caller asked for ends before the next table)
+        if (span.end >= 0 && (end < 0 || span.end <= end)) {
+            end = span.end;
+            toSpanEnd = true;
+        }
         QVector<StoryLayout::LineBrief> briefs;
         std::unique_ptr<StoryLayout> layout;
-        double shift = 0;
         int base = 0;
-        for (;;) {
+        {
             QVector<FrameSpec> fr = frames;
             StoryLayout::Span t = span;
             base = 0;
             if (!(firstRun && f == 0 && y == 0 && firstSegment)) {
-                // (Not the whole page's text: what is left of this column and the ones after it.)
+                // (Not the whole page's text: the frames from this column on, the first of them with something above where the text begins, so that the engine does not take it
+                // for the top of a column, where a line stays however its notes fit, and with what the notes before take at the foot of each frame.)
                 fr = frames.mid(f);
-                fr[0].size.setHeight(f < over ? std::max(0.0, frames[f].size.height() - y) : frames[f].size.height());
                 base = f;
                 t = StoryLayout::Span();
                 t.keepRules = span.keepRules;
@@ -372,8 +379,9 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                 t.overLines = span.overLines;
                 t.restartNotesAt = span.restartNotesAt;
                 t.spaceBeforeFirst = !atTop;
+                t.startY = f < over ? y : 0.0;
                 if (notes) {
-                    // The notes before it, counted from the page's first paragraph; and what the notes before already take at the foot of each frame.
+                    // The notes before it, counted from the page's first paragraph.
                     int footnotes = 0, endnotes = 0;
                     bool restarted = false;
                     const int from = story->findBlock(st.pos).position();
@@ -389,20 +397,9 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
             layout = std::make_unique<StoryLayout>();
             layout->build(story, fr, m_doc->env, t);
             briefs = layout->lineBriefs();
-            shift = f < over ? y : 0;
-            // A first line that does not fit what is left of the column goes to the next one (the engine puts a line at the top of an empty frame whether it fits or not).
-            if (!(firstRun && f == 0 && y == 0) && f < over && !briefs.isEmpty() && briefs.first().frame == 0 && briefs.first().rect.bottom() - briefs.first().below > fr[0].size.height() + 0.01) {
-                ++f;
-                y = 0;
-                atTop = true;
-                continue;
-            }
-            break;
         }
-        for (StoryLayout::LineBrief &l : briefs) {
-            if (l.frame == 0) l.rect.translate(0, shift);
+        for (StoryLayout::LineBrief &l : briefs)
             if (l.frame >= 0) l.frame += f;
-        }
         const bool full = std::any_of(briefs.begin(), briefs.end(), [&](const StoryLayout::LineBrief &l) { return l.frame < 0 || l.frame >= over; });
         out += briefs;
         if (notes) absorb(*layout, base);
@@ -411,7 +408,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
             *windowShort = true;
             return out;
         }
-        if (full || end < 0) return out;
+        if (full || end < 0 || toSpanEnd) return out;
         // The text ended before a table: how far down it went, with the space after its last paragraph.
         for (int i = int(briefs.size()) - 1; i >= 0; --i) {
             if (briefs[i].frame < 0) continue;

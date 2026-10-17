@@ -260,6 +260,9 @@ public:
         // Laying out ends before the first paragraph that starts at this document position or after it (-1: it runs to the
         // story's end): for a stretch that is laid out apart from what follows it (the cells of a table).
         int end = -1;
+        // How far down the first frame the first line goes: the frame has something above it already (the rows of a table), so it is not the top of a column, where a line
+        // stays however tall it is and a line with notes too tall for the column keeps its place and has its notes cut.
+        double startY = 0;
         // The most lines of the paragraph that lands in that frame that are laid out: the paragraph is cut after them (LineBrief::cut), as a window cuts it
         // (0: all of them). A caller that wants only a few lines past its last frame says so, and a paragraph of a thousand lines costs each page only
         // its own.
@@ -392,13 +395,14 @@ public:
         QVector<Piece> more;           // the rest of a cut note, a piece for each column it goes on in
         int from = 0;                  // while a cut note goes on: where its rest starts in the note's text
         int refPos = -1;               // where its reference is, a document position (-1: a note carried in from before)
+        bool goesOn = false;           // left for the page after when the frames ran out (not laid out here)
     };
     const QVector<Note> &notes() const { return m_notes; }
     struct Rule { int frame; QLineF line; };
     const QVector<Rule> &noteRules() const { return m_noteRules; }   // above each column's footnotes
     // Where each footnote is laid out (frame-local): the first part of each, and each piece of one that goes on in a later frame (`from`: where its
     // text starts in the note's story). For a caller that draws the notes of a page itself.
-    struct NotePlace { QString storyId; int number = 0; int frame = -1, column = 0; QRectF rect; int from = 0; };
+    struct NotePlace { QString storyId; int number = 0; int frame = -1, column = 0; QRectF rect; int from = 0; int refPos = -1; };   // refPos: where the reference is (-1: before the page)
     QVector<NotePlace> notePlaces() const;
     // The room the footnotes take at the foot of each frame (its first column), the rule's gap above them included (0: none), and the gaps the layout leaves: above the
     // first note (the rule is a part of it) and between notes. For a caller that sets notes of its own among them.

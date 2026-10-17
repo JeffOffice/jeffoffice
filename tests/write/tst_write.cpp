@@ -3,14 +3,18 @@
 #include "core/fonts.h"
 #include "app/pageview.h"
 #include "app/filescreen.h"
+#include "app/findreplace.h"
 #include "app/help.h"
 #include "app/recovery.h"
 #include "app/ribbon.h"
+#include "app/widgets.h"
+#include "app/writefindpane.h"
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
 #include "core/appinfo.h"
 #include "core/editops.h"
 #include "core/tableops.h"
+#include "core/wordformat.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 #include "../flow/pageaudit.h"
@@ -20,7 +24,9 @@
 #include "io/zip.h"
 #include "wml/wml.h"
 
+#include <QAccessible>
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDateTime>
 #include <QDialog>
@@ -44,8 +50,10 @@
 #include <QTextCursor>
 #include <QTextList>
 #include <QLabel>
+#include <QLineEdit>
 #include <QRegularExpression>
 #include <QScrollBar>
+#include <QToolButton>
 #include <functional>
 #include <random>
 #include <set>
@@ -252,6 +260,62 @@ const TextItem *boxWithText(const flow::MaterializedPage &page, const QString &t
     return nullptr;
 }
 
+
+// Selects the characters [from, to) of the window's document.
+void selectRange(WriteWindow &w, int from, int to)
+{
+    QTextCursor c(w.document()->story());
+    c.setPosition(from);
+    c.setPosition(to, QTextCursor::KeepAnchor);
+    w.view()->setCursor(c);
+}
+
+// Runs `open`, which makes a modal dialog, and meanwhile runs `fill` on that dialog, then presses OK (Cancel when `accept` is false). `fill` may use QVERIFY and
+// QCOMPARE: a failed one leaves `fill`, not the dialog. The dialog is always closed from outside `fill`, and a watchdog closes whatever is still open after ten
+// seconds and fails the test, so that a failure ends the test and never leaves it waiting on a dialog (on CI that costs the whole job).
+void withDialog(const std::function<void()> &open, const QString &objectName, const std::function<void(QDialog *)> &fill, bool accept = true)
+{
+    QString opened;
+    bool leftOpen = false;
+    auto closeAll = [](bool ok) {
+        for (QWidget *top : QApplication::topLevelWidgets())
+            if (auto *d = qobject_cast<QDialog *>(top); d && d->isVisible()) {
+                if (ok) d->accept();
+                else d->reject();
+            }
+    };
+    QTimer once, watchdog;
+    once.setSingleShot(true);
+    watchdog.setSingleShot(true);
+    QObject::connect(&once, &QTimer::timeout, [&] {
+        auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+        if (dlg) opened = dlg->objectName();
+        if (dlg && opened == objectName) fill(dlg);
+        closeAll(accept && opened == objectName);
+    });
+    QObject::connect(&watchdog, &QTimer::timeout, [&] {
+        leftOpen = true;
+        closeAll(false);
+    });
+    once.start(0);
+    watchdog.start(10000);
+    open();
+    QCOMPARE(opened, objectName);
+    QVERIFY2(!leftOpen, "the dialog was left open");
+}
+
+// The Font dialog, opened by its command on the window's selection.
+void withFontDialog(WriteWindow &w, const std::function<void(QDialog *)> &fill, bool accept = true)
+{
+    withDialog([&w] { w.act(QStringLiteral("fmt.fontDialog"))->trigger(); }, QStringLiteral("fontDialog"), fill, accept);
+}
+
+// The properties of the run, in a saved document's XML, that holds exactly this text (null when there is no such run or it has none).
+QString runPropsOfText(const QByteArray &documentXml, const QString &text)
+{
+    const QRegularExpression run(QStringLiteral("<w:r>(?:<w:rPr>((?:(?!</w:rPr>).)*)</w:rPr>)?<w:t(?: xml:space=\"preserve\")?>") + QRegularExpression::escape(text) + QStringLiteral("</w:t>"));
+    return run.match(QString::fromUtf8(documentXml)).captured(1);
+}
 } // namespace
 
 class WriteTests : public QObject {
@@ -389,16 +453,15 @@ private Q_SLOTS:
         w.show();
         typeText(*w.document(), w.view()->cursor(), QStringLiteral("one\ntwo"));
         w.view()->selectAll();
-        QTimer::singleShot(0, [&] {
-            auto *dlg = w.findChild<QDialog *>(QStringLiteral("paragraphDialog"));
-            QVERIFY(dlg);
-            dlg->findChild<QComboBox *>(QStringLiteral("alignment"))->setCurrentIndex(1);
+        withDialog([&w] { w.act("para.dialog")->trigger(); }, QStringLiteral("paragraphDialog"), [](QDialog *dlg) {
+            auto *alignment = dlg->findChild<QComboBox *>(QStringLiteral("alignment"));
             auto *left = dlg->findChild<QDoubleSpinBox *>(QStringLiteral("left"));
+            auto *lineSpacing = dlg->findChild<QComboBox *>(QStringLiteral("lineSpacing"));
+            QVERIFY(alignment && left && lineSpacing);
+            alignment->setCurrentIndex(1);
             left->setValue(36);
-            dlg->findChild<QComboBox *>(QStringLiteral("lineSpacing"))->setCurrentIndex(2);
-            dlg->accept();
+            lineSpacing->setCurrentIndex(2);
         });
-        w.act("para.dialog")->trigger();
         for (int i = 0; i < 2; ++i) {
             const QTextBlockFormat bf = w.document()->story()->findBlockByNumber(i).blockFormat();
             QCOMPARE(bf.alignment() & Qt::AlignHorizontal_Mask, Qt::AlignHCenter);
@@ -406,16 +469,910 @@ private Q_SLOTS:
             QCOMPARE(bf.lineHeight(), 200.0);
             QCOMPARE(bf.rightMargin(), 0.0);   // (not changed: left as it was)
         }
-        QTimer::singleShot(0, [&] {
-            auto *dlg = w.findChild<QDialog *>(QStringLiteral("zoomDialog"));
-            QVERIFY(dlg);
-            dlg->findChild<QSpinBox *>(QStringLiteral("percent"))->setValue(150);
+        withDialog([&w] { w.act("zoom.dialog")->trigger(); }, QStringLiteral("zoomDialog"), [](QDialog *dlg) {
+            auto *percent = dlg->findChild<QSpinBox *>(QStringLiteral("percent"));
+            QVERIFY(percent);
+            percent->setValue(150);
             for (auto *r : dlg->findChildren<QRadioButton *>())
                 if (r->property("zoomChoice").toInt() == 0) r->setChecked(true);
-            dlg->accept();
         });
-        w.act("zoom.dialog")->trigger();
         QCOMPARE(w.view()->zoom(), 1.5);
+    }
+
+    // ---------------------------------------------------------------- Find and Replace
+    // Home > Editing has Find (Ctrl+F) and Replace (Ctrl+H); each opens the pane on the right.
+    void homeTabHasFindAndReplace()
+    {
+        WriteWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QCOMPARE(w.act(QStringLiteral("edit.find"))->shortcut(), QKeySequence(QKeySequence::Find));
+        QCOMPARE(w.act(QStringLiteral("edit.replace"))->shortcut(), QKeySequence(Qt::CTRL | Qt::Key_H));
+        int buttons = 0;
+        for (QToolButton *b : w.ribbon()->findChildren<QToolButton *>())
+            if (b->defaultAction() == w.act(QStringLiteral("edit.find")) || b->defaultAction() == w.act(QStringLiteral("edit.replace"))) ++buttons;
+        QCOMPARE(buttons, 2);
+        QVERIFY(!w.findPane());
+        w.show();
+        w.act(QStringLiteral("edit.find"))->trigger();
+        QVERIFY(w.findPane() && w.findPane()->isVisible());
+        QVERIFY(!w.findPane()->matchCase()->isChecked() && !w.findPane()->wholeWords()->isChecked());
+        w.act(QStringLiteral("edit.replace"))->trigger();
+        QVERIFY(w.findPane()->isVisible());
+        // The boxes are named for screen readers.
+        for (QLineEdit *e : w.findPane()->findChildren<QLineEdit *>()) {
+            QAccessibleInterface *iface = QAccessible::queryAccessibleInterface(e);
+            QVERIFY(iface);
+            QVERIFY2(!iface->text(QAccessible::Name).trimmed().isEmpty(), qPrintable(e->objectName()));
+        }
+    }
+
+    // Find Next selects the match and scrolls the pages to it, also when the page it is on has not been laid out yet; after the last match it
+    // goes round to the first; and with none it says so and leaves the selection where it was.
+    void findNextSelectsTheMatchAndScrollsToIt()
+    {
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.setDocument(open(makeDocx(paragraphs(300) + "<w:p><w:r><w:t>The zebrafish swims.</w:t></w:r></w:p>" + paragraphs(40), kStyles)), QString());
+        w.show();
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        QCOMPARE(w.view()->verticalScrollBar()->value(), 0);
+        // The match is past the pages laid out so far (so that finding it has to lay out the pages as far as it).
+        const int matchAt = w.document()->story()->toPlainText().indexOf(QStringLiteral("zebrafish"));
+        const int known = w.view()->pageCount();
+        QVERIFY(matchAt > 0 && known >= 1);
+        QVERIFY(!w.view()->pagesComplete());
+        QVERIFY2(w.document()->pager().page(known - 1).start.pos <= matchAt, qPrintable(QStringLiteral("%1 pages known, the last from %2, the match at %3").arg(known).arg(w.document()->pager().page(known - 1).start.pos).arg(matchAt)));
+        pane->findBox()->setText(QStringLiteral("zebrafish"));
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("zebrafish"));
+        QVERIFY(pane->status().isEmpty());
+        QVERIFY(w.view()->pageCount() > known);
+        QVERIFY(w.view()->currentPage() > 5);
+        QVERIFY(w.view()->verticalScrollBar()->value() > 0);
+        QRect r;
+        QVERIFY(w.view()->caretRect(&r));
+        QVERIFY2(r.top() >= 0 && r.bottom() <= w.view()->viewport()->height(), qPrintable(QStringLiteral("%1..%2 in %3").arg(r.top()).arg(r.bottom()).arg(w.view()->viewport()->height())));
+        // The only match, again: round to it.
+        const int at = w.view()->cursor().selectionStart();
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectionStart(), at);
+        // From the start of the document, the first match is the nearest.
+        QTextCursor c(w.document()->story());
+        w.view()->setCursor(c);
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectionStart(), at);
+        // Nothing found: said, and nothing moves.
+        pane->findBox()->setText(QStringLiteral("<b>narwhal"));
+        QVERIFY(!pane->findNext());
+        QVERIFY2(pane->status().contains(QStringLiteral("\"<b>narwhal\" was not found")), qPrintable(pane->status()));
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("zebrafish"));
+        QCOMPARE(w.view()->cursor().selectionStart(), at);
+    }
+
+    void findFollowsMatchCaseAndWholeWords()
+    {
+        WriteWindow w;
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Cat cat concat CAT."));
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("cat"));
+        // The places the matches start, from the start of the document, round to the first again.
+        auto starts = [&] {
+            QTextCursor c(w.document()->story());
+            w.view()->setCursor(c);
+            QList<int> out;
+            for (int i = 0; i < 8; ++i) {
+                if (!pane->findNext()) break;
+                const int at = w.view()->cursor().selectionStart();
+                if (!out.isEmpty() && at == out.first()) break;
+                out << at;
+            }
+            return out;
+        };
+        QCOMPARE(starts(), (QList<int>{0, 4, 11, 15}));
+        pane->matchCase()->setChecked(true);
+        QCOMPARE(starts(), (QList<int>{4, 11}));
+        pane->wholeWords()->setChecked(true);
+        QCOMPARE(starts(), (QList<int>{4}));
+        pane->matchCase()->setChecked(false);
+        QCOMPARE(starts(), (QList<int>{0, 4, 15}));
+    }
+
+    // The text of a table's cells is in the story, so it is found there; text that is hidden is not shown, and so it is not found.
+    void findReachesCellsAndPassesHiddenText()
+    {
+        WriteWindow w;
+        w.setDocument(open(tableDocx(2, 2)), QString());
+        w.show();
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("r1c1"));
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("r1c1"));
+        QCOMPARE(w.view()->cursor().block().text(), QStringLiteral("r1c1"));
+        // "hide" is hidden in its first place.
+        w.setDocument(WriteDoc::blank(), QString());
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("hide and seek, hide"));
+        selectRange(w, 0, 4);
+        changeCharFormat(*w.document(), w.view()->cursor(), [](QTextCharFormat &f) { f.setProperty(tp::HiddenText, true); });
+        QTextCursor c(w.document()->story());
+        w.view()->setCursor(c);
+        pane->findBox()->setText(QStringLiteral("hide"));
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectionStart(), 15);
+        pane->replaceBox()->setText(QStringLiteral("show"));
+        pane->replaceAll();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("hide and seek, show"));
+        QCOMPARE(pane->status(), QStringLiteral("JeffWrite made 1 replacement."));
+    }
+
+    // Replace swaps the match that is selected and goes on to the next; when what is selected is not a match, it shows the next match first.
+    void replaceReplacesOneMatchAndGoesToTheNext()
+    {
+        WriteWindow w;
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("cat cat cat"));
+        QTextCursor c(w.document()->story());
+        w.view()->setCursor(c);
+        w.showFindPane(true);
+        WriteFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("cat"));
+        pane->replaceBox()->setText(QStringLiteral("dog"));
+        pane->replaceOne();   // (nothing is selected: it shows the first)
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("cat cat cat"));
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("cat"));
+        QCOMPARE(w.view()->cursor().selectionStart(), 0);
+        pane->replaceOne();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("dog cat cat"));
+        QCOMPARE(w.view()->cursor().selectionStart(), 4);
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("cat"));
+        pane->replaceOne();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("dog dog cat"));
+        // Each swap undoes on its own.
+        w.view()->undo();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("dog cat cat"));
+        w.view()->undo();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("cat cat cat"));
+        // A selection that is not a match is left alone: the next match is shown.
+        selectRange(w, 4, 7);
+        pane->findBox()->setText(QStringLiteral("t c"));
+        pane->replaceOne();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("cat cat cat"));
+        QCOMPARE(w.view()->cursor().selectionStart(), 2);
+        // Words that the options do not match are not swapped either.
+        pane->findBox()->setText(QStringLiteral("at"));
+        pane->wholeWords()->setChecked(true);
+        selectRange(w, 1, 3);
+        pane->replaceOne();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("cat cat cat"));
+        QVERIFY2(!pane->status().isEmpty(), "none of the words is \"at\"");
+    }
+
+    // Replace All is one step that undoes, says how many it swapped, and leaves what the new words hold alone; the new words look as the old ones did.
+    void replaceAllIsOneStepThatUndoesAndSaysHowMany()
+    {
+        WriteWindow w;
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("a cat sat; the cat's hat, a cat."));
+        selectRange(w, 15, 18);
+        toggleBold(*w.document(), w.view()->cursor());   // the second "cat" is bold
+        w.document()->story()->clearUndoRedoStacks();
+        w.showFindPane(true);
+        WriteFindPane *pane = w.findPane();
+        const QString before = w.document()->story()->toPlainText();
+        pane->findBox()->setText(QStringLiteral("cat"));
+        pane->replaceBox()->setText(QStringLiteral("dog"));
+        pane->replaceAll();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("a dog sat; the dog's hat, a dog."));
+        QCOMPARE(pane->status(), QStringLiteral("JeffWrite made 3 replacements."));
+        QTextCursor probe(w.document()->story());
+        probe.setPosition(17);
+        QCOMPARE(probe.charFormat().fontWeight(), int(QFont::Bold));
+        probe.setPosition(5);
+        QCOMPARE(probe.charFormat().fontWeight(), int(QFont::Normal));
+        // One step undoes all three, and one redoes them.
+        w.view()->undo();
+        QCOMPARE(w.document()->story()->toPlainText(), before);
+        w.view()->redo();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("a dog sat; the dog's hat, a dog."));
+        w.view()->undo();
+        QVERIFY2(!w.document()->story()->isUndoAvailable(), "the three were one step");
+        // A match of several looks gives its first one to the new words: "AB" is bold at the A and plain at the B.
+        w.setDocument(WriteDoc::blank(), QString());
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("x AB y"));
+        selectRange(w, 2, 3);
+        toggleBold(*w.document(), w.view()->cursor());
+        pane->findBox()->setText(QStringLiteral("ab"));
+        pane->replaceBox()->setText(QStringLiteral("zz"));
+        pane->replaceAll();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("x zz y"));
+        probe = QTextCursor(w.document()->story());
+        probe.setPosition(3);
+        QCOMPARE(probe.charFormat().fontWeight(), int(QFont::Bold));
+        probe.setPosition(4);
+        QCOMPARE(probe.charFormat().fontWeight(), int(QFont::Bold));
+        probe.setPosition(5);
+        QCOMPARE(probe.charFormat().fontWeight(), int(QFont::Normal));
+        // The words that were put in are not searched again: "a" for "aa" ends; and nothing as the new words deletes.
+        w.setDocument(WriteDoc::blank(), QString());
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("banana"));
+        pane->findBox()->setText(QStringLiteral("a"));
+        pane->replaceBox()->setText(QStringLiteral("aa"));
+        pane->replaceAll();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("baanaanaa"));
+        pane->findBox()->setText(QStringLiteral("aa"));
+        pane->replaceBox()->clear();
+        pane->replaceAll();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("bnn"));
+        // None found: it says so, and the document is not touched.
+        w.document()->story()->setModified(false);
+        pane->findBox()->setText(QStringLiteral("zzz"));
+        pane->replaceAll();
+        QVERIFY2(pane->status().contains(QStringLiteral("made no replacements. \"zzz\" was not found")), qPrintable(pane->status()));
+        QVERIFY(!w.document()->isModified());
+        pane->findBox()->setText(QStringLiteral("bnn"));
+        pane->replaceBox()->setText(QStringLiteral("x"));
+        pane->replaceAll();
+        QCOMPARE(pane->status(), QStringLiteral("JeffWrite made 1 replacement."));
+    }
+
+    // ---------------------------------------------------------------- the Font dialog
+    // The Font group's launcher and Ctrl+D open the dialog.
+    void theFontLauncherAndTheKeyOpenTheDialog()
+    {
+        WriteWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QCOMPARE(w.act(QStringLiteral("fmt.fontDialog"))->shortcut(), QKeySequence(Qt::CTRL | Qt::Key_D));
+        QToolButton *launcher = nullptr;
+        for (RibbonGroup *g : w.ribbon()->tab(QStringLiteral("Home"))->groups())
+            if (g->title() == QLatin1String("Font")) launcher = g->launcher();
+        QVERIFY(launcher);
+        QVERIFY(!keytip(launcher).isEmpty());
+        QString title;
+        withDialog([launcher] { launcher->click(); }, QStringLiteral("fontDialog"), [&title](QDialog *d) { title = d->windowTitle(); }, false);
+        QCOMPARE(title, QStringLiteral("Font"));
+    }
+
+    // The dialog shows the look of the selection: the first characters' where they differ, and a box for an effect that only some of the
+    // characters have is neither checked nor clear. Cancel changes nothing.
+    void theFontDialogShowsTheLookOfTheSelection()
+    {
+        WriteWindow w;
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Some words here"));
+        selectRange(w, 5, 10);
+        toggleBold(*w.document(), w.view()->cursor());
+        toggleItalic(*w.document(), w.view()->cursor());
+        setFontSize(*w.document(), w.view()->cursor(), 20);
+        setTextColor(*w.document(), w.view()->cursor(), QColor(0xC0, 0, 0));
+        changeCharFormat(*w.document(), w.view()->cursor(), [](QTextCharFormat &f) {
+            f.setUnderlineStyle(QTextCharFormat::SingleUnderline);
+            f.setProperty(tp::UnderlineKind, 1);   // double
+            f.setUnderlineColor(QColor(0, 0, 0xFF));
+            f.setFontStrikeOut(true);
+            f.setProperty(prop::DoubleStrike, true);
+            f.setVerticalAlignment(QTextCharFormat::AlignSubScript);
+            f.setFontCapitalization(QFont::SmallCaps);
+            f.setProperty(tp::HiddenText, true);
+        });
+        w.document()->story()->clearUndoRedoStacks();
+        const QString was = w.document()->story()->toHtml();
+        bool shown = false;
+        withFontDialog(w, [&](QDialog *d) {
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("fontStyle"))->currentIndex(), 3);   // bold italic
+            QCOMPARE(d->findChild<QDoubleSpinBox *>(QStringLiteral("fontSize"))->value(), 20.0);
+            QCOMPARE(d->findChild<ColorButton *>(QStringLiteral("fontColor"))->current().rgbValue(), QColor(0xC0, 0, 0));
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("underlineStyle"))->currentText(), QStringLiteral("Double"));
+            QCOMPARE(d->findChild<ColorButton *>(QStringLiteral("underlineColor"))->current().rgbValue(), QColor(0, 0, 0xFF));
+            for (const char *on : {"doubleStrikethrough", "subscript", "smallCaps", "hidden"}) QCOMPARE(d->findChild<QCheckBox *>(QString::fromLatin1(on))->checkState(), Qt::Checked);
+            for (const char *off : {"strikethrough", "superscript", "allCaps"}) QCOMPARE(d->findChild<QCheckBox *>(QString::fromLatin1(off))->checkState(), Qt::Unchecked);
+            // (Double strikethrough and single strikethrough are not both on: choosing one clears the other.)
+            d->findChild<QCheckBox *>(QStringLiteral("strikethrough"))->setChecked(true);
+            QCOMPARE(d->findChild<QCheckBox *>(QStringLiteral("doubleStrikethrough"))->checkState(), Qt::Unchecked);
+            shown = true;
+        }, false);
+        QVERIFY(shown);
+        QCOMPARE(w.document()->story()->toHtml(), was);
+        QVERIFY(!w.document()->story()->isUndoAvailable());
+        // Over "Some words": half of it has each look, and what differs shows as nothing (the effects as partly checked).
+        selectRange(w, 0, 10);
+        shown = false;
+        withFontDialog(w, [&](QDialog *d) {
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("fontStyle"))->currentIndex(), -1);
+            QVERIFY(d->findChild<QDoubleSpinBox *>(QStringLiteral("fontSize"))->text().trimmed().isEmpty());
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("underlineStyle"))->currentIndex(), -1);
+            QCOMPARE(d->findChild<QCheckBox *>(QStringLiteral("subscript"))->checkState(), Qt::PartiallyChecked);
+            QCOMPARE(d->findChild<QCheckBox *>(QStringLiteral("hidden"))->checkState(), Qt::PartiallyChecked);
+            QCOMPARE(d->findChild<QCheckBox *>(QStringLiteral("superscript"))->checkState(), Qt::Unchecked);
+            shown = true;
+        }, false);
+        QVERIFY(shown);
+    }
+
+    // OK gives the selection what was changed, as one step that undoes; what was not touched stays as each character had it.
+    void theFontDialogAppliesWhatWasChangedAsOneStep()
+    {
+        WriteWindow w;
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Some words here"));
+        selectRange(w, 5, 10);
+        toggleBold(*w.document(), w.view()->cursor());
+        w.document()->story()->clearUndoRedoStacks();
+        selectRange(w, 0, 10);   // (the bold "words" with the plain "Some ")
+        withFontDialog(w, [](QDialog *d) {
+            Q_EMIT d->findChild<FontCombo *>(QStringLiteral("fontName"))->familyChosen(QStringLiteral("Cousine"));
+            d->findChild<QDoubleSpinBox *>(QStringLiteral("fontSize"))->setValue(18);
+            d->findChild<ColorButton *>(QStringLiteral("fontColor"))->setCurrent(ColorRef::rgb(QColor(0, 0x80, 0)));
+            d->findChild<QComboBox *>(QStringLiteral("underlineStyle"))->setCurrentIndex(5);   // dotted
+            d->findChild<ColorButton *>(QStringLiteral("underlineColor"))->setCurrent(ColorRef::rgb(QColor(0xFF, 0, 0)));
+            d->findChild<QCheckBox *>(QStringLiteral("strikethrough"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("superscript"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("smallCaps"))->setChecked(true);
+        });
+        auto at = [&](int position) {
+            QTextCursor c(w.document()->story());
+            c.setPosition(position + 1);
+            return c.charFormat();
+        };
+        for (int position : {0, 6}) {
+            const QTextCharFormat f = at(position);
+            QCOMPARE(f.fontFamilies().toStringList().value(0), QStringLiteral("Cousine"));
+            QCOMPARE(f.fontPointSize(), 18.0);
+            QCOMPARE(f.foreground().color(), QColor(0, 0x80, 0));
+            QCOMPARE(f.underlineStyle(), QTextCharFormat::DotLine);
+            QCOMPARE(f.underlineColor(), QColor(0xFF, 0, 0));
+            QVERIFY(f.fontStrikeOut() && !f.boolProperty(prop::DoubleStrike));
+            QCOMPARE(f.verticalAlignment(), QTextCharFormat::AlignSuperScript);
+            QCOMPARE(f.fontCapitalization(), QFont::SmallCaps);
+        }
+        // The style was not touched: "words" is still bold, and "Some " is not.
+        QCOMPARE(at(6).fontWeight(), int(QFont::Bold));
+        QCOMPARE(at(0).fontWeight(), int(QFont::Normal));
+        QVERIFY(at(11).fontPointSize() != 18.0);   // (nothing past the selection)
+        // One undo takes all of it back; one redo gives it again.
+        w.view()->undo();
+        for (int position : {0, 6}) {
+            const QTextCharFormat f = at(position);
+            QVERIFY(f.fontFamilies().toStringList().value(0) != QLatin1String("Cousine"));
+            QVERIFY(f.fontPointSize() != 18.0);
+            QCOMPARE(f.underlineStyle(), QTextCharFormat::NoUnderline);
+            QVERIFY(!f.fontStrikeOut());
+            QCOMPARE(f.verticalAlignment(), QTextCharFormat::AlignNormal);
+            QCOMPARE(f.fontCapitalization(), QFont::MixedCase);
+        }
+        QCOMPARE(at(6).fontWeight(), int(QFont::Bold));
+        QVERIFY(!w.document()->story()->isUndoAvailable());
+        w.view()->redo();
+        QCOMPARE(at(0).fontPointSize(), 18.0);
+        QCOMPARE(at(6).underlineStyle(), QTextCharFormat::DotLine);
+        // With no selection the choices are for what is typed next.
+        QTextCursor end(w.document()->story());
+        end.movePosition(QTextCursor::End);
+        w.view()->setCursor(end);
+        withFontDialog(w, [](QDialog *d) {
+            d->findChild<QComboBox *>(QStringLiteral("fontStyle"))->setCurrentIndex(2);
+            d->findChild<QCheckBox *>(QStringLiteral("allCaps"))->setChecked(true);
+        });
+        insertText(*w.document(), w.view()->cursor(), QStringLiteral("!"));
+        const QTextCharFormat typed = at(w.document()->story()->characterCount() - 2);
+        QCOMPARE(typed.fontWeight(), int(QFont::Bold));
+        QCOMPARE(typed.fontCapitalization(), QFont::AllUppercase);
+        QCOMPARE(at(w.document()->story()->characterCount() - 3).fontCapitalization(), QFont::MixedCase);
+    }
+
+    // Each effect set in the dialog is written to the file as the element it is and comes back as the same effect, on its words alone.
+    void aFontEffectIsSavedInTheFileAndComesBack_data()
+    {
+        QTest::addColumn<QString>("box");
+        QTest::addColumn<QString>("xml");
+        QTest::newRow("strikethrough") << "strikethrough" << "<w:strike/>";
+        QTest::newRow("double strikethrough") << "doubleStrikethrough" << "<w:dstrike/>";
+        QTest::newRow("superscript") << "superscript" << "<w:vertAlign w:val=\"superscript\"/>";
+        QTest::newRow("subscript") << "subscript" << "<w:vertAlign w:val=\"subscript\"/>";
+        QTest::newRow("small caps") << "smallCaps" << "<w:smallCaps/>";
+        QTest::newRow("all caps") << "allCaps" << "<w:caps/>";
+        QTest::newRow("hidden") << "hidden" << "<w:vanish/>";
+    }
+
+    void aFontEffectIsSavedInTheFileAndComesBack()
+    {
+        QFETCH(QString, box);
+        QFETCH(QString, xml);
+        WriteWindow w;
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("one two three"));
+        selectRange(w, 4, 7);
+        withFontDialog(w, [&](QDialog *d) {
+            d->findChild<QCheckBox *>(box)->setChecked(true);
+        });
+        auto has = [&](WriteDoc &doc, int position) {
+            QTextCursor c(doc.story());
+            c.setPosition(position + 1);
+            const QTextCharFormat f = c.charFormat();
+            if (box == QLatin1String("strikethrough")) return f.fontStrikeOut() && !f.boolProperty(prop::DoubleStrike);
+            if (box == QLatin1String("doubleStrikethrough")) return f.fontStrikeOut() && f.boolProperty(prop::DoubleStrike);
+            if (box == QLatin1String("superscript")) return f.verticalAlignment() == QTextCharFormat::AlignSuperScript;
+            if (box == QLatin1String("subscript")) return f.verticalAlignment() == QTextCharFormat::AlignSubScript;
+            if (box == QLatin1String("smallCaps")) return f.fontCapitalization() == QFont::SmallCaps;
+            if (box == QLatin1String("allCaps")) return f.fontCapitalization() == QFont::AllUppercase;
+            return f.boolProperty(tp::HiddenText);
+        };
+        QVERIFY(has(*w.document(), 4) && !has(*w.document(), 0) && !has(*w.document(), 8));
+        const QByteArray zip = w.document()->toDocx();
+        QVERIFY(rt::strictProblems(zip).isEmpty());
+        const QByteArray x = documentXml(zip);
+        QVERIFY2(runPropsOfText(x, QStringLiteral("two")).contains(xml), x.constData());
+        QVERIFY2(runPropsOfText(x, QStringLiteral("one ")).isEmpty() && runPropsOfText(x, QStringLiteral(" three")).isEmpty(), x.constData());
+        auto back = open(zip);
+        QVERIFY(back);
+        QCOMPARE(back->story()->toPlainText(), QStringLiteral("one two three"));
+        QVERIFY(has(*back, 4) && !has(*back, 0) && !has(*back, 8));
+        // Written once more, the same element.
+        QVERIFY(runPropsOfText(documentXml(back->toDocx()), QStringLiteral("two")).contains(xml));
+        // And turned off in the dialog, it is gone from the file.
+        WriteWindow v;
+        v.show();
+        v.setDocument(std::move(back), QString());
+        selectRange(v, 4, 7);
+        withFontDialog(v, [&](QDialog *d) {
+            QCOMPARE(d->findChild<QCheckBox *>(box)->checkState(), Qt::Checked);
+            d->findChild<QCheckBox *>(box)->setChecked(false);
+        });
+        QVERIFY(!has(*v.document(), 4));
+        QVERIFY2(!documentXml(v.document()->toDocx()).contains(xml.toUtf8()), documentXml(v.document()->toDocx()).constData());
+    }
+
+    // The underline's style and color are written as w:u with its val and color, and read back into the dialog as they were set.
+    void anUnderlineStyleAndColorFromTheDialogAreSavedInTheFileAndComeBack()
+    {
+        // The choices of the dialog, in its order, and the val the file has for each.
+        const QStringList vals = {QStringLiteral("none"), QStringLiteral("single"), QStringLiteral("words"), QStringLiteral("double"), QStringLiteral("thick"), QStringLiteral("dotted"),
+                                  QStringLiteral("dash"), QStringLiteral("dotDash"), QStringLiteral("dotDotDash"), QStringLiteral("wave"), QStringLiteral("wavyDouble")};
+        WriteWindow w;
+        w.show();
+        QString text;
+        for (int i = 1; i < vals.size(); ++i) text += QStringLiteral("w%1 ").arg(i, 2, 10, QLatin1Char('0'));
+        typeText(*w.document(), w.view()->cursor(), text.trimmed());
+        for (int i = 1; i < vals.size(); ++i) {
+            selectRange(w, (i - 1) * 4, (i - 1) * 4 + 3);
+            withFontDialog(w, [&](QDialog *d) {
+                d->findChild<QComboBox *>(QStringLiteral("underlineStyle"))->setCurrentIndex(i);
+                // (Colored in the second half; the first half's lines take the text's color.)
+                if (i > 5) d->findChild<ColorButton *>(QStringLiteral("underlineColor"))->setCurrent(ColorRef::rgb(QColor(0xFF, 0, 0)));
+            });
+        }
+        const QByteArray zip = w.document()->toDocx();
+        QVERIFY(rt::strictProblems(zip).isEmpty());
+        const QByteArray x = documentXml(zip);
+        for (int i = 1; i < vals.size(); ++i) {
+            const QString props = runPropsOfText(x, QStringLiteral("w%1").arg(i, 2, 10, QLatin1Char('0')));
+            const QString want = i > 5 ? QStringLiteral("<w:u w:val=\"%1\" w:color=\"FF0000\"/>").arg(vals[i]) : QStringLiteral("<w:u w:val=\"%1\"/>").arg(vals[i]);
+            QVERIFY2(props.contains(want), qPrintable(QStringLiteral("%1: %2").arg(want, props)));
+        }
+        // Read again, the dialog shows each choice and color.
+        WriteWindow v;
+        v.show();
+        v.setDocument(open(zip), QString());
+        for (int i = 1; i < vals.size(); ++i) {
+            selectRange(v, (i - 1) * 4, (i - 1) * 4 + 3);
+            withFontDialog(v, [&](QDialog *d) {
+                QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("underlineStyle"))->currentIndex(), i);
+                const ColorRef color = d->findChild<ColorButton *>(QStringLiteral("underlineColor"))->current();
+                if (i > 5) QCOMPARE(color.rgbValue(), QColor(0xFF, 0, 0));
+                else QVERIFY(color.isNone());
+            }, false);
+        }
+        // Underline off, and the color automatic again: the file says no line where there was one, and no color where there was one.
+        selectRange(v, 20, 23);   // "w06", dashed
+        withFontDialog(v, [](QDialog *d) { d->findChild<QComboBox *>(QStringLiteral("underlineStyle"))->setCurrentIndex(0); });
+        QVERIFY(!documentXml(v.document()->toDocx()).contains("w:val=\"dash\""));
+        selectRange(v, 24, 27);   // "w07", dot dash in red
+        withFontDialog(v, [](QDialog *d) { d->findChild<ColorButton *>(QStringLiteral("underlineColor"))->setCurrent(ColorRef::none()); });
+        QVERIFY2(runPropsOfText(documentXml(v.document()->toDocx()), QStringLiteral("w07")) == QLatin1String("<w:u w:val=\"dotDash\"/>"), documentXml(v.document()->toDocx()).constData());
+    }
+
+    // A file's own effects are read into the dialog's, and written back as they were (a style that has one, and a run that turns it off, too).
+    void aFilesEffectsAreReadAndWrittenBack()
+    {
+        const QByteArray styles = kStyles + "<w:style w:type=\"paragraph\" w:styleId=\"Shouting\"><w:name w:val=\"Shouting\"/><w:basedOn w:val=\"Normal\"/><w:rPr><w:caps/></w:rPr></w:style>";
+        const QByteArray body =
+            "<w:p><w:r><w:rPr><w:strike/></w:rPr><w:t>strike</w:t></w:r><w:r><w:t xml:space=\"preserve\"> </w:t></w:r><w:r><w:rPr><w:dstrike/></w:rPr><w:t>dstrike</w:t></w:r></w:p>"
+            "<w:p><w:r><w:rPr><w:vertAlign w:val=\"superscript\"/></w:rPr><w:t>super</w:t></w:r><w:r><w:rPr><w:vertAlign w:val=\"subscript\"/></w:rPr><w:t>sub</w:t></w:r></w:p>"
+            "<w:p><w:r><w:rPr><w:smallCaps/></w:rPr><w:t>small</w:t></w:r><w:r><w:rPr><w:vanish/></w:rPr><w:t>hidden</w:t></w:r></w:p>"
+            "<w:p><w:r><w:rPr><w:u w:val=\"double\" w:color=\"00B050\"/></w:rPr><w:t>double</w:t></w:r><w:r><w:rPr><w:u w:val=\"dottedHeavy\"/></w:rPr><w:t>heavy</w:t></w:r>"
+            "<w:r><w:rPr><w:u w:val=\"dashLong\" w:color=\"0070C0\"/></w:rPr><w:t>long</w:t></w:r></w:p>"
+            "<w:p><w:pPr><w:pStyle w:val=\"Shouting\"/></w:pPr><w:r><w:t>loud</w:t></w:r><w:r><w:rPr><w:caps w:val=\"0\"/><w:smallCaps/></w:rPr><w:t>quiet</w:t></w:r></w:p>";
+        // Every underline a file can name, each in a run of its own (the runs differ, so none is joined to the next).
+        const QStringList lines = {QStringLiteral("single"),     QStringLiteral("words"),         QStringLiteral("double"),          QStringLiteral("thick"),        QStringLiteral("dotted"),
+                                   QStringLiteral("dottedHeavy"), QStringLiteral("dash"),         QStringLiteral("dashedHeavy"),     QStringLiteral("dashLong"),     QStringLiteral("dashLongHeavy"),
+                                   QStringLiteral("dotDash"),   QStringLiteral("dashDotHeavy"), QStringLiteral("dotDotDash"),      QStringLiteral("dashDotDotHeavy"), QStringLiteral("wave"),
+                                   QStringLiteral("wavyHeavy"), QStringLiteral("wavyDouble")};
+        QByteArray underlines = "<w:p>";
+        for (const QString &val : lines) underlines += "<w:r><w:rPr><w:u w:val=\"" + val.toUtf8() + "\"/></w:rPr><w:t>u-" + val.toUtf8() + "</w:t></w:r>";
+        underlines += "</w:p>";
+        auto doc = open(makeDocx(body + underlines, styles));
+        QVERIFY(doc);
+        const QByteArray zip = doc->toDocx();
+        QVERIFY(rt::strictProblems(zip).isEmpty());
+        const QByteArray x = documentXml(zip);
+        auto props = [&](const char *word) { return runPropsOfText(x, QString::fromLatin1(word)); };
+        for (const QString &val : lines) {
+            const QString got = runPropsOfText(x, QStringLiteral("u-") + val);
+            QVERIFY2(got == QStringLiteral("<w:u w:val=\"%1\"/>").arg(val), qPrintable(val + QStringLiteral(" came back as ") + got));
+        }
+        QVERIFY2(props("strike") == QLatin1String("<w:strike/>"), qPrintable(props("strike")));
+        QVERIFY2(props("dstrike") == QLatin1String("<w:dstrike/>"), qPrintable(props("dstrike")));
+        QVERIFY2(props("super") == QLatin1String("<w:vertAlign w:val=\"superscript\"/>"), qPrintable(props("super")));
+        QVERIFY2(props("sub") == QLatin1String("<w:vertAlign w:val=\"subscript\"/>"), qPrintable(props("sub")));
+        QVERIFY2(props("small") == QLatin1String("<w:smallCaps/>"), qPrintable(props("small")));
+        QVERIFY2(props("hidden") == QLatin1String("<w:vanish/>"), qPrintable(props("hidden")));
+        QVERIFY2(props("double") == QLatin1String("<w:u w:val=\"double\" w:color=\"00B050\"/>"), qPrintable(props("double")));
+        QVERIFY2(props("heavy") == QLatin1String("<w:u w:val=\"dottedHeavy\"/>"), qPrintable(props("heavy")));
+        QVERIFY2(props("long") == QLatin1String("<w:u w:val=\"dashLong\" w:color=\"0070C0\"/>"), qPrintable(props("long")));
+        // The paragraph's style is all caps, and so "loud" says nothing of it; "quiet" turns it off and small caps on.
+        QVERIFY2(props("loud").isEmpty(), qPrintable(props("loud")));
+        QVERIFY2(props("quiet").contains(QLatin1String("<w:caps w:val=\"0\"/>")) && props("quiet").contains(QLatin1String("<w:smallCaps/>")), qPrintable(props("quiet")));
+        // The dialog on a style's all caps: clearing it says "not caps" in the run.
+        WriteWindow w;
+        w.show();
+        w.setDocument(std::move(doc), QString());
+        const int loud = w.document()->story()->toPlainText().indexOf(QLatin1String("loud"));
+        selectRange(w, loud, loud + 4);
+        withFontDialog(w, [](QDialog *d) {
+            QCOMPARE(d->findChild<QCheckBox *>(QStringLiteral("allCaps"))->checkState(), Qt::Checked);
+            d->findChild<QCheckBox *>(QStringLiteral("allCaps"))->setChecked(false);
+        });
+        QVERIFY2(runPropsOfText(documentXml(w.document()->toDocx()), QStringLiteral("loud")).contains(QLatin1String("<w:caps w:val=\"0\"/>")), documentXml(w.document()->toDocx()).constData());
+    }
+
+    // ---------------------------------------------------------------- after the review
+    // What a dialog test does to the dialog can fail without leaving the dialog open: the helper closes it from outside, and reports a dialog that is not the one asked for.
+    void aFailedCheckInADialogTestStillClosesTheDialog()
+    {
+        WriteWindow w;
+        w.show();
+        bool filled = false;
+        withFontDialog(w, [&filled](QDialog *) {
+            filled = true;
+            QEXPECT_FAIL("", "this check is meant to fail", Continue);
+            QCOMPARE(1, 2);
+        });
+        QVERIFY(filled && !QApplication::activeModalWidget());
+        // The zoom dialog opens where the paragraph dialog was expected: it is closed without being touched, and the test says so.
+        const double zoom = w.view()->zoom();
+        QEXPECT_FAIL("", "the dialog that opens is the zoom dialog, not the paragraph dialog: meant to be reported", Continue);
+        withDialog([&w] { w.act("zoom.dialog")->trigger(); }, QStringLiteral("paragraphDialog"), [](QDialog *) { QFAIL("not to run on the wrong dialog"); });
+        QVERIFY(!QApplication::activeModalWidget());
+        QCOMPARE(w.view()->zoom(), zoom);
+    }
+
+    // The welcome topic does not say that headers and footers are missing: they are shown.
+    void theWelcomeTopicDoesNotSayHeadersAreNotShown()
+    {
+        const QString start = jp::help::topic(QStringLiteral("start")).markdown;
+        QVERIFY2(!start.contains(QLatin1String("Headers, footers, and page numbers are not shown")), "headers and footers are drawn now");
+    }
+
+    // Over characters that differ in font, style, size, color, or underline, the boxes show nothing; whatever is set then goes to all of them, also what the first
+    // characters have.
+    void aFontBoxOverSelectionsThatDifferShowsNothingAndWhatIsSetGoesToAll()
+    {
+        WriteWindow w;
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Some words here"));
+        selectRange(w, 5, 10);
+        toggleBold(*w.document(), w.view()->cursor());
+        toggleItalic(*w.document(), w.view()->cursor());
+        setFontSize(*w.document(), w.view()->cursor(), 20);
+        setTextColor(*w.document(), w.view()->cursor(), QColor(0xC0, 0, 0));
+        setFontFamily(*w.document(), w.view()->cursor(), QStringLiteral("Cousine"));
+        changeCharFormat(*w.document(), w.view()->cursor(), [](QTextCharFormat &f) {
+            f.setUnderlineStyle(QTextCharFormat::SingleUnderline);
+            f.setProperty(tp::UnderlineKind, 1);   // double
+            f.setUnderlineColor(QColor(0, 0, 0xFF));
+        });
+        w.document()->story()->clearUndoRedoStacks();
+        auto at = [&](int position) {
+            QTextCursor c(w.document()->story());
+            c.setPosition(position + 1);
+            return c.charFormat();
+        };
+        const QTextCharFormat plain = at(0);   // ("Some ")
+        // Opened and closed with nothing touched, the dialog changes nothing.
+        selectRange(w, 0, 10);
+        withFontDialog(w, [](QDialog *d) {
+            auto *font = d->findChild<FontCombo *>(QStringLiteral("fontName"));
+            auto *style = d->findChild<QComboBox *>(QStringLiteral("fontStyle"));
+            auto *size = d->findChild<QDoubleSpinBox *>(QStringLiteral("fontSize"));
+            auto *underline = d->findChild<QComboBox *>(QStringLiteral("underlineStyle"));
+            QVERIFY(font && style && size && underline);
+            QVERIFY(font->currentText().trimmed().isEmpty());
+            QCOMPARE(style->currentIndex(), -1);
+            QVERIFY2(size->text().trimmed().isEmpty(), qPrintable(size->text()));
+            QCOMPARE(underline->currentIndex(), -1);
+        });
+        QVERIFY(!w.document()->story()->isUndoAvailable());
+        QCOMPARE(at(6).fontPointSize(), 20.0);
+        // Each is set to what "Some " has, which is what the box would have shown before: all of the selection takes it.
+        selectRange(w, 0, 10);
+        withFontDialog(w, [&](QDialog *d) {
+            auto *font = d->findChild<FontCombo *>(QStringLiteral("fontName"));
+            auto *style = d->findChild<QComboBox *>(QStringLiteral("fontStyle"));
+            auto *size = d->findChild<QDoubleSpinBox *>(QStringLiteral("fontSize"));
+            auto *color = d->findChild<ColorButton *>(QStringLiteral("fontColor"));
+            auto *underline = d->findChild<QComboBox *>(QStringLiteral("underlineStyle"));
+            QVERIFY(font && style && size && color && underline);
+            Q_EMIT font->familyChosen(QStringLiteral("+Body"));
+            style->setCurrentIndex(0);
+            size->setValue(plain.fontPointSize());
+            color->setCurrent(ColorRef::none());
+            Q_EMIT color->colorPicked(ColorRef::none());
+            underline->setCurrentIndex(0);
+        });
+        for (int position : {0, 6}) {
+            const QTextCharFormat f = at(position);
+            QVERIFY2(!f.hasProperty(QTextFormat::FontFamilies) && f.stringProperty(tp::ThemeFont) == QLatin1String("minor"), qPrintable(QString::number(position)));
+            QCOMPARE(f.fontPointSize(), plain.fontPointSize());
+            QCOMPARE(f.fontWeight(), int(QFont::Normal));
+            QVERIFY(!f.fontItalic());
+            QVERIFY(!f.hasProperty(QTextFormat::ForegroundBrush) || f.foreground().style() == Qt::NoBrush);
+            QCOMPARE(f.underlineStyle(), QTextCharFormat::NoUnderline);
+        }
+        // One step undoes it.
+        w.view()->undo();
+        QCOMPARE(at(6).fontPointSize(), 20.0);
+        QVERIFY(!w.document()->story()->isUndoAvailable());
+    }
+
+    // The colors of underlines that differ are shown as nothing too, and setting one colors the underlines there are, and no other text.
+    void anUnderlineColorSetOverUnderlinesThatDifferColorsOnlyTheUnderlines()
+    {
+        WriteWindow w;
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("red blue plain"));
+        selectRange(w, 0, 3);
+        changeCharFormat(*w.document(), w.view()->cursor(), [](QTextCharFormat &f) { f.setUnderlineStyle(QTextCharFormat::SingleUnderline); f.setUnderlineColor(QColor(0xFF, 0, 0)); });
+        selectRange(w, 4, 8);
+        changeCharFormat(*w.document(), w.view()->cursor(), [](QTextCharFormat &f) { f.setUnderlineStyle(QTextCharFormat::SingleUnderline); f.setUnderlineColor(QColor(0, 0, 0xFF)); });
+        selectRange(w, 0, 14);
+        // (Red, which is what the first of the lines has, goes to the blue one as well.)
+        withFontDialog(w, [](QDialog *d) {
+            auto *color = d->findChild<ColorButton *>(QStringLiteral("underlineColor"));
+            QVERIFY(color);
+            color->setCurrent(ColorRef::rgb(QColor(0xFF, 0, 0)));
+            Q_EMIT color->colorPicked(ColorRef::rgb(QColor(0xFF, 0, 0)));
+        });
+        auto at = [&](int position) {
+            QTextCursor c(w.document()->story());
+            c.setPosition(position + 1);
+            return c.charFormat();
+        };
+        QCOMPARE(at(1).underlineColor(), QColor(0xFF, 0, 0));
+        QCOMPARE(at(5).underlineColor(), QColor(0xFF, 0, 0));
+        QCOMPARE(at(10).underlineStyle(), QTextCharFormat::NoUnderline);   // ("plain" gets no line, and no color for one)
+        QVERIFY(!at(10).hasProperty(QTextFormat::TextUnderlineColor));
+    }
+
+    // A bookmark or a field's code in a selection is not a character that has no effect: a selection that is struck through all over is, with a bookmark in it.
+    void anAtomInTheSelectionDoesNotMakeAnEffectPartial()
+    {
+        auto run = [](const char *text) { return QByteArray("<w:r><w:rPr><w:strike/></w:rPr><w:t>") + text + "</w:t></w:r>"; };
+        auto doc = open(makeDocx("<w:p>" + run("aa") + "<w:bookmarkStart w:id=\"1\" w:name=\"mark\"/>" + run("bb") + "<w:bookmarkEnd w:id=\"1\"/></w:p>", kStyles));
+        QVERIFY(doc);
+        // (The bookmark is a piece of the story that is not struck through itself.)
+        int atoms = 0;
+        for (QTextBlock::iterator it = doc->story()->firstBlock().begin(); !it.atEnd(); ++it)
+            if (isAtom(it.fragment().charFormat())) {
+                ++atoms;
+                QVERIFY(!it.fragment().charFormat().fontStrikeOut());
+            }
+        QVERIFY(atoms >= 1);
+        WriteWindow w;
+        w.show();
+        w.setDocument(std::move(doc), QString());
+        w.view()->selectAll();
+        withFontDialog(w, [](QDialog *d) {
+            QCheckBox *strike = d->findChild<QCheckBox *>(QStringLiteral("strikethrough"));
+            QVERIFY(strike);
+            QCOMPARE(strike->checkState(), Qt::Checked);
+            for (const char *other : {"doubleStrikethrough", "superscript", "subscript", "smallCaps", "allCaps", "hidden"}) QCOMPARE(d->findChild<QCheckBox *>(QString::fromLatin1(other))->checkState(), Qt::Unchecked);
+        }, false);
+        // The ribbon's button is down, and pressing it takes the line off all of the text.
+        QTRY_VERIFY(w.act(QStringLiteral("fmt.strike"))->isChecked());
+        w.act(QStringLiteral("fmt.strike"))->trigger();
+        for (QTextBlock::iterator it = w.document()->story()->firstBlock().begin(); !it.atEnd(); ++it)
+            if (!isAtom(it.fragment().charFormat())) QVERIFY2(!it.fragment().charFormat().fontStrikeOut(), qPrintable(it.fragment().text()));
+    }
+
+    // A line with several flags is written as the one the flags are first for (double, then words, then thick); every name a file has for an underline is read as a
+    // line and flags and written as the same name; and a long dash is a flag of its own.
+    void anUnderlinesFlagsAndNamesMapBothWays()
+    {
+        auto valOf = [](QTextCharFormat::UnderlineStyle style, int kind) {
+            QTextCharFormat f;
+            f.setUnderlineStyle(style);
+            if (kind) f.setProperty(tp::UnderlineKind, kind);
+            return runPropsOf(f).underline->val;
+        };
+        // (JeffPub's double plus thick underline is kind 5; pasted into JeffWrite and saved it must stay a double line.)
+        const QList<QPair<int, QString>> single = {{0, QStringLiteral("single")}, {1, QStringLiteral("double")}, {2, QStringLiteral("words")}, {4, QStringLiteral("thick")}, {3, QStringLiteral("double")},
+                                                   {5, QStringLiteral("double")}, {6, QStringLiteral("words")}, {7, QStringLiteral("double")}};
+        for (const auto &k : single) QCOMPARE(valOf(QTextCharFormat::SingleUnderline, k.first), k.second);
+        const QList<QPair<int, QString>> wave = {{0, QStringLiteral("wave")}, {1, QStringLiteral("wavyDouble")}, {3, QStringLiteral("wavyDouble")}, {5, QStringLiteral("wavyDouble")}, {7, QStringLiteral("wavyDouble")}, {4, QStringLiteral("wavyHeavy")}};
+        for (const auto &k : wave) QCOMPARE(valOf(QTextCharFormat::WaveUnderline, k.first), k.second);
+        QCOMPARE(valOf(QTextCharFormat::DotLine, 1), QStringLiteral("dotted"));   // (a flag the line has no name for: the plain line)
+        struct Name { const char *val; QTextCharFormat::UnderlineStyle style; int kind; };
+        const Name names[] = {{"single", QTextCharFormat::SingleUnderline, 0}, {"words", QTextCharFormat::SingleUnderline, 2}, {"double", QTextCharFormat::SingleUnderline, 1}, {"thick", QTextCharFormat::SingleUnderline, 4},
+                              {"dotted", QTextCharFormat::DotLine, 0}, {"dottedHeavy", QTextCharFormat::DotLine, 4}, {"dash", QTextCharFormat::DashUnderline, 0}, {"dashedHeavy", QTextCharFormat::DashUnderline, 4},
+                              {"dashLong", QTextCharFormat::DashUnderline, 8}, {"dashLongHeavy", QTextCharFormat::DashUnderline, 12}, {"dotDash", QTextCharFormat::DashDotLine, 0},
+                              {"dashDotHeavy", QTextCharFormat::DashDotLine, 4}, {"dotDotDash", QTextCharFormat::DashDotDotLine, 0}, {"dashDotDotHeavy", QTextCharFormat::DashDotDotLine, 4},
+                              {"wave", QTextCharFormat::WaveUnderline, 0}, {"wavyHeavy", QTextCharFormat::WaveUnderline, 4}, {"wavyDouble", QTextCharFormat::WaveUnderline, 1}};
+        for (const Name &n : names) {
+            wml::RunProps r;
+            wml::Underline u;
+            u.val = QString::fromLatin1(n.val);
+            r.underline = u;
+            const QTextCharFormat f = charFormatOf(r);
+            QVERIFY2(f.underlineStyle() == n.style && f.intProperty(tp::UnderlineKind) == n.kind, n.val);
+            QCOMPARE(runPropsOf(f).underline->val, QString::fromLatin1(n.val));
+        }
+    }
+
+    // Replace All takes time in step with the matches, also when they are all in one paragraph (it was the square of them: each swap in a long paragraph cost its length).
+    void replaceAllInOneLongParagraphTakesTimeInStepWithTheMatches()
+    {
+        // A paragraph of 96,000 characters with this many "cat"s in it; the time Replace All takes to turn them into "dog"s.
+        auto seconds = [](int matches, double *took) {
+            WriteWindow w;
+            QString text;
+            const int per = 96000 / matches;
+            while (text.size() < 96000) text += QString(per - 4, QLatin1Char('x')) + QStringLiteral(" cat");
+            QTextCursor c(w.document()->story());
+            c.insertText(text);
+            w.showFindPane(true);
+            WriteFindPane *pane = w.findPane();
+            pane->findBox()->setText(QStringLiteral("cat"));
+            pane->replaceBox()->setText(QStringLiteral("dog"));
+            QElapsedTimer timer;
+            timer.start();
+            pane->replaceAll();
+            *took = timer.nsecsElapsed() / 1e9;
+            QCOMPARE(pane->status(), QStringLiteral("JeffWrite made %1 replacements.").arg(text.count(QLatin1String("cat"))));
+            QVERIFY(!w.document()->story()->toPlainText().contains(QLatin1String("cat")));
+        };
+        double few = 0, many = 0;
+        seconds(2000, &few);
+        seconds(16000, &many);
+        few = std::max(few, 0.001);
+        // (Eight times the matches: eight times the time, with some room; the square would be sixty-four.)
+        QVERIFY2(many < few * 24, qPrintable(QStringLiteral("2,000 matches took %1 s, 16,000 took %2 s").arg(few).arg(many)));
+    }
+
+    // A bookmark in the middle of words does not hide them: they are found, shown selected, and replaced, and the bookmark is kept.
+    void findAndReplaceSeeWordsThatABookmarkSplits()
+    {
+        const QByteArray body = "<w:p><w:r><w:t xml:space=\"preserve\">say foo </w:t></w:r><w:bookmarkStart w:id=\"0\" w:name=\"_GoBack\"/><w:r><w:t>bar</w:t></w:r><w:bookmarkEnd w:id=\"0\"/>"
+                                "<w:r><w:t xml:space=\"preserve\"> and foo bar again</w:t></w:r></w:p>";
+        WriteWindow w;
+        w.setDocument(open(makeDocx(body, kStyles)), QString());
+        w.show();
+        QVERIFY2(w.document()->story()->toPlainText().contains(QChar::ObjectReplacementCharacter), "the bookmark is in the story, between the words");
+        auto words = [&] {
+            QString t = w.document()->story()->toPlainText();
+            t.remove(QChar::ObjectReplacementCharacter);
+            return t;
+        };
+        w.showFindPane(true);
+        WriteFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("foo bar"));
+        QTextCursor start(w.document()->story());
+        w.view()->setCursor(start);
+        QVERIFY(pane->findNext());
+        QString shown = w.view()->cursor().selectedText();
+        shown.remove(QChar::ObjectReplacementCharacter);
+        QCOMPARE(shown, QStringLiteral("foo bar"));
+        QCOMPARE(w.view()->cursor().selectionStart(), 4);
+        QVERIFY(pane->findNext());   // the second, which has no bookmark in it
+        QVERIFY(w.view()->cursor().selectionStart() > 10);
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("foo bar"));
+        // Replace swaps the first: the new words are where the old were, and the bookmark is still there.
+        w.view()->setCursor(start);
+        pane->replaceBox()->setText(QStringLiteral("baz"));
+        pane->replaceOne();   // (shows the first)
+        pane->replaceOne();
+        QCOMPARE(words(), QStringLiteral("say baz and foo bar again"));
+        QVERIFY(w.document()->story()->toPlainText().contains(QChar::ObjectReplacementCharacter));
+        QVERIFY(w.document()->toDocx().size() > 0);
+        QVERIFY2(documentXml(w.document()->toDocx()).contains("_GoBack"), "the bookmark is saved");
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("foo bar"));   // (on to the next)
+        // Undo puts it back as it was, with one step.
+        w.view()->undo();
+        QCOMPARE(words(), QStringLiteral("say foo bar and foo bar again"));
+        // Replace All: both, one step.
+        w.document()->story()->clearUndoRedoStacks();
+        pane->replaceAll();
+        QCOMPARE(words(), QStringLiteral("say baz and baz again"));
+        QCOMPARE(pane->status(), QStringLiteral("JeffWrite made 2 replacements."));
+        QVERIFY2(documentXml(w.document()->toDocx()).contains("_GoBack"), "the bookmark is saved");
+        w.view()->undo();
+        QCOMPARE(words(), QStringLiteral("say foo bar and foo bar again"));
+        QVERIFY(!w.document()->story()->isUndoAvailable());
+    }
+
+    // Replace All of the shared search finds the matches first and puts the new words in from the last (the one way that does not cost a long paragraph its length
+    // for each); it gives what putting them in from the first, finding on from each, gave: the same words, the same count, the same looks, also for whole words that
+    // touch (the letter before a match is then the last of the words put in place of the one before). JeffDeck and JeffPub swap this way.
+    void replacingFromTheLastMatchGivesWhatReplacingFromTheFirstGave()
+    {
+        int differ = 0;   // (the cases in which the two ways would not give the same words, if the shared search did not tell them apart)
+        auto check = [&differ](const QString &text, const QString &q, const QString &with, QTextDocument::FindFlags flags, const QString &where) {
+            QTextDocument a, b, c;
+            for (QTextDocument *d : {&a, &b, &c}) {
+                QTextCursor cursor(d);
+                cursor.insertText(text);
+                for (int i = 0; i + 1 < d->characterCount(); i += 2) {   // (every other character bold, so that the looks can be told)
+                    QTextCursor t(d);
+                    t.setPosition(i);
+                    t.setPosition(i + 1, QTextCursor::KeepAnchor);
+                    QTextCharFormat f;
+                    f.setFontWeight(QFont::Bold);
+                    t.mergeCharFormat(f);
+                }
+            }
+            // From the first match on, finding on from each swap.
+            int expected = 0;
+            for (QTextCursor m = a.find(q, 0, flags); !m.isNull(); m = a.find(q, m, flags)) {
+                m.insertText(with);
+                ++expected;
+            }
+            // The matches in the words as they are, put in from the last (what would be given if the search did not look at whole words that touch).
+            QVector<QPair<int, int>> found;
+            for (QTextCursor m = c.find(q, 0, flags); !m.isNull(); m = c.find(q, m, flags)) found.push_back({m.selectionStart(), m.selectionEnd()});
+            for (int i = int(found.size()) - 1; i >= 0; --i) {
+                QTextCursor m(&c);
+                m.setPosition(found[i].first);
+                m.setPosition(found[i].second, QTextCursor::KeepAnchor);
+                m.insertText(with);
+            }
+            if (c.toPlainText() != a.toPlainText()) ++differ;
+            FindWords words;
+            words.story = [&b](const FindStory &) { return &b; };
+            QVector<FindStory> stories;
+            stories << FindStory{QString(), QStringLiteral("s")};
+            const int made = replaceInStories(words, stories, q, flags, with);
+            QVERIFY2(made == expected, qPrintable(where + QStringLiteral(" made %1, not %2").arg(made).arg(expected)));
+            QVERIFY2(a.toPlainText() == b.toPlainText(), qPrintable(where + QStringLiteral(" gave ") + b.toPlainText() + QStringLiteral(" and not ") + a.toPlainText()));
+            for (int i = 0; i + 1 < a.characterCount(); ++i) {
+                QTextCursor ca(&a), cb(&b);
+                ca.setPosition(i + 1);
+                cb.setPosition(i + 1);
+                QVERIFY2(ca.charFormat().fontWeight() == cb.charFormat().fontWeight(), qPrintable(where + QStringLiteral(" at %1").arg(i)));
+            }
+        };
+        const QTextDocument::FindFlags whole = QTextDocument::FindWholeWords;
+        // Whole words that touch: "--" is two words of "-", until the first is put out for "x", and the second then has a letter before it.
+        check(QStringLiteral("-- --"), QStringLiteral("-"), QStringLiteral("x"), whole, QStringLiteral("touching"));
+        check(QStringLiteral(" ,, ,"), QStringLiteral(","), QStringLiteral("ab"), whole, QStringLiteral("touching, with two letters"));
+        check(QStringLiteral("-- --"), QStringLiteral("-"), QStringLiteral("-"), whole, QStringLiteral("touching, and put out for the same"));
+        check(QStringLiteral("-- --"), QStringLiteral("-"), QString(), whole, QStringLiteral("touching, put out for nothing"));
+        check(QStringLiteral("cat cat\ncat"), QStringLiteral("cat"), QStringLiteral("dog"), QTextDocument::FindFlags(), QStringLiteral("apart"));
+        QVERIFY2(differ >= 2, qPrintable(QString::number(differ)));
+        std::mt19937 rng(11);
+        const QStringList alphabet = {QStringLiteral("a"), QStringLiteral("b"), QStringLiteral(" "), QStringLiteral("-"), QStringLiteral("A"), QStringLiteral("-"), QStringLiteral(" "), QStringLiteral("\n")};
+        const QStringList queries = {QStringLiteral("a"), QStringLiteral("-"), QStringLiteral("ab"), QStringLiteral("aa"), QStringLiteral("b-"), QStringLiteral("A"), QStringLiteral("a-a"), QStringLiteral("-")};
+        const QStringList withs = {QString(), QStringLiteral("a"), QStringLiteral("x"), QStringLiteral("ab"), QStringLiteral("-"), QStringLiteral("xyz")};
+        for (int round = 0; round < 400; ++round) {
+            QString text;
+            for (int i = 0, n = 1 + int(rng() % 30); i < n; ++i) text += alphabet[rng() % alphabet.size()];
+            QTextDocument::FindFlags flags;
+            if (rng() % 2) flags |= QTextDocument::FindCaseSensitively;
+            if (rng() % 2) flags |= QTextDocument::FindWholeWords;
+            const QString q = queries[rng() % queries.size()], with = withs[rng() % withs.size()];
+            check(text, q, with, flags, QStringLiteral("%1: \"%2\" for \"%3\" in \"%4\"").arg(round).arg(q, with, QString(text).replace(QLatin1Char('\n'), QLatin1Char('|'))));
+            if (QTest::currentTestFailed()) return;
+        }
     }
 
     void exportPdfWritesAPdfWithAPagePerPage()
@@ -4168,6 +5125,35 @@ private Q_SLOTS:
         QCOMPARE(rowsShown(pg), 90);
     }
 
+    // A note cited in the section before a continuous section of two columns, on the page where that begins: the notes are at the foot of the page, under the columns, and the
+    // text of the first section is in the width of the page (the columns begin below it); the audit finds no overlap, nothing lost, and no empty page.
+    void aFilesNoteCitedBeforeAContinuousTwoColumnSectionIsAtThePageFoot()
+    {
+        int checked = 0;
+        for (const int noteWords : {5, 40, 120})
+            for (const int cited : {0, 1}) {
+                const QByteArray one = sectionXml(6000, 8000, 720);
+                const QByteArray two = sectionXml(6000, 8000, 720, QByteArray(), "<w:type w:val=\"continuous\"/>", "<w:cols w:num=\"2\" w:space=\"360\"/>");
+                QByteArray body = plainP(wordsOf("One", 12), cited == 0 ? refTo(2) : QByteArray()) + plainP(wordsOf("Second", 8), cited == 1 ? refTo(2) : QByteArray());
+                body += plainP("end of the first section", QByteArray(), one);
+                for (int i = 0; i < 14; ++i) body += plainP(wordsOf("Column", 14));
+                auto doc = open(makeDocxWithParts(body, two, {{QStringLiteral("/word/footnotes.xml"), notesPart({{2, wordsOf("COLNOTE", noteWords)}})}}));
+                QVERIFY(doc);
+                flow::Paginator &pg = doc->pager();
+                QCOMPARE(doc->sectionCount(), 2);
+                const QString bad = audit::problems(pg, doc->story(), {{"fn2", "COLNOTE"}});
+                QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("a note of %1 words, cited in paragraph %2: %3").arg(noteWords).arg(cited).arg(bad)));
+                // The first section's lines are as wide as the page's text area, not as one of the columns.
+                const double width = pg.page(0).content.width();
+                for (const auto &l : pg.lines(0))
+                    if (l.pos < doc->story()->findBlock(0).length() + doc->story()->findBlockByNumber(1).length())
+                        QVERIFY2(l.rect.width() > width - 1, qPrintable(QStringLiteral("a line of the first section is %1 wide in a text area %2 wide").arg(l.rect.width()).arg(width)));
+                QVERIFY2(audit::lostNotes(pg, audit::fullNoteHeight(doc->flow().fields->storyDoc(QStringLiteral("fn2")), width, doc->flow().env)).isEmpty(), "the note is drawn whole");
+                ++checked;
+            }
+        QCOMPARE(checked, 6);
+    }
+
     // A continuous section of two columns with a table in it: it begins below the text of the section before, the table is inside a column and goes on in the next, and the
     // note cited above it, in the first column, and the header and footer keep to their places.
     void aFilesTableInAContinuousTwoColumnSectionIsInsideItsColumn()
@@ -4239,7 +5225,12 @@ private Q_SLOTS:
             for (const auto &item : page->doc->pages[0]->items) drawn += audit::storyOf(*page, item.get()) + QLatin1Char('\n');
         }
         QVERIFY2(noteOnly > 0, qPrintable(QStringLiteral("%1 pages, none of notes alone").arg(pages)));
-        QVERIFY2(drawn.contains(QStringLiteral("word699")), "the end of the long note is drawn");
+        // (A box's story holds the whole rest of its note, whatever the box shows of it: what is drawn is the height of the boxes.)
+        const FieldSource *fields = doc->flow().fields;
+        QVERIFY(fields);
+        const double width = pg.page(0).content.width();
+        const QString lost = audit::lostNotes(pg, audit::fullNoteHeight(fields->storyDoc(QStringLiteral("fn2")), width, doc->flow().env) + audit::fullNoteHeight(fields->storyDoc(QStringLiteral("fn3")), width, doc->flow().env));
+        QVERIFY2(lost.isEmpty(), qPrintable(lost));
         QVERIFY2(drawn.contains(QStringLiteral("SHORTNOTE")), "the short note is drawn");
         QCOMPARE(rowsShown(pg), 6);
         const QString bad = audit::problems(pg, doc->story(), {{"fn2", "LONGNOTE"}, {"fn3", "SHORTNOTE"}});
