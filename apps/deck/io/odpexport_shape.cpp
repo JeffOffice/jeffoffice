@@ -129,6 +129,9 @@ QString Exporter::idAttr(const Item &it) const
 void Exporter::writeCommon(X &x, const Item &it)
 {
     if (!it.name.isEmpty()) x.attr("draw:name", it.name);
+    // What this kind of file has no place for is kept in attributes of our own (other programs leave them alone).
+    if (it.lockAspect != Item::lockAspectByDefault(it.type())) x.attr("jo:lock-aspect", it.lockAspect ? "true" : "false");
+    if (it.decorative) x.attr("jo:decorative", "true");
     const QString id = idAttr(it);
     if (!id.isEmpty()) x.attr("xml:id", id).attr("draw:id", id);
 }
@@ -136,7 +139,9 @@ void Exporter::writeCommon(X &x, const Item &it)
 // The description for people who can't see the object, and what a click on it does; inside its element.
 void Exporter::writeInside(X &x, const Item &it)
 {
-    if (!it.altText.isEmpty()) x.open("svg:desc").text(it.altText).close();
+    if (!it.altTitle.isEmpty()) x.open("svg:title").text(it.altTitle).close();
+    // (An empty description beside a title says there is none, so that reading it back doesn't take the title for it.)
+    if (!it.altText.isEmpty() || !it.altTitle.isEmpty()) x.open("svg:desc").text(it.altText).close();
     if (!it.hyperlink.isEmpty()) {
         x.open("office:event-listeners");
         x.open("presentation:event-listener").attr("script:event-name", "dom:click").attr("presentation:action", "show");
@@ -232,6 +237,13 @@ void Exporter::writeAsPicture(X &x, Scope &sc, const Item &it)
 
 // ---- text boxes
 
+// Holds the scale and the line spacing cut that text shrunk to fit is written with, for as long as its text is written.
+struct FitGuard {
+    double &scale, &cut, oldScale, oldCut;
+    FitGuard(double &s, double &c, double ns, double nc) : scale(s), cut(c), oldScale(s), oldCut(c) { scale = ns; cut = nc; }
+    ~FitGuard() { scale = oldScale; cut = oldCut; }
+};
+
 // Whether text left at the size its file says (the presentation program shrinks it to fit the box when it is edited) runs out of its box at
 // that size, as the layout here counts it.
 static bool overflowsAsStored(const Document &doc, const TextItem &t, int pageNumber)
@@ -276,7 +288,10 @@ void Exporter::writeTextBox(X &x, Scope &sc, const TextItem &t)
     extra += attrOf("style:shrink-to-fit", shrinks ? QStringLiteral("true") : QStringLiteral("false"));
     extra += attrOf("fo:min-height", cm(t.autofit == TextItem::GrowBox ? t.rect.height() : 0.0)) + attrOf("fo:wrap-option", t.noWrap ? QStringLiteral("no-wrap") : QStringLiteral("wrap"));
     QString children;
-    if (t.columns > 1) children = QStringLiteral("<style:columns fo:column-count=\"%1\" fo:column-gap=\"%2\"/>").arg(std::clamp(t.columns, 1, 16)).arg(cm(t.columnGap));
+    if (t.columns > 1) {
+        children = QStringLiteral("<style:columns fo:column-count=\"%1\" fo:column-gap=\"%2\"/>").arg(std::clamp(t.columns, 1, 16)).arg(cm(t.columnGap));
+        extra += attrOf("jo:columns", QString::number(std::clamp(t.columns, 1, 16))) + attrOf("jo:column-gap", cm(t.columnGap));
+    }
     const QString paragraph = attrOf("style:writing-mode", t.vertical ? QStringLiteral("tb-rl") : QStringLiteral("lr-tb"));
     const QString style = frameStyle(sc, t, cls, extra, children, paragraph);
 
@@ -294,11 +309,6 @@ void Exporter::writeTextBox(X &x, Scope &sc, const TextItem &t)
     x.open("draw:text-box");
     if (t.autofit == TextItem::GrowBox) x.len("fo:min-height", t.rect.height());
     // Text the presentation program shrank is written at the size it was shrunk to, as it is laid out here.
-    struct FitGuard {
-        double &scale, &cut, oldScale, oldCut;
-        FitGuard(double &s, double &c, double ns, double nc) : scale(s), cut(c), oldScale(s), oldCut(c) { scale = ns; cut = nc; }
-        ~FitGuard() { scale = oldScale; cut = oldCut; }
-    };
     FitGuard fit(m_fitScale, m_fitCut, stored ? std::clamp(t.fitScale, 0.01, 1.0) : 1.0, stored ? std::clamp(t.fitLineCut, 0.0, 99.0) : 0.0);
     if (!empty || sc.master) {
         TextOpts opts;
@@ -368,7 +378,15 @@ void Exporter::writeShape(X &x, Scope &sc, const ShapeItem &s)
     extra += attrOf("draw:textarea-vertical-align", s.valign == VAlign::Middle ? QStringLiteral("middle") : s.valign == VAlign::Bottom ? QStringLiteral("bottom") : QStringLiteral("top"));
     extra += attrOf("draw:textarea-horizontal-align", s.centerBlock ? QStringLiteral("center") : QStringLiteral("justify")) + attrOf("draw:auto-grow-height", QStringLiteral("false")) + attrOf("draw:auto-grow-width", QStringLiteral("false"));
     extra += attrOf("fo:wrap-option", s.noWrap ? QStringLiteral("no-wrap") : QStringLiteral("wrap"));
-    const QString style = frameStyle(sc, s, QString(), extra, QString(), attrOf("style:writing-mode", QStringLiteral("lr-tb")), true);
+    // Text that shrinks to fit keeps doing so, written at the size it was shrunk to, as a text box's is (see writeTextBox).
+    const bool shrunk = m_doc.slideText && s.shrinks;
+    if (shrunk) extra += attrOf("style:shrink-to-fit", QStringLiteral("true"));
+    QString columns;
+    if (s.columns > 1) {
+        columns = QStringLiteral("<style:columns fo:column-count=\"%1\" fo:column-gap=\"%2\"/>").arg(std::clamp(s.columns, 1, 16)).arg(cm(s.columnGap));
+        extra += attrOf("jo:columns", QString::number(std::clamp(s.columns, 1, 16))) + attrOf("jo:column-gap", cm(s.columnGap));
+    }
+    const QString style = frameStyle(sc, s, QString(), extra, columns, attrOf("style:writing-mode", QStringLiteral("lr-tb")), true);
 
     x.open("draw:custom-shape").attr("draw:style-name", style);
     if (hasText) x.attr("draw:text-style-name", slideLinesStyle(sc));
@@ -380,6 +398,7 @@ void Exporter::writeShape(X &x, Scope &sc, const ShapeItem &s)
         TextOpts opts;
         opts.behind = sc.background;
         opts.shape = s.sourceId;
+        FitGuard fit(m_fitScale, m_fitCut, shrunk ? std::clamp(s.fitScale, 0.01, 1.0) : 1.0, shrunk ? std::clamp(s.fitLineCut, 0.0, 99.0) : 0.0);
         writeStory(x, sc, story, opts);
     }
     x.open("draw:enhanced-geometry");

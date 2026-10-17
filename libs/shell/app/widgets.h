@@ -38,13 +38,20 @@ private:
     ColorScheme m_scheme;
 };
 
+// The color swatches of the color drop-down as a plain widget, for a menu that holds them (a ribbon's Shape Fill menu): the scheme's colors with
+// their tints and shades, and the standard colors. `picked` is told the color chosen.
+QWidget *colorGridWidget(const ColorScheme &scheme, const std::function<void(const ColorRef &)> &picked, QWidget *parent = nullptr);
+
 class ColorButton : public QToolButton {
     Q_OBJECT
 public:
     ColorButton(const QString &iconName, const QString &text, bool allowNone, const QString &noneLabel, QWidget *parent = nullptr);
     void setScheme(const ColorScheme &s) { m_scheme = s; refreshIcon(); }
-    void setCurrent(const ColorRef &c) { m_current = c; refreshIcon(); }
+    void setCurrent(const ColorRef &c) { m_current = c; m_mixed = false; refreshIcon(); }
     ColorRef current() const { return m_current; }
+    // The things it colors don't agree: a well shows a blank swatch and no name until a color is picked or set.
+    void setMixed(bool on) { m_mixed = on; update(); }
+    bool isMixed() const { return m_mixed; }
     void setExtraActions(const QList<QAction *> &actions) { m_extra = actions; }
     // Draw as a form field: a rounded box with a swatch, the color's name and
     // a chevron, the way dialogs show colors.
@@ -62,6 +69,7 @@ private:
     void refreshIcon();
     void openPopup();
     bool m_well = false;
+    bool m_mixed = false;
     QString m_icon;
     bool m_allowNone;
     QString m_noneLabel;

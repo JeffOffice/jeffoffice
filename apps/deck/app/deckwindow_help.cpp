@@ -83,6 +83,7 @@ QString DeckWindow::helpContext() const
     else if (inside(m_online)) key = QStringLiteral("pane:online");
     else if (inside(m_find)) key = QStringLiteral("pane:find");
     else if (inside(m_animPane)) key = QStringLiteral("pane:animation");
+    else if (inside(m_formatPane)) key = QStringLiteral("pane:format");
     else if (inside(m_slides)) key = QStringLiteral("pane:slides");
     else if (inside(m_outline)) key = QStringLiteral("view:outline");
     else if (inside(m_sorter)) key = QStringLiteral("view:sorter");

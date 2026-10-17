@@ -6,6 +6,7 @@
 #include "io/odpexport_p.h"
 
 #include <QCoreApplication>
+#include <QJsonDocument>
 #include <QtMath>
 #include <algorithm>
 #include <cmath>
@@ -261,6 +262,9 @@ QString Exporter::strokeAttrs(const Stroke &s)
         out += attrOf("draw:marker-start", namedMarker(s.startArrow)) + attrOf("draw:marker-start-width", cm(unit * widths[std::clamp(s.startSize, 0, 2)])) + attrOf("draw:marker-start-center", QStringLiteral("false"));
     if (s.endArrow != Arrow::None)
         out += attrOf("draw:marker-end", namedMarker(s.endArrow)) + attrOf("draw:marker-end-width", cm(unit * widths[std::clamp(s.endSize, 0, 2)])) + attrOf("draw:marker-end-center", QStringLiteral("false"));
+    // A compound line and a gradient have no place in this kind of file: they are kept in attributes of our own, and the line is its color elsewhere.
+    if (s.compound != Stroke::Single) out += attrOf("jo:compound", QString::number(int(s.compound)));
+    if (s.hasGradient()) out += attrOf("jo:stroke-gradient", QString::fromUtf8(QJsonDocument(s.gradient.toJson()).toJson(QJsonDocument::Compact)));
     return out;
 }
 
@@ -273,6 +277,7 @@ QString Exporter::effectAttrs(const Effects &fx)
         out += QStringLiteral(" draw:shadow=\"visible\"") + attrOf("draw:shadow-offset-x", cm(fx.shadow.distance * std::cos(a))) + attrOf("draw:shadow-offset-y", cm(fx.shadow.distance * std::sin(a)))
                + attrOf("draw:shadow-color", hexOf(c.isValid() ? c : QColor(Qt::black))) + attrOf("draw:shadow-opacity", opacityOf(fx.shadow.transparency));
         if (fx.shadow.blur > 0) out += attrOf("draw:shadow-blur", cm(fx.shadow.blur));
+        if (fx.shadow.size != 100) out += attrOf("jo:shadow-size", number(fx.shadow.size, 2));
     } else {
         out += QStringLiteral(" draw:shadow=\"hidden\"");
         if (fx.shadow.on) sayOnce(QStringLiteral("innershadow"), tr("Inner shadows can't be saved in this kind of file."));
@@ -282,7 +287,9 @@ QString Exporter::effectAttrs(const Effects &fx)
         out += attrOf("loext:glow-radius", cm(fx.glow.size)) + attrOf("loext:glow-color", hexOf(c.isValid() ? c : QColor(Qt::black))) + attrOf("loext:glow-transparency", percent(fx.glow.transparency));
     }
     if (fx.softEdge > 0) out += attrOf("loext:softedge-radius", cm(fx.softEdge));
-    if (fx.reflection.on) sayOnce(QStringLiteral("reflection"), tr("Reflections can't be saved in this kind of file."));
+    // A reflection has no place in this kind of file: it is kept in an attribute of our own (transparency, size, distance, and blur).
+    if (fx.reflection.on)
+        out += attrOf("jo:reflection", QStringLiteral("%1 %2 %3 %4").arg(number(fx.reflection.transparency, 4), number(fx.reflection.size, 4), number(fx.reflection.distance, 3), number(fx.reflection.blur, 3)));
     if (fx.bevel.type || fx.rot3d.x || fx.rot3d.y) sayOnce(QStringLiteral("bevel"), tr("Bevels and objects turned in space are saved flat."));
     return out;
 }

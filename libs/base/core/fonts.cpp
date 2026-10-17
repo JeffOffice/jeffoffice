@@ -727,11 +727,15 @@ QString symbolToUnicode(const QString &family, uint code)
     // and tags that presentation themes use (as the fonts draw them).
     static const QHash<uint, uint> wingdings2 = {{0x96, 0x2022}, {0x97, 0x25CF}, {0xA0, 0x25AA}, {0xA1, 0x25A0}, {0xA8, 0x25A3}};
     static const QHash<uint, uint> wingdings3 = {{0x75, 0x25B6}, {0x7D, 0x25BA}, {0x84, 0x25B6}, {0xAD, 0x25AA}, {0xB4, 0x2B53}};
+    // Webdings' triangles, pointing left, right, up, and down: the pictures that bullets and arrows use most. Other codes are left out
+    // until their pictures are confirmed, and a code left out stays as it is.
+    static const QHash<uint, uint> webdings = {{0x33, 0x25C2}, {0x34, 0x25B8}, {0x35, 0x25B4}, {0x36, 0x25BE}};
     const QString f = family.toLower();
     const QHash<uint, uint> *map = f == QLatin1String("symbol")        ? &symbol
                                    : f == QLatin1String("wingdings")   ? &wingdings
                                    : f == QLatin1String("wingdings 2") ? &wingdings2
                                    : f == QLatin1String("wingdings 3") ? &wingdings3
+                                   : f == QLatin1String("webdings")    ? &webdings
                                                                        : nullptr;
     if (!map || !map->contains(code)) return {};
     return QString(QChar(char16_t(map->value(code))));

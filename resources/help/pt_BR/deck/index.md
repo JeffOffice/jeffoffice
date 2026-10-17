@@ -21,6 +21,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a ser 
 
 - [Digitar e formatar texto](text)
 - [Formas, imagens, tabelas e Texto Artístico](objects)
+- [O painel Formatar forma](format-shape)
 - [Anotações do orador](notes)
 - [Comentários](comments)
 
