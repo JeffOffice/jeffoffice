@@ -5042,6 +5042,49 @@ private Q_SLOTS:
         QVERIFY2(without > alone + 5, qPrintable(QStringLiteral("%1 with its empty paragraph, %2 without").arg(without).arg(alone)));
     }
 
+    // A frame of a header of more paragraphs than a frame has is text, as the body's is: the header keeps its paragraphs and the page has no stack of boxes made of it.
+    void aHeaderFrameOfTooManyParagraphsIsTextOfTheHeader()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray frame = "<w:pPr><w:framePr w:w=\"9360\" w:h=\"280\" w:hRule=\"exact\" w:wrap=\"notBeside\" w:vAnchor=\"page\" w:hAnchor=\"text\" w:y=\"100\"/></w:pPr><w:r><w:t>FRAMEPARA</w:t></w:r>";
+        QList<QByteArray> paragraphsOfHeader;
+        for (int i = 0; i < 320; ++i) paragraphsOfHeader << frame;
+        auto doc = open(makeDocxWithParts(paragraphs(10, 5), sect, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", paragraphsOfHeader)}}));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        int boxes = 0;
+        for (const auto &item : page->doc->pages[0]->items)
+            if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                if (!t->id.contains(QLatin1String("header-box")) && page->doc->story(t->storyId) && page->doc->story(t->storyId)->doc->toPlainText().contains(QLatin1String("FRAMEPARA"))) ++boxes;
+        QVERIFY2(boxes == 0, qPrintable(QStringLiteral("%1 boxes were made of a frame of 320 paragraphs").arg(boxes)));
+        const Story *header = nullptr;
+        for (const auto &item : page->doc->pages[0]->items)
+            if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                if (t->id.contains(QLatin1String("header-box"))) header = page->doc->story(t->storyId);
+        QVERIFY(header);
+        QVERIFY2(!header->doc->begin().blockFormat().boolProperty(tp::OutOfLayout), "the header's first paragraph has lines");
+    }
+
+    // The boxes of a header's frames are made once for the header, not for each page: a page's cost does not grow with the paragraphs the header's frame has.
+    void theFramesOfAHeaderCostNothingForEachPage()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto pageTime = [&](int paragraphsInFrame) {
+            const QByteArray frame = "<w:pPr><w:framePr w:w=\"9360\" w:h=\"280\" w:hRule=\"exact\" w:wrap=\"notBeside\" w:vAnchor=\"page\" w:hAnchor=\"text\" w:y=\"100\"/></w:pPr><w:r><w:t>Framed paragraph of the header, with some words</w:t></w:r>";
+            QList<QByteArray> inHeader;
+            for (int i = 0; i < paragraphsInFrame; ++i) inHeader << frame;
+            auto doc = open(makeDocxWithParts(paragraphs(40, 40), sect, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", inHeader)}}));
+            if (!doc || doc->pager().pageCount() < 2) return 1e9;
+            doc->pager().materialize(1);   // (the first of anything is slow)
+            return bestNanoseconds([&] { doc->pager().materialize(1); }, 5) / 1e6;
+        };
+        const double small = std::max(pageTime(1), 2.0), big = pageTime(250);
+        QVERIFY2(big < 3 * small + 10, qPrintable(QStringLiteral("a page with a header frame of 250 paragraphs %1 ms, of one %2 ms").arg(big).arg(small)));
+    }
+
     // A paragraph of a footer whose mark a tracked change deleted, with nothing else of its own, is gone from the footer as the text stands: it takes no room
     // (twenty points a line here), so the text keeps what the footer leaves it.
     void aDeletedParagraphOfAFooterTakesNoRoom()

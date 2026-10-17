@@ -1025,6 +1025,7 @@ void Paginator::forgetFloats()
 {
     m_floats = FloatIndex();
     m_frames.clear();
+    m_storyFrameAnchors.clear();
     m_tableObjects.clear();
     m_anchorChars.clear();
     m_wallMemo.clear();

@@ -637,6 +637,31 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         // Nothing in the body: one empty paragraph in the default style.
         startBlock(styleBlockFormat(defaultStyle), styleCharFormat(defaultStyle));
     }
+    if (headerFooter) {
+        // A frame of more paragraphs than a frame has is paragraphs of the text, as the body's is (the pages make a text box of each frame, once for the story).
+        for (QTextBlock b = story->begin(); b.isValid();) {
+            const int key = b.blockFormat().intProperty(flow::fp::Frame);
+            if (key <= 0) {
+                b = b.next();
+                continue;
+            }
+            QTextBlock e = b;
+            int paragraphs = 1;
+            while (e.next().isValid() && e.next().blockFormat().intProperty(flow::fp::Frame) == key) {
+                e = e.next();
+                ++paragraphs;
+            }
+            if (paragraphs > flow::kMostFrameParagraphs)
+                for (QTextBlock t = b;; t = t.next()) {
+                    QTextBlockFormat bf = t.blockFormat();
+                    bf.clearProperty(flow::fp::Frame);
+                    bf.clearProperty(tp::OutOfLayout);
+                    QTextCursor(t).setBlockFormat(bf);
+                    if (t == e) break;
+                }
+            b = e.next();
+        }
+    }
     if (header) {
         c.endEditBlock();
         return;

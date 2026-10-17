@@ -445,8 +445,11 @@ std::shared_ptr<const FloatingObject> Paginator::frameObject(int key, int from, 
 
 QVector<Paginator::Anchor> Paginator::storyFrameAnchors(const QTextDocument *story, double columnLeft, double columnWidth, double top)
 {
+    if (m_doc->frames.isEmpty()) return {};
+    // (Made once for a story as it is, at the places of the page it is set for: the pages that have the same header have the same boxes.)
+    const auto cacheKey = std::make_tuple(story, int(std::lround(columnWidth * 100)), story->revision(), int(std::lround(columnLeft * 100)), int(std::lround(top * 100)), uint(qHash(m_doc->env.key())));
+    if (const auto found = m_storyFrameAnchors.find(cacheKey); found != m_storyFrameAnchors.end()) return found->second;
     QVector<Anchor> out;
-    if (m_doc->frames.isEmpty()) return out;
     for (QTextBlock b = story->begin(); b.isValid() && out.size() < kMostObjects;) {
         const int key = b.blockFormat().intProperty(fp::Frame);
         if (key <= 0) {
@@ -455,22 +458,30 @@ QVector<Paginator::Anchor> Paginator::storyFrameAnchors(const QTextDocument *sto
         }
         QTextBlock e = b;
         int paragraphs = 1;
-        while (e.next().isValid() && e.next().blockFormat().intProperty(fp::Frame) == key && ++paragraphs <= kMostFrameParagraphs) e = e.next();
-        Anchor a;
-        a.pos = b.position();
-        a.paragraph = b.position();
-        a.paragraphTop = a.lineTop = top;
-        a.columnLeft = columnLeft;
-        a.x = columnLeft;
-        a.frameFrom = b.position();
-        a.frameTo = e.position() + e.length();
-        a.frame = frameObject(key, a.frameFrom, a.frameTo, columnWidth, story);
-        if (a.frame) {
-            a.object = m_doc->frames[key - 1];
-            out << a;
+        while (e.next().isValid() && e.next().blockFormat().intProperty(fp::Frame) == key) {
+            e = e.next();
+            ++paragraphs;
+        }
+        // (A frame of more paragraphs than a frame has is text, as the story's maker left it: no box of it here.)
+        if (paragraphs <= kMostFrameParagraphs) {
+            Anchor a;
+            a.pos = b.position();
+            a.paragraph = b.position();
+            a.paragraphTop = a.lineTop = top;
+            a.columnLeft = columnLeft;
+            a.x = columnLeft;
+            a.frameFrom = b.position();
+            a.frameTo = e.position() + e.length();
+            a.frame = frameObject(key, a.frameFrom, a.frameTo, columnWidth, story);
+            if (a.frame) {
+                a.object = m_doc->frames[key - 1];
+                out << a;
+            }
         }
         b = e.next();
     }
+    if (m_storyFrameAnchors.size() > 400) m_storyFrameAnchors.clear();
+    m_storyFrameAnchors.emplace(cacheKey, out);
     return out;
 }
 
