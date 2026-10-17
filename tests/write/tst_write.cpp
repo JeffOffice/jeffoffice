@@ -3700,12 +3700,17 @@ private Q_SLOTS:
         }
     }
 
-    // The file's font table says what a font it names is set in where the machine lacks it: its alternate, or by its kind a serif face or a fixed-width one.
+    // The file's font table says what a font it names is set in where the machine lacks it: its alternate (when the machine has that), a symbol font for a symbol
+    // character set, otherwise by its PANOSE class (a sans face in Arial, a serif one in Times New Roman) or its kind, a serif face or a fixed-width one.
     void theFontTableGivesTheStandIns()
     {
         const QByteArray table = "<w:fonts " + QByteArray(kNs) + "><w:font w:name=\"Palatino\"><w:altName w:val=\"Book Antiqua\"/><w:family w:val=\"roman\"/></w:font>"
                                  "<w:font w:name=\"Old Serif\"><w:family w:val=\"roman\"/></w:font><w:font w:name=\"Typewriter\"><w:family w:val=\"modern\"/></w:font>"
-                                 "<w:font w:name=\"Sans\"><w:family w:val=\"swiss\"/></w:font></w:fonts>";
+                                 "<w:font w:name=\"Sans\"><w:family w:val=\"swiss\"/></w:font>"
+                                 "<w:font w:name=\"Dingbats\"><w:charset w:val=\"02\"/><w:family w:val=\"decorative\"/></w:font>"
+                                 "<w:font w:name=\"Unicode Sans\"><w:panose1 w:val=\"020B0604020202020204\"/><w:family w:val=\"roman\"/></w:font>"
+                                 "<w:font w:name=\"Ghost\"><w:altName w:val=\"No Such Alternate\"/><w:family w:val=\"roman\"/></w:font>"
+                                 "<w:font w:name=\"Fixed\"><w:family w:val=\"auto\"/><w:pitch w:val=\"fixed\"/></w:font></w:fonts>";
         auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {{QStringLiteral("/word/fontTable.xml"), table}}));
         QVERIFY(doc);
         const auto &standIns = doc->flow().env.standIns;
@@ -3713,6 +3718,10 @@ private Q_SLOTS:
         QCOMPARE(standIns.value(QStringLiteral("old serif")), QStringLiteral("Times New Roman"));
         QCOMPARE(standIns.value(QStringLiteral("typewriter")), QStringLiteral("Courier New"));
         QVERIFY(!standIns.contains(QStringLiteral("sans")));
+        QCOMPARE(standIns.value(QStringLiteral("dingbats")), QStringLiteral("Wingdings"));
+        QCOMPARE(standIns.value(QStringLiteral("unicode sans")), QStringLiteral("Arial"));      // (its PANOSE says sans, whatever its kind says)
+        QCOMPARE(standIns.value(QStringLiteral("ghost")), QStringLiteral("Times New Roman"));   // (an alternate the machine lacks is not one)
+        QCOMPARE(standIns.value(QStringLiteral("fixed")), QStringLiteral("Courier New"));
     }
 
     // A font table of thousands of fonts that say nothing is read in step with its size.

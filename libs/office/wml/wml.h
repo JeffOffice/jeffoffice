@@ -491,10 +491,11 @@ constexpr int kMaxNotes = 20000;
 // Reads the notes of a footnotes or endnotes part. False, with nothing read, when the part isn't XML.
 bool readNotes(const QByteArray &xml, QVector<NotePart> *notes);
 
-// A font of a font table: its name, the alternate it names (a family to set it in where it is missing), and its kind (roman, swiss, modern, script,
-// decorative, or auto), each empty when it says none.
+// A font of a font table: its name, the alternate it names (a family to set it in where it is missing), its kind (roman, swiss, modern, script,
+// decorative, or auto), its pitch (fixed, variable, or default), its PANOSE classification (ten two-digit numbers), and its character set (two hex digits,
+// "02" for a symbol font), each empty when it says none.
 struct FontEntry {
-    QString name, alternate, family;
+    QString name, alternate, family, pitch, panose, charset;
 };
 // The most fonts of a table that are read.
 constexpr int kMaxFonts = 4000;

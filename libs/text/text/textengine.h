@@ -188,8 +188,8 @@ struct LayoutEnv {
     // font was added to the font database under. A run that names one of these is drawn with that font, whatever the computer has under the
     // name; no other document, and no menu, sees them.
     QHash<QString, QString> familyAliases;
-    // What a word processor sets a family it doesn't have in (wordLines): the family the file's font table names for each (lower-cased), if that is one
-    // it has; any other is set in Calibri.
+    // What a word processor sets a family it doesn't have in (wordLines): the family wordStandInFor chose from the file's font table for each (lower-cased), if
+    // that is one it has; any other is set in Calibri.
     QHash<QString, QString> standIns;
     QString aliasOf(const QString &family) const { return familyAliases.isEmpty() ? family : familyAliases.value(family.toLower(), family); }
     QString key() const;
@@ -466,6 +466,10 @@ void drawPlainText(QPainter *p, const QPointF &baseline, const QFont &font, cons
 double naturalLineEm(const QFont &f, const QString &requestedFamily);
 
 QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env);
+// The family a word processor sets a font in where its machine lacks the font (LayoutEnv::standIns), from what the file's font table says of it: its alternate when the
+// machine has that; a symbol font for a symbol character set (charset "02"); otherwise by its PANOSE class (digits 3-4, hexadecimal: 0B to 0F sans, 02 to 0A serif)
+// or its kind (roman: Times New Roman; modern, or auto of fixed pitch: Courier New). Empty when the entry says nothing to go by (it is then set in Calibri).
+QString wordStandInFor(const QString &alternate, const QString &family, const QString &pitch, const QString &panose, const QString &charset);
 
 // A slide's text shrunk to fit by `scale` (a:normAutofit's fontScale), as the presentation program draws it (see LayoutEnv::slideLines): a
 // run's size in whole points, and a paragraph's space before or after (tp::SpaceBeforeShare, tp::SpaceAfterShare) in points.

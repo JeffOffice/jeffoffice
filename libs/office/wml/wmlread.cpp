@@ -1081,6 +1081,9 @@ bool readFonts(const QByteArray &xml, QVector<FontEntry> *fonts)
         f.name = tree.attr(c, "name");
         if (const int alt = tree.child(c, "altName"); alt >= 0) f.alternate = tree.val(alt);
         if (const int fam = tree.child(c, "family"); fam >= 0) f.family = tree.val(fam);
+        if (const int pitch = tree.child(c, "pitch"); pitch >= 0) f.pitch = tree.val(pitch);
+        if (const int panose = tree.child(c, "panose1"); panose >= 0) f.panose = tree.val(panose);
+        if (const int charset = tree.child(c, "charset"); charset >= 0) f.charset = tree.val(charset);
         fonts->push_back(std::move(f));
     }
     return true;

@@ -255,17 +255,15 @@ void WriteDoc::setUpEnvironment()
         f.env.wordNoNumberIndentStop = office::wml::compatOption(settings, "doNotUseIndentAsNumberingTabStop");
         f.markFollowsBreak = m_wml.compatMode >= 15 || office::wml::compatOption(settings, "splitPgBreakAndParaMark");
     }
-    // The stand-ins for the fonts the file names that the machine doesn't have: the alternate its font table gives, or by its kind a serif face or a
-    // fixed-width one.
+    // The stand-ins for the fonts the file names that the machine doesn't have, by what its font table says of each (wordStandInFor).
     for (const KeptPart &part : m_wml.parts) {
         if (!part.name.endsWith(QLatin1String("fontTable.xml"), Qt::CaseInsensitive)) continue;
         QVector<office::wml::FontEntry> fonts;
         if (office::wml::readFonts(partData(part.name), &fonts))
             for (const office::wml::FontEntry &font : fonts) {
                 if (font.name.isEmpty()) continue;
-                if (!font.alternate.isEmpty()) f.env.standIns.insert(font.name.toLower(), font.alternate);
-                else if (font.family == QLatin1String("roman")) f.env.standIns.insert(font.name.toLower(), QStringLiteral("Times New Roman"));
-                else if (font.family == QLatin1String("modern")) f.env.standIns.insert(font.name.toLower(), QStringLiteral("Courier New"));
+                if (const QString standIn = wordStandInFor(font.alternate, font.family, font.pitch, font.panose, font.charset); !standIn.isEmpty())
+                    f.env.standIns.insert(font.name.toLower(), standIn);
             }
         break;
     }
