@@ -2,6 +2,7 @@
   "tab:Home": "start",
   "tab:Insert": "start",
   "tab:Layout": "start",
+  "tab:Review": "start",
   "tab:View": "start",
   "pane:help": "index",
   "file:new": "open-save",

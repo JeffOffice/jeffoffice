@@ -184,7 +184,7 @@ QPair<int, int> SpellCheck::misspellingAt(int position)
 
 QPair<int, int> SpellCheck::nextMisspelling(int from)
 {
-    if (!m_enabled || !m_story || from >= m_story->characterCount()) return qMakePair(-1, -1);
+    if (!m_story || from >= m_story->characterCount()) return qMakePair(-1, -1);
     const int revision = currentRevision();
     for (QTextBlock b = m_story->findBlock(std::max(0, from)); b.isValid(); b = b.next()) {
         const Answer *a = answerFor(b, revision);

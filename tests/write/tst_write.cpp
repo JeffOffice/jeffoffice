@@ -29,6 +29,8 @@
 #include <QDateTime>
 #include <QDialog>
 #include <QDoubleSpinBox>
+#include <QListWidget>
+#include <QPushButton>
 #include <QRadioButton>
 #include <QSignalSpy>
 #include <QStandardPaths>
@@ -312,13 +314,13 @@ private Q_SLOTS:
         QCOMPARE(w.ribbonErrors(), QString());
         QStringList tabs;
         for (int i = 0; i < w.ribbon()->tabCount(); ++i) tabs << w.ribbon()->tabName(i);
-        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Layout", "View"}));
+        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Layout", "Review", "View"}));
         QCOMPARE(w.ribbon()->fileKeytip(), QStringLiteral("F"));
         QVERIFY(w.windowTitle().contains(QLatin1String("JeffWrite")));
         QVERIFY(w.windowTitle().startsWith(QLatin1String("Document")));
         // The commands a person looks for.
         for (const char *id : {"file.new", "file.open", "file.save", "file.saveAs", "file.print", "file.exportPdf", "file.options", "edit.undo", "edit.redo", "fmt.bold", "para.bullets", "insert.pageBreak",
-                               "layout.landscape", "zoom.pageWidth", "help.show"})
+                               "layout.landscape", "zoom.pageWidth", "help.show", "review.spelling", "review.checkAsType"})
             QVERIFY2(w.act(QString::fromLatin1(id)), id);
     }
 
@@ -1156,6 +1158,106 @@ private Q_SLOTS:
         QVERIFY2(texts.contains(QStringLiteral("Ignore All")) && texts.contains(QStringLiteral("Add to Dictionary")), qPrintable(texts.join(QLatin1Char('|'))));
         QVERIFY(texts.indexOf(QStringLiteral("Ignore All")) > 0);   // (the suggestions come first, then the usual commands)
         QVERIFY(texts.size() > texts.indexOf(QStringLiteral("Add to Dictionary")) + 3);
+    }
+
+    void reviewSpellingStepsThroughTheMisspellingsFromTheCaret()
+    {
+        WriteWindow w;
+        w.setDocument(textDoc({"First wrongg word, and wrongg again.", "And a secnd one, plus fourh and then bluh."}), QString());
+        w.show();
+        QCOMPARE(w.act("review.spelling")->shortcut(), QKeySequence(Qt::Key_F7));
+        w.act("review.spelling")->trigger();
+        auto *pane = w.findChild<SpellPane *>();
+        QVERIFY(pane && pane->isVisible());
+        auto button = [&](const char *name) { return pane->findChild<QPushButton *>(QString::fromLatin1(name)); };
+        auto *suggestions = pane->findChild<QListWidget *>(QStringLiteral("spellSuggestions"));
+        QVERIFY(button("spellChange") && button("spellChangeAll") && button("spellIgnore") && button("spellIgnoreAll") && button("spellAdd") && suggestions);
+        // The first misspelled word from the caret is shown, selected in the text, with the dictionary's suggestions.
+        QCOMPARE(pane->word(), QStringLiteral("wrongg"));
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("wrongg"));
+        QVERIFY(suggestions->count() > 0);
+        QCOMPARE(suggestions->currentRow(), 0);
+        QCOMPARE(pane->findChild<QLabel *>(QStringLiteral("spellWord"))->text(), QStringLiteral("wrongg"));
+        // Change All puts the chosen word in place of every one like it, in one step that undoes.
+        const QString chosen = suggestions->currentItem()->text();
+        button("spellChangeAll")->click();
+        QCOMPARE(w.document()->story()->toPlainText().section(QLatin1Char('\n'), 0, 0), QStringLiteral("First %1 word, and %1 again.").arg(chosen));
+        QCOMPARE(pane->word(), QStringLiteral("secnd"));
+        w.document()->story()->undo();
+        QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("wrongg")));
+        w.document()->story()->redo();
+        // Ignore passes this one by; Change takes the chosen suggestion; the pane goes on.
+        button("spellIgnore")->click();
+        QCOMPARE(pane->word(), QStringLiteral("fourh"));
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("fourh"));
+        suggestions->setCurrentRow(0);
+        const QString fix = suggestions->currentItem()->text();
+        button("spellChange")->click();
+        QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("plus %1 and then").arg(fix)));
+        QCOMPARE(pane->word(), QStringLiteral("bluh"));
+        // Ignore All, and Add to Dictionary, take the word out for good; when none is left the check is complete.
+        QStandardPaths::setTestModeEnabled(true);
+        button("spellAdd")->click();
+        QFile::remove(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/custom.dic"));
+        QStandardPaths::setTestModeEnabled(false);
+        QCOMPARE(pane->word(), QString());
+        QVERIFY(pane->findChild<QLabel *>(QStringLiteral("spellStatus"))->text().contains(QStringLiteral("complete")));
+        QVERIFY(!button("spellChange")->isEnabled() && !button("spellIgnore")->isEnabled());
+        // (The check came back to where it began: the one left by Ignore is still marked on the page.)
+        QCOMPARE(w.view()->spelling()->misspellingAt(w.document()->story()->toPlainText().indexOf(QStringLiteral("secnd"))).first, w.document()->story()->toPlainText().indexOf(QStringLiteral("secnd")));
+    }
+
+    void reviewSpellingBeginsAtTheCaretAndComesBackToWhereItBegan()
+    {
+        WriteWindow w;
+        w.setDocument(textDoc({"Zzalpha is first.", "Then zzbeta follows.", "And zzgamma last."}), QString());
+        w.show();
+        const QString text = w.document()->story()->toPlainText();
+        QTextCursor &c = w.view()->cursor();
+        c.setPosition(text.indexOf(QStringLiteral("zzbeta")));
+        w.view()->setCursor(c);
+        w.act("review.spelling")->trigger();
+        auto *pane = w.findChild<SpellPane *>();
+        QVERIFY(pane);
+        auto ignore = [&] { pane->findChild<QPushButton *>(QStringLiteral("spellIgnore"))->click(); };
+        QCOMPARE(pane->word(), QStringLiteral("zzbeta"));
+        ignore();
+        QCOMPARE(pane->word(), QStringLiteral("zzgamma"));
+        ignore();
+        QCOMPARE(pane->word(), QStringLiteral("Zzalpha"));   // (from the top)
+        ignore();
+        QCOMPARE(pane->word(), QString());
+        QVERIFY(pane->complete());
+        // Ignore All on the last one of a document with one left.
+        w.setDocument(textDoc({"Only zzlonely here."}), QString());
+        w.act("review.spelling")->trigger();
+        QCOMPARE(w.findChild<SpellPane *>()->word(), QStringLiteral("zzlonely"));
+        w.findChild<SpellPane *>()->findChild<QPushButton *>(QStringLiteral("spellIgnoreAll"))->click();
+        QVERIFY(w.findChild<SpellPane *>()->complete());
+        QCOMPARE(w.view()->spelling()->misspellingAt(6), qMakePair(-1, -1));
+    }
+
+    void checkingSpellingAsYouTypeCanBeTurnedOffInTheReviewTab()
+    {
+        WriteWindow w;
+        w.setDocument(textDoc({"A recieve here."}), QString());
+        w.show();
+        QAction *asType = w.act("review.checkAsType");
+        QVERIFY(asType->isCheckable() && asType->isChecked());
+        QVERIFY(w.view()->spellingEnabled());
+        asType->trigger();
+        QVERIFY(!asType->isChecked());
+        QVERIFY(!w.view()->spellingEnabled());
+        int count = 0;
+        redBounds(w.view()->grab().toImage(), w.view()->pageRect(0), &count);
+        QCOMPARE(count, 0);
+        // A window opened after remembers the choice.
+        WriteWindow other;
+        QVERIFY(!other.view()->spellingEnabled());
+        asType->trigger();
+        QVERIFY(w.view()->spellingEnabled());
+        WriteWindow third;
+        QVERIFY(third.view()->spellingEnabled());
     }
 
     void theRibbonCommandsDoTheirWork()
