@@ -2427,6 +2427,36 @@ private Q_SLOTS:
         QVERIFY(xOf(0) > 19.9 && xOf(0) < 20.1);                                         // (the text begins at the indent)
     }
 
+    // The hanging indent is a tab stop for the first line (a tab goes to it), unless the file says its hanging indents are not (LayoutEnv::wordNoHangStop):
+    // then the default stops go on from the edge, and two tabs after a short word end at the second of them.
+    void aHangingIndentIsATabStopUnlessTheFileSaysNot()
+    {
+        auto textAt = [&](bool noStop) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            bf.setLeftMargin(72);
+            bf.setTextIndent(-72);
+            c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("!\t\ttext"), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            env.defaultTab = 36;
+            env.wordNoHangStop = noStop;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(400, 100)}, env);
+            return lay.rangeRects(0, 3, 4).first().left();
+        };
+        QVERIFY2(std::abs(textAt(false) - 108) < 0.05, qPrintable(QString::number(textAt(false))));   // the first tab to the indent (72), the second to the stop after it
+        QVERIFY2(std::abs(textAt(true) - 72) < 0.05, qPrintable(QString::number(textAt(true))));      // the first to 36, the second to 72
+        LayoutEnv a, b;
+        b.wordNoHangStop = true;
+        QVERIFY(a.key() != b.key());
+    }
+
     // A mark of punctuation at the end of a line may hang past the margin in a word processor's text: a word that fits but for its period is the last
     // of the line, unless the file says no punctuation hangs; a word that is itself too long, or a mark that isn't one that hangs, is not let.
     void punctuationAtTheEndOfALineHangsPastTheMargin()

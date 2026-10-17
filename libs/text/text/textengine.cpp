@@ -248,7 +248,7 @@ QString FieldContext::key(bool withClock) const
 
 QString LayoutEnv::key() const
 {
-    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
+    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (wordNoHangStop ? "|h" : "") + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
     if (defaultTab != 36) k += QStringLiteral("|t%1").arg(defaultTab);
     for (auto it = familyAliases.cbegin(); it != familyAliases.cend(); ++it) k += QStringLiteral("|a") + it.key() + QLatin1Char('=') + it.value();
     for (auto it = standIns.cbegin(); it != standIns.cend(); ++it) k += QStringLiteral("|i") + it.key() + QLatin1Char('=') + it.value();
@@ -2664,7 +2664,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             const bool wordTabs = env.wordLines && !ownTabs.isEmpty();
             const bool gridTabs = (bf.tabPositions().isEmpty() || wordTabs) && bf.layoutDirection() != Qt::RightToLeft && B->disp.contains(QLatin1Char('\t'));
             const double step = std::max(1.0, env.defaultTab) * scale;
-            auto hangStop = [&](double from, bool hangLine) { return hangLine && hangs && B->marker.isEmpty() && leftM > from + 0.01; };
+            auto hangStop = [&](double from, bool hangLine) { return hangLine && hangs && !env.wordNoHangStop && B->marker.isEmpty() && leftM > from + 0.01; };
             // The first stop past `pen`, measured from the text area's edge.
             auto nextStop = [&](double pen, bool hangLine) { return hangStop(pen, hangLine) ? leftM : (std::floor((pen + 0.01) / step) + 1) * step; };
             // The list for a line that starts `off` from the edge and is `w` wide, measured from its start.

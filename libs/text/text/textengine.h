@@ -169,6 +169,9 @@ struct LayoutEnv {
     // A word processor adds the space after a paragraph to the space before the next (a file's compatibility option against the web page's way); otherwise the
     // larger of the two is the space between them (LayoutEnv::wordLines).
     bool wordSpaceSums = false;
+    // A word processor's hanging indent is a tab stop (a tab on the first line goes to it); a file's compatibility option says it is not, and the default stops go on
+    // from the edge as they are (LayoutEnv::wordLines).
+    bool wordNoHangStop = false;
     // Percent taken off each paragraph's line spacing (a slide's text the
     // presentation program shrank to fit: a:normAutofit's lnSpcReduction).
     double lineCut = 0;
