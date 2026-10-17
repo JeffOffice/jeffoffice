@@ -725,7 +725,16 @@ private Q_SLOTS:
         w.act("help.show")->trigger();   // over the File screen: a window of its own, on that page's topic
         const auto *over = w.findChild<jp::HelpWindow *>();
         QVERIFY(over && over->isVisible());
-        QCOMPARE(over->view()->currentTopic(), QStringLiteral("open-save"));
+        QCOMPARE(over->view()->currentTopic(), QStringLiteral("print"));
+        // In the Spelling pane, help is on spelling.
+        w.findChild<jp::HelpWindow *>()->close();
+        w.hideFileScreen();
+        w.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        w.act("review.spelling")->trigger();
+        w.findChild<SpellPane *>()->findChild<QListWidget *>(QStringLiteral("spellSuggestions"))->setFocus();
+        w.act("help.show")->trigger();
+        QCOMPARE(w.helpView()->currentTopic(), QStringLiteral("spelling"));
         // The start topic says what JeffWrite is and that it is a preview.
         const jp::help::Topic start = jp::help::topic(QStringLiteral("start"));
         QVERIFY(start.markdown.contains(QLatin1String("Preview")));

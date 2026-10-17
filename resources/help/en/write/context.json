@@ -2,12 +2,13 @@
   "tab:Home": "start",
   "tab:Insert": "start",
   "tab:Layout": "start",
-  "tab:Review": "start",
+  "tab:Review": "spelling",
   "tab:View": "start",
   "pane:help": "index",
   "file:new": "open-save",
   "file:open": "open-save",
-  "file:print": "open-save",
+  "file:print": "print",
   "file:export": "open-save",
-  "file:about": "start"
+  "file:about": "start",
+  "pane:spelling": "spelling"
 }

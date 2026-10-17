@@ -38,7 +38,8 @@ This version of JeffWrite is a **Preview**. It is ready to try on real work, but
 - Pages: paper size, orientation, margins, columns, page breaks, and section breaks that start a new page.
 - Opening and saving .docx files.
 - Zoom, and showing the paragraph marks (the **¶** button).
-- Printing, PDF files, and AutoRecover, which keeps a spare copy of unsaved work.
+- Spelling: red lines as you type, suggestions when you right-click, and the Spelling pane (**F7**). See [Check your spelling](spelling).
+- Printing, with a preview, copies, and page ranges, PDF files, and AutoRecover, which keeps a spare copy of unsaved work. See [Print](print).
 
 **What does not work yet**
 
@@ -49,7 +50,7 @@ This version of JeffWrite is a **Preview**. It is ready to try on real work, but
 - Fields, such as page numbers and tables of contents, show the words the file had. They do not update.
 - Comments and tracked changes are not shown, and deleted text stays hidden. JeffWrite keeps them.
 - You can't open or save .doc, .rtf, or .odt files yet.
-- There is no spelling check, no Find and Replace, no ruler, and no Font box beyond the Home tab.
+- There is no Find and Replace, no ruler, and no Font box beyond the Home tab.
 - Sections that continue on the same page start a new page instead.
 
 JeffWrite keeps what it can't show. It writes those parts back when you save, so a file that has them does not lose them.
@@ -66,4 +67,6 @@ If something goes wrong, click **File > About**, then **Report a problem**.
 ## Related
 
 - [Open, save, print, and export](open-save)
+- [Check your spelling](spelling)
+- [Print](print)
 - [Use JeffWrite with the keyboard](keyboard)
