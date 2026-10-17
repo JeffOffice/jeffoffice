@@ -1493,7 +1493,8 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
             if (top[col] < 0) top[col] = ln.rect.top();
         }
         QVector<std::shared_ptr<TextItem>> boxes;
-        for (int c = 0; c < run.columns && bottom[c] >= 0; ++c) {
+        for (int c = 0; c < run.columns; ++c) {
+            if (bottom[c] < 0) continue;   // (a column with no line has no box: where a section of columns ends the page's text, or one has fewer lines than columns)
             auto t = std::make_shared<TextItem>();
             t->id = QStringLiteral("flow-box-%1-%2").arg(index).arg(c);
             const QRectF col = run.cols[c];

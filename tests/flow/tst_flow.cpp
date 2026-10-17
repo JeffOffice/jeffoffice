@@ -6863,6 +6863,26 @@ private Q_SLOTS:
         const double areaTop = pg.page(0).content.top();
         QVERIFY2(box->rect.top() >= areaTop + std::max(bottom[0], bottom[1]) - 0.01, qPrintable(QStringLiteral("the second section begins at %1, the columns end at %2").arg(box->rect.top() - areaTop).arg(std::max(bottom[0], bottom[1]))));
         QVERIFY2(box->rect.top() - areaTop - std::max(bottom[0], bottom[1]) < 40, "the second section follows the columns closely");
+        // Columns with no lines have no box, and the boxes after them are the page's still: a section of two columns of a line, then the second section.
+        FlowDocument few;
+        few.env.wordLines = true;
+        fillStory(few.story(), 3, 9, [](int i, QTextBlockFormat &bf) {
+            bf.setBottomMargin(6);
+            if (i == 0) bf.setProperty(fp::SectionBreakAfter, true);
+        }, 3, 4);
+        few.sections[0].columns = 2;
+        few.sections[0].columnGap = 20;
+        Section after = few.sections[0];
+        after.continuous = true;
+        after.columns = 1;
+        few.sections << after;
+        Paginator pf(&few);
+        QCOMPARE(pf.pageCount(), 1);
+        const auto lonely = pf.materialize(0);
+        QVERIFY(lonely);
+        QCOMPARE(int(lonely->boxes.size()), 2);   // (the first column of the first section, and the second section's)
+        const auto *lastBox = dynamic_cast<const TextItem *>(lonely->doc->item(lonely->boxes[1]));
+        QVERIFY(lastBox && lastBox->rect.height() > 10);
     }
 
     // A continuous section with more columns than the one before begins below it on the same page, with its own columns.
