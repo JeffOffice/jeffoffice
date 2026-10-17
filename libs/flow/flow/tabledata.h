@@ -41,6 +41,19 @@ struct TableData {
     QMarginsF margins{5.4, 0, 5.4, 0};   // the cells' own space inside (left, top, right, bottom), unless a cell says
     TableLine top, left, bottom, right, insideH, insideV;   // the table's borders: the cells on its edges take the first four, those between cells the others
     std::optional<QColor> fill;
+    // A table set at a place on the page, with the text going round it (a word processor's floating table), instead of among the paragraphs: its rows are drawn there, as one
+    // block that the page does not break, at the paragraph after the table; none for a table in the text. A position is from the text (the column across, the paragraph down),
+    // the margin, or the page, by an offset or at the start, middle, or end; `room` is what the text keeps from it (left, top, right, bottom).
+    struct Place {
+        enum class From : quint8 { Text, Margin, Page };
+        enum class Spec : quint8 { None, Start, Center, End };
+        From across = From::Text, down = From::Text;
+        Spec acrossSpec = Spec::None, downSpec = Spec::None;
+        double x = 0, y = 0;
+        QMarginsF room;
+        bool overlap = true;        // it may be over another floating table (else it goes down from one)
+    };
+    std::optional<Place> place;
     std::shared_ptr<const void> app;    // what the program that made the table keeps with it (the file's own properties of it)
 };
 

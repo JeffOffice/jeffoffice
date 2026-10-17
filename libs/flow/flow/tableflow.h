@@ -271,6 +271,7 @@ struct TableFragment {
     int firstRow = 0, endRow = 0;           // the rows [firstRow, endRow) it shows
     bool header = false;                    // with the table's header rows above them
     QPointF origin;                         // where the table's left edge and the top of the fragment are (page coordinates)
+    bool floating = false;                  // a table set at a place of its own on the page, with the text going round it: not among the lines of the text, nor held to its text area
     double height = 0;                      // all of it, the header rows too
     struct Item {
         int cell = 0;                       // an index into the layout's cells
