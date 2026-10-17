@@ -249,7 +249,7 @@ QString FieldContext::key(bool withClock) const
 
 QString LayoutEnv::key() const
 {
-    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (wordNoHangStop ? "|h" : "") + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
+    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (wordNoHangStop ? "|h" : "") + (wordNoNumberIndentStop ? "|i" : "") + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
     if (defaultTab != 36) k += QStringLiteral("|t%1").arg(defaultTab);
     for (auto it = familyAliases.cbegin(); it != familyAliases.cend(); ++it) k += QStringLiteral("|a") + it.key() + QLatin1Char('=') + it.value();
     for (auto it = standIns.cbegin(); it != standIns.cend(); ++it) k += QStringLiteral("|i") + it.key() + QLatin1Char('=') + it.value();
@@ -2584,17 +2584,19 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             markerW = B->markerAdv + B->markerGap;
             if (lf.hasProperty(tp::BulletTab)) {
                 markerW = std::max(markerW, lf.property(tp::BulletTab).toDouble() * scale - (leftM + textIndent));
-            } else if (env.wordLines && textIndent >= 0) {
+            } else if (env.wordLines && (textIndent >= 0 || env.wordNoNumberIndentStop)) {
                 // A word processor's number or bullet is followed by a tab: the text begins at the next stop past it, one of the paragraph's own or,
-                // past the last of those, a default one (from the text area's edge).
+                // past the last of those, a default one (from the text area's edge). (A hanging indent is that stop unless the file says it is not, and
+                // then the number's own list tab is one.)
                 const double first = leftM + textIndent, end = first + B->markerAdv;
                 const double step = std::max(1.0, env.defaultTab) * scale;
                 double stop = -1, last = -1;
-                for (const QTextOption::Tab &t : bf.tabPositions()) {
-                    const double at = t.position * scale;
+                auto consider = [&](double at) {
                     last = std::max(last, at);
                     if (at > end + 0.01 && (stop < 0 || at < stop)) stop = at;
-                }
+                };
+                for (const QTextOption::Tab &t : bf.tabPositions()) consider(t.position * scale);
+                if (env.wordNoNumberIndentStop && bf.hasProperty(tp::NumberTab)) consider(bf.doubleProperty(tp::NumberTab) * scale);
                 if (stop < 0) stop = (std::floor((std::max(end, last) + 0.01) / step) + 1) * step;
                 markerW = stop - first;
             }
@@ -2855,7 +2857,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // text comes one hang after the bullet, wherever that is.
                     if (hangs) {
                         indL = std::max(0.0, leftM + textIndent);
-                        if (!B->marker.isEmpty()) lead = -textIndent;
+                        if (!B->marker.isEmpty()) lead = env.wordNoNumberIndentStop ? leftM + textIndent + markerW - indL : -textIndent;   // (to the number's tab stop, or the indent)
                     }
                 }
                 if (B->dropLines > 0 && lineNo < (B->dropUp ? 1 : B->dropLines)) indL += B->dropWidth;
@@ -3424,7 +3426,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         QTextBlock tb = doc->findBlock(B->docStart);
         const QTextBlockFormat bf = tb.blockFormat();
         const double ti = bf.textIndent() * scale, lm = bf.leftMargin() * scale;
-        B->markerX = ti < 0 ? lineX + ti : lineX - B->markerOff;
+        B->markerX = ti < 0 && !m_env.wordNoNumberIndentStop ? lineX + ti : lineX - B->markerOff;
         Q_UNUSED(lm);
     }
 

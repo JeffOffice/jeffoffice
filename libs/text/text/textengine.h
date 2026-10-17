@@ -175,6 +175,9 @@ struct LayoutEnv {
     // A word processor's hanging indent is a tab stop (a tab on the first line goes to it); a file's compatibility option says it is not, and the default stops go on
     // from the edge as they are (LayoutEnv::wordLines).
     bool wordNoHangStop = false;
+    // The tab after a number or bullet goes to the next tab stop past it (the paragraph's own, its list's, or a default one), not to the hanging indent (a file's
+    // compatibility option, w:doNotUseIndentAsNumberingTabStop); the lines after the first are at the indent all the same (LayoutEnv::wordLines).
+    bool wordNoNumberIndentStop = false;
     // Percent taken off each paragraph's line spacing (a slide's text the
     // presentation program shrank to fit: a:normAutofit's lnSpcReduction).
     double lineCut = 0;

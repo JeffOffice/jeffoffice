@@ -250,7 +250,8 @@ QByteArray richDocx()
 
 // A document with headers and footers: `parts` are word/header1.xml and the like (by their part name), each related to the document by the Id
 // its name gives ("rId" and the file's name without its extension), as `sect` (a section's properties, with the references) names them.
-QByteArray makeDocxWithParts(const QByteArray &body, const QByteArray &sect, const QMap<QString, QByteArray> &parts, const QByteArray &settings = QByteArray(), const QByteArray &styles = kStyles)
+QByteArray makeDocxWithParts(const QByteArray &body, const QByteArray &sect, const QMap<QString, QByteArray> &parts, const QByteArray &settings = QByteArray(), const QByteArray &styles = kStyles,
+                             const QByteArray &numbering = QByteArray())
 {
     office::PackageWriter w;
     const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
@@ -262,6 +263,10 @@ QByteArray makeDocxWithParts(const QByteArray &body, const QByteArray &sect, con
     if (!settings.isEmpty()) {
         w.addPart(QStringLiteral("/word/settings.xml"), xml(QByteArray("<w:settings ") + kNs + ">" + settings + "</w:settings>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"));
         w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("settings"), QStringLiteral("/word/settings.xml"));
+    }
+    if (!numbering.isEmpty()) {
+        w.addPart(QStringLiteral("/word/numbering.xml"), xml(QByteArray("<w:numbering ") + kNs + ">" + numbering + "</w:numbering>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("numbering"), QStringLiteral("/word/numbering.xml"));
     }
     for (auto it = parts.cbegin(); it != parts.cend(); ++it) {
         const QString id = QStringLiteral("rId") + QFileInfo(it.key()).completeBaseName();
@@ -4412,6 +4417,42 @@ private Q_SLOTS:
         const auto more = second->pager().lines(0);
         QVERIFY(more.size() > 10);
         QVERIFY2(std::abs(more.last().rect.bottom() - more.first().rect.top() - 31 * 10) < 0.01, qPrintable(QString::number(more.last().rect.bottom() - more.first().rect.top())));
+    }
+
+    // With the compatibility option that a number's tab does not use the hanging indent (w:doNotUseIndentAsNumberingTabStop), the text after a number begins at the next tab
+    // stop past it, of the paragraph's own or the default ones, not at the indent; the lines after the first are at the indent.
+    void aNumbersTabSkipsTheHangingIndentWhenTheFileSaysSo()
+    {
+        // Where the first line's text begins, in points from the text area's left edge: the left-most dark pixel of its row past the number, in the page as it is printed.
+        auto startOf = [&](const QByteArray &settings, const QByteArray &levelTabs, const QByteArray &paragraphTabs) {
+            const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1)\"/>"
+                                         "<w:pPr>" + levelTabs + "<w:ind w:left=\"1440\" w:hanging=\"1440\"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+            QByteArray words;
+            for (int i = 0; i < 40; ++i) words += "HHHH ";
+            const QByteArray body = "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr>" + paragraphTabs + "<w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/>"
+                                    "<w:ind w:left=\"1440\" w:hanging=\"1440\"/></w:pPr><w:r><w:t xml:space=\"preserve\">" + words + "</w:t></w:r></w:p>";
+            const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+            auto doc = open(makeDocxWithParts(body, sect, {}, settings, kStyles, numbering));
+            PageView view;
+            view.resize(1000, 700);
+            view.setDocument(doc.get());
+            const QImage img = view.pageImage(0, 816);   // (96 to the inch: 4/3 pixel to the point; the first line is the 16 pixels under the top margin of 96)
+            const double perPoint = 816 / 612.0;
+            for (int x = int(std::ceil((72 + 18) * perPoint)); x < img.width(); ++x)   // (a number is under 18 points wide)
+                for (int y = int(72 * perPoint); y < int(84 * perPoint); ++y)
+                    if (qGray(img.pixel(x, y)) < 128) return x / perPoint - 72;
+            return -1.0;
+        };
+        const QByteArray flag = "<w:compat><w:doNotUseIndentAsNumberingTabStop/></w:compat>";
+        // Without the option the text begins at the indent, 72 points.
+        QVERIFY2(std::abs(startOf(QByteArray(), QByteArray(), QByteArray()) - 72) < 2, qPrintable(QString::number(startOf(QByteArray(), QByteArray(), QByteArray()))));
+        // With it: the first stop after the number is the default one at 36 points (720 twentieths).
+        QVERIFY2(std::abs(startOf(flag, QByteArray(), QByteArray()) - 36) < 2, qPrintable(QString::number(startOf(flag, QByteArray(), QByteArray()))));
+        // The paragraph's own stop is taken (50 points), and so is the level's list tab (54 points) when the paragraph has none of its own.
+        QVERIFY2(std::abs(startOf(flag, QByteArray(), "<w:tabs><w:tab w:val=\"left\" w:pos=\"1000\"/></w:tabs>") - 50) < 2, "own stop");
+        QVERIFY2(std::abs(startOf(flag, "<w:tabs><w:tab w:val=\"num\" w:pos=\"1080\"/></w:tabs>", QByteArray()) - 54) < 2, "list tab");
+        // A stop of the level that the paragraph clears is gone.
+        QVERIFY2(std::abs(startOf(flag, "<w:tabs><w:tab w:val=\"num\" w:pos=\"1080\"/></w:tabs>", "<w:tabs><w:tab w:val=\"clear\" w:pos=\"1080\"/></w:tabs>") - 36) < 2, "cleared stop");
     }
 
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty

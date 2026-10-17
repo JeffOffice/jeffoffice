@@ -591,7 +591,10 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
             else if (t.val == QLatin1String("decimal")) {
                 tab.type = QTextOption::DelimiterTab;
                 tab.delimiter = QLatin1Char('.');
-            } else if (t.val == QLatin1String("bar") || t.val == QLatin1String("num")) continue;
+            } else if (t.val == QLatin1String("num")) {
+                bf.setProperty(tp::NumberTab, t.pos / 20.0);   // (the stop of the number's tab: the engine has it for that tab alone)
+                continue;
+            } else if (t.val == QLatin1String("bar")) continue;
             else tab.type = QTextOption::LeftTab;
             tabs << tab;
             leaders += t.leader == QLatin1String("dot") ? QLatin1Char('.')
