@@ -1946,6 +1946,46 @@ private Q_SLOTS:
             QVERIFY2(std::abs(lines[i].rect.height() - heights[i]) < 0.01, qPrintable(QStringLiteral("line %1 is %2 tall, not %3").arg(i).arg(lines[i].rect.height()).arg(heights[i])));
     }
 
+    // The spaces and tabs that end a word processor's line take no part in its height, and a line that is only such blanks is as tall as the paragraph
+    // mark's font makes it; blanks among the words count.
+    void blanksAtTheEndOfAWordLineTakeNoPartInItsHeight()
+    {
+        const QString tnr = QStringLiteral("Times New Roman");
+        auto single = [&](double size) { return (1825 + 443 + 87) / 2048.0 * size; };
+        // One paragraph of runs (text, size in points), its mark `mark` points; the height of its first line.
+        auto height = [&](const QVector<std::pair<QString, double>> &runs, double mark) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat markFormat;
+            markFormat.setFontFamilies({tnr});
+            markFormat.setFontPointSize(mark);
+            c.setBlockCharFormat(markFormat);
+            for (const auto &r : runs) {
+                QTextCharFormat cf;
+                cf.setFontFamilies({tnr});
+                cf.setFontPointSize(r.second);
+                c.insertText(r.first, cf);
+            }
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(400, 700)}, env);
+            const auto lines = lay.lineInfo(0);
+            return lines.isEmpty() ? -1.0 : lines[0].rect.height();
+        };
+        const QString text = QStringLiteral("some text");
+        QVERIFY(std::abs(height({{text, 10}, {QStringLiteral("   "), 24}}, 10) - single(10)) < 0.01);
+        QVERIFY(std::abs(height({{text, 10}, {QStringLiteral("\t\t"), 24}}, 10) - single(10)) < 0.01);
+        QVERIFY(std::abs(height({{text, 10}, {QStringLiteral(" \t "), 24}}, 10) - single(10)) < 0.01);
+        // Only blanks: the mark's font.
+        QVERIFY(std::abs(height({{QStringLiteral("\t\t\t"), 24}}, 9) - single(9)) < 0.01);
+        QVERIFY(std::abs(height({{QStringLiteral("    "), 24}}, 14) - single(14)) < 0.01);
+        // Blanks among the words are part of the line.
+        QVERIFY(std::abs(height({{QStringLiteral("a"), 10}, {QStringLiteral("   "), 24}, {QStringLiteral("b"), 10}}, 10) - single(24)) < 0.01);
+        // And the mark doesn't make a line of text taller.
+        QVERIFY(std::abs(height({{text, 10}}, 24) - single(10)) < 0.01);
+    }
+
     // The stand-in a file's font table names for a family (the environment's stand-ins, LayoutEnv::standIns) is the line a missing family is set in.
     void missingFamilyStandsInAsTheFileSays()
     {

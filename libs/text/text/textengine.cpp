@@ -1434,8 +1434,10 @@ static WordLine wordFaceOf(const QFont &f)
 // Two runs on one line: the line is that of the taller (a Symbol bullet's line is Symbol's own; a Courier bullet beside Times text makes none taller).
 static WordLine mergeWord(const WordLine &a, const WordLine &b) { return a.total() >= b.total() ? a : b; }
 
-// The line a stretch of text sets, from its runs.
-static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback)
+// The line a stretch of text sets, from its runs. The spaces and tabs that end the line (`disp` is the paragraph's text) take no part in its
+// height, as a word processor sets them; a line that shows nothing else is the paragraph mark's (`markFont`, at `markSize`), not the font of
+// its blanks.
+static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback, const QString *disp = nullptr, const QFont *markFont = nullptr, double markSize = 0)
 {
     WordLine m;
     auto add = [&](const QFont &f, double size) {
@@ -1447,11 +1449,15 @@ static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int 
         run.leading = face.leading * em;
         m = m.total() > 0 ? mergeWord(m, run) : run;
     };
+    int shown = from + len;   // (where the line's text ends, trailing spaces and tabs not counted)
+    if (disp)
+        while (shown > from && shown <= disp->size() && (disp->at(shown - 1) == QLatin1Char(' ') || disp->at(shown - 1) == QLatin1Char('\t'))) --shown;
     for (const auto &r : ranges)
-        if (r.length > 0 && r.start < from + len && r.start + r.length > from) {   // (a mark that shows nothing is no run)
+        if (r.length > 0 && r.start < shown && r.start + r.length > from) {   // (a mark that shows nothing is no run)
             const QFont f = r.format.font();
             add(f, r.format.hasProperty(tp::LineSize) ? r.format.property(tp::LineSize).toDouble() : f.pointSizeF());
         }
+    if (m.total() <= 0 && markFont) add(*markFont, markSize);
     if (m.total() <= 0) add(fallback, fallback.pointSizeF());
     return m;
 }
@@ -2386,6 +2392,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->cut = cutShort;
         // Qt draws U+2028 as a line break; keep it.
         const QFont base = baseFontFor(b, env);
+        // (A word processor's line that shows no text is the height of the paragraph mark's font.)
+        QFont markFont;
+        double markSize = 0;
+        if (env.wordLines) {
+            const QTextCharFormat mf = resolveCharFormat(b.charFormat(), env);
+            markFont = mf.font();
+            markSize = mf.hasProperty(tp::LineSize) ? mf.property(tp::LineSize).toDouble() : markFont.pointSizeF();
+        }
         B->tl = std::make_unique<ParagraphLayout>(B->disp, fineFont(base));
         ranges = applyLetterWidths(ranges, B->disp);
         B->tl->setFormats(fineRanges(ranges));
@@ -2927,7 +2941,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // spacing adds under that (an exact height keeps the baseline a descent above the line's bottom, an at-least height the single
                     // line's place for it). The whole line must fit.
                     if (env.wordLines) {
-                        WordLine wl = wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base);
+                        WordLine wl = wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base, &B->disp, &markFont, markSize);
                         if (line.textStart() == 0 && markerWord.total() > 0) wl = mergeWord(wl, markerWord);
                         const double ownSingle = wl.total();
                         switch (bf.lineHeightType()) {
