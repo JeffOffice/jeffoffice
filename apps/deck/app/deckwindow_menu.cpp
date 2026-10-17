@@ -26,6 +26,8 @@ QMenu *DeckWindow::slideContextMenu(QWidget *parent)
         a->setEnabled(act(id)->isEnabled());
     };
     const QString kind = m_ed->selectionKind();
+    // Format Shape opens the Format pane; Format Picture, when that is all that is selected.
+    act("shape.format")->setText(kind == QLatin1String("picture") ? tr("Format Picture…") : tr("Format Shape…"));
     if (m_ed->isEditingText()) {
         addSpellingSuggestions(*menu, m_ed);
         add(nullptr, {"edit.cut", "edit.copy", "edit.paste"});
@@ -34,7 +36,7 @@ QMenu *DeckWindow::slideContextMenu(QWidget *parent)
         menu->addSeparator();
         add(nullptr, {"insert.link", "review.thesaurus"});
         menu->addSeparator();
-        add(nullptr, {"comment.new"});
+        add(nullptr, {"shape.format", "comment.new"});
     } else if (!kind.isEmpty()) {
         add(nullptr, {"edit.cut", "edit.copy", "edit.paste", "edit.delete"});
         menu->addSeparator();
@@ -51,7 +53,7 @@ QMenu *DeckWindow::slideContextMenu(QWidget *parent)
             add(align, {"fmt.alignLeft", "fmt.alignCenter", "fmt.alignRight", "fmt.justify"});
         }
         menu->addSeparator();
-        add(nullptr, {"insert.link", "comment.new"});
+        add(nullptr, {"shape.format", "insert.link", "comment.new"});
     } else {
         add(nullptr, {"edit.paste"});
         menu->addSeparator();

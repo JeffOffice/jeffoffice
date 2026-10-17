@@ -21,6 +21,7 @@ Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une comma
 
 - [Taper et mettre en forme du texte](text)
 - [Formes, images, tableaux et texte artistique](objects)
+- [Le volet Mettre en forme la forme](format-shape)
 - [Commentaires du présentateur](notes)
 - [Commentaires](comments)
 

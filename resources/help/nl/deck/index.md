@@ -21,6 +21,7 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken of een opdracht uit te v
 
 - [Tekst typen en opmaken](text)
 - [Vormen, afbeeldingen, tabellen en Tekstopmaak](objects)
+- [Het deelvenster Vorm opmaken](format-shape)
 - [Sprekersnotities](notes)
 - [Opmerkingen](comments)
 

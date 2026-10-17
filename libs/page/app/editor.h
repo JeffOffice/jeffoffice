@@ -313,6 +313,8 @@ public:
     QVector<QTextCursor> formatTargets() const;   // cursor(s) a formatting command applies to
 
 Q_SIGNALS:
+    // Undo or redo is about to run (a step still being made by a control, which undo would wait for, may end first).
+    void historyAboutToChange();
     void documentReplaced();
     void changed();
     void selectionChanged();

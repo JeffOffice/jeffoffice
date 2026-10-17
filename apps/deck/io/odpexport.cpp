@@ -59,6 +59,7 @@ const QString kNamespaces = QStringLiteral(
     " xmlns:officeooo=\"http://openoffice.org/2009/office\""
     " xmlns:drawooo=\"http://openoffice.org/2010/draw\""
     " xmlns:loext=\"urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0\""
+    " xmlns:jo=\"urn:jeffoffice:names:extension:1.0\""
     " office:version=\"1.3\"");
 
 const QString kDeclaration = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");

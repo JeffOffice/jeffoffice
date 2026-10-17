@@ -29,6 +29,8 @@ struct StyleContext {
 };
 
 QDomElement childNamed(const QDomElement &e, const char *local);
+// Whether a p:cNvPr marks its object as only decoration (the extension in its a:extLst that has the decorative flag).
+bool decorativeOf(const QDomElement &cNvPr);
 
 // The picture that relationship `rId` of the drawing's part links to, kept
 // with ctx.addImage; empty if the link isn't to a picture this can read.

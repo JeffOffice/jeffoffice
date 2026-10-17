@@ -598,6 +598,7 @@ void Editor::notifyLive()
 
 void Editor::undo()
 {
+    Q_EMIT historyAboutToChange();
     flushTyping();
     if (m_cropOpen) {
         endCrop(false);   // Undo while cropping takes the crop back
@@ -609,6 +610,7 @@ void Editor::undo()
 
 void Editor::redo()
 {
+    Q_EMIT historyAboutToChange();
     flushTyping();
     leaveCrop();
     if (m_changeDepth) return;

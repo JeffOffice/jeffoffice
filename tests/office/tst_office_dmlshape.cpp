@@ -446,7 +446,7 @@ private Q_SLOTS:
     {
         DmlEnv env;
         const QString shadow = QStringLiteral("<a:effectLst><a:outerShdw blurRad=\"50800\" dist=\"38100\" dir=\"2700000\" algn=\"tl\" rotWithShape=\"0\"><a:srgbClr val=\"FF0000\"><a:alpha val=\"40000\"/></a:srgbClr></a:outerShdw>"
-                                              "<a:glow rad=\"101600\"><a:srgbClr val=\"00FF00\"><a:alpha val=\"60000\"/></a:srgbClr></a:glow><a:softEdge rad=\"63500\"/><a:reflection/></a:effectLst>");
+                                              "<a:glow rad=\"101600\"><a:srgbClr val=\"00FF00\"><a:alpha val=\"60000\"/></a:srgbClr></a:glow><a:softEdge rad=\"63500\"/><a:reflection blurRad=\"25400\" stA=\"60000\" endPos=\"35000\" dist=\"50800\" dir=\"5400000\" sy=\"-100000\"/></a:effectLst>");
         ItemPtr it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"rect\"/>") + shadow));
         QVERIFY(it->fx.shadow.on && !it->fx.shadow.inner);
         QVERIFY(near(it->fx.shadow.blur, 4) && near(it->fx.shadow.distance, 3) && near(it->fx.shadow.angle, 45));
@@ -455,7 +455,16 @@ private Q_SLOTS:
         QVERIFY(it->fx.glow.on && near(it->fx.glow.size, 8) && near(it->fx.glow.transparency, 0.4, 2e-2));
         QCOMPARE(dmlHex(it->fx.glow.color), QStringLiteral("00FF00"));
         QVERIFY(near(it->fx.softEdge, 5));
-        QVERIFY(!it->fx.reflection.on);
+        // A reflection: its start opacity, how far down its fade runs, the gap under the shape, and its blur.
+        QVERIFY(it->fx.reflection.on);
+        QVERIFY(near(it->fx.reflection.transparency, 0.4, 1e-6) && near(it->fx.reflection.size, 0.35, 1e-6));
+        QVERIFY(near(it->fx.reflection.distance, 4) && near(it->fx.reflection.blur, 2));
+        // One that says nothing is the standard's: opaque at the start, fading out at the end.
+        it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"rect\"/><a:effectLst><a:reflection/></a:effectLst>")));
+        QVERIFY(it->fx.reflection.on && near(it->fx.reflection.transparency, 0) && near(it->fx.reflection.size, 1));
+        // A shadow of another size.
+        it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"rect\"/><a:effectLst><a:outerShdw blurRad=\"12700\" dist=\"12700\" dir=\"0\" sx=\"150000\" sy=\"150000\"><a:srgbClr val=\"000000\"/></a:outerShdw></a:effectLst>")));
+        QVERIFY(near(it->fx.shadow.size, 150, 1e-6));
         // An inner shadow, when it's the only one.
         it = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"rect\"/><a:effectLst><a:innerShdw blurRad=\"12700\" dist=\"12700\" dir=\"0\"><a:srgbClr val=\"000000\"/></a:innerShdw></a:effectLst>")));
         QVERIFY(it->fx.shadow.on && it->fx.shadow.inner);
