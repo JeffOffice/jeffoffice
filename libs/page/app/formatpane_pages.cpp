@@ -3,10 +3,11 @@
 
 namespace jp::format {
 
-void buildPages(FormatPane *pane, PanePage *fill, PanePage *effects, PanePage *, PanePage *)
+void buildPages(FormatPane *pane, PanePage *fill, PanePage *effects, PanePage *size, PanePage *)
 {
     buildFillLinePage(pane, fill);
     buildEffectsPage(pane, effects);
+    buildSizePage(pane, size);
 }
 
 } // namespace jp::format

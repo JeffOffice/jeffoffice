@@ -928,6 +928,8 @@ const StoryLayout *Renderer::shapeTextLayout(const PaintContext &ctx, const Shap
     spec.valign = s.valign;
     spec.noWrap = s.noWrap;
     spec.centerBlock = s.centerBlock;
+    spec.columns = std::max(1, s.columns);
+    if (s.columns > 1) spec.gap = s.columnGap;
     // A slide's shape shows all its text, running out of the shape that is too small for it, as a slide's text box does, and it isn't hyphenated.
     spec.runsOver = ctx.doc->slideText;
     spec.hyphenate = !ctx.doc->slideText;

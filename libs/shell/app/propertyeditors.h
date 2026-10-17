@@ -12,6 +12,7 @@
 
 #include <QDoubleSpinBox>
 #include <QFrame>
+#include <QPlainTextEdit>
 #include <QSlider>
 #include <QWidget>
 #include <functional>
@@ -79,6 +80,36 @@ private:
     bool m_typing = false;
     bool m_changedSinceTyping = false;
     bool m_unfinished = false;   // edits were said, and finished() has not been
+};
+
+// A box for some words that says what was typed when the person leaves it (Tab, a click away, or Ctrl+Enter), not at each key; in one line,
+// Enter does. The objects that differ show it blank.
+class TextField : public QPlainTextEdit {
+    Q_OBJECT
+public:
+    explicit TextField(QWidget *parent = nullptr);
+    void setSingleLine(bool on);
+    // Not signalled, and ignored while the person has typed what is not said yet.
+    void setText(const QString &text);
+    QString text() const { return toPlainText(); }
+    void setMixed(bool on);
+    bool isMixed() const { return m_mixed; }
+    bool isBusy() const { return m_dirty; }
+    // Says what is typed, if it is not what was shown.
+    void commit();
+    QSize sizeHint() const override;
+    QSize minimumSizeHint() const override;
+
+Q_SIGNALS:
+    void edited(const QString &text);
+    void finished();
+
+protected:
+    void focusOutEvent(QFocusEvent *e) override;
+    void keyPressEvent(QKeyEvent *e) override;
+
+private:
+    bool m_single = false, m_mixed = false, m_dirty = false, m_loading = false;
 };
 
 // A row of colored markers on a gradient: the stops. Click one to choose it, drag it (or press Left and Right) to move it, Up and Down to

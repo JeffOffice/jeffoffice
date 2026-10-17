@@ -169,7 +169,11 @@ ItemPtr Reader::readShape(const QDomElement &e, Scope &sc, const QTransform &t)
         const QString name = a.get("draw:name");
         if (it->name.isEmpty()) it->name = name;
         // The description the object has for those who can't see it, and the address a click on it goes to.
-        if (it->altText.isEmpty()) it->altText = kid(e, "svg:desc").text().trimmed().isEmpty() ? kid(e, "svg:title").text().trimmed() : kid(e, "svg:desc").text().trimmed();
+        if (it->altText.isEmpty()) it->altText = kid(e, "svg:desc").text().trimmed();
+        if (it->altTitle.isEmpty()) it->altTitle = kid(e, "svg:title").text().trimmed();
+        // What we keep in attributes of our own.
+        if (a.get("jo:decorative") == QLatin1String("true")) it->decorative = true;
+        if (const QString lock = a.get("jo:lock-aspect"); !lock.isEmpty()) it->lockAspect = lock == QLatin1String("true");
         if (it->hyperlink.isEmpty())
             for (const QDomElement &l : kids(kid(e, "office:event-listeners"), "presentation:event-listener")) {
                 const QString href = at(l, "xlink:href");
@@ -310,6 +314,8 @@ ItemPtr Reader::readTextBox(const QDomElement &frame, const QDomElement &box, Sc
     // (The area of the text centered across the box: the block of text is in the middle of it.)
     t->centerBlock = bag.get(Graphic, "draw:textarea-horizontal-align") == QLatin1String("center");
     t->noWrap = bag.get(Graphic, "fo:wrap-option") == QLatin1String("no-wrap");
+    t->columns = std::clamp(bag.get(Graphic, "jo:columns").toInt(), 1, 16);
+    if (t->columns > 1) t->columnGap = std::clamp(lengthOr(bag.get(Graphic, "jo:column-gap"), 0), 0.0, 1000.0);
     if (bag.get(Graphic, "style:shrink-to-fit") == QLatin1String("true") || bag.get(Graphic, "draw:fit-to-size") == QLatin1String("shrink")) t->autofit = TextItem::ShrinkOnOverflow;
     else if (bag.get(Graphic, "draw:auto-grow-height") == QLatin1String("true")) t->autofit = TextItem::GrowBox;
     const QString mode = bag.get(Para, "style:writing-mode");
@@ -792,6 +798,9 @@ ItemPtr Reader::readCustomShape(const QDomElement &e, Scope &sc, const QTransfor
     base.valign = anchor == QLatin1String("middle") ? VAlign::Middle : anchor == QLatin1String("bottom") ? VAlign::Bottom : VAlign::Top;
     base.centerBlock = bag.get(Graphic, "draw:textarea-horizontal-align") == QLatin1String("center");
     base.noWrap = bag.get(Graphic, "fo:wrap-option") == QLatin1String("no-wrap");
+    base.shrinks = bag.get(Graphic, "style:shrink-to-fit") == QLatin1String("true");
+    base.columns = std::clamp(bag.get(Graphic, "jo:columns").toInt(), 1, 16);
+    if (base.columns > 1) base.columnGap = std::clamp(lengthOr(bag.get(Graphic, "jo:column-gap"), 0), 0.0, 1000.0);
     base.shape = QStringLiteral("rect");
 
     // The preset the type stands for: the standard's own names, and the shape library or its definition for the preset.
@@ -870,6 +879,10 @@ ItemPtr Reader::readBasicShape(const QDomElement &e, Scope &sc, const QTransform
     const QString anchor = bag.get(Graphic, "draw:textarea-vertical-align");
     s->valign = anchor == QLatin1String("middle") ? VAlign::Middle : anchor == QLatin1String("bottom") ? VAlign::Bottom : VAlign::Top;
     s->centerBlock = bag.get(Graphic, "draw:textarea-horizontal-align") == QLatin1String("center");
+    s->noWrap = bag.get(Graphic, "fo:wrap-option") == QLatin1String("no-wrap");
+    s->shrinks = bag.get(Graphic, "style:shrink-to-fit") == QLatin1String("true");
+    s->columns = std::clamp(bag.get(Graphic, "jo:columns").toInt(), 1, 16);
+    if (s->columns > 1) s->columnGap = std::clamp(lengthOr(bag.get(Graphic, "jo:column-gap"), 0), 0.0, 1000.0);
     if (tag == QLatin1String("draw:rect") || tag == QLatin1String("draw:caption")) {
         s->shape = QStringLiteral("rect");
         const double radius = std::max(lengthOr(a.get("svg:rx"), 0), lengthOr(a.get("draw:corner-radius"), 0));

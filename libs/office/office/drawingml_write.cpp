@@ -485,6 +485,7 @@ void writeIdentity(QXmlStreamWriter &w, const Item &it, int id, const QString &f
     attribute(w, "id", id);
     attribute(w, "name", it.name.isEmpty() ? QStringLiteral("%1 %2").arg(fallbackName).arg(id - 1) : clean(it.name));
     if (!it.altText.isEmpty()) attribute(w, "descr", clean(it.altText));
+    if (!it.altTitle.isEmpty()) attribute(w, "title", clean(it.altTitle));
     const QString rId = it.hyperlink.isEmpty() ? QString() : relateAddress(ctx, it.hyperlink);
     if (!rId.isEmpty()) {
         begin(w, "a:hlinkClick");
@@ -496,6 +497,29 @@ void writeIdentity(QXmlStreamWriter &w, const Item &it, int id, const QString &f
         attribute(w, "action", QStringLiteral("ppaction://media"));
         w.writeEndElement();
     }
+    if (it.decorative) {
+        // The object is only decoration (an extension; programs that don't know it leave it alone).
+        begin(w, "a:extLst");
+        begin(w, "a:ext");
+        attribute(w, "uri", QStringLiteral("{C183D7F6-B498-43B3-948B-1728B52AA6E4}"));
+        begin(w, "adec:decorative");
+        w.writeAttribute(QStringLiteral("xmlns:adec"), QStringLiteral("http://schemas.microsoft.com/office/drawing/2017/decorative"));
+        attribute(w, "val", QStringLiteral("1"));
+        w.writeEndElement();
+        w.writeEndElement();
+        w.writeEndElement();
+    }
+    w.writeEndElement();
+}
+
+// The locks of an object's non-visual properties (the element named by `locks`, in p:cNvSpPr or p:cNvPicPr): that it takes no place in a group
+// (a placeholder), and whether its proportions are kept. A shape says it only when it is on (that is what a missing lock means).
+void writeLocks(QXmlStreamWriter &w, const char *locks, const Item &it, bool noGroup, bool saysOff)
+{
+    if (!noGroup && !it.lockAspect && !saysOff) return;
+    begin(w, locks);
+    if (noGroup) attribute(w, "noGrp", QStringLiteral("1"));
+    if (it.lockAspect || saysOff) attribute(w, "noChangeAspect", it.lockAspect ? QStringLiteral("1") : QStringLiteral("0"));
     w.writeEndElement();
 }
 
@@ -615,13 +639,8 @@ void writeTextBox(QXmlStreamWriter &w, const TextItem &t, DrawingWriteContext &c
     begin(w, "p:nvSpPr");
     writeIdentity(w, t, id, ph.is ? say("Placeholder") : say("Text Box"), ctx);
     begin(w, "p:cNvSpPr");
-    if (ph.is) {
-        begin(w, "a:spLocks");
-        attribute(w, "noGrp", QStringLiteral("1"));
-        w.writeEndElement();
-    } else {
-        attribute(w, "txBox", QStringLiteral("1"));
-    }
+    if (!ph.is) attribute(w, "txBox", QStringLiteral("1"));
+    writeLocks(w, "a:spLocks", t, ph.is, Item::lockAspectByDefault(t.type()));
     w.writeEndElement();
     begin(w, "p:nvPr");
     if (ph.is) writePlaceholder(w, ph);
@@ -735,11 +754,7 @@ void writeForm(QXmlStreamWriter &w, const ShapeItem &s, DrawingWriteContext &ctx
     begin(w, "p:nvSpPr");
     writeIdentity(w, s, id, ph.is ? say("Placeholder") : say("Shape"), ctx);
     begin(w, "p:cNvSpPr");
-    if (ph.is) {
-        begin(w, "a:spLocks");
-        attribute(w, "noGrp", QStringLiteral("1"));
-        w.writeEndElement();
-    }
+    writeLocks(w, "a:spLocks", s, ph.is, Item::lockAspectByDefault(s.type()));
     w.writeEndElement();
     begin(w, "p:nvPr");
     if (ph.is) writePlaceholder(w, ph);
@@ -767,6 +782,8 @@ void writeForm(QXmlStreamWriter &w, const ShapeItem &s, DrawingWriteContext &ctx
     body.valign = s.valign;
     body.noWrap = s.noWrap;
     body.centerBlock = s.centerBlock;
+    body.columns = s.columns;
+    body.columnGap = s.columnGap;
     if (s.shrinks) {
         body.autofit = TextItem::ShrinkOnOverflow;
         body.fitScale = s.fitScale;
@@ -816,9 +833,7 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
     begin(w, "p:nvPicPr");
     writeIdentity(w, p, id, say("Picture"), ctx, !media.link.isEmpty());
     begin(w, "p:cNvPicPr");
-    begin(w, "a:picLocks");
-    attribute(w, "noChangeAspect", QStringLiteral("1"));
-    w.writeEndElement();
+    writeLocks(w, "a:picLocks", p, false, Item::lockAspectByDefault(p.type()));
     w.writeEndElement();
     begin(w, "p:nvPr");
     if (ph.is) writePlaceholder(w, ph);

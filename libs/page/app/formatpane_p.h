@@ -177,6 +177,7 @@ template <class F> bool anyTakes(const QVector<Item *> &items, F &&takes)
 void buildPages(FormatPane *pane, PanePage *fill, PanePage *effects, PanePage *size, PanePage *picture);
 void buildFillLinePage(FormatPane *pane, PanePage *page);
 void buildEffectsPage(FormatPane *pane, PanePage *page);
+void buildSizePage(FormatPane *pane, PanePage *page);
 
 } // namespace format
 } // namespace jp

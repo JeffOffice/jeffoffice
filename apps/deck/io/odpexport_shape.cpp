@@ -129,6 +129,9 @@ QString Exporter::idAttr(const Item &it) const
 void Exporter::writeCommon(X &x, const Item &it)
 {
     if (!it.name.isEmpty()) x.attr("draw:name", it.name);
+    // What this kind of file has no place for is kept in attributes of our own (other programs leave them alone).
+    if (it.lockAspect != Item::lockAspectByDefault(it.type())) x.attr("jo:lock-aspect", it.lockAspect ? "true" : "false");
+    if (it.decorative) x.attr("jo:decorative", "true");
     const QString id = idAttr(it);
     if (!id.isEmpty()) x.attr("xml:id", id).attr("draw:id", id);
 }
@@ -136,6 +139,7 @@ void Exporter::writeCommon(X &x, const Item &it)
 // The description for people who can't see the object, and what a click on it does; inside its element.
 void Exporter::writeInside(X &x, const Item &it)
 {
+    if (!it.altTitle.isEmpty()) x.open("svg:title").text(it.altTitle).close();
     if (!it.altText.isEmpty()) x.open("svg:desc").text(it.altText).close();
     if (!it.hyperlink.isEmpty()) {
         x.open("office:event-listeners");
@@ -276,7 +280,10 @@ void Exporter::writeTextBox(X &x, Scope &sc, const TextItem &t)
     extra += attrOf("style:shrink-to-fit", shrinks ? QStringLiteral("true") : QStringLiteral("false"));
     extra += attrOf("fo:min-height", cm(t.autofit == TextItem::GrowBox ? t.rect.height() : 0.0)) + attrOf("fo:wrap-option", t.noWrap ? QStringLiteral("no-wrap") : QStringLiteral("wrap"));
     QString children;
-    if (t.columns > 1) children = QStringLiteral("<style:columns fo:column-count=\"%1\" fo:column-gap=\"%2\"/>").arg(std::clamp(t.columns, 1, 16)).arg(cm(t.columnGap));
+    if (t.columns > 1) {
+        children = QStringLiteral("<style:columns fo:column-count=\"%1\" fo:column-gap=\"%2\"/>").arg(std::clamp(t.columns, 1, 16)).arg(cm(t.columnGap));
+        extra += attrOf("jo:columns", QString::number(std::clamp(t.columns, 1, 16))) + attrOf("jo:column-gap", cm(t.columnGap));
+    }
     const QString paragraph = attrOf("style:writing-mode", t.vertical ? QStringLiteral("tb-rl") : QStringLiteral("lr-tb"));
     const QString style = frameStyle(sc, t, cls, extra, children, paragraph);
 
@@ -367,8 +374,13 @@ void Exporter::writeShape(X &x, Scope &sc, const ShapeItem &s)
     extra += attrOf("fo:padding-top", cm(s.insets.top())) + attrOf("fo:padding-bottom", cm(s.insets.bottom())) + attrOf("fo:padding-left", cm(s.insets.left())) + attrOf("fo:padding-right", cm(s.insets.right()));
     extra += attrOf("draw:textarea-vertical-align", s.valign == VAlign::Middle ? QStringLiteral("middle") : s.valign == VAlign::Bottom ? QStringLiteral("bottom") : QStringLiteral("top"));
     extra += attrOf("draw:textarea-horizontal-align", s.centerBlock ? QStringLiteral("center") : QStringLiteral("justify")) + attrOf("draw:auto-grow-height", QStringLiteral("false")) + attrOf("draw:auto-grow-width", QStringLiteral("false"));
-    extra += attrOf("fo:wrap-option", s.noWrap ? QStringLiteral("no-wrap") : QStringLiteral("wrap"));
-    const QString style = frameStyle(sc, s, QString(), extra, QString(), attrOf("style:writing-mode", QStringLiteral("lr-tb")), true);
+    extra += attrOf("fo:wrap-option", s.noWrap ? QStringLiteral("no-wrap") : QStringLiteral("wrap")) + attrOf("style:shrink-to-fit", s.shrinks ? QStringLiteral("true") : QStringLiteral("false"));
+    QString columns;
+    if (s.columns > 1) {
+        columns = QStringLiteral("<style:columns fo:column-count=\"%1\" fo:column-gap=\"%2\"/>").arg(std::clamp(s.columns, 1, 16)).arg(cm(s.columnGap));
+        extra += attrOf("jo:columns", QString::number(std::clamp(s.columns, 1, 16))) + attrOf("jo:column-gap", cm(s.columnGap));
+    }
+    const QString style = frameStyle(sc, s, QString(), extra, columns, attrOf("style:writing-mode", QStringLiteral("lr-tb")), true);
 
     x.open("draw:custom-shape").attr("draw:style-name", style);
     if (hasText) x.attr("draw:text-style-name", slideLinesStyle(sc));
