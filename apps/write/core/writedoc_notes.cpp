@@ -6,6 +6,7 @@
 #include "text/textprops.h"
 
 #include <QTextBlock>
+#include <algorithm>
 #include <QTextCursor>
 #include <QTextDocument>
 
@@ -88,9 +89,10 @@ void WriteDoc::measureNoteSeparator()
     layout.build(&d, {fs}, m_flow->env);
     const auto lines = layout.lineInfo(0);
     // (The file's own paragraph, with the space before it, to the bottom of its last line; the Normal style's line is the line and the space after it.)
-    m_noteFields->separator = lines.isEmpty() ? 0.0 : (m_noteSeparator.isEmpty() ? lines.first().rect.height() : lines.last().rect.bottom()) + after;
+    m_noteFields->separatorMeasured = lines.isEmpty() ? 0.0 : (m_noteSeparator.isEmpty() ? lines.first().rect.height() : lines.last().rect.bottom()) + after;
+    limitNoteSeparator();
     // The continuation notice: the height of its paragraphs, which a page keeps under its notes.
-    m_noteFields->notice = 0;
+    m_noteFields->noticeMeasured = 0;
     if (!m_noteNotice.isEmpty()) {
         QTextDocument n;
         n.setDocumentMargin(0);
@@ -100,8 +102,25 @@ void WriteDoc::measureNoteSeparator()
         StoryLayout noticeLayout;
         noticeLayout.build(&n, {fs}, m_flow->env);
         const auto noticeLines = noticeLayout.lineInfo(0);
-        m_noteFields->notice = noticeLines.isEmpty() ? 0.0 : noticeLines.last().rect.bottom() + n.lastBlock().blockFormat().bottomMargin();
+        m_noteFields->noticeMeasured = noticeLines.isEmpty() ? 0.0 : noticeLines.last().rect.bottom() + n.lastBlock().blockFormat().bottomMargin();
     }
+}
+
+// A separator or a continuation notice taller than a quarter of the text area of the smallest page is cut to that quarter, for it would leave a page no room for its text.
+void WriteDoc::limitNoteSeparator()
+{
+    if (!m_noteFields) return;
+    double least = 0;
+    for (const flow::Section &s : m_flow->sections) {
+        const double body = s.pageSize().height() - s.margins.top() - s.margins.bottom();
+        if (body > 0 && (least == 0 || body < least)) least = body;
+    }
+    const double separator = least > 0 ? std::min(m_noteFields->separatorMeasured, least / 4) : m_noteFields->separatorMeasured;
+    const double notice = least > 0 ? std::min(m_noteFields->noticeMeasured, least / 4) : m_noteFields->noticeMeasured;
+    if (separator == m_noteFields->separator && notice == m_noteFields->notice) return;
+    m_noteFields->separator = separator;
+    m_noteFields->notice = notice;
+    if (m_pager) m_pager->invalidateFrom(0);
 }
 
 const QTextDocument *WriteDoc::noteStory(const QString &id)
