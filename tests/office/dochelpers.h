@@ -21,11 +21,15 @@ QByteArray sprmVar(quint16 op, const QByteArray &operand);
 namespace sprm {
 constexpr quint16 bold = 0x0835, italic = 0x0836, size = 0x4A43, fontAscii = 0x4A4F, fontOther = 0x4A51, color = 0x2A42, underline = 0x2A3E;
 constexpr quint16 special = 0x0855, picture = 0x6A03, charStyle = 0x4A30;
+constexpr quint16 deleted = 0x0800, inserted = 0x0801, insertedBy = 0x4804, deletedBy = 0x4863, insertedAt = 0x6805, deletedAt = 0x6864;   // (tracked changes)
 constexpr quint16 align = 0x2461, left = 0x845E, firstLine = 0x8460, before = 0xA413, after = 0xA414, keepNext = 0x2406, listInstance = 0x460B, listLevel = 0x260A;
 constexpr quint16 inTable = 0x2416, endsRow = 0x2417, tableDepth = 0x6649;
 constexpr quint16 pageWidth = 0xB01F, pageHeight = 0xB020, marginLeft = 0xB021, marginRight = 0xB022, marginTop = 0x9023, marginBottom = 0x9024, titlePage = 0x300A;
 constexpr quint16 columns = 0x500B, columnSpace = 0x900C, sectionType = 0x3009, landscape = 0x301D;
 } // namespace sprm
+
+// A date and time as the old format keeps them (a DTTM): minutes, hours, day, month (1 to 12), and years since 1900, packed in four bytes; for a sprm4.
+quint32 dttm(int year, int month, int day, int hour, int minute);
 
 // The operand of a table row's definition: the edges of its cells (cells + 1 of them), twips from the margin.
 QByteArray tableRow(const QVector<int> &edges);
@@ -90,6 +94,7 @@ public:
     QVector<ParaRun> paras;
     QVector<StyleSpec> styles;         // by istd; none: a Normal style
     QStringList fonts = {QStringLiteral("Times New Roman")};
+    QStringList revisionAuthors;       // the people who made the tracked changes (a change names one by its place here)
     QVector<SectionSpec> sections;     // none: one section
     QStringList footnotes;             // each note's text (its own mark first, \r last)
     QVector<int> footnoteRefs;         // where each is cited in the main text

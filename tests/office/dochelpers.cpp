@@ -156,6 +156,12 @@ QByteArray sprmVar(quint16 op, const QByteArray &operand)
     return b;
 }
 
+quint32 dttm(int year, int month, int day, int hour, int minute)
+{
+    // Minutes in the low six bits, then hours (5), day (5), month (4), years since 1900 (9), and the weekday (3, left as 0).
+    return quint32(minute) | (quint32(hour) << 6) | (quint32(day) << 11) | (quint32(month) << 16) | (quint32(year - 1900) << 20);
+}
+
 QByteArray tableRow(const QVector<int> &edges)
 {
     const int cells = int(edges.size()) - 1;
@@ -509,6 +515,18 @@ QByteArray DocWriter::build() const
             add16(f, 0);
         }
         put(15, f);
+    }
+    // The people who made the tracked changes.
+    if (!revisionAuthors.isEmpty()) {
+        QByteArray a;
+        add16(a, 0xFFFF);
+        add16(a, int(revisionAuthors.size()));
+        add16(a, 0);
+        for (const QString &name : revisionAuthors) {
+            add16(a, int(name.size()));
+            a.append(utf16(name));
+        }
+        put(51, a);
     }
     // The pieces.
     {
