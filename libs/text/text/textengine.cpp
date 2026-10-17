@@ -2515,12 +2515,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 // them in applyLetterWidths): a degree sign from Symbol, an arrow from Wingdings, a banner's block from Webdings.
                 if (env.wordLines) {
                     const QString family = rf.fontFamilies().toStringList().value(0);
-                    if (isSymbolFont(family) && !hasFamilyCached(family))
-                        for (QChar &ch : shown) {
-                            const uint code = ch.unicode() >= 0xF020 && ch.unicode() <= 0xF0FF ? ch.unicode() - 0xF000 : ch.unicode();
-                            if (code < 0x20 || code > 0xFF) continue;
-                            if (const QChar picture = symbolPictureOf(family, code); !picture.isNull()) ch = picture;
-                        }
+                    if (const SymbolPictures *pictures = hasFamilyCached(family) ? nullptr : symbolPicturesOf(family))
+                        for (QChar &ch : shown)
+                            if (const QChar picture = pictures->of(ch.unicode()); !picture.isNull()) ch = picture;
                 }
                 const int len = int(shown.size());
                 QTextLayout::FormatRange fr{int(B->disp.size()), len, rf};
