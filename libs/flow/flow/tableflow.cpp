@@ -186,6 +186,16 @@ std::shared_ptr<CellContent> layoutCellContent(const TableContext &ctx, int i0, 
             part.end = ix.refs()[size_t(i)].endNotes;
             double h = 0;
             part.text = layoutText(ctx.doc, part.from, part.to, width, &h, part.foot, part.end);
+            // The lines that may not be cut from the one before: as the paginator keeps the lines of a paragraph (widow and orphan control, and kept together).
+            for (const StoryLayout::LineBrief &l : part.text->lineBriefs()) {
+                if (l.frame < 0) continue;
+                bool tied = false;
+                if (l.line > 0) {
+                    const QTextBlockFormat bf = ctx.doc->story()->findBlock(l.block).blockFormat();
+                    tied = bf.boolProperty(tp::KeepTogether) || (bf.boolProperty(tp::WidowControl) && (l.line < ctx.doc->orphanLines || l.lines - l.line < ctx.doc->widowLines));
+                }
+                part.tied.push_back(tied);
+            }
             if (ctx.doc->fields) {
                 // The footnotes it cites, in order, with the numbers they show.
                 const QTextDocument *story = ctx.doc->story();
@@ -663,9 +673,11 @@ void contentLines(const CellContent &content, double y0, LineList *out)
         if (part.dummy) continue;
         if (part.text) {
             const auto &notes = part.notes;
+            int at = 0;
             for (const StoryLayout::LineBrief &l : part.text->lineBriefs()) {
                 if (l.frame < 0) continue;
-                TableLayout::UnitLine line{y0 + part.y + l.rect.top(), y0 + part.y + l.rect.bottom(), {}};
+                TableLayout::UnitLine line{y0 + part.y + l.rect.top(), y0 + part.y + l.rect.bottom(), {}, at < part.tied.size() && part.tied[at]};
+                ++at;
                 if (!notes.isEmpty()) {
                     // (The notes whose references are on the line: the part's notes are in the order of their places.)
                     const auto first = std::lower_bound(notes.begin(), notes.end(), l.pos, [](const NoteRef &n, int pos) { return n.pos < pos; });
@@ -750,6 +762,12 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
         std::vector<int> noteN;              // and how many there are
     };
     std::vector<CellRun> runs(static_cast<size_t>(n));
+    // Where a cut at line `b` (the first of the next part) may be: not between tied lines, so it moves back to the line a paragraph may begin or be cut at (to `a`: none, and
+    // the cell has nothing in this part).
+    auto untie = [](const std::vector<UnitLine> &lines, int a, int b) {
+        while (b > a && b < int(lines.size()) && lines[size_t(b)].tied) --b;
+        return b;
+    };
     const bool noteHeights = anyNotes && m_noteHeight;
     int counted = 0;
     for (int i = 0; i < n; ++i) {
@@ -761,7 +779,7 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
         cr.margins = c.margins.top() + c.margins.bottom();
         cr.a = int(std::lower_bound(lines.begin(), lines.end(), offs[i] - 0.01, [](const UnitLine &l, double off) { return l.top < off; }) - lines.begin());
         const double inner = std::max(0.0, room - cr.margins);
-        cr.most = int(std::partition_point(lines.begin() + cr.a, lines.end(), [&](const UnitLine &l) { return l.bottom - offs[i] <= inner + 0.01; }) - lines.begin());
+        cr.most = untie(lines, cr.a, int(std::partition_point(lines.begin() + cr.a, lines.end(), [&](const UnitLine &l) { return l.bottom - offs[i] <= inner + 0.01; }) - lines.begin()));
         if (noteHeights) {
             // (A line more than fits is counted too: a part at the top of a page is given one however tall.)
             const int upto = std::min<int>(int(lines.size()), cr.most + 1);
@@ -802,7 +820,7 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
             if (!cr.lines || cr.a >= int(cr.lines->size())) continue;
             const double inner = std::max(0.0, room - reserved - cr.margins);
             const auto &lines = *cr.lines;
-            const int b = int(std::partition_point(lines.begin() + cr.a, lines.begin() + std::min<int>(int(lines.size()), cr.most), [&](const UnitLine &l) { return l.bottom - offs[i] <= inner + 0.01; }) - lines.begin());
+            const int b = untie(lines, cr.a, int(std::partition_point(lines.begin() + cr.a, lines.begin() + std::min<int>(int(lines.size()), cr.most), [&](const UnitLine &l) { return l.bottom - offs[i] <= inner + 0.01; }) - lines.begin()));
             stop[size_t(i)] = b;
             st.progress |= b > cr.a;
             st.more |= b < int(lines.size());
