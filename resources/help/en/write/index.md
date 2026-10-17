@@ -8,6 +8,11 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Welcome to JeffWrite](start)
 - [Open, save, print, and export](open-save)
 
+## Write and change text
+
+- [Change how text looks](font)
+- [Find and replace words](find-replace)
+
 ## Work faster
 
 - [Use JeffWrite with the keyboard](keyboard)

@@ -1720,6 +1720,8 @@
     <file alias="en/window.md">help/en/window.md</file>
     <file alias="en/wrap.md">help/en/wrap.md</file>
     <file alias="en/write/context.json">help/en/write/context.json</file>
+    <file alias="en/write/find-replace.md">help/en/write/find-replace.md</file>
+    <file alias="en/write/font.md">help/en/write/font.md</file>
     <file alias="en/write/index.md">help/en/write/index.md</file>
     <file alias="en/write/keyboard.md">help/en/write/keyboard.md</file>
     <file alias="en/write/open-save.md">help/en/write/open-save.md</file>

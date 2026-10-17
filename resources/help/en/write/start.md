@@ -31,7 +31,8 @@ This version of JeffWrite is a **Preview**. It is ready to try on real work, but
 **What works**
 
 - Typing, selecting, cutting, copying, pasting, undoing, and redoing.
-- Fonts, sizes, bold, italic, underline, strikethrough, subscript, superscript, text color, and highlight color.
+- Fonts, sizes, bold, italic, underline, strikethrough, subscript, superscript, text color, and highlight color. The **Font** box (Ctrl+D) has all of them and more. See [Change how text looks](font).
+- Find and Replace (Ctrl+F and Ctrl+H) in the text of the document. See [Find and replace words](find-replace).
 - Paragraph alignment, indents, spacing, and line spacing. The **Paragraph** box (the small arrow at the corner of the Paragraph group) has them all.
 - Bulleted and numbered lists, with levels.
 - Styles. The gallery has Normal, headings, Title, and more.
@@ -42,14 +43,15 @@ This version of JeffWrite is a **Preview**. It is ready to try on real work, but
 
 **What does not work yet**
 
-- Headers, footers, and page numbers are not shown. If a file has them, JeffWrite keeps them.
+- Headers, footers, and page numbers show on the pages, with the page numbers worked out. You can't edit them yet. JeffWrite keeps them as the file has them.
 - Footnotes and endnotes show their numbers, but not their text. JeffWrite keeps them.
 - Tables are not shown or edited. A gray line stands in for each one, and JeffWrite keeps the table.
 - Pictures, shapes, and text boxes are not shown. JeffWrite keeps them. A picture that sits in a line of text shows as **[picture]**.
 - Fields, such as page numbers and tables of contents, show the words the file had. They do not update.
 - Comments and tracked changes are not shown, and deleted text stays hidden. JeffWrite keeps them.
 - You can't open or save .doc, .rtf, or .odt files yet.
-- There is no spelling check, no Find and Replace, no ruler, and no Font box beyond the Home tab.
+- There is no spelling check and no ruler.
+- Find and Replace look in the text of the document, but not in headers, footers, or notes.
 - Sections that continue on the same page start a new page instead.
 
 JeffWrite keeps what it can't show. It writes those parts back when you save, so a file that has them does not lose them.

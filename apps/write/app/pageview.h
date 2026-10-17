@@ -35,6 +35,9 @@ public:
     QTextCursor &cursor() { return m_cursor; }
     const QTextCursor &cursor() const { return m_cursor; }
     void setCursor(const QTextCursor &c);
+    // Puts the cursor (a selection, as a search finds it) where `c` is and shows it: the pages are laid out as far as it if they are not yet, and the window
+    // scrolls to put it in the middle when it was out of the window.
+    void showCursor(const QTextCursor &c);
 
     // ---- zoom: 1 is 100%, from 0.1 to 5
     static constexpr double kLeastZoom = 0.1, kMostZoom = 5.0;
