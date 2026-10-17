@@ -1940,6 +1940,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     bool rowActive = false;
 
     bool columnEmpty = true;   // no line placed yet in the current column
+    if (m_span.startY > 0.001) {   // (a stretch that goes below something in its first frame)
+        y = m_span.startY;
+        columnEmpty = false;
+    }
     const bool hyphenate = !frames.isEmpty() && frames.first().hyphenate;
     const double zone = (frames.isEmpty() ? 18.0 : frames.first().hyphenZone) * env.fontScale;
 
@@ -2067,6 +2071,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         double used = ruleGap;
         while (!carry.isEmpty()) {
             Note &n = m_notes[carry.first()];
+            measureNote(n, col.width());
             const double room = col.height() - used - noteGap;
             int rest = -1;
             const auto lay = cutNote(n, n.from, col.width(), std::max(0.0, room), &rest);
@@ -2118,8 +2123,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         n.storyId = cn.storyId;
         n.number = cn.number;
         n.from = cn.from;
-        n.frame = -2;   // begun before the first frame: only the rest of its text is here
-        measureNote(n, nF > 0 ? colRect(0, 0).width() : 300);
+        n.frame = -2;   // begun before the first frame: only the rest of its text is here (it is measured when its room is: a page can have thousands)
         (m_span.firstBreakAfter >= 0 ? seeded : carry) << int(m_notes.size());
         m_notes << n;
     }
@@ -3460,9 +3464,9 @@ QVector<StoryLayout::NotePlace> StoryLayout::notePlaces() const
     QVector<NotePlace> v;
     for (const Note &n : m_notes) {
         if (n.endnote) continue;
-        if (n.frame >= 0) v << NotePlace{n.storyId, n.number, n.frame, n.column, n.rect, 0};
+        if (n.frame >= 0) v << NotePlace{n.storyId, n.number, n.frame, n.column, n.rect, 0, n.refPos};
         for (const Note::Piece &pc : n.more)
-            if (pc.frame >= 0) v << NotePlace{n.storyId, n.number, pc.frame, pc.column, pc.rect, pc.from};
+            if (pc.frame >= 0) v << NotePlace{n.storyId, n.number, pc.frame, pc.column, pc.rect, pc.from, n.refPos};
     }
     return v;
 }
@@ -3472,6 +3476,10 @@ QVector<StoryLayout::CarriedNote> StoryLayout::carriedNotes(int frame) const
     QVector<CarriedNote> v;
     for (const Note &n : m_notes) {
         if (n.endnote) continue;
+        if (n.frame >= frame && n.frame != -2) {   // (one of a line's notes that had not begun when its first was cut: it begins in the frame after)
+            v << CarriedNote{n.storyId, n.number, 0, n.refPos};
+            continue;
+        }
         for (const Note::Piece &pc : n.more)
             if (pc.frame >= frame && (n.frame < frame)) {
                 v << CarriedNote{n.storyId, n.number, pc.from, n.refPos};

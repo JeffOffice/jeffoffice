@@ -161,6 +161,7 @@ private:
         QVector<StoryLayout::NotePlace> notes;
         QVector<StoryLayout::Rule> rules;
         QVector<StoryLayout::CarriedNote> carried;
+        QVector<double> reserve;                          // the room the notes take at the foot of each frame, the rule above them included
     };
     // The notes of a page that has tables, as they are set down: the room each frame has taken at its foot (the rule above them included), and where each note is.
     struct Ledger;
