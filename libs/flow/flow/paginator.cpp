@@ -938,6 +938,15 @@ void Paginator::changed(int position, int removed, int added)
         QTextBlock end = b1;
         while (end.isValid() && end.blockFormat().intProperty(fp::Frame) > 0) end = end.next();
         if (end.isValid() && end != b1) to = std::max(to, end.position() + end.length());
+        // The frame that comes right after the edit is set from the paragraph after it, and an edit between the paragraphs of a frame cuts it in two: the half after is of other
+        // paragraphs than it was, and that paragraph's page is laid out again too.
+        QTextBlock next = b1.isValid() ? b1.next() : QTextBlock();
+        bool frames = false;
+        while (next.isValid() && next.blockFormat().intProperty(fp::Frame) > 0) {
+            frames = true;
+            next = next.next();
+        }
+        if (frames && next.isValid()) to = std::max(to, next.position() + next.length());
     }
     // The rows of tables that the edit touched, with those that cells joined down tie them to: what a page in them is laid out as depends on all of them.
     if (m_tables->any()) {
