@@ -6,7 +6,12 @@
 #include "wml/wml.h"
 #include "wml/xmltree.h"
 
+#include "core/fonts.h"
+
 #include <QCoreApplication>
+#include <QFile>
+#include <QFileInfo>
+#include <QFontDatabase>
 #include <QElapsedTimer>
 #include <QTest>
 
@@ -130,10 +135,12 @@ private Q_SLOTS:
         QCOMPARE(t.count(), 3);
     }
 
-    // A symbol (w:sym) of a symbol font shows as the picture it is where the font is missing: a degree sign from Symbol, an arrow from Wingdings, a banner's block
-    // from Webdings; one of any other font, or a symbol that has no known picture, shows a box. The element is kept as written.
-    void aSymbolOfASymbolFontShowsItsPicture()
+    // A symbol (w:sym) of a symbol font that this machine lacks shows as the picture it is: a degree sign from Symbol, an arrow from Wingdings, a banner's block from
+    // Webdings; one of any other font, or a symbol that has no known picture, shows a box. The element is kept as written.
+    void aSymbolOfAMissingSymbolFontShowsItsPicture()
     {
+        for (const char *family : {"Symbol", "Wingdings", "Webdings"})
+            if (QFontDatabase::hasFamily(QString::fromLatin1(family))) QSKIP("a symbol font is installed here: its symbols are not made into pictures");
         Made m;
         m.body = R"(<w:p><w:r><w:sym w:font="Symbol" w:char="F0B0"/></w:r><w:r><w:sym w:font="Wingdings" w:char="F0EA"/></w:r><w:r><w:sym w:font="Webdings" w:char="F067"/></w:r>)"
                  R"(<w:r><w:sym w:font="No Such Face" w:char="F0B0"/></w:r><w:r><w:sym w:font="Wingdings" w:char="F021"/></w:r></w:p>)";
@@ -145,6 +152,39 @@ private Q_SLOTS:
             if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym")) shown << in.display;
         QCOMPARE(shown, (QStringList{QString(QChar(0x00B0)), QString(QChar(0x2B07)), QString(QChar(0x2588)), QString(QChar(0x25A1)), QString(QChar(0x25A1))}));
         QVERIFY(d.body[0].para.content[0].raw.contains("F0B0"));
+    }
+
+    // Where the symbol font is installed, the symbol is not made into a picture: it is the character the file has (U+F0B0, in the font's own range), which the font draws.
+    void aSymbolOfAnInstalledSymbolFontIsTheFilesOwnCharacter()
+    {
+        QString path;
+        for (const QString &dir : jp::bundledFontDirs())
+            if (QFileInfo::exists(dir + QStringLiteral("/Oswald-Regular.ttf"))) path = dir + QStringLiteral("/Oswald-Regular.ttf");
+        if (path.isEmpty()) QSKIP("the bundled fonts are not beside the test");
+        if (QFontDatabase::hasFamily(QStringLiteral("Symbol"))) QSKIP("Symbol is installed here already");
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QByteArray font = f.readAll();
+        // (Oswald, renamed Symbol: six letters for six.)
+        font.replace(QByteArray("\x00" "O\x00s\x00w\x00" "a\x00l\x00" "d", 12), QByteArray("\x00" "S\x00y\x00m\x00" "b\x00o\x00l", 12));
+        font.replace(QByteArray("Oswald"), QByteArray("Symbol"));
+        const int id = QFontDatabase::addApplicationFontFromData(font);
+        QVERIFY(id >= 0);
+        jp::fontsChanged();
+        QString shown;
+        const bool installed = QFontDatabase::hasFamily(QStringLiteral("Symbol"));
+        if (installed) {
+            Made m;
+            m.body = R"(<w:p><w:r><w:sym w:font="Symbol" w:char="F0B0"/></w:r></w:p>)";
+            Document d;
+            QVERIFY(readDocx(m.build(), &d));
+            for (const Inline &in : d.body[0].para.content)
+                if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym")) shown = in.display;
+        }
+        QFontDatabase::removeApplicationFont(id);
+        jp::fontsChanged();
+        QVERIFY(installed);
+        QCOMPARE(shown, QString(QChar(0xF0B0)));
     }
 
     void readsParagraphsRunsAndTheirProperties()
