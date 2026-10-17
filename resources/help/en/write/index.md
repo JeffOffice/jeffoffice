@@ -13,6 +13,11 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 
 - [Check your spelling](spelling)
 
+## Write and change text
+
+- [Change how text looks](font)
+- [Find and replace words](find-replace)
+
 ## Work faster
 
 - [Use JeffWrite with the keyboard](keyboard)

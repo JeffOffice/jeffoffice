@@ -26,6 +26,7 @@ class Ribbon;
 struct RibbonParts;
 class SizeCombo;
 class WriteFileScreen;
+class WriteFindPane;
 namespace write {
 class PageView;
 class SpellPane;
@@ -101,6 +102,10 @@ public:
     void showHelp(const QString &topic = QString());
     HelpView *helpView() const { return m_help; }
 
+    // The Find and Replace pane on the right (made when first asked for, so null before); `replace` puts the cursor in Replace with.
+    void showFindPane(bool replace = false);
+    WriteFindPane *findPane() const { return m_find; }
+
 protected:
     void closeEvent(QCloseEvent *e) override;
     void resizeEvent(QResizeEvent *e) override;
@@ -115,6 +120,7 @@ private:
     void createFileActions();
     void createHelpActions();
     void createReviewActions();
+    void createEditingActions();
     void buildRibbon();
     void ribbonParts(RibbonParts &parts);
     void buildStatusBar();
@@ -125,6 +131,7 @@ private:
     void dropRecoveryCopy();
     void changeSection(const std::function<void(flow::Section &)> &change);
     void applyIndentFields();
+    void showFontDialog();
     void showParagraphDialog();
     void showZoomDialog();
     void showContextMenu(const QPoint &globalPos);
@@ -143,6 +150,8 @@ private:
     QDockWidget *m_helpDock = nullptr;
     QDockWidget *m_spellDock = nullptr;
     write::SpellPane *m_spellPane = nullptr;
+    WriteFindPane *m_find = nullptr;
+    QDockWidget *m_findDock = nullptr;
     QLabel *m_pageLabel = nullptr, *m_wordLabel = nullptr, *m_zoomLabel = nullptr;
     QSlider *m_zoomSlider = nullptr;
     QList<FontCombo *> m_fontCombos;

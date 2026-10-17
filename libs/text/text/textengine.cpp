@@ -22,6 +22,7 @@
 #include <QRegularExpression>
 #include <QRawFont>
 #include <QTextDocument>
+#include <QTextDocumentFragment>
 #include <QTextList>
 #include <atomic>
 #include <cmath>
@@ -1940,6 +1941,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     bool rowActive = false;
 
     bool columnEmpty = true;   // no line placed yet in the current column
+    if (m_span.startY > 0.001) {   // (a stretch that goes below something in its first frame)
+        y = m_span.startY;
+        columnEmpty = false;
+    }
     const bool hyphenate = !frames.isEmpty() && frames.first().hyphenate;
     const double zone = (frames.isEmpty() ? 18.0 : frames.first().hyphenZone) * env.fontScale;
 
@@ -1974,10 +1979,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         fs.baselineGrid = 0;
         return fs;
     };
-    auto measureNote = [&](Note &n, double width) {
+    auto measureNote = [&](Note &n, double width, bool whole = true) {
         if (n.layout && std::abs(n.width - width) < 0.01) return n.height;
+        if (!whole && n.numberFont.pointSizeF() > 0 && std::abs(n.width - width) < 0.01) return n.height;
         n.width = width;
-        n.layout = std::make_shared<StoryLayout>();
+        if (whole) n.layout = std::make_shared<StoryLayout>();
         const QTextDocument *nd = notesDoc ? notesDoc->storyDoc(n.storyId) : nullptr;
         QTextCharFormat first;
         if (nd) {
@@ -1989,7 +1995,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         n.numberColor = rf.foreground().color();
         n.numberWidth = env.wordLines ? 0.0 : advanceOf(n.numberFont, QStringLiteral("00.")) + 3 * scale;
         const FrameSpec fs = noteFrame(n, width, 100000);
-        if (nd) {
+        if (!whole) {
+            // (Only what the note is set with, not the whole of its text: for the rest of one that goes on, whose pieces are laid out as they are placed.)
+            n.height = heightOf(n.numberFont);
+            n.firstBaseline = n.height * 0.8;
+        } else if (nd) {
             ++noteDepth;
             n.layout->build(nd, {fs}, env);
             --noteDepth;
@@ -2010,22 +2020,40 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         *rest = -1;
         const QTextDocument *nd = notesDoc ? notesDoc->storyDoc(n.storyId) : nullptr;
         if (!nd) return lay;
-        std::unique_ptr<QTextDocument> tail;
-        if (from > 0) {
-            // The text from there on as a story of its own; a paragraph
-            // cut in the middle has no first-line indent.
-            tail.reset(nd->clone());
-            QTextCursor cut(tail.get());
-            cut.setPosition(from, QTextCursor::KeepAnchor);
-            cut.removeSelectedText();
-            const QTextBlock at = nd->findBlock(from);
-            QTextBlockFormat bf = at.blockFormat();
-            if (from > at.position()) bf.setTextIndent(0);
-            QTextCursor(tail->begin()).setBlockFormat(bf);
+        // (A note of many thousand characters is laid out as much as the room holds, and that much more if it did not fill it: a page would otherwise lay out all that is left of it.)
+        const int total = nd->characterCount() - 1;
+        int window = total - from > 4000 ? std::clamp(int(room * width / 24) + 500, 2000, 1000000) : 0;
+        for (;;) {
+            std::unique_ptr<QTextDocument> tail;
+            if (from > 0 || window > 0) {
+                // The text from there on as a story of its own (the part of it that is wanted); a paragraph cut in the middle has no first-line indent.
+                if (!(window > 0 && from + window < total)) window = 0;
+                const int to = window > 0 ? from + window : total;
+                tail = std::make_unique<QTextDocument>();
+                tail->setDocumentMargin(nd->documentMargin());
+                tail->setDefaultFont(nd->defaultFont());
+                tail->setDefaultTextOption(nd->defaultTextOption());
+                {
+                    QTextCursor src(const_cast<QTextDocument *>(nd));
+                    src.setPosition(from);
+                    src.setPosition(std::min(to, total), QTextCursor::KeepAnchor);
+                    QTextCursor(tail.get()).insertFragment(QTextDocumentFragment(src));
+                }
+                const QTextBlock at = nd->findBlock(from);
+                QTextBlockFormat bf = at.blockFormat();
+                if (from > at.position()) bf.setTextIndent(0);
+                QTextCursor(tail->begin()).setBlockFormat(bf);
+            }
+            ++noteDepth;
+            lay->build(tail ? tail.get() : nd, {noteFrame(n, width, room)}, env);
+            --noteDepth;
+            if (window > 0 && !lay->overflow()) {   // (it did not fill the room: the window may have cut it short)
+                window *= 4;
+                lay = std::make_shared<StoryLayout>();
+                continue;
+            }
+            break;
         }
-        ++noteDepth;
-        lay->build(tail ? tail.get() : nd, {noteFrame(n, width, room)}, env);
-        --noteDepth;
         const int last = lay->lastPosition(0);
         if (lay->overflow() && last >= 0) {
             // A cut at a paragraph's end goes on with the next paragraph.
@@ -2052,6 +2080,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             cut.at = k;
             cut.layout = cutNote(n, 0, width, std::max(0.0, room - noteGap), &cut.rest);
             cut.height = std::max(heightOf(n.numberFont), cut.layout->usedHeight(0) + (cut.rest < 0 ? cut.layout->trailingSpace() : 0.0));
+            if (force && cut.rest < 0 && cut.layout->usedHeight(0) + noteGap <= room + 0.01) cut.height = std::min(cut.height, std::max(room - noteGap, cut.layout->usedHeight(0)));   // (the space after its last line is let go at the foot)
             cut.ok = force || cut.height + noteGap <= room + 0.01;
             cut.used += cut.height + noteGap;
             break;
@@ -2067,10 +2096,12 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         double used = ruleGap;
         while (!carry.isEmpty()) {
             Note &n = m_notes[carry.first()];
+            measureNote(n, col.width(), n.frame != -2 && !n.layout);   // (the rest of a note that began on the page before need not be measured whole)
             const double room = col.height() - used - noteGap;
             int rest = -1;
             const auto lay = cutNote(n, n.from, col.width(), std::max(0.0, room), &rest);
-            const double h = std::max(heightOf(n.numberFont), lay->usedHeight(0) + (rest < 0 ? lay->trailingSpace() : 0.0));
+            double h = std::max(heightOf(n.numberFont), lay->usedHeight(0) + (rest < 0 ? lay->trailingSpace() : 0.0));
+            if (rest < 0 && lay->usedHeight(0) <= room + 0.01) h = std::min(h, std::max(room, lay->usedHeight(0)));   // (the space after its last line is let go at the foot)
             if (h > room + 0.01 && used > ruleGap) break;   // not even a line fits under the notes before it
             if (n.frame == -1) {   // a note of the same line that hadn't begun
                 n.frame = f;
@@ -2102,7 +2133,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             carry = seeded;
             seeded.clear();
         }
-        settleCarry();
+        // (Not in the frame that the stretch only runs over into: what is left of the notes goes on to the page after, which lays them out.)
+        if (m_span.stopAtFrame < 0 || f < m_span.stopAtFrame) settleCarry();
     };
 
     // Notes that went on from the page before come first in the first frame.
@@ -2118,8 +2150,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         n.storyId = cn.storyId;
         n.number = cn.number;
         n.from = cn.from;
-        n.frame = -2;   // begun before the first frame: only the rest of its text is here
-        measureNote(n, nF > 0 ? colRect(0, 0).width() : 300);
+        n.frame = -2;   // begun before the first frame: only the rest of its text is here (it is measured when its room is: a page can have thousands)
         (m_span.firstBreakAfter >= 0 ? seeded : carry) << int(m_notes.size());
         m_notes << n;
     }
@@ -3218,9 +3249,16 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     m_trailingAfter = env.wordLines ? lastAfter : 0.0;
     m_trailingRoom = lastRoom;
     // A footnote still going on after the story's last line: the columns
-    // after it take the rest, or the story overflows.
-    while (!carry.isEmpty() && f < nF) advance();
-    if (!carry.isEmpty()) m_overflow = true;
+    // after it take the rest, or the story overflows. (A stretch that stops at a frame leaves the rest to the page after it, which lays them out: not in the frame that
+    // runs over, where a page with thousands of notes going on would lay out all of them.)
+    while (!carry.isEmpty() && f < nF) {
+        if (m_span.stopAtFrame >= 0 && f + 1 >= m_span.stopAtFrame) break;
+        advance();
+    }
+    if (!carry.isEmpty()) {
+        m_overflow = true;
+        for (int ni : carry) m_notes[ni].goesOn = true;
+    }
 
     // Endnotes: after the story's last line, under a heading, in order;
     // each one whole in a column (a note too tall for an empty column
@@ -3460,9 +3498,9 @@ QVector<StoryLayout::NotePlace> StoryLayout::notePlaces() const
     QVector<NotePlace> v;
     for (const Note &n : m_notes) {
         if (n.endnote) continue;
-        if (n.frame >= 0) v << NotePlace{n.storyId, n.number, n.frame, n.column, n.rect, 0};
+        if (n.frame >= 0) v << NotePlace{n.storyId, n.number, n.frame, n.column, n.rect, 0, n.refPos};
         for (const Note::Piece &pc : n.more)
-            if (pc.frame >= 0) v << NotePlace{n.storyId, n.number, pc.frame, pc.column, pc.rect, pc.from};
+            if (pc.frame >= 0) v << NotePlace{n.storyId, n.number, pc.frame, pc.column, pc.rect, pc.from, n.refPos};
     }
     return v;
 }
@@ -3472,6 +3510,14 @@ QVector<StoryLayout::CarriedNote> StoryLayout::carriedNotes(int frame) const
     QVector<CarriedNote> v;
     for (const Note &n : m_notes) {
         if (n.endnote) continue;
+        if (n.goesOn) {   // (still going on, or not begun, when the frames ran out: from where its rest starts)
+            v << CarriedNote{n.storyId, n.number, std::max(0, n.from), n.refPos};
+            continue;
+        }
+        if (n.frame >= frame && n.frame != -2) {   // (one of a line's notes that had not begun when its first was cut: it begins in the frame after)
+            v << CarriedNote{n.storyId, n.number, 0, n.refPos};
+            continue;
+        }
         for (const Note::Piece &pc : n.more)
             if (pc.frame >= frame && (n.frame < frame)) {
                 v << CarriedNote{n.storyId, n.number, pc.from, n.refPos};

@@ -40,6 +40,9 @@
         {
           "name": "Font",
           "keytip": "ZF",
+          "launcher": "font",
+          "launcherTip": "Font",
+          "launcherKeytip": "FN",
           "items": [
             {
               "row": [
@@ -186,6 +189,20 @@
             {
               "widget": "styleGallery",
               "keytip": "L"
+            }
+          ]
+        },
+        {
+          "name": "Editing",
+          "keytip": "ZE",
+          "items": [
+            {
+              "small": "edit.find",
+              "keytip": "FD"
+            },
+            {
+              "small": "edit.replace",
+              "keytip": "RP"
             }
           ]
         }

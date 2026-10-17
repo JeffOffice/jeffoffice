@@ -130,14 +130,14 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 
 ### Font
 - [~] **first release** Font name (theme fonts first, recent fonts, a preview in the list) and size (list, typed, Grow and Shrink, and the Ctrl+[ and Ctrl+] keys) *(shared: JeffPub's Font group)*
-- [~] **first release** Bold, italic, underline (single, words only, double, thick, dotted, dashed, wavy, each with its own color), strikethrough, and double strikethrough
-- [~] **first release** Subscript and superscript *(ours 26%, public 35%)*
-- [~] **first release** Small caps and all caps *(small caps: ours 10%, public 9%; all caps: ours 10%, public 9%)*
+- [x] **first release** Bold, italic, underline (single, words only, double, thick, dotted, dashed, wavy, each with its own color), strikethrough, and double strikethrough *(the Font box chooses the underline and its color, and double strikethrough; the Underline button on the ribbon is a single line; each is read from and written to `.docx` as `w:u` with its val and color, `w:strike`, and `w:dstrike`)*
+- [x] **first release** Subscript and superscript *(ours 26%, public 35%; the buttons, Ctrl+= and Ctrl+Shift+=, and the Font box; `w:vertAlign`)*
+- [x] **first release** Small caps and all caps *(small caps: ours 10%, public 9%; all caps: ours 10%, public 9%; in the Font box, not on the ribbon; `w:smallCaps` and `w:caps`, also against a style that has one)*
 - [~] **first release** Character spacing: expanded or condensed by an amount, raised or lowered, scaled, and pair kerning from a chosen size *(ours 10%, public 15%)*
 - [~] **first release** Font color (theme colors with tints, standard colors, more colors, eyedropper) and highlight color, with Stop Highlighting *(highlight: ours 2%, public 8%)*
-- [ ] **first release** Hidden text: kept, not shown or printed unless asked for
+- [~] **first release** Hidden text: kept, not shown or printed unless asked for *(Hidden in the Font box, kept as `w:vanish`, not shown, printed, or found by Find; not yet shown when the paragraph marks are)*
 - [~] **first release** Clear All Formatting
-- [~] **first release** The Font dialog with every effect above, plus the live preview, and Set as Default
+- [~] **first release** The Font dialog with every effect above, plus the live preview, and Set as Default *(Ctrl+D, the Font group's launcher, and the right-click menu: font, style, size, color, underline and its color, the seven effects, and the preview, applied as one step to what was changed; a box is blank where the selection differs, and what is set then goes to all of it; no Advanced tab (spacing, raised and lowered) and no Set as Default yet)*
 - [ ] **1.0** Change Case: sentence case, lowercase, UPPERCASE, capitalize each word, and toggle (Shift+F3 cycles)
 - [ ] **1.0** Character shading and character border
 - [ ] **1.0** OpenType choices: ligatures, number spacing and forms, stylistic sets, and contextual alternates
@@ -170,8 +170,8 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [ ] **later** Style separator (end a paragraph's visible text and start another style in the same paragraph, for run-in heads)
 
 ### Editing
-- [~] **first release** Find with the Navigation pane's results (by heading, by page, as text), the match count, and every match highlighted *(shared: JeffPub's Find)*
-- [~] **first release** Replace and Replace All, with match case, whole words, and direction, across the body, notes, headers and footers, and text boxes *(shared: JeffPub's Replace)*
+- [~] **first release** Find with the Navigation pane's results (by heading, by page, as text), the match count, and every match highlighted *(shared: JeffPub's Find; Ctrl+F opens the Find and Replace pane, and Find Next selects each match in the text and tables, with match case and whole words, scrolls the pages to it, and goes round; no Navigation pane, count, or highlighting yet; hidden text is skipped, and a bookmark or field code inside words does not part them)*
+- [~] **first release** Replace and Replace All, with match case, whole words, and direction, across the body, notes, headers and footers, and text boxes *(shared: JeffPub's Replace; Ctrl+H, Replace, and Replace All in the body and tables, Replace All as one step that says how many; the new words look like the first of the old; no direction, and headers, footers, and notes are not searched because JeffWrite cannot edit them yet)*
 - [ ] **first release** Go To: page, section, line, bookmark, comment, footnote, endnote, field, table, graphic, equation, and heading
 - [ ] **1.0** Advanced Find and Replace: wildcards with groups, sounds like, all forms of a word, ignore punctuation and spaces, find by format (font, paragraph, tabs, language, frame, style, highlight), Special (paragraph mark, tab, any digit, section break, field, footnote mark, and the rest), and replace with the clipboard or the found text
 - [ ] **1.0** Select All, Select Objects, and the Selection Pane (objects by name, shown or hidden, in order)
@@ -445,7 +445,7 @@ The tabs that appear only while something is selected or being edited: a table, 
 
 What a right-click offers depends on what is under the pointer. The commands are the ones the ribbon already holds, put where the original puts them.
 
-- [ ] **first release** On text: Cut, Copy, and Paste Options (keep the source formatting, merge formatting, or keep text only), Font, Paragraph, Bullets and Numbering, Hyperlink, and New Comment
+- [~] **first release** On text: Cut, Copy, and Paste Options (keep the source formatting, merge formatting, or keep text only), Font, Paragraph, Bullets and Numbering, Hyperlink, and New Comment *(Cut, Copy, Paste, Font, Paragraph, and Select All; the paste choices, lists, link, and comment are not there yet)*
 - [~] **first release** On a word the spelling check flags: suggestions, Ignore All, Add to Dictionary, and the AutoCorrect options *(done: suggestions, Ignore All, and Add to Dictionary; missing: the AutoCorrect options)* **(needed for the Preview)**
 - [ ] **first release** In a table: Insert and Delete for rows, columns, and cells, Select, Merge Cells, Split Cells, Borders and Shading, AutoFit, and Table Properties
 - [ ] **1.0** On a picture, shape, or text box: Cut, Copy, Paste, Wrap Text, Bring to Front and Send to Back, Group, Edit Alt Text, Size and Position, and Format
