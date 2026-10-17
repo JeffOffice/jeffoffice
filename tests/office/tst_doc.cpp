@@ -1058,6 +1058,50 @@ private Q_SLOTS:
         QVERIFY(boxes[1].contains(QLatin1String("second box")));
     }
 
+    void pieceTablesThatShareTextCannotMakeMoreXmlNodesThanTheReaderTakes()
+    {
+        // 90 characters of text, each its own run (bold, then not), listed 5,000 times over: 450,000 runs from a file of a few kilobytes. The XML of that
+        // has more nodes than the .docx reader takes in a part, and the document was refused after all the work of making it.
+        const QString line = QStringLiteral("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz");
+        DocWriter w;
+        w.text = line.left(89) + QLatin1Char('\r');
+        for (int i = 0; i < 89; ++i) w.chars.push_back({i, i + 1, sprm1(sprm::bold, i & 1)});
+        w.repeatText = 5000;
+        const QByteArray file = w.build();
+        QVERIFY(file.size() < 200000);
+        QElapsedTimer t;
+        t.start();
+        Document d;
+        ReadNotes notes;
+        QString error;
+        QVERIFY2(read(file, &d, &notes, &error), qPrintable(error));
+        QVERIFY2(t.elapsed() < 2000, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        // (What came before the cut is there, whole paragraphs of it.)
+        const QStringList texts = bodyTexts(d);
+        QVERIFY(texts.size() > 100 && texts.size() < 5000);
+        QCOMPARE(texts[0], w.text.left(89));
+    }
+
+    void pieceTablesThatShareTextCannotMakeMoreXmlBytesThanTheReaderTakes()
+    {
+        // 1,000 ampersands (five bytes of XML each) listed 15,000 times over: 75 MB of XML from a file of a few kilobytes, past what the reader takes of a part.
+        DocWriter w;
+        w.text = QString(1000, QLatin1Char('&')) + QLatin1Char('\r');
+        w.repeatText = 15000;
+        const QByteArray file = w.build();
+        QVERIFY(file.size() < 200000);
+        QElapsedTimer t;
+        t.start();
+        Document d;
+        ReadNotes notes;
+        QString error;
+        QVERIFY2(read(file, &d, &notes, &error), qPrintable(error));
+        QVERIFY2(t.elapsed() < 2000, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        const QStringList texts = bodyTexts(d);
+        QVERIFY(texts.size() > 1000 && texts.size() < 15000);
+        QCOMPARE(texts[0], QString(1000, QLatin1Char('&')));
+    }
+
     void changedBytesNeverCrashOrHang()
     {
         // A document with most of what the reader reads, with bytes of it changed at random (the same changes each run), and cut short.

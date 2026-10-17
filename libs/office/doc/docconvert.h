@@ -73,8 +73,10 @@ public:
     PackageWriter pkg;
     int paragraphs = 0;                  // made so far, in all the stories
     int tableCells = 0;                  // the cells of all the tables so far
-    qint64 outputBytes = 0;
+    qint64 outputBytes = 0, outputElements = 0;   // the XML made so far (see spend)
     bool truncated = false;              // the text was cut at a limit
+    // Counts XML just made against what the output may hold (doc.h). False once past it: the text stops where it is.
+    bool spend(const QByteArray &xml);
     int revisionId = 0;
 
     struct Drawings;

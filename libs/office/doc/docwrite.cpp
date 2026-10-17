@@ -11,24 +11,29 @@ QByteArray xmlEscape(const QString &s)
 {
     QByteArray out;
     out.reserve(s.size() + 16);
-    QString plain;
-    auto flush = [&] {
-        if (!plain.isEmpty()) out += plain.toUtf8();
-        plain.clear();
+    // (The text between the marks that need changing goes in whole.)
+    qsizetype from = 0;
+    auto flush = [&](qsizetype to) {
+        if (to > from) out += QStringView(s).mid(from, to - from).toUtf8();
     };
     for (qsizetype i = 0; i < s.size(); ++i) {
         const ushort u = s[i].unicode();
-        if (u == '&') { flush(); out += "&amp;"; }
-        else if (u == '<') { flush(); out += "&lt;"; }
-        else if (u == '>') { flush(); out += "&gt;"; }
-        else if (u == '"') { flush(); out += "&quot;"; }
-        else if (u < 0x20 && u != 0x09 && u != 0x0A && u != 0x0D) continue;
-        else if (u == 0xFFFE || u == 0xFFFF) continue;
-        else if (QChar::isHighSurrogate(u) && !(i + 1 < s.size() && QChar::isLowSurrogate(s[i + 1].unicode()))) continue;
-        else if (QChar::isLowSurrogate(u) && !(i > 0 && QChar::isHighSurrogate(s[i - 1].unicode()))) continue;
-        else plain += s[i];
+        if (u >= 0x20 && u < 0xD800 && u != '&' && u != '<' && u != '>' && u != '"') continue;
+        const char *replacement = nullptr;
+        if (u == '&') replacement = "&amp;";
+        else if (u == '<') replacement = "&lt;";
+        else if (u == '>') replacement = "&gt;";
+        else if (u == '"') replacement = "&quot;";
+        else if (u < 0x20 && u != 0x09 && u != 0x0A && u != 0x0D) replacement = "";
+        else if (u == 0xFFFE || u == 0xFFFF) replacement = "";
+        else if (QChar::isHighSurrogate(u) && !(i + 1 < s.size() && QChar::isLowSurrogate(s[i + 1].unicode()))) replacement = "";
+        else if (QChar::isLowSurrogate(u) && !(i > 0 && QChar::isHighSurrogate(s[i - 1].unicode()))) replacement = "";
+        else continue;
+        flush(i);
+        from = i + 1;
+        out += replacement;
     }
-    flush();
+    flush(s.size());
     return out;
 }
 

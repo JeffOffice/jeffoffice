@@ -418,6 +418,7 @@ int main(int argc, char **argv)
         }
         for (const QString &n : notes) out << "note\t" << n << "\n";
         out << "read\t" << timer.elapsed() << " ms\n";
+        out.flush();   // (a file that takes long to lay out has told how long it took to read)
         pager = &wdoc->pager();
     }
 #endif
