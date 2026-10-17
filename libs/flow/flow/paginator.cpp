@@ -407,6 +407,14 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         }
         run.next.hard = hard;
         run.next.section = nextSection;
+    } else if (byCharacter && c > 0 && m_doc->story()->findBlock(L[c - 1].pos).next().isValid()) {
+        // A page break that ends the last line the page laid out (the empty line after it went past the frame, where laying out stops): the page
+        // after it begins with the paragraph that follows.
+        run.hasNext = true;
+        run.next.pos = m_doc->story()->findBlock(L[c - 1].pos).next().position();
+        run.next.skip = 0;
+        run.next.hard = true;
+        run.next.section = nextSection;
     } else if (forced && !byCharacter && c > 0) {
         // A break after the text's last line: the pages go on with one that has nothing on it.
         run.hasNext = true;
