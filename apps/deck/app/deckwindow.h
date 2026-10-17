@@ -124,6 +124,9 @@ public:
     QDockWidget *formatDock() const { return m_formatDock; }
     void showFormatPane(bool on = true);
     void formatSelection(FormatPane::Tab tab);
+    // Shape Format > Change Shape: gives the shapes selected another geometry of Insert > Shapes, keeping their text and look (one step).
+    // False for an id the shape library doesn't have, or when no shape is selected.
+    bool changeShape(const QString &shapeId);
     // What the ribbon file named that the window doesn't have (empty when
     // the ribbon built cleanly).
     QString ribbonErrors() const { return m_ribbonErrors; }
@@ -383,6 +386,7 @@ private:
     FormatPane *m_formatPane = nullptr;
     QDockWidget *m_formatDock = nullptr;
     QList<MeasureSpin *> m_shapeSizeBoxes;   // Shape Format's Height and Width
+    QList<QWidget *> m_changeShapeButtons;   // Shape Format's Change Shape, on while a shape is selected
     DeckFindPane *m_find = nullptr;
     QDockWidget *m_findDock = nullptr;
     bool m_menuOpen = false;   // the slide's right-click menu is up

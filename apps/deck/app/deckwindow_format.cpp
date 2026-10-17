@@ -14,6 +14,7 @@
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
 #include "app/widgets.h"
+#include "render/shapes.h"
 
 #include <QAction>
 #include <QActionGroup>
@@ -75,6 +76,16 @@ void DeckWindow::createShapeFormatActions()
     refreshShapeFormat();
 }
 
+bool DeckWindow::changeShape(const QString &shapeId)
+{
+    if (!shapeDef(shapeId)) return false;
+    bool any = false;
+    for (const Item *it : m_formatPane->session()->leaves()) any = any || formatops::takesGeometry(*it);
+    if (!any) return false;
+    m_formatPane->session()->apply(tr("Change Shape"), [&shapeId](Item &it) { formatops::setGeometry(it, shapeId); }, FormatSession::Scope::Leaves);
+    return true;
+}
+
 void DeckWindow::showFormatPane(bool on)
 {
     if (!m_formatDock) return;
@@ -107,6 +118,9 @@ void DeckWindow::refreshShapeFormat()
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Drawing Tools"), shows);
     act("shape.format")->setEnabled(!items.isEmpty());
     act("shape.altText")->setEnabled(!items.isEmpty());
+    bool geometry = false;
+    for (const Item *it : m_formatPane->session()->leaves()) geometry = geometry || formatops::takesGeometry(*it);
+    for (QWidget *w : m_changeShapeButtons) w->setEnabled(geometry);
     for (MeasureSpin *s : m_shapeSizeBoxes) {
         const bool height = s->objectName() == QLatin1String("shapeHeight");
         const QSignalBlocker block(s);
@@ -245,6 +259,21 @@ void DeckWindow::addShapeFormatParts(RibbonParts &parts)
         auto *m = new QMenu(owner);
         connect(m, &QMenu::aboutToShow, m, [this, m] { fillShapeEffectsMenu(m); });
         return m;
+    };
+    // Change Shape: the shapes of Insert > Shapes (not its line tools), grouped as there.
+    parts.widgets[QStringLiteral("changeShape")] = [this]() -> QWidget * {
+        auto *b = new GalleryButton(icon("replace"), tr("Change Shape"), QSize(24, 24), 12, true);
+        b->setObjectName(QStringLiteral("changeShape"));
+        b->setToolTip(tr("Change Shape"));
+        b->setItemsProvider([] {
+            QVector<GalleryItem> v;
+            for (const auto &s : shapeLibrary()) v << GalleryItem{s.id, s.name, shapeIcon(s.id), s.category};
+            return v;
+        });
+        connect(b, &GalleryButton::activated, this, [this](const QString &id) { changeShape(id); });
+        m_changeShapeButtons << b;
+        b->setEnabled(false);
+        return b;
     };
     parts.launchers[QStringLiteral("shapeStyles")] = [this] { formatSelection(FormatPane::Tab::FillLine); };
     parts.launchers[QStringLiteral("shapeSize")] = [this] { formatSelection(FormatPane::Tab::SizeProperties); };

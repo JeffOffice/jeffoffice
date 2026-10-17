@@ -79,6 +79,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Shape Format"),
     QT_TRANSLATE_NOOP("Ribbon", "Shape Outline"),
     QT_TRANSLATE_NOOP("Ribbon", "Shape Styles"),
+    QT_TRANSLATE_NOOP("Ribbon", "Shapes"),
     QT_TRANSLATE_NOOP("Ribbon", "Show"),
     QT_TRANSLATE_NOOP("Ribbon", "Size"),
     QT_TRANSLATE_NOOP("Ribbon", "Size and Position"),
