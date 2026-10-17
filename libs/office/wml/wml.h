@@ -69,6 +69,7 @@ struct RunProps {
     std::optional<Color> color;
     std::optional<int> spacing;       // twentieths of a point added after each letter
     std::optional<int> position;      // half-points raised (lowered when negative)
+    std::optional<int> kern;          // half-points: the letters are kerned from this size up (0: not kerned)
     std::optional<int> size;          // half-points
     QString highlight;                // yellow, green...; "none"; empty when not stated
     std::optional<Underline> underline;

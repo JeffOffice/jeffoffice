@@ -867,7 +867,8 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
     // files are laid out); text can also turn kerning off.
     // (A slide's counts the size the text is drawn at, shrunk or not: 28 points kerned from 12 are kerned at 15 and not at 9, as probed.)
     {
-        const double kernFrom = f.hasProperty(tp::KernAbove) ? f.property(tp::KernAbove).toDouble() : 14.0;
+        // (A word processor's text is kerned only where its file asks, from the size it says: a run that says nothing isn't, at any size.)
+        const double kernFrom = f.hasProperty(tp::KernAbove) ? f.property(tp::KernAbove).toDouble() : env.wordLines ? 1e9 : 14.0;
         r.setFontKerning((!f.hasProperty(QTextFormat::FontKerning) || f.fontKerning()) && (env.slideLines ? scaledSize(sz, env) : sz) >= kernFrom);
     }
     // Unhinted design widths: hinting differs between Windows and Linux and

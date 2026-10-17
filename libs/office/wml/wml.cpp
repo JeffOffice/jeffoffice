@@ -142,6 +142,7 @@ void RunProps::overlay(const RunProps &t)
     if (t.color) color = t.color;
     if (t.spacing) spacing = t.spacing;
     if (t.position) position = t.position;
+    if (t.kern) kern = t.kern;
     if (t.size) size = t.size;
     if (!t.highlight.isEmpty()) highlight = t.highlight;
     if (t.underline) underline = t.underline;
@@ -157,6 +158,7 @@ RunProps RunProps::normalized() const
     if (!n.color) n.color = Color{QStringLiteral("auto"), QString(), QString(), QString()};
     if (!n.spacing) n.spacing = 0;
     if (!n.position) n.position = 0;
+    if (!n.kern) n.kern = 0;
     if (!n.size) n.size = 20;
     if (n.highlight.isEmpty()) n.highlight = QStringLiteral("none");
     if (!n.underline) n.underline = Underline{QStringLiteral("none"), QString()};
@@ -167,7 +169,7 @@ RunProps RunProps::normalized() const
 bool RunProps::operator==(const RunProps &o) const
 {
     return style == o.style && fonts == o.fonts && bold == o.bold && italic == o.italic && caps == o.caps && smallCaps == o.smallCaps && strike == o.strike &&
-           dstrike == o.dstrike && vanish == o.vanish && noProof == o.noProof && color == o.color && spacing == o.spacing && position == o.position && size == o.size &&
+           dstrike == o.dstrike && vanish == o.vanish && noProof == o.noProof && color == o.color && spacing == o.spacing && position == o.position && kern == o.kern && size == o.size &&
            highlight == o.highlight && underline == o.underline && vertAlign == o.vertAlign && extra == o.extra;
 }
 
@@ -209,6 +211,7 @@ RunProps RunProps::differences(const RunProps &base) const
     if (n.color != b.color) d.color = n.color;
     if (n.spacing != b.spacing) d.spacing = n.spacing;
     if (n.position != b.position) d.position = n.position;
+    if (n.kern != b.kern) d.kern = n.kern;
     if (size && n.size != b.size) d.size = size;
     if (n.highlight != b.highlight) d.highlight = n.highlight;
     if (n.underline != b.underline) d.underline = n.underline;
@@ -634,6 +637,7 @@ QByteArray runPropsXml(const RunProps &p, bool)
         parts.add(runChildRank("color"), e + "/>");
     }
     if (p.spacing) parts.add(runChildRank("spacing"), intEl("spacing", *p.spacing));
+    if (p.kern) parts.add(runChildRank("kern"), intEl("kern", *p.kern));
     if (p.position) parts.add(runChildRank("position"), intEl("position", *p.position));
     if (p.size) parts.add(runChildRank("sz"), intEl("sz", *p.size));
     if (!p.highlight.isEmpty()) parts.add(runChildRank("highlight"), valEl("highlight", p.highlight));
