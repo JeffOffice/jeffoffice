@@ -474,6 +474,26 @@ struct Shape {
     QString alt;                          // its description
     QByteArray textBox;                   // the w:txbxContent element of a text box, as written (insets: below)
     double inset[4] = {7.2, 3.6, 7.2, 3.6};   // left, top, right, bottom
+    // A picture's cut edges, each a share of the whole picture (a negative one is room left round it), the color of it that is clear ("RRGGBB"),
+    // and the border it is drawn with (its weight in points, 0 for none, and its color).
+    double cropL = 0, cropT = 0, cropR = 0, cropB = 0;
+    QString clearColor;
+    double borderWeight = 0;
+    QString borderColor;
+    // The number of the drawing format's shape the object is (VML's o:spt, from the shape's type), 0 when it says none: 75 is a picture, 202 a text
+    // box, 19 an arc, 136 text on a path.
+    int shapeType = 0;
+    // Text on a path (an object that is its text, set to fill its frame): the text, its font, and whether it is bold and italic.
+    QString pathText, pathFont;
+    bool pathBold = false, pathItalic = false;
+    // A shadow of the object (VML's v:shadow): its color and how far across and down it is, in points.
+    bool shadow = false;
+    QString shadowColor;
+    double shadowX = 0, shadowY = 0;
+    // A horizontal rule (VML's o:hr): as wide as this many percent of the text's width (0: as wide as the frame is) and as high as the frame, set as
+    // its horizontal alignment says.
+    bool rule = false;
+    double rulePercent = 0;
 };
 // The objects of a w:pict, w:drawing, or mc:AlternateContent element kept as written (a run's atom): in order, nested ones (a group's members) after it.
 // A VML shape that is only a template (a shape type) is none.

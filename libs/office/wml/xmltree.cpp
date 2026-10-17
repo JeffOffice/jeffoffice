@@ -418,6 +418,16 @@ QString XmlTree::attr(int n, const char *local, int ns) const
     return QString();
 }
 
+QString XmlTree::attrAny(int n, const char *local) const
+{
+    const Node &nd = m_nodes[n];
+    for (quint32 k = 0; k < nd.attrCount; ++k) {
+        const Attr &a = m_attrs[nd.attrBegin + k];
+        if (m_names[a.name] == local) return decode(a.begin, a.end);
+    }
+    return QString();
+}
+
 QByteArray XmlTree::otherAttributes(int n, const QVector<const char *> &known) const
 {
     const Node &nd = m_nodes[n];
