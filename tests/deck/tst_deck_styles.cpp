@@ -1102,6 +1102,37 @@ private Q_SLOTS:
         QCOMPARE(after.stringProperty(tp::ColorRefP), before.stringProperty(tp::ColorRefP));
     }
 
+    // Words typed in a shape that had a style before it had words are the color the style gives (and keep it through saving): a filled style's light
+    // 1, an outline's dark 1. They are not white on a clear shape.
+    void wordsTypedInAStyledShapeTakeItsTextColorAndKeepIt()
+    {
+        for (const QString &style : {QStringLiteral("moderate:accent2"), QStringLiteral("outline:accent2")}) {
+            Rig r;
+            const QString id = r.addShape(QStringLiteral("Typed"))->id;
+            r.ed()->select(id);
+            QVERIFY(r.w.applyShapeStyle(style));
+            const deck::DeckTheme theme = deck::themeOf(*r.ed()->doc());
+            const QColor want = style.startsWith(QLatin1String("outline")) ? theme.colors[0] : theme.colors[1];
+            r.ed()->beginTextEdit(id, 0);
+            QTextCursor c = r.ed()->cursor();
+            c.insertText(QStringLiteral("Typed words"));
+            r.ed()->setCursor(c);
+            r.ed()->endTextEdit();
+            const QString story = r.shape(id)->storyId;
+            QVERIFY2(!story.isEmpty(), qPrintable(style));
+            QCOMPARE(r.ed()->doc()->storyDoc(story)->toPlainText(), QStringLiteral("Typed words"));
+            const QColor showed = shown(r.letter(story, 3), r.ed()->doc()->colors);
+            QVERIFY2(showed == want, qPrintable(style + QStringLiteral(": ") + showed.name() + QStringLiteral(" not ") + want.name()));
+            for (int how = 0; how < 2; ++how) {
+                std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+                QVERIFY2(d, qPrintable(style));
+                const Item *it = Rig::named(*d, QStringLiteral("Typed"));
+                QVERIFY2(it, qPrintable(style));
+                QVERIFY2(shown(firstLetter(*d, *it), d->colors) == showed, qPrintable(style + (how ? QStringLiteral(" odp") : QStringLiteral(" pptx"))));
+            }
+        }
+    }
+
     // ---- Change Shape
 
     // Another geometry from the library goes onto a shape and nothing else of it changes: its words, fill, line, shadow, place, size, turn, and
