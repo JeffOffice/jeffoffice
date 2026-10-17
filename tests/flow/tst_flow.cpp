@@ -3694,6 +3694,44 @@ private Q_SLOTS:
         for (const auto &it : page->doc->pages[0]->items) QVERIFY(!dynamic_cast<const ShapeItem *>(it.get()));
     }
 
+    // The paragraphs of a frame in a header or footer (set out of the text, drawn where the next paragraph begins) take the room they are high together, and the story is as tall
+    // as the lowest of what it has: a frame of two lines beside a paragraph of one makes a header of two, and a frame alone makes one of its own height.
+    void aFramesLinesAreTheRoomItTakesInAHeaderAndAFooter()
+    {
+        auto topWith = [&](const QStringList &lines, int frames, int after, bool footer = false) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), 2, 3, {}, 8, 12);
+            Section &sec = fd.sections[0];
+            sec.headerDistance = sec.footerDistance = 60;
+            auto story = furnitureStory(lines);
+            int n = 0;
+            for (QTextBlock b = story->begin(); b.isValid() && n < frames + after; b = b.next(), ++n) {
+                if (n < frames) {
+                    QTextCursor c(b);
+                    QTextBlockFormat bf = b.blockFormat();
+                    bf.setProperty(tp::OutOfFlow, true);
+                    c.setBlockFormat(bf);
+                }
+            }
+            (footer ? sec.footer.odd : sec.header.odd) = story;
+            Paginator pg(&fd);
+            const auto page = pg.page(0);
+            return footer ? fd.section(0).pageSize().height() - page.content.bottom() : page.content.top();
+        };
+        const QStringList two = {QStringLiteral("one"), QStringLiteral("two")};
+        for (const bool footer : {false, true}) {
+            // The same two lines as ordinary paragraphs are the room two lines take; as a frame, with a third paragraph beside them, so do they.
+            const double plain = topWith(two, 0, 0, footer);
+            const double framed = topWith({QStringLiteral("one"), QStringLiteral("two"), QStringLiteral("three")}, 2, 0, footer);
+            QVERIFY2(std::abs(framed - plain) < 0.01 && plain > 60, qPrintable(QStringLiteral("%1 against %2 (%3)").arg(framed).arg(plain).arg(footer ? "footer" : "header")));
+            // A frame of one line alone: the room of one line.
+            const double oneLine = topWith({QStringLiteral("one")}, 0, 0, footer);
+            const double alone = topWith({QStringLiteral("one")}, 1, 0, footer);
+            QVERIFY2(std::abs(alone - oneLine) < 0.01 && oneLine > 60, qPrintable(QStringLiteral("%1 against %2 (%3)").arg(alone).arg(oneLine).arg(footer ? "footer" : "header")));
+        }
+    }
+
     // A continuous section break does not end the page when the sections' sheets are the same, whatever their margins: the text of the second begins below the text of the
     // first, between the second's own side margins (its top and bottom margins are the page's of the page it begins at the top of).
     void aContinuousSectionWithOtherMarginsBeginsOnThePageBelowTheTextAbove()

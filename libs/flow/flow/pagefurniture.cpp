@@ -35,9 +35,29 @@ double Paginator::storyHeight(const QTextDocument *story, double width, int numb
     fs.ctx.pageCount = std::max(number, int(m_starts.size()));
     StoryLayout layout;
     layout.build(story, {fs}, m_doc->env);
-    const double height = layout.usedHeight(0) + (withSpaceAfter ? layout.trailingSpace() : 0.0);
+    double height = layout.usedHeight(0) + (withSpaceAfter ? layout.trailingSpace() : 0.0);
+    const QVector<StoryLayout::LineInfo> lines = layout.lineInfo(0);
+    // The paragraphs set out of the text (a frame, as the page number's) are drawn where the paragraph after them begins and take no room there; but the story is as tall as
+    // they are, one under another, from there: as the lowest of them reaches.
+    {
+        bool inFrame = false;
+        double top = 0, reach = 0;
+        for (const StoryLayout::LineInfo &l : lines) {
+            if (!story->findBlock(l.docStart).blockFormat().boolProperty(tp::OutOfFlow)) {
+                inFrame = false;
+                continue;
+            }
+            if (!inFrame) {
+                inFrame = true;
+                top = l.rect.top();
+                reach = 0;
+            }
+            reach += l.rect.height();
+            height = std::max(height, top + reach);
+        }
+    }
     if (m_storyLines.size() > 4096) m_storyLines.clear();
-    m_storyLines[key] = layout.lineInfo(0);
+    m_storyLines[key] = lines;
     // (A story is measured once, at the first page that uses it: a page number is no wider on the next.)
     if (m_storyHeights.size() > 4096) m_storyHeights.clear();
     m_storyHeights.emplace(key, height);
