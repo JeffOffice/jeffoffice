@@ -31,6 +31,8 @@ constexpr int kMostObjects = 500;
 // The most objects the text of one page goes round (the first, in the order of their anchors: the rest are drawn, and the text goes through them). Each is a place
 // that every line of the column it reaches into has to be kept out of.
 constexpr int kMostWrapped = 24;
+// The most rows a table has that is set at a place (a longer one is in the text).
+constexpr int kMostFloatingRows = 60;
 
 // One page of the document made into the pages the page layer draws: a Document of a single page of the section's size, with a text box
 // for each column that has lines, linked in order, over a story of the text on the page. Paint it with
@@ -221,7 +223,7 @@ private:
     void settle(int index);                               // lays out again what edits changed, until page `index` is right (-1: all)
     void settleStep();                                    // one page of that
     void extend(int index);                               // lays out forward until `index` is known
-    std::unique_ptr<QTextDocument> sliceOf(const Run &run, const PageStart &st, int *storyFrom, bool *fromBefore) const;
+    std::unique_ptr<QTextDocument> sliceOf(const Run &run, const PageStart &st, int *storyFrom, bool *fromBefore);
 
     // The room a page's text has: the section's text area, less what the header and footer ask for beyond the margins (a header or a footer
     // taller than the margin leaves room for pushes the text away from it, as it does in a word processor), and the stories to draw above and below.
@@ -244,6 +246,7 @@ private:
         double columnLeft = 0, paragraphTop = 0, lineTop = 0, x = 0;
         int frameFrom = 0, frameTo = 0;
         const FloatingObject *frame = nullptr;
+        int table = -1;     // a floating table (its place in the index of tables): `frame` is the object that stands for it
     };
     // The object an anchor has as `id` (its own, or a frame's made of the paragraphs).
     const FloatingObject &objectAt(const Anchor &a, int id) const { return a.frame ? *a.frame : m_doc->objects[size_t(id) - 1]; }
@@ -266,6 +269,19 @@ private:
     // The frame of paragraphs `from` to `to` (the story's positions) as an object: its text copied for the page, and its size from the frame's and the text's.
     const FloatingObject *frameObject(int key, int from, int to, double columnWidth);
     std::unique_ptr<QTextDocument> frameStory(int from, int to) const;
+    // A table that is set at a place (TableData::place) and that can be: of few enough rows, and not taller than a page's text area. Its rows are no lines of the text, which
+    // goes round it: it is an object (`tableObject`), anchored at the paragraph after it, that has its rows drawn where it is.
+    bool floatsTable(int span);
+    // Whether the page has anything that is set at a place and that the text goes round: the document's objects, its frames (which are objects), or a table set at a place.
+    bool hasFloaters();
+    struct FloatCheck {
+        int revision = -1, length = -1;
+        bool tables = false;
+    };
+    FloatCheck m_floatCheck;
+    const FloatingObject *tableObject(int span, double columnWidth);
+    QVector<Anchor> tableAnchors(const QVector<AnchorLine> &lines, double columnWidth);
+    std::map<std::tuple<int, int, int, int, uint>, FloatingObject> m_tableObjects;   // by where the table is in the story, the story's revision, the column's width, and the environment
     std::map<std::tuple<int, int, int, int, int, uint>, FloatingObject> m_frames;   // by key, the paragraphs' places, the story's revision and length, the width the column has, and the environment
     // The anchors in a story from `from` to `to` (document positions), given the lines that hold it.
     QVector<Anchor> anchorsIn(const QTextDocument *story, int from, int to, const QVector<AnchorLine> &lines, const QHash<int, QVector<int>> *byBlock = nullptr) const;
@@ -276,7 +292,8 @@ private:
     // text or over it. Those in `wrapped` (the objects the page was laid out with) are where it was laid out with them and ask the text to go round; any other asks nothing.
     // (An object with a wrap that leaves no text beside it is a wall as wide as the columns that it reaches into, which `columns` (their rectangles on the page) say: the page layer's
     // wall of that kind is as wide as the page, and would put the text of the other columns aside too.)
-    void addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number, const QVector<Wrapped> &wrapped = {}, const QVector<QRectF> &columns = {});
+    // (`page` is given for the tables that are set at places: their rows are drawn from it.)
+    void addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number, const QVector<Wrapped> &wrapped = {}, const QVector<QRectF> &columns = {}, MaterializedPage *page = nullptr);
     // Changes the pictures of the inline objects in a story to the Ids they have in the page's document.
     void resolveImages(QTextDocument *story, Document *d);
     QString imageIdOf(Document *d, int image);

@@ -431,6 +431,7 @@ inline QString problems(flow::Paginator &pg, const QTextDocument *story, const Q
             if (f->rect.top() < area.bottom() - 0.05) return QStringLiteral("page %1: the footer begins at %2, above where the text area ends (%3)").arg(k).arg(num(f->rect.top()), num(area.bottom()));
         // The tables.
         for (const auto &t : m->tables) {
+            if (t->floating) continue;   // (set at a place of its own, wherever the file asks: not among the lines of the text)
             const QRectF r = t->rect();
             if (r.top() < area.top() - 0.05)
                 return QStringLiteral("page %1: rows %2 to %3 of a table begin at %4, above the text area (%5)").arg(k).arg(t->firstRow).arg(t->endRow).arg(num(r.top()), num(area.top()));
@@ -471,7 +472,7 @@ inline QString problems(flow::Paginator &pg, const QTextDocument *story, const Q
             if (n->rect.bottom() > area.bottom() + 0.05) return QStringLiteral("page %1: a note box ends at %2, below the text area's foot (%3)").arg(k).arg(num(n->rect.bottom()), num(area.bottom()));
             if (n->rect.top() < area.top() - 0.05) return QStringLiteral("page %1: a note box begins at %2, above the text area (%3)").arg(k).arg(num(n->rect.top()), num(area.top()));
             for (const auto &t : m->tables)
-                if (overlap(n->rect, t->rect())) return QStringLiteral("page %1: a note (%2) is over a table (%3)").arg(k).arg(rectText(n->rect), rectText(t->rect()));
+                if (!t->floating && overlap(n->rect, t->rect())) return QStringLiteral("page %1: a note (%2) is over a table (%3)").arg(k).arg(rectText(n->rect), rectText(t->rect()));
             for (const QString &bid : m->boxes)
                 if (const Item *text = m->doc->item(bid))
                     if (overlap(n->rect, text->rect)) return QStringLiteral("page %1: a note (%2) is over the text (%3)").arg(k).arg(rectText(n->rect), rectText(text->rect));

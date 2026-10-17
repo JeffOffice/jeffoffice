@@ -3181,6 +3181,36 @@ private Q_SLOTS:
                     }
                     QVERIFY(made >= 3);
                 }
+                if (tables) {
+                    // Tables set at places, with the text going round them: between ordinary paragraphs, one at the start of a column's text and one nearer the end. Edits in their
+                    // cells, and around them, change which pages draw them and how tall each is.
+                    int made = 0;
+                    auto plainBlock = [&](int i) { const QTextBlockFormat f = fd.story()->findBlockByNumber(i).blockFormat(); return !f.intProperty(fp::Cell) && !f.intProperty(fp::Frame); };
+                    QVector<int> candidates;
+                    for (int i = 1; i + 1 < fd.story()->blockCount(); ++i)
+                        if (plainBlock(i - 1) && plainBlock(i) && plainBlock(i + 1)) candidates << i;
+                    QVERIFY(candidates.size() >= 6);
+                    // (From the last to the first, so that the numbers of the blocks before stay.)
+                    for (const int k : {3, 2, 1}) {
+                        const int n = candidates[candidates.size() * k / 4];
+                        TestTable spec;
+                        spec.rows = 2 + made;
+                        spec.cols = 2;
+                        spec.columnWidth = 50 + 10 * made;
+                        spec.setTable = [made](TableData &t) {
+                            TableData::Place p;
+                            p.across = made == 1 ? TableData::Place::From::Page : TableData::Place::From::Margin;
+                            p.acrossSpec = made == 1 ? TableData::Place::Spec::None : (made == 0 ? TableData::Place::Spec::End : TableData::Place::Spec::Start);
+                            p.x = made == 1 ? 120 : 0;
+                            p.y = 3 * made;
+                            p.room = QMarginsF(6, 2, 6, 2);
+                            t.place = p;
+                        };
+                        addTableAfter(fd, n, spec);
+                        ++made;
+                    }
+                    QVERIFY(made >= 2);
+                }
                 if (tables) fd.story()->setUndoRedoEnabled(true);   // (undo and redo are of the edits below)
                 Paginator pg(&fd);
                 QVERIFY(pg.pageCount() > 4);
@@ -4540,6 +4570,187 @@ private Q_SLOTS:
         QVERIFY(page);
         QVERIFY(frameBoxWith(*page, QStringLiteral("LEFTFRAME")));
         QVERIFY(frameBoxWith(*page, QStringLiteral("RIGHTFRAME")));
+        QVERIFY2(audit::problems(pg, fd.story()).isEmpty(), qPrintable(audit::problems(pg, fd.story())));
+        for (int k = 0; k < pg.pageCount(); ++k) QVERIFY(pg.materialize(k));
+    }
+
+    // ---- floating tables
+
+    // A table that is set at a place has no lines among the text: the text goes round it, and the page draws its rows where it is set, at the paragraph after the table
+    // (the place is from that paragraph's top down, and from the margin's right edge across).
+    void aTableSetAtAPlaceIsDrawnThereAndTheTextGoesRoundIt()
+    {
+        auto make = [](bool withTable) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fillStory(fd->story(), 24, 51, {}, 25, 40);
+            if (withTable) {
+                TestTable spec;
+                spec.rows = 3;
+                spec.cols = 2;
+                spec.columnWidth = 70;
+                spec.setTable = [](TableData &t) {
+                    TableData::Place p;
+                    p.across = TableData::Place::From::Margin;
+                    p.acrossSpec = TableData::Place::Spec::End;
+                    p.y = 8;
+                    p.room = QMarginsF(9, 0, 9, 0);
+                    t.place = p;
+                };
+                addTableAfter(*fd, 5, spec);
+            }
+            return fd;
+        };
+        auto plain = make(false), floating = make(true);
+        Paginator pp(plain.get()), pg(floating.get());
+        QVERIFY(rowLines(pg, *floating, 0).isEmpty());
+        // The first paragraph after the table.
+        int anchorBlock = -1;
+        for (QTextBlock b = floating->story()->findBlockByNumber(6); b.isValid() && anchorBlock < 0; b = b.next())
+            if (!b.blockFormat().intProperty(fp::Cell)) anchorBlock = b.position();
+        const double top = paragraphTopOn(pg, *floating, 0, anchorBlock);
+        QVERIFY(top > 0);
+        QVERIFY2(std::abs(top - paragraphTopOn(pp, *plain, 0, plain->story()->findBlockByNumber(6).position())) < 0.01, "the paragraph after the table is where it is without the table");
+        const auto a = pageLines(pg, *floating, 0), b = pageLines(pp, *plain, 0);
+        int above = 0;
+        for (const PageLine &l : a) {
+            if (l.block >= anchorBlock) break;
+            QVERIFY2(above < b.size() && std::abs(b[above].rect.top() - l.rect.top()) < 0.01, qPrintable(audit::rectText(l.rect)));
+            ++above;
+        }
+        QVERIFY(above > 10);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        QCOMPARE(int(page->tables.size()), 1);
+        const TableFragment &t = *page->tables[0];
+        QVERIFY(t.floating);
+        const flow::Section &sec = floating->sections[0];
+        QVERIFY2(std::abs(t.rect().right() - (sec.pageSize().width() - sec.margins.right())) < 0.01 && std::abs(t.rect().width() - 140) < 0.01 && std::abs(t.rect().top() - (top + 8)) < 0.02,
+                 qPrintable(audit::rectText(t.rect())));
+        QVERIFY(t.height > 30 && t.endRow - t.firstRow == 3);
+        // The text beside it stands clear of its place and the room (9 points at the sides): left of it.
+        const QRectF wall = t.rect().adjusted(-9, 0, 9, 0);
+        int beside = 0;
+        for (const PageLine &l : a)
+            if (l.rect.top() < wall.bottom() - 0.05 && l.rect.bottom() > wall.top() + 0.05) {
+                ++beside;
+                QVERIFY2(l.rect.right() <= wall.left() + 0.05, qPrintable(audit::rectText(l.rect)));
+            }
+        QVERIFY2(beside >= 2, qPrintable(QString::number(beside)));
+        QVERIFY2(audit::problems(pg, floating->story()).isEmpty(), qPrintable(audit::problems(pg, floating->story())));
+        for (int k = 0; k < pg.pageCount(); ++k) QVERIFY2(audit::placementProblems(pg, *floating, k).isEmpty(), qPrintable(audit::placementProblems(pg, *floating, k)));
+        // Every paragraph that is not in the table has a line on a page.
+        QSet<int> seen;
+        for (int k = 0; k < pg.pageCount(); ++k)
+            for (const auto &l : pg.lines(k)) seen.insert(l.block);
+        for (QTextBlock x = floating->story()->begin(); x.isValid(); x = x.next())
+            if (!x.blockFormat().intProperty(fp::Cell)) QVERIFY2(seen.contains(x.position()), qPrintable(QString::number(x.position())));
+    }
+
+    // A table that says it is set at a place but is too tall for one (more rows than a page's text area holds) is in the text, with its rows as lines.
+    void aTableSetAtAPlaceThatIsTooTallIsInTheText()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 6, 52, {}, 25, 40);
+        TestTable spec;
+        spec.rows = 80;
+        spec.cols = 2;
+        spec.columnWidth = 70;
+        spec.setTable = [](TableData &t) { TableData::Place p; p.across = TableData::Place::From::Margin; p.acrossSpec = TableData::Place::Spec::End; t.place = p; };
+        addTableAfter(fd, 2, spec);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        int rows = 0;
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            rows += int(rowLines(pg, fd, k).size());
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            for (const auto &t : page->tables) QVERIFY(!t->floating);
+        }
+        QVERIFY(rows >= 80);
+        QVERIFY2(audit::problems(pg, fd.story()).isEmpty(), qPrintable(audit::problems(pg, fd.story())));
+    }
+
+    // A floating table is on the page of the paragraph after it (the one that begins a page: the page it begins), and an edit in its cells lays that page out again: the pages
+    // are those a new paginator makes, and the table is as tall as its cells need.
+    void aFloatingTableIsOnThePageOfItsParagraphAndEditsInItLayThatPageOut()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 120, 53, [](int i, QTextBlockFormat &bf) { if (i == 60) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore); }, 25, 45);
+        TestTable spec;
+        spec.rows = 3;
+        spec.cols = 2;
+        spec.columnWidth = 70;
+        spec.text = [](int r, int c) { return QStringLiteral("cell %1 %2").arg(r).arg(c); };
+        spec.setTable = [](TableData &t) { TableData::Place p; p.across = TableData::Place::From::Margin; p.acrossSpec = TableData::Place::Spec::End; p.room = QMarginsF(8, 0, 8, 0); t.place = p; };
+        const TestTable table = addTableAfter(fd, 59, spec);
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 6);
+        int onPage = -1;
+        double height = 0;
+        for (int k = 0; k < pages; ++k) {
+            const auto m = pg.materialize(k);
+            QVERIFY(m);
+            if (!m->tables.isEmpty()) {
+                QCOMPARE(onPage, -1);
+                onPage = k;
+                height = m->tables[0]->height;
+            }
+        }
+        QVERIFY(onPage > 0);
+        // (The paragraph after the table begins that page: a break comes before it.)
+        QCOMPARE(pg.page(onPage).start.pos, fd.story()->findBlockByNumber(59 + 1 + 6).position());
+        // Typing in a cell: the page is laid out again, the table is taller, and the pages are a new paginator's.
+        QTextCursor c(fd.story());
+        c.setPosition(table.rowStarts[1] + 3);
+        c.insertText(QStringLiteral(" many more words typed into the cell so that it takes several lines of it and the row grows"));
+        Paginator fresh(&fd);
+        const QString bad = audit::differenceFromFresh(pg, fresh);
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        const auto m = pg.materialize(onPage);
+        QVERIFY(m && !m->tables.isEmpty());
+        QVERIFY2(m->tables[0]->height > height + 10, qPrintable(QStringLiteral("%1 then %2").arg(height).arg(m->tables[0]->height)));
+    }
+
+    // Tables set at places one after another, before one paragraph, are all drawn, side by side where they ask; and one at the end of the story (no paragraph after it) is left out.
+    void floatingTablesTogetherAndAtTheEndOfTheStory()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 14, 54, {}, 25, 40);
+        auto add = [&](int after, TableData::Place::Spec side) {
+            TestTable spec;
+            spec.rows = 2;
+            spec.cols = 1;
+            spec.columnWidth = 60;
+            spec.setTable = [side](TableData &t) { TableData::Place p; p.across = TableData::Place::From::Margin; p.acrossSpec = side; p.room = QMarginsF(6, 0, 6, 0); t.place = p; };
+            return addTableAfter(fd, after, spec);
+        };
+        add(5, TableData::Place::Spec::Start);
+        // (After the first table's paragraphs: its last cell is a block before the paragraph that follows.)
+        {
+            QTextBlock last = fd.story()->findBlockByNumber(5);
+            while (last.next().isValid() && last.next().blockFormat().intProperty(fp::Cell)) last = last.next();
+            int n = 0;
+            for (QTextBlock x = fd.story()->begin(); x != last; x = x.next()) ++n;
+            add(n, TableData::Place::Spec::End);
+        }
+        TestTable end;
+        end.rows = 1;
+        end.cols = 1;
+        end.columnWidth = 50;
+        end.setTable = [](TableData &t) { TableData::Place p; p.across = TableData::Place::From::Margin; t.place = p; };
+        addTable(fd, end);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 1);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        QCOMPARE(int(page->tables.size()), 2);
+        QVERIFY(page->tables[0]->floating && page->tables[1]->floating);
+        QVERIFY(page->tables[0]->rect().left() < page->tables[1]->rect().left());
         QVERIFY2(audit::problems(pg, fd.story()).isEmpty(), qPrintable(audit::problems(pg, fd.story())));
         for (int k = 0; k < pg.pageCount(); ++k) QVERIFY(pg.materialize(k));
     }

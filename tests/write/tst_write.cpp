@@ -6040,13 +6040,21 @@ private Q_SLOTS:
         const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"5200\" w:h=\"4400\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
         return {styled, plain, styles, sect};
     }
+    // A table set at a place, with the text going round it: two rows of two cells, `wide` points a cell, at the right margin, from the paragraph after it.
+    static QByteArray floatingTable(int wide)
+    {
+        const QByteArray pr = "<w:tblpPr w:leftFromText=\"120\" w:rightFromText=\"120\" w:vertAnchor=\"text\" w:horzAnchor=\"margin\" w:tblpXSpec=\"right\" w:tblpY=\"60\"/><w:tblOverlap w:val=\"never\"/><w:tblW w:w=\"0\" w:type=\"auto\"/>";
+        const int twips = wide * 20;
+        return tableX(rowX(cellX(cellP("float a"), QByteArray(), twips) + cellX(cellP("float b words"), QByteArray(), twips)) + rowX(cellX(cellP("float c"), QByteArray(), twips) + cellX(cellP("d"), QByteArray(), twips)), 2, twips, pr);
+    }
     static QByteArray richTableDocx()
     {
         const RichTables t = richTables();
         // (Objects that the text goes round: in the paragraphs around the tables, of each wrap: edits that move their anchors across the pages change which pages have them.)
         const QByteArray frame = "<w:framePr w:w=\"1800\" w:hSpace=\"120\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:xAlign=\"right\" w:y=\"60\"/>";
         return makeDocx(plainP("before the tables and a few more words so that a line goes round the box", wallRun(0, 110, 4, 50, 40)) + t.styled + framedP("FRAME one of two paragraphs", frame) + framedP("and the second of them, which is longer than a line of the frame", frame) +
-                            plainP("between them, with enough words that more than a line or two are beside the box that is set from the page", wallRun(5, 150, 60, 40, 50)) + t.plain +
+                            plainP("between them, with enough words that more than a line or two are beside the box that is set from the page", wallRun(5, 150, 60, 40, 50)) +
+                            floatingTable(60) + plainP("after the table that is set at a place, with words enough for the text to go round it for a few lines, and a few more words") + t.plain +
                             plainP("after the tables, and a line or two of words more", wallRun(1, 20, 6, 40, 14) + wallRun(2, 60, 14, 40, 30)),
                         t.styles, QByteArray(), t.sect);
     }
@@ -6081,7 +6089,7 @@ private Q_SLOTS:
         // (Objects the text goes round: one of each kind among the notes, tables, and sections, so that the text goes round them across pages and columns.)
         QByteArray body = plainP(wordsOf("before the tables", 14), refTo(2) + wallRun(0, 150, 4, 60, 50)) + t.styled + plainP(wordsOf("between them", 12), refTo(4) + wallRun(1, 40, 8, 50, 16)) + t.plain +
                           plainP("after the tables", QByteArray(), one);
-        body += framedP("FRAME of the second section", "<w:framePr w:w=\"1400\" w:h=\"500\" w:hRule=\"exact\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"text\" w:xAlign=\"left\"/>") +
+        body += floatingTable(50) + plainP(wordsOf("after the table set at a place", 20)) + framedP("FRAME of the second section", "<w:framePr w:w=\"1400\" w:h=\"500\" w:hRule=\"exact\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"text\" w:xAlign=\"left\"/>") +
                 plainP(wordsOf("Second section", 18), wallRun(3, 110, 10, 50, 40)) + tableOfRows(9, 2, 1000, [](int r, int c) { return r == 4 && c == 1 ? plainP("cites", refTo(5)) : cellP("r" + QByteArray::number(r) + "c" + QByteArray::number(c)); }) +
                 plainP(wordsOf("end of the second", 30), wallRun(2, 60, 2, 40, 30), two);
         body += plainP(wordsOf("Third section", 40), refTo(6) + wallRun(4, 160, 6, 70, 40) + wallRun(5, 200, 120, 60, 60)) + "<w:p><w:r><w:t>before a break</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>after it</w:t></w:r></w:p>" + plainP(wordsOf("Last", 60), wallRun(0, 20, 30, 50, 24));
@@ -6352,6 +6360,10 @@ private Q_SLOTS:
             }
             QVERIFY2(walls >= 4 && pagesWithWalls >= 2, qPrintable(QStringLiteral("%1 walls on %2 pages").arg(walls).arg(pagesWithWalls)));
             QVERIFY(doc->flow().frames.size() >= 1);
+            int floating = 0;
+            for (int k = 0; k < doc->pager().pageCount(); ++k)
+                for (const auto &t : doc->pager().materialize(k)->tables) floating += t->floating;
+            QVERIFY2(floating >= 1, "a table set at a place is drawn on some page");
             QVERIFY2(audit::wallProblems(doc->pager(), doc->story()).isEmpty(), qPrintable(audit::wallProblems(doc->pager(), doc->story())));
         }
     }
@@ -6370,6 +6382,49 @@ private Q_SLOTS:
         QVERIFY(none->fill.isNone() && none->stroke.isNone());
         QVERIFY(!plain->fill.isNone() && !plain->stroke.isNone());
         QVERIFY(!red->fill.isNone() && !red->stroke.isNone() && red->stroke.width == 2.0);
+    }
+
+    // ---- floating tables
+
+    // A table that says it is set at a place (w:tblpPr) has its place: from the text, the margin, or the page, by an offset or at the start, middle, or end, and the room the text
+    // keeps from it; a table that says nothing of the kind has none; and the file comes back as it was.
+    void aTableSetAtAPlaceHasItsPlace()
+    {
+        const QByteArray pr = "<w:tblpPr w:leftFromText=\"187\" w:rightFromText=\"200\" w:topFromText=\"40\" w:bottomFromText=\"60\" w:vertAnchor=\"page\" w:horzAnchor=\"margin\" w:tblpXSpec=\"right\" w:tblpY=\"1440\"/>"
+                              "<w:tblOverlap w:val=\"never\"/><w:tblW w:w=\"0\" w:type=\"auto\"/>";
+        const QByteArray floating = tableX(rowX(cellX(cellP("a")) + cellX(cellP("b"))), 2, 1600, pr), inText = tableX(rowX(cellX(cellP("c"))), 1, 1600);
+        const QByteArray zip = makeDocx(plainP("Before") + floating + plainP("After") + inText + plainP("End"), kStyles);
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QVector<std::optional<flow::TableData::Place>> places;
+        int lastKey = 0;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) {
+            const int key = b.blockFormat().intProperty(flow::fp::Cell);
+            if (key && key != lastKey) {
+                const flow::CellRecord *rec = doc->flow().tables.get(key);
+                if (places.isEmpty() || (places.size() == 1 && rec->table.get() != doc->flow().tables.get(lastKey)->table.get())) places << rec->table->place;
+            }
+            lastKey = key ? key : lastKey;
+        }
+        QCOMPARE(int(places.size()), 2);
+        QVERIFY(places[0].has_value() && !places[1].has_value());
+        const flow::TableData::Place &p = *places[0];
+        using Place = flow::TableData::Place;
+        QVERIFY(p.across == Place::From::Margin && p.down == Place::From::Page);
+        QVERIFY(p.acrossSpec == Place::Spec::End && p.downSpec == Place::Spec::None);
+        QCOMPARE(p.y, 72.0);
+        QCOMPARE(p.x, 0.0);
+        QCOMPARE(p.room.left(), 9.35);
+        QCOMPARE(p.room.right(), 10.0);
+        QCOMPARE(p.room.top(), 2.0);
+        QCOMPARE(p.room.bottom(), 3.0);
+        QVERIFY(!p.overlap);
+        const QByteArray saved = doc->toDocx();
+        QVERIFY2(rt::strictProblems(saved).isEmpty(), qPrintable(rt::strictProblems(saved).join(QLatin1Char('\n'))));
+        QVERIFY(documentXml(saved).contains("w:tblpPr"));
+        auto back = open(saved);
+        QVERIFY(back);
+        QCOMPARE(documentXml(back->toDocx()), documentXml(saved));
     }
 
     // ---- frames
