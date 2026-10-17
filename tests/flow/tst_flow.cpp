@@ -2560,9 +2560,10 @@ private Q_SLOTS:
         QVERIFY2(std::abs(textStart(-36, 36, {}) - 36) < 0.01, qPrintable(QString::number(textStart(-36, 36, {}))));
     }
 
-    // A multiple of single spacing makes the line that many times as tall with the text at its top; an exact height sets the baseline a descent
-    // above its bottom (the text's top is cut off where there is less room than the font's ascent); an at-least height does the same when it is
-    // more than a single line, and is a single line when it is less.
+    // A multiple of single spacing makes the line that many times as tall with the text at its top; an exact height sets the baseline as far below the top
+    // as the font's ascent is of its single line, scaled to the exact height (the text's top is cut off where there is less room than the font's ascent; the original
+    // program's own pages: Times New Roman 12 in exactly 24 points has its baseline 2.8 points higher than a descent above the bottom); an at-least height sets it a
+    // descent above its bottom when it is more than a single line, and is a single line when it is less.
     void wordLineHeightsFollowTheirRules()
     {
         const QString tnr = QStringLiteral("Times New Roman");
@@ -2575,10 +2576,10 @@ private Q_SLOTS:
         QVERIFY(std::abs(twice.baseline - ascent) < 0.02);
         auto exact = one(QTextBlockFormat::FixedHeight, 20);
         QVERIFY(std::abs(exact.rect.height() - 20) < 0.01);
-        QVERIFY(std::abs(exact.baseline - (20 - descent)) < 0.02);
+        QVERIFY2(std::abs(exact.baseline - ascent * 20 / single) < 0.02, qPrintable(QString::number(exact.baseline)));
         auto tight = one(QTextBlockFormat::FixedHeight, 9);
         QVERIFY(std::abs(tight.rect.height() - 9) < 0.01);
-        QVERIFY(std::abs(tight.baseline - (9 - descent)) < 0.02);
+        QVERIFY2(std::abs(tight.baseline - ascent * 9 / single) < 0.02, qPrintable(QString::number(tight.baseline)));
         auto most = one(QTextBlockFormat::MinimumHeight, 24);
         QVERIFY(std::abs(most.rect.height() - 24) < 0.01);
         QVERIFY(std::abs(most.baseline - (24 - descent)) < 0.02);

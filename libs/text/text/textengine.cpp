@@ -3141,8 +3141,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         if (ob.disp >= line.textStart() && ob.disp < line.textStart() + line.textLength())
                             objUp = std::max(objUp, ob.pad.bottom() + ob.size.height() + ob.pad.top());
                     // A word processor's line: the text's ascent above the baseline, the descent and leading below it, and what a multiple of single
-                    // spacing adds under that (an exact height keeps the baseline a descent above the line's bottom, an at-least height the single
-                    // line's place for it). The whole line must fit.
+                    // spacing adds under that (an exact height keeps the line's parts in proportion, an at-least height the baseline a descent above the
+                    // line's bottom). The whole line must fit.
                     if (env.wordLines) {
                         WordLine wl = wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base, env, &B->disp, &markFont, markSize);
                         // (A number or bullet counts by its ascent over the text's descent, without a leading of its own or any room below its baseline: it raises the
@@ -3161,7 +3161,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         below = 0;
                         textH = h;
                         const bool bottom = bf.lineHeightType() == QTextBlockFormat::FixedHeight || (bf.lineHeightType() == QTextBlockFormat::MinimumHeight && h > ownSingle);
-                        baseDown = bottom ? std::max(0.0, h - wl.descent) : wl.ascent;
+                        // (An exact height keeps the line's parts in proportion: the baseline is the ascent's share of the single line, of the exact height.)
+                        baseDown = bf.lineHeightType() == QTextBlockFormat::FixedHeight && ownSingle > 0 ? wl.ascent * h / ownSingle : bottom ? std::max(0.0, h - wl.descent) : wl.ascent;
                         // A paragraph's first line that holds only a page break (the paragraph begins with it) takes no room: it is at the foot of the page
                         // the paragraph's text is to leave, whether or not there is room for a line there.
                         if (lineNo == 0 && line.textLength() == 1 && doc->characterAt(b.position() + B->docFromDisp(line.textStart())) == QChar(0x000C)) {
