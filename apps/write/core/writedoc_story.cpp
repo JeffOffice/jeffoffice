@@ -125,6 +125,13 @@ QString attributeOfTag(const QByteArray &xml, const QString &name)
     return re.match(QString::fromUtf8(xml.left(4000))).captured(1);
 }
 
+// Whether a note's reference says its mark follows it as text, in the run (w:customMarkFollows): it shows no number of its own and takes none.
+bool markFollows(const QByteArray &reference)
+{
+    const QString value = attributeOfTag(reference, QStringLiteral("customMarkFollows"));
+    return !value.isEmpty() && value != QLatin1String("0") && value != QLatin1String("false") && value != QLatin1String("off");
+}
+
 // Whether a tracked change deleted (or moved away) what an element is: `tag` is a revision container's name.
 bool isDeletedRevision(const QString &tag) { return tag == QLatin1String("del") || tag == QLatin1String("moveFrom"); }
 
@@ -554,11 +561,9 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             if (in.kind == Inline::RunAtom && !deleted && drawnTag(in.tag) && drawnObjects(in, part, &af)) field = QStringLiteral("raw:");
             else if (in.tag == QLatin1String("footnoteReference") && m_noteBlocks.contains(QStringLiteral("fn") + in.key)) {
                 field = QStringLiteral("footnote:fn") + in.key;
-                // (A reference whose mark follows it as text, in the run: it shows no number of its own and takes none.)
-                const QString custom = attributeOfTag(in.raw, QStringLiteral("customMarkFollows"));
-                if (!custom.isEmpty() && custom != QLatin1String("0") && custom != QLatin1String("false") && custom != QLatin1String("off")) af.setProperty(tp::NoteMarkCustom, true);
+                if (markFollows(in.raw)) af.setProperty(tp::NoteMarkCustom, true);
             }
-            else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + roman(deleted ? endnoteNumber + 1 : ++endnoteNumber, false);   // (a deleted one takes no number)
+            else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + (markFollows(in.raw) ? QString() : roman(deleted ? endnoteNumber + 1 : ++endnoteNumber, false));   // (a deleted one takes no number)
             af.setProperty(tp::Field, field);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);
         }

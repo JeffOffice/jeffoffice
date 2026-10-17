@@ -4917,6 +4917,23 @@ private Q_SLOTS:
         QCOMPARE(marks, (QStringList{QStringLiteral("raw:")}));
     }
 
+    // An endnote reference whose mark follows it as text shows no number and takes none, as a footnote's does.
+    void anEndnoteWithACustomMarkTakesNoNumber()
+    {
+        auto text = [](const char *t) { return QByteArray("<w:r><w:t xml:space=\"preserve\">") + t + "</w:t></w:r>"; };
+        const QByteArray body = "<w:p>" + text("First") + "<w:r><w:endnoteReference w:customMarkFollows=\"1\" w:id=\"2\"/><w:t>*</w:t></w:r>" + text(" second") + "<w:r><w:endnoteReference w:id=\"3\"/></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        const TextItem *box = boxWithText(*page, QStringLiteral("second"));
+        QVERIFY(box);
+        QStringList marks;
+        for (QTextBlock b = page->doc->story(box->storyId)->doc->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it)
+                if (it.fragment().charFormat().stringProperty(tp::Field).startsWith(QLatin1String("raw:"))) marks << it.fragment().charFormat().stringProperty(tp::Field);
+        QCOMPARE(marks, (QStringList{QStringLiteral("raw:"), QStringLiteral("raw:i")}));
+    }
+
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
     // thousand sections makes no more than the sections it changed (counted, not timed).
     void editingSectionsTouchesOnlyWhatChanged()
