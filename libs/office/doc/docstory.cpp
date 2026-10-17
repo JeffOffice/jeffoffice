@@ -114,7 +114,7 @@ private:
     bool isEnd(qint64 cp) const;
     void paragraph(qint64 first, qint64 last, bool terminated);
     void content(qint64 from, qint64 to, int istd, RunBuilder &rb);
-    void characters(qint64 from, qint64 to, const Chp &chp, int istd, RunBuilder &rb);
+    void characters(qint64 from, qint64 to, const Chp &chp, const QByteArray &rpr, RunBuilder &rb);
     QByteArray rprOf(const Chp &chp, int istd) const;
     void flushParagraph();
     // ---- tables
@@ -133,6 +133,15 @@ private:
     QByteArray out;
     QByteArray lastParagraph;         // held back so a field left open can be closed in it
     QVector<TableOut> tables;
+    // The properties of the characters last read and what they came to as XML, by the bytes they came from.
+    struct Seen {
+        bool valid = false;
+        qint32 off = 0, len = 0;
+        quint16 prm = 0;
+        int istd = 0;
+        Chp chp;
+        QByteArray rpr;
+    } seen;
     QVector<Field> fields;
     int fieldsNotKept = 0;            // fields open past the most that are kept track of (see kMaxFieldsKept), whose marks only count
     int nextSection = 0;
@@ -321,17 +330,26 @@ void StoryWriter::content(qint64 from, qint64 to, int istd, RunBuilder &rb)
             const quint32 next = c.chpBin.nextStart(fc);
             if (next != 0xFFFFFFFFu) segEnd = std::min(segEnd, q + std::max<qint64>(1, (qint64(next) - fc + per - 1) / per));
         }
-        Chp chp;
-        if (run && run->off >= 0) chp.apply(c.wd.sub(run->off, run->len));
-        chp.apply(c.pieces.modifier(*pc));
-        characters(q, segEnd, chp, istd, rb);
+        // (Stretches with the same properties' bytes, as the pieces of a text that shares its stored text have, come to the same properties.)
+        const qint32 off = run && run->off >= 0 ? run->off : -1, len = off >= 0 ? run->len : 0;
+        if (!seen.valid || seen.off != off || seen.len != len || seen.prm != pc->prm || seen.istd != istd) {
+            seen.valid = true;
+            seen.off = off;
+            seen.len = len;
+            seen.prm = pc->prm;
+            seen.istd = istd;
+            seen.chp = Chp();
+            if (off >= 0) seen.chp.apply(c.wd.sub(off, len));
+            seen.chp.apply(c.pieces.modifier(*pc));
+            seen.rpr = rprOf(seen.chp, istd);
+        }
+        characters(q, segEnd, seen.chp, seen.rpr, rb);
         q = segEnd;
     }
 }
 
-void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, int istd, RunBuilder &rb)
+void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, const QByteArray &rpr, RunBuilder &rb)
 {
-    const QByteArray rpr = rprOf(chp, istd);
     rb.setRun(rpr, chp.insertion, chp.deletion);
     QString plain;
     auto flushPlain = [&] {
@@ -351,7 +369,17 @@ void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, int istd, R
         const QChar qc = T[q];
         const ushort ch = qc.unicode();
         if (ch >= 0x20 && !(ch == 0x28 && chp.symbolFont >= 0)) {
-            plain += qc;
+            // (A stretch of ordinary characters goes in at once: up to the next mark of a bookmark, or as many as a run is made of at most.)
+            qint64 stop = std::min<qint64>(to, q + (kMaxRunChars - plain.size()));
+            if (kind == Converter::Kind::Main && nextBookmark < c.bookmarkEvents.size()) stop = std::min(stop, std::max(q + 1, c.bookmarkEvents[nextBookmark].cp));
+            qint64 r = q + 1;
+            while (r < stop) {
+                const ushort u = T[r].unicode();
+                if (u < 0x20 || (u == 0x28 && chp.symbolFont >= 0)) break;
+                ++r;
+            }
+            plain.append(T.constData() + q, qsizetype(r - q));
+            q = r - 1;
             if (plain.size() >= kMaxRunChars) flushPlain();
             continue;
         }
