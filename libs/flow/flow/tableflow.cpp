@@ -60,7 +60,7 @@ void TableIndex::rebuild(const QTextDocument *story, const TableStore &store, co
                 const QTextCharFormat cf = it.fragment().charFormat();
                 if (!cf.hasProperty(tp::Field)) continue;
                 const QString code = cf.stringProperty(tp::Field);
-                if (code.startsWith(QLatin1String("footnote:"))) footnotes += it.fragment().length();
+                if (code.startsWith(QLatin1String("footnote:"))) footnotes += cf.boolProperty(tp::NoteMarkCustom) ? 0 : it.fragment().length();   // (a custom mark takes no number)
                 else if (code.startsWith(QLatin1String("endnote:"))) endnotes += it.fragment().length();
             }
         const int key = b.blockFormat().intProperty(fp::Cell);
@@ -195,7 +195,8 @@ std::shared_ptr<CellContent> layoutCellContent(const TableContext &ctx, int i0, 
                         const QTextFragment frag = it.fragment();
                         const QString code = frag.charFormat().stringProperty(tp::Field);
                         if (!code.startsWith(QLatin1String("footnote:"))) continue;
-                        for (int k = 0; k < frag.length() && part.notes.size() < TableLayout::kMostRowNotes; ++k) part.notes.push_back({frag.position() + k, code.mid(9), ++number});
+                        const bool custom = frag.charFormat().boolProperty(tp::NoteMarkCustom);   // (it shows no number and takes none)
+                        for (int k = 0; k < frag.length() && part.notes.size() < TableLayout::kMostRowNotes; ++k) part.notes.push_back({frag.position() + k, code.mid(9), custom ? 0 : ++number});
                     }
             }
             // (The last paragraph of a cell, after a table in it, when nothing is in it, is the cell's end mark, which the program keeps after a table: it takes no room, what it asks
