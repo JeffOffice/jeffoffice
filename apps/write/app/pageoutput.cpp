@@ -2,6 +2,8 @@
 
 #include "app/pagepaint.h"
 
+#include <QComboBox>
+#include <QCoreApplication>
 #include <QPageLayout>
 #include <QPageSize>
 #include <QPainter>
@@ -57,6 +59,30 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
     }
     if (started) p.end();
     return started;
+}
+
+namespace {
+constexpr int kIsFileRole = Qt::UserRole + 1;   // set on the entry that makes a PDF file
+}
+
+void fillPrinterBox(QComboBox *box, const QStringList &printers, const QString &current)
+{
+    box->clear();
+    for (const QString &name : printers) box->addItem(name, name);
+    box->addItem(QCoreApplication::translate("Print", "Save as PDF"), QString());
+    box->setItemData(box->count() - 1, true, kIsFileRole);
+    const int at = printers.indexOf(current);
+    if (at >= 0) box->setCurrentIndex(at);
+    else if (printers.isEmpty()) box->setCurrentIndex(0);
+}
+
+PrinterChoice printerChoice(const QComboBox *box)
+{
+    PrinterChoice choice;
+    if (box->currentIndex() < 0) return choice;
+    choice.toFile = box->currentData(kIsFileRole).toBool();
+    if (!choice.toFile) choice.printer = box->currentData(Qt::UserRole).toString();
+    return choice;
 }
 
 } // namespace jp::write

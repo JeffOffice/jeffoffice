@@ -9,6 +9,7 @@
 #include "core/printing.h"
 
 #include <QApplication>
+#include <QDir>
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QPageLayout>
@@ -18,6 +19,8 @@
 #include <QSaveFile>
 #include <QStandardPaths>
 #include <QStatusBar>
+#include <QTemporaryFile>
+#include <memory>
 
 namespace jp {
 
@@ -89,25 +92,45 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     QPrinter printer(QPrinter::HighResolution);
     printer.setDocName(displayName());
     QString path;
+    // A PDF file is made in a temporary file and put in place when it is whole, as the export does, so that a file that is there is not lost to one that fails.
+    std::unique_ptr<QTemporaryFile> made;
     if (options.toFile) {
         path = pdfPathToWrite(tr("Save as PDF"));
         if (path.isEmpty()) return false;
+        made = std::make_unique<QTemporaryFile>(QDir::tempPath() + QStringLiteral("/jeffwrite-XXXXXX.pdf"));
+        if (!made->open()) {
+            QMessageBox::warning(this, tr("Save as PDF"), tr("%1 couldn't make \"%2\".\n%3").arg(appInfo().name, QFileInfo(path).fileName(), made->errorString()));
+            return false;
+        }
+        made->close();
         printer.setOutputFormat(QPrinter::PdfFormat);
-        printer.setOutputFileName(path);
+        printer.setOutputFileName(made->fileName());
     } else if (!options.printer.isEmpty()) {
         printer.setPrinterName(options.printer);
     }
     printer.setCopyCount(std::max(1, options.copies));
     printer.setCollateCopies(options.collate);
     if (options.grayscale) printer.setColorMode(QPrinter::GrayScale);
+    if (m_printerPreparer) m_printerPreparer(printer);
     // A printer that can't make copies is sent the pages again, in the order the copies are to come out.
     const bool again = !options.toFile && !printer.supportsMultipleCopies();
     const QVector<int> sheets = again ? write::sheetOrder(pages, options.copies, options.collate) : pages;
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    const bool ok = write::paintSheets(*m_doc, &printer, sheets, m_view->pageCount(), printer.colorMode() == QPrinter::GrayScale);
+    bool ok = write::paintSheets(*m_doc, &printer, sheets, m_view->pageCount(), printer.colorMode() == QPrinter::GrayScale);
+    QString err;
+    if (ok && made) {
+        QFile whole(made->fileName());
+        QSaveFile file(path);
+        ok = whole.open(QIODevice::ReadOnly) && file.open(QIODevice::WriteOnly);
+        while (ok && !whole.atEnd()) ok = file.write(whole.read(1 << 20)) >= 0;
+        if (ok) ok = file.commit();
+        else file.cancelWriting();
+        if (!ok) err = file.error() != QFileDevice::NoError ? file.errorString() : whole.errorString();
+    }
     QApplication::restoreOverrideCursor();
     if (!ok) {
-        QMessageBox::warning(this, tr("Print"), tr("%1 couldn't send \"%2\" to the printer.").arg(appInfo().name, displayName()));
+        if (made && !err.isEmpty()) QMessageBox::warning(this, tr("Save as PDF"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
+        else QMessageBox::warning(this, tr("Print"), tr("%1 couldn't send \"%2\" to the printer.").arg(appInfo().name, displayName()));
         return false;
     }
     statusBar()->showMessage(options.toFile ? tr("Saved %1").arg(QFileInfo(path).fileName()) : tr("Sent %1 to the printer").arg(displayName()), 5000);

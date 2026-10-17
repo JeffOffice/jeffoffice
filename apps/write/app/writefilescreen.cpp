@@ -2,6 +2,7 @@
 
 #include "app/filescreenparts.h"
 #include "app/icons.h"
+#include "app/pageoutput.h"
 #include "app/pagepaint.h"
 #include "app/pageview.h"
 #include "app/settings.h"
@@ -292,9 +293,9 @@ QWidget *WriteFileScreen::buildPrint()
     auto *printer = new QComboBox(w);
     printer->setObjectName(QStringLiteral("printPrinter"));
     printer->setAccessibleName(tr("Printer"));
-    for (const QPrinterInfo &info : QPrinterInfo::availablePrinters()) printer->addItem(info.printerName(), info.printerName());
-    printer->addItem(tr("Save as PDF"), QStringLiteral("pdf"));
-    if (!QPrinterInfo::defaultPrinter().isNull()) printer->setCurrentIndex(std::max(0, printer->findData(QPrinterInfo::defaultPrinter().printerName())));
+    QStringList names;
+    for (const QPrinterInfo &info : QPrinterInfo::availablePrinters()) names << info.printerName();
+    write::fillPrinterBox(printer, names, QPrinterInfo::defaultPrinter().isNull() ? QString() : QPrinterInfo::defaultPrinter().printerName());
     form->addRow(tr("Printer:"), printer);
     auto *collate = new QCheckBox(tr("Collated"), w);
     collate->setObjectName(QStringLiteral("printCollate"));
@@ -363,8 +364,9 @@ QWidget *WriteFileScreen::buildPrint()
             o.range = WriteOutputOptions::Range::Pages;
             o.pages = text->text();
         }
-        o.toFile = printer->currentData().toString() == QLatin1String("pdf");
-        if (!o.toFile) o.printer = printer->currentText();
+        const write::PrinterChoice choice = write::printerChoice(printer);
+        o.toFile = choice.toFile;
+        o.printer = choice.printer;
         o.copies = copies->value();
         o.collate = collate->isChecked();
         return o;

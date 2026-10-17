@@ -3,6 +3,7 @@
 #include "core/fonts.h"
 #include "app/pagepaint.h"
 #include "app/pageview.h"
+#include "app/pageoutput.h"
 #include "app/spellpane.h"
 #include "app/filescreen.h"
 #include "app/help.h"
@@ -533,8 +534,22 @@ private Q_SLOTS:
         QCOMPARE(parsePageRange(QStringLiteral("8-"), 10), (R{7, 8, 9}));              // (to the end)
         QCOMPARE(parsePageRange(QStringLiteral("-2"), 10), (R{0, 1}));                 // (from the start)
         QCOMPARE(parsePageRange(QStringLiteral("3"), 3), (R{2}));
-        for (const char *bad : {"", "  ", "0", "11", "x", "1-2-3", ",,", "-"}) QVERIFY2(parsePageRange(QString::fromLatin1(bad), 10).isEmpty(), bad);
+        for (const char *bad : {"", "  ", "0", "11", "x", "abc", "1-2-3", ",,", "-", "-0", "0-", "0-5", "11-", "99-", "1.5", "99999999999", "99999999999-", "-,-"})
+            QVERIFY2(parsePageRange(QString::fromLatin1(bad), 10).isEmpty(), bad);
         QVERIFY(parsePageRange(QStringLiteral("1"), 0).isEmpty());
+        QVERIFY(parsePageRange(QStringLiteral("1-"), 0).isEmpty());
+        // An open end is the last page (or the first) and no further: it never turns about.
+        QCOMPARE(parsePageRange(QStringLiteral("10-"), 10), (R{9}));
+        QCOMPARE(parsePageRange(QStringLiteral("-10"), 10), (R{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}));
+        QCOMPARE(parsePageRange(QStringLiteral("-99"), 10), (R{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}));
+        QCOMPARE(parsePageRange(QStringLiteral("-1"), 10), (R{0}));
+        // Backwards ranges read forwards; numbers too big for any page are past the last; the rest of a list is still taken.
+        QCOMPARE(parsePageRange(QStringLiteral("5-2"), 10), (R{1, 2, 3, 4}));
+        QCOMPARE(parsePageRange(QStringLiteral("3-3"), 10), (R{2}));
+        QCOMPARE(parsePageRange(QStringLiteral("8-99999999999"), 10), (R{7, 8, 9}));
+        QCOMPARE(parsePageRange(QStringLiteral("99999999999-3"), 10), (R{2, 3, 4, 5, 6, 7, 8, 9}));
+        QCOMPARE(parsePageRange(QStringLiteral(" , 4 ,, 2 , abc, 99-, -0"), 10), (R{3, 1}));
+        QCOMPARE(parsePageRange(QStringLiteral("1-3,2-4"), 10), (R{0, 1, 2, 3}));
     }
 
     void copiesComeOutCollatedOrEachPageTogether()
@@ -618,6 +633,7 @@ private Q_SLOTS:
         };
         QVector<Drawn> exported, printed;
         QVector<Drawn> *into = &exported;
+        const ObserverGuard observer;
         write::setPaintObserver([&](const flow::MaterializedPage &page, const write::PageDrawing &d) { *into << Drawn{page.number, d.output, d.textOutput, d.pageCount}; });
         const QString pdfPath = dir.filePath(QStringLiteral("export.pdf")), printPath = dir.filePath(QStringLiteral("print.pdf"));
         QString next = pdfPath;
@@ -663,13 +679,14 @@ private Q_SLOTS:
         QVERIFY(b[1].width() > b[1].height());
     }
 
-    void printingTakesThePagesOfTheRangeAndTheCopiesThePrinterCannotMake()
+    void printingTakesThePagesOfTheRangeInTheOrderGiven()
     {
         QTemporaryDir dir;
         WriteWindow w;
         w.setDocument(open(makeDocx(paragraphs(150), kStyles)), QString());
         w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("range.pdf")); });
         QVector<int> numbers;
+        const ObserverGuard observer;
         write::setPaintObserver([&](const flow::MaterializedPage &page, const write::PageDrawing &) { numbers << page.number; });
         WriteOutputOptions o;
         o.toFile = true;
@@ -687,6 +704,105 @@ private Q_SLOTS:
         // A range that names no page prints nothing.
         o.pages = QStringLiteral("9999");
         QVERIFY(!w.printOutput(o));
+    }
+
+    void aPrinterNamedPdfIsAPrinterAndTheFileEntryIsFoundByItsRole()
+    {
+        QComboBox box;
+        fillPrinterBox(&box, QStringList{QStringLiteral("Front Desk"), QStringLiteral("pdf"), QStringLiteral("Save as PDF")}, QStringLiteral("Front Desk"));
+        QCOMPARE(box.count(), 4);
+        QCOMPARE(printerChoice(&box).printer, QStringLiteral("Front Desk"));   // (the one to start on)
+        for (int i = 0; i < 3; ++i) {
+            box.setCurrentIndex(i);
+            const PrinterChoice choice = printerChoice(&box);
+            QVERIFY(!choice.toFile);
+            QCOMPARE(choice.printer, box.itemText(i));   // (a printer called "pdf", or "Save as PDF", is a printer)
+        }
+        box.setCurrentIndex(3);
+        QVERIFY(printerChoice(&box).toFile);
+        QVERIFY(printerChoice(&box).printer.isEmpty());
+        // With no printer there is the file alone.
+        QComboBox none;
+        fillPrinterBox(&none, QStringList(), QString());
+        QCOMPARE(none.count(), 1);
+        QVERIFY(printerChoice(&none).toFile);
+    }
+
+    void savingAsPdfThroughPrintLeavesAnExistingFileWholeUntilTheNewOneIsDone()
+    {
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("old.pdf"));
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("the old file");
+        }
+        WriteWindow w;
+        w.setDocument(open(makeDocx(paragraphs(60), kStyles)), QString());
+        w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+        int drawn = 0, changed = 0;
+        const ObserverGuard observer;
+        write::setPaintObserver([&](const flow::MaterializedPage &, const write::PageDrawing &) {
+            QFile f(path);
+            if (!f.open(QIODevice::ReadOnly) || f.readAll() != QByteArray("the old file")) ++changed;
+            ++drawn;
+        });
+        WriteOutputOptions o;
+        o.toFile = true;
+        QVERIFY(w.printOutput(o));
+        write::setPaintObserver(nullptr);
+        QVERIFY(drawn > 1);
+        QCOMPARE(changed, 0);   // (the file is not touched while the pages are being made)
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QVERIFY(f.readAll().startsWith("%PDF"));
+        QCOMPARE(QDir(dir.path()).entryList(QDir::Files).size(), 1);   // (and nothing is left beside it)
+    }
+
+    void copiesAndCollateReachAPrinterThatCannotMakeThem()
+    {
+        QTemporaryDir dir;
+        {
+            QPrinter probe;
+            probe.setOutputFormat(QPrinter::PdfFormat);
+            if (probe.supportsMultipleCopies()) QSKIP("this printer engine makes copies itself, so the pages are not sent again");
+        }
+        WriteWindow w;
+        w.setDocument(open(makeDocx(paragraphs(150), kStyles)), QString());
+        // A printer that writes to a file stands in for a real one: the window's own way with a printer (not the file entry) is what runs.
+        int made = 0;
+        w.setPrinterPreparer([&](QPrinter &printer) {
+            ++made;
+            printer.setOutputFormat(QPrinter::PdfFormat);
+            printer.setOutputFileName(dir.filePath(QStringLiteral("copies%1.pdf").arg(made)));
+        });
+        QVector<int> numbers;
+        const ObserverGuard observer;
+        write::setPaintObserver([&](const flow::MaterializedPage &page, const write::PageDrawing &) { numbers << page.number; });
+        WriteOutputOptions o;
+        o.printer = QStringLiteral("a printer");
+        o.range = WriteOutputOptions::Range::Pages;
+        o.pages = QStringLiteral("1-3");
+        o.copies = 2;
+        o.collate = true;
+        QVERIFY(w.printOutput(o));
+        QCOMPARE(numbers, (QVector<int>{1, 2, 3, 1, 2, 3}));
+        numbers.clear();
+        o.collate = false;
+        QVERIFY(w.printOutput(o));
+        QCOMPARE(numbers, (QVector<int>{1, 1, 2, 2, 3, 3}));
+        numbers.clear();
+        o.copies = 1;
+        QVERIFY(w.printOutput(o));
+        QCOMPARE(numbers, (QVector<int>{1, 2, 3}));
+        // A PDF file is made once whatever the copies.
+        numbers.clear();
+        w.setPrinterPreparer(nullptr);
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("file.pdf")); });
+        o.toFile = true;
+        o.copies = 3;
+        QVERIFY(w.printOutput(o));
+        QCOMPARE(numbers, (QVector<int>{1, 2, 3}));
     }
 
     // ---------------------------------------------------------------- help
