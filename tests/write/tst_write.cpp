@@ -4426,6 +4426,37 @@ private Q_SLOTS:
         QVERIFY2(std::abs(second[0].rect.top()) < 0.01, qPrintable(QString::number(second[0].rect.top())));
     }
 
+    // The page borders of a section (w:pgBorders) are read: where they are measured from, on which pages, and each side's line (its style, width in eighths of a point, space in
+    // points, and color); a pattern of pictures is a line of its own width here. The file comes back as it was.
+    void aSectionsPageBordersAreRead()
+    {
+        const QByteArray borders = "<w:pgBorders w:offsetFrom=\"page\" w:display=\"firstPage\"><w:top w:val=\"double\" w:sz=\"4\" w:space=\"24\" w:color=\"auto\"/>"
+                                   "<w:left w:val=\"single\" w:sz=\"12\" w:space=\"20\" w:color=\"000080\" w:shadow=\"1\"/><w:bottom w:val=\"dotted\" w:sz=\"6\" w:space=\"4\" w:color=\"FF0000\"/>"
+                                   "<w:right w:val=\"palmsBlack\" w:sz=\"8\" w:space=\"1\" w:color=\"auto\"/></w:pgBorders>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/>" +
+                                borders + "</w:sectPr>";
+        auto doc = open(makeDocx(plainP("text"), kStyles, QByteArray(), sect));
+        QVERIFY(doc);
+        const flow::PageBorders &b = doc->flow().section(0).pageBorders;
+        using Line = flow::PageBorders::Side::Line;
+        QVERIFY(b.any() && b.fromPage && b.show == flow::PageBorders::Show::FirstPage);
+        QVERIFY(b.top.present && b.top.line == Line::Double && b.top.width == 0.5 && b.top.space == 24 && b.top.color == QColor(Qt::black) && !b.top.art);
+        QVERIFY(b.left.present && b.left.line == Line::Single && b.left.width == 1.5 && b.left.space == 20 && b.left.color == QColor(0, 0, 0x80));
+        QVERIFY(b.bottom.present && b.bottom.line == Line::Dotted && b.bottom.width == 0.75 && b.bottom.space == 4 && b.bottom.color == QColor(0xff, 0, 0));
+        QVERIFY(b.right.present && b.right.art && b.right.line == Line::Single && b.right.width == 1 && b.right.space == 1);
+        QVERIFY2(documentXml(doc->toDocx()).contains(borders), documentXml(doc->toDocx()).constData());
+        // From the text, on every page, by default; a side the file leaves out has no line, and a side that says none or nil has none.
+        const QByteArray text = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgBorders><w:top w:val=\"single\" w:sz=\"8\" w:space=\"6\" w:color=\"auto\"/><w:left w:val=\"nil\"/><w:bottom w:val=\"none\" w:sz=\"8\"/></w:pgBorders></w:sectPr>";
+        auto other = open(makeDocx(plainP("text"), kStyles, QByteArray(), text));
+        QVERIFY(other);
+        const flow::PageBorders &t = other->flow().section(0).pageBorders;
+        QVERIFY(!t.fromPage && t.show == flow::PageBorders::Show::All);
+        QVERIFY(t.top.present && !t.left.present && !t.bottom.present && !t.right.present);
+        auto none = open(makeDocx(plainP("text"), kStyles));
+        QVERIFY(none);
+        QVERIFY(!none->flow().section(0).pageBorders.any());
+    }
+
     // The page color of a file (w:background) is the pages' color, and the file comes back with it.
     void aFilesPageColorFillsItsPages()
     {

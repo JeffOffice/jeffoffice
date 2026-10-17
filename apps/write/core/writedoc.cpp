@@ -64,6 +64,60 @@ SectionProps unpackSection(const QByteArray &packed)
     return s;
 }
 
+// A section's page borders (w:pgBorders, kept as written among the section's properties).
+flow::PageBorders pageBordersOf(const QVector<RawChild> &extra)
+{
+    flow::PageBorders out;
+    static const QRegularExpression isBorders(QStringLiteral("^<(?:[\\w.-]+:)?pgBorders\\b([^>]*)>"));
+    static const QRegularExpression side(QStringLiteral("<(?:[\\w.-]+:)?(top|left|bottom|right)\\b([^>]*?)/?>"));
+    static const QRegularExpression attribute(QStringLiteral("\\s(?!xmlns)(?:[\\w.-]+:)?([\\w.-]+)\\s*=\\s*\"([^\"]*)\""));
+    auto attributes = [&](const QString &text) {
+        QHash<QString, QString> at;
+        auto it = attribute.globalMatch(QLatin1Char(' ') + text);
+        while (it.hasNext()) {
+            const QRegularExpressionMatch m = it.next();
+            at.insert(m.captured(1), m.captured(2));
+        }
+        return at;
+    };
+    for (const RawChild &ch : extra) {
+        const QString xml = QString::fromUtf8(ch.xml);
+        const QRegularExpressionMatch root = isBorders.match(xml);
+        if (!root.hasMatch()) continue;
+        const QHash<QString, QString> rootAt = attributes(root.captured(1));
+        out.fromPage = rootAt.value(QStringLiteral("offsetFrom")) == QLatin1String("page");
+        const QString display = rootAt.value(QStringLiteral("display"));
+        out.show = display == QLatin1String("firstPage") ? flow::PageBorders::Show::FirstPage : display == QLatin1String("notFirstPage") ? flow::PageBorders::Show::NotFirstPage : flow::PageBorders::Show::All;
+        static const QStringList lines = {QStringLiteral("single"), QStringLiteral("thick"), QStringLiteral("double"), QStringLiteral("dotted"), QStringLiteral("dashed"), QStringLiteral("dotDash"),
+                                          QStringLiteral("dotDotDash"), QStringLiteral("triple"), QStringLiteral("thinThickSmallGap"), QStringLiteral("thickThinSmallGap"),
+                                          QStringLiteral("thinThickThinSmallGap"), QStringLiteral("thinThickMediumGap"), QStringLiteral("thickThinMediumGap"),
+                                          QStringLiteral("thinThickThinMediumGap"), QStringLiteral("thinThickLargeGap"), QStringLiteral("thickThinLargeGap"), QStringLiteral("thinThickThinLargeGap"),
+                                          QStringLiteral("wave"), QStringLiteral("doubleWave"), QStringLiteral("dashSmallGap"), QStringLiteral("dashDotStroked"), QStringLiteral("threeDEmboss"),
+                                          QStringLiteral("threeDEngrave"), QStringLiteral("outset"), QStringLiteral("inset")};
+        auto it = side.globalMatch(xml);
+        while (it.hasNext()) {
+            const QRegularExpressionMatch m = it.next();
+            const QHash<QString, QString> at = attributes(m.captured(2));
+            const QString val = at.value(QStringLiteral("val"));
+            if (val.isEmpty() || val == QLatin1String("nil") || val == QLatin1String("none")) continue;
+            flow::PageBorders::Side s;
+            s.present = true;
+            s.width = std::clamp(at.value(QStringLiteral("sz"), QStringLiteral("4")).toDouble() / 8.0, 0.25, 12.0);
+            s.space = std::clamp(at.value(QStringLiteral("space")).toDouble(), 0.0, 31.0);
+            const QString color = at.value(QStringLiteral("color"));
+            s.color = color.size() == 6 && QColor(QLatin1Char('#') + color).isValid() ? QColor(QLatin1Char('#') + color) : QColor(Qt::black);
+            s.art = !lines.contains(val);
+            s.line = val == QLatin1String("double") ? flow::PageBorders::Side::Line::Double : val == QLatin1String("dotted") ? flow::PageBorders::Side::Line::Dotted
+                     : val == QLatin1String("dashed") || val == QLatin1String("dashSmallGap") || val == QLatin1String("dotDash") || val == QLatin1String("dotDotDash") ? flow::PageBorders::Side::Line::Dashed
+                                                                                                                                                        : flow::PageBorders::Side::Line::Single;
+            const QString name = m.captured(1);
+            (name == QLatin1String("top") ? out.top : name == QLatin1String("left") ? out.left : name == QLatin1String("bottom") ? out.bottom : out.right) = s;
+        }
+        break;
+    }
+    return out;
+}
+
 flow::Section flowSectionOf(const SectionProps &p, bool evenAndOdd)
 {
     flow::Section s;
@@ -80,6 +134,7 @@ flow::Section flowSectionOf(const SectionProps &p, bool evenAndOdd)
     s.differentOddEven = evenAndOdd;
     s.continuous = p.type == QLatin1String("continuous");
     s.startParity = p.type == QLatin1String("oddPage") ? flow::Section::Parity::Odd : p.type == QLatin1String("evenPage") ? flow::Section::Parity::Even : flow::Section::Parity::Any;
+    s.pageBorders = pageBordersOf(p.extra);
     s.firstPageNumber = p.pageStart;
     s.pageNumberFormat = p.pageFormat == QLatin1String("lowerRoman") ? QStringLiteral("roman")
                          : p.pageFormat == QLatin1String("upperRoman") ? QStringLiteral("ROMAN")
