@@ -8,6 +8,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTextBlock>
+#include <set>
 #include <QTextDocument>
 #include <algorithm>
 #include <cmath>
@@ -46,6 +47,7 @@ struct Paginator::Ledger {
     QVector<double> reserve;                     // by frame: what the notes there take at its foot, the rule's gap included
     QVector<StoryLayout::NotePlace> places;      // the notes, as the text engine seated them (those of the text) and as the rows' were set (their rects are made again)
     QVector<StoryLayout::CarriedNote> carried;   // the notes that go on past the page
+    std::set<QString> carriedIds;                // (which of them are in it already)
     double ruleGap = -1, noteGap = 0;            // the gaps the text engine leaves above and among notes (-1: not known yet)
     explicit Ledger(int frames) : reserve(frames, 0.0) {}
 };
@@ -54,7 +56,7 @@ double Paginator::noteHeight(const QString &id, double width)
 {
     if (!m_doc->fields) return 0;
     const QTextDocument *source = m_doc->fields->storyDoc(id);
-    const auto key = std::make_tuple(id, int(std::lround(width * 100)), source ? source->revision() : -1);
+    const auto key = std::make_tuple(id, int(std::lround(width * 100)), source ? source->revision() : -1, source ? source->characterCount() : -1, m_envHash);
     const auto found = m_noteHeights.find(key);
     if (found != m_noteHeights.end()) return found->second;
     // A note is as tall as the text engine sets it in a column of that width: a story that cites it, laid out, says.
@@ -125,6 +127,7 @@ Paginator::NoteCut Paginator::cutNote(const QString &id, double width, double ro
 QVector<StoryLayout::LineBrief> Paginator::linesWithTables(const QVector<FrameSpec> &frames, const StoryLayout::Span &span, int firstFrame, const PageStart &st, TablesRun *tr)
 {
     Ledger ledger(int(frames.size()));
+    m_envHash = qHash(m_doc->env.key());
     const QVector<StoryLayout::LineBrief> out = tableLines(frames, span, firstFrame, st, tr, &ledger);
     restackNotes(frames, &ledger, tr);
     tr->carried = ledger.carried;
@@ -196,11 +199,8 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
             pl.frame += base;
             led->places << pl;
         }
-        for (const StoryLayout::CarriedNote &cn : lay.carriedNotes(lay.frameCount() - 1)) {
-            bool known = false;
-            for (const StoryLayout::CarriedNote &c : std::as_const(led->carried)) known |= c.storyId == cn.storyId && c.number == cn.number;
-            if (!known) led->carried << cn;
-        }
+        for (const StoryLayout::CarriedNote &cn : lay.carriedNotes(lay.frameCount() - 1))
+            if (led->carriedIds.insert(cn.storyId + QLatin1Char('|') + QString::number(cn.number)).second) led->carried << cn;
     };
     // The gaps the text engine leaves among notes, found by laying out no text at all, for a page that has notes of rows and no text before them.
     auto knowGaps = [&]() {

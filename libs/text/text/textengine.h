@@ -388,6 +388,7 @@ public:
         QVector<Piece> more;           // the rest of a cut note, a piece for each column it goes on in
         int from = 0;                  // while a cut note goes on: where its rest starts in the note's text
         int refPos = -1;               // where its reference is, a document position (-1: a note carried in from before)
+        bool goesOn = false;           // left for the page after when the frames ran out (not laid out here)
     };
     const QVector<Note> &notes() const { return m_notes; }
     struct Rule { int frame; QLineF line; };
