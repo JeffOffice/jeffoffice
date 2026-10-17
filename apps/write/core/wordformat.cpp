@@ -264,6 +264,33 @@ QStringList highlightNames()
     return out;
 }
 
+bool isDeletedAway(const Paragraph &paragraph)
+{
+    const ParaProps &p = paragraph.props;
+    if (!p.markRun) return false;
+    static const QRegularExpression deleted(QStringLiteral("^<[^\\s:>/]+:(del|moveFrom)[\\s/>]"));
+    bool markDeleted = false;
+    for (const RawChild &ch : p.markRun->extra)
+        markDeleted = markDeleted || deleted.match(QString::fromUtf8(ch.xml.left(60))).hasMatch();
+    if (!markDeleted) return false;
+    // What the paragraph shows once what the tracked changes deleted is left out.
+    int inDeletion = 0;
+    for (const Inline &in : paragraph.content) {
+        if (in.kind == Inline::ParaAtom) {
+            if (in.tag == QLatin1String("del") || in.tag == QLatin1String("moveFrom")) inDeletion += in.role == Inline::Open ? 1 : in.role == Inline::Close ? -1 : 0;
+            continue;
+        }
+        if (inDeletion > 0) continue;
+        if (in.kind == Inline::Text) {
+            if (!in.text.isEmpty()) return false;
+        } else if (in.tag == QLatin1String("drawing") || in.tag == QLatin1String("pict") || in.tag == QLatin1String("object") || in.tag == QLatin1String("footnoteReference") ||
+                   in.tag == QLatin1String("endnoteReference") || in.tag == QLatin1String("sym") || in.tag == QLatin1String("br") || in.tag == QLatin1String("ptab")) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool isAtom(const QTextCharFormat &format) { return format.hasProperty(prop::Atom); }
 
 QTextCharFormat withoutAtom(QTextCharFormat f)
