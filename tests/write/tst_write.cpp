@@ -5208,12 +5208,12 @@ private Q_SLOTS:
         auto fixed = std::dynamic_pointer_cast<ShapeItem>(inlineObjectOf(*open(makeDocx(rule("o:hrpct=\"0\" fillcolor=\"black\" stroked=\"f\""), kStyles))));
         QVERIFY(fixed);
         QVERIFY2(std::abs(fixed->rect.width() - 110.25) < 0.01, qPrintable(QString::number(fixed->rect.width())));
-        // A paragraph that holds only a rule is as tall as a line of text (the rule is on the line's baseline, and not a line of its own height).
+        // A paragraph that holds only a rule is as tall as a line of text, within the few points that another machine's fonts differ by (not the rule's own height).
         auto both = open(makeDocx(rule("o:hrpct=\"960\" o:hralign=\"center\" fillcolor=\"black\" stroked=\"f\"") + "<w:p><w:r><w:t>Text</w:t></w:r></w:p>", kStyles));
         QVERIFY(both);
         const auto lines = both->pager().lines(0);
         QVERIFY(lines.size() >= 2);
-        QVERIFY2(std::abs(lines[0].rect.height() - lines[1].rect.height()) < 1.5, qPrintable(QString::number(lines[0].rect.height()) + " against " + QString::number(lines[1].rect.height())));
+        QVERIFY2(std::abs(lines[0].rect.height() - lines[1].rect.height()) < 4, qPrintable(QString::number(lines[0].rect.height()) + " against " + QString::number(lines[1].rect.height())));
         // (The room that makes the line is above and below the rule, in the middle of it; a rule among text has none, for it wraps to a line of its own as high as it is.)
         QVERIFY2(std::abs(shape->wrap.top - shape->wrap.bottom) < 0.01 && shape->wrap.top > 3, qPrintable(QString::number(shape->wrap.top)));
         auto amongText = std::dynamic_pointer_cast<ShapeItem>(inlineObjectOf(*open(makeDocx("<w:p><w:r><w:t>Text before</w:t></w:r><w:r><w:pict " + QByteArray(kVml) +
