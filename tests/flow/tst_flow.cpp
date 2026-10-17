@@ -1944,31 +1944,54 @@ private Q_SLOTS:
         QCOMPARE(tight[2].frame, 1);
     }
 
-    // The text after a page break inside a paragraph is at the top of the next page with the paragraph's space before again (as a word processor sets it),
-    // and a paragraph that goes on onto a page for want of room has none there.
-    void aBreakInsideAParagraphKeepsItsSpaceBeforeOnTheNextPage()
+    // The text after a page break that begins a paragraph is its first line, at the top of the next page with the paragraph's space before; what goes on after a break that
+    // has something before it on its line (the rest of the paragraph) has none there, as a paragraph that goes on onto a page for want of room has none.
+    void aBreakKeepsTheSpaceBeforeOnTheNextPageOnlyWhereItBeginsTheParagraph()
     {
-        FlowDocument fd;
-        QTextCursor c(fd.story());
-        QTextBlockFormat bf;
-        bf.setTopMargin(20);
-        c.setBlockFormat(bf);
-        c.insertText(QStringLiteral("first words ") + flow::kPageBreak + QStringLiteral("second words"));
-        c.insertBlock(bf);
-        c.insertText(QStringLiteral("a paragraph after"));
-        Paginator pg(&fd);
-        QCOMPARE(pg.pageCount(), 2);
-        QVERIFY(std::abs(pg.lines(0)[0].rect.top() - 20) < 0.01);
-        const auto second = pg.lines(1);
-        QCOMPARE(second[0].line, 1);
-        QVERIFY2(std::abs(second[0].rect.top() - 20) < 0.01, qPrintable(QString::number(second[0].rect.top())));
-        QVERIFY(std::abs(second[1].rect.top() - (second[0].rect.bottom() + 20)) < 0.01);
+        auto secondPage = [&](const QString &text) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            QTextCursor c(fd.story());
+            QTextBlockFormat bf;
+            bf.setTopMargin(20);
+            c.setBlockFormat(bf);
+            c.insertText(text);
+            c.insertBlock(bf);
+            c.insertText(QStringLiteral("a paragraph after"));
+            Paginator pg(&fd);
+            return std::make_pair(pg.pageCount(), pg.lines(1));
+        };
+        const auto begins = secondPage(QString(flow::kPageBreak) + QStringLiteral("second words"));
+        QCOMPARE(begins.first, 2);
+        QCOMPARE(begins.second[0].line, 1);
+        QVERIFY2(std::abs(begins.second[0].rect.top() - 20) < 0.01, qPrintable(QString::number(begins.second[0].rect.top())));
+        QVERIFY(std::abs(begins.second[1].rect.top() - (begins.second[0].rect.bottom() + 20)) < 0.01);
+        const auto inside = secondPage(QStringLiteral("first words ") + flow::kPageBreak + QStringLiteral("second words"));
+        QCOMPARE(inside.first, 2);
+        QCOMPARE(inside.second[0].line, 1);
+        QVERIFY2(std::abs(inside.second[0].rect.top()) < 0.01, qPrintable(QString::number(inside.second[0].rect.top())));
+        QVERIFY(std::abs(inside.second[1].rect.top() - (inside.second[0].rect.bottom() + 20)) < 0.01);
         // The page made for painting has the same lines.
-        LayoutCache cache;
-        QVERIFY2(materializedDiffers(fd, pg, 1, cache).isEmpty(), qPrintable(materializedDiffers(fd, pg, 1, cache)));
+        for (const QString &text : {QString(flow::kPageBreak) + QStringLiteral("second words"), QStringLiteral("first words ") + flow::kPageBreak + QStringLiteral("second words")}) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            QTextCursor c(fd.story());
+            QTextBlockFormat bf;
+            bf.setTopMargin(20);
+            c.setBlockFormat(bf);
+            c.insertText(text);
+            c.insertBlock(bf);
+            c.insertText(QStringLiteral("a paragraph after"));
+            Paginator pg(&fd);
+            QCOMPARE(pg.pageCount(), 2);
+            LayoutCache cache;
+            QVERIFY2(materializedDiffers(fd, pg, 1, cache).isEmpty(), qPrintable(materializedDiffers(fd, pg, 1, cache)));
+        }
         // A page that a paragraph runs onto for want of room has no space before its rest.
         FlowDocument run;
         QTextCursor r(run.story());
+        QTextBlockFormat bf;
+        bf.setTopMargin(20);
         r.setBlockFormat(bf);
         r.insertText(QString(12000, QLatin1Char('x')).replace(QRegularExpression(QStringLiteral("(x{7})")), QStringLiteral("\\1 ")));
         Paginator rp(&run);

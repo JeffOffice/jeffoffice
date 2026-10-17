@@ -230,7 +230,11 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         return run;
     }
     const Section &sec = m_doc->section(st.section);
-    run.keepsSpace = st.hard && st.skip > 0;
+    // (The text after a page break that begins its paragraph is the paragraph's first line: it has the space before. The rest of a paragraph after a break that has
+    // something before it on its line goes on, with none.)
+    const QTextBlock atStart = m_doc->story()->findBlock(st.pos);
+    const bool breakFirst = atStart.isValid() && m_doc->story()->characterAt(atStart.position()) == kPageBreak;
+    run.keepsSpace = st.hard && st.skip > 0 && breakFirst;
     const double colW = sec.columnWidth();
     const int number = numberOf(index);
     const QRectF body = furnitureOf(index, st, number).body;
@@ -377,7 +381,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         span.end = stopBefore;
         span.firstBreakAfter = st.skip > 0 && !tail ? st.skip : -1;
         span.continued = tail;
-        span.spaceBeforeContinued = afterBreak;
+        span.spaceBeforeContinued = afterBreak && breakFirst;
         span.stopAtFrame = over;
         span.overLines = wanted + 2;
         span.restartNotesAt = notesRestartIn(st.pos, kWindow * 64);
