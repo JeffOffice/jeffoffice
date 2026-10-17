@@ -6,6 +6,7 @@
 #include "app/help.h"
 #include "app/recovery.h"
 #include "app/ribbon.h"
+#include "app/writefindpane.h"
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
 #include "core/appinfo.h"
@@ -20,7 +21,9 @@
 #include "io/zip.h"
 #include "wml/wml.h"
 
+#include <QAccessible>
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDateTime>
 #include <QDialog>
@@ -44,8 +47,10 @@
 #include <QTextCursor>
 #include <QTextList>
 #include <QLabel>
+#include <QLineEdit>
 #include <QRegularExpression>
 #include <QScrollBar>
+#include <QToolButton>
 #include <functional>
 #include <random>
 #include <set>
@@ -252,6 +257,16 @@ const TextItem *boxWithText(const flow::MaterializedPage &page, const QString &t
     return nullptr;
 }
 
+
+// Selects the characters [from, to) of the window's document.
+void selectRange(WriteWindow &w, int from, int to)
+{
+    QTextCursor c(w.document()->story());
+    c.setPosition(from);
+    c.setPosition(to, QTextCursor::KeepAnchor);
+    w.view()->setCursor(c);
+}
+
 } // namespace
 
 class WriteTests : public QObject {
@@ -416,6 +431,238 @@ private Q_SLOTS:
         });
         w.act("zoom.dialog")->trigger();
         QCOMPARE(w.view()->zoom(), 1.5);
+    }
+
+    // ---------------------------------------------------------------- Find and Replace
+    // Home > Editing has Find (Ctrl+F) and Replace (Ctrl+H); each opens the pane on the right.
+    void homeTabHasFindAndReplace()
+    {
+        WriteWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QCOMPARE(w.act(QStringLiteral("edit.find"))->shortcut(), QKeySequence(QKeySequence::Find));
+        QCOMPARE(w.act(QStringLiteral("edit.replace"))->shortcut(), QKeySequence(Qt::CTRL | Qt::Key_H));
+        int buttons = 0;
+        for (QToolButton *b : w.ribbon()->findChildren<QToolButton *>())
+            if (b->defaultAction() == w.act(QStringLiteral("edit.find")) || b->defaultAction() == w.act(QStringLiteral("edit.replace"))) ++buttons;
+        QCOMPARE(buttons, 2);
+        QVERIFY(!w.findPane());
+        w.show();
+        w.act(QStringLiteral("edit.find"))->trigger();
+        QVERIFY(w.findPane() && w.findPane()->isVisible());
+        QVERIFY(!w.findPane()->matchCase()->isChecked() && !w.findPane()->wholeWords()->isChecked());
+        w.act(QStringLiteral("edit.replace"))->trigger();
+        QVERIFY(w.findPane()->isVisible());
+        // The boxes are named for screen readers.
+        for (QLineEdit *e : w.findPane()->findChildren<QLineEdit *>()) {
+            QAccessibleInterface *iface = QAccessible::queryAccessibleInterface(e);
+            QVERIFY(iface);
+            QVERIFY2(!iface->text(QAccessible::Name).trimmed().isEmpty(), qPrintable(e->objectName()));
+        }
+    }
+
+    // Find Next selects the match and scrolls the pages to it, also when the page it is on has not been laid out yet; after the last match it
+    // goes round to the first; and with none it says so and leaves the selection where it was.
+    void findNextSelectsTheMatchAndScrollsToIt()
+    {
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.setDocument(open(makeDocx(paragraphs(300) + "<w:p><w:r><w:t>The zebrafish swims.</w:t></w:r></w:p>" + paragraphs(40), kStyles)), QString());
+        w.show();
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        QCOMPARE(w.view()->verticalScrollBar()->value(), 0);
+        pane->findBox()->setText(QStringLiteral("zebrafish"));
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("zebrafish"));
+        QVERIFY(pane->status().isEmpty());
+        QVERIFY(w.view()->currentPage() > 5);
+        QVERIFY(w.view()->verticalScrollBar()->value() > 0);
+        QRect r;
+        QVERIFY(w.view()->caretRect(&r));
+        QVERIFY2(r.top() >= 0 && r.bottom() <= w.view()->viewport()->height(), qPrintable(QStringLiteral("%1..%2 in %3").arg(r.top()).arg(r.bottom()).arg(w.view()->viewport()->height())));
+        // The only match, again: round to it.
+        const int at = w.view()->cursor().selectionStart();
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectionStart(), at);
+        // From the start of the document, the first match is the nearest.
+        QTextCursor c(w.document()->story());
+        w.view()->setCursor(c);
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectionStart(), at);
+        // Nothing found: said, and nothing moves.
+        pane->findBox()->setText(QStringLiteral("<b>narwhal"));
+        QVERIFY(!pane->findNext());
+        QVERIFY2(pane->status().contains(QStringLiteral("\"<b>narwhal\" was not found")), qPrintable(pane->status()));
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("zebrafish"));
+        QCOMPARE(w.view()->cursor().selectionStart(), at);
+    }
+
+    void findFollowsMatchCaseAndWholeWords()
+    {
+        WriteWindow w;
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Cat cat concat CAT."));
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("cat"));
+        // The places the matches start, from the start of the document, round to the first again.
+        auto starts = [&] {
+            QTextCursor c(w.document()->story());
+            w.view()->setCursor(c);
+            QList<int> out;
+            for (int i = 0; i < 8; ++i) {
+                if (!pane->findNext()) break;
+                const int at = w.view()->cursor().selectionStart();
+                if (!out.isEmpty() && at == out.first()) break;
+                out << at;
+            }
+            return out;
+        };
+        QCOMPARE(starts(), (QList<int>{0, 4, 11, 15}));
+        pane->matchCase()->setChecked(true);
+        QCOMPARE(starts(), (QList<int>{4, 11}));
+        pane->wholeWords()->setChecked(true);
+        QCOMPARE(starts(), (QList<int>{4}));
+        pane->matchCase()->setChecked(false);
+        QCOMPARE(starts(), (QList<int>{0, 4, 15}));
+    }
+
+    // The text of a table's cells is in the story, so it is found there; text that is hidden is not shown, and so it is not found.
+    void findReachesCellsAndPassesHiddenText()
+    {
+        WriteWindow w;
+        w.setDocument(open(tableDocx(2, 2)), QString());
+        w.show();
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("r1c1"));
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("r1c1"));
+        QCOMPARE(w.view()->cursor().block().text(), QStringLiteral("r1c1"));
+        // "hide" is hidden in its first place.
+        w.setDocument(WriteDoc::blank(), QString());
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("hide and seek, hide"));
+        selectRange(w, 0, 4);
+        changeCharFormat(*w.document(), w.view()->cursor(), [](QTextCharFormat &f) { f.setProperty(tp::HiddenText, true); });
+        QTextCursor c(w.document()->story());
+        w.view()->setCursor(c);
+        pane->findBox()->setText(QStringLiteral("hide"));
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectionStart(), 15);
+        pane->replaceBox()->setText(QStringLiteral("show"));
+        pane->replaceAll();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("hide and seek, show"));
+        QCOMPARE(pane->status(), QStringLiteral("JeffWrite made 1 replacement."));
+    }
+
+    // Replace swaps the match that is selected and goes on to the next; when what is selected is not a match, it shows the next match first.
+    void replaceReplacesOneMatchAndGoesToTheNext()
+    {
+        WriteWindow w;
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("cat cat cat"));
+        QTextCursor c(w.document()->story());
+        w.view()->setCursor(c);
+        w.showFindPane(true);
+        WriteFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("cat"));
+        pane->replaceBox()->setText(QStringLiteral("dog"));
+        pane->replaceOne();   // (nothing is selected: it shows the first)
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("cat cat cat"));
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("cat"));
+        QCOMPARE(w.view()->cursor().selectionStart(), 0);
+        pane->replaceOne();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("dog cat cat"));
+        QCOMPARE(w.view()->cursor().selectionStart(), 4);
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("cat"));
+        pane->replaceOne();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("dog dog cat"));
+        // Each swap undoes on its own.
+        w.view()->undo();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("dog cat cat"));
+        w.view()->undo();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("cat cat cat"));
+        // A selection that is not a match is left alone: the next match is shown.
+        selectRange(w, 4, 7);
+        pane->findBox()->setText(QStringLiteral("t c"));
+        pane->replaceOne();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("cat cat cat"));
+        QCOMPARE(w.view()->cursor().selectionStart(), 2);
+        // Words that the options do not match are not swapped either.
+        pane->findBox()->setText(QStringLiteral("at"));
+        pane->wholeWords()->setChecked(true);
+        selectRange(w, 1, 3);
+        pane->replaceOne();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("cat cat cat"));
+        QVERIFY2(!pane->status().isEmpty(), "none of the words is \"at\"");
+    }
+
+    // Replace All is one step that undoes, says how many it swapped, and leaves what the new words hold alone; the new words look as the old ones did.
+    void replaceAllIsOneStepThatUndoesAndSaysHowMany()
+    {
+        WriteWindow w;
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("a cat sat; the cat's hat, a cat."));
+        selectRange(w, 15, 18);
+        toggleBold(*w.document(), w.view()->cursor());   // the second "cat" is bold
+        w.document()->story()->clearUndoRedoStacks();
+        w.showFindPane(true);
+        WriteFindPane *pane = w.findPane();
+        const QString before = w.document()->story()->toPlainText();
+        pane->findBox()->setText(QStringLiteral("cat"));
+        pane->replaceBox()->setText(QStringLiteral("dog"));
+        pane->replaceAll();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("a dog sat; the dog's hat, a dog."));
+        QCOMPARE(pane->status(), QStringLiteral("JeffWrite made 3 replacements."));
+        QTextCursor probe(w.document()->story());
+        probe.setPosition(17);
+        QCOMPARE(probe.charFormat().fontWeight(), int(QFont::Bold));
+        probe.setPosition(5);
+        QCOMPARE(probe.charFormat().fontWeight(), int(QFont::Normal));
+        // One step undoes all three, and one redoes them.
+        w.view()->undo();
+        QCOMPARE(w.document()->story()->toPlainText(), before);
+        w.view()->redo();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("a dog sat; the dog's hat, a dog."));
+        w.view()->undo();
+        QVERIFY2(!w.document()->story()->isUndoAvailable(), "the three were one step");
+        // A match of several looks gives its first one to the new words: "AB" is bold at the A and plain at the B.
+        w.setDocument(WriteDoc::blank(), QString());
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("x AB y"));
+        selectRange(w, 2, 3);
+        toggleBold(*w.document(), w.view()->cursor());
+        pane->findBox()->setText(QStringLiteral("ab"));
+        pane->replaceBox()->setText(QStringLiteral("zz"));
+        pane->replaceAll();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("x zz y"));
+        probe = QTextCursor(w.document()->story());
+        probe.setPosition(3);
+        QCOMPARE(probe.charFormat().fontWeight(), int(QFont::Bold));
+        probe.setPosition(4);
+        QCOMPARE(probe.charFormat().fontWeight(), int(QFont::Bold));
+        probe.setPosition(5);
+        QCOMPARE(probe.charFormat().fontWeight(), int(QFont::Normal));
+        // The words that were put in are not searched again: "a" for "aa" ends; and nothing as the new words deletes.
+        w.setDocument(WriteDoc::blank(), QString());
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("banana"));
+        pane->findBox()->setText(QStringLiteral("a"));
+        pane->replaceBox()->setText(QStringLiteral("aa"));
+        pane->replaceAll();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("baanaanaa"));
+        pane->findBox()->setText(QStringLiteral("aa"));
+        pane->replaceBox()->clear();
+        pane->replaceAll();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("bnn"));
+        // None found: it says so, and the document is not touched.
+        w.document()->story()->setModified(false);
+        pane->findBox()->setText(QStringLiteral("zzz"));
+        pane->replaceAll();
+        QVERIFY2(pane->status().contains(QStringLiteral("made no replacements. \"zzz\" was not found")), qPrintable(pane->status()));
+        QVERIFY(!w.document()->isModified());
+        pane->findBox()->setText(QStringLiteral("bnn"));
+        pane->replaceBox()->setText(QStringLiteral("x"));
+        pane->replaceAll();
+        QCOMPARE(pane->status(), QStringLiteral("JeffWrite made 1 replacement."));
     }
 
     void exportPdfWritesAPdfWithAPagePerPage()

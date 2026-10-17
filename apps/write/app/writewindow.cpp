@@ -172,6 +172,7 @@ void WriteWindow::createActions()
     createLayoutActions();
     createViewActions();
     createHelpActions();
+    createEditingActions();
 }
 
 namespace {
