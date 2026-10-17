@@ -4457,6 +4457,40 @@ private Q_SLOTS:
         QVERIFY(!none->flow().section(0).pageBorders.any());
     }
 
+    // A field that sets the text after it at a place (ADVANCE with \\y: so many points from the page's top) asks its paragraph to be no higher than that: the paragraph's first line
+    // is there when it would be higher (the other directions of the field move nothing here), and the file comes back as it was.
+    void anAdvanceFieldSetsItsParagraphAtThePlaceFromThePagesTop()
+    {
+        auto withField = [&](const QByteArray &instruction) {
+            const QByteArray field = "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> " + instruction + " </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+            return "<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\"/></w:pPr><w:r><w:t>one</w:t></w:r></w:p><w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\"/></w:pPr>" + field +
+                   "<w:r><w:t>two</w:t></w:r></w:p><w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\"/></w:pPr><w:r><w:t>three</w:t></w:r></w:p>";
+        };
+        auto tops = [&](const QByteArray &instruction, bool *kept = nullptr) {
+            const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"720\" w:right=\"1440\" w:bottom=\"720\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+            auto doc = open(makeDocx(withField(instruction), kStyles, QByteArray(), sect));
+            QVector<double> out;
+            if (!doc) return out;
+            const double areaTop = doc->pager().page(0).content.top();
+            for (const auto &l : doc->pager().lines(0)) out << areaTop + l.rect.top();
+            if (kept) *kept = documentXml(doc->toDocx()).contains("w:instrText") && documentXml(doc->toDocx()).contains(instruction);
+            return out;
+        };
+        const QVector<double> plain = tops("PAGE");   // (a field that sets nothing)
+        QCOMPARE(int(plain.size()), 3);
+        bool kept = false;
+        const QVector<double> moved = tops("ADVANCE \\y 200", &kept);
+        QCOMPARE(int(moved.size()), 3);
+        QVERIFY2(std::abs(moved[0] - plain[0]) < 0.01 && std::abs(moved[1] - 200) < 0.01 && std::abs((moved[2] - moved[1]) - (plain[2] - plain[1])) < 0.01,
+                 qPrintable(QStringLiteral("lines at %1, %2, %3").arg(moved[0]).arg(moved[1]).arg(moved[2])));
+        QVERIFY(kept);
+        // A place the paragraph is lower than already, a different direction, and a field that is no advance move nothing.
+        const QVector<double> higher = tops("ADVANCE \\y 10");
+        QVERIFY(higher.size() == 3 && std::abs(higher[1] - plain[1]) < 0.01);
+        const QVector<double> down = tops("ADVANCE \\d 100");
+        QVERIFY(down.size() == 3 && std::abs(down[1] - plain[1]) < 0.01);
+    }
+
     // The page color of a file (w:background) is the pages' color, and the file comes back with it.
     void aFilesPageColorFillsItsPages()
     {

@@ -544,12 +544,18 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             continue;
         }
         int deletedDepth = 0;   // (inside the content a tracked change deleted)
+        double advanceTop = -1;   // (a field that sets the text after it at a place from the page's top, ADVANCE with \\y: the paragraph is no higher than that)
+        static const QRegularExpression advance(QStringLiteral("^\\s*ADVANCE\\b.*?\\\\y\\s*(-?[0-9]+(?:\\.[0-9]+)?)"), QRegularExpression::CaseInsensitiveOption);
         for (const Inline &in : p.content) {
             if (in.kind == Inline::ParaAtom && isDeletedRevision(in.tag)) deletedDepth = std::max(0, deletedDepth + (in.role == Inline::Open ? 1 : in.role == Inline::Close ? -1 : 0));
             const bool deleted = deletedDepth > 0 && !(in.kind == Inline::ParaAtom && in.role != Inline::Single && isDeletedRevision(in.tag));
             if (in.kind == Inline::Text) {
                 if (!in.text.isEmpty()) c.insertText(in.text, deleted ? asDeleted(formatOf(styleId, in.props)) : formatOf(styleId, in.props));
                 continue;
+            }
+            if (in.kind == Inline::RunAtom && !deleted && advanceTop < 0 && in.tag == QLatin1String("instrText")) {
+                const QRegularExpressionMatch m = advance.match(textOfXml(in.raw));
+                if (m.hasMatch()) advanceTop = std::clamp(m.captured(1).toDouble(), 0.0, 5000.0);
             }
             QTextCharFormat af = formatOf(styleId, in.props);
             if (deleted) af = asDeleted(af);
@@ -579,6 +585,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + (markFollows(in.raw) ? QString() : roman(deleted ? endnoteNumber + 1 : ++endnoteNumber, false));   // (a deleted one takes no number)
             af.setProperty(tp::Field, field);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);
+        }
+        if (advanceTop >= 0) {
+            QTextBlockFormat asked = c.blockFormat();
+            asked.setProperty(flow::fp::AdvanceTop, advanceTop);
+            c.setBlockFormat(asked);
         }
         if (direct.section) {
             QTextBlockFormat last = c.blockFormat();
