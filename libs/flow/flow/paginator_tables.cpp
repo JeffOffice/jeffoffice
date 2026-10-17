@@ -401,6 +401,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                 fr = frames.mid(f);
                 base = f;
                 t = StoryLayout::Span();
+                t.inLayout = span.inLayout;
                 t.keepRules = span.keepRules;
                 t.window = span.window;
                 t.overLines = span.overLines;

@@ -47,6 +47,26 @@ void clearTail(QTextBlockFormat *f)
     for (int key : kTail) f->clearProperty(key);
 }
 
+// The frame a paragraph is a part of (none: 0, the text). A frame's paragraphs are set apart from the text round them: no edit joins one to the other, and a paragraph made
+// beside a frame's is of the frame only when it is made in the frame.
+int frameKeyOf(const QTextBlock &b)
+{
+    const QTextBlockFormat f = b.blockFormat();
+    return f.boolProperty(tp::OutOfLayout) ? f.intProperty(flow::fp::Frame) : 0;
+}
+
+// Whether the paragraphs are in the same place (the same frame, or both in the text): the paragraph marks between them can be taken out.
+bool sameFrame(const QTextBlock &a, const QTextBlock &b) { return frameKeyOf(a) == frameKeyOf(b); }
+
+// What puts a paragraph where it is, besides its cell: the frame it is a part of. A format made for the paragraph (a style's) has these given from the paragraph's own.
+void copyPlace(const QTextBlockFormat &from, QTextBlockFormat *to)
+{
+    for (int key : {int(flow::fp::Cell), int(flow::fp::Frame), int(tp::OutOfLayout)}) {
+        if (from.hasProperty(key)) to->setProperty(key, from.property(key));
+        else to->clearProperty(key);
+    }
+}
+
 void clearHead(QTextBlockFormat *f)
 {
     for (int key : kHead) f->clearProperty(key);
@@ -348,7 +368,7 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
         c.movePosition(QTextCursor::EndOfBlock);
         const QString style = doc.defaultParagraphStyle();
         QTextBlockFormat nf = doc.styleBlockFormat(style);
-        if (cur.blockFormat().hasProperty(flow::fp::Cell)) nf.setProperty(flow::fp::Cell, cur.blockFormat().property(flow::fp::Cell));   // (in the cell the element is in)
+        copyPlace(cur.blockFormat(), &nf);   // (in the cell, or the frame, the element is in)
         c.insertBlock(nf, doc.styleCharFormat(style));
         c.endEditBlock();
         return;
@@ -372,7 +392,7 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
             const QTextBlockFormat tailOwner = b.blockFormat();
             QTextBlockFormat nf = doc.styleBlockFormat(s->next);
             copyTail(tailOwner, &nf);
-            if (tailOwner.hasProperty(flow::fp::Cell)) nf.setProperty(flow::fp::Cell, tailOwner.property(flow::fp::Cell));   // (the paragraph after it is in its cell)
+            copyPlace(tailOwner, &nf);   // (the paragraph after it is in its cell, or its frame)
             setBlockFormatInList(b, nf, nullptr);
             setMarkFormat(b, doc.styleCharFormat(s->next));
             c.setCharFormat(doc.styleCharFormat(s->next));
@@ -405,6 +425,43 @@ void insertSectionBreak(WriteDoc &doc, QTextCursor &c)
     c.endEditBlock();
 }
 
+// A selection that holds the paragraphs of a frame and of the text round it (or of two frames) is cut a stretch at a time, each stretch being the paragraphs of one place: what is
+// selected of the text is cut from the text, and what is selected of the frame from the frame, and neither is joined to the other. True when it did that.
+static bool removeSelectionAcrossFrames(WriteDoc &doc, QTextCursor &c)
+{
+    if (!c.hasSelection() || doc.flow().frames.isEmpty()) return false;
+    QTextDocument *d = c.document();
+    const int from = c.selectionStart(), to = c.selectionEnd();
+    const QTextBlock a = d->findBlock(from), b = d->findBlock(to);
+    if (a == b) return false;
+    struct Stretch {
+        int first, last;
+    };
+    QVector<Stretch> stretches;
+    int key = -1;
+    for (QTextBlock blk = a; blk.isValid(); blk = blk.next()) {
+        const int k = frameKeyOf(blk);
+        if (k != key || stretches.isEmpty()) stretches.push_back({blk.position(), blk.position()});
+        else stretches.last().last = blk.position();
+        key = k;
+        if (blk == b) break;
+    }
+    if (stretches.size() <= 1) return false;   // (in one place: the paragraphs are joined as anywhere)
+    c.beginEditBlock();
+    for (int i = int(stretches.size()) - 1; i >= 0; --i) {
+        const QTextBlock last = d->findBlock(stretches[i].last);
+        const int start = std::max(from, stretches[i].first), end = std::min(to, last.position() + last.length() - 1);
+        if (end <= start) continue;
+        QTextCursor part(d);
+        part.setPosition(start);
+        part.setPosition(end, QTextCursor::KeepAnchor);
+        removeSelection(doc, part);
+    }
+    c.setPosition(std::min(from, d->characterCount() - 1));
+    c.endEditBlock();
+    return true;
+}
+
 void removeSelection(WriteDoc &doc, QTextCursor &c)
 {
     if (!c.hasSelection()) return;
@@ -427,6 +484,7 @@ void removeSelection(WriteDoc &doc, QTextCursor &c)
             c.setPosition(to, QTextCursor::KeepAnchor);
         }
     }
+    if (removeSelectionAcrossFrames(doc, c)) return;   // (a frame's text is cut from the frame, and the text round it from the text: never joined)
     if (removeSelectionAcrossCells(doc, c)) return;   // (cells are emptied, and tables the selection holds go: paragraphs of different cells are never joined)
     QTextDocument *d = c.document();
     c.beginEditBlock();
@@ -564,7 +622,7 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
     }
     QTextBlock prev = b.previous();
     while (prev.isValid() && isHiddenDeleted(prev)) prev = prev.previous();
-    if (!prev.isValid() || isLocked(prev) || !canJoinBlocks(prev, b)) return;
+    if (!prev.isValid() || isLocked(prev) || !canJoinBlocks(prev, b) || !sameFrame(prev, b)) return;
     if (prev.next() != b) {
         joinAcrossDeleted(doc, c, prev, b);
         return;
@@ -606,7 +664,7 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
     }
     QTextBlock next = c.block().next();
     while (next.isValid() && isHiddenDeleted(next)) next = next.next();
-    if (!next.isValid() || isLocked(next) || !canJoinBlocks(c.block(), next)) return;
+    if (!next.isValid() || isLocked(next) || !canJoinBlocks(c.block(), next) || !sameFrame(c.block(), next)) return;
     if (c.block().next() != next) {
         joinAcrossDeleted(doc, c, c.block(), next);
         return;
@@ -653,7 +711,7 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
         c.movePosition(QTextCursor::EndOfBlock);
         const QString style = doc.defaultParagraphStyle();
         QTextBlockFormat nf = doc.styleBlockFormat(style);
-        if (c.block().blockFormat().hasProperty(flow::fp::Cell)) nf.setProperty(flow::fp::Cell, c.block().blockFormat().property(flow::fp::Cell));
+        copyPlace(c.block().blockFormat(), &nf);
         c.insertBlock(nf, doc.styleCharFormat(style));
     }
     QTextDocument *d = c.document();
@@ -706,8 +764,21 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
         }
         rewrap(wrappers, first, last);
     }
-    // What is pasted is in the cell it was pasted into (or in none).
+    // What is pasted is in the cell it was pasted into (or in none), and in the frame it was pasted into (or in none: a frame's key is its document's, and a paragraph set apart from
+    // the text with the key of another's would be lost to it).
     giveCellKey(d->findBlock(from), d->findBlock(to), targetCell);
+    const bool targetFramed = tf.boolProperty(tp::OutOfLayout) && tf.intProperty(flow::fp::Frame) > 0 && !targetCell;
+    for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() <= to; b = b.next()) {
+        QTextBlockFormat nf = b.blockFormat();
+        if (targetFramed) {
+            nf.setProperty(flow::fp::Frame, tf.property(flow::fp::Frame));
+            nf.setProperty(tp::OutOfLayout, true);
+        } else {
+            nf.clearProperty(flow::fp::Frame);
+            nf.clearProperty(tp::OutOfLayout);
+        }
+        if (nf != b.blockFormat()) setBlockFormatKeepingList(b, nf);
+    }
     // The ids a paragraph carries in the file are its own: a copy has none (the first, if it is the target's, kept them above).
     for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() <= to; b = b.next()) {
         QTextBlockFormat nf = b.blockFormat();
@@ -1387,7 +1458,7 @@ static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleI
     const QString was = bf.stringProperty(tp::StyleName).isEmpty() ? doc.defaultParagraphStyle() : bf.stringProperty(tp::StyleName);
     QTextBlockFormat nf = doc.styleBlockFormat(styleId);
     // What belongs to the paragraph in the file, not to its style.
-    for (int key : {int(prop::MarkFormat), int(prop::LastSection), int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs), int(flow::fp::SectionBreakAfter), int(prop::SectionData), int(flow::fp::Cell)})
+    for (int key : {int(prop::MarkFormat), int(prop::LastSection), int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs), int(flow::fp::SectionBreakAfter), int(prop::SectionData), int(flow::fp::Cell), int(flow::fp::Frame), int(tp::OutOfLayout)})
         if (bf.hasProperty(key)) nf.setProperty(key, bf.property(key));
     const int numId = nf.intProperty(prop::NumId), level = nf.intProperty(prop::NumLevel);
     const bool wasList = bf.hasProperty(prop::NumId);

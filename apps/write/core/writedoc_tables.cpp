@@ -51,9 +51,7 @@ std::optional<flow::TableData::Place> floatingPlaceOf(const QByteArray &original
     p.x = points("tblpX");
     p.y = points("tblpY");
     p.room = QMarginsF(std::max(0.0, points("leftFromText")), std::max(0.0, points("topFromText")), std::max(0.0, points("rightFromText")), std::max(0.0, points("bottomFromText")));
-    // (tblOverlap is among the table's properties: before its first row.)
-    const int row = original.indexOf("<w:tr");
-    p.overlap = !QString::fromUtf8(original.left(row < 0 ? 4000 : row)).contains(QRegularExpression(QStringLiteral("tblOverlap\\b[^>]*\\bval\\s*=\\s*\"never\"")));
+    // (tblOverlap, whether the table may be over another that is set at a place, is kept in the file as it is and is not used: such tables are drawn where they ask.)
     return p;
 }
 

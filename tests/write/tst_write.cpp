@@ -7008,7 +7008,8 @@ private Q_SLOTS:
         const QByteArray frame = "<w:framePr w:w=\"1800\" w:hSpace=\"120\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:xAlign=\"right\" w:y=\"60\"/>";
         return makeDocx(plainP("before the tables and a few more words so that a line goes round the box", wallRun(0, 110, 4, 50, 40)) + t.styled + framedP("FRAME one of two paragraphs", frame) + framedP("and the second of them, which is longer than a line of the frame", frame) +
                             plainP("between them, with enough words that more than a line or two are beside the box that is set from the page", wallRun(5, 150, 60, 40, 50)) +
-                            floatingTable(60) + plainP("after the table that is set at a place, with words enough for the text to go round it for a few lines, and a few more words") + t.plain + plainP("then one with space between its cells") + t.spaced + 
+                            floatingTable(60) + plainP("after the table that is set at a place, with words enough for the text to go round it for a few lines, and a few more words") + t.plain +
+                            plainP("then one with space between its cells") + t.spaced +
                             plainP("after the tables, and a line or two of words more", wallRun(1, 20, 6, 40, 14) + wallRun(2, 60, 14, 40, 30)),
                         t.styles, QByteArray(), t.sect);
     }
@@ -7041,8 +7042,8 @@ private Q_SLOTS:
         const QByteArray two = sectionXml(7200, 6600, 720, QByteArray(), "<w:type w:val=\"continuous\"/>", "<w:cols w:num=\"2\" w:space=\"360\"/>");
         const QByteArray three = sectionXml(7200, 6600, 900, "<w:headerReference w:type=\"default\" r:id=\"rIdheader4\"/>");
         // (Objects the text goes round: one of each kind among the notes, tables, and sections, so that the text goes round them across pages and columns.)
-        QByteArray body = plainP(wordsOf("before the tables", 14), refTo(2) + wallRun(0, 150, 4, 60, 50)) + t.styled + plainP(wordsOf("between them", 12), refTo(4) + wallRun(1, 40, 8, 50, 16)) + t.plain + plainP("then one with space between its cells") + t.spaced + 
-                          plainP("after the tables", QByteArray(), one);
+        QByteArray body = plainP(wordsOf("before the tables", 14), refTo(2) + wallRun(0, 150, 4, 60, 50)) + t.styled + plainP(wordsOf("between them", 12), refTo(4) + wallRun(1, 40, 8, 50, 16)) + t.plain +
+                          plainP("then one with space between its cells") + t.spaced + plainP("after the tables", QByteArray(), one);
         body += floatingTable(50) + plainP(wordsOf("after the table set at a place", 20)) + framedP("FRAME of the second section", "<w:framePr w:w=\"1400\" w:h=\"500\" w:hRule=\"exact\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"text\" w:xAlign=\"left\"/>") +
                 plainP(wordsOf("Second section", 18), wallRun(3, 110, 10, 50, 40)) + tableOfRows(9, 2, 1000, [](int r, int c) { return r == 4 && c == 1 ? plainP("cites", refTo(5)) : cellP("r" + QByteArray::number(r) + "c" + QByteArray::number(c)); }) +
                 plainP(wordsOf("end of the second", 30), wallRun(2, 60, 2, 40, 30), two);
@@ -7241,6 +7242,16 @@ private Q_SLOTS:
                             fail(QStringLiteral("the text does not go round the objects after ") + what, d);
                             break;
                         }
+                    // The text is on the pages whole, and every frame and table set at a place is drawn once or in the text (every third command: the pages are made for it).
+                    if (const QString d = audit::coverageProblems(doc->pager(), doc->story()); !d.isEmpty()) {
+                        fail(QStringLiteral("text is lost from the pages after ") + what, d);
+                        break;
+                    }
+                    if (step % 3 == 1)
+                        if (const QString d = audit::floatProblems(doc->pager(), doc->flow()); !d.isEmpty()) {
+                            fail(QStringLiteral("a frame or a table set at a place is lost after ") + what, d);
+                            break;
+                        }
                     if (!mixed) {
                         QString err;
                         const QByteArray zip = doc->toDocx(&err);
@@ -7315,8 +7326,11 @@ private Q_SLOTS:
             QVERIFY2(walls >= 4 && pagesWithWalls >= 2, qPrintable(QStringLiteral("%1 walls on %2 pages").arg(walls).arg(pagesWithWalls)));
             QVERIFY(doc->flow().frames.size() >= 1);
             int floating = 0;
-            for (int k = 0; k < doc->pager().pageCount(); ++k)
-                for (const auto &t : doc->pager().materialize(k)->tables) floating += t->floating;
+            for (int k = 0; k < doc->pager().pageCount(); ++k) {
+                const auto page = doc->pager().materialize(k);   // (kept: the tables are the page's, which a temporary would take with it before the loop)
+                QVERIFY(page);
+                for (const auto &t : page->tables) floating += t->floating;
+            }
             QVERIFY2(floating >= 1, "a table set at a place is drawn on some page");
             QVERIFY2(audit::wallProblems(doc->pager(), doc->story()).isEmpty(), qPrintable(audit::wallProblems(doc->pager(), doc->story())));
         }
@@ -7372,7 +7386,6 @@ private Q_SLOTS:
         QCOMPARE(p.room.right(), 10.0);
         QCOMPARE(p.room.top(), 2.0);
         QCOMPARE(p.room.bottom(), 3.0);
-        QVERIFY(!p.overlap);
         const QByteArray saved = doc->toDocx();
         QVERIFY2(rt::strictProblems(saved).isEmpty(), qPrintable(rt::strictProblems(saved).join(QLatin1Char('\n'))));
         QVERIFY(documentXml(saved).contains("w:tblpPr"));
@@ -7485,6 +7498,271 @@ private Q_SLOTS:
         auto inCell = open(makeDocx(plainP("Before") + tableX(rowX(cell), 1) + plainP("After"), kStyles));
         QVERIFY(inCell);
         QCOMPARE(int(inCell->flow().frames.size()), 0);
+    }
+
+    // ---- editing next to frames
+
+    // The paragraphs of a document in a line each: the start of its text, with F for a paragraph of a frame (and H when it is set out of the text).
+    static QStringList kindsOf(WriteDoc &doc)
+    {
+        QStringList out;
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+            out << QStringLiteral("%1[%2%3]").arg(b.text().left(14)).arg(b.blockFormat().intProperty(flow::fp::Frame) ? QStringLiteral("F") : QString()).arg(b.blockFormat().boolProperty(tp::OutOfLayout) ? QStringLiteral("H") : QString());
+        return out;
+    }
+    static QByteArray aFramePr() { return "<w:framePr w:w=\"2400\" w:hSpace=\"180\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:xAlign=\"right\"/>"; }
+    static QTextBlock blockNumber(WriteDoc &doc, int n) { return doc.story()->findBlockByNumber(n); }
+
+    // A frame's text is set apart from the text round it, so no edit joins the two: Backspace at the start of the paragraph after a frame and Delete at the end of the one before
+    // it do nothing (as at the edge of a cell), and so do they at the frame's own edges; inside the frame they join its paragraphs.
+    void backspaceAndDeleteNeverJoinAFramesTextAndTheTextRoundIt()
+    {
+        const QByteArray body = plainP(wordsOf("Before", 30)) + framedP("FRAMEWORDS ONE", aFramePr()) + framedP("FRAMEWORDS TWO", aFramePr()) + plainP(wordsOf("After the frame", 60)) + plainP(wordsOf("Last", 40));
+        auto fresh = [&]() { auto d = open(makeDocx(body, kStyles)); return d; };
+        {
+            auto doc = fresh();
+            QVERIFY(doc);
+            const QStringList was = kindsOf(*doc);
+            QCOMPARE(int(was.size()), 5);
+            QTextCursor c(doc->story());
+            c.setPosition(blockNumber(*doc, 3).position());   // the start of the paragraph after the frame
+            deleteBack(*doc, c, false);
+            QCOMPARE(kindsOf(*doc), was);
+            const QByteArray x = documentXml(doc->toDocx());
+            QCOMPARE(int(x.count("w:framePr")), 2);
+        }
+        {
+            auto doc = fresh();
+            const QStringList was = kindsOf(*doc);
+            QTextCursor c(doc->story());
+            const QTextBlock b = blockNumber(*doc, 0);
+            c.setPosition(b.position() + b.length() - 1);   // the end of the paragraph before the frame
+            deleteForward(*doc, c, false);
+            QCOMPARE(kindsOf(*doc), was);
+        }
+        {
+            auto doc = fresh();
+            const QStringList was = kindsOf(*doc);
+            QTextCursor c(doc->story());
+            c.setPosition(blockNumber(*doc, 1).position());   // the start of the frame
+            deleteBack(*doc, c, false);
+            QCOMPARE(kindsOf(*doc), was);
+            const QTextBlock last = blockNumber(*doc, 2);
+            c.setPosition(last.position() + last.length() - 1);   // the end of the frame
+            deleteForward(*doc, c, false);
+            QCOMPARE(kindsOf(*doc), was);
+        }
+        {
+            // Inside the frame: its two paragraphs become one, still the frame's.
+            auto doc = fresh();
+            QTextCursor c(doc->story());
+            c.setPosition(blockNumber(*doc, 2).position());
+            deleteBack(*doc, c, false);
+            QCOMPARE(int(kindsOf(*doc).size()), 4);
+            QCOMPARE(blockNumber(*doc, 1).text(), QStringLiteral("FRAMEWORDS ONEFRAMEWORDS TWO"));
+            QVERIFY(blockNumber(*doc, 1).blockFormat().intProperty(flow::fp::Frame) > 0 && blockNumber(*doc, 1).blockFormat().boolProperty(tp::OutOfLayout));
+            QVERIFY(blockNumber(*doc, 2).blockFormat().intProperty(flow::fp::Frame) == 0);
+            QCOMPARE(int(documentXml(doc->toDocx()).count("w:framePr")), 1);
+            QVERIFY2(audit::floatProblems(doc->pager(), doc->flow()).isEmpty(), qPrintable(audit::floatProblems(doc->pager(), doc->flow())));
+        }
+        {
+            // A selection from the text into the frame cuts what it holds of each and joins neither to the other.
+            auto doc = fresh();
+            const QTextBlock b0 = blockNumber(*doc, 0);
+            QTextCursor c(doc->story());
+            c.setPosition(b0.position() + b0.length() - 1 - 5);
+            c.setPosition(blockNumber(*doc, 1).position() + 3, QTextCursor::KeepAnchor);
+            deleteBack(*doc, c, false);
+            QCOMPARE(int(kindsOf(*doc).size()), 5);
+            QVERIFY(blockNumber(*doc, 0).blockFormat().intProperty(flow::fp::Frame) == 0);
+            QCOMPARE(blockNumber(*doc, 1).text(), QStringLiteral("MEWORDS ONE"));
+            QVERIFY(blockNumber(*doc, 1).blockFormat().boolProperty(tp::OutOfLayout));
+            QVERIFY(!blockNumber(*doc, 0).text().contains(QLatin1String("MEWORDS")));
+        }
+    }
+
+    // A paragraph style gives a paragraph its look, not its place: a frame's paragraph that is made a heading is still the frame's (and the file still says so).
+    void aStyleAppliedToAFramesParagraphLeavesItInTheFrame()
+    {
+        const QByteArray body = plainP(wordsOf("Before", 30)) + framedP("FRAMEWORDS ONE", aFramePr()) + plainP(wordsOf("After the frame", 60)) + plainP(wordsOf("Last", 40));
+        auto doc = open(makeDocx(body, kStyles));
+        QVERIFY(doc);
+        const int key = blockNumber(*doc, 1).blockFormat().intProperty(flow::fp::Frame);
+        QVERIFY(key > 0);
+        QTextCursor c(doc->story());
+        c.setPosition(blockNumber(*doc, 1).position() + 2);
+        applyParagraphStyle(*doc, c, QStringLiteral("Heading1"));
+        const QTextBlockFormat bf = blockNumber(*doc, 1).blockFormat();
+        QCOMPARE(bf.stringProperty(tp::StyleName), QStringLiteral("Heading1"));
+        QCOMPARE(bf.intProperty(flow::fp::Frame), key);
+        QVERIFY(bf.boolProperty(tp::OutOfLayout));
+        // Still no line of the text, and a box with its words.
+        for (int k = 0; k < doc->pager().pageCount(); ++k)
+            for (const auto &l : doc->pager().lines(k)) QVERIFY(doc->story()->findBlock(l.pos).blockFormat().intProperty(flow::fp::Frame) == 0);
+        QVERIFY2(audit::floatProblems(doc->pager(), doc->flow()).isEmpty(), qPrintable(audit::floatProblems(doc->pager(), doc->flow())));
+        QVERIFY2(audit::coverageProblems(doc->pager(), doc->story()).isEmpty(), qPrintable(audit::coverageProblems(doc->pager(), doc->story())));
+        const QByteArray x = documentXml(doc->toDocx());
+        QCOMPARE(int(x.count("w:framePr")), 1);
+        QVERIFY(x.indexOf("Heading1") > 0 && x.indexOf("Heading1") < x.indexOf("FRAMEWORDS ONE") && x.indexOf("w:framePr") < x.indexOf("FRAMEWORDS ONE"));
+        // And so with a style that is put on the paragraph again, and one taken off.
+        applyParagraphStyle(*doc, c, doc->defaultParagraphStyle());
+        QCOMPARE(blockNumber(*doc, 1).blockFormat().intProperty(flow::fp::Frame), key);
+        QVERIFY(blockNumber(*doc, 1).blockFormat().boolProperty(tp::OutOfLayout));
+    }
+
+    // Enter in a frame's paragraph makes another paragraph of the frame (even at its end, where the style says what follows it); Enter at the end of the paragraph before the
+    // frame makes one of the text, and what is typed in it is text.
+    void enterNextToAFrameMakesParagraphsOfTheRightPlace()
+    {
+        const QByteArray body = plainP(wordsOf("Before", 30)) + framedP("FRAMEWORDS ONE", aFramePr()) + plainP(wordsOf("After the frame", 60)) + plainP(wordsOf("Last", 40));
+        {
+            auto doc = open(makeDocx(body, kStyles));
+            const int key = blockNumber(*doc, 1).blockFormat().intProperty(flow::fp::Frame);
+            QTextCursor c(doc->story());
+            const QTextBlock f = blockNumber(*doc, 1);
+            c.setPosition(f.position() + f.length() - 1);
+            insertParagraph(*doc, c);
+            typeText(*doc, c, QStringLiteral("NEWFRAMEPARA"));
+            QCOMPARE(int(kindsOf(*doc).size()), 5);
+            QCOMPARE(blockNumber(*doc, 2).text(), QStringLiteral("NEWFRAMEPARA"));
+            QCOMPARE(blockNumber(*doc, 2).blockFormat().intProperty(flow::fp::Frame), key);
+            QVERIFY(blockNumber(*doc, 2).blockFormat().boolProperty(tp::OutOfLayout));
+            QCOMPARE(int(documentXml(doc->toDocx()).count("w:framePr")), 2);
+        }
+        {
+            // A heading in the frame, and Enter at its end: the next paragraph is of the heading's next style, and still the frame's.
+            auto doc = open(makeDocx(body, kStyles));
+            const int key = blockNumber(*doc, 1).blockFormat().intProperty(flow::fp::Frame);
+            QTextCursor c(doc->story());
+            c.setPosition(blockNumber(*doc, 1).position() + 2);
+            applyParagraphStyle(*doc, c, QStringLiteral("Heading1"));
+            const QTextBlock f = blockNumber(*doc, 1);
+            c.setPosition(f.position() + f.length() - 1);
+            insertParagraph(*doc, c);
+            typeText(*doc, c, QStringLiteral("NEXTSTYLE"));
+            QCOMPARE(blockNumber(*doc, 2).text(), QStringLiteral("NEXTSTYLE"));
+            QCOMPARE(blockNumber(*doc, 2).blockFormat().intProperty(flow::fp::Frame), key);
+            QVERIFY(blockNumber(*doc, 2).blockFormat().boolProperty(tp::OutOfLayout));
+            QVERIFY(blockNumber(*doc, 2).blockFormat().stringProperty(tp::StyleName) != QStringLiteral("Heading1"));
+        }
+        {
+            auto doc = open(makeDocx(body, kStyles));
+            QTextCursor c(doc->story());
+            const QTextBlock b = blockNumber(*doc, 0);
+            c.setPosition(b.position() + b.length() - 1);
+            insertParagraph(*doc, c);
+            typeText(*doc, c, QStringLiteral("TYPEDINTEXT"));
+            QCOMPARE(int(kindsOf(*doc).size()), 5);
+            QCOMPARE(blockNumber(*doc, 1).text(), QStringLiteral("TYPEDINTEXT"));
+            QVERIFY(blockNumber(*doc, 1).blockFormat().intProperty(flow::fp::Frame) == 0 && !blockNumber(*doc, 1).blockFormat().boolProperty(tp::OutOfLayout));
+            QVERIFY(blockNumber(*doc, 2).blockFormat().boolProperty(tp::OutOfLayout));
+            bool shown = false;
+            for (const auto &l : doc->pager().lines(0)) shown |= doc->story()->findBlock(l.pos).text() == QStringLiteral("TYPEDINTEXT");
+            QVERIFY(shown);
+        }
+    }
+
+    // Text copied from a frame is paragraphs of the text where it is pasted (a frame's key is its document's, and the paragraphs would be hidden in another's); pasted into a
+    // frame's paragraph it is the frame's.
+    void pastedFrameTextIsTextOrIsThatOfTheFrameItIsPastedInto()
+    {
+        const QByteArray body = plainP(wordsOf("Before", 30)) + framedP("FRAMEWORDS ONE", aFramePr()) + plainP(wordsOf("After the frame", 60)) + plainP(wordsOf("Last", 40));
+        auto a = open(makeDocx(body, kStyles));
+        auto b = open(makeDocx(plainP(wordsOf("Other first", 20)) + plainP(wordsOf("Other second", 20)), kStyles));
+        QVERIFY(a && b);
+        QTextCursor sel(a->story());
+        sel.setPosition(blockNumber(*a, 1).position());
+        sel.setPosition(blockNumber(*a, 2).position() + 5, QTextCursor::KeepAnchor);
+        const Clip clip = copySelection(*a, sel);
+        QTextCursor at(b->story());
+        at.setPosition(blockNumber(*b, 1).position() + 3);
+        pasteClip(*b, at, clip);
+        bool found = false;
+        for (QTextBlock x = b->story()->begin(); x.isValid(); x = x.next()) {
+            QVERIFY2(x.blockFormat().intProperty(flow::fp::Frame) == 0 && !x.blockFormat().boolProperty(tp::OutOfLayout), qPrintable(x.text().left(30)));
+            found |= x.text().contains(QLatin1String("FRAMEWORDS"));
+        }
+        QVERIFY(found);
+        QVERIFY2(audit::coverageProblems(b->pager(), b->story()).isEmpty(), qPrintable(audit::coverageProblems(b->pager(), b->story())));
+        QCOMPARE(int(documentXml(b->toDocx()).count("w:framePr")), 0);
+        // Into the frame's own paragraph: the frame's.
+        QTextCursor inFrame(a->story());
+        inFrame.setPosition(blockNumber(*a, 1).position() + 4);
+        const int key = blockNumber(*a, 1).blockFormat().intProperty(flow::fp::Frame);
+        QTextCursor from(b->story());
+        from.setPosition(blockNumber(*b, 0).position());
+        from.setPosition(blockNumber(*b, 2).position() + 4, QTextCursor::KeepAnchor);
+        pasteClip(*a, inFrame, copySelection(*b, from));
+        int framed = 0, others = 0;
+        for (QTextBlock x = a->story()->begin(); x.isValid(); x = x.next()) {
+            if (x.blockFormat().intProperty(flow::fp::Frame) == key && x.blockFormat().boolProperty(tp::OutOfLayout)) ++framed;
+            else if (x.blockFormat().intProperty(flow::fp::Frame) != 0 || x.blockFormat().boolProperty(tp::OutOfLayout)) ++others;
+        }
+        QVERIFY2(framed >= 2 && others == 0, qPrintable(QStringLiteral("%1 framed, %2 other").arg(framed).arg(others)));
+        QVERIFY2(audit::floatProblems(a->pager(), a->flow()).isEmpty(), qPrintable(audit::floatProblems(a->pager(), a->flow())));
+    }
+
+    // The caret is in a frame's text where the frame's box draws it, on the page that holds the frame (the page of the paragraph the frame is set from: here the second, with the
+    // frame's paragraph before the break), a click in the box puts the caret in the frame's text, and Home, End, and Up and Down go by the box's lines.
+    void theCaretAndTheMouseWorkInAFramesText()
+    {
+        const QByteArray body = plainP("First page text") + framedP("FRAMEWORDS ONE and more words to make a second line in the box of the frame", aFramePr()) + plainP(wordsOf("Second page", 30), QByteArray(), "<w:pageBreakBefore/>") + plainP("Tail");
+        auto doc = open(makeDocx(body, kStyles));
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        view.paginateAll();
+        QCOMPARE(view.pageCount(), 2);
+        const QTextBlock f = blockNumber(*doc, 1);
+        QVERIFY(f.blockFormat().boolProperty(tp::OutOfLayout));
+        QCOMPARE(doc->pager().pageOfPosition(f.position() + 3), 1);
+        const auto page = doc->pager().materialize(1);
+        QVERIFY(page);
+        const TextItem *box = nullptr;
+        for (const auto &it : page->doc->pages[0]->items)
+            if (const auto *t = dynamic_cast<const TextItem *>(it.get()))
+                if (const Story *st = page->doc->story(t->storyId))
+                    if (st->doc->toPlainText().contains(QStringLiteral("FRAMEWORDS")) && t->id.startsWith(QLatin1String("flow-object-"))) box = t;
+        QVERIFY(box);
+        auto caretAt = [&](int offset) {
+            view.cursor().setPosition(f.position() + offset);
+            view.setCursor(view.cursor());
+            QRect r;
+            return view.caretRect(&r) ? r : QRect();
+        };
+        const QRect a = caretAt(3);
+        QVERIFY(a.isValid());
+        QCOMPARE(view.currentPage(), 1);
+        const QRect pr = view.pageRect(1);   // (where the view has scrolled to)
+        const double sc = pr.width() / page->size.width();
+        const QRectF boxDev(pr.left() + box->rect.left() * sc, pr.top() + box->rect.top() * sc, box->rect.width() * sc, box->rect.height() * sc);
+        QVERIFY2(boxDev.adjusted(-3, -3, 3, 3).contains(a.center()), qPrintable(QStringLiteral("caret %1,%2 and the box %3,%4 %5x%6").arg(a.x()).arg(a.y()).arg(boxDev.x()).arg(boxDev.y()).arg(boxDev.width()).arg(boxDev.height())));
+        const QRect b = caretAt(8);
+        QVERIFY(b.isValid() && b.x() > a.x() + 10 && b.y() == a.y());
+        // Home and End by the box's first line; Down goes to its second.
+        view.cursor().setPosition(f.position() + 8);
+        view.setCursor(view.cursor());
+        view.typeKey(Qt::Key_Home, Qt::NoModifier);
+        QCOMPARE(view.cursor().position(), f.position());
+        view.typeKey(Qt::Key_End, Qt::NoModifier);
+        QVERIFY2(view.cursor().position() > f.position() + 10 && view.cursor().position() < f.position() + f.length() - 1, qPrintable(QString::number(view.cursor().position() - f.position())));
+        view.cursor().setPosition(f.position() + 8);
+        view.setCursor(view.cursor());
+        view.typeKey(Qt::Key_Down, Qt::NoModifier);
+        QVERIFY2(view.cursor().position() > f.position() + 17 && view.cursor().position() < f.position() + f.length(), qPrintable(QString::number(view.cursor().position() - f.position())));
+        // A click in the box's first line: the frame's text, near the place.
+        const QRect again = caretAt(8);   // (the view may have scrolled)
+        view.cursor().setPosition(f.position());   // (on the same page: the view stays)
+        view.setCursor(view.cursor());
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(again.x() + 1, again.y() + again.height() / 2));
+        QVERIFY2(std::abs(view.cursor().position() - (f.position() + 8)) <= 1, qPrintable(QString::number(view.cursor().position() - f.position())));
+        // Typing goes in the frame; the first page's text and the second page's are as they were.
+        typeText(*doc, view.cursor(), QStringLiteral("TYPED"));
+        QVERIFY(f.text().contains(QLatin1String("TYPED")) || blockNumber(*doc, 1).text().contains(QLatin1String("TYPED")));
+        QVERIFY(blockNumber(*doc, 1).blockFormat().boolProperty(tp::OutOfLayout));
+        QVERIFY(!blockNumber(*doc, 2).text().contains(QLatin1String("TYPED")));
     }
 
     // ---- tables with the notes, headers and footers, and sections of a file (the two waves of JeffWrite together)

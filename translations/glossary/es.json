@@ -1,5 +1,6 @@
 {
  "3-D rotation": "giro 3D",
+ "Accessibility": "Accesibilidad",
  "address block": "bloque de direcciones",
  "Adjust": "Ajustar",
  "adjustment handle": "controlador de ajuste",
@@ -83,6 +84,7 @@
  "font scheme": "combinación de fuentes",
  "footer": "pie de página",
  "footnote": "nota al pie",
+ "Format": "Formato",
  "Format Painter": "Copiar formato",
  "freeform": "forma libre",
  "glow": "iluminado",
@@ -205,6 +207,7 @@
  "shape": "forma",
  "Shape Format": "Formato de forma",
  "Shape Styles": "Estilos de forma",
+ "Shapes": "Formas",
  "Show": "Mostrar",
  "shrink text on overflow": "Reducir texto al desbordarse",
  "Size": "Tamaño",
