@@ -590,7 +590,9 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         run.hasNext = true;
         run.next.pos = L[c].pos;
         run.next.skip = L[c].line;
-        run.next.wrapped = !wrapped.isEmpty() && L[c].line > 0;
+        // (Lines of the paragraph that a wall narrowed are on this page, or on a page before it when this page began inside the same paragraph: the page after sets the rest
+        // of it from its character, as this one did, and not by counting lines that a full-width layout of the whole paragraph breaks elsewhere.)
+        run.next.wrapped = L[c].line > 0 && (!wrapped.isEmpty() || (st.wrapped && L[0].block == L[c].block));
         if (m_tables->any() && m_tables->index().spanAt(L[c].pos) >= 0) {   // (a row of a table: the line's number is the part of it)
             run.next.piece = L[c].line;
             run.next.pieceAt = L[c].line != 0 ? m_offsOut : QVector<double>();
