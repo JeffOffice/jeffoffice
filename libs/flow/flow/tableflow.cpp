@@ -651,7 +651,12 @@ void tableLines(const TableFragment &nested, double y0, LineList *out)
                 const double inner = h - c.margins.top() - c.margins.bottom();
                 const double free = std::max(0.0, inner - content->height);
                 const double drop = c.rec->cell.valign == CellAlign::Center ? free / 2 : c.rec->cell.valign == CellAlign::Bottom ? free : 0;
-                contentLines(*content, y + c.margins.top() + drop, &inRow);
+                LineList mine;
+                contentLines(*content, y + c.margins.top() + drop, &mine);
+                // Where the row goes on from a line, the cell has its margin and lines at the top again (and the table its own lines round the lot, if its cells are apart).
+                const double pad = c.margins.top() + (t.data().spaced && c.row != 0 ? roomOf(t.data().top) : 0.0);
+                for (size_t k = 1; k < mine.size(); ++k) mine[k].pad += pad;
+                inRow.insert(inRow.end(), mine.begin(), mine.end());
             }
         }
         if (inRow.empty()) {
@@ -660,9 +665,12 @@ void tableLines(const TableFragment &nested, double y0, LineList *out)
             // The cells' lines side by side: those that overlap in height are one piece.
             std::sort(inRow.begin(), inRow.end(), [](const TableLayout::UnitLine &a, const TableLayout::UnitLine &b) { return a.top != b.top ? a.top < b.top : a.bottom < b.bottom; });
             TableLayout::UnitLine run = inRow.front();
+            run.top = std::min(run.top, y);   // (the first piece of the row begins at the row's top: where it goes on from there, its margins and lines go with it)
             for (size_t k = 1; k < inRow.size(); ++k) {
                 if (inRow[k].top < run.bottom - 0.01) {
                     run.bottom = std::max(run.bottom, inRow[k].bottom);
+                    run.pad = std::max(run.pad, inRow[k].pad);
+                    run.tied = run.tied || inRow[k].tied;
                     if (run.notes.size() < TableLayout::kMostRowNotes) run.notes += inRow[k].notes;
                 } else {
                     out->push_back(run);
@@ -765,7 +773,7 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
     struct CellRun {
         const std::vector<UnitLine> *lines = nullptr;
         int a = 0, most = 0;                 // the first line, and one past the last that fits the room whole
-        double margins = 0;
+        double margins = 0, pad = 0;         // the room the cell's margins take, and above the lines of a part that goes on in a table in the cell besides (in `margins` too)
         std::vector<double> noteH;           // by the number of lines taken: the heights of their notes together
         std::vector<int> noteN;              // and how many there are
     };
@@ -784,8 +792,10 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
         const Cell &c = m_cells[size_t(row.cell0 + i)];
         const auto &lines = units[size_t(i)]->lines;
         cr.lines = &lines;
-        cr.margins = c.margins.top() + c.margins.bottom();
         cr.a = int(std::lower_bound(lines.begin(), lines.end(), offs[i] - 0.01, [](const UnitLine &l, double off) { return l.top < off; }) - lines.begin());
+        if (offs[i] > 0 && cr.a < int(lines.size())) cr.pad = lines[size_t(cr.a)].pad;
+        if (k > 0 && m_data->spaced) cr.pad += roomOf(m_data->top);   // (a row of cells apart that goes on has the table's top line again)
+        cr.margins = c.margins.top() + c.margins.bottom() + cr.pad;
         const double inner = std::max(0.0, room - cr.margins);
         cr.most = untie(lines, cr.a, int(std::partition_point(lines.begin() + cr.a, lines.end(), [&](const UnitLine &l) { return l.bottom - offs[i] <= inner + 0.01; }) - lines.begin()));
         if (noteHeights) {
@@ -886,6 +896,8 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
     // A row set to a height is not begun where the room is less than that height: it goes to the next page whole (a row is cut only where it has at least the room it was set to).
     if (k == 0 && !force && st.more && row.data->height > 0 && room < row.least - 0.01) piece.progress = false;
     piece.offsets = offs;
+    piece.pads = QVector<double>(n, 0.0);
+    for (int i = 0; i < n; ++i) piece.pads[i] = runs[size_t(i)].pad;
     piece.ends = st.more ? st.next : QVector<double>(n, kEnd);
     piece.notes = st.notes;
     piece.noteHeight = st.noteHeight;
@@ -900,8 +912,9 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
             if (!units[size_t(i)] || offs[i] >= kEnd) continue;
             const Cell &c = m_cells[size_t(row.cell0 + i)];
             const auto &ls = units[size_t(i)]->lines;
-            need = std::max(need, units[size_t(i)]->height - offs[i] + c.margins.top() + c.margins.bottom());
-            if (!ls.empty()) lines = std::max(lines, ls.back().bottom - offs[i] + c.margins.top() + c.margins.bottom());
+            const double pad = runs[size_t(i)].pad;
+            need = std::max(need, units[size_t(i)]->height - offs[i] + c.margins.top() + c.margins.bottom() + pad);
+            if (!ls.empty()) lines = std::max(lines, ls.back().bottom - offs[i] + c.margins.top() + c.margins.bottom() + pad);
         }
         piece.height = lines <= text + 0.01 ? std::min(need, text) : need;
         piece.next = 0;
@@ -1002,7 +1015,8 @@ std::vector<TableFragment::Placed> TableFragment::place() const
                 drop = 0;
                 const int at = items[size_t(n)].cell - layout->row(c.row).cell0;
                 if (at >= 0 && at < part->piece.offsets.size()) offset = std::min(part->piece.offsets[at], items[size_t(n)].content->height);
-                p.text = QPointF(p.rect.left() + c.margins.left(), p.rect.top() + c.margins.top() + drop - offset);
+                const double pad = at >= 0 && at < part->piece.pads.size() ? part->piece.pads[at] : 0.0;
+                p.text = QPointF(p.rect.left() + c.margins.left(), p.rect.top() + c.margins.top() + pad + drop - offset);
                 if (offset > 0) p.from = p.text.y() + offset;   // (what the part before showed is not drawn in the margin above the lines of this one)
                 // (What is left for the next part is not drawn in the space under the last line that is in this one.)
                 if (at >= 0 && at < part->piece.ends.size() && part->piece.ends[at] < 1e17) p.cut = p.text.y() + part->piece.ends[at];

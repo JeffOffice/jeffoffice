@@ -4761,6 +4761,53 @@ private Q_SLOTS:
         QCOMPARE(startPieces[2], 0);
     }
 
+    // A table in a cell has its cell's margin again where its row goes on over a page break: the part of the row on the next page has the nested cell's top margin above its
+    // first line, besides the outer cell's own.
+    void aTableInACellHasItsMarginAgainWhereItsRowGoesOn()
+    {
+        FlowDocument fd;
+        fd.sections[0].paper = QSizeF(300, 300);
+        fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+        QTextCursor c(fd.story());
+        c.movePosition(QTextCursor::End);
+        QTextCharFormat body;
+        body.setFontPointSize(11);
+        auto outer = std::make_shared<TableData>(), inner = std::make_shared<TableData>();
+        outer->columns << 220;
+        inner->columns << 150;
+        outer->margins = QMarginsF(4, 3, 4, 3);
+        inner->margins = QMarginsF(4, 6, 4, 3);
+        CellRecord o;
+        o.table = outer;
+        o.row = std::make_shared<RowData>();
+        const int outerKey = fd.tables.add(o);
+        auto paragraph = [&](int key, const QString &text) {
+            QTextBlockFormat bf;
+            bf.setProperty(fp::Cell, key);
+            c.insertBlock(bf, body);
+            c.insertText(text, body);
+        };
+        CellRecord i;
+        i.table = inner;
+        i.row = std::make_shared<RowData>();
+        i.parent = outerKey;
+        const int innerKey = fd.tables.add(i);
+        for (int k = 0; k < 60; ++k) paragraph(innerKey, QStringLiteral("line %1").arg(k));
+        paragraph(outerKey, QString());
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        const auto page = pg.materialize(1);
+        QVERIFY(page && !page->tables.isEmpty());
+        const TableFragment &f = *page->tables[0];
+        QVERIFY(f.partOf(0) != nullptr);
+        double first = -1;
+        f.forLines([&](const StoryLayout::LineBrief &, const QRectF &rect) {
+            if (first < 0) first = rect.top() - f.origin.y();
+        });
+        // (The outer cell's margin is 3, the table in it has 6 at the top of its cell.)
+        QVERIFY2(std::abs(first - 9) < 0.05, qPrintable(QString::number(first)));
+    }
+
     // The part of a row that goes on from the page before shows only its own lines: nothing of the lines that the page before showed is drawn in the margin above them.
     void aPartOfARowDoesNotShowTheLinesOfThePartBeforeItInItsMargin()
     {
