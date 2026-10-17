@@ -17,6 +17,9 @@ namespace jp::write {
 QTextCharFormat charFormatOf(const office::wml::RunProps &resolved, const office::Theme *theme = nullptr, const office::wml::RunProps *direct = nullptr);
 office::wml::RunProps runPropsOf(const QTextCharFormat &format);
 
+// The language that the kept properties of a run (the XML beside the ones the program understands) state with a w:lang: its tag ("en-GB"), or empty.
+QString languageOf(const QVector<office::wml::RawChild> &extra);
+
 QTextBlockFormat blockFormatOf(const office::wml::ParaProps &resolved);
 office::wml::ParaProps paraPropsOf(const QTextBlockFormat &format);
 

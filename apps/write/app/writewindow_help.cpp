@@ -6,6 +6,7 @@
 #include "app/help.h"
 #include "app/pageview.h"
 #include "app/ribbon.h"
+#include "app/spellpane.h"
 #include "app/writefilescreen.h"
 
 #include <QAction>
@@ -64,6 +65,8 @@ QString WriteWindow::helpContext() const
     QString key;
     if (m_fileScreen->isVisible()) {
         key = QStringLiteral("file:") + m_fileScreen->currentPage();
+    } else if (m_spellPane && inside(m_spellPane)) {
+        key = QStringLiteral("pane:spelling");
     } else if (inside(m_ribbon)) {
         for (int i = 0; i < m_ribbon->tabCount(); ++i)
             if (m_ribbon->tabPage(i) == m_ribbon->current()) key = QStringLiteral("tab:") + m_ribbon->tabName(i);

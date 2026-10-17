@@ -3,24 +3,24 @@
 #include "app/writewindow.h"
 
 #include "app/filedialogs.h"
+#include "app/pageoutput.h"
 #include "app/pageview.h"
-#include "app/pagepaint.h"
 #include "core/appinfo.h"
+#include "core/printing.h"
 
 #include <QApplication>
+#include <QDir>
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QPageLayout>
 #include <QPageSize>
-#include <QPainter>
 #include <QPdfWriter>
-#include <QPrintDialog>
 #include <QPrinter>
-#include <QRegularExpression>
 #include <QSaveFile>
-#include <QSet>
 #include <QStandardPaths>
 #include <QStatusBar>
+#include <QTemporaryFile>
+#include <memory>
 
 namespace jp {
 
@@ -38,32 +38,24 @@ QVector<int> WriteWindow::outputPages(const WriteOutputOptions &options)
         for (int i = 0; i < count; ++i) out << i;
         return out;
     }
-    // "1-3, 5": the pages that are there, once each.
-    QSet<int> seen;
-    for (const QString &part : options.pages.split(QRegularExpression(QStringLiteral("[,;]")), Qt::SkipEmptyParts)) {
-        const QStringList ends = part.trimmed().split(QLatin1Char('-'));
-        bool ok1 = false, ok2 = true;
-        const int from = ends.value(0).trimmed().toInt(&ok1);
-        const int to = ends.size() > 1 ? ends.value(1).trimmed().toInt(&ok2) : from;
-        if (!ok1 || !ok2 || ends.size() > 2) continue;
-        for (int p = std::max(1, std::min(from, to)); p <= std::min(count, std::max(from, to)); ++p)
-            if (!seen.contains(p)) {
-                seen.insert(p);
-                out << p - 1;
-            }
-    }
-    return out;
+    return write::parsePageRange(options.pages, count);
+}
+
+QString WriteWindow::pdfPathToWrite(const QString &title)
+{
+    const QString dir = m_path.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(m_path).absolutePath();
+    const QString filter = tr("PDF (*.pdf)");
+    const QString suggested = dir + QLatin1Char('/') + displayName() + QStringLiteral(".pdf");
+    QString path = m_pathChooser ? m_pathChooser(suggested, filter) : askSavePath(this, title, suggested, filter);
+    if (!path.isEmpty() && QFileInfo(path).suffix().compare(QLatin1String("pdf"), Qt::CaseInsensitive) != 0) path += QStringLiteral(".pdf");
+    return path;
 }
 
 bool WriteWindow::exportPdf()
 {
     if (!m_doc) return false;
-    const QString dir = m_path.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(m_path).absolutePath();
-    const QString filter = tr("PDF (*.pdf)");
-    const QString suggested = dir + QLatin1Char('/') + displayName() + QStringLiteral(".pdf");
-    QString path = m_pathChooser ? m_pathChooser(suggested, filter) : askSavePath(this, tr("Export to PDF"), suggested, filter);
+    const QString path = pdfPathToWrite(tr("Export to PDF"));
     if (path.isEmpty()) return false;
-    if (QFileInfo(path).suffix().compare(QLatin1String("pdf"), Qt::CaseInsensitive) != 0) path += QStringLiteral(".pdf");
     const QVector<int> pages = outputPages(WriteOutputOptions());
     QString err;
     QApplication::setOverrideCursor(Qt::WaitCursor);
@@ -77,33 +69,7 @@ bool WriteWindow::exportPdf()
             pdf.setTitle(displayName());
             pdf.setResolution(1200);
             pdf.setPageMargins(QMarginsF(0, 0, 0, 0));
-            QPainter p;
-            bool started = false;
-            for (int index : pages) {
-                const auto page = m_doc->pager().materialize(index);
-                if (!page) continue;
-                pdf.setPageSize(QPageSize(page->size, QPageSize::Point, QString(), QPageSize::ExactMatch));
-                if (!started) {
-                    started = p.begin(&pdf);
-                    if (!started) {
-                        ok = false;
-                        break;
-                    }
-                } else {
-                    pdf.newPage();
-                }
-                p.save();
-                p.scale(1200.0 / 72, 1200.0 / 72);
-                LayoutCache cache;
-                write::PageDrawing d;
-                d.output = true;
-                d.textOutput = TextOutput::Pdf;
-                d.pageCount = m_view->pageCount();
-                write::paintPage(&p, *page, &cache, d);
-                p.restore();
-            }
-            if (started) p.end();
-            ok = ok && started;
+            ok = write::paintSheets(*m_doc, &pdf, pages, m_view->pageCount());
         }
         if (ok) ok = file.commit();
         else file.cancelWriting();
@@ -125,49 +91,49 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     if (pages.isEmpty()) return false;
     QPrinter printer(QPrinter::HighResolution);
     printer.setDocName(displayName());
-    const QSizeF first = m_doc->pager().page(pages.first()).size;
-    printer.setPageSize(QPageSize(first, QPageSize::Point, QString(), QPageSize::FuzzyMatch));
-    printer.setFullPage(true);
-    printer.setPageMargins(QMarginsF(0, 0, 0, 0), QPageLayout::Point);
-    QPrintDialog dlg(&printer, this);
-    dlg.setWindowTitle(tr("Print"));
-    if (dlg.exec() != QDialog::Accepted) return false;
+    QString path;
+    // A PDF file is made in a temporary file and put in place when it is whole, as the export does, so that a file that is there is not lost to one that fails.
+    std::unique_ptr<QTemporaryFile> made;
+    if (options.toFile) {
+        path = pdfPathToWrite(tr("Save as PDF"));
+        if (path.isEmpty()) return false;
+        made = std::make_unique<QTemporaryFile>(QDir::tempPath() + QStringLiteral("/jeffwrite-XXXXXX.pdf"));
+        if (!made->open()) {
+            QMessageBox::warning(this, tr("Save as PDF"), tr("%1 couldn't make \"%2\".\n%3").arg(appInfo().name, QFileInfo(path).fileName(), made->errorString()));
+            return false;
+        }
+        made->close();
+        printer.setOutputFormat(QPrinter::PdfFormat);
+        printer.setOutputFileName(made->fileName());
+    } else if (!options.printer.isEmpty()) {
+        printer.setPrinterName(options.printer);
+    }
+    printer.setCopyCount(std::max(1, options.copies));
+    printer.setCollateCopies(options.collate);
+    if (options.grayscale) printer.setColorMode(QPrinter::GrayScale);
+    if (m_printerPreparer) m_printerPreparer(printer);
+    // A printer that can't make copies is sent the pages again, in the order the copies are to come out.
+    const bool again = !options.toFile && !printer.supportsMultipleCopies();
+    const QVector<int> sheets = again ? write::sheetOrder(pages, options.copies, options.collate) : pages;
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    QPainter p;
-    bool ok = p.begin(&printer);
-    if (ok) {
-        const double scale = printer.resolution() / 72.0;
-        // A printer that can't make copies is sent the pages again.
-        const int copies = printer.supportsMultipleCopies() ? 1 : std::max(1, printer.copyCount());
-        bool firstSheet = true;
-        for (int c = 0; c < copies; ++c)
-            for (int index : pages) {
-                const auto page = m_doc->pager().materialize(index);
-                if (!page) continue;
-                if (!firstSheet) {
-                    printer.setPageSize(QPageSize(page->size, QPageSize::Point, QString(), QPageSize::FuzzyMatch));
-                    printer.newPage();
-                }
-                firstSheet = false;
-                p.save();
-                p.scale(scale, scale);
-                LayoutCache cache;
-                write::PageDrawing d;
-                d.output = true;
-                d.textOutput = TextOutput::Print;
-                d.pageCount = m_view->pageCount();
-                d.grayscale = printer.colorMode() == QPrinter::GrayScale;
-                write::paintPage(&p, *page, &cache, d);
-                p.restore();
-            }
-        p.end();
+    bool ok = write::paintSheets(*m_doc, &printer, sheets, m_view->pageCount(), printer.colorMode() == QPrinter::GrayScale);
+    QString err;
+    if (ok && made) {
+        QFile whole(made->fileName());
+        QSaveFile file(path);
+        ok = whole.open(QIODevice::ReadOnly) && file.open(QIODevice::WriteOnly);
+        while (ok && !whole.atEnd()) ok = file.write(whole.read(1 << 20)) >= 0;
+        if (ok) ok = file.commit();
+        else file.cancelWriting();
+        if (!ok) err = file.error() != QFileDevice::NoError ? file.errorString() : whole.errorString();
     }
     QApplication::restoreOverrideCursor();
     if (!ok) {
-        QMessageBox::warning(this, tr("Print"), tr("%1 couldn't send \"%2\" to the printer.").arg(appInfo().name, displayName()));
+        if (made && !err.isEmpty()) QMessageBox::warning(this, tr("Save as PDF"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
+        else QMessageBox::warning(this, tr("Print"), tr("%1 couldn't send \"%2\" to the printer.").arg(appInfo().name, displayName()));
         return false;
     }
-    statusBar()->showMessage(tr("Sent %1 to the printer").arg(displayName()), 5000);
+    statusBar()->showMessage(options.toFile ? tr("Saved %1").arg(QFileInfo(path).fileName()) : tr("Sent %1 to the printer").arg(displayName()), 5000);
     return true;
 }
 
