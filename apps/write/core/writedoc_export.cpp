@@ -93,7 +93,9 @@ void WriteDoc::exportInto(BlockSink &sink)
             direct.numId = numId;   // (said again, as the file had it)
             direct.ilvl = level;
         }
-        direct.style = styleId == defaultStyle ? QString() : styleId;
+        // (A file that flags a default style has it left out of its paragraphs. One that flags none has paragraphs that say Normal, which the program takes for the default:
+        // they are saved saying it, since a reader that doesn't would give them another look.)
+        direct.style = styleId == defaultStyle && (!sheet.defaultId(QStringLiteral("paragraph")).isEmpty() || !sheet.find(styleId)) ? QString() : styleId;
         if (bf.hasProperty(prop::OddTabs)) {
             QVector<TabStop> tabs = direct.tabs.value_or(QVector<TabStop>());
             tabs += unpackTabs(storedBytes(bf, prop::OddTabs));

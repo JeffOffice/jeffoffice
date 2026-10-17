@@ -4281,6 +4281,26 @@ private Q_SLOTS:
         QVERIFY(f[0].fontWeight() < QFont::DemiBold && f[1].fontWeight() >= QFont::DemiBold);
     }
 
+    // A file that flags none of its paragraph styles as the default has paragraphs that say "Normal": they are saved saying it (the program takes Normal for the default of such
+    // a file, and another reader may not, so leaving it out could change the paragraph's look). A file that flags Normal as its default has it left out of the paragraphs, as before.
+    void aParagraphStyleIsSavedSaidWhenTheFileFlagsNoDefault()
+    {
+        auto saved = [&](const QByteArray &normalAttrs) {
+            const QByteArray styles = "<w:style w:type=\"paragraph\"" + normalAttrs + " w:styleId=\"Normal\"><w:name w:val=\"Normal\"/><w:rPr><w:b/></w:rPr></w:style>";
+            const QByteArray original = makeDocx("<w:p><w:pPr><w:pStyle w:val=\"Normal\"/></w:pPr><w:r><w:t>said</w:t></w:r></w:p>", styles);
+            auto doc = open(original);
+            return doc ? documentXml(doc->toDocx()) : QByteArray();
+        };
+        const QByteArray unflagged = saved(QByteArray());
+        QVERIFY2(unflagged.contains("<w:pStyle w:val=\"Normal\"/>"), unflagged.constData());
+        const QByteArray flagged = saved(" w:default=\"1\"");
+        QVERIFY2(!flagged.contains("<w:pStyle"), flagged.constData());
+        // (A file with no styles has none to say.)
+        auto bare = open(makeDocx("<w:p><w:r><w:t>none</w:t></w:r></w:p>"));
+        QVERIFY(bare);
+        QVERIFY(!documentXml(bare->toDocx()).contains("<w:pStyle"));
+    }
+
     // An empty paragraph that ends a section, when the next section is continuous, takes no room; before a section on a page of its own it does.
     void anEmptyBreakParagraphBeforeAContinuousSectionTakesNoRoom()
     {
