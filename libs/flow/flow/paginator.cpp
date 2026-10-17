@@ -426,7 +426,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                     const QTextBlock endBlock = m_doc->story()->findBlock(splitBlock);
                     const int splitEnd = endBlock.position() + endBlock.length();
                     // (A section of columns has them as even as the lines let them be, where another section begins below it: the columns are made as tall as the lines
-                    // need, as short as they can be, by trying heights from the share of the text's height each has, a line more at a time.)
+                    // need, as short as they can be (found between the share of the text's height each has and the page's, by halving).)
                     const int firstColumns = sec.columnCount();
                     auto layFirst = [&](double height) {
                         QVector<FrameSpec> f1;
@@ -453,11 +453,21 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                     if (firstColumns > 1 && !overflows(p1)) {
                         double total = 0;
                         for (int c = 0; c < firstColumns; ++c) total += bottomOf(p1, c);
-                        for (double height = std::min(colH, std::max(1.0, total / firstColumns)); height < colH; height += 6) {
-                            Part q = layFirst(height);
-                            if (overflows(q)) continue;
+                        double lo = std::min(colH, std::max(1.0, total / firstColumns)), hi = colH;
+                        Part q = layFirst(lo);
+                        if (!overflows(q)) {
                             p1 = q;
-                            break;
+                        } else {
+                            while (hi - lo > 3) {
+                                const double mid = (lo + hi) / 2;
+                                q = layFirst(mid);
+                                if (overflows(q)) {
+                                    lo = mid;
+                                } else {
+                                    hi = mid;
+                                    p1 = std::move(q);
+                                }
+                            }
                         }
                     }
                     double splitY = -1;
