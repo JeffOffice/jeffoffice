@@ -33,6 +33,8 @@ constexpr int kMostObjects = 500;
 constexpr int kMostWrapped = 24;
 // The most rows a table has that is set at a place (a longer one is in the text).
 constexpr int kMostFloatingRows = 60;
+// The most paragraphs a frame has (a file with more has the rest left out of it, and the page looks back no further than that for where one begins).
+constexpr int kMostFrameParagraphs = 300;
 
 // One page of the document made into the pages the page layer draws: a Document of a single page of the section's size, with a text box
 // for each column that has lines, linked in order, over a story of the text on the page. Paint it with

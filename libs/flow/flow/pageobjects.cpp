@@ -261,7 +261,22 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
                 item->wrap.left = wall->rect.left() - lo + 0.5;
                 item->wrap.right = hi - wall->rect.right() + 0.5;
             }
-            made_.push_back({o.z, item, o.behind});
+            if (wall && item->type() == ItemType::Text) {
+                // A text box does not push another box's text aside unless its own frame reaches into that text (the page layer's rule, for boxes that are set edge to edge), and the
+                // room round it does not count: a wall that is a text box's room alone would be one for the paginator and none for the page layer. So the box wraps nothing, and an
+                // invisible wall of its rectangle (and its room) is what the text goes round.
+                auto shape = std::make_shared<ShapeItem>();
+                shape->id = QStringLiteral("flow-wall-%1-%2-%3").arg(d->pages[0]->id).arg(id).arg(made);
+                shape->rect = item->bounds();
+                shape->fill = Fill::none();
+                shape->stroke = Stroke::none();
+                shape->wrap = item->wrap;
+                item->wrap.mode = Wrap::None;
+                made_.push_back({o.z, item, o.behind});
+                made_.push_back({o.z, shape, false});
+            } else {
+                made_.push_back({o.z, item, o.behind});
+            }
             // A table set at a place is drawn there: its rows, in a fragment that the page paints with the others (the object is the room it takes, which draws nothing).
             if (a.table >= 0 && page) {
                 const std::shared_ptr<TableLayout> table = m_tables->layout(a.table);
@@ -297,7 +312,8 @@ std::unique_ptr<QTextDocument> Paginator::frameStory(int from, int to) const
     QTextCursor dst(sd.get());
     QHash<QTextList *, QTextList *> lists;
     bool firstBlock = true;
-    for (QTextBlock b = main->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
+    int paragraphs = 0;
+    for (QTextBlock b = main->findBlock(from); b.isValid() && b.position() < to && ++paragraphs <= kMostFrameParagraphs; b = b.next()) {
         QTextBlockFormat bf = b.blockFormat();
         bf.clearProperty(QTextFormat::ObjectIndex);   // (the list is the document's, not this story's: it's made again below)
         bf.clearProperty(tp::OutOfLayout);
@@ -397,7 +413,7 @@ QVector<Paginator::Anchor> Paginator::frameAnchors(const QVector<AnchorLine> &li
             const int key = b.blockFormat().intProperty(fp::Frame);
             if (key <= 0) break;
             QTextBlock first = b;
-            while (first.previous().isValid() && first.previous().blockFormat().intProperty(fp::Frame) == key) first = first.previous();
+            for (int back = 0; back < kMostFrameParagraphs && first.previous().isValid() && first.previous().blockFormat().intProperty(fp::Frame) == key; ++back) first = first.previous();
             if (const FloatingObject *o = frameObject(key, first.position(), b.position() + b.length(), columnWidth)) {
                 Anchor a;
                 a.object = m_doc->frames[key - 1];
