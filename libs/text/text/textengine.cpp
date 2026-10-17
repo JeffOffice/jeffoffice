@@ -2893,7 +2893,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // so a word followed by one can be the last of a line it is a mark too wide for: the line is tried that much wider, and kept so if
                     // it is only that last mark that is past the margin.
                     bool markHangs = false;   // (a mark at the end of the line is past the margin)
-                    if (env.wordLines && !env.wordNoHang && (al == Qt::AlignLeft || al == Qt::AlignJustify) && !bf.boolProperty(tp::Distribute)) {
+                    if (env.wordLines && !env.wordNoHang && !bf.boolProperty(tp::NoHangPunct) && (al == Qt::AlignLeft || al == Qt::AlignJustify) && !bf.boolProperty(tp::Distribute)) {
                         const double hang = 0.34 * base.pointSizeF() / fontPointFactor();
                         const int endBefore = line.textStart() + line.textLength();
                         if (endBefore < B->disp.size()) {
