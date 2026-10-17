@@ -3710,7 +3710,15 @@ private Q_SLOTS:
                                  "<w:font w:name=\"Dingbats\"><w:charset w:val=\"02\"/><w:family w:val=\"decorative\"/></w:font>"
                                  "<w:font w:name=\"Unicode Sans\"><w:panose1 w:val=\"020B0604020202020204\"/><w:family w:val=\"roman\"/></w:font>"
                                  "<w:font w:name=\"Ghost\"><w:altName w:val=\"No Such Alternate\"/><w:family w:val=\"roman\"/></w:font>"
-                                 "<w:font w:name=\"Fixed\"><w:family w:val=\"auto\"/><w:pitch w:val=\"fixed\"/></w:font></w:fonts>";
+                                 "<w:font w:name=\"Fixed\"><w:family w:val=\"auto\"/><w:pitch w:val=\"fixed\"/></w:font>"
+                                 // (A fixed-pitch font is set in Courier New whatever its PANOSE says of its strokes or its kind says: a sans one with fixed pitch, and a
+                                 // serif one that Courier New's own PANOSE, whose proportion digit 09 is monospaced, describes; and a fixed one of kind swiss.)
+                                 "<w:font w:name=\"Mono Sans\"><w:panose1 w:val=\"020B0509000000000004\"/><w:family w:val=\"swiss\"/><w:pitch w:val=\"fixed\"/></w:font>"
+                                 "<w:font w:name=\"Typewriter Two\"><w:panose1 w:val=\"02070309020205020404\"/><w:family w:val=\"roman\"/><w:pitch w:val=\"variable\"/></w:font>"
+                                 "<w:font w:name=\"Fixed Swiss\"><w:family w:val=\"swiss\"/><w:pitch w:val=\"fixed\"/></w:font>"
+                                 // (A PANOSE that is short, or not hexadecimal, says nothing: the kind decides.)
+                                 "<w:font w:name=\"Short Panose\"><w:panose1 w:val=\"020B\"/><w:family w:val=\"roman\"/></w:font>"
+                                 "<w:font w:name=\"Odd Panose\"><w:panose1 w:val=\"02ZZ0604020202020204\"/><w:family w:val=\"swiss\"/></w:font></w:fonts>";
         auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {{QStringLiteral("/word/fontTable.xml"), table}}));
         QVERIFY(doc);
         const auto &standIns = doc->flow().env.standIns;
@@ -3722,6 +3730,13 @@ private Q_SLOTS:
         QCOMPARE(standIns.value(QStringLiteral("unicode sans")), QStringLiteral("Arial"));      // (its PANOSE says sans, whatever its kind says)
         QCOMPARE(standIns.value(QStringLiteral("ghost")), QStringLiteral("Times New Roman"));   // (an alternate the machine lacks is not one)
         QCOMPARE(standIns.value(QStringLiteral("fixed")), QStringLiteral("Courier New"));
+        QCOMPARE(standIns.value(QStringLiteral("mono sans")), QStringLiteral("Courier New"));
+        QCOMPARE(standIns.value(QStringLiteral("typewriter two")), QStringLiteral("Courier New"));
+        QCOMPARE(standIns.value(QStringLiteral("fixed swiss")), QStringLiteral("Courier New"));
+        QCOMPARE(standIns.value(QStringLiteral("short panose")), QStringLiteral("Times New Roman"));
+        QVERIFY(!standIns.contains(QStringLiteral("odd panose")));
+    }
+
     }
 
     // A font table of thousands of fonts that say nothing is read in step with its size.
