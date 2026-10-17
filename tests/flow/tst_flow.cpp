@@ -608,12 +608,56 @@ double lineHeightOf(FlowDocument &fd)
     return l.lineBriefs().first().rect.height();
 }
 
-// Whether a pixel of the painted fragment is the red of the lines of these tests.
+// The rows of a table that goes on over a page break, painted, with the lines at the break: what the lines of the page's first and last rows take, and the painted
+// fragments of the first page and the next.
+struct BreakPages {
+    std::shared_ptr<MaterializedPage> first, next;
+    QImage firstImage, nextImage;
+    double firstTop = 0, firstBottom = 0, nextTop = 0, nextBottom = 0;   // where the text of each is: from the fragment's top, the first line's top and the last line's bottom
+};
+BreakPages breakPagesOf(FlowDocument &fd, Paginator &pg)
+{
+    BreakPages out;
+    out.first = pg.materialize(0);
+    out.next = pg.materialize(1);
+    if (!out.first || !out.next || out.first->tables.isEmpty() || out.next->tables.isEmpty()) return out;
+    auto paint = [&](const TableFragment &f) {
+        QImage image(int(fd.section(0).pageSize().width()) * 4, int(fd.section(0).pageSize().height()) * 4, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::white);
+        QPainter painter(&image);
+        painter.scale(4, 4);
+        f.paint(&painter, TablePaint());
+        return image;
+    };
+    auto extent = [&](const TableFragment &f, double *top, double *bottom) {
+        *top = 1e9;
+        *bottom = -1e9;
+        f.forLines([&](const StoryLayout::LineBrief &, const QRectF &rect) {
+            *top = std::min(*top, rect.top() - f.origin.y());
+            *bottom = std::max(*bottom, rect.bottom() - f.origin.y());
+        });
+    };
+    out.firstImage = paint(*out.first->tables[0]);
+    out.nextImage = paint(*out.next->tables[0]);
+    extent(*out.first->tables[0], &out.firstTop, &out.firstBottom);
+    extent(*out.next->tables[0], &out.nextTop, &out.nextBottom);
+    return out;
+}
+// Whether a pixel of the painted fragment is the red of the lines of these tests, and the number of dark pixels (the text's) in a band of it, from `y0` to `y1` below its top.
 bool isRed(const QImage &image, const TableFragment &f, double x, double y)
 {
     const QColor c = image.pixelColor(int((f.origin.x() + x) * 4), int((f.origin.y() + y) * 4));
     return c.red() > 200 && c.green() < 80 && c.blue() < 80;
 }
+int darkIn(const QImage &image, const TableFragment &f, double y0, double y1)
+{
+    int dark = 0;
+    for (int y = int((f.origin.y() + y0) * 4); y < int((f.origin.y() + y1) * 4); ++y)
+        for (int x = int((f.origin.x() + 4) * 4); x < int((f.origin.x() + 290) * 4); ++x) dark += image.pixelColor(x, y).red() < 150;
+    return dark;
+}
+
+
 // A table inside a cell: `rows` by `cols` cells of `colW` points, each a paragraph, the cell of row 0 and column 0 holding another (until `maxLevel` is reached); `parent` is
 // the cell the table is in. Appended at the cursor.
 void addNestedTable(FlowDocument &fd, QTextCursor &c, int level, int maxLevel, int parent, int rows, int cols, double colW)
@@ -4332,7 +4376,8 @@ private Q_SLOTS:
         QVERIFY2(std::abs(rows[1].rect.height() - (line + 6 + 4.5)) < 0.05, qPrintable(QString::number(rows[1].rect.height())));
     }
 
-    // A table that goes on after a page break has the table's outer lines there: its top line at the first row of the next page, and its foot line at the last row of the page.
+    // A table that goes on after a page break has the table's outer lines there, each in room of its own: the top line at the first row of the next page, and the foot line at
+    // the last row of the page. The text of those rows is clear of them (with no margins in the cells, a line that took no room would be painted over it).
     void aTableThatGoesOnAfterAPageBreakHasItsOuterLinesAtTheBreak()
     {
         FlowDocument fd;
@@ -4340,10 +4385,11 @@ private Q_SLOTS:
         spec.rows = 90;
         spec.cols = 2;
         spec.columnWidth = 150;
+        spec.margins = QMarginsF(4, 0, 4, 0);
         spec.setTable = [](TableData &t) {
             TableLine outer, inner;
             outer.style = inner.style = TableLine::Style::Single;
-            outer.width = 2;
+            outer.width = 6;
             outer.color = QColor(255, 0, 0);
             inner.width = 0.5;
             inner.color = QColor(0, 0, 255);
@@ -4353,23 +4399,50 @@ private Q_SLOTS:
         addTable(fd, spec);
         Paginator pg(&fd);
         QVERIFY(pg.pageCount() >= 2);
-        auto reddish = [&](const std::shared_ptr<TableFragment> &f, double dy) {
-            QImage image(int(fd.section(0).pageSize().width()) * 4, int(fd.section(0).pageSize().height()) * 4, QImage::Format_ARGB32_Premultiplied);
-            image.fill(Qt::white);
-            {
-                QPainter painter(&image);
-                painter.scale(4, 4);
-                f->paint(&painter, TablePaint());
-            }
-            const QColor c = image.pixelColor(int((f->origin.x() + 140) * 4), int((dy < 0 ? f->origin.y() + f->height + dy : f->origin.y() + dy) * 4));
-            return c.red() > 200 && c.green() < 80 && c.blue() < 80;
+        const BreakPages b = breakPagesOf(fd, pg);
+        QVERIFY(b.first && b.next && !b.first->tables.isEmpty() && !b.next->tables.isEmpty());
+        const TableFragment &a = *b.first->tables[0], &n = *b.next->tables[0];
+        // The lines are in the room the fragments have, and the rows' text is above and below them.
+        QVERIFY2(b.firstBottom <= a.height - 6 + 0.05, qPrintable(QStringLiteral("%1 of %2").arg(b.firstBottom).arg(a.height)));
+        QVERIFY2(b.nextTop >= 6 - 0.05, qPrintable(QString::number(b.nextTop)));
+        QVERIFY(isRed(b.firstImage, a, 140, a.height - 1) && isRed(b.firstImage, a, 140, a.height - 5));
+        QCOMPARE(darkIn(b.firstImage, a, a.height - 5.5, a.height - 0.5), 0);
+        QVERIFY(isRed(b.nextImage, n, 140, 1) && isRed(b.nextImage, n, 140, 5));
+        QCOMPARE(darkIn(b.nextImage, n, 0.5, 5.5), 0);
+        // (The lines the paginator set the fragments down by are as tall as the fragments.)
+        const auto rows = rowLines(pg, fd, 0);
+        QVERIFY(std::abs(a.height - (rows.last().rect.bottom() - rows.first().rect.top())) < 0.01);
+    }
+
+    // The same with a table whose cells are apart: its lines are a frame round the lot, at the break too, in room of their own.
+    void aSpacedTableThatGoesOnAfterAPageBreakHasItsFrameAtTheBreak()
+    {
+        FlowDocument fd;
+        TestTable spec;
+        spec.rows = 90;
+        spec.cols = 2;
+        spec.columnWidth = 150;
+        spec.margins = QMarginsF(4, 0, 4, 0);
+        spec.setTable = [](TableData &t) {
+            TableLine outer;
+            outer.style = TableLine::Style::Single;
+            outer.width = 4;
+            outer.color = QColor(255, 0, 0);
+            t.top = t.bottom = outer;
+            t.spaced = true;
         };
-        const auto first = pg.materialize(0), next = pg.materialize(1);
-        QVERIFY(first && next && !first->tables.isEmpty() && !next->tables.isEmpty());
-        // (The first page has the table's own top, and its last row ends with the foot line; the next begins with the top line.)
-        QVERIFY(reddish(first->tables[0], 0.75));
-        QVERIFY(reddish(first->tables[0], -0.75));
-        QVERIFY(reddish(next->tables[0], 0.75));
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        const BreakPages b = breakPagesOf(fd, pg);
+        QVERIFY(b.first && b.next && !b.first->tables.isEmpty() && !b.next->tables.isEmpty());
+        const TableFragment &a = *b.first->tables[0], &n = *b.next->tables[0];
+        QVERIFY2(b.firstBottom <= a.height - 4 + 0.05, qPrintable(QStringLiteral("%1 of %2").arg(b.firstBottom).arg(a.height)));
+        QVERIFY2(b.nextTop >= 4 - 0.05, qPrintable(QString::number(b.nextTop)));
+        QVERIFY(isRed(b.firstImage, a, 140, a.height - 1) && isRed(b.firstImage, a, 140, a.height - 3));
+        QCOMPARE(darkIn(b.firstImage, a, a.height - 3.5, a.height - 0.5), 0);
+        QVERIFY(isRed(b.nextImage, n, 140, 1) && isRed(b.nextImage, n, 140, 3));
+        QCOMPARE(darkIn(b.nextImage, n, 0.5, 3.5), 0);
     }
 
     // The cells of a table with space between them each have the lines they say: all that the rows take room for are painted (the foot of every row's cell, not only the last's).
