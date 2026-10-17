@@ -5161,6 +5161,7 @@ private Q_SLOTS:
             QVERIFY(pg.pageCount() > 20);
             took[variant] = t.elapsed();
         }
+        qInfo("20,000 runs: %lld ms with an object on the page, %lld ms without", took[1], took[0]);
         QVERIFY2(took[1] < 2 * took[0] + 300, qPrintable(QStringLiteral("%1 ms with the object, %2 ms without").arg(took[1]).arg(took[0])));
     }
 
@@ -5198,6 +5199,7 @@ private Q_SLOTS:
             for (int k = 0; k < pages; ++k) QVERIFY(pg.materialize(k));
             took[variant] = t.elapsed();
         }
+        qInfo("10,000 anchor marks: %lld ms with the objects, %lld ms without", took[1], took[0]);
         QVERIFY2(took[1] < 2 * took[0] + 300, qPrintable(QStringLiteral("%1 ms with 10,000 objects, %2 ms with none").arg(took[1]).arg(took[0])));
     }
 
