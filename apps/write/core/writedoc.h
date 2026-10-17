@@ -55,6 +55,9 @@ private:
     WriteDoc *m_doc;
 };
 
+// How many times a level's run properties have been looked at for the outline effect (for a test of the cost).
+int levelsScannedForOutlineForTest();
+
 class WriteDoc : public QObject {
     Q_OBJECT
 public:
@@ -207,6 +210,8 @@ private:
     int m_blockCount = 0;
     bool m_syncing = false;
     mutable QHash<QString, std::shared_ptr<office::wml::StyleSheet>> m_scratch;
+    bool levelIsOutlined(const office::wml::AbstractNum &definition, int level) const;
+    mutable QHash<int, bool> m_levelOutlines;   // by definition and level: whether the level's bullets are outlined
     friend class Loader;
     friend class Saver;
 };

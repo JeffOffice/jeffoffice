@@ -770,6 +770,27 @@ int WriteDoc::newListInstance(bool numbered)
     return num.id;
 }
 
+namespace { int s_levelsScannedForOutline = 0; }
+int levelsScannedForOutlineForTest() { return s_levelsScannedForOutline; }
+
+// Whether a level's run properties ask for the outline effect (w:outline, on unless it says off), which draws its bullets hollow. A level is looked at once: a file can keep any
+// number of properties of its own in it, and every item of the list asks.
+bool WriteDoc::levelIsOutlined(const AbstractNum &definition, int level) const
+{
+    const int key = definition.id * 16 + level;
+    if (const auto found = m_levelOutlines.constFind(key); found != m_levelOutlines.constEnd()) return found.value();
+    ++s_levelsScannedForOutline;
+    static const QRegularExpression outline(QStringLiteral("^<[^\\s:>/]+:outline[\\s/>]"));
+    static const QRegularExpression off(QStringLiteral("[\\s:]val\\s*=\\s*\"(0|false|off)\""));
+    bool outlined = false;
+    for (const RawChild &ch : definition.levels[level].rPr.extra) {
+        const QString xml = QString::fromUtf8(ch.xml.left(120));
+        if (outline.match(xml).hasMatch()) outlined = !off.match(xml).hasMatch();
+    }
+    m_levelOutlines.insert(key, outlined);
+    return outlined;
+}
+
 QTextListFormat WriteDoc::listFormat(int numId, int level, int start) const
 {
     QTextListFormat lf;
@@ -794,13 +815,7 @@ QTextListFormat WriteDoc::listFormat(int numId, int level, int start) const
         if (!text.isEmpty()) lf.setProperty(tp::BulletChar, text);
         if (!font.isEmpty()) lf.setProperty(tp::BulletFont, font);
         if (l.rPr.size) lf.setProperty(tp::BulletSize, *l.rPr.size / 2.0);
-        // The outline effect (w:outline, on unless it says off) draws the bullet hollow.
-        static const QRegularExpression outline(QStringLiteral("^<[^\\s:>/]+:outline[\\s/>]"));
-        static const QRegularExpression off(QStringLiteral("[\\s:]val\\s*=\\s*\"(0|false|off)\""));
-        for (const RawChild &ch : l.rPr.extra) {
-            const QString xml = QString::fromUtf8(ch.xml.left(120));
-            if (outline.match(xml).hasMatch() && !off.match(xml).hasMatch()) lf.setProperty(tp::BulletOutline, true);
-        }
+        if (levelIsOutlined(*a, level)) lf.setProperty(tp::BulletOutline, true);
         return lf;
     }
     QTextListFormat::Style style = QTextListFormat::ListDecimal;
