@@ -63,15 +63,18 @@ struct FloatingObject {
     Align hAlign = Align::None, vAlign = Align::None;
     double dx = 0, dy = 0;                  // from where it is measured (a line's ends are in the item's p1 and p2, from there too)
     bool behind = false;                    // behind the text
+    int z = 0;                              // above (or under) the other objects of its place: the page draws them in this order
     Wrap wrap = Wrap::None;
     Side side = Side::Both;
     QMarginsF gap;                          // the room the text round it leaves
     int next = 0;                           // the one after it at the same anchor (counted from 1), or none
     // A frame: the paragraphs of the story that have its key (fp::Frame) are its text. `item` is a TextItem and `story` is not given: the paginator makes both from the paragraphs,
-    // at the width `frameWidth` says (0: as wide as the longest line of the text, to the column's width) and the height the text asks (`frameHeight` is the least of it, or all of it).
+    // at the width `frameWidth` says (0: as wide as the column, or as the longest line of the text if the frame shrinks) and the height the text asks (`frameHeight` is the least of it, or all of it).
     int frame = 0;
     double frameWidth = 0, frameHeight = 0;
     bool frameExactHeight = false;
+    // A frame with no width of its own is as wide as the column; one that shrinks (a drop cap) is as wide as its longest line.
+    bool frameShrinks = false;
 };
 
 // A picture's bytes, shared by every page that shows it (a page of the document holds a copy of the reference).

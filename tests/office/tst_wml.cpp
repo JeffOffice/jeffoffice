@@ -278,6 +278,11 @@ private Q_SLOTS:
         QCOMPARE(shapes[0].wrap, Shape::Square);
         QCOMPARE(shapes[0].gapLeft, 9.0);
         QCOMPARE(shapes[0].alt, QStringLiteral("a logo"));
+        QCOMPARE(shapes[0].z, 0);
+        // Its height among the objects.
+        shapes = readShapes("<w:drawing " + ns + "><wp:anchor behindDoc='0' relativeHeight='251658240' distT='0' distB='0' distL='0' distR='0'><wp:positionH relativeFrom='page'><wp:posOffset>0</wp:posOffset></wp:positionH><wp:positionV relativeFrom='page'><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx='254000' cy='127000'/><wp:wrapNone/><wp:docPr id='1' name='p'/><a:graphic><a:graphicData><pic:pic><pic:blipFill><a:blip r:embed='rId7'/></pic:blipFill></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].z, 251658240);
         // A group's members, in its units: a coordinate space of 1000 by 500 over 100 by 50 points.
         shapes = readShapes("<w:pict " + ns + "><v:group id='g' style='position:absolute;margin-left:10pt;margin-top:20pt;width:100pt;height:50pt' coordsize='1000,500' coordorigin='0,0'><v:rect id='m' style='position:absolute;left:100;top:50;width:200;height:100' fillcolor='red'/></v:group></w:pict>");
         QCOMPARE(int(shapes.size()), 1);

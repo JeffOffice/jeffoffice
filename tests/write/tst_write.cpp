@@ -6044,7 +6044,9 @@ private Q_SLOTS:
     {
         const RichTables t = richTables();
         // (Objects that the text goes round: in the paragraphs around the tables, of each wrap: edits that move their anchors across the pages change which pages have them.)
-        return makeDocx(plainP("before the tables and a few more words so that a line goes round the box", wallRun(0, 110, 4, 50, 40)) + t.styled + plainP("between them, with enough words that more than a line or two are beside the box that is set from the page", wallRun(5, 150, 60, 40, 50)) + t.plain +
+        const QByteArray frame = "<w:framePr w:w=\"1800\" w:hSpace=\"120\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:xAlign=\"right\" w:y=\"60\"/>";
+        return makeDocx(plainP("before the tables and a few more words so that a line goes round the box", wallRun(0, 110, 4, 50, 40)) + t.styled + framedP("FRAME one of two paragraphs", frame) + framedP("and the second of them, which is longer than a line of the frame", frame) +
+                            plainP("between them, with enough words that more than a line or two are beside the box that is set from the page", wallRun(5, 150, 60, 40, 50)) + t.plain +
                             plainP("after the tables, and a line or two of words more", wallRun(1, 20, 6, 40, 14) + wallRun(2, 60, 14, 40, 30)),
                         t.styles, QByteArray(), t.sect);
     }
@@ -6079,7 +6081,8 @@ private Q_SLOTS:
         // (Objects the text goes round: one of each kind among the notes, tables, and sections, so that the text goes round them across pages and columns.)
         QByteArray body = plainP(wordsOf("before the tables", 14), refTo(2) + wallRun(0, 150, 4, 60, 50)) + t.styled + plainP(wordsOf("between them", 12), refTo(4) + wallRun(1, 40, 8, 50, 16)) + t.plain +
                           plainP("after the tables", QByteArray(), one);
-        body += plainP(wordsOf("Second section", 18), wallRun(3, 110, 10, 50, 40)) + tableOfRows(9, 2, 1000, [](int r, int c) { return r == 4 && c == 1 ? plainP("cites", refTo(5)) : cellP("r" + QByteArray::number(r) + "c" + QByteArray::number(c)); }) +
+        body += framedP("FRAME of the second section", "<w:framePr w:w=\"1400\" w:h=\"500\" w:hRule=\"exact\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"text\" w:xAlign=\"left\"/>") +
+                plainP(wordsOf("Second section", 18), wallRun(3, 110, 10, 50, 40)) + tableOfRows(9, 2, 1000, [](int r, int c) { return r == 4 && c == 1 ? plainP("cites", refTo(5)) : cellP("r" + QByteArray::number(r) + "c" + QByteArray::number(c)); }) +
                 plainP(wordsOf("end of the second", 30), wallRun(2, 60, 2, 40, 30), two);
         body += plainP(wordsOf("Third section", 40), refTo(6) + wallRun(4, 160, 6, 70, 40) + wallRun(5, 200, 120, 60, 60)) + "<w:p><w:r><w:t>before a break</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>after it</w:t></w:r></w:p>" + plainP(wordsOf("Last", 60), wallRun(0, 20, 30, 50, 24));
         return makeDocxWithParts(body, three, parts, "<w:evenAndOddHeaders/>", t.styles);
@@ -6347,9 +6350,26 @@ private Q_SLOTS:
                 walls += here;
                 pagesWithWalls += here > 0;
             }
-            QVERIFY2(walls >= (mixed ? 5 : 3) && pagesWithWalls >= 2, qPrintable(QStringLiteral("%1 walls on %2 pages").arg(walls).arg(pagesWithWalls)));
+            QVERIFY2(walls >= 4 && pagesWithWalls >= 2, qPrintable(QStringLiteral("%1 walls on %2 pages").arg(walls).arg(pagesWithWalls)));
+            QVERIFY(doc->flow().frames.size() >= 1);
             QVERIFY2(audit::wallProblems(doc->pager(), doc->story()).isEmpty(), qPrintable(audit::wallProblems(doc->pager(), doc->story())));
         }
+    }
+
+    // A shape that says it has no fill or no line has none (a shape's own fill is a color it was not given); one that says nothing is filled white, with a line, as the file's form has it.
+    void aShapeWithNoFillOrLineHasNone()
+    {
+        const QByteArray vml = "xmlns:v=\"urn:schemas-microsoft-com:vml\"";
+        auto objectOf = [&](const QByteArray &attributes) {
+            const QByteArray body = "<w:p><w:r><w:t>text</w:t></w:r><w:r><w:pict " + vml + "><v:rect id=\"r\" style=\"position:absolute;margin-left:10pt;margin-top:5pt;width:50pt;height:20pt\" " + attributes + "/></w:pict></w:r></w:p>";
+            auto doc = open(makeDocx(body, kStyles));
+            return doc && doc->flow().objects.size() == 1 ? doc->flow().objects[0].item : ItemPtr();
+        };
+        const ItemPtr none = objectOf("filled=\"f\" stroked=\"f\""), plain = objectOf(""), red = objectOf("fillcolor=\"red\" strokecolor=\"blue\" strokeweight=\"2pt\"");
+        QVERIFY(none && plain && red);
+        QVERIFY(none->fill.isNone() && none->stroke.isNone());
+        QVERIFY(!plain->fill.isNone() && !plain->stroke.isNone());
+        QVERIFY(!red->fill.isNone() && !red->stroke.isNone() && red->stroke.width == 2.0);
     }
 
     // ---- frames
@@ -6441,6 +6461,8 @@ private Q_SLOTS:
         QCOMPARE(o.gap.right(), 12.0);
         o = frameOf("w:dropCap=\"drop\" w:lines=\"3\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"text\"");
         QVERIFY(o.hRel == FO::Rel::Column && o.vRel == FO::Rel::Paragraph && o.hAlign == FO::Align::Start && o.wrap == FO::Wrap::Square);
+        QVERIFY(o.frameShrinks);   // (a drop cap is as wide as its letter; any other frame with no width is as wide as the column)
+        QVERIFY(!frameOf("w:wrap=\"tight\" w:hSpace=\"240\"").frameShrinks);
         // Paragraphs with other properties are other frames; the same properties with a paragraph that is not in the frame between them are another frame.
         const QByteArray one = "<w:framePr w:w=\"1000\" w:hAnchor=\"page\" w:x=\"100\"/>", two = "<w:framePr w:w=\"1000\" w:hAnchor=\"page\" w:x=\"200\"/>";
         auto doc = open(makeDocx(plainP("Before") + framedP("a", one) + framedP("b", one) + framedP("c", two) + plainP("Between") + framedP("d", one) + plainP("After"), kStyles));
