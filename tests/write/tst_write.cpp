@@ -1641,6 +1641,18 @@ private Q_SLOTS:
         QVERIFY(doc->pager().lines(0).size() == 3);
     }
 
+    // A file that says its hanging indents add no tab stop (noTabHangInd) is read so, by its value.
+    void hangingIndentsAreNoTabStopsWhereTheFileSaysSo()
+    {
+        auto noStop = [&](const QByteArray &option) {
+            auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {}, "<w:compat>" + option + "</w:compat>"));
+            return doc && doc->flow().env.wordNoHangStop;
+        };
+        QVERIFY(!noStop(""));
+        QVERIFY(noStop("<w:noTabHangInd/>"));
+        QVERIFY(!noStop("<w:noTabHangInd w:val=\"0\"/>"));
+    }
+
     // A file that does not use the web page's way of spacing paragraphs has the space after one and the space before the next added; it is the larger of the
     // two otherwise.
     void paragraphSpaceAddsInAFileThatTurnsTheWebWayOff()

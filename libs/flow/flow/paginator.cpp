@@ -893,6 +893,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     d->wordText = m_doc->env.wordLines;
     d->wordNoHang = m_doc->env.wordNoHang;
     d->wordSpaceSums = m_doc->env.wordSpaceSums;
+    d->wordNoHangStop = m_doc->env.wordNoHangStop;
     d->wordStandIns = m_doc->env.standIns;
     const Furniture furniture = furnitureOf(index, st, out->number);
     d->fontAliases = m_doc->env.familyAliases;
