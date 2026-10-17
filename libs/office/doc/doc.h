@@ -54,9 +54,14 @@ constexpr int kMaxParagraphs = 450000;
 constexpr qint64 kMaxPictureBytes = qint64(48) << 20;
 constexpr qint64 kMaxPictureTotal = qint64(384) << 20;
 constexpr int kMaxPictures = 20000;
-// The XML made from the file, all parts together. Real files (75 public documents, the largest 4.4 MB): 10.7 MB at the most, with their pictures; the limit
-// is more than twenty times that.
-constexpr qint64 kMaxOutputBytes = qint64(256) << 20;
+// The XML made from the file, all parts together, counted as it is made: its bytes and its elements. The .docx reader would take a part of 256 MB and 8 million
+// elements (wml/xmltree.h), but a file is held to what it costs to read: made and read back, 600,000 elements take about two seconds and 300 MB, and a file of a few
+// kilobytes can ask for any number of them (pieces of the text that share the same stored text). Real files: of 75 public documents (the largest 4.4 MB) the largest part
+// has 36,000 elements and 0.9 MB, and of 1,795 public .docx files the largest 736,000 elements and 20.6 MB.
+constexpr qint64 kMaxOutputBytes = qint64(32) << 20;
+constexpr qint64 kMaxOutputElements = 600000;
+// A run of text is made into XML in pieces of at most this many characters (so the text of a single run can't be escaped all at once).
+constexpr int kMaxRunChars = 1 << 20;
 
 // True when the bytes begin as a compound file does, the container of the old binary formats.
 bool looksLikeCompoundFile(const QByteArray &bytes);

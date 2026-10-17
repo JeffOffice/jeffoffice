@@ -7,6 +7,7 @@
 #include "office/theme.h"
 
 #include <QCoreApplication>
+#include <cstring>
 #include <algorithm>
 
 namespace jp::office::doc {
@@ -68,6 +69,21 @@ void Converter::left(const QString &key, const QString &text)
     if (!notes) return;
     notes->leftOut = true;
     notes->notes << text;
+}
+
+bool Converter::spend(const QByteArray &xml)
+{
+    outputBytes += xml.size();
+    // (An element is a '<' that is not the start of an end tag, a comment, or an instruction; no '<' is in the text or in a value, which are escaped.)
+    qint64 elements = 0;
+    const char *p = xml.constData(), *end = p + xml.size();
+    while (p < end && (p = static_cast<const char *>(memchr(p, '<', size_t(end - p))))) {
+        ++p;
+        if (p < end && *p != '/' && *p != '?' && *p != '!') ++elements;
+    }
+    outputElements += elements;
+    if (outputBytes > kMaxOutputBytes || outputElements > kMaxOutputElements) truncated = true;
+    return !truncated;
 }
 
 Span Converter::tableRange(int slot) const

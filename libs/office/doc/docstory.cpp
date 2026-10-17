@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstring>
 
 namespace jp::office::doc {
 
@@ -33,18 +34,21 @@ public:
         if (mode != m_textMode) flushText();
         m_textMode = mode;
         m_text += s;
+        if (m_text.size() >= kMaxRunChars) flushRun();   // (a run of any length is made in pieces, and counted as it goes)
     }
     void element(const QByteArray &xml)
     {
         flushText();
         m_body += xml;
         m_has = true;
+        if (m_body.size() >= kMaxRunChars) flushRun();
     }
     // An element between the runs (a bookmark's start or end).
     void between(const QByteArray &xml)
     {
         flushRun();
         paragraph += xml;
+        c.spend(xml);
     }
     // An element of a run of its own (a field's marks, as the .docx files have them).
     void alone(const QByteArray &xml)
@@ -66,7 +70,7 @@ public:
             r = "<" + tag + " w:id=\"" + id + "\" w:author=\"" + xmlEscape(c.revisionAuthor(m_author)) + "\">" + r + "</" + tag + ">";
         }
         paragraph += r;
-        c.outputBytes += r.size();
+        c.spend(r);
         m_body.clear();
         m_has = false;
     }
@@ -207,7 +211,7 @@ QByteArray StoryWriter::rprOf(const Chp &chp, int istd) const
 
 void StoryWriter::paragraph(qint64 first, qint64 last, bool terminated)
 {
-    if (c.paragraphs >= kMaxParagraphs || c.outputBytes > kMaxOutputBytes) {
+    if (c.paragraphs >= kMaxParagraphs || c.truncated) {
         c.truncated = true;
         c.left(QStringLiteral("long"), QCoreApplication::translate("jp::office::doc", "The document is longer than this program can open: the end of it was left out."));
         return;
@@ -287,9 +291,9 @@ void StoryWriter::paragraph(qint64 first, qint64 last, bool terminated)
     }
     QByteArray p = "<w:p>";
     if (!ppr.isEmpty()) p += "<w:pPr>" + ppr + "</w:pPr>";
+    c.spend(p + "</w:p>");   // (the runs were counted as each was made)
     p += rb.paragraph + "</w:p>";
     ++c.paragraphs;
-    c.outputBytes += p.size();
     if (cellEnd) {
         sink() += p;
         tables.last().cells.push_back(tables.last().cell);
@@ -303,10 +307,7 @@ void StoryWriter::content(qint64 from, qint64 to, int istd, RunBuilder &rb)
 {
     qint64 q = from;
     while (q < to) {
-        if (c.outputBytes > kMaxOutputBytes) {
-            c.truncated = true;
-            break;
-        }
+        if (c.truncated) break;
         const Piece *pc = c.pieces.at(q);
         if (!pc) break;
         qint64 segEnd = std::min(to, pc->cp1);
@@ -340,7 +341,7 @@ void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, int istd, R
         if (!hidden) rb.text(plain, instruction);
         plain.clear();
     };
-    for (qint64 q = from; q < to; ++q) {
+    for (qint64 q = from; q < to && !c.truncated; ++q) {
         if (nextBookmark < c.bookmarkEvents.size() && kind == Converter::Kind::Main && c.bookmarkEvents[nextBookmark].cp <= q) {
             flushPlain();
             bookmarksUpTo(q - 1, rb);   // (those that are at this character begin before it)
@@ -351,6 +352,7 @@ void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, int istd, R
         const ushort ch = qc.unicode();
         if (ch >= 0x20 && !(ch == 0x28 && chp.symbolFont >= 0)) {
             plain += qc;
+            if (plain.size() >= kMaxRunChars) flushPlain();
             continue;
         }
         const bool instruction = !fields.isEmpty() && !fields.last().result;
@@ -609,6 +611,7 @@ QByteArray StoryWriter::tableXml(TableOut &t)
     x += "<w:tblLook w:val=\"0000\"/></w:tblPr><w:tblGrid>";
     for (int i = 0; i + 1 < grid.size(); ++i) x += "<w:gridCol w:w=\"" + QByteArray::number(sc(grid[i + 1] - grid[i])) + "\"/>";
     x += "</w:tblGrid>";
+    c.spend(x);   // (what the cells hold was counted as it was made)
 
     for (const RowOut &r : t.rows) {
         const Tap &tap = r.tap;
@@ -638,6 +641,7 @@ QByteArray StoryWriter::tableXml(TableOut &t)
         if (tap.jc == 1) trPr += "<w:jc w:val=\"center\"/>";
         else if (tap.jc == 2) trPr += "<w:jc w:val=\"right\"/>";
         if (!trPr.isEmpty()) row += "<w:trPr>" + trPr + "</w:trPr>";
+        c.spend(row);
 
         int i = 0;
         while (i < n) {
@@ -680,6 +684,7 @@ QByteArray StoryWriter::tableXml(TableOut &t)
             else if (tc.textFlow == 2) tcPr += "<w:textDirection w:val=\"btLr\"/>";
             if (tc.vAlign == 1) tcPr += "<w:vAlign w:val=\"center\"/>";
             else if (tc.vAlign == 2) tcPr += "<w:vAlign w:val=\"bottom\"/>";
+            c.spend("<w:tc><w:tcPr>" + tcPr + "</w:tcPr></w:tc>");
             row += "<w:tc><w:tcPr>" + tcPr + "</w:tcPr>" + content + "</w:tc>";
             i = j;
         }
@@ -687,7 +692,6 @@ QByteArray StoryWriter::tableXml(TableOut &t)
         x += row;
     }
     x += "</w:tbl>";
-    c.outputBytes += x.size();
     return x;
 }
 
