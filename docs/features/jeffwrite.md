@@ -166,8 +166,8 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [ ] **later** Style separator (end a paragraph's visible text and start another style in the same paragraph, for run-in heads)
 
 ### Editing
-- [~] **first release** Find with the Navigation pane's results (by heading, by page, as text), the match count, and every match highlighted *(shared: JeffPub's Find)*
-- [~] **first release** Replace and Replace All, with match case, whole words, and direction, across the body, notes, headers and footers, and text boxes *(shared: JeffPub's Replace)*
+- [~] **first release** Find with the Navigation pane's results (by heading, by page, as text), the match count, and every match highlighted *(shared: JeffPub's Find; Ctrl+F opens the Find and Replace pane, and Find Next selects each match in the text and tables, with match case and whole words, scrolls the pages to it, and goes round; no Navigation pane, count, or highlighting yet; hidden text is skipped)*
+- [~] **first release** Replace and Replace All, with match case, whole words, and direction, across the body, notes, headers and footers, and text boxes *(shared: JeffPub's Replace; Ctrl+H, Replace, and Replace All in the body and tables, Replace All as one step that says how many; the new words look like the first of the old; no direction, and headers, footers, and notes are not searched because JeffWrite cannot edit them yet)*
 - [ ] **first release** Go To: page, section, line, bookmark, comment, footnote, endnote, field, table, graphic, equation, and heading
 - [ ] **1.0** Advanced Find and Replace: wildcards with groups, sounds like, all forms of a word, ignore punctuation and spaces, find by format (font, paragraph, tabs, language, frame, style, highlight), Special (paragraph mark, tab, any digit, section break, field, footnote mark, and the rest), and replace with the clipboard or the found text
 - [ ] **1.0** Select All, Select Objects, and the Selection Pane (objects by name, shown or hidden, in order)

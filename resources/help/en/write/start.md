@@ -32,6 +32,7 @@ This version of JeffWrite is a **Preview**. It is ready to try on real work, but
 
 - Typing, selecting, cutting, copying, pasting, undoing, and redoing.
 - Fonts, sizes, bold, italic, underline, strikethrough, subscript, superscript, text color, and highlight color.
+- Find and Replace (Ctrl+F and Ctrl+H) in the text of the document. See [Find and replace words](find-replace).
 - Paragraph alignment, indents, spacing, and line spacing. The **Paragraph** box (the small arrow at the corner of the Paragraph group) has them all.
 - Bulleted and numbered lists, with levels.
 - Styles. The gallery has Normal, headings, Title, and more.
@@ -49,7 +50,8 @@ This version of JeffWrite is a **Preview**. It is ready to try on real work, but
 - Fields, such as page numbers and tables of contents, show the words the file had. They do not update.
 - Comments and tracked changes are not shown, and deleted text stays hidden. JeffWrite keeps them.
 - You can't open or save .doc, .rtf, or .odt files yet.
-- There is no spelling check, no Find and Replace, no ruler, and no Font box beyond the Home tab.
+- There is no spelling check, no ruler, and no Font box beyond the Home tab.
+- Find and Replace look in the text of the document, but not in headers, footers, or notes.
 - Sections that continue on the same page start a new page instead.
 
 JeffWrite keeps what it can't show. It writes those parts back when you save, so a file that has them does not lose them.
