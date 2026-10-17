@@ -126,14 +126,14 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 
 ### Font
 - [~] **first release** Font name (theme fonts first, recent fonts, a preview in the list) and size (list, typed, Grow and Shrink, and the Ctrl+[ and Ctrl+] keys) *(shared: JeffPub's Font group)*
-- [~] **first release** Bold, italic, underline (single, words only, double, thick, dotted, dashed, wavy, each with its own color), strikethrough, and double strikethrough
-- [~] **first release** Subscript and superscript *(ours 26%, public 35%)*
-- [~] **first release** Small caps and all caps *(small caps: ours 10%, public 9%; all caps: ours 10%, public 9%)*
+- [x] **first release** Bold, italic, underline (single, words only, double, thick, dotted, dashed, wavy, each with its own color), strikethrough, and double strikethrough *(the Font box chooses the underline and its color, and double strikethrough; the Underline button on the ribbon is a single line; each is read from and written to `.docx` as `w:u` with its val and color, `w:strike`, and `w:dstrike`)*
+- [x] **first release** Subscript and superscript *(ours 26%, public 35%; the buttons, Ctrl+= and Ctrl+Shift+=, and the Font box; `w:vertAlign`)*
+- [x] **first release** Small caps and all caps *(small caps: ours 10%, public 9%; all caps: ours 10%, public 9%; in the Font box, not on the ribbon; `w:smallCaps` and `w:caps`, also against a style that has one)*
 - [~] **first release** Character spacing: expanded or condensed by an amount, raised or lowered, scaled, and pair kerning from a chosen size *(ours 10%, public 15%)*
 - [~] **first release** Font color (theme colors with tints, standard colors, more colors, eyedropper) and highlight color, with Stop Highlighting *(highlight: ours 2%, public 8%)*
-- [ ] **first release** Hidden text: kept, not shown or printed unless asked for
+- [~] **first release** Hidden text: kept, not shown or printed unless asked for *(Hidden in the Font box, kept as `w:vanish`, not shown, printed, or found by Find; not yet shown when the paragraph marks are)*
 - [~] **first release** Clear All Formatting
-- [~] **first release** The Font dialog with every effect above, plus the live preview, and Set as Default
+- [~] **first release** The Font dialog with every effect above, plus the live preview, and Set as Default *(Ctrl+D, the Font group's launcher, and the right-click menu: font, style, size, color, underline and its color, the seven effects, and the preview, applied as one step to what was changed; no Advanced tab (spacing, raised and lowered) and no Set as Default yet)*
 - [ ] **1.0** Change Case: sentence case, lowercase, UPPERCASE, capitalize each word, and toggle (Shift+F3 cycles)
 - [ ] **1.0** Character shading and character border
 - [ ] **1.0** OpenType choices: ligatures, number spacing and forms, stylistic sets, and contextual alternates
@@ -441,7 +441,7 @@ The tabs that appear only while something is selected or being edited: a table, 
 
 What a right-click offers depends on what is under the pointer. The commands are the ones the ribbon already holds, put where the original puts them.
 
-- [ ] **first release** On text: Cut, Copy, and Paste Options (keep the source formatting, merge formatting, or keep text only), Font, Paragraph, Bullets and Numbering, Hyperlink, and New Comment
+- [~] **first release** On text: Cut, Copy, and Paste Options (keep the source formatting, merge formatting, or keep text only), Font, Paragraph, Bullets and Numbering, Hyperlink, and New Comment *(Cut, Copy, Paste, Font, Paragraph, and Select All; the paste choices, lists, link, and comment are not there yet)*
 - [ ] **first release** On a word the spelling check flags: suggestions, Ignore All, Add to Dictionary, and the AutoCorrect options
 - [ ] **first release** In a table: Insert and Delete for rows, columns, and cells, Select, Merge Cells, Split Cells, Borders and Shading, AutoFit, and Table Properties
 - [ ] **1.0** On a picture, shape, or text box: Cut, Copy, Paste, Wrap Text, Bring to Front and Send to Back, Group, Edit Alt Text, Size and Position, and Format

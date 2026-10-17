@@ -119,6 +119,7 @@ private:
     void dropRecoveryCopy();
     void changeSection(const std::function<void(flow::Section &)> &change);
     void applyIndentFields();
+    void showFontDialog();
     void showParagraphDialog();
     void showZoomDialog();
     void showContextMenu(const QPoint &globalPos);
