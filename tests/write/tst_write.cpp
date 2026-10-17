@@ -4147,7 +4147,12 @@ private Q_SLOTS:
             for (const auto &item : page->doc->pages[0]->items) drawn += audit::storyOf(*page, item.get()) + QLatin1Char('\n');
         }
         QVERIFY2(noteOnly > 0, qPrintable(QStringLiteral("%1 pages, none of notes alone").arg(pages)));
-        QVERIFY2(drawn.contains(QStringLiteral("word699")), "the end of the long note is drawn");
+        // (A box's story holds the whole rest of its note, whatever the box shows of it: what is drawn is the height of the boxes.)
+        const FieldSource *fields = doc->flow().fields;
+        QVERIFY(fields);
+        const double width = pg.page(0).content.width();
+        const QString lost = audit::lostNotes(pg, audit::fullNoteHeight(fields->storyDoc(QStringLiteral("fn2")), width, doc->flow().env) + audit::fullNoteHeight(fields->storyDoc(QStringLiteral("fn3")), width, doc->flow().env));
+        QVERIFY2(lost.isEmpty(), qPrintable(lost));
         QVERIFY2(drawn.contains(QStringLiteral("SHORTNOTE")), "the short note is drawn");
         QCOMPARE(rowsShown(pg), 6);
         const QString bad = audit::problems(pg, doc->story(), {{"fn2", "LONGNOTE"}, {"fn3", "SHORTNOTE"}});

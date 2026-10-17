@@ -658,6 +658,7 @@ bool Paginator::complete()
 void Paginator::invalidate()
 {
     m_tables->reset();
+    m_noteHeights.clear();
     m_numberOf = -1;
     m_starts.clear();
     m_starts << PageStart();
