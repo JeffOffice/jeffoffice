@@ -84,7 +84,7 @@ struct CellContent {
         std::shared_ptr<TableFragment> table;   // or a table inside the cell, whole
         int foot = 0, end = 0;                  // the footnotes and endnotes before it, in the story
         QVector<NoteRef> notes;                 // the footnotes its text cites, in order
-        bool dummy = false;                     // the empty paragraph that ends a cell after a table in it: the program's mark of the cell's end, which takes no room
+        int dummyFrom = -1;                     // the position where the empty last paragraph of a cell after a table in it begins: the program's mark of the cell's end, which takes no room (-1: none)
     };
     std::vector<Part> parts;
 };
