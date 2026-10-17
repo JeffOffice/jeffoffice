@@ -61,6 +61,15 @@ struct Rig {
         });
         return found;
     }
+    static Item *namedOn(Document &d, int page, const QString &name)
+    {
+        Item *found = nullptr;
+        if (page >= int(d.pages.size())) return nullptr;
+        walkItems(d.pages[page]->items, [&](const ItemPtr &it) {
+            if (it->name == name && !found) found = it.get();
+        });
+        return found;
+    }
     // The button of a command of the tab (a gallery or a menu), by the name its widget or action has.
     template <class T> T *widget(const char *name) const
     {
@@ -194,6 +203,53 @@ QString styleProblem(const QDomElement &style)
         }
     }
     return QString();
+}
+
+// The sample presentation with a second slide master: a dark one, with a theme of its own (other colors, and lines of two and a quarter points),
+// one layout, and a third slide that stands on them, with `shapes`.
+Parts withDarkSecondMaster(const QString &shapes)
+{
+    Parts p = samplePptx();
+    QString pres = QString::fromUtf8(p.data["/ppt/presentation.xml"].xml);
+    pres.replace(QStringLiteral("<p:sldMasterId id=\"2147483648\" r:id=\"rId1\"/>"), QStringLiteral("<p:sldMasterId id=\"2147483648\" r:id=\"rId1\"/><p:sldMasterId id=\"2147483700\" r:id=\"rId5\"/>"));
+    pres.replace(QStringLiteral("<p:sldId id=\"257\" r:id=\"rId3\"/>"), QStringLiteral("<p:sldId id=\"257\" r:id=\"rId3\"/><p:sldId id=\"258\" r:id=\"rId6\"/>"));
+    p.data["/ppt/presentation.xml"].xml = pres.toUtf8();
+    p.rels << Rel{"/ppt/presentation.xml", "slideMaster", "/ppt/slideMasters/slideMaster2.xml"} << Rel{"/ppt/presentation.xml", "slide", "/ppt/slides/slide3.xml"};
+
+    QString theme = QString::fromUtf8(themeWithShadow(p.data["/ppt/theme/theme1.xml"].xml));
+    theme.replace(QStringLiteral("B6420F"), QStringLiteral("00AA55")).replace(QStringLiteral("13773A"), QStringLiteral("AA00AA")).replace(QStringLiteral("name=\"Test Theme\""), QStringLiteral("name=\"Dark Theme\""));
+    theme.replace(QStringLiteral("\"FEFEFE\""), QStringLiteral("\"F0F0F8\"")).replace(QStringLiteral("\"111111\""), QStringLiteral("\"0A0A32\"")).replace(QStringLiteral("<a:ln w=\"9525\">"), QStringLiteral("<a:ln w=\"28575\">"));
+    p.data["/ppt/theme/theme2.xml"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml"), theme.toUtf8()};
+
+    QString master = masterXml();
+    master.replace(QStringLiteral("<a:srgbClr val=\"FFFFFF\"/></a:solidFill><a:effectLst/></p:bgPr>"), QStringLiteral("<a:srgbClr val=\"101010\"/></a:solidFill><a:effectLst/></p:bgPr>"));
+    master.replace(QStringLiteral("bg1=\"lt1\" tx1=\"dk1\" bg2=\"lt2\" tx2=\"dk2\""), QStringLiteral("bg1=\"dk1\" tx1=\"lt1\" bg2=\"dk2\" tx2=\"lt2\""));
+    master.replace(QRegularExpression(QStringLiteral("<p:sldLayoutIdLst>.*</p:sldLayoutIdLst>")), QStringLiteral("<p:sldLayoutIdLst><p:sldLayoutId id=\"2147483701\" r:id=\"rId1\"/></p:sldLayoutIdLst>"));
+    p.data["/ppt/slideMasters/slideMaster2.xml"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"), master.toUtf8()};
+    p.rels << Rel{"/ppt/slideMasters/slideMaster2.xml", "slideLayout", "/ppt/slideLayouts/slideLayout3.xml"} << Rel{"/ppt/slideMasters/slideMaster2.xml", "theme", "/ppt/theme/theme2.xml"};
+    p.data["/ppt/slideLayouts/slideLayout3.xml"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"),
+                                                    layoutXml(QStringLiteral("titleOnly"), QStringLiteral("Dark Layout"), QString(), QString()).toUtf8()};
+    p.rels << Rel{"/ppt/slideLayouts/slideLayout3.xml", "slideMaster", "/ppt/slideMasters/slideMaster2.xml"};
+    p.data["/ppt/slides/slide3.xml"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.slide+xml"), slideXml(QString(), QString(), shapes).toUtf8()};
+    p.rels << Rel{"/ppt/slides/slide3.xml", "slideLayout", "/ppt/slideLayouts/slideLayout3.xml"};
+    return p;
+}
+
+// The color words show: the one their format names, else its brush, else the theme's main color.
+QColor shown(const QTextCharFormat &cf, const ColorScheme &scheme)
+{
+    if (const QString ref = cf.stringProperty(tp::ColorRefP); !ref.isEmpty()) return ColorRef::fromString(ref).resolve(scheme);
+    if (cf.hasProperty(QTextFormat::ForegroundBrush) && cf.foreground().style() != Qt::NoBrush) return cf.foreground().color();
+    return scheme.slot(Main);
+}
+
+// The first letter's format of the words of an item (a shape's or a text box's).
+QTextCharFormat firstLetter(Document &d, const Item &it)
+{
+    const QString story = it.type() == ItemType::Shape ? static_cast<const ShapeItem &>(it).storyId : static_cast<const TextItem &>(it).storyId;
+    QTextCursor c(d.storyDoc(story));
+    c.setPosition(1);
+    return c.charFormat();
 }
 
 } // namespace
@@ -993,6 +1049,40 @@ private Q_SLOTS:
         QVERIFY(again);
         QCOMPARE(again->fill.toJson(), it->fill.toJson());
         QCOMPARE(again->stroke.toJson(), it->stroke.toJson());
+    }
+
+    // A slide on a second slide master is saved against that master's theme and color map, not the presentation's first: a shape with a style and a
+    // fill of its own that is what the style would give on the first master's theme (or color map) keeps its fill, and every look comes back as it was.
+    void looksOnAnotherMastersThemeAndColorMapAreKept()
+    {
+        const QString theme = QStringLiteral("<a:schemeClr val=\"accent1\"/>"), dark = QStringLiteral("<a:schemeClr val=\"bg1\"/>"), text = QStringLiteral("<a:schemeClr val=\"tx1\"/>");
+        // The sample theme's light 1 is FEFEFE and its first accent B6420F; the dark master's theme has F0F0F8 and 00AA55, and reads bg1 as dark 1.
+        const QString shapes = styledShape(20, QStringLiteral("Dark style"), QString(), styleOf(2, 1, 0, dark, text))
+                               + styledShape(21, QStringLiteral("Own theme"), QString(), styleOf(1, 1, 0, theme, QStringLiteral("<a:schemeClr val=\"lt1\"/>")))
+                               + styledShape(22, QStringLiteral("Light over dark"), QStringLiteral("<a:solidFill><a:srgbClr val=\"FEFEFE\"/></a:solidFill>"), styleOf(2, 1, 0, dark, text))
+                               + styledShape(23, QStringLiteral("First accent over second"), QStringLiteral("<a:solidFill><a:srgbClr val=\"B6420F\"/></a:solidFill>"), styleOf(1, 1, 0, theme, text));
+        const Parts p = withDarkSecondMaster(shapes);
+        QString err;
+        std::unique_ptr<Document> d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 3);
+        const QStringList names = {QStringLiteral("Dark style"), QStringLiteral("Own theme"), QStringLiteral("Light over dark"), QStringLiteral("First accent over second")};
+        // (read as the master says: on the dark one, bg1 is dark 1 of its theme, 0A0A32, and the first accent is 00AA55)
+        QCOMPARE(Rig::namedOn(*d, 2, names[0])->fill.color.resolve(d->colors), QColor(0x0A, 0x0A, 0x32));
+        QCOMPARE(Rig::namedOn(*d, 2, names[1])->fill.color.resolve(d->colors), QColor(0x00, 0xAA, 0x55));
+        QCOMPARE(Rig::namedOn(*d, 2, names[0])->stroke.width, 2.25);
+        std::unique_ptr<Document> back = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages.size()), 3);
+        for (const QString &name : names) {
+            const Item *was = Rig::namedOn(*d, 2, name), *now = Rig::namedOn(*back, 2, name);
+            QVERIFY2(was && now, qPrintable(name));
+            QVERIFY2(now->fill.toJson() == was->fill.toJson(), qPrintable(name + QStringLiteral(" fill")));
+            QVERIFY2(now->stroke.toJson() == was->stroke.toJson(), qPrintable(name + QStringLiteral(" line")));
+            QVERIFY2(shown(firstLetter(*back, *now), back->colors) == shown(firstLetter(*d, *was), d->colors), qPrintable(name + QStringLiteral(" words")));
+        }
+        // The first slide's shapes (the first master's) are as they were, too.
+        QCOMPARE(Rig::namedOn(*back, 0, QStringLiteral("Rectangle 5"))->fill.toJson(), Rig::namedOn(*d, 0, QStringLiteral("Rectangle 5"))->fill.toJson());
     }
 
     // ---- Change Shape
