@@ -229,6 +229,7 @@ void WriteDoc::setUpEnvironment()
     if (!m_wml.settingsName.isEmpty()) {
         const QByteArray settings = partData(m_wml.settingsName);
         f.env.wordNoHang = !office::wml::compatOption(settings, "useFELayout") || office::wml::compatOption(settings, "doNotWrapTextWithPunct");
+        f.env.wordSpaceSums = office::wml::compatOption(settings, "doNotUseHTMLParagraphAutoSpacing");
     }
     // The stand-ins for the fonts the file names that the machine doesn't have: the alternate its font table gives, or by its kind a serif face or a
     // fixed-width one.
