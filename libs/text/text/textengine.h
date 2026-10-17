@@ -324,6 +324,7 @@ public:
         double below = 0;         // the spacing under the text
         bool cut = false;         // its paragraph goes on past the lines laid out (Span::window); `lines` is how many there are, and the last is cut short
         double pushed = 0;        // how far down objects the text goes round moved the line, from where it would have been (0: they did not)
+        double band = 0;          // how much of the line's height, from its top, was kept clear of those objects (its text's height: a line's spacing above and below is not)
     };
     QVector<LineBrief> lineBriefs() const;
     // The footnotes that go on in `frame` or after it from a frame before: with the story's text left of each.
@@ -338,7 +339,7 @@ public:
     const QVector<InlineObject> &inlineObjects() const { return m_inline; }
 
     struct Seg { int docPos, docLen, dispPos, dispLen; bool hidden = false; };   // hidden: text a word processor hides (it shows nothing, and belongs to the line that follows)
-    struct Line { int frame = -1; int column = 0; QRectF rect; double below = 0; double pushed = 0; };   // below: the spacing under the text; pushed: how far wrapping moved it down
+    struct Line { int frame = -1; int column = 0; QRectF rect; double below = 0; double pushed = 0; double band = 0; };   // below: the spacing under the text; pushed: how far wrapping moved it down; band: the height of its text that wrapping kept clear of objects
     struct Block {
         int docStart = 0, docLen = 0;
         QString disp;

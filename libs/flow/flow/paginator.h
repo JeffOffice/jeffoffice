@@ -201,6 +201,7 @@ private:
     struct Wrapped {
         int object = 0, at = 0;
         QRectF rect;
+        const FloatingObject *frame = nullptr;   // (a frame's object, which the paginator keeps)
         bool operator==(const Wrapped &o) const {
             return object == o.object && at == o.at && std::abs(rect.left() - o.rect.left()) < 0.01 && std::abs(rect.top() - o.rect.top()) < 0.01 && std::abs(rect.width() - o.rect.width()) < 0.01 && std::abs(rect.height() - o.rect.height()) < 0.01;
         }
@@ -236,22 +237,35 @@ private:
     // the anchor's place across (x). The page's header and footer have theirs.
     // (`pos` is where the anchor character is in its story; the paragraph's top and the line's are where the text would have set them without the objects it goes round
     // moving them down: an object is set from where its paragraph would be, not from where its own wrap leaves it.)
+    // (An anchor of a frame is at the paragraph after the frame's paragraphs, `frameFrom` to `frameTo` of the story, and `frame` is the object made of them.)
     struct Anchor {
         int object = 0, pos = 0;
         double columnLeft = 0, paragraphTop = 0, lineTop = 0, x = 0;
+        int frameFrom = 0, frameTo = 0;
+        const FloatingObject *frame = nullptr;
     };
+    // The object an anchor has as `id` (its own, or a frame's made of the paragraphs).
+    const FloatingObject &objectAt(const Anchor &a, int id) const { return a.frame ? *a.frame : m_doc->objects[size_t(id) - 1]; }
     // A line of a story as the page holds it (page coordinates), for finding where an anchor is.
     struct AnchorLine {
         int block = 0, pos = 0, end = 0;
         QRectF rect;
         double columnLeft = 0;
         double pushed = 0;    // how far wrapping moved it down
+        bool first = false;   // it is the first line of its paragraph (frames are set where their paragraph's first line is)
         int reach = 0;        // where its anchors end: `end`, or for the last line of a paragraph the paragraph's end (characters that show nothing belong to the line after them, and a
                               // paragraph's last have none: an object anchored at the end of a paragraph is on its last line)
         int upTo() const { return std::max(end, reach); }
     };
     // A line of a page's text as the anchors are found in it.
     AnchorLine anchorLineOf(const StoryLayout::LineBrief &ln, const QRectF &rect, double columnLeft) const;
+    // The anchors of the frames that come before the paragraphs whose first lines are among `lines` (a column `columnWidth` wide holds them): a frame is the paragraphs with a key
+    // (fp::Frame) next to one another, and is anchored where the paragraph after them is.
+    QVector<Anchor> frameAnchors(const QVector<AnchorLine> &lines, double columnWidth);
+    // The frame of paragraphs `from` to `to` (the story's positions) as an object: its text copied for the page, and its size from the frame's and the text's.
+    const FloatingObject *frameObject(int key, int from, int to, double columnWidth);
+    std::unique_ptr<QTextDocument> frameStory(int from, int to) const;
+    std::map<std::tuple<int, int, int, int, int, uint>, FloatingObject> m_frames;   // by key, the paragraphs' places, the story's revision and length, the width the column has, and the environment
     // The anchors in a story from `from` to `to` (document positions), given the lines that hold it.
     QVector<Anchor> anchorsIn(const QTextDocument *story, int from, int to, const QVector<AnchorLine> &lines, const QHash<int, QVector<int>> *byBlock = nullptr) const;
     // Where an object is on the page (page coordinates) for the anchor it has: from the page, the margin, a strip of it, the column, the paragraph, or the line, as it says, and

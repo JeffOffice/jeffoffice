@@ -20,6 +20,7 @@
 #include <QJsonObject>
 #include <QPainter>
 #include <QRegularExpression>
+#include <QSet>
 #include <QTest>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -889,6 +890,57 @@ QString textIsWholeOnThePages(Paginator &pg, FlowDocument &fd)
             at = l.end;
         }
     return QString();
+}
+
+
+// A frame: the paragraphs of the text given put into the story before block number `before` (after the one before it), each with the frame's key and set out of the layout,
+// and an object that is set as `proto` says (where, and how the text goes round it), `width` wide (0: as wide as its longest line), `height` high at least (or exactly, if
+// `exact`; 0: as its text is). Returns its key.
+int addFrame(FlowDocument &fd, int before, const QStringList &paragraphs, FloatingObject proto, double width, double height = 0, bool exact = false)
+{
+    proto.item = std::make_shared<TextItem>();
+    proto.frameWidth = width;
+    proto.frameHeight = height;
+    proto.frameExactHeight = exact;
+    fd.objects.push_back(proto);
+    const int id = int(fd.objects.size());
+    fd.frames.push_back(id);
+    const int key = int(fd.frames.size());
+    fd.objects[size_t(id) - 1].frame = key;
+    QTextCursor c(fd.story());
+    const QTextBlock b = fd.story()->findBlockByNumber(before - 1);
+    c.setPosition(b.position() + b.length() - 1);
+    QTextCharFormat body;
+    body.setFontPointSize(11);
+    for (const QString &text : paragraphs) {
+        QTextBlockFormat bf;
+        bf.setBottomMargin(4);
+        bf.setProperty(fp::Frame, key);
+        bf.setProperty(tp::OutOfLayout, true);
+        c.insertBlock(bf, body);
+        c.insertText(text, body);
+    }
+    return key;
+}
+
+// The positions of the paragraphs of the story that are in a frame.
+QSet<int> frameBlocksOf(const FlowDocument &fd)
+{
+    QSet<int> out;
+    for (QTextBlock b = fd.story()->begin(); b.isValid(); b = b.next())
+        if (b.blockFormat().intProperty(fp::Frame) > 0) out.insert(b.position());
+    return out;
+}
+
+// The text boxes of a made page that are frames' (their stories have the words given), as items.
+const TextItem *frameBoxWith(const MaterializedPage &page, const QString &words)
+{
+    for (const auto &it : page.doc->pages[0]->items)
+        if (const auto *t = dynamic_cast<const TextItem *>(it.get()))
+            if (t->id.startsWith(QLatin1String("flow-object-")))
+                if (const Story *st = page.doc->story(t->storyId))
+                    if (st->doc->toPlainText().contains(words)) return t;
+    return nullptr;
 }
 
 
@@ -3975,6 +4027,280 @@ private Q_SLOTS:
             }
         QVERIFY(!id.isEmpty() && !id.startsWith(QStringLiteral("flow-img:")));
         QVERIFY(first->doc->images.contains(id));
+    }
+
+    // ---- frames
+
+    // A word processor's text does not lay out a paragraph that is set apart from it: it has no lines and no room, and the text around it is as if it were not there; the other
+    // texts (a publication's) take no notice of the property.
+    void aParagraphOutOfLayoutHasNoLinesAndNoRoom()
+    {
+        auto lay = [](bool outOfLayout, bool word) {
+            auto story = makeStory(5, 9, {}, 14, 25);
+            if (outOfLayout) {
+                QTextCursor c(story.get());
+                c.setPosition(story->findBlockByNumber(2).position());
+                QTextBlockFormat bf = c.blockFormat();
+                bf.setProperty(tp::OutOfLayout, true);
+                c.setBlockFormat(bf);
+            }
+            LayoutEnv env;
+            env.wordLines = word;
+            StoryLayout l;
+            l.build(story.get(), {plainFrame(300, 600)}, env);
+            QStringList out;
+            const int second = story->findBlockByNumber(2).position();
+            for (const auto &b : l.lineBriefs()) out << QStringLiteral("%1 %2%3").arg(b.block == second ? QStringLiteral("hidden") : QStringLiteral("body"), audit::rectText(b.rect), b.block == second ? QStringLiteral("!") : QString());
+            return out;
+        };
+        const QStringList word = lay(true, true), plain = lay(false, true), other = lay(true, false), otherPlain = lay(false, false);
+        for (const QString &line : word) QVERIFY2(!line.endsWith(QLatin1Char('!')), qPrintable(line));
+        QCOMPARE(word.size() + int(std::count_if(plain.begin(), plain.end(), [](const QString &l) { return l.endsWith(QLatin1Char('!')); })), int(plain.size()));
+        // The lines of the others are where they are without the paragraph in the text at all (the same story with the paragraph taken out).
+        {
+            auto story = makeStory(5, 9, {}, 14, 25);
+            QTextCursor c(story.get());
+            const QTextBlock b = story->findBlockByNumber(2);
+            c.setPosition(b.position());
+            c.setPosition(b.position() + b.length(), QTextCursor::KeepAnchor);
+            c.removeSelectedText();
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout l;
+            l.build(story.get(), {plainFrame(300, 600)}, env);
+            QStringList without;
+            for (const auto &x : l.lineBriefs()) without << QStringLiteral("body %1").arg(audit::rectText(x.rect));
+            QCOMPARE(word, without);
+        }
+        // (In a publication's text it is a paragraph like any other.)
+        QCOMPARE(other, otherPlain);
+    }
+
+    // A frame is set where the paragraph after its paragraphs is: its paragraphs have no lines and no room, it is a text box the page draws at its place, with the text of its
+    // paragraphs and as wide as it says, and the text goes round it.
+    void aFrameIsSetAtTheParagraphAfterItAndTheTextGoesRoundIt()
+    {
+        auto make = [](bool withFrame) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fillStory(fd->story(), 24, 41, {}, 25, 40);
+            if (withFrame) {
+                FloatingObject proto;
+                proto.hRel = FloatingObject::Rel::Column;
+                proto.vRel = FloatingObject::Rel::Paragraph;
+                proto.hAlign = FloatingObject::Align::End;
+                proto.dy = 6;
+                proto.wrap = FloatingObject::Wrap::Square;
+                proto.gap = QMarginsF(9, 0, 9, 0);
+                addFrame(*fd, 6, {QStringLiteral("First paragraph of the frame"), QStringLiteral("and a second paragraph of it, which is longer, so that it takes two lines of the frame")}, proto, 130);
+            }
+            return fd;
+        };
+        auto plain = make(false), framed = make(true);
+        Paginator pp(plain.get()), pg(framed.get());
+        const QSet<int> frameBlocks = frameBlocksOf(*framed);
+        QCOMPARE(int(frameBlocks.size()), 2);
+        const int anchorBlock = framed->story()->findBlockByNumber(8).position();   // (the paragraph that was block 6)
+        QVERIFY(!frameBlocks.contains(anchorBlock));
+        for (const auto &l : pg.lines(0)) QVERIFY2(!frameBlocks.contains(l.block), "a line of a frame's paragraph");
+        // The paragraphs above the frame are as they are without it, and so is the paragraph it is anchored to (its top).
+        const auto a = pageLines(pg, *framed, 0), b = pageLines(pp, *plain, 0);
+        int above = 0;
+        for (const PageLine &l : a) {
+            if (l.block >= anchorBlock) break;
+            QVERIFY2(above < b.size() && std::abs(b[above].rect.top() - l.rect.top()) < 0.01 && std::abs(b[above].rect.width() - l.rect.width()) < 0.01, qPrintable(audit::rectText(l.rect)));
+            ++above;
+        }
+        QVERIFY(above > 10);
+        const double top = paragraphTopOn(pg, *framed, 0, anchorBlock);
+        QVERIFY(top > 0 && std::abs(top - paragraphTopOn(pp, *plain, 0, plain->story()->findBlockByNumber(6).position())) < 0.01);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const TextItem *box = frameBoxWith(*page, QStringLiteral("First paragraph of the frame"));
+        QVERIFY(box);
+        const QRectF column = framed->sections[0].columnRect(0);
+        QVERIFY2(std::abs(box->rect.width() - 130) < 0.01 && std::abs(box->rect.right() - column.right()) < 0.01 && std::abs(box->rect.top() - (top + 6)) < 0.02, qPrintable(audit::rectText(box->rect)));
+        const Story *story = page->doc->story(box->storyId);
+        QVERIFY(story && story->doc->toPlainText().contains(QStringLiteral("two lines of the frame")));
+        // (Its paragraphs are laid out in it: not set out of the layout there.)
+        for (QTextBlock x = story->doc->begin(); x.isValid(); x = x.next()) QVERIFY(!x.blockFormat().boolProperty(tp::OutOfLayout) && x.blockFormat().intProperty(fp::Frame) == 0);
+        // As tall as its text is in a box 130 wide.
+        StoryLayout own;
+        own.build(story->doc.get(), {plainFrame(130, 100000)}, framed->env);
+        QVERIFY2(std::abs(box->rect.height() - own.usedHeight(0)) < 0.02 && own.lineInfo(0).size() >= 4, qPrintable(QStringLiteral("%1 high; its text %2 in a box 130 wide").arg(box->rect.height()).arg(own.usedHeight(0))));
+        // The text goes round it, as the page layer draws it; and the page is whole.
+        const QRectF wall = box->rect.adjusted(-9, 0, 9, 0);
+        int beside = 0;
+        for (const PageLine &l : a)
+            if (l.rect.top() < wall.bottom() - 0.05 && l.rect.bottom() > wall.top() + 0.05) {
+                ++beside;
+                QVERIFY2(l.rect.right() <= wall.left() + 0.05, qPrintable(audit::rectText(l.rect)));
+            }
+        QVERIFY(beside >= 4);
+        QVERIFY2(audit::problems(pg, framed->story()).isEmpty(), qPrintable(audit::problems(pg, framed->story())));
+        for (int k = 0; k < pg.pageCount(); ++k) QVERIFY2(audit::placementProblems(pg, *framed, k).isEmpty(), qPrintable(audit::placementProblems(pg, *framed, k)));
+    }
+
+    // How tall a frame is: as its text is when it asks nothing, at least what it asks, or exactly that (then the text is cut by it).
+    void aFramesHeightIsItsTextsOrWhatItAsks()
+    {
+        auto heightOf = [](double asked, bool exact) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), 10, 42, {}, 25, 40);
+            FloatingObject proto;
+            proto.hRel = FloatingObject::Rel::Column;
+            proto.vRel = FloatingObject::Rel::Paragraph;
+            proto.wrap = FloatingObject::Wrap::Square;
+            addFrame(fd, 3, {QStringLiteral("One line of the frame"), QStringLiteral("a second paragraph of the frame, which is long enough to take a second line")}, proto, 140, asked, exact);
+            Paginator pg(&fd);
+            const auto page = pg.materialize(0);
+            const TextItem *box = page ? frameBoxWith(*page, QStringLiteral("One line of the frame")) : nullptr;
+            return box ? box->rect.height() : -1.0;
+        };
+        const double natural = heightOf(0, false);
+        QVERIFY(natural > 30 && natural < 100);
+        QVERIFY(std::abs(heightOf(natural / 2, false) - natural) < 0.01);    // (at least: a text taller than that is as tall as it is)
+        QVERIFY(std::abs(heightOf(natural + 50, false) - (natural + 50)) < 0.01);
+        QVERIFY(std::abs(heightOf(20, true) - 20) < 0.01);                   // (exactly)
+        QVERIFY(std::abs(heightOf(natural + 50, true) - (natural + 50)) < 0.01);
+    }
+
+    // A frame with no width of its own is as wide as its longest line: no narrower (a narrower box wraps a line) and no wider than needed (in it no line is wrapped), and no wider than
+    // the column.
+    void aFrameWithNoWidthIsAsWideAsItsLongestLine()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 10, 43, {}, 25, 40);
+        FloatingObject proto;
+        proto.hRel = FloatingObject::Rel::Column;
+        proto.vRel = FloatingObject::Rel::Paragraph;
+        proto.wrap = FloatingObject::Wrap::Square;
+        addFrame(fd, 3, {QStringLiteral("Some words of a frame"), QStringLiteral("and more of them")}, proto, 0);
+        addFrame(fd, 6, {QStringLiteral("a very long line of a frame with no width of its own that is longer than the column of the page it is on, so that it has to wrap there and then, at the column's width, "
+                                        "which is what the column has")}, proto, 0);
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const TextItem *narrow = frameBoxWith(*page, QStringLiteral("Some words of a frame")), *wide = frameBoxWith(*page, QStringLiteral("a very long line"));
+        QVERIFY(narrow && wide);
+        const double column = fd.sections[0].columnWidth();
+        QVERIFY2(narrow->rect.width() > 40 && narrow->rect.width() < column - 100, qPrintable(QString::number(narrow->rect.width())));
+        QVERIFY2(std::abs(wide->rect.width() - column) < 0.01, qPrintable(QString::number(wide->rect.width())));
+        const Story *story = page->doc->story(narrow->storyId);
+        QVERIFY(story);
+        auto lines = [&](double width) {
+            StoryLayout lay;
+            lay.build(story->doc.get(), {plainFrame(width, 100000)}, fd.env);
+            return int(lay.lineInfo(0).size());
+        };
+        QCOMPARE(lines(narrow->rect.width()), 2);          // (a line to a paragraph: nothing is wrapped in it)
+        QVERIFY(lines(narrow->rect.width() - 8) > 2);      // (and it is no wider than it must be: a few points of room at most)
+    }
+
+    // A frame belongs to the page of the paragraph after it: where that paragraph begins a page, the frame is on that page and not the one before.
+    void aFrameIsOnThePageOfItsParagraph()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 20, 44, [](int i, QTextBlockFormat &bf) { if (i == 7) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore); }, 25, 40);
+        FloatingObject proto;
+        proto.hRel = FloatingObject::Rel::Column;
+        proto.vRel = FloatingObject::Rel::Paragraph;
+        proto.wrap = FloatingObject::Wrap::Square;
+        proto.hAlign = FloatingObject::Align::End;
+        addFrame(fd, 7, {QStringLiteral("FRAMEWORDS of the frame")}, proto, 120);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        const auto first = pg.materialize(0), second = pg.materialize(1);
+        QVERIFY(first && second);
+        QVERIFY(!frameBoxWith(*first, QStringLiteral("FRAMEWORDS")));
+        QVERIFY(frameBoxWith(*second, QStringLiteral("FRAMEWORDS")));
+        QVERIFY2(audit::problems(pg, fd.story()).isEmpty(), qPrintable(audit::problems(pg, fd.story())));
+    }
+
+    // Edits in a frame's paragraphs, and before and after them, lay out the page of the paragraph after them: the pages are those a new paginator makes, and the frame shows
+    // what was typed.
+    void editsInAFrameLayOutThePageItIsOn()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 120, 45, {}, 25, 45);
+        FloatingObject proto;
+        proto.hRel = FloatingObject::Rel::Column;
+        proto.vRel = FloatingObject::Rel::Paragraph;
+        proto.wrap = FloatingObject::Wrap::Square;
+        proto.hAlign = FloatingObject::Align::End;
+        addFrame(fd, 50, {QStringLiteral("FRAMEWORDS in the middle")}, proto, 120);
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 8);
+        const QSet<int> frame = frameBlocksOf(fd);
+        QCOMPARE(int(frame.size()), 1);
+        QTextCursor c(fd.story());
+        c.setPosition(*frame.begin() + 5);
+        c.insertText(QStringLiteral(" typed into the frame's own paragraph, which takes more of the frame's height, "));
+        Paginator fresh0(&fd);
+        QString bad = audit::differenceFromFresh(pg, fresh0);
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        int shown = 0;
+        for (int k = 0; k < pg.pageCount(); ++k)
+            if (const auto m = pg.materialize(k))
+                if (const TextItem *box = frameBoxWith(*m, QStringLiteral("typed into the frame"))) {
+                    ++shown;
+                    QVERIFY(box->rect.height() > 40);
+                }
+        QCOMPARE(shown, 1);
+        // Taking the paragraph after it away (text before the frame too): the same.
+        c.setPosition(fd.story()->findBlockByNumber(40).position());
+        c.insertText(QStringLiteral("more words before the frame, enough to move it to the next page or not, as the text goes. "));
+        Paginator fresh(&fd);
+        bad = audit::differenceFromFresh(pg, fresh);
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+    }
+
+    // Frames side by side before a paragraph, and one at the end of the story (nothing after it): all are made and drawn where they can be, and nothing is lost or stuck.
+    void framesTogetherAndAtTheEndOfTheStory()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 12, 46, {}, 25, 40);
+        FloatingObject proto;
+        proto.hRel = FloatingObject::Rel::Column;
+        proto.vRel = FloatingObject::Rel::Paragraph;
+        proto.wrap = FloatingObject::Wrap::Square;
+        FloatingObject left = proto, right = proto;
+        left.hAlign = FloatingObject::Align::Start;
+        right.hAlign = FloatingObject::Align::End;
+        addFrame(fd, 4, {QStringLiteral("LEFTFRAME text")}, left, 90);
+        addFrame(fd, 5, {QStringLiteral("RIGHTFRAME text")}, right, 90);   // (after the first frame's paragraph: the two are one after the other before the paragraph that follows)
+        // A frame at the very end.
+        {
+            QTextCursor c(fd.story());
+            c.movePosition(QTextCursor::End);
+            FloatingObject o = proto;
+            o.item = std::make_shared<TextItem>();
+            o.frameWidth = 80;
+            fd.objects.push_back(o);
+            fd.frames.push_back(int(fd.objects.size()));
+            fd.objects.last().frame = int(fd.frames.size());
+            QTextBlockFormat bf;
+            bf.setProperty(fp::Frame, int(fd.frames.size()));
+            bf.setProperty(tp::OutOfLayout, true);
+            QTextCharFormat cf;
+            cf.setFontPointSize(11);
+            c.insertBlock(bf, cf);
+            c.insertText(QStringLiteral("ENDFRAME text"), cf);
+        }
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 1);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        QVERIFY(frameBoxWith(*page, QStringLiteral("LEFTFRAME")));
+        QVERIFY(frameBoxWith(*page, QStringLiteral("RIGHTFRAME")));
+        QVERIFY2(audit::problems(pg, fd.story()).isEmpty(), qPrintable(audit::problems(pg, fd.story())));
+        for (int k = 0; k < pg.pageCount(); ++k) QVERIFY(pg.materialize(k));
     }
 
     // ---- text round objects

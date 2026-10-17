@@ -312,7 +312,8 @@ inline QString wrapProblems(flow::Paginator &pg, const QTextDocument *story, int
         if (column < 0 || column >= m.boxes.size()) continue;
         const Item *box = m.doc->item(m.boxes[column]);
         if (!box) continue;
-        const QRectF r(box->rect.left() + l.rect.left(), box->rect.top() + l.rect.top(), l.rect.width(), l.rect.height() - l.below);
+        // (The height of its text, which the objects are kept clear of: the spacing round a line is not.)
+        const QRectF r(box->rect.left() + l.rect.left(), box->rect.top() + l.rect.top(), l.rect.width(), l.band > 0 ? l.band : l.rect.height() - l.below);
         for (const Wall &w : walls) {
             if (!(r.top() < w.rect.bottom() - 0.05 && r.bottom() > w.rect.top() + 0.05)) continue;   // (not beside it)
             if (!(w.rect.right() > box->rect.left() + 0.55 && w.rect.left() < box->rect.right() - 0.55)) continue;   // (not in the column)
@@ -366,11 +367,14 @@ inline QString pageLayerProblems(flow::Paginator &pg, const QTextDocument *story
                 if (const Item *box = m.doc->item(id)) where << QStringLiteral("box %1").arg(rectText(box->rect));
             for (const Wall &w : wallsOf(m)) where << QStringLiteral("wall %1").arg(rectText(w.rect));
             if (qEnvironmentVariableIsSet("JP_AUDIT_DUMP")) {
+                for (const Wall &w : wallsOf(m)) where << QStringLiteral("wall exact %1 %2 %3 %4").arg(w.rect.left(), 0, 'f', 6).arg(w.rect.top(), 0, 'f', 6).arg(w.rect.right(), 0, 'f', 6).arg(w.rect.bottom(), 0, 'f', 6);
+                for (const QString &id : m.boxes)
+                    if (const Item *box = m.doc->item(id)) where << QStringLiteral("box exact %1 %2 %3 %4").arg(box->rect.left(), 0, 'f', 6).arg(box->rect.top(), 0, 'f', 6).arg(box->rect.width(), 0, 'f', 6).arg(box->rect.height(), 0, 'f', 6);
                 for (const auto &o : lines)
                     if (story->findBlock(o.pos).blockFormat().intProperty(flow::fp::Cell)) where << QStringLiteral("ROW %1-%2 f%3 %4").arg(o.pos).arg(o.end).arg(o.frame).arg(rectText(o.rect));
                     else {
                         const auto pl = byPos.constFind(o.pos - m.storyFrom);
-                        where << QStringLiteral("L %1-%2 f%3 %4 | %5").arg(o.pos).arg(o.end).arg(o.frame).arg(rectText(o.rect), pl == byPos.constEnd() ? QStringLiteral("-") : QStringLiteral("f%1 %2").arg(pl->frame).arg(rectText(pl->rect)));
+                        where << QStringLiteral("L %1-%2 f%3 top %4 | %5").arg(o.pos).arg(o.end).arg(o.frame).arg(o.rect.top(), 0, 'f', 6).arg(pl == byPos.constEnd() ? QStringLiteral("-") : QStringLiteral("f%1 %2").arg(pl->frame).arg(rectText(pl->rect)));
                     }
             }
             return QStringLiteral("page %1: the line at %2 is in column %3 at %4 for the paginator, and in column %5 at %6 for the page layer [%7]").arg(k).arg(l.pos).arg(column).arg(rectText(l.rect)).arg(at->frame).arg(rectText(at->rect), where.join(QStringLiteral("; ")));

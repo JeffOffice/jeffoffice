@@ -787,6 +787,18 @@ void Paginator::changed(int position, int removed, int added)
     const QTextBlock b0 = story->findBlock(std::min(position, last)), b1 = story->findBlock(std::min(position + added, last));
     int from = b0.isValid() ? b0.position() : 0;
     int to = b1.isValid() ? b1.position() + b1.length() : last + 1;
+    // The paragraphs of a frame are set where the paragraph after them is (they have no lines of their own): an edit in them touches the page of that paragraph.
+    if (!m_doc->frames.isEmpty()) {
+        QTextBlock after = b0;
+        while (after.isValid() && after.blockFormat().intProperty(fp::Frame) > 0) after = after.next();
+        if (after.isValid() && after != b0) {
+            from = after.position();
+            to = std::max(to, after.position() + after.length());
+        }
+        QTextBlock end = b1;
+        while (end.isValid() && end.blockFormat().intProperty(fp::Frame) > 0) end = end.next();
+        if (end.isValid() && end != b1) to = std::max(to, end.position() + end.length());
+    }
     // The rows of tables that the edit touched, with those that cells joined down tie them to: what a page in them is laid out as depends on all of them.
     if (m_tables->any()) {
         m_tables->settleEdits();
@@ -1044,10 +1056,11 @@ QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, con
     for (int i = 0; i < held.size(); ++i) byBlock[held[i].block] << i;
     QVector<Anchor> anchors;
     for (const AnchorLine &l : held) anchors << anchorsIn(story, l.pos, l.upTo(), held, &byBlock);
+    anchors += frameAnchors(held, sec.columnWidth());
     int made = 0;
     for (const Anchor &a : anchors)
-        for (int id = a.object; id > 0 && id <= m_doc->objects.size() && made < kMostObjects; id = m_doc->objects[id - 1].next, ++made) {
-            const FloatingObject &o = m_doc->objects[id - 1];
+        for (int id = a.object; id > 0 && id <= m_doc->objects.size() && made < kMostObjects; id = objectAt(a, id).next, ++made) {
+            const FloatingObject &o = objectAt(a, id);
             using W = FloatingObject::Wrap;
             if (!o.item || o.behind || o.item->type() == ItemType::Line || (o.wrap != W::Square && o.wrap != W::Tight && o.wrap != W::TopBottom)) continue;
             QRectF r = placeOf(o, a, sec);
@@ -1056,7 +1069,7 @@ QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, con
                 turned->rect = r;
                 r = turned->bounds();
             }
-            out << Wrapped{id, a.pos, r};
+            out << Wrapped{id, a.pos, r, a.frame};
             if (out.size() >= kMostWrapped) return out;
         }
     return out;
@@ -1185,6 +1198,11 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
             QHash<int, QVector<int>> byBlock;
             for (int i = 0; i < held.size(); ++i) byBlock[held[i].block] << i;
             for (const AnchorLine &l : held) anchors << anchorsIn(m_doc->story(), l.pos, l.upTo(), held, &byBlock);
+            // (The lines of the cells of tables are no first lines of a paragraph that a frame comes before.)
+            QVector<AnchorLine> textLines;
+            for (const AnchorLine &l : held)
+                if (!m_doc->story()->findBlock(l.block).blockFormat().intProperty(fp::Cell)) textLines << l;
+            anchors += frameAnchors(textLines, sec.columnWidth());
             QVector<QRectF> columns;
             for (const QRectF &col : run.cols) columns << QRectF(col.left(), furniture.body.top() + col.top(), col.width(), col.height());
             if (!anchors.isEmpty()) addObjects(d.get(), anchors, sec, out->number, run.wrapped, columns);

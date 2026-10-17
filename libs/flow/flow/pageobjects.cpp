@@ -4,9 +4,11 @@
 #include "flow/paginator.h"
 
 #include <QJsonDocument>
+#include <QPainterPath>
 #include <QJsonObject>
 #include <QTextBlock>
 #include <QTextCursor>
+#include <QTextList>
 #include <QTextDocument>
 #include <algorithm>
 #include <cmath>
@@ -59,7 +61,7 @@ QVector<Paginator::Anchor> Paginator::anchorsIn(const QTextDocument *story, int 
 
 Paginator::AnchorLine Paginator::anchorLineOf(const StoryLayout::LineBrief &ln, const QRectF &rect, double columnLeft) const
 {
-    AnchorLine l{ln.block, ln.pos, ln.end, rect, columnLeft, ln.pushed, ln.end};
+    AnchorLine l{ln.block, ln.pos, ln.end, rect, columnLeft, ln.pushed, ln.line == 0, ln.end};
     if (!ln.cut && ln.line == ln.lines - 1) {
         const QTextBlock b = m_doc->story()->findBlock(ln.block);
         if (b.isValid()) l.reach = std::max(ln.end, b.position() + b.length() - 1);
@@ -153,7 +155,7 @@ QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, cons
 {
     QVector<QPolygonF> out;
     for (const Wrapped &w : wrapped) {
-        const FloatingObject &o = m_doc->objects[w.object - 1];
+        const FloatingObject &o = w.frame ? *w.frame : m_doc->objects[w.object - 1];
         // A text box that does not reach into the column's text pushes none of it (by more than a hair: boxes are set edge to edge).
         if (o.item->type() == ItemType::Text && !w.rect.adjusted(0.55, 0.55, -0.55, -0.55).intersects(column)) continue;
         QRectF b = w.rect.adjusted(-o.gap.left(), -o.gap.top(), o.gap.right(), o.gap.bottom());
@@ -162,10 +164,17 @@ QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, cons
             b.setLeft(-1e5);
             b.setRight(1e5);
         } else if (o.side != FloatingObject::Side::Both) {
-            // The side asked for is the room beside it: the other side is a wall as well.
+            // The side asked for is the room beside it: the other side is a wall as well. (The page layer makes the wall of a path and joins the two, as here, so that the
+            // edges of the polygons are the same numbers: a line that touches one has the page layer put it where the paginator did.)
             const bool leftOnly = o.side == FloatingObject::Side::Left || (o.side == FloatingObject::Side::Largest && b.left() - column.left() >= column.right() - b.right());
-            if (leftOnly) b.setRight(b.left() + 1e5);
-            else b.setLeft(b.right() - 1e5);
+            QPainterPath path;
+            path.addRect(b);
+            QPainterPath beyond;
+            if (leftOnly) beyond.addRect(QRectF(b.left(), b.top(), 1e5, b.height()));
+            else beyond.addRect(QRectF(-1e5, b.top(), b.right() + 1e5, b.height()));
+            path = path.united(beyond);
+            out << path.toFillPolygon().translated(-column.left(), -column.top());
+            continue;
         }
         out << QPolygonF(b.translated(-column.left(), -column.top()));
     }
@@ -176,8 +185,8 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
 {
     int made = 0;
     for (const Anchor &a : anchors) {
-        for (int id = a.object; id > 0 && id <= m_doc->objects.size() && made < kMostObjects; id = m_doc->objects[id - 1].next, ++made) {
-            const FloatingObject &o = m_doc->objects[id - 1];
+        for (int id = a.object; id > 0 && id <= m_doc->objects.size() && made < kMostObjects; id = objectAt(a, id).next, ++made) {
+            const FloatingObject &o = objectAt(a, id);
             if (!o.item) continue;
             using Rel = FloatingObject::Rel;
             // The object the text of the page was laid out round is where it was laid out round it (and where it would be set from the lines as they are: the same,
@@ -249,6 +258,135 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
         }
     }
     Q_UNUSED(number);
+}
+
+
+std::unique_ptr<QTextDocument> Paginator::frameStory(int from, int to) const
+{
+    const QTextDocument *main = m_doc->story();
+    auto sd = std::make_unique<QTextDocument>();
+    sd->setDocumentMargin(0);
+    sd->setDefaultFont(main->defaultFont());
+    sd->setDefaultTextOption(main->defaultTextOption());
+    sd->setUndoRedoEnabled(false);
+    QTextCursor dst(sd.get());
+    QHash<QTextList *, QTextList *> lists;
+    bool firstBlock = true;
+    for (QTextBlock b = main->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
+        QTextBlockFormat bf = b.blockFormat();
+        bf.clearProperty(QTextFormat::ObjectIndex);   // (the list is the document's, not this story's: it's made again below)
+        bf.clearProperty(tp::OutOfLayout);
+        bf.clearProperty(fp::Frame);
+        bf.clearProperty(tp::WidowControl);
+        bf.clearProperty(tp::KeepTogether);
+        bf.clearProperty(tp::KeepWithNext);
+        bf.setPageBreakPolicy(QTextFormat::PageBreak_Auto);
+        QTextList *list = b.textList();
+        if (firstBlock) {
+            dst.setBlockFormat(bf);
+            dst.setBlockCharFormat(b.charFormat());
+        } else {
+            dst.insertBlock(bf, b.charFormat());
+        }
+        firstBlock = false;
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment frag = it.fragment();
+            QTextCharFormat cf = frag.charFormat();
+            // (A note's reference is not copied: its text is for the page of the text.)
+            if (cf.stringProperty(tp::Field).startsWith(QLatin1String("footnote:")) || cf.stringProperty(tp::Field).startsWith(QLatin1String("endnote:"))) continue;
+            dst.insertText(frag.text(), cf);
+        }
+        if (list) {
+            QTextList *made = lists.value(list);
+            if (!made) {
+                QTextListFormat lf = list->format();
+                if (list->itemNumber(b) > 0) lf.setStart(lf.start() + list->itemNumber(b));
+                made = dst.createList(lf);
+                lists.insert(list, made);
+            } else {
+                made->add(dst.block());
+            }
+        }
+    }
+    return sd;
+}
+
+const FloatingObject *Paginator::frameObject(int key, int from, int to, double columnWidth)
+{
+    if (key <= 0 || key > m_doc->frames.size()) return nullptr;
+    const int id = m_doc->frames[key - 1];
+    if (id <= 0 || id > m_doc->objects.size()) return nullptr;
+    const QTextDocument *story = m_doc->story();
+    const uint env = qHash(m_doc->env.key()) ^ uint(qHash(story->characterCount()) * 31u);
+    const auto cacheKey = std::make_tuple(key, from, to, story->revision(), int(std::lround(columnWidth * 100)), env);
+    const auto found = m_frames.find(cacheKey);
+    if (found != m_frames.end()) return &found->second;
+    if (m_frames.size() > 400) m_frames.clear();
+    FloatingObject o = m_doc->objects[id - 1];
+    o.story = frameStory(from, to);
+    // As wide as it says; else as wide as the longest line of its text where nothing is wrapped (to the column's width).
+    double width = o.frameWidth;
+    if (width <= 0) {
+        FrameSpec wide;
+        wide.size = QSizeF(100000, 100000);
+        wide.insets = QMarginsF(0, 0, 0, 0);
+        wide.hyphenate = false;
+        StoryLayout natural;
+        natural.build(o.story.get(), {wide}, m_doc->env);
+        for (const QRectF &r : natural.rangeRects(0, 0, std::max(0, o.story->characterCount() - 1))) width = std::max(width, r.right());
+        width = std::clamp(width, 1.0, std::max(1.0, columnWidth));
+    }
+    FrameSpec fs;
+    fs.size = QSizeF(width, 100000);
+    fs.insets = QMarginsF(0, 0, 0, 0);
+    fs.hyphenate = false;
+    StoryLayout lay;
+    lay.build(o.story.get(), {fs}, m_doc->env);
+    double height = lay.usedHeight(0);
+    if (o.frameExactHeight && o.frameHeight > 0) height = o.frameHeight;
+    else height = std::max(height, o.frameHeight);
+    std::shared_ptr<TextItem> box = o.item && o.item->type() == ItemType::Text ? std::static_pointer_cast<TextItem>(o.item->clone()) : std::make_shared<TextItem>();
+    box->rect = QRectF(0, 0, width, std::max(1.0, height));
+    box->insets = QMarginsF(0, 0, 0, 0);
+    box->columns = 1;
+    box->hyphenate = false;
+    o.item = box;
+    o.insets = QMarginsF(0, 0, 0, 0);
+    return &m_frames.emplace(cacheKey, std::move(o)).first->second;
+}
+
+QVector<Paginator::Anchor> Paginator::frameAnchors(const QVector<AnchorLine> &lines, double columnWidth)
+{
+    QVector<Anchor> out;
+    if (m_doc->frames.isEmpty()) return out;
+    const QTextDocument *story = m_doc->story();
+    for (const AnchorLine &l : lines) {
+        if (!l.first) continue;
+        // The frames before the paragraph (a frame is the paragraphs next to one another that have its key), the nearest first.
+        QVector<Anchor> found;
+        QTextBlock b = story->findBlock(l.block).previous();
+        while (b.isValid() && found.size() < 16) {
+            const int key = b.blockFormat().intProperty(fp::Frame);
+            if (key <= 0) break;
+            QTextBlock first = b;
+            while (first.previous().isValid() && first.previous().blockFormat().intProperty(fp::Frame) == key) first = first.previous();
+            if (const FloatingObject *o = frameObject(key, first.position(), b.position() + b.length(), columnWidth)) {
+                Anchor a;
+                a.object = m_doc->frames[key - 1];
+                a.pos = first.position();
+                a.columnLeft = l.columnLeft;
+                a.paragraphTop = a.lineTop = l.rect.top() - l.pushed;
+                a.x = l.rect.left();
+                a.frameFrom = first.position();
+                a.frameTo = b.position() + b.length();
+                a.frame = o;
+                found.prepend(a);
+            }
+            b = first.previous();
+        }
+        out += found;
+    }
+    return out;
 }
 
 } // namespace jp::flow

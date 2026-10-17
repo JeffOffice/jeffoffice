@@ -31,6 +31,9 @@ enum : int {
     Cell = QTextFormat::UserProperty + 302,
     // int, of a character: the object (FlowDocument::objects, counted from 1) that is set on the page where the character is.
     AnchorId = QTextFormat::UserProperty + 301,
+    // int: the key of the frame (FlowDocument::frames, from 1) that the paragraph is a part of: it and the paragraphs next to it with the same key are a frame, set at a place of
+    // its own on the page of the paragraph after them (the paragraphs also have tp::OutOfLayout, so that the text engine leaves them out of the text); none (0) for the rest.
+    Frame = QTextFormat::UserProperty + 303,
 };
 } // namespace fp
 
@@ -64,6 +67,11 @@ struct FloatingObject {
     Side side = Side::Both;
     QMarginsF gap;                          // the room the text round it leaves
     int next = 0;                           // the one after it at the same anchor (counted from 1), or none
+    // A frame: the paragraphs of the story that have its key (fp::Frame) are its text. `item` is a TextItem and `story` is not given: the paginator makes both from the paragraphs,
+    // at the width `frameWidth` says (0: as wide as the longest line of the text, to the column's width) and the height the text asks (`frameHeight` is the least of it, or all of it).
+    int frame = 0;
+    double frameWidth = 0, frameHeight = 0;
+    bool frameExactHeight = false;
 };
 
 // A picture's bytes, shared by every page that shows it (a page of the document holds a copy of the reference).
@@ -140,6 +148,8 @@ public:
     // "flow-img:" and a place in `images`, which a page changes to the picture's Id in the page's own document).
     QVector<FloatingObject> objects;
     QVector<FlowImage> images;
+    // The frames of the story (fp::Frame): the object (from 1) that each is, by its key from 1.
+    QVector<int> frames;
     // Colors, fonts, and the default tab stop the text is laid out with.
     LayoutEnv env;
     // What fields read (page numbers, notes); none by default.
