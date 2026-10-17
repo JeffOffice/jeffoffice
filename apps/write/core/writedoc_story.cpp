@@ -537,10 +537,25 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         }
         if (f.objects.size() >= kMostObjects) break;
         flow::FloatingObject o;
-        o.hRel = s.hRel == Shape::Margin ? flow::FloatingObject::Rel::Margin : s.hRel == Shape::Page ? flow::FloatingObject::Rel::Page
-                 : s.hRel == Shape::Character ? flow::FloatingObject::Rel::Character : flow::FloatingObject::Rel::Column;
-        o.vRel = s.vRel == Shape::Margin ? flow::FloatingObject::Rel::Margin : s.vRel == Shape::Page ? flow::FloatingObject::Rel::Page
-                 : s.vRel == Shape::LineOf ? flow::FloatingObject::Rel::Line : s.vRel == Shape::Character ? flow::FloatingObject::Rel::Line : flow::FloatingObject::Rel::Paragraph;
+        using Rel = flow::FloatingObject::Rel;
+        // (Across, a position measured from the paragraph or the line is from the column; down, one from the column is from the paragraph, and one from a character is from the line.)
+        auto relOf = [](Shape::Rel r, bool across) {
+            switch (r) {
+            case Shape::Margin: return Rel::Margin;
+            case Shape::Page: return Rel::Page;
+            case Shape::Character: return across ? Rel::Character : Rel::Line;
+            case Shape::LineOf: return across ? Rel::Column : Rel::Line;
+            case Shape::LeftMargin: return Rel::LeftMargin;
+            case Shape::RightMargin: return Rel::RightMargin;
+            case Shape::TopMargin: return Rel::TopMargin;
+            case Shape::BottomMargin: return Rel::BottomMargin;
+            case Shape::InsideMargin: return Rel::InsideMargin;
+            case Shape::OutsideMargin: return Rel::OutsideMargin;
+            default: return across ? Rel::Column : Rel::Paragraph;
+            }
+        };
+        o.hRel = relOf(s.hRel, true);
+        o.vRel = relOf(s.vRel, false);
         auto align = [](Shape::Align a) { return a == Shape::Start ? flow::FloatingObject::Align::Start : a == Shape::Center ? flow::FloatingObject::Align::Center
                                                                 : a == Shape::End ? flow::FloatingObject::Align::End : flow::FloatingObject::Align::None; };
         o.hAlign = align(s.hAlign);
@@ -548,7 +563,10 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         o.dx = s.left;
         o.dy = s.top;
         o.behind = s.behind;
-        o.wrap = s.wrap == Shape::Square || s.wrap == Shape::Tight ? flow::FloatingObject::Wrap::Square : s.wrap == Shape::TopBottom ? flow::FloatingObject::Wrap::TopBottom : flow::FloatingObject::Wrap::None;
+        o.wrap = s.wrap == Shape::Square ? flow::FloatingObject::Wrap::Square : s.wrap == Shape::Tight ? flow::FloatingObject::Wrap::Tight
+                 : s.wrap == Shape::TopBottom ? flow::FloatingObject::Wrap::TopBottom : flow::FloatingObject::Wrap::None;
+        o.side = s.side == Shape::SideLeft ? flow::FloatingObject::Side::Left : s.side == Shape::SideRight ? flow::FloatingObject::Side::Right
+                 : s.side == Shape::SideLargest ? flow::FloatingObject::Side::Largest : flow::FloatingObject::Side::Both;
         o.gap = QMarginsF(s.gapLeft, s.gapTop, s.gapRight, s.gapBottom);
         if (s.kind == Shape::Picture) {
             const int image = pictureOf(s);
