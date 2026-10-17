@@ -12,6 +12,8 @@
 namespace jp::write {
 
 namespace prop {
+// The values of TrackedDeleted.
+constexpr int HiddenByDeletion = 1, HiddenAlready = 2;
 enum : int {
     // character formats
     Atom = QTextFormat::UserProperty + 400,   // QByteArray: a piece of the file kept as XML (packAtom); the text is U+FFFC
@@ -22,7 +24,8 @@ enum : int {
     DoubleStrike,                             // bool
     Hidden,                                   // (unused: hidden text is tp::HiddenText, which the text engine leaves out)
     Raised,                                   // int: half-points raised
-    TrackedDeleted,                           // bool: the text (or mark) is what a tracked change deleted, hidden (tp::HiddenText) for the lines but not the run's own property
+    TrackedDeleted,                           // int: the text (or mark) is what a tracked change deleted, hidden (tp::HiddenText) for the lines: HiddenAlready if its
+                                              // format hid it before (the file's w:vanish or its style's, which the run says as it is), HiddenByDeletion if only deleting does
     // block formats
     RawBefore = QTextFormat::UserProperty + 430,   // QByteArray: body elements kept as XML that come before the paragraph (packBlocks)
     RawAfter,                                 // QByteArray: the same after it

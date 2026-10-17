@@ -158,11 +158,12 @@ bool showsContent(const QVector<Inline> &content)
     return false;
 }
 
-// What a format is for text that a tracked change deleted: left out of the lines as hidden text is, but still the story's (the file keeps it).
+// What a format is for text that a tracked change deleted: left out of the lines as hidden text is, but still the story's (the file keeps it). The format
+// says whether it hid the text already (the file's own w:vanish, or its style's): that is what is written back, and the hiding that deleting adds is not.
 QTextCharFormat asDeleted(QTextCharFormat format)
 {
+    format.setProperty(prop::TrackedDeleted, format.boolProperty(tp::HiddenText) ? prop::HiddenAlready : prop::HiddenByDeletion);
     format.setProperty(tp::HiddenText, true);
-    format.setProperty(prop::TrackedDeleted, true);
     return format;
 }
 
