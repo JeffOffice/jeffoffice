@@ -4836,16 +4836,18 @@ private Q_SLOTS:
         }
     }
 
-    // A row set to a height is cut at a page break only where the room is at least that height: where it is less, the row goes to the next page whole.
-    void aRowSetToAHeightIsNotBegunWhereTheRoomIsLessThanThatHeight()
+    // A row set to a height that has a cell with its content in the middle or at the foot is not begun where the room is less than that height: it goes to the next page whole.
+    // A row with its content at the top is cut as any row is, whatever its height.
+    void aRowSetToAHeightWithContentNotAtItsTopIsNotBegunInLessRoom()
     {
         FlowDocument probe;
         const double line = lineHeightOf(probe);
         const double room = probe.section(0).content().height();
         const int filler = int(std::floor((room - 12) / line)) - 3;
         const double left = room - (filler * line + 6) - line;   // (what the page has for the second row, after the story's own line)
-        QVector<int> startPieces;
-        for (const double height : {0.0, 10.0, left + 20}) {
+        struct Case { double height; CellAlign align; bool whole; };
+        for (const Case &k : {Case{0.0, CellAlign::Bottom, false}, Case{10.0, CellAlign::Bottom, false}, Case{left + 20, CellAlign::Bottom, true}, Case{left + 20, CellAlign::Center, true},
+                              Case{left + 20, CellAlign::Top, false}}) {
             FlowDocument fd;
             TestTable spec;
             spec.rows = 2;
@@ -4858,17 +4860,69 @@ private Q_SLOTS:
                 return t.join(QLatin1Char('\n'));
             };
             spec.setRow = [&](int r, RowData &row) {
-                if (r == 1) row.height = height;
+                if (r == 1) row.height = k.height;
+            };
+            spec.setCell = [&](int r, int, CellData &cell) {
+                if (r == 1) cell.valign = k.align;
             };
             addTable(fd, spec);
             Paginator pg(&fd);
             QVERIFY(pg.pageCount() >= 2);
-            startPieces << pg.page(1).start.piece;
+            const int piece = pg.page(1).start.piece;
+            QVERIFY2((piece == 0) == k.whole, qPrintable(QStringLiteral("height %1, align %2: the next page starts at part %3").arg(k.height).arg(int(k.align)).arg(piece)));
         }
-        // (With no height, or one the room has, the row is cut; with one it has not, it is not.)
-        QVERIFY2(startPieces[0] != 0, qPrintable(QString::number(startPieces[0])));
-        QVERIFY2(startPieces[1] != 0, qPrintable(QString::number(startPieces[1])));
-        QCOMPARE(startPieces[2], 0);
+    }
+
+    // A table in a cell follows the same rule: its row, set to a height and with content at its foot, is not begun in less room than that.
+    void aRowOfATableInACellSetToAHeightIsNotBegunInLessRoomEither()
+    {
+        for (const CellAlign align : {CellAlign::Bottom, CellAlign::Top}) {
+            FlowDocument fd;
+            fd.sections[0].paper = QSizeF(300, 300);
+            fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+            QTextCursor c(fd.story());
+            c.movePosition(QTextCursor::End);
+            QTextCharFormat body;
+            body.setFontPointSize(11);
+            const double line = lineHeightOf(fd);
+            const double room = fd.section(0).content().height();
+            const int filler = int(std::floor((room - 12 - 3) / line)) - 3;
+            auto outer = std::make_shared<TableData>(), inner = std::make_shared<TableData>();
+            outer->columns << 220;
+            inner->columns << 150;
+            outer->margins = inner->margins = QMarginsF(4, 3, 4, 3);
+            CellRecord o;
+            o.table = outer;
+            o.row = std::make_shared<RowData>();
+            const int outerKey = fd.tables.add(o);
+            auto paragraph = [&](int key, const QString &text) {
+                QTextBlockFormat bf;
+                bf.setProperty(fp::Cell, key);
+                c.insertBlock(bf, body);
+                c.insertText(text, body);
+            };
+            for (int k = 0; k < filler; ++k) paragraph(outerKey, QStringLiteral("fill %1").arg(k));
+            auto innerRow = std::make_shared<RowData>();
+            innerRow->height = 5 * line;   // (more than the room the page has left for it, less than what its cell holds, so that it can be cut)
+            CellRecord i;
+            i.table = inner;
+            i.row = innerRow;
+            i.parent = outerKey;
+            i.cell.valign = align;
+            const int innerKey = fd.tables.add(i);
+            for (int k = 0; k < 8; ++k) paragraph(innerKey, QStringLiteral("inner %1").arg(k));
+            paragraph(outerKey, QString());
+            Paginator pg(&fd);
+            QVERIFY(pg.pageCount() >= 2);
+            // The next page goes on in the row, from where the lines of its cell were left: the lines before that are on this page. Not begun, the nested row is where it goes on
+            // from (the filler's lines are before it); begun, some of its lines are before.
+            const auto next = pg.page(1).start;
+            QCOMPARE(next.pos, fd.story()->findBlock(next.pos).position());
+            QVERIFY(next.piece != 0 && !next.pieceAt.isEmpty());
+            const double rowTop = filler * line;
+            if (align == CellAlign::Bottom) QVERIFY2(next.pieceAt[0] <= rowTop + 0.5, qPrintable(QStringLiteral("%1 for a row at %2").arg(next.pieceAt[0]).arg(rowTop)));
+            else QVERIFY2(next.pieceAt[0] > rowTop + 3 + line / 2, qPrintable(QStringLiteral("%1 for a row at %2").arg(next.pieceAt[0]).arg(rowTop)));
+        }
     }
 
     // A table in a cell has its cell's margin again where its row goes on over a page break: the part of the row on the next page has the nested cell's top margin above its
