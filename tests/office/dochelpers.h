@@ -98,6 +98,7 @@ public:
     QVector<SectionSpec> sections;     // none: one section
     QStringList footnotes;             // each note's text (its own mark first, \r last)
     QVector<int> footnoteRefs;         // where each is cited in the main text
+    QVector<int> footnoteStarts;       // where the file says each note's text begins in the notes' text, other than where it does (a hostile file); none: where it does
     QStringList headerStories;         // six for the notes' separators then six for each section; a story's text without the mark that ends it
     QVector<BookmarkSpec> bookmarks;
     QVector<ShapeSpec> shapes;

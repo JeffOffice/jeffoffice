@@ -71,6 +71,49 @@ QByteArray bodyXml(const DocWriter &w)
 QByteArray insertion(int by, quint32 date = 0) { return sprm1(sprm::inserted, 0x81) + sprm2(sprm::insertedBy, by) + (date ? sprm4(sprm::insertedAt, date) : QByteArray()); }
 QByteArray deletion(int by, quint32 date = 0) { return sprm1(sprm::deleted, 0x81) + sprm2(sprm::deletedBy, by) + (date ? sprm4(sprm::deletedAt, date) : QByteArray()); }
 
+// Where in a stream a change reaches something the reader reads: the bytes that are not zero (most of a stream's padding and unused places are zeros,
+// where a change would do nothing).
+QVector<int> liveBytes(const QByteArray &s)
+{
+    QVector<int> out;
+    for (int i = 0; i < s.size(); ++i)
+        if (s[i] != 0) out.push_back(i);
+    return out;
+}
+
+// The bytes of a stream's header that say how long things are and where: the lengths of the stories, and the place and length of every table the header names.
+// A change to one of these (to 0xFF in its high byte, say) is a count or a length the reader must not believe.
+QVector<int> fibNumbers(const QByteArray &wd)
+{
+    QVector<int> out;
+    for (int at = 64 + 12; at <= 64 + 40; at += 4)   // (the stories' lengths)
+        for (int k = 0; k < 4; ++k) out.push_back(at + k);
+    for (int slot = 0; slot < 93; ++slot) {
+        const int at = 154 + 8 * slot;
+        if (at + 8 > wd.size()) break;
+        const quint32 lcb = quint32(quint8(wd[at + 4])) | (quint32(quint8(wd[at + 5])) << 8) | (quint32(quint8(wd[at + 6])) << 16) | (quint32(quint8(wd[at + 7])) << 24);
+        if (lcb == 0) continue;
+        for (int k = 0; k < 8; ++k) out.push_back(at + k);   // (where the table is, and how long)
+    }
+    return out;
+}
+
+// The first and last bytes of every table of the table stream that the header names: a table's count of records, or the first and last of its places.
+QVector<int> tableEdges(const QByteArray &wd, const QByteArray &table)
+{
+    QVector<int> out;
+    for (int slot = 0; slot < 93; ++slot) {
+        const int at = 154 + 8 * slot;
+        if (at + 8 > wd.size()) break;
+        auto u32 = [&](int o) { return quint32(quint8(wd[o])) | (quint32(quint8(wd[o + 1])) << 8) | (quint32(quint8(wd[o + 2])) << 16) | (quint32(quint8(wd[o + 3])) << 24); };
+        const quint32 fc = u32(at), lcb = u32(at + 4);
+        if (lcb == 0 || fc >= quint32(table.size())) continue;
+        for (quint32 k = 0; k < 12 && k < lcb && fc + k < quint32(table.size()); ++k) out.push_back(int(fc + k));
+        for (quint32 k = 1; k <= 8 && k <= lcb && fc + lcb - k < quint32(table.size()); ++k) out.push_back(int(fc + lcb - k));
+    }
+    return out;
+}
+
 DocWriter simple(const QString &text)
 {
     DocWriter w;
@@ -91,6 +134,24 @@ private Q_SLOTS:
         Document d;
         QVERIFY(read(simple(QStringLiteral("Hello world\rSecond paragraph\r")).build(), &d));
         QCOMPARE(bodyTexts(d), (QStringList{"Hello world", "Second paragraph"}));
+    }
+
+    void eightBitTextIsTheWesternCodePage()
+    {
+        // The curly quotes, the dashes, the euro sign, and the rest are bytes 0x80 to 0x9F of the stored text, not their Latin-1 meanings.
+        const QString text = QStringLiteral("“quoted” – €5 … ™ šž é ‘x’\r");
+        DocWriter w = simple(text);
+        const QByteArray file = w.build();
+        QVERIFY(file.contains('\x93') && file.contains('\x94') && file.contains('\x96') && file.contains('\x80') && file.contains('\x85'));
+        Document d;
+        QVERIFY(read(file, &d));
+        QCOMPARE(bodyTexts(d), QStringList{text.chopped(1)});
+        // (And the same text in two pieces, the first 8-bit and the second 16-bit.)
+        DocWriter v = simple(text);
+        v.splitAt = 12;
+        Document e;
+        QVERIFY(read(v.build(), &e));
+        QCOMPARE(bodyTexts(e), QStringList{text.chopped(1)});
     }
 
     void textInTwoPiecesOfDifferentCodings()
@@ -998,9 +1059,12 @@ private Q_SLOTS:
         QVERIFY(f.setStream(QStringLiteral("WordDocument"), wd));
         QElapsedTimer t;
         t.start();
-        const bool ok = read(jp::cfb::write(f), &d, &notes);
+        QString error;
+        QVERIFY2(read(jp::cfb::write(f), &d, &notes, &error), qPrintable(error));
         QVERIFY(t.elapsed() < 5000);
-        if (ok) QVERIFY(bodyTexts(d).join(QLatin1Char(' ')).contains(QLatin1String("short")));
+        // (What the file holds is read; the length it claims is not believed, and the cut is said.)
+        QCOMPARE(bodyTexts(d), QStringList{QStringLiteral("short")});
+        QVERIFY(notes.leftOut);
     }
 
     void tooManyRowsAreCutAndSaid()
@@ -1080,21 +1144,23 @@ private Q_SLOTS:
 
     void notesThatOverlapAreLeftOut()
     {
-        // The table of the notes' text says each begins before the one before it: not read, rather than read again for each.
+        // The table of the notes' text says the second begins at 255, past the end of the notes' text, and the first has to end there: the notes follow one
+        // another, so this is not read, rather than read again for each.
         DocWriter w = simple(QStringLiteral("a\x02""b\x02""c\r"));
         w.chars = {{1, 2, sprm1(sprm::special, 1)}, {3, 4, sprm1(sprm::special, 1)}};
         w.footnotes = {QStringLiteral("\x02 one\r"), QStringLiteral("\x02 two\r")};
         w.footnoteRefs = {1, 3};
-        jp::cfb::File f;
-        QVERIFY(jp::cfb::read(w.build(), &f));
-        QByteArray t = f.stream(QStringLiteral("1Table"));
-        const int at = t.indexOf(QByteArray::fromHex("00000000060000000c00"));   // (the notes' starts: 0, 6, then the end)
-        QVERIFY(at >= 0);
-        t[at + 4] = char(0xFF);   // the second note begins at 255, and the first has to end there: past the end of the second
-        QVERIFY(f.setStream(QStringLiteral("1Table"), t));
+        // (As the file should have it, the notes are read.)
+        {
+            Document d;
+            QVERIFY(read(w.build(), &d));
+            QVERIFY(part(d, QStringLiteral("/word/footnotes.xml")) != nullptr);
+        }
+        w.footnoteStarts = {0, 255};
         Document d;
-        QVERIFY(read(jp::cfb::write(f), &d));
+        QVERIFY(read(w.build(), &d));
         QCOMPARE(bodyTexts(d), QStringList{QStringLiteral("abc")});
+        QVERIFY(part(d, QStringLiteral("/word/footnotes.xml")) == nullptr || !QString::fromUtf8(part(d, QStringLiteral("/word/footnotes.xml"))->data).contains(QLatin1String("one")));
     }
 
     void aLongChainOfStylesIsCutShort()
@@ -1317,11 +1383,14 @@ private Q_SLOTS:
         QElapsedTimer total;
         total.start();
         int read1 = 0;
+        // (The changes are made where the file holds something: the zeros that fill out its sectors would take a change and do nothing.)
+        const QVector<int> live = liveBytes(good);
+        QVERIFY(live.size() > 1000);
         for (int round = 0; round < 400; ++round) {
             QByteArray bad = good;
             const int changes = 1 + int(rng.bounded(8));
             for (int i = 0; i < changes; ++i) {
-                const int at = int(rng.bounded(quint32(bad.size())));
+                const int at = live[int(rng.bounded(quint32(live.size())))];
                 switch (rng.bounded(3u)) {
                 case 0: bad[at] = char(rng.bounded(256u)); break;
                 case 1: bad[at] = char(0xFF); break;
@@ -1415,15 +1484,30 @@ private Q_SLOTS:
         QVERIFY(jp::cfb::read(w.build(), &f));
         QRandomGenerator rng(20261017);
         const QStringList names = {QStringLiteral("WordDocument"), QStringLiteral("1Table"), QStringLiteral("Data")};
+        // The places a change is made: the header's numbers of lengths and places, the first and last bytes of the tables it names (their counts and their
+        // last places), and any byte that holds something; never the padding of zeros.
+        const QByteArray wdBytes = f.stream(QStringLiteral("WordDocument")), tableBytes = f.stream(QStringLiteral("1Table"));
+        QHash<QString, QVector<int>> aims;
+        aims[names[0]] = fibNumbers(wdBytes) + liveBytes(wdBytes);
+        aims[names[1]] = tableEdges(wdBytes, tableBytes) + liveBytes(tableBytes);
+        aims[names[2]] = liveBytes(f.stream(QStringLiteral("Data")));
+        QVERIFY(aims[names[0]].size() > 100 && aims[names[1]].size() > 100 && aims[names[2]].size() > 20);
         for (int round = 0; round < 600; ++round) {
             jp::cfb::File g = f;
             const QString name = names[int(rng.bounded(quint32(names.size())))];
             QByteArray s = g.stream(name);
             if (s.isEmpty()) continue;
+            const QVector<int> &aim = aims[name];
             const int changes = 1 + int(rng.bounded(6));
             for (int i = 0; i < changes; ++i) {
-                const int at = int(rng.bounded(quint32(s.size())));
-                s[at] = rng.bounded(2u) ? char(rng.bounded(256u)) : char(0xFF);
+                // (The first half of the aim is the numbers that count and measure; those go to the largest value a byte has, or the smallest, as often as to any.)
+                const int at = aim[int(rng.bounded(quint32(aim.size())))];
+                switch (rng.bounded(4u)) {
+                case 0: s[at] = char(0xFF); break;
+                case 1: s[at] = char(0x7F); break;
+                case 2: s[at] = char(0); break;
+                default: s[at] = char(rng.bounded(256u)); break;
+                }
             }
             QVERIFY(g.setStream(name, s));
             Document d;
