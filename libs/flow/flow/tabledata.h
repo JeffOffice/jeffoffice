@@ -51,7 +51,6 @@ struct TableData {
         Spec acrossSpec = Spec::None, downSpec = Spec::None;
         double x = 0, y = 0;
         QMarginsF room;
-        bool overlap = true;        // it may be over another floating table (else it goes down from one)
     };
     std::optional<Place> place;
     std::shared_ptr<const void> app;    // what the program that made the table keeps with it (the file's own properties of it)

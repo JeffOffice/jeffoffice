@@ -287,6 +287,7 @@ private:
         int key = 0;                // a frame's key (from 1); 0 for a table
         int span = -1;              // a table's place in the index of tables
         int anchor = -1;            // the position of the paragraph it is set from; none (-1): it is in the text
+        int section = 0;            // the section that paragraph is in (a table floats if it fits the pages of its own section)
     };
     struct FloatIndex {
         bool made = false;
