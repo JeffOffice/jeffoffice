@@ -5,6 +5,7 @@
 #include "io/cfb.h"
 
 #include <QBuffer>
+#include <QHash>
 #include <QPair>
 #include <QImage>
 #include <algorithm>
@@ -298,6 +299,29 @@ int DocWriter::addRule(int heightTwips)
     return at;
 }
 
+namespace {
+
+// Text as the bytes of an 8-bit piece: the Windows Western coding (Latin-1, with the curly quotes, dashes, and others in 0x80 to 0x9F); what it has no byte for is a '?'.
+QByteArray westernBytes(const QString &s)
+{
+    static const QHash<ushort, uchar> high = {{0x20AC, 0x80}, {0x201A, 0x82}, {0x0192, 0x83}, {0x201E, 0x84}, {0x2026, 0x85}, {0x2020, 0x86}, {0x2021, 0x87}, {0x02C6, 0x88},
+                                              {0x2030, 0x89}, {0x0160, 0x8A}, {0x2039, 0x8B}, {0x0152, 0x8C}, {0x017D, 0x8E}, {0x2018, 0x91}, {0x2019, 0x92}, {0x201C, 0x93},
+                                              {0x201D, 0x94}, {0x2022, 0x95}, {0x2013, 0x96}, {0x2014, 0x97}, {0x02DC, 0x98}, {0x2122, 0x99}, {0x0161, 0x9A}, {0x203A, 0x9B},
+                                              {0x0153, 0x9C}, {0x017E, 0x9E}, {0x0178, 0x9F}};
+    QByteArray out;
+    out.reserve(s.size());
+    for (const QChar qc : s) {
+        const ushort u = qc.unicode();
+        if (u < 0x80 || (u >= 0xA0 && u <= 0xFF)) out.append(char(u));
+        else if (high.contains(u)) out.append(char(high.value(u)));
+        else if (u == 0x81 || u == 0x8D || u == 0x8F || u == 0x90 || u == 0x9D) out.append(char(u));   // (the five the coding leaves empty)
+        else out.append('?');
+    }
+    return out;
+}
+
+} // namespace
+
 QByteArray DocWriter::build() const
 {
     QString footnoteText;
@@ -340,13 +364,13 @@ QByteArray DocWriter::build() const
     if (splitAt > 0 && splitAt < all.size()) {
         const int firstLen = splitAt;
         pieces.push_back({0, firstLen, quint32(wd.size()), false});
-        wd.append(all.left(firstLen).toLatin1());
+        wd.append(westernBytes(all.left(firstLen)));
         padEven(wd);
         pieces.push_back({firstLen, int(all.size()), quint32(wd.size()), true});
         wd.append(utf16(all.mid(firstLen)));
     } else {
         pieces.push_back({0, int(all.size()), quint32(wd.size()), unicode});
-        wd.append(unicode ? utf16(all) : all.toLatin1());
+        wd.append(unicode ? utf16(all) : westernBytes(all));
     }
     auto fcOf = [&](int cp) -> quint32 {
         for (const Piece &p : pieces)
@@ -572,7 +596,7 @@ QByteArray DocWriter::build() const
         for (int cp : footnoteRefs) add32(refs, quint32(cp));
         add32(refs, quint32(ccpText + 1));
         for (int i = 0; i < footnoteRefs.size(); ++i) add16(refs, 1);
-        for (int s : noteStart) add32(txt, quint32(s));
+        for (int s : (footnoteStarts.isEmpty() ? noteStart : footnoteStarts)) add32(txt, quint32(s));
         add32(txt, quint32(ccpFtn));
         add32(txt, quint32(ccpFtn + 1));
         put(2, refs);
