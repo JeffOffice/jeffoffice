@@ -126,7 +126,8 @@ struct LayoutEnv {
     double defaultTab = 36;         // points between the tab stops of a paragraph without its own
     bool showFieldShading = false;
     // The text is set without ligatures (a slide's, as the presentation program sets it: a PDF's text then names each letter the page draws, where a
-    // ligature's glyph stands for several letters that a reader that copies the text can't name, and the lines break as the screen's do).
+    // ligature's glyph stands for several letters that a reader that copies the text can't name, and the lines break as the screen's do). A word processor's
+    // text (wordLines) has none either: it sets each letter, as its files ask for no ligatures.
     bool noLigatures = false;
     // Lines as the presentation program sets a slide's text, as probed in it (a text box per case, line positions read back through its object
     // model and the pictures it draws; 20 fonts, text shrunk to fit and not):

@@ -2457,6 +2457,29 @@ private Q_SLOTS:
         QVERIFY(a.key() != b.key());
     }
 
+    // A word processor's text has no ligatures: the letters of "ti" in Calibri's face take what they take apart, where a publication's text sets them as one
+    // glyph.
+    void wordTextHasNoLigatures()
+    {
+        auto width = [&](const QString &text, bool word) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Calibri")});
+            run.setFontPointSize(24);
+            c.insertText(text, run);
+            LayoutEnv env;
+            env.wordLines = word;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(1000, 100)}, env);
+            const auto rects = lay.rangeRects(0, 0, text.size());
+            return rects.isEmpty() ? -1.0 : rects.last().right() - rects.first().left();
+        };
+        const double apart = width(QStringLiteral("t"), true) + width(QStringLiteral("i"), true);
+        QVERIFY2(std::abs(width(QStringLiteral("ti"), true) - apart) < 0.01, qPrintable(QStringLiteral("%1 against %2").arg(width(QStringLiteral("ti"), true)).arg(apart)));
+        QVERIFY(std::abs(width(QStringLiteral("ti"), false) - apart) > 0.05);   // (a publication's text keeps its ligature)
+    }
+
     // A mark of punctuation at the end of a line may hang past the margin in a word processor's text: a word that fits but for its period is the last
     // of the line, unless the file says no punctuation hangs; a word that is itself too long, or a mark that isn't one that hangs, is not let.
     void punctuationAtTheEndOfALineHangsPastTheMargin()
