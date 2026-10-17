@@ -7378,6 +7378,90 @@ private Q_SLOTS:
         for (const auto &l : lay2.lineBriefs()) QCOMPARE(l.pushed, 0.0);
     }
 
+    // An entry of a table of contents with its number ("1.1<tab>title<tab>12", a left stop for the title and a right one past the indent for the number): the number may go past the
+    // right indent to its stop, but the title wraps at the indent as any text does.
+    void theTitleOfAnEntryWithANumberPastTheRightIndentWrapsAtTheIndent()
+    {
+        auto layout = [&](const QString &title, double *titleRight, int *lines) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            bf.setRightMargin(36);
+            bf.setTabPositions({QTextOption::Tab(36, QTextOption::LeftTab), QTextOption::Tab(300, QTextOption::RightTab)});
+            c.setBlockFormat(bf);
+            const QString text = QStringLiteral("1.1\t") + title + QStringLiteral("\t12");
+            c.insertText(text, run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(300, 600)}, env);
+            *lines = int(lay.lineBriefs().size());
+            double right = 0;
+            for (const QRectF &r : lay.rangeRects(0, 4, 4 + int(title.size()))) right = std::max(right, r.right());
+            *titleRight = right;
+            return lay.lineBriefs();
+        };
+        // A title that, after the first tab, ends between the right indent (264) and the stop (300) when it is not wrapped.
+        QString title;
+        double wide = 0;
+        int lines = 0;
+        for (int words = 4; words < 30; ++words) {
+            title += QStringLiteral("word ");
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            c.insertText(title.trimmed(), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(2000, 100)}, env);
+            const auto rects = lay.rangeRects(0, 0, int(title.trimmed().size()));
+            wide = rects.isEmpty() ? 0 : rects.last().right();
+            if (36 + wide > 272) break;
+        }
+        QVERIFY2(36 + wide > 272 && 36 + wide < 296, qPrintable(QString::number(36 + wide)));
+        double right = 0;
+        layout(title.trimmed(), &right, &lines);
+        QVERIFY2(right <= 264.5, qPrintable(QStringLiteral("the title reaches %1, the right indent is at 264").arg(right)));
+        QVERIFY(lines >= 2);
+        // A title that fits keeps the number on its line, at the stop.
+        double shortRight = 0;
+        int shortLines = 0;
+        const auto briefs = layout(QStringLiteral("a short title"), &shortRight, &shortLines);
+        QCOMPARE(shortLines, 1);
+        QCOMPARE(briefs[0].end - briefs[0].pos, int(QStringLiteral("1.1\ta short title\t12").size()));
+    }
+
+    // A picture beside an entry is not the right indent: a stop between the picture and the indent takes no text over the picture.
+    void aRightStopBeyondAPictureTakesNoTextOverIt()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setRightMargin(36);
+        bf.setTabPositions({QTextOption::Tab(250, QTextOption::RightTab)});
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("Entry\t12"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        FrameSpec fs = plainFrame(300, 600);
+        const QRectF picture(200, 0, 100, 40);
+        fs.obstacles << QPolygonF(picture);
+        StoryLayout lay;
+        lay.build(&doc, {fs}, env);
+        const auto rects = lay.rangeRects(0, 0, int(QStringLiteral("Entry\t12").size()));
+        QVERIFY(!rects.isEmpty());
+        for (const QRectF &r : rects) QVERIFY2(!r.intersects(picture.adjusted(0.5, 0.5, -0.5, -0.5)), qPrintable(audit::rectText(r)));
+    }
+
     // A word processor's hanging first line goes out into the margin as far as the indents say: a paragraph with no left indent that hangs by 36 points begins 36 left of the
     // text area.
     void aHangingFirstLineGoesOutIntoTheMargin()

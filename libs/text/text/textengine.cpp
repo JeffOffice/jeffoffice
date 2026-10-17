@@ -3099,21 +3099,28 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // (A line that is as wide as its room, to what rounding in the layout leaves, fits.)
                     const double room = std::max(1.0, iv.x1 - iv.x0);
                     line.setLineWidth(room + (env.wordLines ? 0.13 : 0.0));
-                    // A word processor's right tab stop that is past the right indent and inside the column still takes the text after its tab (the page number of an entry in
-                    // a table of contents, whose stop is at the margin where the paragraph keeps its right indent inside it): the line is as wide as the stop, if the text
-                    // before the tab fits in the room the indent leaves.
+                    // A word processor's right tab stop that is past the paragraph's right indent and inside the column still takes the text after its tab (the page number of
+                    // an entry in a table of contents, whose stop is at the margin where the paragraph keeps its right indent inside it): the line is as wide as the stop. What is
+                    // before the last tab wraps at the line's room as any text does, and what is after it is that right-aligned text, ending at the stop: where the line is not
+                    // so, it is the line the room makes.
                     if (env.wordLines && wordTabs && indR > 0.01) {
                         double farthest = 0;
                         for (const QTextOption::Tab &t : ownTabs) {
                             const double at = t.position * scale;
-                            if (t.type == QTextOption::RightTab && at > iv.x1 - col.left() + 0.01 && at <= col.width() + 0.01) farthest = std::max(farthest, at);
+                            if (t.type == QTextOption::RightTab && at > col.width() - indR + 0.01 && at <= col.width() + 0.01) farthest = std::max(farthest, at);
                         }
                         if (farthest > 0) {
-                            line.setLineWidth(col.left() + farthest - iv.x0 + 0.13);
+                            const double stop = col.left() + farthest - iv.x0;   // (from the line's start)
+                            line.setLineWidth(stop + 0.13);
                             const int s0 = line.textStart(), e0 = s0 + line.textLength();
-                            int tab = s0;
-                            while (tab < e0 && B->disp[tab] != QLatin1Char('\t')) ++tab;
-                            if (tab >= e0 || line.cursorToX(tab) - line.cursorToX(s0) > room + 0.13) line.setLineWidth(room + 0.13);
+                            int lastTab = -1;
+                            for (int i = s0; i < e0; ++i)
+                                if (B->disp[i] == QLatin1Char('\t')) lastTab = i;
+                            int endText = e0;
+                            while (endText > lastTab + 1 && B->disp[endText - 1].isSpace()) --endText;
+                            const bool aligned = lastTab >= s0 && endText > lastTab + 1 && line.cursorToX(lastTab) - line.cursorToX(s0) <= room + 0.13 &&
+                                                 std::abs(line.cursorToX(endText) - line.cursorToX(s0) - stop) < 1.0;
+                            if (!aligned) line.setLineWidth(room + 0.13);
                         }
                     }
                     // A word processor lets a mark of punctuation at the end of a line hang past the margin (a period, a comma, a closing quote or bracket),
