@@ -3631,7 +3631,7 @@ private Q_SLOTS:
         const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
         auto para = [](const char *text) { return QByteArray("<w:p><w:r><w:t>") + text + "</w:t></w:r></w:p>"; };
         const QByteArray deletedMark = "<w:p><w:pPr><w:rPr><w:del" + rev + "/></w:rPr></w:pPr></w:p>";
-        const QByteArray deletedBreak = "<w:p><w:r><w:t>two</w:t></w:r><w:del" + rev + "><w:r><w:tab/><w:br/><w:t>x</w:t></w:r></w:del></w:p>";
+        const QByteArray deletedBreak = "<w:p><w:r><w:t>two</w:t></w:r><w:del" + rev + "><w:r><w:tab/><w:br/><w:delText>x</w:delText></w:r></w:del></w:p>";
         const QByteArray keptText = "<w:p><w:pPr><w:rPr><w:del" + rev + "/></w:rPr></w:pPr><w:r><w:t>text</w:t></w:r></w:p>";
         auto lines = [&](const QByteArray &body) {
             auto doc = open(makeDocx(body));
@@ -3662,6 +3662,53 @@ private Q_SLOTS:
         insertText(*doc, at, QStringLiteral("!"));
         QVERIFY(!at.charFormat().boolProperty(tp::HiddenText));
         QVERIFY(doc->pager().lines(0).size() == 3);
+    }
+
+    // What a file says of hidden text on what a tracked change deleted is what is saved: a w:vanish on a deleted run or on a deleted paragraph mark stays, and
+    // text that is hidden only because it is deleted is not made hidden in the file (nor, in a style that hides text, shown by a w:vanish of value 0).
+    void whatAFileSaysOfHiddenTextOnDeletedTextIsSavedAsItWas()
+    {
+        const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
+        auto savedAfterTyping = [&](const QByteArray &body, const QByteArray &styles) {
+            auto doc = open(makeDocx(body, styles));
+            if (!doc) return QByteArray();
+            QTextCursor c(doc->story());
+            c.setPosition(1);
+            insertText(*doc, c, QStringLiteral("x"));
+            return documentXml(doc->toDocx());
+        };
+        // A file that hides the deleted run and the deleted mark itself.
+        const QByteArray vanished = "<w:p><w:r><w:t>one</w:t></w:r><w:del" + rev + "><w:r><w:rPr><w:vanish/></w:rPr><w:delText>gone</w:delText></w:r></w:del></w:p>"
+                                    "<w:p><w:pPr><w:rPr><w:vanish/><w:del" + rev + "/></w:rPr></w:pPr><w:del" + rev + "><w:r><w:delText>mark</w:delText></w:r></w:del></w:p>"
+                                    "<w:p><w:r><w:t>tail</w:t></w:r></w:p>";
+        QByteArray x = savedAfterTyping(vanished, QByteArray());
+        QVERIFY2(x.count("<w:vanish/>") == 2, x.constData());
+        QVERIFY2(x.contains("<w:delText>gone</w:delText>") && x.contains("<w:delText>mark</w:delText>"), x.constData());
+        // A deleted run in a style that hides text, which says nothing of it: nothing is added.
+        const QByteArray styles = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                                  "<w:style w:type=\"paragraph\" w:styleId=\"Hid\"><w:name w:val=\"Hid\"/><w:basedOn w:val=\"Normal\"/><w:rPr><w:vanish/></w:rPr></w:style>";
+        const QByteArray inHidden = "<w:p><w:r><w:t>one</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val=\"Hid\"/></w:pPr><w:del" + rev + "><w:r><w:delText>gone</w:delText></w:r></w:del></w:p>";
+        x = savedAfterTyping(inHidden, styles);
+        QVERIFY2(!x.contains("vanish w:val") && x.count("vanish") == 0 && x.contains("<w:delText>gone</w:delText>"), x.constData());
+        // One that says it is not hidden stays so.
+        const QByteArray shown = "<w:p><w:r><w:t>one</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val=\"Hid\"/></w:pPr><w:del" + rev + "><w:r><w:rPr><w:vanish w:val=\"0\"/></w:rPr><w:delText>gone</w:delText></w:r></w:del></w:p>";
+        x = savedAfterTyping(shown, styles);
+        QVERIFY2(x.contains("<w:vanish w:val=\"0\"/>"), x.constData());
+    }
+
+    // The round-trip check sees what a save did to hidden text and to deleted text.
+    void theRoundTripCheckSeesLostHiddenAndDeletedText()
+    {
+        const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
+        auto file = [&](const QByteArray &runProps, const QByteArray &markProps, const QByteArray &deleted) {
+            return makeDocx("<w:p><w:pPr><w:rPr>" + markProps + "</w:rPr></w:pPr><w:del" + rev + "><w:r><w:rPr>" + runProps + "</w:rPr><w:delText>" + deleted + "</w:delText></w:r></w:del></w:p>");
+        };
+        const QByteArray base = file("<w:vanish/>", "<w:vanish/>", "gone");
+        QVERIFY(rt::lossProblems(base, base).isEmpty());
+        QVERIFY(!rt::lossProblems(base, file(QByteArray(), "<w:vanish/>", "gone")).isEmpty());   // (the run's w:vanish lost)
+        QVERIFY(!rt::lossProblems(base, file("<w:vanish/>", QByteArray(), "gone")).isEmpty());   // (the mark's)
+        QVERIFY(!rt::lossProblems(base, file("<w:vanish w:val=\"0\"/>", "<w:vanish/>", "gone")).isEmpty());   // (changed)
+        QVERIFY(!rt::lossProblems(base, file("<w:vanish/>", "<w:vanish/>", "gone!")).isEmpty());   // (the deleted text changed)
     }
 
     // A file that says its hanging indents add no tab stop (noTabHangInd) is read so, by its value.

@@ -423,7 +423,7 @@ RunProps runPropsOf(const QTextCharFormat &f)
     r.dstrike = strike && dstrike;
     r.caps = f.fontCapitalization() == QFont::AllUppercase;
     r.smallCaps = f.fontCapitalization() == QFont::SmallCaps;
-    r.vanish = f.boolProperty(tp::HiddenText) && !f.boolProperty(prop::TrackedDeleted);   // (hidden only because a change deleted it: the run doesn't say so)
+    r.vanish = f.boolProperty(tp::HiddenText) && f.intProperty(prop::TrackedDeleted) != prop::HiddenByDeletion;   // (hidden only because a change deleted it: the run doesn't say so)
     r.noProof = f.boolProperty(tp::NoProof);
     r.vertAlign = f.verticalAlignment() == QTextCharFormat::AlignSuperScript ? QStringLiteral("superscript")
                   : f.verticalAlignment() == QTextCharFormat::AlignSubScript ? QStringLiteral("subscript")
