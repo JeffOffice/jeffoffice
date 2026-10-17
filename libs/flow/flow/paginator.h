@@ -33,8 +33,11 @@ constexpr int kMostObjects = 500;
 constexpr int kMostWrapped = 24;
 // The most rows a table has that is set at a place (a longer one is in the text).
 constexpr int kMostFloatingRows = 60;
-// The most paragraphs a frame has (a file with more has the rest left out of it, and the page looks back no further than that for where one begins).
+// The most paragraphs a frame has: one of more is paragraphs in the text, laid out as any are, and is no frame.
 constexpr int kMostFrameParagraphs = 300;
+// The most frames and tables set at places that one paragraph is the anchor of (those right before it, the nearest first): the frames that come before them are paragraphs in the
+// text, and so are the tables, and nothing of a file is left off its pages.
+constexpr int kMostFloatsAtAParagraph = 16;
 
 // One page of the document made into the pages the page layer draws: a Document of a single page of the section's size, with a text box
 // for each column that has lines, linked in order, over a story of the text on the page. Paint it with
@@ -265,9 +268,35 @@ private:
     };
     // A line of a page's text as the anchors are found in it.
     AnchorLine anchorLineOf(const StoryLayout::LineBrief &ln, const QRectF &rect, double columnLeft) const;
-    // The anchors of the frames that come before the paragraphs whose first lines are among `lines` (a column `columnWidth` wide holds them): a frame is the paragraphs with a key
-    // (fp::Frame) next to one another, and is anchored where the paragraph after them is.
-    QVector<Anchor> frameAnchors(const QVector<AnchorLine> &lines, double columnWidth);
+    // The frames and the tables set at places of the story, and the paragraph each is set from. A frame is the paragraphs next to one another that have its key (fp::Frame) and
+    // are set out of the text (tp::OutOfLayout); a table is one that has a place (TableData::place). All of those next to one another (and the paragraphs of the text that show
+    // nothing, which are not lines to be set from) are set from the paragraph in the text after them: that paragraph's first line, or the first row of the table that comes after
+    // them, if it is one that is in the text. Those that are not set from any paragraph are in the text: the frames and tables at the end of the story, those past the most that
+    // one paragraph is the anchor of (`kMostFloatsAtAParagraph`, the nearest to it), and the frames of more paragraphs than a frame has. Found once for a story as it is.
+    struct FloatRef {
+        int from = 0, to = 0;       // the positions of a frame's paragraphs, or of a table's cells: just past the last one ends it
+        int key = 0;                // a frame's key (from 1); 0 for a table
+        int span = -1;              // a table's place in the index of tables
+        int anchor = -1;            // the position of the paragraph it is set from; none (-1): it is in the text
+    };
+    struct FloatIndex {
+        bool made = false;
+        bool anyTable = false;                      // a table has a place
+        std::vector<FloatRef> refs;                 // in the story's order
+        QHash<int, QVector<int>> at;                // by the position of an anchor paragraph: the refs set from it, in the story's order (the nearest to it last)
+        QHash<int, int> tableRef;                   // a table's place in the index of tables: its ref
+        QVector<int> inText;                        // in order: the positions of the paragraphs of frames that are lines of the text (the text engine lays those out, set apart as they are)
+    };
+    const FloatIndex &floatIndex();
+    void forgetFloats();   // the index and the frames and tables made are of the story as it was (an edit, or the settings changed)
+    // The position of the paragraph that a position in a frame, or in a table that is set at a place, is set from (the page that has that paragraph's first line has it); the position
+    // itself for one in the text.
+    int anchorOfPosition(int position);
+    // The anchors of the frames and tables that are set from the paragraphs whose first lines are among `lines` (a column `columnWidth` wide holds them), and of the objects anchored in
+    // the frames' text.
+    QVector<Anchor> floatAnchors(const QVector<AnchorLine> &lines, double columnWidth);
+    // The anchors of a page: those of the objects anchored in the text of `held`, and of the frames and tables set from the first lines among `firstLines`.
+    QVector<Anchor> anchorsOfLines(const QVector<AnchorLine> &held, const QVector<AnchorLine> &firstLines, double columnWidth);
     // The frame of paragraphs `from` to `to` (the story's positions) as an object: its text copied for the page, and its size from the frame's and the text's.
     std::shared_ptr<const FloatingObject> frameObject(int key, int from, int to, double columnWidth);
     std::unique_ptr<QTextDocument> frameStory(int from, int to) const;
@@ -276,15 +305,11 @@ private:
     bool floatsTable(int span);
     // Whether the page has anything that is set at a place and that the text goes round: the document's objects, its frames (which are objects), or a table set at a place.
     bool hasFloaters();
-    struct FloatCheck {
-        int revision = -1, length = -1;
-        bool tables = false;
-    };
-    FloatCheck m_floatCheck;
+    FloatIndex m_floats;
     std::shared_ptr<const FloatingObject> tableObject(int span, double columnWidth);
     QVector<Anchor> tableAnchors(const QVector<AnchorLine> &lines, double columnWidth);
-    std::map<std::tuple<int, int, int, int, uint>, std::shared_ptr<const FloatingObject>> m_tableObjects;   // by where the table is in the story, the story's revision, the column's width, and the environment
-    std::map<std::tuple<int, int, int, int, int, uint>, std::shared_ptr<const FloatingObject>> m_frames;   // by key, the paragraphs' places, the story's revision and length, the width the column has, and the environment
+    std::map<std::tuple<int, int, int, uint>, std::shared_ptr<const FloatingObject>> m_tableObjects;   // by where the table is in the story, the column's width, and the environment (edits empty it)
+    std::map<std::tuple<int, int, int, int, uint>, std::shared_ptr<const FloatingObject>> m_frames;   // by key, the paragraphs' places, the width the column has, and the environment (edits empty it)
     // The anchors in a story from `from` to `to` (document positions), given the lines that hold it.
     QVector<Anchor> anchorsIn(const QTextDocument *story, int from, int to, const QVector<AnchorLine> &lines, const QHash<int, QVector<int>> *byBlock = nullptr) const;
     // Where an object is on the page (page coordinates) for the anchor it has: from the page, the margin, a strip of it, the column, the paragraph, or the line, as it says, and

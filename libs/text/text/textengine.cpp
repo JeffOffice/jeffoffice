@@ -2190,6 +2190,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->docStart = b.position();
         B->docLen = b.length() - 1;
         const QTextBlockFormat bf = b.blockFormat();
+        // A paragraph set apart from the text shows nothing of it, unless the caller says it is laid out as the others are.
+        const bool apart = env.wordLines && bf.boolProperty(tp::OutOfLayout) && !(m_span.inLayout && std::binary_search(m_span.inLayout->cbegin(), m_span.inLayout->cend(), b.position()));
         const FieldContext &ctx = frames.isEmpty() ? FieldContext() : frames[std::min(f, nF - 1)].ctx;
 
         // Build the display string, mapping fields and the drop cap.
@@ -2225,7 +2227,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             taken += count;
             const QTextCharFormat cf = frag.charFormat();
             // A paragraph that is set apart from the text shows nothing of it, a picture in it included.
-            if (env.wordLines && bf.boolProperty(tp::OutOfLayout)) {
+            if (apart) {
                 B->map << Seg{rel, int(text.size()), int(B->disp.size()), 0, true};
                 continue;
             }
@@ -2269,7 +2271,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 continue;
             }
             // Hidden text takes no room and shows nothing, though its characters are the story's (so does a paragraph that is set apart from the text).
-            if (env.wordLines && (cf.boolProperty(tp::HiddenText) || bf.boolProperty(tp::OutOfLayout))) {
+            if (env.wordLines && cf.boolProperty(tp::HiddenText)) {
                 B->map << Seg{rel, int(text.size()), int(B->disp.size()), 0, true};
                 continue;
             }
@@ -3212,7 +3214,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         // (The first paragraph of a stretch may have lines that went before it.)
         const int firstBreak = first ? m_span.firstBreakAfter : -1;
         // A paragraph whose text and mark are both hidden is no paragraph: it takes no room.
-        if (!(env.wordLines && B->disp.isEmpty() && (b.charFormat().boolProperty(tp::HiddenText) || bf.boolProperty(tp::OutOfLayout)) && !tail)) placeLines(false, firstBreak);
+        if (!(env.wordLines && B->disp.isEmpty() && (b.charFormat().boolProperty(tp::HiddenText) || apart) && !tail)) placeLines(false, firstBreak);
         // Where each line landed: the first line in another column or box.
         auto splitAt = [&] {
             for (int i = 1; i < B->lines.size(); ++i)

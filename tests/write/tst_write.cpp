@@ -6287,6 +6287,16 @@ private Q_SLOTS:
                             fail(QStringLiteral("the text does not go round the objects after ") + what, d);
                             break;
                         }
+                    // The text is on the pages whole, and every frame and table set at a place is drawn once or in the text (every third command: the pages are made for it).
+                    if (const QString d = audit::coverageProblems(doc->pager(), doc->story()); !d.isEmpty()) {
+                        fail(QStringLiteral("text is lost from the pages after ") + what, d);
+                        break;
+                    }
+                    if (step % 3 == 1)
+                        if (const QString d = audit::floatProblems(doc->pager(), doc->flow()); !d.isEmpty()) {
+                            fail(QStringLiteral("a frame or a table set at a place is lost after ") + what, d);
+                            break;
+                        }
                     if (!mixed) {
                         QString err;
                         const QByteArray zip = doc->toDocx(&err);

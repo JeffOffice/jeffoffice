@@ -242,8 +242,11 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         std::vector<PieceRecord> pieces;
         bool windowShort = false;
     };
-    auto layPart = [&](const QVector<FrameSpec> &fr, const StoryLayout::Span &sp, const PageStart &from) {
+    auto layPart = [&](const QVector<FrameSpec> &fr, const StoryLayout::Span &given, const PageStart &from) {
         Part p;
+        // (The paragraphs of frames that the paginator does not set apart are laid out as the text's own.)
+        StoryLayout::Span sp = given;
+        sp.inLayout = &floatIndex().inText;
         if (m_tables->any()) {
             // (Tables are laid out beside the text: paginator_tables.cpp.)
             TablesRun tr;
@@ -727,6 +730,7 @@ bool Paginator::complete()
 
 void Paginator::invalidate()
 {
+    forgetFloats();
     m_tables->reset();
     m_noteHeights.clear();
     m_numberOf = -1;
@@ -738,6 +742,7 @@ void Paginator::invalidate()
 
 void Paginator::invalidateFrom(int section)
 {
+    forgetFloats();
     int keep = 0;
     while (keep < m_starts.size() && m_starts[keep].section < section) ++keep;
     keep = std::max(keep, 1);
@@ -768,6 +773,8 @@ Paginator::Page Paginator::page(int index)
 
 int Paginator::pageOfPosition(int position)
 {
+    // (A frame, or a table set at a place, is on the page of the paragraph it is set from.)
+    position = anchorOfPosition(position);
     for (;;) {
         const auto it = std::upper_bound(m_starts.begin(), m_starts.end(), position, [](int pos, const PageStart &s) { return pos < s.pos; });
         const int found = std::max(0, int(it - m_starts.begin()) - 1);
@@ -785,8 +792,16 @@ int Paginator::pageOfPosition(int position)
 
 // ---- edits ----
 
+void Paginator::forgetFloats()
+{
+    m_floats = FloatIndex();
+    m_frames.clear();
+    m_tableObjects.clear();
+}
+
 void Paginator::changed(int position, int removed, int added)
 {
+    forgetFloats();
     m_tables->edited(position, removed, added);
     const int delta = added - removed;
     m_numberOf = -1;
@@ -846,6 +861,29 @@ void Paginator::changed(int position, int removed, int added)
             if (d0.isValid()) from = std::min(from, d0.position());
             if (d1.isValid()) to = std::max(to, d1.position() + d1.length());
         }
+    }
+    // The frames and the tables set at places that come right before the paragraph an edit is in are set from it, and which of them are set from it and which are in the text
+    // depends on how many there are: the page is the one that holds the first of them. (They have no lines of their own; the paragraph they come before does.)
+    if (!m_doc->frames.isEmpty() || m_tables->any()) {
+        QTextBlock first = story->findBlock(std::clamp(from, 0, last));
+        for (QTextBlock prev = first.previous(); prev.isValid(); prev = prev.previous()) {
+            const QTextBlockFormat pf = prev.blockFormat();
+            if (pf.intProperty(fp::Frame) > 0 && pf.boolProperty(tp::OutOfLayout)) {
+                first = prev;
+                continue;
+            }
+            if (m_tables->any() && pf.intProperty(fp::Cell)) {
+                const TableIndex &tix = m_tables->index();
+                const int span = tix.spanAt(prev.position());
+                if (span >= 0 && tix.spans()[size_t(span)].table && tix.spans()[size_t(span)].table->place.has_value()) {
+                    first = story->findBlock(tix.spans()[size_t(span)].from);
+                    prev = first;
+                    continue;
+                }
+            }
+            break;
+        }
+        from = std::min(from, first.position());
     }
     // (Pages of notes alone begin where the one after does: the page the edit is in is the first that begins at or after it, less one, and then the one before.)
     const auto at = std::lower_bound(m_starts.begin(), m_starts.end(), from, [](const PageStart &s, int pos) { return s.pos < pos; });
@@ -947,6 +985,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
 {
     const QTextDocument *main = m_doc->story();
     const QVector<StoryLayout::LineBrief> &L = run.lines;
+    const QVector<int> &inText = floatIndex().inText;
     const int from = L.first().pos;
     *storyFrom = from;
     const QTextBlock firstBlock = main->findBlock(L.first().block);
@@ -1045,6 +1084,11 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         bf.clearProperty(tp::WidowControl);
         bf.clearProperty(tp::KeepTogether);
         bf.clearProperty(tp::KeepWithNext);
+        // A frame that is lines of the text is paragraphs of it, as they would be without the frame's properties.
+        if (std::binary_search(inText.cbegin(), inText.cend(), b.position())) {
+            bf.clearProperty(tp::OutOfLayout);
+            bf.clearProperty(fp::Frame);
+        }
         if (b == firstBlock && ((tail && !run.keepsSpace) || !run.firstSpace)) bf.setTopMargin(0);
         // A paragraph's box that began on the page before, or goes on to the next, is open at that end.
         auto sameBox = [](const QTextBlock &x, const QTextBlock &y) {
@@ -1114,22 +1158,20 @@ QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, con
     const Section &sec = m_doc->section(start.section);
     const QRectF body = furnitureOf(index, start, numberOf(index)).body;
     const QTextDocument *story = m_doc->story();
-    // The text's own lines (the rows of tables are not: what a cell anchors does not move the text round it).
-    QVector<AnchorLine> held;
+    // The text's own lines (the rows of tables are not: what a cell anchors does not move the text round it), and the first rows of the tables in the text (what is set from a
+    // table in the text is set from its first row).
+    QVector<AnchorLine> held, firstLines;
     for (int i = 0; i < run.kept; ++i) {
         const StoryLayout::LineBrief &ln = run.lines[i];
         const int column = ln.frame - run.firstFrame;
         if (column < 0 || column >= run.columns) continue;
-        if (!run.groups.empty() && story->findBlock(ln.block).blockFormat().intProperty(fp::Cell)) continue;
+        const bool inCell = !run.groups.empty() && story->findBlock(ln.block).blockFormat().intProperty(fp::Cell);
         const QRectF col = run.cols[column];
-        held << anchorLineOf(ln, ln.rect.translated(col.left(), body.top() + col.top()), col.left());
+        const AnchorLine line = anchorLineOf(ln, ln.rect.translated(col.left(), body.top() + col.top()), col.left());
+        if (!inCell) held << line;
+        if (!inCell || ln.line == 0) firstLines << line;
     }
-    QHash<int, QVector<int>> byBlock;
-    for (int i = 0; i < held.size(); ++i) byBlock[held[i].block] << i;
-    QVector<Anchor> anchors;
-    for (const AnchorLine &l : held) anchors << anchorsIn(story, l.pos, l.upTo(), held, &byBlock);
-    anchors += frameAnchors(held, sec.columnWidth());
-    anchors += tableAnchors(held, sec.columnWidth());
+    const QVector<Anchor> anchors = anchorsOfLines(held, firstLines, sec.columnWidth());
     int made = 0;
     for (const Anchor &a : anchors)
         for (int id = a.object; (a.frame || (id > 0 && id <= m_doc->objects.size())) && id > 0 && made < kMostObjects; id = objectAt(a, id).next, ++made) {
@@ -1246,15 +1288,18 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         }
         // The objects set at places that the page's lines anchor.
         if (hasFloaters()) {
-            QVector<AnchorLine> held;
+            // (The line that stands for a row of a table is not a line of text: the cells' own lines, set from the fragment, are. It is where the first row of a table in the text is, which
+            // is what the frames and tables before the table are set from.)
+            QVector<AnchorLine> held, firstLines;
             for (int i = 0; i < run.kept; ++i) {
                 const StoryLayout::LineBrief &ln = run.lines[i];
                 const int column = ln.frame - run.firstFrame;
                 if (column < 0 || column >= run.columns) continue;
-                // (The line that stands for a row of a table is not one: the cells' own lines, set from the fragment, are.)
-                if (!run.groups.empty() && m_doc->story()->findBlock(ln.block).blockFormat().intProperty(fp::Cell)) continue;
+                const bool inCell = !run.groups.empty() && m_doc->story()->findBlock(ln.block).blockFormat().intProperty(fp::Cell);
                 const QRectF col = run.cols[column];
-                held << anchorLineOf(ln, ln.rect.translated(col.left(), furniture.body.top() + col.top()), col.left());
+                const AnchorLine line = anchorLineOf(ln, ln.rect.translated(col.left(), furniture.body.top() + col.top()), col.left());
+                if (!inCell) held << line;
+                if (!inCell || ln.line == 0) firstLines << line;
             }
             for (const auto &fragment : out->tables) {
                 // (The column a table is in: the one its middle is in, else the nearest.)
@@ -1267,16 +1312,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
                     if (held.size() < 20000) held << anchorLineOf(ln, rect, columnLeft);
                 });
             }
-            QVector<Anchor> anchors;
-            QHash<int, QVector<int>> byBlock;
-            for (int i = 0; i < held.size(); ++i) byBlock[held[i].block] << i;
-            for (const AnchorLine &l : held) anchors << anchorsIn(m_doc->story(), l.pos, l.upTo(), held, &byBlock);
-            // (The lines of the cells of tables are no first lines of a paragraph that a frame comes before.)
-            QVector<AnchorLine> textLines;
-            for (const AnchorLine &l : held)
-                if (!m_doc->story()->findBlock(l.block).blockFormat().intProperty(fp::Cell)) textLines << l;
-            anchors += frameAnchors(textLines, sec.columnWidth());
-            anchors += tableAnchors(textLines, sec.columnWidth());
+            const QVector<Anchor> anchors = anchorsOfLines(held, firstLines, sec.columnWidth());
             QVector<QRectF> columns;
             for (const QRectF &col : run.cols) columns << QRectF(col.left(), furniture.body.top() + col.top(), col.width(), col.height());
             if (!anchors.isEmpty()) addObjects(d.get(), anchors, sec, out->number, run.wrapped, columns, out.get());

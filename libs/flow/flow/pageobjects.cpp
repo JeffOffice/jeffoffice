@@ -357,9 +357,7 @@ std::shared_ptr<const FloatingObject> Paginator::frameObject(int key, int from, 
     if (key <= 0 || key > m_doc->frames.size()) return nullptr;
     const int id = m_doc->frames[key - 1];
     if (id <= 0 || id > m_doc->objects.size()) return nullptr;
-    const QTextDocument *story = m_doc->story();
-    const uint env = qHash(m_doc->env.key()) ^ uint(qHash(story->characterCount()) * 31u);
-    const auto cacheKey = std::make_tuple(key, from, to, story->revision(), int(std::lround(columnWidth * 100)), env);
+    const auto cacheKey = std::make_tuple(key, from, to, int(std::lround(columnWidth * 100)), uint(qHash(m_doc->env.key())));
     const auto found = m_frames.find(cacheKey);
     if (found != m_frames.end()) return found->second;
     if (m_frames.size() > 400) m_frames.clear();
@@ -399,53 +397,197 @@ std::shared_ptr<const FloatingObject> Paginator::frameObject(int key, int from, 
     return m_frames.emplace(cacheKey, std::make_shared<const FloatingObject>(std::move(o))).first->second;
 }
 
-QVector<Paginator::Anchor> Paginator::frameAnchors(const QVector<AnchorLine> &lines, double columnWidth)
+// Whether a paragraph has no lines: its mark and all of its text are hidden.
+static bool hasNoLines(const QTextBlock &b)
+{
+    if (!b.charFormat().boolProperty(tp::HiddenText)) return false;
+    for (auto it = b.begin(); !it.atEnd(); ++it)
+        if (!it.fragment().charFormat().boolProperty(tp::HiddenText)) return false;
+    return true;
+}
+
+const Paginator::FloatIndex &Paginator::floatIndex()
+{
+    if (m_floats.made) return m_floats;
+    FloatIndex ix;
+    ix.made = true;
+    const QTextDocument *story = m_doc->story();
+    const TableIndex *tables = m_tables->any() ? &m_tables->index() : nullptr;
+    bool placed = false;
+    if (tables)
+        for (const TableIndex::Span &sp : tables->spans()) placed |= sp.table && sp.table->place.has_value();
+    ix.anyTable = placed;
+    if (m_doc->frames.isEmpty() && !placed) {
+        m_floats = std::move(ix);
+        return m_floats;
+    }
+    auto frameKeyOf = [&](const QTextBlockFormat &bf) {
+        // (A paragraph set out of the text that is no paragraph of a frame that is made is in the text: nothing of a file is left off its pages.)
+        const int key = bf.intProperty(fp::Frame);
+        if (key <= 0 || key > m_doc->frames.size() || !bf.boolProperty(tp::OutOfLayout) || bf.intProperty(fp::Cell)) return 0;
+        const int id = m_doc->frames[key - 1];
+        return id > 0 && id <= m_doc->objects.size() ? key : 0;
+    };
+    QVector<int> pending;   // the refs since the last paragraph in the text
+    QVector<int> strays;    // the paragraphs set out of the text that are no paragraphs of a frame that is made: lines of the text
+    auto reach = [&](int anchor) {
+        if (pending.isEmpty()) return;
+        // The nearest to the paragraph are set from it; the others stay in the text.
+        const int skip = std::max(0, int(pending.size()) - kMostFloatsAtAParagraph);
+        QVector<int> mine;
+        for (int i = skip; i < pending.size(); ++i) {
+            ix.refs[size_t(pending[i])].anchor = anchor;
+            mine << pending[i];
+        }
+        ix.at.insert(anchor, mine);
+        pending.clear();
+    };
+    for (QTextBlock b = story->begin(); b.isValid();) {
+        const QTextBlockFormat bf = b.blockFormat();
+        if (bf.intProperty(fp::Cell)) {
+            const int span = tables ? tables->spanAt(b.position()) : -1;
+            if (span < 0) {
+                b = b.next();
+                continue;
+            }
+            const TableIndex::Span &sp = tables->spans()[size_t(span)];
+            if (sp.table && sp.table->place.has_value()) {
+                FloatRef r;
+                r.from = sp.from;
+                r.to = sp.to;
+                r.span = span;
+                ix.tableRef.insert(span, int(ix.refs.size()));
+                pending << int(ix.refs.size());
+                ix.refs.push_back(r);
+            } else {
+                // A table in the text: the first of its rows is where those before it are set from.
+                reach(sp.from);
+            }
+            b = story->findBlock(sp.to);
+            if (b.position() < sp.to) b = b.next();   // (the end of the story: no block)
+            continue;
+        }
+        if (const int key = frameKeyOf(bf)) {
+            // The frame: the paragraphs next to one another with its key.
+            QTextBlock e = b;
+            int paragraphs = 1;
+            while (e.next().isValid() && frameKeyOf(e.next().blockFormat()) == key) {
+                e = e.next();
+                ++paragraphs;
+            }
+            FloatRef r;
+            r.from = b.position();
+            r.to = e.position() + e.length();
+            r.key = key;
+            if (paragraphs > kMostFrameParagraphs) {
+                // (More than a frame has: paragraphs of the text, which the ones before are set from.)
+                reach(r.from);
+            } else {
+                pending << int(ix.refs.size());
+            }
+            ix.refs.push_back(r);
+            b = e.next();
+            continue;
+        }
+        if (bf.boolProperty(tp::OutOfLayout)) strays << b.position();
+        if (!hasNoLines(b)) reach(b.position());
+        b = b.next();
+    }
+    // The paragraphs of frames that are not set from a paragraph are laid out as the text's own (and so are the strays).
+    for (const FloatRef &r : ix.refs) {
+        if (r.key <= 0 || r.anchor >= 0) continue;
+        for (QTextBlock b = story->findBlock(r.from); b.isValid() && b.position() < r.to; b = b.next()) ix.inText << b.position();
+    }
+    if (!strays.isEmpty()) {
+        ix.inText += strays;
+        std::sort(ix.inText.begin(), ix.inText.end());
+        ix.inText.erase(std::unique(ix.inText.begin(), ix.inText.end()), ix.inText.end());
+    }
+    m_floats = std::move(ix);
+    return m_floats;
+}
+
+int Paginator::anchorOfPosition(int position)
+{
+    if (m_doc->frames.isEmpty() && !m_tables->any()) return position;
+    const FloatIndex &ix = floatIndex();
+    if (ix.refs.empty()) return position;
+    const auto it = std::upper_bound(ix.refs.begin(), ix.refs.end(), position, [](int pos, const FloatRef &r) { return pos < r.from; });
+    if (it == ix.refs.begin()) return position;
+    const FloatRef &r = *(it - 1);
+    if (position >= r.to || r.anchor < 0) return position;
+    if (r.key == 0 && !floatsTable(r.span)) return position;
+    return r.anchor;
+}
+
+QVector<Paginator::Anchor> Paginator::floatAnchors(const QVector<AnchorLine> &lines, double columnWidth)
 {
     QVector<Anchor> out;
-    if (m_doc->frames.isEmpty()) return out;
+    if (m_doc->frames.isEmpty() && !m_tables->any()) return out;
+    const FloatIndex &ix = floatIndex();
+    if (ix.at.isEmpty()) return out;
     const QTextDocument *story = m_doc->story();
     for (const AnchorLine &l : lines) {
         if (!l.first) continue;
-        // The frames before the paragraph (a frame is the paragraphs next to one another that have its key), the nearest first.
-        QVector<Anchor> found;
-        QTextBlock b = story->findBlock(l.block).previous();
-        while (b.isValid() && found.size() < 16) {
-            const int key = b.blockFormat().intProperty(fp::Frame);
-            if (key <= 0) break;
-            QTextBlock first = b;
-            for (int back = 0; back < kMostFrameParagraphs && first.previous().isValid() && first.previous().blockFormat().intProperty(fp::Frame) == key; ++back) first = first.previous();
-            if (std::shared_ptr<const FloatingObject> o = frameObject(key, first.position(), b.position() + b.length(), columnWidth)) {
-                Anchor a;
-                a.object = m_doc->frames[key - 1];
-                a.pos = first.position();
-                a.columnLeft = l.columnLeft;
-                a.paragraphTop = a.lineTop = l.rect.top() - l.pushed;
-                a.x = l.rect.left();
-                a.frameFrom = first.position();
-                a.frameTo = b.position() + b.length();
-                a.frame = o;
-                found.prepend(a);
+        const auto set = ix.at.constFind(l.block);
+        if (set == ix.at.constEnd()) continue;
+        for (const int index : set.value()) {
+            const FloatRef &r = ix.refs[size_t(index)];
+            Anchor a;
+            a.pos = r.from;
+            a.columnLeft = l.columnLeft;
+            a.paragraphTop = a.lineTop = l.rect.top() - l.pushed;
+            a.x = l.rect.left();
+            a.frameFrom = r.from;
+            a.frameTo = r.to;
+            if (r.key > 0) {
+                a.frame = frameObject(r.key, r.from, r.to, columnWidth);
+                if (!a.frame) continue;
+                a.object = m_doc->frames[r.key - 1];
+            } else {
+                a.frame = tableObject(r.span, columnWidth);
+                if (!a.frame) continue;
+                a.object = 1;   // (not the document's own: `frame` is the object)
+                a.table = r.span;
             }
-            b = first.previous();
+            out << a;
+            if (r.key <= 0 || m_doc->objects.isEmpty()) continue;
+            // The objects anchored in a frame's text are set where the frame is (it has no lines of its own to set them from).
+            for (QTextBlock b = story->findBlock(r.from); b.isValid() && b.position() < r.to && out.size() < kMostObjects; b = b.next())
+                for (auto it = b.begin(); !it.atEnd() && out.size() < kMostObjects; ++it) {
+                    const QTextFragment frag = it.fragment();
+                    const int id = frag.charFormat().intProperty(fp::AnchorId);
+                    if (id <= 0 || id > m_doc->objects.size()) continue;
+                    for (int k = frag.position(); k < frag.position() + frag.length() && out.size() < kMostObjects; ++k) {
+                        Anchor o = a;
+                        o.object = id;
+                        o.pos = k;
+                        o.frame.reset();
+                        o.frameFrom = o.frameTo = 0;
+                        o.table = -1;
+                        out << o;
+                    }
+                }
         }
-        out += found;
     }
     return out;
 }
 
+QVector<Paginator::Anchor> Paginator::anchorsOfLines(const QVector<AnchorLine> &held, const QVector<AnchorLine> &firstLines, double columnWidth)
+{
+    QVector<Anchor> anchors;
+    QHash<int, QVector<int>> byBlock;
+    for (int i = 0; i < held.size(); ++i) byBlock[held[i].block] << i;
+    for (const AnchorLine &l : held) anchors << anchorsIn(m_doc->story(), l.pos, l.upTo(), held, &byBlock);
+    anchors += floatAnchors(firstLines, columnWidth);
+    return anchors;
+}
 
 bool Paginator::hasFloaters()
 {
     if (!m_doc->objects.isEmpty()) return true;
     if (!m_tables->any()) return false;
-    const QTextDocument *story = m_doc->story();
-    if (m_floatCheck.revision != story->revision() || m_floatCheck.length != story->characterCount()) {
-        m_floatCheck.revision = story->revision();
-        m_floatCheck.length = story->characterCount();
-        m_floatCheck.tables = false;
-        for (const TableIndex::Span &sp : m_tables->index().spans()) m_floatCheck.tables |= sp.table && sp.table->place.has_value();   // (cheap: whether any may be)
-    }
-    return m_floatCheck.tables;
+    return floatIndex().anyTable;
 }
 
 bool Paginator::floatsTable(int span)
@@ -454,6 +596,12 @@ bool Paginator::floatsTable(int span)
     if (span < 0 || size_t(span) >= ix.spans().size()) return false;
     const TableIndex::Span &sp = ix.spans()[size_t(span)];
     if (!sp.table || !sp.table->place) return false;
+    // (One with no paragraph to be set from is in the text.)
+    {
+        const FloatIndex &fx = floatIndex();
+        const auto ref = fx.tableRef.constFind(span);
+        if (ref == fx.tableRef.constEnd() || fx.refs[size_t(ref.value())].anchor < 0) return false;
+    }
     const std::shared_ptr<TableLayout> table = m_tables->layout(span);
     if (!table || table->rowCount() < 1 || table->rowCount() > kMostFloatingRows) return false;
     double height = 0;
@@ -472,9 +620,7 @@ std::shared_ptr<const FloatingObject> Paginator::tableObject(int span, double co
     const TableIndex &ix = m_tables->index();
     if (!floatsTable(span)) return nullptr;
     const TableIndex::Span &sp = ix.spans()[size_t(span)];
-    const QTextDocument *story = m_doc->story();
-    const uint env = qHash(m_doc->env.key()) ^ uint(qHash(story->characterCount()) * 31u);
-    const auto cacheKey = std::make_tuple(sp.from, sp.to, story->revision(), int(std::lround(columnWidth * 100)), env);
+    const auto cacheKey = std::make_tuple(sp.from, sp.to, int(std::lround(columnWidth * 100)), uint(qHash(m_doc->env.key())));
     const auto found = m_tableObjects.find(cacheKey);
     if (found != m_tableObjects.end()) return found->second;
     if (m_tableObjects.size() > 400) m_tableObjects.clear();
@@ -501,44 +647,6 @@ std::shared_ptr<const FloatingObject> Paginator::tableObject(int span, double co
     o.gap = p.room;
     o.wrap = FloatingObject::Wrap::Square;
     return m_tableObjects.emplace(cacheKey, std::make_shared<const FloatingObject>(std::move(o))).first->second;
-}
-
-QVector<Paginator::Anchor> Paginator::tableAnchors(const QVector<AnchorLine> &lines, double columnWidth)
-{
-    QVector<Anchor> out;
-    if (!m_tables->any()) return out;
-    const QTextDocument *story = m_doc->story();
-    const TableIndex &ix = m_tables->index();
-    for (const AnchorLine &l : lines) {
-        if (!l.first) continue;
-        // The tables set at places that come right before the paragraph, the nearest first.
-        QVector<Anchor> found;
-        QTextBlock b = story->findBlock(l.block).previous();
-        int ends = story->findBlock(l.block).position();   // (where the table that is next must end: at the paragraph, or at the table after it)
-        while (b.isValid() && b.blockFormat().intProperty(fp::Cell) && found.size() < 8) {
-            const int span = ix.spanAt(b.position());
-            if (span < 0) break;
-            const TableIndex::Span &sp = ix.spans()[size_t(span)];
-            if (sp.to != ends) break;   // (not a table that ends there: that paragraph is not where it is set)
-            ends = sp.from;
-            if (std::shared_ptr<const FloatingObject> o = tableObject(span, columnWidth)) {
-                Anchor a;
-                a.object = 1;   // (not the document's own: `frame` is the object)
-                a.pos = sp.from;
-                a.columnLeft = l.columnLeft;
-                a.paragraphTop = a.lineTop = l.rect.top() - l.pushed;
-                a.x = l.rect.left();
-                a.frameFrom = sp.from;
-                a.frameTo = sp.to;
-                a.frame = o;
-                a.table = span;
-                found.prepend(a);
-            }
-            b = story->findBlock(sp.from).previous();
-        }
-        out += found;
-    }
-    return out;
 }
 
 } // namespace jp::flow

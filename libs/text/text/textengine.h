@@ -267,6 +267,9 @@ public:
         // (0: all of them). A caller that wants only a few lines past its last frame says so, and a paragraph of a thousand lines costs each page only
         // its own.
         int overLines = 0;
+        // The paragraphs set apart from the text (tp::OutOfLayout) that are laid out as the others are all the same: their document positions, in order (none: they are set
+        // apart). For a caller that cannot give a paragraph the place of its own that it is set at.
+        const QVector<int> *inLayout = nullptr;
         // Where the numbers of the notes begin again at 1: the document positions of the first characters of the paragraphs that do (a word processor's notes
         // that restart in each section), in order.
         QVector<int> restartNotesAt;
