@@ -33,11 +33,16 @@ namespace recovery {
 struct Recovered;
 }
 
-// What Print and Export to PDF are asked to do: which pages, and how many copies (the printer's dialog asks for more).
+// What Print and Export to PDF are asked to do: which pages and, for printing, where and how many copies.
 struct WriteOutputOptions {
     enum class Range { All, Current, Pages };
     Range range = Range::All;
     QString pages;        // "1-3, 5": for Range::Pages
+    QString printer;      // the name of the printer; empty is the default one
+    bool toFile = false;  // a PDF file, asked for where it is printed, in place of a printer
+    int copies = 1;
+    bool collate = true;  // the whole set again for each copy, else each page's copies together
+    bool grayscale = false;
 };
 
 class WriteWindow : public AppWindow {
@@ -120,6 +125,8 @@ private:
     void showParagraphDialog();
     void showZoomDialog();
     void showContextMenu(const QPoint &globalPos);
+    // Where a PDF is to be written: asked for, or what the stand-in (tests) gives. Empty when none was chosen.
+    QString pdfPathToWrite(const QString &title);
     QString helpContext() const;
     HelpWindow *showHelpOver(const QString &topic);
     void updateStatus();

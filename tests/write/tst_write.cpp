@@ -1,6 +1,7 @@
 // Tests of JeffWrite (apps/write): the document, editing it, the .docx it reads and writes, the page view, and the window.
 
 #include "core/fonts.h"
+#include "app/pagepaint.h"
 #include "app/pageview.h"
 #include "app/spellpane.h"
 #include "app/filescreen.h"
@@ -11,6 +12,7 @@
 #include "app/writewindow.h"
 #include "core/appinfo.h"
 #include "core/editops.h"
+#include "core/printing.h"
 #include "core/spellcheck.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
@@ -29,9 +31,12 @@
 #include <QDateTime>
 #include <QDialog>
 #include <QDoubleSpinBox>
+#include <QLineEdit>
 #include <QListWidget>
+#include <QPrinter>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QCheckBox>
 #include <QSignalSpy>
 #include <QStandardPaths>
 #include <QSpinBox>
@@ -490,6 +495,173 @@ private Q_SLOTS:
         QCOMPARE(w.outputPages(o), (QVector<int>{1, 2, 3, 0}));
         o.range = WriteOutputOptions::Range::Current;
         QCOMPARE(w.outputPages(o).size(), 1);
+    }
+
+    // ---------------------------------------------------------------- printing
+    void pageRangesAreReadAsTheyAreTyped()
+    {
+        using R = QVector<int>;
+        QCOMPARE(parsePageRange(QStringLiteral("1-3, 5"), 10), (R{0, 1, 2, 4}));
+        QCOMPARE(parsePageRange(QStringLiteral("5-3;9"), 10), (R{2, 3, 4, 8}));       // (backwards, and a semicolon)
+        QCOMPARE(parsePageRange(QStringLiteral("2-4, 2, 9999, x, 1"), 10), (R{1, 2, 3, 0}));   // (once each, in the order given; what names no page is passed by)
+        QCOMPARE(parsePageRange(QStringLiteral(" 7 - 20 "), 10), (R{6, 7, 8, 9}));    // (to the last page there is)
+        QCOMPARE(parsePageRange(QStringLiteral("8-"), 10), (R{7, 8, 9}));              // (to the end)
+        QCOMPARE(parsePageRange(QStringLiteral("-2"), 10), (R{0, 1}));                 // (from the start)
+        QCOMPARE(parsePageRange(QStringLiteral("3"), 3), (R{2}));
+        for (const char *bad : {"", "  ", "0", "11", "x", "1-2-3", ",,", "-"}) QVERIFY2(parsePageRange(QString::fromLatin1(bad), 10).isEmpty(), bad);
+        QVERIFY(parsePageRange(QStringLiteral("1"), 0).isEmpty());
+    }
+
+    void copiesComeOutCollatedOrEachPageTogether()
+    {
+        using R = QVector<int>;
+        QCOMPARE(sheetOrder(R{0, 1, 2}, 2, true), (R{0, 1, 2, 0, 1, 2}));
+        QCOMPARE(sheetOrder(R{0, 1, 2}, 2, false), (R{0, 0, 1, 1, 2, 2}));
+        QCOMPARE(sheetOrder(R{4, 2}, 1, true), (R{4, 2}));
+        QCOMPARE(sheetOrder(R{4, 2}, 0, false), (R{4, 2}));   // (never fewer than one)
+        QCOMPARE(sheetOrder(R(), 3, true), R());
+    }
+
+    void thePaperIsDescribedAsTheSectionSetsIt()
+    {
+        QCOMPARE(paperDescription(QSizeF(612, 792)), QStringLiteral("Letter, portrait"));
+        QCOMPARE(paperDescription(QSizeF(792, 612)), QStringLiteral("Letter, landscape"));
+        QCOMPARE(paperDescription(QSizeF(595.3, 841.9)), QStringLiteral("A4, portrait"));
+        QVERIFY(paperDescription(QSizeF(500, 300)).endsWith(QStringLiteral(", landscape")));
+        QVERIFY(paperDescription(QSizeF(500, 300)).contains(QLatin1Char('x')));
+    }
+
+    void thePrintScreenHasThePrinterCopiesCollateRangeAndPreview()
+    {
+        WriteWindow w;
+        w.setDocument(open(makeDocx(paragraphs(150), kStyles)), QString());
+        w.show();
+        QCOMPARE(w.act("file.print")->shortcut(), QKeySequence(QKeySequence::Print));
+        w.act("file.print")->trigger();
+        auto *printer = w.findChild<QComboBox *>(QStringLiteral("printPrinter"));
+        auto *copies = w.findChild<QSpinBox *>(QStringLiteral("printCopies"));
+        auto *collate = w.findChild<QCheckBox *>(QStringLiteral("printCollate"));
+        auto *paper = w.findChild<QLabel *>(QStringLiteral("printPaper"));
+        auto *page = w.findChild<QLabel *>(QStringLiteral("printPage"));
+        auto *text = w.findChild<QLineEdit *>(QStringLiteral("printRangeText"));
+        auto *print = w.findChild<QPushButton *>(QStringLiteral("printButton"));
+        QVERIFY(printer && copies && collate && paper && page && text && print);
+        QVERIFY(printer->findText(QStringLiteral("Save as PDF")) >= 0);
+        QCOMPARE(copies->value(), 1);
+        QVERIFY(!collate->isEnabled());   // (one copy has nothing to collate)
+        copies->setValue(3);
+        QVERIFY(collate->isEnabled() && collate->isChecked());
+        // The paper is the document's: its size and way up.
+        QVERIFY(paper->text().endsWith(QStringLiteral("portrait")));
+        // A range typed is chosen, and the preview and the count follow it.
+        w.findChild<QRadioButton *>(QStringLiteral("printRangePages"))->click();
+        text->setText(QStringLiteral("2-3"));
+        QVERIFY(w.findChild<QRadioButton *>(QStringLiteral("printRangePages"))->isChecked());
+        QTRY_VERIFY(page->text().startsWith(QStringLiteral("Page 2 of ")));
+        QVERIFY(print->isEnabled());
+        text->setText(QStringLiteral("x"));
+        QVERIFY(!print->isEnabled());
+        QVERIFY(page->text().contains(QStringLiteral("page numbers")));
+    }
+
+    void printingGoesThroughThePainterThePdfExportUses()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        // Two sections: a portrait page, then landscape ones.
+        {
+            auto doc = WriteDoc::blank();
+            QTextCursor c(doc->story());
+            typeText(*doc, c, QStringLiteral("first section"));
+            insertSectionBreak(*doc, c);
+            typeText(*doc, c, QStringLiteral("a landscape page"));
+            wml::SectionProps s = doc->sectionProps(1);
+            s.pageW = 15840;
+            s.pageH = 12240;
+            s.orient = QStringLiteral("landscape");
+            doc->setSectionProps(1, s);
+            w.setDocument(std::move(doc), QString());
+        }
+        w.view()->paginateAll();
+        QCOMPARE(w.view()->pageCount(), 2);
+        struct Drawn {
+            int number;
+            bool output;
+            TextOutput text;
+            int pageCount;
+            bool operator==(const Drawn &o) const { return number == o.number && output == o.output && text == o.text && pageCount == o.pageCount; }
+        };
+        QVector<Drawn> exported, printed;
+        QVector<Drawn> *into = &exported;
+        write::setPaintObserver([&](const flow::MaterializedPage &page, const write::PageDrawing &d) { *into << Drawn{page.number, d.output, d.textOutput, d.pageCount}; });
+        const QString pdfPath = dir.filePath(QStringLiteral("export.pdf")), printPath = dir.filePath(QStringLiteral("print.pdf"));
+        QString next = pdfPath;
+        w.setSavePathChooser([&](const QString &, const QString &) { return next; });
+        QVERIFY(w.exportPdf());
+        into = &printed;
+        next = printPath;
+        WriteOutputOptions o;
+        o.toFile = true;
+        QVERIFY(w.printOutput(o));
+        write::setPaintObserver(nullptr);
+        // The same pages, drawn for output; a printer's text is a printer's, a PDF export's a PDF's.
+        QCOMPARE(exported.size(), 2);
+        QCOMPARE(printed.size(), 2);
+        for (int i = 0; i < 2; ++i) {
+            QCOMPARE(printed[i].number, exported[i].number);
+            QVERIFY(printed[i].output && exported[i].output);
+            QCOMPARE(printed[i].pageCount, exported[i].pageCount);
+            QCOMPARE(exported[i].text, TextOutput::Pdf);
+            QCOMPARE(printed[i].text, TextOutput::Print);
+        }
+        // Each sheet is the size of its section's page, the landscape one turned.
+        auto boxes = [](const QString &path) {
+            QFile f(path);
+            f.open(QIODevice::ReadOnly);
+            const QByteArray pdf = f.readAll();
+            QList<QSizeF> sizes;
+            static const QRegularExpression box(QStringLiteral("/MediaBox\\s*\\[\\s*0\\s+0\\s+([0-9.]+)\\s+([0-9.]+)\\s*\\]"));
+            auto it = box.globalMatch(QString::fromLatin1(pdf));
+            while (it.hasNext()) {
+                const auto m = it.next();
+                sizes << QSizeF(m.captured(1).toDouble(), m.captured(2).toDouble());
+            }
+            return sizes;
+        };
+        const QList<QSizeF> a = boxes(pdfPath), b = boxes(printPath);
+        QCOMPARE(a.size(), 2);
+        QCOMPARE(b.size(), 2);
+        for (int i = 0; i < 2; ++i) {
+            QVERIFY2(qAbs(a[i].width() - b[i].width()) < 1 && qAbs(a[i].height() - b[i].height()) < 1, qPrintable(QStringLiteral("%1x%2 or %3x%4").arg(a[i].width()).arg(a[i].height()).arg(b[i].width()).arg(b[i].height())));
+        }
+        QVERIFY(b[0].height() > b[0].width());
+        QVERIFY(b[1].width() > b[1].height());
+    }
+
+    void printingTakesThePagesOfTheRangeAndTheCopiesThePrinterCannotMake()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        w.setDocument(open(makeDocx(paragraphs(150), kStyles)), QString());
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("range.pdf")); });
+        QVector<int> numbers;
+        write::setPaintObserver([&](const flow::MaterializedPage &page, const write::PageDrawing &) { numbers << page.number; });
+        WriteOutputOptions o;
+        o.toFile = true;
+        o.range = WriteOutputOptions::Range::Pages;
+        o.pages = QStringLiteral("3, 1-2");
+        QVERIFY(w.printOutput(o));
+        write::setPaintObserver(nullptr);
+        QCOMPARE(numbers, (QVector<int>{3, 1, 2}));
+        QFile f(dir.filePath(QStringLiteral("range.pdf")));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray pdf = f.readAll();
+        int pages = 0;
+        for (qsizetype at = pdf.indexOf("/Type /Page\n"); at >= 0; at = pdf.indexOf("/Type /Page\n", at + 1)) ++pages;
+        QCOMPARE(pages, 3);
+        // A range that names no page prints nothing.
+        o.pages = QStringLiteral("9999");
+        QVERIFY(!w.printOutput(o));
     }
 
     // ---------------------------------------------------------------- help

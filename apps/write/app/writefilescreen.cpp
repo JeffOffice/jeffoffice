@@ -7,10 +7,14 @@
 #include "app/settings.h"
 #include "app/writewindow.h"
 #include "core/appinfo.h"
+#include "core/printing.h"
 
 #include <QAction>
 #include <QButtonGroup>
+#include <QCheckBox>
+#include <QComboBox>
 #include <QFileInfo>
+#include <QFormLayout>
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QKeyEvent>
@@ -18,8 +22,10 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
+#include <QPrinterInfo>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QSpinBox>
 #include <QStyleHints>
 #include <QTimer>
 #include <QToolButton>
@@ -269,7 +275,37 @@ QWidget *WriteFileScreen::buildPrint()
     printBtn->setMinimumHeight(40);
     printBtn->setMinimumWidth(120);
     printBtn->setCursor(Qt::PointingHandCursor);
-    left->addWidget(printBtn, 0, Qt::AlignLeft);
+    auto *copies = new QSpinBox(w);
+    copies->setObjectName(QStringLiteral("printCopies"));
+    copies->setRange(1, 999);
+    copies->setAccessibleName(tr("Copies"));
+    auto *top = new QHBoxLayout();
+    top->addWidget(printBtn);
+    top->addSpacing(12);
+    top->addWidget(new QLabel(tr("Copies:"), w));
+    top->addWidget(copies);
+    top->addStretch(1);
+    left->addLayout(top);
+    left->addSpacing(8);
+    // The printer (a PDF file is one more), whether the copies come out a set at a time, and the paper the document's sections set.
+    auto *form = new QFormLayout();
+    auto *printer = new QComboBox(w);
+    printer->setObjectName(QStringLiteral("printPrinter"));
+    printer->setAccessibleName(tr("Printer"));
+    for (const QPrinterInfo &info : QPrinterInfo::availablePrinters()) printer->addItem(info.printerName(), info.printerName());
+    printer->addItem(tr("Save as PDF"), QStringLiteral("pdf"));
+    if (!QPrinterInfo::defaultPrinter().isNull()) printer->setCurrentIndex(std::max(0, printer->findData(QPrinterInfo::defaultPrinter().printerName())));
+    form->addRow(tr("Printer:"), printer);
+    auto *collate = new QCheckBox(tr("Collated"), w);
+    collate->setObjectName(QStringLiteral("printCollate"));
+    collate->setChecked(true);
+    collate->setToolTip(tr("Print each copy of the whole document in turn (1, 2, 3, 1, 2, 3), not each page's copies together (1, 1, 2, 2, 3, 3)."));
+    form->addRow(QString(), collate);
+    auto *paper = new QLabel(w);
+    paper->setObjectName(QStringLiteral("printPaper"));
+    paper->setWordWrap(true);
+    form->addRow(tr("Paper:"), paper);
+    left->addLayout(form);
     left->addSpacing(8);
     auto *all = new QRadioButton(tr("All pages"), w);
     all->setObjectName(QStringLiteral("printRangeAll"));
@@ -327,6 +363,10 @@ QWidget *WriteFileScreen::buildPrint()
             o.range = WriteOutputOptions::Range::Pages;
             o.pages = text->text();
         }
+        o.toFile = printer->currentData().toString() == QLatin1String("pdf");
+        if (!o.toFile) o.printer = printer->currentText();
+        o.copies = copies->value();
+        o.collate = collate->isChecked();
         return o;
     };
     auto page = std::make_shared<int>(0);
@@ -341,6 +381,19 @@ QWidget *WriteFileScreen::buildPrint()
         previous->setEnabled(*page > 0);
         next->setEnabled(*page + 1 < pages.size());
         printBtn->setEnabled(!pages.isEmpty());
+        collate->setEnabled(copies->value() > 1);
+        // The paper of the page shown; where the sections of the document set others for the pages to print, that is said.
+        if (pages.isEmpty()) {
+            paper->clear();
+        } else {
+            const QSizeF shown = m_win->document()->pager().page(pages[*page]).size;
+            bool differ = false;
+            for (int index : pages) {
+                const QSizeF size = m_win->document()->pager().page(index).size;
+                differ |= std::abs(size.width() - shown.width()) > 1 || std::abs(size.height() - shown.height()) > 1;
+            }
+            paper->setText(write::paperDescription(shown) + (differ ? tr(" (the document's sections set other paper for some pages)") : QString()));
+        }
         return pages;
     };
     auto paint = [=]() {
@@ -369,6 +422,7 @@ QWidget *WriteFileScreen::buildPrint()
         if (!some->isChecked()) some->setChecked(true);
         restart();
     });
+    connect(copies, &QSpinBox::valueChanged, w, [=] { covered(); });
     connect(previous, &QToolButton::clicked, w, [=] { --*page; paint(); });
     connect(next, &QToolButton::clicked, w, [=] { ++*page; paint(); });
     connect(printBtn, &QPushButton::clicked, this, [=] {

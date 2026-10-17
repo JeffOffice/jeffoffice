@@ -19,10 +19,15 @@ QString bodyStoryId(const flow::MaterializedPage &page)
     return QString();
 }
 
+std::function<void(const flow::MaterializedPage &, const PageDrawing &)> s_observer;
+
 } // namespace
+
+void setPaintObserver(const std::function<void(const flow::MaterializedPage &, const PageDrawing &)> &observer) { s_observer = observer; }
 
 void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, const PageDrawing &d)
 {
+    if (s_observer) s_observer(page, d);
     PaintContext ctx;
     ctx.doc = page.doc.get();
     ctx.cache = layouts;
