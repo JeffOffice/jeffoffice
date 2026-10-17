@@ -461,7 +461,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             }
             if (in.kind == Inline::RunAtom && !deleted && drawnTag(in.tag) && drawnObjects(in, part, &af)) field = QStringLiteral("raw:");
             else if (in.tag == QLatin1String("footnoteReference") && m_noteBlocks.contains(QStringLiteral("fn") + in.key)) field = QStringLiteral("footnote:fn") + in.key;
-            else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + roman(++endnoteNumber, false);
+            else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + roman(deleted ? endnoteNumber + 1 : ++endnoteNumber, false);   // (a deleted one takes no number)
             af.setProperty(tp::Field, field);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);
         }

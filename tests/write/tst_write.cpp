@@ -3856,6 +3856,42 @@ private Q_SLOTS:
         QVERIFY(documentXml(doc->toDocx()).contains("<w:overflowPunct w:val=\"0\"/>"));
     }
 
+    // Clearing the formatting of text keeps what a tracked change deleted deleted: its tabs and breaks do not come back into the lines, and the file keeps
+    // them as they were.
+    void clearingFormattingKeepsDeletedTextDeleted()
+    {
+        const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
+        const QByteArray body = "<w:p><w:r><w:t>one</w:t></w:r></w:p><w:p><w:r><w:t>two</w:t></w:r><w:del" + rev + "><w:r><w:tab/><w:br/><w:delText>x</w:delText></w:r></w:del></w:p>"
+                                "<w:p><w:r><w:t>three</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        const auto before = doc->pager().lines(0);
+        QCOMPARE(before.size(), 3);
+        QTextCursor c(doc->story());
+        c.select(QTextCursor::Document);
+        clearFormatting(*doc, c);
+        const auto after = doc->pager().lines(0);
+        QCOMPARE(after.size(), 3);
+        for (int i = 0; i < 3; ++i) QVERIFY(std::abs(after[i].rect.top() - before[i].rect.top()) < 0.01);
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(x.contains("<w:del") && x.contains("<w:delText>x</w:delText>") && x.contains("<w:br/>") && !x.contains("vanish"), x.constData());
+    }
+
+    // An endnote that a tracked change deleted is no endnote in the numbering: the one after it shows the number the first would.
+    void aDeletedEndnoteReferenceTakesNoNumber()
+    {
+        const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
+        const QByteArray body = "<w:p><w:r><w:t>a</w:t></w:r><w:del" + rev + "><w:r><w:endnoteReference w:id=\"1\"/></w:r></w:del><w:r><w:t>b</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        QStringList shown;
+        for (QTextBlock::iterator it = doc->story()->begin().begin(); !it.atEnd(); ++it) {
+            const QTextCharFormat cf = it.fragment().charFormat();
+            if (cf.hasProperty(prop::Atom) && unpackAtom(storedBytes(cf, prop::Atom)).tag == QLatin1String("endnoteReference")) shown << cf.stringProperty(tp::Field);
+        }
+        QCOMPARE(shown, QStringList({QStringLiteral("raw:i"), QStringLiteral("raw:i")}));   // (the deleted one is "i" too, as nothing shows it)
+    }
+
     // A file that says its hanging indents add no tab stop (noTabHangInd) is read so, by its value.
     void hangingIndentsAreNoTabStopsWhereTheFileSaysSo()
     {
