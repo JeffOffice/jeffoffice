@@ -273,6 +273,13 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
             const std::shared_ptr<TableLayout> table = m_tables->layout(sp);
             if (!table) return out;
             const int first = table->rowOfPosition(pos);
+            // The last row set in a column, whole (or the last part of one) and the room its foot would take if a page ends with it: where the next row does not fit, the row has it.
+            int lastLine = -1;
+            double lastFoot = 0;
+            auto closeColumn = [&]() {
+                if (lastLine >= 0) out[lastLine].rect.setHeight(out[lastLine].rect.height() + lastFoot);
+                lastLine = -1;
+            };
             for (int r = first; r < table->rowCount(); ++r) {
                 const TableLayout::Row &row = table->row(r);
                 const double height = table->rowHeight(r);
@@ -293,6 +300,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                     ln.below = 0;
                     if (f >= over) {
                         // The page is full: this is the line that goes on the next (a row, or the part of one that is to come).
+                        closeColumn();
                         ln.frame = over;
                         ln.line = state;
                         ln.lines = state + 1;
@@ -307,17 +315,23 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                     const double headers = TableFlow::repeatsHeader(*table, r, colH) ? table->headerHeight() : 0;
                     // (A page that the table goes on to has the header rows above its first line.)
                     const double extra = out.isEmpty() ? headers : 0;
-                    ln.rect = QRectF(0, y, colW, height + extra);
+                    // A table that goes on after a page break has its top line at the first row of a column (the header rows have it, where they are repeated), and the line of its foot
+                    // at the last row of one that it goes on from: each in room of its own.
+                    const double topExtra = y < 0.001 && headers == 0 ? table->row(r).breakTop : 0.0;
+                    const double footRoom = r + 1 < table->rowCount() ? table->row(r).breakFoot : 0.0;
+                    ln.rect = QRectF(0, y, colW, height + topExtra + extra);
                     const double avail = colH - y - extra - led->reserve[f];
                     table->setNoteHeights([this, colW, led](const QString &id) { return noteHeight(id, colW) + std::max(0.0, led->noteGap); });
                     if (state == 0) {
                         const double nh = heightOfNotes(rowNotes, f, colW);
-                        if (height + nh <= avail + 0.05 || (atTop && !table->splittable(r))) {
+                        if (height + topExtra + footRoom + nh <= avail + 0.05 || (atTop && !table->splittable(r))) {
                             ln.frame = f;
                             ln.line = 0;
                             ln.lines = 1;
                             out << ln;
-                            y += height + extra;
+                            lastLine = int(out.size()) - 1;
+                            lastFoot = footRoom;
+                            y += height + topExtra + extra;
                             seatNotes(f, rowNotes, colW, colH, colH - y - led->reserve[f]);
                             placed = true;
                             continue;
@@ -326,8 +340,10 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                     if (state != 0 || table->splittable(r)) {
                         // The row, or what is left of it, over the foot of the column: the lines of its cells that fit, and the rest on the next.
                         if (cites) knowGaps();
-                        const TableLayout::Piece part = table->pieceOf(r, state, offs, avail, led->reserve[f] <= 0, led->ruleGap > 0 ? led->ruleGap : 0, atTop);
+                        TableLayout::Piece part = table->pieceOf(r, state, offs, avail - footRoom, led->reserve[f] <= 0, led->ruleGap > 0 ? led->ruleGap : 0, atTop, topExtra);
                         if (part.progress) {
+                            // (A part that the row goes on from has the foot line of the table where it is cut.)
+                            if (part.next) part.height += footRoom;
                             ln.frame = f;
                             ln.line = state;
                             ln.lines = part.next ? state + 2 : state + 1;
@@ -336,6 +352,8 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                             m_pieces.push_back({row.from, state, part});
                             y += part.height + extra;
                             seatNotes(f, part.notes, colW, colH, part.noteHeight + 0.01);
+                            lastLine = part.next ? -1 : int(out.size()) - 1;
+                            lastFoot = footRoom;
                             if (!part.next) placed = true;
                             state = part.next;
                             if (part.next) {
@@ -348,6 +366,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                         }
                     }
                     // It does not fit, and is not cut: the next column, or the next page.
+                    closeColumn();
                     ++f;
                     y = 0;
                 }

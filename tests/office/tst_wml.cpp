@@ -575,6 +575,38 @@ private Q_SLOTS:
         QVERIFY(s.paragraph(QStringLiteral("Heading2")).extra.isEmpty());
     }
 
+    // The toggles (bold, italic, capitals, small capitals, strike-through, hidden) of a character style flip those of the paragraph style: Strong over a heading that is bold
+    // is not bold, and Emphasis over text that is not italic is. The styles a style is based on do not flip: each says over the one under it. A character style that says
+    // "off" flips nothing, and a double strike and "no proofing" are not toggles.
+    void aCharacterStyleFlipsTheTogglesOfTheParagraphStyle()
+    {
+        Made m;
+        m.body = R"(<w:p/>)";
+        m.styles = R"(<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>)"
+                   R"(<w:style w:type="paragraph" w:styleId="Head"><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:smallCaps/><w:dstrike/></w:rPr></w:style>)"
+                   R"(<w:style w:type="paragraph" w:styleId="SubHead"><w:basedOn w:val="Head"/><w:rPr><w:b/><w:i/></w:rPr></w:style>)"
+                   R"(<w:style w:type="character" w:styleId="Strong"><w:rPr><w:b/><w:dstrike/></w:rPr></w:style>)"
+                   R"(<w:style w:type="character" w:styleId="StrongToo"><w:basedOn w:val="Strong"/><w:rPr><w:b/><w:smallCaps/><w:i/></w:rPr></w:style>)"
+                   R"(<w:style w:type="character" w:styleId="Plain"><w:rPr><w:b w:val="0"/><w:smallCaps w:val="false"/></w:rPr></w:style>)";
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        const StyleSheet &s = d.styles;
+        auto on = [&](const char *para, const char *chr, std::optional<bool> RunProps::*f) { return (s.run(QString::fromLatin1(para), QString::fromLatin1(chr)).*f).value_or(false); };
+        QVERIFY(on("Head", "", &RunProps::bold));
+        QVERIFY(!on("Head", "Strong", &RunProps::bold));        // (flipped)
+        QVERIFY(on("Normal", "Strong", &RunProps::bold));       // (flipped from not bold)
+        QVERIFY(on("SubHead", "", &RunProps::bold));            // (a style based on a bold one that says bold again is bold)
+        QVERIFY(!on("SubHead", "Strong", &RunProps::bold));
+        QVERIFY(!on("Head", "StrongToo", &RunProps::bold));     // (its own and Strong's are one value, flipping once)
+        QVERIFY(!on("Head", "StrongToo", &RunProps::smallCaps));
+        QVERIFY(on("Head", "StrongToo", &RunProps::italic));
+        QVERIFY(!on("SubHead", "StrongToo", &RunProps::italic));
+        QVERIFY(on("Head", "Plain", &RunProps::bold));          // (an "off" flips nothing)
+        QVERIFY(on("Head", "Plain", &RunProps::smallCaps));
+        QVERIFY(on("Head", "Strong", &RunProps::dstrike));      // (not a toggle: the character style says it over the paragraph's)
+        QVERIFY(on("Normal", "Strong", &RunProps::dstrike));
+    }
+
     void readsListDefinitions()
     {
         Made m;
