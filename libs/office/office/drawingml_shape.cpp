@@ -8,6 +8,7 @@
 
 #include "office/drawingml_geometry.h"
 #include "office/drawingml_style.h"
+#include "office/drawingml_styleref.h"
 #include "office/xml.h"
 #include "render/shapes.h"
 
@@ -341,6 +342,7 @@ private:
     const TextStyleStack &m_styles;
     int m_count = 0;
     int m_depth = 0;
+    QDomElement m_ownStyle;   // the p:style the shape being read has itself (not one it inherits: that is the layout's), for decorate
     bool m_noText = false;   // reading a shape whose text is read apart (diagramShape)
     const Fill *m_groupFill = nullptr;
     QHash<QString, QString> m_images;
@@ -454,6 +456,8 @@ void Reader::decorate(Item &it, const QDomElement &cNvPr, const Frame &frame, co
     it.fill = resolveFill(properties, style, sc);
     it.stroke = resolveLine(properties, style, sc);
     it.fx = resolveEffects(properties, style, sc);
+    // The reference is the shape's own: a placeholder's look that comes from its layout's style is written as properties, as before.
+    it.styleRef = !style.isNull() && style == m_ownStyle ? readStyleRef(style) : StyleRef();
 }
 
 void Reader::fillText(const QDomElement &body, const QString &storyId, const QDomElement &style)
@@ -508,6 +512,7 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
     const QDomElement ph = childNamed(childNamed(nv, "nvPr"), "ph");
     const bool textBox = !connector && !m_noText && parseBool(attr(childNamed(nv, "cNvSpPr"), QStringLiteral("txBox")));
     const QDomElement style = firstWith(QVector<QDomElement>{e} + inheritsFrom, "style");
+    m_ownStyle = childNamed(e, "style");
     // The geometry is the first said, among the shape's own and those it inherits from.
     QDomElement geom;
     for (const QDomElement &p : properties) {
@@ -632,6 +637,9 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
         // (Not an open shape's name: the library draws no fill in one, and an arc has a filled sector.)
         const ShapeDef *def = shapeDef(libraryShape);
         if (def && !def->open) base.shape = libraryShape;
+        // The arc-based presets keep their adjustments, the ones presetAdjustments writes back.
+        const bool arcBased = !custom && (prst == QLatin1String("arc") || prst == QLatin1String("chord") || prst == QLatin1String("pie") || prst == QLatin1String("blockArc"));
+        if (arcBased) base.adj = libraryAdjustments(prst, adjust, size);
         if (!geometry.textRect.isNull()) {
             const QRectF tr = geometry.textRect;
             base.insets = QMarginsF(std::max(0.0, base.insets.left() + tr.left()), std::max(0.0, base.insets.top() + tr.top()),
@@ -671,6 +679,11 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
             s->fill = shaded(base.fill, faceFill[i]);
             if (!faceStroke[i]) s->stroke = Stroke();
             if (i > 0) s->fx = Effects();
+            // An arc's curve is named for it (and a sector alone too); its sector is not, and keeps no adjustments.
+            if (prst == QLatin1String("arc")) {
+                if (faceStroke[i] || faces.size() == 1) s->shape = libraryShape;
+                else s->adj.clear();
+            }
             parts.push_back(s);
         }
     }

@@ -7043,7 +7043,8 @@ private Q_SLOTS:
             };
         };
         const double small = millisecondsToPaginate(build(500), 3, true), big = millisecondsToPaginate(build(2000), 3, true);
-        QVERIFY2(big < 8 * std::max(small, 20.0), qPrintable(QStringLiteral("500 notes took %1 ms, 2000 notes %2 ms").arg(small).arg(big)));
+        // Four times the notes: linear work takes about 4x, the quadratic carry this guards against about 16x; 12x leaves room for a slow CI machine.
+        QVERIFY2(big < 12 * std::max(small, 20.0), qPrintable(QStringLiteral("500 notes took %1 ms, 2000 notes %2 ms").arg(small).arg(big)));
     }
 
     // Tables of rows that each cite many notes: the work is bounded for the document, not for each row (twice the rows take about twice as long, and a hostile file is not

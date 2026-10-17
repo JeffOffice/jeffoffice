@@ -394,6 +394,25 @@ QString runPropsOfText(const QByteArray &documentXml, const QString &text)
 
 class WriteTests : public QObject {
     Q_OBJECT
+public:
+    // Letters drawn in shades of gray, whatever the machine's font settings say. Some Linux machines (CI's among them) draw letters with colored edges
+    // (subpixel smoothing), and the spelling tests look for the red of the wave: a black letter's reddish left edge would count. Qt has no switch for it, so
+    // fontconfig gets a settings file that reads the machine's own settings and then turns the colored edges off. QTest calls this before the application
+    // starts, and fontconfig reads its settings once, when the first font is asked for.
+    static void initMain()
+    {
+#ifdef Q_OS_LINUX
+        static QTemporaryDir dir;
+        QFile conf(dir.filePath(QStringLiteral("fonts.conf")));
+        if (!dir.isValid() || !conf.open(QIODevice::WriteOnly)) return;
+        const QString own = qEnvironmentVariableIsSet("FONTCONFIG_FILE") ? qEnvironmentVariable("FONTCONFIG_FILE") : QStringLiteral("/etc/fonts/fonts.conf");
+        conf.write("<?xml version=\"1.0\"?>\n<!DOCTYPE fontconfig SYSTEM \"fonts.dtd\">\n<fontconfig>\n  <include ignore_missing=\"yes\">" + own.toHtmlEscaped().toUtf8()
+                   + "</include>\n  <match target=\"font\"><edit name=\"rgba\" mode=\"assign\"><const>none</const></edit></match>\n</fontconfig>\n");
+        conf.close();
+        qputenv("FONTCONFIG_FILE", QFile::encodeName(conf.fileName()));
+#endif
+    }
+
 private Q_SLOTS:
     void initTestCase()
     {

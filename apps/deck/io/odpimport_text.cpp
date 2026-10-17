@@ -8,9 +8,14 @@
 #include "io/odpimport_p.h"
 
 #include "core/fonts.h"
+#include "core/texteffects.h"
+#include "office/drawingml_write.h"
+#include "office/drawingml_write_util.h"
 
+#include <QJsonDocument>
 #include <QRegularExpression>
 #include <QTextDocument>
+#include <QXmlStreamWriter>
 #include <algorithm>
 #include <cmath>
 
@@ -230,12 +235,52 @@ public:
         return a;
     }
 
+    // What we keep for the letters in attributes of our own, as DrawingML has it: an outline (a:ln), a gradient fill, and the effects (a:effectLst).
+    struct Letters {
+        QString outline, gradient, effects;
+    };
+    static Letters lettersOf(const Bag &b)
+    {
+        Letters out;
+        QByteArray bytes;
+        office::DrawingWriteContext ctx;
+        auto xml = [&](const std::function<void(QXmlStreamWriter &)> &write) {
+            bytes.clear();
+            QXmlStreamWriter w(&bytes);
+            write(w);
+            return QString::fromUtf8(bytes);
+        };
+        const QStringList outline = b.get(Text, "jo:text-outline").split(QLatin1Char(' '), Qt::SkipEmptyParts);
+        double width = 0;
+        if (outline.size() == 2 && parseNumber(outline[1], &width) && width > 0) {
+            Stroke s;
+            s.color = ColorRef::rgb(parseColor(outline[0]).isValid() ? parseColor(outline[0]) : QColor(Qt::black));
+            s.width = std::clamp(width, 0.0, 1584.0);
+            s.join = Qt::RoundJoin;
+            out.outline = xml([&](QXmlStreamWriter &w) { office::writeLine(w, s, ctx); });
+        }
+        if (const QByteArray json = b.get(Text, "jo:text-fill").toUtf8(); !json.isEmpty()) {
+            const Fill g = Fill::fromJson(QJsonDocument::fromJson(json).object());
+            if (g.type == Fill::Gradient && g.stops.size() >= 2) out.gradient = xml([&](QXmlStreamWriter &w) { office::writeFill(w, g, ctx); });
+        }
+        if (const QString json = b.get(Text, "jo:text-effects"); !json.isEmpty()) {
+            const TextEffects fx = TextEffects::fromJson(json);
+            if (fx.any()) out.effects = xml([&](QXmlStreamWriter &w) { office::dmlwrite::writeTextEffects(w, fx); });
+        }
+        return out;
+    }
+
     QString children(const Bag &b, const QString &href = QString()) const
     {
         QString c;
+        const Letters letters = lettersOf(b);
+        c += letters.outline;
         QColor color = parseColor(b.get(Text, "fo:color"));
         if (!color.isValid()) color = m_auto;
-        if (color.isValid()) c += QStringLiteral("<a:solidFill><a:srgbClr val=\"%1\"/></a:solidFill>").arg(color.name().mid(1).toUpper());
+        if (b.get(Text, "jo:text-clear") == QLatin1String("true")) c += QStringLiteral("<a:noFill/>");
+        else if (!letters.gradient.isEmpty()) c += letters.gradient;
+        else if (color.isValid()) c += QStringLiteral("<a:solidFill><a:srgbClr val=\"%1\"/></a:solidFill>").arg(color.name().mid(1).toUpper());
+        c += letters.effects;
         const QColor back = parseColor(b.get(Text, "fo:background-color"));
         if (back.isValid()) c += QStringLiteral("<a:highlight><a:srgbClr val=\"%1\"/></a:highlight>").arg(back.name().mid(1).toUpper());
         const QString f = face(b);

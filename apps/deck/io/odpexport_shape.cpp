@@ -14,6 +14,7 @@
 #include <QBuffer>
 #include <QCoreApplication>
 #include <QImage>
+#include <QJsonDocument>
 #include <QTextDocument>
 #include <QtMath>
 #include <algorithm>
@@ -132,6 +133,8 @@ void Exporter::writeCommon(X &x, const Item &it)
     // What this kind of file has no place for is kept in attributes of our own (other programs leave them alone).
     if (it.lockAspect != Item::lockAspectByDefault(it.type())) x.attr("jo:lock-aspect", it.lockAspect ? "true" : "false");
     if (it.decorative) x.attr("jo:decorative", "true");
+    // The style a look came from (a Quick Style): the look is in the properties, and the reference is kept to be written back as one.
+    if (it.styleRef.on) x.attr("jo:style-ref", QString::fromUtf8(QJsonDocument(it.styleRef.toJson()).toJson(QJsonDocument::Compact)));
     const QString id = idAttr(it);
     if (!id.isEmpty()) x.attr("xml:id", id).attr("draw:id", id);
 }
