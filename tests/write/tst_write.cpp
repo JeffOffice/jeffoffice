@@ -4445,6 +4445,22 @@ private Q_SLOTS:
         QVERIFY2(!entry.contains(QLatin1String("underlined")) && !entry.contains(QLatin1String("#0000ff")), qPrintable(entry));
     }
 
+    // The page number's own element (w:pgNum, in a run) is the page's number, in a paragraph that has other fields as well as in one that has none.
+    void aPageNumberRunIsTheNumberOfThePage()
+    {
+        auto pageFields = [&](const QByteArray &paragraph) {
+            auto doc = open(makeDocx("<w:p>" + paragraph + "</w:p>"));
+            int n = 0;
+            if (doc)
+                for (QTextBlock::iterator it = doc->story()->begin().begin(); !it.atEnd(); ++it)
+                    n += it.fragment().charFormat().stringProperty(tp::Field).startsWith(QLatin1String("page"));
+            return n;
+        };
+        QCOMPARE(pageFields("<w:r><w:t xml:space=\"preserve\">Page </w:t></w:r><w:r><w:pgNum/></w:r>"), 1);
+        QCOMPARE(pageFields("<w:r><w:t xml:space=\"preserve\">Page </w:t></w:r><w:r><w:pgNum/></w:r><w:r><w:t xml:space=\"preserve\"> of </w:t></w:r>"
+                            "<w:fldSimple w:instr=\" NUMPAGES \"><w:r><w:t>25</w:t></w:r></w:fldSimple>"), 1);
+    }
+
     // The round-trip check itself: a run that gains a property the file never had is a difference, though what it adds is one the program understands.
     void theRoundTripCheckSeesAGainedRunProperty()
     {

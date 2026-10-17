@@ -549,6 +549,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     QTextCharFormat mark = formatOf(styleId, in.props);
                     mark.setProperty(tp::Field, QStringLiteral("notemark"));
                     put(QString(QChar::ObjectReplacementCharacter), mark);
+                } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum")) {
+                    // (The page's number, as the run's own element has it.)
+                    QTextCharFormat number = formatOf(styleId, in.props);
+                    number.setProperty(tp::Field, liveFieldOf(QStringLiteral("PAGE")));
+                    put(QString(QChar::ObjectReplacementCharacter), number);
                 } else if (in.kind == Inline::RunAtom && drawnTag(in.tag)) {
                     QTextCharFormat object = formatOf(styleId, in.props);
                     if (drawnObjects(in, part, &object)) put(QString(QChar::ObjectReplacementCharacter), object);
@@ -583,7 +588,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             setStored(af, prop::Atom, packAtom(in));
             // A reference to a footnote of the file is the note's (the pages lay it out at their foot); one to an endnote shows its number, in the lower
             // case roman numerals a word processor's endnotes have.
-            QString field = QStringLiteral("raw:") + in.display;
+            QString field = in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum") ? liveFieldOf(QStringLiteral("PAGE")) : QStringLiteral("raw:") + in.display;
             // A symbol of a font that isn't a symbol font (and isn't on the machine) is its character, in that font's stand-in.
             if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym")) {
                 const QString font = attributeOfTag(in.raw, QStringLiteral("font")), lower = font.toLower();
