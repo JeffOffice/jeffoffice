@@ -729,18 +729,6 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         }
         run.next.hard = hard;
         run.next.section = nextSection;
-        // A section of odd or even pages whose first page would be of the other kind, or one that restarts the numbers (where the pages are of odd and even kinds) at a
-        // number of the other kind than the page it begins, has a blank page of the section before it.
-        const Section &entered = m_doc->section(nextSection);
-        const bool oddPhysical = (index + 2) % 2 != 0;   // (the page the section would begin, by its place in the document)
-        bool wrong = false;
-        if (entered.startParity != Section::Parity::Any) wrong = oddPhysical != (entered.startParity == Section::Parity::Odd);
-        else if (entered.differentOddEven && entered.firstPageNumber) wrong = oddPhysical != (std::abs(*entered.firstPageNumber) % 2 != 0);
-        if (sectionEnds && nextSection != current && !entered.continuous && wrong) {
-            run.next.blank = true;
-            run.next.section = current;
-            run.next.firstOfSection = false;
-        }
     } else if (byCharacter && c > 0 && breakContinuesAt(L[c - 1], &run.next)) {
         // A page break that ends the last line the page laid out (the empty line after it went past the frame, where laying out stops): the page
         // after it begins where the text goes on.
@@ -755,6 +743,20 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         run.next.skip = 0;
         run.next.hard = forced || !goesOn.isValid();
         run.next.section = nextSection;
+    }
+    // A section of odd or even pages whose first page would be of the other kind, or one that restarts the numbers (where the pages are of odd and even kinds) at a number of
+    // the other kind than the page it begins, has a blank page of the section before it.
+    if (run.hasNext && sectionEnds && nextSection != current && run.next.pos < m_doc->story()->characterCount()) {
+        const Section &entered = m_doc->section(nextSection);
+        const bool oddPhysical = (index + 2) % 2 != 0;   // (the page the section would begin, by its place in the document)
+        bool wrong = false;
+        if (entered.startParity != Section::Parity::Any) wrong = oddPhysical != (entered.startParity == Section::Parity::Odd);
+        else if (entered.differentOddEven && entered.firstPageNumber) wrong = oddPhysical != (std::abs(*entered.firstPageNumber) % 2 != 0);
+        if (!entered.continuous && wrong) {
+            run.next.blank = true;
+            run.next.section = current;
+            run.next.firstOfSection = false;
+        }
     }
     if (run.hasNext) {
         // What the page after starts from: the notes through this page's paragraphs (those before the next page's first paragraph), and what was cut.

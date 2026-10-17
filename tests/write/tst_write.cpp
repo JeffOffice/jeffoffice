@@ -4399,6 +4399,12 @@ private Q_SLOTS:
             QVERIFY(!second.isEmpty());
             QVERIFY2(std::abs(second[0].rect.top()) < 0.01, qPrintable(QString::number(second[0].rect.top())));   // (the section after begins at the top of its page)
         }
+        // A section of odd pages after it: the page it would begin is the second, an even one, so a blank page is left and the section's text is on the third.
+        auto odd = pagesWith("<w:type w:val=\"oddPage\"/>", portrait, 1440);
+        QVERIFY(odd);
+        QCOMPARE(odd->pager().pageCount(), 3);
+        QVERIFY(odd->pager().lines(1).isEmpty());
+        QVERIFY(!odd->pager().lines(2).isEmpty());
     }
 
     // A paragraph that begins with a page break and is kept with the next puts the break at the foot of the page the text before it ends on: the text after the break
