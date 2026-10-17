@@ -158,20 +158,35 @@ inline QVector<int> numbersOf(const QTextDocument *story, bool restarts)
     return out;
 }
 
-// The notes that the lines of page `k` cite, in order: the references in the paragraphs the lines hold, rows of tables and their cells too.
+// The notes that the lines of page `k` cite, in order: the references in the paragraphs the lines hold. A row of a table is a line of the page's lines that stands for the
+// cells' paragraphs (all the parts of a row that is cut between pages are one line on each); the lines of the cells themselves, those the page shows, are what cite.
+// (A header row that a page repeats shows its references again.)
 inline QStringList citedNotes(flow::Paginator &pg, const QTextDocument *story, int k)
 {
     QStringList ids;
-    for (const auto &ln : pg.lines(k))
-        for (QTextBlock b = story->findBlock(ln.pos); b.isValid() && b.position() < ln.end; b = b.next())
+    auto scan = [&](int from, int to) {
+        for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() < to; b = b.next())
             for (auto it = b.begin(); !it.atEnd(); ++it) {
                 const QTextFragment frag = it.fragment();
-                if (frag.position() >= ln.end || frag.position() + frag.length() <= ln.pos) continue;
+                if (frag.position() >= to || frag.position() + frag.length() <= from) continue;
                 const QString code = frag.charFormat().stringProperty(tp::Field);
                 if (!code.startsWith(QLatin1String("footnote:"))) continue;
-                const int lo = std::max(frag.position(), ln.pos), hi = std::min(frag.position() + frag.length(), ln.end);
+                const int lo = std::max(frag.position(), from), hi = std::min(frag.position() + frag.length(), to);
                 for (int i = lo; i < hi; ++i) ids << code.mid(9);
             }
+    };
+    bool rows = false;
+    for (const auto &ln : pg.lines(k)) {
+        if (story->findBlock(ln.pos).blockFormat().intProperty(flow::fp::Cell)) {
+            rows = true;
+            continue;
+        }
+        scan(ln.pos, ln.end);
+    }
+    if (rows)
+        if (const std::unique_ptr<flow::MaterializedPage> m = pg.materialize(k))
+            for (const auto &t : m->tables)
+                t->forLines([&](const StoryLayout::LineBrief &ln, const QRectF &) { scan(ln.pos, ln.end); });
     return ids;
 }
 
@@ -204,6 +219,56 @@ inline int numberShownIn(const flow::MaterializedPage &m, const Item *item)
     return 0;
 }
 
+// A note's box on a made page: which note (the id whose mark is in it; none for the rest of one that began on a page before), and the number it shows.
+struct NoteBox {
+    const Item *item = nullptr;
+    QString id;
+    int number = 0;
+};
+
+// A line of a page in page coordinates, with the notes its text cites.
+struct PlacedLine {
+    QRectF rect;
+    QStringList cites;
+};
+
+inline QStringList citesIn(const QTextDocument *story, int from, int to)
+{
+    QStringList ids;
+    for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() < to; b = b.next())
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment frag = it.fragment();
+            if (frag.position() >= to || frag.position() + frag.length() <= from) continue;
+            const QString code = frag.charFormat().stringProperty(tp::Field);
+            if (!code.startsWith(QLatin1String("footnote:"))) continue;
+            for (int i = std::max(frag.position(), from); i < std::min(frag.position() + frag.length(), to); ++i) ids << code.mid(9);
+        }
+    return ids;
+}
+
+// The lines of page `k` where they are on the page: those of the text by the box of their column (the boxes are the columns that have lines, left to right, as the
+// lines' frames are), and those of the cells of tables as the fragments say.
+inline QVector<PlacedLine> placedLines(flow::Paginator &pg, const QTextDocument *story, int k, const flow::MaterializedPage &m)
+{
+    QVector<PlacedLine> out;
+    const auto lines = pg.lines(k);
+    QVector<int> frames;
+    for (const auto &l : lines)
+        if (!story->findBlock(l.pos).blockFormat().intProperty(flow::fp::Cell) && !frames.contains(l.frame)) frames << l.frame;
+    std::sort(frames.begin(), frames.end());
+    for (const auto &l : lines) {
+        if (story->findBlock(l.pos).blockFormat().intProperty(flow::fp::Cell)) continue;
+        const int column = int(frames.indexOf(l.frame));
+        if (column < 0 || column >= m.boxes.size()) continue;
+        const Item *box = m.doc->item(m.boxes[column]);
+        if (!box) continue;
+        out.push_back({QRectF(box->rect.left() + l.rect.left(), box->rect.top() + l.rect.top(), l.rect.width(), l.rect.height()), citesIn(story, l.pos, l.end)});
+    }
+    for (const auto &t : m.tables)
+        t->forLines([&](const StoryLayout::LineBrief &ln, const QRectF &rect) { out.push_back({rect, citesIn(story, ln.pos, ln.end)}); });
+    return out;
+}
+
 // What is wrong with the pages of the paginator, or nothing. The parts are checked against one another, from the layout's own metrics:
 //  - a table's rows lie inside the text area (what the header and footer leave of the page), and clear of the header, the footer, and the notes;
 //  - the text area itself lies between the header and the footer;
@@ -216,6 +281,7 @@ inline QString problems(flow::Paginator &pg, const QTextDocument *story, const Q
     const int pages = pg.pageCount();
     const QStringList order = referencesIn(story);
     const QVector<int> numbers = numbersOf(story, restartNumbers);
+    QStringList citedEver;
     for (int k = 0; k < pages; ++k) {
         const flow::Paginator::Page page = pg.page(k);
         const QRectF area = page.content;
@@ -242,24 +308,68 @@ inline QString problems(flow::Paginator &pg, const QTextDocument *story, const Q
                 if (overlap(r, h->rect)) return QStringLiteral("page %1: rows %2 to %3 of a table (%4) are over the header (%5)").arg(k).arg(t->firstRow).arg(t->endRow).arg(rectText(r), rectText(h->rect));
         }
         // The notes.
-        const QStringList cited = citedNotes(pg, story, k);
+        QStringList cited;
+        for (const QString &id : citedNotes(pg, story, k))
+            if (!citedEver.contains(id)) cited << id;   // (a header row that a page repeats shows its references again, not its notes)
+        for (const QString &id : cited) citedEver << id;
         QStringList drawn;
-        const QVector<const Item *> noteBoxes = itemsWith(*m, QStringLiteral("flow-note-box"));
-        for (const Item *n : noteBoxes) {
+        QVector<NoteBox> boxes;
+        for (const Item *n : itemsWith(*m, QStringLiteral("flow-note-box"))) {
             const QString text = storyOf(*m, n);
-            QString which;
+            NoteBox box;
+            box.item = n;
             for (auto it = marks.cbegin(); it != marks.cend(); ++it)
-                if (text.contains(it.value())) which = it.key();
-            if (which.isEmpty()) continue;   // (the rest of a note that began on a page before: the mark is not in it)
-            drawn << which;
-            if (n->rect.bottom() > area.bottom() + 0.05) return QStringLiteral("page %1: the note of %2 ends at %3, below the text area's foot (%4)").arg(k).arg(which, num(n->rect.bottom()), num(area.bottom()));
-            if (n->rect.top() < area.top() - 0.05) return QStringLiteral("page %1: the note of %2 begins at %3, above the text area (%4)").arg(k).arg(which, num(n->rect.top()), num(area.top()));
-            const int at = int(order.indexOf(which));
-            if (at >= 0 && at < numbers.size() && numberShownIn(*m, n) != numbers[at])
-                return QStringLiteral("page %1: the note of %2 shows the number %3, its reference is the %4th (it has %5)").arg(k).arg(which).arg(numberShownIn(*m, n)).arg(at + 1).arg(numbers[at]);
-            for (const auto &t : m->tables)
-                if (overlap(n->rect, t->rect())) return QStringLiteral("page %1: the note of %2 (%3) is over a table (%4)").arg(k).arg(which, rectText(n->rect), rectText(t->rect()));
+                if (text.contains(it.value())) box.id = it.key();
+            box.number = numberShownIn(*m, n);
+            boxes << box;
         }
+        // The page's lines in page coordinates: those of the text (a box to a column), and those of the cells of the tables.
+        const QVector<PlacedLine> lines = placedLines(pg, story, k, *m);
+        int continuations = 0;
+        for (const NoteBox &box : boxes) {
+            const Item *n = box.item;
+            if (n->rect.bottom() > area.bottom() + 0.05) return QStringLiteral("page %1: a note box ends at %2, below the text area's foot (%3)").arg(k).arg(num(n->rect.bottom()), num(area.bottom()));
+            if (n->rect.top() < area.top() - 0.05) return QStringLiteral("page %1: a note box begins at %2, above the text area (%3)").arg(k).arg(num(n->rect.top()), num(area.top()));
+            for (const auto &t : m->tables)
+                if (overlap(n->rect, t->rect())) return QStringLiteral("page %1: a note (%2) is over a table (%3)").arg(k).arg(rectText(n->rect), rectText(t->rect()));
+            for (const QString &bid : m->boxes)
+                if (const Item *text = m->doc->item(bid))
+                    if (overlap(n->rect, text->rect)) return QStringLiteral("page %1: a note (%2) is over the text (%3)").arg(k).arg(rectText(n->rect), rectText(text->rect));
+            for (const Item *f : footers)
+                if (overlap(n->rect, f->rect)) return QStringLiteral("page %1: a note (%2) is over the footer (%3)").arg(k).arg(rectText(n->rect), rectText(f->rect));
+            if (box.id.isEmpty()) {
+                ++continuations;   // (the rest of a note that began on a page before: the mark is not in it)
+                continue;
+            }
+            drawn << box.id;
+            const int at = int(order.indexOf(box.id));
+            if (at >= 0 && at < numbers.size() && box.number != numbers[at])
+                return QStringLiteral("page %1: the note of %2 shows the number %3, its reference is the %4th (it has %5)").arg(k).arg(box.id).arg(box.number).arg(at + 1).arg(numbers[at]);
+            // Below what cites it: the lines that hold its reference, where the note's box is under them (a note in a column is under that column's lines).
+            const int refAt = at < 0 ? -1 : at;
+            for (const PlacedLine &l : lines)
+                if (l.cites.contains(box.id) && l.rect.left() < n->rect.right() - 0.05 && l.rect.right() > n->rect.left() + 0.05 && n->rect.top() < l.rect.bottom() - 0.05)
+                    return QStringLiteral("page %1: the note of %2 (%3) begins above the line that cites it (%4, ending at %5)").arg(k).arg(box.id, rectText(n->rect), rectText(l.rect), num(l.rect.bottom()));
+            (void)refAt;
+        }
+        // The notes of one page are in the order of their references, from the top down; and the boxes do not overlap each other.
+        {
+            QVector<NoteBox> sorted = boxes;
+            std::sort(sorted.begin(), sorted.end(), [](const NoteBox &a, const NoteBox &b) { return a.item->rect.top() < b.item->rect.top(); });
+            int last = -1;
+            for (const NoteBox &box : sorted) {
+                if (box.id.isEmpty()) continue;
+                const int at = int(order.indexOf(box.id));
+                if (at < last) return QStringLiteral("page %1: the note of %2 (the %3th reference) is below the note of a later reference").arg(k).arg(box.id).arg(at + 1);
+                last = std::max(last, at);
+            }
+            for (int i = 0; i < boxes.size(); ++i)
+                for (int j = i + 1; j < boxes.size(); ++j)
+                    if (overlap(boxes[i].item->rect, boxes[j].item->rect)) return QStringLiteral("page %1: two notes overlap (%2 and %3)").arg(k).arg(rectText(boxes[i].item->rect), rectText(boxes[j].item->rect));
+        }
+        // A note that goes on from the page before has a box on this page, without its mark (and no other note box is without one).
+        if (continuations != page.start.carried.size() && (page.columns == 1))
+            return QStringLiteral("page %1 draws %2 box(es) for notes that go on from the page before, and %3 go on [%4]").arg(k).arg(continuations).arg(page.start.carried.size()).arg(page.start.carried.join(QLatin1Char(',')));
         if (!marks.isEmpty()) {
             for (const QString &id : cited)
                 if (marks.contains(id) && !drawn.contains(id))
@@ -269,6 +379,8 @@ inline QString problems(flow::Paginator &pg, const QTextDocument *story, const Q
             for (int i = 0; i < drawn.size(); ++i)
                 if (drawn.indexOf(drawn[i]) != i) return QStringLiteral("page %1 draws the note %2 twice").arg(k).arg(drawn[i]);
         }
+        // A page with nothing on it, before the last.
+        if (pg.lines(k).isEmpty() && boxes.isEmpty() && m->tables.isEmpty() && k + 1 < pages) return QStringLiteral("page %1 is empty").arg(k);
     }
     return QString();
 }
@@ -348,6 +460,39 @@ inline QString splitRowProblems(flow::Paginator &pg, const QTextDocument *story)
             }
     }
     return checked > 0 ? QString() : QStringLiteral("no row goes over a page break in the document");
+}
+
+// The height of a note's text as the layout sets it in a column `width` wide: what a note takes at the foot in all, wherever it is cut.
+inline double fullNoteHeight(const QTextDocument *note, double width, const LayoutEnv &env)
+{
+    FrameSpec fs;
+    fs.size = QSizeF(width, 100000);
+    fs.insets = QMarginsF(0, 0, 0, 0);
+    fs.hyphenate = false;
+    StoryLayout lay;
+    lay.build(note, {fs}, env);
+    return lay.usedHeight(0) + lay.trailingSpace();
+}
+
+// The heights of all the note boxes of the made pages together (a note cut at a foot has a box on each page it is on).
+inline double drawnNoteHeight(flow::Paginator &pg)
+{
+    double h = 0;
+    for (int k = 0; k < pg.pageCount(); ++k)
+        if (const std::unique_ptr<flow::MaterializedPage> m = pg.materialize(k))
+            for (const Item *n : itemsWith(*m, QStringLiteral("flow-note-box"))) h += n->rect.height();
+    return h;
+}
+
+// Whether the notes of the made pages together are as tall as the notes are (`full`: their heights from `fullNoteHeight`): a note that is cut and whose rest is lost, or drawn
+// twice, is not. Empty if so.
+inline QString lostNotes(flow::Paginator &pg, double full)
+{
+    const double drawn = drawnNoteHeight(pg);
+    // (Each piece of a cut note is a little shorter than the note in one piece: the space after the last of its lines is only after the last piece.)
+    const double slack = 3.0 + 0.01 * full + 2.0 * pg.pageCount();
+    if (std::abs(drawn - full) > slack) return QStringLiteral("the notes are %1 tall, and %2 of them is drawn on the %3 pages").arg(num(full), num(drawn)).arg(pg.pageCount());
+    return QString();
 }
 
 } // namespace jp::flowaudit

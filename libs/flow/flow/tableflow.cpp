@@ -525,6 +525,8 @@ bool TableLayout::splittable(int r) const
 {
     const Row &row = m_rows[size_t(r)];
     if (row.data->cantSplit || row.data->header || (row.data->exact && row.data->height > 0)) return false;
+    // A row as tall as it was set to be (its cells need less) has no lines to cut it between: it goes whole, as tall as it was set.
+    if (row.data->height > 0 && row.height <= row.data->height + 0.01) return false;
     for (int i = row.cell0; i < row.cell0 + row.cells; ++i)
         if (m_cells[size_t(i)].covered || m_cells[size_t(i)].rows > 1) return false;
     return true;
@@ -638,7 +640,7 @@ QVector<NoteRef> TableLayout::rowNotes(int r)
     QVector<NoteRef> out;
     if (!rowHasNotes(r)) return out;
     const Row &row = m_rows[size_t(r)];
-    for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
+    for (int i = row.cell0; i < row.cell0 + row.cells && out.size() < kMostRowNotes; ++i) {
         if (m_cells[size_t(i)].covered) continue;
         for (const UnitLine &l : unitsOf(i)->lines) {
             if (out.size() >= kMostRowNotes) break;
@@ -668,80 +670,121 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
         double avail = 0, noteHeight = 0;
         QVector<NoteRef> notes;
     };
+    // Each cell's lines from `offs` on, as many as the whole room holds at most, with the room that the notes of the first so many of them take (the sum of the heights, and how
+    // many notes there are, at most a bound).
+    struct CellRun {
+        const std::vector<UnitLine> *lines = nullptr;
+        int a = 0, most = 0;                 // the first line, and one past the last that fits the room whole
+        double margins = 0;
+        std::vector<double> noteH;           // by the number of lines taken: the heights of their notes together
+        std::vector<int> noteN;              // and how many there are
+    };
+    std::vector<CellRun> runs(static_cast<size_t>(n));
+    const bool noteHeights = anyNotes && m_noteHeight;
+    int counted = 0;
+    for (int i = 0; i < n; ++i) {
+        if (!units[size_t(i)]) continue;
+        CellRun &cr = runs[size_t(i)];
+        const Cell &c = m_cells[size_t(row.cell0 + i)];
+        const auto &lines = units[size_t(i)]->lines;
+        cr.lines = &lines;
+        cr.margins = c.margins.top() + c.margins.bottom();
+        cr.a = int(std::lower_bound(lines.begin(), lines.end(), offs[i] - 0.01, [](const UnitLine &l, double off) { return l.top < off; }) - lines.begin());
+        const double inner = std::max(0.0, room - cr.margins);
+        cr.most = int(std::partition_point(lines.begin() + cr.a, lines.end(), [&](const UnitLine &l) { return l.bottom - offs[i] <= inner + 0.01; }) - lines.begin());
+        if (noteHeights) {
+            // (A line more than fits is counted too: a part at the top of a page is given one however tall.)
+            const int upto = std::min<int>(int(lines.size()), cr.most + 1);
+            cr.noteH.assign(size_t(std::max(0, upto - cr.a)) + 1, 0.0);
+            cr.noteN.assign(cr.noteH.size(), 0);
+            for (int q = cr.a; q < upto; ++q) {
+                double h = cr.noteH[size_t(q - cr.a)];
+                int cnt = cr.noteN[size_t(q - cr.a)];
+                for (const NoteRef &nr : lines[size_t(q)].notes) {
+                    if (counted >= kMostRowNotes) break;
+                    h += m_noteHeight(nr.id);
+                    ++cnt;
+                    ++counted;
+                }
+                cr.noteH[size_t(q - cr.a) + 1] = h;
+                cr.noteN[size_t(q - cr.a) + 1] = cnt;
+            }
+        }
+    }
     // At the top of a page, the most the notes may take: what the room leaves a line of each cell that has one (a note longer than a page is cut at the foot and goes on).
     double cap = 1e18;
-    if (force || k > 0) {
+    if (force) {
         double need = 0;
         for (int i = 0; i < n; ++i) {
-            if (!units[size_t(i)]) continue;
-            const auto &lines = units[size_t(i)]->lines;
-            const int a = int(std::lower_bound(lines.begin(), lines.end(), offs[i] - 0.01, [](const UnitLine &l, double off) { return l.top < off; }) - lines.begin());
-            if (a < int(lines.size())) need = std::max(need, lines[size_t(a)].bottom - lines[size_t(a)].top + m_cells[size_t(row.cell0 + i)].margins.top() + m_cells[size_t(row.cell0 + i)].margins.bottom());
+            const CellRun &cr = runs[size_t(i)];
+            if (cr.lines && cr.a < int(cr.lines->size())) need = std::max(need, (*cr.lines)[size_t(cr.a)].bottom - (*cr.lines)[size_t(cr.a)].top + cr.margins);
         }
         cap = std::max(0.0, room - need);
     }
-    auto stepFrom = [&]() {
+    // The part when the notes take `reserved` of the room: the lines of each cell that fit what is left, and the room that their notes take.
+    auto fit = [&](double reserved) {
         Step st;
         st.avail = room;
-        double reserved = 0;
-        // (The notes need room, which takes from the lines', which may cite other notes: so it goes round until the notes are the room's.)
-        for (int pass = 0; pass < 8; ++pass) {
-            st.next = QVector<double>(n, kEnd);
-            st.progress = false;
+        st.next = QVector<double>(n, kEnd);
+        std::vector<int> stop(static_cast<size_t>(n), -1);
+        for (int i = 0; i < n; ++i) {
+            const CellRun &cr = runs[size_t(i)];
+            if (!cr.lines || cr.a >= int(cr.lines->size())) continue;
+            const double inner = std::max(0.0, room - reserved - cr.margins);
+            const auto &lines = *cr.lines;
+            const int b = int(std::partition_point(lines.begin() + cr.a, lines.begin() + std::min<int>(int(lines.size()), cr.most), [&](const UnitLine &l) { return l.bottom - offs[i] <= inner + 0.01; }) - lines.begin());
+            stop[size_t(i)] = b;
+            st.progress |= b > cr.a;
+            st.more |= b < int(lines.size());
+        }
+        // A part at the top of a page has a line of each cell that has one left, however tall: a row taller than a page ends.
+        if (!st.progress && st.more && force) {
             st.more = false;
-            st.notes.clear();
-            std::vector<int> begin(static_cast<size_t>(n), -1), stop(static_cast<size_t>(n), -1);
-            // Each cell's lines that fit, and where the rest begins.
             for (int i = 0; i < n; ++i) {
-                if (!units[size_t(i)]) continue;
-                const Cell &c = m_cells[size_t(row.cell0 + i)];
-                const auto &lines = units[size_t(i)]->lines;
-                const double inner = std::max(0.0, st.avail - reserved - c.margins.top() - c.margins.bottom());
-                int a = int(std::lower_bound(lines.begin(), lines.end(), offs[i] - 0.01, [](const UnitLine &l, double off) { return l.top < off; }) - lines.begin());
-                begin[size_t(i)] = a;
-                if (a >= int(lines.size())) continue;
-                int b = a;
-                while (b < int(lines.size()) && lines[size_t(b)].bottom - offs[i] <= inner + 0.01) ++b;
-                stop[size_t(i)] = b;
-                st.progress |= b > a;
-                st.next[i] = b < int(lines.size()) ? lines[size_t(b)].top : kEnd;
-                st.more |= b < int(lines.size());
+                const CellRun &cr = runs[size_t(i)];
+                if (!cr.lines || cr.a >= int(cr.lines->size())) continue;
+                stop[size_t(i)] = cr.a + 1;
+                st.more |= cr.a + 1 < int(cr.lines->size());
             }
-            // A part at the top of a page has a line of each cell that has one left, however tall: a row taller than a page ends.
-            const bool forced = !st.progress && st.more && (force || k > 0);
-            if (forced) {
-                st.more = false;
-                for (int i = 0; i < n; ++i) {
-                    if (!units[size_t(i)] || begin[size_t(i)] < 0 || begin[size_t(i)] >= int(units[size_t(i)]->lines.size())) continue;
-                    const auto &lines = units[size_t(i)]->lines;
-                    const int b = begin[size_t(i)] + 1;
-                    stop[size_t(i)] = b;
-                    st.next[i] = b < int(lines.size()) ? lines[size_t(b)].top : kEnd;
-                    st.more |= b < int(lines.size());
-                }
-                st.progress = true;
+            st.progress = true;
+        }
+        int notesN = 0;
+        double h = 0;
+        for (int i = 0; i < n; ++i) {
+            const CellRun &cr = runs[size_t(i)];
+            if (stop[size_t(i)] < 0) continue;
+            const auto &lines = *cr.lines;
+            const int b = stop[size_t(i)];
+            st.next[i] = b < int(lines.size()) ? lines[size_t(b)].top : kEnd;
+            if (noteHeights && b - cr.a < int(cr.noteH.size())) {
+                h += cr.noteH[size_t(b - cr.a)];
+                notesN += cr.noteN[size_t(b - cr.a)];
             }
-            if (!anyNotes) break;
-            // The notes of the lines that are in the part.
-            QVector<NoteRef> notes;
+        }
+        if (notesN > 0 && ruleNeeded) h += ruleGap;
+        st.noteHeight = std::min(h, cap);
+        if (notesN > 0) {
             for (int i = 0; i < n; ++i) {
-                if (!units[size_t(i)] || begin[size_t(i)] < 0) continue;
-                const auto &lines = units[size_t(i)]->lines;
-                for (int q = begin[size_t(i)]; q < stop[size_t(i)] && q < int(lines.size()) && notes.size() < kMostRowNotes; ++q) notes += lines[size_t(q)].notes;
+                const CellRun &cr = runs[size_t(i)];
+                if (stop[size_t(i)] < 0) continue;
+                for (int q = cr.a; q < stop[size_t(i)] && int(st.notes.size()) < kMostRowNotes; ++q) st.notes += (*cr.lines)[size_t(q)].notes;
             }
-            double h = 0;
-            for (const NoteRef &nr : std::as_const(notes)) h += m_noteHeight(nr.id);
-            if (!notes.isEmpty() && ruleNeeded) h += ruleGap;
-            h = std::min(h, cap);
-            std::sort(notes.begin(), notes.end(), [](const NoteRef &a, const NoteRef &b) { return a.number != b.number ? a.number < b.number : a.pos < b.pos; });
-            st.notes = notes;
-            st.noteHeight = h;
-            if (h <= reserved + 0.01) break;
-            reserved = h;
+            std::sort(st.notes.begin(), st.notes.end(), [](const NoteRef &a, const NoteRef &b) { return a.number != b.number ? a.number < b.number : a.pos < b.pos; });
         }
         return st;
     };
-    Step st = stepFrom();
+    // The notes need room, which takes from the lines', which cite other notes: the most lines whose notes fit the room they leave (the fewest room to give the notes
+    // for which they take no more than they are given: the notes the lines take cannot grow as the room for the lines does not).
+    Step st = fit(0);
+    if (noteHeights && st.noteHeight > 0.01) {
+        double lo = 0, hi = st.noteHeight;   // (with all the room for the lines they take `hi`; given `hi` they take no more than that)
+        for (int pass = 0; pass < 40 && hi - lo > 0.01; ++pass) {
+            const double mid = (lo + hi) / 2;
+            if (fit(mid).noteHeight <= mid + 0.01) hi = mid;
+            else lo = mid;
+        }
+        st = fit(hi);
+    }
     if (k >= kMostParts - 1) st.more = false;   // (the part the parts end in has all that is left)
     piece.progress = st.progress;
     piece.offsets = offs;
