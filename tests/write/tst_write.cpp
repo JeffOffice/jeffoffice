@@ -183,7 +183,9 @@ QByteArray richDocx()
     body += "<w:p w14:paraId=\"1A2B3C05\"><w:r><w:t xml:space=\"preserve\">Changes: </w:t></w:r><w:ins w:id=\"10\" w:author=\"Ann\" w:date=\"2020-01-01T00:00:00Z\"><w:r><w:t>inserted words</w:t></w:r></w:ins>"
             "<w:del w:id=\"11\" w:author=\"Ann\" w:date=\"2020-01-01T00:00:00Z\"><w:r><w:delText>deleted words</w:delText></w:r></w:del><w:r><w:t xml:space=\"preserve\"> end.</w:t></w:r></w:p>";
     body += "<w:sdt><w:sdtPr><w:alias w:val=\"Block\"/></w:sdtPr><w:sdtContent><w:p w14:paraId=\"1A2B3C06\"><w:r><w:t>Inside a block control</w:t></w:r></w:p></w:sdtContent></w:sdt>";
-    body += "<w:p w14:paraId=\"1A2B3C07\"><w:r><w:t>After the block control, which Backspace must not eat.</w:t></w:r></w:p>";
+    // (A box set at a place that the text goes round, on its right side: what a file's own wrap says is kept as it was.)
+    body += "<w:p w14:paraId=\"1A2B3C07\"><w:r><w:t>After the block control, which Backspace must not eat.</w:t></w:r><w:r><w:pict xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\">"
+            "<v:rect id=\"keptWall\" style=\"position:absolute;margin-left:200pt;margin-top:4pt;width:60pt;height:40pt\" fillcolor=\"red\" stroked=\"f\"><w10:wrap type=\"square\" side=\"left\"/></v:rect></w:pict></w:r></w:p>";
     body += "<w:p w14:paraId=\"1A2B3C08\"><w:bookmarkStart w:id=\"20\" w:name=\"across\"/><w:commentRangeStart w:id=\"5\"/><w:r><w:t>Starts before the table</w:t></w:r></w:p>"
             "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>cell a</w:t></w:r></w:p></w:tc>"
             "<w:tc><w:p><w:r><w:t>cell b</w:t></w:r><w:bookmarkEnd w:id=\"20\"/></w:p></w:tc></w:tr></w:tbl>"
@@ -4683,6 +4685,16 @@ private Q_SLOTS:
     // A document of tables for the random commands: a table with a style, a header row, cells joined down (one with a long text), a row with a gap before its cells and one
     // with a gap after, a long cell, a table in a cell with another in its own, a plain table after it, and text around them; on small pages, so that rows go over page
     // breaks.
+    // A box set at a place that the text goes round, as a run (VML, as a file converted from the older form has them): `kind` is the wrap: 0 square, 1 top and bottom, 2 square
+    // with the text on the left, 3 on the larger side, 4 tight with the text on the right, 5 a square one set from the page.
+    static QByteArray wallRun(int kind, int left, int top, int w, int h)
+    {
+        static const char *const wraps[] = {"<w10:wrap type=\"square\"/>", "<w10:wrap type=\"topAndBottom\"/>", "<w10:wrap type=\"square\" side=\"left\"/>", "<w10:wrap type=\"square\" side=\"largest\"/>",
+                                            "<w10:wrap type=\"tight\" side=\"right\"/>", "<w10:wrap type=\"square\"/>"};
+        const QByteArray from = kind == 5 ? ";mso-position-horizontal-relative:page;mso-position-vertical-relative:page" : QByteArray();
+        return "<w:r><w:pict xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\"><v:rect id=\"wall" + QByteArray::number(left * 31 + top) + "\" style=\"position:absolute;margin-left:" +
+               QByteArray::number(left) + "pt;margin-top:" + QByteArray::number(top) + "pt;width:" + QByteArray::number(w) + "pt;height:" + QByteArray::number(h) + "pt" + from + "\" fillcolor=\"red\" stroked=\"f\">" + wraps[kind % 6] + "</v:rect></w:pict></w:r>";
+    }
     // The tables of that document, and its styles and its section's properties; `noteInCell` is the XML of a run put in the cell b1 (a footnote's reference).
     static RichTables richTables(const QByteArray &noteInCell = QByteArray())
     {
@@ -4712,7 +4724,10 @@ private Q_SLOTS:
     static QByteArray richTableDocx()
     {
         const RichTables t = richTables();
-        return makeDocx(cellP("before the tables") + t.styled + cellP("between them") + t.plain + cellP("after the tables"), t.styles, QByteArray(), t.sect);
+        // (Objects that the text goes round: in the paragraphs around the tables, of each wrap: edits that move their anchors across the pages change which pages have them.)
+        return makeDocx(plainP("before the tables and a few more words so that a line goes round the box", wallRun(0, 110, 4, 50, 40)) + t.styled + plainP("between them, with enough words that more than a line or two are beside the box that is set from the page", wallRun(5, 150, 60, 40, 50)) + t.plain +
+                            plainP("after the tables, and a line or two of words more", wallRun(1, 20, 6, 40, 14) + wallRun(2, 60, 14, 40, 30)),
+                        t.styles, QByteArray(), t.sect);
     }
 
     // A file for the random commands with the tables, notes, headers, footers, and sections together: a first section of tables (the one of richTableDocx, a note cited in
@@ -4742,10 +4757,12 @@ private Q_SLOTS:
         const QByteArray one = sectionXml(7200, 6600, 720, refsOne, QByteArray(), "<w:titlePg/>");
         const QByteArray two = sectionXml(7200, 6600, 720, QByteArray(), "<w:type w:val=\"continuous\"/>", "<w:cols w:num=\"2\" w:space=\"360\"/>");
         const QByteArray three = sectionXml(7200, 6600, 900, "<w:headerReference w:type=\"default\" r:id=\"rIdheader4\"/>");
-        QByteArray body = plainP("before the tables", refTo(2)) + t.styled + plainP("between them", refTo(4)) + t.plain + plainP("after the tables", QByteArray(), one);
-        body += plainP(wordsOf("Second section", 18)) + tableOfRows(9, 2, 1000, [](int r, int c) { return r == 4 && c == 1 ? plainP("cites", refTo(5)) : cellP("r" + QByteArray::number(r) + "c" + QByteArray::number(c)); }) +
-                plainP(wordsOf("end of the second", 30), QByteArray(), two);
-        body += plainP(wordsOf("Third section", 40), refTo(6)) + "<w:p><w:r><w:t>before a break</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>after it</w:t></w:r></w:p>" + plainP(wordsOf("Last", 60));
+        // (Objects the text goes round: one of each kind among the notes, tables, and sections, so that the text goes round them across pages and columns.)
+        QByteArray body = plainP(wordsOf("before the tables", 14), refTo(2) + wallRun(0, 150, 4, 60, 50)) + t.styled + plainP(wordsOf("between them", 12), refTo(4) + wallRun(1, 40, 8, 50, 16)) + t.plain +
+                          plainP("after the tables", QByteArray(), one);
+        body += plainP(wordsOf("Second section", 18), wallRun(3, 110, 10, 50, 40)) + tableOfRows(9, 2, 1000, [](int r, int c) { return r == 4 && c == 1 ? plainP("cites", refTo(5)) : cellP("r" + QByteArray::number(r) + "c" + QByteArray::number(c)); }) +
+                plainP(wordsOf("end of the second", 30), wallRun(2, 60, 2, 40, 30), two);
+        body += plainP(wordsOf("Third section", 40), refTo(6) + wallRun(4, 160, 6, 70, 40) + wallRun(5, 200, 120, 60, 60)) + "<w:p><w:r><w:t>before a break</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>after it</w:t></w:r></w:p>" + plainP(wordsOf("Last", 60), wallRun(0, 20, 30, 50, 24));
         return makeDocxWithParts(body, three, parts, "<w:evenAndOddHeaders/>", t.styles);
     }
 
@@ -4934,6 +4951,12 @@ private Q_SLOTS:
                         fail(QStringLiteral("layout differs from a new paginator's after ") + what, d);
                         break;
                     }
+                    // The text goes round the objects, on the pages that have them, as the page layer draws it (every third command: the pages are made for it).
+                    if (step % 3 == 2)
+                        if (const QString d = audit::wallProblems(doc->pager(), doc->story()); !d.isEmpty()) {
+                            fail(QStringLiteral("the text does not go round the objects after ") + what, d);
+                            break;
+                        }
                     if (!mixed) {
                         QString err;
                         const QByteArray zip = doc->toDocx(&err);
@@ -4989,6 +5012,25 @@ private Q_SLOTS:
         for (auto it = failed.cbegin(); it != failed.cend(); ++it) report << QStringLiteral("%1: %2 times\n  %3").arg(it.key()).arg(it.value()).arg(example.value(it.key()));
         if (qEnvironmentVariableIsSet("JW_FUZZ_COUNTS")) qInfo("table fuzz: %d of %d seeds failed:\n%s", int(failing.size()), seedsRun, qPrintable(report.join(QLatin1Char('\n'))));
         QVERIFY2(failed.isEmpty(), qPrintable(QStringLiteral("%1 of %2 seeds failed:\n%3").arg(failing.size()).arg(seedsRun).arg(report.join(QLatin1Char('\n')))));
+    }
+
+    // The documents of the random commands have objects that the text goes round, on their pages (else the commands would not try the walls).
+    void theDocumentsOfTheRandomCommandsHaveObjectsTheTextGoesRound()
+    {
+        for (const bool mixed : {false, true}) {
+            auto doc = open(mixed ? richMixedDocx() : richTableDocx());
+            QVERIFY(doc);
+            int walls = 0, pagesWithWalls = 0;
+            for (int k = 0; k < doc->pager().pageCount(); ++k) {
+                const auto page = doc->pager().materialize(k);
+                QVERIFY(page);
+                const int here = int(audit::wallsOf(*page).size());
+                walls += here;
+                pagesWithWalls += here > 0;
+            }
+            QVERIFY2(walls >= (mixed ? 5 : 3) && pagesWithWalls >= 2, qPrintable(QStringLiteral("%1 walls on %2 pages").arg(walls).arg(pagesWithWalls)));
+            QVERIFY2(audit::wallProblems(doc->pager(), doc->story()).isEmpty(), qPrintable(audit::wallProblems(doc->pager(), doc->story())));
+        }
     }
 
     // ---- tables with the notes, headers and footers, and sections of a file (the two waves of JeffWrite together)
