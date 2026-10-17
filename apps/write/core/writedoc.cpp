@@ -542,7 +542,7 @@ std::shared_ptr<QTextDocument> WriteDoc::headerStory(const QString &relationship
         doc->setDocumentMargin(0);
         doc->setDefaultFont(story()->defaultFont());
         doc->setUndoRedoEnabled(false);
-        fillStory(doc.get(), blocks, true, rel.target);
+        fillStory(doc.get(), blocks, true, rel.target, true);
     }
     m_headerStories.insert(rel.target, doc);
     return doc;

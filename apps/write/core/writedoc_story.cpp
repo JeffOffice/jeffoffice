@@ -269,7 +269,7 @@ flow::FloatingObject frameObjectOf(const QHash<QString, QString> &at)
 
 // Fills `story` from the elements of a body or of a header or footer. A header's or footer's (`header`) fields for the page's number and the page
 // counts are live fields of the text engine, its tables and pictures are left out, and a paragraph in a frame is set aligned as the frame is.
-void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool header, const QString &part)
+void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool header, const QString &part, bool headerFooter)
 {
     const StyleSheet &sheet = m_wml.styles;
     const Theme *thm = theme();
@@ -406,8 +406,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         // alignment, is a paragraph of the story that takes no room, below.)
         QByteArray frameXml;
         QHash<QString, QString> frameAt;
-        if (header && !tables.key()) frameAt = frameOfParagraph(sheet, styleId, direct.extra, &frameXml, &styleFrames);
-        const bool headerFrame = header && !frameXml.isEmpty() && frameAt.value(QStringLiteral("vAnchor")) == QLatin1String("page");
+        if (headerFooter && !tables.key()) frameAt = frameOfParagraph(sheet, styleId, direct.extra, &frameXml, &styleFrames);
+        const bool headerFrame = headerFooter && !frameXml.isEmpty() && frameAt.value(QStringLiteral("vAnchor")) == QLatin1String("page");
         if ((!header || headerFrame) && !tables.key()) {
             if (!header) frameAt = frameOfParagraph(sheet, styleId, direct.extra, &frameXml, &styleFrames);
             if (frameXml.isEmpty()) {

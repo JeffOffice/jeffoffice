@@ -5144,6 +5144,30 @@ private Q_SLOTS:
         QVERIFY2(story->doc->begin().charFormat().boolProperty(tp::HiddenText), "the first paragraph's mark is hidden in the note as drawn");
     }
 
+    // Only a header's or a footer's frame set on the page is a text box there: a paragraph of a note that has the same frame properties is a paragraph of the note, which keeps its
+    // text (a note has no page to set a box on).
+    void aFramePropertyOfAPageInANoteChangesNothing()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto noteBox = [&](bool framed) -> std::pair<bool, double> {
+            const QByteArray first = framed ? "<w:p><w:pPr><w:framePr w:w=\"9360\" w:h=\"280\" w:hRule=\"exact\" w:wrap=\"notBeside\" w:vAnchor=\"page\" w:hAnchor=\"text\" w:y=\"100\"/></w:pPr><w:r><w:t>FRAMED NOTE</w:t></w:r></w:p>"
+                                            : "<w:p><w:r><w:t>FRAMED NOTE</w:t></w:r></w:p>";
+            const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:id=\"2\">" + first +
+                                     "<w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> the rest of the note.</w:t></w:r></w:p></w:footnote></w:footnotes>";
+            const QByteArray body = "<w:p><w:r><w:t>First paragraph with a note</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>" + paragraphs(40, 40);
+            auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}}));
+            if (!doc) return {false, 0};
+            const auto page = doc->pager().materialize(0);
+            const TextItem *box = page ? boxWithText(*page, QStringLiteral("FRAMED NOTE")) : nullptr;
+            const Story *story = box ? page->doc->story(box->storyId) : nullptr;
+            return {story && !story->doc->begin().blockFormat().boolProperty(tp::OutOfLayout), box ? box->rect.height() : 0.0};
+        };
+        const auto framed = noteBox(true), plain = noteBox(false);
+        QVERIFY2(plain.first && plain.second > 0, "the plain note is on the page");
+        QVERIFY2(framed.first, "the note's first paragraph is set apart from its text");
+        QVERIFY2(std::abs(framed.second - plain.second) < 0.01, qPrintable(QStringLiteral("a note of %1 points, %2 without the frame properties").arg(framed.second).arg(plain.second)));
+    }
+
     // The room between the text and the notes is the file's own separator paragraph, not a line of the Normal style: a separator thirty points tall
     // (exactly) leaves the text fifty lines of twelve points above a note one line tall, where the Normal style's line would leave it one more.
     void theNoteSeparatorIsTheFilesOwnParagraph()
