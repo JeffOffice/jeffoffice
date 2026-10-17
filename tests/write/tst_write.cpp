@@ -287,6 +287,17 @@ QByteArray headerPart(const QByteArray &root, const QList<QByteArray> &paragraph
     return out + "</w:" + root + ">";
 }
 
+// A package of a document of one paragraph with `background` (the XML of a w:background, or none) before its body.
+QByteArray makeDocxWithBackground(const QByteArray &background)
+{
+    office::PackageWriter w;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + ">" + background + "<w:body><w:p><w:r><w:t>text</w:t></w:r></w:p></w:body></w:document>"),
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    return w.finish();
+}
+
 // The tables of the document of tables for the random commands, its styles, and its section's properties.
 struct RichTables {
     QByteArray styled, plain, styles, sect, spaced;
@@ -4633,27 +4644,57 @@ private Q_SLOTS:
         QVERIFY2(askedPlace(*doc, 1) == 200.0 && doc->story()->characterAt(at) == QChar::ObjectReplacementCharacter, "one undo did not bring the field and the ask back");
     }
 
-    // The page color of a file (w:background) is the pages' color, and the file comes back with it.
+    // The page color of a file (w:background) is the pages' color, as the page is drawn, and the file comes back with it.
     void aFilesPageColorFillsItsPages()
     {
-        auto withBackground = [&](const QByteArray &background) {
-            office::PackageWriter w;
-            const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
-            w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + ">" + background + "<w:body><w:p><w:r><w:t>text</w:t></w:r></w:p></w:body></w:document>"),
-                      QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
-            w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
-            return w.finish();
-        };
-        auto doc = open(withBackground("<w:background w:color=\"00B8FF\"/>"));
+        auto doc = open(makeDocxWithBackground("<w:background w:color=\"00B8FF\"/>"));
         QVERIFY(doc);
         QCOMPARE(doc->flow().pageColor, QColor(0x00, 0xb8, 0xff));
         QVERIFY(documentXml(doc->toDocx()).contains("<w:background w:color=\"00B8FF\"/>"));
-        auto none = open(withBackground(QByteArray()));
+        auto drawnAt = [&](WriteDoc &d, int x, int y) {
+            PageView view;
+            view.resize(1000, 700);
+            view.setDocument(&d);
+            return view.pageImage(0, 816).pixelColor(x, y);
+        };
+        // The page as drawn is that color at its corners and between its lines, and white where the file has no page color.
+        QCOMPARE(drawnAt(*doc, 4, 4), QColor(0x00, 0xb8, 0xff));
+        QCOMPARE(drawnAt(*doc, 810, 1050), QColor(0x00, 0xb8, 0xff));
+        auto none = open(makeDocxWithBackground(QByteArray()));
         QVERIFY(none);
         QVERIFY(!none->flow().pageColor.isValid());
-        auto automatic = open(withBackground("<w:background w:color=\"auto\"/>"));
+        QCOMPARE(drawnAt(*none, 4, 4), QColor(Qt::white));
+        auto automatic = open(makeDocxWithBackground("<w:background w:color=\"auto\"/>"));
         QVERIFY(automatic);
         QVERIFY(!automatic->flow().pageColor.isValid());
+    }
+
+    // The page color is in the PDF export (a word processor's own PDF of such a file has it) and is not printed on paper.
+    void thePageColorIsInThePdfExportAndNotOnAPrinter()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        w.setDocument(open(makeDocxWithBackground("<w:background w:color=\"00B8FF\"/>")), QString());
+        w.view()->paginateAll();
+        QVector<bool> exported, printed;
+        QVector<bool> *into = &exported;
+        const ObserverGuard observer;
+        write::setPaintObserver([&](const flow::MaterializedPage &page, const write::PageDrawing &) {
+            bool has = false;
+            for (const auto &item : page.doc->pages[0]->items) has |= item->id.startsWith(QLatin1String("flow-page-color-"));
+            *into << has;
+        });
+        QString next = dir.filePath(QStringLiteral("export.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return next; });
+        QVERIFY(w.exportPdf());
+        into = &printed;
+        next = dir.filePath(QStringLiteral("print.pdf"));
+        WriteOutputOptions o;
+        o.toFile = true;
+        QVERIFY(w.printOutput(o));
+        write::setPaintObserver(nullptr);
+        QVERIFY2(exported == QVector<bool>{true}, "the PDF export has no page color");
+        QVERIFY2(printed == QVector<bool>{false}, "the printer is sent the page color");
     }
 
     // A symbol of a font that isn't there is its character in the stand-in (Calibri): the line it is on is Calibri's, taller than Times New Roman's.

@@ -8,6 +8,7 @@
 #include <QPageSize>
 #include <QPainter>
 #include <QPrinter>
+#include <algorithm>
 
 namespace jp::write {
 
@@ -39,6 +40,11 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
         const auto page = doc.pager().materialize(index);
         if (!page) continue;
         setSheet(device, page->size);
+        // The page's color is in a PDF (a word processor's own PDF of such a file has it), and is not sent to a printer: paper is left white unless it is asked for.
+        if (printer) {
+            auto &items = page->doc->pages[0]->items;
+            items.erase(std::remove_if(items.begin(), items.end(), [](const std::shared_ptr<Item> &item) { return item->id.startsWith(QLatin1String("flow-page-color-")); }), items.end());
+        }
         if (!started) {
             started = p.begin(device);
             if (!started) return false;
