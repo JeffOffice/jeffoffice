@@ -442,7 +442,8 @@ RunProps StyleSheet::run(const QString &paragraphStyle, const QString &character
     if (cached != m_run.constEnd()) return cached.value();
     RunProps r = defaultRun;
     if (table) r.overlay(table->r);
-    auto apply = [&](const QString &id) {
+    // What a style says over the styles it is based on (each over the one under it).
+    auto chainOf = [&](const QString &id) {
         QVector<const Style *> chain;
         for (QString at = id; !at.isEmpty() && chain.size() < kStyleDepth;) {
             const Style *s = find(at);
@@ -450,10 +451,19 @@ RunProps StyleSheet::run(const QString &paragraphStyle, const QString &character
             chain.push_back(s);
             at = s->basedOn;
         }
-        for (int i = int(chain.size()) - 1; i >= 0; --i) r.overlay(chain[i]->rPr);
+        RunProps said;
+        for (int i = int(chain.size()) - 1; i >= 0; --i) said.overlay(chain[i]->rPr);
+        return said;
     };
-    apply(paragraphStyle);
-    apply(characterStyle);
+    r.overlay(chainOf(paragraphStyle));
+    // The toggles of a character style flip the paragraph style's (Strong over a heading that is bold is not bold); an "off" flips nothing. The rest of what it says
+    // goes over.
+    RunProps chr = chainOf(characterStyle);
+    for (std::optional<bool> RunProps::*toggle : {&RunProps::bold, &RunProps::italic, &RunProps::caps, &RunProps::smallCaps, &RunProps::strike, &RunProps::vanish}) {
+        if ((chr.*toggle).value_or(false)) r.*toggle = !(r.*toggle).value_or(false);
+        chr.*toggle = std::nullopt;
+    }
+    r.overlay(chr);
     r.style = characterStyle;
     r.extra.clear();
     m_run.insert(key, r);
