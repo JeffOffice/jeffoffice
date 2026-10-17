@@ -129,6 +129,11 @@ struct Effects {
 // theme it takes (1 to 3, 0 for none), the theme color each is made in (by its name in the theme, "accent1" or "lt1", with the changes made
 // to it, as `shade` 50000), and the font and color its text has. The shape's fill, stroke, and fx are the look these give, or what the
 // shape has had changed since: a file keeps the reference, and the properties where they differ from it.
+// Whether a name is one a style's color may have: a theme color by the standard's name ("accent1", "lt1", "tx1"), or "#" and six hex digits; and
+// whether a name is a change of a color the standard has (shade, lumMod, alpha...), which takes a number.
+bool isStyleColorName(const QString &name);
+bool isStyleColorChange(const QString &name);
+
 struct StyleColor {
     QString name;                                   // empty for none
     QVector<QPair<QString, int>> mods;              // changes in the order they are made: an element's name and its value (shade, 50000)

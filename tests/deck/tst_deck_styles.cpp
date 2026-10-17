@@ -171,6 +171,31 @@ QByteArray themeWithShadow(const QByteArray &theme)
     return xml.toUtf8();
 }
 
+// What is wrong with the colors of a p:style, if anything: a theme color must be named as the standard names them, an RGB one must be six hex
+// digits, and a change must be one the standard has, with a number.
+QString styleProblem(const QDomElement &style)
+{
+    static const QStringList schemes = {"dk1", "lt1", "dk2", "lt2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink", "tx1", "tx2", "bg1", "bg2"};
+    static const QStringList changes = {"alpha", "alphaMod", "alphaOff", "hue", "hueMod", "hueOff", "sat", "satMod", "satOff", "lum", "lumMod", "lumOff", "red", "redMod", "redOff",
+                                        "green", "greenMod", "greenOff", "blue", "blueMod", "blueOff", "shade", "tint"};
+    static const QRegularExpression hex(QStringLiteral("^[0-9A-Fa-f]{6}$")), number(QStringLiteral("^-?[0-9]{1,9}$"));
+    for (QDomElement ref = style.firstChildElement(); !ref.isNull(); ref = ref.nextSiblingElement()) {
+        const QString local = ref.localName();
+        if (local == QLatin1String("fontRef")) {
+            if (!QStringList{"major", "minor", "none"}.contains(ref.attribute(QStringLiteral("idx")))) return QStringLiteral("fontRef idx ") + ref.attribute(QStringLiteral("idx"));
+        } else if (!number.match(ref.attribute(QStringLiteral("idx"))).hasMatch()) {
+            return local + QStringLiteral(" idx ") + ref.attribute(QStringLiteral("idx"));
+        }
+        for (QDomElement c = ref.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+            const QString kind = c.localName(), val = c.attribute(QStringLiteral("val"));
+            if (kind == QLatin1String("schemeClr") ? !schemes.contains(val) : kind == QLatin1String("srgbClr") ? !hex.match(val).hasMatch() : true) return kind + QStringLiteral(" val ") + val;
+            for (QDomElement m = c.firstChildElement(); !m.isNull(); m = m.nextSiblingElement())
+                if (!changes.contains(m.localName()) || !number.match(m.attribute(QStringLiteral("val"))).hasMatch()) return QStringLiteral("change ") + m.localName() + QLatin1Char(' ') + m.attribute(QStringLiteral("val"));
+        }
+    }
+    return QString();
+}
+
 } // namespace
 
 class DeckStylesTests : public QObject {
@@ -475,8 +500,8 @@ private Q_SLOTS:
         QVERIFY(from > 20 && to > from);
         QJsonArray mods;
         for (int i = 0; i < 5000; ++i) mods.append(QJsonArray{i % 2 ? QStringLiteral("shade") : QStringLiteral("a b><evil/"), 1000000000});
-        QJsonObject part{{"idx", 99999999999.0}, {"name", QStringLiteral("accent\"><x/>")}, {"mods", mods}};
-        QJsonObject o{{"ln", part}, {"fill", part}, {"fx", part}, {"font", QStringLiteral("minor\"><x/>")}, {"fontColor", QJsonObject{{"name", QStringLiteral("lt1")}, {"mods", mods}}}};
+        QJsonObject entry{{"idx", 99999999999.0}, {"name", QStringLiteral("accent\"><x/>")}, {"mods", mods}};
+        QJsonObject o{{"ln", entry}, {"fill", entry}, {"fx", entry}, {"font", QStringLiteral("minor\"><x/>")}, {"fontColor", QJsonObject{{"name", QStringLiteral("lt1")}, {"mods", mods}}}};
         QString json = QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact));
         json.replace(QLatin1Char('"'), QStringLiteral("&quot;")).replace(QLatin1Char('<'), QStringLiteral("&lt;")).replace(QLatin1Char('>'), QStringLiteral("&gt;"));
         content.replace(from, to - from, json);
@@ -494,11 +519,17 @@ private Q_SLOTS:
         QVERIFY(it->styleRef.fill.color.mods.size() <= 16);
         QVERIFY(it->styleRef.font.isEmpty());
         for (const auto &m : it->styleRef.fill.color.mods) QVERIFY(m.first == QLatin1String("shade"));
-        // Saved as a .pptx, it is a sound package, and reads again.
+        // Saved as a .pptx, it is a sound package, and reads again; and what is written, not what our own reader puts up with, is what the standard allows.
         Exported e;
         QVERIFY(unpack(deck::exportPresentation(*d, &err), &e, &err));
         QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
         QVERIFY(deck::importPresentation(deck::exportPresentation(*d, &err), &err));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY(!slide.contains(QStringLiteral("evil")) && !slide.contains(QStringLiteral("<x/>")));
+        QDomDocument dom;
+        const QDomElement sp = shapeNamed(slide, QStringLiteral("Styled"), &dom);
+        QVERIFY(!sp.isNull());
+        QVERIFY2(styleProblem(childByTag(sp, "p:style")).isEmpty(), qPrintable(styleProblem(childByTag(sp, "p:style"))));
     }
 
 
@@ -869,6 +900,63 @@ private Q_SLOTS:
         const QDomElement plain = shapeNamed(part(e, QStringLiteral("/ppt/slides/slide1.xml")), QStringLiteral("From style"), &dom);
         const QDomElement plainProps = childByTag(plain, "p:spPr");
         for (const char *tag : {"a:solidFill", "a:noFill", "a:ln", "a:effectLst"}) QVERIFY2(childByTag(plainProps, tag).isNull(), tag);
+    }
+
+    // Names a p:style may not have do not reach the file: a loaded reference keeps only theme colors by the standard's names, RGB colors of six
+    // hex digits, and changes the standard has.
+    void hostileStyleColorsAreNotWritten()
+    {
+        Rig r;
+        const QString id = r.addShape(QStringLiteral("Styled"), QStringLiteral("Words"))->id;
+        r.ed()->select(id);
+        QVERIFY(r.w.applyShapeStyle(QStringLiteral("moderate:accent1")));
+        QString err;
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(deck::exportOdp(*r.ed()->doc(), false, &err), zip, &err));
+        QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        const int from = content.indexOf(QStringLiteral("jo:style-ref=\"")) + QStringLiteral("jo:style-ref=\"").size(), to = content.indexOf(QLatin1Char('"'), from);
+        QVERIFY(from > 20 && to > from);
+        auto ref = [](const QString &name, QJsonArray mods = {}) { return QJsonObject{{"idx", 2}, {"name", name}, {"mods", mods}}; };
+        const QJsonArray odd{QJsonArray{QStringLiteral("zzz"), 5}, QJsonArray{QStringLiteral("lumMod"), 50000}, QJsonArray{QStringLiteral("shade"), 99999999999.0}};
+        QJsonObject o{{"ln", ref(QStringLiteral("banana"), odd)}, {"fill", ref(QStringLiteral("#ZZ"))}, {"fx", ref(QStringLiteral("#12345"))},
+                      {"font", QStringLiteral("minor")}, {"fontColor", ref(QStringLiteral("lt1"), odd)}};
+        QString json = QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact));
+        json.replace(QLatin1Char('"'), QStringLiteral("&quot;"));
+        content.replace(from, to - from, json);
+        ZipWriter w;
+        w.add(QStringLiteral("mimetype"), zip.value(QStringLiteral("mimetype")));
+        for (auto it = zip.begin(); it != zip.end(); ++it)
+            if (it.key() != QLatin1String("mimetype") && it.key() != QLatin1String("content.xml")) w.add(it.key(), it.value(), true);
+        w.add(QStringLiteral("content.xml"), content.toUtf8(), true);
+        std::unique_ptr<Document> d = deck::importOdp(w.finish(), &err);
+        QVERIFY2(d, qPrintable(err));
+        Item *it = Rig::named(*d, QStringLiteral("Styled"));
+        QVERIFY(it && it->styleRef.on);
+        QVERIFY(it->styleRef.line.color.name.isEmpty() && it->styleRef.fill.color.name.isEmpty() && it->styleRef.effect.color.name.isEmpty());
+        QCOMPARE(it->styleRef.fontColor.name, QStringLiteral("lt1"));
+        QCOMPARE(it->styleRef.fontColor.mods.size(), 2);   // (lumMod, and shade with the number it can have)
+        QCOMPARE(it->styleRef.fontColor.mods.first().first, QStringLiteral("lumMod"));
+        // What is written is what the standard allows, whatever our own reader would put up with.
+        Exported e;
+        QVERIFY(unpack(deck::exportPresentation(*d, &err), &e, &err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        for (const char *bad : {"banana", "zzz", "\"ZZ\"", "12345"}) QVERIFY2(!slide.contains(QLatin1String(bad)), bad);
+        QDomDocument dom;
+        const QDomElement sp = shapeNamed(slide, QStringLiteral("Styled"), &dom);
+        QVERIFY(!sp.isNull());
+        const QDomElement style = childByTag(sp, "p:style");
+        QVERIFY(!style.isNull());
+        QVERIFY2(styleProblem(style).isEmpty(), qPrintable(styleProblem(style)));
+        // The same for a style a file carries: a color it can't name is no style, and the look the file's reader made stays.
+        Parts parts = samplePptx();
+        const QString shape = styledShape(20, QStringLiteral("Odd"), QString(), styleOf(2, 1, 0, QStringLiteral("<a:schemeClr val=\"banana\"/>"), QStringLiteral("<a:schemeClr val=\"lt1\"/>")));
+        QByteArray &xml = parts.data["/ppt/slides/slide1.xml"].xml;
+        xml = QString::fromUtf8(xml).replace(QStringLiteral("</p:spTree>"), shape + QStringLiteral("</p:spTree>")).toUtf8();
+        std::unique_ptr<Document> odd2 = deck::importPresentation(pack(parts), &err);
+        QVERIFY2(odd2, qPrintable(err));
+        QVERIFY(Rig::named(*odd2, QStringLiteral("Odd")));
+        QVERIFY(!Rig::named(*odd2, QStringLiteral("Odd"))->styleRef.on);
     }
 
     // ---- Change Shape

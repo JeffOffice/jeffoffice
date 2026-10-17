@@ -7,26 +7,23 @@ namespace jp::office {
 
 namespace {
 
-// The color a reference holds: a theme color or an RGB one, with the changes made to it. False for another kind.
+// The color a reference holds: a theme color or an RGB one, with the changes made to it. False for another kind, or one the standard has no name for.
 bool readColorOf(const QDomElement &ref, StyleColor *out)
 {
     const QDomElement c = ref.firstChildElement();
     if (c.isNull()) return true;
     const QString kind = c.localName();
-    if (kind == QLatin1String("schemeClr")) {
-        out->name = attr(c, QStringLiteral("val"));
-        if (out->name.isEmpty()) return false;
-    } else if (kind == QLatin1String("srgbClr")) {
-        const QString hex = attr(c, QStringLiteral("val"));
-        if (hex.size() != 6 || !QColor(QLatin1Char('#') + hex).isValid()) return false;
-        out->name = QLatin1Char('#') + hex.toUpper();
-    } else {
+    if (kind == QLatin1String("schemeClr")) out->name = attr(c, QStringLiteral("val"));
+    else if (kind == QLatin1String("srgbClr")) out->name = QLatin1Char('#') + attr(c, QStringLiteral("val")).toUpper();
+    else return false;
+    if (!isStyleColorName(out->name)) {
+        out->name.clear();
         return false;
     }
     for (QDomElement m = c.firstChildElement(); !m.isNull(); m = m.nextSiblingElement()) {
         bool ok = false;
         const qint64 v = parseInt(attr(m, QStringLiteral("val")), 0, &ok);
-        if (!ok || out->mods.size() >= 16) return false;
+        if (!ok || out->mods.size() >= 16 || !isStyleColorChange(m.localName())) return false;
         out->mods.append({m.localName(), int(std::clamp<qint64>(v, -10000000, 10000000))});
     }
     return true;
