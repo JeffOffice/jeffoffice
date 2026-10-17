@@ -14,9 +14,12 @@ bool readFib(const Span &wd, Fib *fib, QString *why)
         if (why) *why = m;
         return false;
     };
+    const QString older = QCoreApplication::translate("jp::office::doc", "This document was made by a program from before 1997, and its format can't be opened.");
+    // (The 1993 and 1995 programs marked their header 0xA5DC, the 1991 one 0xA5DB: their files are older, not damaged.)
+    if (wd.size() >= 2 && (wd.u16(0) == 0xA5DC || wd.u16(0) == 0xA5DB)) return fail(older);
     if (wd.size() < 68 || wd.u16(0) != 0xA5EC) return fail(QCoreApplication::translate("jp::office::doc", "The document's header is damaged."));
     fib->nFib = wd.u16(2);
-    if (fib->nFib < 0x00C1) return fail(QCoreApplication::translate("jp::office::doc", "This document was made by a program from before 1997, and its format can't be opened."));
+    if (fib->nFib < 0x00C1) return fail(older);
     const quint16 flags = wd.u16(10);
     fib->template_ = flags & 0x0001;
     fib->complex = flags & 0x0004;

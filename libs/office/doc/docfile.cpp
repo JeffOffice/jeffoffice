@@ -105,6 +105,11 @@ bool Converter::open(const QByteArray &file, QString *error)
         return false;
     };
     if (file.size() > kMaxFileBytes) return fail(QCoreApplication::translate("jp::office::doc", "The file is larger than this program can open."));
+    // Documents from before the compound file: the 1991 program's (its header mark, 0xA5DB, is the file's first bytes), the Macintosh programs' of
+    // 1987 to 1992 (FE 37 00), and the DOS and Write programs' (31 BE or 32 BE, then two zeros). Older, not damaged.
+    const auto startsWith = [&](const char *hex) { return file.startsWith(QByteArray::fromHex(hex)); };
+    if (startsWith("dba5") || startsWith("fe3700") || startsWith("31be0000") || startsWith("32be0000"))
+        return fail(QCoreApplication::translate("jp::office::doc", "This document was made by a program from before 1997, and its format can't be opened."));
     cfb::File cf;
     QString why;
     if (!cfb::read(file, &cf, &why)) return fail(QCoreApplication::translate("jp::office::doc", "This is not a document this program can open: %1").arg(why));

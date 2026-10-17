@@ -1039,6 +1039,12 @@ private Q_SLOTS:
         why.clear();
         QVERIFY(!read(ow.build(), &d, nullptr, &why));
         QVERIFY2(why.contains(QLatin1String("1997")), qPrintable(why));
+        // Older still, and not compound files at all: the 1991 program's, and the 1992 Macintosh program's. Not "damaged": from before 1997.
+        for (const QByteArray &start : {QByteArray::fromHex("dba52d00"), QByteArray::fromHex("fe370023"), QByteArray::fromHex("31be0000")}) {
+            why.clear();
+            QVERIFY(!read(start + QByteArray(600, '\0'), &d, nullptr, &why));
+            QVERIFY2(why.contains(QLatin1String("1997")), qPrintable(start.toHex() + ": " + why));
+        }
         why.clear();
         QVERIFY(!read(QByteArray(), &d, nullptr, &why));
     }
