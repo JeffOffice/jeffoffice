@@ -2483,7 +2483,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->tl->setCacheEnabled(true);
 
         // (The text after a page break that begins a paragraph is set as the paragraph's first line, indent and all, as a word processor sets it.)
-        const bool startsWithBreak = env.wordLines && doc->characterAt(b.position()) == QChar(0x000C) && b.length() > 1;
+        // (A break that is hidden text, as what a tracked change deleted is, is none.)
+        const bool startsWithBreak = env.wordLines && doc->characterAt(b.position()) == QChar(0x000C) && b.length() > 1 && !b.begin().fragment().charFormat().boolProperty(tp::HiddenText);
         const bool firstAfterBreak = startsWithBreak && (!tail || m_span.spaceBeforeContinued);
         const double leftM = bf.leftMargin() * scale, rightM = bf.rightMargin() * scale, textIndent = tail && !firstAfterBreak ? 0.0 : bf.textIndent() * scale;
         // A slide's space given as a share of the line is of the line at the size the text was shrunk to; one given in points is not.
@@ -2493,7 +2494,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             after = slideSpaceOf(b, tp::SpaceAfterShare, env.fontScale);
         }
         // (A paragraph that begins with a page break has no space before where it begins: the text after the break has it, on the next page.)
-        if (env.wordLines && !tail && b.length() > 1 && doc->characterAt(b.position()) == QChar(0x000C)) before = 0;
+        if (startsWithBreak && !tail) before = 0;
         // A word processor's automatic spacing (a paragraph from a web page) is a fixed 14 points.
         if (env.wordLines) {
             // (Between two items of a list there is none.)

@@ -1889,6 +1889,41 @@ private Q_SLOTS:
         QVERIFY(pg.page(1).start.hard);
     }
 
+    // A page break that is hidden text (what a tracked change deleted) is no break: it ends no page, and a paragraph that begins with it keeps its space before.
+    void aHiddenPageBreakBreaksNothing()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        QTextCursor c(fd.story());
+        QTextCharFormat run, hidden;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        hidden = run;
+        hidden.setProperty(tp::HiddenText, true);
+        c.insertText(QStringLiteral("one"), run);
+        c.insertText(QString(flow::kPageBreak), hidden);
+        QTextBlockFormat second;
+        second.setTopMargin(20);
+        c.insertBlock(second);
+        c.insertText(QString(flow::kPageBreak), hidden);
+        c.insertText(QStringLiteral("two"), run);
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 1);
+        const auto lines = pg.lines(0);
+        QCOMPARE(lines.size(), 2);
+        QVERIFY2(std::abs((lines[1].rect.top() - lines[0].rect.bottom()) - 20) < 0.01, qPrintable(QString::number(lines[1].rect.top() - lines[0].rect.bottom())));
+        // (A break that shows still ends the page.)
+        FlowDocument shown;
+        shown.env.wordLines = true;
+        QTextCursor sc(shown.story());
+        sc.insertText(QStringLiteral("one"), run);
+        sc.insertText(QString(flow::kPageBreak), run);
+        sc.insertBlock();
+        sc.insertText(QStringLiteral("two"), run);
+        Paginator sp(&shown);
+        QCOMPARE(sp.pageCount(), 2);
+    }
+
     // Two breaks in a row make the page between them; one at the start of a paragraph moves its text to the next page.
     void pageBreakCharactersFollowOneAnotherAndOpenAParagraph()
     {
