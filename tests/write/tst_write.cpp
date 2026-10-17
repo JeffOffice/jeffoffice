@@ -24,6 +24,7 @@
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 #include "../flow/pageaudit.h"
+#include "../office/dochelpers.h"
 #include "../timing.h"
 #include "office/package.h"
 #include "rtcheck.h"
@@ -504,6 +505,159 @@ private Q_SLOTS:
         QCOMPARE(b.document()->story()->toPlainText(), QStringLiteral("Dear reader,\nThis is the letter."));
         QCOMPARE(b.filePath(), a.filePath());
         QVERIFY(!b.isModified());
+    }
+
+    // ---- an old binary file
+
+    void anOldBinaryFileOpensAndShowsItsText()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        dochelp::DocWriter doc;
+        doc.text = QStringLiteral("Dear reader,\rThis is the old letter.\r");
+        doc.chars = {{13, 17, dochelp::sprm1(dochelp::sprm::bold, 1)}};
+        const QString path = dir.filePath(QStringLiteral("letter.doc"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(doc.build());
+        f.close();
+        WriteWindow w;
+        QStringList notices;
+        w.setNotifier([&](const QString &, const QString &text) { notices << text; });
+        QVERIFY(w.openFile(path));
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("Dear reader,\nThis is the old letter."));
+        QVERIFY(!w.isModified());
+        QVERIFY(notices.isEmpty());
+        // The title says it is a .doc until it is saved as something else.
+        QVERIFY2(w.windowTitle().startsWith(QLatin1String("letter.doc")), qPrintable(w.windowTitle()));
+        // (And the layout made pages of it.)
+        QVERIFY(w.document()->pager().pageCount() >= 1);
+    }
+
+    void savingAnOldBinaryFileAsksForADocxName()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        dochelp::DocWriter doc;
+        doc.text = QStringLiteral("Old text\r");
+        const QString path = dir.filePath(QStringLiteral("old.doc"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(doc.build());
+        f.close();
+        WriteWindow w;
+        QStringList notices;
+        QString suggested;
+        w.setNotifier([&](const QString &, const QString &text) { notices << text; });
+        w.setSavePathChooser([&](const QString &name, const QString &) {
+            suggested = name;
+            return dir.filePath(QStringLiteral("new.docx"));
+        });
+        QVERIFY(w.openFile(path));
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("!"));
+        QVERIFY(w.save());
+        // One sentence says why the name is asked for, and the name offered is a .docx beside the old file.
+        QCOMPARE(notices.size(), 1);
+        QVERIFY2(notices[0].contains(QLatin1String(".docx")) && notices[0].contains(QLatin1String(".doc ")), qPrintable(notices[0]));
+        QVERIFY2(suggested.endsWith(QLatin1String("old.docx")), qPrintable(suggested));
+        QVERIFY(w.filePath().endsWith(QLatin1String("new.docx")));
+        QVERIFY(!w.windowTitle().contains(QLatin1String(".doc")));
+        // The old file is as it was, and the new one opens with the edit.
+        QFile again(path);
+        QVERIFY(again.open(QIODevice::ReadOnly));
+        QCOMPARE(again.readAll(), doc.build());
+        WriteWindow b;
+        QVERIFY(b.openFile(w.filePath()));
+        QCOMPARE(b.document()->story()->toPlainText().left(9), QStringLiteral("!Old text"));
+    }
+
+    void whatAnOldFileHoldsThatCannotBeShownIsSaid()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        dochelp::DocWriter doc;
+        doc.text = QStringLiteral("a\x01""b\r");
+        doc.chars = {{1, 2, dochelp::sprm1(dochelp::sprm::special, 1) + dochelp::sprm4(dochelp::sprm::picture, 9000)}};   // (a picture the file doesn't hold)
+        const QString path = dir.filePath(QStringLiteral("odd.doc"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(doc.build());
+        f.close();
+        WriteWindow w;
+        QStringList notices;
+        w.setNotifier([&](const QString &, const QString &text) { notices << text; });
+        QVERIFY(w.openFile(path));
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("ab"));
+        QCOMPARE(notices.size(), 1);
+        QVERIFY2(notices[0].contains(QLatin1String("left out")), qPrintable(notices[0]));
+        QVERIFY(w.document()->leftSomethingOut());
+    }
+
+    void trackedChangesOfAnOldFileComeInWithTheirAuthorsAndDates()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        dochelp::DocWriter doc;
+        // "keep ", then "added" inserted by Ann, " and ", then "dropped" deleted by Bob, then " end."
+        doc.text = QStringLiteral("keep added and dropped end.\r");
+        doc.revisionAuthors = {QStringLiteral("Ann"), QStringLiteral("Bob")};
+        using namespace dochelp;
+        doc.chars = {{5, 10, sprm1(sprm::inserted, 0x81) + sprm2(sprm::insertedBy, 0) + sprm4(sprm::insertedAt, dttm(2003, 4, 7, 9, 30))},
+                     {15, 22, sprm1(sprm::deleted, 0x81) + sprm2(sprm::deletedBy, 1) + sprm4(sprm::deletedAt, dttm(2004, 11, 23, 16, 5))}};
+        const QString path = dir.filePath(QStringLiteral("tracked.doc"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(doc.build());
+        f.close();
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(path));
+        // The inserted words are in the text, and the deleted ones are not shown in it (the marks of the changes are objects in it, not text).
+        QString shown = w.document()->story()->toPlainText();
+        shown.remove(QChar(0xFFFC));
+        QVERIFY2(shown.contains(QLatin1String("keep added and")), qPrintable(shown));
+        QVERIFY2(!shown.contains(QLatin1String("dropped")), qPrintable(shown));
+        // Written out, each is still a tracked change, with its author and its date.
+        const QByteArray x = documentXml(w.document()->toDocx());
+        const qsizetype ins = x.indexOf("<w:ins ");
+        const qsizetype del = x.indexOf("<w:del ");
+        QVERIFY2(ins >= 0 && del > ins, x.constData());
+        const QByteArray insTag = x.mid(ins, x.indexOf('>', ins) - ins), delTag = x.mid(del, x.indexOf('>', del) - del);
+        QVERIFY2(insTag.contains("w:author=\"Ann\"") && insTag.contains("w:date=\"2003-04-07T09:30:00Z\""), insTag.constData());
+        QVERIFY2(delTag.contains("w:author=\"Bob\"") && delTag.contains("w:date=\"2004-11-23T16:05:00Z\""), delTag.constData());
+        QVERIFY(x.mid(ins, del - ins).contains("<w:t xml:space=\"preserve\">added</w:t>"));
+        QVERIFY(x.mid(del, x.indexOf("</w:del>", del) - del).contains("<w:delText xml:space=\"preserve\">dropped</w:delText>"));
+    }
+
+    void anOldTemplateOpensAsANewDocumentMadeFromIt()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        dochelp::DocWriter doc;
+        doc.text = QStringLiteral("Dear <name>,\r");
+        const QString path = dir.filePath(QStringLiteral("letter.dot"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(doc.build());
+        f.close();
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(path));
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("Dear <name>,"));
+        QVERIFY(w.filePath().isEmpty());   // (it is not the template that is changed and saved)
+        QVERIFY(w.isModified());
+    }
+
+    void aFileThatIsNotADocumentSaysSoAndOpensNothing()
+    {
+        QString why;
+        QVERIFY(!WriteDoc::fromFile(QByteArray("plain bytes, no container"), &why));
+        QVERIFY(!why.isEmpty());
+        // Both kinds are told apart by what is in the file, not its name.
+        dochelp::DocWriter old;
+        old.text = QStringLiteral("old kind\r");
+        QVERIFY(WriteDoc::fromFile(old.build()));
+        QVERIFY(WriteDoc::fromFile(WriteDoc::blank()->toDocx()));
     }
 
     void unsavedWorkIsKeptAndComesBack()
