@@ -43,7 +43,7 @@ This version of JeffWrite is a **Preview**. It is ready to try on real work, but
 
 **What does not work yet**
 
-- Headers, footers, and page numbers are not shown. If a file has them, JeffWrite keeps them.
+- Headers, footers, and page numbers show on the pages, with the page numbers worked out. You can't edit them yet. JeffWrite keeps them as the file has them.
 - Footnotes and endnotes show their numbers, but not their text. JeffWrite keeps them.
 - Tables are not shown or edited. A gray line stands in for each one, and JeffWrite keeps the table.
 - Pictures, shapes, and text boxes are not shown. JeffWrite keeps them. A picture that sits in a line of text shows as **[picture]**.

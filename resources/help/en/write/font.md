@@ -33,6 +33,10 @@ The **Preview** at the bottom shows how the letters will look.
 
 Some effects cannot go together: both kinds of strikethrough, superscript with subscript, and small caps with all caps. Choosing one clears the other.
 
+## When the selected text is not all alike
+
+Select text that has more than one font, style, size, or color. The box for that is then blank, because there is no one answer. If you leave it blank, each letter keeps what it had. Choose a value in it to give that value to all of the selected text.
+
 ## A box that is half filled
 
 Select text that is partly bold, or partly struck through, or has some other mix. The box for that effect then shows a filled square. It means that some of the text has the effect and some does not.

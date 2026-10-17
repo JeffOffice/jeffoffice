@@ -1,5 +1,6 @@
 #include "app/writedialogs.h"
 
+#include "app/icons.h"
 #include "app/pageview.h"
 #include "app/widgets.h"
 #include "core/editops.h"
@@ -19,11 +20,13 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QPainter>
 #include <QRadioButton>
 #include <QSpinBox>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextFragment>
+#include <QVariant>
 #include <QVBoxLayout>
 #include <initializer_list>
 #include <iterator>
@@ -32,22 +35,71 @@ namespace jp::write {
 
 namespace {
 
-// The look of the first characters of the selection (of the text typed next, with none selected).
-QTextCharFormat firstFormat(const QTextCursor &c)
+// The looks of the characters selected, one for each run of them that looks alike, without the pieces kept as XML (a bookmark, a field's code, a note's mark);
+// the look of the text typed next, with none selected. The first is that of the first characters.
+QVector<QTextCharFormat> selectedFormats(const QTextCursor &c)
 {
+    QVector<QTextCharFormat> out;
     if (c.hasSelection()) {
         const int from = c.selectionStart(), to = c.selectionEnd();
         for (QTextBlock b = c.document()->findBlock(from); b.isValid() && b.position() < to; b = b.next())
             for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
                 const QTextFragment f = it.fragment();
                 if (f.position() + f.length() <= from || f.position() >= to || isAtom(f.charFormat())) continue;
-                return f.charFormat();
+                out.push_back(f.charFormat());
             }
     }
-    QTextCharFormat cf = c.charFormat();
-    if (isAtom(cf) || cf.fontPointSize() <= 0) cf = markFormat(c.block());
-    return cf;
+    if (out.isEmpty()) {
+        QTextCharFormat cf = c.charFormat();
+        if (isAtom(cf) || cf.fontPointSize() <= 0) cf = markFormat(c.block());
+        out.push_back(cf);
+    }
+    return out;
 }
+
+// Whether `key` says the same of all the formats (of those it gives a value for: an invalid one is for a format it does not apply to).
+bool agree(const QVector<QTextCharFormat> &formats, const std::function<QVariant(const QTextCharFormat &)> &key)
+{
+    QVariant first;
+    for (const QTextCharFormat &f : formats) {
+        const QVariant k = key(f);
+        if (!k.isValid()) continue;
+        if (!first.isValid()) first = k;
+        else if (k != first) return false;
+    }
+    return true;
+}
+
+// A color box that can say that the colors of the selection differ: it is drawn with nothing in it until a color is chosen.
+class MixedColorButton : public ColorButton {
+public:
+    using ColorButton::ColorButton;
+    bool mixed() const { return m_mixed; }
+    void setMixed(bool on)
+    {
+        m_mixed = on;
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent *e) override
+    {
+        if (!m_mixed) return ColorButton::paintEvent(e);
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing);
+        const bool dk = uiDark();
+        const QRectF r = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
+        p.setPen(QPen(underMouse() || isDown() || hasFocus() ? uiAccent() : (dk ? QColor(0x4A, 0x52, 0x5E) : QColor(0xC9, 0xCD, 0xD4)), 1));
+        p.setBrush(dk ? QColor(0x2B, 0x30, 0x38) : QColor(Qt::white));
+        p.drawRoundedRect(r, 6, 6);
+        const QPointF c(r.right() - 14, r.center().y());
+        p.setPen(QPen(uiText(), 1.4, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        p.drawPolyline(QPolygonF({c + QPointF(-4, -2), c + QPointF(0, 2), c + QPointF(4, -2)}));
+    }
+
+private:
+    bool m_mixed = false;
+};
 
 // Each choice of underline: Qt's line style and the tp::UnderlineKind flags beside it (as the file's reading and writing map them).
 struct UnderlineChoice {
@@ -82,7 +134,8 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
 {
     if (!doc || !cursor) return;
     QTextCursor &c = *cursor;
-    const QTextCharFormat first = firstFormat(c);
+    const QVector<QTextCharFormat> formats = selectedFormats(c);
+    const QTextCharFormat first = formats.first();
     const FontScheme &fonts = doc->flow().env.fonts;
     const ColorScheme &colors = doc->flow().env.colors;
     QDialog dlg(parent);
@@ -92,56 +145,90 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     auto *grid = new QGridLayout;
     v->addLayout(grid);
 
-    // Font, style, and size.
+    // Font, style, and size. Where the characters selected differ, a box shows nothing (and an unchanged box leaves each of them as it is); what the person sets
+    // then goes to all of them.
+    auto familyOf = [&](const QTextCharFormat &f) {
+        return f.hasProperty(QTextFormat::FontFamilies) && !f.fontFamilies().toStringList().isEmpty() ? f.fontFamilies().toStringList().first()
+               : f.stringProperty(tp::ThemeFont) == QLatin1String("major") ? fonts.heading
+                                                                           : fonts.body;
+    };
+    auto styleOf = [](const QTextCharFormat &f) { return (f.fontWeight() >= QFont::DemiBold ? 2 : 0) + (f.fontItalic() ? 1 : 0); };
+    auto sizeOf = [](const QTextCharFormat &f) { return f.fontPointSize() > 0 ? f.fontPointSize() : 11.0; };
+    auto colorOf = [](const QTextCharFormat &f) { return f.hasProperty(QTextFormat::ForegroundBrush) && f.foreground().style() != Qt::NoBrush ? ColorRef::rgb(f.foreground().color()) : ColorRef::none(); };
+    auto underlineOf = [](const QTextCharFormat &f) {
+        int pick = -1;
+        for (int i = 0; i < int(std::size(kUnderlines)) && pick < 0; ++i)
+            if (kUnderlines[i].style == f.underlineStyle() && kUnderlines[i].kind == f.intProperty(tp::UnderlineKind)) pick = i;
+        for (int i = 0; i < int(std::size(kUnderlines)) && pick < 0; ++i)
+            if (kUnderlines[i].style == f.underlineStyle()) pick = i;
+        return std::max(0, pick);
+    };
+    const bool familyMixed = !agree(formats, [&](const QTextCharFormat &f) { return QVariant(familyOf(f)); });
+    const bool styleMixed = !agree(formats, [&](const QTextCharFormat &f) { return QVariant(styleOf(f)); });
+    const bool sizeMixed = !agree(formats, [&](const QTextCharFormat &f) { return QVariant(qRound(sizeOf(f) * 1000)); });
+    const bool colorMixed = !agree(formats, [&](const QTextCharFormat &f) { return QVariant(colorOf(f).toString()); });
+    const bool underlineMixed = !agree(formats, [&](const QTextCharFormat &f) { return QVariant(underlineOf(f)); });
+    // (The colors of the lines are of the characters that have a line.)
+    auto lineColorOf = [](const QTextCharFormat &f) { return f.hasProperty(QTextFormat::TextUnderlineColor) ? ColorRef::rgb(f.underlineColor()) : ColorRef::none(); };
+    const bool underlineColorMixed = !agree(formats, [&](const QTextCharFormat &f) { return f.underlineStyle() == QTextCharFormat::NoUnderline ? QVariant() : QVariant(lineColorOf(f).toString()); });
+
     auto *font = new FontCombo(&dlg);
     font->setObjectName(QStringLiteral("fontName"));
     font->setSchemeFonts(fonts.heading, fonts.body);
-    const QString family = first.hasProperty(QTextFormat::FontFamilies) && !first.fontFamilies().toStringList().isEmpty() ? first.fontFamilies().toStringList().first()
-                           : first.stringProperty(tp::ThemeFont) == QLatin1String("major") ? fonts.heading
-                                                                                           : fonts.body;
-    font->setCurrentFamily(family);
+    const QString family = familyOf(first);
+    font->setCurrentFamily(familyMixed ? QString() : family);
     const QString familyShown = font->currentText();
     QString chosenFamily;
     auto *style = new QComboBox(&dlg);
     style->setObjectName(QStringLiteral("fontStyle"));
     style->addItems({QCoreApplication::translate("jp::write::Dialogs", "Regular"), QCoreApplication::translate("jp::write::Dialogs", "Italic"), QCoreApplication::translate("jp::write::Dialogs", "Bold"),
                      QCoreApplication::translate("jp::write::Dialogs", "Bold Italic")});
-    const int style0 = (first.fontWeight() >= QFont::DemiBold ? 2 : 0) + (first.fontItalic() ? 1 : 0);
+    const int styleFirst = styleOf(first), style0 = styleMixed ? -1 : styleFirst;
     style->setCurrentIndex(style0);
     auto *size = new DecimalSpin(&dlg);
     size->setObjectName(QStringLiteral("fontSize"));
-    size->setRange(1, 1638);
-    const double size0 = first.fontPointSize() > 0 ? first.fontPointSize() : 11;
+    const double sizeFirst = sizeOf(first), size0 = sizeMixed ? 0 : sizeFirst;
+    if (sizeMixed) {
+        // (The least value is shown as nothing: a size that has not been set.)
+        size->setRange(0, 1638);
+        size->setSpecialValueText(QStringLiteral(" "));
+    } else {
+        size->setRange(1, 1638);
+    }
     size->setValue(size0);
 
     // Color, and the underline's style and color.
-    auto *color = new ColorButton(QStringLiteral("square"), QString(), true, QCoreApplication::translate("jp::write::Dialogs", "Automatic"), &dlg);
+    auto *color = new MixedColorButton(QStringLiteral("square"), QString(), true, QCoreApplication::translate("jp::write::Dialogs", "Automatic"), &dlg);
     color->setObjectName(QStringLiteral("fontColor"));
     color->setScheme(colors);
     color->setPopupMode(QToolButton::InstantPopup);
     color->setWell(true);
-    const ColorRef color0 = first.hasProperty(QTextFormat::ForegroundBrush) && first.foreground().style() != Qt::NoBrush ? ColorRef::rgb(first.foreground().color()) : ColorRef::none();
+    const ColorRef color0 = colorMixed ? ColorRef::none() : colorOf(first);
     color->setCurrent(color0);
+    color->setMixed(colorMixed);
+    QObject::connect(color, &ColorButton::colorPicked, color, [color] { color->setMixed(false); });
     auto *underline = new QComboBox(&dlg);
     underline->setObjectName(QStringLiteral("underlineStyle"));
     for (const UnderlineChoice &u : kUnderlines) underline->addItem(QCoreApplication::translate("jp::write::Dialogs", u.name));
-    // The text's own choice; else the first with its line style.
-    int underline0 = -1;
-    for (int i = 0; i < int(std::size(kUnderlines)) && underline0 < 0; ++i)
-        if (kUnderlines[i].style == first.underlineStyle() && kUnderlines[i].kind == first.intProperty(tp::UnderlineKind)) underline0 = i;
-    for (int i = 0; i < int(std::size(kUnderlines)) && underline0 < 0; ++i)
-        if (kUnderlines[i].style == first.underlineStyle()) underline0 = i;
-    underline0 = std::max(0, underline0);
+    const int underlineFirst = underlineOf(first), underline0 = underlineMixed ? -1 : underlineFirst;
     underline->setCurrentIndex(underline0);
-    auto *underlineColor = new ColorButton(QStringLiteral("square"), QString(), true, QCoreApplication::translate("jp::write::Dialogs", "Automatic"), &dlg);
+    auto *underlineColor = new MixedColorButton(QStringLiteral("square"), QString(), true, QCoreApplication::translate("jp::write::Dialogs", "Automatic"), &dlg);
     underlineColor->setObjectName(QStringLiteral("underlineColor"));
     underlineColor->setScheme(colors);
     underlineColor->setPopupMode(QToolButton::InstantPopup);
     underlineColor->setWell(true);
-    const ColorRef underlineColor0 = underline0 > 0 && first.hasProperty(QTextFormat::TextUnderlineColor) ? ColorRef::rgb(first.underlineColor()) : ColorRef::none();
+    ColorRef underlineColor0;
+    if (!underlineColorMixed)
+        for (const QTextCharFormat &f : formats)
+            if (f.underlineStyle() != QTextCharFormat::NoUnderline) {
+                underlineColor0 = lineColorOf(f);
+                break;
+            }
     underlineColor->setCurrent(underlineColor0);
-    underlineColor->setEnabled(underline0 > 0);
-    QObject::connect(underline, &QComboBox::currentIndexChanged, &dlg, [underlineColor](int i) { underlineColor->setEnabled(i > 0); });
+    underlineColor->setMixed(underlineColorMixed);
+    QObject::connect(underlineColor, &ColorButton::colorPicked, underlineColor, [underlineColor] { underlineColor->setMixed(false); });
+    underlineColor->setEnabled(underline0 != 0);
+    QObject::connect(underline, &QComboBox::currentIndexChanged, &dlg, [underlineColor](int i) { underlineColor->setEnabled(i != 0); });
 
     auto place = [&](const QString &text, QWidget *box, int row, int column) {
         auto *label = new QLabel(text, &dlg);
@@ -164,7 +251,13 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
         Effect e;
         e.box = new QCheckBox(text, effects);
         e.box->setObjectName(QString::fromLatin1(name));
-        e.was = allSelected(c, has) ? Qt::Checked : allSelected(c, [&has](const QTextCharFormat &f) { return !has(f); }) ? Qt::Unchecked : Qt::PartiallyChecked;
+        bool all = true, none = true;
+        for (const QTextCharFormat &f : formats) {
+            const bool is = has(f);
+            all = all && is;
+            none = none && !is;
+        }
+        e.was = all ? Qt::Checked : none ? Qt::Unchecked : Qt::PartiallyChecked;
         e.box->setTristate(e.was == Qt::PartiallyChecked);
         e.box->setCheckState(e.was);
         eg->addWidget(e.box, slot % 4, slot / 4);
@@ -205,15 +298,17 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
         if (f == QLatin1String("+Heading")) f = fonts.heading;
         else if (f == QLatin1String("+Body")) f = fonts.body;
         QFont pf(f);
-        pf.setPointSizeF(std::min(size->value(), 28.0));
-        pf.setBold(style->currentIndex() >= 2);
-        pf.setItalic(style->currentIndex() % 2);
-        pf.setUnderline(underline->currentIndex() > 0);
+        pf.setPointSizeF(std::min(size->value() > 0 ? size->value() : sizeFirst, 28.0));
+        const int st = style->currentIndex() >= 0 ? style->currentIndex() : styleFirst;
+        pf.setBold(st >= 2);
+        pf.setItalic(st % 2);
+        pf.setUnderline((underline->currentIndex() >= 0 ? underline->currentIndex() : underlineFirst) > 0);
         pf.setStrikeOut(strike.box->isChecked() || doubleStrike.box->isChecked());
         pf.setCapitalization(smallCaps.box->isChecked() ? QFont::SmallCaps : allCaps.box->isChecked() ? QFont::AllUppercase : QFont::MixedCase);
         preview->setFont(pf);
         QPalette pal = dlg.palette();
-        if (!color->current().isNone()) pal.setColor(QPalette::WindowText, color->current().resolve(colors));
+        const ColorRef shown = color->mixed() ? colorOf(first) : color->current();
+        if (!shown.isNone()) pal.setColor(QPalette::WindowText, shown.resolve(colors));
         preview->setPalette(pal);
     };
     QObject::connect(font, &FontCombo::familyChosen, &dlg, [&](const QString &f) {
@@ -243,12 +338,12 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     if (chosen.contains(QLatin1String(" (Headings)"))) chosen = QStringLiteral("+Heading");
     else if (chosen.contains(QLatin1String(" (Body)"))) chosen = QStringLiteral("+Body");
     size->interpretText();
-    const bool familyChanged = !chosen.isEmpty() && (chosen.startsWith(QLatin1Char('+')) || chosen != family);
+    const bool familyChanged = !chosen.isEmpty() && (familyMixed || chosen.startsWith(QLatin1Char('+')) || chosen != family);
     const bool styleChanged = style->currentIndex() != style0;
-    const bool sizeChanged = std::abs(size->value() - size0) > 0.0001;
-    const bool colorChanged = color->current() != color0;
+    const bool sizeChanged = sizeMixed ? size->value() > 0 : std::abs(size->value() - size0) > 0.0001;
+    const bool colorChanged = colorMixed ? (!color->mixed() || !color->current().isNone()) : color->current() != color0;
     const bool underlineChanged = underline->currentIndex() != underline0;
-    const bool underlineColorChanged = underline->currentIndex() > 0 && underlineColor->current() != underlineColor0;
+    const bool underlineColorChanged = underlineColorMixed ? (!underlineColor->mixed() || !underlineColor->current().isNone()) : underlineColor->current() != underlineColor0;
     const int strikeChange = strike.change(), doubleChange = doubleStrike.change(), upChange = superscript.change(), downChange = subscript.change();
     const int smallChange = smallCaps.change(), allChange = allCaps.change(), hiddenChange = hidden.change();
     c.beginEditBlock();   // (one step for all of it)
@@ -260,7 +355,7 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
             f.setFontWeight(style->currentIndex() >= 2 ? QFont::Bold : QFont::Normal);
             f.setFontItalic(style->currentIndex() % 2);
         }
-        if (underlineChanged) {
+        if (underlineChanged && underline->currentIndex() >= 0) {
             const UnderlineChoice &u = kUnderlines[underline->currentIndex()];
             f.setUnderlineStyle(u.style);
             f.clearProperty(QTextFormat::FontUnderline);
@@ -269,7 +364,7 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
             f.clearProperty(prop::UnderlineAttrs);
             if (u.style == QTextCharFormat::NoUnderline) f.clearProperty(QTextFormat::TextUnderlineColor);
         }
-        if (underlineColorChanged) {
+        if (underlineColorChanged && f.underlineStyle() != QTextCharFormat::NoUnderline) {   // (a color is for a line there is)
             f.clearProperty(prop::UnderlineAttrs);
             if (underlineColor->current().isNone()) f.clearProperty(QTextFormat::TextUnderlineColor);
             else f.setUnderlineColor(underlineColor->current().resolve(colors));

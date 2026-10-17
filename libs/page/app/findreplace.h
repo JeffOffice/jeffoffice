@@ -37,7 +37,8 @@ struct FindScope {
 
 // How a search reaches the words of a story, for a document that is not a Document of placed objects (JeffWrite's is one long story): the
 // words of a story (null for none), whether a match is to be passed over (words that are not shown), and how a match gets its replacement
-// (it leaves the cursor after the new words; empty: QTextCursor::insertText, which gives them the look of the match's last character).
+// (empty: QTextCursor::insertText, which gives them the look of the match's last character). Replacing finds every match in the words as
+// they are, then puts the new words in from the last match to the first, so that `put` is given the matches in that order, each selected.
 struct FindWords {
     std::function<QTextDocument *(const FindStory &)> story;
     std::function<bool(const QTextCursor &match)> skip;
