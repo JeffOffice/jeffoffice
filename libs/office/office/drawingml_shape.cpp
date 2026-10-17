@@ -632,6 +632,9 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
         // (Not an open shape's name: the library draws no fill in one, and an arc has a filled sector.)
         const ShapeDef *def = shapeDef(libraryShape);
         if (def && !def->open) base.shape = libraryShape;
+        // The arc-based presets keep their adjustments, the ones presetAdjustments writes back.
+        const bool arcBased = !custom && (prst == QLatin1String("arc") || prst == QLatin1String("chord") || prst == QLatin1String("pie") || prst == QLatin1String("blockArc"));
+        if (arcBased) base.adj = libraryAdjustments(prst, adjust, size);
         if (!geometry.textRect.isNull()) {
             const QRectF tr = geometry.textRect;
             base.insets = QMarginsF(std::max(0.0, base.insets.left() + tr.left()), std::max(0.0, base.insets.top() + tr.top()),
@@ -671,6 +674,11 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
             s->fill = shaded(base.fill, faceFill[i]);
             if (!faceStroke[i]) s->stroke = Stroke();
             if (i > 0) s->fx = Effects();
+            // An arc's curve is named for it (and a sector alone too); its sector is not, and keeps no adjustments.
+            if (prst == QLatin1String("arc")) {
+                if (faceStroke[i] || faces.size() == 1) s->shape = libraryShape;
+                else s->adj.clear();
+            }
             parts.push_back(s);
         }
     }
