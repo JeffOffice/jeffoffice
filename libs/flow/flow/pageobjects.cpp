@@ -191,7 +191,7 @@ QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, cons
         const FloatingObject &o = w.frame ? *w.frame : m_doc->objects[w.object - 1];
         // A text box that does not reach into the column's text pushes none of it (by more than a hair: boxes are set edge to edge).
         if (o.item->type() == ItemType::Text && !w.rect.adjusted(0.55, 0.55, -0.55, -0.55).intersects(column)) continue;
-        QRectF b = w.rect.adjusted(-o.gap.left(), -o.gap.top(), o.gap.right(), o.gap.bottom());
+        QRectF b = w.rect.adjusted(-o.gap.left(), -o.gap.top(), o.gap.right(), o.gap.bottom() + w.below);
         if (!b.intersects(column)) continue;
         if (o.wrap == FloatingObject::Wrap::TopBottom) {
             b.setLeft(-1e5);
@@ -282,7 +282,7 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
             item->wrap.mode = Wrap::None;
             if (wall) {
                 const Wrap::Side side = o.side == FloatingObject::Side::Left ? Wrap::LeftOnly : o.side == FloatingObject::Side::Right ? Wrap::RightOnly : o.side == FloatingObject::Side::Largest ? Wrap::Largest : Wrap::Both;
-                QRectF room = wall->rect.adjusted(-o.gap.left(), -o.gap.top(), o.gap.right(), o.gap.bottom());
+                QRectF room = wall->rect.adjusted(-o.gap.left(), -o.gap.top(), o.gap.right(), o.gap.bottom() + wall->below);
                 if (o.wrap == FloatingObject::Wrap::TopBottom) {
                     // No text beside it: the room round it reaches across the columns it is in (a square wall that wide, for the page layer's wall of this kind is as wide as the page),
                     // to the columns' edges and no further (a wall that reached 0.5 point into a column that the room touches only, as the paginator's does not, would make its

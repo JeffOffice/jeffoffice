@@ -222,8 +222,9 @@ private:
         QRectF rect;
         int paragraph = -1;   // the position of the paragraph its anchor is in (not a part of what makes two walls the same)
         std::shared_ptr<const FloatingObject> frame;   // (a frame's object: the paginator's cache of them may let it go while the page is laid out, so the page holds it)
+        double below = 0;     // room kept clear under it that is not the object's: the space before of the paragraph that goes below a table as wide as the column
         bool operator==(const Wrapped &o) const {
-            return object == o.object && at == o.at && std::abs(rect.left() - o.rect.left()) < 0.01 && std::abs(rect.top() - o.rect.top()) < 0.01 && std::abs(rect.width() - o.rect.width()) < 0.01 && std::abs(rect.height() - o.rect.height()) < 0.01;
+            return object == o.object && at == o.at && std::abs(below - o.below) < 0.01 && std::abs(rect.left() - o.rect.left()) < 0.01 && std::abs(rect.top() - o.rect.top()) < 0.01 && std::abs(rect.width() - o.rect.width()) < 0.01 && std::abs(rect.height() - o.rect.height()) < 0.01;
         }
     };
     // The page: laid out with the objects its lines anchor and the text goes round, until the objects and the lines agree about where each is (a few times at most: where

@@ -1442,7 +1442,11 @@ QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, con
                 turned->rect = r;
                 r = turned->bounds();
             }
-            out << Wrapped{id, a.pos, r, a.paragraph, a.frame};
+            // A table that leaves no room beside it: the paragraph it is set from goes below it, and has its space before there.
+            double below = 0;
+            if (a.table >= 0 && a.paragraph >= 0 && r.left() - o.gap.left() <= a.columnLeft + 0.5 && r.right() + o.gap.right() >= a.columnLeft + sec.columnWidth() - 0.5)
+                below = std::max(0.0, story->findBlock(a.paragraph).blockFormat().topMargin());
+            out << Wrapped{id, a.pos, r, a.paragraph, a.frame, below};
             if (out.size() >= kMostWrapped) return out;
         }
     return out;

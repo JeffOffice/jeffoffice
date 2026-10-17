@@ -9695,6 +9695,40 @@ private Q_SLOTS:
         }
     }
 
+    // A paragraph that goes below a table set at a place (the table is as wide as the column, so there is no room beside it) has the table's room, and its space before under it:
+    // the paragraph's first line is the space before below the table's foot, as it is below the paragraph before it.
+    void aParagraphBelowAFloatingTableKeepsItsSpaceBefore()
+    {
+        auto fd = std::make_unique<FlowDocument>();
+        fd->env.wordLines = true;
+        fillStory(fd->story(), 4, 17, [](int n, QTextBlockFormat &bf) { if (n == 1) bf.setTopMargin(20); }, 3, 6);
+        TestTable spec;
+        spec.rows = 2;
+        spec.cols = 2;
+        spec.columnWidth = 234;   // (the text area is 468 wide)
+        spec.setTable = [](TableData &t) { TableData::Place p; p.across = TableData::Place::From::Margin; p.y = 0; t.place = p; };
+        addTableAfter(*fd, 0, spec);
+        Paginator pg(fd.get());
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        QRectF table;
+        for (const auto &t : page->tables)
+            if (t->floating) table = t->rect();
+        QVERIFY(!table.isNull());
+        int paragraph = -1;
+        for (QTextBlock b = fd->story()->begin(); b.isValid(); b = b.next())
+            if (b.blockFormat().topMargin() == 20) paragraph = b.position();
+        double top = -1;
+        for (const auto &l : pg.lines(0))
+            if (l.line == 0 && l.block == paragraph) top = pg.page(0).content.top() + l.rect.top();
+        QVERIFY(top > 0);
+        QVERIFY2(std::abs(top - (table.bottom() + 20)) < 0.01, qPrintable(QStringLiteral("the paragraph's first line is at %1, the table ends at %2").arg(top).arg(table.bottom())));
+        // (The page layer, which sets the text again from the walls the page has, keeps that room under the table too.)
+        const auto walls = audit::wallsOf(*page);
+        QVERIFY(!walls.isEmpty());
+        QVERIFY2(std::abs(walls.first().rect.bottom() - (table.bottom() + 20)) < 0.01, qPrintable(audit::rectText(walls.first().rect)));
+    }
+
     // An object set from its paragraph (down from the paragraph's top) is set from the paragraph's top above the space before it, as a table is: the room the paragraph leaves above
     // its first line is not in the offset.
     void anObjectSetFromAParagraphIsSetAboveTheSpaceBeforeIt()
