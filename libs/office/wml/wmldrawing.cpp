@@ -197,7 +197,10 @@ public:
         // Fill and line: a shape is filled unless it says not, and has a line unless it says not (a picture has neither).
         const bool picture = t.child(n, "imagedata", otherNs(n, "imagedata")) >= 0;
         s.kind = kind == "line" ? Shape::Line : kind == "oval" ? Shape::Oval : Shape::Rect;
-        s.filled = !offOf(t.attr(n, "filled")) && !picture;
+        s.shapeType = shapeTypeOf(n);
+        // (A shape type that is a line, an arc, a bracket, or a brace is not filled unless the shape says so.)
+        const bool openType = s.shapeType == 19 || s.shapeType == 20 || s.shapeType == 32 || (s.shapeType >= 85 && s.shapeType <= 88);
+        s.filled = (t.has(n, "filled") ? !offOf(t.attr(n, "filled")) : !openType) && !picture;
         s.stroked = !offOf(t.attr(n, "stroked")) && !picture;
         s.fillColor = colorOf(t.attr(n, "fillcolor"));
         if (s.fillColor.isEmpty() && s.filled) s.fillColor = QStringLiteral("FFFFFF");
@@ -205,7 +208,6 @@ public:
         if (s.strokeColor.isEmpty()) s.strokeColor = QStringLiteral("000000");
         s.strokeWeight = std::clamp(lengthOf(t.attr(n, "strokeweight"), 0.75), 0.0, 100.0);
         s.alt = t.attr(n, "alt");
-        s.shapeType = shapeTypeOf(n);
         // A horizontal rule is as wide as its share of the text (tenths of a percent), none that it gives and no width of its own being all of it.
         if (const QString hr = t.attrAny(n, "hr"); hr == QLatin1String("t") || hr == QLatin1String("true") || hr == QLatin1String("1")) {
             s.rule = true;
@@ -213,6 +215,7 @@ public:
             const double share = pct.toDouble() / 10;
             s.rulePercent = share > 0 ? std::clamp(share, 0.0, 100.0) : (pct.isEmpty() && s.width <= 0 ? 100.0 : 0.0);
             s.hAlign = alignOf(t.attrAny(n, "hralign"));
+            if (t.attr(n, "fillcolor").isEmpty()) s.fillColor = QStringLiteral("A0A0A0");   // (a rule that gives no color is gray)
         }
         if (kind == "line") {
             auto point = [&](const QString &v, double *x, double *y) {
