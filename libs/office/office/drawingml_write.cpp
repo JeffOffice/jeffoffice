@@ -734,6 +734,50 @@ void writeTextArt(QXmlStreamWriter &w, const TextArtItem &a, DrawingWriteContext
     w.writeEndElement();
 }
 
+// The arc-based presets, as the shape's own preset with its adjustments, and the geometry that gives. Empty for any other shape.
+Geometry presetOf(const ShapeItem &s, QVector<QPair<QString, double>> *adjustments)
+{
+    static const QStringList arcBased = {QStringLiteral("arc"), QStringLiteral("chord"), QStringLiteral("pie"), QStringLiteral("blockArc")};
+    if (!arcBased.contains(s.shape)) return Geometry();
+    *adjustments = presetAdjustments(s.shape, s.adj, s.rect.size());
+    QHash<QString, double> given;
+    for (const auto &a : *adjustments) given.insert(a.first, a.second);
+    return presetGeometry(s.shape, given, s.rect.size());
+}
+
+// Whether two paths are the same, point for point, to a hundredth of a point.
+bool samePath(const QPainterPath &a, const QPainterPath &b)
+{
+    if (a.elementCount() != b.elementCount()) return false;
+    for (int i = 0; i < a.elementCount(); ++i) {
+        const QPainterPath::Element x = a.elementAt(i), y = b.elementAt(i);
+        if (x.type != y.type || qAbs(x.x - y.x) > 0.01 || qAbs(x.y - y.y) > 0.01) return false;
+    }
+    return true;
+}
+
+// Whether a path is one of the preset's own paths (a shape that was edited or resized is not).
+bool isPresetPath(const Geometry &preset, const QPainterPath &path)
+{
+    for (const GeometryPath &p : preset.paths)
+        if (samePath(p.path, path)) return true;
+    return false;
+}
+
+// The curve of an arc that was read as its sector (first) and its curve: the two make the one preset, and the curve is the one
+// part that says what it is. Null for any other group.
+const ShapeItem *arcCurve(const GroupItem &g)
+{
+    if (g.children.size() != 2 || g.children[0]->type() != ItemType::Shape || g.children[1]->type() != ItemType::Shape) return nullptr;
+    const auto &sector = static_cast<const ShapeItem &>(*g.children[0]);
+    const auto &curve = static_cast<const ShapeItem &>(*g.children[1]);
+    if (curve.shape != QLatin1String("arc") || sector.customPath.isEmpty() || curve.customPath.isEmpty() || sector.rect != curve.rect) return nullptr;
+    QVector<QPair<QString, double>> adjustments;
+    const Geometry preset = presetOf(curve, &adjustments);
+    if (preset.paths.size() != 2 || !samePath(preset.paths[0].path, sector.customPath) || !samePath(preset.paths[1].path, curve.customPath)) return nullptr;
+    return &curve;
+}
+
 void writeForm(QXmlStreamWriter &w, const ShapeItem &s, DrawingWriteContext &ctx)
 {
     const Placeholder ph = placeholderOf(s);
@@ -751,8 +795,13 @@ void writeForm(QXmlStreamWriter &w, const ShapeItem &s, DrawingWriteContext &ctx
     w.writeEndElement();
     begin(w, "p:spPr");
     writeTransform(w, s.rect, s.rotation, s.flipH, s.flipV);
-    if (!s.customPath.isEmpty()) {
+    QVector<QPair<QString, double>> adjustments;
+    const Geometry preset = presetOf(s, &adjustments);
+    if (!s.customPath.isEmpty() && !isPresetPath(preset, s.customPath)) {
         writeFreeform(w, s.customPath, size, QRectF(), false);
+    } else if (!s.customPath.isEmpty()) {
+        // A preset read from a file, whose path is still the preset's own, is written as that preset.
+        writePreset(w, s.shape, adjustments);
     } else {
         const QString prst = presetForShape(s.shape);
         if (!prst.isEmpty()) {
@@ -989,6 +1038,17 @@ void writeGroup(QXmlStreamWriter &w, const GroupItem &g, DrawingWriteContext &ct
 {
     if (g.children.empty()) {
         if (skipped) skipped->append(say("\"%1\": a group with nothing in it was left out.").arg(g.name.isEmpty() ? g.id : g.name));
+        return;
+    }
+    // An arc read from a file is written as the one preset it is: its sector's fill and effects are the arc's.
+    if (const ShapeItem *curve = arcCurve(g)) {
+        const auto &sector = static_cast<const ShapeItem &>(*g.children[0]);
+        ShapeItem arc = *curve;
+        arc.customPath = QPainterPath();
+        arc.fill = sector.fill;
+        arc.fx = sector.fx;
+        arc.storyId = sector.storyId;
+        writeForm(w, arc, ctx);
         return;
     }
     const int id = takeId(ctx, g);
