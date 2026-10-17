@@ -5,6 +5,8 @@
 #include "core/items.h"
 #include "wml/wml.h"
 
+#include <QFont>
+
 namespace jp::write {
 
 // Sets the picture's place in its frame (the whole picture, outside the frame by what the shape cuts), its clear color, and its border from the shape. The
@@ -13,8 +15,11 @@ void dressPicture(PictureItem &pic, const office::wml::Shape &s);
 // The Text Art of a shape that is lettering on a path (its text set to fill its frame, in the shape's colors and shadow), or none for a shape that is not.
 ItemPtr letteringItem(const office::wml::Shape &s);
 // The shape of a horizontal rule set in a line of the width given, with the room beside it that sets it across the line as it is aligned, or none for a shape
-// that is not a rule.
-ItemPtr ruleItem(const office::wml::Shape &s, double textWidth);
+// that is not a rule. A rule that is alone in its paragraph (`alone`) has room above and below it that make its line as tall as a line of text in the font, with the
+// rule in the middle of it.
+ItemPtr ruleItem(const office::wml::Shape &s, double textWidth, const QFont &font, bool alone);
+// Whether a paragraph's contents are drawn objects and spaces only (a paragraph of more than a few hundred pieces is taken to hold more).
+bool holdsOnlyObjects(const QVector<office::wml::Inline> &content);
 // Whether a picture's other form (the target of its r:pict) is one that is not drawn: a compressed picture (.pcz) of the kind the original program keeps for itself
 // shows its picture as missing.
 bool isUndrawnPictureTarget(const QString &target);

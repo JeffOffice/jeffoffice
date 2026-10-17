@@ -4,6 +4,7 @@
 
 #include <QBuffer>
 #include <QColor>
+#include <QFontMetricsF>
 #include <QImage>
 #include <QPainter>
 #include <algorithm>
@@ -94,7 +95,7 @@ ItemPtr letteringItem(const Shape &s)
     return art;
 }
 
-ItemPtr ruleItem(const Shape &s, double textWidth)
+ItemPtr ruleItem(const Shape &s, double textWidth, const QFont &font, bool alone)
 {
     if (!s.rule) return nullptr;
     const double width = s.rulePercent > 0 ? textWidth * s.rulePercent / 100 : s.width;
@@ -109,8 +110,28 @@ ItemPtr ruleItem(const Shape &s, double textWidth)
     const double room = std::max(0.0, textWidth - width - 0.02);
     rule->wrap.left = s.hAlign == Shape::Center ? room / 2 : s.hAlign == Shape::End ? room : 0;
     rule->wrap.right = s.hAlign == Shape::Center ? room / 2 : 0;
+    // (A paragraph of only the rule has a line as tall as one of the text, the rule in the middle of it; a rule among the text takes the line of its own that it
+    // wraps to, as high as it is.)
     rule->wrap.top = rule->wrap.bottom = 0;
+    if (alone) {
+        const QFontMetricsF metrics(font);
+        rule->wrap.top = rule->wrap.bottom = std::max(0.0, (metrics.ascent() + metrics.descent() - s.height) / 2);
+    }
     return rule;
+}
+
+bool holdsOnlyObjects(const QVector<Inline> &content)
+{
+    if (content.size() > 256) return false;
+    for (const Inline &in : content) {
+        if (in.kind == Inline::Text) {
+            for (const QChar ch : in.text)
+                if (!ch.isSpace()) return false;
+        } else if (in.kind == Inline::RunAtom) {
+            if (in.tag != QLatin1String("pict") && in.tag != QLatin1String("drawing") && in.tag != QLatin1String("object") && in.tag != QLatin1String("AlternateContent")) return false;
+        }
+    }
+    return true;
 }
 
 QString presetOf(const Shape &s)

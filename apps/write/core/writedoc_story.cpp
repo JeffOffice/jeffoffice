@@ -7,6 +7,7 @@
 #include "core/tablemodel.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
+#include "text/textengine.h"
 #include "text/textprops.h"
 
 #include <QCoreApplication>
@@ -551,7 +552,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     put(QString(QChar::ObjectReplacementCharacter), mark);
                 } else if (in.kind == Inline::RunAtom && drawnTag(in.tag)) {
                     QTextCharFormat object = formatOf(styleId, in.props);
-                    if (drawnObjects(in, part, &object, tables.cellWidth())) put(QString(QChar::ObjectReplacementCharacter), object);
+                    if (drawnObjects(in, part, &object, tables.cellWidth(), &p.content)) put(QString(QChar::ObjectReplacementCharacter), object);
                 } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("instrText")) {
                     if (!fields.isEmpty() && !fields.last().inResult) fields.last().instruction += textOfXml(in.raw);
                 } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Open) {
@@ -601,7 +602,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     }
                 }
             }
-            if (in.kind == Inline::RunAtom && !deleted && drawnTag(in.tag) && drawnObjects(in, part, &af, tables.cellWidth())) field = QStringLiteral("raw:");
+            if (in.kind == Inline::RunAtom && !deleted && drawnTag(in.tag) && drawnObjects(in, part, &af, tables.cellWidth(), &p.content)) field = QStringLiteral("raw:");
             else if (in.tag == QLatin1String("footnoteReference") && m_noteBlocks.contains(QStringLiteral("fn") + in.key)) {
                 field = QStringLiteral("footnote:fn") + in.key;
                 if (markFollows(in.raw)) af.setProperty(tp::NoteMarkCustom, true);
@@ -647,7 +648,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     c.endEditBlock();
 }
 
-bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFormat *format, double cellWidth)
+bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFormat *format, double cellWidth, const QVector<Inline> *content)
 {
     const QVector<Shape> shapes = readShapes(atom.raw);
     if (shapes.isEmpty()) return false;
@@ -683,7 +684,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
     for (const Shape &s : shapes) {
         // Lettering on a path and a horizontal rule that are not set at a place are set in the line, as a picture is.
         if (!s.floating && !inlinePicture && (s.rule || !s.pathText.isEmpty())) {
-            const ItemPtr set = s.rule ? ruleItem(s, cellWidth > 0 ? cellWidth : std::max(1.0, (m_last.pageW - m_last.left - m_last.right) / 20.0)) : letteringItem(s);
+            const ItemPtr set = s.rule ? ruleItem(s, cellWidth > 0 ? cellWidth : std::max(1.0, (m_last.pageW - m_last.left - m_last.right) / 20.0), resolveCharFormat(*format, f.env).font(), content && holdsOnlyObjects(*content)) : letteringItem(s);
             if (set) {
                 if (!s.rule) set->wrap.left = set->wrap.right = set->wrap.top = set->wrap.bottom = 0;
                 format->setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(set->toJson()).toJson(QJsonDocument::Compact)));

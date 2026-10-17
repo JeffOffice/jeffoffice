@@ -5208,6 +5208,19 @@ private Q_SLOTS:
         auto fixed = std::dynamic_pointer_cast<ShapeItem>(inlineObjectOf(*open(makeDocx(rule("o:hrpct=\"0\" fillcolor=\"black\" stroked=\"f\""), kStyles))));
         QVERIFY(fixed);
         QVERIFY2(std::abs(fixed->rect.width() - 110.25) < 0.01, qPrintable(QString::number(fixed->rect.width())));
+        // A paragraph that holds only a rule is as tall as a line of text (the rule is on the line's baseline, and not a line of its own height).
+        auto both = open(makeDocx(rule("o:hrpct=\"960\" o:hralign=\"center\" fillcolor=\"black\" stroked=\"f\"") + "<w:p><w:r><w:t>Text</w:t></w:r></w:p>", kStyles));
+        QVERIFY(both);
+        const auto lines = both->pager().lines(0);
+        QVERIFY(lines.size() >= 2);
+        QVERIFY2(std::abs(lines[0].rect.height() - lines[1].rect.height()) < 1.5, qPrintable(QString::number(lines[0].rect.height()) + " against " + QString::number(lines[1].rect.height())));
+        // (The room that makes the line is above and below the rule, in the middle of it; a rule among text has none, for it wraps to a line of its own as high as it is.)
+        QVERIFY2(std::abs(shape->wrap.top - shape->wrap.bottom) < 0.01 && shape->wrap.top > 3, qPrintable(QString::number(shape->wrap.top)));
+        auto amongText = std::dynamic_pointer_cast<ShapeItem>(inlineObjectOf(*open(makeDocx("<w:p><w:r><w:t>Text before</w:t></w:r><w:r><w:pict " + QByteArray(kVml) +
+            "><v:rect id=\"r\" style=\"width:0;height:1pt\" o:hr=\"t\" fillcolor=\"black\" stroked=\"f\"/></w:pict></w:r></w:p>", kStyles))));
+        QVERIFY(amongText);
+        QCOMPARE(amongText->wrap.top, 0.0);
+        QCOMPARE(amongText->wrap.bottom, 0.0);
         // In a cell, its share is of the cell's text (a 100 point column less the usual 5.4 point margins at each side).
         const QByteArray cell = "<w:tbl><w:tblPr><w:tblW w:w=\"2000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr>"
                                 + rule("o:hrpct=\"500\" fillcolor=\"black\" stroked=\"f\"") + "</w:tc></w:tr></w:tbl><w:p><w:r><w:t>after</w:t></w:r></w:p>";
