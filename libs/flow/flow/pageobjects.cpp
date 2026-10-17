@@ -399,7 +399,6 @@ std::shared_ptr<const FloatingObject> Paginator::frameObject(int key, int from, 
     lay.build(o.story.get(), {fs}, m_doc->env);
     // (As tall as its text, and the lower edge of the box of its last paragraph, borders and shading, which the text's height does not take in.)
     double height = lay.usedHeight(0) + std::max(0.0, lay.trailingRoom() - lay.trailingSpace());
-    if (qEnvironmentVariableIsSet("JP_DEBUG_FRAME")) qInfo("FRAME used %.2f room %.2f space %.2f asked %.2f exact %d width %.2f", lay.usedHeight(0), lay.trailingRoom(), lay.trailingSpace(), o.frameHeight, o.frameExactHeight, width);   // DEBUGTMP
     if (o.frameExactHeight && o.frameHeight > 0) height = o.frameHeight;
     else height = std::max(height, o.frameHeight);
     std::shared_ptr<TextItem> box = o.item && o.item->type() == ItemType::Text ? std::static_pointer_cast<TextItem>(o.item->clone()) : std::make_shared<TextItem>();
