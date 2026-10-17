@@ -81,17 +81,32 @@ QVector<FindStory> findStories(const Document &doc, const FindScope &scope)
     return out;
 }
 
+// The words of every story of a Document of placed objects.
+static FindWords wordsOfDocument(const Document &doc)
+{
+    FindWords w;
+    w.story = [&doc](const FindStory &h) { return wordsOf(doc, h); };
+    return w;
+}
+
 bool findInStories(const Document &doc, const QVector<FindStory> &all, const QString &q, QTextDocument::FindFlags flags, int start, int pos, int *story, QTextCursor *found)
+{
+    return findInStories(wordsOfDocument(doc), all, q, flags, start, pos, story, found);
+}
+
+bool findInStories(const FindWords &words, const QVector<FindStory> &all, const QString &q, QTextDocument::FindFlags flags, int start, int pos, int *story, QTextCursor *found)
 {
     const bool up = flags & QTextDocument::FindBackward;
     for (int k = 0; k <= all.size(); ++k) {
         const int i = up ? (start - k + all.size() * 2) % all.size() : (start + k) % all.size();
         const FindStory &h = all[i];
-        QTextDocument *sd = wordsOf(doc, h);
+        QTextDocument *sd = words.story(h);
         if (!sd) continue;
         int from = (k == 0) ? pos : (up ? sd->characterCount() : 0);
         if (from < 0) from = sd->characterCount();
-        const QTextCursor c = sd->find(q, from, flags);
+        QTextCursor c = sd->find(q, from, flags);
+        // (Words that are not shown are not found.)
+        while (!c.isNull() && words.skip && words.skip(c)) c = sd->find(q, up ? c.selectionStart() : c.selectionEnd(), flags);
         if (c.isNull()) continue;
         *story = i;
         *found = c;
@@ -102,21 +117,33 @@ bool findInStories(const Document &doc, const QVector<FindStory> &all, const QSt
 
 int replaceInStories(const Document &doc, const QVector<FindStory> &stories, const QString &q, QTextDocument::FindFlags flags, const QString &with, QVector<FindStory> *changed)
 {
+    QVector<FindStory> mine;
+    const int n = replaceInStories(wordsOfDocument(doc), stories, q, flags, with, &mine);
+    for (const FindStory &h : mine)
+        if (h.art)
+            if (auto *a = dynamic_cast<TextArtItem *>(doc.item(h.itemId))) a->text = h.art->toPlainText();
+    if (changed) *changed << mine;
+    return n;
+}
+
+int replaceInStories(const FindWords &words, const QVector<FindStory> &stories, const QString &q, QTextDocument::FindFlags flags, const QString &with, QVector<FindStory> *changed)
+{
     int n = 0;
     for (const FindStory &h : stories) {
-        QTextDocument *sd = wordsOf(doc, h);
+        QTextDocument *sd = words.story(h);
         if (!sd) continue;
         const int was = n;
         QTextCursor c = sd->find(q, 0, flags & ~QTextDocument::FindBackward);
         while (!c.isNull()) {
-            c.insertText(with);
-            ++n;
+            if (!(words.skip && words.skip(c))) {
+                if (words.put) words.put(c, with);
+                else c.insertText(with);
+                ++n;
+            }
             c = sd->find(q, c, flags & ~QTextDocument::FindBackward);
         }
         if (n == was) continue;
         if (changed) *changed << h;
-        if (h.art)
-            if (auto *a = dynamic_cast<TextArtItem *>(doc.item(h.itemId))) a->text = sd->toPlainText();
     }
     return n;
 }
