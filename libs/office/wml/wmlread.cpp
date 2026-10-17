@@ -6,6 +6,8 @@
 #include "core/fonts.h"
 
 #include <QCoreApplication>
+#include <QFontDatabase>
+#include <QHash>
 #include <QSet>
 #include <algorithm>
 
@@ -54,6 +56,23 @@ public:
     bool truncated = false;
     int standIns = 0;                 // the tables that are kept whole as XML, for want of room (or rows)
     bool tablesAsStandIns = false;    // a part whose tables are not laid out (a header, a footer, a note): they are stand-ins, as every table was
+
+    // The text shown for a symbol (w:sym): where its font is a symbol font that this machine lacks, the picture it stands for; where the machine has the font, the
+    // file's own character, in the font's range, which the font draws; otherwise (another font, or a picture not known) a box.
+    QString symbolDisplay(const QString &font, const QString &charAttribute) const
+    {
+        const QString box(QChar(0x25A1));
+        bool ok = false;
+        const uint code = charAttribute.toUInt(&ok, 16);
+        const SymbolPictures *pictures = ok ? symbolPicturesOf(font) : nullptr;
+        if (!pictures) return box;
+        auto cached = installed.constFind(font.toLower());
+        if (cached == installed.constEnd()) cached = installed.insert(font.toLower(), QFontDatabase::hasFamily(font));
+        if (*cached) return code <= 0xFFFF ? QString(QChar(char16_t(code))) : box;
+        const QChar picture = pictures->of(code);
+        return picture.isNull() ? box : QString(picture);
+    }
+    mutable QHash<QString, bool> installed;   // (whether the machine has a symbol font, by its name: asked once for each)
 
     RunProps rPr(int n) const
     {
@@ -312,12 +331,7 @@ public:
                 if (name == "br" || name == "fldChar") a.key = t.attr(c, name == "br" ? "type" : "fldCharType");
                 if (name == "footnoteReference") a.display = QString::number(++footnotes);
                 else if (name == "endnoteReference") a.display = QString::number(++endnotes);
-                else if (name == "sym") {
-                    // (A symbol font's character is its picture where the font is missing; any other, or a picture not known, is a box.)
-                    bool ok = false;
-                    const QChar picture = symbolPictureOf(t.attr(c, "font"), t.attr(c, "char").toUInt(&ok, 16));
-                    a.display = QString(ok && !picture.isNull() ? picture : QChar(0x25A1));
-                }
+                else if (name == "sym") a.display = symbolDisplay(t.attr(c, "font"), t.attr(c, "char"));
                 else if (name == "drawing") {
                     for (int k = t.firstChild(c); k >= 0; k = t.next(k))
                         if (t.localName(k) == "inline") a.display = QCoreApplication::translate("jp::office::wml", "[picture]");
