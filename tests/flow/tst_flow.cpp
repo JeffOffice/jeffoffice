@@ -3567,8 +3567,9 @@ private Q_SLOTS:
         QCOMPARE(seen, table.rowStarts);
     }
 
-    // A section that begins on an odd (or even) page leaves a page of its own before it blank when the page after the break would be an even (or odd) one by the page numbers
-    // as they go on (a restart of the numbers in the new section is not counted); the blank page is a page of the section before, with its header and footer.
+    // A section that begins on an odd (or even) page leaves a page of its own before it blank when the page after the break would be an even (or odd) one by its place in the
+    // document (a restart of the numbers in the new section is not counted); the blank page is a page of the section before, with no header or footer (as a word processor's own
+    // pages for such a break have none).
     void aSectionOfOddOrEvenPagesLeavesABlankPageBeforeItWhereTheNumberIsWrong()
     {
         // The first section has `pages` pages (a break after each paragraph but the last), the second one paragraph.
@@ -3981,6 +3982,50 @@ private Q_SLOTS:
         }
     }
 
+    // The columns above a continuous section are as short as their lines let them be: the lowest of them reaches no further than the half of the height that the same text has in
+    // one column of their width, and a line or two more; and they are not shorter than that half less a line.
+    void theColumnsAboveAContinuousSectionAreAsShortAsTheirLinesLetThemBe()
+    {
+        Section measure;
+        measure.columns = 2;
+        measure.columnGap = 20;
+        const double columnWidth = measure.columnWidth();
+        for (const int paragraphs : {2, 3, 5}) {
+            // The text in one column of that width (the margins say how wide).
+            FlowDocument single;
+            single.env.wordLines = true;
+            fillStory(single.story(), paragraphs, 11, [](int, QTextBlockFormat &bf) { bf.setBottomMargin(6); }, 30, 45);
+            single.sections[0].margins.setRight(single.sections[0].pageSize().width() - single.sections[0].margins.left() - columnWidth);
+            Paginator one(&single);
+            QCOMPARE(one.pageCount(), 1);
+            double whole = 0, tallest = 0;
+            for (const auto &l : one.lines(0)) {
+                whole = std::max(whole, l.rect.bottom());
+                tallest = std::max(tallest, l.rect.height());
+            }
+            // The same text in two columns that a section of one column follows.
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), paragraphs + 1, 11, [&](int i, QTextBlockFormat &bf) {
+                bf.setBottomMargin(6);
+                if (i == paragraphs - 1) bf.setProperty(fp::SectionBreakAfter, true);
+            }, 30, 45);
+            fd.sections[0].columns = 2;
+            fd.sections[0].columnGap = 20;
+            Section after = fd.sections[0];
+            after.continuous = true;
+            after.columns = 1;
+            fd.sections << after;
+            Paginator pg(&fd);
+            QCOMPARE(pg.pageCount(), 1);
+            double reach = 0;
+            for (const auto &l : pg.lines(0))
+                if (l.frame < 2) reach = std::max(reach, l.rect.bottom());
+            QVERIFY2(reach <= whole / 2 + 2 * tallest + 6, qPrintable(QStringLiteral("%1 paragraphs: the columns reach %2, the text in one column is %3 high").arg(paragraphs).arg(reach).arg(whole)));
+            QVERIFY2(reach >= whole / 2 - tallest, qPrintable(QStringLiteral("%1 paragraphs: the columns reach %2, half of %3 less a line is more").arg(paragraphs).arg(reach).arg(whole)));
+        }
+    }
+
     // A continuous section break does not end the page when the sections' sheets are the same, whatever their margins: the text of the second begins below the text of the
     // first, between the second's own side margins (its top and bottom margins are the page's of the page it begins at the top of).
     void aContinuousSectionWithOtherMarginsBeginsOnThePageBelowTheTextAbove()
@@ -4008,7 +4053,13 @@ private Q_SLOTS:
         QVERIFY(first && next);
         QVERIFY2(std::abs(first->rect.left() - a.content().left()) < 0.01 && std::abs(first->rect.right() - a.content().right()) < 0.01, qPrintable(audit::rectText(first->rect)));
         QVERIFY2(std::abs(next->rect.left() - b.content().left()) < 0.01 && std::abs(next->rect.right() - b.content().right()) < 0.01, qPrintable(audit::rectText(next->rect)));
-        QVERIFY(next->rect.top() >= first->rect.top());   // (below the text above it)
+        // The text above ends where the text below begins (the boxes do not overlap), and the page's top and bottom margins are those of the section the page begins in, not the
+        // second's own (it has more at the top).
+        QVERIFY2(next->rect.top() >= first->rect.bottom() - 0.01, qPrintable(QStringLiteral("the boxes overlap: %1 and %2").arg(audit::rectText(first->rect), audit::rectText(next->rect))));
+        QVERIFY2(std::abs(first->rect.top() - a.content().top()) < 0.01, "the first box is not at the page's top margin");
+        QVERIFY2(next->rect.bottom() <= a.content().bottom() + 0.01, "the second box goes below the page's bottom margin");
+        QCOMPARE(pg.page(0).content.top(), a.content().top());
+        QCOMPARE(pg.page(0).content.bottom(), a.content().bottom());
         // (The sheets that are not alike do end the page.)
         FlowDocument other;
         other.env.wordLines = true;

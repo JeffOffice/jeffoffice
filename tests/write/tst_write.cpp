@@ -4187,6 +4187,14 @@ private Q_SLOTS:
         QVERIFY2(std::abs(joined * 2 - normal) < 0.01, qPrintable(QStringLiteral("a line less: %1 against %2").arg(joined).arg(normal)));
         const double nothing = gap(para("alpha", false) + para("", true) + para("", false) + para("gamma", false));   // (alpha, one blank line, gamma)
         QVERIFY2(std::abs(nothing - normal) < 0.01, qPrintable(QStringLiteral("a deleted empty paragraph is no line: %1 against %2").arg(nothing).arg(normal)));
+        // The lines of the text the person sees: the rest of "alpha" is no line of its own, where a deleted empty paragraph is no line either way.
+        auto lineCount = [&](const QByteArray &body) {
+            auto doc = open(makeDocx(body, kStyles));
+            return doc ? int(doc->pager().lines(0).size()) : -1;
+        };
+        QCOMPARE(lineCount(para("alpha", false) + para("", false) + para("gamma", false)), 3);
+        QCOMPARE(lineCount(para("alpha", false) + para("", true) + para("", false) + para("gamma", false)), 3);
+        QCOMPARE(lineCount(para("alpha", true) + para("", false) + para("gamma", false)), 2);
     }
 
     // What a paste from another document brings that points into the first's notes and objects points at nothing of the second's: a reference to a note is
