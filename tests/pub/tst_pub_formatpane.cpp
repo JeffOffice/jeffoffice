@@ -715,6 +715,27 @@ private Q_SLOTS:
         QCOMPARE(undo->index(), steps + 1);
     }
 
+    // A step still in progress when the pane closes (the control was let go of out of sight) ends with it, so the change is not left half made.
+    void aStepLeftOpenEndsWhenThePaneCloses()
+    {
+        Editor ed;
+        ed.setDocument(Document::blank(QSizeF(612, 792)));
+        auto a = std::make_shared<ShapeItem>();
+        a->rect = QRectF(72, 72, 200, 100);
+        ed.addItem(a, true);
+        FormatPane pane(&ed);
+        pane.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&pane));
+        const int steps = ed.undoStack()->index();
+        pane.session()->apply(QStringLiteral("Rotation"), [](Item &it) { it.rotation = 20; }, FormatSession::Scope::Selected, false);
+        QVERIFY(pane.session()->isOpen());
+        pane.hide();
+        QVERIFY(!pane.session()->isOpen());
+        QCOMPARE(ed.undoStack()->index(), steps + 1);
+        ed.undo();
+        QCOMPARE(ed.doc()->item(a->id)->rotation, 0.0);
+    }
+
     // A group's fill and line are those of the objects in it; its size and place are its own. Locked objects are left out when the
     // change asks, and everything else is changed, once.
     void groupsAreOpenedAndLockedObjectsCanBeLeftOut()
