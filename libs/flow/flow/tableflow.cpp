@@ -410,9 +410,15 @@ void TableLayout::setLineRooms()
     for (Row &row : m_rows) {
         if (row.data->height <= 0) continue;
         double pad = row.top + row.foot;
-        for (int i = row.cell0; i < row.cell0 + row.cells; ++i)
-            if (!m_cells[size_t(i)].covered && m_cells[size_t(i)].rows == 1) pad = std::max(pad, m_cells[size_t(i)].margins.top() + m_cells[size_t(i)].margins.bottom());
+        bool below = false;
+        for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
+            const Cell &c = m_cells[size_t(i)];
+            if (c.covered) continue;
+            below |= c.rec->cell.valign != CellAlign::Top;
+            if (c.rows == 1) pad = std::max(pad, c.margins.top() + c.margins.bottom());
+        }
         row.least = row.data->height + pad;
+        row.seated = below && !row.data->exact;
     }
 }
 
@@ -670,6 +676,8 @@ void tableLines(const TableFragment &nested, double y0, LineList *out)
             std::sort(inRow.begin(), inRow.end(), [](const TableLayout::UnitLine &a, const TableLayout::UnitLine &b) { return a.top != b.top ? a.top < b.top : a.bottom < b.bottom; });
             TableLayout::UnitLine run = inRow.front();
             run.top = std::min(run.top, y);   // (the first piece of the row begins at the row's top: where it goes on from there, its margins and lines go with it)
+            // (A row set to a height with content in the middle or at the foot is not begun in less room than that: its first piece is as tall as it is.)
+            if (t.row(r).seated) run.bottom = std::max(run.bottom, y + t.row(r).least);
             for (size_t k = 1; k < inRow.size(); ++k) {
                 if (inRow[k].top < run.bottom - 0.01) {
                     run.bottom = std::max(run.bottom, inRow[k].bottom);
@@ -887,8 +895,8 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
     }
     if (k >= kMostParts - 1) st.more = false;   // (the part the parts end in has all that is left)
     piece.progress = st.progress;
-    // A row set to a height is not begun where the room is less than that height: it goes to the next page whole (a row is cut only where it has at least the room it was set to).
-    if (k == 0 && !force && st.more && row.data->height > 0 && room < row.least - 0.01) piece.progress = false;
+    // A row set to a height that has content in the middle or at the foot is not begun where the room is less than that height: it goes to the next page whole.
+    if (k == 0 && !force && st.more && row.seated && room < row.least - 0.01) piece.progress = false;
     piece.offsets = offs;
     piece.pads = QVector<double>(n, 0.0);
     for (int i = 0; i < n; ++i) piece.pads[i] = runs[size_t(i)].pad;
