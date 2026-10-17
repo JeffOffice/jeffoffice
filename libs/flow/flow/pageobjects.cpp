@@ -230,6 +230,7 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
                 if (pic->imageId.isEmpty()) continue;
             }
             if (item->type() == ItemType::Text && o.story) {
+                if (page && a.table < 0 && a.frameTo > a.frameFrom) page->frames.push_back({a.frameFrom, a.frameTo, item->id});
                 auto *box = static_cast<TextItem *>(item.get());
                 auto s = std::make_shared<Story>();
                 s->id = QStringLiteral("flow-boxtext-%1-%2-%3").arg(d->pages[0]->id).arg(id).arg(made);

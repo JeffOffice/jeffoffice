@@ -4807,6 +4807,58 @@ private Q_SLOTS:
         QVERIFY(boxes >= 1 && boxes <= kMostFloatsAtAParagraph);
     }
 
+    // The paragraphs of a frame, and the cells of a table set at a place, have no lines of their own: they are on the page of the paragraph they are set from, which may be the
+    // page after the one the text before them ends on.
+    void positionsInAFrameOrAFloatingTableAreOnThePageOfTheirParagraph()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 80, 62, [](int i, QTextBlockFormat &bf) { if (i == 30 || i == 60) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore); }, 25, 45);
+        // A frame right before the paragraph that begins a page, and a table set at a place right before the one that begins another.
+        TestTable spec;
+        spec.rows = 2;
+        spec.cols = 2;
+        spec.columnWidth = 60;
+        spec.setTable = [](TableData &t) { TableData::Place p; p.across = TableData::Place::From::Margin; p.acrossSpec = TableData::Place::Spec::End; p.room = QMarginsF(8, 0, 8, 0); t.place = p; };
+        FloatingObject proto;
+        proto.hRel = FloatingObject::Rel::Column;
+        proto.vRel = FloatingObject::Rel::Paragraph;
+        proto.wrap = FloatingObject::Wrap::Square;
+        proto.hAlign = FloatingObject::Align::End;
+        addFrame(fd, 30, {QStringLiteral("FRAMEWORDS first paragraph"), QStringLiteral("and a second of them")}, proto, 100);
+        const TestTable table = addTableAfter(fd, 61, spec);   // (before the paragraph that was block 60, with its break: the frame's two paragraphs are before it now)
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 4);
+        QSet<int> frame = frameBlocksOf(fd);
+        QCOMPARE(int(frame.size()), 2);
+        int frameFirst = *std::min_element(frame.begin(), frame.end());
+        int frameLast = *std::max_element(frame.begin(), frame.end());
+        const QTextBlock afterFrame = fd.story()->findBlock(frameLast).next();
+        QVERIFY(afterFrame.isValid());
+        const int home = pg.pageOfPosition(afterFrame.position());
+        QVERIFY(home >= 1);
+        QCOMPARE(pg.pageOfPosition(frameFirst), home);
+        QCOMPARE(pg.pageOfPosition(frameFirst + 4), home);
+        QCOMPARE(pg.pageOfPosition(frameLast + 3), home);
+        QVERIFY(pg.pageOfPosition(fd.story()->findBlockByNumber(28).position() + 5) < home);   // (the text before the frame is on the page before)
+        // The table's cells.
+        const QTextBlock paragraphAfterTable = fd.story()->findBlock(table.rowStarts.last()).next();
+        QTextBlock past = fd.story()->findBlock(table.rowStarts.first());
+        while (past.isValid() && past.blockFormat().intProperty(fp::Cell)) past = past.next();
+        QVERIFY(past.isValid());
+        Q_UNUSED(paragraphAfterTable);
+        const int tableHome = pg.pageOfPosition(past.position());
+        QVERIFY(tableHome > home);
+        for (const int rowStart : table.rowStarts) QCOMPARE(pg.pageOfPosition(rowStart + 2), tableHome);
+        // And the page does draw them (so that the caret has a box to be in).
+        const auto page = pg.materialize(home);
+        QVERIFY(page);
+        QVERIFY(frameBoxWith(*page, QStringLiteral("FRAMEWORDS")));
+        QVERIFY(!page->frames.isEmpty() && page->frames[0].from == frameFirst);
+        const auto tablePage = pg.materialize(tableHome);
+        QVERIFY(tablePage && !tablePage->tables.isEmpty() && tablePage->tables[0]->floating);
+    }
+
     // ---- floating tables
 
     // A table that is set at a place has no lines among the text: the text goes round it, and the page draws its rows where it is set, at the paragraph after the table

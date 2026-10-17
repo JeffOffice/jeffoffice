@@ -65,6 +65,13 @@ struct MaterializedPage {
     int pageTotal = 0;
     // The pictures in the text of the table cells on the page: the id each has in the flow ("flow-img:" and its place in the document's images) and in the page's document.
     QHash<QString, QString> cellImages;
+    // The frames set on the page: the positions of the story their paragraphs take (`from` to `to`, just past the last paragraph's end), and the id of the text box in the page
+    // that holds their text (each paragraph of the box is a paragraph of the frame, in order, so a position in the frame is the same place in the box's story from `from`).
+    struct FrameBox {
+        int from = 0, to = 0;
+        QString itemId;
+    };
+    QVector<FrameBox> frames;
 };
 
 // Draws the rows of tables that a page has: the page layer's drawing of the page leaves them, as they are not among its items. (Under or over the text, as
