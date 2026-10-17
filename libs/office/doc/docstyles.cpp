@@ -177,8 +177,21 @@ QByteArray StyleSheet::xml(const FontNames &fonts, int listInstances) const
         if (isDefault) x += " w:default=\"1\"";
         if (d.sti == 0xFFE) x += " w:customStyle=\"1\"";
         x += " w:styleId=\"" + d.id.toUtf8() + "\"><w:name w:val=\"" + xmlText(d.name).toUtf8() + "\"/>";
-        if (d.base >= 0 && d.base != i && d.base < styles.size() && styles[d.base].valid && styles[d.base].sgc == d.sgc)
-            x += "<w:basedOn w:val=\"" + styles[d.base].id.toUtf8() + "\"/>";
+        // (A style is based on another only where the chain of them is no longer than the limit and comes to an end.)
+        bool basedOn = d.base >= 0 && d.base != i && d.base < styles.size() && styles[d.base].valid && styles[d.base].sgc == d.sgc;
+        if (basedOn) {
+            int at = d.base, steps = 0;
+            while (at >= 0 && at < styles.size() && styles[at].valid && steps <= kMaxStyleDepth) {
+                if (at == i) {
+                    steps = kMaxStyleDepth + 1;   // (it comes round to itself)
+                    break;
+                }
+                at = styles[at].base;
+                ++steps;
+            }
+            basedOn = steps <= kMaxStyleDepth;
+        }
+        if (basedOn) x += "<w:basedOn w:val=\"" + styles[d.base].id.toUtf8() + "\"/>";
         if (d.sgc == 1 && d.next >= 0 && d.next != i && d.next < styles.size() && styles[d.next].valid && styles[d.next].sgc == 1)
             x += "<w:next w:val=\"" + styles[d.next].id.toUtf8() + "\"/>";
         if (d.sti <= 9 || d.sti == 62 || d.sti == 74 || d.sti == 0xFFE) x += "<w:qFormat/>";

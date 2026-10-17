@@ -26,9 +26,16 @@ constexpr int kMaxStyles = 4095;
 // Lists and their instances.
 constexpr int kMaxLists = 16000;
 constexpr int kMaxListInstances = 65000;
-// Tables: as deep as the .docx reader reads, and as many columns as a row's definition can hold.
+// Tables: as deep as the .docx reader reads, and as many columns as a row's definition can hold; and as many rows and cells as that reader lays out.
 constexpr int kMaxTableDepth = wml::kMaxTableDepth;
 constexpr int kMaxCells = 64;
+constexpr int kMaxTableRows = wml::kMaxTableRows;
+constexpr int kMaxTableCellsAll = wml::kMaxTableCells;
+// Drawings: the shapes of one drawing, and the text boxes of a document.
+constexpr int kMaxShapes = 20000;
+constexpr int kMaxTextBoxes = 100000;
+// The XML of the lists (their definitions and instances).
+constexpr qint64 kMaxListBytes = qint64(64) << 20;
 // Fields that nest in one another (an unclosed field is closed at the end of its paragraph).
 constexpr int kMaxFieldDepth = 20;
 // Sections, header and footer stories, notes (the .docx reader's own limit), and fonts.

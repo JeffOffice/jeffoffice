@@ -8,6 +8,7 @@
 
 #include <QHash>
 #include <QSet>
+#include <memory>
 
 namespace jp::office::doc {
 
@@ -37,6 +38,8 @@ public:
 
     // The text of a story as the XML of a body: paragraphs and tables. `part` is the part it goes in (for its relationships).
     QByteArray story(qint64 cp0, qint64 cp1, Kind kind, const QString &part);
+    // The VML shapes anchored at character `cp` of a story (a drawing the text holds a place for), empty if there are none.
+    QByteArray shapeXml(qint64 cp, Kind kind, const QString &part);
     // A picture at `position` in the data stream as the XML of an inline drawing, empty if it can't be shown.
     QByteArray pictureXml(qint32 position, const QString &part);
     // Remember that something of the file was left out (once for each `key`).
@@ -61,13 +64,18 @@ public:
     QStringList authors;
     PackageWriter pkg;
     int paragraphs = 0;                  // made so far, in all the stories
+    int tableCells = 0;                  // the cells of all the tables so far
     qint64 outputBytes = 0;
     bool truncated = false;              // the text was cut at a limit
     int revisionId = 0;
 
+    struct Drawings;
+
 private:
+    void readDrawings();
+    Picture *storedPicture(int index);
     bool readPicture(qint32 position, Picture *out);
-    QString addMedia(const QString &part, const Picture &pic);
+    QString addMedia(const QString &part, const Picture &pic, const QString &key);
     void readFontTable();
     void readSections();
     void readNotePlcs();
@@ -76,9 +84,11 @@ private:
     QByteArray documentXml(const QByteArray &body, const QByteArray &lastSection) const;
 
     QSet<QString> m_leftKeys;
+    std::shared_ptr<Drawings> m_drawings;
     int m_pictures = 0;
     qint64 m_pictureBytes = 0;
-    QHash<QByteArray, QString> m_mediaOfPicture;    // a picture's bytes -> the media part holding them
+    QHash<QString, QString> m_mediaOfKey;           // where a picture came from -> the media part holding it
+    QHash<qint32, Picture> m_pictureAt;             // the pictures of the data stream read so far (a place with none: empty bytes)
     qint64 m_pictureWork = 4000000;              // what is left of the work the pictures of the file may do (see odraw.h)
     QHash<QString, QString> m_relOfMedia;         // "part|media" -> relationship id
     int m_mediaCount = 0;

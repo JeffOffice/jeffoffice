@@ -83,6 +83,7 @@ public:
             r = "<" + tag + " w:id=\"" + id + "\" w:author=\"" + xmlEscape(c.revisionAuthor(m_author)) + "\">" + r + "</" + tag + ">";
         }
         paragraph += r;
+        c.outputBytes += r.size();
         m_body.clear();
         m_has = false;
     }
@@ -293,6 +294,10 @@ void StoryWriter::content(qint64 from, qint64 to, int istd, RunBuilder &rb)
 {
     qint64 q = from;
     while (q < to) {
+        if (c.outputBytes > kMaxOutputBytes) {
+            c.truncated = true;
+            break;
+        }
         const Piece *pc = c.pieces.at(q);
         if (!pc) break;
         qint64 segEnd = std::min(to, pc->cp1);
@@ -411,7 +416,10 @@ void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, int istd, R
             break;
         case 0x08:
             flushPlain();
-            if (chp.special) c.left(QStringLiteral("shapes"), QCoreApplication::translate("jp::office::doc", "Drawings and text boxes in the document were not brought in."));
+            if (chp.special && !instruction) {
+                const QByteArray shapes = c.shapeXml(q, kind, part);
+                if (!shapes.isEmpty()) rb.alone(shapes);
+            }
             break;
         case 0x28:
             flushPlain();
@@ -457,7 +465,14 @@ void StoryWriter::finishRow(const Pap &pap)
     if (!t.cell.isEmpty()) r.cells.push_back(t.cell);
     t.cells.clear();
     t.cell.clear();
-    if (!r.cells.isEmpty()) t.rows.push_back(r);
+    if (r.cells.isEmpty()) return;
+    // (More rows or cells than the .docx reader lays out would be shown as a stand-in: the rest are left out.)
+    if (t.rows.size() >= kMaxTableRows || c.tableCells + int(r.cells.size()) > kMaxTableCellsAll) {
+        c.left(QStringLiteral("rows"), QCoreApplication::translate("jp::office::doc", "A table is larger than this program can show: the rest of it was left out."));
+        return;
+    }
+    c.tableCells += int(r.cells.size());
+    t.rows.push_back(r);
 }
 
 namespace {
@@ -635,6 +650,7 @@ QByteArray StoryWriter::tableXml(TableOut &t)
         x += row;
     }
     x += "</w:tbl>";
+    c.outputBytes += x.size();
     return x;
 }
 

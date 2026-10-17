@@ -244,8 +244,20 @@ QByteArray DocWriter::build() const
         if (!s.isEmpty()) headerText += s + QLatin1Char('\r');
     }
     storyStart.push_back(int(headerText.size()));
-    const QString all = text + footnoteText + headerText;
+    // The text of the boxes of the shapes: a story each (with the mark that ends it), in the order of the shapes.
+    QString boxText, headerBoxText;
+    QVector<int> boxStart, headerBoxStart;
+    QVector<int> boxShape, headerBoxShape;
+    for (int i = 0; i < shapes.size(); ++i) {
+        if (shapes[i].text.isEmpty()) continue;
+        QString &dst = shapes[i].header ? headerBoxText : boxText;
+        (shapes[i].header ? headerBoxStart : boxStart).push_back(int(dst.size()));
+        (shapes[i].header ? headerBoxShape : boxShape).push_back(i);
+        dst += shapes[i].text + QLatin1Char('\r');
+    }
+    const QString all = text + footnoteText + headerText + boxText + headerBoxText;
     const int ccpText = int(text.size()), ccpFtn = int(footnoteText.size()), ccpHdd = int(headerText.size());
+    const int ccpTxbx = int(boxText.size()), ccpHdrTxbx = int(headerBoxText.size());
 
     QByteArray wd(1024, '\0');
     // The text, in one or two pieces.
@@ -313,6 +325,21 @@ QByteArray DocWriter::build() const
         sepxAt.push_back(quint32(wd.size()));
         add16(wd, int(s.sprms.size()));
         wd.append(s.sprms);
+    }
+
+    // The pictures of the shapes: their records in this stream (the picture store points here).
+    QVector<quint32> blipAt(shapes.size(), 0);
+    for (int i = 0; i < shapes.size(); ++i) {
+        if (shapes[i].png.isEmpty()) continue;
+        padEven(wd);
+        blipAt[i] = quint32(wd.size());
+        QByteArray body(16, 'u');
+        body.append('\xFF');
+        body.append(shapes[i].png);
+        add16(wd, 0x06E0 << 4);
+        add16(wd, 0xF01E);
+        add32(wd, quint32(body.size()));
+        wd.append(body);
     }
 
     // The table stream.
@@ -488,6 +515,159 @@ QByteArray DocWriter::build() const
         put(73, lst);
         put(74, lfo);
     }
+    // The shapes: the places (a table for the main text, and one for the headers'), the text boxes, and the drawing itself.
+    if (!shapes.isEmpty()) {
+        for (int pass = 0; pass < 2; ++pass) {
+            const bool hdr = pass == 1;
+            QVector<int> order;
+            for (int i = 0; i < shapes.size(); ++i)
+                if (shapes[i].header == hdr && shapes[i].group < 0) order.push_back(i);
+            std::sort(order.begin(), order.end(), [&](int a2, int b2) { return shapes[a2].cp < shapes[b2].cp; });
+            if (order.isEmpty()) continue;
+            QByteArray plc;
+            for (int i : order) add32(plc, quint32(shapes[i].cp));
+            add32(plc, quint32(hdr ? ccpHdd : ccpText) + 1);
+            for (int i : order) {
+                const ShapeSpec &sp = shapes[i];
+                add32(plc, quint32(sp.spid));
+                add32(plc, quint32(sp.x0));
+                add32(plc, quint32(sp.y0));
+                add32(plc, quint32(sp.x1));
+                add32(plc, quint32(sp.y1));
+                add16(plc, (hdr ? 1 : 0) | (sp.bx << 1) | (sp.by << 3) | (sp.wr << 5) | (sp.below ? 0x4000 : 0));
+                add32(plc, 0);
+            }
+            put(hdr ? 41 : 40, plc);
+            // The boxes' text: a story each, and a last record that ends the table.
+            const QVector<int> &boxes = hdr ? headerBoxShape : boxShape;
+            const QVector<int> &starts = hdr ? headerBoxStart : boxStart;
+            if (!boxes.isEmpty()) {
+                QByteArray bp;
+                for (int s2 : starts) add32(bp, quint32(s2));
+                add32(bp, quint32(hdr ? ccpHdrTxbx : ccpTxbx));
+                add32(bp, quint32(hdr ? ccpHdrTxbx : ccpTxbx) + 1);
+                for (int idx : boxes) {
+                    add32(bp, 0);
+                    add32(bp, 0);
+                    add16(bp, 0);
+                    add32(bp, 0xFFFFFFFFu);
+                    add32(bp, quint32(shapes[idx].spid));
+                    add32(bp, 0);
+                }
+                bp.append(QByteArray(22, '\0'));
+                put(hdr ? 58 : 56, bp);
+            }
+        }
+        // The drawing: the picture store, then each drawing (the main one's, then the headers') with its shapes.
+        auto record = [](int version, int instance, int type, const QByteArray &data) {
+            QByteArray r;
+            add16(r, (instance << 4) | version);
+            add16(r, type);
+            add32(r, quint32(data.size()));
+            r.append(data);
+            return r;
+        };
+        QByteArray store;
+        QVector<int> storeIndex(shapes.size(), 0);
+        int stored = 0;
+        for (int i = 0; i < shapes.size(); ++i) {
+            if (shapes[i].png.isEmpty()) continue;
+            QByteArray f;
+            add8(f, 6);
+            add8(f, 6);
+            f.append(QByteArray(16, 'u'));
+            add16(f, 0xFF);
+            add32(f, quint32(shapes[i].png.size() + 25));
+            add32(f, 1);
+            add32(f, blipAt[i]);
+            add8(f, 0);
+            add8(f, 0);
+            add8(f, 0);
+            add8(f, 0);
+            store.append(record(2, 6, 0xF007, f));
+            storeIndex[i] = ++stored;
+        }
+        QByteArray group;
+        group.append(record(0, 0, 0xF006, QByteArray(16, '\0')));
+        if (stored) group.append(record(0xF, stored, 0xF001, store));
+        QByteArray dgg = record(0xF, 0, 0xF000, group);
+        auto shapeRecord = [&](const ShapeSpec &sp, int index, bool isGroup) {
+            QByteArray c;
+            if (isGroup) {
+                QByteArray g;
+                add32(g, quint32(sp.groupLeft));
+                add32(g, quint32(sp.groupTop));
+                add32(g, quint32(sp.groupRight));
+                add32(g, quint32(sp.groupBottom));
+                c.append(record(1, 0, 0xF009, g));
+            }
+            QByteArray fsp;
+            add32(fsp, quint32(sp.spid));
+            add32(fsp, quint32(0x0A00 | (isGroup ? 1 : 0) | (sp.group >= 0 ? 2 : 0)));
+            c.append(record(2, isGroup ? 0 : sp.type, 0xF00A, fsp));
+            QByteArray props;
+            int count = 0;
+            auto prop = [&](int id, quint32 value) {
+                add16(props, id);
+                add32(props, value);
+                ++count;
+            };
+            if (storeIndex[index]) prop(0x104 | 0x4000, quint32(storeIndex[index]));
+            if (sp.fill >= 0) {
+                prop(0x181, quint32(sp.fill));
+                prop(0x1BF, 0x110010);
+            } else {
+                prop(0x1BF, 0x100000);
+            }
+            if (sp.line >= 0) {
+                prop(0x1C0, quint32(sp.line));
+                prop(0x1FF, 0x80008);
+            } else {
+                prop(0x1FF, 0x80000);
+            }
+            if (!isGroup) c.append(record(3, count, 0xF00B, props));
+            if (sp.group >= 0) {
+                QByteArray ca;
+                add32(ca, quint32(sp.memberLeft));
+                add32(ca, quint32(sp.memberTop));
+                add32(ca, quint32(sp.memberRight));
+                add32(ca, quint32(sp.memberBottom));
+                c.append(record(0, 0, 0xF00F, ca));
+            }
+            return record(0xF, 0, 0xF004, c);
+        };
+        for (int pass = 0; pass < 2; ++pass) {
+            const bool hdr = pass == 1;
+            QByteArray spgr;
+            ShapeSpec patriarch;
+            patriarch.spid = hdr ? 3072 : 2048;
+            spgr.append(shapeRecord(patriarch, 0, true));
+            // A group's members follow it, inside a container of their own.
+            for (int i = 0; i < shapes.size(); ++i) {
+                if (shapes[i].header != hdr || shapes[i].group >= 0) continue;
+                QVector<int> members;
+                for (int j = 0; j < shapes.size(); ++j)
+                    if (shapes[j].group == i) members.push_back(j);
+                if (members.isEmpty()) {
+                    spgr.append(shapeRecord(shapes[i], i, false));
+                } else {
+                    QByteArray inner;
+                    inner.append(shapeRecord(shapes[i], i, true));
+                    for (int j : members) inner.append(shapeRecord(shapes[j], j, false));
+                    spgr.append(record(0xF, 0, 0xF003, inner));
+                }
+            }
+            QByteArray dg;
+            QByteArray fdg;
+            add32(fdg, 1);
+            add32(fdg, 1);
+            dg.append(record(0, pass + 1, 0xF008, fdg));
+            dg.append(record(0xF, 0, 0xF003, spgr));
+            dgg.append(char(pass));
+            dgg.append(record(0xF, 0, 0xF002, dg));
+        }
+        put(50, dgg);
+    }
     // The document's own settings.
     {
         QByteArray dop(84, '\0');
@@ -506,6 +686,8 @@ QByteArray DocWriter::build() const
     put32(wd, 76, quint32(ccpText));
     put32(wd, 80, quint32(ccpFtn));
     put32(wd, 84, quint32(ccpHdd));
+    put32(wd, 100, quint32(ccpTxbx));
+    put32(wd, 104, quint32(ccpHdrTxbx));
     put16(wd, 152, 93);
     for (int i = 0; i < 93; ++i) {
         put32(wd, 154 + 8 * i, slots[i].fc);
