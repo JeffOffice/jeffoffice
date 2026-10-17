@@ -4381,13 +4381,18 @@ private Q_SLOTS:
         const QByteArray margins = "<w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/>";
         // (The break paragraph's own line is 60 points: more than the 48 that are left.)
         body += "<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"1200\" w:lineRule=\"exact\"/><w:sectPr>" + margins + "</w:sectPr></w:pPr></w:p>" + line("Second");
-        auto pagesWith = [&](const QByteArray &type, const QByteArray &paper) {
-            const QByteArray last = "<w:sectPr>" + type + paper + "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto pagesWith = [&](const QByteArray &type, const QByteArray &paper, int top) {
+            const QByteArray last = "<w:sectPr>" + type + paper + "<w:pgMar w:top=\"" + QByteArray::number(top) + "\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
             return open(makeDocxWithParts(body, last, {}));
         };
-        const QByteArray landscape = "<w:pgSz w:w=\"15840\" w:h=\"12240\" w:orient=\"landscape\"/>";
-        for (const QByteArray &type : {QByteArray("<w:type w:val=\"continuous\"/>"), QByteArray()}) {
-            auto doc = pagesWith(type, type.isEmpty() ? QByteArray("<w:pgSz w:w=\"12240\" w:h=\"15840\"/>") : landscape);
+        const QByteArray landscape = "<w:pgSz w:w=\"15840\" w:h=\"12240\" w:orient=\"landscape\"/>", portrait = "<w:pgSz w:w=\"12240\" w:h=\"15840\"/>";
+        const QByteArray continuous = "<w:type w:val=\"continuous\"/>";
+        // (A continuous section of other paper, a section on a page of its own by its type, and a continuous one with other top margin that shares the page the text before it
+        // fills: its text goes on at the next page, with nothing lost.)
+        struct Case { QByteArray type, paper; int top; };
+        for (const Case &c : {Case{continuous, landscape, 1440}, Case{QByteArray(), portrait, 1440}, Case{continuous, portrait, 2160}}) {
+            const QByteArray &type = c.type;
+            auto doc = pagesWith(type, c.paper, c.top);
             QVERIFY(doc);
             QVERIFY2(doc->pager().pageCount() == 2, qPrintable(QStringLiteral("%1 pages for the section type '%2'").arg(doc->pager().pageCount()).arg(QString::fromLatin1(type))));
             const auto second = doc->pager().lines(1);

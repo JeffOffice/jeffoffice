@@ -713,6 +713,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         if (ln.line == ln.lines - 1 && flags(ln.block).sectionAfter && !flags(ln.block).breakAfter && continuesOn(current, ln.block) && !(sectionEnds && i == c - 1)) ++current;
     }
     const int nextSection = sectionEnds ? std::min(current + 1, int(m_doc->sections.size()) - 1) : current;
+    const QTextBlock goesOn = c > 0 && c == L.size() && flags(L[c - 1].block).sectionAfter ? m_doc->story()->findBlock(L[c - 1].pos).next() : QTextBlock();
     if (c < L.size()) {
         run.hasNext = true;
         run.next.pos = L[c].pos;
@@ -746,15 +747,13 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         run.hasNext = true;
         run.next.hard = true;
         run.next.section = nextSection;
-    } else if ((forced && !byCharacter && c > 0) || !carriedOut.isEmpty()) {
+    } else if ((forced && !byCharacter && c > 0) || !carriedOut.isEmpty() || goesOn.isValid()) {
         // A break after the text's last line: the pages go on with one that has nothing on it. Or notes go on past the text's last line: with pages of their own.
+        // (Or the text goes on after a section's last, empty paragraph that took the page's last place, though no line's room was left: the lines laid out end with it.)
         run.hasNext = true;
-        run.next.pos = m_doc->story()->characterCount();
-        // (The text goes on after a section's last, empty paragraph that took the page's last place, though no line's room was left.)
-        const QTextBlock goesOn = c > 0 && flags(L[c - 1].block).sectionAfter ? m_doc->story()->findBlock(L[c - 1].pos).next() : QTextBlock();
-        if (goesOn.isValid()) run.next.pos = goesOn.position();
+        run.next.pos = goesOn.isValid() ? goesOn.position() : m_doc->story()->characterCount();
         run.next.skip = 0;
-        run.next.hard = true;
+        run.next.hard = forced || !goesOn.isValid();
         run.next.section = nextSection;
     }
     if (run.hasNext) {
