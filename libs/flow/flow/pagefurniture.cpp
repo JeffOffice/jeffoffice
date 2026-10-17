@@ -64,6 +64,29 @@ double Paginator::storyHeight(const QTextDocument *story, double width, int numb
     return height;
 }
 
+double Paginator::headerObjectsBottom(const QTextDocument *story, const Section &sec, int number)
+{
+    if (m_doc->objects.isEmpty()) return 0;
+    const QRectF content = sec.content();
+    storyHeight(story, content.width(), number);   // (laying the story out is what has its lines to hand)
+    const auto lines = m_storyLines.find(std::make_tuple(story, int(std::lround(content.width() * 100)), story->revision()));
+    if (lines == m_storyLines.end()) return 0;
+    QVector<AnchorLine> held;
+    for (const StoryLayout::LineInfo &l : lines->second) held << AnchorLine{l.docStart, l.docPos, l.docEnd, l.rect.translated(content.left(), sec.headerDistance), content.left(), 0.0, false, l.docEnd};
+    double bottom = 0;
+    int seen = 0;
+    for (const Anchor &a : anchorsIn(story, 0, story->characterCount(), held))
+        for (int id = a.object; id > 0 && id <= m_doc->objects.size() && seen < kMostObjects; id = objectAt(a, id).next, ++seen) {
+            const FloatingObject &o = objectAt(a, id);
+            using W = FloatingObject::Wrap;
+            if (!o.item || o.behind || (o.wrap != W::Square && o.wrap != W::Tight && o.wrap != W::TopBottom)) continue;
+            const QRectF r = placeOf(o, a, sec);
+            if (r.right() <= content.left() || r.left() >= content.right()) continue;   // (beside the text area: the text is not under it)
+            bottom = std::max(bottom, r.bottom() + o.gap.bottom());
+        }
+    return bottom;
+}
+
 Paginator::Furniture Paginator::furnitureOf(int index, const PageStart &st, int number)
 {
     const Section &sec = m_doc->section(st.section);
@@ -79,6 +102,7 @@ Paginator::Furniture Paginator::furnitureOf(int index, const PageStart &st, int 
     if (f.header) {
         f.headerHeight = storyHeight(f.header, width, number, true);
         top = std::max(top, sec.headerDistance + f.headerHeight);
+        top = std::max(top, headerObjectsBottom(f.header, sec, number));
     }
     if (f.footer) {
         f.footerHeight = storyHeight(f.footer, width, number);

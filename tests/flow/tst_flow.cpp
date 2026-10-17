@@ -7172,10 +7172,12 @@ private Q_SLOTS:
         QCOMPARE(a, 0);
     }
 
-    // The objects in a header or footer are not walls for the body's text, which is another layer: the body's lines are those of a document without them.
-    void anObjectInTheHeaderIsNoWallForTheBody()
+    // The objects in a header or footer are not walls for the body's text, which is another layer: it has no wall of theirs. A shape of the header that the text goes round
+    // and that reaches down past the margin does hold the page's text below it, where it begins (a shape that is not wrapped, or behind the text, does not).
+    void aWrappedObjectInTheHeaderHoldsTheBodyBelowItAndIsNoWall()
     {
-        auto linesOf = [](FloatingObject::Wrap wrap) {
+        struct Result { double top = 0; int walls = -1; int lines = 0; };
+        auto layout = [](FloatingObject::Wrap wrap) {
             FlowDocument fd;
             fd.env.wordLines = true;
             fillStory(fd.story(), 30, 35, {}, 20, 40);
@@ -7197,17 +7199,18 @@ private Q_SLOTS:
             fd.sections[0].header.odd = header;
             fd.sections[0].headerDistance = 30;
             Paginator pg(&fd);
-            QStringList out;
-            for (int k = 0; k < pg.pageCount(); ++k)
-                for (const auto &l : pg.lines(k)) out << QStringLiteral("%1-%2 %3").arg(l.pos).arg(l.end).arg(audit::rectText(l.rect));
-            const auto page = pg.materialize(0);
-            if (page) out << QStringLiteral("walls %1").arg(audit::wallsOf(*page).size());
-            return out;
+            Result r;
+            r.top = pg.page(0).content.top();
+            r.lines = int(pg.lines(0).size());
+            if (const auto page = pg.materialize(0)) r.walls = int(audit::wallsOf(*page).size());
+            return r;
         };
-        QStringList a = linesOf(FloatingObject::Wrap::Square), b = linesOf(FloatingObject::Wrap::None);
-        QVERIFY(a.size() > 30);
-        QCOMPARE(a, b);   // (and no wall: the last entry says how many)
-        QCOMPARE(a.last(), QStringLiteral("walls 0"));
+        const Result round = layout(FloatingObject::Wrap::Square), free = layout(FloatingObject::Wrap::None);
+        QCOMPARE(free.walls, 0);
+        QCOMPARE(round.walls, 0);   // (no wall: the text is held below it, not set round it)
+        QVERIFY2(free.top < 100, qPrintable(QString::number(free.top)));
+        QVERIFY2(std::abs(round.top - 180) < 0.01, qPrintable(QString::number(round.top)));
+        QVERIFY(round.lines > 0 && round.lines < free.lines);
     }
 
     // An object is anchored by a character of the story it is in: a header has the objects its own characters anchor, and the body's first paragraph (at the same place in its

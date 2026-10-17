@@ -341,6 +341,8 @@ private:
     std::map<std::tuple<int, int, int, int, uint>, std::shared_ptr<const FloatingObject>> m_frames;   // by key, the paragraphs' places, the width the column has, and the environment (edits empty it)
     // The anchors in a story from `from` to `to` (document positions), given the lines that hold it.
     QVector<Anchor> anchorsIn(const QTextDocument *story, int from, int to, const QVector<AnchorLine> &lines, const QHash<int, QVector<int>> *byBlock = nullptr);
+    // How far down the page the shapes that the text goes round, set in a header, reach (0: none do): the page's text begins under them.
+    double headerObjectsBottom(const QTextDocument *story, const Section &sec, int number);
     // The characters of a paragraph that anchor an object (a position and the object's number each), found once for a story as it is.
     const QVector<std::pair<int, int>> &anchorCharsOf(const QTextBlock &b);
     QHash<int, QVector<std::pair<int, int>>> m_anchorChars;   // by the paragraph's position

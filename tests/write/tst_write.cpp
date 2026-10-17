@@ -4964,6 +4964,26 @@ private Q_SLOTS:
         QVERIFY2(plain.first < framed.first - 5, qPrintable(QString::number(plain.first)));
     }
 
+    // A shape in the header that the text goes round (a banner in a text box, set from the page's top) holds the page's text off: the text begins under it, where the margin
+    // alone would let it go behind.
+    void aHeadersWrappedShapeMovesTheTextBelowIt()
+    {
+        auto top = [&](const QByteArray &wrap) {
+            const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                    "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+            const QByteArray shape = "<w:r><w:pict><v:shapetype id=\"t202\" coordsize=\"21600,21600\" o:spt=\"202\" path=\"m,l,21600r21600,l21600,xe\"/>"
+                                     "<v:shape id=\"s1\" type=\"#t202\" style=\"position:absolute;margin-left:-20pt;margin-top:0;width:400pt;height:150pt;mso-position-vertical-relative:page;z-index:1\" filled=\"f\" stroked=\"f\">"
+                                     "<v:textbox><w:txbxContent><w:p><w:r><w:t>banner</w:t></w:r></w:p></w:txbxContent></v:textbox>" + wrap + "</v:shape></w:pict></w:r>";
+            QByteArray header = headerPart("hdr", {shape});
+            header.replace("<w:hdr ", "<w:hdr xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\" ");
+            auto doc = open(makeDocxWithParts(paragraphs(10, 5), sect, {{QStringLiteral("/word/header1.xml"), header}}));
+            return doc ? doc->pager().page(0).content.top() : -1.0;
+        };
+        const double round = top("<w10:wrap type=\"square\"/>"), none = top("<w10:wrap type=\"none\"/>");
+        QVERIFY2(std::abs(none - 72) < 12, qPrintable(QString::number(none)));   // (not wrapped: the margin, and the header's own line)
+        QVERIFY2(round > 149.9 && round < 170, qPrintable(QString::number(round)));
+    }
+
     // A paragraph of a footer whose mark a tracked change deleted, with nothing else of its own, is gone from the footer as the text stands: it takes no room
     // (twenty points a line here), so the text keeps what the footer leaves it.
     void aDeletedParagraphOfAFooterTakesNoRoom()
