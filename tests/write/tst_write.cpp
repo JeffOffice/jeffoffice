@@ -4094,6 +4094,23 @@ private Q_SLOTS:
         QVERIFY2(std::abs(lineOf("-120") - lineOf("120")) < 0.02, qPrintable(QString::number(lineOf("-120"))));
     }
 
+    // A number in a list is the size its level gives it (half-points, as a bullet's is), not the text's: a ten-point number before twelve-point text.
+    void aListNumberHasTheSizeItsLevelGives()
+    {
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/>"
+                                     "<w:pPr><w:ind w:left=\"360\" w:hanging=\"360\"/></w:pPr><w:rPr><w:sz w:val=\"20\"/></w:rPr></w:lvl></w:abstractNum>"
+                                     "<w:abstractNum w:abstractNumId=\"1\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num><w:num w:numId=\"2\"><w:abstractNumId w:val=\"1\"/></w:num>";
+        const QByteArray body = "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:rPr><w:sz w:val=\"24\"/></w:rPr><w:t>Sized</w:t></w:r></w:p>"
+                                "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"2\"/></w:numPr></w:pPr><w:r><w:rPr><w:sz w:val=\"24\"/></w:rPr><w:t>Plain</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles, numbering));
+        QVERIFY(doc);
+        const QTextBlock sized = doc->story()->begin(), plain = sized.next();
+        QVERIFY(sized.textList() && plain.textList());
+        QCOMPARE(sized.textList()->format().property(tp::BulletSize).toDouble(), 10.0);
+        QVERIFY(!plain.textList()->format().hasProperty(tp::BulletSize));
+    }
+
     // A page number in a frame (set in the middle or at the side, anchored to the text) takes no room: a footer of it and an empty paragraph is
     // one line tall, and the number is set as the frame says.
     void aFrameParagraphInAFooterTakesNoRoom()
