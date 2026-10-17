@@ -9,6 +9,7 @@
 #include "app/settings.h"
 
 #include <QFileInfo>
+#include <QHideEvent>
 #include <QShowEvent>
 #include <QStandardPaths>
 #include <QVBoxLayout>
@@ -119,6 +120,13 @@ QString FormatPane::choosePicture()
     if (paths.isEmpty()) return QString();
     Settings::get().setValue(QStringLiteral("dirs/pictures"), QFileInfo(paths.first()).absolutePath());
     return paths.first();
+}
+
+// A change still in progress (a control let go of out of sight) ends as the pane closes.
+void FormatPane::hideEvent(QHideEvent *e)
+{
+    QWidget::hideEvent(e);
+    m_session->finish();
 }
 
 bool FormatPane::applyFillPicture(const QString &path)

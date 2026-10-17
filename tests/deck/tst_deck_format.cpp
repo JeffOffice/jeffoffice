@@ -1321,6 +1321,13 @@ private Q_SLOTS:
         QCOMPARE(w.formatPane()->currentTab(), FormatPane::Tab::SizeProperties);
         QVERIFY(w.formatPane()->frame()->page(2)->section(QStringLiteral("Alt Text"))->isExpanded());
         QTRY_VERIFY(w.formatPane()->findChild<TextField *>(QStringLiteral("altDescription"))->hasFocus());
+        // While typing in a text box the menu has it too.
+        auto box = std::static_pointer_cast<TextItem>(ed->newTextBox(QRectF(100, 300, 240, 60), QStringLiteral("Words")));
+        ed->addItem(box, true);
+        ed->beginTextEdit(box->id);
+        QVERIFY(ed->isEditingText());
+        QVERIFY(menuTexts().contains(QStringLiteral("Format Shape…")));
+        ed->endTextEdit();
         // A picture: Format Picture, on the Picture page.
         QVERIFY(w.insertPicture(path));
         QVERIFY(menuTexts().contains(QStringLiteral("Format Picture…")));
