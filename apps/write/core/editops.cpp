@@ -80,6 +80,11 @@ QTextCharFormat charAt(QTextDocument *doc, int position)
 QTextCharFormat typingFormat(const QTextCursor &c)
 {
     QTextCharFormat f = c.charFormat();
+    // (Text typed beside what a tracked change deleted is not deleted, nor hidden.)
+    if (f.boolProperty(prop::TrackedDeleted)) {
+        f.clearProperty(prop::TrackedDeleted);
+        f.clearProperty(tp::HiddenText);
+    }
     if (!isAtom(f)) return f;
     // Beside a piece kept as XML: the look of the text before it, else of the paragraph's mark.
     const QTextBlock b = c.block();
