@@ -9,6 +9,8 @@ class QPainter;
 
 namespace jp::write {
 
+class SpellCheck;
+
 struct PageDrawing {
     int selectionFrom = -1, selectionTo = -1;   // the selected text, as positions in the document
     bool marks = false;                          // paragraph marks, tabs, and spaces drawn
@@ -16,6 +18,10 @@ struct PageDrawing {
     TextOutput textOutput = TextOutput::Picture;
     int pageCount = 1;
     bool grayscale = false;
+    // The misspelled words get a red wave under them on the screen (never in a proof, a printer, or a PDF, which set `output`). `typingAt` is the caret
+    // while a word is being typed: that word is left alone until the caret moves on.
+    SpellCheck *spelling = nullptr;
+    int typingAt = -1;
 };
 
 // Paints the page in its own coordinates (points from its top left corner) on the painter.

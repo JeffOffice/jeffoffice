@@ -6,6 +6,7 @@
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
+#include "app/spellpane.h"
 #include "app/telemetry.h"
 #include "app/widgets.h"
 #include "app/writedialogs.h"
@@ -325,6 +326,7 @@ void WriteWindow::showZoomDialog()
 void WriteWindow::showContextMenu(const QPoint &globalPos)
 {
     QMenu menu(this);
+    write::addSpellingSuggestions(menu, m_view);
     for (const char *id : {"edit.cut", "edit.copy", "edit.paste"}) menu.addAction(act(QString::fromLatin1(id)));
     menu.addSeparator();
     menu.addAction(act("para.dialog"));

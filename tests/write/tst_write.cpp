@@ -2,6 +2,7 @@
 
 #include "core/fonts.h"
 #include "app/pageview.h"
+#include "app/spellpane.h"
 #include "app/filescreen.h"
 #include "app/help.h"
 #include "app/recovery.h"
@@ -23,6 +24,7 @@
 #include "wml/wml.h"
 
 #include <QApplication>
+#include <QMenu>
 #include <QComboBox>
 #include <QDateTime>
 #include <QDialog>
@@ -271,6 +273,23 @@ const TextItem *boxWithText(const flow::MaterializedPage &page, const QString &t
             if (const Story *s = page.doc->story(t->storyId))
                 if (s->doc->toPlainText().contains(text)) return t;
     return nullptr;
+}
+
+// Red wave pixels in the part of a picture: the squiggle is a thin red line, so any pixel with much red and little else counts.
+QRect redBounds(const QImage &img, const QRect &within, int *count = nullptr)
+{
+    QRect bounds;
+    int n = 0;
+    for (int y = std::max(0, within.top()); y <= std::min(img.height() - 1, within.bottom()); ++y)
+        for (int x = std::max(0, within.left()); x <= std::min(img.width() - 1, within.right()); ++x) {
+            const QColor c = img.pixelColor(x, y);
+            if (c.red() > 150 && c.green() < 110 && c.blue() < 110) {
+                ++n;
+                bounds = bounds.isNull() ? QRect(x, y, 1, 1) : bounds.united(QRect(x, y, 1, 1));
+            }
+        }
+    if (count) *count = n;
+    return bounds;
 }
 
 } // namespace
@@ -979,6 +998,164 @@ private Q_SLOTS:
         QCOMPARE(sc.misspellingAt(9), first);
         QCOMPARE(sc.misspellingAt(10), qMakePair(-1, -1));
         QCOMPARE(sc.misspellingAt(0), qMakePair(-1, -1));
+    }
+
+    void misspelledWordsAreUnderlinedInRedOnTheScreenAndNotInTheProof()
+    {
+        auto doc = textDoc({"Alpha brwon gamma and a second line of words"});
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        // Where the word is on the page: the caret at its start and at its end.
+        QTextCursor &c = view.cursor();
+        c.setPosition(6);
+        view.setCursor(c);
+        QRect start;
+        QVERIFY(view.caretRect(&start));
+        c.setPosition(11);
+        view.setCursor(c);
+        QRect end;
+        QVERIFY(view.caretRect(&end));
+        c.setPosition(0);
+        view.setCursor(c);
+        // (Checked as the page is drawn, or a moment after.)
+        int count = 0;
+        QRect wave;
+        QTRY_VERIFY((wave = redBounds(view.grab().toImage(), view.pageRect(0), &count), count > 8));
+        // Under the word and nowhere else, just below the line of its letters.
+        QVERIFY2(wave.left() >= start.left() - 3 && wave.right() <= end.left() + 3, qPrintable(QStringLiteral("%1..%2 for the word at %3..%4").arg(wave.left()).arg(wave.right()).arg(start.left()).arg(end.left())));
+        QVERIFY(wave.top() >= start.top() && wave.bottom() <= start.bottom() + 8);
+        // As printed, and in the proof the picture of a page makes, there is none.
+        redBounds(view.pageImage(0, 900), QRect(0, 0, 900, 1200), &count);
+        QCOMPARE(count, 0);
+        // Switched off, it goes.
+        view.setSpellingEnabled(false);
+        redBounds(view.grab().toImage(), view.pageRect(0), &count);
+        QCOMPARE(count, 0);
+        view.setSpellingEnabled(true);
+        QTRY_VERIFY((redBounds(view.grab().toImage(), view.pageRect(0), &count), count > 8));
+    }
+
+    void aWordStillBeingTypedIsNotUnderlinedUntilTheCaretMovesOn()
+    {
+        auto doc = textDoc({""});
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        int count = 0;
+        for (const QChar ch : QStringLiteral("recieve")) view.insertText(QString(ch));
+        redBounds(view.grab().toImage(), view.pageRect(0), &count);
+        QCOMPARE(count, 0);
+        QCoreApplication::processEvents();   // (what idle time would do)
+        QCoreApplication::processEvents();
+        redBounds(view.grab().toImage(), view.pageRect(0), &count);
+        QCOMPARE(count, 0);
+        view.insertText(QStringLiteral(" "));
+        QTRY_VERIFY((redBounds(view.grab().toImage(), view.pageRect(0), &count), count > 3));   
+    }
+
+    void onlyTheParagraphsOnThePagesInViewAreChecked()
+    {
+        auto doc = open(makeDocx(paragraphs(150), kStyles));
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        view.grab();
+        SpellCheck *spelling = view.spelling();
+        QVERIFY(spelling);
+        view.paginateAll();
+        QTRY_VERIFY(!spelling->pending());
+        const qint64 first = spelling->paragraphsChecked();
+        QVERIFY2(first > 0 && first < 40, qPrintable(QString::number(first)));
+        // A page further on is checked when it is drawn; the rest of the document, never.
+        view.goToPage(4);
+        view.grab();
+        QTRY_VERIFY(!spelling->pending());
+        QVERIFY(spelling->paragraphsChecked() > first);
+        QVERIFY(spelling->paragraphsChecked() < 100);
+        // A typed character: that paragraph is checked again, and no other.
+        view.goToPage(0);
+        view.grab();
+        const qint64 before = spelling->paragraphsChecked();
+        QTextCursor &c = view.cursor();
+        c.setPosition(3);
+        view.setCursor(c);
+        view.insertText(QStringLiteral("x"));
+        view.grab();
+        QTRY_VERIFY(!spelling->pending());
+        QCOMPARE(spelling->paragraphsChecked(), before + 1);
+    }
+
+    void theSpellingMenuOffersSuggestionsIgnoreAllAndAddToDictionary()
+    {
+        auto doc = textDoc({"This is recieve test, and this is fine."});
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        QTextCursor &c = view.cursor();
+        // Off a misspelled word: nothing is added.
+        c.setPosition(2);
+        view.setCursor(c);
+        QMenu none;
+        QVERIFY(!addSpellingSuggestions(none, &view));
+        QVERIFY(none.isEmpty());
+        // On one (inside it, and at its end): the dictionary's first suggestions, then Ignore All and Add to Dictionary.
+        for (int at : {10, 15}) {
+            c.setPosition(at);
+            view.setCursor(c);
+            QMenu menu;
+            QVERIFY(addSpellingSuggestions(menu, &view));
+            QStringList texts;
+            for (QAction *a : menu.actions()) texts << a->text();
+            const QStringList wanted = spellingSuggestions(QStringLiteral("recieve")).mid(0, 6);
+            QVERIFY(!wanted.isEmpty());
+            QCOMPARE(texts.mid(0, wanted.size()), wanted);
+            QCOMPARE(texts[wanted.size()], QStringLiteral("Ignore All"));
+            QCOMPARE(texts[wanted.size() + 1], QStringLiteral("Add to Dictionary"));
+            QVERIFY(menu.actions().first()->font().bold());
+        }
+        // Choosing a suggestion changes the word, in one step that undoes.
+        c.setPosition(10);
+        view.setCursor(c);
+        QMenu menu;
+        QVERIFY(addSpellingSuggestions(menu, &view));
+        const QString chosen = menu.actions().first()->text();
+        menu.actions().first()->trigger();
+        QCOMPARE(doc->story()->toPlainText(), QStringLiteral("This is %1 test, and this is fine.").arg(chosen));
+        doc->story()->undo();
+        QCOMPARE(doc->story()->toPlainText(), QStringLiteral("This is recieve test, and this is fine."));
+        // Ignore All lets the word go for the session, and the pages are drawn again.
+        QMenu again;
+        QVERIFY(addSpellingSuggestions(again, &view));
+        QSignalSpy changed(view.spelling(), &SpellCheck::changed);
+        for (QAction *a : again.actions())
+            if (a->text() == QStringLiteral("Ignore All")) a->trigger();
+        QCOMPARE(view.spelling()->misspellingAt(10), qMakePair(-1, -1));
+        QVERIFY(changed.count() > 0);
+    }
+
+    void rightClickingAMisspelledWordInTheWindowShowsItsSuggestions()
+    {
+        WriteWindow w;
+        w.setDocument(textDoc({"A word that is wrongg here."}), QString());
+        w.show();
+        QTextCursor &c = w.view()->cursor();
+        c.setPosition(17);
+        w.view()->setCursor(c);
+        QStringList texts;
+        QTimer::singleShot(100, [&] {
+            if (auto *m = qobject_cast<QMenu *>(QApplication::activePopupWidget())) {
+                for (QAction *a : m->actions()) texts << a->text();
+                m->close();
+            }
+        });
+        Q_EMIT w.view()->contextMenuWanted(w.view()->mapToGlobal(QPoint(300, 300)));
+        QVERIFY2(texts.contains(QStringLiteral("Ignore All")) && texts.contains(QStringLiteral("Add to Dictionary")), qPrintable(texts.join(QLatin1Char('|'))));
+        QVERIFY(texts.indexOf(QStringLiteral("Ignore All")) > 0);   // (the suggestions come first, then the usual commands)
+        QVERIFY(texts.size() > texts.indexOf(QStringLiteral("Add to Dictionary")) + 3);
     }
 
     void theRibbonCommandsDoTheirWork()
