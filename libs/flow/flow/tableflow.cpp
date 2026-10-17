@@ -875,6 +875,8 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
     }
     if (k >= kMostParts - 1) st.more = false;   // (the part the parts end in has all that is left)
     piece.progress = st.progress;
+    // A row set to a height is not begun where the room is less than that height: it goes to the next page whole (a row is cut only where it has at least the room it was set to).
+    if (k == 0 && !force && st.more && row.data->height > 0 && room < row.data->height + row.top + row.foot - 0.01) piece.progress = false;
     piece.offsets = offs;
     piece.ends = st.more ? st.next : QVector<double>(n, kEnd);
     piece.notes = st.notes;

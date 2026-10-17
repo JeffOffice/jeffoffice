@@ -4724,6 +4724,41 @@ private Q_SLOTS:
         QCOMPARE(startPieces[2], 0);
     }
 
+    // A row set to a height is cut at a page break only where the room is at least that height: where it is less, the row goes to the next page whole.
+    void aRowSetToAHeightIsNotBegunWhereTheRoomIsLessThanThatHeight()
+    {
+        FlowDocument probe;
+        const double line = lineHeightOf(probe);
+        const double room = probe.section(0).content().height();
+        const int filler = int(std::floor((room - 12) / line)) - 3;
+        const double left = room - (filler * line + 6) - line;   // (what the page has for the second row, after the story's own line)
+        QVector<int> startPieces;
+        for (const double height : {0.0, 10.0, left + 20}) {
+            FlowDocument fd;
+            TestTable spec;
+            spec.rows = 2;
+            spec.cols = 2;
+            spec.columnWidth = 150;
+            spec.text = [&](int r, int c) {
+                QStringList t;
+                const int lines = r == 0 ? (c == 0 ? filler : 1) : 8;
+                for (int i = 0; i < lines; ++i) t << QStringLiteral("line %1 of %2.%3").arg(i).arg(r).arg(c);
+                return t.join(QLatin1Char('\n'));
+            };
+            spec.setRow = [&](int r, RowData &row) {
+                if (r == 1) row.height = height;
+            };
+            addTable(fd, spec);
+            Paginator pg(&fd);
+            QVERIFY(pg.pageCount() >= 2);
+            startPieces << pg.page(1).start.piece;
+        }
+        // (With no height, or one the room has, the row is cut; with one it has not, it is not.)
+        QVERIFY2(startPieces[0] != 0, qPrintable(QString::number(startPieces[0])));
+        QVERIFY2(startPieces[1] != 0, qPrintable(QString::number(startPieces[1])));
+        QCOMPARE(startPieces[2], 0);
+    }
+
     // The part of a row that goes on from the page before shows only its own lines: nothing of the lines that the page before showed is drawn in the margin above them.
     void aPartOfARowDoesNotShowTheLinesOfThePartBeforeItInItsMargin()
     {
