@@ -4321,6 +4321,26 @@ private Q_SLOTS:
         QCOMPARE(marks(QStringLiteral("AUTO note")), (QStringList{QStringLiteral("raw:1")}));
     }
 
+    // The notes of a page sit at its foot whatever follows the page: the first paragraph of the next section, which a section break takes to the next page, has a note of its own,
+    // and the room for it is not kept under this page's notes.
+    void aSectionBreakDoesNotKeepNoteRoomOnThePageBefore()
+    {
+        const QByteArray exact = "<w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/></w:pPr>";
+        const QByteArray margins = "<w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/>";
+        const QByteArray body = "<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/><w:sectPr>" + margins + "</w:sectPr></w:pPr><w:r><w:t>One</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>"
+                                "<w:p>" + exact + "<w:r><w:t>Two</w:t></w:r><w:r><w:footnoteReference w:id=\"3\"/></w:r></w:p>";
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>"
+                                 "<w:footnote w:id=\"2\"><w:p>" + exact + "<w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> FIRST note</w:t></w:r></w:p></w:footnote>"
+                                 "<w:footnote w:id=\"3\"><w:p>" + exact + "<w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> SECOND note</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        auto doc = open(makeDocxWithParts(body, "<w:sectPr>" + margins + "</w:sectPr>", {{QStringLiteral("/word/footnotes.xml"), notes}}));
+        QVERIFY(doc);
+        QCOMPARE(doc->pager().pageCount(), 2);
+        const auto page = doc->pager().materialize(0);
+        const TextItem *note = boxWithText(*page, QStringLiteral("FIRST note"));
+        QVERIFY(note);
+        QVERIFY2(std::abs(note->rect.bottom() - (792 - 72)) < 0.1, qPrintable(QString::number(note->rect.bottom())));
+    }
+
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
     // thousand sections makes no more than the sections it changed (counted, not timed).
     void editingSectionsTouchesOnlyWhatChanged()
