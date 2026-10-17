@@ -1209,6 +1209,24 @@ private Q_SLOTS:
         QCOMPARE(textIn(0), QString(QChar(0x0152)) + QChar(0x0178) + QStringLiteral("CF"));
     }
 
+    // The pictures that only the word processor knows (the arrows of Wingdings E7, E9, and EA) are not read as pictures here: a run in Wingdings with those codes keeps the
+    // characters the codes were, as in a font of letters, and a presentation saved from it says the same.
+    void importBinaryWingdingsArrowsOfTheWordProcessorStayAsTheyWere()
+    {
+        const QByteArray raw8 = QByteArray("\xE7\xE9\xEA");
+        auto textIn = [&](int font) {
+            const QByteArray styles = pfRun(int(raw8.size()) + 1, 0, 0) + cfRun(int(raw8.size()) + 1, 0x10000, le(font, 2));
+            QByteArray text = pptRec(3999, le(1, 4)) + pptRec(4008, raw8) + pptRec(4001, styles);
+            QString err;
+            auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, text), &err);
+            if (!d) qWarning("%s", qPrintable(err));
+            const QTextDocument *body = d ? placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1")) : nullptr;
+            return body ? body->toPlainText() : QStringLiteral("<none>");
+        };
+        QCOMPARE(textIn(0), QString(QChar(0x00E7)) + QChar(0x00E9) + QChar(0x00EA));
+        QCOMPARE(textIn(4), textIn(0));
+    }
+
     // A metafile whose writer sets a smaller window and scales the viewport down by the same ratio (the program's own clip art does, to
     // keep a drawing's size) is drawn at the size it had: here a drawing 400 by 300 units that sets a window of 200 by 150 and halves
     // the viewport, then fills the whole of that window, covers the top left quarter of its picture, not all of it.
