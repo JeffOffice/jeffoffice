@@ -4516,6 +4516,33 @@ private Q_SLOTS:
         }
     }
 
+    // What the program makes of a style's frame properties does not cost a regular expression for every paragraph: a long chain of styles with many properties each, and many
+    // paragraphs of the last, open in step with the paragraphs. (Compared with a chain of one, not against a clock.)
+    void aLongChainOfStylesCostsNothingForEachParagraph()
+    {
+        auto build = [&](int depth) {
+            QByteArray styles = kStyles;
+            for (int i = 0; i < depth; ++i) {
+                styles += "<w:style w:type=\"paragraph\" w:styleId=\"Deep" + QByteArray::number(i) + "\"><w:name w:val=\"Deep " + QByteArray::number(i) + "\"/>" +
+                          (i + 1 < depth ? "<w:basedOn w:val=\"Deep" + QByteArray::number(i + 1) + "\"/>" : QByteArray("<w:basedOn w:val=\"Normal\"/>")) +
+                          "<w:pPr><w:suppressAutoHyphens/><w:kinsoku/><w:wordWrap/><w:snapToGrid/><w:textAlignment w:val=\"auto\"/><w:autoSpaceDE/><w:autoSpaceDN/><w:adjustRightInd/>"
+                          "<w:suppressLineNumbers/><w:topLinePunct/><w:mirrorIndents/><w:suppressOverlap/></w:pPr></w:style>";
+            }
+            QByteArray body;
+            for (int i = 0; i < 1500; ++i) body += "<w:p><w:pPr><w:pStyle w:val=\"Deep0\"/></w:pPr><w:r><w:t>paragraph " + QByteArray::number(i) + "</w:t></w:r></w:p>";
+            return makeDocx(body, styles);
+        };
+        auto openTime = [&](const QByteArray &zip) {
+            std::unique_ptr<WriteDoc> doc;
+            const qint64 ns = bestNanoseconds([&] { doc = open(zip); }, 2, [&] { doc.reset(); });
+            return doc ? ns / 1e6 : 1e9;
+        };
+        const QByteArray shallow = build(1), deep = build(32);
+        openTime(shallow);   // (the first of anything is slow: fonts, the first layout)
+        const double base = std::max(openTime(shallow), 20.0), chain = openTime(deep);
+        QVERIFY2(chain < 4 * base, qPrintable(QStringLiteral("a chain of 32 styles %1 ms, of one %2 ms").arg(chain).arg(base)));
+    }
+
     // The page color of a file (w:background) is the pages' color, and the file comes back with it.
     void aFilesPageColorFillsItsPages()
     {
