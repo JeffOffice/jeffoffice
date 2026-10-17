@@ -371,8 +371,10 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         const bool splitting = split >= 0;
         const Section &nextSection = m_doc->section(std::min<int>(st.section + 1, int(m_doc->sections.size()) - 1));
         if (splitting) {
-            frames << walled(frame(colW, colH), QRectF(sec.columnRect(0).left(), body.top(), colW, colH));
-            run.cols << QRectF(sec.columnRect(0).left(), 0, colW, colH);
+            for (int c = 0; c < sec.columnCount(); ++c) {
+                frames << walled(frame(colW, colH), QRectF(sec.columnRect(c).left(), body.top(), colW, colH));
+                run.cols << QRectF(sec.columnRect(c).left(), 0, colW, colH);
+            }
             for (int c = 0; c < nextSection.columnCount(); ++c) {
                 frames << walled(frame(nextSection.columnWidth(), std::max(1.0, colH - split)), QRectF(nextSection.columnRect(c).left(), body.top() + split, nextSection.columnWidth(), std::max(1.0, colH - split)));
                 run.cols << QRectF(nextSection.columnRect(c).left(), split, nextSection.columnWidth(), std::max(1.0, colH - split));
@@ -423,24 +425,54 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                     // The first section's text, in the frame as tall as the page, up to the paragraph that ends it.
                     const QTextBlock endBlock = m_doc->story()->findBlock(splitBlock);
                     const int splitEnd = endBlock.position() + endBlock.length();
-                    QVector<FrameSpec> f1;
-                    if (run.firstFrame > 0) f1 << frames[0];
-                    f1 << walled(frame(colW, colH), QRectF(sec.columnRect(0).left(), body.top(), colW, colH)) << frame(colW, kTall);
-                    StoryLayout::Span s1 = span;
-                    s1.end = splitEnd;
-                    s1.stopAtFrame = int(f1.size()) - 1;
-                    Part p1 = layPart(f1, s1, st);
+                    // (A section of columns has them as even as the lines let them be, where another section begins below it: the columns are made as tall as the lines
+                    // need, as short as they can be, by trying heights from the share of the text's height each has, a line more at a time.)
+                    const int firstColumns = sec.columnCount();
+                    auto layFirst = [&](double height) {
+                        QVector<FrameSpec> f1;
+                        if (run.firstFrame > 0) f1 << frames[0];
+                        for (int c = 0; c < firstColumns; ++c) f1 << walled(frame(colW, height), QRectF(sec.columnRect(c).left(), body.top(), colW, height));
+                        f1 << frame(colW, kTall);
+                        StoryLayout::Span s1 = span;
+                        s1.end = splitEnd;
+                        s1.stopAtFrame = int(f1.size()) - 1;
+                        return layPart(f1, s1, st);
+                    };
+                    auto bottomOf = [&](const Part &part, int column) {
+                        double bottom = 0;
+                        for (const auto &ln : part.lines)
+                            if (ln.frame == run.firstFrame + column) bottom = std::max(bottom, ln.rect.bottom());
+                        return bottom;
+                    };
+                    auto overflows = [&](const Part &part) {
+                        bool over = part.windowShort;
+                        for (const auto &ln : part.lines) over |= ln.frame >= run.firstFrame + firstColumns;
+                        return over;
+                    };
+                    Part p1 = layFirst(colH);
+                    if (firstColumns > 1 && !overflows(p1)) {
+                        double total = 0;
+                        for (int c = 0; c < firstColumns; ++c) total += bottomOf(p1, c);
+                        for (double height = std::min(colH, std::max(1.0, total / firstColumns)); height < colH; height += 6) {
+                            Part q = layFirst(height);
+                            if (overflows(q)) continue;
+                            p1 = q;
+                            break;
+                        }
+                    }
                     double splitY = -1;
                     bool fits = !p1.windowShort;
                     for (const auto &ln : p1.lines) {
-                        if (ln.frame >= run.firstFrame + 1) fits = false;
-                        if (ln.block == splitBlock && ln.line == ln.lines - 1 && ln.frame == run.firstFrame) splitY = ln.rect.bottom();
+                        if (ln.frame >= run.firstFrame + firstColumns) fits = false;
+                        if (ln.block == splitBlock && ln.line == ln.lines - 1 && ln.frame >= run.firstFrame && ln.frame < run.firstFrame + firstColumns) splitY = std::max(splitY, ln.rect.bottom());
                     }
-                    if (!fits || splitY < 0) {
+                    for (int c = 0; c < firstColumns; ++c) splitY = std::max(splitY, bottomOf(p1, c));
+                    if (!fits || splitY <= 0) {
                         splitFailed = true;
                         return;
                     }
-                    const double reserved = p1.reserve.value(run.firstFrame, 0.0);
+                    double reserved = 0;
+                    for (int c = 0; c < firstColumns; ++c) reserved = std::max(reserved, p1.reserve.value(run.firstFrame + c, 0.0));
                     const double columnH = std::max(1.0, colH - splitY - reserved);
                     // The second section's columns.
                     QVector<FrameSpec> f2;
@@ -493,11 +525,11 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                         for (auto &r : p2.rules) r.frame += toOver;
                     }
                     // Together: the frames of the second part come after the first's.
-                    const int shift = run.firstFrame + 1;
+                    const int shift = run.firstFrame + firstColumns;
                     part = p1;
                     // (What the first part set in its frame past the page is carried on, and is not on this page.)
-                    part.notes.erase(std::remove_if(part.notes.begin(), part.notes.end(), [&](const StoryLayout::NotePlace &n) { return n.frame > run.firstFrame; }), part.notes.end());
-                    part.rules.erase(std::remove_if(part.rules.begin(), part.rules.end(), [&](const StoryLayout::Rule &r) { return r.frame > run.firstFrame; }), part.rules.end());
+                    part.notes.erase(std::remove_if(part.notes.begin(), part.notes.end(), [&](const StoryLayout::NotePlace &n) { return n.frame >= run.firstFrame + firstColumns; }), part.notes.end());
+                    part.rules.erase(std::remove_if(part.rules.begin(), part.rules.end(), [&](const StoryLayout::Rule &r) { return r.frame >= run.firstFrame + firstColumns; }), part.rules.end());
                     for (StoryLayout::LineBrief l : p2.lines) {
                         if (l.frame >= 0) l.frame += shift;
                         part.lines << l;
@@ -514,7 +546,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                     part.windowShort = p2.windowShort;
                     part.pieces.insert(part.pieces.end(), p2.pieces.begin(), p2.pieces.end());
                     run.cols.clear();
-                    run.cols << QRectF(sec.columnRect(0).left(), 0, colW, colH);
+                    for (int c = 0; c < firstColumns; ++c) run.cols << QRectF(sec.columnRect(c).left(), 0, colW, colH);
                     for (int c = 0; c < nextSection.columnCount(); ++c) run.cols << QRectF(nextSection.columnRect(c).left(), splitY, nextSection.columnWidth(), columnH);
                 }
                 all = part.lines;
@@ -566,7 +598,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
     };
     lay();
     // A continuous section with other columns or side margins, when the text of the one before ends on the page, begins below it: the page is laid out again in two parts.
-    if (st.section + 1 < m_doc->sections.size() && sec.columnCount() == 1) {
+    if (st.section + 1 < m_doc->sections.size()) {
         const Section &next = m_doc->section(st.section + 1);
         if (next.continuous && sec.sameSheetAs(next) && !(sec.sameColumnsAs(next) && sec.sameSidesAs(next))) {
             for (int i = 0; i < kept; ++i) {

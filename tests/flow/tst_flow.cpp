@@ -6823,6 +6823,48 @@ private Q_SLOTS:
         QCOMPARE(apart.second.last(), 1);
     }
 
+    // A continuous section after a section of columns begins below the columns, which are as even as the lines let them be (the first column is not filled to the foot of the
+    // page): the second section's text is below the lowest of them.
+    void aContinuousSectionAfterColumnsBeginsBelowTheBalancedColumns()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 4, 9, [](int i, QTextBlockFormat &bf) {
+            bf.setBottomMargin(6);
+            if (i == 2) bf.setProperty(fp::SectionBreakAfter, true);
+        }, 30, 40);
+        Section first = fd.sections[0];
+        first.columns = 2;
+        first.columnGap = 20;
+        fd.sections[0] = first;
+        Section second = fd.sections[0];
+        second.continuous = true;
+        second.columns = 1;
+        fd.sections << second;
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 1);
+        const auto lines = pg.lines(0);
+        double bottom[3] = {0, 0, 0}, tallest = 0;
+        int count[3] = {0, 0, 0};
+        for (const auto &l : lines) {
+            QVERIFY(l.frame >= 0 && l.frame < 3);
+            ++count[l.frame];
+            if (l.frame < 2) bottom[l.frame] = std::max(bottom[l.frame], l.rect.bottom());
+            tallest = std::max(tallest, l.rect.height());
+        }
+        QVERIFY2(count[0] > 0 && count[1] > 0 && count[2] > 0, qPrintable(QStringLiteral("lines in the columns: %1, %2, then %3").arg(count[0]).arg(count[1]).arg(count[2])));
+        QVERIFY2(std::abs(bottom[0] - bottom[1]) <= 2 * tallest, qPrintable(QStringLiteral("the columns end at %1 and %2").arg(bottom[0]).arg(bottom[1])));
+        // (The second section's box, in page coordinates, begins below the text area's top by where the columns end.)
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        QCOMPARE(int(page->boxes.size()), 3);
+        const auto *box = dynamic_cast<const TextItem *>(page->doc->item(page->boxes[2]));
+        QVERIFY(box);
+        const double areaTop = pg.page(0).content.top();
+        QVERIFY2(box->rect.top() >= areaTop + std::max(bottom[0], bottom[1]) - 0.01, qPrintable(QStringLiteral("the second section begins at %1, the columns end at %2").arg(box->rect.top() - areaTop).arg(std::max(bottom[0], bottom[1]))));
+        QVERIFY2(box->rect.top() - areaTop - std::max(bottom[0], bottom[1]) < 40, "the second section follows the columns closely");
+    }
+
     // A continuous section with more columns than the one before begins below it on the same page, with its own columns.
     void continuousSectionWithOtherColumnsBeginsBelow()
     {
