@@ -28,6 +28,10 @@ QColor highlightColor(const QString &name);
 QString highlightName(const QColor &color);
 QStringList highlightNames();
 
+// Whether a paragraph is gone from the text as it stands: a tracked change deleted its mark and nothing else of it shows (text, a picture, a break, or a
+// note's mark).
+bool isDeletedAway(const office::wml::Paragraph &paragraph);
+
 // Text the format marks as kept XML (a picture, a field's code, a bookmark...).
 bool isAtom(const QTextCharFormat &format);
 // The format with what makes it an atom taken away, for text typed beside one.

@@ -1558,6 +1558,51 @@ private Q_SLOTS:
             const QImage kept = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, balanced + wmfRecord(0x012D, words({0})) + fill));
             QVERIFY(!near(kept.pixel(200, 150), QColor(0, 0, 255)));
         }
+        // From here on, a warning that a painter ended with saved states fails the test.
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("saved states")));
+        // A picture that sets a clip, then saves twice and restores once, is left with a saved state of its own open. Played onto a painter
+        // with a clip of its own, it must leave that painter's clip and transform as they were, and what is drawn after it at (150, 150) shows.
+        {
+            const QByteArray leftOpen = wmfRecord(0x0416, words({100, 100, 0, 0})) + wmfRecord(0x001E, QByteArray()) + wmfRecord(0x001E, QByteArray())
+                + wmfRecord(0x0127, words({-1}));
+            QImage canvas(400, 300, QImage::Format_ARGB32_Premultiplied);
+            canvas.fill(Qt::transparent);
+            QPainter p(&canvas);
+            p.setClipRect(QRect(0, 0, 300, 300));
+            const QRegion clipBefore = p.clipRegion();
+            const QTransform transformBefore = p.transform();
+            Metafile m;
+            QVERIFY(m.load(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, leftOpen)));
+            m.play(&p, QRectF(40, 30, 200, 150));
+            QVERIFY2(p.clipRegion() == clipBefore, "the picture changed the painter's clip");
+            QVERIFY2(p.transform() == transformBefore, "the picture changed the painter's transform");
+            p.fillRect(QRect(150, 150, 50, 50), Qt::red);
+            p.end();
+            QCOMPARE(QColor(canvas.pixel(175, 175)), QColor(255, 0, 0));
+        }
+        // A RestoreDC of -2 after three saves restores two levels: to the state of the second save, a clip of 300 by 260, not the 100 by 100
+        // corner the third save came after. The picture then unwinds cleanly, and the painter is as it was.
+        {
+            QByteArray fullPatBlt;
+            le32(fullPatBlt, 0x00F00021);   // copy the brush
+            for (int v : {300, 400, 0, 0}) le16(fullPatBlt, v);   // height, width, y, x
+            const QByteArray twoLevels = wmfRecord(0x001E, QByteArray()) + wmfRecord(0x0416, words({260, 300, 0, 0})) + wmfRecord(0x001E, QByteArray())
+                + wmfRecord(0x0416, words({100, 100, 0, 0})) + wmfRecord(0x001E, QByteArray()) + wmfRecord(0x0127, words({-2}))
+                + wmfRecord(0x012D, words({0})) + wmfRecord(0x061D, fullPatBlt);
+            QImage canvas(400, 300, QImage::Format_ARGB32_Premultiplied);
+            canvas.fill(Qt::transparent);
+            QPainter p(&canvas);
+            p.setClipRect(QRect(0, 0, 250, 250));
+            const QRegion clipBefore = p.clipRegion();
+            const QTransform transformBefore = p.transform();
+            Metafile m;
+            QVERIFY(m.load(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, twoLevels)));
+            m.play(&p, QRectF(0, 0, 400, 300));
+            QVERIFY2(p.clipRegion() == clipBefore, "the picture changed the painter's clip");
+            QVERIFY2(p.transform() == transformBefore, "the picture changed the painter's transform");
+            p.end();
+            QCOMPARE(QColor(canvas.pixel(200, 200)), QColor(0, 0, 255));   // inside the 300 by 260 clip, outside the corner
+        }
         // Insert Picture takes both from files, whatever the case of the
         // extension, and the page shows the picture on screen and in print.
         QTemporaryDir dir;
