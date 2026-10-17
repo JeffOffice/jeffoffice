@@ -3833,6 +3833,20 @@ private Q_SLOTS:
         QVERIFY2(large < 0.2 + small * 8, qPrintable(QStringLiteral("5000 fonts %1 s, 20000 fonts %2 s").arg(small).arg(large)));
     }
 
+    // A file whose compatibility options say to suppress the space before after a page break has none at the top of the page that a break at the start of a paragraph opens.
+    void theCompatibilityOptionThatSuppressesTheSpaceBeforeAfterABreakIsKept()
+    {
+        auto top = [&](const QByteArray &settings) {
+            const QByteArray body = "<w:p><w:pPr><w:spacing w:before=\"400\" w:after=\"0\"/></w:pPr><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>Second page</w:t></w:r></w:p>";
+            auto doc = open(makeDocxWithParts(body, QByteArray(), {}, settings));
+            if (!doc || doc->pager().pageCount() != 2) return -1.0;
+            return doc->pager().lines(1)[0].rect.top();
+        };
+        QVERIFY2(std::abs(top("<w:zoom w:percent=\"100\"/>") - 20) < 0.01, qPrintable(QString::number(top("<w:zoom w:percent=\"100\"/>"))));
+        const double suppressed = top("<w:compat><w:suppressSpBfAfterPgBrk/></w:compat>");
+        QVERIFY2(std::abs(suppressed) < 0.01, qPrintable(QString::number(suppressed)));
+    }
+
     // The notes' numbers restart in each section when the settings say so of the footnotes (not of the endnotes).
     void footnoteNumbersRestartWhenTheSettingsSaySo()
     {

@@ -1977,6 +1977,28 @@ private Q_SLOTS:
         QCOMPARE(lines[5].frame, 1);
     }
 
+    // A file whose options say to suppress the space before after a page break (the 2003 program's) has none at the top of the page a break at the start of a paragraph opens:
+    // its text begins at the page's top.
+    void aFileThatSuppressesTheSpaceBeforeAfterAPageBreakHasNone()
+    {
+        auto secondPageTop = [&](bool suppress) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.spaceBeforeAfterBreak = !suppress;
+            QTextCursor c(fd.story());
+            QTextBlockFormat bf;
+            bf.setTopMargin(20);
+            c.setBlockFormat(bf);
+            c.insertText(QString(flow::kPageBreak) + QStringLiteral("second words"));
+            c.insertBlock(bf);
+            c.insertText(QStringLiteral("a paragraph after"));
+            Paginator pg(&fd);
+            return pg.pageCount() == 2 ? pg.lines(1)[0].rect.top() : -1.0;
+        };
+        QVERIFY2(std::abs(secondPageTop(false) - 20) < 0.01, qPrintable(QString::number(secondPageTop(false))));
+        QVERIFY2(std::abs(secondPageTop(true)) < 0.01, qPrintable(QString::number(secondPageTop(true))));
+    }
+
     // The text after a page break that begins a paragraph is its first line, at the top of the next page with the paragraph's space before; what goes on after a break that
     // has something before it on its line (the rest of the paragraph) has none there, as a paragraph that goes on onto a page for want of room has none.
     void aBreakKeepsTheSpaceBeforeOnTheNextPageOnlyWhereItBeginsTheParagraph()

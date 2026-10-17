@@ -1152,6 +1152,7 @@ CompatOptions readCompatOptions(const QByteArray &settings)
     o.splitPgBreakAndParaMark = on("splitPgBreakAndParaMark");
     o.suppressTopSpacingWP = on("suppressTopSpacingWP");
     o.noLeading = on("noLeading");
+    o.suppressSpBfAfterPgBrk = on("suppressSpBfAfterPgBrk");
     return o;
 }
 

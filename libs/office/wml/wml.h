@@ -511,7 +511,7 @@ bool compatOption(const QByteArray &settings, const char *name);
 // The compatibility options the layout reads, from one reading of the settings part (compatOption reads the whole part for each one, and a part may be very large).
 struct CompatOptions {
     bool useFELayout = false, doNotWrapTextWithPunct = false, doNotUseHTMLParagraphAutoSpacing = false, noTabHangInd = false;
-    bool doNotUseIndentAsNumberingTabStop = false, splitPgBreakAndParaMark = false, suppressTopSpacingWP = false, noLeading = false;
+    bool doNotUseIndentAsNumberingTabStop = false, splitPgBreakAndParaMark = false, suppressTopSpacingWP = false, noLeading = false, suppressSpBfAfterPgBrk = false;
 };
 CompatOptions readCompatOptions(const QByteArray &settings);
 

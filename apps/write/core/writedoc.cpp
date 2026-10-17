@@ -320,6 +320,7 @@ void WriteDoc::setUpEnvironment()
         f.env.wordWholePointLines = compat.suppressTopSpacingWP && m_wml.compatMode < 14;
         f.env.wordNoLeading = compat.noLeading;
         f.markFollowsBreak = m_wml.compatMode >= 15 || compat.splitPgBreakAndParaMark;
+        f.spaceBeforeAfterBreak = !compat.suppressSpBfAfterPgBrk;
     }
     // The stand-ins for the fonts the file names that the machine doesn't have, by what its font table says of each (wordStandInFor).
     for (const KeptPart &part : m_wml.parts) {
