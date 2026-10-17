@@ -3209,6 +3209,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // A word processor's line: the text's ascent above the baseline, the descent and leading below it, and what a multiple of single
                     // spacing adds under that (an exact height keeps the line's parts in proportion, an at-least height the baseline a descent above the
                     // line's bottom). The whole line must fit.
+                    double roomUnder = 0;   // (a word processor's multiple of single spacing puts its room under the text, which a line need not have left to be a column's)
                     if (env.wordLines) {
                         WordLine wl = wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base, env, &B->disp, &markFont, markSize);
                         // (A number or bullet counts by its ascent over the text's descent, without a leading of its own or any room below its baseline: it raises the
@@ -3219,7 +3220,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         }
                         const double ownSingle = wl.total();
                         switch (bf.lineHeightType()) {
-                        case QTextBlockFormat::ProportionalHeight: h = ownSingle * bf.lineHeight() / 100.0; break;
+                        case QTextBlockFormat::ProportionalHeight: h = ownSingle * bf.lineHeight() / 100.0; roomUnder = std::max(0.0, h - ownSingle); break;
                         case QTextBlockFormat::FixedHeight: h = bf.lineHeight() * scale; break;
                         case QTextBlockFormat::MinimumHeight: h = std::max(ownSingle, bf.lineHeight() * scale); break;
                         default: h = ownSingle; break;
@@ -3234,6 +3235,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         if (lineNo == 0 && line.textLength() == 1 && doc->characterAt(b.position() + B->docFromDisp(line.textStart())) == QChar(0x000C)) {
                             h = textH = 0;
                             baseDown = 0;
+                            roomUnder = 0;
                         }
                     }
                     const double rise = objUp > baseDown && bf.lineHeightType() != QTextBlockFormat::FixedHeight ? objUp - baseDown : 0;
@@ -3255,8 +3257,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         if (onlyObjects) {
                             h = textH = baseDown = objUp;
                             below = 0;
+                            roomUnder = 0;
                         }
                     }
+                    const double fitH = std::max(0.0, textH - roomUnder);   // (what of the line has to fit where the column ends)
                     // The first line of a column goes there however tall it
                     // is, unless notes going on from the column before fill it.
                     const bool firstInColumn = (y <= 0.001) && rowIdx == 0 && !reserve.contains(rkey(f, c));
@@ -3286,11 +3290,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     }
                     double bottom = col.bottom() - reserve.value(rkey(f, c)) - pending;
                     bool cutting = false;
-                    if (col.top() + y + textH > bottom + 0.01) {
-                        if (!lineNotes.isEmpty() && textH + ruleGap + notesH > col.height() + 0.01) {
+                    if (col.top() + y + fitH > bottom + 0.01) {
+                        if (!lineNotes.isEmpty() && fitH + ruleGap + notesH > col.height() + 0.01) {
                             // Room here for the line and a line of the note?
                             const double least = heightOf(m_notes[lineNotes.first()].numberFont) + noteGap;
-                            cutting = firstInColumn || col.top() + y + textH + (reserve.contains(rkey(f, c)) ? 0 : ruleGap) + least <= col.bottom() - reserve.value(rkey(f, c)) + 0.01;
+                            cutting = firstInColumn || col.top() + y + fitH + (reserve.contains(rkey(f, c)) ? 0 : ruleGap) + least <= col.bottom() - reserve.value(rkey(f, c)) + 0.01;
                         }
                         if (!cutting && !firstInColumn) {
                             advance();
@@ -3323,14 +3327,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     Cut cut;
                     if (cutting) {
                         const bool firstNotes = !reserve.contains(rkey(f, c));
-                        cut = cutNotes(lineNotes, col.bottom() - reserve.value(rkey(f, c)) - (col.top() + y) - textH - (firstNotes ? ruleGap : 0), col.width(), firstInColumn);
+                        cut = cutNotes(lineNotes, col.bottom() - reserve.value(rkey(f, c)) - (col.top() + y) - fitH - (firstNotes ? ruleGap : 0), col.width(), firstInColumn);
                         if (!cut.ok) {
                             advance();
                             continue;
                         }
                         bottom = col.bottom() - reserve.value(rkey(f, c)) - (firstNotes ? ruleGap : 0) - cut.used;
                     }
-                    if (col.top() + y + textH > bottom + 0.01 && !firstInColumn) {   // snapped past the bottom
+                    if (col.top() + y + fitH > bottom + 0.01 && !firstInColumn) {   // snapped past the bottom
                         advance();
                         continue;
                     }

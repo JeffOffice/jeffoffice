@@ -7403,6 +7403,33 @@ private Q_SLOTS:
         QCOMPARE(lines[0].end - lines[0].pos, int(doc.characterCount() - 1));
     }
 
+    // A multiple of single spacing adds its room under the line's text: the last line of a column needs the text's height there, not the whole, and a line whose text fits
+    // is the column's though the room under it hangs past its bottom.
+    void aLineOfDoubleSpacingFitsByItsTextNotItsRoomUnderIt()
+    {
+        const double single = (1825 + 443 + 87) / 2048.0 * 12;
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setLineHeight(200, QTextBlockFormat::ProportionalHeight);
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("one") + QChar(QChar::LineSeparator) + QStringLiteral("two") + QChar(QChar::LineSeparator) + QStringLiteral("three"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        // Room for the first line whole and the second line's text, not its room under.
+        lay.build(&doc, {plainFrame(300, 2 * single + single + 0.5), plainFrame(300, 500)}, env);
+        const auto lines = lay.lineBriefs();
+        QCOMPARE(lines.size(), 3);
+        QCOMPARE(lines[0].frame, 0);
+        QCOMPARE(lines[1].frame, 0);   // (its text fits)
+        QCOMPARE(lines[2].frame, 1);
+        QVERIFY2(std::abs(lines[1].rect.height() - 2 * single) < 0.01, qPrintable(QString::number(lines[1].rect.height())));   // (it is still a line of double spacing)
+    }
+
     // A line that a paragraph goes on with, in smaller type than its first run, is checked against the objects at the height its own text has, not the first run's: an object
     // that begins below the line (and above where the big type's line would end) is no wall for it.
     void aLineInSmallTypeIsNotMovedByAnObjectBelowIt()
