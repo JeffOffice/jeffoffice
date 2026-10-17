@@ -64,7 +64,7 @@ QVector<Paginator::Anchor> Paginator::anchorsIn(const QTextDocument *story, int 
             a.object = at->second;
             a.pos = at->first;
             a.paragraph = b.position();
-            a.paragraphTop = top.rect.top() - top.pushed;
+            a.paragraphTop = top.rect.top() - top.pushed - std::max(0.0, b.blockFormat().topMargin());   // (the top of a paragraph is above the space before it)
             a.columnLeft = top.columnLeft;
             a.lineTop = top.rect.top() - top.pushed;
             a.x = top.rect.left();

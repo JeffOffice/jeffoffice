@@ -9661,6 +9661,33 @@ private Q_SLOTS:
         }
     }
 
+    // An object set from its paragraph (down from the paragraph's top) is set from the paragraph's top above the space before it, as a table is: the room the paragraph leaves above
+    // its first line is not in the offset.
+    void anObjectSetFromAParagraphIsSetAboveTheSpaceBeforeIt()
+    {
+        auto fd = std::make_unique<FlowDocument>();
+        fd->env.wordLines = true;
+        fillStory(fd->story(), 6, 41, [](int n, QTextBlockFormat &bf) { if (n == 2) bf.setTopMargin(20); }, 3, 6);
+        int paragraph = -1;
+        for (QTextBlock b = fd->story()->begin(); b.isValid(); b = b.next())
+            if (b.blockFormat().topMargin() == 20) paragraph = b.position();
+        QVERIFY(paragraph > 0);
+        // (Behind the text: no wall, so no line is moved.)
+        const int id = addWrapped(fd.get(), 40, 30, paragraph + 1, FloatingObject::Wrap::Square, 0, 5, QMarginsF(0, 0, 0, 0), FloatingObject::Side::Both, FloatingObject::Rel::Column, FloatingObject::Rel::Paragraph);
+        fd->objects[size_t(id) - 1].hAlign = FloatingObject::Align::End;
+        Paginator pg(fd.get());
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const Item *shape = objectOfSize(*page, 40, 30);
+        QVERIFY(shape);
+        double natural = -1;
+        for (const auto &l : pg.lines(0))
+            if (l.line == 0 && l.block == paragraph) natural = l.rect.top() - l.pushed;
+        QVERIFY(natural > 0);
+        const double top = pg.page(0).content.top() + natural - 20 + 5;
+        QVERIFY2(std::abs(shape->rect.top() - top) < 0.01, qPrintable(QStringLiteral("the object is at %1, the paragraph's top and the offset say %2").arg(shape->rect.top()).arg(top)));
+    }
+
     // A table set at a place from its paragraph is set from the top of that paragraph, above the space before it: the offset does not count the room the paragraph leaves
     // above its first line.
     void aTableSetFromItsParagraphIsSetAboveTheSpaceBeforeIt()
