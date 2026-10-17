@@ -527,7 +527,8 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
     const int line = p.line.value_or(240);
     if (p.lineRule == QLatin1String("exact")) bf.setLineHeight(std::max(1, line) / 20.0, QTextBlockFormat::FixedHeight);
     else if (p.lineRule == QLatin1String("atLeast")) bf.setLineHeight(std::max(1, line) / 20.0, QTextBlockFormat::MinimumHeight);
-    else if (line != 240) bf.setLineHeight(std::max(1, line) * 100.0 / 240.0, QTextBlockFormat::ProportionalHeight);
+    // (A multiple written as a negative number is read as its size: a file converted from an older format has them.)
+    else if (std::abs(line) != 240) bf.setLineHeight(std::max(1, std::abs(line)) * 100.0 / 240.0, QTextBlockFormat::ProportionalHeight);
     if (p.keepNext.value_or(false)) bf.setProperty(tp::KeepWithNext, true);
     if (p.keepLines.value_or(false)) bf.setProperty(tp::KeepTogether, true);
     if (p.widowControl.value_or(true)) bf.setProperty(tp::WidowControl, true);
