@@ -3169,7 +3169,7 @@ private Q_SLOTS:
                     proto.gap = QMarginsF(6, 3, 6, 3);
                     int made = 0;
                     for (const int wanted : {50, 30, 12, 4}) {
-                        int block = wanted;
+                        int block = std::min(wanted, fd.story()->blockCount() - 1);   // (a story of 44 paragraphs has no block 50: the frame would go in at the story's start)
                         while (block > 1 && (fd.story()->findBlockByNumber(block).blockFormat().intProperty(fp::Cell) || fd.story()->findBlockByNumber(block - 1).blockFormat().intProperty(fp::Cell) ||
                                              fd.story()->findBlockByNumber(block - 1).blockFormat().intProperty(fp::Frame)))
                             --block;
