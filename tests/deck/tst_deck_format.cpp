@@ -992,6 +992,80 @@ private Q_SLOTS:
         QVERIFY(r.shape(0)->toJson().contains(QStringLiteral("decorative")));
         QCOMPARE(Item::fromJsonAny(r.shape(0)->toJson())->altTitle, QStringLiteral("Red box!"));
     }
+
+    // ---- Picture
+
+    // A picture's corrections (brightness and contrast), color (recolor, its level, and transparency), and crop (the whole picture's size and
+    // place in its frame): each one step; kept by both files; the tab is there for pictures alone.
+    void pictureCorrectionsColorAndCropAreChangedAndKept()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QImage image(80, 40, QImage::Format_RGB32);
+        image.fill(QColor(200, 60, 30));
+        const QString path = dir.filePath(QStringLiteral("red.png"));
+        QVERIFY(image.save(path));
+        Rig r(1);
+        auto pic = std::make_shared<PictureItem>();
+        pic->name = QStringLiteral("Picture 1");
+        pic->imageId = r.ed.doc()->addImage(readPictureBytes(path), QStringLiteral("png"), path);
+        pic->rect = QRectF(300, 100, 120, 60);
+        pic->imgRect = QRectF(0, 0, 120, 60);
+        r.ed.addItem(pic, false);
+        r.ids << pic->id;
+        r.select({0});
+        QVERIFY(!r.pane->isTabShown(FormatPane::Tab::Picture));   // a shape has none
+        r.select({1});
+        QVERIFY(r.pane->isTabShown(FormatPane::Tab::Picture));
+        QCOMPARE(r.pane->title(), QStringLiteral("Format Picture"));
+        pane_page(r, FormatPane::Tab::Picture);
+        auto picture = [&]() { return static_cast<PictureItem *>(r.item(1)); };
+        const int base = r.steps();
+        r.find<NumberField>("imageBrightness")->box()->setValue(25);
+        r.find<NumberField>("imageContrast")->box()->setValue(-40);
+        r.find<QComboBox>("imageRecolor")->setCurrentIndex(2);   // black and white
+        QVERIFY(r.find<NumberField>("imageThreshold")->isEnabled());
+        r.find<NumberField>("imageThreshold")->box()->setValue(60);
+        r.find<NumberField>("imageTransparency")->box()->setValue(30);
+        r.find<NumberField>("cropWidth")->box()->setValue(240);
+        r.find<NumberField>("cropHeight")->box()->setValue(120);
+        r.find<NumberField>("cropOffsetX")->box()->setValue(-20);
+        r.find<NumberField>("cropOffsetY")->box()->setValue(10);
+        QCOMPARE(r.steps(), base + 9);
+        QCOMPARE(picture()->brightness, 25.0);
+        QCOMPARE(picture()->contrast, -40.0);
+        QCOMPARE(picture()->recolor, PictureItem::BlackWhite);
+        QVERIFY(near(picture()->blackWhiteLevel, 0.6) && near(picture()->transparency, 0.3));
+        QVERIFY(near(picture()->imgRect.width(), 240) && near(picture()->imgRect.height(), 120));
+        QVERIFY(near(picture()->imgRect.center().x(), 60 - 20) && near(picture()->imgRect.center().y(), 30 + 10));
+        for (int how = 0; how < 2; ++how) {
+            const QByteArray label = how ? "odp" : "pptx";
+            std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+            QVERIFY(d);
+            Item *it = Rig::named(*d, QStringLiteral("Picture 1"));
+            QVERIFY2(it && it->type() == ItemType::Picture, label);
+            const auto &got = *static_cast<PictureItem *>(it);
+            QVERIFY2(near(got.brightness, 25, 1) && near(got.contrast, -40, 1), label);
+            QVERIFY2(got.recolor == PictureItem::BlackWhite, label);
+            if (!how) QVERIFY2(near(got.blackWhiteLevel, 0.6, 0.011), label);   // (a .odp has no level of its own)
+            QVERIFY2(near(got.transparency, 0.3, 0.011), label);
+            QVERIFY2(near(got.imgRect.width(), 240, 1.5) && near(got.imgRect.height(), 120, 1.5), label);
+            QVERIFY2(near(got.imgRect.center().x(), 40, 1.5) && near(got.imgRect.center().y(), 40, 1.5), label);
+        }
+        r.find<QComboBox>("imageRecolor")->setCurrentIndex(1);
+        QCOMPARE(picture()->recolor, PictureItem::Grayscale);
+        QVERIFY(!r.find<NumberField>("imageThreshold")->isEnabled());
+        std::unique_ptr<Document> d = r.viaPptx();
+        QCOMPARE(static_cast<PictureItem *>(Rig::named(*d, QStringLiteral("Picture 1")))->recolor, PictureItem::Grayscale);
+        // The picture drawn is changed: black and white is only black and white.
+        picture()->recolor = PictureItem::BlackWhite;
+        picture()->transparency = 0;
+        picture()->imgRect = QRectF(0, 0, 120, 60);
+        QImage slide = slideImage(*r.ed.doc());
+        const double k = slide.width() / r.ed.doc()->pageSize().width();
+        const QColor c = slide.pixelColor(int(360 * k), int(130 * k));
+        QVERIFY2((c.red() == c.green() && c.green() == c.blue()) && (c.red() < 30 || c.red() > 225), qPrintable(c.name()));
+    }
 };
 
 JP_TEST_CLASS(DeckFormatTests)

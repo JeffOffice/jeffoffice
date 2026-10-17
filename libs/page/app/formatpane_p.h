@@ -178,6 +178,7 @@ void buildPages(FormatPane *pane, PanePage *fill, PanePage *effects, PanePage *s
 void buildFillLinePage(FormatPane *pane, PanePage *page);
 void buildEffectsPage(FormatPane *pane, PanePage *page);
 void buildSizePage(FormatPane *pane, PanePage *page);
+void buildPicturePage(FormatPane *pane, PanePage *page);
 
 } // namespace format
 } // namespace jp

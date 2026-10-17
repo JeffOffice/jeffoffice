@@ -141,12 +141,16 @@ void FormatPane::reload()
         return;
     }
     m_frame->setMessage(QString());
-    bool pictures = true;
-    for (const Item *it : sel) pictures = pictures && it->type() == ItemType::Picture;
+    bool pictures = true, corrected = true;
+    for (const Item *it : sel) {
+        pictures = pictures && it->type() == ItemType::Picture;
+        // (A movie's or a sound's picture is its poster, and has a tab of its own in the app.)
+        corrected = corrected && it->type() == ItemType::Picture && static_cast<const PictureItem *>(it)->mediaKind.isEmpty();
+    }
     m_frame->setTitle(pictures ? tr("Format Picture") : tr("Format Shape"));
     const bool fill = format::anyTakes(m_session->leaves(), [](const Item &it) { return format::takesFill(it) || format::takesLine(it); });
     m_frame->setPageVisible(int(Tab::FillLine), fill);
-    m_frame->setPageVisible(int(Tab::Picture), pictures);
+    m_frame->setPageVisible(int(Tab::Picture), corrected);
     m_session->refresh();
 }
 
