@@ -5082,6 +5082,13 @@ private Q_SLOTS:
         QVERIFY(inText);
     }
 
+    // A file stores a paragraph property by its number: the numbers of the properties that files already have are not moved by a new one (it goes at the end).
+    void theNumbersOfTheStoredPropertiesAreNotMovedByNewOnes()
+    {
+        QCOMPARE(int(tp::NoHangPunct), int(tp::BorderBottomOff) + 1);
+        QVERIFY2(int(tp::OutOfLayout) > int(tp::NoHangPunct), "a property added after the files that store the others goes after them");
+    }
+
     // ---- what the objects cost
 
     // A paragraph of many runs (every other word in bold: 20,000 runs) costs no more with an object anchored in another paragraph than without: what a page looks for in the
