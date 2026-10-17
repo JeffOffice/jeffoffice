@@ -66,6 +66,7 @@ struct Paginator::Run {
     PageStart next;            // where the page after starts
     std::vector<TableGroup> groups;   // the rows of tables among the lines kept
     QVector<Wrapped> wrapped;  // the objects the text of the page was laid out round
+    bool cut = false;          // the page ends before the paragraph it was asked to end before
 };
 
 Paginator::Paginator(FlowDocument *doc) : m_doc(doc), m_tables(std::make_unique<TableFlow>(doc)), m_watch(std::make_unique<QObject>())
@@ -124,32 +125,102 @@ bool Paginator::breakContinuesAt(const StoryLayout::LineBrief &last, PageStart *
 Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
 {
     ++m_laidOut;
-    Run run = layoutPageWith(index, st, {});
-    if (!hasFloaters()) return run;
+    if (!hasFloaters()) return layoutPageWith(index, st, {});
+    // A page laid out before, as it is now, ends with the walls it did.
+    if (const auto memo = m_wallMemo.find(index); memo != m_wallMemo.end() && memo->second.start == st && memo->second.pages == int(m_starts.size()))
+        return layoutPageWith(index, st, memo->second.walls, memo->second.cutAt);
     // The objects the lines anchor, and the text goes round, are set where the lines say; the text goes round them there, which moves the lines, and the page is laid out
-    // again until they agree (the paragraph's top an object is set from is where the paragraph would be without it: that is what the engine's `pushed` is for). Objects that
-    // keep moving the lines, and so themselves, are left where the last layout had them.
+    // again until they agree (the paragraph's top an object is set from is where the paragraph would be without it: that is what the engine's `pushed` is for). `moveBefore`:
+    // the paragraph that a table set at a place goes over the foot from, as the page is when its walls are settled. `cycle`: where they do not settle, the walls of the layouts
+    // that follow one another again and again.
+    auto settle = [&](Run &run, QVector<Wrapped> &used, int cutAt, int *moveBefore, QVector<QVector<Wrapped>> *cycle) {
+        QVector<QVector<Wrapped>> seen;
+        bool agreed = true;
+        for (int pass = 0; pass < kWrapPasses; ++pass) {
+            int mb = -1;
+            const QVector<Wrapped> want = wrappersOf(run, index, st, &mb);
+            agreed = want == used;
+            if (agreed) {
+                if (moveBefore) *moveBefore = mb;
+                break;
+            }
+            if (seen.contains(want)) {
+                if (cycle) {
+                    *cycle = seen.mid(int(seen.indexOf(want)));
+                    cycle->push_back(used);
+                }
+                break;
+            }
+            seen << used;
+            used = want;
+            run = layoutPageWith(index, st, used, cutAt);
+            if (pass + 1 == kWrapPasses && cycle) {
+                *cycle = seen.mid(std::max<qsizetype>(0, seen.size() - 2));
+                cycle->push_back(used);
+            }
+        }
+        if (!used.isEmpty() && !agreed) agreed = wrappersOf(run, index, st) == used;
+        return agreed;
+    };
+    Run run = layoutPageWith(index, st, {});
     QVector<Wrapped> used;
-    QVector<QVector<Wrapped>> seen;
-    bool agreed = true;
-    for (int pass = 0; pass < kWrapPasses; ++pass) {
-        const QVector<Wrapped> want = wrappersOf(run, index, st);
-        agreed = want == used;
-        if (agreed || seen.contains(want)) break;
-        seen << used;
-        used = want;
-        run = layoutPageWith(index, st, used);
+    int moveBefore = -1, cutAt = -1;
+    QVector<QVector<Wrapped>> cycle;
+    bool agreed = settle(run, used, -1, &moveBefore, &cycle);
+    // Objects that keep moving the lines, and so themselves (an anchor that the wrap of another puts on the next page, which has the wrap of the first no more, and the anchor
+    // is back): the one anchored last of them goes to the next page with its paragraph, where it is set from the paragraph's top as it asks (the page ends before the paragraph),
+    // and the objects before it are walls of this page still.
+    if (!agreed && !cycle.isEmpty()) {
+        QVector<int> flipping;
+        for (const QVector<Wrapped> &state : cycle)
+            for (const Wrapped &w : state) {
+                bool everywhere = true;
+                for (const QVector<Wrapped> &other : cycle) everywhere = everywhere && other.contains(w);
+                if (!everywhere && w.paragraph >= 0 && !flipping.contains(w.paragraph)) flipping << w.paragraph;
+            }
+        std::sort(flipping.begin(), flipping.end(), std::greater<int>());
+        for (const int paragraph : flipping) {
+            Run shorter = layoutPageWith(index, st, {}, paragraph);
+            if (!shorter.cut) continue;
+            QVector<Wrapped> walls;
+            if (settle(shorter, walls, paragraph, &moveBefore, nullptr) && shorter.kept > 0) {
+                run = std::move(shorter);
+                used = walls;
+                cutAt = paragraph;
+                agreed = true;
+                break;
+            }
+        }
     }
-    if (!used.isEmpty() && !agreed) agreed = wrappersOf(run, index, st) == used;
-    // Objects that keep moving the lines and so themselves (or an anchor that the wrap itself puts on the next page, and the wrap with it) are not walls of this page: the
-    // lines are those of the page without them, and every wall there is has its anchor on the page. And a page whose objects leave no room for a line would have none,
-    // and the pages would never end: it is laid out as it is without them too.
-    if (!used.isEmpty() && (!agreed || run.kept <= 0)) run = layoutPageWith(index, st, {});
+    // Objects that keep moving the lines and so themselves in some other way are not walls of this page: the lines are those of the page without them, and every wall there is
+    // has its anchor on the page. And a page whose objects leave no room for a line would have none, and the pages would never end: it is laid out as it is without them too.
+    if (cutAt < 0 && !used.isEmpty() && (!agreed || run.kept <= 0)) {
+        used.clear();
+        run = layoutPageWith(index, st, {});
+        moveBefore = -1;
+        wrappersOf(run, index, st, &moveBefore);
+    }
+    // A table set at a place that goes over the foot of the page from its paragraph, as the page is when its walls are settled, is moved to the next page with the paragraph: the
+    // page ends before the paragraph, and its walls are those of the page without the table.
+    if (moveBefore >= 0 && (cutAt < 0 || moveBefore < cutAt)) {
+        Run cut = layoutPageWith(index, st, used, moveBefore);
+        if (cut.cut) {
+            cutAt = moveBefore;
+            run = std::move(cut);
+            if (!settle(run, used, cutAt, nullptr, nullptr) || run.kept <= 0) {
+                used.clear();
+                run = layoutPageWith(index, st, {}, cutAt);
+            }
+        }
+    }
+    if (m_wallMemo.size() >= 4096) m_wallMemo.clear();
+    m_wallMemo[index] = WallMemo{st, int(m_starts.size()), run.wrapped, cutAt};
     return run;
 }
 
-Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const QVector<Wrapped> &wrapped)
+Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const QVector<Wrapped> &wrapped, int cutAt)
 {
+    ++m_passes;
     Run run;
     run.wrapped = wrapped;
     // The page a break at the end of the text makes: it starts past the text's last character.
@@ -243,8 +314,11 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         std::vector<PieceRecord> pieces;
         bool windowShort = false;
     };
-    auto layPart = [&](const QVector<FrameSpec> &fr, const StoryLayout::Span &sp, const PageStart &from) {
+    auto layPart = [&](const QVector<FrameSpec> &fr, const StoryLayout::Span &given, const PageStart &from) {
         Part p;
+        // (The paragraphs of frames that the paginator does not set apart are laid out as the text's own.)
+        StoryLayout::Span sp = given;
+        sp.inLayout = &floatIndex().inText;
         if (m_tables->any()) {
             // (Tables are laid out beside the text: paginator_tables.cpp.)
             TablesRun tr;
@@ -509,6 +583,12 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
             hard = forced = true;
             break;
         }
+        // The page ends before a paragraph that a table set from it would go over the foot with.
+        if (cutAt >= 0 && ln.line == 0 && i > 0 && ln.block >= cutAt) {
+            c = i;
+            forced = run.cut = true;
+            break;
+        }
         if (ln.line == ln.lines - 1 && (bf.breakAfter || bf.sectionAfter)) {
             if (!bf.breakAfter && continuesOn(current, ln.block)) {
                 ++current;
@@ -611,7 +691,9 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         run.hasNext = true;
         run.next.pos = L[c].pos;
         run.next.skip = L[c].line;
-        run.next.wrapped = !wrapped.isEmpty() && L[c].line > 0;
+        // (Lines of the paragraph that a wall narrowed are on this page, or on a page before it when this page began inside the same paragraph: the page after sets the rest
+        // of it from its character, as this one did, and not by counting lines that a full-width layout of the whole paragraph breaks elsewhere.)
+        run.next.wrapped = L[c].line > 0 && (!wrapped.isEmpty() || (st.wrapped && L[0].block == L[c].block));
         if (m_tables->any() && m_tables->index().spanAt(L[c].pos) >= 0) {   // (a row of a table: the line's number is the part of it)
             run.next.piece = L[c].line;
             run.next.pieceAt = L[c].line != 0 ? m_offsOut : QVector<double>();
@@ -746,6 +828,7 @@ bool Paginator::complete()
 
 void Paginator::invalidate()
 {
+    forgetFloats();
     m_tables->reset();
     m_noteHeights.clear();
     m_numberOf = -1;
@@ -757,6 +840,7 @@ void Paginator::invalidate()
 
 void Paginator::invalidateFrom(int section)
 {
+    forgetFloats();
     int keep = 0;
     while (keep < m_starts.size() && m_starts[keep].section < section) ++keep;
     keep = std::max(keep, 1);
@@ -787,6 +871,8 @@ Paginator::Page Paginator::page(int index)
 
 int Paginator::pageOfPosition(int position)
 {
+    // (A frame, or a table set at a place, is on the page of the paragraph it is set from.)
+    position = anchorOfPosition(position);
     for (;;) {
         const auto it = std::upper_bound(m_starts.begin(), m_starts.end(), position, [](int pos, const PageStart &s) { return pos < s.pos; });
         const int found = std::max(0, int(it - m_starts.begin()) - 1);
@@ -804,8 +890,18 @@ int Paginator::pageOfPosition(int position)
 
 // ---- edits ----
 
+void Paginator::forgetFloats()
+{
+    m_floats = FloatIndex();
+    m_frames.clear();
+    m_tableObjects.clear();
+    m_anchorChars.clear();
+    m_wallMemo.clear();
+}
+
 void Paginator::changed(int position, int removed, int added)
 {
+    forgetFloats();
     m_tables->edited(position, removed, added);
     const int delta = added - removed;
     m_numberOf = -1;
@@ -831,18 +927,26 @@ void Paginator::changed(int position, int removed, int added)
     const QTextBlock b0 = story->findBlock(std::min(position, last)), b1 = story->findBlock(std::min(position + added, last));
     int from = b0.isValid() ? b0.position() : 0;
     int to = b1.isValid() ? b1.position() + b1.length() : last + 1;
-    // The paragraphs of a table that is set at a place are too: its cells' (and the table's own place is where it is set from the paragraph after it).
-    if (m_tables->any() && b0.isValid() && b0.blockFormat().intProperty(fp::Cell)) {
-        const CellRecord *rec = m_doc->tables.get(b0.blockFormat().intProperty(fp::Cell));
-        while (rec && rec->parent) rec = m_doc->tables.get(rec->parent);
-        if (rec && rec->table && rec->table->place) {
-            QTextBlock after = b0;
+    // The paragraphs of a table that is set at a place are too: its cells' (and the table's own place is where it is set from the paragraph after it, which the text round the
+    // table is, and the pages from that on are laid out again). That is so for an edit that begins in the table, and for one that begins before it and goes into it (the cells of
+    // a row put in at its top, opened at the end of the paragraph before the table) or through it.
+    if (m_tables->any() && b0.isValid()) {
+        auto afterPlaced = [&](const QTextBlock &x) {
+            if (!x.blockFormat().intProperty(fp::Cell)) return QTextBlock();
+            const CellRecord *rec = m_doc->tables.get(x.blockFormat().intProperty(fp::Cell));
+            while (rec && rec->parent) rec = m_doc->tables.get(rec->parent);
+            if (!rec || !rec->table || !rec->table->place) return QTextBlock();
+            QTextBlock after = x;
             while (after.isValid() && after.blockFormat().intProperty(fp::Cell)) after = after.next();
-            if (after.isValid()) {
-                from = after.position();
-                to = std::max(to, after.position() + after.length());
-            }
+            return after;
+        };
+        if (const QTextBlock after = afterPlaced(b0); after.isValid()) {
+            from = after.position();
+            to = std::max(to, after.position() + after.length());
         }
+        int looked = 0;
+        for (QTextBlock x = b0.next(); x.isValid() && b1.isValid() && x.position() <= b1.position() && ++looked <= 20000; x = x.next())
+            if (const QTextBlock after = afterPlaced(x); after.isValid()) to = std::max(to, after.position() + after.length());
     }
     // The paragraphs of a frame are set where the paragraph after them is (they have no lines of their own): an edit in them touches the page of that paragraph.
     if (!m_doc->frames.isEmpty()) {
@@ -856,6 +960,19 @@ void Paginator::changed(int position, int removed, int added)
         while (end.isValid() && end.blockFormat().intProperty(fp::Frame) > 0) end = end.next();
         if (end.isValid() && end != b1) to = std::max(to, end.position() + end.length());
     }
+    // A frame next to the edit may have another paragraph to be set from, or be cut in two or joined to another by it: the paragraphs it was set from and is set from now, the
+    // first two of the text that come after the edit (those frames' paragraphs are no text), are touched, and the pages that have them are laid out again.
+    if (!m_doc->frames.isEmpty() && b0.isValid() && b1.isValid()) {
+        auto isFrame = [](const QTextBlock &x) { return x.isValid() && x.blockFormat().intProperty(fp::Frame) > 0 && x.blockFormat().boolProperty(tp::OutOfLayout); };
+        if (isFrame(b0) || isFrame(b1) || isFrame(b0.previous()) || isFrame(b1.next())) {
+            QTextBlock n = b1.next();
+            for (int text = 0; n.isValid() && text < 2; n = n.next()) {
+                if (isFrame(n)) continue;
+                to = std::max(to, n.position() + n.length());
+                ++text;
+            }
+        }
+    }
     // The rows of tables that the edit touched, with those that cells joined down tie them to: what a page in them is laid out as depends on all of them.
     if (m_tables->any()) {
         m_tables->settleEdits();
@@ -865,6 +982,29 @@ void Paginator::changed(int position, int removed, int added)
             if (d0.isValid()) from = std::min(from, d0.position());
             if (d1.isValid()) to = std::max(to, d1.position() + d1.length());
         }
+    }
+    // The frames and the tables set at places that come right before the paragraph an edit is in are set from it, and which of them are set from it and which are in the text
+    // depends on how many there are: the page is the one that holds the first of them. (They have no lines of their own; the paragraph they come before does.)
+    if (!m_doc->frames.isEmpty() || m_tables->any()) {
+        QTextBlock first = story->findBlock(std::clamp(from, 0, last));
+        for (QTextBlock prev = first.previous(); prev.isValid(); prev = prev.previous()) {
+            const QTextBlockFormat pf = prev.blockFormat();
+            if (pf.intProperty(fp::Frame) > 0 && pf.boolProperty(tp::OutOfLayout)) {
+                first = prev;
+                continue;
+            }
+            if (m_tables->any() && pf.intProperty(fp::Cell)) {
+                const TableIndex &tix = m_tables->index();
+                const int span = tix.spanAt(prev.position());
+                if (span >= 0 && tix.spans()[size_t(span)].table && tix.spans()[size_t(span)].table->place.has_value()) {
+                    first = story->findBlock(tix.spans()[size_t(span)].from);
+                    prev = first;
+                    continue;
+                }
+            }
+            break;
+        }
+        from = std::min(from, first.position());
     }
     // (Pages of notes alone begin where the one after does: the page the edit is in is the first that begins at or after it, less one, and then the one before.)
     const auto at = std::lower_bound(m_starts.begin(), m_starts.end(), from, [](const PageStart &s, int pos) { return s.pos < pos; });
@@ -966,6 +1106,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
 {
     const QTextDocument *main = m_doc->story();
     const QVector<StoryLayout::LineBrief> &L = run.lines;
+    const QVector<int> &inText = floatIndex().inText;
     const int from = L.first().pos;
     *storyFrom = from;
     const QTextBlock firstBlock = main->findBlock(L.first().block);
@@ -1064,6 +1205,11 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         bf.clearProperty(tp::WidowControl);
         bf.clearProperty(tp::KeepTogether);
         bf.clearProperty(tp::KeepWithNext);
+        // A frame that is lines of the text is paragraphs of it, as they would be without the frame's properties.
+        if (std::binary_search(inText.cbegin(), inText.cend(), b.position())) {
+            bf.clearProperty(tp::OutOfLayout);
+            bf.clearProperty(fp::Frame);
+        }
         if (b == firstBlock && ((tail && !run.keepsSpace) || !run.firstSpace)) bf.setTopMargin(0);
         // A paragraph's box that began on the page before, or goes on to the next, is open at that end.
         auto sameBox = [](const QTextBlock &x, const QTextBlock &y) {
@@ -1127,42 +1273,44 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
     return sd;
 }
 
-QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, const PageStart &start)
+QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, const PageStart &start, int *moveBefore)
 {
     QVector<Wrapped> out;
     if (!hasFloaters() || run.kept <= 0) return out;
     const Section &sec = m_doc->section(start.section);
     const QRectF body = furnitureOf(index, start, numberOf(index)).body;
     const QTextDocument *story = m_doc->story();
-    // The text's own lines (the rows of tables are not: what a cell anchors does not move the text round it).
-    QVector<AnchorLine> held;
+    // The text's own lines (the rows of tables are not: what a cell anchors does not move the text round it), and the first rows of the tables in the text (what is set from a
+    // table in the text is set from its first row).
+    QVector<AnchorLine> held, firstLines;
     for (int i = 0; i < run.kept; ++i) {
         const StoryLayout::LineBrief &ln = run.lines[i];
         const int column = ln.frame - run.firstFrame;
         if (column < 0 || column >= run.columns) continue;
-        if (!run.groups.empty() && story->findBlock(ln.block).blockFormat().intProperty(fp::Cell)) continue;
+        const bool inCell = !run.groups.empty() && story->findBlock(ln.block).blockFormat().intProperty(fp::Cell);
         const QRectF col = run.cols[column];
-        held << anchorLineOf(ln, ln.rect.translated(col.left(), body.top() + col.top()), col.left());
+        const AnchorLine line = anchorLineOf(ln, ln.rect.translated(col.left(), body.top() + col.top()), col.left());
+        if (!inCell) held << line;
+        if (!inCell || ln.line == 0) firstLines << line;
     }
-    QHash<int, QVector<int>> byBlock;
-    for (int i = 0; i < held.size(); ++i) byBlock[held[i].block] << i;
-    QVector<Anchor> anchors;
-    for (const AnchorLine &l : held) anchors << anchorsIn(story, l.pos, l.upTo(), held, &byBlock);
-    anchors += frameAnchors(held, sec.columnWidth());
-    anchors += tableAnchors(held, sec.columnWidth());
+    const QVector<Anchor> anchors = anchorsOfLines(held, firstLines, sec.columnWidth());
     int made = 0;
     for (const Anchor &a : anchors)
         for (int id = a.object; (a.frame || (id > 0 && id <= m_doc->objects.size())) && id > 0 && made < kMostObjects; id = objectAt(a, id).next, ++made) {
             const FloatingObject &o = objectAt(a, id);
             using W = FloatingObject::Wrap;
+            // A table set from its paragraph (down from the paragraph or the line) that goes over the foot of the text area is not on this page: it goes to the next with its paragraph.
+            if (moveBefore && a.table >= 0 && o.item && (o.vRel == FloatingObject::Rel::Paragraph || o.vRel == FloatingObject::Rel::Line) && a.paragraph >= 0 &&
+                placeOf(o, a, sec, false, body.bottom()).bottom() > body.bottom() + 0.01 && (*moveBefore < 0 || a.paragraph < *moveBefore))
+                *moveBefore = a.paragraph;
             if (!o.item || o.behind || o.item->type() == ItemType::Line || (o.wrap != W::Square && o.wrap != W::Tight && o.wrap != W::TopBottom)) continue;
-            QRectF r = placeOf(o, a, sec);
+            QRectF r = placeOf(o, a, sec, true, body.bottom());
             if (o.item->rotation != 0) {
                 ItemPtr turned = o.item->clone();
                 turned->rect = r;
                 r = turned->bounds();
             }
-            out << Wrapped{id, a.pos, r, a.frame};
+            out << Wrapped{id, a.pos, r, a.paragraph, a.frame};
             if (out.size() >= kMostWrapped) return out;
         }
     return out;
@@ -1224,6 +1372,9 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         out->storyFrom = st.pos;
         addFurniture(d.get(), furniture, sec, st.section, out->number);
     } else {
+        // The header and the footer are the page's lowest layer: before the body's text and objects, which are drawn over them.
+        addFurniture(d.get(), furniture, sec, st.section, out->number);
+        const size_t front = d->pages[0]->items.size();
         auto story = std::make_shared<Story>();
         story->id = QStringLiteral("flow-story-%1").arg(index);
         story->doc = sliceOf(run, st, &out->storyFrom, &out->continuesFromBefore);
@@ -1267,15 +1418,18 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         }
         // The objects set at places that the page's lines anchor.
         if (hasFloaters()) {
-            QVector<AnchorLine> held;
+            // (The line that stands for a row of a table is not a line of text: the cells' own lines, set from the fragment, are. It is where the first row of a table in the text is, which
+            // is what the frames and tables before the table are set from.)
+            QVector<AnchorLine> held, firstLines;
             for (int i = 0; i < run.kept; ++i) {
                 const StoryLayout::LineBrief &ln = run.lines[i];
                 const int column = ln.frame - run.firstFrame;
                 if (column < 0 || column >= run.columns) continue;
-                // (The line that stands for a row of a table is not one: the cells' own lines, set from the fragment, are.)
-                if (!run.groups.empty() && m_doc->story()->findBlock(ln.block).blockFormat().intProperty(fp::Cell)) continue;
+                const bool inCell = !run.groups.empty() && m_doc->story()->findBlock(ln.block).blockFormat().intProperty(fp::Cell);
                 const QRectF col = run.cols[column];
-                held << anchorLineOf(ln, ln.rect.translated(col.left(), furniture.body.top() + col.top()), col.left());
+                const AnchorLine line = anchorLineOf(ln, ln.rect.translated(col.left(), furniture.body.top() + col.top()), col.left());
+                if (!inCell) held << line;
+                if (!inCell || ln.line == 0) firstLines << line;
             }
             for (const auto &fragment : out->tables) {
                 // (The column a table is in: the one its middle is in, else the nearest.)
@@ -1288,22 +1442,11 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
                     if (held.size() < 20000) held << anchorLineOf(ln, rect, columnLeft);
                 });
             }
-            QVector<Anchor> anchors;
-            QHash<int, QVector<int>> byBlock;
-            for (int i = 0; i < held.size(); ++i) byBlock[held[i].block] << i;
-            for (const AnchorLine &l : held) anchors << anchorsIn(m_doc->story(), l.pos, l.upTo(), held, &byBlock);
-            // (The lines of the cells of tables are no first lines of a paragraph that a frame comes before.)
-            QVector<AnchorLine> textLines;
-            for (const AnchorLine &l : held)
-                if (!m_doc->story()->findBlock(l.block).blockFormat().intProperty(fp::Cell)) textLines << l;
-            anchors += frameAnchors(textLines, sec.columnWidth());
-            anchors += tableAnchors(textLines, sec.columnWidth());
+            const QVector<Anchor> anchors = anchorsOfLines(held, firstLines, sec.columnWidth());
             QVector<QRectF> columns;
             for (const QRectF &col : run.cols) columns << QRectF(col.left(), furniture.body.top() + col.top(), col.width(), col.height());
-            if (!anchors.isEmpty()) addObjects(d.get(), anchors, sec, out->number, run.wrapped, columns, out.get());
+            if (!anchors.isEmpty()) addObjects(d.get(), anchors, sec, out->number, run.wrapped, columns, out.get(), front);
         }
-        // (The header and the footer come after the page's objects: the text that goes round an object is that of the items after it, and the body's objects are no wall for them.)
-        addFurniture(d.get(), furniture, sec, st.section, out->number);
     }
     // The notes the page's lines cite and those that go on from the page before.
     {

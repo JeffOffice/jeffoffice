@@ -12,6 +12,7 @@
 #include "text/textengine.h"
 #include "text/textprops.h"
 
+#include <QHash>
 #include <QMap>
 #include <QRectF>
 #include <QString>
@@ -388,6 +389,132 @@ inline QString pageLayerProblems(flow::Paginator &pg, const QTextDocument *story
         if (at->frame != column || std::abs(at->rect.top() - l.rect.top()) > 0.05 || std::abs(at->rect.left() - l.rect.left()) > 0.05 || std::abs(at->rect.width() - l.rect.width()) > 0.05)
             return QStringLiteral("page %1: the line at %2 is in column %3 at %4 for the paginator, and in column %5 at %6 for the page layer [%7]").arg(k).arg(l.pos).arg(column).arg(rectText(l.rect)).arg(at->frame).arg(rectText(at->rect), where());
     }
+    return QString();
+}
+
+// Whether the lines of the pages hold the text of the story whole, or what is wrong. Every paragraph that takes part in the layout (not one in a cell, or one of a frame that
+// is a box of its own: `floatProblems` sees to those) has lines that begin where it does, each beginning where the one before ended, the last ending where the paragraph does; the lines of the pages, in
+// order, are of no other paragraph; and none is repeated. (The words of a page that a wall or an object took the room of go on a later page: none are lost.)
+inline QString coverageProblems(flow::Paginator &pg, const QTextDocument *story)
+{
+    QVector<std::pair<int, int>> lines;
+    for (int k = 0; k < pg.pageCount(); ++k)
+        for (const auto &ln : pg.lines(k)) {
+            if (story->findBlock(ln.pos).blockFormat().intProperty(flow::fp::Cell)) continue;
+            lines.push_back({ln.pos, ln.end});
+        }
+    int at = 0;
+    // (Characters that show nothing and take no room, hidden text and the marks where an object is anchored, belong to no line: the lines go round them.)
+    auto onlyHidden = [&](const QTextBlock &b, int from, int to) {
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment frag = it.fragment();
+            if (frag.position() >= to || frag.position() + frag.length() <= from) continue;
+            const QTextCharFormat cf = frag.charFormat();
+            if (!cf.boolProperty(tp::HiddenText) && cf.intProperty(flow::fp::AnchorId) <= 0) return false;
+        }
+        return true;
+    };
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        const QTextBlockFormat f = b.blockFormat();
+        if (f.intProperty(flow::fp::Cell)) continue;
+        // (A frame's paragraph has lines when the paginator sets it in the text, as it does one that it has no place to set: all of them, then; else none, and the frame is a box.)
+        const bool apart = f.intProperty(flow::fp::Frame) || f.boolProperty(tp::OutOfLayout);
+        const int end = b.position() + b.length() - 1;
+        int next = b.position();
+        bool any = false;
+        while (at < lines.size() && lines[at].first >= b.position() && lines[at].first <= end) {
+            if (lines[at].first != next && !(lines[at].first > next && onlyHidden(b, next, lines[at].first)))
+                return QStringLiteral("the paragraph at %1 (to %2): a line begins at %3, where the one before it ended at %4").arg(b.position()).arg(end).arg(lines[at].first).arg(next);
+            next = lines[at].second;
+            ++at;
+            any = true;
+        }
+        if (!any && apart) continue;
+        if (!any) return QStringLiteral("the paragraph at %1 (to %2) is on no line of the %3 pages").arg(b.position()).arg(end).arg(pg.pageCount());
+        if (next != end && !onlyHidden(b, next, end)) return QStringLiteral("the paragraph at %1 (to %2) is laid out as far as %3 only (%4 characters lost)").arg(b.position()).arg(end).arg(next).arg(end - next);
+    }
+    if (at != lines.size()) return QStringLiteral("a line at %1 is of no paragraph that takes part, or is out of order (%2 of %3 lines used)").arg(lines[at].first).arg(at).arg(lines.size());
+    return QString();
+}
+
+// Whether every frame and every table set at a place is somewhere, once: a frame is a box of its own on one page (its paragraphs have no lines) or in the text (all of them
+// have), and a table set at a place is drawn at its place on one page (its rows have no lines) or is rows in the text. Empty if so.
+inline QString floatProblems(flow::Paginator &pg, const flow::FlowDocument &fd)
+{
+    const QTextDocument *story = fd.story();
+    struct Group {
+        int from = 0, to = 0;
+        QString text;               // a frame's, as the box it would be shows it (a paragraph for each, with the references to notes left out)
+        bool table = false;
+        int lines = 0, fragments = 0;
+    };
+    QVector<Group> groups;
+    QHash<QString, int> boxesWith;   // the boxes of the pages by their text
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        const QTextBlockFormat f = b.blockFormat();
+        if (const int cell = f.intProperty(flow::fp::Cell)) {
+            const flow::CellRecord *rec = fd.tables.get(cell);
+            while (rec && rec->parent) rec = fd.tables.get(rec->parent);
+            if (!rec || !rec->table || !rec->table->place) continue;
+            // (The cells of one table are next to one another: one group, ending where the paragraph that is not in it begins.)
+            QTextBlock e = b;
+            while (e.next().isValid()) {
+                const int k = e.next().blockFormat().intProperty(flow::fp::Cell);
+                const flow::CellRecord *r2 = k ? fd.tables.get(k) : nullptr;
+                while (r2 && r2->parent) r2 = fd.tables.get(r2->parent);
+                if (!r2 || r2->table.get() != rec->table.get()) break;
+                e = e.next();
+            }
+            Group g;
+            g.from = b.position();
+            g.to = e.position() + e.length();
+            g.table = true;
+            groups.push_back(g);
+            b = e;
+            continue;
+        }
+        if (f.intProperty(flow::fp::Frame) <= 0) continue;
+        const int key = f.intProperty(flow::fp::Frame);
+        Group g;
+        g.from = b.position();
+        QStringList paragraphs;
+        QTextBlock e = b;
+        for (;; e = e.next()) {
+            paragraphs << e.text().remove(QChar::ObjectReplacementCharacter);
+            if (!e.next().isValid() || e.next().blockFormat().intProperty(flow::fp::Frame) != key || e.next().blockFormat().intProperty(flow::fp::Cell)) break;
+        }
+        g.to = e.position() + e.length();
+        g.text = paragraphs.join(QLatin1Char('\n'));
+        groups.push_back(g);
+        b = e;
+    }
+    for (int k = 0; k < pg.pageCount(); ++k) {
+        for (const auto &ln : pg.lines(k))
+            for (Group &g : groups)
+                if (ln.pos >= g.from && ln.pos < g.to) ++g.lines;
+        const std::unique_ptr<flow::MaterializedPage> m = pg.materialize(k);
+        if (!m) continue;
+        for (const auto &fragment : m->tables)
+            for (Group &g : groups)
+                if (g.table && fragment->floating && fragment->contains(g.from)) ++g.fragments;
+        for (const auto &it : m->doc->pages[0]->items)
+            if (it->type() == ItemType::Text && it->id.startsWith(QLatin1String("flow-object-")))
+                if (const Story *st = m->doc->story(static_cast<const TextItem *>(it.get())->storyId))
+                    ++boxesWith[st->doc->toPlainText().remove(QChar::ObjectReplacementCharacter)];
+    }
+    // (Frames with the same text are told apart by number only: the boxes with a text are as many as the frames with it that have no lines.)
+    QHash<QString, int> wanted;
+    for (const Group &g : groups) {
+        if (g.table) {
+            if (!((g.fragments == 1 && g.lines == 0) || (g.fragments == 0 && g.lines >= 1)))
+                return QStringLiteral("the table set at a place at %1 is drawn %2 times at its place and has %3 lines in the text").arg(g.from).arg(g.fragments).arg(g.lines);
+            continue;
+        }
+        wanted[g.text] += g.lines > 0 ? 0 : 1;
+    }
+    for (auto it = wanted.cbegin(); it != wanted.cend(); ++it)
+        if (it.value() != boxesWith.value(it.key()))
+            return QStringLiteral("the frame \"%1\" is in %2 boxes of the pages and %3 of the frames with that text have none of their paragraphs on a line").arg(shown(it.key())).arg(boxesWith.value(it.key())).arg(it.value());
     return QString();
 }
 
