@@ -130,6 +130,9 @@ private:
     Hit hitAt(const QPoint &viewportPos);
     int positionAt(const Hit &hit);
     bool caretLine(int position, int *page, QLineF *line);   // in points on the page
+    // The text box of a frame on a drawn page that holds a position of the story (a frame's paragraphs have no lines in the page's text), its layout, and the position in its own text.
+    struct FrameSpot;
+    bool frameSpotAt(Rendered &r, int position, FrameSpot *spot);
     int moveVertical(int position, int direction);
     int lineEdge(int position, bool end);
     void caretMoved(bool keepWanted = false);

@@ -95,7 +95,7 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
             const auto lines = m_storyLines.find(std::make_tuple(story, int(std::lround(content.width() * 100)), story->revision()));
             if (lines != m_storyLines.end()) {
                 QVector<AnchorLine> held;
-                for (const StoryLayout::LineInfo &l : lines->second) held << AnchorLine{l.docStart, l.docPos, l.docEnd, l.rect.translated(content.left(), top), content.left()};
+                for (const StoryLayout::LineInfo &l : lines->second) held << AnchorLine{l.docStart, l.docPos, l.docEnd, l.rect.translated(content.left(), top), content.left(), 0.0, false, l.docEnd};
                 anchors << anchorsIn(story, 0, story->characterCount(), held);
             }
         }
@@ -192,6 +192,7 @@ void Paginator::addNotes(Document *d, const QVector<StoryLayout::NotePlace> &pla
         line->p2 = QPointF(col.left() + r.line.x2(), body.top() + col.top() + r.line.y2());
         line->stroke.width = 0.5;
         line->stroke.color = ColorRef::fromString(QStringLiteral("#000000"));
+        line->wrap.mode = Wrap::None;
         line->syncRect();
         d->pages[0]->items.push_back(line);
     }

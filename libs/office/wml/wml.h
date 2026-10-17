@@ -445,9 +445,12 @@ bool readBlocks(const QByteArray &xml, QVector<Block> *blocks);
 // points. An object is `floating` where its style says it is set at a place (anchored to a paragraph, the margin, or the page), else it is in the line.
 struct Shape {
     enum Kind { Picture, Rect, Oval, Line, TextBox };
-    enum Rel { Margin, Page, Column, Paragraph, LineOf, Character };
+    // What a position is measured from; the margin areas are the strips of the page between its edge and the margins (inside and outside: the strip at the fold's side and the far side).
+    enum Rel { Margin, Page, Column, Paragraph, LineOf, Character, LeftMargin, RightMargin, TopMargin, BottomMargin, InsideMargin, OutsideMargin };
     enum Align { NoAlign, Start, Center, End };
     enum Wrap { WrapNone, Square, Tight, TopBottom };
+    // Where the text goes beside a square or tight wrap.
+    enum Side { SideBoth, SideLeft, SideRight, SideLargest };
     Kind kind = Rect;
     bool floating = false;
     double width = 0, height = 0;
@@ -458,6 +461,7 @@ struct Shape {
     bool behind = false;                  // set behind the text
     int z = 0;
     Wrap wrap = WrapNone;
+    Side side = SideBoth;
     double gapLeft = 9, gapRight = 9, gapTop = 0, gapBottom = 0;   // room the wrapping text leaves
     bool filled = false, stroked = false;
     QString fillColor, strokeColor;       // "RRGGBB", or empty

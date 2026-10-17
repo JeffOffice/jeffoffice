@@ -97,6 +97,19 @@ Spelling as you type and printing came after wave 4 as well (October 17, 2026). 
 paragraph at a time for the pages in view; printing is the File screen's Print page, with the printer, copies, collate, ranges, and a preview, and printing and the PDF export draw every page
 through one function.
 
+Floating content came after the drift round (October 17, 2026): the page is laid out with the objects its lines anchor as walls the text keeps out of (square, tight as square, and
+top and bottom; both sides, the left, the right, or the larger), again until the objects and the lines agree, with at most 24 walls to a page, and the page layer sets the text of each
+box round the same walls, so what is drawn is what was laid out. The header and the footer are the page's lowest layer (drawn before the body's objects, and no wall of the body's
+reaches them). Frames (`w:framePr` in the body) are the paragraphs next to one another that share their properties, set out of the text (`tp::OutOfLayout`: no lines, no room) and
+drawn as a text box where the file asks, at the paragraph after them; a table with `w:tblpPr` has a place, no lines among the text, and its rows drawn there, if it fits a page of its
+own section (and moves with its paragraph to the next page when it would go over the foot). Every frame and floating table is somewhere: the frames and tables right before a paragraph
+(or before the first row of a table) are set from it, the nearest 16 of them, and a frame of more than 300 paragraphs, the rest past 16, and those at the end of the story are laid out
+as the text's own paragraphs, so that nothing of a file is left off its pages. Editing next to a frame keeps it apart (Backspace and Delete never join a frame's paragraph and the text's;
+a paragraph style leaves a paragraph in its frame), and the caret, a click, Home, End, and Up and Down work in a frame's text. Not yet: the outlines of tight and through wraps
+(`wrapPolygon`: tight is square), objects that may overlap one another (`allowOverlap`) or sit in a table cell's layout (`layoutInCell`), the inside and outside of mirrored margins,
+a drop cap in the margin (`dropCap="margin"`), `w:tblOverlap` (floating tables are drawn where they ask, over one another if they ask so), a floating table that goes over a page break
+or moves to the next column rather than the next page, selecting text in a frame's box on the page, and editing the frame's properties.
+
 `.doc` (the binary files of 1997 to 2003) opens, in `libs/office/doc` (October 17, 2026): a reader turns the compound file (its text pieces,
 the bins of character and paragraph properties, the styles, lists, sections, headers and footers, notes, fields, tables, pictures, and the
 drawing's shapes) into the parts of a `.docx` package that the `.docx` reader then reads, so layout, editing, and saving as `.docx` are the same
