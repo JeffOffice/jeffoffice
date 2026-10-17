@@ -35,8 +35,9 @@ For example, to change "color" to "colour" everywhere: type **color** in **Find 
 
 - It looks at the text of the document, including the text in tables.
 - It does not look in headers, footers, footnotes, or endnotes yet. Words there are not found, and **Replace All** does not change them.
-- It skips text that is set to **Hidden**, because that text is not shown.
+- It skips text that is set to **Hidden**, because that text is not shown. See [Change how text looks](font).
 
 ## Related
 
+- [Change how text looks](font)
 - [Use JeffWrite with the keyboard](keyboard)

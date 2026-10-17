@@ -6,6 +6,7 @@
 #include "app/help.h"
 #include "app/recovery.h"
 #include "app/ribbon.h"
+#include "app/widgets.h"
 #include "app/writefindpane.h"
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
@@ -267,6 +268,25 @@ void selectRange(WriteWindow &w, int from, int to)
     w.view()->setCursor(c);
 }
 
+// Opens the Font dialog on the window's selection, runs `fill` on it, and presses OK (Cancel when `accept` is false).
+void withFontDialog(WriteWindow &w, const std::function<void(QDialog *)> &fill, bool accept = true)
+{
+    QTimer::singleShot(0, &w, [&w, fill, accept] {
+        auto *dlg = w.findChild<QDialog *>(QStringLiteral("fontDialog"));
+        QVERIFY(dlg);
+        fill(dlg);
+        if (accept) dlg->accept();
+        else dlg->reject();
+    });
+    w.act(QStringLiteral("fmt.fontDialog"))->trigger();
+}
+
+// The properties of the run, in a saved document's XML, that holds exactly this text (null when there is no such run or it has none).
+QString runPropsOfText(const QByteArray &documentXml, const QString &text)
+{
+    const QRegularExpression run(QStringLiteral("<w:r>(?:<w:rPr>((?:(?!</w:rPr>).)*)</w:rPr>)?<w:t(?: xml:space=\"preserve\")?>") + QRegularExpression::escape(text) + QStringLiteral("</w:t>"));
+    return run.match(QString::fromUtf8(documentXml)).captured(1);
+}
 } // namespace
 
 class WriteTests : public QObject {
@@ -663,6 +683,319 @@ private Q_SLOTS:
         pane->replaceBox()->setText(QStringLiteral("x"));
         pane->replaceAll();
         QCOMPARE(pane->status(), QStringLiteral("JeffWrite made 1 replacement."));
+    }
+
+    // ---------------------------------------------------------------- the Font dialog
+    // The Font group's launcher and Ctrl+D open the dialog.
+    void theFontLauncherAndTheKeyOpenTheDialog()
+    {
+        WriteWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QCOMPARE(w.act(QStringLiteral("fmt.fontDialog"))->shortcut(), QKeySequence(Qt::CTRL | Qt::Key_D));
+        QToolButton *launcher = nullptr;
+        for (RibbonGroup *g : w.ribbon()->tab(QStringLiteral("Home"))->groups())
+            if (g->title() == QLatin1String("Font")) launcher = g->launcher();
+        QVERIFY(launcher);
+        QVERIFY(!keytip(launcher).isEmpty());
+        QString title;
+        QTimer::singleShot(0, [&] {
+            if (auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget())) {
+                title = d->windowTitle();
+                d->reject();
+            }
+        });
+        launcher->click();
+        QCOMPARE(title, QStringLiteral("Font"));
+    }
+
+    // The dialog shows the look of the selection: the first characters' where they differ, and a box for an effect that only some of the
+    // characters have is neither checked nor clear. Cancel changes nothing.
+    void theFontDialogShowsTheLookOfTheSelection()
+    {
+        WriteWindow w;
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Some words here"));
+        selectRange(w, 5, 10);
+        toggleBold(*w.document(), w.view()->cursor());
+        toggleItalic(*w.document(), w.view()->cursor());
+        setFontSize(*w.document(), w.view()->cursor(), 20);
+        setTextColor(*w.document(), w.view()->cursor(), QColor(0xC0, 0, 0));
+        changeCharFormat(*w.document(), w.view()->cursor(), [](QTextCharFormat &f) {
+            f.setUnderlineStyle(QTextCharFormat::SingleUnderline);
+            f.setProperty(tp::UnderlineKind, 1);   // double
+            f.setUnderlineColor(QColor(0, 0, 0xFF));
+            f.setFontStrikeOut(true);
+            f.setProperty(prop::DoubleStrike, true);
+            f.setVerticalAlignment(QTextCharFormat::AlignSubScript);
+            f.setFontCapitalization(QFont::SmallCaps);
+            f.setProperty(tp::HiddenText, true);
+        });
+        w.document()->story()->clearUndoRedoStacks();
+        const QString was = w.document()->story()->toHtml();
+        bool shown = false;
+        withFontDialog(w, [&](QDialog *d) {
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("fontStyle"))->currentIndex(), 3);   // bold italic
+            QCOMPARE(d->findChild<QDoubleSpinBox *>(QStringLiteral("fontSize"))->value(), 20.0);
+            QCOMPARE(d->findChild<ColorButton *>(QStringLiteral("fontColor"))->current().rgbValue(), QColor(0xC0, 0, 0));
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("underlineStyle"))->currentText(), QStringLiteral("Double"));
+            QCOMPARE(d->findChild<ColorButton *>(QStringLiteral("underlineColor"))->current().rgbValue(), QColor(0, 0, 0xFF));
+            for (const char *on : {"doubleStrikethrough", "subscript", "smallCaps", "hidden"}) QCOMPARE(d->findChild<QCheckBox *>(QString::fromLatin1(on))->checkState(), Qt::Checked);
+            for (const char *off : {"strikethrough", "superscript", "allCaps"}) QCOMPARE(d->findChild<QCheckBox *>(QString::fromLatin1(off))->checkState(), Qt::Unchecked);
+            // (Double strikethrough and single strikethrough are not both on: choosing one clears the other.)
+            d->findChild<QCheckBox *>(QStringLiteral("strikethrough"))->setChecked(true);
+            QCOMPARE(d->findChild<QCheckBox *>(QStringLiteral("doubleStrikethrough"))->checkState(), Qt::Unchecked);
+            shown = true;
+        }, false);
+        QVERIFY(shown);
+        QCOMPARE(w.document()->story()->toHtml(), was);
+        QVERIFY(!w.document()->story()->isUndoAvailable());
+        // Over "Some words": half of it has each look, and the plain half is what the first characters say.
+        selectRange(w, 0, 10);
+        shown = false;
+        withFontDialog(w, [&](QDialog *d) {
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("fontStyle"))->currentIndex(), 0);
+            QCOMPARE(d->findChild<QCheckBox *>(QStringLiteral("subscript"))->checkState(), Qt::PartiallyChecked);
+            QCOMPARE(d->findChild<QCheckBox *>(QStringLiteral("hidden"))->checkState(), Qt::PartiallyChecked);
+            QCOMPARE(d->findChild<QCheckBox *>(QStringLiteral("superscript"))->checkState(), Qt::Unchecked);
+            shown = true;
+        }, false);
+        QVERIFY(shown);
+    }
+
+    // OK gives the selection what was changed, as one step that undoes; what was not touched stays as each character had it.
+    void theFontDialogAppliesWhatWasChangedAsOneStep()
+    {
+        WriteWindow w;
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Some words here"));
+        selectRange(w, 5, 10);
+        toggleBold(*w.document(), w.view()->cursor());
+        w.document()->story()->clearUndoRedoStacks();
+        selectRange(w, 0, 10);   // (the bold "words" with the plain "Some ")
+        withFontDialog(w, [](QDialog *d) {
+            Q_EMIT d->findChild<FontCombo *>(QStringLiteral("fontName"))->familyChosen(QStringLiteral("Cousine"));
+            d->findChild<QDoubleSpinBox *>(QStringLiteral("fontSize"))->setValue(18);
+            d->findChild<ColorButton *>(QStringLiteral("fontColor"))->setCurrent(ColorRef::rgb(QColor(0, 0x80, 0)));
+            d->findChild<QComboBox *>(QStringLiteral("underlineStyle"))->setCurrentIndex(5);   // dotted
+            d->findChild<ColorButton *>(QStringLiteral("underlineColor"))->setCurrent(ColorRef::rgb(QColor(0xFF, 0, 0)));
+            d->findChild<QCheckBox *>(QStringLiteral("strikethrough"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("superscript"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("smallCaps"))->setChecked(true);
+        });
+        auto at = [&](int position) {
+            QTextCursor c(w.document()->story());
+            c.setPosition(position + 1);
+            return c.charFormat();
+        };
+        for (int position : {0, 6}) {
+            const QTextCharFormat f = at(position);
+            QCOMPARE(f.fontFamilies().toStringList().value(0), QStringLiteral("Cousine"));
+            QCOMPARE(f.fontPointSize(), 18.0);
+            QCOMPARE(f.foreground().color(), QColor(0, 0x80, 0));
+            QCOMPARE(f.underlineStyle(), QTextCharFormat::DotLine);
+            QCOMPARE(f.underlineColor(), QColor(0xFF, 0, 0));
+            QVERIFY(f.fontStrikeOut() && !f.boolProperty(prop::DoubleStrike));
+            QCOMPARE(f.verticalAlignment(), QTextCharFormat::AlignSuperScript);
+            QCOMPARE(f.fontCapitalization(), QFont::SmallCaps);
+        }
+        // The style was not touched: "words" is still bold, and "Some " is not.
+        QCOMPARE(at(6).fontWeight(), int(QFont::Bold));
+        QCOMPARE(at(0).fontWeight(), int(QFont::Normal));
+        QVERIFY(at(11).fontPointSize() != 18.0);   // (nothing past the selection)
+        // One undo takes all of it back; one redo gives it again.
+        w.view()->undo();
+        for (int position : {0, 6}) {
+            const QTextCharFormat f = at(position);
+            QVERIFY(f.fontFamilies().toStringList().value(0) != QLatin1String("Cousine"));
+            QVERIFY(f.fontPointSize() != 18.0);
+            QCOMPARE(f.underlineStyle(), QTextCharFormat::NoUnderline);
+            QVERIFY(!f.fontStrikeOut());
+            QCOMPARE(f.verticalAlignment(), QTextCharFormat::AlignNormal);
+            QCOMPARE(f.fontCapitalization(), QFont::MixedCase);
+        }
+        QCOMPARE(at(6).fontWeight(), int(QFont::Bold));
+        QVERIFY(!w.document()->story()->isUndoAvailable());
+        w.view()->redo();
+        QCOMPARE(at(0).fontPointSize(), 18.0);
+        QCOMPARE(at(6).underlineStyle(), QTextCharFormat::DotLine);
+        // With no selection the choices are for what is typed next.
+        QTextCursor end(w.document()->story());
+        end.movePosition(QTextCursor::End);
+        w.view()->setCursor(end);
+        withFontDialog(w, [](QDialog *d) {
+            d->findChild<QComboBox *>(QStringLiteral("fontStyle"))->setCurrentIndex(2);
+            d->findChild<QCheckBox *>(QStringLiteral("allCaps"))->setChecked(true);
+        });
+        insertText(*w.document(), w.view()->cursor(), QStringLiteral("!"));
+        const QTextCharFormat typed = at(w.document()->story()->characterCount() - 2);
+        QCOMPARE(typed.fontWeight(), int(QFont::Bold));
+        QCOMPARE(typed.fontCapitalization(), QFont::AllUppercase);
+        QCOMPARE(at(w.document()->story()->characterCount() - 3).fontCapitalization(), QFont::MixedCase);
+    }
+
+    // Each effect set in the dialog is written to the file as the element it is and comes back as the same effect, on its words alone.
+    void aFontEffectIsSavedInTheFileAndComesBack_data()
+    {
+        QTest::addColumn<QString>("box");
+        QTest::addColumn<QString>("xml");
+        QTest::newRow("strikethrough") << "strikethrough" << "<w:strike/>";
+        QTest::newRow("double strikethrough") << "doubleStrikethrough" << "<w:dstrike/>";
+        QTest::newRow("superscript") << "superscript" << "<w:vertAlign w:val=\"superscript\"/>";
+        QTest::newRow("subscript") << "subscript" << "<w:vertAlign w:val=\"subscript\"/>";
+        QTest::newRow("small caps") << "smallCaps" << "<w:smallCaps/>";
+        QTest::newRow("all caps") << "allCaps" << "<w:caps/>";
+        QTest::newRow("hidden") << "hidden" << "<w:vanish/>";
+    }
+
+    void aFontEffectIsSavedInTheFileAndComesBack()
+    {
+        QFETCH(QString, box);
+        QFETCH(QString, xml);
+        WriteWindow w;
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("one two three"));
+        selectRange(w, 4, 7);
+        withFontDialog(w, [&](QDialog *d) {
+            d->findChild<QCheckBox *>(box)->setChecked(true);
+        });
+        auto has = [&](WriteDoc &doc, int position) {
+            QTextCursor c(doc.story());
+            c.setPosition(position + 1);
+            const QTextCharFormat f = c.charFormat();
+            if (box == QLatin1String("strikethrough")) return f.fontStrikeOut() && !f.boolProperty(prop::DoubleStrike);
+            if (box == QLatin1String("doubleStrikethrough")) return f.fontStrikeOut() && f.boolProperty(prop::DoubleStrike);
+            if (box == QLatin1String("superscript")) return f.verticalAlignment() == QTextCharFormat::AlignSuperScript;
+            if (box == QLatin1String("subscript")) return f.verticalAlignment() == QTextCharFormat::AlignSubScript;
+            if (box == QLatin1String("smallCaps")) return f.fontCapitalization() == QFont::SmallCaps;
+            if (box == QLatin1String("allCaps")) return f.fontCapitalization() == QFont::AllUppercase;
+            return f.boolProperty(tp::HiddenText);
+        };
+        QVERIFY(has(*w.document(), 4) && !has(*w.document(), 0) && !has(*w.document(), 8));
+        const QByteArray zip = w.document()->toDocx();
+        QVERIFY(rt::strictProblems(zip).isEmpty());
+        const QByteArray x = documentXml(zip);
+        QVERIFY2(runPropsOfText(x, QStringLiteral("two")).contains(xml), x.constData());
+        QVERIFY2(runPropsOfText(x, QStringLiteral("one ")).isEmpty() && runPropsOfText(x, QStringLiteral(" three")).isEmpty(), x.constData());
+        auto back = open(zip);
+        QVERIFY(back);
+        QCOMPARE(back->story()->toPlainText(), QStringLiteral("one two three"));
+        QVERIFY(has(*back, 4) && !has(*back, 0) && !has(*back, 8));
+        // Written once more, the same element.
+        QVERIFY(runPropsOfText(documentXml(back->toDocx()), QStringLiteral("two")).contains(xml));
+        // And turned off in the dialog, it is gone from the file.
+        WriteWindow v;
+        v.show();
+        v.setDocument(std::move(back), QString());
+        selectRange(v, 4, 7);
+        withFontDialog(v, [&](QDialog *d) {
+            QCOMPARE(d->findChild<QCheckBox *>(box)->checkState(), Qt::Checked);
+            d->findChild<QCheckBox *>(box)->setChecked(false);
+        });
+        QVERIFY(!has(*v.document(), 4));
+        QVERIFY2(!documentXml(v.document()->toDocx()).contains(xml.toUtf8()), documentXml(v.document()->toDocx()).constData());
+    }
+
+    // The underline's style and color are written as w:u with its val and color, and read back into the dialog as they were set.
+    void anUnderlineStyleAndColorFromTheDialogAreSavedInTheFileAndComeBack()
+    {
+        // The choices of the dialog, in its order, and the val the file has for each.
+        const QStringList vals = {QStringLiteral("none"), QStringLiteral("single"), QStringLiteral("words"), QStringLiteral("double"), QStringLiteral("thick"), QStringLiteral("dotted"),
+                                  QStringLiteral("dash"), QStringLiteral("dotDash"), QStringLiteral("dotDotDash"), QStringLiteral("wave"), QStringLiteral("wavyDouble")};
+        WriteWindow w;
+        w.show();
+        QString text;
+        for (int i = 1; i < vals.size(); ++i) text += QStringLiteral("w%1 ").arg(i, 2, 10, QLatin1Char('0'));
+        typeText(*w.document(), w.view()->cursor(), text.trimmed());
+        for (int i = 1; i < vals.size(); ++i) {
+            selectRange(w, (i - 1) * 4, (i - 1) * 4 + 3);
+            withFontDialog(w, [&](QDialog *d) {
+                d->findChild<QComboBox *>(QStringLiteral("underlineStyle"))->setCurrentIndex(i);
+                // (Colored in the second half; the first half's lines take the text's color.)
+                if (i > 5) d->findChild<ColorButton *>(QStringLiteral("underlineColor"))->setCurrent(ColorRef::rgb(QColor(0xFF, 0, 0)));
+            });
+        }
+        const QByteArray zip = w.document()->toDocx();
+        QVERIFY(rt::strictProblems(zip).isEmpty());
+        const QByteArray x = documentXml(zip);
+        for (int i = 1; i < vals.size(); ++i) {
+            const QString props = runPropsOfText(x, QStringLiteral("w%1").arg(i, 2, 10, QLatin1Char('0')));
+            const QString want = i > 5 ? QStringLiteral("<w:u w:val=\"%1\" w:color=\"FF0000\"/>").arg(vals[i]) : QStringLiteral("<w:u w:val=\"%1\"/>").arg(vals[i]);
+            QVERIFY2(props.contains(want), qPrintable(QStringLiteral("%1: %2").arg(want, props)));
+        }
+        // Read again, the dialog shows each choice and color.
+        WriteWindow v;
+        v.show();
+        v.setDocument(open(zip), QString());
+        for (int i = 1; i < vals.size(); ++i) {
+            selectRange(v, (i - 1) * 4, (i - 1) * 4 + 3);
+            withFontDialog(v, [&](QDialog *d) {
+                QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("underlineStyle"))->currentIndex(), i);
+                const ColorRef color = d->findChild<ColorButton *>(QStringLiteral("underlineColor"))->current();
+                if (i > 5) QCOMPARE(color.rgbValue(), QColor(0xFF, 0, 0));
+                else QVERIFY(color.isNone());
+            }, false);
+        }
+        // Underline off, and the color automatic again: the file says no line where there was one, and no color where there was one.
+        selectRange(v, 20, 23);   // "w06", dashed
+        withFontDialog(v, [](QDialog *d) { d->findChild<QComboBox *>(QStringLiteral("underlineStyle"))->setCurrentIndex(0); });
+        QVERIFY(!documentXml(v.document()->toDocx()).contains("w:val=\"dash\""));
+        selectRange(v, 24, 27);   // "w07", dot dash in red
+        withFontDialog(v, [](QDialog *d) { d->findChild<ColorButton *>(QStringLiteral("underlineColor"))->setCurrent(ColorRef::none()); });
+        QVERIFY2(runPropsOfText(documentXml(v.document()->toDocx()), QStringLiteral("w07")) == QLatin1String("<w:u w:val=\"dotDash\"/>"), documentXml(v.document()->toDocx()).constData());
+    }
+
+    // A file's own effects are read into the dialog's, and written back as they were (a style that has one, and a run that turns it off, too).
+    void aFilesEffectsAreReadAndWrittenBack()
+    {
+        const QByteArray styles = kStyles + "<w:style w:type=\"paragraph\" w:styleId=\"Shouting\"><w:name w:val=\"Shouting\"/><w:basedOn w:val=\"Normal\"/><w:rPr><w:caps/></w:rPr></w:style>";
+        const QByteArray body =
+            "<w:p><w:r><w:rPr><w:strike/></w:rPr><w:t>strike</w:t></w:r><w:r><w:t xml:space=\"preserve\"> </w:t></w:r><w:r><w:rPr><w:dstrike/></w:rPr><w:t>dstrike</w:t></w:r></w:p>"
+            "<w:p><w:r><w:rPr><w:vertAlign w:val=\"superscript\"/></w:rPr><w:t>super</w:t></w:r><w:r><w:rPr><w:vertAlign w:val=\"subscript\"/></w:rPr><w:t>sub</w:t></w:r></w:p>"
+            "<w:p><w:r><w:rPr><w:smallCaps/></w:rPr><w:t>small</w:t></w:r><w:r><w:rPr><w:vanish/></w:rPr><w:t>hidden</w:t></w:r></w:p>"
+            "<w:p><w:r><w:rPr><w:u w:val=\"double\" w:color=\"00B050\"/></w:rPr><w:t>double</w:t></w:r><w:r><w:rPr><w:u w:val=\"dottedHeavy\"/></w:rPr><w:t>heavy</w:t></w:r>"
+            "<w:r><w:rPr><w:u w:val=\"dashLong\" w:color=\"0070C0\"/></w:rPr><w:t>long</w:t></w:r></w:p>"
+            "<w:p><w:pPr><w:pStyle w:val=\"Shouting\"/></w:pPr><w:r><w:t>loud</w:t></w:r><w:r><w:rPr><w:caps w:val=\"0\"/><w:smallCaps/></w:rPr><w:t>quiet</w:t></w:r></w:p>";
+        // Every underline a file can name, each in a run of its own (the runs differ, so none is joined to the next).
+        const QStringList lines = {QStringLiteral("single"),     QStringLiteral("words"),         QStringLiteral("double"),          QStringLiteral("thick"),        QStringLiteral("dotted"),
+                                   QStringLiteral("dottedHeavy"), QStringLiteral("dash"),         QStringLiteral("dashedHeavy"),     QStringLiteral("dashLong"),     QStringLiteral("dashLongHeavy"),
+                                   QStringLiteral("dotDash"),   QStringLiteral("dashDotHeavy"), QStringLiteral("dotDotDash"),      QStringLiteral("dashDotDotHeavy"), QStringLiteral("wave"),
+                                   QStringLiteral("wavyHeavy"), QStringLiteral("wavyDouble")};
+        QByteArray underlines = "<w:p>";
+        for (const QString &val : lines) underlines += "<w:r><w:rPr><w:u w:val=\"" + val.toUtf8() + "\"/></w:rPr><w:t>u-" + val.toUtf8() + "</w:t></w:r>";
+        underlines += "</w:p>";
+        auto doc = open(makeDocx(body + underlines, styles));
+        QVERIFY(doc);
+        const QByteArray zip = doc->toDocx();
+        QVERIFY(rt::strictProblems(zip).isEmpty());
+        const QByteArray x = documentXml(zip);
+        auto props = [&](const char *word) { return runPropsOfText(x, QString::fromLatin1(word)); };
+        for (const QString &val : lines) {
+            const QString got = runPropsOfText(x, QStringLiteral("u-") + val);
+            QVERIFY2(got == QStringLiteral("<w:u w:val=\"%1\"/>").arg(val), qPrintable(val + QStringLiteral(" came back as ") + got));
+        }
+        QVERIFY2(props("strike") == QLatin1String("<w:strike/>"), qPrintable(props("strike")));
+        QVERIFY2(props("dstrike") == QLatin1String("<w:dstrike/>"), qPrintable(props("dstrike")));
+        QVERIFY2(props("super") == QLatin1String("<w:vertAlign w:val=\"superscript\"/>"), qPrintable(props("super")));
+        QVERIFY2(props("sub") == QLatin1String("<w:vertAlign w:val=\"subscript\"/>"), qPrintable(props("sub")));
+        QVERIFY2(props("small") == QLatin1String("<w:smallCaps/>"), qPrintable(props("small")));
+        QVERIFY2(props("hidden") == QLatin1String("<w:vanish/>"), qPrintable(props("hidden")));
+        QVERIFY2(props("double") == QLatin1String("<w:u w:val=\"double\" w:color=\"00B050\"/>"), qPrintable(props("double")));
+        QVERIFY2(props("heavy") == QLatin1String("<w:u w:val=\"dottedHeavy\"/>"), qPrintable(props("heavy")));
+        QVERIFY2(props("long") == QLatin1String("<w:u w:val=\"dashLong\" w:color=\"0070C0\"/>"), qPrintable(props("long")));
+        // The paragraph's style is all caps, and so "loud" says nothing of it; "quiet" turns it off and small caps on.
+        QVERIFY2(props("loud").isEmpty(), qPrintable(props("loud")));
+        QVERIFY2(props("quiet").contains(QLatin1String("<w:caps w:val=\"0\"/>")) && props("quiet").contains(QLatin1String("<w:smallCaps/>")), qPrintable(props("quiet")));
+        // The dialog on a style's all caps: clearing it says "not caps" in the run.
+        WriteWindow w;
+        w.show();
+        w.setDocument(std::move(doc), QString());
+        const int loud = w.document()->story()->toPlainText().indexOf(QLatin1String("loud"));
+        selectRange(w, loud, loud + 4);
+        withFontDialog(w, [](QDialog *d) {
+            QCOMPARE(d->findChild<QCheckBox *>(QStringLiteral("allCaps"))->checkState(), Qt::Checked);
+            d->findChild<QCheckBox *>(QStringLiteral("allCaps"))->setChecked(false);
+        });
+        QVERIFY2(runPropsOfText(documentXml(w.document()->toDocx()), QStringLiteral("loud")).contains(QLatin1String("<w:caps w:val=\"0\"/>")), documentXml(w.document()->toDocx()).constData());
     }
 
     void exportPdfWritesAPdfWithAPagePerPage()

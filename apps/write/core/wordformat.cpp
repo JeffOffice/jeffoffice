@@ -275,6 +275,26 @@ QTextCharFormat withoutAtom(QTextCharFormat f)
 
 // ---- runs
 
+namespace {
+
+// The underlines a file names (w:u's val), as Qt's line style and the tp::UnderlineKind flags beside it (1 double, 2 words only, 4 heavy, 8 long dashes),
+// so that each is read as what it is and written as it was.
+struct UnderlineVal {
+    const char *val;
+    QTextCharFormat::UnderlineStyle style;
+    int kind;
+};
+const UnderlineVal kUnderlineVals[] = {
+    {"single", QTextCharFormat::SingleUnderline, 0},          {"words", QTextCharFormat::SingleUnderline, 2},        {"double", QTextCharFormat::SingleUnderline, 1},
+    {"thick", QTextCharFormat::SingleUnderline, 4},           {"dotted", QTextCharFormat::DotLine, 0},               {"dottedHeavy", QTextCharFormat::DotLine, 4},
+    {"dash", QTextCharFormat::DashUnderline, 0},              {"dashedHeavy", QTextCharFormat::DashUnderline, 4},    {"dashLong", QTextCharFormat::DashUnderline, 8},
+    {"dashLongHeavy", QTextCharFormat::DashUnderline, 12},    {"dotDash", QTextCharFormat::DashDotLine, 0},          {"dashDotHeavy", QTextCharFormat::DashDotLine, 4},
+    {"dotDotDash", QTextCharFormat::DashDotDotLine, 0},       {"dashDotDotHeavy", QTextCharFormat::DashDotDotLine, 4}, {"wave", QTextCharFormat::WaveUnderline, 0},
+    {"wavyHeavy", QTextCharFormat::WaveUnderline, 4},         {"wavyDouble", QTextCharFormat::WaveUnderline, 1},
+};
+
+} // namespace
+
 QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme, const RunProps *direct)
 {
     QTextCharFormat cf;
@@ -287,16 +307,11 @@ QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme, const RunPro
         const QString u = r.underline->val;
         int kind = 0;
         QTextCharFormat::UnderlineStyle style = QTextCharFormat::SingleUnderline;
-        if (u == QLatin1String("double")) kind = 1;
-        else if (u == QLatin1String("words")) kind = 2;
-        else if (u.startsWith(QLatin1String("thick"))) kind = 4;
-        else if (u.startsWith(QLatin1String("dotted"))) style = QTextCharFormat::DotLine;
-        else if (u.startsWith(QLatin1String("dash"))) style = QTextCharFormat::DashUnderline;
-        else if (u.startsWith(QLatin1String("dotDash"))) style = QTextCharFormat::DashDotLine;
-        else if (u.startsWith(QLatin1String("dotDotDash"))) style = QTextCharFormat::DashDotDotLine;
-        else if (u.startsWith(QLatin1String("wave"))) style = QTextCharFormat::WaveUnderline;
-        if (u.endsWith(QLatin1String("Heavy"))) kind |= 4;
-        if (u == QLatin1String("wavyDouble")) kind |= 1;
+        for (const UnderlineVal &v : kUnderlineVals)
+            if (u == QLatin1String(v.val)) {
+                style = v.style;
+                kind = v.kind;
+            }
         cf.setUnderlineStyle(style);
         if (kind) cf.setProperty(tp::UnderlineKind, kind);
         const QString uc = r.underline->color;
@@ -375,14 +390,20 @@ RunProps runPropsOf(const QTextCharFormat &f)
     const QTextCharFormat::UnderlineStyle us = f.underlineStyle();
     Underline u;
     const int kind = f.intProperty(tp::UnderlineKind);
-    switch (us) {
-    case QTextCharFormat::NoUnderline: u.val = QStringLiteral("none"); break;
-    case QTextCharFormat::DotLine: u.val = QStringLiteral("dotted"); break;
-    case QTextCharFormat::DashUnderline: u.val = QStringLiteral("dash"); break;
-    case QTextCharFormat::DashDotLine: u.val = QStringLiteral("dotDash"); break;
-    case QTextCharFormat::DashDotDotLine: u.val = QStringLiteral("dotDotDash"); break;
-    case QTextCharFormat::WaveUnderline: u.val = (kind & 1) ? QStringLiteral("wavyDouble") : QStringLiteral("wave"); break;
-    default: u.val = (kind & 1) ? QStringLiteral("double") : (kind & 2) ? QStringLiteral("words") : (kind & 4) ? QStringLiteral("thick") : QStringLiteral("single"); break;
+    if (us == QTextCharFormat::NoUnderline) {
+        u.val = QStringLiteral("none");
+    } else {
+        // The one with this line and these flags; else the plainest with the line, or a single line.
+        const UnderlineVal *best = nullptr;
+        for (const UnderlineVal &v : kUnderlineVals) {
+            if (v.style != us) continue;
+            if (v.kind == kind) {
+                best = &v;
+                break;
+            }
+            if (!best || v.kind < best->kind) best = &v;
+        }
+        u.val = QString::fromLatin1(best ? best->val : "single");
     }
     if (us != QTextCharFormat::NoUnderline && f.hasProperty(QTextFormat::TextUnderlineColor)) u.color = hex(f.underlineColor());
     if (us != QTextCharFormat::NoUnderline && f.hasProperty(prop::UnderlineAttrs)) u.attrs = f.stringProperty(prop::UnderlineAttrs).toUtf8();

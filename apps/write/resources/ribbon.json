@@ -40,6 +40,9 @@
         {
           "name": "Font",
           "keytip": "ZF",
+          "launcher": "font",
+          "launcherTip": "Font",
+          "launcherKeytip": "FN",
           "items": [
             {
               "row": [
