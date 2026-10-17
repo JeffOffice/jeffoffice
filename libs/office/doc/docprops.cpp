@@ -99,10 +99,12 @@ void Chp::apply(const Span &g)
         const Span &a = s.arg;
         auto toggle = [&](Toggle t) { tog[t] = a.u8(0); };
         switch (s.op) {
-        case 0x0800: deleted = a.u8(0) & 1; break;
-        case 0x0801: inserted = a.u8(0) & 1; break;
-        case 0x4804: if (inserted) revisionAuthor = a.u16(0); break;
-        case 0x4863: if (deleted) revisionAuthor = a.u16(0); break;
+        case 0x0800: deletion.made = a.u8(0) & 1; break;
+        case 0x0801: insertion.made = a.u8(0) & 1; break;
+        case 0x4804: insertion.author = a.u16(0); break;
+        case 0x4863: deletion.author = a.u16(0); break;
+        case 0x6805: insertion.date = a.u32(0); break;
+        case 0x6864: deletion.date = a.u32(0); break;
         case 0x6A03: picture = qint32(a.u32(0)); break;
         case 0x0806: data = a.u8(0) & 1; break;
         case 0x0855: special = a.u8(0) & 1; break;
@@ -114,8 +116,10 @@ void Chp::apply(const Span &g)
             const bool sp = special, da = data, ob = object, ol = ole2;
             const qint32 pic = picture;
             const int sf = symbolFont, sc = symbolChar;
+            const Revision ins = insertion, del = deletion;   // (who typed the words, and who took them out, is not formatting)
             *this = Chp();
             special = sp; data = da; object = ob; ole2 = ol; picture = pic; symbolFont = sf; symbolChar = sc;
+            insertion = ins; deletion = del;
             break;
         }
         case 0x0835: toggle(TogBold); break;

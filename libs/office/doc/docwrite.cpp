@@ -2,6 +2,7 @@
 
 #include "doc/docprops.h"
 
+#include <QDate>
 #include <QStringList>
 #include <algorithm>
 
@@ -35,6 +36,17 @@ QByteArray xmlEscape(const QString &s)
     }
     flush(s.size());
     return out;
+}
+
+QByteArray revisionAttributes(int id, const QString &author, quint32 date)
+{
+    QByteArray x = " w:id=\"" + QByteArray::number(id) + "\" w:author=\"" + xmlEscape(author) + "\"";
+    if (date) {
+        // Minutes in the low six bits, then hours (5), day (5), month (4), and the years since 1900 (9).
+        const int minute = int(date & 0x3F), hour = int((date >> 6) & 0x1F), day = int((date >> 11) & 0x1F), month = int((date >> 16) & 0xF), year = 1900 + int((date >> 20) & 0x1FF);
+        if (QDate::isValid(year, month, day) && hour < 24 && minute < 60) x += QString::asprintf(" w:date=\"%04d-%02d-%02dT%02d:%02d:00Z\"", year, month, day, hour, minute).toLatin1();
+    }
+    return x;
 }
 
 namespace {

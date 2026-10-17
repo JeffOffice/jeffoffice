@@ -54,6 +54,20 @@ const wml::KeptPart *part(const Document &d, const QString &name)
     return nullptr;
 }
 
+// The XML of the body of the package a file comes to.
+QByteArray bodyXml(const DocWriter &w)
+{
+    QString why;
+    const QByteArray zip = doc::toDocxPackage(w.build(), &why);
+    Package pkg;
+    if (zip.isEmpty() || !pkg.read(zip)) return QByteArray("no package: ") + why.toUtf8();
+    return pkg.part(QStringLiteral("/word/document.xml"));
+}
+
+// The sprms of a tracked insertion or deletion by the author at `by` of the file's list, on the date.
+QByteArray insertion(int by, quint32 date = 0) { return sprm1(sprm::inserted, 0x81) + sprm2(sprm::insertedBy, by) + (date ? sprm4(sprm::insertedAt, date) : QByteArray()); }
+QByteArray deletion(int by, quint32 date = 0) { return sprm1(sprm::deleted, 0x81) + sprm2(sprm::deletedBy, by) + (date ? sprm4(sprm::deletedAt, date) : QByteArray()); }
+
 DocWriter simple(const QString &text)
 {
     DocWriter w;
@@ -184,6 +198,61 @@ private Q_SLOTS:
         QVERIFY(runs[3].props.bold.value_or(false) && runs[3].props.italic.value_or(false));
         QCOMPARE(runs[3].props.size.value_or(0), 28);
         QVERIFY(runs[3].props.fonts && runs[3].props.fonts->ascii == QLatin1String("Arial"));
+    }
+
+    void trackedChangesHaveTheirAuthorsAndDates()
+    {
+        DocWriter w = simple(QStringLiteral("a new b old c\r"));
+        w.revisionAuthors = {QStringLiteral("Ann"), QStringLiteral("Bob")};
+        w.chars = {{2, 5, insertion(0, dttm(2003, 4, 7, 9, 30))}, {8, 11, deletion(1, dttm(2004, 11, 23, 16, 5))}};
+        const QByteArray x = bodyXml(w);
+        QVERIFY2(x.contains("<w:ins w:id=\"1\" w:author=\"Ann\" w:date=\"2003-04-07T09:30:00Z\"><w:r><w:t xml:space=\"preserve\">new</w:t></w:r></w:ins>"), x.constData());
+        QVERIFY2(x.contains("<w:del w:id=\"2\" w:author=\"Bob\" w:date=\"2004-11-23T16:05:00Z\"><w:r><w:delText xml:space=\"preserve\">old</w:delText></w:r></w:del>"), x.constData());
+        // A date the file leaves out, or one that is no date (month 0), is left out of the mark.
+        DocWriter v = simple(QStringLiteral("a new b old c\r"));
+        v.revisionAuthors = {QStringLiteral("Ann")};
+        v.chars = {{2, 5, insertion(0)}, {8, 11, deletion(0, dttm(2003, 0, 7, 9, 30))}};
+        const QByteArray y = bodyXml(v);
+        QVERIFY2(y.contains("<w:ins w:id=\"1\" w:author=\"Ann\"><w:r>"), y.constData());
+        QVERIFY2(y.contains("<w:del w:id=\"2\" w:author=\"Ann\"><w:r>"), y.constData());
+    }
+
+    void aParagraphMarkThatWasInsertedOrDeletedSaysSo()
+    {
+        DocWriter w = simple(QStringLiteral("first\rsecond\r"));
+        w.revisionAuthors = {QStringLiteral("Ann")};
+        w.chars = {{5, 6, insertion(0, dttm(2003, 4, 7, 9, 30))}, {12, 13, deletion(0, dttm(2004, 11, 23, 16, 5))}};
+        const QByteArray x = bodyXml(w);
+        QVERIFY2(x.contains("<w:pPr><w:rPr><w:ins w:id=\"1\" w:author=\"Ann\" w:date=\"2003-04-07T09:30:00Z\"/></w:rPr></w:pPr>"), x.constData());
+        QVERIFY2(x.contains("<w:pPr><w:rPr><w:del w:id=\"2\" w:author=\"Ann\" w:date=\"2004-11-23T16:05:00Z\"/></w:rPr></w:pPr>"), x.constData());
+        // (The words of the paragraphs are not marked: only their marks are.)
+        QVERIFY(!x.contains("<w:ins w:id=\"1\" w:author=\"Ann\" w:date=\"2003-04-07T09:30:00Z\"><w:r>"));
+        // And the document reads them: the mark's properties are kept with the paragraph.
+        Document d;
+        QVERIFY(read(w.build(), &d));
+        QCOMPARE(bodyTexts(d), (QStringList{QStringLiteral("first"), QStringLiteral("second")}));
+        QVERIFY(d.body[0].para.props.markRun.has_value());
+    }
+
+    void plainCharactersKeepTheirTrackedChange()
+    {
+        // "Plain" takes the formatting back to the style's; it is no reason to forget who typed the words.
+        DocWriter w = simple(QStringLiteral("a new b\r"));
+        w.revisionAuthors = {QStringLiteral("Ann")};
+        w.chars = {{2, 5, insertion(0, dttm(2003, 4, 7, 9, 30)) + sprm1(0x2A33, 1) + sprm1(sprm::bold, 1)}};
+        const QByteArray x = bodyXml(w);
+        QVERIFY2(x.contains("<w:ins w:id=\"1\" w:author=\"Ann\" w:date=\"2003-04-07T09:30:00Z\"><w:r><w:rPr><w:b/></w:rPr><w:t xml:space=\"preserve\">new</w:t></w:r></w:ins>"), x.constData());
+    }
+
+    void textInsertedAndThenDeletedKeepsBothMarks()
+    {
+        DocWriter w = simple(QStringLiteral("a new b\r"));
+        w.revisionAuthors = {QStringLiteral("Ann"), QStringLiteral("Bob")};
+        w.chars = {{2, 5, insertion(0, dttm(2003, 4, 7, 9, 30)) + deletion(1, dttm(2004, 11, 23, 16, 5))}};
+        const QByteArray x = bodyXml(w);
+        QVERIFY2(x.contains("<w:ins w:id=\"1\" w:author=\"Ann\" w:date=\"2003-04-07T09:30:00Z\"><w:del w:id=\"2\" w:author=\"Bob\" w:date=\"2004-11-23T16:05:00Z\">"
+                            "<w:r><w:delText xml:space=\"preserve\">new</w:delText></w:r></w:del></w:ins>"),
+                 x.constData());
     }
 
     void toggleRelativeToTheStyle()
