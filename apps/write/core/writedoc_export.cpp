@@ -20,6 +20,27 @@ using namespace jp::office::wml;
 
 namespace jp::write {
 
+namespace {
+
+// The text engine's formats hold one kind of capitals and one kind of strike-through: a run in capitals has no small capitals in its format, and one struck twice is not
+// struck once. What a run in capitals says of small capitals, or a double strike of the single, is then what its style says (the capitals and the double strike win
+// where both are on), not an "off" that the file never said. And a run with no typeface of its own, in a file that names none, is set in the body font of the theme:
+// that is no typeface said, not a theme font said.
+void settleKinds(RunProps *run, const RunProps &base)
+{
+    if (run->caps.value_or(false)) run->smallCaps = base.smallCaps;
+    if (run->dstrike.value_or(false)) run->strike = base.strike;
+    const Fonts none;
+    const Fonts &b = base.fonts ? *base.fonts : none;
+    if (run->fonts && run->fonts->ascii.isEmpty() && run->fonts->hAnsi.isEmpty() && run->fonts->asciiTheme == QLatin1String("minorHAnsi") && run->fonts->hAnsiTheme == QLatin1String("minorHAnsi") &&
+        b.ascii.isEmpty() && b.hAnsi.isEmpty() && b.asciiTheme.isEmpty() && b.hAnsiTheme.isEmpty()) {
+        run->fonts->asciiTheme.clear();
+        run->fonts->hAnsiTheme.clear();
+    }
+}
+
+} // namespace
+
 void WriteDoc::exportBody(QVector<Block> *out)
 {
     VectorSink sink(out);
@@ -93,7 +114,9 @@ void WriteDoc::exportInto(BlockSink &sink)
             const QTextCharFormat cf = f.charFormat();
             const QString text = f.text();
             RunProps run = runPropsOf(cf);
-            RunProps diff = run.differences(sheet.run(styleId, run.style, layer));
+            const RunProps base = sheet.run(styleId, run.style, layer);
+            settleKinds(&run, base);
+            RunProps diff = run.differences(base);
             diff.style = run.style;
             if (cf.hasProperty(prop::Atom)) {
                 Inline a = unpackAtom(storedBytes(cf, prop::Atom));
@@ -118,7 +141,9 @@ void WriteDoc::exportInto(BlockSink &sink)
         // The paragraph mark's own formatting: the last paragraph's.
         {
             RunProps mark = runPropsOf(markFormat(lastPart));
-            RunProps diff = mark.differences(sheet.run(styleId, mark.style, layer));
+            const RunProps base = sheet.run(styleId, mark.style, layer);
+            settleKinds(&mark, base);
+            RunProps diff = mark.differences(base);
             diff.style = mark.style;
             if (!runPropsXml(diff).isEmpty()) direct.markRun = diff;
         }
