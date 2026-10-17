@@ -759,6 +759,7 @@ QTextListFormat WriteDoc::listFormat(int numId, int level, int start) const
     else if (l.numFmt == QLatin1String("lowerRoman")) style = QTextListFormat::ListLowerRoman;
     else if (l.numFmt == QLatin1String("upperRoman")) style = QTextListFormat::ListUpperRoman;
     lf.setStyle(style);
+    if (l.rPr.size) lf.setProperty(tp::BulletSize, *l.rPr.size / 2.0);
     // The text around the number: "%1." is the number and a period.
     const QString own = QStringLiteral("%%1").arg(level + 1);
     const int at = l.text.indexOf(own);
