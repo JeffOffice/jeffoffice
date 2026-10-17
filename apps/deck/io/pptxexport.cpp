@@ -409,8 +409,10 @@ QByteArray presentationTheme(const Document &doc, office::Theme *out)
     for (int i = 0; i < office::Theme::ColorCount; ++i) theme.colors[i] = deckTheme.colors[i];
     theme.majorLatin = deckTheme.headingFont;
     theme.minorLatin = deckTheme.bodyFont;
+    // (The part made here has the format styles the Quick Styles are drawn from, so a shape's style reference means what the shape shows.)
+    theme.xml = themePart(deckTheme);
     *out = theme;
-    return office::writeTheme(theme);
+    return theme.xml;
 }
 
 // The same XML with the relationship ids in the attributes of the relationships' namespace (r:id, r:embed...) changed as `ids` says, all at once.

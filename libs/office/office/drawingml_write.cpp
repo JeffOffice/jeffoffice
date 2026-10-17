@@ -6,6 +6,7 @@
 
 #include "core/shapetypes.h"
 #include "office/drawingml_geometry.h"
+#include "office/drawingml_styleref.h"
 #include "office/drawingml_write_util.h"
 #include "office/xml.h"
 #include "render/shapes.h"
@@ -543,12 +544,33 @@ void writeMedia(QXmlStreamWriter &w, const PictureItem &p, const MediaRelations 
     w.writeEndElement();
 }
 
-// The properties a shape (and a picture) has beyond its geometry.
-void writeLook(QXmlStreamWriter &w, const Item &it, DrawingWriteContext &ctx)
+// What an object's style reference gives on the theme being written; false for an object with none (or one that is not written with its
+// style: pictures, tables, and text art).
+bool styledLook(const Item &it, DrawingWriteContext &ctx, StyleLook *look)
 {
-    writeFill(w, it.fill, ctx);
-    writeLine(w, it.stroke, ctx);
-    writeEffects(w, it.fx, ctx);
+    if (!it.styleRef.on) return false;
+    if (it.type() != ItemType::Shape && it.type() != ItemType::Text && it.type() != ItemType::Line) return false;
+    if (!ctx.styles) ctx.styles = std::make_shared<StyleResolver>(writeTheme(ctx.theme));
+    if (!ctx.styles->valid()) return false;
+    *look = ctx.styles->look(it.styleRef, it.rect.size());
+    return true;
+}
+
+// The properties a shape (and a picture) has beyond its geometry. Where the shape has a style reference, what the style gives is left to it:
+// the shape says only what differs (so the look is the same wherever the file is read, and a program that shows the style shows it as one).
+void writeLook(QXmlStreamWriter &w, const Item &it, DrawingWriteContext &ctx, bool fill = true)
+{
+    StyleLook look;
+    const bool styled = styledLook(it, ctx, &look);
+    if (fill && (!styled || !(it.fill == look.fill))) writeFill(w, it.fill, ctx);
+    if (!styled || !(it.stroke == look.stroke)) writeLine(w, it.stroke, ctx);
+    if (!styled || it.fx.toJson() != look.fx.toJson()) writeEffects(w, it.fx, ctx);
+}
+
+// The item's style reference, after its properties.
+void writeStyleOf(QXmlStreamWriter &w, const Item &it)
+{
+    if (it.styleRef.on) writeStyleRef(w, it.styleRef);
 }
 
 // A margin round text in EMU, held to what a 32-bit number counts.
@@ -640,6 +662,7 @@ void writeTextBox(QXmlStreamWriter &w, const TextItem &t, DrawingWriteContext &c
     writePreset(w, QStringLiteral("rect"));
     writeLook(w, t, ctx);
     w.writeEndElement();
+    writeStyleOf(w, t);
     Body body;
     body.insets = t.insets;
     body.valign = t.valign;
@@ -765,6 +788,7 @@ void writeForm(QXmlStreamWriter &w, const ShapeItem &s, DrawingWriteContext &ctx
     }
     writeLook(w, s, ctx);
     w.writeEndElement();
+    writeStyleOf(w, s);
     // The text body is there with no text in it, to keep where text would sit.
     Body body;
     body.insets = s.insets;
@@ -979,9 +1003,9 @@ void writeConnector(QXmlStreamWriter &w, const LineItem &l, DrawingWriteContext 
     QVector<QPair<QString, double>> adjustments;
     if (bent && !corner && std::fabs(l.bend - 0.5) > 1e-6) adjustments.append({QStringLiteral("adj1"), l.bend * 100000});
     writePreset(w, prst, adjustments);
-    writeLine(w, l.stroke, ctx);
-    writeEffects(w, l.fx, ctx);
+    writeLook(w, l, ctx, false);
     w.writeEndElement();
+    writeStyleOf(w, l);
     w.writeEndElement();
 }
 

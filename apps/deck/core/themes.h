@@ -127,6 +127,12 @@ void keepSlideMaster(MasterPage &master);
 // Whether a change of theme made the slide master for some slides, and nothing has made it the user's own since.
 bool isThemeMade(const MasterPage &master);
 
+// The theme part a slide master follows, as it is saved: the one kept from a file while its colors and fonts are still the master's, else one
+// made from them (the format styles of the theme part made here are the ones the Quick Styles are drawn from).
+QByteArray themePartOf(const Document &d, const MasterPage &master);
+// The theme part a theme's colors and fonts make.
+QByteArray themePart(const DeckTheme &t);
+
 // WCAG 2 contrast ratio of two colors (1 to 21).
 double contrastRatio(const QColor &a, const QColor &b);
 
