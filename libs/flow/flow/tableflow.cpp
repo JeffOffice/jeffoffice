@@ -1207,7 +1207,8 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
         strokeLine(p, edgeOf(*layout, index, Side::Left), r.topLeft(), r.bottomLeft(), picture);
         const Part *part = c.rows == 1 ? partOf(c.row) : nullptr;
         const bool cut = endsPage || (part && part->piece.next != 0);   // (the foot of a row that goes on past a page break, and of the page's last)
-        if (cut || cellCovering(*layout, c.row + c.rows, c.col) < 0) {
+        // (Cells apart each have all their lines.)
+        if (td.spaced || cut || cellCovering(*layout, c.row + c.rows, c.col) < 0) {
             if (cut && !td.spaced) {
                 const TableLine bottom = lineBetween(bottomCell.bottom, std::nullopt, true, false, td.insideH, td.bottom);
                 const double up = roomOf(bottom) / 2;
@@ -1219,7 +1220,7 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
                 }
             }
         }
-        if (cellCovering(*layout, c.row, c.col + c.span) < 0) strokeLine(p, edgeOf(*layout, index, Side::Right), r.topRight(), r.bottomRight(), picture);
+        if (td.spaced || cellCovering(*layout, c.row, c.col + c.span) < 0) strokeLine(p, edgeOf(*layout, index, Side::Right), r.topRight(), r.bottomRight(), picture);
         p->restore();
     }
     // A table that has its cells apart has its own lines round all of them.
