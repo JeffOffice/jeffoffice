@@ -24,6 +24,9 @@ constexpr int kWindow = 6000;
 // laid out from the page on.
 constexpr int kLeastWindow = 300;
 constexpr int kDenseNotes = 64;
+// How many times a page is laid out again to make the objects the text goes round and the lines agree about where each is, and the most the objects seen before are kept to
+// know that they go in circles.
+constexpr int kWrapPasses = 3;
 
 // Whether the page shows the number of pages (in its text, its header, or its footer), and what number it was made with.
 void markTotals(MaterializedPage *out, const Document &d)
@@ -62,6 +65,7 @@ struct Paginator::Run {
     QVector<StoryLayout::Rule> rules;        // and the rules above them
     PageStart next;            // where the page after starts
     std::vector<TableGroup> groups;   // the rows of tables among the lines kept
+    QVector<Wrapped> wrapped;  // the objects the text of the page was laid out round
 };
 
 Paginator::Paginator(FlowDocument *doc) : m_doc(doc), m_tables(std::make_unique<TableFlow>(doc)), m_watch(std::make_unique<QObject>())
@@ -99,7 +103,29 @@ int Paginator::numberOf(int index) const
 Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
 {
     ++m_laidOut;
+    Run run = layoutPageWith(index, st, {});
+    if (m_doc->objects.isEmpty()) return run;
+    // The objects the lines anchor, and the text goes round, are set where the lines say; the text goes round them there, which moves the lines, and the page is laid out
+    // again until they agree (the paragraph's top an object is set from is where the paragraph would be without it: that is what the engine's `pushed` is for). Objects that
+    // keep moving the lines, and so themselves, are left where the last layout had them.
+    QVector<Wrapped> used;
+    QVector<QVector<Wrapped>> seen;
+    for (int pass = 0; pass < kWrapPasses; ++pass) {
+        const QVector<Wrapped> want = wrappersOf(run, index, st);
+        if (want == used || seen.contains(want)) break;
+        seen << used;
+        used = want;
+        run = layoutPageWith(index, st, used);
+    }
+    // A page whose objects leave no room for a line would have none, and the pages would never end: it is laid out as it is without them.
+    if (!used.isEmpty() && run.kept <= 0) run = layoutPageWith(index, st, {});
+    return run;
+}
+
+Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const QVector<Wrapped> &wrapped)
+{
     Run run;
+    run.wrapped = wrapped;
     // The page a break at the end of the text makes: it starts past the text's last character.
     // (With notes that go on from the page before, it is a page of notes alone.)
     if (st.pos >= m_doc->story()->characterCount() && st.carried.isEmpty()) {
@@ -110,7 +136,8 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
     run.keepsSpace = st.hard && st.skip > 0;
     const double colW = sec.columnWidth();
     const int number = numberOf(index);
-    const double colH = furnitureOf(index, st, number).body.height();
+    const QRectF body = furnitureOf(index, st, number).body;
+    const double colH = body.height();
     auto frame = [&](double width, double height) {
         FrameSpec fs;
         fs.size = QSizeF(width, height);
@@ -121,6 +148,11 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         fs.ctx.doc = m_doc->fields;
         fs.ctx.pageNumber = number;
         fs.ctx.pageCount = std::max<int>(number, m_starts.size());
+        return fs;
+    };
+    // A frame that is a column of the page (`column`: where, in page coordinates) has the objects the page's text goes round as places it keeps out of.
+    auto walled = [&](FrameSpec fs, const QRectF &column) {
+        if (!wrapped.isEmpty()) fs.obstacles = obstaclesFor(wrapped, column);
         return fs;
     };
     QHash<int, BlockFlags> cache;
@@ -158,7 +190,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         countNotes(m_doc->story()->findBlock(st.pos).position(), st.pos, &footnotes, &endnotes);
         denseNotes = footnotes + endnotes > kDenseNotes;
     }
-    const bool tail = afterBreak || denseNotes || st.skip > std::max(0, m_doc->exactLines);
+    const bool tail = afterBreak || denseNotes || st.wrapped || st.skip > std::max(0, m_doc->exactLines);
     // How much of the paragraph the page lays out to begin with: a page that holds little of it (one with many notes) needs a few lines more than it
     // holds, not a page of them. (It is laid out again with more when that isn't enough.)
     const int heldBefore = index > 0 && index <= m_starts.size() - 1 ? std::max(1, m_starts[index].pos - m_starts[index - 1].pos) : kWindow;
@@ -221,15 +253,15 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         const bool splitting = split >= 0;
         const Section &nextSection = m_doc->section(std::min<int>(st.section + 1, int(m_doc->sections.size()) - 1));
         if (splitting) {
-            frames << frame(colW, colH);
+            frames << walled(frame(colW, colH), QRectF(sec.columnRect(0).left(), body.top(), colW, colH));
             run.cols << QRectF(sec.columnRect(0).left(), 0, colW, colH);
             for (int c = 0; c < nextSection.columnCount(); ++c) {
-                frames << frame(nextSection.columnWidth(), std::max(1.0, colH - split));
+                frames << walled(frame(nextSection.columnWidth(), std::max(1.0, colH - split)), QRectF(nextSection.columnRect(c).left(), body.top() + split, nextSection.columnWidth(), std::max(1.0, colH - split)));
                 run.cols << QRectF(nextSection.columnRect(c).left(), split, nextSection.columnWidth(), std::max(1.0, colH - split));
             }
         } else {
             for (int c = 0; c < sec.columnCount(); ++c) {
-                frames << frame(colW, colH);
+                frames << walled(frame(colW, colH), QRectF(sec.columnRect(c).left(), body.top(), colW, colH));
                 run.cols << QRectF(sec.columnRect(c).left(), 0, colW, colH);
             }
         }
@@ -274,7 +306,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
                     const int splitEnd = endBlock.position() + endBlock.length();
                     QVector<FrameSpec> f1;
                     if (run.firstFrame > 0) f1 << frames[0];
-                    f1 << frame(colW, colH) << frame(colW, kTall);
+                    f1 << walled(frame(colW, colH), QRectF(sec.columnRect(0).left(), body.top(), colW, colH)) << frame(colW, kTall);
                     StoryLayout::Span s1 = span;
                     s1.end = splitEnd;
                     s1.stopAtFrame = int(f1.size()) - 1;
@@ -293,7 +325,8 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
                     const double columnH = std::max(1.0, colH - splitY - reserved);
                     // The second section's columns.
                     QVector<FrameSpec> f2;
-                    for (int c = 0; c < nextSection.columnCount(); ++c) f2 << frame(nextSection.columnWidth(), columnH);
+                    for (int c = 0; c < nextSection.columnCount(); ++c)
+                        f2 << walled(frame(nextSection.columnWidth(), columnH), QRectF(nextSection.columnRect(c).left(), body.top() + splitY, nextSection.columnWidth(), columnH));
                     f2 << frame(colW, kTall);
                     PageStart st2 = st;
                     st2.pos = splitEnd;
@@ -532,10 +565,12 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         run.hasNext = true;
         run.next.pos = L[c].pos;
         run.next.skip = L[c].line;
+        run.next.wrapped = !wrapped.isEmpty() && L[c].line > 0;
         if (m_tables->any() && m_tables->index().spanAt(L[c].pos) >= 0) {   // (a row of a table: the line's number is the part of it)
             run.next.piece = L[c].line;
             run.next.pieceAt = L[c].line != 0 ? m_offsOut : QVector<double>();
             run.next.skip = 0;
+            run.next.wrapped = false;
         }
         run.next.hard = hard;
         run.next.section = nextSection;
@@ -988,6 +1023,45 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
     return sd;
 }
 
+QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, const PageStart &start)
+{
+    QVector<Wrapped> out;
+    if (m_doc->objects.isEmpty() || run.kept <= 0) return out;
+    const Section &sec = m_doc->section(start.section);
+    const QRectF body = furnitureOf(index, start, numberOf(index)).body;
+    const QTextDocument *story = m_doc->story();
+    // The text's own lines (the rows of tables are not: what a cell anchors does not move the text round it).
+    QVector<AnchorLine> held;
+    for (int i = 0; i < run.kept; ++i) {
+        const StoryLayout::LineBrief &ln = run.lines[i];
+        const int column = ln.frame - run.firstFrame;
+        if (column < 0 || column >= run.columns) continue;
+        if (!run.groups.empty() && story->findBlock(ln.block).blockFormat().intProperty(fp::Cell)) continue;
+        const QRectF col = run.cols[column];
+        held << anchorLineOf(ln, ln.rect.translated(col.left(), body.top() + col.top()), col.left());
+    }
+    QHash<int, QVector<int>> byBlock;
+    for (int i = 0; i < held.size(); ++i) byBlock[held[i].block] << i;
+    QVector<Anchor> anchors;
+    for (const AnchorLine &l : held) anchors << anchorsIn(story, l.pos, l.upTo(), held, &byBlock);
+    int made = 0;
+    for (const Anchor &a : anchors)
+        for (int id = a.object; id > 0 && id <= m_doc->objects.size() && made < kMostObjects; id = m_doc->objects[id - 1].next, ++made) {
+            const FloatingObject &o = m_doc->objects[id - 1];
+            using W = FloatingObject::Wrap;
+            if (!o.item || o.behind || o.item->type() == ItemType::Line || (o.wrap != W::Square && o.wrap != W::Tight && o.wrap != W::TopBottom)) continue;
+            QRectF r = placeOf(o, a, sec);
+            if (o.item->rotation != 0) {
+                ItemPtr turned = o.item->clone();
+                turned->rect = r;
+                r = turned->bounds();
+            }
+            out << Wrapped{id, a.pos, r};
+            if (out.size() >= kMostWrapped) return out;
+        }
+    return out;
+}
+
 QVector<StoryLayout::LineBrief> Paginator::lines(int index)
 {
     paginate(index);
@@ -1084,7 +1158,6 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
             d->pages[0]->items.push_back(t);
             out->boxes << t->id;
         }
-        addFurniture(d.get(), furniture, sec, st.section, out->number);
         // The objects set at places that the page's lines anchor.
         if (!m_doc->objects.isEmpty()) {
             QVector<AnchorLine> held;
@@ -1095,7 +1168,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
                 // (The line that stands for a row of a table is not one: the cells' own lines, set from the fragment, are.)
                 if (!run.groups.empty() && m_doc->story()->findBlock(ln.block).blockFormat().intProperty(fp::Cell)) continue;
                 const QRectF col = run.cols[column];
-                held << AnchorLine{ln.block, ln.pos, ln.end, ln.rect.translated(col.left(), furniture.body.top() + col.top()), col.left()};
+                held << anchorLineOf(ln, ln.rect.translated(col.left(), furniture.body.top() + col.top()), col.left());
             }
             for (const auto &fragment : out->tables) {
                 // (The column a table is in: the one its middle is in, else the nearest.)
@@ -1105,15 +1178,19 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
                     if (away < nearest) { nearest = away; columnLeft = col.left(); }
                 }
                 fragment->forLines([&](const StoryLayout::LineBrief &ln, const QRectF &rect) {
-                    if (held.size() < 20000) held << AnchorLine{ln.block, ln.pos, ln.end, rect, columnLeft};
+                    if (held.size() < 20000) held << anchorLineOf(ln, rect, columnLeft);
                 });
             }
             QVector<Anchor> anchors;
             QHash<int, QVector<int>> byBlock;
             for (int i = 0; i < held.size(); ++i) byBlock[held[i].block] << i;
-            for (const AnchorLine &l : held) anchors << anchorsIn(m_doc->story(), l.pos, l.end, held, &byBlock);
-            if (!anchors.isEmpty()) addObjects(d.get(), anchors, sec, out->number);
+            for (const AnchorLine &l : held) anchors << anchorsIn(m_doc->story(), l.pos, l.upTo(), held, &byBlock);
+            QVector<QRectF> columns;
+            for (const QRectF &col : run.cols) columns << QRectF(col.left(), furniture.body.top() + col.top(), col.width(), col.height());
+            if (!anchors.isEmpty()) addObjects(d.get(), anchors, sec, out->number, run.wrapped, columns);
         }
+        // (The header and the footer come after the page's objects: the text that goes round an object is that of the items after it, and the body's objects are no wall for them.)
+        addFurniture(d.get(), furniture, sec, st.section, out->number);
     }
     // The notes the page's lines cite and those that go on from the page before.
     {

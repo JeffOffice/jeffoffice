@@ -44,9 +44,14 @@ struct HeaderFooter {
 // A picture, rule, box, or text box that is set at a place on the page its anchor (a character in a story, fp::AnchorId) is on, rather than in a line:
 // where it goes is worked out when the page is made. The item has its size and look; the page gives it its place (and a picture its data).
 struct FloatingObject {
-    enum class Rel { Margin, Page, Column, Paragraph, Line, Character };
+    // What a position is measured from. The margin areas (the strip between the page's edge and the margin, on the side or at the top or foot) are for an object set
+    // in the margin: Inside and Outside are the left and right strips across, and the top and foot ones down.
+    enum class Rel { Margin, Page, Column, Paragraph, Line, Character, LeftMargin, RightMargin, TopMargin, BottomMargin, InsideMargin, OutsideMargin };
     enum class Align { None, Start, Center, End };
+    // How the text goes round it: not at all (it is behind the text or over it), round a rectangle (Tight is Square until the contours are read), or only above and below.
     enum class Wrap { None, Square, Tight, TopBottom };
+    // Where the text goes beside a Square or Tight wrap: on both sides, or only the left, only the right, or the larger of the two.
+    enum class Side { Both, Left, Right, Largest };
     ItemPtr item;                           // a PictureItem, ShapeItem, LineItem, or TextItem
     int image = -1;                         // a picture's place in FlowDocument::images
     std::shared_ptr<QTextDocument> story;   // a text box's text
@@ -56,6 +61,7 @@ struct FloatingObject {
     double dx = 0, dy = 0;                  // from where it is measured (a line's ends are in the item's p1 and p2, from there too)
     bool behind = false;                    // behind the text
     Wrap wrap = Wrap::None;
+    Side side = Side::Both;
     QMarginsF gap;                          // the room the text round it leaves
     int next = 0;                           // the one after it at the same anchor (counted from 1), or none
 };

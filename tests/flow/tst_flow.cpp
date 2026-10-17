@@ -827,6 +827,71 @@ int addObject(FlowDocument *fd, ItemPtr item, int position, FloatingObject::Rel 
 }
 
 
+// An object that the text goes round: a box `w` by `h`, anchored by a character put in at `position`, set from the column across and the paragraph down unless
+// `hRel` and `vRel` say otherwise, with room beside, above, and below it as `gap` says.
+int addWrapped(FlowDocument *fd, double w, double h, int position, FloatingObject::Wrap wrap, double dx, double dy, const QMarginsF &gap = QMarginsF(8, 4, 8, 4),
+               FloatingObject::Side side = FloatingObject::Side::Both, FloatingObject::Rel hRel = FloatingObject::Rel::Column, FloatingObject::Rel vRel = FloatingObject::Rel::Paragraph)
+{
+    auto item = std::make_shared<ShapeItem>();
+    item->rect = QRectF(0, 0, w, h);
+    const int id = addObject(fd, item, position, hRel, vRel, dx, dy);
+    FloatingObject &o = fd->objects[size_t(id) - 1];
+    o.wrap = wrap;
+    o.gap = gap;
+    o.side = side;
+    return id;
+}
+
+// The lines of the text of page `k` where they are on the page: each without the space under its text, with the column it is in and the stretch of the story it holds.
+struct PageLine {
+    QRectF rect;
+    int column = 0, pos = 0, end = 0, block = 0;
+};
+
+QVector<PageLine> pageLines(Paginator &pg, FlowDocument &fd, int k)
+{
+    QVector<PageLine> out;
+    const Paginator::Page page = pg.page(k);
+    const Section &sec = fd.section(page.start.section);
+    for (const auto &l : pg.lines(k)) {
+        if (fd.story()->findBlock(l.pos).blockFormat().intProperty(fp::Cell)) continue;
+        const QRectF col = sec.columnRect(l.frame);
+        out.push_back({QRectF(col.left() + l.rect.left(), page.content.top() + l.rect.top(), l.rect.width(), l.rect.height() - l.below), l.frame, l.pos, l.end, l.block});
+    }
+    return out;
+}
+
+// The top of the first line of the paragraph that begins at `block` on page `k`, as the page has it (page coordinates); -1 if the page has none of it.
+double paragraphTopOn(Paginator &pg, FlowDocument &fd, int k, int block)
+{
+    for (const PageLine &l : pageLines(pg, fd, k))
+        if (l.block == block) return l.rect.top();
+    return -1;
+}
+
+// The objects of the made page that are boxes of the size given (width and height), as items.
+const Item *objectOfSize(const MaterializedPage &page, double w, double h)
+{
+    for (const auto &it : page.doc->pages[0]->items)
+        if (it->type() == ItemType::Shape && std::abs(it->rect.width() - w) < 0.01 && std::abs(it->rect.height() - h) < 0.01) return it.get();
+    return nullptr;
+}
+
+// Whether every character of the story is on exactly one line of the pages, in order: each line begins where the one before ends (a paragraph's first line at the paragraph's start).
+QString textIsWholeOnThePages(Paginator &pg, FlowDocument &fd)
+{
+    int at = 0;
+    for (int k = 0; k < pg.pageCount(); ++k)
+        for (const PageLine &l : pageLines(pg, fd, k)) {
+            const bool paragraphStart = l.pos == fd.story()->findBlock(l.pos).position();
+            if (l.pos != at && !(paragraphStart && l.pos == at + 1))
+                return QStringLiteral("page %1: the line at %2 does not begin where the one before ended (%3)").arg(k).arg(l.pos).arg(at);
+            at = l.end;
+        }
+    return QString();
+}
+
+
 // ---- notes beside tables, sections, and pages: what a first-principles audit asks
 
 // References put into the story at the places given (from the last to the first, so that the places hold).
@@ -2885,6 +2950,25 @@ private Q_SLOTS:
                 c.header.even = furnitureStory({QStringLiteral("C EVEN 1"), QStringLiteral("C EVEN 2"), QStringLiteral("C EVEN 3"), QStringLiteral("C EVEN 4"), QStringLiteral("C EVEN 5")});
                 fd.sections << b << c;
                 for (const int block : {40, 22, 5, 33, 12}) addReference(fd.story(), fd.story()->findBlockByNumber(block).position() + 4, ids[rng() % 6]);
+                // Objects the text goes round, in each section and of each kind: a picture against the column's edge, one with no text beside it, one with text on its left only,
+                // one from the page with the text on its larger side, one from a line above it, and a wide one across a column (the story's first paragraphs hold them: edits that
+                // take their anchors away, and move them across pages, change which pages have walls).
+                {
+                    using Wr = FloatingObject::Wrap;
+                    using Sd = FloatingObject::Side;
+                    using Rl = FloatingObject::Rel;
+                    struct Wall { int block; double w, h; Wr wrap; Sd side; Rl h0, v0; double dx, dy; FloatingObject::Align align; };
+                    for (const Wall &w : {Wall{2, 120, 80, Wr::Square, Sd::Both, Rl::Column, Rl::Paragraph, 0, 0, FloatingObject::Align::End},
+                                          Wall{9, 100, 40, Wr::TopBottom, Sd::Both, Rl::Column, Rl::Paragraph, 60, 0, FloatingObject::Align::None},
+                                          Wall{14, 90, 70, Wr::Square, Sd::Left, Rl::Margin, Rl::Paragraph, 150, 10, FloatingObject::Align::None},
+                                          Wall{20, 110, 100, Wr::Square, Sd::Largest, Rl::Page, Rl::Page, 300, 200, FloatingObject::Align::None},
+                                          Wall{26, 80, 60, Wr::Square, Sd::Both, Rl::Column, Rl::Line, 0, -20, FloatingObject::Align::End},
+                                          Wall{33, 70, 90, Wr::Square, Sd::Right, Rl::Column, Rl::Paragraph, 0, 5, FloatingObject::Align::Center},
+                                          Wall{41, 300, 30, Wr::TopBottom, Sd::Both, Rl::Column, Rl::Paragraph, 20, 0, FloatingObject::Align::None}}) {
+                        const int id = addWrapped(&fd, w.w, w.h, fd.story()->findBlockByNumber(w.block).position() + 1, w.wrap, w.dx, w.dy, QMarginsF(8, 4, 8, 4), w.side, w.h0, w.v0);
+                        fd.objects[size_t(id) - 1].hAlign = w.align;
+                    }
+                }
                 if (tables) {
                     // A table in each section (the last first, so that the blocks the others are after stay where they are), each with a note cited in a cell and a row taller than the rest.
                     struct Put { int after, rows, cols; double width; const char *note; int row; };
@@ -3037,6 +3121,12 @@ private Q_SLOTS:
                     const QString bad0 = audit::differenceFromFresh(pg, fresh, step % 2 == 1 || step == steps - 1);   // (the pages made, every other edit: that costs more than their lines)
                     const QString bad = bad0.isEmpty() ? bad0 : bad0 + QStringLiteral(" refs [") + refsText + QLatin1Char(']');
                     ++compared;
+                    // The text goes round the objects as the page layer draws it, on every page that has them (every third edit: the pages are made for it).
+                    const QString walls = bad.isEmpty() && step % 3 == 2 ? audit::wallProblems(pg, fd.story()) : QString();
+                    if (!walls.isEmpty()) {
+                        failures << QStringLiteral("%1 restart %2, seed %3, step %4 (%5): walls: %6").arg(tables ? "tables," : "plain,").arg(restart).arg(seed).arg(step).arg(trace, walls);
+                        break;
+                    }
                     if (!bad.isEmpty()) {
                         failures << QStringLiteral("%1 restart %2, seed %3, step %4 (%5): %6 (before the last edit: %7)").arg(tables ? "tables," : "plain,").arg(restart).arg(seed).arg(step).arg(trace, bad, was.left(160));
                         break;   // (the next run)
@@ -3885,6 +3975,666 @@ private Q_SLOTS:
             }
         QVERIFY(!id.isEmpty() && !id.startsWith(QStringLiteral("flow-img:")));
         QVERIFY(first->doc->images.contains(id));
+    }
+
+    // ---- text round objects
+
+    // Text goes round an object that has a square wrap: the object is at the top of its paragraph (as the text sets that, not moved by the object), the lines beside it
+    // stand clear of it and the room round it, and the lines below have the column's width again.
+    void squareWrapKeepsLinesBesideAnObjectClearOfItsRectangle()
+    {
+        auto make = [](FloatingObject::Wrap wrap) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fillStory(fd->story(), 30, 21, {}, 20, 40);
+            const int at = fd->story()->findBlockByNumber(3).position() + 2;
+            const int id = addWrapped(fd.get(), 150, 100, at, wrap, 0, 0);
+            fd->objects[size_t(id) - 1].hAlign = FloatingObject::Align::End;
+            return fd;
+        };
+        auto plain = make(FloatingObject::Wrap::None), wrapped = make(FloatingObject::Wrap::Square);
+        Paginator pp(plain.get()), pg(wrapped.get());
+        const int block = wrapped->story()->findBlockByNumber(3).position();
+        const double top = paragraphTopOn(pp, *plain, 0, block);
+        QVERIFY(top > 0);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const Item *obj = objectOfSize(*page, 150, 100);
+        QVERIFY(obj);
+        const QRectF column = wrapped->sections[0].columnRect(0);
+        QVERIFY2(std::abs(obj->rect.top() - top) < 0.01, qPrintable(QStringLiteral("the object is at %1, its paragraph's top is %2 without it").arg(obj->rect.top()).arg(top)));
+        QVERIFY(std::abs(obj->rect.right() - column.right()) < 0.01);
+        const QRectF wall = obj->rect.adjusted(-8, -4, 8, 4);
+        int beside = 0, above = 0, below = 0;
+        for (const PageLine &l : pageLines(pg, *wrapped, 0)) {
+            const bool inBand = l.rect.top() < wall.bottom() - 0.05 && l.rect.bottom() > wall.top() + 0.05;
+            if (inBand) {
+                ++beside;
+                QVERIFY2(l.rect.right() <= wall.left() + 0.05 && l.rect.left() >= column.left() - 0.05, qPrintable(QStringLiteral("a line beside the object is at %1").arg(audit::rectText(l.rect))));
+            } else {
+                (l.rect.top() < wall.top() ? above : below) += 1;
+                QVERIFY2(std::abs(l.rect.width() - column.width()) < 0.5, qPrintable(QStringLiteral("a line outside the object's band is %1 wide (the column is %2)").arg(l.rect.width()).arg(column.width())));
+            }
+        }
+        QVERIFY2(beside >= 5 && above >= 3 && below >= 3, qPrintable(QStringLiteral("%1 lines beside, %2 above, %3 below").arg(beside).arg(above).arg(below)));
+        QVERIFY2(audit::problems(pg, wrapped->story()).isEmpty(), qPrintable(audit::problems(pg, wrapped->story())));
+        for (int k = 0; k < pg.pageCount(); ++k) QVERIFY2(audit::placementProblems(pg, *wrapped, k).isEmpty(), qPrintable(audit::placementProblems(pg, *wrapped, k)));
+        QVERIFY2(textIsWholeOnThePages(pg, *wrapped).isEmpty(), qPrintable(textIsWholeOnThePages(pg, *wrapped)));
+        // The room the object takes is room the pages lack.
+        QVERIFY(pg.pageCount() >= pp.pageCount());
+    }
+
+    // An object anchored by a character that shows nothing (a file's picture is one) at the end of a paragraph is on the paragraph's last line, and it is set from there; one at
+    // the start of the paragraph is on its first line.
+    void anObjectAnchoredAtTheEndOfAParagraphIsOnItsLastLine()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 12, 38, {}, 25, 40);
+        const QTextBlock block = fd.story()->findBlockByNumber(4);
+        const int end = block.position() + block.length() - 1;
+        auto anchorAt = [&](int position, double dy) {
+            auto item = std::make_shared<ShapeItem>();
+            item->rect = QRectF(0, 0, 30, 20);
+            FloatingObject o;
+            o.item = item;
+            o.hRel = FloatingObject::Rel::Column;
+            o.vRel = FloatingObject::Rel::Line;
+            o.dy = dy;
+            fd.objects.push_back(o);
+            QTextCursor c(fd.story());
+            c.setPosition(position);
+            QTextCharFormat anchor;
+            anchor.setFontPointSize(11);
+            anchor.setProperty(fp::AnchorId, int(fd.objects.size()));
+            anchor.setProperty(tp::Field, QStringLiteral("raw:"));   // (it shows nothing)
+            c.insertText(QString(QChar(0xFFFC)), anchor);
+        };
+        anchorAt(end, 1);
+        anchorAt(block.position(), 2);   // (the start of the paragraph)
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const auto lines = pageLines(pg, fd, 0);
+        double first = -1, last = -1;
+        for (const PageLine &l : lines)
+            if (l.block == block.position()) {
+                if (first < 0) first = l.rect.top();
+                last = l.rect.top();
+            }
+        QVERIFY(last > first);
+        int found = 0;
+        for (const auto &it : page->doc->pages[0]->items)
+            if (it->type() == ItemType::Shape) {
+                ++found;
+                const double y = it->rect.top();
+                QVERIFY2(std::abs(y - (last + 1)) < 0.02 || std::abs(y - (first + 2)) < 0.02, qPrintable(QStringLiteral("an object is at %1 (the paragraph's lines begin at %2, the last at %3)").arg(y).arg(first).arg(last)));
+            }
+        QCOMPARE(found, 2);
+    }
+
+    // A wrap that leaves no text beside the object: no line is in the object's band at all, the text above ends before it, the text below begins where it ends, and the
+    // text does not move the object (it is at the top of its paragraph, where that is without it).
+    void topAndBottomWrapLeavesNoTextBesideTheObject()
+    {
+        auto make = [](FloatingObject::Wrap wrap) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fillStory(fd->story(), 30, 22, {}, 20, 40);
+            const int at = fd->story()->findBlockByNumber(4).position() + 2;
+            addWrapped(fd.get(), 120, 90, at, wrap, 100, 0);
+            return fd;
+        };
+        auto plain = make(FloatingObject::Wrap::None), wrapped = make(FloatingObject::Wrap::TopBottom);
+        Paginator pp(plain.get()), pg(wrapped.get());
+        const int block = wrapped->story()->findBlockByNumber(4).position();
+        const double top = paragraphTopOn(pp, *plain, 0, block);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const Item *obj = objectOfSize(*page, 120, 90);
+        QVERIFY(obj);
+        QVERIFY2(std::abs(obj->rect.top() - top) < 0.01, qPrintable(QStringLiteral("the object is at %1, its paragraph's top is %2 without it").arg(obj->rect.top()).arg(top)));
+        const QRectF wall = obj->rect.adjusted(-8, -4, 8, 4);
+        const QRectF column = wrapped->sections[0].columnRect(0);
+        double lastAbove = -1, firstBelow = 1e9;
+        for (const PageLine &l : pageLines(pg, *wrapped, 0)) {
+            QVERIFY2(!(l.rect.top() < wall.bottom() - 0.05 && l.rect.bottom() > wall.top() + 0.05), qPrintable(QStringLiteral("a line at %1 is in the band of %2").arg(audit::rectText(l.rect), audit::rectText(wall))));
+            if (l.rect.bottom() <= wall.top() + 0.05) lastAbove = std::max(lastAbove, l.rect.bottom());
+            else firstBelow = std::min(firstBelow, l.rect.top());
+            QVERIFY(std::abs(l.rect.width() - column.width()) < 0.5);
+        }
+        QVERIFY(lastAbove > 0 && firstBelow < 1e8);
+        QVERIFY2(firstBelow >= wall.bottom() - 0.05 && firstBelow - wall.bottom() < 0.05, qPrintable(QStringLiteral("the text below begins at %1, the room ends at %2").arg(firstBelow).arg(wall.bottom())));
+        QVERIFY(firstBelow - lastAbove >= wall.height() - 0.05);
+        QVERIFY2(audit::problems(pg, wrapped->story()).isEmpty(), qPrintable(audit::problems(pg, wrapped->story())));
+        for (int k = 0; k < pg.pageCount(); ++k) QVERIFY2(audit::placementProblems(pg, *wrapped, k).isEmpty(), qPrintable(audit::placementProblems(pg, *wrapped, k)));
+        QVERIFY2(textIsWholeOnThePages(pg, *wrapped).isEmpty(), qPrintable(textIsWholeOnThePages(pg, *wrapped)));
+    }
+
+    // The side of an object that the text goes on: both (the lines beside it are in two pieces), only the left, only the right, or the side with more room.
+    void wrapSidesPutTheTextOnTheSidesAsked()
+    {
+        using Side = FloatingObject::Side;
+        for (const Side side : {Side::Both, Side::Left, Side::Right, Side::Largest}) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), 24, 23, {}, 25, 45);
+            const int at = fd.story()->findBlockByNumber(3).position() + 2;
+            // 100 wide, 150 points in from the column's left: 142 of room to its left (with the 8 points), and 468 - 258 = 210 to its right.
+            addWrapped(&fd, 100, 120, at, FloatingObject::Wrap::Square, 150, 0, QMarginsF(8, 4, 8, 4), side);
+            Paginator pg(&fd);
+            const auto page = pg.materialize(0);
+            QVERIFY(page);
+            const Item *obj = objectOfSize(*page, 100, 120);
+            QVERIFY(obj);
+            const QRectF wall = obj->rect.adjusted(-8, -4, 8, 4);
+            int left = 0, right = 0;
+            for (const PageLine &l : pageLines(pg, fd, 0)) {
+                if (!(l.rect.top() < wall.bottom() - 0.05 && l.rect.bottom() > wall.top() + 0.05)) continue;
+                if (l.rect.right() <= wall.left() + 0.05) ++left;
+                else if (l.rect.left() >= wall.right() - 0.05) ++right;
+                else QFAIL(qPrintable(QStringLiteral("a line beside the object is at %1, over it (%2)").arg(audit::rectText(l.rect), audit::rectText(wall))));
+            }
+            const QString what = QStringLiteral("side %1: %2 lines on the left and %3 on the right").arg(int(side)).arg(left).arg(right);
+            if (side == Side::Both) QVERIFY2(left > 3 && right > 3, qPrintable(what));
+            else if (side == Side::Left) QVERIFY2(left > 3 && right == 0, qPrintable(what));
+            else QVERIFY2(right > 3 && left == 0, qPrintable(what));   // (the right: the larger)
+            QVERIFY2(audit::problems(pg, fd.story()).isEmpty(), qPrintable(what + audit::problems(pg, fd.story())));
+            for (int k = 0; k < pg.pageCount(); ++k) QVERIFY2(audit::placementProblems(pg, fd, k).isEmpty(), qPrintable(audit::placementProblems(pg, fd, k)));
+        }
+    }
+
+    // An object behind the text or over it, and one with no wrap, move no line: the pages' lines are those of a document without them.
+    void objectsBehindAndOverTheTextMoveNoLine()
+    {
+        auto linesOf = [](int variant) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), 30, 24, {}, 20, 40);
+            const int at = fd.story()->findBlockByNumber(3).position() + 2;
+            if (variant > 0) {
+                const int id = addWrapped(&fd, 150, 100, at, variant == 1 ? FloatingObject::Wrap::None : FloatingObject::Wrap::Square, 100, 0);
+                fd.objects[size_t(id) - 1].behind = variant == 2;
+            } else {
+                QTextCursor c(fd.story());
+                c.setPosition(at);
+                QTextCharFormat anchor;
+                anchor.setFontPointSize(11);
+                c.insertText(QString(QChar(0xFFFC)), anchor);
+            }
+            Paginator pg(&fd);
+            QStringList out;
+            for (int k = 0; k < pg.pageCount(); ++k)
+                for (const auto &l : pg.lines(k)) out << QStringLiteral("%1-%2 %3").arg(l.pos).arg(l.end).arg(audit::rectText(l.rect));
+            return out;
+        };
+        const QStringList none = linesOf(0), over = linesOf(1), behind = linesOf(2);
+        QVERIFY(none.size() > 40);
+        QCOMPARE(over, none);
+        QCOMPARE(behind, none);   // (a square wrap behind the text is no wrap)
+    }
+
+    // Square and tight wrap are the same until the contours are read: the pages' lines are the same.
+    void tightWrapIsSquareWrapForNow()
+    {
+        auto linesOf = [](FloatingObject::Wrap wrap) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), 30, 25, {}, 20, 40);
+            addWrapped(&fd, 130, 110, fd.story()->findBlockByNumber(2).position() + 2, wrap, 40, 0);
+            Paginator pg(&fd);
+            QStringList out;
+            for (int k = 0; k < pg.pageCount(); ++k)
+                for (const auto &l : pg.lines(k)) out << QStringLiteral("%1-%2 %3").arg(l.pos).arg(l.end).arg(audit::rectText(l.rect));
+            return out;
+        };
+        QCOMPARE(linesOf(FloatingObject::Wrap::Tight), linesOf(FloatingObject::Wrap::Square));
+    }
+
+    // Objects set in the strips between the page's edge and the margins: from the left strip's edge (the page's), the right strip's (the margin's), the top's and foot's;
+    // aligned to the start, middle, or end of the strip. Inside and outside are the left and right strips across, and the top and foot down.
+    void objectsInTheMarginStripsAreWhereTheStripPutsThem()
+    {
+        using Rel = FloatingObject::Rel;
+        using Align = FloatingObject::Align;
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 10, 26, {}, 20, 40);
+        fd.sections[0].margins = QMarginsF(90, 60, 54, 80);   // left, top, right, bottom
+        const int at = fd.story()->findBlockByNumber(2).position() + 2;
+        auto box = [&](double w, double h, Rel hRel, Rel vRel, double dx, double dy) { return addWrapped(&fd, w, h, at, FloatingObject::Wrap::None, dx, dy, QMarginsF(), FloatingObject::Side::Both, hRel, vRel); };
+        const int a = box(20, 10, Rel::LeftMargin, Rel::TopMargin, 5, 3);
+        const int b = box(21, 11, Rel::RightMargin, Rel::BottomMargin, 4, 2);
+        const int c = box(22, 12, Rel::LeftMargin, Rel::TopMargin, 0, 0);
+        fd.objects[size_t(c) - 1].hAlign = Align::Center;
+        fd.objects[size_t(c) - 1].vAlign = Align::End;
+        const int d = box(23, 13, Rel::InsideMargin, Rel::InsideMargin, 0, 0);
+        fd.objects[size_t(d) - 1].hAlign = Align::End;
+        fd.objects[size_t(d) - 1].vAlign = Align::Center;
+        const int e = box(24, 14, Rel::OutsideMargin, Rel::OutsideMargin, 0, 0);
+        fd.objects[size_t(e) - 1].hAlign = Align::Center;
+        fd.objects[size_t(e) - 1].vAlign = Align::Start;
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const double W = 612, H = 792;
+        auto at2 = [&](double w, double h) { const Item *it = objectOfSize(*page, w, h); return it ? it->rect : QRectF(); };
+        QVERIFY(a > 0 && b > 0 && c > 0 && d > 0 && e > 0);
+        // From the page's left edge (the strip begins there), and from the page's top.
+        QCOMPARE(at2(20, 10).topLeft(), QPointF(5, 3));
+        // From the margin's right edge (the right strip begins there), and from the margin's foot.
+        QCOMPARE(at2(21, 11).topLeft(), QPointF(W - 54 + 4, H - 80 + 2));
+        // The middle of the left strip (90 wide) across, the end of the top strip (60 high) down.
+        QCOMPARE(at2(22, 12).topLeft(), QPointF((90 - 22) / 2.0, 60 - 12));
+        // Inside: the left strip across (its end) and the top strip down (its middle).
+        QCOMPARE(at2(23, 13).topLeft(), QPointF(90 - 23, (60 - 13) / 2.0));
+        // Outside: the right strip across (its middle) and the foot strip down (its start).
+        QCOMPARE(at2(24, 14).topLeft(), QPointF(W - 54 + (54 - 24) / 2.0, H - 80));
+    }
+
+    // A paragraph that goes on to the page after the one with the object has its lines there as the text sets them: whole, full width, none lost or said twice; and the
+    // pages are those a new paginator makes after edits above and below the object.
+    void aParagraphThatRunsOnPastTheObjectsPageIsWhole()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 8, 27, [](int, QTextBlockFormat &bf) { bf.setBottomMargin(8); }, 380, 520);
+        // Right-aligned, 200 by 260, at the top of the second paragraph, which has the lines of two pages.
+        const int id = addWrapped(&fd, 200, 260, fd.story()->findBlockByNumber(1).position() + 3, FloatingObject::Wrap::Square, 0, 0);
+        fd.objects[size_t(id) - 1].hAlign = FloatingObject::Align::End;
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 5);
+        QVERIFY2(textIsWholeOnThePages(pg, fd).isEmpty(), qPrintable(textIsWholeOnThePages(pg, fd)));
+        QVERIFY2(audit::problems(pg, fd.story()).isEmpty(), qPrintable(audit::problems(pg, fd.story())));
+        for (int k = 0; k < pg.pageCount(); ++k) QVERIFY2(audit::placementProblems(pg, fd, k).isEmpty(), qPrintable(audit::placementProblems(pg, fd, k)));
+        // The pages after the one with the object are full width throughout (the paragraph's lines on the next page are not set round an object that is not there).
+        const double width = fd.sections[0].columnWidth();
+        int fullLines = 0;
+        for (int k = 1; k < pg.pageCount(); ++k)
+            for (const PageLine &l : pageLines(pg, fd, k)) {
+                QVERIFY2(std::abs(l.rect.width() - width) < 0.5, qPrintable(QStringLiteral("page %1: a line is %2 wide").arg(k).arg(l.rect.width())));
+                ++fullLines;
+            }
+        QVERIFY(fullLines > 80);
+        // Edits above and below the object; the pages are those of a new paginator.
+        QTextCursor cur(fd.story());
+        cur.setPosition(5);
+        cur.insertText(QStringLiteral("typed above the object, which moves what follows it by some words that fill a line or two of the page, the object going with its paragraph. "));
+        cur.setPosition(fd.story()->findBlockByNumber(6).position() + 10);
+        cur.insertText(QStringLiteral("and below it "));
+        Paginator fresh(&fd);
+        const QString bad = audit::differenceFromFresh(pg, fresh);
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        QVERIFY2(textIsWholeOnThePages(pg, fd).isEmpty(), qPrintable(textIsWholeOnThePages(pg, fd)));
+    }
+
+    // An edit lays out again the pages from the one it is on until a page starts where it did: the objects on the pages before it, and on those after, cost nothing.
+    void anEditAmongObjectsLaysOutOnlyThePagesItTouches()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 240, 28, {}, 30, 60);
+        for (const int block : {5, 40, 80, 170, 220}) {
+            const int id = addWrapped(&fd, 120, 80, fd.story()->findBlockByNumber(block).position() + 2, FloatingObject::Wrap::Square, 0, 0);
+            fd.objects[size_t(id) - 1].hAlign = FloatingObject::Align::End;
+        }
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 12);
+        const qint64 before = pg.pagesLaidOut();
+        QTextCursor cur(fd.story());
+        cur.setPosition(fd.story()->findBlockByNumber(120).position() + 5);
+        cur.insertText(QStringLiteral("a few typed words"));
+        QCOMPARE(pg.pageCount(), pages);
+        const qint64 cost = pg.pagesLaidOut() - before;
+        QVERIFY2(cost <= 3, qPrintable(QStringLiteral("%1 pages laid out again for one typed word").arg(cost)));
+        Paginator fresh(&fd);
+        const QString bad = audit::differenceFromFresh(pg, fresh, false);
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+    }
+
+    // An object as large as the page, or larger, leaves a line no room, and a page that kept none would never end: the page is laid out as it would be without that wrap, so the
+    // pagination ends, every page has lines, and the text is whole.
+    void anObjectThatFillsThePageDoesNotStopThePagination()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 20, 29, {}, 30, 60);
+        addWrapped(&fd, 700, 900, fd.story()->findBlockByNumber(0).position() + 1, FloatingObject::Wrap::Square, -50, -50);
+        addWrapped(&fd, 700, 900, fd.story()->findBlockByNumber(5).position() + 1, FloatingObject::Wrap::TopBottom, -50, -50);
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 2 && pages < 40);
+        for (int k = 0; k < pages; ++k) QVERIFY2(!pg.lines(k).isEmpty(), qPrintable(QStringLiteral("page %1 has no lines").arg(k)));
+        QVERIFY2(textIsWholeOnThePages(pg, fd).isEmpty(), qPrintable(textIsWholeOnThePages(pg, fd)));
+        const auto first = pg.materialize(0);
+        QVERIFY(first);
+        QCOMPARE(audit::wallsOf(*first).size(), qsizetype(0));   // (the page as it is laid out without the walls: they are drawn, and the text goes through them)
+        QCOMPARE(int(first->doc->pages[0]->items.size()) - int(first->boxes.size()), 2);
+    }
+
+    // A file can anchor an object at every paragraph: the page takes the first ones as walls, as many as it ever takes, and the pagination is as it is for any text.
+    void aPageGivesAtMostSomeObjectsAWrap()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 600, 30, {}, 4, 10);
+        for (int block = 0; block < 600; ++block) addWrapped(&fd, 10, 10, fd.story()->findBlockByNumber(block).position() + 1, FloatingObject::Wrap::Square, 400, 0);
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 5 && pages < 60);
+        for (int k = 0; k < pages; ++k) {
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            QVERIFY2(audit::wallsOf(*page).size() <= 24, qPrintable(QStringLiteral("page %1 has %2 walls").arg(k).arg(audit::wallsOf(*page).size())));
+        }
+        QVERIFY2(textIsWholeOnThePages(pg, fd).isEmpty(), qPrintable(textIsWholeOnThePages(pg, fd)));
+        QVERIFY2(audit::problems(pg, fd.story()).isEmpty(), qPrintable(audit::problems(pg, fd.story())));
+    }
+
+    // In columns an object is a wall in the column of its anchor: the lines of the other column are those of a document without the object.
+    void anObjectInOneColumnLeavesTheOtherColumnAlone()
+    {
+        auto make = [](FloatingObject::Wrap wrap, int anchor) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fd->sections[0].columns = 2;
+            fd->sections[0].columnGap = 36;
+            fillStory(fd->story(), 40, 31, {}, 10, 25);
+            if (anchor > 0) {
+                const int id = addWrapped(fd.get(), 90, 70, anchor + 1, wrap, 0, 0);
+                fd->objects[size_t(id) - 1].hAlign = FloatingObject::Align::End;
+            }
+            return fd;
+        };
+        // A paragraph that is in the second column of the first page, as the text sets them out without the object.
+        int anchor = -1;
+        {
+            auto probe = make(FloatingObject::Wrap::None, -1);
+            Paginator pp(probe.get());
+            for (const auto &l : pp.lines(0))
+                if (l.frame == 1 && l.line == 0 && anchor < 0) anchor = l.block;
+        }
+        QVERIFY(anchor > 0);
+        auto with = make(FloatingObject::Wrap::Square, anchor), without = make(FloatingObject::Wrap::None, anchor);
+        Paginator pw(with.get()), po(without.get());
+        const auto page = pw.materialize(0);
+        QVERIFY(page);
+        const Item *obj = objectOfSize(*page, 90, 70);
+        QVERIFY(obj);
+        QVERIFY2(with->sections[0].columnRect(1).contains(obj->rect), qPrintable(audit::rectText(obj->rect)));
+        // The first column is as it is without the object, line for line; the second has the lines beside the object short.
+        const auto a = pageLines(pw, *with, 0), b = pageLines(po, *without, 0);
+        int firstColumn = 0, matched = 0, shortened = 0;
+        for (const PageLine &l : a)
+            if (l.column == 0) {
+                ++firstColumn;
+                for (const PageLine &o : b)
+                    if (o.column == 0 && o.pos == l.pos && o.end == l.end && std::abs(o.rect.top() - l.rect.top()) < 0.01 && std::abs(o.rect.width() - l.rect.width()) < 0.01) {
+                        ++matched;
+                        break;
+                    }
+            }
+        QVERIFY(firstColumn > 20);
+        QCOMPARE(matched, firstColumn);
+        const QRectF wall = obj->rect.adjusted(-8, -4, 8, 4);
+        for (const PageLine &l : a)
+            if (l.column == 1 && l.rect.top() < wall.bottom() - 0.05 && l.rect.bottom() > wall.top() + 0.05) {
+                ++shortened;
+                QVERIFY(l.rect.right() <= wall.left() + 0.05);
+            }
+        QVERIFY(shortened >= 3);
+        QVERIFY2(audit::problems(pw, with->story()).isEmpty(), qPrintable(audit::problems(pw, with->story())));
+        QVERIFY2(textIsWholeOnThePages(pw, *with).isEmpty(), qPrintable(textIsWholeOnThePages(pw, *with)));
+    }
+
+    // A wrap that leaves no text beside an object is a wall across the columns the object is in, and not across the others: in three columns, an object in the third leaves
+    // the first two as they are, and the page layer (which draws the page, and lays the text out again) has the lines where the paginator put them.
+    void aTopAndBottomObjectIsAWallOnlyInTheColumnsItIsIn()
+    {
+        auto make = [](FloatingObject::Wrap wrap, int anchor) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fd->sections[0].columns = 3;
+            fd->sections[0].columnGap = 24;
+            fd->sections[0].margins = QMarginsF(54, 54, 54, 54);
+            fillStory(fd->story(), 70, 37, {}, 10, 25);
+            if (anchor > 0) {
+                const int id = addWrapped(fd.get(), 60, 50, anchor + 1, wrap, 0, 20);
+                fd->objects[size_t(id) - 1].hAlign = FloatingObject::Align::Center;
+            }
+            return fd;
+        };
+        int anchor = -1;
+        {
+            auto probe = make(FloatingObject::Wrap::None, -1);
+            Paginator pp(probe.get());
+            for (const auto &l : pp.lines(0))
+                if (l.frame == 2 && l.line == 0 && anchor < 0) anchor = l.block;
+        }
+        QVERIFY(anchor > 0);
+        auto with = make(FloatingObject::Wrap::TopBottom, anchor), without = make(FloatingObject::Wrap::None, anchor);
+        Paginator pw(with.get()), po(without.get());
+        const auto page = pw.materialize(0);
+        QVERIFY(page);
+        const Item *obj = objectOfSize(*page, 60, 50);
+        QVERIFY(obj);
+        const Section &sec = with->sections[0];
+        QVERIFY2(sec.columnRect(2).contains(obj->rect), qPrintable(audit::rectText(obj->rect)));
+        const auto a = pageLines(pw, *with, 0), b = pageLines(po, *without, 0);
+        int others = 0, matched = 0, third = 0;
+        const QRectF wall = obj->rect.adjusted(-8, -4, 8, 4);
+        for (const PageLine &l : a) {
+            if (l.column < 2) {
+                ++others;
+                for (const PageLine &o : b)
+                    if (o.column == l.column && o.pos == l.pos && o.end == l.end && std::abs(o.rect.top() - l.rect.top()) < 0.01) {
+                        ++matched;
+                        break;
+                    }
+                continue;
+            }
+            ++third;
+            QVERIFY2(!(l.rect.top() < wall.bottom() - 0.05 && l.rect.bottom() > wall.top() + 0.05), qPrintable(audit::rectText(l.rect)));
+        }
+        QVERIFY(others > 40 && third > 10);
+        QCOMPARE(matched, others);
+        QVERIFY2(audit::problems(pw, with->story()).isEmpty(), qPrintable(audit::problems(pw, with->story())));
+        for (int k = 0; k < pw.pageCount(); ++k) {
+            const auto m = pw.materialize(k);
+            QVERIFY(m);
+            const QString bad = audit::pageLayerProblems(pw, with->story(), k, *m);
+            QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        }
+    }
+
+    // Text before a table and after it goes round an object that is on the page; the table's rows are not moved by it.
+    void textAfterATableGoesRoundAnObjectOnThePage()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 6, 32, {}, 20, 40);
+        TestTable spec;
+        spec.rows = 5;
+        spec.cols = 2;
+        spec.columnWidth = 150;
+        const TestTable table = addTable(fd, spec);
+        Q_UNUSED(table);
+        appendParagraph(fd, QStringLiteral("The paragraph after the table, which says a good many words so that it takes more than a line or two of the page when it is set beside an object that stands in its way, and says a few more."));
+        for (int i = 0; i < 6; ++i) appendParagraph(fd, QStringLiteral("Another paragraph of the text after the table, with enough words in it to take several lines of the page: the court held that section applies to every defendant who appeals."));
+        // A page-relative object across the lower half of the text area, to the right.
+        const int id = addWrapped(&fd, 170, 200, fd.story()->findBlockByNumber(0).position() + 1, FloatingObject::Wrap::Square, 300, 330, QMarginsF(8, 4, 8, 4), FloatingObject::Side::Both, FloatingObject::Rel::Page, FloatingObject::Rel::Page);
+        Q_UNUSED(id);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 1);
+        QVERIFY2(audit::problems(pg, fd.story()).isEmpty(), qPrintable(audit::problems(pg, fd.story())));
+        for (int k = 0; k < pg.pageCount(); ++k) QVERIFY2(audit::placementProblems(pg, fd, k).isEmpty(), qPrintable(audit::placementProblems(pg, fd, k)));
+        const auto page = pg.materialize(0);
+        QVERIFY(page && !page->tables.isEmpty());
+        // Some of the text that comes after the table is beside the object.
+        const QRectF wall = QRectF(300, 330, 170, 200).adjusted(-8, -4, 8, 4);
+        int beside = 0;
+        for (const PageLine &l : pageLines(pg, fd, 0))
+            if (l.rect.top() < wall.bottom() - 0.05 && l.rect.bottom() > wall.top() + 0.05) ++beside;
+        QVERIFY2(beside >= 4, qPrintable(QStringLiteral("%1 lines beside the object").arg(beside)));
+    }
+
+    // An object placed from a line, above that line, is a wall for the lines above it too; where the page is laid out until the objects and the lines agree, they agree.
+    void anObjectAboveItsAnchorLineWrapsTheLinesAbove()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 30, 33, {}, 20, 40);
+        const int at = fd.story()->findBlockByNumber(8).position() + 20;
+        const int id = addWrapped(&fd, 140, 90, at, FloatingObject::Wrap::Square, 0, -60, QMarginsF(8, 4, 8, 4), FloatingObject::Side::Both, FloatingObject::Rel::Column, FloatingObject::Rel::Line);
+        fd.objects[size_t(id) - 1].hAlign = FloatingObject::Align::End;
+        Paginator pg(&fd);
+        QVERIFY2(audit::problems(pg, fd.story()).isEmpty(), qPrintable(audit::problems(pg, fd.story())));
+        for (int k = 0; k < pg.pageCount(); ++k) QVERIFY2(audit::placementProblems(pg, fd, k).isEmpty(), qPrintable(audit::placementProblems(pg, fd, k)));
+        QVERIFY2(textIsWholeOnThePages(pg, fd).isEmpty(), qPrintable(textIsWholeOnThePages(pg, fd)));
+        const auto page = pg.materialize(0);
+        const Item *obj = page ? objectOfSize(*page, 140, 90) : nullptr;
+        QVERIFY(obj);
+        // It is above the line that holds its anchor.
+        double anchorTop = -1;
+        for (const PageLine &l : pageLines(pg, fd, 0))
+            if (at >= l.pos && at < l.end) anchorTop = l.rect.top();
+        QVERIFY(anchorTop > 0);
+        QVERIFY2(obj->rect.top() < anchorTop - 20, qPrintable(QStringLiteral("the object is at %1, the line at %2").arg(obj->rect.top()).arg(anchorTop)));
+    }
+
+    // An object anchored in the text of a table's cell is drawn where its line is and wraps nothing: the pages' lines are those of a document without a wrap.
+    void anObjectInATableCellIsNoWall()
+    {
+        auto linesOf = [](FloatingObject::Wrap wrap, int *walls) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), 4, 34, {}, 20, 40);
+            TestTable spec;
+            spec.rows = 3;
+            spec.cols = 2;
+            spec.columnWidth = 120;
+            const TestTable table = addTable(fd, spec);
+            for (int i = 0; i < 8; ++i) appendParagraph(fd, QStringLiteral("A paragraph after the table with some words in it, which the court held applies to every defendant who appeals from a judgment entered after trial."));
+            addWrapped(&fd, 100, 60, table.rowStarts[1] + 1, wrap, 130, 0);
+            Paginator pg(&fd);
+            QStringList out;
+            for (int k = 0; k < pg.pageCount(); ++k)
+                for (const auto &l : pg.lines(k)) out << QStringLiteral("%1-%2 %3").arg(l.pos).arg(l.end).arg(audit::rectText(l.rect));
+            const auto page = pg.materialize(0);
+            *walls = page ? audit::wallsOf(*page).size() : -1;
+            return out;
+        };
+        int a = 0, b = 0;
+        const QStringList square = linesOf(FloatingObject::Wrap::Square, &a), none = linesOf(FloatingObject::Wrap::None, &b);
+        QCOMPARE(square, none);
+        QCOMPARE(a, 0);
+    }
+
+    // The objects in a header or footer are not walls for the body's text, which is another layer: the body's lines are those of a document without them.
+    void anObjectInTheHeaderIsNoWallForTheBody()
+    {
+        auto linesOf = [](FloatingObject::Wrap wrap) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), 30, 35, {}, 20, 40);
+            auto header = furnitureStory({QStringLiteral("HEADER"), QStringLiteral("second line")});
+            auto item = std::make_shared<ShapeItem>();
+            item->rect = QRectF(0, 0, 200, 150);
+            FloatingObject o;
+            o.item = item;
+            o.hRel = FloatingObject::Rel::Margin;
+            o.vRel = FloatingObject::Rel::Page;
+            o.dy = 30;
+            o.wrap = wrap;
+            fd.objects.push_back(o);
+            QTextCursor c(header.get());
+            c.setPosition(header->findBlockByNumber(1).position());
+            QTextCharFormat anchor;
+            anchor.setProperty(fp::AnchorId, 1);
+            c.insertText(QString(QChar(0xFFFC)), anchor);
+            fd.sections[0].header.odd = header;
+            fd.sections[0].headerDistance = 30;
+            Paginator pg(&fd);
+            QStringList out;
+            for (int k = 0; k < pg.pageCount(); ++k)
+                for (const auto &l : pg.lines(k)) out << QStringLiteral("%1-%2 %3").arg(l.pos).arg(l.end).arg(audit::rectText(l.rect));
+            const auto page = pg.materialize(0);
+            if (page) out << QStringLiteral("walls %1").arg(audit::wallsOf(*page).size());
+            return out;
+        };
+        QStringList a = linesOf(FloatingObject::Wrap::Square), b = linesOf(FloatingObject::Wrap::None);
+        QVERIFY(a.size() > 30);
+        QCOMPARE(a, b);   // (and no wall: the last entry says how many)
+        QCOMPARE(a.last(), QStringLiteral("walls 0"));
+    }
+
+    // A text box that the text goes round is a wall as a picture is: the lines stand clear of it.
+    void aTextBoxIsAWallAsAPictureIs()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 30, 36, {}, 20, 40);
+        auto box = std::make_shared<TextItem>();
+        box->rect = QRectF(0, 0, 160, 110);
+        FloatingObject o;
+        o.item = box;
+        o.story = makeStory(2, 1, {}, 5, 9);
+        o.hRel = FloatingObject::Rel::Column;
+        o.vRel = FloatingObject::Rel::Paragraph;
+        o.hAlign = FloatingObject::Align::End;
+        o.wrap = FloatingObject::Wrap::Square;
+        o.gap = QMarginsF(9, 0, 9, 0);
+        fd.objects.push_back(o);
+        QTextCursor c(fd.story());
+        c.setPosition(fd.story()->findBlockByNumber(3).position() + 2);
+        QTextCharFormat anchor;
+        anchor.setFontPointSize(11);
+        anchor.setProperty(fp::AnchorId, 1);
+        c.insertText(QString(QChar(0xFFFC)), anchor);
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        QCOMPARE(audit::wallsOf(*page).size(), qsizetype(1));
+        QVERIFY2(audit::problems(pg, fd.story()).isEmpty(), qPrintable(audit::problems(pg, fd.story())));
+        for (int k = 0; k < pg.pageCount(); ++k) QVERIFY2(audit::placementProblems(pg, fd, k).isEmpty(), qPrintable(audit::placementProblems(pg, fd, k)));
+        int beside = 0;
+        const QRectF wall = audit::wallsOf(*page).first().rect;
+        for (const PageLine &l : pageLines(pg, fd, 0))
+            if (l.rect.top() < wall.bottom() - 0.05 && l.rect.bottom() > wall.top() + 0.05) ++beside;
+        QVERIFY(beside >= 5);
+    }
+
+    // The engine says how far wrapping moved a line down from where it would have gone, so that a paginator can find where a paragraph would have begun without it.
+    void lineBriefsSayHowFarAWrapMovedALine()
+    {
+        auto story = makeStory(3, 5, {}, 15, 25);
+        FrameSpec fs = plainFrame(300, 600);
+        fs.obstacles << QPolygonF(QRectF(-1e5, 30, 2e5, 50));   // across the column, from 30 to 80
+        StoryLayout lay;
+        LayoutEnv env;
+        env.wordLines = true;
+        lay.build(story.get(), {fs}, env);
+        double moved = 0;
+        int pushed = 0;
+        for (const auto &l : lay.lineBriefs()) {
+            QVERIFY(l.pushed >= 0);
+            if (l.pushed > 0) {
+                ++pushed;
+                moved = l.pushed;
+                // It stands where the room ends (a word processor's text goes there at once).
+                QVERIFY2(l.rect.top() >= 80 - 0.05 && l.rect.top() < 80.05, qPrintable(QString::number(l.rect.top())));
+                QVERIFY(moved > 20);
+            } else {
+                QVERIFY2(l.rect.bottom() - l.below <= 30 + 0.05 || l.rect.top() >= 80 - 0.05, qPrintable(audit::rectText(l.rect)));
+            }
+        }
+        QCOMPARE(pushed, 1);   // (only the first line that met it: the lines after it follow from there)
+        // Without the wrap, no line is moved.
+        FrameSpec free = plainFrame(300, 600);
+        StoryLayout lay2;
+        lay2.build(story.get(), {free}, env);
+        for (const auto &l : lay2.lineBriefs()) QCOMPARE(l.pushed, 0.0);
     }
 
     // A section that is continuous and has the same page as the one before goes on the page the one before ends on; one with another page, or that is not

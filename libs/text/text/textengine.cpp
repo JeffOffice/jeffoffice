@@ -1945,6 +1945,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     int rowIdx = 0;
     double rowH = 0;
     bool rowActive = false;
+    double rowPushed = 0;      // how far down the row was moved by the objects the text goes round (of the line it begins, and every piece of it)
 
     bool columnEmpty = true;   // no line placed yet in the current column
     if (m_span.startY > 0.001) {   // (a stretch that goes below something in its first frame)
@@ -2132,6 +2133,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     };
     auto advance = [&]() {
         rowActive = false;
+        rowPushed = 0;
         columnEmpty = true;
         y = 0;
         if (f < nF && ++c >= std::max(1, frames[f].columns)) { c = 0; ++f; }
@@ -2861,7 +2863,24 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         for (const Iv &iv : ivs)
                             if (iv.x1 - iv.x0 >= std::min(minW + (lineNo == 0 && ok.isEmpty() ? lead : 0), x1 - x0)) ok << iv;
                         if (ok.isEmpty()) {
-                            y += 2;
+                            // (Steps of two points; a word processor's text goes straight to where the first room that blocks it ends, which is where it fits if that is
+                            // the only one, as it is for a rectangle.)
+                            double step = 2;
+                            if (env.wordLines) {
+                                double nearest = 1e18;
+                                bool plain = true;
+                                for (const QPolygonF &poly : frames[f].obstacles) {
+                                    const QRectF pb = poly.boundingRect();
+                                    if (pb.bottom() <= col.top() + y || pb.top() >= col.top() + y + estText || pb.right() <= x0 || pb.left() >= x1) continue;
+                                    plain &= poly.size() <= 5 && std::all_of(poly.cbegin(), poly.cend(), [&](const QPointF &pt) {
+                                        return (std::abs(pt.x() - pb.left()) < 1e-6 || std::abs(pt.x() - pb.right()) < 1e-6) && (std::abs(pt.y() - pb.top()) < 1e-6 || std::abs(pt.y() - pb.bottom()) < 1e-6);
+                                    });
+                                    nearest = std::min(nearest, pb.bottom() - col.top() - y);
+                                }
+                                if (plain && nearest < 1e17 && nearest > 0.001) step = nearest;
+                            }
+                            y += step;
+                            rowPushed += step;
                             if (y + estH > col.height() - reserve.value(rkey(f, c)) + 0.01) advance();
                             continue;
                         }
@@ -3061,6 +3080,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         const QVector<Iv> recheck = freeIntervals(frames[f].obstacles, iv.x0, iv.x1, col.top() + y, col.top() + y + inkH);
                         if (recheck.size() != 1 || recheck[0].x0 > iv.x0 + 0.5 || recheck[0].x1 < iv.x1 - 0.5) {
                             y += 2;
+                            rowPushed += 2;
                             rowActive = false;
                             if (y + h > col.height() - reserve.value(rkey(f, c)) + 0.01) advance();
                             continue;
@@ -3110,7 +3130,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             }
                         }
                     }
-                    B->lines << Line{f, c, QRectF(iv.x0, col.top() + y, iv.x1 - iv.x0, h), below};
+                    B->lines << Line{f, c, QRectF(iv.x0, col.top() + y, iv.x1 - iv.x0, h), below, rowPushed};
                     if (!lineNotes.isEmpty()) {
                         const bool firstNotes = !reserve.contains(rkey(f, c));
                         double &room = reserve[rkey(f, c)];
@@ -3135,7 +3155,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     m_used[f] = std::max(m_used[f], col.top() + y + textH);
                     columnEmpty = false;
                     rowH = std::max(rowH, h);
-                    if (++rowIdx >= row.size()) { y += rowH; rowActive = false; }
+                    if (++rowIdx >= row.size()) { y += rowH; rowActive = false; rowPushed = 0; }
                     if (gridTabs) {
                         B->tl->keepLineTabs(lineNo);
                         moveFrom = wordTabs ? -1 : goesOn(line, iv.x0 - col.left(), iv.x1 - iv.x0, lineNo == 0);
@@ -3155,6 +3175,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             }
             B->tl->endLayout();
             if (rowActive) { y += rowH; rowActive = false; }
+            rowPushed = 0;
             if (f < nF) {
                 y += B->boxBottomRoom;   // (the line below it)
                 y += after;
@@ -3174,7 +3195,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         };
         auto redo = [&](bool startNext, int breakAfter) {
             f = startSpot.f; c = startSpot.c; y = startSpot.y; overflowY = startSpot.overflowY; rowH = startSpot.rowH; row = startSpot.row;
-            rowIdx = startSpot.rowIdx; rowActive = startSpot.rowActive; columnEmpty = startSpot.columnEmpty; m_overflow = startSpot.overflow; m_blankPast = startSpot.blank; m_used = startSpot.used;
+            rowIdx = startSpot.rowIdx; rowActive = startSpot.rowActive; rowPushed = 0; columnEmpty = startSpot.columnEmpty; m_overflow = startSpot.overflow; m_blankPast = startSpot.blank; m_used = startSpot.used;
             reserve = startSpot.reserve;
             m_notes = startSpot.notes;
             carry = startSpot.carry;
@@ -3244,6 +3265,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             lastAfter = prevAfter;
             lastRoom = prevRoom;
             rowActive = startSpot.rowActive;
+            rowPushed = 0;
             rowIdx = startSpot.rowIdx;
             rowH = startSpot.rowH;
         }
@@ -3502,6 +3524,7 @@ QVector<StoryLayout::LineBrief> StoryLayout::lineBriefs() const
             b.end = B->docStart + B->docFromDisp(l.textStart() + l.textLength());
             b.rect = B->lines[i].rect;
             b.below = B->lines[i].below;
+            b.pushed = B->lines[i].pushed;
             b.cut = B->cut;
             if (B->cut && i + 1 == B->lines.size()) b.end = std::min(b.end, B->docStart + B->cutAt);
             v << b;
