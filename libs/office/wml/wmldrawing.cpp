@@ -177,6 +177,29 @@ public:
             s.width = std::abs(s.x2 - s.x1);
             s.height = std::abs(s.y2 - s.y1);
             s.stroked = true;
+            // The ends carry the place the line is at (a group's offset and scale are baked into them): the position the
+            // line is set from is not added again beside them.
+            s.left = at("margin-left", "left") * sx;
+            s.top = at("margin-top", "top") * sy;
+            // A line is drawn from its ends, with no frame to turn about: its turn and mirror are in its ends (the mirror
+            // is of the shape as it is, before the turn). An arrow keeps the end it was at.
+            if (s.rotation != 0 || s.flipH || s.flipV) {
+                const double cx = (s.x1 + s.x2) / 2, cy = (s.y1 + s.y2) / 2;
+                const double turn = s.rotation * 3.14159265358979323846 / 180, cs = std::cos(turn), sn = std::sin(turn);
+                auto bake = [&](double &x, double &y) {
+                    double dx = x - cx, dy = y - cy;
+                    if (s.flipH) dx = -dx;
+                    if (s.flipV) dy = -dy;
+                    x = cx + dx * cs - dy * sn;
+                    y = cy + dx * sn + dy * cs;
+                };
+                bake(s.x1, s.y1);
+                bake(s.x2, s.y2);
+                s.rotation = 0;
+                s.flipH = s.flipV = false;
+                s.width = std::abs(s.x2 - s.x1);
+                s.height = std::abs(s.y2 - s.y1);
+            }
         }
         for (int c = t.firstChild(n); c >= 0; c = t.next(c)) {
             if (t.ns(c) == NsW) continue;

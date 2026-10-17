@@ -347,6 +347,47 @@ private Q_SLOTS:
         QVERIFY(readShapes("not xml").isEmpty());
     }
 
+    // A line's turn and mirror are in its ends (a line has no frame of its own to turn about at draw time): a quarter turn
+    // clockwise of a level segment about its middle makes a plumb one; a mirror of a steep one swaps its ends.
+    void readsALineTurned()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:v=\"urn:schemas-microsoft-com:vml\"";
+        QVector<Shape> shapes = readShapes("<w:pict " + ns + "><v:line id='l1' style='position:absolute;rotation:90' from='10pt,20pt' to='110pt,20pt'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].kind, Shape::Line);
+        QVERIFY(std::abs(shapes[0].x1 - 60) < 0.01 && std::abs(shapes[0].y1 - (-30)) < 0.01);
+        QVERIFY(std::abs(shapes[0].x2 - 60) < 0.01 && std::abs(shapes[0].y2 - 70) < 0.01);
+        QCOMPARE(shapes[0].rotation, 0.0);
+        // A half turn swaps the ends.
+        shapes = readShapes("<w:pict " + ns + "><v:line id='l2' style='position:absolute;rotation:180' from='10pt,20pt' to='110pt,40pt'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(std::abs(shapes[0].x1 - 110) < 0.01 && std::abs(shapes[0].y1 - 40) < 0.01);
+        QVERIFY(std::abs(shapes[0].x2 - 10) < 0.01 && std::abs(shapes[0].y2 - 20) < 0.01);
+        // A mirror across the segment's middle, no turn.
+        shapes = readShapes("<w:pict " + ns + "><v:line id='l3' style='position:absolute;flip:x' from='10pt,20pt' to='110pt,40pt'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(std::abs(shapes[0].x1 - 110) < 0.01 && std::abs(shapes[0].y1 - 20) < 0.01);
+        QVERIFY(std::abs(shapes[0].x2 - 10) < 0.01 && std::abs(shapes[0].y2 - 40) < 0.01);
+        QVERIFY(!shapes[0].flipH && !shapes[0].flipV);
+        // A mirror and a quarter turn after it: mirrored ends, then turned.
+        shapes = readShapes("<w:pict " + ns + "><v:line id='l4' style='position:absolute;rotation:90;flip:x' from='1472,14543' to='1787,14543'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(std::abs(shapes[0].x1 - 1629.5) < 0.01 && std::abs(shapes[0].y1 - 14700.5) < 0.01);
+        QVERIFY(std::abs(shapes[0].x2 - 1629.5) < 0.01 && std::abs(shapes[0].y2 - 14385.5) < 0.01);
+        // None of it for a shape that is not a line: that one keeps its turn.
+        shapes = readShapes("<w:pict " + ns + "><v:rect id='r1' style='position:absolute;left:0;top:0;width:10pt;height:20pt;rotation:90'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].rotation, 90.0);
+        // A line in a group: its ends carry the group's place, so the group's offset is not added to the line again beside them.
+        shapes = readShapes("<w:pict " + ns + "><v:group id='g' style='position:absolute;margin-left:100pt;margin-top:50pt;width:20pt;height:20pt' coordsize='400,400' coordorigin='1000,1000'><v:line id='m' from='1000,1000' to='1400,1000'/></v:group></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].kind, Shape::Line);
+        QVERIFY(std::abs(shapes[0].x1 - 100) < 0.01 && std::abs(shapes[0].y1 - 50) < 0.01);
+        QVERIFY(std::abs(shapes[0].x2 - 120) < 0.01 && std::abs(shapes[0].y2 - 50) < 0.01);
+        QCOMPARE(shapes[0].left, 0.0);
+        QCOMPARE(shapes[0].top, 0.0);
+    }
+
     // The side the text goes on beside a wrap (DrawingML's wrapText, VML's side), and the room the wrap itself says (its own distances come before the object's).
     void readsWhichSideTheTextGoesOnAndTheRoomRound()
     {
