@@ -215,6 +215,7 @@ private:
     // The frame-local polygons that a column on the page (its rectangle, page coordinates) has the objects in as places the text keeps out of (as the page layer finds them for the
     // text box that is made of the column: Renderer::wrapObstacles).
     QVector<QPolygonF> obstaclesFor(const QVector<Wrapped> &wrapped, const QRectF &column) const;
+    bool breakContinuesAt(const StoryLayout::LineBrief &last, PageStart *next) const;
     int numberOf(int index) const;
     void changed(int position, int removed, int added);   // the story was edited
     void settle(int index);                               // lays out again what edits changed, until page `index` is right (-1: all)

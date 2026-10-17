@@ -11,6 +11,7 @@
 #include "text/textprops.h"
 
 #include <QCoreApplication>
+#include <QJsonDocument>
 #include <QDate>
 #include <QDateTime>
 #include <QFont>
@@ -118,6 +119,12 @@ QString Exporter::charAttrs(const QTextCharFormat &cf, bool)
     out += attrOf("fo:font-style", slant) + attrOf("style:font-style-asian", slant) + attrOf("style:font-style-complex", slant);
     const QColor color = textColor(cf, QColor());
     if (color.isValid()) out += attrOf("fo:color", hexOf(color)) + attrOf("style:use-window-font-color", QStringLiteral("false"));
+    // (Clear letters, an outline alone, have no form in this kind of file: an attribute of our own says they are not shown.)
+    {
+        const QString ref = cf.stringProperty(tp::ColorRefP);
+        const bool brush = cf.hasProperty(QTextFormat::ForegroundBrush) && cf.foreground().style() != Qt::NoBrush;
+        if (!ref.isEmpty() ? ColorRef::fromString(ref).resolve(m_colors).alpha() == 0 : brush && cf.foreground().color().alpha() == 0) out += attrOf("jo:text-clear", QStringLiteral("true"));
+    }
     // The underline, and the kinds beside it.
     const int kind = cf.intProperty(tp::UnderlineKind);
     QString underline = QStringLiteral("none");
@@ -159,19 +166,37 @@ QString Exporter::charAttrs(const QTextCharFormat &cf, bool)
         const QColor mark = resolve(ColorRef::fromString(ref));
         if (mark.isValid()) out += attrOf("fo:background-color", hexOf(mark));
     }
-    // A text shadow has its place and no blur (once: the effect list's, else the older property's); the other effects of a run have no
-    // form in this kind of file.
+    // A text shadow has its place and no blur (once: the effect list's, else the older property's); the rest of a run's effects (the blur,
+    // an inner shadow, a glow, a reflection) have no form in this kind of file: they are kept, with an outline of the letters and a gradient fill,
+    // in attributes of our own (other programs leave them alone).
     if (const QString list = cf.stringProperty(tp::TextFx); !list.isEmpty()) {
         const TextEffects &fx = TextEffects::cached(list);
         if (fx.outer.on) {
             const double a = qDegreesToRadians(fx.outer.angle);
             out += attrOf("fo:text-shadow", QStringLiteral("%1pt %2pt").arg(QString::number(fx.outer.distance * std::cos(a), 'f', 2), QString::number(fx.outer.distance * std::sin(a), 'f', 2)));
         }
-        if (fx.inner.on) sayOnce(QStringLiteral("innershadow"), QCoreApplication::translate("OdpExport", "Inner shadows can't be saved in this kind of file."));
-        if (fx.reflection.on) sayOnce(QStringLiteral("reflection"), QCoreApplication::translate("OdpExport", "Reflections can't be saved in this kind of file."));
-        if (fx.glow.on) sayOnce(QStringLiteral("textglow"), QCoreApplication::translate("OdpExport", "Glows on text can't be saved in this kind of file."));
+        if (fx.any()) {
+            TextEffects kept = fx;
+            kept.xml.clear();
+            out += attrOf("jo:text-effects", kept.toJson());
+        }
     } else if (cf.boolProperty(tp::Shadow)) {
         out += attrOf("fo:text-shadow", QStringLiteral("1pt 1pt"));
+    }
+    if (const QString ref = cf.stringProperty(tp::OutlineRef); !ref.isEmpty()) {
+        const QColor c = resolve(ColorRef::fromString(ref));
+        const double width = cf.hasProperty(tp::OutlineWidth) ? std::clamp(cf.property(tp::OutlineWidth).toDouble(), 0.0, 1584.0) : 0.5;
+        if (c.isValid() && width > 0) out += attrOf("jo:text-outline", hexOf(c) + QLatin1Char(' ') + number(width, 3));
+    }
+    if (const QString json = cf.stringProperty(tp::TextFill); !json.isEmpty()) {
+        // (Its colors as colors: the scheme they may name is not the next reader's.)
+        Fill gradient = Fill::fromJson(QJsonDocument::fromJson(json.toUtf8()).object());
+        if (gradient.type == Fill::Gradient && gradient.stops.size() >= 2) {
+            for (GradientStop &stop : gradient.stops) stop.color = ColorRef::rgb(resolve(stop.color));
+            gradient.color = gradient.stops.first().color;
+            gradient.color2 = gradient.stops.last().color;
+            out += attrOf("jo:text-fill", QString::fromUtf8(QJsonDocument(gradient.toJson()).toJson(QJsonDocument::Compact)));
+        }
     }
     if (cf.boolProperty(tp::Emboss)) out += attrOf("style:font-relief", QStringLiteral("embossed"));
     else if (cf.boolProperty(tp::Engrave)) out += attrOf("style:font-relief", QStringLiteral("engraved"));

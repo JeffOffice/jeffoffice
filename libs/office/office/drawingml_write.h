@@ -7,6 +7,7 @@
 
 #include "core/color.h"
 #include "core/items.h"
+#include "office/drawingml_color.h"
 #include "office/package.h"
 #include "office/theme.h"
 
@@ -14,8 +15,13 @@
 #include <QSet>
 #include <QXmlStreamWriter>
 #include <functional>
+#include <memory>
 
 class QTextDocument;
+
+namespace jp::office {
+class StyleResolver;
+}
 
 namespace jp::office {
 
@@ -24,6 +30,9 @@ struct DrawingWriteContext {
     PackageWriter *package = nullptr;
     QString part;                     // the part being written: pictures and links get its relationships
     Theme theme;
+    // Which theme color "bg1", "tx1", and the rest stand for in the part: the color map of the master it follows (a dark one reads them the other
+    // way); a style reference's colors are read through it.
+    ColorMap colorMap;
     // A picture's file bytes and format ("png", "jpeg", "emf"...) by image id.
     std::function<QByteArray(const QString &imageId, QString *format)> imageBytes;
     std::function<const QTextDocument *(const QString &storyId)> storyDoc;
@@ -60,6 +69,8 @@ struct DrawingWriteContext {
     // The relationships made from the part so far, by type and target, so
     // that a picture or an address used twice has one.
     QHash<QString, QString> relations;
+    // What the theme being written says its styles are, made when the first shape with a style reference asks (see writeLook).
+    std::shared_ptr<StyleResolver> styles;
 };
 
 // Gives each object of a shape tree its number before any is written, in the

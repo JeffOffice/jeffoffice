@@ -11,6 +11,7 @@
 
 #include <QDate>
 #include <QDateTime>
+#include <QJsonDocument>
 #include <QTextBlock>
 #include <QTextDocument>
 #include <QTextFragment>
@@ -92,8 +93,20 @@ void writeRunProperties(QXmlStreamWriter &w, const char *tag, const QTextCharFor
     else if (cf.verticalAlignment() == QTextCharFormat::AlignSubScript) attribute(w, "baseline", QStringLiteral("-25000"));
     if (cf.boolProperty(tp::NoProof)) attribute(w, "noProof", QStringLiteral("1"));
 
+    // The outline of the letters, then their fill: a gradient, else a color.
+    if (const QString ref = cf.stringProperty(tp::OutlineRef); !ref.isEmpty()) {
+        Stroke outline;
+        outline.color = ColorRef::fromString(ref);
+        outline.width = cf.hasProperty(tp::OutlineWidth) ? std::clamp(cf.property(tp::OutlineWidth).toDouble(), 0.0, 1584.0) : 0.5;
+        outline.join = Qt::RoundJoin;
+        if (!outline.isNone()) writeLine(w, outline, ctx);
+    }
+    Fill gradient;
+    if (const QString json = cf.stringProperty(tp::TextFill); !json.isEmpty()) gradient = Fill::fromJson(QJsonDocument::fromJson(json.toUtf8()).object());
     const QColor color = colorOf(cf, ctx);
-    if (color.isValid()) {
+    if (gradient.type == Fill::Gradient && gradient.stops.size() >= 2) {
+        writeFill(w, gradient, ctx);
+    } else if (color.isValid()) {
         if (color.alpha() == 0) {
             leaf(w, "a:noFill");
         } else {

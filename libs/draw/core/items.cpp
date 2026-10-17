@@ -108,7 +108,7 @@ void Item::copyBase(const Item &o)
     sourceId = 0;
     name = o.name; role = o.role; altText = o.altText; altTitle = o.altTitle; decorative = o.decorative; hyperlink = o.hyperlink;
     rect = o.rect; rotation = o.rotation; flipH = o.flipH; flipV = o.flipV; locked = o.locked; lockAspect = o.lockAspect;
-    fill = o.fill; stroke = o.stroke; fx = o.fx; wrap = o.wrap;
+    fill = o.fill; stroke = o.stroke; fx = o.fx; styleRef = o.styleRef; wrap = o.wrap;
 }
 
 QJsonObject Item::toJson() const
@@ -132,6 +132,7 @@ QJsonObject Item::toJson() const
     if (fill.type != Fill::NoFill) o["fill"] = fill.toJson();
     if (!stroke.isNone()) o["stroke"] = stroke.toJson();
     if (fx.any()) o["fx"] = fx.toJson();
+    if (styleRef.on) o["style"] = styleRef.toJson();
     o["wrap"] = wrap.toJson();
     return o;
 }
@@ -155,6 +156,7 @@ void Item::fromJson(const QJsonObject &o)
     fill = Fill::fromJson(o["fill"].toObject());
     stroke = Stroke::fromJson(o["stroke"].toObject());
     fx = Effects::fromJson(o["fx"].toObject());
+    styleRef = StyleRef::fromJson(o["style"].toObject());
     wrap = Wrap::fromJson(o["wrap"].toObject());
 }
 

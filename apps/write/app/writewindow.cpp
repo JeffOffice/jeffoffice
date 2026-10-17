@@ -6,6 +6,7 @@
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
+#include "app/spellpane.h"
 #include "app/telemetry.h"
 #include "app/widgets.h"
 #include "app/writedialogs.h"
@@ -19,6 +20,7 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QDockWidget>
 #include <QCloseEvent>
 #include <QFileInfo>
 #include <QKeyEvent>
@@ -153,6 +155,7 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
     m_view->setDocument(m_doc.get());
     m_view->setZoomMode(write::PageView::ZoomMode::Percent);
     m_view->setZoom(1.0);
+    if (m_spellPane && m_spellDock->isVisible()) m_spellPane->start();
     updateTitle();
     refreshUi();
     m_wordTimer.start();
@@ -171,6 +174,7 @@ void WriteWindow::createActions()
     createFormatActions();
     createLayoutActions();
     createViewActions();
+    createReviewActions();
     createHelpActions();
     createEditingActions();
 }
@@ -334,6 +338,7 @@ void WriteWindow::showZoomDialog()
 void WriteWindow::showContextMenu(const QPoint &globalPos)
 {
     QMenu menu(this);
+    write::addSpellingSuggestions(menu, m_view);
     for (const char *id : {"edit.cut", "edit.copy", "edit.paste"}) menu.addAction(act(QString::fromLatin1(id)));
     menu.addSeparator();
     menu.addAction(act("fmt.fontDialog"));

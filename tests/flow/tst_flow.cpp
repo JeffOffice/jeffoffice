@@ -7,6 +7,7 @@
 #include "flow/flowdocument.h"
 #include "flow/paginator.h"
 #include "flow/tableflow.h"
+#include "../timing.h"
 #include "pageaudit.h"
 #include "render/renderer.h"
 #include "text/textengine.h"
@@ -24,6 +25,7 @@
 #include <QTest>
 #include <QTextBlock>
 #include <QTextCursor>
+#include <QFontDatabase>
 #include <QTextDocument>
 #include <QTextList>
 #include <functional>
@@ -954,24 +956,25 @@ void insertRefsDescending(FlowDocument &fd, QVector<QPair<int, QString>> refs)
 }
 
 // How long it takes to find the pages of a document (and to make them all), in milliseconds; the best of `times` runs.
-double millisecondsToPaginate(const std::function<void(FlowDocument &, TestNotes &)> &build, int times = 2, bool make = false)
+double millisecondsToPaginate(const std::function<void(FlowDocument &, TestNotes &)> &build, int times = 5, bool make = false)
 {
-    double best = 1e18;
-    for (int i = 0; i < times; ++i) {
-        FlowDocument fd;
-        TestNotes notes;
-        fd.env.wordLines = true;
-        fd.fields = &notes;
-        build(fd, notes);
-        QElapsedTimer t;
-        t.start();
-        Paginator pg(&fd);
-        const int pages = pg.pageCount();
+    std::unique_ptr<TestNotes> notes;
+    std::unique_ptr<FlowDocument> fd;
+    std::unique_ptr<Paginator> pg;
+    return bestNanoseconds([&] {
+        pg = std::make_unique<Paginator>(fd.get());
+        const int pages = pg->pageCount();
         if (make)
-            for (int k = 0; k < pages; ++k) pg.materialize(k);
-        best = std::min(best, double(t.nsecsElapsed()) / 1e6);
-    }
-    return best;
+            for (int k = 0; k < pages; ++k) pg->materialize(k);
+    }, times, [&] {
+        pg.reset();
+        fd.reset();
+        notes = std::make_unique<TestNotes>();
+        fd = std::make_unique<FlowDocument>();
+        fd->env.wordLines = true;
+        fd->fields = notes.get();
+        build(*fd, *notes);
+    }) / 1e6;
 }
 
 } // namespace
@@ -1979,10 +1982,25 @@ private Q_SLOTS:
     }
 
     // A break that is on the last line the page has room for, with no room left for the empty line after it, still opens the page after it with the
-    // paragraph that follows (the text after the break is not lost).
+    // paragraph that follows (the text after the break is not lost), in a publication's text and a word processor's, and where the mark follows the break the
+    // page begins with that empty line, which is the paragraph's own next line.
+    void aPageBreakOnTheLastLineThatFitsStillOpensTheNextPage_data()
+    {
+        QTest::addColumn<bool>("word");
+        QTest::addColumn<bool>("markFollows");
+        QTest::newRow("publication") << false << false;
+        QTest::newRow("word") << true << false;
+        QTest::newRow("publication, mark follows") << false << true;
+        QTest::newRow("word, mark follows") << true << true;
+    }
+
     void aPageBreakOnTheLastLineThatFitsStillOpensTheNextPage()
     {
+        QFETCH(bool, word);
+        QFETCH(bool, markFollows);
         FlowDocument fd;
+        fd.env.wordLines = word;
+        fd.markFollowsBreak = markFollows;
         const double line = 24, body = fd.section(0).content().height();
         const int filler = int(body / line) - 1;
         QTextBlockFormat bf;
@@ -1998,9 +2016,47 @@ private Q_SLOTS:
         c.insertText(QStringLiteral("after the break"));
         Paginator pg(&fd);
         QCOMPARE(pg.pageCount(), 2);
-        QCOMPARE(pg.lines(1).size(), 1);
-        QCOMPARE(pg.lines(1)[0].block, fd.story()->findBlockByNumber(filler + 1).position());
+        const auto second = pg.lines(1);
+        const int after = fd.story()->findBlockByNumber(filler + 1).position();
+        if (markFollows) {
+            QCOMPARE(second.size(), 2);
+            QCOMPARE(second[0].block, fd.story()->findBlockByNumber(filler).position());   // (the break paragraph's empty line)
+            QCOMPARE(second[0].line, 1);
+            QCOMPARE(second[1].block, after);
+        } else {
+            QCOMPARE(second.size(), 1);
+            QCOMPARE(second[0].block, after);
+        }
         QVERIFY(pg.page(1).start.hard);
+    }
+
+    // A break in the middle of a paragraph, on the last line that fits, begins the next page with the rest of the same paragraph, then the paragraphs after it.
+    void aPageBreakInTheMiddleOfAParagraphContinuesItOnTheNextPage()
+    {
+        for (const bool word : {false, true}) {
+            FlowDocument fd;
+            fd.env.wordLines = word;
+            const double line = 24, body = fd.section(0).content().height();
+            const int filler = int(body / line) - 1;
+            QTextBlockFormat bf;
+            bf.setLineHeight(line, QTextBlockFormat::FixedHeight);
+            QTextCursor c(fd.story());
+            for (int i = 0; i < filler; ++i) {
+                if (i) c.insertBlock(bf); else c.setBlockFormat(bf);
+                c.insertText(QStringLiteral("filler"));
+            }
+            c.insertBlock(bf);
+            c.insertText(QStringLiteral("first words") + flow::kPageBreak + QStringLiteral("second words"));
+            c.insertBlock(bf);
+            c.insertText(QStringLiteral("after"));
+            Paginator pg(&fd);
+            QCOMPARE(pg.pageCount(), 2);
+            const auto second = pg.lines(1);
+            QCOMPARE(second.size(), 2);
+            QCOMPARE(second[0].block, fd.story()->findBlockByNumber(filler).position());   // (the rest of the paragraph the break is in)
+            QCOMPARE(second[0].line, 1);
+            QCOMPARE(second[1].block, fd.story()->findBlockByNumber(filler + 1).position());
+        }
     }
 
     // Two breaks in a row make the page between them; one at the start of a paragraph moves its text to the next page.
@@ -2638,15 +2694,16 @@ private Q_SLOTS:
         }
     }
 
-    // A word processor's text has no ligatures: the letters of "ti" in Calibri's face take what they take apart, where a publication's text sets them as one
-    // glyph.
+    // A word processor's text has no ligatures: the letters of "ti" in Carlito (a face the program carries, with a ligature for them) take what they take
+    // apart, where a publication's text sets them as one glyph.
     void wordTextHasNoLigatures()
     {
+        QVERIFY2(QFontDatabase::hasFamily(QStringLiteral("Carlito")), "the face the program carries is not registered");
         auto width = [&](const QString &text, bool word) {
             QTextDocument doc;
             QTextCursor c(&doc);
             QTextCharFormat run;
-            run.setFontFamilies({QStringLiteral("Calibri")});
+            run.setFontFamilies({QStringLiteral("Carlito")});
             run.setFontPointSize(24);
             c.insertText(text, run);
             LayoutEnv env;
@@ -2658,7 +2715,36 @@ private Q_SLOTS:
         };
         const double apart = width(QStringLiteral("t"), true) + width(QStringLiteral("i"), true);
         QVERIFY2(std::abs(width(QStringLiteral("ti"), true) - apart) < 0.01, qPrintable(QStringLiteral("%1 against %2").arg(width(QStringLiteral("ti"), true)).arg(apart)));
-        QVERIFY(std::abs(width(QStringLiteral("ti"), false) - apart) > 0.05);   // (a publication's text keeps its ligature)
+        QVERIFY2(std::abs(width(QStringLiteral("ti"), false) - apart) > 0.05, "the face has no ligature for ti");   // (a publication's text keeps it)
+    }
+
+    // The ligatures of a word processor's text are the file's to ask for (tp::Ligatures on a run that has them: the standard ones, or none), and its letters of
+    // the scripts that are shaped with ligatures (Arabic) are not touched by the default of none: a paragraph that has one keeps its font's.
+    void wordLigaturesFollowTheRunAndTheScript()
+    {
+        QVERIFY2(QFontDatabase::hasFamily(QStringLiteral("Carlito")), "the face the program carries is not registered");
+        auto width = [&](const QString &text, bool word, int ligatures) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Carlito")});
+            run.setFontPointSize(24);
+            if (ligatures >= 0) run.setProperty(tp::Ligatures, ligatures);
+            c.insertText(text, run);
+            LayoutEnv env;
+            env.wordLines = word;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(1000, 100)}, env);
+            const auto rects = lay.rangeRects(0, 0, 2);
+            return rects.isEmpty() ? -1.0 : rects.last().right() - rects.first().left();
+        };
+        const QString ti = QStringLiteral("ti");
+        const double apart = width(ti, true, -1), joined = width(ti, false, -1);
+        QVERIFY2(std::abs(apart - joined) > 0.05, "the face has no ligature for ti");
+        QVERIFY(std::abs(width(ti, true, 0) - joined) < 0.01);      // (the file asks for the standard ligatures)
+        QVERIFY(std::abs(width(ti, true, 1) - apart) < 0.01);       // (and for none)
+        QVERIFY(std::abs(width(ti + QChar(0x0628), true, -1) - joined) < 0.01);   // (an Arabic letter in the paragraph: the font's own)
+        QVERIFY(std::abs(width(ti + QStringLiteral(" \u0393\u0431"), true, -1) - apart) < 0.01);   // (Greek and Cyrillic are Latin's kind)
     }
 
     // A mark of punctuation at the end of a line may hang past the margin in a word processor's text: a word that fits but for its period is the last
@@ -2698,6 +2784,42 @@ private Q_SLOTS:
         QCOMPARE(lineCount(text, room, false, false), 2);         // (nor in a publication's text)
         QCOMPARE(lineCount(QStringLiteral("alpha beta gamma delta epsilon-"), room, false), 2);   // (a hyphen is no mark that hangs)
         QCOMPARE(lineCount(text, upToMark - 5, false), 2);        // (the word itself doesn't fit)
+    }
+
+    // A paragraph that does not let punctuation extend past the margin (tp::NoHangPunct, a word processor's overflowPunct turned off) has none hang, though the
+    // text does elsewhere.
+    void aParagraphThatTurnsHangingOffHasNone()
+    {
+        auto lineCount = [&](double room, bool paragraphOff) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            if (paragraphOff) bf.setProperty(tp::NoHangPunct, true);
+            c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("alpha beta gamma delta epsilon."), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(room, 300)}, env);
+            return int(lay.lineInfo(0).size());
+        };
+        QTextDocument measure;
+        QTextCursor mc(&measure);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        const QString text = QStringLiteral("alpha beta gamma delta epsilon.");
+        mc.insertText(text, run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout wide;
+        wide.build(&measure, {plainFrame(1000, 100)}, env);
+        const double room = wide.rangeRects(0, text.size() - 1, text.size()).first().left() + 0.5;
+        QCOMPARE(lineCount(room, false), 1);
+        QCOMPARE(lineCount(room, true), 2);
     }
 
     // The text after a page break that begins a paragraph is its first line, with the paragraph's first-line indent (here a hanging one); after a break in
@@ -3710,31 +3832,32 @@ private Q_SLOTS:
     void denseReferencesTakeTimeInStepWithTheirNumber()
     {
         auto seconds = [&](int count) {
-            double best = 1e9;
-            for (int attempt = 0; attempt < 2; ++attempt) {
-                TestNotes notes;
-                FlowDocument fd;
-                fd.env.wordLines = true;
-                fd.fields = &notes;
-                QTextCursor c(fd.story());
+            std::unique_ptr<TestNotes> notes;
+            std::unique_ptr<FlowDocument> fd;
+            std::unique_ptr<Paginator> pg;
+            return bestNanoseconds([&] {
+                pg = std::make_unique<Paginator>(fd.get());
+                const int pages = pg->pageCount();
+                for (int k = 0; k < std::min(pages, 12); ++k) pg->materialize(k);
+            }, 3, [&] {
+                pg.reset();
+                fd.reset();
+                notes = std::make_unique<TestNotes>();
+                fd = std::make_unique<FlowDocument>();
+                fd->env.wordLines = true;
+                fd->fields = notes.get();
+                QTextCursor c(fd->story());
                 QTextCharFormat cf;
                 cf.setFontPointSize(11);
                 for (int i = 0; i < count; ++i) {
                     const QString id = QStringLiteral("n%1").arg(i);
-                    addNote(&notes, id, 3, QStringLiteral("N%1").arg(i));
+                    addNote(notes.get(), id, 3, QStringLiteral("N%1").arg(i));
                     QTextCharFormat ref = cf;
                     ref.setVerticalAlignment(QTextCharFormat::AlignSuperScript);
                     ref.setProperty(tp::Field, QStringLiteral("footnote:") + id);
                     c.insertText(QString(QChar(0xFFFC)), ref);
                 }
-                QElapsedTimer t;
-                t.start();
-                Paginator pg(&fd);
-                const int pages = pg.pageCount();
-                for (int k = 0; k < std::min(pages, 12); ++k) pg.materialize(k);
-                best = std::min(best, t.nsecsElapsed() / 1e9);
-            }
-            return best;
+            }) / 1e9;
         };
         const double small = seconds(400), large = seconds(1600);
         // (Four times the references: four times the time when it is in step, sixteen when it is the square; it was twenty before.)
@@ -5807,15 +5930,17 @@ private Q_SLOTS:
             return t;
         };
         addTable(fd, spec);
-        Paginator pg(&fd);
-        pg.pageCount();
-        QElapsedTimer t;
-        t.start();
-        pg.materialize(0);
-        const qint64 first = t.elapsed();
-        t.restart();
-        for (int k = 1; k <= 40; ++k) QVERIFY(pg.materialize(k));
-        const qint64 forty = t.elapsed();
+        std::unique_ptr<Paginator> pg;
+        const auto fresh = [&] {
+            pg.reset();
+            pg = std::make_unique<Paginator>(&fd);
+            pg->pageCount();
+        };
+        const qint64 first = bestNanoseconds([&] { pg->materialize(0); }, 3, fresh) / 1000000;
+        const qint64 forty = bestNanoseconds([&] { for (int k = 1; k <= 40; ++k) QVERIFY(pg->materialize(k)); }, 3, [&] {
+            fresh();
+            pg->materialize(0);
+        }) / 1000000;
         // (A cell of this size takes a good part of a second to lay out: forty more pages that each laid it out would take forty times that.)
         QVERIFY2(forty < 8 * std::max<qint64>(first, 50) + 500, qPrintable(QStringLiteral("the first page %1 ms, forty more %2 ms").arg(first).arg(forty)));
     }
@@ -6757,24 +6882,34 @@ private Q_SLOTS:
     // Typing in a long table costs about what it does in text: the rows above the edit are not measured again.
     void typingInALongTableIsFast()
     {
-        FlowDocument fd;
         TestTable spec;
         spec.rows = 3000;
         spec.cols = 3;
         spec.columnWidth = 120;
-        const TestTable table = addTable(fd, spec);
-        Paginator pg(&fd);
-        QElapsedTimer timer;
-        timer.start();
-        const int pages = pg.pageCount();
-        const double whole = timer.nsecsElapsed() / 1e6;
+        std::unique_ptr<FlowDocument> fd;
+        std::unique_ptr<Paginator> pg;
+        TestTable table;
+        // A new document of the table, nothing laid out yet, for each run.
+        const auto fresh = [&] {
+            pg.reset();
+            fd = std::make_unique<FlowDocument>();
+            table = addTable(*fd, spec);
+            pg = std::make_unique<Paginator>(fd.get());
+        };
+        int pages = 0;
+        const double whole = bestNanoseconds([&] { pages = pg->pageCount(); }, 3, fresh) / 1e6;
         QVERIFY(pages > 40);
-        QTextCursor c(fd.story());
-        c.setPosition(fd.story()->findBlock(table.rowStarts[2500]).position() + 1);
-        timer.restart();
-        c.insertText(QStringLiteral("x"));
-        pg.paginate(pg.pageOfPosition(c.position()) + 1);
-        const double typed = timer.nsecsElapsed() / 1e6;
+        QTextCursor c;
+        const double typed = bestNanoseconds([&] {
+            c.insertText(QStringLiteral("x"));
+            pg->paginate(pg->pageOfPosition(c.position()) + 1);
+        }, 3, [&] {
+            c = QTextCursor();
+            fresh();
+            pg->pageCount();
+            c = QTextCursor(fd->story());
+            c.setPosition(fd->story()->findBlock(table.rowStarts[2500]).position() + 1);
+        }) / 1e6;
         qInfo("a table of 3,000 rows: all of it laid out in %.0f ms, a letter typed in row 2,500 in %.0f ms", whole, typed);
         QVERIFY2(typed < whole / 8, qPrintable(QStringLiteral("typing took %1 ms, the whole %2 ms").arg(typed).arg(whole)));
     }
@@ -7291,13 +7426,13 @@ private Q_SLOTS:
             cf.setFontPointSize(11);
             c.insertText(text, cf);
         }
-        Paginator pg(&fd);
-        QElapsedTimer t;
-        t.start();
-        const int pages = pg.pageCount();
-        qInfo("a paragraph of 900 KB: %d pages in %.1f s", pages, t.elapsed() / 1000.0);
+        std::unique_ptr<Paginator> made;
+        int pages = 0;
+        const qint64 ms = bestNanoseconds([&] { pages = made->pageCount(); }, 3, [&] { made = std::make_unique<Paginator>(&fd); }) / 1000000;
+        Paginator &pg = *made;
+        qInfo("a paragraph of 900 KB: %d pages in %.1f s", pages, ms / 1000.0);
         QVERIFY(pages > 150);
-        QVERIFY2(t.elapsed() < 60000, qPrintable(QString::number(t.elapsed())));
+        QVERIFY2(ms < 60000, qPrintable(QString::number(ms)));
         const QString bad = coverageProblem(pg, fd);
         QVERIFY2(bad.isEmpty(), qPrintable(bad));
         const int perPage = pg.lines(10).size();
@@ -7325,12 +7460,12 @@ private Q_SLOTS:
                 cf.setFontPointSize(11);
                 c.insertText(text, cf);
             }
-            Paginator pg(&fd);
-            QElapsedTimer t;
-            t.start();
-            const int pages = pg.pageCount();
-            qInfo("%s: %d pages in %.1f s", what ? "a word of 200 KB" : "a paragraph of 2 MB", pages, t.elapsed() / 1000.0);
-            QVERIFY2(t.elapsed() < (what ? 60000 : 120000), qPrintable(QString::number(t.elapsed())));
+            std::unique_ptr<Paginator> made;
+            int pages = 0;
+            const qint64 ms = bestNanoseconds([&] { pages = made->pageCount(); }, 3, [&] { made = std::make_unique<Paginator>(&fd); }) / 1000000;
+            Paginator &pg = *made;
+            qInfo("%s: %d pages in %.1f s", what ? "a word of 200 KB" : "a paragraph of 2 MB", pages, ms / 1000.0);
+            QVERIFY2(ms < (what ? 60000 : 120000), qPrintable(QString::number(ms)));
             QVERIFY(pages > 40);
             const QString bad = coverageProblem(pg, fd);
             QVERIFY2(bad.isEmpty(), qPrintable(bad));
@@ -7983,8 +8118,9 @@ private Q_SLOTS:
                 for (int k = refs - 1; k >= 0; --k) addReference(fd.story(), at, QStringLiteral("n%1").arg(k % 50));
             };
         };
-        const double small = millisecondsToPaginate(build(500), 2, true), big = millisecondsToPaginate(build(2000), 2, true);
-        QVERIFY2(big < 8 * std::max(small, 20.0), qPrintable(QStringLiteral("500 notes took %1 ms, 2000 notes %2 ms").arg(small).arg(big)));
+        const double small = millisecondsToPaginate(build(500), 3, true), big = millisecondsToPaginate(build(2000), 3, true);
+        // Four times the notes: linear work takes about 4x, the quadratic carry this guards against about 16x; 12x leaves room for a slow CI machine.
+        QVERIFY2(big < 12 * std::max(small, 20.0), qPrintable(QStringLiteral("500 notes took %1 ms, 2000 notes %2 ms").arg(small).arg(big)));
     }
 
     // Tables of rows that each cite many notes: the work is bounded for the document, not for each row (twice the rows take about twice as long, and a hostile file is not
@@ -8005,7 +8141,7 @@ private Q_SLOTS:
                     for (int k = 999; k >= 0; --k) addReference(fd.story(), table.rowStarts[r] + 1, QStringLiteral("n%1").arg((r * 7 + k) % 50));
             };
         };
-        const double small = millisecondsToPaginate(build(4), 1, true), big = millisecondsToPaginate(build(16), 1, true);
+        const double small = millisecondsToPaginate(build(4), 3, true), big = millisecondsToPaginate(build(16), 3, true);
         QVERIFY2(big < 8 * std::max(small, 50.0), qPrintable(QStringLiteral("4 rows of 1000 notes took %1 ms, 16 rows %2 ms").arg(small).arg(big)));
     }
 
@@ -8056,7 +8192,7 @@ private Q_SLOTS:
                 addReference(fd.story(), refAt, QStringLiteral("long"));
             };
         };
-        const double small = millisecondsToPaginate(build(5000), 1, true), big = millisecondsToPaginate(build(20000), 1, true);
+        const double small = millisecondsToPaginate(build(5000), 3, true), big = millisecondsToPaginate(build(20000), 3, true);
         QVERIFY2(big < 8 * std::max(small, 100.0), qPrintable(QStringLiteral("5000 words took %1 ms, 20000 words %2 ms").arg(small).arg(big)));
     }
 
@@ -8091,7 +8227,7 @@ private Q_SLOTS:
                 }
             };
         };
-        const double small = millisecondsToPaginate(build(5), 1, true), big = millisecondsToPaginate(build(20), 1, true);
+        const double small = millisecondsToPaginate(build(5), 3, true), big = millisecondsToPaginate(build(20), 3, true);
         QVERIFY2(big < 8 * std::max(small, 100.0), qPrintable(QStringLiteral("5 cells took %1 ms, 20 cells %2 ms").arg(small).arg(big)));
     }
 
@@ -8142,22 +8278,24 @@ private Q_SLOTS:
             pg.pageCount();
             QTextCursor cur(fd.story());
             const int at = fd.story()->findBlockByNumber(paras / 4).position() + 5;
-            QElapsedTimer t;
             const int reps = 20;
-            t.start();
-            for (int i = 0; i < reps; ++i) {
-                cur.setPosition(at);
-                cur.insertText(QStringLiteral("x"));
-                pg.paginate(paras / 100);
-            }
-            perType[n] = double(t.nsecsElapsed()) / 1e6 / reps;
-            t.restart();
-            for (int i = 0; i < reps; ++i) {
-                cur.setPosition(at + 1);
-                cur.deleteChar();
-                pg.paginate(paras / 100);
-            }
-            perDelete[n] = double(t.nsecsElapsed()) / 1e6 / reps;
+            // Each run types (or deletes) the block of letters; the best run of the five is the time per letter.
+            const auto typeBlock = [&] {
+                for (int i = 0; i < reps; ++i) {
+                    cur.setPosition(at);
+                    cur.insertText(QStringLiteral("x"));
+                    pg.paginate(paras / 100);
+                }
+            };
+            const auto deleteBlock = [&] {
+                for (int i = 0; i < reps; ++i) {
+                    cur.setPosition(at + 1);
+                    cur.deleteChar();
+                    pg.paginate(paras / 100);
+                }
+            };
+            perType[n] = double(bestNanoseconds(typeBlock)) / 1e6 / reps;
+            perDelete[n] = double(bestNanoseconds(deleteBlock)) / 1e6 / reps;
             ++n;
         }
         QVERIFY2(perDelete[1] < 3 * perType[1] + 3, qPrintable(QStringLiteral("typing takes %1 ms, deleting %2 ms (32000 paragraphs)").arg(perType[1]).arg(perDelete[1])));

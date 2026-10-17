@@ -12,6 +12,7 @@
 
 class QDockWidget;
 class QLabel;
+class QPrinter;
 class QSlider;
 
 namespace jp {
@@ -28,16 +29,22 @@ class WriteFileScreen;
 class WriteFindPane;
 namespace write {
 class PageView;
+class SpellPane;
 }
 namespace recovery {
 struct Recovered;
 }
 
-// What Print and Export to PDF are asked to do: which pages, and how many copies (the printer's dialog asks for more).
+// What Print and Export to PDF are asked to do: which pages and, for printing, where and how many copies.
 struct WriteOutputOptions {
     enum class Range { All, Current, Pages };
     Range range = Range::All;
     QString pages;        // "1-3, 5": for Range::Pages
+    QString printer;      // the name of the printer; empty is the default one
+    bool toFile = false;  // a PDF file, asked for where it is printed, in place of a printer
+    int copies = 1;
+    bool collate = true;  // the whole set again for each copy, else each page's copies together
+    bool grayscale = false;
 };
 
 class WriteWindow : public AppWindow {
@@ -74,6 +81,8 @@ public:
     // What a short message to the person (a sentence said at Save, or on a refusal to write over a file) is shown with: a message box, unless this stands in for it
     // (tests): the title and the sentence.
     void setNotifier(const std::function<void(const QString &title, const QString &text)> &notifier) { m_notifier = notifier; }
+    // What a printer is made ready with after the window has set it up (tests: a printer that writes to a file stands in for a real one).
+    void setPrinterPreparer(const std::function<void(QPrinter &)> &preparer) { m_printerPreparer = preparer; }
     // AutoRecover: a copy of unsaved work (the timer writes it at the interval Options sets), and the copies a run that crashed left.
     void autoRecover();
     QString recoveryCopy() const { return m_recoveryCopy; }
@@ -88,6 +97,8 @@ public:
     // The pages that an output covers (from 0), for the options and the document.
     QVector<int> outputPages(const WriteOutputOptions &options);
 
+    // The Spelling pane on the right of the window, begun at the caret.
+    void showSpelling();
     void showHelp(const QString &topic = QString());
     HelpView *helpView() const { return m_help; }
 
@@ -108,6 +119,7 @@ private:
     void createViewActions();
     void createFileActions();
     void createHelpActions();
+    void createReviewActions();
     void createEditingActions();
     void buildRibbon();
     void ribbonParts(RibbonParts &parts);
@@ -123,6 +135,8 @@ private:
     void showParagraphDialog();
     void showZoomDialog();
     void showContextMenu(const QPoint &globalPos);
+    // Where a PDF is to be written: asked for, or what the stand-in (tests) gives. Empty when none was chosen.
+    QString pdfPathToWrite(const QString &title);
     QString helpContext() const;
     HelpWindow *showHelpOver(const QString &topic);
     void updateStatus();
@@ -134,6 +148,8 @@ private:
     WriteFileScreen *m_fileScreen = nullptr;
     HelpView *m_help = nullptr;
     QDockWidget *m_helpDock = nullptr;
+    QDockWidget *m_spellDock = nullptr;
+    write::SpellPane *m_spellPane = nullptr;
     WriteFindPane *m_find = nullptr;
     QDockWidget *m_findDock = nullptr;
     QLabel *m_pageLabel = nullptr, *m_wordLabel = nullptr, *m_zoomLabel = nullptr;
@@ -153,6 +169,7 @@ private:
     bool m_updatingFields = false;
     std::function<QString(const QString &, const QString &)> m_pathChooser;
     std::function<void(const QString &, const QString &)> m_notifier;
+    std::function<void(QPrinter &)> m_printerPreparer;
     bool m_macrosNoted = false;     // (the person was told that the macros are not saved)
     QString m_protectedPath;        // the file a document that has had something left out (see WriteDoc::leftSomethingOut) was opened from: not written over
 };

@@ -136,6 +136,8 @@ struct ParaProps {
     // side a style states and the paragraph doesn't is the style's.
     std::optional<ParaBorders> borders;
     std::optional<Shading> shading;
+    // Whether punctuation may extend past the margin (w:overflowPunct): read for the layout, and kept as written in `extra` too, which is what is written.
+    std::optional<bool> overflowPunct;
     std::optional<RunProps> markRun;  // the paragraph mark's own run properties
     std::shared_ptr<SectionProps> section;   // sectPr: this paragraph ends a section
     QVector<RawChild> extra;

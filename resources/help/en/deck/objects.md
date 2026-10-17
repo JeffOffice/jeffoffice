@@ -9,7 +9,7 @@ Besides text, a slide can hold shapes, pictures, and tables. This topic shows ho
 2. Click one, then drag on the slide to draw it.
 3. To type in a shape, select it and press Enter, or start typing.
 
-Select a shape or a line and use **Shape Fill** and **Shape Outline** on the **Home** tab to color the inside and the edge. Each opens the colors of the presentation's theme, and has **No Fill** or **No Outline**. The **Shape Format** tab shows too, with more choices: gradients, pictures, weights, dashes, arrows, and effects such as shadows. For every setting, press **Ctrl+1** to open the Format Shape pane. Search Help for **Format Shape** to read about it.
+Select a shape or a line and use **Shape Fill** and **Shape Outline** on the **Home** tab to color the inside and the edge. Each opens the colors of the presentation's theme, and has **No Fill** or **No Outline**. The **Shape Format** tab shows too, with more choices: gradients, pictures, weights, dashes, arrows, and effects such as shadows. For every setting, press **Ctrl+1** to open the Format Shape pane. Search Help for **Format Shape** to read about it. To swap a shape for another one without losing its text or look, use **Shape Format > Shapes > Change Shape**. The gallery in **Shape Styles** on the same tab gives a shape a ready-made look from the theme, and **Text Art Styles** does the same for its letters. Search Help for **Format Shape** to read about all of them.
 
 ## Add a picture
 

@@ -275,6 +275,17 @@ QTextCharFormat withoutAtom(QTextCharFormat f)
 
 // ---- runs
 
+QString languageOf(const QVector<RawChild> &extra)
+{
+    static const QRegularExpression element(QStringLiteral("^<(?:\\w+:)?lang[\\s/>]")), value(QStringLiteral("\\s(?:\\w+:)?val=\"([^\"]*)\""));
+    for (const RawChild &child : extra) {
+        const QString xml = QString::fromUtf8(child.xml.left(400));
+        if (!element.match(xml).hasMatch()) continue;
+        return value.match(xml).captured(1).trimmed();
+    }
+    return QString();
+}
+
 namespace {
 
 // The underlines a file names (w:u's val), as Qt's line style and the tp::UnderlineKind flags beside it (1 double, 2 words only, 4 heavy, 8 long dashes),
@@ -331,6 +342,7 @@ QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme, const RunPro
     if (r.position && *r.position != 0) cf.setProperty(prop::Raised, *r.position);
     if (r.vanish.value_or(false)) cf.setProperty(tp::HiddenText, true);
     if (r.noProof.value_or(false)) cf.setProperty(tp::NoProof, true);
+    if (const QString language = languageOf(r.extra); !language.isEmpty()) cf.setProperty(tp::Language, language);   // (spelling follows it)
     if (!r.style.isEmpty()) cf.setProperty(tp::CharStyle, r.style);
 
     // The typefaces: a theme font names no family (the engine takes the document's font scheme).
@@ -359,6 +371,15 @@ QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme, const RunPro
     if (!r.highlight.isEmpty() && r.highlight != QLatin1String("none")) {
         const QColor h = highlightColor(r.highlight);
         if (h.isValid()) cf.setProperty(tp::HighlightRefP, ColorRef::rgb(h).toString());
+    }
+    // The ligatures the run asks for (w14:ligatures, kept as written): none, the standard ones, or the discretionary ones too; a run that says nothing has what
+    // the text engine gives a word processor's text (none).
+    for (const RawChild &ch : r.extra) {
+        static const QRegularExpression ligatures(QStringLiteral("^<[^\\s:>/]+:ligatures\\b[^>]*:val=\"(\\w+)\""));
+        const QRegularExpressionMatch m = ligatures.match(QString::fromUtf8(ch.xml.left(200)));
+        if (!m.hasMatch()) continue;
+        const QString val = m.captured(1);
+        cf.setProperty(tp::Ligatures, val == QLatin1String("none") ? 1 : val.contains(QLatin1String("iscretional")) || val == QLatin1String("all") ? 2 : 0);
     }
     if (!r.extra.isEmpty()) setStored(cf, prop::RawRPr, packRaw(r.extra));
     if (direct && direct->fonts && direct->fonts->hasOtherScripts()) cf.setProperty(prop::FontsOther, packOtherFonts(*direct->fonts));
@@ -411,7 +432,7 @@ RunProps runPropsOf(const QTextCharFormat &f)
     r.dstrike = strike && dstrike;
     r.caps = f.fontCapitalization() == QFont::AllUppercase;
     r.smallCaps = f.fontCapitalization() == QFont::SmallCaps;
-    r.vanish = f.boolProperty(tp::HiddenText) && !f.boolProperty(prop::TrackedDeleted);   // (hidden only because a change deleted it: the run doesn't say so)
+    r.vanish = f.boolProperty(tp::HiddenText) && f.intProperty(prop::TrackedDeleted) != prop::HiddenByDeletion;   // (hidden only because a change deleted it: the run doesn't say so)
     r.noProof = f.boolProperty(tp::NoProof);
     r.vertAlign = f.verticalAlignment() == QTextCharFormat::AlignSuperScript ? QStringLiteral("superscript")
                   : f.verticalAlignment() == QTextCharFormat::AlignSubScript ? QStringLiteral("subscript")
@@ -512,6 +533,7 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
     if (p.widowControl.value_or(true)) bf.setProperty(tp::WidowControl, true);
     if (p.pageBreakBefore.value_or(false)) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore);
     if (p.contextualSpacing.value_or(false)) bf.setProperty(tp::ContextualSpacing, true);
+    if (!p.overflowPunct.value_or(true)) bf.setProperty(tp::NoHangPunct, true);
     {
         tp::ParaBox box;
         if (p.borders) {

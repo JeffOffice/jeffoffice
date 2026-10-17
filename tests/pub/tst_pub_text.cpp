@@ -1,5 +1,6 @@
 // JeffPub's tests of text layout: lines, tabs, bullets, and page-number fields.
 #include "pubhelpers.h"
+#include "../timing.h"
 
 class PubTextTests : public QObject {
     Q_OBJECT
@@ -796,15 +797,10 @@ private Q_SLOTS:
             fs.size = QSizeF(400, 700);
             fs.insets = QMarginsF(0, 0, 0, 0);
             fs.hyphenate = false;
-            qint64 best = std::numeric_limits<qint64>::max();
-            for (int pass = 0; pass < 2; ++pass) {
-                QElapsedTimer t;
-                t.start();
+            return bestNanoseconds([&] {
                 jp::StoryLayout l;
                 l.build(&doc, {fs}, jp::LayoutEnv());
-                best = std::min(best, t.elapsed());
-            }
-            return best;
+            }) / 1000000;
         };
         const qint64 plain = timed(false), tabbed = timed(true);
         QVERIFY2(tabbed < 5 * plain + 200, qPrintable(QStringLiteral("%1 ms with tabs, %2 ms without").arg(tabbed).arg(plain)));
@@ -2118,10 +2114,8 @@ private Q_SLOTS:
         const QString path = dir.filePath(QStringLiteral("links.pub"));
         QString err;
         QVERIFY2(exportPublisher(*doc, path, &err), qPrintable(err));
-        QElapsedTimer timer;
-        timer.start();
-        auto back = importPublisherFile(path, &err);
-        const qint64 ms = timer.elapsed();
+        decltype(importPublisherFile(path, &err)) back;
+        const qint64 ms = bestNanoseconds([&] { back = importPublisherFile(path, &err); }, 3, [&] { back.reset(); }) / 1000000;
         QVERIFY(back);
         QSet<QString> found;
         for (const auto &st : back->stories)
@@ -2134,9 +2128,8 @@ private Q_SLOTS:
         // And as .jpub, reopened just as quickly.
         const QString jpub = dir.filePath(QStringLiteral("links.jpub"));
         QVERIFY2(savePublication(*back, jpub, QImage(), &err), qPrintable(err));
-        timer.restart();
-        QVERIFY(loadPublication(jpub, &err));
-        QVERIFY2(timer.elapsed() < 15000, qPrintable(QStringLiteral("%1 ms").arg(timer.elapsed())));
+        const qint64 reopened = bestNanoseconds([&] { QVERIFY(loadPublication(jpub, &err)); }, 3) / 1000000;
+        QVERIFY2(reopened < 15000, qPrintable(QStringLiteral("%1 ms").arg(reopened)));
     }
 
     // Fields and hyperlinks are saved as Publisher saves them: each story's

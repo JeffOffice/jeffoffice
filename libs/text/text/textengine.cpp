@@ -939,6 +939,17 @@ static double rawFirstSize(const QTextBlock &b)
     return std::max(0.5, it.atEnd() ? fileSize(b.charFormat()) : fileSize(it.fragment().charFormat()));
 }
 
+// Whether a text has a letter of a script that is shaped with ligatures of its own (Arabic, the scripts of India and of southeast Asia...), which no setting
+// of ligatures is to touch.
+static bool hasComplexScript(const QString &text)
+{
+    for (const QChar ch : text) {
+        const char16_t u = ch.unicode();
+        if ((u >= 0x0590 && u < 0x1E00) || (u >= 0xFB1D && u <= 0xFDFF) || (u >= 0xFE70 && u <= 0xFEFF)) return true;
+    }
+    return false;
+}
+
 QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
 {
     QTextCharFormat cf = b.charFormat();
@@ -952,7 +963,9 @@ QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
     if (num == 2) f.setFeature(QFont::Tag("onum"), 1);
     if (sp == 1) f.setFeature(QFont::Tag("pnum"), 1);
     if (sp == 2) f.setFeature(QFont::Tag("tnum"), 1);
-    if (lig == 1 || env.noLigatures || env.wordLines) { f.setFeature(QFont::Tag("liga"), 0); f.setFeature(QFont::Tag("clig"), 0); }
+    // (A word processor's text has none unless its file asks, and not the letters of the scripts that need them: those are shaped as the font does.)
+    const bool wordDefault = env.wordLines && !cf.hasProperty(tp::Ligatures) && !hasComplexScript(b.text());
+    if (lig == 1 || env.noLigatures || wordDefault) { f.setFeature(QFont::Tag("liga"), 0); f.setFeature(QFont::Tag("clig"), 0); }
     if (lig == 2) { f.setFeature(QFont::Tag("dlig"), 1); f.setFeature(QFont::Tag("hlig"), 1); }
     const int ss = cf.intProperty(tp::StylisticSet);
     if (ss > 0 && ss <= 20) f.setFeature(QFont::Tag::fromString(QStringLiteral("ss%1").arg(ss, 2, 10, QChar('0'))).value_or(QFont::Tag()), 1);
@@ -2472,7 +2485,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->tl->setCacheEnabled(true);
 
         // (The text after a page break that begins a paragraph is set as the paragraph's first line, indent and all, as a word processor sets it.)
-        const bool startsWithBreak = env.wordLines && doc->characterAt(b.position()) == QChar(0x000C) && b.length() > 1;
+        // (A break that is hidden text, as what a tracked change deleted is, is none.)
+        const bool startsWithBreak = env.wordLines && doc->characterAt(b.position()) == QChar(0x000C) && b.length() > 1 && !b.begin().fragment().charFormat().boolProperty(tp::HiddenText);
         const bool firstAfterBreak = startsWithBreak && (!tail || m_span.spaceBeforeContinued);
         const double leftM = bf.leftMargin() * scale, rightM = bf.rightMargin() * scale, textIndent = tail && !firstAfterBreak ? 0.0 : bf.textIndent() * scale;
         // A slide's space given as a share of the line is of the line at the size the text was shrunk to; one given in points is not.
@@ -2482,7 +2496,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             after = slideSpaceOf(b, tp::SpaceAfterShare, env.fontScale);
         }
         // (A paragraph that begins with a page break has no space before where it begins: the text after the break has it, on the next page.)
-        if (env.wordLines && !tail && b.length() > 1 && doc->characterAt(b.position()) == QChar(0x000C)) before = 0;
+        if (startsWithBreak && !tail) before = 0;
         // A word processor's automatic spacing (a paragraph from a web page) is a fixed 14 points.
         if (env.wordLines) {
             // (Between two items of a list there is none.)
@@ -2899,7 +2913,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // so a word followed by one can be the last of a line it is a mark too wide for: the line is tried that much wider, and kept so if
                     // it is only that last mark that is past the margin.
                     bool markHangs = false;   // (a mark at the end of the line is past the margin)
-                    if (env.wordLines && !env.wordNoHang && (al == Qt::AlignLeft || al == Qt::AlignJustify) && !bf.boolProperty(tp::Distribute)) {
+                    if (env.wordLines && !env.wordNoHang && !bf.boolProperty(tp::NoHangPunct) && (al == Qt::AlignLeft || al == Qt::AlignJustify) && !bf.boolProperty(tp::Distribute)) {
                         const double hang = 0.34 * base.pointSizeF() / fontPointFactor();
                         const int endBefore = line.textStart() + line.textLength();
                         if (endBefore < B->disp.size()) {

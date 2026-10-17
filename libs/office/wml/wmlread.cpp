@@ -224,6 +224,7 @@ public:
             } else {
                 if (name == "pBdr") p.borders = borders(c);
                 else if (name == "shd") p.shading = Shading{t.attr(c, "val"), t.attr(c, "color"), t.attr(c, "fill")};
+                else if (name == "overflowPunct") p.overflowPunct = onOffOf(t, c);
                 p.extra.push_back({paraChildRank(name), t.raw(c)});   // (borders and shading are kept as written as well)
             }
         }

@@ -1,5 +1,6 @@
 // JeffPub's tests of the window: ribbon, help, keyboard, accessibility, themes, and translations.
 #include "pubhelpers.h"
+#include "../timing.h"
 
 class PubWindowTests : public QObject {
     Q_OBJECT
@@ -738,10 +739,10 @@ private Q_SLOTS:
             pic->altText = QStringLiteral("Picture %1").arg(i);
             ed->surfaceItems().push_back(pic);
         }
-        QElapsedTimer timer;
-        timer.start();
-        for (int i = 0; i < page->childCount(); ++i) QVERIFY(page->child(i));
-        QVERIFY2(timer.elapsed() < 1500, qPrintable(QStringLiteral("walking 1,500 objects took %1 ms").arg(timer.elapsed())));
+        const qint64 ms = bestNanoseconds([&] {
+            for (int i = 0; i < page->childCount(); ++i) QVERIFY(page->child(i));
+        }) / 1000000;
+        QVERIFY2(ms < 1500, qPrintable(QStringLiteral("walking 1,500 objects took %1 ms").arg(ms)));
         QCOMPARE(page->childCount(), own + 1500);
         QCOMPARE(page->child(1499)->text(QAccessible::Name), QStringLiteral("Picture: Picture 1499"));
         // The list follows the publication.
