@@ -2342,9 +2342,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 // Publisher breaks there, Qt's rules keep the number whole.
                 for (int i = 1; i + 1 < int(raw.size()); ++i)
                     if (raw[i] == QLatin1Char('-') && raw[i - 1].isLetterOrNumber() && raw[i + 1].isDigit()) cuts.append({i + 1, QChar(0x200B)});
-                // A slide's line doesn't break after a slash ("expression/regulation", an address): the presentation program breaks at spaces
-                // and hyphens, and a word that is longer than the line anywhere. A word joiner after it keeps Qt's rules from breaking there.
-                if (env.slideLines) {
+                // A slide's or a word processor's line doesn't break after a slash ("expression/regulation", an address): the program breaks at
+                // spaces and hyphens, and a word that is longer than the line anywhere. A word joiner after it keeps Qt's rules from breaking there.
+                if (env.slideLines || env.wordLines) {
                     for (int i = 0; i + 1 < int(raw.size()); ++i)
                         if (raw[i] == QLatin1Char('/') && !raw[i + 1].isSpace() && raw[i + 1] != QChar::LineSeparator) cuts.append({i + 1, QChar(0x2060)});
                     // (And one that ends a run, where the text goes on in another format: the next run's first letter says.)
