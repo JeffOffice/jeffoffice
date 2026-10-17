@@ -2377,7 +2377,8 @@ private Q_SLOTS:
         QVERIFY2(std::abs(lines[0].rect.height() - (1825 + 443 + 87) / 2048.0 * 12) < 0.01, qPrintable(QString::number(lines[0].rect.height())));
     }
 
-    // A list item's number or bullet is a run of its own font on the item's first line, which has room for it: a Symbol bullet's line is Symbol's.
+    // A list item's number or bullet is a run of its own font on the item's first line, which has room for it above the baseline: a Symbol bullet's line is Symbol's
+    // ascent over the text's descent.
     void aBulletInItsOwnFontHasRoomInTheFirstLine()
     {
         auto first = [](const QString &bulletFont) {
@@ -2400,7 +2401,7 @@ private Q_SLOTS:
         };
         const auto plain = first(QString()), symbol = first(QStringLiteral("Symbol"));
         QVERIFY(plain.size() >= 2 && symbol.size() >= 2);
-        const double single = (1825 + 443 + 87) / 2048.0 * 12, symbolLine = (2059 + 450) / 2048.0 * 12;
+        const double single = (1825 + 443 + 87) / 2048.0 * 12, symbolLine = (2059 + 443) / 2048.0 * 12;
         QVERIFY2(std::abs(plain[0].rect.height() - single) < 0.01, qPrintable(QString::number(plain[0].rect.height())));
         QVERIFY2(std::abs(symbol[0].rect.height() - symbolLine) < 0.01, qPrintable(QString::number(symbol[0].rect.height())));
         QVERIFY(std::abs(symbol[1].rect.height() - single) < 0.01);   // (the lines after it are the text's)

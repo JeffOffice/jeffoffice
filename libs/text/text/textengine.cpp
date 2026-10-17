@@ -3020,7 +3020,12 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // line's place for it). The whole line must fit.
                     if (env.wordLines) {
                         WordLine wl = wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base, &B->disp, &markFont, markSize);
-                        if (line.textStart() == 0 && markerWord.total() > 0) wl = mergeWord(wl, markerWord);
+                        // (A number or bullet counts by its ascent over the text's descent, without a leading of its own or any room below its baseline: it raises the
+                        // first line when that is taller than the text's line.)
+                        if (line.textStart() == 0 && markerWord.ascent + wl.descent > wl.total()) {
+                            wl.ascent = markerWord.ascent;
+                            wl.leading = 0;
+                        }
                         const double ownSingle = wl.total();
                         switch (bf.lineHeightType()) {
                         case QTextBlockFormat::ProportionalHeight: h = ownSingle * bf.lineHeight() / 100.0; break;
