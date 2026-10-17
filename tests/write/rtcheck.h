@@ -14,6 +14,7 @@
 #include <QDebug>
 #include <QHash>
 #include <QMap>
+#include <QRegularExpression>
 #include <QSet>
 #include <QStringList>
 #include <QTextBlock>
@@ -364,6 +365,49 @@ struct ParaSig {
     }
 };
 
+// A run's property as a reader takes it: an on/off property said "true", "1", "on", or not at all is on, and "false", "0", or "off" is off, whichever the
+// file spelled (the program writes "0" for all three, and a property equal to its style's it leaves out).
+inline bool isOnOff(const Node &n)
+{
+    return isWordNs(n.name) && inList(localOf(n.name), {"b", "bCs", "i", "iCs", "caps", "smallCaps", "strike", "dstrike", "outline", "shadow", "emboss", "imprint", "noProof",
+                                                         "snapToGrid", "vanish", "webHidden", "specVanish", "oMath", "rtl", "cs"});
+}
+
+inline bool isOff(const Node &n)
+{
+    for (const auto &a : n.attrs)
+        if (a.first == wName("val")) return a.second == QLatin1String("0") || a.second == QLatin1String("false") || a.second == QLatin1String("off");
+    return false;
+}
+
+inline QString propCanonical(const Node &n)
+{
+    if (!isOnOff(n)) return canonical(n);
+    return QLatin1Char('<') + shortName(n.name) + (isOff(n) ? QStringLiteral(" w:val=\"0\"") : QString()) + QStringLiteral("></>");
+}
+
+// Whether `prop` (as propCanonical gives it) says no more than one of `was`: a font said for some of the scripts that another run says for all, or an underline of none
+// that leaves out the color it named (a line that isn't there has none). The program says only what differs from the style.
+inline bool saysLess(const QString &prop, const QSet<QString> &was)
+{
+    static const QRegularExpression head(QStringLiteral("^<([\\w:]+)")), attr(QStringLiteral(" ([\\w:]+)=\"([^\"]*)\""));
+    const QRegularExpressionMatch h = head.match(prop);
+    if (!h.hasMatch() || (h.captured(1) != QLatin1String("w:rFonts") && h.captured(1) != QLatin1String("w:u"))) return false;
+    if (h.captured(1) == QLatin1String("w:u") && !prop.contains(QLatin1String(" w:val=\"none\""))) return false;
+    QVector<QPair<QString, QString>> mine;
+    for (auto it = attr.globalMatch(prop); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        mine.push_back({m.captured(1), m.captured(2)});
+    }
+    for (const QString &w : was) {
+        if (!w.startsWith(h.captured(0) + QLatin1Char(' ')) && !w.startsWith(h.captured(0) + QLatin1Char('>'))) continue;
+        bool all = true;
+        for (const auto &a : std::as_const(mine)) all = all && w.contains(QLatin1Char(' ') + a.first + QLatin1String("=\"") + a.second + QLatin1Char('"'));
+        if (all) return true;
+    }
+    return false;
+}
+
 inline void collectProps(const Node &props, const std::initializer_list<const char *> &modeled, const QString &where, ParaSig *sig, QStringList *other)
 {
     for (const Node &k : props.kids) {
@@ -376,7 +420,7 @@ inline void collectProps(const Node &props, const std::initializer_list<const ch
         if (local == QLatin1String("rPr")) {
             for (const Node &m : k.kids) {
                 const QString ml = localOf(m.name);
-                if (isWordNs(m.name) && inList(ml, {"vanish", "webHidden", "specVanish"})) sig->hiddenProps.insert(QStringLiteral("mark:") + canonical(m));
+                if (isWordNs(m.name) && inList(ml, {"vanish", "webHidden", "specVanish"}) && !isOff(m)) sig->hiddenProps.insert(QStringLiteral("mark:") + propCanonical(m));
                 if (!isWordNs(m.name) || !inList(ml, kModeledRPr)) sig->rPrOther.push_back(canonical(m));
             }
             continue;
@@ -397,8 +441,8 @@ inline void walkInline(const Node &n, ParaSig *sig)
         if (isWordNs(k.name) && local == QLatin1String("rPr")) {
             for (const Node &m : k.kids) {
                 const QString ml = localOf(m.name);
-                sig->runProps.insert(canonical(m));
-                if (isWordNs(m.name) && inList(ml, {"vanish", "webHidden", "specVanish"})) sig->hiddenProps.insert(QStringLiteral("run:") + canonical(m));
+                sig->runProps.insert(propCanonical(m));
+                if (isWordNs(m.name) && inList(ml, {"vanish", "webHidden", "specVanish"}) && !isOff(m)) sig->hiddenProps.insert(QStringLiteral("run:") + propCanonical(m));
                 if (!isWordNs(m.name) || !inList(ml, kModeledRPr)) sig->rPrOther.push_back(canonical(m));
                 else {
                     const QStringList known = kKnownAttrs.value(ml, QStringList());
@@ -681,6 +725,9 @@ inline QStringList lossProblems(const QByteArray &original, const QByteArray &sa
             const detail::ParaSig &x = da.paragraphs[i], &y = db.paragraphs[i];
             QSet<QString> gained = y.runProps;
             gained.subtract(x.runProps);
+            for (auto g = gained.begin(); g != gained.end();)
+                if (detail::saysLess(*g, x.runProps)) g = gained.erase(g);
+                else ++g;
             if (!gained.isEmpty() && shown < 3) {
                 ++shown;
                 out << QStringLiteral("paragraph %1 gains run properties: %2").arg(i).arg(QStringList(gained.cbegin(), gained.cend()).join(QLatin1Char(',')).left(160));
