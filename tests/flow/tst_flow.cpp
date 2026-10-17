@@ -3559,6 +3559,72 @@ private Q_SLOTS:
         QCOMPARE(seen, table.rowStarts);
     }
 
+    // A section that begins on an odd (or even) page leaves a page of its own before it blank when the page after the break would be an even (or odd) one by the page numbers
+    // as they go on (a restart of the numbers in the new section is not counted); the blank page is a page of the section before, with its header and footer.
+    void aSectionOfOddOrEvenPagesLeavesABlankPageBeforeItWhereTheNumberIsWrong()
+    {
+        // The first section has `pages` pages (a break after each paragraph but the last), the second one paragraph.
+        auto build = [&](int pages, Section::Parity parity, bool restart) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fillStory(fd->story(), pages + 1, 11, [&](int i, QTextBlockFormat &bf) {
+                bf.setBottomMargin(6);
+                if (i < pages - 1) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysAfter);
+                if (i == pages - 1) bf.setProperty(fp::SectionBreakAfter, true);
+            }, 8, 12);
+            Section second = fd->sections[0];
+            second.startParity = parity;
+            if (restart) second.firstPageNumber = 1;
+            fd->sections << second;
+            return fd;
+        };
+        auto numbers = [&](FlowDocument *fd, Paginator &pg) {
+            QVector<int> out;
+            for (int k = 0; k < pg.pageCount(); ++k) out << pg.page(k).number * 10 + pg.page(k).start.section;   // (the number, and the section: two digits)
+            Q_UNUSED(fd);
+            return out;
+        };
+        {   // One page, then a section on an odd page: the next number is 2, so a blank page (the section before's, numbered 2) and the section's page, which is 3.
+            auto fd = build(1, Section::Parity::Odd, false);
+            Paginator pg(fd.get());
+            QCOMPARE(pg.pageCount(), 3);
+            QCOMPARE(numbers(fd.get(), pg), (QVector<int>{10, 20, 31}));
+            QVERIFY(pg.lines(1).isEmpty());
+            const auto blank = pg.materialize(1);
+            QVERIFY(blank);
+            QVERIFY(blank->boxes.isEmpty());
+            QVERIFY(!pg.lines(2).isEmpty());
+            QVERIFY(pg.lines(2)[0].rect.top() < 1);
+        }
+        {   // The same with the numbers restarting at 1 in the new section: the blank page is still left (the numbers as they would go on), and the section's page is 1.
+            auto fd = build(1, Section::Parity::Odd, true);
+            Paginator pg(fd.get());
+            QCOMPARE(pg.pageCount(), 3);
+            QCOMPARE(numbers(fd.get(), pg), (QVector<int>{10, 20, 11}));
+        }
+        {   // One page, then an even page: the next number is 2, no blank page.
+            auto fd = build(1, Section::Parity::Even, false);
+            Paginator pg(fd.get());
+            QCOMPARE(pg.pageCount(), 2);
+            QCOMPARE(numbers(fd.get(), pg), (QVector<int>{10, 21}));
+        }
+        {   // Two pages, then an odd one: the next number is 3, none; then an even one: a blank page.
+            auto odd = build(2, Section::Parity::Odd, false);
+            Paginator po(odd.get());
+            QCOMPARE(po.pageCount(), 3);
+            auto even = build(2, Section::Parity::Even, false);
+            Paginator pe(even.get());
+            QCOMPARE(pe.pageCount(), 4);
+            QCOMPARE(numbers(even.get(), pe), (QVector<int>{10, 20, 30, 41}));
+        }
+        {   // A continuous section asks nothing of the page it is on.
+            auto fd = build(1, Section::Parity::Odd, false);
+            fd->sections[1].continuous = true;
+            Paginator pg(fd.get());
+            QCOMPARE(pg.pageCount(), 1);
+        }
+    }
+
     // A continuous section break does not end the page when the sections' sheets are the same, whatever their margins: the text of the second begins below the text of the
     // first, between the second's own side margins (its top and bottom margins are the page's of the page it begins at the top of).
     void aContinuousSectionWithOtherMarginsBeginsOnThePageBelowTheTextAbove()

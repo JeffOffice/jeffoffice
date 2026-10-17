@@ -113,6 +113,10 @@ struct Section {
     // other columns it begins below the text of the one before, as the page's text area is of the first's above and the second's below; the same sides and columns,
     // and it is the same text area.)
     bool continuous = false;
+    // The section begins on the next odd (or even) page: when the page it would begin has the other number (as the page numbers go on, whatever the section restarts them at), a
+    // blank page, one of the section before's, is left before it. (A continuous section has no page of its own to ask this of.)
+    enum class Parity { Any, Odd, Even };
+    Parity startParity = Parity::Any;
     bool sameSheetAs(const Section &o) const { return paper == o.paper && orientation == o.orientation; }
     bool sameColumnsAs(const Section &o) const { return columns == o.columns && columnGap == o.columnGap; }
     bool sameSidesAs(const Section &o) const { return margins.left() == o.margins.left() && margins.right() == o.margins.right(); }

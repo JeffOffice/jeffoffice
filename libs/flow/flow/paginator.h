@@ -102,7 +102,10 @@ public:
         // The paragraph the page begins in was set round objects on the page before: its lines there were not as wide as the column, so the lines before this page can't be laid
         // out again in a frame of that width, and the rest of the paragraph is laid out as a paragraph of its own.
         bool wrapped = false;
-        bool operator==(const PageStart &o) const { return pos == o.pos && skip == o.skip && hard == o.hard && section == o.section && piece == o.piece && pieceAt == o.pieceAt && foot == o.foot && end == o.end && carried == o.carried && firstOfSection == o.firstOfSection && wrapped == o.wrapped; }
+        // A blank page that an odd-page or even-page section break leaves: a page of the section before (`section`) with nothing on it, before the page that begins
+        // the next section at `pos`.
+        bool blank = false;
+        bool operator==(const PageStart &o) const { return blank == o.blank && pos == o.pos && skip == o.skip && hard == o.hard && section == o.section && piece == o.piece && pieceAt == o.pieceAt && foot == o.foot && end == o.end && carried == o.carried && firstOfSection == o.firstOfSection && wrapped == o.wrapped; }
         bool operator!=(const PageStart &o) const { return !(*this == o); }
     };
 

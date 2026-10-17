@@ -229,6 +229,17 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         run.blank = true;
         return run;
     }
+    // The page an odd-page or even-page section break leaves blank, before the section's own.
+    if (st.blank) {
+        run.blank = true;
+        run.hasNext = true;
+        run.next = st;
+        run.next.blank = false;
+        run.next.section = std::min(st.section + 1, int(m_doc->sections.size()) - 1);
+        run.next.firstOfSection = true;
+        run.next.hard = true;
+        return run;
+    }
     const Section &sec = m_doc->section(st.section);
     // (The text after a page break that begins its paragraph is the paragraph's first line: it has the space before. The rest of a paragraph after a break that has
     // something before it on its line goes on, with none.)
@@ -717,6 +728,13 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         }
         run.next.hard = hard;
         run.next.section = nextSection;
+        // A section of odd or even pages whose first page would be of the other kind (by the numbers as they go on) has a blank page of the section before it.
+        const Section &entered = m_doc->section(nextSection);
+        if (sectionEnds && nextSection != current && !entered.continuous && entered.startParity != Section::Parity::Any && ((number + 1) % 2 != 0) != (entered.startParity == Section::Parity::Odd)) {
+            run.next.blank = true;
+            run.next.section = current;
+            run.next.firstOfSection = false;
+        }
     } else if (byCharacter && c > 0 && breakContinuesAt(L[c - 1], &run.next)) {
         // A page break that ends the last line the page laid out (the empty line after it went past the frame, where laying out stops): the page
         // after it begins where the text goes on.
@@ -748,7 +766,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         // (The numbers begin again at a paragraph that begins a section: the page that starts with it, not the page after one that a section began in the middle of.)
         if (nb.isValid() && restartsNotesAt(nb)) run.next.foot = run.next.end = 0;
         run.next.carried = carriedOut;
-        run.next.firstOfSection = run.next.section != st.section;
+        run.next.firstOfSection = !run.next.blank && run.next.section != st.section;
     }
     return run;
 }

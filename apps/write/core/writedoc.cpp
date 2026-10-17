@@ -79,6 +79,7 @@ flow::Section flowSectionOf(const SectionProps &p, bool evenAndOdd)
     s.differentFirstPage = p.titlePg;
     s.differentOddEven = evenAndOdd;
     s.continuous = p.type == QLatin1String("continuous");
+    s.startParity = p.type == QLatin1String("oddPage") ? flow::Section::Parity::Odd : p.type == QLatin1String("evenPage") ? flow::Section::Parity::Even : flow::Section::Parity::Any;
     s.firstPageNumber = p.pageStart;
     s.pageNumberFormat = p.pageFormat == QLatin1String("lowerRoman") ? QStringLiteral("roman")
                          : p.pageFormat == QLatin1String("upperRoman") ? QStringLiteral("ROMAN")
