@@ -253,6 +253,8 @@ void WriteDoc::setUpEnvironment()
         f.env.wordSpaceSums = office::wml::compatOption(settings, "doNotUseHTMLParagraphAutoSpacing");
         f.env.wordNoHangStop = office::wml::compatOption(settings, "noTabHangInd");
         f.env.wordNoNumberIndentStop = office::wml::compatOption(settings, "doNotUseIndentAsNumberingTabStop");
+        if (office::wml::compatOption(settings, "suppressTopSpacingWP")) f.env.standIns.insert(QString::fromLatin1(LayoutEnv::kWholePointLines), QString());
+        if (office::wml::compatOption(settings, "noLeading")) f.env.standIns.insert(QString::fromLatin1(LayoutEnv::kNoLeading), QString());
         f.markFollowsBreak = m_wml.compatMode >= 15 || office::wml::compatOption(settings, "splitPgBreakAndParaMark");
     }
     // The stand-ins for the fonts the file names that the machine doesn't have, by what its font table says of each (wordStandInFor).
