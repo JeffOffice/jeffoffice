@@ -4252,6 +4252,27 @@ private Q_SLOTS:
         QVERIFY2(!main.contains(QLatin1String("rFonts")), qPrintable(main.mid(main.indexOf(QLatin1String("<w:body")), 600)));
     }
 
+    // A symbol (w:sym) of a symbol font is set in that font on the page, whatever font the run is in: the width of its picture is that font's, the run's own font being
+    // kept as the file has it (what the page sets it in is not written).
+    void aSymbolOfASymbolFontIsSetInThatFont()
+    {
+        auto family = [&](const char *font, QString *saved = nullptr) {
+            const QByteArray body = "<w:p><w:r><w:rPr><w:rFonts w:ascii=\"Times New Roman\" w:hAnsi=\"Times New Roman\"/></w:rPr><w:t xml:space=\"preserve\">Before </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii=\"Times New Roman\" w:hAnsi=\"Times New Roman\"/></w:rPr>"
+                                    "<w:sym w:font=\"" + QByteArray(font) + "\" w:char=\"F0FC\"/></w:r></w:p>";
+            auto doc = open(makeDocx(body, kStyles));
+            if (!doc) return QString::fromLatin1("no document");
+            if (saved) *saved = QString::fromUtf8(documentXml(doc->toDocx()));
+            for (QTextBlock::iterator it = doc->story()->begin().begin(); !it.atEnd(); ++it)
+                if (it.fragment().charFormat().stringProperty(tp::Field).startsWith(QLatin1String("raw:"))) return it.fragment().charFormat().stringProperty(tp::DisplayFamily);
+            return QString::fromLatin1("no symbol");
+        };
+        QString saved;
+        QCOMPARE(family("Wingdings", &saved), QStringLiteral("Wingdings"));
+        QVERIFY2(saved.contains(QLatin1String("w:sym")) && !saved.contains(QLatin1String("DisplayFamily")), qPrintable(saved));
+        QCOMPARE(family("Symbol"), QStringLiteral("Symbol"));
+        QCOMPARE(family("Webdings"), QStringLiteral("Webdings"));
+    }
+
     // The round-trip check itself: a run that gains a property the file never had is a difference, though what it adds is one the program understands.
     void theRoundTripCheckSeesAGainedRunProperty()
     {
