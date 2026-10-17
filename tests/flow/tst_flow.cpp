@@ -2323,6 +2323,36 @@ private Q_SLOTS:
         QCOMPARE(familyOf(QStringLiteral("No Such Face")), QStringLiteral("Calibri"));
     }
 
+    // A word processor kerns the letters of a run only where the file asks for it (tp::KernAbove, from w:kern): a run that doesn't ask isn't kerned at any
+    // size, where a publisher's text is kerned from 14 points. Kerned text of letter pairs that kern (AV, VA) is narrower, so more of it fits on a line.
+    void wordTextKernsOnlyWhereTheFileAsks()
+    {
+        auto charsOnFirstLine = [&](bool word, double size, std::optional<double> kernAbove) {
+            auto doc = std::make_unique<QTextDocument>();
+            QTextCursor c(doc.get());
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Arial")});
+            cf.setFontPointSize(size);
+            if (kernAbove) cf.setProperty(tp::KernAbove, *kernAbove);
+            c.setCharFormat(cf);
+            QString text;
+            for (int i = 0; i < 60; ++i) text += QStringLiteral("AVAVAVAV ");
+            c.insertText(text, cf);
+            LayoutEnv env;
+            env.wordLines = word;
+            StoryLayout lay;
+            lay.build(doc.get(), {plainFrame(300, 700)}, env);
+            return lay.lineInfo(0).value(0).text.size();
+        };
+        const auto plain = charsOnFirstLine(true, 20, std::nullopt);       // asks nothing: not kerned, though 20 points is past 14
+        const auto never = charsOnFirstLine(true, 20, 200.0);              // asks from 200 points: not kerned
+        const auto asked = charsOnFirstLine(true, 20, 10.0);               // asks from 10 points: kerned
+        QCOMPARE(plain, never);
+        QVERIFY2(asked > plain, qPrintable(QStringLiteral("kerned %1 characters, plain %2").arg(asked).arg(plain)));
+        // (A publisher's text keeps its own rule: kerned from 14 points whether it says so or not.)
+        QVERIFY(charsOnFirstLine(false, 20, std::nullopt) > charsOnFirstLine(false, 20, 200.0));
+    }
+
     // The spaces and tabs that end a word processor's line take no part in its height, and a line that is only such blanks is as tall as the paragraph
     // mark's font makes it; blanks among the words count.
     void blanksAtTheEndOfAWordLineTakeNoPartInItsHeight()

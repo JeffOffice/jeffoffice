@@ -5903,6 +5903,30 @@ private Q_SLOTS:
         QCOMPARE(documentXml(open(doc->toDocx())->toDocx()), once);
     }
 
+    // Kerning is the file's to ask for: a run kerns from the size (in half-points) that its own properties or its style's give as w:kern, and a run that says
+    // none or says zero does not. The setting is written back as it was read.
+    void kerningComesFromTheFilesKernSetting()
+    {
+        const QByteArray styles = kStyles + "<w:style w:type=\"character\" w:styleId=\"Kerned\"><w:name w:val=\"Kerned\"/><w:rPr><w:kern w:val=\"18\"/></w:rPr></w:style>";
+        const QByteArray body = "<w:p><w:r><w:rPr><w:kern w:val=\"20\"/></w:rPr><w:t>direct</w:t></w:r><w:r><w:rPr><w:rStyle w:val=\"Kerned\"/></w:rPr><w:t>styled</w:t></w:r>"
+                                "<w:r><w:rPr><w:kern w:val=\"0\"/></w:rPr><w:t>zero</w:t></w:r><w:r><w:t>plain</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, styles));
+        QVERIFY(doc);
+        auto kernAt = [&](int pos) {
+            QTextCursor c(doc->story());
+            c.setPosition(pos + 1);
+            const QTextCharFormat f = c.charFormat();
+            return f.hasProperty(tp::KernAbove) ? f.property(tp::KernAbove).toDouble() : -1.0;
+        };
+        QCOMPARE(kernAt(0), 10.0);    // "direct": from 10 points
+        QCOMPARE(kernAt(6), 9.0);     // "styled": from the style's 9
+        QCOMPARE(kernAt(12), -1.0);   // "zero"
+        QCOMPARE(kernAt(16), -1.0);   // "plain"
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(x.contains("<w:kern w:val=\"20\"/>"), x.constData());
+        QCOMPARE(int(x.count("<w:kern ")), 1);   // (the styled run's is its style's, and the zero one is the default)
+    }
+
     void whatAParagraphSaysThatHasNoFieldIsKept()
     {
         // Shading, a suppressed line number, and attributes of spacing and indent that this program has no field for come back as they were.

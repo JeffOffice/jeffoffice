@@ -102,6 +102,8 @@ public:
                 if (auto v = intOf(t, c)) p.spacing = *v;
             } else if (name == "position") {
                 if (auto v = intOf(t, c)) p.position = *v;
+            } else if (name == "kern") {
+                if (auto v = intOf(t, c)) p.kern = std::max(0, *v);
             } else if (name == "sz") {
                 if (auto v = intOf(t, c)) p.size = std::clamp(*v, 1, 4000);
             } else if (name == "highlight") {
