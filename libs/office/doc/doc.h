@@ -33,6 +33,9 @@ constexpr int kMaxTableRows = wml::kMaxTableRows;
 constexpr int kMaxTableCellsAll = wml::kMaxTableCells;
 // Drawings: the shapes of one drawing, and the text boxes of a document.
 constexpr int kMaxShapes = 20000;
+// Shapes walked over (a group is walked again for each place that anchors it, and its members are walked whether they are shown or not): 50 times the most there
+// are in a file that holds them once.
+constexpr qint64 kMaxShapeVisits = 1000000;
 constexpr int kMaxTextBoxes = 100000;
 // Bookmarks.
 constexpr int kMaxBookmarks = 20000;

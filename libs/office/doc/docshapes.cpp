@@ -117,6 +117,7 @@ struct Converter::Drawings {
     QHash<int, int> boxOf[2];              // the text box of a shape (by its id), in the table of the main text's boxes and the headers'
     bool boxesRead[2] = {false, false};
     int emitted = 0;
+    qint64 visits = 0;                     // the shapes walked over for all the places together, shown or not
 };
 
 void Converter::readDrawings()
@@ -225,7 +226,7 @@ QByteArray Converter::inlineShapeXml(const Picture &pic, const QString &part)
     }
     const bool filled = flagOf(s.props, 0x1BF, 4).value_or(true), stroked = flagOf(s.props, 0x1FF, 3).value_or(false);
     if (s.type != 1 && s.type != 3 && s.type != 2) {
-        left(QStringLiteral("drawings"), QCoreApplication::translate("jp::office::doc", "Some drawings could not be shown, and were left out."));
+        if (!wasLeft(QStringLiteral("drawings"))) left(QStringLiteral("drawings"), QCoreApplication::translate("jp::office::doc", "Some drawings could not be shown, and were left out."));
         return QByteArray();
     }
     const bool rule = s.props.contains(0x394);
@@ -266,7 +267,7 @@ QByteArray Converter::shapeXml(qint64 cp, Kind kind, const QString &part)
     const int sflags = rec.u16(20);
     const auto top = dr.shapes[header ? 1 : 0].constFind(spid);
     if (top == dr.shapes[header ? 1 : 0].constEnd()) {
-        left(QStringLiteral("shapes"), QCoreApplication::translate("jp::office::doc", "Drawings and text boxes in the document were not brought in."));
+        if (!wasLeft(QStringLiteral("shapes"))) left(QStringLiteral("shapes"), QCoreApplication::translate("jp::office::doc", "Drawings and text boxes in the document were not brought in."));
         return QByteArray();
     }
     struct Frame { double x0, y0, x1, y1; };   // where a group is among the text, in twips from where the shape is anchored
@@ -277,6 +278,11 @@ QByteArray Converter::shapeXml(qint64 cp, Kind kind, const QString &part)
     // Writes one shape (and, for a group, its members) with `frame` the box it is in and `space` the coordinates its members are in.
     std::function<void(const DrawnShape &, const Frame &, const qint32 *, int)> emit = [&](const DrawnShape &s, const Frame &frame, const qint32 *space, int depth) {
         if (dr.emitted >= kMaxShapes) return;
+        // (A group that many places anchor is walked for each of them, its members that are not shown as well: the walk has a budget of its own.)
+        if (++dr.visits > kMaxShapeVisits) {
+            if (!wasLeft(QStringLiteral("drawings"))) left(QStringLiteral("drawings"), QCoreApplication::translate("jp::office::doc", "Some drawings could not be shown, and were left out."));
+            return;
+        }
         // Where it is: in a group, its anchor scaled from the group's coordinates into the group's frame.
         Frame box = frame;
         if (s.childAnchor && space) {
@@ -323,7 +329,7 @@ QByteArray Converter::shapeXml(qint64 cp, Kind kind, const QString &part)
         else if (s.type == 3) what = Oval;
         else if (s.type == 1 || s.type == 2 || s.type == 202) what = Rect;
         if (what == Skip) {
-            left(QStringLiteral("drawings"), QCoreApplication::translate("jp::office::doc", "Some drawings could not be shown, and were left out."));
+            if (!wasLeft(QStringLiteral("drawings"))) left(QStringLiteral("drawings"), QCoreApplication::translate("jp::office::doc", "Some drawings could not be shown, and were left out."));
             return;
         }
         ++dr.emitted;

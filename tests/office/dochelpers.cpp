@@ -5,6 +5,7 @@
 #include "io/cfb.h"
 
 #include <QBuffer>
+#include <QPair>
 #include <QImage>
 #include <algorithm>
 
@@ -293,7 +294,8 @@ QByteArray DocWriter::build() const
         dst += shapes[i].text + QLatin1Char('\r');
     }
     const QString all = text + footnoteText + headerText + boxText + headerBoxText;
-    const int ccpText = int(text.size()), ccpFtn = int(footnoteText.size()), ccpHdd = int(headerText.size());
+    const int copies = std::max(1, repeatText);
+    const int ccpText = int(text.size()) * copies, ccpFtn = int(footnoteText.size()), ccpHdd = int(headerText.size());
     const int ccpTxbx = int(boxText.size()), ccpHdrTxbx = int(headerBoxText.size());
 
     QByteArray wd(1024, '\0');
@@ -486,13 +488,15 @@ QByteArray DocWriter::build() const
     // The pieces.
     {
         QByteArray plc;
-        for (const Piece &p : pieces) add32(plc, quint32(p.cp0));
-        add32(plc, quint32(all.size()));
-        for (const Piece &p : pieces) {
-            add16(plc, 0);
-            add32(plc, p.unicode ? p.fc : (p.fc * 2) | 0x40000000u);
-            add16(plc, 0);
-        }
+        for (int again = 0; again < copies; ++again)
+            for (const Piece &p : pieces) add32(plc, quint32(p.cp0 + again * int(all.size())));
+        add32(plc, quint32(all.size()) * quint32(copies));
+        for (int again = 0; again < copies; ++again)
+            for (const Piece &p : pieces) {
+                add16(plc, 0);
+                add32(plc, p.unicode ? p.fc : (p.fc * 2) | 0x40000000u);
+                add16(plc, 0);
+            }
         QByteArray clx;
         add8(clx, 2);
         add32(clx, quint32(plc.size()));
@@ -580,16 +584,20 @@ QByteArray DocWriter::build() const
     if (!shapes.isEmpty()) {
         for (int pass = 0; pass < 2; ++pass) {
             const bool hdr = pass == 1;
-            QVector<int> order;
-            for (int i = 0; i < shapes.size(); ++i)
-                if (shapes[i].header == hdr && shapes[i].group < 0) order.push_back(i);
-            std::sort(order.begin(), order.end(), [&](int a2, int b2) { return shapes[a2].cp < shapes[b2].cp; });
+            // (The places: the shape, and the character that anchors it; a shape may have more than one.)
+            QVector<QPair<int, int>> order;
+            for (int i = 0; i < shapes.size(); ++i) {
+                if (shapes[i].header != hdr || shapes[i].group >= 0) continue;
+                order.push_back({shapes[i].cp, i});
+                for (int more : shapes[i].moreAnchors) order.push_back({more, i});
+            }
+            std::stable_sort(order.begin(), order.end(), [](const QPair<int, int> &a2, const QPair<int, int> &b2) { return a2.first < b2.first; });
             if (order.isEmpty()) continue;
             QByteArray plc;
-            for (int i : order) add32(plc, quint32(shapes[i].cp));
+            for (const auto &o : order) add32(plc, quint32(o.first));
             add32(plc, quint32(hdr ? ccpHdd : ccpText) + 1);
-            for (int i : order) {
-                const ShapeSpec &sp = shapes[i];
+            for (const auto &o : order) {
+                const ShapeSpec &sp = shapes[o.second];
                 add32(plc, quint32(sp.spid));
                 add32(plc, quint32(sp.x0));
                 add32(plc, quint32(sp.y0));
