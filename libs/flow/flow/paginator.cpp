@@ -45,6 +45,7 @@ void markTotals(MaterializedPage *out, const Document &d)
 // What a paragraph asks of the pages.
 struct Paginator::BlockFlags {
     bool breakBefore = false, breakAfter = false, sectionAfter = false, keepNext = false, widow = false, outOfFlow = false;
+    double advanceTop = -1;   // the place on the page the paragraph asks to be no higher than (fp::AdvanceTop); none: -1
 };
 
 // A page laid out: the story's lines on it, and where it ended.
@@ -66,6 +67,7 @@ struct Paginator::Run {
     PageStart next;            // where the page after starts
     std::vector<TableGroup> groups;   // the rows of tables among the lines kept
     QVector<Wrapped> wrapped;  // the objects the text of the page was laid out round
+    QVector<QRectF> advanceWalls;   // the rooms (in page coordinates) kept clear above the paragraphs that asked to be lower on the page
     bool cut = false;          // the page ends before the paragraph it was asked to end before
 };
 
@@ -264,8 +266,11 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         return fs;
     };
     // A frame that is a column of the page (`column`: where, in page coordinates) has the objects the page's text goes round as places it keeps out of.
+    QVector<QRectF> advanceWalls;   // (page coordinates: the room above a paragraph that asked for a place lower on the page, in its column)
     auto walled = [&](FrameSpec fs, const QRectF &column) {
         if (!wrapped.isEmpty()) fs.obstacles = obstaclesFor(wrapped, column);
+        for (const QRectF &w : advanceWalls)
+            if (w.intersects(column)) fs.obstacles << QPolygonF(QRectF(-1e5, w.top() - column.top(), 2e5, w.height()));
         return fs;
     };
     QHash<int, BlockFlags> cache;
@@ -287,6 +292,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
             f.keepNext = bf.boolProperty(tp::KeepWithNext);
             f.widow = bf.boolProperty(tp::WidowControl);
             f.outOfFlow = bf.boolProperty(tp::OutOfFlow);
+            if (bf.hasProperty(fp::AdvanceTop)) f.advanceTop = std::clamp(bf.doubleProperty(fp::AdvanceTop), 0.0, 100000.0);
             it = cache.insert(blockStart, f);
         }
         return it.value();
@@ -607,6 +613,27 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         }
     };
     lay();
+    // A paragraph that asks to be no higher on the page than a place (a field that sets its text at a place) is there when it would be higher, with the text after it below:
+    // a room is kept clear from where its first line would be to the place, and the page is laid out again (a paragraph that moved another may need a room too: one room
+    // at a time, the highest first, so that the rooms of two paragraphs are not one).
+    for (int pass = 0; pass < 8; ++pass) {
+        bool added = false;
+        for (int i = 0; i < kept; ++i) {
+            const StoryLayout::LineBrief &ln = run.lines[i];
+            if (ln.line != 0) continue;
+            const double asked = flags(ln.block).advanceTop;
+            const int col = ln.frame - run.firstFrame;
+            if (asked < 0 || col < 0 || col >= run.cols.size()) continue;
+            const double natural = body.top() + run.cols[col].top() + ln.rect.top();
+            if (asked <= natural + 0.01) continue;
+            advanceWalls << QRectF(run.cols[col].left(), natural, run.cols[col].width(), asked - natural);
+            added = true;
+            break;
+        }
+        if (!added) break;
+        lay();
+    }
+    run.advanceWalls = advanceWalls;
     // A continuous section with other columns or side margins, when the text of the one before ends on the page, begins below it: the page is laid out again in two parts.
     if (st.section + 1 < m_doc->sections.size()) {
         const Section &next = m_doc->section(st.section + 1);
@@ -1512,6 +1539,18 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
             boxes << t;
             d->pages[0]->items.push_back(t);
             out->boxes << t->id;
+        }
+        // The rooms kept clear above the paragraphs that asked for a place lower on the page: walls of their own that draw nothing, after the text.
+        for (int n = 0; n < run.advanceWalls.size(); ++n) {
+            auto wall = std::make_shared<ShapeItem>();
+            wall->id = QStringLiteral("flow-advance-wall-%1-%2").arg(index).arg(n);
+            wall->rect = run.advanceWalls[n];
+            wall->fill = Fill::none();
+            wall->stroke = Stroke::none();
+            wall->wrap.mode = Wrap::Square;
+            wall->wrap.side = Wrap::Both;
+            wall->wrap.left = wall->wrap.top = wall->wrap.right = wall->wrap.bottom = 0;
+            d->pages[0]->items.push_back(wall);
         }
         // The objects set at places that the page's lines anchor.
         if (hasFloaters()) {

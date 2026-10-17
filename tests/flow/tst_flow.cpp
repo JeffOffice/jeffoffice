@@ -3859,6 +3859,65 @@ private Q_SLOTS:
         QCOMPARE(headerText(2), QStringLiteral("HEADER ORDINARY"));
     }
 
+    // A paragraph that asks to be no higher than so many points from the page's top (fp::AdvanceTop) has its first line there when it would be higher, with the text after it
+    // below; where it would be lower already, it stays where it is. The pages made for painting have the same lines.
+    void aParagraphAskedToBeLowerOnThePageBeginsAtThePlaceAsked()
+    {
+        auto build = [&](double asked) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fillStory(fd->story(), 3, 8, [&](int i, QTextBlockFormat &bf) {
+                bf.setBottomMargin(6);
+                if (i == 1 && asked > 0) bf.setProperty(fp::AdvanceTop, asked);
+            }, 8, 12);
+            return fd;
+        };
+        auto lineTops = [&](double asked) {
+            auto fd = build(asked);
+            Paginator pg(fd.get());
+            const double areaTop = pg.page(0).content.top();
+            QVector<double> tops;
+            for (const auto &l : pg.lines(0))
+                if (l.line == 0) tops << areaTop + l.rect.top();
+            return tops;
+        };
+        const QVector<double> plain = lineTops(0);
+        QCOMPARE(int(plain.size()), 3);
+        // Asked for a place lower than where the second paragraph is: its first line is there, and the third paragraph is as far below as it was.
+        const double asked = plain[1] + 80;
+        const QVector<double> moved = lineTops(asked);
+        QCOMPARE(int(moved.size()), 3);
+        QVERIFY2(std::abs(moved[0] - plain[0]) < 0.01, "the paragraph before is where it was");
+        QVERIFY2(std::abs(moved[1] - asked) < 0.01, qPrintable(QStringLiteral("%1 for the place %2").arg(moved[1]).arg(asked)));
+        QVERIFY2(std::abs((moved[2] - moved[1]) - (plain[2] - plain[1])) < 0.01, "the paragraph after is as far below as it was");
+        // A place higher than where it is already moves nothing.
+        const QVector<double> kept = lineTops(plain[1] - 5);
+        QVERIFY2(std::abs(kept[1] - plain[1]) < 0.01 && std::abs(kept[2] - plain[2]) < 0.01, "a higher place moves nothing");
+        // The page made for painting has the same lines.
+        auto fd = build(asked);
+        Paginator pg(fd.get());
+        LayoutCache cache;
+        const QString differs = materializedDiffers(*fd, pg, 0, cache);
+        QVERIFY2(differs.isEmpty(), qPrintable(differs));
+        // Two paragraphs that ask: each is at its own place (the first at no more than the second's), the second lower than the first by what the place says.
+        FlowDocument two;
+        two.env.wordLines = true;
+        fillStory(two.story(), 3, 8, [&](int i, QTextBlockFormat &bf) {
+            bf.setBottomMargin(6);
+            if (i == 0) bf.setProperty(fp::AdvanceTop, plain[0] + 30);
+            if (i == 1) bf.setProperty(fp::AdvanceTop, plain[1] + 90);
+        }, 8, 12);
+        Paginator pt(&two);
+        const double areaTop = pt.page(0).content.top();
+        QVector<double> placed;
+        for (const auto &l : pt.lines(0))
+            if (l.line == 0) placed << areaTop + l.rect.top();
+        QCOMPARE(int(placed.size()), 3);
+        QVERIFY2(std::abs(placed[0] - (plain[0] + 30)) < 0.01 && std::abs(placed[1] - (plain[1] + 90)) < 0.01,
+                 qPrintable(QStringLiteral("at %1 and %2, asked for %3 and %4").arg(placed[0]).arg(placed[1]).arg(plain[0] + 30).arg(plain[1] + 90)));
+        QVERIFY2(std::abs((placed[2] - placed[1]) - (plain[2] - plain[1])) < 0.01, "the paragraph after is as far below as it was");
+    }
+
     // A continuous section break does not end the page when the sections' sheets are the same, whatever their margins: the text of the second begins below the text of the
     // first, between the second's own side margins (its top and bottom margins are the page's of the page it begins at the top of).
     void aContinuousSectionWithOtherMarginsBeginsOnThePageBelowTheTextAbove()

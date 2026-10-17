@@ -35,6 +35,9 @@ enum : int {
     // int: the key of the frame (FlowDocument::frames, from 1) that the paragraph is a part of: it and the paragraphs next to it with the same key are a frame, set at a place of
     // its own on the page of the paragraph after them (the paragraphs also have tp::OutOfLayout, so that the text engine leaves them out of the text); none (0) for the rest.
     Frame = QTextFormat::UserProperty + 303,
+    // double: the paragraph's first line is no higher on the page than this many points from the page's top (a word processor's field that sets text at a place); where it would be
+    // higher, the text is moved down to the place, and what follows it with it.
+    AdvanceTop = QTextFormat::UserProperty + 304,
 };
 } // namespace fp
 
