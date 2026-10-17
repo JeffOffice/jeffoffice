@@ -3660,6 +3660,40 @@ private Q_SLOTS:
         }
     }
 
+    // The pages are filled with the document's page color: a shape as large as the page, under everything else, on every page (a blank page too).
+    void thePageColorFillsEveryPageUnderTheText()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 3, 5, [](int i, QTextBlockFormat &bf) {
+            bf.setBottomMargin(6);
+            if (i == 0) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysAfter);
+        }, 8, 12);
+        fd.pageColor = QColor(0x00, 0xb8, 0xff);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            const auto &items = page->doc->pages[0]->items;
+            QVERIFY(!items.empty());
+            const auto *shape = dynamic_cast<const ShapeItem *>(items.front().get());
+            QVERIFY2(shape, "the page's first item is not a shape");
+            QVERIFY(shape->fill.type == Fill::Solid && shape->fill.color.resolve(page->doc->colors) == QColor(0x00, 0xb8, 0xff));
+            QVERIFY(shape->stroke.isNone());
+            QVERIFY2(std::abs(shape->rect.width() - page->size.width()) < 0.01 && std::abs(shape->rect.height() - page->size.height()) < 0.01 && shape->rect.topLeft() == QPointF(0, 0), qPrintable(audit::rectText(shape->rect)));
+            QVERIFY(items.size() >= 2);   // (the text is over it)
+        }
+        // None by default.
+        FlowDocument plain;
+        plain.env.wordLines = true;
+        fillStory(plain.story(), 1, 5, {}, 8, 12);
+        Paginator pp(&plain);
+        const auto page = pp.materialize(0);
+        QVERIFY(page);
+        for (const auto &it : page->doc->pages[0]->items) QVERIFY(!dynamic_cast<const ShapeItem *>(it.get()));
+    }
+
     // A continuous section break does not end the page when the sections' sheets are the same, whatever their margins: the text of the second begins below the text of the
     // first, between the second's own side margins (its top and bottom margins are the page's of the page it begins at the top of).
     void aContinuousSectionWithOtherMarginsBeginsOnThePageBelowTheTextAbove()

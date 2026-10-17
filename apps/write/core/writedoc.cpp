@@ -245,6 +245,12 @@ void WriteDoc::setUpEnvironment()
         f.env.colors = cs;
     }
     f.env.defaultTab = std::max(1, m_wml.defaultTabStop) / 20.0;
+    // The page color (w:background), when it is a color.
+    {
+        static const QRegularExpression background(QStringLiteral("<(?:[\\w.-]+:)?background\\b[^>]*?\\bcolor=\"([0-9A-Fa-f]{6})\""));
+        const QRegularExpressionMatch m = background.match(QString::fromUtf8(m_wml.beforeBody));
+        f.pageColor = m.hasMatch() ? QColor(QLatin1Char('#') + m.captured(1)) : QColor();
+    }
     f.env.wordLines = true;
     // Punctuation hangs past the margin only where the file has the East Asian layout on (and not its own option against it).
     f.env.wordNoHang = true;

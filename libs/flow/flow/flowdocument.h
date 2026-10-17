@@ -6,6 +6,7 @@
 #include "flow/tabledata.h"
 #include "text/textengine.h"
 
+#include <QColor>
 #include <QMarginsF>
 #include <QChar>
 #include <QRectF>
@@ -168,6 +169,8 @@ public:
     // Automatic hyphenation (off, as a word processor's is).
     bool hyphenate = false;
     double hyphenZone = 18;
+    // The color the pages are filled with (a word processor's page color); none (invalid) by default.
+    QColor pageColor;
     // The paragraph mark after a page break character that ends a paragraph goes to the page after the break, where it makes an empty line before the next
     // paragraph (a word processor's option, which its recent files always have); otherwise it stays with the break, and the next paragraph is the top of the page.
     bool markFollowsBreak = false;

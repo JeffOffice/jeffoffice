@@ -4420,6 +4420,29 @@ private Q_SLOTS:
         QVERIFY2(std::abs(second[0].rect.top()) < 0.01, qPrintable(QString::number(second[0].rect.top())));
     }
 
+    // The page color of a file (w:background) is the pages' color, and the file comes back with it.
+    void aFilesPageColorFillsItsPages()
+    {
+        auto withBackground = [&](const QByteArray &background) {
+            office::PackageWriter w;
+            const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+            w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + ">" + background + "<w:body><w:p><w:r><w:t>text</w:t></w:r></w:p></w:body></w:document>"),
+                      QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+            w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+            return w.finish();
+        };
+        auto doc = open(withBackground("<w:background w:color=\"00B8FF\"/>"));
+        QVERIFY(doc);
+        QCOMPARE(doc->flow().pageColor, QColor(0x00, 0xb8, 0xff));
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:background w:color=\"00B8FF\"/>"));
+        auto none = open(withBackground(QByteArray()));
+        QVERIFY(none);
+        QVERIFY(!none->flow().pageColor.isValid());
+        auto automatic = open(withBackground("<w:background w:color=\"auto\"/>"));
+        QVERIFY(automatic);
+        QVERIFY(!automatic->flow().pageColor.isValid());
+    }
+
     // A symbol of a font that isn't there is its character in the stand-in (Calibri): the line it is on is Calibri's, taller than Times New Roman's.
     void aSymbolOfAMissingFontMakesItsLineTheStandIns()
     {

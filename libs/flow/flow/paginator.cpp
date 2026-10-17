@@ -1400,6 +1400,16 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     d->wordStandIns = m_doc->env.standIns;
     const Furniture furniture = furnitureOf(index, st, out->number);
     d->fontAliases = m_doc->env.familyAliases;
+    // The page's color, under everything else.
+    if (m_doc->pageColor.isValid()) {
+        auto fill = std::make_shared<ShapeItem>();
+        fill->id = QStringLiteral("flow-page-color-%1").arg(index);
+        fill->rect = QRectF(QPointF(0, 0), out->size);
+        fill->fill = Fill::solid(ColorRef::fromString(m_doc->pageColor.name()));
+        fill->stroke = Stroke::none();
+        fill->wrap.mode = Wrap::None;
+        d->pages[0]->items.push_back(fill);
+    }
     if (run.blank) {
         out->storyFrom = m_doc->story()->characterCount();
         addFurniture(d.get(), furniture, sec, st.section, out->number);
