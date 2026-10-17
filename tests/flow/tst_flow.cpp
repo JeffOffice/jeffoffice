@@ -5089,6 +5089,46 @@ private Q_SLOTS:
         QVERIFY2(int(tp::OutOfLayout) > int(tp::NoHangPunct), "a property added after the files that store the others goes after them");
     }
 
+    // Objects of every kind put among paragraphs of a few lines to a few pages, in one column or two: on every page the paginator's lines are where the page layer sets the text
+    // round the objects (to a hundredth of a point), and clear of the walls. (JP_FUZZ=n: n documents for a longer run.)
+    void randomWallsAreWhereThePageLayerPutsTheText()
+    {
+        using Wr = FloatingObject::Wrap;
+        using Rl = FloatingObject::Rel;
+        const unsigned docs = qEnvironmentVariableIsSet("JP_FUZZ") ? std::max(150u, qEnvironmentVariable("JP_FUZZ").toUInt() * 10) : 150u;
+        QStringList reports;
+        for (unsigned seed = 1; seed <= docs; ++seed) {
+            std::mt19937 rng(seed * 104729u);
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            const int paras = 20 + int(rng() % 60);
+            fillStory(fd.story(), paras, seed, [&](int, QTextBlockFormat &bf) { bf.setBottomMargin(6); if (rng() % 17 == 0) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore); }, 5, 90);
+            if (rng() % 3 == 0) {
+                Section b = fd.sections[0];
+                b.columns = 2;
+                b.columnGap = 20;
+                fd.sections[0] = b;
+            }
+            for (unsigned i = 0, n = 3 + rng() % 40; i < n; ++i) {
+                const Rl hs[] = {Rl::Column, Rl::Margin, Rl::Page, Rl::Character, Rl::LeftMargin, Rl::RightMargin};
+                const Rl vs[] = {Rl::Paragraph, Rl::Line, Rl::Margin, Rl::Page, Rl::TopMargin, Rl::BottomMargin};
+                const Wr ws[] = {Wr::Square, Wr::Square, Wr::TopBottom, Wr::Tight, Wr::None};
+                const FloatingObject::Side sides[] = {FloatingObject::Side::Both, FloatingObject::Side::Left, FloatingObject::Side::Right, FloatingObject::Side::Largest};
+                const double w = 10 + double(rng() % 500), h = 10 + double(rng() % (rng() % 4 == 0 ? 900 : 200));
+                const int block = int(rng() % unsigned(paras));
+                const int id = addWrapped(&fd, w, h, fd.story()->findBlockByNumber(block).position() + int(rng() % 4), ws[rng() % 5], double(int(rng() % 600) - 100), double(int(rng() % 700) - 350),
+                                          QMarginsF(double(rng() % 20), double(rng() % 20), double(rng() % 20), double(rng() % 20)), sides[rng() % 4], hs[rng() % 6], vs[rng() % 6]);
+                if (rng() % 4 == 0) fd.objects[size_t(id) - 1].hAlign = FloatingObject::Align(1 + rng() % 3);
+                if (rng() % 8 == 0) fd.objects[size_t(id) - 1].behind = true;
+            }
+            Paginator pg(&fd);
+            QString bad = audit::wallProblems(pg, fd.story());
+            if (bad.isEmpty()) bad = audit::coverageProblems(pg, fd.story());
+            if (!bad.isEmpty()) reports << QStringLiteral("seed %1: %2").arg(seed).arg(bad.left(300));
+        }
+        QVERIFY2(reports.isEmpty(), qPrintable(QStringLiteral("%1 of %2 documents:\n%3").arg(reports.size()).arg(docs).arg(reports.mid(0, 8).join(QLatin1Char('\n')))));
+    }
+
     // ---- what the objects cost
 
     // A paragraph of many runs (every other word in bold: 20,000 runs) costs no more with an object anchored in another paragraph than without: what a page looks for in the
