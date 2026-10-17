@@ -280,6 +280,8 @@ Section /o "${WRITE}: documents (preview)" SecWrite
   !insertmacro WriteOpensWith ".docm"
   !insertmacro WriteOpensWith ".dotx"
   !insertmacro WriteOpensWith ".dotm"
+  !insertmacro WriteOpensWith ".doc"
+  !insertmacro WriteOpensWith ".dot"
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 SectionEnd
 !else
@@ -424,7 +426,7 @@ FunctionEnd
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} "Desktop publishing: flyers, newsletters, cards, and more. Opens .pub files. Comes with its fonts and spelling dictionaries."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecDeck} "Presentations and slide shows. A preview: it opens .pptx, .ppt, and .odp files, plays slide shows with their transitions and animations, and saves .pptx files. Some features are still being built."
 !ifdef WITH_WRITE
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecWrite} "Documents, letters, and reports. A preview: it opens and saves .docx files, and keeps what it can't show yet. Some features are still being built."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecWrite} "Documents, letters, and reports. A preview: it opens and saves .docx files, opens older .doc files, and keeps what it can't show yet. Some features are still being built."
 !else
   !insertmacro MUI_DESCRIPTION_TEXT ${SecWrite} "Documents, letters, and reports. Coming soon: it can't be installed yet."
 !endif
@@ -450,6 +452,8 @@ Section "Uninstall"
   !insertmacro un.WriteOpensWith ".docm"
   !insertmacro un.WriteOpensWith ".dotx"
   !insertmacro un.WriteOpensWith ".dotm"
+  !insertmacro un.WriteOpensWith ".doc"
+  !insertmacro un.WriteOpensWith ".dot"
   DeleteRegKey HKCU "Software\Classes\JeffWrite.Document"
   DeleteRegKey HKCU "Software\Classes\Applications\${WRITEEXE}"
   DeleteRegKey HKCU "${WRITESETKEY}"
