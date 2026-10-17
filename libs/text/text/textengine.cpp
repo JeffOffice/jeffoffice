@@ -3410,8 +3410,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 first = false;
             }
         }
-        // (A word processor's rule is two inches, and its separator paragraph's own height above the notes puts it a fifth of the way down.)
-        const double ruleY = areaTop + ruleGap * (env.wordLines ? 0.2 : 0.45), ruleW = goesOn ? col.width() : env.wordLines ? std::min(col.width(), 144.0) : col.width() / 3;
+        // (A word processor's rule is two inches, and is set in its separator paragraph three fifths of the way down it.)
+        const double ruleY = areaTop + (ruleGap - noticeGap) * (env.wordLines ? 0.6 : 0.45), ruleW = goesOn ? col.width() : env.wordLines ? std::min(col.width(), 144.0) : col.width() / 3;
         m_noteRules << Rule{fi, QLineF(col.left(), ruleY, col.left() + ruleW, ruleY)};
         m_used[fi] = std::max(m_used[fi], col.bottom());
     }
