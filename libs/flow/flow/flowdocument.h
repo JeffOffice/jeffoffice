@@ -96,6 +96,24 @@ constexpr QChar kPageBreak = QChar(0x000C);
 // The most columns a page has (a section that asks for more has this many).
 constexpr int kMostColumns = 32;
 
+// The lines round a section's pages (a word processor's page borders).
+struct PageBorders {
+    struct Side {
+        enum class Line { Single, Double, Dotted, Dashed };
+        bool present = false;
+        double width = 0.5;                  // points (of one line, for a double border)
+        double space = 0;                    // from the edge the border is measured from (the page's, or the text's) to the line's outer edge
+        QColor color{Qt::black};
+        Line line = Line::Single;
+        bool art = false;                    // a pattern of little pictures: drawn as a plain line
+    };
+    enum class Show { All, FirstPage, NotFirstPage };   // the pages of the section that have them
+    Side top, left, bottom, right;
+    bool fromPage = false;                   // measured from the page's edge; else from the text area's (with the header and the footer inside)
+    Show show = Show::All;
+    bool any() const { return top.present || left.present || bottom.present || right.present; }
+};
+
 // Pages alike: a run of the document's pages from one section break to the next.
 struct Section {
     enum class Orientation { Portrait, Landscape };
@@ -122,6 +140,7 @@ struct Section {
     bool sameColumnsAs(const Section &o) const { return columns == o.columns && columnGap == o.columnGap; }
     bool sameSidesAs(const Section &o) const { return margins.left() == o.margins.left() && margins.right() == o.margins.right(); }
     bool samePageAs(const Section &o) const { return sameSheetAs(o) && sameColumnsAs(o) && sameSidesAs(o); }
+    PageBorders pageBorders;                 // the lines round its pages
     std::optional<int> firstPageNumber;      // the number the section's first page has (0 is a number; none: it goes on from the section before)
     QString pageNumberFormat;                // "", "roman", "ROMAN", "alpha", or "ALPHA" (the fields' own)
 

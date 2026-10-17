@@ -95,6 +95,50 @@ Paginator::Furniture Paginator::furnitureOf(int index, const PageStart &st, int 
     return f;
 }
 
+void Paginator::addPageBorders(Document *d, const Section &sec, bool firstOfSection, const Furniture &f)
+{
+    const PageBorders &b = sec.pageBorders;
+    if (!b.any() || (b.show == PageBorders::Show::FirstPage && !firstOfSection) || (b.show == PageBorders::Show::NotFirstPage && firstOfSection)) return;
+    const double width = sec.pageSize().width(), height = sec.pageSize().height();
+    // The edges the borders are measured from: the page's, or the text area's with the header and the footer inside it.
+    double top = 0, left = 0, bottom = height, right = width;
+    if (!b.fromPage) {
+        top = f.header ? std::min(sec.margins.top(), sec.headerDistance) : sec.margins.top();
+        bottom = height - (f.footer ? std::min(sec.margins.bottom(), sec.footerDistance) : sec.margins.bottom());
+        left = sec.margins.left();
+        right = width - sec.margins.right();
+    }
+    // Where each side's line is centered: its outer edge is `space` out from the edge it is measured from (in from the page's), the line's own width inside that.
+    // (A double border is two lines and the gap of a line's width between them.)
+    auto total = [](const PageBorders::Side &s) { return s.line == PageBorders::Side::Line::Double ? 3 * s.width : s.width; };
+    auto at = [&](const PageBorders::Side &s, double edge, int outward) {
+        const double c = edge + outward * (s.space + total(s) / 2);
+        return c;
+    };
+    const double up = at(b.top, top, b.fromPage ? 1 : -1), down = at(b.bottom, bottom, b.fromPage ? -1 : 1);
+    const double l = at(b.left, left, b.fromPage ? 1 : -1), r = at(b.right, right, b.fromPage ? -1 : 1);
+    auto line = [&](const PageBorders::Side &s, QPointF p1, QPointF p2, const char *name) {
+        if (!s.present || s.width <= 0) return;
+        auto item = std::make_shared<LineItem>();
+        item->id = QStringLiteral("flow-page-border-%1-%2").arg(d->pages[0]->id, QLatin1String(name));
+        item->p1 = p1;
+        item->p2 = p2;
+        item->stroke = Stroke::line(ColorRef::fromString(s.color.name()), total(s));
+        if (s.line == PageBorders::Side::Line::Double) item->stroke.compound = Stroke::Double;
+        else if (s.line == PageBorders::Side::Line::Dotted) item->stroke.dash = Stroke::RoundDot;
+        else if (s.line == PageBorders::Side::Line::Dashed) item->stroke.dash = Stroke::DashLine;
+        item->wrap.mode = Wrap::None;
+        item->syncRect();
+        d->pages[0]->items.push_back(item);
+    };
+    // (The horizontal lines reach out to the vertical ones' outer edges, so the corners meet.)
+    const double reachL = l - (b.left.present ? total(b.left) / 2 : 0), reachR = r + (b.right.present ? total(b.right) / 2 : 0);
+    line(b.top, QPointF(reachL, up), QPointF(reachR, up), "top");
+    line(b.bottom, QPointF(reachL, down), QPointF(reachR, down), "bottom");
+    line(b.left, QPointF(l, up), QPointF(l, down), "left");
+    line(b.right, QPointF(r, up), QPointF(r, down), "right");
+}
+
 void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec, int section, int number)
 {
     // The counts the page's NUMPAGES and SECTIONPAGES fields show.

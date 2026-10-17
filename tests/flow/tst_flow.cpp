@@ -3732,6 +3732,100 @@ private Q_SLOTS:
         }
     }
 
+    // The page borders of a section are lines round the page, under the text: from the page's edge or from the text's (with the header and the footer inside), each side
+    // as far out as its space says, the line's own width in from there; on every page, or the section's first, or the others.
+    void aSectionsPageBordersAreLinesRoundItsPages()
+    {
+        auto makeBorders = [](bool fromPage, PageBorders::Show show) {
+            PageBorders b;
+            b.fromPage = fromPage;
+            b.show = show;
+            for (PageBorders::Side *side : {&b.top, &b.left, &b.bottom, &b.right}) {
+                side->present = true;
+                side->width = 2;
+                side->space = 10;
+                side->color = QColor(0, 0, 0x80);
+            }
+            b.right.space = 20;   // (each side has its own)
+            return b;
+        };
+        auto linesOf = [&](const std::unique_ptr<MaterializedPage> &page) {
+            QVector<const LineItem *> lines;
+            for (const auto &it : page->doc->pages[0]->items)
+                if (const auto *l = dynamic_cast<const LineItem *>(it.get()))
+                    if (l->id.startsWith(QLatin1String("flow-page-border-"))) lines << l;
+            return lines;
+        };
+        auto build = [&](bool fromPage, PageBorders::Show show, bool header) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fillStory(fd->story(), 4, 5, [](int i, QTextBlockFormat &bf) {
+                bf.setBottomMargin(6);
+                if (i == 0) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysAfter);
+            }, 8, 12);
+            Section &sec = fd->sections[0];
+            sec.margins = QMarginsF(90, 80, 70, 60);
+            sec.headerDistance = 30;
+            sec.footerDistance = 20;
+            if (header) {
+                sec.header.odd = furnitureStory({QStringLiteral("HEADER")});
+                sec.footer.odd = furnitureStory({QStringLiteral("FOOTER")});
+            }
+            sec.pageBorders = makeBorders(fromPage, show);
+            return fd;
+        };
+        {   // From the page's edge: the lines' outer edges are `space` in, so the centers `space` and half the width in.
+            auto fd = build(true, PageBorders::Show::All, false);
+            Paginator pg(fd.get());
+            QVERIFY(pg.pageCount() >= 2);
+            const Section &sec = fd->section(0);
+            const double w = sec.pageSize().width(), h = sec.pageSize().height();
+            const auto page = pg.materialize(0), second = pg.materialize(1);
+            QVERIFY(page && second);
+            QCOMPARE(int(linesOf(page).size()), 4);
+            QCOMPARE(int(linesOf(second).size()), 4);
+            QVector<const LineItem *> l = linesOf(page);
+            auto horizontalAt = [&](double y) { for (const LineItem *x : l) if (std::abs(x->p1.y() - y) < 0.01 && std::abs(x->p2.y() - y) < 0.01) return true; return false; };
+            auto verticalAt = [&](double x) { for (const LineItem *i : l) if (std::abs(i->p1.x() - x) < 0.01 && std::abs(i->p2.x() - x) < 0.01) return true; return false; };
+            QVERIFY(horizontalAt(10 + 1) && horizontalAt(h - 10 - 1));
+            QVERIFY(verticalAt(10 + 1) && verticalAt(w - 20 - 1));
+            for (const LineItem *x : l) QVERIFY2(x->stroke.width == 2 && x->stroke.color.resolve(page->doc->colors) == QColor(0, 0, 0x80), "a border's stroke");
+            // The lines are under the text: before any text box of the page.
+            const auto &items = page->doc->pages[0]->items;
+            int lastLine = -1, firstText = int(items.size());
+            for (int i = 0; i < int(items.size()); ++i) {
+                if (items[size_t(i)]->type() == ItemType::Line) lastLine = i;
+                else if (items[size_t(i)]->type() == ItemType::Text) firstText = std::min(firstText, i);
+            }
+            QVERIFY(lastLine >= 0 && lastLine < firstText);
+        }
+        {   // From the text: outside its edges (the header and the footer are inside, as high and as low as their distances from the page's edge).
+            auto fd = build(false, PageBorders::Show::All, true);
+            Paginator pg(fd.get());
+            const Section &sec = fd->section(0);
+            const double w = sec.pageSize().width(), h = sec.pageSize().height();
+            const auto page = pg.materialize(0);
+            QVERIFY(page);
+            const QVector<const LineItem *> l = linesOf(page);
+            QCOMPARE(int(l.size()), 4);
+            auto horizontalAt = [&](double y) { for (const LineItem *x : l) if (std::abs(x->p1.y() - y) < 0.01 && std::abs(x->p2.y() - y) < 0.01) return true; return false; };
+            auto verticalAt = [&](double x) { for (const LineItem *i : l) if (std::abs(i->p1.x() - x) < 0.01 && std::abs(i->p2.x() - x) < 0.01) return true; return false; };
+            QVERIFY2(horizontalAt(30 - 10 - 1) && horizontalAt(h - 20 + 10 + 1), "the top and bottom lines");   // (the header and the footer are nearer the edge than the margins)
+            QVERIFY2(verticalAt(90 - 10 - 1) && verticalAt(w - 70 + 20 + 1), "the left and right lines");
+        }
+        {   // The first page of the section only, and the pages but the first.
+            auto first = build(true, PageBorders::Show::FirstPage, false);
+            Paginator pf(first.get());
+            QVERIFY(pf.pageCount() >= 2);
+            QCOMPARE(int(linesOf(pf.materialize(0)).size()), 4);
+            QCOMPARE(int(linesOf(pf.materialize(1)).size()), 0);
+            auto rest = build(true, PageBorders::Show::NotFirstPage, false);
+            Paginator pr(rest.get());
+            QCOMPARE(int(linesOf(pr.materialize(0)).size()), 0);
+            QCOMPARE(int(linesOf(pr.materialize(1)).size()), 4);
+        }
+    }
+
     // A continuous section break does not end the page when the sections' sheets are the same, whatever their margins: the text of the second begins below the text of the
     // first, between the second's own side margins (its top and bottom margins are the page's of the page it begins at the top of).
     void aContinuousSectionWithOtherMarginsBeginsOnThePageBelowTheTextAbove()

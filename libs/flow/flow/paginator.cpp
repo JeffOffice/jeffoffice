@@ -1412,6 +1412,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         fill->wrap.mode = Wrap::None;
         d->pages[0]->items.push_back(fill);
     }
+    addPageBorders(d.get(), sec, index <= 0 || st.firstOfSection, furniture);
     if (run.blank) {
         out->storyFrom = m_doc->story()->characterCount();
         addFurniture(d.get(), furniture, sec, st.section, out->number);
