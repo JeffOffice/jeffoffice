@@ -1273,6 +1273,9 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         out->storyFrom = st.pos;
         addFurniture(d.get(), furniture, sec, st.section, out->number);
     } else {
+        // The header and the footer are the page's lowest layer: before the body's text and objects, which are drawn over them.
+        addFurniture(d.get(), furniture, sec, st.section, out->number);
+        const size_t front = d->pages[0]->items.size();
         auto story = std::make_shared<Story>();
         story->id = QStringLiteral("flow-story-%1").arg(index);
         story->doc = sliceOf(run, st, &out->storyFrom, &out->continuesFromBefore);
@@ -1343,10 +1346,8 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
             const QVector<Anchor> anchors = anchorsOfLines(held, firstLines, sec.columnWidth());
             QVector<QRectF> columns;
             for (const QRectF &col : run.cols) columns << QRectF(col.left(), furniture.body.top() + col.top(), col.width(), col.height());
-            if (!anchors.isEmpty()) addObjects(d.get(), anchors, sec, out->number, run.wrapped, columns, out.get());
+            if (!anchors.isEmpty()) addObjects(d.get(), anchors, sec, out->number, run.wrapped, columns, out.get(), front);
         }
-        // (The header and the footer come after the page's objects: the text that goes round an object is that of the items after it, and the body's objects are no wall for them.)
-        addFurniture(d.get(), furniture, sec, st.section, out->number);
     }
     // The notes the page's lines cite and those that go on from the page before.
     {

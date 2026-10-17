@@ -6100,6 +6100,64 @@ private Q_SLOTS:
         QCOMPARE(count, 1);
     }
 
+    // The header and the footer are the lowest layer of the page: drawn before the body's objects (an object in front of the text is over them), and the text of the header is not
+    // pushed aside by the body's objects, whose walls keep to the text area.
+    void theHeaderAndFooterAreDrawnBeforeTheBodysObjects()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 30, 35, {}, 20, 40);
+        fd.sections[0].header.odd = furnitureStory({QStringLiteral("HEADER TEXT at the top of the page")});
+        fd.sections[0].footer.odd = furnitureStory({QStringLiteral("FOOTER TEXT at the foot of the page")});
+        fd.sections[0].headerDistance = 30;
+        fd.sections[0].footerDistance = 30;
+        // An object over the page's top, taller than the margin (it reaches into the text area), and one over its foot; both ask the text to go round them, and one is behind the text.
+        const int up = addWrapped(&fd, 300, 110, fd.story()->findBlockByNumber(0).position() + 2, FloatingObject::Wrap::Square, 100, 10, QMarginsF(6, 4, 6, 4), FloatingObject::Side::Both, FloatingObject::Rel::Page, FloatingObject::Rel::Page);
+        const int down = addWrapped(&fd, 200, 120, fd.story()->findBlockByNumber(0).position() + 3, FloatingObject::Wrap::Square, 200, 700, QMarginsF(6, 4, 6, 4), FloatingObject::Side::Both, FloatingObject::Rel::Page, FloatingObject::Rel::Page);
+        fd.objects[size_t(down) - 1].behind = true;
+        Q_UNUSED(up);
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const auto &items = page->doc->pages[0]->items;
+        auto indexOf = [&](const QString &prefix) {
+            for (size_t i = 0; i < items.size(); ++i)
+                if (items[i]->id.startsWith(prefix)) return int(i);
+            return -1;
+        };
+        auto indexOfSize = [&](double w, double h) {
+            for (size_t i = 0; i < items.size(); ++i)
+                if (items[i]->type() == ItemType::Shape && items[i]->wrap.mode == Wrap::None && std::abs(items[i]->rect.width() - w) < 0.01 && std::abs(items[i]->rect.height() - h) < 0.01) return int(i);
+            return -1;
+        };
+        // (Each object is drawn once, the header's and footer's own anchors not taken for the body's.)
+        int topCount = 0, footCount = 0;
+        for (const auto &it : items) {
+            topCount += it->type() == ItemType::Shape && std::abs(it->rect.width() - 300) < 0.01 && std::abs(it->rect.height() - 110) < 0.01 && it->wrap.mode == Wrap::None;
+            footCount += it->type() == ItemType::Shape && std::abs(it->rect.width() - 200) < 0.01 && std::abs(it->rect.height() - 120) < 0.01 && it->wrap.mode == Wrap::None;
+        }
+        QCOMPARE(topCount, 1);
+        QCOMPARE(footCount, 1);
+        const int header = indexOf(QStringLiteral("flow-header-box")), footer = indexOf(QStringLiteral("flow-footer-box")), top = indexOfSize(300, 110), foot = indexOfSize(200, 120);
+        QVERIFY(header >= 0 && footer >= 0 && top >= 0 && foot >= 0);
+        QVERIFY2(header < top && footer < top, "an object in front of the text is over the header and the footer");
+        QVERIFY2(header < foot && footer < foot, "an object behind the text is over them too: they are the lowest layer");
+        // The body's text is round the objects, as before, and the walls keep to the text area.
+        const auto walls = audit::wallsOf(*page);
+        QVERIFY(walls.size() >= 1);
+        const flow::Paginator::Page info = pg.page(0);
+        for (const auto &w : walls) QVERIFY2(w.rect.top() >= info.content.top() - 0.01 && w.rect.bottom() <= info.content.bottom() + 0.01, qPrintable(audit::rectText(w.rect)));
+        QVERIFY2(audit::wallProblems(pg, fd.story()).isEmpty(), qPrintable(audit::wallProblems(pg, fd.story())));
+        // The header's own lines are not moved by them: the page layer sets them across the whole of the box.
+        LayoutCache cache;
+        const auto *box = dynamic_cast<const TextItem *>(items[size_t(header)].get());
+        QVERIFY(box);
+        const LayoutCache::FrameLayout fl = cache.textFrame(*page->doc, *box, page->number, RenderOptions());
+        QVERIFY(fl.layout);
+        QVERIFY(!fl.layout->lineBriefs().isEmpty());
+        for (const auto &l : fl.layout->lineBriefs()) QVERIFY2(std::abs(l.rect.left()) < 0.01 && std::abs(l.rect.width() - box->rect.width()) < 0.01, qPrintable(audit::rectText(l.rect)));
+    }
+
     // A text box that the text goes round is a wall as a picture is: the lines stand clear of it.
     void aTextBoxIsAWallAsAPictureIs()
     {

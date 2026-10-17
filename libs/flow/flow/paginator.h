@@ -345,8 +345,9 @@ private:
     // text or over it. Those in `wrapped` (the objects the page was laid out with) are where it was laid out with them and ask the text to go round; any other asks nothing.
     // (An object with a wrap that leaves no text beside it is a wall as wide as the columns that it reaches into, which `columns` (their rectangles on the page) say: the page layer's
     // wall of that kind is as wide as the page, and would put the text of the other columns aside too.)
-    // (`page` is given for the tables that are set at places: their rows are drawn from it.)
-    void addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number, const QVector<Wrapped> &wrapped = {}, const QVector<QRectF> &columns = {}, MaterializedPage *page = nullptr);
+    // (`page` is given for the tables that are set at places: their rows are drawn from it. The objects behind the text go after the first `front` items of the page, which are
+    // those of its header and footer.)
+    void addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number, const QVector<Wrapped> &wrapped = {}, const QVector<QRectF> &columns = {}, MaterializedPage *page = nullptr, size_t front = 0);
     // Changes the pictures of the inline objects in a story to the Ids they have in the page's document.
     void resolveImages(QTextDocument *story, Document *d);
     QString imageIdOf(Document *d, int image);
