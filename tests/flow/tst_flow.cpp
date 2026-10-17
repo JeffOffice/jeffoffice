@@ -7486,6 +7486,58 @@ private Q_SLOTS:
         QCOMPARE(frame[0].pos, int(QString(QStringLiteral("a paragraph")).size()) + 1);
     }
 
+    // A word processor's note that does not fit whole under its line at the foot of a page is cut there when room for three of its lines is left under the line (a page is
+    // not cut for want of that): the line stays and the rest of the note goes on at the next page. With less room the line goes on to the next page with its note whole.
+    void aNoteThatDoesNotFitIsCutWhenThreeOfItsLinesDo()
+    {
+        TestNotes notes;
+        auto note = std::make_unique<QTextDocument>();
+        {
+            QTextCursor nc(note.get());
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Times New Roman")});
+            cf.setFontPointSize(10);
+            nc.insertText(QStringLiteral("one") + QChar(QChar::LineSeparator) + QStringLiteral("two") + QChar(QChar::LineSeparator) + QStringLiteral("three") + QChar(QChar::LineSeparator) +
+                              QStringLiteral("four") + QChar(QChar::LineSeparator) + QStringLiteral("five") + QChar(QChar::LineSeparator) + QStringLiteral("six"),
+                          cf);
+        }
+        notes.docs[QStringLiteral("n1")] = std::move(note);
+        auto layout = [&](double height) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("one") + QChar(QChar::LineSeparator) + QStringLiteral("two") + QChar(QChar::LineSeparator) + QStringLiteral("three") + QChar(QChar::LineSeparator) + QStringLiteral("four"), run);
+            QTextCharFormat ref = run;
+            ref.setProperty(tp::Field, QStringLiteral("footnote:n1"));
+            c.insertText(QString(QChar::ObjectReplacementCharacter), ref);
+            LayoutEnv env;
+            env.wordLines = true;
+            auto frame = [&](double h) { FrameSpec fs = plainFrame(300, h); fs.ctx.doc = &notes; return fs; };
+            StoryLayout lay;
+            lay.build(&doc, {frame(height), frame(300)}, env);
+            const auto lines = lay.lineBriefs();
+            struct Out { int lastLineFrame = -9, noteFrame = -9; bool cut = false; };
+            Out out;
+            if (lines.size() == 4) out.lastLineFrame = lines.last().frame;
+            if (lay.notes().size() == 1) {
+                out.noteFrame = lay.notes().first().frame;
+                out.cut = !lay.notes().first().more.isEmpty();
+            }
+            return out;
+        };
+        const auto room = layout(100), tight = layout(93);
+        QCOMPARE(room.lastLineFrame, 0);
+        QCOMPARE(room.noteFrame, 0);
+        QVERIFY2(room.cut, "the note is cut at the foot of the page");
+        QCOMPARE(tight.lastLineFrame, 1);
+        QCOMPARE(tight.noteFrame, 1);
+        QVERIFY(!tight.cut);
+    }
+
     // A line that a paragraph goes on with, in smaller type than its first run, is checked against the objects at the height its own text has, not the first run's: an object
     // that begins below the line (and above where the big type's line would end) is no wall for it.
     void aLineInSmallTypeIsNotMovedByAnObjectBelowIt()

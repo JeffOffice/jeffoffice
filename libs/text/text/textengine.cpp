@@ -3291,9 +3291,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     double bottom = col.bottom() - reserve.value(rkey(f, c)) - pending;
                     bool cutting = false;
                     if (col.top() + y + fitH > bottom + 0.01) {
-                        if (!lineNotes.isEmpty() && fitH + ruleGap + notesH > col.height() + 0.01) {
+                        if (!lineNotes.isEmpty() && (env.wordLines || fitH + ruleGap + notesH > col.height() + 0.01)) {
                             // Room here for the line and a line of the note?
-                            const double least = heightOf(m_notes[lineNotes.first()].numberFont) + noteGap;
+                            const double least = heightOf(m_notes[lineNotes.first()].numberFont) * (env.wordLines ? 3 : 1) + noteGap;   // (a word processor cuts a note that does not fit where three of its lines do)
                             cutting = firstInColumn || col.top() + y + fitH + (reserve.contains(rkey(f, c)) ? 0 : ruleGap) + least <= col.bottom() - reserve.value(rkey(f, c)) + 0.01;
                         }
                         if (!cutting && !firstInColumn) {
