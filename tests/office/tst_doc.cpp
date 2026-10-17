@@ -1032,6 +1032,32 @@ private Q_SLOTS:
         QVERIFY(notes.leftOut);
     }
 
+    void aShapeNumberThatDoublesPastTheLimitDoesNotMeetAnother()
+    {
+        // The ids 0x40000000 and 0xC0000000 doubled (the way text boxes already shown are kept) are the same number in 32 bits: the second box lost its text.
+        DocWriter w = simple(QStringLiteral("a\x08""b\x08\r"));
+        w.chars = {{1, 2, sprm1(sprm::special, 1)}, {3, 4, sprm1(sprm::special, 1)}};
+        ShapeSpec one, two;
+        one.spid = 0x40000000;
+        one.cp = 1;
+        one.x1 = 1440; one.y1 = 720;
+        one.text = QStringLiteral("first box\r");
+        two.spid = qint32(0xC0000000u);
+        two.cp = 3;
+        two.x1 = 1440; two.y1 = 720;
+        two.text = QStringLiteral("second box\r");
+        w.shapes = {one, two};
+        Document d;
+        QVERIFY(read(w.build(), &d));
+        QStringList boxes;
+        for (const Inline &in : d.body[0].para.content)
+            if (in.kind == Inline::RunAtom && in.tag == QLatin1String("pict"))
+                for (const wml::Shape &s : wml::readShapes(in.raw)) boxes << QString::fromUtf8(s.textBox);
+        QCOMPARE(boxes.size(), qsizetype(2));
+        QVERIFY(boxes[0].contains(QLatin1String("first box")));
+        QVERIFY(boxes[1].contains(QLatin1String("second box")));
+    }
+
     void changedBytesNeverCrashOrHang()
     {
         // A document with most of what the reader reads, with bytes of it changed at random (the same changes each run), and cut short.

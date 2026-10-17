@@ -113,7 +113,7 @@ struct Converter::Drawings {
     QVector<OdrawStoreEntry> store;
     QHash<int, DrawnShape> shapes[2];      // the top-level shapes of the main drawing and of the headers', by id
     QHash<int, Picture> pictures;          // by 1-based place in the picture store
-    QSet<int> textBoxesUsed;
+    QSet<qint64> textBoxesUsed;            // (a shape's id doubled, and one more for a header's: two ids can't make one key)
     QHash<int, int> boxOf[2];              // the text box of a shape (by its id), in the table of the main text's boxes and the headers'
     bool boxesRead[2] = {false, false};
     int emitted = 0;
@@ -371,8 +371,9 @@ QByteArray Converter::shapeXml(qint64 cp, Kind kind, const QString &part)
             qint64 a = boxes.cp(textBox), b = boxes.cp(textBox + 1);
             b = std::min(b, size);
             QByteArray content;
-            if (b > a && a >= 0 && !dr.textBoxesUsed.contains(s.spid * 2 + (header ? 1 : 0))) {
-                dr.textBoxesUsed.insert(s.spid * 2 + (header ? 1 : 0));
+            const qint64 key = qint64(s.spid) * 2 + (header ? 1 : 0);
+            if (b > a && a >= 0 && !dr.textBoxesUsed.contains(key)) {
+                dr.textBoxesUsed.insert(key);
                 // (A text box's text ends in one paragraph mark more than it has paragraphs.)
                 qint64 stop = base + b;
                 if (stop > base + a && pieces.text().size() >= stop && pieces.text()[stop - 1] == QChar(0x0D)) --stop;
