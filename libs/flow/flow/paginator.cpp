@@ -1097,7 +1097,9 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
                 });
             }
             QVector<Anchor> anchors;
-            for (const AnchorLine &l : held) anchors << anchorsIn(m_doc->story(), l.pos, l.end, held);
+            QHash<int, QVector<int>> byBlock;
+            for (int i = 0; i < held.size(); ++i) byBlock[held[i].block] << i;
+            for (const AnchorLine &l : held) anchors << anchorsIn(m_doc->story(), l.pos, l.end, held, &byBlock);
             if (!anchors.isEmpty()) addObjects(d.get(), anchors, sec, out->number);
         }
     }

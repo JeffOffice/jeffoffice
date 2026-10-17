@@ -20,21 +20,29 @@ constexpr int kMostObjects = 500;
 
 } // namespace
 
-QVector<Paginator::Anchor> Paginator::anchorsIn(const QTextDocument *story, int from, int to, const QVector<AnchorLine> &lines) const
+QVector<Paginator::Anchor> Paginator::anchorsIn(const QTextDocument *story, int from, int to, const QVector<AnchorLine> &lines, const QHash<int, QVector<int>> *byBlock) const
 {
     QVector<Anchor> out;
     if (m_doc->objects.isEmpty()) return out;
+    // The lines by the paragraph they are in (found once for a page, not for each anchor).
+    QHash<int, QVector<int>> own;
+    if (!byBlock) {
+        for (int i = 0; i < lines.size(); ++i) own[lines[i].block] << i;
+        byBlock = &own;
+    }
     for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() < to && out.size() < kMostObjects; b = b.next())
         for (auto it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment frag = it.fragment();
             const int id = frag.charFormat().intProperty(fp::AnchorId);
             if (id <= 0 || id > m_doc->objects.size() || frag.position() >= to || frag.position() + frag.length() <= from) continue;
+            const auto held = byBlock->constFind(b.position());
+            if (held == byBlock->constEnd()) continue;
             for (int k = std::max(frag.position(), from); k < std::min(frag.position() + frag.length(), to); ++k) {
                 Anchor a;
                 a.object = id;
                 bool paragraphSeen = false, found = false;
-                for (const AnchorLine &l : lines) {
-                    if (l.block != b.position()) continue;
+                for (const int at : held.value()) {
+                    const AnchorLine &l = lines[at];
                     if (!paragraphSeen) {
                         a.paragraphTop = l.rect.top();
                         a.columnLeft = l.columnLeft;

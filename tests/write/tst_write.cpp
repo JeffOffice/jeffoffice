@@ -4076,6 +4076,35 @@ private Q_SLOTS:
         QCOMPARE(rowsShown(pg), 90);
     }
 
+    // A note cited in the section before a continuous section of two columns, on the page where that begins: the notes are at the foot of the page, under the columns, and the
+    // text of the first section is in the width of the page (the columns begin below it); the audit finds no overlap, nothing lost, and no empty page.
+    void aFilesNoteCitedBeforeAContinuousTwoColumnSectionIsAtThePageFoot()
+    {
+        int checked = 0;
+        for (const int noteWords : {5, 40, 120})
+            for (const int cited : {0, 1}) {
+                const QByteArray one = sectionXml(6000, 8000, 720);
+                const QByteArray two = sectionXml(6000, 8000, 720, QByteArray(), "<w:type w:val=\"continuous\"/>", "<w:cols w:num=\"2\" w:space=\"360\"/>");
+                QByteArray body = plainP(wordsOf("One", 12), cited == 0 ? refTo(2) : QByteArray()) + plainP(wordsOf("Second", 8), cited == 1 ? refTo(2) : QByteArray());
+                body += plainP("end of the first section", QByteArray(), one);
+                for (int i = 0; i < 14; ++i) body += plainP(wordsOf("Column", 14));
+                auto doc = open(makeDocxWithParts(body, two, {{QStringLiteral("/word/footnotes.xml"), notesPart({{2, wordsOf("COLNOTE", noteWords)}})}}));
+                QVERIFY(doc);
+                flow::Paginator &pg = doc->pager();
+                QCOMPARE(doc->sectionCount(), 2);
+                const QString bad = audit::problems(pg, doc->story(), {{"fn2", "COLNOTE"}});
+                QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("a note of %1 words, cited in paragraph %2: %3").arg(noteWords).arg(cited).arg(bad)));
+                // The first section's lines are as wide as the page's text area, not as one of the columns.
+                const double width = pg.page(0).content.width();
+                for (const auto &l : pg.lines(0))
+                    if (l.pos < doc->story()->findBlock(0).length() + doc->story()->findBlockByNumber(1).length())
+                        QVERIFY2(l.rect.width() > width - 1, qPrintable(QStringLiteral("a line of the first section is %1 wide in a text area %2 wide").arg(l.rect.width()).arg(width)));
+                QVERIFY2(audit::lostNotes(pg, audit::fullNoteHeight(doc->flow().fields->storyDoc(QStringLiteral("fn2")), width, doc->flow().env)).isEmpty(), "the note is drawn whole");
+                ++checked;
+            }
+        QCOMPARE(checked, 6);
+    }
+
     // A continuous section of two columns with a table in it: it begins below the text of the section before, the table is inside a column and goes on in the next, and the
     // note cited above it, in the first column, and the header and footer keep to their places.
     void aFilesTableInAContinuousTwoColumnSectionIsInsideItsColumn()
