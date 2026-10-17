@@ -7353,6 +7353,42 @@ private Q_SLOTS:
         for (const auto &l : lay2.lineBriefs()) QCOMPARE(l.pushed, 0.0);
     }
 
+    // A line that a paragraph goes on with, in smaller type than its first run, is checked against the objects at the height its own text has, not the first run's: an object
+    // that begins below the line (and above where the big type's line would end) is no wall for it.
+    void aLineInSmallTypeIsNotMovedByAnObjectBelowIt()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat big, small;
+        big.setFontFamilies({QStringLiteral("Times New Roman")});
+        big.setFontPointSize(30);
+        small = big;
+        small.setFontPointSize(10);
+        c.insertText(QStringLiteral("Big "), big);
+        QString words;
+        for (int i = 0; i < 60; ++i) words += QStringLiteral("small ");
+        c.insertText(words, small);
+        auto lines = [&](double wallTop) {
+            FrameSpec fs = plainFrame(300, 600);
+            if (wallTop > 0) fs.obstacles << QPolygonF(QRectF(-1e5, wallTop, 2e5, 50));
+            StoryLayout lay;
+            LayoutEnv env;
+            env.wordLines = true;
+            lay.build(&doc, {fs}, env);
+            return lay.lineBriefs();
+        };
+        const auto free = lines(0);
+        QVERIFY(free.size() >= 3);
+        QVERIFY(free[1].rect.height() < 14);   // (the second line is in small type: a line of its own height)
+        // The object begins just below that line's own bottom.
+        const double wallTop = free[1].rect.bottom() - free[1].below + 1;
+        QVERIFY(wallTop < free[1].rect.top() + free[0].rect.height());   // (the big type's line would reach it)
+        const auto walled = lines(wallTop);
+        QCOMPARE(walled.size(), free.size());
+        QCOMPARE(walled[1].rect.top(), free[1].rect.top());
+        QCOMPARE(walled[1].pushed, 0.0);
+    }
+
     // A section that is continuous and has the same page as the one before goes on the page the one before ends on; one with another page, or that is not
     // continuous, begins a page of its own.
     void continuousSectionsShareThePage()

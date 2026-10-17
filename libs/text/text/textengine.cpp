@@ -3046,7 +3046,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         // (A word processor's text that only touches an object's edge is clear of it, whichever way the last digits of two places that are the same round:
                         // the page that is drawn lays the text out again with the object's place made from another transform.)
                         const double touch = env.wordLines ? 0.001 : 0.0;
-                        QVector<Iv> ivs = freeIntervals(frames[f].obstacles, x0, x1, col.top() + y + touch, col.top() + y + estText - touch);
+                        // (A word processor's line that the objects are checked against is as tall as the text on it makes it, not as its paragraph's first run does: the
+                        // line a paragraph goes on with, in smaller type, is no taller than that.)
+                        double wrapH = estText;
+                        if (env.wordLines && !frames[f].obstacles.isEmpty()) {
+                            line.setLineWidth(std::max(1.0, x1 - x0));
+                            wrapH = std::min(estText, wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base, env, &B->disp, &markFont, markSize).total());
+                        }
+                        QVector<Iv> ivs = freeIntervals(frames[f].obstacles, x0, x1, col.top() + y + touch, col.top() + y + wrapH - touch);
                         QVector<Iv> ok;
                         // (A word processor's empty paragraph is only its mark: it goes in any gap that is a few points wide, between two pictures a little apart as in a wider one.)
                         const double minW = env.wordLines && B->disp.trimmed().isEmpty() ? 2.0 : std::max(18.0, base.pointSizeF() / fontPointFactor() * 2.5);
@@ -3063,7 +3070,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                                 bool plain = true;
                                 for (const QPolygonF &poly : frames[f].obstacles) {
                                     const QRectF pb = poly.boundingRect();
-                                    if (pb.bottom() <= col.top() + y + touch || pb.top() >= col.top() + y + estText - touch || pb.right() <= x0 || pb.left() >= x1) continue;
+                                    if (pb.bottom() <= col.top() + y + touch || pb.top() >= col.top() + y + wrapH - touch || pb.right() <= x0 || pb.left() >= x1) continue;
                                     plain &= poly.size() <= 5 && std::all_of(poly.cbegin(), poly.cend(), [&](const QPointF &pt) {
                                         return (std::abs(pt.x() - pb.left()) < 1e-6 || std::abs(pt.x() - pb.right()) < 1e-6) && (std::abs(pt.y() - pb.top()) < 1e-6 || std::abs(pt.y() - pb.bottom()) < 1e-6);
                                     });
