@@ -7,6 +7,7 @@
 
 #include "core/color.h"
 #include "core/items.h"
+#include "office/drawingml_color.h"
 #include "office/package.h"
 #include "office/theme.h"
 
@@ -29,6 +30,9 @@ struct DrawingWriteContext {
     PackageWriter *package = nullptr;
     QString part;                     // the part being written: pictures and links get its relationships
     Theme theme;
+    // Which theme color "bg1", "tx1", and the rest stand for in the part: the color map of the master it follows (a dark one reads them the other
+    // way); a style reference's colors are read through it.
+    ColorMap colorMap;
     // A picture's file bytes and format ("png", "jpeg", "emf"...) by image id.
     std::function<QByteArray(const QString &imageId, QString *format)> imageBytes;
     std::function<const QTextDocument *(const QString &storyId)> storyDoc;

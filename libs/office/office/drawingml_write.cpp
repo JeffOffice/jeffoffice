@@ -554,7 +554,7 @@ bool styledLook(const Item &it, DrawingWriteContext &ctx, StyleLook *look)
 {
     if (!it.styleRef.on) return false;
     if (it.type() != ItemType::Shape && it.type() != ItemType::Text && it.type() != ItemType::Line) return false;
-    if (!ctx.styles) ctx.styles = std::make_shared<StyleResolver>(writeTheme(ctx.theme));
+    if (!ctx.styles) ctx.styles = std::make_shared<StyleResolver>(writeTheme(ctx.theme), ctx.colorMap);
     if (!ctx.styles->valid()) return false;
     *look = ctx.styles->look(it.styleRef, it.rect.size());
     return true;
