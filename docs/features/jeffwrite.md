@@ -259,8 +259,8 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [ ] **1.0** Indent left and right, and spacing before and after, as boxes on the tab
 
 ### Arrange
-- [~] **first release** Wrap Text: in line with text, square, tight, through, top and bottom, behind text, and in front of text, for pictures, shapes, and text boxes *(pictures: ours 25% (.docx 12%, .doc and .rtf 39%), public 38%; shared: JeffPub's wrap engine)*
-- [~] **first release** Position: anchored to a paragraph, character, line, margin, page, or column, by offset or alignment; move with text, lock the anchor, and allow overlap
+- [~] **first release** Wrap Text: in line with text, square, tight, through, top and bottom, behind text, and in front of text, for pictures, shapes, and text boxes *(pictures: ours 25% (.docx 12%, .doc and .rtf 39%), public 38%; shared: JeffPub's wrap engine)* *(files' square, tight, and top-and-bottom wraps are laid out, on both sides, the left, the right, or the larger one, with their distances; tight goes round the rectangle until the outlines are read; through, and wrap points, are not read)*
+- [~] **first release** Position: anchored to a paragraph, character, line, margin, page, or column, by offset or alignment; move with text, lock the anchor, and allow overlap *(files' positions from the page, margin, the strips beside the margins, column, paragraph, and line are laid out; from a character is from its line's start)*
 - [ ] **1.0** Edit Wrap Points (the outline tight wrapping follows), distance from text, wrap on one or both sides, and Set as Default Layout
 - [~] **1.0** Bring Forward and Send Backward (also in front of and behind text), Align (to the page, margin, or each other, and distribute), Group, Ungroup, Regroup, and Rotate or Flip *(shared: JeffPub's Arrange)*
 - [~] **1.0** Gridlines, snap to the grid, alignment guides, and grid settings *(shared: JeffPub's guides)*
@@ -398,7 +398,7 @@ The tabs that appear only while something is selected or being edited: a table, 
 - [ ] **1.0** Draw Table and Eraser, with the pen style, weight, and color
 - [ ] **1.0** Formula in a cell (=SUM(ABOVE), =AVERAGE(LEFT), and the functions, with number formats), updated with F9 *(shared: a calculation engine with JeffCrunch)*
 - [ ] **1.0** Table handles: a move handle at the corner, a resize handle, and dragging borders
-- [ ] **later** Floating tables that text wraps around, and diagonal borders in a cell
+- [~] **later** Floating tables that text wraps around, and diagonal borders in a cell *(files' floating tables are laid out where they ask, with the text round them, if they fit a page; not edited)*
 
 ### Picture Format tab
 
@@ -469,8 +469,8 @@ What a right-click offers depends on what is under the pointer. The commands are
 - [~] **first release** Sections: each with its own page size and orientation, margins, columns, headers and footers, page-number format and start, vertical alignment, line numbering, and footnote numbering; start types next page, continuous, even page, and odd page *(more than one section: ours 24% (.docx 42%, .doc and .rtf 7%), public 28%; landscape sections: ours 1%, public 7%)*
 - [ ] **first release** Facing pages and mirrored margins: left and right pages swap inside and outside margins and gutter, and a section that starts on an odd or even page gets the blank page it needs *(mirror margins: ours 20% (.docx 40%, .doc and .rtf <1%), public 1%; odd and even headers: ours 20% (.docx 38%, .doc and .rtf <1%), public 5%)*
 - [~] **first release** Columns: equal or unequal widths, a line between, balanced by a continuous section break, a column break, and columns inside text boxes and table cells *(columns: ours 9% (.docx 16%, .doc and .rtf 2%), public 7%; shared: columns in libs/text)*
-- [ ] **first release** Floating pictures, shapes, and text boxes: text wraps around their shape, they are anchored to a paragraph and move with it, and they never push the text out of the page's headers, footers, or notes *(pictures: ours 25% (.docx 12%, .doc and .rtf 39%), public 38%)*
-- [ ] **first release** Frames (paragraphs positioned on the page, which older files use for drop caps, side notes, and captions): laid out where the file puts them and kept, with the Frame dialog to edit them at 1.0 *(frames: ours 1%, public <1%)*
+- [~] **first release** Floating pictures, shapes, and text boxes: text wraps around their shape, they are anchored to a paragraph and move with it, and they never push the text out of the page's headers, footers, or notes *(pictures: ours 25% (.docx 12%, .doc and .rtf 39%), public 38%)*
+- [~] **first release** Frames (paragraphs positioned on the page, which older files use for drop caps, side notes, and captions): laid out where the file puts them and kept, with the Frame dialog to edit them at 1.0 *(frames: ours 1%, public <1%)* *(laid out and kept; their text is not edited on the page yet)*
 - [ ] **first release** Tables across pages: rows split or kept whole, header rows repeated, nested tables, and tables wrapped by text; a table in a column or a text box
 - [~] **first release** Widow and orphan control, keep with next, keep lines together, and page break before, as Word applies them (including the cases where it gives up)
 - [ ] **1.0** Document grid and East Asian layout: characters per line, lines per page, and vertical pages
