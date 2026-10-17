@@ -4366,8 +4366,9 @@ private Q_SLOTS:
         QVERIFY(reddish(next->tables[0], 0.75));
     }
 
-    // A row set to a height of at least so much is that tall and has its lines besides; one set to exactly so much is that tall, lines and all.
-    void aRowOfASetHeightHasItsLinesOutsideItWhenAtLeastAndInsideItWhenExact()
+    // A row set to a height of at least so much has that for the room inside its cells' margins, and its lines (the margins and the lines come in addition); one set to exactly
+    // so much is that tall, margins, lines, and all.
+    void aRowOfASetHeightHasItsMarginsAndLinesBesidesWhenAtLeastAndInsideItWhenExact()
     {
         FlowDocument fd;
         fillStory(fd.story(), 2, 3, {}, 4, 6);
@@ -4390,9 +4391,10 @@ private Q_SLOTS:
         const double line = lineHeightOf(fd);
         const auto rows = rowLines(pg, fd, 0);
         QCOMPARE(rows.size(), 4);
-        QVERIFY2(std::abs(rows[0].rect.height() - 42) < 0.05, qPrintable(QString::number(rows[0].rect.height())));
+        // (The margins are 3 above and below; a line is 2 points wide.)
+        QVERIFY2(std::abs(rows[0].rect.height() - (40 + 6 + 2)) < 0.05, qPrintable(QString::number(rows[0].rect.height())));
         QVERIFY2(std::abs(rows[1].rect.height() - 40) < 0.05, qPrintable(QString::number(rows[1].rect.height())));
-        QVERIFY2(std::abs(rows[2].rect.height() - 42) < 0.05, qPrintable(QString::number(rows[2].rect.height())));
+        QVERIFY2(std::abs(rows[2].rect.height() - (40 + 6 + 2)) < 0.05, qPrintable(QString::number(rows[2].rect.height())));
         // (The last: taller than set, so as its cells and lines need.)
         QVERIFY2(std::abs(rows[3].rect.height() - (line + 6 + 2 + 2)) < 0.05, qPrintable(QString::number(rows[3].rect.height())));
     }

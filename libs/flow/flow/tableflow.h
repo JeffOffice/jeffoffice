@@ -167,6 +167,7 @@ public:
         int from = 0, to = 0;               // positions
         double height = 0;
         double top = 0, foot = 0;           // the room of the lines at its top edge (the heaviest of its cells'), and for the last row the foot of the table: in its height
+        double least = 0;                   // the height a row set to one has at least: that is for the room inside its cells' margins and lines (0: not set)
     };
 
     // The table whose paragraphs are the index's refs()[i0, i1), its cells `depth` cells deep (0 for a table that is not in a cell).
