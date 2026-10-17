@@ -5033,6 +5033,110 @@ private Q_SLOTS:
         }
     }
 
+    // ---- frames
+
+    static QByteArray framedP(const QByteArray &text, const QByteArray &framePr)
+    {
+        return "<w:p><w:pPr>" + framePr + "</w:pPr><w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r></w:p>";
+    }
+
+    // The paragraphs of a frame in the body (w:framePr) are one frame, set apart from the text: no lines and no room there, and a text box where the frame asks, at the paragraph
+    // after them, with their text; and the file comes back as it was.
+    void framePrParagraphsAreAFrameSetWhereItAsks()
+    {
+        const QByteArray pr = "<w:framePr w:w=\"2400\" w:h=\"1000\" w:hRule=\"atLeast\" w:hSpace=\"180\" w:vSpace=\"60\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:xAlign=\"right\" w:y=\"200\"/>";
+        const QByteArray body = plainP(wordsOf("Before", 30)) + framedP("FRAMEWORDS ONE", pr) + framedP("FRAMEWORDS TWO", pr) + plainP(wordsOf("After the frame", 60)) + plainP(wordsOf("Last", 40));
+        auto doc = open(makeDocx(body, kStyles));
+        QVERIFY(doc);
+        const flow::FlowDocument &fd = doc->flow();
+        QCOMPARE(int(fd.frames.size()), 1);
+        const flow::FloatingObject &o = fd.objects[fd.frames[0] - 1];
+        QCOMPARE(o.frame, 1);
+        QCOMPARE(o.frameWidth, 120.0);
+        QCOMPARE(o.frameHeight, 50.0);
+        QVERIFY(!o.frameExactHeight);
+        QVERIFY(o.hRel == flow::FloatingObject::Rel::Margin && o.vRel == flow::FloatingObject::Rel::Paragraph);
+        QVERIFY(o.hAlign == flow::FloatingObject::Align::End);
+        QCOMPARE(o.dy, 10.0);
+        QVERIFY(o.wrap == flow::FloatingObject::Wrap::Square);
+        QCOMPARE(o.gap.left(), 9.0);
+        QCOMPARE(o.gap.top(), 3.0);
+        int inFrame = 0;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            if (b.blockFormat().intProperty(flow::fp::Frame) == 1) {
+                ++inFrame;
+                QVERIFY(b.blockFormat().boolProperty(tp::OutOfLayout));
+            }
+        QCOMPARE(inFrame, 2);
+        // On the page: no lines of the frame's paragraphs, a text box at the right margin with their text, and the text of the paragraph after goes round it.
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        const TextItem *box = nullptr;
+        for (const auto &it : page->doc->pages[0]->items)
+            if (const auto *t = dynamic_cast<const TextItem *>(it.get()))
+                if (const Story *st = page->doc->story(t->storyId))
+                    if (st->doc->toPlainText().contains(QStringLiteral("FRAMEWORDS ONE")) && st->doc->toPlainText().contains(QStringLiteral("FRAMEWORDS TWO")) && t->id.startsWith(QLatin1String("flow-object-"))) box = t;
+        QVERIFY(box);
+        const flow::Section &sec = fd.section(0);
+        QVERIFY2(std::abs(box->rect.right() - (sec.pageSize().width() - sec.margins.right())) < 0.01 && std::abs(box->rect.width() - 120) < 0.01, qPrintable(audit::rectText(box->rect)));
+        QVERIFY(box->rect.height() >= 50 - 0.01);
+        QVERIFY2(audit::problems(doc->pager(), doc->story()).isEmpty(), qPrintable(audit::problems(doc->pager(), doc->story())));
+        for (const auto &l : doc->pager().lines(0)) QVERIFY(doc->story()->findBlock(l.pos).blockFormat().intProperty(flow::fp::Frame) == 0);
+        // The file comes back as it was: the frame's paragraphs, with their properties, where they were.
+        const QByteArray saved = doc->toDocx();
+        const QByteArray x = documentXml(saved);
+        QVERIFY2(x.count("w:framePr") == 2 && x.contains("FRAMEWORDS ONE") && x.indexOf("FRAMEWORDS ONE") < x.indexOf("FRAMEWORDS TWO") && x.indexOf("FRAMEWORDS TWO") < x.indexOf("After the frame"), x.left(1500).constData());
+        QVERIFY2(rt::strictProblems(saved).isEmpty(), qPrintable(rt::strictProblems(saved).join(QLatin1Char('\n'))));
+        auto back = open(saved);
+        QVERIFY(back);
+        QCOMPARE(int(back->flow().frames.size()), 1);
+        QCOMPARE(documentXml(back->toDocx()), x);
+    }
+
+    // What the properties of a frame say: its place (from the text, the margin, or the page, by an offset or at the start, middle, or end of it), its height (at least what is
+    // given, exactly that, or the text's), the room round it, and how the text goes round it; a drop cap is a frame at the start of its paragraph.
+    void aFramesPropertiesAreRead()
+    {
+        auto frameOf = [&](const QByteArray &pr) {
+            auto doc = open(makeDocx(plainP("Before") + framedP("frame", "<w:framePr " + pr + "/>") + plainP("After"), kStyles));
+            return doc && doc->flow().frames.size() == 1 ? doc->flow().objects[doc->flow().frames[0] - 1] : flow::FloatingObject();
+        };
+        using FO = flow::FloatingObject;
+        FO o = frameOf("w:w=\"1000\" w:h=\"800\" w:hRule=\"exact\" w:hAnchor=\"page\" w:vAnchor=\"page\" w:x=\"1440\" w:y=\"-720\"");
+        QCOMPARE(o.frameWidth, 50.0);
+        QCOMPARE(o.frameHeight, 40.0);
+        QVERIFY(o.frameExactHeight);
+        QVERIFY(o.hRel == FO::Rel::Page && o.vRel == FO::Rel::Page);
+        QCOMPARE(o.dx, 72.0);
+        QCOMPARE(o.dy, -36.0);
+        QVERIFY(o.hAlign == FO::Align::None && o.vAlign == FO::Align::None);
+        o = frameOf("w:w=\"1000\" w:h=\"800\" w:hRule=\"auto\" w:hAnchor=\"margin\" w:vAnchor=\"margin\" w:xAlign=\"center\" w:yAlign=\"bottom\" w:wrap=\"notBeside\"");
+        QCOMPARE(o.frameHeight, 0.0);
+        QVERIFY(o.hRel == FO::Rel::Margin && o.vRel == FO::Rel::Margin && o.hAlign == FO::Align::Center && o.vAlign == FO::Align::End);
+        QVERIFY(o.wrap == FO::Wrap::TopBottom);
+        o = frameOf("w:wrap=\"none\" w:xAlign=\"inside\" w:yAlign=\"top\"");
+        QVERIFY(o.wrap == FO::Wrap::None && o.hAlign == FO::Align::Start && o.vAlign == FO::Align::Start);
+        QCOMPARE(o.frameWidth, 0.0);   // (as wide as its text)
+        o = frameOf("w:wrap=\"tight\" w:hSpace=\"240\"");
+        QVERIFY(o.wrap == FO::Wrap::Square);
+        QCOMPARE(o.gap.right(), 12.0);
+        o = frameOf("w:dropCap=\"drop\" w:lines=\"3\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"text\"");
+        QVERIFY(o.hRel == FO::Rel::Column && o.vRel == FO::Rel::Paragraph && o.hAlign == FO::Align::Start && o.wrap == FO::Wrap::Square);
+        // Paragraphs with other properties are other frames; the same properties with a paragraph that is not in the frame between them are another frame.
+        const QByteArray one = "<w:framePr w:w=\"1000\" w:hAnchor=\"page\" w:x=\"100\"/>", two = "<w:framePr w:w=\"1000\" w:hAnchor=\"page\" w:x=\"200\"/>";
+        auto doc = open(makeDocx(plainP("Before") + framedP("a", one) + framedP("b", one) + framedP("c", two) + plainP("Between") + framedP("d", one) + plainP("After"), kStyles));
+        QVERIFY(doc);
+        QCOMPARE(int(doc->flow().frames.size()), 3);
+        QVector<int> keys;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) keys << b.blockFormat().intProperty(flow::fp::Frame);
+        QCOMPARE(keys, (QVector<int>{0, 1, 1, 2, 0, 3, 0}));
+        // A paragraph with framePr in a cell of a table is no frame; nor is one in a header (which sets it as before).
+        const QByteArray cell = cellX(framedP("in a cell", one));
+        auto inCell = open(makeDocx(plainP("Before") + tableX(rowX(cell), 1) + plainP("After"), kStyles));
+        QVERIFY(inCell);
+        QCOMPARE(int(inCell->flow().frames.size()), 0);
+    }
+
     // ---- tables with the notes, headers and footers, and sections of a file (the two waves of JeffWrite together)
 
     static QByteArray refTo(int id) { return "<w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr><w:footnoteReference w:id=\"" + QByteArray::number(id) + "\"/></w:r>"; }

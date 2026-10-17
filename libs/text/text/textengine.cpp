@@ -2250,8 +2250,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 }
                 continue;
             }
-            // Hidden text takes no room and shows nothing, though its characters are the story's.
-            if (env.wordLines && cf.boolProperty(tp::HiddenText)) {
+            // Hidden text takes no room and shows nothing, though its characters are the story's (so does a paragraph that is set apart from the text).
+            if (env.wordLines && (cf.boolProperty(tp::HiddenText) || bf.boolProperty(tp::OutOfLayout))) {
                 B->map << Seg{rel, int(text.size()), int(B->disp.size()), 0, true};
                 continue;
             }
@@ -3076,7 +3076,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     }
                     // Re-check wrap for a line taller than estimated.
                     const double inkH = rise > 0 ? textH : std::min(textH, line.height());
+                    double band = estText;   // (the height of the line's text that the objects it goes round were kept out of)
                     if (inkH > estText * 1.05 && !frames[f].obstacles.isEmpty() && rowIdx == 0) {
+                        band = inkH;
                         const QVector<Iv> recheck = freeIntervals(frames[f].obstacles, iv.x0, iv.x1, col.top() + y, col.top() + y + inkH);
                         if (recheck.size() != 1 || recheck[0].x0 > iv.x0 + 0.5 || recheck[0].x1 < iv.x1 - 0.5) {
                             y += 2;
@@ -3130,7 +3132,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             }
                         }
                     }
-                    B->lines << Line{f, c, QRectF(iv.x0, col.top() + y, iv.x1 - iv.x0, h), below, rowPushed};
+                    B->lines << Line{f, c, QRectF(iv.x0, col.top() + y, iv.x1 - iv.x0, h), below, rowPushed, band};
                     if (!lineNotes.isEmpty()) {
                         const bool firstNotes = !reserve.contains(rkey(f, c));
                         double &room = reserve[rkey(f, c)];
@@ -3186,7 +3188,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         // (The first paragraph of a stretch may have lines that went before it.)
         const int firstBreak = first ? m_span.firstBreakAfter : -1;
         // A paragraph whose text and mark are both hidden is no paragraph: it takes no room.
-        if (!(env.wordLines && B->disp.isEmpty() && b.charFormat().boolProperty(tp::HiddenText) && !tail)) placeLines(false, firstBreak);
+        if (!(env.wordLines && B->disp.isEmpty() && (b.charFormat().boolProperty(tp::HiddenText) || bf.boolProperty(tp::OutOfLayout)) && !tail)) placeLines(false, firstBreak);
         // Where each line landed: the first line in another column or box.
         auto splitAt = [&] {
             for (int i = 1; i < B->lines.size(); ++i)
@@ -3525,6 +3527,7 @@ QVector<StoryLayout::LineBrief> StoryLayout::lineBriefs() const
             b.rect = B->lines[i].rect;
             b.below = B->lines[i].below;
             b.pushed = B->lines[i].pushed;
+            b.band = B->lines[i].band;
             b.cut = B->cut;
             if (B->cut && i + 1 == B->lines.size()) b.end = std::min(b.end, B->docStart + B->cutAt);
             v << b;

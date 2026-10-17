@@ -95,7 +95,7 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
             const auto lines = m_storyLines.find(std::make_tuple(story, int(std::lround(content.width() * 100)), story->revision()));
             if (lines != m_storyLines.end()) {
                 QVector<AnchorLine> held;
-                for (const StoryLayout::LineInfo &l : lines->second) held << AnchorLine{l.docStart, l.docPos, l.docEnd, l.rect.translated(content.left(), top), content.left(), 0.0, l.docEnd};
+                for (const StoryLayout::LineInfo &l : lines->second) held << AnchorLine{l.docStart, l.docPos, l.docEnd, l.rect.translated(content.left(), top), content.left(), 0.0, false, l.docEnd};
                 anchors << anchorsIn(story, 0, story->characterCount(), held);
             }
         }
