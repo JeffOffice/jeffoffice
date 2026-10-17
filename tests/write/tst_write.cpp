@@ -436,6 +436,42 @@ private Q_SLOTS:
         QVERIFY(w.document()->leftSomethingOut());
     }
 
+    void trackedChangesOfAnOldFileComeInWithTheirAuthors()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        dochelp::DocWriter doc;
+        // "keep ", then "added" inserted by Ann, " and ", then "dropped" deleted by Bob, then " end."
+        doc.text = QStringLiteral("keep added and dropped end.\r");
+        doc.revisionAuthors = {QStringLiteral("Ann"), QStringLiteral("Bob")};
+        using namespace dochelp;
+        doc.chars = {{5, 10, sprm1(sprm::inserted, 0x81) + sprm2(sprm::insertedBy, 0) + sprm4(sprm::insertedAt, dttm(2003, 4, 7, 9, 30))},
+                     {15, 22, sprm1(sprm::deleted, 0x81) + sprm2(sprm::deletedBy, 1) + sprm4(sprm::deletedAt, dttm(2004, 11, 23, 16, 5))}};
+        const QString path = dir.filePath(QStringLiteral("tracked.doc"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(doc.build());
+        f.close();
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(path));
+        // The inserted words are in the text, and the deleted ones are not shown in it (the marks of the changes are objects in it, not text).
+        QString shown = w.document()->story()->toPlainText();
+        shown.remove(QChar(0xFFFC));
+        QVERIFY2(shown.contains(QLatin1String("keep added and")), qPrintable(shown));
+        QVERIFY2(!shown.contains(QLatin1String("dropped")), qPrintable(shown));
+        // Written out, each is still a tracked change with its author.
+        const QByteArray x = documentXml(w.document()->toDocx());
+        const qsizetype ins = x.indexOf("<w:ins ");
+        const qsizetype del = x.indexOf("<w:del ");
+        QVERIFY2(ins >= 0 && del > ins, x.constData());
+        const QByteArray insTag = x.mid(ins, x.indexOf('>', ins) - ins), delTag = x.mid(del, x.indexOf('>', del) - del);
+        QVERIFY2(insTag.contains("w:author=\"Ann\""), insTag.constData());
+        QVERIFY2(delTag.contains("w:author=\"Bob\""), delTag.constData());
+        QVERIFY(x.mid(ins, del - ins).contains("<w:t xml:space=\"preserve\">added</w:t>"));
+        QVERIFY(x.mid(del, x.indexOf("</w:del>", del) - del).contains("<w:delText xml:space=\"preserve\">dropped</w:delText>"));
+    }
+
     void anOldTemplateOpensAsANewDocumentMadeFromIt()
     {
         QTemporaryDir dir;
