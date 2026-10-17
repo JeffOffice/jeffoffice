@@ -21,6 +21,8 @@ class LayoutCache;
 
 namespace jp::write {
 
+class SpellCheck;
+
 class PageView : public QAbstractScrollArea {
     Q_OBJECT
 public:
@@ -68,6 +70,12 @@ public:
     // ---- showing
     void setShowMarks(bool on);
     bool showMarks() const { return m_marks; }
+    // Spelling as you type: misspelled words get a red wave on the screen. The checking is the document's own, found a paragraph at a time for the pages in view.
+    SpellCheck *spelling() const { return m_spell.get(); }
+    bool spellingEnabled() const { return m_spellOn; }
+    // The place a menu is for: where the last right click was (a click inside a selection leaves the selection and the caret as they were), else the caret.
+    int contextPosition() const { return m_contextAt >= 0 ? m_contextAt : m_cursor.position(); }
+    void setSpellingEnabled(bool on);
 
     // ---- editing (each is a step that undoes)
     void undo();
@@ -160,6 +168,10 @@ private:
     qint64 m_lastClickTime = 0;
     bool m_relayouting = false;
     QTextDocument *m_connected = nullptr;
+    std::unique_ptr<SpellCheck> m_spell;
+    bool m_spellOn = true;
+    int m_contextAt = -1;           // where the right click was, until the caret moves or the menu is gone
+    int m_editEnd = -1;             // where the last edit left off (a word being typed ends the caret's way)
 };
 
 } // namespace jp::write

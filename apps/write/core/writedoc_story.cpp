@@ -158,7 +158,9 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         resolved.overlay(props);
         resolved.extra = props.extra;
         resolved.style = props.style;
-        const QTextCharFormat f = charFormatOf(resolved, thm, &props);
+        QTextCharFormat f = charFormatOf(resolved, thm, &props);
+        if (!f.hasProperty(tp::Language))
+            if (const QString language = styleLanguage(paraStyle, props.style); !language.isEmpty() && language != proofingLanguage()) f.setProperty(tp::Language, language);
         formats.insert(key, f);
         return f;
     };

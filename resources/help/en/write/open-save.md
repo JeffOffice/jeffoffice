@@ -29,7 +29,7 @@ JeffWrite saves a spare copy of unsaved work every few minutes, as a file in its
 
 ## Print
 
-Press **Ctrl+P**, or click **File > Print**. Choose **All pages**, **Current page**, or **Pages** and type the pages, such as 1-3, 5. The page on the right shows what will print. Click **Print** to pick a printer and send the pages.
+Press **Ctrl+P**, or click **File > Print**. Choose a printer, the copies, and the pages, look at each page in the preview, and click **Print**. See [Print](print).
 
 ## Make a PDF
 
@@ -38,4 +38,5 @@ Click **File > Export > Export to PDF**. Choose a name. The PDF looks the same o
 ## Related
 
 - [Welcome to JeffWrite](start)
+- [Print](print)
 - [Use JeffWrite with the keyboard](keyboard)
