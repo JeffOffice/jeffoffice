@@ -851,18 +851,26 @@ void Paginator::changed(int position, int removed, int added)
     const QTextBlock b0 = story->findBlock(std::min(position, last)), b1 = story->findBlock(std::min(position + added, last));
     int from = b0.isValid() ? b0.position() : 0;
     int to = b1.isValid() ? b1.position() + b1.length() : last + 1;
-    // The paragraphs of a table that is set at a place are too: its cells' (and the table's own place is where it is set from the paragraph after it).
-    if (m_tables->any() && b0.isValid() && b0.blockFormat().intProperty(fp::Cell)) {
-        const CellRecord *rec = m_doc->tables.get(b0.blockFormat().intProperty(fp::Cell));
-        while (rec && rec->parent) rec = m_doc->tables.get(rec->parent);
-        if (rec && rec->table && rec->table->place) {
-            QTextBlock after = b0;
+    // The paragraphs of a table that is set at a place are too: its cells' (and the table's own place is where it is set from the paragraph after it, which the text round the
+    // table is, and the pages from that on are laid out again). That is so for an edit that begins in the table, and for one that begins before it and goes into it (the cells of
+    // a row put in at its top, opened at the end of the paragraph before the table) or through it.
+    if (m_tables->any() && b0.isValid()) {
+        auto afterPlaced = [&](const QTextBlock &x) {
+            if (!x.blockFormat().intProperty(fp::Cell)) return QTextBlock();
+            const CellRecord *rec = m_doc->tables.get(x.blockFormat().intProperty(fp::Cell));
+            while (rec && rec->parent) rec = m_doc->tables.get(rec->parent);
+            if (!rec || !rec->table || !rec->table->place) return QTextBlock();
+            QTextBlock after = x;
             while (after.isValid() && after.blockFormat().intProperty(fp::Cell)) after = after.next();
-            if (after.isValid()) {
-                from = after.position();
-                to = std::max(to, after.position() + after.length());
-            }
+            return after;
+        };
+        if (const QTextBlock after = afterPlaced(b0); after.isValid()) {
+            from = after.position();
+            to = std::max(to, after.position() + after.length());
         }
+        int looked = 0;
+        for (QTextBlock x = b0.next(); x.isValid() && b1.isValid() && x.position() <= b1.position() && ++looked <= 20000; x = x.next())
+            if (const QTextBlock after = afterPlaced(x); after.isValid()) to = std::max(to, after.position() + after.length());
     }
     // The paragraphs of a frame are set where the paragraph after them is (they have no lines of their own): an edit in them touches the page of that paragraph.
     if (!m_doc->frames.isEmpty()) {

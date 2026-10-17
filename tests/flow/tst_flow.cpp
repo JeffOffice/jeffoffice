@@ -5402,6 +5402,55 @@ private Q_SLOTS:
         QCOMPARE(floating, 1);
     }
 
+    // Rows put in at the top of a table set at a place, by an edit that begins in the paragraph before the table (the end of its text, where the new cells' paragraphs are
+    // opened): the table is taller, the text that goes round it has more lines, and the pages from its paragraph on are laid out again (they are those of a new paginator).
+    void rowsPutInAtTheTopOfAFloatingTableLayOutThePagesAfterIt()
+    {
+        QStringList failures;
+        int moved = 0;
+        for (unsigned seed = 1; seed <= 40; ++seed) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            // (The paragraph after the table, which it is set from, begins the second page: the first page ends at the table, and the edit's end is where it ends.)
+            fillStory(fd.story(), 40, seed, [](int i, QTextBlockFormat &bf) { if (i == 6) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore); }, 10, 80);
+            TestTable spec;
+            spec.rows = 2;
+            spec.cols = 2;
+            spec.columnWidth = 60;
+            spec.text = [](int r, int c) { return QStringLiteral("r%1c%2").arg(r).arg(c); };
+            spec.setTable = [](TableData &t) { TableData::Place p; p.across = TableData::Place::From::Margin; p.acrossSpec = TableData::Place::Spec::End; p.room = QMarginsF(8, 0, 8, 0); t.place = p; };
+            const TestTable table = addTableAfter(fd, 5, spec);
+            Paginator pg(&fd);
+            QVERIFY(pg.pageCount() >= 3);
+            const int linesBefore = int(pg.lines(1).size());
+            const QTextBlock prev = fd.story()->findBlock(table.rowStarts[0]).previous();
+            QVERIFY(prev.isValid() && !prev.blockFormat().intProperty(fp::Cell));
+            auto row = std::make_shared<RowData>(*fd.tables.get(table.keys[0])->row);
+            QTextCursor c(fd.story());
+            c.setPosition(prev.position() + prev.length() - 1);
+            QTextCharFormat body;
+            body.setFontPointSize(11);
+            c.beginEditBlock();
+            for (int col = 0; col < 2; ++col) {
+                CellRecord rec = *fd.tables.get(table.keys[size_t(col)]);
+                rec.row = row;
+                QTextBlockFormat bf;
+                bf.setProperty(fp::Cell, fd.tables.add(rec));
+                for (int line = 0; line < 4; ++line) {
+                    c.insertBlock(bf, body);
+                    c.insertText(QStringLiteral("a new cell's paragraph %1").arg(line), body);
+                }
+            }
+            c.endEditBlock();
+            Paginator fresh(&fd);
+            const QString bad = audit::differenceFromFresh(pg, fresh);
+            if (!bad.isEmpty()) failures << QStringLiteral("seed %1: %2").arg(seed).arg(bad.left(200));
+            moved += int(pg.lines(1).size()) != linesBefore;
+        }
+        QVERIFY2(failures.isEmpty(), qPrintable(QStringLiteral("%1 of 40:\n%2").arg(failures.size()).arg(failures.mid(0, 4).join(QLatin1Char('\n')))));
+        QVERIFY2(moved >= 5, qPrintable(QString::number(moved)));   // (the text round the taller table has other lines)
+    }
+
     // ---- text round objects
 
     // Text goes round an object that has a square wrap: the object is at the top of its paragraph (as the text sets that, not moved by the object), the lines beside it
