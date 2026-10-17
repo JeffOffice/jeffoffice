@@ -46,6 +46,8 @@ public:
     int pagesAcross() const { return m_across; }
 
     // ---- pages
+    // The number of pages a page made for the view shows (NUMPAGES), -1 where the page isn't made or shows none: what the page says, for the tests.
+    int shownTotal(int index) const;
     int pageCount() const;         // the pages laid out so far
     bool pagesComplete() const;    // whether those are all the document has
     int currentPage() const;       // the page the caret is on, from 0

@@ -271,6 +271,9 @@ QImage pageImage(Paginator &pg, LayoutCache *cache, int index, int width, bool p
     p.setRenderHint(QPainter::TextAntialiasing);
     p.scale(img.width() / size.width(), img.height() / size.height());
     Renderer::paintPage(&p, ctx, 0);
+    TablePaint tp;
+    tp.output = pdf ? TextOutput::Pdf : TextOutput::Picture;
+    paintTables(&p, *page, tp);
     return img;
 }
 
@@ -462,6 +465,9 @@ int main(int argc, char **argv)
                 ctx.pageNumber = page->number;
                 ctx.pageCount = pages;
                 Renderer::paintPage(&p, ctx, 0);
+                TablePaint tp;
+                tp.output = TextOutput::Pdf;
+                paintTables(&p, *page, tp);
                 p.restore();
             }
             p.end();

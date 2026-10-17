@@ -76,11 +76,13 @@ flow::Section flowSectionOf(const SectionProps &p, bool evenAndOdd)
     s.footerDistance = p.footer / 20.0;
     s.differentFirstPage = p.titlePg;
     s.differentOddEven = evenAndOdd;
+    s.continuous = p.type == QLatin1String("continuous");
     s.firstPageNumber = p.pageStart;
     s.pageNumberFormat = p.pageFormat == QLatin1String("lowerRoman") ? QStringLiteral("roman")
                          : p.pageFormat == QLatin1String("upperRoman") ? QStringLiteral("ROMAN")
                          : p.pageFormat == QLatin1String("lowerLetter") ? QStringLiteral("alpha")
                          : p.pageFormat == QLatin1String("upperLetter") ? QStringLiteral("ALPHA")
+                         : p.pageFormat == QLatin1String("numberInDash") ? QStringLiteral("dash")
                                                                        : QString();
     return s;
 }
@@ -119,6 +121,7 @@ void updateSectionProps(SectionProps *p, const flow::Section &s)
                         : s.pageNumberFormat == QLatin1String("ROMAN") ? QStringLiteral("upperRoman")
                         : s.pageNumberFormat == QLatin1String("alpha") ? QStringLiteral("lowerLetter")
                         : s.pageNumberFormat == QLatin1String("ALPHA") ? QStringLiteral("upperLetter")
+                        : s.pageNumberFormat == QLatin1String("dash") ? QStringLiteral("numberInDash")
                                                                        : QString();
 }
 
@@ -186,7 +189,10 @@ void WriteDoc::build(office::wml::Document &&doc)
     body.swap(m_wml.body);
     m_last = m_wml.lastSection;
     setUpEnvironment();
+    loadNotes();
     buildStory(body);
+    measureNoteSeparator();
+    settleTables();
     syncSections();
     m_pager = std::make_unique<flow::Paginator>(m_flow.get());
     QTextDocument *s = story();
@@ -217,6 +223,23 @@ void WriteDoc::setUpEnvironment()
         f.env.colors = cs;
     }
     f.env.defaultTab = std::max(1, m_wml.defaultTabStop) / 20.0;
+    f.env.wordLines = true;
+    // The file's own compatibility option: no punctuation hangs past the margin.
+    if (!m_wml.settingsName.isEmpty()) f.env.wordNoHang = office::wml::compatOption(partData(m_wml.settingsName), "doNotWrapTextWithPunct");
+    // The stand-ins for the fonts the file names that the machine doesn't have: the alternate its font table gives, or by its kind a serif face or a
+    // fixed-width one.
+    for (const KeptPart &part : m_wml.parts) {
+        if (!part.name.endsWith(QLatin1String("fontTable.xml"), Qt::CaseInsensitive)) continue;
+        QVector<office::wml::FontEntry> fonts;
+        if (office::wml::readFonts(partData(part.name), &fonts))
+            for (const office::wml::FontEntry &font : fonts) {
+                if (font.name.isEmpty()) continue;
+                if (!font.alternate.isEmpty()) f.env.standIns.insert(font.name.toLower(), font.alternate);
+                else if (font.family == QLatin1String("roman")) f.env.standIns.insert(font.name.toLower(), QStringLiteral("Times New Roman"));
+                else if (font.family == QLatin1String("modern")) f.env.standIns.insert(font.name.toLower(), QStringLiteral("Courier New"));
+            }
+        break;
+    }
     QFont body(f.env.fonts.body);
     body.setPointSizeF(m_wml.styles.defaultRun.size.value_or(22) / 2.0);
     f.story()->setDefaultFont(body);
@@ -381,10 +404,55 @@ void WriteDoc::syncSections()
     }
     m_sectionKeys = keys;
     if (changed) {
+        attachHeaders(from);
         if (m_pager) m_pager->invalidateFrom(from);
         Q_EMIT sectionsChanged();
     }
     m_syncing = false;
+}
+
+namespace {
+// The most distinct header and footer parts that are read; a file with more has the rest left out (a section's reference to one shows nothing).
+constexpr int kMostHeaderParts = 64;
+} // namespace
+
+std::shared_ptr<QTextDocument> WriteDoc::headerStory(const QString &relationshipId)
+{
+    const Relationship rel = mainRelationship(relationshipId);
+    if (rel.id.isEmpty() || rel.external) return nullptr;
+    const auto found = m_headerStories.constFind(rel.target);
+    if (found != m_headerStories.constEnd()) return found.value();
+    if (m_headerStories.size() >= kMostHeaderParts) return nullptr;
+    QVector<Block> blocks;
+    auto doc = std::make_shared<QTextDocument>();
+    if (readBlocks(partData(rel.target), &blocks)) {
+        doc->setDocumentMargin(0);
+        doc->setDefaultFont(story()->defaultFont());
+        doc->setUndoRedoEnabled(false);
+        fillStory(doc.get(), blocks, true, rel.target);
+    }
+    m_headerStories.insert(rel.target, doc);
+    return doc;
+}
+
+void WriteDoc::attachHeaders(int from)
+{
+    flow::FlowDocument &f = *m_flow;
+    if (m_headerRefs.size() > 4096) m_headerRefs.clear();
+    for (int i = std::max(0, from); i < f.sections.size() && i < m_sectionKeys.size() && i < int(m_sections.size()); ++i) {
+        auto it = m_headerRefs.find(m_sectionKeys[i]);
+        if (it == m_headerRefs.end()) it = m_headerRefs.insert(m_sectionKeys[i], headerRefsOf(m_sections[i]));
+        const HeaderRefs &refs = it.value();
+        flow::Section &s = f.sections[i];
+        const flow::Section *before = i > 0 ? &f.sections[i - 1] : nullptr;
+        auto pick = [&](const QString &id, const std::shared_ptr<QTextDocument> &inherited) { return id.isEmpty() ? inherited : headerStory(id); };
+        s.header.odd = pick(refs.header[0], before ? before->header.odd : nullptr);
+        s.header.first = pick(refs.header[1], before ? before->header.first : nullptr);
+        s.header.even = pick(refs.header[2], before ? before->header.even : nullptr);
+        s.footer.odd = pick(refs.footer[0], before ? before->footer.odd : nullptr);
+        s.footer.first = pick(refs.footer[1], before ? before->footer.first : nullptr);
+        s.footer.even = pick(refs.footer[2], before ? before->footer.even : nullptr);
+    }
 }
 
 void WriteDoc::setSectionProps(int index, const SectionProps &props)
@@ -522,19 +590,19 @@ int WriteDoc::deepestLevel(int numId) const
     return -1;
 }
 
-ParaProps WriteDoc::baselineParagraph(const QString &paragraphStyle, int numId, int level, bool direct, QHash<QString, ParaProps> *cache) const
+ParaProps WriteDoc::baselineParagraph(const QString &paragraphStyle, int numId, int level, bool direct, QHash<QString, ParaProps> *cache, const TableLayer *table) const
 {
     const QString style = paragraphStyle.isEmpty() ? defaultParagraphStyle() : paragraphStyle;
     QString key;
     if (cache && numId > 0) {
-        key = style + QLatin1Char('\n') + QString::number(numId) + QLatin1Char('\n') + QString::number(level) + (direct ? QLatin1String("\nd") : QLatin1String());
+        key = style + QLatin1Char('\n') + QString::number(numId) + QLatin1Char('\n') + QString::number(level) + (direct ? QLatin1String("\nd") : QLatin1String()) + (table ? QLatin1Char('\n') + table->key : QString());
         const auto it = cache->constFind(key);
         if (it != cache->constEnd()) return it.value();
     }
-    ParaProps p = m_wml.styles.paragraph(style);
+    ParaProps p = m_wml.styles.paragraph(style, table);
     if (numId > 0) {
         // A paragraph numbered by its style keeps the style's own indents over the list's; one numbered by itself gets the list's.
-        if (!direct && p.numId.value_or(0) == numId) p = m_wml.styles.paragraphWithNumbering(style, levelParagraph(numId, level));
+        if (!direct && p.numId.value_or(0) == numId) p = m_wml.styles.paragraphWithNumbering(style, levelParagraph(numId, level), table);
         else p.overlay(levelParagraph(numId, level));
     }
     p.style = style;
