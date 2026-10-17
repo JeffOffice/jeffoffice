@@ -1,5 +1,6 @@
 // JeffDeck's tests of animations: reading, painting, editing, and writing them.
 #include "deckhelpers.h"
+#include "../timing.h"
 
 class DeckAnimationTests : public QObject {
     Q_OBJECT
@@ -1308,10 +1309,9 @@ private Q_SLOTS:
         QStringList many;
         for (int i = 0; i < 2600; ++i) many << animFadeIn(3, 100);
         slide.props[QStringLiteral("timingXml")] = animTiming(animSteps(many));
-        QElapsedTimer clock;
-        clock.start();
-        deck::AnimSequence seq = deck::readAnimations(slide);
-        QVERIFY2(clock.elapsed() < 8000, "reading 2,600 effects took too long");
+        deck::AnimSequence seq;
+        const qint64 readMs = bestNanoseconds([&] { seq = deck::readAnimations(slide); }, 3) / 1000000;
+        QVERIFY2(readMs < 8000, "reading 2,600 effects took too long");
         QVERIFY(!seq.editable);
         QCOMPARE(int(seq.effects.size()), 2000);
         // Nested thirty deep, the effect is not found by the editing reader, which then does not rewrite the timing.

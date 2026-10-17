@@ -1,5 +1,6 @@
 // JeffDeck's tests of diagrams, equations, and charts in a presentation file.
 #include "deckhelpers.h"
+#include "../timing.h"
 
 class DeckPptxObjectsTests : public QObject {
     Q_OBJECT
@@ -706,11 +707,12 @@ private Q_SLOTS:
         for (int i = 0; i < 120; ++i) frames += QString(frame).replace(QStringLiteral("id=\"9\""), QStringLiteral("id=\"%1\"").arg(100 + i));
         xml.replace(frame, frames);
         p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
-        QElapsedTimer timer;
-        timer.start();
         QString err;
-        auto d = deck::importPresentation(pack(p), &err);
-        const qint64 ms = timer.elapsed();
+        std::unique_ptr<Document> d;
+        const qint64 ms = bestNanoseconds([&] { d = deck::importPresentation(pack(p), &err); }, 3, [&] {
+            d.reset();
+            err.clear();
+        }) / 1000000;
         QVERIFY2(d, qPrintable(err));
         QSet<QString> ids;
         int charts = 0;

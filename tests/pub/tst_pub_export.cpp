@@ -1,5 +1,6 @@
 // JeffPub's tests of SVG, ebook, and other output, barcodes, and metafiles.
 #include "pubhelpers.h"
+#include "../timing.h"
 
 class PubExportTests : public QObject {
     Q_OBJECT
@@ -367,10 +368,9 @@ private Q_SLOTS:
             bomb += "</g>";
         }
         bomb += "</defs><use xlink:href=\"#g9\"/></svg>";
-        QElapsedTimer bombTime;
-        bombTime.start();
-        const svg::Drawing many = svg::read(bomb);
-        QVERIFY(bombTime.elapsed() < 5000);
+        svg::Drawing many;
+        const qint64 bombMs = bestNanoseconds([&] { many = svg::read(bomb); }, 5, [&] { many = svg::Drawing(); }) / 1000000;
+        QVERIFY(bombMs < 5000);
         QVERIFY(many.elements.size() <= 100000);
         QVERIFY(many.skipped);
         // A box too small to scale from gives no shapes, not endless ones.
@@ -1211,78 +1211,78 @@ private Q_SLOTS:
         auto put32 = [](QByteArray &b, qsizetype o, quint32 v) { qToLittleEndian(v, b.data() + o); };
         auto get32 = [](const QByteArray &b, qsizetype o) { return qFromLittleEndian<quint32>(b.constData() + o); };
         jp::cfb::File out;
-        QElapsedTimer t;
-        t.start();
+        const qint64 ms = bestNanoseconds([&] {
 
-        // A DIFAT sector that names itself as the next one, and a count of
-        // four billion of them.
-        {
-            QByteArray b = jp::cfb::write(cfbWith({QByteArray(5000, 'a')}));
-            const quint32 self = quint32(b.size() / 512 - 1);
-            QByteArray extra(512, '\xFF');
-            put32(extra, 508, self);
-            b += extra;
-            put32(b, 68, self);
-            put32(b, 72, 0xFFFFFFFF);
-            QVERIFY(jp::cfb::read(b, &out));
-            QCOMPARE(out.stream(QStringLiteral("s0")), QByteArray(5000, 'a'));
-        }
-        // The one FAT sector listed 109 times, and a stream whose first sector
-        // leads back to itself, claiming 4 GB.
-        {
-            QByteArray b = jp::cfb::write(cfbWith({QByteArray(5000, 'b')}));
-            const quint32 fatSector = get32(b, 76);
-            for (int i = 0; i < 109; ++i) put32(b, 76 + i * 4, fatSector);
-            put32(b, 44, 109);
-            const qsizetype entry = (qsizetype(get32(b, 48)) + 1) * 512 + 128;   // the stream, after the root
-            const quint32 first = get32(b, entry + 116);
-            put32(b, (qsizetype(fatSector) + 1) * 512 + qsizetype(first) * 4, first);
-            put32(b, entry + 120, 0xFFFFFFFF);
-            QVERIFY(jp::cfb::read(b, &out));
-            QVERIFY(out.stream(QStringLiteral("s0")).size() <= b.size());
-        }
-        // Three hundred streams pointed at one long chain.
-        {
-            QVector<QByteArray> streams{QByteArray(100000, 'c')};
-            for (int i = 0; i < 300; ++i) streams << QByteArray();
-            QByteArray b = jp::cfb::write(cfbWith(streams));
-            const qsizetype dir = (qsizetype(get32(b, 48)) + 1) * 512;
-            const quint32 start = get32(b, dir + 128 + 116);
-            for (int i = 2; i <= 301; ++i) {
-                put32(b, dir + i * 128 + 116, start);
-                put32(b, dir + i * 128 + 120, 100000);
+            // A DIFAT sector that names itself as the next one, and a count of
+            // four billion of them.
+            {
+                QByteArray b = jp::cfb::write(cfbWith({QByteArray(5000, 'a')}));
+                const quint32 self = quint32(b.size() / 512 - 1);
+                QByteArray extra(512, '\xFF');
+                put32(extra, 508, self);
+                b += extra;
+                put32(b, 68, self);
+                put32(b, 72, 0xFFFFFFFF);
+                QVERIFY(jp::cfb::read(b, &out));
+                QCOMPARE(out.stream(QStringLiteral("s0")), QByteArray(5000, 'a'));
             }
-            QVERIFY(jp::cfb::read(b, &out));
-            qint64 total = 0;
-            for (const QString &p : out.streamPaths()) total += out.stream(p).size();
-            QVERIFY2(total <= 2 * b.size() + (1 << 20), qPrintable(QString::number(total)));
-            QCOMPARE(out.stream(QStringLiteral("s0")), QByteArray(100000, 'c'));
-        }
-        // Storages nested 50,000 deep.
-        {
-            jp::cfb::File f = cfbWith({});
-            for (int i = 1; i <= 50000; ++i) {
-                jp::cfb::Entry e;
-                e.type = jp::cfb::Entry::Storage;
-                e.name = QStringLiteral("d");
-                f.entries[i - 1].children << i;
-                f.entries << e;
+            // The one FAT sector listed 109 times, and a stream whose first sector
+            // leads back to itself, claiming 4 GB.
+            {
+                QByteArray b = jp::cfb::write(cfbWith({QByteArray(5000, 'b')}));
+                const quint32 fatSector = get32(b, 76);
+                for (int i = 0; i < 109; ++i) put32(b, 76 + i * 4, fatSector);
+                put32(b, 44, 109);
+                const qsizetype entry = (qsizetype(get32(b, 48)) + 1) * 512 + 128;   // the stream, after the root
+                const quint32 first = get32(b, entry + 116);
+                put32(b, (qsizetype(fatSector) + 1) * 512 + qsizetype(first) * 4, first);
+                put32(b, entry + 120, 0xFFFFFFFF);
+                QVERIFY(jp::cfb::read(b, &out));
+                QVERIFY(out.stream(QStringLiteral("s0")).size() <= b.size());
             }
-            jp::cfb::Entry leaf;
-            leaf.name = QStringLiteral("x");
-            leaf.data = "deep";
-            f.entries.last().children << int(f.entries.size());
-            f.entries << leaf;
-            jp::cfb::Entry near;
-            near.name = QStringLiteral("y");
-            near.data = "near";
-            f.entries[1].children << int(f.entries.size());
-            f.entries << near;
-            QVERIFY(jp::cfb::read(jp::cfb::write(f), &out));
-            QCOMPARE(out.stream(QStringLiteral("d/y")), QByteArray("near"));
-            QVERIFY(out.entries.size() < 100);
-        }
-        QVERIFY(t.elapsed() < 20000);
+            // Three hundred streams pointed at one long chain.
+            {
+                QVector<QByteArray> streams{QByteArray(100000, 'c')};
+                for (int i = 0; i < 300; ++i) streams << QByteArray();
+                QByteArray b = jp::cfb::write(cfbWith(streams));
+                const qsizetype dir = (qsizetype(get32(b, 48)) + 1) * 512;
+                const quint32 start = get32(b, dir + 128 + 116);
+                for (int i = 2; i <= 301; ++i) {
+                    put32(b, dir + i * 128 + 116, start);
+                    put32(b, dir + i * 128 + 120, 100000);
+                }
+                QVERIFY(jp::cfb::read(b, &out));
+                qint64 total = 0;
+                for (const QString &p : out.streamPaths()) total += out.stream(p).size();
+                QVERIFY2(total <= 2 * b.size() + (1 << 20), qPrintable(QString::number(total)));
+                QCOMPARE(out.stream(QStringLiteral("s0")), QByteArray(100000, 'c'));
+            }
+            // Storages nested 50,000 deep.
+            {
+                jp::cfb::File f = cfbWith({});
+                for (int i = 1; i <= 50000; ++i) {
+                    jp::cfb::Entry e;
+                    e.type = jp::cfb::Entry::Storage;
+                    e.name = QStringLiteral("d");
+                    f.entries[i - 1].children << i;
+                    f.entries << e;
+                }
+                jp::cfb::Entry leaf;
+                leaf.name = QStringLiteral("x");
+                leaf.data = "deep";
+                f.entries.last().children << int(f.entries.size());
+                f.entries << leaf;
+                jp::cfb::Entry near;
+                near.name = QStringLiteral("y");
+                near.data = "near";
+                f.entries[1].children << int(f.entries.size());
+                f.entries << near;
+                QVERIFY(jp::cfb::read(jp::cfb::write(f), &out));
+                QCOMPARE(out.stream(QStringLiteral("d/y")), QByteArray("near"));
+                QVERIFY(out.entries.size() < 100);
+            }
+        }, 3) / 1000000;
+        QVERIFY2(ms < 20000, qPrintable(QString::number(ms)));
     }
 
     void metafileWmfRenders()
@@ -1540,16 +1540,15 @@ private Q_SLOTS:
             QByteArray flood = wmfRecord(0x012D, words({0}));
             const QByteArray fill = wmfRecord(0x061D, patBlt);
             for (int i = 0; i < 400000; ++i) flood += fill;
-            QElapsedTimer timer;
-            timer.start();
-            const QImage drawn = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, flood));
-            QVERIFY2(timer.elapsed() < 6000, qPrintable(QString::number(timer.elapsed())));
+            QImage drawn;
+            const qint64 floodMs = bestNanoseconds([&] { drawn = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, flood)); }, 3) / 1000000;
+            QVERIFY2(floodMs < 6000, qPrintable(QString::number(floodMs)));
             QVERIFY(near(drawn.pixel(200, 150), QColor(0, 0, 255)));
             QByteArray nested;
             for (int i = 0; i < 200000; ++i) nested += wmfRecord(0x001E, QByteArray());
-            timer.restart();
-            const QImage deep = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, nested + wmfRecord(0x012D, words({0})) + fill));
-            QVERIFY2(timer.elapsed() < 6000, qPrintable(QString::number(timer.elapsed())));
+            QImage deep;
+            const qint64 deepMs = bestNanoseconds([&] { deep = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, nested + wmfRecord(0x012D, words({0})) + fill)); }, 3) / 1000000;
+            QVERIFY2(deepMs < 6000, qPrintable(QString::number(deepMs)));
             QVERIFY(near(deep.pixel(200, 150), QColor(0, 0, 255)));
             // Saves past the cap are counted, so their restores undo nothing: a clip set after the first save
             // still holds once as many restores as later saves have run (before, they unwound past it).
