@@ -217,6 +217,7 @@ private:
     struct Wrapped {
         int object = 0, at = 0;
         QRectF rect;
+        int paragraph = -1;   // the position of the paragraph its anchor is in (not a part of what makes two walls the same)
         std::shared_ptr<const FloatingObject> frame;   // (a frame's object: the paginator's cache of them may let it go while the page is laid out, so the page holds it)
         bool operator==(const Wrapped &o) const {
             return object == o.object && at == o.at && std::abs(rect.left() - o.rect.left()) < 0.01 && std::abs(rect.top() - o.rect.top()) < 0.01 && std::abs(rect.width() - o.rect.width()) < 0.01 && std::abs(rect.height() - o.rect.height()) < 0.01;
@@ -340,7 +341,9 @@ private:
     QHash<int, QVector<std::pair<int, int>>> m_anchorChars;   // by the paragraph's position
     // Where an object is on the page (page coordinates) for the anchor it has: from the page, the margin, a strip of it, the column, the paragraph, or the line, as it says, and
     // kept on the page (down from the paragraph or the line).
-    QRectF placeOf(const FloatingObject &o, const Anchor &a, const Section &sec, bool clamp = true) const;
+    // (A table set at a place from its paragraph that would go over `limit`, the foot of the text area, is slid up to end at it, if it still begins at or below its paragraph: the
+    // table is on the page, and goes to the next only if it would not fit there; none: -1.)
+    QRectF placeOf(const FloatingObject &o, const Anchor &a, const Section &sec, bool clamp = true, double limit = -1) const;
     // Puts the objects of the anchors on a page made for painting: pictures (their data in the page's document), rules, boxes, and text boxes, behind the
     // text or over it. Those in `wrapped` (the objects the page was laid out with) are where it was laid out with them and ask the text to go round; any other asks nothing.
     // (An object with a wrap that leaves no text beside it is a wall as wide as the columns that it reaches into, which `columns` (their rectangles on the page) say: the page layer's

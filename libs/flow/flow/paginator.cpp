@@ -129,34 +129,89 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
     // A page laid out before, as it is now, ends with the walls it did.
     if (const auto memo = m_wallMemo.find(index); memo != m_wallMemo.end() && memo->second.start == st && memo->second.pages == int(m_starts.size()))
         return layoutPageWith(index, st, memo->second.walls, memo->second.cutAt);
-    Run run = layoutPageWith(index, st, {});
     // The objects the lines anchor, and the text goes round, are set where the lines say; the text goes round them there, which moves the lines, and the page is laid out
-    // again until they agree (the paragraph's top an object is set from is where the paragraph would be without it: that is what the engine's `pushed` is for). Objects that
-    // keep moving the lines, and so themselves, are left where the last layout had them.
-    // A table set at a place that goes over the foot of the page from its paragraph is moved to the next page with the paragraph: the page ends before the paragraph (and
-    // keeps to that, once it does: the table is not on this page then, and the lines are those of a page without it).
+    // again until they agree (the paragraph's top an object is set from is where the paragraph would be without it: that is what the engine's `pushed` is for). `moveBefore`:
+    // the paragraph that a table set at a place goes over the foot from, as the page is when its walls are settled. `cycle`: where they do not settle, the walls of the layouts
+    // that follow one another again and again.
+    auto settle = [&](Run &run, QVector<Wrapped> &used, int cutAt, int *moveBefore, QVector<QVector<Wrapped>> *cycle) {
+        QVector<QVector<Wrapped>> seen;
+        bool agreed = true;
+        for (int pass = 0; pass < kWrapPasses; ++pass) {
+            int mb = -1;
+            const QVector<Wrapped> want = wrappersOf(run, index, st, &mb);
+            agreed = want == used;
+            if (agreed) {
+                if (moveBefore) *moveBefore = mb;
+                break;
+            }
+            if (seen.contains(want)) {
+                if (cycle) {
+                    *cycle = seen.mid(int(seen.indexOf(want)));
+                    cycle->push_back(used);
+                }
+                break;
+            }
+            seen << used;
+            used = want;
+            run = layoutPageWith(index, st, used, cutAt);
+            if (pass + 1 == kWrapPasses && cycle) {
+                *cycle = seen.mid(std::max<qsizetype>(0, seen.size() - 2));
+                cycle->push_back(used);
+            }
+        }
+        if (!used.isEmpty() && !agreed) agreed = wrappersOf(run, index, st) == used;
+        return agreed;
+    };
+    Run run = layoutPageWith(index, st, {});
     QVector<Wrapped> used;
-    QVector<QVector<Wrapped>> seen;
-    int cutAt = -1;
-    bool agreed = true;
-    for (int pass = 0; pass < kWrapPasses; ++pass) {
-        int moveBefore = -1;
-        const QVector<Wrapped> want = wrappersOf(run, index, st, &moveBefore);
-        const bool moved = moveBefore >= 0 && cutAt < 0 && !run.cut;
-        if (moved) cutAt = moveBefore;
-        agreed = want == used && !moved;
-        if (agreed || (!moved && seen.contains(want))) break;
-        seen << used;
-        used = want;
-        run = layoutPageWith(index, st, used, cutAt);
+    int moveBefore = -1, cutAt = -1;
+    QVector<QVector<Wrapped>> cycle;
+    bool agreed = settle(run, used, -1, &moveBefore, &cycle);
+    // Objects that keep moving the lines, and so themselves (an anchor that the wrap of another puts on the next page, which has the wrap of the first no more, and the anchor
+    // is back): the one anchored last of them goes to the next page with its paragraph, where it is set from the paragraph's top as it asks (the page ends before the paragraph),
+    // and the objects before it are walls of this page still.
+    if (!agreed && !cycle.isEmpty()) {
+        QVector<int> flipping;
+        for (const QVector<Wrapped> &state : cycle)
+            for (const Wrapped &w : state) {
+                bool everywhere = true;
+                for (const QVector<Wrapped> &other : cycle) everywhere = everywhere && other.contains(w);
+                if (!everywhere && w.paragraph >= 0 && !flipping.contains(w.paragraph)) flipping << w.paragraph;
+            }
+        std::sort(flipping.begin(), flipping.end(), std::greater<int>());
+        for (const int paragraph : flipping) {
+            Run shorter = layoutPageWith(index, st, {}, paragraph);
+            if (!shorter.cut) continue;
+            QVector<Wrapped> walls;
+            if (settle(shorter, walls, paragraph, &moveBefore, nullptr) && shorter.kept > 0) {
+                run = std::move(shorter);
+                used = walls;
+                cutAt = paragraph;
+                agreed = true;
+                break;
+            }
+        }
     }
-    if (!used.isEmpty() && !agreed) agreed = wrappersOf(run, index, st) == used;
-    // Objects that keep moving the lines and so themselves (or an anchor that the wrap itself puts on the next page, and the wrap with it) are not walls of this page: the
-    // lines are those of the page without them, and every wall there is has its anchor on the page. And a page whose objects leave no room for a line would have none,
-    // and the pages would never end: it is laid out as it is without them too.
-    if ((!used.isEmpty() || cutAt >= 0) && (!agreed || run.kept <= 0)) {
+    // Objects that keep moving the lines and so themselves in some other way are not walls of this page: the lines are those of the page without them, and every wall there is
+    // has its anchor on the page. And a page whose objects leave no room for a line would have none, and the pages would never end: it is laid out as it is without them too.
+    if (cutAt < 0 && !used.isEmpty() && (!agreed || run.kept <= 0)) {
         used.clear();
-        run = layoutPageWith(index, st, {}, cutAt);
+        run = layoutPageWith(index, st, {});
+        moveBefore = -1;
+        wrappersOf(run, index, st, &moveBefore);
+    }
+    // A table set at a place that goes over the foot of the page from its paragraph, as the page is when its walls are settled, is moved to the next page with the paragraph: the
+    // page ends before the paragraph, and its walls are those of the page without the table.
+    if (moveBefore >= 0 && (cutAt < 0 || moveBefore < cutAt)) {
+        Run cut = layoutPageWith(index, st, used, moveBefore);
+        if (cut.cut) {
+            cutAt = moveBefore;
+            run = std::move(cut);
+            if (!settle(run, used, cutAt, nullptr, nullptr) || run.kept <= 0) {
+                used.clear();
+                run = layoutPageWith(index, st, {}, cutAt);
+            }
+        }
     }
     if (m_wallMemo.size() >= 4096) m_wallMemo.clear();
     m_wallMemo[index] = WallMemo{st, int(m_starts.size()), run.wrapped, cutAt};
@@ -1211,16 +1266,16 @@ QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, con
             using W = FloatingObject::Wrap;
             // A table set from its paragraph (down from the paragraph or the line) that goes over the foot of the text area is not on this page: it goes to the next with its paragraph.
             if (moveBefore && a.table >= 0 && o.item && (o.vRel == FloatingObject::Rel::Paragraph || o.vRel == FloatingObject::Rel::Line) && a.paragraph >= 0 &&
-                placeOf(o, a, sec, false).bottom() > body.bottom() + 0.01 && (*moveBefore < 0 || a.paragraph < *moveBefore))
+                placeOf(o, a, sec, false, body.bottom()).bottom() > body.bottom() + 0.01 && (*moveBefore < 0 || a.paragraph < *moveBefore))
                 *moveBefore = a.paragraph;
             if (!o.item || o.behind || o.item->type() == ItemType::Line || (o.wrap != W::Square && o.wrap != W::Tight && o.wrap != W::TopBottom)) continue;
-            QRectF r = placeOf(o, a, sec);
+            QRectF r = placeOf(o, a, sec, true, body.bottom());
             if (o.item->rotation != 0) {
                 ItemPtr turned = o.item->clone();
                 turned->rect = r;
                 r = turned->bounds();
             }
-            out << Wrapped{id, a.pos, r, a.frame};
+            out << Wrapped{id, a.pos, r, a.paragraph, a.frame};
             if (out.size() >= kMostWrapped) return out;
         }
     return out;
