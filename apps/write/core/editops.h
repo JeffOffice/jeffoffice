@@ -26,8 +26,8 @@ void insertText(WriteDoc &doc, QTextCursor &c, const QString &text);
 void insertParagraph(WriteDoc &doc, QTextCursor &c);
 // The page break (Ctrl+Enter): the paragraph is cut here and the rest goes on the next page.
 void insertPageBreak(WriteDoc &doc, QTextCursor &c);
-// A section break: the next section starts on a new page, alike the one the cursor is in.
-void insertSectionBreak(WriteDoc &doc, QTextCursor &c);
+// A section break: the next section starts as `type` says ("nextPage", "continuous", "oddPage", or "evenPage"), and is alike the one the cursor is in.
+void insertSectionBreak(WriteDoc &doc, QTextCursor &c, const QString &type = QStringLiteral("nextPage"));
 void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord);
 void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord);
 void removeSelection(WriteDoc &doc, QTextCursor &c);

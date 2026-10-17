@@ -598,16 +598,24 @@ int WriteDoc::sectionAt(int position) const
     return std::min(n, int(m_sections.size()) - 1);
 }
 
-bool WriteDoc::insertSectionBreak(const QTextBlock &block)
+bool WriteDoc::insertSectionBreak(const QTextBlock &block, const QString &type)
 {
     if (!block.isValid() || block.blockFormat().boolProperty(flow::fp::SectionBreakAfter)) return false;
-    const SectionProps here = sectionProps(sectionAt(block.position()));
+    const int index = sectionAt(block.position());
+    const SectionProps here = sectionProps(index);
     QTextCursor c(block);
     QTextBlockFormat bf = block.blockFormat();
     bf.setProperty(flow::fp::SectionBreakAfter, true);
     setStored(bf, prop::SectionData, packSection(here));
     c.setBlockFormat(bf);
     syncSections();
+    // The section after the break keeps the properties the section had, as the file's own record of it; how it begins is the break's.
+    SectionProps next = sectionProps(index + 1);
+    const QString kind = type == QLatin1String("nextPage") ? QString() : type;
+    if (next.type != kind) {
+        next.type = kind;
+        setSectionProps(index + 1, next);
+    }
     return true;
 }
 

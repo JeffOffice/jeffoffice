@@ -89,8 +89,9 @@ public:
     // The paragraph ends the section: the break paragraphs and `flow().sections` are made again from the story. Called after edits that
     // add or remove paragraphs (the document does it itself when the story reports one).
     void syncSections();
-    // Makes the paragraph at `block` the last of a new section that is like the one it is in (a break); false if it ends one already.
-    bool insertSectionBreak(const QTextBlock &block);
+    // Makes the paragraph at `block` the last of a new section that is like the one it is in (a break); false if it ends one already. The section the break makes
+    // begins as `type` says ("nextPage", "continuous", "oddPage", or "evenPage"); the section before it begins as it did.
+    bool insertSectionBreak(const QTextBlock &block, const QString &type = QStringLiteral("nextPage"));
 
     // ---- styles
     const office::wml::StyleSheet &styleSheet() const { return m_wml.styles; }

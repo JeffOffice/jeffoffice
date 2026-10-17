@@ -4543,6 +4543,39 @@ private Q_SLOTS:
         QVERIFY2(chain < 4 * base, qPrintable(QStringLiteral("a chain of 32 styles %1 ms, of one %2 ms").arg(chain).arg(base)));
     }
 
+    // A section break made inside a section of odd pages (or of any other kind) is a break of the kind asked for: the section the break makes begins as the command says, not as the
+    // section it was made in did, and the section before it begins as it did.
+    void aSectionBreakMadeInAnOddPageSectionBeginsOnTheNextPage()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray odd = "<w:sectPr><w:type w:val=\"oddPage\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto doc = open(makeDocx("<w:p><w:pPr>" + sect + "</w:pPr><w:r><w:t>first section</w:t></w:r></w:p>" + plainP("an odd page section, first paragraph") + plainP("second paragraph"), kStyles, QByteArray(), odd));
+        QVERIFY(doc);
+        QCOMPARE(doc->sectionCount(), 2);
+        QVERIFY(doc->flow().sections[1].startParity == flow::Section::Parity::Odd);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->findBlockByNumber(1).position() + 3);
+        insertSectionBreak(*doc, c);
+        QCOMPARE(doc->sectionCount(), 3);
+        QVERIFY2(doc->flow().sections[1].startParity == flow::Section::Parity::Odd, "the section before the break begins as it did");
+        QVERIFY2(doc->flow().sections[2].startParity == flow::Section::Parity::Any && !doc->flow().sections[2].continuous, "the section the break makes is on the next page");
+        QCOMPARE(doc->sectionProps(2).type.isEmpty() || doc->sectionProps(2).type == QLatin1String("nextPage"), true);
+        // Each kind of break makes a section that begins as it says (and the file says so: nothing for the next page).
+        struct Kind { const char *type; bool continuous; flow::Section::Parity parity; };
+        for (const Kind &k : {Kind{"continuous", true, flow::Section::Parity::Any}, Kind{"oddPage", false, flow::Section::Parity::Odd}, Kind{"evenPage", false, flow::Section::Parity::Even}, Kind{"nextPage", false, flow::Section::Parity::Any}}) {
+            auto plain = open(makeDocx(plainP("one") + plainP("two"), kStyles));
+            QVERIFY(plain);
+            QTextCursor at(plain->story());
+            at.setPosition(plain->story()->findBlockByNumber(0).position() + 2);
+            insertSectionBreak(*plain, at, QString::fromLatin1(k.type));
+            QCOMPARE(plain->sectionCount(), 2);
+            QVERIFY2(plain->flow().sections[1].continuous == k.continuous && plain->flow().sections[1].startParity == k.parity, k.type);
+            QVERIFY2(plain->flow().sections[0].startParity == flow::Section::Parity::Any && !plain->flow().sections[0].continuous, k.type);
+            const QByteArray saved = documentXml(plain->toDocx());
+            QVERIFY2(strcmp(k.type, "nextPage") == 0 ? !saved.contains("<w:type") : saved.contains(QByteArray("<w:type w:val=\"") + k.type + "\"/>"), k.type);
+        }
+    }
+
     // The page color of a file (w:background) is the pages' color, and the file comes back with it.
     void aFilesPageColorFillsItsPages()
     {
