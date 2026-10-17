@@ -95,9 +95,6 @@ private:
     int m_drawingId = 0;
 };
 
-// Text for the XML: the characters it can hold, escaped.
-QByteArray xmlEscape(const QString &s);
-
 // The strings of a string table (an STTB, as the file writes its bookmark names and author names), at most `limit` of them.
 QStringList readStringTable(const Span &s, int limit);
 
