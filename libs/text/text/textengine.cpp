@@ -3017,7 +3017,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // the text area or inside a picture's text wrap; a list's
                     // text comes one hang after the bullet, wherever that is.
                     if (hangs) {
-                        indL = std::max(0.0, leftM + textIndent);
+                        // (A word processor's goes out into the margin as far as its indents say.)
+                        indL = env.wordLines ? leftM + textIndent : std::max(0.0, leftM + textIndent);
                         if (!B->marker.isEmpty()) lead = env.wordNoNumberIndentStop ? leftM + textIndent + markerW - indL : -textIndent;   // (to the number's tab stop, or the indent)
                     }
                 }

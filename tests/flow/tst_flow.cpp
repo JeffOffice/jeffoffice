@@ -7353,6 +7353,33 @@ private Q_SLOTS:
         for (const auto &l : lay2.lineBriefs()) QCOMPARE(l.pushed, 0.0);
     }
 
+    // A word processor's hanging first line goes out into the margin as far as the indents say: a paragraph with no left indent that hangs by 36 points begins 36 left of the
+    // text area.
+    void aHangingFirstLineGoesOutIntoTheMargin()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setLeftMargin(0);
+        bf.setTextIndent(-36);
+        c.setBlockFormat(bf);
+        QString words;
+        for (int i = 0; i < 30; ++i) words += QStringLiteral("word ");
+        c.insertText(words, run);
+        StoryLayout lay;
+        LayoutEnv env;
+        env.wordLines = true;
+        FrameSpec fs = plainFrame(300, 600);
+        lay.build(&doc, {fs}, env);
+        const auto lines = lay.lineBriefs();
+        QVERIFY(lines.size() >= 3);
+        QVERIFY2(std::abs(lines[0].rect.left() + 36) < 0.01, qPrintable(QString::number(lines[0].rect.left())));
+        QVERIFY2(std::abs(lines[1].rect.left()) < 0.01, qPrintable(QString::number(lines[1].rect.left())));
+    }
+
     // A line that a paragraph goes on with, in smaller type than its first run, is checked against the objects at the height its own text has, not the first run's: an object
     // that begins below the line (and above where the big type's line would end) is no wall for it.
     void aLineInSmallTypeIsNotMovedByAnObjectBelowIt()
