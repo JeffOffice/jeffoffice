@@ -53,14 +53,14 @@ constexpr int kMaxFonts = wml::kMaxFonts;
 // Paragraphs of all the stories together (the .docx reader takes 500,000 in a body).
 constexpr int kMaxParagraphs = 450000;
 // Pictures: one picture's bytes (the metafiles' own limit, once inflated), all the pictures together (the file's pictures are held in memory, made into the
-// package, and read again: 64 MB is six times the 10.7 MB that the 75 public documents' pictures come to at the most), and how many.
+// package, and read again; the 75 public documents' parts, pictures and all, come to 10.7 MB at the most, so 64 MB is six times that), and how many.
 constexpr qint64 kMaxPictureBytes = qint64(32) << 20;
 constexpr qint64 kMaxPictureTotal = qint64(64) << 20;
 constexpr int kMaxPictures = 20000;
 // The XML made from the file, all parts together, counted as it is made: its bytes and its elements. The .docx reader would take a part of 256 MB and 8 million
-// elements (wml/xmltree.h), but a file is held to what it costs to read: made and read back, 600,000 elements take about two seconds and 300 MB, and a file of a few
-// kilobytes can ask for any number of them (pieces of the text that share the same stored text). Real files: of 75 public documents (the largest 4.4 MB) the largest part
-// has 36,000 elements and 0.9 MB, and of 1,795 public .docx files the largest 736,000 elements and 20.6 MB.
+// elements (wml/xmltree.h), but a file is held to what it costs to read: made and read back, 600,000 elements (runs of one character, the dearest kind) take about
+// a second and a half and 250 MB, and a file of a few kilobytes can ask for any number of them (pieces of the text that share the same stored text). Real files: of 75
+// public documents (the largest 4.4 MB) the largest part has 36,000 elements and 0.9 MB, and of 1,795 public .docx files the largest 736,000 elements and 20.6 MB.
 constexpr qint64 kMaxOutputBytes = qint64(32) << 20;
 constexpr qint64 kMaxOutputElements = 600000;
 // A run of text is made into XML in pieces of at most this many characters (so the text of a single run can't be escaped all at once).
