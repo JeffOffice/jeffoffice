@@ -66,6 +66,10 @@ public:
     // Picks the file for a picture or texture fill and for Change Picture: asks with the file dialog unless this stands in for it (tests).
     void setPictureChooser(const std::function<QString()> &choose) { m_pictureChooser = choose; }
     QString choosePicture();
+    // A picture file as the fill of the objects that take one, as one step; false (with a word in the status bar) when it can't be read as a
+    // picture. Or asks for the file first, and does nothing if the person cancels.
+    bool applyFillPicture(const QString &path);
+    bool chooseFillPicture();
 
 Q_SIGNALS:
     void closeRequested();

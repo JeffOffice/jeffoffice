@@ -2,6 +2,7 @@
 
 #include "app/editor.h"
 #include "app/filedialogs.h"
+#include "app/formatops.h"
 #include "app/formatpane_p.h"
 #include "app/icons.h"
 #include "app/paneframe.h"
@@ -120,16 +121,47 @@ QString FormatPane::choosePicture()
     return paths.first();
 }
 
+bool FormatPane::applyFillPicture(const QString &path)
+{
+    QByteArray bytes = readPictureBytes(path);
+    QString kind;
+    QSize pixels;
+    if (bytes.isEmpty() || !readPictureFile(path, 0, &bytes, &kind, &pixels)) {
+        Q_EMIT m_ed->status(tr("%1 can't be read as a picture.").arg(QFileInfo(path).fileName()));
+        return false;
+    }
+    QString id;
+    m_session->apply(tr("Fill"), [&](Item &it) {
+        if (!formatops::takesFill(it)) return;
+        if (id.isEmpty()) id = m_ed->doc()->addImage(bytes, kind, path);
+        Fill f = it.fill;
+        const double t = f.transparency;
+        if (f.type != Fill::Picture && f.type != Fill::Texture) f = Fill();
+        f.type = f.type == Fill::Texture ? Fill::Texture : Fill::Picture;
+        f.imageId = id;
+        f.transparency = t;
+        f.blipEffects.clear();
+        it.fill = f;
+    }, FormatSession::Scope::Leaves);
+    return true;
+}
+
+bool FormatPane::chooseFillPicture()
+{
+    const QString path = choosePicture();
+    return !path.isEmpty() && applyFillPicture(path);
+}
+
 void FormatPane::showEvent(QShowEvent *e)
 {
     QWidget::showEvent(e);
     reload();
 }
 
-// A change the pane doesn't need to show while it is closed; it brings itself up to date as it opens.
+// A change the pane doesn't need to show while it is closed (or the window is); it brings itself up to date as it opens.
 void FormatPane::follow()
 {
-    if (isHidden()) return;
+    if (!isVisible()) return;
     reload();
 }
 

@@ -22,30 +22,6 @@ QSizeF nativeSize(FormatPane *pane, const PictureItem &p)
     return QSizeF(px.width() * 0.75, px.height() * 0.75);
 }
 
-bool keepsProportions(const Item &it) { return it.type() == ItemType::Table ? static_cast<const TableItem &>(it).lockSize : it.lockAspect; }
-
-// The group an object is in is as big as what is in it.
-void refit(FormatPane *pane, Item &it)
-{
-    const auto loc = pane->editor()->doc()->find(it.id);
-    for (GroupItem *g = loc.parent; g;) {
-        g->syncRect();
-        g = pane->editor()->doc()->find(g->id).parent;
-    }
-}
-
-// Gives the frame a size, its top left corner staying where it is; what is in it (a picture's crop, a table's columns, a group's objects) goes
-// with it.
-void resizeTo(FormatPane *pane, Item &it, QSizeF size)
-{
-    size = QSizeF(std::clamp(size.width(), 0.0, 4000.0), std::clamp(size.height(), 0.0, 4000.0));
-    const double rotation = it.rotation;
-    it.rotation = 0;
-    it.scaleInto(it.rect, QRectF(it.rect.topLeft(), size));
-    it.rotation = rotation;
-    refit(pane, it);
-}
-
 bool takesRotation(const Item &it)
 {
     return it.type() == ItemType::Text || it.type() == ItemType::Picture || it.type() == ItemType::Shape || it.type() == ItemType::TextArt;
@@ -114,16 +90,16 @@ void buildSizePage(FormatPane *pane, PanePage *page)
         bindNumber(pane, height, label, [](const Item &it) -> std::optional<double> { return it.rect.height(); },
                    [pane](Item &it, double v) {
                        QSizeF sz = it.rect.size();
-                       if (keepsProportions(it) && sz.height() > 0) sz.setWidth(sz.width() * v / sz.height());
+                       if (formatops::keepsProportions(it) && sz.height() > 0) sz.setWidth(sz.width() * v / sz.height());
                        sz.setHeight(v);
-                       resizeTo(pane, it, sz);
+                       formatops::resizeFrame(pane->editor(), it, sz);
                    }, Scope::Selected, false);
         bindNumber(pane, width, label, [](const Item &it) -> std::optional<double> { return it.rect.width(); },
                    [pane](Item &it, double v) {
                        QSizeF sz = it.rect.size();
-                       if (keepsProportions(it) && sz.width() > 0) sz.setHeight(sz.height() * v / sz.width());
+                       if (formatops::keepsProportions(it) && sz.width() > 0) sz.setHeight(sz.height() * v / sz.width());
                        sz.setWidth(v);
-                       resizeTo(pane, it, sz);
+                       formatops::resizeFrame(pane->editor(), it, sz);
                    }, Scope::Selected, false);
         bindNumber(pane, rotation, FormatPane::tr("Rotation"), [](const Item &it) -> std::optional<double> {
             return takesRotation(it) ? std::optional<double>(std::fmod(std::fmod(it.rotation, 360.0) + 360.0, 360.0)) : nullopt;
@@ -143,12 +119,12 @@ void buildSizePage(FormatPane *pane, PanePage *page)
             QSizeF sz = it.rect.size();
             if (vertical) sz.setHeight(sz.height() * k);
             else sz.setWidth(sz.width() * k);
-            if (keepsProportions(it)) sz = vertical ? QSizeF(it.rect.width() * k, sz.height()) : QSizeF(sz.width(), it.rect.height() * k);
-            resizeTo(pane, it, sz);
+            if (formatops::keepsProportions(it)) sz = vertical ? QSizeF(it.rect.width() * k, sz.height()) : QSizeF(sz.width(), it.rect.height() * k);
+            formatops::resizeFrame(pane->editor(), it, sz);
         };
         bindNumber(pane, scaleHeight, label, [scaleOf](const Item &it) { return scaleOf(it, true); }, [scaleTo](Item &it, double v) { scaleTo(it, v, true); }, Scope::Selected, false);
         bindNumber(pane, scaleWidth, label, [scaleOf](const Item &it) { return scaleOf(it, false); }, [scaleTo](Item &it, double v) { scaleTo(it, v, false); }, Scope::Selected, false);
-        bindCheck(pane, lock, FormatPane::tr("Lock Aspect Ratio"), [](const Item &it) -> std::optional<bool> { return keepsProportions(it); },
+        bindCheck(pane, lock, FormatPane::tr("Lock Aspect Ratio"), [](const Item &it) -> std::optional<bool> { return formatops::keepsProportions(it); },
                   [](Item &it, bool v) {
                       if (it.type() == ItemType::Table) static_cast<TableItem &>(it).lockSize = v;
                       else it.lockAspect = v;
@@ -171,13 +147,11 @@ void buildSizePage(FormatPane *pane, PanePage *page)
         const QString label = FormatPane::tr("Position");
         bindNumber(pane, x, label, [](const Item &it) -> std::optional<double> { return it.rect.x(); },
                    [pane](Item &it, double v) {
-                       it.moveBy(v - it.rect.x(), 0);
-                       refit(pane, it);
+                       formatops::moveFrame(pane->editor(), it, v - it.rect.x(), 0);
                    }, Scope::Selected, false);
         bindNumber(pane, y, label, [](const Item &it) -> std::optional<double> { return it.rect.y(); },
                    [pane](Item &it, double v) {
-                       it.moveBy(0, v - it.rect.y());
-                       refit(pane, it);
+                       formatops::moveFrame(pane->editor(), it, 0, v - it.rect.y());
                    }, Scope::Selected, false);
     }
 

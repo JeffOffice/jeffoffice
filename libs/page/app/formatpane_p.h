@@ -2,6 +2,7 @@
 // What the pages of the Format pane share (formatpane_*.cpp): which objects take what, and the pages themselves.
 
 #include "app/editor.h"
+#include "app/formatops.h"
 #include "app/formatpane.h"
 #include "app/propertyeditors.h"
 #include "app/widgets.h"
@@ -18,29 +19,8 @@ class PanePage;
 
 namespace format {
 
-// Whether an object has a fill of its own, and a line of its own. A line takes no fill; a table's are its cells'.
-inline bool takesFill(const Item &it)
-{
-    switch (it.type()) {
-    case ItemType::Text:
-    case ItemType::Picture:
-    case ItemType::Shape:
-    case ItemType::TextArt: return true;
-    default: return false;
-    }
-}
-
-inline bool takesLine(const Item &it)
-{
-    switch (it.type()) {
-    case ItemType::Text:
-    case ItemType::Picture:
-    case ItemType::TextArt:
-    case ItemType::Shape:
-    case ItemType::Line: return true;
-    default: return false;
-    }
-}
+using formatops::takesFill;
+using formatops::takesLine;
 
 using Scope = FormatSession::Scope;
 
