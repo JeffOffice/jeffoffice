@@ -27,6 +27,7 @@ The file you work on is called a **presentation**. It is a set of **slides**. Je
 - Animations, which you can add and change in the Animation Pane.
 - A full-screen slide show with a pen, a highlighter, and a laser pointer. Presenter View shows your notes, a timer, and the next slide.
 - Custom shows, shows that loop by themselves, and rehearsed timings.
+- The Format Shape pane, for fills, lines, effects, sizes, text options, and alt text.
 - Outline view, the Slide Sorter, and Slide Master view.
 - Printing, PDF files, and slide pictures.
 - AutoRecover, which keeps a spare copy of unsaved work.
@@ -35,7 +36,6 @@ The file you work on is called a **presentation**. It is a set of **slides**. Je
 
 - You can't add or edit charts, SmartArt diagrams, or equations. If a file has them, JeffDeck shows them and keeps them.
 - Animations that start when you click an object, animations with sounds, and color animations are not available. If a file has them, JeffDeck keeps them.
-- There is no Format Shape pane yet.
 - **Notes Page** and **Reading View** are on the View tab, but they are not available yet.
 - Some slides look a little different from the way the original program draws them.
 
