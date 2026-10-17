@@ -5085,6 +5085,29 @@ private Q_SLOTS:
         QVERIFY2(big < 3 * small + 10, qPrintable(QStringLiteral("a page with a header frame of 250 paragraphs %1 ms, of one %2 ms").arg(big).arg(small)));
     }
 
+    // How far down the page a header's wrapped shapes reach is worked out once for the header, not for each page: the pages' cost does not grow with the header's paragraphs.
+    void theWrappedShapesOfAHeaderCostNothingForEachPage()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto pageTime = [&](int setApart) {
+            const QByteArray shape = "<w:r><w:pict><v:shapetype id=\"t202\" coordsize=\"21600,21600\" o:spt=\"202\" path=\"m,l,21600r21600,l21600,xe\"/>"
+                                     "<v:shape id=\"s1\" type=\"#t202\" style=\"position:absolute;margin-left:-20pt;margin-top:0;width:100pt;height:20pt;mso-position-vertical-relative:page;z-index:1\" filled=\"f\" stroked=\"f\">"
+                                     "<v:textbox><w:txbxContent><w:p><w:r><w:t>banner</w:t></w:r></w:p></w:txbxContent></v:textbox><w10:wrap type=\"square\"/></v:shape></w:pict></w:r>";
+            QList<QByteArray> inHeader{shape};
+            for (int i = 0; i < setApart; ++i) inHeader << "<w:pPr><w:framePr w:w=\"2000\" w:xAlign=\"right\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:y=\"1\"/></w:pPr><w:r><w:t>side</w:t></w:r>";
+            QByteArray header = headerPart("hdr", inHeader);
+            header.replace("<w:hdr ", "<w:hdr xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\" ");
+            auto doc = open(makeDocxWithParts(paragraphs(600, 40), sect, {{QStringLiteral("/word/header1.xml"), header}}));
+            if (!doc || doc->pager().pageCount() < 50) return 1e9;
+            // (All the pages laid out again: each has the header's places worked out for it, or all have them once.)
+            return bestNanoseconds([&] { doc->pager().pageCount(); }, 3, [&] { doc->pager().invalidate(); }) / 1e6;
+        };
+        pageTime(1);   // (the first of anything is slow)
+        const double small = std::max(pageTime(1), 5.0), big = pageTime(4000);
+        QVERIFY2(big < 1.4 * small + 20, qPrintable(QStringLiteral("all the pages of a document with a header of 4000 paragraphs %1 ms, of one %2 ms").arg(big).arg(small)));
+    }
+
     // A paragraph of a footer whose mark a tracked change deleted, with nothing else of its own, is gone from the footer as the text stands: it takes no room
     // (twenty points a line here), so the text keeps what the footer leaves it.
     void aDeletedParagraphOfAFooterTakesNoRoom()

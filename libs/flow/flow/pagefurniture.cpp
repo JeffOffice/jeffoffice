@@ -68,6 +68,10 @@ double Paginator::headerObjectsBottom(const QTextDocument *story, const Section 
 {
     if (m_doc->objects.isEmpty()) return 0;
     const QRectF content = sec.content();
+    // (As the story's height is: once, where the story and the page's places are what they were.)
+    const QString places = QStringLiteral("%1 %2 %3 %4 %5 %6").arg(content.left()).arg(content.width()).arg(sec.headerDistance).arg(sec.pageSize().width()).arg(sec.pageSize().height()).arg(sec.margins.top());
+    const auto cacheKey = std::make_tuple(story, story->revision(), places);
+    if (const auto found = m_headerBottoms.find(cacheKey); found != m_headerBottoms.end()) return found->second;
     storyHeight(story, content.width(), number);   // (laying the story out is what has its lines to hand)
     const auto lines = m_storyLines.find(std::make_tuple(story, int(std::lround(content.width() * 100)), story->revision()));
     if (lines == m_storyLines.end()) return 0;
@@ -84,6 +88,8 @@ double Paginator::headerObjectsBottom(const QTextDocument *story, const Section 
             if (r.right() <= content.left() || r.left() >= content.right()) continue;   // (beside the text area: the text is not under it)
             bottom = std::max(bottom, r.bottom() + o.gap.bottom());
         }
+    if (m_headerBottoms.size() > 4096) m_headerBottoms.clear();
+    m_headerBottoms.emplace(cacheKey, bottom);
     return bottom;
 }
 

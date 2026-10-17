@@ -381,6 +381,7 @@ private:
                   const QVector<QRectF> &cols, const QRectF &body);
     std::map<std::tuple<const QTextDocument *, int, int>, double> m_storyHeights;
     std::map<std::tuple<const QTextDocument *, int, int, int, int, uint>, QVector<Anchor>> m_storyFrameAnchors;   // the frames of each header or footer story, by its width, revision, places, and the environment
+    std::map<std::tuple<const QTextDocument *, int, QString>, double> m_headerBottoms;   // how far down the page the wrapped shapes of each header reach, by story, revision, and the section's places
     std::map<std::tuple<const QTextDocument *, int, int>, QVector<StoryLayout::LineInfo>> m_storyLines;   // the lines of each, from the same layout   // by story, its width in hundredths of a point, and its revision
 
     FlowDocument *m_doc;
