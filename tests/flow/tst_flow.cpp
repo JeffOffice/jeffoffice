@@ -4724,6 +4724,46 @@ private Q_SLOTS:
         QCOMPARE(startPieces[2], 0);
     }
 
+    // The part of a row that goes on from the page before shows only its own lines: nothing of the lines that the page before showed is drawn in the margin above them.
+    void aPartOfARowDoesNotShowTheLinesOfThePartBeforeItInItsMargin()
+    {
+        FlowDocument fd;
+        fd.sections[0].paper = QSizeF(300, 300);
+        fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+        TestTable spec;
+        spec.rows = 1;
+        spec.cols = 1;
+        spec.columnWidth = 200;
+        spec.margins = QMarginsF(4, 12, 4, 3);
+        spec.text = [](int, int) {
+            QStringList t;
+            for (int i = 0; i < 60; ++i) t << QStringLiteral("MMMMMMMMMMMMMMMM %1").arg(i);
+            return t.join(QLatin1Char('\n'));
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        const auto page = pg.materialize(1);
+        QVERIFY(page && !page->tables.isEmpty());
+        const TableFragment &f = *page->tables[0];
+        QVERIFY(f.partOf(0) != nullptr);
+        QImage image(int(fd.section(0).pageSize().width()) * 4, int(fd.section(0).pageSize().height()) * 4, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::white);
+        {
+            QPainter painter(&image);
+            painter.scale(4, 4);
+            f.paint(&painter, TablePaint());
+        }
+        // (The margin is 12 points above the first line of the part: it is clear, and the line is there.)
+        int inMargin = 0, inLines = 0;
+        for (int y = int((f.origin.y() + 0.5) * 4); y < int((f.origin.y() + 11) * 4); ++y)
+            for (int x = int((f.origin.x() + 4) * 4); x < int((f.origin.x() + 190) * 4); ++x) inMargin += qGray(image.pixel(x, y)) < 200;
+        for (int y = int((f.origin.y() + 13) * 4); y < int((f.origin.y() + 24) * 4); ++y)
+            for (int x = int((f.origin.x() + 4) * 4); x < int((f.origin.x() + 190) * 4); ++x) inLines += qGray(image.pixel(x, y)) < 200;
+        QCOMPARE(inMargin, 0);
+        QVERIFY2(inLines > 50, qPrintable(QString::number(inLines)));
+    }
+
     // A row whose cell holds a table goes over the page break inside that table: between its rows, and between the lines of a row of it that may be split. A page
     // starts where the one before left off, so every line of the table in the cell is shown once and no page is taller than its room.
     void aRowWithATableInItIsSplitInsideTheTable()

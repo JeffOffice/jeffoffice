@@ -993,6 +993,7 @@ std::vector<TableFragment::Placed> TableFragment::place() const
                 const int at = items[size_t(n)].cell - layout->row(c.row).cell0;
                 if (at >= 0 && at < part->piece.offsets.size()) offset = std::min(part->piece.offsets[at], items[size_t(n)].content->height);
                 p.text = QPointF(p.rect.left() + c.margins.left(), p.rect.top() + c.margins.top() + drop - offset);
+                if (offset > 0) p.from = p.text.y() + offset;   // (what the part before showed is not drawn in the margin above the lines of this one)
                 // (What is left for the next part is not drawn in the space under the last line that is in this one.)
                 if (at >= 0 && at < part->piece.ends.size() && part->piece.ends[at] < 1e17) p.cut = p.text.y() + part->piece.ends[at];
             } else {
@@ -1110,6 +1111,7 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
         p->save();
         QRectF area = hasTable ? pl.clip.adjusted(-2, -2, 2, 2) : pl.clip;
         if (pl.cut < area.bottom()) area.setBottom(pl.cut);
+        if (pl.from > area.top()) area.setTop(pl.from);
         p->setClipRect(area, Qt::IntersectClip);
         for (const CellContent::Part &part : content.parts) {
             p->save();

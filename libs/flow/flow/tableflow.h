@@ -321,6 +321,7 @@ private:
         QRectF clip;                        // the part of it on the page (a cell joined down may reach past)
         QPointF text;                       // where the cell's text area begins
         double cut = 1e18;                  // the page height below which its text is not drawn (a part of a row ends there, with lines left for the next)
+        double from = -1e18;                // the page height above which it is not drawn (a part of a row that goes on from the one before begins its text there)
     };
     std::vector<Placed> place() const;
 };
