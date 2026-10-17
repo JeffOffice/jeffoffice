@@ -2,6 +2,9 @@
 
 #include "app/editor.h"
 #include "render/shapes.h"
+#include "text/textprops.h"
+
+#include <QJsonDocument>
 
 #include <QCoreApplication>
 
@@ -114,6 +117,99 @@ void applyArrowStyle(Stroke &s, int i)
     s.startArrow = Arrow::None;
     s.endArrow = i == 1 || i == 2 ? Arrow::Triangle : i == 3 ? Arrow::Open : i == 4 ? Arrow::Oval : Arrow::None;
     if (i == 2) s.startArrow = Arrow::Triangle;
+}
+
+void setTextFill(QTextCharFormat &cf, const ColorRef &color)
+{
+    cf.setProperty(tp::ColorRefP, color.toString());
+    cf.setProperty(tp::TextFill, QString());   // a solid color replaces a gradient fill
+    cf.clearForeground();
+}
+
+void setTextFillNone(QTextCharFormat &cf)
+{
+    setTextFill(cf, ColorRef::rgb(QColor(0, 0, 0, 0)));
+    cf.setForeground(QBrush(QColor(0, 0, 0, 0)));
+}
+
+void setTextFillGradient(QTextCharFormat &cf, const Fill &gradient, const ColorScheme &scheme)
+{
+    Q_UNUSED(scheme);
+    // (Its colors as stops, as a file has them: a gradient of two colors says them in color and color2.)
+    Fill g = gradient;
+    if (g.stops.isEmpty()) g.stops = {{0, g.color, 0}, {1, g.color2, 0}};
+    cf.setProperty(tp::TextFill, QString::fromUtf8(QJsonDocument(g.toJson()).toJson(QJsonDocument::Compact)));
+    cf.setProperty(tp::ColorRefP, g.stops.first().color.toString());
+    cf.clearForeground();
+}
+
+void setTextFillGradient(QTextCharFormat &cf, int preset, const ColorScheme &scheme)
+{
+    Fill f = Fill::solid(textColorOf(cf, ColorRef::scheme(Main)));
+    if (f.color.isNone() || f.color.resolve(scheme).alpha() == 0) f.color = ColorRef::scheme(Main);
+    applyGradient(f, preset, scheme);
+    setTextFillGradient(cf, f, scheme);
+}
+
+ColorRef textColorOf(const QTextCharFormat &cf, const ColorRef &fallback)
+{
+    if (const QString ref = cf.stringProperty(tp::ColorRefP); !ref.isEmpty()) return ColorRef::fromString(ref);
+    if (cf.hasProperty(QTextFormat::ForegroundBrush) && cf.foreground().style() != Qt::NoBrush) return ColorRef::rgb(cf.foreground().color());
+    return fallback;
+}
+
+void setTextOutline(QTextCharFormat &cf, const ColorRef &color)
+{
+    cf.setProperty(tp::OutlineRef, color.toString());
+    if (!cf.hasProperty(tp::OutlineWidth)) cf.setProperty(tp::OutlineWidth, 1.0);
+}
+
+void setTextOutlineWeight(QTextCharFormat &cf, double points)
+{
+    if (cf.stringProperty(tp::OutlineRef).isEmpty()) cf.setProperty(tp::OutlineRef, ColorRef::scheme(Main).toString());
+    cf.setProperty(tp::OutlineWidth, points);
+}
+
+void setTextOutlineNone(QTextCharFormat &cf)
+{
+    cf.clearProperty(tp::OutlineRef);
+    cf.clearProperty(tp::OutlineWidth);
+}
+
+void changeTextEffects(QTextCharFormat &cf, const std::function<void(TextEffects &)> &change)
+{
+    const QString list = cf.stringProperty(tp::TextFx);
+    TextEffects fx = list.isEmpty() ? TextEffects() : TextEffects::fromJson(list);
+    change(fx);
+    fx.xml.clear();
+    cf.setProperty(tp::TextFx, fx.any() ? fx.toJson() : TextEffects::noneJson());
+    cf.clearProperty(tp::Shadow);
+}
+
+void setTextLook(QTextCharFormat &cf, const Fill &fill, const Stroke &stroke, const ShadowFx &shadow, const ColorScheme &scheme)
+{
+    if (fill.type == Fill::Gradient) setTextFillGradient(cf, fill, scheme);
+    else if (fill.isNone()) setTextFillNone(cf);
+    else setTextFill(cf, fill.color);
+    if (stroke.isNone()) setTextOutlineNone(cf);
+    else {
+        cf.setProperty(tp::OutlineRef, stroke.color.toString());
+        cf.setProperty(tp::OutlineWidth, stroke.width);
+    }
+    changeTextEffects(cf, [&](TextEffects &fx) {
+        if (!shadow.on) {
+            fx.outer.on = false;
+            return;
+        }
+        TextShadow s;
+        s.on = true;
+        s.color = shadow.color.resolve(scheme);
+        s.color.setAlphaF(float(s.color.alphaF() * (1 - shadow.transparency)));
+        s.blur = shadow.blur;
+        s.distance = shadow.distance;
+        s.angle = shadow.angle;
+        fx.outer = s;
+    });
 }
 
 bool takesGeometry(const Item &it) { return it.type() == ItemType::Shape && !static_cast<const ShapeItem &>(it).isArt(); }

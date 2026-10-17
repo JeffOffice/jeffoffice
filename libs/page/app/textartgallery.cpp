@@ -1,6 +1,7 @@
 #include "app/textartgallery.h"
 
 #include "app/editor.h"
+#include "app/formatops.h"
 #include "app/icons.h"
 #include "render/textart.h"
 
@@ -32,6 +33,16 @@ std::shared_ptr<TextArtItem> newTextArt(const QString &styleId)
     auto w = std::make_shared<TextArtItem>();
     for (const auto &st : textArtStyles()) if (st.id == styleId) applyTextArtStyle(*w, st);
     return w;
+}
+
+bool applyTextArtStyleToRun(QTextCharFormat &cf, const QString &styleId, const ColorScheme &scheme)
+{
+    for (const auto &st : textArtStyles())
+        if (st.id == styleId) {
+            formatops::setTextLook(cf, st.fill, st.stroke, st.shadow, scheme);
+            return true;
+        }
+    return false;
 }
 
 } // namespace jp

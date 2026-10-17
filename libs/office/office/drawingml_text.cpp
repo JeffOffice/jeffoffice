@@ -11,6 +11,7 @@
 #include "office/xml.h"
 #include "text/textprops.h"
 
+#include <QJsonDocument>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -130,6 +131,9 @@ struct RunProps {
     enum Fill { FillUnset, FillNone, FillColor } fill = FillUnset;
     QColor color, highlight;
     std::optional<QString> fx;        // a:effectLst as the engine keeps it (tp::TextFx); empty when the run says it has none
+    QString textFill;                 // a gradient fill of the letters, as the engine keeps it (tp::TextFill); empty for none
+    QString outlineRef;               // an outline of the letters (tp::OutlineRef, tp::OutlineWidth); empty for none
+    double outlineWidth = 0;          // points
 };
 
 Spacing spacingOf(const QDomElement &e)
@@ -397,8 +401,19 @@ void mergeRun(RunProps &r, const QDomElement &rPr, const DrawingContext &ctx)
                 r.fill = RunProps::FillColor;
                 r.color = color;
             }
+            // A gradient is the letters' fill as well as its first color (what draws no gradient shows that).
+            r.textFill.clear();
+            if (name == QLatin1String("gradFill")) {
+                const Fill g = readFill(rPr, QDomElement(), ctx);
+                if (g.type == Fill::Gradient && g.stops.size() >= 2) r.textFill = QString::fromUtf8(QJsonDocument(g.toJson()).toJson(QJsonDocument::Compact));
+            }
         } else if (name == QLatin1String("noFill")) {
             r.fill = RunProps::FillNone;
+            r.textFill.clear();
+        } else if (name == QLatin1String("ln")) {
+            const Stroke s = readLine(rPr, QDomElement(), ctx);
+            r.outlineRef = s.isNone() ? QString() : s.color.toString();
+            r.outlineWidth = s.isNone() ? 0 : s.width;
         } else if (name == QLatin1String("effectLst")) {
             r.fx = textEffectsOf(c, ctx);
         } else if (name == QLatin1String("highlight")) {
@@ -474,6 +489,11 @@ QTextCharFormat charFormatOf(const RunProps &r)
     }
     if (r.kern) cf.setProperty(tp::KernAbove, *r.kern);
     if (r.fx && !r.fx->isEmpty()) cf.setProperty(tp::TextFx, *r.fx);
+    if (!r.textFill.isEmpty()) cf.setProperty(tp::TextFill, r.textFill);
+    if (!r.outlineRef.isEmpty()) {
+        cf.setProperty(tp::OutlineRef, r.outlineRef);
+        cf.setProperty(tp::OutlineWidth, r.outlineWidth);
+    }
 
     // A theme font names no family (the engine takes the story's font
     // scheme); a family may be followed by the fonts of other scripts.

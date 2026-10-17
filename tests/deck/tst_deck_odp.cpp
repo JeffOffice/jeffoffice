@@ -2102,13 +2102,14 @@ private Q_SLOTS:
         QCOMPARE(kerned("12"), QStringLiteral("true"));
     }
 
-    // A shadow on words is kept in an .odp (its offset); the effects that kind of file has no form for on words (a glow, a reflection, an inner
-    // shadow) are listed after the save.
-    void odpKeepsAShadowOnWordsAndListsTheRest()
+    // A shadow on words is kept in an .odp (its offset, for other programs); the effects that kind of file has no form for on words (a glow, a
+    // reflection, an inner shadow) are kept in an attribute of ours, so they come back (and nothing is listed as lost).
+    void odpKeepsAShadowOnWordsAndTheRestInOurAttribute()
     {
         auto d = deck::newPresentation();
         deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
         auto t = std::make_shared<TextItem>();
+        t->name = QStringLiteral("Effects");
         t->rect = QRectF(20, 20, 300, 100);
         t->storyId = d->createStory();
         QTextCursor c(d->storyDoc(t->storyId));
@@ -2134,8 +2135,22 @@ private Q_SLOTS:
         const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
         // 4 points down: no distance across, 4 along.
         QVERIFY2(content.contains(QStringLiteral("fo:text-shadow=\"0.00pt 4.00pt\"")), qPrintable(content.left(3000)));
+        QVERIFY(content.contains(QStringLiteral("jo:text-effects=")));
         const QString notes = skipped.join(QLatin1Char('\n'));
-        QVERIFY2(notes.contains(QStringLiteral("Reflections")) && notes.contains(QStringLiteral("Inner shadows")) && notes.contains(QStringLiteral("Glows")), qPrintable(notes));
+        QVERIFY2(!notes.contains(QStringLiteral("Reflections")) && !notes.contains(QStringLiteral("Inner shadows")) && !notes.contains(QStringLiteral("Glows")), qPrintable(notes));
+        // They come back: the shadow by its offset and the rest as they were.
+        std::unique_ptr<Document> back = deck::importOdp(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const Item *again = nullptr;
+        walkItems(back->pages[1]->items, [&](const ItemPtr &it) {
+            if (it->name == QLatin1String("Effects")) again = it.get();
+        });
+        QVERIFY(again);
+        QTextCursor read(back->storyDoc(static_cast<const TextItem *>(again)->storyId));
+        read.setPosition(9);
+        const TextEffects got = TextEffects::fromJson(read.charFormat().stringProperty(tp::TextFx));
+        QVERIFY(got.glow.on && got.reflection.on && got.inner.on);
+        QCOMPARE(got.glow.radius, 6.0);
     }
 
 private:
