@@ -24,6 +24,7 @@
 #include <QTest>
 #include <QTextBlock>
 #include <QTextCursor>
+#include <QFontDatabase>
 #include <QTextDocument>
 #include <QTextList>
 #include <functional>
@@ -2523,15 +2524,16 @@ private Q_SLOTS:
         }
     }
 
-    // A word processor's text has no ligatures: the letters of "ti" in Calibri's face take what they take apart, where a publication's text sets them as one
-    // glyph.
+    // A word processor's text has no ligatures: the letters of "ti" in Carlito (a face the program carries, with a ligature for them) take what they take
+    // apart, where a publication's text sets them as one glyph.
     void wordTextHasNoLigatures()
     {
+        QVERIFY2(QFontDatabase::hasFamily(QStringLiteral("Carlito")), "the face the program carries is not registered");
         auto width = [&](const QString &text, bool word) {
             QTextDocument doc;
             QTextCursor c(&doc);
             QTextCharFormat run;
-            run.setFontFamilies({QStringLiteral("Calibri")});
+            run.setFontFamilies({QStringLiteral("Carlito")});
             run.setFontPointSize(24);
             c.insertText(text, run);
             LayoutEnv env;
@@ -2543,7 +2545,36 @@ private Q_SLOTS:
         };
         const double apart = width(QStringLiteral("t"), true) + width(QStringLiteral("i"), true);
         QVERIFY2(std::abs(width(QStringLiteral("ti"), true) - apart) < 0.01, qPrintable(QStringLiteral("%1 against %2").arg(width(QStringLiteral("ti"), true)).arg(apart)));
-        QVERIFY(std::abs(width(QStringLiteral("ti"), false) - apart) > 0.05);   // (a publication's text keeps its ligature)
+        QVERIFY2(std::abs(width(QStringLiteral("ti"), false) - apart) > 0.05, "the face has no ligature for ti");   // (a publication's text keeps it)
+    }
+
+    // The ligatures of a word processor's text are the file's to ask for (tp::Ligatures on a run that has them: the standard ones, or none), and its letters of
+    // the scripts that are shaped with ligatures (Arabic) are not touched by the default of none: a paragraph that has one keeps its font's.
+    void wordLigaturesFollowTheRunAndTheScript()
+    {
+        QVERIFY2(QFontDatabase::hasFamily(QStringLiteral("Carlito")), "the face the program carries is not registered");
+        auto width = [&](const QString &text, bool word, int ligatures) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Carlito")});
+            run.setFontPointSize(24);
+            if (ligatures >= 0) run.setProperty(tp::Ligatures, ligatures);
+            c.insertText(text, run);
+            LayoutEnv env;
+            env.wordLines = word;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(1000, 100)}, env);
+            const auto rects = lay.rangeRects(0, 0, 2);
+            return rects.isEmpty() ? -1.0 : rects.last().right() - rects.first().left();
+        };
+        const QString ti = QStringLiteral("ti");
+        const double apart = width(ti, true, -1), joined = width(ti, false, -1);
+        QVERIFY2(std::abs(apart - joined) > 0.05, "the face has no ligature for ti");
+        QVERIFY(std::abs(width(ti, true, 0) - joined) < 0.01);      // (the file asks for the standard ligatures)
+        QVERIFY(std::abs(width(ti, true, 1) - apart) < 0.01);       // (and for none)
+        QVERIFY(std::abs(width(ti + QChar(0x0628), true, -1) - joined) < 0.01);   // (an Arabic letter in the paragraph: the font's own)
+        QVERIFY(std::abs(width(ti + QStringLiteral(" \u0393\u0431"), true, -1) - apart) < 0.01);   // (Greek and Cyrillic are Latin's kind)
     }
 
     // A mark of punctuation at the end of a line may hang past the margin in a word processor's text: a word that fits but for its period is the last

@@ -372,6 +372,15 @@ QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme, const RunPro
         const QColor h = highlightColor(r.highlight);
         if (h.isValid()) cf.setProperty(tp::HighlightRefP, ColorRef::rgb(h).toString());
     }
+    // The ligatures the run asks for (w14:ligatures, kept as written): none, the standard ones, or the discretionary ones too; a run that says nothing has what
+    // the text engine gives a word processor's text (none).
+    for (const RawChild &ch : r.extra) {
+        static const QRegularExpression ligatures(QStringLiteral("^<[^\\s:>/]+:ligatures\\b[^>]*:val=\"(\\w+)\""));
+        const QRegularExpressionMatch m = ligatures.match(QString::fromUtf8(ch.xml.left(200)));
+        if (!m.hasMatch()) continue;
+        const QString val = m.captured(1);
+        cf.setProperty(tp::Ligatures, val == QLatin1String("none") ? 1 : val.contains(QLatin1String("iscretional")) || val == QLatin1String("all") ? 2 : 0);
+    }
     if (!r.extra.isEmpty()) setStored(cf, prop::RawRPr, packRaw(r.extra));
     if (direct && direct->fonts && direct->fonts->hasOtherScripts()) cf.setProperty(prop::FontsOther, packOtherFonts(*direct->fonts));
     return cf;
