@@ -38,6 +38,10 @@ private:
     ColorScheme m_scheme;
 };
 
+// The color swatches of the color drop-down as a plain widget, for a menu that holds them (a ribbon's Shape Fill menu): the scheme's colors with
+// their tints and shades, and the standard colors. `picked` is told the color chosen.
+QWidget *colorGridWidget(const ColorScheme &scheme, const std::function<void(const ColorRef &)> &picked, QWidget *parent = nullptr);
+
 class ColorButton : public QToolButton {
     Q_OBJECT
 public:

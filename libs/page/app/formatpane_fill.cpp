@@ -4,43 +4,9 @@
 #include "app/paneframe.h"
 #include "app/propertyeditors.h"
 
-#include <QFileInfo>
 #include <QVBoxLayout>
 
 namespace jp::format {
-
-namespace {
-
-// A picture file as the fill of every object that takes one, in the step in progress; false (with a word in the status bar) when the file can't
-// be read as a picture.
-bool fillWithPicture(FormatPane *pane, const QString &path)
-{
-    FormatSession *s = pane->session();
-    Editor *ed = pane->editor();
-    QByteArray bytes = readPictureBytes(path);
-    QString kind;
-    QSize pixels;
-    if (bytes.isEmpty() || !readPictureFile(path, 0, &bytes, &kind, &pixels)) {
-        Q_EMIT ed->status(FormatPane::tr("%1 can't be read as a picture.").arg(QFileInfo(path).fileName()));
-        return false;
-    }
-    QString id;
-    s->apply(FormatPane::tr("Fill"), [&](Item &it) {
-        if (!takesFill(it)) return;
-        if (id.isEmpty()) id = ed->doc()->addImage(bytes, kind, path);
-        Fill f = it.fill;
-        const double t = f.transparency;
-        if (f.type != Fill::Picture && f.type != Fill::Texture) f = Fill();
-        f.type = f.type == Fill::Texture ? Fill::Texture : Fill::Picture;
-        f.imageId = id;
-        f.transparency = t;
-        f.blipEffects.clear();
-        it.fill = f;
-    }, FormatSession::Scope::Leaves);
-    return true;
-}
-
-} // namespace
 
 void buildFillLinePage(FormatPane *pane, PanePage *page)
 {
@@ -60,8 +26,7 @@ void buildFillLinePage(FormatPane *pane, PanePage *page)
     });
     QObject::connect(fill, &FillEditor::finished, pane, [s] { s->finish(); });
     QObject::connect(fill, &FillEditor::pictureRequested, pane, [pane] {
-        const QString path = pane->choosePicture();
-        if (!path.isEmpty()) fillWithPicture(pane, path);
+        pane->chooseFillPicture();
     });
     QObject::connect(line, &LineEditor::changed, pane, [s](const StrokeChange &change) {
         s->apply(FormatPane::tr("Line"), [change](Item &it) {

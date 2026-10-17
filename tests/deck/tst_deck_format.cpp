@@ -87,6 +87,13 @@ class DeckFormatTests : public QObject {
     Q_OBJECT
 
 private:
+    // The pane is open or shut as the last window left it, in the settings; the tests leave it as they found it.
+    struct PaneGuard {
+        PaneGuard() : was(Settings::get().value(QStringLiteral("view/formatPane"), false)) { Settings::get().setValue(QStringLiteral("view/formatPane"), false); }
+        ~PaneGuard() { Settings::get().setValue(QStringLiteral("view/formatPane"), was); }
+        QVariant was;
+    };
+
     // Opens a page of the pane (on the one it is on already, it does nothing).
     static void pane_page(Rig &r, FormatPane::Tab tab) { r.pane->showTab(tab); }
 
@@ -1065,6 +1072,275 @@ private Q_SLOTS:
         const double k = slide.width() / r.ed.doc()->pageSize().width();
         const QColor c = slide.pixelColor(int(360 * k), int(130 * k));
         QVERIFY2((c.red() == c.green() && c.green() == c.blue()) && (c.red() < 30 || c.red() > 225), qPrintable(c.name()));
+    }
+
+    // ---- the window
+
+    // The Shape Format tab shows while a shape, a text box, a line, or a group of them is selected, and not for a picture, a table, or nothing;
+    // its Height and Width boxes show the size of the object and change it (and every other selected) as one step, keeping proportions if locked.
+    void shapeFormatTabFollowsTheSelectionAndSizesIt()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        PaneGuard guard;
+        DeckWindow w;
+        Editor *ed = w.editor();
+        ed->surfaceItems().clear();
+        auto shown = [&] {
+            for (int i = 0; i < w.ribbon()->tabCount(); ++i)
+                if (w.ribbon()->tabName(i) == QLatin1String("Shape Format")) return w.ribbon()->tabVisible(i);
+            return false;
+        };
+        QVERIFY(!shown());
+        auto shape = std::make_shared<ShapeItem>();
+        shape->rect = QRectF(100, 100, 200, 100);
+        auto box = std::static_pointer_cast<TextItem>(ed->newTextBox(QRectF(100, 250, 240, 60), QStringLiteral("Words")));
+        auto line = std::make_shared<LineItem>();
+        line->p1 = QPointF(400, 100);
+        line->p2 = QPointF(600, 100);
+        line->syncRect();
+        ed->addItem(shape, false);
+        ed->addItem(box, false);
+        ed->addItem(line, false);
+        for (const QString &id : {shape->id, box->id, line->id}) {
+            ed->select(id);
+            QVERIFY2(shown(), qPrintable(id));
+        }
+        ed->select(QStringList{shape->id, box->id});
+        QVERIFY(shown());
+        ed->clearSelection();
+        QVERIFY(!shown());
+        ed->addItem(ed->newTable(QRectF(100, 400, 200, 80), 2, 2), true);
+        QVERIFY(!shown());
+        // A picture does not show it (it has the Picture Format tab); neither does a shape with a picture among what is selected.
+        QImage image(20, 10, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        const QString path = dir.filePath(QStringLiteral("red.png"));
+        QVERIFY(image.save(path));
+        QVERIFY(w.insertPicture(path));
+        QVERIFY(!shown());
+        ed->select(QStringList{ed->selection().first(), shape->id});
+        QVERIFY(!shown());
+        // The boxes.
+        ed->select(shape->id);
+        auto *height = w.ribbon()->findChild<MeasureSpin *>(QStringLiteral("shapeHeight"));
+        auto *width = w.ribbon()->findChild<MeasureSpin *>(QStringLiteral("shapeWidth"));
+        QVERIFY(height && width);
+        QVERIFY(height->isEnabled());
+        QCOMPARE(height->value(), 100.0);
+        QCOMPARE(width->value(), 200.0);
+        const int base = ed->undoStack()->index();
+        width->setValue(300);
+        QCOMPARE(ed->undoStack()->index(), base + 1);
+        QCOMPARE(ed->doc()->item(shape->id)->rect.size(), QSizeF(300, 100));
+        ed->doc()->item(shape->id)->lockAspect = true;
+        height->setValue(50);
+        QCOMPARE(ed->doc()->item(shape->id)->rect.size(), QSizeF(150, 50));
+        ed->select(QStringList{shape->id, box->id});
+        height->setValue(40);   // every one selected takes it
+        QCOMPARE(ed->doc()->item(box->id)->rect.height(), 40.0);
+        ed->undo();
+        QCOMPARE(ed->doc()->item(box->id)->rect.height(), 60.0);
+        ed->clearSelection();
+        QVERIFY(!height->isEnabled());
+    }
+
+    // The three menus of the tab reach the same settings as the pane, each choice one step: a color, none, a gradient, or a picture for the fill; a
+    // color, none, a weight, a dash, or arrows for the outline; a shadow, reflection, glow, or soft edges. The last choice of each opens the pane.
+    void shapeFormatMenusReachThePanesSettings()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QImage image(20, 10, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        const QString path = dir.filePath(QStringLiteral("red.png"));
+        QVERIFY(image.save(path));
+        PaneGuard guard;
+        DeckWindow w;
+        Editor *ed = w.editor();
+        ed->surfaceItems().clear();
+        auto shape = std::make_shared<ShapeItem>();
+        shape->rect = QRectF(100, 100, 200, 100);
+        auto line = std::make_shared<LineItem>();
+        line->p1 = QPointF(400, 100);
+        line->p2 = QPointF(600, 100);
+        line->syncRect();
+        ed->addItem(shape, false);
+        ed->addItem(line, false);
+        ed->select(QStringList{shape->id, line->id});
+        w.formatPane()->setPictureChooser([&] { return path; });
+        auto menuOf = [&](const char *id) -> QMenu * {
+            for (QToolButton *b : w.ribbon()->findChildren<QToolButton *>())
+                if (b->defaultAction() && b->defaultAction()->objectName() == QLatin1String(id) && b->menu()) return b->menu();
+            return nullptr;
+        };
+        auto choose = [](QMenu *m, const QString &text) -> QAction * {
+            Q_EMIT m->aboutToShow();
+            for (QAction *a : m->actions())
+                if (a->text() == text) return a;
+            return nullptr;
+        };
+        auto sub = [&](QMenu *m, const QString &title, const QString &text) -> QAction * {
+            Q_EMIT m->aboutToShow();
+            for (QAction *a : m->actions())
+                if (a->menu() && a->text() == title)
+                    for (QAction *b : a->menu()->actions())
+                        if (b->text() == text) return b;
+            return nullptr;
+        };
+        QMenu *fill = menuOf("ribbon.shapeFill"), *outline = menuOf("ribbon.shapeOutline"), *effects = menuOf("ribbon.shapeEffects");
+        QVERIFY(fill && outline && effects);
+        int steps = ed->undoStack()->index();
+        auto oneStep = [&](QAction *a, const char *what) {
+            QVERIFY2(a, what);
+            a->trigger();
+            QVERIFY2(ed->undoStack()->index() == steps + 1, what);
+            ++steps;
+        };
+        // Fill: the shape's, and the line takes none.
+        QAction *noFill = choose(fill, QStringLiteral("No Fill"));
+        oneStep(noFill, "no fill");
+        QVERIFY(ed->doc()->item(shape->id)->fill.isNone());
+        oneStep(sub(fill, QStringLiteral("Gradient"), QStringLiteral("Linear Right")), "gradient");
+        QCOMPARE(ed->doc()->item(shape->id)->fill.type, Fill::Gradient);
+        QCOMPARE(ed->doc()->item(shape->id)->fill.angle, 0.0);
+        oneStep(choose(fill, QStringLiteral("Picture…")), "picture");
+        QCOMPARE(ed->doc()->item(shape->id)->fill.type, Fill::Picture);
+        // The grid's swatches are in the menu as one widget; a click on one is a solid fill, and the menu is closed after.
+        Q_EMIT fill->aboutToShow();
+        QWidget *grid = nullptr;
+        for (QAction *a : fill->actions())
+            if (auto *wa = qobject_cast<QWidgetAction *>(a)) grid = wa->defaultWidget();
+        QVERIFY(grid);
+        auto swatches = grid->findChildren<QToolButton *>(QStringLiteral("swatch"));
+        QVERIFY(swatches.size() > 40);
+        swatches.first()->click();
+        QCOMPARE(ed->doc()->item(shape->id)->fill.type, Fill::Solid);
+        QCOMPARE(ed->doc()->item(shape->id)->fill.color, ColorRef::scheme(Main));
+        ++steps;
+        QCOMPARE(ed->undoStack()->index(), steps);
+        // Outline: weight, dash, arrows (on the line), none.
+        oneStep(sub(outline, QStringLiteral("Weight"), QStringLiteral("3 pt")), "weight");
+        QCOMPARE(ed->doc()->item(shape->id)->stroke.width, 3.0);
+        QCOMPARE(ed->doc()->item(line->id)->stroke.width, 3.0);
+        oneStep(sub(outline, QStringLiteral("Dashes"), dashName(Stroke::DashDot)), "dash");
+        QCOMPARE(ed->doc()->item(line->id)->stroke.dash, Stroke::DashDot);
+        oneStep(sub(outline, QStringLiteral("Arrows"), QStringLiteral("Double Arrow")), "arrows");
+        QCOMPARE(ed->doc()->item(line->id)->stroke.startArrow, Arrow::Triangle);
+        QCOMPARE(ed->doc()->item(line->id)->stroke.endArrow, Arrow::Triangle);
+        oneStep(choose(outline, QStringLiteral("No Outline")), "no outline");
+        QVERIFY(ed->doc()->item(shape->id)->stroke.isNone() && ed->doc()->item(line->id)->stroke.isNone());
+        // Effects.
+        oneStep(sub(effects, QStringLiteral("Shadow"), QStringLiteral("Offset Top Left")), "shadow");
+        QVERIFY(ed->doc()->item(shape->id)->fx.shadow.on && ed->doc()->item(line->id)->fx.shadow.on);
+        QCOMPARE(ed->doc()->item(shape->id)->fx.shadow.angle, 225.0);
+        oneStep(sub(effects, QStringLiteral("Reflection"), QStringLiteral("Half Reflection")), "reflection");
+        QVERIFY(ed->doc()->item(shape->id)->fx.reflection.on);
+        oneStep(sub(effects, QStringLiteral("Glow"), QStringLiteral("10 Point Glow")), "glow");
+        QCOMPARE(ed->doc()->item(shape->id)->fx.glow.size, 10.0);
+        oneStep(sub(effects, QStringLiteral("Soft Edges"), QStringLiteral("2.5 Point")), "soft edges");
+        QCOMPARE(ed->doc()->item(shape->id)->fx.softEdge, 2.5);
+        oneStep(sub(effects, QStringLiteral("Shadow"), QStringLiteral("No Shadow")), "no shadow");
+        QVERIFY(!ed->doc()->item(shape->id)->fx.shadow.on);
+        // The last choice opens the pane on the page.
+        QVERIFY(!w.formatPane()->isVisibleTo(&w));
+        choose(effects, QStringLiteral("More Effects Options…"))->trigger();
+        QVERIFY(!w.formatDock()->isHidden());
+        QCOMPARE(w.formatPane()->currentTab(), FormatPane::Tab::Effects);
+        choose(fill, QStringLiteral("More Fill Options…"))->trigger();
+        QCOMPARE(w.formatPane()->currentTab(), FormatPane::Tab::FillLine);
+    }
+
+    // Format Shape is on the right-click menu of a shape, and Format Picture on a picture's; both open the pane on a page, and so do Ctrl+1,
+    // the Format Pane button (which toggles it), the launchers, and Alt Text (the alt text page, with the description ready to type in).
+    void formatShapeOpensThePaneFromEveryWayIn()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QImage image(20, 10, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        const QString path = dir.filePath(QStringLiteral("red.png"));
+        QVERIFY(image.save(path));
+        PaneGuard guard;
+        DeckWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        Editor *ed = w.editor();
+        ed->surfaceItems().clear();
+        auto shape = std::make_shared<ShapeItem>();
+        shape->rect = QRectF(100, 100, 200, 100);
+        ed->addItem(shape, true);
+        QVERIFY(w.formatDock()->isHidden());
+        auto menuTexts = [&] {
+            std::unique_ptr<QMenu> menu(w.slideContextMenu());
+            QStringList out;
+            for (QAction *a : menu->actions()) out << a->text();
+            return out;
+        };
+        QVERIFY(menuTexts().contains(QStringLiteral("Format Shape…")));
+        {
+            std::unique_ptr<QMenu> menu(w.slideContextMenu());
+            QAction *format = nullptr;
+            for (QAction *a : menu->actions())
+                if (a->text() == QStringLiteral("Format Shape…")) format = a;
+            QVERIFY(format);
+            format->trigger();
+        }
+        QVERIFY(!w.formatDock()->isHidden());
+        QCOMPARE(w.formatPane()->currentTab(), FormatPane::Tab::FillLine);
+        QCOMPARE(w.formatPane()->title(), QStringLiteral("Format Shape"));
+        QVERIFY(w.act(QStringLiteral("shape.formatPane"))->isChecked());
+        // The keyboard is on the pane's tabs, and Esc gives it back to the slide.
+        QTRY_VERIFY(w.formatPane()->frame()->tabButton(0)->hasFocus());
+        QTest::keyClick(w.formatPane()->frame()->tabButton(0), Qt::Key_Escape);
+        QTRY_VERIFY(w.canvas()->hasFocus());
+        // The button toggles it.
+        w.act(QStringLiteral("shape.formatPane"))->trigger();
+        QVERIFY(w.formatDock()->isHidden());
+        w.act(QStringLiteral("shape.formatPane"))->trigger();
+        QVERIFY(!w.formatDock()->isHidden());
+        // The pane's own close button.
+        w.formatPane()->frame()->closeButton()->click();
+        QVERIFY(w.formatDock()->isHidden());
+        QVERIFY(!w.act(QStringLiteral("shape.formatPane"))->isChecked());
+        // Alt Text.
+        w.act(QStringLiteral("shape.altText"))->trigger();
+        QVERIFY(!w.formatDock()->isHidden());
+        QCOMPARE(w.formatPane()->currentTab(), FormatPane::Tab::SizeProperties);
+        QVERIFY(w.formatPane()->frame()->page(2)->section(QStringLiteral("Alt Text"))->isExpanded());
+        QTRY_VERIFY(w.formatPane()->findChild<TextField *>(QStringLiteral("altDescription"))->hasFocus());
+        // A picture: Format Picture, on the Picture page.
+        QVERIFY(w.insertPicture(path));
+        QVERIFY(menuTexts().contains(QStringLiteral("Format Picture…")));
+        w.act(QStringLiteral("shape.format"))->trigger();
+        QCOMPARE(w.formatPane()->currentTab(), FormatPane::Tab::Picture);
+        // The tab's launchers.
+        ed->select(shape->id);
+        for (QToolButton *b : w.ribbon()->findChildren<QToolButton *>())
+            if (b->objectName() == QLatin1String("launcher") && b->toolTip() == QLatin1String("Size and Position")) b->click();
+        QCOMPARE(w.formatPane()->currentTab(), FormatPane::Tab::SizeProperties);
+    }
+
+    // The pane is open or shut as it was left: a new window opens it if the last change was to open it, and not if it was to close it.
+    void paneRemembersWhetherItIsOpen()
+    {
+        PaneGuard guard;
+        {
+            DeckWindow w;
+            QVERIFY(w.formatDock()->isHidden());
+            w.showFormatPane(true);
+        }
+        {
+            DeckWindow w;
+            QVERIFY(!w.formatDock()->isHidden());
+            QVERIFY(w.act(QStringLiteral("shape.formatPane"))->isChecked());
+            w.formatPane()->frame()->closeButton()->click();
+        }
+        {
+            DeckWindow w;
+            QVERIFY(w.formatDock()->isHidden());
+            QVERIFY(!w.act(QStringLiteral("shape.formatPane"))->isChecked());
+        }
     }
 };
 

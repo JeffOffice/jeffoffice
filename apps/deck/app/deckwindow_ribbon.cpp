@@ -42,6 +42,7 @@ void DeckWindow::buildRibbon()
     addMediaParts(parts);
     addTableParts(parts);
     addCropParts(parts);
+    addShapeFormatParts(parts);
     addInsertParts(parts);
     addAnimationParts(parts);
     addDesignParts(parts);
