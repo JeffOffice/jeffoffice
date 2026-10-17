@@ -7642,6 +7642,31 @@ private Q_SLOTS:
         QCOMPARE(frames, 2);
     }
 
+    // The text of a frame goes round none of the other frames: two frames set at one place (the same properties, with a paragraph between them) are drawn one over the other, as
+    // the lines of each fill its own box (the text of the first is not put out of its box by the room that the second takes).
+    void aFramesTextIsNotPutOutOfItsBoxByAnotherFrameAtThePlace()
+    {
+        const QByteArray pr = "<w:framePr w:w=\"6000\" w:h=\"2400\" w:wrap=\"notBeside\" w:vAnchor=\"page\" w:hAnchor=\"margin\" w:xAlign=\"center\" w:y=\"720\"/>";
+        auto big = [&](const char *text) {
+            return "<w:p><w:pPr>" + pr + "<w:spacing w:before=\"0\" w:after=\"0\"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val=\"72\"/></w:rPr><w:t>" + QByteArray(text) + "</w:t></w:r></w:p>";
+        };
+        const QByteArray body = big("HHHH") + big("HHHH") + big("HHHH") + plainP("Between the frames") + big(" ") + plainP("After");
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto doc = open(makeDocx(body, kStyles, QByteArray(), sect));
+        QVERIFY(doc);
+        QCOMPARE(int(doc->flow().frames.size()), 2);
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        const QImage img = view.pageImage(0, 816);
+        const double perPoint = 816 / 612.0;
+        // The third line of the first frame (the frame's top is 36 points down; its lines are 36-point text, over 40 points each): ink between 36 + 85 and 36 + 115 points.
+        int ink = 0;
+        for (int y = int((36 + 85) * perPoint); y < int((36 + 115) * perPoint); ++y)
+            for (int x = int(150 * perPoint); x < int(460 * perPoint); ++x) ink += qGray(img.pixel(x, y)) < 128;
+        QVERIFY2(ink > 200, qPrintable(QStringLiteral("%1 dark pixels where the third line of the frame is").arg(ink)));
+    }
+
     // What the properties of a frame say: its place (from the text, the margin, or the page, by an offset or at the start, middle, or end of it), its height (at least what is
     // given, exactly that, or the text's), the room round it, and how the text goes round it; a drop cap is a frame at the start of its paragraph.
     void aFramesPropertiesAreRead()

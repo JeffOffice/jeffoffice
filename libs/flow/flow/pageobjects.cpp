@@ -217,6 +217,7 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
         int z = 0;
         ItemPtr item;
         bool behind = false;
+        bool isWall = false;
     };
     QVector<Made> made_;
     int made = 0;
@@ -309,7 +310,7 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
                     shape->wrap.mode = Wrap::Square;
                     shape->wrap.side = o.wrap == FloatingObject::Wrap::TopBottom ? Wrap::Both : side;
                     shape->wrap.left = shape->wrap.top = shape->wrap.right = shape->wrap.bottom = 0;
-                    made_.push_back({o.z, shape, false});
+                    made_.push_back({o.z, shape, false, true});
                 }
             }
             made_.push_back({o.z, item, o.behind});
@@ -326,7 +327,9 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
             }
         }
     }
-    std::stable_sort(made_.begin(), made_.end(), [](const Made &a, const Made &b) { return a.z < b.z; });
+    // (Of a height, the walls come before the objects: the text of an object, a frame's or a text box's, goes round none of them, as the lines of the page, which are before all of
+    // them, go round every one.)
+    std::stable_sort(made_.begin(), made_.end(), [](const Made &a, const Made &b) { return a.z < b.z || (a.z == b.z && a.isWall && !b.isWall); });
     auto &items = d->pages[0]->items;
     size_t behindCount = 0;
     for (const Made &m : made_) {
