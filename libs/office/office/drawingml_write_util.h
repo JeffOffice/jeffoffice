@@ -27,6 +27,9 @@ qint64 angle(double degrees);
 // A share (1 is all) as 100,000ths of a percent.
 qint64 percent(double fraction);
 
+// The extension that marks an object as only decoration, to go inside its p:cNvPr (programs that don't know it leave it alone).
+void writeDecorative(QXmlStreamWriter &w);
+
 // The text of an element or an attribute: what XML 1.0 cannot hold (control
 // characters, lone surrogates, U+FFFE and U+FFFF) left out.
 QString clean(const QString &text);

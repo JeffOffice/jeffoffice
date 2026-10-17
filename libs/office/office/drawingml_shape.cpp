@@ -15,6 +15,7 @@
 #include <QtMath>
 #include <algorithm>
 #include <climits>
+#include <optional>
 #include <cmath>
 #include <vector>
 
@@ -423,6 +424,19 @@ void Reader::remember(const QDomElement &cNvPr, const ItemPtr &it)
     if (ok && it && id > 0 && id <= INT_MAX) it->sourceId = int(id);
 }
 
+// Whether the object says its proportions are kept (a:spLocks, a:picLocks, or a:cxnSpLocks, beside the p:cNvPr in the object's non-visual
+// properties); nothing when it doesn't say.
+static std::optional<bool> aspectLockOf(const QDomElement &cNvPr)
+{
+    const QDomElement nv = cNvPr.parentNode().toElement();
+    for (const char *props : {"cNvSpPr", "cNvPicPr", "cNvCxnSpPr"})
+        for (const char *locks : {"spLocks", "picLocks", "cxnSpLocks"}) {
+            const QDomElement l = childNamed(childNamed(nv, props), locks);
+            if (!l.isNull() && hasAttr(l, QStringLiteral("noChangeAspect"))) return parseBool(attr(l, QStringLiteral("noChangeAspect")));
+        }
+    return std::nullopt;
+}
+
 void Reader::decorate(Item &it, const QDomElement &cNvPr, const Frame &frame, const QVector<QDomElement> &properties, const QDomElement &style)
 {
     it.rect = frame.rect;
@@ -431,6 +445,9 @@ void Reader::decorate(Item &it, const QDomElement &cNvPr, const Frame &frame, co
     it.flipV = frame.flipV;
     it.name = attr(cNvPr, QStringLiteral("name"));
     it.altText = attr(cNvPr, QStringLiteral("descr"));
+    it.altTitle = attr(cNvPr, QStringLiteral("title"));
+    it.decorative = decorativeOf(cNvPr);
+    if (const std::optional<bool> lock = aspectLockOf(cNvPr)) it.lockAspect = *lock;
     it.hyperlink = hyperlinkOf(cNvPr);
     it.wrap.mode = Wrap::None;
     const StyleContext sc = styleContext(frame.rect.size());
@@ -473,6 +490,8 @@ ItemPtr Reader::group(const QDomElement &e)
     g->children = kids;
     g->name = attr(cNvPr, QStringLiteral("name"));
     g->altText = attr(cNvPr, QStringLiteral("descr"));
+    g->altTitle = attr(cNvPr, QStringLiteral("title"));
+    g->decorative = decorativeOf(cNvPr);
     g->hyperlink = hyperlinkOf(cNvPr);
     g->wrap.mode = Wrap::None;
     g->syncRect();
@@ -594,6 +613,8 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
     base.valign = props.valign;
     base.noWrap = props.noWrap;
     base.centerBlock = props.centerBlock;
+    base.columns = props.columns;
+    base.columnGap = props.columnGap;
     // Text the program shrank to fit keeps the scale it was given (a:normAutofit's fontScale and lnSpcReduction).
     base.shrinks = props.autofit == TextItem::ShrinkOnOverflow;
     base.fitScale = props.fitScale;
@@ -665,6 +686,8 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
         g->children = parts;
         g->name = base.name;
         g->altText = base.altText;
+        g->altTitle = base.altTitle;
+        g->decorative = base.decorative;
         g->hyperlink = base.hyperlink;
         g->wrap.mode = Wrap::None;
         g->syncRect();
@@ -748,6 +771,8 @@ ItemPtr Reader::diagramShapeText(const QDomElement &e)
     g->children = {shape, text};
     g->name = shape->name;
     g->altText = shape->altText;
+    g->altTitle = shape->altTitle;
+    g->decorative = shape->decorative;
     g->hyperlink = shape->hyperlink;
     g->wrap.mode = Wrap::None;
     g->syncRect();
@@ -787,6 +812,10 @@ ItemPtr Reader::withCutPicture(const ItemPtr &item, const QDomElement &spPr)
     auto pic = std::make_shared<PictureItem>();
     pic->name = shape->name;
     pic->altText = shape->altText;
+    pic->altTitle = shape->altTitle;
+    pic->decorative = shape->decorative;
+    // A picture keeps its proportions unless the file says the shape it was cut from doesn't (a shape that says nothing about it is not a lock off).
+    if (const std::optional<bool> lock = aspectLockOf(childNamed(childNamed(spPr.parentNode().toElement(), "nvSpPr"), "cNvPr"))) pic->lockAspect = *lock;
     pic->rect = shape->rect;
     pic->rotation = shape->rotation;
     pic->flipH = shape->flipH;
@@ -808,6 +837,8 @@ ItemPtr Reader::withCutPicture(const ItemPtr &item, const QDomElement &spPr)
     g->children = {pic, item};
     g->name = item->name;
     g->altText = item->altText;
+    g->altTitle = item->altTitle;
+    g->decorative = item->decorative;
     g->hyperlink = item->hyperlink;
     g->wrap.mode = Wrap::None;
     g->syncRect();

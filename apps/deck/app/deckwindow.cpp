@@ -92,6 +92,7 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     createInsertActions();
     createDesignActions();
     createViewActions();
+    createShapeFormatActions();
     buildRibbon();
     buildStatusBar();
     describeForScreenReaders(m_split);
@@ -168,6 +169,8 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     resize(1280, 800);
     updateTitle();
     refreshUi();
+    // The Format Shape pane is open if it was when the last window closed it.
+    if (Settings::get().value(QStringLiteral("view/formatPane"), false).toBool()) showFormatPane(true);
 }
 
 DeckWindow::~DeckWindow()

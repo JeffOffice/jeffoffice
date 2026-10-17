@@ -11,7 +11,6 @@ namespace jp::office {
 
 namespace {
 
-constexpr int kMaxStops = 256;
 constexpr double kMaxLineWidth = 1584;   // points: the standard's 20,116,800 EMU
 // A blur, glow, or soft edge of more than 200 points is drawn as one of 200: the
 // reference presentations' largest are 20, 10, and 7, and one of 1,584 points
@@ -89,7 +88,7 @@ bool fillFromElement(const QDomElement &e, const StyleContext &sc, Fill *out)
     if (kind == QLatin1String("gradFill")) {
         QVector<GradientStop> stops;
         const QDomElement list = childNamed(e, "gsLst");
-        for (QDomElement gs = list.firstChildElement(); !gs.isNull() && stops.size() < kMaxStops; gs = gs.nextSiblingElement()) {
+        for (QDomElement gs = list.firstChildElement(); !gs.isNull() && stops.size() < kMaxGradientStops; gs = gs.nextSiblingElement()) {
             if (gs.localName() != QLatin1String("gs")) continue;
             const QColor c = colorIn(gs, sc);
             if (!c.isValid()) continue;
@@ -245,12 +244,18 @@ void applyLine(const QDomElement &ln, const StyleContext &sc, Stroke *s)
         const QString name = c.localName();
         if (name == QLatin1String("noFill")) {
             s->color = ColorRef();
+            s->gradient = Fill();
         } else if (name == QLatin1String("solidFill") || name == QLatin1String("gradFill") || name == QLatin1String("pattFill")) {
-            // A gradient line is the color of its first stop; a pattern's is its foreground.
+            // A gradient line is drawn in its stops, and its color is the first stop's; a pattern's is its foreground.
             QDomElement holder = c;
             if (name == QLatin1String("gradFill")) holder = childNamed(childNamed(c, "gsLst"), "gs");
             else if (name == QLatin1String("pattFill")) holder = childNamed(c, "fgClr");
             const QColor color = colorIn(holder, sc);
+            s->gradient = Fill();
+            if (name == QLatin1String("gradFill")) {
+                Fill g;
+                if (fillFromElement(c, sc, &g) && g.type == Fill::Gradient) s->gradient = g;
+            }
             if (color.isValid()) {
                 s->color = rgbRef(color);
                 s->transparency = transparencyOf(color);
@@ -279,7 +284,7 @@ void applyLine(const QDomElement &ln, const StyleContext &sc, Stroke *s)
     }
 }
 
-// Effects an a:effectLst has: a shadow (outer, else inner), a glow, and soft edges.
+// Effects an a:effectLst has: a shadow (outer, else inner), a reflection, a glow, and soft edges.
 void applyEffects(const QDomElement &list, const StyleContext &sc, Effects *fx)
 {
     const QDomElement outer = childNamed(list, "outerShdw"), inner = childNamed(list, "innerShdw");
@@ -293,6 +298,18 @@ void applyEffects(const QDomElement &list, const StyleContext &sc, Effects *fx)
         fx->shadow.blur = std::clamp(parseLength(attr(shadow, QStringLiteral("blurRad")), 0), 0.0, kMaxEffectRadius);
         fx->shadow.distance = std::clamp(parseLength(attr(shadow, QStringLiteral("dist")), 0), 0.0, 1584.0);
         fx->shadow.angle = std::fmod(parseAngle(attr(shadow, QStringLiteral("dir")), 0), 360.0);
+        // A shadow of another size than the object's (sx and sy, in percent; one size for both).
+        if (outer.isNull()) fx->shadow.size = 100;
+        else fx->shadow.size = std::clamp(parsePercent(attr(shadow, QStringLiteral("sx")), 1.0) * 100, 1.0, 1000.0);
+    }
+    const QDomElement reflection = childNamed(list, "reflection");
+    if (!reflection.isNull()) {
+        // A copy turned over under the object, fading from its start opacity to nothing at endPos of its height.
+        fx->reflection.on = true;
+        fx->reflection.transparency = std::clamp(1.0 - parsePercent(attr(reflection, QStringLiteral("stA")), 1.0), 0.0, 1.0);
+        fx->reflection.size = std::clamp(parsePercent(attr(reflection, QStringLiteral("endPos")), 1.0), 0.0, 1.0);
+        fx->reflection.distance = std::clamp(parseLength(attr(reflection, QStringLiteral("dist")), 0), 0.0, 1584.0);
+        fx->reflection.blur = std::clamp(parseLength(attr(reflection, QStringLiteral("blurRad")), 0), 0.0, kMaxEffectRadius);
     }
     const QDomElement glow = childNamed(list, "glow");
     if (!glow.isNull()) {
@@ -315,6 +332,14 @@ QDomElement childNamed(const QDomElement &e, const char *local)
     for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
         if (c.localName() == QLatin1String(local)) return c;
     return QDomElement();
+}
+
+bool decorativeOf(const QDomElement &cNvPr)
+{
+    for (QDomElement ext = childNamed(cNvPr, "extLst").firstChildElement(); !ext.isNull(); ext = ext.nextSiblingElement())
+        for (QDomElement c = ext.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+            if (c.localName() == QLatin1String("decorative")) return parseBool(attr(c, QStringLiteral("val")));
+    return false;
 }
 
 QString imageFormat(const QByteArray &bytes)

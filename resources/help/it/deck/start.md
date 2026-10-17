@@ -37,7 +37,6 @@ Questa versione di JeffDeck è un'**anteprima**. È pronta per essere provata su
 
 - Non è possibile aggiungere o modificare grafici, diagrammi SmartArt o equazioni. Se un file li contiene, JeffDeck li mostra e li conserva.
 - Non sono disponibili le animazioni che si avviano facendo clic su un oggetto, le animazioni con suoni e le animazioni di colore. Se un file le contiene, JeffDeck le conserva.
-- Il riquadro Formato forma non è ancora disponibile.
 - **Pagina note** e **Visualizzazione di lettura** si trovano nella scheda Visualizza, ma non sono ancora disponibili.
 - Alcune diapositive possono apparire leggermente diverse da come le visualizza il programma originale, soprattutto nei file .ppt meno recenti.
 

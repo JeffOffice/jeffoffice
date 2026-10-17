@@ -1526,7 +1526,7 @@ private Q_SLOTS:
         const QString all = skipped.join(QLatin1Char('\n'));
         QVERIFY2(all.contains(QStringLiteral("Sections")), qPrintable(all));
         QVERIFY2(all.contains(QStringLiteral("Inner shadows")), qPrintable(all));
-        QVERIFY2(all.contains(QStringLiteral("Reflections")), qPrintable(all));
+        QVERIFY2(!all.contains(QStringLiteral("Reflections")), qPrintable(all));   // a reflection is kept (in an attribute of ours)
         // A presentation with nothing of that kind says nothing.
         skipped.clear();
         QVERIFY(!deck::exportOdp(*deck::newPresentation(), false, &err, &skipped).isEmpty());
