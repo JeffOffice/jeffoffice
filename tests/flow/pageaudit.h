@@ -391,6 +391,38 @@ inline QString pageLayerProblems(flow::Paginator &pg, const QTextDocument *story
     return QString();
 }
 
+// Whether the lines of the pages hold the text of the story whole, or what is wrong. Every paragraph that takes part in the layout (not one in a cell, in a frame, or set
+// out of the layout) has lines that begin where it does, each beginning where the one before ended, the last ending where the paragraph does; the lines of the pages, in
+// order, are of no other paragraph; and none is repeated. (The words of a page that a wall or an object took the room of go on a later page: none are lost.)
+inline QString coverageProblems(flow::Paginator &pg, const QTextDocument *story)
+{
+    QVector<std::pair<int, int>> lines;
+    for (int k = 0; k < pg.pageCount(); ++k)
+        for (const auto &ln : pg.lines(k)) {
+            if (story->findBlock(ln.pos).blockFormat().intProperty(flow::fp::Cell)) continue;
+            lines.push_back({ln.pos, ln.end});
+        }
+    int at = 0;
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        const QTextBlockFormat f = b.blockFormat();
+        if (f.intProperty(flow::fp::Cell) || f.intProperty(flow::fp::Frame) || f.boolProperty(tp::OutOfLayout)) continue;
+        const int end = b.position() + b.length() - 1;
+        int next = b.position();
+        bool any = false;
+        while (at < lines.size() && lines[at].first >= b.position() && lines[at].first <= end) {
+            if (lines[at].first != next)
+                return QStringLiteral("the paragraph at %1 (to %2): a line begins at %3, where the one before it ended at %4").arg(b.position()).arg(end).arg(lines[at].first).arg(next);
+            next = lines[at].second;
+            ++at;
+            any = true;
+        }
+        if (!any) return QStringLiteral("the paragraph at %1 (to %2) is on no line of the %3 pages").arg(b.position()).arg(end).arg(pg.pageCount());
+        if (next != end) return QStringLiteral("the paragraph at %1 (to %2) is laid out as far as %3 only (%4 characters lost)").arg(b.position()).arg(end).arg(next).arg(end - next);
+    }
+    if (at != lines.size()) return QStringLiteral("a line at %1 is of no paragraph that takes part, or is out of order (%2 of %3 lines used)").arg(lines[at].first).arg(at).arg(lines.size());
+    return QString();
+}
+
 // What is wrong with the way the text of every page goes round its objects, or nothing: the lines stand clear of the walls (`wrapProblems`), and the page layer sets the
 // text of each page where the paginator's lines are (`pageLayerProblems`), for the pages that have walls.
 inline QString wallProblems(flow::Paginator &pg, const QTextDocument *story)

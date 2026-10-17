@@ -891,7 +891,8 @@ QString textIsWholeOnThePages(Paginator &pg, FlowDocument &fd)
                 return QStringLiteral("page %1: the line at %2 does not begin where the one before ended (%3)").arg(k).arg(l.pos).arg(at);
             at = l.end;
         }
-    return QString();
+    // (And the last line reaches the end of the story's text, and every paragraph is whole: a paragraph cut short on a later page is no gap between two lines.)
+    return audit::coverageProblems(pg, fd.story());
 }
 
 
@@ -3351,6 +3352,11 @@ private Q_SLOTS:
                     ++compared;
                     // The text goes round the objects as the page layer draws it, on every page that has them (every third edit: the pages are made for it).
                     const QString walls = bad.isEmpty() && step % 3 == 2 ? audit::wallProblems(pg, fd.story()) : QString();
+                    // The text on the pages is the story's text, whole: the walls, frames, and floating tables take room from lines and move them, and keep none from the pages.
+                    if (const QString lost = bad.isEmpty() ? audit::coverageProblems(pg, fd.story()) : QString(); !lost.isEmpty()) {
+                        failures << QStringLiteral("%1 restart %2, seed %3, step %4 (%5): text: %6").arg(tables ? "tables," : "plain,").arg(restart).arg(seed).arg(step).arg(trace, lost);
+                        break;
+                    }
                     if (!walls.isEmpty()) {
                         failures << QStringLiteral("%1 restart %2, seed %3, step %4 (%5): walls: %6").arg(tables ? "tables," : "plain,").arg(restart).arg(seed).arg(step).arg(trace, walls);
                         break;
@@ -5146,6 +5152,77 @@ private Q_SLOTS:
         const QString bad = audit::differenceFromFresh(pg, fresh);
         QVERIFY2(bad.isEmpty(), qPrintable(bad));
         QVERIFY2(textIsWholeOnThePages(pg, fd).isEmpty(), qPrintable(textIsWholeOnThePages(pg, fd)));
+    }
+
+    // A paragraph of more than two pages with a wall in its first lines: the page after the one with the wall holds on from where that page ended, and so do those
+    // after it. (Each page keeps only where its text begins and whether the paragraph's lines before it were set round a wall: the third page of the paragraph must
+    // know that the second one was, or it lays the paragraph out again from its start and skips the lines it takes for the second page's.)
+    void aParagraphOfSeveralPagesWithAWallLosesNoText()
+    {
+        int bad = 0;
+        QStringList reports;
+        for (unsigned seed = 1; seed <= 24; ++seed) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), 3, seed, {}, 700 + int(seed) * 60, 900 + int(seed) * 60);
+            const int id = addWrapped(&fd, 120 + double(seed % 5) * 40, 160 + double(seed % 7) * 30, fd.story()->findBlockByNumber(seed % 2).position() + 3, FloatingObject::Wrap::Square, 0, 0);
+            fd.objects[size_t(id) - 1].hAlign = FloatingObject::Align::End;
+            Paginator pg(&fd);
+            QVERIFY(pg.pageCount() >= 3);
+            const QString whole = textIsWholeOnThePages(pg, fd);
+            if (!whole.isEmpty()) {
+                ++bad;
+                reports << QStringLiteral("seed %1 (%2 pages): %3").arg(seed).arg(pg.pageCount()).arg(whole);
+            }
+            for (int k = 0; k < pg.pageCount(); ++k)
+                if (!pg.materialize(k)) {
+                    ++bad;
+                    reports << QStringLiteral("seed %1: page %2 has nothing to make").arg(seed).arg(k);
+                }
+        }
+        QVERIFY2(bad == 0, qPrintable(QStringLiteral("%1 of 24 documents lose or repeat text:\n%2").arg(bad).arg(reports.join(QLatin1Char('\n')))));
+    }
+
+    // Objects of every kind put among paragraphs of hundreds of words (many pages each, one or two columns): the text on the pages is the story's text, whole and in order,
+    // and no page is empty. (JP_FUZZ=n: n documents, for a longer run.)
+    void randomWallsAmongLongParagraphsLoseNoText()
+    {
+        using Wr = FloatingObject::Wrap;
+        using Rl = FloatingObject::Rel;
+        const unsigned docs = qEnvironmentVariableIsSet("JP_FUZZ") ? std::max(60u, qEnvironmentVariable("JP_FUZZ").toUInt() * 4) : 60u;
+        QStringList reports;
+        for (unsigned seed = 1; seed <= docs; ++seed) {
+            std::mt19937 rng(seed * 104729u);
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            const int paras = 3 + int(rng() % 8);
+            fillStory(fd.story(), paras, seed, [&](int, QTextBlockFormat &bf) { bf.setBottomMargin(6); }, 300, 900);
+            if (rng() % 3 == 0) {
+                Section b = fd.sections[0];
+                b.columns = 2;
+                b.columnGap = 20;
+                fd.sections[0] = b;
+            }
+            for (unsigned i = 0, n = 2 + rng() % 12; i < n; ++i) {
+                const Rl hs[] = {Rl::Column, Rl::Margin, Rl::Page, Rl::Character, Rl::LeftMargin, Rl::RightMargin};
+                const Rl vs[] = {Rl::Paragraph, Rl::Line, Rl::Margin, Rl::Page, Rl::TopMargin, Rl::BottomMargin};
+                const Wr ws[] = {Wr::Square, Wr::Square, Wr::TopBottom, Wr::Tight, Wr::None};
+                const FloatingObject::Side sides[] = {FloatingObject::Side::Both, FloatingObject::Side::Left, FloatingObject::Side::Right, FloatingObject::Side::Largest};
+                const double w = 10 + double(rng() % 400), h = 10 + double(rng() % (rng() % 4 == 0 ? 700 : 200));
+                const int block = int(rng() % unsigned(paras));
+                const QTextBlock b = fd.story()->findBlockByNumber(block);
+                const int at = b.position() + int(rng() % unsigned(std::min(b.length(), 400)));
+                const int id = addWrapped(&fd, w, h, at, ws[rng() % 5], double(int(rng() % 500) - 100), double(int(rng() % 500) - 200),
+                                          QMarginsF(double(rng() % 20), double(rng() % 20), double(rng() % 20), double(rng() % 20)), sides[rng() % 4], hs[rng() % 6], vs[rng() % 6]);
+                if (rng() % 4 == 0) fd.objects[size_t(id) - 1].hAlign = FloatingObject::Align(1 + rng() % 3);
+            }
+            Paginator pg(&fd);
+            QString bad = textIsWholeOnThePages(pg, fd);
+            for (int k = 0; bad.isEmpty() && k < pg.pageCount(); ++k)
+                if (pg.lines(k).isEmpty()) bad = QStringLiteral("page %1 has no lines").arg(k);
+            if (!bad.isEmpty()) reports << QStringLiteral("seed %1 (%2 pages, %3 words in all): %4").arg(seed).arg(pg.pageCount()).arg(fd.story()->characterCount() / 6).arg(bad);
+        }
+        QVERIFY2(reports.isEmpty(), qPrintable(QStringLiteral("%1 of %2 documents lose text or have an empty page:\n%3").arg(reports.size()).arg(docs).arg(reports.join(QLatin1Char('\n')))));
     }
 
     // An edit lays out again the pages from the one it is on until a page starts where it did: the objects on the pages before it, and on those after, cost nothing.
