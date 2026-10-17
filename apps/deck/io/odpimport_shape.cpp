@@ -792,6 +792,8 @@ ItemPtr Reader::readCustomShape(const QDomElement &e, Scope &sc, const QTransfor
     base.valign = anchor == QLatin1String("middle") ? VAlign::Middle : anchor == QLatin1String("bottom") ? VAlign::Bottom : VAlign::Top;
     base.centerBlock = bag.get(Graphic, "draw:textarea-horizontal-align") == QLatin1String("center");
     base.noWrap = bag.get(Graphic, "fo:wrap-option") == QLatin1String("no-wrap");
+    // Text that shrinks to fit is read at the size it was shrunk to, as a text box's is (see readTextBox).
+    base.shrinks = bag.get(Graphic, "style:shrink-to-fit") == QLatin1String("true") || bag.get(Graphic, "draw:fit-to-size") == QLatin1String("shrink");
     base.shape = QStringLiteral("rect");
 
     // The preset the type stands for: the standard's own names, and the shape library or its definition for the preset.

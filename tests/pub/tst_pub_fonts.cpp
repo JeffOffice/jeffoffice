@@ -835,6 +835,19 @@ private Q_SLOTS:
         QCOMPARE(b.next().textList()->format().stringProperty(jp::tp::BulletChar), QString(QChar(0xF0FC)));
     }
 
+    // Webdings' triangles point in four directions, and a code the table doesn't name (0x41) is left as it is. A triangle has no emoji
+    // picture, so it carries no U+FE0E in running text.
+    void webdingsTriangles()
+    {
+        QCOMPARE(jp::symbolToUnicode(QStringLiteral("Webdings"), 0xF034), QStringLiteral("▸"));   // a right-pointing triangle
+        QCOMPARE(jp::symbolToUnicode(QStringLiteral("webdings"), 0x33), QStringLiteral("◂"));     // a left-pointing one
+        QCOMPARE(jp::symbolToUnicode(QStringLiteral("Webdings"), 0x35), QStringLiteral("▴"));     // pointing up
+        QCOMPARE(jp::symbolToUnicode(QStringLiteral("Webdings"), 0x36), QStringLiteral("▾"));     // pointing down
+        QVERIFY(jp::symbolToUnicode(QStringLiteral("Webdings"), 0x41).isEmpty());
+        QCOMPARE(jp::symbolTextToUnicode(QStringLiteral("Webdings"), 0xF034), QStringLiteral("▸"));
+        QVERIFY(jp::symbolTextToUnicode(QStringLiteral("Webdings"), 0x41).isEmpty());
+    }
+
     // The letters and signs of a symbol font in running text come to the Unicode character that looks like them; the ones that have a picture
     // of their own as emoji (the hands, the card suits) carry U+FE0E after them, which asks for the plain glyph, so they aren't drawn in
     // color; the others carry nothing. A circled number set in Wingdings, from the code itself (0x8C), is one in a dark circle.
