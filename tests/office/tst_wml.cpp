@@ -284,6 +284,95 @@ private Q_SLOTS:
         QVERIFY(readShapes("not xml").isEmpty());
     }
 
+    // The side the text goes on beside a wrap (DrawingML's wrapText, VML's side), and the room the wrap itself says (its own distances come before the object's).
+    void readsWhichSideTheTextGoesOnAndTheRoomRound()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" "
+                              "xmlns:w10=\"urn:schemas-microsoft-com:office:word\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                              "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                              "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"";
+        auto drawing = [&](const QByteArray &wrap, const QByteArray &anchorAttributes = "distT='127000' distB='127000' distL='127000' distR='127000'") {
+            const QByteArray xml = "<w:drawing " + ns + "><wp:anchor " + anchorAttributes + "><wp:positionH relativeFrom='column'><wp:posOffset>0</wp:posOffset></wp:positionH><wp:positionV relativeFrom='paragraph'><wp:posOffset>0</wp:posOffset></wp:positionV>"
+                                   "<wp:extent cx='2540000' cy='1270000'/>" + wrap + "<wp:docPr id='1' name='p'/><a:graphic><a:graphicData><pic:pic><pic:blipFill><a:blip r:embed='rId7'/></pic:blipFill></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing>";
+            return readShapes(xml);
+        };
+        // Both sides is the default; left, right, and largest are read.
+        QCOMPARE(drawing("<wp:wrapSquare wrapText='bothSides'/>")[0].side, Shape::SideBoth);
+        QCOMPARE(drawing("<wp:wrapSquare/>")[0].side, Shape::SideBoth);
+        QCOMPARE(drawing("<wp:wrapSquare wrapText='left'/>")[0].side, Shape::SideLeft);
+        QCOMPARE(drawing("<wp:wrapSquare wrapText='right'/>")[0].side, Shape::SideRight);
+        QCOMPARE(drawing("<wp:wrapTight wrapText='largest'><wp:wrapPolygon edited='0'><wp:start x='0' y='0'/></wp:wrapPolygon></wp:wrapTight>")[0].side, Shape::SideLargest);
+        QCOMPARE(drawing("<wp:wrapThrough wrapText='right'><wp:wrapPolygon edited='0'><wp:start x='0' y='0'/></wp:wrapPolygon></wp:wrapThrough>")[0].side, Shape::SideRight);
+        // The room: the object's distances are 10 points each; the wrap's own, where it has them, come first (3, 1, 4, 2 points: left, top, right, bottom).
+        QVector<Shape> shapes = drawing("<wp:wrapSquare wrapText='bothSides' distT='12700' distB='25400' distL='38100' distR='50800'/>");
+        QCOMPARE(shapes[0].gapLeft, 3.0);
+        QCOMPARE(shapes[0].gapTop, 1.0);
+        QCOMPARE(shapes[0].gapRight, 4.0);
+        QCOMPARE(shapes[0].gapBottom, 2.0);
+        // Tight has only the sides of its own; top and bottom stay the object's.
+        shapes = drawing("<wp:wrapTight wrapText='bothSides' distL='38100' distR='50800'><wp:wrapPolygon edited='0'><wp:start x='0' y='0'/></wp:wrapPolygon></wp:wrapTight>");
+        QCOMPARE(shapes[0].wrap, Shape::Tight);
+        QCOMPARE(shapes[0].gapLeft, 3.0);
+        QCOMPARE(shapes[0].gapRight, 4.0);
+        QCOMPARE(shapes[0].gapTop, 10.0);
+        QCOMPARE(shapes[0].gapBottom, 10.0);
+        // Top and bottom: its own top and bottom.
+        shapes = drawing("<wp:wrapTopAndBottom distT='12700' distB='25400'/>");
+        QCOMPARE(shapes[0].wrap, Shape::TopBottom);
+        QCOMPARE(shapes[0].gapTop, 1.0);
+        QCOMPARE(shapes[0].gapBottom, 2.0);
+        QCOMPARE(shapes[0].gapLeft, 10.0);
+        // VML: the side of w10:wrap.
+        auto vml = [&](const QByteArray &wrap) {
+            return readShapes("<w:pict " + ns + "><v:shape id='s' style='position:absolute;margin-left:0;margin-top:0;width:54pt;height:36pt'><v:imagedata r:id='rId4'/>" + wrap + "</v:shape></w:pict>");
+        };
+        QCOMPARE(vml("<w10:wrap type='square'/>")[0].side, Shape::SideBoth);
+        QCOMPARE(vml("<w10:wrap type='square' side='left'/>")[0].side, Shape::SideLeft);
+        QCOMPARE(vml("<w10:wrap type='square' side='right'/>")[0].side, Shape::SideRight);
+        QCOMPARE(vml("<w10:wrap type='tight' side='largest'/>")[0].side, Shape::SideLargest);
+        QCOMPARE(vml("<w10:wrap type='tight' side='largest'/>")[0].wrap, Shape::Tight);
+    }
+
+    // What an object's position is measured from, including the strips of the page beside the margins.
+    void readsTheStripsOfThePageThatPositionsAreMeasuredFrom()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" "
+                              "xmlns:w10=\"urn:schemas-microsoft-com:office:word\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                              "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                              "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"";
+        auto drawing = [&](const char *h, const char *v) {
+            const QByteArray xml = "<w:drawing " + ns + "><wp:anchor distT='0' distB='0' distL='0' distR='0'><wp:positionH relativeFrom='" + QByteArray(h) + "'><wp:posOffset>12700</wp:posOffset></wp:positionH>"
+                                   "<wp:positionV relativeFrom='" + QByteArray(v) + "'><wp:posOffset>25400</wp:posOffset></wp:positionV><wp:extent cx='254000' cy='127000'/><wp:wrapNone/>"
+                                   "<wp:docPr id='1' name='p'/><a:graphic><a:graphicData><pic:pic><pic:blipFill><a:blip r:embed='rId7'/></pic:blipFill></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing>";
+            return readShapes(xml);
+        };
+        using R = Shape::Rel;
+        struct Case { const char *h, *v; R hRel, vRel; };
+        for (const Case &c : {Case{"margin", "margin", R::Margin, R::Margin}, Case{"page", "page", R::Page, R::Page}, Case{"column", "paragraph", R::Column, R::Paragraph},
+                              Case{"character", "line", R::Character, R::LineOf}, Case{"leftMargin", "topMargin", R::LeftMargin, R::TopMargin},
+                              Case{"rightMargin", "bottomMargin", R::RightMargin, R::BottomMargin}, Case{"insideMargin", "insideMargin", R::InsideMargin, R::InsideMargin},
+                              Case{"outsideMargin", "outsideMargin", R::OutsideMargin, R::OutsideMargin}}) {
+            const QVector<Shape> shapes = drawing(c.h, c.v);
+            QCOMPARE(int(shapes.size()), 1);
+            QVERIFY2(shapes[0].hRel == c.hRel, c.h);
+            QVERIFY2(shapes[0].vRel == c.vRel, c.v);
+        }
+        // VML names them as it does.
+        auto vml = [&](const char *h, const char *v) {
+            return readShapes("<w:pict " + ns + "><v:rect id='s' style='position:absolute;margin-left:0;margin-top:0;width:54pt;height:36pt;mso-position-horizontal-relative:" + QByteArray(h) + ";mso-position-vertical-relative:" + QByteArray(v) + "'/></w:pict>");
+        };
+        struct VCase { const char *h, *v; R hRel, vRel; };
+        for (const VCase &c : {VCase{"margin", "margin", R::Margin, R::Margin}, VCase{"page", "page", R::Page, R::Page}, VCase{"text", "text", R::Column, R::Column},
+                               VCase{"char", "line", R::Character, R::LineOf}, VCase{"left-margin-area", "top-margin-area", R::LeftMargin, R::TopMargin},
+                               VCase{"right-margin-area", "bottom-margin-area", R::RightMargin, R::BottomMargin}, VCase{"inner-margin-area", "inner-margin-area", R::InsideMargin, R::InsideMargin},
+                               VCase{"outer-margin-area", "outer-margin-area", R::OutsideMargin, R::OutsideMargin}}) {
+            const QVector<Shape> shapes = vml(c.h, c.v);
+            QCOMPARE(int(shapes.size()), 1);
+            QVERIFY2(shapes[0].hRel == c.hRel, c.h);
+            QVERIFY2(shapes[0].vRel == c.vRel, c.v);
+        }
+    }
+
     // The numbers of a shape that are past what a page holds (or are not numbers) are brought into a range a page could be in.
     void shapeCoordinatesStayInRange()
     {
