@@ -17,6 +17,7 @@
 class QDockWidget;
 class QLabel;
 class QMenu;
+class QTextCharFormat;
 class QSlider;
 class QSplitter;
 class QStackedWidget;
@@ -133,6 +134,11 @@ public:
     // selected takes a style.
     QVector<GalleryItem> shapeStyleItems() const;
     bool applyShapeStyle(const QString &styleId);
+    // Shape Format > Text Art Styles: the gallery is Insert > Text Art's styles. One gives the words selected (the words of the shapes selected, or
+    // those being edited) its fill, outline, and shadow, and Text Art selected the whole style but for its words (one step). False for an id there is
+    // none of, or when nothing selected has letters to change.
+    QVector<GalleryItem> textArtStyleItems() const;
+    bool applyTextStyle(const QString &styleId);
     // What the ribbon file named that the window doesn't have (empty when
     // the ribbon built cleanly).
     QString ribbonErrors() const { return m_ribbonErrors; }
@@ -361,6 +367,11 @@ private:
     void fillShapeFillMenu(QMenu *menu);
     void fillShapeOutlineMenu(QMenu *menu);
     void fillShapeEffectsMenu(QMenu *menu);
+    void fillTextFillMenu(QMenu *menu);
+    void fillTextOutlineMenu(QMenu *menu);
+    void fillTextEffectsMenu(QMenu *menu);
+    bool lettersSelected() const;
+    void changeLetters(const QString &label, const std::function<void(QTextCharFormat &)> &runs, const std::function<void(Item &)> &art);
     void createCropActions();     // deckwindow_picture.cpp
     void addCropParts(struct RibbonParts &parts);
     void refreshCrop();
@@ -394,6 +405,7 @@ private:
     QList<MeasureSpin *> m_shapeSizeBoxes;   // Shape Format's Height and Width
     QList<QWidget *> m_changeShapeButtons;   // Shape Format's Change Shape, on while a shape is selected
     QList<QWidget *> m_shapeStyleGalleries;  // and its Shape Styles, on while a shape, text box, or line is
+    QList<QWidget *> m_textArtGalleries;     // and its Text Art Styles, on while words or Text Art are
     DeckFindPane *m_find = nullptr;
     QDockWidget *m_findDock = nullptr;
     bool m_menuOpen = false;   // the slide's right-click menu is up

@@ -13,9 +13,11 @@
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
+#include "app/textartgallery.h"
 #include "core/shapestyles.h"
 #include "core/themes.h"
 #include "render/renderer.h"
+#include "render/textart.h"
 #include "text/textprops.h"
 #include "app/widgets.h"
 #include "render/shapes.h"
@@ -165,6 +167,153 @@ bool DeckWindow::applyShapeStyle(const QString &styleId)
     return true;
 }
 
+// ---- Text Art Styles: the letters of the words in a shape, and Text Art (which is letters in itself)
+
+// Whether what is selected has letters these commands change: words in a shape or a text box (being edited, or not), or Text Art.
+bool DeckWindow::lettersSelected() const
+{
+    if (m_ed->isEditingText()) return true;
+    for (const Item *it : m_formatPane->session()->leaves()) {
+        switch (it->type()) {
+        case ItemType::Text: if (!static_cast<const TextItem *>(it)->storyId.isEmpty()) return true; break;
+        case ItemType::Shape: if (!static_cast<const ShapeItem *>(it)->storyId.isEmpty()) return true; break;
+        case ItemType::TextArt: return true;
+        default: break;
+        }
+    }
+    return false;
+}
+
+// Changes the letters: of the words selected while they are edited, else of all the words of the shapes selected (`runs` changes each run's
+// format), and of the Text Art selected (`art` changes the object, which is its letters). One step.
+void DeckWindow::changeLetters(const QString &label, const std::function<void(QTextCharFormat &)> &runs, const std::function<void(Item &)> &art)
+{
+    if (!lettersSelected()) return;
+    m_ed->beginChange(label);
+    m_ed->editCharFormats(runs, label);
+    if (art && !m_ed->isEditingText())
+        m_formatPane->session()->apply(label, [&art](Item &it) {
+            if (it.type() == ItemType::TextArt) art(it);
+        }, FormatSession::Scope::Leaves);
+    m_ed->endChange();
+}
+
+void DeckWindow::fillTextFillMenu(QMenu *menu)
+{
+    menu->clear();
+    const ColorScheme scheme = m_ed->doc()->colors;
+    auto *grid = new QWidgetAction(menu);
+    grid->setDefaultWidget(colorGridWidget(scheme, [this, menu](const ColorRef &c) {
+        menu->close();
+        changeLetters(tr("Text Fill"), [c](QTextCharFormat &cf) { formatops::setTextFill(cf, c); }, [c](Item &it) { formatops::setSolid(it.fill, c); });
+    }));
+    menu->addAction(grid);
+    menu->addAction(tr("No Fill"), menu, [this] {
+        changeLetters(tr("Text Fill"), [](QTextCharFormat &cf) { formatops::setTextFillNone(cf); }, [](Item &it) { it.fill = Fill(); });
+    });
+    menu->addAction(icon("palette"), tr("More Fill Colors…"), menu, [this] {
+        const QColor c = colorsDialog(this, Qt::black);
+        if (!c.isValid()) return;
+        const ColorRef color = ColorRef::rgb(c);
+        changeLetters(tr("Text Fill"), [color](QTextCharFormat &cf) { formatops::setTextFill(cf, color); }, [color](Item &it) { formatops::setSolid(it.fill, color); });
+    });
+    menu->addSeparator();
+    QMenu *gradient = menu->addMenu(icon("blend"), tr("Gradient"));
+    for (int i = 0; i < formatops::gradientCount(); ++i)
+        gradient->addAction(formatops::gradientName(i), gradient, [this, scheme, i] {
+            changeLetters(tr("Text Fill"), [scheme, i](QTextCharFormat &cf) { formatops::setTextFillGradient(cf, i, scheme); }, [scheme, i](Item &it) { formatops::applyGradient(it.fill, i, scheme); });
+        });
+}
+
+void DeckWindow::fillTextOutlineMenu(QMenu *menu)
+{
+    menu->clear();
+    const ColorScheme scheme = m_ed->doc()->colors;
+    auto *grid = new QWidgetAction(menu);
+    grid->setDefaultWidget(colorGridWidget(scheme, [this, menu](const ColorRef &c) {
+        menu->close();
+        changeLetters(tr("Text Outline"), [c](QTextCharFormat &cf) { formatops::setTextOutline(cf, c); }, [c](Item &it) { formatops::setOutlineColor(it.stroke, c); });
+    }));
+    menu->addAction(grid);
+    menu->addAction(tr("No Outline"), menu, [this] {
+        changeLetters(tr("Text Outline"), [](QTextCharFormat &cf) { formatops::setTextOutlineNone(cf); }, [](Item &it) { formatops::setOutlineNone(it.stroke); });
+    });
+    menu->addAction(icon("palette"), tr("More Outline Colors…"), menu, [this] {
+        const QColor c = colorsDialog(this, Qt::black);
+        if (!c.isValid()) return;
+        const ColorRef color = ColorRef::rgb(c);
+        changeLetters(tr("Text Outline"), [color](QTextCharFormat &cf) { formatops::setTextOutline(cf, color); }, [color](Item &it) { formatops::setOutlineColor(it.stroke, color); });
+    });
+    menu->addSeparator();
+    QMenu *weight = menu->addMenu(icon("minus"), tr("Weight"));
+    for (double pt : {0.25, 0.5, 0.75, 1.0, 1.5, 2.25, 3.0, 4.5, 6.0})
+        weight->addAction(tr("%1 pt").arg(pt), weight, [this, pt] {
+            changeLetters(tr("Text Outline"), [pt](QTextCharFormat &cf) { formatops::setTextOutlineWeight(cf, pt); }, [pt](Item &it) {
+                if (it.stroke.color.isNone()) it.stroke.color = ColorRef::scheme(Main);
+                it.stroke.width = pt;
+            });
+        });
+}
+
+void DeckWindow::fillTextEffectsMenu(QMenu *menu)
+{
+    menu->clear();
+    auto effect = [this](const std::function<void(TextEffects &)> &runs, const std::function<void(Effects &)> &art) {
+        changeLetters(tr("Text Effects"), [runs](QTextCharFormat &cf) { formatops::changeTextEffects(cf, runs); }, [art](Item &it) { art(it.fx); });
+    };
+    QMenu *shadow = menu->addMenu(icon("layers"), tr("Shadow"));
+    shadow->addAction(tr("No Shadow"), shadow, [effect] { effect([](TextEffects &fx) { fx.outer.on = false; }, [](Effects &fx) { fx.shadow.on = false; }); });
+    shadow->addSeparator();
+    for (int i = 0; i < formatpresets::shadowCount(); ++i)
+        shadow->addAction(formatpresets::shadowName(i), shadow, [effect, i] { effect([i](TextEffects &fx) { formatpresets::applyTextShadow(fx, i); }, [i](Effects &fx) { formatpresets::applyShadow(fx, i); }); });
+    QMenu *reflection = menu->addMenu(icon("flip-vertical-2"), tr("Reflection"));
+    reflection->addAction(tr("No Reflection"), reflection, [effect] { effect([](TextEffects &fx) { fx.reflection.on = false; }, [](Effects &fx) { fx.reflection.on = false; }); });
+    reflection->addSeparator();
+    for (int i = 0; i < formatpresets::reflectionCount(); ++i)
+        reflection->addAction(formatpresets::reflectionName(i), reflection, [effect, i] { effect([i](TextEffects &fx) { formatpresets::applyTextReflection(fx, i); }, [i](Effects &fx) { formatpresets::applyReflection(fx, i); }); });
+    QMenu *glow = menu->addMenu(icon("sparkles"), tr("Glow"));
+    glow->addAction(tr("No Glow"), glow, [effect] { effect([](TextEffects &fx) { fx.glow.on = false; }, [](Effects &fx) { fx.glow.on = false; }); });
+    glow->addSeparator();
+    const ColorScheme scheme = m_ed->doc()->colors;
+    for (int i = 0; i < formatpresets::glowCount(); ++i)
+        glow->addAction(formatpresets::glowName(i), glow, [effect, scheme, i] {
+            effect([scheme, i](TextEffects &fx) { formatpresets::applyTextGlow(fx, i, ColorRef::scheme(Accent1).resolve(scheme)); },
+                   [i](Effects &fx) { formatpresets::applyGlow(fx, i, ColorRef::scheme(Accent1)); });
+        });
+    // Transform warps Text Art; the words of a shape are not warped.
+    bool art = false;
+    for (const Item *it : m_formatPane->session()->leaves()) art = art || it->type() == ItemType::TextArt;
+    QMenu *transform = menu->addMenu(icon("waves"), tr("Transform"));
+    const bool warps = art && !m_ed->isEditingText();
+    transform->menuAction()->setEnabled(warps);
+    for (const TextArtTransform &t : textArtTransforms()) {
+        const QString id = t.id;
+        QAction *a = transform->addAction(t.name, transform, [this, id] {
+            m_formatPane->session()->apply(tr("Text Effects"), [id](Item &it) {
+                if (it.type() == ItemType::TextArt) static_cast<TextArtItem &>(it).transform_ = id;
+            }, FormatSession::Scope::Leaves);
+        });
+        a->setEnabled(warps);
+    }
+}
+
+QVector<GalleryItem> DeckWindow::textArtStyleItems() const { return textArtGalleryItems(m_ed); }
+
+bool DeckWindow::applyTextStyle(const QString &styleId)
+{
+    const TextArtStyle *found = nullptr;
+    for (const TextArtStyle &st : textArtStyles())
+        if (st.id == styleId) found = &st;
+    if (!found || !lettersSelected()) return false;
+    const ColorScheme scheme = m_ed->doc()->colors;
+    const TextArtStyle style = *found;
+    changeLetters(tr("Text Art Style"), [&style, &scheme](QTextCharFormat &cf) { applyTextArtStyleToRun(cf, style.id, scheme); }, [&style](Item &it) {
+        // The whole style, but for the words, the size, and the place the object has.
+        applyTextArtStyle(static_cast<TextArtItem &>(it), style);
+    });
+    return true;
+}
+
 void DeckWindow::showFormatPane(bool on)
 {
     if (!m_formatDock) return;
@@ -203,6 +352,7 @@ void DeckWindow::refreshShapeFormat()
     bool styled = false;
     for (const Item *it : m_formatPane->session()->leaves()) styled = styled || deck::takesShapeStyle(*it);
     for (QWidget *w : m_shapeStyleGalleries) w->setEnabled(styled);
+    for (QWidget *w : m_textArtGalleries) w->setEnabled(lettersSelected());
     for (MeasureSpin *s : m_shapeSizeBoxes) {
         const bool height = s->objectName() == QLatin1String("shapeHeight");
         const QSignalBlocker block(s);
@@ -371,6 +521,37 @@ void DeckWindow::addShapeFormatParts(RibbonParts &parts)
         gal->setEnabled(false);
         return gal;
     };
+    // The menus of Text Art Styles, made again each time they open (the colors are the presentation's now, and Transform is on for Text Art).
+    parts.menus[QStringLiteral("textFillMenu")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        connect(m, &QMenu::aboutToShow, m, [this, m] { fillTextFillMenu(m); });
+        return m;
+    };
+    parts.menus[QStringLiteral("textOutlineMenu")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        connect(m, &QMenu::aboutToShow, m, [this, m] { fillTextOutlineMenu(m); });
+        return m;
+    };
+    parts.menus[QStringLiteral("textEffectsMenu")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        connect(m, &QMenu::aboutToShow, m, [this, m] { fillTextEffectsMenu(m); });
+        return m;
+    };
+    // The gallery is Insert > Text Art's, as it is drawn there.
+    parts.widgets[QStringLiteral("textArtStyleGallery")] = [this]() -> QWidget * {
+        auto *gal = new Gallery(QSize(40, 34), 5);
+        gal->setObjectName(QStringLiteral("textArtStyleGallery"));
+        gal->setTitle(tr("Text Art Styles"));
+        gal->setItemsProvider([this] { return textArtStyleItems(); });
+        connect(gal, &Gallery::activated, this, [this](const QString &id) {
+            applyTextStyle(id);
+            m_canvas->setFocus();
+        });
+        m_textArtGalleries << gal;
+        gal->setEnabled(false);
+        return gal;
+    };
+    parts.launchers[QStringLiteral("textArtStyles")] = [this] { formatSelection(FormatPane::Tab::FillLine); };
     parts.launchers[QStringLiteral("shapeStyles")] = [this] { formatSelection(FormatPane::Tab::FillLine); };
     parts.launchers[QStringLiteral("shapeSize")] = [this] { formatSelection(FormatPane::Tab::SizeProperties); };
     // The size of the object (of the first, when there are several) typed in; every one selected takes it, as in the pane.

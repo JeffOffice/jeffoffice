@@ -1,5 +1,5 @@
 // JeffDeck's tests of the Shape Format tab's styles: the Quick Styles gallery drawn from the theme (and how a style is saved), Change Shape, and
-// the WordArt styles of the text in a shape. Each command is one step that undoes, and comes back from a .pptx and from an .odp.
+// the Text Art styles of the text in a shape. Each command is one step that undoes, and comes back from a .pptx and from an .odp.
 #include "deckhelpers.h"
 
 #include "app/formatops.h"
@@ -9,6 +9,7 @@
 
 #include <QMenu>
 #include <QToolButton>
+#include <QWidgetAction>
 
 namespace {
 
@@ -67,6 +68,49 @@ struct Rig {
         if (!found) qWarning("no %s on the ribbon", name);
         return found;
     }
+
+    // The drop-down menu of a command of the tab, by its action's name, and the choices in it (made again as it opens).
+    QMenu *menuOf(const char *id) const
+    {
+        for (QToolButton *b : w.ribbon()->findChildren<QToolButton *>())
+            if (b->defaultAction() && b->defaultAction()->objectName() == QLatin1String(id) && b->menu()) return b->menu();
+        qWarning("no menu %s", id);
+        return nullptr;
+    }
+    static QAction *choose(QMenu *m, const QString &text)
+    {
+        Q_EMIT m->aboutToShow();
+        for (QAction *a : m->actions())
+            if (a->text() == text) return a;
+        return nullptr;
+    }
+    static QAction *sub(QMenu *m, const QString &title, const QString &text)
+    {
+        Q_EMIT m->aboutToShow();
+        for (QAction *a : m->actions())
+            if (a->menu() && a->text() == title)
+                for (QAction *b : a->menu()->actions())
+                    if (b->text() == text) return b;
+        return nullptr;
+    }
+    // A color of the menu's grid, by the name it has there ("Accent 2").
+    static QToolButton *swatch(QMenu *m, const QString &tip)
+    {
+        Q_EMIT m->aboutToShow();
+        for (QAction *a : m->actions())
+            if (auto *wa = qobject_cast<QWidgetAction *>(a))
+                for (auto *b : wa->defaultWidget()->findChildren<QToolButton *>(QStringLiteral("swatch")))
+                    if (b->toolTip() == tip) return b;
+        return nullptr;
+    }
+    // The format of the letter at a place in a story.
+    QTextCharFormat letter(const QString &storyId, int at) const
+    {
+        QTextCursor c(ed()->doc()->storyDoc(storyId));
+        c.setPosition(at + 1);
+        return c.charFormat();
+    }
+    static TextEffects fxOf(const QTextCharFormat &cf) { return TextEffects::fromJson(cf.stringProperty(tp::TextFx)); }
 
     mutable DeckWindow w;
     QStringList ids;
@@ -131,16 +175,16 @@ private Q_SLOTS:
             QCOMPARE(items[i].group, styles[i % 6 + i / 6 * 6].group);
         }
         QCOMPARE(groups, (QStringList{QStringLiteral("Outline Only"), QStringLiteral("Subtle Effect"), QStringLiteral("Moderate Effect"), QStringLiteral("Intense Effect")}));
-        // Drawn by the renderer in the theme's colors: the middle of a moderate style is its accent (a gradient from a lighter to a darker
+        // Drawn by the renderer in the theme's colors: the inside of a moderate style is its accent (a gradient from a lighter to a darker
         // shade of it), and of an outline alone, the slide (the line is at the edge).
         for (int accent = 0; accent < 6; ++accent) {
             const QImage moderate = items[12 + accent].icon.pixmap(QSize(64, 48)).toImage();
-            const QColor middle = moderate.pixelColor(moderate.width() / 2, moderate.height() / 3);
+            const QColor middle = moderate.pixelColor(12, moderate.height() / 2);   // (beside the word in the tile, whatever font draws it)
             QVERIFY2(apart(middle, theme.colors[4 + accent]) < 70, qPrintable(QStringLiteral("accent %1: %2 not near %3").arg(accent + 1).arg(middle.name(), theme.colors[4 + accent].name())));
             const QImage outline = items[accent].icon.pixmap(QSize(64, 48)).toImage();
-            QVERIFY(apart(outline.pixelColor(10, 6), theme.colors[4 + accent]) > 40);   // (its inside is not filled)
+            QVERIFY(apart(outline.pixelColor(12, outline.height() / 2), theme.colors[4 + accent]) > 40);   // (its inside is not filled)
         }
-        QVERIFY(apart(items[12].icon.pixmap(QSize(64, 48)).toImage().pixelColor(32, 16), items[13].icon.pixmap(QSize(64, 48)).toImage().pixelColor(32, 16)) > 20);
+        QVERIFY(apart(items[12].icon.pixmap(QSize(64, 48)).toImage().pixelColor(12, 24), items[13].icon.pixmap(QSize(64, 48)).toImage().pixelColor(12, 24)) > 20);
     }
 
     // A style gives the shapes it is clicked on the theme's fill, line, and shadow for its kind and accent, as one step; its text takes the style's
@@ -431,6 +475,302 @@ private Q_SLOTS:
         QVERIFY(deck::importPresentation(deck::exportPresentation(*d, &err), &err));
     }
 
+
+    // ---- Text Art Styles
+
+    // Text Fill, Text Outline, and Text Effects change all the text of the shapes selected (each choice one step): a color, a gradient, or none for
+    // the letters; a color, a weight, or none for their outline; a shadow, reflection, or glow.
+    void textMenusChangeAllTheTextOfTheShapesSelected()
+    {
+        Rig r;
+        const QString a = r.addShape(QStringLiteral("A"), QStringLiteral("Hello world"), QRectF(40, 40, 200, 80))->id;
+        const QString b = r.addShape(QStringLiteral("B"), QStringLiteral("Second shape"), QRectF(300, 40, 200, 80))->id;
+        r.ed()->select(QStringList{a, b});
+        const QString sa = r.shape(a)->storyId, sb = r.shape(b)->storyId;
+        QMenu *fill = r.menuOf("ribbon.textFill"), *outline = r.menuOf("ribbon.textOutline"), *effects = r.menuOf("ribbon.textEffects");
+        QVERIFY(fill && outline && effects);
+        int steps = r.steps();
+        auto oneStep = [&](QAction *action, const char *what) {
+            QVERIFY2(action, what);
+            action->trigger();
+            QVERIFY2(r.steps() == steps + 1, what);
+            ++steps;
+        };
+        // Fill: a color of the grid, in every letter of both.
+        QToolButton *accent2 = Rig::swatch(fill, QStringLiteral("Accent 2"));
+        QVERIFY(accent2);
+        accent2->click();
+        QCOMPARE(r.steps(), ++steps);
+        for (const QString &story : {sa, sb})
+            for (int at : {0, 4, 9}) QCOMPARE(r.letter(story, at).stringProperty(tp::ColorRefP), ColorRef::scheme(Accent2).toString());
+        // A gradient is in the letters, and its first color is their color.
+        oneStep(Rig::sub(fill, QStringLiteral("Gradient"), QStringLiteral("Linear Right")), "gradient");
+        {
+            const QTextCharFormat cf = r.letter(sa, 3);
+            const Fill g = Fill::fromJson(QJsonDocument::fromJson(cf.stringProperty(tp::TextFill).toUtf8()).object());
+            QCOMPARE(g.type, Fill::Gradient);
+            QCOMPARE(g.angle, 0.0);
+            QCOMPARE(g.stops.size(), 2);
+            QCOMPARE(cf.stringProperty(tp::ColorRefP), g.stops.first().color.toString());
+        }
+        // A color after it replaces the gradient; none is clear letters.
+        Rig::swatch(fill, QStringLiteral("Accent 3"))->click();
+        ++steps;
+        QVERIFY(r.letter(sa, 3).stringProperty(tp::TextFill).isEmpty());
+        QCOMPARE(r.steps(), steps);
+        oneStep(Rig::choose(fill, QStringLiteral("No Fill")), "no fill");
+        QCOMPARE(r.letter(sb, 2).foreground().color().alpha(), 0);
+        QCOMPARE(ColorRef::fromString(r.letter(sb, 2).stringProperty(tp::ColorRefP)).resolve(r.ed()->doc()->colors).alpha(), 0);
+        // Outline: a color (a point wide to start with), a weight, none.
+        QVERIFY(r.letter(sa, 1).stringProperty(tp::OutlineRef).isEmpty());
+        Rig::swatch(outline, QStringLiteral("Accent 4"))->click();
+        ++steps;
+        QCOMPARE(r.steps(), steps);
+        for (const QString &story : {sa, sb}) {
+            QCOMPARE(r.letter(story, 1).stringProperty(tp::OutlineRef), ColorRef::scheme(Accent4).toString());
+            QCOMPARE(r.letter(story, 1).property(tp::OutlineWidth).toDouble(), 1.0);
+        }
+        oneStep(Rig::sub(outline, QStringLiteral("Weight"), QStringLiteral("3 pt")), "weight");
+        QCOMPARE(r.letter(sb, 5).property(tp::OutlineWidth).toDouble(), 3.0);
+        oneStep(Rig::choose(outline, QStringLiteral("No Outline")), "no outline");
+        QVERIFY(r.letter(sa, 1).stringProperty(tp::OutlineRef).isEmpty());
+        // Effects: a shadow, a reflection, a glow, each beside the others; and a shadow off leaves the rest.
+        oneStep(Rig::sub(effects, QStringLiteral("Shadow"), QStringLiteral("Offset Bottom Right")), "shadow");
+        {
+            const TextEffects fx = Rig::fxOf(r.letter(sa, 2));
+            QVERIFY(fx.outer.on);
+            QCOMPARE(fx.outer.distance, 3.0);
+            QCOMPARE(fx.outer.angle, 45.0);
+            QVERIFY(fx.outer.color.alpha() > 0 && fx.outer.color.alpha() < 255);
+        }
+        oneStep(Rig::sub(effects, QStringLiteral("Reflection"), QStringLiteral("Half Reflection")), "reflection");
+        oneStep(Rig::sub(effects, QStringLiteral("Glow"), QStringLiteral("10 Point Glow")), "glow");
+        {
+            const TextEffects fx = Rig::fxOf(r.letter(sb, 4));
+            QVERIFY(fx.outer.on && fx.reflection.on && fx.glow.on);
+            QCOMPARE(fx.glow.radius, 10.0);
+            QCOMPARE(fx.reflection.sy, -1.0);
+            QVERIFY(near(fx.reflection.endPos, 0.55, 0.001));
+            QVERIFY(fx.reflection.startAlpha > fx.reflection.endAlpha);
+        }
+        oneStep(Rig::sub(effects, QStringLiteral("Shadow"), QStringLiteral("No Shadow")), "no shadow");
+        {
+            const TextEffects fx = Rig::fxOf(r.letter(sa, 2));
+            QVERIFY(!fx.outer.on && fx.reflection.on && fx.glow.on);
+        }
+        oneStep(Rig::sub(effects, QStringLiteral("Glow"), QStringLiteral("No Glow")), "no glow");
+        oneStep(Rig::sub(effects, QStringLiteral("Reflection"), QStringLiteral("No Reflection")), "no reflection");
+        QVERIFY(!Rig::fxOf(r.letter(sa, 2)).any());
+        // The words are the words they were, and each change undoes.
+        QCOMPARE(r.ed()->doc()->storyDoc(sa)->toPlainText(), QStringLiteral("Hello world"));
+        r.ed()->undo();
+        QVERIFY(Rig::fxOf(r.letter(sa, 2)).reflection.on);
+        r.ed()->undo();
+        QVERIFY(Rig::fxOf(r.letter(sa, 2)).glow.on);
+    }
+
+    // While the words are being edited, the menus change the words selected and nothing else.
+    void textMenusChangeTheSelectedWordsWhileEditing()
+    {
+        Rig r;
+        const QString a = r.addShape(QStringLiteral("A"), QStringLiteral("Hello world today"))->id;
+        r.ed()->select(a);
+        r.ed()->beginTextEdit(a, 6);
+        QTextCursor c = r.ed()->cursor();
+        c.setPosition(6);
+        c.setPosition(11, QTextCursor::KeepAnchor);
+        r.ed()->setCursor(c);
+        const QString story = r.shape(a)->storyId;
+        const int base = r.steps();
+        Rig::swatch(r.menuOf("ribbon.textFill"), QStringLiteral("Accent 1"))->click();
+        Rig::sub(r.menuOf("ribbon.textEffects"), QStringLiteral("Glow"), QStringLiteral("5 Point Glow"))->trigger();
+        QCOMPARE(r.steps(), base + 2);
+        QVERIFY(r.letter(story, 2).stringProperty(tp::ColorRefP).isEmpty());   // "Hello "
+        QCOMPARE(r.letter(story, 7).stringProperty(tp::ColorRefP), ColorRef::scheme(Accent1).toString());   // "world"
+        QVERIFY(Rig::fxOf(r.letter(story, 8)).glow.on);
+        QVERIFY(!Rig::fxOf(r.letter(story, 3)).any());
+        QVERIFY(!Rig::fxOf(r.letter(story, 13)).any());   // " today"
+        QVERIFY(r.letter(story, 13).stringProperty(tp::ColorRefP).isEmpty());
+        r.ed()->endTextEdit();
+    }
+
+    // Text Art is letters in itself: the menus change its fill, outline, and effects, and Transform its warp; for the words of a shape, Transform is
+    // off (those are not warped).
+    void textMenusChangeTextArtAndTransformIsForIt()
+    {
+        Rig r;
+        auto art = std::make_shared<TextArtItem>();
+        art->text = QStringLiteral("Art");
+        art->name = QStringLiteral("Art");
+        art->rect = QRectF(300, 200, 240, 60);
+        r.ed()->addItem(art, false);
+        const QString shape = r.addShape(QStringLiteral("Shape"), QStringLiteral("Words"))->id;
+        const QString id = art->id;
+        r.ed()->select(id);
+        QMenu *fill = r.menuOf("ribbon.textFill"), *outline = r.menuOf("ribbon.textOutline"), *effects = r.menuOf("ribbon.textEffects");
+        const int base = r.steps();
+        Rig::swatch(fill, QStringLiteral("Accent 3"))->click();
+        QCOMPARE(r.steps(), base + 1);
+        QCOMPARE(r.item(id)->fill.color, ColorRef::scheme(Accent3));
+        Rig::swatch(outline, QStringLiteral("Accent 5"))->click();
+        QCOMPARE(r.item(id)->stroke.color, ColorRef::scheme(Accent5));
+        Rig::sub(outline, QStringLiteral("Weight"), QStringLiteral("4.5 pt"))->trigger();
+        QCOMPARE(r.item(id)->stroke.width, 4.5);
+        Rig::sub(effects, QStringLiteral("Shadow"), QStringLiteral("Offset Top Left"))->trigger();
+        QVERIFY(r.item(id)->fx.shadow.on);
+        QCOMPARE(r.item(id)->fx.shadow.angle, 225.0);
+        QAction *archUp = Rig::sub(effects, QStringLiteral("Transform"), QStringLiteral("Arch Up"));
+        QVERIFY(archUp && archUp->isEnabled());
+        const int before = r.steps();
+        archUp->trigger();
+        QCOMPARE(r.steps(), before + 1);
+        QCOMPARE(static_cast<TextArtItem *>(r.item(id))->transform_, QStringLiteral("archUp"));
+        Rig::sub(effects, QStringLiteral("Transform"), QStringLiteral("Plain Text"))->trigger();
+        QCOMPARE(static_cast<TextArtItem *>(r.item(id))->transform_, QStringLiteral("plain"));
+        Rig::choose(outline, QStringLiteral("No Outline"))->trigger();
+        QVERIFY(r.item(id)->stroke.isNone());
+        QCOMPARE(static_cast<TextArtItem *>(r.item(id))->text, QStringLiteral("Art"));
+        // The words of a shape are not warped: with only that selected, Transform is off.
+        r.ed()->select(shape);
+        QAction *off = Rig::sub(effects, QStringLiteral("Transform"), QStringLiteral("Arch Up"));
+        QVERIFY(off && !off->isEnabled());
+        // With both selected the Text Art takes it and the shape's words are as they were.
+        r.ed()->select(QStringList{id, shape});
+        QAction *both = Rig::sub(effects, QStringLiteral("Transform"), QStringLiteral("Wave 1"));
+        QVERIFY(both->isEnabled());
+        both->trigger();
+        QCOMPARE(static_cast<TextArtItem *>(r.item(id))->transform_, QStringLiteral("waveUp"));
+        QVERIFY(Rig::fxOf(r.letter(r.shape(shape)->storyId, 1)).outer.on == false);
+    }
+
+    // The gallery is Insert > Text Art's styles: one on the words of a shape gives them the style's fill, outline, and shadow (not its font), and on
+    // Text Art the style whole but for its words; each is one step.
+    void textArtStyleGalleryGivesTheStylesOfTextArt()
+    {
+        Rig r;
+        const QString a = r.addShape(QStringLiteral("A"), QStringLiteral("Hello world"))->id;
+        auto art = std::make_shared<TextArtItem>();
+        art->text = QStringLiteral("Art");
+        art->rect = QRectF(300, 200, 240, 60);
+        r.ed()->addItem(art, false);
+        const QString id = art->id;
+        auto *gallery = r.widget<Gallery>("textArtStyleGallery");
+        QVERIFY(gallery);
+        QCOMPARE(r.w.textArtStyleItems().size(), int(textArtStyles().size()));
+        for (int i = 0; i < r.w.textArtStyleItems().size(); ++i) QCOMPARE(r.w.textArtStyleItems()[i].id, textArtStyles()[i].id);
+        r.ed()->clearSelection();
+        QVERIFY(!gallery->isEnabled());
+        r.ed()->select(a);
+        QVERIFY(gallery->isEnabled());
+        const QString story = r.shape(a)->storyId;
+        const QString font = r.letter(story, 2).stringProperty(QTextFormat::FontFamily);
+        const int base = r.steps();
+        QVERIFY(r.w.applyTextStyle(QStringLiteral("grad-gold")));
+        QCOMPARE(r.steps(), base + 1);
+        {
+            const QTextCharFormat cf = r.letter(story, 2);
+            const Fill g = Fill::fromJson(QJsonDocument::fromJson(cf.stringProperty(tp::TextFill).toUtf8()).object());
+            QCOMPARE(g.type, Fill::Gradient);
+            QCOMPARE(g.stops.size(), 2);
+            QCOMPARE(g.stops.first().color, ColorRef::rgb(QColor("#F7D774")));
+            QCOMPARE(cf.stringProperty(tp::OutlineRef), ColorRef::rgb(QColor("#7A5210")).toString());
+            QCOMPARE(cf.property(tp::OutlineWidth).toDouble(), 1.0);
+            QVERIFY(Rig::fxOf(cf).outer.on);
+            QCOMPARE(cf.stringProperty(QTextFormat::FontFamily), font);
+        }
+        QVERIFY(r.w.applyTextStyle(QStringLiteral("rainbow")));
+        {
+            const Fill g = Fill::fromJson(QJsonDocument::fromJson(r.letter(story, 2).stringProperty(tp::TextFill).toUtf8()).object());
+            QCOMPARE(g.stops.size(), 6);
+            QVERIFY(r.letter(story, 2).stringProperty(tp::OutlineRef).isEmpty());   // (the style has none)
+            QVERIFY(!Rig::fxOf(r.letter(story, 2)).outer.on);
+        }
+        // A solid color style takes the gradient off.
+        QVERIFY(r.w.applyTextStyle(QStringLiteral("fill-a1")));
+        QVERIFY(r.letter(story, 2).stringProperty(tp::TextFill).isEmpty());
+        QCOMPARE(r.letter(story, 2).stringProperty(tp::ColorRefP), ColorRef::scheme(Accent1).toString());
+        // Text Art: the whole style but for its words and its place.
+        r.ed()->select(id);
+        QVERIFY(r.w.applyTextStyle(QStringLiteral("arch-a1")));
+        auto *got = static_cast<TextArtItem *>(r.item(id));
+        QCOMPARE(got->styleId, QStringLiteral("arch-a1"));
+        QCOMPARE(got->transform_, QStringLiteral("archUp"));
+        QCOMPARE(got->fill.color, ColorRef::scheme(Accent1));
+        QCOMPARE(got->text, QStringLiteral("Art"));
+        QCOMPARE(got->rect, QRectF(300, 200, 240, 60));
+        QVERIFY(!r.w.applyTextStyle(QStringLiteral("no such style")));
+        // Nothing that holds words selected: nothing to do.
+        auto line = std::make_shared<LineItem>();
+        line->p1 = QPointF(40, 400);
+        line->p2 = QPointF(300, 400);
+        line->syncRect();
+        r.ed()->addItem(line, false);
+        r.ed()->select(line->id);
+        QVERIFY(!gallery->isEnabled());
+        const int idle = r.steps();
+        QVERIFY(!r.w.applyTextStyle(QStringLiteral("fill-a1")));
+        QCOMPARE(r.steps(), idle);
+    }
+
+    // The letters' fill (a color, a gradient, or none), outline, and effects come back from a .pptx and from an .odp.
+    void letterStylesComeBackFromBothFiles()
+    {
+        Rig r;
+        const QString id = r.addShape(QStringLiteral("Styled"), QStringLiteral("Lettered words"), QRectF(100, 100, 300, 100))->id;
+        r.ed()->select(id);
+        const QString story = r.shape(id)->storyId;
+        QMenu *fill = r.menuOf("ribbon.textFill"), *outline = r.menuOf("ribbon.textOutline"), *effects = r.menuOf("ribbon.textEffects");
+        Rig::sub(fill, QStringLiteral("Gradient"), QStringLiteral("Linear Down"))->trigger();
+        Rig::swatch(outline, QStringLiteral("Accent 2"))->click();
+        Rig::sub(outline, QStringLiteral("Weight"), QStringLiteral("2.25 pt"))->trigger();
+        Rig::sub(effects, QStringLiteral("Shadow"), QStringLiteral("Offset Bottom Left"))->trigger();
+        Rig::sub(effects, QStringLiteral("Reflection"), QStringLiteral("Tight Reflection"))->trigger();
+        Rig::sub(effects, QStringLiteral("Glow"), QStringLiteral("18 Point Glow"))->trigger();
+        const QTextCharFormat want = r.letter(story, 3);
+        const Fill wantFill = Fill::fromJson(QJsonDocument::fromJson(want.stringProperty(tp::TextFill).toUtf8()).object());
+        QVERIFY(wantFill.type == Fill::Gradient);
+        const TextEffects wantFx = Rig::fxOf(want);
+        for (int how = 0; how < 2; ++how) {
+            const QString which = how ? QStringLiteral("odp") : QStringLiteral("pptx");
+            std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+            QVERIFY2(d, qPrintable(which));
+            Item *it = Rig::named(*d, QStringLiteral("Styled"));
+            QVERIFY2(it, qPrintable(which));
+            const QString back = it->type() == ItemType::Shape ? static_cast<ShapeItem *>(it)->storyId : static_cast<TextItem *>(it)->storyId;
+            QTextCursor c(d->storyDoc(back));
+            c.setPosition(4);
+            const QTextCharFormat cf = c.charFormat();
+            const Fill g = Fill::fromJson(QJsonDocument::fromJson(cf.stringProperty(tp::TextFill).toUtf8()).object());
+            QVERIFY2(g.type == Fill::Gradient && g.stops.size() == wantFill.stops.size(), qPrintable(which + QStringLiteral(": gradient")));
+            QVERIFY2(near(g.angle, wantFill.angle, 1), qPrintable(which));
+            QVERIFY2(apart(g.stops.first().color.resolve(d->colors), wantFill.stops.first().color.resolve(r.ed()->doc()->colors)) <= 2, qPrintable(which));
+            QVERIFY2(apart(g.stops.last().color.resolve(d->colors), wantFill.stops.last().color.resolve(r.ed()->doc()->colors)) <= 2, qPrintable(which));
+            QVERIFY2(apart(ColorRef::fromString(cf.stringProperty(tp::OutlineRef)).resolve(d->colors), ColorRef::fromString(want.stringProperty(tp::OutlineRef)).resolve(r.ed()->doc()->colors)) <= 2,
+                     qPrintable(which + QStringLiteral(": outline color")));
+            QVERIFY2(near(cf.property(tp::OutlineWidth).toDouble(), 2.25, 0.02), qPrintable(which + QStringLiteral(": outline width ") + QString::number(cf.property(tp::OutlineWidth).toDouble())));
+            const TextEffects fx = Rig::fxOf(cf);
+            QVERIFY2(fx.outer.on && fx.reflection.on && fx.glow.on, qPrintable(which + QStringLiteral(": effects")));
+            QVERIFY2(near(fx.outer.distance, wantFx.outer.distance, 0.05) && near(fx.outer.angle, wantFx.outer.angle, 0.5) && near(fx.outer.blur, wantFx.outer.blur, 0.05), qPrintable(which));
+            QVERIFY2(near(fx.glow.radius, 18, 0.05), qPrintable(which));
+            QVERIFY2(near(fx.reflection.endPos, wantFx.reflection.endPos, 0.01) && near(fx.reflection.sy, -1, 0.001), qPrintable(which));
+        }
+        // Clear letters (no fill) and an outline alone come back as they were.
+        Rig::choose(fill, QStringLiteral("No Fill"))->trigger();
+        for (int how = 0; how < 2; ++how) {
+            std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+            QVERIFY(d);
+            Item *it = Rig::named(*d, QStringLiteral("Styled"));
+            QVERIFY(it);
+            const QString back = it->type() == ItemType::Shape ? static_cast<ShapeItem *>(it)->storyId : static_cast<TextItem *>(it)->storyId;
+            QTextCursor c(d->storyDoc(back));
+            c.setPosition(4);
+            const QTextCharFormat cf = c.charFormat();
+            const QString which = how ? QStringLiteral("odp") : QStringLiteral("pptx");
+            QVERIFY2(ColorRef::fromString(cf.stringProperty(tp::ColorRefP)).resolve(d->colors).alpha() == 0, qPrintable(which + QStringLiteral(": ") + cf.stringProperty(tp::ColorRefP)));
+            QVERIFY2(cf.stringProperty(tp::TextFill).isEmpty(), qPrintable(which));
+            QVERIFY2(!cf.stringProperty(tp::OutlineRef).isEmpty(), qPrintable(which));
+        }
+    }
 
     // ---- Change Shape
 
