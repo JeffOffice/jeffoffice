@@ -4720,6 +4720,46 @@ private Q_SLOTS:
         QVERIFY(endLine);
     }
 
+    // A paragraph put in between the paragraphs of a frame cuts it in two: the paragraph that the frame was set from now has the second half only (a shorter box, and a wall of
+    // another height), and the pages from there on are laid out again (they are those of a new paginator).
+    void aParagraphPutInsideAFrameLaysOutThePageOfTheParagraphItWasSetFrom()
+    {
+        QStringList failures;
+        for (unsigned seed = 1; seed <= 12; ++seed) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            // (The paragraph the frame is set from begins the second page, so that the page before ends where the edit's end is.)
+            fillStory(fd.story(), 40, seed, [](int i, QTextBlockFormat &bf) { if (i == 10) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore); }, 30, 60);
+            FloatingObject proto;
+            proto.hRel = FloatingObject::Rel::Column;
+            proto.vRel = FloatingObject::Rel::Paragraph;
+            proto.hAlign = FloatingObject::Align::End;
+            proto.wrap = FloatingObject::Wrap::Square;
+            proto.gap = QMarginsF(8, 2, 8, 2);
+            addFrame(fd, 10, {QStringLiteral("first paragraph of the frame, a few words that fill lines of the frame"), QStringLiteral("second paragraph of the frame with more words, so that its box is a good deal taller than one line of the text")}, proto, 110);
+            Paginator pg(&fd);
+            QVERIFY(pg.pageCount() >= 3);
+            const QSet<int> frame = frameBlocksOf(fd);
+            QCOMPARE(int(frame.size()), 2);
+            const int first = *std::min_element(frame.begin(), frame.end());
+            const QTextBlock firstBlock = fd.story()->findBlock(first);
+            QTextCursor c(fd.story());
+            c.setPosition(firstBlock.position() + firstBlock.length() - 1);
+            QTextBlockFormat plain;
+            plain.setBottomMargin(6);
+            QTextCharFormat cf;
+            cf.setFontPointSize(11);
+            c.insertBlock(plain, cf);
+            c.insertText(QStringLiteral("a paragraph of the text between the two halves of the frame, with a few words."), cf);
+            Paginator fresh(&fd);
+            const QString bad = audit::differenceFromFresh(pg, fresh);
+            if (!bad.isEmpty()) failures << QStringLiteral("seed %1: %2").arg(seed).arg(bad.left(160));
+            const QString floats = audit::floatProblems(pg, fd);
+            if (!floats.isEmpty()) failures << QStringLiteral("seed %1: %2").arg(seed).arg(floats.left(160));
+        }
+        QVERIFY2(failures.isEmpty(), qPrintable(QStringLiteral("%1:\n%2").arg(failures.size()).arg(failures.mid(0, 4).join(QLatin1Char('\n')))));
+    }
+
     // A frame comes right before a table that is in the text: it is set from the table, at its first row, and is drawn.
     void aFrameRightBeforeATableIsDrawnAtTheTable()
     {
