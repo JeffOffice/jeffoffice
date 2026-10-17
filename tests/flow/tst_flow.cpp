@@ -6083,6 +6083,23 @@ private Q_SLOTS:
         QCOMPARE(a.last(), QStringLiteral("walls 0"));
     }
 
+    // An object is anchored by a character of the story it is in: a header has the objects its own characters anchor, and the body's first paragraph (at the same place in its
+    // story) has its own, and each is drawn once.
+    void anObjectIsDrawnOnceWhenThePageHasAHeaderToo()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 20, 36, {}, 20, 40);
+        fd.sections[0].header.odd = furnitureStory({QStringLiteral("HEADER TEXT at the top of the page")});
+        addObject(&fd, [] { auto it = std::make_shared<ShapeItem>(); it->rect = QRectF(0, 0, 77, 33); return it; }(), fd.story()->findBlockByNumber(0).position() + 2, FloatingObject::Rel::Page, FloatingObject::Rel::Page, 300, 500);
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        int count = 0;
+        for (const auto &it : page->doc->pages[0]->items) count += it->type() == ItemType::Shape && std::abs(it->rect.width() - 77) < 0.01 && std::abs(it->rect.height() - 33) < 0.01;
+        QCOMPARE(count, 1);
+    }
+
     // A text box that the text goes round is a wall as a picture is: the lines stand clear of it.
     void aTextBoxIsAWallAsAPictureIs()
     {
