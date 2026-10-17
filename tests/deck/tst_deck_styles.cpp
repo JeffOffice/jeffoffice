@@ -959,6 +959,42 @@ private Q_SLOTS:
         QVERIFY(!Rig::named(*odd2, QStringLiteral("Odd"))->styleRef.on);
     }
 
+    // The colors a style names that the writer has no name for are kept as RGB colors: a preset, a system, or a scRGB color.
+    void styleColorsOfOtherKindsAreKept()
+    {
+        Parts p = samplePptx();
+        const QString style = QStringLiteral("<p:style><a:lnRef idx=\"2\"><a:sysClr val=\"windowText\" lastClr=\"123456\"/></a:lnRef>"
+                                             "<a:fillRef idx=\"1\"><a:prstClr val=\"red\"/></a:fillRef><a:effectRef idx=\"0\"><a:scrgbClr r=\"0\" g=\"100000\" b=\"0\"/></a:effectRef>"
+                                             "<a:fontRef idx=\"minor\"><a:prstClr val=\"white\"/></a:fontRef></p:style>");
+        const QString shapes = styledShape(20, QStringLiteral("Other colors"), QString(), style);
+        QByteArray &slide = p.data["/ppt/slides/slide1.xml"].xml;
+        slide = QString::fromUtf8(slide).replace(QStringLiteral("</p:spTree>"), shapes + QStringLiteral("</p:spTree>")).toUtf8();
+        QString err;
+        std::unique_ptr<Document> d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const Item *it = Rig::named(*d, QStringLiteral("Other colors"));
+        QVERIFY(it && it->styleRef.on);
+        QCOMPARE(it->fill.color.resolve(d->colors), QColor(Qt::red));
+        QCOMPARE(it->stroke.color.resolve(d->colors), QColor(0x12, 0x34, 0x56));
+        Exported e;
+        QVERIFY(unpack(deck::exportPresentation(*d, &err), &e, &err));
+        QDomDocument dom;
+        const QDomElement sp = shapeNamed(part(e, QStringLiteral("/ppt/slides/slide1.xml")), QStringLiteral("Other colors"), &dom);
+        const QDomElement written = childByTag(sp, "p:style");
+        QVERIFY(!written.isNull());
+        QVERIFY2(styleProblem(written).isEmpty(), qPrintable(styleProblem(written)));
+        QCOMPARE(childByTag(childByTag(written, "a:fillRef"), "a:srgbClr").attribute(QStringLiteral("val")), QStringLiteral("FF0000"));
+        QCOMPARE(childByTag(childByTag(written, "a:lnRef"), "a:srgbClr").attribute(QStringLiteral("val")), QStringLiteral("123456"));
+        QCOMPARE(childByTag(childByTag(written, "a:effectRef"), "a:srgbClr").attribute(QStringLiteral("val")), QStringLiteral("00FF00"));
+        QCOMPARE(childByTag(childByTag(written, "a:fontRef"), "a:srgbClr").attribute(QStringLiteral("val")), QStringLiteral("FFFFFF"));
+        std::unique_ptr<Document> back = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+        QVERIFY(back);
+        const Item *again = Rig::named(*back, QStringLiteral("Other colors"));
+        QVERIFY(again);
+        QCOMPARE(again->fill.toJson(), it->fill.toJson());
+        QCOMPARE(again->stroke.toJson(), it->stroke.toJson());
+    }
+
     // ---- Change Shape
 
     // Another geometry from the library goes onto a shape and nothing else of it changes: its words, fill, line, shadow, place, size, turn, and
