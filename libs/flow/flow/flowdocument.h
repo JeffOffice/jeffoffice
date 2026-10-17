@@ -108,13 +108,15 @@ struct Section {
     double headerDistance = 36, footerDistance = 36;   // from the page's edge
     bool differentFirstPage = false;         // the first page uses the header and footer's first slot
     bool differentOddEven = false;           // odd and even pages use their own slots
-    // The section begins on the page the one before ends on (a continuous section break) when the two have the same page and margins; any other
-    // begins a page of its own. (With other columns it begins below the text of the one before, as the page's text area is of the first's columns above
-    // and the second's below; the same columns, and it is the same text area.)
+    // The section begins on the page the one before ends on (a continuous section break) when the two have the same paper, turned the same way, whatever their
+    // margins; any other begins a page of its own. (The top and bottom margins are the page's, of the page it begins at the top of. With other side margins or
+    // other columns it begins below the text of the one before, as the page's text area is of the first's above and the second's below; the same sides and columns,
+    // and it is the same text area.)
     bool continuous = false;
-    bool sameSheetAs(const Section &o) const { return paper == o.paper && orientation == o.orientation && margins == o.margins; }
+    bool sameSheetAs(const Section &o) const { return paper == o.paper && orientation == o.orientation; }
     bool sameColumnsAs(const Section &o) const { return columns == o.columns && columnGap == o.columnGap; }
-    bool samePageAs(const Section &o) const { return sameSheetAs(o) && sameColumnsAs(o); }
+    bool sameSidesAs(const Section &o) const { return margins.left() == o.margins.left() && margins.right() == o.margins.right(); }
+    bool samePageAs(const Section &o) const { return sameSheetAs(o) && sameColumnsAs(o) && sameSidesAs(o); }
     std::optional<int> firstPageNumber;      // the number the section's first page has (0 is a number; none: it goes on from the section before)
     QString pageNumberFormat;                // "", "roman", "ROMAN", "alpha", or "ALPHA" (the fields' own)
 

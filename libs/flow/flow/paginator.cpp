@@ -550,10 +550,10 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         }
     };
     lay();
-    // A continuous section with other columns, when the text of the one before ends on the page, begins below it: the page is laid out again in two parts.
+    // A continuous section with other columns or side margins, when the text of the one before ends on the page, begins below it: the page is laid out again in two parts.
     if (st.section + 1 < m_doc->sections.size() && sec.columnCount() == 1) {
         const Section &next = m_doc->section(st.section + 1);
-        if (next.continuous && sec.sameSheetAs(next) && !sec.sameColumnsAs(next)) {
+        if (next.continuous && sec.sameSheetAs(next) && !(sec.sameColumnsAs(next) && sec.sameSidesAs(next))) {
             for (int i = 0; i < kept; ++i) {
                 const StoryLayout::LineBrief &ln = run.lines[i];
                 const BlockFlags &bf = flags(ln.block);

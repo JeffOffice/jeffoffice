@@ -4369,7 +4369,7 @@ private Q_SLOTS:
     }
 
     // The empty paragraph that ends a section before a continuous section stays on the page the text before it ends on, even when the page has no room left for its
-    // line (it takes none): the section after, which needs a page of its own for its other margins, is the second page, not the third.
+    // line (it takes none): the section after, which needs a page of its own for its other paper, is the second page, not the third.
     void anEmptyBreakParagraphAtTheFootOfAFullPageStaysThere()
     {
         auto line = [](const char *text) {
@@ -4380,7 +4380,7 @@ private Q_SLOTS:
         const QByteArray margins = "<w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/>";
         // (The break paragraph's own line is 60 points: more than the 48 that are left.)
         body += "<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"1200\" w:lineRule=\"exact\"/><w:sectPr>" + margins + "</w:sectPr></w:pPr></w:p>" + line("Second");
-        const QByteArray last = "<w:sectPr><w:type w:val=\"continuous\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"2160\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray last = "<w:sectPr><w:type w:val=\"continuous\"/><w:pgSz w:w=\"15840\" w:h=\"12240\" w:orient=\"landscape\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
         auto doc = open(makeDocxWithParts(body, last, {}));
         QVERIFY(doc);
         QCOMPARE(doc->pager().pageCount(), 2);

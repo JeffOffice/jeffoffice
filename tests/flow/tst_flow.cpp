@@ -3536,6 +3536,49 @@ private Q_SLOTS:
         QCOMPARE(seen, table.rowStarts);
     }
 
+    // A continuous section break does not end the page when the sections' sheets are the same, whatever their margins: the text of the second begins below the text of the
+    // first, between the second's own side margins (its top and bottom margins are the page's of the page it begins at the top of).
+    void aContinuousSectionWithOtherMarginsBeginsOnThePageBelowTheTextAbove()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 4, 7, [](int i, QTextBlockFormat &bf) {
+            bf.setBottomMargin(6);
+            if (i == 1) bf.setProperty(fp::SectionBreakAfter, true);
+        }, 8, 12);
+        Section second = fd.sections[0];
+        second.continuous = true;
+        second.margins.setLeft(fd.sections[0].margins.left() + 90);
+        second.margins.setRight(fd.sections[0].margins.right() + 40);
+        second.margins.setTop(fd.sections[0].margins.top() + 30);
+        fd.sections << second;
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 1);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        QCOMPARE(int(page->boxes.size()), 2);
+        const Section &a = fd.section(0), &b = fd.section(1);
+        auto *first = dynamic_cast<TextItem *>(page->doc->item(page->boxes[0]));
+        auto *next = dynamic_cast<TextItem *>(page->doc->item(page->boxes[1]));
+        QVERIFY(first && next);
+        QVERIFY2(std::abs(first->rect.left() - a.content().left()) < 0.01 && std::abs(first->rect.right() - a.content().right()) < 0.01, qPrintable(audit::rectText(first->rect)));
+        QVERIFY2(std::abs(next->rect.left() - b.content().left()) < 0.01 && std::abs(next->rect.right() - b.content().right()) < 0.01, qPrintable(audit::rectText(next->rect)));
+        QVERIFY(next->rect.top() >= first->rect.top());   // (below the text above it)
+        // (The sheets that are not alike do end the page.)
+        FlowDocument other;
+        other.env.wordLines = true;
+        fillStory(other.story(), 4, 7, [](int i, QTextBlockFormat &bf) {
+            bf.setBottomMargin(6);
+            if (i == 1) bf.setProperty(fp::SectionBreakAfter, true);
+        }, 8, 12);
+        Section turned = other.sections[0];
+        turned.continuous = true;
+        turned.orientation = Section::Orientation::Landscape;
+        other.sections << turned;
+        Paginator po(&other);
+        QCOMPARE(po.pageCount(), 2);
+    }
+
     // A continuous section of two columns that holds a table: it begins below the text of the section before, the table is inside a column and flows into the next, and
     // the page's note (cited in the text above the table, in the first column) and furniture keep to their places.
     void aTableInAContinuousTwoColumnSectionIsInsideItsColumnBelowTheTextAbove()
@@ -6465,7 +6508,7 @@ private Q_SLOTS:
     // continuous, begins a page of its own.
     void continuousSectionsShareThePage()
     {
-        auto pagesOf = [&](bool continuous, bool samePage) {
+        auto pagesOf = [&](bool continuous, bool samePage, bool otherMargins = false) {
             FlowDocument fd;
             fillStory(fd.story(), 6, 3, [](int i, QTextBlockFormat &bf) {
                 bf.setBottomMargin(6);
@@ -6473,7 +6516,8 @@ private Q_SLOTS:
             });
             Section second = fd.sections[0];
             second.continuous = continuous;
-            if (!samePage) second.margins = QMarginsF(100, 72, 72, 72);
+            if (!samePage) second.paper = QSizeF(595, 842);
+            if (otherMargins) second.margins = QMarginsF(100, 72, 72, 72);
             fd.sections << second;
             Paginator pg(&fd);
             // (The section of the page each paragraph is on is the section the page starts in, and the first page's is the first.)
@@ -6481,10 +6525,11 @@ private Q_SLOTS:
             for (int k = 0; k < pg.pageCount(); ++k) sections << pg.page(k).start.section;
             return std::make_pair(pg.pageCount(), sections);
         };
-        const auto apart = pagesOf(false, true), joined = pagesOf(true, true), other = pagesOf(true, false);
+        const auto apart = pagesOf(false, true), joined = pagesOf(true, true), other = pagesOf(true, false), margins = pagesOf(true, true, true);
         QCOMPARE(apart.first, 2);
         QCOMPARE(joined.first, 1);
-        QCOMPARE(other.first, 2);   // (a page of another size of margins can't be shared)
+        QCOMPARE(other.first, 2);   // (a page of another size can't be shared)
+        QCOMPARE(margins.first, 1);   // (one with other margins can)
         QCOMPARE(apart.second.last(), 1);
     }
 
