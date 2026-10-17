@@ -6,6 +6,7 @@
 #include <QLinearGradient>
 #include <QPainter>
 #include <QRadialGradient>
+#include <QRegularExpression>
 #include <QtMath>
 
 namespace jp {
@@ -292,6 +293,76 @@ Effects Effects::fromJson(const QJsonObject &o)
         e.rot3d.perspective = r["p"].toDouble();
     }
     return e;
+}
+
+namespace {
+
+QJsonObject styleColorJson(const StyleColor &c)
+{
+    QJsonObject o;
+    o["name"] = c.name;
+    if (!c.mods.isEmpty()) {
+        QJsonArray mods;
+        for (const auto &m : c.mods) mods.append(QJsonArray{m.first, m.second});
+        o["mods"] = mods;
+    }
+    return o;
+}
+
+StyleColor styleColorFrom(const QJsonObject &o)
+{
+    // (A name is written into a file as an element's or an attribute's: only letters and digits, and a # for an RGB color, are let through.)
+    static const QRegularExpression colorName(QStringLiteral("^#?[A-Za-z0-9]{1,16}$")), modName(QStringLiteral("^[A-Za-z]{1,16}$"));
+    StyleColor c;
+    if (const QString name = o["name"].toString(); colorName.match(name).hasMatch()) c.name = name;
+    if (c.name.isEmpty()) return c;
+    for (const QJsonValue &v : o["mods"].toArray()) {
+        const QJsonArray pair = v.toArray();
+        if (pair.size() == 2 && c.mods.size() < 16 && modName.match(pair[0].toString()).hasMatch()) c.mods.append({pair[0].toString(), std::clamp(pair[1].toInt(), -10000000, 10000000)});
+    }
+    return c;
+}
+
+QJsonObject stylePartJson(const StyleRef::Part &p)
+{
+    QJsonObject o = styleColorJson(p.color);
+    o["idx"] = p.idx;
+    return o;
+}
+
+StyleRef::Part stylePartFrom(const QJsonObject &o)
+{
+    StyleRef::Part p;
+    p.idx = std::clamp(o["idx"].toInt(), 0, 1000000);
+    p.color = styleColorFrom(o);
+    return p;
+}
+
+} // namespace
+
+QJsonObject StyleRef::toJson() const
+{
+    QJsonObject o;
+    o["ln"] = stylePartJson(line);
+    o["fill"] = stylePartJson(fill);
+    o["fx"] = stylePartJson(effect);
+    o["font"] = font;
+    o["fontColor"] = styleColorJson(fontColor);
+    return o;
+}
+
+StyleRef StyleRef::fromJson(const QJsonObject &o)
+{
+    StyleRef r;
+    if (o.isEmpty()) return r;
+    r.on = true;
+    r.line = stylePartFrom(o["ln"].toObject());
+    r.fill = stylePartFrom(o["fill"].toObject());
+    r.effect = stylePartFrom(o["fx"].toObject());
+    const QString face = o["font"].toString();
+    r.font = face == QLatin1String("major") || face == QLatin1String("minor") ? face : QString();
+    r.fontColor = styleColorFrom(o["fontColor"].toObject());
+    return r;
 }
 
 QJsonObject Wrap::toJson() const

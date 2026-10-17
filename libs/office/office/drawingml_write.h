@@ -14,8 +14,13 @@
 #include <QSet>
 #include <QXmlStreamWriter>
 #include <functional>
+#include <memory>
 
 class QTextDocument;
+
+namespace jp::office {
+class StyleResolver;
+}
 
 namespace jp::office {
 
@@ -60,6 +65,8 @@ struct DrawingWriteContext {
     // The relationships made from the part so far, by type and target, so
     // that a picture or an address used twice has one.
     QHash<QString, QString> relations;
+    // What the theme being written says its styles are, made when the first shape with a style reference asks (see writeLook).
+    std::shared_ptr<StyleResolver> styles;
 };
 
 // Gives each object of a shape tree its number before any is written, in the

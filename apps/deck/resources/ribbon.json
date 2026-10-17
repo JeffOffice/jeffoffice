@@ -1319,6 +1319,10 @@
           "launcherKeytip": "LS",
           "items": [
             {
+              "widget": "shapeStyleGallery",
+              "keytip": "QS"
+            },
+            {
               "large": {
                 "id": "ribbon.shapeFill",
                 "text": "Shape Fill",

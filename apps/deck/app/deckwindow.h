@@ -33,6 +33,7 @@ class DeckFileScreen;
 class Editor;
 class DeckFindPane;
 class FontCombo;
+struct GalleryItem;
 class HelpView;
 class MeasureSpin;
 class TableItem;
@@ -127,6 +128,11 @@ public:
     // Shape Format > Change Shape: gives the shapes selected another geometry of Insert > Shapes, keeping their text and look (one step).
     // False for an id the shape library doesn't have, or when no shape is selected.
     bool changeShape(const QString &shapeId);
+    // Shape Format > Shape Styles: the gallery's tiles (each the shape a style gives, drawn as the slide draws it, on the theme of the slide master
+    // being edited), and the style with that id given to the shapes selected (one step). False for an id there is none of, or when nothing
+    // selected takes a style.
+    QVector<GalleryItem> shapeStyleItems() const;
+    bool applyShapeStyle(const QString &styleId);
     // What the ribbon file named that the window doesn't have (empty when
     // the ribbon built cleanly).
     QString ribbonErrors() const { return m_ribbonErrors; }
@@ -387,6 +393,7 @@ private:
     QDockWidget *m_formatDock = nullptr;
     QList<MeasureSpin *> m_shapeSizeBoxes;   // Shape Format's Height and Width
     QList<QWidget *> m_changeShapeButtons;   // Shape Format's Change Shape, on while a shape is selected
+    QList<QWidget *> m_shapeStyleGalleries;  // and its Shape Styles, on while a shape, text box, or line is
     DeckFindPane *m_find = nullptr;
     QDockWidget *m_findDock = nullptr;
     bool m_menuOpen = false;   // the slide's right-click menu is up

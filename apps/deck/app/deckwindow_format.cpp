@@ -13,6 +13,10 @@
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
+#include "core/shapestyles.h"
+#include "core/themes.h"
+#include "render/renderer.h"
+#include "text/textprops.h"
 #include "app/widgets.h"
 #include "render/shapes.h"
 
@@ -20,6 +24,10 @@
 #include <QActionGroup>
 #include <QDockWidget>
 #include <QMenu>
+#include <QPainter>
+#include <QTextBlock>
+#include <QTextCursor>
+#include <QTextDocument>
 #include <QWidgetAction>
 
 namespace jp {
@@ -86,6 +94,77 @@ bool DeckWindow::changeShape(const QString &shapeId)
     return true;
 }
 
+namespace {
+
+// A style as a small shape, drawn as the slide draws it: the fill, line, and shadow it gives, and a word in its text color.
+void paintShapeStyleSample(QPainter *p, const QRectF &rc, const std::shared_ptr<Document> &scratch, const std::shared_ptr<LayoutCache> &cache, const std::shared_ptr<ShapeItem> &sample)
+{
+    const QRectF box = rc.adjusted(rc.width() * 0.1, rc.height() * 0.16, -rc.width() * 0.1, -rc.height() * 0.16);
+    sample->rect = QRectF(QPointF(0, 0), box.size());
+    PaintContext ctx;
+    ctx.doc = scratch.get();
+    ctx.cache = cache.get();
+    ctx.opt.output = true;
+    p->save();
+    p->setRenderHint(QPainter::Antialiasing);
+    p->translate(box.topLeft());
+    Renderer::paintItem(p, ctx, *sample);
+    p->restore();
+}
+
+} // namespace
+
+QVector<GalleryItem> DeckWindow::shapeStyleItems() const
+{
+    QVector<GalleryItem> v;
+    const Document *d = m_ed->doc();
+    const MasterPage *master = deck::themeMasterOf(*d, m_ed->currentPage(), m_ed->masterView());
+    const std::shared_ptr<office::StyleResolver> resolver = deck::styleResolverOf(*d, master);
+    for (const deck::ShapeStyle &s : deck::shapeStyles()) {
+        const office::StyleLook look = resolver->look(s.ref, QSizeF(40, 26));
+        // A scratch presentation holds each tile's shape and its word, so that the renderer draws it as it would on a slide.
+        auto scratch = std::make_shared<Document>();
+        scratch->colors = d->colors;
+        scratch->slideText = true;
+        auto sample = std::make_shared<ShapeItem>();
+        sample->shape = QStringLiteral("rect");
+        sample->fill = look.fill;
+        sample->stroke = look.stroke;
+        sample->fx = look.fx;
+        sample->insets = QMarginsF(0, 0, 0, 0);
+        sample->valign = VAlign::Middle;
+        sample->storyId = scratch->createStory(QStringLiteral("Abc"));
+        {
+            QTextCursor c(scratch->storyDoc(sample->storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat cf;
+            cf.setFontPointSize(9);
+            cf.setProperty(tp::ColorRefP, ColorRef::rgb(look.text.isValid() ? look.text : QColor(Qt::black)).toString());
+            cf.setForeground(QBrush(look.text.isValid() ? look.text : QColor(Qt::black)));
+            c.mergeCharFormat(cf);
+            QTextBlockFormat bf;
+            bf.setAlignment(Qt::AlignHCenter);
+            c.mergeBlockFormat(bf);
+        }
+        auto cache = std::make_shared<LayoutCache>();
+        v << GalleryItem{s.id, s.name, drawnIcon([scratch, cache, sample](QPainter *p, const QRectF &rc) { paintShapeStyleSample(p, rc, scratch, cache, sample); }), s.group};
+    }
+    return v;
+}
+
+bool DeckWindow::applyShapeStyle(const QString &styleId)
+{
+    const deck::ShapeStyle style = deck::shapeStyleById(styleId);
+    if (!style.ref.on) return false;
+    bool any = false;
+    for (const Item *it : m_formatPane->session()->leaves()) any = any || deck::takesShapeStyle(*it);
+    if (!any) return false;
+    Document *d = m_ed->doc();
+    const std::shared_ptr<office::StyleResolver> resolver = deck::styleResolverOf(*d, deck::themeMasterOf(*d, m_ed->currentPage(), m_ed->masterView()));
+    m_formatPane->session()->apply(tr("Shape Style"), [d, &style, resolver](Item &it) { deck::applyShapeStyle(*d, it, style.ref, *resolver); }, FormatSession::Scope::Leaves);
+    return true;
+}
+
 void DeckWindow::showFormatPane(bool on)
 {
     if (!m_formatDock) return;
@@ -121,6 +200,9 @@ void DeckWindow::refreshShapeFormat()
     bool geometry = false;
     for (const Item *it : m_formatPane->session()->leaves()) geometry = geometry || formatops::takesGeometry(*it);
     for (QWidget *w : m_changeShapeButtons) w->setEnabled(geometry);
+    bool styled = false;
+    for (const Item *it : m_formatPane->session()->leaves()) styled = styled || deck::takesShapeStyle(*it);
+    for (QWidget *w : m_shapeStyleGalleries) w->setEnabled(styled);
     for (MeasureSpin *s : m_shapeSizeBoxes) {
         const bool height = s->objectName() == QLatin1String("shapeHeight");
         const QSignalBlocker block(s);
@@ -274,6 +356,20 @@ void DeckWindow::addShapeFormatParts(RibbonParts &parts)
         m_changeShapeButtons << b;
         b->setEnabled(false);
         return b;
+    };
+    // Shape Styles: the Quick Styles gallery, a row for each kind of look and a column for each of the theme's accents.
+    parts.widgets[QStringLiteral("shapeStyleGallery")] = [this]() -> QWidget * {
+        auto *gal = new Gallery(QSize(46, 34), 6);
+        gal->setObjectName(QStringLiteral("shapeStyleGallery"));
+        gal->setTitle(tr("Shape Styles"));
+        gal->setItemsProvider([this] { return shapeStyleItems(); });
+        connect(gal, &Gallery::activated, this, [this](const QString &id) {
+            applyShapeStyle(id);
+            m_canvas->setFocus();
+        });
+        m_shapeStyleGalleries << gal;
+        gal->setEnabled(false);
+        return gal;
     };
     parts.launchers[QStringLiteral("shapeStyles")] = [this] { formatSelection(FormatPane::Tab::FillLine); };
     parts.launchers[QStringLiteral("shapeSize")] = [this] { formatSelection(FormatPane::Tab::SizeProperties); };

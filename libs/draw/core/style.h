@@ -125,6 +125,31 @@ struct Effects {
     static Effects fromJson(const QJsonObject &o);
 };
 
+// A shape's reference to the presentation's format styles (what a file calls its style, p:style): which line, fill, and effect style of the
+// theme it takes (1 to 3, 0 for none), the theme color each is made in (by its name in the theme, "accent1" or "lt1", with the changes made
+// to it, as `shade` 50000), and the font and color its text has. The shape's fill, stroke, and fx are the look these give, or what the
+// shape has had changed since: a file keeps the reference, and the properties where they differ from it.
+struct StyleColor {
+    QString name;                                   // empty for none
+    QVector<QPair<QString, int>> mods;              // changes in the order they are made: an element's name and its value (shade, 50000)
+    bool operator==(const StyleColor &o) const { return name == o.name && mods == o.mods; }
+};
+struct StyleRef {
+    struct Part {
+        int idx = 0;
+        StyleColor color;
+        bool operator==(const Part &o) const { return idx == o.idx && color == o.color; }
+    };
+    bool on = false;
+    Part line, fill, effect;
+    QString font;                                   // "minor", "major", or empty for none
+    StyleColor fontColor;
+    QJsonObject toJson() const;
+    static StyleRef fromJson(const QJsonObject &o);
+    bool operator==(const StyleRef &o) const { return on == o.on && line == o.line && fill == o.fill && effect == o.effect && font == o.font && fontColor == o.fontColor; }
+    bool operator!=(const StyleRef &o) const { return !(*this == o); }
+};
+
 struct Wrap {
     enum Mode { None, Square, Tight, Through, TopBottom };
     enum Side { Both, LeftOnly, RightOnly, Largest };

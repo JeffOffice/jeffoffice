@@ -8,6 +8,7 @@
 
 #include "office/drawingml_geometry.h"
 #include "office/drawingml_style.h"
+#include "office/drawingml_styleref.h"
 #include "office/xml.h"
 #include "render/shapes.h"
 
@@ -454,6 +455,7 @@ void Reader::decorate(Item &it, const QDomElement &cNvPr, const Frame &frame, co
     it.fill = resolveFill(properties, style, sc);
     it.stroke = resolveLine(properties, style, sc);
     it.fx = resolveEffects(properties, style, sc);
+    it.styleRef = readStyleRef(style);
 }
 
 void Reader::fillText(const QDomElement &body, const QString &storyId, const QDomElement &style)
