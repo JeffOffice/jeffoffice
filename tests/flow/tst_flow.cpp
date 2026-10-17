@@ -7433,6 +7433,37 @@ private Q_SLOTS:
         QVERIFY2(std::abs(lines[1].rect.height() - 2 * single) < 0.01, qPrintable(QString::number(lines[1].rect.height())));   // (it is still a line of double spacing)
     }
 
+    // An empty paragraph after a frame whose paragraph mark is hidden keeps its line: the frame is set apart from the text, so the mark joins nothing (a tracked deletion's mark joins
+    // the paragraph that follows it into one: that is another paragraph, one of the text).
+    void anEmptyParagraphAfterAFramedParagraphWithAHiddenMarkKeepsItsLine()
+    {
+        auto lines = [](bool framed) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            if (framed) bf.setProperty(tp::OutOfLayout, true);
+            c.setBlockFormat(bf);
+            QTextCharFormat mark = run;
+            mark.setProperty(tp::HiddenText, true);
+            c.setBlockCharFormat(mark);
+            c.insertText(QStringLiteral("a paragraph"), run);
+            c.insertBlock(QTextBlockFormat(), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(300, 600)}, env);
+            return lay.lineBriefs();
+        };
+        const auto text = lines(false), frame = lines(true);
+        QCOMPARE(text.size(), 1);    // (the paragraph's text, and the empty one that is the rest of it: no line of its own)
+        QCOMPARE(frame.size(), 1);   // (the frame has no line in the text, and the empty paragraph after it has its own)
+        QVERIFY(frame[0].rect.height() > 10);
+        QCOMPARE(frame[0].pos, int(QString(QStringLiteral("a paragraph")).size()) + 1);
+    }
+
     // A line that a paragraph goes on with, in smaller type than its first run, is checked against the objects at the height its own text has, not the first run's: an object
     // that begins below the line (and above where the big type's line would end) is no wall for it.
     void aLineInSmallTypeIsNotMovedByAnObjectBelowIt()

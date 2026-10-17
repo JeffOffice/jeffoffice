@@ -3426,7 +3426,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             return false;
         };
         const bool restOfDeleted = env.wordLines && B->disp.isEmpty() && !tail && !b.charFormat().boolProperty(tp::HiddenText) && b.previous().isValid() &&
-                                   b.previous().charFormat().boolProperty(tp::HiddenText) && showsText(b.previous());
+                                   b.previous().charFormat().boolProperty(tp::HiddenText) && !b.previous().blockFormat().boolProperty(tp::OutOfLayout) && showsText(b.previous());
         if (!(env.wordLines && B->disp.isEmpty() && (b.charFormat().boolProperty(tp::HiddenText) || apart) && !tail) && !restOfDeleted) placeLines(false, firstBreak);
         // Where each line landed: the first line in another column or box.
         auto splitAt = [&] {
