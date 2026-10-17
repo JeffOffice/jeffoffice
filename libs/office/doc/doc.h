@@ -50,9 +50,10 @@ constexpr int kMaxNotes = wml::kMaxNotes;
 constexpr int kMaxFonts = wml::kMaxFonts;
 // Paragraphs of all the stories together (the .docx reader takes 500,000 in a body).
 constexpr int kMaxParagraphs = 450000;
-// Pictures: one picture's bytes (a metafile is inflated to at most this), all the pictures together, and how many.
-constexpr qint64 kMaxPictureBytes = qint64(48) << 20;
-constexpr qint64 kMaxPictureTotal = qint64(384) << 20;
+// Pictures: one picture's bytes (the metafiles' own limit, once inflated), all the pictures together (the file's pictures are held in memory, made into the
+// package, and read again: 64 MB is six times the 10.7 MB that the 75 public documents' pictures come to at the most), and how many.
+constexpr qint64 kMaxPictureBytes = qint64(32) << 20;
+constexpr qint64 kMaxPictureTotal = qint64(64) << 20;
 constexpr int kMaxPictures = 20000;
 // The XML made from the file, all parts together, counted as it is made: its bytes and its elements. The .docx reader would take a part of 256 MB and 8 million
 // elements (wml/xmltree.h), but a file is held to what it costs to read: made and read back, 600,000 elements take about two seconds and 300 MB, and a file of a few

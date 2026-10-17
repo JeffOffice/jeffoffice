@@ -1127,6 +1127,41 @@ private Q_SLOTS:
         QVERIFY(texts[0].size() > 1000000 && texts[0].size() < 15000000);
     }
 
+    void picturesTogetherAreHeldToALimit()
+    {
+        // Four metafiles that each make 30 MB once inflated, from a few kilobytes of file apiece: the pictures together could be 120 MB, or (the limit then)
+        // 384 MB, held while the package was made, written, and read again.
+        DocWriter w;
+        QString text;
+        const int pictures = 4;
+        for (int i = 0; i < pictures; ++i) {
+            const int at = w.addMetafile(30 << 20, 1440, 1440);
+            w.chars.push_back({i, i + 1, sprm1(sprm::special, 1) + sprm4(sprm::picture, quint32(at))});
+            text += QLatin1Char('\x01');
+        }
+        w.text = text + QLatin1Char('\r');
+        const QByteArray file = w.build();
+        QVERIFY(file.size() < 1000000);
+        QElapsedTimer t;
+        t.start();
+        Document d;
+        ReadNotes notes;
+        QString error;
+        QVERIFY2(read(file, &d, &notes, &error), qPrintable(error));
+        QVERIFY2(t.elapsed() < 2000, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        qint64 bytes = 0;
+        int media = 0;
+        for (const wml::KeptPart &p : d.parts)
+            if (p.name.startsWith(QLatin1String("/word/media/"))) {
+                ++media;
+                bytes += p.data.size();
+            }
+        QVERIFY(media >= 1 && media < pictures);
+        QVERIFY(bytes <= doc::kMaxPictureTotal);
+        QVERIFY(notes.leftOut);
+        QVERIFY(notes.notes.join(QLatin1Char(' ')).contains(QLatin1String("pictures could not be shown")));
+    }
+
     void changedBytesNeverCrashOrHang()
     {
         // A document with most of what the reader reads, with bytes of it changed at random (the same changes each run), and cut short.

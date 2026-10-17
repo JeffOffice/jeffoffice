@@ -108,7 +108,6 @@ QString Converter::addMedia(const QString &part, const Picture &pic, const QStri
         static const QHash<QString, QString> types = {{"png", "image/png"}, {"jpeg", "image/jpeg"}, {"emf", "image/x-emf"}, {"wmf", "image/x-wmf"}, {"bmp", "image/bmp"}, {"tiff", "image/tiff"}};
         pkg.addPart(media, pic.bytes, types.value(pic.extension, QStringLiteral("application/octet-stream")));
         m_mediaOfKey.insert(key, media);
-        m_pictureBytes += pic.bytes.size();
     }
     const QString relKey = part + QLatin1Char('|') + media;
     QString rid = m_relOfMedia.value(relKey);
@@ -121,7 +120,7 @@ QString Converter::addMedia(const QString &part, const Picture &pic, const QStri
 
 QByteArray Converter::pictureXml(qint32 position, const QString &part)
 {
-    if (m_pictures >= kMaxPictures || m_pictureBytes > kMaxPictureTotal) {
+    if (m_pictures >= kMaxPictures) {
         left(QStringLiteral("pictures"), QCoreApplication::translate("jp::office::doc", "Some pictures could not be shown, and were left out."));
         return QByteArray();
     }
@@ -129,8 +128,10 @@ QByteArray Converter::pictureXml(qint32 position, const QString &part)
     // (A picture that many characters point to is read once.)
     auto cached = m_pictureAt.constFind(position);
     if (cached == m_pictureAt.constEnd()) {
+        // (The pictures held are counted as they are read, and one that would take them past the limit is not kept.)
         Picture read;
-        if (!readPicture(position, &read)) read = Picture();
+        if (m_pictureBytes > kMaxPictureTotal || !readPicture(position, &read) || m_pictureBytes + read.bytes.size() > kMaxPictureTotal) read = Picture();
+        m_pictureBytes += read.bytes.size();
         cached = m_pictureAt.insert(position, read);
     }
     if (cached->bytes.isEmpty() && cached->shape.isEmpty()) {
