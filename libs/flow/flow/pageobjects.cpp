@@ -272,9 +272,10 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
                         lo = std::min(lo, col.left());
                         hi = std::max(hi, col.right());
                     }
+                // (To the columns' edges and no further: a wall that reached 0.5 point into a column that the room touches only, as the paginator's does not, would make its lines narrower.)
                 item->wrap.side = Wrap::Both;
-                item->wrap.left = wall->rect.left() - lo + 0.5;
-                item->wrap.right = hi - wall->rect.right() + 0.5;
+                item->wrap.left = wall->rect.left() - lo;
+                item->wrap.right = hi - wall->rect.right();
             }
             if (wall && item->type() == ItemType::Text) {
                 // A text box does not push another box's text aside unless its own frame reaches into that text (the page layer's rule, for boxes that are set edge to edge), and the
