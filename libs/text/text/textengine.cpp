@@ -2018,7 +2018,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     // (A word processor keeps the room of the file's continuation notice under the last note: the gap above the notes holds it, and they are set that much higher.)
     const double noticeGap = (env.wordLines && notesDoc ? notesDoc->noteNoticeHeight() : 0.0) * scale;
     const double ruleGap = (separatorH > 0 ? separatorH : 9) * scale + noticeGap, noteGap = env.wordLines ? 0.0 : 2 * scale;
-    m_ruleGap = ruleGap - noticeGap;   // (what a caller that sets notes itself, from the room the engine gives them, puts above them)
+    m_ruleGap = ruleGap;
+    m_noticeGap = noticeGap;
     m_noteGap = noteGap;
     auto noteFrame = [&](const Note &n, double width, double height) {
         FrameSpec fs = frames.first();
