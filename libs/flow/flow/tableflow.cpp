@@ -1353,6 +1353,12 @@ void TableFlow::edited(int position, int removed, int added)
             m_dirtyTo = std::max(m_dirtyTo, dirtyTo);
         }
         // An edit that took characters out, or put a note's reference in, may change the numbers of the notes the cells after it cite: the tables are found again.
+        // Numbers that begin again in each section also change with a paragraph made one that ends a section (or not), with paragraphs put in and taken out, and with text put in
+        // the place of text: those edits find the tables again.
+        const int blocks = m_doc->story()->blockCount();
+        const bool structural = blocks != m_blockCount;
+        m_blockCount = blocks;
+        if (!near && m_doc->fields && m_doc->restartNotesInSections && ((removed > 0 && added > 0) || structural)) near = true;
         if (!near && m_doc->fields && removed > 0) {
             // (Only if one of the references was among them: the places of the references are kept, so that taking out text that has none does not find the tables again.)
             if (!m_refsValid) near = true;
@@ -1436,6 +1442,7 @@ const TableIndex &TableFlow::index()
     if (!m_valid) {
         m_index.rebuild(m_doc->story(), m_doc->tables, m_doc);
         m_valid = true;
+        m_blockCount = m_doc->story()->blockCount();
         findRefs();
         // The edits made since the tables were last found: the rows they touched are measured again.
         std::vector<std::pair<int, int>> touched;

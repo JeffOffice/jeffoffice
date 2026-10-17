@@ -6320,6 +6320,47 @@ private Q_SLOTS:
         }
     }
 
+    // Notes in cells are numbered as the story numbers them: after a paragraph is made the end of a section (with numbers that begin again in each), the notes of the cells after
+    // it show the numbers from 1 again, and after it is made an ordinary paragraph again, they go on from the notes before.
+    void notesInCellsAreNumberedAgainWhenASectionBreakIsPutInAndTakenOut()
+    {
+        TestNotes notes;
+        for (const char *id : {"a", "b", "c", "d"}) addNote(&notes, QString::fromLatin1(id), 4, QStringLiteral("NOTE%1").arg(QChar(id[0]).toUpper()));
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.fields = &notes;
+        fd.restartNotesInSections = true;
+        fillStory(fd.story(), 4, 3, {}, 8, 12);
+        TestTable spec;
+        spec.rows = 4;
+        spec.cols = 2;
+        const TestTable table = addTable(fd, spec);
+        appendParagraph(fd, QStringLiteral("After the table."));
+        insertRefsDescending(fd, {{fd.story()->findBlockByNumber(0).position() + 2, "a"}, {table.rowStarts[1] + 1, "b"}, {table.rowStarts[2] + 1, "c"}, {fd.story()->findBlockByNumber(fd.story()->blockCount() - 1).position() + 2, "d"}});
+        Paginator pg(&fd);
+        pg.pageCount();
+        const QMap<QString, QString> marks{{"a", "NOTEA"}, {"b", "NOTEB"}, {"c", "NOTEC"}, {"d", "NOTED"}};
+        QVERIFY2(audit::problems(pg, fd.story(), marks, true).isEmpty(), "as made");
+        // A paragraph well before the table ends a section.
+        Section second = fd.sections[0];
+        second.continuous = true;
+        fd.sections.insert(1, second);
+        QTextCursor c(fd.story());
+        c.setPosition(fd.story()->findBlockByNumber(1).position());
+        QTextBlockFormat bf = c.blockFormat();
+        bf.setProperty(fp::SectionBreakAfter, true);
+        c.setBlockFormat(bf);
+        pg.invalidateFrom(0);
+        QString bad = audit::problems(pg, fd.story(), marks, true);
+        QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("a section break put in: ") + bad));
+        bf.clearProperty(fp::SectionBreakAfter);
+        c.setBlockFormat(bf);
+        fd.sections.remove(1);
+        pg.invalidateFrom(0);
+        bad = audit::problems(pg, fd.story(), marks, true);
+        QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("and taken out: ") + bad));
+    }
+
     // A section that begins in the middle of a page restarts the numbers there, and the page after it goes on from them: the notes of the second section show 1, 2 on every page
     // (the count is not cleared at the top of a page because the section is another than the page before began in).
     void aSectionThatBeginsMidPageRestartsTheNumbersOnceNotAtEachPage()
@@ -6359,6 +6400,7 @@ private Q_SLOTS:
         auto one = [](int noteWords, int citeIn, int sec1Paras, double pageH, bool table, QString *what) {
             TestNotes notes;
             addNote(&notes, QStringLiteral("a"), noteWords, QStringLiteral("NOTEA"));
+            addNote(&notes, QStringLiteral("b"), 6, QStringLiteral("NOTEB"));
             FlowDocument fd;
             fd.env.wordLines = true;
             fd.fields = &notes;
@@ -6379,7 +6421,8 @@ private Q_SLOTS:
             second.columns = 2;
             second.columnGap = 20;
             fd.sections << second;
-            insertRefsDescending(fd, {{fd.story()->findBlockByNumber(std::min(citeIn, sec1Paras - 1)).position() + 3, "a"}});
+            // (A note cited in the first paragraph of the second section too: on the page that shows that line, which is the next when the columns have no room.)
+            insertRefsDescending(fd, {{fd.story()->findBlockByNumber(std::min(citeIn, sec1Paras - 1)).position() + 3, "a"}, {fd.story()->findBlockByNumber(sec1Paras).position() + 3, "b"}});
             Paginator pg(&fd);
             QString res;
             const int firstSecEnd = fd.story()->findBlockByNumber(sec1Paras).position();
@@ -6393,7 +6436,7 @@ private Q_SLOTS:
                     }
             }
             if (const QString cov = coverageProblem(pg, fd, true, true); !cov.isEmpty()) res += QStringLiteral(" text lost: ") + cov;
-            if (const QString bad = audit::problems(pg, fd.story(), {{"a", "NOTEA"}}); !bad.isEmpty()) res += QStringLiteral(" ") + bad;
+            if (const QString bad = audit::problems(pg, fd.story(), {{"a", "NOTEA"}, {"b", "NOTEB"}}); !bad.isEmpty()) res += QStringLiteral(" ") + bad;
             if (what) *what = QStringLiteral("%1 words, cited in block %2, %3 paragraphs, page %4 high, table %5").arg(noteWords).arg(citeIn).arg(sec1Paras).arg(pageH).arg(table);
             return res;
         };

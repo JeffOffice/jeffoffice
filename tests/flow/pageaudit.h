@@ -356,19 +356,21 @@ inline QString problems(flow::Paginator &pg, const QTextDocument *story, const Q
         {
             QVector<NoteBox> sorted = boxes;
             std::sort(sorted.begin(), sorted.end(), [](const NoteBox &a, const NoteBox &b) { return a.item->rect.top() < b.item->rect.top(); });
-            int last = -1;
+            // (Of the notes in one column: those in another, or across a page that is in a column below another section's, are not in a line with them.)
+            QMap<QString, int> lastOf;
             for (const NoteBox &box : sorted) {
                 if (box.id.isEmpty()) continue;
+                const QString band = num(box.item->rect.left()) + QLatin1Char('/') + num(box.item->rect.width());
                 const int at = int(order.indexOf(box.id));
-                if (at < last) return QStringLiteral("page %1: the note of %2 (the %3th reference) is below the note of a later reference").arg(k).arg(box.id).arg(at + 1);
-                last = std::max(last, at);
+                if (at < lastOf.value(band, -1)) return QStringLiteral("page %1: the note of %2 (the %3th reference) is below the note of a later reference").arg(k).arg(box.id).arg(at + 1);
+                lastOf[band] = std::max(lastOf.value(band, -1), at);
             }
             for (int i = 0; i < boxes.size(); ++i)
                 for (int j = i + 1; j < boxes.size(); ++j)
                     if (overlap(boxes[i].item->rect, boxes[j].item->rect)) return QStringLiteral("page %1: two notes overlap (%2 and %3)").arg(k).arg(rectText(boxes[i].item->rect), rectText(boxes[j].item->rect));
         }
         // A note that goes on from the page before has a box on this page, without its mark (and no other note box is without one).
-        if (continuations != page.start.carried.size() && (page.columns == 1))
+        if (continuations != page.start.carried.size() && page.columns == 1 && m->boxes.size() <= 1)   // (in columns, a note goes on from one to the next on the page)
             return QStringLiteral("page %1 draws %2 box(es) for notes that go on from the page before, and %3 go on [%4]").arg(k).arg(continuations).arg(page.start.carried.size()).arg(page.start.carried.join(QLatin1Char(',')));
         if (!marks.isEmpty()) {
             for (const QString &id : cited)
