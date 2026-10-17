@@ -5000,6 +5000,29 @@ private Q_SLOTS:
         QVERIFY(!boxWithText(*next, QStringLiteral("FOOTNOTE TWO")));
     }
 
+    // The empty paragraphs at the start of a note whose marks a tracked change deleted are gone from it as the text stands: the note is as tall as its own text, and the
+    // notes' room at the foot of the page is that.
+    void deletedEmptyParagraphsAtTheStartOfANoteTakeNoRoom()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto noteTop = [&](int deleted) {
+            const QByteArray gone = "<w:p><w:pPr><w:rPr><w:del w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"/></w:rPr></w:pPr></w:p>";
+            QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:id=\"2\">";
+            for (int i = 0; i < deleted; ++i) notes += gone;
+            notes += "<w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> FOOTNOTE TWO says something.</w:t></w:r></w:p></w:footnote></w:footnotes>";
+            const QByteArray body = "<w:p><w:r><w:t>First paragraph with a note</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>" + paragraphs(40, 40);
+            auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}}));
+            if (!doc) return -1.0;
+            const auto page = doc->pager().materialize(0);
+            // Where the last line of the page's text ends: the notes' room is what is left under it.
+            const auto lines = doc->pager().lines(0);
+            return page && !lines.isEmpty() ? lines.last().rect.bottom() : -1.0;
+        };
+        const double plain = noteTop(0), withGone = noteTop(3);
+        QVERIFY(plain > 0 && withGone > 0);
+        QVERIFY2(std::abs(plain - withGone) < 0.01, qPrintable(QStringLiteral("the text ends at %1 with the note alone, at %2 after three deleted paragraphs").arg(plain).arg(withGone)));
+    }
+
     // The room between the text and the notes is the file's own separator paragraph, not a line of the Normal style: a separator thirty points tall
     // (exactly) leaves the text fifty lines of twelve points above a note one line tall, where the Normal style's line would leave it one more.
     void theNoteSeparatorIsTheFilesOwnParagraph()

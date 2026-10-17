@@ -457,7 +457,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         }
         QTextCharFormat markFormat = charFormatOf(mark, thm, direct.markRun ? &*direct.markRun : nullptr);
         // A paragraph whose mark a tracked change deleted is joined to the next as the text stands (and ends no section).
-        if (!header && !direct.section && markIsDeleted(direct)) markFormat = asDeleted(markFormat);
+        if (!direct.section && markIsDeleted(direct)) markFormat = asDeleted(markFormat);
 
         // A list: the item's counter, and the marker where Qt's own counting can't make it.
         QTextListFormat lf;
