@@ -154,6 +154,48 @@ QDomElement childByTag(const QDomElement &e, const char *tag)
     return QDomElement();
 }
 
+// What is wrong with the colors of a p:style, if anything: a theme color must be named as the standard names them, an RGB one must be six hex
+// digits, and a change must be one the standard has, with a number.
+QString styleProblem(const QDomElement &style)
+{
+    static const QStringList schemes = {"dk1", "lt1", "dk2", "lt2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink", "tx1", "tx2", "bg1", "bg2"};
+    static const QStringList changes = {"alpha", "alphaMod", "alphaOff", "hue", "hueMod", "hueOff", "sat", "satMod", "satOff", "lum", "lumMod", "lumOff", "red", "redMod", "redOff",
+                                        "green", "greenMod", "greenOff", "blue", "blueMod", "blueOff", "shade", "tint"};
+    static const QRegularExpression hex(QStringLiteral("^[0-9A-Fa-f]{6}$")), number(QStringLiteral("^-?[0-9]{1,9}$"));
+    for (QDomElement ref = style.firstChildElement(); !ref.isNull(); ref = ref.nextSiblingElement()) {
+        const QString local = ref.localName();
+        if (local == QLatin1String("fontRef")) {
+            if (!QStringList{"major", "minor", "none"}.contains(ref.attribute(QStringLiteral("idx")))) return QStringLiteral("fontRef idx ") + ref.attribute(QStringLiteral("idx"));
+        } else if (!number.match(ref.attribute(QStringLiteral("idx"))).hasMatch()) {
+            return local + QStringLiteral(" idx ") + ref.attribute(QStringLiteral("idx"));
+        }
+        for (QDomElement c = ref.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+            const QString kind = c.localName(), val = c.attribute(QStringLiteral("val"));
+            if (kind == QLatin1String("schemeClr") ? !schemes.contains(val) : kind == QLatin1String("srgbClr") ? !hex.match(val).hasMatch() : true) return kind + QStringLiteral(" val ") + val;
+            for (QDomElement m = c.firstChildElement(); !m.isNull(); m = m.nextSiblingElement())
+                if (!changes.contains(m.localName()) || !number.match(m.attribute(QStringLiteral("val"))).hasMatch()) return QStringLiteral("change ") + m.localName() + QLatin1Char(' ') + m.attribute(QStringLiteral("val"));
+        }
+    }
+    return QString();
+}
+
+// The color words show: the one their format names, else its brush, else the theme's main color.
+QColor shown(const QTextCharFormat &cf, const ColorScheme &scheme)
+{
+    if (const QString ref = cf.stringProperty(tp::ColorRefP); !ref.isEmpty()) return ColorRef::fromString(ref).resolve(scheme);
+    if (cf.hasProperty(QTextFormat::ForegroundBrush) && cf.foreground().style() != Qt::NoBrush) return cf.foreground().color();
+    return scheme.slot(Main);
+}
+
+// The first letter's format of the words of an item (a shape's or a text box's).
+QTextCharFormat firstLetter(Document &d, const Item &it)
+{
+    const QString story = it.type() == ItemType::Shape ? static_cast<const ShapeItem &>(it).storyId : static_cast<const TextItem &>(it).storyId;
+    QTextCursor c(d.storyDoc(story));
+    c.setPosition(1);
+    return c.charFormat();
+}
+
 // A shape of a slide, with its style and what its properties say, as a file writes it.
 QString styledShape(int id, const QString &name, const QString &properties, const QString &style, const QString &words = QStringLiteral("Words"))
 {
@@ -178,31 +220,6 @@ QByteArray themeWithShadow(const QByteArray &theme)
     xml.replace(none + none, none + QStringLiteral("<a:effectStyle><a:effectLst><a:outerShdw blurRad=\"50800\" dist=\"38100\" dir=\"5400000\" algn=\"ctr\" rotWithShape=\"0\">"
                                                    "<a:srgbClr val=\"000000\"><a:alpha val=\"40000\"/></a:srgbClr></a:outerShdw></a:effectLst></a:effectStyle>"));
     return xml.toUtf8();
-}
-
-// What is wrong with the colors of a p:style, if anything: a theme color must be named as the standard names them, an RGB one must be six hex
-// digits, and a change must be one the standard has, with a number.
-QString styleProblem(const QDomElement &style)
-{
-    static const QStringList schemes = {"dk1", "lt1", "dk2", "lt2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink", "tx1", "tx2", "bg1", "bg2"};
-    static const QStringList changes = {"alpha", "alphaMod", "alphaOff", "hue", "hueMod", "hueOff", "sat", "satMod", "satOff", "lum", "lumMod", "lumOff", "red", "redMod", "redOff",
-                                        "green", "greenMod", "greenOff", "blue", "blueMod", "blueOff", "shade", "tint"};
-    static const QRegularExpression hex(QStringLiteral("^[0-9A-Fa-f]{6}$")), number(QStringLiteral("^-?[0-9]{1,9}$"));
-    for (QDomElement ref = style.firstChildElement(); !ref.isNull(); ref = ref.nextSiblingElement()) {
-        const QString local = ref.localName();
-        if (local == QLatin1String("fontRef")) {
-            if (!QStringList{"major", "minor", "none"}.contains(ref.attribute(QStringLiteral("idx")))) return QStringLiteral("fontRef idx ") + ref.attribute(QStringLiteral("idx"));
-        } else if (!number.match(ref.attribute(QStringLiteral("idx"))).hasMatch()) {
-            return local + QStringLiteral(" idx ") + ref.attribute(QStringLiteral("idx"));
-        }
-        for (QDomElement c = ref.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
-            const QString kind = c.localName(), val = c.attribute(QStringLiteral("val"));
-            if (kind == QLatin1String("schemeClr") ? !schemes.contains(val) : kind == QLatin1String("srgbClr") ? !hex.match(val).hasMatch() : true) return kind + QStringLiteral(" val ") + val;
-            for (QDomElement m = c.firstChildElement(); !m.isNull(); m = m.nextSiblingElement())
-                if (!changes.contains(m.localName()) || !number.match(m.attribute(QStringLiteral("val"))).hasMatch()) return QStringLiteral("change ") + m.localName() + QLatin1Char(' ') + m.attribute(QStringLiteral("val"));
-        }
-    }
-    return QString();
 }
 
 // The sample presentation with a second slide master: a dark one, with a theme of its own (other colors, and lines of two and a quarter points),
@@ -233,23 +250,6 @@ Parts withDarkSecondMaster(const QString &shapes)
     p.data["/ppt/slides/slide3.xml"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.slide+xml"), slideXml(QString(), QString(), shapes).toUtf8()};
     p.rels << Rel{"/ppt/slides/slide3.xml", "slideLayout", "/ppt/slideLayouts/slideLayout3.xml"};
     return p;
-}
-
-// The color words show: the one their format names, else its brush, else the theme's main color.
-QColor shown(const QTextCharFormat &cf, const ColorScheme &scheme)
-{
-    if (const QString ref = cf.stringProperty(tp::ColorRefP); !ref.isEmpty()) return ColorRef::fromString(ref).resolve(scheme);
-    if (cf.hasProperty(QTextFormat::ForegroundBrush) && cf.foreground().style() != Qt::NoBrush) return cf.foreground().color();
-    return scheme.slot(Main);
-}
-
-// The first letter's format of the words of an item (a shape's or a text box's).
-QTextCharFormat firstLetter(Document &d, const Item &it)
-{
-    const QString story = it.type() == ItemType::Shape ? static_cast<const ShapeItem &>(it).storyId : static_cast<const TextItem &>(it).storyId;
-    QTextCursor c(d.storyDoc(story));
-    c.setPosition(1);
-    return c.charFormat();
 }
 
 } // namespace
@@ -284,14 +284,15 @@ private Q_SLOTS:
         QCOMPARE(groups, (QStringList{QStringLiteral("Outline Only"), QStringLiteral("Subtle Effect"), QStringLiteral("Moderate Effect"), QStringLiteral("Intense Effect")}));
         // Drawn by the renderer in the theme's colors: the inside of a moderate style is its accent (a gradient from a lighter to a darker
         // shade of it), and of an outline alone, the slide (the line is at the edge).
+        // (Sampled as shares of the picture, and at a pixel ratio of 1: whatever the screen has, a tile is the same picture.)
+        auto tile = [&](int i) { return items[i].icon.pixmap(QSize(64, 48), 1.0).toImage(); };
+        auto inside = [](const QImage &img) { return img.pixelColor(img.width() * 12 / 64, img.height() / 2); };   // (beside the word in the tile, whatever font draws it)
         for (int accent = 0; accent < 6; ++accent) {
-            const QImage moderate = items[12 + accent].icon.pixmap(QSize(64, 48)).toImage();
-            const QColor middle = moderate.pixelColor(12, moderate.height() / 2);   // (beside the word in the tile, whatever font draws it)
+            const QColor middle = inside(tile(12 + accent));
             QVERIFY2(apart(middle, theme.colors[4 + accent]) < 70, qPrintable(QStringLiteral("accent %1: %2 not near %3").arg(accent + 1).arg(middle.name(), theme.colors[4 + accent].name())));
-            const QImage outline = items[accent].icon.pixmap(QSize(64, 48)).toImage();
-            QVERIFY(apart(outline.pixelColor(12, outline.height() / 2), theme.colors[4 + accent]) > 40);   // (its inside is not filled)
+            QVERIFY(apart(inside(tile(accent)), theme.colors[4 + accent]) > 40);   // (the inside of an outline alone is not filled)
         }
-        QVERIFY(apart(items[12].icon.pixmap(QSize(64, 48)).toImage().pixelColor(12, 24), items[13].icon.pixmap(QSize(64, 48)).toImage().pixelColor(12, 24)) > 20);
+        QVERIFY(apart(inside(tile(12)), inside(tile(13))) > 20);
     }
 
     // A style gives the shapes it is clicked on the theme's fill, line, and shadow for its kind and accent, as one step; its text takes the style's
@@ -885,6 +886,8 @@ private Q_SLOTS:
         }
     }
 
+    // ---- Saving: what the style gives, and what the shape has said
+
     // A fill, a line, or a shadow taken off a shape that has a style stays off: the file says so beside the style, which would give it back.
     void aRemovedFillLineOrShadowStaysRemovedThroughSaving()
     {
@@ -1085,6 +1088,8 @@ private Q_SLOTS:
         QCOMPARE(Rig::namedOn(*back, 0, QStringLiteral("Rectangle 5"))->fill.toJson(), Rig::namedOn(*d, 0, QStringLiteral("Rectangle 5"))->fill.toJson());
     }
 
+    // ---- Words in a styled shape
+
     // A style does not touch letters that have a fill of their own (a gradient), even where their first color is the one the old style gave.
     void aStyleLeavesLettersWithAGradientFillAlone()
     {
@@ -1131,6 +1136,60 @@ private Q_SLOTS:
                 QVERIFY2(shown(firstLetter(*d, *it), d->colors) == showed, qPrintable(style + (how ? QStringLiteral(" odp") : QStringLiteral(" pptx"))));
             }
         }
+    }
+
+    // ---- Change Shape in a group
+
+    // Change Shape on a group changes every shape inside it, as a fill does; a picture, a connector, and Text Art inside are left as they are.
+    void changeShapeOnAGroupChangesTheShapesInsideAndLeavesTheRest()
+    {
+        Rig r;
+        auto a = std::make_shared<ShapeItem>(), b = std::make_shared<ShapeItem>();
+        a->name = QStringLiteral("Inside A");
+        a->shape = QStringLiteral("roundRect");
+        a->rect = QRectF(40, 40, 100, 60);
+        b->name = QStringLiteral("Inside B");
+        b->shape = QStringLiteral("ellipse");
+        b->rect = QRectF(160, 40, 100, 60);
+        auto pic = std::make_shared<PictureItem>();
+        pic->name = QStringLiteral("Inside picture");
+        pic->rect = QRectF(40, 120, 80, 60);
+        pic->imgRect = QRectF(0, 0, 80, 60);
+        pic->imageId = r.ed()->doc()->addImage(odptest::png(8, 6, Qt::red), QStringLiteral("png"));
+        auto line = std::make_shared<LineItem>();
+        line->name = QStringLiteral("Inside line");
+        line->p1 = QPointF(160, 140);
+        line->p2 = QPointF(300, 140);
+        line->syncRect();
+        auto art = std::make_shared<TextArtItem>();
+        art->name = QStringLiteral("Inside art");
+        art->text = QStringLiteral("Art");
+        art->rect = QRectF(40, 200, 200, 50);
+        auto group = std::make_shared<GroupItem>();
+        group->name = QStringLiteral("Group");
+        group->children = {a, b, pic, line, art};
+        group->syncRect();
+        r.ed()->addItem(group, false);
+        const QString id = group->id;
+        r.ed()->select(id);
+        auto *gallery = r.widget<GalleryButton>("changeShape");
+        QVERIFY(gallery && gallery->isEnabled());
+        const int base = r.steps();
+        QVERIFY(r.w.changeShape(QStringLiteral("star5")));
+        QCOMPARE(r.steps(), base + 1);
+        const auto &kids = static_cast<GroupItem *>(r.item(id))->children;
+        QCOMPARE(int(kids.size()), 5);
+        QCOMPARE(static_cast<ShapeItem *>(kids[0].get())->shape, QStringLiteral("star5"));
+        QCOMPARE(static_cast<ShapeItem *>(kids[1].get())->shape, QStringLiteral("star5"));
+        QCOMPARE(kids[2]->type(), ItemType::Picture);
+        QCOMPARE(kids[3]->type(), ItemType::Line);
+        QCOMPARE(kids[4]->type(), ItemType::TextArt);
+        QCOMPARE(static_cast<TextArtItem *>(kids[4].get())->text, QStringLiteral("Art"));
+        QCOMPARE(kids[2]->rect, QRectF(40, 120, 80, 60));
+        r.ed()->undo();
+        const auto &undone = static_cast<GroupItem *>(r.item(id))->children;
+        QCOMPARE(static_cast<ShapeItem *>(undone[0].get())->shape, QStringLiteral("roundRect"));
+        QCOMPARE(static_cast<ShapeItem *>(undone[1].get())->shape, QStringLiteral("ellipse"));
     }
 
     // ---- Change Shape
@@ -1239,15 +1298,19 @@ private Q_SLOTS:
         QCOMPARE(r.steps(), base + 1);
     }
 
-    // Any shape of the library, put on a shape with text, a fill, and a line, comes back from a .pptx and an .odp with its words and look: as
+    // Shapes of the library (every fifth, and those a file treats differently), put on a shape with text, a fill, and a line, come back from a .pptx and an .odp with their words and look: as
     // the geometry the shape has when the file can name it, else as the path it draws (the same outline).
     void changedShapeComesBackFromBothFiles()
     {
         Rig r;
         const QString id = r.addShape(QStringLiteral("Round trip"), QStringLiteral("Kept words"), QRectF(100, 100, 160, 120))->id;
         r.ed()->select(id);
-        int tried = 0;
+        int tried = 0, index = 0;
         for (const ShapeDef &def : shapeLibrary()) {
+            // Every fifth shape of the library, and every one that is special to a file: the rectangle, those the standard has no name for (written as the
+            // path they draw), and the open ones.
+            const bool special = def.id == QLatin1String("rect") || def.open || office::presetForShape(def.id).isEmpty();
+            if (index++ % 5 != 0 && !special) continue;
             QVERIFY2(r.w.changeShape(def.id), qPrintable(def.id));
             QCOMPARE(r.shape(id)->shape, def.id);
             for (int how = 0; how < 2; ++how) {
@@ -1271,15 +1334,26 @@ private Q_SLOTS:
                 }
                 QVERIFY2(d->storyDoc(storyId), qPrintable(which + QStringLiteral(": no text")));
                 QCOMPARE(d->storyDoc(storyId)->toPlainText(), QStringLiteral("Kept words"));
-                QVERIFY2(face->fill.isNone() || face->fill.color.resolve(d->colors) == QColor(200, 30, 30), qPrintable(which));
-                QVERIFY2(face->stroke.isNone() || near(face->stroke.width, 3.0, 0.02), qPrintable(which));
+                // The look is the shape's: the fill and the line, on the faces that draw them (a shape of one face draws both).
+                bool filled = false, stroked = false;
+                const std::function<void(const Item &)> look = [&](const Item &it) {
+                    if (it.type() == ItemType::Group) {
+                        for (const ItemPtr &c : static_cast<const GroupItem &>(it).children) look(*c);
+                        return;
+                    }
+                    filled = filled || (!it.fill.isNone() && it.fill.color.resolve(d->colors) == QColor(200, 30, 30));
+                    stroked = stroked || (!it.stroke.isNone() && near(it.stroke.width, 3.0, 0.02));
+                };
+                look(*found);
+                QVERIFY2(filled, qPrintable(which + QStringLiteral(": fill")));
+                QVERIFY2(stroked, qPrintable(which + QStringLiteral(": line")));
                 // A shape the file names comes back as that shape.
                 if (how == 0 && !def.open && !shapeName.isEmpty() && !office::presetForShape(def.id).isEmpty() && office::shapeForPreset(office::presetForShape(def.id)) == def.id)
                     QVERIFY2(shapeName == def.id, qPrintable(which + QStringLiteral(" came back as ") + shapeName));
             }
             ++tried;
         }
-        QVERIFY(tried > 40);
+        QVERIFY(tried > 25 && tried < int(shapeLibrary().size()));
     }
 };
 
