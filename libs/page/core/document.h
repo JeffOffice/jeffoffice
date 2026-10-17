@@ -342,6 +342,7 @@ public:
     bool wordNoHang = false;   // (LayoutEnv::wordNoHang)
     bool wordSpaceSums = false;   // (LayoutEnv::wordSpaceSums)
     bool wordNoHangStop = false;   // (LayoutEnv::wordNoHangStop)
+    bool wordNoNumberIndentStop = false;   // (LayoutEnv::wordNoNumberIndentStop)
     QHash<QString, QString> wordStandIns;   // (LayoutEnv::standIns)
     // A picture's brightness, contrast, black and white, and transparent color change its colors as the presentation program changes a
     // slide's pictures (PictureItem::colorEffects), not as Publisher changes a publication's. Set by the app that makes the document; not saved.
