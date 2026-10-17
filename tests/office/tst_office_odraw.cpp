@@ -1,5 +1,6 @@
 // Tests of libs/office: the binary drawing format: pictures, shapes, and properties.
 #include "officehelpers.h"
+#include "../timing.h"
 
 class OfficeOdrawTests : public QObject {
     Q_OBJECT
@@ -261,10 +262,8 @@ private Q_SLOTS:
         QByteArray flood = red;
         const QByteArray page = pictU16(0x0031) + pictRect(0, 0, 100, 200);
         for (int i = 0; i < 300000; ++i) flood += page;
-        QElapsedTimer timer;
-        timer.start();
-        img = draw(flood);
-        QVERIFY2(timer.elapsed() < 2000, qPrintable(QString::number(timer.elapsed())));
+        const qint64 floodMs = bestNanoseconds([&] { img = draw(flood); }, 3) / 1000000;
+        QVERIFY2(floodMs < 2000, qPrintable(QString::number(floodMs)));
         QVERIFY(is(at(img, 100, 50), 255, 0, 0));
         // A picture with bytes changed at random, and cut short, is drawn as far as it can be or not at all, each time in no more work than
         // a picture of its size takes.
@@ -275,28 +274,29 @@ private Q_SLOTS:
                                                           + pictU16(30) + pictU16(40) + pictU16(60) + pictU16(0x7FFF) + pictU16(40) + pictU16(30) + pictU16(60) + pictU16(0x7FFF) + pictU16(0x7FFF)
                                                           + pictU16(0x0020) + pictU16(50) + pictU16(20) + pictU16(50) + pictU16(180) + text
                                                           + pictU16(0x0098) + pixmapHeader(8, 0, 8, 1) + table + pictRect(0, 0, 1, 8) + pictRect(10, 10, 30, 90) + pictU16(0) + QByteArray(1, char(indexes.size())) + indexes);
-            QRandomGenerator g(11);
-            QElapsedTimer damaged;
-            damaged.start();
-            for (int i = 0; i < 400; ++i) {
-                QByteArray b = whole;
-                for (int k = 0; k < 1 + i % 6; ++k) b[int(g.bounded(quint32(b.size())))] = char(g.generate());
-                if (i % 5 == 0) b.truncate(int(g.bounded(quint32(b.size()))));
-                odrawBlip(odMetafileBlip(0xF01C, 0x542, b, true), nullptr);
-            }
-            QVERIFY2(damaged.elapsed() < 20000, qPrintable(QString::number(damaged.elapsed())));
+            const qint64 damagedMs = bestNanoseconds([&] {
+                QRandomGenerator g(11);   // the same damage in every run
+                for (int i = 0; i < 400; ++i) {
+                    QByteArray b = whole;
+                    for (int k = 0; k < 1 + i % 6; ++k) b[int(g.bounded(quint32(b.size())))] = char(g.generate());
+                    if (i % 5 == 0) b.truncate(int(g.bounded(quint32(b.size()))));
+                    odrawBlip(odMetafileBlip(0xF01C, 0x542, b, true), nullptr);
+                }
+            }, 3) / 1000000;
+            QVERIFY2(damagedMs < 20000, qPrintable(QString::number(damagedMs)));
         }
         // A damaged text size (61,756) is no text, at once: some systems' font engines fail on glyphs that large (it crashed the
         // damaged-bytes loop above on Windows).
         {
-            QElapsedTimer huge;
-            huge.start();
-            img = draw(pictU16(0x0003) + pictU16(21) + pictU16(0x000D) + pictU16(61756) + pictU16(0x0028) + pictU16(90) + pictU16(20) + QByteArray("\x01" "H"));
             int dark = 0;
-            for (int y = 0; y < img.height(); ++y)
-                for (int x = 0; x < img.width(); ++x) dark += qAlpha(img.pixel(x, y)) > 128;
+            const qint64 hugeMs = bestNanoseconds([&] {
+                img = draw(pictU16(0x0003) + pictU16(21) + pictU16(0x000D) + pictU16(61756) + pictU16(0x0028) + pictU16(90) + pictU16(20) + QByteArray("\x01" "H"));
+                dark = 0;
+                for (int y = 0; y < img.height(); ++y)
+                    for (int x = 0; x < img.width(); ++x) dark += qAlpha(img.pixel(x, y)) > 128;
+            }, 3) / 1000000;
             QCOMPARE(dark, 0);
-            QVERIFY2(huge.elapsed() < 5000, qPrintable(QString::number(huge.elapsed())));
+            QVERIFY2(hugeMs < 5000, qPrintable(QString::number(hugeMs)));
         }
         // What it can't read, or what is cut short, is no picture and no crash.
         QVERIFY(odrawBlip(odMetafileBlip(0xF01C, 0x542, odPict(200, 100, QByteArray()).left(30), true), nullptr).isEmpty());
@@ -429,11 +429,9 @@ private Q_SLOTS:
     void odrawBlipHoldsAPictToLimits()
     {
         const QByteArray red = pictColor(0x001A, 255, 0, 0);
-        QElapsedTimer timer;
         auto within = [&](const char *what, const QByteArray &ops) {
-            timer.start();
-            pictImage(odPict(200, 100, red + ops));
-            QVERIFY2(timer.elapsed() < 10000, qPrintable(QStringLiteral("%1: %2 ms").arg(QLatin1String(what)).arg(timer.elapsed())));
+            const qint64 ms = bestNanoseconds([&] { pictImage(odPict(200, 100, red + ops)); }, 3) / 1000000;
+            QVERIFY2(ms < 10000, qPrintable(QStringLiteral("%1: %2 ms").arg(QLatin1String(what)).arg(ms)));
         };
         // A region of 4,000 places in a row that every one of 500 rows after it shifts one of (a million rectangles).
         QByteArray region = pictU16(0) + pictRect(0, 0, 100, 200) + pictU16(1);

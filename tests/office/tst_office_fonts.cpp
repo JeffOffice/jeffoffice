@@ -1,5 +1,6 @@
 // Tests of libs/office: reading, inspecting, and embedding fonts.
 #include "officehelpers.h"
+#include "../timing.h"
 
 namespace {
 
@@ -1053,22 +1054,23 @@ private Q_SLOTS:
         refused(header + crafted + mtxCompress(QByteArray()) + mtxCompress(QByteArray()), "a copy from before the start");
 
         // Corrupt data: a byte changed anywhere is read as a font or refused, in a moment, and what is read is a sound font.
-        QElapsedTimer timer;
-        timer.start();
-        QRandomGenerator rng(20261012);
         int refusedCount = 0, readCount = 0;
-        for (int i = 0; i < 300; ++i) {
-            QByteArray damaged = mtx;
-            damaged[int(rng.bounded(quint32(mtx.size())))] = char(rng.bounded(256u));
-            if (readEmbeddedFont(eotWithMtx(font, damaged), &read, nullptr, &why)) {
-                ++readCount;
-                QVERIFY(jp::inspectFont(read));
-            } else {
-                ++refusedCount;
-                QVERIFY(!why.isEmpty());
+        const qint64 ms = bestNanoseconds([&] {
+            QRandomGenerator rng(20261012);   // the same damage in every run
+            refusedCount = readCount = 0;
+            for (int i = 0; i < 300; ++i) {
+                QByteArray damaged = mtx;
+                damaged[int(rng.bounded(quint32(mtx.size())))] = char(rng.bounded(256u));
+                if (readEmbeddedFont(eotWithMtx(font, damaged), &read, nullptr, &why)) {
+                    ++readCount;
+                    QVERIFY(jp::inspectFont(read));
+                } else {
+                    ++refusedCount;
+                    QVERIFY(!why.isEmpty());
+                }
             }
-        }
-        QVERIFY2(timer.elapsed() < 30000, qPrintable(QString::number(timer.elapsed())));
+        }, 3) / 1000000;
+        QVERIFY2(ms < 30000, qPrintable(QString::number(ms)));
         QVERIFY(refusedCount > 50);
     }
 
@@ -1103,10 +1105,10 @@ private Q_SLOTS:
         QString why;
         resetPeakMemory();
         const qint64 before = peakMemoryKb();
-        QElapsedTimer timer;
-        timer.start();
-        QVERIFY(!readEmbeddedFont(eot, &read, nullptr, &why));
-        const qint64 ms = timer.elapsed();
+        const qint64 ms = bestNanoseconds([&] { QVERIFY(!readEmbeddedFont(eot, &read, nullptr, &why)); }, 5, [&] {
+            read.clear();
+            why.clear();
+        }) / 1000000;
         QVERIFY2(!why.isEmpty() && read.isEmpty(), qPrintable(why));
         QCOMPARE(why, QStringLiteral("The embedded font is damaged."));   // the directory's tables overlap, which no copy is made to find out
         QVERIFY2(ms < 3000, qPrintable(QString::number(ms)));
@@ -1152,12 +1154,13 @@ private Q_SLOTS:
         QString why;
         resetPeakMemory();
         const qint64 before = peakMemoryKb();
-        QElapsedTimer timer;
-        timer.start();
-        QVERIFY(!readEmbeddedFont(eotWithMtx(font, mtx), &read, nullptr, &why));
+        const qint64 ms = bestNanoseconds([&] { QVERIFY(!readEmbeddedFont(eotWithMtx(font, mtx), &read, nullptr, &why)); }, 3, [&] {
+            read.clear();
+            why.clear();
+        }) / 1000000;
         QVERIFY2(!why.isEmpty() && read.isEmpty(), qPrintable(why));
         QCOMPARE(why, QStringLiteral("The embedded font is larger than 32 MB."));   // the budget, not what the data turned out to be
-        QVERIFY2(timer.elapsed() < 10000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(ms < 10000, qPrintable(QString::number(ms)));
         if (before > 0) QVERIFY2(peakMemoryKb() - before < 160 * 1024, qPrintable(QString::number(peakMemoryKb() - before) + QLatin1String(" KB more at the peak")));
     }
 

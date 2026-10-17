@@ -1,5 +1,6 @@
 // JeffPub's tests of find, replace, spelling, and hyphenation.
 #include "pubhelpers.h"
+#include "../timing.h"
 
 class PubFindTests : public QObject {
     Q_OBJECT
@@ -391,15 +392,12 @@ private Q_SLOTS:
                     doc->pages[p]->items.push_back(t);
                 }
             }
-            qint64 best = std::numeric_limits<qint64>::max();
-            for (int i = 0; i < 5; ++i) {
-                QElapsedTimer timer;
-                timer.start();
+            bool found = true;
+            const qint64 best = bestNanoseconds([&] {
                 const auto stories = jp::findStories(*doc);
-                best = std::min(best, timer.nsecsElapsed());
-                if (stories.size() != pages * 2) return qint64(-1);
-            }
-            return best;
+                found = found && stories.size() == pages * 2;
+            });
+            return found ? best : qint64(-1);
         };
         // Eight times the pages: linear work grows about 8 times (more with caches spilling), the old quadratic walk 64 times.
         const qint64 small = timeFor(500), big = timeFor(4000);

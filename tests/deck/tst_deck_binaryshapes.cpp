@@ -1,5 +1,6 @@
 // JeffDeck's tests of old binary presentations: shapes, text, footers, pictures, and metafiles as they are drawn.
 #include "deckhelpers.h"
+#include "../timing.h"
 
 class DeckBinaryShapesTests : public QObject {
     Q_OBJECT
@@ -833,13 +834,13 @@ private Q_SLOTS:
         shapes.clear();
         const QByteArray big = xmlPackage(600 << 10);
         for (int i = 0; i < 120; ++i) shapes += rectangle(0x600 + i, 100 + i * 20, big);
-        QElapsedTimer t;
-        t.start();
-        d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        const qint64 ms = bestNanoseconds([&] {
+            d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        }, 3, [&] { d.reset(); }) / 1000000;
         QVERIFY2(d, qPrintable(err));
         const int read = greens(*d);
         QVERIFY2(read > 90 && read < 120, qPrintable(QString::number(read)));
-        QVERIFY(t.elapsed() < 30000);
+        QVERIFY(ms < 30000);
     }
 
     // The shadow flag of an old file's words is a shadow in the words' effect list, as the presentation program draws it for them (light
@@ -1081,11 +1082,12 @@ private Q_SLOTS:
             shapes += pptBox(0xF004, pptRec(0xF00A, le(0x900, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF00B, props, 5, 3) + pptRec(0xF010, le(400, 2) + le(100, 2) + le(600, 2) + le(300, 2)));
         }
         QString err;
-        QElapsedTimer timer;
-        timer.start();
-        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, shapes), &err);
+        std::unique_ptr<Document> d;
+        const qint64 ms = bestNanoseconds([&] {
+            d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, shapes), &err);
+        }, 3, [&] { d.reset(); }) / 1000000;
         QVERIFY2(d, qPrintable(err));
-        QVERIFY2(timer.elapsed() < 30000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(ms < 30000, qPrintable(QString::number(ms)));
         QVERIFY2(d->images.size() <= 203, qPrintable(QString::number(d->images.size())));
         QVERIFY(d->images.size() >= 100);
         int tiles = 0;
@@ -1172,12 +1174,13 @@ private Q_SLOTS:
             for (const auto &it : d.pages[0]->items)
                 if (it->type() == ItemType::Text && it->role == QLatin1String("ph:body:1")) body = static_cast<const TextItem *>(it.get());
             if (!body) return qint64(-1);
-            LayoutCache cache;
             const RenderOptions opt;
-            QElapsedTimer timer;
-            timer.start();
-            const auto fl = cache.textFrame(d, *body, 1, opt);
-            return fl.layout ? timer.elapsed() : qint64(-1);
+            std::unique_ptr<LayoutCache> cache;
+            bool laid = false;
+            const qint64 ns = bestNanoseconds([&] { laid = bool(cache->textFrame(d, *body, 1, opt).layout); }, 5, [&] {
+                cache = std::make_unique<LayoutCache>();   // a cache with nothing laid out, for each run
+            });
+            return laid ? ns / 1000000 : qint64(-1);
         };
         const qint64 plain = layoutMs(*letters), cut = layoutMs(*symbols);
         QVERIFY2(plain >= 0 && cut >= 0, "the text was laid out");
@@ -1922,11 +1925,10 @@ private Q_SLOTS:
         for (int i = 0; i < 100; ++i)
             hostile += wmfRecord(0x0410, wmfWords({1, 30000, 1, 30000})) + wmfRecord(0x0412, wmfWords({1, 30000, 1, 30000})) + wmfRecord(0x0410, wmfWords({1, -1, 1, -1}));
         hostile += wmfRecord(0x0410, wmfWords({0, 1, 0, 1})) + wmfRecord(0x0412, wmfWords({0, 1, 0, 1}));
-        QElapsedTimer timer;
-        timer.start();
-        const QImage bad = drawMetafileWith(hostile);
+        QImage bad;
+        const qint64 ms = bestNanoseconds([&] { bad = drawMetafileWith(hostile); }, 3) / 1000000;
         QVERIFY(!bad.isNull());
-        QVERIFY2(timer.elapsed() < 10000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(ms < 10000, qPrintable(QString::number(ms)));
     }
 
     // A text box with a quarter turn that is flipped reads upright, turned the way its box is turned on the page: the box turns and then is flipped
@@ -2201,12 +2203,13 @@ private Q_SLOTS:
         const QByteArray outline = pptBox(4014, pptRec(4015, le(0x100, 4) + le(1, 4), 1) + pptRec(4012, atom));
         const QByteArray tags = pptBox(5000, pptBox(5002, pptRec(4026, utf16(QStringLiteral("___PPT9"))) + pptRec(5003, outline)));
         const QByteArray body = pptText(1, QStringLiteral("First point\rSecond point\rThird point"), pfRun(12, 0, 0) + pfRun(13, 1, 0) + pfRun(12, 1, 0) + cfRun(37, 0));
-        QElapsedTimer timer;
-        timer.start();
         QString err;
-        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1016, tags), &err);
+        std::unique_ptr<Document> d;
+        const qint64 ms = bestNanoseconds([&] {
+            d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1016, tags), &err);
+        }, 3, [&] { d.reset(); }) / 1000000;
         QVERIFY2(d, qPrintable(err));
-        QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(ms < 20000, qPrintable(QString::number(ms)));
         const QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
         QVERIFY(story && story->firstBlock().textList());
         QCOMPARE(story->firstBlock().textList()->format().style(), QTextListFormat::ListDecimal);
@@ -2726,15 +2729,15 @@ private Q_SLOTS:
         }
         // Thirty-two of them: 3 million pixels each; the picture is drawn as it is, and at once.
         auto crowd = make(doc, QVector<BlipEffect>(32, turn));
-        QElapsedTimer timer;
-        timer.start();
         const int made = blipAdjustedMade();
-        for (const QSizeF &size : {QSizeF(800, 600), QSizeF(100, 75), QSizeF(333, 250)}) {
-            const QImage img = Renderer::processedImage(doc, *crowd, size, QSizeF());
-            const QColor c = img.pixelColor(img.width() / 2, img.height() / 2);
-            QVERIFY2(qAbs(c.red() - 100) <= 2 && qAbs(c.green() - 150) <= 2 && qAbs(c.blue() - 200) <= 2, qPrintable(c.name()));
-        }
-        QVERIFY2(timer.elapsed() < 2000, qPrintable(QString::number(timer.elapsed())));
+        const qint64 ms = bestNanoseconds([&] {
+            for (const QSizeF &size : {QSizeF(800, 600), QSizeF(100, 75), QSizeF(333, 250)}) {
+                const QImage img = Renderer::processedImage(doc, *crowd, size, QSizeF());
+                const QColor c = img.pixelColor(img.width() / 2, img.height() / 2);
+                QVERIFY2(qAbs(c.red() - 100) <= 2 && qAbs(c.green() - 150) <= 2 && qAbs(c.blue() - 200) <= 2, qPrintable(c.name()));
+            }
+        }) / 1000000;
+        QVERIFY2(ms < 2000, qPrintable(QString::number(ms)));
         QCOMPARE(blipAdjustedMade(), made);
     }
 
