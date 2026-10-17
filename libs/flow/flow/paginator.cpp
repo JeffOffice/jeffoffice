@@ -269,6 +269,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         return p;
     };
     bool splitFailed = false;
+    int stopBefore = -1;   // where the text of the page stops when a break ends it before the engine's frames run out (the start of a paragraph; none: -1)
     auto lay = [&]() {
         QVector<FrameSpec> frames;
         if (st.skip > 0 && !tail) frames << frame(colW, std::max(kTall, st.skip * 5000.0));
@@ -297,6 +298,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
 
         StoryLayout::Span span;
         span.from = st.pos;
+        span.end = stopBefore;
         span.firstBreakAfter = st.skip > 0 && !tail ? st.skip : -1;
         span.continued = tail;
         span.spaceBeforeContinued = afterBreak;
@@ -567,6 +569,24 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         }
         // The page after starts for a reason of its own if its first paragraph asks for a page.
         if (c < L.size() && L[c].line == 0 && flags(L[c].block).breakBefore) hard = true;
+    }
+    // A break that ends the page takes the lines after it off the page, but the text engine laid them out in the page's frame, and the room it kept at the foot for
+    // the notes of those lines stays under the notes that are the page's: the page is laid out again as far as the break, for where its notes go.
+    if (forced && c > 0 && c < kept && stopBefore < 0 && !m_tables->any()) {
+        const QTextBlock lastBlock = m_doc->story()->findBlock(L[c - 1].block);
+        const int blockEnd = lastBlock.position() + lastBlock.length();
+        bool cites = false;   // (a footnote's reference, whether or not it takes a number)
+        for (QTextBlock b = m_doc->story()->findBlock(blockEnd); b.isValid() && b.position() < L[kept - 1].end && !cites; b = b.next())
+            for (auto it = b.begin(); !it.atEnd() && !cites; ++it)
+                cites = it.fragment().charFormat().stringProperty(tp::Field).startsWith(QLatin1String("footnote:"));
+        if (L[c].block >= blockEnd && cites) {
+            const QVector<StoryLayout::LineBrief> lines = run.lines;
+            const int keptBefore = kept;
+            stopBefore = blockEnd;
+            lay();
+            run.lines = lines;
+            kept = keptBefore;
+        }
     }
     run.kept = c;
     if (m_tables->any()) run.groups = tableGroups(L, c, run.firstFrame);
