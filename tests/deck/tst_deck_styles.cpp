@@ -1085,6 +1085,23 @@ private Q_SLOTS:
         QCOMPARE(Rig::namedOn(*back, 0, QStringLiteral("Rectangle 5"))->fill.toJson(), Rig::namedOn(*d, 0, QStringLiteral("Rectangle 5"))->fill.toJson());
     }
 
+    // A style does not touch letters that have a fill of their own (a gradient), even where their first color is the one the old style gave.
+    void aStyleLeavesLettersWithAGradientFillAlone()
+    {
+        Rig r;
+        const QString id = r.addShape(QStringLiteral("A"), QStringLiteral("Gradient words"))->id;
+        r.ed()->select(id);
+        QVERIFY(r.w.applyShapeStyle(QStringLiteral("moderate:accent1")));   // the words are the style's light 1
+        Rig::sub(r.menuOf("ribbon.textFill"), QStringLiteral("Gradient"), QStringLiteral("Linear Down"))->trigger();
+        const QString story = r.shape(id)->storyId;
+        const QTextCharFormat before = r.letter(story, 2);
+        QVERIFY(!before.stringProperty(tp::TextFill).isEmpty());
+        QVERIFY(r.w.applyShapeStyle(QStringLiteral("outline:accent3")));
+        const QTextCharFormat after = r.letter(story, 2);
+        QCOMPARE(after.stringProperty(tp::TextFill), before.stringProperty(tp::TextFill));
+        QCOMPARE(after.stringProperty(tp::ColorRefP), before.stringProperty(tp::ColorRefP));
+    }
+
     // ---- Change Shape
 
     // Another geometry from the library goes onto a shape and nothing else of it changes: its words, fill, line, shadow, place, size, turn, and
