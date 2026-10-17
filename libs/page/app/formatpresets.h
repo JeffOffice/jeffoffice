@@ -3,6 +3,7 @@
 // and an app's Shape Effects menu use these, so both reach the same settings.
 
 #include "core/style.h"
+#include "core/texteffects.h"
 
 #include <QString>
 
@@ -23,6 +24,12 @@ void applyReflection(Effects &fx, int i);
 int glowCount();
 QString glowName(int i);
 void applyGlow(Effects &fx, int i, const ColorRef &color);
+
+// The same shadows, reflections, and glows on the letters of a run (what a run's effect list holds), for Text Effects: shadowName, reflectionName, and
+// glowName name them. Each turns the effect on and leaves the others in the list as they are.
+void applyTextShadow(TextEffects &fx, int i);
+void applyTextReflection(TextEffects &fx, int i);
+void applyTextGlow(TextEffects &fx, int i, const QColor &color);
 
 // Soft edges of 1, 2.5, 5, 10, 25, and 50 points.
 int softEdgeCount();

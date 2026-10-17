@@ -251,6 +251,7 @@ void PageView::mousePressEvent(QMouseEvent *e)
             m_cursor.setPosition(at);
             caretMoved();
         }
+        m_contextAt = at;   // (what the menu is for, whether or not the selection stayed)
         return;
     }
     if (e->button() != Qt::LeftButton) return;
@@ -315,8 +316,10 @@ void PageView::contextMenuEvent(QContextMenuEvent *e)
     if (e->reason() == QContextMenuEvent::Mouse) {
         e->accept();
         Q_EMIT contextMenuWanted(e->globalPos());
+        m_contextAt = -1;
         return;
     }
+    m_contextAt = -1;   // (from the keyboard it is the caret's)
     QRect r;
     caretRect(&r);
     e->accept();

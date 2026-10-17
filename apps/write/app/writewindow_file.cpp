@@ -73,7 +73,12 @@ void WriteWindow::createFileActions()
     mk("file.options", tr("Options"), "settings", QKeySequence(), [this] {
         // The shared pages (General, Proofing); JeffWrite has no pages of its own yet.
         Editor stand;
-        optionsDialog(this, &stand, {});
+        stand.view.spelling = m_view->spellingEnabled();   // (its "check spelling as you type" is the view's)
+        if (optionsDialog(this, &stand, {})) {
+            act("review.checkAsType")->setChecked(stand.view.spelling);
+            m_view->setSpellingEnabled(stand.view.spelling);
+            Settings::get().setValue(QStringLiteral("proof/asYouType"), stand.view.spelling);
+        }
     });
 
     static quint64 s_windows = 0;

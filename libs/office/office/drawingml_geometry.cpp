@@ -541,6 +541,12 @@ double over(double v, double d) { return d > 0 ? v / d : 0.0; }
 #define SIDE_FRACTION(most) [](const double *a, double, double) { return QVector<double>{pin(0, a[0], most) / 100000}; }
 
 const AdjustSpec kAdjustments[] = {
+    // The arc-based presets: the standard's angles as a fraction of a turn (of 21,600,000), and a block arc's band as a fraction of 100,000.
+    {"arc", 2, {16200000, 0}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 21599999) / 21600000, pin(0, a[1], 21599999) / 21600000}; }},
+    {"chord", 2, {2700000, 16200000}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 21599999) / 21600000, pin(0, a[1], 21599999) / 21600000}; }},
+    {"pie", 2, {0, 16200000}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 21599999) / 21600000, pin(0, a[1], 21599999) / 21600000}; }},
+    {"blockArc", 3, {10800000, 0, 25000}, [](const double *a, double, double) {
+        return QVector<double>{pin(0, a[0], 21599999) / 21600000, pin(0, a[1], 21599999) / 21600000, pin(0, a[2], 50000) / 100000}; }},
     {"roundRect", 1, {16667}, SIDE_FRACTION(50000)},
     {"snip1Rect", 1, {16667}, SIDE_FRACTION(50000)},
     {"snip2SameRect", 2, {16667, 0}, SIDE_FRACTION(50000)},
@@ -737,6 +743,8 @@ QVector<QPair<QString, double>> presetAdjustments(const QString &prst, const QVe
         slots = {{0, side(w, h) > 0 ? 100000 * w / side(w, h) : 100000}};
     else if (prst.startsWith(QLatin1String("star")) && prst != QLatin1String("star4")) slots = {{0, 50000}};
     else if (prst == QLatin1String("doubleWave")) slots = {{0, 200000}};
+    else if (prst == QLatin1String("arc") || prst == QLatin1String("chord") || prst == QLatin1String("pie")) slots = {{0, 21600000}, {1, 21600000}};
+    else if (prst == QLatin1String("blockArc")) slots = {{0, 21600000}, {1, 21600000}, {2, 100000}};
     else
         for (int i = 0; i < spec->count; ++i) slots.append({i, 100000});
     double values[8];

@@ -3,7 +3,8 @@
 //   writetool pdf <file.txt|.docx> <out.pdf> [options]                 the pages as a PDF
 //   writetool info <file.txt> [options]                          the pages and where each starts
 //   writetool bench [paragraphs=26443] [options]                 a made-up long story: the time to its first page, to all of its pages, and to repaginate after a typed character,
-//                                                                against the targets (all of 26,443 paragraphs in 5 s, the first page in 0.3 s, a typed character in 50 ms); exits 1 if one is missed
+//                                                                against the targets (all of 26,443 paragraphs in 5 s, the first page in 0.3 s, a typed character in 50 ms); exits 1 if one is missed.
+//                                                                With JeffWrite built, it also times spelling as you type: a page's paragraphs, the same again, and after a typed character
 // The text: paragraphs are separated by blank lines; "# " and "## " start headings (kept with the paragraph after); "- " starts a bullet and
 // "1. " a numbered item; "@page-break" puts a page break before the next paragraph; "@section [letter|a4|legal] [landscape] [columns N]" ends
 // the section and starts the next with a page of its own.
@@ -14,7 +15,9 @@
 #include "render/renderer.h"
 #include "text/textprops.h"
 #ifdef JW_DOCX
+#include "core/spellcheck.h"
 #include "core/writedoc.h"
+#include "text/dictionaries.h"
 #endif
 
 #include <QDir>
@@ -281,6 +284,8 @@ double ms(const QElapsedTimer &t) { return t.nsecsElapsed() / 1e6; }
 
 // What the flowing document is to do with a story of 26,443 paragraphs (CI's tests allow ten times as much, for slow machines).
 constexpr double kTargetFirstPageMs = 300, kTargetAllPagesMs = 5000, kTargetTypedMs = 50;
+// And what checking spelling as you type is to cost: the paragraphs of a page, and again after a typed character.
+[[maybe_unused]] constexpr double kTargetSpellPageMs = 25, kTargetSpellTypedMs = 5;
 
 int bench(int paragraphs, const Options &o, QTextStream &out)
 {
@@ -338,6 +343,36 @@ int bench(int paragraphs, const Options &o, QTextStream &out)
             << " ms more to settle the rest\t" << double(laid) / tries << " pages laid out in all\n";
         if (paragraphs == 26443) target(qPrintable(QStringLiteral("a typed character at the %1 (worst)").arg(QLatin1String(where.first))), worst, kTargetTypedMs);
     }
+#ifdef JW_DOCX
+    // Spelling as you type, on the paragraphs of a page in the middle of the story (the dictionary is loaded first: that is a cost of its own).
+    {
+        t.restart();
+        const bool loaded = dict::hasSpelling(QStringLiteral("en-US"));
+        out << "the dictionary loads\t" << ms(t) << " ms\t" << (loaded ? "found" : "MISSING") << "\n";
+        const int index = pg.pageOfPosition(end / 2);
+        const int from = pg.page(index).start.pos, to = index + 1 < pg.pageCount() ? pg.page(index + 1).start.pos : fd.story()->characterCount();
+        write::SpellCheck check(fd.story());
+        t.restart();
+        const int found = int(check.misspelledIn(from, to).size());
+        const double firstMs = ms(t);
+        const qint64 paragraphs = check.paragraphsChecked();
+        t.restart();
+        check.misspelledIn(from, to);
+        const double againMs = ms(t);
+        QTextCursor c(fd.story());
+        c.setPosition(from + 5);
+        c.insertText(QStringLiteral("x"));
+        t.restart();
+        check.misspelledIn(from, to + 1);
+        const double typedMs = ms(t);
+        out << "spelling a page\t" << paragraphs << " paragraphs\t" << found << " misspelled\t" << firstMs << " ms\t" << againMs << " ms again (kept)\t" << typedMs << " ms after a typed character ("
+            << check.paragraphsChecked() - paragraphs << " paragraph checked again)\n";
+        if (loaded) {
+            target("spelling a page's paragraphs", firstMs, kTargetSpellPageMs);
+            target("spelling after a typed character", typedMs, kTargetSpellTypedMs);
+        }
+    }
+#endif
     // The page after an edit, drawn.
     t.restart();
     const QImage again = pageImage(pg, &cache, pg.pageOfPosition(end / 2), 800);

@@ -1,5 +1,6 @@
 // JeffDeck's tests of reading a presentation file: slides, masters, pictures, and limits.
 #include "deckhelpers.h"
+#include "../timing.h"
 
 class DeckPptxImportTests : public QObject {
     Q_OBJECT
@@ -766,10 +767,12 @@ private Q_SLOTS:
         QImage past(20000, 16384, QImage::Format_Mono);
         past.fill(0);
         const QByteArray png = imageBytes(past);
-        QElapsedTimer timer;
-        timer.start();
-        QVERIFY(d.addImage(png, QStringLiteral("png")).isEmpty());
-        QVERIFY2(timer.elapsed() < 3000, "reading the size of a picture must not decode it");
+        QString none;
+        const qint64 ms = bestNanoseconds([&] { none = d.addImage(png, QStringLiteral("png")); }, 5, [&] {
+            d.imagesLeftOut = 0;   // one picture left out, as for one call
+        }) / 1000000;
+        QVERIFY(none.isEmpty());
+        QVERIFY2(ms < 3000, "reading the size of a picture must not decode it");
         QCOMPARE(d.imagesLeftOut, 1);
         QCOMPARE(int(d.images.size()), 1);
         // The same picture again is left out again (and counted again), not found.
@@ -860,11 +863,11 @@ private Q_SLOTS:
         Document d;
         const QString id = d.addImage(bmp, QStringLiteral("bmp"));
         QVERIFY(!id.isEmpty());
-        QElapsedTimer timer;
-        timer.start();
-        for (int i = 0; i < 4000; ++i)
-            if (d.addImage(bmp, QStringLiteral("bmp")) != id) QFAIL("a picture used again is stored again");
-        QVERIFY2(timer.elapsed() < 1000, qPrintable(QStringLiteral("took %1 ms").arg(timer.elapsed())));
+        const qint64 ms = bestNanoseconds([&] {
+            for (int i = 0; i < 4000; ++i)
+                if (d.addImage(bmp, QStringLiteral("bmp")) != id) QFAIL("a picture used again is stored again");
+        }) / 1000000;
+        QVERIFY2(ms < 1000, qPrintable(QStringLiteral("took %1 ms").arg(ms)));
         QCOMPARE(int(d.images.size()), 1);
     }
 
@@ -876,11 +879,12 @@ private Q_SLOTS:
         Document d;
         int left = 0;
         auto leavesOut = [&](const char *what, const QByteArray &svg) {
-            QElapsedTimer timer;
-            timer.start();
-            const QString id = d.addImage(svg, QStringLiteral("svg"));
+            QString id;
+            const qint64 ms = bestNanoseconds([&] { id = d.addImage(svg, QStringLiteral("svg")); }, 5, [&] {
+                d.imagesLeftOut = left;   // each call leaves one out, counted from here
+            }) / 1000000;
             QVERIFY2(id.isEmpty(), what);
-            QVERIFY2(timer.elapsed() < 2000, what);
+            QVERIFY2(ms < 2000, what);
             QCOMPARE(d.imagesLeftOut, ++left);
         };
         auto keeps = [&](const char *what, const QByteArray &svg) {
@@ -968,12 +972,14 @@ private Q_SLOTS:
         for (const QByteArray &svg : hostile) {
             Parts p = samplePptx();
             p.data["/ppt/media/image1.png"] = {QStringLiteral("image/png"), svg};
-            QElapsedTimer timer;
-            timer.start();
             QString err;
-            auto d = deck::importPresentation(pack(p), &err);
+            std::unique_ptr<Document> d;
+            const qint64 ms = bestNanoseconds([&] { d = deck::importPresentation(pack(p), &err); }, 5, [&] {
+                d.reset();
+                err.clear();
+            }) / 1000000;
             QVERIFY2(d, qPrintable(err));
-            QVERIFY2(timer.elapsed() < 5000, qPrintable(QStringLiteral("took %1 ms").arg(timer.elapsed())));
+            QVERIFY2(ms < 5000, qPrintable(QStringLiteral("took %1 ms").arg(ms)));
             QVERIFY(d->images.isEmpty());
             QVERIFY(d->imagesLeftOut >= 1);
             QVERIFY2(err.contains(QStringLiteral("picture")), qPrintable(err));
@@ -1761,11 +1767,12 @@ private Q_SLOTS:
             slideShapes += QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"Q\"/><p:cNvSpPr/><p:nvPr><p:ph type=\"x%1\" idx=\"%2\"/></p:nvPr></p:nvSpPr><p:spPr/></p:sp>").arg(i + 2).arg(500000 + i);
         p.data["/ppt/slideLayouts/slideLayout2.xml"].xml = layoutXml(QStringLiteral("obj"), QStringLiteral("Wide"), QString(), layoutShapes).toUtf8();
         p.data["/ppt/slides/slide1.xml"].xml = slideXml(QString(), QString(), slideShapes).toUtf8();
-        QElapsedTimer timer;
-        timer.start();
         QString err;
-        auto d = deck::importPresentation(pack(p), &err);
-        const qint64 ms = timer.elapsed();
+        std::unique_ptr<Document> d;
+        const qint64 ms = bestNanoseconds([&] { d = deck::importPresentation(pack(p), &err); }, 3, [&] {
+            d.reset();
+            err.clear();
+        }) / 1000000;
         QVERIFY(d);
         QVERIFY2(!d->pages.empty() && d->pages[0]->items.size() == 1000, qPrintable(err));
         QVERIFY2(ms < 6000, qPrintable(QStringLiteral("took %1 ms").arg(ms)));

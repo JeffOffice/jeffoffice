@@ -353,6 +353,26 @@
       ]
     },
     {
+      "name": "Review",
+      "keytip": "R",
+      "groups": [
+        {
+          "name": "Proofing",
+          "keytip": "ZP",
+          "items": [
+            {
+              "large": "review.spelling",
+              "keytip": "S"
+            },
+            {
+              "large": "review.checkAsType",
+              "keytip": "T"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "View",
       "keytip": "W",
       "groups": [

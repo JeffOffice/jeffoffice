@@ -633,7 +633,27 @@ QTextCharFormat WriteDoc::styleCharFormat(const QString &paragraphStyle, const Q
 {
     const QString style = paragraphStyle.isEmpty() ? defaultParagraphStyle() : paragraphStyle;
     const StyleSheet &sheet = sheetFor(style);
-    return charFormatOf((characterStyle.isEmpty() ? sheet : sheetFor(characterStyle)).run(style, characterStyle), theme());
+    QTextCharFormat f = charFormatOf((characterStyle.isEmpty() ? sheet : sheetFor(characterStyle)).run(style, characterStyle), theme());
+    if (const QString language = styleLanguage(style, characterStyle); !language.isEmpty() && language != proofingLanguage()) f.setProperty(tp::Language, language);
+    return f;
+}
+
+QString WriteDoc::proofingLanguage() const { return languageOf(m_wml.styles.defaultRun.extra); }
+
+QString WriteDoc::styleLanguage(const QString &paragraphStyle, const QString &characterStyle) const
+{
+    for (const QString &first : {characterStyle, paragraphStyle.isEmpty() ? defaultParagraphStyle() : paragraphStyle}) {
+        const StyleSheet &sheet = first.isEmpty() ? m_wml.styles : sheetFor(first);
+        QStringList seen;
+        for (QString at = first; !at.isEmpty() && !seen.contains(at) && seen.size() < 32; ) {
+            seen << at;
+            const Style *s = sheet.find(at);
+            if (!s) break;
+            if (const QString language = languageOf(s->rPr.extra); !language.isEmpty()) return language;
+            at = s->basedOn;
+        }
+    }
+    return QString();
 }
 
 // ---- lists

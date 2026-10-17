@@ -100,6 +100,27 @@ int Paginator::numberOf(int index) const
     return number;
 }
 
+// Where the text goes on after a page break that is the end of `last`, the last line laid out, for a page that has no line after it: the next line of the
+// paragraph if it has text to show or (where the mark follows the break) the mark's own empty line, else the paragraph after it. (A row of a table has no
+// break that ends it.) Says whether there is such a place.
+bool Paginator::breakContinuesAt(const StoryLayout::LineBrief &last, PageStart *next) const
+{
+    if (m_tables->any() && m_tables->index().spanAt(last.pos) >= 0) return false;
+    const QTextDocument *story = m_doc->story();
+    const QTextBlock block = story->findBlock(last.pos);
+    if (!block.isValid()) return false;
+    const bool onlyTheMarkLeft = last.end >= block.position() + block.length() - 1;
+    if (last.line + 1 < last.lines && (!onlyTheMarkLeft || m_doc->markFollowsBreak)) {
+        next->pos = last.end;
+        next->skip = last.line + 1;
+        return true;
+    }
+    if (!block.next().isValid()) return false;
+    next->pos = block.next().position();
+    next->skip = 0;
+    return true;
+}
+
 Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
 {
     ++m_laidOut;
@@ -574,12 +595,10 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         }
         run.next.hard = hard;
         run.next.section = nextSection;
-    } else if (byCharacter && c > 0 && m_doc->story()->findBlock(L[c - 1].pos).next().isValid()) {
+    } else if (byCharacter && c > 0 && breakContinuesAt(L[c - 1], &run.next)) {
         // A page break that ends the last line the page laid out (the empty line after it went past the frame, where laying out stops): the page
-        // after it begins with the paragraph that follows.
+        // after it begins where the text goes on.
         run.hasNext = true;
-        run.next.pos = m_doc->story()->findBlock(L[c - 1].pos).next().position();
-        run.next.skip = 0;
         run.next.hard = true;
         run.next.section = nextSection;
     } else if ((forced && !byCharacter && c > 0) || !carriedOut.isEmpty()) {

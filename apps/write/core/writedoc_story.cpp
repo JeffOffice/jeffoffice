@@ -158,11 +158,12 @@ bool showsContent(const QVector<Inline> &content)
     return false;
 }
 
-// What a format is for text that a tracked change deleted: left out of the lines as hidden text is, but still the story's (the file keeps it).
+// What a format is for text that a tracked change deleted: left out of the lines as hidden text is, but still the story's (the file keeps it). The format
+// says whether it hid the text already (the file's own w:vanish, or its style's): that is what is written back, and the hiding that deleting adds is not.
 QTextCharFormat asDeleted(QTextCharFormat format)
 {
+    format.setProperty(prop::TrackedDeleted, format.boolProperty(tp::HiddenText) ? prop::HiddenAlready : prop::HiddenByDeletion);
     format.setProperty(tp::HiddenText, true);
-    format.setProperty(prop::TrackedDeleted, true);
     return format;
 }
 
@@ -259,7 +260,9 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         resolved.overlay(props);
         resolved.extra = props.extra;
         resolved.style = props.style;
-        const QTextCharFormat f = charFormatOf(resolved, thm, &props);
+        QTextCharFormat f = charFormatOf(resolved, thm, &props);
+        if (!f.hasProperty(tp::Language))
+            if (const QString language = styleLanguage(paraStyle, props.style); !language.isEmpty() && language != proofingLanguage()) f.setProperty(tp::Language, language);
         formats.insert(key, f);
         return f;
     };
@@ -549,7 +552,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             }
             if (in.kind == Inline::RunAtom && !deleted && drawnTag(in.tag) && drawnObjects(in, part, &af)) field = QStringLiteral("raw:");
             else if (in.tag == QLatin1String("footnoteReference") && m_noteBlocks.contains(QStringLiteral("fn") + in.key)) field = QStringLiteral("footnote:fn") + in.key;
-            else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + roman(++endnoteNumber, false);
+            else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + roman(deleted ? endnoteNumber + 1 : ++endnoteNumber, false);   // (a deleted one takes no number)
             af.setProperty(tp::Field, field);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);
         }

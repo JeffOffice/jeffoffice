@@ -247,6 +247,7 @@ void ParaProps::overlay(const ParaProps &t)
     if (t.indFirst) indFirst = t.indFirst;
     if (!t.jc.isEmpty()) jc = t.jc;
     if (t.outlineLvl) outlineLvl = t.outlineLvl;
+    if (t.overflowPunct) overflowPunct = t.overflowPunct;
     if (t.borders) {
         ParaBorders b = borders.value_or(ParaBorders());
         if (t.borders->top) b.top = t.borders->top;

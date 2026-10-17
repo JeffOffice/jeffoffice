@@ -7,6 +7,11 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 
 - [Welcome to JeffWrite](start)
 - [Open, save, print, and export](open-save)
+- [Print](print)
+
+## Work on your text
+
+- [Check your spelling](spelling)
 
 ## Write and change text
 

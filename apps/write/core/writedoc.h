@@ -102,6 +102,13 @@ public:
     // What the style of a table gives the paragraphs of the cell with this key (null: none).
     const office::wml::TableLayer *tableLayerOf(int cellKey) const;
 
+    // ---- proofing
+    // The language of text that says none: the document's default (its defaults' w:lang), empty for none (American English).
+    QString proofingLanguage() const;
+    // The language that a paragraph style and a character style give the text in them (the character style's first, then each style's it is based on); empty when none
+    // states one.
+    QString styleLanguage(const QString &paragraphStyle, const QString &characterStyle) const;
+
     // ---- lists
     const office::wml::Numbering &numbering() const { return m_wml.numbering; }
     // The list definition (w:numId) for a new list of plain bullets or numbers, made if need be. Bullets share one definition; each new
