@@ -536,6 +536,165 @@ private Q_SLOTS:
         QVERIFY(!notes.notes.isEmpty());
     }
 
+    // ---- drawings
+
+    void aTextBoxIsSetWhereTheFileSaysAndHoldsItsText()
+    {
+        DocWriter w = simple(QStringLiteral("Before\x08 after\r"));
+        w.chars = {{6, 7, sprm1(sprm::special, 1)}};
+        ShapeSpec box;
+        box.cp = 6;
+        box.x0 = 720; box.y0 = 360; box.x1 = 4320; box.y1 = 1440;
+        box.bx = 1; box.by = 0; box.wr = 2;
+        box.text = QStringLiteral("Boxed words\r");
+        w.shapes = {box};
+        Document d;
+        QVERIFY(read(w.build(), &d));
+        QCOMPARE(bodyTexts(d), QStringList{QStringLiteral("Before after")});
+        const Inline *pict = nullptr;
+        for (const Inline &in : d.body[0].para.content)
+            if (in.kind == Inline::RunAtom && in.tag == QLatin1String("pict")) pict = &in;
+        QVERIFY(pict);
+        const QVector<wml::Shape> shapes = wml::readShapes(pict->raw);
+        QCOMPARE(shapes.size(), qsizetype(1));
+        const wml::Shape &s = shapes[0];
+        QCOMPARE(s.kind, wml::Shape::TextBox);
+        QVERIFY(s.floating);
+        QCOMPARE(s.left, 36.0);
+        QCOMPARE(s.top, 18.0);
+        QCOMPARE(s.width, 180.0);
+        QCOMPARE(s.height, 54.0);
+        QCOMPARE(s.hRel, wml::Shape::Page);
+        QCOMPARE(s.vRel, wml::Shape::Margin);
+        QCOMPARE(s.wrap, wml::Shape::Square);
+        QVERIFY(!s.behind);
+        QVERIFY(QString::fromUtf8(s.textBox).contains(QLatin1String("Boxed words")));
+        // (The mark that ends the box's text is not a paragraph of it.)
+        QCOMPARE(QString::fromUtf8(s.textBox).count(QLatin1String("<w:p>")), 1);
+    }
+
+    void aPictureShapeBehindTheText()
+    {
+        DocWriter w = simple(QStringLiteral("x\x08y\r"));
+        w.chars = {{1, 2, sprm1(sprm::special, 1)}};
+        ShapeSpec pic;
+        pic.spid = 1030;
+        pic.type = 75;
+        pic.cp = 1;
+        pic.x0 = 0; pic.y0 = 0; pic.x1 = 2880; pic.y1 = 1440;
+        pic.wr = 3;
+        pic.below = true;
+        pic.png = tinyPng(16, 8);
+        w.shapes = {pic};
+        Document d;
+        QVERIFY(read(w.build(), &d));
+        const Inline *pict = nullptr;
+        for (const Inline &in : d.body[0].para.content)
+            if (in.kind == Inline::RunAtom && in.tag == QLatin1String("pict")) pict = &in;
+        QVERIFY(pict);
+        const QVector<wml::Shape> shapes = wml::readShapes(pict->raw);
+        QCOMPARE(shapes.size(), qsizetype(1));
+        QCOMPARE(shapes[0].kind, wml::Shape::Picture);
+        QVERIFY(shapes[0].floating);
+        QVERIFY(shapes[0].behind);
+        QCOMPARE(shapes[0].wrap, wml::Shape::WrapNone);
+        QCOMPARE(shapes[0].width, 144.0);
+        QCOMPARE(shapes[0].height, 72.0);
+        QCOMPARE(shapes[0].hRel, wml::Shape::Column);
+        QCOMPARE(shapes[0].vRel, wml::Shape::Paragraph);
+        QVERIFY(!shapes[0].embed.isEmpty());
+        bool media = false;
+        for (const wml::KeptPart &p : d.parts)
+            if (p.name.startsWith(QLatin1String("/word/media/")) && p.data.startsWith(QByteArray("\x89PNG"))) media = true;
+        QVERIFY(media);
+    }
+
+    void shapesOfTheHeadersAreInTheHeaders()
+    {
+        DocWriter w = simple(QStringLiteral("body\r"));
+        w.headerStories = {QString(), QString(), QString(), QString(), QString(), QString(), QString(), QStringLiteral("\x08\r")};
+        const int headerStart = int(w.text.size());
+        w.chars = {{headerStart, headerStart + 1, sprm1(sprm::special, 1)}};
+        ShapeSpec box;
+        box.header = true;
+        box.cp = 0;
+        box.x0 = -720; box.y0 = -240; box.x1 = 7200; box.y1 = 600;
+        box.text = QStringLiteral("Letterhead\r");
+        w.shapes = {box};
+        Document d;
+        QVERIFY(read(w.build(), &d));
+        const wml::HeaderRefs refs = wml::headerRefsOf(d.lastSection);
+        QVERIFY(!refs.header[0].isEmpty());
+        QString headerPart;
+        for (const auto &r : d.mainRelationships)
+            if (r.id == refs.header[0]) headerPart = r.target;
+        const wml::KeptPart *p = part(d, headerPart);
+        QVERIFY(p);
+        QVERIFY(QString::fromUtf8(p->data).contains(QLatin1String("Letterhead")));
+        QVERIFY(QString::fromUtf8(p->data).contains(QLatin1String("margin-left:-36pt")));
+    }
+
+    void theMembersOfAGroupAreScaledIntoTheGroup()
+    {
+        DocWriter w = simple(QStringLiteral("g\x08\r"));
+        w.chars = {{1, 2, sprm1(sprm::special, 1)}};
+        ShapeSpec group;
+        group.spid = 1040;
+        group.type = 0;
+        group.cp = 1;
+        group.x0 = 1000; group.y0 = 2000; group.x1 = 5000; group.y1 = 4000;   // 4000 by 2000 twips among the text
+        group.groupLeft = 0; group.groupTop = 0; group.groupRight = 1000; group.groupBottom = 1000;   // its members' coordinates
+        ShapeSpec member;
+        member.spid = 1041;
+        member.type = 1;
+        member.group = 0;
+        member.memberLeft = 250; member.memberTop = 500; member.memberRight = 750; member.memberBottom = 1000;
+        member.fill = 0x0000FF;
+        member.line = 0x000000;
+        w.shapes = {group, member};
+        Document d;
+        QVERIFY(read(w.build(), &d));
+        const Inline *pict = nullptr;
+        for (const Inline &in : d.body[0].para.content)
+            if (in.kind == Inline::RunAtom && in.tag == QLatin1String("pict")) pict = &in;
+        QVERIFY(pict);
+        const QVector<wml::Shape> shapes = wml::readShapes(pict->raw);
+        QCOMPARE(shapes.size(), qsizetype(1));
+        QCOMPARE(shapes[0].kind, wml::Shape::Rect);
+        // A quarter of the way across 4000 twips from 1000 (to 2000), half way down 2000 from 2000 (to 3000): 50 by 50 points to 100 wide... as twips/20.
+        QCOMPARE(shapes[0].left, 100.0);
+        QCOMPARE(shapes[0].top, 150.0);
+        QCOMPARE(shapes[0].width, 100.0);
+        QCOMPARE(shapes[0].height, 50.0);
+        QVERIFY(shapes[0].filled);
+        QCOMPARE(shapes[0].fillColor, QStringLiteral("FF0000"));
+    }
+
+    void aShapeThatTheDrawingDoesNotHoldIsLeftOut()
+    {
+        DocWriter w = simple(QStringLiteral("x\x08y\r"));
+        w.chars = {{1, 2, sprm1(sprm::special, 1)}};
+        ShapeSpec box;
+        box.cp = 1;
+        box.x1 = 1440; box.y1 = 720;
+        box.text = QStringLiteral("t\r");
+        w.shapes = {box};
+        QByteArray file = w.build();
+        // (The shape's record is made another shape's: the place the file gives has no shape in the drawing.)
+        jp::cfb::File f;
+        QVERIFY(jp::cfb::read(file, &f));
+        QByteArray t = f.stream(QStringLiteral("1Table"));
+        const int at = t.indexOf(QByteArray::fromHex("01040000"));   // (the box's id, 1025, in the table of places)
+        QVERIFY(at >= 0);
+        t[at] = char(0x77);
+        QVERIFY(f.setStream(QStringLiteral("1Table"), t));
+        Document d;
+        ReadNotes notes;
+        QVERIFY(read(jp::cfb::write(f), &d, &notes));
+        QCOMPARE(bodyTexts(d), QStringList{QStringLiteral("xy")});
+        QVERIFY(notes.leftOut);
+    }
+
     // ---- files that are not read
 
     void refusals()
@@ -586,6 +745,126 @@ private Q_SLOTS:
         const bool ok = read(jp::cfb::write(f), &d, &notes);
         QVERIFY(t.elapsed() < 5000);
         if (ok) QVERIFY(bodyTexts(d).join(QLatin1Char(' ')).contains(QLatin1String("short")));
+    }
+
+    void tooManyRowsAreCutAndSaid()
+    {
+        // More rows than the .docx reader lays out: the rest are left out, and the time stays short.
+        const int rows = wml::kMaxTableRows + 300;
+        QString text;
+        DocWriter w;
+        const QByteArray in = sprm1(sprm::inTable, 1) + sprm4(sprm::tableDepth, 1);
+        const QByteArray row = in + sprm1(sprm::endsRow, 1) + tableRow({0, 1000});
+        int at = 0;
+        for (int i = 0; i < rows; ++i) {
+            text += QStringLiteral("x\a\a");
+            w.paras.push_back({at, at + 2, 0, in});
+            w.paras.push_back({at + 2, at + 3, 0, row});
+            at += 3;
+        }
+        text += QStringLiteral("end\r");
+        w.text = text;
+        QElapsedTimer t;
+        t.start();
+        Document d;
+        ReadNotes notes;
+        QVERIFY(read(w.build(), &d, &notes));
+        QVERIFY(t.elapsed() < 20000);
+        int count = 0;
+        for (const Block &b : d.body)
+            if (b.isRaw && b.tag == QLatin1String("tr") && b.role == Inline::Open) ++count;
+        QVERIFY(count <= wml::kMaxTableRows);
+        QVERIFY(notes.leftOut);
+    }
+
+    void manySectionsAreBounded()
+    {
+        const int sections = doc::kMaxSections + 500;
+        QString text;
+        DocWriter w;
+        for (int i = 0; i < sections; ++i) {
+            text += QLatin1Char('\f');
+            w.paras.push_back({i, i + 1, 0, QByteArray()});
+            w.sections.push_back({i + 1, QByteArray()});
+        }
+        w.text = text;
+        QElapsedTimer t;
+        t.start();
+        Document d;
+        QVERIFY(read(w.build(), &d));
+        QVERIFY(t.elapsed() < 20000);
+        int breaks = 0;
+        for (const Block &b : d.body)
+            if (!b.isRaw && b.para.props.section) ++breaks;
+        QVERIFY(breaks <= doc::kMaxSections);
+    }
+
+    void aPictureManyCharactersPointToIsReadOnce()
+    {
+        DocWriter w;
+        const int at = w.addPicture(tinyPng(32, 32), 1440, 1440);
+        QString text;
+        const int refs = 3000;
+        for (int i = 0; i < refs; ++i) {
+            text += QLatin1Char('\x01');
+            w.chars.push_back({i, i + 1, sprm1(sprm::special, 1) + sprm4(sprm::picture, quint32(at))});
+        }
+        text += QLatin1Char('\r');
+        w.text = text;
+        QElapsedTimer t;
+        t.start();
+        Document d;
+        QVERIFY(read(w.build(), &d));
+        QVERIFY(t.elapsed() < 20000);
+        int media = 0;
+        for (const wml::KeptPart &p : d.parts)
+            if (p.name.startsWith(QLatin1String("/word/media/"))) ++media;
+        QCOMPARE(media, 1);
+    }
+
+    void notesThatOverlapAreLeftOut()
+    {
+        // The table of the notes' text says each begins before the one before it: not read, rather than read again for each.
+        DocWriter w = simple(QStringLiteral("a\x02""b\x02""c\r"));
+        w.chars = {{1, 2, sprm1(sprm::special, 1)}, {3, 4, sprm1(sprm::special, 1)}};
+        w.footnotes = {QStringLiteral("\x02 one\r"), QStringLiteral("\x02 two\r")};
+        w.footnoteRefs = {1, 3};
+        jp::cfb::File f;
+        QVERIFY(jp::cfb::read(w.build(), &f));
+        QByteArray t = f.stream(QStringLiteral("1Table"));
+        const int at = t.indexOf(QByteArray::fromHex("00000000060000000c00"));   // (the notes' starts: 0, 6, then the end)
+        QVERIFY(at >= 0);
+        t[at + 4] = char(0xFF);   // the second note begins at 255, and the first has to end there: past the end of the second
+        QVERIFY(f.setStream(QStringLiteral("1Table"), t));
+        Document d;
+        QVERIFY(read(jp::cfb::write(f), &d));
+        QCOMPARE(bodyTexts(d), QStringList{QStringLiteral("abc")});
+    }
+
+    void aLongChainOfStylesIsCutShort()
+    {
+        DocWriter w = simple(QStringLiteral("x\r"));
+        QVector<StyleSpec> st;
+        for (int i = 0; i < 300; ++i) {
+            StyleSpec s;
+            s.name = QStringLiteral("S%1").arg(i);
+            s.sti = i == 0 ? 0 : 0xFFE;
+            s.base = i == 0 ? 0xFFF : i - 1;
+            s.character = sprm1(sprm::bold, 0x81);
+            st.push_back(s);
+        }
+        w.styles = st;
+        w.paras = {{0, 2, 299, QByteArray()}};
+        Document d;
+        QElapsedTimer t;
+        t.start();
+        QVERIFY(read(w.build(), &d));
+        QVERIFY(t.elapsed() < 5000);
+        QCOMPARE(bodyTexts(d), QStringList{"x"});
+        // (The style the paragraph has is still read, and its chain no longer than the limit.)
+        int depth = 0;
+        for (const wml::Style *s = d.styles.find(QStringLiteral("S299")); s && depth < 1000; s = s->basedOn.isEmpty() ? nullptr : d.styles.find(s->basedOn)) ++depth;
+        QVERIFY(depth <= doc::kMaxStyleDepth + 2);
     }
 
     void changedBytesNeverCrashOrHang()

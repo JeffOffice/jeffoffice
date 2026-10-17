@@ -91,15 +91,15 @@ bool Converter::readPicture(qint32 position, Picture *out)
     return true;
 }
 
-QString Converter::addMedia(const QString &part, const Picture &pic)
+QString Converter::addMedia(const QString &part, const Picture &pic, const QString &key)
 {
-    // One media part for each picture of the data stream, and a relationship to it from each part that shows it.
-    QString media = m_mediaOfPicture.value(pic.bytes);
+    // One media part for each picture, and a relationship to it from each part that shows it.
+    QString media = m_mediaOfKey.value(key);
     if (media.isEmpty()) {
         media = QStringLiteral("/word/media/image%1.%2").arg(++m_mediaCount).arg(pic.extension);
         static const QHash<QString, QString> types = {{"png", "image/png"}, {"jpeg", "image/jpeg"}, {"emf", "image/x-emf"}, {"wmf", "image/x-wmf"}, {"bmp", "image/bmp"}, {"tiff", "image/tiff"}};
         pkg.addPart(media, pic.bytes, types.value(pic.extension, QStringLiteral("application/octet-stream")));
-        m_mediaOfPicture.insert(pic.bytes, media);
+        m_mediaOfKey.insert(key, media);
         m_pictureBytes += pic.bytes.size();
     }
     const QString relKey = part + QLatin1Char('|') + media;
@@ -118,12 +118,19 @@ QByteArray Converter::pictureXml(qint32 position, const QString &part)
         return QByteArray();
     }
     ++m_pictures;
-    Picture pic;
-    if (!readPicture(position, &pic)) {
+    // (A picture that many characters point to is read once.)
+    auto cached = m_pictureAt.constFind(position);
+    if (cached == m_pictureAt.constEnd()) {
+        Picture read;
+        if (!readPicture(position, &read)) read = Picture();
+        cached = m_pictureAt.insert(position, read);
+    }
+    if (cached->bytes.isEmpty()) {
         left(QStringLiteral("pictures"), QCoreApplication::translate("jp::office::doc", "Some pictures could not be shown, and were left out."));
         return QByteArray();
     }
-    const QString rid = addMedia(part, pic);
+    const Picture &pic = cached.value();
+    const QString rid = addMedia(part, pic, QStringLiteral("d%1").arg(position));
     const qint64 cx = qint64(pic.width * 12700), cy = qint64(pic.height * 12700);
     const QByteArray id = QByteArray::number(++m_drawingId);
     auto pct = [](double v) { return QByteArray::number(qint64(std::clamp(v, -1.0, 1.0) * 100000)); };

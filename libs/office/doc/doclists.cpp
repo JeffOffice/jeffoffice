@@ -70,7 +70,7 @@ Lists readLists(const Span &plfLst, const Span &plfLfo, const FontNames &fonts, 
     const qint64 levelsAt = o + 28 * qint64(cLst);
     qint64 lo = levelsAt;
     int made = 0;
-    for (int i = 0; i < cLst && plfLst.fits(o + 28 * qint64(i), 28); ++i) {
+    for (int i = 0; i < cLst && plfLst.fits(o + 28 * qint64(i), 28) && abstracts.size() < kMaxListBytes; ++i) {
         const Span l = plfLst.sub(o + 28 * qint64(i), 28);
         const quint32 lsid = l.u32(0);
         const bool simple = l.u8(26) & 1;
@@ -90,7 +90,7 @@ Lists readLists(const Span &plfLst, const Span &plfLfo, const FontNames &fonts, 
     const int lfoMac = int(std::min<quint32>(plfLfo.u32(0), kMaxListInstances));
     QByteArray nums;
     qint64 d = 4 + 16 * qint64(lfoMac);
-    for (int i = 0; i < lfoMac && plfLfo.fits(4 + 16 * qint64(i), 16); ++i) {
+    for (int i = 0; i < lfoMac && plfLfo.fits(4 + 16 * qint64(i), 16) && nums.size() < kMaxListBytes; ++i) {
         const Span lfo = plfLfo.sub(4 + 16 * qint64(i), 16);
         const auto it = byId.constFind(lfo.u32(0));
         const int clfolvl = lfo.u8(12);

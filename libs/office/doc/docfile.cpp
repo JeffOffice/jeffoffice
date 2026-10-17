@@ -16,7 +16,8 @@ namespace {
 const char kNamespaces[] =
     "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
     "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
-    "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"";
+    "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" "
+    "xmlns:w10=\"urn:schemas-microsoft-com:office:word\"";
 const char kXmlHeader[] = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n";
 const char kRel[] = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/";
 const char kWml[] = "application/vnd.openxmlformats-officedocument.wordprocessingml.";
@@ -122,7 +123,6 @@ bool Converter::open(const QByteArray &file, QString *error)
     readSections();
     readNotePlcs();
     if (fib.ccpAtn > 0) left(QStringLiteral("comments"), QCoreApplication::translate("jp::office::doc", "Comments in the document were not brought in."));
-    if (fib.ccpTxbx > 0 || fib.ccpHdrTxbx > 0) left(QStringLiteral("shapes"), QCoreApplication::translate("jp::office::doc", "Drawings and text boxes in the document were not brought in."));
     return true;
 }
 
@@ -203,6 +203,14 @@ void Converter::readNotePlcs()
     };
     load(Fib::PlcffndRef, Fib::PlcffndTxt, &footnoteRefs, &footnoteText);
     load(Fib::PlcfendRef, Fib::PlcfendTxt, &endnoteRefs, &endnoteText);
+    for (QVector<qint64> *txt : {&footnoteText, &endnoteText})
+        if (!std::is_sorted(txt->begin(), txt->end())) {   // (the notes' text follows one note after another)
+            footnoteRefs.clear();
+            endnoteRefs.clear();
+            footnoteText.clear();
+            endnoteText.clear();
+            break;
+        }
     // (Looked up by position: the references are in order in a sound file.)
     if (!std::is_sorted(footnoteRefs.begin(), footnoteRefs.end())) {
         footnoteRefs.clear();
@@ -238,6 +246,7 @@ QByteArray Converter::settingsXml() const
     if (dop.u8(0) & 1) x += "<w:evenAndOddHeaders/>";
     const int tab = dop.size() >= 12 ? dop.u16(10) : 720;
     x += "<w:defaultTabStop w:val=\"" + QByteArray::number(tab > 0 ? tab : 720) + "\"/>";
+    x += "<w:noPunctuationKerning/><w:characterSpacingControl w:val=\"doNotCompress\"/>";
     // How the notes are numbered: where the count begins again, and the number it starts at.
     auto noteProps = [&](const char *tag, int bits) {
         const int restart = bits & 3, start = bits >> 2;
@@ -253,8 +262,62 @@ QByteArray Converter::settingsXml() const
         x += noteProps("footnotePr", dop.u16(2));
         x += noteProps("endnotePr", dop.u16(52));
     }
-    // The file says no other mode: that of the 2003 programs.
-    x += "<w:compat><w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"11\"/></w:compat></w:settings>";
+    // The file says no other mode: that of the 2003 programs, whose way of laying text and tables out is what the compatibility options say. The
+    // options are bits of the document's settings: the older ones in the four bytes at 84, the others further on (a file written by an earlier
+    // program has fewer of them: what its settings don't reach is as the 1997 program had it).
+    auto bit = [&](int byte, int b) { return dop.size() > byte && (dop.u8(byte) >> b) & 1; };
+    const bool oldWay = dop.size() < 513, wide = dop.size() >= 600, moreOptions = dop.size() >= 512;
+    QByteArray c;
+    auto on = [&](bool v, const char *name) {
+        if (v) c += QByteArray("<w:") + name + "/>";
+    };
+    // (In the order the schema gives them.)
+    on(bit(84, 0), "noTabHangInd");
+    on(bit(86, 7), "wpJustification");
+    on(moreOptions && !bit(85, 4), "doNotLeaveBackslashAlone");
+    on(moreOptions && !bit(85, 5), "doNotExpandShiftReturn");
+    on(moreOptions && !bit(85, 6), "ulTrailSpace");
+    on(moreOptions && !bit(85, 7), "balanceSingleByteDoubleByteWidth");
+    on(bit(84, 5), "noColumnBalance");
+    on(bit(84, 4), "printColBlack");
+    on(bit(85, 2), "showBreaksInFrames");
+    on(bit(87, 0), "subFontBySize");
+    on(bit(87, 6), "suppressBottomSpacing");
+    on(bit(84, 7), "suppressTopSpacing");
+    on(bit(86, 6), "suppressTopSpacingWP");
+    on(bit(84, 2), "suppressSpBfAfterPgBrk");
+    on(bit(85, 3), "swapBordersFacingPages");
+    on(bit(84, 6), "convMailMergeEsc");
+    on(bit(87, 4), "truncateFontHeightsLikeWP6");
+    on(bit(87, 7), "usePrinterMetrics");
+    on(bit(87, 2), "doNotSuppressParagraphBorders");
+    on(bit(84, 3), "wrapTrailSpaces");
+    const bool layout97 = oldWay || (dop.u8(512) & 7) == 7;
+    on(layout97, "footnoteLayoutLikeWW8");
+    on(layout97, "shapeLayoutLikeWW8");
+    on(layout97, "alignTablesRowByRow");
+    on(layout97, "forgetLastTabAlignment");
+    on(bit(84, 1), "noSpaceRaiseLower");
+    on(layout97, "doNotUseHTMLParagraphAutoSpacing");
+    on(layout97, "layoutRawTableWidth");
+    on(layout97, "layoutTableRowsApart");
+    on(layout97, "useWord97LineBreakRules");
+    const bool punct = dop.size() <= 544 || bit(513, 2);
+    on(punct, "doNotBreakWrappedTables");
+    on(punct, "doNotSnapToGridInCell");
+    on(punct, "selectFldWithFirstOrLastChar");
+    on(dop.size() >= 514 && bit(513, 5), "applyBreakingRules");
+    on(punct, "doNotWrapTextWithPunct");
+    on(punct, "doNotUseEastAsianBreakRules");
+    on(!wide || bit(514, 0), "useWord2002TableStyleRules");
+    on(!wide || bit(514, 0), "growAutofit");
+    c += "<w:useNormalStyleForList/><w:doNotUseIndentAsNumberingTabStop/><w:useAltKinsokuLineBreakRules/><w:allowSpaceOfSameStyleInTable/><w:doNotSuppressIndentation/>"
+         "<w:doNotAutofitConstrainedTables/><w:autofitToFirstFixedWidthCell/>";
+    on(dop.size() < 412 || !bit(411, 2), "underlineTabInNumList");
+    c += "<w:displayHangulFixedWidth/><w:splitPgBreakAndParaMark/><w:doNotVertAlignCellWithSp/><w:doNotBreakConstrainedForcedTable/><w:doNotVertAlignInTxbx/>"
+         "<w:useAnsiKerningPairs/><w:cachedColBalance/>"
+         "<w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"11\"/>";
+    x += "<w:compat>" + c + "</w:compat></w:settings>";
     return x;
 }
 
@@ -289,7 +352,13 @@ QByteArray Converter::build()
 
     // Headers and footers: the six stories of each section, after six for the notes' separators.
     {
-        const Plc hdd(tableRange(Fib::PlcfHdd), 0);
+        Plc hdd(tableRange(Fib::PlcfHdd), 0);
+        // (The stories follow one another: a table that says otherwise would have one read again and again.)
+        for (int i = 1; i <= hdd.n; ++i)
+            if (hdd.cp(i) < hdd.cp(i - 1)) {
+                hdd = Plc();
+                break;
+            }
         int made = 0;
         for (int si = 0; si < sections.size(); ++si) {
             QByteArray refs;

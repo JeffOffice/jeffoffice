@@ -58,6 +58,24 @@ struct SectionSpec {
     QByteArray sprms;
 };
 
+// A drawing shape that a paragraph anchors: a text box, a picture, or a box; its place on the page is given in twips from where it is placed
+// (bx and by say from what: 0 the margin, 1 the page, 2 the text).
+struct ShapeSpec {
+    int spid = 1025;
+    int type = 202;                    // 202 text box, 75 picture frame, 1 rectangle, 3 oval, 20 line
+    int cp = 0;                        // where its anchor character (\x08) is in the main text, or in the headers' text
+    bool header = false;
+    int x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+    int bx = 2, by = 2, wr = 2;
+    bool below = false;                // behind the text
+    QString text;                      // a text box's text: paragraphs end in \r
+    QByteArray png;                    // a picture's bytes
+    qint64 fill = -1, line = -1;       // colors as 0xBBGGRR; -1 for none
+    int group = -1;                    // the shape that is the group this one is a member of (by place in the list)
+    int groupLeft = 0, groupTop = 0, groupRight = 1000, groupBottom = 1000;   // a group shape's coordinates for its members
+    int memberLeft = 0, memberTop = 0, memberRight = 0, memberBottom = 0;     // a member's place in its group's coordinates
+};
+
 class DocWriter {
 public:
     QString text;                      // the main text: paragraphs end in \r (a table's cells in \a)
@@ -71,6 +89,7 @@ public:
     QStringList footnotes;             // each note's text (its own mark first, \r last)
     QVector<int> footnoteRefs;         // where each is cited in the main text
     QStringList headerStories;         // six for the notes' separators then six for each section; a story's text without the mark that ends it
+    QVector<ShapeSpec> shapes;
     QVector<QVector<ListLevelSpec>> lists;   // each list's levels; the instance of list i is number i + 1
     bool evenAndOddHeaders = false;
     int defaultTab = 720;
