@@ -4079,6 +4079,21 @@ private Q_SLOTS:
         QVERIFY2(std::abs(lines[1].rect.height() - 12 * (1950 + 550) / 2048.0) < 0.02, qPrintable(QString::number(lines[1].rect.height())));
     }
 
+    // A multiple of the line that is written as a negative number (a file converted from an older format has them) is the same multiple as a positive
+    // one: the line is as tall as it would be for its size, not as one with nothing in it.
+    void aNegativeMultipleOfTheLineIsReadAsItsSize()
+    {
+        auto lineOf = [](const char *line) {
+            const QByteArray body = QByteArray("<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"") + line + "\" w:lineRule=\"auto\"/></w:pPr><w:r><w:t>Words</w:t></w:r></w:p>";
+            auto doc = open(makeDocx(body));
+            return doc->pager().lines(0).first().rect.height();
+        };
+        const double single = lineOf("240");
+        QVERIFY(single > 5);
+        QVERIFY2(std::abs(lineOf("-480") - 2 * single) < 0.02, qPrintable(QString::number(lineOf("-480"))));
+        QVERIFY2(std::abs(lineOf("-120") - lineOf("120")) < 0.02, qPrintable(QString::number(lineOf("-120"))));
+    }
+
     // A page number in a frame (set in the middle or at the side, anchored to the text) takes no room: a footer of it and an empty paragraph is
     // one line tall, and the number is set as the frame says.
     void aFrameParagraphInAFooterTakesNoRoom()
