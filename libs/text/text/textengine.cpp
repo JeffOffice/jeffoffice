@@ -939,6 +939,17 @@ static double rawFirstSize(const QTextBlock &b)
     return std::max(0.5, it.atEnd() ? fileSize(b.charFormat()) : fileSize(it.fragment().charFormat()));
 }
 
+// Whether a text has a letter of a script that is shaped with ligatures of its own (Arabic, the scripts of India and of southeast Asia...), which no setting
+// of ligatures is to touch.
+static bool hasComplexScript(const QString &text)
+{
+    for (const QChar ch : text) {
+        const char16_t u = ch.unicode();
+        if ((u >= 0x0590 && u < 0x1E00) || (u >= 0xFB1D && u <= 0xFDFF) || (u >= 0xFE70 && u <= 0xFEFF)) return true;
+    }
+    return false;
+}
+
 QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
 {
     QTextCharFormat cf = b.charFormat();
@@ -952,7 +963,9 @@ QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
     if (num == 2) f.setFeature(QFont::Tag("onum"), 1);
     if (sp == 1) f.setFeature(QFont::Tag("pnum"), 1);
     if (sp == 2) f.setFeature(QFont::Tag("tnum"), 1);
-    if (lig == 1 || env.noLigatures || env.wordLines) { f.setFeature(QFont::Tag("liga"), 0); f.setFeature(QFont::Tag("clig"), 0); }
+    // (A word processor's text has none unless its file asks, and not the letters of the scripts that need them: those are shaped as the font does.)
+    const bool wordDefault = env.wordLines && !cf.hasProperty(tp::Ligatures) && !hasComplexScript(b.text());
+    if (lig == 1 || env.noLigatures || wordDefault) { f.setFeature(QFont::Tag("liga"), 0); f.setFeature(QFont::Tag("clig"), 0); }
     if (lig == 2) { f.setFeature(QFont::Tag("dlig"), 1); f.setFeature(QFont::Tag("hlig"), 1); }
     const int ss = cf.intProperty(tp::StylisticSet);
     if (ss > 0 && ss <= 20) f.setFeature(QFont::Tag::fromString(QStringLiteral("ss%1").arg(ss, 2, 10, QChar('0'))).value_or(QFont::Tag()), 1);

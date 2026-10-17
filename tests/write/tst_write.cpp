@@ -3809,6 +3809,31 @@ private Q_SLOTS:
         }, QStringLiteral("o||two|"));
     }
 
+    // A run that asks for ligatures (w14:ligatures) has them in the layout, by the value it states; the file keeps the element as it was.
+    void aRunThatAsksForLigaturesIsReadSo()
+    {
+        const QByteArray ns = " xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\"";
+        auto ligaturesOf = [&](const char *val) {
+            const QByteArray body = "<w:p><w:r><w:rPr><w14:ligatures" + ns + " w14:val=\"" + val + "\"/></w:rPr><w:t>office</w:t></w:r></w:p>";
+            auto doc = open(makeDocx(body));
+            if (!doc) return -2;
+            const QTextCharFormat f = doc->story()->begin().begin().fragment().charFormat();
+            if (!f.hasProperty(tp::Ligatures)) return -1;
+            QTextCursor c(doc->story());
+            insertText(*doc, c, QStringLiteral("x"));
+            if (!documentXml(doc->toDocx()).contains(QByteArray("w14:val=\"") + val + "\"")) return -3;
+            return f.intProperty(tp::Ligatures);
+        };
+        QCOMPARE(ligaturesOf("none"), 1);
+        QCOMPARE(ligaturesOf("standard"), 0);
+        QCOMPARE(ligaturesOf("standardContextual"), 0);
+        QCOMPARE(ligaturesOf("all"), 2);
+        QCOMPARE(ligaturesOf("discretional"), 2);
+        auto doc = open(makeDocx("<w:p><w:r><w:t>office</w:t></w:r></w:p>"));
+        QVERIFY(doc);
+        QVERIFY(!doc->story()->begin().begin().fragment().charFormat().hasProperty(tp::Ligatures));
+    }
+
     // A file that says its hanging indents add no tab stop (noTabHangInd) is read so, by its value.
     void hangingIndentsAreNoTabStopsWhereTheFileSaysSo()
     {
