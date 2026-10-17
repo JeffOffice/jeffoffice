@@ -211,11 +211,8 @@ QByteArray StoryWriter::rprOf(const Chp &chp, int istd) const
 
 void StoryWriter::paragraph(qint64 first, qint64 last, bool terminated)
 {
-    if (c.paragraphs >= kMaxParagraphs || c.truncated) {
-        c.truncated = true;
-        c.left(QStringLiteral("long"), QCoreApplication::translate("jp::office::doc", "The document is longer than this program can open: the end of it was left out."));
-        return;
-    }
+    if (c.paragraphs >= kMaxParagraphs) c.cutShort();
+    if (c.truncated) return;
     const Piece *endPiece = c.pieces.at(last);
     if (!endPiece) return;
     const quint32 fcEnd = quint32(PieceTable::fcOf(*endPiece, last));
