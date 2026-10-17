@@ -4491,6 +4491,31 @@ private Q_SLOTS:
         QVERIFY(down.size() == 3 && std::abs(down[1] - plain[1]) < 0.01);
     }
 
+    // A place that no line of the paragraph could be under (the foot of the page, or past it) leaves the paragraph where it is: no page loses its lines, and the document
+    // has all of its text whatever the place says.
+    void anAdvanceFieldPastTheFootOfThePageLeavesNoTextOut()
+    {
+        auto totalLines = [&](const QByteArray &instruction, int *pages = nullptr) {
+            const QByteArray field = "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> " + instruction + " </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+            const QByteArray first = "<w:p>" + field + "<w:r><w:t>first paragraph words</w:t></w:r></w:p>";
+            auto doc = open(makeDocx(first + paragraphs(29, 40), kStyles));
+            if (!doc) return -1;
+            const int count = doc->pager().pageCount();
+            if (pages) *pages = count;
+            int lines = 0;
+            for (int k = 0; k < count; ++k) lines += int(doc->pager().lines(k).size());
+            return lines;
+        };
+        int plainPages = 0;
+        const int plain = totalLines("PAGE", &plainPages);
+        QVERIFY(plain > 100 && plainPages > 2);
+        for (const char *place : {"600", "720", "740", "756", "792", "100000"}) {
+            int pages = 0;
+            const int lines = totalLines(QByteArray("ADVANCE \\y ") + place, &pages);
+            QVERIFY2(lines == plain && pages >= plainPages, qPrintable(QStringLiteral("a place of %1: %2 lines on %3 pages, where %4 lines on %5 pages are").arg(QLatin1String(place)).arg(lines).arg(pages).arg(plain).arg(plainPages)));
+        }
+    }
+
     // The page color of a file (w:background) is the pages' color, and the file comes back with it.
     void aFilesPageColorFillsItsPages()
     {

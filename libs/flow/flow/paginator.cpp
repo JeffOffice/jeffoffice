@@ -4,6 +4,7 @@
 
 #include <QElapsedTimer>
 #include <QHash>
+#include <QSet>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -616,22 +617,39 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
     // A paragraph that asks to be no higher on the page than a place (a field that sets its text at a place) is there when it would be higher, with the text after it below:
     // a room is kept clear from where its first line would be to the place, and the page is laid out again (a paragraph that moved another may need a room too: one room
     // at a time, the highest first, so that the rooms of two paragraphs are not one).
+    QSet<int> leftAlone;   // (the paragraphs whose ask is not kept: their first line would not fit under the room)
     for (int pass = 0; pass < 8; ++pass) {
         bool added = false;
+        int askedBlock = -1;
         for (int i = 0; i < kept; ++i) {
             const StoryLayout::LineBrief &ln = run.lines[i];
-            if (ln.line != 0) continue;
-            const double asked = flags(ln.block).advanceTop;
+            if (ln.line != 0 || leftAlone.contains(ln.block)) continue;
+            double asked = flags(ln.block).advanceTop;
             const int col = ln.frame - run.firstFrame;
             if (asked < 0 || col < 0 || col >= run.cols.size()) continue;
             const double natural = body.top() + run.cols[col].top() + ln.rect.top();
+            // (A place is in the text area, as far as its foot at most.)
+            const double foot = body.top() + run.cols[col].bottom();
+            asked = std::min(asked, foot);
             if (asked <= natural + 0.01) continue;
+            // A place that the paragraph's first line would not fit under (the page's foot, or past it) leaves the paragraph where it is: the page would have no line, and the
+            // pages no more text.
+            if (asked + (ln.rect.height() - ln.below) > foot + 0.01) {
+                leftAlone.insert(ln.block);
+                continue;
+            }
             advanceWalls << QRectF(run.cols[col].left(), natural, run.cols[col].width(), asked - natural);
+            askedBlock = ln.block;
             added = true;
             break;
         }
         if (!added) break;
         lay();
+        if (kept <= 0) {   // (the room left the page no line: the paragraph is where it was)
+            advanceWalls.pop_back();
+            leftAlone.insert(askedBlock);
+            lay();
+        }
     }
     run.advanceWalls = advanceWalls;
     // A continuous section with other columns or side margins, when the text of the one before ends on the page, begins below it: the page is laid out again in two parts.

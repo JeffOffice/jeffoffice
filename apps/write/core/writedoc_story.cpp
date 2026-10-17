@@ -555,7 +555,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             }
             if (in.kind == Inline::RunAtom && !deleted && advanceTop < 0 && in.tag == QLatin1String("instrText")) {
                 const QRegularExpressionMatch m = advance.match(textOfXml(in.raw));
-                if (m.hasMatch()) advanceTop = std::clamp(m.captured(1).toDouble(), 0.0, 5000.0);
+                if (m.hasMatch()) advanceTop = std::clamp(m.captured(1).toDouble(), 0.0, 1584.0);   // (no page is taller than 22 inches)
             }
             QTextCharFormat af = formatOf(styleId, in.props);
             if (deleted) af = asDeleted(af);
