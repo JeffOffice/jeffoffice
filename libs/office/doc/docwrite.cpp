@@ -497,11 +497,11 @@ QByteArray sectionPropertiesXml(const Sep &s, const QByteArray &refs)
         attr(x, "w:restart", s.lineNumbering == 0 ? QStringLiteral("newPage") : s.lineNumbering == 1 ? QStringLiteral("newSection") : QStringLiteral("continuous"));
         x += "/>";
     }
-    if (s.pageStart || s.numberFormat) {
+    if ((s.pageStart && s.restart) || s.numberFormat) {
         static const char *const formats[] = {"decimal", "upperRoman", "lowerRoman", "upperLetter", "lowerLetter", "decimal"};
         x += "<w:pgNumType";
         if (s.numberFormat > 0 && s.numberFormat <= 4) attr(x, "w:fmt", QString::fromLatin1(formats[s.numberFormat]));
-        if (s.pageStart && (s.restart || s.pageStart.value_or(0) != 0)) attr(x, "w:start", std::clamp(*s.pageStart, 0, 32767));
+        if (s.pageStart && s.restart) attr(x, "w:start", std::clamp(*s.pageStart, 0, 32767));
         x += "/>";
     }
     {

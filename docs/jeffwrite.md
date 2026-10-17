@@ -87,8 +87,14 @@ deleting, moving, selecting, the clipboard, character and paragraph formatting, 
 `.docx` reading and writing in `libs/office/wml` (the XML tree, the model, styles with inheritance, numbering, sections, and everything the
 program doesn't edit kept as XML or as whole parts and written back where it was); and packaging behind a switch that is off. What
 JeffWrite shows of a table, a picture, a field, a header or footer, or a note is a stand-in or nothing; it keeps them. Not yet: the pieces of
-wave 3 (notes, headers and footers, page fields, anchored pictures) and wave 4 (tables), `.doc`, `.rtf`, and `.odt`, spelling, Find and
+wave 3 (notes, headers and footers, page fields, anchored pictures) and wave 4 (tables), `.rtf` and `.odt`, spelling, Find and
 Replace, the ruler, the Font dialog, and Word's own PDFs to measure the pages against.
+
+`.doc` (the binary files of 1997 to 2003) opens, in `libs/office/doc` (October 17, 2026): a reader turns the compound file (its text pieces,
+the bins of character and paragraph properties, the styles, lists, sections, headers and footers, notes, fields, tables, pictures, and the
+drawing's shapes) into the parts of a `.docx` package that the `.docx` reader then reads, so layout, editing, and saving as `.docx` are the same
+code; saving asks for a `.docx` name. On the practice half of the Word yardstick (the 75 government documents whose originals are `.doc`) the
+`.doc` renders score as well as the same documents' Word-made `.docx` (median page 1.19 for both).
 
 ## Checking it
 

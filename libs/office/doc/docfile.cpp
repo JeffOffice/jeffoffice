@@ -122,6 +122,7 @@ bool Converter::open(const QByteArray &file, QString *error)
     authors = readStringTable(tableRange(Fib::SttbfRMark), 1000);
     readSections();
     readNotePlcs();
+    readBookmarks();
     if (fib.ccpAtn > 0) left(QStringLiteral("comments"), QCoreApplication::translate("jp::office::doc", "Comments in the document were not brought in."));
     return true;
 }
@@ -188,6 +189,39 @@ void Converter::readSections()
     }
     // The last section runs to the end of the text.
     sections.last().end = fib.ccpText;
+}
+
+void Converter::readBookmarks()
+{
+    const QStringList names = readStringTable(tableRange(Fib::SttbfBkmk), kMaxBookmarks);
+    const Plc starts(tableRange(Fib::PlcfBkf), 4), ends(tableRange(Fib::PlcfBkl), 0);
+    const int n = std::min({int(names.size()), starts.n, kMaxBookmarks});
+    struct Mark {
+        qint64 cp;
+        int order;    // starts after ends at the same place (a bookmark ending where another begins)
+        QByteArray xml;
+    };
+    QVector<Mark> marks;
+    QSet<QString> used;
+    int id = 0;
+    for (int i = 0; i < n; ++i) {
+        const Span r = starts.record(i);
+        if (r.u16(2) & 0x8000) continue;                 // (a bookmark of a column of a table)
+        const int endIndex = r.u16(0);
+        if (endIndex >= ends.n + 1) continue;
+        qint64 a = starts.cp(i), b = ends.cp(endIndex);
+        if (a < 0 || a >= fib.ccpText) continue;
+        b = std::clamp<qint64>(b, a, fib.ccpText);
+        QString name = names[i].left(40);
+        // (The marks the original program makes for its own use, to find a place it has just edited, are not the person's.)
+        if (name.isEmpty() || used.contains(name) || name.startsWith(QLatin1String("_Hlt")) || name == QLatin1String("_PictureBullets")) continue;
+        used.insert(name);
+        const QByteArray tag = QByteArray::number(id++);
+        marks.push_back({a, 1, "<w:bookmarkStart w:id=\"" + tag + "\" w:name=\"" + xmlEscape(name) + "\"/>"});
+        marks.push_back({b, a == b ? 2 : 0, "<w:bookmarkEnd w:id=\"" + tag + "\"/>"});
+    }
+    std::stable_sort(marks.begin(), marks.end(), [](const Mark &x, const Mark &y) { return x.cp != y.cp ? x.cp < y.cp : x.order < y.order; });
+    for (const Mark &m : marks) bookmarkEvents.push_back({m.cp, m.xml});
 }
 
 void Converter::readNotePlcs()
@@ -321,6 +355,21 @@ QByteArray Converter::settingsXml() const
     return x;
 }
 
+// The section with the way its notes are numbered that the document gives, where the section says nothing of its own.
+Sep Converter::withNoteFormats(Sep sep) const
+{
+    const Span dop = tableRange(Fib::Dop);
+    if (dop.size() >= 56) {
+        const int epc = dop.u16(54);
+        // (Said only where it is not what notes have when nothing is said: numbers for footnotes, lower-case roman numerals for endnotes. A file of the
+        // 1997 program, which has no bit 0x1000, means numbers by 0; later programs mean the usual numerals.)
+        const int footnotes = (epc >> 2) & 0xF, endnotes = (epc >> 6) & 0xF;
+        if (!sep.footnoteFormat && footnotes != 0) sep.footnoteFormat = footnotes;
+        if (!sep.endnoteFormat && endnotes != 2 && !(endnotes == 0 && (epc & 0x1000) && fib.ccpEdn == 0)) sep.endnoteFormat = endnotes;
+    }
+    return sep;
+}
+
 QByteArray Converter::build()
 {
     const QString mainName = QStringLiteral("/word/document.xml");
@@ -381,7 +430,7 @@ QByteArray Converter::build()
                 const QString rid = pkg.addRelationship(mainName, rel + (k.header ? QStringLiteral("header") : QStringLiteral("footer")), name);
                 refs += QByteArray(k.header ? "<w:headerReference w:type=\"" : "<w:footerReference w:type=\"") + k.type + "\" r:id=\"" + rid.toUtf8() + "\"/>";
             }
-            sections[si].xml = "<w:sectPr>" + sectionPropertiesXml(sections[si].sep, refs) + "</w:sectPr>";
+            sections[si].xml = "<w:sectPr>" + sectionPropertiesXml(withNoteFormats(sections[si].sep), refs) + "</w:sectPr>";
         }
     }
 
@@ -409,7 +458,7 @@ QByteArray Converter::build()
 
     // The main text.
     const QByteArray body = story(0, fib.ccpText, Kind::Main, mainName);
-    if (sections.last().xml.isEmpty()) sections.last().xml = "<w:sectPr>" + sectionPropertiesXml(sections.last().sep, QByteArray()) + "</w:sectPr>";
+    if (sections.last().xml.isEmpty()) sections.last().xml = "<w:sectPr>" + sectionPropertiesXml(withNoteFormats(sections.last().sep), QByteArray()) + "</w:sectPr>";
     pkg.addPart(mainName, QByteArray(kXmlHeader) + "<w:document " + kNamespaces + "><w:body>" + (body.isEmpty() ? QByteArray("<w:p/>") : body) + sections.last().xml + "</w:body></w:document>",
                 wml + QStringLiteral("document.main+xml"));
     return pkg.finish();

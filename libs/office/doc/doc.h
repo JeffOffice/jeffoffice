@@ -34,6 +34,8 @@ constexpr int kMaxTableCellsAll = wml::kMaxTableCells;
 // Drawings: the shapes of one drawing, and the text boxes of a document.
 constexpr int kMaxShapes = 20000;
 constexpr int kMaxTextBoxes = 100000;
+// Bookmarks.
+constexpr int kMaxBookmarks = 20000;
 // The XML of the lists (their definitions and instances).
 constexpr qint64 kMaxListBytes = qint64(64) << 20;
 // Fields that nest in one another (an unclosed field is closed at the end of its paragraph).

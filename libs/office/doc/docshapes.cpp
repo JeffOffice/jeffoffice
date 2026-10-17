@@ -208,6 +208,38 @@ std::optional<bool> flagOf(const QHash<int, quint32> &props, int id, int bit)
 
 } // namespace
 
+// A shape in the line of text that has no picture of its own: a picture of the drawing's own store (its place in the property table), a rule across the
+// width, or a box.
+QByteArray Converter::inlineShapeXml(const Picture &pic, const QString &part)
+{
+    DrawnShape s;
+    const QVector<OdrawRecord> first = odrawRecords(pic.shape);
+    if (first.isEmpty() || !readShape(pic.shape, first.first(), &s)) return QByteArray();
+    if (const int pib = int(s.props.value(0x104, 0))) {
+        if (Picture *stored = storedPicture(pib)) {
+            Picture shown = *stored;
+            shown.width = std::max(1.0, pic.width);
+            shown.height = std::max(1.0, pic.height);
+            return drawingXml(shown, addMedia(part, *stored, QStringLiteral("s%1").arg(pib)));
+        }
+    }
+    const bool filled = flagOf(s.props, 0x1BF, 4).value_or(true), stroked = flagOf(s.props, 0x1FF, 3).value_or(false);
+    if (s.type != 1 && s.type != 3 && s.type != 2) {
+        left(QStringLiteral("drawings"), QCoreApplication::translate("jp::office::doc", "Some drawings could not be shown, and were left out."));
+        return QByteArray();
+    }
+    const bool rule = s.props.contains(0x394);
+    const QByteArray tag = s.type == 3 ? "v:oval" : "v:rect";
+    QByteArray x = "<w:pict><" + tag + " id=\"_x0000_i" + QByteArray::number(++m_drawingId) + "\" style=\"width:" + (pic.width > 0 ? pt(pic.width) + "pt" : QByteArray("0")) + ";height:" + pt(pic.height) + "pt\"";
+    if (rule) x += " o:hralign=\"center\" o:hrstd=\"t\" o:hr=\"t\"";
+    if (filled) x += " filled=\"t\" fillcolor=\"" + (s.props.contains(0x181) ? colorOf(s.props.value(0x181), true) : QByteArray("#FFFFFF")) + "\"";
+    else x += " filled=\"f\"";
+    if (stroked) x += " stroked=\"t\"" + (s.props.contains(0x1C0) ? " strokecolor=\"" + colorOf(s.props.value(0x1C0), false) + "\"" : QByteArray());
+    else x += " stroked=\"f\"";
+    x += "/></w:pict>";
+    return x;
+}
+
 // The VML shapes for the anchor at character `cp` of a story: empty if there are none.
 QByteArray Converter::shapeXml(qint64 cp, Kind kind, const QString &part)
 {

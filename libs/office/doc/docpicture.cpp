@@ -60,23 +60,31 @@ bool Converter::readPicture(qint32 position, Picture *out)
     const qint64 end = position + lcb;
     if (at + 8 > end) return false;
     const QByteArray rec = d.bytes(at, end - at);
+    // The size it is shown at: its own size in twips, scaled in thousandths.
+    const double goalW = d.u16(position + 28), goalH = d.u16(position + 30), mx = d.u16(position + 32), my = d.u16(position + 34);
+    out->width = goalW * mx / 1000.0 / 20.0;
+    out->height = goalH * my / 1000.0 / 20.0;
     QByteArray blip;
     for (const OdrawStoreEntry &e : odrawStore(rec)) {
         blip = e.embedded;
         if (blip.isEmpty() && e.delayOffset) blip = blipAt(wd, e.delayOffset);
         if (!blip.isEmpty()) break;
     }
-    if (blip.isEmpty()) return false;
+    if (blip.isEmpty()) {
+        // A shape that has no picture in the record: a rule or a box (or a picture the drawing's own store has).
+        const QVector<OdrawRecord> first = odrawRecords(rec);
+        if (first.isEmpty() || first.first().type != 0xF004) return false;
+        out->shape = rec;
+        out->width = std::clamp(out->width, 0.0, 1584.0);
+        out->height = std::clamp(out->height, 0.0, 1584.0);
+        return true;
+    }
     QString format;
     out->bytes = odrawBlip(blip, &format, &m_pictureWork);
     if (out->bytes.isEmpty() || out->bytes.size() > kMaxPictureBytes) return false;
     out->extension = format == QLatin1String("jpeg") ? QStringLiteral("jpeg") : format;
     if (out->extension.isEmpty()) return false;
     cropOf(rec, &out->cropL, &out->cropT, &out->cropR, &out->cropB);
-    // The size it is shown at: its own size in twips, scaled in thousandths.
-    const double goalW = d.u16(position + 28), goalH = d.u16(position + 30), mx = d.u16(position + 32), my = d.u16(position + 34);
-    out->width = goalW * mx / 1000.0 / 20.0;
-    out->height = goalH * my / 1000.0 / 20.0;
     if (out->width < 1 || out->height < 1) {
         QImage img;
         if (out->extension != QLatin1String("emf") && out->extension != QLatin1String("wmf") && img.loadFromData(out->bytes)) {
@@ -125,12 +133,17 @@ QByteArray Converter::pictureXml(qint32 position, const QString &part)
         if (!readPicture(position, &read)) read = Picture();
         cached = m_pictureAt.insert(position, read);
     }
-    if (cached->bytes.isEmpty()) {
+    if (cached->bytes.isEmpty() && cached->shape.isEmpty()) {
         left(QStringLiteral("pictures"), QCoreApplication::translate("jp::office::doc", "Some pictures could not be shown, and were left out."));
         return QByteArray();
     }
     const Picture &pic = cached.value();
-    const QString rid = addMedia(part, pic, QStringLiteral("d%1").arg(position));
+    if (pic.bytes.isEmpty()) return inlineShapeXml(pic, part);
+    return drawingXml(pic, addMedia(part, pic, QStringLiteral("d%1").arg(position)));
+}
+
+QByteArray Converter::drawingXml(const Picture &pic, const QString &rid)
+{
     const qint64 cx = qint64(pic.width * 12700), cy = qint64(pic.height * 12700);
     const QByteArray id = QByteArray::number(++m_drawingId);
     auto pct = [](double v) { return QByteArray::number(qint64(std::clamp(v, -1.0, 1.0) * 100000)); };
@@ -143,5 +156,6 @@ QByteArray Converter::pictureXml(qint32 position, const QString &part)
          "\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>";
     return x;
 }
+
 
 } // namespace jp::office::doc
