@@ -3137,13 +3137,16 @@ private Q_SLOTS:
     // A developer's hook, not a test: the strict round trip. JW_STRICT_IN names a folder (searched through) of .docx files and JW_STRICT_LIST a file
     // of paths, one to a line; each is opened and written again, and the file written is checked for well-formed XML in every part the program wrote,
     // for losing or changing what the file held (rtcheck.h), and for a story that is not the one that was opened. The summary counts the files for
-    // each kind of problem; JW_STRICT_OUT keeps the files written; JW_STRICT_LIMIT stops after that many files.
+    // each kind of problem; JW_STRICT_OUT keeps the files written; JW_STRICT_LIMIT stops after that many files; JW_STRICT_REPORT names a file to put every
+    // problem of every file in (the log shows the first sixty).
     void developerStrictRoundTrip()
     {
         const QString in = qEnvironmentVariable("JW_STRICT_IN"), list = qEnvironmentVariable("JW_STRICT_LIST"), out = qEnvironmentVariable("JW_STRICT_OUT");
         if (in.isEmpty() && list.isEmpty()) QSKIP("JW_STRICT_IN and JW_STRICT_LIST are not set");
         if (!out.isEmpty()) QDir().mkpath(out);
         const int limit = qEnvironmentVariableIntValue("JW_STRICT_LIMIT") > 0 ? qEnvironmentVariableIntValue("JW_STRICT_LIMIT") : 1 << 30;
+        QFile report(qEnvironmentVariable("JW_STRICT_REPORT"));
+        if (!report.fileName().isEmpty()) report.open(QIODevice::WriteOnly | QIODevice::Truncate);
         QStringList paths;
         if (!in.isEmpty())
             for (QDirIterator it(in, {QStringLiteral("*.docx"), QStringLiteral("*.docm"), QStringLiteral("*.dotx")}, QDir::Files, QDirIterator::Subdirectories); it.hasNext();) paths << it.next();
@@ -3197,6 +3200,9 @@ private Q_SLOTS:
                     kind = (l == &strict ? QStringLiteral("strict: ") : l == &loss ? QStringLiteral("loss: ") : QStringLiteral("story: ")) + kind.trimmed();
                     kinds[kind] += 1;
                 }
+            if (report.isOpen())
+                for (const QStringList *l : std::initializer_list<const QStringList *>{&strict, &loss, &differs})
+                    for (const QString &p : *l) report.write((QFileInfo(path).fileName() + QLatin1Char('\t') + (l == &strict ? QStringLiteral("strict") : l == &loss ? QStringLiteral("loss") : QStringLiteral("story")) + QLatin1Char('\t') + p + QLatin1Char('\n')).toUtf8());
             if (lines.size() < 60 && (!strict.isEmpty() || !loss.isEmpty() || !differs.isEmpty()))
                 lines << QFileInfo(path).fileName() + QStringLiteral(": ") + (strict + loss + differs).join(QStringLiteral(" | ")).left(300);
             if (!out.isEmpty()) {
