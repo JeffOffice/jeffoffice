@@ -951,7 +951,7 @@ QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
     if (num == 2) f.setFeature(QFont::Tag("onum"), 1);
     if (sp == 1) f.setFeature(QFont::Tag("pnum"), 1);
     if (sp == 2) f.setFeature(QFont::Tag("tnum"), 1);
-    if (lig == 1 || env.noLigatures) { f.setFeature(QFont::Tag("liga"), 0); f.setFeature(QFont::Tag("clig"), 0); }
+    if (lig == 1 || env.noLigatures || env.wordLines) { f.setFeature(QFont::Tag("liga"), 0); f.setFeature(QFont::Tag("clig"), 0); }
     if (lig == 2) { f.setFeature(QFont::Tag("dlig"), 1); f.setFeature(QFont::Tag("hlig"), 1); }
     const int ss = cf.intProperty(tp::StylisticSet);
     if (ss > 0 && ss <= 20) f.setFeature(QFont::Tag::fromString(QStringLiteral("ss%1").arg(ss, 2, 10, QChar('0'))).value_or(QFont::Tag()), 1);
