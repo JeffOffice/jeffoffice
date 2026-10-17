@@ -4192,6 +4192,23 @@ private Q_SLOTS:
         QVERIFY(!boxWithText(*next, QStringLiteral("FOOTNOTE TWO")));
     }
 
+    // The room between the text and the notes is the file's own separator paragraph, not a line of the Normal style: a separator thirty points tall
+    // (exactly) leaves the text fifty lines of twelve points above a note one line tall, where the Normal style's line would leave it one more.
+    void theNoteSeparatorIsTheFilesOwnParagraph()
+    {
+        const QByteArray exact = "<w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/></w:pPr>";
+        QByteArray body = "<w:p>" + exact + "<w:r><w:t>Cited</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>";
+        for (int i = 0; i < 120; ++i) body += "<w:p>" + exact + "<w:r><w:t>x</w:t></w:r></w:p>";
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"600\" w:lineRule=\"exact\"/></w:pPr>"
+                                 "<w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:id=\"2\"><w:p>" + exact + "<w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Note.</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}}));
+        QVERIFY(doc);
+        const auto lines = doc->pager().lines(0);
+        QVERIFY(lines.size() > 10);
+        QVERIFY2(std::abs(lines.last().rect.bottom() - lines.first().rect.top() - 50 * 12) < 0.01, qPrintable(QString::number(lines.last().rect.bottom() - lines.first().rect.top())));
+    }
+
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
     // thousand sections makes no more than the sections it changed (counted, not timed).
     void editingSectionsTouchesOnlyWhatChanged()
