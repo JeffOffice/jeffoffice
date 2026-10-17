@@ -332,7 +332,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
             hard = forced = byCharacter = true;
             // (The empty line the text engine puts after a break that ends its paragraph stays with the page: the next paragraph is at the top
             // of the next.)
-            if (c < L.size() && L[c].block == L[i].block && L[c].line == L[i].line + 1 && L[c].pos == L[c].end && L[c].line == L[c].lines - 1) ++c;
+            if (!m_doc->markFollowsBreak && c < L.size() && L[c].block == L[i].block && L[c].line == L[i].line + 1 && L[c].pos == L[c].end && L[c].line == L[c].lines - 1) ++c;
             break;
         }
     }

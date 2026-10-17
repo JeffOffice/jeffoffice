@@ -1797,6 +1797,38 @@ private Q_SLOTS:
         QCOMPARE(lp.pageCount(), 1);
     }
 
+    // Where the paragraph mark follows a break to the next page (FlowDocument::markFollowsBreak), a paragraph that ends with a break begins the page after
+    // it with an empty line, its mark's, and the next paragraph comes after that; the break at the end of the last paragraph makes that page too.
+    void theMarkAfterABreakGoesToTheNextPageWhenTheDocumentSaysSo()
+    {
+        FlowDocument fd;
+        fd.markFollowsBreak = true;
+        QTextCursor c(fd.story());
+        c.insertText(QStringLiteral("ends with a break") + flow::kPageBreak);
+        c.insertBlock();
+        c.insertText(QStringLiteral("next"));
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 2);
+        for (const auto &l : pg.lines(0)) QCOMPARE(l.block, 0);
+        const auto second = pg.lines(1);
+        QCOMPARE(second.size(), 2);
+        QCOMPARE(second[0].block, 0);               // (the empty rest of the first paragraph)
+        QCOMPARE(second[0].line, 1);
+        QCOMPARE(second[0].pos, second[0].end);
+        QCOMPARE(second[1].block, fd.story()->findBlockByNumber(1).position());
+        QVERIFY(std::abs(second[0].rect.top()) < 0.01);
+        QVERIFY(second[1].rect.top() >= second[0].rect.bottom() - 0.01);
+        QVERIFY(pg.page(1).start.hard);
+        // The last paragraph ending in a break: the page after it has the mark.
+        FlowDocument last;
+        last.markFollowsBreak = true;
+        QTextCursor lc(last.story());
+        lc.insertText(QStringLiteral("only a break") + flow::kPageBreak);
+        Paginator lp(&last);
+        QCOMPARE(lp.pageCount(), 2);
+        QCOMPARE(lp.lines(1).size(), 1);
+    }
+
     // A break that is on the last line the page has room for, with no room left for the empty line after it, still opens the page after it with the
     // paragraph that follows (the text after the break is not lost).
     void aPageBreakOnTheLastLineThatFitsStillOpensTheNextPage()

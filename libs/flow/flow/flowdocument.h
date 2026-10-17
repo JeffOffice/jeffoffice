@@ -143,6 +143,9 @@ public:
     // Automatic hyphenation (off, as a word processor's is).
     bool hyphenate = false;
     double hyphenZone = 18;
+    // The paragraph mark after a page break character that ends a paragraph goes to the page after the break, where it makes an empty line before the next
+    // paragraph (a word processor's option, which its recent files always have); otherwise it stays with the break, and the next paragraph is the top of the page.
+    bool markFollowsBreak = false;
     // Widow and orphan control, for paragraphs that ask for it (tp::WidowControl): the fewest lines of a paragraph to leave at the foot
     // of a page, and to take to the top of the next. (The text engine keeps two: more than that is asked for here.)
     int widowLines = 2, orphanLines = 2;
