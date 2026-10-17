@@ -2,6 +2,8 @@
 // from an .odp. The pane itself is libs/page's (the pieces it is made of are tested with JeffPub's, in tst_pub_formatpane.cpp).
 #include "deckhelpers.h"
 
+#include <QStandardItemModel>
+
 namespace {
 
 // A slide with a few objects on it and the Format pane over its editor.
@@ -692,6 +694,303 @@ private Q_SLOTS:
         QVERIFY(r.pane->frame()->page(1)->section(QStringLiteral("Glow"))->isVisibleTo(r.pane.get()));
         r.find<QComboBox>("glowPreset")->setCurrentIndex(0);
         QVERIFY(r.shape(0)->fx.glow.on && r.shape(1)->fx.glow.on);
+    }
+
+    // ---- Size & Properties
+
+    // Height, width, rotation, and place (from the top left corner) are typed in the boxes; each is one step. What the objects don't share is
+    // blank, and the objects locked in place keep theirs. Both files keep them.
+    void sizeRotationAndPlaceAreTypedInTheBoxes()
+    {
+        Rig r(2);
+        r.shape(1)->rect = QRectF(250, 60, 90, 80);
+        r.select({0, 1});
+        pane_page(r, FormatPane::Tab::SizeProperties);
+        auto *height = r.find<NumberField>("sizeHeight");
+        auto *width = r.find<NumberField>("sizeWidth");
+        QVERIFY(height && width);
+        QVERIFY(!height->isMixed());   // 80 and 80
+        QCOMPARE(height->value(), 80.0);
+        QVERIFY(width->isMixed());      // 120 and 90
+        QVERIFY(width->box()->cleanText().isEmpty());
+        const int base = r.steps();
+        width->box()->setValue(200);
+        height->box()->setValue(50);
+        r.find<NumberField>("sizeRotation")->box()->setValue(30);
+        r.find<NumberField>("positionX")->box()->setValue(20);
+        r.find<NumberField>("positionY")->box()->setValue(35.5);
+        QCOMPARE(r.steps(), base + 5);
+        for (int i : {0, 1}) {
+            QCOMPARE(r.shape(i)->rect, QRectF(20, 35.5, 200, 50));
+            QCOMPARE(r.shape(i)->rotation, 30.0);
+        }
+        QVERIFY(!width->isMixed());
+        for (int how = 0; how < 2; ++how) {
+            const QByteArray label = how ? "odp" : "pptx";
+            std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+            QVERIFY(d);
+            for (const char *name : {"Shape 1", "Shape 2"}) {
+                Item *it = Rig::named(*d, QLatin1String(name));
+                QVERIFY2(it, label);
+                QVERIFY2(near(it->rect.x(), 20, 0.05) && near(it->rect.y(), 35.5, 0.05) && near(it->rect.width(), 200, 0.05) && near(it->rect.height(), 50, 0.05), label);
+                QVERIFY2(near(it->rotation, 30, 0.05), label);
+            }
+        }
+        // One locked in place keeps its size and its place.
+        r.shape(1)->locked = true;
+        r.ed.notifyLive();
+        width->box()->setValue(60);
+        QCOMPARE(r.shape(0)->rect.width(), 60.0);
+        QCOMPARE(r.shape(1)->rect.width(), 200.0);
+        r.ed.undo();
+        QCOMPARE(r.shape(0)->rect.width(), 200.0);
+    }
+
+    // Lock aspect ratio: with it on, the width follows the height and the height the width; it is kept in both files; a picture has it on from
+    // the start, and a corner dragged on the canvas keeps proportions for exactly the objects that have it.
+    void lockAspectRatioKeepsTheProportions()
+    {
+        Rig r(1);
+        r.select({0});
+        pane_page(r, FormatPane::Tab::SizeProperties);
+        auto *lock = r.find<QCheckBox>("lockAspect");
+        QVERIFY(lock && lock->checkState() == Qt::Unchecked);
+        r.find<NumberField>("sizeWidth")->box()->setValue(240);
+        QCOMPARE(r.shape(0)->rect.size(), QSizeF(240, 80));   // free
+        lock->click();
+        QVERIFY(r.shape(0)->lockAspect);
+        r.find<NumberField>("sizeWidth")->box()->setValue(120);
+        QCOMPARE(r.shape(0)->rect.size(), QSizeF(120, 40));   // 240 by 80 is three to one
+        r.find<NumberField>("sizeHeight")->box()->setValue(80);
+        QCOMPARE(r.shape(0)->rect.size(), QSizeF(240, 80));
+        for (int how = 0; how < 2; ++how) {
+            std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+            QVERIFY(d);
+            QVERIFY2(Rig::named(*d, QStringLiteral("Shape 1"))->lockAspect, how ? "odp" : "pptx");
+        }
+        lock->click();
+        QVERIFY(!r.shape(0)->lockAspect);
+        for (int how = 0; how < 2; ++how) {
+            std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+            QVERIFY2(!Rig::named(*d, QStringLiteral("Shape 1"))->lockAspect, how ? "odp" : "pptx");
+        }
+        // A picture starts with it on and keeps a choice not to have it.
+        auto pic = std::make_shared<PictureItem>();
+        pic->name = QStringLiteral("Picture 1");
+        pic->rect = QRectF(300, 100, 100, 50);
+        pic->imgRect = QRectF(0, 0, 100, 50);
+        QVERIFY(pic->lockAspect);
+        QJsonObject json = pic->toJson();
+        QVERIFY(!json.contains(QStringLiteral("lockAspect")));   // as it was for every picture saved before
+        pic->lockAspect = false;
+        json = pic->toJson();
+        QVERIFY(json.contains(QStringLiteral("lockAspect")));
+        QVERIFY(!static_cast<PictureItem *>(Item::fromJsonAny(json).get())->lockAspect);
+        QVERIFY(static_cast<PictureItem *>(Item::fromJsonAny(PictureItem().toJson()).get())->lockAspect);
+    }
+
+    // A picture is scaled against the size of its file; the scale boxes show how much, and typing one changes the frame and the picture in it
+    // together. Anything else is scaled against the size it has.
+    void scaleIsAgainstThePicturesOwnSize()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QImage image(80, 40, QImage::Format_RGB32);   // 60 by 30 points
+        image.fill(Qt::red);
+        const QString path = dir.filePath(QStringLiteral("red.png"));
+        QVERIFY(image.save(path));
+        Rig r(1);
+        auto pic = std::make_shared<PictureItem>();
+        pic->name = QStringLiteral("Picture 1");
+        QByteArray bytes = readPictureBytes(path);
+        pic->imageId = r.ed.doc()->addImage(bytes, QStringLiteral("png"), path);
+        pic->rect = QRectF(300, 100, 120, 60);
+        pic->imgRect = QRectF(0, 0, 120, 60);
+        r.ed.addItem(pic, false);
+        r.ids << pic->id;
+        r.select({1});
+        pane_page(r, FormatPane::Tab::SizeProperties);
+        QCOMPARE(r.find<NumberField>("scaleWidth")->value(), 200.0);
+        QCOMPARE(r.find<NumberField>("scaleHeight")->value(), 200.0);
+        r.find<NumberField>("scaleWidth")->box()->setValue(100);   // locked: the height follows
+        QCOMPARE(r.item(1)->rect.size(), QSizeF(60, 30));
+        QCOMPARE(static_cast<PictureItem *>(r.item(1))->imgRect.size(), QSizeF(60, 30));
+        QCOMPARE(r.find<NumberField>("scaleHeight")->value(), 100.0);
+        // A shape: 100 until it is changed, and then the size changes by that much.
+        r.select({0});
+        QCOMPARE(r.find<NumberField>("scaleWidth")->value(), 100.0);
+        r.find<NumberField>("scaleWidth")->box()->setValue(150);
+        QCOMPARE(r.shape(0)->rect.width(), 180.0);
+        QCOMPARE(r.shape(0)->rect.height(), 80.0);
+        QCOMPARE(r.find<NumberField>("scaleWidth")->value(), 100.0);
+    }
+
+    // The options of the text in a text box: where it sits, which way it runs, whether the box or the text gives way, the four margins, whether it
+    // wraps, and columns; each one step, and kept by both files.
+    void textBoxOptionsAreChangedAndKept()
+    {
+        Rig r(0);
+        auto t = std::make_shared<TextItem>();
+        t->name = QStringLiteral("Text 1");
+        t->rect = QRectF(40, 60, 240, 120);
+        t->storyId = r.ed.doc()->createStory(QStringLiteral("One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen"));
+        r.ed.addItem(t, false);
+        r.ids << t->id;
+        r.select({0});
+        pane_page(r, FormatPane::Tab::SizeProperties);
+        auto text = [&]() { return static_cast<TextItem *>(r.item(0)); };
+        QVERIFY(r.pane->frame()->page(2)->section(QStringLiteral("Text Box"))->isVisibleTo(r.pane.get()));
+        const int base = r.steps();
+        r.find<QComboBox>("textAlign")->setCurrentIndex(3);   // middle, centered
+        QVERIFY(text()->valign == VAlign::Middle && text()->centerBlock);
+        r.find<QComboBox>("textDirection")->setCurrentIndex(1);
+        QVERIFY(text()->vertical);
+        r.find<NumberField>("marginLeft")->box()->setValue(10);
+        r.find<NumberField>("marginRight")->box()->setValue(11);
+        r.find<NumberField>("marginTop")->box()->setValue(12);
+        r.find<NumberField>("marginBottom")->box()->setValue(13);
+        r.find<QCheckBox>("textWrap")->click();
+        QVERIFY(text()->noWrap);
+        r.find<QComboBox>("textDirection")->setCurrentIndex(0);
+        r.find<QCheckBox>("textWrap")->click();
+        QVERIFY(!text()->noWrap);
+        r.find<NumberField>("textColumns")->box()->setValue(3);
+        QCOMPARE(text()->columns, 3);
+        QVERIFY(r.find<NumberField>("columnSpacing")->isEnabled());
+        r.find<NumberField>("columnSpacing")->box()->setValue(20);
+        QCOMPARE(r.steps(), base + 11);
+        QCOMPARE(text()->insets, QMarginsF(10, 12, 11, 13));
+        QCOMPARE(text()->columnGap, 20.0);
+        for (int how = 0; how < 2; ++how) {
+            const QByteArray label = how ? "odp" : "pptx";
+            std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+            QVERIFY(d);
+            Item *it = Rig::named(*d, QStringLiteral("Text 1"));
+            QVERIFY2(it && it->type() == ItemType::Text, label);
+            const auto &got = *static_cast<TextItem *>(it);
+            QVERIFY2(got.valign == VAlign::Middle && got.centerBlock, label);
+            QVERIFY2(!got.vertical && !got.noWrap, label);
+            QVERIFY2(near(got.insets.left(), 10, 0.05) && near(got.insets.top(), 12, 0.05) && near(got.insets.right(), 11, 0.05) && near(got.insets.bottom(), 13, 0.05), label);
+            QVERIFY2(got.columns == 3 && near(got.columnGap, 20, 0.05), label);
+        }
+        // Autofit: shrink on overflow; resize shape to fit text (the box grows to the text, here a few lines); none.
+        r.find<QComboBox>("textAutofit")->setCurrentIndex(1);
+        QCOMPARE(text()->autofit, TextItem::ShrinkOnOverflow);
+        r.find<QComboBox>("textAutofit")->setCurrentIndex(2);
+        QCOMPARE(text()->autofit, TextItem::GrowBox);
+        r.find<NumberField>("textColumns")->box()->setValue(1);
+        r.find<QComboBox>("textAutofit")->setCurrentIndex(0);
+        QCOMPARE(text()->autofit, TextItem::NoAutofit);
+        r.find<QComboBox>("textAutofit")->setCurrentIndex(2);
+        QVERIFY2(text()->rect.height() < 120, "the box is fitted to the text");
+        for (int how = 0; how < 2; ++how) {
+            std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+            QVERIFY(d);
+            QCOMPARE(static_cast<TextItem *>(Rig::named(*d, QStringLiteral("Text 1")))->autofit, TextItem::GrowBox);
+        }
+    }
+
+    // A shape has the margins, wrap, vertical alignment, and columns too; its text can't shrink or grow it yet, and says so by offering no
+    // choice but none.
+    void shapeTextOptionsAreKeptAndShrinkingIsNotOffered()
+    {
+        Rig r(1);
+        r.select({0});
+        pane_page(r, FormatPane::Tab::SizeProperties);
+        r.find<QComboBox>("textAlign")->setCurrentIndex(4);   // bottom
+        r.find<NumberField>("marginLeft")->box()->setValue(20);
+        r.find<NumberField>("textColumns")->box()->setValue(2);
+        r.find<NumberField>("columnSpacing")->box()->setValue(15);
+        r.find<QCheckBox>("textWrap")->click();
+        QVERIFY(r.shape(0)->valign == VAlign::Bottom && !r.shape(0)->centerBlock);
+        QVERIFY(r.shape(0)->noWrap && r.shape(0)->columns == 2 && r.shape(0)->columnGap == 15);
+        auto *autofit = r.find<QComboBox>("textAutofit");
+        auto *model = qobject_cast<QStandardItemModel *>(autofit->model());
+        QVERIFY(model);
+        QVERIFY(model->item(0)->isEnabled() && !model->item(1)->isEnabled() && !model->item(2)->isEnabled());
+        QVERIFY(!r.find<QComboBox>("textDirection")->isEnabled());
+        for (int how = 0; how < 2; ++how) {
+            const QByteArray label = how ? "odp" : "pptx";
+            std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+            QVERIFY(d);
+            Item *it = Rig::named(*d, QStringLiteral("Shape 1"));
+            QVERIFY2(it && it->type() == ItemType::Shape, label);
+            const auto &got = *static_cast<ShapeItem *>(it);
+            QVERIFY2(got.valign == VAlign::Bottom && got.noWrap, label);
+            QVERIFY2(near(got.insets.left(), 20, 0.05) && got.columns == 2 && near(got.columnGap, 15, 0.05), label);
+        }
+        // Text in columns is laid out in them.
+        r.shape(0)->storyId = r.ed.doc()->createStory(QStringLiteral("alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu"));
+        r.shape(0)->noWrap = false;
+        r.shape(0)->rect = QRectF(40, 60, 400, 200);
+        PaintContext ctx;
+        ctx.doc = r.ed.doc();
+        ctx.cache = &r.ed.cache();
+        ctx.pageNumber = 1;
+        QPointF origin;
+        const StoryLayout *lay = Renderer::shapeTextLayout(ctx, *r.shape(0), &origin);
+        QVERIFY(lay);
+        const double inColumns = lay->usedHeight(0);
+        r.shape(0)->columns = 1;
+        r.ed.cache().clear();
+        const StoryLayout *one = Renderer::shapeTextLayout(ctx, *r.shape(0), &origin);
+        QVERIFY(one);
+        // The same words in two columns take less height than in one.
+        QVERIFY2(inColumns < one->usedHeight(0) - 1, qPrintable(QStringLiteral("%1 and %2").arg(inColumns).arg(one->usedHeight(0))));
+    }
+
+    // Alt text: a title and a description for screen readers, and a mark that the object is only decoration; the description and title are
+    // blank where the objects differ, and decoration turns the boxes off. Both files keep all three.
+    void altTextHasTitleDescriptionAndDecorative()
+    {
+        Rig r(2);
+        r.shape(0)->altText = QStringLiteral("A red box");
+        r.select({0, 1});
+        pane_page(r, FormatPane::Tab::SizeProperties);
+        auto *title = r.find<TextField>("altTitle");
+        auto *description = r.find<TextField>("altDescription");
+        auto *decorative = r.find<QCheckBox>("altDecorative");
+        QVERIFY(title && description && decorative);
+        QVERIFY(description->text().isEmpty() && description->isMixed());   // they differ
+        r.select({0});
+        QCOMPARE(description->text(), QStringLiteral("A red box"));
+        const int base = r.steps();
+        title->setText(QStringLiteral("Red box"));
+        title->moveCursor(QTextCursor::End);
+        QTest::keyClicks(title, QStringLiteral("!"));   // typing changes nothing until the person leaves the box
+        QCOMPARE(r.steps(), base);
+        title->commit();
+        QCOMPARE(r.steps(), base + 1);
+        QCOMPARE(r.shape(0)->altTitle, QStringLiteral("Red box!"));
+        description->moveCursor(QTextCursor::End);
+        QTest::keyClicks(description, QStringLiteral(" and more"));
+        QCOMPARE(r.steps(), base + 1);
+        description->commit();
+        QCOMPARE(r.steps(), base + 2);
+        QCOMPARE(r.shape(0)->altText, QStringLiteral("A red box and more"));
+        for (int how = 0; how < 2; ++how) {
+            const QByteArray label = how ? "odp" : "pptx";
+            std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+            QVERIFY(d);
+            Item *it = Rig::named(*d, QStringLiteral("Shape 1"));
+            QVERIFY2(it, label);
+            QVERIFY2(it->altTitle == QStringLiteral("Red box!") && it->altText == QStringLiteral("A red box and more"), label);
+        }
+        decorative->click();
+        QVERIFY(r.shape(0)->decorative);
+        QVERIFY(!title->isEnabled() && !description->isEnabled());
+        for (int how = 0; how < 2; ++how) {
+            std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+            QVERIFY2(Rig::named(*d, QStringLiteral("Shape 1"))->decorative, how ? "odp" : "pptx");
+            QVERIFY2(!Rig::named(*d, QStringLiteral("Shape 2"))->decorative, how ? "odp" : "pptx");
+        }
+        decorative->click();
+        QVERIFY(!r.shape(0)->decorative && title->isEnabled());
+        r.ed.undo();
+        QVERIFY(r.shape(0)->decorative);
+        // A title and decoration kept in the JSON of a document too.
+        QVERIFY(r.shape(0)->toJson().contains(QStringLiteral("decorative")));
+        QCOMPARE(Item::fromJsonAny(r.shape(0)->toJson())->altTitle, QStringLiteral("Red box!"));
     }
 };
 

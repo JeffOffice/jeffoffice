@@ -279,6 +279,7 @@ ItemPtr readTable(const QDomElement &frame, const DrawingContext &ctx, const Tex
     t->cols = cols;
     t->name = attr(cNvPr, QStringLiteral("name"));
     t->altText = attr(cNvPr, QStringLiteral("descr"));
+    t->altTitle = attr(cNvPr, QStringLiteral("title"));
     t->wrap.mode = Wrap::None;
     for (const QDomElement &g : gridCols) t->colW.append(std::clamp(parseLength(attr(g, QStringLiteral("w")), 0), 0.0, kMaxPoint));
     for (const QDomElement &r : trs) t->rowH.append(std::clamp(parseLength(attr(r, QStringLiteral("h")), 0), 0.0, kMaxPoint));
@@ -533,6 +534,7 @@ void writeTable(QXmlStreamWriter &w, const TableItem &t, DrawingWriteContext &ct
     w.writeAttribute(QStringLiteral("id"), QString::number(id));
     w.writeAttribute(QStringLiteral("name"), t.name.isEmpty() ? QStringLiteral("Table %1").arg(id - 1) : t.name);
     if (!t.altText.isEmpty()) w.writeAttribute(QStringLiteral("descr"), t.altText);
+    if (!t.altTitle.isEmpty()) w.writeAttribute(QStringLiteral("title"), t.altTitle);
     w.writeStartElement(QStringLiteral("p:cNvGraphicFramePr"));
     w.writeEmptyElement(QStringLiteral("a:graphicFrameLocks"));
     w.writeAttribute(QStringLiteral("noGrp"), QStringLiteral("1"));

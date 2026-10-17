@@ -410,6 +410,79 @@ bool NumberField::eventFilter(QObject *o, QEvent *e)
     return QWidget::eventFilter(o, e);
 }
 
+// ---------------- TextField ----------------
+
+TextField::TextField(QWidget *parent) : QPlainTextEdit(parent)
+{
+    setTabChangesFocus(true);
+    setFocusPolicy(Qt::StrongFocus);
+    connect(this, &QPlainTextEdit::textChanged, this, [this] {
+        if (m_loading) return;
+        m_dirty = true;
+        m_mixed = false;
+    });
+}
+
+void TextField::setSingleLine(bool on)
+{
+    m_single = on;
+    setLineWrapMode(on ? QPlainTextEdit::NoWrap : QPlainTextEdit::WidgetWidth);
+    setHorizontalScrollBarPolicy(on ? Qt::ScrollBarAlwaysOff : Qt::ScrollBarAsNeeded);
+    setVerticalScrollBarPolicy(on ? Qt::ScrollBarAlwaysOff : Qt::ScrollBarAsNeeded);
+    updateGeometry();
+}
+
+QSize TextField::sizeHint() const
+{
+    const int lines = m_single ? 1 : 4;
+    return QSize(180, fontMetrics().lineSpacing() * lines + 2 * (frameWidth() + 4) + 2);
+}
+
+QSize TextField::minimumSizeHint() const { return QSize(80, sizeHint().height()); }
+
+void TextField::setText(const QString &text)
+{
+    if (m_dirty) return;
+    m_loading = true;
+    m_mixed = false;
+    if (toPlainText() != text) setPlainText(text);
+    m_loading = false;
+}
+
+void TextField::setMixed(bool on)
+{
+    if (m_dirty) return;
+    m_loading = true;
+    m_mixed = on;
+    if (on) clear();
+    m_loading = false;
+}
+
+void TextField::commit()
+{
+    if (!m_dirty) return;
+    m_dirty = false;
+    Q_EMIT edited(m_single ? toPlainText().simplified() : toPlainText());
+    Q_EMIT finished();
+}
+
+void TextField::focusOutEvent(QFocusEvent *e)
+{
+    QPlainTextEdit::focusOutEvent(e);
+    commit();
+}
+
+void TextField::keyPressEvent(QKeyEvent *e)
+{
+    const bool enter = e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter;
+    if (enter && (m_single || (e->modifiers() & Qt::ControlModifier))) {
+        commit();
+        e->accept();
+        return;
+    }
+    QPlainTextEdit::keyPressEvent(e);
+}
+
 // ---------------- GradientBar ----------------
 
 GradientBar::GradientBar(QWidget *parent) : QWidget(parent)
