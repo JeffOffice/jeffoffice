@@ -56,6 +56,8 @@ void retintText(Document &d, const QString &storyId, const QColor &automatic, co
     QTextDocument *doc = storyId.isEmpty() ? nullptr : d.storyDoc(storyId);
     if (!doc || !now.isValid()) return;
     auto isAutomatic = [&](const QTextCharFormat &cf) {
+        // (Letters with a fill of their own, a gradient, are the person's: even where its first color is the one the old style gave.)
+        if (!cf.stringProperty(tp::TextFill).isEmpty()) return false;
         bool own = false;
         const QColor c = colorOfFormat(cf, d.colors, &own);
         return !own || (automatic.isValid() && c.isValid() && c.rgb() == automatic.rgb());
