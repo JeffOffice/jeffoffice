@@ -4531,6 +4531,38 @@ private Q_SLOTS:
             }
     }
 
+    // A file can have a frame of thousands of paragraphs: the page makes the frame of as many as it ever takes, and lays the rest of the text out as it does for any file.
+    void aFrameOfThousandsOfParagraphsIsCutAndTheTextGoesOn()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 12, 55, {}, 25, 40);
+        FloatingObject proto;
+        proto.hRel = FloatingObject::Rel::Column;
+        proto.vRel = FloatingObject::Rel::Paragraph;
+        proto.wrap = FloatingObject::Wrap::Square;
+        QStringList paragraphs;
+        for (int i = 0; i < 3000; ++i) paragraphs << QStringLiteral("frame paragraph %1").arg(i);
+        addFrame(fd, 4, paragraphs, proto, 120);
+        QElapsedTimer timer;
+        timer.start();
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 1);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const TextItem *box = frameBoxWith(*page, QStringLiteral("frame paragraph 0"));
+        QVERIFY(box);
+        QVERIFY(page->doc->story(box->storyId)->doc->blockCount() <= kMostFrameParagraphs);
+        QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));
+        QSet<int> seen;
+        for (int k = 0; k < pages; ++k)
+            for (const auto &l : pg.lines(k)) seen.insert(l.block);
+        const QSet<int> frame = frameBlocksOf(fd);
+        for (QTextBlock b = fd.story()->begin(); b.isValid(); b = b.next())
+            if (!frame.contains(b.position())) QVERIFY2(seen.contains(b.position()), qPrintable(QString::number(b.position())));
+    }
+
     // Frames side by side before a paragraph, and one at the end of the story (nothing after it): all are made and drawn where they can be, and nothing is lost or stuck.
     void framesTogetherAndAtTheEndOfTheStory()
     {
