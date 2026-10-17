@@ -134,6 +134,7 @@ private:
     QByteArray lastParagraph;         // held back so a field left open can be closed in it
     QVector<TableOut> tables;
     QVector<Field> fields;
+    int fieldsNotKept = 0;            // fields open past the most that are kept track of (see kMaxFieldsKept), whose marks only count
     int nextSection = 0;
     int nextBookmark = 0;
     // The bookmarks that begin or end at or before `cp`, as elements between the runs.
@@ -386,6 +387,10 @@ void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, int istd, R
             break;
         case 0x13: {
             flushPlain();
+            if (fields.size() >= kMaxFieldsKept) {
+                ++fieldsNotKept;   // (a mark for each of 40 million characters is not 40 million fields)
+                break;
+            }
             Field f;
             f.real = fields.size() < kMaxFieldDepth && (fields.isEmpty() || fields.last().real);
             fields.push_back(f);
@@ -394,14 +399,16 @@ void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, int istd, R
         }
         case 0x14:
             flushPlain();
-            if (!fields.isEmpty() && !fields.last().result) {
+            if (fieldsNotKept == 0 && !fields.isEmpty() && !fields.last().result) {
                 fields.last().result = true;
                 if (fields.last().real) rb.alone("<w:fldChar w:fldCharType=\"separate\"/>");
             }
             break;
         case 0x15:
             flushPlain();
-            if (!fields.isEmpty()) {
+            if (fieldsNotKept > 0) {
+                --fieldsNotKept;
+            } else if (!fields.isEmpty()) {
                 if (fields.last().real) rb.alone("<w:fldChar w:fldCharType=\"end\"/>");
                 fields.pop_back();
             }

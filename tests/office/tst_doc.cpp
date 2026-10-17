@@ -6,8 +6,11 @@
 #include "io/cfb.h"
 #include "wml/wml.h"
 
+#include <QBuffer>
 #include <QDir>
 #include <QDirIterator>
+#include <QImage>
+#include <QImageReader>
 #include <QElapsedTimer>
 #include <QRandomGenerator>
 #include <QXmlStreamReader>
@@ -569,6 +572,31 @@ private Q_SLOTS:
         QVERIFY(paragraphText(d.body[0]).contains(QLatin1String("deep")));
     }
 
+    void fieldsOpenedByTheHundredThousandAreBalancedAndCostLittle()
+    {
+        // One mark opens a field, and the fields of a file can be nested in as many as it has marks (a state kept for each was a state kept for 40 million).
+        const int depth = 200000;
+        QString text = QStringLiteral("start");
+        text += QString(depth, QChar(0x13));
+        text += QString(depth, QChar(0x15));
+        text += QStringLiteral(" finish\r");
+        QElapsedTimer t;
+        t.start();
+        Document d;
+        QVERIFY(read(simple(text).build(), &d));
+        QVERIFY2(t.elapsed() < 2000, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        int begins = 0, ends = 0;
+        for (const Inline &in : d.body[0].para.content)
+            if (in.kind == Inline::RunAtom && in.tag == QLatin1String("fldChar")) {
+                if (in.key == QLatin1String("begin")) ++begins;
+                if (in.key == QLatin1String("end")) ++ends;
+            }
+        QCOMPARE(begins, ends);
+        QVERIFY(begins <= doc::kMaxFieldDepth);
+        // (Every field is closed again, so what follows them is text in the paragraph.)
+        QCOMPARE(paragraphText(d.body[0]), QStringLiteral("start finish"));
+    }
+
     void aFieldLeftOpenIsClosed()
     {
         Document d;
@@ -674,6 +702,32 @@ private Q_SLOTS:
         for (const wml::KeptPart &p : d.parts)
             if (p.name.startsWith(QLatin1String("/word/media/")) && p.data.startsWith(QByteArray("\x89PNG"))) media = true;
         QVERIFY(media);
+    }
+
+    void aPictureWithNoSizeTakesItsSizeFromItsHeader()
+    {
+        // A picture the file gives no size for is shown at its own. Its header says what that is; the whole image was decoded to find out, which for a small
+        // file that makes a very large image (and a picture for each of thousands of places in it) is all the memory and time there are. With the allowance
+        // for decoding turned down to one megabyte this 2000 by 2000 picture can't be decoded, and still has its size.
+        QImage image(2000, 2000, QImage::Format_Grayscale8);
+        image.fill(200);
+        QByteArray png;
+        {
+            QBuffer buffer(&png);
+            QVERIFY(buffer.open(QIODevice::WriteOnly));
+            QVERIFY(image.save(&buffer, "PNG"));
+        }
+        struct Allowance {
+            int before = QImageReader::allocationLimit();
+            Allowance() { QImageReader::setAllocationLimit(1); }
+            ~Allowance() { QImageReader::setAllocationLimit(before); }
+        } allowance;
+        DocWriter w = simple(QStringLiteral("a\x01""b\r"));
+        const int at = w.addPicture(png, 0, 0);
+        w.chars = {{1, 2, sprm1(sprm::special, 1) + sprm4(sprm::picture, quint32(at))}};
+        const QByteArray x = bodyXml(w);
+        // (2000 pixels at 96 to the inch: 1500 points, in the 12,700ths of a point the package counts in.)
+        QVERIFY2(x.contains("<wp:extent cx=\"19050000\" cy=\"19050000\"/>"), x.constData());
     }
 
     void aRuleInTheLineIsAShapeWithNoPicture()

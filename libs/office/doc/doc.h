@@ -43,6 +43,8 @@ constexpr int kMaxBookmarks = 20000;
 constexpr qint64 kMaxListBytes = qint64(64) << 20;
 // Fields that nest in one another (an unclosed field is closed at the end of its paragraph).
 constexpr int kMaxFieldDepth = 20;
+// ...and the most that are kept track of (the rest are only counted, to be closed again): real files nest 3 or 4 deep.
+constexpr int kMaxFieldsKept = 1000;
 // Sections, header and footer stories, notes (the .docx reader's own limit), and fonts.
 constexpr int kMaxSections = 10000;
 constexpr int kMaxHeaderStories = 6 * 2000;
