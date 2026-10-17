@@ -1490,11 +1490,14 @@ static bool wordFaceNamed(const QString &lower, bool bold, bool italic, WordFace
 
 static bool wordKnowsFamily(const QString &lower)
 {
-    WordFace face;
-    if (wordFaceNamed(lower, false, false, &face)) return true;
-    for (const WordFontRow &r : kWordFonts)
-        if (lower == QLatin1String(r.family)) return true;
-    return false;
+    // (Every family of the table and the few names beside it, made once: a family is asked about for every run of text.)
+    static const QSet<QString> known = [] {
+        QSet<QString> s;
+        for (const auto &r : kWordFontFaces) s.insert(QLatin1String(r.family));
+        for (const WordFontRow &r : kWordFonts) s.insert(QLatin1String(r.family));
+        return s;
+    }();
+    return known.contains(lower);
 }
 
 // The family whose line a font keeps: the one the text asked for, which for Courier New drawn in its thin stand-in is the family after it in the font's list.
