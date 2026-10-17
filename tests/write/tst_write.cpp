@@ -4934,6 +4934,19 @@ private Q_SLOTS:
         QCOMPARE(marks, (QStringList{QStringLiteral("raw:"), QStringLiteral("raw:i")}));
     }
 
+    // Items of different lists are told apart by their numbering id whether or not the level they name is in the definition (an item moved to a level the list lacks).
+    void listsAreToldApartWhateverTheLevel()
+    {
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"bullet\"/><w:lvlText w:val=\"o\"/></w:lvl></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num><w:num w:numId=\"2\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>x</w:t></w:r></w:p>", kStyles, numbering));
+        QVERIFY(doc);
+        QCOMPARE(doc->listFormat(1, 0).intProperty(tp::ListKey), 1);
+        QCOMPARE(doc->listFormat(2, 0).intProperty(tp::ListKey), 2);
+        QCOMPARE(doc->listFormat(1, 7).intProperty(tp::ListKey), 1);   // (a level the definition lacks)
+        QCOMPARE(doc->listFormat(2, 7).intProperty(tp::ListKey), 2);
+    }
+
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
     // thousand sections makes no more than the sections it changed (counted, not timed).
     void editingSectionsTouchesOnlyWhatChanged()
