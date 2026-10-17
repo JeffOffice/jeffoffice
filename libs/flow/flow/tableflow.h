@@ -160,6 +160,7 @@ public:
         double top = 0, bottom = 0;
         QVector<NoteRef> notes;
         bool tied = false;                  // no cut may be made between it and the line before it (widow and orphan control, a paragraph kept together)
+        double pad = 0;                     // the room a part that begins at it has above it: the margin and lines at the top of the cell of a table in the cell that the row goes on in
     };
     struct Row {
         const RowData *data = nullptr;
@@ -208,6 +209,7 @@ public:
         double height = 0;                  // as tall as its room when more of the row comes after it, else as the cells that are left need
         QVector<double> offsets;            // for each cell of the row: how far down its content the part begins (from the top of the cell's text area)
         QVector<double> ends;               // for each cell: how far down its content the part goes (where the lines left for the next part begin; very large when none are)
+        QVector<double> pads;               // for each cell: the room above the lines of the part, besides the cell's own margin (see UnitLine::pad)
         QVector<NoteRef> notes;             // the notes cited by the lines in the part, which the page sets at its foot
         double noteHeight = 0;              // their height, with the rule above them where it is theirs
         bool progress = false;              // some cell has a line in the part (without, the row is not split there: it goes to the next page whole)
