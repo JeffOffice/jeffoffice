@@ -198,6 +198,11 @@ std::shared_ptr<CellContent> layoutCellContent(const TableContext &ctx, int i0, 
                         for (int k = 0; k < frag.length() && part.notes.size() < TableLayout::kMostRowNotes; ++k) part.notes.push_back({frag.position() + k, code.mid(9), ++number});
                     }
             }
+            // (The paragraph that has to follow a table at the end of a cell, when nothing is in it, is the cell's end mark: it takes no room.)
+            if (j == i1 && part.to - part.from == 1 && !out->parts.empty() && out->parts.back().table) {
+                part.dummy = true;
+                h = 0;
+            }
             y += h;
             i = j;
         } else {
@@ -220,6 +225,24 @@ std::shared_ptr<CellContent> layoutCellContent(const TableContext &ctx, int i0, 
     out->height = y;
     return out;
 }
+
+namespace {
+
+// What a line takes of the room of a row (a double line takes its two lines and the space between).
+double roomOf(const TableLine &line) { return line.visible() ? line.extent() : 0.0; }
+
+// The line between two cells (or at the edge of the table, where there is only one): each cell says what it says of its side of it, a cell that says nothing has the table's
+// line for the inside, and the heavier of the two is the one. (So a cell that says none, with the cell beyond it saying nothing, leaves the table's line: both must say none.)
+// At the edge of the table a cell's own line is the one, else the table's.
+TableLine lineBetween(const std::optional<TableLine> &before, const std::optional<TableLine> &after, bool hasBefore, bool hasAfter, const TableLine &inside, const TableLine &outside)
+{
+    if (!hasBefore) return after ? *after : outside;
+    if (!hasAfter) return before ? *before : outside;
+    const TableLine a = before ? *before : inside, b = after ? *after : inside;
+    return roomOf(b) > roomOf(a) ? b : a;
+}
+
+} // namespace
 
 std::shared_ptr<TableLayout> TableLayout::make(const TableContext &ctx, int i0, int i1, int depth)
 {
@@ -308,6 +331,7 @@ std::shared_ptr<TableLayout> TableLayout::make(const TableContext &ctx, int i0, 
                 if (top.col == c.col && top.span == c.span) {
                     c.covered = true;
                     ++top.rows;
+                    top.last = i;
                     t->m_maxRows = std::max(t->m_maxRows, top.rows);
                     for (int k = c.col; k < end; ++k) touched[size_t(k)] = true;
                     continue;
@@ -322,7 +346,56 @@ std::shared_ptr<TableLayout> TableLayout::make(const TableContext &ctx, int i0, 
             if (!touched[k]) open[k] = -1;
     }
     while (t->m_headers < int(t->m_rows.size()) && t->m_rows[size_t(t->m_headers)].data->header) ++t->m_headers;
+    t->setLineRooms();
     return t;
+}
+
+void TableLayout::setLineRooms()
+{
+    const TableData &d = *m_data;
+    const int rows = int(m_rows.size());
+    // The cell that has the line under a cell: the last of those joined down.
+    auto bottomOf = [&](const Cell &c) -> const CellData & { return (c.last >= 0 ? m_cells[size_t(c.last)] : c).rec->cell; };
+    // The cells that are above the row's: for each grid column, the one that covers it.
+    std::vector<int> above(size_t(m_xs.size()), -1), here(above);
+    for (int r = 0; r < rows; ++r) {
+        Row &row = m_rows[size_t(r)];
+        std::fill(here.begin(), here.end(), -1);
+        double top = 0;
+        for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
+            const Cell &c = m_cells[size_t(i)];
+            const int end = std::min(c.col + c.span, int(here.size()));
+            if (c.covered) {
+                for (int k = c.col; k < end; ++k) here[size_t(k)] = above[size_t(k)];
+                continue;
+            }
+            for (int k = c.col; k < end; ++k) here[size_t(k)] = i;
+            const CellData &cd = c.rec->cell;
+            if (d.spaced) {
+                // (Cells apart from one another each have their own lines, the table's are round the lot.)
+                top = std::max(top, roomOf(cd.top.value_or(TableLine())));
+                continue;
+            }
+            const int neighbor = c.col < int(above.size()) ? above[size_t(c.col)] : -1;
+            top = std::max(top, roomOf(lineBetween(neighbor >= 0 ? bottomOf(m_cells[size_t(neighbor)]).bottom : std::nullopt, cd.top, neighbor >= 0, true, d.insideH, d.top)));
+        }
+        row.top = top + (d.spaced && r == 0 ? roomOf(d.top) : 0.0);
+        above = here;
+    }
+    // The foot: the cells that end at the table's foot have the line there (cells apart have the foot of each row), with the table's own round them.
+    for (const Cell &c : m_cells) {
+        if (c.covered) continue;
+        Row &row = m_rows[size_t(std::min(c.row + c.rows - 1, rows - 1))];
+        if (d.spaced) row.foot = std::max(row.foot, roomOf(bottomOf(c).bottom.value_or(TableLine())));
+        else if (&row == &m_rows.back()) row.foot = std::max(row.foot, roomOf(lineBetween(bottomOf(c).bottom, std::nullopt, true, false, d.insideH, d.bottom)));
+    }
+    if (d.spaced) m_rows.back().foot += roomOf(d.bottom);
+    // The room is in the cells' margins, below the line at the top of the row and above the one at the foot of the table.
+    for (Cell &c : m_cells) {
+        if (c.covered) continue;
+        c.margins.setTop(c.margins.top() + m_rows[size_t(c.row)].top);
+        c.margins.setBottom(c.margins.bottom() + m_rows[size_t(std::min(c.row + c.rows - 1, rows - 1))].foot);
+    }
 }
 
 int TableLayout::rowOfPosition(int pos) const
@@ -451,7 +524,7 @@ void TableLayout::measure(int r)
                 const double h = measureCell(c);
                 if (c.rows == 1) need = std::max(need, h);
             }
-        double h = exact ? rd.height : std::max(need, rd.height);
+        double h = exact ? rd.height : std::max(need, rd.height + row.top + row.foot);
         // Cells joined down that end in this row need the part of their height that the rows above them do not give.
         if (!exact && m_maxRows > 1)
             for (int k = std::max(0, m_measured - m_maxRows + 1); k < m_measured; ++k) {
@@ -526,7 +599,7 @@ bool TableLayout::splittable(int r) const
     const Row &row = m_rows[size_t(r)];
     if (row.data->cantSplit || row.data->header || (row.data->exact && row.data->height > 0)) return false;
     // A row as tall as it was set to be (its cells need less) has no lines to cut it between: it goes whole, as tall as it was set.
-    if (row.data->height > 0 && row.height <= row.data->height + 0.01) return false;
+    if (row.data->height > 0 && row.height <= row.data->height + row.top + row.foot + 0.01) return false;
     for (int i = row.cell0; i < row.cell0 + row.cells; ++i)
         if (m_cells[size_t(i)].covered || m_cells[size_t(i)].rows > 1) return false;
     return true;
@@ -591,6 +664,7 @@ void tableLines(const TableFragment &nested, double y0, LineList *out)
 void contentLines(const CellContent &content, double y0, LineList *out)
 {
     for (const CellContent::Part &part : content.parts) {
+        if (part.dummy) continue;
         if (part.text) {
             const auto &notes = part.notes;
             for (const StoryLayout::LineBrief &l : part.text->lineBriefs()) {
@@ -937,46 +1011,38 @@ int cellCovering(TableLayout &t, int row, int col)
     return -1;
 }
 
-// The line on one side of a cell: its own, or the one the cell next to it has for the same edge (the heavier of the two), or the table's.
+// The line on one side of a cell: the one between it and the cell next to it (see lineBetween), or the table's at its edge; for cells joined down, the bottom is the last
+// cell's. Of cells apart (a table with space between them) it is the cell's own, or none.
 TableLine edgeOf(TableLayout &t, int index, Side side)
 {
     const TableLayout::Cell &c = t.cell(index);
     const TableData &d = t.data();
     const CellData &cd = c.rec->cell;
-    std::optional<TableLine> own;
-    int neighbor = -1;
-    TableLine tableWide;
+    const CellData &bottomCell = (c.last >= 0 ? t.cell(c.last) : c).rec->cell;
+    if (d.spaced) {
+        const std::optional<TableLine> &own = side == Side::Top ? cd.top : side == Side::Bottom ? bottomCell.bottom : side == Side::Left ? cd.left : cd.right;
+        return own ? *own : TableLine();
+    }
     switch (side) {
-    case Side::Top:
-        own = cd.top;
-        neighbor = cellCovering(t, c.row - 1, c.col);
-        tableWide = neighbor >= 0 ? d.insideH : d.top;
-        break;
-    case Side::Bottom:
-        own = cd.bottom;
-        neighbor = cellCovering(t, c.row + c.rows, c.col);
-        tableWide = neighbor >= 0 ? d.insideH : d.bottom;
-        break;
-    case Side::Left:
-        own = cd.left;
-        neighbor = c.col > 0 ? cellCovering(t, c.row, c.col - 1) : -1;
-        tableWide = neighbor >= 0 ? d.insideV : d.left;
-        break;
-    case Side::Right:
-        own = cd.right;
-        neighbor = cellCovering(t, c.row, c.col + c.span);
-        tableWide = neighbor >= 0 ? d.insideV : d.right;
-        break;
+    case Side::Top: {
+        const int n = cellCovering(t, c.row - 1, c.col);
+        const TableLayout::Cell *above = n >= 0 ? &t.cell(n) : nullptr;
+        return lineBetween(above ? (above->last >= 0 ? t.cell(above->last) : *above).rec->cell.bottom : std::nullopt, cd.top, above != nullptr, true, d.insideH, d.top);
     }
-    std::optional<TableLine> theirs;
-    if (neighbor >= 0) {
-        const CellData &nd = t.cell(neighbor).rec->cell;
-        theirs = side == Side::Top ? nd.bottom : side == Side::Bottom ? nd.top : side == Side::Left ? nd.right : nd.left;
+    case Side::Bottom: {
+        const int n = cellCovering(t, c.row + c.rows, c.col);
+        return lineBetween(bottomCell.bottom, n >= 0 ? t.cell(n).rec->cell.top : std::nullopt, true, n >= 0, d.insideH, d.bottom);
     }
-    if (own && theirs) return theirs->extent() > own->extent() ? *theirs : *own;
-    if (own) return *own;
-    if (theirs) return *theirs;
-    return tableWide;
+    case Side::Left: {
+        const int n = c.col > 0 ? cellCovering(t, c.row, c.col - 1) : -1;
+        return lineBetween(n >= 0 ? t.cell(n).rec->cell.right : std::nullopt, cd.left, n >= 0, true, d.insideV, d.left);
+    }
+    case Side::Right: {
+        const int n = cellCovering(t, c.row, c.col + c.span);
+        return lineBetween(cd.right, n >= 0 ? t.cell(n).rec->cell.left : std::nullopt, true, n >= 0, d.insideV, d.right);
+    }
+    }
+    return TableLine();
 }
 
 void strokeLine(QPainter *p, const TableLine &line, QPointF a, QPointF b, bool picture)
@@ -1054,13 +1120,29 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
         const QRectF r = pl.rect;
         p->save();
         p->setClipRect(QRectF(pl.clip).adjusted(-2, -2, 2, 2), Qt::IntersectClip);
-        strokeLine(p, edgeOf(*layout, index, Side::Top), r.topLeft(), r.topRight(), picture);
+        // (A line across is in the row it is the top of, from its edge down; the foot of the table is in its last row, up from the edge.)
+        const TableLine top = edgeOf(*layout, index, Side::Top);
+        const double down = roomOf(top) / 2;
+        strokeLine(p, top, r.topLeft() + QPointF(0, down), r.topRight() + QPointF(0, down), picture);
         strokeLine(p, edgeOf(*layout, index, Side::Left), r.topLeft(), r.bottomLeft(), picture);
         const Part *part = c.rows == 1 ? partOf(c.row) : nullptr;
-        if (cellCovering(*layout, c.row + c.rows, c.col) < 0 || (part && part->piece.next != 0))   // (and the foot of a row that goes on past a page break)
-            strokeLine(p, edgeOf(*layout, index, Side::Bottom), r.bottomLeft(), r.bottomRight(), picture);
+        if (cellCovering(*layout, c.row + c.rows, c.col) < 0 || (part && part->piece.next != 0)) {   // (and the foot of a row that goes on past a page break)
+            const TableLine bottom = edgeOf(*layout, index, Side::Bottom);
+            const double up = roomOf(bottom) / 2;
+            strokeLine(p, bottom, r.bottomLeft() - QPointF(0, up), r.bottomRight() - QPointF(0, up), picture);
+        }
         if (cellCovering(*layout, c.row, c.col + c.span) < 0) strokeLine(p, edgeOf(*layout, index, Side::Right), r.topRight(), r.bottomRight(), picture);
         p->restore();
+    }
+    // A table that has its cells apart has its own lines round all of them.
+    const TableData &d = layout->data();
+    if (d.spaced) {
+        const QRectF whole = rect();
+        const double down = roomOf(d.top) / 2, up = roomOf(d.bottom) / 2;
+        if (firstRow == 0 || header) strokeLine(p, d.top, whole.topLeft() + QPointF(0, down), whole.topRight() + QPointF(0, down), picture);
+        if (endRow >= layout->rowCount()) strokeLine(p, d.bottom, whole.bottomLeft() - QPointF(0, up), whole.bottomRight() - QPointF(0, up), picture);
+        strokeLine(p, d.left, whole.topLeft(), whole.bottomLeft(), picture);
+        strokeLine(p, d.right, whole.topRight(), whole.bottomRight(), picture);
     }
     p->restore();
 }

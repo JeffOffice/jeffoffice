@@ -169,6 +169,7 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
             t.insideV = lineOf(m.insideV).value_or(flow::TableLine());
             t.fill = fillOf(m);
             t.spacing = points(m.spacing);
+            t.spaced = m.spacing.stated() && m.spacing.type != QLatin1String("nil");
             const QString jc = m.jc;
             t.align = jc == QLatin1String("center") ? flow::TableData::Align::Center : jc == QLatin1String("right") || jc == QLatin1String("end") ? flow::TableData::Align::Right : flow::TableData::Align::Left;
             // (Before the 2013 program, the indent is to the first cell's text, and the table's edge is left of it by the cell's margin.)
