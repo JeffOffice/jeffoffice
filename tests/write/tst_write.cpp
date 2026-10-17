@@ -4246,6 +4246,37 @@ private Q_SLOTS:
         }
     }
 
+    // A rule drawn as a rectangle that is anchored in a paragraph of its own (or at the end of one) is drawn where the paragraph is; a shape that says it has no fill or no
+    // line has none (not the fill and line a new shape is given).
+    void aRuleAnchoredAtAParagraphsEndIsDrawnAsTheFileSaysIt()
+    {
+        const QByteArray vml = "xmlns:v=\"urn:schemas-microsoft-com:vml\"";
+        auto rect = [&](const QByteArray &attributes) {
+            return "<w:r><w:pict " + vml + "><v:rect id=\"r\" style=\"position:absolute;margin-left:1.5pt;margin-top:-2.25pt;width:300pt;height:1.4pt\" " + attributes + "/></w:pict></w:r>";
+        };
+        auto shapeOf = [&](const QByteArray &attributes, QRectF *rectOut) -> std::shared_ptr<ShapeItem> {
+            auto doc = open(makeDocx("<w:p><w:r><w:t>Heading</w:t></w:r></w:p><w:p>" + rect(attributes) + "</w:p><w:p><w:r><w:t>Below</w:t></w:r></w:p>", kStyles));
+            if (!doc) return nullptr;
+            const auto lines = doc->pager().lines(0);
+            const auto page = doc->pager().materialize(0);
+            for (const auto &item : page->doc->pages[0]->items)
+                if (auto shape = std::dynamic_pointer_cast<ShapeItem>(item)) {
+                    *rectOut = QRectF(QPointF(shape->rect.left(), shape->rect.top() - doc->pager().page(0).content.top() - lines[1].rect.top()), shape->rect.size());
+                    return shape;
+                }
+            return nullptr;
+        };
+        QRectF at;
+        auto black = shapeOf("fillcolor=\"black\" stroked=\"f\"", &at);
+        QVERIFY(black);
+        QVERIFY(black->fill.type == Fill::Solid && black->stroke.isNone());
+        QVERIFY2(std::abs(at.top() - (-2.25)) < 0.01 && std::abs(at.width() - 300) < 0.01, qPrintable(QString::number(at.top())));
+        auto outlined = shapeOf("filled=\"f\" strokecolor=\"#165189\" strokeweight=\"1.5pt\"", &at);
+        QVERIFY(outlined);
+        QVERIFY(outlined->fill.isNone());
+        QVERIFY2(!outlined->stroke.isNone() && std::abs(outlined->stroke.width - 1.5) < 0.01, qPrintable(QString::number(outlined->stroke.width)));
+    }
+
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
     // thousand sections makes no more than the sections it changed (counted, not timed).
     void editingSectionsTouchesOnlyWhatChanged()
