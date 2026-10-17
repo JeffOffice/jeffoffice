@@ -373,7 +373,9 @@ QString textEffectsOf(const QDomElement &list, const DrawingContext &ctx)
     return fx.toJson();
 }
 
-void mergeRun(RunProps &r, const QDomElement &rPr, const DrawingContext &ctx)
+// `own`: the properties are those a run (or the mark after the last one) has itself, not those of a list style it inherits from. The letters'
+// gradient fill and outline are read from a run's own: a title style that has them is still drawn in its color alone.
+void mergeRun(RunProps &r, const QDomElement &rPr, const DrawingContext &ctx, bool own = false)
 {
     if (rPr.isNull()) return;
     qint64 n = 0;
@@ -403,14 +405,14 @@ void mergeRun(RunProps &r, const QDomElement &rPr, const DrawingContext &ctx)
             }
             // A gradient is the letters' fill as well as its first color (what draws no gradient shows that).
             r.textFill.clear();
-            if (name == QLatin1String("gradFill")) {
+            if (own && name == QLatin1String("gradFill")) {
                 const Fill g = readFill(rPr, QDomElement(), ctx);
                 if (g.type == Fill::Gradient && g.stops.size() >= 2) r.textFill = QString::fromUtf8(QJsonDocument(g.toJson()).toJson(QJsonDocument::Compact));
             }
         } else if (name == QLatin1String("noFill")) {
             r.fill = RunProps::FillNone;
             r.textFill.clear();
-        } else if (name == QLatin1String("ln")) {
+        } else if (own && name == QLatin1String("ln")) {
             const Stroke s = readLine(rPr, QDomElement(), ctx);
             r.outlineRef = s.isNone() ? QString() : s.color.toString();
             r.outlineWidth = s.isNone() ? 0 : s.width;
@@ -810,7 +812,7 @@ void Reader::paragraph(const QDomElement &p)
         QTextCharFormat format = baseFormat;
         if (!rPr.isNull()) {
             RunProps run = base;
-            mergeRun(run, rPr, m_ctx);
+            mergeRun(run, rPr, m_ctx, true);
             format = linkFormat(charFormatOf(run), rPr);
         }
         if (isBreak) {
@@ -831,7 +833,7 @@ void Reader::paragraph(const QDomElement &p)
 
     // The mark after the last letter: what an empty paragraph is as tall as.
     RunProps endRun = base;
-    mergeRun(endRun, firstChild(p, QLatin1String("endParaRPr")), m_ctx);
+    mergeRun(endRun, firstChild(p, QLatin1String("endParaRPr")), m_ctx, true);
     const QTextCharFormat endFormat = charFormatOf(endRun);
     if (pieces.isEmpty()) {
         firstSize = largest = endFormat.fontPointSize();
