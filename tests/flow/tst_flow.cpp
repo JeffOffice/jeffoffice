@@ -6752,12 +6752,15 @@ private Q_SLOTS:
         }
         // The page that shows a cut row's part with the reference to a note holds the note.
         auto pageOfLine = [&](int position) {
-            for (int k = 0; k < pages; ++k)
-                for (const auto &fragment : pg.materialize(k)->tables)
+            for (int k = 0; k < pages; ++k) {
+                const auto page = pg.materialize(k);   // (kept: the tables are the page's)
+                if (!page) continue;
+                for (const auto &fragment : page->tables)
                     if (fragment->contains(position)) {
                         QRectF r = fragment->cellRect(position);
                         if (!r.isEmpty()) return k;
                     }
+            }
             return -1;
         };
         QVERIFY(onA >= 0 && onB >= 0);

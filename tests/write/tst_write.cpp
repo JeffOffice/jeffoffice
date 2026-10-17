@@ -6361,8 +6361,11 @@ private Q_SLOTS:
             QVERIFY2(walls >= 4 && pagesWithWalls >= 2, qPrintable(QStringLiteral("%1 walls on %2 pages").arg(walls).arg(pagesWithWalls)));
             QVERIFY(doc->flow().frames.size() >= 1);
             int floating = 0;
-            for (int k = 0; k < doc->pager().pageCount(); ++k)
-                for (const auto &t : doc->pager().materialize(k)->tables) floating += t->floating;
+            for (int k = 0; k < doc->pager().pageCount(); ++k) {
+                const auto page = doc->pager().materialize(k);   // (kept: the tables are the page's, which a temporary would take with it before the loop)
+                QVERIFY(page);
+                for (const auto &t : page->tables) floating += t->floating;
+            }
             QVERIFY2(floating >= 1, "a table set at a place is drawn on some page");
             QVERIFY2(audit::wallProblems(doc->pager(), doc->story()).isEmpty(), qPrintable(audit::wallProblems(doc->pager(), doc->story())));
         }
