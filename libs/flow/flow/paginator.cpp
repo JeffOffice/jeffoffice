@@ -550,12 +550,12 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
             kept = 0;
             while (kept < run.lines.size() && run.lines[kept].frame >= run.firstFrame && run.lines[kept].frame < over) ++kept;
             // Lines that take no room are on the page the text before them ends on, though the engine, finding no room for a line in the frame (as it first reckons
-            // the line), put them in the next: the empty paragraph that ends a section before a continuous one, and the first line of a paragraph that holds only
-            // the page break it begins with.
+            // the line), put them in the next: the empty paragraph that ends a section (before a continuous one it takes none; before a section on a page of its own it is
+            // only where the section breaks), and the first line of a paragraph that holds only the page break it begins with.
             while (kept < run.lines.size() && run.lines[kept].frame >= over && run.lines[kept].line == 0) {
                 const StoryLayout::LineBrief &ln = run.lines[kept];
                 const BlockFlags &bf = flags(ln.block);
-                const bool noRoom = (bf.outOfFlow && bf.sectionAfter) || (ln.rect.height() < 0.001 && ln.end == ln.pos + 1 && m_doc->story()->characterAt(ln.pos) == kPageBreak);
+                const bool noRoom = (bf.sectionAfter && (bf.outOfFlow || (ln.pos == ln.end && ln.lines == 1))) || (ln.rect.height() < 0.001 && ln.end == ln.pos + 1 && m_doc->story()->characterAt(ln.pos) == kPageBreak);
                 if (!noRoom) break;
                 ++kept;
             }
@@ -751,7 +751,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         run.hasNext = true;
         run.next.pos = m_doc->story()->characterCount();
         // (The text goes on after a section's last, empty paragraph that took the page's last place, though no line's room was left.)
-        const QTextBlock goesOn = c > 0 && flags(L[c - 1].block).outOfFlow ? m_doc->story()->findBlock(L[c - 1].pos).next() : QTextBlock();
+        const QTextBlock goesOn = c > 0 && flags(L[c - 1].block).sectionAfter ? m_doc->story()->findBlock(L[c - 1].pos).next() : QTextBlock();
         if (goesOn.isValid()) run.next.pos = goesOn.position();
         run.next.skip = 0;
         run.next.hard = true;

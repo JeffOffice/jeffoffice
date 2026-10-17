@@ -4368,8 +4368,9 @@ private Q_SLOTS:
         QCOMPARE(int(apart.size()), 2);
     }
 
-    // The empty paragraph that ends a section before a continuous section stays on the page the text before it ends on, even when the page has no room left for its
-    // line (it takes none): the section after, which needs a page of its own for its other paper, is the second page, not the third.
+    // The empty paragraph that ends a section stays on the page the text before it ends on, even when the page has no room left for its line (a continuous section's takes
+    // none; and before a section on a page of its own it is only where the section breaks): the section after, which needs a page of its own (for its other paper, or by its
+    // type), is the second page, not the third.
     void anEmptyBreakParagraphAtTheFootOfAFullPageStaysThere()
     {
         auto line = [](const char *text) {
@@ -4380,13 +4381,19 @@ private Q_SLOTS:
         const QByteArray margins = "<w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/>";
         // (The break paragraph's own line is 60 points: more than the 48 that are left.)
         body += "<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"1200\" w:lineRule=\"exact\"/><w:sectPr>" + margins + "</w:sectPr></w:pPr></w:p>" + line("Second");
-        const QByteArray last = "<w:sectPr><w:type w:val=\"continuous\"/><w:pgSz w:w=\"15840\" w:h=\"12240\" w:orient=\"landscape\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
-        auto doc = open(makeDocxWithParts(body, last, {}));
-        QVERIFY(doc);
-        QCOMPARE(doc->pager().pageCount(), 2);
-        const auto second = doc->pager().lines(1);
-        QVERIFY(!second.isEmpty());
-        QVERIFY2(std::abs(second[0].rect.top()) < 0.01, qPrintable(QString::number(second[0].rect.top())));   // (the section after begins at the top of its page)
+        auto pagesWith = [&](const QByteArray &type, const QByteArray &paper) {
+            const QByteArray last = "<w:sectPr>" + type + paper + "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+            return open(makeDocxWithParts(body, last, {}));
+        };
+        const QByteArray landscape = "<w:pgSz w:w=\"15840\" w:h=\"12240\" w:orient=\"landscape\"/>";
+        for (const QByteArray &type : {QByteArray("<w:type w:val=\"continuous\"/>"), QByteArray()}) {
+            auto doc = pagesWith(type, type.isEmpty() ? QByteArray("<w:pgSz w:w=\"12240\" w:h=\"15840\"/>") : landscape);
+            QVERIFY(doc);
+            QVERIFY2(doc->pager().pageCount() == 2, qPrintable(QStringLiteral("%1 pages for the section type '%2'").arg(doc->pager().pageCount()).arg(QString::fromLatin1(type))));
+            const auto second = doc->pager().lines(1);
+            QVERIFY(!second.isEmpty());
+            QVERIFY2(std::abs(second[0].rect.top()) < 0.01, qPrintable(QString::number(second[0].rect.top())));   // (the section after begins at the top of its page)
+        }
     }
 
     // A paragraph that begins with a page break and is kept with the next puts the break at the foot of the page the text before it ends on: the text after the break
