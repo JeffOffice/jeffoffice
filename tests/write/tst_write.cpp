@@ -4794,6 +4794,39 @@ private Q_SLOTS:
         }
     }
 
+    // A reference whose mark follows it takes no number among the notes of a page with a table either: a custom one, an automatic note, one in a cell, and one after the table are
+    // numbered 1, 2, and 3.
+    void aCustomMarkTakesNoNumberAmongTheNotesOfATablesPage()
+    {
+        auto text = [](const char *t) { return QByteArray("<w:r><w:t xml:space=\"preserve\">") + t + "</w:t></w:r>"; };
+        auto ref = [](int id) { return "<w:r><w:footnoteReference w:id=\"" + QByteArray::number(id) + "\"/></w:r>"; };
+        const QByteArray custom = "<w:r><w:footnoteReference w:customMarkFollows=\"1\" w:id=\"2\"/><w:t>*</w:t></w:r>";
+        const QByteArray cell = "<w:p>" + text("In the cell") + ref(4) + "</w:p>";
+        const QByteArray body = "<w:p>" + text("First") + custom + text(" second") + ref(3) + "</w:p><w:tbl><w:tblPr><w:tblW w:w=\"3000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid>"
+                                "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr>" + cell + "</w:tc></w:tr></w:tbl><w:p>" + text("After") + ref(5) + "</w:p>";
+        auto note = [&](int id, const char *t) { return "<w:footnote w:id=\"" + QByteArray::number(id) + "\"><w:p><w:r><w:footnoteRef/></w:r>" + text(t) + "</w:p></w:footnote>"; };
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>"
+                                 "<w:footnote w:id=\"2\"><w:p>" + text("* custom note") + "</w:p></w:footnote>" + note(3, " AUTOA note") + note(4, " AUTOB note") + note(5, " AUTOC note") + "</w:footnotes>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}}));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        auto marks = [&](const QString &needle) {
+            QStringList out;
+            const TextItem *box = boxWithText(*page, needle);
+            if (!box) return QStringList{QStringLiteral("no box")};
+            for (QTextBlock b = page->doc->story(box->storyId)->doc->begin(); b.isValid(); b = b.next())
+                for (auto it = b.begin(); !it.atEnd(); ++it) {
+                    const QString code = it.fragment().charFormat().stringProperty(tp::Field);
+                    if (code.startsWith(QLatin1String("raw:"))) out << code;
+                }
+            return out;
+        };
+        QCOMPARE(marks(QStringLiteral("AUTOA note")), (QStringList{QStringLiteral("raw:1")}));
+        QCOMPARE(marks(QStringLiteral("AUTOB note")), (QStringList{QStringLiteral("raw:2")}));
+        QCOMPARE(marks(QStringLiteral("AUTOC note")), (QStringList{QStringLiteral("raw:3")}));
+    }
+
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
     // thousand sections makes no more than the sections it changed (counted, not timed).
     void editingSectionsTouchesOnlyWhatChanged()
