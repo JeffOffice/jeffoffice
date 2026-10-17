@@ -1564,6 +1564,7 @@
     <file alias="de/deck/comments.md">help/de/deck/comments.md</file>
     <file alias="de/deck/design.md">help/de/deck/design.md</file>
     <file alias="de/deck/file-screen.md">help/de/deck/file-screen.md</file>
+    <file alias="de/deck/format-shape.md">help/de/deck/format-shape.md</file>
     <file alias="de/deck/index.md">help/de/deck/index.md</file>
     <file alias="de/deck/keyboard.md">help/de/deck/keyboard.md</file>
     <file alias="de/deck/notes.md">help/de/deck/notes.md</file>
@@ -1737,6 +1738,7 @@
     <file alias="es/deck/comments.md">help/es/deck/comments.md</file>
     <file alias="es/deck/design.md">help/es/deck/design.md</file>
     <file alias="es/deck/file-screen.md">help/es/deck/file-screen.md</file>
+    <file alias="es/deck/format-shape.md">help/es/deck/format-shape.md</file>
     <file alias="es/deck/index.md">help/es/deck/index.md</file>
     <file alias="es/deck/keyboard.md">help/es/deck/keyboard.md</file>
     <file alias="es/deck/notes.md">help/es/deck/notes.md</file>
@@ -1818,6 +1820,7 @@
     <file alias="fr/deck/comments.md">help/fr/deck/comments.md</file>
     <file alias="fr/deck/design.md">help/fr/deck/design.md</file>
     <file alias="fr/deck/file-screen.md">help/fr/deck/file-screen.md</file>
+    <file alias="fr/deck/format-shape.md">help/fr/deck/format-shape.md</file>
     <file alias="fr/deck/index.md">help/fr/deck/index.md</file>
     <file alias="fr/deck/keyboard.md">help/fr/deck/keyboard.md</file>
     <file alias="fr/deck/notes.md">help/fr/deck/notes.md</file>
@@ -1899,6 +1902,7 @@
     <file alias="it/deck/comments.md">help/it/deck/comments.md</file>
     <file alias="it/deck/design.md">help/it/deck/design.md</file>
     <file alias="it/deck/file-screen.md">help/it/deck/file-screen.md</file>
+    <file alias="it/deck/format-shape.md">help/it/deck/format-shape.md</file>
     <file alias="it/deck/index.md">help/it/deck/index.md</file>
     <file alias="it/deck/keyboard.md">help/it/deck/keyboard.md</file>
     <file alias="it/deck/notes.md">help/it/deck/notes.md</file>
@@ -1980,6 +1984,7 @@
     <file alias="nl/deck/comments.md">help/nl/deck/comments.md</file>
     <file alias="nl/deck/design.md">help/nl/deck/design.md</file>
     <file alias="nl/deck/file-screen.md">help/nl/deck/file-screen.md</file>
+    <file alias="nl/deck/format-shape.md">help/nl/deck/format-shape.md</file>
     <file alias="nl/deck/index.md">help/nl/deck/index.md</file>
     <file alias="nl/deck/keyboard.md">help/nl/deck/keyboard.md</file>
     <file alias="nl/deck/notes.md">help/nl/deck/notes.md</file>
@@ -2061,6 +2066,7 @@
     <file alias="pt_BR/deck/comments.md">help/pt_BR/deck/comments.md</file>
     <file alias="pt_BR/deck/design.md">help/pt_BR/deck/design.md</file>
     <file alias="pt_BR/deck/file-screen.md">help/pt_BR/deck/file-screen.md</file>
+    <file alias="pt_BR/deck/format-shape.md">help/pt_BR/deck/format-shape.md</file>
     <file alias="pt_BR/deck/index.md">help/pt_BR/deck/index.md</file>
     <file alias="pt_BR/deck/keyboard.md">help/pt_BR/deck/keyboard.md</file>
     <file alias="pt_BR/deck/notes.md">help/pt_BR/deck/notes.md</file>
@@ -2142,6 +2148,7 @@
     <file alias="pt_PT/deck/comments.md">help/pt_PT/deck/comments.md</file>
     <file alias="pt_PT/deck/design.md">help/pt_PT/deck/design.md</file>
     <file alias="pt_PT/deck/file-screen.md">help/pt_PT/deck/file-screen.md</file>
+    <file alias="pt_PT/deck/format-shape.md">help/pt_PT/deck/format-shape.md</file>
     <file alias="pt_PT/deck/index.md">help/pt_PT/deck/index.md</file>
     <file alias="pt_PT/deck/keyboard.md">help/pt_PT/deck/keyboard.md</file>
     <file alias="pt_PT/deck/notes.md">help/pt_PT/deck/notes.md</file>

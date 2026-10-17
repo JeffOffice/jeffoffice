@@ -1,90 +1,90 @@
 # Abrir y guardar presentaciones
-<!-- keywords: abrir, guardar, guardar como, otp, libreoffice, omitido, excluido, cerrar, nueva, nuevo, archivos recientes, recientes, anclado, anclar, tipos de archivo, pptx, potx, ppsx, ppt, odp, plantilla, presentación con diapositivas, cambiar nombre, Ctrl+S, copia de seguridad, formatos de archivo, archivos antiguos, documento abierto, conservado, no se muestra, fuentes, insertar fuentes, fuentes insertadas, incrustar fuentes, fuente que falta -->
+<!-- keywords: abrir, guardar, guardar como, otp, libreoffice, omitido, cerrar, nuevo, archivos recientes, anclado, tipos de archivo, formatos, pptx, potx, ppsx, ppt, odp, plantilla, presentación con diapositivas, cambiar nombre, Ctrl+S, copia de seguridad, formatos de archivo, archivos antiguos, OpenDocument, conservado, no se muestra, fuentes, insertar fuentes, incrustar fuentes, fuentes incrustadas, fuente que falta -->
 
 JeffDeck guarda su trabajo en archivos .pptx y .odp, y abre varios tipos de archivos de presentación.
 
-## Iniciar una presentación nueva
+## Crear una presentación nueva
 
-Presione Ctrl+N. Se abre una ventana nueva con una presentación en blanco. También puede hacer clic en **Archivo > Nuevo** y, después, en **Presentación en blanco**. Si la ventana en la que está contiene una presentación nueva que nadie ha tocado, la presentación en blanco ocupa su lugar. Si no, se abre en una ventana propia.
+Presione Ctrl+N. Se abre una ventana nueva con una presentación en blanco. También puede hacer clic en **Archivo > Nuevo** y después en **Presentación en blanco**. Si la ventana en la que está contiene una presentación nueva que nadie ha modificado, la presentación en blanco ocupa su lugar. De lo contrario, se abre en una ventana propia.
 
 ## Guardar
 
-Presione Ctrl+S o haga clic en **Archivo > Guardar**. La primera vez, JeffDeck le pide un nombre y una ubicación. Después, Guardar reemplaza el archivo con su trabajo más reciente. Un mensaje en la parte inferior muestra "Guardado" y el nombre del archivo.
+Presione Ctrl+S o haga clic en **Archivo > Guardar**. La primera vez, JeffDeck le pide un nombre y una ubicación. A partir de entonces, Guardar reemplaza el archivo con su trabajo más reciente. Un mensaje en la parte inferior indica "Guardado" y el nombre del archivo.
 
-Un asterisco (*) detrás del nombre en la barra de título indica que hay cambios sin guardar. Guarde a menudo. Si JeffDeck se cierra de forma inesperada, consulte [Recuperar el trabajo no guardado](recover).
+Un asterisco (*) después del nombre en la barra de título indica que hay cambios sin guardar. Guarde a menudo. Si JeffDeck se cierra inesperadamente, consulte [Recuperar trabajo no guardado](recover).
 
-Si un mensaje indica que algunos objetos "aún no se pueden guardar en este tipo de archivo", el archivo se ha guardado, pero JeffDeck no ha podido escribir esos objetos. Conserve también el archivo original. Al guardar un archivo .odp, el mensaje enumera lo que ese tipo de archivo no puede contener. La sección "Guardar como archivo .odp", más abajo, explica qué no puede contener.
+Si un mensaje indica que algunos objetos "todavía no se pueden guardar en este tipo de archivo", el archivo se ha guardado, pero JeffDeck no ha podido escribir esos objetos. Conserve también el archivo original. Cuando guarda un archivo .odp, el mensaje enumera lo que ese tipo de archivo no puede contener. La sección "Guardar como archivo .odp", más abajo, explica qué es lo que no puede contener.
 
-## Guardar con otro nombre o tipo
+## Guardar con otro nombre o en otro formato
 
 Haga clic en **Archivo > Guardar como** o presione F12. Escriba un nombre, elija el tipo y haga clic en **Guardar**. Las opciones son:
 
 - **Presentación (*.pptx)** es la opción habitual.
-- **Plantilla (*.potx)** guarda las diapositivas como modelo para crear presentaciones nuevas.
-- **Presentación con diapositivas (*.ppsx)** guarda una presentación para reproducirla.
-- **Presentación OpenDocument (*.odp)** guarda las diapositivas en el tipo de archivo que usan LibreOffice y otros programas gratuitos.
-- **Plantilla de presentación OpenDocument (*.otp)** es la versión de plantilla de ese tipo.
+- **Plantilla (*.potx)** guarda las diapositivas como modelo a partir del cual crear presentaciones nuevas.
+- **Presentación con diapositivas (*.ppsx)** guarda una presentación lista para reproducirse.
+- **Presentación OpenDocument (*.odp)** guarda las diapositivas en el formato que usan LibreOffice y otros programas gratuitos.
+- **Plantilla de presentación OpenDocument (*.otp)** es la versión de plantilla de ese formato.
 
 Si no escribe la extensión, JeffDeck agrega la que corresponde al tipo. Después de guardar, la barra de título muestra el nuevo nombre y usted sigue trabajando en el archivo nuevo.
 
-Una presentación abierta a partir de una plantilla se guarda como presentación nueva: **Guardar** pide un nombre, de modo que la plantilla no cambia. Lo mismo ocurre con una presentación abierta desde un archivo .ppt, .pps o .pot antiguo. Una presentación abierta desde un archivo .odp se vuelve a guardar como archivo .odp, sobre el mismo archivo.
+Una presentación abierta a partir de una plantilla se guarda como presentación nueva: **Guardar** le pide un nombre, de modo que la plantilla no cambia. Lo mismo ocurre con una presentación abierta desde un archivo .ppt, .pps o .pot antiguo. Una presentación abierta desde un archivo .odp se vuelve a guardar como archivo .odp, sobre el mismo archivo.
 
 ## Abrir
 
-Presione Ctrl+O para elegir un archivo directamente. También puede hacer clic en **Archivo > Abrir** y, después, en **Examinar** o en un nombre de **Anclado** o **Presentaciones recientes**.
+Presione Ctrl+O para elegir un archivo directamente. También puede hacer clic en **Archivo > Abrir** y, a continuación, en **Examinar** o en un nombre de **Anclado** o **Presentaciones recientes**.
 
-El archivo se abre en esta ventana si contiene una presentación nueva que nadie ha tocado. Si no, se abre en una ventana propia.
+El archivo se abre en esta ventana si contiene una presentación nueva que nadie ha modificado. De lo contrario, se abre en una ventana propia.
 
-Haga clic con el botón derecho en un nombre de la lista para elegir **Anclar a la lista** (se queda en la parte superior), **Desanclar de la lista** o **Quitar de la lista**. Un nombre en gris indica que JeffDeck no encuentra ese archivo en este momento.
+Haga clic con el botón derecho en un nombre de la lista para elegir **Anclar a la lista** (se mantiene en la parte superior), **Desanclar de la lista** o **Quitar de la lista**. Un nombre en gris indica que JeffDeck no encuentra ese archivo en este momento.
 
 ## Fuentes en el archivo
 
-Una fuente es la forma de las letras. No todos los equipos tienen todas las fuentes. Si a un equipo le falta una fuente que usan sus diapositivas, dibuja las letras con otra fuente, y las diapositivas pueden verse distintas.
+Una fuente es la forma de las letras. No todos los equipos tienen todas las fuentes. Si a un equipo le falta una fuente que usan sus diapositivas, dibuja las letras con otra fuente, y las diapositivas pueden verse diferentes.
 
-JeffDeck puede incluir dentro del archivo las fuentes que usan sus diapositivas. Así las diapositivas se ven igual en cualquier equipo. Esto se llama insertar fuentes. JeffDeck lo hace cada vez que guarda. Para desactivarlo, haga clic en **Archivo > Opciones**, abra la pestaña **Guardar** y desactive **Insertar fuentes en el archivo**.
+JeffDeck puede incluir dentro del archivo las fuentes que usan sus diapositivas. Así, las diapositivas se ven igual en cualquier equipo. Esto se denomina insertar fuentes. JeffDeck lo hace cada vez que guarda. Para desactivarlo, haga clic en **Archivo > Opciones**, abra la pestaña **Guardar** y desactive **Insertar fuentes en el archivo**.
 
-- JeffDeck solo inserta las fuentes que incluye el propio programa, como Fraunces, Lato y Open Sans, que otros equipos no tienen. Nunca inserta una fuente que tienen todos los equipos, como Calibri o Arial. Tampoco inserta una fuente cuya licencia no permita copiarla en un archivo.
+- JeffDeck solo inserta las fuentes que incluye el propio programa, como Fraunces, Lato y Open Sans, que otros equipos no tienen. Nunca inserta una fuente que tienen todos los equipos, como Calibri o Arial. Omite las fuentes cuya licencia no permite copiarlas en un archivo.
 - JeffDeck inserta cada estilo que usan las diapositivas: normal, negrita, cursiva y negrita cursiva. Si las diapositivas solo usan el estilo normal, solo se inserta ese.
-- JeffDeck inserta todos los caracteres de cada fuente, no solo los que ha usado. Así, quien abra el archivo puede seguir modificando el texto.
-- El archivo aumenta de tamaño. Cada estilo de una fuente añade entre 40 y 700 KB (un KB son mil bytes). El archivo se comprime al guardarse, así que crece aproximadamente la mitad.
+- JeffDeck inserta todos los caracteres de cada fuente, no solo los que ha usado. Así, quien abra el archivo puede seguir cambiando el texto.
+- El archivo aumenta de tamaño. Cada estilo de una fuente agrega entre 40 y 700 KB aproximadamente (un KB son mil bytes). El archivo se comprime al guardarse, por lo que crece aproximadamente la mitad de esa cantidad.
 
-Al abrir un archivo con fuentes insertadas, JeffDeck las usa mientras la presentación está abierta, y las diapositivas se ven como en el equipo donde se crearon. JeffDeck no instala las fuentes en su equipo ni las copia en ningún sitio. Pertenecen solo a esa presentación: no aparecen en sus listas de fuentes y ninguna otra presentación las usa. Desaparecen al cerrar la presentación. Si su equipo ya tiene una fuente, JeffDeck usa su propia copia.
+Cuando abre un archivo que contiene fuentes, JeffDeck las usa mientras la presentación está abierta, y las diapositivas se ven como en el equipo donde se crearon. JeffDeck no instala las fuentes en su equipo ni las copia en ningún sitio. Pertenecen solo a esa presentación: no aparecen en sus listas de fuentes y ninguna otra presentación las usa. Desaparecen al cerrar la presentación. Si su equipo ya tiene una fuente, JeffDeck usa su propia copia.
 
-JeffDeck lee las fuentes de archivos .pptx creados con otros programas de presentaciones, aunque el programa las haya comprimido. También lee las fuentes de archivos .odp.
+JeffDeck lee las fuentes de los archivos .pptx creados con otros programas de presentaciones, incluso cuando el programa las ha comprimido. También lee las fuentes de los archivos .odp.
 
-Un archivo puede llevar una fuente que JeffDeck no tiene. Al guardar, JeffDeck vuelve a incluir esa fuente en el archivo, siempre que las diapositivas sigan usándola, tanto si **Insertar fuentes en el archivo** está activado como si no. Si una fuente de un archivo está dañada o no se puede leer, el mensaje que aparece al abrir el archivo lo indica.
+Un archivo puede contener una fuente que JeffDeck no tiene. Al guardar, JeffDeck vuelve a incluir esa fuente en el archivo, siempre que las diapositivas la sigan usando. Lo hace tanto si **Insertar fuentes en el archivo** está activado como si no. Si una fuente del archivo está dañada o no se puede leer, el mensaje que aparece al abrir el archivo lo indica.
 
-## Tipos de archivos que lee JeffDeck
+## Tipos de archivo que lee JeffDeck
 
-- **.pptx, .potx y .ppsx** son un mismo formato en tres versiones: presentación, plantilla y presentación con diapositivas. JeffDeck lee y escribe las tres.
-- **.ppt, .pps y .pot** son el tipo antiguo. JeffDeck los lee pero no puede escribirlos, así que **Guardar** pide un nombre nuevo y guarda un .pptx (un .ppsx en el caso de un .pps). Nunca sobrescribe el original.
-- **.odp y .otp** son presentaciones OpenDocument y sus plantillas. JeffDeck lee y escribe ambos. Un .odp abierto aquí se guarda como .odp. Un .otp es una plantilla, así que **Guardar** pide un nombre nuevo y propone un .odp.
+- **.pptx, .potx y .ppsx** son un mismo formato en tres variantes: presentación, plantilla y presentación con diapositivas. JeffDeck lee y escribe las tres.
+- **.ppt, .pps y .pot** son el formato antiguo. JeffDeck los lee pero no puede escribirlos, por lo que **Guardar** le pide un nombre nuevo y guarda un archivo .pptx (un .ppsx en el caso de un .pps). Nunca sobrescribe el original.
+- **.odp y .otp** son presentaciones OpenDocument y sus plantillas. JeffDeck lee y escribe ambos. Un archivo .odp abierto aquí se guarda como .odp. Un archivo .otp es una plantilla, por lo que **Guardar** le pide un nombre nuevo y sugiere un .odp.
 
-Si una parte de un archivo no se puede leer, JeffDeck abre el resto y enumera lo que ha omitido. Si no se puede leer el archivo entero, explica el motivo.
+Si una parte de un archivo no se puede leer, JeffDeck abre el resto y enumera lo que ha omitido. Si no se puede leer ninguna parte del archivo, indica el motivo.
 
 ## Guardar como archivo .odp
 
-Un archivo .odp se abre en LibreOffice Impress con sus diapositivas, patrones, imágenes, notas y comentarios, y con el aspecto que muestra JeffDeck. También contiene las animaciones, las transiciones de diapositivas, las presentaciones personalizadas y la configuración de la presentación con diapositivas. La fuente de cada palabra se guarda por su nombre, así que un equipo que no tenga la fuente muestra otra.
+Un archivo .odp se abre en LibreOffice Impress con sus diapositivas, patrones, imágenes, notas y comentarios, y con el aspecto que muestra JeffDeck. También contiene animaciones, transiciones de diapositivas, presentaciones personalizadas y la configuración de la presentación con diapositivas. La fuente de cada palabra se guarda por su nombre, de modo que un equipo que no tenga la fuente mostrará otra.
 
-JeffDeck todavía no lee las animaciones, los comentarios, las presentaciones personalizadas ni la configuración de la presentación de un archivo .odp. Están en el archivo y LibreOffice los reproduce, pero al abrir el archivo .odp en JeffDeck, aparecen como omitidos. Conserve el archivo .pptx si quiere seguir modificándolos aquí.
+JeffDeck todavía no lee de un archivo .odp las animaciones, los comentarios, las presentaciones personalizadas ni la configuración de la presentación. Están en el archivo y LibreOffice los reproduce, pero cuando abre el archivo .odp en JeffDeck, los muestra como omitidos. Conserve el archivo .pptx si quiere seguir modificándolos aquí.
 
-Un archivo .odp no puede contener algunas cosas. JeffDeck las enumera después de guardar, en el mensaje de la parte inferior de la ventana:
+Un archivo .odp no tiene cabida para algunos elementos. JeffDeck los enumera después de guardar, en el mensaje de la parte inferior de la ventana:
 
-- **Los gráficos, los diagramas SmartArt y las ecuaciones** se guardan como imágenes. Puede verlos, pero no modificar sus datos ni sus partes en el archivo .odp.
+- **Los gráficos, los diagramas SmartArt y las ecuaciones** se guardan como imágenes. Se pueden ver, pero no se pueden modificar sus números ni sus partes en el archivo .odp.
 - **Las secciones** no se guardan.
-- **Las reflexiones, los biseles y las sombras interiores** se omiten, al igual que el iluminado y la reflexión del texto. La sombra del texto se conserva.
-- **Los efectos de animación** que empiezan al hacer clic en un objeto y los efectos que cambian un color se omiten. Un clic en un vídeo para pausarlo o volver a reproducirlo se conserva.
-- **Un vídeo o un sonido vinculado** desde otro archivo, no incluido en la presentación, conserva su dirección y su imagen en el archivo .odp. LibreOffice lo reproduce si encuentra el archivo. Los vídeos y sonidos incluidos en la presentación se conservan en el archivo .odp y se reproducen.
+- **Los biseles y las sombras interiores** se omiten, al igual que el iluminado y la reflexión del texto. La sombra del texto se conserva. La reflexión de una forma, una línea con degradado, una línea de dos o tres trazos y el tamaño de una sombra se conservan de una forma que solo JeffDeck lee. Otros programas muestran la forma sin la reflexión, la línea en su primer color, un solo trazo y la sombra con el tamaño del objeto.
+- **Los efectos de animación** que se inician al hacer clic en un objeto y los efectos que cambian un color se omiten. Un clic en un vídeo para pausarlo o volver a reproducirlo se conserva.
+- **Un vídeo o un sonido vinculado** desde otro archivo, y no guardado en la presentación, conserva su dirección y su imagen en el archivo .odp. LibreOffice lo reproduce si encuentra el archivo. Los vídeos y sonidos incluidos en la presentación se conservan en el archivo .odp y se reproducen.
 
 Conserve también el archivo .pptx si necesita recuperar estos elementos.
 
-## Lo que se conserva pero no se muestra
+## Qué se conserva pero no se muestra
 
 Algunas partes de un archivo son elementos que JeffDeck todavía no puede mostrar ni modificar. Los conserva con sus diapositivas y los vuelve a escribir al guardar, para que no se pierdan. Entre ellos están las animaciones, que se reproducen en la presentación; los vídeos y sonidos, que todavía no se reproducen, y los efectos de transición que JeffDeck no admite, que se reproducen como un desvanecimiento. Los gráficos y los diagramas SmartArt se muestran tal como se guardaron. Consulte [Bienvenido a JeffDeck](start).
 
 ## Temas relacionados
 
-- [Recuperar el trabajo no guardado](recover)
+- [Recuperar trabajo no guardado](recover)
 - [La pantalla Archivo](file-screen)
 - [Reutilizar diapositivas de otra presentación](reuse)
 - [Imprimir, PDF e imágenes de diapositivas](printing)

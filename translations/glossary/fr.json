@@ -1,5 +1,6 @@
 {
  "3-D rotation": "rotation 3D",
+ "Accessibility": "Accessibilité",
  "address block": "bloc d'adresse",
  "Adjust": "Ajuster",
  "adjustment handle": "poignée d'ajustement",
@@ -83,6 +84,7 @@
  "font scheme": "jeu de polices",
  "footer": "pied de page",
  "footnote": "note de bas de page",
+ "Format": "Format",
  "Format Painter": "Reproduire la mise en forme",
  "freeform": "forme libre",
  "glow": "lumière",
@@ -205,6 +207,7 @@
  "shape": "forme",
  "Shape Format": "Format de la forme",
  "Shape Styles": "Styles de forme",
+ "Shapes": "Formes",
  "Show": "Afficher",
  "shrink text on overflow": "réduire le texte dans la zone de texte",
  "Size": "Taille",
