@@ -688,6 +688,7 @@ void PageView::ensureCaretVisible()
 
 void PageView::caretMoved(bool keepWanted)
 {
+    m_contextAt = -1;
     if (!keepWanted) m_wantedX = -1;
     m_caretOn = true;
     if (hasFocus()) m_blink.start();

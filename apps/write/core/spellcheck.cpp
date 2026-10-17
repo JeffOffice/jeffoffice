@@ -17,19 +17,34 @@ namespace jp::write {
 
 namespace {
 constexpr int kIdleBudgetMs = 10;   // the time an idle step takes at most
+constexpr int kPieceWords = 400;    // the most words of a paragraph that are looked at before the time is asked after
 }
+
+namespace {
+
+// The paragraph as checked, as a stamp: its length, and two hashes of its text and of the languages and "do not check" marks in it.
+struct Stamp {
+    qsizetype length = -1;
+    quint64 a = 0, b = 0;
+    bool operator==(const Stamp &o) const { return length == o.length && a == o.a && b == o.b; }
+    bool operator!=(const Stamp &o) const { return !(*this == o); }
+};
+
+} // namespace
 
 // What was found in a paragraph, kept with it (the document drops it with the paragraph).
 struct SpellCheck::Answer : QTextBlockUserData {
-    QString key;                       // the paragraph as checked: its text, and the languages and "do not check" marks in it
+    Stamp stamp;
     int revision = 0;                  // of the words accepted and the options, as checked
-    QVector<QPair<int, int>> words;    // the misspelled ones, as [start, end) in the paragraph
+    int checkedTo = 0;                 // how far in the paragraph (an offset) the words have been looked at
+    bool done = false;                 // the whole paragraph has
+    QVector<QPair<int, int>> words;    // the misspelled ones so far, as [start, end) in the paragraph
 };
 
 namespace {
 
 // What an answer depends on in a paragraph besides the words accepted: the text, and the language and "do not check" of each stretch that states one.
-QString keyOf(const QTextBlock &block, const QString &fallback)
+Stamp stampOf(const QTextBlock &block, const QString &fallback)
 {
     QString key = block.text();
     for (auto it = block.begin(); !it.atEnd(); ++it) {
@@ -44,7 +59,11 @@ QString keyOf(const QTextBlock &block, const QString &fallback)
     }
     key += QChar(2);
     key += fallback;
-    return key;
+    Stamp stamp;
+    stamp.length = key.size();
+    stamp.a = quint64(qHash(QStringView(key), size_t(0x9E3779B97F4A7C15ull)));
+    stamp.b = quint64(qHash(QStringView(key), size_t(0xC2B2AE3D27D4EB4Full)));
+    return stamp;
 }
 
 } // namespace
@@ -94,14 +113,15 @@ bool SpellCheck::outOfTime() const
     return m_budget >= 0 && m_doneInPass > 0 && m_pass.nsecsElapsed() >= qint64(m_budget) * 1000000;
 }
 
+// The answer kept with the paragraph if it is still its answer (text, languages, and words accepted as they were), done or not.
 SpellCheck::Answer *SpellCheck::answerFor(const QTextBlock &block, int revision) const
 {
     auto *a = dynamic_cast<Answer *>(block.userData());
-    if (!a || a->revision != revision || a->key != keyOf(block, m_language)) return nullptr;
+    if (!a || a->revision != revision || a->stamp != stampOf(block, m_language)) return nullptr;
     return a;
 }
 
-SpellCheck::Answer *SpellCheck::check(const QTextBlock &block, int revision)
+SpellCheck::Answer *SpellCheck::check(const QTextBlock &block, int revision, int upTo, bool ignoreTime)
 {
     QTextBlock b = block;
     auto *a = dynamic_cast<Answer *>(b.userData());
@@ -109,14 +129,30 @@ SpellCheck::Answer *SpellCheck::check(const QTextBlock &block, int revision)
         a = new Answer;
         b.setUserData(a);
     }
-    a->key = keyOf(block, m_language);
-    a->revision = revision;
-    a->words.clear();
+    const Stamp stamp = stampOf(block, m_language);
+    if (a->stamp != stamp || a->revision != revision) {
+        // Not what was checked (or never): from the start.
+        a->stamp = stamp;
+        a->revision = revision;
+        a->checkedTo = 0;
+        a->done = false;
+        a->words.clear();
+        ++m_checked;
+    }
+    const int length = block.length() - 1;
     // (A paragraph that stands for an element kept as XML has no text of the person's.)
-    if (!block.blockFormat().hasProperty(prop::RawBlock))
-        for (const auto &r : misspellingsIn(block, m_language)) a->words << qMakePair(r.first - block.position(), r.second - block.position());
-    ++m_checked;
-    ++m_doneInPass;
+    if (block.blockFormat().hasProperty(prop::RawBlock)) a->done = true;
+    while (!a->done) {
+        int stopped = 0, looked = 0;
+        const auto part = misspellingsIn(block, m_language, a->checkedTo, kPieceWords, &stopped, &looked);
+        for (const auto &r : part) a->words << qMakePair(r.first - block.position(), r.second - block.position());
+        a->checkedTo = std::max(stopped, a->checkedTo + (looked == 0 ? 1 : 0));
+        m_words += looked;
+        ++m_doneInPass;
+        if (a->checkedTo >= length) a->done = true;
+        if (a->done || (upTo >= 0 && a->checkedTo > upTo)) break;
+        if (!ignoreTime && outOfTime()) break;
+    }
     return a;
 }
 
@@ -141,13 +177,15 @@ QVector<QPair<int, int>> SpellCheck::misspelledIn(int from, int to)
     const int revision = currentRevision();
     bool left = false;
     for (QTextBlock b = m_story->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
-        const Answer *a = answerFor(b, revision);
-        if (!a) {
+        Answer *a = answerFor(b, revision);
+        if (!a || !a->done) {
             if (outOfTime()) {
                 left = true;
-                continue;
+                if (!a) continue;   // (a piece of it is there, as far as it went)
+            } else {
+                a = check(b, revision);
+                if (!a->done) left = true;
             }
-            a = check(b, revision);
         }
         for (const auto &w : a->words) {
             const int s = b.position() + w.first, e = b.position() + w.second;
@@ -162,37 +200,72 @@ void SpellCheck::idle()
 {
     if (m_wanted.isEmpty()) return;
     const QVector<QPair<int, int>> wanted = std::exchange(m_wanted, {});
-    const qint64 before = m_checked;
+    const qint64 before = m_checked, wordsBefore = m_words;
     {
         Pass pass(*this, kIdleBudgetMs);
         for (const auto &w : wanted) misspelledIn(w.first, w.second);   // (what it can't do in time is wanted again)
     }
-    if (m_checked != before) Q_EMIT changed();
+    if (m_checked != before || m_words != wordsBefore) Q_EMIT changed();
 }
 
 QPair<int, int> SpellCheck::misspellingAt(int position)
 {
-    if (!m_enabled || !m_story || position < 0 || position >= m_story->characterCount()) return qMakePair(-1, -1);
+    if (!m_story || position < 0 || position >= m_story->characterCount()) return qMakePair(-1, -1);
     const QTextBlock b = m_story->findBlock(position);
     const int revision = currentRevision();
-    const Answer *a = answerFor(b, revision);
-    if (!a) a = check(b, revision);
+    Answer *a = answerFor(b, revision);
+    // As far as the position, not the whole of a long paragraph.
+    if (!a || (!a->done && a->checkedTo <= position - b.position())) a = check(b, revision, position - b.position(), true);
     for (const auto &w : a->words)
         if (position >= b.position() + w.first && position <= b.position() + w.second) return qMakePair(b.position() + w.first, b.position() + w.second);
     return qMakePair(-1, -1);
 }
 
-QPair<int, int> SpellCheck::nextMisspelling(int from)
+SpellCheck::Step SpellCheck::search(int from, int budgetMs, QPair<int, int> *found, int *next)
 {
-    if (!m_story || from >= m_story->characterCount()) return qMakePair(-1, -1);
+    *found = qMakePair(-1, -1);
+    if (next) *next = from;
+    if (!m_story || from >= m_story->characterCount()) return Step::None;
+    Pass pass(*this, budgetMs);
     const int revision = currentRevision();
     for (QTextBlock b = m_story->findBlock(std::max(0, from)); b.isValid(); b = b.next()) {
-        const Answer *a = answerFor(b, revision);
-        if (!a) a = check(b, revision);
+        Answer *a = answerFor(b, revision);
+        if (!a || !a->done) {
+            if (outOfTime()) {
+                if (next) *next = std::max(from, b.position());
+                return Step::More;
+            }
+            a = check(b, revision);
+        }
+        // (The words of a paragraph that is only partly checked are its first: one of them is the first in the story.)
         for (const auto &w : a->words)
-            if (b.position() + w.first >= from) return qMakePair(b.position() + w.first, b.position() + w.second);
+            if (b.position() + w.first >= from) {
+                *found = qMakePair(b.position() + w.first, b.position() + w.second);
+                return Step::Found;
+            }
+        if (!a->done) {
+            if (next) *next = std::max(from, b.position());
+            return Step::More;
+        }
     }
-    return qMakePair(-1, -1);
+    return Step::None;
+}
+
+QPair<int, int> SpellCheck::nextMisspelling(int from)
+{
+    QPair<int, int> found;
+    int next = from;
+    while (search(from, -1, &found, &next) == Step::More) from = next;
+    return found;
+}
+
+qint64 SpellCheck::keptBytes() const
+{
+    qint64 bytes = 0;
+    if (!m_story) return bytes;
+    for (QTextBlock b = m_story->begin(); b.isValid(); b = b.next())
+        if (auto *a = dynamic_cast<Answer *>(b.userData())) bytes += qint64(sizeof(Answer)) + qint64(a->words.capacity()) * qint64(sizeof(QPair<int, int>));
+    return bytes;
 }
 
 void replaceWord(QTextDocument *story, int from, int to, const QString &text)

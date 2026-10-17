@@ -2,6 +2,7 @@
 // Spelling in the window: the help the right-click menu gives on a misspelled word, and the Spelling pane that steps through the misspellings.
 
 #include <QPair>
+#include <QTimer>
 #include <QWidget>
 
 class QLabel;
@@ -29,9 +30,17 @@ public:
     // The word being shown, empty when there is none (the check is complete).
     QString word() const { return m_word; }
     bool complete() const { return m_complete; }
+    // Looking for the next misspelled word, in slices of time (a long document takes seconds to check, and the window is not held up for them).
+    bool searching() const { return m_searching; }
+
+protected:
+    void hideEvent(QHideEvent *e) override;
+    void showEvent(QShowEvent *e) override;
 
 private:
     void find(int from);
+    void search();
+    void checking();
     void show(const QPair<int, int> &range);
     void finish();
     bool stillThere();
@@ -42,8 +51,10 @@ private:
     PageView *m_view;
     QPair<int, int> m_range{-1, -1};
     QString m_word;
-    int m_start = 0;
-    bool m_wrapped = false, m_complete = false;
+    int m_start = 0;                  // where the check began (the caret's place, as the text changes)
+    int m_pos = 0;                    // where the search is
+    bool m_wrapped = false, m_complete = false, m_searching = false;
+    QTimer m_timer;
     QLabel *m_status = nullptr, *m_wordLabel = nullptr, *m_context = nullptr;
     QListWidget *m_list = nullptr;
     QPushButton *m_change = nullptr, *m_changeAll = nullptr, *m_ignore = nullptr, *m_ignoreAll = nullptr, *m_add = nullptr;

@@ -4,14 +4,17 @@
 #include "text/dictionaries.h"
 #include "text/textprops.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
+#include <QMessageBox>
 #include <QRegularExpression>
 #include <QStandardPaths>
 #include <QTextBlock>
 #include <QTextDocument>
 #include <QTextFragment>
 #include <algorithm>
+#include <limits>
 
 namespace jp {
 
@@ -49,24 +52,83 @@ void Speller::ignore(const QString &w)
     ++m_revision;
 }
 
-void Speller::add(const QString &w)
+namespace {
+
+constexpr qint64 kMaxUserDictionaryBytes = 1 << 20;   // as much of the file as is read
+constexpr int kMaxUserWordLength = 100;
+QString s_userDictionaryPath;                          // a test's own file
+
+} // namespace
+
+QStringList userDictionaryWords(const QString &path)
+{
+    QStringList words;
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) return words;
+    QByteArray bytes = f.read(kMaxUserDictionaryBytes);
+    // (A file longer than the limit is cut in the middle of a word: that word goes.)
+    if (f.read(1).size() > 0) {
+        const qsizetype end = bytes.lastIndexOf('\n');
+        bytes.truncate(end < 0 ? 0 : end);
+    }
+    QString text = QString::fromUtf8(bytes);
+    if (text.startsWith(QChar(0xFEFF))) text.remove(0, 1);
+    for (const QString &line : text.split(QLatin1Char('\n'))) {
+        const QString w = line.trimmed();
+        if (!w.isEmpty() && w.size() <= kMaxUserWordLength) words << w;
+    }
+    return words;
+}
+
+bool addToUserDictionary(const QString &path, const QString &word, QString *error)
+{
+    const QString w = word.trimmed();
+    if (w.isEmpty() || w.contains(QLatin1Char('\n')) || w.contains(QLatin1Char('\r'))) {
+        if (error) *error = QCoreApplication::translate("Proofing", "A word to add can't be empty or run over more than one line.");
+        return false;
+    }
+    QFile f(path);
+    if (!f.open(QIODevice::ReadWrite)) {
+        if (error) *error = f.errorString();
+        return false;
+    }
+    // On a line of its own: the file may not end with a line end.
+    QByteArray line = w.toUtf8() + '\n';
+    if (f.size() > 0 && f.seek(f.size() - 1)) {
+        char last = 0;
+        if (f.read(&last, 1) == 1 && last != '\n') line.prepend('\n');
+    }
+    if (!f.seek(f.size()) || f.write(line) != line.size() || !f.flush()) {
+        if (error) *error = f.errorString();
+        return false;
+    }
+    return true;
+}
+
+bool Speller::add(const QString &w, QString *error)
 {
     m_custom.insert(w);
     ++m_revision;
-    QFile f(userDict());
-    if (f.open(QIODevice::Append)) f.write((w + "\n").toUtf8());
+    QString reason;
+    if (addToUserDictionary(userDict(), w, &reason)) {
+        m_saveFailed = false;
+        return true;
+    }
+    if (error && !m_saveFailed) *error = reason.isEmpty() ? QCoreApplication::translate("Proofing", "The word couldn't be saved.") : reason;
+    m_saveFailed = true;
+    return false;
 }
+
+void Speller::setUserDictionaryPath(const QString &path) { s_userDictionaryPath = path; }
 
 Speller::Speller()
 {
-    QFile f(userDict());
-    if (f.open(QIODevice::ReadOnly))
-        for (const QByteArray &line : f.readAll().split('\n'))
-            if (!line.trimmed().isEmpty()) m_custom.insert(QString::fromUtf8(line.trimmed()));
+    for (const QString &w : userDictionaryWords(userDict())) m_custom.insert(w);
 }
 
 QString Speller::userDict()
 {
+    if (!s_userDictionaryPath.isEmpty()) return s_userDictionaryPath;
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QDir().mkpath(dir);
     return dir + "/custom.dic";
@@ -87,10 +149,17 @@ QVector<QPair<int, int>> misspellings(QTextDocument *doc)
 
 QVector<QPair<int, int>> misspellingsIn(const QTextBlock &b, const QString &fallback)
 {
+    int stopped = 0, words = 0;
+    return misspellingsIn(b, fallback, 0, std::numeric_limits<int>::max(), &stopped, &words);
+}
+
+QVector<QPair<int, int>> misspellingsIn(const QTextBlock &b, const QString &fallback, int from, int maxWords, int *stopped, int *words)
+{
     QVector<QPair<int, int>> out;
-    if (dict::root().isEmpty() || !b.isValid()) return out;
-    const QString text = b.text();
-    if (text.size() < 2) return out;
+    const QString text = b.isValid() ? b.text() : QString();
+    if (stopped) *stopped = int(text.size());
+    if (words) *words = 0;
+    if (dict::root().isEmpty() || !b.isValid() || text.size() < 2 || from >= text.size()) return out;
     // The dictionary and the "do not check" of each stretch of the paragraph, in order. Text in a language without a dictionary isn't checked.
     struct Stretch {
         int to;
@@ -122,7 +191,8 @@ QVector<QPair<int, int>> misspellingsIn(const QTextBlock &b, const QString &fall
     int at = 0;
     // (A word with digits in it is one word, which the options may let go: "3rd" and "abc123", not "rd" and "abc".)
     static const QRegularExpression token(QStringLiteral("[\\p{L}\\p{Nd}][\\p{L}\\p{M}\\p{Nd}'’]*"));
-    auto it = token.globalMatch(text);
+    int looked = 0;
+    auto it = token.globalMatch(text, from);
     while (it.hasNext()) {
         const auto m = it.next();
         const int start = int(m.capturedStart());
@@ -131,9 +201,14 @@ QVector<QPair<int, int>> misspellingsIn(const QTextBlock &b, const QString &fall
         if (w.size() < 2 || std::none_of(w.cbegin(), w.cend(), [](QChar c) { return c.isLetter(); })) continue;
         while (at < stretches.size() && stretches[at].to <= start) ++at;
         if (at >= stretches.size()) break;
-        if (stretches[at].skip) continue;
-        if (!speller.check(stretches[at].code, w, rules)) out << qMakePair(b.position() + start, b.position() + start + int(w.size()));
+        ++looked;
+        if (!stretches[at].skip && !speller.check(stretches[at].code, w, rules)) out << qMakePair(b.position() + start, b.position() + start + int(w.size()));
+        if (looked >= maxWords && it.hasNext()) {
+            if (stopped) *stopped = int(m.capturedEnd());
+            break;
+        }
     }
+    if (words) *words = looked;
     return out;
 }
 
@@ -144,7 +219,14 @@ QStringList spellingSuggestions(const QString &w, const QString &language)
     const QString code = dict::match(language);
     return code.isEmpty() ? QStringList() : Speller::get().suggest(code, w);
 }
-void spellingAdd(const QString &w) { Speller::get().add(w); }
+bool spellingAdd(const QString &w, QString *firstFailure) { return Speller::get().add(w, firstFailure); }
+
+void spellingReportFailure(QWidget *parent, const QString &firstFailure)
+{
+    if (firstFailure.isEmpty()) return;
+    QMessageBox::warning(parent, QCoreApplication::translate("Proofing", "Add to Dictionary"),
+                         QCoreApplication::translate("Proofing", "The word can't be saved in your dictionary, so it is accepted only until you close the program.\n%1").arg(firstFailure));
+}
 void spellingIgnore(const QString &w) { Speller::get().ignore(w); }
 
 } // namespace jp

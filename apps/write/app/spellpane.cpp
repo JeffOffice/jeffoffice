@@ -12,6 +12,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QMenu>
+#include <QMessageBox>
 #include <QPointer>
 #include <QPushButton>
 #include <QTextBlock>
@@ -33,12 +34,14 @@ QString languageAt(PageView *view, int position)
     return language.isEmpty() ? view->spelling()->defaultLanguage() : language;
 }
 
+constexpr int kSliceMs = 30;   // the time the pane's search takes at a time
+
 } // namespace
 
 bool addSpellingSuggestions(QMenu &menu, PageView *view)
 {
     if (!view || !view->document() || !view->spelling() || !view->spelling()->enabled()) return false;
-    const QPair<int, int> word = view->spelling()->misspellingAt(view->cursor().position());
+    const QPair<int, int> word = view->spelling()->misspellingAt(view->contextPosition());
     if (word.first < 0) return false;
     QTextCursor w(view->document()->story());
     w.setPosition(word.first);
@@ -69,7 +72,8 @@ bool addSpellingSuggestions(QMenu &menu, PageView *view)
         if (where) where->spelling()->refresh();
     });
     QObject::connect(menu.addAction(QCoreApplication::translate("Proofing", "Add to Dictionary")), &QAction::triggered, &menu, [where, text] {
-        spellingAdd(text);
+        QString failure;
+        if (!spellingAdd(text, &failure)) spellingReportFailure(where, failure);
         if (where) where->spelling()->refresh();
     });
     menu.addSeparator();
@@ -126,6 +130,9 @@ SpellPane::SpellPane(PageView *view, QWidget *parent) : QWidget(parent), m_view(
     connect(m_ignoreAll, &QPushButton::clicked, this, [this] { ignore(true); });
     connect(m_add, &QPushButton::clicked, this, [this] { addToDictionary(); });
     connect(m_list, &QListWidget::itemDoubleClicked, this, [this] { change(false); });
+    m_timer.setSingleShot(true);
+    m_timer.setInterval(0);
+    connect(&m_timer, &QTimer::timeout, this, [this] { search(); });
     finish();
     m_complete = false;
     m_status->clear();
@@ -133,6 +140,8 @@ SpellPane::SpellPane(PageView *view, QWidget *parent) : QWidget(parent), m_view(
 
 void SpellPane::start()
 {
+    m_timer.stop();
+    m_searching = false;
     if (!m_view->document() || !m_view->spelling()) {
         finish();
         return;
@@ -143,18 +152,73 @@ void SpellPane::start()
     find(m_start);
 }
 
+// Looks for the next misspelled word from a place: a slice now, and more in the event loop's free time if the document is long.
 void SpellPane::find(int from)
 {
+    m_pos = from;
+    search();
+}
+
+void SpellPane::search()
+{
     SpellCheck *check = m_view->spelling();
-    QPair<int, int> w = check->nextMisspelling(from);
-    if (w.first >= 0 && m_wrapped && w.first >= m_start) w = qMakePair(-1, -1);   // (back to where it began)
-    if (w.first < 0 && !m_wrapped && m_start > 0) {
-        m_wrapped = true;
-        w = check->nextMisspelling(0);
-        if (w.first >= m_start) w = qMakePair(-1, -1);
+    // (From the caret to the end, then the top to where it began: two slices at most before the pane says anything.)
+    for (int turn = 0; turn < 2; ++turn) {
+        QPair<int, int> found;
+        int next = m_pos;
+        switch (check->search(m_pos, kSliceMs, &found, &next)) {
+        case SpellCheck::Step::Found:
+            if (m_wrapped && found.first >= m_start) finish();   // (back to where it began)
+            else show(found);
+            return;
+        case SpellCheck::Step::More:
+            m_pos = next;
+            if (m_wrapped && m_pos >= m_start) {
+                finish();
+                return;
+            }
+            checking();
+            m_timer.start();
+            return;
+        case SpellCheck::Step::None:
+            if (m_wrapped || m_start <= 0) {
+                finish();
+                return;
+            }
+            m_wrapped = true;
+            m_pos = 0;
+            break;
+        }
     }
-    if (w.first < 0) finish();
-    else show(w);
+    checking();
+    m_timer.start();
+}
+
+// The pane while the search goes on: it says so, and has nothing to offer until the next word is found.
+void SpellPane::checking()
+{
+    m_searching = true;
+    m_complete = false;
+    m_range = qMakePair(-1, -1);
+    m_word.clear();
+    m_wordLabel->clear();
+    m_context->clear();
+    m_list->clear();
+    m_status->setText(tr("Checking spelling…"));
+    for (QPushButton *b : {m_change, m_changeAll, m_ignore, m_ignoreAll, m_add}) b->setEnabled(false);
+}
+
+// A pane that is not shown does not search; shown again, it goes on.
+void SpellPane::hideEvent(QHideEvent *e)
+{
+    QWidget::hideEvent(e);
+    m_timer.stop();
+}
+
+void SpellPane::showEvent(QShowEvent *e)
+{
+    QWidget::showEvent(e);
+    if (m_searching) m_timer.start();
 }
 
 void SpellPane::show(const QPair<int, int> &range)
@@ -166,6 +230,7 @@ void SpellPane::show(const QPair<int, int> &range)
     m_range = range;
     m_word = c.selectedText();
     m_complete = false;
+    m_searching = false;
     m_view->setCursor(c);
     m_status->setText(tr("Not in dictionary:"));
     m_wordLabel->setText(m_word);
@@ -188,6 +253,8 @@ void SpellPane::show(const QPair<int, int> &range)
 
 void SpellPane::finish()
 {
+    m_timer.stop();
+    m_searching = false;
     m_complete = true;
     m_range = qMakePair(-1, -1);
     m_word.clear();
@@ -215,32 +282,45 @@ bool SpellPane::stillThere()
 
 void SpellPane::change(bool all)
 {
-    if (m_complete || !m_list->currentItem() || !stillThere()) return;
+    if (m_complete || m_searching || !m_list->currentItem() || !stillThere()) return;
     QTextDocument *story = m_view->document()->story();
     const QString chosen = m_list->currentItem()->text(), word = m_word;
-    const int first = m_range.first;
+    const int first = m_range.first, delta = int(chosen.size() - word.size());
+    int resume = first + int(chosen.size());
     if (!all) {
         replaceWord(story, m_range.first, m_range.second, chosen);
+        if (m_wrapped) m_start += delta;   // (the word is before where the check began)
     } else {
-        // Every misspelling of the same word, from the last, in one step.
+        // Every misspelling of the same word, from the last, in one step: the places the word is in the text, those the check calls misspelled whole. (The rest of the
+        // document is not checked for it.)
         QVector<QPair<int, int>> same;
-        QTextCursor c(story);
-        for (QPair<int, int> w = m_view->spelling()->nextMisspelling(0); w.first >= 0; w = m_view->spelling()->nextMisspelling(w.second)) {
-            c.setPosition(w.first);
-            c.setPosition(w.second, QTextCursor::KeepAnchor);
-            if (c.selectedText() == word) same << w;
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+            const QString text = b.text();
+            for (int at = int(text.indexOf(word)); at >= 0; at = int(text.indexOf(word, at + 1))) {
+                const int pos = b.position() + at;
+                const QPair<int, int> w = m_view->spelling()->misspellingAt(pos);
+                if (w.first == pos && w.second == pos + int(word.size())) same << w;
+            }
         }
         QTextCursor block(story);
         block.beginEditBlock();
         for (int i = int(same.size()) - 1; i >= 0; --i) replaceWord(story, same[i].first, same[i].second, chosen);
         block.endEditBlock();
+        // What changed length before the word, and before where the check began, moved them.
+        int before = 0, beforeStart = 0;
+        for (const auto &w : same) {
+            if (w.first < first) ++before;
+            if (w.first < m_start) ++beforeStart;
+        }
+        resume += before * delta;
+        m_start += beforeStart * delta;
     }
-    find(first + int(chosen.size()));
+    find(resume);
 }
 
 void SpellPane::ignore(bool all)
 {
-    if (m_complete || !stillThere()) return;
+    if (m_complete || m_searching || !stillThere()) return;
     const int to = m_range.second;
     if (all) {
         spellingIgnore(m_word);
@@ -251,9 +331,10 @@ void SpellPane::ignore(bool all)
 
 void SpellPane::addToDictionary()
 {
-    if (m_complete || !stillThere()) return;
+    if (m_complete || m_searching || !stillThere()) return;
     const int to = m_range.second;
-    spellingAdd(m_word);
+    QString failure;
+    if (!spellingAdd(m_word, &failure)) spellingReportFailure(this, failure);
     m_view->spelling()->refresh();
     find(to);
 }
