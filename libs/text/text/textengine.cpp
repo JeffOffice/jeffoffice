@@ -2504,10 +2504,13 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         if (startsWithBreak && !tail) before = 0;
         // A word processor's automatic spacing (a paragraph from a web page) is a fixed 14 points.
         if (env.wordLines) {
-            // (Between two items of a list there is none.)
+            // (Between two items of a list there is none; a list that follows another has it.)
             const bool item = b.textList() != nullptr;
-            if (bf.boolProperty(tp::SpaceBeforeAuto) && (!tail || m_span.spaceBeforeContinued)) before = item && b.previous().isValid() && b.previous().textList() ? 0.0 : 14 * scale;
-            if (bf.boolProperty(tp::SpaceAfterAuto)) after = item && b.next().isValid() && b.next().textList() ? 0.0 : 14 * scale;
+            auto inList = [&](const QTextBlock &other) {
+                return item && other.isValid() && other.textList() && other.textList()->format().intProperty(tp::ListKey) == b.textList()->format().intProperty(tp::ListKey);
+            };
+            if (bf.boolProperty(tp::SpaceBeforeAuto) && (!tail || m_span.spaceBeforeContinued)) before = inList(b.previous()) ? 0.0 : 14 * scale;
+            if (bf.boolProperty(tp::SpaceAfterAuto)) after = inList(b.next()) ? 0.0 : 14 * scale;
         }
 
         // List marker.

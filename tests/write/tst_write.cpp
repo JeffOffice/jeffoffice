@@ -4209,6 +4209,26 @@ private Q_SLOTS:
         QVERIFY2(std::abs(lines.last().rect.bottom() - lines.first().rect.top() - 50 * 12) < 0.01, qPrintable(QString::number(lines.last().rect.bottom() - lines.first().rect.top())));
     }
 
+    // Automatic spacing (the 14 points of a web page's paragraphs) is none between the items of one list, of whatever level, and 14 where a list follows another.
+    void autoSpacingIsNoneInAListAndFourteenBetweenLists()
+    {
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"bullet\"/><w:lvlText w:val=\"o\"/></w:lvl>"
+                                     "<w:lvl w:ilvl=\"1\"><w:start w:val=\"1\"/><w:numFmt w:val=\"bullet\"/><w:lvlText w:val=\"o\"/></w:lvl></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num><w:num w:numId=\"2\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        auto item = [](int num, int level, const char *text) {
+            return "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"" + QByteArray::number(level) + "\"/><w:numId w:val=\"" + QByteArray::number(num) + "\"/></w:numPr>"
+                   "<w:spacing w:before=\"100\" w:beforeAutospacing=\"1\" w:after=\"100\" w:afterAutospacing=\"1\" w:line=\"240\" w:lineRule=\"exact\"/></w:pPr><w:r><w:t>" + QByteArray(text) + "</w:t></w:r></w:p>";
+        };
+        auto doc = open(makeDocx(item(1, 0, "a") + item(1, 1, "b") + item(1, 0, "c") + item(2, 0, "d"), kStyles, numbering));
+        QVERIFY(doc);
+        const auto lines = doc->pager().lines(0);
+        QCOMPARE(int(lines.size()), 4);
+        // (Lines of twelve points exactly: the items of one list follow one another, and the next list has the fourteen points between.)
+        QVERIFY2(std::abs(lines[1].rect.top() - lines[0].rect.top() - 12) < 0.01, qPrintable(QString::number(lines[1].rect.top() - lines[0].rect.top())));
+        QVERIFY2(std::abs(lines[2].rect.top() - lines[1].rect.top() - 12) < 0.01, qPrintable(QString::number(lines[2].rect.top() - lines[1].rect.top())));
+        QVERIFY2(std::abs(lines[3].rect.top() - lines[2].rect.top() - 26) < 0.01, qPrintable(QString::number(lines[3].rect.top() - lines[2].rect.top())));
+    }
+
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
     // thousand sections makes no more than the sections it changed (counted, not timed).
     void editingSectionsTouchesOnlyWhatChanged()
