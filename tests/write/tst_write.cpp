@@ -436,6 +436,25 @@ private Q_SLOTS:
         QVERIFY(w.document()->leftSomethingOut());
     }
 
+    void anOldTemplateOpensAsANewDocumentMadeFromIt()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        dochelp::DocWriter doc;
+        doc.text = QStringLiteral("Dear <name>,\r");
+        const QString path = dir.filePath(QStringLiteral("letter.dot"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(doc.build());
+        f.close();
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(path));
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("Dear <name>,"));
+        QVERIFY(w.filePath().isEmpty());   // (it is not the template that is changed and saved)
+        QVERIFY(w.isModified());
+    }
+
     void aFileThatIsNotADocumentSaysSoAndOpensNothing()
     {
         QString why;
