@@ -5,6 +5,8 @@
 #include "flow/paginator.h"
 #include "render/renderer.h"
 
+#include <functional>
+
 class QPainter;
 
 namespace jp::write {
@@ -26,5 +28,8 @@ struct PageDrawing {
 
 // Paints the page in its own coordinates (points from its top left corner) on the painter.
 void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, const PageDrawing &drawing);
+
+// A test's way to see which pages are drawn and how: called by paintPage with each page and its drawing (null to stop).
+void setPaintObserver(const std::function<void(const flow::MaterializedPage &, const PageDrawing &)> &observer);
 
 } // namespace jp::write
