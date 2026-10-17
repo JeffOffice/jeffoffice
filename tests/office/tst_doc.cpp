@@ -28,9 +28,11 @@ using jp::office::Package;
 
 namespace {
 
-// How long a file made to cost a great deal may take to read: two seconds (ten times that where the build is slow, with no optimization or with a sanitizer).
+// How long a file made to cost a great deal may take to read: ten seconds (twice that where the build is slow, with no optimization or with a sanitizer).
+// These files read in about a second here, and took 23 to 31 seconds before their limits; a busy machine or a slow CI runner takes two or three
+// times as long, so the limit sits well above that and well below the old cost.
 #ifdef NDEBUG
-constexpr qint64 kFastMs = 2000;
+constexpr qint64 kFastMs = 10000;
 #else
 constexpr qint64 kFastMs = 20000;
 #endif
