@@ -1179,7 +1179,7 @@ void clearFormatting(WriteDoc &doc, QTextCursor &c)
         QTextCharFormat nf = base;
         // What makes the text a piece kept as XML, and what the file says besides, stays.
         // (And the language the run states, which the file keeps: spelling follows what the file says.)
-        for (int key : {int(prop::Atom), int(tp::Field), int(prop::RawRPr), int(tp::Language)})
+        for (int key : {int(prop::Atom), int(tp::Field), int(prop::RawRPr), int(tp::Language), int(tp::NoteMarkCustom)})
             if (f.hasProperty(key)) nf.setProperty(key, f.property(key));
         // (And text a tracked change deleted stays deleted, hidden from the lines: the format says whether the style hides it itself.)
         if (f.hasProperty(prop::TrackedDeleted)) {
