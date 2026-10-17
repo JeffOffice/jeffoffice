@@ -4641,6 +4641,49 @@ private Q_SLOTS:
         }
     }
 
+    // A row that goes over the page break is cut between the lines of its paragraphs as the text is: a paragraph that asks for widow and orphan control does not leave one
+    // line behind or take one to the next page (so one of two lines goes whole), and one that asks to be kept together is not cut at all.
+    void aRowIsNotCutWhereItsParagraphsAskToStayTogether()
+    {
+        // (Row 0 leaves room for one line of row 1, and not two.)
+        FlowDocument probe;
+        const double line = lineHeightOf(probe);
+        const double room = probe.section(0).content().height();
+        const int filler = int(std::floor((room - 12) / line)) - 1 - 1;   // (the page begins with the story's own line)
+        QVector<int> startPieces;
+        for (const int ask : {0, 1, 2}) {
+            FlowDocument fd;
+            TestTable spec;
+            spec.rows = 2;
+            spec.cols = 1;
+            spec.columnWidth = 200;
+            spec.text = [&](int r, int) {
+                if (r == 1) return QStringLiteral("first line%1second line%1third line").arg(QChar(0x2028));
+                QStringList t;
+                for (int i = 0; i < filler; ++i) t << QStringLiteral("filler %1").arg(i);
+                return t.join(QLatin1Char('\n'));
+            };
+            addTable(fd, spec);
+            if (ask) {
+                QTextCursor c(fd.story());
+                for (QTextBlock b = fd.story()->begin(); b.isValid(); b = b.next()) {
+                    if (!b.text().contains(QChar(0x2028))) continue;
+                    c.setPosition(b.position());
+                    QTextBlockFormat bf;
+                    bf.setProperty(ask == 1 ? tp::WidowControl : tp::KeepTogether, true);
+                    c.mergeBlockFormat(bf);
+                }
+            }
+            Paginator pg(&fd);
+            QVERIFY(pg.pageCount() >= 2);
+            startPieces << pg.page(1).start.piece;
+        }
+        // Without a request the row is cut after its first line; the request for widow control (three lines: none may be cut off) and the one to keep together move it whole.
+        QVERIFY2(startPieces[0] != 0, qPrintable(QString::number(startPieces[0])));
+        QCOMPARE(startPieces[1], 0);
+        QCOMPARE(startPieces[2], 0);
+    }
+
     // A row whose cell holds a table goes over the page break inside that table: between its rows, and between the lines of a row of it that may be split. A page
     // starts where the one before left off, so every line of the table in the cell is shown once and no page is taller than its room.
     void aRowWithATableInItIsSplitInsideTheTable()
