@@ -6800,7 +6800,7 @@ private Q_SLOTS:
     {
         double perDelete[2] = {0, 0}, perType[2] = {0, 0};
         int n = 0;
-        for (const int paras : {4000, 16000}) {
+        for (const int paras : {8000, 32000}) {
             TestNotes notes;
             addNote(&notes, QStringLiteral("n"), 5, QStringLiteral("NOTEN"));
             FlowDocument fd;
@@ -6834,8 +6834,8 @@ private Q_SLOTS:
             perDelete[n] = double(t.nsecsElapsed()) / 1e6 / reps;
             ++n;
         }
-        QVERIFY2(perDelete[1] < 3 * perType[1] + 3, qPrintable(QStringLiteral("typing takes %1 ms, deleting %2 ms (16000 paragraphs)").arg(perType[1]).arg(perDelete[1])));
-        QVERIFY2(perDelete[1] < 2.5 * perDelete[0] + 3, qPrintable(QStringLiteral("deleting takes %1 ms at 4000 paragraphs and %2 ms at 16000").arg(perDelete[0]).arg(perDelete[1])));
+        QVERIFY2(perDelete[1] < 3 * perType[1] + 3, qPrintable(QStringLiteral("typing takes %1 ms, deleting %2 ms (32000 paragraphs)").arg(perType[1]).arg(perDelete[1])));
+        QVERIFY2(perDelete[1] < 2.5 * perDelete[0] + 3, qPrintable(QStringLiteral("deleting takes %1 ms at 8000 paragraphs and %2 ms at 32000 (typing %3 and %4)").arg(perDelete[0]).arg(perDelete[1]).arg(perType[0]).arg(perType[1])));
     }
 };
 

@@ -195,7 +195,7 @@ std::shared_ptr<CellContent> layoutCellContent(const TableContext &ctx, int i0, 
                         const QTextFragment frag = it.fragment();
                         const QString code = frag.charFormat().stringProperty(tp::Field);
                         if (!code.startsWith(QLatin1String("footnote:"))) continue;
-                        for (int k = 0; k < frag.length(); ++k) part.notes.push_back({frag.position() + k, code.mid(9), ++number});
+                        for (int k = 0; k < frag.length() && part.notes.size() < TableLayout::kMostRowNotes; ++k) part.notes.push_back({frag.position() + k, code.mid(9), ++number});
                     }
             }
             y += h;
@@ -547,7 +547,7 @@ void tableLines(const TableFragment &nested, double y0, LineList *out)
     for (int i = 0; i < t.cellCount() && !joined; ++i) joined = t.cell(i).rows > 1;
     if (joined) {
         TableLayout::UnitLine whole{y0, y0 + nested.height, {}};
-        for (int r = nested.firstRow; r < nested.endRow; ++r) whole.notes += t.rowNotes(r);
+        for (int r = nested.firstRow; r < nested.endRow && whole.notes.size() < TableLayout::kMostRowNotes; ++r) whole.notes += t.rowNotes(r);
         out->push_back(whole);
         return;
     }
@@ -576,7 +576,7 @@ void tableLines(const TableFragment &nested, double y0, LineList *out)
             for (size_t k = 1; k < inRow.size(); ++k) {
                 if (inRow[k].top < run.bottom - 0.01) {
                     run.bottom = std::max(run.bottom, inRow[k].bottom);
-                    run.notes += inRow[k].notes;
+                    if (run.notes.size() < TableLayout::kMostRowNotes) run.notes += inRow[k].notes;
                 } else {
                     out->push_back(run);
                     run = inRow[k];
@@ -1353,7 +1353,14 @@ void TableFlow::edited(int position, int removed, int added)
             m_dirtyTo = std::max(m_dirtyTo, dirtyTo);
         }
         // An edit that took characters out, or put a note's reference in, may change the numbers of the notes the cells after it cite: the tables are found again.
-        if (!near && m_doc->fields && removed > 0) near = true;
+        if (!near && m_doc->fields && removed > 0) {
+            // (Only if one of the references was among them: the places of the references are kept, so that taking out text that has none does not find the tables again.)
+            if (!m_refsValid) near = true;
+            else {
+                const auto at = std::lower_bound(m_refs.begin(), m_refs.end(), position);
+                near = at != m_refs.end() && *at < position + removed;
+            }
+        }
         if (!near && m_doc->fields && added > 0) {
             const QTextDocument *story = m_doc->story();
             for (QTextBlock b = story->findBlock(std::max(0, position)); b.isValid() && b.position() <= position + added && !near; b = b.next())
@@ -1376,6 +1383,7 @@ void TableFlow::edited(int position, int removed, int added)
             else t.first = std::min(t.first, position);
             t.second = std::max(t.second, t.first);
         }
+        m_refsValid = false;
         m_touched.push_back({position - 1, position + added + 1});
         if (m_touched.size() > 64) {
             m_heights.clear();
@@ -1385,7 +1393,14 @@ void TableFlow::edited(int position, int removed, int added)
     ++m_live->epoch;
     m_layouts.clear();
     m_contents.clear();
-    if (m_valid && !near && m_index.shift(position, removed, added)) return;   // (the tables are where the text left them)
+    if (m_valid && !near && m_index.shift(position, removed, added)) {   // (the tables are where the text left them)
+        if (m_refsValid && delta != 0) {
+            const auto from = std::lower_bound(m_refs.begin(), m_refs.end(), position + removed);
+            for (auto it = from; it != m_refs.end(); ++it) *it += delta;
+        }
+        return;
+    }
+    m_refsValid = false;
     // The tables are found again, and then the rows the edit touched are looked at as they are: a table may have other header rows than it had.
     if (m_valid) m_touched.push_back({position - 1, position + added + 1});
     m_valid = false;
@@ -1394,6 +1409,7 @@ void TableFlow::edited(int position, int removed, int added)
 void TableFlow::reset()
 {
     m_valid = false;
+    m_refsValid = false;
     m_layouts.clear();
     m_heights.clear();
     m_touched.clear();
@@ -1401,11 +1417,26 @@ void TableFlow::reset()
     ++m_live->epoch;
 }
 
+void TableFlow::findRefs()
+{
+    m_refs.clear();
+    m_refsValid = false;
+    if (!m_doc->fields) return;
+    for (QTextBlock b = m_doc->story()->begin(); b.isValid(); b = b.next())
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment frag = it.fragment();
+            if (!frag.charFormat().stringProperty(tp::Field).startsWith(QLatin1String("footnote:"))) continue;
+            for (int i = 0; i < frag.length(); ++i) m_refs.push_back(frag.position() + i);
+        }
+    m_refsValid = true;
+}
+
 const TableIndex &TableFlow::index()
 {
     if (!m_valid) {
         m_index.rebuild(m_doc->story(), m_doc->tables, m_doc);
         m_valid = true;
+        findRefs();
         // The edits made since the tables were last found: the rows they touched are measured again.
         std::vector<std::pair<int, int>> touched;
         touched.swap(m_touched);

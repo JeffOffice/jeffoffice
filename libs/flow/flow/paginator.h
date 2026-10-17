@@ -219,7 +219,7 @@ private:
         double columnLeft = 0;
     };
     // The anchors in a story from `from` to `to` (document positions), given the lines that hold it.
-    QVector<Anchor> anchorsIn(const QTextDocument *story, int from, int to, const QVector<AnchorLine> &lines) const;
+    QVector<Anchor> anchorsIn(const QTextDocument *story, int from, int to, const QVector<AnchorLine> &lines, const QHash<int, QVector<int>> *byBlock = nullptr) const;
     // Puts the objects of the anchors on a page made for painting: pictures (their data in the page's document), rules, boxes, and text boxes, behind the
     // text or over it, with the wrap each asks of the text.
     void addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number);
