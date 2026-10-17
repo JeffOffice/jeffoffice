@@ -3609,18 +3609,338 @@ private Q_SLOTS:
         QVERIFY(documentXml(doc->toDocx()).contains("numberInDash"));
     }
 
-    // The option that no punctuation hangs past the margin is read by its value: stated off, it is off.
-    void noHangingPunctuationIsReadByItsValue()
+    // Punctuation hangs past the margin only in a file that has the East Asian layout on, and not where it also says no punctuation hangs; each option
+    // is read by its value: stated off, it is off.
+    void punctuationHangsOnlyWithTheEastAsianLayout()
     {
         auto hangs = [&](const QByteArray &option) {
             auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {}, "<w:compat>" + option + "</w:compat>"));
             return doc && !doc->flow().env.wordNoHang;
         };
+        QVERIFY(!hangs(""));
         QVERIFY(!hangs("<w:doNotWrapTextWithPunct/>"));
-        QVERIFY(!hangs("<w:doNotWrapTextWithPunct w:val=\"1\"/>"));
-        QVERIFY(hangs("<w:doNotWrapTextWithPunct w:val=\"0\"/>"));
-        QVERIFY(hangs("<w:doNotWrapTextWithPunct w:val=\"false\"/>"));
-        QVERIFY(hangs(""));
+        QVERIFY(!hangs("<w:useFELayout w:val=\"0\"/>"));
+        QVERIFY(hangs("<w:useFELayout/>"));
+        QVERIFY(hangs("<w:useFELayout w:val=\"1\"/>"));
+        QVERIFY(!hangs("<w:useFELayout/><w:doNotWrapTextWithPunct/>"));
+        QVERIFY(!hangs("<w:useFELayout/><w:doNotWrapTextWithPunct w:val=\"1\"/>"));
+        QVERIFY(hangs("<w:useFELayout/><w:doNotWrapTextWithPunct w:val=\"0\"/>"));
+        QVERIFY(hangs("<w:useFELayout/><w:doNotWrapTextWithPunct w:val=\"false\"/>"));
+    }
+
+    // The mark after a page break goes to the next page in a file that says so (splitPgBreakAndParaMark) and in the files of the recent programs (compatibility
+    // mode 15); an older file's mark stays where the break is.
+    void theMarkAfterABreakFollowsTheFilesOption()
+    {
+        auto follows = [&](const QByteArray &compat) {
+            auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {}, "<w:compat>" + compat + "</w:compat>"));
+            return doc && doc->flow().markFollowsBreak;
+        };
+        QVERIFY(!follows(""));
+        QVERIFY(follows("<w:splitPgBreakAndParaMark/>"));
+        QVERIFY(!follows("<w:splitPgBreakAndParaMark w:val=\"0\"/>"));
+        QVERIFY(!follows("<w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"14\"/>"));
+        QVERIFY(follows("<w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"15\"/>"));
+    }
+
+    // What a tracked change deleted is not in the lines: a paragraph whose mark was deleted and that shows nothing else takes no room, nor do the
+    // breaks and tabs of deleted runs; one whose mark was deleted but that shows text is still there. The file is saved with the changes as they were.
+    void whatATrackedChangeDeletedTakesNoRoom()
+    {
+        const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
+        auto para = [](const char *text) { return QByteArray("<w:p><w:r><w:t>") + text + "</w:t></w:r></w:p>"; };
+        const QByteArray deletedMark = "<w:p><w:pPr><w:rPr><w:del" + rev + "/></w:rPr></w:pPr></w:p>";
+        const QByteArray deletedBreak = "<w:p><w:r><w:t>two</w:t></w:r><w:del" + rev + "><w:r><w:tab/><w:br/><w:delText>x</w:delText></w:r></w:del></w:p>";
+        const QByteArray keptText = "<w:p><w:pPr><w:rPr><w:del" + rev + "/></w:rPr></w:pPr><w:r><w:t>text</w:t></w:r></w:p>";
+        auto lines = [&](const QByteArray &body) {
+            auto doc = open(makeDocx(body));
+            return doc ? doc->pager().lines(0) : QVector<StoryLayout::LineBrief>();
+        };
+        const auto plain = lines(para("one") + para("two") + para("three"));
+        QCOMPARE(plain.size(), 3);
+        const auto edited = lines(para("one") + deletedMark + deletedBreak + para("three"));
+        QCOMPARE(edited.size(), plain.size());
+        for (int i = 0; i < plain.size(); ++i) {
+            QVERIFY2(std::abs(edited[i].rect.top() - plain[i].rect.top()) < 0.01, qPrintable(QStringLiteral("line %1 is at %2, not %3").arg(i).arg(edited[i].rect.top()).arg(plain[i].rect.top())));
+            QVERIFY(std::abs(edited[i].rect.height() - plain[i].rect.height()) < 0.01);
+        }
+        QCOMPARE(lines(para("one") + keptText + para("three")).size(), 3);
+        // Saved after an edit: the deleted parts are as they were, and nothing is made hidden.
+        auto doc = open(makeDocx(para("one") + deletedMark + deletedBreak + para("three")));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(1);
+        insertText(*doc, c, QStringLiteral("x"));
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(!x.contains("vanish"), x.constData());
+        QVERIFY(x.contains("<w:del"));
+        QVERIFY(x.contains("<w:br/>"));
+        // Text typed beside deleted content is not deleted.
+        QTextCursor at(doc->story());
+        at.setPosition(doc->story()->findBlockByNumber(2).position() + 3);   // (after "two", before what was deleted)
+        insertText(*doc, at, QStringLiteral("!"));
+        QVERIFY(!at.charFormat().boolProperty(tp::HiddenText));
+        QVERIFY(doc->pager().lines(0).size() == 3);
+    }
+
+    // What a file says of hidden text on what a tracked change deleted is what is saved: a w:vanish on a deleted run or on a deleted paragraph mark stays, and
+    // text that is hidden only because it is deleted is not made hidden in the file (nor, in a style that hides text, shown by a w:vanish of value 0).
+    void whatAFileSaysOfHiddenTextOnDeletedTextIsSavedAsItWas()
+    {
+        const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
+        auto savedAfterTyping = [&](const QByteArray &body, const QByteArray &styles) {
+            auto doc = open(makeDocx(body, styles));
+            if (!doc) return QByteArray();
+            QTextCursor c(doc->story());
+            c.setPosition(1);
+            insertText(*doc, c, QStringLiteral("x"));
+            return documentXml(doc->toDocx());
+        };
+        // A file that hides the deleted run and the deleted mark itself.
+        const QByteArray vanished = "<w:p><w:r><w:t>one</w:t></w:r><w:del" + rev + "><w:r><w:rPr><w:vanish/></w:rPr><w:delText>gone</w:delText></w:r></w:del></w:p>"
+                                    "<w:p><w:pPr><w:rPr><w:vanish/><w:del" + rev + "/></w:rPr></w:pPr><w:del" + rev + "><w:r><w:delText>mark</w:delText></w:r></w:del></w:p>"
+                                    "<w:p><w:r><w:t>tail</w:t></w:r></w:p>";
+        QByteArray x = savedAfterTyping(vanished, QByteArray());
+        QVERIFY2(x.count("<w:vanish/>") == 2, x.constData());
+        QVERIFY2(x.contains("<w:delText>gone</w:delText>") && x.contains("<w:delText>mark</w:delText>"), x.constData());
+        // A deleted run in a style that hides text, which says nothing of it: nothing is added.
+        const QByteArray styles = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                                  "<w:style w:type=\"paragraph\" w:styleId=\"Hid\"><w:name w:val=\"Hid\"/><w:basedOn w:val=\"Normal\"/><w:rPr><w:vanish/></w:rPr></w:style>";
+        const QByteArray inHidden = "<w:p><w:r><w:t>one</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val=\"Hid\"/></w:pPr><w:del" + rev + "><w:r><w:delText>gone</w:delText></w:r></w:del></w:p>";
+        x = savedAfterTyping(inHidden, styles);
+        QVERIFY2(!x.contains("vanish w:val") && x.count("vanish") == 0 && x.contains("<w:delText>gone</w:delText>"), x.constData());
+        // One that says it is not hidden stays so.
+        const QByteArray shown = "<w:p><w:r><w:t>one</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val=\"Hid\"/></w:pPr><w:del" + rev + "><w:r><w:rPr><w:vanish w:val=\"0\"/></w:rPr><w:delText>gone</w:delText></w:r></w:del></w:p>";
+        x = savedAfterTyping(shown, styles);
+        QVERIFY2(x.contains("<w:vanish w:val=\"0\"/>"), x.constData());
+    }
+
+    // The round-trip check sees what a save did to hidden text and to deleted text.
+    void theRoundTripCheckSeesLostHiddenAndDeletedText()
+    {
+        const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
+        auto file = [&](const QByteArray &runProps, const QByteArray &markProps, const QByteArray &deleted) {
+            return makeDocx("<w:p><w:pPr><w:rPr>" + markProps + "</w:rPr></w:pPr><w:del" + rev + "><w:r><w:rPr>" + runProps + "</w:rPr><w:delText>" + deleted + "</w:delText></w:r></w:del></w:p>");
+        };
+        const QByteArray base = file("<w:vanish/>", "<w:vanish/>", "gone");
+        QVERIFY(rt::lossProblems(base, base).isEmpty());
+        QVERIFY(!rt::lossProblems(base, file(QByteArray(), "<w:vanish/>", "gone")).isEmpty());   // (the run's w:vanish lost)
+        QVERIFY(!rt::lossProblems(base, file("<w:vanish/>", QByteArray(), "gone")).isEmpty());   // (the mark's)
+        QVERIFY(!rt::lossProblems(base, file("<w:vanish w:val=\"0\"/>", "<w:vanish/>", "gone")).isEmpty());   // (changed)
+        QVERIFY(!rt::lossProblems(base, file("<w:vanish/>", "<w:vanish/>", "gone!")).isEmpty());   // (the deleted text changed)
+    }
+
+    // Text typed beside what a tracked change deleted is never inside the deletion in the file: typed before it or just inside its start, it goes before it;
+    // typed after its content, just inside its end, or after it, it goes after it.
+    void textTypedBesideADeletionIsOutsideIt()
+    {
+        const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
+        const QByteArray body = "<w:p><w:r><w:t>one</w:t></w:r><w:del" + rev + "><w:r><w:delText>gone</w:delText></w:r></w:del><w:r><w:t>tail</w:t></w:r></w:p>";
+        // (In the story: "one" 0 to 2, the deletion's start 3, its text 4, its end 5, "tail" from 6.)
+        for (int at = 3; at <= 6; ++at) {
+            auto doc = open(makeDocx(body));
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            c.setPosition(at);
+            insertText(*doc, c, QStringLiteral("ZZ"));
+            const QByteArray x = documentXml(doc->toDocx());
+            const int open = x.indexOf("<w:del "), close = x.indexOf("</w:del>"), typed = x.indexOf("ZZ");
+            QVERIFY2(open >= 0 && close > open && typed >= 0, x.constData());
+            QVERIFY2(typed < open || typed > close, qPrintable(QStringLiteral("typed at %1 is inside the deletion: %2").arg(at).arg(QString::fromUtf8(x))));
+            QVERIFY2((at <= 4) == (typed < open), qPrintable(QStringLiteral("typed at %1 is on the wrong side: %2").arg(at).arg(QString::fromUtf8(x))));
+            QVERIFY(x.contains("<w:delText>gone</w:delText>"));
+        }
+    }
+
+    // Editing acts on what shows: Backspace at the start of a paragraph after one a tracked change deleted joins it with the paragraph that shows before, Delete at
+    // the end of one before such a paragraph does the same, and what is deleted stays, as paragraphs of its own: no paragraph that has text keeps the deleted mark.
+    void editingJoinsTheParagraphsThatShowAcrossADeletedOne()
+    {
+        const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"", mark = " w:id=\"9\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
+        const QByteArray body = "<w:p><w:r><w:t>one</w:t></w:r></w:p><w:p><w:pPr><w:rPr><w:del" + mark + "/></w:rPr></w:pPr><w:del" + rev + "><w:r><w:delText>gone</w:delText></w:r></w:del></w:p>"
+                                "<w:p><w:r><w:t>two</w:t></w:r></w:p>";
+        // The paragraphs of the saved file that have text, and whether the deleted one is still there.
+        auto check = [&](WriteDoc &doc, const QString &what) {
+            const QByteArray x = documentXml(doc.toDocx());
+            QVERIFY2(x.contains("<w:delText>gone</w:delText>") && x.contains("w:id=\"9\""), qPrintable(what + QLatin1String(": the deletion is gone: ") + QString::fromUtf8(x)));
+            QVector<QByteArray> withText;
+            for (int from = x.indexOf("<w:p>"); from >= 0; from = x.indexOf("<w:p>", from + 1)) {
+                const QByteArray para = x.mid(from, x.indexOf("</w:p>", from) - from);
+                if (para.contains("<w:t>") || para.contains("<w:t ")) withText << para;
+            }
+            QCOMPARE(withText.size(), 1);   // (one, and two, are one paragraph)
+            QVERIFY2(!withText[0].contains("w:id=\"9\"") && withText[0].contains("one") && withText[0].contains("two"), qPrintable(what + QLatin1String(": ") + QString::fromUtf8(withText[0])));
+            QCOMPARE(doc.pager().lines(0).size(), 1);
+        };
+        {
+            auto doc = open(makeDocx(body));
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            c.setPosition(doc->story()->findBlockByNumber(2).position());
+            deleteBack(*doc, c, false);
+            check(*doc, QStringLiteral("Backspace"));
+        }
+        {
+            auto doc = open(makeDocx(body));
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            c.setPosition(doc->story()->findBlockByNumber(0).position() + 3);
+            deleteForward(*doc, c, false);
+            check(*doc, QStringLiteral("Delete"));
+        }
+    }
+
+    // A selection that begins or ends in a paragraph that shows nothing because a tracked change deleted it begins or ends where the paragraphs that show do:
+    // what survives is never left in the deleted paragraph.
+    void aSelectionAtADeletedParagraphLeavesNoTextInIt()
+    {
+        const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"", mark = " w:id=\"9\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
+        const QByteArray body = "<w:p><w:r><w:t>one</w:t></w:r></w:p><w:p><w:pPr><w:rPr><w:del" + mark + "/></w:rPr></w:pPr><w:del" + rev + "><w:r><w:delText>gone</w:delText></w:r></w:del></w:p>"
+                                "<w:p><w:r><w:t>two</w:t></w:r></w:p>";
+        auto textParagraphsKeepNoDeletedMark = [&](WriteDoc &doc, const QString &what) {
+            const QByteArray x = documentXml(doc.toDocx());
+            for (int from = x.indexOf("<w:p>"); from >= 0; from = x.indexOf("<w:p>", from + 1)) {
+                const QByteArray para = x.mid(from, x.indexOf("</w:p>", from) - from);
+                if ((para.contains("<w:t>") || para.contains("<w:t ")) && para.contains("w:id=\"9\"")) return QStringLiteral("%1: text in the deleted paragraph: %2").arg(what, QString::fromUtf8(para));
+            }
+            return QString();
+        };
+        auto run = [&](const char *name, std::function<void(QTextDocument *, QTextCursor &)> select, const QString &expected) {
+            auto doc = open(makeDocx(body));
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            select(doc->story(), c);
+            deleteBack(*doc, c, false);
+            QVERIFY2(textParagraphsKeepNoDeletedMark(*doc, QString::fromLatin1(name)).isEmpty(), qPrintable(textParagraphsKeepNoDeletedMark(*doc, QString::fromLatin1(name))));
+            QString shown;
+            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) shown += b.text().remove(QChar::ObjectReplacementCharacter) + QLatin1Char('|');
+            QCOMPARE(shown, expected);
+        };
+        // From the start of the deleted paragraph to inside the next: the next loses its letters; the deleted one is not what was selected.
+        run("from the deleted paragraph", [](QTextDocument *d, QTextCursor &c) {
+            c.setPosition(d->findBlockByNumber(1).position());
+            c.setPosition(d->findBlockByNumber(2).position() + 1, QTextCursor::KeepAnchor);
+        }, QStringLiteral("one||wo|"));
+        // From inside the paragraph before to the start of the deleted one: only the letters go.
+        run("to the deleted paragraph", [](QTextDocument *d, QTextCursor &c) {
+            c.setPosition(d->findBlockByNumber(0).position() + 1);
+            c.setPosition(d->findBlockByNumber(1).position(), QTextCursor::KeepAnchor);
+        }, QStringLiteral("o||two|"));
+    }
+
+    // A run that asks for ligatures (w14:ligatures) has them in the layout, by the value it states; the file keeps the element as it was.
+    void aRunThatAsksForLigaturesIsReadSo()
+    {
+        const QByteArray ns = " xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\"";
+        auto ligaturesOf = [&](const char *val) {
+            const QByteArray body = "<w:p><w:r><w:rPr><w14:ligatures" + ns + " w14:val=\"" + val + "\"/></w:rPr><w:t>office</w:t></w:r></w:p>";
+            auto doc = open(makeDocx(body));
+            if (!doc) return -2;
+            const QTextCharFormat f = doc->story()->begin().begin().fragment().charFormat();
+            if (!f.hasProperty(tp::Ligatures)) return -1;
+            QTextCursor c(doc->story());
+            insertText(*doc, c, QStringLiteral("x"));
+            if (!documentXml(doc->toDocx()).contains(QByteArray("w14:val=\"") + val + "\"")) return -3;
+            return f.intProperty(tp::Ligatures);
+        };
+        QCOMPARE(ligaturesOf("none"), 1);
+        QCOMPARE(ligaturesOf("standard"), 0);
+        QCOMPARE(ligaturesOf("standardContextual"), 0);
+        QCOMPARE(ligaturesOf("all"), 2);
+        QCOMPARE(ligaturesOf("discretional"), 2);
+        auto doc = open(makeDocx("<w:p><w:r><w:t>office</w:t></w:r></w:p>"));
+        QVERIFY(doc);
+        QVERIFY(!doc->story()->begin().begin().fragment().charFormat().hasProperty(tp::Ligatures));
+    }
+
+    // A paragraph that turns overflowPunct off, itself or by its style, does not let punctuation hang; the file keeps the element as it was.
+    void overflowPunctOffIsReadFromTheParagraphAndItsStyle()
+    {
+        const QByteArray styles = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                                  "<w:style w:type=\"paragraph\" w:styleId=\"Tight\"><w:name w:val=\"Tight\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:overflowPunct w:val=\"0\"/></w:pPr></w:style>";
+        auto noHang = [&](const QByteArray &props, int block) {
+            auto doc = open(makeDocx("<w:p><w:pPr>" + props + "</w:pPr><w:r><w:t>one</w:t></w:r></w:p><w:p><w:r><w:t>two</w:t></w:r></w:p>", styles));
+            return doc && doc->story()->findBlockByNumber(block).blockFormat().boolProperty(tp::NoHangPunct);
+        };
+        QVERIFY(noHang("<w:overflowPunct w:val=\"0\"/>", 0));
+        QVERIFY(!noHang("<w:overflowPunct/>", 0));
+        QVERIFY(!noHang("", 0));
+        QVERIFY(noHang("<w:pStyle w:val=\"Tight\"/>", 0));
+        QVERIFY(!noHang("<w:pStyle w:val=\"Tight\"/><w:overflowPunct/>", 0));   // (the paragraph says it does over its style)
+        QVERIFY(!noHang("<w:overflowPunct w:val=\"0\"/>", 1));               // (the next paragraph is not the one)
+        auto doc = open(makeDocx("<w:p><w:pPr><w:overflowPunct w:val=\"0\"/></w:pPr><w:r><w:t>one</w:t></w:r></w:p>", styles));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        insertText(*doc, c, QStringLiteral("x"));
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:overflowPunct w:val=\"0\"/>"));
+    }
+
+    // Clearing the formatting of text keeps what a tracked change deleted deleted: its tabs and breaks do not come back into the lines, and the file keeps
+    // them as they were.
+    void clearingFormattingKeepsDeletedTextDeleted()
+    {
+        const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
+        const QByteArray body = "<w:p><w:r><w:t>one</w:t></w:r></w:p><w:p><w:r><w:t>two</w:t></w:r><w:del" + rev + "><w:r><w:tab/><w:br/><w:delText>x</w:delText></w:r></w:del></w:p>"
+                                "<w:p><w:r><w:t>three</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        const auto before = doc->pager().lines(0);
+        QCOMPARE(before.size(), 3);
+        QTextCursor c(doc->story());
+        c.select(QTextCursor::Document);
+        clearFormatting(*doc, c);
+        const auto after = doc->pager().lines(0);
+        QCOMPARE(after.size(), 3);
+        for (int i = 0; i < 3; ++i) QVERIFY(std::abs(after[i].rect.top() - before[i].rect.top()) < 0.01);
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(x.contains("<w:del") && x.contains("<w:delText>x</w:delText>") && x.contains("<w:br/>") && !x.contains("vanish"), x.constData());
+    }
+
+    // An endnote that a tracked change deleted is no endnote in the numbering: the one after it shows the number the first would.
+    void aDeletedEndnoteReferenceTakesNoNumber()
+    {
+        const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
+        const QByteArray body = "<w:p><w:r><w:t>a</w:t></w:r><w:del" + rev + "><w:r><w:endnoteReference w:id=\"1\"/></w:r></w:del><w:r><w:t>b</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        QStringList shown;
+        for (QTextBlock::iterator it = doc->story()->begin().begin(); !it.atEnd(); ++it) {
+            const QTextCharFormat cf = it.fragment().charFormat();
+            if (cf.hasProperty(prop::Atom) && unpackAtom(storedBytes(cf, prop::Atom)).tag == QLatin1String("endnoteReference")) shown << cf.stringProperty(tp::Field);
+        }
+        QCOMPARE(shown, QStringList({QStringLiteral("raw:i"), QStringLiteral("raw:i")}));   // (the deleted one is "i" too, as nothing shows it)
+    }
+
+    // A file that says its hanging indents add no tab stop (noTabHangInd) is read so, by its value.
+    void hangingIndentsAreNoTabStopsWhereTheFileSaysSo()
+    {
+        auto noStop = [&](const QByteArray &option) {
+            auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {}, "<w:compat>" + option + "</w:compat>"));
+            return doc && doc->flow().env.wordNoHangStop;
+        };
+        QVERIFY(!noStop(""));
+        QVERIFY(noStop("<w:noTabHangInd/>"));
+        QVERIFY(!noStop("<w:noTabHangInd w:val=\"0\"/>"));
+    }
+
+    // A file that does not use the web page's way of spacing paragraphs has the space after one and the space before the next added; it is the larger of the
+    // two otherwise.
+    void paragraphSpaceAddsInAFileThatTurnsTheWebWayOff()
+    {
+        auto sums = [&](const QByteArray &option) {
+            auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {}, "<w:compat>" + option + "</w:compat>"));
+            return doc && doc->flow().env.wordSpaceSums;
+        };
+        QVERIFY(!sums(""));
+        QVERIFY(sums("<w:doNotUseHTMLParagraphAutoSpacing/>"));
+        QVERIFY(sums("<w:doNotUseHTMLParagraphAutoSpacing w:val=\"1\"/>"));
+        QVERIFY(!sums("<w:doNotUseHTMLParagraphAutoSpacing w:val=\"0\"/>"));
+        // The pages the paginator makes carry it, so that a page's text is spaced as the paginator spaced it.
+        auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {}, "<w:compat><w:doNotUseHTMLParagraphAutoSpacing/></w:compat>"));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        QVERIFY(page->doc->wordSpaceSums);
     }
 
     // Spacing a person sets on paragraphs that have automatic spacing is the spacing they have: the automatic gap goes, on the page and in the file.

@@ -372,6 +372,15 @@ QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme, const RunPro
         const QColor h = highlightColor(r.highlight);
         if (h.isValid()) cf.setProperty(tp::HighlightRefP, ColorRef::rgb(h).toString());
     }
+    // The ligatures the run asks for (w14:ligatures, kept as written): none, the standard ones, or the discretionary ones too; a run that says nothing has what
+    // the text engine gives a word processor's text (none).
+    for (const RawChild &ch : r.extra) {
+        static const QRegularExpression ligatures(QStringLiteral("^<[^\\s:>/]+:ligatures\\b[^>]*:val=\"(\\w+)\""));
+        const QRegularExpressionMatch m = ligatures.match(QString::fromUtf8(ch.xml.left(200)));
+        if (!m.hasMatch()) continue;
+        const QString val = m.captured(1);
+        cf.setProperty(tp::Ligatures, val == QLatin1String("none") ? 1 : val.contains(QLatin1String("iscretional")) || val == QLatin1String("all") ? 2 : 0);
+    }
     if (!r.extra.isEmpty()) setStored(cf, prop::RawRPr, packRaw(r.extra));
     if (direct && direct->fonts && direct->fonts->hasOtherScripts()) cf.setProperty(prop::FontsOther, packOtherFonts(*direct->fonts));
     return cf;
@@ -423,7 +432,7 @@ RunProps runPropsOf(const QTextCharFormat &f)
     r.dstrike = strike && dstrike;
     r.caps = f.fontCapitalization() == QFont::AllUppercase;
     r.smallCaps = f.fontCapitalization() == QFont::SmallCaps;
-    r.vanish = f.boolProperty(tp::HiddenText);
+    r.vanish = f.boolProperty(tp::HiddenText) && f.intProperty(prop::TrackedDeleted) != prop::HiddenByDeletion;   // (hidden only because a change deleted it: the run doesn't say so)
     r.noProof = f.boolProperty(tp::NoProof);
     r.vertAlign = f.verticalAlignment() == QTextCharFormat::AlignSuperScript ? QStringLiteral("superscript")
                   : f.verticalAlignment() == QTextCharFormat::AlignSubScript ? QStringLiteral("subscript")
@@ -524,6 +533,7 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
     if (p.widowControl.value_or(true)) bf.setProperty(tp::WidowControl, true);
     if (p.pageBreakBefore.value_or(false)) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore);
     if (p.contextualSpacing.value_or(false)) bf.setProperty(tp::ContextualSpacing, true);
+    if (!p.overflowPunct.value_or(true)) bf.setProperty(tp::NoHangPunct, true);
     {
         tp::ParaBox box;
         if (p.borders) {

@@ -354,7 +354,14 @@ struct ParaSig {
     // Each property of a run of the paragraph, as written (every one, the ones the program understands too): a save may leave out what it normalizes, but a run
     // that had none gaining one is a change to a file nobody touched.
     QSet<QString> runProps;
-    bool operator==(const ParaSig &o) const { return attrs == o.attrs && plainHyphens(text) == plainHyphens(o.text) && markers == o.markers && pPrOther == o.pPrOther && rPrOther == o.rPrOther && unknownAttrs == o.unknownAttrs; }
+    // What the paragraph hides, as written, runs' and mark's (w:vanish and its kin): a save that lost or gained one changes what the file shows or hides.
+    QSet<QString> hiddenProps;
+    // The text of what a tracked change deleted (w:delText), in order: a save keeps it as it was.
+    QString deletedText;
+    bool operator==(const ParaSig &o) const {
+        return attrs == o.attrs && plainHyphens(text) == plainHyphens(o.text) && markers == o.markers && pPrOther == o.pPrOther && rPrOther == o.rPrOther && unknownAttrs == o.unknownAttrs &&
+               hiddenProps == o.hiddenProps && deletedText == o.deletedText;
+    }
 };
 
 inline void collectProps(const Node &props, const std::initializer_list<const char *> &modeled, const QString &where, ParaSig *sig, QStringList *other)
@@ -369,6 +376,7 @@ inline void collectProps(const Node &props, const std::initializer_list<const ch
         if (local == QLatin1String("rPr")) {
             for (const Node &m : k.kids) {
                 const QString ml = localOf(m.name);
+                if (isWordNs(m.name) && inList(ml, {"vanish", "webHidden", "specVanish"})) sig->hiddenProps.insert(QStringLiteral("mark:") + canonical(m));
                 if (!isWordNs(m.name) || !inList(ml, kModeledRPr)) sig->rPrOther.push_back(canonical(m));
             }
             continue;
@@ -390,6 +398,7 @@ inline void walkInline(const Node &n, ParaSig *sig)
             for (const Node &m : k.kids) {
                 const QString ml = localOf(m.name);
                 sig->runProps.insert(canonical(m));
+                if (isWordNs(m.name) && inList(ml, {"vanish", "webHidden", "specVanish"})) sig->hiddenProps.insert(QStringLiteral("run:") + canonical(m));
                 if (!isWordNs(m.name) || !inList(ml, kModeledRPr)) sig->rPrOther.push_back(canonical(m));
                 else {
                     const QStringList known = kKnownAttrs.value(ml, QStringList());
@@ -410,6 +419,10 @@ inline void walkInline(const Node &n, ParaSig *sig)
         }
         if (isWordNs(k.name) && local == QLatin1String("t")) {
             sig->text += k.text;
+            continue;
+        }
+        if (isWordNs(k.name) && local == QLatin1String("delText")) {
+            sig->deletedText += k.text;
             continue;
         }
         // (Bookmarks and ranges are compared by their pairs, over the whole document.)
@@ -681,6 +694,8 @@ inline QStringList lossProblems(const QByteArray &original, const QByteArray &sa
             if (x.rPrOther != y.rPrOther) what += QStringLiteral(" rPr[%1|%2]").arg(x.rPrOther.join(QLatin1Char(',')).left(120), y.rPrOther.join(QLatin1Char(',')).left(120));
             if (x.unknownAttrs != y.unknownAttrs) what += QStringLiteral(" attributes[%1|%2]").arg(x.unknownAttrs.join(QLatin1Char(',')).left(120), y.unknownAttrs.join(QLatin1Char(',')).left(120));
             if (detail::plainHyphens(x.text) != detail::plainHyphens(y.text)) what += QStringLiteral(" text");
+            if (x.deletedText != y.deletedText) what += QStringLiteral(" deleted text[%1|%2]").arg(x.deletedText.left(60), y.deletedText.left(60));
+            if (x.hiddenProps != y.hiddenProps) what += QStringLiteral(" hidden[%1|%2]").arg(QStringList(x.hiddenProps.cbegin(), x.hiddenProps.cend()).join(QLatin1Char(',')).left(120), QStringList(y.hiddenProps.cbegin(), y.hiddenProps.cend()).join(QLatin1Char(',')).left(120));
             out << QStringLiteral("paragraph %1 differs:").arg(i) + what;
         }
     }

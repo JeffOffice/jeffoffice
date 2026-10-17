@@ -249,7 +249,7 @@ QString FieldContext::key(bool withClock) const
 
 QString LayoutEnv::key() const
 {
-    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
+    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (wordNoHangStop ? "|h" : "") + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
     if (defaultTab != 36) k += QStringLiteral("|t%1").arg(defaultTab);
     for (auto it = familyAliases.cbegin(); it != familyAliases.cend(); ++it) k += QStringLiteral("|a") + it.key() + QLatin1Char('=') + it.value();
     for (auto it = standIns.cbegin(); it != standIns.cend(); ++it) k += QStringLiteral("|i") + it.key() + QLatin1Char('=') + it.value();
@@ -939,6 +939,17 @@ static double rawFirstSize(const QTextBlock &b)
     return std::max(0.5, it.atEnd() ? fileSize(b.charFormat()) : fileSize(it.fragment().charFormat()));
 }
 
+// Whether a text has a letter of a script that is shaped with ligatures of its own (Arabic, the scripts of India and of southeast Asia...), which no setting
+// of ligatures is to touch.
+static bool hasComplexScript(const QString &text)
+{
+    for (const QChar ch : text) {
+        const char16_t u = ch.unicode();
+        if ((u >= 0x0590 && u < 0x1E00) || (u >= 0xFB1D && u <= 0xFDFF) || (u >= 0xFE70 && u <= 0xFEFF)) return true;
+    }
+    return false;
+}
+
 QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
 {
     QTextCharFormat cf = b.charFormat();
@@ -952,7 +963,9 @@ QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
     if (num == 2) f.setFeature(QFont::Tag("onum"), 1);
     if (sp == 1) f.setFeature(QFont::Tag("pnum"), 1);
     if (sp == 2) f.setFeature(QFont::Tag("tnum"), 1);
-    if (lig == 1 || env.noLigatures) { f.setFeature(QFont::Tag("liga"), 0); f.setFeature(QFont::Tag("clig"), 0); }
+    // (A word processor's text has none unless its file asks, and not the letters of the scripts that need them: those are shaped as the font does.)
+    const bool wordDefault = env.wordLines && !cf.hasProperty(tp::Ligatures) && !hasComplexScript(b.text());
+    if (lig == 1 || env.noLigatures || wordDefault) { f.setFeature(QFont::Tag("liga"), 0); f.setFeature(QFont::Tag("clig"), 0); }
     if (lig == 2) { f.setFeature(QFont::Tag("dlig"), 1); f.setFeature(QFont::Tag("hlig"), 1); }
     const int ss = cf.intProperty(tp::StylisticSet);
     if (ss > 0 && ss <= 20) f.setFeature(QFont::Tag::fromString(QStringLiteral("ss%1").arg(ss, 2, 10, QChar('0'))).value_or(QFont::Tag()), 1);
@@ -1435,8 +1448,10 @@ static WordLine wordFaceOf(const QFont &f)
 // Two runs on one line: the line is that of the taller (a Symbol bullet's line is Symbol's own; a Courier bullet beside Times text makes none taller).
 static WordLine mergeWord(const WordLine &a, const WordLine &b) { return a.total() >= b.total() ? a : b; }
 
-// The line a stretch of text sets, from its runs.
-static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback)
+// The line a stretch of text sets, from its runs. The spaces and tabs that end the line (`disp` is the paragraph's text) take no part in its
+// height, as a word processor sets them; a line that shows nothing else is the paragraph mark's (`markFont`, at `markSize`), not the font of
+// its blanks.
+static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback, const QString *disp = nullptr, const QFont *markFont = nullptr, double markSize = 0)
 {
     WordLine m;
     auto add = [&](const QFont &f, double size) {
@@ -1448,11 +1463,15 @@ static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int 
         run.leading = face.leading * em;
         m = m.total() > 0 ? mergeWord(m, run) : run;
     };
+    int shown = from + len;   // (where the line's text ends, trailing spaces and tabs not counted)
+    if (disp)
+        while (shown > from && shown <= disp->size() && (disp->at(shown - 1) == QLatin1Char(' ') || disp->at(shown - 1) == QLatin1Char('\t'))) --shown;
     for (const auto &r : ranges)
-        if (r.length > 0 && r.start < from + len && r.start + r.length > from) {   // (a mark that shows nothing is no run)
+        if (r.length > 0 && r.start < shown && r.start + r.length > from) {   // (a mark that shows nothing is no run)
             const QFont f = r.format.font();
             add(f, r.format.hasProperty(tp::LineSize) ? r.format.property(tp::LineSize).toDouble() : f.pointSizeF());
         }
+    if (m.total() <= 0 && markFont) add(*markFont, markSize);
     if (m.total() <= 0) add(fallback, fallback.pointSizeF());
     return m;
 }
@@ -2417,6 +2436,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->cut = cutShort;
         // Qt draws U+2028 as a line break; keep it.
         const QFont base = baseFontFor(b, env);
+        // (A word processor's line that shows no text is the height of the paragraph mark's font.)
+        QFont markFont;
+        double markSize = 0;
+        if (env.wordLines) {
+            const QTextCharFormat mf = resolveCharFormat(b.charFormat(), env);
+            markFont = mf.font();
+            markSize = mf.hasProperty(tp::LineSize) ? mf.property(tp::LineSize).toDouble() : markFont.pointSizeF();
+        }
         B->tl = std::make_unique<ParagraphLayout>(B->disp, fineFont(base));
         ranges = applyLetterWidths(ranges, B->disp);
         B->tl->setFormats(fineRanges(ranges));
@@ -2456,7 +2483,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->tl->setCacheEnabled(true);
 
         // (The text after a page break that begins a paragraph is set as the paragraph's first line, indent and all, as a word processor sets it.)
-        const bool startsWithBreak = env.wordLines && doc->characterAt(b.position()) == QChar(0x000C) && b.length() > 1;
+        // (A break that is hidden text, as what a tracked change deleted is, is none.)
+        const bool startsWithBreak = env.wordLines && doc->characterAt(b.position()) == QChar(0x000C) && b.length() > 1 && !b.begin().fragment().charFormat().boolProperty(tp::HiddenText);
         const bool firstAfterBreak = startsWithBreak && (!tail || m_span.spaceBeforeContinued);
         const double leftM = bf.leftMargin() * scale, rightM = bf.rightMargin() * scale, textIndent = tail && !firstAfterBreak ? 0.0 : bf.textIndent() * scale;
         // A slide's space given as a share of the line is of the line at the size the text was shrunk to; one given in points is not.
@@ -2466,7 +2494,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             after = slideSpaceOf(b, tp::SpaceAfterShare, env.fontScale);
         }
         // (A paragraph that begins with a page break has no space before where it begins: the text after the break has it, on the next page.)
-        if (env.wordLines && !tail && b.length() > 1 && doc->characterAt(b.position()) == QChar(0x000C)) before = 0;
+        if (startsWithBreak && !tail) before = 0;
         // A word processor's automatic spacing (a paragraph from a web page) is a fixed 14 points.
         if (env.wordLines) {
             // (Between two items of a list there is none.)
@@ -2647,7 +2675,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 settleCarry();
             }
             if (startNext && f < nF) advance();
-            if (f < nF && y > 0) y += env.wordLines ? std::max(0.0, before - prevAfter) : before;
+            if (f < nF && y > 0) y += env.wordLines && !env.wordSpaceSums ? std::max(0.0, before - prevAfter) : before;
             else if (f < nF && !env.slideLines && !(first && !m_span.spaceBeforeFirst)) y += env.wordLines && bf.boolProperty(tp::SpaceBeforeAuto) ? 0.0 : before;  // space before also applies at the top of a frame (not a slide's, nor a word processor's automatic)
             if (f < nF) y += B->boxTopRoom;   // (the line above a paragraph's text)
             // A raised cap rises above the first line: room for it.
@@ -2681,7 +2709,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             const bool wordTabs = env.wordLines && !ownTabs.isEmpty();
             const bool gridTabs = (bf.tabPositions().isEmpty() || wordTabs) && bf.layoutDirection() != Qt::RightToLeft && B->disp.contains(QLatin1Char('\t'));
             const double step = std::max(1.0, env.defaultTab) * scale;
-            auto hangStop = [&](double from, bool hangLine) { return hangLine && hangs && B->marker.isEmpty() && leftM > from + 0.01; };
+            auto hangStop = [&](double from, bool hangLine) { return hangLine && hangs && !env.wordNoHangStop && B->marker.isEmpty() && leftM > from + 0.01; };
             // The first stop past `pen`, measured from the text area's edge.
             auto nextStop = [&](double pen, bool hangLine) { return hangStop(pen, hangLine) ? leftM : (std::floor((pen + 0.01) / step) + 1) * step; };
             // The list for a line that starts `off` from the edge and is `w` wide, measured from its start.
@@ -2865,7 +2893,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // A word processor lets a mark of punctuation at the end of a line hang past the margin (a period, a comma, a closing quote or bracket),
                     // so a word followed by one can be the last of a line it is a mark too wide for: the line is tried that much wider, and kept so if
                     // it is only that last mark that is past the margin.
-                    if (env.wordLines && !env.wordNoHang && (al == Qt::AlignLeft || al == Qt::AlignJustify) && !bf.boolProperty(tp::Distribute)) {
+                    bool markHangs = false;   // (a mark at the end of the line is past the margin)
+                    if (env.wordLines && !env.wordNoHang && !bf.boolProperty(tp::NoHangPunct) && (al == Qt::AlignLeft || al == Qt::AlignJustify) && !bf.boolProperty(tp::Distribute)) {
                         const double hang = 0.34 * base.pointSizeF() / fontPointFactor();
                         const int endBefore = line.textStart() + line.textLength();
                         if (endBefore < B->disp.size()) {
@@ -2876,7 +2905,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             const double end = line.cursorToX(k + 1);
                             if (end > room + 0.13) {
                                 static const QString marks = QStringLiteral(".,;:!?)]}\"'\u2019\u201D\u00BB\u2026");
-                                if (!(marks.contains(B->disp[k]) && line.cursorToX(k) <= room + 0.13 && k > s0)) line.setLineWidth(room + 0.13);
+                                markHangs = marks.contains(B->disp[k]) && line.cursorToX(k) <= room + 0.13 && k > s0;
+                                if (!markHangs) line.setLineWidth(room + 0.13);
                             } else if (al == Qt::AlignJustify) {
                                 line.setLineWidth(room + 0.13);   // (a justified line goes to the margin, not past it)
                             }
@@ -2958,7 +2988,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // spacing adds under that (an exact height keeps the baseline a descent above the line's bottom, an at-least height the single
                     // line's place for it). The whole line must fit.
                     if (env.wordLines) {
-                        WordLine wl = wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base);
+                        WordLine wl = wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base, &B->disp, &markFont, markSize);
                         if (line.textStart() == 0 && markerWord.total() > 0) wl = mergeWord(wl, markerWord);
                         const double ownSingle = wl.total();
                         switch (bf.lineHeightType()) {
@@ -3078,17 +3108,17 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         B->boxLeft = col.left() + leftM;
                         B->boxRight = col.right() - rightM;
                     }
-                    // A slide's justified line has its words stretched to the edge: the spaces that hang at its end are not part of the width
-                    // the words are spread over (Qt counts them in it, which leaves the last word a space short of the edge). The line is laid
+                    // A slide's or a word processor's justified line has its words stretched to the edge: the spaces that hang at its end are not part of
+                    // the width the words are spread over (Qt counts them in it, which leaves the last word a space short of the edge). The line is laid
                     // out for the width with them added, and as it was if that takes another word in.
-                    if (env.slideLines && (B->tl->textOption().alignment() & Qt::AlignJustify)) {
+                    if ((env.slideLines || (env.wordLines && !markHangs)) && (B->tl->textOption().alignment() & Qt::AlignJustify)) {
                         const int s0 = line.textStart(), e = s0 + line.textLength();
                         if (e < B->disp.size() && B->disp[e - 1] != QChar::LineSeparator) {
                             double spaces = 0;
                             int k = e;
                             while (k > s0 && B->disp[k - 1] == QLatin1Char(' ')) spaces += advanceAt(--k);
                             if (k > s0 && spaces > 0) {
-                                const double room = iv.x1 - iv.x0;
+                                const double room = iv.x1 - iv.x0 + (env.wordLines ? 0.13 : 0.0);
                                 line.setLineWidth(room + spaces);
                                 if (line.textStart() + line.textLength() != e) line.setLineWidth(room);
                             }

@@ -224,8 +224,15 @@ void WriteDoc::setUpEnvironment()
     }
     f.env.defaultTab = std::max(1, m_wml.defaultTabStop) / 20.0;
     f.env.wordLines = true;
-    // The file's own compatibility option: no punctuation hangs past the margin.
-    if (!m_wml.settingsName.isEmpty()) f.env.wordNoHang = office::wml::compatOption(partData(m_wml.settingsName), "doNotWrapTextWithPunct");
+    // Punctuation hangs past the margin only where the file has the East Asian layout on (and not its own option against it).
+    f.env.wordNoHang = true;
+    if (!m_wml.settingsName.isEmpty()) {
+        const QByteArray settings = partData(m_wml.settingsName);
+        f.env.wordNoHang = !office::wml::compatOption(settings, "useFELayout") || office::wml::compatOption(settings, "doNotWrapTextWithPunct");
+        f.env.wordSpaceSums = office::wml::compatOption(settings, "doNotUseHTMLParagraphAutoSpacing");
+        f.env.wordNoHangStop = office::wml::compatOption(settings, "noTabHangInd");
+        f.markFollowsBreak = m_wml.compatMode >= 15 || office::wml::compatOption(settings, "splitPgBreakAndParaMark");
+    }
     // The stand-ins for the fonts the file names that the machine doesn't have: the alternate its font table gives, or by its kind a serif face or a
     // fixed-width one.
     for (const KeptPart &part : m_wml.parts) {
