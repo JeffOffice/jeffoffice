@@ -233,7 +233,8 @@ private:
     Fill fillOf(const Bag &bag, const StyleSheet &styles);
     Stroke strokeOf(const Bag &bag, const StyleSheet &styles);
     Effects effectsOf(const Bag &bag);
-    Fill gradientFill(const QDomElement &gradient, double transparency, double endTransparency, bool varyTransparency);
+    // `fade`, when the gradient's opacity has stops of its own (loext:opacity-stop), gives each stop of a linear gradient its transparency.
+    Fill gradientFill(const QDomElement &gradient, double transparency, double endTransparency, bool varyTransparency, const QDomElement &fade = QDomElement());
 
     // odpimport_text.cpp
     QString textXml(const QDomElement &body, const TextEnv &env);

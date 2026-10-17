@@ -37,7 +37,6 @@ Cette version de JeffDeck est une **version préliminaire**. Vous pouvez l'essay
 
 - Vous ne pouvez pas ajouter ni modifier de graphiques, de diagrammes SmartArt ou d'équations. Si un fichier en contient, JeffDeck les affiche et les conserve.
 - Les animations qui démarrent au clic sur un objet, les animations accompagnées de sons et les animations de couleur ne sont pas disponibles. Si un fichier en contient, JeffDeck les conserve.
-- Le volet Mettre en forme la forme n'existe pas encore.
 - **Page de notes** et **Mode Lecture** figurent dans l'onglet Affichage, mais ne sont pas encore disponibles.
 - Certaines diapositives s'affichent légèrement différemment de leur rendu dans le programme d'origine, le plus souvent dans les anciens fichiers .ppt.
 

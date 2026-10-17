@@ -44,16 +44,23 @@ public:
     // moves your content into the new design's box with the same role.
     QString role;
     QString altText;
+    // The name for screen readers that goes with the description (altText); and an object that is only decoration, which they pass over.
+    QString altTitle;
+    bool decorative = false;
     QString hyperlink;
     QRectF rect{72, 72, 144, 72};
     double rotation = 0;     // degrees clockwise
     bool flipH = false, flipV = false;
     bool locked = false;     // position and size locked
+    // A corner dragged keeps the proportions (and Shift stretches it freely); false, the other way about. A picture and Text Art start with it on.
+    bool lockAspect = false;
     Fill fill;
     Stroke stroke;
     Effects fx;
     Wrap wrap;
 
+    // Whether objects of this kind start with their proportions kept.
+    static bool lockAspectByDefault(ItemType t);
     // Maps frame-local coordinates (0,0)-(w,h) to page coordinates.
     QTransform transform() const;
     QPolygonF outline() const;           // rotated frame corners in page coords
@@ -177,6 +184,9 @@ public:
     // percent taken off its line spacing, as the presentation program stored them.
     bool shrinks = false;
     double fitScale = 1.0, fitLineCut = 0;
+    // The text in columns (one when it is not), and the space between them in points.
+    int columns = 1;
+    double columnGap = 0;
 
     // Artwork (shape "art": an icon, or an SVG picture turned into shapes)
     // scales like a picture: its line weight grows and shrinks with it, and

@@ -55,6 +55,8 @@ static QMarginsF marginsFrom(const QJsonValue &v, const QMarginsF &def)
 }
 
 // ---------- Item ----------
+bool Item::lockAspectByDefault(ItemType t) { return t == ItemType::Picture || t == ItemType::TextArt; }
+
 QTransform Item::transform() const
 {
     QTransform t;
@@ -104,8 +106,8 @@ void Item::copyBase(const Item &o)
 {
     id = newId();
     sourceId = 0;
-    name = o.name; role = o.role; altText = o.altText; hyperlink = o.hyperlink;
-    rect = o.rect; rotation = o.rotation; flipH = o.flipH; flipV = o.flipV; locked = o.locked;
+    name = o.name; role = o.role; altText = o.altText; altTitle = o.altTitle; decorative = o.decorative; hyperlink = o.hyperlink;
+    rect = o.rect; rotation = o.rotation; flipH = o.flipH; flipV = o.flipV; locked = o.locked; lockAspect = o.lockAspect;
     fill = o.fill; stroke = o.stroke; fx = o.fx; wrap = o.wrap;
 }
 
@@ -118,12 +120,15 @@ QJsonObject Item::toJson() const
     if (!name.isEmpty()) o["name"] = name;
     if (!role.isEmpty()) o["role"] = role;
     if (!altText.isEmpty()) o["alt"] = altText;
+    if (!altTitle.isEmpty()) o["altTitle"] = altTitle;
+    if (decorative) o["decorative"] = true;
     if (!hyperlink.isEmpty()) o["link"] = hyperlink;
     o["rect"] = rectJson(rect);
     if (rotation) o["rot"] = rotation;
     if (flipH) o["flipH"] = true;
     if (flipV) o["flipV"] = true;
     if (locked) o["locked"] = true;
+    if (lockAspect != lockAspectByDefault(type())) o["lockAspect"] = lockAspect;
     if (fill.type != Fill::NoFill) o["fill"] = fill.toJson();
     if (!stroke.isNone()) o["stroke"] = stroke.toJson();
     if (fx.any()) o["fx"] = fx.toJson();
@@ -138,12 +143,15 @@ void Item::fromJson(const QJsonObject &o)
     name = o["name"].toString();
     role = o["role"].toString();
     altText = o["alt"].toString();
+    altTitle = o["altTitle"].toString();
+    decorative = o["decorative"].toBool();
     hyperlink = o["link"].toString();
     rect = rectFrom(o["rect"]);
     rotation = o["rot"].toDouble();
     flipH = o["flipH"].toBool();
     flipV = o["flipV"].toBool();
     locked = o["locked"].toBool();
+    lockAspect = o.contains("lockAspect") ? o["lockAspect"].toBool() : lockAspectByDefault(type());
     fill = Fill::fromJson(o["fill"].toObject());
     stroke = Stroke::fromJson(o["stroke"].toObject());
     fx = Effects::fromJson(o["fx"].toObject());
@@ -223,7 +231,7 @@ void TextItem::fromJson(const QJsonObject &o)
     storyId = o["story"].toString();
     nextId = o["next"].toString();
     insets = marginsFrom(o["insets"], insets);
-    columns = std::max(1, o["columns"].toInt(1));
+    columns = std::clamp(o["columns"].toInt(1), 1, 99);   // (no more than the 99 a text box's dialog has)
     columnGap = o["columnGap"].toDouble(9);
     valign = VAlign(o["valign"].toInt());
     autofit = Autofit(o["autofit"].toInt());
@@ -241,7 +249,11 @@ void TextItem::fromJson(const QJsonObject &o)
 }
 
 // ---------- PictureItem ----------
-PictureItem::PictureItem() { wrap.mode = Wrap::Square; }
+PictureItem::PictureItem()
+{
+    wrap.mode = Wrap::Square;
+    lockAspect = true;
+}
 
 ItemPtr PictureItem::clone() const
 {
@@ -463,6 +475,10 @@ QJsonObject ShapeItem::toJson() const
     if (!customPath.isEmpty() && customPath.fillRule() == Qt::WindingFill) o["winding"] = true;
     if (noWrap) o["noWrap"] = true;
     if (centerBlock) o["ctrBlock"] = true;
+    if (columns > 1) {
+        o["columns"] = columns;
+        o["columnGap"] = columnGap;
+    }
     if (shrinks) {
         o["shrinks"] = true;
         if (fitScale != 1.0) o["fitScale"] = fitScale;
@@ -491,6 +507,8 @@ void ShapeItem::fromJson(const QJsonObject &o)
     valign = VAlign(o["valign"].toInt(int(VAlign::Middle)));
     noWrap = o["noWrap"].toBool();
     centerBlock = o["ctrBlock"].toBool();
+    columns = std::clamp(o["columns"].toInt(1), 1, 16);
+    columnGap = std::clamp(o["columnGap"].toDouble(), 0.0, 1000.0);
     shrinks = o["shrinks"].toBool();
     fitScale = o["fitScale"].toDouble(1.0);
     fitLineCut = o["fitLineCut"].toDouble();
@@ -832,6 +850,7 @@ TextArtItem::TextArtItem()
     fill = Fill::solid(ColorRef::scheme(Accent1));
     stroke = Stroke::none();
     wrap.mode = Wrap::Square;
+    lockAspect = true;
 }
 
 ItemPtr TextArtItem::clone() const

@@ -1296,6 +1296,101 @@
       ]
     },
     {
+      "name": "Shape Format",
+      "keytip": "JH",
+      "context": "Drawing Tools",
+      "color": "shapeFormat",
+      "groups": [
+        {
+          "name": "Shape Styles",
+          "keytip": "ZS",
+          "launcher": "shapeStyles",
+          "launcherTip": "Format Shape",
+          "launcherKeytip": "LS",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.shapeFill",
+                "text": "Shape Fill",
+                "icon": "paint-bucket"
+              },
+              "keytip": "SF",
+              "menu": "@shapeFillMenu"
+            },
+            {
+              "large": {
+                "id": "ribbon.shapeOutline",
+                "text": "Shape Outline",
+                "icon": "pen-line"
+              },
+              "keytip": "SO",
+              "menu": "@shapeOutlineMenu"
+            },
+            {
+              "large": {
+                "id": "ribbon.shapeEffects",
+                "text": "Shape Effects",
+                "icon": "sparkles"
+              },
+              "keytip": "SE",
+              "menu": "@shapeEffectsMenu"
+            }
+          ]
+        },
+        {
+          "name": "Accessibility",
+          "keytip": "ZA",
+          "items": [
+            {
+              "large": "shape.altText",
+              "keytip": "AT"
+            }
+          ]
+        },
+        {
+          "name": "Size",
+          "keytip": "ZZ",
+          "launcher": "shapeSize",
+          "launcherTip": "Size and Position",
+          "launcherKeytip": "LZ",
+          "items": [
+            {
+              "row": [
+                {
+                  "label": "Height:"
+                },
+                {
+                  "widget": "shapeHeight",
+                  "keytip": "SH"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "label": "Width:"
+                },
+                {
+                  "widget": "shapeWidth",
+                  "keytip": "SW"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Format",
+          "keytip": "ZF",
+          "items": [
+            {
+              "large": "shape.formatPane",
+              "keytip": "FP"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Table Design",
       "keytip": "JT",
       "context": "Table Tools",

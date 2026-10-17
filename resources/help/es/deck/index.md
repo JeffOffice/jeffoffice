@@ -21,6 +21,7 @@ Escriba en el cuadro de búsqueda de arriba para buscar un tema o un comando que
 
 - [Escribir texto y darle formato](text)
 - [Formas, imágenes, tablas y Texto artístico](objects)
+- [El panel Formato de forma](format-shape)
 - [Notas del orador](notes)
 - [Comentarios](comments)
 
