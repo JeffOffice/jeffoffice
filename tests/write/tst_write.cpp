@@ -1586,6 +1586,21 @@ private Q_SLOTS:
         QVERIFY(hangs("<w:useFELayout/><w:doNotWrapTextWithPunct w:val=\"false\"/>"));
     }
 
+    // The mark after a page break goes to the next page in a file that says so (splitPgBreakAndParaMark) and in the files of the recent programs (compatibility
+    // mode 15); an older file's mark stays where the break is.
+    void theMarkAfterABreakFollowsTheFilesOption()
+    {
+        auto follows = [&](const QByteArray &compat) {
+            auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {}, "<w:compat>" + compat + "</w:compat>"));
+            return doc && doc->flow().markFollowsBreak;
+        };
+        QVERIFY(!follows(""));
+        QVERIFY(follows("<w:splitPgBreakAndParaMark/>"));
+        QVERIFY(!follows("<w:splitPgBreakAndParaMark w:val=\"0\"/>"));
+        QVERIFY(!follows("<w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"14\"/>"));
+        QVERIFY(follows("<w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"15\"/>"));
+    }
+
     // What a tracked change deleted is not in the lines: a paragraph whose mark was deleted and that shows nothing else takes no room, nor do the
     // breaks and tabs of deleted runs; one whose mark was deleted but that shows text is still there. The file is saved with the changes as they were.
     void whatATrackedChangeDeletedTakesNoRoom()
