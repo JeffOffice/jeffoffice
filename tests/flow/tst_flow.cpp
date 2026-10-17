@@ -5451,6 +5451,97 @@ private Q_SLOTS:
         QVERIFY2(moved >= 5, qPrintable(QString::number(moved)));   // (the text round the taller table has other lines)
     }
 
+    // A table set at a place a distance down from its paragraph that would go over the foot of the text area, but that has room between the paragraph's top and the foot, is
+    // slid up to end at the foot: it is on the page of its paragraph, in the text area, and not above its paragraph.
+    void aFloatingTableOffsetOverTheFootIsSlidUpToTheTextArea()
+    {
+        auto make = [](int tableBefore) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fillStory(fd->story(), 150, 71, {}, 3, 6);
+            if (tableBefore > 0) {
+                TestTable spec;
+                spec.rows = 6;
+                spec.cols = 2;
+                spec.columnWidth = 60;
+                spec.text = [](int r, int c) { return QStringLiteral("r%1c%2").arg(r).arg(c); };
+                spec.setTable = [](TableData &t) { TableData::Place p; p.across = TableData::Place::From::Margin; p.acrossSpec = TableData::Place::Spec::End; p.y = 70; p.room = QMarginsF(8, 0, 8, 0); t.place = p; };
+                addTableAfter(*fd, tableBefore - 1, spec);
+            }
+            return fd;
+        };
+        int paragraph = -1;
+        double paragraphTop = 0;
+        {
+            auto plain = make(0);
+            Paginator pg(plain.get());
+            const double bottom = pg.page(0).content.bottom() - pg.page(0).content.top();
+            for (const auto &l : pg.lines(0))
+                if (l.line == 0 && l.rect.top() > bottom - 150 && l.rect.top() < bottom - 130 && paragraph < 0) {
+                    int n = 0;
+                    for (QTextBlock b = plain->story()->begin(); b.isValid() && b.position() < l.block; b = b.next()) ++n;
+                    paragraph = n;
+                    paragraphTop = pg.page(0).content.top() + l.rect.top();
+                }
+        }
+        QVERIFY(paragraph > 3);
+        auto fd = make(paragraph);
+        Paginator pg(fd.get());
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const flow::Paginator::Page info = pg.page(0);
+        QVector<std::shared_ptr<TableFragment>> floating;
+        for (const auto &t : page->tables)
+            if (t->floating) floating << t;
+        QCOMPARE(int(floating.size()), 1);
+        QVERIFY2(floating[0]->rect().bottom() <= info.content.bottom() + 0.05, qPrintable(audit::rectText(floating[0]->rect()) + QStringLiteral(" in ") + audit::rectText(info.content)));
+        QVERIFY2(floating[0]->rect().bottom() > info.content.bottom() - 0.5, "slid up to end at the foot, not higher");
+        QVERIFY2(floating[0]->rect().top() >= paragraphTop - 0.05, "not above its paragraph");
+        QVERIFY2(audit::wallProblems(pg, fd->story()).isEmpty(), qPrintable(audit::wallProblems(pg, fd->story())));
+        QVERIFY2(audit::floatProblems(pg, *fd).isEmpty(), qPrintable(audit::floatProblems(pg, *fd)));
+    }
+
+    // An object that is set from the page, tall, whose wall (the text beside it narrowed) pushes its own anchor paragraph off the page, and without it the paragraph is back: the
+    // page has no state that agrees. The paragraph goes to the next page with the object, which wraps the text there; on the page before, no line goes through it.
+    void anObjectWhoseWallPushesItsAnchorOffThePageGoesToTheNextWithIt()
+    {
+        auto make = [](int anchorBlock) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fillStory(fd->story(), 60, 72, {}, 20, 40);
+            if (anchorBlock > 0) {
+                const int id = addWrapped(fd.get(), 260, 420, fd->story()->findBlockByNumber(anchorBlock).position() + 2, FloatingObject::Wrap::Square, 280, 200, QMarginsF(8, 4, 8, 4), FloatingObject::Side::Both,
+                                          FloatingObject::Rel::Page, FloatingObject::Rel::Page);
+                Q_UNUSED(id);
+            }
+            return fd;
+        };
+        int overlaps = 0, tried = 0, cycles = 0;
+        for (int block = 6; block < 16; ++block) {
+            auto fd = make(block);
+            Paginator pg(fd.get());
+            QVERIFY(pg.pageCount() >= 2);
+            ++tried;
+            QVERIFY2(audit::coverageProblems(pg, fd->story()).isEmpty(), qPrintable(audit::coverageProblems(pg, fd->story())));
+            for (int k = 0; k < pg.pageCount(); ++k) {
+                const auto page = pg.materialize(k);
+                QVERIFY(page);
+                const Item *picture = objectOfSize(*page, 260, 420);
+                if (!picture) continue;
+                const flow::Paginator::Page info = pg.page(k);
+                for (const auto &l : pg.lines(k)) {
+                    const QRectF r(info.content.left() + l.rect.left(), info.content.top() + l.rect.top(), l.rect.width(), l.rect.height() - l.below);
+                    if (r.intersects(picture->rect.adjusted(0.1, 0.1, -0.1, -0.1))) ++overlaps;
+                }
+                cycles += k > 0 && pg.page(k).start.pos == fd->story()->findBlockByNumber(block).position();
+            }
+            QVERIFY2(audit::wallProblems(pg, fd->story()).isEmpty(), qPrintable(audit::wallProblems(pg, fd->story())));
+        }
+        QCOMPARE(tried, 10);
+        QVERIFY2(overlaps == 0, qPrintable(QStringLiteral("%1 lines go through the object").arg(overlaps)));
+        qInfo("%d of %d anchors begin the page their object is on", cycles, tried);
+    }
+
     // ---- text round objects
 
     // Text goes round an object that has a square wrap: the object is at the top of its paragraph (as the text sets that, not moved by the object), the lines beside it
