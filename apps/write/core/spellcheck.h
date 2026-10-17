@@ -46,7 +46,8 @@ public:
 
     // The misspelled word that a position is in or at the end of, or (-1, -1). Checks the paragraph if need be.
     QPair<int, int> misspellingAt(int position);
-    // The first misspelled word that starts at or after a position, or (-1, -1) when there is none; it checks as far as it goes.
+    // The first misspelled word that starts at or after a position, or (-1, -1) when there is none; it checks as far as it goes. (Whether the
+    // words are marked as you type does not matter to it: the Spelling pane goes by it.)
     QPair<int, int> nextMisspelling(int from);
 
     // Tells the pages to be drawn again (the words accepted have changed: the answers kept are stale).

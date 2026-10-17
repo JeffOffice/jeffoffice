@@ -19,6 +19,8 @@
     QT_TRANSLATE_NOOP("Ribbon", "Page Setup"),
     QT_TRANSLATE_NOOP("Ribbon", "Pages"),
     QT_TRANSLATE_NOOP("Ribbon", "Paragraph"),
+    QT_TRANSLATE_NOOP("Ribbon", "Proofing"),
+    QT_TRANSLATE_NOOP("Ribbon", "Review"),
     QT_TRANSLATE_NOOP("Ribbon", "Show"),
     QT_TRANSLATE_NOOP("Ribbon", "Size"),
     QT_TRANSLATE_NOOP("Ribbon", "Spacing After:"),

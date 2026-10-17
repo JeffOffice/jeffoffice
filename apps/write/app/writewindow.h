@@ -27,6 +27,7 @@ class SizeCombo;
 class WriteFileScreen;
 namespace write {
 class PageView;
+class SpellPane;
 }
 namespace recovery {
 struct Recovered;
@@ -87,6 +88,8 @@ public:
     // The pages that an output covers (from 0), for the options and the document.
     QVector<int> outputPages(const WriteOutputOptions &options);
 
+    // The Spelling pane on the right of the window, begun at the caret.
+    void showSpelling();
     void showHelp(const QString &topic = QString());
     HelpView *helpView() const { return m_help; }
 
@@ -103,6 +106,7 @@ private:
     void createViewActions();
     void createFileActions();
     void createHelpActions();
+    void createReviewActions();
     void buildRibbon();
     void ribbonParts(RibbonParts &parts);
     void buildStatusBar();
@@ -127,6 +131,8 @@ private:
     WriteFileScreen *m_fileScreen = nullptr;
     HelpView *m_help = nullptr;
     QDockWidget *m_helpDock = nullptr;
+    QDockWidget *m_spellDock = nullptr;
+    write::SpellPane *m_spellPane = nullptr;
     QLabel *m_pageLabel = nullptr, *m_wordLabel = nullptr, *m_zoomLabel = nullptr;
     QSlider *m_zoomSlider = nullptr;
     QList<FontCombo *> m_fontCombos;
