@@ -282,7 +282,7 @@ QByteArray headerPart(const QByteArray &root, const QList<QByteArray> &paragraph
 
 // The tables of the document of tables for the random commands, its styles, and its section's properties.
 struct RichTables {
-    QByteArray styled, plain, styles, sect;
+    QByteArray styled, plain, styles, sect, spaced;
 };
 
 // A text box of a materialized page by what its story says, for the header's and the footer's.
@@ -4669,6 +4669,73 @@ private Q_SLOTS:
         return makeDocx("<w:p><w:r><w:t>before</w:t></w:r></w:p>" + t + "<w:p><w:r><w:t>after</w:t></w:r></w:p>", kStyles);
     }
 
+    // The heights of the rows of the first table on the first page.
+    static QVector<double> rowHeightsOf(const QByteArray &body)
+    {
+        auto doc = open(makeDocx(body, kStyles));
+        QVector<double> out;
+        const auto page = doc->pager().materialize(0);
+        if (!page || page->tables.isEmpty()) return out;
+        const flow::TableFragment &f = *page->tables[0];
+        for (int r = f.firstRow; r < f.endRow; ++r) out << f.heightOf(r);
+        return out;
+    }
+    static QByteArray lineX(const char *side, const char *val, int sz) { return "<w:" + QByteArray(side) + " w:val=\"" + val + "\" w:sz=\"" + QByteArray::number(sz) + "\" w:space=\"0\" w:color=\"auto\"/>"; }
+
+    // The lines a file gives a table take room in its rows (a row is as tall as its cells and the line at its top; the last, the table's foot line too): the heights with lines
+    // are those without them and the lines' widths (a size of 8 is a point).
+    void theLinesOfATableTakeRoomInItsRowsAsTheFileGivesThem()
+    {
+        auto table = [](const QByteArray &borders, const QByteArray &firstCellPr = QByteArray(), const QByteArray &otherCellPr = QByteArray()) {
+            return tableX(rowX(cellX(cellP("a"), firstCellPr)) + rowX(cellX(cellP("b"), otherCellPr)) + rowX(cellX(cellP("c"), otherCellPr)), 1, 2400, "<w:tblW w:w=\"0\" w:type=\"auto\"/>" + borders);
+        };
+        const QVector<double> bare = rowHeightsOf(table(QByteArray()));
+        QCOMPARE(bare.size(), 3);
+        const QByteArray lines = "<w:tblBorders>" + lineX("top", "single", 8) + lineX("bottom", "single", 12) + lineX("insideH", "single", 8) + "</w:tblBorders>";
+        const QVector<double> got = rowHeightsOf(table(lines));
+        QCOMPARE(got.size(), 3);
+        QVERIFY2(std::abs(got[0] - (bare[0] + 1)) < 0.01, qPrintable(QString::number(got[0] - bare[0])));
+        QVERIFY2(std::abs(got[1] - (bare[1] + 1)) < 0.01, qPrintable(QString::number(got[1] - bare[1])));
+        QVERIFY2(std::abs(got[2] - (bare[2] + 1 + 1.5)) < 0.01, qPrintable(QString::number(got[2] - bare[2])));
+        // A cell that says none for a line, with the cell beyond it saying nothing, leaves the table's line; both saying none take it out.
+        const QVector<double> oneSays = rowHeightsOf(table(lines, "<w:tcBorders>" + lineX("bottom", "nil", 0) + "</w:tcBorders>"));
+        QVERIFY2(std::abs(oneSays[1] - (bare[1] + 1)) < 0.01, qPrintable(QString::number(oneSays[1] - bare[1])));
+        const QVector<double> bothSay = rowHeightsOf(table(lines, "<w:tcBorders>" + lineX("bottom", "nil", 0) + "</w:tcBorders>", "<w:tcBorders>" + lineX("top", "nil", 0) + "</w:tcBorders>"));
+        QVERIFY2(std::abs(bothSay[1] - bare[1]) < 0.01, qPrintable(QString::number(bothSay[1] - bare[1])));
+    }
+
+    // A table that says it has space between its cells, even none, has its lines round the lot of them and not the cells' own (so a cell that says none of its lines does not
+    // take the table's away): the first row has the top line and the last the foot line.
+    void aTableWithSpaceBetweenItsCellsHasItsLinesRoundThem()
+    {
+        const QByteArray none = "<w:tcBorders>" + lineX("top", "nil", 0) + lineX("left", "nil", 0) + lineX("bottom", "nil", 0) + lineX("right", "nil", 0) + "</w:tcBorders>";
+        auto table = [&](const QByteArray &spacing) {
+            const QByteArray pr = "<w:tblW w:w=\"0\" w:type=\"auto\"/>" + spacing + "<w:tblBorders>" + lineX("top", "single", 12) + lineX("left", "single", 12) + lineX("bottom", "single", 16) + lineX("right", "single", 12) + "</w:tblBorders>";
+            return tableX(rowX(cellX(cellP("a"), none)) + rowX(cellX(cellP("b"), none)) + rowX(cellX(cellP("c"), none)), 1, 2400, pr);
+        };
+        const QVector<double> apart = rowHeightsOf(table("<w:tblCellSpacing w:w=\"0\" w:type=\"dxa\"/>")), together = rowHeightsOf(table(QByteArray()));
+        QCOMPARE(apart.size(), 3);
+        QCOMPARE(together.size(), 3);
+        // (Without the space, the cells say none of the lines they have at the edge of the table, and none is left.)
+        QVERIFY2(std::abs(apart[0] - (together[0] + 1.5)) < 0.01, qPrintable(QString::number(apart[0] - together[0])));
+        QVERIFY2(std::abs(apart[1] - together[1]) < 0.01, qPrintable(QString::number(apart[1] - together[1])));
+        QVERIFY2(std::abs(apart[2] - (together[2] + 2)) < 0.01, qPrintable(QString::number(apart[2] - together[2])));
+    }
+
+    // A triple line takes the room of its three lines and the two spaces between them (five times its width), and is read as such, not as a double one.
+    void aTripleLineTakesRoomForItsThreeLinesAndTheSpaces()
+    {
+        auto table = [](const QByteArray &borders) {
+            return tableX(rowX(cellX(cellP("a"))) + rowX(cellX(cellP("b"))), 1, 2400, "<w:tblW w:w=\"0\" w:type=\"auto\"/>" + borders);
+        };
+        const QVector<double> bare = rowHeightsOf(table(QByteArray()));
+        const QVector<double> triple = rowHeightsOf(table("<w:tblBorders>" + lineX("insideH", "triple", 8) + "</w:tblBorders>")), twice = rowHeightsOf(table("<w:tblBorders>" + lineX("insideH", "double", 8) + "</w:tblBorders>"));
+        QCOMPARE(bare.size(), 2);
+        QCOMPARE(triple.size(), 2);
+        QVERIFY2(std::abs(triple[1] - (bare[1] + 5)) < 0.01, qPrintable(QString::number(triple[1] - bare[1])));
+        QVERIFY2(std::abs(twice[1] - (bare[1] + 3)) < 0.01, qPrintable(QString::number(twice[1] - bare[1])));
+    }
+
     // The saved document is well formed and opens again with the same text.
     static void checkWhole(WriteDoc &doc)
     {
@@ -6230,13 +6297,23 @@ private Q_SLOTS:
         const QByteArray deep = tableX(rowX(cellX(cellP("deep"), QByteArray(), 700)), 1, 700);
         const QByteArray nested = tableX(rowX(cellX(cellP("n00"), QByteArray(), 800) + cellX(cellP("n01") + deep + cellP("n01 tail"), QByteArray(), 800)) + rowX(cellX(cellP("n10"), QByteArray(), 800) + cellX(cellP("n11"), QByteArray(), 800)), 2, 800);
         const QByteArray styled = tableX(rowX(cellX(cellP("h0"), QByteArray(), 1100) + cellX(cellP("h1"), QByteArray(), 1100) + cellX(cellP("h2"), QByteArray(), 1100), "<w:tblHeader/>") +
-                                             rowX(cellX(longCell, "<w:vMerge w:val=\"restart\"/>", 1100) + cellX(cellP("a1"), QByteArray(), 1100) + cellX(cellP("a2") + nested + cellP("a2 tail"), QByteArray(), 1100)) +
+                                             rowX(cellX(longCell, "<w:vMerge w:val=\"restart\"/>", 1100) + cellX(cellP("a1"), "<w:tcBorders><w:bottom w:val=\"double\" w:sz=\"12\" w:space=\"0\" w:color=\"auto\"/></w:tcBorders>", 1100) + cellX(cellP("a2") + nested + cellP("a2 tail"), QByteArray(), 1100)) +
                                              rowX(cellX("<w:p/>", "<w:vMerge/>", 1100) + cellX("<w:p><w:r><w:t>b1</w:t></w:r>" + noteInCell + "</w:p>", QByteArray(), 1100) + cellX(cellP("b2"), QByteArray(), 1100)) +
                                              rowX(cellX(cellP("G"), "<w:gridSpan w:val=\"2\"/>", 2200), "<w:gridBefore w:val=\"1\"/><w:wBefore w:w=\"1100\" w:type=\"dxa\"/>") +
-                                             rowX(cellX(cellP("d0"), QByteArray(), 1100) + cellX(tallCell, QByteArray(), 1100) + cellX(cellP("d2"), QByteArray(), 1100)) +
+                                             rowX(cellX(cellP("d0"), QByteArray(), 1100) + cellX(tallCell, QByteArray(), 1100) + cellX(cellP("d2"), "<w:tcBorders><w:top w:val=\"single\" w:sz=\"24\" w:space=\"0\" w:color=\"auto\"/></w:tcBorders>", 1100), "<w:trHeight w:val=\"700\" w:hRule=\"atLeast\"/>") +
                                              rowX(cellX(cellP("e0"), QByteArray(), 1100) + cellX(cellP("e1"), QByteArray(), 1100), "<w:gridAfter w:val=\"1\"/><w:wAfter w:w=\"1100\" w:type=\"dxa\"/>"),
                                          3, 1100, "<w:tblStyle w:val=\"TG\"/><w:tblW w:w=\"3300\" w:type=\"dxa\"/><w:tblLook w:val=\"0420\"/>");
-        const QByteArray plain = tableX(rowX(cellX(cellP("p00")) + cellX(cellP("p01"))) + rowX(cellX(cellP("p10")) + cellX(cellP("p11"))), 2, 1600);
+        const QByteArray plain = tableX(rowX(cellX(cellP("p00")) + cellX(cellP("p01")), "<w:trHeight w:val=\"600\" w:hRule=\"atLeast\"/>") +
+                                            rowX(cellX(cellP("p10")) + cellX(cellP("p11"), "<w:tcBorders><w:left w:val=\"nil\"/><w:bottom w:val=\"single\" w:sz=\"18\" w:space=\"0\" w:color=\"auto\"/></w:tcBorders><w:vAlign w:val=\"bottom\"/>"),
+                                                 "<w:trHeight w:val=\"500\" w:hRule=\"atLeast\"/>"),
+                                        2, 1600);
+        // A table with space between its cells (its lines round the lot, the cells' own as they say), rows of a set height, and cells joined down.
+        const QByteArray none = "<w:tcBorders><w:top w:val=\"nil\"/><w:left w:val=\"nil\"/><w:bottom w:val=\"nil\"/><w:right w:val=\"nil\"/></w:tcBorders>";
+        const QByteArray spaced = tableX(rowX(cellX(cellP("s00"), none, 1200) + cellX(cellP("s01"), "<w:tcBorders><w:bottom w:val=\"single\" w:sz=\"24\" w:space=\"0\" w:color=\"auto\"/></w:tcBorders>", 1200), "<w:trHeight w:val=\"500\" w:hRule=\"atLeast\"/>") +
+                                         rowX(cellX(cellP("s10") + cellP("s10 more"), "<w:vMerge w:val=\"restart\"/>", 1200) + cellX(cellP("s11"), none, 1200)) +
+                                         rowX(cellX("<w:p/>", "<w:vMerge/>", 1200) + cellX(cellP("s21"), "<w:tcBorders><w:top w:val=\"double\" w:sz=\"8\" w:space=\"0\" w:color=\"auto\"/></w:tcBorders>", 1200)),
+                                         2, 1200, "<w:tblW w:w=\"0\" w:type=\"auto\"/><w:tblCellSpacing w:w=\"15\" w:type=\"dxa\"/><w:tblBorders><w:top w:val=\"single\" w:sz=\"12\" w:space=\"0\" w:color=\"auto\"/><w:left w:val=\"single\" w:sz=\"8\" w:space=\"0\" w:color=\"auto\"/>"
+                                         "<w:bottom w:val=\"single\" w:sz=\"12\" w:space=\"0\" w:color=\"auto\"/><w:right w:val=\"single\" w:sz=\"8\" w:space=\"0\" w:color=\"auto\"/></w:tblBorders>");
         const QByteArray styles = kStyles +
                                   "<w:style w:type=\"paragraph\" w:styleId=\"Heading2\"><w:name w:val=\"heading 2\"/><w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/><w:qFormat/>"
                                   "<w:pPr><w:spacing w:before=\"120\" w:after=\"60\"/></w:pPr><w:rPr><w:rFonts w:ascii=\"Arimo\" w:hAnsi=\"Arimo\"/><w:b/><w:sz w:val=\"26\"/></w:rPr></w:style>"
@@ -6245,12 +6322,12 @@ private Q_SLOTS:
                                   "<w:insideV w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/></w:tblBorders></w:tblPr><w:tblStylePr w:type=\"firstRow\"><w:rPr><w:b/></w:rPr></w:tblStylePr>"
                                   "<w:tblStylePr w:type=\"band2Horz\"><w:tcPr><w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"EEEEEE\"/></w:tcPr></w:tblStylePr></w:style>";
         const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"5200\" w:h=\"4400\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
-        return {styled, plain, styles, sect};
+        return {styled, plain, styles, sect, spaced};
     }
     static QByteArray richTableDocx()
     {
         const RichTables t = richTables();
-        return makeDocx(cellP("before the tables") + t.styled + cellP("between them") + t.plain + cellP("after the tables"), t.styles, QByteArray(), t.sect);
+        return makeDocx(cellP("before the tables") + t.styled + cellP("between them") + t.plain + cellP("then one with space between its cells") + t.spaced + cellP("after the tables"), t.styles, QByteArray(), t.sect);
     }
 
     // A file for the random commands with the tables, notes, headers, footers, and sections together: a first section of tables (the one of richTableDocx, a note cited in
@@ -6280,7 +6357,7 @@ private Q_SLOTS:
         const QByteArray one = sectionXml(7200, 6600, 720, refsOne, QByteArray(), "<w:titlePg/>");
         const QByteArray two = sectionXml(7200, 6600, 720, QByteArray(), "<w:type w:val=\"continuous\"/>", "<w:cols w:num=\"2\" w:space=\"360\"/>");
         const QByteArray three = sectionXml(7200, 6600, 900, "<w:headerReference w:type=\"default\" r:id=\"rIdheader4\"/>");
-        QByteArray body = plainP("before the tables", refTo(2)) + t.styled + plainP("between them", refTo(4)) + t.plain + plainP("after the tables", QByteArray(), one);
+        QByteArray body = plainP("before the tables", refTo(2)) + t.styled + plainP("between them", refTo(4)) + t.plain + plainP("then one with space between its cells") + t.spaced + plainP("after the tables", QByteArray(), one);
         body += plainP(wordsOf("Second section", 18)) + tableOfRows(9, 2, 1000, [](int r, int c) { return r == 4 && c == 1 ? plainP("cites", refTo(5)) : cellP("r" + QByteArray::number(r) + "c" + QByteArray::number(c)); }) +
                 plainP(wordsOf("end of the second", 30), QByteArray(), two);
         body += plainP(wordsOf("Third section", 40), refTo(6)) + "<w:p><w:r><w:t>before a break</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>after it</w:t></w:r></w:p>" + plainP(wordsOf("Last", 60));

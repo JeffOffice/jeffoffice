@@ -84,6 +84,7 @@ struct CellContent {
         std::shared_ptr<TableFragment> table;   // or a table inside the cell, whole
         int foot = 0, end = 0;                  // the footnotes and endnotes before it, in the story
         QVector<NoteRef> notes;                 // the footnotes its text cites, in order
+        int dummyFrom = -1;                     // the position where the empty last paragraph of a cell after a table in it begins: the program's mark of the cell's end, which takes no room (-1: none)
     };
     std::vector<Part> parts;
 };
@@ -150,18 +151,25 @@ public:
         int from = 0, to = 0;               // their positions
         double x = 0, w = 0;                // from the table's left edge, as wide as the columns it covers
         double need = -1;                   // the height its content needs with its margins (-1: not measured)
-        QMarginsF margins;
+        QMarginsF margins;                  // (the top and the bottom have the room of the lines at the cell's top, and at the table's foot, added)
+        int last = -1;                      // a cell joined down: the one that continues it in the last row it covers, whose bottom edge is the whole's (-1: none)
     };
     // A line of a cell's content: where it is, and the notes it cites.
     struct UnitLine {
         double top = 0, bottom = 0;
         QVector<NoteRef> notes;
+        double pad = 0;                     // the room a part that begins at it has above it: the margin and lines at the top of the cell of a table in the cell that the row goes on in
     };
     struct Row {
         const RowData *data = nullptr;
         int cell0 = 0, cells = 0;           // its cells: cells()[cell0, cell0 + cells)
         int from = 0, to = 0;               // positions
         double height = 0;
+        double top = 0, foot = 0;           // the room of the lines at its top edge (the heaviest of its cells'), and for the last row the foot of the table: in its height
+        double least = 0;                   // the height a row set to one has at least: that is for the room inside its cells' margins and lines (0: not set)
+        bool seated = false;                // it is set to a height and has a cell with its content in the middle or at the foot: it is not begun in less room than that height
+        double breakTop = 0;                // the room more its top line takes where the table goes on after a page break (the table's own top line is there, not the one between rows)
+        double breakFoot = 0;               // and the room its foot takes where a page ends with it (the table's foot line, as the last row has)
     };
 
     // The table whose paragraphs are the index's refs()[i0, i1), its cells `depth` cells deep (0 for a table that is not in a cell).
@@ -174,6 +182,8 @@ public:
     const TableData &data() const { return *m_data; }
     double width() const { return m_width; }                // all the columns
     int depth() const { return m_depth; }
+    // Where grid column `col` begins, from the table's left edge (the table's width for one past the last).
+    double columnLeft(int col) const { return m_xs.isEmpty() ? 0.0 : m_xs[std::clamp(col, 0, int(m_xs.size()) - 1)]; }
     // The most rows a cell covers (1 when none is joined down).
     int mostRowsJoined() const { return m_maxRows; }
     // The row that has the position (the last, for one after them all; -1 for a table with none).
@@ -202,6 +212,7 @@ public:
         double height = 0;                  // as tall as its room when more of the row comes after it, else as the cells that are left need
         QVector<double> offsets;            // for each cell of the row: how far down its content the part begins (from the top of the cell's text area)
         QVector<double> ends;               // for each cell: how far down its content the part goes (where the lines left for the next part begin; very large when none are)
+        QVector<double> pads;               // for each cell: the room above the lines of the part, besides the cell's own margin (see UnitLine::pad)
         QVector<NoteRef> notes;             // the notes cited by the lines in the part, which the page sets at its foot
         double noteHeight = 0;              // their height, with the rule above them where it is theirs
         bool progress = false;              // some cell has a line in the part (without, the row is not split there: it goes to the next page whole)
@@ -218,8 +229,8 @@ public:
     // The part of row `r` that is number `index` and begins at `from` (for each cell of the row, how far down its content: empty for the first part, at the top): the lines
     // of each cell that fit `room` (what the page has for it, the notes already at its foot taken out), the notes its lines cite, and where the next part begins (`ends`). The
     // notes take room at the page's foot, with a rule above them (`ruleGap`) when the page has none yet (`ruleNeeded`). A part at the top of a page is given a line of each
-    // cell even if none fits (`force`), so that a row taller than a page ends.
-    Piece pieceOf(int r, int index, const QVector<double> &from, double room, bool ruleNeeded, double ruleGap, bool force);
+    // cell even if none fits (`force`), so that a row taller than a page ends. A part at the top of a page that the table goes on to has `topExtra` more room above its lines.
+    Piece pieceOf(int r, int index, const QVector<double> &from, double room, bool ruleNeeded, double ruleGap, bool force, double topExtra = 0);
     // How tall a note is when set at the column's width (set by the paginator, which has the notes' stories), for the room a part's notes take.
     void setNoteHeights(std::function<double(const QString &)> height) { m_noteHeight = std::move(height); }
     // The notes cited by the lines of the row's cells (the cells that begin in it), in order.
@@ -231,6 +242,8 @@ private:
     friend class TableFlow;
     TableLayout() = default;
     double measureCell(Cell &c);
+    // The room of the lines in the rows and in the cells' margins (once the cells are in the grid).
+    void setLineRooms();
     // `keep`: the content is kept with the cells laid out lately (what is only measured is not, if it is small: it is not the one that will be asked for again).
     std::shared_ptr<CellContent> contentFor(const Cell &c, bool keep) const;
     std::shared_ptr<const TableData> m_data;
@@ -288,6 +301,10 @@ struct TableFragment {
     // The part of a row this shows (null for a row whole), and how tall the row is here.
     const Part *partOf(int row) const;
     double heightOf(int row) const;
+    // What the row has more of its height here for the table's outer lines at a page break (see TableLayout::Row): above, when it is the first row of a page that the table goes on to
+    // (the header rows, if the page has them, have the table's top), and below, when it is the last of a page that the table goes on from.
+    double topExtraOf(int row) const;
+    double footExtraOf(int row) const;
     void paint(QPainter *p, const TablePaint &o) const;
     // The text caret for a position in one of its cells: the line, in page coordinates. False when none of its cells has the position.
     bool caretLine(int pos, QLineF *line) const;
@@ -314,6 +331,7 @@ private:
         QRectF clip;                        // the part of it on the page (a cell joined down may reach past)
         QPointF text;                       // where the cell's text area begins
         double cut = 1e18;                  // the page height below which its text is not drawn (a part of a row ends there, with lines left for the next)
+        double from = -1e18;                // the page height above which it is not drawn (a part of a row that goes on from the one before begins its text there)
     };
     std::vector<Placed> place() const;
 };
