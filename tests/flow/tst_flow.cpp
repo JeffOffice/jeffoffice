@@ -2309,8 +2309,10 @@ private Q_SLOTS:
     {
         struct Case { const char *family; char16_t code, picture; int units; };
         const Case cases[] = {{"Symbol", 0xF0B0, 0x00B0, 819}, {"Wingdings", 0xF0EA, 0x2B07, 1825}, {"Webdings", 0xF067, 0x2588, 2048}};
+        int checked = 0;
         for (const Case &k : cases) {
             if (QFontDatabase::hasFamily(QString::fromLatin1(k.family))) continue;   // (installed here: drawn by the font itself)
+            ++checked;
             auto doc = std::make_unique<QTextDocument>();
             QTextCursor c(doc.get());
             QTextCharFormat cf;
@@ -2328,6 +2330,8 @@ private Q_SLOTS:
             QVERIFY2(lines[0].text.size() == fit && lines[0].text == QString(fit, QChar(k.picture)),
                      qPrintable(QStringLiteral("%1: the first line has %2 characters, %3 fit as the font sets them; its first is U+%4").arg(k.family).arg(lines[0].text.size()).arg(fit).arg(lines[0].text.isEmpty() ? 0 : lines[0].text[0].unicode(), 0, 16)));
         }
+        // (Where all three fonts are installed nothing was checked: the fonts draw themselves.)
+        if (checked == 0) QSKIP("Symbol, Wingdings, and Webdings are all installed here: their characters are drawn by the fonts");
     }
 
     // Courier New, where the machine lacks it, is drawn in Courier Prime, a face of the same widths whose strokes are as thin as Courier New's (its stand-in for a
