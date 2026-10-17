@@ -32,6 +32,7 @@ void WriteDoc::loadNotes()
 {
     m_noteBlocks.clear();
     m_noteSeparator.clear();
+    m_noteNotice.clear();
     m_noteStories.clear();
     m_noteFields.reset();
     m_flow->fields = nullptr;
@@ -48,6 +49,7 @@ void WriteDoc::loadNotes()
     for (NotePart &n : notes) {
         if (n.type.isEmpty() || n.type == QLatin1String("normal")) m_noteBlocks.insert(QStringLiteral("fn%1").arg(n.id), std::move(n.blocks));
         else if (n.type == QLatin1String("separator")) m_noteSeparator = std::move(n.blocks);
+        else if (n.type == QLatin1String("continuationNotice")) m_noteNotice = std::move(n.blocks);
     }
     if (m_noteBlocks.isEmpty()) return;
     m_noteFields = std::make_unique<NoteFields>(this);
@@ -87,6 +89,19 @@ void WriteDoc::measureNoteSeparator()
     const auto lines = layout.lineInfo(0);
     // (The file's own paragraph, with the space before it, to the bottom of its last line; the Normal style's line is the line and the space after it.)
     m_noteFields->separator = lines.isEmpty() ? 0.0 : (m_noteSeparator.isEmpty() ? lines.first().rect.height() : lines.last().rect.bottom()) + after;
+    // The continuation notice: the height of its paragraphs, which a page keeps under its notes.
+    m_noteFields->notice = 0;
+    if (!m_noteNotice.isEmpty()) {
+        QTextDocument n;
+        n.setDocumentMargin(0);
+        n.setDefaultFont(story()->defaultFont());
+        n.setUndoRedoEnabled(false);
+        fillStory(&n, m_noteNotice, true, m_notePart);
+        StoryLayout noticeLayout;
+        noticeLayout.build(&n, {fs}, m_flow->env);
+        const auto noticeLines = noticeLayout.lineInfo(0);
+        m_noteFields->notice = noticeLines.isEmpty() ? 0.0 : noticeLines.last().rect.bottom() + n.lastBlock().blockFormat().bottomMargin();
+    }
 }
 
 const QTextDocument *WriteDoc::noteStory(const QString &id)

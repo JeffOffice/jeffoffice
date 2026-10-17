@@ -47,7 +47,8 @@ public:
     const QTextDocument *storyDoc(const QString &id) const override;
     QList<const QTextDocument *> storyDocs() const override;
     double noteSeparatorHeight() const override { return separator; }
-    double separator = 0;
+    double noteNoticeHeight() const override { return notice; }
+    double separator = 0, notice = 0;
 
 private:
     WriteDoc *m_doc;
@@ -188,6 +189,7 @@ private:
     std::unique_ptr<NoteFields> m_noteFields;
     QString m_notePart;                                               // the footnotes part's name
     QHash<QString, QVector<office::wml::Block>> m_noteBlocks;         // by "fn" and Id
+    QVector<office::wml::Block> m_noteNotice;                         // the paragraphs of the file's continuation notice (none: no room is kept for one)
     QVector<office::wml::Block> m_noteSeparator;                      // the paragraphs of the file's note separator (none: a line of the Normal style)
     // (The stories of the notes and of the headers and footers are made when a page needs them and are not edited: nothing in the program reaches them yet. When
     // something does, the paginator has to be told as it is of the story's edits (its measures of them are kept by the story's revision), and the pages that show

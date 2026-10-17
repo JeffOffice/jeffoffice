@@ -50,6 +50,8 @@ public:
     virtual int endnotesBefore() const { return 0; }
     virtual QStringList carriedNotes() const { return {}; }
     virtual double noteSeparatorHeight() const { return 0; }
+    // The height of the file's continuation notice, which a word processor keeps room for at the foot of a page's notes.
+    virtual double noteNoticeHeight() const { return 0; }
 };
 
 // A stock font's average character width in ems (OS/2 xAvgCharWidth), the
