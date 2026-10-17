@@ -2273,6 +2273,50 @@ private Q_SLOTS:
         QVERIFY(std::abs(old[0].rect.height() - heights[0]) > 0.5);
     }
 
+    // Each face of the fonts a word processor measures has its own Windows ascent and descent, from the font's tables: Comic Sans MS and Palatino Linotype
+    // are not set in Calibri's line, Book Antiqua Bold's line is shorter than its regular face's, and Bookman Old Style Italic's baseline is its own ascent
+    // below the line's top. A line is the Windows ascent and descent plus the header's gap less what they already hold beyond the header's own.
+    void wordLinesOfMeasuredFacesAreTheirOwn()
+    {
+        struct Face { const char *family; double size; bool bold, italic; int winAscent, winDescent, ascent, descent, gap; };
+        const Face faces[] = {
+            {"Comic Sans MS", 11, false, false, 2257, 597, 2257, 597, 0},
+            {"Palatino Linotype", 10, true, false, 2150, 613, 1499, 582, 682},
+            {"Book Antiqua", 12, false, false, 1967, 578, 1891, 578, 0},
+            {"Book Antiqua", 12, true, false, 1891, 543, 1891, 578, 0},
+            {"Bookman Old Style", 10, false, true, 1791, 475, 1929, 475, 0},
+            {"Bookman Old Style", 10, false, false, 1831, 473, 1929, 475, 0},
+            // (The math font's Windows ascent and descent, 6383 and 5045 units, are for stacking formulas: a line of its text is the header's, 1595 and 455.)
+            {"Cambria Math", 10, false, false, 1595, 455, 1595, 455, 353},
+        };
+        auto doc = std::make_unique<QTextDocument>();
+        QTextCursor c(doc.get());
+        for (int i = 0; i < int(std::size(faces)); ++i) {
+            QTextCharFormat cf;
+            cf.setFontFamilies({QString::fromLatin1(faces[i].family)});
+            cf.setFontPointSize(faces[i].size);
+            if (faces[i].bold) cf.setFontWeight(QFont::Bold);
+            cf.setFontItalic(faces[i].italic);
+            if (i == 0) c.setBlockCharFormat(cf); else c.insertBlock(QTextBlockFormat(), cf);
+            c.insertText(QStringLiteral("Line %1").arg(i), cf);
+        }
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(doc.get(), {plainFrame(400, 700)}, env);
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(lines.size(), int(std::size(faces)));
+        double top = 0;
+        for (int i = 0; i < int(std::size(faces)); ++i) {
+            const Face &f = faces[i];
+            const double leading = std::max(0, f.gap - ((f.winAscent + f.winDescent) - (f.ascent + f.descent)));
+            const double height = (f.winAscent + f.winDescent + leading) / 2048.0 * f.size;
+            QVERIFY2(std::abs(lines[i].rect.height() - height) < 0.01, qPrintable(QStringLiteral("%1 (line %2) is %3 tall, not %4").arg(f.family).arg(i).arg(lines[i].rect.height()).arg(height)));
+            QVERIFY2(std::abs(lines[i].baseline - (top + f.winAscent / 2048.0 * f.size)) < 0.02, qPrintable(QStringLiteral("%1 (line %2): baseline at %3, not %4").arg(f.family).arg(i).arg(lines[i].baseline).arg(top + f.winAscent / 2048.0 * f.size)));
+            top += height;
+        }
+    }
+
     // A family that isn't on the machine is set as its stand-in is, Calibri's line; Times and Helvetica are the names of Times New Roman and Arial.
     void wordLinesOfMissingFamiliesAreTheStandIns()
     {
@@ -2283,8 +2327,186 @@ private Q_SLOTS:
             QVERIFY2(std::abs(lines[i].rect.height() - heights[i]) < 0.01, qPrintable(QStringLiteral("line %1 is %2 tall, not %3").arg(i).arg(lines[i].rect.height()).arg(heights[i])));
     }
 
+    // The characters of the symbol fonts (a degree sign from Symbol, an arrow from Wingdings, a solid block from Webdings: codes 0xF020 to 0xF0FF) are drawn as
+    // the pictures they are where this machine lacks the font, each as wide as the font makes it (819, 1825, and 2048 units of 2048 for these three).
+    void symbolFontCharactersAreTheirPicturesAtTheirOwnWidths()
+    {
+        struct Case { const char *family; char16_t code, picture; int units; };
+        const Case cases[] = {{"Symbol", 0xF0B0, 0x00B0, 819}, {"Wingdings", 0xF0EA, 0x2B07, 1825}, {"Webdings", 0xF067, 0x2588, 2048}};
+        int checked = 0;
+        for (const Case &k : cases) {
+            if (QFontDatabase::hasFamily(QString::fromLatin1(k.family))) continue;   // (installed here: drawn by the font itself)
+            ++checked;
+            auto doc = std::make_unique<QTextDocument>();
+            QTextCursor c(doc.get());
+            QTextCharFormat cf;
+            cf.setFontFamilies({QString::fromLatin1(k.family)});
+            cf.setFontPointSize(10);
+            c.setCharFormat(cf);
+            c.insertText(QString(80, QChar(k.code)), cf);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(doc.get(), {plainFrame(105, 700)}, env);
+            const auto lines = lay.lineInfo(0);
+            QVERIFY(!lines.isEmpty());
+            const int fit = int((105 + 0.13) / (k.units / 2048.0 * 10));
+            QVERIFY2(lines[0].text.size() == fit && lines[0].text == QString(fit, QChar(k.picture)),
+                     qPrintable(QStringLiteral("%1: the first line has %2 characters, %3 fit as the font sets them; its first is U+%4").arg(k.family).arg(lines[0].text.size()).arg(fit).arg(lines[0].text.isEmpty() ? 0 : lines[0].text[0].unicode(), 0, 16)));
+        }
+        // (Where all three fonts are installed nothing was checked: the fonts draw themselves.)
+        if (checked == 0) QSKIP("Symbol, Wingdings, and Webdings are all installed here: their characters are drawn by the fonts");
+    }
+
+    // Courier New, where the machine lacks it, is drawn in Courier Prime, a face of the same widths whose strokes are as thin as Courier New's (its stand-in for a
+    // publisher's text, Cousine, is heavy), and its line stays Courier New's; a publisher's text keeps Cousine.
+    void courierNewIsDrawnInAThinFaceAndSetAsItself()
+    {
+        if (QFontDatabase::hasFamily(QStringLiteral("Courier New"))) QSKIP("Courier New is installed");
+        QVERIFY(QFontDatabase::hasFamily(QStringLiteral("Courier Prime")));
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Courier New")});
+        cf.setFontPointSize(10);
+        LayoutEnv word;
+        word.wordLines = true;
+        QCOMPARE(resolveCharFormat(cf, word).fontFamilies().toStringList().value(0), QStringLiteral("Courier Prime"));
+        QCOMPARE(resolveCharFormat(cf, LayoutEnv()).fontFamilies().toStringList().value(0), QStringLiteral("Courier New"));
+        // (The line is Courier New's, not the face it is drawn in: 1.1328 em.)
+        const auto lines = wordLinesOf({{QStringLiteral("Courier New"), 20}});
+        QVERIFY2(std::abs(lines.value(0).rect.height() - (1705 + 615) / 2048.0 * 20) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
+    }
+
+    // The line of Courier New is Courier New's wherever it is measured, though the text is drawn in Courier Prime (whose own line is 1.318 em, to Courier New's 1.133):
+    // the number of a list item is a run of its own on the first line, and the paragraph after a keep-with-next one is measured for room.
+    void aNumberedCourierNewItemKeepsCourierNewsLine()
+    {
+        if (QFontDatabase::hasFamily(QStringLiteral("Courier New"))) QSKIP("Courier New is installed");
+        auto doc = std::make_unique<QTextDocument>();
+        QTextCursor c(doc.get());
+        QTextListFormat lf;
+        lf.setStyle(QTextListFormat::ListDecimal);
+        lf.setNumberSuffix(QStringLiteral("."));
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Courier New")});
+        cf.setFontPointSize(20);
+        c.setBlockCharFormat(cf);
+        c.insertText(QStringLiteral("Text of the item"), cf);
+        c.createList(lf);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(doc.get(), {plainFrame(400, 700)}, env);
+        const auto lines = lay.lineInfo(0);
+        QVERIFY(!lines.isEmpty());
+        const double courierNew = (1705 + 615) / 2048.0 * 20;
+        QVERIFY2(std::abs(lines[0].rect.height() - courierNew) < 0.01, qPrintable(QStringLiteral("the first line is %1 tall, not %2").arg(lines[0].rect.height()).arg(courierNew)));
+        QVERIFY2(std::abs(lines[0].baseline - 1705 / 2048.0 * 20) < 0.02, qPrintable(QString::number(lines[0].baseline)));
+    }
+
+    void keepWithNextMeasuresTheNextParagraphInCourierNewsLine()
+    {
+        if (QFontDatabase::hasFamily(QStringLiteral("Courier New"))) QSKIP("Courier New is installed");
+        auto doc = std::make_unique<QTextDocument>();
+        QTextCursor c(doc.get());
+        QTextCharFormat times;
+        times.setFontFamilies({QStringLiteral("Times New Roman")});
+        times.setFontPointSize(12);
+        c.setBlockCharFormat(times);
+        c.insertText(QStringLiteral("A line before"), times);
+        QTextBlockFormat keep;
+        keep.setProperty(tp::KeepWithNext, true);
+        c.insertBlock(keep, times);
+        c.insertText(QStringLiteral("Heading"), times);
+        QTextCharFormat courier;
+        courier.setFontFamilies({QStringLiteral("Courier New")});
+        courier.setFontPointSize(20);
+        c.insertBlock(QTextBlockFormat(), courier);
+        c.insertText(QStringLiteral("The line after it"), courier);
+        // Room under the heading for Courier New's line (22.66) but not for the 26.37 of Courier Prime's own: the heading stays where it is.
+        const double line = (1825 + 443 + 87) / 2048.0 * 12, room = 24.5;
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(doc.get(), {plainFrame(400, 2 * line + room), plainFrame(400, 700)}, env);
+        QCOMPARE(lay.lineInfo(0).size(), 3);
+        QCOMPARE(lay.lineInfo(1).size(), 0);
+    }
+
+    // Lines of whole points follow every kind of line spacing: a multiple is a multiple of the whole-point line (Times New Roman 11, 12.65 high, is 13), an at-least
+    // height more than that is a descent above its bottom, and one less is the whole-point line itself; an exact height keeps the parts in proportion.
+    void wholePointLinesFollowMultipleAtLeastAndExactSpacing()
+    {
+        const QString tnr = QStringLiteral("Times New Roman");
+        const double descent = 443 / 2048.0 * 11, whole = 13;
+        auto one = [&](QTextBlockFormat::LineHeightTypes type, double value) {
+            return wordLinesOf({{tnr, 11}}, [&](int, QTextBlockFormat &bf) { bf.setLineHeight(value, type); }, true, [](LayoutEnv &env) { env.wordWholePointLines = true; }).first();
+        };
+        auto twice = one(QTextBlockFormat::ProportionalHeight, 200);
+        QVERIFY2(std::abs(twice.rect.height() - 2 * whole) < 0.01, qPrintable(QString::number(twice.rect.height())));
+        QVERIFY2(std::abs(twice.baseline - (whole - descent)) < 0.02, qPrintable(QString::number(twice.baseline)));
+        auto most = one(QTextBlockFormat::MinimumHeight, 20);
+        QVERIFY(std::abs(most.rect.height() - 20) < 0.01);
+        QVERIFY2(std::abs(most.baseline - (20 - descent)) < 0.02, qPrintable(QString::number(most.baseline)));
+        auto least = one(QTextBlockFormat::MinimumHeight, 10);
+        QVERIFY(std::abs(least.rect.height() - whole) < 0.01);
+        QVERIFY2(std::abs(least.baseline - (whole - descent)) < 0.02, qPrintable(QString::number(least.baseline)));
+        auto exact = one(QTextBlockFormat::FixedHeight, 26);
+        QVERIFY(std::abs(exact.rect.height() - 26) < 0.01);
+        QVERIFY2(std::abs(exact.baseline - (whole - descent) * 26 / whole) < 0.02, qPrintable(QString::number(exact.baseline)));
+    }
+
+    // A font the file's font table gives an alternate for is set in that alternate when the word processor has it, whether or not this machine has it (a
+    // bundled look-alike stands in for it): an unknown serif face with Bookman Old Style as its alternate is not set in Calibri.
+    void aFontsAlternateIsKeptWhereTheWordProcessorHasIt()
+    {
+        LayoutEnv env;
+        env.wordLines = true;
+        env.standIns.insert(QStringLiteral("itc bookman light"), QStringLiteral("Bookman Old Style"));
+        env.standIns.insert(QStringLiteral("futura md bt"), QStringLiteral("Century Gothic"));
+        env.standIns.insert(QStringLiteral("no such face"), QStringLiteral("No Such Alternate"));
+        auto familyOf = [&](const QString &family) {
+            QTextCharFormat cf;
+            cf.setFontFamilies({family});
+            cf.setFontPointSize(10);
+            return resolveCharFormat(cf, env).fontFamilies().toStringList().value(0);
+        };
+        QCOMPARE(familyOf(QStringLiteral("ITC Bookman Light")), QStringLiteral("Bookman Old Style"));
+        QCOMPARE(familyOf(QStringLiteral("Futura Md BT")), QStringLiteral("Century Gothic"));
+        QCOMPARE(familyOf(QStringLiteral("No Such Face")), QStringLiteral("Calibri"));
+    }
+
+    // A word processor kerns the letters of a run only where the file asks for it (tp::KernAbove, from w:kern): a run that doesn't ask isn't kerned at any
+    // size, where a publisher's text is kerned from 14 points. Kerned text of letter pairs that kern (AV, VA) is narrower, so more of it fits on a line.
+    void wordTextKernsOnlyWhereTheFileAsks()
+    {
+        auto charsOnFirstLine = [&](bool word, double size, std::optional<double> kernAbove) {
+            auto doc = std::make_unique<QTextDocument>();
+            QTextCursor c(doc.get());
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Arial")});
+            cf.setFontPointSize(size);
+            if (kernAbove) cf.setProperty(tp::KernAbove, *kernAbove);
+            c.setCharFormat(cf);
+            QString text;
+            for (int i = 0; i < 60; ++i) text += QStringLiteral("AVAVAVAV ");
+            c.insertText(text, cf);
+            LayoutEnv env;
+            env.wordLines = word;
+            StoryLayout lay;
+            lay.build(doc.get(), {plainFrame(300, 700)}, env);
+            return lay.lineInfo(0).value(0).text.size();
+        };
+        const auto plain = charsOnFirstLine(true, 20, std::nullopt);       // asks nothing: not kerned, though 20 points is past 14
+        const auto never = charsOnFirstLine(true, 20, 200.0);              // asks from 200 points: not kerned
+        const auto asked = charsOnFirstLine(true, 20, 10.0);               // asks from 10 points: kerned
+        QCOMPARE(plain, never);
+        QVERIFY2(asked > plain, qPrintable(QStringLiteral("kerned %1 characters, plain %2").arg(asked).arg(plain)));
+        // (A publisher's text keeps its own rule: kerned from 14 points whether it says so or not.)
+        QVERIFY(charsOnFirstLine(false, 20, std::nullopt) > charsOnFirstLine(false, 20, 200.0));
+    }
+
     // The spaces and tabs that end a word processor's line take no part in its height, and a line that is only such blanks is as tall as the paragraph
-    // mark's font makes it; blanks among the words count.
+    // mark's font makes it; blanks among the words count, but a lone space between runs does not.
     void blanksAtTheEndOfAWordLineTakeNoPartInItsHeight()
     {
         const QString tnr = QStringLiteral("Times New Roman");
@@ -2317,10 +2539,71 @@ private Q_SLOTS:
         // Only blanks: the mark's font.
         QVERIFY(std::abs(height({{QStringLiteral("\t\t\t"), 24}}, 9) - single(9)) < 0.01);
         QVERIFY(std::abs(height({{QStringLiteral("    "), 24}}, 14) - single(14)) < 0.01);
-        // Blanks among the words are part of the line.
+        // Blanks among the words are part of the line, but one space in a run of its own is not (a reference page of the original program: a space in the paragraph's 12 point font between
+        // two runs of 10 point text leaves the line a 10 point line's).
         QVERIFY(std::abs(height({{QStringLiteral("a"), 10}, {QStringLiteral("   "), 24}, {QStringLiteral("b"), 10}}, 10) - single(24)) < 0.01);
+        QVERIFY(std::abs(height({{QStringLiteral("a"), 10}, {QStringLiteral(" "), 24}, {QStringLiteral("b"), 10}}, 10) - single(10)) < 0.01);
+        QVERIFY(std::abs(height({{QStringLiteral("a b"), 24}}, 10) - single(24)) < 0.01);
         // And the mark doesn't make a line of text taller.
         QVERIFY(std::abs(height({{text, 10}}, 24) - single(10)) < 0.01);
+    }
+
+    // A tab is no part of a word processor's line height, where it stands: a paragraph that begins with a tab in a larger font than its text (the tab that
+    // indents a first line, in the size the paragraph's last edit left it) is as tall as its text, not as its tab (a reference page of the original program, 16 points for the tab and 12 for the
+    // words: the lines are 13.8 apart, a 12 point line's).
+    void aTabTakesNoPartInALineHeight()
+    {
+        const QString tnr = QStringLiteral("Times New Roman");
+        auto lineOf = [&](const QVector<std::pair<QString, double>> &runs) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            for (const auto &r : runs) {
+                QTextCharFormat cf;
+                cf.setFontFamilies({tnr});
+                cf.setFontPointSize(r.second);
+                c.insertText(r.first, cf);
+            }
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(400, 700)}, env);
+            return lay.lineInfo(0).value(0);
+        };
+        const double single12 = (1825 + 443 + 87) / 2048.0 * 12, ascent12 = 1825 / 2048.0 * 12;
+        const auto led = lineOf({{QStringLiteral("\t"), 16}, {QStringLiteral("Thank you very much"), 12}});
+        QVERIFY2(std::abs(led.rect.height() - single12) < 0.01, qPrintable(QString::number(led.rect.height())));
+        QVERIFY2(std::abs(led.baseline - ascent12) < 0.02, qPrintable(QString::number(led.baseline)));
+        // (Nor does a lone space, in a run of its own; a longer run of spaces is as tall as its font.)
+        const auto spaced = lineOf({{QStringLiteral(" "), 16}, {QStringLiteral("Thank you very much"), 12}});
+        QVERIFY(std::abs(spaced.rect.height() - single12) < 0.01);
+        const auto indented = lineOf({{QStringLiteral("   "), 16}, {QStringLiteral("Thank you very much"), 12}});
+        QVERIFY(indented.rect.height() > single12 + 1);
+    }
+
+    // A file that asks for the spacing of an older word processor (w:suppressTopSpacingWP, LayoutEnv::wordWholePointLines) has lines of whole points: a font's single
+    // line, taken up to the next whole point (10 points of Times New Roman, 11.5 points high, are 12; 11 points, 12.65 high, are 13; 12, 13.8, are 14), with the
+    // baseline a descent above the bottom (the leading and what is added are above the text); one that doesn't ask has the font's own. Another that asks for no leading (w:noLeading, LayoutEnv::wordNoLeading) has the line of the
+    // font's Windows ascent and descent alone: 1.1074 em for Times New Roman.
+    void aFileCanAskForWholePointLinesOrNoLeading()
+    {
+        auto lines = [&](const std::function<void(LayoutEnv &)> &setup) {
+            return wordLinesOf({{QStringLiteral("Times New Roman"), 10}, {QStringLiteral("Times New Roman"), 11}, {QStringLiteral("Arial"), 12}, {QStringLiteral("Courier New"), 12}}, {}, true, setup);
+        };
+        const double descents[] = {443 / 2048.0 * 10, 443 / 2048.0 * 11, 434 / 2048.0 * 12, 615 / 2048.0 * 12};
+        const auto whole = lines([](LayoutEnv &env) { env.wordWholePointLines = true; });
+        QCOMPARE(whole.size(), 4);
+        const double wholeHeights[] = {12, 13, 14, 14};   // (13.59 of Courier New 12 up to 14)
+        double top = 0;
+        for (int i = 0; i < 4; ++i) {
+            QVERIFY2(std::abs(whole[i].rect.height() - wholeHeights[i]) < 0.01, qPrintable(QStringLiteral("line %1 is %2 tall").arg(i).arg(whole[i].rect.height())));
+            QVERIFY2(std::abs(whole[i].baseline - (top + wholeHeights[i] - descents[i])) < 0.02, qPrintable(QStringLiteral("line %1's baseline is at %2").arg(i).arg(whole[i].baseline)));
+            top += wholeHeights[i];
+        }
+        const auto plain = lines({});
+        QVERIFY(std::abs(plain[0].rect.height() - (1825 + 443 + 87) / 2048.0 * 10) < 0.01);
+        const auto none = lines([](LayoutEnv &env) { env.wordNoLeading = true; });
+        const double noLeading[] = {(1825 + 443) / 2048.0 * 10, (1825 + 443) / 2048.0 * 11, (1854 + 434) / 2048.0 * 12, (1705 + 615) / 2048.0 * 12};
+        for (int i = 0; i < 4; ++i) QVERIFY2(std::abs(none[i].rect.height() - noLeading[i]) < 0.01, qPrintable(QStringLiteral("line %1 is %2 tall").arg(i).arg(none[i].rect.height())));
     }
 
     // The stand-in a file's font table names for a family (the environment's stand-ins, LayoutEnv::standIns) is the line a missing family is set in.
@@ -2402,9 +2685,10 @@ private Q_SLOTS:
         QVERIFY2(std::abs(textStart(-36, 36, {}) - 36) < 0.01, qPrintable(QString::number(textStart(-36, 36, {}))));
     }
 
-    // A multiple of single spacing makes the line that many times as tall with the text at its top; an exact height sets the baseline a descent
-    // above its bottom (the text's top is cut off where there is less room than the font's ascent); an at-least height does the same when it is
-    // more than a single line, and is a single line when it is less.
+    // A multiple of single spacing makes the line that many times as tall with the text at its top; an exact height sets the baseline as far below the top
+    // as the font's ascent is of its single line, scaled to the exact height (the text's top is cut off where there is less room than the font's ascent; the original
+    // program's own pages: Times New Roman 12 in exactly 24 points has its baseline 2.8 points higher than a descent above the bottom); an at-least height sets it a
+    // descent above its bottom when it is more than a single line, and is a single line when it is less.
     void wordLineHeightsFollowTheirRules()
     {
         const QString tnr = QStringLiteral("Times New Roman");
@@ -2417,10 +2701,10 @@ private Q_SLOTS:
         QVERIFY(std::abs(twice.baseline - ascent) < 0.02);
         auto exact = one(QTextBlockFormat::FixedHeight, 20);
         QVERIFY(std::abs(exact.rect.height() - 20) < 0.01);
-        QVERIFY(std::abs(exact.baseline - (20 - descent)) < 0.02);
+        QVERIFY2(std::abs(exact.baseline - ascent * 20 / single) < 0.02, qPrintable(QString::number(exact.baseline)));
         auto tight = one(QTextBlockFormat::FixedHeight, 9);
         QVERIFY(std::abs(tight.rect.height() - 9) < 0.01);
-        QVERIFY(std::abs(tight.baseline - (9 - descent)) < 0.02);
+        QVERIFY2(std::abs(tight.baseline - ascent * 9 / single) < 0.02, qPrintable(QString::number(tight.baseline)));
         auto most = one(QTextBlockFormat::MinimumHeight, 24);
         QVERIFY(std::abs(most.rect.height() - 24) < 0.01);
         QVERIFY(std::abs(most.baseline - (24 - descent)) < 0.02);

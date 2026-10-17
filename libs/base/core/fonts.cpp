@@ -991,6 +991,60 @@ const QHash<char16_t, double> *originalLetterWidths(const QString &family, bool 
 }
 
 
+const SymbolPictures *symbolPicturesOf(const QString &family)
+{
+    // (Made once for the five families, whenever it is first asked for: from any thread.)
+    static const QHash<QString, SymbolPictures> tables = [] {
+        // The pictures only the word processor knows, beside the shared ones: Wingdings' arrows left, up, and down (E7, E9, EA), and the solid block that
+        // banners are made of in Webdings (67). The shared mapping is a publication's, a presentation's, and a metafile's, and stays as it was.
+        static const struct { const char *family; uint code; char16_t picture; } more[] = {
+            {"wingdings", 0xE7, 0x2B05}, {"wingdings", 0xE9, 0x2B06}, {"wingdings", 0xEA, 0x2B07}, {"webdings", 0x67, 0x2588}};
+        QHash<QString, SymbolPictures> t;
+        for (const QString &name : {QStringLiteral("Symbol"), QStringLiteral("Wingdings"), QStringLiteral("Wingdings 2"), QStringLiteral("Wingdings 3"), QStringLiteral("Webdings")}) {
+            SymbolPictures p;
+            for (uint code = 0x20; code <= 0xFF; ++code) {
+                const QString shown = symbolTextToUnicode(name, code);
+                p.picture[code - 0x20] = shown.size() == 1 || (shown.size() == 2 && shown[1] == QChar(0xFE0E)) ? shown[0] : QChar();
+            }
+            for (const auto &m : more)
+                if (name.compare(QLatin1String(m.family), Qt::CaseInsensitive) == 0) p.picture[m.code - 0x20] = QChar(m.picture);
+            t.insert(name.toLower(), p);
+        }
+        return t;
+    }();
+    const auto it = tables.constFind(family.toLower());
+    return it == tables.constEnd() ? nullptr : &*it;
+}
+
+QChar symbolPictureOf(const QString &family, uint code)
+{
+    const SymbolPictures *t = symbolPicturesOf(family);
+    return t ? t->of(code) : QChar();
+}
+
+const QHash<char16_t, double> *symbolFontLetterWidths(const QString &family)
+{
+    static QHash<QString, QHash<char16_t, double>> cache;   // main thread only, like all layout
+    const QString key = family.toLower();
+    if (const auto it = cache.constFind(key); it != cache.constEnd()) return it->isEmpty() ? nullptr : &*it;
+    QHash<char16_t, double> widths;
+    const SymbolPictures *pictures = symbolPicturesOf(family);
+    if (const QHash<char16_t, double> *byCode = originalLetterWidths(family, false, false); byCode && pictures)
+        for (uint code = 0x20; code <= 0xFF; ++code) {
+            const auto w = byCode->constFind(char16_t(code));
+            if (w == byCode->constEnd()) continue;
+            const QChar picture = pictures->of(code);
+            if (!picture.isNull() && picture.unicode() != code) {
+                widths.insert(picture.unicode(), *w);
+            } else {
+                widths.insert(char16_t(code), *w);
+                widths.insert(char16_t(0xF000 + code), *w);
+            }
+        }
+    const auto it = cache.insert(key, widths);
+    return it->isEmpty() ? nullptr : &*it;
+}
+
 const QHash<quint32, double> *originalKerning(const QString &family, bool bold, bool italic)
 {
     static const QHash<QString, QHash<quint32, double>> table = [] {

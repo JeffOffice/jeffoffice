@@ -3,8 +3,11 @@
 #include "wml/wml.h"
 
 #include "wml/xmltree.h"
+#include "core/fonts.h"
 
 #include <QCoreApplication>
+#include <QFontDatabase>
+#include <QHash>
 #include <QSet>
 #include <algorithm>
 
@@ -54,6 +57,23 @@ public:
     int standIns = 0;                 // the tables that are kept whole as XML, for want of room (or rows)
     bool tablesAsStandIns = false;    // a part whose tables are not laid out (a header, a footer, a note): they are stand-ins, as every table was
 
+    // The text shown for a symbol (w:sym): where its font is a symbol font that this machine lacks, the picture it stands for; where the machine has the font, the
+    // file's own character, in the font's range, which the font draws; otherwise (another font, or a picture not known) a box.
+    QString symbolDisplay(const QString &font, const QString &charAttribute) const
+    {
+        const QString box(QChar(0x25A1));
+        bool ok = false;
+        const uint code = charAttribute.toUInt(&ok, 16);
+        const SymbolPictures *pictures = ok ? symbolPicturesOf(font) : nullptr;
+        if (!pictures) return box;
+        auto cached = installed.constFind(font.toLower());
+        if (cached == installed.constEnd()) cached = installed.insert(font.toLower(), QFontDatabase::hasFamily(font));
+        if (*cached) return code <= 0xFFFF ? QString(QChar(char16_t(code))) : box;
+        const QChar picture = pictures->of(code);
+        return picture.isNull() ? box : QString(picture);
+    }
+    mutable QHash<QString, bool> installed;   // (whether the machine has a symbol font, by its name: asked once for each)
+
     RunProps rPr(int n) const
     {
         RunProps p;
@@ -102,6 +122,8 @@ public:
                 if (auto v = intOf(t, c)) p.spacing = *v;
             } else if (name == "position") {
                 if (auto v = intOf(t, c)) p.position = *v;
+            } else if (name == "kern") {
+                if (auto v = intOf(t, c)) p.kern = std::max(0, *v);
             } else if (name == "sz") {
                 if (auto v = intOf(t, c)) p.size = std::clamp(*v, 1, 4000);
             } else if (name == "highlight") {
@@ -309,7 +331,7 @@ public:
                 if (name == "br" || name == "fldChar") a.key = t.attr(c, name == "br" ? "type" : "fldCharType");
                 if (name == "footnoteReference") a.display = QString::number(++footnotes);
                 else if (name == "endnoteReference") a.display = QString::number(++endnotes);
-                else if (name == "sym") a.display = QString(QChar(0x25A1));
+                else if (name == "sym") a.display = symbolDisplay(t.attr(c, "font"), t.attr(c, "char"));
                 else if (name == "drawing") {
                     for (int k = t.firstChild(c); k >= 0; k = t.next(k))
                         if (t.localName(k) == "inline") a.display = QCoreApplication::translate("jp::office::wml", "[picture]");
@@ -1079,6 +1101,9 @@ bool readFonts(const QByteArray &xml, QVector<FontEntry> *fonts)
         f.name = tree.attr(c, "name");
         if (const int alt = tree.child(c, "altName"); alt >= 0) f.alternate = tree.val(alt);
         if (const int fam = tree.child(c, "family"); fam >= 0) f.family = tree.val(fam);
+        if (const int pitch = tree.child(c, "pitch"); pitch >= 0) f.pitch = tree.val(pitch);
+        if (const int panose = tree.child(c, "panose1"); panose >= 0) f.panose = tree.val(panose);
+        if (const int charset = tree.child(c, "charset"); charset >= 0) f.charset = tree.val(charset);
         fonts->push_back(std::move(f));
     }
     return true;
@@ -1103,6 +1128,31 @@ bool compatOption(const QByteArray &settings, const char *name)
     if (option < 0) return false;
     const QString value = tree.val(option).toLower();
     return !(value == QLatin1String("0") || value == QLatin1String("false") || value == QLatin1String("off"));
+}
+
+CompatOptions readCompatOptions(const QByteArray &settings)
+{
+    CompatOptions o;
+    XmlTree tree;
+    if (!tree.parse(settings, nullptr)) return o;
+    const int compat = tree.child(tree.root(), "compat");
+    if (compat < 0) return o;
+    // (As compatOption has it: stated, and not turned off.)
+    auto on = [&](const char *name) {
+        const int option = tree.child(compat, name);
+        if (option < 0) return false;
+        const QString value = tree.val(option).toLower();
+        return !(value == QLatin1String("0") || value == QLatin1String("false") || value == QLatin1String("off"));
+    };
+    o.useFELayout = on("useFELayout");
+    o.doNotWrapTextWithPunct = on("doNotWrapTextWithPunct");
+    o.doNotUseHTMLParagraphAutoSpacing = on("doNotUseHTMLParagraphAutoSpacing");
+    o.noTabHangInd = on("noTabHangInd");
+    o.doNotUseIndentAsNumberingTabStop = on("doNotUseIndentAsNumberingTabStop");
+    o.splitPgBreakAndParaMark = on("splitPgBreakAndParaMark");
+    o.suppressTopSpacingWP = on("suppressTopSpacingWP");
+    o.noLeading = on("noLeading");
+    return o;
 }
 
 bool readBlocks(const QByteArray &xml, QVector<Block> *blocks)

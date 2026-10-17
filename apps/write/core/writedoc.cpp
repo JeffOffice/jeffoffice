@@ -310,24 +310,26 @@ void WriteDoc::setUpEnvironment()
     // Punctuation hangs past the margin only where the file has the East Asian layout on (and not its own option against it).
     f.env.wordNoHang = true;
     if (!m_wml.settingsName.isEmpty()) {
-        const QByteArray settings = partData(m_wml.settingsName);
-        f.env.wordNoHang = !office::wml::compatOption(settings, "useFELayout") || office::wml::compatOption(settings, "doNotWrapTextWithPunct");
-        f.env.wordSpaceSums = office::wml::compatOption(settings, "doNotUseHTMLParagraphAutoSpacing");
-        f.env.wordNoHangStop = office::wml::compatOption(settings, "noTabHangInd");
-        f.env.wordNoNumberIndentStop = office::wml::compatOption(settings, "doNotUseIndentAsNumberingTabStop");
-        f.markFollowsBreak = m_wml.compatMode >= 15 || office::wml::compatOption(settings, "splitPgBreakAndParaMark");
+        // (One reading of the part for all of them.)
+        const office::wml::CompatOptions compat = office::wml::readCompatOptions(partData(m_wml.settingsName));
+        f.env.wordNoHang = !compat.useFELayout || compat.doNotWrapTextWithPunct;
+        f.env.wordSpaceSums = compat.doNotUseHTMLParagraphAutoSpacing;
+        f.env.wordNoHangStop = compat.noTabHangInd;
+        f.env.wordNoNumberIndentStop = compat.doNotUseIndentAsNumberingTabStop;
+        // Lines of whole points are the 2003 programs' (every practice document that asks for them is of compatibility mode 11): not a file of the 2010 program's mode (14) or after.
+        f.env.wordWholePointLines = compat.suppressTopSpacingWP && m_wml.compatMode < 14;
+        f.env.wordNoLeading = compat.noLeading;
+        f.markFollowsBreak = m_wml.compatMode >= 15 || compat.splitPgBreakAndParaMark;
     }
-    // The stand-ins for the fonts the file names that the machine doesn't have: the alternate its font table gives, or by its kind a serif face or a
-    // fixed-width one.
+    // The stand-ins for the fonts the file names that the machine doesn't have, by what its font table says of each (wordStandInFor).
     for (const KeptPart &part : m_wml.parts) {
         if (!part.name.endsWith(QLatin1String("fontTable.xml"), Qt::CaseInsensitive)) continue;
         QVector<office::wml::FontEntry> fonts;
         if (office::wml::readFonts(partData(part.name), &fonts))
             for (const office::wml::FontEntry &font : fonts) {
                 if (font.name.isEmpty()) continue;
-                if (!font.alternate.isEmpty()) f.env.standIns.insert(font.name.toLower(), font.alternate);
-                else if (font.family == QLatin1String("roman")) f.env.standIns.insert(font.name.toLower(), QStringLiteral("Times New Roman"));
-                else if (font.family == QLatin1String("modern")) f.env.standIns.insert(font.name.toLower(), QStringLiteral("Courier New"));
+                if (const QString standIn = wordStandInFor(font.alternate, font.family, font.pitch, font.panose, font.charset); !standIn.isEmpty())
+                    f.env.standIns.insert(font.name.toLower(), standIn);
             }
         break;
     }

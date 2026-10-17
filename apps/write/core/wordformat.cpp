@@ -378,6 +378,7 @@ QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme, const RunPro
         cf.setFontLetterSpacing(*r.spacing / 20.0);
     }
     if (r.position && *r.position != 0) cf.setProperty(prop::Raised, *r.position);
+    if (r.kern && *r.kern > 0) cf.setProperty(tp::KernAbove, *r.kern / 2.0);   // (a run that says none isn't kerned: the engine's word processor lines keep to the file)
     if (r.vanish.value_or(false)) cf.setProperty(tp::HiddenText, true);
     if (r.noProof.value_or(false)) cf.setProperty(tp::NoProof, true);
     if (const QString language = languageOf(r.extra); !language.isEmpty()) cf.setProperty(tp::Language, language);   // (spelling follows it)
@@ -478,6 +479,7 @@ RunProps runPropsOf(const QTextCharFormat &f)
     if (f.hasProperty(QTextFormat::FontPointSize)) r.size = std::clamp(int(std::lround(f.fontPointSize() * 2)), 1, 4000);
     r.spacing = f.hasProperty(QTextFormat::FontLetterSpacing) && f.fontLetterSpacingType() == QFont::AbsoluteSpacing ? int(std::lround(f.fontLetterSpacing() * 20)) : 0;
     r.position = f.intProperty(prop::Raised);
+    r.kern = f.hasProperty(tp::KernAbove) ? std::max(0, int(std::lround(f.property(tp::KernAbove).toDouble() * 2))) : 0;
     Color color{QStringLiteral("auto"), QString(), QString(), QString()};
     if (f.hasProperty(QTextFormat::ForegroundBrush) && f.foreground().style() != Qt::NoBrush) {
         const QColor c = f.foreground().color();

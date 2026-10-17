@@ -849,6 +849,48 @@ private Q_SLOTS:
         QVERIFY(jp::symbolTextToUnicode(QStringLiteral("Webdings"), 0x41).isEmpty());
     }
 
+    // The pictures that only the word processor knows (Wingdings E7, E9, and EA, the arrows left, up, and down; Webdings 67, the solid block of a banner) are not in the
+    // shared mapping, which a publication's missing-font bullet, a presentation's text, and a metafile's drawing read: it is as it was, and the word processor's own
+    // table (symbolPictureOf) has them, the shared ones too.
+    void symbolPicturesOfTheWordProcessorAreNotTheSharedOnes()
+    {
+        for (const uint code : {0xE7u, 0xE9u, 0xEAu}) {
+            QVERIFY2(jp::symbolToUnicode(QStringLiteral("Wingdings"), code).isEmpty(), qPrintable(QString::number(code, 16)));
+            QVERIFY(jp::symbolToUnicode(QStringLiteral("Wingdings"), 0xF000 + code).isEmpty());
+            QVERIFY(jp::symbolTextToUnicode(QStringLiteral("Wingdings"), code).isEmpty());
+        }
+        QVERIFY(jp::symbolToUnicode(QStringLiteral("Webdings"), 0x67).isEmpty());
+        QVERIFY(jp::symbolTextToUnicode(QStringLiteral("Webdings"), 0xF067).isEmpty());
+        QCOMPARE(jp::symbolPictureOf(QStringLiteral("Wingdings"), 0xE7), QChar(0x2B05));
+        QCOMPARE(jp::symbolPictureOf(QStringLiteral("Wingdings"), 0xF0E9), QChar(0x2B06));
+        QCOMPARE(jp::symbolPictureOf(QStringLiteral("wingdings"), 0xEA), QChar(0x2B07));
+        QCOMPARE(jp::symbolPictureOf(QStringLiteral("Webdings"), 0xF067), QChar(0x2588));
+        QCOMPARE(jp::symbolPictureOf(QStringLiteral("Wingdings"), 0xE8), QChar(0x2794));   // (one the tables share)
+        QCOMPARE(jp::symbolPictureOf(QStringLiteral("Symbol"), 0xB0), QChar(0x00B0));
+        QVERIFY(jp::symbolPictureOf(QStringLiteral("Arial"), 0xEA).isNull());
+    }
+
+    // A symbol font's pictures are one table of 224 characters (codes 0x20 to 0xFF, or the same in the range 0xF020 to 0xF0FF) made once for the family, so a run
+    // of text is turned into its pictures by looking up each character: the table says what the one-character function says, and there is none for a family
+    // that is no symbol font.
+    void aSymbolFontsPicturesAreOneTableOfCodes()
+    {
+        const QStringList families{QStringLiteral("Symbol"), QStringLiteral("Wingdings"), QStringLiteral("Wingdings 2"), QStringLiteral("Wingdings 3"), QStringLiteral("webdings")};
+        for (const QString &family : families) {
+            const jp::SymbolPictures *table = jp::symbolPicturesOf(family);
+            QVERIFY2(table, qPrintable(family));
+            QCOMPARE(jp::symbolPicturesOf(family.toUpper()), table);   // (the same table, whatever the case)
+            for (uint code = 0x20; code <= 0xFF; ++code) {
+                QCOMPARE(table->of(code), jp::symbolPictureOf(family, code));
+                QCOMPARE(table->of(0xF000 + code), table->of(code));
+            }
+            QVERIFY(table->of(0x1F).isNull() && table->of(0x100).isNull() && table->of(0xF01F).isNull() && table->of(0xF100).isNull());
+        }
+        QCOMPARE(jp::symbolPicturesOf(QStringLiteral("Wingdings"))->of(0xF0EA), QChar(0x2B07));
+        QVERIFY(!jp::symbolPicturesOf(QStringLiteral("Arial")));
+        QVERIFY(!jp::symbolPicturesOf(QString()));
+    }
+
     // The letters and signs of a symbol font in running text come to the Unicode character that looks like them; the ones that have a picture
     // of their own as emoji (the hands, the card suits) carry U+FE0E after them, which asks for the plain glyph, so they aren't drawn in
     // color; the others carry nothing. A circled number set in Wingdings, from the code itself (0x8C), is one in a dark circle.

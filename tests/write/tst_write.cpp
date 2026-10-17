@@ -27,6 +27,7 @@
 #include "../office/dochelpers.h"
 #include "../timing.h"
 #include "office/package.h"
+#include "render/renderer.h"
 #include "rtcheck.h"
 #include "app/spelling.h"
 #include "text/textprops.h"
@@ -3711,12 +3712,25 @@ private Q_SLOTS:
         }
     }
 
-    // The file's font table says what a font it names is set in where the machine lacks it: its alternate, or by its kind a serif face or a fixed-width one.
+    // The file's font table says what a font it names is set in where the machine lacks it: its alternate (when the machine has that), a symbol font for a symbol
+    // character set, otherwise by its PANOSE class (a sans face in Arial, a serif one in Times New Roman) or its kind, a serif face or a fixed-width one.
     void theFontTableGivesTheStandIns()
     {
         const QByteArray table = "<w:fonts " + QByteArray(kNs) + "><w:font w:name=\"Palatino\"><w:altName w:val=\"Book Antiqua\"/><w:family w:val=\"roman\"/></w:font>"
                                  "<w:font w:name=\"Old Serif\"><w:family w:val=\"roman\"/></w:font><w:font w:name=\"Typewriter\"><w:family w:val=\"modern\"/></w:font>"
-                                 "<w:font w:name=\"Sans\"><w:family w:val=\"swiss\"/></w:font></w:fonts>";
+                                 "<w:font w:name=\"Sans\"><w:family w:val=\"swiss\"/></w:font>"
+                                 "<w:font w:name=\"Dingbats\"><w:charset w:val=\"02\"/><w:family w:val=\"decorative\"/></w:font>"
+                                 "<w:font w:name=\"Unicode Sans\"><w:panose1 w:val=\"020B0604020202020204\"/><w:family w:val=\"roman\"/></w:font>"
+                                 "<w:font w:name=\"Ghost\"><w:altName w:val=\"No Such Alternate\"/><w:family w:val=\"roman\"/></w:font>"
+                                 "<w:font w:name=\"Fixed\"><w:family w:val=\"auto\"/><w:pitch w:val=\"fixed\"/></w:font>"
+                                 // (A fixed-pitch font is set in Courier New whatever its PANOSE says of its strokes or its kind says: a sans one with fixed pitch, and a
+                                 // serif one that Courier New's own PANOSE, whose proportion digit 09 is monospaced, describes; and a fixed one of kind swiss.)
+                                 "<w:font w:name=\"Mono Sans\"><w:panose1 w:val=\"020B0509000000000004\"/><w:family w:val=\"swiss\"/><w:pitch w:val=\"fixed\"/></w:font>"
+                                 "<w:font w:name=\"Typewriter Two\"><w:panose1 w:val=\"02070309020205020404\"/><w:family w:val=\"roman\"/><w:pitch w:val=\"variable\"/></w:font>"
+                                 "<w:font w:name=\"Fixed Swiss\"><w:family w:val=\"swiss\"/><w:pitch w:val=\"fixed\"/></w:font>"
+                                 // (A PANOSE that is short, or not hexadecimal, says nothing: the kind decides.)
+                                 "<w:font w:name=\"Short Panose\"><w:panose1 w:val=\"020B\"/><w:family w:val=\"roman\"/></w:font>"
+                                 "<w:font w:name=\"Odd Panose\"><w:panose1 w:val=\"02ZZ0604020202020204\"/><w:family w:val=\"swiss\"/></w:font></w:fonts>";
         auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {{QStringLiteral("/word/fontTable.xml"), table}}));
         QVERIFY(doc);
         const auto &standIns = doc->flow().env.standIns;
@@ -3724,6 +3738,54 @@ private Q_SLOTS:
         QCOMPARE(standIns.value(QStringLiteral("old serif")), QStringLiteral("Times New Roman"));
         QCOMPARE(standIns.value(QStringLiteral("typewriter")), QStringLiteral("Courier New"));
         QVERIFY(!standIns.contains(QStringLiteral("sans")));
+        QCOMPARE(standIns.value(QStringLiteral("dingbats")), QStringLiteral("Wingdings"));
+        QCOMPARE(standIns.value(QStringLiteral("unicode sans")), QStringLiteral("Arial"));      // (its PANOSE says sans, whatever its kind says)
+        QCOMPARE(standIns.value(QStringLiteral("ghost")), QStringLiteral("Times New Roman"));   // (an alternate the machine lacks is not one)
+        QCOMPARE(standIns.value(QStringLiteral("fixed")), QStringLiteral("Courier New"));
+        QCOMPARE(standIns.value(QStringLiteral("mono sans")), QStringLiteral("Courier New"));
+        QCOMPARE(standIns.value(QStringLiteral("typewriter two")), QStringLiteral("Courier New"));
+        QCOMPARE(standIns.value(QStringLiteral("fixed swiss")), QStringLiteral("Courier New"));
+        QCOMPARE(standIns.value(QStringLiteral("short panose")), QStringLiteral("Times New Roman"));
+        QVERIFY(!standIns.contains(QStringLiteral("odd panose")));
+    }
+
+    // The file's compatibility options that change how lines are set reach the layout as fields of their own, the flow document's and each page's (not in the table
+    // of stand-ins): w:suppressTopSpacingWP gives lines of whole points, w:noLeading drops the leading. The practice documents that carry w:suppressTopSpacingWP are
+    // all of the 2003 programs' compatibility mode (11); a file in the 2010 programs' mode (14) or the 2013 programs' (15) has no whole-point lines.
+    void compatibilityOptionsOfLineSpacingReachTheLayout()
+    {
+        const QByteArray old = "<w:compat><w:suppressTopSpacingWP/><w:noLeading/></w:compat>";
+        auto inMode = [](int mode) {
+            return QByteArray("<w:compat><w:suppressTopSpacingWP/><w:noLeading/><w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"") +
+                   QByteArray::number(mode) + "\"/></w:compat>";
+        };
+        struct Seen { bool wholeFlow, noLeadingFlow, wholePage, noLeadingPage, tableEmpty; };
+        auto seen = [&](const QByteArray &settings) {
+            auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {}, settings));
+            Seen s{};
+            if (!doc) return s;
+            const auto &env = doc->flow().env;
+            s.wholeFlow = env.wordWholePointLines;
+            s.noLeadingFlow = env.wordNoLeading;
+            s.tableEmpty = env.standIns.isEmpty();
+            if (const auto page = doc->pager().materialize(0)) {
+                const LayoutEnv pageEnv = Renderer::layoutEnv(*page->doc);
+                s.wholePage = pageEnv.wordWholePointLines;
+                s.noLeadingPage = pageEnv.wordNoLeading;
+            }
+            return s;
+        };
+        const Seen a = seen(old);
+        QVERIFY(a.wholeFlow && a.noLeadingFlow && a.wholePage && a.noLeadingPage);
+        QVERIFY2(a.tableEmpty, "the options are not entries of the table of stand-ins");
+        QVERIFY(seen(inMode(11)).wholeFlow && seen(inMode(12)).wholeFlow && seen(inMode(12)).wholePage);   // (the 2003 and the 2007 programs')
+        const Seen d = seen(inMode(14));
+        QVERIFY2(!d.wholeFlow && !d.wholePage, "a file of mode 14 has no whole-point lines");
+        const Seen b = seen(inMode(15));
+        QVERIFY2(!b.wholeFlow && !b.wholePage, "a file of mode 15 has no whole-point lines");
+        QVERIFY(b.noLeadingFlow && b.noLeadingPage);
+        const Seen c = seen("<w:compat/>");
+        QVERIFY(!c.wholeFlow && !c.noLeadingFlow && !c.wholePage && !c.noLeadingPage && c.tableEmpty);
     }
 
     // A font table of thousands of fonts that say nothing is read in step with its size.
@@ -6295,6 +6357,51 @@ private Q_SLOTS:
             }
         }
         QCOMPARE(documentXml(open(doc->toDocx())->toDocx()), once);
+    }
+
+    // Kerning is the file's to ask for: a run kerns from the size (in half-points) that its own properties or its style's give as w:kern, and a run that says
+    // none or says zero does not. The setting is written back as it was read.
+    void kerningComesFromTheFilesKernSetting()
+    {
+        const QByteArray styles = kStyles + "<w:style w:type=\"character\" w:styleId=\"Kerned\"><w:name w:val=\"Kerned\"/><w:rPr><w:kern w:val=\"18\"/></w:rPr></w:style>";
+        const QByteArray body = "<w:p><w:r><w:rPr><w:kern w:val=\"20\"/></w:rPr><w:t>direct</w:t></w:r><w:r><w:rPr><w:rStyle w:val=\"Kerned\"/></w:rPr><w:t>styled</w:t></w:r>"
+                                "<w:r><w:rPr><w:kern w:val=\"0\"/></w:rPr><w:t>zero</w:t></w:r><w:r><w:t>plain</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, styles));
+        QVERIFY(doc);
+        auto kernAt = [&](int pos) {
+            QTextCursor c(doc->story());
+            c.setPosition(pos + 1);
+            const QTextCharFormat f = c.charFormat();
+            return f.hasProperty(tp::KernAbove) ? f.property(tp::KernAbove).toDouble() : -1.0;
+        };
+        QCOMPARE(kernAt(0), 10.0);    // "direct": from 10 points
+        QCOMPARE(kernAt(6), 9.0);     // "styled": from the style's 9
+        QCOMPARE(kernAt(12), -1.0);   // "zero"
+        QCOMPARE(kernAt(16), -1.0);   // "plain"
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(x.contains("<w:kern w:val=\"20\"/>"), x.constData());
+        QCOMPARE(int(x.count("<w:kern ")), 1);   // (the styled run's is its style's, and the zero one is the default)
+    }
+
+    // A w:kern that is negative, enormous, or not a number is read without harm: below zero and a word that is no number kern nothing, one that is far past
+    // any size kerns from there (so never), and the file is written back whatever they said. (This reads as it did: the test is for what is kept.)
+    void hostileKernValuesAreReadWithoutHarm()
+    {
+        const QByteArray body = "<w:p><w:r><w:rPr><w:kern w:val=\"-5\"/></w:rPr><w:t>negative</w:t></w:r><w:r><w:rPr><w:kern w:val=\"2147483647\"/></w:rPr><w:t>enormous</w:t></w:r>"
+                                "<w:r><w:rPr><w:kern w:val=\"abc\"/></w:rPr><w:t>word</w:t></w:r><w:r><w:rPr><w:kern w:val=\"99999999999999\"/></w:rPr><w:t>overflow</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles));
+        QVERIFY(doc);
+        auto kernAt = [&](int pos) {
+            QTextCursor c(doc->story());
+            c.setPosition(pos + 1);
+            const QTextCharFormat f = c.charFormat();
+            return f.hasProperty(tp::KernAbove) ? f.property(tp::KernAbove).toDouble() : -1.0;
+        };
+        QCOMPARE(kernAt(0), -1.0);                   // "negative"
+        QVERIFY2(kernAt(8) < 0 || kernAt(8) > 1000, qPrintable(QString::number(kernAt(8))));   // "enormous": from a size no text has (the file's numbers are clamped as all are)
+        QCOMPARE(kernAt(16), -1.0);                  // "word"
+        QVERIFY2(kernAt(20) < 0 || kernAt(20) > 1000, qPrintable(QString::number(kernAt(20))));   // "overflow": clamped, and from a size no text has
+        QVERIFY(!doc->toDocx().isEmpty());
     }
 
     void whatAParagraphSaysThatHasNoFieldIsKept()

@@ -249,7 +249,7 @@ QString FieldContext::key(bool withClock) const
 
 QString LayoutEnv::key() const
 {
-    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (wordNoHangStop ? "|h" : "") + (wordNoNumberIndentStop ? "|i" : "") + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
+    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (wordNoHangStop ? "|h" : "") + (wordNoNumberIndentStop ? "|i" : "") + (wordWholePointLines ? "|u" : "") + (wordNoLeading ? "|z" : "") + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
     if (defaultTab != 36) k += QStringLiteral("|t%1").arg(defaultTab);
     for (auto it = familyAliases.cbegin(); it != familyAliases.cend(); ++it) k += QStringLiteral("|a") + it.key() + QLatin1Char('=') + it.value();
     for (auto it = standIns.cbegin(); it != standIns.cend(); ++it) k += QStringLiteral("|i") + it.key() + QLatin1Char('=') + it.value();
@@ -270,6 +270,8 @@ constexpr int kOwnUnderline = QTextFormat::UserProperty + 90;
 // Layout only: a missing stock font measured letter by letter, "family|bold|italic"
 // (applyLetterWidths gives each letter the original's width).
 constexpr int kLetterWidths = QTextFormat::UserProperty + 91;
+// The face Courier New is drawn in where the machine lacks it (resolveCharFormat): its font's families are this and then the family whose line it keeps.
+const QString kThinCourier = QStringLiteral("Courier Prime");
 
 QFont fineFont(QFont f)
 {
@@ -751,6 +753,33 @@ static double scaledSize(double size, const LayoutEnv &env)
 
 namespace { static bool wordKnowsFamily(const QString &lower); }
 
+// Whether the word processor's machine has a family: the ones it measures (the tables of its fonts' lines and letters), the document's own fonts, and
+// the ones this machine has. The look-alikes JeffPub keeps for fonts a publisher's files ask for are not the fonts of that machine.
+static bool wordHasFamily(const QString &family, const LayoutEnv &env)
+{
+    const QString lower = family.toLower();
+    return wordKnowsFamily(lower) || env.familyAliases.contains(lower) || hasFamilyCached(family) || originalLetterWidths(family, false, false);
+}
+
+QString wordStandInFor(const QString &alternate, const QString &family, const QString &pitch, const QString &panose, const QString &charset)
+{
+    if (!alternate.isEmpty() && wordHasFamily(alternate, LayoutEnv())) return alternate;
+    if (charset == QLatin1String("02")) return QStringLiteral("Wingdings");
+    // A PANOSE of Latin text (digits 1-2 are 02) says its stroke in digits 3-4 (0B to 0F sans, 02 to 0A serif) and its proportion in digits 7-8 (09 is monospaced).
+    const bool latin = panose.size() == 20 && panose.startsWith(QLatin1String("02"));
+    // A fixed-pitch font, or one whose PANOSE says monospaced, is a typewriter's whatever its strokes or its kind say (Courier New's own PANOSE has a serif's).
+    if (pitch == QLatin1String("fixed") || (latin && panose.mid(6, 2) == QLatin1String("09"))) return QStringLiteral("Courier New");
+    if (latin) {
+        bool ok = false;
+        const int style = panose.mid(2, 2).toInt(&ok, 16);
+        if (ok && style >= 0x0B && style <= 0x0F) return QStringLiteral("Arial");
+        if (ok && style >= 0x02 && style <= 0x0A) return QStringLiteral("Times New Roman");
+    }
+    if (family == QLatin1String("roman")) return QStringLiteral("Times New Roman");
+    if (family == QLatin1String("modern")) return QStringLiteral("Courier New");
+    return {};
+}
+
 QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutEnv &env)
 {
     QTextCharFormat f = original;
@@ -762,9 +791,9 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
         bool changed = false;
         for (QString &family : families) {
             const QString lower = family.toLower();
-            if (family.isEmpty() || wordKnowsFamily(lower) || env.familyAliases.contains(lower) || hasFamilyCached(family) || !substituteFor(family).isEmpty() || substituteStretch(family) != 100) continue;
+            if (family.isEmpty() || wordHasFamily(family, env)) continue;
             const QString named = env.standIns.value(lower);
-            family = !named.isEmpty() && (wordKnowsFamily(named.toLower()) || hasFamilyCached(named)) ? named : QStringLiteral("Calibri");
+            family = !named.isEmpty() && wordHasFamily(named, env) ? named : QStringLiteral("Calibri");
             changed = true;
         }
         if (changed) f.setFontFamilies(families);
@@ -849,6 +878,20 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
         const bool bold = f.hasProperty(QTextFormat::FontWeight) && f.fontWeight() >= QFont::DemiBold, italic = f.fontItalic();
         if (!fams.isEmpty() && !substituteFor(fams.first()).isEmpty() && originalLetterWidths(fams.first(), bold, italic))
             r.setProperty(kLetterWidths, fams.first() + (bold ? QStringLiteral("|1") : QStringLiteral("|0")) + (italic ? QStringLiteral("|1") : QStringLiteral("|0")));
+        else if (env.wordLines && !fams.isEmpty() && isSymbolFont(fams.first()) && !hasFamilyCached(fams.first()) && symbolFontLetterWidths(fams.first()))
+            r.setProperty(kLetterWidths, fams.first() + QStringLiteral("|0|0"));   // (its characters are shown as their pictures, by the widths of the font's)
+    }
+    // Courier New, where the machine lacks it, is drawn in Courier Prime, a face of the same widths with strokes as thin as its own (its usual stand-in, Cousine,
+    // is heavy); its line stays Courier New's.
+    if (env.wordLines) {
+        QStringList fams = r.fontFamilies().toStringList();
+        const QString lower = fams.value(0).toLower();
+        if ((lower == QLatin1String("courier new") || lower == QLatin1String("courier")) && !hasFamilyCached(fams.first()) && hasFamilyCached(QStringLiteral("Courier Prime"))) {
+            // (The family it is drawn in, then the one whose line it keeps: wordFaceOf reads the second wherever a line is measured, from a run's font, a paragraph's, a
+            // list marker's, or the next paragraph's.)
+            fams.insert(0, kThinCourier);
+            r.setFontFamilies(fams);
+        }
     }
     // Sizes within the other program's range (to 1,638 pt): a file can claim
     // anything, and a huge size makes drawing a single glyph very costly.
@@ -859,7 +902,8 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
     // files are laid out); text can also turn kerning off.
     // (A slide's counts the size the text is drawn at, shrunk or not: 28 points kerned from 12 are kerned at 15 and not at 9, as probed.)
     {
-        const double kernFrom = f.hasProperty(tp::KernAbove) ? f.property(tp::KernAbove).toDouble() : 14.0;
+        // (A word processor's text is kerned only where its file asks, from the size it says: a run that says nothing isn't, at any size.)
+        const double kernFrom = f.hasProperty(tp::KernAbove) ? f.property(tp::KernAbove).toDouble() : env.wordLines ? 1e9 : 14.0;
         r.setFontKerning((!f.hasProperty(QTextFormat::FontKerning) || f.fontKerning()) && (env.slideLines ? scaledSize(sz, env) : sz) >= kernFrom);
     }
     // Unhinted design widths: hinting differs between Windows and Linux and
@@ -1407,35 +1451,64 @@ struct WordLine {
     double total() const { return ascent + descent + leading; }
 };
 
-// The vertical metrics of the fonts a word processor's documents ask for, in 2048ths of an em: the Windows ascent and descent, then the
-// ascent, descent, and line gap of the font's horizontal header. A font's line is its Windows ascent and descent, plus the part of its gap that
-// they don't already hold (Calibri's gap is its Windows height less its header's: no leading). Read from the tables embedded in reference
-// PDFs, as the stand-ins' (Tinos, Arimo, Cousine) are the same for the three core fonts but not for the rest.
+// The vertical metrics of the fonts a word processor's documents ask for, in font units: the Windows ascent and descent, then the ascent,
+// descent, and line gap of the font's horizontal header. A font's line is its Windows ascent and descent, plus the part of its gap that
+// they don't already hold (Calibri's gap is its Windows height less its header's: no leading). The faces the word processor's machine has
+// are in the generated table (every face of each family: a bold or italic face can differ from the regular one); a few names it knows that
+// the table has no face of are read from the tables embedded in reference PDFs, as the stand-ins' (Tinos, Arimo, Cousine) are the same for
+// the three core fonts but not for the rest.
+#include "wordfontlines.inc"
+
 struct WordFontRow {
     const char *family;
     int winAscent, winDescent, ascent, descent, gap;
 };
 static const WordFontRow kWordFonts[] = {
-    {"times new roman", 1825, 443, 1825, 443, 87}, {"arial", 1854, 434, 1854, 434, 67}, {"courier new", 1705, 615, 1705, 615, 0},
-    {"times", 1825, 443, 1825, 443, 87}, {"helvetica", 1854, 434, 1854, 434, 67}, {"courier", 1705, 615, 1705, 615, 0},
-    {"calibri", 1950, 550, 1536, 512, 452}, {"cambria", 1946, 455, 1946, 455, 0}, {"symbol", 2059, 450, 2059, 450, 0},
-    {"wingdings", 1841, 432, 1841, 432, 0}, {"verdana", 2059, 430, 2059, 430, 0}, {"tahoma", 2049, 423, 2049, 423, 0},
-    {"georgia", 1878, 449, 1878, 449, 0}, {"trebuchet ms", 1923, 455, 1923, 455, 0}, {"arial black", 2254, 634, 2254, 634, 0},
-    {"arial narrow", 1888, 431, 1916, 434, 0}, {"arial rounded mt bold", 1938, 432, 1938, 432, 0}, {"book antiqua", 1967, 578, 1891, 578, 0},
-    {"century", 2019, 442, 2019, 443, 0}, {"century schoolbook", 2019, 442, 2019, 443, 0}, {"century gothic", 1989, 451, 2060, 451, 0},
-    {"garamond", 1765, 539, 1765, 539, 0}, {"monotype corsiva", 1618, 620, 1618, 620, 60}, {"broadway", 1869, 450, 1869, 450, 0},
-    {"bodoni mt black", 1878, 514, 1878, 514, 0}, {"tw cen mt condensed extra bold", 1788, 430, 1788, 430, 0},
-    {"news gothic mt", 2003, 458, 2003, 458, 0}, {"univers", 2025, 512, 2025, 512, 0},
+    {"times", 1825, 443, 1825, 443, 87},     {"helvetica", 1854, 434, 1854, 434, 67}, {"courier", 1705, 615, 1705, 615, 0},
+    {"century", 2019, 442, 2019, 443, 0},    {"monotype corsiva", 1618, 620, 1618, 620, 60}, {"broadway", 1869, 450, 1869, 450, 0},
+    {"tw cen mt condensed extra bold", 1788, 430, 1788, 430, 0}, {"news gothic mt", 2003, 458, 2003, 458, 0}, {"univers", 2025, 512, 2025, 512, 0},
 };
 
-static bool wordKnowsFamily(const QString &lower)
+// The measured face a family asks for, by its style: the face itself, else what a word processor makes it from (a bold italic from the
+// italic face, or from the bold one, else the regular face); null when the family has no measured face.
+struct WordFace {
+    int upm, winAscent, winDescent, ascent, descent, gap;
+};
+static bool wordFaceNamed(const QString &lower, bool bold, bool italic, WordFace *out)
 {
-    for (const WordFontRow &r : kWordFonts)
-        if (lower == QLatin1String(r.family)) return true;
+    const int want[4] = {bold && italic ? 3 : bold ? 1 : italic ? 2 : 0, bold && italic ? 2 : 0, bold && italic ? 1 : 0, 0};
+    for (int k = 0; k < 4; ++k) {
+        if (k > 0 && want[k] == want[k - 1]) continue;
+        for (const auto &r : kWordFontFaces)
+            if (r.style == want[k] && lower == QLatin1String(r.family)) {
+                *out = {r.upm, r.winAscent, r.winDescent, r.ascent, r.descent, r.gap};
+                return true;
+            }
+    }
     return false;
 }
 
-// A font's ascent, descent, and leading in ems, as the word processor lays a line out with it (by the family the text asked for).
+static bool wordKnowsFamily(const QString &lower)
+{
+    // (Every family of the table and the few names beside it, made once: a family is asked about for every run of text.)
+    static const QSet<QString> known = [] {
+        QSet<QString> s;
+        for (const auto &r : kWordFontFaces) s.insert(QLatin1String(r.family));
+        for (const WordFontRow &r : kWordFonts) s.insert(QLatin1String(r.family));
+        return s;
+    }();
+    return known.contains(lower);
+}
+
+// The family whose line a font keeps: the one the text asked for, which for Courier New drawn in its thin stand-in is the family after it in the font's list.
+static QString metricFamilyOf(const QFont &f)
+{
+    const QStringList families = f.families();
+    return families.size() >= 2 && families.first() == kThinCourier ? families[1] : requestedFamily(f);
+}
+
+// A font's ascent, descent, and leading in ems, as the word processor lays a line out with it (by the family the text asked for): the one place a line is
+// measured from a font, so the run, the mark, the number of a list item, and the paragraph after one all keep the line of the family they were set as.
 static WordLine wordFaceOf(const QFont &f)
 {
     static QHash<QString, WordLine> cache;   // main thread only, like all layout
@@ -1450,14 +1523,20 @@ static WordLine wordFaceOf(const QFont &f)
         return l;
     };
     WordLine line = make(1825, 443, 1825, 443, 87, 2048);   // (a Times New Roman, when nothing is known)
-    const QString family = requestedFamily(f).toLower();
+    const QString family = metricFamilyOf(f).toLower();
     bool found = false;
-    for (const WordFontRow &r : kWordFonts)
-        if (family == QLatin1String(r.family)) {
-            line = make(r.winAscent, r.winDescent, r.ascent, r.descent, r.gap, 2048);
-            found = true;
-            break;
-        }
+    WordFace face;
+    if (wordFaceNamed(family, f.weight() >= QFont::DemiBold, f.italic(), &face)) {
+        line = make(face.winAscent, face.winDescent, face.ascent, face.descent, face.gap, face.upm);
+        found = true;
+    }
+    if (!found)
+        for (const WordFontRow &r : kWordFonts)
+            if (family == QLatin1String(r.family)) {
+                line = make(r.winAscent, r.winDescent, r.ascent, r.descent, r.gap, 2048);
+                found = true;
+                break;
+            }
     // A family the word processor doesn't have on the machine is set in its stand-in, which is Calibri's line.
     if (!found && !hasFamilyCached(requestedFamily(f))) {
         line = make(1950, 550, 1536, 512, 452, 2048);
@@ -1485,7 +1564,7 @@ static WordLine mergeWord(const WordLine &a, const WordLine &b) { return a.total
 // The line a stretch of text sets, from its runs. The spaces and tabs that end the line (`disp` is the paragraph's text) take no part in its
 // height, as a word processor sets them; a line that shows nothing else is the paragraph mark's (`markFont`, at `markSize`), not the font of
 // its blanks.
-static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback, const QString *disp = nullptr, const QFont *markFont = nullptr, double markSize = 0)
+static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback, const LayoutEnv &env, const QString *disp = nullptr, const QFont *markFont = nullptr, double markSize = 0)
 {
     WordLine m;
     auto add = [&](const QFont &f, double size) {
@@ -1494,7 +1573,7 @@ static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int 
         WordLine run;
         run.ascent = face.ascent * em;
         run.descent = face.descent * em;
-        run.leading = face.leading * em;
+        run.leading = env.wordNoLeading ? 0.0 : face.leading * em;
         m = m.total() > 0 ? mergeWord(m, run) : run;
     };
     int shown = from + len;   // (where the line's text ends, trailing spaces and tabs not counted)
@@ -1502,11 +1581,29 @@ static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int 
         while (shown > from && shown <= disp->size() && (disp->at(shown - 1) == QLatin1Char(' ') || disp->at(shown - 1) == QLatin1Char('\t'))) --shown;
     for (const auto &r : ranges)
         if (r.length > 0 && r.start < shown && r.start + r.length > from) {   // (a mark that shows nothing is no run)
+            // A tab sets no height, whatever size it is set in and wherever it stands (the tab that indents a first line, in the size the paragraph's last edit left
+            // it), nor does a run of one space (a lone space between runs in the paragraph's own font, or before text of another size): the line is the text's.
+            // A longer run of spaces is as tall as its font makes it, as it is in a line of its own.
+            if (disp) {
+                const int a = std::max(r.start, from), b = std::min(r.start + r.length, shown);
+                bool onlyBlanks = true, onlyTabs = true;
+                for (int i = a; i < b && onlyBlanks; ++i) {
+                    const QChar c = i < disp->size() ? disp->at(i) : QLatin1Char('x');
+                    onlyBlanks = c == QLatin1Char('\t') || c == QLatin1Char(' ');
+                    onlyTabs = onlyTabs && c == QLatin1Char('\t');
+                }
+                if (onlyTabs || (onlyBlanks && b - a < 2)) continue;
+            }
             const QFont f = r.format.font();
             add(f, r.format.hasProperty(tp::LineSize) ? r.format.property(tp::LineSize).toDouble() : f.pointSizeF());
         }
     if (m.total() <= 0 && markFont) add(*markFont, markSize);
     if (m.total() <= 0) add(fallback, fallback.pointSizeF());
+    // An older word processor's spacing: the line is of whole points, the leading and what is added to reach them going above the text.
+    if (env.wordWholePointLines) {
+        m.ascent = std::ceil(m.total() - 1e-6) - m.descent;
+        m.leading = 0;
+    }
     return m;
 }
 
@@ -1696,7 +1793,8 @@ QVector<QTextLayout::FormatRange> applyLetterWidths(const QVector<QTextLayout::F
         const QString key = r.format.stringProperty(kLetterWidths);
         if (key.isEmpty() || r.length <= 0) { out << r; continue; }
         const QStringList k = key.split(QLatin1Char('|'));
-        const QHash<char16_t, double> *table = originalLetterWidths(k.value(0), k.value(1) == QLatin1String("1"), k.value(2) == QLatin1String("1"));
+        const QHash<char16_t, double> *table = isSymbolFont(k.value(0)) && !hasFamilyCached(k.value(0)) ? symbolFontLetterWidths(k.value(0))
+                                               : originalLetterWidths(k.value(0), k.value(1) == QLatin1String("1"), k.value(2) == QLatin1String("1"));
         QFont plain = r.format.font();
         if (!table || (plain.letterSpacingType() == QFont::PercentageSpacing && plain.letterSpacing() != 0 && plain.letterSpacing() != 100)) { out << r; continue; }
         const double base = plain.letterSpacingType() == QFont::AbsoluteSpacing ? plain.letterSpacing() : 0;
@@ -1966,7 +2064,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     const double scale = env.slideLines ? 1.0 : env.fontScale;
     const int nF = frames.size();
     auto singleOf = [&](const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback) {
-        return env.slideLines ? slideSingle(ranges, from, len, fallback) : env.wordLines ? wordLineOf(ranges, from, len, fallback).total() : singleSpacing(ranges, from, len, fallback);
+        return env.slideLines ? slideSingle(ranges, from, len, fallback) : env.wordLines ? wordLineOf(ranges, from, len, fallback, env).total() : singleSpacing(ranges, from, len, fallback);
     };
 
     auto colRect = [&](int f, int c) {
@@ -2423,6 +2521,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     for (QChar &ch : shown) ch = up ? ch.toUpper() : ch.toLower();
                     rf.setFontCapitalization(QFont::MixedCase);
                 }
+                // The characters of a symbol font that this machine lacks are shown as the pictures they stand for (the font's own widths are given
+                // them in applyLetterWidths): a degree sign from Symbol, an arrow from Wingdings, a banner's block from Webdings.
+                if (env.wordLines) {
+                    const QString family = rf.fontFamilies().toStringList().value(0);
+                    if (const SymbolPictures *pictures = hasFamilyCached(family) ? nullptr : symbolPicturesOf(family))
+                        for (QChar &ch : shown)
+                            if (const QChar picture = pictures->of(ch.unicode()); !picture.isNull()) ch = picture;
+                }
                 const int len = int(shown.size());
                 QTextLayout::FormatRange fr{int(B->disp.size()), len, rf};
                 if (rf.fontCapitalization() == QFont::SmallCaps && !(cf.boolProperty(tp::TrueSmallCaps) && trueSmallCaps)) {
@@ -2654,7 +2760,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 const double em = mf.pointSizeF() / fontPointFactor();
                 markerWord.ascent = face.ascent * em;
                 markerWord.descent = face.descent * em;
-                markerWord.leading = face.leading * em;
+                markerWord.leading = env.wordNoLeading ? 0.0 : face.leading * em;
                 markerSingle = markerWord.total();
             } else {
                 markerSingle = env.slideLines ? 0.0 : B->markerFont.pointSizeF() / fontPointFactor() * (known > 0 ? known : lineEmOf(B->markerFont, mfam));
@@ -3061,10 +3167,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         if (ob.disp >= line.textStart() && ob.disp < line.textStart() + line.textLength())
                             objUp = std::max(objUp, ob.pad.bottom() + ob.size.height() + ob.pad.top());
                     // A word processor's line: the text's ascent above the baseline, the descent and leading below it, and what a multiple of single
-                    // spacing adds under that (an exact height keeps the baseline a descent above the line's bottom, an at-least height the single
-                    // line's place for it). The whole line must fit.
+                    // spacing adds under that (an exact height keeps the line's parts in proportion, an at-least height the baseline a descent above the
+                    // line's bottom). The whole line must fit.
                     if (env.wordLines) {
-                        WordLine wl = wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base, &B->disp, &markFont, markSize);
+                        WordLine wl = wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base, env, &B->disp, &markFont, markSize);
                         // (A number or bullet counts by its ascent over the text's descent, without a leading of its own or any room below its baseline: it raises the
                         // first line when that is taller than the text's line.)
                         if (line.textStart() == 0 && markerWord.ascent + wl.descent > wl.total()) {
@@ -3081,7 +3187,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         below = 0;
                         textH = h;
                         const bool bottom = bf.lineHeightType() == QTextBlockFormat::FixedHeight || (bf.lineHeightType() == QTextBlockFormat::MinimumHeight && h > ownSingle);
-                        baseDown = bottom ? std::max(0.0, h - wl.descent) : wl.ascent;
+                        // (An exact height keeps the line's parts in proportion: the baseline is the ascent's share of the single line, of the exact height.)
+                        baseDown = bf.lineHeightType() == QTextBlockFormat::FixedHeight && ownSingle > 0 ? wl.ascent * h / ownSingle : bottom ? std::max(0.0, h - wl.descent) : wl.ascent;
                         // A paragraph's first line that holds only a page break (the paragraph begins with it) takes no room: it is at the foot of the page
                         // the paragraph's text is to leave, whether or not there is room for a line there.
                         if (lineNo == 0 && line.textLength() == 1 && doc->characterAt(b.position() + B->docFromDisp(line.textStart())) == QChar(0x000C)) {

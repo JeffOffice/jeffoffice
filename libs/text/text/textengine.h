@@ -181,6 +181,11 @@ struct LayoutEnv {
     // The tab after a number or bullet goes to the next tab stop past it (the paragraph's own, its list's, or a default one), not to the hanging indent (a file's
     // compatibility option, w:doNotUseIndentAsNumberingTabStop); the lines after the first are at the indent all the same (LayoutEnv::wordLines).
     bool wordNoNumberIndentStop = false;
+    // A word processor's lines are of whole points, each a font's single line taken up to the next whole point with the leading and the part added above the text (the
+    // older word processor's spacing that a file asks for with w:suppressTopSpacingWP), and a font's line has no leading but its Windows ascent and descent
+    // (w:noLeading) (LayoutEnv::wordLines).
+    bool wordWholePointLines = false;
+    bool wordNoLeading = false;
     // Percent taken off each paragraph's line spacing (a slide's text the
     // presentation program shrank to fit: a:normAutofit's lnSpcReduction).
     double lineCut = 0;
@@ -188,8 +193,8 @@ struct LayoutEnv {
     // font was added to the font database under. A run that names one of these is drawn with that font, whatever the computer has under the
     // name; no other document, and no menu, sees them.
     QHash<QString, QString> familyAliases;
-    // What a word processor sets a family it doesn't have in (wordLines): the family the file's font table names for each (lower-cased), if that is one
-    // it has; any other is set in Calibri.
+    // What a word processor sets a family it doesn't have in (wordLines): the family wordStandInFor chose from the file's font table for each (lower-cased), if
+    // that is one it has; any other is set in Calibri.
     QHash<QString, QString> standIns;
     QString aliasOf(const QString &family) const { return familyAliases.isEmpty() ? family : familyAliases.value(family.toLower(), family); }
     QString key() const;
@@ -466,6 +471,11 @@ void drawPlainText(QPainter *p, const QPointF &baseline, const QFont &font, cons
 double naturalLineEm(const QFont &f, const QString &requestedFamily);
 
 QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env);
+// The family a word processor sets a font in where its machine lacks the font (LayoutEnv::standIns), from what the file's font table says of it: its alternate when the
+// machine has that; a symbol font for a symbol character set (charset "02"); Courier New for a fixed pitch or a PANOSE whose proportion (digits 7-8) is 09, monospaced;
+// otherwise by its PANOSE class (digits 3-4, hexadecimal: 0B to 0F sans, 02 to 0A serif) or its kind (roman: Times New Roman; modern: Courier New). Empty when the
+// entry says nothing to go by (it is then set in Calibri).
+QString wordStandInFor(const QString &alternate, const QString &family, const QString &pitch, const QString &panose, const QString &charset);
 
 // A slide's text shrunk to fit by `scale` (a:normAutofit's fontScale), as the presentation program draws it (see LayoutEnv::slideLines): a
 // run's size in whole points, and a paragraph's space before or after (tp::SpaceBeforeShare, tp::SpaceAfterShare) in points.

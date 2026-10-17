@@ -6,7 +6,12 @@
 #include "wml/wml.h"
 #include "wml/xmltree.h"
 
+#include "core/fonts.h"
+
 #include <QCoreApplication>
+#include <QFile>
+#include <QFileInfo>
+#include <QFontDatabase>
 #include <QElapsedTimer>
 #include <QTest>
 
@@ -128,6 +133,58 @@ private Q_SLOTS:
         // An element count past the limit is refused before the memory goes.
         QVERIFY(t.parse("<a><b/><b/></a>"));
         QCOMPARE(t.count(), 3);
+    }
+
+    // A symbol (w:sym) of a symbol font that this machine lacks shows as the picture it is: a degree sign from Symbol, an arrow from Wingdings, a banner's block from
+    // Webdings; one of any other font, or a symbol that has no known picture, shows a box. The element is kept as written.
+    void aSymbolOfAMissingSymbolFontShowsItsPicture()
+    {
+        for (const char *family : {"Symbol", "Wingdings", "Webdings"})
+            if (QFontDatabase::hasFamily(QString::fromLatin1(family))) QSKIP("a symbol font is installed here: its symbols are not made into pictures");
+        Made m;
+        m.body = R"(<w:p><w:r><w:sym w:font="Symbol" w:char="F0B0"/></w:r><w:r><w:sym w:font="Wingdings" w:char="F0EA"/></w:r><w:r><w:sym w:font="Webdings" w:char="F067"/></w:r>)"
+                 R"(<w:r><w:sym w:font="No Such Face" w:char="F0B0"/></w:r><w:r><w:sym w:font="Wingdings" w:char="F021"/></w:r></w:p>)";
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        QCOMPARE(d.body.size(), 1);
+        QStringList shown;
+        for (const Inline &in : d.body[0].para.content)
+            if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym")) shown << in.display;
+        QCOMPARE(shown, (QStringList{QString(QChar(0x00B0)), QString(QChar(0x2B07)), QString(QChar(0x2588)), QString(QChar(0x25A1)), QString(QChar(0x25A1))}));
+        QVERIFY(d.body[0].para.content[0].raw.contains("F0B0"));
+    }
+
+    // Where the symbol font is installed, the symbol is not made into a picture: it is the character the file has (U+F0B0, in the font's own range), which the font draws.
+    void aSymbolOfAnInstalledSymbolFontIsTheFilesOwnCharacter()
+    {
+        QString path;
+        for (const QString &dir : jp::bundledFontDirs())
+            if (QFileInfo::exists(dir + QStringLiteral("/Oswald-Regular.ttf"))) path = dir + QStringLiteral("/Oswald-Regular.ttf");
+        if (path.isEmpty()) QSKIP("the bundled fonts are not beside the test");
+        if (QFontDatabase::hasFamily(QStringLiteral("Symbol"))) QSKIP("Symbol is installed here already");
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QByteArray font = f.readAll();
+        // (Oswald, renamed Symbol: six letters for six.)
+        font.replace(QByteArray("\x00" "O\x00s\x00w\x00" "a\x00l\x00" "d", 12), QByteArray("\x00" "S\x00y\x00m\x00" "b\x00o\x00l", 12));
+        font.replace(QByteArray("Oswald"), QByteArray("Symbol"));
+        const int id = QFontDatabase::addApplicationFontFromData(font);
+        QVERIFY(id >= 0);
+        jp::fontsChanged();
+        QString shown;
+        const bool installed = QFontDatabase::hasFamily(QStringLiteral("Symbol"));
+        if (installed) {
+            Made m;
+            m.body = R"(<w:p><w:r><w:sym w:font="Symbol" w:char="F0B0"/></w:r></w:p>)";
+            Document d;
+            QVERIFY(readDocx(m.build(), &d));
+            for (const Inline &in : d.body[0].para.content)
+                if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym")) shown = in.display;
+        }
+        QFontDatabase::removeApplicationFont(id);
+        jp::fontsChanged();
+        QVERIFY(installed);
+        QCOMPARE(shown, QString(QChar(0xF0B0)));
     }
 
     void readsParagraphsRunsAndTheirProperties()
@@ -427,16 +484,23 @@ private Q_SLOTS:
     // not XML (unclosed elements) is refused.
     void readsTheFontsOfAFontTable()
     {
-        const QByteArray part = xmlDoc(QByteArray("<w:fonts ") + kW + R"(><w:font w:name="Palatino"><w:altName w:val="Book Antiqua"/><w:charset w:val="00"/><w:family w:val="roman"/></w:font><w:font w:name="Optima"><w:family w:val="auto"/></w:font><w:font w:name="Plain"/></w:fonts>)");
+        const QByteArray part = xmlDoc(QByteArray("<w:fonts ") + kW + R"(><w:font w:name="Palatino"><w:altName w:val="Book Antiqua"/><w:panose1 w:val="02040502050505030304"/><w:charset w:val="00"/><w:family w:val="roman"/><w:pitch w:val="variable"/></w:font><w:font w:name="Optima"><w:family w:val="auto"/></w:font><w:font w:name="Plain"/><w:font w:name="Dingbats"><w:charset w:val="02"/><w:family w:val="decorative"/><w:notTrueType/><w:pitch w:val="fixed"/></w:font></w:fonts>)");
         QVector<FontEntry> fonts;
         QVERIFY(readFonts(part, &fonts));
-        QCOMPARE(int(fonts.size()), 3);
+        QCOMPARE(int(fonts.size()), 4);
         QCOMPARE(fonts[0].name, QStringLiteral("Palatino"));
         QCOMPARE(fonts[0].alternate, QStringLiteral("Book Antiqua"));
         QCOMPARE(fonts[0].family, QStringLiteral("roman"));
+        // (Its pitch, its PANOSE digits, and its character set, as written.)
+        QCOMPARE(fonts[0].pitch, QStringLiteral("variable"));
+        QCOMPARE(fonts[0].panose, QStringLiteral("02040502050505030304"));
+        QCOMPARE(fonts[0].charset, QStringLiteral("00"));
         QCOMPARE(fonts[1].family, QStringLiteral("auto"));
         QVERIFY(fonts[1].alternate.isEmpty());
+        QVERIFY(fonts[1].pitch.isEmpty() && fonts[1].panose.isEmpty() && fonts[1].charset.isEmpty());
         QVERIFY(fonts[2].family.isEmpty());
+        QCOMPARE(fonts[3].charset, QStringLiteral("02"));
+        QCOMPARE(fonts[3].pitch, QStringLiteral("fixed"));
         auto seconds = [&](int count) {
             QByteArray many = QByteArray("<w:fonts ") + kW + ">";
             for (int i = 0; i < count; ++i) many += "<w:font ";
@@ -470,6 +534,23 @@ private Q_SLOTS:
         QCOMPARE(noteNumberRestart(settings("<w:footnotePr><w:numRestart w:val=\"continuous\"/></w:footnotePr>"), "footnotePr"), QStringLiteral("continuous"));
         QCOMPARE(noteNumberRestart(settings(""), "footnotePr"), QString());
         QCOMPARE(noteNumberRestart("not xml", "footnotePr"), QString());
+    }
+
+    // The compatibility options that the layout reads come from one reading of the settings part (a part may be very large, and was read once for each option): each is
+    // on when it is stated in w:compat and not turned off, an option outside w:compat is none, and a part that is not XML has none.
+    void readsTheCompatibilityOptionsInOneReading()
+    {
+        auto settings = [](const QByteArray &inner) { return xmlDoc(QByteArray("<w:settings ") + kW + "><w:compat>" + inner + "</w:compat></w:settings>"); };
+        const CompatOptions all = readCompatOptions(settings("<w:useFELayout/><w:doNotWrapTextWithPunct w:val=\"1\"/><w:doNotUseHTMLParagraphAutoSpacing/><w:noTabHangInd/>"
+                                                             "<w:doNotUseIndentAsNumberingTabStop/><w:splitPgBreakAndParaMark w:val=\"true\"/><w:suppressTopSpacingWP/><w:noLeading/>"));
+        QVERIFY(all.useFELayout && all.doNotWrapTextWithPunct && all.doNotUseHTMLParagraphAutoSpacing && all.noTabHangInd);
+        QVERIFY(all.doNotUseIndentAsNumberingTabStop && all.splitPgBreakAndParaMark && all.suppressTopSpacingWP && all.noLeading);
+        const CompatOptions off = readCompatOptions(settings("<w:suppressTopSpacingWP w:val=\"0\"/><w:noLeading w:val=\"false\"/><w:noTabHangInd w:val=\"off\"/><w:useFELayout/>"));
+        QVERIFY(!off.suppressTopSpacingWP && !off.noLeading && !off.noTabHangInd && off.useFELayout);
+        const CompatOptions outside = readCompatOptions(xmlDoc(QByteArray("<w:settings ") + kW + "><w:noLeading/><w:suppressTopSpacingWP/></w:settings>"));
+        QVERIFY(!outside.noLeading && !outside.suppressTopSpacingWP);
+        const CompatOptions bad = readCompatOptions("not xml");
+        QVERIFY(!bad.noLeading && !bad.useFELayout && !bad.splitPgBreakAndParaMark);
     }
 
     // A compatibility option of the settings counts when it is stated and not turned off.

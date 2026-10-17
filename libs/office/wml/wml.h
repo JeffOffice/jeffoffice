@@ -69,6 +69,7 @@ struct RunProps {
     std::optional<Color> color;
     std::optional<int> spacing;       // twentieths of a point added after each letter
     std::optional<int> position;      // half-points raised (lowered when negative)
+    std::optional<int> kern;          // half-points: the letters are kerned from this size up (0: not kerned)
     std::optional<int> size;          // half-points
     QString highlight;                // yellow, green...; "none"; empty when not stated
     std::optional<Underline> underline;
@@ -490,10 +491,11 @@ constexpr int kMaxNotes = 20000;
 // Reads the notes of a footnotes or endnotes part. False, with nothing read, when the part isn't XML.
 bool readNotes(const QByteArray &xml, QVector<NotePart> *notes);
 
-// A font of a font table: its name, the alternate it names (a family to set it in where it is missing), and its kind (roman, swiss, modern, script,
-// decorative, or auto), each empty when it says none.
+// A font of a font table: its name, the alternate it names (a family to set it in where it is missing), its kind (roman, swiss, modern, script,
+// decorative, or auto), its pitch (fixed, variable, or default), its PANOSE classification (ten two-digit numbers), and its character set (two hex digits,
+// "02" for a symbol font), each empty when it says none.
 struct FontEntry {
-    QString name, alternate, family;
+    QString name, alternate, family, pitch, panose, charset;
 };
 // The most fonts of a table that are read.
 constexpr int kMaxFonts = 4000;
@@ -506,6 +508,12 @@ QString noteNumberRestart(const QByteArray &settings, const char *group);
 
 // Whether a compatibility option of the settings part (an element of w:compat) is on: stated, and not turned off (w:val 0, false, or off).
 bool compatOption(const QByteArray &settings, const char *name);
+// The compatibility options the layout reads, from one reading of the settings part (compatOption reads the whole part for each one, and a part may be very large).
+struct CompatOptions {
+    bool useFELayout = false, doNotWrapTextWithPunct = false, doNotUseHTMLParagraphAutoSpacing = false, noTabHangInd = false;
+    bool doNotUseIndentAsNumberingTabStop = false, splitPgBreakAndParaMark = false, suppressTopSpacingWP = false, noLeading = false;
+};
+CompatOptions readCompatOptions(const QByteArray &settings);
 
 // Reads a .docx (or .docm, .dotx) package. False, with a message, if it isn't a word processing document or is damaged beyond reading.
 // A file is held to limits: of parts together inflated, of the XML of a part (xmltree.h), and of what the body holds, past which the rest is
