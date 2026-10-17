@@ -156,6 +156,8 @@ set_tests_properties(jptests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 qt_add_executable(officetests
   tests/testrunner.cpp
   tests/office/officehelpers.cpp
+  tests/office/dochelpers.cpp
+  tests/office/tst_doc.cpp
   tests/office/tst_office_chart.cpp
   tests/office/tst_office_dmlfill.cpp
   tests/office/tst_office_dmlgeometry.cpp
@@ -318,7 +320,7 @@ if(WIN32)
 endif()
 target_link_libraries(jeffwrite PRIVATE jwcore)
 set_target_properties(jeffwrite PROPERTIES OUTPUT_NAME JeffWrite)
-qt_add_executable(writetests tests/write/tst_write.cpp)
+qt_add_executable(writetests tests/write/tst_write.cpp tests/office/dochelpers.cpp)
 target_link_libraries(writetests PRIVATE jwcore Qt6::Test)
 target_compile_definitions(writetests PRIVATE JW_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 set_target_properties(writetests PROPERTIES WIN32_EXECUTABLE OFF)

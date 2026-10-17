@@ -24,6 +24,7 @@
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 #include "../flow/pageaudit.h"
+#include "../office/dochelpers.h"
 #include "../timing.h"
 #include "office/package.h"
 #include "rtcheck.h"
@@ -283,7 +284,7 @@ QByteArray headerPart(const QByteArray &root, const QList<QByteArray> &paragraph
 
 // The tables of the document of tables for the random commands, its styles, and its section's properties.
 struct RichTables {
-    QByteArray styled, plain, styles, sect;
+    QByteArray styled, plain, styles, sect, spaced;
 };
 
 // A text box of a materialized page by what its story says, for the header's and the footer's.
@@ -506,6 +507,159 @@ private Q_SLOTS:
         QCOMPARE(b.document()->story()->toPlainText(), QStringLiteral("Dear reader,\nThis is the letter."));
         QCOMPARE(b.filePath(), a.filePath());
         QVERIFY(!b.isModified());
+    }
+
+    // ---- an old binary file
+
+    void anOldBinaryFileOpensAndShowsItsText()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        dochelp::DocWriter doc;
+        doc.text = QStringLiteral("Dear reader,\rThis is the old letter.\r");
+        doc.chars = {{13, 17, dochelp::sprm1(dochelp::sprm::bold, 1)}};
+        const QString path = dir.filePath(QStringLiteral("letter.doc"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(doc.build());
+        f.close();
+        WriteWindow w;
+        QStringList notices;
+        w.setNotifier([&](const QString &, const QString &text) { notices << text; });
+        QVERIFY(w.openFile(path));
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("Dear reader,\nThis is the old letter."));
+        QVERIFY(!w.isModified());
+        QVERIFY(notices.isEmpty());
+        // The title says it is a .doc until it is saved as something else.
+        QVERIFY2(w.windowTitle().startsWith(QLatin1String("letter.doc")), qPrintable(w.windowTitle()));
+        // (And the layout made pages of it.)
+        QVERIFY(w.document()->pager().pageCount() >= 1);
+    }
+
+    void savingAnOldBinaryFileAsksForADocxName()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        dochelp::DocWriter doc;
+        doc.text = QStringLiteral("Old text\r");
+        const QString path = dir.filePath(QStringLiteral("old.doc"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(doc.build());
+        f.close();
+        WriteWindow w;
+        QStringList notices;
+        QString suggested;
+        w.setNotifier([&](const QString &, const QString &text) { notices << text; });
+        w.setSavePathChooser([&](const QString &name, const QString &) {
+            suggested = name;
+            return dir.filePath(QStringLiteral("new.docx"));
+        });
+        QVERIFY(w.openFile(path));
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("!"));
+        QVERIFY(w.save());
+        // One sentence says why the name is asked for, and the name offered is a .docx beside the old file.
+        QCOMPARE(notices.size(), 1);
+        QVERIFY2(notices[0].contains(QLatin1String(".docx")) && notices[0].contains(QLatin1String(".doc ")), qPrintable(notices[0]));
+        QVERIFY2(suggested.endsWith(QLatin1String("old.docx")), qPrintable(suggested));
+        QVERIFY(w.filePath().endsWith(QLatin1String("new.docx")));
+        QVERIFY(!w.windowTitle().contains(QLatin1String(".doc")));
+        // The old file is as it was, and the new one opens with the edit.
+        QFile again(path);
+        QVERIFY(again.open(QIODevice::ReadOnly));
+        QCOMPARE(again.readAll(), doc.build());
+        WriteWindow b;
+        QVERIFY(b.openFile(w.filePath()));
+        QCOMPARE(b.document()->story()->toPlainText().left(9), QStringLiteral("!Old text"));
+    }
+
+    void whatAnOldFileHoldsThatCannotBeShownIsSaid()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        dochelp::DocWriter doc;
+        doc.text = QStringLiteral("a\x01""b\r");
+        doc.chars = {{1, 2, dochelp::sprm1(dochelp::sprm::special, 1) + dochelp::sprm4(dochelp::sprm::picture, 9000)}};   // (a picture the file doesn't hold)
+        const QString path = dir.filePath(QStringLiteral("odd.doc"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(doc.build());
+        f.close();
+        WriteWindow w;
+        QStringList notices;
+        w.setNotifier([&](const QString &, const QString &text) { notices << text; });
+        QVERIFY(w.openFile(path));
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("ab"));
+        QCOMPARE(notices.size(), 1);
+        QVERIFY2(notices[0].contains(QLatin1String("left out")), qPrintable(notices[0]));
+        QVERIFY(w.document()->leftSomethingOut());
+    }
+
+    void trackedChangesOfAnOldFileComeInWithTheirAuthorsAndDates()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        dochelp::DocWriter doc;
+        // "keep ", then "added" inserted by Ann, " and ", then "dropped" deleted by Bob, then " end."
+        doc.text = QStringLiteral("keep added and dropped end.\r");
+        doc.revisionAuthors = {QStringLiteral("Ann"), QStringLiteral("Bob")};
+        using namespace dochelp;
+        doc.chars = {{5, 10, sprm1(sprm::inserted, 0x81) + sprm2(sprm::insertedBy, 0) + sprm4(sprm::insertedAt, dttm(2003, 4, 7, 9, 30))},
+                     {15, 22, sprm1(sprm::deleted, 0x81) + sprm2(sprm::deletedBy, 1) + sprm4(sprm::deletedAt, dttm(2004, 11, 23, 16, 5))}};
+        const QString path = dir.filePath(QStringLiteral("tracked.doc"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(doc.build());
+        f.close();
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(path));
+        // The inserted words are in the text, and the deleted ones are not shown in it (the marks of the changes are objects in it, not text).
+        QString shown = w.document()->story()->toPlainText();
+        shown.remove(QChar(0xFFFC));
+        QVERIFY2(shown.contains(QLatin1String("keep added and")), qPrintable(shown));
+        QVERIFY2(!shown.contains(QLatin1String("dropped")), qPrintable(shown));
+        // Written out, each is still a tracked change, with its author and its date.
+        const QByteArray x = documentXml(w.document()->toDocx());
+        const qsizetype ins = x.indexOf("<w:ins ");
+        const qsizetype del = x.indexOf("<w:del ");
+        QVERIFY2(ins >= 0 && del > ins, x.constData());
+        const QByteArray insTag = x.mid(ins, x.indexOf('>', ins) - ins), delTag = x.mid(del, x.indexOf('>', del) - del);
+        QVERIFY2(insTag.contains("w:author=\"Ann\"") && insTag.contains("w:date=\"2003-04-07T09:30:00Z\""), insTag.constData());
+        QVERIFY2(delTag.contains("w:author=\"Bob\"") && delTag.contains("w:date=\"2004-11-23T16:05:00Z\""), delTag.constData());
+        QVERIFY(x.mid(ins, del - ins).contains("<w:t xml:space=\"preserve\">added</w:t>"));
+        QVERIFY(x.mid(del, x.indexOf("</w:del>", del) - del).contains("<w:delText xml:space=\"preserve\">dropped</w:delText>"));
+    }
+
+    void anOldTemplateOpensAsANewDocumentMadeFromIt()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        dochelp::DocWriter doc;
+        doc.text = QStringLiteral("Dear <name>,\r");
+        const QString path = dir.filePath(QStringLiteral("letter.dot"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(doc.build());
+        f.close();
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(path));
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("Dear <name>,"));
+        QVERIFY(w.filePath().isEmpty());   // (it is not the template that is changed and saved)
+        QVERIFY(w.isModified());
+    }
+
+    void aFileThatIsNotADocumentSaysSoAndOpensNothing()
+    {
+        QString why;
+        QVERIFY(!WriteDoc::fromFile(QByteArray("plain bytes, no container"), &why));
+        QVERIFY(!why.isEmpty());
+        // Both kinds are told apart by what is in the file, not its name.
+        dochelp::DocWriter old;
+        old.text = QStringLiteral("old kind\r");
+        QVERIFY(WriteDoc::fromFile(old.build()));
+        QVERIFY(WriteDoc::fromFile(WriteDoc::blank()->toDocx()));
     }
 
     void unsavedWorkIsKeptAndComesBack()
@@ -2985,13 +3139,16 @@ private Q_SLOTS:
     // A developer's hook, not a test: the strict round trip. JW_STRICT_IN names a folder (searched through) of .docx files and JW_STRICT_LIST a file
     // of paths, one to a line; each is opened and written again, and the file written is checked for well-formed XML in every part the program wrote,
     // for losing or changing what the file held (rtcheck.h), and for a story that is not the one that was opened. The summary counts the files for
-    // each kind of problem; JW_STRICT_OUT keeps the files written; JW_STRICT_LIMIT stops after that many files.
+    // each kind of problem; JW_STRICT_OUT keeps the files written; JW_STRICT_LIMIT stops after that many files; JW_STRICT_REPORT names a file to put every
+    // problem of every file in (the log shows the first sixty).
     void developerStrictRoundTrip()
     {
         const QString in = qEnvironmentVariable("JW_STRICT_IN"), list = qEnvironmentVariable("JW_STRICT_LIST"), out = qEnvironmentVariable("JW_STRICT_OUT");
         if (in.isEmpty() && list.isEmpty()) QSKIP("JW_STRICT_IN and JW_STRICT_LIST are not set");
         if (!out.isEmpty()) QDir().mkpath(out);
         const int limit = qEnvironmentVariableIntValue("JW_STRICT_LIMIT") > 0 ? qEnvironmentVariableIntValue("JW_STRICT_LIMIT") : 1 << 30;
+        QFile report(qEnvironmentVariable("JW_STRICT_REPORT"));
+        if (!report.fileName().isEmpty()) report.open(QIODevice::WriteOnly | QIODevice::Truncate);
         QStringList paths;
         if (!in.isEmpty())
             for (QDirIterator it(in, {QStringLiteral("*.docx"), QStringLiteral("*.docm"), QStringLiteral("*.dotx")}, QDir::Files, QDirIterator::Subdirectories); it.hasNext();) paths << it.next();
@@ -3045,6 +3202,9 @@ private Q_SLOTS:
                     kind = (l == &strict ? QStringLiteral("strict: ") : l == &loss ? QStringLiteral("loss: ") : QStringLiteral("story: ")) + kind.trimmed();
                     kinds[kind] += 1;
                 }
+            if (report.isOpen())
+                for (const QStringList *l : std::initializer_list<const QStringList *>{&strict, &loss, &differs})
+                    for (const QString &p : *l) report.write((QFileInfo(path).fileName() + QLatin1Char('\t') + (l == &strict ? QStringLiteral("strict") : l == &loss ? QStringLiteral("loss") : QStringLiteral("story")) + QLatin1Char('\t') + p + QLatin1Char('\n')).toUtf8());
             if (lines.size() < 60 && (!strict.isEmpty() || !loss.isEmpty() || !differs.isEmpty()))
                 lines << QFileInfo(path).fileName() + QStringLiteral(": ") + (strict + loss + differs).join(QStringLiteral(" | ")).left(300);
             if (!out.isEmpty()) {
@@ -4043,6 +4203,106 @@ private Q_SLOTS:
         QVERIFY2(!added.isEmpty() && added.first().contains(QLatin1String("gains run properties")), qPrintable(added.join(QLatin1String("; "))));
     }
 
+    // The round-trip check reads a property as a reader does: an on/off property said "false", "0", or "off" is off, and one said "true", "1", "on", or with no value is on,
+    // whichever the file spelled; hidden text that is not hidden is nothing; an underline of none that names a color, and a font said for the face alone, say what the
+    // underline and the fonts said. What the file never said is still a gain, and another font is another font.
+    void theRoundTripCheckReadsPropertiesAsAReaderDoes()
+    {
+        auto withRun = [&](const QByteArray &props) { return makeDocx("<w:p><w:r><w:rPr>" + props + "</w:rPr><w:t>text</w:t></w:r></w:p>"); };
+        auto same = [&](const QByteArray &was, const QByteArray &now) { return rt::lossProblems(withRun(was), withRun(now)).isEmpty(); };
+        QVERIFY(same("<w:b w:val=\"false\"/>", "<w:b w:val=\"0\"/>"));
+        QVERIFY(same("<w:caps w:val=\"off\"/><w:smallCaps w:val=\"0\"/>", "<w:caps w:val=\"false\"/><w:smallCaps w:val=\"false\"/>"));
+        QVERIFY(same("<w:i w:val=\"true\"/><w:strike w:val=\"on\"/>", "<w:i/><w:strike w:val=\"1\"/>"));
+        QVERIFY(same("<w:vanish w:val=\"false\"/>", QByteArray()));
+        QVERIFY(same("<w:u w:val=\"none\" w:color=\"112233\"/>", "<w:u w:val=\"none\"/>"));
+        QVERIFY(same("<w:rFonts w:ascii=\"Face\" w:hAnsi=\"Face\" w:cs=\"Face\"/>", "<w:rFonts w:cs=\"Face\"/>"));
+        QVERIFY(!same(QByteArray(), "<w:b w:val=\"0\"/>"));
+        QVERIFY(!same("<w:b/>", "<w:b w:val=\"0\"/>"));
+        QVERIFY(!same("<w:rFonts w:ascii=\"Face\" w:cs=\"Face\"/>", "<w:rFonts w:cs=\"Other\"/>"));
+        QVERIFY(!same("<w:u w:val=\"none\"/>", "<w:u w:val=\"single\"/>"));
+        QVERIFY(!same("<w:vanish/>", QByteArray()));
+        QVERIFY(!same(QByteArray(), "<w:vanish/>"));
+    }
+
+    // Text holds one kind of capitals and one kind of strike-through: a run in capitals over a style that says small capitals is in capitals, and one in a double strike
+    // over a style's single strike is double. What the run says of the other kind is not "off" for the format has no room for it: it is not given an off that the file never
+    // said. A person who turns the capitals off over a style of small capitals still saves the look they see (no small capitals).
+    void capitalsAndDoubleStrikeOverTheStylesOtherKindAreSavedAsTheFileSaidThem()
+    {
+        const QByteArray styles = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                                  "<w:style w:type=\"paragraph\" w:styleId=\"Small\"><w:name w:val=\"Small\"/><w:basedOn w:val=\"Normal\"/><w:rPr><w:smallCaps/><w:strike/></w:rPr></w:style>";
+        const QByteArray original = makeDocx("<w:p><w:pPr><w:pStyle w:val=\"Small\"/></w:pPr><w:r><w:rPr><w:caps/><w:dstrike/></w:rPr><w:t>Both</w:t></w:r></w:p>", styles);
+        auto doc = open(original);
+        QVERIFY(doc);
+        const QByteArray saved = doc->toDocx();
+        const QByteArray x = documentXml(saved);
+        QVERIFY2(x.contains("<w:caps/>") && x.contains("<w:dstrike/>"), x.constData());
+        QVERIFY2(!x.contains("smallCaps") && !x.contains("<w:strike"), x.constData());
+        const QStringList loss = rt::lossProblems(original, saved);
+        QVERIFY2(loss.isEmpty(), qPrintable(loss.join(QLatin1String("; "))));
+        // (The person turns the capitals off: the text is not in small capitals on the screen, so the file says so.)
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        c.setPosition(4, QTextCursor::KeepAnchor);
+        changeCharFormat(*doc, c, [](QTextCharFormat &f) { f.setFontCapitalization(QFont::MixedCase); });
+        const QByteArray after = documentXml(doc->toDocx());
+        QVERIFY2(after.contains("<w:smallCaps w:val=\"0\"/>") && !after.contains("<w:caps"), after.constData());
+    }
+
+    // Bold in a character style over a paragraph style that is bold turns it off, as it does in the original program; a run that says bold itself over both is bold, and is saved
+    // saying so: the file's own bold is not left out as if it were the style's.
+    void aToggleOfACharacterStyleFlipsTheParagraphStylesAndADirectOneStaysSaid()
+    {
+        const QByteArray styles = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                                  "<w:style w:type=\"paragraph\" w:styleId=\"Head\"><w:name w:val=\"Head\"/><w:basedOn w:val=\"Normal\"/><w:rPr><w:b/><w:i/></w:rPr></w:style>"
+                                  "<w:style w:type=\"character\" w:styleId=\"Strong\"><w:name w:val=\"Strong\"/><w:rPr><w:b/></w:rPr></w:style>";
+        const QByteArray original = makeDocx("<w:p><w:pPr><w:pStyle w:val=\"Head\"/></w:pPr><w:r><w:rPr><w:rStyle w:val=\"Strong\"/></w:rPr><w:t>flipped</w:t></w:r>"
+                                             "<w:r><w:rPr><w:rStyle w:val=\"Strong\"/><w:b/></w:rPr><w:t>said</w:t></w:r></w:p>",
+                                             styles);
+        auto looks = [](WriteDoc &doc) {
+            QTextCursor c(doc.story());
+            c.setPosition(3);
+            const QTextCharFormat first = c.charFormat();
+            c.setPosition(doc.story()->toPlainText().indexOf(QLatin1String("said")) + 2);
+            return QVector<QTextCharFormat>{first, c.charFormat()};
+        };
+        auto doc = open(original);
+        QVERIFY(doc);
+        QVector<QTextCharFormat> f = looks(*doc);
+        QVERIFY2(f[0].fontWeight() < QFont::DemiBold && f[0].fontItalic(), "the character style's bold flips the heading's");
+        QVERIFY2(f[1].fontWeight() >= QFont::DemiBold && f[1].fontItalic(), "bold said by the run itself");
+        const QByteArray saved = doc->toDocx();
+        const QByteArray x = documentXml(saved);
+        QVERIFY2(x.contains("<w:rStyle w:val=\"Strong\"/><w:b/></w:rPr><w:t xml:space=\"preserve\">said"), x.constData());
+        QVERIFY2(x.contains("<w:rPr><w:rStyle w:val=\"Strong\"/></w:rPr><w:t xml:space=\"preserve\">flipped"), x.constData());
+        const QStringList loss = rt::lossProblems(original, saved);
+        QVERIFY2(loss.isEmpty(), qPrintable(loss.join(QLatin1String("; "))));
+        auto back = open(saved);
+        QVERIFY(back);
+        f = looks(*back);
+        QVERIFY(f[0].fontWeight() < QFont::DemiBold && f[1].fontWeight() >= QFont::DemiBold);
+    }
+
+    // A file that flags none of its paragraph styles as the default has paragraphs that say "Normal": they are saved saying it (the program takes Normal for the default of such
+    // a file, and another reader may not, so leaving it out could change the paragraph's look). A file that flags Normal as its default has it left out of the paragraphs, as before.
+    void aParagraphStyleIsSavedSaidWhenTheFileFlagsNoDefault()
+    {
+        auto saved = [&](const QByteArray &normalAttrs) {
+            const QByteArray styles = "<w:style w:type=\"paragraph\"" + normalAttrs + " w:styleId=\"Normal\"><w:name w:val=\"Normal\"/><w:rPr><w:b/></w:rPr></w:style>";
+            const QByteArray original = makeDocx("<w:p><w:pPr><w:pStyle w:val=\"Normal\"/></w:pPr><w:r><w:t>said</w:t></w:r></w:p>", styles);
+            auto doc = open(original);
+            return doc ? documentXml(doc->toDocx()) : QByteArray();
+        };
+        const QByteArray unflagged = saved(QByteArray());
+        QVERIFY2(unflagged.contains("<w:pStyle w:val=\"Normal\"/>"), unflagged.constData());
+        const QByteArray flagged = saved(" w:default=\"1\"");
+        QVERIFY2(!flagged.contains("<w:pStyle"), flagged.constData());
+        // (A file with no styles has none to say.)
+        auto bare = open(makeDocx("<w:p><w:r><w:t>none</w:t></w:r></w:p>"));
+        QVERIFY(bare);
+        QVERIFY(!documentXml(bare->toDocx()).contains("<w:pStyle"));
+    }
+
     // An empty paragraph that ends a section, when the next section is continuous, takes no room; before a section on a page of its own it does.
     void anEmptyBreakParagraphBeforeAContinuousSectionTakesNoRoom()
     {
@@ -4081,6 +4341,38 @@ private Q_SLOTS:
         QVERIFY2(std::abs(lines[1].rect.height() - 12 * (1950 + 550) / 2048.0) < 0.02, qPrintable(QString::number(lines[1].rect.height())));
     }
 
+    // A multiple of the line that is written as a negative number (a file converted from an older format has them) is the same multiple as a positive
+    // one: the line is as tall as it would be for its size, not as one with nothing in it.
+    void aNegativeMultipleOfTheLineIsReadAsItsSize()
+    {
+        auto lineOf = [](const char *line) {
+            const QByteArray body = QByteArray("<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"") + line + "\" w:lineRule=\"auto\"/></w:pPr><w:r><w:t>Words</w:t></w:r></w:p>";
+            auto doc = open(makeDocx(body));
+            return doc->pager().lines(0).first().rect.height();
+        };
+        const double single = lineOf("240");
+        QVERIFY(single > 5);
+        QVERIFY2(std::abs(lineOf("-480") - 2 * single) < 0.02, qPrintable(QString::number(lineOf("-480"))));
+        QVERIFY2(std::abs(lineOf("-120") - lineOf("120")) < 0.02, qPrintable(QString::number(lineOf("-120"))));
+    }
+
+    // A number in a list is the size its level gives it (half-points, as a bullet's is), not the text's: a ten-point number before twelve-point text.
+    void aListNumberHasTheSizeItsLevelGives()
+    {
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/>"
+                                     "<w:pPr><w:ind w:left=\"360\" w:hanging=\"360\"/></w:pPr><w:rPr><w:sz w:val=\"20\"/></w:rPr></w:lvl></w:abstractNum>"
+                                     "<w:abstractNum w:abstractNumId=\"1\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num><w:num w:numId=\"2\"><w:abstractNumId w:val=\"1\"/></w:num>";
+        const QByteArray body = "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:rPr><w:sz w:val=\"24\"/></w:rPr><w:t>Sized</w:t></w:r></w:p>"
+                                "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"2\"/></w:numPr></w:pPr><w:r><w:rPr><w:sz w:val=\"24\"/></w:rPr><w:t>Plain</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles, numbering));
+        QVERIFY(doc);
+        const QTextBlock sized = doc->story()->begin(), plain = sized.next();
+        QVERIFY(sized.textList() && plain.textList());
+        QCOMPARE(sized.textList()->format().property(tp::BulletSize).toDouble(), 10.0);
+        QVERIFY(!plain.textList()->format().hasProperty(tp::BulletSize));
+    }
+
     // A page number in a frame (set in the middle or at the side, anchored to the text) takes no room: a footer of it and an empty paragraph is
     // one line tall, and the number is set as the frame says.
     void aFrameParagraphInAFooterTakesNoRoom()
@@ -4099,6 +4391,22 @@ private Q_SLOTS:
         // As one line (the empty paragraph's), the footer leaves the text its bottom margin; as two it takes more.
         QVERIFY2(std::abs(framed.first - (792 - 54)) < 0.01, qPrintable(QString::number(framed.first)));
         QVERIFY2(plain.first < framed.first - 5, qPrintable(QString::number(plain.first)));
+    }
+
+    // A paragraph of a footer whose mark a tracked change deleted, with nothing else of its own, is gone from the footer as the text stands: it takes no room
+    // (twenty points a line here), so the text keeps what the footer leaves it.
+    void aDeletedParagraphOfAFooterTakesNoRoom()
+    {
+        const QByteArray sect = "<w:sectPr><w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"720\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray spacing = "<w:spacing w:before=\"0\" w:after=\"0\" w:line=\"400\" w:lineRule=\"exact\"/>";
+        const QByteArray gone = "<w:pPr>" + spacing + "<w:rPr><w:del w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"/></w:rPr></w:pPr>"
+                                "<w:del w:id=\"8\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"><w:r><w:delText>gone</w:delText></w:r></w:del>";
+        const QByteArray footer = headerPart("ftr", {"<w:pPr>" + spacing + "</w:pPr><w:r><w:t>ONE</w:t></w:r>", gone, "<w:pPr>" + spacing + "</w:pPr><w:r><w:t>TWO</w:t></w:r>"});
+        auto doc = open(makeDocxWithParts(paragraphs(60, 40), sect, {{QStringLiteral("/word/footer1.xml"), footer}}));
+        QVERIFY(doc);
+        // Two lines of twenty points under the footer distance of thirty-six: the text ends at 792 - 36 - 40.
+        QVERIFY2(std::abs(doc->pager().page(0).content.bottom() - (792 - 36 - 40)) < 0.01, qPrintable(QString::number(doc->pager().page(0).content.bottom())));
     }
 
     // A file's footnotes are at the foot of the pages that cite them: the note in a box at the bottom of the text area with a rule above it, its mark
@@ -4142,6 +4450,23 @@ private Q_SLOTS:
         // A page without the reference has no note.
         const auto next = doc->pager().materialize(1);
         QVERIFY(!boxWithText(*next, QStringLiteral("FOOTNOTE TWO")));
+    }
+
+    // The room between the text and the notes is the file's own separator paragraph, not a line of the Normal style: a separator thirty points tall
+    // (exactly) leaves the text fifty lines of twelve points above a note one line tall, where the Normal style's line would leave it one more.
+    void theNoteSeparatorIsTheFilesOwnParagraph()
+    {
+        const QByteArray exact = "<w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/></w:pPr>";
+        QByteArray body = "<w:p>" + exact + "<w:r><w:t>Cited</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>";
+        for (int i = 0; i < 120; ++i) body += "<w:p>" + exact + "<w:r><w:t>x</w:t></w:r></w:p>";
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"600\" w:lineRule=\"exact\"/></w:pPr>"
+                                 "<w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:id=\"2\"><w:p>" + exact + "<w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Note.</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}}));
+        QVERIFY(doc);
+        const auto lines = doc->pager().lines(0);
+        QVERIFY(lines.size() > 10);
+        QVERIFY2(std::abs(lines.last().rect.bottom() - lines.first().rect.top() - 50 * 12) < 0.01, qPrintable(QString::number(lines.last().rect.bottom() - lines.first().rect.top())));
     }
 
     // A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
@@ -4450,6 +4775,73 @@ private Q_SLOTS:
         }
         t += "</w:tbl>";
         return makeDocx("<w:p><w:r><w:t>before</w:t></w:r></w:p>" + t + "<w:p><w:r><w:t>after</w:t></w:r></w:p>", kStyles);
+    }
+
+    // The heights of the rows of the first table on the first page.
+    static QVector<double> rowHeightsOf(const QByteArray &body)
+    {
+        auto doc = open(makeDocx(body, kStyles));
+        QVector<double> out;
+        const auto page = doc->pager().materialize(0);
+        if (!page || page->tables.isEmpty()) return out;
+        const flow::TableFragment &f = *page->tables[0];
+        for (int r = f.firstRow; r < f.endRow; ++r) out << f.heightOf(r);
+        return out;
+    }
+    static QByteArray lineX(const char *side, const char *val, int sz) { return "<w:" + QByteArray(side) + " w:val=\"" + val + "\" w:sz=\"" + QByteArray::number(sz) + "\" w:space=\"0\" w:color=\"auto\"/>"; }
+
+    // The lines a file gives a table take room in its rows (a row is as tall as its cells and the line at its top; the last, the table's foot line too): the heights with lines
+    // are those without them and the lines' widths (a size of 8 is a point).
+    void theLinesOfATableTakeRoomInItsRowsAsTheFileGivesThem()
+    {
+        auto table = [](const QByteArray &borders, const QByteArray &firstCellPr = QByteArray(), const QByteArray &otherCellPr = QByteArray()) {
+            return tableX(rowX(cellX(cellP("a"), firstCellPr)) + rowX(cellX(cellP("b"), otherCellPr)) + rowX(cellX(cellP("c"), otherCellPr)), 1, 2400, "<w:tblW w:w=\"0\" w:type=\"auto\"/>" + borders);
+        };
+        const QVector<double> bare = rowHeightsOf(table(QByteArray()));
+        QCOMPARE(bare.size(), 3);
+        const QByteArray lines = "<w:tblBorders>" + lineX("top", "single", 8) + lineX("bottom", "single", 12) + lineX("insideH", "single", 8) + "</w:tblBorders>";
+        const QVector<double> got = rowHeightsOf(table(lines));
+        QCOMPARE(got.size(), 3);
+        QVERIFY2(std::abs(got[0] - (bare[0] + 1)) < 0.01, qPrintable(QString::number(got[0] - bare[0])));
+        QVERIFY2(std::abs(got[1] - (bare[1] + 1)) < 0.01, qPrintable(QString::number(got[1] - bare[1])));
+        QVERIFY2(std::abs(got[2] - (bare[2] + 1 + 1.5)) < 0.01, qPrintable(QString::number(got[2] - bare[2])));
+        // A cell that says none for a line, with the cell beyond it saying nothing, leaves the table's line; both saying none take it out.
+        const QVector<double> oneSays = rowHeightsOf(table(lines, "<w:tcBorders>" + lineX("bottom", "nil", 0) + "</w:tcBorders>"));
+        QVERIFY2(std::abs(oneSays[1] - (bare[1] + 1)) < 0.01, qPrintable(QString::number(oneSays[1] - bare[1])));
+        const QVector<double> bothSay = rowHeightsOf(table(lines, "<w:tcBorders>" + lineX("bottom", "nil", 0) + "</w:tcBorders>", "<w:tcBorders>" + lineX("top", "nil", 0) + "</w:tcBorders>"));
+        QVERIFY2(std::abs(bothSay[1] - bare[1]) < 0.01, qPrintable(QString::number(bothSay[1] - bare[1])));
+    }
+
+    // A table that says it has space between its cells, even none, has its lines round the lot of them and not the cells' own (so a cell that says none of its lines does not
+    // take the table's away): the first row has the top line and the last the foot line.
+    void aTableWithSpaceBetweenItsCellsHasItsLinesRoundThem()
+    {
+        const QByteArray none = "<w:tcBorders>" + lineX("top", "nil", 0) + lineX("left", "nil", 0) + lineX("bottom", "nil", 0) + lineX("right", "nil", 0) + "</w:tcBorders>";
+        auto table = [&](const QByteArray &spacing) {
+            const QByteArray pr = "<w:tblW w:w=\"0\" w:type=\"auto\"/>" + spacing + "<w:tblBorders>" + lineX("top", "single", 12) + lineX("left", "single", 12) + lineX("bottom", "single", 16) + lineX("right", "single", 12) + "</w:tblBorders>";
+            return tableX(rowX(cellX(cellP("a"), none)) + rowX(cellX(cellP("b"), none)) + rowX(cellX(cellP("c"), none)), 1, 2400, pr);
+        };
+        const QVector<double> apart = rowHeightsOf(table("<w:tblCellSpacing w:w=\"0\" w:type=\"dxa\"/>")), together = rowHeightsOf(table(QByteArray()));
+        QCOMPARE(apart.size(), 3);
+        QCOMPARE(together.size(), 3);
+        // (Without the space, the cells say none of the lines they have at the edge of the table, and none is left.)
+        QVERIFY2(std::abs(apart[0] - (together[0] + 1.5)) < 0.01, qPrintable(QString::number(apart[0] - together[0])));
+        QVERIFY2(std::abs(apart[1] - together[1]) < 0.01, qPrintable(QString::number(apart[1] - together[1])));
+        QVERIFY2(std::abs(apart[2] - (together[2] + 2)) < 0.01, qPrintable(QString::number(apart[2] - together[2])));
+    }
+
+    // A triple line takes the room of its three lines and the two spaces between them (five times its width), and is read as such, not as a double one.
+    void aTripleLineTakesRoomForItsThreeLinesAndTheSpaces()
+    {
+        auto table = [](const QByteArray &borders) {
+            return tableX(rowX(cellX(cellP("a"))) + rowX(cellX(cellP("b"))), 1, 2400, "<w:tblW w:w=\"0\" w:type=\"auto\"/>" + borders);
+        };
+        const QVector<double> bare = rowHeightsOf(table(QByteArray()));
+        const QVector<double> triple = rowHeightsOf(table("<w:tblBorders>" + lineX("insideH", "triple", 8) + "</w:tblBorders>")), twice = rowHeightsOf(table("<w:tblBorders>" + lineX("insideH", "double", 8) + "</w:tblBorders>"));
+        QCOMPARE(bare.size(), 2);
+        QCOMPARE(triple.size(), 2);
+        QVERIFY2(std::abs(triple[1] - (bare[1] + 5)) < 0.01, qPrintable(QString::number(triple[1] - bare[1])));
+        QVERIFY2(std::abs(twice[1] - (bare[1] + 3)) < 0.01, qPrintable(QString::number(twice[1] - bare[1])));
     }
 
     // The saved document is well formed and opens again with the same text.
@@ -5302,6 +5694,38 @@ private Q_SLOTS:
         for (const QString &l : loss) QVERIFY2(!l.startsWith(QLatin1String("element counts")) || (!l.contains(QLatin1String("bookmark")) && !l.contains(QLatin1String("commentRange"))), qPrintable(l));
     }
 
+    // A table nobody touched is written as the file had it, whatever the file had in it that the program would write otherwise: a bookmark that starts and has no end, and a
+    // second of one name, a style that is the default said again, an indent of nothing, a toggle spelled "false", and a row that doesn't reach the end of the grid. Once
+    // something in it changes it is written from the story, and then the bookmark with no end is left out.
+    void aTableNobodyTouchedComesBackAsTheFileHadIt()
+    {
+        const QByteArray table =
+            "<w:tbl><w:tblPr><w:tblW w:w=\"2000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"14\"/></w:tblGrid>"
+            "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"1000\" w:type=\"dxa\"/></w:tcPr><w:p><w:pPr><w:pStyle w:val=\"Normal\"/><w:ind w:left=\"0\" w:hanging=\"0\"/></w:pPr>"
+            "<w:bookmarkStart w:id=\"0\" w:name=\"Check1\"/><w:bookmarkStart w:id=\"1\" w:name=\"Check1\"/><w:bookmarkEnd w:id=\"1\"/>"
+            "<w:r><w:rPr><w:b w:val=\"false\"/></w:rPr><w:t>one</w:t></w:r></w:p></w:tc>"
+            "<w:tc><w:tcPr><w:tcW w:w=\"1000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>two</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+        const QByteArray original = makeDocx("<w:p><w:r><w:t>before</w:t></w:r></w:p>" + table + "<w:p><w:r><w:t>after</w:t></w:r></w:p>", kStyles);
+        auto doc = open(original);
+        QVERIFY(doc);
+        const QByteArray saved = doc->toDocx();
+        QVERIFY2(documentXml(saved).contains(table), documentXml(saved).constData());
+        const QStringList strict = rt::strictProblems(saved, original), loss = rt::lossProblems(original, saved);
+        QVERIFY2(strict.isEmpty() && loss.isEmpty(), qPrintable((strict + loss).join(QLatin1String("; "))));
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->toPlainText().indexOf(QLatin1String("one")));
+        insertText(*doc, c, QStringLiteral("x"));
+        const QByteArray changed = documentXml(doc->toDocx());
+        QVERIFY2(!changed.contains(table) && changed.contains("xone"), changed.constData());
+        QCOMPARE(int(changed.count("<w:bookmarkStart")), 1);
+        QCOMPARE(int(changed.count("<w:bookmarkEnd")), 1);
+        // A table written from the story is one a reader needn't repair: its rows reach the end of the grid (the file's row stops short of the last column, which the
+        // row then says it leaves empty), whatever the rows said before.
+        const QStringList shape = rt::strictProblems(doc->toDocx(), original);
+        QVERIFY2(shape.isEmpty(), qPrintable(shape.join(QLatin1String("; "))));
+        QVERIFY2(changed.contains("<w:trPr><w:gridAfter w:val=\"1\"/></w:trPr>"), changed.constData());
+    }
+
     // Enter inside a hyperlink, a content control, a tracked change, or a tag keeps the wrapper on both halves, with its attributes (and so its
     // link): one of each kind becomes two, and the second revision mark gets an Id of its own.
     void enterInsideAWrapperKeepsItOnBothHalves()
@@ -6023,13 +6447,23 @@ private Q_SLOTS:
         const QByteArray deep = tableX(rowX(cellX(cellP("deep"), QByteArray(), 700)), 1, 700);
         const QByteArray nested = tableX(rowX(cellX(cellP("n00"), QByteArray(), 800) + cellX(cellP("n01") + deep + cellP("n01 tail"), QByteArray(), 800)) + rowX(cellX(cellP("n10"), QByteArray(), 800) + cellX(cellP("n11"), QByteArray(), 800)), 2, 800);
         const QByteArray styled = tableX(rowX(cellX(cellP("h0"), QByteArray(), 1100) + cellX(cellP("h1"), QByteArray(), 1100) + cellX(cellP("h2"), QByteArray(), 1100), "<w:tblHeader/>") +
-                                             rowX(cellX(longCell, "<w:vMerge w:val=\"restart\"/>", 1100) + cellX(cellP("a1"), QByteArray(), 1100) + cellX(cellP("a2") + nested + cellP("a2 tail"), QByteArray(), 1100)) +
+                                             rowX(cellX(longCell, "<w:vMerge w:val=\"restart\"/>", 1100) + cellX(cellP("a1"), "<w:tcBorders><w:bottom w:val=\"double\" w:sz=\"12\" w:space=\"0\" w:color=\"auto\"/></w:tcBorders>", 1100) + cellX(cellP("a2") + nested + cellP("a2 tail"), QByteArray(), 1100)) +
                                              rowX(cellX("<w:p/>", "<w:vMerge/>", 1100) + cellX("<w:p><w:r><w:t>b1</w:t></w:r>" + noteInCell + "</w:p>", QByteArray(), 1100) + cellX(cellP("b2"), QByteArray(), 1100)) +
                                              rowX(cellX(cellP("G"), "<w:gridSpan w:val=\"2\"/>", 2200), "<w:gridBefore w:val=\"1\"/><w:wBefore w:w=\"1100\" w:type=\"dxa\"/>") +
-                                             rowX(cellX(cellP("d0"), QByteArray(), 1100) + cellX(tallCell, QByteArray(), 1100) + cellX(cellP("d2"), QByteArray(), 1100)) +
+                                             rowX(cellX(cellP("d0"), QByteArray(), 1100) + cellX(tallCell, QByteArray(), 1100) + cellX(cellP("d2"), "<w:tcBorders><w:top w:val=\"single\" w:sz=\"24\" w:space=\"0\" w:color=\"auto\"/></w:tcBorders>", 1100), "<w:trHeight w:val=\"700\" w:hRule=\"atLeast\"/>") +
                                              rowX(cellX(cellP("e0"), QByteArray(), 1100) + cellX(cellP("e1"), QByteArray(), 1100), "<w:gridAfter w:val=\"1\"/><w:wAfter w:w=\"1100\" w:type=\"dxa\"/>"),
                                          3, 1100, "<w:tblStyle w:val=\"TG\"/><w:tblW w:w=\"3300\" w:type=\"dxa\"/><w:tblLook w:val=\"0420\"/>");
-        const QByteArray plain = tableX(rowX(cellX(cellP("p00")) + cellX(cellP("p01"))) + rowX(cellX(cellP("p10")) + cellX(cellP("p11"))), 2, 1600);
+        const QByteArray plain = tableX(rowX(cellX(cellP("p00")) + cellX(cellP("p01")), "<w:trHeight w:val=\"600\" w:hRule=\"atLeast\"/>") +
+                                            rowX(cellX(cellP("p10")) + cellX(cellP("p11"), "<w:tcBorders><w:left w:val=\"nil\"/><w:bottom w:val=\"single\" w:sz=\"18\" w:space=\"0\" w:color=\"auto\"/></w:tcBorders><w:vAlign w:val=\"bottom\"/>"),
+                                                 "<w:trHeight w:val=\"500\" w:hRule=\"atLeast\"/>"),
+                                        2, 1600);
+        // A table with space between its cells (its lines round the lot, the cells' own as they say), rows of a set height, and cells joined down.
+        const QByteArray none = "<w:tcBorders><w:top w:val=\"nil\"/><w:left w:val=\"nil\"/><w:bottom w:val=\"nil\"/><w:right w:val=\"nil\"/></w:tcBorders>";
+        const QByteArray spaced = tableX(rowX(cellX(cellP("s00"), none, 1200) + cellX(cellP("s01"), "<w:tcBorders><w:bottom w:val=\"single\" w:sz=\"24\" w:space=\"0\" w:color=\"auto\"/></w:tcBorders>", 1200), "<w:trHeight w:val=\"500\" w:hRule=\"atLeast\"/>") +
+                                         rowX(cellX(cellP("s10") + cellP("s10 more"), "<w:vMerge w:val=\"restart\"/>", 1200) + cellX(cellP("s11"), none, 1200)) +
+                                         rowX(cellX("<w:p/>", "<w:vMerge/>", 1200) + cellX(cellP("s21"), "<w:tcBorders><w:top w:val=\"double\" w:sz=\"8\" w:space=\"0\" w:color=\"auto\"/></w:tcBorders>", 1200)),
+                                         2, 1200, "<w:tblW w:w=\"0\" w:type=\"auto\"/><w:tblCellSpacing w:w=\"15\" w:type=\"dxa\"/><w:tblBorders><w:top w:val=\"single\" w:sz=\"12\" w:space=\"0\" w:color=\"auto\"/><w:left w:val=\"single\" w:sz=\"8\" w:space=\"0\" w:color=\"auto\"/>"
+                                         "<w:bottom w:val=\"single\" w:sz=\"12\" w:space=\"0\" w:color=\"auto\"/><w:right w:val=\"single\" w:sz=\"8\" w:space=\"0\" w:color=\"auto\"/></w:tblBorders>");
         const QByteArray styles = kStyles +
                                   "<w:style w:type=\"paragraph\" w:styleId=\"Heading2\"><w:name w:val=\"heading 2\"/><w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/><w:qFormat/>"
                                   "<w:pPr><w:spacing w:before=\"120\" w:after=\"60\"/></w:pPr><w:rPr><w:rFonts w:ascii=\"Arimo\" w:hAnsi=\"Arimo\"/><w:b/><w:sz w:val=\"26\"/></w:rPr></w:style>"
@@ -6038,7 +6472,7 @@ private Q_SLOTS:
                                   "<w:insideV w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/></w:tblBorders></w:tblPr><w:tblStylePr w:type=\"firstRow\"><w:rPr><w:b/></w:rPr></w:tblStylePr>"
                                   "<w:tblStylePr w:type=\"band2Horz\"><w:tcPr><w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"EEEEEE\"/></w:tcPr></w:tblStylePr></w:style>";
         const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"5200\" w:h=\"4400\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
-        return {styled, plain, styles, sect};
+        return {styled, plain, styles, sect, spaced};
     }
     // A table set at a place, with the text going round it: two rows of two cells, `wide` points a cell, at the right margin, from the paragraph after it.
     static QByteArray floatingTable(int wide)
@@ -6055,6 +6489,7 @@ private Q_SLOTS:
         return makeDocx(plainP("before the tables and a few more words so that a line goes round the box", wallRun(0, 110, 4, 50, 40)) + t.styled + framedP("FRAME one of two paragraphs", frame) + framedP("and the second of them, which is longer than a line of the frame", frame) +
                             plainP("between them, with enough words that more than a line or two are beside the box that is set from the page", wallRun(5, 150, 60, 40, 50)) +
                             floatingTable(60) + plainP("after the table that is set at a place, with words enough for the text to go round it for a few lines, and a few more words") + t.plain +
+                            plainP("then one with space between its cells") + t.spaced +
                             plainP("after the tables, and a line or two of words more", wallRun(1, 20, 6, 40, 14) + wallRun(2, 60, 14, 40, 30)),
                         t.styles, QByteArray(), t.sect);
     }
@@ -6088,7 +6523,7 @@ private Q_SLOTS:
         const QByteArray three = sectionXml(7200, 6600, 900, "<w:headerReference w:type=\"default\" r:id=\"rIdheader4\"/>");
         // (Objects the text goes round: one of each kind among the notes, tables, and sections, so that the text goes round them across pages and columns.)
         QByteArray body = plainP(wordsOf("before the tables", 14), refTo(2) + wallRun(0, 150, 4, 60, 50)) + t.styled + plainP(wordsOf("between them", 12), refTo(4) + wallRun(1, 40, 8, 50, 16)) + t.plain +
-                          plainP("after the tables", QByteArray(), one);
+                          plainP("then one with space between its cells") + t.spaced + plainP("after the tables", QByteArray(), one);
         body += floatingTable(50) + plainP(wordsOf("after the table set at a place", 20)) + framedP("FRAME of the second section", "<w:framePr w:w=\"1400\" w:h=\"500\" w:hRule=\"exact\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"text\" w:xAlign=\"left\"/>") +
                 plainP(wordsOf("Second section", 18), wallRun(3, 110, 10, 50, 40)) + tableOfRows(9, 2, 1000, [](int r, int c) { return r == 4 && c == 1 ? plainP("cites", refTo(5)) : cellP("r" + QByteArray::number(r) + "c" + QByteArray::number(c)); }) +
                 plainP(wordsOf("end of the second", 30), wallRun(2, 60, 2, 40, 30), two);
