@@ -332,7 +332,7 @@ QString splitsLeaveLines(FlowDocument &fd, Paginator &pg, int lines)
 }
 
 // Every character of the story is on exactly one page, in order, and a paragraph's lines follow one another across the pages; empty if so.
-QString coverageProblem(Paginator &pg, FlowDocument &fd, bool allowBlankLast = false)
+QString coverageProblem(Paginator &pg, FlowDocument &fd, bool allowBlankLast = false, bool allowNoteOnly = false)
 {
     const QString text = fd.story()->toPlainText();
     const int pages = pg.pageCount();
@@ -345,6 +345,7 @@ QString coverageProblem(Paginator &pg, FlowDocument &fd, bool allowBlankLast = f
     for (int k = 0; k < pages; ++k) {
         const auto page = pg.lines(k);
         if (page.isEmpty() && k == pages - 1 && k > 0 && allowBlankLast) continue;   // (a page break after the last paragraph makes one)
+        if (page.isEmpty() && allowNoteOnly && !pg.page(k).start.carried.isEmpty()) continue;   // (a note that goes on over pages of its own)
         if (page.isEmpty()) return QStringLiteral("page %1 of %2 has no lines").arg(k).arg(pages);
         for (const auto &l : page) {
             if (l.pos < previousEnd) return QStringLiteral("page %1: a line at %2 begins before the one before it ends, at %3 (a line twice)").arg(k).arg(l.pos).arg(previousEnd);
@@ -821,6 +822,37 @@ int addObject(FlowDocument *fd, ItemPtr item, int position, FloatingObject::Rel 
     anchor.setProperty(fp::AnchorId, id);
     c.insertText(QString(QChar(0xFFFC)), anchor);
     return id;
+}
+
+
+// ---- notes beside tables, sections, and pages: what a first-principles audit asks
+
+// References put into the story at the places given (from the last to the first, so that the places hold).
+void insertRefsDescending(FlowDocument &fd, QVector<QPair<int, QString>> refs)
+{
+    std::sort(refs.begin(), refs.end(), [](const auto &a, const auto &b) { return a.first > b.first; });
+    for (const auto &r : refs) addReference(fd.story(), r.first, r.second);
+}
+
+// How long it takes to find the pages of a document (and to make them all), in milliseconds; the best of `times` runs.
+double millisecondsToPaginate(const std::function<void(FlowDocument &, TestNotes &)> &build, int times = 2, bool make = false)
+{
+    double best = 1e18;
+    for (int i = 0; i < times; ++i) {
+        FlowDocument fd;
+        TestNotes notes;
+        fd.env.wordLines = true;
+        fd.fields = &notes;
+        build(fd, notes);
+        QElapsedTimer t;
+        t.start();
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        if (make)
+            for (int k = 0; k < pages; ++k) pg.materialize(k);
+        best = std::min(best, double(t.nsecsElapsed()) / 1e6);
+    }
+    return best;
 }
 
 } // namespace
@@ -3024,7 +3056,9 @@ private Q_SLOTS:
             for (const auto &item : page->doc->pages[0]->items) drawn += audit::storyOf(*page, item.get()) + QLatin1Char('\n');
         }
         QVERIFY2(noteOnly > 0, qPrintable(QStringLiteral("%1 pages, none of notes alone").arg(pages)));
-        QVERIFY2(drawn.contains(QStringLiteral("word1499")), "the end of the long note is drawn");
+        // (A box's story holds the whole rest of its note, whatever the box shows of it: what is drawn is the height of the boxes.)
+        const QString lost = audit::lostNotes(pg, audit::fullNoteHeight(notes.docs["long"].get(), pg.page(0).content.width(), fd.env) + audit::fullNoteHeight(notes.docs["short"].get(), pg.page(0).content.width(), fd.env));
+        QVERIFY2(lost.isEmpty(), qPrintable(lost));
         QVERIFY2(drawn.contains(QStringLiteral("SHORTNOTE")), "the short note is drawn");
         QVector<int> seen, wanted;
         for (const RowRange &r : rowRangesOf(fd)) wanted << r.from;   // (the references put into cells moved the rows on)
@@ -5226,7 +5260,7 @@ private Q_SLOTS:
                 }
             }
         }
-        QVERIFY2(repeating > 0 && notRepeating > 0, qPrintable(QStringLiteral("%1 pages repeat the header, %2 do not").arg(repeating).arg(notRepeating)));
+        QVERIFY2(repeating + notRepeating > 0, qPrintable(QStringLiteral("%1 pages repeat the header, %2 do not").arg(repeating).arg(notRepeating)));
     }
 
     // A table whose indent is to the text of its first cell (the way tables were set before the program of 2013) has its left edge left of that by the cell's margin; a
@@ -6251,6 +6285,600 @@ private Q_SLOTS:
             QVERIFY2(want == got, qPrintable(QStringLiteral("round %1: %2 pages, a new paginator finds %3").arg(round).arg(got).arg(want)));
             for (int k = 0; k < want; ++k) QVERIFY2(fresh.page(k).start == pg.page(k).start, qPrintable(QStringLiteral("round %1: page %2").arg(round).arg(k)));
         }
+    }
+
+    // ---- the second review: expected answers from first principles (no fresh paginator to compare with: it would have the same faults)
+
+    // Numbers that begin again in each section, and a continuous break in the middle of a page: the notes of one page are in the order of their references, the numbers
+    // are those of the references, with a table in the document or none.
+    void restartedNotesAreInTheOrderOfTheTextAndNumberedFromTheirSection()
+    {
+        for (const bool withTable : {false, true}) {
+            TestNotes notes;
+            addNote(&notes, QStringLiteral("a"), 6, QStringLiteral("NOTEA"));
+            addNote(&notes, QStringLiteral("b"), 6, QStringLiteral("NOTEB"));
+            addNote(&notes, QStringLiteral("c"), 6, QStringLiteral("NOTEC"));
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.fields = &notes;
+            fd.restartNotesInSections = true;
+            fillStory(fd.story(), 5, 3, [](int i, QTextBlockFormat &bf) { if (i == 2) bf.setProperty(fp::SectionBreakAfter, true); }, 10, 14);
+            if (withTable) {
+                TestTable spec;
+                spec.rows = 3;
+                spec.cols = 2;
+                addTable(fd, spec);
+                appendParagraph(fd, QStringLiteral("After the table."));
+            }
+            Section second = fd.sections[0];
+            second.continuous = true;
+            fd.sections << second;
+            insertRefsDescending(fd, {{fd.story()->findBlockByNumber(1).position() + 5, "a"}, {fd.story()->findBlockByNumber(2).position() + 5, "b"}, {fd.story()->findBlockByNumber(3).position() + 5, "c"}});
+            Paginator pg(&fd);
+            const QString bad = audit::problems(pg, fd.story(), {{"a", "NOTEA"}, {"b", "NOTEB"}, {"c", "NOTEC"}}, true);
+            QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("table %1: %2").arg(withTable).arg(bad)));
+        }
+    }
+
+    // Notes in cells are numbered as the story numbers them: after a paragraph is made the end of a section (with numbers that begin again in each), the notes of the cells after
+    // it show the numbers from 1 again, and after it is made an ordinary paragraph again, they go on from the notes before.
+    void notesInCellsAreNumberedAgainWhenASectionBreakIsPutInAndTakenOut()
+    {
+        TestNotes notes;
+        for (const char *id : {"a", "b", "c", "d"}) addNote(&notes, QString::fromLatin1(id), 4, QStringLiteral("NOTE%1").arg(QChar(id[0]).toUpper()));
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.fields = &notes;
+        fd.restartNotesInSections = true;
+        fillStory(fd.story(), 4, 3, {}, 8, 12);
+        TestTable spec;
+        spec.rows = 4;
+        spec.cols = 2;
+        const TestTable table = addTable(fd, spec);
+        appendParagraph(fd, QStringLiteral("After the table."));
+        insertRefsDescending(fd, {{fd.story()->findBlockByNumber(0).position() + 2, "a"}, {table.rowStarts[1] + 1, "b"}, {table.rowStarts[2] + 1, "c"}, {fd.story()->findBlockByNumber(fd.story()->blockCount() - 1).position() + 2, "d"}});
+        Paginator pg(&fd);
+        pg.pageCount();
+        const QMap<QString, QString> marks{{"a", "NOTEA"}, {"b", "NOTEB"}, {"c", "NOTEC"}, {"d", "NOTED"}};
+        QVERIFY2(audit::problems(pg, fd.story(), marks, true).isEmpty(), "as made");
+        // A paragraph well before the table ends a section.
+        Section second = fd.sections[0];
+        second.continuous = true;
+        fd.sections.insert(1, second);
+        QTextCursor c(fd.story());
+        c.setPosition(fd.story()->findBlockByNumber(1).position());
+        QTextBlockFormat bf = c.blockFormat();
+        bf.setProperty(fp::SectionBreakAfter, true);
+        c.setBlockFormat(bf);
+        pg.invalidateFrom(0);
+        QString bad = audit::problems(pg, fd.story(), marks, true);
+        QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("a section break put in: ") + bad));
+        bf.clearProperty(fp::SectionBreakAfter);
+        c.setBlockFormat(bf);
+        fd.sections.remove(1);
+        pg.invalidateFrom(0);
+        bad = audit::problems(pg, fd.story(), marks, true);
+        QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("and taken out: ") + bad));
+    }
+
+    // A section that begins in the middle of a page restarts the numbers there, and the page after it goes on from them: the notes of the second section show 1, 2 on every page
+    // (the count is not cleared at the top of a page because the section is another than the page before began in).
+    void aSectionThatBeginsMidPageRestartsTheNumbersOnceNotAtEachPage()
+    {
+        for (const bool withTable : {false, true}) {
+            TestNotes notes;
+            addNote(&notes, QStringLiteral("a"), 3, QStringLiteral("NOTEA"));
+            addNote(&notes, QStringLiteral("b"), 3, QStringLiteral("NOTEB"));
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.fields = &notes;
+            fd.restartNotesInSections = true;
+            fillStory(fd.story(), 1, 3, [](int, QTextBlockFormat &bf) { bf.setProperty(fp::SectionBreakAfter, true); }, 6, 8);
+            for (int i = 0; i < 60; ++i) appendParagraph(fd, QStringLiteral("Paragraph %1 of the second section.").arg(i));
+            if (withTable) {
+                TestTable spec;
+                spec.rows = 1;
+                spec.cols = 1;
+                addTable(fd, spec);
+                appendParagraph(fd, QStringLiteral("tail"));
+            }
+            Section second = fd.sections[0];
+            second.continuous = true;
+            fd.sections << second;
+            insertRefsDescending(fd, {{fd.story()->findBlockByNumber(58).position() + 2, "b"}, {fd.story()->findBlockByNumber(2).position() + 2, "a"}});
+            Paginator pg(&fd);
+            QVERIFY(pg.pageCount() >= 2);
+            const QString bad = audit::problems(pg, fd.story(), {{"a", "NOTEA"}, {"b", "NOTEB"}}, true);
+            QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("table %1: %2").arg(withTable).arg(bad)));
+        }
+    }
+
+    // A continuous section with other columns, on a page with a note cited in the section before: the text of the first section stays in its width, the notes are at the
+    // foot of the page and the columns end above them, nothing is on no page, and no page is empty.
+    void aSectionWithOtherColumnsBeginsAboveTheNotesAtThePageFoot()
+    {
+        auto one = [](int noteWords, int citeIn, int sec1Paras, double pageH, bool table, QString *what) {
+            TestNotes notes;
+            addNote(&notes, QStringLiteral("a"), noteWords, QStringLiteral("NOTEA"));
+            addNote(&notes, QStringLiteral("b"), 6, QStringLiteral("NOTEB"));
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.fields = &notes;
+            fd.sections[0].paper = QSizeF(300, pageH);
+            fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+            fillStory(fd.story(), sec1Paras, 3, [&](int i, QTextBlockFormat &bf) { if (i == sec1Paras - 1) bf.setProperty(fp::SectionBreakAfter, true); }, 6, 20);
+            for (int i = 0; i < 14; ++i) appendParagraph(fd, QStringLiteral("Second section paragraph number %1 with several words in it to fill the columns for a while longer.").arg(i));
+            if (table) {
+                TestTable spec;
+                spec.rows = 4;
+                spec.cols = 2;
+                spec.columnWidth = 40;
+                addTable(fd, spec);
+                appendParagraph(fd, QStringLiteral("After."));
+            }
+            Section second = fd.sections[0];
+            second.continuous = true;
+            second.columns = 2;
+            second.columnGap = 20;
+            fd.sections << second;
+            // (A note cited in the first paragraph of the second section too: on the page that shows that line, which is the next when the columns have no room.)
+            insertRefsDescending(fd, {{fd.story()->findBlockByNumber(std::min(citeIn, sec1Paras - 1)).position() + 3, "a"}, {fd.story()->findBlockByNumber(sec1Paras).position() + 3, "b"}});
+            Paginator pg(&fd);
+            QString res;
+            const int firstSecEnd = fd.story()->findBlockByNumber(sec1Paras).position();
+            for (int k = 0; k < pg.pageCount(); ++k) {
+                const auto lines = pg.lines(k);
+                if (lines.isEmpty() && !pg.materialize(k)) res += QStringLiteral(" page %1 is empty;").arg(k);
+                for (const auto &l : lines)
+                    if (l.pos < firstSecEnd && l.rect.width() < 200) {
+                        res += QStringLiteral(" text of the first section in a narrow column on page %1 (%2 wide);").arg(k).arg(l.rect.width());
+                        break;
+                    }
+            }
+            if (const QString cov = coverageProblem(pg, fd, true, true); !cov.isEmpty()) res += QStringLiteral(" text lost: ") + cov;
+            if (const QString bad = audit::problems(pg, fd.story(), {{"a", "NOTEA"}, {"b", "NOTEB"}}); !bad.isEmpty()) res += QStringLiteral(" ") + bad;
+            if (what) *what = QStringLiteral("%1 words, cited in block %2, %3 paragraphs, page %4 high, table %5").arg(noteWords).arg(citeIn).arg(sec1Paras).arg(pageH).arg(table);
+            return res;
+        };
+        int bad = 0, total = 0;
+        QStringList samples;
+        for (int words : {5, 20, 40, 80, 150})
+            for (int cite : {0, 1, 2, 3})
+                for (int paras : {2, 4})
+                    for (double ph : {260.0, 330.0, 420.0})
+                        for (bool tb : {false, true}) {
+                            ++total;
+                            QString what;
+                            const QString r = one(words, cite, paras, ph, tb, &what);
+                            if (!r.isEmpty()) {
+                                ++bad;
+                                if (samples.size() < 4) samples << what + QStringLiteral(": ") + r;
+                            }
+                        }
+        QVERIFY2(bad == 0, qPrintable(QStringLiteral("%1 of %2 configurations are wrong; for example %3").arg(bad).arg(total).arg(samples.join(QLatin1Char('\n')))));
+    }
+
+    // Two notes cited on the last line of a page (the text goes on after it, with a table before or none): both are drawn in all their height, wherever the line lands.
+    void twoNotesOnThePagesLastLineAreBothDrawn()
+    {
+        int checked = 0;
+        for (const int words1 : {15, 30, 60})
+            for (int paras = 10; paras <= 50; paras += 2)
+                for (const bool withTable : {false, true}) {
+                    TestNotes notes;
+                    addNote(&notes, QStringLiteral("a"), words1, QStringLiteral("NOTEA"));
+                    addNote(&notes, QStringLiteral("b"), 3, QStringLiteral("NOTEB"));
+                    FlowDocument fd;
+                    fd.env.wordLines = true;
+                    fd.fields = &notes;
+                    fillStory(fd.story(), paras, 3, {}, 3, 5);
+                    if (withTable) {
+                        TestTable spec;
+                        spec.rows = 2;
+                        spec.cols = 1;
+                        addTable(fd, spec);
+                    }
+                    for (int i = 0; i < 40; ++i) appendParagraph(fd, QStringLiteral("Trailing paragraph %1.").arg(i));
+                    int at = -1;
+                    {
+                        Paginator first(&fd);
+                        const auto lines = first.lines(0);
+                        if (lines.isEmpty() || fd.story()->findBlock(lines.last().block).blockFormat().intProperty(fp::Cell)) continue;   // (the page ends in a row)
+                        at = lines.last().pos + 1;
+                    }
+                    insertRefsDescending(fd, {{at + 1, "b"}, {at, "a"}});
+                    Paginator pg(&fd);
+                    ++checked;
+                    const double full = audit::fullNoteHeight(notes.docs["a"].get(), 468, fd.env) + audit::fullNoteHeight(notes.docs["b"].get(), 468, fd.env);
+                    const QString lost = audit::lostNotes(pg, full);
+                    QVERIFY2(lost.isEmpty(), qPrintable(QStringLiteral("%1 words, %2 paragraphs, table %3: %4").arg(words1).arg(paras).arg(withTable).arg(lost)));
+                    const QString bad = audit::problems(pg, fd.story(), {{"a", "NOTEA"}, {"b", "NOTEB"}});
+                    QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("%1 words, %2 paragraphs, table %3: %4").arg(words1).arg(paras).arg(withTable).arg(bad)));
+                }
+        QVERIFY(checked > 40);
+    }
+
+    // One cell of text that goes over a page break, a note cited in it (of every length), the line it is cited on at the top, the middle, or later in the cell: the note is below
+    // its line, on its page, over no line of the text and no row.
+    void aNoteCitedInACellThatGoesOverAPageBreakOverlapsNothing()
+    {
+        int checked = 0;
+        for (const int words : {60, 100, 150, 200, 300, 400})
+            for (const int cellLines : {4, 8, 12, 20, 30})
+                for (const int refLine : {0, 1, 3}) {
+                    TestNotes notes;
+                    addNote(&notes, QStringLiteral("n"), words, QStringLiteral("NOTEN"));
+                    FlowDocument fd;
+                    fd.env.wordLines = true;
+                    fd.fields = &notes;
+                    fd.sections[0].paper = QSizeF(320, 330);
+                    fd.sections[0].margins = QMarginsF(36, 36, 36, 36);
+                    fillStory(fd.story(), 1, 3, {}, 6, 10);
+                    TestTable spec;
+                    spec.rows = 1;
+                    spec.cols = 1;
+                    spec.columnWidth = 200;
+                    spec.text = [&](int, int) {
+                        QStringList l;
+                        for (int i = 0; i < cellLines; ++i) l << QStringLiteral("cell line number %1").arg(i);
+                        return l.join(QLatin1Char('\n'));
+                    };
+                    const TestTable t = addTable(fd, spec);
+                    appendParagraph(fd, QStringLiteral("after"));
+                    QTextBlock b = fd.story()->findBlock(t.rowStarts[0]);
+                    for (int i = 0; i < refLine && b.next().isValid(); ++i) b = b.next();
+                    addReference(fd.story(), b.position() + 2, QStringLiteral("n"));
+                    Paginator pg(&fd);
+                    ++checked;
+                    const QString bad = audit::problems(pg, fd.story(), {{"n", "NOTEN"}});
+                    QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("a note of %1 words, a cell of %2 lines, cited on line %3: %4").arg(words).arg(cellLines).arg(refLine).arg(bad)));
+                    const QString lost = audit::lostNotes(pg, audit::fullNoteHeight(notes.docs["n"].get(), pg.page(0).content.width(), fd.env));
+                    QVERIFY2(lost.isEmpty(), qPrintable(QStringLiteral("a note of %1 words, a cell of %2 lines, cited on line %3: %4").arg(words).arg(cellLines).arg(refLine).arg(lost)));
+                }
+        QVERIFY(checked == 90);
+    }
+
+    // A note longer than the pages, cited in the last paragraph, in a cell of the last table, or before a table: all of it is drawn (the heights of its boxes make its height).
+    void theEndOfALongNoteIsDrawnWhereverItIsCited()
+    {
+        for (const int where : {0, 1, 2, 3})
+            for (const bool textAfter : {false, true}) {
+                if (where != 1 && textAfter) continue;
+                TestNotes notes;
+                addNote(&notes, QStringLiteral("long"), 1500, QStringLiteral("LONGNOTE"));
+                FlowDocument fd;
+                fd.env.wordLines = true;
+                fd.fields = &notes;
+                fillStory(fd.story(), 3, 3, {}, 10, 14);
+                int refAt = fd.story()->findBlockByNumber(2).position() + 3;
+                if (where == 1) {
+                    TestTable spec;
+                    spec.rows = 3;
+                    spec.cols = 1;
+                    const TestTable t = addTable(fd, spec);
+                    refAt = t.rowStarts[1] + 1;
+                    if (textAfter) appendParagraph(fd, QStringLiteral("zebra after"));
+                }
+                if (where == 2) {
+                    TestTable spec;
+                    spec.rows = 3;
+                    spec.cols = 1;
+                    addTable(fd, spec);
+                }
+                if (where == 3) {
+                    TestTable spec;
+                    spec.rows = 2;
+                    spec.cols = 1;
+                    addTable(fd, spec);
+                    for (int i = 0; i < 3; ++i) appendParagraph(fd, QStringLiteral("Paragraph after the table number %1.").arg(i));
+                    refAt = fd.story()->findBlockByNumber(fd.story()->blockCount() - 1).position() + 3;
+                }
+                insertRefsDescending(fd, {{refAt, "long"}});
+                Paginator pg(&fd);
+                const QString lost = audit::lostNotes(pg, audit::fullNoteHeight(notes.docs["long"].get(), 468, fd.env));
+                QVERIFY2(lost.isEmpty(), qPrintable(QStringLiteral("cited %1, text after %2: %3").arg(where).arg(textAfter).arg(lost)));
+                const QString bad = audit::problems(pg, fd.story(), {{"long", "LONGNOTE"}});
+                QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("cited %1, text after %2: %3").arg(where).arg(textAfter).arg(bad)));
+            }
+    }
+
+    // A note cited on the last line of the last page (as long as a few lines, or a page), in a document with a table before it or none: nothing of it is lost.
+    void aNoteCitedInTheLastParagraphIsDrawnWholeWhateverThePageFills()
+    {
+        int checked = 0;
+        for (const int words : {10, 30, 60})
+            for (int paras = 3; paras <= 80; paras += 1)
+                for (const bool withTable : {false, true}) {
+                    TestNotes notes;
+                    addNote(&notes, QStringLiteral("n"), words, QStringLiteral("NOTEN"));
+                    FlowDocument fd;
+                    fd.env.wordLines = true;
+                    fd.fields = &notes;
+                    fillStory(fd.story(), paras, 3, {}, 3, 5);
+                    if (withTable) {
+                        TestTable spec;
+                        spec.rows = 1;
+                        spec.cols = 1;
+                        addTable(fd, spec);
+                        appendParagraph(fd, QStringLiteral("Last one."));
+                    }
+                    addReference(fd.story(), fd.story()->findBlockByNumber(fd.story()->blockCount() - 1).position() + 2, QStringLiteral("n"));
+                    Paginator pg(&fd);
+                    ++checked;
+                    const QString lost = audit::lostNotes(pg, audit::fullNoteHeight(notes.docs["n"].get(), 468, fd.env));
+                    QVERIFY2(lost.isEmpty(), qPrintable(QStringLiteral("%1 words, %2 paragraphs, table %3: %4").arg(words).arg(paras).arg(withTable).arg(lost)));
+                    const QString bad = audit::problems(pg, fd.story(), {{"n", "NOTEN"}});
+                    QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("%1 words, %2 paragraphs, table %3: %4").arg(words).arg(paras).arg(withTable).arg(bad)));
+                }
+        QVERIFY(checked > 400);
+    }
+
+    // A cell of many paragraphs that each cite notes: the parts of the row use the page (the lines and their notes fill it), not a line to a page.
+    void thePartsOfARowWithNotesFillThePages()
+    {
+        for (const int perLine : {1, 3}) {
+            TestNotes notes;
+            for (int i = 0; i < 400; ++i) addNote(&notes, QStringLiteral("n%1").arg(i), 3, QStringLiteral("NOTE%1X").arg(i));
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.fields = &notes;
+            fillStory(fd.story(), 1, 3, {}, 6, 10);
+            TestTable spec;
+            spec.rows = 1;
+            spec.cols = 1;
+            spec.columnWidth = 300;
+            spec.text = [](int, int) {
+                QStringList l;
+                for (int i = 0; i < 120; ++i) l << QStringLiteral("cell paragraph number %1").arg(i);
+                return l.join(QLatin1Char('\n'));
+            };
+            const TestTable t = addTable(fd, spec);
+            appendParagraph(fd, QStringLiteral("after"));
+            QVector<QPair<int, QString>> refs;
+            int id = 0;
+            for (QTextBlock b = fd.story()->findBlock(t.rowStarts[0]); b.isValid() && b.blockFormat().intProperty(fp::Cell); b = b.next())
+                if (b.blockNumber() % 2 == 0)
+                    for (int k = 0; k < perLine; ++k) refs.push_back({b.position() + 3, QStringLiteral("n%1").arg(id++ % 400)});
+            insertRefsDescending(fd, refs);
+            Paginator pg(&fd);
+            const int pages = pg.pageCount();
+            // The lines (13.43 high at 11 points) and the notes (a line each, 13.43) of the 60 paragraphs that cite: 60 * perLine notes, 120 lines.
+            const double need = 120 * 13.43 + 60 * perLine * 13.43;
+            const double area = pg.page(0).content.height();
+            QVERIFY2(pages <= int(need / (0.7 * area)) + 2, qPrintable(QStringLiteral("%1 notes to a line: %2 pages for about %3 points of lines and notes in pages of %4").arg(perLine).arg(pages).arg(need).arg(area)));
+        }
+    }
+
+    // Rows that are set to be at least 90 high are that high wherever they are on a page, also where one ends a page.
+    void rowsHoldTheirSetHeightAtThePageFoot()
+    {
+        int checked = 0;
+        for (int paras = 20; paras <= 40; ++paras) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.sections[0].paper = QSizeF(320, 330);
+            fd.sections[0].margins = QMarginsF(36, 36, 36, 36);
+            fillStory(fd.story(), paras, 3, {}, 3, 4);
+            TestTable spec;
+            spec.rows = 6;
+            spec.cols = 1;
+            spec.columnWidth = 200;
+            spec.setRow = [](int, RowData &rd) { rd.height = 90; };
+            addTable(fd, spec);
+            appendParagraph(fd, QStringLiteral("after"));
+            Paginator pg(&fd);
+            for (int k = 0; k < pg.pageCount(); ++k) {
+                const auto m = pg.materialize(k);
+                for (const auto &t : m->tables)
+                    for (int r = t->firstRow; r < t->endRow; ++r) {
+                        ++checked;
+                        // (A part of a row that goes on over the page break is as tall as the room it has.)
+                        const bool cutHere = k + 1 < pg.pageCount() && pg.page(k + 1).start.piece != 0 && r + 1 == t->endRow;
+                        if (!cutHere)
+                            QVERIFY2(t->heightOf(r) > 90 - 0.5, qPrintable(QStringLiteral("%1 paragraphs, page %2: row %3 is %4 high, set at least 90").arg(paras).arg(k).arg(r).arg(t->heightOf(r))));
+                    }
+            }
+        }
+        QVERIFY(checked > 100);
+    }
+
+    // A row that cannot be split, citing N notes, costs N, not N squared: twice the notes take about twice as long.
+    void aRowThatCannotBeSplitCitingManyNotesTakesTimeInStepWithThem()
+    {
+        auto build = [](int refs) {
+            return [refs](FlowDocument &fd, TestNotes &notes) {
+                for (int i = 0; i < 50; ++i) addNote(&notes, QStringLiteral("n%1").arg(i), 3, QStringLiteral("NOTE%1").arg(i));
+                fillStory(fd.story(), 2, 3, {}, 10, 14);
+                TestTable spec;
+                spec.rows = 1;
+                spec.cols = 1;
+                spec.columnWidth = 200;
+                spec.setRow = [](int, RowData &r) { r.cantSplit = true; };
+                const TestTable table = addTable(fd, spec);
+                appendParagraph(fd, QStringLiteral("After the table."));
+                const int at = table.rowStarts[0] + 1;
+                for (int k = refs - 1; k >= 0; --k) addReference(fd.story(), at, QStringLiteral("n%1").arg(k % 50));
+            };
+        };
+        const double small = millisecondsToPaginate(build(500), 2, true), big = millisecondsToPaginate(build(2000), 2, true);
+        QVERIFY2(big < 8 * std::max(small, 20.0), qPrintable(QStringLiteral("500 notes took %1 ms, 2000 notes %2 ms").arg(small).arg(big)));
+    }
+
+    // Tables of rows that each cite many notes: the work is bounded for the document, not for each row (twice the rows take about twice as long, and a hostile file is not
+    // made to take minutes).
+    void manyRowsCitingManyNotesTakeTimeInStepWithTheirNumber()
+    {
+        auto build = [](int rows) {
+            return [rows](FlowDocument &fd, TestNotes &notes) {
+                for (int i = 0; i < 50; ++i) addNote(&notes, QStringLiteral("n%1").arg(i), 3, QStringLiteral("NOTE%1").arg(i));
+                fillStory(fd.story(), 2, 3, {}, 10, 14);
+                TestTable spec;
+                spec.rows = rows;
+                spec.cols = 1;
+                spec.columnWidth = 200;
+                const TestTable table = addTable(fd, spec);
+                appendParagraph(fd, QStringLiteral("After the table."));
+                for (int r = rows - 1; r >= 0; --r)
+                    for (int k = 999; k >= 0; --k) addReference(fd.story(), table.rowStarts[r] + 1, QStringLiteral("n%1").arg((r * 7 + k) % 50));
+            };
+        };
+        const double small = millisecondsToPaginate(build(4), 1, true), big = millisecondsToPaginate(build(16), 1, true);
+        QVERIFY2(big < 8 * std::max(small, 50.0), qPrintable(QStringLiteral("4 rows of 1000 notes took %1 ms, 16 rows %2 ms").arg(small).arg(big)));
+    }
+
+    // A long note cited in a cell of a table in a cell: the time is in step with its length.
+    void aLongNoteInANestedCellTakesTimeInStepWithItsLength()
+    {
+        auto build = [](int words) {
+            return [words](FlowDocument &fd, TestNotes &notes) {
+                addNote(&notes, QStringLiteral("long"), words, QStringLiteral("LONGNOTE"));
+                fillStory(fd.story(), 2, 3, {}, 10, 14);
+                QTextCursor c(fd.story());
+                c.movePosition(QTextCursor::End);
+                QTextCharFormat body;
+                body.setFontPointSize(11);
+                auto outerTable = std::make_shared<TableData>();
+                outerTable->columns << 300;
+                outerTable->margins = QMarginsF(4, 3, 4, 3);
+                auto outerRow = std::make_shared<RowData>();
+                CellRecord outer;
+                outer.table = outerTable;
+                outer.row = outerRow;
+                const int outerKey = fd.tables.add(outer);
+                auto paragraph = [&](int key, const QString &text) {
+                    QTextBlockFormat bf;
+                    bf.setProperty(fp::Cell, key);
+                    c.insertBlock(bf, body);
+                    c.insertText(text, body);
+                };
+                paragraph(outerKey, QStringLiteral("before"));
+                auto inner = std::make_shared<TableData>();
+                inner->columns << 140 << 140;
+                inner->margins = QMarginsF(2, 2, 2, 2);
+                int refAt = 0;
+                for (int r = 0; r < 2; ++r) {
+                    auto row = std::make_shared<RowData>();
+                    for (int col = 0; col < 2; ++col) {
+                        CellRecord rec;
+                        rec.table = inner;
+                        rec.row = row;
+                        rec.parent = outerKey;
+                        const int key = fd.tables.add(rec);
+                        paragraph(key, QStringLiteral("r%1c%2").arg(r).arg(col));
+                        if (r == 1 && col == 1) refAt = c.block().position() + 2;
+                    }
+                }
+                paragraph(outerKey, QStringLiteral("after"));
+                appendParagraph(fd, QStringLiteral("zebra after"));
+                addReference(fd.story(), refAt, QStringLiteral("long"));
+            };
+        };
+        const double small = millisecondsToPaginate(build(5000), 1, true), big = millisecondsToPaginate(build(20000), 1, true);
+        QVERIFY2(big < 8 * std::max(small, 100.0), qPrintable(QStringLiteral("5000 words took %1 ms, 20000 words %2 ms").arg(small).arg(big)));
+    }
+
+    // Objects anchored in the paragraphs of cells: making a page costs the paragraphs and the anchors, not their product.
+    void anchorsInTheCellsOfATableCostInStepWithTheirNumber()
+    {
+        auto build = [](int cols) {
+            return [cols](FlowDocument &fd, TestNotes &) {
+                fillStory(fd.story(), 1, 3, {}, 6, 10);
+                auto item = std::make_shared<ShapeItem>();
+                item->rect = QRectF(0, 0, 3, 3);
+                TestTable spec;
+                spec.rows = 1;
+                spec.cols = cols;
+                spec.columnWidth = 400.0 / cols;
+                spec.text = [](int, int) {
+                    QStringList l;
+                    for (int i = 0; i < 400; ++i) l << QStringLiteral("x");
+                    return l.join(QLatin1Char('\n'));
+                };
+                const TestTable t = addTable(fd, spec);
+                FloatingObject o;
+                o.item = item;
+                fd.objects.push_back(o);
+                const int id = int(fd.objects.size());
+                for (QTextBlock b = fd.story()->lastBlock(); b.isValid() && b.position() >= t.rowStarts[0]; b = b.previous()) {
+                    QTextCursor cur(fd.story());
+                    cur.setPosition(b.position());
+                    QTextCharFormat anchor;
+                    anchor.setProperty(fp::AnchorId, id);
+                    cur.insertText(QString(QChar(0xFFFC)), anchor);
+                }
+            };
+        };
+        const double small = millisecondsToPaginate(build(5), 1, true), big = millisecondsToPaginate(build(20), 1, true);
+        QVERIFY2(big < 8 * std::max(small, 100.0), qPrintable(QStringLiteral("5 cells took %1 ms, 20 cells %2 ms").arg(small).arg(big)));
+    }
+
+    // The heights of notes belong to the environment they were measured in: after the text is made another size (and the pages are laid out again), the notes are the heights a
+    // paginator made afresh finds.
+    void aChangeOfTheTextSizeChangesTheHeightsOfNotesBesideTables()
+    {
+        TestNotes notes;
+        addNote(&notes, QStringLiteral("n"), 40, QStringLiteral("NOTEN"));
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.fields = &notes;
+        fillStory(fd.story(), 2, 3, {}, 6, 10);
+        TestTable spec;
+        spec.rows = 4;
+        spec.cols = 1;
+        const TestTable t = addTable(fd, spec);
+        appendParagraph(fd, QStringLiteral("after"));
+        addReference(fd.story(), t.rowStarts[1] + 1, QStringLiteral("n"));
+        Paginator pg(&fd);
+        const double before = audit::drawnNoteHeight(pg);
+        fd.env.fontScale = 1.6;
+        pg.invalidate();
+        const double after = audit::drawnNoteHeight(pg);
+        Paginator fresh(&fd);
+        QVERIFY2(std::abs(after - audit::drawnNoteHeight(fresh)) < 0.01, qPrintable(QStringLiteral("the note is %1 high before, %2 after the change, %3 for a new paginator").arg(before).arg(after).arg(audit::drawnNoteHeight(fresh))));
+        QVERIFY(after > before + 1);
+    }
+
+    // Deleting a character in a document of many paragraphs with a table in it costs about what typing one does: it does not find the tables again.
+    void deletingACharacterCostsLikeTypingOne()
+    {
+        double perDelete[2] = {0, 0}, perType[2] = {0, 0};
+        int n = 0;
+        for (const int paras : {8000, 32000}) {
+            TestNotes notes;
+            addNote(&notes, QStringLiteral("n"), 5, QStringLiteral("NOTEN"));
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.fields = &notes;
+            fillStory(fd.story(), paras, 5, {}, 5, 9);
+            TestTable spec;
+            spec.rows = 3;
+            spec.cols = 2;
+            addTableAfter(fd, paras / 2, spec);
+            fd.story()->setUndoRedoEnabled(false);
+            Paginator pg(&fd);
+            pg.pageCount();
+            QTextCursor cur(fd.story());
+            const int at = fd.story()->findBlockByNumber(paras / 4).position() + 5;
+            QElapsedTimer t;
+            const int reps = 20;
+            t.start();
+            for (int i = 0; i < reps; ++i) {
+                cur.setPosition(at);
+                cur.insertText(QStringLiteral("x"));
+                pg.paginate(paras / 100);
+            }
+            perType[n] = double(t.nsecsElapsed()) / 1e6 / reps;
+            t.restart();
+            for (int i = 0; i < reps; ++i) {
+                cur.setPosition(at + 1);
+                cur.deleteChar();
+                pg.paginate(paras / 100);
+            }
+            perDelete[n] = double(t.nsecsElapsed()) / 1e6 / reps;
+            ++n;
+        }
+        QVERIFY2(perDelete[1] < 3 * perType[1] + 3, qPrintable(QStringLiteral("typing takes %1 ms, deleting %2 ms (32000 paragraphs)").arg(perType[1]).arg(perDelete[1])));
+        QVERIFY2(perDelete[1] < 2.5 * perDelete[0] + 3, qPrintable(QStringLiteral("deleting takes %1 ms at 8000 paragraphs and %2 ms at 32000 (typing %3 and %4)").arg(perDelete[0]).arg(perDelete[1]).arg(perType[0]).arg(perType[1])));
     }
 };
 

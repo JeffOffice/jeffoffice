@@ -7,6 +7,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Breaks"),
     QT_TRANSLATE_NOOP("Ribbon", "Clipboard"),
     QT_TRANSLATE_NOOP("Ribbon", "Columns"),
+    QT_TRANSLATE_NOOP("Ribbon", "Editing"),
     QT_TRANSLATE_NOOP("Ribbon", "Font"),
     QT_TRANSLATE_NOOP("Ribbon", "Home"),
     QT_TRANSLATE_NOOP("Ribbon", "Indent Left:"),

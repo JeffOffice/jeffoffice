@@ -8,6 +8,7 @@
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QVector>
+#include <functional>
 #include <memory>
 
 namespace jp {
@@ -34,6 +35,16 @@ struct FindScope {
     bool textArt = false;     // the words of each Text Art, in the page's list with the boxes
 };
 
+// How a search reaches the words of a story, for a document that is not a Document of placed objects (JeffWrite's is one long story): the
+// words of a story (null for none), whether a match is to be passed over (words that are not shown), and how a match gets its replacement
+// (empty: QTextCursor::insertText, which gives them the look of the match's last character). Replacing finds every match in the words as
+// they are, then puts the new words in from the last match to the first, so that `put` is given the matches in that order, each selected.
+struct FindWords {
+    std::function<QTextDocument *(const FindStory &)> story;
+    std::function<bool(const QTextCursor &match)> skip;
+    std::function<void(QTextCursor &match, const QString &with)> put;
+};
+
 // Every story once, in the order to search them: the pages (a text box's whole
 // chain once, at its first frame), then the master pages.
 QVector<FindStory> findStories(const Document &doc, const FindScope &scope = FindScope());
@@ -44,11 +55,15 @@ QVector<FindStory> findStories(const Document &doc, const FindScope &scope = Fin
 // index of the story it is in and `found` selects the match.
 bool findInStories(const Document &doc, const QVector<FindStory> &stories, const QString &text, QTextDocument::FindFlags flags, int start, int pos,
                    int *story, QTextCursor *found);
+bool findInStories(const FindWords &words, const QVector<FindStory> &stories, const QString &text, QTextDocument::FindFlags flags, int start, int pos,
+                   int *story, QTextCursor *found);
 
 // Replaces every match of `text` in the stories with `with`, and says how
 // many there were. `changed` gets each story that had a match. The caller
 // makes it one change, and fits what grew (refitFoundStories).
 int replaceInStories(const Document &doc, const QVector<FindStory> &stories, const QString &text, QTextDocument::FindFlags flags, const QString &with,
+                     QVector<FindStory> *changed = nullptr);
+int replaceInStories(const FindWords &words, const QVector<FindStory> &stories, const QString &text, QTextDocument::FindFlags flags, const QString &with,
                      QVector<FindStory> *changed = nullptr);
 
 // Fits each box and table that had words replaced to its new words, as typing in it would: a text box that grows to fit grows

@@ -176,6 +176,7 @@ void WriteWindow::createActions()
     createViewActions();
     createReviewActions();
     createHelpActions();
+    createEditingActions();
 }
 
 namespace {
@@ -230,6 +231,7 @@ void WriteWindow::createFormatActions()
             edit([value](write::WriteDoc &d, QTextCursor &c) { write::setLineSpacing(d, c, QTextBlockFormat::ProportionalHeight, value); });
         });
     }
+    mk("fmt.fontDialog", tr("Font…"), "type", QKeySequence(Qt::CTRL | Qt::Key_D), [this] { showFontDialog(); });
     mk("para.dialog", tr("Paragraph…"), "pilcrow", QKeySequence(), [this] { showParagraphDialog(); });
     mk("insert.pageBreak", tr("Page Break"), "file-plus-2", QKeySequence(Qt::CTRL | Qt::Key_Return), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::insertPageBreak(d, c); }); });
     mk("layout.sectionBreak", tr("Section Break (Next Page)"), "section", QKeySequence(), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::insertSectionBreak(d, c); }); });
@@ -313,6 +315,13 @@ void WriteWindow::createViewActions()
     mk("zoom.dialog", tr("Zoom…"), "zoom-in", QKeySequence(), [this] { showZoomDialog(); });
 }
 
+void WriteWindow::showFontDialog()
+{
+    if (!m_doc) return;
+    write::fontDialog(this, m_doc.get(), &m_view->cursor());
+    m_view->setFocus(Qt::OtherFocusReason);
+}
+
 void WriteWindow::showParagraphDialog()
 {
     if (!m_doc) return;
@@ -332,6 +341,7 @@ void WriteWindow::showContextMenu(const QPoint &globalPos)
     write::addSpellingSuggestions(menu, m_view);
     for (const char *id : {"edit.cut", "edit.copy", "edit.paste"}) menu.addAction(act(QString::fromLatin1(id)));
     menu.addSeparator();
+    menu.addAction(act("fmt.fontDialog"));
     menu.addAction(act("para.dialog"));
     menu.addAction(act("edit.selectAll"));
     // In a table: its rows and columns.

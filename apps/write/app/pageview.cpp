@@ -121,6 +121,24 @@ void PageView::setCursor(const QTextCursor &c)
     caretMoved();
 }
 
+void PageView::showCursor(const QTextCursor &c)
+{
+    if (!m_doc) return;
+    // A page is known once the one before it is laid out: lay out pages until the one with the position on it is.
+    flow::Paginator &pg = m_doc->pager();
+    while (!pg.complete()) {
+        const int known = pg.pagesKnown();
+        if (known > 0 && c.position() < pg.page(known - 1).start.pos) break;
+        pg.paginate(known);
+        if (pg.pagesKnown() == known) break;
+    }
+    relayout();
+    m_cursor = c;
+    QRect r;
+    if (caretRect(&r) && (r.top() < 0 || r.bottom() > viewport()->height())) verticalScrollBar()->setValue(verticalScrollBar()->value() + r.center().y() - viewport()->height() / 2);
+    caretMoved();
+}
+
 // ---- pages
 
 int PageView::pageCount() const { return m_knownPages; }
