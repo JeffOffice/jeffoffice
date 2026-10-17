@@ -295,6 +295,20 @@ Effects Effects::fromJson(const QJsonObject &o)
     return e;
 }
 
+bool isStyleColorName(const QString &name)
+{
+    static const QStringList themeColors = {"dk1", "lt1", "dk2", "lt2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink", "tx1", "tx2", "bg1", "bg2"};
+    static const QRegularExpression rgb(QStringLiteral("^#[0-9A-Fa-f]{6}$"));
+    return themeColors.contains(name) || rgb.match(name).hasMatch();
+}
+
+bool isStyleColorChange(const QString &name)
+{
+    static const QStringList changes = {"alpha", "alphaMod", "alphaOff", "hue", "hueMod", "hueOff", "sat", "satMod", "satOff", "lum", "lumMod", "lumOff", "red", "redMod", "redOff",
+                                        "green", "greenMod", "greenOff", "blue", "blueMod", "blueOff", "shade", "tint"};
+    return changes.contains(name);
+}
+
 namespace {
 
 QJsonObject styleColorJson(const StyleColor &c)
@@ -311,14 +325,13 @@ QJsonObject styleColorJson(const StyleColor &c)
 
 StyleColor styleColorFrom(const QJsonObject &o)
 {
-    // (A name is written into a file as an element's or an attribute's: only letters and digits, and a # for an RGB color, are let through.)
-    static const QRegularExpression colorName(QStringLiteral("^#?[A-Za-z0-9]{1,16}$")), modName(QStringLiteral("^[A-Za-z]{1,16}$"));
+    // (Names and changes are written into a file as the standard has them: what is not one is left out, a color it is not for with it.)
     StyleColor c;
-    if (const QString name = o["name"].toString(); colorName.match(name).hasMatch()) c.name = name;
+    if (const QString name = o["name"].toString(); isStyleColorName(name)) c.name = name.startsWith(QLatin1Char('#')) ? name.toUpper() : name;
     if (c.name.isEmpty()) return c;
     for (const QJsonValue &v : o["mods"].toArray()) {
         const QJsonArray pair = v.toArray();
-        if (pair.size() == 2 && c.mods.size() < 16 && modName.match(pair[0].toString()).hasMatch()) c.mods.append({pair[0].toString(), std::clamp(pair[1].toInt(), -10000000, 10000000)});
+        if (pair.size() == 2 && c.mods.size() < 16 && isStyleColorChange(pair[0].toString())) c.mods.append({pair[0].toString(), std::clamp(pair[1].toInt(), -10000000, 10000000)});
     }
     return c;
 }
