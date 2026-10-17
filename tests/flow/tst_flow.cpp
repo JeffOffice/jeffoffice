@@ -2330,6 +2330,24 @@ private Q_SLOTS:
         }
     }
 
+    // Courier New, where the machine lacks it, is drawn in Courier Prime, a face of the same widths whose strokes are as thin as Courier New's (its stand-in for a
+    // publisher's text, Cousine, is heavy), and its line stays Courier New's; a publisher's text keeps Cousine.
+    void courierNewIsDrawnInAThinFaceAndSetAsItself()
+    {
+        if (QFontDatabase::hasFamily(QStringLiteral("Courier New"))) QSKIP("Courier New is installed");
+        QVERIFY(QFontDatabase::hasFamily(QStringLiteral("Courier Prime")));
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Courier New")});
+        cf.setFontPointSize(10);
+        LayoutEnv word;
+        word.wordLines = true;
+        QCOMPARE(resolveCharFormat(cf, word).fontFamilies().toStringList().value(0), QStringLiteral("Courier Prime"));
+        QCOMPARE(resolveCharFormat(cf, LayoutEnv()).fontFamilies().toStringList().value(0), QStringLiteral("Courier New"));
+        // (The line is Courier New's, not the face it is drawn in: 1.1328 em.)
+        const auto lines = wordLinesOf({{QStringLiteral("Courier New"), 20}});
+        QVERIFY2(std::abs(lines.value(0).rect.height() - (1705 + 615) / 2048.0 * 20) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
+    }
+
     // A font the file's font table gives an alternate for is set in that alternate when the word processor has it, whether or not this machine has it (a
     // bundled look-alike stands in for it): an unknown serif face with Bookman Old Style as its alternate is not set in Calibri.
     void aFontsAlternateIsKeptWhereTheWordProcessorHasIt()

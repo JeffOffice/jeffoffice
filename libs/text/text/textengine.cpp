@@ -270,6 +270,8 @@ constexpr int kOwnUnderline = QTextFormat::UserProperty + 90;
 // Layout only: a missing stock font measured letter by letter, "family|bold|italic"
 // (applyLetterWidths gives each letter the original's width).
 constexpr int kLetterWidths = QTextFormat::UserProperty + 91;
+// Layout only: the family a run is drawn in a stand-in of, whose line it keeps (wordFaceOf).
+constexpr int kMetricFamily = QTextFormat::UserProperty + 92;
 
 QFont fineFont(QFont f)
 {
@@ -874,6 +876,17 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
             r.setProperty(kLetterWidths, fams.first() + (bold ? QStringLiteral("|1") : QStringLiteral("|0")) + (italic ? QStringLiteral("|1") : QStringLiteral("|0")));
         else if (env.wordLines && !fams.isEmpty() && isSymbolFont(fams.first()) && !hasFamilyCached(fams.first()) && symbolFontLetterWidths(fams.first()))
             r.setProperty(kLetterWidths, fams.first() + QStringLiteral("|0|0"));   // (its characters are shown as their pictures, by the widths of the font's)
+    }
+    // Courier New, where the machine lacks it, is drawn in Courier Prime, a face of the same widths with strokes as thin as its own (its usual stand-in, Cousine,
+    // is heavy); its line stays Courier New's.
+    if (env.wordLines) {
+        QStringList fams = r.fontFamilies().toStringList();
+        const QString lower = fams.value(0).toLower();
+        if ((lower == QLatin1String("courier new") || lower == QLatin1String("courier")) && !hasFamilyCached(fams.first()) && hasFamilyCached(QStringLiteral("Courier Prime"))) {
+            r.setProperty(kMetricFamily, fams.first());
+            fams[0] = QStringLiteral("Courier Prime");
+            r.setFontFamilies(fams);
+        }
     }
     // Sizes within the other program's range (to 1,638 pt): a file can claim
     // anything, and a huge size makes drawing a single glyph very costly.
@@ -1565,7 +1578,9 @@ static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int 
                 }
                 if (onlyTabs || (onlyBlanks && b - a < 2)) continue;
             }
-            const QFont f = r.format.font();
+            QFont f = r.format.font();
+            const QString metric = r.format.stringProperty(kMetricFamily);
+            if (!metric.isEmpty()) f.setFamilies({metric});
             add(f, r.format.hasProperty(tp::LineSize) ? r.format.property(tp::LineSize).toDouble() : f.pointSizeF());
         }
     if (m.total() <= 0 && markFont) add(*markFont, markSize);
@@ -2571,6 +2586,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         if (env.wordLines) {
             const QTextCharFormat mf = resolveCharFormat(b.charFormat(), env);
             markFont = mf.font();
+            if (const QString metric = mf.stringProperty(kMetricFamily); !metric.isEmpty()) markFont.setFamilies({metric});
             markSize = mf.hasProperty(tp::LineSize) ? mf.property(tp::LineSize).toDouble() : markFont.pointSizeF();
         }
         B->tl = std::make_unique<ParagraphLayout>(B->disp, fineFont(base));
