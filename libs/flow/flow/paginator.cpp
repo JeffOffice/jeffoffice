@@ -96,6 +96,27 @@ int Paginator::numberOf(int index) const
     return number;
 }
 
+// Where the text goes on after a page break that is the end of `last`, the last line laid out, for a page that has no line after it: the next line of the
+// paragraph if it has text to show or (where the mark follows the break) the mark's own empty line, else the paragraph after it. (A row of a table has no
+// break that ends it.) Says whether there is such a place.
+bool Paginator::breakContinuesAt(const StoryLayout::LineBrief &last, PageStart *next) const
+{
+    if (m_tables->any() && m_tables->index().spanAt(last.pos) >= 0) return false;
+    const QTextDocument *story = m_doc->story();
+    const QTextBlock block = story->findBlock(last.pos);
+    if (!block.isValid()) return false;
+    const bool onlyTheMarkLeft = last.end >= block.position() + block.length() - 1;
+    if (last.line + 1 < last.lines && (!onlyTheMarkLeft || m_doc->markFollowsBreak)) {
+        next->pos = last.end;
+        next->skip = last.line + 1;
+        return true;
+    }
+    if (!block.next().isValid()) return false;
+    next->pos = block.next().position();
+    next->skip = 0;
+    return true;
+}
+
 Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
 {
     ++m_laidOut;
@@ -464,7 +485,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
             hard = forced = byCharacter = true;
             // (The empty line the text engine puts after a break that ends its paragraph stays with the page: the next paragraph is at the top
             // of the next.)
-            if (c < L.size() && L[c].block == L[i].block && L[c].line == L[i].line + 1 && L[c].pos == L[c].end && L[c].line == L[c].lines - 1) ++c;
+            if (!m_doc->markFollowsBreak && c < L.size() && L[c].block == L[i].block && L[c].line == L[i].line + 1 && L[c].pos == L[c].end && L[c].line == L[c].lines - 1) ++c;
             break;
         }
     }
@@ -538,6 +559,12 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
             run.next.skip = 0;
         }
         run.next.hard = hard;
+        run.next.section = nextSection;
+    } else if (byCharacter && c > 0 && breakContinuesAt(L[c - 1], &run.next)) {
+        // A page break that ends the last line the page laid out (the empty line after it went past the frame, where laying out stops): the page
+        // after it begins where the text goes on.
+        run.hasNext = true;
+        run.next.hard = true;
         run.next.section = nextSection;
     } else if ((forced && !byCharacter && c > 0) || !carriedOut.isEmpty()) {
         // A break after the text's last line: the pages go on with one that has nothing on it. Or notes go on past the text's last line: with pages of their own.
@@ -1018,6 +1045,8 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     d->defaultTabStop = m_doc->env.defaultTab;
     d->wordText = m_doc->env.wordLines;
     d->wordNoHang = m_doc->env.wordNoHang;
+    d->wordSpaceSums = m_doc->env.wordSpaceSums;
+    d->wordNoHangStop = m_doc->env.wordNoHangStop;
     d->wordStandIns = m_doc->env.standIns;
     const Furniture furniture = furnitureOf(index, st, out->number);
     d->fontAliases = m_doc->env.familyAliases;

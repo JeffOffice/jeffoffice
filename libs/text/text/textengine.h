@@ -126,7 +126,8 @@ struct LayoutEnv {
     double defaultTab = 36;         // points between the tab stops of a paragraph without its own
     bool showFieldShading = false;
     // The text is set without ligatures (a slide's, as the presentation program sets it: a PDF's text then names each letter the page draws, where a
-    // ligature's glyph stands for several letters that a reader that copies the text can't name, and the lines break as the screen's do).
+    // ligature's glyph stands for several letters that a reader that copies the text can't name, and the lines break as the screen's do). A word processor's
+    // text (wordLines) has none either: it sets each letter, as its files ask for no ligatures.
     bool noLigatures = false;
     // Lines as the presentation program sets a slide's text, as probed in it (a text box per case, line positions read back through its object
     // model and the pictures it draws; 20 fonts, text shrunk to fit and not):
@@ -161,11 +162,17 @@ struct LayoutEnv {
     // Lines as a word processor sets them (JeffWrite): a single line is the font's Windows ascent and descent plus the leading its tables
     // ask for (a font's line, as the word processor measured it on Times New Roman, Arial, Calibri, and the fonts of its reference
     // documents); a line of several times single spacing has the extra below its text, and an exact or at-least height is as asked. Space
-    // after a paragraph and space before the next are the larger of the two (not their sum), and none between paragraphs of one style that
+    // after a paragraph and space before the next are the larger of the two (not their sum, unless wordSpaceSums), and none between paragraphs of one style that
     // say so (tp::ContextualSpacing). Not set for JeffPub's and JeffDeck's text.
     bool wordLines = false;
     // A word processor's text doesn't let punctuation hang past the margin (a file's compatibility option); it does otherwise (LayoutEnv::wordLines).
     bool wordNoHang = false;
+    // A word processor adds the space after a paragraph to the space before the next (a file's compatibility option against the web page's way); otherwise the
+    // larger of the two is the space between them (LayoutEnv::wordLines).
+    bool wordSpaceSums = false;
+    // A word processor's hanging indent is a tab stop (a tab on the first line goes to it); a file's compatibility option says it is not, and the default stops go on
+    // from the edge as they are (LayoutEnv::wordLines).
+    bool wordNoHangStop = false;
     // Percent taken off each paragraph's line spacing (a slide's text the
     // presentation program shrank to fit: a:normAutofit's lnSpcReduction).
     double lineCut = 0;

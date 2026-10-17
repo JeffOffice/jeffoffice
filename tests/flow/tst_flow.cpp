@@ -24,6 +24,7 @@
 #include <QTest>
 #include <QTextBlock>
 #include <QTextCursor>
+#include <QFontDatabase>
 #include <QTextDocument>
 #include <QTextList>
 #include <functional>
@@ -693,7 +694,8 @@ QString tableAwareDiffers(FlowDocument &fd, Paginator &pg, int k, LayoutCache &c
 
 // Paragraphs set the way a word processor sets lines (LayoutEnv::wordLines), each a line of text in the family and size given: the lines of
 // the story, in a frame of one page. `shape` sets a paragraph's format (spacing, line height, style).
-QVector<StoryLayout::LineInfo> wordLinesOf(const QVector<std::pair<QString, double>> &fonts, const std::function<void(int, QTextBlockFormat &)> &shape = {}, bool word = true)
+QVector<StoryLayout::LineInfo> wordLinesOf(const QVector<std::pair<QString, double>> &fonts, const std::function<void(int, QTextBlockFormat &)> &shape = {}, bool word = true,
+                                           const std::function<void(LayoutEnv &)> &setup = {})
 {
     auto doc = std::make_unique<QTextDocument>();
     QTextCursor c(doc.get());
@@ -709,6 +711,7 @@ QVector<StoryLayout::LineInfo> wordLinesOf(const QVector<std::pair<QString, doub
     }
     LayoutEnv env;
     env.wordLines = word;
+    if (setup) setup(env);
     StoryLayout lay;
     lay.build(doc.get(), {plainFrame(400, 700)}, env);
     return lay.lineInfo(0);
@@ -1829,6 +1832,116 @@ private Q_SLOTS:
         QCOMPARE(lp.pageCount(), 1);
     }
 
+    // Where the paragraph mark follows a break to the next page (FlowDocument::markFollowsBreak), a paragraph that ends with a break begins the page after
+    // it with an empty line, its mark's, and the next paragraph comes after that; the break at the end of the last paragraph makes that page too.
+    void theMarkAfterABreakGoesToTheNextPageWhenTheDocumentSaysSo()
+    {
+        FlowDocument fd;
+        fd.markFollowsBreak = true;
+        QTextCursor c(fd.story());
+        c.insertText(QStringLiteral("ends with a break") + flow::kPageBreak);
+        c.insertBlock();
+        c.insertText(QStringLiteral("next"));
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 2);
+        for (const auto &l : pg.lines(0)) QCOMPARE(l.block, 0);
+        const auto second = pg.lines(1);
+        QCOMPARE(second.size(), 2);
+        QCOMPARE(second[0].block, 0);               // (the empty rest of the first paragraph)
+        QCOMPARE(second[0].line, 1);
+        QCOMPARE(second[0].pos, second[0].end);
+        QCOMPARE(second[1].block, fd.story()->findBlockByNumber(1).position());
+        QVERIFY(std::abs(second[0].rect.top()) < 0.01);
+        QVERIFY(second[1].rect.top() >= second[0].rect.bottom() - 0.01);
+        QVERIFY(pg.page(1).start.hard);
+        // The last paragraph ending in a break: the page after it has the mark.
+        FlowDocument last;
+        last.markFollowsBreak = true;
+        QTextCursor lc(last.story());
+        lc.insertText(QStringLiteral("only a break") + flow::kPageBreak);
+        Paginator lp(&last);
+        QCOMPARE(lp.pageCount(), 2);
+        QCOMPARE(lp.lines(1).size(), 1);
+    }
+
+    // A break that is on the last line the page has room for, with no room left for the empty line after it, still opens the page after it with the
+    // paragraph that follows (the text after the break is not lost), in a publication's text and a word processor's, and where the mark follows the break the
+    // page begins with that empty line, which is the paragraph's own next line.
+    void aPageBreakOnTheLastLineThatFitsStillOpensTheNextPage_data()
+    {
+        QTest::addColumn<bool>("word");
+        QTest::addColumn<bool>("markFollows");
+        QTest::newRow("publication") << false << false;
+        QTest::newRow("word") << true << false;
+        QTest::newRow("publication, mark follows") << false << true;
+        QTest::newRow("word, mark follows") << true << true;
+    }
+
+    void aPageBreakOnTheLastLineThatFitsStillOpensTheNextPage()
+    {
+        QFETCH(bool, word);
+        QFETCH(bool, markFollows);
+        FlowDocument fd;
+        fd.env.wordLines = word;
+        fd.markFollowsBreak = markFollows;
+        const double line = 24, body = fd.section(0).content().height();
+        const int filler = int(body / line) - 1;
+        QTextBlockFormat bf;
+        bf.setLineHeight(line, QTextBlockFormat::FixedHeight);
+        QTextCursor c(fd.story());
+        for (int i = 0; i < filler; ++i) {
+            if (i) c.insertBlock(bf); else c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("filler"));
+        }
+        c.insertBlock(bf);
+        c.insertText(QStringLiteral("ends with a break") + flow::kPageBreak);
+        c.insertBlock(bf);
+        c.insertText(QStringLiteral("after the break"));
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 2);
+        const auto second = pg.lines(1);
+        const int after = fd.story()->findBlockByNumber(filler + 1).position();
+        if (markFollows) {
+            QCOMPARE(second.size(), 2);
+            QCOMPARE(second[0].block, fd.story()->findBlockByNumber(filler).position());   // (the break paragraph's empty line)
+            QCOMPARE(second[0].line, 1);
+            QCOMPARE(second[1].block, after);
+        } else {
+            QCOMPARE(second.size(), 1);
+            QCOMPARE(second[0].block, after);
+        }
+        QVERIFY(pg.page(1).start.hard);
+    }
+
+    // A break in the middle of a paragraph, on the last line that fits, begins the next page with the rest of the same paragraph, then the paragraphs after it.
+    void aPageBreakInTheMiddleOfAParagraphContinuesItOnTheNextPage()
+    {
+        for (const bool word : {false, true}) {
+            FlowDocument fd;
+            fd.env.wordLines = word;
+            const double line = 24, body = fd.section(0).content().height();
+            const int filler = int(body / line) - 1;
+            QTextBlockFormat bf;
+            bf.setLineHeight(line, QTextBlockFormat::FixedHeight);
+            QTextCursor c(fd.story());
+            for (int i = 0; i < filler; ++i) {
+                if (i) c.insertBlock(bf); else c.setBlockFormat(bf);
+                c.insertText(QStringLiteral("filler"));
+            }
+            c.insertBlock(bf);
+            c.insertText(QStringLiteral("first words") + flow::kPageBreak + QStringLiteral("second words"));
+            c.insertBlock(bf);
+            c.insertText(QStringLiteral("after"));
+            Paginator pg(&fd);
+            QCOMPARE(pg.pageCount(), 2);
+            const auto second = pg.lines(1);
+            QCOMPARE(second.size(), 2);
+            QCOMPARE(second[0].block, fd.story()->findBlockByNumber(filler).position());   // (the rest of the paragraph the break is in)
+            QCOMPARE(second[0].line, 1);
+            QCOMPARE(second[1].block, fd.story()->findBlockByNumber(filler + 1).position());
+        }
+    }
+
     // Two breaks in a row make the page between them; one at the start of a paragraph moves its text to the next page.
     void pageBreakCharactersFollowOneAnotherAndOpenAParagraph()
     {
@@ -1976,6 +2089,46 @@ private Q_SLOTS:
         const double heights[] = {(1950 + 550) / 2048.0 * 12, (1825 + 443 + 87) / 2048.0 * 12, (1854 + 434 + 67) / 2048.0 * 11};
         for (int i = 0; i < 3; ++i)
             QVERIFY2(std::abs(lines[i].rect.height() - heights[i]) < 0.01, qPrintable(QStringLiteral("line %1 is %2 tall, not %3").arg(i).arg(lines[i].rect.height()).arg(heights[i])));
+    }
+
+    // The spaces and tabs that end a word processor's line take no part in its height, and a line that is only such blanks is as tall as the paragraph
+    // mark's font makes it; blanks among the words count.
+    void blanksAtTheEndOfAWordLineTakeNoPartInItsHeight()
+    {
+        const QString tnr = QStringLiteral("Times New Roman");
+        auto single = [&](double size) { return (1825 + 443 + 87) / 2048.0 * size; };
+        // One paragraph of runs (text, size in points), its mark `mark` points; the height of its first line.
+        auto height = [&](const QVector<std::pair<QString, double>> &runs, double mark) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat markFormat;
+            markFormat.setFontFamilies({tnr});
+            markFormat.setFontPointSize(mark);
+            c.setBlockCharFormat(markFormat);
+            for (const auto &r : runs) {
+                QTextCharFormat cf;
+                cf.setFontFamilies({tnr});
+                cf.setFontPointSize(r.second);
+                c.insertText(r.first, cf);
+            }
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(400, 700)}, env);
+            const auto lines = lay.lineInfo(0);
+            return lines.isEmpty() ? -1.0 : lines[0].rect.height();
+        };
+        const QString text = QStringLiteral("some text");
+        QVERIFY(std::abs(height({{text, 10}, {QStringLiteral("   "), 24}}, 10) - single(10)) < 0.01);
+        QVERIFY(std::abs(height({{text, 10}, {QStringLiteral("\t\t"), 24}}, 10) - single(10)) < 0.01);
+        QVERIFY(std::abs(height({{text, 10}, {QStringLiteral(" \t "), 24}}, 10) - single(10)) < 0.01);
+        // Only blanks: the mark's font.
+        QVERIFY(std::abs(height({{QStringLiteral("\t\t\t"), 24}}, 9) - single(9)) < 0.01);
+        QVERIFY(std::abs(height({{QStringLiteral("    "), 24}}, 14) - single(14)) < 0.01);
+        // Blanks among the words are part of the line.
+        QVERIFY(std::abs(height({{QStringLiteral("a"), 10}, {QStringLiteral("   "), 24}, {QStringLiteral("b"), 10}}, 10) - single(24)) < 0.01);
+        // And the mark doesn't make a line of text taller.
+        QVERIFY(std::abs(height({{text, 10}}, 24) - single(10)) < 0.01);
     }
 
     // The stand-in a file's font table names for a family (the environment's stand-ins, LayoutEnv::standIns) is the line a missing family is set in.
@@ -2362,6 +2515,121 @@ private Q_SLOTS:
         QVERIFY(xOf(0) > 19.9 && xOf(0) < 20.1);                                         // (the text begins at the indent)
     }
 
+    // The hanging indent is a tab stop for the first line (a tab goes to it), unless the file says its hanging indents are not (LayoutEnv::wordNoHangStop):
+    // then the default stops go on from the edge, and two tabs after a short word end at the second of them.
+    void aHangingIndentIsATabStopUnlessTheFileSaysNot()
+    {
+        auto textAt = [&](bool noStop) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            bf.setLeftMargin(72);
+            bf.setTextIndent(-72);
+            c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("!\t\ttext"), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            env.defaultTab = 36;
+            env.wordNoHangStop = noStop;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(400, 100)}, env);
+            return lay.rangeRects(0, 3, 4).first().left();
+        };
+        QVERIFY2(std::abs(textAt(false) - 108) < 0.05, qPrintable(QString::number(textAt(false))));   // the first tab to the indent (72), the second to the stop after it
+        QVERIFY2(std::abs(textAt(true) - 72) < 0.05, qPrintable(QString::number(textAt(true))));      // the first to 36, the second to 72
+        LayoutEnv a, b;
+        b.wordNoHangStop = true;
+        QVERIFY(a.key() != b.key());
+    }
+
+    // A justified line of a word processor's text reaches the margin with its last letter, not a space short of it (the space that ends the line is not
+    // part of the width the words are spread over); the paragraph's last line is as long as its words make it.
+    void justifiedWordLinesReachTheMargin()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setAlignment(Qt::AlignJustify);
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("Alvin developed from a poorly-defined tropical wave that crossed the Atlantic Ocean and the Caribbean Sea during the second half of May and then moved "
+                                    "westward across the eastern North Pacific with little associated thunderstorm activity until the wave continued westward across the "
+                                    "eastern North Pacific waters."), run);
+        for (bool noHang : {false, true}) {
+            LayoutEnv env;
+            env.wordLines = true;
+            env.wordNoHang = noHang;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(468, 300)}, env);
+            const auto lines = lay.lineInfo(0);
+            QVERIFY(lines.size() >= 3);
+            for (int i = 0; i + 1 < lines.size(); ++i) {
+                const auto rects = lay.rangeRects(0, lines[i].docEnd - 2, lines[i].docEnd - 1);
+                QVERIFY(!rects.isEmpty());
+                QVERIFY2(std::abs(rects.last().right() - 468) < 0.3, qPrintable(QStringLiteral("line %1 ends at %2 (hang %3)").arg(i).arg(rects.last().right()).arg(!noHang)));
+            }
+            QVERIFY(lay.rangeRects(0, lines.last().docEnd - 2, lines.last().docEnd - 1).last().right() < 400);
+        }
+    }
+
+    // A word processor's text has no ligatures: the letters of "ti" in Carlito (a face the program carries, with a ligature for them) take what they take
+    // apart, where a publication's text sets them as one glyph.
+    void wordTextHasNoLigatures()
+    {
+        QVERIFY2(QFontDatabase::hasFamily(QStringLiteral("Carlito")), "the face the program carries is not registered");
+        auto width = [&](const QString &text, bool word) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Carlito")});
+            run.setFontPointSize(24);
+            c.insertText(text, run);
+            LayoutEnv env;
+            env.wordLines = word;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(1000, 100)}, env);
+            const auto rects = lay.rangeRects(0, 0, text.size());
+            return rects.isEmpty() ? -1.0 : rects.last().right() - rects.first().left();
+        };
+        const double apart = width(QStringLiteral("t"), true) + width(QStringLiteral("i"), true);
+        QVERIFY2(std::abs(width(QStringLiteral("ti"), true) - apart) < 0.01, qPrintable(QStringLiteral("%1 against %2").arg(width(QStringLiteral("ti"), true)).arg(apart)));
+        QVERIFY2(std::abs(width(QStringLiteral("ti"), false) - apart) > 0.05, "the face has no ligature for ti");   // (a publication's text keeps it)
+    }
+
+    // The ligatures of a word processor's text are the file's to ask for (tp::Ligatures on a run that has them: the standard ones, or none), and its letters of
+    // the scripts that are shaped with ligatures (Arabic) are not touched by the default of none: a paragraph that has one keeps its font's.
+    void wordLigaturesFollowTheRunAndTheScript()
+    {
+        QVERIFY2(QFontDatabase::hasFamily(QStringLiteral("Carlito")), "the face the program carries is not registered");
+        auto width = [&](const QString &text, bool word, int ligatures) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Carlito")});
+            run.setFontPointSize(24);
+            if (ligatures >= 0) run.setProperty(tp::Ligatures, ligatures);
+            c.insertText(text, run);
+            LayoutEnv env;
+            env.wordLines = word;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(1000, 100)}, env);
+            const auto rects = lay.rangeRects(0, 0, 2);
+            return rects.isEmpty() ? -1.0 : rects.last().right() - rects.first().left();
+        };
+        const QString ti = QStringLiteral("ti");
+        const double apart = width(ti, true, -1), joined = width(ti, false, -1);
+        QVERIFY2(std::abs(apart - joined) > 0.05, "the face has no ligature for ti");
+        QVERIFY(std::abs(width(ti, true, 0) - joined) < 0.01);      // (the file asks for the standard ligatures)
+        QVERIFY(std::abs(width(ti, true, 1) - apart) < 0.01);       // (and for none)
+        QVERIFY(std::abs(width(ti + QChar(0x0628), true, -1) - joined) < 0.01);   // (an Arabic letter in the paragraph: the font's own)
+        QVERIFY(std::abs(width(ti + QStringLiteral(" \u0393\u0431"), true, -1) - apart) < 0.01);   // (Greek and Cyrillic are Latin's kind)
+    }
+
     // A mark of punctuation at the end of a line may hang past the margin in a word processor's text: a word that fits but for its period is the last
     // of the line, unless the file says no punctuation hangs; a word that is itself too long, or a mark that isn't one that hangs, is not let.
     void punctuationAtTheEndOfALineHangsPastTheMargin()
@@ -2399,6 +2667,42 @@ private Q_SLOTS:
         QCOMPARE(lineCount(text, room, false, false), 2);         // (nor in a publication's text)
         QCOMPARE(lineCount(QStringLiteral("alpha beta gamma delta epsilon-"), room, false), 2);   // (a hyphen is no mark that hangs)
         QCOMPARE(lineCount(text, upToMark - 5, false), 2);        // (the word itself doesn't fit)
+    }
+
+    // A paragraph that does not let punctuation extend past the margin (tp::NoHangPunct, a word processor's overflowPunct turned off) has none hang, though the
+    // text does elsewhere.
+    void aParagraphThatTurnsHangingOffHasNone()
+    {
+        auto lineCount = [&](double room, bool paragraphOff) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            if (paragraphOff) bf.setProperty(tp::NoHangPunct, true);
+            c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("alpha beta gamma delta epsilon."), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(room, 300)}, env);
+            return int(lay.lineInfo(0).size());
+        };
+        QTextDocument measure;
+        QTextCursor mc(&measure);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        const QString text = QStringLiteral("alpha beta gamma delta epsilon.");
+        mc.insertText(text, run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout wide;
+        wide.build(&measure, {plainFrame(1000, 100)}, env);
+        const double room = wide.rangeRects(0, text.size() - 1, text.size()).first().left() + 0.5;
+        QCOMPARE(lineCount(room, false), 1);
+        QCOMPARE(lineCount(room, true), 2);
     }
 
     // The text after a page break that begins a paragraph is its first line, with the paragraph's first-line indent (here a hanging one); after a break in
@@ -2510,6 +2814,29 @@ private Q_SLOTS:
         QVERIFY(std::abs(contextual(QStringLiteral("Body"))) < 0.01);
         QVERIFY(std::abs(contextual(QStringLiteral("Other")) - 10) < 0.01);
         Q_UNUSED(single);
+    }
+
+    // A file that turns the web page's way of spacing paragraphs off (LayoutEnv::wordSpaceSums) has the space after a paragraph and the space before
+    // the next both: their sum, as a publication's are.
+    void wordSpaceBetweenParagraphsAddsWhenTheFileAsksForIt()
+    {
+        const QString tnr = QStringLiteral("Times New Roman");
+        auto gap = [&](double after, double before, bool sums) {
+            const auto lines = wordLinesOf({{tnr, 12}, {tnr, 12}}, [&](int i, QTextBlockFormat &bf) {
+                if (i == 0) bf.setBottomMargin(after);
+                else bf.setTopMargin(before);
+            }, true, [&](LayoutEnv &env) { env.wordSpaceSums = sums; });
+            return lines[1].rect.top() - lines[0].rect.bottom();
+        };
+        QVERIFY(std::abs(gap(12, 6, true) - 18) < 0.01);
+        QVERIFY(std::abs(gap(6, 12, true) - 18) < 0.01);
+        QVERIFY(std::abs(gap(6, 6, true) - 12) < 0.01);
+        QVERIFY(std::abs(gap(12, 6, false) - 12) < 0.01);
+        QVERIFY(std::abs(gap(6, 6, false) - 6) < 0.01);
+        // (The layouts are kept apart: the same story is not found under the other's key.)
+        LayoutEnv a, b;
+        b.wordSpaceSums = true;
+        QVERIFY(a.key() != b.key());
     }
 
     // A paragraph out of the flow (a frame's, in a word processor) is set where the next paragraph begins and takes none of the room.

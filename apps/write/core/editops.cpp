@@ -80,6 +80,11 @@ QTextCharFormat charAt(QTextDocument *doc, int position)
 QTextCharFormat typingFormat(const QTextCursor &c)
 {
     QTextCharFormat f = c.charFormat();
+    // (Text typed beside what a tracked change deleted is not deleted, nor hidden.)
+    if (f.hasProperty(prop::TrackedDeleted)) {
+        if (f.intProperty(prop::TrackedDeleted) == prop::HiddenByDeletion) f.clearProperty(tp::HiddenText);
+        f.clearProperty(prop::TrackedDeleted);
+    }
     if (!isAtom(f)) return f;
     // Beside a piece kept as XML: the look of the text before it, else of the paragraph's mark.
     const QTextBlock b = c.block();
@@ -106,6 +111,76 @@ int visibleAfter(QTextDocument *d, int position)
     for (int p = position; p < end; ++p)
         if (!isZeroWidth(charAt(d, p))) return p;
     return -1;
+}
+
+// Whether the paragraph is one a tracked change deleted whose mark and text all show nothing: it takes no room, and there is nothing in it for a person to
+// edit.
+bool isHiddenDeleted(const QTextBlock &b)
+{
+    if (!b.isValid() || !markFormat(b).hasProperty(prop::TrackedDeleted)) return false;
+    for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+        const QTextCharFormat cf = it.fragment().charFormat();
+        if (!cf.hasProperty(prop::TrackedDeleted) && !isZeroWidth(cf)) return false;
+    }
+    return true;
+}
+
+// Where text put at `position` is not inside what a tracked change deleted (in the file it would be deleted with it): just inside the start of a deletion it
+// goes before it, anywhere else inside it, after it. (A place outside any deletion is left as it is.)
+int outsideDeletion(const QTextBlock &b, int position)
+{
+    struct Edge { int at; bool open; };
+    QVector<Edge> edges;
+    for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+        const QTextFragment f = it.fragment();
+        const QTextCharFormat cf = f.charFormat();
+        if (!cf.hasProperty(prop::Atom)) continue;
+        const Inline a = unpackAtom(storedBytes(cf, prop::Atom));
+        if (a.kind != Inline::ParaAtom || (a.role != Inline::Open && a.role != Inline::Close) || (a.tag != QLatin1String("del") && a.tag != QLatin1String("moveFrom"))) continue;
+        const QString t = f.text();
+        for (int k = 0; k < t.size(); ++k)
+            if (t[k] == QChar::ObjectReplacementCharacter) edges.push_back({f.position() + k, a.role == Inline::Open});
+    }
+    int from = -1, to = -1;   // the outermost deletion that has the place inside it
+    QVector<int> open;
+    for (const Edge &e : std::as_const(edges)) {
+        if (e.open) {
+            open.push_back(e.at);
+        } else if (!open.isEmpty()) {
+            const int start = open.takeLast();
+            if (start < position && position <= e.at && (from < 0 || start < from)) {
+                from = start;
+                to = e.at;
+            }
+        }
+    }
+    if (from < 0) return position;
+    return position == from + 1 ? from : to + 1;
+}
+
+// Puts the cursor where typing and pasting are not in what a tracked change deleted: out of a paragraph that shows nothing, to the end of the last paragraph
+// before it that does (the start of the next if there is none), and out of a deletion in the paragraph.
+void settleBesideDeletions(QTextCursor &c)
+{
+    if (c.hasSelection()) return;
+    QTextBlock b = c.block();
+    if (isHiddenDeleted(b)) {
+        QTextBlock v = b.previous();
+        while (v.isValid() && isHiddenDeleted(v)) v = v.previous();
+        if (v.isValid()) {
+            c.setPosition(v.position() + v.length() - 1);
+        } else {
+            v = b.next();
+            while (v.isValid() && isHiddenDeleted(v)) v = v.next();
+            if (v.isValid()) c.setPosition(v.position());
+        }
+        b = c.block();
+    }
+    for (int i = 0; i < 4; ++i) {
+        const int at = outsideDeletion(b, c.position());
+        if (at == c.position()) break;
+        c.setPosition(at);
+    }
 }
 
 // A tag that has a start and an end in a paragraph (a hyperlink, a content control, a tracked change...), open where the paragraph is cut:
@@ -214,10 +289,12 @@ void insertText(WriteDoc &doc, QTextCursor &c, const QString &text)
     Q_UNUSED(doc);
     if (text.isEmpty()) return;
     if (isLocked(c.block()) && !c.hasSelection()) return;
+    settleBesideDeletions(c);
     QTextCharFormat f = typingFormat(c);
     if (c.hasSelection()) {
         c.beginEditBlock();
         removeSelection(doc, c);
+        settleBesideDeletions(c);
         f = typingFormat(c);
         c.insertText(text, f);
         c.endEditBlock();
@@ -309,6 +386,7 @@ void insertPageBreak(WriteDoc &doc, QTextCursor &c)
     if (isLocked(c.block())) return;
     c.beginEditBlock();
     if (c.hasSelection()) removeSelection(doc, c);
+    settleBesideDeletions(c);
     // The break is a character of the paragraph (the page ends after the line that has it); what follows it goes on in a paragraph of its own,
     // as the program a person may be used to does it, so that the cursor is at the top of the next page.
     c.insertText(QString(flow::kPageBreak), typingFormat(c));
@@ -330,6 +408,25 @@ void insertSectionBreak(WriteDoc &doc, QTextCursor &c)
 void removeSelection(WriteDoc &doc, QTextCursor &c)
 {
     if (!c.hasSelection()) return;
+    {
+        // A selection that begins or ends in a paragraph that shows nothing (a tracked change deleted it) begins or ends where the paragraphs that show do:
+        // what is left is never put in the deleted paragraph, with its deleted mark.
+        QTextDocument *doc2 = c.document();
+        int from = c.selectionStart(), to = c.selectionEnd();
+        QTextBlock first = doc2->findBlock(from), last = doc2->findBlock(to);
+        if (first != last && (isHiddenDeleted(first) || isHiddenDeleted(last))) {
+            while (first.isValid() && first.position() <= to && isHiddenDeleted(first)) first = first.next();
+            while (last.isValid() && last.position() >= from && isHiddenDeleted(last)) last = last.previous();
+            if (first.isValid() && first.position() > from) from = first.position();
+            if (last.isValid() && last.position() + last.length() - 1 < to) to = last.position() + last.length() - 1;
+            if (from >= to) {
+                c.setPosition(std::min(from, to));
+                return;
+            }
+            c.setPosition(from);
+            c.setPosition(to, QTextCursor::KeepAnchor);
+        }
+    }
     if (removeSelectionAcrossCells(doc, c)) return;   // (cells are emptied, and tables the selection holds go: paragraphs of different cells are never joined)
     QTextDocument *d = c.document();
     c.beginEditBlock();
@@ -406,6 +503,31 @@ void removeSelection(WriteDoc &doc, QTextCursor &c)
     c.endEditBlock();
 }
 
+// Joins `visible` and `b`, the paragraph after it that shows, across the paragraphs between them that a tracked change deleted and the lines hide: those stay,
+// after the joined paragraph, as paragraphs of their own, so that no paragraph that has text is given their deleted mark. The cursor is where they joined.
+static void joinAcrossDeleted(WriteDoc &doc, QTextCursor &c, const QTextBlock &visible, const QTextBlock &b)
+{
+    QTextDocument *d = c.document();
+    const QTextBlock lastHidden = b.previous();
+    const int cut = visible.position() + visible.length() - 1;
+    QTextCursor t(d);
+    t.setPosition(cut);
+    t.setPosition(lastHidden.position() + lastHidden.length() - 1, QTextCursor::KeepAnchor);
+    const QTextDocumentFragment hidden = t.selection();
+    c.beginEditBlock();
+    t.removeSelectedText();
+    QTextCursor join(d);
+    join.setPosition(cut);
+    join.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor);   // (the paragraph break between the two, now side by side)
+    removeSelection(doc, join);
+    const QTextBlock joined = d->findBlock(cut);
+    QTextCursor at(d);
+    at.setPosition(joined.position() + joined.length() - 1);
+    at.insertFragment(hidden);
+    c.setPosition(cut);
+    c.endEditBlock();
+}
+
 void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
 {
     if (c.hasSelection()) {
@@ -414,6 +536,7 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
     }
     QTextDocument *d = c.document();
     if (isLocked(c.block())) return;
+    settleBesideDeletions(c);
     if (byWord && !c.atBlockStart()) {
         c.movePosition(QTextCursor::PreviousWord, QTextCursor::KeepAnchor);
         removeSelection(doc, c);
@@ -440,7 +563,12 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
         return;
     }
     QTextBlock prev = b.previous();
+    while (prev.isValid() && isHiddenDeleted(prev)) prev = prev.previous();
     if (!prev.isValid() || isLocked(prev) || !canJoinBlocks(prev, b)) return;
+    if (prev.next() != b) {
+        joinAcrossDeleted(doc, c, prev, b);
+        return;
+    }
     QTextCursor t(d);
     t.setPosition(b.position());
     t.movePosition(QTextCursor::PreviousCharacter, QTextCursor::KeepAnchor);
@@ -459,6 +587,7 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
     }
     QTextDocument *d = c.document();
     if (isLocked(c.block())) return;
+    settleBesideDeletions(c);
     if (byWord && !c.atBlockEnd()) {
         c.movePosition(QTextCursor::NextWord, QTextCursor::KeepAnchor);
         removeSelection(doc, c);
@@ -476,7 +605,12 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
         return;
     }
     QTextBlock next = c.block().next();
+    while (next.isValid() && isHiddenDeleted(next)) next = next.next();
     if (!next.isValid() || isLocked(next) || !canJoinBlocks(c.block(), next)) return;
+    if (c.block().next() != next) {
+        joinAcrossDeleted(doc, c, c.block(), next);
+        return;
+    }
     c.movePosition(QTextCursor::EndOfBlock);
     c.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor);
     removeSelection(doc, c);
@@ -514,6 +648,7 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
 {
     c.beginEditBlock();
     if (c.hasSelection()) removeSelection(doc, c);
+    settleBesideDeletions(c);
     if (isLocked(c.block())) {
         c.movePosition(QTextCursor::EndOfBlock);
         const QString style = doc.defaultParagraphStyle();
@@ -1046,6 +1181,11 @@ void clearFormatting(WriteDoc &doc, QTextCursor &c)
         // (And the language the run states, which the file keeps: spelling follows what the file says.)
         for (int key : {int(prop::Atom), int(tp::Field), int(prop::RawRPr), int(tp::Language)})
             if (f.hasProperty(key)) nf.setProperty(key, f.property(key));
+        // (And text a tracked change deleted stays deleted, hidden from the lines: the format says whether the style hides it itself.)
+        if (f.hasProperty(prop::TrackedDeleted)) {
+            nf.setProperty(prop::TrackedDeleted, nf.boolProperty(tp::HiddenText) ? prop::HiddenAlready : prop::HiddenByDeletion);
+            nf.setProperty(tp::HiddenText, true);
+        }
         f = nf;
     });
     c.endEditBlock();
