@@ -19,7 +19,8 @@ namespace jp {
 class PaneSection : public QWidget {
     Q_OBJECT
 public:
-    explicit PaneSection(const QString &title, QWidget *parent = nullptr);
+    // `id` names the section for code (its object name is "section:" and the id), whatever language the title is in.
+    explicit PaneSection(const QString &title, const QString &id = QString(), QWidget *parent = nullptr);
     QString title() const { return m_title; }
     bool isExpanded() const { return m_expanded; }
     void setExpanded(bool on);
@@ -45,9 +46,10 @@ class PanePage : public QWidget {
     Q_OBJECT
 public:
     explicit PanePage(QWidget *parent = nullptr);
-    PaneSection *addSection(const QString &title, bool expanded = true);
+    PaneSection *addSection(const QString &title, bool expanded = true, const QString &id = QString());
     QList<PaneSection *> sections() const { return m_sections; }
     PaneSection *section(const QString &title) const;
+    PaneSection *sectionById(const QString &id) const;
 
 private:
     QVBoxLayout *m_layout;

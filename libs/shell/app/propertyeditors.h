@@ -12,6 +12,7 @@
 
 #include <QDoubleSpinBox>
 #include <QFrame>
+#include <QPixmap>
 #include <QPlainTextEdit>
 #include <QSlider>
 #include <QWidget>
@@ -36,6 +37,30 @@ class SizeCombo;
 // Lets the wheel scroll the pane instead of changing a box or a slider the pointer happens to be over: the wheel counts only on the
 // control that has the keyboard.
 void ignoreWheelUnlessFocused(QWidget *w);
+
+// Tells when a box or a slider is held: the pointer is down on it (a click on the groove, which may become a drag, is one hold), or a key that
+// steps it is down. A change made while it is held is one of many that end together, when the button or the key is let go of or the keyboard
+// moves away (Tab, a click elsewhere, another window): released(), which comes once and never later than the focus leaving. A key that does not
+// step it (Tab) is no hold, so it can never be left held by a release that goes to another widget.
+class HoldGate : public QObject {
+    Q_OBJECT
+public:
+    enum Keys { SpinKeys, SliderKeys };
+    HoldGate(QWidget *target, Keys keys);
+    bool held() const { return m_pressed || m_keyStep; }
+
+Q_SIGNALS:
+    void released();
+
+protected:
+    bool eventFilter(QObject *o, QEvent *e) override;
+
+private:
+    void end();
+    QWidget *m_target;
+    Keys m_keys;
+    bool m_pressed = false, m_keyStep = false;
+};
 
 // A number in a box, with a slider if asked, for a size, a percent, or an angle.
 class NumberField : public QWidget {
@@ -66,20 +91,19 @@ Q_SIGNALS:
     void finished();
 
 protected:
-    bool eventFilter(QObject *o, QEvent *e) override;
     void showEvent(QShowEvent *e) override;
 
 private:
     class Spin;
     void spinChanged(double v);
     void blankIfMixed();
+    void endHold();
     Spin *m_spin;
     QSlider *m_slider = nullptr;
+    HoldGate *m_spinGate, *m_sliderGate = nullptr;
     int m_sliderScale = 1;
     bool m_mixed = false;
     bool m_loading = false;
-    bool m_pressed = false;   // the pointer is down on the arrows
-    bool m_keyStep = false;   // an arrow key is held
     bool m_typing = false;
     bool m_changedSinceTyping = false;
     bool m_unfinished = false;   // edits were said, and finished() has not been
@@ -158,6 +182,8 @@ public:
     // A new stop at `pos`, in the color the bar has there.
     void addStopAt(double pos);
     void removeCurrent();
+    // A marker is being dragged, or a key that moves it is down.
+    bool isBusy() const { return m_dragging || m_keyHeld; }
 
 Q_SIGNALS:
     void stopsEdited(const QVector<GradientStop> &stops);
@@ -172,6 +198,7 @@ protected:
     void mouseDoubleClickEvent(QMouseEvent *e) override;
     void keyPressEvent(QKeyEvent *e) override;
     void keyReleaseEvent(QKeyEvent *e) override;
+    void focusOutEvent(QFocusEvent *e) override;
 
 private:
     double posAt(double x) const;
@@ -203,6 +230,9 @@ Q_SIGNALS:
     void finished();
 
 private:
+    // What the fills' stops are to one another: the same (every edit of the stops is the list), the same in number only (an edit changes one
+    // property of the stop chosen in each, and the bar can't add or take away), or different in number (the stops are not edited here).
+    enum class Stops { Identical, SameCount, Different };
     void showStop();
     void showAngle(bool linear);
     void stopsEdited(const QVector<GradientStop> &stops);
@@ -213,6 +243,8 @@ private:
     ColorButton *m_color;
     QToolButton *m_add, *m_remove;
     QVector<GradientStop> m_shown;
+    QVector<Fill> m_fills;
+    Stops m_stops = Stops::Identical;
     ColorScheme m_scheme;
     bool m_loading = false;
 };
@@ -248,6 +280,8 @@ private:
     QCheckBox *m_tile;
     QLabel *m_thumb;
     QVector<QToolButton *> m_patterns;
+    QPixmap m_thumbnail;     // the picture of the first fill, scaled, and the decoded picture it was made from
+    qint64 m_thumbnailOf = 0;
     QVector<Fill> m_fills;
     ColorScheme m_scheme;
     ImageLookup m_images;

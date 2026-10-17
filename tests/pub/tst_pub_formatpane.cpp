@@ -2,6 +2,9 @@
 #include "pubhelpers.h"
 
 #include <QFormLayout>
+#include <QProxyStyle>
+#include <QStyleFactory>
+#include <QVBoxLayout>
 
 namespace {
 
@@ -276,6 +279,193 @@ private Q_SLOTS:
         QVERIFY(QTest::qWaitForWindowExposed(&w));
         QCOMPARE(height->box()->accessibleName(), QStringLiteral("Height"));
         QCOMPARE(width->box()->accessibleName(), QStringLiteral("Width"));
+    }
+
+    // A slider is not held by a key that doesn't step it: Tab leaves the slider (the press goes to it, the release to the next widget) and
+    // nothing stays held. A key that does step it, held while the keyboard moves on, ends there too, and the field takes values again.
+    void tabbingOffASliderLeavesNothingHeld()
+    {
+        QWidget host;
+        auto *layout = new QVBoxLayout(&host);
+        auto *f = new NumberField(&host);
+        f->setRange(0, 100);
+        f->setDecimals(0);
+        f->setSlider(true);
+        layout->addWidget(f);
+        layout->addWidget(new QLineEdit(&host));
+        host.show();
+        QVERIFY(QTest::qWaitForWindowActive(&host));
+        QSignalSpy edited(f, &NumberField::edited), done(f, &NumberField::finished);
+        f->slider()->setFocus(Qt::TabFocusReason);
+        QTRY_VERIFY(f->slider()->hasFocus());
+        // Tab: pressed on the slider, released elsewhere (as when the keyboard has moved).
+        QTest::keyPress(f->slider(), Qt::Key_Tab);
+        QTRY_VERIFY(!f->slider()->hasFocus());
+        QTest::keyRelease(f->box(), Qt::Key_Tab);
+        QVERIFY(!f->isBusy());
+        f->setValue(70);
+        QCOMPARE(f->value(), 70.0);   // not ignored
+        QCOMPARE(f->slider()->value(), 70);
+        // A click on the groove is one change, finished at once.
+        const int editedBefore = edited.count(), doneBefore = done.count();
+        f->slider()->setValue(33);
+        QCOMPARE(edited.count(), editedBefore + 1);
+        QCOMPARE(done.count(), doneBefore + 1);
+        // An arrow held on the slider while the keyboard goes on to another widget: the hold ends with the focus, not with a release.
+        f->slider()->setFocus(Qt::TabFocusReason);
+        QTRY_VERIFY(f->slider()->hasFocus());
+        const int before = done.count();
+        QTest::keyPress(f->slider(), Qt::Key_Right);
+        QCOMPARE(done.count(), before);   // held: edits, no finish
+        QVERIFY(f->isBusy());
+        QTest::keyPress(f->slider(), Qt::Key_Tab);
+        QTRY_VERIFY(!f->slider()->hasFocus());
+        QCOMPARE(done.count(), before + 1);
+        QVERIFY(!f->isBusy());
+        // The same for the box: an arrow held, then the keyboard moves on.
+        f->box()->setFocus(Qt::TabFocusReason);
+        QTRY_VERIFY(f->box()->hasFocus());
+        const int boxBefore = done.count();
+        QTest::keyPress(f->box(), Qt::Key_Up);
+        QVERIFY(f->isBusy());
+        host.findChild<QLineEdit *>()->setFocus(Qt::TabFocusReason);
+        QTRY_VERIFY(!f->box()->hasFocus());
+        QCOMPARE(done.count(), boxBefore + 1);
+        QVERIFY(!f->isBusy());
+    }
+
+    // A click on a slider's groove that goes on into a drag is one hold: one finish, whichever the style. Some styles step by a page at the click,
+    // and some (macOS's, and Qt's with the click taking the handle) jump the handle to the click and carry on as a drag, where the value changes
+    // before the slider is said to be down.
+    void grooveClickThenDragIsOneChangeInEveryStyle()
+    {
+        struct JumpStyle : QProxyStyle {   // the click takes the handle to it
+            explicit JumpStyle(QStyle *base) : QProxyStyle(base) {}
+            int styleHint(StyleHint hint, const QStyleOption *option, const QWidget *widget, QStyleHintReturn *returnData) const override
+            {
+                return hint == SH_Slider_AbsoluteSetButtons ? int(Qt::LeftButton) : QProxyStyle::styleHint(hint, option, widget, returnData);
+            }
+        };
+        for (const QString &name : {QStringLiteral("Fusion"), QStringLiteral("Windows"), QStringLiteral("Jump")}) {
+            QStyle *style = name == QLatin1String("Jump") ? static_cast<QStyle *>(new JumpStyle(QStyleFactory::create(QStringLiteral("Fusion")))) : QStyleFactory::create(name);
+            if (!style) continue;
+            QWidget host;
+            auto *layout = new QVBoxLayout(&host);
+            auto *f = new NumberField(&host);
+            f->setRange(0, 100);
+            f->setDecimals(0);
+            f->setSlider(true);
+            f->setValue(10);
+            layout->addWidget(f);
+            f->slider()->setStyle(style);
+            style->setParent(f->slider());
+            host.resize(400, 60);
+            host.show();
+            QVERIFY(QTest::qWaitForWindowExposed(&host));
+            QSignalSpy edited(f, &NumberField::edited), done(f, &NumberField::finished);
+            QSlider *slider = f->slider();
+            const int y = slider->height() / 2;
+            const int x = slider->width() * 3 / 4;   // on the groove, well away from the handle
+            QTest::mousePress(slider, Qt::LeftButton, {}, QPoint(x, y));
+            QTest::mouseMove(slider, QPoint(x + 10, y));
+            QTest::mouseMove(slider, QPoint(x + 25, y));
+            QTest::mouseRelease(slider, Qt::LeftButton, {}, QPoint(x + 25, y));
+            QVERIFY2(edited.count() >= 1, qPrintable(name));
+            QVERIFY2(done.count() == 1, qPrintable(name + QStringLiteral(": ") + QString::number(done.count()) + QStringLiteral(" finishes")));
+            QVERIFY(!f->isBusy());
+        }
+    }
+
+    // A step still being made never makes Undo wait: undo ends it, and it is what is undone. And the keyboard going out of the pane ends it.
+    void undoAndLeavingThePaneEndAStepInProgress()
+    {
+        Editor ed;
+        ed.setDocument(Document::blank(QSizeF(612, 792)));
+        auto a = std::make_shared<ShapeItem>();
+        a->rect = QRectF(72, 72, 200, 100);
+        ed.addItem(a, true);
+        QWidget host;
+        auto *layout = new QVBoxLayout(&host);
+        auto *pane = new FormatPane(&ed, &host);
+        auto *outside = new QLineEdit(&host);
+        layout->addWidget(pane);
+        layout->addWidget(outside);
+        host.resize(400, 700);
+        host.show();
+        QVERIFY(QTest::qWaitForWindowActive(&host));
+        const int steps = ed.undoStack()->index();
+        pane->session()->apply(QStringLiteral("Rotation"), [](Item &it) { it.rotation = 25; }, FormatSession::Scope::Selected, false);
+        QVERIFY(pane->session()->isOpen());
+        ed.undo();
+        QVERIFY(!pane->session()->isOpen());
+        QCOMPARE(ed.doc()->item(a->id)->rotation, 0.0);
+        QCOMPARE(ed.undoStack()->index(), steps);
+        ed.redo();
+        QCOMPARE(ed.doc()->item(a->id)->rotation, 25.0);
+        // The keyboard leaves the pane.
+        pane->frame()->closeButton()->setFocus(Qt::TabFocusReason);
+        QTRY_VERIFY(pane->frame()->closeButton()->hasFocus());
+        pane->session()->apply(QStringLiteral("Rotation"), [](Item &it) { it.rotation = 40; }, FormatSession::Scope::Selected, false);
+        QVERIFY(pane->session()->isOpen());
+        outside->setFocus(Qt::TabFocusReason);
+        QTRY_VERIFY(!pane->session()->isOpen());
+        QCOMPARE(ed.undoStack()->index(), steps + 2);
+    }
+
+    // The thumbnail of a picture fill is made once for the picture, not at every refresh.
+    void fillThumbnailIsMadeOncePerPicture()
+    {
+        QImage image(600, 400, QImage::Format_RGB32);
+        image.fill(Qt::darkGreen);
+        QImage other(300, 300, QImage::Format_RGB32);
+        other.fill(Qt::darkRed);
+        FillEditor e;
+        e.resize(300, 600);
+        e.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&e));
+        QImage current = image;
+        e.setImageProvider([&](const QString &) { return current; });
+        Fill f;
+        f.type = Fill::Picture;
+        f.imageId = QStringLiteral("one");
+        auto *thumb = e.findChild<QLabel *>(QStringLiteral("pictureThumb"));
+        QVERIFY(thumb);
+        e.setFills({f});
+        const QPixmap first = thumb->pixmap(Qt::ReturnByValue);
+        QVERIFY(!first.isNull());
+        e.setFills({f});
+        e.setFills({f});
+        QCOMPARE(thumb->pixmap(Qt::ReturnByValue).cacheKey(), first.cacheKey());   // the same one, not made again
+        // Another picture has its own.
+        current = other;
+        f.imageId = QStringLiteral("two");
+        e.setFills({f});
+        QVERIFY(thumb->pixmap(Qt::ReturnByValue).cacheKey() != first.cacheKey());
+    }
+
+    // Documents saved before the format pane read as they always did: a picture and Text Art keep their proportions with no word of it in the
+    // file, a shape doesn't, none has an alt title or a decoration mark, and written again they say nothing of them.
+    void oldDocumentsReadAsTheyAlwaysDid()
+    {
+        auto read = [](const char *json) { return Item::fromJsonAny(QJsonDocument::fromJson(json).object()); };
+        ItemPtr picture = read(R"({"type":"picture","id":"p1","rect":[10,20,100,50],"imgRect":[0,0,100,50],"alt":"A barn"})");
+        ItemPtr art = read(R"({"type":"textart","id":"t1","rect":[0,0,100,50],"text":"Hi"})");
+        ItemPtr shape = read(R"({"type":"shape","id":"s1","rect":[0,0,100,50],"shape":"rect","story":"st1"})");
+        ItemPtr text = read(R"({"type":"text","id":"x1","rect":[0,0,100,50],"story":"st2","columns":2})");
+        QVERIFY(picture && art && shape && text);
+        QVERIFY(picture->lockAspect && art->lockAspect);
+        QVERIFY(!shape->lockAspect && !text->lockAspect);
+        for (const ItemPtr &it : {picture, art, shape, text}) {
+            QVERIFY(it->altTitle.isEmpty() && !it->decorative);
+            const QJsonObject out = it->toJson();
+            for (const char *key : {"lockAspect", "altTitle", "decorative"}) QVERIFY2(!out.contains(QLatin1String(key)), key);
+        }
+        QCOMPARE(picture->altText, QStringLiteral("A barn"));
+        QCOMPARE(static_cast<TextItem *>(text.get())->columns, 2);
+        QCOMPARE(static_cast<ShapeItem *>(shape.get())->columns, 1);
+        // A picture that doesn't keep them says so, and says it back.
+        picture->lockAspect = false;
+        QVERIFY(!Item::fromJsonAny(picture->toJson())->lockAspect);
     }
 
     // A measure is in points and shows in the unit of Options; a value typed with a unit is read.

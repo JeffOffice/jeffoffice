@@ -152,6 +152,56 @@ void ignoreWheelUnlessFocused(QWidget *w)
     w->setFocusPolicy(Qt::StrongFocus);
 }
 
+// ---------------- HoldGate ----------------
+
+HoldGate::HoldGate(QWidget *target, Keys keys) : QObject(target), m_target(target), m_keys(keys)
+{
+    target->installEventFilter(this);
+    for (QWidget *child : target->findChildren<QWidget *>()) child->installEventFilter(this);   // (a spin box's text: the keyboard is there)
+}
+
+void HoldGate::end()
+{
+    const bool was = held();
+    m_pressed = m_keyStep = false;
+    if (was) Q_EMIT released();
+}
+
+bool HoldGate::eventFilter(QObject *o, QEvent *e)
+{
+    switch (e->type()) {
+    case QEvent::MouseButtonPress:
+        if (o == m_target && static_cast<QMouseEvent *>(e)->button() == Qt::LeftButton) m_pressed = true;
+        break;
+    case QEvent::MouseButtonRelease:
+        if (o == m_target && m_pressed) {
+            m_pressed = false;
+            Q_EMIT released();
+        }
+        break;
+    case QEvent::KeyPress:
+    case QEvent::KeyRelease: {
+        const auto *k = static_cast<QKeyEvent *>(e);
+        bool steps = k->key() == Qt::Key_Up || k->key() == Qt::Key_Down || k->key() == Qt::Key_PageUp || k->key() == Qt::Key_PageDown;
+        if (m_keys == SliderKeys) steps = steps || k->key() == Qt::Key_Left || k->key() == Qt::Key_Right || k->key() == Qt::Key_Home || k->key() == Qt::Key_End;
+        if (!steps || k->isAutoRepeat()) break;
+        if (e->type() == QEvent::KeyPress) {
+            m_keyStep = true;
+        } else if (m_keyStep) {
+            m_keyStep = false;
+            Q_EMIT released();
+        }
+        break;
+    }
+    case QEvent::FocusOut:
+        // The keyboard going elsewhere (Tab, a click, another window) ends a hold, whatever is let go of after.
+        end();
+        break;
+    default: break;
+    }
+    return false;
+}
+
 // ---------------- NumberField ----------------
 
 class NumberField::Spin : public QDoubleSpinBox {
@@ -198,7 +248,8 @@ NumberField::NumberField(QWidget *parent) : QWidget(parent)
     m_spin->setMaximumWidth(110);
     h->addWidget(m_spin);
     h->setAlignment(m_spin, Qt::AlignLeft);
-    m_spin->installEventFilter(this);
+    m_spinGate = new HoldGate(m_spin, HoldGate::SpinKeys);
+    connect(m_spinGate, &HoldGate::released, this, [this] { endHold(); });
     ignoreWheelUnlessFocused(m_spin);
     connect(m_spin, &QDoubleSpinBox::valueChanged, this, [this](double v) { spinChanged(v); });
     if (QLineEdit *le = m_spin->edit()) {
@@ -265,6 +316,8 @@ void NumberField::setSlider(bool on)
     auto *h = static_cast<QHBoxLayout *>(layout());
     h->insertWidget(0, m_slider, 1);
     h->setAlignment(m_spin, Qt::Alignment());
+    m_sliderGate = new HoldGate(m_slider, HoldGate::SliderKeys);
+    connect(m_sliderGate, &HoldGate::released, this, [this] { endHold(); });
     connect(m_slider, &QSlider::valueChanged, this, [this](int i) {
         if (m_loading) return;
         const double v = double(i) / m_sliderScale;
@@ -276,18 +329,17 @@ void NumberField::setSlider(bool on)
         m_mixed = false;
         m_unfinished = true;
         Q_EMIT edited(v);
-        if (!m_slider->isSliderDown() && !m_keyStep) {
-            m_unfinished = false;
-            Q_EMIT finished();
-        }
+        // (A click on the groove that goes on into a drag is all one hold, in every style.)
+        if (!m_slider->isSliderDown() && !m_sliderGate->held()) endHold();
     });
-    connect(m_slider, &QSlider::sliderReleased, this, [this] {
-        if (m_unfinished) {
-            m_unfinished = false;
-            Q_EMIT finished();
-        }
-    });
-    m_slider->installEventFilter(this);
+    connect(m_slider, &QSlider::sliderReleased, this, [this] { endHold(); });
+}
+
+void NumberField::endHold()
+{
+    if (!m_unfinished) return;
+    m_unfinished = false;
+    Q_EMIT finished();
 }
 
 void NumberField::setAccessibleLabel(const QString &name)
@@ -300,7 +352,7 @@ double NumberField::value() const { return m_spin->value(); }
 
 QDoubleSpinBox *NumberField::box() const { return m_spin; }
 
-bool NumberField::isBusy() const { return m_pressed || m_keyStep || m_typing || (m_slider && m_slider->isSliderDown()); }
+bool NumberField::isBusy() const { return m_spinGate->held() || (m_sliderGate && m_sliderGate->held()) || m_typing || (m_slider && m_slider->isSliderDown()); }
 
 void NumberField::setValue(double v)
 {
@@ -355,10 +407,7 @@ void NumberField::spinChanged(double v)
     m_unfinished = true;
     Q_EMIT edited(v);
     // A value typed, or a wheel turned, is finished at once; the arrows held down are many changes, finished when they are let go of.
-    if (!m_pressed && !m_keyStep) {
-        m_unfinished = false;
-        Q_EMIT finished();
-    }
+    if (!m_spinGate->held()) endHold();
 }
 
 // The label beside the field (the one that has it as its buddy) names its box for screen readers, which read the box and not the field.
@@ -374,56 +423,6 @@ void NumberField::showEvent(QShowEvent *e)
             setAccessibleLabel(name);
             break;
         }
-}
-
-bool NumberField::eventFilter(QObject *o, QEvent *e)
-{
-    if (o == m_spin) {
-        switch (e->type()) {
-        case QEvent::MouseButtonPress:
-            if (static_cast<QMouseEvent *>(e)->button() == Qt::LeftButton) m_pressed = true;
-            break;
-        case QEvent::MouseButtonRelease:
-            if (m_pressed) {
-                m_pressed = false;
-                if (m_unfinished) {
-                    m_unfinished = false;
-                    Q_EMIT finished();
-                }
-            }
-            break;
-        case QEvent::KeyPress:
-        case QEvent::KeyRelease: {
-            auto *k = static_cast<QKeyEvent *>(e);
-            const bool stepKey = k->key() == Qt::Key_Up || k->key() == Qt::Key_Down || k->key() == Qt::Key_PageUp || k->key() == Qt::Key_PageDown;
-            if (!stepKey || k->isAutoRepeat()) break;
-            if (e->type() == QEvent::KeyPress) {
-                m_keyStep = true;
-            } else if (m_keyStep) {
-                m_keyStep = false;
-                if (m_unfinished) {
-                    m_unfinished = false;
-                    Q_EMIT finished();
-                }
-            }
-            break;
-        }
-        default: break;
-        }
-    } else if (o == m_slider && (e->type() == QEvent::KeyPress || e->type() == QEvent::KeyRelease)) {
-        auto *k = static_cast<QKeyEvent *>(e);
-        if (k->isAutoRepeat()) return false;
-        if (e->type() == QEvent::KeyPress) {
-            m_keyStep = true;
-        } else if (m_keyStep) {
-            m_keyStep = false;
-            if (m_unfinished) {
-                m_unfinished = false;
-                Q_EMIT finished();
-            }
-        }
-    }
-    return QWidget::eventFilter(o, e);
 }
 
 // ---------------- FontField ----------------
@@ -732,6 +731,16 @@ void GradientBar::keyPressEvent(QKeyEvent *e)
     QWidget::keyPressEvent(e);
 }
 
+// The keyboard leaving ends what a marker was being moved by (a release that goes to another widget would never end it).
+void GradientBar::focusOutEvent(QFocusEvent *e)
+{
+    QWidget::focusOutEvent(e);
+    const bool was = m_dragging || m_keyHeld;
+    const bool moved = m_moved || m_keyHeld;
+    m_dragging = m_keyHeld = m_moved = false;
+    if (was && moved) Q_EMIT finished();
+}
+
 void GradientBar::keyReleaseEvent(QKeyEvent *e)
 {
     if ((e->key() == Qt::Key_Left || e->key() == Qt::Key_Right) && !e->isAutoRepeat() && m_keyHeld) {
@@ -794,12 +803,14 @@ GradientEditor::GradientEditor(QWidget *parent) : QWidget(parent)
     connect(m_bar, &GradientBar::finished, this, &GradientEditor::finished);
     connect(m_add, &QToolButton::clicked, this, [this] {
         const int i = m_bar->current(), n = int(m_shown.size());
-        if (n == 0) return;
+        if (n == 0 || m_stops != Stops::Identical) return;
         const int next = i + 1 < n ? i + 1 : i - 1;
         const double pos = next >= 0 && next != i ? (m_shown[i].pos + m_shown[next].pos) / 2 : m_shown[i].pos;
         m_bar->addStopAt(pos);
     });
-    connect(m_remove, &QToolButton::clicked, this, [this] { m_bar->removeCurrent(); });
+    connect(m_remove, &QToolButton::clicked, this, [this] {
+        if (m_stops == Stops::Identical) m_bar->removeCurrent();
+    });
     connect(m_color, &ColorButton::colorPicked, this, [this](const ColorRef &c) {
         editStop([c](GradientStop &st) { st.color = c; }, true);
     });
@@ -818,19 +829,57 @@ void GradientEditor::setScheme(const ColorScheme &s)
     m_color->setScheme(s);
 }
 
+namespace {
+
+bool sameStops(const QVector<GradientStop> &a, const QVector<GradientStop> &b)
+{
+    if (a.size() != b.size()) return false;
+    for (int i = 0; i < a.size(); ++i)
+        if (std::abs(a[i].pos - b[i].pos) > 1e-9 || a[i].color != b[i].color || std::abs(a[i].transparency - b[i].transparency) > 1e-9) return false;
+    return true;
+}
+
+// Changes one property of the stop at `index` in each fill that has it, and keeps the stops in order: the stop moves no further than its neighbors.
+FillChange stopChange(int index, const std::function<void(GradientStop &)> &change)
+{
+    return [index, change](Fill &f) {
+        QVector<GradientStop> stops = stopsOf(f);
+        if (index < 0 || index >= stops.size()) return;
+        change(stops[index]);
+        stops[index].pos = std::clamp(stops[index].pos, index > 0 ? stops[index - 1].pos : 0.0, index + 1 < stops.size() ? stops[index + 1].pos : 1.0);
+        f.stops = stops;
+        f.color = stops.first().color;
+        f.color2 = stops.last().color;
+    };
+}
+
+} // namespace
+
 void GradientEditor::setGradients(const QVector<Fill> &fills)
 {
     if (fills.isEmpty()) return;
     m_loading = true;
+    m_fills = fills;
     if (allSame(fills, [](const Fill &f) { return int(f.gradType); })) m_kind->setCurrentIndex(int(fills.first().gradType));
     else m_kind->setCurrentIndex(-1);
     const bool linear = m_kind->currentIndex() == int(Fill::Linear) || m_kind->currentIndex() < 0;
     showAngle(linear);
     showNumber(m_angle, fills, [](const Fill &f) { return f.angle; });
-    if (!m_bar->hasFocus() || m_shown.isEmpty()) {
-        m_shown = stopsOf(fills.first());
-        m_bar->setStops(m_shown);
+    // The stops: those of the first, always as they are now (a selection that changed, an undo, or Select All shows the new ones); what the others
+    // have is the mode.
+    const QVector<GradientStop> first = stopsOf(fills.first());
+    m_stops = Stops::Identical;
+    for (const Fill &f : fills) {
+        const QVector<GradientStop> other = stopsOf(f);
+        if (other.size() != first.size()) {
+            m_stops = Stops::Different;
+            break;
+        }
+        if (!sameStops(other, first)) m_stops = Stops::SameCount;
     }
+    m_shown = first;
+    m_bar->setStops(m_shown);
+    m_bar->setEnabled(m_stops != Stops::Different);
     m_loading = false;
     showStop();
 }
@@ -838,23 +887,45 @@ void GradientEditor::setGradients(const QVector<Fill> &fills)
 void GradientEditor::showStop()
 {
     const int i = m_bar->current();
-    const bool has = i >= 0 && i < m_shown.size();
+    const bool has = m_stops != Stops::Different && i >= 0 && i < m_shown.size();
     m_loading = true;
     m_color->setEnabled(has);
     m_position->setEnabled(has);
     m_transparency->setEnabled(has);
-    m_remove->setEnabled(m_shown.size() > 2);
+    m_add->setEnabled(m_stops == Stops::Identical);
+    m_remove->setEnabled(m_stops == Stops::Identical && m_shown.size() > 2);
     if (has) {
         m_color->setScheme(m_scheme);
-        m_color->setCurrent(m_shown[i].color);
-        m_position->setValue(std::round(m_shown[i].pos * 100));
-        m_transparency->setValue(std::round(m_shown[i].transparency * 100));
+        // Each shows the stop's own property, or blank where the fills' stops differ in it.
+        QVector<GradientStop> chosen;
+        for (const Fill &f : std::as_const(m_fills)) {
+            const QVector<GradientStop> stops = stopsOf(f);
+            if (i < stops.size()) chosen << stops[i];
+        }
+        if (allSame(chosen, [](const GradientStop &st) { return st.color; })) m_color->setCurrent(m_shown[i].color);
+        else m_color->setMixed(true);
+        showNumber(m_position, chosen, [](const GradientStop &st) { return std::round(st.pos * 100); });
+        showNumber(m_transparency, chosen, [](const GradientStop &st) { return std::round(st.transparency * 100); });
     }
     m_loading = false;
 }
 
 void GradientEditor::stopsEdited(const QVector<GradientStop> &stops)
 {
+    if (m_stops == Stops::Different) return;
+    if (m_stops == Stops::SameCount) {
+        // Stops can't be added or taken away from fills whose stops differ (the bar goes back); a marker moved moves that stop of each.
+        if (stops.size() != m_shown.size()) {
+            m_bar->setStops(m_shown);
+            return;
+        }
+        const int i = std::clamp(m_bar->current(), 0, int(stops.size()) - 1);
+        const double pos = stops[i].pos;
+        m_shown = stops;
+        showStop();
+        Q_EMIT changed(stopChange(i, [pos](GradientStop &st) { st.pos = pos; }));
+        return;
+    }
     m_shown = stops;
     showStop();
     Q_EMIT changed([stops](Fill &f) {
@@ -869,7 +940,14 @@ void GradientEditor::stopsEdited(const QVector<GradientStop> &stops)
 void GradientEditor::editStop(const std::function<void(GradientStop &)> &change, bool last)
 {
     const int i = m_bar->current();
-    if (i < 0 || i >= m_shown.size()) return;
+    if (m_stops == Stops::Different || i < 0 || i >= m_shown.size()) return;
+    if (m_stops == Stops::SameCount) {
+        change(m_shown[i]);
+        m_bar->setStops(m_shown);
+        Q_EMIT changed(stopChange(i, change));
+        if (last) Q_EMIT finished();
+        return;
+    }
     QVector<GradientStop> stops = m_shown;
     change(stops[i]);
     // A stop moved past another takes its place in the order; the bar follows the one that was chosen.
@@ -1104,12 +1182,19 @@ void FillEditor::showFills()
         m_tileScale->setEnabled(m_tile->isChecked());
         showNumber(m_tileScale, m_fills, [](const Fill &f) { return f.tileScale; }, 100);
         showNumber(m_pictureTransparency, m_fills, [](const Fill &f) { return f.transparency; }, 100);
+        // The thumbnail is made once for each picture (the decoded picture is the same one while it is the same), not at every refresh.
         QPixmap pm;
         if (m_images && !m_fills.first().imageId.isEmpty()) {
             const QImage im = m_images(m_fills.first().imageId);
-            if (!im.isNull()) pm = QPixmap::fromImage(im.scaled(m_thumb->size() - QSize(4, 4), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            if (!im.isNull() && im.cacheKey() == m_thumbnailOf && !m_thumbnail.isNull()) {
+                pm = m_thumbnail;
+            } else if (!im.isNull()) {
+                pm = QPixmap::fromImage(im.scaled(m_thumb->size() - QSize(4, 4), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                m_thumbnail = pm;
+                m_thumbnailOf = im.cacheKey();
+            }
         }
-        m_thumb->setPixmap(pm);
+        if (pm.cacheKey() != m_thumb->pixmap(Qt::ReturnByValue).cacheKey()) m_thumb->setPixmap(pm);
         break;
     }
     case 4: {

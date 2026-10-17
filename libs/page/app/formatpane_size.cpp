@@ -67,7 +67,7 @@ void buildSizePage(FormatPane *pane, PanePage *page)
     Editor *ed = pane->editor();
 
     // ---- size
-    PaneSection *size = page->addSection(FormatPane::tr("Size"));
+    PaneSection *size = page->addSection(FormatPane::tr("Size"), true, QStringLiteral("size"));
     {
         QWidget *w = size->bodyWidget();
         auto *form = new QFormLayout();
@@ -112,18 +112,29 @@ void buildSizePage(FormatPane *pane, PanePage *page)
             if (native.isEmpty() || p.imgRect.isEmpty()) return 100.0;
             return vertical ? p.imgRect.height() / native.height() * 100 : p.imgRect.width() / native.width() * 100;
         };
-        auto scaleTo = [pane, scaleOf](Item &it, double v, bool vertical) {
-            const double now = scaleOf(it, vertical).value_or(100.0);
-            if (now <= 0) return;
-            const double k = v / now;
-            QSizeF sz = it.rect.size();
-            if (vertical) sz.setHeight(sz.height() * k);
-            else sz.setWidth(sz.width() * k);
-            if (formatops::keepsProportions(it)) sz = vertical ? QSizeF(it.rect.width() * k, sz.height()) : QSizeF(sz.width(), it.rect.height() * k);
+        // What a box says is a percent of the size the object had when the edit began (a held arrow is many changes of one edit, each from the
+        // same size); the sizes are forgotten when the edit ends, and the box says 100 again.
+        auto began = std::make_shared<QHash<QString, QSizeF>>();
+        auto scaleTo = [pane, scaleOf, began](Item &it, double v, bool vertical) {
+            QSizeF base = it.rect.size();
+            double k;
+            if (it.type() == ItemType::Picture) {
+                const double now = scaleOf(it, vertical).value_or(100.0);
+                if (now <= 0) return;
+                k = v / now;
+            } else {
+                base = *began->insert(it.id, began->value(it.id, it.rect.size()));
+                k = v / 100;
+            }
+            QSizeF sz = base;
+            if (vertical) sz.setHeight(base.height() * k);
+            else sz.setWidth(base.width() * k);
+            if (formatops::keepsProportions(it)) sz = QSizeF(base.width() * k, base.height() * k);
             formatops::resizeFrame(pane->editor(), it, sz);
         };
         bindNumber(pane, scaleHeight, label, [scaleOf](const Item &it) { return scaleOf(it, true); }, [scaleTo](Item &it, double v) { scaleTo(it, v, true); }, Scope::Selected, false);
         bindNumber(pane, scaleWidth, label, [scaleOf](const Item &it) { return scaleOf(it, false); }, [scaleTo](Item &it, double v) { scaleTo(it, v, false); }, Scope::Selected, false);
+        for (NumberField *f : {scaleHeight, scaleWidth}) QObject::connect(f, &NumberField::finished, pane, [began] { began->clear(); });
         bindCheck(pane, lock, FormatPane::tr("Lock Aspect Ratio"), [](const Item &it) -> std::optional<bool> { return formatops::keepsProportions(it); },
                   [](Item &it, bool v) {
                       if (it.type() == ItemType::Table) static_cast<TableItem &>(it).lockSize = v;
@@ -132,7 +143,7 @@ void buildSizePage(FormatPane *pane, PanePage *page)
     }
 
     // ---- position
-    PaneSection *position = page->addSection(FormatPane::tr("Position"));
+    PaneSection *position = page->addSection(FormatPane::tr("Position"), true, QStringLiteral("position"));
     {
         QWidget *w = position->bodyWidget();
         auto *form = new QFormLayout();
@@ -156,7 +167,7 @@ void buildSizePage(FormatPane *pane, PanePage *page)
     }
 
     // ---- text box
-    PaneSection *text = page->addSection(FormatPane::tr("Text Box"));
+    PaneSection *text = page->addSection(FormatPane::tr("Text Box"), true, QStringLiteral("textBox"));
     {
         QWidget *w = text->bodyWidget();
         auto *form = new QFormLayout();
@@ -306,7 +317,7 @@ void buildSizePage(FormatPane *pane, PanePage *page)
     }
 
     // ---- alt text
-    PaneSection *alt = page->addSection(FormatPane::tr("Alt Text"), false);
+    PaneSection *alt = page->addSection(FormatPane::tr("Alt Text"), false, QStringLiteral("altText"));
     {
         QWidget *w = alt->bodyWidget();
         auto *title = new TextField(w);

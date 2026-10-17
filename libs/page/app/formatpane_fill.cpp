@@ -12,10 +12,10 @@ void buildFillLinePage(FormatPane *pane, PanePage *page)
 {
     FormatSession *s = pane->session();
     Editor *ed = pane->editor();
-    PaneSection *fillSection = page->addSection(FormatPane::tr("Fill"));
+    PaneSection *fillSection = page->addSection(FormatPane::tr("Fill"), true, QStringLiteral("fill"));
     auto *fill = new FillEditor(fillSection->bodyWidget());
     fillSection->body()->addWidget(fill);
-    PaneSection *lineSection = page->addSection(FormatPane::tr("Line"));
+    PaneSection *lineSection = page->addSection(FormatPane::tr("Line"), true, QStringLiteral("line"));
     auto *line = new LineEditor(lineSection->bodyWidget());
     lineSection->body()->addWidget(line);
 
