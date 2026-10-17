@@ -4222,6 +4222,31 @@ private Q_SLOTS:
         QVERIFY(!same(QByteArray(), "<w:vanish/>"));
     }
 
+    // Text holds one kind of capitals and one kind of strike-through: a run in capitals over a style that says small capitals is in capitals, and one in a double strike
+    // over a style's single strike is double. What the run says of the other kind is not "off" for the format has no room for it: it is not given an off that the file never
+    // said. A person who turns the capitals off over a style of small capitals still saves the look they see (no small capitals).
+    void capitalsAndDoubleStrikeOverTheStylesOtherKindAreSavedAsTheFileSaidThem()
+    {
+        const QByteArray styles = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                                  "<w:style w:type=\"paragraph\" w:styleId=\"Small\"><w:name w:val=\"Small\"/><w:basedOn w:val=\"Normal\"/><w:rPr><w:smallCaps/><w:strike/></w:rPr></w:style>";
+        const QByteArray original = makeDocx("<w:p><w:pPr><w:pStyle w:val=\"Small\"/></w:pPr><w:r><w:rPr><w:caps/><w:dstrike/></w:rPr><w:t>Both</w:t></w:r></w:p>", styles);
+        auto doc = open(original);
+        QVERIFY(doc);
+        const QByteArray saved = doc->toDocx();
+        const QByteArray x = documentXml(saved);
+        QVERIFY2(x.contains("<w:caps/>") && x.contains("<w:dstrike/>"), x.constData());
+        QVERIFY2(!x.contains("smallCaps") && !x.contains("<w:strike"), x.constData());
+        const QStringList loss = rt::lossProblems(original, saved);
+        QVERIFY2(loss.isEmpty(), qPrintable(loss.join(QLatin1String("; "))));
+        // (The person turns the capitals off: the text is not in small capitals on the screen, so the file says so.)
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        c.setPosition(4, QTextCursor::KeepAnchor);
+        changeCharFormat(*doc, c, [](QTextCharFormat &f) { f.setFontCapitalization(QFont::MixedCase); });
+        const QByteArray after = documentXml(doc->toDocx());
+        QVERIFY2(after.contains("<w:smallCaps w:val=\"0\"/>") && !after.contains("<w:caps"), after.constData());
+    }
+
     // An empty paragraph that ends a section, when the next section is continuous, takes no room; before a section on a page of its own it does.
     void anEmptyBreakParagraphBeforeAContinuousSectionTakesNoRoom()
     {
