@@ -4,33 +4,10 @@
 
 #include <QCoreApplication>
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 namespace jp::office::doc {
-
-QByteArray xmlEscape(const QString &s)
-{
-    QByteArray out;
-    out.reserve(s.size() + 16);
-    QString plain;
-    auto flush = [&] {
-        if (!plain.isEmpty()) out += plain.toUtf8();
-        plain.clear();
-    };
-    for (qsizetype i = 0; i < s.size(); ++i) {
-        const ushort u = s[i].unicode();
-        if (u == '&') { flush(); out += "&amp;"; }
-        else if (u == '<') { flush(); out += "&lt;"; }
-        else if (u == '>') { flush(); out += "&gt;"; }
-        else if (u < 0x20 && u != 0x09 && u != 0x0A && u != 0x0D) continue;
-        else if (u == 0xFFFE || u == 0xFFFF) continue;
-        else if (QChar::isHighSurrogate(u) && !(i + 1 < s.size() && QChar::isLowSurrogate(s[i + 1].unicode()))) continue;
-        else if (QChar::isLowSurrogate(u) && !(i > 0 && QChar::isHighSurrogate(s[i - 1].unicode()))) continue;
-        else plain += s[i];
-    }
-    flush();
-    return out;
-}
 
 namespace {
 
@@ -154,7 +131,15 @@ private:
 bool StoryWriter::isEnd(qint64 cp) const
 {
     const ushort ch = T[cp].unicode();
-    if (ch == 0x0D || ch == 0x07) return true;
+    if (ch == 0x0D) {
+        // A paragraph mark ends its paragraph where the paragraph's properties end with it; in the middle of a stretch that has one set of them it is a line break.
+        const Piece *pc = c.pieces.at(cp);
+        if (!pc) return true;
+        const qint64 fc = PieceTable::fcOf(*pc, cp);
+        const BinRun *run = c.papBin.find(quint32(fc));
+        return !run || qint64(run->fc1) == fc + (pc->unicode ? 2 : 1);
+    }
+    if (ch == 0x07) return true;
     if (ch == 0x0C && kind == Converter::Kind::Main) {
         // A form feed that is the last character of a section (as the file's table of sections says) ends its paragraph; others are page breaks.
         return std::binary_search(c.sectionEnds.begin(), c.sectionEnds.end(), cp + 1);
@@ -349,6 +334,10 @@ void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, int istd, R
             flushPlain();
             if (!instruction) rb.element("<w:br/>");
             break;
+        case 0x0D:   // (a paragraph mark inside a paragraph)
+            flushPlain();
+            if (!instruction) rb.element("<w:cr/>");
+            break;
         case 0x0C:
             flushPlain();
             if (!instruction) rb.element("<w:br w:type=\"page\"/>");
@@ -472,6 +461,12 @@ void StoryWriter::finishRow(const Pap &pap)
         return;
     }
     c.tableCells += int(r.cells.size());
+    // A row that says other things of its table than the rows before it is a table of its own, set after them (as the original program wrote them).
+    if (!t.rows.isEmpty() && !t.rows.last().tap.sameTable(r.tap)) {
+        QByteArray &parent = tables.size() >= 2 ? tables[tables.size() - 2].cell : out;
+        parent += tableXml(t);
+        t.rows.clear();
+    }
     t.rows.push_back(r);
 }
 
@@ -590,6 +585,17 @@ QByteArray StoryWriter::tableXml(TableOut &t)
         const Tap &tap = r.tap;
         const int n = int(tap.cells.size());
         QByteArray row = "<w:tr>";
+        // The space inside this row's cells where it isn't the table's (as the rows of a table that differ in it).
+        auto marginOf = [](const Tap &t, int top, int left, int bottom, int right) {
+            return std::array<int, 4>{t.padTop >= 0 ? t.padTop : top, t.padLeft >= 0 ? t.padLeft : (t.gapHalf >= 0 ? t.gapHalf : left), t.padBottom >= 0 ? t.padBottom : bottom,
+                                      t.padRight >= 0 ? t.padRight : (t.gapHalf >= 0 ? t.gapHalf : right)};
+        };
+        const std::array<int, 4> tableMargin = marginOf(first, 0, 108, 0, 108), rowMargin = marginOf(tap, 0, 108, 0, 108);
+        const bool ownMargin = rowMargin != tableMargin;
+        if (ownMargin)
+            row += "<w:tblPrEx><w:tblCellMar><w:top w:w=\"" + QByteArray::number(rowMargin[0]) + "\" w:type=\"dxa\"/><w:left w:w=\"" + QByteArray::number(rowMargin[1]) +
+                   "\" w:type=\"dxa\"/><w:bottom w:w=\"" + QByteArray::number(rowMargin[2]) + "\" w:type=\"dxa\"/><w:right w:w=\"" + QByteArray::number(rowMargin[3]) +
+                   "\" w:type=\"dxa\"/></w:tblCellMar></w:tblPrEx>";
         // Where the row begins and ends in the grid.
         const int startCol = gridIndex(grid, tap.center.first()), endCol = gridIndex(grid, tap.center.last());
         QByteArray trPr;
@@ -636,7 +642,9 @@ QByteArray StoryWriter::tableXml(TableOut &t)
             if (tc.noWrap) tcPr += "<w:noWrap/>";
             {
                 auto pad = [&](const char *side, int v) { return v >= 0 ? QByteArray("<w:") + side + " w:w=\"" + QByteArray::number(v) + "\" w:type=\"dxa\"/>" : QByteArray(); };
-                const QByteArray mar = pad("top", tc.padTop) + pad("left", tc.padLeft) + pad("bottom", tc.padBottom) + pad("right", tc.padRight);
+                // (A row with margins of its own gives each cell them, as the layout reads them from the cells.)
+                const QByteArray mar = pad("top", tc.padTop >= 0 ? tc.padTop : ownMargin ? rowMargin[0] : -1) + pad("left", tc.padLeft >= 0 ? tc.padLeft : ownMargin ? rowMargin[1] : -1) +
+                                       pad("bottom", tc.padBottom >= 0 ? tc.padBottom : ownMargin ? rowMargin[2] : -1) + pad("right", tc.padRight >= 0 ? tc.padRight : ownMargin ? rowMargin[3] : -1);
                 if (!mar.isEmpty()) tcPr += "<w:tcMar>" + mar + "</w:tcMar>";
             }
             if (tc.textFlow == 1) tcPr += "<w:textDirection w:val=\"tbRl\"/>";

@@ -7,6 +7,31 @@
 
 namespace jp::office::doc {
 
+QByteArray xmlEscape(const QString &s)
+{
+    QByteArray out;
+    out.reserve(s.size() + 16);
+    QString plain;
+    auto flush = [&] {
+        if (!plain.isEmpty()) out += plain.toUtf8();
+        plain.clear();
+    };
+    for (qsizetype i = 0; i < s.size(); ++i) {
+        const ushort u = s[i].unicode();
+        if (u == '&') { flush(); out += "&amp;"; }
+        else if (u == '<') { flush(); out += "&lt;"; }
+        else if (u == '>') { flush(); out += "&gt;"; }
+        else if (u == '"') { flush(); out += "&quot;"; }
+        else if (u < 0x20 && u != 0x09 && u != 0x0A && u != 0x0D) continue;
+        else if (u == 0xFFFE || u == 0xFFFF) continue;
+        else if (QChar::isHighSurrogate(u) && !(i + 1 < s.size() && QChar::isLowSurrogate(s[i + 1].unicode()))) continue;
+        else if (QChar::isLowSurrogate(u) && !(i > 0 && QChar::isHighSurrogate(s[i - 1].unicode()))) continue;
+        else plain += s[i];
+    }
+    flush();
+    return out;
+}
+
 namespace {
 
 void attr(QByteArray &x, const char *name, const QString &value)
@@ -14,7 +39,7 @@ void attr(QByteArray &x, const char *name, const QString &value)
     x += ' ';
     x += name;
     x += "=\"";
-    x += value.toHtmlEscaped().toUtf8();
+    x += xmlEscape(value);
     x += '"';
 }
 void attr(QByteArray &x, const char *name, int value)

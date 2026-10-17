@@ -98,6 +98,8 @@ struct Tap {
     int anchors = 0x60, xAbs = 0, yAbs = 0, fromLeft = 0, fromTop = 0, fromRight = 0, fromBottom = 0;
     bool noOverlap = false;
     void apply(const Span &sprms);
+    // Whether `o` is a row of the same table: what a table says of itself (its width, borders, style, and place) is the same; the space in the cells of a row is the row's own.
+    bool sameTable(const Tap &o) const;
 };
 
 struct Pap {
@@ -148,6 +150,8 @@ struct Sep {
 };
 
 // ---- writing them as XML
+// Text for the XML: the characters it can hold, escaped (a string out of a file goes in text or an attribute only through this).
+QByteArray xmlEscape(const QString &s);
 // The coding of a color index (ico) and the palette of highlights.
 QString colorOfIndex(int ico);
 // The name a .docx gives a number format (the code of the old format: 0 decimal, 1 upper roman, 2 lower roman, 3 upper letter, 4 lower letter...).

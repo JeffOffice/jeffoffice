@@ -414,6 +414,14 @@ void Tap::apply(const Span &g)
     });
 }
 
+bool Tap::sameTable(const Tap &o) const
+{
+    return istd == o.istd && tableWidthType == o.tableWidthType && tableWidth == o.tableWidth && autofit == o.autofit && indent == o.indent && jc == o.jc &&
+           spacing == o.spacing && top == o.top && left == o.left && bottom == o.bottom && right == o.right && insideH == o.insideH &&
+           insideV == o.insideV && floating == o.floating &&
+           (!floating || (anchors == o.anchors && xAbs == o.xAbs && yAbs == o.yAbs)) && bidi == o.bidi;
+}
+
 // ---- sections
 
 void Sep::apply(const Span &g)

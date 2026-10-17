@@ -8,6 +8,7 @@
 
 #include <QElapsedTimer>
 #include <QRandomGenerator>
+#include <QXmlStreamReader>
 #include <QtTest>
 
 #include "../testrunner.h"
@@ -18,6 +19,7 @@ using jp::office::wml::Block;
 using jp::office::wml::Document;
 using jp::office::wml::Inline;
 using jp::office::wml::ReadNotes;
+using jp::office::Package;
 
 namespace {
 
@@ -93,6 +95,50 @@ private Q_SLOTS:
         QVERIFY(read(simple(QStringLiteral("a\tb\x0Bz\x0C""c\x1E""d\r")).build(), &d));
         // (A tab, a line break, and a page break stay in the text; a no-break hyphen is its own character.)
         QCOMPARE(bodyTexts(d), (QStringList{QStringLiteral("a\tb z\fc‑d")}));
+    }
+
+    void aParagraphMarkInsideAParagraphIsALineBreak()
+    {
+        // One stretch of paragraph properties covers both marks: the first is a line break, as the original program reads it.
+        DocWriter w = simple(QStringLiteral("one\rtwo\rthree\r"));
+        w.paras = {{0, 8, 0, QByteArray()}, {8, 14, 0, QByteArray()}};
+        Document d;
+        QVERIFY(read(w.build(), &d));
+        QCOMPARE(bodyTexts(d), (QStringList{QStringLiteral("one\u2028two"), QStringLiteral("three")}));
+    }
+
+    void everyPartOfThePackageIsWellFormedXml()
+    {
+        // Names and texts out of a file may hold anything: control characters, quotes, and angle brackets.
+        DocWriter w = simple(QStringLiteral("a<b & \"c\" \x01\x02 d\r"));
+        w.fonts = {QStringLiteral("Bad \"Font\" <&>\x03"), QStringLiteral("Times New Roman")};
+        StyleSpec normal;
+        normal.name = QStringLiteral("Normal");
+        normal.sti = 0;
+        StyleSpec odd;
+        odd.name = QStringLiteral("odd <style> \"x\" & \x04\x05");
+        w.styles = {normal, odd};
+        ListLevelSpec lvl;
+        lvl.text = QString(QChar(0)) + QStringLiteral("\x0B\x0C<\"&");
+        w.lists = {{lvl}};
+        w.paras = {{0, 20, 1, sprm2(sprm::listInstance, 1)}};
+        w.chars = {{0, 2, sprm2(sprm::fontAscii, 0)}};
+        QString why;
+        const QByteArray zip = doc::toDocxPackage(w.build(), &why);
+        QVERIFY2(!zip.isEmpty(), qPrintable(why));
+        Package pkg;
+        QVERIFY(pkg.read(zip));
+        int parts = 0;
+        for (const QString &name : pkg.partNames()) {
+            if (!(name.endsWith(QLatin1String(".xml")) || name.endsWith(QLatin1String(".rels")))) continue;
+            QXmlStreamReader r(pkg.part(name));
+            while (!r.atEnd()) r.readNext();
+            QVERIFY2(!r.hasError(), qPrintable(name + QLatin1String(": ") + r.errorString()));
+            ++parts;
+        }
+        QVERIFY(parts >= 5);
+        Document d;
+        QVERIFY(read(w.build(), &d));
     }
 
     void compatibilityModeIsThatOfTheOlderPrograms()

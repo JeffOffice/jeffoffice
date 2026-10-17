@@ -35,8 +35,6 @@ QString idOfName(const QString &name, bool builtIn)
     return id;
 }
 
-QString xmlText(const QString &s) { return s.toHtmlEscaped(); }
-
 } // namespace
 
 bool StyleSheet::read(const Span &stsh)
@@ -176,7 +174,7 @@ QByteArray StyleSheet::xml(const FontNames &fonts, int listInstances) const
         x += "\"";
         if (isDefault) x += " w:default=\"1\"";
         if (d.sti == 0xFFE) x += " w:customStyle=\"1\"";
-        x += " w:styleId=\"" + d.id.toUtf8() + "\"><w:name w:val=\"" + xmlText(d.name).toUtf8() + "\"/>";
+        x += " w:styleId=\"" + d.id.toUtf8() + "\"><w:name w:val=\"" + xmlEscape(d.name) + "\"/>";
         // (A style is based on another only where the chain of them is no longer than the limit and comes to an end.)
         bool basedOn = d.base >= 0 && d.base != i && d.base < styles.size() && styles[d.base].valid && styles[d.base].sgc == d.sgc;
         if (basedOn) {

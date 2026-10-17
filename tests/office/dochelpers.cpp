@@ -306,7 +306,31 @@ QByteArray DocWriter::build() const
     };
     QVector<Entry> charEntries, paraEntries;
     for (const CharRun &r : chars) cut(r.from, r.to, r.sprms, 0, &charEntries);
-    for (const ParaRun &r : paras) cut(r.from, r.to, r.sprms, r.istd, &paraEntries);
+    // Every paragraph has a stretch of its own, as in a file a program wrote: the ones the test gives, and the rest (cut after each mark) with no changes.
+    {
+        QVector<ParaRun> given = paras;
+        std::sort(given.begin(), given.end(), [](const ParaRun &a2, const ParaRun &b2) { return a2.from < b2.from; });
+        QVector<ParaRun> every;
+        int at = 0;
+        auto fill = [&](int to) {
+            int start = at;
+            for (int cp = at; cp < to; ++cp) {
+                const QChar ch = all[cp];
+                if (ch == QLatin1Char('\r') || ch == QLatin1Char('\a')) {
+                    every.push_back({start, cp + 1, 0, QByteArray()});
+                    start = cp + 1;
+                }
+            }
+            if (start < to) every.push_back({start, to, 0, QByteArray()});
+        };
+        for (const ParaRun &r : given) {
+            if (r.from > at) fill(r.from);
+            every.push_back(r);
+            at = std::max(at, r.to);
+        }
+        fill(int(all.size()));
+        for (const ParaRun &r : every) cut(r.from, r.to, r.sprms, r.istd, &paraEntries);
+    }
     // (Whole paragraphs, so the pieces' ends are not needed to cut them.)
     while (wd.size() % 512) wd.append('\0');
     const QByteArray chpBte = writeBin(wd, stretches(charEntries), false);

@@ -19,7 +19,9 @@ QByteArray readLevel(const Span &s, qint64 *o, int ilvl, const FontNames &fonts,
     const Span f = s.sub(*o, 28);
     const int cbChpx = f.u8(24), cbPapx = f.u8(25);
     const qint64 papxAt = *o + 28, chpxAt = papxAt + cbPapx, xstAt = chpxAt + cbChpx;
-    const int cch = std::min<int>(s.u16(xstAt), 255);
+    // (The text is as long as the file says, though only its first 255 characters are read: the next level begins after all of it.)
+    const int whole = s.u16(xstAt);
+    const int cch = std::min(whole, 255);
     const Span papx = s.sub(papxAt, cbPapx), chpx = s.sub(chpxAt, cbChpx);
     QString text;
     for (int i = 0; i < cch; ++i) {
@@ -27,7 +29,7 @@ QByteArray readLevel(const Span &s, qint64 *o, int ilvl, const FontNames &fonts,
         if (c < 9) text += QStringLiteral("%") + QString::number(c + 1);
         else text += QChar(c);
     }
-    *o = xstAt + 2 + 2 * qint64(cch);
+    *o = xstAt + 2 + 2 * qint64(whole);
     if (*o > s.size()) *o = s.size();
 
     const int flags = f.u8(5);
@@ -40,7 +42,7 @@ QByteArray readLevel(const Span &s, qint64 *o, int ilvl, const FontNames &fonts,
     if (flags & 0x04) x += "<w:isLgl/>";
     const int follow = f.u8(15);
     x += follow == 1 ? "<w:suff w:val=\"space\"/>" : follow == 2 ? "<w:suff w:val=\"nothing\"/>" : "";
-    x += "<w:lvlText w:val=\"" + text.toHtmlEscaped().toUtf8() + "\"/>";
+    x += "<w:lvlText w:val=\"" + xmlEscape(text) + "\"/>";
     const int jc = flags & 3;
     x += jc == 1 ? "<w:lvlJc w:val=\"center\"/>" : jc == 2 ? "<w:lvlJc w:val=\"right\"/>" : "<w:lvlJc w:val=\"left\"/>";
     Pap p;
