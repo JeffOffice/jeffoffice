@@ -692,13 +692,16 @@ static QPainterPath fittedGlyphOutline(const QFont &font, const QString &text, c
 // A bullet drawn to the box Publisher's glyph fills, whose origin is `at` on
 // the baseline: a circle, or the glyph the font has for it scaled to fit (a
 // missing symbol font's stand-in, whose own size and place don't match).
-static void drawFittedMarker(QPainter *p, const QPointF &at, const QFont &font, const QString &text, const QRectF &ink, bool round, const QColor &color)
+static void drawFittedMarker(QPainter *p, const QPointF &at, const QFont &font, const QString &text, const QRectF &ink, bool round, const QColor &color, bool hollow = false)
 {
     const QRectF box = ink.translated(at);
+    QPen hairline(color, 0.25);   // (an outlined marker's shape is stroked, as outlined text's is, and not filled)
+    hairline.setJoinStyle(Qt::MiterJoin);
     if (round) {
         QPainterPath circle;
         circle.addEllipse(box);
-        p->fillPath(circle, color);
+        if (hollow) p->strokePath(circle, hairline);
+        else p->fillPath(circle, color);
         return;
     }
     const QPainterPath fitted = fittedGlyphOutline(font, text, box.size());
@@ -708,7 +711,8 @@ static void drawFittedMarker(QPainter *p, const QPointF &at, const QFont &font, 
     }
     p->save();
     p->translate(box.topLeft());
-    p->fillPath(fitted, color);
+    if (hollow) p->strokePath(fitted, hairline);
+    else p->fillPath(fitted, color);
     p->restore();
 }
 
@@ -4556,8 +4560,8 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
             if (!B->marker.isEmpty()) {
                 p->setPen(B->markerColor);
                 const QPointF at(B->markerX, l0.position().y() - frameY(frame) + l0.ascent());
-                if (B->markerOutline) drawOutlinedText(p, at, B->markerFont, B->marker, B->markerColor);
-                else if (B->markerFit) drawFittedMarker(p, at, B->markerFont, B->marker, B->markerInk, B->markerRound, B->markerColor);
+                if (B->markerFit) drawFittedMarker(p, at, B->markerFont, B->marker, B->markerInk, B->markerRound, B->markerColor, B->markerOutline);
+                else if (B->markerOutline) drawOutlinedText(p, at, B->markerFont, B->marker, B->markerColor);
                 else drawPlainText(p, at, B->markerFont, B->marker);
             }
             if (!B->dropText.isEmpty()) {
