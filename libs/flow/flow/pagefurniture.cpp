@@ -19,8 +19,8 @@ constexpr double kLeastBody = 36;
 
 } // namespace
 
-// The height a header or footer story takes laid out at `width`: its lines from the top to the bottom of the last.
-double Paginator::storyHeight(const QTextDocument *story, double width, int number)
+// The height a header or footer story takes laid out at `width`: its lines from the top to the bottom of the last, and (a header's) the space after that.
+double Paginator::storyHeight(const QTextDocument *story, double width, int number, bool withSpaceAfter)
 {
     const auto key = std::make_tuple(story, int(std::lround(width * 100)), story->revision());
     const auto found = m_storyHeights.find(key);
@@ -35,7 +35,7 @@ double Paginator::storyHeight(const QTextDocument *story, double width, int numb
     fs.ctx.pageCount = std::max(number, int(m_starts.size()));
     StoryLayout layout;
     layout.build(story, {fs}, m_doc->env);
-    const double height = layout.usedHeight(0);
+    const double height = layout.usedHeight(0) + (withSpaceAfter ? layout.trailingSpace() : 0.0);
     if (m_storyLines.size() > 4096) m_storyLines.clear();
     m_storyLines[key] = layout.lineInfo(0);
     // (A story is measured once, at the first page that uses it: a page number is no wider on the next.)
@@ -56,7 +56,7 @@ Paginator::Furniture Paginator::furnitureOf(int index, const PageStart &st, int 
     const double width = sec.content().width();
     double top = sec.margins.top(), bottom = sec.margins.bottom();
     if (f.header) {
-        f.headerHeight = storyHeight(f.header, width, number);
+        f.headerHeight = storyHeight(f.header, width, number, true);
         top = std::max(top, sec.headerDistance + f.headerHeight);
     }
     if (f.footer) {

@@ -251,7 +251,7 @@ private:
         double headerHeight = 0, footerHeight = 0;
     };
     Furniture furnitureOf(int index, const PageStart &st, int number);
-    double storyHeight(const QTextDocument *story, double width, int number);
+    double storyHeight(const QTextDocument *story, double width, int number, bool withSpaceAfter = false);
     // Puts the page's header and footer (a copy of each story, in a text box) on a page made for painting, and the counts its fields show.
     void addFurniture(Document *d, const Furniture &f, const Section &sec, int section, int number);
     // The places the objects of a page are anchored: the anchor's object, its column's left edge, and where its paragraph and its line are (the page's y), and

@@ -4142,6 +4142,21 @@ private Q_SLOTS:
         QVERIFY2(y.contains("w:before=\"60\""), y.constData());
     }
 
+    // A header's last paragraph's space after is part of the header: the text starts below it.
+    void aHeadersSpaceAfterTakesRoomOnThePage()
+    {
+        auto top = [&](int after) {
+            const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"
+                                    "<w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"720\" w:right=\"1440\" w:bottom=\"720\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+            const QByteArray head = "<w:pPr><w:spacing w:after=\"" + QByteArray::number(after) + "\"/></w:pPr><w:r><w:t>HEAD</w:t></w:r>";
+            auto doc = open(makeDocxWithParts(paragraphs(3), sect, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {head})}}));
+            return doc ? doc->pager().page(0).content.top() : -1.0;
+        };
+        const double plain = top(0), spaced = top(400);   // (twenty points)
+        QVERIFY(plain > 0 && spaced > 0);
+        QVERIFY2(std::abs(spaced - plain - 20) < 0.01, qPrintable(QStringLiteral("body top %1 against %2").arg(spaced).arg(plain)));
+    }
+
     // What a paste from another document brings that points into the first's notes and objects points at nothing of the second's: a reference to a note is
     // left out (its text isn't there), and an object's place on the page isn't carried (the object isn't there); the rest of what was copied is.
     void aPasteFromAnotherDocumentLeavesNoDanglingNoteOrObject()
