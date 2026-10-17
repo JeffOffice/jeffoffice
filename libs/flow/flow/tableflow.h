@@ -356,6 +356,7 @@ private:
     // Where the story's footnote references are (in order), once the tables are found: to know whether an edit took one out, which changes the numbers of the notes after it.
     std::vector<int> m_refs;
     bool m_refsValid = false;
+    int m_blockCount = 0;   // how many paragraphs the story had when the tables were found, and after each edit since
     void findRefs();
     std::shared_ptr<TableContext::Live> m_live;
     QHash<int, std::shared_ptr<TableLayout>> m_layouts;

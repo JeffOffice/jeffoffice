@@ -331,7 +331,9 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
                     if (toOver >= 0) {
                         QVector<FrameSpec> f3;
                         f3 << f2.last();
-                        p2 = layPart(f3, s2, st2);
+                        StoryLayout::Span s3 = s2;
+                        s3.stopAtFrame = 0;
+                        p2 = layPart(f3, s3, st2);
                         for (auto &ln : p2.lines)
                             if (ln.frame >= 0) ln.frame += toOver;
                         for (auto &n : p2.notes)
