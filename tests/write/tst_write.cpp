@@ -5571,6 +5571,11 @@ private Q_SLOTS:
         QVERIFY2(!changed.contains(table) && changed.contains("xone"), changed.constData());
         QCOMPARE(int(changed.count("<w:bookmarkStart")), 1);
         QCOMPARE(int(changed.count("<w:bookmarkEnd")), 1);
+        // A table written from the story is one a reader needn't repair: its rows reach the end of the grid (the file's row stops short of the last column, which the
+        // row then says it leaves empty), whatever the rows said before.
+        const QStringList shape = rt::strictProblems(doc->toDocx(), original);
+        QVERIFY2(shape.isEmpty(), qPrintable(shape.join(QLatin1String("; "))));
+        QVERIFY2(changed.contains("<w:trPr><w:gridAfter w:val=\"1\"/></w:trPr>"), changed.constData());
     }
 
     // Enter inside a hyperlink, a content control, a tracked change, or a tag keeps the wrapper on both halves, with its attributes (and so its

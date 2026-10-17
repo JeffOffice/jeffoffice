@@ -121,6 +121,32 @@ QByteArray withKnownPrefixes(QByteArray rootTag, const Document &doc)
 
 constexpr quint64 coord(int block, int inl) { return (quint64(block) << 32) | quint32(inl + 1); }
 
+// The value (w:val) of the first element of `name` in a start of a table's row or cell kept as written, or `none`.
+int rawVal(const QByteArray &raw, const char *name, int none = 0)
+{
+    const qsizetype at = raw.indexOf(QByteArray("<w:") + name);
+    if (at < 0) return none;
+    const qsizetype end = raw.indexOf('>', at), val = raw.indexOf("w:val=\"", at);
+    if (end < 0 || val < 0 || val > end) return none;
+    const qsizetype from = val + 7, to = raw.indexOf('"', from);
+    bool ok = false;
+    const int v = to > from ? raw.mid(from, to - from).toInt(&ok) : 0;
+    return ok ? std::clamp(v, 0, 1000) : none;
+}
+
+// The start of a row (and its properties) with the number of grid columns it leaves empty at the end said to be `total`.
+QByteArray withGridAfter(const QByteArray &raw, int total)
+{
+    const QByteArray element = "<w:gridAfter w:val=\"" + QByteArray::number(total) + "\"/>";
+    if (const qsizetype at = raw.indexOf("<w:gridAfter"); at >= 0) {
+        const qsizetype end = raw.indexOf('>', at);
+        return end > at && raw[end - 1] == '/' ? raw.left(at) + element + raw.mid(end + 1) : raw;
+    }
+    if (const qsizetype at = raw.indexOf("<w:trPr>"); at >= 0) return raw.left(at + 8) + element + raw.mid(at + 8);
+    if (raw.contains("trPr")) return raw;   // (in a prefix of its own, or with attributes: left as it is)
+    return raw + "<w:trPr>" + element + "</w:trPr>";
+}
+
 // Which of the pieces kept as XML are written: the ones whose partners are there.
 class Whole {
 public:
@@ -348,9 +374,42 @@ public:
                 }
             }
         }
+
+        // A row whose cells and gaps stop short of the table's grid: a reader repairs it. It says it leaves the end of the grid empty.
+        struct Frame { int grid = 0, row = -1, covered = 0, cells = 0, after = 0; };
+        QVector<Frame> tables;
+        for (int b = 0; b < n; ++b) {
+            const Block &blk = doc.body[b];
+            if (!blk.isRaw || !m_blocks[b] || blk.role == Inline::Single) continue;
+            const bool opens = blk.role == Inline::Open;
+            if (blk.tag == QLatin1String("tbl")) {
+                if (opens) tables.push_back(Frame{int(blk.raw.count("<w:gridCol")), -1, 0, 0, 0});
+                else if (!tables.isEmpty()) tables.removeLast();
+            } else if (blk.tag == QLatin1String("tr") && !tables.isEmpty()) {
+                Frame &t = tables.last();
+                if (opens) {
+                    t.row = b;
+                    t.after = rawVal(blk.raw, "gridAfter");
+                    t.covered = rawVal(blk.raw, "gridBefore") + t.after;
+                    t.cells = 0;
+                } else {
+                    if (t.row >= 0 && t.cells > 0 && t.grid > 0 && t.covered < t.grid) m_gridAfter.insert(t.row, t.after + t.grid - t.covered);
+                    t.row = -1;
+                }
+            } else if (blk.tag == QLatin1String("tc") && opens && !tables.isEmpty() && tables.last().row >= 0) {
+                ++tables.last().cells;
+                tables.last().covered += std::max(1, rawVal(blk.raw, "gridSpan", 1));
+            }
+        }
     }
 
     bool block(int b) const { return m_blocks[b]; }
+    // The start of the row at block `b` as it is written: the same, unless the row stops short of the grid.
+    QByteArray rowStart(int b, const QByteArray &raw) const
+    {
+        const auto it = m_gridAfter.constFind(b);
+        return it == m_gridAfter.cend() ? raw : withGridAfter(raw, it.value());
+    }
     bool inlineKept(int b, int i) const { return m_inlines[b][i]; }
     // The Id a kept piece is written with when it isn't the one it was read with (inl -1 for a body element); empty for none.
     QByteArray newId(int b, int i) const
@@ -363,6 +422,7 @@ private:
     std::vector<bool> m_blocks;
     QVector<std::vector<bool>> m_inlines;
     QHash<quint64, QByteArray> m_newId;
+    QHash<int, int> m_gridAfter;
 };
 
 // A kept element's text with the value of its first Id attribute replaced.
@@ -421,7 +481,7 @@ void writeBlock(QByteArray &out, const Block &blk, qsizetype b, const Whole *who
     {
         if (whole && !whole->block(int(b))) return;
         if (blk.isRaw) {
-            out += whole ? withId(blk.raw, whole->newId(int(b), -1)) : blk.raw;
+            out += whole ? withId(blk.tag == QLatin1String("tr") && blk.role == Inline::Open ? whole->rowStart(int(b), blk.raw) : blk.raw, whole->newId(int(b), -1)) : blk.raw;
             return;
         }
         out += "<w:p" + blk.para.attrs + ">";
