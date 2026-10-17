@@ -795,13 +795,13 @@ QTextListFormat WriteDoc::listFormat(int numId, int level, int start) const
     QTextListFormat lf;
     level = std::clamp(level, 0, 8);
     lf.setIndent(level + 1);
+    lf.setProperty(tp::ListKey, numId);   // (an item of a list is told from another list's by it, whether or not its level is in the definition)
     const AbstractNum *a = m_wml.numbering.abstractOf(numId);
     if (!a || !a->levels[level].present) {
         lf.setStyle(QTextListFormat::ListDisc);
         return lf;
     }
     const Level &l = a->levels[level];
-    lf.setProperty(tp::ListKey, numId);
     const Num *num = m_wml.numbering.num(numId);
     const int first = start >= 0 ? start : num && num->startOverrides.contains(level) ? num->startOverrides.value(level) : l.start;
     if (l.numFmt == QLatin1String("bullet") || l.numFmt == QLatin1String("none")) {
