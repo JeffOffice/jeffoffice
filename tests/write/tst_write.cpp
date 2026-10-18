@@ -5478,6 +5478,26 @@ private Q_SLOTS:
         QVERIFY2(std::abs(tab - one) < 0.1, qPrintable(QStringLiteral("the header with a right tab into the margin makes the text start at %1, one line at %2").arg(tab).arg(one)));
     }
 
+    // Tabs that end a paragraph, after its last visible character, take no width and cause no wrap: with stops at 144, 288, and 468 points (the text area's edge) the fourth of four
+    // trailing tabs is past the margin, and the paragraph is still one line. Tabs that something follows are as they were (a tab past the margin takes the text after it to the next line).
+    void tabsThatEndAParagraphCauseNoWrap()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray stops = "<w:pPr><w:tabs><w:tab w:val=\"left\" w:pos=\"2880\"/><w:tab w:val=\"left\" w:pos=\"5760\"/><w:tab w:val=\"left\" w:pos=\"9360\"/></w:tabs></w:pPr>";
+        auto linesOf = [&](const QByteArray &runs) {
+            auto doc = open(makeDocxWithParts("<w:p>" + stops + runs + "</w:p>", sect, {}));
+            return doc ? int(doc->pager().lines(0).size()) : -1;
+        };
+        const QByteArray tab = "<w:r><w:tab/></w:r>";
+        const QByteArray total = "<w:r><w:t>Total</w:t></w:r>";
+        QCOMPARE(linesOf(total + tab + tab + tab), 1);
+        QCOMPARE(linesOf(total + tab + tab + tab + tab), 1);
+        QCOMPARE(linesOf(total + tab + tab + tab + tab + tab + tab), 1);
+        QCOMPARE(linesOf(total + tab + total + tab + tab + tab + tab), 1);
+        QCOMPARE(linesOf(total + tab + tab + tab + tab + total), 2);
+    }
+
     // The border a file puts round a run (w:bdr) is the run's, drawn round its text; a drop-down field of a form, which shows the entry it has chosen, shows its first entry when the
     // file kept no result for it (the box round it is that entry's width).
     void aRunBorderAndTheFirstEntryOfADropDownAreShown()

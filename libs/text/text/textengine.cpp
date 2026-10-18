@@ -3787,6 +3787,18 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             B->lines.clear();
             placeLines(startNext, breakAfter < 0 ? firstBreak : breakAfter);
         };
+        // A word processor's tabs that end a paragraph, after its last character that shows, take no width and cause no wrap: where the lines made one that holds only them (a
+        // tab is a break Qt makes before the stop that is past the room), the paragraph is laid out again with them as characters of no width.
+        if (env.wordLines && !B->cut && !B->disp.isEmpty() && B->lines.size() > 1 && int(B->lines.size()) == B->tl->lineCount()) {
+            int trailFrom = int(B->disp.size());
+            while (trailFrom > 0 && (B->disp[trailFrom - 1] == QLatin1Char('\t') || B->disp[trailFrom - 1] == QLatin1Char(' '))) --trailFrom;
+            if (trailFrom > 0 && trailFrom < B->disp.size() && B->disp.indexOf(QLatin1Char('\t'), trailFrom) >= 0 && PtLine(B->tl->lineAt(B->tl->lineCount() - 1)).textStart() >= trailFrom) {
+                for (int i = trailFrom; i < B->disp.size(); ++i)
+                    if (B->disp[i] == QLatin1Char('\t')) B->disp[i] = QChar(0x200B);
+                B->tl->setText(B->disp);
+                redo(false, -1);
+            }
+        }
         // A justified line of a word processor's text that may give up a share of each space (wordSpaceShrink) takes in the next word when it fits so: the lines are cut as the
         // option says, and the paragraph is laid out again with the spaces of each line that needs it narrower by what it needs. Where Qt does not cut the lines as that did,
         // the paragraph is as it was. Only a paragraph with a line that could take the next word is worked on, and those lines are found from the lines as they are laid out.
