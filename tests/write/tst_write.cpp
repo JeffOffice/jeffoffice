@@ -5680,6 +5680,24 @@ private Q_SLOTS:
         }
     }
 
+    // A symbol of a symbol font in a note that is not a blank (a check mark) is shown, in that font, as one in the text is.
+    void aVisibleSymbolInANoteIsKept()
+    {
+        const QByteArray body = "<w:p><w:r><w:t>Text with a note</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>";
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>"
+                                 "<w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:sym w:font=\"Wingdings\" w:char=\"F0FC\"/></w:r><w:r><w:t xml:space=\"preserve\"> NOTEWORDS here.</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        auto doc = open(makeDocxWithParts(body, QByteArray(), {{QStringLiteral("/word/footnotes.xml"), notes}}));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        const TextItem *note = page ? boxWithText(*page, QStringLiteral("NOTEWORDS")) : nullptr;
+        QVERIFY(note);
+        bool kept = false;
+        for (QTextBlock b = page->doc->story(note->storyId)->doc->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it)
+                kept |= it.fragment().charFormat().stringProperty(tp::DisplayFamily) == QLatin1String("Wingdings");
+        QVERIFY2(kept, "the symbol of the symbol font is in the note");
+    }
+
     // A note whose text begins with a raised blank of the symbol font (the mark an older program wrote) is as tall as that symbol makes its first line: a little under a
     // point more for 10-point text.
     void aNoteThatBeginsWithARaisedSymbolIsTallerByWhatItReaches()

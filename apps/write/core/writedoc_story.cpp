@@ -551,12 +551,13 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     QTextCharFormat mark = formatOf(styleId, in.props);
                     mark.setProperty(tp::Field, QStringLiteral("notemark"));
                     put(QString(QChar::ObjectReplacementCharacter), mark);
-                } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym") && !in.display.isEmpty() && in.display.trimmed().isEmpty() && isSymbolFontName(attributeOfTag(in.raw, QStringLiteral("font")))) {
-                    // (A blank of a symbol font, as an older program's mark of a note begins its text: it shows nothing, but its font and raised stand count for the line.)
-                    QTextCharFormat blank = formatOf(styleId, in.props);
-                    blank.setProperty(tp::DisplayFamily, attributeOfTag(in.raw, QStringLiteral("font")));
-                    blank.setProperty(tp::Field, QStringLiteral("raw:") + in.display);
-                    put(QString(QChar::ObjectReplacementCharacter), blank);
+                } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym") && !in.display.isEmpty() && isSymbolFontName(attributeOfTag(in.raw, QStringLiteral("font")))) {
+                    // (A symbol of a symbol font, as the text has it: shown in that font. Where it is a blank, as an older program's mark of a note begins its text, it shows
+                    // nothing, but its font and its raised stand count for the line.)
+                    QTextCharFormat symbol = formatOf(styleId, in.props);
+                    symbol.setProperty(tp::DisplayFamily, attributeOfTag(in.raw, QStringLiteral("font")));
+                    symbol.setProperty(tp::Field, QStringLiteral("raw:") + in.display);
+                    put(QString(QChar::ObjectReplacementCharacter), symbol);
                 } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum")) {
                     // (The page's number, as the run's own element has it.)
                     QTextCharFormat number = formatOf(styleId, in.props);
