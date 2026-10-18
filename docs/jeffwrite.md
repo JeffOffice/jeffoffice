@@ -116,6 +116,14 @@ drawing's shapes) into the parts of a `.docx` package that the `.docx` reader th
 code; saving asks for a `.docx` name. On the practice half of the Word yardstick (the 75 government documents whose originals are `.doc`) the
 `.doc` renders score as well as the same documents' Word-made `.docx` (median page 1.19 for both).
 
+The words round (October 18, 2026) went through the words that the reference pages show and JeffWrite's lack. Page numbers after a continuous section that restarts them count the page it
+begins on as its first; a header's or footer's STYLEREF shows the page's paragraph of the style (the first on the page, the last with `\l`, else the nearest before, with the number
+switches giving its number); text without `xml:space="preserve"` has no blanks at its ends; rows and cells held by content controls (nested too) are the table's; sections' line numbers
+(`w:lnNumType`, again at each page) are drawn in the margin; ruby text shows after its base text in brackets; a page that three sections or more begin on, one under another, is laid out
+in a part for each (columns made even where another follows); and a page's copy of the text cuts runs of joined paragraphs where the document does. Not yet: endnotes at the end of the
+document (their text has no page), `w:ptab`, mathematical alphanumerics in a face that lacks them, ruby set above its base, line numbers that go on across pages or sections, and page
+numbers with the chapter's (`w:chapStyle`).
+
 ## Checking it
 
 - The Windows test machine has Word 2021: reference PDFs of documents, and every file JeffWrite saves
