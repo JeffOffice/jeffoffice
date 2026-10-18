@@ -3588,6 +3588,42 @@ private Q_SLOTS:
         QCOMPARE(lines(QStringLiteral("]"), 250.0), 1);
     }
 
+    // A word too wide for the line is broken where it must be, and a row of underscores as wide as the room is one line (the lines of a form): the room is given back what the
+    // engine of the machine counts of an underscore past its advance, measured on the machine and not assumed (an eighth of a point on Linux, less on macOS). A row a fifth of a
+    // point wider than the room is two.
+    void aRowOfUnderscoresAsWideAsTheRoomIsOneLine()
+    {
+        const QString row(40, QLatin1Char('_'));
+        auto lines = [&](double room) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Tinos")});
+            run.setFontPointSize(12);
+            c.insertText(row, run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(room, 400)}, env);
+            return int(lay.lineInfo(0).size());
+        };
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Tinos")});
+        run.setFontPointSize(12);
+        c.insertText(row, run);
+        StoryLayout wide;
+        LayoutEnv env;
+        env.wordLines = true;
+        wide.build(&doc, {plainFrame(1000, 400)}, env);
+        int frame = -1;
+        QRectF end;
+        QVERIFY(wide.caretRect(row.size(), &frame, &end));
+        QCOMPARE(lines(end.left()), 1);
+        QCOMPARE(lines(end.left() - 0.2), 2);
+    }
+
     // A word processor breaks a line at spaces and after hyphens and dashes, and in a word that is wider than the line wherever it must: not between two parenthesized parts that
     // touch ("(c)(5)(iv)", which V147's pages keep whole), nor after a question mark in an address (V035's "subindex.asp?maintarget="). Digits are 6 points, a bracket 4, a question
     // mark 5.3, in a room of 100.
