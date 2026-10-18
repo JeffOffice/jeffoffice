@@ -1992,11 +1992,11 @@ private Q_SLOTS:
         QCOMPARE(tight[2].frame, 1);
     }
 
-    // A word processor lays out in twentieths of a point: a line that goes over the foot of the page by less than one of them is on the page.
+    // A word processor lays out in twentieths of a point: a line that goes over the foot of the page by less than one of them is on the page. Text that is not a word
+    // processor's (JeffPub's and JeffDeck's frames, and the fit of text to a box) keeps a hundredth.
     void aLineOverTheFootByLessThanATwentiethOfAPointFits()
     {
-        const double single = (1825 + 443 + 87) / 2048.0 * 12;
-        auto onFirst = [&](double room) {
+        auto lay = [&](double room, bool word) {
             QTextDocument doc;
             QTextCursor c(&doc);
             QTextCharFormat run;
@@ -2008,16 +2008,31 @@ private Q_SLOTS:
                 c.insertText(QStringLiteral("line %1").arg(i), run);
             }
             LayoutEnv env;
-            env.wordLines = true;
-            StoryLayout lay;
-            lay.build(&doc, {plainFrame(300, room), plainFrame(300, 500)}, env);
-            int n = 0;
-            for (const auto &l : lay.lineBriefs()) n += l.frame == 0;
-            return n;
+            env.wordLines = word;
+            StoryLayout l;
+            l.build(&doc, {plainFrame(300, room), plainFrame(300, 500)}, env);
+            return l.lineBriefs();
         };
-        QCOMPARE(onFirst(3 * single), 3);
-        QCOMPARE(onFirst(3 * single - 0.04), 3);   // (over the foot by less than a twentieth)
-        QCOMPARE(onFirst(3 * single - 0.2), 2);
+        for (const bool word : {true, false}) {
+            // The foot the third line's text reaches (its bottom without the spacing under it), from a layout with room to spare; and the least room that has it on the first page.
+            const auto whole = lay(1000, word);
+            QVERIFY(whole.size() >= 3);
+            const double bottom = whole[2].rect.bottom() - whole[2].below;
+            auto onFirst = [&](double room) {
+                int n = 0;
+                for (const auto &line : lay(room, word)) n += line.frame == 0;
+                return n;
+            };
+            QCOMPARE(onFirst(bottom + 0.1), 3);
+            double low = bottom - 1, high = bottom + 0.1;   // (the least room that holds three lines is in between)
+            for (int i = 0; i < 30; ++i) {
+                const double mid = (low + high) / 2;
+                (onFirst(mid) >= 3 ? high : low) = mid;
+            }
+            const double tolerance = bottom - high;
+            const double want = word ? 0.05 : 0.01;
+            QVERIFY2(std::abs(tolerance - want) < 0.002, qPrintable(QStringLiteral("%1 text goes over the foot by %2 and is on the page, not %3").arg(word ? "word processor's" : "other").arg(tolerance).arg(want)));
+        }
     }
 
     // A paragraph that begins with a page break and goes on for more lines than a page's window past its foot is no page of its own for the break: the break's line

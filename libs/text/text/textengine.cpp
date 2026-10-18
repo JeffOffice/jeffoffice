@@ -2220,6 +2220,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     QVector<int> carry;           // footnotes (in m_notes) with text left for the next column, in order
     QVector<int> seeded;          // those a stretch is given, until the lines that came before its first frame are done
     // (A word processor's notes follow a paragraph's own height under the text's last line and have no gap but their own spacing; their numbers begin their text.)
+    // (A line that goes over the foot by less than one unit of the word processor's layout, a twentieth of a point, is on the page. Other text keeps a hundredth.)
+    const double fitTol = env.wordLines ? 0.05 : 0.01;
     const double roomLimit = frames.isEmpty() ? 0.0 : frames.first().noteRoomLimit;
     auto limited = [&](double h) { return roomLimit > 0 ? std::min(h, roomLimit) : h; };
     const double separatorH = env.wordLines && notesDoc ? limited(notesDoc->noteSeparatorHeight()) : 0.0;
@@ -2246,6 +2248,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         fs.baselineGrid = 0;
         return fs;
     };
+    // (The rooms a note is cut to, and the room the endnotes have, keep a hundredth: they are another question than whether a line is on the page, which no file has shown to be
+    // measured in twentieths of a point.)
     auto measureNote = [&](Note &n, double width, bool whole = true) {
         if (n.layout && std::abs(n.width - width) < 0.01) return n.height;
         if (!whole && n.numberFont.pointSizeF() > 0 && std::abs(n.width - width) < 0.01) return n.height;
@@ -3262,7 +3266,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             }
                             y += step;
                             rowPushed += step;
-                            if (y + estH > col.height() - reserve.value(rkey(f, c)) + 0.01) advance();
+                            if (y + estH > col.height() - reserve.value(rkey(f, c)) + fitTol) advance();
                             continue;
                         }
                         row = ok; rowIdx = 0; rowH = 0; rowActive = true;
@@ -3358,7 +3362,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         if (e > 0 && e < B->disp.size() && !B->disp[e - 1].isSpace() && B->disp[e - 1] != QChar(0x00AD) && B->disp[e - 1] != QLatin1Char('-') && !B->disp[e].isSpace()) {
                             y += 2;
                             rowActive = false;
-                            if (y + estH > col.height() - reserve.value(rkey(f, c)) + 0.01) advance();
+                            if (y + estH > col.height() - reserve.value(rkey(f, c)) + fitTol) advance();
                             continue;
                         }
                     }
@@ -3497,13 +3501,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     }
                     double bottom = col.bottom() - reserve.value(rkey(f, c)) - pending;
                     bool cutting = false;
-                    // (A line that goes over the foot by less than one unit of the word processor's layout, a twentieth of a point, is on the page.)
-                    constexpr double kFitTol = 0.05;
-                    if (col.top() + y + fitH > bottom + kFitTol) {
-                        if (!lineNotes.isEmpty() && (env.wordLines || fitH + ruleGap + notesH > col.height() + 0.01)) {
+                    if (col.top() + y + fitH > bottom + fitTol) {
+                        if (!lineNotes.isEmpty() && (env.wordLines || fitH + ruleGap + notesH > col.height() + fitTol)) {
                             // Room here for the line and a line of the note?
                             const double least = heightOf(m_notes[lineNotes.first()].numberFont) * (env.wordLines ? 3 : 1) + noteGap;   // (a word processor cuts a note that does not fit where three of its lines do)
-                            cutting = firstInColumn || col.top() + y + fitH + (reserve.contains(rkey(f, c)) ? 0 : ruleGap) + least <= col.bottom() - reserve.value(rkey(f, c)) + 0.01;
+                            cutting = firstInColumn || col.top() + y + fitH + (reserve.contains(rkey(f, c)) ? 0 : ruleGap) + least <= col.bottom() - reserve.value(rkey(f, c)) + fitTol;
                         }
                         if (!cutting && !firstInColumn) {
                             advance();
@@ -3521,7 +3523,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             y += 2;
                             rowPushed += 2;
                             rowActive = false;
-                            if (y + h > col.height() - reserve.value(rkey(f, c)) + 0.01) advance();
+                            if (y + h > col.height() - reserve.value(rkey(f, c)) + fitTol) advance();
                             continue;
                         }
                     }
@@ -3543,7 +3545,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         }
                         bottom = col.bottom() - reserve.value(rkey(f, c)) - (firstNotes ? ruleGap : 0) - cut.used;
                     }
-                    if (col.top() + y + fitH > bottom + kFitTol && !firstInColumn) {   // snapped past the bottom
+                    if (col.top() + y + fitH > bottom + fitTol && !firstInColumn) {   // snapped past the bottom
                         advance();
                         continue;
                     }
@@ -3901,7 +3903,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             const QTextBlockFormat nbf = nb.blockFormat();
             const double nextH = (nbf.topMargin() * scale) + std::max(1.0, lineHeightFor(nbf, scale, singleOf({}, 0, 0, baseFontFor(nb, env))));
             const QRectF col = colRect(f, c);
-            if (y + nextH > col.height() + 0.01 && B->lines.first().frame == f && B->lines.first().column == c) redo(true, -1);
+            if (y + nextH > col.height() + fitTol && B->lines.first().frame == f && B->lines.first().column == c) redo(true, -1);
         }
         // A paragraph out of the flow (a frame's, in a word processor) is where the next begins, and leaves the room as it was.
         if (env.wordLines && bf.boolProperty(tp::OutOfFlow) && f == startSpot.f && c == startSpot.c && !B->cut) {
