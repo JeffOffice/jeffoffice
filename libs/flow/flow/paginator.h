@@ -255,7 +255,10 @@ private:
         double headerHeight = 0, footerHeight = 0;
     };
     Furniture furnitureOf(int index, const PageStart &st, int number);
-    double storyHeight(const QTextDocument *story, double width, int number, bool withSpaceAfter = false);
+    // (A header's or footer's layout is kept by its story, its width and the room beside it to the page's edge in hundredths of a point, and the story's revision.)
+    using StoryKey = std::tuple<const QTextDocument *, int, int, int>;
+    static StoryKey storyKey(const QTextDocument *story, double width, double rightRoom) { return {story, int(std::lround(width * 100)), story->revision(), int(std::lround(rightRoom * 100))}; }
+    double storyHeight(const QTextDocument *story, double width, int number, bool withSpaceAfter = false, double rightRoom = 0);
     // Puts the lines of the section's page borders on a page made for painting (the page's first items, under the text), where the section's borders say a page of it has them.
     void addPageBorders(Document *d, const Section &sec, bool firstOfSection, const Furniture &f);
     // Puts the page's header and footer (a copy of each story, in a text box) on a page made for painting, and the counts its fields show.
@@ -380,10 +383,10 @@ private:
     // places are the layout's own (`places`, `rules`: its notes, and the frames the columns are in) and `ids` the notes the page's lines cite.
     void addNotes(Document *d, const QVector<StoryLayout::NotePlace> &places, const QVector<StoryLayout::Rule> &rules, int firstFrame, const QStringList &ids,
                   const QVector<QRectF> &cols, const QRectF &body);
-    std::map<std::tuple<const QTextDocument *, int, int>, double> m_storyHeights;
+    std::map<StoryKey, double> m_storyHeights;
     std::map<std::tuple<const QTextDocument *, int, int, int, int, uint>, QVector<Anchor>> m_storyFrameAnchors;   // the frames of each header or footer story, by its width, revision, places, and the environment
     std::map<std::tuple<const QTextDocument *, int, QString>, double> m_headerBottoms;   // how far down the page the wrapped shapes of each header reach, by story, revision, and the section's places
-    std::map<std::tuple<const QTextDocument *, int, int>, QVector<StoryLayout::LineInfo>> m_storyLines;   // the lines of each, from the same layout   // by story, its width in hundredths of a point, and its revision
+    std::map<StoryKey, QVector<StoryLayout::LineInfo>> m_storyLines;   // the lines of each, from the same layout   // by story, its width in hundredths of a point, and its revision
 
     FlowDocument *m_doc;
     std::unique_ptr<TableFlow> m_tables;

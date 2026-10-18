@@ -245,6 +245,7 @@ FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNu
     s.hyphenZone = t.hyphenZone;
     s.runsOver = doc.slideText;
     s.outdentLimit = doc.setup.size.width();
+    if (t.columns <= 1 && !t.vertical) s.rightRoom = std::max(0.0, doc.setup.size.width() - t.rect.right());
     s.noWrap = t.noWrap;
     s.centerBlock = t.centerBlock;
     // Baseline guides of the page's master (for "align text to baseline guides").

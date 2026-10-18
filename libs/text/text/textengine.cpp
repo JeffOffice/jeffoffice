@@ -3123,15 +3123,17 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // (A line that is as wide as its room, to what rounding in the layout leaves, fits.)
                     const double room = std::max(1.0, iv.x1 - iv.x0);
                     line.setLineWidth(room + (env.wordLines ? 0.13 : 0.0));
-                    // A word processor's right tab stop that is past the paragraph's right indent and inside the column still takes the text after its tab (the page number of
-                    // an entry in a table of contents, whose stop is at the margin where the paragraph keeps its right indent inside it): the line is as wide as the stop. What is
+                    // A word processor's right tab stop that is past the paragraph's right indent, inside the column or in the margin beside it, still takes the text after its tab
+                    // (the page number of an entry in a table of contents, whose stop is at the margin where the paragraph keeps its right indent inside it, or an address block
+                    // set into the margin): the line is as wide as the stop. What is
                     // before the last tab wraps at the line's room as any text does, and what is after it is that right-aligned text, ending at the stop: where the line is not
                     // so, it is the line the room makes.
-                    if (env.wordLines && wordTabs && indR > 0.01) {
+                    if (env.wordLines && wordTabs) {
                         double farthest = 0;
+                        const double reach = col.width() + std::max(0.0, frames[f].rightRoom);   // (a stop may be in the margin, not off the page)
                         for (const QTextOption::Tab &t : ownTabs) {
                             const double at = t.position * scale;
-                            if (t.type == QTextOption::RightTab && at > col.width() - indR + 0.01 && at <= col.width() + 0.01) farthest = std::max(farthest, at);
+                            if (t.type == QTextOption::RightTab && at > col.width() - indR + 0.01 && at <= reach + 0.01) farthest = std::max(farthest, at);
                         }
                         if (farthest > 0) {
                             const double stop = col.left() + farthest - iv.x0;   // (from the line's start)

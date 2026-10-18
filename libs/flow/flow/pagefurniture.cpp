@@ -20,9 +20,9 @@ constexpr double kLeastBody = 36;
 } // namespace
 
 // The height a header or footer story takes laid out at `width`: its lines from the top to the bottom of the last, and (a header's) the space after that.
-double Paginator::storyHeight(const QTextDocument *story, double width, int number, bool withSpaceAfter)
+double Paginator::storyHeight(const QTextDocument *story, double width, int number, bool withSpaceAfter, double rightRoom)
 {
-    const auto key = std::make_tuple(story, int(std::lround(width * 100)), story->revision());
+    const auto key = storyKey(story, width, rightRoom);
     const auto found = m_storyHeights.find(key);
     if (found != m_storyHeights.end()) return found->second;
     FrameSpec fs;
@@ -30,6 +30,7 @@ double Paginator::storyHeight(const QTextDocument *story, double width, int numb
     fs.insets = QMarginsF(0, 0, 0, 0);
     fs.columns = 1;
     fs.hyphenate = false;
+    fs.rightRoom = rightRoom;
     fs.ctx.doc = m_doc->fields;
     fs.ctx.pageNumber = number;
     fs.ctx.pageCount = std::max(number, int(m_starts.size()));
@@ -72,8 +73,8 @@ double Paginator::headerObjectsBottom(const QTextDocument *story, const Section 
     const QString places = QStringLiteral("%1 %2 %3 %4 %5 %6").arg(content.left()).arg(content.width()).arg(sec.headerDistance).arg(sec.pageSize().width()).arg(sec.pageSize().height()).arg(sec.margins.top());
     const auto cacheKey = std::make_tuple(story, story->revision(), places);
     if (const auto found = m_headerBottoms.find(cacheKey); found != m_headerBottoms.end()) return found->second;
-    storyHeight(story, content.width(), number);   // (laying the story out is what has its lines to hand)
-    const auto lines = m_storyLines.find(std::make_tuple(story, int(std::lround(content.width() * 100)), story->revision()));
+    storyHeight(story, content.width(), number, false, sec.margins.right());   // (laying the story out is what has its lines to hand)
+    const auto lines = m_storyLines.find(storyKey(story, content.width(), sec.margins.right()));
     if (lines == m_storyLines.end()) return 0;
     QVector<AnchorLine> held;
     for (const StoryLayout::LineInfo &l : lines->second) held << AnchorLine{l.docStart, l.docPos, l.docEnd, l.rect.translated(content.left(), sec.headerDistance), content.left(), 0.0, false, l.docEnd, l.above};
@@ -106,12 +107,12 @@ Paginator::Furniture Paginator::furnitureOf(int index, const PageStart &st, int 
     const double width = sec.content().width();
     double top = sec.margins.top(), bottom = sec.margins.bottom();
     if (f.header) {
-        f.headerHeight = storyHeight(f.header, width, number, true);
+        f.headerHeight = storyHeight(f.header, width, number, true, sec.margins.right());
         top = std::max(top, sec.headerDistance + f.headerHeight);
         top = std::max(top, headerObjectsBottom(f.header, sec, number));
     }
     if (f.footer) {
-        f.footerHeight = storyHeight(f.footer, width, number);
+        f.footerHeight = storyHeight(f.footer, width, number, false, sec.margins.right());
         bottom = std::max(bottom, sec.footerDistance + f.footerHeight);
     }
     const double pageHeight = sec.pageSize().height();
@@ -186,8 +187,8 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
         resolveImages(s->doc.get(), d);
         if (!m_doc->objects.isEmpty()) {
             // The objects set in the header or footer are where its lines put them.
-            storyHeight(story, content.width(), number);
-            const auto lines = m_storyLines.find(std::make_tuple(story, int(std::lround(content.width() * 100)), story->revision()));
+            storyHeight(story, content.width(), number, false, sec.margins.right());
+            const auto lines = m_storyLines.find(storyKey(story, content.width(), sec.margins.right()));
             if (lines != m_storyLines.end()) {
                 QVector<AnchorLine> held;
                 for (const StoryLayout::LineInfo &l : lines->second) held << AnchorLine{l.docStart, l.docPos, l.docEnd, l.rect.translated(content.left(), top), content.left(), 0.0, false, l.docEnd, l.above};

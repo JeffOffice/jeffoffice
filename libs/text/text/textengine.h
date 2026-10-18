@@ -110,6 +110,9 @@ struct FrameSpec {
     // The farthest left of the text area that a word processor's hanging first line may begin (0: the frame's own width): the page's width, which no indent a file states is
     // to take a line past.
     double outdentLimit = 0;
+    // How far past the frame's right edge a word processor's right tab stop may take the text after its tab: the room between the frame and the page's edge (0: none, a stop
+    // is no farther than the text area).
+    double rightRoom = 0;
     // The frame is a polygon (half of a cell divided by a diagonal), the obstacles being the rest of its box:
     // a word too long for the place beside them moves down to where it fits instead of being broken, and
     // middle or bottom aligned text goes as far down as it fits.

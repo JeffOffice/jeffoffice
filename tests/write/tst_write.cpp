@@ -5216,6 +5216,24 @@ private Q_SLOTS:
         QVERIFY2(big < 1.4 * small + 20, qPrintable(QStringLiteral("all the pages of a document with a header of 4000 paragraphs %1 ms, of one %2 ms").arg(big).arg(small)));
     }
 
+    // A right tab stop that is past the right indent, and past the text area too (into the margin, as a letterhead's address block is set), still takes the text after its
+    // tab: the line is as wide as the stop, and the text is one line ending there, as with a stop inside the text area.
+    void aRightTabIntoTheMarginTakesTheTextAfterItsTab()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"720\" w:right=\"1800\" w:bottom=\"1440\" w:left=\"1800\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto contentTop = [&](const QByteArray &entry) {
+            const QByteArray para = "<w:pPr><w:tabs><w:tab w:val=\"right\" w:pos=\"9900\"/></w:tabs><w:ind w:right=\"-540\"/><w:rPr><w:b/><w:sz w:val=\"16\"/></w:rPr></w:pPr>" + entry;
+            auto doc = open(makeDocxWithParts(paragraphs(10, 5), sect, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {para})}}));
+            return doc ? doc->pager().page(0).content.top() : -1.0;
+        };
+        const QByteArray tabbed = "<w:r><w:rPr><w:b/><w:sz w:val=\"16\"/></w:rPr><w:tab/><w:t>Fax-On-Demand   202 / 418-2830 and a good deal more to say</w:t></w:r>";
+        const QByteArray plain = "<w:r><w:rPr><w:b/><w:sz w:val=\"16\"/></w:rPr><w:t>Fax</w:t></w:r>";
+        const double one = contentTop(plain), tab = contentTop(tabbed);
+        QVERIFY(one > 0 && tab > 0);
+        QVERIFY2(std::abs(tab - one) < 0.1, qPrintable(QStringLiteral("the header with a right tab into the margin makes the text start at %1, one line at %2").arg(tab).arg(one)));
+    }
+
     // A paragraph of a footer whose mark a tracked change deleted, with nothing else of its own, is gone from the footer as the text stands: it takes no room
     // (twenty points a line here), so the text keeps what the footer leaves it.
     void aDeletedParagraphOfAFooterTakesNoRoom()
