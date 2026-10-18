@@ -2692,6 +2692,16 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 if (env.slideLines || env.wordLines) {
                     for (int i = 0; i + 1 < int(raw.size()); ++i)
                         if (raw[i] == QLatin1Char('/') && !raw[i + 1].isSpace() && raw[i + 1] != QChar::LineSeparator) cuts.append({i + 1, QChar(0x2060)});
+                    // (A word processor's line breaks at spaces, and after hyphens and dashes: not between parts in brackets that touch, "(c)(5)(iv)", nor after a mark of
+                    // question or exclamation, or a bar, that the text goes straight on from, "subindex.asp?maintarget=", where Qt's rules would.)
+                    if (env.wordLines)
+                        for (int i = 0; i + 1 < int(raw.size()); ++i) {
+                            const QChar c = raw[i], n = raw[i + 1];
+                            const bool opens = n == QLatin1Char('(') || n == QLatin1Char('[') || n == QLatin1Char('{');
+                            if (((c == QLatin1Char(')') || c == QLatin1Char(']') || c == QLatin1Char('}')) && opens) ||
+                                ((c == QLatin1Char('?') || c == QLatin1Char('!') || c == QLatin1Char('|')) && (n.isLetterOrNumber() || opens)))
+                                cuts.append({i + 1, QChar(0x2060)});
+                        }
                     // (And one that ends a run, where the text goes on in another format: the next run's first letter says.)
                     if (!cutShort && raw.endsWith(QLatin1Char('/'))) {
                         auto next = it;

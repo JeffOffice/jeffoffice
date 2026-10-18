@@ -17,6 +17,7 @@
 #include <QBuffer>
 #include <QElapsedTimer>
 #include <QImage>
+#include <QTextBoundaryFinder>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPainter>
@@ -3557,6 +3558,33 @@ private Q_SLOTS:
         for (const QString &bracket : {QStringLiteral(")"), QStringLiteral("]"), QStringLiteral("}")})
             QCOMPARE(lines(bracket, 243.0), 2);
         QCOMPARE(lines(QStringLiteral("]"), 250.0), 1);
+    }
+
+    // A word processor breaks a line at spaces and after hyphens and dashes, and in a word that is wider than the line wherever it must: not between two parenthesized parts that
+    // touch ("(c)(5)(iv)", which V147's pages keep whole), nor after a question mark in an address (V035's "subindex.asp?maintarget=").
+    void aLineBreaksNeitherBetweenBracketsThatTouchNorAfterAQuestionMark()
+    {
+        auto firstLine = [&](const QString &text, double room) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Tinos")});
+            run.setFontPointSize(12);
+            c.insertText(text, run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(room, 200)}, env);
+            const auto lines = lay.lineInfo(0);
+            return lines.size() >= 2 ? lines[0].text : QString();
+        };
+        // (Digits are 6 points: twelve and "(00)" are 92 points, and the "(00)" after it 20, in a room of 100.)
+        const QString brackets = QString(12, QLatin1Char('0')) + QStringLiteral("(00)(00)");
+        QVERIFY2(firstLine(brackets, 100) != QString(12, QLatin1Char('0')) + QStringLiteral("(00)"), qPrintable(firstLine(brackets, 100)));
+        const QString query = QString(14, QLatin1Char('0')) + QStringLiteral("?") + QString(12, QLatin1Char('0'));
+        QVERIFY2(firstLine(query, 100) != QString(14, QLatin1Char('0')) + QStringLiteral("?"), qPrintable(firstLine(query, 100)));
+        // (A hyphen is where a line breaks: the first part is 64 points, and the whole 128.)
+        QVERIFY(firstLine(QString(14, QLatin1Char('0')) + QStringLiteral("-") + QString(12, QLatin1Char('0')), 100).remove(QChar(0x200B)) == QString(14, QLatin1Char('0')) + QStringLiteral("-"));
     }
 
     // A line that ends where a break may be (after a dash) is fitted as the others are: the room is not given back, as it is for a word wider than the line. (Digits: the em
