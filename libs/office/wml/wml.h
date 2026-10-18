@@ -546,6 +546,8 @@ bool readFonts(const QByteArray &xml, QVector<FontEntry> *fonts);
 // How the numbers of the notes begin again, from the settings part's w:footnotePr or w:endnotePr (`group`): the value of its w:numRestart (continuous, eachSect, or
 // eachPage), empty if it says none.
 QString noteNumberRestart(const QByteArray &settings, const char *group);
+// The format of the notes' numbers (w:numFmt: decimal, lowerRoman, upperLetter...), from the same group of the settings part; empty if it says none.
+QString noteNumberFormat(const QByteArray &settings, const char *group);
 
 // Whether a compatibility option of the settings part (an element of w:compat) is on: stated, and not turned off (w:val 0, false, or off).
 bool compatOption(const QByteArray &settings, const char *name);

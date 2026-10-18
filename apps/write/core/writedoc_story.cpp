@@ -335,6 +335,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         }
     }
     int paragraphsMade = 0, endnoteNumber = 0, blockNumber = -1;
+    // (The endnotes' numbers are lower case roman numerals where the settings give no format.)
+    const QString endnoteFormat = [&] {
+        const QString given = m_wml.settingsName.isEmpty() ? QString() : office::wml::noteNumberFormat(partData(m_wml.settingsName), "endnotePr");
+        return given.isEmpty() ? QStringLiteral("lowerRoman") : given;
+    }();
     auto lineWidth = [&]() {
         const double cell = tables.cellWidth();
         const QTextBlockFormat now = c.blockFormat();
@@ -620,8 +625,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             QTextCharFormat af = formatOf(styleId, in.props);
             if (deleted) af = asDeleted(af);
             setStored(af, prop::Atom, packAtom(in));
-            // A reference to a footnote of the file is the note's (the pages lay it out at their foot); one to an endnote shows its number, in the lower
-            // case roman numerals a word processor's endnotes have.
+            // A reference to a footnote of the file is the note's (the pages lay it out at their foot); one to an endnote shows its number, in the format
+            // the settings give (lower case roman numerals, a word processor's own).
             QString field = in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum") ? liveFieldOf(QStringLiteral("PAGE")) : QStringLiteral("raw:") + (dropDown.contains(inAt) ? dropDown.value(inAt) : in.display);
             // A symbol of a font that isn't a symbol font (and isn't on the machine) is its character, in that font's stand-in.
             if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym")) {
@@ -645,7 +650,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 field = QStringLiteral("footnote:fn") + in.key;
                 if (markFollows(in.raw)) af.setProperty(tp::NoteMarkCustom, true);
             }
-            else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + (markFollows(in.raw) ? QString() : romanNumeral(deleted ? endnoteNumber + 1 : ++endnoteNumber, false));   // (a deleted one takes no number)
+            else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + (markFollows(in.raw) ? QString() : listNumberText(endnoteFormat, deleted ? endnoteNumber + 1 : ++endnoteNumber));   // (a deleted one takes no number)
             af.setProperty(tp::Field, field);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);
         }

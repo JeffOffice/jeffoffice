@@ -4363,6 +4363,27 @@ private Q_SLOTS:
         QCOMPARE(shown, QStringList({QStringLiteral("raw:i"), QStringLiteral("raw:i")}));   // (the deleted one is "i" too, as nothing shows it)
     }
 
+    // The numbers of the endnote references are in the format the settings give (w:endnotePr), lower case roman where they give none, as the other program's are.
+    void endnoteReferencesShowTheFormatTheSettingsGive()
+    {
+        const QByteArray body = "<w:p><w:r><w:t>a</w:t></w:r><w:r><w:endnoteReference w:id=\"1\"/></w:r><w:r><w:t>b</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+        auto shownWith = [&](const QByteArray &settings) {
+            auto doc = open(makeDocxWithParts(body, QByteArray(), {}, settings));
+            QStringList shown;
+            if (!doc) return shown;
+            for (QTextBlock::iterator it = doc->story()->begin().begin(); !it.atEnd(); ++it) {
+                const QTextCharFormat cf = it.fragment().charFormat();
+                if (cf.hasProperty(prop::Atom) && unpackAtom(storedBytes(cf, prop::Atom)).tag == QLatin1String("endnoteReference")) shown << cf.stringProperty(tp::Field);
+            }
+            return shown;
+        };
+        QCOMPARE(shownWith(QByteArray()), QStringList({QStringLiteral("raw:i"), QStringLiteral("raw:ii")}));
+        QCOMPARE(shownWith("<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"), QStringList({QStringLiteral("raw:1"), QStringLiteral("raw:2")}));
+        QCOMPARE(shownWith("<w:endnotePr><w:numFmt w:val=\"upperLetter\"/></w:endnotePr>"), QStringList({QStringLiteral("raw:A"), QStringLiteral("raw:B")}));
+        // (The footnotes' format is not the endnotes'.)
+        QCOMPARE(shownWith("<w:footnotePr><w:numFmt w:val=\"decimal\"/></w:footnotePr>"), QStringList({QStringLiteral("raw:i"), QStringLiteral("raw:ii")}));
+    }
+
     // A file that says its hanging indents add no tab stop (noTabHangInd) is read so, by its value.
     void hangingIndentsAreNoTabStopsWhereTheFileSaysSo()
     {
