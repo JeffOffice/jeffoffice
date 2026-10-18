@@ -366,6 +366,9 @@ private:
     // The anchors of the frames and tables that are set from the paragraphs whose first lines are among `lines` (a column `columnWidth` wide holds them), and of the objects anchored in
     // the frames' text.
     QVector<Anchor> floatAnchors(const QVector<AnchorLine> &lines, double columnWidth);
+    // The lines of a page's text that objects are anchored by, in page coordinates (`body` is the text area): `held`, those of the text itself (the rows of tables are not: what a cell
+    // anchors does not move the text round it), and `firstLines`, those that frames and tables are set from (the first row of a table in the text stands for the table).
+    void pageAnchorLines(const Run &run, const QRectF &body, QVector<AnchorLine> *held, QVector<AnchorLine> *firstLines) const;
     // The anchors of a page: those of the objects anchored in the text of `held`, and of the frames and tables set from the first lines among `firstLines`.
     QVector<Anchor> anchorsOfLines(const QVector<AnchorLine> &held, const QVector<AnchorLine> &firstLines, double columnWidth);
     // The frame of paragraphs `from` to `to` (the story's positions) as an object: its text copied for the page, and its size from the frame's and the text's.
