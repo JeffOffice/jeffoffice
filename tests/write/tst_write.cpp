@@ -6592,6 +6592,38 @@ private Q_SLOTS:
         QVERIFY2(std::abs(list - 40.3) < 2, qPrintable(QString::number(list)));
     }
 
+    // A paragraph's own list tab (w:tab w:val="num") is the list tab, and the level's is none then: V078's agenda items (the level's list tab at 108 points, the paragraph's at
+    // 18) have their text at 18, not at 108. A list tab that is not past the number (V004's, set to -337 points) is none: the text is at the hanging indent, 18 points.
+    void aParagraphsOwnListTabReplacesTheLevelsAndOneBeforeTheNumberIsNone()
+    {
+        auto startOf = [&](const QByteArray &levelPPr, const QByteArray &paragraphPPr) {
+            const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1)\"/><w:pPr>" + levelPPr +
+                                         "</w:pPr></w:lvl></w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+            QByteArray words;
+            for (int i = 0; i < 40; ++i) words += "HHHH ";
+            const QByteArray body = "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr>" + paragraphPPr + "<w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/>" +
+                                    "</w:pPr><w:r><w:t xml:space=\"preserve\">" + words + "</w:t></w:r></w:p>";
+            const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+            const QByteArray settings = "<w:defaultTabStop w:val=\"720\"/><w:compat><w:doNotUseIndentAsNumberingTabStop/></w:compat>";
+            auto doc = open(makeDocxWithParts(body, sect, {}, settings, kStyles, numbering));
+            PageView view;
+            view.resize(1000, 700);
+            view.setDocument(doc.get());
+            const QImage img = view.pageImage(0, 816);
+            const double perPoint = 816 / 612.0;
+            for (int x = int(std::ceil((72 + 12) * perPoint)); x < img.width(); ++x)   // (the number's ink ends within 12 points)
+                for (int y = int(72 * perPoint); y < int(84 * perPoint); ++y)
+                    if (qGray(img.pixel(x, y)) < 128) return x / perPoint - 72;
+            return -1.0;
+        };
+        const double own = startOf("<w:tabs><w:tab w:val=\"num\" w:pos=\"2160\"/></w:tabs><w:ind w:left=\"2160\" w:hanging=\"360\"/>",
+                                   "<w:tabs><w:tab w:val=\"num\" w:pos=\"360\"/></w:tabs><w:ind w:hanging=\"2160\"/>");
+        QVERIFY2(std::abs(own - 18) < 2, qPrintable(QStringLiteral("the paragraph's list tab: the text is at %1, not 18").arg(own)));
+        const double before = startOf("<w:tabs><w:tab w:val=\"num\" w:pos=\"720\"/></w:tabs><w:ind w:left=\"720\" w:hanging=\"360\"/>",
+                                      "<w:tabs><w:tab w:val=\"clear\" w:pos=\"720\"/><w:tab w:val=\"num\" w:pos=\"-6750\"/></w:tabs><w:ind w:left=\"360\"/>");
+        QVERIFY2(std::abs(before - 18) < 2, qPrintable(QStringLiteral("a list tab before the number: the text is at %1, not 18").arg(before)));
+    }
+
     // Numbering ids of one definition count on together (only a restart makes a list of its own), and a level written out in a numbering id (lvlOverride) is no restart.
     void numberingIdsOfOneDefinitionCountOnTogether()
     {

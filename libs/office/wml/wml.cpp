@@ -233,7 +233,9 @@ void ParaProps::overlay(const ParaProps &t)
     if (t.tabs) {
         QVector<TabStop> list = tabs.value_or(QVector<TabStop>());
         for (const TabStop &tab : *t.tabs) {
-            list.erase(std::remove_if(list.begin(), list.end(), [&](const TabStop &x) { return x.pos == tab.pos; }), list.end());
+            // (A paragraph has one list tab: its own, set over the level's.)
+            const bool listTab = tab.val == QLatin1String("num");
+            list.erase(std::remove_if(list.begin(), list.end(), [&](const TabStop &x) { return x.pos == tab.pos || (listTab && x.val == QLatin1String("num")); }), list.end());
             if (tab.val != QLatin1String("clear")) list.push_back(tab);
         }
         std::sort(list.begin(), list.end(), [](const TabStop &a, const TabStop &b) { return a.pos < b.pos; });

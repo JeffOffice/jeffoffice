@@ -2946,7 +2946,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     if (at > end + 0.01 && (stop < 0 || at < stop)) stop = at;
                 };
                 for (const QTextOption::Tab &t : bf.tabPositions()) consider(t.position * scale);
-                if (B->markerSkipsIndent && bf.hasProperty(tp::NumberTab)) {
+                // (A list tab that is not past the number is none.)
+                if (B->markerSkipsIndent && bf.hasProperty(tp::NumberTab) && bf.doubleProperty(tp::NumberTab) * scale > end + 0.01) {
                     consider(bf.doubleProperty(tp::NumberTab) * scale);
                 } else if (B->markerSkipsIndent) {
                     // (With no list tab, the paragraph clearing the level's or setting a stop of its own in its place, the text goes to the nearest of the paragraph's stops, the
