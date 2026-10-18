@@ -31,6 +31,7 @@
 #include "render/renderer.h"
 #include "rtcheck.h"
 #include "app/spelling.h"
+#include "text/textengine.h"
 #include "text/textprops.h"
 #include "io/zip.h"
 #include "wml/wml.h"
@@ -188,6 +189,20 @@ QByteArray paragraphs(int n, int words = 60)
         out += "<w:p><w:pPr><w:spacing w:after=\"120\"/></w:pPr><w:r><w:t>" + text + ".</w:t></w:r></w:p>";
     }
     return out;
+}
+
+// The text of a long run of paragraphs for the cost tests of space shrinking: `each` words in each. A word is given, or (with none) of two to ten letters in turn so that the
+// room left at the lines' ends differs from line to line; each paragraph begins with a word of its own so that no two are the same text.
+QByteArray justifiedParagraphs(const QByteArray &word, int count, int each)
+{
+    QByteArray body;
+    for (int i = 0; i < count; ++i) {
+        body += "<w:p><w:pPr><w:jc w:val=\"both\"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii=\"Tinos\" w:hAnsi=\"Tinos\"/><w:sz w:val=\"24\"/></w:rPr><w:t xml:space=\"preserve\">p" +
+                QByteArray::number(i) + " ";
+        for (int w = 0; w < each; ++w) body += (word.isEmpty() ? QByteArray("abcdefghij").left(2 + (i * 5 + w * w + w * 7) % 9) : word + QByteArray::number(w % 7)) + " ";
+        body += "</w:t></w:r></w:p>";
+    }
+    return body;
 }
 
 void typeText(WriteDoc &doc, QTextCursor &c, const QString &text)
@@ -398,6 +413,59 @@ QByteArray makeDocxWithParts(const QByteArray &body, const QByteArray &sect, con
         w.addRelationshipWithId(QStringLiteral("/word/document.xml"), id, rel + kind, it.key());
     }
     return w.finish();
+}
+
+// The dark pixels of a list item's number, in its own place (the left of the text area, up to the text, which a hanging indent of two inches sets away): the box they are in,
+// how many, and how many of them are red. The level of the list has `levelRun` (the XML of its run properties), the paragraph's mark `markRun`, and the item's first run `firstRun`.
+struct NumberInk {
+    QRect box;
+    int dark = 0, red = 0;
+};
+
+NumberInk numberInk(const QByteArray &levelRun, const QByteArray &markRun, const QByteArray &firstRun)
+{
+    const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/>"
+                                 "<w:pPr><w:ind w:left=\"2880\" w:hanging=\"2880\"/></w:pPr>" + (levelRun.isEmpty() ? QByteArray() : "<w:rPr>" + levelRun + "</w:rPr>") + "</w:lvl></w:abstractNum>"
+                                 "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+    const QByteArray body = "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/><w:rPr>" + markRun +
+                            "</w:rPr></w:pPr><w:r><w:rPr>" + firstRun + "</w:rPr><w:t>HHHH</w:t></w:r></w:p>";
+    const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+    auto doc = open(makeDocxWithParts(body, sect, {}, QByteArray(), kStyles, numbering));
+    PageView view;
+    view.resize(1000, 700);
+    view.setDocument(doc.get());
+    const QImage img = view.pageImage(0, 816);
+    const double perPoint = 816 / 612.0;
+    NumberInk ink;
+    int x0 = 1 << 20, y0 = 1 << 20, x1 = -1, y1 = -1;
+    for (int x = int(72 * perPoint); x < int((72 + 140) * perPoint); ++x)
+        for (int y = int(72 * perPoint); y < int((72 + 90) * perPoint); ++y) {
+            const QRgb c = img.pixel(x, y);
+            if (qGray(c) >= 160) continue;
+            ++ink.dark;
+            ink.red += qRed(c) > 150 && qGreen(c) < 90 && qBlue(c) < 90;
+            x0 = std::min(x0, x);
+            x1 = std::max(x1, x);
+            y0 = std::min(y0, y);
+            y1 = std::max(y1, y);
+        }
+    if (x1 >= 0) ink.box = QRect(QPoint(x0, y0), QPoint(x1, y1));
+    return ink;
+}
+
+// The markers of the list items of a story, in order: a paragraph's own marker text where it has one, else what Qt counts.
+QStringList markersOf(WriteDoc &doc)
+{
+    QStringList out;
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+        if (b.textList()) out << (b.blockFormat().stringProperty(tp::BulletChar).isEmpty() ? b.textList()->itemText(b) : b.blockFormat().stringProperty(tp::BulletChar));
+    return out;
+}
+
+// A paragraph numbered by `num` at `level`, with the text `text`.
+QByteArray itemOf(int num, int level, const char *text = "item")
+{
+    return QByteArray("<w:p><w:pPr><w:numPr><w:ilvl w:val=\"") + QByteArray::number(level) + "\"/><w:numId w:val=\"" + QByteArray::number(num) + "\"/></w:numPr></w:pPr><w:r><w:t>" + text + "</w:t></w:r></w:p>";
 }
 
 // A header or footer part of the paragraphs given (each the XML of a paragraph's contents).
@@ -3879,7 +3947,7 @@ private Q_SLOTS:
             return QByteArray("<w:compat><w:suppressTopSpacingWP/><w:noLeading/><w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"") +
                    QByteArray::number(mode) + "\"/></w:compat>";
         };
-        struct Seen { bool wholeFlow, noLeadingFlow, wholePage, noLeadingPage, tableEmpty; };
+        struct Seen { bool wholeFlow, noLeadingFlow, wholePage, noLeadingPage, tableEmpty; double shrinkFlow, shrinkPage; };
         auto seen = [&](const QByteArray &settings) {
             auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {}, settings));
             Seen s{};
@@ -3888,10 +3956,12 @@ private Q_SLOTS:
             s.wholeFlow = env.wordWholePointLines;
             s.noLeadingFlow = env.wordNoLeading;
             s.tableEmpty = env.standIns.isEmpty();
+            s.shrinkFlow = env.wordSpaceShrink;
             if (const auto page = doc->pager().materialize(0)) {
                 const LayoutEnv pageEnv = Renderer::layoutEnv(*page->doc);
                 s.wholePage = pageEnv.wordWholePointLines;
                 s.noLeadingPage = pageEnv.wordNoLeading;
+                s.shrinkPage = pageEnv.wordSpaceShrink;
             }
             return s;
         };
@@ -3906,6 +3976,14 @@ private Q_SLOTS:
         QVERIFY(b.noLeadingFlow && b.noLeadingPage);
         const Seen c = seen("<w:compat/>");
         QVERIFY(!c.wholeFlow && !c.noLeadingFlow && !c.wholePage && !c.noLeadingPage && c.tableEmpty);
+        // w:wpJustification (the narrowing of the spaces of a justified line) is the same in both layouts: the share the flow's environment has is the one a page is drawn with,
+        // and a file without the option has none in either.
+        const Seen j = seen("<w:compat><w:wpJustification/></w:compat>");
+        QVERIFY2(j.shrinkFlow > 0 && j.shrinkPage == j.shrinkFlow, qPrintable(QString::number(j.shrinkFlow) + " and " + QString::number(j.shrinkPage)));
+        QVERIFY(c.shrinkFlow == 0 && c.shrinkPage == 0 && a.shrinkFlow == 0 && a.shrinkPage == 0);
+        Document made;
+        made.wordSpaceShrink = 0.25;
+        QCOMPARE(Renderer::layoutEnv(made).wordSpaceShrink, 0.25);
     }
 
     // A font table of thousands of fonts that say nothing is read in step with its size.
@@ -6461,11 +6539,313 @@ private Q_SLOTS:
         // With it: the first stop after the number is the default one at 36 points (720 twentieths); the lines after the first are at the indent all the same.
         QVERIFY2(std::abs(startOf(flag, QByteArray(), QByteArray()) - 36) < 2, qPrintable(QString::number(startOf(flag, QByteArray(), QByteArray()))));
         QCOMPARE(second, 72.0);
-        // The paragraph's own stop is taken (50 points), and so is the level's list tab (54 points) when the paragraph has none of its own.
+        // The paragraph's own stop is taken (50 points: the default stops lie only past the last stop of the paragraph's own, as in the text), and so is the level's list tab
+        // (54 points) when the paragraph has none of its own.
         QVERIFY2(std::abs(startOf(flag, QByteArray(), "<w:tabs><w:tab w:val=\"left\" w:pos=\"1000\"/></w:tabs>") - 50) < 2, "own stop");
+        QVERIFY2(std::abs(startOf(flag, QByteArray(), "<w:tabs><w:tab w:val=\"left\" w:pos=\"500\"/></w:tabs>") - 25) < 2, "own stop before the default one");
         QVERIFY2(std::abs(startOf(flag, "<w:tabs><w:tab w:val=\"num\" w:pos=\"1080\"/></w:tabs>", QByteArray()) - 54) < 2, "list tab");
         // A stop of the level that the paragraph clears is gone.
         QVERIFY2(std::abs(startOf(flag, "<w:tabs><w:tab w:val=\"num\" w:pos=\"1080\"/></w:tabs>", "<w:tabs><w:tab w:val=\"clear\" w:pos=\"1080\"/></w:tabs>") - 36) < 2, "cleared stop");
+    }
+
+    // With that option and no list tab (the level has none, or the paragraph clears it or sets a stop of its own in its place), the text after a number goes to the nearest of the
+    // paragraph's stops, the hanging indent, and the default stops (which lie only past the last stop of the paragraph's own, as they do for a tab in the text). Word's own pages:
+    // V004's bullets (the paragraph clears the list tab at 720; the indent is 18 points) have their text at 18, not at the default stop at 36; W124's items (indent 72, the list
+    // tab at 900 cleared) have theirs at 36; V094's items (the paragraph's own stop at 806, where the list tab is, and its own stops on to 8726) have theirs at 806, 40.3
+    // points, though the default stop at 605 lies before it.
+    void aNumberWithNoListTabGoesToTheNearestStopOrTheHangingIndent()
+    {
+        auto startOf = [&](const QByteArray &levelPPr, const QByteArray &paragraphPPr, int defaultStop, double after) {
+            const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1)\"/><w:pPr>" + levelPPr +
+                                         "</w:pPr></w:lvl></w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+            QByteArray words;
+            for (int i = 0; i < 40; ++i) words += "HHHH ";
+            const QByteArray body = "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr>" + paragraphPPr + "<w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/>" +
+                                    "</w:pPr><w:r><w:t xml:space=\"preserve\">" + words + "</w:t></w:r></w:p>";
+            const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+            const QByteArray settings = "<w:defaultTabStop w:val=\"" + QByteArray::number(defaultStop) + "\"/><w:compat><w:doNotUseIndentAsNumberingTabStop/></w:compat>";
+            auto doc = open(makeDocxWithParts(body, sect, {}, settings, kStyles, numbering));
+            PageView view;
+            view.resize(1000, 700);
+            view.setDocument(doc.get());
+            const QImage img = view.pageImage(0, 816);
+            const double perPoint = 816 / 612.0;
+            for (int x = int(std::ceil((72 + after) * perPoint)); x < img.width(); ++x)   // (`after` is where the number's ink ends)
+                for (int y = int(72 * perPoint); y < int(84 * perPoint); ++y)
+                    if (qGray(img.pixel(x, y)) < 128) return x / perPoint - 72;
+            return -1.0;
+        };
+        const QByteArray levelTab = "<w:tabs><w:tab w:val=\"num\" w:pos=\"720\"/></w:tabs><w:ind w:left=\"720\" w:hanging=\"360\"/>";
+        // The list tab cleared and the hanging indent at 18 points: the text is at the indent, before the default stop at 36.
+        const double indent = startOf(levelTab, "<w:tabs><w:tab w:val=\"clear\" w:pos=\"720\"/></w:tabs><w:ind w:left=\"360\"/>", 720, 12);
+        QVERIFY2(std::abs(indent - 18) < 2, qPrintable(QString::number(indent)));
+        // The indent at 72 points: the default stop at 36 is nearer.
+        const double nearer = startOf("<w:tabs><w:tab w:val=\"num\" w:pos=\"900\"/></w:tabs><w:ind w:left=\"1440\" w:hanging=\"1440\"/>", "<w:tabs><w:tab w:val=\"clear\" w:pos=\"900\"/></w:tabs>", 720, 12);
+        QVERIFY2(std::abs(nearer - 36) < 2, qPrintable(QString::number(nearer)));
+        // A stop of the paragraph's at the list tab's place (40 points) takes the list tab's place; the default stop at 30 points (605) lies before the paragraph's own
+        // stops (up to the last of them, at 8726), so it is none.
+        const double own = startOf("<w:tabs><w:tab w:val=\"num\" w:pos=\"806\"/></w:tabs><w:ind w:left=\"806\" w:hanging=\"532\"/>",
+                                   "<w:tabs><w:tab w:val=\"left\" w:pos=\"274\"/><w:tab w:val=\"left\" w:pos=\"806\"/><w:tab w:val=\"left\" w:pos=\"8726\"/></w:tabs>", 605, 26);
+        QVERIFY2(std::abs(own - 40.3) < 2, qPrintable(QString::number(own)));
+        // The list tab itself is still the stop where the paragraph leaves it (40 points, not the default one at 30).
+        const double list = startOf("<w:tabs><w:tab w:val=\"num\" w:pos=\"806\"/></w:tabs><w:ind w:left=\"806\" w:hanging=\"532\"/>", QByteArray(), 605, 26);
+        QVERIFY2(std::abs(list - 40.3) < 2, qPrintable(QString::number(list)));
+    }
+
+    // Numbering ids of one definition count on together (only a restart makes a list of its own), and a level written out in a numbering id (lvlOverride) is no restart.
+    void numberingIdsOfOneDefinitionCountOnTogether()
+    {
+        const QByteArray level = "<w:lvl w:ilvl=\"0\"><w:start w:val=\"3\"/><w:numFmt w:val=\"lowerLetter\"/><w:lvlText w:val=\"%1.\"/><w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl>";
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\">" + level + "</w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>"
+                                     "<w:num w:numId=\"2\"><w:abstractNumId w:val=\"0\"/><w:lvlOverride w:ilvl=\"0\">" + level + "</w:lvlOverride></w:num>"
+                                     "<w:num w:numId=\"3\"><w:abstractNumId w:val=\"0\"/></w:num>"
+                                     "<w:num w:numId=\"4\"><w:abstractNumId w:val=\"0\"/><w:lvlOverride w:ilvl=\"0\"><w:startOverride w:val=\"1\"/></w:lvlOverride></w:num>";
+        auto item = [](int num) { return QByteArray("<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"") + QByteArray::number(num) + "\"/></w:numPr></w:pPr><w:r><w:t>item</w:t></w:r></w:p>"; };
+        auto doc = open(makeDocx(item(1) + item(2) + item(2) + item(3) + item(4) + item(4), kStyles, numbering));
+        QVERIFY(doc);
+        QStringList markers;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            if (b.textList()) markers << (b.blockFormat().stringProperty(tp::BulletChar).isEmpty() ? b.textList()->itemText(b) : b.blockFormat().stringProperty(tp::BulletChar));
+        QCOMPARE(markers, (QStringList{QStringLiteral("c."), QStringLiteral("d."), QStringLiteral("e."), QStringLiteral("f."), QStringLiteral("a."), QStringLiteral("b.")}));   // (the restart is a list of its own)
+    }
+
+    // A list the older programs made (w:legacy) has its text begin at the indent, where the file's option that the hanging indent is no tab stop would send it to the next
+    // default stop.
+    void aLegacyNumbersTextBeginsAtTheIndentWhateverTheTabStopOption()
+    {
+        auto startOf = [&](bool legacy, bool option) {
+            const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1)\"/>" +
+                                         (legacy ? QByteArray("<w:legacy w:legacy=\"1\" w:legacySpace=\"0\" w:legacyIndent=\"1440\"/>") : QByteArray()) +
+                                         "<w:pPr><w:ind w:left=\"1440\" w:hanging=\"1440\"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+            QByteArray words;
+            for (int i = 0; i < 40; ++i) words += "HHHH ";
+            const QByteArray body = "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/></w:pPr>"
+                                    "<w:r><w:t xml:space=\"preserve\">" + words + "</w:t></w:r></w:p>";
+            const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+            const QByteArray settings = option ? QByteArray("<w:compat><w:doNotUseIndentAsNumberingTabStop/></w:compat>") : QByteArray();
+            auto doc = open(makeDocxWithParts(body, sect, {}, settings, kStyles, numbering));
+            PageView view;
+            view.resize(1000, 700);
+            view.setDocument(doc.get());
+            const QImage img = view.pageImage(0, 816);
+            const double perPoint = 816 / 612.0;
+            for (int x = int(std::ceil((72 + 18) * perPoint)); x < img.width(); ++x)   // (a number is under 18 points wide)
+                for (int y = int(72 * perPoint); y < int(84 * perPoint); ++y)
+                    if (qGray(img.pixel(x, y)) < 128) return x / perPoint - 72;
+            return -1.0;
+        };
+        QVERIFY2(std::abs(startOf(false, true) - 36) < 2, qPrintable(QString::number(startOf(false, true))));   // (the option: the next default stop)
+        QVERIFY2(std::abs(startOf(true, true) - 72) < 2, qPrintable(QString::number(startOf(true, true))));    // (a legacy level: the indent)
+        QVERIFY2(std::abs(startOf(true, false) - 72) < 2, qPrintable(QString::number(startOf(true, false))));
+    }
+
+    // Space shrinking is worked only where a line could take another word: a paragraph none of whose lines can (here words of 120 points, three to a line with the room left under
+    // the width of another) is not measured through or laid out again.
+    void spaceShrinkingIsWorkedOnlyWhereALineCouldTakeAnotherWord()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const qint64 passes = spaceShrinkWorkForTest(1), relaid = spaceShrinkWorkForTest(2), full = spaceShrinkWorkForTest(4);
+        auto doc = open(makeDocxWithParts(justifiedParagraphs("xxxxxxxxxxxxxxxxxxxx", 150, 12), sect, {}, "<w:compat><w:wpJustification/></w:compat>", kStyles));
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() > 3);
+        QCOMPARE(spaceShrinkWorkForTest(1) - passes, qint64(0));
+        QCOMPARE(spaceShrinkWorkForTest(2) - relaid, qint64(0));
+        QCOMPARE(spaceShrinkWorkForTest(4) - full, qint64(0));
+    }
+
+    // The page that draws a paragraph is set from what the flow's layout of it came to: where lines could take another word, those paragraphs are worked on once, in laying out the
+    // pages, and drawing the pages works on none again (but the one that goes over from a page before, whose text begins in the middle of its paragraph).
+    void spaceShrinkingIsSharedWithThePageThatDrawsTheParagraph()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const qint64 passes = spaceShrinkWorkForTest(1), shared = spaceShrinkWorkForTest(3);
+        auto doc = open(makeDocxWithParts(justifiedParagraphs(QByteArray(), 120, 90), sect, {}, "<w:compat><w:wpJustification/></w:compat>", kStyles));
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() > 3);
+        const qint64 worked = spaceShrinkWorkForTest(1) - passes;
+        QVERIFY2(worked > 20, qPrintable(QString::number(worked)));
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        for (int k = 0; k < 3; ++k) view.pageImage(k, 400);
+        const qint64 again = spaceShrinkWorkForTest(1) - passes - worked;
+        QVERIFY2(again <= 3, qPrintable(QString::number(again) + " paragraphs worked on again of the 40 or so on three pages"));
+        QVERIFY2(spaceShrinkWorkForTest(3) - shared > 20, qPrintable(QString::number(spaceShrinkWorkForTest(3) - shared)));
+    }
+
+    // A line made as wide as its room on purpose stays one line: a row of letters that exactly fills it (the room of 432 points holds 72 underscores of 12 points), text that is
+    // aligned at a right tab stop that is at the margin, and the text of a table's cell that is as wide as the cell is.
+    void aLineThatExactlyFillsItsRoomStaysOne()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1800\" w:bottom=\"1440\" w:left=\"1800\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto linesOf = [&](const QByteArray &body) {
+            auto doc = open(makeDocxWithParts(body, sect, {}, QByteArray(), kStyles));
+            return int(doc->pager().lines(0).size());
+        };
+        auto run = [](const QByteArray &text) { return QByteArray("<w:r><w:rPr><w:rFonts w:ascii=\"Tinos\" w:hAnsi=\"Tinos\"/><w:sz w:val=\"24\"/></w:rPr><w:t xml:space=\"preserve\">") + text + "</w:t></w:r>"; };
+        // A row of letters: 72 of 6 points fill the 432.
+        QCOMPARE(linesOf("<w:p>" + run(QByteArray(72, '_')) + "</w:p>"), 1);
+        QCOMPARE(linesOf("<w:p>" + run(QByteArray(73, '_')) + "</w:p>"), 2);
+        // A right tab stop at the margin: what follows the tab ends at it.
+        const QByteArray right = "<w:pPr><w:tabs><w:tab w:val=\"right\" w:pos=\"8640\"/></w:tabs></w:pPr>";
+        QCOMPARE(linesOf("<w:p>" + right + run("Federal Communications Commission") + "<w:r><w:tab/></w:r>" + run("DA 07-932") + "</w:p>"), 1);
+        // A cell of 4536 twentieths (226.8 points) with the margins of 108 on each side holds 216 points: 36 underscores.
+        auto cellRows = [&](int underscores) {
+            const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"4536\" w:type=\"dxa\"/><w:tblLayout w:type=\"fixed\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"4536\"/></w:tblGrid>"
+                                     "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"4536\" w:type=\"dxa\"/></w:tcPr><w:p>" + run(QByteArray(underscores, '_')) + "</w:p></w:tc></w:tr></w:tbl><w:p/>";
+            auto doc = open(makeDocxWithParts(table, sect, {}, QByteArray(), kStyles));
+            const auto lines = doc->pager().lines(0);
+            return lines.isEmpty() ? -1.0 : lines[0].rect.height();
+        };
+        const double one = cellRows(35), full = cellRows(36);
+        QVERIFY2(one > 0 && std::abs(full - one) < 0.5, qPrintable(QString::number(full) + " against " + QString::number(one)));
+    }
+
+    // With the older program's full justification (w:wpJustification) a justified line gives up part of its spaces to take in one more word: for some width of the text area its
+    // first line holds a word more than without the option, and for none fewer.
+    void fullJustificationTakesInAWordWhereTheSpacesCanGiveWay()
+    {
+        auto firstLineWords = [&](bool option, int rightMargin) {
+            QByteArray words;
+            for (int i = 0; i < 90; ++i) words += "abcdefg ";
+            const QByteArray body = "<w:p><w:pPr><w:jc w:val=\"both\"/></w:pPr><w:r><w:t xml:space=\"preserve\">" + words + "</w:t></w:r></w:p>";
+            const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"" + QByteArray::number(rightMargin) +
+                                    "\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+            const QByteArray settings = option ? QByteArray("<w:compat><w:wpJustification/></w:compat>") : QByteArray();
+            auto doc = open(makeDocxWithParts(body, sect, {}, settings, kStyles));
+            const auto lines = doc->pager().lines(0);
+            if (lines.isEmpty()) return -1;
+            return int(doc->story()->toPlainText().mid(lines[0].pos, lines[0].end - lines[0].pos).trimmed().count(QLatin1Char(' ')) + 1);
+        };
+        int more = 0;
+        for (int margin = 1440; margin < 1440 + 20 * 60; margin += 20) {
+            const int plain = firstLineWords(false, margin), given = firstLineWords(true, margin);
+            QVERIFY2(plain > 0 && given >= plain, qPrintable(QString::number(margin) + ": " + QString::number(given) + " against " + QString::number(plain)));
+            more += given > plain;
+        }
+        QVERIFY2(more > 3, qPrintable(QString::number(more)));
+    }
+
+    // A list that Qt counts as the file does is counted by Qt (so that it goes on counting as the person edits it): only what it cannot count is given a marker of its own.
+    // Here a definition has numbering ids that no paragraph uses, beside the one that is.
+    void aListQtCanCountIsNotGivenMarkersOfItsOwn()
+    {
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num><w:num w:numId=\"2\"><w:abstractNumId w:val=\"0\"/></w:num>"
+                                     "<w:num w:numId=\"3\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        auto doc = open(makeDocx(itemOf(1, 0) + itemOf(1, 0) + itemOf(1, 0), kStyles, numbering));
+        QVERIFY(doc);
+        int items = 0;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            if (b.textList()) {
+                ++items;
+                QVERIFY2(!b.blockFormat().hasProperty(tp::BulletChar), "Qt's own count is the marker");
+            }
+        QCOMPARE(items, 3);
+        QCOMPARE(markersOf(*doc), (QStringList{QStringLiteral("1."), QStringLiteral("2."), QStringLiteral("3.")}));
+    }
+
+    // The items of numbering ids that count together are numbered through editing: Enter in the middle of such a list, and deleting an item, number the rest again, and a
+    // single undo takes the Enter and the numbers back.
+    void editingASharedListNumbersTheRestAgain()
+    {
+        const QByteArray level = "<w:lvl w:ilvl=\"0\"><w:start w:val=\"3\"/><w:numFmt w:val=\"lowerLetter\"/><w:lvlText w:val=\"%1.\"/><w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl>";
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\">" + level + "</w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num><w:num w:numId=\"2\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        auto open3 = [&] { return open(makeDocx(itemOf(1, 0, "first") + itemOf(2, 0, "second") + itemOf(2, 0, "third"), kStyles, numbering)); };
+        const QStringList three{QStringLiteral("c."), QStringLiteral("d."), QStringLiteral("e.")};
+        {
+            auto doc = open3();
+            QVERIFY(doc);
+            QCOMPARE(markersOf(*doc), three);
+            QTextCursor c(doc->story());
+            const QTextBlock second = doc->story()->findBlockByNumber(1);
+            c.setPosition(second.position() + second.length() - 1);
+            insertParagraph(*doc, c);
+            QCOMPARE(markersOf(*doc), (QStringList{QStringLiteral("c."), QStringLiteral("d."), QStringLiteral("e."), QStringLiteral("f.")}));
+            doc->story()->undo();
+            QCOMPARE(markersOf(*doc), three);   // (one step: the Enter and the numbers go together)
+        }
+        {
+            auto doc = open3();
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            c.setPosition(doc->story()->findBlockByNumber(1).position());
+            c.setPosition(doc->story()->findBlockByNumber(2).position(), QTextCursor::KeepAnchor);
+            removeSelection(*doc, c);
+            QCOMPARE(markersOf(*doc), (QStringList{QStringLiteral("c."), QStringLiteral("d.")}));
+        }
+    }
+
+    // A restart at one level restarts that level only: the others of the numbering id go on with the definition's count. The ids here share the definition; the second has the
+    // second level restart at 5.
+    void aRestartAtOneLevelRestartsThatLevelOnly()
+    {
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl>"
+                                     "<w:lvl w:ilvl=\"1\"><w:start w:val=\"1\"/><w:numFmt w:val=\"lowerLetter\"/><w:lvlText w:val=\"%2)\"/></w:lvl></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>"
+                                     "<w:num w:numId=\"2\"><w:abstractNumId w:val=\"0\"/><w:lvlOverride w:ilvl=\"1\"><w:startOverride w:val=\"5\"/></w:lvlOverride></w:num>";
+        auto doc = open(makeDocx(itemOf(1, 0) + itemOf(1, 1) + itemOf(1, 0) + itemOf(2, 0) + itemOf(2, 1), kStyles, numbering));
+        QVERIFY(doc);
+        QCOMPARE(markersOf(*doc), (QStringList{QStringLiteral("1."), QStringLiteral("a)"), QStringLiteral("2."), QStringLiteral("3."), QStringLiteral("e)")}));
+    }
+
+    // Two definitions that are linked to one numbering style (w:numStyleLink) are the style's definition (the one with w:styleLink): their numbering ids count together.
+    void definitionsLinkedToOneStyleShareItsLevelsAndItsCount()
+    {
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:styleLink w:val=\"Outline\"/><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"lowerLetter\"/><w:lvlText w:val=\"%1.\"/></w:lvl></w:abstractNum>"
+                                     "<w:abstractNum w:abstractNumId=\"1\"><w:numStyleLink w:val=\"Outline\"/></w:abstractNum><w:abstractNum w:abstractNumId=\"2\"><w:numStyleLink w:val=\"Outline\"/></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num><w:num w:numId=\"2\"><w:abstractNumId w:val=\"1\"/></w:num><w:num w:numId=\"3\"><w:abstractNumId w:val=\"2\"/></w:num>";
+        auto doc = open(makeDocx(itemOf(1, 0) + itemOf(2, 0) + itemOf(3, 0), kStyles, numbering));
+        QVERIFY(doc);
+        QCOMPARE(markersOf(*doc), (QStringList{QStringLiteral("a."), QStringLiteral("b."), QStringLiteral("c.")}));
+    }
+
+    // A level that a numbering id writes out itself (w:lvl in its w:lvlOverride) is that id's own: its number's format, with the definition's count.
+    void aLevelWrittenOutInANumberingIdIsUsed()
+    {
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>"
+                                     "<w:num w:numId=\"2\"><w:abstractNumId w:val=\"0\"/><w:lvlOverride w:ilvl=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"upperRoman\"/>"
+                                     "<w:lvlText w:val=\"%1)\"/></w:lvl></w:lvlOverride></w:num>";
+        auto doc = open(makeDocx(itemOf(1, 0) + itemOf(2, 0) + itemOf(2, 0), kStyles, numbering));
+        QVERIFY(doc);
+        QCOMPARE(markersOf(*doc), (QStringList{QStringLiteral("1."), QStringLiteral("II)"), QStringLiteral("III)")}));
+    }
+
+    // A number is set in its paragraph's mark, not in what the first words of the item happen to be in: here the mark is of 10 points and the first words of 40.
+    void aNumberIsInTheSizeOfItsParagraphMark()
+    {
+        const NumberInk marked = numberInk(QByteArray(), "<w:sz w:val=\"20\"/>", "<w:sz w:val=\"80\"/>");   // (10 point digits are about 9 pixels tall; 40 points' would be 37)
+        QVERIFY2(marked.dark > 0 && marked.box.height() < 20, qPrintable(QString::number(marked.box.height())));
+    }
+
+    // A level's typeface is its number's: a typewriter face is wider than the document's.
+    void aNumberIsInTheTypefaceOfItsLevel()
+    {
+        // (A number of 60 points: "1." is 45 points wide in the document's face and 72 in a typewriter face, whatever the faces on the machine are.)
+        const NumberInk plain = numberInk("<w:sz w:val=\"120\"/>", "<w:sz w:val=\"20\"/>", QByteArray());
+        const NumberInk courier = numberInk("<w:rFonts w:ascii=\"Courier New\" w:hAnsi=\"Courier New\"/><w:sz w:val=\"120\"/>", "<w:sz w:val=\"20\"/>", QByteArray());
+        QVERIFY2(courier.box.right() > plain.box.right() + 16, qPrintable(QString::number(courier.box.right()) + " against " + QString::number(plain.box.right())));
+    }
+
+    // A level that says not bold has a number that is not, where the paragraph's mark is bold.
+    void aLevelThatSaysNotBoldHasNoBoldNumber()
+    {
+        const NumberInk boldMark = numberInk("<w:sz w:val=\"60\"/>", "<w:b/>", QByteArray()), lightLevel = numberInk("<w:b w:val=\"0\"/><w:sz w:val=\"60\"/>", "<w:b/>", QByteArray());
+        QVERIFY2(boldMark.dark > lightLevel.dark * 11 / 10, qPrintable(QString::number(boldMark.dark) + " against " + QString::number(lightLevel.dark)));
+    }
+
+    // A color of the level is its number's.
+    void aNumberIsInTheColorOfItsLevel()
+    {
+        QCOMPARE(numberInk("<w:sz w:val=\"60\"/>", "<w:sz w:val=\"20\"/>", QByteArray()).red, 0);
+        const NumberInk red = numberInk("<w:color w:val=\"FF0000\"/><w:sz w:val=\"60\"/>", "<w:sz w:val=\"20\"/>", QByteArray());
+        QVERIFY2(red.red > 20, qPrintable(QString::number(red.red)));
+        // A paragraph's mark is of a color: its number is too, unless the level says automatic.
+        const QByteArray redMark = "<w:color w:val=\"FF0000\"/><w:sz w:val=\"20\"/>";
+        QVERIFY(numberInk("<w:sz w:val=\"60\"/>", redMark, QByteArray()).red > 20);
+        QCOMPARE(numberInk("<w:color w:val=\"auto\"/><w:sz w:val=\"60\"/>", redMark, QByteArray()).red, 0);
     }
 
     // A bullet whose level asks for the outline effect (w:outline) is drawn hollow, as an outlined box is: the middle of a big black square is dark, and that of the same

@@ -131,6 +131,10 @@ public:
     QTextListFormat listFormat(int numId, int level, int start = -1) const;
     office::wml::ParaProps levelParagraph(int numId, int level) const;   // the indents the level gives its paragraphs
     int deepestLevel(int numId) const;   // the deepest level the definition has (0 to 8), -1 for none
+    // Gives the items of the lists in a story the numbers they have: where Qt's own count of an item is the number the file's numbering gives it, the item is left to Qt's
+    // count (which goes on as the person edits), and where it is not (a count shared by several numbering ids, a restart at one level, several levels in the marker, the legal style)
+    // the item has its number as a marker of its own. Run after the story is filled, and after each edit that can change the numbers; its changes join the edit's undo step.
+    void renumberLists(QTextDocument *story);
 
     // ---- the file's links and parts (what a pasted picture or hyperlink needs from the document it goes into)
     // This document's own number, which tells a copy made from it from one made from another document.
@@ -218,8 +222,8 @@ private:
     int m_letteringShapes = 0, m_letteringLetters = 0;   // the lettering on a path the document has drawn so far, and its letters (each is outlined, and may be stroked: they are bounded)
     bool m_syncing = false;
     mutable QHash<QString, std::shared_ptr<office::wml::StyleSheet>> m_scratch;
-    bool levelIsOutlined(const office::wml::AbstractNum &definition, int level) const;
-    mutable QHash<int, bool> m_levelOutlines;   // by definition and level: whether the level's bullets are outlined
+    bool levelIsOutlined(const office::wml::Level &level, int key) const;
+    mutable QHash<int, bool> m_levelOutlines;   // by definition and level (or, for a level a numbering id writes out itself, by the id and level): whether the level's bullets are outlined
     friend class Loader;
     friend class Saver;
 };

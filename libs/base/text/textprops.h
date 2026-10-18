@@ -97,6 +97,9 @@ enum : int {
     NoteMarkCustom,                              // bool: a note's reference whose mark is the text after it (w:customMarkFollows): it shows no number and takes none (LayoutEnv::wordLines)
     OutOfLayout,                                 // bool: the paragraph is set apart from the text (a word processor's frame, which the page sets where it asks): it has no lines and no room, and shows nothing (LayoutEnv::wordLines)
     BoxIndent,                                   // double (block): the first-line indent the paragraph's box begins from, where its text's own was taken off (the piece that goes on after a page break)
+    LegacyNumber,                                // bool (list format): the text after the number begins at the indent, whatever the file says of the hanging indent as a tab stop (a level of an older program's list; LayoutEnv::wordLines)
+    BulletBold,                                  // bool (list format): the marker is bold or, when false, not, as its level's run properties say; absent: as the paragraph's mark (LayoutEnv::wordLines)
+    BulletItalic,                                // bool (list format): the same for italic
 };
 
 // A paragraph's borders and shading as a word processor draws them (LayoutEnv::wordLines): each side's line style, width in eighths of a point, and its

@@ -28,45 +28,12 @@ namespace jp::write {
 
 namespace {
 
-QString letters(int n, bool upper)
-{
-    QString s;
-    for (n = std::max(1, n); n > 0; n = (n - 1) / 26) s.prepend(QChar((upper ? 'A' : 'a') + (n - 1) % 26));
-    return s;
-}
-
-QString roman(int n, bool upper)
-{
-    static const std::pair<int, const char *> table[] = {{1000, "m"}, {900, "cm"}, {500, "d"}, {400, "cd"}, {100, "c"}, {90, "xc"}, {50, "l"}, {40, "xl"}, {10, "x"}, {9, "ix"}, {5, "v"}, {4, "iv"}, {1, "i"}};
-    QString s;
-    n = std::clamp(n, 1, 3999);
-    for (const auto &t : table)
-        while (n >= t.first) {
-            s += QLatin1String(t.second);
-            n -= t.first;
-        }
-    return upper ? s.toUpper() : s;
-}
-
-QString counterText(const QString &format, int n)
-{
-    if (format == QLatin1String("lowerLetter")) return letters(n, false);
-    if (format == QLatin1String("upperLetter")) return letters(n, true);
-    if (format == QLatin1String("lowerRoman")) return roman(n, false);
-    if (format == QLatin1String("upperRoman")) return roman(n, true);
-    if (format == QLatin1String("decimalZero")) return QStringLiteral("%1").arg(n, 2, 10, QLatin1Char('0'));
-    return QString::number(n);
-}
-
+// The Qt lists of one numbering id, by level: the items go on in the one that is open, and a deeper level's list is closed by an item of a shallower level.
 struct NumState {
-    int count[9];
     QTextList *list[9];
     NumState()
     {
-        for (int i = 0; i < 9; ++i) {
-            count[i] = -1;
-            list[i] = nullptr;
-        }
+        for (int i = 0; i < 9; ++i) list[i] = nullptr;
     }
 };
 
@@ -431,8 +398,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         const ParaProps base = sheet.paragraph(styleId, layer);
         int numId = direct.numId ? *direct.numId : base.numId.value_or(0);
         const int level = std::clamp(direct.ilvl ? *direct.ilvl : base.ilvl.value_or(0), 0, 8);
-        const AbstractNum *definition = numId > 0 ? m_wml.numbering.abstractOf(numId) : nullptr;
-        if (!definition || !definition->levels[level].present) numId = 0;
+        if (numId > 0 && !m_wml.numbering.levelOf(numId, level)) numId = 0;
         // (The list's indents are the style's to override when the style says the paragraph is numbered, and the paragraph's own numbering
         // overrides its style's.)
         const bool numberedByItself = direct.numId.has_value();
@@ -516,39 +482,17 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         // A paragraph whose mark a tracked change deleted is joined to the next as the text stands (and ends no section).
         if (!direct.section && markIsDeleted(direct)) markFormat = asDeleted(markFormat);
 
-        // A list: the item's counter, and the marker where Qt's own counting can't make it.
+        // A list: the items of a numbering id are in Qt lists of their own, by level (a shallower level's item ends the deeper levels' lists). The numbers they show are Qt's own
+        // count, or, where that is not the file's, a marker of their own that renumberLists gives them when the story is filled.
         QTextListFormat lf;
         bool newList = false;
         QTextList *continuing = nullptr;
         if (numId > 0) {
             NumState &st = numbering[numId];
-            const Level &l = definition->levels[level];
-            const Num *num = m_wml.numbering.num(numId);
-            auto startOf = [&](int lvl) { return num && num->startOverrides.contains(lvl) ? num->startOverrides.value(lvl) : definition->levels[lvl].start; };
-            for (int i = level + 1; i < 9; ++i) {
-                st.count[i] = -1;
-                st.list[i] = nullptr;
-            }
-            st.count[level] = st.count[level] < 0 ? startOf(level) : st.count[level] + 1;
+            for (int i = level + 1; i < 9; ++i) st.list[i] = nullptr;
             lf = listFormat(numId, level);
             continuing = st.list[level];
             newList = !continuing;
-            // Several levels in the marker, the legal style, or no number of its own: the marker is made here.
-            const bool isBullet = l.numFmt == QLatin1String("bullet") || l.numFmt == QLatin1String("none");
-            const int placeholders = l.text.count(QLatin1Char('%'));
-            const bool own = l.text.contains(QStringLiteral("%%1").arg(level + 1));
-            if (!isBullet && (l.legal || placeholders > 1 || !own)) {
-                QString marker = l.text;
-                for (int k = 8; k >= 0; --k) {
-                    const QString token = QStringLiteral("%%1").arg(k + 1);
-                    if (!marker.contains(token)) continue;
-                    const Level &lk = definition->levels[k];
-                    const int n = st.count[k] < 0 ? (lk.present ? startOf(k) : 1) : st.count[k];
-                    marker.replace(token, counterText(l.legal ? QStringLiteral("decimal") : lk.numFmt, n));
-                }
-                bf.setProperty(tp::BulletChar, marker);
-                lf.setStyle(QTextListFormat::ListDisc);
-            }
         }
 
         startBlock(bf, markFormat);
@@ -701,7 +645,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 field = QStringLiteral("footnote:fn") + in.key;
                 if (markFollows(in.raw)) af.setProperty(tp::NoteMarkCustom, true);
             }
-            else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + (markFollows(in.raw) ? QString() : roman(deleted ? endnoteNumber + 1 : ++endnoteNumber, false));   // (a deleted one takes no number)
+            else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + (markFollows(in.raw) ? QString() : romanNumeral(deleted ? endnoteNumber + 1 : ++endnoteNumber, false));   // (a deleted one takes no number)
             af.setProperty(tp::Field, field);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);
         }
@@ -749,6 +693,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     }
     if (header) {
         c.endEditBlock();
+        renumberLists(story);
         return;
     }
     if (!pending.isEmpty()) {
@@ -765,6 +710,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         first.setBlockFormat(bf);
     }
     c.endEditBlock();
+    renumberLists(story);
 }
 
 bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFormat *format, double lineWidth, const QVector<Inline> *content)

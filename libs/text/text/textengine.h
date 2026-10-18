@@ -197,6 +197,9 @@ struct LayoutEnv {
     // (w:noLeading) (LayoutEnv::wordLines).
     bool wordWholePointLines = false;
     bool wordNoLeading = false;
+    // How much of each space a justified line of a word processor's text may give up to take in one more word (a share of the space; the older word processor's full
+    // justification, a file's compatibility option w:wpJustification), 0 for none (LayoutEnv::wordLines).
+    double wordSpaceShrink = 0;
     // Percent taken off each paragraph's line spacing (a slide's text the
     // presentation program shrank to fit: a:normAutofit's lnSpcReduction).
     double lineCut = 0;
@@ -232,6 +235,13 @@ struct PaintOptions {
 // lines of a paragraph that start in different places need stops of their own,
 // so each is laid out with its list (setLineTabs) and handed out with it again
 // (lineAt, draw). With one list for all its lines it works as a QTextLayout.
+// What the space shrinking of a justified paragraph came to: the format ranges with the spaces narrowed, and where the lines began and how wide each was.
+struct ShrunkParagraph {
+    QVector<QTextLayout::FormatRange> ranges;
+    QVector<int> starts;
+    QVector<double> rooms;
+};
+
 class ParagraphLayout : public QTextLayout {
 public:
     using QTextLayout::QTextLayout;
@@ -384,6 +394,13 @@ public:
         QString marker; QFont markerFont; QColor markerColor; double markerX = 0;
         double markerAdv = 0, markerGap = 0;         // the marker's advance, and the space after it
         double markerOff = 0;                        // where the text starts from the marker's origin, when the item doesn't hang
+        double markerClamp = 0;                      // how far the first line's text start was held back to the line's end (a marker wider than its room): the marker stays where it was
+        bool markerSkipsIndent = false;              // the text after the marker goes to the next tab stop past it, not to the indent (LayoutEnv::wordNoNumberIndentStop, but not for a legacy level's items)
+        // What the space shrinking of a justified paragraph came to before (a paragraph of the same text, format, and room is cut the same: the text of a page is laid out again
+        // by the page that draws it).
+        std::optional<ShrunkParagraph> shrunk;
+        QString shrinkKey;
+        bool lettersAdjusted = false;                // some letters take the original font's widths, not their stand-in's (applyLetterWidths)
         bool markerOutline = false;                  // drawn as an outline (the level's outline effect)
         bool markerFit = false, markerRound = false; // drawn to markerInk: a circle, or the stand-in glyph fitted to it
         QRectF markerInk;                            // from the marker's origin and the baseline, y down
@@ -497,6 +514,9 @@ void drawPlainText(QPainter *p, const QPointF &baseline, const QFont &font, cons
 // metrics of common proprietary fonts (measured from Publisher's PDFs) when
 // there are any, else the font's own tables.
 double naturalLineEm(const QFont &f, const QString &requestedFamily);
+// How much work the space shrinking of justified lines has done since the program began (0: characters looked at to find the lines that could take another word, 1: paragraphs with
+// such a line, 2: paragraphs laid out again, 3: paragraphs set from what an earlier layout of them came to, 4: characters measured to cut the lines), for tests of its cost.
+qint64 spaceShrinkWorkForTest(int what);
 
 // `behind` is the fill under the text, for text of the automatic color (white where the fill, the run's own or this, is dark: it is worked out as the text is laid out, and the run
 // keeps no color of its own).

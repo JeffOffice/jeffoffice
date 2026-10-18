@@ -224,6 +224,7 @@ LayoutEnv Renderer::layoutEnv(const Document &doc)
     env.wordNoNumberIndentStop = doc.wordNoNumberIndentStop;
     env.wordWholePointLines = doc.wordWholePointLines;
     env.wordNoLeading = doc.wordNoLeading;
+    env.wordSpaceShrink = doc.wordSpaceShrink;
     env.standIns = doc.wordStandIns;
     env.familyAliases = doc.fontAliases;
     // A slide's text has no ligatures (the presentation program applies none), wherever it is set: on the screen, on paper, and in a PDF, whose text

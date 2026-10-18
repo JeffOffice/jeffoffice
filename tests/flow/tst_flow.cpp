@@ -2874,6 +2874,7 @@ private Q_SLOTS:
             QTextCharFormat run;
             run.setFontFamilies({QStringLiteral("Times New Roman")});
             run.setFontPointSize(12);
+            c.setBlockCharFormat(run);   // (the paragraph's mark: a word processor's marker is set in it)
             c.insertText(QStringLiteral("an item of the list that is long enough to take two lines of the frame when it is set in it, at twelve points"), run);
             QTextListFormat lf;
             lf.setStyle(QTextListFormat::ListDisc);
@@ -2895,6 +2896,36 @@ private Q_SLOTS:
         // A bullet whose own line is shorter than the text's (Courier's) makes it no taller.
         const auto courier = first(QStringLiteral("Courier New"));
         QVERIFY2(std::abs(courier[0].rect.height() - single) < 0.01, qPrintable(QString::number(courier[0].rect.height())));
+    }
+
+    // A number set in less room than it needs (the text after it is held to the line's end) stays at its indent: the number is not pushed back by as much as the text was held.
+    void aNumberInARoomTooNarrowStaysAtItsIndent()
+    {
+        for (const bool option : {false, true}) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setLeftMargin(36);
+            bf.setTextIndent(-18);
+            c.setBlockFormat(bf);
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Tinos")});
+            cf.setFontPointSize(12);
+            c.setBlockCharFormat(cf);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDecimal);
+            lf.setNumberSuffix(QStringLiteral("."));
+            c.createList(lf);   // (an item of nothing: a number in a cell as narrow as 26 points)
+            LayoutEnv env;
+            env.wordLines = true;
+            env.wordNoNumberIndentStop = option;
+            env.defaultTab = 36;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(26, 200)}, env);
+            const auto lines = lay.lineInfo(0);
+            QVERIFY(!lines.isEmpty());
+            QVERIFY2(std::abs(lines[0].markerX - 18) < 0.01, qPrintable(QString::number(lines[0].markerX) + (option ? " (the option)" : QString())));
+        }
     }
 
     // A paragraph's borders take room: the top one and its distance from the text above the first line, the bottom one below the last, and none between
@@ -3280,6 +3311,76 @@ private Q_SLOTS:
         StoryLayout narrower;
         narrower.build(&doc, {plainFrame(215, 200)}, env);
         QCOMPARE(narrower.lineInfo(0).size(), 2);
+    }
+
+    // A line fits its room by one rule whether punctuation may hang at its end or not: text of two words that is a tenth of a point under the room it is set in goes to a
+    // second line (a pixel of the fine layout is kept back from every room) in both, and one a fifth under goes on one.
+    void aLineFitsAsMuchWithPunctuationThatHangsAsWithoutIt()
+    {
+        auto lines = [&](bool hang, double room) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Tinos")});
+            run.setFontPointSize(12);
+            c.insertText(QStringLiteral("____________________________________ ____"), run);   // (36 and 4 half-em letters: 216 points, a space, and 24)
+            LayoutEnv env;
+            env.wordLines = true;
+            env.wordNoHang = !hang;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(room, 200)}, env);
+            return int(lay.lineInfo(0).size());
+        };
+        for (const bool hang : {false, true}) {
+            QCOMPARE(lines(hang, 216 + 3 + 24 + 0.2), 1);
+            QCOMPARE(lines(hang, 216 + 3 + 24 + 0.1), 2);
+            QCOMPARE(lines(hang, 216 + 3 + 24 - 0.1), 2);
+        }
+    }
+
+    // A mark of punctuation hangs past the margin, and the text before it may fill the room exactly (the room of two words of 243 points and a period of 3: the period is past the
+    // margin and the line is one), where a line that ends in a word stops a pixel short of its room. A line that is a tenth of a point over its room is two lines, and so is one
+    // with no hang.
+    void aMarkThatHangsLeavesTheTextBeforeItTheRoomExactly()
+    {
+        auto lines = [&](bool hang, double room) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Tinos")});
+            run.setFontPointSize(12);
+            c.insertText(QStringLiteral("____________________________________ ____."), run);   // (216 points, a space of 3, 24, and the period's 3)
+            LayoutEnv env;
+            env.wordLines = true;
+            env.wordNoHang = !hang;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(room, 200)}, env);
+            return int(lay.lineInfo(0).size());
+        };
+        QCOMPARE(lines(true, 243.0), 1);
+        QCOMPARE(lines(true, 243.1), 1);
+        QCOMPARE(lines(true, 242.9), 2);
+        QCOMPARE(lines(false, 243.0), 2);
+        QCOMPARE(lines(false, 246.2), 1);
+    }
+
+    // A line that ends where a break may be (after a dash) is fitted as the others are: the room is not given back, as it is for a word wider than the line.
+    void aLineThatEndsAtADashIsFittedLikeTheOthers()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Tinos")});
+        run.setFontPointSize(12);
+        c.insertText(QString(34, QLatin1Char('_')) + QChar(0x2014) + QString(4, QLatin1Char('_')), run);   // (204 points, a dash of 12, and 24)
+        LayoutEnv env;
+        env.wordLines = true;
+        env.wordNoHang = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(216.1, 200)}, env);   // (the first two parts are 216 points: a tenth under the room, which is not enough)
+        const auto lines = lay.lineInfo(0);
+        QVERIFY(lines.size() >= 2);
+        QCOMPARE(lines[0].text, QString(34, QLatin1Char('_')));
     }
 
     // Hidden text takes no room and shows nothing: a line's text is what is left, and a paragraph of nothing else is an empty line.

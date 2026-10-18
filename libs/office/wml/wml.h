@@ -348,6 +348,7 @@ struct Level {
     QString suff = QStringLiteral("tab");
     QString pStyle;                   // the paragraph style this level is linked to
     bool legal = false;
+    bool legacy = false;              // w:legacy: a list the older programs made (its text begins at the indent)
     std::optional<int> restart;       // lvlRestart
     ParaProps pPr;                    // indents (and tabs) of the paragraphs in it
     RunProps rPr;                     // the number's own formatting (a bullet's font)
@@ -357,6 +358,8 @@ struct Level {
 struct AbstractNum {
     int id = 0;
     QString multiLevelType;
+    QString styleLink;                // the numbering style this definition is (w:styleLink)
+    QString numStyleLink;             // the numbering style it only names (w:numStyleLink): its levels are those of the definition that is the style
     Level levels[9];
     QByteArray head, tail;            // what comes before the levels (nsid, tmpl, name, styleLink) and after, as written
     QByteArray raw;                   // the element as written, while it is unchanged
@@ -367,6 +370,7 @@ struct Num {
     int abstractId = 0;
     QMap<int, int> startOverrides;    // level -> startOverride
     QByteArray raw;
+    QMap<int, Level> levelOverrides;  // level -> the level this id writes out itself (the w:lvl of a w:lvlOverride)
 };
 
 struct Numbering {
@@ -376,14 +380,25 @@ struct Numbering {
     QByteArray suffix;                // numIdMacAtCleanup
     QByteArray original;              // the part as read; written back as it was unless something changed
     bool modified = false;
+    // The definition a numbering id has: its own, or, when that only names a numbering style (w:numStyleLink), the definition that is the style (w:styleLink).
     const AbstractNum *abstractOf(int numId) const;
     const Num *num(int numId) const;
+    // A level of a numbering id as the id has it: the level it writes out itself (in its w:lvlOverride), else its definition's; null when there is none.
+    const Level *levelOf(int numId, int level) const;
+    // The definition a numbering id's items are counted with (the id of abstractOf), -1 for none. The ids of one definition count together, whichever of its definitions
+    // (linked to one style) they name.
+    int definitionOf(int numId) const;
+    // Whether the id counts a level of its own, from the number it says (w:startOverride): the rest go on with the definition's count. Only that level restarts.
+    bool restartsLevel(int numId, int level) const;
+    // The first number of a level for an id.
+    int startOf(int numId, int level) const;
     int nextNumId() const;
     int nextAbstractId() const;
 
 private:
     void index() const;
     mutable QHash<int, int> m_nums, m_abstracts;   // the first of each id, by place
+    mutable QVector<int> m_effective;              // for each definition (by place), the place of the one its levels are
     mutable qsizetype m_numCount = -1, m_abstractCount = -1;
 };
 
@@ -537,7 +552,7 @@ bool compatOption(const QByteArray &settings, const char *name);
 // The compatibility options the layout reads, from one reading of the settings part (compatOption reads the whole part for each one, and a part may be very large).
 struct CompatOptions {
     bool useFELayout = false, doNotWrapTextWithPunct = false, doNotUseHTMLParagraphAutoSpacing = false, noTabHangInd = false;
-    bool doNotUseIndentAsNumberingTabStop = false, splitPgBreakAndParaMark = false, suppressTopSpacingWP = false, noLeading = false, suppressSpBfAfterPgBrk = false;
+    bool doNotUseIndentAsNumberingTabStop = false, splitPgBreakAndParaMark = false, suppressTopSpacingWP = false, noLeading = false, suppressSpBfAfterPgBrk = false, wpJustification = false;
 };
 CompatOptions readCompatOptions(const QByteArray &settings);
 
