@@ -5286,6 +5286,45 @@ private Q_SLOTS:
         QVERIFY2(spec == QLatin1String("single;4;0;"), qPrintable(spec));
     }
 
+    // A table in a header or a footer is laid out and drawn: its cells' text (a page's number in one of them is the page's own), and the room it takes at the top of the page (or the
+    // foot of it), under the header's text and over the footer's.
+    void aTableInAHeaderOrAFooterIsDrawnAndTakesRoom()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"720\" w:right=\"1440\" w:bottom=\"720\" w:left=\"1440\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+        auto cell = [](const QByteArray &content) { return "<w:tc><w:tcPr><w:tcW w:w=\"4000\" w:type=\"dxa\"/></w:tcPr><w:p>" + content + "</w:p></w:tc>"; };
+        auto table = [&](const QByteArray &left, const QByteArray &right) {
+            return "<w:tbl><w:tblPr><w:tblW w:w=\"8000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"4000\"/><w:gridCol w:w=\"4000\"/></w:tblGrid><w:tr>" + cell(left) + cell(right) + "</w:tr></w:tbl>";
+        };
+        const QByteArray field = "<w:r><w:t xml:space=\"preserve\">Page </w:t></w:r><w:fldSimple w:instr=\" PAGE \"><w:r><w:t>1</w:t></w:r></w:fldSimple><w:r><w:t xml:space=\"preserve\"> of </w:t></w:r>"
+                                 "<w:fldSimple w:instr=\" NUMPAGES \"><w:r><w:t>1</w:t></w:r></w:fldSimple>";
+        // (A header is a table and an empty paragraph after it, as a file's is; a footer a table only.)
+        const QByteArray header = "<w:hdr " + QByteArray(kNs) + ">" + table("<w:r><w:t>LEFTCELL</w:t></w:r>", field) + "<w:p/></w:hdr>";
+        const QByteArray footer = "<w:ftr " + QByteArray(kNs) + ">" + table("<w:r><w:t>FOOTCELL</w:t></w:r>", "<w:r><w:t>right</w:t></w:r>") + "<w:p/></w:ftr>";
+        auto doc = open(makeDocxWithParts(paragraphs(300, 30), sect, {{QStringLiteral("/word/header1.xml"), header}, {QStringLiteral("/word/footer1.xml"), footer}}));
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() >= 3);
+        const auto page = doc->pager().materialize(1);
+        QVERIFY(page);
+        QCOMPARE(int(page->furnitureTables.size()), 2);
+        auto textOf = [](const flow::TableFragment &fragment) {
+            QStringList lines;
+            fragment.forTexts([&](const StoryLayout &text) { for (const auto &l : text.lineInfo(0)) lines << l.text; });
+            return lines.join(QLatin1Char('|'));
+        };
+        const flow::TableFragment *top = nullptr, *foot = nullptr;
+        for (const auto &t : page->furnitureTables) (textOf(*t).contains(QLatin1String("LEFTCELL")) ? top : foot) = t.get();
+        QVERIFY2(top && foot, "a table in the header and one in the footer");
+        // The header's table is at the header's distance from the top, with the page's own number in a cell (this is the second page's).
+        QVERIFY2(std::abs(top->rect().top() - 18) < 0.01, qPrintable(QString::number(top->rect().top())));
+        QVERIFY2(textOf(*top).contains(QStringLiteral("Page 2 of %1").arg(doc->pager().pageCount())), qPrintable(textOf(*top) + QStringLiteral(" (the document has %1 pages)").arg(doc->pager().pageCount())));
+        QVERIFY2(textOf(*foot).contains(QLatin1String("FOOTCELL")), qPrintable(textOf(*foot)));
+        // The text begins under the header (a line of the empty paragraph after the table too) and ends over the footer's table.
+        const QRectF content = doc->pager().page(1).content;
+        QVERIFY2(content.top() >= top->rect().bottom() + 10, qPrintable(QStringLiteral("the text begins at %1, the table ends at %2").arg(content.top()).arg(top->rect().bottom())));
+        QVERIFY2(content.bottom() <= foot->rect().top() + 0.01, qPrintable(QStringLiteral("the text ends at %1, the footer's table begins at %2").arg(content.bottom()).arg(foot->rect().top())));
+    }
+
     // A paragraph of a footer whose mark a tracked change deleted, with nothing else of its own, is gone from the footer as the text stands: it takes no room
     // (twenty points a line here), so the text keeps what the footer leaves it.
     void aDeletedParagraphOfAFooterTakesNoRoom()

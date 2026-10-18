@@ -94,7 +94,7 @@ public:
     int add(CellRecord record)
     {
         record.key = int(m_cells.size()) + 1;
-        m_cells.push_back(std::make_unique<const CellRecord>(std::move(record)));
+        m_cells.push_back(std::make_shared<const CellRecord>(std::move(record)));
         return int(m_cells.size());
     }
     const CellRecord *get(int key) const { return key >= 1 && size_t(key) <= m_cells.size() ? m_cells[size_t(key) - 1].get() : nullptr; }
@@ -102,7 +102,7 @@ public:
     int count() const { return int(m_cells.size()); }
 
 private:
-    std::vector<std::unique_ptr<const CellRecord>> m_cells;
+    std::vector<std::shared_ptr<const CellRecord>> m_cells;   // (shared: a copy of the store, for the private copy of a story that a header's tables are laid out in, holds the same records)
 };
 
 } // namespace jp::flow

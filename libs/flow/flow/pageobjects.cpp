@@ -129,7 +129,7 @@ void Paginator::resolveImages(QTextDocument *story, Document *d)
 
 void Paginator::resolveCellImages(MaterializedPage *page, Document *d)
 {
-    for (const auto &fragment : page->tables)
+    auto look = [&](const std::shared_ptr<TableFragment> &fragment) {
         fragment->forTexts([&](const StoryLayout &text) {
             for (const StoryLayout::InlineObject &ob : text.inlineObjects()) {
                 if (!ob.json.contains(kFlowImagePrefix) || page->cellImages.size() >= 1000) continue;
@@ -139,6 +139,9 @@ void Paginator::resolveCellImages(MaterializedPage *page, Document *d)
                 if (!id.isEmpty()) page->cellImages.insert(ref, id);
             }
         });
+    };
+    for (const auto &fragment : page->tables) look(fragment);
+    for (const auto &fragment : page->furnitureTables) look(fragment);
 }
 
 QRectF Paginator::placeOf(const FloatingObject &o, const Anchor &a, const Section &sec, bool clamp, double limit) const

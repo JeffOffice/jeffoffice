@@ -1158,12 +1158,12 @@ CompatOptions readCompatOptions(const QByteArray &settings)
     return o;
 }
 
-bool readBlocks(const QByteArray &xml, QVector<Block> *blocks)
+bool readBlocks(const QByteArray &xml, QVector<Block> *blocks, bool tables)
 {
     XmlTree tree;
     if (!tree.parse(xml, nullptr)) return false;
     Reader reader(tree);
-    reader.tablesAsStandIns = true;
+    reader.tablesAsStandIns = !tables;
     reader.bodyContent(tree.root(), blocks, 0, nullptr, nullptr);
     return true;
 }

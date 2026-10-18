@@ -41,6 +41,7 @@ void paintTables(QPainter *p, const MaterializedPage &page, const TablePaint &op
             }
         };
     for (const std::shared_ptr<TableFragment> &f : page.tables) f->paint(p, own);
+    for (const std::shared_ptr<TableFragment> &f : page.furnitureTables) f->paint(p, own);
 }
 
 struct Paginator::Ledger {

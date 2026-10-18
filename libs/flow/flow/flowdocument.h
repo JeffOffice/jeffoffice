@@ -168,6 +168,8 @@ public:
 
     // The text of the whole document, a paragraph for each paragraph. Edit it as any story (the Paginator is told).
     QTextDocument *story() const { return m_story.get(); }
+    // Takes a story in place of the one it has (for a private copy of a header's or footer's story, which has tables to be laid out; no paginator watches it).
+    void adoptStory(std::unique_ptr<QTextDocument> story) { m_story = std::move(story); }
 
     // The sections in order (always at least one). A paragraph with fp::SectionBreakAfter ends a section: the one after it is in the
     // next, and the paragraphs after the last such break are in the last section (a break past the last section ends it again).
@@ -188,6 +190,8 @@ public:
     const FieldSource *fields = nullptr;
     // The notes' numbers begin again at 1 in each section (a word processor's option), where they go on through the document otherwise.
     bool restartNotesInSections = false;
+    // The page number and the count of pages that the fields in the cells of tables show (a header's or footer's tables are laid out for the page they are on).
+    int fieldPageNumber = 1, fieldPageCount = 1;
     // Automatic hyphenation (off, as a word processor's is).
     bool hyphenate = false;
     double hyphenZone = 18;

@@ -1037,6 +1037,8 @@ void Paginator::forgetFloats()
     m_frames.clear();
     m_storyFrameAnchors.clear();
     m_headerBottoms.clear();
+    m_headerTables.clear();
+    m_storyHasTables.clear();
     m_tableObjects.clear();
     m_anchorChars.clear();
     m_wallMemo.clear();
@@ -1526,7 +1528,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     addPageBorders(d.get(), sec, index <= 0 || st.firstOfSection, furniture);
     if (run.blank) {
         out->storyFrom = m_doc->story()->characterCount();
-        addFurniture(d.get(), furniture, sec, st.section, out->number);
+        addFurniture(d.get(), furniture, sec, st.section, out->number, out.get());
         markTotals(out.get(), *d);
         out->doc = std::move(d);
         return out;
@@ -1534,10 +1536,10 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
 
     if (bodyless) {
         out->storyFrom = st.pos;
-        addFurniture(d.get(), furniture, sec, st.section, out->number);
+        addFurniture(d.get(), furniture, sec, st.section, out->number, out.get());
     } else {
         // The header and the footer are the page's lowest layer: before the body's text and objects, which are drawn over them.
-        addFurniture(d.get(), furniture, sec, st.section, out->number);
+        addFurniture(d.get(), furniture, sec, st.section, out->number, out.get());
         const size_t front = d->pages[0]->items.size();
         auto story = std::make_shared<Story>();
         story->id = QStringLiteral("flow-story-%1").arg(index);

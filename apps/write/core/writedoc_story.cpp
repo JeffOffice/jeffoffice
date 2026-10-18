@@ -363,7 +363,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     int lastFrameKey = 0;
     for (const Block &blk : body) {
         ++blockNumber;
-        if (header && (blk.isRaw || ++paragraphsMade > kMostHeaderParagraphs)) continue;
+        // (A header's or footer's tables are laid out as the body's are: the parts of one are the blocks that make the cells; other raw elements are left out.)
+        if (header && ((blk.isRaw && !tables.isStructural(blk)) || paragraphsMade >= kMostHeaderParagraphs || (!blk.isRaw && ++paragraphsMade > kMostHeaderParagraphs))) continue;
         if (tables.isStructural(blk) || blk.isRaw) lastFrameKey = 0;
         if (tables.isStructural(blk)) {
             // The parts of a table (its start, rows, and cells) become the records of the cells that its paragraphs are given. What was kept after a cell's last

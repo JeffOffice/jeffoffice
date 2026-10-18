@@ -25,6 +25,15 @@ double Paginator::storyHeight(const QTextDocument *story, double width, int numb
     const auto key = storyKey(story, width, rightRoom);
     const auto found = m_storyHeights.find(key);
     if (found != m_storyHeights.end()) return found->second;
+    if (storyHasTables(story)) {
+        // (As tall as its text and its tables together; it has no lines of its own for the objects it anchors to be set from.)
+        const double height = headerTablesOf(story, width, number, rightRoom, withSpaceAfter)->height;
+        if (m_storyLines.size() > 4096) m_storyLines.clear();
+        m_storyLines[key] = {};
+        if (m_storyHeights.size() > 4096) m_storyHeights.clear();
+        m_storyHeights.emplace(key, height);
+        return height;
+    }
     FrameSpec fs;
     fs.size = QSizeF(width, 100000);
     fs.insets = QMarginsF(0, 0, 0, 0);
@@ -63,6 +72,86 @@ double Paginator::storyHeight(const QTextDocument *story, double width, int numb
     if (m_storyHeights.size() > 4096) m_storyHeights.clear();
     m_storyHeights.emplace(key, height);
     return height;
+}
+
+bool Paginator::storyHasTables(const QTextDocument *story)
+{
+    if (m_doc->tables.isEmpty()) return false;
+    const auto key = std::make_pair(story, story->revision());
+    if (const auto found = m_storyHasTables.find(key); found != m_storyHasTables.end()) return found->second;
+    bool any = false;
+    for (QTextBlock b = story->begin(); b.isValid() && !any; b = b.next()) any = b.blockFormat().intProperty(fp::Cell) != 0;
+    if (m_storyHasTables.size() > 4096) m_storyHasTables.clear();
+    m_storyHasTables.emplace(key, any);
+    return any;
+}
+
+std::shared_ptr<const Paginator::HeaderTables> Paginator::headerTablesOf(const QTextDocument *story, double width, int number, double rightRoom, bool withSpaceAfter)
+{
+    const int pages = std::max(1, int(m_starts.size()));   // (what NUMPAGES shows in a cell, as the page's own header and footer text have it: the table is laid out again when the document has another count)
+    const auto key = std::make_tuple(story, int(std::lround(width * 100)), story->revision(), number, int(std::lround(rightRoom * 100)), withSpaceAfter, pages);
+    if (const auto found = m_headerTables.find(key); found != m_headerTables.end()) return found->second;
+    auto out = std::make_shared<HeaderTables>();
+    for (QTextBlock b = story->begin(); b.isValid() && !out->showsTotal; b = b.next())
+        for (auto it = b.begin(); !it.atEnd() && !out->showsTotal; ++it) {
+            const QString code = it.fragment().charFormat().stringProperty(tp::Field);
+            out->showsTotal = code == QLatin1String("pages") || code == QLatin1String("sectionpages");
+        }
+    // The story in a document of its own, with the tables the file has (the cells' records are shared) and what its fields show: the table machinery lays out the tables of a
+    // story it is given the document of.
+    out->doc = std::make_shared<FlowDocument>();
+    out->doc->adoptStory(cloneStory(story));
+    out->doc->tables = m_doc->tables;
+    out->doc->images = m_doc->images;
+    out->doc->env = m_doc->env;
+    out->doc->fields = m_doc->fields;
+    out->doc->fieldPageNumber = number;
+    out->doc->fieldPageCount = pages;
+    out->flow = std::make_shared<TableFlow>(out->doc.get());
+    const QTextDocument *copy = out->doc->story();
+    const TableIndex &index = out->flow->index();
+    const int end = copy->characterCount();   // (the stretch after the last table ends past the last paragraph's mark: an empty last paragraph is a line of it)
+    double y = 0;
+    // The stretch of paragraphs [from, to) laid out at the width, one under another.
+    auto stretch = [&](int from, int to, bool last) {
+        if (to <= from) return;
+        FrameSpec fs;
+        fs.size = QSizeF(std::max(1.0, width), 100000);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        fs.columns = 1;
+        fs.hyphenate = false;
+        fs.rightRoom = rightRoom;
+        fs.ctx.doc = m_doc->fields;
+        fs.ctx.pageNumber = number;
+        fs.ctx.pageCount = pages;
+        StoryLayout::Span span;
+        span.from = from;
+        span.end = to;
+        span.keepRules = false;
+        StoryLayout layout;
+        layout.build(copy, {fs}, out->doc->env, span);
+        double height = layout.usedHeight(0);
+        if (!last || withSpaceAfter) height += layout.trailingSpace();
+        out->parts.push_back(HeaderPart{y, height, from, to, nullptr});
+        y += height;
+    };
+    int at = 0;
+    const auto &spans = index.spans();
+    for (size_t i = 0; i < spans.size(); ++i) {
+        stretch(at, spans[i].from, false);
+        if (const std::shared_ptr<TableLayout> table = out->flow->layout(int(i)); table && table->rowCount() > 0) {
+            if (const std::shared_ptr<TableFragment> fragment = out->flow->fragment(table, 0, table->rowCount(), 1e9)) {
+                out->parts.push_back(HeaderPart{y, fragment->height, spans[i].from, spans[i].to, fragment});
+                y += fragment->height;
+            }
+        }
+        at = spans[i].to;
+    }
+    stretch(at, end, true);
+    out->height = y;
+    if (m_headerTables.size() > 400) m_headerTables.clear();
+    m_headerTables.emplace(key, out);
+    return out;
 }
 
 double Paginator::headerObjectsBottom(const QTextDocument *story, const Section &sec, int number)
@@ -171,7 +260,7 @@ void Paginator::addPageBorders(Document *d, const Section &sec, bool firstOfSect
     line(b.right, QPointF(r, up), QPointF(r, down), "right");
 }
 
-void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec, int section, int number)
+void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec, int section, int number, MaterializedPage *page)
 {
     // The counts the page's NUMPAGES and SECTIONPAGES fields show.
     d->flowPageTotal = std::max(1, int(m_starts.size()));
@@ -182,6 +271,49 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
     QVector<Anchor> anchors;
     auto place = [&](const QTextDocument *story, double top, double height, const char *name) {
         if (!story) return;
+        // A story with tables is drawn in its stretches of text and its tables, each at the place the layout gave it.
+        if (page && storyHasTables(story)) {
+            const auto laid = headerTablesOf(story, content.width(), number, sec.margins.right(), std::string(name) == "header");
+            page->showsTotal = page->showsTotal || laid->showsTotal;
+            int stretches = 0;
+            for (const HeaderPart &part : laid->parts) {
+                if (part.table) {
+                    auto fragment = std::make_shared<TableFragment>(*part.table);
+                    fragment->origin = QPointF(content.left() + fragment->layout->leftEdgeIn(content.width()), top + part.y);
+                    page->furnitureTables.push_back(fragment);
+                    continue;
+                }
+                // (The text of the stretch, as it is in the story: its paragraphs without the separator that ends the last.)
+                auto text = std::make_unique<QTextDocument>();
+                text->setDocumentMargin(story->documentMargin());
+                text->setDefaultFont(story->defaultFont());
+                text->setDefaultTextOption(story->defaultTextOption());
+                {
+                    QTextCursor src(const_cast<QTextDocument *>(story));
+                    src.setPosition(part.from);
+                    src.setPosition(std::max(part.from, part.to - 1), QTextCursor::KeepAnchor);
+                    QTextCursor(text.get()).insertFragment(QTextDocumentFragment(src));
+                }
+                QTextCursor(text->begin()).setBlockFormat(story->findBlock(part.from).blockFormat());
+                auto s = std::make_shared<Story>();
+                s->id = QStringLiteral("flow-%1-%2-%3").arg(QLatin1String(name)).arg(d->pages[0]->id).arg(stretches);
+                s->doc = std::move(text);
+                resolveImages(s->doc.get(), d);
+                d->stories.insert(s->id, s);
+                auto t = std::make_shared<TextItem>();
+                t->id = QStringLiteral("flow-%1-box-%2-%3").arg(QLatin1String(name)).arg(d->pages[0]->id).arg(stretches++);
+                t->rect = QRectF(content.left(), top + part.y, content.width(), part.height + 0.005);
+                t->insets = QMarginsF(0, 0, 0, 0);
+                t->columns = 1;
+                t->hyphenate = false;
+                t->storyId = s->id;
+                t->wrap.mode = Wrap::None;
+                d->pages[0]->items.push_back(t);
+            }
+            if (!m_doc->images.isEmpty()) resolveCellImages(page, d);
+            anchors << storyFrameAnchors(story, content.left(), content.width(), top);
+            return;
+        }
         auto s = std::make_shared<Story>();
         s->id = QStringLiteral("flow-%1-%2").arg(QLatin1String(name)).arg(d->pages[0]->id);
         s->doc = cloneStory(story);

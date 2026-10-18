@@ -440,8 +440,8 @@ struct HeaderRefs {
 HeaderRefs headerRefsOf(const SectionProps &section);
 
 // The paragraphs of a header, footer, or note part, and the elements kept as written (a table, a content control's ends), read as the body
-// is. False, with nothing read, when the part isn't XML.
-bool readBlocks(const QByteArray &xml, QVector<Block> *blocks);
+// is. False, with nothing read, when the part isn't XML. The tables are stand-ins, or (`tables`) the blocks of their parts, as the body's are.
+bool readBlocks(const QByteArray &xml, QVector<Block> *blocks, bool tables = false);
 
 // A drawn object of a run: a picture, a rule, a box, or a text box, read from the VML of a w:pict (or an object) or the DrawingML of a w:drawing. Sizes are
 // points. An object is `floating` where its style says it is set at a place (anchored to a paragraph, the margin, or the page), else it is in the line.

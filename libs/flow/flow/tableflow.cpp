@@ -132,6 +132,8 @@ std::shared_ptr<StoryLayout> layoutText(FlowDocument *doc, int from, int to, dou
     fs.hyphenate = doc->hyphenate;
     fs.hyphenZone = doc->hyphenZone;
     fs.ctx.doc = doc->fields;
+    fs.ctx.pageNumber = doc->fieldPageNumber;
+    fs.ctx.pageCount = doc->fieldPageCount;
     StoryLayout::Span span;
     span.from = from;
     span.end = to;

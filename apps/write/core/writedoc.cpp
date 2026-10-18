@@ -537,7 +537,7 @@ std::shared_ptr<QTextDocument> WriteDoc::headerStory(const QString &relationship
     if (m_headerStories.size() >= kMostHeaderParts) return nullptr;
     QVector<Block> blocks;
     auto doc = std::make_shared<QTextDocument>();
-    if (readBlocks(partData(rel.target), &blocks)) {
+    if (readBlocks(partData(rel.target), &blocks, true)) {
         leaveOutDeletedParagraphs(&blocks);
         doc->setDocumentMargin(0);
         doc->setDefaultFont(story()->defaultFont());
