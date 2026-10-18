@@ -12114,6 +12114,10 @@ private Q_SLOTS:
         Paginator pg(&fd);
         const auto page = pg.materialize(0);
         QVERIFY(page);
+        // The page layer's wall is as wide as the second column and no wider: the first part's column (as tall as the page, though its text ends above) is not one the wall is in.
+        const auto walls = audit::wallsOf(*page);
+        QCOMPARE(int(walls.size()), 1);
+        QVERIFY2(walls[0].rect.left() > 200 && walls[0].rect.right() < 362, qPrintable(QStringLiteral("the wall is at %1").arg(audit::rectText(walls[0].rect))));
         const QString bad = audit::problems(pg, fd.story());
         QVERIFY2(bad.isEmpty(), qPrintable(bad));
         // The first column's lines are not below the wall: the text of the first column runs on from where the section begins.

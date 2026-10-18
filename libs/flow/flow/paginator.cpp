@@ -1660,6 +1660,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         }
         const StoryLayout::LineBrief &lastLine = run.lines[run.kept - 1];
         out->continuesOnAfter = lastLine.line < lastLine.lines - 1;
+        out->freeBreakEnd = run.freeBreak ? run.splitEnd : -1;
 
         // A text box for each column that has lines, as tall as its lines are: the lines that follow, which went to the next page, don't fit
         // in it (a frame a line short of the text's bottom is how the page is cut where the paginator cut it).
