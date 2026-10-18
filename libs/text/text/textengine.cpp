@@ -270,6 +270,12 @@ constexpr double kFine = 8;
 constexpr int kMostUnbrokenStretch = 120;
 // The longest stretch they kept so, since the program began, for a test of their cost.
 std::atomic<qint64> g_longestJoinedStretch{0};
+std::atomic<qint64> g_longestJoinedParagraphs{0};
+inline void noteJoinedParagraphs(int n)
+{
+    qint64 seen = g_longestJoinedParagraphs.load(std::memory_order_relaxed);
+    while (n > seen && !g_longestJoinedParagraphs.compare_exchange_weak(seen, n, std::memory_order_relaxed)) {}
+}
 inline void noteJoinedStretch(int n)
 {
     qint64 seen = g_longestJoinedStretch.load(std::memory_order_relaxed);
@@ -1260,6 +1266,29 @@ namespace { std::atomic<qint64> g_lineHeightsMeasured{0}; }   // (see StoryLayou
 
 qint64 StoryLayout::lineHeightsMeasuredForTest() { return g_lineHeightsMeasured.load(); }
 qint64 StoryLayout::longestJoinedStretchForTest() { return g_longestJoinedStretch.load(); }
+qint64 StoryLayout::longestJoinedParagraphsForTest() { return g_longestJoinedParagraphs.load(); }
+
+bool StoryLayout::joinsNext(const QTextBlock &b, int end)
+{
+    if (!b.charFormat().boolProperty(tp::HiddenText)) return false;
+    const QTextBlock n = b.next();
+    if (!n.isValid() || (end >= 0 && n.position() >= end)) return false;
+    return !b.blockFormat().boolProperty(tp::OutOfLayout) && !n.blockFormat().boolProperty(tp::OutOfLayout);
+}
+
+QTextBlock StoryLayout::joinedEnd(const QTextBlock &first, int end)
+{
+    QTextBlock last = first;
+    for (int n = 1; n < kMostJoinedParagraphs && joinsNext(last, end); ++n) last = last.next();
+    return last;
+}
+
+QTextBlock StoryLayout::joinedHead(const QTextBlock &b)
+{
+    QTextBlock head = b;
+    for (int n = 1; n < kMostJoinedParagraphs && head.previous().isValid() && joinsNext(head.previous()); ++n) head = head.previous();
+    return head;
+}
 
 StoryLayout::StoryLayout() = default;
 StoryLayout::~StoryLayout() = default;
@@ -2532,11 +2561,28 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             break;
         }
         const bool first = m_blocks.empty();   // the first paragraph laid out
-        const bool tail = first && m_span.continued && m_span.from > b.position();   // the rest of one that began before
-        if (!m_span.restartNotesAt.isEmpty() && std::binary_search(m_span.restartNotesAt.cbegin(), m_span.restartNotesAt.cend(), b.position())) footCount = endCount = 0;
+        // A word processor's paragraphs whose marks are hidden (a tracked change deleted them) are joined to the next: the text of each, then the next's, is one paragraph, set with the
+        // properties of the last (the mark that is left). `b` is that last paragraph from here on, where the properties are read, and `head` the first, where the text begins; a run
+        // of more than kMostJoinedParagraphs is cut into paragraphs of that many. A stretch that begins in a paragraph (the rest of one, or one laid out whole) begins at its head.
+        QTextBlock head = b;
+        if (env.wordLines) {
+            int joined = 1;
+            if (first && m_span.from > 0)
+                while (joined < kMostJoinedParagraphs && head.previous().isValid() && joinsNext(head.previous(), m_span.end)) {
+                    head = head.previous();
+                    ++joined;
+                }
+            while (joined < kMostJoinedParagraphs && joinsNext(b, m_span.end)) {
+                b = b.next();
+                ++joined;
+            }
+            noteJoinedParagraphs(joined);
+        }
+        const bool tail = first && m_span.continued && m_span.from > head.position();   // the rest of one that began before
+        if (!m_span.restartNotesAt.isEmpty() && std::binary_search(m_span.restartNotesAt.cbegin(), m_span.restartNotesAt.cend(), head.position())) footCount = endCount = 0;
         auto B = std::make_unique<Block>();
-        B->docStart = b.position();
-        B->docLen = b.length() - 1;
+        B->docStart = head.position();
+        B->docLen = b.position() + b.length() - 1 - B->docStart;
         const QTextBlockFormat bf = b.blockFormat();
         // The fill under the paragraph's text, for text of the automatic color: its own shading, else what its frame is on (a table cell's fill).
         QColor behind = frames.isEmpty() ? QColor() : frames[std::min(f, nF - 1)].backdrop;
@@ -2553,15 +2599,28 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         QVector<QTextLayout::FormatRange> ranges;
         QTextCharFormat dropFmt;
         // The paragraph's text from where the rest of it begins, and no more than the window holds.
-        const int skipChars = tail ? m_span.from - b.position() : 0;
+        const int skipChars = tail ? m_span.from - head.position() : 0;
         const int limit = m_span.window > 0 ? m_span.window : std::numeric_limits<int>::max();
         int taken = 0;
         bool cutShort = false;
-        for (auto it = b.begin(); !it.atEnd(); ++it) {
+        QTextBlock part = head;   // (the paragraph of the run that the text is being taken from)
+        for (auto it = part.begin();; ++it) {
+            // The end of a paragraph that is joined to the next: its mark, which shows nothing, and then the text of the next.
+            bool runEnds = false;
+            while (it.atEnd()) {
+                if (part == b || cutShort) {
+                    runEnds = true;
+                    break;
+                }
+                if (const int mark = part.position() + part.length() - 1 - head.position(); mark >= skipChars) B->map << Seg{mark, 1, int(B->disp.size()), 0, true};
+                part = part.next();
+                it = part.begin();
+            }
+            if (runEnds) break;
             if (cutShort) break;
             const QTextFragment frag = it.fragment();
             if (!frag.isValid()) continue;
-            int rel = frag.position() - b.position();
+            int rel = frag.position() - head.position();
             const QString whole = frag.text();
             int begin = 0, count = int(whole.size());
             if (rel + count <= skipChars) continue;
@@ -2598,7 +2657,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 for (int i = 0; i < text.size(); ++i) {
                     Block::Box box;
                     box.disp = int(B->disp.size());
-                    box.docPos = b.position() + rel + i;
+                    box.docPos = head.position() + rel + i;
                     box.json = object;
                     if (item) {
                         // Sizes from a file: finite and within a page or so.
@@ -2640,7 +2699,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             n.endnote = field.startsWith(QLatin1String("endnote:"));
                             const bool customMark = env.wordLines && cf.boolProperty(tp::NoteMarkCustom);
                             n.number = customMark ? 0 : n.endnote ? ++endCount : ++footCount;
-                            n.refPos = b.position() + rel + i;
+                            n.refPos = head.position() + rel + i;
                             if (!customMark) v = QString::number(n.number);
                             B->noteRefs << qMakePair(int(B->disp.size()), int(m_notes.size()));
                             m_notes << n;
@@ -2921,7 +2980,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
 
         // (The text after a page break that begins a paragraph is set as the paragraph's first line, indent and all, as a word processor sets it.)
         // (A break that is hidden text, as what a tracked change deleted is, is none.)
-        const bool startsWithBreak = env.wordLines && doc->characterAt(b.position()) == QChar(0x000C) && b.length() > 1 && !b.begin().fragment().charFormat().boolProperty(tp::HiddenText);
+        const bool startsWithBreak = env.wordLines && doc->characterAt(head.position()) == QChar(0x000C) && head.length() > 1 && !head.begin().fragment().charFormat().boolProperty(tp::HiddenText);
         const bool firstAfterBreak = startsWithBreak && (!tail || m_span.indentContinued);
         const double leftM = bf.leftMargin() * scale, rightM = bf.rightMargin() * scale, textIndent = tail && !firstAfterBreak ? 0.0 : bf.textIndent() * scale;
         // A slide's space given as a share of the line is of the line at the size the text was shrunk to; one given in points is not.
@@ -2940,7 +2999,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             auto inList = [&](const QTextBlock &other) {
                 return item && other.isValid() && other.textList() && other.textList()->format().intProperty(tp::ListKey) == b.textList()->format().intProperty(tp::ListKey);
             };
-            if (bf.boolProperty(tp::SpaceBeforeAuto) && (!tail || m_span.spaceBeforeContinued)) before = inList(b.previous()) ? 0.0 : 14 * scale;
+            if (bf.boolProperty(tp::SpaceBeforeAuto) && (!tail || m_span.spaceBeforeContinued)) before = inList(head.previous()) ? 0.0 : 14 * scale;
             if (bf.boolProperty(tp::SpaceAfterAuto)) after = inList(b.next()) ? 0.0 : 14 * scale;
         }
 
@@ -3123,7 +3182,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                        std::abs(xf.rightMargin() - bf.rightMargin()) < 0.01;
             };
             B->boxTopOff = tail || bf.boolProperty(tp::BorderTopOff);
-            B->boxJoinedBefore = !tail && sameBox(b.previous());
+            B->boxJoinedBefore = !tail && sameBox(head.previous());
             B->boxJoinedAfter = sameBox(b.next()) || bf.boolProperty(tp::BorderBottomOff);
             B->boxTopRoom = B->boxJoinedBefore ? B->box.between.reserve() : B->boxTopOff ? 0.0 : B->box.top.reserve();
             B->boxBottomRoom = B->boxJoinedAfter ? 0.0 : B->box.bottom.reserve();
@@ -3134,7 +3193,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             return x.isValid() && z.isValid() && x.blockFormat().stringProperty(tp::StyleName) == z.blockFormat().stringProperty(tp::StyleName);
         };
         if (env.wordLines && bf.boolProperty(tp::ContextualSpacing)) {
-            if (sameStyle(b, b.previous())) before = 0;
+            if (sameStyle(b, head.previous())) before = 0;
             if (sameStyle(b, b.next())) after = 0;
         }
         const Spot startSpot{f, c, y, overflowY, rowH, row, rowIdx, rowActive, columnEmpty, m_overflow, m_blankPast, m_used, reserve, m_notes, carry, seeded};
@@ -3574,7 +3633,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         baseDown = bf.lineHeightType() == QTextBlockFormat::FixedHeight && ownSingle > 0 ? wl.ascent * h / ownSingle : bottom ? std::max(0.0, h - wl.descent) : wl.ascent;
                         // A paragraph's first line that holds only a page break (the paragraph begins with it) takes no room: it is at the foot of the page
                         // the paragraph's text is to leave, whether or not there is room for a line there.
-                        if (lineNo == 0 && line.textLength() == 1 && doc->characterAt(b.position() + B->docFromDisp(line.textStart())) == QChar(0x000C)) {
+                        if (lineNo == 0 && line.textLength() == 1 && doc->characterAt(B->docStart + B->docFromDisp(line.textStart())) == QChar(0x000C)) {
                             h = textH = 0;
                             baseDown = 0;
                             roomUnder = 0;
@@ -3759,18 +3818,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         // (The first paragraph of a stretch may have lines that went before it.)
         const int firstBreak = first ? m_span.firstBreakAfter : -1;
         // A paragraph whose text and mark are both hidden is no paragraph: it takes no room.
-        // A paragraph that shows nothing and follows one that shows text and whose mark a tracked change deleted is the rest of that one (the two are one
-        // paragraph without the mark): it takes no room.
-        auto showsText = [](const QTextBlock &x) {
-            for (QTextBlock::iterator it = x.begin(); !it.atEnd(); ++it) {
-                const QTextCharFormat cf = it.fragment().charFormat();
-                if (!cf.boolProperty(tp::HiddenText) && cf.stringProperty(tp::Field) != QLatin1String("raw:")) return true;
-            }
-            return false;
-        };
-        const bool restOfDeleted = env.wordLines && B->disp.isEmpty() && !tail && !b.charFormat().boolProperty(tp::HiddenText) && b.previous().isValid() &&
-                                   b.previous().charFormat().boolProperty(tp::HiddenText) && !b.previous().blockFormat().boolProperty(tp::OutOfLayout) && showsText(b.previous());
-        if (!(env.wordLines && B->disp.isEmpty() && (b.charFormat().boolProperty(tp::HiddenText) || apart) && !tail) && !restOfDeleted) placeLines(false, firstBreak);
+        if (!(env.wordLines && B->disp.isEmpty() && (b.charFormat().boolProperty(tp::HiddenText) || apart) && !tail)) placeLines(false, firstBreak);
         // Where each line landed: the first line in another column or box.
         auto splitAt = [&] {
             for (int i = 1; i < B->lines.size(); ++i)

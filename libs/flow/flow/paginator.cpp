@@ -285,7 +285,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
     auto flags = [&](int blockStart) -> const BlockFlags & {
         auto it = cache.find(blockStart);
         if (it == cache.end()) {
-            const QTextBlockFormat bf = m_doc->story()->findBlock(blockStart).blockFormat();
+            const QTextBlockFormat bf = joinedEndOf(m_doc->story()->findBlock(blockStart)).blockFormat();   // (paragraphs joined by hidden marks ask as the last of them does)
             BlockFlags f;
             if (bf.intProperty(fp::Cell)) {
                 // A row of a table: of its paragraphs only a page break before the table's first asks anything of the page.
@@ -315,7 +315,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
     bool denseNotes = false;
     if (st.skip > 0 && st.pos > 0) {
         int footnotes = 0, endnotes = 0;
-        countNotes(m_doc->story()->findBlock(st.pos).position(), st.pos, &footnotes, &endnotes);
+        countNotes(paragraphStartOf(st.pos), st.pos, &footnotes, &endnotes);
         denseNotes = footnotes + endnotes > kDenseNotes;
     }
     const bool tail = afterBreak || denseNotes || st.wrapped || st.skip > std::max(0, m_doc->exactLines);
@@ -418,7 +418,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         span.endnotesBefore = st.end;
         if (tail && st.pos > 0) {
             int footnotes = 0, endnotes = 0;
-            countNotes(m_doc->story()->findBlock(st.pos).position(), st.pos, &footnotes, &endnotes);
+            countNotes(paragraphStartOf(st.pos), st.pos, &footnotes, &endnotes);
             span.footnotesBefore += footnotes;
             span.endnotesBefore += endnotes;
         }
@@ -789,7 +789,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
     // A break that ends the page takes the lines after it off the page, but the text engine laid them out in the page's frame, and the room it kept at the foot for
     // the notes of those lines stays under the notes that are the page's: the page is laid out again as far as the break, for where its notes go.
     if (forced && c > 0 && c < kept && stopBefore < 0) {
-        const QTextBlock lastBlock = m_doc->story()->findBlock(L[c - 1].block);
+        const QTextBlock lastBlock = joinedEndOf(m_doc->story()->findBlock(L[c - 1].block));
         const int blockEnd = lastBlock.position() + lastBlock.length();
         bool cites = false;   // (a footnote's reference, whether or not it takes a number)
         for (QTextBlock b = m_doc->story()->findBlock(blockEnd); b.isValid() && b.position() < L[kept - 1].end && !cites; b = b.next())
@@ -870,8 +870,8 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
     if (run.hasNext) {
         // What the page after starts from: the notes through this page's paragraphs (those before the next page's first paragraph), and what was cut.
         const QTextDocument *story = m_doc->story();
-        const int from = story->findBlock(st.pos).position();
-        const QTextBlock nb = story->findBlock(run.next.pos);
+        const int from = paragraphStartOf(st.pos);
+        const QTextBlock nb = story->findBlock(paragraphStartOf(run.next.pos));
         const int to = nb.isValid() ? nb.position() : story->characterCount();
         int footnotes = 0, endnotes = 0;
         bool restarted = false;
@@ -1257,6 +1257,20 @@ void Paginator::settleStep()
 
 // ---- the pages that are looked at ----
 
+QTextBlock Paginator::joinedEndOf(const QTextBlock &b) const
+{
+    if (!m_doc->env.wordLines || b.blockFormat().intProperty(fp::Cell)) return b;
+    QTextBlock end = StoryLayout::joinedEnd(b);
+    while (end != b && end.blockFormat().intProperty(fp::Cell)) end = end.previous();   // (not into a table: the stretch before it ends where it begins)
+    return end;
+}
+
+int Paginator::paragraphStartOf(int position) const
+{
+    const QTextBlock b = m_doc->story()->findBlock(position);
+    return m_doc->env.wordLines && !b.blockFormat().intProperty(fp::Cell) ? StoryLayout::joinedHead(b).position() : b.position();
+}
+
 // The text on a page, as a story of its own: a copy of the paragraphs from the page's first line to the end of the one its last line is in.
 // (If the page begins in the middle of a paragraph, that is the rest of it: with no space before it or first-line indent, and no bullet
 // or number.) The paragraph the page ends in is whole, so that its last line on the page is set as it is in the document, the lines that
@@ -1268,8 +1282,11 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
     const QVector<int> &inText = floatIndex().inText;
     const int from = L.first().pos;
     *storyFrom = from;
-    const QTextBlock firstBlock = main->findBlock(L.first().block);
-    QTextBlock lastBlock = main->findBlock(L[run.kept - 1].block);
+    // (The block that has the page's first character: where a run of paragraphs that are one is begun on a page before, the copy begins in it, and its positions are the document's less `from`.)
+    const QTextBlock firstBlock = main->findBlock(from);
+    // (Paragraphs joined by hidden marks are one: the first paragraph of the page is the run of them that holds its first line, and the last is where the run ends.)
+    const QTextBlock firstEnd = joinedEndOf(firstBlock);
+    QTextBlock lastBlock = joinedEndOf(main->findBlock(L[run.kept - 1].block));
     if (!run.groups.empty()) lastBlock = lastBlockWithTables(L, run.kept, run.groups);
     // The copy ends with the paragraph the page's last line is in, but where that goes on past the page, with the line after (so that the last line
     // on the page is not the paragraph's last, which isn't set as the others: and a paragraph of thousands of lines isn't copied whole).
@@ -1288,7 +1305,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
     int footnote = st.foot + 1, endnote = st.end + 1;
     {
         int before = 0, endBefore = 0;
-        countNotes(firstBlock.position(), from, &before, &endBefore);
+        countNotes(paragraphStartOf(from), from, &before, &endBefore);
         footnote += before;
         endnote += endBefore;
     }
@@ -1356,7 +1373,8 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
                 continue;
             }
         }
-        const bool tail = b == firstBlock && L.first().line > 0;
+        const bool inFirst = b.position() <= firstEnd.position();   // (the first paragraph of the page: of the run of paragraphs that are one, each has its properties)
+        const bool tail = inFirst && L.first().line > 0;
         QTextBlockFormat bf = b.blockFormat();
         bf.clearProperty(QTextFormat::ObjectIndex);   // (the list is the document's, not this story's: it's made again below)
         QTextList *list = tail ? nullptr : b.textList();
@@ -1372,7 +1390,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         // The empty paragraph that ends the section above the one that begins below it on the page (the paginator's two parts) takes no room: it has no lines in the page's boxes, as it has
         // none where the section below begins at its top (the text after it would be put in the box that has the room of its line).
         if (run.freeBreak && run.splitEnd >= 0 && b.position() + b.length() == run.splitEnd && bf.boolProperty(tp::OutOfFlow) && b != firstBlock) bf.setProperty(tp::OutOfLayout, true);
-        if (b == firstBlock && ((tail && !run.keepsSpace) || !run.firstSpace)) bf.setTopMargin(0);
+        if (inFirst && ((tail && !run.keepsSpace) || !run.firstSpace)) bf.setTopMargin(0);
         // A paragraph's box that began on the page before, or goes on to the next, is open at that end.
         auto sameBox = [](const QTextBlock &x, const QTextBlock &y) {
             if (!x.isValid() || !y.isValid()) return false;
@@ -1380,7 +1398,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
             return xf.hasProperty(tp::Borders) && xf.stringProperty(tp::Borders) == yf.stringProperty(tp::Borders) &&
                    std::abs(xf.leftMargin() - yf.leftMargin()) < 0.01 && std::abs(xf.rightMargin() - yf.rightMargin()) < 0.01;
         };
-        if (b == firstBlock && (tail || sameBox(b.previous(), b))) bf.setProperty(tp::BorderTopOff, true);
+        if (inFirst && (tail || sameBox(m_doc->env.wordLines ? StoryLayout::joinedHead(firstBlock).previous() : firstBlock.previous(), firstEnd))) bf.setProperty(tp::BorderTopOff, true);
         if (b == lastBlock && ((run.kept < L.size() && L[run.kept].block == L[run.kept - 1].block) || sameBox(b, b.next()))) bf.setProperty(tp::BorderBottomOff, true);
         if (tail) {
             // (As the text after a break that begins the paragraph is its first line, with the indent.)
@@ -1398,7 +1416,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         } else {
             dst.insertBlock(bf, b.charFormat());
         }
-        const int skip = b == firstBlock ? from - b.position() : 0;
+        const int skip = std::max(0, from - b.position());   // (a paragraph before the first line, of those joined, is left out of the copy)
         const int upto = b == lastBlock ? to - b.position() : std::numeric_limits<int>::max();
         for (auto it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment frag = it.fragment();

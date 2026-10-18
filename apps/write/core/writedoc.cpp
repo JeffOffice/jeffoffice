@@ -3,6 +3,7 @@
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "doc/doc.h"
+#include "text/textengine.h"
 #include "text/textprops.h"
 
 #include <QDataStream>
@@ -970,6 +971,7 @@ void WriteDoc::renumberLists(QTextDocument *story)
         const int qtIndex = before[list]++;
         const QTextBlockFormat bf = b.blockFormat();
         if (!bf.hasProperty(prop::NumId)) continue;
+        if (StoryLayout::joinsNext(b)) continue;   // (a paragraph whose mark is hidden is one with the next, which is the item: the two count once)
         const int numId = bf.intProperty(prop::NumId), level = std::clamp(bf.intProperty(prop::NumLevel), 0, 8);
         const Level *l = numbering.levelOf(numId, level);
         if (!l) continue;

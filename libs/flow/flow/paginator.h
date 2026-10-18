@@ -230,6 +230,10 @@ private:
     std::vector<TableGroup> tableGroups(const QVector<StoryLayout::LineBrief> &lines, int kept, int firstFrame);
     bool tablePlaceholder(QTextCursor &dst, QTextBlock &b, bool first, const std::vector<TableGroup> &groups) const;
     QTextBlock lastBlockWithTables(const QVector<StoryLayout::LineBrief> &lines, int kept, const std::vector<TableGroup> &groups) const;
+    // The last of the paragraphs that a word processor's hidden marks join from `b` (the one whose properties they have): `b` where it is joined to none, and for a paragraph of a table.
+    QTextBlock joinedEndOf(const QTextBlock &b) const;
+    // Where the paragraph that has a position begins: where the first of those joined to it does.
+    int paragraphStartOf(int position) const;
     void addTableFragments(MaterializedPage *page, const QVector<QRectF> &cols, const QRectF &body, const std::vector<TableGroup> &groups);
     // An object that the text of a page goes round, as the page was laid out with it: which object (counted from 1) at which anchor character (a position in the story), and
     // the rectangle it is in on the page (page coordinates).

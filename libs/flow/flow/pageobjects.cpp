@@ -605,7 +605,7 @@ const Paginator::FloatIndex &Paginator::floatIndex()
             continue;
         }
         if (bf.boolProperty(tp::OutOfLayout)) strays << b.position();
-        if (!hasNoLines(b)) reach(b.position());
+        if (!hasNoLines(b) || (m_doc->env.wordLines && StoryLayout::joinsNext(b))) reach(b.position());   // (a run of paragraphs joined by hidden marks is laid out as one, from its first)
         section += ends(b);
         b = b.next();
     }

@@ -4096,7 +4096,7 @@ private Q_SLOTS:
     }
 
     // What a tracked change deleted is not in the lines: a paragraph whose mark was deleted and that shows nothing else takes no room, nor do the
-    // breaks and tabs of deleted runs; one whose mark was deleted but that shows text is still there. The file is saved with the changes as they were.
+    // breaks and tabs of deleted runs; one whose mark was deleted but that shows text is one paragraph with the next. The file is saved with the changes as they were.
     void whatATrackedChangeDeletedTakesNoRoom()
     {
         const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
@@ -4116,7 +4116,7 @@ private Q_SLOTS:
             QVERIFY2(std::abs(edited[i].rect.top() - plain[i].rect.top()) < 0.01, qPrintable(QStringLiteral("line %1 is at %2, not %3").arg(i).arg(edited[i].rect.top()).arg(plain[i].rect.top())));
             QVERIFY(std::abs(edited[i].rect.height() - plain[i].rect.height()) < 0.01);
         }
-        QCOMPARE(lines(para("one") + keptText + para("three")).size(), 3);
+        QCOMPARE(lines(para("one") + keptText + para("three")).size(), 2);   // ("one", and "text" and "three" together)
         // Saved after an edit: the deleted parts are as they were, and nothing is made hidden.
         auto doc = open(makeDocx(para("one") + deletedMark + deletedBreak + para("three")));
         QVERIFY(doc);
@@ -4613,6 +4613,123 @@ private Q_SLOTS:
         QCOMPARE(lineCount(para("alpha", false) + para("", false) + para("gamma", false)), 3);
         QCOMPARE(lineCount(para("alpha", false) + para("", true) + para("", false) + para("gamma", false)), 3);
         QCOMPARE(lineCount(para("alpha", true) + para("", false) + para("gamma", false)), 2);
+    }
+
+    // A paragraph whose mark a tracked change deleted is one paragraph with the next as the text stands: its text and the next's are laid out together, with the properties of the
+    // next (the mark that is left), whatever the first has. Pages, and the pages as drawn, are those of the one paragraph the two make; a number is counted once for them; a tab that
+    // survives in the first goes on into the next's line; and editing it changes the text only, the file keeps both paragraphs and the deletion.
+    void aParagraphWhoseMarkWasDeletedIsOneParagraphWithTheNext()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        auto run = [](const QByteArray &text) { return "<w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r>"; };
+        auto para = [&](const QByteArray &props, const QByteArray &content, bool markDeleted) {
+            return "<w:p><w:pPr>" + props + (markDeleted ? deleted : QByteArray()) + "</w:pPr>" + content + "</w:p>";
+        };
+        auto words = [](int from, int count) {
+            static const char *const w[] = {"court", "rule", "appeal", "section", "evidence", "judgment", "provision", "reasonable", "interpretation", "the", "of", "and"};
+            QByteArray out;
+            for (int i = from; i < from + count; ++i) out += (i > from ? " " : "") + QByteArray(w[(i * 7 + i / 5) % 12]);
+            return out;
+        };
+        const QByteArray roomy = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray small = "<w:sectPr><w:pgSz w:w=\"6000\" w:h=\"4800\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray first = "<w:jc w:val=\"center\"/><w:spacing w:before=\"400\" w:after=\"600\"/>";   // (the first's properties are not the paragraph's)
+        const QByteArray next = "<w:ind w:left=\"720\" w:firstLine=\"0\"/><w:jc w:val=\"both\"/>";
+        auto doc = [&](const QByteArray &body, const QByteArray &sect) { return open(makeDocx(body, kStyles, QByteArray(), sect)); };
+
+        // One line, as the one paragraph: where the lines are, what they hold, and their indent (the next's).
+        {
+            auto joined = doc(para(first, run("alpha beta"), true) + para(next, run(" gamma delta"), false), roomy);
+            auto single = doc(para(next, run("alpha beta") + run(" gamma delta"), false), roomy);
+            QVERIFY(joined && single);
+            const auto a = joined->pager().lines(0), b = single->pager().lines(0);
+            QCOMPARE(a.size(), 1);
+            QCOMPARE(b.size(), 1);
+            QCOMPARE(a[0].pos, 0);
+            QCOMPARE(a[0].end, joined->story()->characterCount() - 1);
+            QCOMPARE(a[0].rect, b[0].rect);
+            QVERIFY2(std::abs(a[0].rect.left() - 36) < 0.01, qPrintable(QStringLiteral("the line begins at %1: the next paragraph's indent is 36 points").arg(a[0].rect.left())));
+        }
+        // Pages: five hundred words in two paragraphs of a page that holds a dozen lines are the pages (lines, positions, and pictures) of one paragraph of them.
+        {
+            auto joined = doc(para(first, run(words(0, 240)), true) + para(next, run(" " + words(240, 260)), false) + para(QByteArray(), run("After."), false), small);
+            auto single = doc(para(next, run(words(0, 240)) + run(" " + words(240, 260)), false) + para(QByteArray(), run("After."), false), small);
+            QVERIFY(joined && single);
+            const int pages = joined->pager().pageCount();
+            QVERIFY2(pages >= 5, qPrintable(QString::number(pages)));
+            QCOMPARE(pages, single->pager().pageCount());
+            PageView viewJoined, viewSingle;
+            viewJoined.resize(1000, 700);
+            viewSingle.resize(1000, 700);
+            viewJoined.setDocument(joined.get());
+            viewSingle.setDocument(single.get());
+            // (The characters of the one paragraph are the two's, less the mark between them.)
+            const int cut = joined->story()->findBlockByNumber(1).position();
+            auto unjoined = [&](int position) { return position >= cut ? position - 1 : position; };
+            for (int i = 0; i < pages; ++i) {
+                const auto a = joined->pager().lines(i), b = single->pager().lines(i);
+                QVERIFY2(a.size() == b.size(), qPrintable(QStringLiteral("page %1 has %2 lines, one paragraph's page %3").arg(i + 1).arg(a.size()).arg(b.size())));
+                for (int k = 0; k < a.size(); ++k) {
+                    QVERIFY2(a[k].rect == b[k].rect && unjoined(a[k].pos) == b[k].pos && unjoined(a[k].end) == b[k].end,
+                             qPrintable(QStringLiteral("page %1 line %2 is %3,%4 (%5 to %6), the one paragraph's %7,%8 (%9 to %10)").arg(i + 1).arg(k).arg(a[k].rect.left()).arg(a[k].rect.top()).arg(a[k].pos).arg(a[k].end)
+                                            .arg(b[k].rect.left()).arg(b[k].rect.top()).arg(b[k].pos).arg(b[k].end)));
+                }
+                QVERIFY2(viewJoined.pageImage(i, 400) == viewSingle.pageImage(i, 400), qPrintable(QStringLiteral("page %1 is drawn differently").arg(i + 1)));
+            }
+        }
+        // A number is counted once for the two (an item of the list, then the two, then another): 1., 2., 3.
+        {
+            const QByteArray level = "<w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/><w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl>";
+            const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\">" + level + "</w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+            const QByteArray item = "<w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr>";
+            auto numbered = open(makeDocx(para(item, run("one"), false) + para(item, run("two and"), true) + para(item, run(" three"), false) + para(item, run("four"), false), kStyles, numbering, roomy));
+            QVERIFY(numbered);
+            QStringList shown;
+            for (QTextBlock b = numbered->story()->begin(); b.isValid(); b = b.next())
+                if (b.textList() && !b.charFormat().boolProperty(tp::HiddenText))
+                    shown << (b.blockFormat().stringProperty(tp::BulletChar).isEmpty() ? b.textList()->itemText(b) : b.blockFormat().stringProperty(tp::BulletChar));
+            QCOMPARE(shown, (QStringList{QStringLiteral("1."), QStringLiteral("2."), QStringLiteral("3.")}));
+            QCOMPARE(int(numbered->pager().lines(0).size()), 3);
+        }
+        // A tab that survives in a paragraph that shows nothing else goes on into the next's line (it is no line of its own), and the next paragraph's own deleted tab is none.
+        {
+            const QByteArray stop = "<w:tabs><w:tab w:val=\"left\" w:pos=\"360\"/></w:tabs>";
+            auto tabbed = doc(para(stop, "<w:r><w:tab/></w:r>", true) + para(stop, "<w:del w:id=\"8\" w:author=\"a\"><w:r><w:tab/></w:r></w:del>" + run("text"), false), roomy);
+            QVERIFY(tabbed);
+            QCOMPARE(int(tabbed->pager().lines(0).size()), 1);
+        }
+        // Editing: typing at the end of the first and at the start of the next changes the text; the file has both paragraphs, with the deletion, and the lines are still one.
+        {
+            auto edited = doc(para(first, run("alpha"), true) + para(next, run("omega"), false), roomy);
+            QVERIFY(edited);
+            QTextCursor c(edited->story());
+            c.setPosition(5);
+            insertText(*edited, c, QStringLiteral("1"));
+            c.setPosition(edited->story()->findBlockByNumber(1).position());
+            insertText(*edited, c, QStringLiteral("2"));
+            QCOMPARE(edited->story()->toPlainText(), QStringLiteral("alpha1\n2omega"));
+            QCOMPARE(int(edited->pager().lines(0).size()), 1);
+            const QByteArray x = documentXml(edited->toDocx());
+            QCOMPARE(int(x.count("<w:p>")), 2);
+            QVERIFY2(x.contains("<w:del") && x.contains("alpha1") && x.contains("2omega"), x.constData());
+        }
+        // A run of thousands of paragraphs with deleted marks is cut into paragraphs of a bounded length, and every word is on a page.
+        {
+            QByteArray body;
+            const int count = 4000;
+            for (int i = 0; i < count; ++i) body += para(QByteArray(), run("w" + QByteArray::number(i) + " "), true);
+            body += para(QByteArray(), run("end"), false);
+            auto many = doc(body, small);
+            QVERIFY(many);
+            const int pages = many->pager().pageCount();
+            QVERIFY(pages > 3);
+            QVERIFY2(StoryLayout::longestJoinedParagraphsForTest() > 1, "the paragraphs are joined");
+            QVERIFY2(StoryLayout::longestJoinedParagraphsForTest() <= StoryLayout::kMostJoinedParagraphs, qPrintable(QString::number(StoryLayout::longestJoinedParagraphsForTest())));
+            int last = 0;
+            for (int i = 0; i < pages; ++i)
+                for (const auto &l : many->pager().lines(i)) last = std::max(last, l.end);
+            QCOMPARE(last, many->story()->characterCount() - 1);
+        }
     }
 
     // What a paste from another document brings that points into the first's notes and objects points at nothing of the second's: a reference to a note is
