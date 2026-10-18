@@ -309,6 +309,10 @@ private Q_SLOTS:
         QCOMPARE(int(shapes.size()), 1);
         QCOMPARE(shapes[0].wrap, Shape::WrapNone);
         QVERIFY(shapes[0].behind);
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='s9b' style='position:absolute;margin-left:180pt;margin-top:5.1pt;width:309.7pt;height:220.5pt;z-index:-251657728'><v:imagedata r:id='rId8'/><w10:wrap type='topAndBottom'/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].wrap, Shape::TopBottom);
+        QVERIFY(shapes[0].behind);
         // A shape filled with a picture stretched over it is what it is, with the picture as its fill: a box keeps its outline, and a text box its text (a tiled fill is not read).
         shapes = readShapes("<w:pict " + ns + "><v:rect id='s6' style='position:absolute;margin-left:-40pt;margin-top:1.8pt;width:81pt;height:45pt;z-index:251655168' stroked='f'><v:fill r:id='rId1' o:title='logo' type='frame'/></v:rect></w:pict>");
         QCOMPARE(int(shapes.size()), 1);
@@ -356,7 +360,7 @@ private Q_SLOTS:
         // A picture of DrawingML, set behind the text at a place from the page's edge.
         shapes = readShapes("<w:drawing " + ns + "><wp:anchor behindDoc='1' distT='0' distB='0' distL='114300' distR='114300'><wp:positionH relativeFrom='page'><wp:posOffset>127000</wp:posOffset></wp:positionH><wp:positionV relativeFrom='paragraph'><wp:align>top</wp:align></wp:positionV><wp:extent cx='2540000' cy='1270000'/><wp:wrapSquare wrapText='bothSides'/><wp:docPr id='1' name='p' descr='a logo'/><a:graphic><a:graphicData><pic:pic><pic:blipFill><a:blip r:embed='rId7'/></pic:blipFill></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing>");
         QCOMPARE(int(shapes.size()), 1);
-        QVERIFY(shapes[0].floating && shapes[0].behind);
+        QVERIFY(shapes[0].floating && !shapes[0].behind);   // (a square wrap casts a wall whatever the order: the text goes round it)
         QCOMPARE(shapes[0].embed, QStringLiteral("rId7"));
         QCOMPARE(shapes[0].width, 200.0);
         QCOMPARE(shapes[0].height, 100.0);
@@ -367,6 +371,15 @@ private Q_SLOTS:
         QCOMPARE(shapes[0].gapLeft, 9.0);
         QCOMPARE(shapes[0].alt, QStringLiteral("a logo"));
         QCOMPARE(shapes[0].z, 0);
+        // Behind the text with the other wraps: tight is a wall as square is; one that keeps text off by its top and bottom, or none at all, stays behind the text.
+        auto behindWith = [&](const QByteArray &wrap) {
+            const QVector<Shape> one = readShapes("<w:drawing " + ns + "><wp:anchor behindDoc='1' distT='0' distB='0' distL='0' distR='0'><wp:positionH relativeFrom='page'><wp:posOffset>0</wp:posOffset></wp:positionH><wp:positionV relativeFrom='page'><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx='254000' cy='127000'/>" + wrap +
+                                                  "<wp:docPr id='1' name='p'/><a:graphic><a:graphicData><pic:pic><pic:blipFill><a:blip r:embed='rId7'/></pic:blipFill></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing>");
+            return one.size() == 1 ? int(one[0].behind) : -1;
+        };
+        QCOMPARE(behindWith("<wp:wrapTight wrapText='bothSides'/>"), 0);
+        QCOMPARE(behindWith("<wp:wrapTopAndBottom/>"), 1);
+        QCOMPARE(behindWith("<wp:wrapNone/>"), 1);
         // Its height among the objects.
         shapes = readShapes("<w:drawing " + ns + "><wp:anchor behindDoc='0' relativeHeight='251658240' distT='0' distB='0' distL='0' distR='0'><wp:positionH relativeFrom='page'><wp:posOffset>0</wp:posOffset></wp:positionH><wp:positionV relativeFrom='page'><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx='254000' cy='127000'/><wp:wrapNone/><wp:docPr id='1' name='p'/><a:graphic><a:graphicData><pic:pic><pic:blipFill><a:blip r:embed='rId7'/></pic:blipFill></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing>");
         QCOMPARE(int(shapes.size()), 1);
