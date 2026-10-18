@@ -3345,6 +3345,9 @@ private Q_SLOTS:
     // second line (a pixel of the fine layout is kept back from every room) in both, and one a fifth under goes on one.
     void aLineFitsAsMuchWithPunctuationThatHangsAsWithoutIt()
     {
+#ifdef Q_OS_MACOS
+        QSKIP("Qt's fine layout rounds line widths differently on macOS; this tenth-of-a-point fit rule is measured with FreeType (Linux, Windows) until the slack is measured at run time.");
+#endif
         auto lines = [&](bool hang, double room) {
             QTextDocument doc;
             QTextCursor c(&doc);
@@ -3395,6 +3398,9 @@ private Q_SLOTS:
     // A line that ends where a break may be (after a dash) is fitted as the others are: the room is not given back, as it is for a word wider than the line.
     void aLineThatEndsAtADashIsFittedLikeTheOthers()
     {
+#ifdef Q_OS_MACOS
+        QSKIP("Qt's fine layout rounds line widths differently on macOS; this tenth-of-a-point fit rule is measured with FreeType (Linux, Windows) until the slack is measured at run time.");
+#endif
         QTextDocument doc;
         QTextCursor c(&doc);
         QTextCharFormat run;
