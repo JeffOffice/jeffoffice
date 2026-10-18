@@ -5023,7 +5023,7 @@ private Q_SLOTS:
     void aPasteFromAnotherDocumentLeavesNoDanglingNoteOrObject()
     {
         const QByteArray ns = "xmlns:v=\"urn:schemas-microsoft-com:vml\"";
-        const QByteArray body = "<w:p " + ns + "><w:r><w:t xml:space=\"preserve\">Cited</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r><w:r><w:pict><v:rect id=\"r\" style=\"position:absolute;margin-left:10pt;margin-top:5pt;width:50pt;height:20pt\" fillcolor=\"red\"/></w:pict></w:r><w:r><w:t> end.</w:t></w:r></w:p>";
+        const QByteArray body = "<w:p " + ns + "><w:r><w:t xml:space=\"preserve\">Cited</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r><w:r><w:pict><v:rect id=\"r\" style=\"position:absolute;margin-left:10pt;margin-top:5pt;width:50pt;height:20pt\" fillcolor=\"red\"/></w:pict></w:r><w:r><w:t xml:space=\"preserve\"> end.</w:t></w:r></w:p>";
         const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>The note.</w:t></w:r></w:p></w:footnote></w:footnotes>";
         auto source = open(makeDocxWithParts(body, QByteArray(), {{QStringLiteral("/word/footnotes.xml"), notes}}));
         QVERIFY(source);
@@ -8298,7 +8298,7 @@ private Q_SLOTS:
 
     void copyAndPasteKeepTheFormats()
     {
-        auto doc = open(makeDocx("<w:p><w:r><w:rPr><w:b/><w:color w:val=\"FF0000\"/></w:rPr><w:t>Bold red</w:t></w:r><w:r><w:t> and plain</w:t></w:r></w:p>", kStyles));
+        auto doc = open(makeDocx("<w:p><w:r><w:rPr><w:b/><w:color w:val=\"FF0000\"/></w:rPr><w:t>Bold red</w:t></w:r><w:r><w:t xml:space=\"preserve\"> and plain</w:t></w:r></w:p>", kStyles));
         PageView view;
         view.setDocument(doc.get());
         view.selectAll();
@@ -8360,7 +8360,7 @@ private Q_SLOTS:
     {
         // The paragraph has the style's look, and its direct formatting is only what it adds: nothing is written twice.
         const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Plain heading</w:t></w:r></w:p>"
-                                "<w:p><w:r><w:rPr><w:rStyle w:val=\"Strong\"/></w:rPr><w:t>strong</w:t></w:r><w:r><w:rPr><w:i/></w:rPr><w:t> italic</w:t></w:r></w:p>"
+                                "<w:p><w:r><w:rPr><w:rStyle w:val=\"Strong\"/></w:rPr><w:t>strong</w:t></w:r><w:r><w:rPr><w:i/></w:rPr><w:t xml:space=\"preserve\"> italic</w:t></w:r></w:p>"
                                 "<w:p><w:pPr><w:jc w:val=\"right\"/><w:spacing w:before=\"60\"/></w:pPr><w:r><w:t>right</w:t></w:r></w:p>";
         auto doc = open(makeDocx(body, kStyles));
         QCOMPARE(doc->story()->findBlockByNumber(0).blockFormat().stringProperty(tp::StyleName), QStringLiteral("Heading1"));
