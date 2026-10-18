@@ -5171,7 +5171,7 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                     double x = line ? x0 : std::ceil((x0 + gap) / w) * w;
                     QString run;
                     const double startX = x;
-                    for (; x + w <= x1 - gap + 0.01; x += w) run += ch;
+                    for (; x + w <= x1 - gap + (line ? 0.01 : 0.0); x += w) run += ch;   // (a word processor's, to a hair over: the others' as they were)
                     if (line && x < x1 - 0.01) run += ch;
                     if (run.isEmpty()) continue;
                     p->setPen(cf.foreground().style() != Qt::NoBrush ? cf.foreground().color() : m_env.colors.slot(Main));

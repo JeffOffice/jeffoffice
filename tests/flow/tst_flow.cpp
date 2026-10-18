@@ -3208,6 +3208,55 @@ private Q_SLOTS:
         QVERIFY2(std::abs((last + 1) / scale - tab.right()) < 0.4, qPrintable(QStringLiteral("the line ends at %1, the stop at %2").arg((last + 1) / scale).arg(tab.right())));
     }
 
+    // The leaders of JeffPub's and JeffDeck's text are as they were: an underscore goes in only where it fits between the grid's start and the stop less its gap (two fifths of
+    // one), not where it is a hundredth of a point over that. The widths and places are the layout's own, measured: the stop is set 0.005 point short of where the first
+    // underscore would fit.
+    void anotherProgramsLeaderIsNotGivenAHundredthOfAPointOver()
+    {
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Tinos")});
+        run.setFontPointSize(12);
+        auto laidOut = [&](const QString &text, double stop, StoryLayout *lay, QTextDocument *doc) {
+            QTextCursor c(doc);
+            QTextBlockFormat bf;
+            if (stop > 0) {
+                bf.setTabPositions({QTextOption::Tab(stop, QTextOption::LeftTab)});
+                bf.setProperty(tp::TabLeaders, QStringLiteral("_"));
+            }
+            c.setBlockFormat(bf);
+            c.insertText(text, run);
+            LayoutEnv env;   // (not a word processor's)
+            lay->build(doc, {plainFrame(200, 100)}, env);
+        };
+        double x0 = 0, w = 0;
+        {
+            QTextDocument doc;
+            StoryLayout lay;
+            laidOut(QStringLiteral("00__________"), 0, &lay, &doc);
+            const QRectF digits = lay.rangeRects(0, 0, 2).first(), bars = lay.rangeRects(0, 2, 12).first();
+            x0 = digits.right();
+            w = bars.width() / 10;
+        }
+        const double gap = 0.4 * w, start = std::ceil((x0 + gap) / w) * w, stop = start + w + gap - 0.005;
+        QTextDocument doc;
+        StoryLayout lay;
+        laidOut(QStringLiteral("00\tZ"), stop, &lay, &doc);
+        const QRectF tab = lay.rangeRects(0, 2, 3).first();
+        if (std::abs(tab.right() - stop) > 0.001 || std::abs(tab.left() - x0) > 0.001) QSKIP("the layout puts the stop or the tab elsewhere than it was set");
+        const double scale = 8;
+        QImage img(int(200 * scale), int(100 * scale), QImage::Format_RGB32);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.scale(scale, scale);
+        lay.paint(&p, 0, PaintOptions());
+        p.end();
+        int dark = 0;
+        for (int y = 0; y < img.height(); ++y)
+            for (int x = int((start + 0.5) * scale); x < int((start + w - 0.5) * scale); ++x)
+                if (qGray(img.pixel(x, y)) < 128) ++dark;
+        QVERIFY2(dark == 0, qPrintable(QStringLiteral("%1 dark pixels where the underscore would go (from %2, %3 wide)").arg(dark).arg(start).arg(w)));
+    }
+
     // The shading of a paragraph with a hanging indent begins at the hanging line's edge (the least of its indents), and it is one band with the shaded paragraph after it that
     // begins there too, though their left indents differ: nothing white between them, nor at the left of the first.
     void theShadingOfAHangingParagraphJoinsTheShadedParagraphAfterIt()
