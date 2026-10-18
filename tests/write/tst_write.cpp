@@ -11523,6 +11523,26 @@ private Q_SLOTS:
         QCOMPARE(single->pager().pageCount(), 2);
     }
 
+    // The text of a box a file draws is set in the box less its insets, whatever the width of the box's line: the line does not take room from the text (a box 27 points high with
+    // insets of 3.6 holds two lines of 8-point text, as it does where the file was made; the program took half the line's width from each side, and cut off the second line).
+    void aBoxesLineDoesNotTakeRoomFromItsText()
+    {
+        const QByteArray box = "<w:p><w:r><w:pict " + QByteArray(kVml) + "><v:rect id='b' style='position:absolute;margin-left:72pt;margin-top:72pt;width:100pt;height:40pt' strokeweight='6pt' filled='f'>"
+                               "<v:textbox inset='7.2pt,3.6pt,7.2pt,3.6pt'><w:txbxContent><w:p><w:r><w:t>Some text of the box</w:t></w:r></w:p></w:txbxContent></v:textbox></v:rect></w:pict></w:r></w:p>";
+        auto doc = open(makeDocxWithParts(box, sectionXml(12240, 15840, 1440), {}));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        const TextItem *found = nullptr;
+        for (const auto &item : page->doc->pages[0]->items)
+            if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                if (const auto st = page->doc->story(t->storyId); st && st->doc->toPlainText().contains(QLatin1String("Some text"))) found = t;
+        QVERIFY(found);
+        QVERIFY2(found->stroke.width >= 5, "the box has its line");
+        const FrameSpec spec = Renderer::frameSpec(*page->doc, *found, 1, RenderOptions());
+        QCOMPARE(spec.insets, found->insets);
+    }
+
     // A paragraph that says w:suppressLineNumbers (itself, or by its style) has no numbers, and the lines of the others are counted without it.
     void aParagraphThatSuppressesLineNumbersIsNeitherNumberedNorCounted()
     {
