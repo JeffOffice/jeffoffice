@@ -308,9 +308,9 @@ constexpr int kOwnUnderline = QTextFormat::UserProperty + 90;
 // (applyLetterWidths gives each letter the original's width).
 constexpr int kLetterWidths = QTextFormat::UserProperty + 91;
 // The face Courier New is drawn in where the machine lacks it (resolveCharFormat): its font's families are this and then the family whose line it keeps.
-const QString kThinCourier = QStringLiteral("Courier Prime");
+const QString kThinCourier = QStringLiteral("TeX Gyre Cursor");
 // The bundled face a word processor's face is drawn in where the machine lacks it, for the faces its machine has that no table of letter widths measures: the nearest of the same
-// kind, which a run's font lists before the face asked for (resolveCharFormat), as Courier Prime is, and how many percent wider it is drawn (regular, bold) to take the
+// kind, which a run's font lists before the face asked for (resolveCharFormat), as TeX Gyre Cursor is, and how many percent wider it is drawn (regular, bold) to take the
 // original's widths. News Gothic MT, the masthead of the public notices of one agency, is set in Libre Franklin, a gothic of the same bearing: its bold "PUBLIC NOTICE" at 48
 // points is 497 pixels wide to the original's 495. Univers is set in Arimo, 8 percent wider in its regular face (the original's lines in V018 are 1.05 to 1.09 of Arimo's,
 // word by word 1.0 to 1.16, which the stretch only takes the middle of) and as wide in its bold (0.99 to 1.0 over two lines); on the practice document it is set in, a
@@ -1037,12 +1037,12 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
         else if (env.wordLines && !fams.isEmpty() && isSymbolFont(fams.first()) && !hasFamilyCached(fams.first()) && symbolFontLetterWidths(fams.first()))
             r.setProperty(kLetterWidths, fams.first() + QStringLiteral("|0|0"));   // (its characters are shown as their pictures, by the widths of the font's)
     }
-    // Courier New, where the machine lacks it, is drawn in Courier Prime, a face of the same widths with strokes as thin as its own (its usual stand-in, Cousine,
+    // Courier New, where the machine lacks it, is drawn in TeX Gyre Cursor, a face of the same widths with strokes as thin as any bundled (its usual stand-in, Cousine,
     // is heavy); its line stays Courier New's.
     if (env.wordLines) {
         QStringList fams = r.fontFamilies().toStringList();
         const QString lower = fams.value(0).toLower();
-        if ((lower == QLatin1String("courier new") || lower == QLatin1String("courier")) && !hasFamilyCached(fams.first()) && hasFamilyCached(QStringLiteral("Courier Prime"))) {
+        if ((lower == QLatin1String("courier new") || lower == QLatin1String("courier")) && !hasFamilyCached(fams.first()) && hasFamilyCached(kThinCourier)) {
             // (The family it is drawn in, then the one whose line it keeps: wordFaceOf reads the second wherever a line is measured, from a run's font, a paragraph's, a
             // list marker's, or the next paragraph's.)
             fams.insert(0, kThinCourier);

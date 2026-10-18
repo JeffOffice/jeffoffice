@@ -2487,22 +2487,30 @@ private Q_SLOTS:
         if (checked == 0) QSKIP("Symbol, Wingdings, and Webdings are all installed here: their characters are drawn by the fonts");
     }
 
-    // Courier New, where the machine lacks it, is drawn in Courier Prime, a face of the same widths whose strokes are as thin as Courier New's (its stand-in for a
-    // publisher's text, Cousine, is heavy), and its line stays Courier New's; a publisher's text keeps Cousine.
+    // Courier New, where the machine lacks it, is drawn in TeX Gyre Cursor, a face of Courier's widths (600 units in 1000, Courier New's 1229 in 2048 to a ten-thousandth of an
+    // em) whose strokes are as thin as any bundled (its stand-in for a publisher's text, Cousine, is heavy), fully opaque in the text's own color, and its line stays Courier
+    // New's; a publisher's text keeps Cousine.
     void courierNewIsDrawnInAThinFaceAndSetAsItself()
     {
         if (QFontDatabase::hasFamily(QStringLiteral("Courier New"))) QSKIP("Courier New is installed");
-        QVERIFY(QFontDatabase::hasFamily(QStringLiteral("Courier Prime")));
+        QVERIFY(QFontDatabase::hasFamily(QStringLiteral("TeX Gyre Cursor")));
         QTextCharFormat cf;
         cf.setFontFamilies({QStringLiteral("Courier New")});
         cf.setFontPointSize(10);
+        cf.setForeground(QColor(10, 20, 30));
         LayoutEnv word;
         word.wordLines = true;
-        QCOMPARE(resolveCharFormat(cf, word).fontFamilies().toStringList().value(0), QStringLiteral("Courier Prime"));
+        const QTextCharFormat drawn = resolveCharFormat(cf, word);
+        QCOMPARE(drawn.fontFamilies().toStringList().value(0), QStringLiteral("TeX Gyre Cursor"));
+        QCOMPARE(drawn.foreground().color(), QColor(10, 20, 30));   // (opaque: printed, it is as black as the text says)
         QCOMPARE(resolveCharFormat(cf, LayoutEnv()).fontFamilies().toStringList().value(0), QStringLiteral("Courier New"));
         // (The line is Courier New's, not the face it is drawn in: 1.1328 em.)
         const auto lines = wordLinesOf({{QStringLiteral("Courier New"), 20}});
         QVERIFY2(std::abs(lines.value(0).rect.height() - (1705 + 615) / 2048.0 * 20) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
+        // (The letters are Courier New's width, 0.6 em, to a ten-thousandth.)
+        QFont font(QStringLiteral("TeX Gyre Cursor"));
+        font.setPixelSize(1000);
+        QVERIFY(std::abs(QFontMetricsF(font).horizontalAdvance(QLatin1Char('M')) - 1000 * 1229 / 2048.0) < 0.2);
     }
 
     // A face the word processor's machine has and this one lacks, and no table of letter widths measures (News Gothic MT, whose bold is the masthead of every public notice),
@@ -2583,7 +2591,7 @@ private Q_SLOTS:
         }
     }
 
-    // The line of Courier New is Courier New's wherever it is measured, though the text is drawn in Courier Prime (whose own line is 1.318 em, to Courier New's 1.133):
+    // The line of Courier New is Courier New's wherever it is measured, though the text is drawn in TeX Gyre Cursor (whose own line is 1.201 em, to Courier New's 1.133):
     // the number of a list item is a run of its own on the first line, and the paragraph after a keep-with-next one is measured for room.
     void aNumberedCourierNewItemKeepsCourierNewsLine()
     {
@@ -2629,8 +2637,12 @@ private Q_SLOTS:
         courier.setFontPointSize(20);
         c.insertBlock(QTextBlockFormat(), courier);
         c.insertText(QStringLiteral("The line after it"), courier);
-        // Room under the heading for Courier New's line (22.66) but not for the 26.37 of Courier Prime's own: the heading stays where it is.
-        const double line = (1825 + 443 + 87) / 2048.0 * 12, room = 24.5;
+        // Room under the heading for Courier New's line (22.66) but not for the stand-in's own (24.02 for TeX Gyre Cursor, measured, halfway between): the heading stays where it is.
+        QFont stand(QStringLiteral("TeX Gyre Cursor"));
+        stand.setPixelSize(1000);
+        const double own = QFontMetricsF(stand).height() / 1000 * 20, courierNew = (1705 + 615) / 2048.0 * 20;
+        if (own < courierNew + 0.5) QSKIP("the stand-in's own line is no taller than Courier New's");
+        const double line = (1825 + 443 + 87) / 2048.0 * 12, room = (own + courierNew) / 2;
         LayoutEnv env;
         env.wordLines = true;
         StoryLayout lay;
