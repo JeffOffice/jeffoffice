@@ -265,6 +265,9 @@ QString LayoutEnv::key() const
 // 0.1% and positions within Qt's fixed-point range).
 namespace {
 constexpr double kFine = 8;
+// A word processor's line fits when its text is no wider than its room (measured to what Qt's fixed-point widths leave): the original program breaks a line that is
+// a few thousandths of a point over, as fixed-pitch and justified text show.
+constexpr double kWordFit = 0.0;
 // Layout only: an underline's style while JeffPub draws it (drawUnderline).
 constexpr int kOwnUnderline = QTextFormat::UserProperty + 90;
 // Layout only: a missing stock font measured letter by letter, "family|bold|italic"
@@ -3145,7 +3148,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     }
                     // (A line that is as wide as its room, to what rounding in the layout leaves, fits.)
                     const double room = std::max(1.0, iv.x1 - iv.x0);
-                    line.setLineWidth(room + (env.wordLines ? 0.13 : 0.0));
+                    line.setLineWidth(room + (env.wordLines ? kWordFit : 0.0));
                     // A word processor's right tab stop that is past the paragraph's right indent and inside the column still takes the text after its tab (the page number of
                     // an entry in a table of contents, whose stop is at the margin where the paragraph keeps its right indent inside it): the line is as wide as the stop. What is
                     // before the last tab wraps at the line's room as any text does, and what is after it is that right-aligned text, ending at the stop: where the line is not
@@ -3158,16 +3161,16 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         }
                         if (farthest > 0) {
                             const double stop = col.left() + farthest - iv.x0;   // (from the line's start)
-                            line.setLineWidth(stop + 0.13);
+                            line.setLineWidth(stop + kWordFit);
                             const int s0 = line.textStart(), e0 = s0 + line.textLength();
                             int lastTab = -1;
                             for (int i = s0; i < e0; ++i)
                                 if (B->disp[i] == QLatin1Char('\t')) lastTab = i;
                             int endText = e0;
                             while (endText > lastTab + 1 && B->disp[endText - 1].isSpace()) --endText;
-                            const bool aligned = lastTab >= s0 && endText > lastTab + 1 && line.cursorToX(lastTab) - line.cursorToX(s0) <= room + 0.13 &&
+                            const bool aligned = lastTab >= s0 && endText > lastTab + 1 && line.cursorToX(lastTab) - line.cursorToX(s0) <= room + kWordFit &&
                                                  std::abs(line.cursorToX(endText) - line.cursorToX(s0) - stop) < 1.0;
-                            if (!aligned) line.setLineWidth(room + 0.13);
+                            if (!aligned) line.setLineWidth(room + kWordFit);
                         }
                     }
                     // A word processor lets a mark of punctuation at the end of a line hang past the margin (a period, a comma, a closing quote or bracket),
@@ -3178,17 +3181,17 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         const double hang = 0.34 * base.pointSizeF() / fontPointFactor();
                         const int endBefore = line.textStart() + line.textLength();
                         if (endBefore < B->disp.size()) {
-                            line.setLineWidth(room + 0.13 + hang);
+                            line.setLineWidth(room + kWordFit + hang);
                             const int s0 = line.textStart(), e0 = s0 + line.textLength();
                             int k = e0 - 1;
                             while (k > s0 && B->disp[k].isSpace()) --k;
                             const double end = line.cursorToX(k + 1);
-                            if (end > room + 0.13) {
+                            if (end > room + kWordFit) {
                                 static const QString marks = QStringLiteral(".,;:!?)]}\"'\u2019\u201D\u00BB\u2026");
-                                markHangs = marks.contains(B->disp[k]) && line.cursorToX(k) <= room + 0.13 && k > s0;
-                                if (!markHangs) line.setLineWidth(room + 0.13);
+                                markHangs = marks.contains(B->disp[k]) && line.cursorToX(k) <= room + kWordFit && k > s0;
+                                if (!markHangs) line.setLineWidth(room + kWordFit);
                             } else if (al == Qt::AlignJustify) {
-                                line.setLineWidth(room + 0.13);   // (a justified line goes to the margin, not past it)
+                                line.setLineWidth(room + kWordFit);   // (a justified line goes to the margin, not past it)
                             }
                         }
                     }
@@ -3412,7 +3415,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             int k = e;
                             while (k > s0 && B->disp[k - 1] == QLatin1Char(' ')) spaces += advanceAt(--k);
                             if (k > s0 && spaces > 0) {
-                                const double room = iv.x1 - iv.x0 + (env.wordLines ? 0.13 : 0.0);
+                                const double room = iv.x1 - iv.x0 + (env.wordLines ? kWordFit : 0.0);
                                 line.setLineWidth(room + spaces);
                                 if (line.textStart() + line.textLength() != e) line.setLineWidth(room);
                             }

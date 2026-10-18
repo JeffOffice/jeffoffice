@@ -3002,6 +3002,25 @@ private Q_SLOTS:
         QCOMPARE(narrower.lineInfo(0).size(), 2);
     }
 
+    // A line that is wider than its room, even by a tenth of a point, does not fit: its last word goes to the next line.
+    void aLineAHairOverItsRoomDoesNotFit()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        c.insertText(QStringLiteral("____________________________________ ____"), run);   // (36 and 4 half-em letters: 216 points, a space, and 24)
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(216.1 + 3 + 24, 200)}, env);
+        QCOMPARE(lay.lineInfo(0).size(), 1);   // (the room is a tenth of a point more than the two words and the space between them)
+        StoryLayout tight;
+        tight.build(&doc, {plainFrame(216 + 3 + 24 - 0.1, 200)}, env);
+        QCOMPARE(tight.lineInfo(0).size(), 2);
+    }
+
     // Hidden text takes no room and shows nothing: a line's text is what is left, and a paragraph of nothing else is an empty line.
     void hiddenTextIsLeftOut()
     {
