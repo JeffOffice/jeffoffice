@@ -377,10 +377,11 @@ void Paginator::addPageBorders(Document *d, const Section &sec, bool firstOfSect
     line(b.right, QPointF(r, up), QPointF(r, down), "right");
 }
 
-void Paginator::substituteStyleRefs(QTextDocument *story, int from, int to) const
+bool Paginator::substituteStyleRefs(QTextDocument *story, int from, int to) const
 {
-    if (!m_doc->styleRefs || from < 0) return;
+    if (!m_doc->styleRefs || from < 0) return false;
     int made = 0;
+    bool changed = false;
     for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
         // (Found first and replaced last to first, as the places move.)
         struct Place { int at, length; QString code; QTextCharFormat format; };
@@ -401,8 +402,10 @@ void Paginator::substituteStyleRefs(QTextDocument *story, int from, int to) cons
             QTextCharFormat plain = p.format;
             plain.clearProperty(tp::Field);
             c.insertText(text, plain);
+            changed = true;
         }
     }
+    return changed;
 }
 
 void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec, int section, int number, MaterializedPage *page, int from, int to)
@@ -471,7 +474,25 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
         auto s = std::make_shared<Story>();
         s->id = QStringLiteral("flow-%1-%2").arg(QLatin1String(name)).arg(d->pages[0]->id);
         s->doc = cloneStory(story);
-        substituteStyleRefs(s->doc.get(), from, to);
+        // A title that the page puts in a field may be longer than the one the file had, and take more lines than the room kept: the box is as tall as the text then (over the
+        // text's top, or up from the footer's foot), not a clip of it; the page's lines do not wait for it.
+        double shown = height;
+        if (substituteStyleRefs(s->doc.get(), from, to)) {
+            FrameSpec fs;
+            fs.size = QSizeF(std::max(1.0, content.width()), 100000);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.columns = 1;
+            fs.hyphenate = false;
+            fs.rightRoom = sec.margins.right();
+            fs.ctx.doc = m_doc->fields;
+            fs.ctx.pageNumber = number;
+            fs.ctx.pageCount = std::max(number, int(m_starts.size()));
+            StoryLayout measure;
+            measure.build(s->doc.get(), {fs}, m_doc->env);
+            shown = std::max(height, measure.usedHeight(0) + (std::string(name) == "header" ? measure.trailingSpace() : 0.0));
+        }
+        if (std::string(name) == "footer") top -= shown - height;
+        height = shown;
         resolveImages(s->doc.get(), d);
         if (!m_doc->objects.isEmpty()) {
             // The objects set in the header or footer are where its lines put them.

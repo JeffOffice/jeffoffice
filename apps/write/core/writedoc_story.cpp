@@ -367,6 +367,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         }
     }
     int paragraphsMade = 0, endnoteNumber = m_endnoteStart - 1, blockNumber = -1;
+    int styleRefsMade = 0;   // (each field that shows a paragraph style's text has a number in its code: two next to one another in one format would be one fragment of the text)
     // The format the endnote references of each paragraph are numbered in: its section's own (w:endnotePr of the section), else the settings'. Found as sectionText is, from
     // the sections as the file has them, for the story of the text alone.
     QVector<QString> endnoteFormats;
@@ -570,7 +571,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     // (The result the file has is kept in the code, for a page that shows no paragraph of the style, or a layout that is of no page.)
                     QString kept;
                     for (const auto &r : f.result) kept += r.first;
-                    live += QChar(0x1f) + kept.left(1000);
+                    live += QChar(0x1f) + kept.left(1000) + QChar(0x1f) + QString::number(++styleRefsMade);
                 }
                 if (!live.isEmpty()) {
                     QTextCharFormat ff = f.result.isEmpty() ? f.begin : f.result.first().second;

@@ -11345,51 +11345,146 @@ private Q_SLOTS:
         QVERIFY(documentXml(doc->toDocx()).contains("<w:lnNumType w:countBy=\"1\" w:distance=\"144\"/>"));
     }
 
-    // What a header shows of a paragraph style (a STYLEREF field) is the page's own: the first paragraph of the style on the page (the last with \l), or the nearest before the page
-    // when it has none; the field's result in the file is what shows where the document has none at all.
+    // A field of a header that shows a paragraph style's text (STYLEREF), as the file would have it: its instruction, and a result `cached`.
+    static QByteArray styleRefField(const char *instruction, const char *cached = "cached")
+    {
+        return "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> STYLEREF " + QByteArray(instruction) +
+               " </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>" + cached + "</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+    }
+
+    // What a header shows of a paragraph style (a STYLEREF field) is the page's own: the first paragraph of the style on the page (the last with \l, its number with \n), or the
+    // last before the page when it has none, or the first after it when there is none before (the pages before the first title show that one); the field's result in the file is
+    // what shows where the document has no paragraph of the style at all.
     void aHeaderShowsTheStyledParagraphOfItsPage()
     {
-        auto field = [](const char *instruction) {
-            return "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> STYLEREF " + QByteArray(instruction) +
-                   " </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>cached</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
-        };
         const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"),
-                                               headerPart("hdr", {"<w:r><w:t xml:space=\"preserve\">First: </w:t></w:r>" + field("\"heading 1\""), "<w:r><w:t xml:space=\"preserve\">Last: </w:t></w:r>" + field("\"heading 1\" \\l"),
-                                                                  "<w:r><w:t xml:space=\"preserve\">None: </w:t></w:r>" + field("\"No Such Style\"")})}};
+                                               headerPart("hdr", {"<w:r><w:t xml:space=\"preserve\">First: </w:t></w:r>" + styleRefField("\"heading 1\""), "<w:r><w:t xml:space=\"preserve\">Last: </w:t></w:r>" + styleRefField("\"heading 1\" \\l"),
+                                                                  "<w:r><w:t xml:space=\"preserve\">Number: </w:t></w:r>" + styleRefField("\"heading 1\" \\n"),
+                                                                  "<w:r><w:t xml:space=\"preserve\">None: </w:t></w:r>" + styleRefField("\"No Such Style\"")})}};
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
         QByteArray body;
+        for (int i = 0; i < 3; ++i) body += plainP(wordsOf("front", 150));   // (pages before the first title)
         for (int h = 0; h < 4; ++h) {
-            body += "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Chapter " + QByteArray::number(h + 1) + " title</w:t></w:r></w:p>";
+            body += "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:t>Chapter " + QByteArray::number(h + 1) + " title</w:t></w:r></w:p>";
             for (int i = 0; i < (h == 1 || h == 2 ? 1 : 3); ++i) body += plainP(wordsOf("text", h == 1 || h == 2 ? 8 : 150));   // (the second and third chapters share a page)
         }
-        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720, "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"), parts));
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720, "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"), parts, QByteArray(), kStyles, numbering));
         QVERIFY(doc);
         flow::Paginator &pg = doc->pager();
         const int pages = pg.pageCount();
-        QVERIFY(pages >= 5);
+        QVERIFY(pages >= 8);
         const QTextDocument *story = doc->story();
-        int sawBefore = 0, sawTwo = 0;
+        int sawBefore = 0, sawTwo = 0, sawAfter = 0;
         for (int k = 0; k < pages; ++k) {
             const int from = pg.page(k).start.pos, to = k + 1 < pages ? pg.page(k + 1).start.pos : story->characterCount();
-            QString first, last, before;
+            QString first, last, before, after;
+            int firstNumber = 0, lastNumber = 0, beforeNumber = 0, afterNumber = 0, number = 0;
             for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
                 if (b.blockFormat().stringProperty(tp::StyleName) != QLatin1String("Heading1")) continue;
-                if (b.position() + b.length() <= from) before = b.text();
-                else if (b.position() < to) {
-                    if (first.isEmpty()) first = b.text();
+                ++number;
+                if (b.position() + b.length() <= from) {
+                    before = b.text();
+                    beforeNumber = number;
+                } else if (b.position() < to) {
+                    if (first.isEmpty()) {
+                        first = b.text();
+                        firstNumber = number;
+                    }
                     last = b.text();
+                    lastNumber = number;
+                } else if (after.isEmpty()) {
+                    after = b.text();
+                    afterNumber = number;
                 }
             }
-            sawBefore += first.isEmpty();
+            // (On the page, else the last before it, else the first after it.)
+            const QString shownFirst = !first.isEmpty() ? first : !before.isEmpty() ? before : after, shownLast = !last.isEmpty() ? last : !before.isEmpty() ? before : after;
+            const int shownNumber = firstNumber ? firstNumber : beforeNumber ? beforeNumber : afterNumber;
+            Q_UNUSED(lastNumber)
+            sawBefore += first.isEmpty() && !before.isEmpty();
             sawTwo += first != last;
+            sawAfter += first.isEmpty() && before.isEmpty();
             const auto page = pg.materialize(k);
             QVERIFY(page);
             const auto heads = audit::itemsWith(*page, QStringLiteral("flow-header-box"));
             QVERIFY(heads.size() == 1);
             QString shown = audit::storyOf(*page, heads[0]);
-            const QString want = QStringLiteral("First: %1|Last: %2|None: \uFFFC").arg(first.isEmpty() ? before : first, last.isEmpty() ? before : last);
-            QCOMPARE(shown.replace(QLatin1Char('\n'), QLatin1Char('|')).replace(QChar::ParagraphSeparator, QLatin1Char('|')), want);
+            const QString want = QStringLiteral("First: %1|Last: %2|Number: %3|None: ￼").arg(shownFirst, shownLast).arg(shownNumber);
+            QVERIFY2(shown.replace(QLatin1Char('\n'), QLatin1Char('|')).replace(QChar::ParagraphSeparator, QLatin1Char('|')) == want, qPrintable(QStringLiteral("page %1: %2 for %3").arg(k).arg(shown, want)));
         }
-        QVERIFY2(sawBefore > 0 && sawTwo > 0, "the pages have one with no chapter title on it and one with two");
+        QVERIFY2(sawBefore > 0 && sawTwo > 0 && sawAfter >= 3, "the pages have some with no title on them, one with two, and three before the first title");
+    }
+
+    // The fields of a header are as many as the page gives text to (the rest show what the file had), and a title is found however far from the page it is.
+    void theFieldsOfAHeaderAreBoundedAndFindTitlesAnyDistanceOff()
+    {
+        QByteArray fields;
+        for (int i = 0; i < 70; ++i) fields += "<w:r><w:t xml:space=\"preserve\"> n" + QByteArray::number(i) + "=</w:t></w:r>" + styleRefField("\"heading 1\"");
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", {fields})}};
+        QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>The only title</w:t></w:r></w:p>";
+        for (int i = 0; i < 25000; ++i) body += plainP("x");   // (more paragraphs than a search can walk)
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720, "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"), parts));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        const int pages = pg.pageCount();
+        QVERIFY(pages > 100);
+        const auto page = pg.materialize(pages - 1);
+        QVERIFY(page);
+        const auto heads = audit::itemsWith(*page, QStringLiteral("flow-header-box"));
+        QVERIFY(heads.size() == 1);
+        const QString shown = audit::storyOf(*page, heads[0]);
+        int givenText = 0;
+        for (const QChar ch : shown) givenText += ch == QChar::ObjectReplacementCharacter;
+        QCOMPARE(shown.count(QStringLiteral("The only title")), 64);   // (the title, in the first 64 fields, from 25,000 paragraphs off)
+        QCOMPARE(givenText, 6);                                         // (and the other six show what the file had)
+    }
+
+    // A page's fields cost a search each and no walk over the story: for 600 pages and 64 fields of a style that is declared and not used, and of one that is, the paragraphs looked at are
+    // about those of the story, once, and a few to a page.
+    void theFieldsOfAHeaderDoNotWalkTheStoryForEachPage()
+    {
+        const QByteArray styles = kStyles + QByteArray("<w:style w:type=\"paragraph\" w:styleId=\"Unused\"><w:name w:val=\"Never Used\"/><w:basedOn w:val=\"Normal\"/></w:style>");
+        QByteArray fields;
+        for (int i = 0; i < 64; ++i) fields += styleRefField(i % 2 ? "\"Never Used\"" : "\"heading 1\"");
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", {fields})}};
+        QByteArray body;
+        for (int i = 0; i < 6000; ++i) body += i % 500 == 0 ? QByteArray("<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Title ") + QByteArray::number(i) + "</w:t></w:r></w:p>" : plainP("line");
+        auto doc = open(makeDocxWithParts(body, sectionXml(3000, 2400, 360, "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"), parts, QByteArray(), styles));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 500);
+        resetStyleRefParagraphsScannedForTest();
+        for (int k = 0; k < pages; ++k) QVERIFY(pg.materialize(k));
+        const qint64 looked = styleRefParagraphsScannedForTest();
+        QVERIFY2(looked <= 2 * 6000 + qint64(pages) * 4, qPrintable(QStringLiteral("%1 paragraphs looked at for %2 pages of 64 fields").arg(looked).arg(pages)));
+    }
+
+    // A title that the page puts in a header's field and that is longer than the file's takes more lines: the box is as tall as the text, not a clip of the first line; and two fields
+    // next to one another that ask for the same are both given it.
+    void aLongTitleInAHeaderIsNotClippedAndTwoFieldsAreBothGivenIt()
+    {
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", {styleRefField("\"heading 1\"", "x") + styleRefField("\"heading 1\"", "x")})}};
+        QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>short</w:t></w:r></w:p>" + plainP(wordsOf("page", 120));
+        body += "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>" + wordsOf("A title that goes over several lines of the header because it is long", 30) + "</w:t></w:r></w:p>" + plainP(wordsOf("page", 120));
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720, "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"), parts));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 3);
+        double shortHeight = 0, longHeight = 0;
+        for (int k = 0; k < pages; ++k) {
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            const auto heads = audit::itemsWith(*page, QStringLiteral("flow-header-box"));
+            QVERIFY(heads.size() == 1);
+            const QString shown = audit::storyOf(*page, heads[0]);
+            QVERIFY2(!shown.contains(QChar::ObjectReplacementCharacter), qPrintable(shown));   // (both fields are replaced)
+            if (shown.startsWith(QLatin1String("shortshort"))) shortHeight = heads[0]->rect.height();
+            if (shown.startsWith(QLatin1String("A title"))) longHeight = std::max(longHeight, heads[0]->rect.height());
+        }
+        QVERIFY2(shortHeight > 0 && longHeight > 1.8 * shortHeight, qPrintable(QStringLiteral("a short title's header is %1 high, a long one's %2").arg(shortHeight).arg(longHeight)));
     }
 
     // A note cited in the section before a continuous section of two columns, on the page where that begins: the notes are at the foot of the page, under the columns, and the

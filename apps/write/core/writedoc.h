@@ -61,10 +61,21 @@ public:
 
 private:
     WriteDoc *m_doc;
+    // What the fields that show a paragraph style's text keep, for the story as it is (by its revision): where the paragraphs of each style begin, the styles a name says, and the
+    // texts found.
+    mutable int m_styleRevision = -1, m_styleCount = -1;
+    mutable bool m_styleIndexMade = false;
+    mutable QHash<QString, QVector<int>> m_styleStarts;
+    mutable QHash<QString, QStringList> m_styleIds;
+    mutable QHash<qint64, QString> m_styleTexts;
 };
 
 // How many times a level's run properties have been looked at for the outline effect (for a test of the cost).
 int levelsScannedForOutlineForTest();
+// How many paragraphs the fields that show a paragraph style's text have looked at (to find where each style's paragraphs are, and to read one found), since the count was reset: a
+// cost test (a page's fields cost a search, not a walk over the story).
+qint64 styleRefParagraphsScannedForTest();
+void resetStyleRefParagraphsScannedForTest();
 
 class WriteDoc : public QObject {
     Q_OBJECT

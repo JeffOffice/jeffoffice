@@ -8,6 +8,7 @@
 #include <QTextBlock>
 #include <QTextList>
 #include <algorithm>
+#include <atomic>
 #include <QTextCursor>
 #include <QTextDocument>
 
@@ -29,46 +30,95 @@ const QTextDocument *NoteFields::storyDoc(const QString &id) const { return m_do
 const QTextDocument *NoteFields::noteNoticeStory() const { return m_doc->noticeStory(); }
 const QTextDocument *NoteFields::noteContinuationStory() const { return m_doc->continuationStory(); }
 
+namespace {
+std::atomic<qint64> s_styleRefParagraphs{0};
+// The most paragraph texts and style names that are kept for the fields that show a paragraph style's text (the rest are made again).
+constexpr int kMostStyleRefKept = 20000;
+} // namespace
+
+qint64 styleRefParagraphsScannedForTest() { return s_styleRefParagraphs.load(); }
+void resetStyleRefParagraphsScannedForTest() { s_styleRefParagraphs = 0; }
+
 QString NoteFields::styleRefText(const QString &style, const QString &switches, int from, int to) const
 {
-    // The styles the name says: its name (as the style sheet has it, whatever the case, or without the blanks of a built-in style's id) or its id.
-    const QString plain = QString(style).remove(QLatin1Char(' '));
-    QStringList ids;
-    for (const Style &s : m_doc->m_wml.styles.styles)
-        if (s.type == QLatin1String("paragraph") && (s.name.compare(style, Qt::CaseInsensitive) == 0 || s.id.compare(style, Qt::CaseInsensitive) == 0 || s.id.compare(plain, Qt::CaseInsensitive) == 0))
-            ids << s.id;
-    if (ids.isEmpty()) return QString();
     const QTextDocument *story = m_doc->story();
-    auto matches = [&](const QTextBlock &b) { return ids.contains(b.blockFormat().stringProperty(tp::StyleName)); };
-    // The paragraph on the page (its first, or its last with \l), else the nearest before the page, else the nearest after it. (A file's paragraphs are many: so many are looked at.)
-    constexpr int kMostLooked = 20000;
-    QTextBlock found;
-    int looked = 0;
-    const bool last = switches.contains(QLatin1Char('l'));
-    for (QTextBlock b = story->findBlock(std::max(0, from)); b.isValid() && b.position() < to && looked < kMostLooked; b = b.next(), ++looked)
-        if (matches(b)) {
-            found = b;
-            if (!last) break;
+    // What is kept for the story as it is: where the paragraphs of each style begin (found in one pass over the story, for every style a page's fields ask for), which
+    // styles a name says, and the texts of the paragraphs found.
+    const int revision = story->revision();
+    const int styles = int(m_doc->m_wml.styles.styles.size());
+    if (m_styleRevision != revision || m_styleCount != styles) {
+        m_styleRevision = revision;
+        m_styleCount = styles;
+        m_styleStarts.clear();
+        m_styleIndexMade = false;
+        m_styleIds.clear();
+        m_styleTexts.clear();
+    }
+    // The styles the name says: its name (as the style sheet has it, whatever the case, or without the blanks of a built-in style's id) or its id.
+    auto ids = m_styleIds.find(style);
+    if (ids == m_styleIds.end()) {
+        const QString plain = QString(style).remove(QLatin1Char(' '));
+        QStringList found;
+        for (const Style &s : m_doc->m_wml.styles.styles)
+            if (s.type == QLatin1String("paragraph") && (s.name.compare(style, Qt::CaseInsensitive) == 0 || s.id.compare(style, Qt::CaseInsensitive) == 0 || s.id.compare(plain, Qt::CaseInsensitive) == 0))
+                found << s.id;
+        if (m_styleIds.size() >= kMostStyleRefKept) m_styleIds.clear();
+        ids = m_styleIds.insert(style, found);
+    }
+    if (ids->isEmpty()) return QString();
+    if (!m_styleIndexMade) {
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+            ++s_styleRefParagraphs;
+            const QString id = b.blockFormat().stringProperty(tp::StyleName);
+            if (!id.isEmpty()) m_styleStarts[id].push_back(b.position());
         }
-    for (QTextBlock b = story->findBlock(std::max(0, from)).previous(); !found.isValid() && b.isValid() && looked < kMostLooked; b = b.previous(), ++looked)
-        if (matches(b)) found = b;
-    for (QTextBlock b = story->findBlock(std::max(0, to)); !found.isValid() && b.isValid() && b.position() >= to && looked < kMostLooked; b = b.next(), ++looked)
-        if (matches(b)) found = b;
-    if (!found.isValid()) return QString();
-    if (switches.contains(QLatin1Char('n')) || switches.contains(QLatin1Char('w')) || switches.contains(QLatin1Char('r'))) {
+        m_styleIndexMade = true;
+    }
+    // The paragraph on the page (its first, or its last with \l), else the last before the page, else the first after it: by where the paragraphs of the style begin. (A
+    // paragraph that begins before the page and goes on into it is on it.)
+    const int pageStart = story->findBlock(std::clamp(from, 0, std::max(0, story->characterCount() - 1))).position();
+    int found = -1;
+    const bool last = switches.contains(QLatin1Char('l'));
+    for (const QString &id : *ids) {
+        const auto it = m_styleStarts.constFind(id);
+        if (it == m_styleStarts.cend()) continue;
+        const QVector<int> &starts = it.value();
+        const auto firstOnPage = std::lower_bound(starts.cbegin(), starts.cend(), pageStart), afterPage = std::lower_bound(starts.cbegin(), starts.cend(), to);
+        int candidate = -1;
+        if (firstOnPage < afterPage) candidate = last ? *(afterPage - 1) : *firstOnPage;
+        else if (firstOnPage != starts.cbegin()) candidate = *(firstOnPage - 1);
+        else if (afterPage != starts.cend()) candidate = *afterPage;
+        else continue;
+        // (Of several styles that the name says, the one that has a paragraph the page's own is the better, then the nearest before.)
+        auto rank = [&](int at) { return at >= pageStart && at < to ? 0 : at < pageStart ? 1 : 2; };
+        if (found < 0 || rank(candidate) < rank(found) || (rank(candidate) == rank(found) && ((rank(candidate) == 1 && candidate > found) || (rank(candidate) == 0 && (last ? candidate > found : candidate < found)) || (rank(candidate) == 2 && candidate < found))))
+            found = candidate;
+    }
+    if (found < 0) return QString();
+    const bool numbered = switches.contains(QLatin1Char('n')) || switches.contains(QLatin1Char('w')) || switches.contains(QLatin1Char('r'));
+    const qint64 key = (qint64(found) << 1) | (numbered ? 1 : 0);
+    if (const auto kept = m_styleTexts.constFind(key); kept != m_styleTexts.cend()) return kept.value();
+    ++s_styleRefParagraphs;
+    const QTextBlock block = story->findBlock(found);
+    QString text;
+    if (numbered) {
         // The paragraph's number, without the periods after it.
-        QString number = found.blockFormat().stringProperty(tp::BulletChar);
-        if (number.isEmpty() && found.textList() && found.textList()->format().style() != QTextListFormat::ListDisc && found.textList()->format().style() != QTextListFormat::ListCircle
-            && found.textList()->format().style() != QTextListFormat::ListSquare)
-            number = found.textList()->itemText(found);
+        QString number = block.blockFormat().stringProperty(tp::BulletChar);
+        if (number.isEmpty() && block.textList() && block.textList()->format().style() != QTextListFormat::ListDisc && block.textList()->format().style() != QTextListFormat::ListCircle
+            && block.textList()->format().style() != QTextListFormat::ListSquare)
+            number = block.textList()->itemText(block);
         number = number.trimmed();
         while (number.endsWith(QLatin1Char('.'))) number.chop(1);
-        return number.isEmpty() ? QString() : number.left(1000);
+        text = number.left(1000);
+    } else {
+        text = block.text();
+        text.remove(QChar::ObjectReplacementCharacter);
+        text.replace(QChar::LineSeparator, QLatin1Char(' ')).replace(QLatin1Char('\t'), QLatin1Char(' '));
+        text = text.simplified().left(1000);
     }
-    QString text = found.text();
-    text.remove(QChar::ObjectReplacementCharacter);
-    text.replace(QChar::LineSeparator, QLatin1Char(' ')).replace(QLatin1Char('\t'), QLatin1Char(' '));
-    return text.simplified().left(1000);
+    if (m_styleTexts.size() >= kMostStyleRefKept) m_styleTexts.clear();
+    m_styleTexts.insert(key, text);
+    return text;
 }
 
 QList<const QTextDocument *> NoteFields::storyDocs() const
