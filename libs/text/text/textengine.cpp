@@ -1698,9 +1698,9 @@ static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int 
     if (m.total() <= 0 && markFont) add(*markFont, markSize);
     if (m.total() <= 0) add(fallback, fallback.pointSizeF());
     if (raisedTop > m.ascent) m.ascent = raisedTop;
+    // An older word processor's spacing: the line is of whole points, the leading and what is added to reach them going above the text.
     if (env.wordWholePointLines) {
         m.ascent = std::ceil(m.total() - 1e-6) - m.descent;
-    // An older word processor's spacing: the line is of whole points, the leading and what is added to reach them going above the text.
         m.leading = 0;
     }
     return m;
@@ -4024,9 +4024,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         double ruleY = areaTop + (gap - noticeGap) * (env.wordLines ? 0.6 : 0.45), ruleW = goesOn ? col.width() : env.wordLines ? std::min(col.width(), 144.0) : col.width() / 3, ruleX = col.left();
         // (Over the part of a note that goes on, the rule is where the file's own separator for it has it, as wide as that character is: the column's, or two inches.)
         if (env.wordLines && goesOn && notesDoc && notesDoc->noteContinuationRuleAt() >= 0) {
-            ruleY = areaTop + notesDoc->noteContinuationRuleAt() * scale;
-            ruleX += notesDoc->noteContinuationRuleFrom() * scale;
-            ruleW = notesDoc->noteContinuationRuleFull() ? col.width() - (ruleX - col.left()) : std::min(col.width() - (ruleX - col.left()), 144.0);
+            // (In the room the separator has, which is the layout's limit of it at most, and no farther from the left than the column is wide.)
+            ruleY = areaTop + std::min(notesDoc->noteContinuationRuleAt() * scale, continuationH * scale);
+            ruleX = std::min(ruleX + std::max(0.0, notesDoc->noteContinuationRuleFrom() * scale), col.right());
+            const double room = std::max(0.0, col.right() - ruleX);
+            ruleW = notesDoc->noteContinuationRuleFull() ? room : std::min(room, 144.0);
         }
         m_noteRules << Rule{fi, QLineF(ruleX, ruleY, ruleX + ruleW, ruleY)};
         m_used[fi] = std::max(m_used[fi], col.bottom());

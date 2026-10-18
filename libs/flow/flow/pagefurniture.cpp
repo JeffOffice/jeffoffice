@@ -544,7 +544,9 @@ void Paginator::addNotes(Document *d, const QVector<StoryLayout::NotePlace> &pla
             d->pages[0]->items.push_back(t);
             ++made;
         };
-        const double above = m_doc->fields->noteContinuationHeight(), below = m_doc->fields->noteNoticeHeight();
+        // (The room the layout kept for each is a quarter of the page's text area at most: what is set is as tall, and the text that does not fit it is not shown.)
+        const double limit = body.height() / 4;
+        const double above = std::min(m_doc->fields->noteContinuationHeight(), limit), below = std::min(m_doc->fields->noteNoticeHeight(), limit);
         QVector<int> doneColumns;
         const StoryLayout::NotePlace *last = nullptr;
         for (const StoryLayout::NotePlace &pl : places) {

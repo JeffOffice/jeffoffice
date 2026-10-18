@@ -176,8 +176,9 @@ void Paginator::restackNotes(const QVector<FrameSpec> &frames, Ledger *led, Tabl
         double ruleW = led->places[i].from > 0 ? width : word ? std::min(width, 144.0) : width / 3;
         // (Over the rest of a note that went on, where the file's own separator for it has the rule, as wide as its character is: the column's, or two inches.)
         if (word && led->places[i].from > 0 && m_doc->fields && m_doc->fields->noteContinuationRuleAt() >= 0) {
-            ruleY = areaTop + m_doc->fields->noteContinuationRuleAt();
-            ruleX = m_doc->fields->noteContinuationRuleFrom();
+            // (In the room the separator has, which is the layout's limit of it at most, and no farther from the left than the column is wide.)
+            ruleY = areaTop + std::min(m_doc->fields->noteContinuationRuleAt(), std::max(0.0, gap - led->noticeGap));
+            ruleX = std::min(std::max(0.0, m_doc->fields->noteContinuationRuleFrom()), width);
             ruleW = m_doc->fields->noteContinuationRuleFull() ? std::max(0.0, width - ruleX) : std::min(std::max(0.0, width - ruleX), 144.0);
         }
         tr->rules << StoryLayout::Rule{f, QLineF(ruleX, ruleY, ruleX + ruleW, ruleY)};

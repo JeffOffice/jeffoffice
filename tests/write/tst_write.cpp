@@ -5680,6 +5680,115 @@ private Q_SLOTS:
         }
     }
 
+    // The pages' notice and separator for a note that goes on are set in the room the layout kept for them (a quarter of the page's text area at most), however many
+    // paragraphs the file's are, with the rule where the file's character is (the last of the forty paragraphs), kept inside that room, in a page that has a table too.
+    void aLongNoticeAndSeparatorAreSetInTheRoomThatWasKept()
+    {
+        QByteArray words;
+        for (int i = 0; i < 1500; ++i) words += "wordy ";
+        auto paragraphsOf = [](const char *label, int n, const QByteArray &first = QByteArray()) {
+            QByteArray out = first;
+            for (int i = 0; i < n; ++i) out += "<w:p><w:r><w:t>(" + QByteArray(label) + " " + QByteArray::number(i) + ")</w:t></w:r></w:p>";
+            return out;
+        };
+        for (const bool table : {false, true}) {
+            const QByteArray cell = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"4000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+            const QByteArray body = (table ? cell : QByteArray()) + "<w:p><w:r><w:t>Text with a long note</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r><w:r><w:t xml:space=\"preserve\"> and more words.</w:t></w:r></w:p>";
+            const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>"
+                                     "<w:footnote w:type=\"continuationSeparator\" w:id=\"0\">" + paragraphsOf("Resumed", 40) + "<w:p><w:r><w:separator/></w:r></w:p>" + "</w:footnote>"
+                                     "<w:footnote w:type=\"continuationNotice\" w:id=\"1\">" + paragraphsOf("Goes", 40) + "</w:footnote>"
+                                     "<w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> " + words + "</w:t></w:r></w:p></w:footnote></w:footnotes>";
+            auto doc = open(makeDocxWithParts(body, QByteArray(), {{QStringLiteral("/word/footnotes.xml"), notes}}));
+            QVERIFY(doc);
+            QVERIFY(doc->pager().pageCount() >= 2);
+            const auto first = doc->pager().materialize(0), second = doc->pager().materialize(1);
+            QVERIFY(first && second);
+            const double top = 72, bottom = 792 - 72, limit = (bottom - top) / 4;
+            const TextItem *notice = boxWithText(*first, QStringLiteral("(Goes 0)"));
+            QVERIFY(notice);
+            QVERIFY2(notice->rect.bottom() <= bottom + 0.5 && notice->rect.height() <= limit + 0.5,
+                     qPrintable(QStringLiteral("the notice is %1 tall and ends at %2 (the text area ends at %3, and keeps %4 for it)").arg(notice->rect.height()).arg(notice->rect.bottom()).arg(bottom).arg(limit)));
+            const TextItem *separator = boxWithText(*second, QStringLiteral("(Resumed 0)"));
+            QVERIFY(separator);
+            QVERIFY2(separator->rect.top() >= top - 0.01 && separator->rect.height() <= limit + 0.5,
+                     qPrintable(QStringLiteral("the separator is %1 tall and begins at %2 (the text area begins at %3, and keeps %4 for it)").arg(separator->rect.height()).arg(separator->rect.top()).arg(top).arg(limit)));
+            bool ruled = false;
+            for (const auto &item : second->doc->pages[0]->items)
+                if (const auto *line = dynamic_cast<const LineItem *>(item.get())) {
+                    ruled = true;
+                    QVERIFY2(line->rect.top() >= separator->rect.top() - 0.01 && line->rect.top() <= separator->rect.bottom() + 0.01,
+                             qPrintable(QStringLiteral("the rule is at %1, outside the separator's room (%2 to %3)").arg(line->rect.top()).arg(separator->rect.top()).arg(separator->rect.bottom())));
+                }
+            QVERIFY(ruled);
+        }
+    }
+
+    // The rule over a note's part that goes on begins after the words that stand before the separator's character in its line, where the layout has them (by the word processor's
+    // widths), and never reaches out of the column.
+    void theRuleOverAContinuedNoteBeginsAfterTheWordsBeforeItsCharacter()
+    {
+        QByteArray words;
+        for (int i = 0; i < 1500; ++i) words += "wordy ";
+        const QByteArray body = "<w:p><w:r><w:t>Text with a long note</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>";
+        for (const QByteArray &before : {QByteArray("(Resumed from before) "), QByteArray("(Resumed from before and on and on and on and on and on and on and on and on and on and on and on and on and on and on and on and on and on) ")}) {
+            const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>"
+                                     "<w:footnote w:type=\"continuationSeparator\" w:id=\"0\"><w:p><w:r><w:t xml:space=\"preserve\">" + before + "</w:t></w:r><w:r><w:separator/></w:r></w:p></w:footnote>"
+                                     "<w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> " + words + "</w:t></w:r></w:p></w:footnote></w:footnotes>";
+            auto doc = open(makeDocxWithParts(body, QByteArray(), {{QStringLiteral("/word/footnotes.xml"), notes}}));
+            QVERIFY(doc);
+            QVERIFY(doc->pager().pageCount() >= 2);
+            const auto second = doc->pager().materialize(1);
+            QVERIFY(second);
+            const TextItem *box = boxWithText(*second, QStringLiteral("(Resumed from before"));
+            QVERIFY(box);
+            const LineItem *rule = nullptr;
+            for (const auto &item : second->doc->pages[0]->items)
+                if (const auto *line = dynamic_cast<const LineItem *>(item.get())) rule = line;
+            QVERIFY(rule);
+            const double left = 72, right = 612 - 72;
+            QVERIFY2(rule->rect.width() >= 0 && rule->rect.left() >= left - 0.01 && rule->rect.right() <= right + 0.01,
+                     qPrintable(QStringLiteral("the rule is from %1 to %2, outside the column (%3 to %4)").arg(rule->rect.left()).arg(rule->rect.right()).arg(left).arg(right)));
+            // Where the layout ends the words before the character in one line, in the story the page sets.
+            FrameSpec fs;
+            fs.size = QSizeF(1e5, 10000);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            StoryLayout layout;
+            layout.build(second->doc->story(box->storyId)->doc.get(), {fs}, doc->flow().env);
+            int frame = -1;
+            QRectF at;
+            QVERIFY(layout.caretRect(before.size(), &frame, &at));
+            const double expected = std::min(left + at.x() + 3, right);
+            QVERIFY2(std::abs(rule->rect.left() - expected) < 0.3, qPrintable(QStringLiteral("the rule begins at %1, where the words end in the layout is %2").arg(rule->rect.left()).arg(expected)));
+        }
+    }
+
+    // A file's notice for a note that goes on is bounded when it is read: a notice of thousands of paragraphs is the first few of them (the pages set a quarter of a page of it at
+    // most), so that each page's copy of it costs the same.
+    void aHugeNoticeIsBoundedWhenItIsRead()
+    {
+        QByteArray notice;
+        for (int i = 0; i < 20000; ++i) notice += "<w:p><w:r><w:t>(goes on " + QByteArray::number(i) + ")</w:t></w:r></w:p>";
+        QByteArray words;
+        for (int i = 0; i < 1500; ++i) words += "wordy ";
+        const QByteArray body = "<w:p><w:r><w:t>Text with a long note</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>";
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>"
+                                 "<w:footnote w:type=\"continuationNotice\" w:id=\"1\">" + notice + "</w:footnote>"
+                                 "<w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> " + words + "</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        auto doc = open(makeDocxWithParts(body, QByteArray(), {{QStringLiteral("/word/footnotes.xml"), notes}}));
+        QVERIFY(doc);
+        const QTextDocument *kept = doc->flow().fields ? doc->flow().fields->noteNoticeStory() : nullptr;
+        QVERIFY(kept);
+        QVERIFY2(kept->blockCount() <= 64, qPrintable(QStringLiteral("the notice has %1 paragraphs").arg(kept->blockCount())));
+        QVERIFY(doc->pager().pageCount() >= 2);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        const TextItem *box = boxWithText(*page, QStringLiteral("(goes on 0)"));
+        QVERIFY(box);
+        const int blocks = page->doc->story(box->storyId)->doc->blockCount();
+        QVERIFY2(blocks <= 64, qPrintable(QStringLiteral("each page copies %1 paragraphs of the notice").arg(blocks)));
+    }
+
     // A symbol of a symbol font in a note that is not a blank (a check mark) is shown, in that font, as one in the text is.
     void aVisibleSymbolInANoteIsKept()
     {
