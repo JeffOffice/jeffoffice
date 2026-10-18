@@ -271,7 +271,7 @@ constexpr double kFine = 8;
 constexpr double kQtPixelBack = 0.126;
 // How far past its room a word processor's line may run: a pixel of the fine layout short of it, which is where the original program's lines break on the practice documents
 // (set to the room exactly, the lines of 37 of them end further from its own, and a page of V032 that matches goes out of step). Every place that fits a line to its room (the
-// first try, the word wider than the line, the punctuation that hangs, the space shrinking) uses it, so that they agree.
+// first try, a line that ends at a dash, the word wider than the line, the space shrinking) uses it, so that they agree. The text before a mark that hangs is the one exception.
 constexpr double kRoomOffset = -0.125;
 // Where a line is set to end at its room (text that ends at a right tab stop): as wide as it, to what the layout's rounding leaves.
 constexpr double kExactFit = 0.13;
@@ -3239,20 +3239,21 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     }
                     // A word processor lets a mark of punctuation at the end of a line hang past the margin (a period, a comma, a closing quote or bracket),
                     // so a word followed by one can be the last of a line it is a mark too wide for: the line is tried that much wider, and kept so if
-                    // it is only that last mark that is past the margin.
+                    // it is only that last mark that is past the margin. The text before the mark may fill the room exactly (the original program's lines go so on the practice
+                    // documents, where a line that ends in a word stops a pixel short of its room, as the others here do).
                     bool markHangs = false;   // (a mark at the end of the line is past the margin)
                     if (env.wordLines && !env.wordNoHang && !bf.boolProperty(tp::NoHangPunct) && (al == Qt::AlignLeft || al == Qt::AlignJustify) && !bf.boolProperty(tp::Distribute)) {
                         const double hang = 0.34 * base.pointSizeF() / fontPointFactor();
                         const int endBefore = line.textStart() + line.textLength();
                         if (endBefore < B->disp.size()) {
-                            line.setLineWidth(room + fit + hang);
+                            line.setLineWidth(room + kQtPixelBack + hang);
                             const int s0 = line.textStart(), e0 = s0 + line.textLength();
                             int k = e0 - 1;
                             while (k > s0 && B->disp[k].isSpace()) --k;
                             const double end = line.cursorToX(k + 1);
                             if (end > room + fit - kQtPixelBack) {
                                 static const QString marks = QStringLiteral(".,;:!?)]}\"'\u2019\u201D\u00BB\u2026");
-                                markHangs = marks.contains(B->disp[k]) && line.cursorToX(k) <= room + fit - kQtPixelBack && k > s0;
+                                markHangs = marks.contains(B->disp[k]) && line.cursorToX(k) <= room + 0.001 && k > s0;
                                 if (!markHangs) line.setLineWidth(room + fit);
                             } else if (al == Qt::AlignJustify) {
                                 line.setLineWidth(room + fit);   // (a justified line goes to the margin, not past it)

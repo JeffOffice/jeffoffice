@@ -3027,6 +3027,32 @@ private Q_SLOTS:
         }
     }
 
+    // A mark of punctuation hangs past the margin, and the text before it may fill the room exactly (the room of two words of 243 points and a period of 3: the period is past the
+    // margin and the line is one), where a line that ends in a word stops a pixel short of its room. A line that is a tenth of a point over its room is two lines, and so is one
+    // with no hang.
+    void aMarkThatHangsLeavesTheTextBeforeItTheRoomExactly()
+    {
+        auto lines = [&](bool hang, double room) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Tinos")});
+            run.setFontPointSize(12);
+            c.insertText(QStringLiteral("____________________________________ ____."), run);   // (216 points, a space of 3, 24, and the period's 3)
+            LayoutEnv env;
+            env.wordLines = true;
+            env.wordNoHang = !hang;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(room, 200)}, env);
+            return int(lay.lineInfo(0).size());
+        };
+        QCOMPARE(lines(true, 243.0), 1);
+        QCOMPARE(lines(true, 243.1), 1);
+        QCOMPARE(lines(true, 242.9), 2);
+        QCOMPARE(lines(false, 243.0), 2);
+        QCOMPARE(lines(false, 246.2), 1);
+    }
+
     // A line that ends where a break may be (after a dash) is fitted as the others are: the room is not given back, as it is for a word wider than the line.
     void aLineThatEndsAtADashIsFittedLikeTheOthers()
     {
