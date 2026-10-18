@@ -4395,6 +4395,26 @@ private Q_SLOTS:
         QVERIFY(page->doc->wordSpaceSums);
     }
 
+    // The web page's automatic spacing is 14 points before and after a paragraph, the larger of the two between paragraphs; a file that turns that way off
+    // (doNotUseHTMLParagraphAutoSpacing) has the spacing the paragraph states (w:before and w:after, 5 points here), and the two add.
+    void automaticSpacingIsTheStatedSpacingInAFileThatTurnsTheWebWayOff()
+    {
+        auto para = [](const char *text) {
+            return QByteArray("<w:p><w:pPr><w:spacing w:before=\"100\" w:beforeAutospacing=\"1\" w:after=\"100\" w:afterAutospacing=\"1\"/></w:pPr><w:r><w:t>") + text + "</w:t></w:r></w:p>";
+        };
+        auto gap = [&](const QByteArray &option) {
+            auto doc = open(makeDocxWithParts(para("one") + para("two") + para("three"), QByteArray(), {}, "<w:compat>" + option + "</w:compat>"));
+            if (!doc) return -1.0;
+            const auto lines = doc->pager().lines(0);
+            if (lines.size() < 3) return -1.0;
+            return lines[1].rect.top() - lines[0].rect.bottom();   // (what is between one paragraph's last line and the next's first)
+        };
+        const double web = gap("");
+        const double fixed = gap("<w:doNotUseHTMLParagraphAutoSpacing/>");
+        QVERIFY2(std::abs(web - 14.0) < 0.5, qPrintable(QStringLiteral("the web way: %1 points between paragraphs, not 14").arg(web)));
+        QVERIFY2(std::abs(fixed - 10.0) < 0.5, qPrintable(QStringLiteral("the fixed way: %1 points between paragraphs (5 after and 5 before), not 10").arg(fixed)));
+    }
+
     // Spacing a person sets on paragraphs that have automatic spacing is the spacing they have: the automatic gap goes, on the page and in the file.
     void spacingSetOnAutomaticSpacingReplacesIt()
     {

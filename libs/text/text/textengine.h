@@ -184,7 +184,8 @@ struct LayoutEnv {
     // A word processor's text doesn't let punctuation hang past the margin (a file's compatibility option); it does otherwise (LayoutEnv::wordLines).
     bool wordNoHang = false;
     // A word processor adds the space after a paragraph to the space before the next (a file's compatibility option against the web page's way); otherwise the
-    // larger of the two is the space between them (LayoutEnv::wordLines).
+    // larger of the two is the space between them (LayoutEnv::wordLines). The same option makes a paragraph's automatic spacing (tp::SpaceBeforeAuto and
+    // tp::SpaceAfterAuto) the spacing it states, where the web page's way is 14 points.
     bool wordSpaceSums = false;
     // A word processor's hanging indent is a tab stop (a tab on the first line goes to it); a file's compatibility option says it is not, and the default stops go on
     // from the edge as they are (LayoutEnv::wordLines).

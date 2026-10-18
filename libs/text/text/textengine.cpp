@@ -2784,8 +2784,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         }
         // (A paragraph that begins with a page break has no space before where it begins: the text after the break has it, on the next page.)
         if (startsWithBreak && !tail) before = 0;
-        // A word processor's automatic spacing (a paragraph from a web page) is a fixed 14 points.
-        if (env.wordLines) {
+        // A word processor's automatic spacing (a paragraph from a web page) is a fixed 14 points. (A file that turns the web page's way of spacing off has
+        // the spacing the paragraph states in its place.)
+        if (env.wordLines && !env.wordSpaceSums) {
             // (Between two items of a list there is none; a list that follows another has it.)
             const bool item = b.textList() != nullptr;
             auto inList = [&](const QTextBlock &other) {
@@ -3000,7 +3001,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             if (startNext && f < nF) advance();
             const double yBeforeSpace = y;
             if (f < nF && y > 0) y += env.wordLines && !env.wordSpaceSums ? std::max(0.0, before - prevAfter) : before;
-            else if (f < nF && !env.slideLines && !(first && !m_span.spaceBeforeFirst)) y += env.wordLines && bf.boolProperty(tp::SpaceBeforeAuto) ? 0.0 : before;  // space before also applies at the top of a frame (not a slide's, nor a word processor's automatic)
+            else if (f < nF && !env.slideLines && !(first && !m_span.spaceBeforeFirst)) y += env.wordLines && !env.wordSpaceSums && bf.boolProperty(tp::SpaceBeforeAuto) ? 0.0 : before;  // space before also applies at the top of a frame (not a slide's, nor a word processor's automatic)
             B->spaceAbove = y - yBeforeSpace;
             B->spaceFrame = f;
             B->spaceColumn = c;
