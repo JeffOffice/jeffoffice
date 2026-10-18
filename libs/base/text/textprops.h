@@ -95,6 +95,9 @@ enum : int {
     NumberTab,                                   // double (block): the list tab stop the paragraph's numbering gives it (a word processor's "num" tab), in points from the text area's edge (LayoutEnv::wordLines)
     NoteMarkCustom,                              // bool: a note's reference whose mark is the text after it (w:customMarkFollows): it shows no number and takes none (LayoutEnv::wordLines)
     OutOfLayout,                                 // bool: the paragraph is set apart from the text (a word processor's frame, which the page sets where it asks): it has no lines and no room, and shows nothing (LayoutEnv::wordLines)
+    LegacyNumber,                                // bool (list format): the text after the number begins at the indent, whatever the file says of the hanging indent as a tab stop (a level of an older program's list; LayoutEnv::wordLines)
+    BulletBold,                                  // bool (list format): the marker is bold or, when false, not, as its level's run properties say; absent: as the paragraph's mark (LayoutEnv::wordLines)
+    BulletItalic,                                // bool (list format): the same for italic
 };
 
 // A paragraph's borders and shading as a word processor draws them (LayoutEnv::wordLines): each side's line style, width in eighths of a point, and its

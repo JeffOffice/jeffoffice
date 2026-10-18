@@ -348,6 +348,7 @@ struct Level {
     QString suff = QStringLiteral("tab");
     QString pStyle;                   // the paragraph style this level is linked to
     bool legal = false;
+    bool legacy = false;              // w:legacy: a list the older programs made (its text begins at the indent)
     std::optional<int> restart;       // lvlRestart
     ParaProps pPr;                    // indents (and tabs) of the paragraphs in it
     RunProps rPr;                     // the number's own formatting (a bullet's font)
@@ -378,12 +379,19 @@ struct Numbering {
     bool modified = false;
     const AbstractNum *abstractOf(int numId) const;
     const Num *num(int numId) const;
+    // The list a numbering id counts with: its own, when it restarts a level (startOverride), else the first id with no restart of the same definition, which every such id
+    // goes on counting with.
+    int listOf(int numId) const;
+    // Whether another numbering id counts with it (so that the number an item has is not its own list's count).
+    bool listIsShared(int numId) const;
     int nextNumId() const;
     int nextAbstractId() const;
 
 private:
     void index() const;
     mutable QHash<int, int> m_nums, m_abstracts;   // the first of each id, by place
+    mutable QHash<int, int> m_plain;               // the first numbering id of each definition (by its id) that restarts no level
+    mutable QHash<int, int> m_plainCount;          // how many such ids each definition has
     mutable qsizetype m_numCount = -1, m_abstractCount = -1;
 };
 

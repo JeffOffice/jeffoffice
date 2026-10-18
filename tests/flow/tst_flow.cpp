@@ -2830,6 +2830,7 @@ private Q_SLOTS:
             QTextCharFormat run;
             run.setFontFamilies({QStringLiteral("Times New Roman")});
             run.setFontPointSize(12);
+            c.setBlockCharFormat(run);   // (the paragraph's mark: a word processor's marker is set in it)
             c.insertText(QStringLiteral("an item of the list that is long enough to take two lines of the frame when it is set in it, at twelve points"), run);
             QTextListFormat lf;
             lf.setStyle(QTextListFormat::ListDisc);
@@ -2851,6 +2852,36 @@ private Q_SLOTS:
         // A bullet whose own line is shorter than the text's (Courier's) makes it no taller.
         const auto courier = first(QStringLiteral("Courier New"));
         QVERIFY2(std::abs(courier[0].rect.height() - single) < 0.01, qPrintable(QString::number(courier[0].rect.height())));
+    }
+
+    // A number set in less room than it needs (the text after it is held to the line's end) stays at its indent: the number is not pushed back by as much as the text was held.
+    void aNumberInARoomTooNarrowStaysAtItsIndent()
+    {
+        for (const bool option : {false, true}) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setLeftMargin(36);
+            bf.setTextIndent(-18);
+            c.setBlockFormat(bf);
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Times New Roman")});
+            cf.setFontPointSize(12);
+            c.setBlockCharFormat(cf);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDecimal);
+            lf.setNumberSuffix(QStringLiteral("."));
+            c.createList(lf);   // (an item of nothing: a number in a cell as narrow as 26 points)
+            LayoutEnv env;
+            env.wordLines = true;
+            env.wordNoNumberIndentStop = option;
+            env.defaultTab = 36;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(26, 200)}, env);
+            const auto lines = lay.lineInfo(0);
+            QVERIFY(!lines.isEmpty());
+            QVERIFY2(std::abs(lines[0].markerX - 18) < 0.01, qPrintable(QString::number(lines[0].markerX) + (option ? " (the option)" : QString())));
+        }
     }
 
     // A paragraph's borders take room: the top one and its distance from the text above the first line, the bottom one below the last, and none between

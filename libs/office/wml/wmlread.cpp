@@ -867,6 +867,7 @@ public:
             else if (name == "suff") l.suff = t.val(c);
             else if (name == "pStyle") l.pStyle = t.val(c);
             else if (name == "isLgl") l.legal = onOffOf(t, c).value_or(true);
+            else if (name == "legacy") l.legacy = onOffString(t.attr(c, "legacy").toLower());
             else if (name == "lvlRestart") l.restart = intOf(t, c);
             else if (name == "pPr") l.pPr = pPr(c);
             else if (name == "rPr") l.rPr = rPr(c);

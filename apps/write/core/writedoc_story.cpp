@@ -317,7 +317,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         return f;
     };
 
-    QHash<int, NumState> numbering;
+    QHash<int, NumState> numbering, counted;
     QHash<QString, StyleFrame> styleFrames;   // (the frame each paragraph style gives, made when first asked)
     QHash<QString, ParaProps> baselines;
     QVector<Block> pending;   // body elements kept as XML that wait for the next paragraph
@@ -496,29 +496,31 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         bool newList = false;
         QTextList *continuing = nullptr;
         if (numId > 0) {
+            // (The items of a numbering id are in lists of their own; what is counted is the list's, which every id of a definition that restarts no level goes on with.)
             NumState &st = numbering[numId];
+            NumState &counts = counted[m_wml.numbering.listOf(numId)];
             const Level &l = definition->levels[level];
             const Num *num = m_wml.numbering.num(numId);
             auto startOf = [&](int lvl) { return num && num->startOverrides.contains(lvl) ? num->startOverrides.value(lvl) : definition->levels[lvl].start; };
             for (int i = level + 1; i < 9; ++i) {
-                st.count[i] = -1;
+                counts.count[i] = -1;
                 st.list[i] = nullptr;
             }
-            st.count[level] = st.count[level] < 0 ? startOf(level) : st.count[level] + 1;
+            counts.count[level] = counts.count[level] < 0 ? startOf(level) : counts.count[level] + 1;
             lf = listFormat(numId, level);
             continuing = st.list[level];
             newList = !continuing;
-            // Several levels in the marker, the legal style, or no number of its own: the marker is made here.
+            // Several levels in the marker, the legal style, no number of its own, or a count shared with another numbering id: the marker is made here.
             const bool isBullet = l.numFmt == QLatin1String("bullet") || l.numFmt == QLatin1String("none");
             const int placeholders = l.text.count(QLatin1Char('%'));
             const bool own = l.text.contains(QStringLiteral("%%1").arg(level + 1));
-            if (!isBullet && (l.legal || placeholders > 1 || !own)) {
+            if (!isBullet && (l.legal || placeholders > 1 || !own || m_wml.numbering.listIsShared(numId))) {
                 QString marker = l.text;
                 for (int k = 8; k >= 0; --k) {
                     const QString token = QStringLiteral("%%1").arg(k + 1);
                     if (!marker.contains(token)) continue;
                     const Level &lk = definition->levels[k];
-                    const int n = st.count[k] < 0 ? (lk.present ? startOf(k) : 1) : st.count[k];
+                    const int n = counts.count[k] < 0 ? (lk.present ? startOf(k) : 1) : counts.count[k];
                     marker.replace(token, counterText(l.legal ? QStringLiteral("decimal") : lk.numFmt, n));
                 }
                 bf.setProperty(tp::BulletChar, marker);

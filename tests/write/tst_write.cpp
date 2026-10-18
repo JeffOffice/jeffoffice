@@ -400,6 +400,44 @@ QByteArray makeDocxWithParts(const QByteArray &body, const QByteArray &sect, con
     return w.finish();
 }
 
+// The dark pixels of a list item's number, in its own place (the left of the text area, up to the text, which a hanging indent of two inches sets away): the box they are in,
+// how many, and how many of them are red. The level of the list has `levelRun` (the XML of its run properties), the paragraph's mark `markRun`, and the item's first run `firstRun`.
+struct NumberInk {
+    QRect box;
+    int dark = 0, red = 0;
+};
+
+NumberInk numberInk(const QByteArray &levelRun, const QByteArray &markRun, const QByteArray &firstRun)
+{
+    const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/>"
+                                 "<w:pPr><w:ind w:left=\"2880\" w:hanging=\"2880\"/></w:pPr>" + (levelRun.isEmpty() ? QByteArray() : "<w:rPr>" + levelRun + "</w:rPr>") + "</w:lvl></w:abstractNum>"
+                                 "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+    const QByteArray body = "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/><w:rPr>" + markRun +
+                            "</w:rPr></w:pPr><w:r><w:rPr>" + firstRun + "</w:rPr><w:t>HHHH</w:t></w:r></w:p>";
+    const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+    auto doc = open(makeDocxWithParts(body, sect, {}, QByteArray(), kStyles, numbering));
+    PageView view;
+    view.resize(1000, 700);
+    view.setDocument(doc.get());
+    const QImage img = view.pageImage(0, 816);
+    const double perPoint = 816 / 612.0;
+    NumberInk ink;
+    int x0 = 1 << 20, y0 = 1 << 20, x1 = -1, y1 = -1;
+    for (int x = int(72 * perPoint); x < int((72 + 140) * perPoint); ++x)
+        for (int y = int(72 * perPoint); y < int((72 + 90) * perPoint); ++y) {
+            const QRgb c = img.pixel(x, y);
+            if (qGray(c) >= 160) continue;
+            ++ink.dark;
+            ink.red += qRed(c) > 150 && qGreen(c) < 90 && qBlue(c) < 90;
+            x0 = std::min(x0, x);
+            x1 = std::max(x1, x);
+            y0 = std::min(y0, y);
+            y1 = std::max(y1, y);
+        }
+    if (x1 >= 0) ink.box = QRect(QPoint(x0, y0), QPoint(x1, y1));
+    return ink;
+}
+
 // A header or footer part of the paragraphs given (each the XML of a paragraph's contents).
 QByteArray headerPart(const QByteArray &root, const QList<QByteArray> &paragraphs)
 {
@@ -6202,6 +6240,88 @@ private Q_SLOTS:
         QVERIFY2(std::abs(startOf(flag, "<w:tabs><w:tab w:val=\"num\" w:pos=\"1080\"/></w:tabs>", QByteArray()) - 54) < 2, "list tab");
         // A stop of the level that the paragraph clears is gone.
         QVERIFY2(std::abs(startOf(flag, "<w:tabs><w:tab w:val=\"num\" w:pos=\"1080\"/></w:tabs>", "<w:tabs><w:tab w:val=\"clear\" w:pos=\"1080\"/></w:tabs>") - 36) < 2, "cleared stop");
+    }
+
+    // Numbering ids of one definition count on together (only a restart makes a list of its own), and a level written out in a numbering id (lvlOverride) is no restart.
+    void numberingIdsOfOneDefinitionCountOnTogether()
+    {
+        const QByteArray level = "<w:lvl w:ilvl=\"0\"><w:start w:val=\"3\"/><w:numFmt w:val=\"lowerLetter\"/><w:lvlText w:val=\"%1.\"/><w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl>";
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\">" + level + "</w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>"
+                                     "<w:num w:numId=\"2\"><w:abstractNumId w:val=\"0\"/><w:lvlOverride w:ilvl=\"0\">" + level + "</w:lvlOverride></w:num>"
+                                     "<w:num w:numId=\"3\"><w:abstractNumId w:val=\"0\"/></w:num>"
+                                     "<w:num w:numId=\"4\"><w:abstractNumId w:val=\"0\"/><w:lvlOverride w:ilvl=\"0\"><w:startOverride w:val=\"1\"/></w:lvlOverride></w:num>";
+        auto item = [](int num) { return QByteArray("<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"") + QByteArray::number(num) + "\"/></w:numPr></w:pPr><w:r><w:t>item</w:t></w:r></w:p>"; };
+        auto doc = open(makeDocx(item(1) + item(2) + item(2) + item(3) + item(4) + item(4), kStyles, numbering));
+        QVERIFY(doc);
+        QStringList markers;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            if (b.textList()) markers << (b.blockFormat().stringProperty(tp::BulletChar).isEmpty() ? b.textList()->itemText(b) : b.blockFormat().stringProperty(tp::BulletChar));
+        QCOMPARE(markers, (QStringList{QStringLiteral("c."), QStringLiteral("d."), QStringLiteral("e."), QStringLiteral("f."), QStringLiteral("a."), QStringLiteral("b.")}));   // (the restart is a list of its own)
+    }
+
+    // A list the older programs made (w:legacy) has its text begin at the indent, where the file's option that the hanging indent is no tab stop would send it to the next
+    // default stop.
+    void aLegacyNumbersTextBeginsAtTheIndentWhateverTheTabStopOption()
+    {
+        auto startOf = [&](bool legacy, bool option) {
+            const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1)\"/>" +
+                                         (legacy ? QByteArray("<w:legacy w:legacy=\"1\" w:legacySpace=\"0\" w:legacyIndent=\"1440\"/>") : QByteArray()) +
+                                         "<w:pPr><w:ind w:left=\"1440\" w:hanging=\"1440\"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+            QByteArray words;
+            for (int i = 0; i < 40; ++i) words += "HHHH ";
+            const QByteArray body = "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/></w:pPr>"
+                                    "<w:r><w:t xml:space=\"preserve\">" + words + "</w:t></w:r></w:p>";
+            const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+            const QByteArray settings = option ? QByteArray("<w:compat><w:doNotUseIndentAsNumberingTabStop/></w:compat>") : QByteArray();
+            auto doc = open(makeDocxWithParts(body, sect, {}, settings, kStyles, numbering));
+            PageView view;
+            view.resize(1000, 700);
+            view.setDocument(doc.get());
+            const QImage img = view.pageImage(0, 816);
+            const double perPoint = 816 / 612.0;
+            for (int x = int(std::ceil((72 + 18) * perPoint)); x < img.width(); ++x)   // (a number is under 18 points wide)
+                for (int y = int(72 * perPoint); y < int(84 * perPoint); ++y)
+                    if (qGray(img.pixel(x, y)) < 128) return x / perPoint - 72;
+            return -1.0;
+        };
+        QVERIFY2(std::abs(startOf(false, true) - 36) < 2, qPrintable(QString::number(startOf(false, true))));   // (the option: the next default stop)
+        QVERIFY2(std::abs(startOf(true, true) - 72) < 2, qPrintable(QString::number(startOf(true, true))));    // (a legacy level: the indent)
+        QVERIFY2(std::abs(startOf(true, false) - 72) < 2, qPrintable(QString::number(startOf(true, false))));
+    }
+
+    // A number is set in its paragraph's mark, not in what the first words of the item happen to be in: here the mark is of 10 points and the first words of 40.
+    void aNumberIsInTheSizeOfItsParagraphMark()
+    {
+        const NumberInk marked = numberInk(QByteArray(), "<w:sz w:val=\"20\"/>", "<w:sz w:val=\"80\"/>");   // (10 point digits are about 9 pixels tall; 40 points' would be 37)
+        QVERIFY2(marked.dark > 0 && marked.box.height() < 20, qPrintable(QString::number(marked.box.height())));
+    }
+
+    // A level's typeface is its number's: a typewriter face is wider than the document's.
+    void aNumberIsInTheTypefaceOfItsLevel()
+    {
+        const NumberInk plain = numberInk("<w:sz w:val=\"60\"/>", "<w:sz w:val=\"20\"/>", QByteArray());
+        const NumberInk courier = numberInk("<w:rFonts w:ascii=\"Courier New\" w:hAnsi=\"Courier New\"/><w:sz w:val=\"60\"/>", "<w:sz w:val=\"20\"/>", QByteArray());
+        QVERIFY2(courier.box.right() > plain.box.right() + 8, qPrintable(QString::number(courier.box.right()) + " against " + QString::number(plain.box.right())));
+    }
+
+    // A level that says not bold has a number that is not, where the paragraph's mark is bold.
+    void aLevelThatSaysNotBoldHasNoBoldNumber()
+    {
+        const NumberInk boldMark = numberInk("<w:sz w:val=\"60\"/>", "<w:b/>", QByteArray()), lightLevel = numberInk("<w:b w:val=\"0\"/><w:sz w:val=\"60\"/>", "<w:b/>", QByteArray());
+        QVERIFY2(boldMark.dark > lightLevel.dark * 11 / 10, qPrintable(QString::number(boldMark.dark) + " against " + QString::number(lightLevel.dark)));
+    }
+
+    // A color of the level is its number's.
+    void aNumberIsInTheColorOfItsLevel()
+    {
+        QCOMPARE(numberInk("<w:sz w:val=\"60\"/>", "<w:sz w:val=\"20\"/>", QByteArray()).red, 0);
+        const NumberInk red = numberInk("<w:color w:val=\"FF0000\"/><w:sz w:val=\"60\"/>", "<w:sz w:val=\"20\"/>", QByteArray());
+        QVERIFY2(red.red > 20, qPrintable(QString::number(red.red)));
+        // A paragraph's mark is of a color: its number is too, unless the level says automatic.
+        const QByteArray redMark = "<w:color w:val=\"FF0000\"/><w:sz w:val=\"20\"/>";
+        QVERIFY(numberInk("<w:sz w:val=\"60\"/>", redMark, QByteArray()).red > 20);
+        QCOMPARE(numberInk("<w:color w:val=\"auto\"/><w:sz w:val=\"60\"/>", redMark, QByteArray()).red, 0);
     }
 
     // A bullet whose level asks for the outline effect (w:outline) is drawn hollow, as an outlined box is: the middle of a big black square is dark, and that of the same

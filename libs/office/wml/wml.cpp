@@ -561,8 +561,16 @@ void Numbering::index() const
     if (m_numCount == nums.size() && m_abstractCount == abstracts.size()) return;
     m_nums.clear();
     m_abstracts.clear();
+    m_plain.clear();
+    m_plainCount.clear();
     for (int i = 0; i < nums.size(); ++i)
-        if (!m_nums.contains(nums[i].id)) m_nums.insert(nums[i].id, i);
+        if (!m_nums.contains(nums[i].id)) {
+            m_nums.insert(nums[i].id, i);
+            if (nums[i].startOverrides.isEmpty()) {
+                if (!m_plain.contains(nums[i].abstractId)) m_plain.insert(nums[i].abstractId, nums[i].id);
+                ++m_plainCount[nums[i].abstractId];
+            }
+        }
     for (int i = 0; i < abstracts.size(); ++i)
         if (!m_abstracts.contains(abstracts[i].id)) m_abstracts.insert(abstracts[i].id, i);
     m_numCount = nums.size();
@@ -574,6 +582,20 @@ const Num *Numbering::num(int numId) const
     index();
     const auto it = m_nums.constFind(numId);
     return it == m_nums.constEnd() ? nullptr : &nums[it.value()];
+}
+
+int Numbering::listOf(int numId) const
+{
+    const Num *n = num(numId);
+    if (!n || !n->startOverrides.isEmpty()) return numId;
+    const auto it = m_plain.constFind(n->abstractId);
+    return it == m_plain.constEnd() ? numId : it.value();
+}
+
+bool Numbering::listIsShared(int numId) const
+{
+    const Num *n = num(numId);
+    return n && n->startOverrides.isEmpty() && m_plainCount.value(n->abstractId) > 1;
 }
 
 const AbstractNum *Numbering::abstractOf(int numId) const

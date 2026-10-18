@@ -876,6 +876,15 @@ QTextListFormat WriteDoc::listFormat(int numId, int level, int start) const
     }
     const Level &l = a->levels[level];
     if (levelIsOutlined(*a, level)) lf.setProperty(tp::BulletOutline, true);   // (the numbers of a level are drawn hollow as well as its bullets)
+    if (l.legacy) lf.setProperty(tp::LegacyNumber, true);
+    // What the level says of its marker's run (the rest is the paragraph mark's): bold and italic, and a color.
+    if (l.rPr.bold || l.rPr.italic || l.rPr.color) {
+        const QTextCharFormat run = charFormatOf(l.rPr, theme());
+        if (l.rPr.bold) lf.setProperty(tp::BulletBold, run.fontWeight() >= QFont::Bold);
+        if (l.rPr.italic) lf.setProperty(tp::BulletItalic, run.fontItalic());
+        if (l.rPr.color && l.rPr.color->val == QLatin1String("auto")) lf.setProperty(tp::BulletColor, QStringLiteral("auto"));   // (the engine's word for it)
+        else if (l.rPr.color && run.hasProperty(tp::ColorRefP)) lf.setProperty(tp::BulletColor, run.stringProperty(tp::ColorRefP));
+    }
     const Num *num = m_wml.numbering.num(numId);
     const int first = start >= 0 ? start : num && num->startOverrides.contains(level) ? num->startOverrides.value(level) : l.start;
     if (l.numFmt == QLatin1String("bullet") || l.numFmt == QLatin1String("none")) {
@@ -897,6 +906,10 @@ QTextListFormat WriteDoc::listFormat(int numId, int level, int start) const
     else if (l.numFmt == QLatin1String("upperRoman")) style = QTextListFormat::ListUpperRoman;
     lf.setStyle(style);
     if (l.rPr.size) lf.setProperty(tp::BulletSize, *l.rPr.size / 2.0);
+    if (l.rPr.fonts) {
+        const QString family = !l.rPr.fonts->ascii.isEmpty() ? l.rPr.fonts->ascii : l.rPr.fonts->hAnsi;
+        if (!family.isEmpty()) lf.setProperty(tp::BulletFont, family);
+    }
     // The text around the number: "%1." is the number and a period.
     const QString own = QStringLiteral("%%1").arg(level + 1);
     const int at = l.text.indexOf(own);

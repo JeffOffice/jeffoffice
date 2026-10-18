@@ -2698,6 +2698,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         WordLine markerWord;
         if (QTextList *list = (env.slideLines && b.length() <= 1) || tail ? nullptr : b.textList()) {
             const QTextListFormat lf = list->format();
+            B->markerSkipsIndent = env.wordNoNumberIndentStop && !lf.boolProperty(tp::LegacyNumber);
             QString custom = bf.stringProperty(tp::BulletChar);
             if (custom.isEmpty()) custom = lf.stringProperty(tp::BulletChar);
             if (!custom.isEmpty()) B->marker = custom;
@@ -2705,8 +2706,20 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             else if (lf.style() == QTextListFormat::ListCircle) B->marker = QStringLiteral("◦");
             else if (lf.style() == QTextListFormat::ListSquare) B->marker = QStringLiteral("▪");
             else B->marker = list->itemText(b);
-            QTextCharFormat mf = ranges.isEmpty() ? resolveCharFormat(b.charFormat(), env, behind) : ranges.first().format;
+            // (A word processor's number is of its paragraph's mark, not of the text that happens to come first.)
+            // (A level that says its color is automatic has a number of the automatic color, not the mark's.)
+            QTextCharFormat markFormat = b.charFormat();
+            const bool autoColor = env.wordLines && lf.stringProperty(tp::BulletColor) == QLatin1String("auto");
+            if (autoColor) {
+                markFormat.clearForeground();
+                markFormat.clearProperty(tp::ColorRefP);
+            }
+            QTextCharFormat mf = ranges.isEmpty() || env.wordLines ? resolveCharFormat(markFormat, env, behind) : ranges.first().format;
             B->markerFont = mf.font();
+            if (env.wordLines) {
+                if (lf.hasProperty(tp::BulletBold)) B->markerFont.setWeight(lf.boolProperty(tp::BulletBold) ? QFont::Bold : QFont::Normal);
+                if (lf.hasProperty(tp::BulletItalic)) B->markerFont.setItalic(lf.boolProperty(tp::BulletItalic));
+            }
             if (lf.hasProperty(tp::BulletSize)) {
                 // (A slide's bullet, a share of its text, follows the whole-point size the text was shrunk to.)
                 const double first = rawFirstSize(b);
@@ -2726,8 +2739,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 // A bullet in its own font is that font's regular face, not
                 // the weight or slant of the item's first run (Publisher draws
                 // an asterisk bullet thin beside bold text).
-                B->markerFont.setWeight(QFont::Normal);
-                B->markerFont.setItalic(false);
+                // (A word processor's number or bullet in a text face is bold or slanted as its paragraph's mark and its level say.)
+                if (!env.wordLines || isSymbolFont(bfont)) {
+                    B->markerFont.setWeight(QFont::Normal);
+                    B->markerFont.setItalic(false);
+                }
                 if (measured) {
                     B->marker = sb.standIn.isEmpty() ? QStringLiteral("•") : sb.standIn;
                     const double em = B->markerFont.pointSizeF() / fontPointFactor();
@@ -2749,10 +2765,12 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         B->marker = QString(QChar(char16_t(0xF000 + custom.at(0).unicode())));
                 }
             }
+            // A word processor's number is in the font its level names.
+            else if (env.wordLines && !bfont.isEmpty() && custom.isEmpty() && !isBulletList(lf.style())) B->markerFont.setFamily(env.aliasOf(bfont));
             B->markerColor = mf.foreground().color();
             B->markerOutline = env.wordLines && lf.boolProperty(tp::BulletOutline);
             const QString bc = lf.stringProperty(tp::BulletColor);
-            if (!bc.isEmpty()) B->markerColor = ColorRef::fromString(bc).resolve(env.colors);
+            if (!bc.isEmpty() && !autoColor) B->markerColor = ColorRef::fromString(bc).resolve(env.colors);
             if (B->markerAdv <= 0) B->markerAdv = advanceOf(B->markerFont, B->marker);
             // A bullet from a .pub list is followed by its text at once (Publisher's
             // PDFs: the text starts at the glyph's advance) unless the list's
@@ -2762,7 +2780,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             markerW = B->markerAdv + B->markerGap;
             if (lf.hasProperty(tp::BulletTab)) {
                 markerW = std::max(markerW, lf.property(tp::BulletTab).toDouble() * scale - (leftM + textIndent));
-            } else if (env.wordLines && (textIndent >= 0 || env.wordNoNumberIndentStop)) {
+            } else if (env.wordLines && (textIndent >= 0 || B->markerSkipsIndent)) {
                 // A word processor's number or bullet is followed by a tab: the text begins at the next stop past it, one of the paragraph's own or,
                 // past the last of those, a default one (from the text area's edge). (A hanging indent is that stop unless the file says it is not, and
                 // then the number's own list tab is one.)
@@ -2774,7 +2792,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     if (at > end + 0.01 && (stop < 0 || at < stop)) stop = at;
                 };
                 for (const QTextOption::Tab &t : bf.tabPositions()) consider(t.position * scale);
-                if (env.wordNoNumberIndentStop && bf.hasProperty(tp::NumberTab)) consider(bf.doubleProperty(tp::NumberTab) * scale);
+                if (B->markerSkipsIndent && bf.hasProperty(tp::NumberTab)) consider(bf.doubleProperty(tp::NumberTab) * scale);
                 if (stop < 0) stop = (std::floor((std::max(end, last) + 0.01) / step) + 1) * step;
                 markerW = stop - first;
             }
@@ -3025,6 +3043,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             // window cuts it. Where the window cut it, or it was not, it is as the window left it.)
             B->cut = windowCut;
             B->cutAt = windowCutAt;
+            B->markerClamp = 0;
             int overPlaced = 0;
             bool overFull = false;
             while (true) {
@@ -3040,7 +3059,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     if (hangs) {
                         // (A word processor's goes out into the margin as far as its indents say.)
                         indL = env.wordLines ? std::max(leftM + textIndent, -(frames[f].outdentLimit > 0 ? frames[f].outdentLimit : frames[f].size.width())) : std::max(0.0, leftM + textIndent);
-                        if (!B->marker.isEmpty()) lead = env.wordNoNumberIndentStop ? leftM + textIndent + markerW - indL : -textIndent;   // (to the number's tab stop, or the indent)
+                        if (!B->marker.isEmpty()) lead = B->markerSkipsIndent ? leftM + textIndent + markerW - indL : -textIndent;   // (to the number's tab stop, or the indent)
                     }
                 }
                 if (B->dropLines > 0 && lineNo < (B->dropUp ? 1 : B->dropLines)) indL += B->dropWidth;
@@ -3115,7 +3134,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         row = ok; rowIdx = 0; rowH = 0; rowActive = true;
                     }
                     Iv iv = row[rowIdx];
-                    if (lead > 0 && lineNo == 0 && rowIdx == 0) iv.x0 = std::min(iv.x0 + lead, iv.x1);
+                    if (lead > 0 && lineNo == 0 && rowIdx == 0) {
+                        const double want = iv.x0 + lead;
+                        iv.x0 = std::min(want, iv.x1);
+                        B->markerClamp = want - iv.x0;
+                    }
                     if (gridTabs) {
                         if (moveFrom >= 0) iv.x0 = std::min(iv.x0 + movedBy(iv.x0 - col.left(), iv.x1 - col.left()), iv.x1);
                         B->tl->setLineTabs(stopsFor(iv.x0 - col.left(), iv.x1 - iv.x0, lineNo == 0));
@@ -3666,7 +3689,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         QTextBlock tb = doc->findBlock(B->docStart);
         const QTextBlockFormat bf = tb.blockFormat();
         const double ti = bf.textIndent() * scale, lm = bf.leftMargin() * scale;
-        B->markerX = ti < 0 && !m_env.wordNoNumberIndentStop ? lineX + ti : lineX - B->markerOff;
+        B->markerX = (ti < 0 && !B->markerSkipsIndent ? lineX + ti : lineX - B->markerOff) + B->markerClamp;
         Q_UNUSED(lm);
     }
 
