@@ -178,6 +178,8 @@ public:
     qint64 tableCellsLaidOut() const { return m_tables ? m_tables->cellsLaidOut() : 0; }
     // How many pages the page numbers have been walked back over to find where their section began, for tests.
     qint64 numberStepsForTest() const { return m_numberSteps; }
+    // How many characters the copies of the text on the pages have held since it was made (the copy a page is drawn from holds that page's text and a line more): for tests of what a page costs.
+    qint64 charsCopiedForTest() const { return m_charsCopied; }
 
 private:
     struct Run;
@@ -468,6 +470,7 @@ private:
     qint64 m_laidOut = 0;
     qint64 m_passes = 0;
     qint64 m_headerFramesMade = 0, m_headerReachesMade = 0;
+    qint64 m_charsCopied = 0;
     qint64 m_headerTablesMade = 0, m_headerTableCells = 0;   // layouts of the tables made, and the cells held
     // The number of the page asked for last, so that the next one's is one more: a walk back to the section's first page is for a page that doesn't follow it.
     mutable int m_numberOf = -1, m_number = 0;

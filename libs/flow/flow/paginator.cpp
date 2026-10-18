@@ -1416,7 +1416,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
             dst.insertBlock(bf, b.charFormat());
         }
         const int skip = std::max(0, from - b.position());   // (a paragraph before the first line, of those joined, is left out of the copy)
-        const int upto = b == lastBlock ? to - b.position() : std::numeric_limits<int>::max();
+        const int upto = std::max(0, to - b.position());   // (the copy's end, in every paragraph of a run that is one: a page's copy holds the page's text, not the whole of each)
         for (auto it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment frag = it.fragment();
             const int rel = frag.position() - b.position();
@@ -1437,6 +1437,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
                 }
                 continue;
             }
+            m_charsCopied += text.size();
             dst.insertText(text, frag.charFormat());
         }
         if (list) {

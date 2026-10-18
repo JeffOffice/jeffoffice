@@ -4839,6 +4839,29 @@ private Q_SLOTS:
         }
     }
 
+    // The copy of the text that a page is drawn from holds the page's own text of a run of joined paragraphs, not the whole of the run's paragraphs: the characters copied for the pages
+    // of thirty-two paragraphs of thousands of characters, each page a few lines of them, are about the characters there are, not that many for every page. (Counted.)
+    void thePagesCopiesOfAJoinedRunHoldOnlyTheirOwnText()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"6000\" w:h=\"4800\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+        QByteArray body;
+        for (int i = 0; i < 32; ++i) {
+            QByteArray text;
+            for (int w = 0; w < 200; ++w) text += "word" + QByteArray::number(w % 10) + " ";
+            body += "<w:p><w:pPr>" + (i < 31 ? deleted : QByteArray()) + "</w:pPr><w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r></w:p>";
+        }
+        body += "<w:p><w:r><w:t>After.</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles, QByteArray(), sect));
+        QVERIFY(doc);
+        const int pages = doc->pager().pageCount();
+        QVERIFY2(pages >= 40, qPrintable(QString::number(pages)));
+        const qint64 before = doc->pager().charsCopiedForTest();
+        for (int i = 0; i < pages; ++i) QVERIFY(doc->pager().materialize(i));
+        const qint64 copied = doc->pager().charsCopiedForTest() - before, length = doc->story()->characterCount();
+        QVERIFY2(copied <= 2 * length, qPrintable(QStringLiteral("%1 characters copied for the %2 pages of a story of %3").arg(copied).arg(pages).arg(length)));
+    }
+
     // A deleted mark never joins the paragraphs of two table cells, nor a cell's last paragraph and the one after the table: the text of each cell is in its own cell, once.
     void aDeletedMarkNeverJoinsTheParagraphsOfTwoCells()
     {
