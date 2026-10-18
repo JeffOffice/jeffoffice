@@ -304,12 +304,10 @@ public:
                 if (!s.floating) s.wrap = Shape::WrapNone;
                 s.side = sideOf(t.attr(c, "side"));
             } else if (name == "fill") {
-                // A picture as the fill of a shape, stretched over it (type "frame"; a tile or a shape's own fill by a picture is not read), is the shape as a picture.
-                if (const QString embed = t.attr(c, "id", NsR); !embed.isEmpty() && t.attr(c, "type") == QLatin1String("frame") && s.kind != Shape::TextBox) {
-                    s.kind = Shape::Picture;
-                    s.embed = embed;
+                // A picture that fills the shape, stretched over it (type "frame"; a tile is not read), is the shape's fill: it stays a box or a text box, with its outline and its text.
+                if (const QString embed = t.attr(c, "id", NsR); !embed.isEmpty() && t.attr(c, "type") == QLatin1String("frame")) {
+                    s.fillEmbed = embed;
                     s.filled = false;
-                    s.stroked = false;
                 }
                 if (offOf(t.attr(c, "on"))) s.filled = false;
                 if (const QString color = colorOf(t.attr(c, "color")); !color.isEmpty() && t.attr(n, "fillcolor").isEmpty()) s.fillColor = color;

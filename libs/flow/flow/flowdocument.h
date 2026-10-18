@@ -61,6 +61,7 @@ struct FloatingObject {
     enum class Side { Both, Left, Right, Largest };
     ItemPtr item;                           // a PictureItem, ShapeItem, LineItem, or TextItem
     int image = -1;                         // a picture's place in FlowDocument::images
+    int fillImage = -1;                     // a picture that fills a box or a text box, stretched over it: its place in FlowDocument::images
     std::shared_ptr<QTextDocument> story;   // a text box's text
     QMarginsF insets{7.2, 3.6, 7.2, 3.6};   // of a text box
     Rel hRel = Rel::Column, vRel = Rel::Paragraph;
