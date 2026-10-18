@@ -2,7 +2,6 @@
 // paragraphs and their cells' records (TableExporter, used by WriteDoc::exportBody).
 
 #include "core/tablemodel.h"
-#include "core/wordformat.h"
 
 #include "core/writedoc.h"
 
@@ -181,13 +180,6 @@ QStringList stylePartsFor(const TableStyleDef &def, int look, int row, int rows,
 
 } // namespace
 
-bool TableBuilder::cellFillIsDark() const
-{
-    for (int i = int(m_levels.size()) - 1; i >= 0; --i)
-        if (m_levels[i].kind == Level::Cell) return m_levels[i].dark;
-    return false;
-}
-
 double TableBuilder::cellWidth() const
 {
     for (int i = int(m_levels.size()) - 1; i >= 0; --i) {
@@ -282,6 +274,8 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
             l.row = std::make_shared<flow::RowData>();
             l.row->height = m.height / 20.0;
             l.row->exact = m.heightRule == QLatin1String("exact");
+            const double declaredHeight = l.row->height;
+            const bool declaredExact = l.row->exact;
             l.row->cantSplit = m.cantSplit;
             l.row->header = m.header;
             // A row that is hidden is not shown, and takes no room: no height, no lines, and nothing in its cells (the cells, below).
@@ -295,6 +289,9 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
             l.col = m.gridBefore;
             l.rowPart = std::make_shared<RowPart>();
             l.rowPart->open = blk.raw;
+            l.rowPart->height = declaredHeight;
+            l.rowPart->exact = declaredExact;
+            l.rowPart->hidden = m.hidden;
             l.rowPart->before = m_between;
             m_between.clear();
             l.row->app = l.rowPart;
@@ -376,15 +373,16 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
                 c.bottom = lineOf(m.bottom);
                 c.right = lineOf(m.right);
                 c.fill = fillOf(m);
+                c.valign = m.vAlign == QLatin1String("center") ? flow::CellAlign::Center : m.vAlign == QLatin1String("bottom") ? flow::CellAlign::Bottom : flow::CellAlign::Top;
+                c.noWrap = m.noWrap;
+                c.app = cell.cellPart;
                 if (row->hidden) {
+                    cell.cellPart->shown = std::make_shared<flow::CellData>(c);
+                    cell.cellPart->shown->app.reset();
                     c.top = c.left = c.bottom = c.right = flow::TableLine();
                     c.fill = QColor(Qt::transparent);
                     c.margins = QMarginsF(0, 0, 0, 0);
                 }
-                cell.dark = c.fill && isDarkFill(*c.fill);
-                c.valign = m.vAlign == QLatin1String("center") ? flow::CellAlign::Center : m.vAlign == QLatin1String("bottom") ? flow::CellAlign::Bottom : flow::CellAlign::Top;
-                c.noWrap = m.noWrap;
-                c.app = cell.cellPart;
                 // The widths of the first row's cells, for a table whose grid the file left out.
                 if (table->rows == 1) {
                     const double w = direct.cellWidth.type == QLatin1String("dxa") ? direct.cellWidth.w / 20.0 : 0;

@@ -8,6 +8,7 @@
 #include <QRegularExpression>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace jp::office::wml {
 
@@ -18,6 +19,8 @@ constexpr int kMostShapes = 200;
 constexpr int kMostGroupDepth = 8;
 // The most characters of text on a path that are read.
 constexpr int kMostPathText = 500;
+// The most of a shape's own numbers that are read.
+constexpr int kMostAdjust = 16;
 
 // A number from a file brought into a range a page could be in: one that is past it, or is not a number, is the nearest end of it (or 0).
 double fin(double v) { return std::isfinite(v) ? std::clamp(v, -100000.0, 100000.0) : 0.0; }
@@ -270,10 +273,13 @@ public:
                 if (s.cropL + s.cropR >= 0.98 || s.cropT + s.cropB >= 0.98) s.cropL = s.cropT = s.cropR = s.cropB = 0;
                 s.clearColor = colorOf(t.attr(c, "chromakey"));
             } else if (name == "bordertop" || name == "borderleft" || name == "borderbottom" || name == "borderright") {
-                // (Eighths of a point, as a paragraph border's size is.)
+                // (Eighths of a point, as a paragraph border's size is: no more than a hundred points, and a number that is not one is none.)
                 const QString type = t.attr(c, "type");
-                if (!type.isEmpty() && type != QLatin1String("none"))
-                    s.borderWeight = std::max(s.borderWeight, std::clamp(t.attr(c, "width").toDouble() / 8, 0.0, 100.0));
+                if (!type.isEmpty() && type != QLatin1String("none")) {
+                    const int side = name == "bordertop" ? 0 : name == "borderleft" ? 1 : name == "borderbottom" ? 2 : 3;
+                    s.borderSides[side] = std::clamp(fin(t.attr(c, "width").toDouble() / 8), 0.0, 100.0);
+                    s.borderWeight = std::max(s.borderWeight, s.borderSides[side]);
+                }
             } else if (name == "textpath") {
                 if (!offOf(t.attr(c, "on")) && !t.attr(c, "string").isEmpty()) {
                     s.pathText = t.attr(c, "string").left(kMostPathText);
@@ -315,6 +321,28 @@ public:
                 if (!t.attr(c, "inset").isEmpty())
                     for (int i = 0; i < 4 && i < in.size(); ++i)
                         if (!in[i].trimmed().isEmpty()) s.inset[i] = lengthOf(in[i], s.inset[i]);
+            }
+        }
+        // A picture's border is drawn in the color of the first side that names one, "this" being the shape's own line color; none named is black.
+        if (s.borderWeight > 0) {
+            s.borderColor = QStringLiteral("000000");
+            for (const char *attribute : {"bordertopcolor", "borderleftcolor", "borderbottomcolor", "borderrightcolor"}) {
+                const QString value = t.attrAny(n, attribute).trimmed();
+                if (value.isEmpty()) continue;
+                const QString color = colorOf(value);
+                if (!color.isEmpty() || value == QLatin1String("this")) {
+                    s.borderColor = color.isEmpty() ? s.strokeColor : color;
+                    break;
+                }
+            }
+        }
+        // The shape's own numbers (an empty place or a word is not a number, nor a number too large to be one).
+        if (const QString adj = t.attr(n, "adj"); !adj.isEmpty()) {
+            const QStringList numbers = adj.split(QLatin1Char(','));
+            for (int i = 0; i < numbers.size() && i < kMostAdjust; ++i) {
+                bool ok = false;
+                const double v = numbers[i].trimmed().toDouble(&ok);
+                s.adjust << (ok && std::isfinite(v) ? std::clamp(v, -1e9, 1e9) : std::numeric_limits<double>::quiet_NaN());
             }
         }
         // (A rule or box wrapped in a "wrap" with anchors for the text it follows is read as floating: a shape with a z-index is set so.)
@@ -433,7 +461,10 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
                 // The cut edges are beside the blip, in its fill (thousandths of a percent).
                 for (int k = t.firstChild(t.parent(n)); k >= 0; k = t.next(k))
                     if (t.localName(k) == "srcRect") {
-                        auto share = [&](const char *edge) { return std::clamp(t.attr(k, edge).toDouble() / 100000.0, -1.0, 1.0); };
+                        auto share = [&](const char *edge) {
+                            const double v = t.attr(k, edge).toDouble() / 100000.0;
+                            return std::isfinite(v) ? std::clamp(v, -1.0, 1.0) : 0.0;
+                        };
                         s.cropL = share("l");
                         s.cropT = share("t");
                         s.cropR = share("r");

@@ -497,7 +497,16 @@ void addRow(WriteDoc &doc, View &v, int ref, bool below)
     row->header = false;
     {
         const RowPart *rp = static_cast<const RowPart *>(refRow.data->app.get());
+        // (A hidden row is made no height: a row beside it is as high as the file says that row is, which is a row of any other kind.)
+        if (rp && rp->hidden) {
+            row->height = rp->height;
+            row->exact = rp->exact;
+        }
         auto np = std::make_shared<RowPart>();
+        if (rp) {
+            np->height = rp->height;
+            np->exact = rp->exact;
+        }
         np->open = rowOpenFor(rp ? rp->open : QByteArray("<w:tr>"));
         row->app = np;
     }
@@ -510,6 +519,8 @@ void addRow(WriteDoc &doc, View &v, int ref, bool below)
         const flow::TableLayout::Cell &cell = t.cell(i);
         flow::CellRecord rec = *cell.rec;
         rec.row = row;
+        // (The cell of a hidden row has none of its lines and margins: a cell beside it has those the file gave it.)
+        if (const CellPart *own = static_cast<const CellPart *>(cell.rec->cell.app.get()); own && own->shown) rec.cell = *own->shown;
         // A cell beside others that are joined down is joined if the row it is in goes on being: below a row whose cell goes on in the next, above a row that continues one.
         bool continues = false;
         if (below) {

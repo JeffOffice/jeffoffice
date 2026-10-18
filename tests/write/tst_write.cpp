@@ -16,6 +16,7 @@
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
 #include "core/appinfo.h"
+#include "core/drawnitems.h"
 #include "core/editops.h"
 #include "core/printing.h"
 #include "core/spellcheck.h"
@@ -37,6 +38,7 @@
 #include <QAccessible>
 #include <QBuffer>
 #include <QImage>
+#include <QPainter>
 #include <QApplication>
 #include <climits>
 #include <QMenu>
@@ -148,6 +150,18 @@ ItemPtr inlineObjectOf(const WriteDoc &doc)
     return nullptr;
 }
 
+// Every object set in the story's text, in order.
+QVector<ItemPtr> inlineObjectsOf(const WriteDoc &doc)
+{
+    QVector<ItemPtr> out;
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QString json = it.fragment().charFormat().stringProperty(tp::InlineObject);
+            if (!json.isEmpty()) out << Item::fromJsonAny(QJsonDocument::fromJson(json.toUtf8()).object());
+        }
+    return out;
+}
+
 QByteArray documentXml(const QByteArray &zip)
 {
     office::Package p;
@@ -226,6 +240,41 @@ std::unique_ptr<WriteDoc> textDoc(const QStringList &paragraphs, const QByteArra
     QByteArray body;
     for (const QString &p : paragraphs) body += "<w:p><w:r><w:t xml:space=\"preserve\">" + p.toUtf8() + "</w:t></w:r></w:p>";
     return open(makeDocx(body, styles));
+}
+
+// The first page drawn 816 pixels across (a letter's width: 4/3 pixel to the point), and what a part of it is: the gray most of it is (its fill) and the gray farthest
+// from that (its ink). The part is in points from the page's top left.
+struct BackAndInk {
+    int back = 0, ink = 0;
+};
+BackAndInk backAndInk(const QImage &img, const QRectF &points)
+{
+    const double k = img.width() / 612.0;
+    int count[3] = {0, 0, 0};
+    long sum[3] = {0, 0, 0};
+    QVector<int> grays;
+    for (int y = int(points.top() * k); y < int(points.bottom() * k); ++y)
+        for (int x = int(points.left() * k); x < int(points.right() * k); ++x) {
+            const int g = qGray(img.pixel(x, y));
+            const int b = g < 85 ? 0 : g < 170 ? 1 : 2;
+            ++count[b];
+            sum[b] += g;
+            grays << g;
+        }
+    BackAndInk out;
+    const int best = count[0] >= count[1] && count[0] >= count[2] ? 0 : count[1] >= count[2] ? 1 : 2;
+    if (!count[best]) return out;
+    out.back = out.ink = int(sum[best] / count[best]);   // (a part of one gray has no ink: its ink is its fill)
+    for (const int g : grays)
+        if (std::abs(g - out.back) > std::abs(out.ink - out.back)) out.ink = g;
+    return out;
+}
+QImage drawnPage(WriteDoc &doc)
+{
+    PageView view;
+    view.resize(1000, 700);
+    view.setDocument(&doc);
+    return view.pageImage(0, 816);
 }
 
 // The stretches of ink along the first line of a page whose first paragraph begins as the XML says (where each begins, and ends, in points from the page's left edge; a
@@ -5131,7 +5180,8 @@ private Q_SLOTS:
     void aPictureIsCutKeyedAndBordered()
     {
         const QByteArray shape = "<v:shape id=\"p\" type=\"#_x0000_t75\" style=\"STYLEwidth:100pt;height:50pt\"><v:imagedata r:id=\"rIdPic\" croptop=\"16384f\" cropbottom=\"32768f\" cropleft=\"0.1\" "
-                                 "cropright=\"0.125\" chromakey=\"black\"/><w10:bordertop type=\"single\" width=\"12\"/></v:shape>";
+                                 "cropright=\"0.125\" chromakey=\"black\"/><w10:bordertop type=\"single\" width=\"12\"/><w10:borderleft type=\"single\" width=\"12\"/><w10:borderbottom type=\"single\" width=\"12\"/>"
+                                 "<w10:borderright type=\"single\" width=\"12\"/></v:shape>";
         auto body = [&](const QByteArray &style) {
             QByteArray s = shape;
             s.replace("STYLE", style);
@@ -5250,33 +5300,39 @@ private Q_SLOTS:
     }
 
     // A picture whose other form is a compressed picture of the kind the original program keeps for itself (r:pict, a .pcz) is shown as a picture that cannot be: the
-    // frame's outline on white, as large as the frame, and not the picture it has.
+    // frame's outline on white with the mark of a missing picture at its corner (one small picture, of the document, drawn small), not the picture it has, and not a
+    // picture made for each size of frame (a file of a hundred such pictures took fifteen seconds to open).
     void aPictureWithACompressedFormIsShownAsMissing()
     {
-        const QByteArray body = "<w:p><w:r><w:t xml:space=\"preserve\">Before </w:t></w:r><w:r><w:pict " + QByteArray(kVml) + "><v:shape id=\"p\" type=\"#_x0000_t75\" style=\"width:100pt;height:50pt\">"
-                                "<v:imagedata r:id=\"rIdPic\" r:pict=\"rIdPcz\"/></v:shape></w:pict></w:r></w:p>";
-        auto doc = open(makeDocxWithPicture(body, true));
+        auto bodyOf = [&](int count) {
+            QByteArray body;
+            for (int i = 0; i < count; ++i)
+                body += "<w:p><w:r><w:pict " + QByteArray(kVml) + "><v:shape id=\"p" + QByteArray::number(i) + "\" type=\"#_x0000_t75\" style=\"width:" + QByteArray::number(100 + i) +
+                        "pt;height:" + QByteArray::number(50 + i / 2) + "pt\"><v:imagedata r:id=\"rIdPic\" r:pict=\"rIdPcz\"/></v:shape></w:pict></w:r></w:p>";
+            return body;
+        };
+        auto doc = open(makeDocxWithPicture(bodyOf(1), true));
         QVERIFY(doc);
         auto pic = std::dynamic_pointer_cast<PictureItem>(inlineObjectOf(*doc));
         QVERIFY(pic);
         QVERIFY(std::abs(pic->rect.width() - 100) < 0.01 && std::abs(pic->rect.height() - 50) < 0.01);
-        const int index = pic->imageId.mid(QStringLiteral("flow-img:").size()).toInt();
-        QVERIFY(index >= 0 && index < doc->flow().images.size());
-        const QImage shown = QImage::fromData(doc->flow().images[index].bytes);
-        QVERIFY(!shown.isNull());
-        // (The black and white of the picture it has is not what is shown: its middle is white, and its edge is the outline.)
-        QVERIFY2(shown.width() >= 100 && shown.height() >= 50 && std::abs(double(shown.width()) / shown.height() - 2.0) < 0.05, qPrintable(QString::number(shown.width())));
-        QCOMPARE(shown.pixelColor(shown.width() * 3 / 4, shown.height() / 2), QColor(Qt::white));
-        QVERIFY(shown.pixelColor(shown.width() / 2, 0).lightness() < 100 || shown.pixelColor(shown.width() / 2, 1).lightness() < 100);
-        // The same picture with no such form is its own.
-        auto plain = open(makeDocxWithPicture("<w:p><w:r><w:pict " + QByteArray(kVml) + "><v:shape id=\"p\" type=\"#_x0000_t75\" style=\"width:100pt;height:50pt\"><v:imagedata r:id=\"rIdPic\"/></v:shape></w:pict></w:r></w:p>"));
-        QVERIFY(plain);
-        auto own = std::dynamic_pointer_cast<PictureItem>(inlineObjectOf(*plain));
-        QVERIFY(own);
-        QCOMPARE(QImage::fromData(plain->flow().images[own->imageId.mid(QStringLiteral("flow-img:").size()).toInt()].bytes).size(), QSize(20, 10));
+        QCOMPARE(int(doc->flow().images.size()), 1);
+        const QImage mark = QImage::fromData(doc->flow().images[0].bytes);
+        QVERIFY(!mark.isNull() && mark.width() <= 128 && mark.height() <= 128);
+        // (The frame is the picture's own: white with an outline; the mark is small, at the corner, and is not the picture's 20 by 10 black and white.)
+        QVERIFY2(pic->fill.type == Fill::Solid && !pic->stroke.isNone(), "a white frame with an outline");
+        QVERIFY2(pic->imgRect.width() < 30 && pic->imgRect.height() < 30 && pic->imgRect.left() >= 0 && pic->imgRect.top() >= 0, qPrintable(QString::number(pic->imgRect.width())));
+        // A hundred of them, of a hundred sizes: one picture of the document, and no time to speak of.
+        QElapsedTimer clock;
+        clock.start();
+        auto many = open(makeDocxWithPicture(bodyOf(100), true));
+        QVERIFY(many);
+        QVERIFY2(many->flow().images.size() == 1, qPrintable(QString::number(many->flow().images.size()) + " pictures made"));
+        QVERIFY2(clock.elapsed() < 4000, qPrintable(QString::number(clock.elapsed()) + " ms to open"));
     }
 
-    // A row that is hidden (w:hidden in its properties) is not shown and takes no room, and a table whose rows are all hidden shows nothing of itself, not its lines either.
+    // A row that is hidden (w:hidden in its properties) is not shown and takes no room, whatever height it says (the table is as tall as the other row alone), and a table
+    // whose rows are all hidden shows nothing of itself, not its lines either.
     void aHiddenRowIsNotShownAndTakesNoRoom()
     {
         const QByteArray line = "w:val=\"thickThinSmallGap\" w:sz=\"24\" w:space=\"0\" w:color=\"FF0000\"";
@@ -5285,14 +5341,13 @@ private Q_SLOTS:
                 return "<w:tr><w:trPr>" + props + "</w:trPr><w:tc><w:tcPr><w:tcW w:w=\"5000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>" + text + "</w:t></w:r></w:p></w:tc></w:tr>";
             };
             return "<w:p><w:r><w:t>Before</w:t></w:r></w:p><w:tbl><w:tblPr><w:tblW w:w=\"5000\" w:type=\"dxa\"/><w:tblBorders><w:top " + line + "/><w:left " + line + "/><w:bottom " + line + "/><w:right " + line +
-                   "/><w:insideH " + line + "/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w=\"5000\"/></w:tblGrid>" + row(firstRow, "First row") + (secondRow.isEmpty() ? QByteArray() : row(secondRow, "Second row")) +
-                   "</w:tbl><w:p><w:r><w:t>After</w:t></w:r></w:p>";
+                   "/><w:insideH " + line + "/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w=\"5000\"/></w:tblGrid>" + (firstRow.isEmpty() ? QByteArray() : row(firstRow, "First row")) +
+                   (secondRow.isEmpty() ? QByteArray() : row(secondRow, "Second row")) + "</w:tbl><w:p><w:r><w:t>After</w:t></w:r></w:p>";
         };
-        // The height of the table's piece on the page, and whether a line is drawn at its top edge (the table's own, or the first cell's).
+        // The height of the table's piece on the page, and whether a line is drawn at its top and bottom edges (the table's own, or the first cell's).
         struct Shown {
             double height = -1;
             bool topLine = false, bottomLine = false;
-            QVector<double> rows;
         };
         auto shownOf = [&](const QByteArray &xml) {
             Shown out;
@@ -5301,60 +5356,391 @@ private Q_SLOTS:
             const auto page = doc->pager().materialize(0);
             if (page->tables.empty()) return out;
             out.height = page->tables[0]->height;
+            // (The top edge is the first cell's that does not say it has no line there, as a hidden row's cells do; the bottom edge is the last such cell's.)
+            bool seen = false;
             for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
                 if (const int key = cellKeyOf(b)) {
                     const flow::CellRecord *record = doc->flow().tables.get(key);
+                    if (record->cell.top && !record->cell.top->visible()) continue;
                     const auto edge = [&](const std::optional<flow::TableLine> &own, const flow::TableLine &table) { return own ? own->visible() : table.visible(); };
-                    out.topLine = edge(record->cell.top, record->table->top);
+                    if (!seen) out.topLine = edge(record->cell.top, record->table->top);
+                    seen = true;
                     out.bottomLine = edge(record->cell.bottom, record->table->bottom);
-                    break;
                 }
             return out;
         };
-        const Shown shown = shownOf(body("", ""));
-        QVERIFY(shown.height > 10);
-        QVERIFY(shown.topLine && shown.bottomLine);
-        // Every row hidden: no room, and no line at any edge.
-        const Shown none = shownOf(body("<w:hidden/>", ""));
+        const QByteArray exactHundred = "<w:trHeight w:val=\"2000\" w:hRule=\"exact\"/>", exactEighty = "<w:hidden/><w:trHeight w:val=\"1600\" w:hRule=\"exact\"/>";
+        const Shown alone = shownOf(body(exactHundred, ""));
+        QVERIFY2(alone.height >= 99 && alone.height < 125, qPrintable(QString::number(alone.height)));
+        QVERIFY(alone.topLine && alone.bottomLine);
+        // An eighty point row that is hidden beside it adds nothing (a table that showed it would be 80 points taller).
+        const Shown beside = shownOf(body(exactEighty, exactHundred));
+        QVERIFY2(std::abs(beside.height - alone.height) < 1, qPrintable(QString::number(beside.height) + " beside, " + QString::number(alone.height) + " alone"));
+        QVERIFY(beside.topLine && beside.bottomLine);
+        // Every row hidden: no room, and no line at any edge (the table with its row shown has both).
+        const Shown none = shownOf(body(exactEighty, ""));
         QVERIFY2(none.height >= 0 && none.height < 1, qPrintable(QString::number(none.height)));
         QVERIFY(!none.topLine && !none.bottomLine);
-        // One of two hidden: the table is as tall as the other row, which keeps its lines.
-        const Shown second = shownOf(body("<w:hidden/>", "<w:cantSplit/>"));
-        QVERIFY2(second.height > 10 && second.height < shown.height * 1.2, qPrintable(QString::number(second.height) + " of " + QString::number(shown.height)));
     }
 
-    // Text of the automatic color is white on a dark fill (a paragraph's shading, or a table cell's), and black as it is on a light one; a color the run states is its own.
-    void automaticTextIsWhiteOnADarkFill()
+    // A row put beside a hidden row is a row like the file's (a row of a normal height, with its cells' lines and margins), not a copy of what the hidden row is made to be
+    // (no height, no lines).
+    void aRowInsertedBesideAHiddenRowTakesANormalHeight()
     {
-        auto colorsOf = [&](const QByteArray &body) {
-            QMap<QString, QColor> out;
-            auto doc = open(makeDocx(body, kStyles));
-            if (!doc) return out;
-            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
-                for (auto it = b.begin(); !it.atEnd(); ++it) {
-                    const QTextCharFormat f = it.fragment().charFormat();
-                    out.insert(it.fragment().text(), f.hasProperty(QTextFormat::ForegroundBrush) ? f.foreground().color() : QColor());
-                }
+        const QByteArray line = "w:val=\"single\" w:sz=\"8\" w:space=\"0\" w:color=\"000000\"";
+        const QByteArray body =
+            "<w:p><w:r><w:t>Before</w:t></w:r></w:p><w:tbl><w:tblPr><w:tblW w:w=\"5000\" w:type=\"dxa\"/><w:tblBorders><w:top " + line + "/><w:left " + line + "/><w:bottom " + line + "/><w:right " + line + "/><w:insideH " + line +
+            "/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w=\"5000\"/></w:tblGrid>"
+            "<w:tr><w:trPr><w:hidden/></w:trPr><w:tc><w:tcPr><w:tcW w:w=\"5000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>Hidden row</w:t></w:r></w:p></w:tc></w:tr>"
+            "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"5000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>Shown row</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>After</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles));
+        QVERIFY(doc);
+        const double before = doc->pager().materialize(0)->tables[0]->height;
+        QTextBlock hidden;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            if (b.text() == QStringLiteral("Hidden row")) hidden = b;
+        QVERIFY(hidden.isValid());
+        QTextCursor cursor(doc->story());
+        cursor.setPosition(hidden.position());
+        insertTableRow(*doc, cursor, true);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(!page->tables.empty());
+        const auto &table = page->tables[0];
+        QCOMPARE(table->layout->rowCount(), 3);
+        // (The new row is the middle one: as tall as a row of a line of text, which the hidden one is not.)
+        QVERIFY2(table->heightOf(1) > 10, qPrintable(QString::number(table->heightOf(1))));
+        QVERIFY2(table->height > before + 10, qPrintable(QString::number(table->height) + " from " + QString::number(before)));
+        // The cells of the new row have the lines the file's rows do.
+        const flow::TableLayout::Row &row = table->layout->row(1);
+        const flow::CellRecord *record = table->layout->cell(row.cell0).rec;
+        QVERIFY(!record->cell.top || record->cell.top->visible());
+        QVERIFY(!record->cell.margins || record->cell.margins->top() >= 0);
+    }
+
+    // Text of the automatic color is drawn white on a dark fill, and nothing of it is saved: the file keeps the run as it was (no w:color), for the color is worked out as the
+    // page is laid out. Text typed into an empty dark paragraph, and a number or bullet, are drawn so as well.
+    void automaticTextIsDrawnWhiteOnADarkFillAndNothingIsSaved()
+    {
+        const QByteArray shading = "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"000000\"/><w:spacing w:before=\"0\" w:after=\"0\"/>";
+        const QRectF region(100, 77, 50, 7);   // (inside the first line's letters, which are 14 point)
+        auto doc = open(makeDocx("<w:p><w:pPr>" + shading + "</w:pPr><w:r><w:rPr><w:sz w:val=\"28\"/></w:rPr><w:t>WWWWWWWW</w:t></w:r></w:p>", kStyles));
+        QVERIFY(doc);
+        const BackAndInk drawn = backAndInk(drawnPage(*doc), region);
+        QVERIFY2(drawn.back < 60 && drawn.ink > 200, qPrintable(QString::number(drawn.back) + " on, " + QString::number(drawn.ink) + " ink"));
+        const QByteArray saved = documentXml(doc->toDocx());
+        QVERIFY2(!saved.contains("<w:color"), qPrintable(QString::fromUtf8(saved.mid(saved.indexOf("<w:body"), 700))));
+        QVERIFY(saved.contains("w:fill=\"000000\""));
+        // Typed into an empty dark paragraph (its mark's format is the text's).
+        auto empty = open(makeDocx("<w:p><w:pPr>" + shading + "<w:rPr><w:sz w:val=\"28\"/></w:rPr></w:pPr></w:p>", kStyles));
+        QVERIFY(empty);
+        {
+            PageView view;
+            view.resize(1000, 700);
+            view.setDocument(empty.get());
+            view.cursor().setPosition(0);
+            view.insertText(QStringLiteral("WWWWWWWW"));
+            const BackAndInk typed = backAndInk(view.pageImage(0, 816), region);
+            QVERIFY2(typed.back < 60 && typed.ink > 200, qPrintable(QString::number(typed.back) + " on, " + QString::number(typed.ink) + " ink typed"));
+        }
+        QVERIFY2(!documentXml(empty->toDocx()).contains("<w:color"), "typing saves no color");
+        // A number: an empty numbered dark paragraph shows its number white.
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/><w:pPr><w:ind w:left=\"0\" w:firstLine=\"0\"/></w:pPr>"
+                                     "<w:rPr><w:sz w:val=\"28\"/></w:rPr></w:lvl></w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        auto numbered = open(makeDocx("<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr>" + shading + "<w:rPr><w:sz w:val=\"28\"/></w:rPr></w:pPr></w:p>", kStyles, numbering));
+        QVERIFY(numbered);
+        const BackAndInk number = backAndInk(drawnPage(*numbered), QRectF(73, 77, 14, 7));
+        QVERIFY2(number.back < 60 && number.ink > 200, qPrintable(QString::number(number.back) + " on, " + QString::number(number.ink) + " ink in the number"));
+    }
+
+    // The fill nearest the text decides the color of its automatic text: its run's highlight, then its paragraph's shading, then its cell's (a cell that has none is on its
+    // table's shading, and a table in a cell is on the cell's, so a cell with no fill in a dark cell is dark), and a light fill nearer than a dark one is the one.
+    void theFillNearestTheTextDecidesItsAutomaticColor()
+    {
+        auto shd = [](const char *fill) { return "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"" + QByteArray(fill) + "\"/>"; };
+        auto paragraph = [&](const char *fill, const char *runProps) {
+            return "<w:p><w:pPr>" + (fill ? shd(fill) : QByteArray()) + "<w:spacing w:before=\"0\" w:after=\"0\"/></w:pPr><w:r><w:rPr><w:sz w:val=\"28\"/>" + QByteArray(runProps) + "</w:rPr><w:t>WWWWWWWW</w:t></w:r></w:p>";
+        };
+        auto cell = [&](const char *fill, const QByteArray &content) {
+            return "<w:tc><w:tcPr><w:tcW w:w=\"6000\" w:type=\"dxa\"/>" + (fill ? shd(fill) : QByteArray()) + "</w:tcPr>" + content + "</w:tc>";
+        };
+        auto table = [&](const char *tableFill, const QByteArray &cells) {
+            return "<w:tbl><w:tblPr><w:tblW w:w=\"6000\" w:type=\"dxa\"/>" + (tableFill ? shd(tableFill) : QByteArray()) + "</w:tblPr><w:tblGrid><w:gridCol w:w=\"6000\"/></w:tblGrid><w:tr>" + cells + "</w:tr></w:tbl>";
+        };
+        struct Case {
+            const char *name;
+            QByteArray body;
+            bool white;   // (the text is white on a dark fill, else dark on a light one)
+        };
+        const QVector<Case> cases = {
+            {"plain paragraph", paragraph(nullptr, ""), false},
+            {"dark paragraph, light highlight", paragraph("000000", "<w:highlight w:val=\"yellow\"/>"), false},
+            {"dark paragraph, dark highlight", paragraph("FFFFFF", "<w:highlight w:val=\"black\"/>"), true},
+            {"light paragraph in a dark cell", table(nullptr, cell("000000", paragraph("FFFFFF", ""))) + "<w:p/>", false},
+            {"plain paragraph in a dark cell", table(nullptr, cell("000000", paragraph(nullptr, ""))) + "<w:p/>", true},
+            {"cell with no fill in a dark cell", table(nullptr, cell("000000", table(nullptr, cell(nullptr, paragraph(nullptr, ""))) + "<w:p/>")) + "<w:p/>", true},
+            {"light cell in a dark cell", table(nullptr, cell("000000", table(nullptr, cell("FFFFFF", paragraph(nullptr, ""))) + "<w:p/>")) + "<w:p/>", false},
+            {"dark table shading, cell with none", table("000000", cell(nullptr, paragraph(nullptr, ""))) + "<w:p/>", true},
+            {"dark table shading, light cell", table("000000", cell("D9D9D9", paragraph(nullptr, ""))) + "<w:p/>", false},
+        };
+        QStringList failures;
+        for (const Case &c : cases) {
+            auto doc = open(makeDocx(c.body, kStyles));
+            if (!doc) {
+                failures << QString::fromLatin1(c.name) + ": not opened";
+                continue;
+            }
+            const BackAndInk look = backAndInk(drawnPage(*doc), QRectF(100, 77, 50, 7));
+            const bool right = c.white ? look.back < 90 && look.ink > 190 : look.back > 160 && look.ink < 70;
+            if (!right) failures << QStringLiteral("%1: %2 on, %3 ink").arg(QString::fromLatin1(c.name)).arg(look.back).arg(look.ink);
+            if (documentXml(doc->toDocx()).contains("<w:color")) failures << QString::fromLatin1(c.name) + ": a color is saved";
+        }
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1String("; "))));
+    }
+
+    // A rule that is a share of the text's width is a share of its paragraph's line: its section's text (the section it is in, not the last), less the paragraph's indents.
+    void aRulesWidthFollowsItsSectionAndItsIndents()
+    {
+        auto rule = [&](const QByteArray &paragraphProperties) {
+            return "<w:p><w:pPr>" + paragraphProperties + "</w:pPr><w:r><w:pict " + QByteArray(kVml) + "><v:rect id=\"r\" style=\"width:0;height:1pt\" o:hr=\"t\" o:hrstd=\"t\" fillcolor=\"black\" stroked=\"f\"/></w:pict></w:r></w:p>";
+        };
+        const QByteArray threeInches = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"4320\" w:bottom=\"1440\" w:left=\"4320\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto doc = open(makeDocx(rule(threeInches) + rule(QByteArray()), kStyles));   // (the first section ends with the first paragraph: its pages are 3 inches in from each side)
+        QVERIFY(doc);
+        const QVector<ItemPtr> rules = inlineObjectsOf(*doc);
+        QCOMPARE(int(rules.size()), 2);
+        QVERIFY2(std::abs(rules[0]->rect.width() - 180) < 0.01, qPrintable(QString::number(rules[0]->rect.width()) + " in the first section"));
+        QVERIFY2(std::abs(rules[1]->rect.width() - 468) < 0.01, qPrintable(QString::number(rules[1]->rect.width()) + " in the last"));
+        // A rule of a width of its own goes no further than its line.
+        auto wide = open(makeDocx("<w:p><w:r><w:pict " + QByteArray(kVml) + "><v:rect id=\"r\" style=\"width:600pt;height:1pt\" o:hr=\"t\" o:hrpct=\"0\" fillcolor=\"black\" stroked=\"f\"/></w:pict></w:r></w:p>", kStyles));
+        QVERIFY(wide);
+        const QVector<ItemPtr> wides = inlineObjectsOf(*wide);
+        QCOMPARE(int(wides.size()), 1);
+        QVERIFY2(std::abs(wides[0]->rect.width() - 468) < 0.01, qPrintable(QString::number(wides[0]->rect.width()) + " for 600 points asked"));
+        // Indented 72 points at the left and 36 at the right.
+        auto indented = open(makeDocx(rule("<w:ind w:left=\"1440\" w:right=\"720\"/>"), kStyles));
+        QVERIFY(indented);
+        const QVector<ItemPtr> narrow = inlineObjectsOf(*indented);
+        QCOMPARE(int(narrow.size()), 1);
+        QVERIFY2(std::abs(narrow[0]->rect.width() - (468 - 72 - 36)) < 0.01, qPrintable(QString::number(narrow[0]->rect.width()) + " indented"));
+    }
+
+    // Lettering on a path is bounded: a document draws no more than a few lettering shapes and a few thousand characters of it, and no frame of it is larger than a few
+    // pages (each letter is outlined and stroked, and a file of a thousand shapes of five hundred letters took minutes).
+    void letteringIsBoundedInCountLettersAndSize()
+    {
+        auto lettering = [&](int index, int letters, const char *size) {
+            return "<w:r><w:pict " + QByteArray(kVml) + "><v:shape id=\"w" + QByteArray::number(index) + "\" type=\"#_x0000_t136\" style=\"position:absolute;margin-left:10pt;margin-top:" + QByteArray::number(index % 40) +
+                   "pt;" + size + ";z-index:5\" fillcolor=\"black\" stroked=\"f\"><v:textpath style=\"font-family:Arial\" string=\"" + QByteArray(letters, 'W') + "\"/></v:shape></w:pict></w:r>";
+        };
+        QByteArray runs;
+        for (int i = 0; i < 300; ++i) runs += lettering(i, 50, "width:100pt;height:20pt");
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Text</w:t></w:r>" + runs + "</w:p>", kStyles));
+        QVERIFY(doc);
+        int shapes = 0, letters = 0;
+        for (const flow::FloatingObject &o : doc->flow().objects)
+            if (const auto art = std::dynamic_pointer_cast<TextArtItem>(o.item)) {
+                ++shapes;
+                letters += int(art->text.size());
+            }
+        QVERIFY2(shapes <= kMostLetteringShapes, qPrintable(QString::number(shapes) + " lettering shapes"));
+        QVERIFY2(letters <= kMostLetteringCharacters, qPrintable(QString::number(letters) + " letters"));
+        QVERIFY2(shapes > 10, "the first of them are drawn");
+        // A frame is no larger than a few pages.
+        auto big = open(makeDocx("<w:p><w:r><w:t>Text</w:t></w:r>" + lettering(1, 5, "width:90000pt;height:70000pt") + "</w:p>", kStyles));
+        QVERIFY(big);
+        for (const flow::FloatingObject &o : big->flow().objects)
+            if (const auto art = std::dynamic_pointer_cast<TextArtItem>(o.item)) {
+                QVERIFY2(art->rect.width() <= kMostLetteringSide && art->rect.height() <= kMostLetteringSide, qPrintable(QString::number(art->rect.width())));
+                return;
+            }
+        QFAIL("a lettering shape is made");
+    }
+
+    // The outline of lettering is kept: drawn again at its size it costs a small part of the first drawing (a stroked outline of five hundred letters took three quarters of
+    // a second each time it was drawn).
+    void letteringDrawnAgainCostsLittle()
+    {
+        auto art = std::make_shared<TextArtItem>();
+        art->text = QString(400, QLatin1Char('W'));
+        art->font = QStringLiteral("Arial");
+        art->rect = QRectF(0, 0, 600, 100);
+        art->fill = Fill::solid(ColorRef::rgb(Qt::blue));
+        art->stroke = Stroke::line(ColorRef::rgb(Qt::black), 1.5);
+        Document doc;
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = &doc;
+        ctx.cache = &cache;
+        auto paint = [&] {
+            QImage img(700, 150, QImage::Format_ARGB32);
+            img.fill(Qt::white);
+            QPainter p(&img);
+            p.translate(10, 10);
+            QElapsedTimer clock;
+            clock.start();
+            Renderer::paintItem(&p, ctx, *art);
+            return clock.elapsed();
+        };
+        const qint64 first = paint(), second = paint();
+        QVERIFY2(second * 3 < first, qPrintable(QString::number(first) + " ms the first time, " + QString::number(second) + " the second"));
+    }
+
+    // A picture's border has the sides the file sets (a single w10:bordertop is one line, not a frame), in the color it says (or the picture's line color): all four sides are
+    // the picture's outline, fewer are lines at a picture that is set at a place, and a picture in the line has the outline only if all four are set.
+    void aPicturesBorderHasTheSidesTheFileSets()
+    {
+        auto shape = [&](const QByteArray &style, const QByteArray &attributes, const QByteArray &sides) {
+            return "<w:p><w:r><w:t xml:space=\"preserve\">Before </w:t></w:r><w:r><w:pict " + QByteArray(kVml) + "><v:shape id=\"p\" type=\"#_x0000_t75\" style=\"" + style + "width:100pt;height:50pt\" " + attributes +
+                   "><v:imagedata r:id=\"rIdPic\"/>" + sides + "</v:shape></w:pict></w:r></w:p>";
+        };
+        auto side = [](const char *name) { return "<w10:border" + QByteArray(name) + " type=\"single\" width=\"12\"/>"; };
+        const QByteArray fixed = "position:absolute;margin-left:30pt;margin-top:10pt;z-index:5;";
+        auto linesOf = [&](const QByteArray &xml, std::shared_ptr<PictureItem> *picture) {
+            QVector<std::shared_ptr<LineItem>> lines;
+            auto doc = open(makeDocxWithPicture(xml));
+            if (!doc) return lines;
+            const auto page = doc->pager().materialize(0);
+            for (const auto &item : page->doc->pages[0]->items) {
+                if (const auto l = std::dynamic_pointer_cast<LineItem>(item)) lines << l;
+                if (const auto p = std::dynamic_pointer_cast<PictureItem>(item)) *picture = p;
+            }
+            return lines;
+        };
+        QByteArray xml = shape(fixed, "", side("top"));
+        std::shared_ptr<PictureItem> pic;
+        QVector<std::shared_ptr<LineItem>> lines = linesOf(xml, &pic);
+        QVERIFY(pic);
+        QVERIFY2(pic->stroke.isNone(), "one side is not an outline");
+        QCOMPARE(int(lines.size()), 1);
+        QVERIFY2(std::abs(lines[0]->p2.x() - lines[0]->p1.x() - 100) < 0.01 && std::abs(lines[0]->p2.y() - lines[0]->p1.y()) < 0.01 && std::abs(lines[0]->stroke.width - 1.5) < 0.01, "a line along the top, 1.5 points");
+        // Left and bottom: two lines, down the left and along the bottom.
+        xml = shape(fixed, "", side("left") + side("bottom"));
+        lines = linesOf(xml, &pic);
+        QCOMPARE(int(lines.size()), 2);
+        // All four: the outline, no lines. In the color the file says.
+        xml = shape(fixed, "", side("top") + side("left") + side("bottom") + side("right"));
+        lines = linesOf(xml, &pic);
+        QVERIFY(pic && !pic->stroke.isNone() && lines.isEmpty());
+        xml = shape(fixed, "o:bordertopcolor=\"#FF0000\" o:borderleftcolor=\"#FF0000\" o:borderbottomcolor=\"#FF0000\" o:borderrightcolor=\"#FF0000\"", side("top") + side("left") + side("bottom") + side("right"));
+        lines = linesOf(xml, &pic);
+        QVERIFY(pic);
+        QCOMPARE(pic->stroke.color.resolve(ColorScheme()), QColor(Qt::red));
+        // "this" is the picture's line color (strokecolor).
+        xml = shape(fixed, "strokecolor=\"#0000FF\" o:bordertopcolor=\"this\" o:borderleftcolor=\"this\" o:borderbottomcolor=\"this\" o:borderrightcolor=\"this\"", side("top") + side("left") + side("bottom") + side("right"));
+        lines = linesOf(xml, &pic);
+        QVERIFY(pic);
+        QCOMPARE(pic->stroke.color.resolve(ColorScheme()), QColor(Qt::blue));
+        // In the line, a single side is no outline (and no frame of four sides).
+        auto inlineDoc = open(makeDocxWithPicture(shape("", "", side("top"))));
+        QVERIFY(inlineDoc);
+        auto set = std::dynamic_pointer_cast<PictureItem>(inlineObjectOf(*inlineDoc));
+        QVERIFY(set);
+        QVERIFY2(set->stroke.isNone(), "an inline picture with one side set has no outline");
+    }
+
+    // A picture too large for what it is drawn at is made smaller before its color is keyed out (a 7000 by 7000 picture was keyed at its 49 million pixels, 190 MB, when it is
+    // drawn without a size to go by, as a PDF is made).
+    void aBigKeyedPictureIsKeyedAtADrawnSize()
+    {
+        QImage big(7000, 7000, QImage::Format_Indexed8);
+        big.setColorCount(2);
+        big.setColor(0, qRgb(0, 0, 0));
+        big.setColor(1, qRgb(200, 30, 30));
+        big.fill(0);
+        for (int y = 0; y < 7000; y += 2)
+            for (int x = 3000; x < 4000; ++x) big.setPixel(x, y, 1);
+        QByteArray png;
+        {
+            QBuffer buffer(&png);
+            buffer.open(QIODevice::WriteOnly);
+            QVERIFY(big.save(&buffer, "PNG", 1));
+        }
+        Document doc;
+        ImageData data;
+        data.bytes = png;
+        data.format = QStringLiteral("png");
+        doc.images.insert(QStringLiteral("big"), data);
+        PictureItem pic;
+        pic.imageId = QStringLiteral("big");
+        pic.rect = pic.imgRect = QRectF(0, 0, 300, 300);
+        pic.hasTransparentColor = true;
+        pic.transparentColor = QColor(Qt::black);
+        const QImage keyed = Renderer::processedImage(doc, pic, QSizeF(), QSizeF());
+        QVERIFY(!keyed.isNull());
+        QVERIFY2(qint64(keyed.width()) * keyed.height() <= 16'000'000, qPrintable(QString::number(keyed.width()) + " by " + QString::number(keyed.height())));
+        // (The color is keyed out: the corner is clear.)
+        QCOMPARE(qAlpha(keyed.pixel(2, 2)), 0);
+    }
+
+    // An arc has the angles it says (VML's adj: where it starts and where it ends, in sixty-fifths of a thousandth of a degree, clockwise from the right), and the format's
+    // own (from the top to the right) where it says none or a number that is not one.
+    void anArcHasTheAnglesItSays()
+    {
+        auto arcOf = [&](const QByteArray &adj) {
+            auto doc = open(makeDocx("<w:p><w:r><w:t>Text</w:t></w:r><w:r><w:pict " + QByteArray(kVml) + "><v:shape id=\"a\" type=\"#_x0000_t19\" style=\"position:absolute;margin-left:10pt;margin-top:0;width:27pt;height:54pt;z-index:5\"" +
+                                         (adj.isEmpty() ? QByteArray() : " adj=\"" + adj + "\"") + "/></w:pict></w:r></w:p>", kStyles));
+            std::shared_ptr<ShapeItem> shape;
+            if (!doc) return shape;
+            const auto page = doc->pager().materialize(0);
+            for (const auto &item : page->doc->pages[0]->items)
+                if (auto s = std::dynamic_pointer_cast<ShapeItem>(item)) shape = s;
+            return shape;
+        };
+        auto ends = [&](const QByteArray &adj) {
+            const auto s = arcOf(adj);
+            return s ? QPair<QPointF, QPointF>(s->customPath.pointAtPercent(0), s->customPath.pointAtPercent(1)) : QPair<QPointF, QPointF>(QPointF(-1, -1), QPointF(-1, -1));
+        };
+        auto near = [](const QPointF &a, double x, double y) { return std::abs(a.x() - x) < 0.05 && std::abs(a.y() - y) < 0.05; };
+        // Without adj, and with the usual numbers: from the top (the left edge) to the right (the middle).
+        QVERIFY(near(ends(QByteArray()).first, 0, 0) && near(ends(QByteArray()).second, 27, 54));
+        QVERIFY(near(ends("-5898240,,,21600,21600").first, 0, 0) && near(ends("-5898240,,,21600,21600").second, 27, 54));
+        // From 0 degrees (the right of the ellipse, at the middle of the frame's left edge: 27, 54) to 90 degrees (below it: 0, 108).
+        const auto turned = ends("0,5898240");
+        QVERIFY2(near(turned.first, 27, 54) && near(turned.second, 0, 108), qPrintable(QStringLiteral("%1,%2 to %3,%4").arg(turned.first.x()).arg(turned.first.y()).arg(turned.second.x()).arg(turned.second.y())));
+        // A number that is not one is the format's own.
+        QVERIFY(near(ends("nan,inf").first, 0, 0) && near(ends("nan,inf").second, 27, 54));
+    }
+
+    // What a file's drawn objects are survives opening it, saving it, and opening that: a picture's cuts, color key, and border, lettering on a path, a rule, and a hidden row are
+    // kept as the file wrote them, and are drawn the same.
+    void drawnObjectsSurviveASaveAndReopen()
+    {
+        const QByteArray body =
+            "<w:p><w:r><w:t xml:space=\"preserve\">Picture </w:t></w:r><w:r><w:pict " + QByteArray(kVml) + "><v:shape id=\"p\" type=\"#_x0000_t75\" style=\"width:100pt;height:50pt\" o:bordertopcolor=\"this\" o:borderleftcolor=\"this\" "
+            "o:borderbottomcolor=\"this\" o:borderrightcolor=\"this\"><v:imagedata r:id=\"rIdPic\" croptop=\"16384f\" cropbottom=\"32768f\" chromakey=\"black\"/><w10:bordertop type=\"single\" width=\"12\"/><w10:borderleft type=\"single\" width=\"12\"/>"
+            "<w10:borderbottom type=\"single\" width=\"12\"/><w10:borderright type=\"single\" width=\"12\"/></v:shape></w:pict></w:r></w:p>"
+            "<w:p><w:r><w:pict " + QByteArray(kVml) + "><v:shape id=\"w\" type=\"#_x0000_t136\" style=\"width:121.4pt;height:32.4pt\" fillcolor=\"#336699\" strokeweight=\"1.5pt\"><v:textpath style=\"font-family:Arial;font-style:italic\" string=\"BANNER\"/></v:shape></w:pict></w:r></w:p>"
+            "<w:p><w:r><w:pict " + QByteArray(kVml) + "><v:rect id=\"r\" style=\"width:0;height:2pt\" o:hr=\"t\" o:hrpct=\"500\" o:hralign=\"center\" fillcolor=\"gray\" stroked=\"f\"/></w:pict></w:r></w:p>"
+            "<w:tbl><w:tblPr><w:tblW w:w=\"5000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"5000\"/></w:tblGrid><w:tr><w:trPr><w:hidden/></w:trPr><w:tc><w:tcPr><w:tcW w:w=\"5000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>Hidden</w:t></w:r></w:p></w:tc></w:tr>"
+            "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"5000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>Shown</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>After</w:t></w:r></w:p>";
+        auto first = open(makeDocxWithPicture(body));
+        QVERIFY(first);
+        const QByteArray saved = first->toDocx();
+        const QByteArray xml = documentXml(saved);
+        for (const char *kept : {"croptop=\"16384f\"", "cropbottom=\"32768f\"", "chromakey=\"black\"", "w10:bordertop", "w10:borderright", "v:textpath", "string=\"BANNER\"", "o:hr=\"t\"", "o:hrpct=\"500\"", "<w:hidden/>"})
+            QVERIFY2(xml.contains(kept), kept);
+        QVERIFY2(!xml.contains("<w:color"), "nothing is made of what the file did not say");
+        auto second = open(saved);
+        QVERIFY(second);
+        auto describe = [](WriteDoc &doc) {
+            QStringList out;
+            for (const ItemPtr &item : inlineObjectsOf(doc)) {
+                if (const auto pic = std::dynamic_pointer_cast<PictureItem>(item))
+                    out << QStringLiteral("picture %1 %2 %3 %4 key %5 border %6").arg(pic->imgRect.left(), 0, 'f', 2).arg(pic->imgRect.top(), 0, 'f', 2).arg(pic->imgRect.width(), 0, 'f', 2).arg(pic->imgRect.height(), 0, 'f', 2)
+                               .arg(pic->hasTransparentColor).arg(pic->stroke.width);
+                else if (const auto art = std::dynamic_pointer_cast<TextArtItem>(item))
+                    out << QStringLiteral("lettering %1 %2 %3").arg(art->text).arg(art->rect.width()).arg(art->italic);
+                else if (const auto shape = std::dynamic_pointer_cast<ShapeItem>(item))
+                    out << QStringLiteral("rule %1 %2").arg(shape->rect.width(), 0, 'f', 2).arg(shape->rect.height());
+            }
+            const auto page = doc.pager().materialize(0);
+            out << QStringLiteral("table height %1").arg(page->tables.empty() ? -1.0 : page->tables[0]->height, 0, 'f', 2);
             return out;
         };
-        auto shaded = [](const char *fill, const char *run) {
-            return "<w:p><w:pPr><w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"" + QByteArray(fill) + "\"/></w:pPr><w:r>" + QByteArray(run) + "<w:t>" + QByteArray(fill) + "</w:t></w:r></w:p>";
-        };
-        const QMap<QString, QColor> got = colorsOf(shaded("000000", "") + shaded("FFFF00", "") + shaded("1F2A44", "") + shaded("808080", "") + shaded("002060", "<w:rPr><w:color w:val=\"FF0000\"/></w:rPr>"));
-        QCOMPARE(got.value(QStringLiteral("000000")), QColor(Qt::white));
-        QVERIFY(!got.value(QStringLiteral("FFFF00")).isValid());
-        QCOMPARE(got.value(QStringLiteral("1F2A44")), QColor(Qt::white));
-        QVERIFY2(!got.value(QStringLiteral("808080")).isValid(), "a middle gray is light enough for black text");
-        QCOMPARE(got.value(QStringLiteral("002060")), QColor(Qt::red));
-        // A cell's shading is the fill behind the text in it.
-        auto cell = [](const char *fill) {
-            return "<w:tbl><w:tblPr><w:tblW w:w=\"3000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/><w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"" +
-                   QByteArray(fill) + "\"/></w:tcPr><w:p><w:r><w:t>cell" + QByteArray(fill) + "</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>after" + QByteArray(fill) + "</w:t></w:r></w:p>";
-        };
-        const QMap<QString, QColor> inCells = colorsOf(cell("000000") + cell("D9D9D9"));
-        QCOMPARE(inCells.value(QStringLiteral("cell000000")), QColor(Qt::white));
-        QVERIFY(!inCells.value(QStringLiteral("cellD9D9D9")).isValid());
-        QVERIFY(!inCells.value(QStringLiteral("after000000")).isValid());   // (the paragraph after the table is on no fill)
+        const QStringList a = describe(*first), b = describe(*second);
+        QCOMPARE(a.size(), 4);
+        QVERIFY2(a == b, qPrintable(a.join(QLatin1String(" | ")) + "   against   " + b.join(QLatin1String(" | "))));
+        QVERIFY2(a[0].contains("key 1") && a[0].contains("border 1.5") && a[1].startsWith("lettering BANNER") && a[2].startsWith("rule 23") && !a[3].contains("-1"), qPrintable(a.join(QLatin1String(" | "))));
     }
 
     // A number or bullet counts in its line by its ascent over the text's descent: a thirty-six point bullet before twelve-point text makes the line its ascent and the text's

@@ -480,8 +480,12 @@ struct Shape {
     // and the border it is drawn with (its weight in points, 0 for none, and its color).
     double cropL = 0, cropT = 0, cropR = 0, cropB = 0;
     QString clearColor;
-    double borderWeight = 0;
+    double borderWeight = 0;              // the heaviest of its sides'
     QString borderColor;
+    // The weights of the sides of a picture's border, in points (top, left, bottom, right): the sides the file sets, 0 for the others.
+    double borderSides[4] = {0, 0, 0, 0};
+    // The shape's own numbers (VML's adj, a list of numbers some of which it leaves empty: those are not a number), as written.
+    QVector<double> adjust;
     // The number of the drawing format's shape the object is (VML's o:spt, from the shape's type), 0 when it says none: 75 is a picture, 202 a text
     // box, 19 an arc, 136 text on a path.
     int shapeType = 0;
