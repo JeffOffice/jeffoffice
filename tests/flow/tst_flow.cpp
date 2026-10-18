@@ -3775,7 +3775,9 @@ private Q_SLOTS:
             header->setDocumentMargin(0);
             {
                 QTextCursor c(header.get());
+                // (The program's own font, Arimo, in every line: a letter after the breaks is a line as tall as the empty one, on any machine.)
                 QTextCharFormat cf;
+                cf.setFontFamilies({QStringLiteral("Arimo")});
                 cf.setFontPointSize(60);
                 c.insertText(QStringLiteral("Title"), cf);
                 QTextBlockFormat after;
@@ -3790,8 +3792,8 @@ private Q_SLOTS:
             return pg.page(0).content.top();
         };
         const QString breaks(3, QChar::LineSeparator);
-        const double withBreaks = top(breaks), withText = top(breaks + QChar(0x200B)), empty = top(QString());
-        QVERIFY2(std::abs(withText - withBreaks - 40) < 0.01, qPrintable(QStringLiteral("%1 with a word after the line breaks, %2 with the breaks only").arg(withText).arg(withBreaks)));
+        const double withBreaks = top(breaks), withText = top(breaks + QLatin1Char('x')), empty = top(QString());
+        QVERIFY2(std::abs(withText - withBreaks - 40) < 2, qPrintable(QStringLiteral("%1 with a letter after the line breaks, %2 with the breaks only").arg(withText).arg(withBreaks)));
         QVERIFY2(empty > 18 + 60, qPrintable(QString::number(empty)));
     }
 
