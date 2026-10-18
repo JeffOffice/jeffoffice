@@ -4415,6 +4415,25 @@ private Q_SLOTS:
         QVERIFY2(std::abs(fixed - 10.0) < 0.5, qPrintable(QStringLiteral("the fixed way: %1 points between paragraphs (5 after and 5 before), not 10").arg(fixed)));
     }
 
+    // The text of a page that a paragraph of many pages (a break between each) has in its box is that page's own, not the rest of the paragraph's run of one format: the
+    // work of making each page is its own text's, not the paragraph's after it.
+    void aPageOfALongParagraphCopiesOnlyItsOwnText()
+    {
+        QByteArray runs;
+        for (int i = 0; i < 2600; ++i) runs += "<w:r><w:t>page " + QByteArray::number(i) + "</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r>";
+        auto doc = open(makeDocx("<w:p>" + runs + "</w:p>"));
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() >= 2600);
+        for (int k : {3, 1300, 2500}) {
+            const auto page = doc->pager().materialize(k);
+            QVERIFY(page);
+            const auto story = page->doc->stories.constFind(QStringLiteral("flow-story-%1").arg(k));
+            QVERIFY(story != page->doc->stories.constEnd());
+            const int chars = story.value()->doc->characterCount();
+            QVERIFY2(chars < 100, qPrintable(QStringLiteral("page %1 has %2 characters of the paragraph in its box").arg(k).arg(chars)));
+        }
+    }
+
     // A raised symbol of the symbol font (the mark of a note as an older program wrote it) reaches above the text of its line: the line is taller by as much as the
     // symbol font's ascent, two thirds of the size, raised a third, takes it above the text's (about a point for 12-point text); text raised that is of the text's own
     // font makes the line no taller.

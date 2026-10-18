@@ -1403,11 +1403,12 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         for (auto it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment frag = it.fragment();
             const int rel = frag.position() - b.position();
-            QString text = frag.text();
-            if (rel + text.size() <= skip) continue;
+            if (rel + frag.length() <= skip) continue;   // (before the page's first character: without copying its text, which a paragraph of thousands of pages has before each)
             if (rel >= upto) break;
+            QString text = frag.text();
             if (rel < skip) text = text.mid(skip - rel);
-            if (rel + int(text.size()) > upto) text = text.left(upto - std::max(rel, skip));
+            // (Of the fragment's text from where the page begins: as much as reaches the copy's end. A run of one format is one fragment, however long the paragraph.)
+            if (std::max(rel, skip) + int(text.size()) > upto) text = text.left(upto - std::max(rel, skip));
             const QString code = frag.charFormat().stringProperty(tp::Field);
             const bool foot = code.startsWith(QLatin1String("footnote:")), end = code.startsWith(QLatin1String("endnote:"));
             if (foot || end) {
