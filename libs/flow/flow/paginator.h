@@ -317,7 +317,7 @@ private:
     bool storyHasTables(const QTextDocument *story) { return storyFacts(story).tables; }
     // The story laid out for a page that shows `number`, in a document of `pages` pages of which `sectionPages` are the page's section's. It is laid out once for the pages it is the same
     // for: with no field of the page's in it, for all.
-    std::shared_ptr<const HeaderTables> headerTablesOf(const QTextDocument *story, double width, int number, double rightRoom, bool withSpaceAfter, int pages, int sectionPages);
+    std::shared_ptr<const HeaderTables> headerTablesOf(const QTextDocument *story, double width, int number, double rightRoom, bool withSpaceAfter, int pages, int sectionPages, bool ofABox = false);
     // The places the objects of a page are anchored: the anchor's object, its column's left edge, and where its paragraph and its line are (the page's y), and
     // the anchor's place across (x). The page's header and footer have theirs.
     // (`pos` is where the anchor character is in its story; the paragraph's top and the line's are where the text would have set them without the objects it goes round
@@ -451,6 +451,10 @@ private:
     using HeaderTablesKey = std::tuple<const QTextDocument *, int, int, int, bool, int, int, int>;
     std::map<HeaderTablesKey, std::shared_ptr<HeaderTables>> m_headerTables;
     std::deque<HeaderTablesKey> m_headerTablesOrder;
+    // (The tables of text boxes are kept apart, with a bound of their own: they would otherwise take the room of a header's, which is laid out again on every page that is past the bound.)
+    std::map<HeaderTablesKey, std::shared_ptr<HeaderTables>> m_boxTables;
+    std::deque<HeaderTablesKey> m_boxTablesOrder;
+    qint64 m_boxTableCells = 0;
     std::map<std::tuple<const QTextDocument *, int, int, int, int, uint>, QVector<Anchor>> m_storyFrameAnchors;   // the frames of each header or footer story, by its width, revision, places, and the environment
     std::map<std::tuple<const QTextDocument *, int, QString>, double> m_headerBottoms;   // how far down the page the wrapped shapes of each header reach, by story, revision, and the section's places
     std::map<StoryKey, QVector<StoryLayout::LineInfo>> m_storyLines;   // the lines of each, from the same layout   // by story, its width in hundredths of a point, and its revision

@@ -7129,6 +7129,61 @@ private Q_SLOTS:
         QVERIFY2(box.adjusted(-1, -1, 1, 1).contains(rows) && rows.top() > box.top() + 1, qPrintable(QStringLiteral("rows %1,%2 %3x%4 in a box at %5,%6 %7x%8").arg(rows.left()).arg(rows.top()).arg(rows.width()).arg(rows.height()).arg(box.left()).arg(box.top()).arg(box.width()).arg(box.height())));
     }
 
+    // The rows of a box's table are clipped to the box: a table taller than its box shows nothing below it. (Ink below the box is counted.)
+    void aTextBoxClipsItsTable()
+    {
+        const QByteArray row = "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"4000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:sz w:val=\"28\"/></w:rPr><w:t>ROWTEXT</w:t></w:r></w:p></w:tc></w:tr>";
+        QByteArray rows;
+        for (int i = 0; i < 12; ++i) rows += row;
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"4000\" w:type=\"dxa\"/><w:tblLayout w:type=\"fixed\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"4000\"/></w:tblGrid>" + rows + "</w:tbl>";
+        const QByteArray box = "<w:r><w:pict " + QByteArray(kVml) + "><v:shape id=\"b\" style=\"position:absolute;margin-left:100pt;margin-top:300pt;width:300pt;height:60pt;z-index:3;"
+                               "mso-position-horizontal-relative:page;mso-position-vertical-relative:page\" filled=\"f\" stroked=\"f\"><v:textbox inset=\"0,0,0,0\"><w:txbxContent><w:p><w:r><w:t>BOXTITLE</w:t></w:r></w:p>" +
+                               table + "<w:p/></w:txbxContent></v:textbox></v:shape></w:pict></w:r>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Body</w:t></w:r>" + box + "</w:p>", kStyles));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        QCOMPARE(page->furnitureTables.size(), 1);
+        QVERIFY2(page->furnitureTables.first()->rect().bottom() > 300 + 60 + 40, "the table is taller than the box");
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        const QImage img = view.pageImage(0, 816);
+        const double perPoint = img.width() / 612.0;
+        int below = 0, inside = 0;
+        for (int y = int(300 * perPoint); y < int(520 * perPoint); ++y)
+            for (int x = int(100 * perPoint); x < int(400 * perPoint); ++x) (y < int(360 * perPoint) ? inside : below) += qGray(img.pixel(x, y)) < 128;
+        QVERIFY2(inside > 50, "the box shows its rows");
+        QVERIFY2(below == 0, qPrintable(QStringLiteral("%1 dark points of the table below its box").arg(below)));
+    }
+
+    // The tables of text boxes in a header are laid out once for the pages, not again on each page: the boxes' tables are held apart from the header's own, and from one another's, within
+    // their own bound. (Counted: the tables laid out over twenty pages.)
+    void theTablesOfAHeadersTextBoxesAreNotLaidOutAgainOnEachPage()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        QByteArray cells;
+        for (int i = 0; i < 190; ++i) cells += "<w:tc><w:tcPr><w:tcW w:w=\"200\" w:type=\"dxa\"/></w:tcPr><w:p/></w:tc>";
+        QByteArray grid;
+        for (int i = 0; i < 190; ++i) grid += "<w:gridCol w:w=\"200\"/>";
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"38000\" w:type=\"dxa\"/><w:tblLayout w:type=\"fixed\"/></w:tblPr><w:tblGrid>" + grid + "</w:tblGrid><w:tr>" + cells + "</w:tr><w:tr>" + cells + "</w:tr></w:tbl>";
+        QByteArray shapes;
+        for (int i = 0; i < 5; ++i)
+            shapes += "<w:r><w:pict><v:shape id=\"s" + QByteArray::number(i) + "\" style=\"position:absolute;margin-left:" + QByteArray::number(20 + i * 10) + "pt;margin-top:30pt;width:300pt;height:100pt;z-index:" +
+                      QByteArray::number(i + 1) + ";mso-position-horizontal-relative:page;mso-position-vertical-relative:page\" filled=\"f\" stroked=\"f\"><v:textbox><w:txbxContent><w:p><w:r><w:t>HEADBOX</w:t></w:r></w:p>" + table +
+                      "<w:p/></w:txbxContent></v:textbox><w10:wrap type=\"none\"/></v:shape></w:pict></w:r>";
+        QByteArray header = QByteArray("<w:hdr ") + kNs + " xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\">" + table + "<w:p>" + shapes + "</w:p></w:hdr>";
+        auto doc = open(makeDocxWithParts(paragraphs(200, 60), sect, {{QStringLiteral("/word/header1.xml"), header}}));
+        QVERIFY(doc);
+        const int pages = doc->pager().pageCount();
+        QVERIFY2(pages >= 20, qPrintable(QString::number(pages)));
+        const qint64 before = doc->pager().headerTablesLaidOutForTest();
+        for (int i = 0; i < 20; ++i) QVERIFY(doc->pager().materialize(i));
+        const qint64 made = doc->pager().headerTablesLaidOutForTest() - before;
+        QVERIFY2(made <= 12, qPrintable(QStringLiteral("%1 layouts of tables for 20 pages of a header with 6 stories of tables").arg(made)));
+    }
+
     // The tables of text boxes are bounded in all, whatever the number of boxes: a file of many boxes each with a table of a thousand cells has the tables of the first laid out in
     // their boxes, and the rest kept as they were (their boxes are drawn without them).
     void theTablesOfManyTextBoxesAreBoundedInAll()

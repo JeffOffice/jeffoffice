@@ -120,6 +120,9 @@ private:
 // drawn need theirs).
 constexpr qint64 kMostHeaderTableCells = 2000;
 constexpr size_t kMostHeaderTableLayouts = 64;
+// (The same for the tables of text boxes, which a document has 2000 cells of in all: all of them, and a header's own, are held.)
+constexpr qint64 kMostBoxTableCells = 4000;
+constexpr size_t kMostBoxTableLayouts = 256;
 
 } // namespace
 
@@ -143,15 +146,20 @@ Paginator::StoryFacts Paginator::storyFacts(const QTextDocument *story)
     return facts;
 }
 
-std::shared_ptr<const Paginator::HeaderTables> Paginator::headerTablesOf(const QTextDocument *story, double width, int number, double rightRoom, bool withSpaceAfter, int pages, int sectionPages)
+std::shared_ptr<const Paginator::HeaderTables> Paginator::headerTablesOf(const QTextDocument *story, double width, int number, double rightRoom, bool withSpaceAfter, int pages, int sectionPages, bool ofABox)
 {
+    auto &cache = ofABox ? m_boxTables : m_headerTables;
+    auto &order = ofABox ? m_boxTablesOrder : m_headerTablesOrder;
+    qint64 &held = ofABox ? m_boxTableCells : m_headerTableCells;
+    const qint64 mostCells = ofABox ? kMostBoxTableCells : kMostHeaderTableCells;
+    const size_t mostLayouts = ofABox ? kMostBoxTableLayouts : kMostHeaderTableLayouts;
     const StoryFacts facts = storyFacts(story);
     const HeaderTablesKey key{story, int(std::lround(width * 100)), story->revision(), int(std::lround(rightRoom * 100)), withSpaceAfter, facts.page ? number : 0, facts.pages ? pages : 0, facts.sectionPages ? sectionPages : 0};
-    if (const auto found = m_headerTables.find(key); found != m_headerTables.end()) {
+    if (const auto found = cache.find(key); found != cache.end()) {
         // (The one used last is the last to go.)
-        if (const auto at = std::find(m_headerTablesOrder.begin(), m_headerTablesOrder.end(), key); at != m_headerTablesOrder.end()) {
-            m_headerTablesOrder.erase(at);
-            m_headerTablesOrder.push_back(key);
+        if (const auto at = std::find(order.begin(), order.end(), key); at != order.end()) {
+            order.erase(at);
+            order.push_back(key);
         }
         return found->second;
     }
@@ -248,15 +256,15 @@ std::shared_ptr<const Paginator::HeaderTables> Paginator::headerTablesOf(const Q
     stretch(at, end, true);
     out->height = y;
     // Kept, the one used longest ago given up when the layouts or their cells are many.
-    m_headerTables.emplace(key, out);
-    m_headerTablesOrder.push_back(key);
-    m_headerTableCells += out->cells;
-    while (m_headerTablesOrder.size() > 1 && (m_headerTableCells > kMostHeaderTableCells || m_headerTablesOrder.size() > kMostHeaderTableLayouts)) {
-        if (const auto old = m_headerTables.find(m_headerTablesOrder.front()); old != m_headerTables.end()) {
-            m_headerTableCells -= old->second->cells;
-            m_headerTables.erase(old);
+    cache.emplace(key, out);
+    order.push_back(key);
+    held += out->cells;
+    while (order.size() > 1 && (held > mostCells || order.size() > mostLayouts)) {
+        if (const auto old = cache.find(order.front()); old != cache.end()) {
+            held -= old->second->cells;
+            cache.erase(old);
         }
-        m_headerTablesOrder.pop_front();
+        order.pop_front();
     }
     return out;
 }

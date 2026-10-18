@@ -291,6 +291,7 @@ struct TableFragment {
     bool header = false;                    // with the table's header rows above them
     QPointF origin;                         // where the table's left edge and the top of the fragment are (page coordinates)
     bool floating = false;                  // a table set at a place of its own on the page, with the text going round it: not among the lines of the text, nor held to its text area
+    QRectF clip;                            // the rows are drawn inside this (page coordinates; a text box's): none for the rest
     double height = 0;                      // all of it, the header rows too
     struct Item {
         int cell = 0;                       // an index into the layout's cells

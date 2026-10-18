@@ -227,13 +227,14 @@ QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, cons
 void Paginator::tablesInBox(const QTextDocument *source, QTextDocument *copy, const QRectF &box, const QMarginsF &insets, int number, Document *d, MaterializedPage *page)
 {
     const double width = std::max(1.0, box.width() - insets.left() - insets.right());
-    const auto laid = headerTablesOf(source, width, number, 0.0, true, d->flowPageTotal, d->flowSectionPageTotal);
+    const auto laid = headerTablesOf(source, width, number, 0.0, true, d->flowPageTotal, d->flowSectionPageTotal, true);
     page->showsTotal = page->showsTotal || laid->showsTotal;
     QVector<const HeaderPart *> places;
     for (const HeaderPart &part : laid->parts) {
         if (!part.table) continue;
         auto fragment = std::make_shared<TableFragment>(*part.table);
         fragment->origin = QPointF(box.left() + insets.left() + fragment->layout->leftEdgeIn(width), box.top() + insets.top() + part.y);
+        fragment->clip = box;   // (a table taller than its box shows nothing below it)
         page->furnitureTables.push_back(fragment);
         places << &part;
     }
