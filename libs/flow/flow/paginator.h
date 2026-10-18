@@ -20,6 +20,7 @@
 #include <QTextCursor>
 #include <QVector>
 #include <cmath>
+#include <deque>
 #include <map>
 #include <memory>
 #include <tuple>
@@ -164,6 +165,9 @@ public:
     // for tests of what a page costs.
     qint64 headerFramesMadeForTest() const { return m_headerFramesMade; }
     qint64 headerReachesWorkedOutForTest() const { return m_headerReachesMade; }
+    // How many times the tables of a header or footer were laid out, and how many cells of them are held: for tests of what a page costs.
+    qint64 headerTablesLaidOutForTest() const { return m_headerTablesMade; }
+    qint64 headerTableCellsHeldForTest() const { return m_headerTableCells; }
     // How many rows of tables were measured since it was made (what is measured again after an edit is the rows it touched): for tests of what edits cost.
     qint64 tableRowsMeasured() const { return m_tables ? m_tables->rowsMeasured() : 0; }
     qint64 tableCellsLaidOut() const { return m_tables ? m_tables->cellsLaidOut() : 0; }
@@ -283,12 +287,22 @@ private:
     struct HeaderTables {
         double height = 0;
         bool showsTotal = false;                     // a field in it shows how many pages the document has
+        qint64 cells = 0;                            // the cells of its tables (what keeping it costs)
         std::vector<HeaderPart> parts;
+        QVector<StoryLayout::LineInfo> lines;        // its lines, text and cells', from the story's own top and left (for the objects its paragraphs anchor)
         std::shared_ptr<FlowDocument> doc;
+        std::shared_ptr<FieldSource> fields;         // (what its fields show of the document's pages)
         std::shared_ptr<TableFlow> flow;
     };
-    bool storyHasTables(const QTextDocument *story);
-    std::shared_ptr<const HeaderTables> headerTablesOf(const QTextDocument *story, double width, int number, double rightRoom, bool withSpaceAfter);
+    // What a header or footer story holds that decides how it is laid out and for which pages: tables, the page's number, the count of pages, the count of the section's pages.
+    struct StoryFacts {
+        bool tables = false, page = false, pages = false, sectionPages = false;
+    };
+    StoryFacts storyFacts(const QTextDocument *story);
+    bool storyHasTables(const QTextDocument *story) { return storyFacts(story).tables; }
+    // The story laid out for a page that shows `number`, in a document of `pages` pages of which `sectionPages` are the page's section's. It is laid out once for the pages it is the same
+    // for: with no field of the page's in it, for all.
+    std::shared_ptr<const HeaderTables> headerTablesOf(const QTextDocument *story, double width, int number, double rightRoom, bool withSpaceAfter, int pages, int sectionPages);
     // The places the objects of a page are anchored: the anchor's object, its column's left edge, and where its paragraph and its line are (the page's y), and
     // the anchor's place across (x). The page's header and footer have theirs.
     // (`pos` is where the anchor character is in its story; the paragraph's top and the line's are where the text would have set them without the objects it goes round
@@ -410,8 +424,12 @@ private:
     void addNotes(Document *d, const QVector<StoryLayout::NotePlace> &places, const QVector<StoryLayout::Rule> &rules, int firstFrame, const QStringList &ids,
                   const QVector<QRectF> &cols, const QRectF &body);
     std::map<StoryKey, double> m_storyHeights;
-    std::map<std::pair<const QTextDocument *, int>, bool> m_storyHasTables;   // whether each header or footer story (as of its revision) has tables
-    std::map<std::tuple<const QTextDocument *, int, int, int, int, bool, int>, std::shared_ptr<HeaderTables>> m_headerTables;   // by story, width, revision, page number, room beside, whether the space after counts, and the count of pages
+    std::map<std::pair<const QTextDocument *, int>, StoryFacts> m_storyFacts;   // what each header or footer story (as of its revision) holds
+    // The layouts of the tables of headers and footers kept, by story, width, revision, room beside, whether the space after counts, and the page number, count of pages, and count of
+    // the section's pages that the story shows (0 for those it doesn't); the oldest go when the cells they hold are many.
+    using HeaderTablesKey = std::tuple<const QTextDocument *, int, int, int, bool, int, int, int>;
+    std::map<HeaderTablesKey, std::shared_ptr<HeaderTables>> m_headerTables;
+    std::deque<HeaderTablesKey> m_headerTablesOrder;
     std::map<std::tuple<const QTextDocument *, int, int, int, int, uint>, QVector<Anchor>> m_storyFrameAnchors;   // the frames of each header or footer story, by its width, revision, places, and the environment
     std::map<std::tuple<const QTextDocument *, int, QString>, double> m_headerBottoms;   // how far down the page the wrapped shapes of each header reach, by story, revision, and the section's places
     std::map<StoryKey, QVector<StoryLayout::LineInfo>> m_storyLines;   // the lines of each, from the same layout   // by story, its width in hundredths of a point, and its revision
@@ -431,6 +449,7 @@ private:
     qint64 m_laidOut = 0;
     qint64 m_passes = 0;
     qint64 m_headerFramesMade = 0, m_headerReachesMade = 0;
+    qint64 m_headerTablesMade = 0, m_headerTableCells = 0;   // layouts of the tables made, and the cells held
     // The number of the page asked for last, so that the next one's is one more: a walk back to the section's first page is for a page that doesn't follow it.
     mutable int m_numberOf = -1, m_number = 0;
     mutable qint64 m_numberSteps = 0;

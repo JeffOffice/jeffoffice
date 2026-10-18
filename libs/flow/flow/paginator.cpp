@@ -1038,7 +1038,9 @@ void Paginator::forgetFloats()
     m_storyFrameAnchors.clear();
     m_headerBottoms.clear();
     m_headerTables.clear();
-    m_storyHasTables.clear();
+    m_headerTablesOrder.clear();
+    m_headerTableCells = 0;
+    m_storyFacts.clear();
     m_tableObjects.clear();
     m_anchorChars.clear();
     m_wallMemo.clear();

@@ -5351,6 +5351,96 @@ private Q_SLOTS:
         QCOMPARE(specs.value(QStringLiteral("taken")), QString());
     }
 
+    // The tables of a header or a footer are laid out once for the header where nothing in them is a page's own (no page number or count): not for each page, which would cost each
+    // page the whole table and keep a copy of its layout for each. Where a field is, they are laid out for the pages that show it, and the copies kept are bounded by their cells.
+    void theTablesOfAHeaderAreLaidOutOnceUnlessFieldsMakeThemDiffer()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+        auto table = [](int rows, int columns, const QByteArray &last) {
+            QByteArray t = "<w:tbl><w:tblPr><w:tblW w:w=\"9000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid>";
+            for (int c = 0; c < columns; ++c) t += "<w:gridCol w:w=\"" + QByteArray::number(9000 / columns) + "\"/>";
+            t += "</w:tblGrid>";
+            for (int r = 0; r < rows; ++r) {
+                t += "<w:tr>";
+                for (int c = 0; c < columns; ++c)
+                    t += "<w:tc><w:tcPr><w:tcW w:w=\"" + QByteArray::number(9000 / columns) + "\" w:type=\"dxa\"/></w:tcPr><w:p>" + (r == rows - 1 && c == columns - 1 ? last : QByteArray()) + "</w:p></w:tc>";
+                t += "</w:tr>";
+            }
+            return t + "</w:tbl>";
+        };
+        const QByteArray pageField = "<w:r><w:t xml:space=\"preserve\">Page </w:t></w:r><w:fldSimple w:instr=\" PAGE \"><w:r><w:t>1</w:t></w:r></w:fldSimple>";
+        // (A header of thirty cells with nothing of the page's in it; a footer of two hundred and forty with the page's number in one.)
+        const QByteArray header = "<w:hdr " + QByteArray(kNs) + ">" + table(6, 5, "<w:r><w:t>cell</w:t></w:r>") + "<w:p/></w:hdr>";
+        const QByteArray footer = "<w:ftr " + QByteArray(kNs) + ">" + table(6, 40, pageField) + "<w:p/></w:ftr>";
+        auto doc = open(makeDocxWithParts(paragraphs(300, 30), sect, {{QStringLiteral("/word/header1.xml"), header}, {QStringLiteral("/word/footer1.xml"), footer}}));
+        QVERIFY(doc);
+        const int pages = doc->pager().pageCount();
+        QVERIFY2(pages >= 20 && pages <= 200, qPrintable(QString::number(pages)));
+        for (int k = 0; k < pages; ++k) QVERIFY(doc->pager().materialize(k));
+        // The header's table is laid out once; the footer's, which shows the page's number, once for each page (as the page is laid out and as it is drawn it is the same).
+        const qint64 made = doc->pager().headerTablesLaidOutForTest();
+        QVERIFY2(made <= pages + 2, qPrintable(QStringLiteral("%1 layouts of the tables for %2 pages").arg(made).arg(pages)));
+        QVERIFY2(made >= pages, qPrintable(QStringLiteral("%1 layouts for %2 pages: the footer's is laid out for each page's number").arg(made).arg(pages)));
+        // The copies kept are bounded by their cells (twenty pages and more of two hundred and forty cells are not all held).
+        QVERIFY2(doc->pager().headerTableCellsHeldForTest() <= 2000, qPrintable(QStringLiteral("%1 cells held").arg(doc->pager().headerTableCellsHeldForTest())));
+    }
+
+    // The objects a header's paragraphs anchor are drawn also where the header has a table, and a shape the text goes round holds the page's text below it as it does without one.
+    void anObjectInAHeaderWithATableIsDrawnAndHoldsTheTextBelowIt()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"720\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"360\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray shape = "<w:r><w:pict><v:shapetype id=\"t202\" coordsize=\"21600,21600\" o:spt=\"202\" path=\"m,l,21600r21600,l21600,xe\"/>"
+                                 "<v:shape id=\"s1\" type=\"#t202\" style=\"position:absolute;margin-left:-20pt;margin-top:0;width:100pt;height:150pt;mso-position-vertical-relative:page;z-index:1\" fillcolor=\"red\" stroked=\"f\">"
+                                 "<v:textbox><w:txbxContent><w:p><w:r><w:t>SIDE</w:t></w:r></w:p></w:txbxContent></v:textbox><w10:wrap type=\"square\"/></v:shape></w:pict></w:r>";
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"8000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"8000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"8000\" w:type=\"dxa\"/></w:tcPr>"
+                                 "<w:p><w:r><w:t>TABLECELL</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+        auto drawnTop = [&](bool withTable, bool *drawn) {
+            QByteArray header = "<w:hdr " + QByteArray(kNs) + ">" + (withTable ? table : QByteArray()) + "<w:p>" + shape + "<w:r><w:t>after</w:t></w:r></w:p></w:hdr>";
+            header.replace("<w:hdr ", "<w:hdr xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\" ");
+            auto doc = open(makeDocxWithParts(paragraphs(10, 30), sect, {{QStringLiteral("/word/header1.xml"), header}}));
+            if (!doc) return -1.0;
+            const auto page = doc->pager().materialize(0);
+            *drawn = false;
+            if (page)
+                for (const auto &item : page->doc->pages[0]->items) *drawn |= item->id.contains(QLatin1String("flow-object"));
+            return doc->pager().page(0).content.top();
+        };
+        bool plainDrawn = false, tabledDrawn = false;
+        const double plain = drawnTop(false, &plainDrawn), tabled = drawnTop(true, &tabledDrawn);
+        QVERIFY2(plainDrawn, "the shape of a header without a table is drawn");
+        QVERIFY2(tabledDrawn, "and so is the shape of a header with one");
+        // (The shape reaches a hundred and fifty points down the page; the text is held below it whether or not the header has a table.)
+        QVERIFY2(plain >= 150 && tabled >= 150, qPrintable(QStringLiteral("the text begins at %1 without a table, at %2 with one").arg(plain).arg(tabled)));
+    }
+
+    // SECTIONPAGES in a cell of a header's table is the page count of the section the page is in, not the document's.
+    void theSectionPagesOfAHeadersTableAreTheSectionsOwn()
+    {
+        const QByteArray one = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray two = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray header = "<w:hdr " + QByteArray(kNs) + "><w:tbl><w:tblPr><w:tblW w:w=\"8000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"8000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"8000\" w:type=\"dxa\"/></w:tcPr>"
+                                  "<w:p><w:r><w:t xml:space=\"preserve\">In section: </w:t></w:r><w:fldSimple w:instr=\" SECTIONPAGES \"><w:r><w:t>1</w:t></w:r></w:fldSimple></w:p></w:tc></w:tr></w:tbl><w:p/></w:hdr>";
+        const QByteArray body = paragraphs(120, 30) + "<w:p><w:pPr>" + one + "</w:pPr></w:p>" + paragraphs(40, 30);
+        auto doc = open(makeDocxWithParts(body, two, {{QStringLiteral("/word/header1.xml"), header}}));
+        QVERIFY(doc);
+        const int pages = doc->pager().pageCount();
+        int inFirst = 0;
+        for (int k = 0; k < pages; ++k) inFirst += doc->pager().page(k).start.section == 0;
+        QVERIFY2(inFirst >= 2 && pages > inFirst + 1, qPrintable(QStringLiteral("%1 pages, %2 of them in the first section").arg(pages).arg(inFirst)));
+        auto shown = [&](int k) {
+            const auto page = doc->pager().materialize(k);
+            QString text;
+            if (page)
+                for (const auto &t : page->furnitureTables) t->forTexts([&](const StoryLayout &layout) { for (const auto &l : layout.lineInfo(0)) text += l.text; });
+            return text;
+        };
+        QVERIFY2(shown(0).contains(QStringLiteral("In section: %1").arg(inFirst)), qPrintable(shown(0) + QStringLiteral(" (the first section has %1 pages)").arg(inFirst)));
+        const int last = pages - 1, inSecond = pages - inFirst;
+        QVERIFY2(shown(last).contains(QStringLiteral("In section: %1").arg(inSecond)), qPrintable(shown(last) + QStringLiteral(" (the second section has %1 pages)").arg(inSecond)));
+    }
+
     // A table in a header or a footer is laid out and drawn: its cells' text (a page's number in one of them is the page's own), and the room it takes at the top of the page (or the
     // foot of it), under the header's text and over the footer's.
     void aTableInAHeaderOrAFooterIsDrawnAndTakesRoom()
