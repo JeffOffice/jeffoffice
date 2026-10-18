@@ -337,12 +337,15 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                     double keptWith = 0;
                     bool keeps = false;
                     if (state == 0 && !atTop && table->keepsWithNext(r)) {
-                        for (int q = r; q + 1 < table->rowCount() && table->keepsWithNext(q); ++q) {
+                        // (At most a few rows are kept together: a file of many rows that all ask for it is not asked more than that of.)
+                        constexpr int kMostKeptRows = 32;
+                        for (int q = r; q + 1 < table->rowCount() && q < r + kMostKeptRows && table->keepsWithNext(q); ++q) {
                             keptWith += table->keepsWithNext(q + 1) ? table->rowHeight(q + 1) : table->leastPart(q + 1);
                             if (height + keptWith > colH - led->reserve[f]) {
                                 keptWith = 0;
                                 break;
                             }
+                            if (q + 1 == r + kMostKeptRows && table->keepsWithNext(q + 1)) keptWith = 0;   // (a chain longer than that is no chain)
                         }
                         keeps = keptWith > 0;
                     }
