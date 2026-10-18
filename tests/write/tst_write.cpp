@@ -6774,6 +6774,39 @@ private Q_SLOTS:
         }
     }
 
+    // The tables of text boxes are bounded in all, whatever the number of boxes: a file of many boxes each with a table of a thousand cells has the tables of the first laid out in
+    // their boxes, and the rest kept as they were (their boxes are drawn without them).
+    void theTablesOfManyTextBoxesAreBoundedInAll()
+    {
+        QByteArray grid, cells;
+        for (int i = 0; i < 250; ++i) {
+            grid += "<w:gridCol w:w=\"200\"/>";
+            cells += "<w:tc><w:tcPr><w:tcW w:w=\"200\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>x</w:t></w:r></w:p></w:tc>";
+        }
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"50000\" w:type=\"dxa\"/><w:tblLayout w:type=\"fixed\"/></w:tblPr><w:tblGrid>" + grid + "</w:tblGrid>"
+                                 "<w:tr>" + cells + "</w:tr><w:tr>" + cells + "</w:tr><w:tr>" + cells + "</w:tr><w:tr>" + cells + "</w:tr></w:tbl>";
+        QByteArray body = "<w:p><w:r><w:t>Body</w:t></w:r>";
+        const int boxes = 12;
+        for (int i = 0; i < boxes; ++i)
+            body += "<w:r><w:pict " + QByteArray(kVml) + "><v:shape id=\"b" + QByteArray::number(i) + "\" style=\"position:absolute;margin-left:100pt;margin-top:" + QByteArray::number(60 + i * 40) +
+                    "pt;width:300pt;height:30pt;z-index:3;mso-position-horizontal-relative:page;mso-position-vertical-relative:page\" stroked=\"f\"><v:textbox><w:txbxContent><w:p><w:r><w:t>BOX" +
+                    QByteArray::number(i) + "</w:t></w:r></w:p>" + table + "<w:p/></w:txbxContent></v:textbox></v:shape></w:pict></w:r>";
+        body += "</w:p>";
+        auto doc = open(makeDocx(body, kStyles));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        qint64 laid = 0;
+        for (const auto &rows : page->furnitureTables) laid += rows->layout->cellCount();
+        QVERIFY2(laid > 0, "the first box has its table");
+        QVERIFY2(laid <= 2000, qPrintable(QStringLiteral("%1 cells of the boxes' tables are laid out").arg(laid)));
+        int withText = 0;
+        for (const auto &candidate : page->doc->pages[0]->items)
+            if (const auto textItem = std::dynamic_pointer_cast<TextItem>(candidate))
+                if (page->doc->story(textItem->storyId) && page->doc->story(textItem->storyId)->doc->toPlainText().contains(QLatin1String("BOX"))) ++withText;
+        QCOMPARE(withText, boxes);   // (every box is on the page, with its own text)
+    }
+
     // A box or a text box filled with a picture (a stretched fill) is still a box or a text box with the picture as its fill: the text box keeps its text, and the box its outline.
     void aShapeFilledWithAPictureKeepsItsTextAndItsOutline()
     {
