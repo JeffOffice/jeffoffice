@@ -5369,6 +5369,47 @@ private Q_SLOTS:
         QCOMPARE(po.pageCount(), 2);
     }
 
+    // A page that three sections begin on, one under another (one column, two, one), is laid out in a part for each: the section of two columns has its columns as even as its lines let
+    // them be, and the section after it begins below both, as wide as the page.
+    void aPageOfThreeSectionsHasAPartForEach()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 13, 9, [](int i, QTextBlockFormat &bf) {
+            bf.setBottomMargin(4);
+            if (i == 1 || i == 9) bf.setProperty(fp::SectionBreakAfter, true);
+        }, 3, 4);
+        fd.sections[0].paper = QSizeF(300, 400);
+        fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+        Section two = fd.sections[0], three = fd.sections[0];
+        two.continuous = true;
+        two.columns = 2;
+        two.columnGap = 20;
+        three.continuous = true;
+        fd.sections << two << three;
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 1);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        QCOMPARE(int(page->boxes.size()), 4);   // (one box for the first section's column, one for each of the second's, and one for the third's)
+        std::vector<const TextItem *> boxes;
+        for (const QString &id : page->boxes) boxes.push_back(dynamic_cast<const TextItem *>(page->doc->item(id)));
+        for (const TextItem *b : boxes) QVERIFY(b);
+        const double line = 20;
+        QVERIFY2(std::abs(boxes[1]->rect.height() - boxes[2]->rect.height()) <= line, qPrintable(QStringLiteral("the columns are %1 and %2 high").arg(boxes[1]->rect.height()).arg(boxes[2]->rect.height())));
+        QVERIFY2(boxes[1]->rect.height() > 0 && boxes[2]->rect.height() > 0, "both columns have lines");
+        QVERIFY(boxes[1]->rect.left() < boxes[2]->rect.left());
+        QVERIFY(std::abs(boxes[1]->rect.width() - boxes[2]->rect.width()) < 0.5 && boxes[1]->rect.width() < boxes[0]->rect.width() * 0.6);
+        QVERIFY2(boxes[3]->rect.top() >= std::max(boxes[1]->rect.bottom(), boxes[2]->rect.bottom()) - 0.5, qPrintable(QStringLiteral("the third section begins at %1, the columns end at %2 and %3")
+                                                                                                                       .arg(boxes[3]->rect.top()).arg(boxes[1]->rect.bottom()).arg(boxes[2]->rect.bottom())));
+        QVERIFY(std::abs(boxes[3]->rect.width() - boxes[0]->rect.width()) < 0.5);
+        QVERIFY(boxes[3]->rect.top() >= boxes[0]->rect.bottom());
+        // Every line of the text is on the page, once.
+        QCOMPARE(int(pg.lines(0).size()) > 0, true);
+        const QString bad = audit::problems(pg, fd.story());
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+    }
+
     // A continuous section of two columns that holds a table: it begins below the text of the section before, the table is inside a column and flows into the next, and
     // the page's note (cited in the text above the table, in the first column) and furniture keep to their places.
     void aTableInAContinuousTwoColumnSectionIsInsideItsColumnBelowTheTextAbove()

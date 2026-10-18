@@ -56,9 +56,9 @@ struct MaterializedPage {
     // The first line of the page may be the rest of a paragraph that began on the page before; and the last, the beginning of one that
     // goes on onto the next.
     bool continuesFromBefore = false, continuesOnAfter = false;
-    // Where the text of a section begins that has more columns than the first's and begins below the first's text on this page (-1: none): the empty paragraph that ends the
+    // Where the text of a section begins that has more columns than the one above it and begins below that text on this page (none: none): the empty paragraph that ends the
     // section above, which ends there, takes no room and has no line in the page's boxes.
-    int freeBreakEnd = -1;
+    QVector<int> freeBreakEnds;
     // The tables in the page's header and footer, drawn with the others (they are not the document's text: no position of the document's is in them).
     QVector<std::shared_ptr<TableFragment>> furnitureTables;
     // The rows of tables that are on the page, drawn after the text (Paginator::tables). Each has a place in the page's story: a paragraph of the
