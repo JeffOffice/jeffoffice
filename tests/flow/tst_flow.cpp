@@ -3552,6 +3552,33 @@ private Q_SLOTS:
         QVERIFY(a.key() != b.key());
     }
 
+    // The hanging indent is a tab stop for the first line though the paragraph has stops of its own, past it: "a.<tab>text" has its text at the indent (V016's sub-items, indent
+    // 40 points and stops from 103), and a stop of the paragraph's own before the indent is the nearer one.
+    void aHangingIndentIsATabStopBeforeTheParagraphsOwnStops()
+    {
+        auto textAt = [&](double firstStop) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            bf.setLeftMargin(40);
+            bf.setTextIndent(-26.65);
+            bf.setTabPositions({QTextOption::Tab(firstStop, QTextOption::LeftTab), QTextOption::Tab(firstStop + 30, QTextOption::LeftTab)});
+            c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("a.\ttext"), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            env.defaultTab = 36;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(400, 100)}, env);
+            return lay.rangeRects(0, 3, 4).first().left();
+        };
+        QVERIFY2(std::abs(textAt(103) - 40) < 0.05, qPrintable(QString::number(textAt(103))));
+        QVERIFY2(std::abs(textAt(30) - 30) < 0.05, qPrintable(QString::number(textAt(30))));
+    }
+
     // A justified line of a word processor's text reaches the margin with its last letter, not a space short of it (the space that ends the line is not
     // part of the width the words are spread over); the paragraph's last line is as long as its words make it.
     void justifiedWordLinesReachTheMargin()
