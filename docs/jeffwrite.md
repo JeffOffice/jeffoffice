@@ -120,9 +120,18 @@ The words round (October 18, 2026) went through the words that the reference pag
 begins on as its first; a header's or footer's STYLEREF shows the page's paragraph of the style (the first on the page, the last with `\l`, else the nearest before, with the number
 switches giving its number); text without `xml:space="preserve"` has no blanks at its ends; rows and cells held by content controls (nested too) are the table's; sections' line numbers
 (`w:lnNumType`, again at each page) are drawn in the margin; ruby text shows after its base text in brackets; a page that three sections or more begin on, one under another, is laid out
-in a part for each (columns made even where another follows); and a page's copy of the text cuts runs of joined paragraphs where the document does. Not yet: endnotes at the end of the
-document (their text has no page), `w:ptab`, mathematical alphanumerics in a face that lacks them, ruby set above its base, line numbers that go on across pages or sections, and page
-numbers with the chapter's (`w:chapStyle`).
+in a part for each (columns made even where another follows); and a page's copy of the text cuts runs of joined paragraphs where the document does. Not yet: mathematical alphanumerics in a face that lacks
+them, ruby set above its base, and line numbers that go on across pages or sections.
+
+The second part of the words round (October 18, 2026): the endnotes the text refers to are set after its last text, after the file's separator for them, each with its number (they are
+paragraphs of the story that the file does not have: no edit reaches them, saving leaves them out, and the file's part is kept as it was; at most 5,000 are set); an absolute position
+tab (`w:ptab`) goes to the left, middle, or right of the margin or the indent, with its leader, whatever the paragraph's stops (`tp::AlignTab`); a page number carries the chapter's when the
+section says `w:chapStyle` (the last heading of that level on the page, else the nearest before it, and `w:chapSep`); a first section of even pages numbers its first page 2; an item at a
+deeper level than the list has had counts the levels above it as begun, so that the next item at one of them is one more; a numbered paragraph that begins with a page break has its number
+after the break; a column break (`w:br w:type="column"`) sends the text after it to the next column, or the next page from the last column; the shapes of a group in a group of a drawing are
+read once; and the line of a drawn box takes no room from its text. Not yet: endnotes at the end of each section (`w:endnotePr` with `w:pos` set to `sectEnd`), page references (`PAGEREF`) that
+show the page the document's own layout puts a bookmark on, where the file's last result is not it (a table of contents the file made before its pages moved), footnotes cited in a table's
+cell, automatic hyphenation, and the numbers in the chapter's own format when the heading's numbering text has words in it.
 
 ## Checking it
 
