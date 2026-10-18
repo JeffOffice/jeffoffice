@@ -6500,9 +6500,10 @@ private Q_SLOTS:
     // A level's typeface is its number's: a typewriter face is wider than the document's.
     void aNumberIsInTheTypefaceOfItsLevel()
     {
-        const NumberInk plain = numberInk("<w:sz w:val=\"60\"/>", "<w:sz w:val=\"20\"/>", QByteArray());
-        const NumberInk courier = numberInk("<w:rFonts w:ascii=\"Courier New\" w:hAnsi=\"Courier New\"/><w:sz w:val=\"60\"/>", "<w:sz w:val=\"20\"/>", QByteArray());
-        QVERIFY2(courier.box.right() > plain.box.right() + 8, qPrintable(QString::number(courier.box.right()) + " against " + QString::number(plain.box.right())));
+        // (A number of 60 points: "1." is 45 points wide in the document's face and 72 in a typewriter face, whatever the faces on the machine are.)
+        const NumberInk plain = numberInk("<w:sz w:val=\"120\"/>", "<w:sz w:val=\"20\"/>", QByteArray());
+        const NumberInk courier = numberInk("<w:rFonts w:ascii=\"Courier New\" w:hAnsi=\"Courier New\"/><w:sz w:val=\"120\"/>", "<w:sz w:val=\"20\"/>", QByteArray());
+        QVERIFY2(courier.box.right() > plain.box.right() + 16, qPrintable(QString::number(courier.box.right()) + " against " + QString::number(plain.box.right())));
     }
 
     // A level that says not bold has a number that is not, where the paragraph's mark is bold.

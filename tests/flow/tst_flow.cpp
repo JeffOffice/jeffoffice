@@ -2865,7 +2865,7 @@ private Q_SLOTS:
             bf.setTextIndent(-18);
             c.setBlockFormat(bf);
             QTextCharFormat cf;
-            cf.setFontFamilies({QStringLiteral("Times New Roman")});
+            cf.setFontFamilies({QStringLiteral("Tinos")});
             cf.setFontPointSize(12);
             c.setBlockCharFormat(cf);
             QTextListFormat lf;
