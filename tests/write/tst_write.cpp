@@ -7907,6 +7907,21 @@ private Q_SLOTS:
         QCOMPARE(markersOf(*doc), (QStringList{QStringLiteral("1."), QStringLiteral("II)"), QStringLiteral("III)")}));
     }
 
+    // An item at a deeper level than any the list has had counts the levels above it as begun, at their start: the third level's first item after items of the fourth level
+    // (numbered 1.1.1.1 and 1.1.1.2, the third level standing at 1) is 1.1.2, not 1.1.1 again (V117's "2.4.2 Cleanliness Check", which Word numbers so).
+    void anItemAfterItsDeeperLevelsGoesOnFromTheLevelsStart()
+    {
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl>"
+                                     "<w:lvl w:ilvl=\"1\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.%2\"/></w:lvl>"
+                                     "<w:lvl w:ilvl=\"2\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.%2.%3\"/></w:lvl>"
+                                     "<w:lvl w:ilvl=\"3\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.%2.%3.%4\"/></w:lvl></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        auto doc = open(makeDocx(itemOf(1, 0) + itemOf(1, 1) + itemOf(1, 3) + itemOf(1, 3) + itemOf(1, 2) + itemOf(1, 3) + itemOf(1, 1) + itemOf(1, 2), kStyles, numbering));
+        QVERIFY(doc);
+        QCOMPARE(markersOf(*doc), (QStringList{QStringLiteral("1."), QStringLiteral("1.1"), QStringLiteral("1.1.1.1"), QStringLiteral("1.1.1.2"), QStringLiteral("1.1.2"), QStringLiteral("1.1.2.1"),
+                                               QStringLiteral("1.2"), QStringLiteral("1.2.1")}));
+    }
+
     // A number is set in its paragraph's mark, not in what the first words of the item happen to be in: here the mark is of 10 points and the first words of 40.
     void aNumberIsInTheSizeOfItsParagraphMark()
     {

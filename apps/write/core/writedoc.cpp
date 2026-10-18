@@ -1021,6 +1021,12 @@ void WriteDoc::renumberLists(QTextDocument *story)
             n = c.number;
         }
         if (l->numFmt == QLatin1String("bullet") || l->numFmt == QLatin1String("none")) continue;
+        // A level above the item's that no item of the list has been at has begun its count with this item: it stands at its start, and the next item at that level is one more
+        // (a list that goes from 2.4 to 2.4.1.1 has its next item at the third level numbered 2.4.2).
+        for (int k = 0; k < level; ++k) {
+            Counter &above = counterOf(k);
+            if (above.number < 0) above.number = numbering.startOf(numId, k);
+        }
         // Qt can count a level with the one number of its own in the marker, in a style it has, and that is the number it would count.
         const bool simple = !l->legal && l->text.count(QLatin1Char('%')) <= 1 && l->text.contains(QStringLiteral("%%1").arg(level + 1));
         QString want;
