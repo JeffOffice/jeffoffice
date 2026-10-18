@@ -34,6 +34,8 @@ public:
     virtual ~FieldSource() = default;
     virtual int firstPageNumber() const = 0;
     virtual QString pageNumberFormat() const = 0;
+    // For a word processor's page numbers that carry a chapter's ("2-3"): what comes before the number of a page, the chapter's number and its separator; none for a publication.
+    virtual QString pageNumberPrefix() const { return QString(); }
     virtual QString businessField(const QString &key) const = 0;
     virtual QStringList mergeFields() const = 0;
     virtual QString mergeValue(int record, const QString &field) const = 0;

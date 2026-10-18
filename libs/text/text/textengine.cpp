@@ -112,7 +112,7 @@ QString FieldContext::resolve(const QString &code) const
         // The next or previous linked box's page; "#" without one, as in Publisher.
         if (arg == "next") return nextPage > 0 ? QString::number(nextPage + from) : QStringLiteral("#");
         if (arg == "prev") return prevPage > 0 ? QString::number(prevPage + from) : QStringLiteral("#");
-        return shown(pageNumber + from);
+        return (doc ? doc->pageNumberPrefix() : QString()) + shown(pageNumber + from);
     }
     if (kind == "notemark") return noteMark;
     // A paragraph style's text (STYLEREF) is the page's, which the pages put in; laid out as a story of its own it shows the result the file kept: after its switches and the style's name.

@@ -166,6 +166,15 @@ flow::Section flowSectionOf(const SectionProps &p, bool evenAndOdd)
     s.pageBorders = pageBordersOf(p.extra);
     s.lineNumbers = lineNumbersOf(p.extra);
     s.firstPageNumber = p.pageStart;
+    // (Page numbers that carry a chapter's number: the heading level of the style (w:chapStyle) and the separator (w:chapSep: a hyphen when it says none).)
+    {
+        static const QRegularExpression style(QStringLiteral("[\\s:]chapStyle\\s*=\\s*\"([0-9]+)\"")), separator(QStringLiteral("[\\s:]chapSep\\s*=\\s*\"(\\w+)\""));
+        const QString attrs = QString::fromUtf8(p.pgNumAttrs.left(2000));
+        if (const QRegularExpressionMatch m = style.match(attrs); m.hasMatch()) s.chapterStyle = std::clamp(m.captured(1).left(3).toInt(), 0, 9);
+        const QString sep = separator.match(attrs).captured(1);
+        s.chapterSeparator = sep == QLatin1String("period") ? QStringLiteral(".") : sep == QLatin1String("colon") ? QStringLiteral(":") : sep == QLatin1String("emDash") ? QString(QChar(0x2014))
+                             : sep == QLatin1String("enDash") ? QString(QChar(0x2013)) : QStringLiteral("-");
+    }
     s.pageNumberFormat = p.pageFormat == QLatin1String("lowerRoman") ? QStringLiteral("roman")
                          : p.pageFormat == QLatin1String("upperRoman") ? QStringLiteral("ROMAN")
                          : p.pageFormat == QLatin1String("lowerLetter") ? QStringLiteral("alpha")

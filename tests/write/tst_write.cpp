@@ -11468,6 +11468,44 @@ private Q_SLOTS:
         QVERIFY(doc->story()->toPlainText().contains(QLatin1String("Note 450")));
     }
 
+    // A section whose page numbers carry the chapter's (w:chapStyle of its w:pgNumType) shows "chapter-page": the number of the last heading of that level on the page (else the
+    // nearest before it), the separator the file says (a hyphen when it says none), and the page's own number.
+    void aPageNumberCanCarryTheChaptersNumber()
+    {
+        auto heading = [](const char *text, bool newPage) {
+            return QByteArray("<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/>") + (newPage ? "<w:pageBreakBefore/>" : "") + "<w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:t>" + text + "</w:t></w:r></w:p>";
+        };
+        const QByteArray body = heading("One", false) + plainP("alpha") + heading("Two", true) + plainP("beta") + heading("Three", false) + "<w:p><w:r><w:t>gamma</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r></w:p>" + plainP("tail");
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/footer1.xml"), headerPart("ftr", {"<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>"})}};
+        for (const auto &[pgNum, want] : {std::pair<const char *, QStringList>{"<w:pgNumType w:chapStyle=\"1\"/>", {QStringLiteral("1-1"), QStringLiteral("3-2"), QStringLiteral("3-3")}},
+                                          std::pair<const char *, QStringList>{"<w:pgNumType w:chapStyle=\"1\" w:chapSep=\"colon\"/>", {QStringLiteral("1:1"), QStringLiteral("3:2"), QStringLiteral("3:3")}},
+                                          std::pair<const char *, QStringList>{"", {QStringLiteral("1"), QStringLiteral("2"), QStringLiteral("3")}}}) {
+            auto doc = open(makeDocxWithParts(body, sectionXml(6000, 4500, 720, "<w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/>", QByteArray(), pgNum), parts, QByteArray(), kStyles, numbering));
+            QVERIFY(doc);
+            flow::Paginator &pg = doc->pager();
+            QCOMPARE(pg.pageCount(), 3);
+            for (int k = 0; k < 3; ++k) {
+                const auto page = pg.materialize(k);
+                QVERIFY(page);
+                const auto feet = audit::itemsWith(*page, QStringLiteral("flow-footer-box"));
+                QVERIFY(feet.size() == 1);
+                FrameSpec fs;
+                fs.size = QSizeF(228, 40);
+                fs.insets = QMarginsF(0, 0, 0, 0);
+                fs.hyphenate = false;
+                fs.ctx.doc = page->doc.get();
+                fs.ctx.pageNumber = 1;
+                StoryLayout layout;
+                layout.build(page->doc->story(dynamic_cast<const TextItem *>(feet[0])->storyId)->doc.get(), {fs}, doc->flow().env);
+                const auto lines = layout.lineInfo(0);
+                QVERIFY(!lines.isEmpty());
+                QCOMPARE(lines[0].text.trimmed(), want[k]);
+            }
+        }
+    }
+
     // A paragraph that says w:suppressLineNumbers (itself, or by its style) has no numbers, and the lines of the others are counted without it.
     void aParagraphThatSuppressesLineNumbersIsNeitherNumberedNorCounted()
     {

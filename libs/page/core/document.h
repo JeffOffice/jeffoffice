@@ -332,6 +332,7 @@ public:
     // The pages a flowing document (libs/flow) has, and the pages of the section this page is in, which its NUMPAGES and SECTIONPAGES fields show;
     // 0 leaves them to the document's own page count. Set by the app that makes the document; not saved.
     int flowPageTotal = 0, flowSectionPageTotal = 0;
+    QString flowPagePrefix;   // what comes before the number a flowing page's fields show (a chapter's number and its separator)
     // And what the page's notes need from the document it is a page of: the notes before its text, the footnotes cut at the foot of the page before
     // ("story|number|from" each), and the height of the paragraph between the notes and the text.
     int flowFootnotesBefore = 0, flowEndnotesBefore = 0;
@@ -374,6 +375,7 @@ public:
     // What its fields read (FieldSource).
     int firstPageNumber() const override { return setup.firstPageNumber; }
     QString pageNumberFormat() const override { return setup.pageNumberFormat; }
+    QString pageNumberPrefix() const override { return flowPagePrefix; }
     int pageTotal() const override { return flowPageTotal; }
     int footnotesBefore() const override { return flowFootnotesBefore; }
     int endnotesBefore() const override { return flowEndnotesBefore; }

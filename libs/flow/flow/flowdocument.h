@@ -150,6 +150,10 @@ struct Section {
     PageBorders pageBorders;                 // the lines round its pages
     std::optional<int> firstPageNumber;      // the number the section's first page has (0 is a number; none: it goes on from the section before)
     QString pageNumberFormat;                // "", "roman", "ROMAN", "alpha", or "ALPHA" (the fields' own)
+    // The section's page numbers carry the number of a chapter (w:chapStyle): the heading style of that level (1 to 9) whose paragraph's number is the page's chapter (the last of
+    // them on the page, else the nearest before it), and what stands between it and the page's number ("-" when empty). 0: none.
+    int chapterStyle = 0;
+    QString chapterSeparator;
     // Line numbers in the margin (w:lnNumType): a number for every `countBy` lines of the section's text (0: none), counted from `start`, `distance` points left of the column (0: the
     // usual), in `format`; they begin again at each page, at each section, or not at all (only the first is drawn).
     struct LineNumbers {
