@@ -2560,6 +2560,34 @@ private Q_SLOTS:
         QCOMPARE(lay.lineInfo(1).size(), 0);
     }
 
+    // A run set in a stand-in that is drawn narrower than its face (Agency FB, in Archivo Narrow at 85 percent) keeps that to itself: the runs after it in the paragraph are
+    // drawn at their own widths, not at the first run's.
+    void aStretchedStandInsStretchStaysWithItsRun()
+    {
+        if (QFontDatabase::hasFamily(QStringLiteral("Agency FB"))) QSKIP("Agency FB is installed");
+        auto widthOf = [](const QVector<std::pair<QString, QString>> &runs) {
+            auto doc = std::make_unique<QTextDocument>();
+            QTextCursor c(doc.get());
+            for (const auto &run : runs) {
+                QTextCharFormat cf;
+                cf.setFontFamilies({run.first});
+                cf.setFontPointSize(12);
+                c.insertText(run.second, cf);
+            }
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(doc.get(), {plainFrame(600, 700)}, env);
+            int frame = -1;
+            QRectF at;
+            return lay.caretRect(doc->characterCount() - 1, &frame, &at) ? at.left() : -1.0;
+        };
+        const QString narrow = QStringLiteral("Agency FB"), times = QStringLiteral("Times New Roman"), text = QStringLiteral("WWWWWWWWWW");
+        const double first = widthOf({{narrow, QStringLiteral("xx")}}), after = widthOf({{times, text}}), both = widthOf({{narrow, QStringLiteral("xx")}, {times, text}});
+        QVERIFY2(after > 50, qPrintable(QString::number(after)));
+        QVERIFY2(std::abs(both - (first + after)) < 0.05, qPrintable(QStringLiteral("the two runs are %1 wide, the runs alone %2 and %3").arg(both).arg(first).arg(after)));
+    }
+
     // Lines of whole points follow every kind of line spacing: a multiple is a multiple of the whole-point line (Times New Roman 11, 12.65 high, is 13), an at-least
     // height more than that is a descent above its bottom, and one less is the whole-point line itself; an exact height keeps the parts in proportion.
     void wholePointLinesFollowMultipleAtLeastAndExactSpacing()

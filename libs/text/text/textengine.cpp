@@ -1115,6 +1115,9 @@ QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
     auto it = b.begin();
     if (!it.atEnd()) cf = it.fragment().charFormat();
     QFont f = resolveCharFormat(cf, env).font();
+    // (A word processor's run says its own stretch where its stand-in is narrowed or widened to the original's: the first run's is not the paragraph's, which the
+    // runs that say none would take from here.)
+    if (env.wordLines) f.setStretch(QFont::AnyStretch);
     // Paragraph-level OpenType features (Qt 6.8 applies features per layout font).
     const int num = cf.intProperty(tp::NumberStyle), sp = cf.intProperty(tp::NumberSpacing), lig = cf.intProperty(tp::Ligatures);
     if (num == 1) f.setFeature(QFont::Tag("lnum"), 1);
