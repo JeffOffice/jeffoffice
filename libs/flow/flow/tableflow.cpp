@@ -426,6 +426,19 @@ void TableLayout::setLineRooms()
     if (d.spaced) {
         m_rows.back().foot += roomOf(d.bottom);
         for (int r = 0; r + 1 < rows; ++r) m_rows[size_t(r)].breakFoot = roomOf(d.bottom);
+        // The space between cells is round each cell: above and below each row's cells, and on both sides of them. A cell is a box in from its place by that much on each side, so
+        // that two cells have twice the space between them, and the first and the last have it from the table's edge. (The table's own lines at its edges take no room across: a
+        // cell of a table with no space between its cells and a line at its edge, in a practice document, has all of its width for its text.)
+        if (d.spacing > 0)
+            for (Row &row : m_rows) {
+                row.top += d.spacing;
+                row.foot += d.spacing;
+            }
+        for (Cell &c : m_cells) {
+            c.inLeft = c.inRight = std::max(0.0, d.spacing);
+            c.margins.setLeft(c.margins.left() + c.inLeft);
+            c.margins.setRight(c.margins.right() + c.inRight);
+        }
     }
     // The room is in the cells' margins, below the line at the top of the row and above the one at the foot of the table.
     for (Cell &c : m_cells) {
@@ -654,6 +667,40 @@ bool TableLayout::splittable(int r) const
     for (int i = row.cell0; i < row.cell0 + row.cells; ++i)
         if (m_cells[size_t(i)].covered || m_cells[size_t(i)].rows > 1) return false;
     return true;
+}
+
+bool TableLayout::keepsWithNext(int r) const
+{
+    if (!m_ctx.valid() || !m_ctx.index || !m_ctx.doc || r < 0 || r >= int(m_rows.size())) return false;
+    const Row &row = m_rows[size_t(r)];
+    const TableIndex &ix = *m_ctx.index;
+    const QTextDocument *story = m_ctx.doc->story();
+    // (A row is kept with the next when the last paragraph of any of its cells is, not the first cell's only. That rests on one practice document, W046, whose rows are kept
+    // together that way: no other shows whether a cell other than the first counts.)
+    for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
+        const Cell &c = m_cells[size_t(i)];
+        if (c.covered) continue;
+        // (The cell's last paragraph is the one next to the next row: a paragraph before it is kept with the one after it, in the cell.)
+        const BlockRef &last = ix.refs()[size_t(c.r1 - 1)];
+        if (int(ix.chain(last.key).size()) != m_depth + 1) continue;   // (a paragraph of a table in the cell is that table's)
+        if (story->findBlock(last.pos).blockFormat().boolProperty(tp::KeepWithNext)) return true;
+    }
+    return false;
+}
+
+double TableLayout::leastPart(int r)
+{
+    const double whole = rowHeight(r);
+    if (!splittable(r)) return whole;
+    const Row &row = m_rows[size_t(r)];
+    double need = 0;
+    for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
+        const Cell &c = m_cells[size_t(i)];
+        if (c.covered) continue;
+        const auto units = unitsOf(i);
+        need = std::max(need, (units->lines.empty() ? 0.0 : units->lines.front().bottom) + c.margins.top() + c.margins.bottom());
+    }
+    return std::min(whole, need);
 }
 
 namespace {
@@ -946,6 +993,9 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
             if (!ls.empty()) lines = std::max(lines, ls.back().bottom - offs[i] + c.margins.top() + c.margins.bottom() + pad);
         }
         piece.height = lines <= text + 0.01 ? std::min(need, text) : need;
+        // The last part of a row that was set to a height is that tall as well (the page it is on has room for it, or it is as tall as the room). This rests on one practice
+        // document, W066, whose row cut by a page break has its last part as tall as the row was set to be.
+        if (k > 0 && row.data->height > 0 && !row.data->exact) piece.height = std::max(piece.height, std::min(row.least, text));
         piece.next = 0;
     }
     return piece;
@@ -1041,16 +1091,28 @@ std::vector<TableFragment::Placed> TableFragment::place() const
             p.clip = p.rect.intersected(slice);
             const Part *part = c.rows == 1 ? partOf(c.row) : nullptr;
             const double extraTop = c.row >= r0 && c.rows == 1 && !part ? topExtraOf(c.row) : 0.0, extraFoot = c.rows == 1 && !part ? footExtraOf(c.row) : 0.0;
+            // The cell itself: where the table has space between its cells it is in from its place by that on every side (and by the table's own line at the table's edges).
+            p.box = p.rect;
+            if (layout->data().spaced && layout->data().spacing > 0) {
+                const TableData &td = layout->data();
+                const double above = td.spacing + (c.row == 0 ? roomOf(td.top) : extraTop), below = td.spacing + (c.row + c.rows >= layout->rowCount() ? roomOf(td.bottom) : extraFoot);
+                p.box = p.rect.adjusted(c.inLeft, above, -c.inRight, -below);
+                if (p.box.height() < 0) p.box.setHeight(0);
+            }
             const double inner = h - c.margins.top() - c.margins.bottom() - extraTop - extraFoot;
             const double free = std::max(0.0, inner - items[size_t(n)].content->height);
             double drop = c.rec->cell.valign == CellAlign::Center ? free / 2 : c.rec->cell.valign == CellAlign::Bottom ? free : 0;
             double offset = 0;
             if (part) {
-                // (A row shown in part is set from the top: the cell's content begins where its part does.)
+                // (A row shown in part is set from the top: the cell's content begins where its part does. A cell whose content is all in the part is set in it as it is in a row.)
                 drop = 0;
                 const int at = items[size_t(n)].cell - layout->row(c.row).cell0;
                 if (at >= 0 && at < part->piece.offsets.size()) offset = std::min(part->piece.offsets[at], items[size_t(n)].content->height);
                 const double pad = at >= 0 && at < part->piece.pads.size() ? part->piece.pads[at] : 0.0;
+                if (offset <= 0 && at >= 0 && at < part->piece.ends.size() && part->piece.ends[at] >= 1e17) {
+                    const double partFree = std::max(0.0, h - c.margins.top() - c.margins.bottom() - pad - items[size_t(n)].content->height);
+                    drop = c.rec->cell.valign == CellAlign::Center ? partFree / 2 : c.rec->cell.valign == CellAlign::Bottom ? partFree : 0;
+                }
                 p.text = QPointF(p.rect.left() + c.margins.left(), p.rect.top() + c.margins.top() + pad + drop - offset);
                 if (offset > 0) p.from = p.text.y() + offset;   // (what the part before showed is not drawn in the margin above the lines of this one)
                 // (What is left for the next part is not drawn in the space under the last line that is in this one.)
@@ -1129,7 +1191,8 @@ std::vector<EdgePart> edgeParts(TableLayout &t, int index, bool top)
 {
     const TableLayout::Cell &c = t.cell(index);
     const TableData &d = t.data();
-    if (c.span == 1 || d.spaced) return {{c.x, c.x + c.w, edgeOf(t, index, top ? Side::Top : Side::Bottom)}};
+    if (d.spaced) return {{c.x, c.x + c.w - c.inLeft - c.inRight, edgeOf(t, index, top ? Side::Top : Side::Bottom)}};   // (the cell's own box: its place less the space round it)
+    if (c.span == 1) return {{c.x, c.x + c.w, edgeOf(t, index, top ? Side::Top : Side::Bottom)}};
     const CellData &cd = c.rec->cell;
     const CellData &bottomCell = (c.last >= 0 ? t.cell(c.last) : c).rec->cell;
     std::vector<EdgePart> out;
@@ -1195,7 +1258,7 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
     if (layout->data().fill && layout->data().fill->alpha() > 0) p->fillRect(rect(), *layout->data().fill);
     for (const Placed &pl : placed) {
         const TableLayout::Cell &c = layout->cell(items[size_t(pl.item)].cell);
-        if (c.rec->cell.fill && c.rec->cell.fill->alpha() > 0) p->fillRect(pl.clip, *c.rec->cell.fill);
+        if (c.rec->cell.fill && c.rec->cell.fill->alpha() > 0) p->fillRect(pl.box.intersected(pl.clip), *c.rec->cell.fill);   // (not the space round the cell)
     }
     // The text of each cell.
     PaintOptions po;
@@ -1232,7 +1295,7 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
     for (const Placed &pl : placed) {
         const int index = items[size_t(pl.item)].cell;
         const TableLayout::Cell &c = layout->cell(index);
-        const QRectF r = pl.rect;
+        const QRectF r = pl.box;
         p->save();
         p->setClipRect(QRectF(pl.clip).adjusted(-2, -2, 2, 2), Qt::IntersectClip);
         // (A line across is in the row it is the top of, from its edge down; the foot of the table is in its last row, up from the edge.)

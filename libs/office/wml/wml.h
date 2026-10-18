@@ -487,6 +487,7 @@ struct Shape {
     bool flipH = false, flipV = false;
     bool arrowEnd = false, arrowStart = false;
     QString embed;                        // a picture's relationship Id
+    QString fillEmbed;                    // the Id of a picture that fills the shape, stretched over it (VML's v:fill of type frame)
     QString pictEmbed;                    // the Id of the picture's other form (VML's r:pict: a compressed picture the program keeps beside it)
     QString alt;                          // its description
     QByteArray textBox;                   // the w:txbxContent element of a text box, as written (insets: below)

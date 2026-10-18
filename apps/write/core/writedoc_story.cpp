@@ -864,6 +864,14 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             // (A shape that says it has no fill or no line has none: a shape's own are a color and a line that it was not given.)
             item->fill = s.filled && !s.fillColor.isEmpty() ? Fill::solid(colorOf(s.fillColor)) : Fill::none();
             item->stroke = s.stroked && s.strokeWeight > 0 ? Stroke::line(colorOf(s.strokeColor), s.strokeWeight) : Stroke::none();
+            // (A picture that fills it is its fill, stretched over it: it keeps its text and its outline.)
+            if (!s.fillEmbed.isEmpty()) {
+                Shape filling = s;
+                filling.embed = s.fillEmbed;
+                filling.pictEmbed.clear();
+                const int image = pictureOf(filling);
+                if (image >= 0 && !shownMissing) o.fillImage = image;
+            }
             item->rotation = s.rotation;
             item->flipH = s.flipH;
             item->flipV = s.flipV;

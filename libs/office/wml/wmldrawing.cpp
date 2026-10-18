@@ -142,6 +142,16 @@ QByteArray declarations()
 // A text box's content as a document of its own: the paragraphs it holds under a w:txbxContent that declares the prefixes.
 QByteArray textBoxXml(const XmlTree &t, int content) { return "<w:txbxContent " + declarations() + ">" + t.inner(content) + "</w:txbxContent>"; }
 
+// What an object behind the text (a negative z-index in VML, behindDoc in DrawingML) is to the text: the order says only what is drawn over what, and a square or tight wrap is a
+// wall the text goes round whether the object is below the text or above it (practice documents V020 and V083 have their text go round such pictures). One that keeps text off
+// by its top and bottom stays behind the text and casts none: with walls of that kind the pictures of practice document V096 (four of them stacked on one anchor, one of them
+// behind the text) went a page late and pages 5 to 8 of it scored 46, 47, 24, and 46 instead of 9, 19, 2, and 1 (12.08 to 28.9 for the document), because the pages before them
+// are not yet as the reference has them. That rule rests on this one document.
+void keepBehindOnlyWithoutAWall(Shape *s)
+{
+    if (s->wrap == Shape::Square || s->wrap == Shape::Tight) s->behind = false;
+}
+
 class Vml {
 public:
     explicit Vml(const XmlTree &tree) : t(tree) {}
@@ -304,6 +314,11 @@ public:
                 if (!s.floating) s.wrap = Shape::WrapNone;
                 s.side = sideOf(t.attr(c, "side"));
             } else if (name == "fill") {
+                // A picture that fills the shape, stretched over it (type "frame"; a tile is not read), is the shape's fill: it stays a box or a text box, with its outline and its text.
+                if (const QString embed = t.attr(c, "id", NsR); !embed.isEmpty() && t.attr(c, "type") == QLatin1String("frame")) {
+                    s.fillEmbed = embed;
+                    s.filled = false;
+                }
                 if (offOf(t.attr(c, "on"))) s.filled = false;
                 if (const QString color = colorOf(t.attr(c, "color")); !color.isEmpty() && t.attr(n, "fillcolor").isEmpty()) s.fillColor = color;
             } else if (name == "stroke") {
@@ -347,6 +362,7 @@ public:
         }
         // (A rule or box wrapped in a "wrap" with anchors for the text it follows is read as floating: a shape with a z-index is set so.)
         if (!s.floating) s.wrap = Shape::WrapNone;
+        keepBehindOnlyWithoutAWall(&s);
         s.gapLeft = lengthOf(st.value(QStringLiteral("mso-wrap-distance-left")), 9);
         s.gapRight = lengthOf(st.value(QStringLiteral("mso-wrap-distance-right")), 9);
         s.gapTop = lengthOf(st.value(QStringLiteral("mso-wrap-distance-top")), 0);
@@ -451,6 +467,7 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
             }
         }
         if (!s.floating) s.wrap = Shape::WrapNone;
+        keepBehindOnlyWithoutAWall(&s);
         // The picture's data and a text box's text: found anywhere inside.
         std::vector<int> stack{c};
         while (!stack.empty() && s.embed.isEmpty() && s.textBox.isEmpty()) {

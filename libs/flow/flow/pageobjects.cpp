@@ -267,6 +267,16 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
             } else {
                 item->rect = placed;
             }
+            if (o.fillImage >= 0 && (item->type() == ItemType::Shape || item->type() == ItemType::Text)) {
+                // (A box filled with a picture: the picture is its fill, in the page's own document.)
+                const QString id = imageIdOf(d, o.fillImage);
+                if (!id.isEmpty()) {
+                    Fill filling;
+                    filling.type = Fill::Picture;
+                    filling.imageId = id;
+                    item->fill = filling;
+                }
+            }
             if (item->type() == ItemType::Picture) {
                 auto *pic = static_cast<PictureItem *>(item.get());
                 pic->imageId = imageIdOf(d, o.image);

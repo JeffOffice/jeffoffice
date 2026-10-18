@@ -56,6 +56,9 @@ struct MaterializedPage {
     // The first line of the page may be the rest of a paragraph that began on the page before; and the last, the beginning of one that
     // goes on onto the next.
     bool continuesFromBefore = false, continuesOnAfter = false;
+    // Where the text of a section begins that has more columns than the first's and begins below the first's text on this page (-1: none): the empty paragraph that ends the
+    // section above, which ends there, takes no room and has no line in the page's boxes.
+    int freeBreakEnd = -1;
     // The tables in the page's header and footer, drawn with the others (they are not the document's text: no position of the document's is in them).
     QVector<std::shared_ptr<TableFragment>> furnitureTables;
     // The rows of tables that are on the page, drawn after the text (Paginator::tables). Each has a place in the page's story: a paragraph of the
@@ -170,6 +173,8 @@ public:
     qint64 headerTableCellsHeldForTest() const { return m_headerTableCells; }
     // How many rows of tables were measured since it was made (what is measured again after an edit is the rows it touched): for tests of what edits cost.
     qint64 tableRowsMeasured() const { return m_tables ? m_tables->rowsMeasured() : 0; }
+    // How many rows were looked at to see whether a row kept with the next has room with those after it (a count for the tests of cost).
+    qint64 keepChecks() const { return m_keepChecks; }
     qint64 tableCellsLaidOut() const { return m_tables ? m_tables->cellsLaidOut() : 0; }
     // How many pages the page numbers have been walked back over to find where their section began, for tests.
     qint64 numberStepsForTest() const { return m_numberSteps; }
@@ -216,6 +221,7 @@ private:
     };
     NoteCut cutNote(const QString &id, double width, double room);
     std::map<std::tuple<QString, int, int, int, uint>, double> m_noteHeights;   // by note, the width in hundredths of a point, its story's revision and length (a revision comes again after an undo and another edit), and the environment the text is set in
+    qint64 m_keepChecks = 0;   // see keepChecks()
     uint m_envHash = 0;   // what the environment (the fonts, their scale, the line rules) was when the notes were measured
     double m_ruleGap = 0;   // the gap above a page's notes (the last the text engine said)
     QVector<double> m_offsOut;   // where in the row's cells the part that begins the next page starts, as the last lines of a page left it
@@ -360,6 +366,9 @@ private:
     // The anchors of the frames and tables that are set from the paragraphs whose first lines are among `lines` (a column `columnWidth` wide holds them), and of the objects anchored in
     // the frames' text.
     QVector<Anchor> floatAnchors(const QVector<AnchorLine> &lines, double columnWidth);
+    // The lines of a page's text that objects are anchored by, in page coordinates (`body` is the text area): `held`, those of the text itself (the rows of tables are not: what a cell
+    // anchors does not move the text round it), and `firstLines`, those that frames and tables are set from (the first row of a table in the text stands for the table).
+    void pageAnchorLines(const Run &run, const QRectF &body, QVector<AnchorLine> *held, QVector<AnchorLine> *firstLines) const;
     // The anchors of a page: those of the objects anchored in the text of `held`, and of the frames and tables set from the first lines among `firstLines`.
     QVector<Anchor> anchorsOfLines(const QVector<AnchorLine> &held, const QVector<AnchorLine> &firstLines, double columnWidth);
     // The frame of paragraphs `from` to `to` (the story's positions) as an object: its text copied for the page, and its size from the frame's and the text's.

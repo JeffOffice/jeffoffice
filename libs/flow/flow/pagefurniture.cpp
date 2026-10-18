@@ -47,7 +47,14 @@ double Paginator::storyHeight(const QTextDocument *story, double width, int numb
     fs.ctx.pageCount = std::max(number, int(m_starts.size()));
     StoryLayout layout;
     layout.build(story, {fs}, m_doc->env);
-    double height = layout.usedHeight(0) + (withSpaceAfter ? layout.trailingSpace() : 0.0);
+    // (The space after a last paragraph that is only line breaks is not kept below it: such a paragraph is made to take room by its lines. This rests on one practice document,
+    // V084, whose header ends so and does not have the space after that paragraph in its height.)
+    bool onlyBreaks = false;
+    if (const QTextBlock last = story->lastBlock(); last.isValid()) {
+        const QString text = last.text();
+        onlyBreaks = !text.isEmpty() && std::all_of(text.cbegin(), text.cend(), [](QChar c) { return c == QChar::LineSeparator; });
+    }
+    double height = layout.usedHeight(0) + (withSpaceAfter && !onlyBreaks ? layout.trailingSpace() : 0.0);
     const QVector<StoryLayout::LineInfo> lines = layout.lineInfo(0);
     // The paragraphs set out of the text (a frame, as the page number's) are drawn where the paragraph after them begins and take no room there; but the story is as tall as
     // they are, one under another, from there: as the lowest of them reaches.

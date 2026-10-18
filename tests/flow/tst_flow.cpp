@@ -3871,6 +3871,39 @@ private Q_SLOTS:
         QCOMPARE(int(plain->doc->pages[0]->items.size()), 1);
     }
 
+    // The space after a header's last paragraph is kept below it, where the paragraph has text or none (an empty one made to take room), but not where it is only line breaks.
+    void theSpaceAfterAHeadersLastParagraphOfLineBreaksIsNotKept()
+    {
+        auto top = [](const QString &last) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), 6, 4);
+            auto header = std::make_shared<QTextDocument>();
+            header->setDocumentMargin(0);
+            {
+                QTextCursor c(header.get());
+                // (The program's own font, Arimo, in every line: a letter after the breaks is a line as tall as the empty one, on any machine.)
+                QTextCharFormat cf;
+                cf.setFontFamilies({QStringLiteral("Arimo")});
+                cf.setFontPointSize(60);
+                c.insertText(QStringLiteral("Title"), cf);
+                QTextBlockFormat after;
+                after.setBottomMargin(40);
+                c.insertBlock(after, cf);
+                c.insertText(last, cf);
+            }
+            fd.sections[0].margins = QMarginsF(36, 18, 36, 36);
+            fd.sections[0].headerDistance = 18;
+            fd.sections[0].header.odd = header;
+            Paginator pg(&fd);
+            return pg.page(0).content.top();
+        };
+        const QString breaks(3, QChar::LineSeparator);
+        const double withBreaks = top(breaks), withText = top(breaks + QLatin1Char('x')), empty = top(QString());
+        QVERIFY2(std::abs(withText - withBreaks - 40) < 2, qPrintable(QStringLiteral("%1 with a letter after the line breaks, %2 with the breaks only").arg(withText).arg(withBreaks)));
+        QVERIFY2(empty > 18 + 60, qPrintable(QString::number(empty)));
+    }
+
     // A header's first paragraph, when it is empty, keeps its line height and the size of its mark on the page: the empty line is as tall as the paginator measured it.
     void anEmptyFirstParagraphOfAHeaderKeepsItsMark()
     {
@@ -5918,6 +5951,34 @@ private Q_SLOTS:
             }
     }
 
+    // A frame is set from the paragraph after it, and that may be the empty paragraph that ends a section before one on a page of its own: where the page is full that paragraph has no
+    // room, and the page keeps it all the same, and the frame is drawn from it, whatever height the page is.
+    void aFrameBeforeTheEmptyParagraphThatEndsASectionIsDrawnWhateverThePageFoot()
+    {
+        int tested = 0;
+        for (double height = 150; height <= 230; height += 1.5) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.sections[0].paper = QSizeF(300, height);
+            fd.sections[0].margins = QMarginsF(30, 30, 30, 30);
+            fillStory(fd.story(), 4, 2, {}, 10, 16);
+            appendParagraph(fd, QString(), [](QTextBlockFormat &bf) { bf.setProperty(fp::SectionBreakAfter, true); });
+            appendParagraph(fd, QStringLiteral("The next section, on a page of its own."));
+            Section second = fd.sections[0];
+            fd.sections << second;
+            FloatingObject proto;
+            proto.hRel = FloatingObject::Rel::Column;
+            proto.vRel = FloatingObject::Rel::Paragraph;
+            proto.wrap = FloatingObject::Wrap::Square;
+            addFrame(fd, 4, {QStringLiteral("FRAMEWORDS of the first section")}, proto, 100);
+            Paginator pg(&fd);
+            const QString bad = audit::floatProblems(pg, fd);
+            QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("page %1 high: %2").arg(height).arg(bad)));
+            ++tested;
+        }
+        QVERIFY(tested > 40);
+    }
+
     // The paginator keeps the frames it has made for a few hundred edits, then lets them go; the page being laid out holds the ones it uses (a pointer to a frame that was let
     // go is a use of freed memory, which the address sanitizer's build of this test finds). Typing past the cache's size with frames on the page, the pages stay right.
     void framesInUseSurviveTheirCacheTurningOver()
@@ -6994,6 +7055,100 @@ private Q_SLOTS:
         QVERIFY2(textIsWholeOnThePages(pg, *wrapped).isEmpty(), qPrintable(textIsWholeOnThePages(pg, *wrapped)));
         // The room the object takes is room the pages lack.
         QVERIFY(pg.pageCount() >= pp.pageCount());
+    }
+
+    // An object is set from where its anchor would be without the wall the text goes round it by: the lines that its wall moved down, to the next column, are back where they were,
+    // and the object is where the paragraph is without it (a negative offset puts it above, in the column before).
+    void anObjectIsSetFromItsAnchorWhereItWouldBeWithoutItsOwnWall()
+    {
+        auto make = [](bool wrapped, int *anchorBlock) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fd->sections[0].paper = QSizeF(300, 300);
+            fd->sections[0].margins = QMarginsF(30, 30, 30, 30);
+            fd->sections[0].columns = 2;
+            fd->sections[0].columnGap = 20;
+            fillStory(fd->story(), 14, 9, {}, 10, 20);
+            // The paragraph whose first line is the lowest in the first column without the object.
+            if (anchorBlock) {
+                Paginator probe(fd.get());
+                double lowest = -1;
+                *anchorBlock = -1;
+                for (const PageLine &l : pageLines(probe, *fd, 0))
+                    if (l.column == 0 && l.pos == l.block && l.rect.top() > lowest && l.rect.top() < 30 + 235 * 0.8) {
+                        lowest = l.rect.top();
+                        *anchorBlock = l.block;
+                    }
+            }
+            if (wrapped && anchorBlock && *anchorBlock >= 0) {
+                const double columnWidth = fd->sections[0].columnWidth();
+                const int id = addWrapped(fd.get(), columnWidth - 20, 120, *anchorBlock, FloatingObject::Wrap::TopBottom, 10, -110, QMarginsF(0, 0, 0, 0));
+                Q_UNUSED(id);
+            }
+            return fd;
+        };
+        int anchorBlock = -1;
+        auto plain = make(false, &anchorBlock);
+        QVERIFY(anchorBlock >= 0);
+        Paginator pp(plain.get());
+        const double natural = paragraphTopOn(pp, *plain, 0, anchorBlock);
+        QVERIFY(natural > 0);
+        auto wrapped = make(true, &anchorBlock);
+        Paginator pg(wrapped.get());
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const Item *obj = objectOfSize(*page, wrapped->sections[0].columnWidth() - 20, 120);
+        QVERIFY(obj);
+        const QRectF firstColumn = wrapped->sections[0].columnRect(0);
+        QVERIFY2(std::abs(obj->rect.top() - (natural - 110)) < 0.05, qPrintable(QStringLiteral("the object is at %1, its paragraph is at %2 without it").arg(obj->rect.top()).arg(natural)));
+        QVERIFY2(std::abs(obj->rect.left() - (firstColumn.left() + 10)) < 0.05, qPrintable(QStringLiteral("the object is at %1 across, the first column is at %2").arg(obj->rect.left()).arg(firstColumn.left())));
+        QVERIFY2(audit::problems(pg, wrapped->story()).isEmpty(), qPrintable(audit::problems(pg, wrapped->story())));
+    }
+
+    // The same where the lines that the wall moves are those of the paragraph before the anchor's, on the page where they go on: the object is set from where the anchor would be below
+    // them without it, and the lines are below the object, not a page on.
+    void anObjectAboveItsAnchorStaysOnThePageOfTheLinesItMoves()
+    {
+        auto make = [](unsigned seed, bool wrapped, int *anchorBlock, int *page) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fd->sections[0].paper = QSizeF(300, 300);
+            fd->sections[0].margins = QMarginsF(30, 30, 30, 30);
+            fillStory(fd->story(), 12, seed, {}, 8, 40);
+            // The first page that begins with the end of a paragraph that has few lines left, a paragraph after it on the page.
+            Paginator probe(fd.get());
+            *anchorBlock = -1;
+            *page = -1;
+            for (int k = 1; k < probe.pageCount() && *anchorBlock < 0; ++k) {
+                const auto lines = pageLines(probe, *fd, k);
+                if (lines.size() < 4 || lines[0].pos == lines[0].block) continue;
+                int tail = 0;
+                while (tail < lines.size() && lines[size_t(tail)].block == lines[0].block) ++tail;
+                if (tail > 3 || tail >= lines.size()) continue;
+                *anchorBlock = lines[size_t(tail)].block;
+                *page = k;
+            }
+            if (wrapped && *anchorBlock >= 0) addWrapped(fd.get(), 200, 90, *anchorBlock, FloatingObject::Wrap::TopBottom, 0, -20, QMarginsF(0, 0, 0, 0));
+            return fd;
+        };
+        unsigned seed = 1;
+        int anchorBlock = -1, page = -1;
+        std::unique_ptr<FlowDocument> plain;
+        for (; seed < 200 && anchorBlock < 0; ++seed) plain = make(seed, false, &anchorBlock, &page);
+        --seed;
+        QVERIFY2(anchorBlock >= 0, "no story has a page that begins with the end of a paragraph and has another after it");
+        Paginator pp(plain.get());
+        const double natural = paragraphTopOn(pp, *plain, page, anchorBlock);
+        QVERIFY(natural > 0);
+        int again = -1, againPage = -1;
+        auto wrapped = make(seed, true, &again, &againPage);
+        Paginator pg(wrapped.get());
+        const auto made = pg.materialize(page);
+        QVERIFY(made);
+        const Item *obj = objectOfSize(*made, 200, 90);
+        QVERIFY2(obj, qPrintable(QStringLiteral("the object is not on page %1, where the lines it moves are").arg(page)));
+        QVERIFY2(std::abs(obj->rect.top() - (natural - 20)) < 0.05, qPrintable(QStringLiteral("the object is at %1, its paragraph is at %2 without it").arg(obj->rect.top()).arg(natural)));
+        QVERIFY2(audit::problems(pg, wrapped->story()).isEmpty(), qPrintable(audit::problems(pg, wrapped->story())));
     }
 
     // An empty paragraph is only its mark, and goes in any gap between objects that is a few points wide: a column of empty paragraphs between two pictures that are a little apart
@@ -11999,6 +12154,88 @@ private Q_SLOTS:
         QVERIFY2(bad == 0, qPrintable(QStringLiteral("%1 of %2 configurations are wrong; for example %3").arg(bad).arg(total).arg(samples.join(QLatin1Char('\n')))));
     }
 
+    // The empty paragraph that ends a section before a continuous one with other sides or more columns takes no room, and the paragraph after it is drawn in the box of its own
+    // section, where the paginator put it (not in the box above, which has the room of the empty paragraph's line).
+    void theParagraphAfterAnEmptyContinuousBreakIsDrawnInItsSectionsBox()
+    {
+        for (const int columns : {1, 2}) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.sections[0].paper = QSizeF(400, 500);
+            fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+            fillStory(fd.story(), 3, 5, {}, 6, 10);
+            appendParagraph(fd, QString(), [](QTextBlockFormat &bf) {
+                bf.setProperty(fp::SectionBreakAfter, true);
+                bf.setProperty(tp::OutOfFlow, true);
+            });
+            for (int i = 0; i < 6; ++i) appendParagraph(fd, QStringLiteral("Paragraph %1 of the second section, with words enough to fill a few lines of a narrow column on the page.").arg(i));
+            Section second = fd.sections[0];
+            second.continuous = true;
+            second.margins.setLeft(80);
+            second.columns = columns;
+            second.columnGap = 20;
+            fd.sections << second;
+            Paginator pg(&fd);
+            const auto page = pg.materialize(0);
+            QVERIFY(page);
+            const QString bad = audit::problems(pg, fd.story());
+            QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("%1 columns: %2").arg(columns).arg(bad)));
+            // The section below begins where the text above ends: the empty paragraph took no room.
+            const int firstOfSecond = fd.story()->findBlockByNumber(4).position(), lastOfFirst = fd.story()->findBlockByNumber(2).position();
+            const auto lines = pg.lines(0);
+            const auto placed = audit::placedLines(pg, fd.story(), 0, *page);
+            QCOMPARE(placed.size(), lines.size());
+            double above = -1, below = -1;
+            for (int i = 0; i < lines.size(); ++i) {
+                if (lines[i].block == lastOfFirst) above = std::max(above, placed[i].rect.bottom() - placed[i].below);
+                if (lines[i].block == firstOfSecond && below < 0) below = placed[i].rect.top();
+            }
+            QVERIFY2(above > 0 && below >= above - 0.01 && below - above < 12, qPrintable(QStringLiteral("%1 columns: the text above ends at %2, the section below begins at %3").arg(columns).arg(above).arg(below)));
+        }
+    }
+
+    // A wall across the columns of the section it is in does not reach the section above or below it: a box that keeps text off by its top and bottom, in the second column of a section
+    // that begins below one column of text, has the first column's text, and the page layer's of it, where they are without it.
+    void aTopAndBottomWallAcrossTheColumnsItIsInDoesNotReachTheSectionAbove()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.sections[0].paper = QSizeF(400, 500);
+        fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+        fillStory(fd.story(), 2, 5, {}, 4, 6);
+        appendParagraph(fd, QString(), [](QTextBlockFormat &bf) {
+            bf.setProperty(fp::SectionBreakAfter, true);
+            bf.setProperty(tp::OutOfFlow, true);
+        });
+        for (int i = 0; i < 12; ++i) appendParagraph(fd, QStringLiteral("Paragraph %1 of the second section, with words enough to fill a few lines of a narrow column on the page.").arg(i));
+        Section second = fd.sections[0];
+        second.continuous = true;
+        second.columns = 2;
+        second.columnGap = 20;
+        fd.sections << second;
+        // Anchored in the first paragraph of the second section: as wide as the second column, from the page's top by 90 (below the first section's text), a hundred high.
+        const int at = fd.story()->findBlockByNumber(3).position();
+        const double columnWidth = second.columnWidth();
+        const int id = addWrapped(&fd, columnWidth, 100, at, FloatingObject::Wrap::TopBottom, columnWidth + 20, 90, QMarginsF(0, 0, 0, 0), FloatingObject::Side::Both, FloatingObject::Rel::Margin, FloatingObject::Rel::Page);
+        QVERIFY(id > 0);
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        // The page layer's wall is as wide as the second column and no wider: the first part's column (as tall as the page, though its text ends above) is not one the wall is in.
+        const auto walls = audit::wallsOf(*page);
+        QCOMPARE(int(walls.size()), 1);
+        QVERIFY2(walls[0].rect.left() > 200 && walls[0].rect.right() < 362, qPrintable(QStringLiteral("the wall is at %1").arg(audit::rectText(walls[0].rect))));
+        const QString bad = audit::problems(pg, fd.story());
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        // The first column's lines are not below the wall: the text of the first column runs on from where the section begins.
+        const auto lines = pageLines(pg, fd, 0);
+        const double wallBottom = 40 + 90 + 100;
+        int inFirstColumnBelowFirstLine = 0;
+        for (const PageLine &l : lines)
+            if (l.block >= at && l.column == 1 && l.rect.top() < wallBottom - 0.05) ++inFirstColumnBelowFirstLine;
+        QVERIFY2(inFirstColumnBelowFirstLine >= 3, qPrintable(QStringLiteral("%1 lines of the first column are beside the wall").arg(inFirstColumnBelowFirstLine)));
+    }
+
     // Two notes cited on the last line of a page (the text goes on after it, with a table before or none): both are drawn in all their height, wherever the line lands.
     void twoNotesOnThePagesLastLineAreBothDrawn()
     {
@@ -12221,6 +12458,249 @@ private Q_SLOTS:
             }
         }
         QVERIFY(checked > 100);
+    }
+
+    // A row whose cell ends with a paragraph kept with the next is kept with the next row: where the two do not fit what is left of the page, it goes to the next page whole, and with
+    // the row after it (a row that is not kept is where it fits, as rows are).
+    void aRowKeptWithTheNextGoesToTheNextPageWithIt()
+    {
+        auto rowsOnFirstPage = [](bool keep, int *firstOnSecond) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.sections[0].paper = QSizeF(300, 185);
+            fd.sections[0].margins = QMarginsF(30, 30, 30, 30);
+            TestTable spec;
+            spec.rows = 8;
+            spec.cols = 1;
+            spec.columnWidth = 200;
+            spec.text = [](int r, int) { return r == 3 ? QStringLiteral("row three\nsecond\nthird") : QStringLiteral("row %1").arg(r); };
+            spec = addTable(fd, spec);
+            if (keep) {
+                // The last paragraph of row three's cell: the third block from where the row begins.
+                QTextBlock b = fd.story()->findBlock(spec.rowStarts[3]);
+                b = b.next().next();
+                QTextCursor c(b);
+                QTextBlockFormat bf;
+                bf.setProperty(tp::KeepWithNext, true);
+                c.mergeBlockFormat(bf);
+            }
+            Paginator pg(&fd);
+            const auto first = pg.materialize(0);
+            if (firstOnSecond) {
+                const auto second = pg.materialize(1);
+                *firstOnSecond = second && !second->tables.isEmpty() ? second->tables[0]->firstRow : -1;
+            }
+            return first && !first->tables.isEmpty() ? first->tables[0]->endRow : -1;
+        };
+        int secondStart = -1;
+        QCOMPARE(rowsOnFirstPage(false, &secondStart), 4);
+        QCOMPARE(secondStart, 4);
+        QCOMPARE(rowsOnFirstPage(true, &secondStart), 3);
+        QCOMPARE(secondStart, 3);
+    }
+
+    // The space between a table's cells (where it says it has some) is above and below each row's cells: a row is as tall as its text and its cells' margins and that space twice.
+    void spaceBetweenCellsIsAboveAndBelowEachRow()
+    {
+        auto height = [](double spacing) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            TestTable spec;
+            spec.rows = 3;
+            spec.cols = 2;
+            spec.columnWidth = 100;
+            spec.setTable = [&](TableData &t) {
+                t.spaced = true;
+                t.spacing = spacing;
+            };
+            addTable(fd, spec);
+            Paginator pg(&fd);
+            const auto m = pg.materialize(0);
+            return m && !m->tables.isEmpty() ? m->tables[0]->heightOf(1) : -1.0;
+        };
+        const double plain = height(0), spaced = height(3);
+        QVERIFY(plain > 10);
+        QVERIFY2(std::abs(spaced - plain - 6) < 0.01, qPrintable(QStringLiteral("a row is %1 high with space between the cells, %2 without").arg(spaced).arg(plain)));
+    }
+
+    // A row that goes over a page break is shown in parts: the part after the break is as tall as the height the row was set to, as the row is, and a cell with all of its text in the
+    // part before is set in it as a cell is in a row (one that says bottom has its text at the foot of the part).
+    void thePartsOfARowSetToAHeightAreThatTallAndHoldTheirShortCellsAsARowDoes()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.sections[0].paper = QSizeF(300, 300);
+        fd.sections[0].margins = QMarginsF(30, 30, 30, 30);
+        TestTable spec;
+        spec.rows = 1;
+        spec.cols = 2;
+        spec.columnWidth = 100;
+        spec.text = [](int, int c) {
+            if (c == 1) return QStringLiteral("n");
+            QStringList lines;
+            for (int i = 0; i < 20; ++i) lines << QStringLiteral("line %1").arg(i);
+            return lines.join(QLatin1Char('\n'));
+        };
+        spec.setRow = [](int, RowData &rd) { rd.height = 150; };
+        spec.setCell = [](int, int c, CellData &cd) {
+            if (c == 1) cd.valign = CellAlign::Bottom;
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        // The part on the first page: the short cell's line is in its lower half.
+        const auto first = pg.materialize(0);
+        QVERIFY(first && !first->tables.isEmpty());
+        const int shortBlock = fd.story()->lastBlock().position();
+        QRectF numberAt;
+        first->tables[0]->forLines([&](const StoryLayout::LineBrief &ln, const QRectF &rect) {
+            if (ln.block == shortBlock) numberAt = rect;
+        });
+        const QRectF whole = first->tables[0]->rect();
+        QVERIFY2(numberAt.isValid() && numberAt.top() > whole.top() + whole.height() * 0.6, qPrintable(QStringLiteral("the cell's line is at %1 in a part at %2").arg(audit::rectText(numberAt), audit::rectText(whole))));
+        // The part on the last page is as tall as the row was set to be.
+        const auto last = pg.materialize(pg.pageCount() - 1);
+        QVERIFY(last && !last->tables.isEmpty());
+        QVERIFY2(last->tables[0]->heightOf(0) > 150 - 0.01, qPrintable(QStringLiteral("the last part is %1 high").arg(last->tables[0]->heightOf(0))));
+    }
+
+    // A table whose rows all ask to be kept with the next, and are many on a page, is not kept together past a few rows: it is laid out in all its rows, and each row looks at no
+    // more than a few of those after it (the work stays in step with the rows, not with the rows that a page holds).
+    void aTableOfManyRowsKeptWithTheNextLaysOutInStepWithItsRows()
+    {
+        auto run = [](int rows, qint64 *checks) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.sections[0].paper = QSizeF(300, 300);
+            fd.sections[0].margins = QMarginsF(30, 30, 30, 30);
+            TestTable spec;
+            spec.rows = rows;
+            spec.cols = 1;
+            spec.columnWidth = 200;
+            spec.margins = QMarginsF(0, 0, 0, 0);
+            spec.setRow = [](int, RowData &rd) {
+                rd.height = 1;
+                rd.exact = true;
+            };
+            addTable(fd, spec);
+            for (QTextBlock b = fd.story()->begin(); b.isValid(); b = b.next())
+                if (b.blockFormat().intProperty(fp::Cell)) {
+                    QTextCursor c(b);
+                    QTextBlockFormat bf;
+                    bf.setProperty(tp::KeepWithNext, true);
+                    c.mergeBlockFormat(bf);
+                }
+            Paginator pg(&fd);
+            int shown = 0;
+            for (int k = 0; k < pg.pageCount(); ++k) {
+                const auto page = pg.materialize(k);
+                for (const auto &t : page->tables) shown += t->endRow - t->firstRow;
+            }
+            *checks = pg.keepChecks();
+            return shown;
+        };
+        qint64 checks = 0;
+        const int rows = 1500;
+        QVERIFY2(run(rows, &checks) >= rows, "every row is on a page");
+        QVERIFY2(checks > 0 && checks < qint64(rows) * 100, qPrintable(QStringLiteral("%1 rows looked at for %2 rows").arg(checks).arg(rows)));
+    }
+
+    // The space between a table's cells (where it says it has some) is round each cell, at the table's edges too: the text, the fill, and the lines of a cell are in from the edges of
+    // its place by that much on every side, so that the fills do not cover the space, the first row is below the table's top by it, and the last row is above its foot by it.
+    void spaceBetweenCellsIsRoundEachCellItsFillAndLinesToo()
+    {
+        struct Made {
+            std::unique_ptr<FlowDocument> fd;
+            std::unique_ptr<Paginator> pg;
+            std::unique_ptr<MaterializedPage> page;
+        };
+        auto build = [](double spacing) {
+            Made m;
+            m.fd = std::make_unique<FlowDocument>();
+            m.fd->env.wordLines = true;
+            m.fd->sections[0].paper = QSizeF(300, 300);
+            m.fd->sections[0].margins = QMarginsF(30, 30, 30, 30);
+            TestTable spec;
+            spec.rows = 3;
+            spec.cols = 2;
+            spec.columnWidth = 100;
+            spec.setTable = [spacing](TableData &t) {
+                t.spaced = true;
+                t.spacing = spacing;
+            };
+            spec.setCell = [](int, int, CellData &cd) {
+                cd.fill = QColor(255, 0, 0);
+                TableLine line;
+                line.style = TableLine::Style::Single;
+                line.width = 1;
+                line.color = QColor(0, 0, 255);
+                cd.top = cd.left = cd.bottom = cd.right = line;
+            };
+            addTable(*m.fd, spec);
+            m.pg = std::make_unique<Paginator>(m.fd.get());
+            m.page = m.pg->materialize(0);
+            return m;
+        };
+        const Made plain = build(0), spaced = build(6);
+        QVERIFY(plain.page && spaced.page && plain.page->tables.size() == 1 && spaced.page->tables.size() == 1);
+        const TableFragment &a = *plain.page->tables[0], &b = *spaced.page->tables[0];
+        // The lines of the cells: the first row's top and the last row's foot, and the first cell's text across.
+        auto extent = [](const TableFragment &t, double *top, double *bottom, double *left, double *width) {
+            *top = 1e9;
+            *bottom = -1e9;
+            *left = -1;
+            t.forLines([&](const StoryLayout::LineBrief &, const QRectF &rect) {
+                *top = std::min(*top, rect.top());
+                *bottom = std::max(*bottom, rect.bottom());
+                if (*left < 0) {
+                    *left = rect.left();
+                    *width = rect.width();
+                }
+            });
+        };
+        double topA, bottomA, leftA, widthA, topB, bottomB, leftB, widthB;
+        extent(a, &topA, &bottomA, &leftA, &widthA);
+        extent(b, &topB, &bottomB, &leftB, &widthB);
+        QVERIFY2(std::abs((topB - b.rect().top()) - (topA - a.rect().top()) - 6) < 0.01, qPrintable(QStringLiteral("the first row's text is %1 below the table's top, %2 without space").arg(topB - b.rect().top()).arg(topA - a.rect().top())));
+        QVERIFY2(std::abs((b.rect().bottom() - bottomB) - (a.rect().bottom() - bottomA) - 6) < 0.01, qPrintable(QStringLiteral("the last row's text is %1 above the table's foot, %2 without space").arg(b.rect().bottom() - bottomB).arg(a.rect().bottom() - bottomA)));
+        QVERIFY2(std::abs((leftB - b.rect().left()) - (leftA - a.rect().left()) - 6) < 0.01 && std::abs(widthA - widthB - 12) < 0.01, qPrintable(QStringLiteral("a cell's text is at %1 across and %2 wide, %3 and %4 without space").arg(leftB - b.rect().left()).arg(widthB).arg(leftA - a.rect().left()).arg(widthA)));
+        // Drawn: the fill is in the cell and not in the space between cells or at the table's edge, and the cell's lines are at its own edges.
+        const int scale = 4;
+        QImage image(300 * scale, 300 * scale, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::white);
+        {
+            QPainter painter(&image);
+            painter.scale(scale, scale);
+            paintTables(&painter, *spaced.page, TablePaint());
+        }
+        const QPointF origin = b.origin;
+        auto count = [&](double x0, double y0, double x1, double y1, bool blue) {
+            int n = 0;
+            for (int y = int(y0 * scale); y < int(y1 * scale); ++y)
+                for (int x = int(x0 * scale); x < int(x1 * scale); ++x) {
+                    const QRgb px = image.pixel(x, y);
+                    n += blue ? (qBlue(px) > 200 && qRed(px) < 80 && qGreen(px) < 80) : (qRed(px) > 200 && qGreen(px) < 80 && qBlue(px) < 80);
+                }
+            return n;
+        };
+        const double y1 = origin.y() + b.heightOf(0) / 2;
+        QVERIFY2(count(origin.x() + 70, y1, origin.x() + 90, y1 + 4, false) > 100, "the cell is filled");
+        QCOMPARE(count(origin.x() + 96, y1, origin.x() + 104, y1 + 4, false), 0);   // between the cells (the one's edge is at 94 across, the other's at 106)
+        QCOMPARE(count(origin.x() + 20, origin.y(), origin.x() + 80, origin.y() + 5, false), 0);   // above the first row (the space at the table's top)
+        QCOMPARE(count(origin.x(), y1, origin.x() + 5, y1 + 4, false), 0);   // beside the first column (the space at the table's left)
+        QVERIFY2(count(origin.x() + 5, y1, origin.x() + 7.5, y1 + 4, true) > 20, "the first cell's left line is at the cell's edge, 6 in from the table's");
+        QCOMPARE(count(origin.x(), y1, origin.x() + 4.5, y1 + 4, true), 0);
+        QVERIFY2(count(origin.x() + 20, origin.y() + 5, origin.x() + 80, origin.y() + 7.5, true) > 100, "the first cell's top line is at the cell's edge, 6 down from the table's top");
+        // The last row and the last column are in from the table's foot and right edge by the same, and rows are apart by twice that.
+        const double foot = b.rect().bottom(), right = origin.x() + 200, between = origin.y() + b.heightOf(0);
+        QCOMPARE(count(origin.x() + 20, foot - 5, origin.x() + 80, foot, false), 0);
+        QVERIFY2(count(origin.x() + 20, foot - 7.5, origin.x() + 80, foot - 5, true) > 100, "the last row's foot line is at the cell's edge, 6 up from the table's foot");
+        QCOMPARE(count(origin.x() + 20, foot - 4.5, origin.x() + 80, foot, true), 0);
+        QCOMPARE(count(right - 5, y1, right, y1 + 4, false), 0);
+        QVERIFY2(count(right - 7.5, y1, right - 5, y1 + 4, true) > 20, "the last cell's right line is at the cell's edge, 6 in from the table's");
+        QCOMPARE(count(right - 4.5, y1, right, y1 + 4, true), 0);
+        QCOMPARE(count(origin.x() + 20, between - 5, origin.x() + 80, between + 5, false), 0);   // (no fill in the space between the rows, 12 high)
+        QVERIFY2(count(origin.x() + 20, between - 8, origin.x() + 80, between - 5, true) > 100 && count(origin.x() + 20, between + 5, origin.x() + 80, between + 8, true) > 100, "each row has its own line at its foot and at its top");
     }
 
     // A row that cannot be split, citing N notes, costs N, not N squared: twice the notes take about twice as long.

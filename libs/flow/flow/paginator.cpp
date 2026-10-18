@@ -65,6 +65,7 @@ struct Paginator::Run {
     bool keepsSpace = false;   // the first paragraph is the rest of one after a break, and has its space before
     bool keepsIndent = false;  // ... and its first-line indent (the file may suppress the space and not the indent)
     bool freeBreak = false;    // a section of more columns begins below the text of the first, and the empty paragraph that ends that takes no room (so that it has no box of its own)
+    int splitEnd = -1;         // where that section's text begins (with freeBreak)
     QVector<StoryLayout::NotePlace> notes;   // the footnotes as the page's layout put them
     QVector<StoryLayout::Rule> rules;        // and the rules above them
     PageStart next;            // where the page after starts
@@ -453,7 +454,11 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                         return layPart(f1, s1, st);
                     };
                     // (A paragraph that is set where the next begins, as the empty one that ends a section before a continuous one, takes no room: the section after begins where it does.)
-                    auto outOfFlow = [&](const StoryLayout::LineBrief &ln) { return nextSection.columnCount() > firstColumns && m_doc->story()->findBlock(ln.block).blockFormat().boolProperty(tp::OutOfFlow); };
+                    // (Where the next section has no more columns, that paragraph takes none unless it is all that the first section has on the page.)
+                    bool aloneInFirst = false;
+                    auto outOfFlow = [&](const StoryLayout::LineBrief &ln) {
+                        return (nextSection.columnCount() > firstColumns || (nextSection.columnCount() == firstColumns && !aloneInFirst)) && m_doc->story()->findBlock(ln.block).blockFormat().boolProperty(tp::OutOfFlow);
+                    };
                     auto bottomOf = [&](const Part &part, int column) {
                         double bottom = 0;
                         for (const auto &ln : part.lines)
@@ -466,6 +471,9 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                         return over;
                     };
                     Part p1 = layFirst(colH);
+                    aloneInFirst = true;
+                    for (const auto &ln : p1.lines)
+                        if (ln.frame >= run.firstFrame && ln.frame < run.firstFrame + firstColumns && !m_doc->story()->findBlock(ln.block).blockFormat().boolProperty(tp::OutOfFlow)) aloneInFirst = false;
                     if (firstColumns > 1 && !overflows(p1)) {
                         double total = 0;
                         for (int c = 0; c < firstColumns; ++c) total += bottomOf(p1, c);
@@ -575,7 +583,8 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                     run.cols.clear();
                     for (int c = 0; c < firstColumns; ++c) run.cols << QRectF(sec.columnRect(c).left(), 0, colW, colH);
                     for (int c = 0; c < nextSection.columnCount(); ++c) run.cols << QRectF(nextSection.columnRect(c).left(), splitY, nextSection.columnWidth(), columnH);
-                    run.freeBreak = nextSection.columnCount() > firstColumns;
+                    run.freeBreak = nextSection.columnCount() > firstColumns || (nextSection.columnCount() == firstColumns && !aloneInFirst);
+                    run.splitEnd = splitEnd;
                 }
                 all = part.lines;
                 run.notes = part.notes;
@@ -1358,6 +1367,9 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
             bf.clearProperty(tp::OutOfLayout);
             bf.clearProperty(fp::Frame);
         }
+        // The empty paragraph that ends the section above the one that begins below it on the page (the paginator's two parts) takes no room: it has no lines in the page's boxes, as it has
+        // none where the section below begins at its top (the text after it would be put in the box that has the room of its line).
+        if (run.freeBreak && run.splitEnd >= 0 && b.position() + b.length() == run.splitEnd && bf.boolProperty(tp::OutOfFlow) && b != firstBlock) bf.setProperty(tp::OutOfLayout, true);
         if (b == firstBlock && ((tail && !run.keepsSpace) || !run.firstSpace)) bf.setTopMargin(0);
         // A paragraph's box that began on the page before, or goes on to the next, is open at that end.
         auto sameBox = [](const QTextBlock &x, const QTextBlock &y) {
@@ -1424,6 +1436,32 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
     return sd;
 }
 
+// The lines of a page's text that objects are anchored by (see the header). The line that stands for a row of a table is not a line of text: the cells' own lines, set from the
+// fragment, are; it is where the first row of a table in the text is, which is what the frames and tables before the table are set from.
+void Paginator::pageAnchorLines(const Run &run, const QRectF &body, QVector<AnchorLine> *held, QVector<AnchorLine> *firstLines) const
+{
+    const QTextDocument *story = m_doc->story();
+    QVector<double> foot(run.columns, 0.0);   // (the bottom of the lines in each column so far)
+    for (int i = 0; i < run.kept; ++i) {
+        const StoryLayout::LineBrief &ln = run.lines[i];
+        int column = ln.frame - run.firstFrame;
+        if (column < 0) continue;
+        // A line that takes no room, which the page keeps though the engine found none for it (the empty paragraph that ends a section), is at the foot of the last column.
+        QRectF rect = ln.rect;
+        if (column >= run.columns) {
+            if (run.columns <= 0) continue;
+            column = run.columns - 1;
+            rect = QRectF(0, foot[column], run.cols[column].width(), 0);
+        }
+        foot[column] = std::max(foot[column], rect.bottom());
+        const bool inCell = !run.groups.empty() && story->findBlock(ln.block).blockFormat().intProperty(fp::Cell);
+        const QRectF col = run.cols[column];
+        const AnchorLine line = anchorLineOf(ln, rect.translated(col.left(), body.top() + col.top()), col.left());
+        if (!inCell) *held << line;
+        if (!inCell || ln.line == 0) *firstLines << line;
+    }
+}
+
 QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, const PageStart &start, int *moveBefore)
 {
     QVector<Wrapped> out;
@@ -1431,24 +1469,95 @@ QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, con
     const Section &sec = m_doc->section(start.section);
     const QRectF body = furnitureOf(index, start, numberOf(index)).body;
     const QTextDocument *story = m_doc->story();
-    // The text's own lines (the rows of tables are not: what a cell anchors does not move the text round it), and the first rows of the tables in the text (what is set from a
-    // table in the text is set from its first row).
     QVector<AnchorLine> held, firstLines;
-    for (int i = 0; i < run.kept; ++i) {
-        const StoryLayout::LineBrief &ln = run.lines[i];
-        const int column = ln.frame - run.firstFrame;
-        if (column < 0 || column >= run.columns) continue;
-        const bool inCell = !run.groups.empty() && story->findBlock(ln.block).blockFormat().intProperty(fp::Cell);
-        const QRectF col = run.cols[column];
-        const AnchorLine line = anchorLineOf(ln, ln.rect.translated(col.left(), body.top() + col.top()), col.left());
-        if (!inCell) held << line;
-        if (!inCell || ln.line == 0) firstLines << line;
-    }
+    pageAnchorLines(run, body, &held, &firstLines);
     const QVector<Anchor> anchors = anchorsOfLines(held, firstLines, sec.columnWidth());
+    // An object is set from where its anchor would be without the wall the text goes round it by: the lines that wall moved down from above the anchor, as far as the column's foot
+    // (and on, to the next column) are back where they were, and the anchor with them. (The page was laid out with the walls `run.wrapped`; the row of the anchor's own line is
+    // counted as the engine's `pushed` has it, and the rows above it that were moved by this wall, those that wanted a place inside its room.)
+    auto naturalAnchor = [&](Anchor *a, const Wrapped &w, const FloatingObject &o) {
+        if (a->table >= 0 || a->paragraph < 0 || story->findBlock(a->paragraph).blockFormat().intProperty(fp::Cell)) return;
+        int par = -1, line = -1;
+        for (int i = 0; i < run.kept; ++i) {
+            const StoryLayout::LineBrief &ln = run.lines[i];
+            if (ln.block != a->paragraph) continue;
+            if (par < 0) par = i;
+            if (a->pos >= ln.pos && a->pos < ln.end) {
+                line = i;
+                break;
+            }
+        }
+        if (par < 0) return;
+        if (line < 0) line = par;
+        const QRectF room = roomOf(o, w);
+        // The columns of the part of the page that the anchor's column is in, in order (a section that begins below another on the page has the columns of its own).
+        auto partOf = [&](int column) {
+            QVector<int> part;
+            for (int c = 0; c < run.cols.size(); ++c)
+                if (std::abs(run.cols[c].top() - run.cols[column].top()) < 0.01) part << c;
+            return part;
+        };
+        auto naturalOf = [&](int upTo, double *top, double *left) {
+            const StoryLayout::LineBrief &ln = run.lines[upTo];
+            const int column = ln.frame - run.firstFrame;
+            if (column < 0 || column >= run.cols.size()) return false;
+            double moved = ln.pushed;
+            for (int j = 0; j < upTo; ++j) {
+                const StoryLayout::LineBrief &above = run.lines[j];
+                const int c = above.frame - run.firstFrame;
+                if (above.pushed <= 0 || c < 0 || c >= run.cols.size()) continue;
+                if (j > 0 && run.lines[j - 1].frame == above.frame && std::abs(run.lines[j - 1].rect.top() - above.rect.top()) < 0.01) continue;   // (the pieces of one row)
+                const QRectF col(run.cols[c].left(), body.top() + run.cols[c].top(), run.cols[c].width(), run.cols[c].height());
+                const double wanted = col.top() + above.rect.top() - above.pushed;
+                // (It was moved by this wall if it wanted a place that the room is in the way of, and is now at the room's foot.)
+                const double lands = wanted + above.pushed;
+                if (room.intersects(col) && wanted < room.bottom() - 0.5 && lands >= room.bottom() - 0.5 && lands < room.bottom() + above.rect.height() + 0.5 && wanted + above.rect.height() > room.top() + 0.5) moved += above.pushed;
+            }
+            if (moved <= 0) return false;
+            const QVector<int> part = partOf(column);
+            // (The text a column holds is as tall as its lines reach: not a column's foot, which a line that did not fit left room before.)
+            QVector<double> reach(run.cols.size(), 0.0);
+            for (int j = 0; j < run.kept; ++j) {
+                const int c = run.lines[j].frame - run.firstFrame;
+                if (c >= 0 && c < reach.size()) reach[c] = std::max(reach[c], run.lines[j].rect.bottom());
+            }
+            double flow = ln.rect.top() - moved;
+            for (int c : part) {
+                if (c == column) break;
+                flow += reach[c];
+            }
+            flow = std::max(0.0, flow);
+            int at = part.first();
+            for (int c : part) {
+                at = c;
+                if (flow < reach[c] || c == part.last()) break;
+                flow -= reach[c];
+            }
+            *top = body.top() + run.cols[at].top() + flow;
+            *left = run.cols[at].left();
+            return true;
+        };
+        double top = 0, left = 0;
+        if (naturalOf(par, &top, &left)) {
+            a->paragraphTop = top - run.lines[par].above;
+            a->columnLeft = left;
+        }
+        if (naturalOf(line, &top, &left)) {
+            a->lineTop = top;
+            a->columnLeft = left;
+            if (line == par) a->paragraphTop = top - run.lines[par].above;
+        }
+    };
     int made = 0;
-    for (const Anchor &a : anchors)
-        for (int id = a.object; (a.frame || (id > 0 && id <= m_doc->objects.size())) && id > 0 && made < kMostObjects; id = objectAt(a, id).next, ++made) {
-            const FloatingObject &o = objectAt(a, id);
+    for (const Anchor &anchored : anchors)
+        for (int id = anchored.object; (anchored.frame || (id > 0 && id <= m_doc->objects.size())) && id > 0 && made < kMostObjects; id = objectAt(anchored, id).next, ++made) {
+            const FloatingObject &o = objectAt(anchored, id);
+            Anchor a = anchored;
+            for (const Wrapped &used : run.wrapped)
+                if (used.object == id && used.at == a.pos) {
+                    naturalAnchor(&a, used, o);
+                    break;
+                }
             using W = FloatingObject::Wrap;
             // A table set from its paragraph (down from the paragraph or the line) that goes over the foot of the text area is not on this page: it goes to the next with its paragraph.
             if (moveBefore && a.table >= 0 && o.item && (o.vRel == FloatingObject::Rel::Paragraph || o.vRel == FloatingObject::Rel::Line) && a.paragraph >= 0 &&
@@ -1558,6 +1667,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         }
         const StoryLayout::LineBrief &lastLine = run.lines[run.kept - 1];
         out->continuesOnAfter = lastLine.line < lastLine.lines - 1;
+        out->freeBreakEnd = run.freeBreak ? run.splitEnd : -1;
 
         // A text box for each column that has lines, as tall as its lines are: the lines that follow, which went to the next page, don't fit
         // in it (a frame a line short of the text's bottom is how the page is cut where the paginator cut it).
@@ -1577,6 +1687,9 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
             const StoryLayout::LineBrief &ln = run.lines[i];
             const int col = ln.frame - run.firstFrame;
             if (col < 0 || col >= run.columns || !shows[col]) continue;
+            // (A paragraph that takes no room has no lines in the box, and does not make it taller: see `sliceOf`.)
+            const QTextBlock lineBlock = m_doc->story()->findBlock(ln.block);
+            if (run.freeBreak && run.splitEnd >= 0 && lineBlock.position() + lineBlock.length() == run.splitEnd && lineBlock.blockFormat().boolProperty(tp::OutOfFlow)) continue;
             bottom[col] = std::max(bottom[col], ln.rect.bottom() - ln.below);
             if (top[col] < 0) top[col] = ln.rect.top();
         }
@@ -1615,19 +1728,8 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         }
         // The objects set at places that the page's lines anchor.
         if (hasFloaters()) {
-            // (The line that stands for a row of a table is not a line of text: the cells' own lines, set from the fragment, are. It is where the first row of a table in the text is, which
-            // is what the frames and tables before the table are set from.)
             QVector<AnchorLine> held, firstLines;
-            for (int i = 0; i < run.kept; ++i) {
-                const StoryLayout::LineBrief &ln = run.lines[i];
-                const int column = ln.frame - run.firstFrame;
-                if (column < 0 || column >= run.columns) continue;
-                const bool inCell = !run.groups.empty() && m_doc->story()->findBlock(ln.block).blockFormat().intProperty(fp::Cell);
-                const QRectF col = run.cols[column];
-                const AnchorLine line = anchorLineOf(ln, ln.rect.translated(col.left(), furniture.body.top() + col.top()), col.left());
-                if (!inCell) held << line;
-                if (!inCell || ln.line == 0) firstLines << line;
-            }
+            pageAnchorLines(run, furniture.body, &held, &firstLines);
             for (const auto &fragment : out->tables) {
                 // (The column a table is in: the one its middle is in, else the nearest.)
                 double columnLeft = run.cols.isEmpty() ? 0 : run.cols[0].left(), nearest = 1e18;
@@ -1641,7 +1743,13 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
             }
             const QVector<Anchor> anchors = anchorsOfLines(held, firstLines, sec.columnWidth());
             QVector<QRectF> columns;
-            for (const QRectF &col : run.cols) columns << QRectF(col.left(), furniture.body.top() + col.top(), col.width(), col.height());
+            // (The columns of a section that another begins below on the page end where that one begins: a wall across the columns it is in does not reach the ones below.)
+            for (const QRectF &col : run.cols) {
+                double height = col.height();
+                for (const QRectF &other : run.cols)
+                    if (other.top() > col.top() + 0.01) height = std::min(height, other.top() - col.top());
+                columns << QRectF(col.left(), furniture.body.top() + col.top(), col.width(), height);
+            }
             if (!anchors.isEmpty()) addObjects(d.get(), anchors, sec, out->number, run.wrapped, columns, out.get(), front);
             // (The rows of the tables set at a place, which the objects made, hold pictures as the rows of the others do.)
             if (!m_doc->images.isEmpty() && std::any_of(out->tables.begin(), out->tables.end(), [](const auto &t) { return t->floating; })) resolveCellImages(out.get(), d.get());

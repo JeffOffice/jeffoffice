@@ -6232,6 +6232,42 @@ private Q_SLOTS:
         QVERIFY2(set->stroke.isNone(), "an inline picture with one side set has no outline");
     }
 
+    // A box or a text box filled with a picture (a stretched fill) is still a box or a text box with the picture as its fill: the text box keeps its text, and the box its outline.
+    void aShapeFilledWithAPictureKeepsItsTextAndItsOutline()
+    {
+        auto shapeOn = [&](const QByteArray &shape, const QByteArray &which, std::shared_ptr<Item> *found, QString *text) {
+            auto doc = open(makeDocxWithPicture("<w:p><w:r><w:t>Text</w:t></w:r><w:r><w:pict " + QByteArray(kVml) + ">" + shape + "</w:pict></w:r></w:p>"));
+            if (!doc) return false;
+            const auto page = doc->pager().materialize(0);
+            if (!page) return false;
+            for (const auto &item : page->doc->pages[0]->items) {
+                if (which == "text") {
+                    if (const auto box = std::dynamic_pointer_cast<TextItem>(item))
+                        if (page->doc->story(box->storyId) && page->doc->story(box->storyId)->doc->toPlainText().contains(QLatin1String("BOXTEXT"))) {
+                            *found = item;
+                            *text = page->doc->story(box->storyId)->doc->toPlainText();
+                        }
+                } else if (const auto s = std::dynamic_pointer_cast<ShapeItem>(item)) {
+                    *found = s;
+                }
+            }
+            return bool(*found);
+        };
+        std::shared_ptr<Item> item;
+        QString text;
+        QVERIFY2(shapeOn("<v:rect id=\"t\" style=\"position:absolute;margin-left:10pt;margin-top:5pt;width:120pt;height:40pt;z-index:3\" stroked=\"f\"><v:fill r:id=\"rIdPic\" type=\"frame\"/>"
+                         "<v:textbox inset=\"0,0,0,0\"><w:txbxContent><w:p><w:r><w:t>BOXTEXT</w:t></w:r></w:p></w:txbxContent></v:textbox></v:rect>", "text", &item, &text), "the text box is on the page with its text");
+        QCOMPARE(item->fill.type, Fill::Picture);
+        QVERIFY2(!item->fill.imageId.isEmpty(), "the picture is its fill");
+        item.reset();
+        QVERIFY2(shapeOn("<v:rect id=\"r\" style=\"position:absolute;margin-left:10pt;margin-top:5pt;width:120pt;height:40pt;z-index:3\" strokecolor=\"#0000FF\" strokeweight=\"2pt\"><v:fill r:id=\"rIdPic\" type=\"frame\"/></v:rect>",
+                         "shape", &item, &text), "the box is on the page");
+        QCOMPARE(item->fill.type, Fill::Picture);
+        QVERIFY2(!item->fill.imageId.isEmpty(), "the picture is its fill");
+        QVERIFY2(!item->stroke.isNone() && std::abs(item->stroke.width - 2) < 0.01, "its outline is kept");
+        QCOMPARE(item->stroke.color.resolve(ColorScheme()), QColor(Qt::blue));
+    }
+
     // A picture too large for what it is drawn at is made smaller before its color is keyed out (a 7000 by 7000 picture was keyed at its 49 million pixels, 190 MB, when it is
     // drawn without a size to go by, as a PDF is made).
     void aBigKeyedPictureIsKeyedAtADrawnSize()

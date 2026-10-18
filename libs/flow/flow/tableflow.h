@@ -153,6 +153,7 @@ public:
         double need = -1;                   // the height its content needs with its margins (-1: not measured)
         QMarginsF margins;                  // (the top and the bottom have the room of the lines at the cell's top, and at the table's foot, added)
         int last = -1;                      // a cell joined down: the one that continues it in the last row it covers, whose bottom edge is the whole's (-1: none)
+        double inLeft = 0, inRight = 0;     // in a table with space between its cells: how far its box (its fill and its lines) is in from its place on each side (the margins have it added)
     };
     // A line of a cell's content: where it is, and the notes it cites.
     struct UnitLine {
@@ -226,6 +227,11 @@ public:
     double lineTopIn(int cell, int position) const;
     // Whether row `r` can go over a page break: not one that says it can't, one of an exact height, or one with cells joined down in it (or covered by those).
     bool splittable(int r) const;
+    // Whether row `r` is kept with the one after it: a paragraph in one of its cells asks to be kept with the next. Such a row is not cut at a page's foot, and goes with the first lines
+    // of the next row, to a page that has room for both.
+    bool keepsWithNext(int r) const;
+    // The least the first part of row `r` takes: the row whole where it can't be cut, else the first line of each cell with the cell's margins.
+    double leastPart(int r);
     // The part of row `r` that is number `index` and begins at `from` (for each cell of the row, how far down its content: empty for the first part, at the top): the lines
     // of each cell that fit `room` (what the page has for it, the notes already at its foot taken out), the notes its lines cite, and where the next part begins (`ends`). The
     // notes take room at the page's foot, with a rule above them (`ruleGap`) when the page has none yet (`ruleNeeded`). A part at the top of a page is given a line of each
@@ -330,6 +336,7 @@ private:
         int item = 0;
         QRectF rect;                        // page coordinates
         QRectF clip;                        // the part of it on the page (a cell joined down may reach past)
+        QRectF box;                         // the cell itself, in its place: the same, or in from it where the table has space between its cells (what its fill and its lines are drawn in)
         QPointF text;                       // where the cell's text area begins
         double cut = 1e18;                  // the page height below which its text is not drawn (a part of a row ends there, with lines left for the next)
         double from = -1e18;                // the page height above which it is not drawn (a part of a row that goes on from the one before begins its text there)

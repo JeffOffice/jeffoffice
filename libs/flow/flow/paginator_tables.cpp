@@ -332,9 +332,27 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                     ln.rect = QRectF(0, y, colW, height + topExtra + extra);
                     const double avail = colH - y - extra - led->reserve[f];
                     table->setNoteHeights([this, colW, led](const QString &id) { return noteHeight(id, colW) + std::max(0.0, led->noteGap); });
+                    // A row kept with the next is put where the room is for it and the first lines of the next (as many rows as are kept with the one after, to the first that is not): not
+                    // cut at the foot of the column, and not at all where those rows are more than a column holds.
+                    double keptWith = 0;
+                    bool keeps = false;
+                    if (state == 0 && !atTop && table->keepsWithNext(r)) {
+                        // (At most a few rows are kept together: a file of many rows that all ask for it is not asked more than that of.)
+                        constexpr int kMostKeptRows = 32;
+                        for (int q = r; q + 1 < table->rowCount() && q < r + kMostKeptRows && table->keepsWithNext(q); ++q) {
+                            ++m_keepChecks;
+                            keptWith += table->keepsWithNext(q + 1) ? table->rowHeight(q + 1) : table->leastPart(q + 1);
+                            if (height + keptWith > colH - led->reserve[f]) {
+                                keptWith = 0;
+                                break;
+                            }
+                            if (q + 1 == r + kMostKeptRows && table->keepsWithNext(q + 1)) keptWith = 0;   // (a chain longer than that is no chain)
+                        }
+                        keeps = keptWith > 0;
+                    }
                     if (state == 0) {
                         const double nh = heightOfNotes(rowNotes, f, colW);
-                        if (height + topExtra + footRoom + nh <= avail + 0.05 || (atTop && !table->splittable(r))) {
+                        if (height + topExtra + footRoom + nh + keptWith <= avail + 0.05 || (atTop && !table->splittable(r))) {
                             ln.frame = f;
                             ln.line = 0;
                             ln.lines = 1;
@@ -347,7 +365,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                             continue;
                         }
                     }
-                    if (state != 0 || table->splittable(r)) {
+                    if (state != 0 || (table->splittable(r) && !keeps)) {
                         // The row, or what is left of it, over the foot of the column: the lines of its cells that fit, and the rest on the next.
                         if (cites) knowGaps();
                         TableLayout::Piece part = table->pieceOf(r, state, offs, avail - footRoom, led->reserve[f] <= 0, led->ruleGap > 0 ? led->ruleGap : 0, atTop, topExtra);

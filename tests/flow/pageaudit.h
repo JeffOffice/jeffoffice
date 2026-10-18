@@ -384,6 +384,8 @@ inline QString pageLayerProblems(flow::Paginator &pg, const QTextDocument *story
         // (The empty line that a page break leaves at the top of the next page, which the page keeps, is in no column: it is drawn nowhere.)
         if (int(frames.indexOf(l.frame)) >= m.boxes.size()) continue;
         const auto at = byPos.constFind(l.pos - m.storyFrom);
+        // (The empty paragraph that ends a section above one that begins below it on the page, as the page says, takes no room and has no line in the page layer's boxes.)
+        if (at == byPos.constEnd() && m.freeBreakEnd >= 0 && story->findBlock(l.pos).position() + story->findBlock(l.pos).length() == m.freeBreakEnd && story->findBlock(l.pos).blockFormat().boolProperty(tp::OutOfFlow)) continue;
         if (at == byPos.constEnd()) return QStringLiteral("page %1: the line at %2 is not in the page layer's layout of the text [%3]").arg(k).arg(l.pos).arg(where());
         const int column = int(frames.indexOf(l.frame));
         if (at->frame != column || std::abs(at->rect.top() - l.rect.top()) > 0.05 || std::abs(at->rect.left() - l.rect.left()) > 0.05 || std::abs(at->rect.width() - l.rect.width()) > 0.05)
