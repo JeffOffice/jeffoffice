@@ -2836,10 +2836,12 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         // lines above and below the text take.
         if (env.wordLines && bf.hasProperty(tp::Borders)) {
             B->box = tp::ParaBox::parse(bf.stringProperty(tp::Borders));
+            // (A box begins at the least of the paragraph's left indent and its first line's: paragraphs whose boxes begin at the same place and end at the same one are one.)
+            auto boxEdge = [](const QTextBlockFormat &f) { return std::min(f.leftMargin(), f.leftMargin() + f.textIndent()); };
             auto sameBox = [&](const QTextBlock &x) {
                 if (!x.isValid()) return false;
                 const QTextBlockFormat xf = x.blockFormat();
-                return xf.stringProperty(tp::Borders) == bf.stringProperty(tp::Borders) && std::abs(xf.leftMargin() - bf.leftMargin()) < 0.01 &&
+                return xf.stringProperty(tp::Borders) == bf.stringProperty(tp::Borders) && std::abs(boxEdge(xf) - boxEdge(bf)) < 0.01 &&
                        std::abs(xf.rightMargin() - bf.rightMargin()) < 0.01;
             };
             B->boxTopOff = tail || bf.boolProperty(tp::BorderTopOff);
@@ -3379,7 +3381,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     line.setPosition(QPointF(iv.x0, m_frameY[f] + col.top() + y + lead));
                     if (const double dx = hangTrailingSpaces(line, B->disp, B->tl->textOption(), iv.x1 - iv.x0); dx != 0) line.setPosition(line.position() + QPointF(dx, 0));
                     if (B->lines.isEmpty()) {
-                        B->boxLeft = col.left() + leftM;
+                        B->boxLeft = col.left() + std::min(leftM, leftM + textIndent);   // (a hanging first line's edge is the box's)
                         B->boxRight = col.right() - rightM;
                     }
                     // A slide's or a word processor's justified line has its words stretched to the edge: the spaces that hang at its end are not part of

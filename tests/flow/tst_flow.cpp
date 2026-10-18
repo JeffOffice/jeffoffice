@@ -2983,6 +2983,48 @@ private Q_SLOTS:
         QVERIFY2(std::abs(gap.red() - 200) < 4, qPrintable(gap.name()));
     }
 
+    // The shading of a paragraph with a hanging indent begins at the hanging line's edge (the least of its indents), and it is one band with the shaded paragraph after it that
+    // begins there too, though their left indents differ: nothing white between them, nor at the left of the first.
+    void theShadingOfAHangingParagraphJoinsTheShadedParagraphAfterIt()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        tp::ParaBox box;
+        box.fill = QColor(200, 200, 200);
+        QTextBlockFormat first;
+        first.setLeftMargin(36);
+        first.setTextIndent(-36);
+        first.setProperty(tp::Borders, box.spec());
+        c.setBlockFormat(first);
+        c.insertText(QStringLiteral("one"), run);
+        QTextBlockFormat second;
+        second.setTopMargin(10);
+        second.setProperty(tp::Borders, box.spec());
+        c.insertBlock(second);
+        c.insertText(QStringLiteral("two"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(200, 100)}, env);
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(lines.size(), 2);
+        const double scale = 8;
+        QImage img(int(200 * scale), int(100 * scale), QImage::Format_RGB32);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.scale(scale, scale);
+        lay.paint(&p, 0, PaintOptions());
+        p.end();
+        auto at = [&](double x, double y) { return QColor(img.pixel(int(x * scale), int(y * scale))); };
+        const double middle = (lines[0].rect.bottom() + lines[1].rect.top()) / 2;   // (in the space before the second paragraph)
+        QVERIFY2(at(100, middle).lightness() < 210, qPrintable(QStringLiteral("between the paragraphs: %1").arg(at(100, middle).name())));
+        QVERIFY2(at(10, (lines[0].rect.top() + lines[0].rect.bottom()) / 2).lightness() < 210, qPrintable(QStringLiteral("left of the first line, in the hang: %1").arg(at(10, lines[0].rect.center().y()).name())));
+        QVERIFY2(at(100, lines[1].rect.center().y()).lightness() < 210, "the second paragraph is shaded");
+    }
+
     // A line of text that is as wide as the room it has, to what rounding leaves, fits on one line.
     void aLineAsWideAsItsRoomFits()
     {
