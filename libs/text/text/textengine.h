@@ -52,6 +52,8 @@ public:
     virtual double noteSeparatorHeight() const { return 0; }
     // The height of the file's continuation notice, which a word processor keeps room for at the foot of a page's notes.
     virtual double noteNoticeHeight() const { return 0; }
+    // The height of the file's own separator for the part of a note that goes on from the page before (0: the file has none, and the separator's height is kept).
+    virtual double noteContinuationHeight() const { return 0; }
 };
 
 // A stock font's average character width in ems (OS/2 xAvgCharWidth), the
@@ -435,6 +437,7 @@ public:
     // first note (the rule is a part of it) and between notes. For a caller that sets notes of its own among them.
     QVector<double> noteReserves() const { return m_noteReserves; }
     double noteRuleGap() const { return m_ruleGap; }
+    double noteContinuedGap() const { return m_continuedGap; }   // the rule gap above a column's notes when the first is the rest of one from the column before
     double noteNoticeGap() const { return m_noticeGap; }   // the part of the rule gap that is kept under the last note (the notes are set that much higher)
     double noteGap() const { return m_noteGap; }
 
@@ -457,7 +460,7 @@ private:
     double m_trailingAfter = 0;
     double m_trailingRoom = 0;
     QVector<double> m_noteReserves;
-    double m_ruleGap = 0, m_noteGap = 0, m_noticeGap = 0;
+    double m_ruleGap = 0, m_noteGap = 0, m_noticeGap = 0, m_continuedGap = 0;
     QVector<Note> m_notes;
     QVector<Rule> m_noteRules;
     struct Heading { int frame = -1; QPointF baseline; QFont font; QColor color; };

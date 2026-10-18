@@ -135,7 +135,10 @@ struct TestNotes : FieldSource {
     QString mergeValue(int, const QString &) const override { return QString(); }
     const QTextDocument *storyDoc(const QString &id) const override { auto it = docs.find(id); return it == docs.end() ? nullptr : it->second.get(); }
     QList<const QTextDocument *> storyDocs() const override { QList<const QTextDocument *> l; for (auto &p : docs) l << p.second.get(); return l; }
+    double noteSeparatorHeight() const override { return separator; }
+    double noteContinuationHeight() const override { return continuation; }
     std::map<QString, std::unique_ptr<QTextDocument>> docs;
+    double separator = 0, continuation = 0;   // (the heights of a file's separator, and of its own for the part of a note that goes on)
 };
 
 bool sameBrief(const StoryLayout::LineBrief &a, const StoryLayout::LineBrief &b, int frameShift = 0, int posShift = 0)
@@ -7681,6 +7684,59 @@ private Q_SLOTS:
         QVERIFY(!tight.cut);
     }
 
+    // The part of a note that goes on from the page before is set under the file's own separator for it, when the file has one: the room above it is that paragraph's height (and the
+    // rule is drawn in it), not the separator's of the first part.
+    void theContinuedPartOfANoteHasTheRoomOfTheFilesOwnSeparatorForIt()
+    {
+        auto layout = [&](double continuation) {
+            TestNotes notes;
+            notes.separator = 12;
+            notes.continuation = continuation;
+            auto note = std::make_unique<QTextDocument>();
+            {
+                QTextCursor nc(note.get());
+                QTextCharFormat cf;
+                cf.setFontFamilies({QStringLiteral("Times New Roman")});
+                cf.setFontPointSize(10);
+                nc.insertText(QStringLiteral("one") + QChar(QChar::LineSeparator) + QStringLiteral("two") + QChar(QChar::LineSeparator) + QStringLiteral("three") + QChar(QChar::LineSeparator) +
+                                  QStringLiteral("four") + QChar(QChar::LineSeparator) + QStringLiteral("five") + QChar(QChar::LineSeparator) + QStringLiteral("six"),
+                              cf);
+            }
+            notes.docs[QStringLiteral("n1")] = std::move(note);
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            c.setBlockFormat(QTextBlockFormat());
+            c.insertText(QStringLiteral("one") + QChar(QChar::LineSeparator) + QStringLiteral("two") + QChar(QChar::LineSeparator) + QStringLiteral("three") + QChar(QChar::LineSeparator) + QStringLiteral("four"), run);
+            QTextCharFormat ref = run;
+            ref.setProperty(tp::Field, QStringLiteral("footnote:n1"));
+            c.insertText(QString(QChar::ObjectReplacementCharacter), ref);
+            LayoutEnv env;
+            env.wordLines = true;
+            auto frame = [&](double h) { FrameSpec fs = plainFrame(300, h); fs.ctx.doc = &notes; return fs; };
+            StoryLayout lay;
+            lay.build(&doc, {frame(108), frame(300)}, env);
+            struct Out { bool ok = false; double ruleToPart = 0, reserve = 0; } out;
+            if (lay.notes().size() != 1 || lay.notes().first().more.isEmpty()) return out;
+            const auto &part = lay.notes().first().more.first();
+            for (const auto &rule : lay.noteRules())
+                if (rule.frame == part.frame) {
+                    out.ok = true;
+                    out.ruleToPart = part.rect.top() - rule.line.y1();
+                    out.reserve = lay.noteReserves().value(part.frame);
+                }
+            return out;
+        };
+        const auto none = layout(0), own = layout(40);
+        QVERIFY2(none.ok && own.ok, "the note is cut, and its rest has a rule");
+        // The rule is three fifths down the paragraph above the part: two fifths of it above the part. Without the file's own, that paragraph is the separator's (twelve points).
+        QVERIFY2(std::abs(none.ruleToPart - 0.4 * 12) < 0.05, qPrintable(QString::number(none.ruleToPart)));
+        QVERIFY2(std::abs(own.ruleToPart - 0.4 * 40) < 0.05, qPrintable(QString::number(own.ruleToPart)));
+        QVERIFY2(std::abs((own.reserve - none.reserve) - (40 - 12)) < 0.05, qPrintable(QString::number(own.reserve - none.reserve)));
+    }
+
     // A line beside an object that the engine moves down in steps (one that is not a rectangle) is measured once, not at each step: the cost of a paragraph of many runs does not grow
     // with the height of the object.
     void aLineBelowATallObjectCostsNothingForEachStep()
@@ -9682,6 +9738,46 @@ private Q_SLOTS:
         QVERIFY2(withLong >= 2 && firstLong == 0, qPrintable(QStringLiteral("the long note is on %1 page(s), from %2 to %3").arg(withLong).arg(firstLong).arg(lastLong)));
         const QString bad = differenceFromFresh(fd, pg, true) + differsFromFresh(fd, pg);
         QVERIFY2(bad.isEmpty(), qPrintable(bad));
+    }
+
+    // The rest of a note that goes on from the page before has the file's own separator for it also on a page that holds a table (the page's notes are stacked again there): the
+    // rule is drawn in that paragraph, two fifths of it above the rest, and the rest is where the text engine's room for it ends.
+    void theContinuedPartOfANoteHasItsOwnSeparatorOnAPageThatHoldsATable()
+    {
+        auto ruleToPart = [&](double continuation) {
+            TestNotes notes;
+            notes.separator = 12;
+            notes.continuation = continuation;
+            addNote(&notes, QStringLiteral("long"), 100, QStringLiteral("LONGNOTE"));
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.fields = &notes;
+            fd.sections[0].paper = QSizeF(300, 330);
+            fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+            fillStory(fd.story(), 3, 5, {}, 12, 18);
+            addReference(fd.story(), fd.story()->findBlockByNumber(2).position() + 3, QStringLiteral("long"));
+            TestTable spec;
+            spec.rows = 30;
+            spec.cols = 2;
+            spec.columnWidth = 100;
+            addTable(fd, spec);
+            Paginator pg(&fd);
+            // The first page that holds a table and the rest of the note.
+            for (int k = 1; k < pg.pageCount(); ++k) {
+                const auto page = pg.materialize(k);
+                const TextItem *part = page && !pg.page(k).start.carried.isEmpty() && !page->tables.isEmpty() ? boxHolding(*page, QStringLiteral("word")) : nullptr;
+                if (!part) continue;
+                double rule = -1;
+                for (const auto &item : page->doc->pages[0]->items)
+                    if (const auto *line = dynamic_cast<const LineItem *>(item.get()))
+                        if (line->p1.y() < part->rect.top() && line->p1.y() > rule) rule = line->p1.y();
+                return rule > 0 ? part->rect.top() - rule : -1000.0;
+            }
+            return -1000.0;
+        };
+        const double none = ruleToPart(0), own = ruleToPart(40);
+        QVERIFY2(std::abs(none - 0.4 * 12) < 0.05, qPrintable(QString::number(none)));
+        QVERIFY2(std::abs(own - 0.4 * 40) < 0.05, qPrintable(QString::number(own)));
     }
 
     // The paragraph that stands for a table in the story takes no height of its own, set at a word processor's line heights or not: the table is where the text before it ends.

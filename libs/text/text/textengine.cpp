@@ -2140,6 +2140,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     m_ruleGap = ruleGap;
     m_noticeGap = noticeGap;
     m_noteGap = noteGap;
+    // (The part of a note that goes on from the column before has the gap of the file's own separator for it, when the file has one: a paragraph with its text and rule.)
+    const double continuationH = env.wordLines && notesDoc ? limited(notesDoc->noteContinuationHeight()) : 0.0;
+    const double continuedGap = continuationH > 0 ? continuationH * scale + noticeGap : ruleGap;
+    m_continuedGap = continuedGap;
+    QHash<int, double> gapOf;   // the gap above the notes of a column that begins with the part of a note from the column before, by frame * 64 + column
     auto noteFrame = [&](const Note &n, double width, double height) {
         FrameSpec fs = frames.first();
         fs.size = QSizeF(width, height);
@@ -2265,7 +2270,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     auto settleCarry = [&]() {
         if (carry.isEmpty() || f >= nF) return;
         const QRectF col = colRect(f, c);
-        double used = ruleGap;
+        double used = continuedGap;
+        gapOf[rkey(f, c)] = continuedGap;
         while (!carry.isEmpty()) {
             Note &n = m_notes[carry.first()];
             measureNote(n, col.width(), n.frame != -2 && !n.layout);   // (the rest of a note that began on the page before need not be measured whole)
@@ -2274,7 +2280,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             const auto lay = cutNote(n, n.from, col.width(), std::max(0.0, room), &rest);
             double h = std::max(heightOf(n.numberFont), lay->usedHeight(0) + (rest < 0 ? lay->trailingSpace() : 0.0));
             if (rest < 0 && lay->usedHeight(0) <= room + 0.01) h = std::min(h, std::max(room, lay->usedHeight(0)));   // (the space after its last line is let go at the foot)
-            if (h > room + 0.01 && used > ruleGap) break;   // not even a line fits under the notes before it
+            if (h > room + 0.01 && used > continuedGap) break;   // not even a line fits under the notes before it
             if (n.frame == -1) {   // a note of the same line that hadn't begun
                 n.frame = f;
                 n.column = c;
@@ -2294,7 +2300,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             n.from = rest;
             break;
         }
-        if (used > ruleGap) reserve[rkey(f, c)] = used;
+        if (used > continuedGap) reserve[rkey(f, c)] = used;
+        else gapOf.remove(rkey(f, c));
     };
     auto advance = [&]() {
         rowActive = false;
@@ -3617,7 +3624,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         if (fi < 0 || fi >= nF) continue;
         const QRectF col = colRect(fi, ci);
         const double areaTop = col.bottom() - it.value();
-        double ny = areaTop + ruleGap - noticeGap;
+        const double gap = gapOf.value(it.key(), ruleGap);
+        double ny = areaTop + gap - noticeGap;
         bool goesOn = false, first = true;
         for (Note &n : m_notes) {
             if (n.endnote) continue;
@@ -3635,7 +3643,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             }
         }
         // (A word processor's rule is two inches, and is set in its separator paragraph three fifths of the way down it.)
-        const double ruleY = areaTop + (ruleGap - noticeGap) * (env.wordLines ? 0.6 : 0.45), ruleW = goesOn ? col.width() : env.wordLines ? std::min(col.width(), 144.0) : col.width() / 3;
+        const double ruleY = areaTop + (gap - noticeGap) * (env.wordLines ? 0.6 : 0.45), ruleW = goesOn ? col.width() : env.wordLines ? std::min(col.width(), 144.0) : col.width() / 3;
         m_noteRules << Rule{fi, QLineF(col.left(), ruleY, col.left() + ruleW, ruleY)};
         m_used[fi] = std::max(m_used[fi], col.bottom());
     }

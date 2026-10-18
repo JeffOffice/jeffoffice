@@ -5419,6 +5419,38 @@ private Q_SLOTS:
         QVERIFY2(std::abs(note->rect.bottom() - (792 - 72 - 20)) < 0.1, qPrintable(QString::number(note->rect.bottom())));
     }
 
+    // A file that has its own separator for the part of a note that goes on from the page before (the continuation separator) has that part set under it: the rule is drawn in
+    // that paragraph (thirty points here), two fifths of it above the part, and not in the separator's.
+    void theContinuedPartOfANoteIsSetUnderTheFilesContinuationSeparator()
+    {
+        const QByteArray exact = "<w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/></w:pPr>";
+        QByteArray inNote;
+        for (int i = 0; i < 14; ++i) {
+            inNote += "<w:p>" + exact + "<w:r><w:t xml:space=\"preserve\">";
+            for (int w = 0; w < 70; ++w) inNote += i == 13 && w == 0 ? "TAILWORD " : "word ";
+            inNote += "</w:t></w:r></w:p>";
+        }
+        const QByteArray body = "<w:p>" + exact + "<w:r><w:t>Cited</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>" + paragraphs(40, 40);
+        auto ruleToPart = [&](const QByteArray &continuation) {
+            const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/></w:pPr><w:r><w:separator/></w:r></w:p></w:footnote>" +
+                                     continuation + "<w:footnote w:id=\"2\"><w:p>" + exact + "<w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> First </w:t></w:r></w:p>" + inNote + "</w:footnote></w:footnotes>";
+            const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+            auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}}));
+            if (!doc || doc->pager().pageCount() < 2) return -1000.0;
+            const auto page = doc->pager().materialize(1);
+            const TextItem *part = page ? boxWithText(*page, QStringLiteral("TAILWORD")) : nullptr;
+            double rule = -1;
+            if (page)
+                for (const auto &item : page->doc->pages[0]->items)
+                    if (const auto *line = dynamic_cast<const LineItem *>(item.get())) rule = line->p1.y();
+            return part && rule > 0 ? part->rect.top() - rule : -1000.0;
+        };
+        // (The separator is twelve points, the rule 0.6 of it down; the part is under the rest of it, 0.4.)
+        QVERIFY2(std::abs(ruleToPart("") - 0.4 * 12) < 0.05, qPrintable(QString::number(ruleToPart(""))));
+        const QByteArray own = "<w:footnote w:type=\"continuationSeparator\" w:id=\"0\"><w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"600\" w:lineRule=\"exact\"/></w:pPr><w:r><w:t>(Continued)</w:t></w:r><w:r><w:separator/></w:r></w:p></w:footnote>";
+        QVERIFY2(std::abs(ruleToPart(own) - 0.4 * 30) < 0.05, qPrintable(QString::number(ruleToPart(own))));
+    }
+
     // The rule above the notes is drawn at three fifths of the separator paragraph (a line of thirty points here), not the fifth of it that a short rule's place was taken from.
     void theNoteRuleIsThreeFifthsDownTheSeparator()
     {

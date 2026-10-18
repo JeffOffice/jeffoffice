@@ -48,7 +48,7 @@ struct Paginator::Ledger {
     QVector<StoryLayout::NotePlace> places;      // the notes, as the text engine seated them (those of the text) and as the rows' were set (their rects are made again)
     QVector<StoryLayout::CarriedNote> carried;   // the notes that go on past the page
     std::set<QString> carriedIds;                // (which of them are in it already)
-    double ruleGap = -1, noteGap = 0, noticeGap = 0;   // the gaps the text engine leaves above and among notes (-1: not known yet), and the part of the first kept under the last note
+    double ruleGap = -1, continuedGap = -1, noteGap = 0, noticeGap = 0;   // the gaps the text engine leaves above and among notes (-1: not known yet), and the part of the first kept under the last note
     explicit Ledger(int frames) : reserve(frames, 0.0) {}
 };
 
@@ -158,15 +158,17 @@ void Paginator::restackNotes(const QVector<FrameSpec> &frames, Ledger *led, Tabl
         const double width = frames[f].size.width(), height = frames[f].size.height();
         double total = 0;
         for (int k = i; k < j; ++k) total += led->places[k].rect.height() + led->noteGap;
-        const double areaTop = std::max(0.0, height - std::max(led->reserve[f], total + std::max(0.0, led->ruleGap)));
-        double ny = areaTop + std::max(0.0, led->ruleGap) - led->noticeGap;
+        // (The gap above the notes is the file's separator for the rest of a note, when the frame's notes begin with one that went on from the page before.)
+        const double gap = std::max(0.0, led->places[i].from > 0 && led->continuedGap >= 0 ? led->continuedGap : led->ruleGap);
+        const double areaTop = std::max(0.0, height - std::max(led->reserve[f], total + gap));
+        double ny = areaTop + gap - led->noticeGap;
         for (int k = i; k < j; ++k) {
             StoryLayout::NotePlace pl = led->places[k];
             pl.rect = QRectF(0, ny, width, pl.rect.height());
             ny += pl.rect.height() + led->noteGap;
             tr->notes << pl;
         }
-        const double ruleY = areaTop + (std::max(0.0, led->ruleGap) - led->noticeGap) * (word ? 0.6 : 0.45);
+        const double ruleY = areaTop + (gap - led->noticeGap) * (word ? 0.6 : 0.45);
         const double ruleW = led->places[i].from > 0 ? width : word ? std::min(width, 144.0) : width / 3;
         tr->rules << StoryLayout::Rule{f, QLineF(0, ruleY, ruleW, ruleY)};
         i = j;
@@ -192,6 +194,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
         for (int k = 0; k < res.size() && base + k < led->reserve.size(); ++k) led->reserve[base + k] = std::max(led->reserve[base + k], res[k]);
         if (led->ruleGap < 0) {
             led->ruleGap = lay.noteRuleGap();
+            led->continuedGap = lay.noteContinuedGap();
             led->noteGap = lay.noteGap();
             led->noticeGap = lay.noteNoticeGap();
             m_ruleGap = led->ruleGap;
@@ -212,6 +215,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
         StoryLayout lay;
         lay.build(story, frames.mid(0, 1), m_doc->env, t);
         led->ruleGap = lay.noteRuleGap();
+        led->continuedGap = lay.noteContinuedGap();
         led->noteGap = lay.noteGap();
         led->noticeGap = lay.noteNoticeGap();
         m_ruleGap = led->ruleGap;
