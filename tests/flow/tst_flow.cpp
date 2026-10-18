@@ -5410,6 +5410,48 @@ private Q_SLOTS:
         QVERIFY2(bad.isEmpty(), qPrintable(bad));
     }
 
+    // A page is drawn from a copy of its text, whose paragraphs the copy numbers from its own first; a run of paragraphs joined by hidden marks is cut every kMostJoinedParagraphs by
+    // the document's numbers, and the copy cuts it where the document does: when a page begins inside a run of seventy, it shows the lines the paginator counted.
+    void aPagesCopyCutsARunOfJoinedParagraphsWhereTheDocumentDoes()
+    {
+        int insideEver = 0;
+        for (const double height : {200.0, 206.0, 212.0, 218.0, 224.0, 230.0, 236.0, 242.0}) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            {
+                QTextCursor c(fd.story());
+                QTextCharFormat run;
+                run.setFontFamilies({QStringLiteral("Times New Roman")});
+                run.setFontPointSize(11);
+                QTextCharFormat mark = run;
+                mark.setProperty(tp::HiddenText, true);
+                for (int i = 0; i < 70; ++i) {
+                    if (i == 0) c.setBlockCharFormat(mark);
+                    else c.insertBlock(QTextBlockFormat(), mark);
+                    c.insertText(i == 63 ? QStringLiteral("end") : QStringLiteral("alpha beta gamma delta %1").arg(i), run);   // (the second chunk of the run ends in a short line)
+                }
+            }
+            fd.sections[0].paper = QSizeF(200, height);
+            fd.sections[0].margins = QMarginsF(30, 30, 30, 30);
+            Paginator pg(&fd);
+            const int pages = pg.pageCount();
+            QVERIFY(pages >= 4);
+            // (Pages begin inside the second chunk of the run, its paragraphs 32 to 63: their copies begin there.)
+            for (int k = 1; k < pages; ++k) {
+                const int number = fd.story()->findBlock(pg.page(k).start.pos).blockNumber();
+                insideEver += number >= 33 && number <= 63;
+            }
+            // The page layer sets each page's text, from its copy, where the paginator's lines are.
+            for (int k = 0; k < pages; ++k) {
+                const auto m = pg.materialize(k);
+                QVERIFY(m);
+                const QString bad = audit::pageLayerProblems(pg, fd.story(), k, *m);
+                QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("page height %1: %2").arg(height).arg(bad)));
+            }
+        }
+        QVERIFY(insideEver > 4);
+    }
+
     // A continuous section of two columns that holds a table: it begins below the text of the section before, the table is inside a column and flows into the next, and
     // the page's note (cited in the text above the table, in the first column) and furniture keep to their places.
     void aTableInAContinuousTwoColumnSectionIsInsideItsColumnBelowTheTextAbove()

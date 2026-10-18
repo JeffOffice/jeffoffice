@@ -1394,6 +1394,8 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
     sd->setUndoRedoEnabled(false);
     QTextCursor dst(sd.get());
     QHash<QTextList *, QTextList *> lists;
+    // The paragraph of the document that each paragraph of the copy is (a run of joined paragraphs is cut by the document's numbers: StoryLayout::joinsNext).
+    QList<int> sourceNumbers;
     // The notes' references show their numbers as they are counted through the document (the notes themselves are boxes of their own, below): the
     // number of the next one, from the notes before the page's first paragraph and those in it before its first line.
     int footnote = st.foot + 1, endnote = st.end + 1;
@@ -1433,6 +1435,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
                 } else {
                     dst.insertBlock(hidden, cf);
                 }
+                sourceNumbers << b.blockNumber();
                 dst.insertText(QString(std::max(0, sp.to - sp.from - 1), QChar(0x200B)), cf);
                 int foots = 0, ends = 0;
                 QTextBlock last = b;
@@ -1454,6 +1457,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         if (!run.groups.empty()) {
             const QTextBlock before = b;
             if (tablePlaceholder(dst, b, before == firstBlock, run.groups)) {
+                sourceNumbers << before.blockNumber();
                 int foots = 0, ends = 0;
                 for (QTextBlock t = before; t.isValid() && t.position() <= b.position(); t = t.next()) {
                     int f2 = 0, e2 = 0;
@@ -1510,6 +1514,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         } else {
             dst.insertBlock(bf, b.charFormat());
         }
+        sourceNumbers << b.blockNumber();
         const int skip = std::max(0, from - b.position());   // (a paragraph before the first line, of those joined, is left out of the copy)
         const int upto = std::max(0, to - b.position());   // (the copy's end, in every paragraph of a run that is one: a page's copy holds the page's text, not the whole of each)
         for (auto it = b.begin(); !it.atEnd(); ++it) {
@@ -1549,6 +1554,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         }
         if (b == lastBlock) break;
     }
+    if (m_doc->env.wordLines) sd->setProperty(StoryLayout::kBlockNumbersProperty, QVariant::fromValue(sourceNumbers));
     return sd;
 }
 

@@ -395,6 +395,9 @@ public:
     static qint64 longestJoinedParagraphsForTest();
     static void resetLongestJoinedParagraphsForTest();
     static constexpr int kMostJoinedParagraphs = 32;
+    // A story that is a copy of part of another (a page's text, made from the document's) says which paragraph of the document each of its own is, as this property of the document
+    // (a list of block numbers, one for each): a run of joined paragraphs is cut by the document's numbers, so that the copy cuts it where the document does.
+    static constexpr const char *kBlockNumbersProperty = "jpBlockNumbers";
     // Whether a word processor's paragraph is joined to the one after it: its mark is hidden, and neither is set apart from the text, nor is the next at or past `end` (a stretch's
     // end, if it has one). And the last of the paragraphs joined from `first`, the one whose mark is left and whose properties they have (`first` where it is joined to none).
     static bool joinsNext(const QTextBlock &b, int end = -1);
