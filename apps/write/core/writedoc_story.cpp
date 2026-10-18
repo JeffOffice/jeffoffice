@@ -311,6 +311,15 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         resolved.extra = props.extra;
         resolved.style = props.style;
         QTextCharFormat f = charFormatOf(resolved, thm, &props);
+        // (A border the run states itself, w:bdr: style, width in eighths of a point, room, and color.)
+        for (const RawChild &ch : props.extra) {
+            if (!ch.xml.startsWith("<w:bdr")) continue;
+            const QString style = attributeOfTag(ch.xml, QStringLiteral("val")), color = attributeOfTag(ch.xml, QStringLiteral("color"));
+            if (style.isEmpty() || style == QLatin1String("nil") || style == QLatin1String("none")) break;
+            f.setProperty(tp::RunBorder, style + QLatin1Char(';') + QString::number(std::max(1, attributeOfTag(ch.xml, QStringLiteral("sz")).toInt())) + QLatin1Char(';') +
+                                             QString::number(std::max(0, attributeOfTag(ch.xml, QStringLiteral("space")).toInt())) + QLatin1Char(';') + (color.compare(QLatin1String("auto"), Qt::CaseInsensitive) == 0 ? QString() : color));
+            break;
+        }
         if (!f.hasProperty(tp::Language))
             if (const QString language = styleLanguage(paraStyle, props.style); !language.isEmpty() && language != proofingLanguage()) f.setProperty(tp::Language, language);
         formats.insert(key, f);
@@ -598,9 +607,42 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             while (!fields.isEmpty()) finish();   // (a field the paragraph ended inside of shows what it read)
             continue;
         }
+        // A drop-down field of a form that has no result (the text between its separator and its end) shows the entry it has chosen: the file's `result`, else its `default`, else
+        // the first. By the position of its first element in the paragraph's content.
+        QHash<int, QString> dropDown;
+        for (int at = 0; at < p.content.size(); ++at) {
+            const Inline &in = p.content[at];
+            if (in.kind != Inline::RunAtom || in.tag != QLatin1String("fldChar") || in.key != QLatin1String("begin") || !in.raw.contains("ddList")) continue;
+            bool separated = false;
+            int depth = 0;
+            for (int k = at; k < p.content.size(); ++k) {
+                const Inline &x = p.content[k];
+                if (x.kind != Inline::RunAtom || x.tag != QLatin1String("fldChar")) continue;
+                if (x.key == QLatin1String("begin")) ++depth;
+                else if (x.key == QLatin1String("separate") && depth == 1) separated = true;
+                else if (x.key == QLatin1String("end") && --depth == 0) break;
+            }
+            if (separated) continue;
+            QStringList entries;
+            static const QRegularExpression entry(QStringLiteral("listEntry[^>]*?[\\s:]val\\s*=\\s*\"([^\"]*)\""));
+            const QString raw = QString::fromUtf8(in.raw);
+            for (auto m = entry.globalMatch(raw); m.hasNext();) entries << m.next().captured(1);
+            if (entries.isEmpty()) continue;
+            // (The `result` the file kept, else its `default`, else the first entry.)
+            auto indexOf = [&](const char *element) {
+                const QRegularExpression re(QStringLiteral("<w:%1[^>]*?[\\s:]val\\s*=\\s*\"(-?\\d+)\"").arg(QLatin1String(element)));
+                const QRegularExpressionMatch m = re.match(raw);
+                return m.hasMatch() ? m.captured(1).toInt() : -1;
+            };
+            const int result = indexOf("result"), chosen = result >= 0 ? result : std::max(indexOf("default"), 0);
+            QString text = entries.value(std::clamp(chosen, 0, int(entries.size()) - 1));
+            text.replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&amp;"), QLatin1String("&"));
+            dropDown.insert(at, text);
+        }
         int deletedDepth = 0;   // (inside the content a tracked change deleted)
         double advanceTop = -1;   // (a field that sets the text after it at a place from the page's top, ADVANCE with \\y: the paragraph is no higher than that)
-        for (const Inline &in : p.content) {
+        for (int inAt = 0; inAt < p.content.size(); ++inAt) {
+            const Inline &in = p.content[inAt];
             if (in.kind == Inline::ParaAtom && isDeletedRevision(in.tag)) deletedDepth = std::max(0, deletedDepth + (in.role == Inline::Open ? 1 : in.role == Inline::Close ? -1 : 0));
             const bool deleted = deletedDepth > 0 && !(in.kind == Inline::ParaAtom && in.role != Inline::Single && isDeletedRevision(in.tag));
             if (in.kind == Inline::Text) {
@@ -614,7 +656,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             setStored(af, prop::Atom, packAtom(in));
             // A reference to a footnote of the file is the note's (the pages lay it out at their foot); one to an endnote shows its number, in the lower
             // case roman numerals a word processor's endnotes have.
-            QString field = in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum") ? liveFieldOf(QStringLiteral("PAGE")) : QStringLiteral("raw:") + in.display;
+            QString field = in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum") ? liveFieldOf(QStringLiteral("PAGE")) : QStringLiteral("raw:") + (dropDown.contains(inAt) ? dropDown.value(inAt) : in.display);
             // A symbol of a font that isn't a symbol font (and isn't on the machine) is its character, in that font's stand-in.
             if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym")) {
                 const QString font = attributeOfTag(in.raw, QStringLiteral("font")), lower = font.toLower();

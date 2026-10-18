@@ -53,6 +53,7 @@ enum : int {
     TextFx,                                      // QString TextEffects JSON: a:effectLst of a run (shadows, glow, reflection), drawn under the letters
     HiddenText,                                  // bool: the run is not shown or counted (LayoutEnv::wordLines)
     DisplayFamily,                               // QString: layout only, the family a run is set in when it isn't the family the format says (a symbol's font): never written to a file (LayoutEnv::wordLines)
+    RunBorder,                                   // QString: a border round the run, "style;eighths;space;RRGGBB" (style single, double, dashed...; space in points; color empty for automatic): drawn by LayoutEnv::wordLines text
 
     // block
     StyleName = QTextFormat::UserProperty + 100, // QString paragraph style

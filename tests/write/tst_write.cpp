@@ -5234,6 +5234,36 @@ private Q_SLOTS:
         QVERIFY2(std::abs(tab - one) < 0.1, qPrintable(QStringLiteral("the header with a right tab into the margin makes the text start at %1, one line at %2").arg(tab).arg(one)));
     }
 
+    // The border a file puts round a run (w:bdr) is the run's, drawn round its text; a drop-down field of a form, which shows the entry it has chosen, shows its first entry when the
+    // file kept no result for it (the box round it is that entry's width).
+    void aRunBorderAndTheFirstEntryOfADropDownAreShown()
+    {
+        const QByteArray bdr = "<w:rPr><w:bdr w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/></w:rPr>";
+        const QByteArray body = "<w:p><w:r><w:t xml:space=\"preserve\">before </w:t></w:r>"
+                                "<w:r>" + bdr + "<w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"dd\"/><w:enabled/><w:ddList><w:listEntry w:val=\"CHOSEN\"/><w:listEntry w:val=\" X \"/></w:ddList></w:ffData></w:fldChar></w:r>"
+                                "<w:r>" + bdr + "<w:instrText xml:space=\"preserve\"> FORMDROPDOWN </w:instrText></w:r><w:r>" + bdr + "<w:fldChar w:fldCharType=\"end\"/></w:r>"
+                                "<w:r><w:t xml:space=\"preserve\"> after</w:t></w:r></w:p>"
+                                "<w:p><w:r>" + bdr + "<w:t>plainbox</w:t></w:r></w:p>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto doc = open(makeDocxWithParts(body, sect, {}));
+        QVERIFY(doc);
+        QString spec;
+        bool plain = false, chosen = false;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QTextFragment f = it.fragment();
+                const QString border = f.charFormat().stringProperty(tp::RunBorder);
+                if (f.text() == QLatin1String("plainbox")) plain = !border.isEmpty();
+                if (f.charFormat().stringProperty(tp::Field).contains(QLatin1String("CHOSEN"))) {
+                    chosen = true;
+                    spec = border;
+                }
+            }
+        QVERIFY2(plain, "the run with a border has it");
+        QVERIFY2(chosen, "the drop-down field shows its first entry");
+        QVERIFY2(spec == QLatin1String("single;4;0;"), qPrintable(spec));
+    }
+
     // A paragraph of a footer whose mark a tracked change deleted, with nothing else of its own, is gone from the footer as the text stands: it takes no room
     // (twenty points a line here), so the text keeps what the footer leaves it.
     void aDeletedParagraphOfAFooterTakesNoRoom()

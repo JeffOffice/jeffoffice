@@ -4571,6 +4571,38 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                     p->fillRect(QRectF(std::min(x1, x2), B->lines[i].rect.top(), std::abs(x2 - x1), B->lines[i].rect.height()), QColor(0, 0, 0, 28));
                 }
 
+        // A word processor's border round a run of text (a form field's box): round the characters of each line that it covers, one box for the runs next to one another that have
+        // the same border, as high as the line's text.
+        if (m_env.wordLines) {
+            const QList<QTextLayout::FormatRange> fmts = B->tl->formats();
+            for (int n = 0; n < fmts.size(); ++n) {
+                const QString spec = fmts[n].format.stringProperty(tp::RunBorder);
+                if (spec.isEmpty()) continue;
+                if (n > 0 && fmts[n - 1].format.stringProperty(tp::RunBorder) == spec && fmts[n - 1].start + fmts[n - 1].length == fmts[n].start) continue;
+                const QStringList part = spec.split(QLatin1Char(';'));
+                const double width = part.value(1).toDouble() / 8.0, space = part.value(2).toDouble();
+                if (part.value(0) == QLatin1String("nil") || part.value(0) == QLatin1String("none") || width <= 0) continue;
+                const QColor color = part.value(3).isEmpty() ? QColor(Qt::black) : QColor(QLatin1Char('#') + part.value(3));
+                const int from = fmts[n].start;
+                int to = from + fmts[n].length;
+                for (int m = n + 1; m < fmts.size() && fmts[m].start == to && fmts[m].format.stringProperty(tp::RunBorder) == spec; ++m) to += fmts[m].length;
+                for (int i = 0; i < B->lines.size(); ++i) {
+                    if (B->lines[i].frame != frame) continue;
+                    const PtLine l(B->tl->lineAt(i));
+                    const int ls = std::max(from, l.textStart()), le = std::min(to, l.textStart() + l.textLength());
+                    if (ls >= le) continue;
+                    const double x1 = std::min(l.cursorToX(ls), l.cursorToX(le)), x2 = std::max(l.cursorToX(ls), l.cursorToX(le));
+                    if (x2 - x1 < 0.5) continue;
+                    const double y1 = B->lines[i].rect.top(), y2 = B->lines[i].rect.bottom() - B->lines[i].below;
+                    const QRectF box(x1 - space - width, y1 - space - width, x2 - x1 + 2 * (space + width), y2 - y1 + 2 * (space + width));
+                    p->fillRect(QRectF(box.left(), box.top(), box.width(), width), color);
+                    p->fillRect(QRectF(box.left(), box.bottom() - width, box.width(), width), color);
+                    p->fillRect(QRectF(box.left(), box.top(), width, box.height()), color);
+                    p->fillRect(QRectF(box.right() - width, box.top(), width, box.height()), color);
+                }
+            }
+        }
+
         // Text effects drawn beneath the text from the same glyph runs.
         for (const auto &er : B->effects) {
             const double sz = er.format.fontPointSize() / fontPointFactor();

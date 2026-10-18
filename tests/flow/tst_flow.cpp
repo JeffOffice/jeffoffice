@@ -3025,6 +3025,53 @@ private Q_SLOTS:
         QVERIFY2(at(100, lines[1].rect.center().y()).lightness() < 210, "the second paragraph is shaded");
     }
 
+    // A border round a run of text (a form field's box) is drawn round the run: at its characters' edges, as high as its text, and the run next to it with the same border is one box.
+    void aBorderRoundARunIsDrawnRoundIt()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat plain;
+        plain.setFontFamilies({QStringLiteral("Times New Roman")});
+        plain.setFontPointSize(12);
+        QTextCharFormat boxed = plain;
+        boxed.setProperty(tp::RunBorder, QStringLiteral("single;4;0;000000"));
+        c.insertText(QStringLiteral("before "), plain);
+        c.insertText(QStringLiteral("box"), boxed);
+        c.insertText(QStringLiteral("ed"), boxed);   // (the same border: one box)
+        c.insertText(QStringLiteral(" after"), plain);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(300, 100)}, env);
+        const auto lines = lay.lineInfo(0);
+        QCOMPARE(lines.size(), 1);
+        const double scale = 8;
+        QImage img(int(300 * scale), int(100 * scale), QImage::Format_RGB32);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.scale(scale, scale);
+        lay.paint(&p, 0, PaintOptions());
+        p.end();
+        auto dark = [&](double x, double y) { return QColor(img.pixel(int(x * scale), int(y * scale))).lightness() < 60; };
+        const auto rects = lay.rangeRects(0, 7, 12);   // "boxed"
+        QVERIFY(!rects.isEmpty());
+        const QRectF word = rects.first().united(rects.last());
+        const double top = lines[0].rect.top(), mid = (word.top() + word.bottom()) / 2;
+        // The box's left and right edges, half a point wide, at the run's edges; its top above the letters.
+        bool left = false, right = false, topLine = false;
+        for (double dx = -0.5; dx <= 0.5; dx += 0.125) left |= dark(word.left() + dx, mid + 0.7);
+        for (double dx = -0.5; dx <= 0.5; dx += 0.125) right |= dark(word.right() + dx, mid + 0.7);
+        for (double dy = -1; dy <= 3; dy += 0.125) topLine |= dark(word.center().x(), top + dy);
+        QVERIFY2(left && right, qPrintable(QStringLiteral("edges: left %1, right %2, run %3-%4").arg(left).arg(right).arg(word.left()).arg(word.right())));
+        QVERIFY2(topLine, "the box has a line above the text");
+        // One box, not two (nothing is drawn between "box" and "ed"), and none round the text that has no border.
+        const double join = lay.rangeRects(0, 7, 10).first().right();
+        bool between = false;
+        for (double dx = -0.4; dx <= 0.4; dx += 0.1) between |= dark(join + dx, mid + 0.7);
+        QVERIFY2(!between, "the runs next to one another with the same border are one box");
+        QVERIFY(!dark(lay.rangeRects(0, 0, 6).first().center().x(), top + 0.3));
+    }
+
     // A line of text that is as wide as the room it has, to what rounding leaves, fits on one line.
     void aLineAsWideAsItsRoomFits()
     {
