@@ -167,8 +167,17 @@ public:
                 if (blk.role == Inline::Open) {
                     stack.push_back(b);
                 } else if (blk.role == Inline::Close) {
+                    // (The end of a tag that is not a table's part is not looked for past the start of a table, a row, or a cell: a content control inside a table is closed
+                    // inside it, and an end whose start is not in the table is a stray one, which closes nothing outside.)
+                    auto tablePart = [](const QString &tag) { return tag == QLatin1String("tbl") || tag == QLatin1String("tr") || tag == QLatin1String("tc"); };
                     int at = int(stack.size()) - 1;
-                    while (at >= 0 && doc.body[stack[at]].tag != blk.tag) --at;
+                    while (at >= 0 && doc.body[stack[at]].tag != blk.tag) {
+                        if (!tablePart(blk.tag) && tablePart(doc.body[stack[at]].tag)) {
+                            at = -1;
+                            break;
+                        }
+                        --at;
+                    }
                     if (at < 0) {
                         m_blocks[b] = false;
                     } else {

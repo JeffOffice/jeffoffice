@@ -41,6 +41,7 @@
 #include <QImage>
 #include <QPainter>
 #include <QApplication>
+#include <QXmlStreamReader>
 #include <climits>
 #include <QMenu>
 #include <QCheckBox>
@@ -11229,6 +11230,63 @@ private Q_SLOTS:
             }
         }
         QCOMPARE(rowsShown(pg), 90);
+    }
+
+    // A row taken away beside a content control that holds rows (the table is itself in a content control) leaves the table and the controls valid: the control that held only
+    // that row stays, empty; the control before the row taken stays closed where it was.
+    void deletingARowBesideAContentControlKeepsTheTableAndTheControlsValid()
+    {
+        auto row = [](const char *text) { return QByteArray("<w:tr><w:tc><w:p><w:r><w:t>") + text + "</w:t></w:r></w:p></w:tc></w:tr>"; };
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid>" + row("r0") +
+                                 "<w:sdt><w:sdtPr><w:id w:val=\"2\"/></w:sdtPr><w:sdtContent>" + row("r1") + "</w:sdtContent></w:sdt>" + row("r2") + row("r3") + "</w:tbl>";
+        const QByteArray body = plainP("before") + "<w:sdt><w:sdtPr><w:id w:val=\"1\"/></w:sdtPr><w:sdtContent>" + table + "</w:sdtContent></w:sdt>" + plainP("after");
+        // The saved file is well formed, and every row is inside a table.
+        auto problems = [](const QByteArray &xmlText) {
+            QXmlStreamReader in(xmlText);
+            QStringList stack;
+            while (!in.atEnd()) {
+                in.readNext();
+                if (in.isStartElement()) {
+                    if (in.name() == QLatin1String("tr")) {
+                        int k = int(stack.size()) - 1;
+                        while (k >= 0 && (stack[k] == QLatin1String("sdt") || stack[k] == QLatin1String("sdtContent"))) --k;
+                        if (k < 0 || stack[k] != QLatin1String("tbl")) return QStringLiteral("a row is in a %1").arg(k < 0 ? QStringLiteral("nothing") : stack[k]);
+                    }
+                    stack << in.name().toString();
+                } else if (in.isEndElement() && !stack.isEmpty()) {
+                    stack.removeLast();
+                }
+            }
+            return in.hasError() ? in.errorString() : QString();
+        };
+        for (int which = 0; which < 2; ++which) {
+            auto doc = open(makeDocxWithParts(body, sectionXml(12240, 15840, 1440), {}));
+            QVERIFY(doc);
+            const QByteArray was = documentXml(doc->toDocx());
+            QVERIFY(was.contains(table));
+            QTextCursor c(doc->story());
+            c.setPosition(doc->story()->toPlainText().indexOf(which == 0 ? QStringLiteral("r1") : QStringLiteral("r2")));
+            deleteTableRows(*doc, c);
+            const QByteArray out = documentXml(doc->toDocx());
+            const QString label = which == 0 ? QStringLiteral("the row in the control") : QStringLiteral("the row after it");
+            QVERIFY2(problems(out).isEmpty(), qPrintable(label + QStringLiteral(": ") + problems(out) + QLatin1String(" in ") + QString::fromUtf8(out)));
+            QCOMPARE(out.count("<w:tbl>"), 1);
+            QCOMPARE(out.count("<w:tr>"), 3);
+            QCOMPARE(out.count("<w:sdt>"), 2);
+            QCOMPARE(out.count("</w:sdt>"), 2);
+            QVERIFY2(!out.contains(which == 0 ? "r1" : "r2"), qPrintable(label));
+            // (And the file opens as the table it is: three rows, the same controls.)
+            auto again = open(doc->toDocx());
+            QVERIFY(again);
+            const QByteArray second = documentXml(again->toDocx());
+            QCOMPARE(second.count("<w:tr>"), 3);
+            QCOMPARE(second.count("<w:sdt>"), 2);
+            QVERIFY(problems(second).isEmpty());
+            if (which == 1) QVERIFY2(out.contains("<w:sdtContent><w:tr>") && out.contains("r1</w:t></w:r></w:p></w:tc></w:tr></w:sdtContent></w:sdt>"), qPrintable(QString::fromUtf8(out)));
+            // Taken away and brought back, as it was.
+            doc->story()->undo();
+            QCOMPARE(documentXml(doc->toDocx()), was);
+        }
     }
 
     // Rows and cells that content controls hold are shown, and a file that is saved after one of their cells is edited has the controls as they were.
