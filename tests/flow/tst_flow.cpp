@@ -2543,30 +2543,8 @@ private Q_SLOTS:
         QVERIFY2(std::abs(lines.value(0).rect.height() - (2025 + 512) / 2048.0 * 11) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
     }
 
-    // Courier New's strokes are hairlines, which no bundled face has (Courier Prime is the thinnest, and carries 1.44 times the ink of the original's pages, 40 of V070's): its
-    // stand-in is drawn at 0.69 of the opacity of the text's color, a color of its own as well, and the text of a publisher or of a face the machine has is not.
-    void courierNewsStandInCarriesAsMuchInkAsItsHairlines()
-    {
-        if (QFontDatabase::hasFamily(QStringLiteral("Courier New"))) QSKIP("Courier New is installed");
-        LayoutEnv word;
-        word.wordLines = true;
-        word.colors.c[Main] = QColor(0, 0, 0);
-        QTextCharFormat cf;
-        cf.setFontFamilies({QStringLiteral("Courier New")});
-        cf.setFontPointSize(10);
-        const QColor ink = resolveCharFormat(cf, word).foreground().color();
-        QVERIFY2(std::abs(ink.alphaF() - 0.69) < 0.01, qPrintable(QString::number(ink.alphaF())));
-        QCOMPARE(ink.rgb(), QColor(0, 0, 0).rgb());
-        cf.setForeground(QColor(200, 0, 0));
-        const QColor red = resolveCharFormat(cf, word).foreground().color();
-        QVERIFY2(std::abs(red.alphaF() - 0.69) < 0.01 && red.red() == 200, qPrintable(QString::number(red.alphaF())));
-        QCOMPARE(resolveCharFormat(cf, LayoutEnv()).foreground().color().alphaF(), 1.0);
-        cf.setFontFamilies({QStringLiteral("Times New Roman")});
-        QCOMPARE(resolveCharFormat(cf, word).foreground().color().alphaF(), 1.0);
-    }
-
     // A font the document's font table says its machine set in Yu Gothic (V104's FreeSerif, charset 128, with that alternate) is set in it by a machine that lacks FreeSerif:
-    // the alternate is one of the faces the word processor's machine has, drawn in Open Sans (the same widths) at 0.75 of its ink, and its line is 1.673 em (3426 units) as the
+    // the alternate is one of the faces the word processor's machine has, drawn in Open Sans (the same widths), and its line is 1.673 em (3426 units) as the
     // original's pages have it.
     void yuGothicIsDrawnInOpenSansAndSetAsItself()
     {
@@ -2574,34 +2552,35 @@ private Q_SLOTS:
         if (QFontDatabase::hasFamily(QStringLiteral("Yu Gothic"))) QSKIP("Yu Gothic is installed");
         LayoutEnv word;
         word.wordLines = true;
-        word.colors.c[Main] = QColor(0, 0, 0);
         QTextCharFormat cf;
         cf.setFontFamilies({QStringLiteral("Yu Gothic")});
         cf.setFontPointSize(11);
         const QTextCharFormat drawn = resolveCharFormat(cf, word);
         QCOMPARE(drawn.fontFamilies().toStringList().value(0), QStringLiteral("Open Sans"));
-        QVERIFY2(std::abs(drawn.foreground().color().alphaF() - 0.75) < 0.01, qPrintable(QString::number(drawn.foreground().color().alphaF())));
+        QCOMPARE(drawn.foreground().color().alphaF(), 1.0);   // (the text is never drawn partly transparent: printed, it is black)
         const auto lines = wordLinesOf({{QStringLiteral("Yu Gothic"), 11}});
         QVERIFY2(std::abs(lines.value(0).rect.height() - 3426 / 2048.0 * 11) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
     }
 
-    // Century Gothic's stand-in (TeX Gyre Adventor) has thinner strokes than the original's (its regular carries 0.81 of the ink on W124's pages, V076's too, the bold 0.95): a
-    // stroke by hand makes up the difference, 0.011 em for the regular face and 0.0075 for the bold, in every output; a publisher's text, a face the machine has, and other faces
-    // are not touched.
-    void centuryGothicsStandInIsMadeAsHeavyAsItsOriginal()
+    // Text is never drawn partly transparent, nor with a stroke by hand, to make a stand-in as light or as heavy as the face it stands for: it is printed and exported as the
+    // text's color says (black is black), and a page paints and exports as light as a plain run of text.
+    void aStandInIsDrawnInTheTextsOwnColorAndWithNoStroke()
     {
-        if (QFontDatabase::hasFamily(QStringLiteral("Century Gothic"))) QSKIP("Century Gothic is installed");
         LayoutEnv word;
         word.wordLines = true;
         QTextCharFormat cf;
-        cf.setFontFamilies({QStringLiteral("Century Gothic")});
-        cf.setFontPointSize(11);
-        QCOMPARE(resolveCharFormat(cf, word).intProperty(tp::HandBold), 3);
-        cf.setFontWeight(QFont::Bold);
-        QCOMPARE(resolveCharFormat(cf, word).intProperty(tp::HandBold), 4);
-        QVERIFY(!resolveCharFormat(cf, LayoutEnv()).hasProperty(tp::HandBold));
-        cf.setFontFamilies({QStringLiteral("Times New Roman")});
-        QVERIFY(!resolveCharFormat(cf, word).hasProperty(tp::HandBold));
+        cf.setFontPointSize(10);
+        cf.setForeground(QColor(200, 0, 0));
+        for (const QString &family : {QStringLiteral("Courier New"), QStringLiteral("Univers"), QStringLiteral("News Gothic MT"), QStringLiteral("Yu Gothic"), QStringLiteral("Century Gothic")}) {
+            if (QFontDatabase::hasFamily(family)) continue;   // (a machine with the face draws that)
+            cf.setFontFamilies({family});
+            for (const int weight : {int(QFont::Normal), int(QFont::Bold)}) {
+                cf.setFontWeight(weight);
+                const QTextCharFormat drawn = resolveCharFormat(cf, word);
+                QVERIFY2(drawn.foreground().color() == QColor(200, 0, 0), qPrintable(family + QStringLiteral(": ") + drawn.foreground().color().name(QColor::HexArgb)));
+                QVERIFY2(!drawn.hasProperty(tp::HandBold), qPrintable(family + QStringLiteral(" has a stroke by hand")));
+            }
+        }
     }
 
     // The line of Courier New is Courier New's wherever it is measured, though the text is drawn in Courier Prime (whose own line is 1.318 em, to Courier New's 1.133):
