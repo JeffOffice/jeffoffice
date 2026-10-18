@@ -300,6 +300,24 @@ private Q_SLOTS:
         QCOMPARE(shapes[0].vRel, Shape::Page);
         QCOMPARE(shapes[0].wrap, Shape::Tight);
         QVERIFY(!shapes[0].behind);
+        // A picture with a negative z-index and a wrap that keeps text off is not behind the text (the text goes round it); one with no wrap is.
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='s8' style='position:absolute;margin-left:180pt;margin-top:5.1pt;width:309.7pt;height:220.5pt;z-index:-251657728'><v:imagedata r:id='rId8'/><w10:wrap type='tight'/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].wrap, Shape::Tight);
+        QVERIFY(!shapes[0].behind);
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='s9' style='position:absolute;margin-left:180pt;margin-top:5.1pt;width:309.7pt;height:220.5pt;z-index:-251657728'><v:imagedata r:id='rId8'/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].wrap, Shape::WrapNone);
+        QVERIFY(shapes[0].behind);
+        // A rectangle filled with a picture stretched over it is a picture (a tiled fill, or none, is not).
+        shapes = readShapes("<w:pict " + ns + "><v:rect id='s6' style='position:absolute;margin-left:-40pt;margin-top:1.8pt;width:81pt;height:45pt;z-index:251655168' stroked='f'><v:fill r:id='rId1' o:title='logo' type='frame'/></v:rect></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].kind, Shape::Picture);
+        QCOMPARE(shapes[0].embed, QStringLiteral("rId1"));
+        QVERIFY(shapes[0].floating && !shapes[0].filled && !shapes[0].stroked);
+        shapes = readShapes("<w:pict " + ns + "><v:rect id='s7' style='position:absolute;width:81pt;height:45pt' fillcolor='red'><v:fill r:id='rId1' type='tile'/></v:rect></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].kind, Shape::Rect);
         // A rule drawn as a filled rectangle behind the text, and a line from point to point.
         shapes = readShapes("<w:pict " + ns + "><v:rect id='s3' style='position:absolute;margin-left:1.5pt;margin-top:-2.25pt;width:543.75pt;height:1.4pt;z-index:-251657216' fillcolor='black' stroked='f' strokeweight='0'/></w:pict>");
         QCOMPARE(int(shapes.size()), 1);

@@ -304,6 +304,13 @@ public:
                 if (!s.floating) s.wrap = Shape::WrapNone;
                 s.side = sideOf(t.attr(c, "side"));
             } else if (name == "fill") {
+                // A picture as the fill of a shape, stretched over it (type "frame"; a tile or a shape's own fill by a picture is not read), is the shape as a picture.
+                if (const QString embed = t.attr(c, "id", NsR); !embed.isEmpty() && t.attr(c, "type") == QLatin1String("frame") && s.kind != Shape::TextBox) {
+                    s.kind = Shape::Picture;
+                    s.embed = embed;
+                    s.filled = false;
+                    s.stroked = false;
+                }
                 if (offOf(t.attr(c, "on"))) s.filled = false;
                 if (const QString color = colorOf(t.attr(c, "color")); !color.isEmpty() && t.attr(n, "fillcolor").isEmpty()) s.fillColor = color;
             } else if (name == "stroke") {
@@ -347,6 +354,9 @@ public:
         }
         // (A rule or box wrapped in a "wrap" with anchors for the text it follows is read as floating: a shape with a z-index is set so.)
         if (!s.floating) s.wrap = Shape::WrapNone;
+        // A shape's z-index says only what is drawn over what: one with a square or tight wrap has the text go round it, whether it is below the text or above. (One that keeps
+        // text off by its top and bottom stays behind the text, as it was: the pages that have such pictures, that a file puts behind the text, do not agree with the program's yet.)
+        if (s.wrap == Shape::Square || s.wrap == Shape::Tight) s.behind = false;
         s.gapLeft = lengthOf(st.value(QStringLiteral("mso-wrap-distance-left")), 9);
         s.gapRight = lengthOf(st.value(QStringLiteral("mso-wrap-distance-right")), 9);
         s.gapTop = lengthOf(st.value(QStringLiteral("mso-wrap-distance-top")), 0);
