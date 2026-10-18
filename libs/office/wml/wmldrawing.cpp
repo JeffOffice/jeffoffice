@@ -389,6 +389,21 @@ public:
         Q_UNUSED(depth);
     }
 
+    // A group at `c` among members of the units sx, sy from the place ox, oy: its own members are read in its units.
+    void inGroup(int c, double sx, double sy, double ox, double oy, int depth)
+    {
+        const QHash<QString, QString> st = styleOf(t.attr(c, "style"));
+        const QStringList size = t.attr(c, "coordsize").split(QLatin1Char(',')), origin = t.attr(c, "coordorigin").split(QLatin1Char(','));
+        const double gw = lengthOf(st.value(QStringLiteral("width")), 0), gh = lengthOf(st.value(QStringLiteral("height")), 0);
+        double cw = size.size() == 2 ? fin(size[0].toDouble()) : 0, ch = size.size() == 2 ? fin(size[1].toDouble()) : 0;
+        const double kx = cw > 0 && gw > 0 ? gw / cw : 1, ky = ch > 0 && gh > 0 ? gh / ch : 1;
+        const double gx = lengthOf(st.contains(QStringLiteral("margin-left")) ? st.value(QStringLiteral("margin-left")) : st.value(QStringLiteral("left")), 0) * sx + ox;
+        const double gy = lengthOf(st.contains(QStringLiteral("margin-top")) ? st.value(QStringLiteral("margin-top")) : st.value(QStringLiteral("top")), 0) * sy + oy;
+        const double originX = origin.size() == 2 ? fin(origin[0].toDouble()) : 0, originY = origin.size() == 2 ? fin(origin[1].toDouble()) : 0;
+        // The members' places are in the group's own units: scaled, from its origin, and from where the group is.
+        walkMembers(c, fin(kx * sx), fin(ky * sy), fin(gx - originX * kx * sx), fin(gy - originY * ky * sy), depth + 1);
+    }
+
     void walk(int n, double sx, double sy, double ox, double oy, int depth)
     {
         for (int c = t.firstChild(n); c >= 0 && out.size() < kMostShapes; c = t.next(c)) {
@@ -397,16 +412,7 @@ public:
             if (name == "shape" || name == "rect" || name == "roundrect" || name == "oval" || name == "line") {
                 shape(c, name == "roundrect" ? QByteArray("rect") : name, sx, sy, ox, oy, depth);
             } else if (name == "group" && depth < kMostGroupDepth) {
-                const QHash<QString, QString> st = styleOf(t.attr(c, "style"));
-                const QStringList size = t.attr(c, "coordsize").split(QLatin1Char(',')), origin = t.attr(c, "coordorigin").split(QLatin1Char(','));
-                const double gw = lengthOf(st.value(QStringLiteral("width")), 0), gh = lengthOf(st.value(QStringLiteral("height")), 0);
-                double cw = size.size() == 2 ? fin(size[0].toDouble()) : 0, ch = size.size() == 2 ? fin(size[1].toDouble()) : 0;
-                const double kx = cw > 0 && gw > 0 ? gw / cw : 1, ky = ch > 0 && gh > 0 ? gh / ch : 1;
-                const double gx = lengthOf(st.contains(QStringLiteral("margin-left")) ? st.value(QStringLiteral("margin-left")) : st.value(QStringLiteral("left")), 0) * sx + ox;
-                const double gy = lengthOf(st.contains(QStringLiteral("margin-top")) ? st.value(QStringLiteral("margin-top")) : st.value(QStringLiteral("top")), 0) * sy + oy;
-                const double originX = origin.size() == 2 ? fin(origin[0].toDouble()) : 0, originY = origin.size() == 2 ? fin(origin[1].toDouble()) : 0;
-                // The members' places are in the group's own units: scaled, from its origin, and from where the group is.
-                walkMembers(c, fin(kx * sx), fin(ky * sy), fin(gx - originX * kx * sx), fin(gy - originY * ky * sy), depth + 1);
+                inGroup(c, sx, sy, ox, oy, depth);
             } else if (name == "shapetype") {
                 continue;
             } else {
@@ -422,7 +428,7 @@ public:
             if (t.ns(c) == NsW) continue;
             const QByteArray name = t.localName(c);
             if (name == "shape" || name == "rect" || name == "roundrect" || name == "oval" || name == "line") shape(c, name == "roundrect" ? QByteArray("rect") : name, kx, ky, ox, oy, depth);
-            else if (name == "group" && depth < kMostGroupDepth) walk(group, kx, ky, ox, oy, depth);
+            else if (name == "group" && depth < kMostGroupDepth) inGroup(c, kx, ky, ox, oy, depth);
         }
     }
 
