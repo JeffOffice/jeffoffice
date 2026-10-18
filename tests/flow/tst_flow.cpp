@@ -3013,9 +3013,10 @@ private Q_SLOTS:
         c.insertText(QStringLiteral("____________________________________ ____"), run);   // (36 and 4 half-em letters: 216 points, a space, and 24)
         LayoutEnv env;
         env.wordLines = true;
+        env.wordNoHang = true;   // (the setting of a file that has no punctuation hang: a line is cut at its room)
         StoryLayout lay;
-        lay.build(&doc, {plainFrame(216.1 + 3 + 24, 200)}, env);
-        QCOMPARE(lay.lineInfo(0).size(), 1);   // (the room is a tenth of a point more than the two words and the space between them)
+        lay.build(&doc, {plainFrame(216 + 3 + 24 + 0.2, 200)}, env);
+        QCOMPARE(lay.lineInfo(0).size(), 1);   // (the room is a fifth of a point more than the two words and the space between them)
         StoryLayout tight;
         tight.build(&doc, {plainFrame(216 + 3 + 24 - 0.1, 200)}, env);
         QCOMPARE(tight.lineInfo(0).size(), 2);

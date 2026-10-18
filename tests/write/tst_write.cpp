@@ -6290,6 +6290,34 @@ private Q_SLOTS:
         QVERIFY2(std::abs(startOf(true, false) - 72) < 2, qPrintable(QString::number(startOf(true, false))));
     }
 
+    // A line made as wide as its room on purpose stays one line: a row of letters that exactly fills it (the room of 432 points holds 72 underscores of 12 points), text that is
+    // aligned at a right tab stop that is at the margin, and the text of a table's cell that is as wide as the cell is.
+    void aLineThatExactlyFillsItsRoomStaysOne()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1800\" w:bottom=\"1440\" w:left=\"1800\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto linesOf = [&](const QByteArray &body) {
+            auto doc = open(makeDocxWithParts(body, sect, {}, QByteArray(), kStyles));
+            return int(doc->pager().lines(0).size());
+        };
+        auto run = [](const QByteArray &text) { return QByteArray("<w:r><w:rPr><w:rFonts w:ascii=\"Tinos\" w:hAnsi=\"Tinos\"/><w:sz w:val=\"24\"/></w:rPr><w:t xml:space=\"preserve\">") + text + "</w:t></w:r>"; };
+        // A row of letters: 72 of 6 points fill the 432.
+        QCOMPARE(linesOf("<w:p>" + run(QByteArray(72, '_')) + "</w:p>"), 1);
+        QCOMPARE(linesOf("<w:p>" + run(QByteArray(73, '_')) + "</w:p>"), 2);
+        // A right tab stop at the margin: what follows the tab ends at it.
+        const QByteArray right = "<w:pPr><w:tabs><w:tab w:val=\"right\" w:pos=\"8640\"/></w:tabs></w:pPr>";
+        QCOMPARE(linesOf("<w:p>" + right + run("Federal Communications Commission") + "<w:r><w:tab/></w:r>" + run("DA 07-932") + "</w:p>"), 1);
+        // A cell of 4536 twentieths (226.8 points) with the margins of 108 on each side holds 216 points: 36 underscores.
+        auto cellRows = [&](int underscores) {
+            const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"4536\" w:type=\"dxa\"/><w:tblLayout w:type=\"fixed\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"4536\"/></w:tblGrid>"
+                                     "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"4536\" w:type=\"dxa\"/></w:tcPr><w:p>" + run(QByteArray(underscores, '_')) + "</w:p></w:tc></w:tr></w:tbl><w:p/>";
+            auto doc = open(makeDocxWithParts(table, sect, {}, QByteArray(), kStyles));
+            const auto lines = doc->pager().lines(0);
+            return lines.isEmpty() ? -1.0 : lines[0].rect.height();
+        };
+        const double one = cellRows(35), full = cellRows(36);
+        QVERIFY2(one > 0 && std::abs(full - one) < 0.5, qPrintable(QString::number(full) + " against " + QString::number(one)));
+    }
+
     // With the older program's full justification (w:wpJustification) a justified line gives up part of its spaces to take in one more word: for some width of the text area its
     // first line holds a word more than without the option, and for none fewer.
     void fullJustificationTakesInAWordWhereTheSpacesCanGiveWay()
