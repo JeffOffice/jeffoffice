@@ -3209,6 +3209,60 @@ private Q_SLOTS:
         QVERIFY2(top < 1e8 && darkPoints > 4 && whitePoints > 4, qPrintable(QStringLiteral("%1 dark and %2 white points along the top edge (at %3)").arg(darkPoints).arg(whitePoints).arg(top)));
     }
 
+    // A word processor's right tab stop past the text area takes the text after its tab only where the text area has margin beside it: in a column or a text box it does not (the text
+    // would be drawn over the next column or past the box). The page layer, which draws the text, is given the same room the paginator laid the lines with.
+    void aRightTabPastAColumnTakesNoTextOverTheNextColumnAsDrawn()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.sections[0].columns = 2;
+        fd.sections[0].columnGap = 36;   // (columns of 216 points on 468)
+        QTextCursor c(fd.story());
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setTabPositions({QTextOption::Tab(350, QTextOption::RightTab)});
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("a\tSTOP"), run);
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const TextItem *box = boxHolding(*page, QStringLiteral("STOP"));
+        QVERIFY(box);
+        QCOMPARE(box->columns, 1);
+        // The paginator's frames have no room beyond the column; so does the page layer's frame for the box.
+        const FrameSpec spec = Renderer::frameSpec(*page->doc, *box, 1, RenderOptions());
+        QVERIFY2(spec.rightRoom == 0, qPrintable(QStringLiteral("the box of a column of %1 points is given %2 points of room beyond it").arg(box->rect.width()).arg(spec.rightRoom)));
+        // The text as drawn does not go past the column.
+        LayoutCache cache;
+        const LayoutCache::FrameLayout fl = cache.textFrame(*page->doc, *box, 1, RenderOptions());
+        QVERIFY(fl.layout);
+        double right = 0;
+        for (const QRectF &r : fl.layout->rangeRects(fl.frame, 2, 6)) right = std::max(right, r.right());
+        QVERIFY2(right > 0 && right <= box->rect.width() + 0.5, qPrintable(QStringLiteral("the text of a column %1 points wide is drawn to %2").arg(box->rect.width()).arg(right)));
+    }
+
+    // A single column has the margin beside it for a right tab (the room the paginator gives it), and a text box the page layer is given has none.
+    void aTextBoxIsGivenNoRoomForARightTabBeyondItAndASingleColumnTheMargin()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 3, 7);
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page && !page->boxes.isEmpty());
+        const TextItem *column = nullptr;
+        for (const auto &item : page->doc->pages[0]->items)
+            if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                if (t->id == page->boxes.first()) column = t;
+        QVERIFY(column);
+        QCOMPARE(Renderer::frameSpec(*page->doc, *column, 1, RenderOptions()).rightRoom, 72.0);   // (the margin of the page: its text area is as the paginator's frame is)
+        TextItem box;
+        box.rect = QRectF(100, 100, 200, 100);
+        QCOMPARE(Renderer::frameSpec(*page->doc, box, 1, RenderOptions()).rightRoom, 0.0);
+    }
+
     // A line of text that is as wide as the room it has, to what rounding leaves, fits on one line.
     void aLineAsWideAsItsRoomFits()
     {

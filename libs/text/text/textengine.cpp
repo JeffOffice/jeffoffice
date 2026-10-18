@@ -2204,6 +2204,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         fs.insets = QMarginsF(n.numberWidth, 0, 0, 0);
         fs.ctx.noteMark = n.number > 0 ? QString::number(n.number) : QString();   // (a note of a custom mark has no number: the mark its text begins with shows nothing)
         fs.columns = 1;
+        fs.rightRoom = 0;   // (a note's box is no text area of a page: its text goes no farther than the box)
         fs.valign = VAlign::Top;
         fs.obstacles.clear();
         fs.baselineGrid = 0;

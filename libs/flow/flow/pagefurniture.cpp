@@ -407,6 +407,7 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
                 t->insets = QMarginsF(0, 0, 0, 0);
                 t->columns = 1;
                 t->hyphenate = false;
+                t->rightRoom = sec.margins.right();
                 t->storyId = s->id;
                 t->wrap.mode = Wrap::None;
                 d->pages[0]->items.push_back(t);
@@ -435,6 +436,7 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
         t->insets = QMarginsF(0, 0, 0, 0);
         t->columns = 1;
         t->hyphenate = false;
+        t->rightRoom = sec.margins.right();   // (the room the header's lines were measured with)
         t->storyId = s->id;
         t->wrap.mode = Wrap::None;
         d->pages[0]->items.push_back(t);

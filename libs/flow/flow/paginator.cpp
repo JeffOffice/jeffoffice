@@ -1584,6 +1584,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
             if (bottom[c] < 0) continue;   // (a column with no line has no box: where a section of columns ends the page's text, or one has fewer lines than columns)
             auto t = std::make_shared<TextItem>();
             t->id = QStringLiteral("flow-box-%1-%2").arg(index).arg(c);
+            t->rightRoom = sec.columnCount() <= 1 ? sec.margins.right() : 0.0;   // (the room the lines were laid out with: see `frame`)
             const QRectF col = run.cols[c];
             t->rect = QRectF(col.left(), furniture.body.top() + col.top(), col.width(), bottom[c] + 0.005);
             // A paragraph that comes to the top of a column (not the page's) for want of room has no space before it there, but one that the

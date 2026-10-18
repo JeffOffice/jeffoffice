@@ -106,6 +106,9 @@ public:
     bool centerBlock = false;
     bool continuedOn = false, continuedFrom = false;
     bool hyphenate = true;       // automatic hyphenation (on by default for text boxes, as in .pub files)
+    // How far past the frame's right edge a word processor's right tab stop may take text: the room between the box and the page's edge where the box is the text area of a page
+    // (the page's flow sets it); none (0), as a column or a text box has. Not saved.
+    double rightRoom = 0;
     double hyphenZone = 18;      // points: break a word only if moving it whole would leave more empty
     double fitScale = 1.0;       // computed by autofit, saved so files open identically
     double fitLineCut = 0;       // and the percent taken off each paragraph's line spacing with it (a slide's)
