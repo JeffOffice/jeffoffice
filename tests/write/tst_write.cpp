@@ -5301,6 +5301,34 @@ private Q_SLOTS:
         QVERIFY2(doc->dropDownStepsForTest() <= 4 * fields, qPrintable(QStringLiteral("%1 elements looked at for %2 fields").arg(doc->dropDownStepsForTest()).arg(fields)));
     }
 
+    // The selection is the body's: the tables of a header or a footer are drawn without it, whichever positions of the body it covers (they are positions of the header's own story).
+    void theBodySelectionIsNotPaintedInAHeadersTable()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray header = "<w:hdr " + QByteArray(kNs) + "><w:tbl><w:tblPr><w:tblW w:w=\"8000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"8000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"8000\" w:type=\"dxa\"/></w:tcPr>"
+                                  "<w:p><w:r><w:t>HEADERCELL with some words in it</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p/></w:hdr>";
+        auto doc = open(makeDocxWithParts(paragraphs(10, 30), sect, {{QStringLiteral("/word/header1.xml"), header}}));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page && page->furnitureTables.size() == 1);
+        auto paint = [&](int from, int to) {
+            QImage img(1224, 1584, QImage::Format_RGB32);
+            img.fill(Qt::white);
+            QPainter p(&img);
+            p.scale(2, 2);
+            flow::TablePaint options;
+            options.selFrom = from;
+            options.selTo = to;
+            flow::paintTables(&p, *page, options);
+            p.end();
+            const QRectF r = page->furnitureTables[0]->rect();
+            return img.copy(QRect(int(r.left() * 2), int(r.top() * 2), int(r.width() * 2) + 2, int(r.height() * 2) + 2));
+        };
+        const QImage none = paint(-1, -1), selected = paint(0, 30);
+        QVERIFY2(none == selected, "the body's selection (its first thirty characters) is painted in the header's table");
+    }
+
     // A table in a header or a footer is laid out and drawn: its cells' text (a page's number in one of them is the page's own), and the room it takes at the top of the page (or the
     // foot of it), under the header's text and over the footer's.
     void aTableInAHeaderOrAFooterIsDrawnAndTakesRoom()

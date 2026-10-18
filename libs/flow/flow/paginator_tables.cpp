@@ -41,7 +41,10 @@ void paintTables(QPainter *p, const MaterializedPage &page, const TablePaint &op
             }
         };
     for (const std::shared_ptr<TableFragment> &f : page.tables) f->paint(p, own);
-    for (const std::shared_ptr<TableFragment> &f : page.furnitureTables) f->paint(p, own);
+    // (The selection is the body's: what the header's and the footer's tables hold are positions of their own story, not any of the document's.)
+    TablePaint furniture = own;
+    furniture.selFrom = furniture.selTo = -1;
+    for (const std::shared_ptr<TableFragment> &f : page.furnitureTables) f->paint(p, furniture);
 }
 
 struct Paginator::Ledger {
