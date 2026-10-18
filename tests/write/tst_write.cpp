@@ -6250,18 +6250,20 @@ private Q_SLOTS:
         // With it: the first stop after the number is the default one at 36 points (720 twentieths); the lines after the first are at the indent all the same.
         QVERIFY2(std::abs(startOf(flag, QByteArray(), QByteArray()) - 36) < 2, qPrintable(QString::number(startOf(flag, QByteArray(), QByteArray()))));
         QCOMPARE(second, 72.0);
-        // The level's list tab is taken (54 points) when the paragraph has none of its own; without one the text goes to the nearest of the paragraph's own stops, the hanging
-        // indent, and the next default stop (a stop at 50 points is past the default one at 36, one at 25 is before it).
-        QVERIFY2(std::abs(startOf(flag, QByteArray(), "<w:tabs><w:tab w:val=\"left\" w:pos=\"1000\"/></w:tabs>") - 36) < 2, "own stop past the default one");
+        // The paragraph's own stop is taken (50 points: the default stops lie only past the last stop of the paragraph's own, as in the text), and so is the level's list tab
+        // (54 points) when the paragraph has none of its own.
+        QVERIFY2(std::abs(startOf(flag, QByteArray(), "<w:tabs><w:tab w:val=\"left\" w:pos=\"1000\"/></w:tabs>") - 50) < 2, "own stop");
         QVERIFY2(std::abs(startOf(flag, QByteArray(), "<w:tabs><w:tab w:val=\"left\" w:pos=\"500\"/></w:tabs>") - 25) < 2, "own stop before the default one");
         QVERIFY2(std::abs(startOf(flag, "<w:tabs><w:tab w:val=\"num\" w:pos=\"1080\"/></w:tabs>", QByteArray()) - 54) < 2, "list tab");
         // A stop of the level that the paragraph clears is gone.
         QVERIFY2(std::abs(startOf(flag, "<w:tabs><w:tab w:val=\"num\" w:pos=\"1080\"/></w:tabs>", "<w:tabs><w:tab w:val=\"clear\" w:pos=\"1080\"/></w:tabs>") - 36) < 2, "cleared stop");
     }
 
-    // With that option and no list tab (the level has none, or the paragraph clears it or sets a stop of its own there), the text after a number goes to the nearest of the
-    // paragraph's stops, the hanging indent, and the next default stop: the indent when it is before the default stop (18 points before 36), the default stop when it is nearer
-    // (30 points, not the 40 of the indent and of a stop the paragraph sets there).
+    // With that option and no list tab (the level has none, or the paragraph clears it or sets a stop of its own in its place), the text after a number goes to the nearest of the
+    // paragraph's stops, the hanging indent, and the default stops (which lie only past the last stop of the paragraph's own, as they do for a tab in the text). Word's own pages:
+    // V004's bullets (the paragraph clears the list tab at 720; the indent is 18 points) have their text at 18, not at the default stop at 36; W124's items (indent 72, the list
+    // tab at 900 cleared) have theirs at 36; V094's items (the paragraph's own stop at 806, where the list tab is, and its own stops on to 8726) have theirs at 806, 40.3
+    // points, though the default stop at 605 lies before it.
     void aNumberWithNoListTabGoesToTheNearestStopOrTheHangingIndent()
     {
         auto startOf = [&](const QByteArray &levelPPr, const QByteArray &paragraphPPr, int defaultStop, double after) {
@@ -6291,9 +6293,11 @@ private Q_SLOTS:
         // The indent at 72 points: the default stop at 36 is nearer.
         const double nearer = startOf("<w:tabs><w:tab w:val=\"num\" w:pos=\"900\"/></w:tabs><w:ind w:left=\"1440\" w:hanging=\"1440\"/>", "<w:tabs><w:tab w:val=\"clear\" w:pos=\"900\"/></w:tabs>", 720, 12);
         QVERIFY2(std::abs(nearer - 36) < 2, qPrintable(QString::number(nearer)));
-        // A stop of the paragraph's at the list tab's place (40 points) takes the list tab's place: the default stop at 30 points (605) is nearer.
-        const double own = startOf("<w:tabs><w:tab w:val=\"num\" w:pos=\"806\"/></w:tabs><w:ind w:left=\"806\" w:hanging=\"532\"/>", "<w:tabs><w:tab w:val=\"left\" w:pos=\"806\"/></w:tabs>", 605, 26);
-        QVERIFY2(std::abs(own - 30.25) < 2, qPrintable(QString::number(own)));
+        // A stop of the paragraph's at the list tab's place (40 points) takes the list tab's place; the default stop at 30 points (605) lies before the paragraph's own
+        // stops (up to the last of them, at 8726), so it is none.
+        const double own = startOf("<w:tabs><w:tab w:val=\"num\" w:pos=\"806\"/></w:tabs><w:ind w:left=\"806\" w:hanging=\"532\"/>",
+                                   "<w:tabs><w:tab w:val=\"left\" w:pos=\"274\"/><w:tab w:val=\"left\" w:pos=\"806\"/><w:tab w:val=\"left\" w:pos=\"8726\"/></w:tabs>", 605, 26);
+        QVERIFY2(std::abs(own - 40.3) < 2, qPrintable(QString::number(own)));
         // The list tab itself is still the stop where the paragraph leaves it (40 points, not the default one at 30).
         const double list = startOf("<w:tabs><w:tab w:val=\"num\" w:pos=\"806\"/></w:tabs><w:ind w:left=\"806\" w:hanging=\"532\"/>", QByteArray(), 605, 26);
         QVERIFY2(std::abs(list - 40.3) < 2, qPrintable(QString::number(list)));

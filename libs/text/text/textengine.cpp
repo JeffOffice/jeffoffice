@@ -2808,9 +2808,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     consider(bf.doubleProperty(tp::NumberTab) * scale);
                 } else if (B->markerSkipsIndent) {
                     // (With no list tab, the paragraph clearing the level's or setting a stop of its own in its place, the text goes to the nearest of the paragraph's stops, the
-                    // hanging indent, and the next default stop.)
+                    // hanging indent, and the default stops, which as in the text lie only past the last stop of the paragraph's own.)
+                    const double defaultStop = (std::floor((std::max(end, last) + 0.01) / step) + 1) * step;
                     if (textIndent < 0) consider(leftM);
-                    consider((std::floor((end + 0.01) / step) + 1) * step);
+                    consider(defaultStop);
                 }
                 if (stop < 0) stop = (std::floor((std::max(end, last) + 0.01) / step) + 1) * step;
                 markerW = stop - first;
