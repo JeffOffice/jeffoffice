@@ -3341,20 +3341,18 @@ private Q_SLOTS:
         QCOMPARE(narrower.lineInfo(0).size(), 2);
     }
 
-    // A line fits its room by one rule whether punctuation may hang at its end or not: text of two words that is a tenth of a point under the room it is set in goes to a
-    // second line (a pixel of the fine layout is kept back from every room) in both, and one a fifth under goes on one.
+    // A line fits its room by one rule whether punctuation may hang at its end or not: text of two words that is a tenth of a point over the room it is set in goes to a
+    // second line in both, and one a tenth under it, or a fifth, goes on one. (Digits, whose ink is inside their advances in any text engine: a letter that reaches past its
+    // advance, an underscore among them, is counted by the engine of each machine its own way, and the room is a hair more than the text is wide, whatever the machine.)
     void aLineFitsAsMuchWithPunctuationThatHangsAsWithoutIt()
     {
-#ifdef Q_OS_MACOS
-        QSKIP("Qt's fine layout rounds line widths differently on macOS; this tenth-of-a-point fit rule is measured with FreeType (Linux, Windows) until the slack is measured at run time.");
-#endif
         auto lines = [&](bool hang, double room) {
             QTextDocument doc;
             QTextCursor c(&doc);
             QTextCharFormat run;
             run.setFontFamilies({QStringLiteral("Tinos")});
             run.setFontPointSize(12);
-            c.insertText(QStringLiteral("____________________________________ ____"), run);   // (36 and 4 half-em letters: 216 points, a space, and 24)
+            c.insertText(QStringLiteral("000000000000000000000000000000000000 0000"), run);   // (36 and 4 half-em digits: 216 points, a space, and 24)
             LayoutEnv env;
             env.wordLines = true;
             env.wordNoHang = !hang;
@@ -3364,8 +3362,9 @@ private Q_SLOTS:
         };
         for (const bool hang : {false, true}) {
             QCOMPARE(lines(hang, 216 + 3 + 24 + 0.2), 1);
-            QCOMPARE(lines(hang, 216 + 3 + 24 + 0.1), 2);
+            QCOMPARE(lines(hang, 216 + 3 + 24 + 0.1), 1);
             QCOMPARE(lines(hang, 216 + 3 + 24 - 0.1), 2);
+            QCOMPARE(lines(hang, 216 + 3 + 24 - 0.2), 2);
         }
     }
 
@@ -3395,26 +3394,27 @@ private Q_SLOTS:
         QCOMPARE(lines(false, 246.2), 1);
     }
 
-    // A line that ends where a break may be (after a dash) is fitted as the others are: the room is not given back, as it is for a word wider than the line.
+    // A line that ends where a break may be (after a dash) is fitted as the others are: the room is not given back, as it is for a word wider than the line. (Digits: the em
+    // dash is set a fifth of a point under the room, which it does not fit, and a fifth over it, which it does, whatever its engine counts past its advance.)
     void aLineThatEndsAtADashIsFittedLikeTheOthers()
     {
-#ifdef Q_OS_MACOS
-        QSKIP("Qt's fine layout rounds line widths differently on macOS; this tenth-of-a-point fit rule is measured with FreeType (Linux, Windows) until the slack is measured at run time.");
-#endif
-        QTextDocument doc;
-        QTextCursor c(&doc);
-        QTextCharFormat run;
-        run.setFontFamilies({QStringLiteral("Tinos")});
-        run.setFontPointSize(12);
-        c.insertText(QString(34, QLatin1Char('_')) + QChar(0x2014) + QString(4, QLatin1Char('_')), run);   // (204 points, a dash of 12, and 24)
-        LayoutEnv env;
-        env.wordLines = true;
-        env.wordNoHang = true;
-        StoryLayout lay;
-        lay.build(&doc, {plainFrame(216.1, 200)}, env);   // (the first two parts are 216 points: a tenth under the room, which is not enough)
-        const auto lines = lay.lineInfo(0);
-        QVERIFY(lines.size() >= 2);
-        QCOMPARE(lines[0].text, QString(34, QLatin1Char('_')));
+        auto firstLine = [&](double room) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Tinos")});
+            run.setFontPointSize(12);
+            c.insertText(QString(34, QLatin1Char('0')) + QChar(0x2014) + QString(4, QLatin1Char('0')), run);   // (204 points, a dash of 12, and 24)
+            LayoutEnv env;
+            env.wordLines = true;
+            env.wordNoHang = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(room, 200)}, env);
+            const auto lines = lay.lineInfo(0);
+            return lines.size() >= 2 ? lines[0].text : QString();
+        };
+        QCOMPARE(firstLine(215.8), QString(34, QLatin1Char('0')));
+        QCOMPARE(firstLine(216.2), QString(34, QLatin1Char('0')) + QChar(0x2014));
     }
 
     // Hidden text takes no room and shows nothing: a line's text is what is left, and a paragraph of nothing else is an empty line.
