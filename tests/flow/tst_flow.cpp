@@ -2902,6 +2902,37 @@ private Q_SLOTS:
         QVERIFY(tp::ParaBox::parse(ruled.spec()) == ruled);
     }
 
+    // The first line of a frame goes there, however tall it is, also when its paragraph's top border and the distance of it take room above it: a text box that is shorter than
+    // the border's room and the line together shows the line (a masthead in a box of its own is not left out).
+    void theFirstLineOfABorderedParagraphGoesInAFrameThatIsTooShort()
+    {
+        auto layout = [&](bool bordered, double height) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            if (bordered) {
+                tp::ParaBox box;
+                box.top = {QStringLiteral("single"), 2, 11, QColor(Qt::white)};
+                box.bottom = {QStringLiteral("single"), 2, 9, QColor(Qt::white)};
+                bf.setProperty(tp::Borders, box.spec());
+            }
+            c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("NEWS"), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(200, height)}, env);
+            return lay.lineInfo(0);
+        };
+        QCOMPARE(int(layout(false, 20).size()), 1);   // (the line alone fits a frame of twenty points)
+        const auto bordered = layout(true, 20);
+        QVERIFY2(bordered.size() == 1, qPrintable(QStringLiteral("%1 lines of the bordered paragraph in a frame of twenty points").arg(bordered.size())));
+        QVERIFY2(bordered[0].rect.top() > 11, qPrintable(QString::number(bordered[0].rect.top())));   // (under the border's room)
+    }
+
     // The borders are drawn at the paragraph's edges, a distance from the text and outside its indents, and the shading fills the box.
     void paragraphBordersAndShadingAreDrawn()
     {

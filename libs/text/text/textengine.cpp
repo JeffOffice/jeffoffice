@@ -3298,7 +3298,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     const double fitH = std::max(0.0, textH - roomUnder);   // (what of the line has to fit where the column ends)
                     // The first line of a column goes there however tall it
                     // is, unless notes going on from the column before fill it.
-                    const bool firstInColumn = (y <= 0.001) && rowIdx == 0 && !reserve.contains(rkey(f, c));
+                    // (The room of the paragraph's top border above its first line is not a line before it.)
+                    const bool firstInColumn = (y <= B->boxTopRoom + 0.001) && rowIdx == 0 && !reserve.contains(rkey(f, c));
                     // Footnotes referred to on this line go at the bottom of
                     // its column, with it: both fit, or both move on. Notes
                     // too tall for a whole column are cut instead: the line
