@@ -320,6 +320,12 @@ public:
                     s.filled = false;
                 }
                 if (offOf(t.attr(c, "on"))) s.filled = false;
+                // (A fill that is clear, an opacity of nothing however it is written (a number, a percent, or a fixed-point number with an f: 65536 is all), is none.)
+                if (const QString opacity = t.attr(c, "opacity").trimmed(); !opacity.isEmpty()) {
+                    bool ok = false;
+                    const double value = opacity.endsWith(QLatin1Char('%')) ? opacity.chopped(1).toDouble(&ok) / 100 : opacity.endsWith(QLatin1Char('f'), Qt::CaseInsensitive) ? opacity.chopped(1).toDouble(&ok) / 65536 : opacity.toDouble(&ok);
+                    if (ok && value <= 0) s.filled = false;
+                }
                 if (const QString color = colorOf(t.attr(c, "color")); !color.isEmpty() && t.attr(n, "fillcolor").isEmpty()) s.fillColor = color;
             } else if (name == "stroke") {
                 if (offOf(t.attr(c, "on"))) s.stroked = false;

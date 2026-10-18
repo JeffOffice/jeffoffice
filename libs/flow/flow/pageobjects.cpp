@@ -224,6 +224,38 @@ QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, cons
     return out;
 }
 
+void Paginator::tablesInBox(const QTextDocument *source, QTextDocument *copy, const QRectF &box, const QMarginsF &insets, int number, Document *d, MaterializedPage *page)
+{
+    const double width = std::max(1.0, box.width() - insets.left() - insets.right());
+    const auto laid = headerTablesOf(source, width, number, 0.0, true, d->flowPageTotal, d->flowSectionPageTotal);
+    page->showsTotal = page->showsTotal || laid->showsTotal;
+    QVector<const HeaderPart *> places;
+    for (const HeaderPart &part : laid->parts) {
+        if (!part.table) continue;
+        auto fragment = std::make_shared<TableFragment>(*part.table);
+        fragment->origin = QPointF(box.left() + insets.left() + fragment->layout->leftEdgeIn(width), box.top() + insets.top() + part.y);
+        page->furnitureTables.push_back(fragment);
+        places << &part;
+    }
+    // (From the last: the places before it are where they were. The paragraphs of the rows are joined into the first, which is given a place's format: one line as tall as the rows.)
+    for (auto it = places.crbegin(); it != places.crend(); ++it) {
+        const HeaderPart &part = **it;
+        QTextCursor cursor(copy);
+        cursor.setPosition(part.from);
+        cursor.setPosition(std::max(part.from, part.to - 1), QTextCursor::KeepAnchor);
+        cursor.removeSelectedText();
+        QTextBlockFormat bf;
+        bf.setLineHeight(part.height, QTextBlockFormat::FixedHeight);
+        bf.setTopMargin(0);
+        bf.setBottomMargin(0);
+        QTextCharFormat cf;
+        cf.setFontPointSize(1);
+        cursor.setBlockFormat(bf);
+        cursor.setBlockCharFormat(cf);
+        cursor.insertText(QString(QChar(0x200B)), cf);
+    }
+}
+
 void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number, const QVector<Wrapped> &wrapped, const QVector<QRectF> &columns, MaterializedPage *page, size_t front)
 {
     // The objects are drawn in the order of their heights (the file's: z-index, relative height), and in the order of their anchors where those are the same: those behind the
@@ -289,6 +321,7 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
                 auto s = std::make_shared<Story>();
                 s->id = QStringLiteral("flow-boxtext-%1-%2-%3").arg(d->pages[0]->id).arg(id).arg(made);
                 s->doc = cloneStory(o.story.get());
+                if (page && storyHasTables(o.story.get())) tablesInBox(o.story.get(), s->doc.get(), placed, o.insets, number, d, page);
                 resolveImages(s->doc.get(), d);
                 d->stories.insert(s->id, s);
                 box->storyId = s->id;

@@ -872,7 +872,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             std::shared_ptr<Item> item;
             if (s.kind == Shape::TextBox) {
                 QVector<Block> blocks;
-                if (readBlocks(s.textBox, &blocks)) {
+                if (readBlocks(s.textBox, &blocks, true)) {   // (its tables are laid out in the box)
                     auto story = std::make_shared<QTextDocument>();
                     story->setDocumentMargin(0);
                     story->setDefaultFont(this->story()->defaultFont());

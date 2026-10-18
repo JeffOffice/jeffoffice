@@ -234,6 +234,9 @@ private:
     QTextBlock joinedEndOf(const QTextBlock &b) const;
     // Where the paragraph that has a position begins: where the first of those joined to it does.
     int paragraphStartOf(int position) const;
+    // The tables of a text box's story, laid out at the room the box has: their rows are drawn in the page's furniture tables, each at its place in the box, and in the copy of the
+    // story that the box holds the paragraphs of each are one, as tall as the rows are.
+    void tablesInBox(const QTextDocument *source, QTextDocument *copy, const QRectF &box, const QMarginsF &insets, int number, Document *d, MaterializedPage *page);
     void addTableFragments(MaterializedPage *page, const QVector<QRectF> &cols, const QRectF &body, const std::vector<TableGroup> &groups);
     // An object that the text of a page goes round, as the page was laid out with it: which object (counted from 1) at which anchor character (a position in the story), and
     // the rectangle it is in on the page (page coordinates).

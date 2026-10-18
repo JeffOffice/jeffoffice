@@ -6690,6 +6690,72 @@ private Q_SLOTS:
         QVERIFY2(set->stroke.isNone(), "an inline picture with one side set has no outline");
     }
 
+    // A text box that holds a table lays it out in the box: the rows are drawn under the paragraph before them, as wide as their columns, in the room the box has, and the paragraph that
+    // takes their place in the box's text is as tall as they are (so the text after them goes below). The fill a box says it has none of (v:fill opacity 0, however it is written) is not
+    // drawn, and one that is opaque is.
+    void aTableInATextBoxIsLaidOutInTheBox()
+    {
+        const QByteArray cell = "<w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>CELLTEXT</w:t></w:r></w:p></w:tc>";
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"4000\" w:type=\"dxa\"/><w:tblLayout w:type=\"fixed\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid>"
+                                 "<w:tr>" + cell + cell + "</w:tr><w:tr>" + cell + cell + "</w:tr></w:tbl>";
+        const QByteArray box = "<w:r><w:pict " + QByteArray(kVml) + "><v:shape id=\"b\" style=\"position:absolute;margin-left:100pt;margin-top:200pt;width:300pt;height:250pt;z-index:3;"
+                               "mso-position-horizontal-relative:page;mso-position-vertical-relative:page\" stroked=\"f\"><v:fill opacity=\"0\" color2=\"black\"/>"
+                               "<v:textbox inset=\"10pt,0,0,0\"><w:txbxContent><w:p><w:r><w:t>BOXTITLE</w:t></w:r></w:p>" + table + "<w:p><w:r><w:t>BOXAFTER</w:t></w:r></w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Body</w:t></w:r>" + box + "</w:p>", kStyles));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        std::shared_ptr<TextItem> item;
+        QString text;
+        for (const auto &candidate : page->doc->pages[0]->items)
+            if (const auto textItem = std::dynamic_pointer_cast<TextItem>(candidate))
+                if (page->doc->story(textItem->storyId) && page->doc->story(textItem->storyId)->doc->toPlainText().contains(QLatin1String("BOXTITLE"))) {
+                    item = textItem;
+                    text = page->doc->story(textItem->storyId)->doc->toPlainText();
+                }
+        QVERIFY2(item, "the text box is on the page");
+        QVERIFY2(text.contains(QLatin1String("BOXAFTER")) && !text.contains(QLatin1String("CELLTEXT")), qPrintable(text));   // (the cells are drawn by their rows)
+        QCOMPARE(page->furnitureTables.size(), 1);
+        const auto &rows = page->furnitureTables.first();
+        QCOMPARE(rows->layout->cellCount(), 4);
+        const QRectF at = rows->rect();
+        QVERIFY2(std::abs(at.width() - 200) < 0.5, qPrintable(QString::number(at.width())));   // (two columns of 100 points)
+        // (The rows' edge is where the box's text begins, or left of it by the room a cell keeps at its side: the first cell's text is where the text of the paragraphs is.)
+        QVERIFY2(at.left() > item->rect.left() + 10 - 6 && at.left() < item->rect.left() + 10 + 0.5, qPrintable(QStringLiteral("rows at %1, the box's text at %2").arg(at.left()).arg(item->rect.left() + 10)));
+        QVERIFY2(at.top() > item->rect.top() + 8 && at.bottom() < item->rect.bottom(), qPrintable(QStringLiteral("rows from %1 to %2 in a box from %3 to %4").arg(at.top()).arg(at.bottom()).arg(item->rect.top()).arg(item->rect.bottom())));
+        // The paragraph in their place is as tall as they are: the last line of the story holds nothing but the paragraph after.
+        const QTextBlock place = page->doc->story(item->storyId)->doc->findBlockByNumber(1);
+        QVERIFY2(place.blockFormat().lineHeightType() == QTextBlockFormat::FixedHeight && std::abs(place.blockFormat().lineHeight() - at.height()) < 0.01,
+                 qPrintable(QStringLiteral("the place is %1 high, the rows %2").arg(place.blockFormat().lineHeight()).arg(at.height())));
+        // The box has no fill where the file says it has none; an opaque one is drawn.
+        QCOMPARE(item->fill.type, Fill::NoFill);
+        for (const char *opacity : {"0", "0%", "0f", "0.0"}) {
+            QByteArray b = box;
+            b.replace("opacity=\"0\"", QByteArray("opacity=\"") + opacity + "\"");
+            auto other = open(makeDocx("<w:p><w:r><w:t>Body</w:t></w:r>" + b + "</w:p>", kStyles));
+            QVERIFY(other);
+            const auto made = other->pager().materialize(0);
+            QVERIFY(made);
+            for (const auto &candidate : made->doc->pages[0]->items)
+                if (const auto textItem = std::dynamic_pointer_cast<TextItem>(candidate))
+                    if (made->doc->story(textItem->storyId) && made->doc->story(textItem->storyId)->doc->toPlainText().contains(QLatin1String("BOXTITLE")))
+                        QVERIFY2(textItem->fill.type == Fill::NoFill, opacity);
+        }
+        {
+            QByteArray b = box;
+            b.replace("<v:fill opacity=\"0\" color2=\"black\"/>", "<v:fill opacity=\"1\"/>");
+            auto opaque = open(makeDocx("<w:p><w:r><w:t>Body</w:t></w:r>" + b + "</w:p>", kStyles));
+            QVERIFY(opaque);
+            const auto made = opaque->pager().materialize(0);
+            QVERIFY(made);
+            bool solid = false;
+            for (const auto &candidate : made->doc->pages[0]->items)
+                if (const auto textItem = std::dynamic_pointer_cast<TextItem>(candidate))
+                    if (made->doc->story(textItem->storyId) && made->doc->story(textItem->storyId)->doc->toPlainText().contains(QLatin1String("BOXTITLE"))) solid = textItem->fill.type == Fill::Solid;
+            QVERIFY2(solid, "an opaque fill is drawn");
+        }
+    }
+
     // A box or a text box filled with a picture (a stretched fill) is still a box or a text box with the picture as its fill: the text box keeps its text, and the box its outline.
     void aShapeFilledWithAPictureKeepsItsTextAndItsOutline()
     {
