@@ -4700,6 +4700,29 @@ private Q_SLOTS:
         QCOMPARE(int(apart.size()), 2);
     }
 
+    // The columns of a continuous section that has more of them than the section before it begin where that section's text ends: the empty paragraph that ends the section before
+    // takes no room there either (they begin as they do when the section's last paragraph has the break in it).
+    void theColumnsAfterAnEmptyBreakParagraphBeginWhereTheTextAboveEnds()
+    {
+        const QByteArray one = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray three = "<w:sectPr><w:type w:val=\"continuous\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/><w:cols w:num=\"3\" w:space=\"360\"/></w:sectPr>";
+        auto columnsTop = [&](const QByteArray &first) {
+            auto doc = open(makeDocxWithParts(first + "<w:p><w:r><w:t>COLUMNTEXT</w:t></w:r></w:p>", three, {}));
+            if (!doc) return -1.0;
+            const auto page = doc->pager().materialize(0);
+            if (!page) return -1.0;
+            // (The first column of the three: the page's text boxes are the first section's, then the columns of the second.)
+            for (const auto &item : page->doc->pages[0]->items)
+                if (item->id.endsWith(QLatin1String("-0-1")) && item->id.contains(QLatin1String("flow-box"))) return item->rect.top();
+            return -1.0;
+        };
+        // (The break in the last paragraph, with text; and in an empty paragraph after it.)
+        const double inText = columnsTop("<w:p><w:pPr>" + one + "</w:pPr><w:r><w:t>Above</w:t></w:r></w:p>");
+        const double afterIt = columnsTop("<w:p><w:r><w:t>Above</w:t></w:r></w:p><w:p><w:pPr>" + one + "</w:pPr></w:p>");
+        QVERIFY(inText > 0 && afterIt > 0);
+        QVERIFY2(std::abs(inText - afterIt) < 0.01, qPrintable(QStringLiteral("the columns begin at %1 with the break in the text above, at %2 after an empty paragraph with it").arg(inText).arg(afterIt)));
+    }
+
     // The empty paragraph that ends a section stays on the page the text before it ends on, even when the page has no room left for its line (a continuous section's takes
     // none; and before a section on a page of its own it is only where the section breaks): the section after, which needs a page of its own (for its other paper, or by its
     // type), is the second page, not the third.

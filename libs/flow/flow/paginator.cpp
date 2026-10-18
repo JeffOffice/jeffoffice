@@ -64,6 +64,7 @@ struct Paginator::Run {
     bool hasNext = false;
     bool keepsSpace = false;   // the first paragraph is the rest of one after a break, and has its space before
     bool keepsIndent = false;  // ... and its first-line indent (the file may suppress the space and not the indent)
+    bool freeBreak = false;    // a section of more columns begins below the text of the first, and the empty paragraph that ends that takes no room (so that it has no box of its own)
     QVector<StoryLayout::NotePlace> notes;   // the footnotes as the page's layout put them
     QVector<StoryLayout::Rule> rules;        // and the rules above them
     PageStart next;            // where the page after starts
@@ -451,10 +452,12 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                         s1.stopAtFrame = int(f1.size()) - 1;
                         return layPart(f1, s1, st);
                     };
+                    // (A paragraph that is set where the next begins, as the empty one that ends a section before a continuous one, takes no room: the section after begins where it does.)
+                    auto outOfFlow = [&](const StoryLayout::LineBrief &ln) { return nextSection.columnCount() > firstColumns && m_doc->story()->findBlock(ln.block).blockFormat().boolProperty(tp::OutOfFlow); };
                     auto bottomOf = [&](const Part &part, int column) {
                         double bottom = 0;
                         for (const auto &ln : part.lines)
-                            if (ln.frame == run.firstFrame + column) bottom = std::max(bottom, ln.rect.bottom());
+                            if (ln.frame == run.firstFrame + column && !outOfFlow(ln)) bottom = std::max(bottom, ln.rect.bottom());
                         return bottom;
                     };
                     auto overflows = [&](const Part &part) {
@@ -487,10 +490,11 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                     bool fits = !p1.windowShort;
                     for (const auto &ln : p1.lines) {
                         if (ln.frame >= run.firstFrame + firstColumns) fits = false;
-                        if (ln.block == splitBlock && ln.line == ln.lines - 1 && ln.frame >= run.firstFrame && ln.frame < run.firstFrame + firstColumns) splitY = std::max(splitY, ln.rect.bottom());
+                        if (ln.block == splitBlock && ln.line == ln.lines - 1 && ln.frame >= run.firstFrame && ln.frame < run.firstFrame + firstColumns)
+                            splitY = std::max(splitY, outOfFlow(ln) ? 0.0 : ln.rect.bottom());   // (the break's paragraph takes no room: the section below begins at the top of the page where it is alone)
                     }
                     for (int c = 0; c < firstColumns; ++c) splitY = std::max(splitY, bottomOf(p1, c));
-                    if (!fits || splitY <= 0) {
+                    if (!fits || splitY < 0) {
                         splitFailed = true;
                         return;
                     }
@@ -571,6 +575,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                     run.cols.clear();
                     for (int c = 0; c < firstColumns; ++c) run.cols << QRectF(sec.columnRect(c).left(), 0, colW, colH);
                     for (int c = 0; c < nextSection.columnCount(); ++c) run.cols << QRectF(nextSection.columnRect(c).left(), splitY, nextSection.columnWidth(), columnH);
+                    run.freeBreak = nextSection.columnCount() > firstColumns;
                 }
                 all = part.lines;
                 run.notes = part.notes;
@@ -1549,10 +1554,21 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         // A text box for each column that has lines, as tall as its lines are: the lines that follow, which went to the next page, don't fit
         // in it (a frame a line short of the text's bottom is how the page is cut where the paginator cut it).
         QVector<double> bottom(run.columns, -1), top(run.columns, -1);
+        // (A first column whose lines are all of paragraphs that take no room, as the empty one that ends a section before a continuous one, has no box: its lines show nothing, and
+        // the text after them, which the page layer flows from the first box, would be put in it, where the paginator put it in the next column.)
+        QVector<bool> shows(run.columns, false);
+        for (int i = 0; i < run.kept; ++i) {
+            const int col = run.lines[i].frame - run.firstFrame;
+            if (col >= 0 && col < run.columns && !m_doc->story()->findBlock(run.lines[i].block).blockFormat().boolProperty(tp::OutOfFlow)) shows[col] = true;
+        }
+        for (int c = 0, first = true; c < run.columns; ++c) {
+            if (shows[c]) first = false;
+            else if (!first || !run.freeBreak) shows[c] = true;
+        }
         for (int i = 0; i < run.kept; ++i) {
             const StoryLayout::LineBrief &ln = run.lines[i];
             const int col = ln.frame - run.firstFrame;
-            if (col < 0 || col >= run.columns) continue;
+            if (col < 0 || col >= run.columns || !shows[col]) continue;
             bottom[col] = std::max(bottom[col], ln.rect.bottom() - ln.below);
             if (top[col] < 0) top[col] = ln.rect.top();
         }
