@@ -3839,10 +3839,28 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             int trailFrom = int(B->disp.size());
             while (trailFrom > 0 && (B->disp[trailFrom - 1] == QLatin1Char('\t') || B->disp[trailFrom - 1] == QLatin1Char(' '))) --trailFrom;
             if (trailFrom > 0 && trailFrom < B->disp.size() && B->disp.indexOf(QLatin1Char('\t'), trailFrom) >= 0 && PtLine(B->tl->lineAt(B->tl->lineCount() - 1)).textStart() >= trailFrom) {
+                // (Tabs that draw something keep their width: a leader on the paragraph's stops, or what a run puts on its tab: its line under or through it, or over it, its fill, or its border.)
+                const bool leaders = std::any_of(B->leaders.cbegin(), B->leaders.cend(), [](QChar ch) { return !ch.isNull() && !ch.isSpace(); });
+                auto drawn = [&](int at) {
+                    if (leaders) return true;
+                    for (const QTextLayout::FormatRange &r : std::as_const(ranges)) {
+                        if (at < r.start || at >= r.start + r.length) continue;
+                        const QTextCharFormat &rf = r.format;
+                        return rf.underlineStyle() != QTextCharFormat::NoUnderline || rf.fontUnderline() || rf.fontStrikeOut() || rf.fontOverline() || rf.hasProperty(QTextFormat::BackgroundBrush) ||
+                               rf.hasProperty(tp::RunBorder);
+                    }
+                    return false;
+                };
+                bool changed = false;
                 for (int i = trailFrom; i < B->disp.size(); ++i)
-                    if (B->disp[i] == QLatin1Char('\t')) B->disp[i] = QChar(0x200B);
-                B->tl->setText(B->disp);
-                redo(false, -1);
+                    if (B->disp[i] == QLatin1Char('\t') && !drawn(i)) {
+                        B->disp[i] = QChar(0x200B);
+                        changed = true;
+                    }
+                if (changed) {
+                    B->tl->setText(B->disp);
+                    redo(false, -1);
+                }
             }
         }
         // A justified line of a word processor's text that may give up a share of each space (wordSpaceShrink) takes in the next word when it fits so: the lines are cut as the

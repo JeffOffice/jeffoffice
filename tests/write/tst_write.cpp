@@ -5788,6 +5788,32 @@ private Q_SLOTS:
         QCOMPARE(linesOf(total + tab + tab + tab + tab + total), 2);
     }
 
+    // Trailing tabs that draw something keep their width: a signature line made of underlined tabs after the words is drawn to the margin, where tabs that show nothing take none.
+    void trailingTabsThatAreUnderlinedAreDrawn()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray stops = "<w:pPr><w:tabs><w:tab w:val=\"left\" w:pos=\"2880\"/><w:tab w:val=\"left\" w:pos=\"5760\"/><w:tab w:val=\"left\" w:pos=\"9360\"/></w:tabs></w:pPr>";
+        auto inkBeyondTheWords = [&](const QByteArray &tabRunProps) {
+            QByteArray tabs;
+            for (int i = 0; i < 6; ++i) tabs += "<w:r>" + tabRunProps + "<w:tab/></w:r>";
+            auto doc = open(makeDocxWithParts("<w:p>" + stops + "<w:r><w:t>Signature:</w:t></w:r>" + tabs + "</w:p>", sect, {}));
+            if (!doc) return -1;
+            PageView view;
+            view.resize(1000, 700);
+            view.setDocument(doc.get());
+            const QImage img = view.pageImage(0, 816);
+            const double perPoint = img.width() / 612.0;
+            int dark = 0;   // (in the lines of the paragraph, right of where its words end)
+            for (int y = int(72 * perPoint); y < int(100 * perPoint); ++y)
+                for (int x = int(200 * perPoint); x < int(460 * perPoint); ++x) dark += qGray(img.pixel(x, y)) < 128;
+            return dark;
+        };
+        const int underlined = inkBeyondTheWords("<w:rPr><w:u w:val=\"single\"/></w:rPr>"), plain = inkBeyondTheWords(QByteArray());
+        QCOMPARE(plain, 0);
+        QVERIFY2(underlined > 100, qPrintable(QStringLiteral("%1 dark points of the underline of the tabs").arg(underlined)));
+    }
+
     // The border a file puts round a run (w:bdr) is the run's, drawn round its text; a drop-down field of a form, which shows the entry it has chosen, shows its first entry when the
     // file kept no result for it (the box round it is that entry's width).
     void aRunBorderAndTheFirstEntryOfADropDownAreShown()
