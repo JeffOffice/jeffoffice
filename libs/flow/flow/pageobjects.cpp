@@ -256,7 +256,8 @@ void Paginator::tablesInBox(const QTextDocument *source, QTextDocument *copy, co
     }
 }
 
-void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number, const QVector<Wrapped> &wrapped, const QVector<QRectF> &columns, MaterializedPage *page, size_t front)
+void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number, const QVector<Wrapped> &wrapped, const QVector<QRectF> &columns, MaterializedPage *page, size_t front,
+                           MaterializedPage *boxTables)
 {
     // The objects are drawn in the order of their heights (the file's: z-index, relative height), and in the order of their anchors where those are the same: those behind the
     // text before the text, the rest after it.
@@ -321,7 +322,7 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
                 auto s = std::make_shared<Story>();
                 s->id = QStringLiteral("flow-boxtext-%1-%2-%3").arg(d->pages[0]->id).arg(id).arg(made);
                 s->doc = cloneStory(o.story.get());
-                if (page && storyHasTables(o.story.get())) tablesInBox(o.story.get(), s->doc.get(), placed, o.insets, number, d, page);
+                if (MaterializedPage *rowsOn = boxTables ? boxTables : page; rowsOn && storyHasTables(o.story.get())) tablesInBox(o.story.get(), s->doc.get(), placed, o.insets, number, d, rowsOn);
                 resolveImages(s->doc.get(), d);
                 d->stories.insert(s->id, s);
                 box->storyId = s->id;

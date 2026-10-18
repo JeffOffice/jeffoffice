@@ -420,8 +420,10 @@ private:
     // (An object with a wrap that leaves no text beside it is a wall as wide as the columns that it reaches into, which `columns` (their rectangles on the page) say: the page layer's
     // wall of that kind is as wide as the page, and would put the text of the other columns aside too.)
     // (`page` is given for the tables that are set at places: their rows are drawn from it. The objects behind the text go after the first `front` items of the page, which are
-    // those of its header and footer.)
-    void addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number, const QVector<Wrapped> &wrapped = {}, const QVector<QRectF> &columns = {}, MaterializedPage *page = nullptr, size_t front = 0);
+    // those of its header and footer. `boxTables` is the page that the tables of the text boxes are drawn on, where `page` (the body's, the frames of its text) is not given: for the objects of a header
+    // or a footer.)
+    void addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number, const QVector<Wrapped> &wrapped = {}, const QVector<QRectF> &columns = {}, MaterializedPage *page = nullptr, size_t front = 0,
+                    MaterializedPage *boxTables = nullptr);
     // Changes the pictures of the inline objects in a story to the Ids they have in the page's document.
     void resolveImages(QTextDocument *story, Document *d);
     QString imageIdOf(Document *d, int image);

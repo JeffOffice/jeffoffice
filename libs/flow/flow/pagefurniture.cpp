@@ -455,7 +455,7 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
     };
     place(f.header, sec.headerDistance, f.headerHeight, "header");
     place(f.footer, sec.pageSize().height() - sec.footerDistance - f.footerHeight, f.footerHeight, "footer");
-    if (!anchors.isEmpty()) addObjects(d, anchors, sec, number);
+    if (!anchors.isEmpty()) addObjects(d, anchors, sec, number, {}, {}, nullptr, 0, page);   // (the page is given for the tables of the text boxes: their rows are drawn with the furniture's)
 }
 
 void Paginator::addNotes(Document *d, const QVector<StoryLayout::NotePlace> &places, const QVector<StoryLayout::Rule> &rules, int firstFrame, const QStringList &ids,

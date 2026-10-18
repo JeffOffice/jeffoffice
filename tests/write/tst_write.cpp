@@ -6774,6 +6774,31 @@ private Q_SLOTS:
         }
     }
 
+    // A text box of a header holds its table as one of the body does: the rows are drawn in the box, and the cells' paragraphs are not stacked in its text.
+    void aTableInATextBoxOfAHeaderIsLaidOutInTheBox()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray cell = "<w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>CELLTEXT</w:t></w:r></w:p></w:tc>";
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"4000\" w:type=\"dxa\"/><w:tblLayout w:type=\"fixed\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid>"
+                                 "<w:tr>" + cell + cell + "</w:tr></w:tbl>";
+        const QByteArray shape = "<w:r><w:pict><v:shape id=\"s1\" style=\"position:absolute;margin-left:100pt;margin-top:30pt;width:300pt;height:100pt;z-index:1;mso-position-horizontal-relative:page;"
+                                 "mso-position-vertical-relative:page\" filled=\"f\" stroked=\"f\"><v:textbox><w:txbxContent><w:p><w:r><w:t>HEADBOX</w:t></w:r></w:p>" + table +
+                                 "<w:p/></w:txbxContent></v:textbox><w10:wrap type=\"none\"/></v:shape></w:pict></w:r>";
+        QByteArray header = headerPart("hdr", {shape});
+        header.replace("<w:hdr ", "<w:hdr xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\" ");
+        auto doc = open(makeDocxWithParts(paragraphs(3, 5), sect, {{QStringLiteral("/word/header1.xml"), header}}));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        QCOMPARE(page->furnitureTables.size(), 1);
+        QString text;
+        for (const auto &candidate : page->doc->pages[0]->items)
+            if (const auto textItem = std::dynamic_pointer_cast<TextItem>(candidate))
+                if (page->doc->story(textItem->storyId) && page->doc->story(textItem->storyId)->doc->toPlainText().contains(QLatin1String("HEADBOX"))) text = page->doc->story(textItem->storyId)->doc->toPlainText();
+        QVERIFY2(text.contains(QLatin1String("HEADBOX")) && !text.contains(QLatin1String("CELLTEXT")), qPrintable(text));
+    }
+
     // The tables of text boxes are bounded in all, whatever the number of boxes: a file of many boxes each with a table of a thousand cells has the tables of the first laid out in
     // their boxes, and the rest kept as they were (their boxes are drawn without them).
     void theTablesOfManyTextBoxesAreBoundedInAll()
