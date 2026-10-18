@@ -755,6 +755,25 @@ private Q_SLOTS:
         QCOMPARE(noteNumberRestart("not xml", "footnotePr"), QString());
     }
 
+    // How the endnotes are numbered is read from the endnotes' own element of the settings (the format and the first number), or of a section's properties as it keeps them.
+    void readsHowNotesAreNumbered()
+    {
+        auto settings = [](const QByteArray &inner) { return xmlDoc(QByteArray("<w:settings ") + kW + ">" + inner + "</w:settings>"); };
+        const NoteNumbering both = readNoteNumbering(settings("<w:footnotePr><w:numFmt w:val=\"chicago\"/></w:footnotePr><w:endnotePr><w:numFmt w:val=\"upperLetter\"/><w:numStart w:val=\"4\"/></w:endnotePr>"), "endnotePr");
+        QCOMPARE(both.format, QStringLiteral("upperLetter"));
+        QCOMPARE(both.start, 4);
+        QVERIFY(readNoteNumbering(settings(""), "endnotePr").format.isEmpty());
+        QCOMPARE(readNoteNumbering(settings("<w:endnotePr><w:numStart w:val=\"-3\"/></w:endnotePr>"), "endnotePr").start, 0);
+        QCOMPARE(readNoteNumbering("not xml", "endnotePr").start, 0);
+        SectionProps section;
+        section.extra.push_back({1, "<w:footnotePr><w:numFmt w:val=\"decimal\"/></w:footnotePr>"});
+        QVERIFY(noteNumberingOf(section, "endnotePr").format.isEmpty());   // (the footnotes' is not the endnotes')
+        section.extra.push_back({2, "<w:endnotePr><w:numFmt w:val=\"lowerLetter\"/><w:numStart w:val=\"9\"/></w:endnotePr>"});
+        const NoteNumbering own = noteNumberingOf(section, "endnotePr");
+        QCOMPARE(own.format, QStringLiteral("lowerLetter"));
+        QCOMPARE(own.start, 9);
+    }
+
     // The compatibility options that the layout reads come from one reading of the settings part (a part may be very large, and was read once for each option): each is
     // on when it is stated in w:compat and not turned off, an option outside w:compat is none, and a part that is not XML has none.
     void readsTheCompatibilityOptionsInOneReading()

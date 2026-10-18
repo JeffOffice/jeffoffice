@@ -4384,6 +4384,52 @@ private Q_SLOTS:
         QCOMPARE(shownWith("<w:footnotePr><w:numFmt w:val=\"decimal\"/></w:footnotePr>"), QStringList({QStringLiteral("raw:i"), QStringLiteral("raw:ii")}));
     }
 
+    // The endnotes' marks are numbered as the settings say and as a section says, and from the number the settings give: chicago marks (a star, a dagger, a double dagger, a section
+    // sign, then two of each), none, or the number the first begins with; a section's own format is for the references in it.
+    void endnoteMarksFollowTheFormatsTheNumberAndTheSection()
+    {
+        const QByteArray refs = "<w:r><w:endnoteReference w:id=\"1\"/></w:r><w:r><w:t>b</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r><w:r><w:endnoteReference w:id=\"3\"/></w:r>"
+                                "<w:r><w:endnoteReference w:id=\"4\"/></w:r><w:r><w:endnoteReference w:id=\"5\"/></w:r>";
+        auto shown = [&](const QByteArray &body, const QByteArray &settings) {
+            auto doc = open(makeDocxWithParts(body, QByteArray(), {}, settings));
+            QStringList out;
+            if (!doc) return out;
+            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+                for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                    const QTextCharFormat cf = it.fragment().charFormat();
+                    if (cf.hasProperty(prop::Atom) && unpackAtom(storedBytes(cf, prop::Atom)).tag == QLatin1String("endnoteReference")) out << cf.stringProperty(tp::Field).mid(4);
+                }
+            return out;
+        };
+        const QByteArray body = "<w:p>" + refs + "</w:p>";
+        QCOMPARE(shown(body, "<w:endnotePr><w:numFmt w:val=\"chicago\"/></w:endnotePr>"),
+                 (QStringList{QStringLiteral("*"), QString(QChar(0x2020)), QString(QChar(0x2021)), QString(QChar(0x00A7)), QStringLiteral("**")}));
+        QCOMPARE(shown(body, "<w:endnotePr><w:numFmt w:val=\"none\"/></w:endnotePr>"), (QStringList{QString(), QString(), QString(), QString(), QString()}));
+        QCOMPARE(shown(body, "<w:endnotePr><w:numFmt w:val=\"decimal\"/><w:numStart w:val=\"7\"/></w:endnotePr>"), (QStringList{QStringLiteral("7"), QStringLiteral("8"), QStringLiteral("9"), QStringLiteral("10"), QStringLiteral("11")}));
+        // The first paragraph ends a section that says upper case roman numerals; the settings' decimal numbers are the last section's.
+        const QByteArray two = "<w:p><w:pPr><w:sectPr><w:endnotePr><w:numFmt w:val=\"upperRoman\"/></w:endnotePr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr></w:pPr><w:r><w:endnoteReference w:id=\"1\"/></w:r></w:p>"
+                               "<w:p><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+        QCOMPARE(shown(two, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"), (QStringList{QStringLiteral("I"), QStringLiteral("2")}));
+    }
+
+    // Reading the settings for the endnotes' numbering is once for the document, not for each story made (the notes' stories, the headers', and the footers' are made as pages
+    // need them: 3,000 footnotes were 5 seconds of reading the same part again).
+    void theEndnotesNumberingIsReadOnceForTheDocument()
+    {
+        QByteArray body, notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>";
+        for (int i = 2; i < 22; ++i) {
+            body += "<w:p><w:r><w:t>Cited</w:t></w:r><w:r><w:footnoteReference w:id=\"" + QByteArray::number(i) + "\"/></w:r></w:p>";
+            notes += "<w:footnote w:id=\"" + QByteArray::number(i) + "\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> note</w:t></w:r></w:p></w:footnote>";
+        }
+        notes += "</w:footnotes>";
+        const qint64 before = office::wml::noteNumberingReadsForTest();
+        auto doc = open(makeDocxWithParts(body, QByteArray(), {{QStringLiteral("/word/footnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+        QVERIFY(doc);
+        for (int k = 0; k < doc->pager().pageCount(); ++k) QVERIFY(doc->pager().materialize(k));   // (the notes' stories are made as the pages are)
+        const qint64 reads = office::wml::noteNumberingReadsForTest() - before;
+        QVERIFY2(reads == 1, qPrintable(QStringLiteral("the settings were read %1 times").arg(reads)));
+    }
+
     // A file that says its hanging indents add no tab stop (noTabHangInd) is read so, by its value.
     void hangingIndentsAreNoTabStopsWhereTheFileSaysSo()
     {

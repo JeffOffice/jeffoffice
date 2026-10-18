@@ -25,6 +25,9 @@ office::wml::ParaProps paraPropsOf(const QTextBlockFormat &format);
 
 // The text of a number of a list in a number format of the file ("lowerRoman", "decimal"...), and a Roman numeral.
 QString listNumberText(const QString &format, int n);
+// The number a note's mark shows in a format of w:numFmt (the formats of lists, and the marks of a note alone: "chicago" is *, a dagger, a double dagger, and a section sign, then
+// two of each, and so on; "none" shows nothing).
+QString noteNumberText(const QString &format, int n);
 QString romanNumeral(int n, bool upper);
 
 // The fifteen highlight colors, by the names the file uses.

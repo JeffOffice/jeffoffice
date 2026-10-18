@@ -219,6 +219,8 @@ private:
     QHash<int, office::wml::HeaderRefs> m_headerRefs;                 // by the key of the section's record
     QByteArray m_lastBytes;                        // the first paragraph's record of it (prop::LastSection) as last read
     int m_blockCount = 0;
+    QString m_endnoteFormat = QStringLiteral("lowerRoman");   // the format the settings give the endnotes' numbers (lower case roman where they give none)
+    int m_endnoteStart = 1;                                    // and the number the first begins with
     int m_letteringShapes = 0, m_letteringLetters = 0;   // the lettering on a path the document has drawn so far, and its letters (each is outlined, and may be stroked: they are bounded)
     bool m_syncing = false;
     mutable QHash<QString, std::shared_ptr<office::wml::StyleSheet>> m_scratch;

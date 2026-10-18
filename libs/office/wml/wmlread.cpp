@@ -8,8 +8,10 @@
 #include <QCoreApplication>
 #include <QFontDatabase>
 #include <QHash>
+#include <QRegularExpression>
 #include <QSet>
 #include <algorithm>
+#include <atomic>
 
 namespace jp::office::wml {
 
@@ -1128,13 +1130,34 @@ QString noteNumberRestart(const QByteArray &settings, const char *group)
     return restart < 0 ? QString() : tree.val(restart);
 }
 
-QString noteNumberFormat(const QByteArray &settings, const char *group)
+static std::atomic<qint64> s_noteNumberingReads{0};
+
+qint64 noteNumberingReadsForTest() { return s_noteNumberingReads.load(); }
+
+NoteNumbering readNoteNumbering(const QByteArray &settings, const char *group)
 {
+    ++s_noteNumberingReads;
+    NoteNumbering n;
     XmlTree tree;
-    if (!tree.parse(settings, nullptr)) return QString();
+    if (!tree.parse(settings, nullptr)) return n;
     const int notes = tree.child(tree.root(), group);
-    const int format = notes < 0 ? -1 : tree.child(notes, "numFmt");
-    return format < 0 ? QString() : tree.val(format);
+    if (notes < 0) return n;
+    if (const int format = tree.child(notes, "numFmt"); format >= 0) n.format = tree.val(format);
+    if (const int start = tree.child(notes, "numStart"); start >= 0) n.start = std::clamp(tree.val(start).toInt(), 0, 32767);
+    return n;
+}
+
+NoteNumbering noteNumberingOf(const SectionProps &section, const char *group)
+{
+    NoteNumbering n;
+    for (const RawChild &child : section.extra) {   // (a section keeps its note properties as written: "<w:endnotePr>...</w:endnotePr>")
+        if (!child.xml.contains(group)) continue;
+        static const QRegularExpression format(QStringLiteral("numFmt\\s[^>]*?val=\"([^\"]*)\"")), start(QStringLiteral("numStart\\s[^>]*?val=\"(\\d+)\""));
+        const QString text = QString::fromUtf8(child.xml.left(4096));
+        if (const QRegularExpressionMatch m = format.match(text); m.hasMatch()) n.format = m.captured(1);
+        if (const QRegularExpressionMatch m = start.match(text); m.hasMatch()) n.start = std::clamp(m.captured(1).toInt(), 0, 32767);
+    }
+    return n;
 }
 
 bool compatOption(const QByteArray &settings, const char *name)
