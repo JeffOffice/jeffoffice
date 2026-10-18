@@ -3421,7 +3421,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             while (k > s0 && B->disp[k].isSpace()) --k;
                             const double end = line.cursorToX(k + 1);
                             if (end > room + fit - qtPixelBack()) {
-                                static const QString marks = QStringLiteral(".,;:!?)]}\"'\u2019\u201D\u00BB\u2026");
+                                static const QString marks = QStringLiteral(".,;:!?\"'\u2019\u201D\u00BB\u2026");   // (no closing bracket: V055's line that ends in "triggerSetup[0]" is the next line's)
                                 markHangs = marks.contains(B->disp[k]) && line.cursorToX(k) <= room + 0.001 && k > s0;
                                 if (!markHangs) line.setLineWidth(room + fit);
                             } else if (al == Qt::AlignJustify) {

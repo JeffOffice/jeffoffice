@@ -3536,6 +3536,29 @@ private Q_SLOTS:
         QCOMPARE(lines(false, 246.2), 1);
     }
 
+    // A closing bracket does not hang past the margin as a period does (V055's "recorded as triggerSetup[0]" line ends before the word, which with its bracket hung would be 1.9
+    // points over the room): the text before it may not fill the room with the bracket outside, and two words of 243 points and a bracket of 4 are two lines in a room of 243.
+    void aClosingBracketDoesNotHangPastTheMargin()
+    {
+        auto lines = [&](const QString &mark, double room) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Tinos")});
+            run.setFontPointSize(12);
+            c.insertText(QString(36, QLatin1Char('0')) + QLatin1Char(' ') + QString(4, QLatin1Char('0')) + mark, run);   // (216 points, a space of 3, 24, and the mark)
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(room, 200)}, env);
+            return int(lay.lineInfo(0).size());
+        };
+        QCOMPARE(lines(QStringLiteral("."), 243.0), 1);   // (a period hangs)
+        for (const QString &bracket : {QStringLiteral(")"), QStringLiteral("]"), QStringLiteral("}")})
+            QCOMPARE(lines(bracket, 243.0), 2);
+        QCOMPARE(lines(QStringLiteral("]"), 250.0), 1);
+    }
+
     // A line that ends where a break may be (after a dash) is fitted as the others are: the room is not given back, as it is for a word wider than the line. (Digits: the em
     // dash is set a fifth of a point under the room, which it does not fit, and a fifth over it, which it does, whatever its engine counts past its advance.)
     void aLineThatEndsAtADashIsFittedLikeTheOthers()
