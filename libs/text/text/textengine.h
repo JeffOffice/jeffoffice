@@ -194,6 +194,9 @@ struct LayoutEnv {
     // (w:noLeading) (LayoutEnv::wordLines).
     bool wordWholePointLines = false;
     bool wordNoLeading = false;
+    // How much of each space a justified line of a word processor's text may give up to take in one more word (a share of the space; the older word processor's full
+    // justification, a file's compatibility option w:wpJustification), 0 for none (LayoutEnv::wordLines).
+    double wordSpaceShrink = 0;
     // Percent taken off each paragraph's line spacing (a slide's text the
     // presentation program shrank to fit: a:normAutofit's lnSpcReduction).
     double lineCut = 0;

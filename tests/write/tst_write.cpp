@@ -6290,6 +6290,31 @@ private Q_SLOTS:
         QVERIFY2(std::abs(startOf(true, false) - 72) < 2, qPrintable(QString::number(startOf(true, false))));
     }
 
+    // With the older program's full justification (w:wpJustification) a justified line gives up part of its spaces to take in one more word: for some width of the text area its
+    // first line holds a word more than without the option, and for none fewer.
+    void fullJustificationTakesInAWordWhereTheSpacesCanGiveWay()
+    {
+        auto firstLineWords = [&](bool option, int rightMargin) {
+            QByteArray words;
+            for (int i = 0; i < 90; ++i) words += "abcdefg ";
+            const QByteArray body = "<w:p><w:pPr><w:jc w:val=\"both\"/></w:pPr><w:r><w:t xml:space=\"preserve\">" + words + "</w:t></w:r></w:p>";
+            const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"" + QByteArray::number(rightMargin) +
+                                    "\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+            const QByteArray settings = option ? QByteArray("<w:compat><w:wpJustification/></w:compat>") : QByteArray();
+            auto doc = open(makeDocxWithParts(body, sect, {}, settings, kStyles));
+            const auto lines = doc->pager().lines(0);
+            if (lines.isEmpty()) return -1;
+            return int(doc->story()->toPlainText().mid(lines[0].pos, lines[0].end - lines[0].pos).trimmed().count(QLatin1Char(' ')) + 1);
+        };
+        int more = 0;
+        for (int margin = 1440; margin < 1440 + 20 * 60; margin += 20) {
+            const int plain = firstLineWords(false, margin), given = firstLineWords(true, margin);
+            QVERIFY2(plain > 0 && given >= plain, qPrintable(QString::number(margin) + ": " + QString::number(given) + " against " + QString::number(plain)));
+            more += given > plain;
+        }
+        QVERIFY2(more > 3, qPrintable(QString::number(more)));
+    }
+
     // A number is set in its paragraph's mark, not in what the first words of the item happen to be in: here the mark is of 10 points and the first words of 40.
     void aNumberIsInTheSizeOfItsParagraphMark()
     {

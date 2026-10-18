@@ -1156,6 +1156,7 @@ CompatOptions readCompatOptions(const QByteArray &settings)
     o.suppressTopSpacingWP = on("suppressTopSpacingWP");
     o.noLeading = on("noLeading");
     o.suppressSpBfAfterPgBrk = on("suppressSpBfAfterPgBrk");
+    o.wpJustification = on("wpJustification");
     return o;
 }
 

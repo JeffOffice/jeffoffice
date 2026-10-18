@@ -319,6 +319,9 @@ void WriteDoc::setUpEnvironment()
         // Lines of whole points are the 2003 programs' (every practice document that asks for them is of compatibility mode 11): not a file of the 2010 program's mode (14) or after.
         f.env.wordWholePointLines = compat.suppressTopSpacingWP && m_wml.compatMode < 14;
         f.env.wordNoLeading = compat.noLeading;
+        // Full justification in the older program's way: a justified line may give up a little over a third of each space to take in one more word (the narrowest spaces in
+        // the files' own pages are 0.64 of a space).
+        f.env.wordSpaceShrink = compat.wpJustification ? 0.36 : 0.0;
         f.markFollowsBreak = m_wml.compatMode >= 15 || compat.splitPgBreakAndParaMark;
         f.spaceBeforeAfterBreak = !compat.suppressSpBfAfterPgBrk;
     }
