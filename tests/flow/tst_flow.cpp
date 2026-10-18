@@ -2538,7 +2538,7 @@ private Q_SLOTS:
         QCOMPARE(regular.fontFamilies().toStringList().value(0), QStringLiteral("Arimo"));
         QCOMPARE(regular.fontStretch(), stretchToAsk(108));
         cf.setFontWeight(QFont::Bold);
-        QVERIFY(resolveCharFormat(cf, word).fontStretch() != stretchToAsk(108));
+        QCOMPARE(resolveCharFormat(cf, word).fontStretch(), 0);   // (the bold is as wide as Arimo's: no stretch is asked)
         const auto lines = wordLinesOf({{QStringLiteral("Univers"), 11}});
         QVERIFY2(std::abs(lines.value(0).rect.height() - (2025 + 512) / 2048.0 * 11) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
     }
@@ -3589,10 +3589,11 @@ private Q_SLOTS:
     }
 
     // A word processor breaks a line at spaces and after hyphens and dashes, and in a word that is wider than the line wherever it must: not between two parenthesized parts that
-    // touch ("(c)(5)(iv)", which V147's pages keep whole), nor after a question mark in an address (V035's "subindex.asp?maintarget=").
+    // touch ("(c)(5)(iv)", which V147's pages keep whole), nor after a question mark in an address (V035's "subindex.asp?maintarget="). Digits are 6 points, a bracket 4, a question
+    // mark 5.3, in a room of 100.
     void aLineBreaksNeitherBetweenBracketsThatTouchNorAfterAQuestionMark()
     {
-        auto firstLine = [&](const QString &text, double room) {
+        auto lines = [&](const QString &text) {
             QTextDocument doc;
             QTextCursor c(&doc);
             QTextCharFormat run;
@@ -3602,40 +3603,123 @@ private Q_SLOTS:
             LayoutEnv env;
             env.wordLines = true;
             StoryLayout lay;
-            lay.build(&doc, {plainFrame(room, 200)}, env);
-            const auto lines = lay.lineInfo(0);
-            return lines.size() >= 2 ? lines[0].text : QString();
+            lay.build(&doc, {plainFrame(100, 400)}, env);
+            QStringList out;
+            for (const auto &line : lay.lineInfo(0)) out << QString(line.text).remove(QChar(0x2060)).remove(QChar(0x200B));   // (the marks that join and divide are not shown)
+            return out;
         };
-        // (Digits are 6 points: twelve and "(00)" are 92 points, and the "(00)" after it 20, in a room of 100.)
-        const QString brackets = QString(12, QLatin1Char('0')) + QStringLiteral("(00)(00)");
-        QVERIFY2(firstLine(brackets, 100) != QString(12, QLatin1Char('0')) + QStringLiteral("(00)"), qPrintable(firstLine(brackets, 100)));
-        const QString query = QString(14, QLatin1Char('0')) + QStringLiteral("?") + QString(12, QLatin1Char('0'));
-        QVERIFY2(firstLine(query, 100) != QString(14, QLatin1Char('0')) + QStringLiteral("?"), qPrintable(firstLine(query, 100)));
-        // (A hyphen is where a line breaks: the first part is 64 points, and the whole 128.)
-        QVERIFY(firstLine(QString(14, QLatin1Char('0')) + QStringLiteral("-") + QString(12, QLatin1Char('0')), 100).remove(QChar(0x200B)) == QString(14, QLatin1Char('0')) + QStringLiteral("-"));
+        const QString twelve(12, QLatin1Char('0')), fourteen(14, QLatin1Char('0'));
+        // Twelve digits and "(00)" are 92 points, the "(" 96, and one more digit would be 102: the word is broken where it must be, after the second "(", not between the brackets.
+        QCOMPARE(lines(twelve + QStringLiteral("(00)(00)")), (QStringList{twelve + QStringLiteral("(00)("), QStringLiteral("00)")}));
+        // Fourteen digits and the mark are 89 points, one digit more 95, and two 101: after the first of them, not after the mark.
+        QCOMPARE(lines(fourteen + QStringLiteral("?") + twelve), (QStringList{fourteen + QStringLiteral("?0"), QString(11, QLatin1Char('0'))}));
+        // A hyphen is where a line breaks (the first part is 88 points).
+        QCOMPARE(lines(fourteen + QStringLiteral("-") + twelve).value(0), fourteen + QStringLiteral("-"));
     }
 
-    // A line that ends where a break may be (after a dash) is fitted as the others are: the room is not given back, as it is for a word wider than the line. (Digits: the em
-    // dash is set a fifth of a point under the room, which it does not fit, and a fifth over it, which it does, whatever its engine counts past its advance.)
-    void aLineThatEndsAtADashIsFittedLikeTheOthers()
+    // East Asian text breaks after a question mark as it does after a letter, so the rule that keeps an address whole leaves it alone (an ideograph is a letter to QChar), and one
+    // that goes on in another run of the paragraph is kept as one that goes on in the run: "a?" and "b" in two runs are as "a?b" in one.
+    void theRuleAfterAQuestionMarkLeavesEastAsianTextAndSpansRuns()
     {
-        auto firstLine = [&](double room) {
+        auto firstLine = [&](const QStringList &runs, double room) {
             QTextDocument doc;
             QTextCursor c(&doc);
-            QTextCharFormat run;
-            run.setFontFamilies({QStringLiteral("Tinos")});
-            run.setFontPointSize(12);
-            c.insertText(QString(34, QLatin1Char('0')) + QChar(0x2014) + QString(4, QLatin1Char('0')), run);   // (204 points, a dash of 12, and 24)
+            QTextCharFormat plain, bold;
+            plain.setFontFamilies({QStringLiteral("Tinos")});
+            plain.setFontPointSize(12);
+            bold = plain;
+            bold.setFontWeight(QFont::Bold);
+            for (int i = 0; i < runs.size(); ++i) c.insertText(runs[i], i % 2 ? bold : plain);
             LayoutEnv env;
             env.wordLines = true;
-            env.wordNoHang = true;
             StoryLayout lay;
-            lay.build(&doc, {plainFrame(room, 200)}, env);
-            const auto lines = lay.lineInfo(0);
-            return lines.size() >= 2 ? lines[0].text : QString();
+            lay.build(&doc, {plainFrame(room, 400)}, env);
+            return QString(lay.lineInfo(0).value(0).text).remove(QChar(0x2060)).remove(QChar(0x200B));
         };
-        QCOMPARE(firstLine(215.8), QString(34, QLatin1Char('0')));
-        QCOMPARE(firstLine(216.2), QString(34, QLatin1Char('0')) + QChar(0x2014));
+        const QString fourteen(14, QLatin1Char('0'));
+        // After the question mark an ideograph begins, where a line may break: ten digits, a space, five digits, and the mark are 98 points, which the 100 hold, the ideographs go on
+        // the next line (were the mark joined to the first of them, the line would end at the space).
+        const QString han = QString(QChar(0x4E2D)) + QString(QChar(0x6587)) + QString(QChar(0x5B57));
+        const QString head = QString(10, QLatin1Char('0')) + QLatin1Char(' ') + QString(5, QLatin1Char('0')) + QStringLiteral("?");
+        QCOMPARE(firstLine({head + han}, 100), head);
+        // The same as one run, and as two (the second begins where the first ends): the digits wrap at the room, not after the mark.
+        const QString expected = fourteen + QStringLiteral("?0");
+        QCOMPARE(firstLine({fourteen + QStringLiteral("?") + QString(12, QLatin1Char('0'))}, 100), expected);
+        QCOMPARE(firstLine({fourteen + QStringLiteral("?"), QString(12, QLatin1Char('0'))}, 100), expected);
+        // The same for brackets that touch.
+        QCOMPARE(firstLine({QString(12, QLatin1Char('0')) + QStringLiteral("(00)"), QStringLiteral("(00)")}, 100), QString(12, QLatin1Char('0')) + QStringLiteral("(00)("));
+    }
+
+    // The rules that keep a line from breaking after a question mark and between brackets leave a break where the stretch since the last place a line may break is a hundred and
+    // twenty letters: a file of "a?a?..." (the stretch of a hostile file is as long as it likes) is laid out in pieces, not as one word that Qt sets a line at a time over all of
+    // it (80,000 letters took 1.6 seconds, 60 times what the same with spaces took).
+    void theRulesAgainstABreakAreBoundedByTheLengthOfTheStretch()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Tinos")});
+        run.setFontPointSize(12);
+        QString text;
+        for (int i = 0; i < 40000; ++i) text += QStringLiteral("a?");
+        c.insertText(text, run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(300, 400)}, env);
+        QVERIFY2(StoryLayout::longestJoinedStretchForTest() >= 20, qPrintable(QString::number(StoryLayout::longestJoinedStretchForTest())));   // (the rule is at work)
+        QVERIFY2(StoryLayout::longestJoinedStretchForTest() <= 120, qPrintable(QStringLiteral("a stretch of %1 letters is kept whole").arg(StoryLayout::longestJoinedStretchForTest())));
+    }
+
+    // A line that ends where a break may be (after a dash) is fitted as the others are: the room is not given back, as it is for a word wider than the line. What the first
+    // line needs to take the em dash, over the width of the text to its end (the dash's advance and what its machine's engine counts past it: found by halving the interval, not
+    // assumed), is the same where the line breaks before the dash as where it breaks at a space before it, which is fitted as any line is. Were the room given back where a line
+    // breaks at the dash, the first would need an eighth of a point less.
+    void aLineThatEndsAtADashIsFittedLikeTheOthers()
+    {
+        // The least room in which the first line takes the dash, less the text's width to the dash's end.
+        auto needs = [&](const QString &text) {
+            auto build = [&](double room, QTextDocument *doc, StoryLayout *lay) {
+                QTextCursor c(doc);
+                QTextCharFormat run;
+                run.setFontFamilies({QStringLiteral("Tinos")});
+                run.setFontPointSize(12);
+                c.insertText(text, run);
+                LayoutEnv env;
+                env.wordLines = true;
+                env.wordNoHang = true;
+                lay->build(doc, {plainFrame(room, 200)}, env);
+            };
+            auto takesTheDash = [&](double room) {
+                QTextDocument doc;
+                StoryLayout lay;
+                build(room, &doc, &lay);
+                const auto lines = lay.lineInfo(0);
+                return !lines.isEmpty() && lines[0].text.contains(QChar(0x2014));
+            };
+            double width = 0;
+            {
+                QTextDocument doc;
+                StoryLayout lay;
+                build(1000, &doc, &lay);
+                int frame = -1;
+                QRectF at;
+                if (!lay.caretRect(int(text.indexOf(QChar(0x2014))) + 1, &frame, &at)) return -1000.0;
+                width = at.left();
+            }
+            double lo = 100, hi = 300;   // (the text is about 216 points)
+            if (takesTheDash(lo) || !takesTheDash(hi)) return -1000.0;
+            while (hi - lo > 0.0005) {
+                const double mid = (lo + hi) / 2;
+                (takesTheDash(mid) ? hi : lo) = mid;
+            }
+            return hi - width;
+        };
+        const QString zeros(34, QLatin1Char('0')), later(4, QLatin1Char('0'));
+        const double atSpace = needs(QString(33, QLatin1Char('0')) + QLatin1Char(' ') + QChar(0x2014) + later);   // (breaks at the space)
+        const double atDash = needs(zeros + QChar(0x2014) + later);                                                  // (breaks before the dash)
+        QVERIFY2(atSpace > -100 && atDash > -100, qPrintable(QStringLiteral("at a space %1, at the dash %2").arg(atSpace).arg(atDash)));
+        QVERIFY2(std::abs(atDash - atSpace) < 0.01, qPrintable(QStringLiteral("the dash needs %1 more than its width where the line breaks before it, %2 where it breaks at a space").arg(atDash).arg(atSpace)));
     }
 
     // Hidden text takes no room and shows nothing: a line's text is what is left, and a paragraph of nothing else is an empty line.

@@ -266,6 +266,21 @@ QString LayoutEnv::key() const
 // 0.1% and positions within Qt's fixed-point range).
 namespace {
 constexpr double kFine = 8;
+// The most letters a word processor's lines are kept from breaking among by the rules after a question mark and between brackets (buildOnce): past it, a line may break there.
+constexpr int kMostUnbrokenStretch = 120;
+// The longest stretch they kept so, since the program began, for a test of their cost.
+std::atomic<qint64> g_longestJoinedStretch{0};
+inline void noteJoinedStretch(int n)
+{
+    qint64 seen = g_longestJoinedStretch.load(std::memory_order_relaxed);
+    while (n > seen && !g_longestJoinedStretch.compare_exchange_weak(seen, n, std::memory_order_relaxed)) {}
+}
+// Whether a letter is East Asian (Han, Kana, Hangul, and the full-width forms): its text breaks between any two letters.
+inline bool isEastAsian(QChar c)
+{
+    const char16_t u = c.unicode();
+    return (u >= 0x2E80 && u <= 0xD7FF) || (u >= 0xF900 && u <= 0xFAFF) || (u >= 0xFF00 && u <= 0xFFEF) || c.isHighSurrogate();
+}
 // A pixel of the fine layout (an eighth of a point) and a hair more is what the width of a line the room of which it exactly fills is given over its room, for the layout's
 // rounding, and what the text engine of a machine keeps back from the width it is given is added to it (qtLineSlack: none, with the one of Linux).
 double qtPixelBack();
@@ -1244,6 +1259,7 @@ int StoryLayout::Block::docFromDisp(int d) const
 namespace { std::atomic<qint64> g_lineHeightsMeasured{0}; }   // (see StoryLayout::lineHeightsMeasuredForTest)
 
 qint64 StoryLayout::lineHeightsMeasuredForTest() { return g_lineHeightsMeasured.load(); }
+qint64 StoryLayout::longestJoinedStretchForTest() { return g_longestJoinedStretch.load(); }
 
 StoryLayout::StoryLayout() = default;
 StoryLayout::~StoryLayout() = default;
@@ -2670,15 +2686,41 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     for (int i = 0; i + 1 < int(raw.size()); ++i)
                         if (raw[i] == QLatin1Char('/') && !raw[i + 1].isSpace() && raw[i + 1] != QChar::LineSeparator) cuts.append({i + 1, QChar(0x2060)});
                     // (A word processor's line breaks at spaces, and after hyphens and dashes: not between parts in brackets that touch, "(c)(5)(iv)", nor after a mark of
-                    // question or exclamation, or a bar, that the text goes straight on from, "subindex.asp?maintarget=", where Qt's rules would.)
-                    if (env.wordLines)
-                        for (int i = 0; i + 1 < int(raw.size()); ++i) {
-                            const QChar c = raw[i], n = raw[i + 1];
+                    // question or exclamation, or a bar, that the text goes straight on from, "subindex.asp?maintarget=", where Qt's rules would. Not where the stretch since
+                    // the last place a line may break is a hundred and twenty letters long, though: a line breaks in a longer word where it must, and a file of nothing but
+                    // such marks would be one word as wide as its text, which Qt lays out a line at a time over all of it. East Asian text breaks after a mark as it does after a letter.)
+                    if (env.wordLines) {
+                        const auto joins = [](QChar c, QChar n) {
+                            if (n.isSpace() || n == QChar::LineSeparator || n.isNull()) return false;
                             const bool opens = n == QLatin1Char('(') || n == QLatin1Char('[') || n == QLatin1Char('{');
-                            if (((c == QLatin1Char(')') || c == QLatin1Char(']') || c == QLatin1Char('}')) && opens) ||
-                                ((c == QLatin1Char('?') || c == QLatin1Char('!') || c == QLatin1Char('|')) && (n.isLetterOrNumber() || opens)))
-                                cuts.append({i + 1, QChar(0x2060)});
+                            if (c == QLatin1Char(')') || c == QLatin1Char(']') || c == QLatin1Char('}')) return opens;
+                            if (c == QLatin1Char('?') || c == QLatin1Char('!') || c == QLatin1Char('|')) return (n.isLetterOrNumber() && !isEastAsian(n)) || opens;
+                            return false;
+                        };
+                        int stretch = 0;
+                        for (int i = 0; i + 1 < int(raw.size()); ++i) {
+                            const QChar c = raw[i];
+                            if (c.isSpace() || c == QLatin1Char('-') || c == QChar(0x2013) || c == QChar(0x2014) || c == QChar(0x200B) || c == QChar(0x00AD)) {
+                                stretch = 0;
+                                continue;
+                            }
+                            ++stretch;
+                            if (!joins(c, raw[i + 1])) continue;
+                            if (stretch >= kMostUnbrokenStretch) {
+                                stretch = 0;   // (a place a line may break again)
+                                continue;
+                            }
+                            cuts.append({i + 1, QChar(0x2060)});
+                            noteJoinedStretch(stretch);
                         }
+                        // (And at the end of a run, where the text goes on in another format.)
+                        if (!cutShort && !raw.isEmpty()) {
+                            auto next = it;
+                            ++next;
+                            if (!next.atEnd())
+                                if (const QString after = next.fragment().text(); !after.isEmpty() && joins(raw.back(), after[0])) cuts.append({int(raw.size()), QChar(0x2060)});
+                        }
+                    }
                     // (And one that ends a run, where the text goes on in another format: the next run's first letter says.)
                     if (!cutShort && raw.endsWith(QLatin1Char('/'))) {
                         auto next = it;
