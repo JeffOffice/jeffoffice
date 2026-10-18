@@ -1446,13 +1446,22 @@ QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, con
     // The text's own lines (the rows of tables are not: what a cell anchors does not move the text round it), and the first rows of the tables in the text (what is set from a
     // table in the text is set from its first row).
     QVector<AnchorLine> held, firstLines;
+    QVector<double> foot(run.columns, 0.0);   // (the bottom of the lines in each column so far)
     for (int i = 0; i < run.kept; ++i) {
         const StoryLayout::LineBrief &ln = run.lines[i];
-        const int column = ln.frame - run.firstFrame;
-        if (column < 0 || column >= run.columns) continue;
+        int column = ln.frame - run.firstFrame;
+        if (column < 0) continue;
+        // A line that takes no room, which the page keeps though the engine found none for it (the empty paragraph that ends a section), is at the foot of the last column.
+        QRectF rect = ln.rect;
+        if (column >= run.columns) {
+            if (run.columns <= 0) continue;
+            column = run.columns - 1;
+            rect = QRectF(0, foot[column], run.cols[column].width(), 0);
+        }
+        foot[column] = std::max(foot[column], rect.bottom());
         const bool inCell = !run.groups.empty() && story->findBlock(ln.block).blockFormat().intProperty(fp::Cell);
         const QRectF col = run.cols[column];
-        const AnchorLine line = anchorLineOf(ln, ln.rect.translated(col.left(), body.top() + col.top()), col.left());
+        const AnchorLine line = anchorLineOf(ln, rect.translated(col.left(), body.top() + col.top()), col.left());
         if (!inCell) held << line;
         if (!inCell || ln.line == 0) firstLines << line;
     }
@@ -1714,13 +1723,21 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
             // (The line that stands for a row of a table is not a line of text: the cells' own lines, set from the fragment, are. It is where the first row of a table in the text is, which
             // is what the frames and tables before the table are set from.)
             QVector<AnchorLine> held, firstLines;
+            QVector<double> foot(run.columns, 0.0);
             for (int i = 0; i < run.kept; ++i) {
                 const StoryLayout::LineBrief &ln = run.lines[i];
-                const int column = ln.frame - run.firstFrame;
-                if (column < 0 || column >= run.columns) continue;
+                int column = ln.frame - run.firstFrame;
+                if (column < 0) continue;
+                QRectF rect = ln.rect;
+                if (column >= run.columns) {
+                    if (run.columns <= 0) continue;
+                    column = run.columns - 1;
+                    rect = QRectF(0, foot[column], run.cols[column].width(), 0);
+                }
+                foot[column] = std::max(foot[column], rect.bottom());
                 const bool inCell = !run.groups.empty() && m_doc->story()->findBlock(ln.block).blockFormat().intProperty(fp::Cell);
                 const QRectF col = run.cols[column];
-                const AnchorLine line = anchorLineOf(ln, ln.rect.translated(col.left(), furniture.body.top() + col.top()), col.left());
+                const AnchorLine line = anchorLineOf(ln, rect.translated(col.left(), furniture.body.top() + col.top()), col.left());
                 if (!inCell) held << line;
                 if (!inCell || ln.line == 0) firstLines << line;
             }

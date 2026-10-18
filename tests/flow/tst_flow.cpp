@@ -5842,6 +5842,34 @@ private Q_SLOTS:
             }
     }
 
+    // A frame is set from the paragraph after it, and that may be the empty paragraph that ends a section before one on a page of its own: where the page is full that paragraph has no
+    // room, and the page keeps it all the same, and the frame is drawn from it, whatever height the page is.
+    void aFrameBeforeTheEmptyParagraphThatEndsASectionIsDrawnWhateverThePageFoot()
+    {
+        int tested = 0;
+        for (double height = 150; height <= 230; height += 1.5) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.sections[0].paper = QSizeF(300, height);
+            fd.sections[0].margins = QMarginsF(30, 30, 30, 30);
+            fillStory(fd.story(), 4, 2, {}, 10, 16);
+            appendParagraph(fd, QString(), [](QTextBlockFormat &bf) { bf.setProperty(fp::SectionBreakAfter, true); });
+            appendParagraph(fd, QStringLiteral("The next section, on a page of its own."));
+            Section second = fd.sections[0];
+            fd.sections << second;
+            FloatingObject proto;
+            proto.hRel = FloatingObject::Rel::Column;
+            proto.vRel = FloatingObject::Rel::Paragraph;
+            proto.wrap = FloatingObject::Wrap::Square;
+            addFrame(fd, 4, {QStringLiteral("FRAMEWORDS of the first section")}, proto, 100);
+            Paginator pg(&fd);
+            const QString bad = audit::floatProblems(pg, fd);
+            QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("page %1 high: %2").arg(height).arg(bad)));
+            ++tested;
+        }
+        QVERIFY(tested > 40);
+    }
+
     // The paginator keeps the frames it has made for a few hundred edits, then lets them go; the page being laid out holds the ones it uses (a pointer to a frame that was let
     // go is a use of freed memory, which the address sanitizer's build of this test finds). Typing past the cache's size with frames on the page, the pages stay right.
     void framesInUseSurviveTheirCacheTurningOver()
