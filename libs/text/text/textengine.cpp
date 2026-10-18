@@ -291,6 +291,8 @@ constexpr int kOwnUnderline = QTextFormat::UserProperty + 90;
 constexpr int kLetterWidths = QTextFormat::UserProperty + 91;
 // The face Courier New is drawn in where the machine lacks it (resolveCharFormat): its font's families are this and then the family whose line it keeps.
 const QString kThinCourier = QStringLiteral("Courier Prime");
+// How much of the ink of Courier Prime the strokes of Courier New carry on the pages of the original program, which draws them as thin as hairlines.
+constexpr double kThinCourierInk = 0.69;
 // The bundled face a word processor's face is drawn in where the machine lacks it, for the faces its machine has that no table of letter widths measures: the nearest of the same
 // kind, which a run's font lists before the face asked for (resolveCharFormat), as Courier Prime is, and how many percent wider it is drawn (regular, bold) to take the
 // original's widths. News Gothic MT, the masthead of the public notices of one agency, is set in Libre Franklin, a gothic of the same bearing: its bold "PUBLIC NOTICE" at 48
@@ -1097,6 +1099,13 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
     if (f.isAnchor() && cref.isEmpty()) {
         r.setForeground(env.colors.slot(Hyperlink));
         r.setFontUnderline(true);
+    }
+    // Courier Prime, the stand-in of Courier New, has strokes thicker than the original's hairlines: drawn as the original is in its pages (which carry 0.69 of the ink of this
+    // stand-in's, over 40 pages of V070), its letters are that much less opaque.
+    if (env.wordLines && r.fontFamilies().toStringList().value(0) == kThinCourier && r.foreground().style() == Qt::SolidPattern) {
+        QColor ink = r.foreground().color();
+        ink.setAlphaF(ink.alphaF() * kThinCourierInk);
+        r.setForeground(ink);
     }
     const QString href = f.stringProperty(tp::HighlightRefP);
     if (!href.isEmpty()) r.setBackground(ColorRef::fromString(href).resolve(env.colors));

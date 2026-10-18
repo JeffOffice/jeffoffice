@@ -2542,6 +2542,28 @@ private Q_SLOTS:
         QVERIFY2(std::abs(lines.value(0).rect.height() - (2025 + 512) / 2048.0 * 11) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
     }
 
+    // Courier New's strokes are hairlines, which no bundled face has (Courier Prime is the thinnest, and carries 1.44 times the ink of the original's pages, 40 of V070's): its
+    // stand-in is drawn at 0.69 of the opacity of the text's color, a color of its own as well, and the text of a publisher or of a face the machine has is not.
+    void courierNewsStandInCarriesAsMuchInkAsItsHairlines()
+    {
+        if (QFontDatabase::hasFamily(QStringLiteral("Courier New"))) QSKIP("Courier New is installed");
+        LayoutEnv word;
+        word.wordLines = true;
+        word.colors.c[Main] = QColor(0, 0, 0);
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Courier New")});
+        cf.setFontPointSize(10);
+        const QColor ink = resolveCharFormat(cf, word).foreground().color();
+        QVERIFY2(std::abs(ink.alphaF() - 0.69) < 0.01, qPrintable(QString::number(ink.alphaF())));
+        QCOMPARE(ink.rgb(), QColor(0, 0, 0).rgb());
+        cf.setForeground(QColor(200, 0, 0));
+        const QColor red = resolveCharFormat(cf, word).foreground().color();
+        QVERIFY2(std::abs(red.alphaF() - 0.69) < 0.01 && red.red() == 200, qPrintable(QString::number(red.alphaF())));
+        QCOMPARE(resolveCharFormat(cf, LayoutEnv()).foreground().color().alphaF(), 1.0);
+        cf.setFontFamilies({QStringLiteral("Times New Roman")});
+        QCOMPARE(resolveCharFormat(cf, word).foreground().color().alphaF(), 1.0);
+    }
+
     // The line of Courier New is Courier New's wherever it is measured, though the text is drawn in Courier Prime (whose own line is 1.318 em, to Courier New's 1.133):
     // the number of a list item is a run of its own on the first line, and the paragraph after a keep-with-next one is measured for room.
     void aNumberedCourierNewItemKeepsCourierNewsLine()
