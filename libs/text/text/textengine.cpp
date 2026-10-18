@@ -1653,6 +1653,7 @@ static WordLine mergeWord(const WordLine &a, const WordLine &b) { return a.total
 static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback, const LayoutEnv &env, const QString *disp = nullptr, const QFont *markFont = nullptr, double markSize = 0)
 {
     WordLine m;
+    double raisedTop = 0;   // (how far above the baseline a raised symbol reaches)
     auto add = [&](const QFont &f, double size) {
         const WordLine face = wordFaceOf(f);
         const double em = size / fontPointFactor();
@@ -1667,6 +1668,16 @@ static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int 
         while (shown > from && shown <= disp->size() && (disp->at(shown - 1) == QLatin1Char(' ') || disp->at(shown - 1) == QLatin1Char('\t'))) --shown;
     for (const auto &r : ranges)
         if (r.length > 0 && r.start < shown && r.start + r.length > from) {   // (a mark that shows nothing is no run)
+            // A symbol of a symbol font that stands raised (a note's mark, as an older program wrote it) rises above the line's text as far as its own font's ascent
+            // takes it: the raised mark is two thirds of the size, a third of it (a little less) above the baseline. (Of a font whose ascent is the text's, it rises
+            // no farther than the text does.) It counts where it is a lone space, as the character of the symbol font often is.
+            if (r.format.verticalAlignment() == QTextCharFormat::AlignSuperScript && r.format.hasProperty(tp::DisplayFamily)) {
+                QFont symbol = r.format.font();
+                symbol.setFamilies({r.format.stringProperty(tp::DisplayFamily)});
+                symbol.setFamily(r.format.stringProperty(tp::DisplayFamily));
+                const double em = (r.format.hasProperty(QTextFormat::FontPointSize) ? r.format.fontPointSize() : r.format.font().pointSizeF()) / fontPointFactor();   // (the size the raised mark is a share of: the format's font is smaller)
+                raisedTop = std::max(raisedTop, (wordFaceOf(symbol).ascent * (2.0 / 3) + 0.30) * em);
+            }
             // A tab sets no height, whatever size it is set in and wherever it stands (the tab that indents a first line, in the size the paragraph's last edit left
             // it), nor does a run of one space (a lone space between runs in the paragraph's own font, or before text of another size): the line is the text's.
             // A longer run of spaces is as tall as its font makes it, as it is in a line of its own.
@@ -1681,11 +1692,13 @@ static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int 
                 if (onlyTabs || (onlyBlanks && b - a < 2)) continue;
             }
             const QFont f = r.format.font();
-            add(f, r.format.hasProperty(tp::LineSize) ? r.format.property(tp::LineSize).toDouble() : f.pointSizeF());
+            const double size = r.format.hasProperty(tp::LineSize) ? r.format.property(tp::LineSize).toDouble() : f.pointSizeF();
+            add(f, size);
         }
     if (m.total() <= 0 && markFont) add(*markFont, markSize);
     if (m.total() <= 0) add(fallback, fallback.pointSizeF());
     // An older word processor's spacing: the line is of whole points, the leading and what is added to reach them going above the text.
+    if (raisedTop > m.ascent) m.ascent = raisedTop;
     if (env.wordWholePointLines) {
         m.ascent = std::ceil(m.total() - 1e-6) - m.descent;
         m.leading = 0;

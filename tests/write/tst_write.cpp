@@ -4415,6 +4415,27 @@ private Q_SLOTS:
         QVERIFY2(std::abs(fixed - 10.0) < 0.5, qPrintable(QStringLiteral("the fixed way: %1 points between paragraphs (5 after and 5 before), not 10").arg(fixed)));
     }
 
+    // A raised symbol of the symbol font (the mark of a note as an older program wrote it) reaches above the text of its line: the line is taller by as much as the
+    // symbol font's ascent, two thirds of the size, raised a third, takes it above the text's (about a point for 12-point text); text raised that is of the text's own
+    // font makes the line no taller.
+    void aRaisedSymbolMakesItsLineTallerByWhatItReachesAbove()
+    {
+        const QByteArray font = "<w:rFonts w:ascii=\"Times New Roman\" w:hAnsi=\"Times New Roman\"/><w:sz w:val=\"24\"/>";
+        auto height = [&](const QByteArray &middle) {
+            const QByteArray body = "<w:p><w:r><w:rPr>" + font + "</w:rPr><w:t>coord</w:t></w:r>" + middle + "<w:r><w:rPr>" + font + "</w:rPr><w:t>inating agency</w:t></w:r></w:p>";
+            auto doc = open(makeDocx(body));
+            if (!doc) return -1.0;
+            const auto lines = doc->pager().lines(0);
+            return lines.isEmpty() ? -1.0 : lines[0].rect.height();
+        };
+        const double plain = height(QByteArray());
+        const double symbol = height("<w:r><w:rPr>" + font + "<w:vertAlign w:val=\"superscript\"/></w:rPr><w:sym w:font=\"Symbol\" w:char=\"F020\"/></w:r>");
+        const double text = height("<w:r><w:rPr>" + font + "<w:vertAlign w:val=\"superscript\"/></w:rPr><w:t>2</w:t></w:r>");
+        QVERIFY(plain > 10);
+        QVERIFY2(symbol - plain > 0.6 && symbol - plain < 1.3, qPrintable(QStringLiteral("a raised symbol made the line %1 points taller than without it, not about 0.95").arg(symbol - plain)));
+        QVERIFY2(std::abs(text - plain) < 0.3, qPrintable(QStringLiteral("a raised digit made the line %1 points taller").arg(text - plain)));
+    }
+
     // Spacing a person sets on paragraphs that have automatic spacing is the spacing they have: the automatic gap goes, on the page and in the file.
     void spacingSetOnAutomaticSpacingReplacesIt()
     {
@@ -5592,6 +5613,27 @@ private Q_SLOTS:
         QVERIFY(doc);
         // Two lines of twenty points under the footer distance of thirty-six: the text ends at 792 - 36 - 40.
         QVERIFY2(std::abs(doc->pager().page(0).content.bottom() - (792 - 36 - 40)) < 0.01, qPrintable(QString::number(doc->pager().page(0).content.bottom())));
+    }
+
+    // A note whose text begins with a raised blank of the symbol font (the mark an older program wrote) is as tall as that symbol makes its first line: a little under a
+    // point more for 10-point text.
+    void aNoteThatBeginsWithARaisedSymbolIsTallerByWhatItReaches()
+    {
+        const QByteArray body = "<w:p><w:r><w:t>Text with a note</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r><w:r><w:t xml:space=\"preserve\"> and more words.</w:t></w:r></w:p>";
+        const QByteArray font = "<w:rFonts w:ascii=\"Times New Roman\" w:hAnsi=\"Times New Roman\"/><w:sz w:val=\"20\"/>";
+        auto height = [&](const QByteArray &mark) {
+            const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>"
+                                     "<w:footnote w:id=\"2\"><w:p>" + mark + "<w:r><w:rPr>" + font + "</w:rPr><w:t xml:space=\"preserve\"> NOTEWORDS here.</w:t></w:r></w:p></w:footnote></w:footnotes>";
+            auto doc = open(makeDocxWithParts(body, QByteArray(), {{QStringLiteral("/word/footnotes.xml"), notes}}));
+            if (!doc) return -1.0;
+            const auto page = doc->pager().materialize(0);
+            const TextItem *note = page ? boxWithText(*page, QStringLiteral("NOTEWORDS")) : nullptr;
+            return note ? note->rect.height() : -1.0;
+        };
+        const double plain = height("<w:r><w:rPr>" + font + "</w:rPr><w:t></w:t></w:r>");
+        const double symbol = height("<w:r><w:rPr>" + font + "<w:vertAlign w:val=\"superscript\"/></w:rPr><w:sym w:font=\"Symbol\" w:char=\"F020\"/></w:r>");
+        QVERIFY(plain > 8);
+        QVERIFY2(symbol - plain > 0.5 && symbol - plain < 1.1, qPrintable(QStringLiteral("a raised symbol made the note %1 points taller, not about 0.8").arg(symbol - plain)));
     }
 
     // A file's footnotes are at the foot of the pages that cite them: the note in a box at the bottom of the text area with a rule above it, its mark
