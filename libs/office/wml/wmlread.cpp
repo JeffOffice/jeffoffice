@@ -327,6 +327,8 @@ public:
                 text += QChar(QChar::LineSeparator);
             } else if (name == "br" && t.attr(c, "type") == QLatin1String("page")) {
                 text += QChar(0x000C);   // (a page break is the character U+000C in text)
+            } else if (name == "br" && t.attr(c, "type") == QLatin1String("column") && !t.has(c, "clear")) {
+                text += QChar(0x000E);   // (a column break is U+000E)
             } else {
                 flush();
                 Inline a = atom(c, Inline::RunAtom);

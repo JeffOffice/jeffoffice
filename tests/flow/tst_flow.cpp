@@ -4936,6 +4936,41 @@ private Q_SLOTS:
         QCOMPARE(markers(1), (QStringList{QStringLiteral("1. Heading text")}));
     }
 
+    // A word processor's column break ends the line it is on, and what follows it (the rest of the paragraph, and the paragraphs after) is in the next column, whatever room the column
+    // it is in has left: in two columns the text after the break is at the second column's left edge; in the last column it is past the frame (the next page's).
+    void aColumnBreakGoesOnInTheNextColumn()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Tinos")});
+        run.setFontPointSize(11);
+        c.insertText(QStringLiteral("Alpha") + QChar(0x000E) + QStringLiteral("Beta"), run);
+        c.insertBlock();
+        c.insertText(QStringLiteral("Gamma"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        FrameSpec fs = plainFrame(300, 200);
+        fs.columns = 2;
+        fs.gap = 20;
+        StoryLayout two;
+        two.build(&doc, {fs}, env);
+        const auto lines = two.lineBriefs();
+        QCOMPARE(int(lines.size()), 3);
+        const double second = (300 - 20) / 2.0 + 20;
+        QVERIFY2(lines[0].rect.left() < 1, qPrintable(QString::number(lines[0].rect.left())));
+        QVERIFY2(std::abs(lines[1].rect.left() - second) < 0.5, qPrintable(QStringLiteral("the text after the break is at %1, the second column is at %2").arg(lines[1].rect.left()).arg(second)));
+        QVERIFY2(std::abs(lines[2].rect.left() - second) < 0.5, qPrintable(QStringLiteral("the next paragraph is at %1, the second column is at %2").arg(lines[2].rect.left()).arg(second)));
+        QVERIFY(lines[2].rect.top() > lines[1].rect.top());
+        // In one column there is no column after: what follows the break is past the frame (the page after's).
+        StoryLayout one;
+        one.build(&doc, {plainFrame(300, 200)}, env);
+        const auto single = one.lineBriefs();
+        QCOMPARE(int(single.size()), 3);
+        QCOMPARE(single[0].frame, 0);
+        QCOMPARE(single[1].frame, -1);
+    }
+
     // A document whose first section begins on an even page numbers its first page 2 (the page before it is counted and nothing is drawn on it, as it is in a word processor's own
     // pages), and its pages go on from there; one that begins on an odd page numbers it 1; a restart in the section is the number it says.
     void aDocumentWhoseFirstSectionBeginsOnAnEvenPageNumbersItsFirstPageTwo()

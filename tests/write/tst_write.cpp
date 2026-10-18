@@ -11506,6 +11506,23 @@ private Q_SLOTS:
         }
     }
 
+    // A column break (w:br w:type="column") sends what follows it to the next column of the section, or the next page where there is one column, and is written back as it was.
+    void aColumnBreakIsAColumnBreakAndIsKept()
+    {
+        const QByteArray body = plainP("one") + "<w:p><w:r><w:t>two</w:t></w:r><w:r><w:br w:type=\"column\"/></w:r><w:r><w:t>three</w:t></w:r></w:p>" + plainP("four");
+        auto columns = open(makeDocxWithParts(body, sectionXml(12240, 15840, 1440, QByteArray(), QByteArray(), "<w:cols w:num=\"2\" w:space=\"720\"/>"), {}));
+        QVERIFY(columns);
+        QCOMPARE(columns->pager().pageCount(), 1);
+        const auto lines = columns->pager().lines(0);
+        QCOMPARE(int(lines.size()), 4);
+        QVERIFY2(lines[0].frame == lines[1].frame && lines[2].frame == lines[1].frame + 1 && lines[3].frame == lines[2].frame,
+                 qPrintable(QStringLiteral("the lines are in the columns %1, %2, %3, %4").arg(lines[0].frame).arg(lines[1].frame).arg(lines[2].frame).arg(lines[3].frame)));
+        QVERIFY(documentXml(columns->toDocx()).contains("<w:br w:type=\"column\"/>"));
+        auto single = open(makeDocxWithParts(body, sectionXml(12240, 15840, 1440), {}));
+        QVERIFY(single);
+        QCOMPARE(single->pager().pageCount(), 2);
+    }
+
     // A paragraph that says w:suppressLineNumbers (itself, or by its style) has no numbers, and the lines of the others are counted without it.
     void aParagraphThatSuppressesLineNumbersIsNeitherNumberedNorCounted()
     {

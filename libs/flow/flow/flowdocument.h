@@ -99,6 +99,8 @@ inline const QLatin1String kFlowImagePrefix("flow-img:");
 // "continues" is only that its next line is its line 1, never stored). A paragraph that ends with one leaves the next paragraph at the top of the
 // next page, with no empty line before it; one at the end of the last paragraph makes no page of its own.
 constexpr QChar kPageBreak = QChar(0x000C);
+// A column break (the text engine sends what follows it to the next column; in the last column of a page, that is the next page).
+constexpr QChar kColumnBreak = QChar(0x000E);
 
 // The most columns a page has (a section that asks for more has this many).
 constexpr int kMostColumns = 32;

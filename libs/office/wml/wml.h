@@ -172,7 +172,7 @@ struct SectionProps {
 
 // What a paragraph holds, in order.
 struct Inline {
-    // Text is a run of text (a tab is U+0009, a line break U+2028, and a page break U+000C: <w:br w:type="page"/> reads as that character and
+    // Text is a run of text (a tab is U+0009, a line break U+2028, a column break U+000E, and a page break U+000C: <w:br w:type="page"/> reads as that character and
     // is written from it); a RunAtom is a child of a run that is kept as written (a picture, a field's code or mark, a footnote
     // reference...); a ParaAtom is an element between runs that is kept as written (a bookmark, the start or end tag of a hyperlink).
     enum Kind : quint8 { Text, RunAtom, ParaAtom };

@@ -832,7 +832,8 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         // A page break character: the page ends after the line that holds it. (A line of a paragraph that the page's window cut is cut short only if it is the last
         // of those laid out: the lines before it end where they do.)
         const bool cutShort = ln.cut && (i + 1 >= L.size() || L[i + 1].block != ln.block);
-        if (!cutShort && ln.end > ln.pos && m_doc->story()->characterAt(ln.end - 1) == kPageBreak) {
+        // (A column break on the page's last line, in its last column, does the same: what follows it is the next page's.)
+        if (!cutShort && ln.end > ln.pos && (m_doc->story()->characterAt(ln.end - 1) == kPageBreak || (m_doc->story()->characterAt(ln.end - 1) == kColumnBreak && i + 1 == kept))) {
             c = i + 1;
             hard = forced = byCharacter = true;
             // (The empty line the text engine puts after a break that ends its paragraph stays with the page: the next paragraph is at the top

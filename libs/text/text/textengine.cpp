@@ -2342,6 +2342,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     double rowPushed = 0;      // how far down the row was moved by the objects the text goes round (of the line it begins, and every piece of it)
 
     bool columnEmpty = true;   // no line placed yet in the current column
+    bool columnBreakNext = false;   // the line placed last ended with a word processor's column break: the next goes on in the next column
     if (m_span.startY > 0.001) {   // (a stretch that goes below something in its first frame)
         y = m_span.startY;
         columnEmpty = false;
@@ -2835,6 +2836,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 // A form feed ends the line as U+2028 does (a word processor's page break: the paginator ends the page after that line). One for
                 // one, so positions still map.
                 if (shown.contains(QChar(0x000C))) shown.replace(QChar(0x000C), QChar(QChar::LineSeparator));
+                // A word processor's column break ends the line likewise (the lines after it are in the next column).
+                if (env.wordLines && shown.contains(QChar(0x000E))) shown.replace(QChar(0x000E), QChar(QChar::LineSeparator));
                 // All capitals (or all lowercase): Qt ignores these in a
                 // layout's format ranges, so the letters are changed here, one
                 // for one so positions still map. That is deliberate: a letter
@@ -3219,9 +3222,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             if (sameStyle(b, b.next())) after = 0;
         }
         const Spot startSpot{f, c, y, overflowY, rowH, row, rowIdx, rowActive, columnEmpty, m_overflow, m_blankPast, m_used, reserve, m_notes, carry, seeded};
+        const bool breakPending = columnBreakNext;
         const bool windowCut = B->cut;
         const int windowCutAt = B->cutAt;
         auto placeLines = [&](bool startNext, int breakAfter) {
+            if (columnBreakNext) {   // (the line before ended with a column break: this paragraph, or the rest of the one before, begins in the next column)
+                columnBreakNext = false;
+                if (f < nF) advance();
+            }
             // Start in next text box.
             if (!tail && bf.boolProperty(tp::StartInNextBox) && f < nF && (y > 0 || c > 0)) {
                 rowActive = false;
@@ -3449,6 +3457,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 }
                 if (B->dropLines > 0 && lineNo < (B->dropUp ? 1 : B->dropLines)) indL += B->dropWidth;
                 if (lineNo == breakAfter && f < nF && !columnEmpty) advance();   // widow control: carry this line over
+                if (columnBreakNext) {
+                    columnBreakNext = false;
+                    if (f < nF) advance();
+                }
 
                 bool placed = false;
                 double lineHeightAtWalls = -1;   // (what the objects are checked against for this line, in a column: once, not at each step down)
@@ -3689,9 +3701,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         const bool bottom = bf.lineHeightType() == QTextBlockFormat::FixedHeight || (bf.lineHeightType() == QTextBlockFormat::MinimumHeight && h > ownSingle);
                         // (An exact height keeps the line's parts in proportion: the baseline is the ascent's share of the single line, of the exact height.)
                         baseDown = bf.lineHeightType() == QTextBlockFormat::FixedHeight && ownSingle > 0 ? wl.ascent * h / ownSingle : bottom ? std::max(0.0, h - wl.descent) : wl.ascent;
-                        // A paragraph's first line that holds only a page break (the paragraph begins with it) takes no room: it is at the foot of the page
-                        // the paragraph's text is to leave, whether or not there is room for a line there.
-                        if (lineNo == 0 && line.textLength() == 1 && doc->characterAt(B->docStart + B->docFromDisp(line.textStart())) == QChar(0x000C)) {
+                        // A paragraph's first line that holds only a page break or a column break (the paragraph begins with it) takes no room: it is at the foot of the page
+                        // or column the paragraph's text is to leave, whether or not there is room for a line there.
+                        if (lineNo == 0 && line.textLength() == 1 && (doc->characterAt(B->docStart + B->docFromDisp(line.textStart())) == QChar(0x000C) || doc->characterAt(B->docStart + B->docFromDisp(line.textStart())) == QChar(0x000E))) {
                             h = textH = 0;
                             baseDown = 0;
                             roomUnder = 0;
@@ -3852,6 +3864,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         moveTo = line.textStart() + line.textLength();
                     }
                     placed = true;
+                    if (env.wordLines) {
+                        const int last = line.textStart() + line.textLength();
+                        if (line.textLength() > 0 && B->disp[last - 1] == QChar::LineSeparator && doc->characterAt(B->docStart + B->docFromDisp(last - 1)) == QChar(0x000E)) columnBreakNext = true;
+                    }
                     if (m_span.overLines > 0 && m_span.stopAtFrame >= 0 && f >= m_span.stopAtFrame && ++overPlaced >= m_span.overLines) {
                         overFull = true;
                         B->cutAt = B->docFromDisp(line.textStart() + line.textLength());
@@ -3890,6 +3906,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             m_notes = startSpot.notes;
             carry = startSpot.carry;
             seeded = startSpot.seeded;
+            columnBreakNext = breakPending;
             B->lines.clear();
             placeLines(startNext, breakAfter < 0 ? firstBreak : breakAfter);
         };
@@ -4126,7 +4143,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 const int last = before.textStart() + before.textLength() - 1;
                 // (The display shows a page break as a line break. What stands between the last letter and the break and shows nothing, an anchored object, is the break's too.)
                 if (last >= 0)
-                    for (int k = B->docFromDisp(last), to = std::max(B->docFromDisp(last + 1), k + 1); k < to && !broken; ++k) broken = doc->characterAt(B->docStart + k) == QChar(0x000C);
+                    for (int k = B->docFromDisp(last), to = std::max(B->docFromDisp(last + 1), k + 1); k < to && !broken; ++k) broken = doc->characterAt(B->docStart + k) == QChar(0x000C) || doc->characterAt(B->docStart + k) == QChar(0x000E);
             }
             const bool split = at > 0 && B->lines[at].frame >= 0 && !broken;
             if (split && bf.boolProperty(tp::KeepTogether)) redo(true, -1);                 // keep lines together
@@ -4182,6 +4199,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             rowPushed = 0;
             rowIdx = startSpot.rowIdx;
             rowH = startSpot.rowH;
+            columnBreakNext = breakPending;
         }
         const bool cutBlock = B->cut;
         m_blocks.push_back(std::move(B));
