@@ -12288,6 +12288,69 @@ private Q_SLOTS:
         QVERIFY(checked > 100);
     }
 
+    // A row whose cell ends with a paragraph kept with the next is kept with the next row: where the two do not fit what is left of the page, it goes to the next page whole, and with
+    // the row after it (a row that is not kept is where it fits, as rows are).
+    void aRowKeptWithTheNextGoesToTheNextPageWithIt()
+    {
+        auto rowsOnFirstPage = [](bool keep, int *firstOnSecond) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.sections[0].paper = QSizeF(300, 185);
+            fd.sections[0].margins = QMarginsF(30, 30, 30, 30);
+            TestTable spec;
+            spec.rows = 8;
+            spec.cols = 1;
+            spec.columnWidth = 200;
+            spec.text = [](int r, int) { return r == 3 ? QStringLiteral("row three\nsecond\nthird") : QStringLiteral("row %1").arg(r); };
+            spec = addTable(fd, spec);
+            if (keep) {
+                // The last paragraph of row three's cell: the third block from where the row begins.
+                QTextBlock b = fd.story()->findBlock(spec.rowStarts[3]);
+                b = b.next().next();
+                QTextCursor c(b);
+                QTextBlockFormat bf;
+                bf.setProperty(tp::KeepWithNext, true);
+                c.mergeBlockFormat(bf);
+            }
+            Paginator pg(&fd);
+            const auto first = pg.materialize(0);
+            if (firstOnSecond) {
+                const auto second = pg.materialize(1);
+                *firstOnSecond = second && !second->tables.isEmpty() ? second->tables[0]->firstRow : -1;
+            }
+            return first && !first->tables.isEmpty() ? first->tables[0]->endRow : -1;
+        };
+        int secondStart = -1;
+        QCOMPARE(rowsOnFirstPage(false, &secondStart), 4);
+        QCOMPARE(secondStart, 4);
+        QCOMPARE(rowsOnFirstPage(true, &secondStart), 3);
+        QCOMPARE(secondStart, 3);
+    }
+
+    // The space between a table's cells (where it says it has some) is above and below each row's cells: a row is as tall as its text and its cells' margins and that space twice.
+    void spaceBetweenCellsIsAboveAndBelowEachRow()
+    {
+        auto height = [](double spacing) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            TestTable spec;
+            spec.rows = 3;
+            spec.cols = 2;
+            spec.columnWidth = 100;
+            spec.setTable = [&](TableData &t) {
+                t.spaced = true;
+                t.spacing = spacing;
+            };
+            addTable(fd, spec);
+            Paginator pg(&fd);
+            const auto m = pg.materialize(0);
+            return m && !m->tables.isEmpty() ? m->tables[0]->heightOf(1) : -1.0;
+        };
+        const double plain = height(0), spaced = height(3);
+        QVERIFY(plain > 10);
+        QVERIFY2(std::abs(spaced - plain - 6) < 0.01, qPrintable(QStringLiteral("a row is %1 high with space between the cells, %2 without").arg(spaced).arg(plain)));
+    }
+
     // A row that cannot be split, citing N notes, costs N, not N squared: twice the notes take about twice as long.
     void aRowThatCannotBeSplitCitingManyNotesTakesTimeInStepWithThem()
     {

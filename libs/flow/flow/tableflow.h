@@ -226,6 +226,11 @@ public:
     double lineTopIn(int cell, int position) const;
     // Whether row `r` can go over a page break: not one that says it can't, one of an exact height, or one with cells joined down in it (or covered by those).
     bool splittable(int r) const;
+    // Whether row `r` is kept with the one after it: a paragraph in one of its cells asks to be kept with the next. Such a row is not cut at a page's foot, and goes with the first lines
+    // of the next row, to a page that has room for both.
+    bool keepsWithNext(int r) const;
+    // The least the first part of row `r` takes: the row whole where it can't be cut, else the first line of each cell with the cell's margins.
+    double leastPart(int r);
     // The part of row `r` that is number `index` and begins at `from` (for each cell of the row, how far down its content: empty for the first part, at the top): the lines
     // of each cell that fit `room` (what the page has for it, the notes already at its foot taken out), the notes its lines cite, and where the next part begins (`ends`). The
     // notes take room at the page's foot, with a rule above them (`ruleGap`) when the page has none yet (`ruleNeeded`). A part at the top of a page is given a line of each

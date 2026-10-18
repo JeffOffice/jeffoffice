@@ -426,6 +426,12 @@ void TableLayout::setLineRooms()
     if (d.spaced) {
         m_rows.back().foot += roomOf(d.bottom);
         for (int r = 0; r + 1 < rows; ++r) m_rows[size_t(r)].breakFoot = roomOf(d.bottom);
+        // The space between cells is above and below each row's cells.
+        if (d.spacing > 0)
+            for (Row &row : m_rows) {
+                row.top += d.spacing;
+                row.foot += d.spacing;
+            }
     }
     // The room is in the cells' margins, below the line at the top of the row and above the one at the foot of the table.
     for (Cell &c : m_cells) {
@@ -654,6 +660,38 @@ bool TableLayout::splittable(int r) const
     for (int i = row.cell0; i < row.cell0 + row.cells; ++i)
         if (m_cells[size_t(i)].covered || m_cells[size_t(i)].rows > 1) return false;
     return true;
+}
+
+bool TableLayout::keepsWithNext(int r) const
+{
+    if (!m_ctx.valid() || !m_ctx.index || !m_ctx.doc || r < 0 || r >= int(m_rows.size())) return false;
+    const Row &row = m_rows[size_t(r)];
+    const TableIndex &ix = *m_ctx.index;
+    const QTextDocument *story = m_ctx.doc->story();
+    for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
+        const Cell &c = m_cells[size_t(i)];
+        if (c.covered) continue;
+        // (The cell's last paragraph is the one next to the next row: a paragraph before it is kept with the one after it, in the cell.)
+        const BlockRef &last = ix.refs()[size_t(c.r1 - 1)];
+        if (int(ix.chain(last.key).size()) != m_depth + 1) continue;   // (a paragraph of a table in the cell is that table's)
+        if (story->findBlock(last.pos).blockFormat().boolProperty(tp::KeepWithNext)) return true;
+    }
+    return false;
+}
+
+double TableLayout::leastPart(int r)
+{
+    const double whole = rowHeight(r);
+    if (!splittable(r)) return whole;
+    const Row &row = m_rows[size_t(r)];
+    double need = 0;
+    for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
+        const Cell &c = m_cells[size_t(i)];
+        if (c.covered) continue;
+        const auto units = unitsOf(i);
+        need = std::max(need, (units->lines.empty() ? 0.0 : units->lines.front().bottom) + c.margins.top() + c.margins.bottom());
+    }
+    return std::min(whole, need);
 }
 
 namespace {
