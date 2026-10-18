@@ -105,17 +105,24 @@ const QVector<int> &Paginator::sectionStarts() const
     return m_sectionStarts;
 }
 
+// A document whose first section begins on an even page counts the page before it (nothing is drawn on that page): its first page is numbered 2, and the pages after it go on from there.
+static int firstPageShift(const FlowDocument &doc)
+{
+    return !doc.sections.isEmpty() && doc.sections[0].startParity == Section::Parity::Even && !doc.sections[0].firstPageNumber ? 1 : 0;
+}
+
 int Paginator::numberOf(int index) const
 {
     bool restarts = false;
     for (const Section &s : m_doc->sections) restarts |= s.firstPageNumber.has_value();
-    if (!restarts) return index + 1;
+    const int shift = firstPageShift(*m_doc);
+    if (!restarts) return index + 1 + shift;
     // The page after the one asked for last, in the same section: one more.
     if (index > 0 && index == m_numberOf + 1 && index < m_starts.size() && m_starts[index].section == m_starts[index - 1].section) {
         m_numberOf = index;
         return ++m_number;
     }
-    int number = index + 1;
+    int number = index + 1 + shift;
     for (int p = std::min(index, int(m_starts.size()) - 1); p >= 0; --p, ++m_numberSteps)
         if (p == 0 || m_starts[p].section != m_starts[p - 1].section) {
             const std::optional<int> first = m_doc->section(m_starts[p].section).firstPageNumber;
@@ -947,7 +954,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
     // the other kind than the page it begins, has a blank page of the section before it.
     if (run.hasNext && sectionEnds && nextSection != current && run.next.pos < m_doc->story()->characterCount()) {
         const Section &entered = m_doc->section(nextSection);
-        const bool oddPhysical = (index + 2) % 2 != 0;   // (the page the section would begin, by its place in the document)
+        const bool oddPhysical = (index + 2 + firstPageShift(*m_doc)) % 2 != 0;   // (the page the section would begin, by its place in the document)
         bool wrong = false;
         if (entered.startParity != Section::Parity::Any) wrong = oddPhysical != (entered.startParity == Section::Parity::Odd);
         else if (entered.differentOddEven && entered.firstPageNumber) wrong = oddPhysical != (std::abs(*entered.firstPageNumber) % 2 != 0);

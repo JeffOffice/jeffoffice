@@ -4896,6 +4896,38 @@ private Q_SLOTS:
         QCOMPARE(seen, table.rowStarts);
     }
 
+    // A document whose first section begins on an even page numbers its first page 2 (the page before it is counted and nothing is drawn on it, as it is in a word processor's own
+    // pages), and its pages go on from there; one that begins on an odd page numbers it 1; a restart in the section is the number it says.
+    void aDocumentWhoseFirstSectionBeginsOnAnEvenPageNumbersItsFirstPageTwo()
+    {
+        auto build = [&](Section::Parity parity, std::optional<int> restart) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fillStory(fd->story(), 3, 11, [&](int i, QTextBlockFormat &bf) {
+                bf.setBottomMargin(6);
+                if (i < 2) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysAfter);
+            }, 8, 12);
+            fd->sections[0].startParity = parity;
+            fd->sections[0].firstPageNumber = restart;
+            return fd;
+        };
+        auto numbers = [&](Paginator &pg) {
+            QVector<int> out;
+            for (int k = 0; k < pg.pageCount(); ++k) out << pg.page(k).number;
+            return out;
+        };
+        for (const auto &[parity, restart, want] : {std::tuple{Section::Parity::Even, std::optional<int>(), QVector<int>{2, 3, 4}}, std::tuple{Section::Parity::Odd, std::optional<int>(), QVector<int>{1, 2, 3}},
+                                                     std::tuple{Section::Parity::Any, std::optional<int>(), QVector<int>{1, 2, 3}}, std::tuple{Section::Parity::Even, std::optional<int>(7), QVector<int>{7, 8, 9}}}) {
+            auto fd = build(parity, restart);
+            Paginator pg(fd.get());
+            QCOMPARE(pg.pageCount(), 3);
+            QCOMPARE(numbers(pg), want);
+            const auto page = pg.materialize(0);
+            QVERIFY(page);
+            QCOMPARE(page->number, want[0]);
+        }
+    }
+
     // A section that begins on an odd (or even) page leaves a page of its own before it blank when the page after the break would be an even (or odd) one by its place in the
     // document (a restart of the numbers in the new section is not counted); the blank page is a page of the section before, with no header or footer (as a word processor's own
     // pages for such a break have none).
