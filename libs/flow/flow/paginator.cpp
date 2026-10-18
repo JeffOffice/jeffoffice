@@ -1257,18 +1257,17 @@ void Paginator::settleStep()
 
 // ---- the pages that are looked at ----
 
+static_assert(fp::Cell == tp::TableCell, "the text engine's join rule reads the cell's key by this number");
+
 QTextBlock Paginator::joinedEndOf(const QTextBlock &b) const
 {
-    if (!m_doc->env.wordLines || b.blockFormat().intProperty(fp::Cell)) return b;
-    QTextBlock end = StoryLayout::joinedEnd(b);
-    while (end != b && end.blockFormat().intProperty(fp::Cell)) end = end.previous();   // (not into a table: the stretch before it ends where it begins)
-    return end;
+    return m_doc->env.wordLines ? StoryLayout::joinedEnd(b) : b;
 }
 
 int Paginator::paragraphStartOf(int position) const
 {
     const QTextBlock b = m_doc->story()->findBlock(position);
-    return m_doc->env.wordLines && !b.blockFormat().intProperty(fp::Cell) ? StoryLayout::joinedHead(b).position() : b.position();
+    return m_doc->env.wordLines ? StoryLayout::joinedHead(b).position() : b.position();
 }
 
 // The text on a page, as a story of its own: a copy of the paragraphs from the page's first line to the end of the one its last line is in.

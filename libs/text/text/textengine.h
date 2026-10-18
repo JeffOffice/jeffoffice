@@ -358,7 +358,7 @@ public:
     int lineEnd(int pos) const;
     QVector<QRectF> rangeRects(int frame, int from, int to) const;
     QVector<QRectF> lineRects(int frame) const;   // every line box in the frame, frame-local
-    struct LineInfo { QRectF rect; QString text; QString family; double pointSize = 0; int docStart = 0; double baseline = 0; double below = 0; double markerX = -1; int docPos = 0; int docEnd = 0; double above = 0; };   // docStart: where its paragraph starts; docPos, docEnd: the line's first character and just past its last, as document positions; below: line spacing under the text; markerX: where a list item's bullet is drawn (-1: none)
+    struct LineInfo { QRectF rect; QString text; QString family; double pointSize = 0; int docStart = 0; double baseline = 0; double below = 0; double markerX = -1; int docPos = 0; int docEnd = 0; double above = 0; QString marker; };   // docStart: where its paragraph starts; marker: of a list item's first line, its number or bullet's text; docPos, docEnd: the line's first character and just past its last, as document positions; below: line spacing under the text; markerX: where a list item's bullet is drawn (-1: none)
     QVector<LineInfo> lineInfo(int frame) const;  // for diagnostics (jpubtool layout)
     // Every line of the story in order, with where it is and nothing else (no text or fonts): for a caller that
     // works on the lines of a stretch of text, as the paginator does.
@@ -389,6 +389,7 @@ public:
     // The most paragraphs that were laid out as one, for the marks between them being hidden (a word processor's deleted paragraph marks): a cost test, for a run of such paragraphs is
     // cut into paragraphs of at most kMostJoinedParagraphs.
     static qint64 longestJoinedParagraphsForTest();
+    static void resetLongestJoinedParagraphsForTest();
     static constexpr int kMostJoinedParagraphs = 32;
     // Whether a word processor's paragraph is joined to the one after it: its mark is hidden, and neither is set apart from the text, nor is the next at or past `end` (a stretch's
     // end, if it has one). And the last of the paragraphs joined from `first`, the one whose mark is left and whose properties they have (`first` where it is joined to none).

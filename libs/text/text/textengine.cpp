@@ -1267,26 +1267,32 @@ namespace { std::atomic<qint64> g_lineHeightsMeasured{0}; }   // (see StoryLayou
 qint64 StoryLayout::lineHeightsMeasuredForTest() { return g_lineHeightsMeasured.load(); }
 qint64 StoryLayout::longestJoinedStretchForTest() { return g_longestJoinedStretch.load(); }
 qint64 StoryLayout::longestJoinedParagraphsForTest() { return g_longestJoinedParagraphs.load(); }
+void StoryLayout::resetLongestJoinedParagraphsForTest() { g_longestJoinedParagraphs = 0; }
 
 bool StoryLayout::joinsNext(const QTextBlock &b, int end)
 {
     if (!b.charFormat().boolProperty(tp::HiddenText)) return false;
     const QTextBlock n = b.next();
     if (!n.isValid() || (end >= 0 && n.position() >= end)) return false;
-    return !b.blockFormat().boolProperty(tp::OutOfLayout) && !n.blockFormat().boolProperty(tp::OutOfLayout);
+    // (A run is cut into chunks of kMostJoinedParagraphs by the number of its paragraphs, so that whoever asks, wherever a stretch of the story begins, finds the same runs.)
+    if (n.blockNumber() % kMostJoinedParagraphs == 0) return false;
+    const QTextBlockFormat bf = b.blockFormat(), nf = n.blockFormat();
+    // (Nor across a frame, or from one cell to another, or into or out of a table: the paragraphs of a cell are those that have its key.)
+    if (bf.boolProperty(tp::OutOfLayout) || nf.boolProperty(tp::OutOfLayout)) return false;
+    return bf.intProperty(tp::TableCell) == nf.intProperty(tp::TableCell);
 }
 
 QTextBlock StoryLayout::joinedEnd(const QTextBlock &first, int end)
 {
     QTextBlock last = first;
-    for (int n = 1; n < kMostJoinedParagraphs && joinsNext(last, end); ++n) last = last.next();
+    while (joinsNext(last, end)) last = last.next();
     return last;
 }
 
 QTextBlock StoryLayout::joinedHead(const QTextBlock &b)
 {
     QTextBlock head = b;
-    for (int n = 1; n < kMostJoinedParagraphs && head.previous().isValid() && joinsNext(head.previous()); ++n) head = head.previous();
+    while (head.previous().isValid() && joinsNext(head.previous())) head = head.previous();
     return head;
 }
 
@@ -2566,17 +2572,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         // of more than kMostJoinedParagraphs is cut into paragraphs of that many. A stretch that begins in a paragraph (the rest of one, or one laid out whole) begins at its head.
         QTextBlock head = b;
         if (env.wordLines) {
-            int joined = 1;
-            if (first && m_span.from > 0)
-                while (joined < kMostJoinedParagraphs && head.previous().isValid() && joinsNext(head.previous(), m_span.end)) {
-                    head = head.previous();
-                    ++joined;
-                }
-            while (joined < kMostJoinedParagraphs && joinsNext(b, m_span.end)) {
-                b = b.next();
-                ++joined;
-            }
-            noteJoinedParagraphs(joined);
+            if (first && m_span.from > 0) head = joinedHead(b);
+            b = joinedEnd(b, m_span.end);
+            if (b != head) noteJoinedParagraphs(b.blockNumber() - head.blockNumber() + 1);
         }
         const bool tail = first && m_span.continued && m_span.from > head.position();   // the rest of one that began before
         if (!m_span.restartNotesAt.isEmpty() && std::binary_search(m_span.restartNotesAt.cbegin(), m_span.restartNotesAt.cend(), head.position())) footCount = endCount = 0;
@@ -4343,7 +4341,10 @@ QVector<StoryLayout::LineInfo> StoryLayout::lineInfo(int frame) const
             li.below = B->lines[i].below;
             li.above = B->lines[i].above;
             li.baseline = l.y() - frameY(B->lines[i].frame) + l.ascent();
-            if (i == 0 && !B->marker.isEmpty()) li.markerX = B->markerX;
+            if (i == 0 && !B->marker.isEmpty()) {
+                li.markerX = B->markerX;
+                li.marker = B->marker;
+            }
             li.text = B->disp.mid(l.textStart(), l.textLength());
             li.docStart = B->docStart;
             li.docPos = B->docStart + B->docFromDisp(l.textStart());

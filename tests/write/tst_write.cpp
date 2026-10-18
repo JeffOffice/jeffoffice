@@ -4723,13 +4723,145 @@ private Q_SLOTS:
             QVERIFY(many);
             const int pages = many->pager().pageCount();
             QVERIFY(pages > 3);
-            QVERIFY2(StoryLayout::longestJoinedParagraphsForTest() > 1, "the paragraphs are joined");
-            QVERIFY2(StoryLayout::longestJoinedParagraphsForTest() <= StoryLayout::kMostJoinedParagraphs, qPrintable(QString::number(StoryLayout::longestJoinedParagraphsForTest())));
+            // (Every word is on a page once, the pages' lines one after another.)
+            const QString whole = many->story()->toPlainText();
+            QString shown;
             int last = 0;
             for (int i = 0; i < pages; ++i)
-                for (const auto &l : many->pager().lines(i)) last = std::max(last, l.end);
+                for (const auto &l : many->pager().lines(i)) {
+                    QVERIFY2(l.pos >= last, qPrintable(QStringLiteral("a line at %1 begins before the one before it ends, at %2").arg(l.pos).arg(last)));
+                    shown += whole.mid(l.pos, l.end - l.pos);
+                    last = l.end;
+                }
             QCOMPARE(last, many->story()->characterCount() - 1);
+            QCOMPARE(shown.remove(QLatin1Char('\n')), QString(whole).remove(QLatin1Char('\n')));
         }
+    }
+
+    // A run of paragraphs with deleted marks is cut into paragraphs of 32 of them (counted by the paragraphs' numbers in the story), whatever the run's length: the longest one made is 32.
+    void aLongRunOfJoinedParagraphsIsCutIntoParagraphsOfThirtyTwo()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        QByteArray body;
+        for (int i = 0; i < 100; ++i) body += "<w:p><w:pPr>" + (i + 1 < 100 ? deleted : QByteArray()) + "</w:pPr><w:r><w:t xml:space=\"preserve\">paragraph " + QByteArray::number(i) + " </w:t></w:r></w:p>";
+        StoryLayout::resetLongestJoinedParagraphsForTest();
+        auto doc = open(makeDocx(body, kStyles));
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() >= 1);
+        QCOMPARE(StoryLayout::longestJoinedParagraphsForTest(), qint64(StoryLayout::kMostJoinedParagraphs));
+    }
+
+    // The runs are cut at the same places wherever a layout begins: one that begins in the paragraph after a cut, or in the rest of a paragraph, has the lines the layout of the whole
+    // story has (the same paragraphs, every word once), and the items of a list are numbered as they are there (a run is one item).
+    void aJoinedRunIsCutAtTheSamePlacesWhereverALayoutBegins()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        const QByteArray level = "<w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/><w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl>";
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\">" + level + "</w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        const QByteArray item = "<w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"6000\" w:h=\"4800\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+        const int count = 70;
+        QByteArray body;
+        for (int i = 0; i < count; ++i)
+            body += "<w:p><w:pPr>" + item + (i + 1 < count ? deleted : QByteArray()) + "</w:pPr><w:r><w:t xml:space=\"preserve\">paragraph " + QByteArray::number(i) + " of the run goes on a while. </w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles, numbering, sect));
+        QVERIFY(doc);
+        const QTextDocument *story = doc->story();
+        const QString whole = story->toPlainText();
+        auto at = [&](int number) { return story->findBlockByNumber(number).position(); };
+        FrameSpec fs;
+        fs.size = QSizeF(300, 100000);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        fs.hyphenate = false;
+        auto markers = [&](const StoryLayout &layout) {
+            QMap<int, QString> out;
+            for (const auto &l : layout.lineInfo(0))
+                if (!l.marker.isEmpty()) out[l.docStart] = l.marker;
+            return out;
+        };
+        StoryLayout topDown;
+        topDown.build(story, {fs}, doc->flow().env);
+        const auto all = topDown.lineBriefs();
+        // (Runs of 32 paragraphs by their numbers: 0 to 31, 32 to 63, and 64 to 69, each an item: 1., 2., and 3.)
+        const auto top = markers(topDown);
+        QCOMPARE(top.size(), 3);
+        QCOMPARE(top.value(at(0)), QStringLiteral("1."));
+        QCOMPARE(top.value(at(32)), QStringLiteral("2."));
+        QCOMPARE(top.value(at(64)), QStringLiteral("3."));
+        // A layout that begins in paragraph 33, laid out whole, is that of the run from paragraph 32 on.
+        {
+            StoryLayout::Span span;
+            span.from = at(33);
+            StoryLayout later;
+            later.build(story, {fs}, doc->flow().env, span);
+            QVector<StoryLayout::LineBrief> wanted;
+            for (const auto &l : all)
+                if (l.block >= at(32)) wanted << l;
+            const auto got = later.lineBriefs();
+            QCOMPARE(got.size(), wanted.size());
+            for (int i = 0; i < got.size(); ++i)
+                QVERIFY2(got[i].block == wanted[i].block && got[i].line == wanted[i].line && got[i].pos == wanted[i].pos && got[i].end == wanted[i].end,
+                         qPrintable(QStringLiteral("line %1 is %2 to %3 of the paragraph at %4, the whole story's %5 to %6 of the one at %7").arg(i).arg(got[i].pos).arg(got[i].end).arg(got[i].block)
+                                        .arg(wanted[i].pos).arg(wanted[i].end).arg(wanted[i].block)));
+            QMap<int, QString> expected = top;
+            expected.remove(at(0));
+            QCOMPARE(markers(later), expected);
+        }
+        // One that begins in the rest of a paragraph in the middle of the second run shows every word of the rest once.
+        {
+            StoryLayout::Span span;
+            span.from = at(40) + 3;
+            span.continued = true;
+            StoryLayout rest;
+            rest.build(story, {fs}, doc->flow().env, span);
+            QString shown;
+            int last = span.from;
+            for (const auto &l : rest.lineBriefs()) {
+                QVERIFY2(l.pos >= last, qPrintable(QStringLiteral("a line at %1 begins before the one before it ends, at %2").arg(l.pos).arg(last)));
+                shown += whole.mid(l.pos, l.end - l.pos);
+                last = l.end;
+            }
+            QCOMPARE(shown.remove(QLatin1Char('\n')), whole.mid(span.from).remove(QLatin1Char('\n')));
+        }
+        // And the pages, which begin where the lines run out of room (in the middle of a run, and at the cut), show every word once.
+        {
+            const int pages = doc->pager().pageCount();
+            QVERIFY(pages >= 3);
+            QString shown;
+            int last = 0;
+            for (int i = 0; i < pages; ++i)
+                for (const auto &l : doc->pager().lines(i)) {
+                    QVERIFY2(l.pos >= last, qPrintable(QStringLiteral("page %1: a line at %2 begins before the one before it ends, at %3").arg(i + 1).arg(l.pos).arg(last)));
+                    shown += whole.mid(l.pos, l.end - l.pos);
+                    last = l.end;
+                }
+            QCOMPARE(shown.remove(QLatin1Char('\n')), QString(whole).remove(QLatin1Char('\n')));
+        }
+    }
+
+    // A deleted mark never joins the paragraphs of two table cells, nor a cell's last paragraph and the one after the table: the text of each cell is in its own cell, once.
+    void aDeletedMarkNeverJoinsTheParagraphsOfTwoCells()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        auto cell = [&](const char *text, bool markDeleted) {
+            return "<w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr><w:p><w:pPr>" + QByteArray(markDeleted ? deleted : QByteArray()) + "</w:pPr><w:r><w:t>" + text + "</w:t></w:r></w:p></w:tc>";
+        };
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"6000\" w:type=\"dxa\"/><w:tblLayout w:type=\"fixed\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/><w:gridCol w:w=\"3000\"/></w:tblGrid>"
+                                 "<w:tr>" + cell("CELLONE", true) + cell("CELLTWO", true) + "</w:tr></w:tbl>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Before</w:t></w:r></w:p>" + table + "<w:p><w:r><w:t>After</w:t></w:r></w:p>", kStyles));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        QCOMPARE(page->tables.size(), 1);
+        const QString whole = doc->story()->toPlainText();
+        QStringList texts;
+        page->tables.first()->forLines([&](const StoryLayout::LineBrief &line, const QRectF &) { texts << whole.mid(line.pos, line.end - line.pos).remove(QLatin1Char('\n')); });
+        texts.sort();
+        QCOMPARE(texts, (QStringList{QStringLiteral("CELLONE"), QStringLiteral("CELLTWO")}));
+        // The paragraph after the table is its own line, and the one before.
+        QStringList outside;
+        for (const auto &l : doc->pager().lines(0)) outside << whole.mid(l.pos, l.end - l.pos).remove(QLatin1Char('\n'));
+        QVERIFY2(outside.contains(QStringLiteral("Before")) && outside.contains(QStringLiteral("After")), qPrintable(outside.join(QLatin1Char('|'))));
     }
 
     // What a paste from another document brings that points into the first's notes and objects points at nothing of the second's: a reference to a note is
