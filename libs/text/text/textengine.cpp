@@ -5169,14 +5169,22 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                     const QString ch(leader);
                     const double w = advanceOf(f, ch);
                     if (w <= 0.01) continue;
-                    const double gap = w * 0.4;
-                    double x = std::ceil((x0 + gap) / w) * w;
+                    // (A word processor's underscores are one line from the tab to its stop: from where the tab starts, the last of them cut at the stop.)
+                    const bool line = m_env.wordLines && leader == QLatin1Char('_');
+                    const double gap = line ? 0.0 : w * 0.4;
+                    double x = line ? x0 : std::ceil((x0 + gap) / w) * w;
                     QString run;
                     const double startX = x;
-                    for (; x + w <= x1 - gap; x += w) run += ch;
+                    for (; x + w <= x1 - gap + 0.01; x += w) run += ch;
+                    if (line && x < x1 - 0.01) run += ch;
                     if (run.isEmpty()) continue;
                     p->setPen(cf.foreground().style() != Qt::NoBrush ? cf.foreground().color() : m_env.colors.slot(Main));
+                    if (line) {
+                        p->save();
+                        p->setClipRect(QRectF(off.x() + x0, off.y() + l.position().y() - 1000, x1 - x0, 2000), Qt::IntersectClip);
+                    }
                     drawPlainText(p, off + QPointF(startX, l.position().y() + l.ascent()), f, run);
+                    if (line) p->restore();
                 }
             }
         }

@@ -3166,6 +3166,49 @@ private Q_SLOTS:
         QVERIFY2(std::abs(gap.red() - 200) < 4, qPrintable(gap.name()));
     }
 
+    // A word processor's underscore leader is one line from where its tab starts to the stop (W124's "NAME:" and the "COUNTY" after the right tab), not underscores on a grid with a
+    // gap of two fifths of one at each end.
+    void anUnderscoreLeaderIsOneLineFromTheTabToItsStop()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Tinos")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setTabPositions({QTextOption::Tab(150, QTextOption::RightTab)});
+        bf.setProperty(tp::TabLeaders, QStringLiteral("_"));
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("Mark:\tCounty"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(200, 100)}, env);
+        const QRectF tab = lay.rangeRects(0, 5, 6).first();
+        const double scale = 8;
+        QImage img(int(200 * scale), int(100 * scale), QImage::Format_RGB32);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.scale(scale, scale);
+        lay.paint(&p, 0, PaintOptions());
+        p.end();
+        // The row of the underscores: the one with the most dark pixels between the tab's two ends and the text after it.
+        int best = 0, row = -1, first = -1, last = -1;
+        for (int y = 0; y < img.height(); ++y) {
+            int count = 0, a = -1, b = -1;
+            for (int x = int(tab.left() * scale) - 20; x < int((tab.right() + 4) * scale); ++x)
+                if (x >= 0 && qGray(img.pixel(x, y)) < 128) {
+                    ++count;
+                    if (a < 0) a = x;
+                    b = x;
+                }
+            if (count > best) { best = count; row = y; first = a; last = b; }
+        }
+        QVERIFY(row >= 0);
+        QVERIFY2(std::abs(first / scale - tab.left()) < 0.4, qPrintable(QStringLiteral("the line starts at %1, the tab at %2").arg(first / scale).arg(tab.left())));
+        QVERIFY2(std::abs((last + 1) / scale - tab.right()) < 0.4, qPrintable(QStringLiteral("the line ends at %1, the stop at %2").arg((last + 1) / scale).arg(tab.right())));
+    }
+
     // The shading of a paragraph with a hanging indent begins at the hanging line's edge (the least of its indents), and it is one band with the shaded paragraph after it that
     // begins there too, though their left indents differ: nothing white between them, nor at the left of the first.
     void theShadingOfAHangingParagraphJoinsTheShadedParagraphAfterIt()
