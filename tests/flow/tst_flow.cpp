@@ -12400,6 +12400,39 @@ private Q_SLOTS:
         QCOMPARE(pg.materialize(1)->number, 0);
     }
 
+    // A continuous section that begins among the lines of a page counts that page as its first: the page keeps the number it had, and the next is one more than the number
+    // the section restarts at. One that begins at the top of a page (after a page break) restarts them there.
+    void aContinuousSectionRestartsTheNumbersFromThePageItBeginsOn()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 60, 5, [](int i, QTextBlockFormat &bf) {
+            if (i == 0 || i == 20 || i == 40) bf.setProperty(flow::fp::SectionBreakAfter, true);
+            if (i == 20) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysAfter);
+        }, 14, 20);
+        fd.sections[0].paper = QSizeF(300, 300);
+        fd.sections[0].margins = QMarginsF(50, 50, 50, 50);
+        Section second = fd.sections[0], third = fd.sections[0], fourth = fd.sections[0];
+        second.continuous = true;
+        second.firstPageNumber = 5;   // (it begins below the first paragraph, in the middle of the first page: that page is 1, the next 6)
+        third.continuous = true;
+        third.firstPageNumber = 7;    // (it begins at the top of the page after a page break)
+        fd.sections << second << third << fourth;
+        Paginator pg(&fd);
+        int firstOfThird = -1;
+        for (int k = 0; k < pg.pageCount() && firstOfThird < 0; ++k)
+            if (pg.page(k).start.section == 2) firstOfThird = k;
+        QVERIFY(firstOfThird > 1);
+        QCOMPARE(pg.page(0).number, 1);
+        QCOMPARE(pg.page(1).number, 6);
+        QCOMPARE(pg.page(2).number, 7);
+        QCOMPARE(pg.page(firstOfThird - 1).number, 5 + firstOfThird - 1);
+        QCOMPARE(pg.page(firstOfThird).number, 7);
+        QCOMPARE(pg.page(firstOfThird + 1).number, 8);
+        QCOMPARE(pg.materialize(1)->number, 6);
+        QCOMPARE(pg.materialize(firstOfThird)->number, 7);
+    }
+
     // A word processing document keeps pieces of its file as text that shows what the field names after "raw:", or nothing.
     void aRawFieldShowsItsOwnText()
     {

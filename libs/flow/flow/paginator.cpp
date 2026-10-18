@@ -83,6 +83,25 @@ Paginator::Paginator(FlowDocument *doc) : m_doc(doc), m_tables(std::make_unique<
 
 Paginator::~Paginator() = default;
 
+// Whether the page begins the section: the section's first paragraph is at its top, or a section break sent it there.
+bool Paginator::beginsPageOf(int section, const PageStart &page) const
+{
+    if (page.firstOfSection) return true;
+    const QVector<int> &starts = sectionStarts();
+    return section < starts.size() && starts[section] == page.pos;
+}
+
+const QVector<int> &Paginator::sectionStarts() const
+{
+    const QTextDocument *story = m_doc->story();
+    if (m_sectionStartsRevision == story->revision() && !m_sectionStarts.isEmpty()) return m_sectionStarts;
+    m_sectionStarts.assign(1, 0);
+    for (QTextBlock b = story->begin(); b.isValid() && m_sectionStarts.size() < m_doc->sections.size(); b = b.next())
+        if (b.blockFormat().boolProperty(fp::SectionBreakAfter)) m_sectionStarts << (b.next().isValid() ? b.next().position() : story->characterCount());
+    m_sectionStartsRevision = story->revision();
+    return m_sectionStarts;
+}
+
 int Paginator::numberOf(int index) const
 {
     bool restarts = false;
@@ -98,7 +117,8 @@ int Paginator::numberOf(int index) const
         if (p == 0 || m_starts[p].section != m_starts[p - 1].section) {
             const std::optional<int> first = m_doc->section(m_starts[p].section).firstPageNumber;
             if (first) {
-                number = *first + (index - p);
+                // (A continuous section that begins among the lines of the page before counts that page as its first: the page keeps the number it had, and the next is one more than the section's own.)
+                number = *first + (index - p) + (p == 0 || beginsPageOf(m_starts[p].section, m_starts[p]) ? 0 : 1);
                 break;
             }
         }

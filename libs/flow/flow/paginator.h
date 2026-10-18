@@ -270,6 +270,9 @@ private:
     static QRectF roomOf(const FloatingObject &o, const Wrapped &w);
     bool breakContinuesAt(const StoryLayout::LineBrief &last, PageStart *next) const;
     int numberOf(int index) const;
+    bool beginsPageOf(int section, const PageStart &page) const;   // the page is the first of the section (not the page after one that a continuous section began in the middle of)
+    // The place each section begins at in the story (its first paragraph, the one after the break that ends the section before), as the story is.
+    const QVector<int> &sectionStarts() const;
     void changed(int position, int removed, int added);   // the story was edited
     void settle(int index);                               // lays out again what edits changed, until page `index` is right (-1: all)
     void settleStep();                                    // one page of that
@@ -479,6 +482,8 @@ private:
     // The number of the page asked for last, so that the next one's is one more: a walk back to the section's first page is for a page that doesn't follow it.
     mutable int m_numberOf = -1, m_number = 0;
     mutable qint64 m_numberSteps = 0;
+    mutable QVector<int> m_sectionStarts;
+    mutable int m_sectionStartsRevision = -1;
 };
 
 } // namespace jp::flow
