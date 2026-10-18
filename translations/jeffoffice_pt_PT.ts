@@ -5573,7 +5573,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
 <context>
     <name>Print</name>
     <message>
-        <location filename="../apps/write/app/pageoutput.cpp" line="+72"/>
+        <location filename="../apps/write/app/pageoutput.cpp" line="+78"/>
         <source>Save as PDF</source>
         <translation type="unfinished">Guardar como PDF</translation>
     </message>
@@ -10280,7 +10280,7 @@ Paginação eletrónica</translation>
         <translation type="unfinished">Português (Portugal)</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+143"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+144"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Linha de Saudação»</translation>
     </message>
@@ -10310,7 +10310,7 @@ Paginação eletrónica</translation>
         <translation type="unfinished">(Continuação da página %1)</translation>
     </message>
     <message>
-        <location line="+4339"/>
+        <location line="+5120"/>
         <source>Notes</source>
         <translation type="unfinished">Notas</translation>
     </message>
@@ -23355,17 +23355,17 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 <context>
     <name>jp::office::wml</name>
     <message>
-        <location filename="../libs/office/wml/wmlread.cpp" line="+315"/>
+        <location filename="../libs/office/wml/wmlread.cpp" line="+339"/>
         <source>[picture]</source>
         <translation type="unfinished">[imagem]</translation>
     </message>
     <message>
-        <location line="+432"/>
+        <location line="+434"/>
         <source>[Table: %1 rows by %2 columns]</source>
         <translation type="unfinished">[Tabela: %1 linhas por %2 colunas]</translation>
     </message>
     <message>
-        <location line="+382"/>
+        <location line="+450"/>
         <source>The file has no document in it.</source>
         <translation type="unfinished">O ficheiro não contém nenhum documento.</translation>
     </message>

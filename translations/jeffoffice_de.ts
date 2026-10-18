@@ -5573,7 +5573,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
 <context>
     <name>Print</name>
     <message>
-        <location filename="../apps/write/app/pageoutput.cpp" line="+72"/>
+        <location filename="../apps/write/app/pageoutput.cpp" line="+78"/>
         <source>Save as PDF</source>
         <translation type="unfinished">Als PDF speichern</translation>
     </message>
@@ -10280,7 +10280,7 @@ Desktop-Publishing</translation>
         <translation type="unfinished">Portugiesisch (Portugal)</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+143"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+144"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Grußzeile»</translation>
     </message>
@@ -10310,7 +10310,7 @@ Desktop-Publishing</translation>
         <translation type="unfinished">(Fortsetzung von Seite %1)</translation>
     </message>
     <message>
-        <location line="+4339"/>
+        <location line="+5120"/>
         <source>Notes</source>
         <translation type="unfinished">Notizen</translation>
     </message>
@@ -23355,17 +23355,17 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
 <context>
     <name>jp::office::wml</name>
     <message>
-        <location filename="../libs/office/wml/wmlread.cpp" line="+315"/>
+        <location filename="../libs/office/wml/wmlread.cpp" line="+339"/>
         <source>[picture]</source>
         <translation type="unfinished">[Bild]</translation>
     </message>
     <message>
-        <location line="+432"/>
+        <location line="+434"/>
         <source>[Table: %1 rows by %2 columns]</source>
         <translation type="unfinished">[Tabelle: %1 Zeilen mal %2 Spalten]</translation>
     </message>
     <message>
-        <location line="+382"/>
+        <location line="+450"/>
         <source>The file has no document in it.</source>
         <translation type="unfinished">Die Datei enthält kein Dokument.</translation>
     </message>
