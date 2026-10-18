@@ -3084,6 +3084,51 @@ private Q_SLOTS:
         QVERIFY(!dark(lay.rangeRects(0, start, start + 2).first().center().x(), (top + bottom) / 2));
     }
 
+    // The shading of a paragraph with a hanging indent begins at the same place on each page the paragraph is on: the piece that goes on on the next page has no first line (and no
+    // first-line indent of its own), but the box is the paragraph's, from the edge its first line hangs to.
+    void theShadingOfAParagraphThatGoesOnBeginsWhereItDidOnThePageBefore()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.sections[0].paper = QSizeF(300, 200);
+        fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+        QTextCursor c(fd.story());
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        tp::ParaBox box;
+        box.fill = QColor(200, 200, 200);
+        QTextBlockFormat bf;
+        bf.setLeftMargin(36);
+        bf.setTextIndent(-36);
+        bf.setProperty(tp::Borders, box.spec());
+        c.setBlockFormat(bf);
+        QString words;
+        for (int i = 0; i < 200; ++i) words += QStringLiteral("word ");
+        c.insertText(words, run);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        auto filledAtTheHang = [&](int k) {
+            const auto page = pg.materialize(k);
+            const TextItem *box = page ? boxHolding(*page, QStringLiteral("word")) : nullptr;
+            if (!box) return false;
+            LayoutCache cache;
+            const LayoutCache::FrameLayout fl = cache.textFrame(*page->doc, *box, 1, RenderOptions());
+            if (!fl.layout || fl.layout->lineInfo(fl.frame).isEmpty()) return false;
+            const double scale = 4;
+            QImage img(int(box->rect.width() * scale), int((box->rect.height() + 20) * scale), QImage::Format_RGB32);
+            img.fill(Qt::white);
+            QPainter p(&img);
+            p.scale(scale, scale);
+            fl.layout->paint(&p, fl.frame, PaintOptions());
+            p.end();
+            const QRectF line = fl.layout->lineInfo(fl.frame).first().rect;
+            return QColor(img.pixel(int(10 * scale), int((line.top() + line.height() / 2) * scale))).lightness() < 230;   // (ten points in: left of the indent, right of the hang)
+        };
+        QVERIFY2(filledAtTheHang(0), "the shading begins at the hanging line's edge on the first page");
+        QVERIFY2(filledAtTheHang(1), "and where it did on the page the paragraph goes on on");
+    }
+
     // A line of text that is as wide as the room it has, to what rounding leaves, fits on one line.
     void aLineAsWideAsItsRoomFits()
     {

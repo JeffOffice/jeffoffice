@@ -96,6 +96,7 @@ enum : int {
     NumberTab,                                   // double (block): the list tab stop the paragraph's numbering gives it (a word processor's "num" tab), in points from the text area's edge (LayoutEnv::wordLines)
     NoteMarkCustom,                              // bool: a note's reference whose mark is the text after it (w:customMarkFollows): it shows no number and takes none (LayoutEnv::wordLines)
     OutOfLayout,                                 // bool: the paragraph is set apart from the text (a word processor's frame, which the page sets where it asks): it has no lines and no room, and shows nothing (LayoutEnv::wordLines)
+    BoxIndent,                                   // double (block): the first-line indent the paragraph's box begins from, where its text's own was taken off (the piece that goes on after a page break)
 };
 
 // A paragraph's borders and shading as a word processor draws them (LayoutEnv::wordLines): each side's line style, width in eighths of a point, and its

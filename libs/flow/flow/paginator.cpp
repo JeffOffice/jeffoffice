@@ -1368,7 +1368,10 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         if (b == lastBlock && ((run.kept < L.size() && L[run.kept].block == L[run.kept - 1].block) || sameBox(b, b.next()))) bf.setProperty(tp::BorderBottomOff, true);
         if (tail) {
             // (As the text after a break that begins the paragraph is its first line, with the indent.)
-            if (!(run.keepsIndent && main->characterAt(b.position()) == kPageBreak && b.length() > 1)) bf.setTextIndent(0);
+            if (!(run.keepsIndent && main->characterAt(b.position()) == kPageBreak && b.length() > 1)) {
+                if (bf.hasProperty(tp::Borders)) bf.setProperty(tp::BoxIndent, bf.textIndent());   // (its box still begins where the paragraph's first line hangs to)
+                bf.setTextIndent(0);
+            }
             bf.clearProperty(tp::DropCapLines);
             bf.clearProperty(tp::DropCapChars);
             bf.clearProperty(tp::StartInNextBox);

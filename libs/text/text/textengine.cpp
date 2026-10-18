@@ -3386,7 +3386,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     line.setPosition(QPointF(iv.x0, m_frameY[f] + col.top() + y + lead));
                     if (const double dx = hangTrailingSpaces(line, B->disp, B->tl->textOption(), iv.x1 - iv.x0); dx != 0) line.setPosition(line.position() + QPointF(dx, 0));
                     if (B->lines.isEmpty()) {
-                        B->boxLeft = col.left() + std::min(leftM, leftM + textIndent);   // (a hanging first line's edge is the box's)
+                        B->boxLeft = col.left() + std::min(leftM, leftM + (bf.hasProperty(tp::BoxIndent) ? bf.doubleProperty(tp::BoxIndent) : bf.textIndent()) * scale);   // (a hanging first line's edge is the box's: the paragraph's own indent, also for the piece that goes on after a page break, which has none of its own)
                         B->boxRight = col.right() - rightM;
                     }
                     // A slide's or a word processor's justified line has its words stretched to the edge: the spaces that hang at its end are not part of
