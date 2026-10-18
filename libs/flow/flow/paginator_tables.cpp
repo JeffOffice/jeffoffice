@@ -340,6 +340,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                         // (At most a few rows are kept together: a file of many rows that all ask for it is not asked more than that of.)
                         constexpr int kMostKeptRows = 32;
                         for (int q = r; q + 1 < table->rowCount() && q < r + kMostKeptRows && table->keepsWithNext(q); ++q) {
+                            ++m_keepChecks;
                             keptWith += table->keepsWithNext(q + 1) ? table->rowHeight(q + 1) : table->leastPart(q + 1);
                             if (height + keptWith > colH - led->reserve[f]) {
                                 keptWith = 0;

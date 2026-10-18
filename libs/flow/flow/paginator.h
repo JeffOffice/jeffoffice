@@ -170,6 +170,8 @@ public:
     qint64 headerTableCellsHeldForTest() const { return m_headerTableCells; }
     // How many rows of tables were measured since it was made (what is measured again after an edit is the rows it touched): for tests of what edits cost.
     qint64 tableRowsMeasured() const { return m_tables ? m_tables->rowsMeasured() : 0; }
+    // How many rows were looked at to see whether a row kept with the next has room with those after it (a count for the tests of cost).
+    qint64 keepChecks() const { return m_keepChecks; }
     qint64 tableCellsLaidOut() const { return m_tables ? m_tables->cellsLaidOut() : 0; }
     // How many pages the page numbers have been walked back over to find where their section began, for tests.
     qint64 numberStepsForTest() const { return m_numberSteps; }
@@ -216,6 +218,7 @@ private:
     };
     NoteCut cutNote(const QString &id, double width, double room);
     std::map<std::tuple<QString, int, int, int, uint>, double> m_noteHeights;   // by note, the width in hundredths of a point, its story's revision and length (a revision comes again after an undo and another edit), and the environment the text is set in
+    qint64 m_keepChecks = 0;   // see keepChecks()
     uint m_envHash = 0;   // what the environment (the fonts, their scale, the line rules) was when the notes were measured
     double m_ruleGap = 0;   // the gap above a page's notes (the last the text engine said)
     QVector<double> m_offsOut;   // where in the row's cells the part that begins the next page starts, as the last lines of a page left it

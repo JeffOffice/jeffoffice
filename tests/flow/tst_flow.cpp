@@ -12453,6 +12453,47 @@ private Q_SLOTS:
         QVERIFY2(last->tables[0]->heightOf(0) > 150 - 0.01, qPrintable(QStringLiteral("the last part is %1 high").arg(last->tables[0]->heightOf(0))));
     }
 
+    // A table whose rows all ask to be kept with the next, and are many on a page, is not kept together past a few rows: it is laid out in all its rows, and each row looks at no
+    // more than a few of those after it (the work stays in step with the rows, not with the rows that a page holds).
+    void aTableOfManyRowsKeptWithTheNextLaysOutInStepWithItsRows()
+    {
+        auto run = [](int rows, qint64 *checks) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.sections[0].paper = QSizeF(300, 300);
+            fd.sections[0].margins = QMarginsF(30, 30, 30, 30);
+            TestTable spec;
+            spec.rows = rows;
+            spec.cols = 1;
+            spec.columnWidth = 200;
+            spec.margins = QMarginsF(0, 0, 0, 0);
+            spec.setRow = [](int, RowData &rd) {
+                rd.height = 1;
+                rd.exact = true;
+            };
+            addTable(fd, spec);
+            for (QTextBlock b = fd.story()->begin(); b.isValid(); b = b.next())
+                if (b.blockFormat().intProperty(fp::Cell)) {
+                    QTextCursor c(b);
+                    QTextBlockFormat bf;
+                    bf.setProperty(tp::KeepWithNext, true);
+                    c.mergeBlockFormat(bf);
+                }
+            Paginator pg(&fd);
+            int shown = 0;
+            for (int k = 0; k < pg.pageCount(); ++k) {
+                const auto page = pg.materialize(k);
+                for (const auto &t : page->tables) shown += t->endRow - t->firstRow;
+            }
+            *checks = pg.keepChecks();
+            return shown;
+        };
+        qint64 checks = 0;
+        const int rows = 1500;
+        QVERIFY2(run(rows, &checks) >= rows, "every row is on a page");
+        QVERIFY2(checks > 0 && checks < qint64(rows) * 100, qPrintable(QStringLiteral("%1 rows looked at for %2 rows").arg(checks).arg(rows)));
+    }
+
     // The space between a table's cells (where it says it has some) is round each cell, at the table's edges too: the text, the fill, and the lines of a cell are in from the edges of
     // its place by that much on every side, so that the fills do not cover the space, the first row is below the table's top by it, and the last row is above its foot by it.
     void spaceBetweenCellsIsRoundEachCellItsFillAndLinesToo()
