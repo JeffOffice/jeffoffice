@@ -6,6 +6,7 @@
 #include "text/textprops.h"
 
 #include <QTextBlock>
+#include <QTextList>
 #include <algorithm>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -28,6 +29,48 @@ const QTextDocument *NoteFields::storyDoc(const QString &id) const { return m_do
 const QTextDocument *NoteFields::noteNoticeStory() const { return m_doc->noticeStory(); }
 const QTextDocument *NoteFields::noteContinuationStory() const { return m_doc->continuationStory(); }
 
+QString NoteFields::styleRefText(const QString &style, const QString &switches, int from, int to) const
+{
+    // The styles the name says: its name (as the style sheet has it, whatever the case, or without the blanks of a built-in style's id) or its id.
+    const QString plain = QString(style).remove(QLatin1Char(' '));
+    QStringList ids;
+    for (const Style &s : m_doc->m_wml.styles.styles)
+        if (s.type == QLatin1String("paragraph") && (s.name.compare(style, Qt::CaseInsensitive) == 0 || s.id.compare(style, Qt::CaseInsensitive) == 0 || s.id.compare(plain, Qt::CaseInsensitive) == 0))
+            ids << s.id;
+    if (ids.isEmpty()) return QString();
+    const QTextDocument *story = m_doc->story();
+    auto matches = [&](const QTextBlock &b) { return ids.contains(b.blockFormat().stringProperty(tp::StyleName)); };
+    // The paragraph on the page (its first, or its last with \l), else the nearest before the page, else the nearest after it. (A file's paragraphs are many: so many are looked at.)
+    constexpr int kMostLooked = 20000;
+    QTextBlock found;
+    int looked = 0;
+    const bool last = switches.contains(QLatin1Char('l'));
+    for (QTextBlock b = story->findBlock(std::max(0, from)); b.isValid() && b.position() < to && looked < kMostLooked; b = b.next(), ++looked)
+        if (matches(b)) {
+            found = b;
+            if (!last) break;
+        }
+    for (QTextBlock b = story->findBlock(std::max(0, from)).previous(); !found.isValid() && b.isValid() && looked < kMostLooked; b = b.previous(), ++looked)
+        if (matches(b)) found = b;
+    for (QTextBlock b = story->findBlock(std::max(0, to)); !found.isValid() && b.isValid() && b.position() >= to && looked < kMostLooked; b = b.next(), ++looked)
+        if (matches(b)) found = b;
+    if (!found.isValid()) return QString();
+    if (switches.contains(QLatin1Char('n')) || switches.contains(QLatin1Char('w')) || switches.contains(QLatin1Char('r'))) {
+        // The paragraph's number, without the periods after it.
+        QString number = found.blockFormat().stringProperty(tp::BulletChar);
+        if (number.isEmpty() && found.textList() && found.textList()->format().style() != QTextListFormat::ListDisc && found.textList()->format().style() != QTextListFormat::ListCircle
+            && found.textList()->format().style() != QTextListFormat::ListSquare)
+            number = found.textList()->itemText(found);
+        number = number.trimmed();
+        while (number.endsWith(QLatin1Char('.'))) number.chop(1);
+        return number.isEmpty() ? QString() : number.left(1000);
+    }
+    QString text = found.text();
+    text.remove(QChar::ObjectReplacementCharacter);
+    text.replace(QChar::LineSeparator, QLatin1Char(' ')).replace(QLatin1Char('\t'), QLatin1Char(' '));
+    return text.simplified().left(1000);
+}
+
 QList<const QTextDocument *> NoteFields::storyDocs() const
 {
     QList<const QTextDocument *> list;
@@ -46,6 +89,9 @@ void WriteDoc::loadNotes()
     m_continuationStory.reset();
     m_noteFields.reset();
     m_flow->fields = nullptr;
+    // (What a header's field that shows a paragraph style's text finds on each page: this document's story, with or without notes.)
+    m_styleRefSource = std::make_unique<NoteFields>(this);
+    m_flow->styleRefs = m_styleRefSource.get();
     QString part;
     for (const Relationship &r : m_wml.mainRelationships)
         if (!r.external && r.type.endsWith(QLatin1String("/footnotes"))) {

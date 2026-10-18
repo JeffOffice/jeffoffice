@@ -1690,7 +1690,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     addPageBorders(d.get(), sec, index <= 0 || st.firstOfSection, furniture);
     if (run.blank) {
         out->storyFrom = m_doc->story()->characterCount();
-        addFurniture(d.get(), furniture, sec, st.section, out->number, out.get());
+        addFurniture(d.get(), furniture, sec, st.section, out->number, out.get(), st.pos, st.pos);
         markTotals(out.get(), *d);
         out->doc = std::move(d);
         return out;
@@ -1698,10 +1698,10 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
 
     if (bodyless) {
         out->storyFrom = st.pos;
-        addFurniture(d.get(), furniture, sec, st.section, out->number, out.get());
+        addFurniture(d.get(), furniture, sec, st.section, out->number, out.get(), st.pos, st.pos);
     } else {
         // The header and the footer are the page's lowest layer: before the body's text and objects, which are drawn over them.
-        addFurniture(d.get(), furniture, sec, st.section, out->number, out.get());
+        addFurniture(d.get(), furniture, sec, st.section, out->number, out.get(), st.pos, run.hasNext ? run.next.pos : m_doc->story()->characterCount());
         const size_t front = d->pages[0]->items.size();
         auto story = std::make_shared<Story>();
         story->id = QStringLiteral("flow-story-%1").arg(index);

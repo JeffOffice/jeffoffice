@@ -11191,6 +11191,53 @@ private Q_SLOTS:
         QCOMPARE(rowsShown(pg), 90);
     }
 
+    // What a header shows of a paragraph style (a STYLEREF field) is the page's own: the first paragraph of the style on the page (the last with \l), or the nearest before the page
+    // when it has none; the field's result in the file is what shows where the document has none at all.
+    void aHeaderShowsTheStyledParagraphOfItsPage()
+    {
+        auto field = [](const char *instruction) {
+            return "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> STYLEREF " + QByteArray(instruction) +
+                   " </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>cached</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        };
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"),
+                                               headerPart("hdr", {"<w:r><w:t xml:space=\"preserve\">First: </w:t></w:r>" + field("\"heading 1\""), "<w:r><w:t xml:space=\"preserve\">Last: </w:t></w:r>" + field("\"heading 1\" \\l"),
+                                                                  "<w:r><w:t xml:space=\"preserve\">None: </w:t></w:r>" + field("\"No Such Style\"")})}};
+        QByteArray body;
+        for (int h = 0; h < 4; ++h) {
+            body += "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Chapter " + QByteArray::number(h + 1) + " title</w:t></w:r></w:p>";
+            for (int i = 0; i < (h == 1 || h == 2 ? 1 : 3); ++i) body += plainP(wordsOf("text", h == 1 || h == 2 ? 8 : 150));   // (the second and third chapters share a page)
+        }
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720, "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"), parts));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 5);
+        const QTextDocument *story = doc->story();
+        int sawBefore = 0, sawTwo = 0;
+        for (int k = 0; k < pages; ++k) {
+            const int from = pg.page(k).start.pos, to = k + 1 < pages ? pg.page(k + 1).start.pos : story->characterCount();
+            QString first, last, before;
+            for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+                if (b.blockFormat().stringProperty(tp::StyleName) != QLatin1String("Heading1")) continue;
+                if (b.position() + b.length() <= from) before = b.text();
+                else if (b.position() < to) {
+                    if (first.isEmpty()) first = b.text();
+                    last = b.text();
+                }
+            }
+            sawBefore += first.isEmpty();
+            sawTwo += first != last;
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            const auto heads = audit::itemsWith(*page, QStringLiteral("flow-header-box"));
+            QVERIFY(heads.size() == 1);
+            QString shown = audit::storyOf(*page, heads[0]);
+            const QString want = QStringLiteral("First: %1|Last: %2|None: \uFFFC").arg(first.isEmpty() ? before : first, last.isEmpty() ? before : last);
+            QCOMPARE(shown.replace(QLatin1Char('\n'), QLatin1Char('|')).replace(QChar::ParagraphSeparator, QLatin1Char('|')), want);
+        }
+        QVERIFY2(sawBefore > 0 && sawTwo > 0, "the pages have one with no chapter title on it and one with two");
+    }
+
     // A note cited in the section before a continuous section of two columns, on the page where that begins: the notes are at the foot of the page, under the columns, and the
     // text of the first section is in the width of the page (the columns begin below it); the audit finds no overlap, nothing lost, and no empty page.
     void aFilesNoteCitedBeforeAContinuousTwoColumnSectionIsAtThePageFoot()

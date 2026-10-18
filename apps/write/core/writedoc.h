@@ -54,6 +54,7 @@ public:
     double noteContinuationRuleAt() const override { return ruleAt; }
     double noteContinuationRuleFrom() const override { return ruleFrom; }
     bool noteContinuationRuleFull() const override { return ruleFull; }
+    QString styleRefText(const QString &style, const QString &switches, int from, int to) const override;
     double separator = 0, notice = 0, continuation = 0;   // the heights of the file's separator and continuation notice (the pages cut them: FrameSpec::noteRoomLimit)
     double ruleAt = -1, ruleFrom = 0;                     // where the rule is in the separator for the part of a note that goes on
     bool ruleFull = true;                                 // (and whether it is as wide as the column)
@@ -216,6 +217,7 @@ private:
     qint64 m_sectionsMade = 0;
     qint64 m_dropDownSteps = 0;
     std::unique_ptr<NoteFields> m_noteFields;
+    std::unique_ptr<NoteFields> m_styleRefSource;   // (answers STYLEREF for the pages; the notes' own is above, there when the file has notes)
     std::unique_ptr<QTextDocument> m_noticeStory, m_continuationStory;   // (the file's continuation notice and its separator for the part of a note that goes on, made when a page sets them)
     QString m_notePart;                                               // the footnotes part's name
     QHash<QString, QVector<office::wml::Block>> m_noteBlocks;         // by "fn" and Id

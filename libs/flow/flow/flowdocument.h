@@ -189,6 +189,8 @@ public:
     LayoutEnv env;
     // What fields read (page numbers, notes); none by default.
     const FieldSource *fields = nullptr;
+    // What a header's or footer's field that shows a paragraph style's text (STYLEREF) is on a page: the source answers from the story (none: the field shows the result the file had).
+    const FieldSource *styleRefs = nullptr;
     // The notes' numbers begin again at 1 in each section (a word processor's option), where they go on through the document otherwise.
     bool restartNotesInSections = false;
     // The page number and the count of pages that the fields in the cells of tables show (a header's or footer's tables are laid out for the page they are on).

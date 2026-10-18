@@ -120,6 +120,8 @@ private:
 // drawn need theirs).
 constexpr qint64 kMostHeaderTableCells = 2000;
 constexpr size_t kMostHeaderTableLayouts = 64;
+// The most fields of a page's header and footer that show a paragraph style's text that are given the page's (the rest show what the file had).
+constexpr int kMostStyleRefs = 64;
 // (The same for the tables of text boxes, which a document has 2000 cells of in all: all of them, and a header's own, are held.)
 constexpr qint64 kMostBoxTableCells = 4000;
 constexpr size_t kMostBoxTableLayouts = 256;
@@ -375,7 +377,35 @@ void Paginator::addPageBorders(Document *d, const Section &sec, bool firstOfSect
     line(b.right, QPointF(r, up), QPointF(r, down), "right");
 }
 
-void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec, int section, int number, MaterializedPage *page)
+void Paginator::substituteStyleRefs(QTextDocument *story, int from, int to) const
+{
+    if (!m_doc->styleRefs || from < 0) return;
+    int made = 0;
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        // (Found first and replaced last to first, as the places move.)
+        struct Place { int at, length; QString code; QTextCharFormat format; };
+        QVector<Place> places;
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QString code = it.fragment().charFormat().stringProperty(tp::Field);
+            if (code.startsWith(QLatin1String("styleref:"))) places.push_back({it.fragment().position(), it.fragment().length(), code, it.fragment().charFormat()});
+        }
+        for (int i = int(places.size()) - 1; i >= 0 && made < kMostStyleRefs; --i, ++made) {
+            const Place &p = places[i];
+            const QString rest = p.code.mid(9);
+            const QString switches = rest.section(QChar(0x1f), 0, 0), name = rest.section(QChar(0x1f), 1, 1);
+            const QString text = m_doc->styleRefs->styleRefText(name, switches, from, to);
+            if (text.isEmpty()) continue;   // (it shows what the file had)
+            QTextCursor c(story);
+            c.setPosition(p.at);
+            c.setPosition(p.at + p.length, QTextCursor::KeepAnchor);
+            QTextCharFormat plain = p.format;
+            plain.clearProperty(tp::Field);
+            c.insertText(text, plain);
+        }
+    }
+}
+
+void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec, int section, int number, MaterializedPage *page, int from, int to)
 {
     // The counts the page's NUMPAGES and SECTIONPAGES fields show.
     d->flowPageTotal = std::max(1, int(m_starts.size()));
@@ -415,6 +445,7 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
                     src.setPosition(std::max(part.from, part.to - 1), QTextCursor::KeepAnchor);
                     QTextCursor(text.get()).insertFragment(QTextDocumentFragment(src));
                 }
+                substituteStyleRefs(text.get(), from, to);
                 QTextCursor(text->begin()).setBlockFormat(story->findBlock(part.from).blockFormat());
                 auto s = std::make_shared<Story>();
                 s->id = QStringLiteral("flow-%1-%2-%3").arg(QLatin1String(name)).arg(d->pages[0]->id).arg(stretches);
@@ -440,6 +471,7 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
         auto s = std::make_shared<Story>();
         s->id = QStringLiteral("flow-%1-%2").arg(QLatin1String(name)).arg(d->pages[0]->id);
         s->doc = cloneStory(story);
+        substituteStyleRefs(s->doc.get(), from, to);
         resolveImages(s->doc.get(), d);
         if (!m_doc->objects.isEmpty()) {
             // The objects set in the header or footer are where its lines put them.

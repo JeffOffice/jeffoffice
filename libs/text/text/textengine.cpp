@@ -115,6 +115,8 @@ QString FieldContext::resolve(const QString &code) const
         return shown(pageNumber + from);
     }
     if (kind == "notemark") return noteMark;
+    // A paragraph style's text (STYLEREF) is the page's, which the pages put in; laid out as a story of its own it shows the result the file kept: after its switches and the style's name.
+    if (kind == "styleref") return arg.section(QChar(0x1f), 2);
     if (kind == "pages") {
         const int total = doc ? doc->pageTotal() : 0;
         return QString::number(total > 0 ? total : pageCount);

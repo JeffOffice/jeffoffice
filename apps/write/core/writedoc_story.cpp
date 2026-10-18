@@ -73,6 +73,29 @@ QString liveFieldOf(const QString &instruction)
     const QString kind = words.first().toUpper();
     if (kind == QLatin1String("NUMPAGES")) return QStringLiteral("pages");
     if (kind == QLatin1String("SECTIONPAGES")) return QStringLiteral("sectionpages");
+    if (kind == QLatin1String("STYLEREF")) {
+        // The style's name (quoted or not) and the switches that matter to what is shown; the result the file has is added after them, where the field is made.
+        QString name, switches;
+        int i = instruction.indexOf(QRegularExpression(QStringLiteral("STYLEREF"), QRegularExpression::CaseInsensitiveOption)) + 8;
+        while (i < instruction.size() && instruction[i].isSpace()) ++i;
+        if (i < instruction.size() && instruction[i] == QLatin1Char('"')) {
+            const int close = instruction.indexOf(QLatin1Char('"'), i + 1);
+            name = instruction.mid(i + 1, close < 0 ? -1 : close - i - 1);
+            i = close < 0 ? int(instruction.size()) : close + 1;
+        } else {
+            const int start = i;
+            while (i < instruction.size() && !instruction[i].isSpace() && instruction[i] != QLatin1Char('\\')) ++i;
+            name = instruction.mid(start, i - start);
+        }
+        for (; i + 1 < instruction.size(); ++i)
+            if (instruction[i] == QLatin1Char('\\')) {
+                const QChar letter = instruction[i + 1].toLower();
+                if (QStringLiteral("lnwrpt").contains(letter) && !switches.contains(letter)) switches += letter;
+                ++i;
+            }
+        name = name.trimmed().left(256);
+        return name.isEmpty() ? QString() : QStringLiteral("styleref:") + switches + QChar(0x1f) + name;
+    }
     if (kind != QLatin1String("PAGE")) return QString();
     for (int i = 1; i + 1 < words.size(); ++i)
         if (words[i] == QLatin1String("\\*")) {
@@ -542,7 +565,13 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             };
             auto finish = [&] {
                 const Field f = fields.takeLast();
-                const QString live = liveFieldOf(f.instruction);
+                QString live = liveFieldOf(f.instruction);
+                if (live.startsWith(QLatin1String("styleref:"))) {
+                    // (The result the file has is kept in the code, for a page that shows no paragraph of the style, or a layout that is of no page.)
+                    QString kept;
+                    for (const auto &r : f.result) kept += r.first;
+                    live += QChar(0x1f) + kept.left(1000);
+                }
                 if (!live.isEmpty()) {
                     QTextCharFormat ff = f.result.isEmpty() ? f.begin : f.result.first().second;
                     ff.setProperty(tp::Field, live);
@@ -588,7 +617,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Open) {
                     if (fields.size() < kMostFieldNesting) {
                         fields.push_back(Field());
-                        fields.last().instruction = attributeOfTag(in.raw, QStringLiteral("instr"));
+                        fields.last().instruction = QString(attributeOfTag(in.raw, QStringLiteral("instr"))).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&apos;"), QLatin1String("'")).replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&amp;"), QLatin1String("&"));
                         fields.last().inResult = true;
                     }
                 } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Close) {

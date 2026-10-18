@@ -62,6 +62,10 @@ public:
     virtual double noteContinuationRuleAt() const { return -1; }
     virtual double noteContinuationRuleFrom() const { return 0; }
     virtual bool noteContinuationRuleFull() const { return true; }   // (the rule is as wide as the column, not two inches)
+    // For a word processor's running headers: what a field that shows a paragraph style's text (STYLEREF) shows on the page whose text is the story's positions [from, to): the first
+    // paragraph of the style `style` (a name) on the page, the last with the switch `l`, else the nearest before it, else the nearest after; the switches `n`, `w`, and `r` ask
+    // for its number. Null: there is none (the field shows what the file had in it); a publication has none.
+    virtual QString styleRefText(const QString &style, const QString &switches, int from, int to) const { Q_UNUSED(style) Q_UNUSED(switches) Q_UNUSED(from) Q_UNUSED(to) return QString(); }
 };
 
 // A stock font's average character width in ems (OS/2 xAvgCharWidth), the

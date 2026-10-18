@@ -294,7 +294,10 @@ private:
     // Puts the lines of the section's page borders on a page made for painting (the page's first items, under the text), where the section's borders say a page of it has them.
     void addPageBorders(Document *d, const Section &sec, bool firstOfSection, const Furniture &f);
     // Puts the page's header and footer (a copy of each story, in a text box) on a page made for painting, and the counts its fields show.
-    void addFurniture(Document *d, const Furniture &f, const Section &sec, int section, int number, MaterializedPage *page = nullptr);
+    // (`from` and `to`: the story's positions the page holds, for the fields of the header and footer that show the text of the page.)
+    void addFurniture(Document *d, const Furniture &f, const Section &sec, int section, int number, MaterializedPage *page = nullptr, int from = -1, int to = -1);
+    // The fields of a header's or footer's story that show a paragraph style's text (STYLEREF) show the page's paragraph of the style: the story is a copy made for the page.
+    void substituteStyleRefs(QTextDocument *story, int from, int to) const;
     // A header or footer with tables in it: its text before, between, and after them, and each table, laid out from the top at a width for the page that shows number `number`
     // (the page's number is what the fields in its cells show). The tables are laid out in a private copy of the story, with the table machinery of the document's own.
     struct HeaderPart {
