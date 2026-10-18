@@ -861,6 +861,8 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
     };
     std::vector<CellRun> runs(static_cast<size_t>(n));
     const bool noteHeights = anyNotes && m_noteHeight;
+    // (A line that goes over the room by less than a twentieth of a point, a word processor's unit, is in it; other text keeps a hundredth.)
+    const double fitTol = m_ctx.doc && m_ctx.doc->env.wordLines ? 0.05 : 0.01;
     int counted = 0;
     for (int i = 0; i < n; ++i) {
         if (!units[size_t(i)]) continue;
@@ -873,7 +875,7 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
         cr.pad += topExtra;   // (a part at the top of a page that the table goes on to: the table's top line is there)
         cr.margins = c.margins.top() + c.margins.bottom() + cr.pad;
         const double inner = std::max(0.0, room - cr.margins);
-        cr.most = int(std::partition_point(lines.begin() + cr.a, lines.end(), [&](const UnitLine &l) { return l.bottom - offs[i] <= inner + 0.01; }) - lines.begin());
+        cr.most = int(std::partition_point(lines.begin() + cr.a, lines.end(), [&](const UnitLine &l) { return l.bottom - offs[i] <= inner + fitTol; }) - lines.begin());
         if (noteHeights) {
             // (A line more than fits is counted too: a part at the top of a page is given one however tall.)
             const int upto = std::min<int>(int(lines.size()), cr.most + 1);
@@ -914,7 +916,7 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
             if (!cr.lines || cr.a >= int(cr.lines->size())) continue;
             const double inner = std::max(0.0, room - reserved - cr.margins);
             const auto &lines = *cr.lines;
-            const int b = int(std::partition_point(lines.begin() + cr.a, lines.begin() + std::min<int>(int(lines.size()), cr.most), [&](const UnitLine &l) { return l.bottom - offs[i] <= inner + 0.01; }) - lines.begin());
+            const int b = int(std::partition_point(lines.begin() + cr.a, lines.begin() + std::min<int>(int(lines.size()), cr.most), [&](const UnitLine &l) { return l.bottom - offs[i] <= inner + fitTol; }) - lines.begin());
             stop[size_t(i)] = b;
             st.progress |= b > cr.a;
             st.more |= b < int(lines.size());

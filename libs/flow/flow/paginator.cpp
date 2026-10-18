@@ -732,8 +732,10 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                 break;
             }
         }
-        // A page break character: the page ends after the line that holds it.
-        if (!ln.cut && ln.end > ln.pos && m_doc->story()->characterAt(ln.end - 1) == kPageBreak) {
+        // A page break character: the page ends after the line that holds it. (A line of a paragraph that the page's window cut is cut short only if it is the last
+        // of those laid out: the lines before it end where they do.)
+        const bool cutShort = ln.cut && (i + 1 >= L.size() || L[i + 1].block != ln.block);
+        if (!cutShort && ln.end > ln.pos && m_doc->story()->characterAt(ln.end - 1) == kPageBreak) {
             c = i + 1;
             hard = forced = byCharacter = true;
             // (The empty line the text engine puts after a break that ends its paragraph stays with the page: the next paragraph is at the top
@@ -1401,11 +1403,12 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         for (auto it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment frag = it.fragment();
             const int rel = frag.position() - b.position();
-            QString text = frag.text();
-            if (rel + text.size() <= skip) continue;
+            if (rel + frag.length() <= skip) continue;   // (before the page's first character: without copying its text, which a paragraph of thousands of pages has before each)
             if (rel >= upto) break;
+            QString text = frag.text();
             if (rel < skip) text = text.mid(skip - rel);
-            if (rel + int(text.size()) > upto) text = text.left(upto - std::max(rel, skip));
+            // (Of the fragment's text from where the page begins: as much as reaches the copy's end. A run of one format is one fragment, however long the paragraph.)
+            if (std::max(rel, skip) + int(text.size()) > upto) text = text.left(upto - std::max(rel, skip));
             const QString code = frag.charFormat().stringProperty(tp::Field);
             const bool foot = code.startsWith(QLatin1String("footnote:")), end = code.startsWith(QLatin1String("endnote:"));
             if (foot || end) {
@@ -1771,7 +1774,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
                     for (int k = lo; k < hi; ++k) ids << code.mid(9);
                 }
         }
-        if (!ids.isEmpty()) addNotes(d.get(), run.notes, run.rules, run.firstFrame, ids, run.cols, furniture.body);
+        if (!ids.isEmpty()) addNotes(d.get(), run.notes, run.rules, run.firstFrame, ids, run.cols, furniture.body, run.hasNext && !run.next.carried.isEmpty());
     }
     markTotals(out.get(), *d);
     out->doc = std::move(d);

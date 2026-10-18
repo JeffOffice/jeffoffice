@@ -1993,6 +1993,73 @@ private Q_SLOTS:
         QCOMPARE(tight[2].frame, 1);
     }
 
+    // A word processor lays out in twentieths of a point: a line that goes over the foot of the page by less than one of them is on the page. Text that is not a word
+    // processor's (JeffPub's and JeffDeck's frames, and the fit of text to a box) keeps a hundredth.
+    void aLineOverTheFootByLessThanATwentiethOfAPointFits()
+    {
+        auto lay = [&](double room, bool word) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            for (int i = 0; i < 5; ++i) {
+                if (i == 0) c.setBlockFormat(bf); else c.insertBlock(bf);
+                c.insertText(QStringLiteral("line %1").arg(i), run);
+            }
+            LayoutEnv env;
+            env.wordLines = word;
+            StoryLayout l;
+            l.build(&doc, {plainFrame(300, room), plainFrame(300, 500)}, env);
+            return l.lineBriefs();
+        };
+        for (const bool word : {true, false}) {
+            // The foot the third line's text reaches (its bottom without the spacing under it), from a layout with room to spare; and the least room that has it on the first page.
+            const auto whole = lay(1000, word);
+            QVERIFY(whole.size() >= 3);
+            const double bottom = whole[2].rect.bottom() - whole[2].below;
+            auto onFirst = [&](double room) {
+                int n = 0;
+                for (const auto &line : lay(room, word)) n += line.frame == 0;
+                return n;
+            };
+            QCOMPARE(onFirst(bottom + 0.1), 3);
+            double low = bottom - 1, high = bottom + 0.1;   // (the least room that holds three lines is in between)
+            for (int i = 0; i < 30; ++i) {
+                const double mid = (low + high) / 2;
+                (onFirst(mid) >= 3 ? high : low) = mid;
+            }
+            const double tolerance = bottom - high;
+            const double want = word ? 0.05 : 0.01;
+            QVERIFY2(std::abs(tolerance - want) < 0.002, qPrintable(QStringLiteral("%1 text goes over the foot by %2 and is on the page, not %3").arg(word ? "word processor's" : "other").arg(tolerance).arg(want)));
+        }
+    }
+
+    // A paragraph that begins with a page break and goes on for more lines than a page's window past its foot is no page of its own for the break: the break's line
+    // ends the page it follows on (as for a paragraph that is short), and the text goes on at the top of the next.
+    void aLongParagraphThatBeginsWithABreakBreaksTheWholePageBefore()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        QTextCursor c(fd.story());
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        c.insertText(QStringLiteral("before the break"), run);
+        c.insertBlock();
+        QString words;
+        for (int i = 0; i < 1200; ++i) words += QStringLiteral("word%1 ").arg(i % 97);
+        c.insertText(QString(flow::kPageBreak) + words, run);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 3);
+        const auto first = pg.lines(0);
+        QCOMPARE(first.size(), 2);                  // the line before, and the break's
+        QCOMPARE(first[1].end - first[1].pos, 1);
+        QCOMPARE(pg.page(1).start.skip, 1);         // the text goes on at the paragraph's next line
+        QVERIFY(pg.lines(1).size() > 5);
+    }
+
     // A page break that ends a line is not made one of an orphan by what shows nothing between the line's last letter and it (an object that stands where it is anchored, and takes
     // no room): the paragraph's first line stays at the foot of its page, and the rest goes on at the next.
     void aBreakAfterWhatShowsNothingIsNotAnOrphan()

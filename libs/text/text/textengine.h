@@ -54,6 +54,14 @@ public:
     virtual double noteNoticeHeight() const { return 0; }
     // The height of the file's own separator for the part of a note that goes on from the page before (0: the file has none, and the separator's height is kept).
     virtual double noteContinuationHeight() const { return 0; }
+    // The stories of the file's continuation notice (under the last note of a page that goes on) and of its own separator for the part of a note that goes on (above that
+    // part), for the pages to set where they are wanted; none for a publication. And where the rule is in the separator for the part that goes on: its height from the
+    // story's top (-1: three fifths of the way down the paragraph that holds it) and how far from the left (after the words that are before it in its line).
+    virtual const QTextDocument *noteNoticeStory() const { return nullptr; }
+    virtual const QTextDocument *noteContinuationStory() const { return nullptr; }
+    virtual double noteContinuationRuleAt() const { return -1; }
+    virtual double noteContinuationRuleFrom() const { return 0; }
+    virtual bool noteContinuationRuleFull() const { return true; }   // (the rule is as wide as the column, not two inches)
 };
 
 // A stock font's average character width in ems (OS/2 xAvgCharWidth), the
@@ -184,7 +192,8 @@ struct LayoutEnv {
     // A word processor's text doesn't let punctuation hang past the margin (a file's compatibility option); it does otherwise (LayoutEnv::wordLines).
     bool wordNoHang = false;
     // A word processor adds the space after a paragraph to the space before the next (a file's compatibility option against the web page's way); otherwise the
-    // larger of the two is the space between them (LayoutEnv::wordLines).
+    // larger of the two is the space between them (LayoutEnv::wordLines). The same option makes a paragraph's automatic spacing (tp::SpaceBeforeAuto and
+    // tp::SpaceAfterAuto) the spacing it states, where the web page's way is 14 points.
     bool wordSpaceSums = false;
     // A word processor's hanging indent is a tab stop (a tab on the first line goes to it); a file's compatibility option says it is not, and the default stops go on
     // from the edge as they are (LayoutEnv::wordLines).

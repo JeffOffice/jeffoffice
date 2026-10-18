@@ -98,6 +98,13 @@ QString attributeOfTag(const QByteArray &xml, const QString &name)
     return re.match(QString::fromUtf8(xml.left(4000))).captured(1);
 }
 
+// Whether a font a symbol names is a symbol font (its characters are pictures of its own).
+bool isSymbolFontName(const QString &font)
+{
+    const QString lower = font.toLower();
+    return lower == QLatin1String("symbol") || lower.contains(QLatin1String("dings")) || lower.contains(QLatin1String("marlett")) || lower.contains(QLatin1String("mt extra"));
+}
+
 // Whether a note's reference says its mark follows it as text, in the run (w:customMarkFollows): it shows no number of its own and takes none.
 bool markFollows(const QByteArray &reference)
 {
@@ -426,7 +433,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         resolved.style = styleId;
         resolved.numId = numId;
         resolved.ilvl = level;
-        QTextBlockFormat bf = blockFormatOf(resolved);
+        QTextBlockFormat bf = paragraphFormatOf(resolved);
         if (tables.key()) bf.setProperty(flow::fp::Cell, tables.key());
         // A paragraph of a frame in the body is set apart from the text: no lines and no room there, and a text box where the frame asks, at the paragraph after it.
         // (A header's or a footer's frame is a text box too where it is set at a place on the page: its logo, its page number at the page's top. One set beside the text, by its
@@ -559,6 +566,13 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     QTextCharFormat mark = formatOf(styleId, in.props);
                     mark.setProperty(tp::Field, QStringLiteral("notemark"));
                     put(QString(QChar::ObjectReplacementCharacter), mark);
+                } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym") && !in.display.isEmpty() && isSymbolFontName(attributeOfTag(in.raw, QStringLiteral("font")))) {
+                    // (A symbol of a symbol font, as the text has it: shown in that font. Where it is a blank, as an older program's mark of a note begins its text, it shows
+                    // nothing, but its font and its raised stand count for the line.)
+                    QTextCharFormat symbol = formatOf(styleId, in.props);
+                    symbol.setProperty(tp::DisplayFamily, attributeOfTag(in.raw, QStringLiteral("font")));
+                    symbol.setProperty(tp::Field, QStringLiteral("raw:") + in.display);
+                    put(QString(QChar::ObjectReplacementCharacter), symbol);
                 } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum")) {
                     // (The page's number, as the run's own element has it.)
                     QTextCharFormat number = formatOf(styleId, in.props);
@@ -640,10 +654,10 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             QString field = in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum") ? liveFieldOf(QStringLiteral("PAGE")) : QStringLiteral("raw:") + (dropDown.contains(inAt) ? dropDown.value(inAt) : in.display);
             // A symbol of a font that isn't a symbol font (and isn't on the machine) is its character, in that font's stand-in.
             if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym")) {
-                const QString font = attributeOfTag(in.raw, QStringLiteral("font")), lower = font.toLower();
+                const QString font = attributeOfTag(in.raw, QStringLiteral("font"));
                 bool ok = false;
                 const uint code = attributeOfTag(in.raw, QStringLiteral("char")).toUInt(&ok, 16);
-                const bool symbols = lower == QLatin1String("symbol") || lower.contains(QLatin1String("dings")) || lower.contains(QLatin1String("marlett")) || lower.contains(QLatin1String("mt extra"));
+                const bool symbols = isSymbolFontName(font);
                 // A symbol of a symbol font is set in that font whatever font the run is in, as its character is (where the machine lacks the font the page shows the picture the
                 // character stands for, as wide as the font makes it).
                 if (!font.isEmpty() && symbols) af.setProperty(tp::DisplayFamily, font);

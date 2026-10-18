@@ -18,9 +18,15 @@ namespace jp::write {
 namespace {
 // The most notes of a file that are made into stories (the rest is left out: a reference to one shows only its number).
 constexpr int kMostNoteStories = 5000;
+// The most of the file's continuation notice, and of its separator for the part of a note that goes on, that is read: the paragraphs, and the characters of them. (The pages set a
+// quarter of a page of each at most, so the rest would only be copied to every page.)
+constexpr int kMostNoticeParagraphs = 64;
+constexpr int kMostNoticeCharacters = 4000;
 } // namespace
 
 const QTextDocument *NoteFields::storyDoc(const QString &id) const { return m_doc->noteStory(id); }
+const QTextDocument *NoteFields::noteNoticeStory() const { return m_doc->noticeStory(); }
+const QTextDocument *NoteFields::noteContinuationStory() const { return m_doc->continuationStory(); }
 
 QList<const QTextDocument *> NoteFields::storyDocs() const
 {
@@ -36,6 +42,8 @@ void WriteDoc::loadNotes()
     m_noteContinuation.clear();
     m_noteNotice.clear();
     m_noteStories.clear();
+    m_noticeStory.reset();
+    m_continuationStory.reset();
     m_noteFields.reset();
     m_flow->fields = nullptr;
     QString part;
@@ -54,6 +62,8 @@ void WriteDoc::loadNotes()
         else if (n.type == QLatin1String("continuationSeparator")) m_noteContinuation = std::move(n.blocks);
         else if (n.type == QLatin1String("continuationNotice")) m_noteNotice = std::move(n.blocks);
     }
+    if (m_noteNotice.size() > kMostNoticeParagraphs) m_noteNotice.resize(kMostNoticeParagraphs);
+    if (m_noteContinuation.size() > kMostNoticeParagraphs) m_noteContinuation.resize(kMostNoticeParagraphs);
     if (m_noteBlocks.isEmpty()) return;
     m_noteFields = std::make_unique<NoteFields>(this);
     m_flow->fields = m_noteFields.get();
@@ -93,20 +103,98 @@ void WriteDoc::measureNoteSeparator()
     // (The file's own paragraph, with the space before it, to the bottom of its last line; the Normal style's line is the line and the space after it.)
     m_noteFields->separator = lines.isEmpty() ? 0.0 : (m_noteSeparator.isEmpty() ? lines.first().rect.height() : lines.last().rect.bottom()) + after;
     // The continuation notice: the height of its paragraphs, which a page keeps under its notes.
-    auto heightOf = [&](const QVector<office::wml::Block> &blocks) {
-        QTextDocument n;
-        n.setDocumentMargin(0);
-        n.setDefaultFont(story()->defaultFont());
-        n.setUndoRedoEnabled(false);
-        fillStory(&n, blocks, true, m_notePart);
+    auto heightOf = [&](const QTextDocument *n) {
+        if (!n) return 0.0;
         StoryLayout part;
-        part.build(&n, {fs}, m_flow->env);
+        part.build(n, {fs}, m_flow->env);
         const auto partLines = part.lineInfo(0);
-        return partLines.isEmpty() ? 0.0 : partLines.last().rect.bottom() + n.lastBlock().blockFormat().bottomMargin();
+        return partLines.isEmpty() ? 0.0 : partLines.last().rect.bottom() + n->lastBlock().blockFormat().bottomMargin();
     };
-    m_noteFields->notice = m_noteNotice.isEmpty() ? 0.0 : heightOf(m_noteNotice);
+    m_noteFields->notice = heightOf(noticeStory());
     // The separator of a note that goes on from the page before: the file's own paragraph for it (its text and rule), which a page sets above that part of the note.
-    m_noteFields->continuation = m_noteContinuation.isEmpty() ? 0.0 : heightOf(m_noteContinuation);
+    m_noteFields->continuation = heightOf(continuationStory());
+    // Where the rule is in it: at three fifths of the line that holds the separator's character, after the words that stand before it in the line.
+    m_noteFields->ruleAt = -1;
+    m_noteFields->ruleFrom = 0;
+    m_noteFields->ruleFull = true;
+    if (const QTextDocument *c = continuationStory()) {
+        // (In a line of any length: the words before the character are in one line, however wide the column is that the pages set them in.)
+        FrameSpec wide = fs;
+        wide.size.setWidth(1e5);
+        StoryLayout part;
+        part.build(c, {wide}, m_flow->env);
+        const auto partLines = part.lineInfo(0);
+        QTextBlock block = c->begin();
+        for (const Block &b : m_noteContinuation) {
+            if (b.isRaw || !b.tag.isEmpty()) continue;
+            QString before;
+            bool found = false;
+            for (const Inline &in : b.para.content) {
+                if (in.kind == Inline::RunAtom && (in.tag == QLatin1String("separator") || in.tag == QLatin1String("continuationSeparator"))) {
+                    found = true;
+                    m_noteFields->ruleFull = in.tag == QLatin1String("continuationSeparator");
+                    break;
+                }
+                if (in.kind == Inline::Text) before += in.text;
+            }
+            if (found && block.isValid()) {
+                for (const auto &li : partLines)
+                    if (li.docStart == block.position()) {
+                        m_noteFields->ruleAt = li.rect.top() + li.rect.height() * 0.6;
+                        break;
+                    }
+                // (After the words before the character in its line, where the layout has them: by the word processor's widths.)
+                if (!before.trimmed().isEmpty()) {
+                    int frame = -1;
+                    QRectF at;
+                    if (part.caretRect(std::min(block.position() + int(before.size()), block.position() + std::max(0, block.length() - 1)), &frame, &at)) m_noteFields->ruleFrom = std::max(0.0, at.x()) + 3;
+                }
+                break;
+            }
+            block = block.next();
+        }
+    }
+}
+
+namespace {
+// A notice's story kept to its first kMostNoticeCharacters characters.
+void limitNoticeStory(QTextDocument *story)
+{
+    if (story->characterCount() <= kMostNoticeCharacters) return;
+    QTextCursor c(story);
+    c.setPosition(kMostNoticeCharacters);
+    c.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+    c.removeSelectedText();
+}
+} // namespace
+
+// The file's continuation notice, or its separator for the part of a note that goes on, as a story for a page to set (none where the file has none).
+const QTextDocument *WriteDoc::noticeStory()
+{
+    if (m_noteNotice.isEmpty()) return nullptr;
+    if (!m_noticeStory) {
+        m_noticeStory = std::make_unique<QTextDocument>();
+        m_noticeStory->setDocumentMargin(0);
+        m_noticeStory->setDefaultFont(story()->defaultFont());
+        m_noticeStory->setUndoRedoEnabled(false);
+        fillStory(m_noticeStory.get(), m_noteNotice, true, m_notePart);
+        limitNoticeStory(m_noticeStory.get());
+    }
+    return m_noticeStory.get();
+}
+
+const QTextDocument *WriteDoc::continuationStory()
+{
+    if (m_noteContinuation.isEmpty()) return nullptr;
+    if (!m_continuationStory) {
+        m_continuationStory = std::make_unique<QTextDocument>();
+        m_continuationStory->setDocumentMargin(0);
+        m_continuationStory->setDefaultFont(story()->defaultFont());
+        m_continuationStory->setUndoRedoEnabled(false);
+        fillStory(m_continuationStory.get(), m_noteContinuation, true, m_notePart);
+        limitNoticeStory(m_continuationStory.get());
+    }
+    return m_continuationStory.get();
 }
 
 const QTextDocument *WriteDoc::noteStory(const QString &id)

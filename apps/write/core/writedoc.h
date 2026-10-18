@@ -49,7 +49,14 @@ public:
     double noteSeparatorHeight() const override { return separator; }
     double noteNoticeHeight() const override { return notice; }
     double noteContinuationHeight() const override { return continuation; }
+    const QTextDocument *noteNoticeStory() const override;
+    const QTextDocument *noteContinuationStory() const override;
+    double noteContinuationRuleAt() const override { return ruleAt; }
+    double noteContinuationRuleFrom() const override { return ruleFrom; }
+    bool noteContinuationRuleFull() const override { return ruleFull; }
     double separator = 0, notice = 0, continuation = 0;   // the heights of the file's separator and continuation notice (the pages cut them: FrameSpec::noteRoomLimit)
+    double ruleAt = -1, ruleFrom = 0;                     // where the rule is in the separator for the part of a note that goes on
+    bool ruleFull = true;                                 // (and whether it is as wide as the column)
 
 private:
     WriteDoc *m_doc;
@@ -185,6 +192,9 @@ private:
     void loadNotes();
     void measureNoteSeparator();
     const QTextDocument *noteStory(const QString &id);
+    QTextBlockFormat paragraphFormatOf(const office::wml::ParaProps &p) const;
+    const QTextDocument *noticeStory();
+    const QTextDocument *continuationStory();
     friend class NoteFields;
     void exportBody(QVector<office::wml::Block> *body);
     void exportInto(BlockSink &sink);
@@ -206,6 +216,7 @@ private:
     qint64 m_sectionsMade = 0;
     qint64 m_dropDownSteps = 0;
     std::unique_ptr<NoteFields> m_noteFields;
+    std::unique_ptr<QTextDocument> m_noticeStory, m_continuationStory;   // (the file's continuation notice and its separator for the part of a note that goes on, made when a page sets them)
     QString m_notePart;                                               // the footnotes part's name
     QHash<QString, QVector<office::wml::Block>> m_noteBlocks;         // by "fn" and Id
     QVector<office::wml::Block> m_noteNotice;                         // the paragraphs of the file's continuation notice (none: no room is kept for one)

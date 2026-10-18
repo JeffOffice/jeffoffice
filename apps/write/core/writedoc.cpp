@@ -746,7 +746,19 @@ QTextBlockFormat WriteDoc::styleBlockFormat(const QString &paragraphStyle)
     if (numId > 0) p = sheet.paragraphWithNumbering(style, levelParagraph(numId, level));
     p.style = style;
     // (A style whose paragraphs are in a list: the list itself is made when the style is applied.)
-    return blockFormatOf(p);
+    return paragraphFormatOf(p);
+}
+
+// A paragraph's format as its properties say. A file that turns the web page's way of spacing off (doNotUseHTMLParagraphAutoSpacing) has a fixed 5 points, 100 twentieths, where a
+// paragraph asks for automatic spacing, as such a program writes it (the paragraph still asks, so that it is written back as it was).
+QTextBlockFormat WriteDoc::paragraphFormatOf(const ParaProps &p) const
+{
+    QTextBlockFormat bf = blockFormatOf(p);
+    if (m_flow->env.wordSpaceSums) {
+        if (p.beforeAuto.value_or(false)) bf.setTopMargin(5);
+        if (p.afterAuto.value_or(false)) bf.setBottomMargin(5);
+    }
+    return bf;
 }
 
 QTextCharFormat WriteDoc::styleCharFormat(const QString &paragraphStyle, const QString &characterStyle)
