@@ -1697,10 +1697,10 @@ static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int 
         }
     if (m.total() <= 0 && markFont) add(*markFont, markSize);
     if (m.total() <= 0) add(fallback, fallback.pointSizeF());
-    // An older word processor's spacing: the line is of whole points, the leading and what is added to reach them going above the text.
     if (raisedTop > m.ascent) m.ascent = raisedTop;
     if (env.wordWholePointLines) {
         m.ascent = std::ceil(m.total() - 1e-6) - m.descent;
+    // An older word processor's spacing: the line is of whole points, the leading and what is added to reach them going above the text.
         m.leading = 0;
     }
     return m;
@@ -3497,7 +3497,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     }
                     double bottom = col.bottom() - reserve.value(rkey(f, c)) - pending;
                     bool cutting = false;
-                    if (col.top() + y + fitH > bottom + 0.01) {
+                    // (A line that goes over the foot by less than one unit of the word processor's layout, a twentieth of a point, is on the page.)
+                    constexpr double kFitTol = 0.05;
+                    if (col.top() + y + fitH > bottom + kFitTol) {
                         if (!lineNotes.isEmpty() && (env.wordLines || fitH + ruleGap + notesH > col.height() + 0.01)) {
                             // Room here for the line and a line of the note?
                             const double least = heightOf(m_notes[lineNotes.first()].numberFont) * (env.wordLines ? 3 : 1) + noteGap;   // (a word processor cuts a note that does not fit where three of its lines do)
@@ -3541,7 +3543,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         }
                         bottom = col.bottom() - reserve.value(rkey(f, c)) - (firstNotes ? ruleGap : 0) - cut.used;
                     }
-                    if (col.top() + y + fitH > bottom + 0.01 && !firstInColumn) {   // snapped past the bottom
+                    if (col.top() + y + fitH > bottom + kFitTol && !firstInColumn) {   // snapped past the bottom
                         advance();
                         continue;
                     }

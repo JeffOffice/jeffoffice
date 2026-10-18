@@ -1992,6 +1992,34 @@ private Q_SLOTS:
         QCOMPARE(tight[2].frame, 1);
     }
 
+    // A word processor lays out in twentieths of a point: a line that goes over the foot of the page by less than one of them is on the page.
+    void aLineOverTheFootByLessThanATwentiethOfAPointFits()
+    {
+        const double single = (1825 + 443 + 87) / 2048.0 * 12;
+        auto onFirst = [&](double room) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            for (int i = 0; i < 5; ++i) {
+                if (i == 0) c.setBlockFormat(bf); else c.insertBlock(bf);
+                c.insertText(QStringLiteral("line %1").arg(i), run);
+            }
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(300, room), plainFrame(300, 500)}, env);
+            int n = 0;
+            for (const auto &l : lay.lineBriefs()) n += l.frame == 0;
+            return n;
+        };
+        QCOMPARE(onFirst(3 * single), 3);
+        QCOMPARE(onFirst(3 * single - 0.04), 3);   // (over the foot by less than a twentieth)
+        QCOMPARE(onFirst(3 * single - 0.2), 2);
+    }
+
     // A paragraph that begins with a page break and goes on for more lines than a page's window past its foot is no page of its own for the break: the break's line
     // ends the page it follows on (as for a paragraph that is short), and the text goes on at the top of the next.
     void aLongParagraphThatBeginsWithABreakBreaksTheWholePageBefore()
