@@ -73,6 +73,7 @@ double Paginator::headerObjectsBottom(const QTextDocument *story, const Section 
     const QString places = QStringLiteral("%1 %2 %3 %4 %5 %6").arg(content.left()).arg(content.width()).arg(sec.headerDistance).arg(sec.pageSize().width()).arg(sec.pageSize().height()).arg(sec.margins.top());
     const auto cacheKey = std::make_tuple(story, story->revision(), places);
     if (const auto found = m_headerBottoms.find(cacheKey); found != m_headerBottoms.end()) return found->second;
+    ++m_headerReachesMade;
     storyHeight(story, content.width(), number, false, sec.margins.right());   // (laying the story out is what has its lines to hand)
     const auto lines = m_storyLines.find(storyKey(story, content.width(), sec.margins.right()));
     if (lines == m_storyLines.end()) return 0;

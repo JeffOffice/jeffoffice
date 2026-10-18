@@ -362,6 +362,9 @@ public:
     QVector<CarriedNote> carriedNotes(int frame) const;
     // Whether the last build's window (Span::window) cut a paragraph before its lines reached the frame it stops at: it needs to be larger.
     bool windowShort() const { return m_windowShort; }
+    // How many times a line's own height was measured for the objects it is checked against, since the program began (what a line beside an object costs, for tests: a line that goes
+    // down by steps is measured once, not at each step).
+    static qint64 lineHeightsMeasuredForTest();
 
     // An object set in the text (tp::InlineObject): where it's drawn,
     // frame-local, and the item as JSON. It sits on the baseline, padded by

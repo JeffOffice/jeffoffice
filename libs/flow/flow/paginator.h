@@ -158,6 +158,10 @@ public:
     qint64 pagesLaidOut() const { return m_laidOut; }
     // How many times a page has been laid out, the passes that find where its walls are included: for tests of what asking for a page costs.
     qint64 pagePassesForTest() const { return m_passes; }
+    // How many times the frames of a header or footer were made, and how far down the page its wrapped shapes reach was worked out (each once for a story as it is, not for each page):
+    // for tests of what a page costs.
+    qint64 headerFramesMadeForTest() const { return m_headerFramesMade; }
+    qint64 headerReachesWorkedOutForTest() const { return m_headerReachesMade; }
     // How many rows of tables were measured since it was made (what is measured again after an edit is the rows it touched): for tests of what edits cost.
     qint64 tableRowsMeasured() const { return m_tables ? m_tables->rowsMeasured() : 0; }
     qint64 tableCellsLaidOut() const { return m_tables ? m_tables->cellsLaidOut() : 0; }
@@ -406,6 +410,7 @@ private:
     int m_valid = 0, m_high = 0, m_dirtyEnd = 0;
     qint64 m_laidOut = 0;
     qint64 m_passes = 0;
+    qint64 m_headerFramesMade = 0, m_headerReachesMade = 0;
     // The number of the page asked for last, so that the next one's is one more: a walk back to the section's first page is for a page that doesn't follow it.
     mutable int m_numberOf = -1, m_number = 0;
     mutable qint64 m_numberSteps = 0;

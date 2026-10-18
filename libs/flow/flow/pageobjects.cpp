@@ -456,6 +456,7 @@ QVector<Paginator::Anchor> Paginator::storyFrameAnchors(const QTextDocument *sto
     // (Made once for a story as it is, at the places of the page it is set for: the pages that have the same header have the same boxes.)
     const auto cacheKey = std::make_tuple(story, int(std::lround(columnWidth * 100)), story->revision(), int(std::lround(columnLeft * 100)), int(std::lround(top * 100)), uint(qHash(m_doc->env.key())));
     if (const auto found = m_storyFrameAnchors.find(cacheKey); found != m_storyFrameAnchors.end()) return found->second;
+    ++m_headerFramesMade;
     QVector<Anchor> out;
     for (QTextBlock b = story->begin(); b.isValid() && out.size() < kMostObjects;) {
         const int key = b.blockFormat().intProperty(fp::Frame);

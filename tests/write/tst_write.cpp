@@ -5198,45 +5198,44 @@ private Q_SLOTS:
         QVERIFY2(!header->doc->begin().blockFormat().boolProperty(tp::OutOfLayout), "the header's first paragraph has lines");
     }
 
-    // The boxes of a header's frames are made once for the header, not for each page: a page's cost does not grow with the paragraphs the header's frame has.
+    // The boxes of a header's frames are made once for the header, not for each page: however many pages are drawn, they are made a time or two (counted, not timed).
     void theFramesOfAHeaderCostNothingForEachPage()
     {
         const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
                                 "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
-        auto pageTime = [&](int paragraphsInFrame) {
-            const QByteArray frame = "<w:pPr><w:framePr w:w=\"9360\" w:h=\"280\" w:hRule=\"exact\" w:wrap=\"notBeside\" w:vAnchor=\"page\" w:hAnchor=\"text\" w:y=\"100\"/></w:pPr><w:r><w:t>Framed paragraph of the header, with some words</w:t></w:r>";
-            QList<QByteArray> inHeader;
-            for (int i = 0; i < paragraphsInFrame; ++i) inHeader << frame;
-            auto doc = open(makeDocxWithParts(paragraphs(40, 40), sect, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", inHeader)}}));
-            if (!doc || doc->pager().pageCount() < 2) return 1e9;
-            doc->pager().materialize(1);   // (the first of anything is slow)
-            return bestNanoseconds([&] { doc->pager().materialize(1); }, 5) / 1e6;
-        };
-        const double small = std::max(pageTime(1), 2.0), big = pageTime(250);
-        QVERIFY2(big < 3 * small + 10, qPrintable(QStringLiteral("a page with a header frame of 250 paragraphs %1 ms, of one %2 ms").arg(big).arg(small)));
+        const QByteArray frame = "<w:pPr><w:framePr w:w=\"9360\" w:h=\"280\" w:hRule=\"exact\" w:wrap=\"notBeside\" w:vAnchor=\"page\" w:hAnchor=\"text\" w:y=\"100\"/></w:pPr><w:r><w:t>Framed paragraph of the header, with some words</w:t></w:r>";
+        QList<QByteArray> inHeader;
+        for (int i = 0; i < 250; ++i) inHeader << frame;
+        auto doc = open(makeDocxWithParts(paragraphs(400, 40), sect, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", inHeader)}}));
+        QVERIFY(doc);
+        const int pages = doc->pager().pageCount();
+        QVERIFY2(pages >= 20, qPrintable(QString::number(pages)));
+        for (int k = 0; k < pages; ++k) QVERIFY(doc->pager().materialize(k));
+        QVERIFY2(doc->pager().headerFramesMadeForTest() <= 2, qPrintable(QStringLiteral("the header's frames were made %1 times for %2 pages").arg(doc->pager().headerFramesMadeForTest()).arg(pages)));
     }
 
-    // How far down the page a header's wrapped shapes reach is worked out once for the header, not for each page: the pages' cost does not grow with the header's paragraphs.
+    // How far down the page a header's wrapped shapes reach is worked out once for the header, not for each page: however many pages are laid out, it is worked out a time or two.
     void theWrappedShapesOfAHeaderCostNothingForEachPage()
     {
         const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
                                 "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
-        auto pageTime = [&](int setApart) {
-            const QByteArray shape = "<w:r><w:pict><v:shapetype id=\"t202\" coordsize=\"21600,21600\" o:spt=\"202\" path=\"m,l,21600r21600,l21600,xe\"/>"
-                                     "<v:shape id=\"s1\" type=\"#t202\" style=\"position:absolute;margin-left:-20pt;margin-top:0;width:100pt;height:20pt;mso-position-vertical-relative:page;z-index:1\" filled=\"f\" stroked=\"f\">"
-                                     "<v:textbox><w:txbxContent><w:p><w:r><w:t>banner</w:t></w:r></w:p></w:txbxContent></v:textbox><w10:wrap type=\"square\"/></v:shape></w:pict></w:r>";
-            QList<QByteArray> inHeader{shape};
-            for (int i = 0; i < setApart; ++i) inHeader << "<w:pPr><w:framePr w:w=\"2000\" w:xAlign=\"right\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:y=\"1\"/></w:pPr><w:r><w:t>side</w:t></w:r>";
-            QByteArray header = headerPart("hdr", inHeader);
-            header.replace("<w:hdr ", "<w:hdr xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\" ");
-            auto doc = open(makeDocxWithParts(paragraphs(600, 40), sect, {{QStringLiteral("/word/header1.xml"), header}}));
-            if (!doc || doc->pager().pageCount() < 50) return 1e9;
-            // (All the pages laid out again: each has the header's places worked out for it, or all have them once.)
-            return bestNanoseconds([&] { doc->pager().pageCount(); }, 3, [&] { doc->pager().invalidate(); }) / 1e6;
-        };
-        pageTime(1);   // (the first of anything is slow)
-        const double small = std::max(pageTime(1), 5.0), big = pageTime(4000);
-        QVERIFY2(big < 1.4 * small + 20, qPrintable(QStringLiteral("all the pages of a document with a header of 4000 paragraphs %1 ms, of one %2 ms").arg(big).arg(small)));
+        const QByteArray shape = "<w:r><w:pict><v:shapetype id=\"t202\" coordsize=\"21600,21600\" o:spt=\"202\" path=\"m,l,21600r21600,l21600,xe\"/>"
+                                 "<v:shape id=\"s1\" type=\"#t202\" style=\"position:absolute;margin-left:-20pt;margin-top:0;width:100pt;height:20pt;mso-position-vertical-relative:page;z-index:1\" filled=\"f\" stroked=\"f\">"
+                                 "<v:textbox><w:txbxContent><w:p><w:r><w:t>banner</w:t></w:r></w:p></w:txbxContent></v:textbox><w10:wrap type=\"square\"/></v:shape></w:pict></w:r>";
+        QList<QByteArray> inHeader{shape};
+        for (int i = 0; i < 400; ++i) inHeader << "<w:pPr><w:framePr w:w=\"2000\" w:xAlign=\"right\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:y=\"1\"/></w:pPr><w:r><w:t>side</w:t></w:r>";
+        QByteArray header = headerPart("hdr", inHeader);
+        header.replace("<w:hdr ", "<w:hdr xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\" ");
+        auto doc = open(makeDocxWithParts(paragraphs(600, 40), sect, {{QStringLiteral("/word/header1.xml"), header}}));
+        QVERIFY(doc);
+        const int pages = doc->pager().pageCount();
+        QVERIFY2(pages >= 50, qPrintable(QString::number(pages)));
+        // (All the pages laid out again: each has the header's places worked out for it, or all have them once.)
+        doc->pager().invalidate();
+        const qint64 before = doc->pager().headerReachesWorkedOutForTest();
+        QCOMPARE(doc->pager().pageCount(), pages);
+        const qint64 made = doc->pager().headerReachesWorkedOutForTest() - before;
+        QVERIFY2(made <= 2, qPrintable(QStringLiteral("how far the header's shapes reach was worked out %1 times for %2 pages").arg(made).arg(pages)));
     }
 
     // A right tab stop that is past the right indent, and past the text area too (into the margin, as a letterhead's address block is set), still takes the text after its

@@ -7889,8 +7889,8 @@ private Q_SLOTS:
         QVERIFY2(std::abs((own.reserve - none.reserve) - (40 - 12)) < 0.05, qPrintable(QString::number(own.reserve - none.reserve)));
     }
 
-    // A line beside an object that the engine moves down in steps (one that is not a rectangle) is measured once, not at each step: the cost of a paragraph of many runs does not grow
-    // with the height of the object.
+    // A line beside an object that the engine moves down in steps (one that is not a rectangle) is measured once, not at each step: the work for a paragraph of many runs does not grow
+    // with the height of the object. (Counted: how many times a line's own height was measured, which a line gone round at once and one moved down by steps need alike.)
     void aLineBelowATallObjectCostsNothingForEachStep()
     {
         auto build = [&](bool plain) {
@@ -7901,17 +7901,20 @@ private Q_SLOTS:
             a.setFontPointSize(12);
             b = a;
             b.setFontItalic(true);
-            for (int i = 0; i < 6000; ++i) c.insertText(QStringLiteral("w "), i % 2 ? a : b);
+            for (int i = 0; i < 600; ++i) c.insertText(QStringLiteral("w "), i % 2 ? a : b);
             FrameSpec fs = plainFrame(300, 100000);
             // (A tall triangle across the column: a line meets it from the top to the foot, by steps of two points; a rectangle of the same height is gone round at once.)
-            fs.obstacles << (plain ? QPolygonF(QRectF(-1e5, 0, 2e5, 3000)) : QPolygonF({QPointF(-1e5, 0), QPointF(1e5, 0), QPointF(1e5, 3000), QPointF(-1e5, 3001)}));
+            fs.obstacles << (plain ? QPolygonF(QRectF(-1e5, 0, 2e5, 300)) : QPolygonF({QPointF(-1e5, 0), QPointF(1e5, 0), QPointF(1e5, 300), QPointF(-1e5, 301)}));
             LayoutEnv env;
             env.wordLines = true;
-            return bestNanoseconds([&] { StoryLayout lay; lay.build(&doc, {fs}, env); }, 3);
+            const qint64 before = StoryLayout::lineHeightsMeasuredForTest();
+            StoryLayout lay;
+            lay.build(&doc, {fs}, env);
+            return StoryLayout::lineHeightsMeasuredForTest() - before;
         };
-        build(true);   // (the first of anything is slow)
-        const double rectangle = std::max(build(true) / 1e6, 5.0), stepped = build(false) / 1e6;
-        QVERIFY2(stepped < 1.2 * rectangle + 15, qPrintable(QStringLiteral("a line below a tall object that is not a rectangle %1 ms, below a rectangle %2 ms").arg(stepped).arg(rectangle)));
+        const qint64 rectangle = build(true), stepped = build(false);
+        QVERIFY2(rectangle > 0, qPrintable(QString::number(rectangle)));
+        QVERIFY2(stepped <= 2 * rectangle + 10, qPrintable(QStringLiteral("a line below a tall object that is not a rectangle was measured %1 times, below a rectangle %2").arg(stepped).arg(rectangle)));
     }
 
     // A line that a paragraph goes on with, in smaller type than its first run, is checked against the objects at the height its own text has, not the first run's: an object

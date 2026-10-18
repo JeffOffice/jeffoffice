@@ -1102,6 +1102,10 @@ int StoryLayout::Block::docFromDisp(int d) const
 }
 
 // ---------- layout ----------
+namespace { std::atomic<qint64> g_lineHeightsMeasured{0}; }   // (see StoryLayout::lineHeightsMeasuredForTest)
+
+qint64 StoryLayout::lineHeightsMeasuredForTest() { return g_lineHeightsMeasured.load(); }
+
 StoryLayout::StoryLayout() = default;
 StoryLayout::~StoryLayout() = default;
 
@@ -3077,6 +3081,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         double wrapH = estText;
                         if (env.wordLines && !frames[f].obstacles.isEmpty()) {
                             if (lineHeightAtWalls < 0 || measuredFrame != f || measuredColumn != c) {
+                                ++g_lineHeightsMeasured;
                                 line.setLineWidth(std::max(1.0, x1 - x0));
                                 lineHeightAtWalls = std::min(estText, wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base, env, &B->disp, &markFont, markSize).total());
                                 measuredFrame = f;
