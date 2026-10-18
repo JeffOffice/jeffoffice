@@ -556,23 +556,32 @@ const TableStyleDef &StyleSheet::tableStyle(const QString &id) const
 
 // ---- Numbering
 
+// The most definitions that name one another through numbering styles that are followed (a file can link them in a ring).
+constexpr int kMostStyleLinks = 16;
+
 void Numbering::index() const
 {
     if (m_numCount == nums.size() && m_abstractCount == abstracts.size()) return;
     m_nums.clear();
     m_abstracts.clear();
-    m_plain.clear();
-    m_plainCount.clear();
     for (int i = 0; i < nums.size(); ++i)
-        if (!m_nums.contains(nums[i].id)) {
-            m_nums.insert(nums[i].id, i);
-            if (nums[i].startOverrides.isEmpty()) {
-                if (!m_plain.contains(nums[i].abstractId)) m_plain.insert(nums[i].abstractId, nums[i].id);
-                ++m_plainCount[nums[i].abstractId];
-            }
-        }
-    for (int i = 0; i < abstracts.size(); ++i)
+        if (!m_nums.contains(nums[i].id)) m_nums.insert(nums[i].id, i);
+    QHash<QString, int> styles;   // the first definition that is each numbering style
+    for (int i = 0; i < abstracts.size(); ++i) {
         if (!m_abstracts.contains(abstracts[i].id)) m_abstracts.insert(abstracts[i].id, i);
+        if (!abstracts[i].styleLink.isEmpty() && !styles.contains(abstracts[i].styleLink)) styles.insert(abstracts[i].styleLink, i);
+    }
+    // A definition that names a numbering style has the levels of the definition that is that style (and that one may name another).
+    m_effective.resize(abstracts.size());
+    for (int i = 0; i < abstracts.size(); ++i) {
+        int at = i;
+        for (int hops = 0; hops < kMostStyleLinks && !abstracts[at].numStyleLink.isEmpty(); ++hops) {
+            const auto it = styles.constFind(abstracts[at].numStyleLink);
+            if (it == styles.constEnd() || it.value() == at) break;
+            at = it.value();
+        }
+        m_effective[i] = at;
+    }
     m_numCount = nums.size();
     m_abstractCount = abstracts.size();
 }
@@ -584,26 +593,46 @@ const Num *Numbering::num(int numId) const
     return it == m_nums.constEnd() ? nullptr : &nums[it.value()];
 }
 
-int Numbering::listOf(int numId) const
-{
-    const Num *n = num(numId);
-    if (!n || !n->startOverrides.isEmpty()) return numId;
-    const auto it = m_plain.constFind(n->abstractId);
-    return it == m_plain.constEnd() ? numId : it.value();
-}
-
-bool Numbering::listIsShared(int numId) const
-{
-    const Num *n = num(numId);
-    return n && n->startOverrides.isEmpty() && m_plainCount.value(n->abstractId) > 1;
-}
-
 const AbstractNum *Numbering::abstractOf(int numId) const
 {
     const Num *n = num(numId);
     if (!n) return nullptr;
     const auto it = m_abstracts.constFind(n->abstractId);
-    return it == m_abstracts.constEnd() ? nullptr : &abstracts[it.value()];
+    return it == m_abstracts.constEnd() ? nullptr : &abstracts[m_effective[it.value()]];
+}
+
+const Level *Numbering::levelOf(int numId, int level) const
+{
+    if (level < 0 || level > 8) return nullptr;
+    const Num *n = num(numId);
+    if (!n) return nullptr;
+    const auto own = n->levelOverrides.constFind(level);
+    if (own != n->levelOverrides.constEnd() && own->present) return &own.value();
+    const AbstractNum *a = abstractOf(numId);
+    return a && a->levels[level].present ? &a->levels[level] : nullptr;
+}
+
+int Numbering::definitionOf(int numId) const
+{
+    const AbstractNum *a = abstractOf(numId);
+    return a ? a->id : -1;
+}
+
+bool Numbering::restartsLevel(int numId, int level) const
+{
+    const Num *n = num(numId);
+    return n && n->startOverrides.contains(level);
+}
+
+int Numbering::startOf(int numId, int level) const
+{
+    const Num *n = num(numId);
+    if (n) {
+        const auto it = n->startOverrides.constFind(level);
+        if (it != n->startOverrides.constEnd()) return it.value();
+    }
+    const Level *l = levelOf(numId, level);
+    return l ? l->start : 1;
 }
 
 int Numbering::nextNumId() const

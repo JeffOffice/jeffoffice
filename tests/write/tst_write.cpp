@@ -438,6 +438,21 @@ NumberInk numberInk(const QByteArray &levelRun, const QByteArray &markRun, const
     return ink;
 }
 
+// The markers of the list items of a story, in order: a paragraph's own marker text where it has one, else what Qt counts.
+QStringList markersOf(WriteDoc &doc)
+{
+    QStringList out;
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+        if (b.textList()) out << (b.blockFormat().stringProperty(tp::BulletChar).isEmpty() ? b.textList()->itemText(b) : b.blockFormat().stringProperty(tp::BulletChar));
+    return out;
+}
+
+// A paragraph numbered by `num` at `level`, with the text `text`.
+QByteArray itemOf(int num, int level, const char *text = "item")
+{
+    return QByteArray("<w:p><w:pPr><w:numPr><w:ilvl w:val=\"") + QByteArray::number(level) + "\"/><w:numId w:val=\"" + QByteArray::number(num) + "\"/></w:numPr></w:pPr><w:r><w:t>" + text + "</w:t></w:r></w:p>";
+}
+
 // A header or footer part of the paragraphs given (each the XML of a paragraph's contents).
 QByteArray headerPart(const QByteArray &root, const QList<QByteArray> &paragraphs)
 {
@@ -6383,6 +6398,92 @@ private Q_SLOTS:
             more += given > plain;
         }
         QVERIFY2(more > 3, qPrintable(QString::number(more)));
+    }
+
+    // A list that Qt counts as the file does is counted by Qt (so that it goes on counting as the person edits it): only what it cannot count is given a marker of its own.
+    // Here a definition has numbering ids that no paragraph uses, beside the one that is.
+    void aListQtCanCountIsNotGivenMarkersOfItsOwn()
+    {
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num><w:num w:numId=\"2\"><w:abstractNumId w:val=\"0\"/></w:num>"
+                                     "<w:num w:numId=\"3\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        auto doc = open(makeDocx(itemOf(1, 0) + itemOf(1, 0) + itemOf(1, 0), kStyles, numbering));
+        QVERIFY(doc);
+        int items = 0;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            if (b.textList()) {
+                ++items;
+                QVERIFY2(!b.blockFormat().hasProperty(tp::BulletChar), "Qt's own count is the marker");
+            }
+        QCOMPARE(items, 3);
+        QCOMPARE(markersOf(*doc), (QStringList{QStringLiteral("1."), QStringLiteral("2."), QStringLiteral("3.")}));
+    }
+
+    // The items of numbering ids that count together are numbered through editing: Enter in the middle of such a list, and deleting an item, number the rest again, and a
+    // single undo takes the Enter and the numbers back.
+    void editingASharedListNumbersTheRestAgain()
+    {
+        const QByteArray level = "<w:lvl w:ilvl=\"0\"><w:start w:val=\"3\"/><w:numFmt w:val=\"lowerLetter\"/><w:lvlText w:val=\"%1.\"/><w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl>";
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\">" + level + "</w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num><w:num w:numId=\"2\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        auto open3 = [&] { return open(makeDocx(itemOf(1, 0, "first") + itemOf(2, 0, "second") + itemOf(2, 0, "third"), kStyles, numbering)); };
+        const QStringList three{QStringLiteral("c."), QStringLiteral("d."), QStringLiteral("e.")};
+        {
+            auto doc = open3();
+            QVERIFY(doc);
+            QCOMPARE(markersOf(*doc), three);
+            QTextCursor c(doc->story());
+            const QTextBlock second = doc->story()->findBlockByNumber(1);
+            c.setPosition(second.position() + second.length() - 1);
+            insertParagraph(*doc, c);
+            QCOMPARE(markersOf(*doc), (QStringList{QStringLiteral("c."), QStringLiteral("d."), QStringLiteral("e."), QStringLiteral("f.")}));
+            doc->story()->undo();
+            QCOMPARE(markersOf(*doc), three);   // (one step: the Enter and the numbers go together)
+        }
+        {
+            auto doc = open3();
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            c.setPosition(doc->story()->findBlockByNumber(1).position());
+            c.setPosition(doc->story()->findBlockByNumber(2).position(), QTextCursor::KeepAnchor);
+            removeSelection(*doc, c);
+            QCOMPARE(markersOf(*doc), (QStringList{QStringLiteral("c."), QStringLiteral("d.")}));
+        }
+    }
+
+    // A restart at one level restarts that level only: the others of the numbering id go on with the definition's count. The ids here share the definition; the second has the
+    // second level restart at 5.
+    void aRestartAtOneLevelRestartsThatLevelOnly()
+    {
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl>"
+                                     "<w:lvl w:ilvl=\"1\"><w:start w:val=\"1\"/><w:numFmt w:val=\"lowerLetter\"/><w:lvlText w:val=\"%2)\"/></w:lvl></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>"
+                                     "<w:num w:numId=\"2\"><w:abstractNumId w:val=\"0\"/><w:lvlOverride w:ilvl=\"1\"><w:startOverride w:val=\"5\"/></w:lvlOverride></w:num>";
+        auto doc = open(makeDocx(itemOf(1, 0) + itemOf(1, 1) + itemOf(1, 0) + itemOf(2, 0) + itemOf(2, 1), kStyles, numbering));
+        QVERIFY(doc);
+        QCOMPARE(markersOf(*doc), (QStringList{QStringLiteral("1."), QStringLiteral("a)"), QStringLiteral("2."), QStringLiteral("3."), QStringLiteral("e)")}));
+    }
+
+    // Two definitions that are linked to one numbering style (w:numStyleLink) are the style's definition (the one with w:styleLink): their numbering ids count together.
+    void definitionsLinkedToOneStyleShareItsLevelsAndItsCount()
+    {
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:styleLink w:val=\"Outline\"/><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"lowerLetter\"/><w:lvlText w:val=\"%1.\"/></w:lvl></w:abstractNum>"
+                                     "<w:abstractNum w:abstractNumId=\"1\"><w:numStyleLink w:val=\"Outline\"/></w:abstractNum><w:abstractNum w:abstractNumId=\"2\"><w:numStyleLink w:val=\"Outline\"/></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num><w:num w:numId=\"2\"><w:abstractNumId w:val=\"1\"/></w:num><w:num w:numId=\"3\"><w:abstractNumId w:val=\"2\"/></w:num>";
+        auto doc = open(makeDocx(itemOf(1, 0) + itemOf(2, 0) + itemOf(3, 0), kStyles, numbering));
+        QVERIFY(doc);
+        QCOMPARE(markersOf(*doc), (QStringList{QStringLiteral("a."), QStringLiteral("b."), QStringLiteral("c.")}));
+    }
+
+    // A level that a numbering id writes out itself (w:lvl in its w:lvlOverride) is that id's own: its number's format, with the definition's count.
+    void aLevelWrittenOutInANumberingIdIsUsed()
+    {
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>"
+                                     "<w:num w:numId=\"2\"><w:abstractNumId w:val=\"0\"/><w:lvlOverride w:ilvl=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"upperRoman\"/>"
+                                     "<w:lvlText w:val=\"%1)\"/></w:lvl></w:lvlOverride></w:num>";
+        auto doc = open(makeDocx(itemOf(1, 0) + itemOf(2, 0) + itemOf(2, 0), kStyles, numbering));
+        QVERIFY(doc);
+        QCOMPARE(markersOf(*doc), (QStringList{QStringLiteral("1."), QStringLiteral("II)"), QStringLiteral("III)")}));
     }
 
     // A number is set in its paragraph's mark, not in what the first words of the item happen to be in: here the mark is of 10 points and the first words of 40.

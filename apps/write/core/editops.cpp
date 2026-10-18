@@ -12,6 +12,7 @@
 #include <QTextList>
 #include <algorithm>
 #include <cmath>
+#include <optional>
 
 using namespace jp::office;
 using namespace jp::office::wml;
@@ -334,13 +335,34 @@ struct AdvanceGuard {
     const QTextCursor &c;
 };
 
+// Numbers the items of the lists again when an edit that can change them is done (the guard is made before the edit's own edit block, and what it changes joins that edit's
+// undo step). Edits that call one another renumber once, when the first is done.
+struct NumberGuard {
+    NumberGuard(WriteDoc &d, QTextDocument *s) : doc(d), story(s) { ++depth(); }
+    ~NumberGuard()
+    {
+        if (--depth() == 0) doc.renumberLists(story);
+    }
+    NumberGuard(const NumberGuard &) = delete;
+    NumberGuard &operator=(const NumberGuard &) = delete;
+    static int &depth()
+    {
+        static thread_local int d = 0;
+        return d;
+    }
+    WriteDoc &doc;
+    QTextDocument *story;
+};
+
 } // namespace
 
 void insertText(WriteDoc &doc, QTextCursor &c, const QString &text)
 {
-    Q_UNUSED(doc);
     if (text.isEmpty()) return;
     if (isLocked(c.block()) && !c.hasSelection()) return;
+    // (Typing a character changes no number; a selection replaced, or a paragraph made by the text, may.)
+    std::optional<NumberGuard> numbers;
+    if (c.hasSelection() || text.contains(QLatin1Char('\n')) || text.contains(QLatin1Char('\r')) || text.contains(QChar::ParagraphSeparator)) numbers.emplace(doc, c.document());
     settleBesideDeletions(c);
     QTextCharFormat f = typingFormat(c);
     if (c.hasSelection()) {
@@ -392,6 +414,7 @@ static QTextBlock splitParagraph(QTextCursor &c)
 
 void insertParagraph(WriteDoc &doc, QTextCursor &c)
 {
+    NumberGuard numbers(doc, c.document());
     c.beginEditBlock();
     if (c.hasSelection()) removeSelection(doc, c);
     QTextBlock cur = c.block();
@@ -435,6 +458,7 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
 
 void insertPageBreak(WriteDoc &doc, QTextCursor &c)
 {
+    NumberGuard numbers(doc, c.document());
     if (isLocked(c.block())) return;
     c.beginEditBlock();
     if (c.hasSelection()) removeSelection(doc, c);
@@ -448,6 +472,7 @@ void insertPageBreak(WriteDoc &doc, QTextCursor &c)
 
 void insertSectionBreak(WriteDoc &doc, QTextCursor &c, const QString &type)
 {
+    NumberGuard numbers(doc, c.document());
     if (isLocked(c.block()) || inTable(c.block())) return;   // (a section ends in a paragraph that is not in a table's cell)
     c.beginEditBlock();
     if (c.hasSelection()) removeSelection(doc, c);
@@ -496,6 +521,7 @@ static bool removeSelectionAcrossFrames(WriteDoc &doc, QTextCursor &c)
 
 void removeSelection(WriteDoc &doc, QTextCursor &c)
 {
+    NumberGuard numbers(doc, c.document());
     if (!c.hasSelection()) return;
     const AdvanceGuard advance(c);
     {
@@ -621,6 +647,7 @@ static void joinAcrossDeleted(WriteDoc &doc, QTextCursor &c, const QTextBlock &v
 
 void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
 {
+    NumberGuard numbers(doc, c.document());
     const AdvanceGuard advance(c);
     if (c.hasSelection()) {
         removeSelection(doc, c);
@@ -673,6 +700,7 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
 
 void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
 {
+    NumberGuard numbers(doc, c.document());
     const AdvanceGuard advance(c);
     if (c.hasSelection()) {
         removeSelection(doc, c);
@@ -739,6 +767,7 @@ QString plainTextOf(const QTextDocumentFragment &f)
 // Pastes, and says where what was pasted is (from, to) when the paste is done.
 static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment, int *pastedFrom, int *pastedTo)
 {
+    NumberGuard numbers(doc, c.document());
     c.beginEditBlock();
     if (c.hasSelection()) removeSelection(doc, c);
     settleBesideDeletions(c);
@@ -844,6 +873,7 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
 
 void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment)
 {
+    NumberGuard numbers(doc, c.document());
     if (fragment.isEmpty()) return;
     int from = 0, to = 0;
     pasteInto(doc, c, fragment, &from, &to);
@@ -917,6 +947,7 @@ Clip copySelection(const WriteDoc &doc, const QTextCursor &c)
 
 void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
 {
+    NumberGuard numbers(doc, c.document());
     if (clip.isEmpty()) return;
     const bool same = clip.source == doc.id();
     if (!same && clip.generation != byteStoreGeneration()) {
@@ -1035,6 +1066,7 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
 
 void pasteText(WriteDoc &doc, QTextCursor &c, const QString &text)
 {
+    NumberGuard numbers(doc, c.document());
     QString t = text;
     t.replace(QLatin1String("\r\n"), QLatin1String("\n")).replace(QLatin1Char('\r'), QLatin1Char('\n'));
     c.beginEditBlock();
@@ -1325,6 +1357,7 @@ static void setBlockList(WriteDoc &doc, QTextBlock block, int numId, int level, 
 
 void changeIndent(WriteDoc &doc, QTextCursor &c, double points)
 {
+    NumberGuard numbers(doc, c.document());
     c.beginEditBlock();
     for (const QTextBlock &b : selectedBlocks(c)) {
         if (isLocked(b)) continue;
@@ -1405,10 +1438,9 @@ ListKind listKindOf(const WriteDoc &doc, const QTextBlock &block)
 {
     const QTextBlockFormat bf = block.blockFormat();
     if (!bf.hasProperty(prop::NumId)) return ListKind::None;
-    const AbstractNum *a = doc.numbering().abstractOf(bf.intProperty(prop::NumId));
-    const int level = std::clamp(bf.intProperty(prop::NumLevel), 0, 8);
-    if (!a || !a->levels[level].present) return ListKind::None;
-    const QString fmt = a->levels[level].numFmt;
+    const Level *l = doc.numbering().levelOf(bf.intProperty(prop::NumId), bf.intProperty(prop::NumLevel));
+    if (!l) return ListKind::None;
+    const QString fmt = l->numFmt;
     return fmt == QLatin1String("bullet") || fmt == QLatin1String("none") ? ListKind::Bullets : ListKind::Numbers;
 }
 
@@ -1447,6 +1479,7 @@ static void setBlockList(WriteDoc &doc, QTextBlock block, int numId, int level, 
 
 void toggleList(WriteDoc &doc, QTextCursor &c, bool numbered)
 {
+    NumberGuard numbers(doc, c.document());
     const QVector<QTextBlock> blocks = selectedBlocks(c);
     const ListKind want = numbered ? ListKind::Numbers : ListKind::Bullets;
     bool all = true, any = false;
@@ -1530,6 +1563,7 @@ static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleI
 
 void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 {
+    NumberGuard numbers(doc, c.document());
     if (!doc.ensureStyle(styleId)) return;
     c.beginEditBlock();
     for (const QTextBlock &b : selectedBlocks(c))

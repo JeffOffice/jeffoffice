@@ -897,6 +897,9 @@ public:
                     } else if (t.is(k, "multiLevelType")) {
                         a.multiLevelType = t.val(k);
                         a.head += t.raw(k);
+                    } else if (t.is(k, "styleLink") || t.is(k, "numStyleLink")) {
+                        (t.is(k, "styleLink") ? a.styleLink : a.numStyleLink) = t.val(k);
+                        a.head += t.raw(k);
                     } else if (seenLevel) {
                         a.tail += t.raw(k);
                     } else {
@@ -912,8 +915,12 @@ public:
                 if (ab >= 0) m.abstractId = intOf(t, ab).value_or(0);
                 for (int k = t.firstChild(c); k >= 0; k = t.next(k)) {
                     if (!t.is(k, "lvlOverride")) continue;
+                    const int ilvl = std::clamp(intOf(t, k, "ilvl").value_or(0), 0, 8);
                     const int so = t.child(k, "startOverride");
-                    if (so >= 0) m.startOverrides.insert(std::clamp(intOf(t, k, "ilvl").value_or(0), 0, 8), intOf(t, so).value_or(1));
+                    if (so >= 0) m.startOverrides.insert(ilvl, intOf(t, so).value_or(1));
+                    // (The level an id writes out itself is that id's, for the level the override names.)
+                    const int own = t.child(k, "lvl");
+                    if (own >= 0) m.levelOverrides.insert(ilvl, level(own));
                 }
                 num->nums.push_back(m);
             } else if (t.is(c, "numIdMacAtCleanup")) {

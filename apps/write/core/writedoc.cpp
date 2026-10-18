@@ -12,7 +12,9 @@
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QTextList>
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 using namespace jp::office;
@@ -700,17 +702,14 @@ const StyleSheet &WriteDoc::sheetFor(const QString &id) const
 ParaProps WriteDoc::levelParagraph(int numId, int level) const
 {
     if (numId <= 0) return ParaProps();
-    const AbstractNum *a = m_wml.numbering.abstractOf(numId);
-    if (!a || level < 0 || level > 8 || !a->levels[level].present) return ParaProps();
-    return a->levels[level].pPr;
+    const Level *l = m_wml.numbering.levelOf(numId, level);
+    return l ? l->pPr : ParaProps();
 }
 
 int WriteDoc::deepestLevel(int numId) const
 {
-    const AbstractNum *a = m_wml.numbering.abstractOf(numId);
-    if (!a) return -1;
     for (int i = 8; i >= 0; --i)
-        if (a->levels[i].present) return i;
+        if (m_wml.numbering.levelOf(numId, i)) return i;
     return -1;
 }
 
@@ -850,15 +849,14 @@ int levelsScannedForOutlineForTest() { return s_levelsScannedForOutline; }
 
 // Whether a level's run properties ask for the outline effect (w:outline, on unless it says off), which draws its bullets hollow. A level is looked at once: a file can keep any
 // number of properties of its own in it, and every item of the list asks.
-bool WriteDoc::levelIsOutlined(const AbstractNum &definition, int level) const
+bool WriteDoc::levelIsOutlined(const Level &level, int key) const
 {
-    const int key = definition.id * 16 + level;
     if (const auto found = m_levelOutlines.constFind(key); found != m_levelOutlines.constEnd()) return found.value();
     ++s_levelsScannedForOutline;
     static const QRegularExpression outline(QStringLiteral("^<[^\\s:>/]+:outline[\\s/>]"));
     static const QRegularExpression off(QStringLiteral("[\\s:]val\\s*=\\s*\"(0|false|off)\""));
     bool outlined = false;
-    for (const RawChild &ch : definition.levels[level].rPr.extra) {
+    for (const RawChild &ch : level.rPr.extra) {
         const QString xml = QString::fromUtf8(ch.xml.left(120));
         if (outline.match(xml).hasMatch()) outlined = !off.match(xml).hasMatch();
     }
@@ -872,13 +870,16 @@ QTextListFormat WriteDoc::listFormat(int numId, int level, int start) const
     level = std::clamp(level, 0, 8);
     lf.setIndent(level + 1);
     lf.setProperty(tp::ListKey, numId);   // (an item of a list is told from another list's by it, whether or not its level is in the definition)
-    const AbstractNum *a = m_wml.numbering.abstractOf(numId);
-    if (!a || !a->levels[level].present) {
+    const Level *found = m_wml.numbering.levelOf(numId, level);
+    if (!found) {
         lf.setStyle(QTextListFormat::ListDisc);
         return lf;
     }
-    const Level &l = a->levels[level];
-    if (levelIsOutlined(*a, level)) lf.setProperty(tp::BulletOutline, true);   // (the numbers of a level are drawn hollow as well as its bullets)
+    const Level &l = *found;
+    // (A level's look is cached by the definition and level; one that an id writes out itself, by the id.)
+    const Num *numbered = m_wml.numbering.num(numId);
+    const int outlineKey = numbered && numbered->levelOverrides.contains(level) ? (1 << 28) + numId * 16 + level : m_wml.numbering.definitionOf(numId) * 16 + level;
+    if (levelIsOutlined(l, outlineKey)) lf.setProperty(tp::BulletOutline, true);   // (the numbers of a level are drawn hollow as well as its bullets)
     if (l.legacy) lf.setProperty(tp::LegacyNumber, true);
     // What the level says of its marker's run (the rest is the paragraph mark's): bold and italic, and a color.
     if (l.rPr.bold || l.rPr.italic || l.rPr.color) {
@@ -888,8 +889,7 @@ QTextListFormat WriteDoc::listFormat(int numId, int level, int start) const
         if (l.rPr.color && l.rPr.color->val == QLatin1String("auto")) lf.setProperty(tp::BulletColor, QStringLiteral("auto"));   // (the engine's word for it)
         else if (l.rPr.color && run.hasProperty(tp::ColorRefP)) lf.setProperty(tp::BulletColor, run.stringProperty(tp::ColorRefP));
     }
-    const Num *num = m_wml.numbering.num(numId);
-    const int first = start >= 0 ? start : num && num->startOverrides.contains(level) ? num->startOverrides.value(level) : l.start;
+    const int first = start >= 0 ? start : m_wml.numbering.startOf(numId, level);
     if (l.numFmt == QLatin1String("bullet") || l.numFmt == QLatin1String("none")) {
         lf.setStyle(QTextListFormat::ListDisc);
         QString text = l.numFmt == QLatin1String("none") ? QStringLiteral(" ") : l.text;
@@ -924,6 +924,82 @@ QTextListFormat WriteDoc::listFormat(int numId, int level, int start) const
     }
     lf.setStart(std::max(1, first));
     return lf;
+}
+
+void WriteDoc::renumberLists(QTextDocument *story)
+{
+    const Numbering &numbering = m_wml.numbering;
+    if (!story || numbering.nums.isEmpty()) return;
+    // A level's counter with the restarts it has seen: an item of a shallower level restarts every deeper counter of its definition, which is one more count of restarts of that
+    // level (so no counter is visited to restart it).
+    struct Counter {
+        int number = -1;
+        quint32 restarts = 0;
+    };
+    struct Count {
+        quint32 restarts[9] = {};
+        Counter shared[9];                          // the definition's own count, which the numbering ids that restart no level go on with
+        QHash<int, std::array<Counter, 9>> own;     // the counts of the ids that restart a level, for that level
+    };
+    QHash<int, Count> counts;
+    QHash<QTextList *, int> before;                 // the items of each Qt list seen so far (Qt's own count of the next)
+    struct Change {
+        int position;
+        QString marker;
+    };
+    QVector<Change> changes;
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        QTextList *list = b.textList();
+        if (!list) continue;
+        const int qtIndex = before[list]++;
+        const QTextBlockFormat bf = b.blockFormat();
+        if (!bf.hasProperty(prop::NumId)) continue;
+        const int numId = bf.intProperty(prop::NumId), level = std::clamp(bf.intProperty(prop::NumLevel), 0, 8);
+        const Level *l = numbering.levelOf(numId, level);
+        if (!l) continue;
+        Count &count = counts[numbering.definitionOf(numId)];
+        for (int i = level + 1; i < 9; ++i) ++count.restarts[i];
+        auto counterOf = [&](int k) -> Counter & {
+            Counter &c = numbering.restartsLevel(numId, k) ? count.own[numId][k] : count.shared[k];
+            if (c.restarts != count.restarts[k]) {
+                c.number = -1;
+                c.restarts = count.restarts[k];
+            }
+            return c;
+        };
+        int n = 0;
+        {
+            Counter &c = counterOf(level);
+            c.number = c.number < 0 ? numbering.startOf(numId, level) : c.number + 1;
+            n = c.number;
+        }
+        if (l->numFmt == QLatin1String("bullet") || l->numFmt == QLatin1String("none")) continue;
+        // Qt can count a level with the one number of its own in the marker, in a style it has, and that is the number it would count.
+        const bool simple = !l->legal && l->text.count(QLatin1Char('%')) <= 1 && l->text.contains(QStringLiteral("%%1").arg(level + 1));
+        QString want;
+        if (!simple || list->format().start() + qtIndex != n) {
+            want = l->text;
+            for (int k = 8; k >= 0; --k) {
+                const QString token = QStringLiteral("%%1").arg(k + 1);
+                if (!want.contains(token)) continue;
+                const Level *lk = numbering.levelOf(numId, k);
+                const int number = counterOf(k).number;
+                want.replace(token, listNumberText(l->legal || !lk ? QStringLiteral("decimal") : lk->numFmt, number < 0 ? (lk ? numbering.startOf(numId, k) : 1) : number));
+            }
+        }
+        if (bf.stringProperty(tp::BulletChar) != want) changes.push_back({b.position(), want});
+    }
+    if (changes.isEmpty()) return;
+    QTextCursor edit(story);
+    edit.joinPreviousEditBlock();
+    for (const Change &change : std::as_const(changes)) {
+        edit.setPosition(change.position);
+        QTextBlockFormat f = edit.blockFormat();
+        if (change.marker.isEmpty()) f.clearProperty(tp::BulletChar);
+        else f.setProperty(tp::BulletChar, change.marker);
+        edit.setBlockFormat(f);
+    }
+    edit.endEditBlock();
 }
 
 SectionProps WriteDoc::lastSectionProps() const { return m_last; }

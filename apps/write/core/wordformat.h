@@ -23,6 +23,10 @@ QString languageOf(const QVector<office::wml::RawChild> &extra);
 QTextBlockFormat blockFormatOf(const office::wml::ParaProps &resolved);
 office::wml::ParaProps paraPropsOf(const QTextBlockFormat &format);
 
+// The text of a number of a list in a number format of the file ("lowerRoman", "decimal"...), and a Roman numeral.
+QString listNumberText(const QString &format, int n);
+QString romanNumeral(int n, bool upper);
+
 // The fifteen highlight colors, by the names the file uses.
 QColor highlightColor(const QString &name);
 QString highlightName(const QColor &color);

@@ -8,6 +8,7 @@
 #include <QFont>
 #include <QIODevice>
 #include <QRegularExpression>
+#include <algorithm>
 #include <cmath>
 
 using namespace jp::office;
@@ -693,6 +694,38 @@ ParaProps paraPropsOf(const QTextBlockFormat &f)
     if (f.hasProperty(prop::SpacingAttrs)) p.spacingAttrs = storedBytes(f, prop::SpacingAttrs);
     if (f.hasProperty(prop::IndAttrs)) p.indAttrs = storedBytes(f, prop::IndAttrs);
     return p;
+}
+
+// ---- the text of a list's numbers
+
+static QString letters(int n, bool upper)
+{
+    QString s;
+    for (n = std::max(1, n); n > 0; n = (n - 1) / 26) s.prepend(QChar((upper ? 'A' : 'a') + (n - 1) % 26));
+    return s;
+}
+
+QString romanNumeral(int n, bool upper)
+{
+    static const std::pair<int, const char *> table[] = {{1000, "m"}, {900, "cm"}, {500, "d"}, {400, "cd"}, {100, "c"}, {90, "xc"}, {50, "l"}, {40, "xl"}, {10, "x"}, {9, "ix"}, {5, "v"}, {4, "iv"}, {1, "i"}};
+    QString s;
+    n = std::clamp(n, 1, 3999);
+    for (const auto &t : table)
+        while (n >= t.first) {
+            s += QLatin1String(t.second);
+            n -= t.first;
+        }
+    return upper ? s.toUpper() : s;
+}
+
+QString listNumberText(const QString &format, int n)
+{
+    if (format == QLatin1String("lowerLetter")) return letters(n, false);
+    if (format == QLatin1String("upperLetter")) return letters(n, true);
+    if (format == QLatin1String("lowerRoman")) return romanNumeral(n, false);
+    if (format == QLatin1String("upperRoman")) return romanNumeral(n, true);
+    if (format == QLatin1String("decimalZero")) return QStringLiteral("%1").arg(n, 2, 10, QLatin1Char('0'));
+    return QString::number(n);
 }
 
 } // namespace jp::write
