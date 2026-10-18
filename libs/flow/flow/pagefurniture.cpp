@@ -47,7 +47,8 @@ double Paginator::storyHeight(const QTextDocument *story, double width, int numb
     fs.ctx.pageCount = std::max(number, int(m_starts.size()));
     StoryLayout layout;
     layout.build(story, {fs}, m_doc->env);
-    // (The space after a last paragraph that is only line breaks is not kept below it: such a paragraph is made to take room by its lines.)
+    // (The space after a last paragraph that is only line breaks is not kept below it: such a paragraph is made to take room by its lines. This rests on one practice document,
+    // V084, whose header ends so and does not have the space after that paragraph in its height.)
     bool onlyBreaks = false;
     if (const QTextBlock last = story->lastBlock(); last.isValid()) {
         const QString text = last.text();

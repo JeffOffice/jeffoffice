@@ -675,6 +675,8 @@ bool TableLayout::keepsWithNext(int r) const
     const Row &row = m_rows[size_t(r)];
     const TableIndex &ix = *m_ctx.index;
     const QTextDocument *story = m_ctx.doc->story();
+    // (A row is kept with the next when the last paragraph of any of its cells is, not the first cell's only. That rests on one practice document, W046, whose rows are kept
+    // together that way: no other shows whether a cell other than the first counts.)
     for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
         const Cell &c = m_cells[size_t(i)];
         if (c.covered) continue;
@@ -991,7 +993,8 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
             if (!ls.empty()) lines = std::max(lines, ls.back().bottom - offs[i] + c.margins.top() + c.margins.bottom() + pad);
         }
         piece.height = lines <= text + 0.01 ? std::min(need, text) : need;
-        // The last part of a row that was set to a height is that tall as well (the page it is on has room for it, or it is as tall as the room).
+        // The last part of a row that was set to a height is that tall as well (the page it is on has room for it, or it is as tall as the room). This rests on one practice
+        // document, W066, whose row cut by a page break has its last part as tall as the row was set to be.
         if (k > 0 && row.data->height > 0 && !row.data->exact) piece.height = std::max(piece.height, std::min(row.least, text));
         piece.next = 0;
     }
