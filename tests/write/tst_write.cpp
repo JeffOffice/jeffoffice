@@ -2347,6 +2347,46 @@ private Q_SLOTS:
         QVERIFY(view.topPage() >= page - 1);   // (the view scrolled to it)
     }
 
+    // The caret and a click use the page's text boxes only: a header, a footer, and the numbers of the lines are boxes too, and are not the text's columns.
+    void theCaretAndClicksIgnoreTheHeaderAndTheLineNumbers()
+    {
+        for (int scenario = 0; scenario < 4; ++scenario) {
+            const bool header = scenario & 1, numbers = scenario & 2;
+            QByteArray body;
+            for (int i = 0; i < 12; ++i) body += plainP(QByteArray("paragraph number ") + QByteArray::number(i) + " has some words in it to fill a line and then another line of words");
+            const QByteArray sect = sectionXml(12240, 15840, 1440, header ? "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>" : "", QByteArray(), numbers ? "<w:lnNumType w:countBy=\"1\" w:distance=\"360\"/>" : "");
+            const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>Header text</w:t></w:r>"})}};
+            auto doc = open(makeDocxWithParts(body, sect, header ? parts : QMap<QString, QByteArray>()));
+            QVERIFY(doc);
+            PageView view;
+            view.resize(1000, 900);
+            view.show();
+            view.setDocument(doc.get());
+            view.paginateAll();
+            int bad = 0, total = 0;
+            for (const int position : {3, 60, 150, 400, 700, 1000}) {
+                QTextCursor c(doc->story());
+                c.setPosition(position);
+                view.showCursor(c);
+                QRect r;
+                QVERIFY2(view.caretRect(&r), qPrintable(QStringLiteral("scenario %1: no caret at %2").arg(scenario).arg(position)));
+                QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(r.center().x() + 1, r.center().y()));
+                ++total;
+                bad += std::abs(view.cursor().position() - position) > 1;
+            }
+            QVERIFY2(bad == 0, qPrintable(QStringLiteral("scenario %1 (header %2, line numbers %3): %4 of %5 clicks at a caret missed it").arg(scenario).arg(header).arg(numbers).arg(bad).arg(total)));
+            // A click in the margin, level with the second line, puts the caret in that line (the line numbers are not where a click goes).
+            QTextCursor c(doc->story());
+            c.setPosition(100);
+            view.showCursor(c);
+            QRect r;
+            QVERIFY(view.caretRect(&r));
+            const QRect page = view.pageRect(0);
+            QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(page.left() + 20, r.center().y()));
+            QVERIFY2(view.cursor().position() > 40 && view.cursor().position() < 160, qPrintable(QStringLiteral("scenario %1: a click in the margin gave position %2").arg(scenario).arg(view.cursor().position())));
+        }
+    }
+
     void clickingPlacesTheCaretAndDraggingSelects()
     {
         auto doc = open(makeDocx("<w:p><w:r><w:t>Alpha beta gamma delta</w:t></w:r></w:p><w:p><w:r><w:t>Second paragraph here</w:t></w:r></w:p>", kStyles));
