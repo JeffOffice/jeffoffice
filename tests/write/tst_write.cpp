@@ -11359,6 +11359,35 @@ private Q_SLOTS:
         QCOMPARE(audit::storyOf(*page, heads[0]), QStringLiteral("Head base(ruby)"));
     }
 
+    // An absolute position tab (w:ptab) in a footer takes the text after it to the margin's right edge whatever stops the paragraph has (W179's footer: its name, then "Page 14 of 14"
+    // at the margin, which ran together without a tab); one in the text is drawn the same and is written back as it was.
+    void anAbsolutePositionTabGoesToTheMarginAndIsKept()
+    {
+        const QByteArray ptab = "<w:r><w:ptab w:relativeTo=\"margin\" w:alignment=\"right\" w:leader=\"none\"/></w:r>";
+        const QByteArray stops = "<w:pPr><w:tabs><w:tab w:val=\"center\" w:pos=\"1500\"/><w:tab w:val=\"right\" w:pos=\"3000\"/></w:tabs></w:pPr>";
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/footer1.xml"), headerPart("ftr", {stops + "<w:r><w:t>Left side</w:t></w:r>" + ptab + "<w:r><w:t>Page 3</w:t></w:r>"})}};
+        auto doc = open(makeDocxWithParts("<w:p><w:r><w:t>body</w:t></w:r>" + ptab + "<w:r><w:t>end</w:t></w:r></w:p>",
+                                          sectionXml(6000, 6000, 720, "<w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/>"), parts));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        const auto feet = audit::itemsWith(*page, QStringLiteral("flow-footer-box"));
+        QVERIFY(feet.size() == 1);
+        const QTextDocument *footer = page->doc->story(dynamic_cast<const TextItem *>(feet[0])->storyId)->doc.get();
+        const QString text = footer->toPlainText();
+        QCOMPARE(text, QStringLiteral("Left side\tPage 3"));
+        FrameSpec fs;
+        fs.size = QSizeF(228, 200);   // (the text area: 6000 twentieths of a point less the margins)
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        fs.hyphenate = false;
+        StoryLayout layout;
+        layout.build(footer, {fs}, doc->flow().env);
+        const QVector<QRectF> shown = layout.rangeRects(0, int(text.indexOf(QLatin1String("Page"))), int(text.size()));
+        QVERIFY(!shown.isEmpty());
+        QVERIFY2(std::abs(shown.last().right() - 228) < 0.5, qPrintable(QStringLiteral("the footer's text ends at %1, the margin is at 228").arg(shown.last().right())));
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:ptab w:relativeTo=\"margin\" w:alignment=\"right\" w:leader=\"none\"/>"));
+    }
+
     // A paragraph that says w:suppressLineNumbers (itself, or by its style) has no numbers, and the lines of the others are counted without it.
     void aParagraphThatSuppressesLineNumbersIsNeitherNumberedNorCounted()
     {

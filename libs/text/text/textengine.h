@@ -451,6 +451,7 @@ public:
         int cutAt = 0;
         QVector<QPair<int, int>> fieldRanges;        // display ranges of fields
         QString leaders;                             // a leader character per tab stop (space = none)
+        QStringList alignTabs;                       // a word processor's absolute position tabs of the paragraph (tp::AlignTab of each), in order
         QVector<QPair<int, int>> noteRefs;           // a note reference's display position, and its index in notes()
         struct Box { int disp = 0; int docPos = 0; QString json; QSizeF size; QMarginsF pad; };
         QVector<Box> objects;                        // objects set in the text, by display position

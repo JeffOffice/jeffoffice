@@ -123,6 +123,16 @@ QString attributeOfTag(const QByteArray &xml, const QString &name)
     return re.match(QString::fromUtf8(xml.left(4000))).captured(1);
 }
 
+// Where an absolute position tab (w:ptab) takes the text after it, as tp::AlignTab says it: "alignment:relativeTo:leader" (right at the margin with no leader when the file says
+// nothing: the alignment and the leader are read, as the engine knows them, and nothing else is kept).
+QString alignTabOf(const QByteArray &ptab)
+{
+    const QString alignment = attributeOfTag(ptab, QStringLiteral("alignment")), relativeTo = attributeOfTag(ptab, QStringLiteral("relativeTo")), leader = attributeOfTag(ptab, QStringLiteral("leader"));
+    return (alignment == QLatin1String("center") || alignment == QLatin1String("left") ? alignment : QStringLiteral("right")) + QLatin1Char(':') +
+           (relativeTo == QLatin1String("indent") ? relativeTo : QStringLiteral("margin")) + QLatin1Char(':') +
+           (leader == QLatin1String("dot") || leader == QLatin1String("hyphen") || leader == QLatin1String("underscore") || leader == QLatin1String("middleDot") ? leader : QStringLiteral("none"));
+}
+
 // Whether a font a symbol names is a symbol font (its characters are pictures of its own).
 bool isSymbolFontName(const QString &font)
 {
@@ -641,6 +651,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("ruby") && !in.display.isEmpty()) {
                     // (Ruby text, as in the text: its base, and the ruby after it in brackets.)
                     put(in.display, formatOf(styleId, in.props));
+                } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("ptab")) {
+                    // (An absolute position tab: a tab that goes where it says, whatever the paragraph's stops.)
+                    QTextCharFormat tab = formatOf(styleId, in.props);
+                    tab.setProperty(tp::AlignTab, alignTabOf(in.raw));
+                    put(QStringLiteral("\t"), tab);
                 } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("instrText")) {
                     if (!fields.isEmpty() && !fields.last().inResult) fields.last().instruction += textOfXml(in.raw);
                 } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Open) {
@@ -729,7 +744,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     }
                 }
             }
-            if (in.kind == Inline::RunAtom && !deleted && drawnTag(in.tag) && drawnObjects(in, part, &af, lineWidth(), &p.content)) field = QStringLiteral("raw:");
+            if (in.kind == Inline::RunAtom && in.tag == QLatin1String("ptab") && !deleted) {
+                // (An absolute position tab shows as a tab that goes where it says; the file's element is kept as it is.)
+                field = QStringLiteral("raw:\t");
+                af.setProperty(tp::AlignTab, alignTabOf(in.raw));
+            } else if (in.kind == Inline::RunAtom && !deleted && drawnTag(in.tag) && drawnObjects(in, part, &af, lineWidth(), &p.content)) field = QStringLiteral("raw:");
             else if (in.tag == QLatin1String("footnoteReference") && m_noteBlocks.contains(QStringLiteral("fn") + in.key)) {
                 field = QStringLiteral("footnote:fn") + in.key;
                 if (markFollows(in.raw)) af.setProperty(tp::NoteMarkCustom, true);

@@ -268,6 +268,8 @@ QString LayoutEnv::key() const
 // 0.1% and positions within Qt's fixed-point range).
 namespace {
 constexpr double kFine = 8;
+// The most absolute position tabs of a paragraph that the engine goes to (a file can give a paragraph any number).
+constexpr int kMostAlignTabs = 64;
 // The most letters a word processor's lines are kept from breaking among by the rules after a question mark and between brackets (buildOnce): past it, a line may break there.
 constexpr int kMostUnbrokenStretch = 120;
 // The longest stretch they kept so, since the program began, for a test of their cost.
@@ -2969,6 +2971,13 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         opt.setTabs(tabs);
         opt.setTabStopDistance(std::max(1.0, env.defaultTab) * scale * kFine);
         B->leaders = bf.stringProperty(tp::TabLeaders);
+        // (A word processor's absolute position tabs: the tabs whose runs say where they go, as many as a paragraph may have.)
+        B->alignTabs.clear();
+        if (env.wordLines)
+            for (auto at = b.begin(); !at.atEnd() && B->alignTabs.size() < kMostAlignTabs; ++at) {
+                const QString spec = at.fragment().charFormat().stringProperty(tp::AlignTab);
+                for (int i = 0; !spec.isEmpty() && i < at.fragment().length() && B->alignTabs.size() < kMostAlignTabs; ++i) B->alignTabs << spec;
+            }
         if (bf.layoutDirection() == Qt::RightToLeft) opt.setTextDirection(Qt::RightToLeft);
         opt.setFlags(QTextOption::IncludeTrailingSpaces);
         B->tl->setTextOption(opt);
@@ -3253,7 +3262,42 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             const bool hangs = textIndent < -0.01;
             // (A word processor's tab stops are from the text area's edge whatever the line's indent, and the default stops go on past the last of the
             // paragraph's own: each line is laid out with a list of the paragraph's stops and the default ones after them.)
-            const QList<QTextOption::Tab> ownTabs = bf.tabPositions();
+            QList<QTextOption::Tab> ownTabs = bf.tabPositions();
+            // (A paragraph with absolute position tabs has the stops they make in place of its own, from the width of the text area: each of them goes to the place it names.)
+            const bool alignTabs = env.wordLines && !B->alignTabs.isEmpty();
+            auto alignedStops = [&](double areaW) {
+                struct Stop {
+                    double at;
+                    QTextOption::TabType type;
+                    QChar leader;
+                };
+                QVector<Stop> stops;
+                for (const QString &spec : B->alignTabs) {
+                    const QStringList parts = spec.split(QLatin1Char(':'));
+                    const bool indent = parts.value(1) == QLatin1String("indent");
+                    const double lo = indent ? leftM : 0.0, hi = indent ? std::max(lo, areaW - rightM) : areaW;
+                    const QString kind = parts.value(0), leader = parts.value(2);
+                    Stop st{hi, QTextOption::RightTab, QChar(QLatin1Char(' '))};
+                    if (kind == QLatin1String("center")) st = {(lo + hi) / 2, QTextOption::CenterTab, st.leader};
+                    else if (kind == QLatin1String("left")) st = {lo, QTextOption::LeftTab, st.leader};
+                    if (leader == QLatin1String("dot")) st.leader = QLatin1Char('.');
+                    else if (leader == QLatin1String("hyphen")) st.leader = QLatin1Char('-');
+                    else if (leader == QLatin1String("underscore")) st.leader = QLatin1Char('_');
+                    else if (leader == QLatin1String("middleDot")) st.leader = QChar(0x00B7);
+                    stops << st;
+                }
+                std::stable_sort(stops.begin(), stops.end(), [](const Stop &x, const Stop &y) { return x.at < y.at; });
+                QList<QTextOption::Tab> out;
+                QString leaders;
+                for (const Stop &st : stops) {
+                    if (!out.isEmpty() && std::abs(out.last().position - st.at / scale) < 0.01 && out.last().type == st.type) continue;
+                    out << QTextOption::Tab(st.at / scale, st.type);
+                    leaders += st.leader;
+                }
+                B->leaders = leaders;
+                return out;
+            };
+            if (alignTabs) ownTabs = alignedStops(nF ? colRect(0, 0).width() : 300.0);
             const bool wordTabs = env.wordLines && !ownTabs.isEmpty();
             // (Text aligned at a tab stop ends at the stop: a line with such a tab is as wide as its room when the stop is at the margin, which no pixel is to be kept back from.
             // Nor are the letters of a font whose widths are the original's (not a stand-in's own) measured so closely: they are a hair over or under what the original has.
@@ -3481,6 +3525,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         B->markerClamp = env.wordLines ? want - iv.x0 : 0.0;
                     }
                     if (gridTabs) {
+                        if (alignTabs) ownTabs = alignedStops(col.width());
                         if (moveFrom >= 0) iv.x0 = std::min(iv.x0 + movedBy(iv.x0 - col.left(), iv.x1 - col.left()), iv.x1);
                         B->tl->setLineTabs(stopsFor(iv.x0 - col.left(), iv.x1 - iv.x0, lineNo == 0));
                     }

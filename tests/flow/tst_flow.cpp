@@ -3287,6 +3287,41 @@ private Q_SLOTS:
         QVERIFY2(std::abs((last + 1) / scale - tab.right()) < 0.4, qPrintable(QStringLiteral("the line ends at %1, the stop at %2").arg((last + 1) / scale).arg(tab.right())));
     }
 
+    // A word processor's absolute position tab (a tab that says where it goes) takes the text after it to the margin's right edge, its middle, or its left, whatever stops the
+    // paragraph has: a footer style's stops at the middle and the right do not catch it (W179's "Azeem_HW13", then "Page 14 of 14" at the margin).
+    void anAbsolutePositionTabGoesToItsPlaceWhateverTheParagraphsStops()
+    {
+        auto laid = [&](const QString &spec, bool stops, QString *shown) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Tinos")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            if (stops) bf.setTabPositions({QTextOption::Tab(100, QTextOption::CenterTab), QTextOption::Tab(250, QTextOption::RightTab)});
+            c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("Left"), run);
+            QTextCharFormat tab = run;
+            tab.setProperty(tp::AlignTab, spec);
+            c.insertText(QStringLiteral("\t"), tab);
+            c.insertText(QStringLiteral("Page"), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(300, 100)}, env);
+            if (shown) *shown = doc.toPlainText();
+            return lay.rangeRects(0, 5, 9).first();
+        };
+        QString text;
+        const QRectF right = laid(QStringLiteral("right:margin:none"), true, &text);
+        QVERIFY2(std::abs(right.right() - 300) < 0.5, qPrintable(QStringLiteral("the text ends at %1, the margin is at 300").arg(right.right())));
+        const QRectF centered = laid(QStringLiteral("center:margin:none"), true, nullptr);
+        QVERIFY2(std::abs((centered.left() + centered.right()) / 2 - 150) < 0.5, qPrintable(QStringLiteral("the text is centered at %1, the middle is 150").arg((centered.left() + centered.right()) / 2)));
+        // Without stops of the paragraph's own, as with them.
+        const QRectF alone = laid(QStringLiteral("right:margin:none"), false, nullptr);
+        QVERIFY2(std::abs(alone.right() - 300) < 0.5, qPrintable(QString::number(alone.right())));
+    }
+
     // The leaders of JeffPub's and JeffDeck's text are as they were: an underscore goes in only where it fits between the grid's start and the stop less its gap (two fifths of
     // one), not where it is a hundredth of a point over that. The widths and places are the layout's own, measured: the stop is set 0.005 point short of where the first
     // underscore would fit.
