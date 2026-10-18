@@ -984,6 +984,8 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
             if (!ls.empty()) lines = std::max(lines, ls.back().bottom - offs[i] + c.margins.top() + c.margins.bottom() + pad);
         }
         piece.height = lines <= text + 0.01 ? std::min(need, text) : need;
+        // The last part of a row that was set to a height is that tall as well (the page it is on has room for it, or it is as tall as the room).
+        if (k > 0 && row.data->height > 0 && !row.data->exact) piece.height = std::max(piece.height, std::min(row.least, text));
         piece.next = 0;
     }
     return piece;
@@ -1084,11 +1086,15 @@ std::vector<TableFragment::Placed> TableFragment::place() const
             double drop = c.rec->cell.valign == CellAlign::Center ? free / 2 : c.rec->cell.valign == CellAlign::Bottom ? free : 0;
             double offset = 0;
             if (part) {
-                // (A row shown in part is set from the top: the cell's content begins where its part does.)
+                // (A row shown in part is set from the top: the cell's content begins where its part does. A cell whose content is all in the part is set in it as it is in a row.)
                 drop = 0;
                 const int at = items[size_t(n)].cell - layout->row(c.row).cell0;
                 if (at >= 0 && at < part->piece.offsets.size()) offset = std::min(part->piece.offsets[at], items[size_t(n)].content->height);
                 const double pad = at >= 0 && at < part->piece.pads.size() ? part->piece.pads[at] : 0.0;
+                if (offset <= 0 && at >= 0 && at < part->piece.ends.size() && part->piece.ends[at] >= 1e17) {
+                    const double partFree = std::max(0.0, h - c.margins.top() - c.margins.bottom() - pad - items[size_t(n)].content->height);
+                    drop = c.rec->cell.valign == CellAlign::Center ? partFree / 2 : c.rec->cell.valign == CellAlign::Bottom ? partFree : 0;
+                }
                 p.text = QPointF(p.rect.left() + c.margins.left(), p.rect.top() + c.margins.top() + pad + drop - offset);
                 if (offset > 0) p.from = p.text.y() + offset;   // (what the part before showed is not drawn in the margin above the lines of this one)
                 // (What is left for the next part is not drawn in the space under the last line that is in this one.)

@@ -12382,6 +12382,47 @@ private Q_SLOTS:
         QVERIFY2(std::abs(spaced - plain - 6) < 0.01, qPrintable(QStringLiteral("a row is %1 high with space between the cells, %2 without").arg(spaced).arg(plain)));
     }
 
+    // A row that goes over a page break is shown in parts: the part after the break is as tall as the height the row was set to, as the row is, and a cell with all of its text in the
+    // part before is set in it as a cell is in a row (one that says bottom has its text at the foot of the part).
+    void thePartsOfARowSetToAHeightAreThatTallAndHoldTheirShortCellsAsARowDoes()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.sections[0].paper = QSizeF(300, 300);
+        fd.sections[0].margins = QMarginsF(30, 30, 30, 30);
+        TestTable spec;
+        spec.rows = 1;
+        spec.cols = 2;
+        spec.columnWidth = 100;
+        spec.text = [](int, int c) {
+            if (c == 1) return QStringLiteral("n");
+            QStringList lines;
+            for (int i = 0; i < 20; ++i) lines << QStringLiteral("line %1").arg(i);
+            return lines.join(QLatin1Char('\n'));
+        };
+        spec.setRow = [](int, RowData &rd) { rd.height = 150; };
+        spec.setCell = [](int, int c, CellData &cd) {
+            if (c == 1) cd.valign = CellAlign::Bottom;
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        // The part on the first page: the short cell's line is in its lower half.
+        const auto first = pg.materialize(0);
+        QVERIFY(first && !first->tables.isEmpty());
+        const int shortBlock = fd.story()->lastBlock().position();
+        QRectF numberAt;
+        first->tables[0]->forLines([&](const StoryLayout::LineBrief &ln, const QRectF &rect) {
+            if (ln.block == shortBlock) numberAt = rect;
+        });
+        const QRectF whole = first->tables[0]->rect();
+        QVERIFY2(numberAt.isValid() && numberAt.top() > whole.top() + whole.height() * 0.6, qPrintable(QStringLiteral("the cell's line is at %1 in a part at %2").arg(audit::rectText(numberAt), audit::rectText(whole))));
+        // The part on the last page is as tall as the row was set to be.
+        const auto last = pg.materialize(pg.pageCount() - 1);
+        QVERIFY(last && !last->tables.isEmpty());
+        QVERIFY2(last->tables[0]->heightOf(0) > 150 - 0.01, qPrintable(QStringLiteral("the last part is %1 high").arg(last->tables[0]->heightOf(0))));
+    }
+
     // A row that cannot be split, citing N notes, costs N, not N squared: twice the notes take about twice as long.
     void aRowThatCannotBeSplitCitingManyNotesTakesTimeInStepWithThem()
     {
