@@ -11452,6 +11452,22 @@ private Q_SLOTS:
         QCOMPARE(again->story()->toPlainText(), before);
     }
 
+    // A long run of endnotes is all set (more than a header's or a footer's paragraphs are), and no more than the most the program sets of a hostile file.
+    void aLongRunOfEndnotesIsSetInFull()
+    {
+        QByteArray body = "<w:p><w:r><w:t>Text</w:t></w:r>", notes = "<w:endnotes " + QByteArray(kNs) + ">";
+        for (int i = 1; i <= 450; ++i) {
+            body += "<w:r><w:endnoteReference w:id=\"" + QByteArray::number(i) + "\"/></w:r>";
+            notes += "<w:endnote w:id=\"" + QByteArray::number(i) + "\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Note " + QByteArray::number(i) + "</w:t></w:r></w:p></w:endnote>";
+        }
+        body += "</w:p>";
+        notes += "</w:endnotes>";
+        auto doc = open(makeDocxWithParts(body, QByteArray(), {{QStringLiteral("/word/endnotes.xml"), notes}}));
+        QVERIFY(doc);
+        QCOMPARE(int(doc->story()->blockCount()), 451);
+        QVERIFY(doc->story()->toPlainText().contains(QLatin1String("Note 450")));
+    }
+
     // A paragraph that says w:suppressLineNumbers (itself, or by its style) has no numbers, and the lines of the others are counted without it.
     void aParagraphThatSuppressesLineNumbersIsNeitherNumberedNorCounted()
     {

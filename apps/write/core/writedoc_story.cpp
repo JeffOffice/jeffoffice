@@ -51,6 +51,8 @@ void WriteDoc::buildStory(const QVector<Block> &body)
 constexpr int kMostFieldNesting = 8;
 // The most paragraphs of a header or footer that are read (the rest is left out).
 constexpr int kMostHeaderParagraphs = 400;
+// The most paragraphs of the endnotes that are set after the text (the notes are as many as kMostEndnotes, a few paragraphs each).
+constexpr int kMostEndnoteParagraphs = 20000;
 // The most objects set at places that a file's pages have, and the most pictures (a file with more has the rest left out).
 constexpr int kMostObjects = 20000;
 constexpr int kMostImages = 2000;
@@ -385,6 +387,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         }
     }
     int paragraphsMade = 0, endnoteNumber = m_endnoteStart - 1, blockNumber = -1;
+    const int mostParagraphs = append ? kMostEndnoteParagraphs : kMostHeaderParagraphs;
     int styleRefsMade = 0;   // (each field that shows a paragraph style's text has a number in its code: two next to one another in one format would be one fragment of the text)
     // The format the endnote references of each paragraph are numbered in: its section's own (w:endnotePr of the section), else the settings'. Found as sectionText is, from
     // the sections as the file has them, for the story of the text alone.
@@ -412,7 +415,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     for (const Block &blk : body) {
         ++blockNumber;
         // (A header's or footer's tables are laid out as the body's are: the parts of one are the blocks that make the cells; other raw elements are left out.)
-        if (header && ((blk.isRaw && !tables.isStructural(blk)) || paragraphsMade >= kMostHeaderParagraphs || (!blk.isRaw && ++paragraphsMade > kMostHeaderParagraphs))) continue;
+        if (header && ((blk.isRaw && !tables.isStructural(blk)) || paragraphsMade >= mostParagraphs || (!blk.isRaw && ++paragraphsMade > mostParagraphs))) continue;
         if (tables.isStructural(blk) || blk.isRaw) lastFrameKey = 0;
         if (tables.isStructural(blk)) {
             // The parts of a table (its start, rows, and cells) become the records of the cells that its paragraphs are given. What was kept after a cell's last
