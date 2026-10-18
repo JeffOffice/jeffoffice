@@ -63,6 +63,7 @@ struct Paginator::Run {
     bool firstSpace = true;    // space before the first paragraph is kept (it isn't if the page starts without it, or it was as tall as the page)
     bool hasNext = false;
     bool keepsSpace = false;   // the first paragraph is the rest of one after a break, and has its space before
+    bool keepsIndent = false;  // ... and its first-line indent (the file may suppress the space and not the indent)
     QVector<StoryLayout::NotePlace> notes;   // the footnotes as the page's layout put them
     QVector<StoryLayout::Rule> rules;        // and the rules above them
     PageStart next;            // where the page after starts
@@ -249,7 +250,8 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
     // (The break that begins the page is the paragraph's first character: not any break in it, whatever its first character is.)
     const QTextBlock atStart = m_doc->story()->findBlock(st.pos);
     const bool breakFirst = atStart.isValid() && st.pos == atStart.position() + 1 && m_doc->story()->characterAt(atStart.position()) == kPageBreak;
-    run.keepsSpace = st.hard && st.skip > 0 && breakFirst;
+    run.keepsSpace = st.hard && st.skip > 0 && breakFirst && m_doc->spaceBeforeAfterBreak;
+    run.keepsIndent = st.hard && st.skip > 0 && breakFirst;
     const double colW = sec.columnWidth();
     const int number = numberOf(index);
     const QRectF body = furnitureOf(index, st, number).body;
@@ -262,6 +264,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         fs.hyphenate = m_doc->hyphenate;
         fs.hyphenZone = m_doc->hyphenZone;
         fs.noteRoomLimit = colH / 4;   // (the text area of this page: a note separator or a notice takes at most a quarter of it)
+        fs.outdentLimit = sec.pageSize().width();
         fs.ctx.doc = m_doc->fields;
         fs.ctx.pageNumber = number;
         fs.ctx.pageCount = std::max<int>(number, m_starts.size());
@@ -402,7 +405,8 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         span.end = stopBefore;
         span.firstBreakAfter = st.skip > 0 && !tail ? st.skip : -1;
         span.continued = tail;
-        span.spaceBeforeContinued = afterBreak && breakFirst;
+        span.spaceBeforeContinued = afterBreak && breakFirst && m_doc->spaceBeforeAfterBreak;
+        span.indentContinued = afterBreak && breakFirst;
         span.stopAtFrame = over;
         span.overLines = wanted + 2;
         span.restartNotesAt = notesRestartIn(st.pos, kWindow * 64);
@@ -1025,6 +1029,8 @@ void Paginator::forgetFloats()
 {
     m_floats = FloatIndex();
     m_frames.clear();
+    m_storyFrameAnchors.clear();
+    m_headerBottoms.clear();
     m_tableObjects.clear();
     m_anchorChars.clear();
     m_wallMemo.clear();
@@ -1354,7 +1360,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         if (b == lastBlock && ((run.kept < L.size() && L[run.kept].block == L[run.kept - 1].block) || sameBox(b, b.next()))) bf.setProperty(tp::BorderBottomOff, true);
         if (tail) {
             // (As the text after a break that begins the paragraph is its first line, with the indent.)
-            if (!(run.keepsSpace && main->characterAt(b.position()) == kPageBreak && b.length() > 1)) bf.setTextIndent(0);
+            if (!(run.keepsIndent && main->characterAt(b.position()) == kPageBreak && b.length() > 1)) bf.setTextIndent(0);
             bf.clearProperty(tp::DropCapLines);
             bf.clearProperty(tp::DropCapChars);
             bf.clearProperty(tp::StartInNextBox);
@@ -1442,7 +1448,11 @@ QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, con
                 turned->rect = r;
                 r = turned->bounds();
             }
-            out << Wrapped{id, a.pos, r, a.paragraph, a.frame};
+            // A table that leaves no room beside it: the paragraph it is set from goes below it, and has its space before there.
+            double below = 0;
+            if (a.table >= 0 && a.paragraph >= 0 && r.left() - o.gap.left() <= a.columnLeft + 0.5 && r.right() + o.gap.right() >= a.columnLeft + sec.columnWidth() - 0.5)
+                below = std::max(0.0, story->findBlock(a.paragraph).blockFormat().topMargin());
+            out << Wrapped{id, a.pos, r, a.paragraph, a.frame, below};
             if (out.size() >= kMostWrapped) return out;
         }
     return out;
@@ -1604,6 +1614,8 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
             QVector<QRectF> columns;
             for (const QRectF &col : run.cols) columns << QRectF(col.left(), furniture.body.top() + col.top(), col.width(), col.height());
             if (!anchors.isEmpty()) addObjects(d.get(), anchors, sec, out->number, run.wrapped, columns, out.get(), front);
+            // (The rows of the tables set at a place, which the objects made, hold pictures as the rows of the others do.)
+            if (!m_doc->images.isEmpty() && std::any_of(out->tables.begin(), out->tables.end(), [](const auto &t) { return t->floating; })) resolveCellImages(out.get(), d.get());
         }
     }
     // The notes the page's lines cite and those that go on from the page before.

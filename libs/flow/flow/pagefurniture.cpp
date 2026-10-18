@@ -64,6 +64,35 @@ double Paginator::storyHeight(const QTextDocument *story, double width, int numb
     return height;
 }
 
+double Paginator::headerObjectsBottom(const QTextDocument *story, const Section &sec, int number)
+{
+    if (m_doc->objects.isEmpty()) return 0;
+    const QRectF content = sec.content();
+    // (As the story's height is: once, where the story and the page's places are what they were.)
+    const QString places = QStringLiteral("%1 %2 %3 %4 %5 %6").arg(content.left()).arg(content.width()).arg(sec.headerDistance).arg(sec.pageSize().width()).arg(sec.pageSize().height()).arg(sec.margins.top());
+    const auto cacheKey = std::make_tuple(story, story->revision(), places);
+    if (const auto found = m_headerBottoms.find(cacheKey); found != m_headerBottoms.end()) return found->second;
+    storyHeight(story, content.width(), number);   // (laying the story out is what has its lines to hand)
+    const auto lines = m_storyLines.find(std::make_tuple(story, int(std::lround(content.width() * 100)), story->revision()));
+    if (lines == m_storyLines.end()) return 0;
+    QVector<AnchorLine> held;
+    for (const StoryLayout::LineInfo &l : lines->second) held << AnchorLine{l.docStart, l.docPos, l.docEnd, l.rect.translated(content.left(), sec.headerDistance), content.left(), 0.0, false, l.docEnd, l.above};
+    double bottom = 0;
+    int seen = 0;
+    for (const Anchor &a : anchorsIn(story, 0, story->characterCount(), held))
+        for (int id = a.object; id > 0 && id <= m_doc->objects.size() && seen < kMostObjects; id = objectAt(a, id).next, ++seen) {
+            const FloatingObject &o = objectAt(a, id);
+            using W = FloatingObject::Wrap;
+            if (!o.item || o.behind || (o.wrap != W::Square && o.wrap != W::Tight && o.wrap != W::TopBottom)) continue;
+            const QRectF r = placeOf(o, a, sec);
+            if (r.right() <= content.left() || r.left() >= content.right()) continue;   // (beside the text area: the text is not under it)
+            bottom = std::max(bottom, r.bottom() + o.gap.bottom());
+        }
+    if (m_headerBottoms.size() > 4096) m_headerBottoms.clear();
+    m_headerBottoms.emplace(cacheKey, bottom);
+    return bottom;
+}
+
 Paginator::Furniture Paginator::furnitureOf(int index, const PageStart &st, int number)
 {
     const Section &sec = m_doc->section(st.section);
@@ -79,6 +108,7 @@ Paginator::Furniture Paginator::furnitureOf(int index, const PageStart &st, int 
     if (f.header) {
         f.headerHeight = storyHeight(f.header, width, number, true);
         top = std::max(top, sec.headerDistance + f.headerHeight);
+        top = std::max(top, headerObjectsBottom(f.header, sec, number));
     }
     if (f.footer) {
         f.footerHeight = storyHeight(f.footer, width, number);
@@ -160,10 +190,12 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
             const auto lines = m_storyLines.find(std::make_tuple(story, int(std::lround(content.width() * 100)), story->revision()));
             if (lines != m_storyLines.end()) {
                 QVector<AnchorLine> held;
-                for (const StoryLayout::LineInfo &l : lines->second) held << AnchorLine{l.docStart, l.docPos, l.docEnd, l.rect.translated(content.left(), top), content.left(), 0.0, false, l.docEnd};
+                for (const StoryLayout::LineInfo &l : lines->second) held << AnchorLine{l.docStart, l.docPos, l.docEnd, l.rect.translated(content.left(), top), content.left(), 0.0, false, l.docEnd, l.above};
                 anchors << anchorsIn(story, 0, story->characterCount(), held);
             }
         }
+        // The frames of the story (a letterhead's logo or a page number set at a place on the page) are text boxes where they say.
+        anchors << storyFrameAnchors(story, content.left(), content.width(), top);
         d->stories.insert(s->id, s);
         auto t = std::make_shared<TextItem>();
         t->id = QStringLiteral("flow-%1-box-%2").arg(QLatin1String(name)).arg(d->pages[0]->id);
@@ -198,7 +230,7 @@ void Paginator::addNotes(Document *d, const QVector<StoryLayout::NotePlace> &pla
         const bool whole = pl.from <= 0 && total <= wanted;
         std::unique_ptr<QTextDocument> text;
         if (whole) {
-            text.reset(source->clone());
+            text = cloneStory(source);
         } else {
             const int from = std::clamp(pl.from, 0, std::max(0, total));
             text = std::make_unique<QTextDocument>();

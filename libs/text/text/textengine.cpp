@@ -2140,6 +2140,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     m_ruleGap = ruleGap;
     m_noticeGap = noticeGap;
     m_noteGap = noteGap;
+    // (The part of a note that goes on from the column before has the gap of the file's own separator for it, when the file has one: a paragraph with its text and rule.)
+    const double continuationH = env.wordLines && notesDoc ? limited(notesDoc->noteContinuationHeight()) : 0.0;
+    const double continuedGap = continuationH > 0 ? continuationH * scale + noticeGap : ruleGap;
+    m_continuedGap = continuedGap;
+    QHash<int, double> gapOf;   // the gap above the notes of a column that begins with the part of a note from the column before, by frame * 64 + column
     auto noteFrame = [&](const Note &n, double width, double height) {
         FrameSpec fs = frames.first();
         fs.size = QSizeF(width, height);
@@ -2265,7 +2270,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     auto settleCarry = [&]() {
         if (carry.isEmpty() || f >= nF) return;
         const QRectF col = colRect(f, c);
-        double used = ruleGap;
+        double used = continuedGap;
+        gapOf[rkey(f, c)] = continuedGap;
         while (!carry.isEmpty()) {
             Note &n = m_notes[carry.first()];
             measureNote(n, col.width(), n.frame != -2 && !n.layout);   // (the rest of a note that began on the page before need not be measured whole)
@@ -2274,7 +2280,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             const auto lay = cutNote(n, n.from, col.width(), std::max(0.0, room), &rest);
             double h = std::max(heightOf(n.numberFont), lay->usedHeight(0) + (rest < 0 ? lay->trailingSpace() : 0.0));
             if (rest < 0 && lay->usedHeight(0) <= room + 0.01) h = std::min(h, std::max(room, lay->usedHeight(0)));   // (the space after its last line is let go at the foot)
-            if (h > room + 0.01 && used > ruleGap) break;   // not even a line fits under the notes before it
+            if (h > room + 0.01 && used > continuedGap) break;   // not even a line fits under the notes before it
             if (n.frame == -1) {   // a note of the same line that hadn't begun
                 n.frame = f;
                 n.column = c;
@@ -2294,7 +2300,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             n.from = rest;
             break;
         }
-        if (used > ruleGap) reserve[rkey(f, c)] = used;
+        if (used > continuedGap) reserve[rkey(f, c)] = used;
+        else gapOf.remove(rkey(f, c));
     };
     auto advance = [&]() {
         rowActive = false;
@@ -2655,7 +2662,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         // (The text after a page break that begins a paragraph is set as the paragraph's first line, indent and all, as a word processor sets it.)
         // (A break that is hidden text, as what a tracked change deleted is, is none.)
         const bool startsWithBreak = env.wordLines && doc->characterAt(b.position()) == QChar(0x000C) && b.length() > 1 && !b.begin().fragment().charFormat().boolProperty(tp::HiddenText);
-        const bool firstAfterBreak = startsWithBreak && (!tail || m_span.spaceBeforeContinued);
+        const bool firstAfterBreak = startsWithBreak && (!tail || m_span.indentContinued);
         const double leftM = bf.leftMargin() * scale, rightM = bf.rightMargin() * scale, textIndent = tail && !firstAfterBreak ? 0.0 : bf.textIndent() * scale;
         // A slide's space given as a share of the line is of the line at the size the text was shrunk to; one given in points is not.
         double before = tail && !m_span.spaceBeforeContinued ? 0.0 : bf.topMargin() * scale, after = bf.bottomMargin() * scale;
@@ -2851,8 +2858,12 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 settleCarry();
             }
             if (startNext && f < nF) advance();
+            const double yBeforeSpace = y;
             if (f < nF && y > 0) y += env.wordLines && !env.wordSpaceSums ? std::max(0.0, before - prevAfter) : before;
             else if (f < nF && !env.slideLines && !(first && !m_span.spaceBeforeFirst)) y += env.wordLines && bf.boolProperty(tp::SpaceBeforeAuto) ? 0.0 : before;  // space before also applies at the top of a frame (not a slide's, nor a word processor's automatic)
+            B->spaceAbove = y - yBeforeSpace;
+            B->spaceFrame = f;
+            B->spaceColumn = c;
             if (f < nF) y += B->boxTopRoom;   // (the line above a paragraph's text)
             // A raised cap rises above the first line: room for it.
             if (f < nF && B->dropUp && !B->dropText.isEmpty())
@@ -3017,7 +3028,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // the text area or inside a picture's text wrap; a list's
                     // text comes one hang after the bullet, wherever that is.
                     if (hangs) {
-                        indL = std::max(0.0, leftM + textIndent);
+                        // (A word processor's goes out into the margin as far as its indents say.)
+                        indL = env.wordLines ? std::max(leftM + textIndent, -(frames[f].outdentLimit > 0 ? frames[f].outdentLimit : frames[f].size.width())) : std::max(0.0, leftM + textIndent);
                         if (!B->marker.isEmpty()) lead = env.wordNoNumberIndentStop ? leftM + textIndent + markerW - indL : -textIndent;   // (to the number's tab stop, or the indent)
                     }
                 }
@@ -3025,6 +3037,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 if (lineNo == breakAfter && f < nF && !columnEmpty) advance();   // widow control: carry this line over
 
                 bool placed = false;
+                double lineHeightAtWalls = -1;   // (what the objects are checked against for this line, in a column: once, not at each step down)
+                int measuredFrame = -1, measuredColumn = -1;
                 for (int guard = 0; guard < 2000 && !placed; ++guard) {
                     if (f >= nF) {
                         line.setLineWidth(nF ? std::max(10.0, colRect(nF - 1, 0).width() - indL - indR) : 300);
@@ -3046,7 +3060,19 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         // (A word processor's text that only touches an object's edge is clear of it, whichever way the last digits of two places that are the same round:
                         // the page that is drawn lays the text out again with the object's place made from another transform.)
                         const double touch = env.wordLines ? 0.001 : 0.0;
-                        QVector<Iv> ivs = freeIntervals(frames[f].obstacles, x0, x1, col.top() + y + touch, col.top() + y + estText - touch);
+                        // (A word processor's line that the objects are checked against is as tall as the text on it makes it, not as its paragraph's first run does: the
+                        // line a paragraph goes on with, in smaller type, is no taller than that.)
+                        double wrapH = estText;
+                        if (env.wordLines && !frames[f].obstacles.isEmpty()) {
+                            if (lineHeightAtWalls < 0 || measuredFrame != f || measuredColumn != c) {
+                                line.setLineWidth(std::max(1.0, x1 - x0));
+                                lineHeightAtWalls = std::min(estText, wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base, env, &B->disp, &markFont, markSize).total());
+                                measuredFrame = f;
+                                measuredColumn = c;
+                            }
+                            wrapH = lineHeightAtWalls;
+                        }
+                        QVector<Iv> ivs = freeIntervals(frames[f].obstacles, x0, x1, col.top() + y + touch, col.top() + y + wrapH - touch);
                         QVector<Iv> ok;
                         // (A word processor's empty paragraph is only its mark: it goes in any gap that is a few points wide, between two pictures a little apart as in a wider one.)
                         const double minW = env.wordLines && B->disp.trimmed().isEmpty() ? 2.0 : std::max(18.0, base.pointSizeF() / fontPointFactor() * 2.5);
@@ -3063,7 +3089,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                                 bool plain = true;
                                 for (const QPolygonF &poly : frames[f].obstacles) {
                                     const QRectF pb = poly.boundingRect();
-                                    if (pb.bottom() <= col.top() + y + touch || pb.top() >= col.top() + y + estText - touch || pb.right() <= x0 || pb.left() >= x1) continue;
+                                    if (pb.bottom() <= col.top() + y + touch || pb.top() >= col.top() + y + wrapH - touch || pb.right() <= x0 || pb.left() >= x1) continue;
                                     plain &= poly.size() <= 5 && std::all_of(poly.cbegin(), poly.cend(), [&](const QPointF &pt) {
                                         return (std::abs(pt.x() - pb.left()) < 1e-6 || std::abs(pt.x() - pb.right()) < 1e-6) && (std::abs(pt.y() - pb.top()) < 1e-6 || std::abs(pt.y() - pb.bottom()) < 1e-6);
                                     });
@@ -3087,6 +3113,30 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // (A line that is as wide as its room, to what rounding in the layout leaves, fits.)
                     const double room = std::max(1.0, iv.x1 - iv.x0);
                     line.setLineWidth(room + (env.wordLines ? 0.13 : 0.0));
+                    // A word processor's right tab stop that is past the paragraph's right indent and inside the column still takes the text after its tab (the page number of
+                    // an entry in a table of contents, whose stop is at the margin where the paragraph keeps its right indent inside it): the line is as wide as the stop. What is
+                    // before the last tab wraps at the line's room as any text does, and what is after it is that right-aligned text, ending at the stop: where the line is not
+                    // so, it is the line the room makes.
+                    if (env.wordLines && wordTabs && indR > 0.01) {
+                        double farthest = 0;
+                        for (const QTextOption::Tab &t : ownTabs) {
+                            const double at = t.position * scale;
+                            if (t.type == QTextOption::RightTab && at > col.width() - indR + 0.01 && at <= col.width() + 0.01) farthest = std::max(farthest, at);
+                        }
+                        if (farthest > 0) {
+                            const double stop = col.left() + farthest - iv.x0;   // (from the line's start)
+                            line.setLineWidth(stop + 0.13);
+                            const int s0 = line.textStart(), e0 = s0 + line.textLength();
+                            int lastTab = -1;
+                            for (int i = s0; i < e0; ++i)
+                                if (B->disp[i] == QLatin1Char('\t')) lastTab = i;
+                            int endText = e0;
+                            while (endText > lastTab + 1 && B->disp[endText - 1].isSpace()) --endText;
+                            const bool aligned = lastTab >= s0 && endText > lastTab + 1 && line.cursorToX(lastTab) - line.cursorToX(s0) <= room + 0.13 &&
+                                                 std::abs(line.cursorToX(endText) - line.cursorToX(s0) - stop) < 1.0;
+                            if (!aligned) line.setLineWidth(room + 0.13);
+                        }
+                    }
                     // A word processor lets a mark of punctuation at the end of a line hang past the margin (a period, a comma, a closing quote or bracket),
                     // so a word followed by one can be the last of a line it is a mark too wide for: the line is tried that much wider, and kept so if
                     // it is only that last mark that is past the margin.
@@ -3184,6 +3234,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // A word processor's line: the text's ascent above the baseline, the descent and leading below it, and what a multiple of single
                     // spacing adds under that (an exact height keeps the line's parts in proportion, an at-least height the baseline a descent above the
                     // line's bottom). The whole line must fit.
+                    double roomUnder = 0;   // (a word processor's multiple of single spacing puts its room under the text, which a line need not have left to be a column's)
                     if (env.wordLines) {
                         WordLine wl = wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base, env, &B->disp, &markFont, markSize);
                         // (A number or bullet counts by its ascent over the text's descent, without a leading of its own or any room below its baseline: it raises the
@@ -3194,7 +3245,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         }
                         const double ownSingle = wl.total();
                         switch (bf.lineHeightType()) {
-                        case QTextBlockFormat::ProportionalHeight: h = ownSingle * bf.lineHeight() / 100.0; break;
+                        case QTextBlockFormat::ProportionalHeight: h = ownSingle * bf.lineHeight() / 100.0; roomUnder = std::max(0.0, h - ownSingle); break;
                         case QTextBlockFormat::FixedHeight: h = bf.lineHeight() * scale; break;
                         case QTextBlockFormat::MinimumHeight: h = std::max(ownSingle, bf.lineHeight() * scale); break;
                         default: h = ownSingle; break;
@@ -3209,6 +3260,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         if (lineNo == 0 && line.textLength() == 1 && doc->characterAt(b.position() + B->docFromDisp(line.textStart())) == QChar(0x000C)) {
                             h = textH = 0;
                             baseDown = 0;
+                            roomUnder = 0;
                         }
                     }
                     const double rise = objUp > baseDown && bf.lineHeightType() != QTextBlockFormat::FixedHeight ? objUp - baseDown : 0;
@@ -3230,8 +3282,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         if (onlyObjects) {
                             h = textH = baseDown = objUp;
                             below = 0;
+                            roomUnder = 0;
                         }
                     }
+                    const double fitH = std::max(0.0, textH - roomUnder);   // (what of the line has to fit where the column ends)
                     // The first line of a column goes there however tall it
                     // is, unless notes going on from the column before fill it.
                     const bool firstInColumn = (y <= 0.001) && rowIdx == 0 && !reserve.contains(rkey(f, c));
@@ -3261,11 +3315,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     }
                     double bottom = col.bottom() - reserve.value(rkey(f, c)) - pending;
                     bool cutting = false;
-                    if (col.top() + y + textH > bottom + 0.01) {
-                        if (!lineNotes.isEmpty() && textH + ruleGap + notesH > col.height() + 0.01) {
+                    if (col.top() + y + fitH > bottom + 0.01) {
+                        if (!lineNotes.isEmpty() && (env.wordLines || fitH + ruleGap + notesH > col.height() + 0.01)) {
                             // Room here for the line and a line of the note?
-                            const double least = heightOf(m_notes[lineNotes.first()].numberFont) + noteGap;
-                            cutting = firstInColumn || col.top() + y + textH + (reserve.contains(rkey(f, c)) ? 0 : ruleGap) + least <= col.bottom() - reserve.value(rkey(f, c)) + 0.01;
+                            const double least = heightOf(m_notes[lineNotes.first()].numberFont) * (env.wordLines ? 3 : 1) + noteGap;   // (a word processor cuts a note that does not fit where three of its lines do)
+                            cutting = firstInColumn || col.top() + y + fitH + (reserve.contains(rkey(f, c)) ? 0 : ruleGap) + least <= col.bottom() - reserve.value(rkey(f, c)) + 0.01;
                         }
                         if (!cutting && !firstInColumn) {
                             advance();
@@ -3298,14 +3352,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     Cut cut;
                     if (cutting) {
                         const bool firstNotes = !reserve.contains(rkey(f, c));
-                        cut = cutNotes(lineNotes, col.bottom() - reserve.value(rkey(f, c)) - (col.top() + y) - textH - (firstNotes ? ruleGap : 0), col.width(), firstInColumn);
+                        cut = cutNotes(lineNotes, col.bottom() - reserve.value(rkey(f, c)) - (col.top() + y) - fitH - (firstNotes ? ruleGap : 0), col.width(), firstInColumn);
                         if (!cut.ok) {
                             advance();
                             continue;
                         }
                         bottom = col.bottom() - reserve.value(rkey(f, c)) - (firstNotes ? ruleGap : 0) - cut.used;
                     }
-                    if (col.top() + y + textH > bottom + 0.01 && !firstInColumn) {   // snapped past the bottom
+                    if (col.top() + y + fitH > bottom + 0.01 && !firstInColumn) {   // snapped past the bottom
                         advance();
                         continue;
                     }
@@ -3331,7 +3385,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             }
                         }
                     }
-                    B->lines << Line{f, c, QRectF(iv.x0, col.top() + y, iv.x1 - iv.x0, h), below, rowPushed, band};
+                    B->lines << Line{f, c, QRectF(iv.x0, col.top() + y, iv.x1 - iv.x0, h), below, rowPushed, band, lineNo == 0 && f == B->spaceFrame && c == B->spaceColumn ? B->spaceAbove : 0.0};
                     if (!lineNotes.isEmpty()) {
                         const bool firstNotes = !reserve.contains(rkey(f, c));
                         double &room = reserve[rkey(f, c)];
@@ -3397,7 +3451,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             return false;
         };
         const bool restOfDeleted = env.wordLines && B->disp.isEmpty() && !tail && !b.charFormat().boolProperty(tp::HiddenText) && b.previous().isValid() &&
-                                   b.previous().charFormat().boolProperty(tp::HiddenText) && showsText(b.previous());
+                                   b.previous().charFormat().boolProperty(tp::HiddenText) && !b.previous().blockFormat().boolProperty(tp::OutOfLayout) && showsText(b.previous());
         if (!(env.wordLines && B->disp.isEmpty() && (b.charFormat().boolProperty(tp::HiddenText) || apart) && !tail) && !restOfDeleted) placeLines(false, firstBreak);
         // Where each line landed: the first line in another column or box.
         auto splitAt = [&] {
@@ -3424,7 +3478,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             if (at > 0 && env.wordLines) {
                 const PtLine before(B->tl->lineAt(at - 1));
                 const int last = before.textStart() + before.textLength() - 1;
-                broken = last >= 0 && doc->characterAt(B->docStart + B->docFromDisp(last)) == QChar(0x000C);   // (the display shows a page break as a line break)
+                // (The display shows a page break as a line break. What stands between the last letter and the break and shows nothing, an anchored object, is the break's too.)
+                if (last >= 0)
+                    for (int k = B->docFromDisp(last), to = std::max(B->docFromDisp(last + 1), k + 1); k < to && !broken; ++k) broken = doc->characterAt(B->docStart + k) == QChar(0x000C);
             }
             const bool split = at > 0 && B->lines[at].frame >= 0 && !broken;
             if (split && bf.boolProperty(tp::KeepTogether)) redo(true, -1);                 // keep lines together
@@ -3568,7 +3624,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         if (fi < 0 || fi >= nF) continue;
         const QRectF col = colRect(fi, ci);
         const double areaTop = col.bottom() - it.value();
-        double ny = areaTop + ruleGap - noticeGap;
+        const double gap = gapOf.value(it.key(), ruleGap);
+        double ny = areaTop + gap - noticeGap;
         bool goesOn = false, first = true;
         for (Note &n : m_notes) {
             if (n.endnote) continue;
@@ -3586,7 +3643,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             }
         }
         // (A word processor's rule is two inches, and is set in its separator paragraph three fifths of the way down it.)
-        const double ruleY = areaTop + (ruleGap - noticeGap) * (env.wordLines ? 0.6 : 0.45), ruleW = goesOn ? col.width() : env.wordLines ? std::min(col.width(), 144.0) : col.width() / 3;
+        const double ruleY = areaTop + (gap - noticeGap) * (env.wordLines ? 0.6 : 0.45), ruleW = goesOn ? col.width() : env.wordLines ? std::min(col.width(), 144.0) : col.width() / 3;
         m_noteRules << Rule{fi, QLineF(col.left(), ruleY, col.left() + ruleW, ruleY)};
         m_used[fi] = std::max(m_used[fi], col.bottom());
     }
@@ -3706,6 +3763,7 @@ QVector<StoryLayout::LineInfo> StoryLayout::lineInfo(int frame) const
             LineInfo li;
             li.rect = B->lines[i].rect;
             li.below = B->lines[i].below;
+            li.above = B->lines[i].above;
             li.baseline = l.y() - frameY(B->lines[i].frame) + l.ascent();
             if (i == 0 && !B->marker.isEmpty()) li.markerX = B->markerX;
             li.text = B->disp.mid(l.textStart(), l.textLength());
@@ -3738,6 +3796,7 @@ QVector<StoryLayout::LineBrief> StoryLayout::lineBriefs() const
             b.rect = B->lines[i].rect;
             b.below = B->lines[i].below;
             b.pushed = B->lines[i].pushed;
+            b.above = B->lines[i].above;
             b.band = B->lines[i].band;
             b.cut = B->cut;
             if (B->cut && i + 1 == B->lines.size()) b.end = std::min(b.end, B->docStart + B->cutAt);

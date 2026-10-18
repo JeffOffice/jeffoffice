@@ -64,7 +64,7 @@ QVector<Paginator::Anchor> Paginator::anchorsIn(const QTextDocument *story, int 
             a.object = at->second;
             a.pos = at->first;
             a.paragraph = b.position();
-            a.paragraphTop = top.rect.top() - top.pushed;
+            a.paragraphTop = top.rect.top() - top.pushed - top.above;   // (the top of a paragraph is above the space before it, as far as that was kept)
             a.columnLeft = top.columnLeft;
             a.lineTop = top.rect.top() - top.pushed;
             a.x = top.rect.left();
@@ -85,7 +85,7 @@ QVector<Paginator::Anchor> Paginator::anchorsIn(const QTextDocument *story, int 
 
 Paginator::AnchorLine Paginator::anchorLineOf(const StoryLayout::LineBrief &ln, const QRectF &rect, double columnLeft) const
 {
-    AnchorLine l{ln.block, ln.pos, ln.end, rect, columnLeft, ln.pushed, ln.line == 0, ln.end};
+    AnchorLine l{ln.block, ln.pos, ln.end, rect, columnLeft, ln.pushed, ln.line == 0, ln.end, ln.above};
     if (!ln.cut && ln.line == ln.lines - 1) {
         const QTextBlock b = m_doc->story()->findBlock(ln.block);
         if (b.isValid()) l.reach = std::max(ln.end, b.position() + b.length() - 1);
@@ -176,6 +176,11 @@ QRectF Paginator::placeOf(const FloatingObject &o, const Anchor &a, const Sectio
         if (limit - size.height() >= top - 0.01) y = limit - size.height();
     }
     if (!fromArea && clamp) y = std::max(0.0, std::min(y, pageSize.height() - size.height()));
+    // A frame is on the page, whatever its offset says.
+    if (a.frame) {
+        x = std::max(0.0, std::min(x, pageSize.width() - size.width()));
+        y = std::max(0.0, std::min(y, pageSize.height() - size.height()));
+    }
     return QRectF(QPointF(x, y), size);
 }
 
@@ -186,7 +191,7 @@ QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, cons
         const FloatingObject &o = w.frame ? *w.frame : m_doc->objects[w.object - 1];
         // A text box that does not reach into the column's text pushes none of it (by more than a hair: boxes are set edge to edge).
         if (o.item->type() == ItemType::Text && !w.rect.adjusted(0.55, 0.55, -0.55, -0.55).intersects(column)) continue;
-        QRectF b = w.rect.adjusted(-o.gap.left(), -o.gap.top(), o.gap.right(), o.gap.bottom());
+        QRectF b = w.rect.adjusted(-o.gap.left(), -o.gap.top(), o.gap.right(), o.gap.bottom() + w.below);
         if (!b.intersects(column)) continue;
         if (o.wrap == FloatingObject::Wrap::TopBottom) {
             b.setLeft(-1e5);
@@ -277,7 +282,7 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
             item->wrap.mode = Wrap::None;
             if (wall) {
                 const Wrap::Side side = o.side == FloatingObject::Side::Left ? Wrap::LeftOnly : o.side == FloatingObject::Side::Right ? Wrap::RightOnly : o.side == FloatingObject::Side::Largest ? Wrap::Largest : Wrap::Both;
-                QRectF room = wall->rect.adjusted(-o.gap.left(), -o.gap.top(), o.gap.right(), o.gap.bottom());
+                QRectF room = wall->rect.adjusted(-o.gap.left(), -o.gap.top(), o.gap.right(), o.gap.bottom() + wall->below);
                 if (o.wrap == FloatingObject::Wrap::TopBottom) {
                     // No text beside it: the room round it reaches across the columns it is in (a square wall that wide, for the page layer's wall of this kind is as wide as the page),
                     // to the columns' edges and no further (a wall that reached 0.5 point into a column that the room touches only, as the paginator's does not, would make its
@@ -340,9 +345,9 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
 }
 
 
-std::unique_ptr<QTextDocument> Paginator::frameStory(int from, int to) const
+std::unique_ptr<QTextDocument> Paginator::frameStory(int from, int to, const QTextDocument *source) const
 {
-    const QTextDocument *main = m_doc->story();
+    const QTextDocument *main = source ? source : m_doc->story();
     auto sd = std::make_unique<QTextDocument>();
     sd->setDocumentMargin(0);
     sd->setDefaultFont(main->defaultFont());
@@ -391,17 +396,19 @@ std::unique_ptr<QTextDocument> Paginator::frameStory(int from, int to) const
     return sd;
 }
 
-std::shared_ptr<const FloatingObject> Paginator::frameObject(int key, int from, int to, double columnWidth)
+std::shared_ptr<const FloatingObject> Paginator::frameObject(int key, int from, int to, double columnWidth, const QTextDocument *source)
 {
     if (key <= 0 || key > m_doc->frames.size()) return nullptr;
     const int id = m_doc->frames[key - 1];
     if (id <= 0 || id > m_doc->objects.size()) return nullptr;
     const auto cacheKey = std::make_tuple(key, from, to, int(std::lround(columnWidth * 100)), uint(qHash(m_doc->env.key())));
-    const auto found = m_frames.find(cacheKey);
-    if (found != m_frames.end()) return found->second;
-    if (m_frames.size() > 400) m_frames.clear();
+    if (!source) {
+        const auto found = m_frames.find(cacheKey);
+        if (found != m_frames.end()) return found->second;
+        if (m_frames.size() > 400) m_frames.clear();
+    }
     FloatingObject o = m_doc->objects[id - 1];
-    o.story = frameStory(from, to);
+    o.story = frameStory(from, to, source);
     // As wide as it says; else as wide as the column, or (a frame that shrinks) as the longest line of its text where nothing is wrapped (to the column's width).
     double width = o.frameWidth > 0 ? o.frameWidth : std::max(1.0, columnWidth);
     if (o.frameWidth <= 0 && o.frameShrinks) {
@@ -432,7 +439,50 @@ std::shared_ptr<const FloatingObject> Paginator::frameObject(int key, int from, 
     box->hyphenate = false;
     o.item = box;
     o.insets = QMarginsF(0, 0, 0, 0);
+    if (source) return std::make_shared<const FloatingObject>(std::move(o));
     return m_frames.emplace(cacheKey, std::make_shared<const FloatingObject>(std::move(o))).first->second;
+}
+
+QVector<Paginator::Anchor> Paginator::storyFrameAnchors(const QTextDocument *story, double columnLeft, double columnWidth, double top)
+{
+    if (m_doc->frames.isEmpty()) return {};
+    // (Made once for a story as it is, at the places of the page it is set for: the pages that have the same header have the same boxes.)
+    const auto cacheKey = std::make_tuple(story, int(std::lround(columnWidth * 100)), story->revision(), int(std::lround(columnLeft * 100)), int(std::lround(top * 100)), uint(qHash(m_doc->env.key())));
+    if (const auto found = m_storyFrameAnchors.find(cacheKey); found != m_storyFrameAnchors.end()) return found->second;
+    QVector<Anchor> out;
+    for (QTextBlock b = story->begin(); b.isValid() && out.size() < kMostObjects;) {
+        const int key = b.blockFormat().intProperty(fp::Frame);
+        if (key <= 0) {
+            b = b.next();
+            continue;
+        }
+        QTextBlock e = b;
+        int paragraphs = 1;
+        while (e.next().isValid() && e.next().blockFormat().intProperty(fp::Frame) == key) {
+            e = e.next();
+            ++paragraphs;
+        }
+        // (A frame of more paragraphs than a frame has is text, as the story's maker left it: no box of it here.)
+        if (paragraphs <= kMostFrameParagraphs) {
+            Anchor a;
+            a.pos = b.position();
+            a.paragraph = b.position();
+            a.paragraphTop = a.lineTop = top;
+            a.columnLeft = columnLeft;
+            a.x = columnLeft;
+            a.frameFrom = b.position();
+            a.frameTo = e.position() + e.length();
+            a.frame = frameObject(key, a.frameFrom, a.frameTo, columnWidth, story);
+            if (a.frame) {
+                a.object = m_doc->frames[key - 1];
+                out << a;
+            }
+        }
+        b = e.next();
+    }
+    if (m_storyFrameAnchors.size() > 400) m_storyFrameAnchors.clear();
+    m_storyFrameAnchors.emplace(cacheKey, out);
+    return out;
 }
 
 // Whether a paragraph has no lines: its mark and all of its text are hidden.
@@ -595,6 +645,8 @@ QVector<Paginator::Anchor> Paginator::floatAnchors(const QVector<AnchorLine> &li
                 if (!a.frame) continue;
                 a.object = 1;   // (not the document's own: `frame` is the object)
                 a.table = r.span;
+                // A table is set from the top of its paragraph, above the space before it: what the first line is below it is not in the offset.
+                a.paragraphTop -= l.above;
             }
             out << a;
             if (r.key <= 0 || m_doc->objects.isEmpty()) continue;
@@ -650,10 +702,10 @@ bool Paginator::floatsTable(int span)
     if (!table || table->rowCount() < 1 || table->rowCount() > kMostFloatingRows) return false;
     double height = 0;
     for (int r = 0; r < table->rowCount(); ++r) height += table->rowHeight(r);
-    // (One that is taller than a page's text area, or wider than a page, is in the text: it could not be set at a place that the page has room for. The pages are those of the
-    // section the paragraph it is set from is in.)
+    // (One that is taller than a page's text area, or wider than a page, is in the text: it could not be set at a place that the page has room for. One wider than the text
+    // area is set over a margin, as it is in a word processor. The pages are those of the section the paragraph it is set from is in.)
     const Section &sec = m_doc->section(fx.refs[size_t(ref.value())].section);
-    return height <= sec.content().height() * 0.9 && table->width() <= sec.content().width();
+    return height <= sec.content().height() * 0.9 && table->width() <= sec.pageSize().width();
 }
 
 std::shared_ptr<const FloatingObject> Paginator::tableObject(int span, double columnWidth)

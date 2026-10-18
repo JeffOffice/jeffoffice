@@ -269,7 +269,7 @@ flow::FloatingObject frameObjectOf(const QHash<QString, QString> &at)
 
 // Fills `story` from the elements of a body or of a header or footer. A header's or footer's (`header`) fields for the page's number and the page
 // counts are live fields of the text engine, its tables and pictures are left out, and a paragraph in a frame is set aligned as the frame is.
-void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool header, const QString &part)
+void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool header, const QString &part, bool headerFooter)
 {
     const StyleSheet &sheet = m_wml.styles;
     const Theme *thm = theme();
@@ -294,7 +294,13 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         const QByteArray key = paraStyle.toUtf8() + '\x01' + runPropsXml(props) + (layer ? '\x02' + layer->key.toUtf8() : QByteArray());
         auto it = formats.constFind(key);
         if (it != formats.constEnd()) return it.value();
-        RunProps resolved = sheet.run(paraStyle, props.style, layer);
+        // (The link style a file puts on the runs of an entry of a table of contents, the paragraph style of which is toc 1 or the like, is not shown: an entry is as its style makes it.)
+        QString characterStyle = props.style;
+        if (!characterStyle.isEmpty()) {
+            const Style *paragraph = sheet.find(paraStyle), *character = sheet.find(characterStyle);
+            if (paragraph && character && paragraph->name.startsWith(QLatin1String("toc "), Qt::CaseInsensitive) && character->name.compare(QLatin1String("Hyperlink"), Qt::CaseInsensitive) == 0) characterStyle.clear();
+        }
+        RunProps resolved = sheet.run(paraStyle, characterStyle, layer);
         resolved.overlay(props);
         resolved.extra = props.extra;
         resolved.style = props.style;
@@ -396,9 +402,14 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         QTextBlockFormat bf = blockFormatOf(resolved);
         if (tables.key()) bf.setProperty(flow::fp::Cell, tables.key());
         // A paragraph of a frame in the body is set apart from the text: no lines and no room there, and a text box where the frame asks, at the paragraph after it.
-        if (!header && !tables.key()) {
-            QByteArray frameXml;
-            const QHash<QString, QString> frameAt = frameOfParagraph(sheet, styleId, direct.extra, &frameXml, &styleFrames);
+        // (A header's or a footer's frame is a text box too where it is set at a place on the page: its logo, its page number at the page's top. One set beside the text, by its
+        // alignment, is a paragraph of the story that takes no room, below.)
+        QByteArray frameXml;
+        QHash<QString, QString> frameAt;
+        if (headerFooter && !tables.key()) frameAt = frameOfParagraph(sheet, styleId, direct.extra, &frameXml, &styleFrames);
+        const bool headerFrame = headerFooter && !frameXml.isEmpty() && frameAt.value(QStringLiteral("vAnchor")) == QLatin1String("page");
+        if ((!header || headerFrame) && !tables.key()) {
+            if (!header) frameAt = frameOfParagraph(sheet, styleId, direct.extra, &frameXml, &styleFrames);
             if (frameXml.isEmpty()) {
                 lastFrameKey = 0;
                 lastFrameXml.clear();
@@ -457,7 +468,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         }
         QTextCharFormat markFormat = charFormatOf(mark, thm, direct.markRun ? &*direct.markRun : nullptr);
         // A paragraph whose mark a tracked change deleted is joined to the next as the text stands (and ends no section).
-        if (!header && !direct.section && markIsDeleted(direct)) markFormat = asDeleted(markFormat);
+        if (!direct.section && markIsDeleted(direct)) markFormat = asDeleted(markFormat);
 
         // A list: the item's counter, and the marker where Qt's own counting can't make it.
         QTextListFormat lf;
@@ -543,6 +554,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     QTextCharFormat mark = formatOf(styleId, in.props);
                     mark.setProperty(tp::Field, QStringLiteral("notemark"));
                     put(QString(QChar::ObjectReplacementCharacter), mark);
+                } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum")) {
+                    // (The page's number, as the run's own element has it.)
+                    QTextCharFormat number = formatOf(styleId, in.props);
+                    number.setProperty(tp::Field, liveFieldOf(QStringLiteral("PAGE")));
+                    put(QString(QChar::ObjectReplacementCharacter), number);
                 } else if (in.kind == Inline::RunAtom && drawnTag(in.tag)) {
                     QTextCharFormat object = formatOf(styleId, in.props);
                     if (drawnObjects(in, part, &object)) put(QString(QChar::ObjectReplacementCharacter), object);
@@ -577,7 +593,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             setStored(af, prop::Atom, packAtom(in));
             // A reference to a footnote of the file is the note's (the pages lay it out at their foot); one to an endnote shows its number, in the lower
             // case roman numerals a word processor's endnotes have.
-            QString field = QStringLiteral("raw:") + in.display;
+            QString field = in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum") ? liveFieldOf(QStringLiteral("PAGE")) : QStringLiteral("raw:") + in.display;
             // A symbol of a font that isn't a symbol font (and isn't on the machine) is its character, in that font's stand-in.
             if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym")) {
                 const QString font = attributeOfTag(in.raw, QStringLiteral("font")), lower = font.toLower();
@@ -620,6 +636,31 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     if (firstBlock) {
         // Nothing in the body: one empty paragraph in the default style.
         startBlock(styleBlockFormat(defaultStyle), styleCharFormat(defaultStyle));
+    }
+    if (headerFooter) {
+        // A frame of more paragraphs than a frame has is paragraphs of the text, as the body's is (the pages make a text box of each frame, once for the story).
+        for (QTextBlock b = story->begin(); b.isValid();) {
+            const int key = b.blockFormat().intProperty(flow::fp::Frame);
+            if (key <= 0) {
+                b = b.next();
+                continue;
+            }
+            QTextBlock e = b;
+            int paragraphs = 1;
+            while (e.next().isValid() && e.next().blockFormat().intProperty(flow::fp::Frame) == key) {
+                e = e.next();
+                ++paragraphs;
+            }
+            if (paragraphs > flow::kMostFrameParagraphs)
+                for (QTextBlock t = b;; t = t.next()) {
+                    QTextBlockFormat bf = t.blockFormat();
+                    bf.clearProperty(flow::fp::Frame);
+                    bf.clearProperty(tp::OutOfLayout);
+                    QTextCursor(t).setBlockFormat(bf);
+                    if (t == e) break;
+                }
+            b = e.next();
+        }
     }
     if (header) {
         c.endEditBlock();

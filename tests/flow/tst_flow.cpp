@@ -135,7 +135,10 @@ struct TestNotes : FieldSource {
     QString mergeValue(int, const QString &) const override { return QString(); }
     const QTextDocument *storyDoc(const QString &id) const override { auto it = docs.find(id); return it == docs.end() ? nullptr : it->second.get(); }
     QList<const QTextDocument *> storyDocs() const override { QList<const QTextDocument *> l; for (auto &p : docs) l << p.second.get(); return l; }
+    double noteSeparatorHeight() const override { return separator; }
+    double noteContinuationHeight() const override { return continuation; }
     std::map<QString, std::unique_ptr<QTextDocument>> docs;
+    double separator = 0, continuation = 0;   // (the heights of a file's separator, and of its own for the part of a note that goes on)
 };
 
 bool sameBrief(const StoryLayout::LineBrief &a, const StoryLayout::LineBrief &b, int frameShift = 0, int posShift = 0)
@@ -1943,6 +1946,87 @@ private Q_SLOTS:
         QCOMPARE(tight[1].frame, 0);
         QVERIFY(tight[1].rect.height() < 0.01);
         QCOMPARE(tight[2].frame, 1);
+    }
+
+    // A page break that ends a line is not made one of an orphan by what shows nothing between the line's last letter and it (an object that stands where it is anchored, and takes
+    // no room): the paragraph's first line stays at the foot of its page, and the rest goes on at the next.
+    void aBreakAfterWhatShowsNothingIsNotAnOrphan()
+    {
+        const double single = (1825 + 443 + 87) / 2048.0 * 12;
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setProperty(tp::WidowControl, true);
+        for (int i = 0; i < 4; ++i) {
+            if (i == 0) c.setBlockFormat(bf); else c.insertBlock(bf);
+            c.insertText(QStringLiteral("filler %1").arg(i), run);
+        }
+        c.insertBlock(bf);
+        c.insertText(QStringLiteral("before"), run);
+        QTextCharFormat nothing = run;
+        nothing.setProperty(tp::Field, QStringLiteral("raw:"));
+        c.insertText(QString(QChar::ObjectReplacementCharacter), nothing);
+        c.insertText(QString(flow::kPageBreak) + QStringLiteral("after the break"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(300, 5 * single + 3), plainFrame(300, 500)}, env);
+        const auto lines = lay.lineBriefs();
+        QCOMPARE(lines.size(), 6);
+        QCOMPARE(lines[4].frame, 0);   // the line with the break stays where it is
+        QCOMPARE(lines[5].frame, 1);
+    }
+
+    // A file whose options say to suppress the space before after a page break (the 2003 program's) has none at the top of the page a break at the start of a paragraph opens:
+    // its text begins at the page's top.
+    void aFileThatSuppressesTheSpaceBeforeAfterAPageBreakHasNone()
+    {
+        auto secondPageTop = [&](bool suppress) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.spaceBeforeAfterBreak = !suppress;
+            QTextCursor c(fd.story());
+            QTextBlockFormat bf;
+            bf.setTopMargin(20);
+            c.setBlockFormat(bf);
+            c.insertText(QString(flow::kPageBreak) + QStringLiteral("second words"));
+            c.insertBlock(bf);
+            c.insertText(QStringLiteral("a paragraph after"));
+            Paginator pg(&fd);
+            return pg.pageCount() == 2 ? pg.lines(1)[0].rect.top() : -1.0;
+        };
+        QVERIFY2(std::abs(secondPageTop(false) - 20) < 0.01, qPrintable(QString::number(secondPageTop(false))));
+        QVERIFY2(std::abs(secondPageTop(true)) < 0.01, qPrintable(QString::number(secondPageTop(true))));
+    }
+
+    // A file that suppresses the space before after a page break suppresses only that: the text after a break at the start of a paragraph is still the paragraph's first line, with
+    // its first-line indent, as the page the engine laid out and the one made for painting have it.
+    void aFileThatSuppressesTheSpaceBeforeAfterAPageBreakKeepsTheIndent()
+    {
+        for (bool suppress : {false, true}) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.spaceBeforeAfterBreak = !suppress;
+            QTextCursor c(fd.story());
+            QTextBlockFormat bf;
+            bf.setTopMargin(20);
+            bf.setTextIndent(36);
+            c.setBlockFormat(bf);
+            c.insertText(QString(flow::kPageBreak) + QStringLiteral("second words"));
+            c.insertBlock(bf);
+            c.insertText(QStringLiteral("a paragraph after"));
+            Paginator pg(&fd);
+            QCOMPARE(pg.pageCount(), 2);
+            const auto lines = pg.lines(1);
+            QVERIFY(!lines.isEmpty());
+            QVERIFY2(std::abs(lines[0].rect.left() - 36) < 0.01, qPrintable(QStringLiteral("suppressing %1: the first line begins at %2").arg(suppress).arg(lines[0].rect.left())));
+            QVERIFY2(std::abs(lines[0].rect.top() - (suppress ? 0 : 20)) < 0.01, qPrintable(QString::number(lines[0].rect.top())));
+            LayoutCache cache;
+            QVERIFY2(materializedDiffers(fd, pg, 1, cache).isEmpty(), qPrintable(materializedDiffers(fd, pg, 1, cache)));
+        }
     }
 
     // The text after a page break that begins a paragraph is its first line, at the top of the next page with the paragraph's space before; what goes on after a break that
@@ -6317,6 +6401,45 @@ private Q_SLOTS:
         QVERIFY2(moved >= 5, qPrintable(QString::number(moved)));   // (the text round the taller table has other lines)
     }
 
+    // A table set at a place may be wider than the text area (it goes over a margin, as a word processor's does): it still floats, at the place it says. Only one wider than the
+    // page is in the text.
+    void aFloatingTableWiderThanTheTextAreaStillFloats()
+    {
+        auto make = [](double columnWidth) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fillStory(fd->story(), 4, 33, {}, 3, 6);
+            TestTable spec;
+            spec.rows = 3;
+            spec.cols = 2;
+            spec.columnWidth = columnWidth;
+            spec.text = [](int r, int c) { return QStringLiteral("r%1c%2").arg(r).arg(c); };
+            spec.setTable = [](TableData &t) { TableData::Place p; p.across = TableData::Place::From::Margin; p.down = TableData::Place::From::Margin; p.y = -30; t.place = p; };
+            addTableAfter(*fd, 0, spec);
+            return fd;
+        };
+        auto floating = [&](double columnWidth, QRectF *content = nullptr) {
+            auto fd = make(columnWidth);
+            Paginator pg(fd.get());
+            const auto page = pg.materialize(0);
+            QVector<QRectF> out;
+            if (page)
+                for (const auto &t : page->tables)
+                    if (t->floating) out << t->rect();
+            if (content) *content = pg.page(0).content;
+            return out;
+        };
+        QCOMPARE(int(floating(100).size()), 1);   // (the setup floats a table that fits)
+        QRectF content;
+        const auto wide = floating(250, &content);   // (500 points across, 468 of text)
+        QVERIFY2(content.width() < 499 && content.width() > 400, qPrintable(QString::number(content.width())));
+        QCOMPARE(int(wide.size()), 1);
+        QVERIFY2(std::abs(wide[0].top() - (content.top() - 30)) < 0.01, qPrintable(audit::rectText(wide[0]) + QStringLiteral(" for the text area ") + audit::rectText(content)));
+        // It begins at the margin's edge and goes over the right margin: it is not cut to the text, nor moved in.
+        QVERIFY2(std::abs(wide[0].left() - content.left()) < 0.01 && wide[0].right() > content.right() + 20, qPrintable(audit::rectText(wide[0]) + QStringLiteral(" for the text area ") + audit::rectText(content)));
+        QCOMPARE(int(floating(320).size()), 0);   // (a table wider than the page is in the text)
+    }
+
     // A table set at a place a distance down from its paragraph that would go over the foot of the text area, but that has room between the paragraph's top and the foot, is
     // slid up to end at the foot: it is on the page of its paragraph, in the text area, and not above its paragraph.
     void aFloatingTableOffsetOverTheFootIsSlidUpToTheTextArea()
@@ -7103,10 +7226,12 @@ private Q_SLOTS:
         QCOMPARE(a, 0);
     }
 
-    // The objects in a header or footer are not walls for the body's text, which is another layer: the body's lines are those of a document without them.
-    void anObjectInTheHeaderIsNoWallForTheBody()
+    // The objects in a header or footer are not walls for the body's text, which is another layer: it has no wall of theirs. A shape of the header that the text goes round
+    // and that reaches down past the margin does hold the page's text below it, where it begins (a shape that is not wrapped, or behind the text, does not).
+    void aWrappedObjectInTheHeaderHoldsTheBodyBelowItAndIsNoWall()
     {
-        auto linesOf = [](FloatingObject::Wrap wrap) {
+        struct Result { double top = 0; int walls = -1; int lines = 0; QVector<StoryLayout::LineBrief> briefs; };
+        auto layout = [](FloatingObject::Wrap wrap) {
             FlowDocument fd;
             fd.env.wordLines = true;
             fillStory(fd.story(), 30, 35, {}, 20, 40);
@@ -7128,17 +7253,26 @@ private Q_SLOTS:
             fd.sections[0].header.odd = header;
             fd.sections[0].headerDistance = 30;
             Paginator pg(&fd);
-            QStringList out;
-            for (int k = 0; k < pg.pageCount(); ++k)
-                for (const auto &l : pg.lines(k)) out << QStringLiteral("%1-%2 %3").arg(l.pos).arg(l.end).arg(audit::rectText(l.rect));
-            const auto page = pg.materialize(0);
-            if (page) out << QStringLiteral("walls %1").arg(audit::wallsOf(*page).size());
-            return out;
+            Result r;
+            r.top = pg.page(0).content.top();
+            r.briefs = pg.lines(0);
+            r.lines = int(r.briefs.size());
+            if (const auto page = pg.materialize(0)) r.walls = int(audit::wallsOf(*page).size());
+            return r;
         };
-        QStringList a = linesOf(FloatingObject::Wrap::Square), b = linesOf(FloatingObject::Wrap::None);
-        QVERIFY(a.size() > 30);
-        QCOMPARE(a, b);   // (and no wall: the last entry says how many)
-        QCOMPARE(a.last(), QStringLiteral("walls 0"));
+        const Result round = layout(FloatingObject::Wrap::Square), free = layout(FloatingObject::Wrap::None);
+        QCOMPARE(free.walls, 0);
+        QCOMPARE(round.walls, 0);   // (no wall: the text is held below it, not set round it)
+        QVERIFY2(free.top < 100, qPrintable(QString::number(free.top)));
+        QVERIFY2(std::abs(round.top - 180) < 0.01, qPrintable(QString::number(round.top)));
+        QVERIFY(round.lines > 0 && round.lines < free.lines);
+        // The text is set as it is without the shape, line for line, and moved down by what the shape holds it: none of its lines goes round it.
+        for (int i = 0; i < round.lines; ++i) {
+            const auto &r = round.briefs[i], &f = free.briefs[i];
+            QVERIFY2(r.pos == f.pos && r.end == f.end && std::abs(r.rect.left() - f.rect.left()) < 0.01 && std::abs(r.rect.width() - f.rect.width()) < 0.01 &&
+                         std::abs(r.rect.top() - f.rect.top()) < 0.01 && std::abs(r.rect.height() - f.rect.height()) < 0.01,
+                     qPrintable(QStringLiteral("line %1: %2 and %3").arg(i).arg(audit::rectText(r.rect), audit::rectText(f.rect))));
+        }
     }
 
     // An object is anchored by a character of the story it is in: a header has the objects its own characters anchor, and the body's first paragraph (at the same place in its
@@ -7282,6 +7416,386 @@ private Q_SLOTS:
         StoryLayout lay2;
         lay2.build(story.get(), {free}, env);
         for (const auto &l : lay2.lineBriefs()) QCOMPARE(l.pushed, 0.0);
+    }
+
+    // An entry of a table of contents with its number ("1.1<tab>title<tab>12", a left stop for the title and a right one past the indent for the number): the number may go past the
+    // right indent to its stop, but the title wraps at the indent as any text does.
+    void theTitleOfAnEntryWithANumberPastTheRightIndentWrapsAtTheIndent()
+    {
+        auto layout = [&](const QString &title, double *titleRight, int *lines) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            bf.setRightMargin(36);
+            bf.setTabPositions({QTextOption::Tab(36, QTextOption::LeftTab), QTextOption::Tab(300, QTextOption::RightTab)});
+            c.setBlockFormat(bf);
+            const QString text = QStringLiteral("1.1\t") + title + QStringLiteral("\t12");
+            c.insertText(text, run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(300, 600)}, env);
+            *lines = int(lay.lineBriefs().size());
+            double right = 0;
+            for (const QRectF &r : lay.rangeRects(0, 4, 4 + int(title.size()))) right = std::max(right, r.right());
+            *titleRight = right;
+            return lay.lineBriefs();
+        };
+        // A title that, after the first tab, ends between the right indent (264) and the stop (300) when it is not wrapped.
+        QString title;
+        double wide = 0;
+        int lines = 0;
+        for (int words = 4; words < 30; ++words) {
+            title += QStringLiteral("word ");
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            c.insertText(title.trimmed(), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(2000, 100)}, env);
+            const auto rects = lay.rangeRects(0, 0, int(title.trimmed().size()));
+            wide = rects.isEmpty() ? 0 : rects.last().right();
+            if (36 + wide > 272) break;
+        }
+        QVERIFY2(36 + wide > 272 && 36 + wide < 296, qPrintable(QString::number(36 + wide)));
+        double right = 0;
+        layout(title.trimmed(), &right, &lines);
+        QVERIFY2(right <= 264.5, qPrintable(QStringLiteral("the title reaches %1, the right indent is at 264").arg(right)));
+        QVERIFY(lines >= 2);
+        // A title that fits keeps the number on its line, at the stop.
+        double shortRight = 0;
+        int shortLines = 0;
+        const auto briefs = layout(QStringLiteral("a short title"), &shortRight, &shortLines);
+        QCOMPARE(shortLines, 1);
+        QCOMPARE(briefs[0].end - briefs[0].pos, int(QStringLiteral("1.1\ta short title\t12").size()));
+    }
+
+    // A picture beside an entry is not the right indent: a stop between the picture and the indent takes no text over the picture.
+    void aRightStopBeyondAPictureTakesNoTextOverIt()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setRightMargin(36);
+        bf.setTabPositions({QTextOption::Tab(250, QTextOption::RightTab)});
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("Entry\t12"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        FrameSpec fs = plainFrame(300, 600);
+        const QRectF picture(200, 0, 100, 40);
+        fs.obstacles << QPolygonF(picture);
+        StoryLayout lay;
+        lay.build(&doc, {fs}, env);
+        const auto rects = lay.rangeRects(0, 0, int(QStringLiteral("Entry\t12").size()));
+        QVERIFY(!rects.isEmpty());
+        for (const QRectF &r : rects) QVERIFY2(!r.intersects(picture.adjusted(0.5, 0.5, -0.5, -0.5)), qPrintable(audit::rectText(r)));
+    }
+
+    // A word processor's hanging first line goes out into the margin as far as the indents say: a paragraph with no left indent that hangs by 36 points begins 36 left of the
+    // text area.
+    void aHangingFirstLineGoesOutIntoTheMargin()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setLeftMargin(0);
+        bf.setTextIndent(-36);
+        c.setBlockFormat(bf);
+        QString words;
+        for (int i = 0; i < 30; ++i) words += QStringLiteral("word ");
+        c.insertText(words, run);
+        StoryLayout lay;
+        LayoutEnv env;
+        env.wordLines = true;
+        FrameSpec fs = plainFrame(300, 600);
+        lay.build(&doc, {fs}, env);
+        const auto lines = lay.lineBriefs();
+        QVERIFY(lines.size() >= 3);
+        QVERIFY2(std::abs(lines[0].rect.left() + 36) < 0.01, qPrintable(QString::number(lines[0].rect.left())));
+        QVERIFY2(std::abs(lines[1].rect.left()) < 0.01, qPrintable(QString::number(lines[1].rect.left())));
+    }
+
+    // A hanging first line goes out into the margin as far as the indents say, and no farther than the page is wide: an indent a file states as a million points is not a line a million
+    // points from the text.
+    void aHangingFirstLineGoesOutNoFartherThanThePageIsWide()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        QTextCursor c(fd.story());
+        QTextBlockFormat bf;
+        bf.setLeftMargin(0);
+        bf.setTextIndent(-1e6);
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("words that hang a great way out into the margin and then are set on lines of the paragraph, which has several of them and goes on and on"));
+        Paginator pg(&fd);
+        const auto lines = pg.lines(0);
+        QVERIFY(!lines.isEmpty());
+        const double page = fd.section(0).pageSize().width();
+        QVERIFY2(lines[0].rect.left() >= -page - 0.01, qPrintable(QString::number(lines[0].rect.left())));
+        QVERIFY2(lines[0].rect.left() < -page + 1, "the line is as far out as the page is wide");
+        LayoutCache cache;
+        QVERIFY2(materializedDiffers(fd, pg, 0, cache).isEmpty(), qPrintable(materializedDiffers(fd, pg, 0, cache)));
+    }
+
+    // A right tab stop that is past the right indent and inside the column still takes the text after its tab (the page number of an entry in a table of contents): the line is
+    // not broken before the tab.
+    void aRightTabPastTheRightIndentKeepsItsText()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setRightMargin(36);
+        bf.setTabPositions({QTextOption::Tab(300, QTextOption::RightTab)});
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("An entry of the table\t12"), run);
+        StoryLayout lay;
+        LayoutEnv env;
+        env.wordLines = true;
+        lay.build(&doc, {plainFrame(300, 600)}, env);
+        const auto lines = lay.lineBriefs();
+        QCOMPARE(lines.size(), 1);   // (the number is on the line of its entry)
+        QCOMPARE(lines[0].end - lines[0].pos, int(doc.characterCount() - 1));
+    }
+
+    // A multiple of single spacing adds its room under the line's text: the last line of a column needs the text's height there, not the whole, and a line whose text fits
+    // is the column's though the room under it hangs past its bottom.
+    void aLineOfDoubleSpacingFitsByItsTextNotItsRoomUnderIt()
+    {
+        const double single = (1825 + 443 + 87) / 2048.0 * 12;
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setLineHeight(200, QTextBlockFormat::ProportionalHeight);
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("one") + QChar(QChar::LineSeparator) + QStringLiteral("two") + QChar(QChar::LineSeparator) + QStringLiteral("three"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        // Room for the first line whole and the second line's text, not its room under.
+        lay.build(&doc, {plainFrame(300, 2 * single + single + 0.5), plainFrame(300, 500)}, env);
+        const auto lines = lay.lineBriefs();
+        QCOMPARE(lines.size(), 3);
+        QCOMPARE(lines[0].frame, 0);
+        QCOMPARE(lines[1].frame, 0);   // (its text fits)
+        QCOMPARE(lines[2].frame, 1);
+        QVERIFY2(std::abs(lines[1].rect.height() - 2 * single) < 0.01, qPrintable(QString::number(lines[1].rect.height())));   // (it is still a line of double spacing)
+    }
+
+    // An empty paragraph after a frame whose paragraph mark is hidden keeps its line: the frame is set apart from the text, so the mark joins nothing (a tracked deletion's mark joins
+    // the paragraph that follows it into one: that is another paragraph, one of the text).
+    void anEmptyParagraphAfterAFramedParagraphWithAHiddenMarkKeepsItsLine()
+    {
+        auto lines = [](bool framed) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            if (framed) bf.setProperty(tp::OutOfLayout, true);
+            c.setBlockFormat(bf);
+            QTextCharFormat mark = run;
+            mark.setProperty(tp::HiddenText, true);
+            c.setBlockCharFormat(mark);
+            c.insertText(QStringLiteral("a paragraph"), run);
+            c.insertBlock(QTextBlockFormat(), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(300, 600)}, env);
+            return lay.lineBriefs();
+        };
+        const auto text = lines(false), frame = lines(true);
+        QCOMPARE(text.size(), 1);    // (the paragraph's text, and the empty one that is the rest of it: no line of its own)
+        QCOMPARE(frame.size(), 1);   // (the frame has no line in the text, and the empty paragraph after it has its own)
+        QVERIFY(frame[0].rect.height() > 10);
+        QCOMPARE(frame[0].pos, int(QString(QStringLiteral("a paragraph")).size()) + 1);
+    }
+
+    // A word processor's note that does not fit whole under its line at the foot of a page is cut there when room for three of its lines is left under the line (a page is
+    // not cut for want of that): the line stays and the rest of the note goes on at the next page. With less room the line goes on to the next page with its note whole.
+    void aNoteThatDoesNotFitIsCutWhenThreeOfItsLinesDo()
+    {
+        TestNotes notes;
+        auto note = std::make_unique<QTextDocument>();
+        {
+            QTextCursor nc(note.get());
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Times New Roman")});
+            cf.setFontPointSize(10);
+            nc.insertText(QStringLiteral("one") + QChar(QChar::LineSeparator) + QStringLiteral("two") + QChar(QChar::LineSeparator) + QStringLiteral("three") + QChar(QChar::LineSeparator) +
+                              QStringLiteral("four") + QChar(QChar::LineSeparator) + QStringLiteral("five") + QChar(QChar::LineSeparator) + QStringLiteral("six"),
+                          cf);
+        }
+        notes.docs[QStringLiteral("n1")] = std::move(note);
+        auto layout = [&](double height) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("one") + QChar(QChar::LineSeparator) + QStringLiteral("two") + QChar(QChar::LineSeparator) + QStringLiteral("three") + QChar(QChar::LineSeparator) + QStringLiteral("four"), run);
+            QTextCharFormat ref = run;
+            ref.setProperty(tp::Field, QStringLiteral("footnote:n1"));
+            c.insertText(QString(QChar::ObjectReplacementCharacter), ref);
+            LayoutEnv env;
+            env.wordLines = true;
+            auto frame = [&](double h) { FrameSpec fs = plainFrame(300, h); fs.ctx.doc = &notes; return fs; };
+            StoryLayout lay;
+            lay.build(&doc, {frame(height), frame(300)}, env);
+            const auto lines = lay.lineBriefs();
+            struct Out { int lastLineFrame = -9, noteFrame = -9; bool cut = false; };
+            Out out;
+            if (lines.size() == 4) out.lastLineFrame = lines.last().frame;
+            if (lay.notes().size() == 1) {
+                out.noteFrame = lay.notes().first().frame;
+                out.cut = !lay.notes().first().more.isEmpty();
+            }
+            return out;
+        };
+        const auto room = layout(100), tight = layout(93);
+        QCOMPARE(room.lastLineFrame, 0);
+        QCOMPARE(room.noteFrame, 0);
+        QVERIFY2(room.cut, "the note is cut at the foot of the page");
+        QCOMPARE(tight.lastLineFrame, 1);
+        QCOMPARE(tight.noteFrame, 1);
+        QVERIFY(!tight.cut);
+    }
+
+    // The part of a note that goes on from the page before is set under the file's own separator for it, when the file has one: the room above it is that paragraph's height (and the
+    // rule is drawn in it), not the separator's of the first part.
+    void theContinuedPartOfANoteHasTheRoomOfTheFilesOwnSeparatorForIt()
+    {
+        auto layout = [&](double continuation) {
+            TestNotes notes;
+            notes.separator = 12;
+            notes.continuation = continuation;
+            auto note = std::make_unique<QTextDocument>();
+            {
+                QTextCursor nc(note.get());
+                QTextCharFormat cf;
+                cf.setFontFamilies({QStringLiteral("Times New Roman")});
+                cf.setFontPointSize(10);
+                nc.insertText(QStringLiteral("one") + QChar(QChar::LineSeparator) + QStringLiteral("two") + QChar(QChar::LineSeparator) + QStringLiteral("three") + QChar(QChar::LineSeparator) +
+                                  QStringLiteral("four") + QChar(QChar::LineSeparator) + QStringLiteral("five") + QChar(QChar::LineSeparator) + QStringLiteral("six"),
+                              cf);
+            }
+            notes.docs[QStringLiteral("n1")] = std::move(note);
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            c.setBlockFormat(QTextBlockFormat());
+            c.insertText(QStringLiteral("one") + QChar(QChar::LineSeparator) + QStringLiteral("two") + QChar(QChar::LineSeparator) + QStringLiteral("three") + QChar(QChar::LineSeparator) + QStringLiteral("four"), run);
+            QTextCharFormat ref = run;
+            ref.setProperty(tp::Field, QStringLiteral("footnote:n1"));
+            c.insertText(QString(QChar::ObjectReplacementCharacter), ref);
+            LayoutEnv env;
+            env.wordLines = true;
+            auto frame = [&](double h) { FrameSpec fs = plainFrame(300, h); fs.ctx.doc = &notes; return fs; };
+            StoryLayout lay;
+            lay.build(&doc, {frame(108), frame(300)}, env);
+            struct Out { bool ok = false; double ruleToPart = 0, reserve = 0; } out;
+            if (lay.notes().size() != 1 || lay.notes().first().more.isEmpty()) return out;
+            const auto &part = lay.notes().first().more.first();
+            for (const auto &rule : lay.noteRules())
+                if (rule.frame == part.frame) {
+                    out.ok = true;
+                    out.ruleToPart = part.rect.top() - rule.line.y1();
+                    out.reserve = lay.noteReserves().value(part.frame);
+                }
+            return out;
+        };
+        const auto none = layout(0), own = layout(40);
+        QVERIFY2(none.ok && own.ok, "the note is cut, and its rest has a rule");
+        // The rule is three fifths down the paragraph above the part: two fifths of it above the part. Without the file's own, that paragraph is the separator's (twelve points).
+        QVERIFY2(std::abs(none.ruleToPart - 0.4 * 12) < 0.05, qPrintable(QString::number(none.ruleToPart)));
+        QVERIFY2(std::abs(own.ruleToPart - 0.4 * 40) < 0.05, qPrintable(QString::number(own.ruleToPart)));
+        QVERIFY2(std::abs((own.reserve - none.reserve) - (40 - 12)) < 0.05, qPrintable(QString::number(own.reserve - none.reserve)));
+    }
+
+    // A line beside an object that the engine moves down in steps (one that is not a rectangle) is measured once, not at each step: the cost of a paragraph of many runs does not grow
+    // with the height of the object.
+    void aLineBelowATallObjectCostsNothingForEachStep()
+    {
+        auto build = [&](bool plain) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat a, b;
+            a.setFontFamilies({QStringLiteral("Times New Roman")});
+            a.setFontPointSize(12);
+            b = a;
+            b.setFontItalic(true);
+            for (int i = 0; i < 6000; ++i) c.insertText(QStringLiteral("w "), i % 2 ? a : b);
+            FrameSpec fs = plainFrame(300, 100000);
+            // (A tall triangle across the column: a line meets it from the top to the foot, by steps of two points; a rectangle of the same height is gone round at once.)
+            fs.obstacles << (plain ? QPolygonF(QRectF(-1e5, 0, 2e5, 3000)) : QPolygonF({QPointF(-1e5, 0), QPointF(1e5, 0), QPointF(1e5, 3000), QPointF(-1e5, 3001)}));
+            LayoutEnv env;
+            env.wordLines = true;
+            return bestNanoseconds([&] { StoryLayout lay; lay.build(&doc, {fs}, env); }, 3);
+        };
+        build(true);   // (the first of anything is slow)
+        const double rectangle = std::max(build(true) / 1e6, 5.0), stepped = build(false) / 1e6;
+        QVERIFY2(stepped < 1.2 * rectangle + 15, qPrintable(QStringLiteral("a line below a tall object that is not a rectangle %1 ms, below a rectangle %2 ms").arg(stepped).arg(rectangle)));
+    }
+
+    // A line that a paragraph goes on with, in smaller type than its first run, is checked against the objects at the height its own text has, not the first run's: an object
+    // that begins below the line (and above where the big type's line would end) is no wall for it.
+    void aLineInSmallTypeIsNotMovedByAnObjectBelowIt()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat big, small;
+        big.setFontFamilies({QStringLiteral("Times New Roman")});
+        big.setFontPointSize(30);
+        small = big;
+        small.setFontPointSize(10);
+        c.insertText(QStringLiteral("Big "), big);
+        QString words;
+        for (int i = 0; i < 60; ++i) words += QStringLiteral("small ");
+        c.insertText(words, small);
+        auto lines = [&](double wallTop) {
+            FrameSpec fs = plainFrame(300, 600);
+            if (wallTop > 0) fs.obstacles << QPolygonF(QRectF(-1e5, wallTop, 2e5, 50));
+            StoryLayout lay;
+            LayoutEnv env;
+            env.wordLines = true;
+            lay.build(&doc, {fs}, env);
+            return lay.lineBriefs();
+        };
+        const auto free = lines(0);
+        QVERIFY(free.size() >= 3);
+        QVERIFY(free[1].rect.height() < 14);   // (the second line is in small type: a line of its own height)
+        // The object begins just below that line's own bottom.
+        const double wallTop = free[1].rect.bottom() - free[1].below + 1;
+        QVERIFY(wallTop < free[1].rect.top() + free[0].rect.height());   // (the big type's line would reach it)
+        const auto walled = lines(wallTop);
+        QCOMPARE(walled.size(), free.size());
+        QCOMPARE(walled[1].rect.top(), free[1].rect.top());
+        QCOMPARE(walled[1].pushed, 0.0);
     }
 
     // A section that is continuous and has the same page as the one before goes on the page the one before ends on; one with another page, or that is not
@@ -9226,6 +9740,46 @@ private Q_SLOTS:
         QVERIFY2(bad.isEmpty(), qPrintable(bad));
     }
 
+    // The rest of a note that goes on from the page before has the file's own separator for it also on a page that holds a table (the page's notes are stacked again there): the
+    // rule is drawn in that paragraph, two fifths of it above the rest, and the rest is where the text engine's room for it ends.
+    void theContinuedPartOfANoteHasItsOwnSeparatorOnAPageThatHoldsATable()
+    {
+        auto ruleToPart = [&](double continuation) {
+            TestNotes notes;
+            notes.separator = 12;
+            notes.continuation = continuation;
+            addNote(&notes, QStringLiteral("long"), 100, QStringLiteral("LONGNOTE"));
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.fields = &notes;
+            fd.sections[0].paper = QSizeF(300, 330);
+            fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+            fillStory(fd.story(), 3, 5, {}, 12, 18);
+            addReference(fd.story(), fd.story()->findBlockByNumber(2).position() + 3, QStringLiteral("long"));
+            TestTable spec;
+            spec.rows = 30;
+            spec.cols = 2;
+            spec.columnWidth = 100;
+            addTable(fd, spec);
+            Paginator pg(&fd);
+            // The first page that holds a table and the rest of the note.
+            for (int k = 1; k < pg.pageCount(); ++k) {
+                const auto page = pg.materialize(k);
+                const TextItem *part = page && !pg.page(k).start.carried.isEmpty() && !page->tables.isEmpty() ? boxHolding(*page, QStringLiteral("word")) : nullptr;
+                if (!part) continue;
+                double rule = -1;
+                for (const auto &item : page->doc->pages[0]->items)
+                    if (const auto *line = dynamic_cast<const LineItem *>(item.get()))
+                        if (line->p1.y() < part->rect.top() && line->p1.y() > rule) rule = line->p1.y();
+                return rule > 0 ? part->rect.top() - rule : -1000.0;
+            }
+            return -1000.0;
+        };
+        const double none = ruleToPart(0), own = ruleToPart(40);
+        QVERIFY2(std::abs(none - 0.4 * 12) < 0.05, qPrintable(QString::number(none)));
+        QVERIFY2(std::abs(own - 0.4 * 40) < 0.05, qPrintable(QString::number(own)));
+    }
+
     // The paragraph that stands for a table in the story takes no height of its own, set at a word processor's line heights or not: the table is where the text before it ends.
     void theStandInForATableDoesNotShiftItUnderWordLineHeights()
     {
@@ -9477,6 +10031,203 @@ private Q_SLOTS:
             QVERIFY2(note->rect.top() >= tablesBottom - 0.01, qPrintable(QStringLiteral("variant %1: the note begins at %2, the table ends at %3").arg(variant).arg(note->rect.top()).arg(tablesBottom)));
             Q_UNUSED(table);
         }
+    }
+
+    // A paragraph that goes below a table set at a place (the table is as wide as the column, so there is no room beside it) has the table's room, and its space before under it:
+    // the paragraph's first line is the space before below the table's foot, as it is below the paragraph before it.
+    void aParagraphBelowAFloatingTableKeepsItsSpaceBefore()
+    {
+        auto fd = std::make_unique<FlowDocument>();
+        fd->env.wordLines = true;
+        fillStory(fd->story(), 4, 17, [](int n, QTextBlockFormat &bf) { if (n == 1) bf.setTopMargin(20); }, 3, 6);
+        TestTable spec;
+        spec.rows = 2;
+        spec.cols = 2;
+        spec.columnWidth = 234;   // (the text area is 468 wide)
+        spec.setTable = [](TableData &t) { TableData::Place p; p.across = TableData::Place::From::Margin; p.y = 0; t.place = p; };
+        addTableAfter(*fd, 0, spec);
+        Paginator pg(fd.get());
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        QRectF table;
+        for (const auto &t : page->tables)
+            if (t->floating) table = t->rect();
+        QVERIFY(!table.isNull());
+        int paragraph = -1;
+        for (QTextBlock b = fd->story()->begin(); b.isValid(); b = b.next())
+            if (b.blockFormat().topMargin() == 20) paragraph = b.position();
+        double top = -1;
+        for (const auto &l : pg.lines(0))
+            if (l.line == 0 && l.block == paragraph) top = pg.page(0).content.top() + l.rect.top();
+        QVERIFY(top > 0);
+        QVERIFY2(std::abs(top - (table.bottom() + 20)) < 0.01, qPrintable(QStringLiteral("the paragraph's first line is at %1, the table ends at %2").arg(top).arg(table.bottom())));
+        // (The page layer, which sets the text again from the walls the page has, keeps that room under the table too.)
+        const auto walls = audit::wallsOf(*page);
+        QVERIFY(!walls.isEmpty());
+        QVERIFY2(std::abs(walls.first().rect.bottom() - (table.bottom() + 20)) < 0.01, qPrintable(audit::rectText(walls.first().rect)));
+    }
+
+    // An object set from its paragraph (down from the paragraph's top) is set from the paragraph's top above the space before it, as a table is: the room the paragraph leaves above
+    // its first line is not in the offset.
+    void anObjectSetFromAParagraphIsSetAboveTheSpaceBeforeIt()
+    {
+        auto fd = std::make_unique<FlowDocument>();
+        fd->env.wordLines = true;
+        // (The paragraph before it has 8 points after it, which the space before takes in: of the 20 before, 12 are above the first line.)
+        fillStory(fd->story(), 6, 41, [](int n, QTextBlockFormat &bf) { if (n == 2) bf.setTopMargin(20); if (n == 1) bf.setBottomMargin(8); }, 3, 6);
+        int paragraph = -1;
+        for (QTextBlock b = fd->story()->begin(); b.isValid(); b = b.next())
+            if (b.blockFormat().topMargin() == 20) paragraph = b.position();
+        QVERIFY(paragraph > 0);
+        // (Behind the text: no wall, so no line is moved.)
+        const int id = addWrapped(fd.get(), 40, 30, paragraph + 1, FloatingObject::Wrap::Square, 0, 5, QMarginsF(0, 0, 0, 0), FloatingObject::Side::Both, FloatingObject::Rel::Column, FloatingObject::Rel::Paragraph);
+        fd->objects[size_t(id) - 1].hAlign = FloatingObject::Align::End;
+        Paginator pg(fd.get());
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const Item *shape = objectOfSize(*page, 40, 30);
+        QVERIFY(shape);
+        double natural = -1;
+        for (const auto &l : pg.lines(0))
+            if (l.line == 0 && l.block == paragraph) natural = l.rect.top() - l.pushed;
+        QVERIFY(natural > 0);
+        const double top = pg.page(0).content.top() + natural - 12 + 5;
+        QVERIFY2(std::abs(shape->rect.top() - top) < 0.01, qPrintable(QStringLiteral("the object is at %1, the paragraph's top and the offset say %2").arg(shape->rect.top()).arg(top)));
+    }
+
+    // An object is set from the top of its paragraph above the space before it that was kept: at the top of a page that the paragraph opens by the text's own flow the space before
+    // is not kept, and the paragraph's top is where its first line is, not the room above it that is not there.
+    void anObjectSetFromAParagraphAtTheTopOfAPageIsSetFromItsFirstLine()
+    {
+        auto layout = [&](int firstOfSecondPage, QRectF *shape, double *firstLine, int *paragraph) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fillStory(fd->story(), 80, 23, [&](int n, QTextBlockFormat &bf) { if (n == firstOfSecondPage) bf.setTopMargin(20); }, 10, 30);
+            Paginator pg(fd.get());
+            if (pg.pageCount() < 2) return -1;
+            const int at = pg.page(1).start.pos;
+            QTextBlock b = fd->story()->findBlock(at);
+            int number = 0;
+            for (QTextBlock x = fd->story()->begin(); x.isValid() && x != b; x = x.next()) ++number;
+            if (!shape) return number;
+            const int id = addWrapped(fd.get(), 40, 30, b.position() + 1, FloatingObject::Wrap::Square, 0, 5, QMarginsF(0, 0, 0, 0), FloatingObject::Side::Both, FloatingObject::Rel::Column, FloatingObject::Rel::Paragraph);
+            fd->objects[size_t(id) - 1].hAlign = FloatingObject::Align::End;
+            Paginator laid(fd.get());
+            const auto page = laid.materialize(1);
+            if (!page || !laid.page(1).start.pos == at) return -2;
+            const Item *item = objectOfSize(*page, 40, 30);
+            if (!item) return -3;
+            *shape = item->rect;
+            *paragraph = number;
+            for (const auto &l : laid.lines(1))
+                if (l.block == b.position() && l.line == 0) *firstLine = laid.page(1).content.top() + l.rect.top() - l.pushed;
+            return number;
+        };
+        // (The paragraph that opens the second page is found first; it is the one given the space before then.)
+        const int opens = layout(-1, nullptr, nullptr, nullptr);
+        QVERIFY(opens > 2);
+        QRectF shape;
+        double firstLine = -1;
+        int paragraph = -1;
+        QVERIFY(layout(opens, &shape, &firstLine, &paragraph) >= 0);
+        QVERIFY(firstLine > 0);
+        QVERIFY2(std::abs(shape.top() - (firstLine + 5)) < 0.01, qPrintable(QStringLiteral("the object is at %1, the first line is at %2 and the offset 5").arg(shape.top()).arg(firstLine)));
+    }
+
+    // And in a paragraph that goes on from the page before: its top there is its first line there, which has no space before.
+    void anObjectInTheRestOfAParagraphIsSetFromItsFirstLineOnThePage()
+    {
+        auto fd = std::make_unique<FlowDocument>();
+        fd->env.wordLines = true;
+        QTextCursor c(fd->story());
+        QTextBlockFormat bf;
+        bf.setTopMargin(20);
+        c.setBlockFormat(bf);
+        c.insertText(QString(12000, QLatin1Char('x')).replace(QRegularExpression(QStringLiteral("(x{7})")), QStringLiteral("\\1 ")));
+        Paginator probe(fd.get());
+        QVERIFY(probe.pageCount() > 2);
+        const int where = probe.page(1).start.pos + 40;   // (on the second page, in the rest of the paragraph)
+        const int id = addWrapped(fd.get(), 40, 30, where, FloatingObject::Wrap::Square, 0, 5, QMarginsF(0, 0, 0, 0), FloatingObject::Side::Both, FloatingObject::Rel::Column, FloatingObject::Rel::Paragraph);
+        fd->objects[size_t(id) - 1].hAlign = FloatingObject::Align::End;
+        Paginator pg(fd.get());
+        const int pageOf = pg.pageOfPosition(where);
+        QCOMPARE(pageOf, 1);
+        const auto page = pg.materialize(pageOf);
+        QVERIFY(page);
+        const Item *item = objectOfSize(*page, 40, 30);
+        QVERIFY(item);
+        const auto lines = pg.lines(pageOf);
+        QVERIFY(!lines.isEmpty());
+        const double firstLine = pg.page(pageOf).content.top() + lines.first().rect.top() - lines.first().pushed;
+        QVERIFY2(std::abs(item->rect.top() - (firstLine + 5)) < 0.01, qPrintable(QStringLiteral("the object is at %1, the first line is at %2 and the offset 5").arg(item->rect.top()).arg(firstLine)));
+    }
+
+    // A table set at a place from its paragraph is set from the top of that paragraph, above the space before it: the offset does not count the room the paragraph leaves
+    // above its first line.
+    void aTableSetFromItsParagraphIsSetAboveTheSpaceBeforeIt()
+    {
+        auto fd = std::make_unique<FlowDocument>();
+        fd->env.wordLines = true;
+        fillStory(fd->story(), 4, 17, [](int n, QTextBlockFormat &bf) { if (n == 1) bf.setTopMargin(20); }, 3, 6);
+        TestTable spec;
+        spec.rows = 2;
+        spec.cols = 2;
+        spec.columnWidth = 60;
+        spec.setTable = [](TableData &t) { TableData::Place p; p.across = TableData::Place::From::Margin; p.acrossSpec = TableData::Place::Spec::End; p.y = 5; t.place = p; };
+        addTableAfter(*fd, 0, spec);
+        Paginator pg(fd.get());
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        QRectF table;
+        for (const auto &t : page->tables)
+            if (t->floating) table = t->rect();
+        QVERIFY(!table.isNull());
+        // (The first line of the paragraph after the table, where the text would set it: the table is beside the text, which has room.)
+        int paragraph = -1;
+        for (QTextBlock b = fd->story()->begin(); b.isValid(); b = b.next())
+            if (b.blockFormat().topMargin() == 20) paragraph = b.position();
+        double natural = -1;
+        for (const auto &l : pg.lines(0))
+            if (l.line == 0 && l.block == paragraph) natural = l.rect.top() - l.pushed;
+        QVERIFY(natural > 0);
+        const double top = pg.page(0).content.top() + natural - 20 + 5;
+        QVERIFY2(std::abs(table.top() - top) < 0.01, qPrintable(QStringLiteral("the table is at %1, the paragraph's top and the offset say %2").arg(table.top()).arg(top)));
+    }
+
+    // The same for a table set at a place: its pictures are in the page's document as well, and drawn with the table where it is.
+    void aPictureInACellOfAFloatingTableIsDrawnWithTheTable()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.images.push_back({tinyPng(6, 6, Qt::blue), QStringLiteral("png")});
+        fillStory(fd.story(), 3, 12, {}, 3, 6);
+        TestTable spec;
+        spec.rows = 2;
+        spec.cols = 2;
+        spec.columnWidth = 150;
+        spec.setTable = [](TableData &t) { TableData::Place p; p.across = TableData::Place::From::Margin; p.down = TableData::Place::From::Margin; p.y = 200; t.place = p; };
+        const TestTable table = addTableAfter(fd, 0, spec);
+        auto item = std::make_shared<PictureItem>();
+        item->rect = QRectF(0, 0, 30, 20);
+        item->imgRect = QRectF(0, 0, 30, 20);
+        item->imageId = QStringLiteral("flow-img:0");
+        item->wrap.left = item->wrap.right = item->wrap.top = item->wrap.bottom = 0;
+        const int at = table.rowStarts[1] + 2;
+        {
+            QTextCursor c(fd.story());
+            c.setPosition(at);
+            QTextCharFormat inl;
+            inl.setFontPointSize(11);
+            inl.setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(item->toJson()).toJson(QJsonDocument::Compact)));
+            c.insertText(QString(QChar(0xFFFC)), inl);
+        }
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page && page->tables.size() == 1 && page->tables[0]->floating);
+        QCOMPARE(page->cellImages.size(), 1);
+        const QString id = page->cellImages.value(QStringLiteral("flow-img:0"));
+        QVERIFY(!id.isEmpty() && !id.startsWith(QStringLiteral("flow-img:")));
+        QVERIFY(page->doc->images.contains(id));
     }
 
     // A picture set in the text of a cell is in the page's document and is drawn with the table, where its line is.

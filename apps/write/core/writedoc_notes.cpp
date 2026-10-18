@@ -33,6 +33,7 @@ void WriteDoc::loadNotes()
 {
     m_noteBlocks.clear();
     m_noteSeparator.clear();
+    m_noteContinuation.clear();
     m_noteNotice.clear();
     m_noteStories.clear();
     m_noteFields.reset();
@@ -50,6 +51,7 @@ void WriteDoc::loadNotes()
     for (NotePart &n : notes) {
         if (n.type.isEmpty() || n.type == QLatin1String("normal")) m_noteBlocks.insert(QStringLiteral("fn%1").arg(n.id), std::move(n.blocks));
         else if (n.type == QLatin1String("separator")) m_noteSeparator = std::move(n.blocks);
+        else if (n.type == QLatin1String("continuationSeparator")) m_noteContinuation = std::move(n.blocks);
         else if (n.type == QLatin1String("continuationNotice")) m_noteNotice = std::move(n.blocks);
     }
     if (m_noteBlocks.isEmpty()) return;
@@ -91,18 +93,20 @@ void WriteDoc::measureNoteSeparator()
     // (The file's own paragraph, with the space before it, to the bottom of its last line; the Normal style's line is the line and the space after it.)
     m_noteFields->separator = lines.isEmpty() ? 0.0 : (m_noteSeparator.isEmpty() ? lines.first().rect.height() : lines.last().rect.bottom()) + after;
     // The continuation notice: the height of its paragraphs, which a page keeps under its notes.
-    m_noteFields->notice = 0;
-    if (!m_noteNotice.isEmpty()) {
+    auto heightOf = [&](const QVector<office::wml::Block> &blocks) {
         QTextDocument n;
         n.setDocumentMargin(0);
         n.setDefaultFont(story()->defaultFont());
         n.setUndoRedoEnabled(false);
-        fillStory(&n, m_noteNotice, true, m_notePart);
-        StoryLayout noticeLayout;
-        noticeLayout.build(&n, {fs}, m_flow->env);
-        const auto noticeLines = noticeLayout.lineInfo(0);
-        m_noteFields->notice = noticeLines.isEmpty() ? 0.0 : noticeLines.last().rect.bottom() + n.lastBlock().blockFormat().bottomMargin();
-    }
+        fillStory(&n, blocks, true, m_notePart);
+        StoryLayout part;
+        part.build(&n, {fs}, m_flow->env);
+        const auto partLines = part.lineInfo(0);
+        return partLines.isEmpty() ? 0.0 : partLines.last().rect.bottom() + n.lastBlock().blockFormat().bottomMargin();
+    };
+    m_noteFields->notice = m_noteNotice.isEmpty() ? 0.0 : heightOf(m_noteNotice);
+    // The separator of a note that goes on from the page before: the file's own paragraph for it (its text and rule), which a page sets above that part of the note.
+    m_noteFields->continuation = m_noteContinuation.isEmpty() ? 0.0 : heightOf(m_noteContinuation);
 }
 
 const QTextDocument *WriteDoc::noteStory(const QString &id)

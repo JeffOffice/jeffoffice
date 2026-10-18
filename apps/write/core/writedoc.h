@@ -48,7 +48,8 @@ public:
     QList<const QTextDocument *> storyDocs() const override;
     double noteSeparatorHeight() const override { return separator; }
     double noteNoticeHeight() const override { return notice; }
-    double separator = 0, notice = 0;   // the heights of the file's separator and continuation notice (the pages cut them: FrameSpec::noteRoomLimit)
+    double noteContinuationHeight() const override { return continuation; }
+    double separator = 0, notice = 0, continuation = 0;   // the heights of the file's separator and continuation notice (the pages cut them: FrameSpec::noteRoomLimit)
 
 private:
     WriteDoc *m_doc;
@@ -163,7 +164,8 @@ private:
     WriteDoc();
     void build(office::wml::Document &&doc);
     void buildStory(const QVector<office::wml::Block> &body);
-    void fillStory(QTextDocument *story, const QVector<office::wml::Block> &body, bool header, const QString &part = QString());
+    // (`header`: the story of a part, not the body's; `headerFooter`: it is a header's or a footer's, whose frames set on the page are text boxes there.)
+    void fillStory(QTextDocument *story, const QVector<office::wml::Block> &body, bool header, const QString &part = QString(), bool headerFooter = false);
     // Makes of a drawn object of a run (its atom) what the pages show: a picture in the line is an inline object of the character, the rest are objects set at
     // places on the page of the paragraph they are anchored to. False when it makes none (nothing drawn, or a picture the file does not hold).
     bool drawnObjects(const office::wml::Inline &atom, const QString &part, QTextCharFormat *format);
@@ -198,6 +200,7 @@ private:
     QString m_notePart;                                               // the footnotes part's name
     QHash<QString, QVector<office::wml::Block>> m_noteBlocks;         // by "fn" and Id
     QVector<office::wml::Block> m_noteNotice;                         // the paragraphs of the file's continuation notice (none: no room is kept for one)
+    QVector<office::wml::Block> m_noteContinuation;                   // the paragraphs of the file's separator for the part of a note that goes on (none: the separator's)
     QVector<office::wml::Block> m_noteSeparator;                      // the paragraphs of the file's note separator (none: a line of the Normal style)
     // (The stories of the notes and of the headers and footers are made when a page needs them and are not edited: nothing in the program reaches them yet. When
     // something does, the paginator has to be told as it is of the story's edits (its measures of them are kept by the story's revision), and the pages that show

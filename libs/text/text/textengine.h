@@ -52,6 +52,8 @@ public:
     virtual double noteSeparatorHeight() const { return 0; }
     // The height of the file's continuation notice, which a word processor keeps room for at the foot of a page's notes.
     virtual double noteNoticeHeight() const { return 0; }
+    // The height of the file's own separator for the part of a note that goes on from the page before (0: the file has none, and the separator's height is kept).
+    virtual double noteContinuationHeight() const { return 0; }
 };
 
 // A stock font's average character width in ems (OS/2 xAvgCharWidth), the
@@ -105,6 +107,9 @@ struct FrameSpec {
     // The most that a word processor's note separator, and its notice under the notes, may each take on the page the frame is on (0: no limit): a file's own can be taller
     // than the page, and a quarter of the text area is what the paginator leaves them.
     double noteRoomLimit = 0;
+    // The farthest left of the text area that a word processor's hanging first line may begin (0: the frame's own width): the page's width, which no indent a file states is
+    // to take a line past.
+    double outdentLimit = 0;
     // The frame is a polygon (half of a cell divided by a diagonal), the obstacles being the rest of its box:
     // a word too long for the place beside them moves down to where it fits instead of being broken, and
     // middle or bottom aligned text goes as far down as it fits.
@@ -298,6 +303,8 @@ public:
         // The first paragraph is the rest of one (`continued`) and keeps its space before, as a word processor sets the text of a paragraph that a page
         // break inside it moves to the top of a page.
         bool spaceBeforeContinued = false;
+        // The same paragraph's first line has its first-line indent (the text after a break that begins it is its first line, whether or not the space before is kept).
+        bool indentContinued = false;
         // Footnotes and endnotes in the story before the first paragraph, whose numbers the notes in this stretch go on from
         // (the first paragraph's own, in the lines that went before, the layout counts itself).
         int footnotesBefore = 0, endnotesBefore = 0;
@@ -326,7 +333,7 @@ public:
     int lineEnd(int pos) const;
     QVector<QRectF> rangeRects(int frame, int from, int to) const;
     QVector<QRectF> lineRects(int frame) const;   // every line box in the frame, frame-local
-    struct LineInfo { QRectF rect; QString text; QString family; double pointSize = 0; int docStart = 0; double baseline = 0; double below = 0; double markerX = -1; int docPos = 0; int docEnd = 0; };   // docStart: where its paragraph starts; docPos, docEnd: the line's first character and just past its last, as document positions; below: line spacing under the text; markerX: where a list item's bullet is drawn (-1: none)
+    struct LineInfo { QRectF rect; QString text; QString family; double pointSize = 0; int docStart = 0; double baseline = 0; double below = 0; double markerX = -1; int docPos = 0; int docEnd = 0; double above = 0; };   // docStart: where its paragraph starts; docPos, docEnd: the line's first character and just past its last, as document positions; below: line spacing under the text; markerX: where a list item's bullet is drawn (-1: none)
     QVector<LineInfo> lineInfo(int frame) const;  // for diagnostics (jpubtool layout)
     // Every line of the story in order, with where it is and nothing else (no text or fonts): for a caller that
     // works on the lines of a stretch of text, as the paginator does.
@@ -340,6 +347,8 @@ public:
         double below = 0;         // the spacing under the text
         bool cut = false;         // its paragraph goes on past the lines laid out (Span::window); `lines` is how many there are, and the last is cut short
         double pushed = 0;        // how far down objects the text goes round moved the line, from where it would have been (0: they did not)
+        double above = 0;         // of a paragraph's first line, the space before the paragraph that is above it: what the engine applied, which is none at the top of a page the paragraph is
+                                  // the rest of, or one that begins with the paragraph unless the file keeps it, nor under a paragraph whose space after takes it
         double band = 0;          // how much of the line's height, from its top, was kept clear of those objects (its text's height: a line's spacing above and below is not)
     };
     QVector<LineBrief> lineBriefs() const;
@@ -355,13 +364,14 @@ public:
     const QVector<InlineObject> &inlineObjects() const { return m_inline; }
 
     struct Seg { int docPos, docLen, dispPos, dispLen; bool hidden = false; };   // hidden: text a word processor hides (it shows nothing, and belongs to the line that follows)
-    struct Line { int frame = -1; int column = 0; QRectF rect; double below = 0; double pushed = 0; double band = 0; };   // below: the spacing under the text; pushed: how far wrapping moved it down; band: the height of its text that wrapping kept clear of objects
+    struct Line { int frame = -1; int column = 0; QRectF rect; double below = 0; double pushed = 0; double band = 0; double above = 0; };   // below: the spacing under the text; pushed: how far wrapping moved it down; band: the height of its text that wrapping kept clear of objects; above: of a paragraph's first line, the space before the paragraph that is above it (none where the paragraph's was not kept)
     struct Block {
         int docStart = 0, docLen = 0;
         QString disp;
         QVector<Seg> map;
         std::unique_ptr<ParagraphLayout> tl;
         QVector<Line> lines;
+        double spaceAbove = 0; int spaceFrame = -1, spaceColumn = 0;   // the space before the paragraph that was applied, and where (a first line that goes to another column has none there)
         QString marker; QFont markerFont; QColor markerColor; double markerX = 0;
         double markerAdv = 0, markerGap = 0;         // the marker's advance, and the space after it
         double markerOff = 0;                        // where the text starts from the marker's origin, when the item doesn't hang
@@ -427,6 +437,7 @@ public:
     // first note (the rule is a part of it) and between notes. For a caller that sets notes of its own among them.
     QVector<double> noteReserves() const { return m_noteReserves; }
     double noteRuleGap() const { return m_ruleGap; }
+    double noteContinuedGap() const { return m_continuedGap; }   // the rule gap above a column's notes when the first is the rest of one from the column before
     double noteNoticeGap() const { return m_noticeGap; }   // the part of the rule gap that is kept under the last note (the notes are set that much higher)
     double noteGap() const { return m_noteGap; }
 
@@ -449,7 +460,7 @@ private:
     double m_trailingAfter = 0;
     double m_trailingRoom = 0;
     QVector<double> m_noteReserves;
-    double m_ruleGap = 0, m_noteGap = 0, m_noticeGap = 0;
+    double m_ruleGap = 0, m_noteGap = 0, m_noticeGap = 0, m_continuedGap = 0;
     QVector<Note> m_notes;
     QVector<Rule> m_noteRules;
     struct Heading { int frame = -1; QPointF baseline; QFont font; QColor color; };

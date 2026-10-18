@@ -3833,6 +3833,20 @@ private Q_SLOTS:
         QVERIFY2(large < 0.2 + small * 8, qPrintable(QStringLiteral("5000 fonts %1 s, 20000 fonts %2 s").arg(small).arg(large)));
     }
 
+    // A file whose compatibility options say to suppress the space before after a page break has none at the top of the page that a break at the start of a paragraph opens.
+    void theCompatibilityOptionThatSuppressesTheSpaceBeforeAfterABreakIsKept()
+    {
+        auto top = [&](const QByteArray &settings) {
+            const QByteArray body = "<w:p><w:pPr><w:spacing w:before=\"400\" w:after=\"0\"/></w:pPr><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>Second page</w:t></w:r></w:p>";
+            auto doc = open(makeDocxWithParts(body, QByteArray(), {}, settings));
+            if (!doc || doc->pager().pageCount() != 2) return -1.0;
+            return doc->pager().lines(1)[0].rect.top();
+        };
+        QVERIFY2(std::abs(top("<w:zoom w:percent=\"100\"/>") - 20) < 0.01, qPrintable(QString::number(top("<w:zoom w:percent=\"100\"/>"))));
+        const double suppressed = top("<w:compat><w:suppressSpBfAfterPgBrk/></w:compat>");
+        QVERIFY2(std::abs(suppressed) < 0.01, qPrintable(QString::number(suppressed)));
+    }
+
     // The notes' numbers restart in each section when the settings say so of the footnotes (not of the endnotes).
     void footnoteNumbersRestartWhenTheSettingsSaySo()
     {
@@ -4422,6 +4436,45 @@ private Q_SLOTS:
         QVERIFY2(with > plain + 1.5, qPrintable(QStringLiteral("the second paragraph begins at %1 points after a symbol, at %2 after a letter").arg(with).arg(plain)));
     }
 
+    // The entries of a table of contents are in the color of their text: the link style that a file puts on their runs shows in a link of the text, not in an entry of the
+    // table (where the page's own style, toc 1 and the like, is what shows).
+    void aLinkInATableOfContentsEntryIsNotMarkedAsALink()
+    {
+        const QByteArray styles = kStyles +
+            "<w:style w:type=\"paragraph\" w:styleId=\"TOC1\"><w:name w:val=\"toc 1\"/><w:basedOn w:val=\"Normal\"/></w:style>"
+            "<w:style w:type=\"character\" w:styleId=\"Hyperlink\"><w:name w:val=\"Hyperlink\"/><w:rPr><w:color w:val=\"0000FF\"/><w:u w:val=\"single\"/></w:rPr></w:style>";
+        auto marked = [&](const char *paragraphStyle) {
+            const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"" + QByteArray(paragraphStyle) + "\"/></w:pPr><w:hyperlink w:anchor=\"x\"><w:r><w:rPr><w:rStyle w:val=\"Hyperlink\"/></w:rPr><w:t>Entry</w:t></w:r></w:hyperlink></w:p>";
+            auto doc = open(makeDocx(body, styles));
+            if (!doc) return QStringLiteral("no document");
+            for (QTextBlock::iterator it = doc->story()->begin().begin(); !it.atEnd(); ++it)
+                if (it.fragment().text().startsWith(QLatin1String("Entry"))) {
+                    const QTextCharFormat f = it.fragment().charFormat();
+                    return QStringLiteral("%1 %2").arg(f.foreground().color().name()).arg(f.fontUnderline() ? QStringLiteral("underlined") : QStringLiteral("plain"));
+                }
+            return QStringLiteral("no entry");
+        };
+        QCOMPARE(marked("Normal"), QStringLiteral("#0000ff underlined"));   // (a link in the text is marked)
+        const QString entry = marked("TOC1");
+        QVERIFY2(!entry.contains(QLatin1String("underlined")) && !entry.contains(QLatin1String("#0000ff")), qPrintable(entry));
+    }
+
+    // The page number's own element (w:pgNum, in a run) is the page's number, in a paragraph that has other fields as well as in one that has none.
+    void aPageNumberRunIsTheNumberOfThePage()
+    {
+        auto pageFields = [&](const QByteArray &paragraph) {
+            auto doc = open(makeDocx("<w:p>" + paragraph + "</w:p>"));
+            int n = 0;
+            if (doc)
+                for (QTextBlock::iterator it = doc->story()->begin().begin(); !it.atEnd(); ++it)
+                    n += it.fragment().charFormat().stringProperty(tp::Field).startsWith(QLatin1String("page"));
+            return n;
+        };
+        QCOMPARE(pageFields("<w:r><w:t xml:space=\"preserve\">Page </w:t></w:r><w:r><w:pgNum/></w:r>"), 1);
+        QCOMPARE(pageFields("<w:r><w:t xml:space=\"preserve\">Page </w:t></w:r><w:r><w:pgNum/></w:r><w:r><w:t xml:space=\"preserve\"> of </w:t></w:r>"
+                            "<w:fldSimple w:instr=\" NUMPAGES \"><w:r><w:t>25</w:t></w:r></w:fldSimple>"), 1);
+    }
+
     // The round-trip check itself: a run that gains a property the file never had is a difference, though what it adds is one the program understands.
     void theRoundTripCheckSeesAGainedRunProperty()
     {
@@ -4941,6 +4994,138 @@ private Q_SLOTS:
         QVERIFY2(plain.first < framed.first - 5, qPrintable(QString::number(plain.first)));
     }
 
+    // A shape in the header that the text goes round (a banner in a text box, set from the page's top) holds the page's text off: the text begins under it, where the margin
+    // alone would let it go behind.
+    void aHeadersWrappedShapeMovesTheTextBelowIt()
+    {
+        auto top = [&](const QByteArray &wrap) {
+            const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                    "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+            const QByteArray shape = "<w:r><w:pict><v:shapetype id=\"t202\" coordsize=\"21600,21600\" o:spt=\"202\" path=\"m,l,21600r21600,l21600,xe\"/>"
+                                     "<v:shape id=\"s1\" type=\"#t202\" style=\"position:absolute;margin-left:-20pt;margin-top:0;width:400pt;height:150pt;mso-position-vertical-relative:page;z-index:1\" filled=\"f\" stroked=\"f\">"
+                                     "<v:textbox><w:txbxContent><w:p><w:r><w:t>banner</w:t></w:r></w:p></w:txbxContent></v:textbox>" + wrap + "</v:shape></w:pict></w:r>";
+            QByteArray header = headerPart("hdr", {shape});
+            header.replace("<w:hdr ", "<w:hdr xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\" ");
+            auto doc = open(makeDocxWithParts(paragraphs(10, 5), sect, {{QStringLiteral("/word/header1.xml"), header}}));
+            return doc ? doc->pager().page(0).content.top() : -1.0;
+        };
+        const double round = top("<w10:wrap type=\"square\"/>"), none = top("<w10:wrap type=\"none\"/>");
+        QVERIFY2(std::abs(none - 72) < 12, qPrintable(QString::number(none)));   // (not wrapped: the margin, and the header's own line)
+        QVERIFY2(round > 149.9 && round < 170, qPrintable(QString::number(round)));
+    }
+
+    // A paragraph of a header that is set at a place on the page (a frame whose position is from the page) is a text box there and takes no room in the header, whatever its
+    // offset says: one that asks to be above the page's top is at the top. The paragraph after it (its mark hidden does not join them) keeps its line.
+    void aHeaderFrameSetAtAPlaceOnThePageIsATextBoxThere()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"360\" w:right=\"1440\" w:bottom=\"720\" w:left=\"1440\" w:header=\"240\" w:footer=\"240\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray frame = "<w:pPr><w:framePr w:w=\"9360\" w:h=\"280\" w:hRule=\"exact\" w:wrap=\"notBeside\" w:vAnchor=\"page\" w:hAnchor=\"text\" w:y=\"-314\"/><w:jc w:val=\"right\"/><w:rPr><w:vanish/></w:rPr></w:pPr>"
+                                 "<w:r><w:t xml:space=\"preserve\">FRAMED page </w:t></w:r><w:fldSimple w:instr=\" PAGE \"><w:r><w:t>1</w:t></w:r></w:fldSimple>";
+        const QByteArray footFrame = "<w:pPr><w:framePr w:w=\"9360\" w:h=\"280\" w:hRule=\"exact\" w:wrap=\"notBeside\" w:vAnchor=\"page\" w:hAnchor=\"text\" w:y=\"10000\"/></w:pPr><w:r><w:t>FOOTFRAME</w:t></w:r>";
+        const QByteArray first = "<w:r><w:t>First line</w:t></w:r>", foot = "<w:r><w:t>Foot line</w:t></w:r>";
+        auto open1 = [&](const QList<QByteArray> &inHeader, const QList<QByteArray> &inFooter) {
+            return open(makeDocxWithParts(paragraphs(10, 5), sect, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", inHeader)}, {QStringLiteral("/word/footer1.xml"), headerPart("ftr", inFooter)}}));
+        };
+        // The text box of a frame whose text is `text`: not the header's or the footer's own box, which has the frame's paragraph in its story too, with no line of it.
+        auto boxOf = [&](const flow::MaterializedPage &page, const char *text) {
+            const TextItem *box = nullptr;
+            for (const auto &item : page.doc->pages[0]->items)
+                if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                    if (!t->id.contains(QLatin1String("header-box")) && !t->id.contains(QLatin1String("footer-box")) && page.doc->story(t->storyId) &&
+                        page.doc->story(t->storyId)->doc->toPlainText().contains(QLatin1String(text))) box = t;
+            return box;
+        };
+        auto doc = open1({first, frame, QByteArray()}, {foot, footFrame});
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        const TextItem *box = boxOf(*page, "FRAMED");
+        QVERIFY2(box, "the header's frame is a text box of its own");
+        QVERIFY2(box->rect.top() >= 0 && box->rect.top() < 1, qPrintable(QString::number(box->rect.top())));
+        // Its text has the page's number in it, live: the box is drawn on each page with that page's.
+        bool live = false;
+        for (QTextBlock b = page->doc->story(box->storyId)->doc->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) live |= it.fragment().charFormat().stringProperty(tp::Field).startsWith(QLatin1String("page"));
+        QVERIFY2(live, "the page number of the frame is a field");
+        // The footer's frame is a text box there, at the place the page's top is not.
+        const TextItem *foot_ = boxOf(*page, "FOOTFRAME");
+        QVERIFY2(foot_, "the footer's frame is a text box of its own");
+        QVERIFY2(std::abs(foot_->rect.top() - 500) < 0.01, qPrintable(QString::number(foot_->rect.top())));
+        // Neither takes room in its story, and the empty paragraph after the header's frame keeps its line.
+        const double with = doc->pager().page(0).content.top();
+        const double without = open1({first, QByteArray()}, {foot})->pager().page(0).content.top(), alone = open1({first}, {foot})->pager().page(0).content.top();
+        QVERIFY2(std::abs(with - without) < 0.1, qPrintable(QStringLiteral("%1 with the frame, %2 without").arg(with).arg(without)));
+        QVERIFY2(without > alone + 5, qPrintable(QStringLiteral("%1 with its empty paragraph, %2 without").arg(without).arg(alone)));
+        QVERIFY2(std::abs(doc->pager().page(0).content.bottom() - open1({first, QByteArray()}, {foot})->pager().page(0).content.bottom()) < 0.1, "the footer's frame takes no room under the text");
+    }
+
+    // A frame of a header of more paragraphs than a frame has is text, as the body's is: the header keeps its paragraphs and the page has no stack of boxes made of it.
+    void aHeaderFrameOfTooManyParagraphsIsTextOfTheHeader()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray frame = "<w:pPr><w:framePr w:w=\"9360\" w:h=\"280\" w:hRule=\"exact\" w:wrap=\"notBeside\" w:vAnchor=\"page\" w:hAnchor=\"text\" w:y=\"100\"/></w:pPr><w:r><w:t>FRAMEPARA</w:t></w:r>";
+        QList<QByteArray> paragraphsOfHeader;
+        for (int i = 0; i < 320; ++i) paragraphsOfHeader << frame;
+        auto doc = open(makeDocxWithParts(paragraphs(10, 5), sect, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", paragraphsOfHeader)}}));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        int boxes = 0;
+        for (const auto &item : page->doc->pages[0]->items)
+            if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                if (!t->id.contains(QLatin1String("header-box")) && page->doc->story(t->storyId) && page->doc->story(t->storyId)->doc->toPlainText().contains(QLatin1String("FRAMEPARA"))) ++boxes;
+        QVERIFY2(boxes == 0, qPrintable(QStringLiteral("%1 boxes were made of a frame of 320 paragraphs").arg(boxes)));
+        const Story *header = nullptr;
+        for (const auto &item : page->doc->pages[0]->items)
+            if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                if (t->id.contains(QLatin1String("header-box"))) header = page->doc->story(t->storyId);
+        QVERIFY(header);
+        QVERIFY2(!header->doc->begin().blockFormat().boolProperty(tp::OutOfLayout), "the header's first paragraph has lines");
+    }
+
+    // The boxes of a header's frames are made once for the header, not for each page: a page's cost does not grow with the paragraphs the header's frame has.
+    void theFramesOfAHeaderCostNothingForEachPage()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto pageTime = [&](int paragraphsInFrame) {
+            const QByteArray frame = "<w:pPr><w:framePr w:w=\"9360\" w:h=\"280\" w:hRule=\"exact\" w:wrap=\"notBeside\" w:vAnchor=\"page\" w:hAnchor=\"text\" w:y=\"100\"/></w:pPr><w:r><w:t>Framed paragraph of the header, with some words</w:t></w:r>";
+            QList<QByteArray> inHeader;
+            for (int i = 0; i < paragraphsInFrame; ++i) inHeader << frame;
+            auto doc = open(makeDocxWithParts(paragraphs(40, 40), sect, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", inHeader)}}));
+            if (!doc || doc->pager().pageCount() < 2) return 1e9;
+            doc->pager().materialize(1);   // (the first of anything is slow)
+            return bestNanoseconds([&] { doc->pager().materialize(1); }, 5) / 1e6;
+        };
+        const double small = std::max(pageTime(1), 2.0), big = pageTime(250);
+        QVERIFY2(big < 3 * small + 10, qPrintable(QStringLiteral("a page with a header frame of 250 paragraphs %1 ms, of one %2 ms").arg(big).arg(small)));
+    }
+
+    // How far down the page a header's wrapped shapes reach is worked out once for the header, not for each page: the pages' cost does not grow with the header's paragraphs.
+    void theWrappedShapesOfAHeaderCostNothingForEachPage()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto pageTime = [&](int setApart) {
+            const QByteArray shape = "<w:r><w:pict><v:shapetype id=\"t202\" coordsize=\"21600,21600\" o:spt=\"202\" path=\"m,l,21600r21600,l21600,xe\"/>"
+                                     "<v:shape id=\"s1\" type=\"#t202\" style=\"position:absolute;margin-left:-20pt;margin-top:0;width:100pt;height:20pt;mso-position-vertical-relative:page;z-index:1\" filled=\"f\" stroked=\"f\">"
+                                     "<v:textbox><w:txbxContent><w:p><w:r><w:t>banner</w:t></w:r></w:p></w:txbxContent></v:textbox><w10:wrap type=\"square\"/></v:shape></w:pict></w:r>";
+            QList<QByteArray> inHeader{shape};
+            for (int i = 0; i < setApart; ++i) inHeader << "<w:pPr><w:framePr w:w=\"2000\" w:xAlign=\"right\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:y=\"1\"/></w:pPr><w:r><w:t>side</w:t></w:r>";
+            QByteArray header = headerPart("hdr", inHeader);
+            header.replace("<w:hdr ", "<w:hdr xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\" ");
+            auto doc = open(makeDocxWithParts(paragraphs(600, 40), sect, {{QStringLiteral("/word/header1.xml"), header}}));
+            if (!doc || doc->pager().pageCount() < 50) return 1e9;
+            // (All the pages laid out again: each has the header's places worked out for it, or all have them once.)
+            return bestNanoseconds([&] { doc->pager().pageCount(); }, 3, [&] { doc->pager().invalidate(); }) / 1e6;
+        };
+        pageTime(1);   // (the first of anything is slow)
+        const double small = std::max(pageTime(1), 5.0), big = pageTime(4000);
+        QVERIFY2(big < 1.4 * small + 20, qPrintable(QStringLiteral("all the pages of a document with a header of 4000 paragraphs %1 ms, of one %2 ms").arg(big).arg(small)));
+    }
+
     // A paragraph of a footer whose mark a tracked change deleted, with nothing else of its own, is gone from the footer as the text stands: it takes no room
     // (twenty points a line here), so the text keeps what the footer leaves it.
     void aDeletedParagraphOfAFooterTakesNoRoom()
@@ -4998,6 +5183,73 @@ private Q_SLOTS:
         // A page without the reference has no note.
         const auto next = doc->pager().materialize(1);
         QVERIFY(!boxWithText(*next, QStringLiteral("FOOTNOTE TWO")));
+    }
+
+    // The empty paragraphs at the start of a note whose marks a tracked change deleted are gone from it as the text stands: the note is as tall as its own text, and the
+    // notes' room at the foot of the page is that.
+    void deletedEmptyParagraphsAtTheStartOfANoteTakeNoRoom()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto noteTop = [&](int deleted) {
+            const QByteArray gone = "<w:p><w:pPr><w:rPr><w:del w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"/></w:rPr></w:pPr></w:p>";
+            QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:id=\"2\">";
+            for (int i = 0; i < deleted; ++i) notes += gone;
+            notes += "<w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> FOOTNOTE TWO says something.</w:t></w:r></w:p></w:footnote></w:footnotes>";
+            const QByteArray body = "<w:p><w:r><w:t>First paragraph with a note</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>" + paragraphs(40, 40);
+            auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}}));
+            if (!doc) return -1.0;
+            const auto page = doc->pager().materialize(0);
+            // Where the last line of the page's text ends: the notes' room is what is left under it.
+            const auto lines = doc->pager().lines(0);
+            return page && !lines.isEmpty() ? lines.last().rect.bottom() : -1.0;
+        };
+        const double plain = noteTop(0), withGone = noteTop(3);
+        QVERIFY(plain > 0 && withGone > 0);
+        QVERIFY2(std::abs(plain - withGone) < 0.01, qPrintable(QStringLiteral("the text ends at %1 with the note alone, at %2 after three deleted paragraphs").arg(plain).arg(withGone)));
+    }
+
+    // The note as the page draws it has the first paragraph's mark as the file has it: one that a tracked change deleted shows nothing, and the note is drawn from its text
+    // (the copy of a story loses the mark of an empty first paragraph unless it is put back).
+    void aNoteOnThePageKeepsTheDeletedMarkOfItsFirstParagraph()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:id=\"2\">"
+                           "<w:p><w:pPr><w:rPr><w:del w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"/></w:rPr></w:pPr></w:p>"
+                           "<w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> FOOTNOTE TWO says something.</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        const QByteArray body = "<w:p><w:r><w:t>First paragraph with a note</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>" + paragraphs(40, 40);
+        auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}}));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        const TextItem *note = boxWithText(*page, QStringLiteral("FOOTNOTE TWO"));
+        QVERIFY(note);
+        const auto story = page->doc->story(note->storyId);
+        QVERIFY(story && story->doc);
+        QVERIFY2(story->doc->begin().charFormat().boolProperty(tp::HiddenText), "the first paragraph's mark is hidden in the note as drawn");
+    }
+
+    // Only a header's or a footer's frame set on the page is a text box there: a paragraph of a note that has the same frame properties is a paragraph of the note, which keeps its
+    // text (a note has no page to set a box on).
+    void aFramePropertyOfAPageInANoteChangesNothing()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto noteBox = [&](bool framed) -> std::pair<bool, double> {
+            const QByteArray first = framed ? "<w:p><w:pPr><w:framePr w:w=\"9360\" w:h=\"280\" w:hRule=\"exact\" w:wrap=\"notBeside\" w:vAnchor=\"page\" w:hAnchor=\"text\" w:y=\"100\"/></w:pPr><w:r><w:t>FRAMED NOTE</w:t></w:r></w:p>"
+                                            : "<w:p><w:r><w:t>FRAMED NOTE</w:t></w:r></w:p>";
+            const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:id=\"2\">" + first +
+                                     "<w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> the rest of the note.</w:t></w:r></w:p></w:footnote></w:footnotes>";
+            const QByteArray body = "<w:p><w:r><w:t>First paragraph with a note</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>" + paragraphs(40, 40);
+            auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}}));
+            if (!doc) return {false, 0};
+            const auto page = doc->pager().materialize(0);
+            const TextItem *box = page ? boxWithText(*page, QStringLiteral("FRAMED NOTE")) : nullptr;
+            const Story *story = box ? page->doc->story(box->storyId) : nullptr;
+            return {story && !story->doc->begin().blockFormat().boolProperty(tp::OutOfLayout), box ? box->rect.height() : 0.0};
+        };
+        const auto framed = noteBox(true), plain = noteBox(false);
+        QVERIFY2(plain.first && plain.second > 0, "the plain note is on the page");
+        QVERIFY2(framed.first, "the note's first paragraph is set apart from its text");
+        QVERIFY2(std::abs(framed.second - plain.second) < 0.01, qPrintable(QStringLiteral("a note of %1 points, %2 without the frame properties").arg(framed.second).arg(plain.second)));
     }
 
     // The room between the text and the notes is the file's own separator paragraph, not a line of the Normal style: a separator thirty points tall
@@ -5165,6 +5417,38 @@ private Q_SLOTS:
         const TextItem *note = boxWithText(*page, QStringLiteral("THE note"));
         QVERIFY(note);
         QVERIFY2(std::abs(note->rect.bottom() - (792 - 72 - 20)) < 0.1, qPrintable(QString::number(note->rect.bottom())));
+    }
+
+    // A file that has its own separator for the part of a note that goes on from the page before (the continuation separator) has that part set under it: the rule is drawn in
+    // that paragraph (thirty points here), two fifths of it above the part, and not in the separator's.
+    void theContinuedPartOfANoteIsSetUnderTheFilesContinuationSeparator()
+    {
+        const QByteArray exact = "<w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/></w:pPr>";
+        QByteArray inNote;
+        for (int i = 0; i < 14; ++i) {
+            inNote += "<w:p>" + exact + "<w:r><w:t xml:space=\"preserve\">";
+            for (int w = 0; w < 70; ++w) inNote += i == 13 && w == 0 ? "TAILWORD " : "word ";
+            inNote += "</w:t></w:r></w:p>";
+        }
+        const QByteArray body = "<w:p>" + exact + "<w:r><w:t>Cited</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>" + paragraphs(40, 40);
+        auto ruleToPart = [&](const QByteArray &continuation) {
+            const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"exact\"/></w:pPr><w:r><w:separator/></w:r></w:p></w:footnote>" +
+                                     continuation + "<w:footnote w:id=\"2\"><w:p>" + exact + "<w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> First </w:t></w:r></w:p>" + inNote + "</w:footnote></w:footnotes>";
+            const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+            auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}}));
+            if (!doc || doc->pager().pageCount() < 2) return -1000.0;
+            const auto page = doc->pager().materialize(1);
+            const TextItem *part = page ? boxWithText(*page, QStringLiteral("TAILWORD")) : nullptr;
+            double rule = -1;
+            if (page)
+                for (const auto &item : page->doc->pages[0]->items)
+                    if (const auto *line = dynamic_cast<const LineItem *>(item.get())) rule = line->p1.y();
+            return part && rule > 0 ? part->rect.top() - rule : -1000.0;
+        };
+        // (The separator is twelve points, the rule 0.6 of it down; the part is under the rest of it, 0.4.)
+        QVERIFY2(std::abs(ruleToPart("") - 0.4 * 12) < 0.05, qPrintable(QString::number(ruleToPart(""))));
+        const QByteArray own = "<w:footnote w:type=\"continuationSeparator\" w:id=\"0\"><w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"600\" w:lineRule=\"exact\"/></w:pPr><w:r><w:t>(Continued)</w:t></w:r><w:r><w:separator/></w:r></w:p></w:footnote>";
+        QVERIFY2(std::abs(ruleToPart(own) - 0.4 * 30) < 0.05, qPrintable(QString::number(ruleToPart(own))));
     }
 
     // The rule above the notes is drawn at three fifths of the separator paragraph (a line of thirty points here), not the fifth of it that a short rule's place was taken from.

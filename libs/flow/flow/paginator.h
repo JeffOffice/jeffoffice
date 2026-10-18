@@ -222,8 +222,9 @@ private:
         QRectF rect;
         int paragraph = -1;   // the position of the paragraph its anchor is in (not a part of what makes two walls the same)
         std::shared_ptr<const FloatingObject> frame;   // (a frame's object: the paginator's cache of them may let it go while the page is laid out, so the page holds it)
+        double below = 0;     // room kept clear under it that is not the object's: the space before of the paragraph that goes below a table as wide as the column
         bool operator==(const Wrapped &o) const {
-            return object == o.object && at == o.at && std::abs(rect.left() - o.rect.left()) < 0.01 && std::abs(rect.top() - o.rect.top()) < 0.01 && std::abs(rect.width() - o.rect.width()) < 0.01 && std::abs(rect.height() - o.rect.height()) < 0.01;
+            return object == o.object && at == o.at && std::abs(below - o.below) < 0.01 && std::abs(rect.left() - o.rect.left()) < 0.01 && std::abs(rect.top() - o.rect.top()) < 0.01 && std::abs(rect.width() - o.rect.width()) < 0.01 && std::abs(rect.height() - o.rect.height()) < 0.01;
         }
     };
     // The page: laid out with the objects its lines anchor and the text goes round, until the objects and the lines agree about where each is (a few times at most: where
@@ -283,6 +284,7 @@ private:
         bool first = false;   // it is the first line of its paragraph (frames are set where their paragraph's first line is)
         int reach = 0;        // where its anchors end: `end`, or for the last line of a paragraph the paragraph's end (characters that show nothing belong to the line after them, and a
                               // paragraph's last have none: an object anchored at the end of a paragraph is on its last line)
+        double above = 0;     // of a paragraph's first line, the space before the paragraph that the engine applied above it
         int upTo() const { return std::max(end, reach); }
     };
     // A line of a page's text as the anchors are found in it.
@@ -318,8 +320,11 @@ private:
     // The anchors of a page: those of the objects anchored in the text of `held`, and of the frames and tables set from the first lines among `firstLines`.
     QVector<Anchor> anchorsOfLines(const QVector<AnchorLine> &held, const QVector<AnchorLine> &firstLines, double columnWidth);
     // The frame of paragraphs `from` to `to` (the story's positions) as an object: its text copied for the page, and its size from the frame's and the text's.
-    std::shared_ptr<const FloatingObject> frameObject(int key, int from, int to, double columnWidth);
-    std::unique_ptr<QTextDocument> frameStory(int from, int to) const;
+    // (The text of a frame is from the story's paragraphs `from` to `to`: the document's own, or `source`, a header's or a footer's, whose frames are not cached.)
+    std::shared_ptr<const FloatingObject> frameObject(int key, int from, int to, double columnWidth, const QTextDocument *source = nullptr);
+    std::unique_ptr<QTextDocument> frameStory(int from, int to, const QTextDocument *source = nullptr) const;
+    // The frames of a header's or a footer's story (paragraphs set at a place on the page, which the story's own lines leave out), each an anchor for the page's objects.
+    QVector<Anchor> storyFrameAnchors(const QTextDocument *story, double columnLeft, double columnWidth, double top);
     // A table that is set at a place (TableData::place) and that can be: of few enough rows, and not taller than a page's text area. Its rows are no lines of the text, which
     // goes round it: it is an object (`tableObject`), anchored at the paragraph after it, that has its rows drawn where it is.
     bool floatsTable(int span);
@@ -341,6 +346,8 @@ private:
     std::map<std::tuple<int, int, int, int, uint>, std::shared_ptr<const FloatingObject>> m_frames;   // by key, the paragraphs' places, the width the column has, and the environment (edits empty it)
     // The anchors in a story from `from` to `to` (document positions), given the lines that hold it.
     QVector<Anchor> anchorsIn(const QTextDocument *story, int from, int to, const QVector<AnchorLine> &lines, const QHash<int, QVector<int>> *byBlock = nullptr);
+    // How far down the page the shapes that the text goes round, set in a header, reach (0: none do): the page's text begins under them.
+    double headerObjectsBottom(const QTextDocument *story, const Section &sec, int number);
     // The characters of a paragraph that anchor an object (a position and the object's number each), found once for a story as it is.
     const QVector<std::pair<int, int>> &anchorCharsOf(const QTextBlock &b);
     QHash<int, QVector<std::pair<int, int>>> m_anchorChars;   // by the paragraph's position
@@ -374,6 +381,8 @@ private:
     void addNotes(Document *d, const QVector<StoryLayout::NotePlace> &places, const QVector<StoryLayout::Rule> &rules, int firstFrame, const QStringList &ids,
                   const QVector<QRectF> &cols, const QRectF &body);
     std::map<std::tuple<const QTextDocument *, int, int>, double> m_storyHeights;
+    std::map<std::tuple<const QTextDocument *, int, int, int, int, uint>, QVector<Anchor>> m_storyFrameAnchors;   // the frames of each header or footer story, by its width, revision, places, and the environment
+    std::map<std::tuple<const QTextDocument *, int, QString>, double> m_headerBottoms;   // how far down the page the wrapped shapes of each header reach, by story, revision, and the section's places
     std::map<std::tuple<const QTextDocument *, int, int>, QVector<StoryLayout::LineInfo>> m_storyLines;   // the lines of each, from the same layout   // by story, its width in hundredths of a point, and its revision
 
     FlowDocument *m_doc;
