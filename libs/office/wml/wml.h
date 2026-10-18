@@ -547,6 +547,15 @@ bool readFonts(const QByteArray &xml, QVector<FontEntry> *fonts);
 // How the numbers of the notes begin again, from the settings part's w:footnotePr or w:endnotePr (`group`): the value of its w:numRestart (continuous, eachSect, or
 // eachPage), empty if it says none.
 QString noteNumberRestart(const QByteArray &settings, const char *group);
+// How the notes of a group (w:footnotePr or w:endnotePr) are numbered, from the settings part or from a section's own properties: the format (w:numFmt: decimal, lowerRoman,
+// upperLetter, chicago, none...) and the number the first begins with (w:numStart). Empty and 0 where the part says none. Reading the settings is counted, for a test of cost.
+struct NoteNumbering {
+    QString format;
+    int start = 0;
+};
+NoteNumbering readNoteNumbering(const QByteArray &settings, const char *group);
+NoteNumbering noteNumberingOf(const SectionProps &section, const char *group);
+qint64 noteNumberingReadsForTest();
 
 // Whether a compatibility option of the settings part (an element of w:compat) is on: stated, and not turned off (w:val 0, false, or off).
 bool compatOption(const QByteArray &settings, const char *name);

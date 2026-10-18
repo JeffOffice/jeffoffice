@@ -375,6 +375,8 @@ public:
     // How many times a line's own height was measured for the objects it is checked against, since the program began (what a line beside an object costs, for tests: a line that goes
     // down by steps is measured once, not at each step).
     static qint64 lineHeightsMeasuredForTest();
+    // The longest stretch of text, in letters, that a word processor's rules against a break after a question mark or between brackets have kept whole (a cost test: it is bounded).
+    static qint64 longestJoinedStretchForTest();
 
     // An object set in the text (tp::InlineObject): where it's drawn,
     // frame-local, and the item as JSON. It sits on the baseline, padded by

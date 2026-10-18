@@ -728,4 +728,15 @@ QString listNumberText(const QString &format, int n)
     return QString::number(n);
 }
 
+QString noteNumberText(const QString &format, int n)
+{
+    if (format == QLatin1String("none")) return QString();
+    if (format == QLatin1String("chicago")) {
+        static const QChar marks[] = {QLatin1Char('*'), QChar(0x2020), QChar(0x2021), QChar(0x00A7)};
+        const int at = std::max(n, 1) - 1;
+        return QString(std::min(at / 4 + 1, 8), marks[at % 4]);
+    }
+    return listNumberText(format, n);
+}
+
 } // namespace jp::write

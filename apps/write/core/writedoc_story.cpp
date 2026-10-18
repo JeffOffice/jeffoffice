@@ -334,7 +334,22 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             sectionText[i] = next;
         }
     }
-    int paragraphsMade = 0, endnoteNumber = 0, blockNumber = -1;
+    int paragraphsMade = 0, endnoteNumber = m_endnoteStart - 1, blockNumber = -1;
+    // The format the endnote references of each paragraph are numbered in: its section's own (w:endnotePr of the section), else the settings'. Found as sectionText is, from
+    // the sections as the file has them, for the story of the text alone.
+    QVector<QString> endnoteFormats;
+    if (!header) {
+        endnoteFormats.resize(int(body.size()));
+        auto formatOf = [&](const office::wml::SectionProps &section) {
+            const office::wml::NoteNumbering own = office::wml::noteNumberingOf(section, "endnotePr");
+            return own.format.isEmpty() ? m_endnoteFormat : own.format;
+        };
+        QString next = formatOf(m_wml.lastSection);
+        for (int i = int(body.size()) - 1; i >= 0; --i) {
+            if (!body[i].isRaw && body[i].para.props.section) next = formatOf(*body[i].para.props.section);
+            endnoteFormats[i] = next;
+        }
+    }
     auto lineWidth = [&]() {
         const double cell = tables.cellWidth();
         const QTextBlockFormat now = c.blockFormat();
@@ -620,8 +635,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             QTextCharFormat af = formatOf(styleId, in.props);
             if (deleted) af = asDeleted(af);
             setStored(af, prop::Atom, packAtom(in));
-            // A reference to a footnote of the file is the note's (the pages lay it out at their foot); one to an endnote shows its number, in the lower
-            // case roman numerals a word processor's endnotes have.
+            // A reference to a footnote of the file is the note's (the pages lay it out at their foot); one to an endnote shows its number, in the format
+            // the settings give (lower case roman numerals, a word processor's own).
             QString field = in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum") ? liveFieldOf(QStringLiteral("PAGE")) : QStringLiteral("raw:") + (dropDown.contains(inAt) ? dropDown.value(inAt) : in.display);
             // A symbol of a font that isn't a symbol font (and isn't on the machine) is its character, in that font's stand-in.
             if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym")) {
@@ -645,7 +660,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 field = QStringLiteral("footnote:fn") + in.key;
                 if (markFollows(in.raw)) af.setProperty(tp::NoteMarkCustom, true);
             }
-            else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + (markFollows(in.raw) ? QString() : romanNumeral(deleted ? endnoteNumber + 1 : ++endnoteNumber, false));   // (a deleted one takes no number)
+            else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + (markFollows(in.raw) ? QString() : noteNumberText(endnoteFormats.value(blockNumber, m_endnoteFormat), deleted ? endnoteNumber + 1 : ++endnoteNumber));   // (a deleted one takes no number)
             af.setProperty(tp::Field, field);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);
         }

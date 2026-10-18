@@ -314,6 +314,10 @@ void WriteDoc::setUpEnvironment()
     if (!m_wml.settingsName.isEmpty()) {
         // (One reading of the part for all of them.)
         const office::wml::CompatOptions compat = office::wml::readCompatOptions(partData(m_wml.settingsName));
+        // (And how the endnotes are numbered, read here once, not at each story's making.)
+        const office::wml::NoteNumbering endnotes = office::wml::readNoteNumbering(partData(m_wml.settingsName), "endnotePr");
+        if (!endnotes.format.isEmpty()) m_endnoteFormat = endnotes.format;
+        if (endnotes.start > 0) m_endnoteStart = endnotes.start;
         f.env.wordNoHang = !compat.useFELayout || compat.doNotWrapTextWithPunct;
         f.env.wordSpaceSums = compat.doNotUseHTMLParagraphAutoSpacing;
         f.env.wordNoHangStop = compat.noTabHangInd;

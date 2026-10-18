@@ -17,6 +17,7 @@
 #include <QBuffer>
 #include <QElapsedTimer>
 #include <QImage>
+#include <QTextBoundaryFinder>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPainter>
@@ -2486,25 +2487,111 @@ private Q_SLOTS:
         if (checked == 0) QSKIP("Symbol, Wingdings, and Webdings are all installed here: their characters are drawn by the fonts");
     }
 
-    // Courier New, where the machine lacks it, is drawn in Courier Prime, a face of the same widths whose strokes are as thin as Courier New's (its stand-in for a
-    // publisher's text, Cousine, is heavy), and its line stays Courier New's; a publisher's text keeps Cousine.
+    // Courier New, where the machine lacks it, is drawn in TeX Gyre Cursor, a face of Courier's widths (600 units in 1000, Courier New's 1229 in 2048 to a ten-thousandth of an
+    // em) whose strokes are as thin as any bundled (its stand-in for a publisher's text, Cousine, is heavy), fully opaque in the text's own color, and its line stays Courier
+    // New's; a publisher's text keeps Cousine.
     void courierNewIsDrawnInAThinFaceAndSetAsItself()
     {
         if (QFontDatabase::hasFamily(QStringLiteral("Courier New"))) QSKIP("Courier New is installed");
-        QVERIFY(QFontDatabase::hasFamily(QStringLiteral("Courier Prime")));
+        QVERIFY(QFontDatabase::hasFamily(QStringLiteral("TeX Gyre Cursor")));
         QTextCharFormat cf;
         cf.setFontFamilies({QStringLiteral("Courier New")});
         cf.setFontPointSize(10);
+        cf.setForeground(QColor(10, 20, 30));
         LayoutEnv word;
         word.wordLines = true;
-        QCOMPARE(resolveCharFormat(cf, word).fontFamilies().toStringList().value(0), QStringLiteral("Courier Prime"));
+        const QTextCharFormat drawn = resolveCharFormat(cf, word);
+        QCOMPARE(drawn.fontFamilies().toStringList().value(0), QStringLiteral("TeX Gyre Cursor"));
+        QCOMPARE(drawn.foreground().color(), QColor(10, 20, 30));   // (opaque: printed, it is as black as the text says)
         QCOMPARE(resolveCharFormat(cf, LayoutEnv()).fontFamilies().toStringList().value(0), QStringLiteral("Courier New"));
         // (The line is Courier New's, not the face it is drawn in: 1.1328 em.)
         const auto lines = wordLinesOf({{QStringLiteral("Courier New"), 20}});
         QVERIFY2(std::abs(lines.value(0).rect.height() - (1705 + 615) / 2048.0 * 20) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
+        // (The letters are Courier New's width, 0.6 em, to a ten-thousandth.)
+        QFont font(QStringLiteral("TeX Gyre Cursor"));
+        font.setPixelSize(1000);
+        QVERIFY(std::abs(QFontMetricsF(font).horizontalAdvance(QLatin1Char('M')) - 1000 * 1229 / 2048.0) < 0.2);
     }
 
-    // The line of Courier New is Courier New's wherever it is measured, though the text is drawn in Courier Prime (whose own line is 1.318 em, to Courier New's 1.133):
+    // A face the word processor's machine has and this one lacks, and no table of letter widths measures (News Gothic MT, whose bold is the masthead of every public notice),
+    // is drawn in the nearest bundled face of its kind (Libre Franklin, a gothic of the same bearing: "PUBLIC NOTICE" at 48 points bold is 495 pixels wide at 96 to the inch,
+    // 497 in Libre Franklin Bold, and 403 in the Calibri stand-in it had), and its line stays its own (2003 and 458 units).
+    void newsGothicIsDrawnInALikeGothicAndSetAsItself()
+    {
+        if (QFontDatabase::hasFamily(QStringLiteral("News Gothic MT"))) QSKIP("News Gothic MT is installed");
+        QVERIFY(QFontDatabase::hasFamily(QStringLiteral("Libre Franklin")));
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("News Gothic MT")});
+        cf.setFontPointSize(48);
+        cf.setFontWeight(QFont::Bold);
+        LayoutEnv word;
+        word.wordLines = true;
+        QCOMPARE(resolveCharFormat(cf, word).fontFamilies().toStringList().value(0), QStringLiteral("Libre Franklin"));
+        QCOMPARE(resolveCharFormat(cf, LayoutEnv()).fontFamilies().toStringList().value(0), QStringLiteral("News Gothic MT"));
+        const auto lines = wordLinesOf({{QStringLiteral("News Gothic MT"), 48}});
+        QVERIFY2(std::abs(lines.value(0).rect.height() - (2003 + 458) / 2048.0 * 48) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
+    }
+
+    // Univers, the other face of the word processor's machine that no table measures, is drawn in Arimo, 8 percent wider in its regular face and no wider in its bold, and its
+    // line stays its own (2025 and 512 units).
+    void universIsDrawnInArimoWiderAndSetAsItself()
+    {
+        if (QFontDatabase::hasFamily(QStringLiteral("Univers"))) QSKIP("Univers is installed");
+        LayoutEnv word;
+        word.wordLines = true;
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Univers")});
+        cf.setFontPointSize(11);
+        const QTextCharFormat regular = resolveCharFormat(cf, word);
+        QCOMPARE(regular.fontFamilies().toStringList().value(0), QStringLiteral("Arimo"));
+        QCOMPARE(regular.fontStretch(), stretchToAsk(108));
+        cf.setFontWeight(QFont::Bold);
+        QCOMPARE(resolveCharFormat(cf, word).fontStretch(), 0);   // (the bold is as wide as Arimo's: no stretch is asked)
+        const auto lines = wordLinesOf({{QStringLiteral("Univers"), 11}});
+        QVERIFY2(std::abs(lines.value(0).rect.height() - (2025 + 512) / 2048.0 * 11) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
+    }
+
+    // A font the document's font table says its machine set in Yu Gothic (V104's FreeSerif, charset 128, with that alternate) is set in it by a machine that lacks FreeSerif:
+    // the alternate is one of the faces the word processor's machine has, drawn in Open Sans (the same widths), and its line is 1.673 em (3426 units) as the
+    // original's pages have it.
+    void yuGothicIsDrawnInOpenSansAndSetAsItself()
+    {
+        QCOMPARE(wordStandInFor(QStringLiteral("Yu Gothic"), QStringLiteral("roman"), QStringLiteral("variable"), QString(), QStringLiteral("80")), QStringLiteral("Yu Gothic"));
+        if (QFontDatabase::hasFamily(QStringLiteral("Yu Gothic"))) QSKIP("Yu Gothic is installed");
+        LayoutEnv word;
+        word.wordLines = true;
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Yu Gothic")});
+        cf.setFontPointSize(11);
+        const QTextCharFormat drawn = resolveCharFormat(cf, word);
+        QCOMPARE(drawn.fontFamilies().toStringList().value(0), QStringLiteral("Open Sans"));
+        QCOMPARE(drawn.foreground().color().alphaF(), 1.0);   // (the text is never drawn partly transparent: printed, it is black)
+        const auto lines = wordLinesOf({{QStringLiteral("Yu Gothic"), 11}});
+        QVERIFY2(std::abs(lines.value(0).rect.height() - 3426 / 2048.0 * 11) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
+    }
+
+    // Text is never drawn partly transparent, nor with a stroke by hand, to make a stand-in as light or as heavy as the face it stands for: it is printed and exported as the
+    // text's color says (black is black), and a page paints and exports as light as a plain run of text.
+    void aStandInIsDrawnInTheTextsOwnColorAndWithNoStroke()
+    {
+        LayoutEnv word;
+        word.wordLines = true;
+        QTextCharFormat cf;
+        cf.setFontPointSize(10);
+        cf.setForeground(QColor(200, 0, 0));
+        for (const QString &family : {QStringLiteral("Courier New"), QStringLiteral("Univers"), QStringLiteral("News Gothic MT"), QStringLiteral("Yu Gothic"), QStringLiteral("Century Gothic")}) {
+            if (QFontDatabase::hasFamily(family)) continue;   // (a machine with the face draws that)
+            cf.setFontFamilies({family});
+            for (const int weight : {int(QFont::Normal), int(QFont::Bold)}) {
+                cf.setFontWeight(weight);
+                const QTextCharFormat drawn = resolveCharFormat(cf, word);
+                QVERIFY2(drawn.foreground().color() == QColor(200, 0, 0), qPrintable(family + QStringLiteral(": ") + drawn.foreground().color().name(QColor::HexArgb)));
+                QVERIFY2(!drawn.hasProperty(tp::HandBold), qPrintable(family + QStringLiteral(" has a stroke by hand")));
+            }
+        }
+    }
+
+    // The line of Courier New is Courier New's wherever it is measured, though the text is drawn in TeX Gyre Cursor (whose own line is 1.201 em, to Courier New's 1.133):
     // the number of a list item is a run of its own on the first line, and the paragraph after a keep-with-next one is measured for room.
     void aNumberedCourierNewItemKeepsCourierNewsLine()
     {
@@ -2550,14 +2637,46 @@ private Q_SLOTS:
         courier.setFontPointSize(20);
         c.insertBlock(QTextBlockFormat(), courier);
         c.insertText(QStringLiteral("The line after it"), courier);
-        // Room under the heading for Courier New's line (22.66) but not for the 26.37 of Courier Prime's own: the heading stays where it is.
-        const double line = (1825 + 443 + 87) / 2048.0 * 12, room = 24.5;
+        // Room under the heading for Courier New's line (22.66) but not for the stand-in's own (24.02 for TeX Gyre Cursor, measured, halfway between): the heading stays where it is.
+        QFont stand(QStringLiteral("TeX Gyre Cursor"));
+        stand.setPixelSize(1000);
+        const double own = QFontMetricsF(stand).height() / 1000 * 20, courierNew = (1705 + 615) / 2048.0 * 20;
+        if (own < courierNew + 0.5) QSKIP("the stand-in's own line is no taller than Courier New's");
+        const double line = (1825 + 443 + 87) / 2048.0 * 12, room = (own + courierNew) / 2;
         LayoutEnv env;
         env.wordLines = true;
         StoryLayout lay;
         lay.build(doc.get(), {plainFrame(400, 2 * line + room), plainFrame(400, 700)}, env);
         QCOMPARE(lay.lineInfo(0).size(), 3);
         QCOMPARE(lay.lineInfo(1).size(), 0);
+    }
+
+    // A run set in a stand-in that is drawn narrower than its face (Agency FB, in Archivo Narrow at 85 percent) keeps that to itself: the runs after it in the paragraph are
+    // drawn at their own widths, not at the first run's.
+    void aStretchedStandInsStretchStaysWithItsRun()
+    {
+        if (QFontDatabase::hasFamily(QStringLiteral("Agency FB"))) QSKIP("Agency FB is installed");
+        auto widthOf = [](const QVector<std::pair<QString, QString>> &runs) {
+            auto doc = std::make_unique<QTextDocument>();
+            QTextCursor c(doc.get());
+            for (const auto &run : runs) {
+                QTextCharFormat cf;
+                cf.setFontFamilies({run.first});
+                cf.setFontPointSize(12);
+                c.insertText(run.second, cf);
+            }
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(doc.get(), {plainFrame(600, 700)}, env);
+            int frame = -1;
+            QRectF at;
+            return lay.caretRect(doc->characterCount() - 1, &frame, &at) ? at.left() : -1.0;
+        };
+        const QString narrow = QStringLiteral("Agency FB"), times = QStringLiteral("Times New Roman"), text = QStringLiteral("WWWWWWWWWW");
+        const double first = widthOf({{narrow, QStringLiteral("xx")}}), after = widthOf({{times, text}}), both = widthOf({{narrow, QStringLiteral("xx")}, {times, text}});
+        QVERIFY2(after > 50, qPrintable(QString::number(after)));
+        QVERIFY2(std::abs(both - (first + after)) < 0.05, qPrintable(QStringLiteral("the two runs are %1 wide, the runs alone %2 and %3").arg(both).arg(first).arg(after)));
     }
 
     // Lines of whole points follow every kind of line spacing: a multiple is a multiple of the whole-point line (Times New Roman 11, 12.65 high, is 13), an at-least
@@ -3058,6 +3177,98 @@ private Q_SLOTS:
         QVERIFY2(std::abs(gap.red() - 200) < 4, qPrintable(gap.name()));
     }
 
+    // A word processor's underscore leader is one line from where its tab starts to the stop (W124's "NAME:" and the "COUNTY" after the right tab), not underscores on a grid with a
+    // gap of two fifths of one at each end.
+    void anUnderscoreLeaderIsOneLineFromTheTabToItsStop()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Tinos")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setTabPositions({QTextOption::Tab(150, QTextOption::RightTab)});
+        bf.setProperty(tp::TabLeaders, QStringLiteral("_"));
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("Mark:\tCounty"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(200, 100)}, env);
+        const QRectF tab = lay.rangeRects(0, 5, 6).first();
+        const double scale = 8;
+        QImage img(int(200 * scale), int(100 * scale), QImage::Format_RGB32);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.scale(scale, scale);
+        lay.paint(&p, 0, PaintOptions());
+        p.end();
+        // The row of the underscores: the one with the most dark pixels between the tab's two ends and the text after it.
+        int best = 0, row = -1, first = -1, last = -1;
+        for (int y = 0; y < img.height(); ++y) {
+            int count = 0, a = -1, b = -1;
+            for (int x = int(tab.left() * scale) - 20; x < int((tab.right() + 4) * scale); ++x)
+                if (x >= 0 && qGray(img.pixel(x, y)) < 128) {
+                    ++count;
+                    if (a < 0) a = x;
+                    b = x;
+                }
+            if (count > best) { best = count; row = y; first = a; last = b; }
+        }
+        QVERIFY(row >= 0);
+        QVERIFY2(std::abs(first / scale - tab.left()) < 0.4, qPrintable(QStringLiteral("the line starts at %1, the tab at %2").arg(first / scale).arg(tab.left())));
+        QVERIFY2(std::abs((last + 1) / scale - tab.right()) < 0.4, qPrintable(QStringLiteral("the line ends at %1, the stop at %2").arg((last + 1) / scale).arg(tab.right())));
+    }
+
+    // The leaders of JeffPub's and JeffDeck's text are as they were: an underscore goes in only where it fits between the grid's start and the stop less its gap (two fifths of
+    // one), not where it is a hundredth of a point over that. The widths and places are the layout's own, measured: the stop is set 0.005 point short of where the first
+    // underscore would fit.
+    void anotherProgramsLeaderIsNotGivenAHundredthOfAPointOver()
+    {
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Tinos")});
+        run.setFontPointSize(12);
+        auto laidOut = [&](const QString &text, double stop, StoryLayout *lay, QTextDocument *doc) {
+            QTextCursor c(doc);
+            QTextBlockFormat bf;
+            if (stop > 0) {
+                bf.setTabPositions({QTextOption::Tab(stop, QTextOption::LeftTab)});
+                bf.setProperty(tp::TabLeaders, QStringLiteral("_"));
+            }
+            c.setBlockFormat(bf);
+            c.insertText(text, run);
+            LayoutEnv env;   // (not a word processor's)
+            lay->build(doc, {plainFrame(200, 100)}, env);
+        };
+        double x0 = 0, w = 0;
+        {
+            QTextDocument doc;
+            StoryLayout lay;
+            laidOut(QStringLiteral("00__________"), 0, &lay, &doc);
+            const QRectF digits = lay.rangeRects(0, 0, 2).first(), bars = lay.rangeRects(0, 2, 12).first();
+            x0 = digits.right();
+            w = bars.width() / 10;
+        }
+        const double gap = 0.4 * w, start = std::ceil((x0 + gap) / w) * w, stop = start + w + gap - 0.005;
+        QTextDocument doc;
+        StoryLayout lay;
+        laidOut(QStringLiteral("00\tZ"), stop, &lay, &doc);
+        const QRectF tab = lay.rangeRects(0, 2, 3).first();
+        if (std::abs(tab.right() - stop) > 0.001 || std::abs(tab.left() - x0) > 0.001) QSKIP("the layout puts the stop or the tab elsewhere than it was set");
+        const double scale = 8;
+        QImage img(int(200 * scale), int(100 * scale), QImage::Format_RGB32);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.scale(scale, scale);
+        lay.paint(&p, 0, PaintOptions());
+        p.end();
+        int dark = 0;
+        for (int y = 0; y < img.height(); ++y)
+            for (int x = int((start + 0.5) * scale); x < int((start + w - 0.5) * scale); ++x)
+                if (qGray(img.pixel(x, y)) < 128) ++dark;
+        QVERIFY2(dark == 0, qPrintable(QStringLiteral("%1 dark pixels where the underscore would go (from %2, %3 wide)").arg(dark).arg(start).arg(w)));
+    }
+
     // The shading of a paragraph with a hanging indent begins at the hanging line's edge (the least of its indents), and it is one band with the shaded paragraph after it that
     // begins there too, though their left indents differ: nothing white between them, nor at the left of the first.
     void theShadingOfAHangingParagraphJoinsTheShadedParagraphAfterIt()
@@ -3313,20 +3524,18 @@ private Q_SLOTS:
         QCOMPARE(narrower.lineInfo(0).size(), 2);
     }
 
-    // A line fits its room by one rule whether punctuation may hang at its end or not: text of two words that is a tenth of a point under the room it is set in goes to a
-    // second line (a pixel of the fine layout is kept back from every room) in both, and one a fifth under goes on one.
+    // A line fits its room by one rule whether punctuation may hang at its end or not: text of two words that is a tenth of a point over the room it is set in goes to a
+    // second line in both, and one a tenth under it, or a fifth, goes on one. (Digits, whose ink is inside their advances in any text engine: a letter that reaches past its
+    // advance, an underscore among them, is counted by the engine of each machine its own way, and the room is a hair more than the text is wide, whatever the machine.)
     void aLineFitsAsMuchWithPunctuationThatHangsAsWithoutIt()
     {
-#ifdef Q_OS_MACOS
-        QSKIP("Qt's fine layout rounds line widths differently on macOS; this tenth-of-a-point fit rule is measured with FreeType (Linux, Windows) until the slack is measured at run time.");
-#endif
         auto lines = [&](bool hang, double room) {
             QTextDocument doc;
             QTextCursor c(&doc);
             QTextCharFormat run;
             run.setFontFamilies({QStringLiteral("Tinos")});
             run.setFontPointSize(12);
-            c.insertText(QStringLiteral("____________________________________ ____"), run);   // (36 and 4 half-em letters: 216 points, a space, and 24)
+            c.insertText(QStringLiteral("000000000000000000000000000000000000 0000"), run);   // (36 and 4 half-em digits: 216 points, a space, and 24)
             LayoutEnv env;
             env.wordLines = true;
             env.wordNoHang = !hang;
@@ -3336,8 +3545,9 @@ private Q_SLOTS:
         };
         for (const bool hang : {false, true}) {
             QCOMPARE(lines(hang, 216 + 3 + 24 + 0.2), 1);
-            QCOMPARE(lines(hang, 216 + 3 + 24 + 0.1), 2);
+            QCOMPARE(lines(hang, 216 + 3 + 24 + 0.1), 1);
             QCOMPARE(lines(hang, 216 + 3 + 24 - 0.1), 2);
+            QCOMPARE(lines(hang, 216 + 3 + 24 - 0.2), 2);
         }
     }
 
@@ -3367,26 +3577,197 @@ private Q_SLOTS:
         QCOMPARE(lines(false, 246.2), 1);
     }
 
-    // A line that ends where a break may be (after a dash) is fitted as the others are: the room is not given back, as it is for a word wider than the line.
-    void aLineThatEndsAtADashIsFittedLikeTheOthers()
+    // A closing bracket does not hang past the margin as a period does (V055's "recorded as triggerSetup[0]" line ends before the word, which with its bracket hung would be 1.9
+    // points over the room): the text before it may not fill the room with the bracket outside, and two words of 243 points and a bracket of 4 are two lines in a room of 243.
+    void aClosingBracketDoesNotHangPastTheMargin()
     {
-#ifdef Q_OS_MACOS
-        QSKIP("Qt's fine layout rounds line widths differently on macOS; this tenth-of-a-point fit rule is measured with FreeType (Linux, Windows) until the slack is measured at run time.");
-#endif
+        auto lines = [&](const QString &mark, double room) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Tinos")});
+            run.setFontPointSize(12);
+            c.insertText(QString(36, QLatin1Char('0')) + QLatin1Char(' ') + QString(4, QLatin1Char('0')) + mark, run);   // (216 points, a space of 3, 24, and the mark)
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(room, 200)}, env);
+            return int(lay.lineInfo(0).size());
+        };
+        QCOMPARE(lines(QStringLiteral("."), 243.0), 1);   // (a period hangs)
+        for (const QString &bracket : {QStringLiteral(")"), QStringLiteral("]"), QStringLiteral("}")})
+            QCOMPARE(lines(bracket, 243.0), 2);
+        QCOMPARE(lines(QStringLiteral("]"), 250.0), 1);
+    }
+
+    // A word too wide for the line is broken where it must be, and a row of underscores as wide as the room is one line (the lines of a form): the room is given back what the
+    // engine of the machine counts of an underscore past its advance, measured on the machine and not assumed (an eighth of a point on Linux, less on macOS). A row a fifth of a
+    // point wider than the room is two.
+    void aRowOfUnderscoresAsWideAsTheRoomIsOneLine()
+    {
+        const QString row(40, QLatin1Char('_'));
+        auto lines = [&](double room) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Tinos")});
+            run.setFontPointSize(12);
+            c.insertText(row, run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(room, 400)}, env);
+            return int(lay.lineInfo(0).size());
+        };
         QTextDocument doc;
         QTextCursor c(&doc);
         QTextCharFormat run;
         run.setFontFamilies({QStringLiteral("Tinos")});
         run.setFontPointSize(12);
-        c.insertText(QString(34, QLatin1Char('_')) + QChar(0x2014) + QString(4, QLatin1Char('_')), run);   // (204 points, a dash of 12, and 24)
+        c.insertText(row, run);
+        StoryLayout wide;
         LayoutEnv env;
         env.wordLines = true;
-        env.wordNoHang = true;
+        wide.build(&doc, {plainFrame(1000, 400)}, env);
+        int frame = -1;
+        QRectF end;
+        QVERIFY(wide.caretRect(row.size(), &frame, &end));
+        QCOMPARE(lines(end.left()), 1);
+        QCOMPARE(lines(end.left() - 0.2), 2);
+    }
+
+    // A word processor breaks a line at spaces and after hyphens and dashes, and in a word that is wider than the line wherever it must: not between two parenthesized parts that
+    // touch ("(c)(5)(iv)", which V147's pages keep whole), nor after a question mark in an address (V035's "subindex.asp?maintarget="). Digits are 6 points, a bracket 4, a question
+    // mark 5.3, in a room of 100.
+    void aLineBreaksNeitherBetweenBracketsThatTouchNorAfterAQuestionMark()
+    {
+        auto lines = [&](const QString &text) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Tinos")});
+            run.setFontPointSize(12);
+            c.insertText(text, run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(100, 400)}, env);
+            QStringList out;
+            for (const auto &line : lay.lineInfo(0)) out << QString(line.text).remove(QChar(0x2060)).remove(QChar(0x200B));   // (the marks that join and divide are not shown)
+            return out;
+        };
+        const QString twelve(12, QLatin1Char('0')), fourteen(14, QLatin1Char('0'));
+        // Twelve digits and "(00)" are 92 points, the "(" 96, and one more digit would be 102: the word is broken where it must be, after the second "(", not between the brackets.
+        QCOMPARE(lines(twelve + QStringLiteral("(00)(00)")), (QStringList{twelve + QStringLiteral("(00)("), QStringLiteral("00)")}));
+        // Fourteen digits and the mark are 89 points, one digit more 95, and two 101: after the first of them, not after the mark.
+        QCOMPARE(lines(fourteen + QStringLiteral("?") + twelve), (QStringList{fourteen + QStringLiteral("?0"), QString(11, QLatin1Char('0'))}));
+        // A hyphen is where a line breaks (the first part is 88 points).
+        QCOMPARE(lines(fourteen + QStringLiteral("-") + twelve).value(0), fourteen + QStringLiteral("-"));
+    }
+
+    // East Asian text breaks after a question mark as it does after a letter, so the rule that keeps an address whole leaves it alone (an ideograph is a letter to QChar), and one
+    // that goes on in another run of the paragraph is kept as one that goes on in the run: "a?" and "b" in two runs are as "a?b" in one.
+    void theRuleAfterAQuestionMarkLeavesEastAsianTextAndSpansRuns()
+    {
+        auto firstLine = [&](const QStringList &runs, double room) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat plain, bold;
+            plain.setFontFamilies({QStringLiteral("Tinos")});
+            plain.setFontPointSize(12);
+            bold = plain;
+            bold.setFontWeight(QFont::Bold);
+            for (int i = 0; i < runs.size(); ++i) c.insertText(runs[i], i % 2 ? bold : plain);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(room, 400)}, env);
+            return QString(lay.lineInfo(0).value(0).text).remove(QChar(0x2060)).remove(QChar(0x200B));
+        };
+        const QString fourteen(14, QLatin1Char('0'));
+        // After the question mark an ideograph begins, where a line may break: ten digits, a space, five digits, and the mark are 98 points, which the 100 hold, the ideographs go on
+        // the next line (were the mark joined to the first of them, the line would end at the space).
+        const QString han = QString(QChar(0x4E2D)) + QString(QChar(0x6587)) + QString(QChar(0x5B57));
+        const QString head = QString(10, QLatin1Char('0')) + QLatin1Char(' ') + QString(5, QLatin1Char('0')) + QStringLiteral("?");
+        QCOMPARE(firstLine({head + han}, 100), head);
+        // The same as one run, and as two (the second begins where the first ends): the digits wrap at the room, not after the mark.
+        const QString expected = fourteen + QStringLiteral("?0");
+        QCOMPARE(firstLine({fourteen + QStringLiteral("?") + QString(12, QLatin1Char('0'))}, 100), expected);
+        QCOMPARE(firstLine({fourteen + QStringLiteral("?"), QString(12, QLatin1Char('0'))}, 100), expected);
+        // The same for brackets that touch.
+        QCOMPARE(firstLine({QString(12, QLatin1Char('0')) + QStringLiteral("(00)"), QStringLiteral("(00)")}, 100), QString(12, QLatin1Char('0')) + QStringLiteral("(00)("));
+    }
+
+    // The rules that keep a line from breaking after a question mark and between brackets leave a break where the stretch since the last place a line may break is a hundred and
+    // twenty letters: a file of "a?a?..." (the stretch of a hostile file is as long as it likes) is laid out in pieces, not as one word that Qt sets a line at a time over all of
+    // it (80,000 letters took 1.6 seconds, 60 times what the same with spaces took).
+    void theRulesAgainstABreakAreBoundedByTheLengthOfTheStretch()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Tinos")});
+        run.setFontPointSize(12);
+        QString text;
+        for (int i = 0; i < 40000; ++i) text += QStringLiteral("a?");
+        c.insertText(text, run);
+        LayoutEnv env;
+        env.wordLines = true;
         StoryLayout lay;
-        lay.build(&doc, {plainFrame(216.1, 200)}, env);   // (the first two parts are 216 points: a tenth under the room, which is not enough)
-        const auto lines = lay.lineInfo(0);
-        QVERIFY(lines.size() >= 2);
-        QCOMPARE(lines[0].text, QString(34, QLatin1Char('_')));
+        lay.build(&doc, {plainFrame(300, 400)}, env);
+        QVERIFY2(StoryLayout::longestJoinedStretchForTest() >= 20, qPrintable(QString::number(StoryLayout::longestJoinedStretchForTest())));   // (the rule is at work)
+        QVERIFY2(StoryLayout::longestJoinedStretchForTest() <= 120, qPrintable(QStringLiteral("a stretch of %1 letters is kept whole").arg(StoryLayout::longestJoinedStretchForTest())));
+    }
+
+    // A line that ends where a break may be (after a dash) is fitted as the others are: the room is not given back, as it is for a word wider than the line. What the first
+    // line needs to take the em dash, over the width of the text to its end (the dash's advance and what its machine's engine counts past it: found by halving the interval, not
+    // assumed), is the same where the line breaks before the dash as where it breaks at a space before it, which is fitted as any line is. Were the room given back where a line
+    // breaks at the dash, the first would need an eighth of a point less.
+    void aLineThatEndsAtADashIsFittedLikeTheOthers()
+    {
+        // The least room in which the first line takes the dash, less the text's width to the dash's end.
+        auto needs = [&](const QString &text) {
+            auto build = [&](double room, QTextDocument *doc, StoryLayout *lay) {
+                QTextCursor c(doc);
+                QTextCharFormat run;
+                run.setFontFamilies({QStringLiteral("Tinos")});
+                run.setFontPointSize(12);
+                c.insertText(text, run);
+                LayoutEnv env;
+                env.wordLines = true;
+                env.wordNoHang = true;
+                lay->build(doc, {plainFrame(room, 200)}, env);
+            };
+            auto takesTheDash = [&](double room) {
+                QTextDocument doc;
+                StoryLayout lay;
+                build(room, &doc, &lay);
+                const auto lines = lay.lineInfo(0);
+                return !lines.isEmpty() && lines[0].text.contains(QChar(0x2014));
+            };
+            double width = 0;
+            {
+                QTextDocument doc;
+                StoryLayout lay;
+                build(1000, &doc, &lay);
+                int frame = -1;
+                QRectF at;
+                if (!lay.caretRect(int(text.indexOf(QChar(0x2014))) + 1, &frame, &at)) return -1000.0;
+                width = at.left();
+            }
+            double lo = 100, hi = 300;   // (the text is about 216 points)
+            if (takesTheDash(lo) || !takesTheDash(hi)) return -1000.0;
+            while (hi - lo > 0.0005) {
+                const double mid = (lo + hi) / 2;
+                (takesTheDash(mid) ? hi : lo) = mid;
+            }
+            return hi - width;
+        };
+        const QString zeros(34, QLatin1Char('0')), later(4, QLatin1Char('0'));
+        const double atSpace = needs(QString(33, QLatin1Char('0')) + QLatin1Char(' ') + QChar(0x2014) + later);   // (breaks at the space)
+        const double atDash = needs(zeros + QChar(0x2014) + later);                                                  // (breaks before the dash)
+        QVERIFY2(atSpace > -100 && atDash > -100, qPrintable(QStringLiteral("at a space %1, at the dash %2").arg(atSpace).arg(atDash)));
+        QVERIFY2(std::abs(atDash - atSpace) < 0.01, qPrintable(QStringLiteral("the dash needs %1 more than its width where the line breaks before it, %2 where it breaks at a space").arg(atDash).arg(atSpace)));
     }
 
     // Hidden text takes no room and shows nothing: a line's text is what is left, and a paragraph of nothing else is an empty line.
@@ -3522,6 +3903,33 @@ private Q_SLOTS:
         LayoutEnv a, b;
         b.wordNoHangStop = true;
         QVERIFY(a.key() != b.key());
+    }
+
+    // The hanging indent is a tab stop for the first line though the paragraph has stops of its own, past it: "a.<tab>text" has its text at the indent (V016's sub-items, indent
+    // 40 points and stops from 103), and a stop of the paragraph's own before the indent is the nearer one.
+    void aHangingIndentIsATabStopBeforeTheParagraphsOwnStops()
+    {
+        auto textAt = [&](double firstStop) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            bf.setLeftMargin(40);
+            bf.setTextIndent(-26.65);
+            bf.setTabPositions({QTextOption::Tab(firstStop, QTextOption::LeftTab), QTextOption::Tab(firstStop + 30, QTextOption::LeftTab)});
+            c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("a.\ttext"), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            env.defaultTab = 36;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(400, 100)}, env);
+            return lay.rangeRects(0, 3, 4).first().left();
+        };
+        QVERIFY2(std::abs(textAt(103) - 40) < 0.05, qPrintable(QString::number(textAt(103))));
+        QVERIFY2(std::abs(textAt(30) - 30) < 0.05, qPrintable(QString::number(textAt(30))));
     }
 
     // A justified line of a word processor's text reaches the margin with its last letter, not a space short of it (the space that ends the line is not

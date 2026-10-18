@@ -266,15 +266,33 @@ QString LayoutEnv::key() const
 // 0.1% and positions within Qt's fixed-point range).
 namespace {
 constexpr double kFine = 8;
-// Qt keeps a pixel of the fine layout (an eighth of a point) back from the width a line is given, and the width of a line the room of which it exactly fills is
-// to be given back that much and a hair more (the layout's rounding).
-constexpr double kQtPixelBack = 0.126;
+// The most letters a word processor's lines are kept from breaking among by the rules after a question mark and between brackets (buildOnce): past it, a line may break there.
+constexpr int kMostUnbrokenStretch = 120;
+// The longest stretch they kept so, since the program began, for a test of their cost.
+std::atomic<qint64> g_longestJoinedStretch{0};
+inline void noteJoinedStretch(int n)
+{
+    qint64 seen = g_longestJoinedStretch.load(std::memory_order_relaxed);
+    while (n > seen && !g_longestJoinedStretch.compare_exchange_weak(seen, n, std::memory_order_relaxed)) {}
+}
+// Whether a letter is East Asian (Han, Kana, Hangul, and the full-width forms): its text breaks between any two letters.
+inline bool isEastAsian(QChar c)
+{
+    const char16_t u = c.unicode();
+    return (u >= 0x2E80 && u <= 0xD7FF) || (u >= 0xF900 && u <= 0xFAFF) || (u >= 0xFF00 && u <= 0xFFEF) || c.isHighSurrogate();
+}
+// A pixel of the fine layout (an eighth of a point) and a hair more is what the width of a line the room of which it exactly fills is given over its room, for the layout's
+// rounding. It is the same on every machine: it is the layout's own, not the text engine's. (What the engine counts past the advance of a glyph at a line's end is another thing,
+// and a machine's own: qtGiveBack.)
+constexpr double kPixelBack = 0.126;
 // How far past its room a word processor's line may run: a pixel of the fine layout short of it, which is where the original program's lines break on the practice documents
 // (set to the room exactly, the lines of 37 of them end further from its own, and a page of V032 that matches goes out of step). Every place that fits a line to its room (the
 // first try, a line that ends at a dash, the word wider than the line, the space shrinking) uses it, so that they agree. The text before a mark that hangs is the one exception.
 constexpr double kRoomOffset = -0.125;
 // Where a line is set to end at its room (text that ends at a right tab stop): as wide as it, to what the layout's rounding leaves.
 constexpr double kExactFit = 0.13;
+// What a word wider than the line is given over its room, so that a row of underscores as wide as the room is one line (qtGiveBack, which is measured on the machine).
+double qtGiveBack();
 // What the space shrinking of justified lines has done, for a test of its cost: characters looked at in finding the lines that could take another word, paragraphs with such a line,
 // paragraphs laid out again, paragraphs set from what an earlier layout of them came to, and characters measured in cutting the lines of a paragraph.
 static qint64 s_shrinkLooked = 0, s_shrinkPasses = 0, s_shrinkRelaid = 0, s_shrinkShared = 0, s_shrinkFull = 0;
@@ -290,7 +308,25 @@ constexpr int kOwnUnderline = QTextFormat::UserProperty + 90;
 // (applyLetterWidths gives each letter the original's width).
 constexpr int kLetterWidths = QTextFormat::UserProperty + 91;
 // The face Courier New is drawn in where the machine lacks it (resolveCharFormat): its font's families are this and then the family whose line it keeps.
-const QString kThinCourier = QStringLiteral("Courier Prime");
+const QString kThinCourier = QStringLiteral("TeX Gyre Cursor");
+// The bundled face a word processor's face is drawn in where the machine lacks it, for the faces its machine has that no table of letter widths measures: the nearest of the same
+// kind, which a run's font lists before the face asked for (resolveCharFormat), as TeX Gyre Cursor is, and how many percent wider it is drawn (regular, bold) to take the
+// original's widths. News Gothic MT, the masthead of the public notices of one agency, is set in Libre Franklin, a gothic of the same bearing: its bold "PUBLIC NOTICE" at 48
+// points is 497 pixels wide to the original's 495. Univers is set in Arimo, 8 percent wider in its regular face (the original's lines in V018 are 1.05 to 1.09 of Arimo's,
+// word by word 1.0 to 1.16, which the stretch only takes the middle of) and as wide in its bold (0.99 to 1.0 over two lines); on the practice document it is set in, a
+// third of its score gone. Yu Gothic, the face the file's font table gives for another that the machine lacks (V104's FreeSerif), is set in Open Sans, whose widths are
+// the same to 0.4 percent (over 48 lines, a spread of 0.6).
+struct WordStandIn {
+    QString family;
+    int stretch = 100, boldStretch = 100;
+};
+WordStandIn wordStandInOf(const QString &lowerFamily)
+{
+    if (lowerFamily == QLatin1String("news gothic mt")) return {QStringLiteral("Libre Franklin"), 100, 100};
+    if (lowerFamily == QLatin1String("univers")) return {QStringLiteral("Arimo"), 108, 100};
+    if (lowerFamily == QLatin1String("yu gothic")) return {QStringLiteral("Open Sans"), 100, 100};
+    return {};
+}
 
 // A run's border from the text of its property (tp::RunBorder: style, width in eighths of a point, room in points, color): at most twelve points wide and thirty-one away, as a file
 // can say; none (not visible) where the style is none or nil.
@@ -341,6 +377,52 @@ QFont fineFont(QFont f)
     if (f.letterSpacingType() == QFont::AbsoluteSpacing) f.setLetterSpacing(QFont::AbsoluteSpacing, f.letterSpacing() * kFine);
     f.setWordSpacing(f.wordSpacing() * kFine);
     return f;
+}
+
+// How far the text engine of this machine counts a glyph past its advance at the end of a line, in points: the least width at which a row of underscores stays on one line,
+// less the sum of their advances, found by halving the interval between them, once, at three sizes (the greatest of them). The underscore is the glyph that reaches past its
+// advance in every face (the word processor's rows of them are the lines of its forms), and the engine of Linux counts it out to a whole pixel of the fine layout, an eighth
+// of a point, where that of macOS counts it exactly: what a row that fills its room is given back (qtGiveBack) is that and a hair. This is the one glyph; another that reaches
+// past its advance (an f, an italic letter, a dash) is counted by the engine as it counts it, and nothing here makes up for it. Whatever the engine counts of a glyph that does
+// not reach past its advance (the digits, most letters) is nothing, as measured on Linux; the fit of an ordinary line has no part of this.
+double qtGiveBack()
+{
+    static const double giveBack = [] {
+        QFont base;
+        base.setFamilies({QStringLiteral("Tinos"), QStringLiteral("Liberation Serif"), QStringLiteral("Times New Roman")});
+        base.setHintingPreference(QFont::PreferNoHinting);
+        double most = 0.0;
+        for (const double size : {9.0, 12.0, 17.0}) {
+            QFont f = base;
+            f.setPointSizeF(size * fontPointFactor());
+            const QFont fine = fineFont(f);
+            const QString text(24, QLatin1Char('_'));
+            const double advances = QFontMetricsF(fine).horizontalAdvance(text);
+            auto fits = [&](double width) {
+                QTextLayout lay(text, fine);
+                QTextOption opt;
+                opt.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
+                opt.setFlags(QTextOption::IncludeTrailingSpaces);
+                lay.setTextOption(opt);
+                lay.beginLayout();
+                QTextLine line = lay.createLine();
+                line.setLineWidth(width);
+                const bool one = line.textLength() == text.size();
+                lay.endLayout();
+                return one;
+            };
+            double lo = advances - 2 * kFine, hi = advances + 4 * kFine;
+            if (!(advances > 0) || fits(lo) || !fits(hi)) continue;   // (an engine that is not as probed counts nothing)
+            for (int i = 0; i < 24; ++i) {
+                const double mid = (lo + hi) / 2;
+                (fits(mid) ? hi : lo) = mid;
+            }
+            most = std::max(most, (hi - advances) / kFine);
+        }
+        // (In 64ths of a pixel of the fine layout, the engine's own unit: a pixel is then an eighth of a point exactly.)
+        return std::round(std::clamp(most, 0.0, 0.25) * 512) / 512 + 0.001;
+    }();
+    return giveBack;
 }
 
 // The other way: a font from a fine layout, in layout units.
@@ -955,16 +1037,23 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
         else if (env.wordLines && !fams.isEmpty() && isSymbolFont(fams.first()) && !hasFamilyCached(fams.first()) && symbolFontLetterWidths(fams.first()))
             r.setProperty(kLetterWidths, fams.first() + QStringLiteral("|0|0"));   // (its characters are shown as their pictures, by the widths of the font's)
     }
-    // Courier New, where the machine lacks it, is drawn in Courier Prime, a face of the same widths with strokes as thin as its own (its usual stand-in, Cousine,
+    // Courier New, where the machine lacks it, is drawn in TeX Gyre Cursor, a face of the same widths with strokes as thin as any bundled (its usual stand-in, Cousine,
     // is heavy); its line stays Courier New's.
     if (env.wordLines) {
         QStringList fams = r.fontFamilies().toStringList();
         const QString lower = fams.value(0).toLower();
-        if ((lower == QLatin1String("courier new") || lower == QLatin1String("courier")) && !hasFamilyCached(fams.first()) && hasFamilyCached(QStringLiteral("Courier Prime"))) {
+        if ((lower == QLatin1String("courier new") || lower == QLatin1String("courier")) && !hasFamilyCached(fams.first()) && hasFamilyCached(kThinCourier)) {
             // (The family it is drawn in, then the one whose line it keeps: wordFaceOf reads the second wherever a line is measured, from a run's font, a paragraph's, a
             // list marker's, or the next paragraph's.)
             fams.insert(0, kThinCourier);
             r.setFontFamilies(fams);
+        } else if (const WordStandIn standIn = wordStandInOf(lower); !standIn.family.isEmpty() && !hasFamilyCached(fams.first()) && hasFamilyCached(standIn.family)) {
+            fams.insert(0, standIn.family);
+            r.setFontFamilies(fams);
+            const int own = f.hasProperty(QTextFormat::FontStretch) ? f.fontStretch() : 100;
+            const bool boldRun = f.hasProperty(QTextFormat::FontWeight) && f.fontWeight() >= QFont::DemiBold;
+            const int wide = int(std::lround(own * (boldRun ? standIn.boldStretch : standIn.stretch) / 100.0));
+            if (wide != 100) r.setFontStretch(stretchToAsk(wide));
         }
     }
     // Sizes within the other program's range (to 1,638 pt): a file can claim
@@ -1115,6 +1204,9 @@ QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
     auto it = b.begin();
     if (!it.atEnd()) cf = it.fragment().charFormat();
     QFont f = resolveCharFormat(cf, env).font();
+    // (A word processor's run says its own stretch where its stand-in is narrowed or widened to the original's: the first run's is not the paragraph's, which the
+    // runs that say none would take from here.)
+    if (env.wordLines) f.setStretch(QFont::AnyStretch);
     // Paragraph-level OpenType features (Qt 6.8 applies features per layout font).
     const int num = cf.intProperty(tp::NumberStyle), sp = cf.intProperty(tp::NumberSpacing), lig = cf.intProperty(tp::Ligatures);
     if (num == 1) f.setFeature(QFont::Tag("lnum"), 1);
@@ -1167,6 +1259,7 @@ int StoryLayout::Block::docFromDisp(int d) const
 namespace { std::atomic<qint64> g_lineHeightsMeasured{0}; }   // (see StoryLayout::lineHeightsMeasuredForTest)
 
 qint64 StoryLayout::lineHeightsMeasuredForTest() { return g_lineHeightsMeasured.load(); }
+qint64 StoryLayout::longestJoinedStretchForTest() { return g_longestJoinedStretch.load(); }
 
 StoryLayout::StoryLayout() = default;
 StoryLayout::~StoryLayout() = default;
@@ -1551,6 +1644,7 @@ static const WordFontRow kWordFonts[] = {
     {"times", 1825, 443, 1825, 443, 87},     {"helvetica", 1854, 434, 1854, 434, 67}, {"courier", 1705, 615, 1705, 615, 0},
     {"century", 2019, 442, 2019, 443, 0},    {"monotype corsiva", 1618, 620, 1618, 620, 60}, {"broadway", 1869, 450, 1869, 450, 0},
     {"tw cen mt condensed extra bold", 1788, 430, 1788, 430, 0}, {"news gothic mt", 2003, 458, 2003, 458, 0}, {"univers", 2025, 512, 2025, 512, 0},
+    {"yu gothic", 2017, 619, 1802, 455, 1169},
 };
 
 // The measured face a family asks for, by its style: the face itself, else what a word processor makes it from (a bold italic from the
@@ -1590,7 +1684,8 @@ static QString metricFamilyOf(const QFont &f)
     const QStringList families = f.families();
     // (And for a run that shows the pictures of a symbol font the machine lacks, drawn in the run's own family: the font follows it in the list.)
     const bool pictures = families.size() >= 2 && isSymbolFont(families[1]) && !isSymbolFont(families.first()) && !hasFamilyCached(families[1]);
-    return families.size() >= 2 && (families.first() == kThinCourier || pictures) ? families[1] : requestedFamily(f);
+    const bool standIn = families.size() >= 2 && (families.first() == kThinCourier || wordStandInOf(families[1].toLower()).family == families.first());
+    return standIn || pictures ? families[1] : requestedFamily(f);
 }
 
 // A font's ascent, descent, and leading in ems, as the word processor lays a line out with it (by the family the text asked for): the one place a line is
@@ -2590,6 +2685,42 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 if (env.slideLines || env.wordLines) {
                     for (int i = 0; i + 1 < int(raw.size()); ++i)
                         if (raw[i] == QLatin1Char('/') && !raw[i + 1].isSpace() && raw[i + 1] != QChar::LineSeparator) cuts.append({i + 1, QChar(0x2060)});
+                    // (A word processor's line breaks at spaces, and after hyphens and dashes: not between parts in brackets that touch, "(c)(5)(iv)", nor after a mark of
+                    // question or exclamation, or a bar, that the text goes straight on from, "subindex.asp?maintarget=", where Qt's rules would. Not where the stretch since
+                    // the last place a line may break is a hundred and twenty letters long, though: a line breaks in a longer word where it must, and a file of nothing but
+                    // such marks would be one word as wide as its text, which Qt lays out a line at a time over all of it. East Asian text breaks after a mark as it does after a letter.)
+                    if (env.wordLines) {
+                        const auto joins = [](QChar c, QChar n) {
+                            if (n.isSpace() || n == QChar::LineSeparator || n.isNull()) return false;
+                            const bool opens = n == QLatin1Char('(') || n == QLatin1Char('[') || n == QLatin1Char('{');
+                            if (c == QLatin1Char(')') || c == QLatin1Char(']') || c == QLatin1Char('}')) return opens;
+                            if (c == QLatin1Char('?') || c == QLatin1Char('!') || c == QLatin1Char('|')) return (n.isLetterOrNumber() && !isEastAsian(n)) || opens;
+                            return false;
+                        };
+                        int stretch = 0;
+                        for (int i = 0; i + 1 < int(raw.size()); ++i) {
+                            const QChar c = raw[i];
+                            if (c.isSpace() || c == QLatin1Char('-') || c == QChar(0x2013) || c == QChar(0x2014) || c == QChar(0x200B) || c == QChar(0x00AD)) {
+                                stretch = 0;
+                                continue;
+                            }
+                            ++stretch;
+                            if (!joins(c, raw[i + 1])) continue;
+                            if (stretch >= kMostUnbrokenStretch) {
+                                stretch = 0;   // (a place a line may break again)
+                                continue;
+                            }
+                            cuts.append({i + 1, QChar(0x2060)});
+                            noteJoinedStretch(stretch);
+                        }
+                        // (And at the end of a run, where the text goes on in another format.)
+                        if (!cutShort && !raw.isEmpty()) {
+                            auto next = it;
+                            ++next;
+                            if (!next.atEnd())
+                                if (const QString after = next.fragment().text(); !after.isEmpty() && joins(raw.back(), after[0])) cuts.append({int(raw.size()), QChar(0x2060)});
+                        }
+                    }
                     // (And one that ends a run, where the text goes on in another format: the next run's first letter says.)
                     if (!cutShort && raw.endsWith(QLatin1Char('/'))) {
                         auto next = it;
@@ -2894,7 +3025,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     if (at > end + 0.01 && (stop < 0 || at < stop)) stop = at;
                 };
                 for (const QTextOption::Tab &t : bf.tabPositions()) consider(t.position * scale);
-                if (B->markerSkipsIndent && bf.hasProperty(tp::NumberTab)) {
+                // (A list tab that is not past the number is none.)
+                if (B->markerSkipsIndent && bf.hasProperty(tp::NumberTab) && bf.doubleProperty(tp::NumberTab) * scale > end + 0.01) {
                     consider(bf.doubleProperty(tp::NumberTab) * scale);
                 } else if (B->markerSkipsIndent) {
                     // (With no list tab, the paragraph clearing the level's or setting a stop of its own in its place, the text goes to the nearest of the paragraph's stops, the
@@ -3039,7 +3171,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             // Nor is the text of a table's cell, whose column the text's own width may have set.)
             const bool alignedTab = wordTabs && B->disp.contains(QLatin1Char('\t')) &&
                                     std::any_of(ownTabs.cbegin(), ownTabs.cend(), [](const QTextOption::Tab &t) { return t.type != QTextOption::LeftTab; });
-            const double fit = env.wordLines ? (alignedTab || B->lettersAdjusted || !m_span.keepRules ? kQtPixelBack : kQtPixelBack + kRoomOffset) : 0.0;
+            const double fit = env.wordLines ? (alignedTab || B->lettersAdjusted || !m_span.keepRules ? kPixelBack : kPixelBack + kRoomOffset) : 0.0;
             const bool gridTabs = (bf.tabPositions().isEmpty() || wordTabs) && bf.layoutDirection() != Qt::RightToLeft && B->disp.contains(QLatin1Char('\t'));
             const double step = std::max(1.0, env.defaultTab) * scale;
             auto hangStop = [&](double from, bool hangLine) { return hangLine && hangs && !env.wordNoHangStop && B->marker.isEmpty() && leftM > from + 0.01; };
@@ -3049,10 +3181,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             auto stopsFor = [&](double off, double w, bool hangLine) {
                 QList<QTextOption::Tab> tabs;
                 if (wordTabs) {
-                    // (A word processor's left indent of a hanging line is a stop only where the paragraph has none of its own: the default stops before
-                    // it stay, and with stops of its own they are where tabs go.)
+                    // (A word processor's left indent of a hanging line is a stop among the paragraph's own, before the first of them that lies past it; the default
+                    // stops go on past the last of them.)
                     double last = -1e9;
-                    bool hung = true;
+                    bool hung = !hangStop(off, hangLine);
                     int own = 0;
                     for (QTextOption::Tab t : ownTabs) {
                         const double at = t.position * scale;
@@ -3274,7 +3406,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             B->disp[e0 - 1].unicode() != 0x200B && B->disp[e0 - 1].unicode() != 0x2060) {
                             if (!lineBreaks) lineBreaks = std::make_unique<QTextBoundaryFinder>(QTextBoundaryFinder::Line, B->disp);
                             lineBreaks->setPosition(e0);
-                            if (!lineBreaks->isAtBoundary()) line.setLineWidth(room + kQtPixelBack);
+                            if (!lineBreaks->isAtBoundary()) line.setLineWidth(room + qtGiveBack());
                         }
                     }
                     // A word processor's right tab stop that is past the paragraph's right indent, inside the column or in the margin beside it, still takes the text after its tab
@@ -3303,7 +3435,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             if (!aligned) line.setLineWidth(room + fit);
                         }
                     }
-                    // A word processor lets a mark of punctuation at the end of a line hang past the margin (a period, a comma, a closing quote or bracket),
+                    // A word processor lets a mark of punctuation at the end of a line hang past the margin (a period, a comma, a closing quote: not a bracket, V055),
                     // so a word followed by one can be the last of a line it is a mark too wide for: the line is tried that much wider, and kept so if
                     // it is only that last mark that is past the margin. The text before the mark may fill the room exactly (the original program's lines go so on the practice
                     // documents, where a line that ends in a word stops a pixel short of its room, as the others here do).
@@ -3312,13 +3444,13 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         const double hang = 0.34 * base.pointSizeF() / fontPointFactor();
                         const int endBefore = line.textStart() + line.textLength();
                         if (endBefore < B->disp.size()) {
-                            line.setLineWidth(room + kQtPixelBack + hang);
+                            line.setLineWidth(room + kPixelBack + hang);
                             const int s0 = line.textStart(), e0 = s0 + line.textLength();
                             int k = e0 - 1;
                             while (k > s0 && B->disp[k].isSpace()) --k;
                             const double end = line.cursorToX(k + 1);
-                            if (end > room + fit - kQtPixelBack) {
-                                static const QString marks = QStringLiteral(".,;:!?)]}\"'\u2019\u201D\u00BB\u2026");
+                            if (end > room + fit - kPixelBack) {
+                                static const QString marks = QStringLiteral(".,;:!?\"'\u2019\u201D\u00BB\u2026");   // (no closing bracket: V055's line that ends in "triggerSetup[0]" is the next line's)
                                 markHangs = marks.contains(B->disp[k]) && line.cursorToX(k) <= room + 0.001 && k > s0;
                                 if (!markHangs) line.setLineWidth(room + fit);
                             } else if (al == Qt::AlignJustify) {
@@ -5075,14 +5207,22 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                     const QString ch(leader);
                     const double w = advanceOf(f, ch);
                     if (w <= 0.01) continue;
-                    const double gap = w * 0.4;
-                    double x = std::ceil((x0 + gap) / w) * w;
+                    // (A word processor's underscores are one line from the tab to its stop: from where the tab starts, the last of them cut at the stop.)
+                    const bool line = m_env.wordLines && leader == QLatin1Char('_');
+                    const double gap = line ? 0.0 : w * 0.4;
+                    double x = line ? x0 : std::ceil((x0 + gap) / w) * w;
                     QString run;
                     const double startX = x;
-                    for (; x + w <= x1 - gap; x += w) run += ch;
+                    for (; x + w <= x1 - gap + (line ? 0.01 : 0.0); x += w) run += ch;   // (a word processor's, to a hair over: the others' as they were)
+                    if (line && x < x1 - 0.01) run += ch;
                     if (run.isEmpty()) continue;
                     p->setPen(cf.foreground().style() != Qt::NoBrush ? cf.foreground().color() : m_env.colors.slot(Main));
+                    if (line) {
+                        p->save();
+                        p->setClipRect(QRectF(off.x() + x0, off.y() + l.position().y() - 1000, x1 - x0, 2000), Qt::IntersectClip);
+                    }
                     drawPlainText(p, off + QPointF(startX, l.position().y() + l.ascent()), f, run);
+                    if (line) p->restore();
                 }
             }
         }
