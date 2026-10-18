@@ -11217,6 +11217,36 @@ private Q_SLOTS:
         QVERIFY(out.contains(R"(</w:tr></w:sdtContent></w:sdt></w:sdtContent></w:sdt><w:tr>)"));
     }
 
+    // A section's line numbers (w:lnNumType) are drawn in the margin, left of the text by the distance the file says, in the "line number" character style, from 1 at each page, and are
+    // written back as they were.
+    void aSectionsLineNumbersAreDrawnAndKept()
+    {
+        const QByteArray styles = kStyles + QByteArray("<w:style w:type=\"character\" w:styleId=\"LineNumber\"><w:name w:val=\"line number\"/><w:rPr><w:sz w:val=\"14\"/></w:rPr></w:style>");
+        QByteArray body;
+        for (int i = 0; i < 40; ++i) body += plainP(wordsOf("line", 6));
+        const QByteArray sect = sectionXml(6000, 6000, 1440, QByteArray(), QByteArray(), "<w:lnNumType w:countBy=\"1\" w:distance=\"144\"/>");
+        auto doc = open(makeDocxWithParts(body, sect, {}, QByteArray(), styles));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        QVERIFY(pg.pageCount() >= 3);
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            QStringList numbers;
+            double right = 0;
+            for (const auto &item : page->doc->pages[0]->items)
+                if (item->id.startsWith(QLatin1String("flow-lineno-box"))) {
+                    numbers << page->doc->stories.value(dynamic_cast<const TextItem *>(item.get())->storyId)->doc->toPlainText();
+                    right = item->rect.right();
+                }
+            QCOMPARE(int(numbers.size()), int(pg.lines(k).size()));
+            QCOMPARE(numbers.value(0), QStringLiteral("1"));
+            QCOMPARE(numbers.last(), QString::number(numbers.size()));
+            QVERIFY2(std::abs(right - (pg.page(k).content.left() - 7.2)) < 0.01, qPrintable(QString::number(right)));
+        }
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:lnNumType w:countBy=\"1\" w:distance=\"144\"/>"));
+    }
+
     // What a header shows of a paragraph style (a STYLEREF field) is the page's own: the first paragraph of the style on the page (the last with \l), or the nearest before the page
     // when it has none; the field's result in the file is what shows where the document has none at all.
     void aHeaderShowsTheStyledParagraphOfItsPage()

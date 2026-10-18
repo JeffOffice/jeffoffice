@@ -5452,6 +5452,49 @@ private Q_SLOTS:
         QVERIFY(insideEver > 4);
     }
 
+    // A section's line numbers (a number in the margin for each line, or each fifth, from its start, again at each page) are drawn left of the column, at the lines' own places,
+    // for the lines of the section's text: not for a table's rows.
+    void aSectionsLineNumbersAreDrawnInTheMarginAtEachLine()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 24, 4, [](int, QTextBlockFormat &bf) { bf.setBottomMargin(0); }, 6, 12);
+        fd.sections[0].paper = QSizeF(240, 200);
+        fd.sections[0].margins = QMarginsF(60, 30, 30, 30);
+        fd.sections[0].lineNumbers.countBy = 1;
+        fd.sections[0].lineNumbers.start = 1;
+        fd.sections[0].lineNumbers.distance = 10;
+        fd.sections[0].lineNumbers.format.setFontPointSize(7);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 3);
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            QVector<const TextItem *> numbers;
+            for (const auto &item : page->doc->pages[0]->items)
+                if (item->id.startsWith(QLatin1String("flow-lineno-box"))) numbers.push_back(dynamic_cast<const TextItem *>(item.get()));
+            const int lines = int(pg.lines(k).size());
+            QCOMPARE(int(numbers.size()), lines);
+            for (int i = 0; i < numbers.size(); ++i) {
+                QVERIFY(numbers[i]);
+                QCOMPARE(page->doc->stories.value(numbers[i]->storyId)->doc->toPlainText(), QString::number(i + 1));   // (again from 1 at each page)
+                QVERIFY2(numbers[i]->rect.right() <= 60 - 10 + 0.01, qPrintable(QString::number(numbers[i]->rect.right())));   // (the column's left, less the distance)
+                const auto &line = pg.lines(k)[i];
+                QVERIFY2(numbers[i]->rect.top() < pg.page(k).content.top() + line.rect.bottom() && numbers[i]->rect.bottom() > pg.page(k).content.top() + line.rect.top(), "the number is at its line");
+            }
+        }
+        // Every fifth line, when the section asks.
+        fd.sections[0].lineNumbers.countBy = 5;
+        Paginator five(&fd);
+        const auto page = five.materialize(0);
+        QVERIFY(page);
+        QStringList shown;
+        for (const auto &item : page->doc->pages[0]->items)
+            if (item->id.startsWith(QLatin1String("flow-lineno-box"))) shown << page->doc->stories.value(dynamic_cast<const TextItem *>(item.get())->storyId)->doc->toPlainText();
+        QVERIFY(shown.size() >= 2);
+        for (int i = 0; i < shown.size(); ++i) QCOMPARE(shown[i], QString::number(5 * (i + 1)));
+    }
+
     // A continuous section of two columns that holds a table: it begins below the text of the section before, the table is inside a column and flows into the next, and
     // the page's note (cited in the text above the table, in the first column) and furniture keep to their places.
     void aTableInAContinuousTwoColumnSectionIsInsideItsColumnBelowTheTextAbove()

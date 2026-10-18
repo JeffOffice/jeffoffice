@@ -298,6 +298,8 @@ private:
     void addFurniture(Document *d, const Furniture &f, const Section &sec, int section, int number, MaterializedPage *page = nullptr, int from = -1, int to = -1);
     // The fields of a header's or footer's story that show a paragraph style's text (STYLEREF) show the page's paragraph of the style: the story is a copy made for the page.
     void substituteStyleRefs(QTextDocument *story, int from, int to) const;
+    // The line numbers of the sections' text, in the margin at each line of the page (a section that has them, and begins them again at each page).
+    void addLineNumbers(Document *d, const Run &run, const QRectF &body);
     // A header or footer with tables in it: its text before, between, and after them, and each table, laid out from the top at a width for the page that shows number `number`
     // (the page's number is what the fields in its cells show). The tables are laid out in a private copy of the story, with the table machinery of the document's own.
     struct HeaderPart {

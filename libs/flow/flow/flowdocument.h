@@ -12,6 +12,7 @@
 #include <QRectF>
 #include <QSizeF>
 #include <QString>
+#include <QTextCharFormat>
 #include <QTextFormat>
 #include <QVector>
 #include <memory>
@@ -147,6 +148,14 @@ struct Section {
     PageBorders pageBorders;                 // the lines round its pages
     std::optional<int> firstPageNumber;      // the number the section's first page has (0 is a number; none: it goes on from the section before)
     QString pageNumberFormat;                // "", "roman", "ROMAN", "alpha", or "ALPHA" (the fields' own)
+    // Line numbers in the margin (w:lnNumType): a number for every `countBy` lines of the section's text (0: none), counted from `start`, `distance` points left of the column (0: the
+    // usual), in `format`; they begin again at each page, at each section, or not at all (only the first is drawn).
+    struct LineNumbers {
+        int countBy = 0, start = 1;
+        double distance = 0;
+        enum class Restart { NewPage, NewSection, Continuous } restart = Restart::NewPage;
+        QTextCharFormat format;
+    } lineNumbers;
 
     // The header and footer story a page uses, or none: the first page's of the section when the section asks for one and it is the section's
     // first page, else the even pages' when it asks for those and the page's number is even, else the odd pages' (the ordinary one).

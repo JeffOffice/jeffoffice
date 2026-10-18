@@ -1558,6 +1558,60 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
     return sd;
 }
 
+// The most numbers a page's lines are given (a page holds a few hundred lines at the most).
+constexpr int kMostLineNumbers = 600;
+
+void Paginator::addLineNumbers(Document *d, const Run &run, const QRectF &body)
+{
+    bool any = false;
+    for (const Section &s : m_doc->sections) any |= s.lineNumbers.countBy > 0;
+    if (!any || !m_doc->env.wordLines) return;
+    const QTextDocument *story = m_doc->story();
+    const QVector<int> &starts = sectionStarts();
+    int number = 0, made = 0;
+    for (int i = 0; i < run.kept && made < kMostLineNumbers; ++i) {
+        const StoryLayout::LineBrief &ln = run.lines[i];
+        const QTextBlock block = story->findBlock(ln.block);
+        const QTextBlockFormat bf = block.blockFormat();
+        // (The text of a section: not the rows of a table, nor a paragraph that is set apart from the text.)
+        if (bf.intProperty(fp::Cell) || bf.boolProperty(tp::OutOfLayout)) continue;
+        const int column = ln.frame - run.firstFrame;
+        if (column < 0 || column >= run.cols.size()) continue;
+        const int section = std::clamp(int(std::upper_bound(starts.cbegin(), starts.cend(), ln.pos) - starts.cbegin()) - 1, 0, int(m_doc->sections.size()) - 1);
+        const Section::LineNumbers &numbers = m_doc->section(section).lineNumbers;
+        if (numbers.countBy <= 0 || numbers.restart != Section::LineNumbers::Restart::NewPage) continue;
+        const int n = numbers.start + number++;
+        if (n % numbers.countBy != 0) continue;
+        // The number sits at the line, its baseline where the line's is (a line's text is about four fifths above its baseline), right of nothing: its right edge is the distance left of the column.
+        QTextCharFormat format = numbers.format;
+        if (format.fontPointSize() <= 0) format.setFontPointSize(10);
+        const QRectF col = run.cols[column];
+        const double textHeight = std::max(1.0, ln.rect.height() - ln.below), numberHeight = format.fontPointSize() * 1.15;
+        const double right = col.left() - (numbers.distance > 0 ? numbers.distance : 18.0);
+        const double top = body.top() + col.top() + ln.rect.top() + 0.8 * (textHeight - numberHeight);
+        auto s = std::make_shared<Story>();
+        s->id = QStringLiteral("flow-lineno-%1-%2").arg(d->pages[0]->id).arg(made);
+        s->doc = std::make_unique<QTextDocument>();
+        s->doc->setDocumentMargin(0);
+        QTextBlockFormat align;
+        align.setAlignment(Qt::AlignRight);
+        QTextCursor c(s->doc.get());
+        c.setBlockFormat(align);
+        c.insertText(QString::number(n), format);
+        d->stories.insert(s->id, s);
+        auto t = std::make_shared<TextItem>();
+        t->id = QStringLiteral("flow-lineno-box-%1-%2").arg(d->pages[0]->id).arg(made);
+        t->rect = QRectF(right - 60, top, 60, numberHeight + 0.005);
+        t->insets = QMarginsF(0, 0, 0, 0);
+        t->columns = 1;
+        t->hyphenate = false;
+        t->storyId = s->id;
+        t->wrap.mode = Wrap::None;
+        d->pages[0]->items.push_back(t);
+        ++made;
+    }
+}
+
 // The lines of a page's text that objects are anchored by (see the header). The line that stands for a row of a table is not a line of text: the cells' own lines, set from the
 // fragment, are; it is where the first row of a table in the text is, which is what the frames and tables before the table are set from.
 void Paginator::pageAnchorLines(const Run &run, const QRectF &body, QVector<AnchorLine> *held, QVector<AnchorLine> *firstLines) const
@@ -1790,6 +1844,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         const StoryLayout::LineBrief &lastLine = run.lines[run.kept - 1];
         out->continuesOnAfter = lastLine.line < lastLine.lines - 1;
         out->freeBreakEnds = run.freeBreak ? run.splitEnds : QVector<int>();
+        addLineNumbers(d.get(), run, furniture.body);
 
         // A text box for each column that has lines, as tall as its lines are: the lines that follow, which went to the next page, don't fit
         // in it (a frame a line short of the text's bottom is how the page is cut where the paginator cut it).
