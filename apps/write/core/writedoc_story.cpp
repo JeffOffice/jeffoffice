@@ -609,36 +609,42 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             continue;
         }
         // A drop-down field of a form that has no result (the text between its separator and its end) shows the entry it has chosen: the file's `result`, else its `default`, else
-        // the first. By the position of its first element in the paragraph's content.
+        // the first. By the position of its first element in the paragraph's content. (One pass over the elements: the fields open at a time are a stack, each remembering whether
+        // it is a drop-down and whether its separator has come.)
         QHash<int, QString> dropDown;
-        for (int at = 0; at < p.content.size(); ++at) {
-            const Inline &in = p.content[at];
-            if (in.kind != Inline::RunAtom || in.tag != QLatin1String("fldChar") || in.key != QLatin1String("begin") || !in.raw.contains("ddList")) continue;
-            bool separated = false;
-            int depth = 0;
-            for (int k = at; k < p.content.size(); ++k) {
-                const Inline &x = p.content[k];
-                if (x.kind != Inline::RunAtom || x.tag != QLatin1String("fldChar")) continue;
-                if (x.key == QLatin1String("begin")) ++depth;
-                else if (x.key == QLatin1String("separate") && depth == 1) separated = true;
-                else if (x.key == QLatin1String("end") && --depth == 0) break;
-            }
-            if (separated) continue;
-            QStringList entries;
+        {
             static const QRegularExpression entry(QStringLiteral("listEntry[^>]*?[\\s:]val\\s*=\\s*\"([^\"]*)\""));
-            const QString raw = QString::fromUtf8(in.raw);
-            for (auto m = entry.globalMatch(raw); m.hasNext();) entries << m.next().captured(1);
-            if (entries.isEmpty()) continue;
-            // (The `result` the file kept, else its `default`, else the first entry.)
-            auto indexOf = [&](const char *element) {
-                const QRegularExpression re(QStringLiteral("<w:%1[^>]*?[\\s:]val\\s*=\\s*\"(-?\\d+)\"").arg(QLatin1String(element)));
-                const QRegularExpressionMatch m = re.match(raw);
-                return m.hasMatch() ? m.captured(1).toInt() : -1;
+            static const QRegularExpression resultAt(QStringLiteral("<w:result[^>]*?[\\s:]val\\s*=\\s*\"(-?\\d+)\"")), defaultAt(QStringLiteral("<w:default[^>]*?[\\s:]val\\s*=\\s*\"(-?\\d+)\""));
+            struct Open {
+                int at = 0;
+                bool dropDown = false, separated = false;
             };
-            const int result = indexOf("result"), chosen = result >= 0 ? result : std::max(indexOf("default"), 0);
-            QString text = entries.value(std::clamp(chosen, 0, int(entries.size()) - 1));
-            text.replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&amp;"), QLatin1String("&"));
-            dropDown.insert(at, text);
+            QVector<Open> open;
+            auto close = [&](const Open &field) {
+                if (!field.dropDown || field.separated) return;
+                const QString raw = QString::fromUtf8(p.content[field.at].raw);
+                QStringList entries;
+                for (auto m = entry.globalMatch(raw); m.hasNext();) entries << m.next().captured(1);
+                if (entries.isEmpty()) return;
+                // (The `result` the file kept, else its `default`, else the first entry.)
+                const QRegularExpressionMatch result = resultAt.match(raw), def = defaultAt.match(raw);
+                const int chosen = result.hasMatch() ? result.captured(1).toInt() : def.hasMatch() ? std::max(def.captured(1).toInt(), 0) : 0;
+                QString text = entries.value(std::clamp(chosen, 0, int(entries.size()) - 1));
+                text.replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&amp;"), QLatin1String("&"));
+                dropDown.insert(field.at, text);
+            };
+            for (int at = 0; at < p.content.size(); ++at) {
+                ++m_dropDownSteps;
+                const Inline &in = p.content[at];
+                if (in.kind != Inline::RunAtom || in.tag != QLatin1String("fldChar")) continue;
+                if (in.key == QLatin1String("begin")) open.push_back({at, in.raw.contains("ddList"), false});
+                else if (in.key == QLatin1String("separate") && !open.isEmpty()) open.last().separated = true;
+                else if (in.key == QLatin1String("end") && !open.isEmpty()) {
+                    close(open.last());
+                    open.pop_back();
+                }
+            }
+            for (const Open &field : open) close(field);   // (a field the paragraph ended inside of)
         }
         int deletedDepth = 0;   // (inside the content a tracked change deleted)
         double advanceTop = -1;   // (a field that sets the text after it at a place from the page's top, ADVANCE with \\y: the paragraph is no higher than that)

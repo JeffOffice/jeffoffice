@@ -5286,6 +5286,21 @@ private Q_SLOTS:
         QVERIFY2(spec == QLatin1String("single;4;0;"), qPrintable(spec));
     }
 
+    // The drop-down fields of forms are found in one pass over a paragraph's elements: a paragraph of thousands of fields that are never ended (a damaged file's) does not cost the
+    // square of them to open. (Counted: the elements the scan looked at.)
+    void aParagraphOfThousandsOfUnendedDropDownsIsScannedOnce()
+    {
+        const int fields = 3000;
+        QByteArray body = "<w:p>";
+        for (int i = 0; i < fields; ++i)
+            body += "<w:r><w:fldChar w:fldCharType=\"begin\"><w:ffData><w:ddList><w:listEntry w:val=\"a\"/></w:ddList></w:ffData></w:fldChar></w:r>";
+        body += "<w:r><w:t>end</w:t></w:r></w:p>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+        auto doc = open(makeDocxWithParts(body, sect, {}));
+        QVERIFY(doc);
+        QVERIFY2(doc->dropDownStepsForTest() <= 4 * fields, qPrintable(QStringLiteral("%1 elements looked at for %2 fields").arg(doc->dropDownStepsForTest()).arg(fields)));
+    }
+
     // A table in a header or a footer is laid out and drawn: its cells' text (a page's number in one of them is the page's own), and the room it takes at the top of the page (or the
     // foot of it), under the header's text and over the footer's.
     void aTableInAHeaderOrAFooterIsDrawnAndTakesRoom()

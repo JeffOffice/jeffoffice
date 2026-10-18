@@ -87,6 +87,8 @@ public:
     int sectionAt(int position) const;
     // How many sections have been made from their records since the document was opened (to see what an edit costs).
     qint64 sectionsMadeForTest() const { return m_sectionsMade; }
+    // How many elements of paragraphs the scan for the drop-down fields of forms looked at since the document was opened (it looks at each once: to see what opening costs).
+    qint64 dropDownStepsForTest() const { return m_dropDownSteps; }
     // The paragraph ends the section: the break paragraphs and `flow().sections` are made again from the story. Called after edits that
     // add or remove paragraphs (the document does it itself when the story reports one).
     void syncSections();
@@ -198,6 +200,7 @@ private:
     office::wml::SectionProps m_last;
     QVector<int> m_sectionKeys;                    // the key of each section's record (the break paragraphs', then the last's), as of the last sync
     qint64 m_sectionsMade = 0;
+    qint64 m_dropDownSteps = 0;
     std::unique_ptr<NoteFields> m_noteFields;
     QString m_notePart;                                               // the footnotes part's name
     QHash<QString, QVector<office::wml::Block>> m_noteBlocks;         // by "fn" and Id
