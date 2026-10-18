@@ -129,7 +129,7 @@ tab (`w:ptab`) goes to the left, middle, or right of the margin or the indent, w
 section says `w:chapStyle` (the last heading of that level on the page, else the nearest before it, and `w:chapSep`); a first section of even pages numbers its first page 2; an item at a
 deeper level than the list has had counts the levels above it as begun, so that the next item at one of them is one more; a numbered paragraph that begins with a page break has its number
 after the break; a column break (`w:br w:type="column"`) sends the text after it to the next column, or the next page from the last column; the shapes of a group in a group of a drawing are
-read once; and the line of a drawn box takes no room from its text. Not yet: endnotes at the end of each section (`w:endnotePr` with `w:pos` set to `sectEnd`), page references (`PAGEREF`) that
+read once; the line of a drawn box takes no room from its text; and a justified line with no space keeps its letters together. Not yet: endnotes at the end of each section (`w:endnotePr` with `w:pos` set to `sectEnd`), page references (`PAGEREF`) that
 show the page the document's own layout puts a bookmark on, where the file's last result is not it (a table of contents the file made before its pages moved), footnotes cited in a table's
 cell, automatic hyphenation, and the numbers in the chapter's own format when the heading's numbering text has words in it.
 
