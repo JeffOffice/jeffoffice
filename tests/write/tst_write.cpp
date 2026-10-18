@@ -5329,6 +5329,28 @@ private Q_SLOTS:
         QVERIFY2(none == selected, "the body's selection (its first thirty characters) is painted in the header's table");
     }
 
+    // The border of a run is as wide as a file can say (twelve points at most, thirty-one away), and it is also what the run's character style or its paragraph's style gives (the
+    // run's own, if it says one, over them); a border of none in the run takes it off.
+    void aRunBorderIsClampedAndReadFromStyles()
+    {
+        const QByteArray styles = kStyles + QByteArray("<w:style w:type=\"character\" w:styleId=\"Boxed\"><w:name w:val=\"Boxed\"/><w:rPr><w:bdr w:val=\"dashed\" w:sz=\"6\" w:space=\"1\" w:color=\"FF0000\"/></w:rPr></w:style>"
+                                                       "<w:style w:type=\"paragraph\" w:styleId=\"Framed\"><w:name w:val=\"Framed\"/><w:basedOn w:val=\"Normal\"/><w:rPr><w:bdr w:val=\"double\" w:sz=\"8\" w:space=\"0\"/></w:rPr></w:style>");
+        auto run = [](const QByteArray &props, const char *text) { return "<w:r>" + (props.isEmpty() ? QByteArray() : "<w:rPr>" + props + "</w:rPr>") + "<w:t>" + QByteArray(text) + "</w:t></w:r>"; };
+        const QByteArray body = "<w:p>" + run("<w:bdr w:val=\"single\" w:sz=\"999\" w:space=\"999\" w:color=\"auto\"/>", "wide") + "</w:p>"
+                                "<w:p>" + run("<w:rStyle w:val=\"Boxed\"/>", "styled") + "</w:p>"
+                                "<w:p><w:pPr><w:pStyle w:val=\"Framed\"/></w:pPr>" + run(QByteArray(), "inherited") + run("<w:bdr w:val=\"nil\"/>", "taken") + "</w:p>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+        auto doc = open(makeDocxWithParts(body, sect, {}, QByteArray(), styles));
+        QVERIFY(doc);
+        QHash<QString, QString> specs;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) specs.insert(it.fragment().text(), it.fragment().charFormat().stringProperty(tp::RunBorder));
+        QCOMPARE(specs.value(QStringLiteral("wide")), QStringLiteral("single;96;31;"));
+        QCOMPARE(specs.value(QStringLiteral("styled")), QStringLiteral("dashed;6;1;FF0000"));
+        QCOMPARE(specs.value(QStringLiteral("inherited")), QStringLiteral("double;8;0;"));
+        QCOMPARE(specs.value(QStringLiteral("taken")), QString());
+    }
+
     // A table in a header or a footer is laid out and drawn: its cells' text (a page's number in one of them is the page's own), and the room it takes at the top of the page (or the
     // foot of it), under the header's text and over the footer's.
     void aTableInAHeaderOrAFooterIsDrawnAndTakesRoom()

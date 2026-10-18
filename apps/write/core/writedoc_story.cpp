@@ -311,14 +311,29 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         resolved.extra = props.extra;
         resolved.style = props.style;
         QTextCharFormat f = charFormatOf(resolved, thm, &props);
-        // (A border the run states itself, w:bdr: style, width in eighths of a point, room, and color.)
-        for (const RawChild &ch : props.extra) {
-            if (!ch.xml.startsWith("<w:bdr")) continue;
-            const QString style = attributeOfTag(ch.xml, QStringLiteral("val")), color = attributeOfTag(ch.xml, QStringLiteral("color"));
-            if (style.isEmpty() || style == QLatin1String("nil") || style == QLatin1String("none")) break;
-            f.setProperty(tp::RunBorder, style + QLatin1Char(';') + QString::number(std::max(1, attributeOfTag(ch.xml, QStringLiteral("sz")).toInt())) + QLatin1Char(';') +
-                                             QString::number(std::max(0, attributeOfTag(ch.xml, QStringLiteral("space")).toInt())) + QLatin1Char(';') + (color.compare(QLatin1String("auto"), Qt::CaseInsensitive) == 0 ? QString() : color));
-            break;
+        // (A border the run has, w:bdr: the run's own, else its character style's, else its paragraph's style's (and the styles they are based on): style, width in eighths of a
+        // point (twelve points at most), room (thirty-one at most), and color.)
+        {
+            QByteArray xml;
+            auto of = [&](const QVector<RawChild> &extra) {
+                for (const RawChild &ch : extra)
+                    if (ch.xml.startsWith("<w:bdr")) return ch.xml;
+                return QByteArray();
+            };
+            xml = of(props.extra);
+            for (const QString &styleId : {characterStyle, paraStyle}) {
+                QString id = styleId;
+                for (int depth = 0; xml.isEmpty() && !id.isEmpty() && depth < 20; ++depth) {
+                    const Style *st = sheet.find(id);
+                    if (!st) break;
+                    xml = of(st->rPr.extra);
+                    id = st->basedOn;
+                }
+            }
+            const QString style = attributeOfTag(xml, QStringLiteral("val")), color = attributeOfTag(xml, QStringLiteral("color"));
+            if (!style.isEmpty() && style != QLatin1String("nil") && style != QLatin1String("none"))
+                f.setProperty(tp::RunBorder, style + QLatin1Char(';') + QString::number(std::clamp(attributeOfTag(xml, QStringLiteral("sz")).toInt(), 1, 96)) + QLatin1Char(';') +
+                                                 QString::number(std::clamp(attributeOfTag(xml, QStringLiteral("space")).toInt(), 0, 31)) + QLatin1Char(';') + (color.compare(QLatin1String("auto"), Qt::CaseInsensitive) == 0 ? QString() : color));
         }
         if (!f.hasProperty(tp::Language))
             if (const QString language = styleLanguage(paraStyle, props.style); !language.isEmpty() && language != proofingLanguage()) f.setProperty(tp::Language, language);

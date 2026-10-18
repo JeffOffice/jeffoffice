@@ -851,6 +851,50 @@ const TextItem *boxHolding(const MaterializedPage &page, const QString &text, QS
 }
 
 
+// A paragraph of four spaces with a border round them (the spec as tp::RunBorder has it), after an empty line, at 12 point type and a line height of `percent` of single,
+// drawn at 8 points to the point: the picture, the rectangle of the four spaces, and the rectangle of their line. (Spaces have no ink: every dark point is the border.)
+struct BoxedSpaces {
+    QImage image;
+    QRectF run, line;
+    double scale = 8;
+    bool dark(double x, double y) const { return x >= 0 && y >= 0 && x < image.width() / scale && y < image.height() / scale && QColor(image.pixel(int(x * scale), int(y * scale))).lightness() < 60; }
+};
+
+BoxedSpaces boxedSpaces(const QString &border, double percent = 100)
+{
+    BoxedSpaces out;
+    QTextDocument doc;
+    QTextCursor c(&doc);
+    QTextCharFormat plain;
+    plain.setFontFamilies({QStringLiteral("Times New Roman")});
+    plain.setFontPointSize(12);
+    QTextCharFormat boxed = plain;
+    boxed.setProperty(tp::RunBorder, border);
+    QTextBlockFormat bf;   // (an empty line above, to have room over the box)
+    bf.setLineHeight(percent, QTextBlockFormat::ProportionalHeight);
+    c.insertBlock(bf);
+    c.insertText(QStringLiteral("  "), plain);
+    c.insertText(QStringLiteral("    "), boxed);
+    c.insertText(QStringLiteral("  "), plain);
+    const int start = doc.findBlockByNumber(1).position();
+    LayoutEnv env;
+    env.wordLines = true;
+    StoryLayout lay;
+    lay.build(&doc, {plainFrame(300, 100)}, env);
+    const auto lines = lay.lineInfo(0);
+    if (lines.size() != 2) return out;
+    out.image = QImage(int(300 * out.scale), int(100 * out.scale), QImage::Format_RGB32);
+    out.image.fill(Qt::white);
+    QPainter p(&out.image);
+    p.scale(out.scale, out.scale);
+    lay.paint(&p, 0, PaintOptions());
+    p.end();
+    const auto rects = lay.rangeRects(0, start + 2, start + 6);
+    if (!rects.isEmpty()) out.run = rects.first().united(rects.last());
+    out.line = lines[1].rect;
+    return out;
+}
+
 // A small picture's bytes, as a file.
 QByteArray tinyPng(int w, int h, const QColor &color)
 {
@@ -3036,8 +3080,7 @@ private Q_SLOTS:
         plain.setFontPointSize(12);
         QTextCharFormat boxed = plain;
         boxed.setProperty(tp::RunBorder, QStringLiteral("single;4;0;000000"));
-        c.insertText(QStringLiteral("A line above"), plain);
-        c.insertBlock();
+        c.insertBlock();   // (an empty line above, to have room over the box)
         c.insertText(QStringLiteral("  "), plain);
         c.insertText(QStringLiteral("  "), boxed);
         c.insertText(QStringLiteral("  "), boxed);   // (the same border: one box)
@@ -3127,6 +3170,43 @@ private Q_SLOTS:
         };
         QVERIFY2(filledAtTheHang(0), "the shading begins at the hanging line's edge on the first page");
         QVERIFY2(filledAtTheHang(1), "and where it did on the page the paragraph goes on on");
+    }
+
+    // The box round a run is as high as the run's text (the letters' ascent and descent, a point round them), not the line it is on: a line with room above and below the text, as
+    // double spacing leaves, has a box that is the text's.
+    void theBorderRoundARunIsAsHighAsItsTextNotItsLine()
+    {
+        const BoxedSpaces b = boxedSpaces(QStringLiteral("single;4;0;000000"), 200);
+        QVERIFY(b.run.width() > 0);
+        double y0 = 1e9, y1 = -1;
+        for (double y = b.line.top() - 6; y < b.line.bottom() + 6; y += 0.125)
+            for (double x = b.run.left() - 2; x < b.run.right() + 2; x += 0.125)
+                if (b.dark(x, y)) {
+                    y0 = std::min(y0, y);
+                    y1 = std::max(y1, y);
+                }
+        QVERIFY2(y1 > 0, "a box is drawn");
+        // (Twelve point type is about fourteen points high; the double spaced line, twenty-eight.)
+        QVERIFY2(y1 - y0 > 11 && y1 - y0 < 18, qPrintable(QStringLiteral("the box is %1 points high on a line of %2").arg(y1 - y0).arg(b.line.height())));
+    }
+
+    // A double border round a run is two lines with a gap between (as a paragraph's is), and a dashed one is a line with gaps in it.
+    void aDoubleAndADashedBorderRoundARunAreDrawnAsSuch()
+    {
+        const BoxedSpaces two = boxedSpaces(QStringLiteral("double;4;0;000000"));
+        QVERIFY(two.run.width() > 0);
+        // Across the left edge, at the middle of the line: the outer line, a gap, the inner line (half a point each, three halves of a point in all, outside the spaces).
+        const double mid = (two.line.top() + two.line.bottom()) / 2;
+        QVERIFY2(two.dark(two.run.left() - 0.25, mid) && !two.dark(two.run.left() - 0.75, mid) && two.dark(two.run.left() - 1.25, mid), "two lines with a gap between them");
+        const BoxedSpaces dashed = boxedSpaces(QStringLiteral("dashed;8;0;000000"));
+        QVERIFY(dashed.run.width() > 0);
+        // Along the top edge: dark and white points both.
+        int darkPoints = 0, whitePoints = 0;
+        double top = 1e9;
+        for (double y = dashed.line.top() - 3; y < dashed.line.top() + 4 && top > 1e8; y += 0.125)
+            if (dashed.dark(dashed.run.center().x(), y)) top = y;
+        for (double x = dashed.run.left(); x < dashed.run.right(); x += 0.25) (dashed.dark(x, top) ? darkPoints : whitePoints)++;
+        QVERIFY2(top < 1e8 && darkPoints > 4 && whitePoints > 4, qPrintable(QStringLiteral("%1 dark and %2 white points along the top edge (at %3)").arg(darkPoints).arg(whitePoints).arg(top)));
     }
 
     // A line of text that is as wide as the room it has, to what rounding leaves, fits on one line.

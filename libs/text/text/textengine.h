@@ -390,6 +390,14 @@ public:
         QString dropText; QFont dropFont; QColor dropColor; int dropLines = 0; double dropWidth = 0;
         bool dropUp = false;   // a raised cap: on the first line, rising above it
         QVector<QTextLayout::FormatRange> effects;   // ranges with shadow/emboss/engrave/glow
+        // The borders round runs of text (tp::RunBorder; runs next to one another with the same border are one): where each is, its line, and how far its font's letters go up
+        // and down from the baseline (the box is as high as that).
+        struct RunBorder {
+            int start = 0, length = 0;
+            tp::BoxSide side;
+            double ascent = 0, descent = 0;
+        };
+        QVector<RunBorder> runBorders;
         bool textFx = false;                         // some of those ranges carry a:effectLst (tp::TextFx)
         bool directGlyphs = false;                   // drawn run by run (some letters drawn taller, shorter, or slanted)
         bool cut = false;                            // the paragraph's text was cut short (Span::window), at this place in it:

@@ -273,6 +273,49 @@ constexpr int kLetterWidths = QTextFormat::UserProperty + 91;
 // The face Courier New is drawn in where the machine lacks it (resolveCharFormat): its font's families are this and then the family whose line it keeps.
 const QString kThinCourier = QStringLiteral("Courier Prime");
 
+// A run's border from the text of its property (tp::RunBorder: style, width in eighths of a point, room in points, color): at most twelve points wide and thirty-one away, as a file
+// can say; none (not visible) where the style is none or nil.
+tp::BoxSide runBorderOf(const QString &spec)
+{
+    const QStringList part = spec.split(QLatin1Char(';'));
+    tp::BoxSide side;
+    side.style = part.value(0);
+    if (side.style == QLatin1String("nil") || side.style == QLatin1String("none")) side.style.clear();
+    side.eighths = std::clamp(part.value(1).toInt(), 0, 96);
+    side.space = std::clamp(part.value(2).toInt(), 0, 31);
+    if (!part.value(3).isEmpty()) side.color = QColor(QLatin1Char('#') + part.value(3));
+    return side;
+}
+
+// One side of a box (a paragraph's or a run's) drawn in `r`, which is as wide or as high as the side's lines are (a double one is two lines with a line's width between them,
+// a dashed or dotted one a line of that style).
+void drawBoxSide(QPainter *p, const tp::BoxSide &s, const QRectF &r, bool horizontal)
+{
+    if (!s.visible()) return;
+    const QColor color = s.color.isValid() ? s.color : QColor(Qt::black);
+    const double w = s.eighths / 8.0;
+    if (s.style == QLatin1String("double")) {
+        // (two lines of the width, with a line's width between them)
+        for (int k : {0, 2}) {
+            const QRectF part = horizontal ? QRectF(r.left(), r.top() + k * w, r.width(), w) : QRectF(r.left() + k * w, r.top(), w, r.height());
+            p->fillRect(part, color);
+        }
+        return;
+    }
+    const bool dashed = s.style.startsWith(QLatin1String("dash")) || s.style == QLatin1String("dotted") || s.style.startsWith(QLatin1String("dot"));
+    if (!dashed) {
+        p->fillRect(r, color);
+        return;
+    }
+    QPen pen(color, w, s.style == QLatin1String("dotted") ? Qt::DotLine : Qt::DashLine);
+    pen.setCapStyle(Qt::FlatCap);
+    p->save();
+    p->setPen(pen);
+    if (horizontal) p->drawLine(QPointF(r.left(), r.center().y()), QPointF(r.right(), r.center().y()));
+    else p->drawLine(QPointF(r.center().x(), r.top()), QPointF(r.center().x(), r.bottom()));
+    p->restore();
+}
+
 QFont fineFont(QFont f)
 {
     f.setPointSizeF(f.pointSizeF() * kFine);
@@ -2621,6 +2664,19 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     if (rf.hasProperty(tp::SyntheticItalic)) er.format.setProperty(tp::SyntheticItalic, rf.property(tp::SyntheticItalic));
                     B->effects << er;
                 }
+                // A border round the run (merged with the one before it when it has the same, and ends where this begins).
+                if (env.wordLines && cf.hasProperty(tp::RunBorder))
+                    if (const tp::BoxSide side = runBorderOf(cf.stringProperty(tp::RunBorder)); side.visible()) {
+                        const QFontMetricsF fm(fineFont(rf.font()));
+                        const double ascent = fm.ascent() / kFine, descent = fm.descent() / kFine;
+                        if (!B->runBorders.isEmpty() && B->runBorders.last().side == side && B->runBorders.last().start + B->runBorders.last().length == fr.start) {
+                            B->runBorders.last().length += fr.length;
+                            B->runBorders.last().ascent = std::max(B->runBorders.last().ascent, ascent);
+                            B->runBorders.last().descent = std::max(B->runBorders.last().descent, descent);
+                        } else {
+                            B->runBorders << Block::RunBorder{fr.start, fr.length, side, ascent, descent};
+                        }
+                    }
                 B->disp += shown;
             }
         }
@@ -4516,31 +4572,7 @@ void StoryLayout::paintBox(QPainter *p, int bi, int frame) const
     }
     const double x0 = B.boxLeft - box.left.reserve(), x1 = B.boxRight + box.right.reserve();
     if (box.fill.isValid()) p->fillRect(QRectF(x0, yTop, x1 - x0, yBottom - yTop), box.fill);
-    auto line = [&](const tp::BoxSide &s, const QRectF &r, bool horizontal) {
-        if (!s.visible()) return;
-        const QColor color = s.color.isValid() ? s.color : QColor(Qt::black);
-        const double w = s.eighths / 8.0;
-        if (s.style == QLatin1String("double")) {
-            // (two lines of the width, with a line's width between them)
-            for (int k : {0, 2}) {
-                const QRectF part = horizontal ? QRectF(r.left(), r.top() + k * w, r.width(), w) : QRectF(r.left() + k * w, r.top(), w, r.height());
-                p->fillRect(part, color);
-            }
-            return;
-        }
-        const bool dashed = s.style.startsWith(QLatin1String("dash")) || s.style == QLatin1String("dotted") || s.style.startsWith(QLatin1String("dot"));
-        if (!dashed) {
-            p->fillRect(r, color);
-            return;
-        }
-        QPen pen(color, w, s.style == QLatin1String("dotted") ? Qt::DotLine : Qt::DashLine);
-        pen.setCapStyle(Qt::FlatCap);
-        p->save();
-        p->setPen(pen);
-        if (horizontal) p->drawLine(QPointF(r.left(), r.center().y()), QPointF(r.right(), r.center().y()));
-        else p->drawLine(QPointF(r.center().x(), r.top()), QPointF(r.center().x(), r.bottom()));
-        p->restore();
-    };
+    auto line = [&](const tp::BoxSide &s, const QRectF &r, bool horizontal) { drawBoxSide(p, s, r, horizontal); };
     if (startsHere && !B.boxTopOff && !B.boxJoinedBefore) line(box.top, QRectF(x0, yTop, x1 - x0, box.top.width()), true);
     if (startsHere && B.boxJoinedBefore) line(box.between, QRectF(x0, yTop, x1 - x0, box.between.width()), true);
     if (endsHere && !B.boxJoinedAfter) line(box.bottom, QRectF(x0, yBottom - box.bottom.width(), x1 - x0, box.bottom.width()), true);
@@ -4576,36 +4608,27 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                     p->fillRect(QRectF(std::min(x1, x2), B->lines[i].rect.top(), std::abs(x2 - x1), B->lines[i].rect.height()), QColor(0, 0, 0, 28));
                 }
 
-        // A word processor's border round a run of text (a form field's box): round the characters of each line that it covers, one box for the runs next to one another that have
-        // the same border, as high as the line's text.
-        if (m_env.wordLines) {
-            const QList<QTextLayout::FormatRange> fmts = B->tl->formats();
-            for (int n = 0; n < fmts.size(); ++n) {
-                const QString spec = fmts[n].format.stringProperty(tp::RunBorder);
-                if (spec.isEmpty()) continue;
-                if (n > 0 && fmts[n - 1].format.stringProperty(tp::RunBorder) == spec && fmts[n - 1].start + fmts[n - 1].length == fmts[n].start) continue;
-                const QStringList part = spec.split(QLatin1Char(';'));
-                const double width = part.value(1).toDouble() / 8.0, space = part.value(2).toDouble();
-                if (part.value(0) == QLatin1String("nil") || part.value(0) == QLatin1String("none") || width <= 0) continue;
-                const QColor color = part.value(3).isEmpty() ? QColor(Qt::black) : QColor(QLatin1Char('#') + part.value(3));
-                const int from = fmts[n].start;
-                int to = from + fmts[n].length;
-                for (int m = n + 1; m < fmts.size() && fmts[m].start == to && fmts[m].format.stringProperty(tp::RunBorder) == spec; ++m) to += fmts[m].length;
+        // A word processor's border round a run of text (a form field's box): round the characters of each line that it covers, as high as the letters of the run's font go (the
+        // box of a line is not the line's, which has the room of its spacing too), in its style (a double border is two lines, a dashed one dashes).
+        if (m_env.wordLines && !B->runBorders.isEmpty()) {
+            p->save();
+            p->translate(off);
+            for (const Block::RunBorder &rb : B->runBorders)
                 for (int i = 0; i < B->lines.size(); ++i) {
                     if (B->lines[i].frame != frame) continue;
                     const PtLine l(B->tl->lineAt(i));
-                    const int ls = std::max(from, l.textStart()), le = std::min(to, l.textStart() + l.textLength());
+                    const int ls = std::max(rb.start, l.textStart()), le = std::min(rb.start + rb.length, l.textStart() + l.textLength());
                     if (ls >= le) continue;
                     const double x1 = std::min(l.cursorToX(ls), l.cursorToX(le)), x2 = std::max(l.cursorToX(ls), l.cursorToX(le));
                     if (x2 - x1 < 0.5) continue;
-                    const double y1 = B->lines[i].rect.top(), y2 = B->lines[i].rect.bottom() - B->lines[i].below;
-                    const QRectF box(x1 - space - width, y1 - space - width, x2 - x1 + 2 * (space + width), y2 - y1 + 2 * (space + width));
-                    p->fillRect(QRectF(box.left(), box.top(), box.width(), width), color);
-                    p->fillRect(QRectF(box.left(), box.bottom() - width, box.width(), width), color);
-                    p->fillRect(QRectF(box.left(), box.top(), width, box.height()), color);
-                    p->fillRect(QRectF(box.right() - width, box.top(), width, box.height()), color);
+                    const double baseline = l.y() + l.ascent(), w = rb.side.width(), room = rb.side.space + w;
+                    const QRectF box(x1 - room, baseline - rb.ascent - room, x2 - x1 + 2 * room, rb.ascent + rb.descent + 2 * room);
+                    drawBoxSide(p, rb.side, QRectF(box.left(), box.top(), box.width(), w), true);
+                    drawBoxSide(p, rb.side, QRectF(box.left(), box.bottom() - w, box.width(), w), true);
+                    drawBoxSide(p, rb.side, QRectF(box.left(), box.top(), w, box.height()), false);
+                    drawBoxSide(p, rb.side, QRectF(box.right() - w, box.top(), w, box.height()), false);
                 }
-            }
+            p->restore();
         }
 
         // Text effects drawn beneath the text from the same glyph runs.
