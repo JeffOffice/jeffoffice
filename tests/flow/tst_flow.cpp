@@ -3764,6 +3764,37 @@ private Q_SLOTS:
         QCOMPARE(int(plain->doc->pages[0]->items.size()), 1);
     }
 
+    // The space after a header's last paragraph is kept below it, where the paragraph has text or none (an empty one made to take room), but not where it is only line breaks.
+    void theSpaceAfterAHeadersLastParagraphOfLineBreaksIsNotKept()
+    {
+        auto top = [](const QString &last) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), 6, 4);
+            auto header = std::make_shared<QTextDocument>();
+            header->setDocumentMargin(0);
+            {
+                QTextCursor c(header.get());
+                QTextCharFormat cf;
+                cf.setFontPointSize(60);
+                c.insertText(QStringLiteral("Title"), cf);
+                QTextBlockFormat after;
+                after.setBottomMargin(40);
+                c.insertBlock(after, cf);
+                c.insertText(last, cf);
+            }
+            fd.sections[0].margins = QMarginsF(36, 18, 36, 36);
+            fd.sections[0].headerDistance = 18;
+            fd.sections[0].header.odd = header;
+            Paginator pg(&fd);
+            return pg.page(0).content.top();
+        };
+        const QString breaks(3, QChar::LineSeparator);
+        const double withBreaks = top(breaks), withText = top(breaks + QChar(0x200B)), empty = top(QString());
+        QVERIFY2(std::abs(withText - withBreaks - 40) < 0.01, qPrintable(QStringLiteral("%1 with a word after the line breaks, %2 with the breaks only").arg(withText).arg(withBreaks)));
+        QVERIFY2(empty > 18 + 60, qPrintable(QString::number(empty)));
+    }
+
     // A header's first paragraph, when it is empty, keeps its line height and the size of its mark on the page: the empty line is as tall as the paginator measured it.
     void anEmptyFirstParagraphOfAHeaderKeepsItsMark()
     {
