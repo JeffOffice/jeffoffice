@@ -5395,7 +5395,10 @@ private Q_SLOTS:
         std::vector<const TextItem *> boxes;
         for (const QString &id : page->boxes) boxes.push_back(dynamic_cast<const TextItem *>(page->doc->item(id)));
         for (const TextItem *b : boxes) QVERIFY(b);
-        const double line = 20;
+        // (A full line, as tall as the tallest the page has: the columns are as even as the lines let them be.)
+        double line = 0;
+        for (const auto &l : pg.lines(0)) line = std::max(line, l.rect.height());
+        QVERIFY(line > 0);
         QVERIFY2(std::abs(boxes[1]->rect.height() - boxes[2]->rect.height()) <= line, qPrintable(QStringLiteral("the columns are %1 and %2 high").arg(boxes[1]->rect.height()).arg(boxes[2]->rect.height())));
         QVERIFY2(boxes[1]->rect.height() > 0 && boxes[2]->rect.height() > 0, "both columns have lines");
         QVERIFY(boxes[1]->rect.left() < boxes[2]->rect.left());
@@ -5408,6 +5411,36 @@ private Q_SLOTS:
         QCOMPARE(int(pg.lines(0).size()) > 0, true);
         const QString bad = audit::problems(pg, fd.story());
         QVERIFY2(bad.isEmpty(), qPrintable(bad));
+    }
+
+    // More sections begin on one page than the parts a page is laid out in (sixteen): the page is laid out in as many as it may, the text of the rest goes on in the last part's
+    // columns, and every paragraph of the story is on some page.
+    void aPageOfSeventeenSectionsIsBoundedAndShowsEveryParagraph()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        const int sections = 17;
+        fillStory(fd.story(), sections * 2, 3, [&](int i, QTextBlockFormat &bf) {
+            bf.setBottomMargin(2);
+            if (i % 2 == 1 && i / 2 < sections - 1) bf.setProperty(fp::SectionBreakAfter, true);
+        }, 3, 5);
+        fd.sections[0].paper = QSizeF(300, 700);
+        fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+        for (int k = 1; k < sections; ++k) {
+            Section next = fd.sections[0];
+            next.continuous = true;
+            next.columns = k % 2 ? 2 : 1;
+            next.columnGap = 12;
+            fd.sections << next;
+        }
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 1 && pg.pageCount() <= 4);
+        QSet<int> shown;
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            QVERIFY(pg.materialize(k));
+            for (const auto &l : pg.lines(k)) shown.insert(l.block);
+        }
+        for (QTextBlock b = fd.story()->begin(); b.isValid(); b = b.next()) QVERIFY2(shown.contains(b.position()), qPrintable(QStringLiteral("the paragraph at %1 is on no page").arg(b.position())));
     }
 
     // A page is drawn from a copy of its text, whose paragraphs the copy numbers from its own first; a run of paragraphs joined by hidden marks is cut every kMostJoinedParagraphs by
