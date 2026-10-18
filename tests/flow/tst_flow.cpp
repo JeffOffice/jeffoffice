@@ -1992,6 +1992,30 @@ private Q_SLOTS:
         QCOMPARE(tight[2].frame, 1);
     }
 
+    // A paragraph that begins with a page break and goes on for more lines than a page's window past its foot is no page of its own for the break: the break's line
+    // ends the page it follows on (as for a paragraph that is short), and the text goes on at the top of the next.
+    void aLongParagraphThatBeginsWithABreakBreaksTheWholePageBefore()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        QTextCursor c(fd.story());
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        c.insertText(QStringLiteral("before the break"), run);
+        c.insertBlock();
+        QString words;
+        for (int i = 0; i < 1200; ++i) words += QStringLiteral("word%1 ").arg(i % 97);
+        c.insertText(QString(flow::kPageBreak) + words, run);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 3);
+        const auto first = pg.lines(0);
+        QCOMPARE(first.size(), 2);                  // the line before, and the break's
+        QCOMPARE(first[1].end - first[1].pos, 1);
+        QCOMPARE(pg.page(1).start.skip, 1);         // the text goes on at the paragraph's next line
+        QVERIFY(pg.lines(1).size() > 5);
+    }
+
     // A page break that ends a line is not made one of an orphan by what shows nothing between the line's last letter and it (an object that stands where it is anchored, and takes
     // no room): the paragraph's first line stays at the foot of its page, and the rest goes on at the next.
     void aBreakAfterWhatShowsNothingIsNotAnOrphan()
