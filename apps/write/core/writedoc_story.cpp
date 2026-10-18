@@ -418,7 +418,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         resolved.style = styleId;
         resolved.numId = numId;
         resolved.ilvl = level;
-        QTextBlockFormat bf = blockFormatOf(resolved);
+        QTextBlockFormat bf = paragraphFormatOf(resolved);
         if (tables.key()) bf.setProperty(flow::fp::Cell, tables.key());
         // A paragraph of a frame in the body is set apart from the text: no lines and no room there, and a text box where the frame asks, at the paragraph after it.
         // (A header's or a footer's frame is a text box too where it is set at a place on the page: its logo, its page number at the page's top. One set beside the text, by its

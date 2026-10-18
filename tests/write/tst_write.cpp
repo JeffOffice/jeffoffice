@@ -4415,6 +4415,23 @@ private Q_SLOTS:
         QVERIFY2(std::abs(fixed - 10.0) < 0.5, qPrintable(QStringLiteral("the fixed way: %1 points between paragraphs (5 after and 5 before), not 10").arg(fixed)));
     }
 
+    // Where a file that turns the web page's way of spacing off asks for automatic spacing and states none, the automatic spacing is the fixed 5 points (100 twentieths)
+    // a word processor writes with it.
+    void automaticSpacingIsFivePointsWhereAFileStatesNone()
+    {
+        auto para = [](const char *text) {
+            return QByteArray("<w:p><w:pPr><w:spacing w:beforeAutospacing=\"1\" w:afterAutospacing=\"1\"/></w:pPr><w:r><w:t>") + text + "</w:t></w:r></w:p>";
+        };
+        // (Styles that give no spacing of their own: none is stated anywhere.)
+        const QByteArray styles = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>";
+        auto doc = open(makeDocxWithParts(para("one") + para("two") + para("three"), QByteArray(), {}, "<w:compat><w:doNotUseHTMLParagraphAutoSpacing/></w:compat>", styles));
+        QVERIFY(doc);
+        const auto lines = doc->pager().lines(0);
+        QVERIFY(lines.size() >= 3);
+        const double gap = lines[1].rect.top() - lines[0].rect.bottom();
+        QVERIFY2(std::abs(gap - 10.0) < 0.5, qPrintable(QStringLiteral("%1 points between paragraphs that ask for automatic spacing and state none, not 10").arg(gap)));
+    }
+
     // The text of a page that a paragraph of many pages (a break between each) has in its box is that page's own, not the rest of the paragraph's run of one format: the
     // work of making each page is its own text's, not the paragraph's after it.
     void aPageOfALongParagraphCopiesOnlyItsOwnText()

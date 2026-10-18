@@ -192,6 +192,7 @@ private:
     void loadNotes();
     void measureNoteSeparator();
     const QTextDocument *noteStory(const QString &id);
+    QTextBlockFormat paragraphFormatOf(const office::wml::ParaProps &p) const;
     const QTextDocument *noticeStory();
     const QTextDocument *continuationStory();
     friend class NoteFields;
