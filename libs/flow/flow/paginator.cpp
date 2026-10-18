@@ -1773,7 +1773,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
                     for (int k = lo; k < hi; ++k) ids << code.mid(9);
                 }
         }
-        if (!ids.isEmpty()) addNotes(d.get(), run.notes, run.rules, run.firstFrame, ids, run.cols, furniture.body);
+        if (!ids.isEmpty()) addNotes(d.get(), run.notes, run.rules, run.firstFrame, ids, run.cols, furniture.body, run.hasNext && !run.next.carried.isEmpty());
     }
     markTotals(out.get(), *d);
     out->doc = std::move(d);

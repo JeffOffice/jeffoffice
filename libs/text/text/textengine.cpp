@@ -4019,8 +4019,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             }
         }
         // (A word processor's rule is two inches, and is set in its separator paragraph three fifths of the way down it.)
-        const double ruleY = areaTop + (gap - noticeGap) * (env.wordLines ? 0.6 : 0.45), ruleW = goesOn ? col.width() : env.wordLines ? std::min(col.width(), 144.0) : col.width() / 3;
-        m_noteRules << Rule{fi, QLineF(col.left(), ruleY, col.left() + ruleW, ruleY)};
+        double ruleY = areaTop + (gap - noticeGap) * (env.wordLines ? 0.6 : 0.45), ruleW = goesOn ? col.width() : env.wordLines ? std::min(col.width(), 144.0) : col.width() / 3, ruleX = col.left();
+        // (Over the part of a note that goes on, the rule is where the file's own separator for it has it, as wide as that character is: the column's, or two inches.)
+        if (env.wordLines && goesOn && notesDoc && notesDoc->noteContinuationRuleAt() >= 0) {
+            ruleY = areaTop + notesDoc->noteContinuationRuleAt() * scale;
+            ruleX += notesDoc->noteContinuationRuleFrom() * scale;
+            ruleW = notesDoc->noteContinuationRuleFull() ? col.width() - (ruleX - col.left()) : std::min(col.width() - (ruleX - col.left()), 144.0);
+        }
+        m_noteRules << Rule{fi, QLineF(ruleX, ruleY, ruleX + ruleW, ruleY)};
         m_used[fi] = std::max(m_used[fi], col.bottom());
     }
 

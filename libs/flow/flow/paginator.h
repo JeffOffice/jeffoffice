@@ -430,8 +430,9 @@ private:
     QVector<int> notesRestartIn(int from, int characters) const;
     // A page made for painting has the footnotes its lines refer to, each in a text box at the place the layout gave it, with the rule above them: the
     // places are the layout's own (`places`, `rules`: its notes, and the frames the columns are in) and `ids` the notes the page's lines cite.
+    // (Over the part of a note that goes on from the page before, the file's own separator for it; under the last note, when `notesGoOn`, the file's continuation notice.)
     void addNotes(Document *d, const QVector<StoryLayout::NotePlace> &places, const QVector<StoryLayout::Rule> &rules, int firstFrame, const QStringList &ids,
-                  const QVector<QRectF> &cols, const QRectF &body);
+                  const QVector<QRectF> &cols, const QRectF &body, bool notesGoOn);
     std::map<StoryKey, double> m_storyHeights;
     std::map<std::pair<const QTextDocument *, int>, StoryFacts> m_storyFacts;   // what each header or footer story (as of its revision) holds
     // The layouts of the tables of headers and footers kept, by story, width, revision, room beside, whether the space after counts, and the page number, count of pages, and count of

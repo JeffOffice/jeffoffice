@@ -5615,6 +5615,35 @@ private Q_SLOTS:
         QVERIFY2(std::abs(doc->pager().page(0).content.bottom() - (792 - 36 - 40)) < 0.01, qPrintable(QString::number(doc->pager().page(0).content.bottom())));
     }
 
+    // A note that goes on past its page has the file's continuation notice under its first part, and the part on the next page has the file's own separator for it above it
+    // (its text, and its rule as wide as its character makes it: the column's for a continuation separator, two inches for the plain separator).
+    void aNoteThatGoesOnHasTheFilesNoticeAndSeparatorSet()
+    {
+        QByteArray words;
+        for (int i = 0; i < 1500; ++i) words += "wordy ";
+        const QByteArray body = "<w:p><w:r><w:t>Text with a long note</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r><w:r><w:t xml:space=\"preserve\"> and more words.</w:t></w:r></w:p>";
+        for (const char *character : {"continuationSeparator", "separator"}) {
+            const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>"
+                                     "<w:footnote w:type=\"continuationSeparator\" w:id=\"0\"><w:p><w:r><w:" + character + "/></w:r></w:p><w:p><w:r><w:t>(Resumed from before)</w:t></w:r></w:p></w:footnote>"
+                                     "<w:footnote w:type=\"continuationNotice\" w:id=\"1\"><w:p><w:r><w:t>(goes on below)</w:t></w:r></w:p></w:footnote>"
+                                     "<w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> " + words + "</w:t></w:r></w:p></w:footnote></w:footnotes>";
+            auto doc = open(makeDocxWithParts(body, QByteArray(), {{QStringLiteral("/word/footnotes.xml"), notes}}));
+            QVERIFY(doc);
+            QVERIFY(doc->pager().pageCount() >= 2);
+            const auto first = doc->pager().materialize(0), second = doc->pager().materialize(1);
+            QVERIFY(first && second);
+            QVERIFY2(boxWithText(*first, QStringLiteral("(goes on below)")), "the notice is under the first part of the note");
+            QVERIFY2(!boxWithText(*first, QStringLiteral("(Resumed from before)")), "the first part has no separator for a part that goes on");
+            QVERIFY2(boxWithText(*second, QStringLiteral("(Resumed from before)")), "the part on the next page has the file's separator above it");
+            double width = -1;
+            for (const auto &item : second->doc->pages[0]->items)
+                if (const auto *line = dynamic_cast<const LineItem *>(item.get())) width = std::max(width, line->rect.width());
+            const double column = 612 - 2 * 72;
+            if (QByteArray(character) == "separator") QVERIFY2(std::abs(width - 144) < 0.5, qPrintable(QStringLiteral("the rule is %1 wide, not two inches").arg(width)));
+            else QVERIFY2(std::abs(width - column) < 0.5, qPrintable(QStringLiteral("the rule is %1 wide, not the column's %2").arg(width).arg(column)));
+        }
+    }
+
     // A note whose text begins with a raised blank of the symbol font (the mark an older program wrote) is as tall as that symbol makes its first line: a little under a
     // point more for 10-point text.
     void aNoteThatBeginsWithARaisedSymbolIsTallerByWhatItReaches()

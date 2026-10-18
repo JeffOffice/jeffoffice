@@ -105,6 +105,11 @@ public:
     double noteSeparatorHeight() const override { return m_base ? m_base->noteSeparatorHeight() : 0; }
     double noteNoticeHeight() const override { return m_base ? m_base->noteNoticeHeight() : 0; }
     double noteContinuationHeight() const override { return m_base ? m_base->noteContinuationHeight() : 0; }
+    const QTextDocument *noteNoticeStory() const override { return m_base ? m_base->noteNoticeStory() : nullptr; }
+    const QTextDocument *noteContinuationStory() const override { return m_base ? m_base->noteContinuationStory() : nullptr; }
+    double noteContinuationRuleAt() const override { return m_base ? m_base->noteContinuationRuleAt() : -1; }
+    double noteContinuationRuleFrom() const override { return m_base ? m_base->noteContinuationRuleFrom() : 0; }
+    bool noteContinuationRuleFull() const override { return m_base ? m_base->noteContinuationRuleFull() : true; }
 
 private:
     const FieldSource *m_base;
@@ -454,7 +459,7 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
 }
 
 void Paginator::addNotes(Document *d, const QVector<StoryLayout::NotePlace> &places, const QVector<StoryLayout::Rule> &rules, int firstFrame, const QStringList &ids,
-                         const QVector<QRectF> &cols, const QRectF &body)
+                         const QVector<QRectF> &cols, const QRectF &body, bool notesGoOn)
 {
     if (!m_doc->fields) return;
     auto at = [&](int frame) { return frame - firstFrame; };
@@ -517,6 +522,45 @@ void Paginator::addNotes(Document *d, const QVector<StoryLayout::NotePlace> &pla
         t->wrap.mode = Wrap::None;
         d->pages[0]->items.push_back(t);
         ++made;
+    }
+    // Over the part of a note that goes on from the page before: the file's own separator for it, in the room the layout left for it above the part; under the last note of a
+    // page whose notes go on: the file's continuation notice.
+    {
+        auto setStory = [&](const QTextDocument *source, const QRectF &rect, const char *name) {
+            if (!source || rect.height() <= 0 || rect.width() <= 0 || made >= 2000) return;
+            auto s = std::make_shared<Story>();
+            s->id = QStringLiteral("flow-note-%1-%2-%3").arg(QLatin1String(name)).arg(d->pages[0]->id).arg(made);
+            s->doc = cloneStory(source);
+            resolveImages(s->doc.get(), d);
+            d->stories.insert(s->id, s);
+            auto t = std::make_shared<TextItem>();
+            t->id = QStringLiteral("flow-note-%1-box-%2-%3").arg(QLatin1String(name)).arg(d->pages[0]->id).arg(made);
+            t->rect = rect;
+            t->insets = QMarginsF(0, 0, 0, 0);
+            t->columns = 1;
+            t->hyphenate = false;
+            t->storyId = s->id;
+            t->wrap.mode = Wrap::None;
+            d->pages[0]->items.push_back(t);
+            ++made;
+        };
+        const double above = m_doc->fields->noteContinuationHeight(), below = m_doc->fields->noteNoticeHeight();
+        QVector<int> doneColumns;
+        const StoryLayout::NotePlace *last = nullptr;
+        for (const StoryLayout::NotePlace &pl : places) {
+            const int column = at(pl.frame);
+            if (column < 0 || column >= cols.size() || !ids.contains(pl.storyId)) continue;
+            if (!last || column > at(last->frame) || (column == at(last->frame) && pl.rect.bottom() > last->rect.bottom())) last = &pl;
+            if ((pl.refPos < 0 || pl.from > 0) && !doneColumns.contains(column)) {
+                doneColumns << column;
+                const QRectF col = cols[column];
+                setStory(m_doc->fields->noteContinuationStory(), QRectF(col.left(), body.top() + col.top() + pl.rect.top() - above, col.width(), above), "continued");
+            }
+        }
+        if (notesGoOn && last) {
+            const QRectF col = cols[at(last->frame)];
+            setStory(m_doc->fields->noteNoticeStory(), QRectF(col.left(), body.top() + col.top() + last->rect.bottom(), col.width(), below), "notice");
+        }
     }
     // The rule above the notes of each column.
     int ruled = 0;
