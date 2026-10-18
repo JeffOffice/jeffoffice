@@ -538,6 +538,9 @@ QPair<int, int> underlineSpan(const QList<QTextLayout::FormatRange> &fmts, int n
 double handBoldWidth(int kind, double em, TextOutput out, double pxPerPt)
 {
     constexpr double kOutlinesFrom = 216, kScreen = 0.017, kPdf = 1.0 / 35, kPaper = 0.01;
+    // (Kinds 3 and 4 are a word processor's stand-in made as heavy as its original, regular and bold: the same in every output.)
+    if (kind == 3) return em * 0.011;
+    if (kind == 4) return em * 0.0075;
     const bool outlines = em >= kOutlinesFrom;
     if (!outlines && out == TextOutput::Pdf) return em * kPdf;
     if (!outlines && out == TextOutput::Print) return em * kPaper;
@@ -1125,6 +1128,12 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
         // Drawn with a stroke added when the text is painted (StoryLayout::paint),
         // as wide as the place it goes to calls for: the layout is the same in all.
         r.setProperty(tp::HandBold, boldAlways ? 2 : 1);
+    } else if (env.wordLines && f.hasProperty(QTextFormat::FontFamilies)) {
+        // Century Gothic's stand-in has thinner strokes than the original (the original's regular carries 1.23 times its ink on W124's pages, the bold 1.05): a stroke, as wide in
+        // every output, makes up the difference.
+        const QStringList fams = f.fontFamilies().toStringList();
+        if (!fams.isEmpty() && fams.first().compare(QLatin1String("Century Gothic"), Qt::CaseInsensitive) == 0 && !hasFamilyCached(fams.first()))
+            r.setProperty(tp::HandBold, f.hasProperty(QTextFormat::FontWeight) && f.fontWeight() >= QFont::DemiBold ? 4 : 3);
     }
     if (f.boolProperty(tp::TrueSmallCaps)) r.setFontCapitalization(QFont::SmallCaps);
     // Text of the automatic color is white where the fill under it is dark: the run's own (its highlight), else the one behind the text (its paragraph's shading, or its cell's).

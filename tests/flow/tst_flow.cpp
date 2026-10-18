@@ -2584,6 +2584,25 @@ private Q_SLOTS:
         QVERIFY2(std::abs(lines.value(0).rect.height() - 3426 / 2048.0 * 11) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
     }
 
+    // Century Gothic's stand-in (TeX Gyre Adventor) has thinner strokes than the original's (its regular carries 0.81 of the ink on W124's pages, V076's too, the bold 0.95): a
+    // stroke by hand makes up the difference, 0.011 em for the regular face and 0.0075 for the bold, in every output; a publisher's text, a face the machine has, and other faces
+    // are not touched.
+    void centuryGothicsStandInIsMadeAsHeavyAsItsOriginal()
+    {
+        if (QFontDatabase::hasFamily(QStringLiteral("Century Gothic"))) QSKIP("Century Gothic is installed");
+        LayoutEnv word;
+        word.wordLines = true;
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Century Gothic")});
+        cf.setFontPointSize(11);
+        QCOMPARE(resolveCharFormat(cf, word).intProperty(tp::HandBold), 3);
+        cf.setFontWeight(QFont::Bold);
+        QCOMPARE(resolveCharFormat(cf, word).intProperty(tp::HandBold), 4);
+        QVERIFY(!resolveCharFormat(cf, LayoutEnv()).hasProperty(tp::HandBold));
+        cf.setFontFamilies({QStringLiteral("Times New Roman")});
+        QVERIFY(!resolveCharFormat(cf, word).hasProperty(tp::HandBold));
+    }
+
     // The line of Courier New is Courier New's wherever it is measured, though the text is drawn in Courier Prime (whose own line is 1.318 em, to Courier New's 1.133):
     // the number of a list item is a run of its own on the first line, and the paragraph after a keep-with-next one is measured for room.
     void aNumberedCourierNewItemKeepsCourierNewsLine()
