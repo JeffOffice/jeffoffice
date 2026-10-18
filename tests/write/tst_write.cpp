@@ -5039,6 +5039,24 @@ private Q_SLOTS:
         QCOMPARE(int(apart.size()), 2);
     }
 
+    // The empty paragraph that ends a section keeps its line when it is the first paragraph of the document (nothing is above it for its break to be the end of): the text after it is
+    // where it is below an empty paragraph of its own, whatever the next section's type.
+    void anEmptyBreakParagraphThatBeginsTheDocumentKeepsItsLine()
+    {
+        auto tops = [&](const QByteArray &firstParagraph, const QByteArray &type) {
+            const QByteArray second = "<w:p><w:r><w:t>Second</w:t></w:r></w:p>";
+            const QByteArray last = "<w:sectPr>" + type + "<w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+            auto doc = open(makeDocxWithParts(firstParagraph + second, last, {}));
+            const auto lines = doc ? doc->pager().lines(0) : QVector<StoryLayout::LineBrief>();
+            return lines.isEmpty() ? -1.0 : lines.last().rect.top();
+        };
+        const QByteArray breaking = "<w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr></w:pPr></w:p>";
+        const QByteArray ordinary = "<w:p/>";
+        const double continuous = tops(breaking, "<w:type w:val=\"continuous\"/>"), below = tops(ordinary, QByteArray());
+        QVERIFY(continuous >= 0 && below > 0);
+        QVERIFY2(std::abs(continuous - below) < 0.01, qPrintable(QStringLiteral("the text is at %1 after the break paragraph, %2 after an empty paragraph").arg(continuous).arg(below)));
+    }
+
     // The columns of a continuous section that has more of them than the section before it begin where that section's text ends: the empty paragraph that ends the section before
     // takes no room there either (they begin as they do when the section's last paragraph has the break in it).
     void theColumnsAfterAnEmptyBreakParagraphBeginWhereTheTextAboveEnds()

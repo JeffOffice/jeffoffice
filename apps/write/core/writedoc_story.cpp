@@ -467,8 +467,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         } else {
             lastFrameKey = 0;
         }
-        // An empty paragraph that is a continuous section break takes no room.
-        if (!header && blockNumber < continuousAfter.size() && continuousAfter[blockNumber] && p.content.isEmpty()) bf.setProperty(tp::OutOfFlow, true);
+        // An empty paragraph that is a continuous section break takes no room (it is where the text before it ends: the first paragraph of the document has none, and keeps its line).
+        if (!header && !firstBlock && blockNumber < continuousAfter.size() && continuousAfter[blockNumber] && p.content.isEmpty()) bf.setProperty(tp::OutOfFlow, true);
         if (header) {
             // A paragraph in a frame (the page number's, set to the side or the middle) is set that way, where the next paragraph begins, taking no room.
             for (const RawChild &ch : direct.extra) {
