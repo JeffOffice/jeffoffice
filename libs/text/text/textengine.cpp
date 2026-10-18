@@ -3027,7 +3027,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         // List marker.
         double markerW = 0, markerSingle = 0;
         WordLine markerWord;
-        if (QTextList *list = (env.slideLines && b.length() <= 1) || tail ? nullptr : b.textList()) {
+        // (A paragraph that begins with a page break has its number on the line after the break, which is the first of the next page: the piece that goes on there has it, and the break's own line has none.)
+        if (QTextList *list = (env.slideLines && b.length() <= 1) || (tail && !firstAfterBreak) || (env.wordLines && startsWithBreak && !tail) ? nullptr : b.textList()) {
             const QTextListFormat lf = list->format();
             B->markerSkipsIndent = env.wordNoNumberIndentStop && !lf.boolProperty(tp::LegacyNumber);
             QString custom = bf.stringProperty(tp::BulletChar);

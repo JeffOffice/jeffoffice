@@ -4896,6 +4896,46 @@ private Q_SLOTS:
         QCOMPARE(seen, table.rowStarts);
     }
 
+    // A numbered paragraph that begins with a page break has its number on the line after the break, which is the first of the next page, not on the break's own line at the foot of
+    // the page before (a chapter heading whose first run is a page break: its "1." was drawn nowhere).
+    void aNumberFollowsAPageBreakThatBeginsItsParagraph()
+    {
+        auto fd = std::make_unique<FlowDocument>();
+        fd->env.wordLines = true;
+        fillStory(fd->story(), 2, 11, [&](int, QTextBlockFormat &bf) { bf.setBottomMargin(6); }, 8, 12);
+        {
+            QTextCursor c(fd->story());
+            c.movePosition(QTextCursor::End);
+            c.insertBlock();
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDecimal);
+            lf.setNumberSuffix(QStringLiteral("."));
+            lf.setIndent(1);
+            c.createList(lf);
+            QTextCharFormat body;
+            body.setFontPointSize(11);
+            c.insertText(QString(kPageBreak) + QStringLiteral("Heading text"), body);
+        }
+        Paginator pg(fd.get());
+        QCOMPARE(pg.pageCount(), 2);
+        auto markers = [&](int k) {
+            QStringList out;
+            const auto page = pg.materialize(k);
+            if (!page || page->boxes.isEmpty()) return out;
+            const auto *box = dynamic_cast<const TextItem *>(page->doc->item(page->boxes[0]));
+            FrameSpec fs = plainFrame(box->rect.width(), 5000);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(page->doc->story(box->storyId)->doc.get(), {fs}, env);
+            for (const auto &l : lay.lineInfo(0))
+                if (!l.marker.isEmpty()) out << l.marker + QLatin1Char(' ') + l.text.trimmed();
+            return out;
+        };
+        QCOMPARE(markers(0), QStringList());
+        QCOMPARE(markers(1), (QStringList{QStringLiteral("1. Heading text")}));
+    }
+
     // A document whose first section begins on an even page numbers its first page 2 (the page before it is counted and nothing is drawn on it, as it is in a word processor's own
     // pages), and its pages go on from there; one that begins on an odd page numbers it 1; a restart in the section is the number it says.
     void aDocumentWhoseFirstSectionBeginsOnAnEvenPageNumbersItsFirstPageTwo()

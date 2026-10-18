@@ -1482,7 +1482,8 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         const bool tail = inFirst && L.first().line > 0;
         QTextBlockFormat bf = b.blockFormat();
         bf.clearProperty(QTextFormat::ObjectIndex);   // (the list is the document's, not this story's: it's made again below)
-        QTextList *list = tail ? nullptr : b.textList();
+        // (A paragraph that begins with a page break has its number on the line after it, where the next page begins.)
+        QTextList *list = tail && !(run.keepsIndent && main->characterAt(b.position()) == kPageBreak && b.length() > 1) ? nullptr : b.textList();
         // What the paginator decided is in the frames' heights; widow control and keeping paragraphs together are not asked of the text again.
         bf.clearProperty(tp::WidowControl);
         bf.clearProperty(tp::KeepTogether);
