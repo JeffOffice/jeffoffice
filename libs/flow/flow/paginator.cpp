@@ -65,6 +65,7 @@ struct Paginator::Run {
     bool keepsSpace = false;   // the first paragraph is the rest of one after a break, and has its space before
     bool keepsIndent = false;  // ... and its first-line indent (the file may suppress the space and not the indent)
     bool freeBreak = false;    // a section of more columns begins below the text of the first, and the empty paragraph that ends that takes no room (so that it has no box of its own)
+    int splitEnd = -1;         // where that section's text begins (with freeBreak)
     QVector<StoryLayout::NotePlace> notes;   // the footnotes as the page's layout put them
     QVector<StoryLayout::Rule> rules;        // and the rules above them
     PageStart next;            // where the page after starts
@@ -453,7 +454,11 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                         return layPart(f1, s1, st);
                     };
                     // (A paragraph that is set where the next begins, as the empty one that ends a section before a continuous one, takes no room: the section after begins where it does.)
-                    auto outOfFlow = [&](const StoryLayout::LineBrief &ln) { return nextSection.columnCount() > firstColumns && m_doc->story()->findBlock(ln.block).blockFormat().boolProperty(tp::OutOfFlow); };
+                    // (Where the next section has no more columns, that paragraph takes none unless it is all that the first section has on the page.)
+                    bool aloneInFirst = false;
+                    auto outOfFlow = [&](const StoryLayout::LineBrief &ln) {
+                        return (nextSection.columnCount() > firstColumns || (nextSection.columnCount() == firstColumns && !aloneInFirst)) && m_doc->story()->findBlock(ln.block).blockFormat().boolProperty(tp::OutOfFlow);
+                    };
                     auto bottomOf = [&](const Part &part, int column) {
                         double bottom = 0;
                         for (const auto &ln : part.lines)
@@ -466,6 +471,9 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                         return over;
                     };
                     Part p1 = layFirst(colH);
+                    aloneInFirst = true;
+                    for (const auto &ln : p1.lines)
+                        if (ln.frame >= run.firstFrame && ln.frame < run.firstFrame + firstColumns && !m_doc->story()->findBlock(ln.block).blockFormat().boolProperty(tp::OutOfFlow)) aloneInFirst = false;
                     if (firstColumns > 1 && !overflows(p1)) {
                         double total = 0;
                         for (int c = 0; c < firstColumns; ++c) total += bottomOf(p1, c);
@@ -575,7 +583,8 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                     run.cols.clear();
                     for (int c = 0; c < firstColumns; ++c) run.cols << QRectF(sec.columnRect(c).left(), 0, colW, colH);
                     for (int c = 0; c < nextSection.columnCount(); ++c) run.cols << QRectF(nextSection.columnRect(c).left(), splitY, nextSection.columnWidth(), columnH);
-                    run.freeBreak = nextSection.columnCount() > firstColumns;
+                    run.freeBreak = nextSection.columnCount() > firstColumns || (nextSection.columnCount() == firstColumns && !aloneInFirst);
+                    run.splitEnd = splitEnd;
                 }
                 all = part.lines;
                 run.notes = part.notes;
@@ -1358,6 +1367,9 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
             bf.clearProperty(tp::OutOfLayout);
             bf.clearProperty(fp::Frame);
         }
+        // The empty paragraph that ends the section above the one that begins below it on the page (the paginator's two parts) takes no room: it has no lines in the page's boxes, as it has
+        // none where the section below begins at its top (the text after it would be put in the box that has the room of its line).
+        if (run.freeBreak && run.splitEnd >= 0 && b.position() + b.length() == run.splitEnd && bf.boolProperty(tp::OutOfFlow) && b != firstBlock) bf.setProperty(tp::OutOfLayout, true);
         if (b == firstBlock && ((tail && !run.keepsSpace) || !run.firstSpace)) bf.setTopMargin(0);
         // A paragraph's box that began on the page before, or goes on to the next, is open at that end.
         auto sameBox = [](const QTextBlock &x, const QTextBlock &y) {
@@ -1576,6 +1588,9 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
             const StoryLayout::LineBrief &ln = run.lines[i];
             const int col = ln.frame - run.firstFrame;
             if (col < 0 || col >= run.columns || !shows[col]) continue;
+            // (A paragraph that takes no room has no lines in the box, and does not make it taller: see `sliceOf`.)
+            const QTextBlock lineBlock = m_doc->story()->findBlock(ln.block);
+            if (run.freeBreak && run.splitEnd >= 0 && lineBlock.position() + lineBlock.length() == run.splitEnd && lineBlock.blockFormat().boolProperty(tp::OutOfFlow)) continue;
             bottom[col] = std::max(bottom[col], ln.rect.bottom() - ln.below);
             if (top[col] < 0) top[col] = ln.rect.top();
         }
@@ -1640,7 +1655,13 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
             }
             const QVector<Anchor> anchors = anchorsOfLines(held, firstLines, sec.columnWidth());
             QVector<QRectF> columns;
-            for (const QRectF &col : run.cols) columns << QRectF(col.left(), furniture.body.top() + col.top(), col.width(), col.height());
+            // (The columns of a section that another begins below on the page end where that one begins: a wall across the columns it is in does not reach the ones below.)
+            for (const QRectF &col : run.cols) {
+                double height = col.height();
+                for (const QRectF &other : run.cols)
+                    if (other.top() > col.top() + 0.01) height = std::min(height, other.top() - col.top());
+                columns << QRectF(col.left(), furniture.body.top() + col.top(), col.width(), height);
+            }
             if (!anchors.isEmpty()) addObjects(d.get(), anchors, sec, out->number, run.wrapped, columns, out.get(), front);
             // (The rows of the tables set at a place, which the objects made, hold pictures as the rows of the others do.)
             if (!m_doc->images.isEmpty() && std::any_of(out->tables.begin(), out->tables.end(), [](const auto &t) { return t->floating; })) resolveCellImages(out.get(), d.get());

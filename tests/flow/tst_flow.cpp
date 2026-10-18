@@ -11892,6 +11892,84 @@ private Q_SLOTS:
         QVERIFY2(bad == 0, qPrintable(QStringLiteral("%1 of %2 configurations are wrong; for example %3").arg(bad).arg(total).arg(samples.join(QLatin1Char('\n')))));
     }
 
+    // The empty paragraph that ends a section before a continuous one with other sides or more columns takes no room, and the paragraph after it is drawn in the box of its own
+    // section, where the paginator put it (not in the box above, which has the room of the empty paragraph's line).
+    void theParagraphAfterAnEmptyContinuousBreakIsDrawnInItsSectionsBox()
+    {
+        for (const int columns : {1, 2}) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.sections[0].paper = QSizeF(400, 500);
+            fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+            fillStory(fd.story(), 3, 5, {}, 6, 10);
+            appendParagraph(fd, QString(), [](QTextBlockFormat &bf) {
+                bf.setProperty(fp::SectionBreakAfter, true);
+                bf.setProperty(tp::OutOfFlow, true);
+            });
+            for (int i = 0; i < 6; ++i) appendParagraph(fd, QStringLiteral("Paragraph %1 of the second section, with words enough to fill a few lines of a narrow column on the page.").arg(i));
+            Section second = fd.sections[0];
+            second.continuous = true;
+            second.margins.setLeft(80);
+            second.columns = columns;
+            second.columnGap = 20;
+            fd.sections << second;
+            Paginator pg(&fd);
+            const auto page = pg.materialize(0);
+            QVERIFY(page);
+            const QString bad = audit::problems(pg, fd.story());
+            QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("%1 columns: %2").arg(columns).arg(bad)));
+            // The section below begins where the text above ends: the empty paragraph took no room.
+            const int firstOfSecond = fd.story()->findBlockByNumber(4).position(), lastOfFirst = fd.story()->findBlockByNumber(2).position();
+            const auto lines = pg.lines(0);
+            const auto placed = audit::placedLines(pg, fd.story(), 0, *page);
+            QCOMPARE(placed.size(), lines.size());
+            double above = -1, below = -1;
+            for (int i = 0; i < lines.size(); ++i) {
+                if (lines[i].block == lastOfFirst) above = std::max(above, placed[i].rect.bottom() - placed[i].below);
+                if (lines[i].block == firstOfSecond && below < 0) below = placed[i].rect.top();
+            }
+            QVERIFY2(above > 0 && below >= above - 0.01 && below - above < 12, qPrintable(QStringLiteral("%1 columns: the text above ends at %2, the section below begins at %3").arg(columns).arg(above).arg(below)));
+        }
+    }
+
+    // A wall across the columns of the section it is in does not reach the section above or below it: a box that keeps text off by its top and bottom, in the second column of a section
+    // that begins below one column of text, has the first column's text, and the page layer's of it, where they are without it.
+    void aTopAndBottomWallAcrossTheColumnsItIsInDoesNotReachTheSectionAbove()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.sections[0].paper = QSizeF(400, 500);
+        fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+        fillStory(fd.story(), 2, 5, {}, 4, 6);
+        appendParagraph(fd, QString(), [](QTextBlockFormat &bf) {
+            bf.setProperty(fp::SectionBreakAfter, true);
+            bf.setProperty(tp::OutOfFlow, true);
+        });
+        for (int i = 0; i < 12; ++i) appendParagraph(fd, QStringLiteral("Paragraph %1 of the second section, with words enough to fill a few lines of a narrow column on the page.").arg(i));
+        Section second = fd.sections[0];
+        second.continuous = true;
+        second.columns = 2;
+        second.columnGap = 20;
+        fd.sections << second;
+        // Anchored in the first paragraph of the second section: as wide as the second column, from the page's top by 90 (below the first section's text), a hundred high.
+        const int at = fd.story()->findBlockByNumber(3).position();
+        const double columnWidth = second.columnWidth();
+        const int id = addWrapped(&fd, columnWidth, 100, at, FloatingObject::Wrap::TopBottom, columnWidth + 20, 90, QMarginsF(0, 0, 0, 0), FloatingObject::Side::Both, FloatingObject::Rel::Margin, FloatingObject::Rel::Page);
+        QVERIFY(id > 0);
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const QString bad = audit::problems(pg, fd.story());
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        // The first column's lines are not below the wall: the text of the first column runs on from where the section begins.
+        const auto lines = pageLines(pg, fd, 0);
+        const double wallBottom = 40 + 90 + 100;
+        int inFirstColumnBelowFirstLine = 0;
+        for (const PageLine &l : lines)
+            if (l.block >= at && l.column == 1 && l.rect.top() < wallBottom - 0.05) ++inFirstColumnBelowFirstLine;
+        QVERIFY2(inFirstColumnBelowFirstLine >= 3, qPrintable(QStringLiteral("%1 lines of the first column are beside the wall").arg(inFirstColumnBelowFirstLine)));
+    }
+
     // Two notes cited on the last line of a page (the text goes on after it, with a table before or none): both are drawn in all their height, wherever the line lands.
     void twoNotesOnThePagesLastLineAreBothDrawn()
     {
