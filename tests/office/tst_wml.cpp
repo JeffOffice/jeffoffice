@@ -1167,6 +1167,62 @@ private Q_SLOTS:
         QVERIFY2(t.parse(documentXmlOf(writeDocx(d2))), "the document is well formed");
     }
 
+    // Rows that a content control holds (nested controls too), and a cell that one holds, are the table's rows and cells: read as such, with the controls kept open and closed
+    // between them; and written as they were while nothing changes, and as nested as they were when something does.
+    void rowsAndCellsInContentControlsAreTheTablesOwn()
+    {
+        const QByteArray rowControls = R"(<w:sdt><w:sdtPr><w:id w:val="1"/></w:sdtPr><w:sdtContent><w:sdt><w:sdtPr><w:id w:val="2"/></w:sdtPr><w:sdtContent>)"
+                                       R"(<w:tr><w:sdt><w:sdtPr><w:id w:val="3"/></w:sdtPr><w:sdtContent><w:tc><w:p><w:r><w:t>Choose an item.</w:t></w:r></w:p></w:tc></w:sdtContent></w:sdt>)"
+                                       R"(<w:tc><w:p><w:r><w:t>Here is a sample</w:t></w:r></w:p></w:tc></w:tr></w:sdtContent></w:sdt></w:sdtContent></w:sdt>)";
+        const QByteArray table = R"(<w:tbl><w:tblGrid><w:gridCol w:w="3000"/><w:gridCol w:w="3000"/></w:tblGrid>)"
+                                 R"(<w:tr><w:tc><w:p><w:r><w:t>Note</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>Details</w:t></w:r></w:p></w:tc></w:tr>)" + rowControls + "</w:tbl>";
+        Made m;
+        m.body = "<w:p><w:r><w:t>before</w:t></w:r></w:p>" + table;
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        QStringList texts, tags;
+        for (const Block &b : d.body) {
+            if (!b.isRaw) {
+                QString text;
+                for (const Inline &in : b.para.content) text += in.text;
+                texts << text;
+            } else {
+                tags << QString(b.role == Inline::Open ? "+" : b.role == Inline::Close ? "-" : "=") + b.tag;
+            }
+        }
+        QCOMPARE(texts, (QStringList{QStringLiteral("before"), QStringLiteral("Note"), QStringLiteral("Details"), QStringLiteral("Choose an item."), QStringLiteral("Here is a sample")}));
+        QCOMPARE(tags, (QStringList{"+tbl", "+tr", "+tc", "-tc", "+tc", "-tc", "-tr", "+sdt", "+sdt", "+tr", "+sdt", "+tc", "-tc", "-sdt", "+tc", "-tc", "-tr", "-sdt", "-sdt", "-tbl"}));
+        QVERIFY(documentXmlOf(writeDocx(d)).contains(table));
+        // One of the cells' text is changed: the table is written from its blocks, with the controls where they were.
+        for (Block &b : d.body)
+            if (!b.isRaw && !b.para.content.isEmpty() && b.para.content[0].text == QLatin1String("Here is a sample")) b.para.content[0].text = QStringLiteral("Changed");
+        const QByteArray out = documentXmlOf(writeDocx(d));
+        QVERIFY(!out.contains(table));
+        QVERIFY(out.contains(">Changed<"));
+        XmlTree t;
+        QVERIFY2(t.parse(out), "the document is well formed");
+        QVERIFY(out.contains("<w:sdtContent><w:sdt><w:sdtPr><w:id w:val=\"2\"/></w:sdtPr><w:sdtContent><w:tr>"));
+        QVERIFY(out.contains("<w:tr><w:sdt><w:sdtPr><w:id w:val=\"3\"/></w:sdtPr><w:sdtContent><w:tc>"));
+        QVERIFY(out.contains("</w:tc></w:sdtContent></w:sdt><w:tc>"));
+    }
+
+    // Content controls nested without end do not make a table that is read as one (a limit stands in for the table, which is kept whole).
+    void contentControlsRoundRowsAreBounded()
+    {
+        QByteArray open, close;
+        for (int i = 0; i < 60; ++i) {   // (more than the controls are followed to, fewer than the XML is allowed to be nested)
+            open += R"(<w:sdt><w:sdtPr><w:id w:val="9"/></w:sdtPr><w:sdtContent>)";
+            close += "</w:sdtContent></w:sdt>";
+        }
+        Made m;
+        m.body = R"(<w:tbl><w:tblGrid><w:gridCol w:w="3000"/></w:tblGrid>)" + open + R"(<w:tr><w:tc><w:p><w:r><w:t>deep</w:t></w:r></w:p></w:tc></w:tr>)" + close + "</w:tbl>";
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        QVERIFY(documentXmlOf(writeDocx(d)).contains(m.body));
+        XmlTree t;
+        QVERIFY2(t.parse(documentXmlOf(writeDocx(d))), "the document is well formed");
+    }
+
     // A table style is what it says over the styles it is based on: borders and margins side by side, paragraph and run properties over one another, and the parts
     // of it for the first row and the like each with its own.
     void aTableStyleIsReadWithTheStylesItIsBasedOn()

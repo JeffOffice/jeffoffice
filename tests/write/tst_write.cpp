@@ -11191,6 +11191,32 @@ private Q_SLOTS:
         QCOMPARE(rowsShown(pg), 90);
     }
 
+    // Rows and cells that content controls hold are shown, and a file that is saved after one of their cells is edited has the controls as they were.
+    void aTableWhoseRowsAndCellsAreInContentControlsShowsThemAndKeepsThem()
+    {
+        const QByteArray controlRow = R"(<w:sdt><w:sdtPr><w:id w:val="1"/></w:sdtPr><w:sdtContent><w:sdt><w:sdtPr><w:id w:val="2"/></w:sdtPr><w:sdtContent>)"
+                                      R"(<w:tr><w:sdt><w:sdtPr><w:id w:val="3"/></w:sdtPr><w:sdtContent><w:tc><w:p><w:r><w:t>Choose an item.</w:t></w:r></w:p></w:tc></w:sdtContent></w:sdt>)"
+                                      R"(<w:tc><w:p><w:r><w:t>Here is a sample</w:t></w:r></w:p></w:tc></w:tr></w:sdtContent></w:sdt></w:sdtContent></w:sdt>)";
+        const QByteArray table = R"(<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/></w:tblPr><w:tblGrid><w:gridCol w:w="2000"/><w:gridCol w:w="2000"/></w:tblGrid>)"
+                                 R"(<w:tr><w:tc><w:p><w:r><w:t>Note</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>Details</w:t></w:r></w:p></w:tc></w:tr>)" + controlRow +
+                                 R"(<w:tr><w:tc><w:p><w:r><w:t>last</w:t></w:r></w:p></w:tc><w:tc><w:p/></w:tc></w:tr></w:tbl>)";
+        auto doc = open(makeDocxWithParts(plainP("Sample 1:") + table + plainP("after"), sectionXml(12240, 15840, 1440), {}));
+        QVERIFY(doc);
+        const QString text = doc->story()->toPlainText();
+        QVERIFY2(text.contains(QStringLiteral("Choose an item.")) && text.contains(QStringLiteral("Here is a sample")), qPrintable(text));
+        QVERIFY(documentXml(doc->toDocx()).contains(table));
+        // The sample cell is edited: the controls are written where they were.
+        QTextCursor c(doc->story());
+        c.setPosition(text.indexOf(QStringLiteral("Here is a sample")));
+        c.setPosition(c.position() + 4, QTextCursor::KeepAnchor);
+        c.insertText(QStringLiteral("There"));
+        const QByteArray out = documentXml(doc->toDocx());
+        QVERIFY2(out.contains("There is a sample"), out.constData());
+        QVERIFY(out.contains(R"(<w:sdtContent><w:sdt><w:sdtPr><w:id w:val="2"/></w:sdtPr><w:sdtContent><w:tr><w:sdt><w:sdtPr><w:id w:val="3"/></w:sdtPr><w:sdtContent><w:tc>)"));
+        QVERIFY(out.contains(R"(</w:tc></w:sdtContent></w:sdt><w:tc>)"));
+        QVERIFY(out.contains(R"(</w:tr></w:sdtContent></w:sdt></w:sdtContent></w:sdt><w:tr>)"));
+    }
+
     // What a header shows of a paragraph style (a STYLEREF field) is the page's own: the first paragraph of the style on the page (the last with \l), or the nearest before the page
     // when it has none; the field's result in the file is what shows where the document has none at all.
     void aHeaderShowsTheStyledParagraphOfItsPage()

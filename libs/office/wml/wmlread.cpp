@@ -602,17 +602,38 @@ public:
         }
     }
 
+    // The rows of a table, or the cells of a row, which a content control around them (w:sdt, and in it w:sdtContent) leaves where they are: appended to `found`, those the
+    // controls nested inside hold too, as deep as `kMaxContainerDepth` allows.
+    void partsOf(int parent, const char *part, QVector<int> *found, int depth = 0) const
+    {
+        for (int c = t.firstChild(parent); c >= 0; c = t.next(c)) {
+            if (t.is(c, part)) found->push_back(c);
+            else if (t.is(c, "sdt") && depth < kMaxContainerDepth && t.child(c, "sdtContent") >= 0) partsOf(t.child(c, "sdtContent"), part, found, depth + 1);
+            if (found->size() > kMaxTableRows + kMaxTableColumns * 4) return;
+        }
+    }
+    // Whether a content control (or one nested in it) holds a row (`part` "tr") or a cell ("tc").
+    bool holdsParts(int sdt, const char *part, int depth = 0) const
+    {
+        const int content = t.child(sdt, "sdtContent");
+        if (content < 0 || depth >= kMaxContainerDepth) return false;
+        for (int c = t.firstChild(content); c >= 0; c = t.next(c))
+            if (t.is(c, part) || (t.is(c, "sdt") && holdsParts(c, part, depth + 1))) return true;
+        return false;
+    }
+
     // Whether a w:tbl is read as a table: it has rows and cells, no more than the limits (wml.h) hold, and is not nested deeper than they say.
     bool tableFits(int tbl) const
     {
         if (tablesAsStandIns || tableDepth >= kMaxTableDepth) return false;
         int rows = 0, cells = 0;
-        for (int r = t.firstChild(tbl); r >= 0; r = t.next(r)) {
-            if (!t.is(r, "tr")) continue;
+        QVector<int> trs;
+        partsOf(tbl, "tr", &trs);
+        for (const int r : trs) {
             if (++rows > kMaxTableRows) return false;
-            int inRow = 0;
-            for (int cell = t.firstChild(r); cell >= 0; cell = t.next(cell))
-                if (t.is(cell, "tc")) ++inRow;
+            QVector<int> tcs;
+            partsOf(r, "tc", &tcs);
+            const int inRow = int(tcs.size());
             if (inRow == 0 || inRow > kMaxTableColumns) return false;
             cells += inRow;
             if (cells > kMaxTableCellsEach) return false;
@@ -667,6 +688,42 @@ public:
         out->push_back(std::move(close));
     }
 
+    // A content control that holds rows or cells, as the kept pieces that open and close it (the rows or cells between them are the table's, as the file has them).
+    void controlPieces(int sdt, Block *open, Block *close) const
+    {
+        const int content = t.child(sdt, "sdtContent");
+        open->isRaw = true;
+        open->role = Inline::Open;
+        open->tag = QStringLiteral("sdt");
+        open->raw = t.startTag(sdt);
+        for (int k = t.firstChild(sdt); k >= 0 && k != content; k = t.next(k)) open->raw += t.raw(k);
+        open->raw += t.startTag(content);
+        *close = *open;
+        close->role = Inline::Close;
+        close->raw = t.endTag(content);
+        for (int k = t.next(content); k >= 0; k = t.next(k)) close->raw += t.raw(k);
+        close->raw += t.endTag(sdt);
+    }
+
+    // The cells of a row, or what is kept between them (and a content control round them, which is kept open and closed with its cells between).
+    void rowParts(int from, QVector<Block> *out, int depth, int control)
+    {
+        for (int c = from; c >= 0; c = t.next(c)) {
+            if (t.is(c, "tc")) {
+                ++tableCells;
+                cellBlocks(c, out, depth);
+            } else if (t.is(c, "sdt") && control < kMaxContainerDepth && holdsParts(c, "tc")) {
+                Block open, close;
+                controlPieces(c, &open, &close);
+                out->push_back(open);
+                rowParts(t.firstChild(t.child(c, "sdtContent")), out, depth, control + 1);
+                out->push_back(close);
+            } else {
+                out->push_back(rawBlock(c));
+            }
+        }
+    }
+
     void rowBlocks(int tr, QVector<Block> *out, int depth)
     {
         Block open;
@@ -677,22 +734,33 @@ public:
         auto mark = std::make_shared<TableMark>();
         mark->kind = TableMark::Row;
         int c = t.firstChild(tr);
-        for (; c >= 0 && !t.is(c, "tc"); c = t.next(c)) {
+        for (; c >= 0 && !t.is(c, "tc") && !(t.is(c, "sdt") && holdsParts(c, "tc")); c = t.next(c)) {
             if (t.is(c, "trPr")) trPr(c, mark.get());
             open.raw += t.raw(c);
         }
         open.table = mark;
         Block close = closeOf(open, t.endTag(tr));
         out->push_back(std::move(open));
-        for (; c >= 0; c = t.next(c)) {
-            if (t.is(c, "tc")) {
-                ++tableCells;
-                cellBlocks(c, out, depth);
+        rowParts(c, out, depth, 0);
+        out->push_back(std::move(close));
+    }
+
+    // The rows of a table from a child on, or what is kept between them (and a content control round rows, kept open and closed with its rows between).
+    void tableParts(int from, QVector<Block> *out, int depth, int control)
+    {
+        for (int c = from; c >= 0; c = t.next(c)) {
+            if (t.is(c, "tr")) {
+                rowBlocks(c, out, depth);
+            } else if (t.is(c, "sdt") && control < kMaxContainerDepth && holdsParts(c, "tr")) {
+                Block open, close;
+                controlPieces(c, &open, &close);
+                out->push_back(open);
+                tableParts(t.firstChild(t.child(c, "sdtContent")), out, depth, control + 1);
+                out->push_back(close);
             } else {
                 out->push_back(rawBlock(c));
             }
         }
-        out->push_back(std::move(close));
     }
 
     // A table as the blocks of its parts (see Block): false, with nothing added, when it is to be kept whole instead.
@@ -711,7 +779,7 @@ public:
         auto mark = std::make_shared<TableMark>();
         mark->kind = TableMark::Table;
         int c = t.firstChild(tbl);
-        for (; c >= 0 && !t.is(c, "tr"); c = t.next(c)) {
+        for (; c >= 0 && !t.is(c, "tr") && !(t.is(c, "sdt") && holdsParts(c, "tr")); c = t.next(c)) {
             if (t.is(c, "tblPr")) tblPr(c, mark.get());
             if (t.is(c, "tblGrid")) {
                 tblGrid(c, mark.get());
@@ -724,10 +792,7 @@ public:
         }
         open.table = mark;
         out->push_back(open);
-        for (; c >= 0; c = t.next(c)) {
-            if (t.is(c, "tr")) rowBlocks(c, out, depth);
-            else out->push_back(rawBlock(c));
-        }
+        tableParts(c, out, depth, 0);
         out->push_back(closeOf(open, t.endTag(tbl)));
         // (What a table that nothing changes is written as, and how to tell.)
         mark->original = t.raw(tbl);
