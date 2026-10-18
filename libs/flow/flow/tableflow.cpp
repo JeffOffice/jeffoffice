@@ -122,9 +122,10 @@ int TableIndex::firstFrom(int pos) const
 namespace {
 
 // A stretch of paragraphs [from, to) of the story laid out at a width, from the top, and the height they take (the space after the last one counts).
-std::shared_ptr<StoryLayout> layoutText(FlowDocument *doc, int from, int to, double width, double *height, int footnotesBefore = 0, int endnotesBefore = 0)
+std::shared_ptr<StoryLayout> layoutText(FlowDocument *doc, int from, int to, double width, double *height, int footnotesBefore = 0, int endnotesBefore = 0, const QColor &backdrop = QColor())
 {
     FrameSpec fs;
+    fs.backdrop = backdrop;
     fs.size = QSizeF(std::max(kLeastWidth, width), kTall);
     fs.insets = QMarginsF(0, 0, 0, 0);
     fs.columns = 1;
@@ -164,6 +165,18 @@ std::shared_ptr<StoryLayout> layoutText(FlowDocument *doc, int from, int to, dou
 
 std::shared_ptr<TableFragment> wholeFragment(const std::shared_ptr<TableLayout> &layout);
 
+// The fill under the text of the cell whose paragraphs these are (`up` is the chain of cells the paragraph is in, `direct` how many are the cell's own, the last being it): the
+// cell's own fill, else its table's, else the cell the table is in has (outward), none if none has one.
+QColor backdropOf(const QVector<const CellRecord *> &up, int direct)
+{
+    for (int k = std::min(direct, int(up.size())) - 1; k >= 0; --k) {
+        const CellRecord &r = *up[k];
+        if (r.cell.fill && r.cell.fill->alpha() > 0) return *r.cell.fill;
+        if (r.table && r.table->fill && r.table->fill->alpha() > 0) return *r.table->fill;
+    }
+    return QColor();
+}
+
 } // namespace
 
 std::shared_ptr<CellContent> layoutCellContent(const TableContext &ctx, int i0, int i1, int direct, double width)
@@ -185,7 +198,7 @@ std::shared_ptr<CellContent> layoutCellContent(const TableContext &ctx, int i0, 
             part.foot = ix.refs()[size_t(i)].foot;
             part.end = ix.refs()[size_t(i)].endNotes;
             double h = 0;
-            part.text = layoutText(ctx.doc, part.from, part.to, width, &h, part.foot, part.end);
+            part.text = layoutText(ctx.doc, part.from, part.to, width, &h, part.foot, part.end, backdropOf(up, direct));
             if (ctx.doc->fields) {
                 // The footnotes it cites, in order, with the numbers they show.
                 const QTextDocument *story = ctx.doc->story();

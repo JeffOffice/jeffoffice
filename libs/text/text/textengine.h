@@ -127,6 +127,9 @@ struct FrameSpec {
     // paragraphs say: a slide's text box whose text is anchored "centered". One column.
     bool centerBlock = false;
     FieldContext ctx;
+    // The fill the frame's text is on, for text of the automatic color (a word processor's, LayoutEnv::wordLines): the nearest fill outside the paragraph's own, as the caller
+    // knows it (a table cell's, its table's, or the cell it is in); invalid for none. Where it is dark that text is white.
+    QColor backdrop;
 };
 
 struct LayoutEnv {
@@ -481,7 +484,9 @@ void drawPlainText(QPainter *p, const QPointF &baseline, const QFont &font, cons
 // there are any, else the font's own tables.
 double naturalLineEm(const QFont &f, const QString &requestedFamily);
 
-QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env);
+// `behind` is the fill under the text, for text of the automatic color (white where the fill, the run's own or this, is dark: it is worked out as the text is laid out, and the run
+// keeps no color of its own).
+QTextCharFormat resolveCharFormat(const QTextCharFormat &f, const LayoutEnv &env, const QColor &behind = QColor());
 // The family a word processor sets a font in where its machine lacks the font (LayoutEnv::standIns), from what the file's font table says of it: its alternate when the
 // machine has that; a symbol font for a symbol character set (charset "02"); Courier New for a fixed pitch or a PANOSE whose proportion (digits 7-8) is 09, monospaced;
 // otherwise by its PANOSE class (digits 3-4, hexadecimal: 0B to 0F sans, 02 to 0A serif) or its kind (roman: Times New Roman; modern: Courier New). Empty when the

@@ -27,11 +27,16 @@ struct TablePart {
 
 struct RowPart {
     QByteArray open;
+    // What the file says of the row's height (a hidden row is made no height; a row put beside it is as the file says its own is), and that it is hidden.
+    double height = 0;
+    bool exact = false, hidden = false;
     QVector<office::wml::Block> before, after;          // kept pieces between the table's rows before it, and between its last cell and its end
 };
 
 struct CellPart {
     QByteArray open;
+    // A cell of a hidden row is made with no lines, no fill, and no margins (the row shows nothing): what it was before, for a row put beside it.
+    std::shared_ptr<flow::CellData> shown;
     QVector<office::wml::Block> before, tail;           // kept pieces between the row's cells before it, and after its last paragraph or table
     // What its table's style gives the paragraphs in it (the parts of the style that apply to it, as its place in the table makes them).
     std::shared_ptr<const office::wml::TableLayer> layer;
@@ -50,6 +55,9 @@ public:
     // The key of the cell the next paragraph is in (0: none), and what its table's style gives its paragraphs.
     int key() const { return m_cells.isEmpty() ? 0 : m_cells.last(); }
     const office::wml::TableLayer *layer() const;
+    // The width in points of the text area of the cell the next paragraph is in (the cell's columns less the table's margins in the cell), 0 when it is in no
+    // cell or its table has no grid to say.
+    double cellWidth() const;
     // Pieces that come after a cell's last paragraph when that is not a paragraph of its own (the cell ends in a table), kept with the cell.
     void addTail(const QVector<office::wml::Block> &pieces);
 
@@ -61,12 +69,14 @@ private:
         std::shared_ptr<TablePart> tablePart;
         std::shared_ptr<RowPart> rowPart;
         std::shared_ptr<CellPart> cellPart;
-        int rows = 0;
+        int rows = 0, hiddenRows = 0;                   // (a table: how many rows it has, and how many of them are hidden)
+        bool hidden = false;                            // (a row)
         QVector<double> firstRow;                       // (a table: the widths its first row's cells say, for a grid the file left out)
         const office::wml::TableStyleDef *style = nullptr;   // (a table)
         QString styleId;
         int look = 0, rowCount = 0, columns = 0, rowBand = 1, colBand = 1;
         int col = 0;                                    // (a row: the grid column the next cell is at)
+        int colFirst = 0, colSpan = 1;                  // (a cell: its first grid column, and how many it takes)
     };
     flow::FlowDocument *m_flow;
     const office::wml::StyleSheet *m_sheet;

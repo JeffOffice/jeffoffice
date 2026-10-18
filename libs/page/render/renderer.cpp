@@ -491,15 +491,22 @@ QPolygonF Renderer::defaultWrapPolygon(const Document &doc, const Item &it)
     }
 }
 
-QPainterPath Renderer::textArtOutline(const TextArtItem &w)
+// What makes a Text Art's outline: its text, font, and transform, and its size.
+static QString textArtKey(const TextArtItem &w)
 {
-    static QCache<QString, QPainterPath> cache(200);
     QJsonObject o = w.toJson();
     o.remove("id"); o.remove("rect"); o.remove("fill"); o.remove("stroke"); o.remove("fx"); o.remove("wrap"); o.remove("rot");
-    const QString key = QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact)) + QStringLiteral("%1x%2").arg(w.rect.width()).arg(w.rect.height());
+    return QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact)) + QStringLiteral("%1x%2").arg(w.rect.width()).arg(w.rect.height());
+}
+
+QPainterPath Renderer::textArtOutline(const TextArtItem &w)
+{
+    // (Kept by what they cost, in elements of the path: a few long texts, or many short ones.)
+    static QCache<QString, QPainterPath> cache(40000);
+    const QString key = textArtKey(w);
     if (QPainterPath *p = cache.object(key)) return *p;
     QPainterPath path = textArtPath(w, w.rect.size());
-    cache.insert(key, new QPainterPath(path));
+    cache.insert(key, new QPainterPath(path), 1 + int(path.elementCount() / 8));
     return path;
 }
 
@@ -610,6 +617,13 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
     QImage img = level ? src.scaledToWidth(std::max(1, src.width() >> level), Qt::SmoothTransformation) : src;
     if (!shown.isEmpty()) img = img.scaled(shown, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     const bool adjust = !slide && (pic.brightness || pic.contrast || pic.recolor || pic.hasTransparentColor);
+    // A picture of more than sixteen million pixels is made smaller before each of its pixels is changed (a color keyed out, a recolor): that took seconds and hundreds of megabytes of a
+    // picture a page draws at a few hundred pixels across, where it is drawn with no size to go by (a PDF).
+    constexpr qint64 kMostAdjusted = 16'000'000;
+    if (adjust && qint64(img.width()) * img.height() > kMostAdjusted) {
+        const double k = std::sqrt(double(kMostAdjusted) / (double(img.width()) * img.height()));
+        img = img.scaled(std::max(1, int(img.width() * k)), std::max(1, int(img.height() * k)), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    }
     if (adjust) {
         img = img.convertToFormat(QImage::Format_ARGB32);
         const double bright = pic.brightness * 2.55;
@@ -1053,13 +1067,56 @@ static void paintTable(QPainter *p, const PaintContext &ctx, const TableItem &t)
     Renderer::strokePath(p, [&] { QPainterPath pp; pp.addRect(r); return pp; }(), t.stroke, cs);
 }
 
+// Draws a long Text Art from a picture of it at the size it is drawn at, made when none is kept: into pixels (not a PDF), with the page's scale and place only (no turn), a solid
+// fill and a plain line. False (nothing drawn) when it is not so.
+static bool paintTextArtKept(QPainter *p, const PaintContext &ctx, const TextArtItem &w, const QPainterPath &path, const Stroke &s)
+{
+    if (!p->paintEngine() || p->paintEngine()->type() != QPaintEngine::Raster || !qFuzzyCompare(p->device()->devicePixelRatioF(), 1.0)) return false;
+    const ColorScheme &cs = ctx.doc->colors;
+    if ((!w.fill.isNone() && w.fill.type != Fill::Solid) || (!s.isNone() && (s.compound != Stroke::Single || s.inset || s.hasGradient() || s.pen(cs).style() != Qt::SolidLine))) return false;
+    const QTransform t = p->transform();
+    if (t.type() > QTransform::TxScale || t.m11() <= 0 || t.m22() <= 0) return false;
+    const double pad = s.isNone() ? 1.0 : s.width + 1.0;
+    const QRectF dev = t.mapRect(path.boundingRect().adjusted(-pad, -pad, pad, pad));
+    const QPoint origin(int(std::floor(dev.left())), int(std::floor(dev.top())));
+    const QSize size(int(std::ceil(dev.right())) - origin.x(), int(std::ceil(dev.bottom())) - origin.y());
+    if (size.width() <= 0 || size.height() <= 0 || qint64(size.width()) * size.height() > 16'000'000) return false;
+    // (What the picture is of: the outline, the colors, and the scale and the part of a pixel it is placed at.)
+    const QString key = textArtKey(w) + QStringLiteral("|%1|%2|%3|%4|%5|%6|%7")
+                                            .arg(t.m11(), 0, 'g', 8).arg(t.m22(), 0, 'g', 8).arg(qRound((dev.left() - origin.x()) * 8)).arg(qRound((dev.top() - origin.y()) * 8))
+                                            .arg(w.fill.isNone() ? QString() : w.fill.color.resolve(cs).name(QColor::HexArgb), s.isNone() ? QString() : s.pen(cs).color().name(QColor::HexArgb)).arg(s.isNone() ? 0.0 : s.width);
+    static QCache<QString, QImage> kept(128 * 1024);   // (kilobytes)
+    QImage *picture = kept.object(key);
+    if (!picture) {
+        QImage made(size, QImage::Format_ARGB32_Premultiplied);
+        made.fill(Qt::transparent);
+        QPainter ip(&made);
+        ip.setRenderHints(p->renderHints());
+        ip.setTransform(QTransform(t.m11(), 0, 0, t.m22(), t.dx() - origin.x(), t.dy() - origin.y()));
+        if (!w.fill.isNone()) ip.fillPath(path, w.fill.brush(QRectF(QPointF(0, 0), w.rect.size()), cs, lookupFor(*ctx.doc)));
+        Renderer::strokePath(&ip, path, s, cs);
+        ip.end();
+        kept.insert(key, new QImage(made), int(made.sizeInBytes() / 1024) + 1);
+        picture = kept.object(key);
+        if (!picture) return false;   // (too large to keep)
+    }
+    p->save();
+    p->resetTransform();
+    p->drawImage(origin, *picture);
+    p->restore();
+    return true;
+}
+
 static void paintTextArt(QPainter *p, const PaintContext &ctx, const TextArtItem &w)
 {
     const ColorScheme &cs = ctx.doc->colors;
     const QPainterPath path = Renderer::textArtOutline(w);
-    if (!w.fill.isNone()) p->fillPath(path, w.fill.brush(QRectF(QPointF(0, 0), w.rect.size()), cs, lookupFor(*ctx.doc)));
     Stroke s = w.stroke;
     s.join = Qt::RoundJoin;
+    // A long text is drawn into pixels once, at the size and place it is drawn at, and the picture is kept: filling and stroking four hundred letters took more than a second
+    // each time the page was drawn.
+    if (path.elementCount() > 4000 && paintTextArtKept(p, ctx, w, path, s)) return;
+    if (!w.fill.isNone()) p->fillPath(path, w.fill.brush(QRectF(QPointF(0, 0), w.rect.size()), cs, lookupFor(*ctx.doc)));
     Renderer::strokePath(p, path, s, cs);
 }
 

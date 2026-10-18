@@ -238,6 +238,7 @@ struct TableMark {
     int height = 0;                   // trHeight, twentieths of a point (0: not stated)
     QString heightRule;               // atLeast (when empty), exact, auto
     bool cantSplit = false, header = false;
+    bool hidden = false;              // hidden: the row is not shown
     // ---- a cell (tcPr)
     TableWidth cellWidth;             // tcW
     int span = 1;                     // gridSpan
@@ -471,9 +472,34 @@ struct Shape {
     bool flipH = false, flipV = false;
     bool arrowEnd = false, arrowStart = false;
     QString embed;                        // a picture's relationship Id
+    QString pictEmbed;                    // the Id of the picture's other form (VML's r:pict: a compressed picture the program keeps beside it)
     QString alt;                          // its description
     QByteArray textBox;                   // the w:txbxContent element of a text box, as written (insets: below)
     double inset[4] = {7.2, 3.6, 7.2, 3.6};   // left, top, right, bottom
+    // A picture's cut edges, each a share of the whole picture (a negative one is room left round it), the color of it that is clear ("RRGGBB"),
+    // and the border it is drawn with (its weight in points, 0 for none, and its color).
+    double cropL = 0, cropT = 0, cropR = 0, cropB = 0;
+    QString clearColor;
+    double borderWeight = 0;              // the heaviest of its sides'
+    QString borderColor;
+    // The weights of the sides of a picture's border, in points (top, left, bottom, right): the sides the file sets, 0 for the others.
+    double borderSides[4] = {0, 0, 0, 0};
+    // The shape's own numbers (VML's adj, a list of numbers some of which it leaves empty: those are not a number), as written.
+    QVector<double> adjust;
+    // The number of the drawing format's shape the object is (VML's o:spt, from the shape's type), 0 when it says none: 75 is a picture, 202 a text
+    // box, 19 an arc, 136 text on a path.
+    int shapeType = 0;
+    // Text on a path (an object that is its text, set to fill its frame): the text, its font, and whether it is bold and italic.
+    QString pathText, pathFont;
+    bool pathBold = false, pathItalic = false;
+    // A shadow of the object (VML's v:shadow): its color and how far across and down it is, in points.
+    bool shadow = false;
+    QString shadowColor;
+    double shadowX = 0, shadowY = 0;
+    // A horizontal rule (VML's o:hr): as wide as this many percent of the text's width (0: as wide as the frame is) and as high as the frame, set as
+    // its horizontal alignment says.
+    bool rule = false;
+    double rulePercent = 0;
 };
 // The objects of a w:pict, w:drawing, or mc:AlternateContent element kept as written (a run's atom): in order, nested ones (a group's members) after it.
 // A VML shape that is only a template (a shape type) is none.

@@ -550,6 +550,8 @@ public:
                 m->cantSplit = onOffOf(t, c).value_or(true);
             } else if (name == "tblHeader") {
                 m->header = onOffOf(t, c).value_or(true);
+            } else if (name == "hidden") {
+                m->hidden = onOffOf(t, c).value_or(true);
             } else if (name == "trHeight") {
                 m->height = std::clamp(intOf(t, c).value_or(0), 0, kMostTwips);
                 m->heightRule = t.attr(c, "hRule");

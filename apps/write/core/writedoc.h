@@ -168,7 +168,9 @@ private:
     void fillStory(QTextDocument *story, const QVector<office::wml::Block> &body, bool header, const QString &part = QString(), bool headerFooter = false);
     // Makes of a drawn object of a run (its atom) what the pages show: a picture in the line is an inline object of the character, the rest are objects set at
     // places on the page of the paragraph they are anchored to. False when it makes none (nothing drawn, or a picture the file does not hold).
-    bool drawnObjects(const office::wml::Inline &atom, const QString &part, QTextCharFormat *format);
+    // (`lineWidth` is the width of a line of the paragraph the object is in, for a rule that is a share of it: its cell's or its section's text, less its indents; `content` is
+    // the paragraph's, for whether a rule is alone in it.)
+    bool drawnObjects(const office::wml::Inline &atom, const QString &part, QTextCharFormat *format, double lineWidth = 468, const QVector<office::wml::Inline> *content = nullptr);
     // The story of the header or footer part a relationship names (made once, kept); none for a link that is not a part, or past the limit of parts.
     std::shared_ptr<QTextDocument> headerStory(const QString &relationshipId);
     // Gives the flowing sections from `from` on the stories of their headers and footers, those they state and the section before's for the rest.
@@ -210,6 +212,7 @@ private:
     QHash<int, office::wml::HeaderRefs> m_headerRefs;                 // by the key of the section's record
     QByteArray m_lastBytes;                        // the first paragraph's record of it (prop::LastSection) as last read
     int m_blockCount = 0;
+    int m_letteringShapes = 0, m_letteringLetters = 0;   // the lettering on a path the document has drawn so far, and its letters (each is outlined, and may be stroked: they are bounded)
     bool m_syncing = false;
     mutable QHash<QString, std::shared_ptr<office::wml::StyleSheet>> m_scratch;
     bool levelIsOutlined(const office::wml::AbstractNum &definition, int level) const;

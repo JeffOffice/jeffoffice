@@ -51,6 +51,8 @@ public:
     // An attribute by its local name: in the word processing namespace (or none, as some tools write it) unless `ns` says another.
     bool has(int n, const char *local, int ns = NsW) const;
     QString attr(int n, const char *local, int ns = NsW) const;
+    // An attribute by its local name in whatever namespace it has (VML's o: and v: ones), or the empty string.
+    QString attrAny(int n, const char *local) const;
     // w:val, the usual one.
     QString val(int n) const { return attr(n, "val"); }
     // Every attribute of an element that is not named in `known` (local names), as ` name="value"` text exactly as written, for

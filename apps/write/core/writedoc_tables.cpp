@@ -152,6 +152,9 @@ void TableBuilder::addTail(const QVector<Block> &pieces)
 
 namespace {
 
+// The height of a hidden row, in points: none to speak of (the rows of a table are laid out with the heights they say, and a row of none would be as tall as its cells).
+constexpr double kHiddenRowHeight = 0.05;
+
 // The parts of a table's style that apply to the cell in row `row` of `rows` and column `col` of `columns`, from the one that gives way to the rest to the one that wins.
 QStringList stylePartsFor(const TableStyleDef &def, int look, int row, int rows, int col, int columns, int rowBand, int colBand)
 {
@@ -176,6 +179,24 @@ QStringList stylePartsFor(const TableStyleDef &def, int look, int row, int rows,
 }
 
 } // namespace
+
+double TableBuilder::cellWidth() const
+{
+    for (int i = int(m_levels.size()) - 1; i >= 0; --i) {
+        if (m_levels[i].kind != Level::Cell) continue;
+        for (int t = i - 1; t >= 0; --t) {
+            if (m_levels[t].kind != Level::Table) continue;
+            const flow::TableData &table = *m_levels[t].table;
+            const int first = m_levels[i].colFirst, last = std::min<int>(first + m_levels[i].colSpan, int(table.columns.size()));
+            if (first >= last) return 0;
+            double width = 0;
+            for (int c = first; c < last; ++c) width += table.columns[c];
+            return std::max(0.0, width - table.margins.left() - table.margins.right());
+        }
+        return 0;
+    }
+    return 0;
+}
 
 void TableBuilder::take(const Block &blk, QVector<Block> *pending)
 {
@@ -231,6 +252,12 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
                 if (m_levels[i].kind == Level::Table) {
                     Level &l = m_levels[i];
                     l.tablePart->after = m_between;
+                    // A table whose rows are all hidden shows nothing of itself: not its lines either.
+                    if (l.rows > 0 && l.hiddenRows == l.rows) {
+                        flow::TableData &t = *l.table;
+                        t.top = t.left = t.bottom = t.right = t.insideH = t.insideV = flow::TableLine();
+                        t.fill = std::nullopt;
+                    }
                     if (l.table->columns.isEmpty()) l.table->columns = l.firstRow;
                     m_levels.resize(i);
                     break;
@@ -247,19 +274,31 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
             l.row = std::make_shared<flow::RowData>();
             l.row->height = m.height / 20.0;
             l.row->exact = m.heightRule == QLatin1String("exact");
+            const double declaredHeight = l.row->height;
+            const bool declaredExact = l.row->exact;
             l.row->cantSplit = m.cantSplit;
             l.row->header = m.header;
+            // A row that is hidden is not shown, and takes no room: no height, no lines, and nothing in its cells (the cells, below).
+            l.hidden = m.hidden;
+            if (m.hidden) {
+                l.row->height = kHiddenRowHeight;
+                l.row->exact = true;
+            }
             l.row->before = m.gridBefore;
             l.row->after = m.gridAfter;
             l.col = m.gridBefore;
             l.rowPart = std::make_shared<RowPart>();
             l.rowPart->open = blk.raw;
+            l.rowPart->height = declaredHeight;
+            l.rowPart->exact = declaredExact;
+            l.rowPart->hidden = m.hidden;
             l.rowPart->before = m_between;
             m_between.clear();
             l.row->app = l.rowPart;
             for (int i = int(m_levels.size()) - 1; i >= 0; --i)
                 if (m_levels[i].kind == Level::Table) {
                     ++m_levels[i].rows;
+                    if (l.hidden) ++m_levels[i].hiddenRows;
                     break;
                 }
             m_levels.push_back(l);
@@ -299,6 +338,8 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
                 rec.row = row->row;
                 const int rowIndex = table->rows - 1, col = row->col;
                 row->col += std::max(1, direct.span);
+                cell.colFirst = col;
+                cell.colSpan = std::max(1, direct.span);
                 // The parts of the table's style that apply to this cell, and the cell as they and it say.
                 const QStringList parts = stylePartsFor(*table->style, table->look, rowIndex, table->rowCount, col, std::max(table->columns, row->col), table->rowBand, table->colBand);
                 TableMark m = table->style->base.cell;
@@ -335,6 +376,13 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
                 c.valign = m.vAlign == QLatin1String("center") ? flow::CellAlign::Center : m.vAlign == QLatin1String("bottom") ? flow::CellAlign::Bottom : flow::CellAlign::Top;
                 c.noWrap = m.noWrap;
                 c.app = cell.cellPart;
+                if (row->hidden) {
+                    cell.cellPart->shown = std::make_shared<flow::CellData>(c);
+                    cell.cellPart->shown->app.reset();
+                    c.top = c.left = c.bottom = c.right = flow::TableLine();
+                    c.fill = QColor(Qt::transparent);
+                    c.margins = QMarginsF(0, 0, 0, 0);
+                }
                 // The widths of the first row's cells, for a table whose grid the file left out.
                 if (table->rows == 1) {
                     const double w = direct.cellWidth.type == QLatin1String("dxa") ? direct.cellWidth.w / 20.0 : 0;

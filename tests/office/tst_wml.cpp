@@ -388,6 +388,184 @@ private Q_SLOTS:
         QCOMPARE(shapes[0].top, 0.0);
     }
 
+    // A picture's cut edges (VML's crop attributes in sixty-five-thousandths, DrawingML's a:srcRect in thousandths of a percent), the color it makes clear
+    // (chromakey), and its border (the sides' weights are in eighths of a point).
+    void readsAPicturesCutEdgesClearColorAndBorder()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" "
+                              "xmlns:w10=\"urn:schemas-microsoft-com:office:word\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                              "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                              "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"";
+        QVector<Shape> shapes = readShapes("<w:pict " + ns + "><v:shape id='s1' type='#_x0000_t75' style='width:77.25pt;height:1in'><v:imagedata r:id='rId5' croptop='16384f' cropbottom='32768f' "
+                                           "cropleft='10%' cropright='0.125' chromakey='black'/><w10:bordertop type='single' width='12'/><w10:borderleft type='single' width='12'/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].kind, Shape::Picture);
+        QVERIFY(std::abs(shapes[0].cropT - 0.25) < 1e-9);
+        QVERIFY(std::abs(shapes[0].cropB - 0.5) < 1e-9);
+        QVERIFY(std::abs(shapes[0].cropL - 0.1) < 1e-9);
+        QVERIFY(std::abs(shapes[0].cropR - 0.125) < 1e-9);
+        QCOMPARE(shapes[0].clearColor, QStringLiteral("000000"));
+        QVERIFY(std::abs(shapes[0].borderWeight - 1.5) < 1e-9);
+        // The other form of a picture (r:pict) is kept beside the picture's own (r:id); a picture that has only that one is that one.
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='sp' type='#_x0000_t75' style='width:54pt;height:36pt'><v:imagedata r:id='rId4' r:pict='rId5'/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].embed, QStringLiteral("rId4"));
+        QCOMPARE(shapes[0].pictEmbed, QStringLiteral("rId5"));
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='sq' type='#_x0000_t75' style='width:54pt;height:36pt'><v:imagedata r:pict='rId6'/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].embed, QStringLiteral("rId6"));
+        QCOMPARE(shapes[0].pictEmbed, QStringLiteral("rId6"));
+        // A negative cut is room round the picture; a picture that says none is whole, with no clear color or border.
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='s2' type='#_x0000_t75' style='width:54pt;height:36pt'><v:imagedata r:id='rId5' croptop='-3277f' chromakey='#FFFFFF'/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(std::abs(shapes[0].cropT + 0.05) < 1e-4);
+        QCOMPARE(shapes[0].cropL, 0.0);
+        QCOMPARE(shapes[0].clearColor, QStringLiteral("FFFFFF"));
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='s3a' type='#_x0000_t75' style='width:54pt;height:36pt'><v:imagedata r:id='rId5' croptop='8192f' chromakey='white'/><w10:bordertop type='single' width='8'/></v:shape>"
+                            "<v:shape id='s3' type='#_x0000_t75' style='width:54pt;height:36pt'><v:imagedata r:id='rId5'/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 2);
+        QVERIFY(shapes[0].cropT > 0.1 && shapes[0].clearColor == QStringLiteral("FFFFFF") && shapes[0].borderWeight == 1.0);
+        QCOMPARE(shapes[1].cropT + shapes[1].cropB + shapes[1].cropL + shapes[1].cropR, 0.0);
+        QVERIFY(shapes[1].clearColor.isEmpty());
+        QCOMPARE(shapes[1].borderWeight, 0.0);
+        // A picture of DrawingML: the cut edges are of its blip fill.
+        shapes = readShapes("<w:drawing " + ns + "><wp:inline><wp:extent cx='2540000' cy='1270000'/><wp:docPr id='1' name='p'/><a:graphic><a:graphicData><pic:pic><pic:blipFill><a:blip r:embed='rId7'/>"
+                            "<a:srcRect l='10000' t='20000' r='5000' b='-2500'/><a:stretch><a:fillRect/></a:stretch></pic:blipFill></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(std::abs(shapes[0].cropL - 0.1) < 1e-9 && std::abs(shapes[0].cropT - 0.2) < 1e-9);
+        QVERIFY(std::abs(shapes[0].cropR - 0.05) < 1e-9 && std::abs(shapes[0].cropB + 0.025) < 1e-9);
+        // (A cut that leaves nothing of the picture is read as none: it would draw nothing, and the file's frame is the one it means.)
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='s4' type='#_x0000_t75' style='width:54pt;height:36pt'><v:imagedata r:id='rId5' croptop='45000f' cropbottom='45000f'/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].cropT + shapes[0].cropB, 0.0);
+    }
+
+    // The number of the drawing format's shape that a VML object is (from its type, or the o:spt of the shape type in the same element), text on a path
+    // (a banner's lettering: the text, its font, and the shape's color and shadow), and a horizontal rule (its share of the text's width).
+    void readsAShapeTypeTextOnAPathAndAHorizontalRule()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" "
+                              "xmlns:w10=\"urn:schemas-microsoft-com:office:word\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+        QVector<Shape> shapes = readShapes("<w:pict " + ns + "><v:shape id='a' type='#_x0000_t19' style='position:absolute;margin-left:412.2pt;margin-top:-7.2pt;width:27pt;height:54pt' adj='-5898241'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].shapeType, 19);
+        // The shape type of the same element says the number itself.
+        shapes = readShapes("<w:pict " + ns + "><v:shapetype id='mine' coordsize='21600,21600' o:spt='85' adj='1800'/><v:shape id='b' type='#mine' style='width:25.2pt;height:54pt'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].shapeType, 85);
+        shapes = readShapes("<w:pict " + ns + "><v:rect id='c' style='width:10pt;height:10pt'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].shapeType, 0);
+        // Text on a path.
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='w' type='#_x0000_t136' style='position:absolute;margin-left:14.4pt;margin-top:0;width:121.4pt;height:32.4pt' fillcolor='black' strokeweight='1.5pt'>"
+                            "<v:shadow on='t' color='#969696' opacity='52429f' offset='1pt,2pt'/><v:textpath style='font-family:&quot;Arial Black&quot;;font-style:italic;v-text-kern:t' trim='t' fitpath='t' string='LTIMP'/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(shapes[0].shapeType, 136);
+        QCOMPARE(shapes[0].pathText, QStringLiteral("LTIMP"));
+        QCOMPARE(shapes[0].pathFont, QStringLiteral("Arial Black"));
+        QVERIFY(shapes[0].pathItalic && !shapes[0].pathBold);
+        QCOMPARE(shapes[0].fillColor, QStringLiteral("000000"));
+        QCOMPARE(shapes[0].strokeWeight, 1.5);
+        QVERIFY(shapes[0].shadow);
+        QCOMPARE(shapes[0].shadowColor, QStringLiteral("969696"));
+        QVERIFY(std::abs(shapes[0].shadowX - 1) < 1e-9 && std::abs(shapes[0].shadowY - 2) < 1e-9);
+        // A text path that is off is not one, beside one that is (so a reader that read none would fail on the first); a bold one is bold; no shadow is none.
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='x1' type='#_x0000_t136' style='width:100pt;height:20pt'><v:shadow on='t' offset='3pt'/><v:textpath style='font-family:Arial;font-weight:bold' string='shown'/></v:shape>"
+                            "<v:shape id='x2' type='#_x0000_t136' style='width:100pt;height:20pt'><v:textpath on='f' style='font-family:Arial;font-weight:bold' string='off'/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 2);
+        QCOMPARE(shapes[0].pathText, QStringLiteral("shown"));
+        QVERIFY(shapes[0].pathBold && !shapes[0].pathItalic && shapes[0].shadow);
+        QVERIFY(shapes[1].pathText.isEmpty() && !shapes[1].shadow);
+        // A horizontal rule: its share of the text's width in tenths of a percent (960 is 96 percent); none given and no width is all of it; a width and no
+        // share is that width.
+        shapes = readShapes("<w:pict " + ns + "><v:rect id='h1' style='width:110.25pt;height:1pt;flip:y' o:hrpct='960' o:hralign='center' o:hrstd='t' o:hrnoshade='t' o:hr='t' fillcolor='black' stroked='f'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(shapes[0].rule && !shapes[0].floating);
+        QCOMPARE(shapes[0].rulePercent, 96.0);
+        QCOMPARE(shapes[0].hAlign, Shape::Center);
+        QCOMPARE(shapes[0].height, 1.0);
+        shapes = readShapes("<w:pict " + ns + "><v:rect id='h2' style='width:0;height:2.25pt' o:hralign='center' o:hrstd='t' o:hr='t' fillcolor='gray' stroked='f'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(shapes[0].rule);
+        QCOMPARE(shapes[0].rulePercent, 100.0);
+        QCOMPARE(shapes[0].fillColor, QStringLiteral("808080"));
+        shapes = readShapes("<w:pict " + ns + "><v:rect id='h3' style='width:200pt;height:1pt' o:hr='t' o:hrpct='0'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(shapes[0].rule);
+        QCOMPARE(shapes[0].rulePercent, 0.0);
+        QCOMPARE(shapes[0].width, 200.0);
+        // A rectangle that is not a rule, beside one that is.
+        shapes = readShapes("<w:pict " + ns + "><v:rect id='h4' style='width:200pt;height:1pt'/><v:rect id='h5' style='width:200pt;height:1pt' o:hr='t'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 2);
+        QVERIFY(!shapes[0].rule && shapes[1].rule);
+    }
+
+    // The sides a picture's border is set on (each with its weight; the others have none), the color it is drawn in ("this" is the picture's own line color), and a shape's own
+    // numbers (a list in which an empty place or a word is not a number).
+    void readsAPicturesBorderSidesAndColorAndAShapesNumbers()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" "
+                              "xmlns:w10=\"urn:schemas-microsoft-com:office:word\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+        QVector<Shape> shapes = readShapes("<w:pict " + ns + "><v:shape id='b' type='#_x0000_t75' style='width:54pt;height:36pt' o:bordertopcolor='#FF0000' o:borderleftcolor='this'><v:imagedata r:id='rId4'/>"
+                                           "<w10:bordertop type='single' width='12'/><w10:borderbottom type='double' width='24'/><w10:borderleft type='none' width='40'/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(std::abs(shapes[0].borderSides[0] - 1.5) < 1e-9);   // top
+        QCOMPARE(shapes[0].borderSides[1], 0.0);                    // left: none
+        QVERIFY(std::abs(shapes[0].borderSides[2] - 3.0) < 1e-9);   // bottom
+        QCOMPARE(shapes[0].borderSides[3], 0.0);                    // right: not said
+        QVERIFY(std::abs(shapes[0].borderWeight - 3.0) < 1e-9);
+        QCOMPARE(shapes[0].borderColor, QStringLiteral("FF0000"));
+        // "this" is the shape's line color; none said is black.
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='b' type='#_x0000_t75' style='width:54pt;height:36pt' strokecolor='#0000FF' o:bordertopcolor='this'><v:imagedata r:id='rId4'/><w10:bordertop type='single' width='8'/></v:shape></w:pict>");
+        QCOMPARE(shapes[0].borderColor, QStringLiteral("0000FF"));
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='b' type='#_x0000_t75' style='width:54pt;height:36pt'><v:imagedata r:id='rId4'/><w10:bordertop type='single' width='8'/></v:shape></w:pict>");
+        QCOMPARE(shapes[0].borderColor, QStringLiteral("000000"));
+        // The numbers of a shape.
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='a' type='#_x0000_t19' style='width:27pt;height:54pt' adj='-5898241,,3,word,1e999'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QCOMPARE(int(shapes[0].adjust.size()), 5);
+        QCOMPARE(shapes[0].adjust[0], -5898241.0);
+        QVERIFY(std::isnan(shapes[0].adjust[1]) && std::isnan(shapes[0].adjust[3]) && std::isnan(shapes[0].adjust[4]));
+        QCOMPARE(shapes[0].adjust[2], 3.0);
+    }
+
+    // Numbers a file may give that are not numbers, or are beyond any page, are no cut, no border, no share past all the width, and no number of a shape's: everything read is
+    // finite and in the range a page could hold.
+    void readsNumbersThatAreNotNumbersOrAreTooLarge()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" "
+                              "xmlns:w10=\"urn:schemas-microsoft-com:office:word\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                              "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                              "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"";
+        auto finite = [](const Shape &s) {
+            for (const double v : {s.cropL, s.cropT, s.cropR, s.cropB, s.borderWeight, s.borderSides[0], s.borderSides[1], s.borderSides[2], s.borderSides[3], s.rulePercent, s.shadowX, s.shadowY, s.width, s.height, s.left, s.top})
+                if (!std::isfinite(v)) return false;
+            return true;
+        };
+        QVector<Shape> shapes = readShapes("<w:pict " + ns + "><v:shape id='s' type='#_x0000_t75' style='width:54pt;height:36pt'><v:imagedata r:id='rId4' croptop='nan' cropbottom='1e999f' cropleft='-1e999' cropright='inf%'/>"
+                                           "<w10:bordertop type='single' width='nan'/><w10:borderleft type='single' width='1e308'/><w10:borderbottom type='single' width='-5'/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(finite(shapes[0]));
+        for (const double cut : {shapes[0].cropL, shapes[0].cropT, shapes[0].cropR, shapes[0].cropB}) QVERIFY(cut >= -1 && cut <= 1);
+        QVERIFY(shapes[0].cropT == 0.0 && shapes[0].cropR == 0.0);   // (words that are not numbers are no cut)
+        QVERIFY(shapes[0].cropL + shapes[0].cropR < 0.98 && shapes[0].cropT + shapes[0].cropB < 0.98);
+        QVERIFY(shapes[0].borderSides[0] == 0.0 && shapes[0].borderSides[1] == 100.0 && shapes[0].borderSides[2] == 0.0);   // (nan: none; too much: 100 points; below none: none)
+        shapes = readShapes("<w:pict " + ns + "><v:rect id='r' style='width:1e999pt;height:nan' o:hr='t' o:hrpct='1e999' o:hralign='center' fillcolor='black'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(finite(shapes[0]));
+        QVERIFY(shapes[0].rulePercent >= 0 && shapes[0].rulePercent <= 100);
+        shapes = readShapes("<w:pict " + ns + "><v:rect id='r' style='width:50pt;height:1pt' o:hr='t' o:hrpct='nan'/></w:pict>");
+        QVERIFY(finite(shapes[0]) && shapes[0].rulePercent == 0.0);
+        shapes = readShapes("<w:drawing " + ns + "><wp:inline><wp:extent cx='2540000' cy='1270000'/><wp:docPr id='1' name='p'/><a:graphic><a:graphicData><pic:pic><pic:blipFill><a:blip r:embed='rId7'/>"
+                            "<a:srcRect l='nan' t='1e999' r='-99999999' b='abc'/></pic:blipFill></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(finite(shapes[0]));
+        QVERIFY(shapes[0].cropL + shapes[0].cropR < 0.98 && shapes[0].cropT + shapes[0].cropB < 0.98);
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='a' type='#_x0000_t19' style='width:27pt;height:54pt' adj='1e999,-1e999,nan'/></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        for (const double v : shapes[0].adjust) QVERIFY(std::isnan(v) || std::abs(v) <= 1e9);
+    }
+
     // The side the text goes on beside a wrap (DrawingML's wrapText, VML's side), and the room the wrap itself says (its own distances come before the object's).
     void readsWhichSideTheTextGoesOnAndTheRoomRound()
     {
@@ -801,7 +979,7 @@ private Q_SLOTS:
             R"(<w:tc><w:tcPr><w:tcW w:w="5000" w:type="dxa"/><w:gridSpan w:val="2"/><w:vMerge w:val="restart"/><w:tcBorders><w:bottom w:val="single" w:sz="12" w:space="0" w:color="00FF00"/></w:tcBorders><w:shd w:val="clear" w:color="auto" w:fill="FFFF00"/><w:vAlign w:val="center"/></w:tcPr><w:p><w:r><w:t>A</w:t></w:r></w:p>)" + nested + R"(<w:p/></w:tc>)"
             R"(<w:tc><w:tcPr><w:tcW w:w="4000" w:type="dxa"/><w:tcMar><w:left w:w="50" w:type="dxa"/></w:tcMar><w:noWrap/></w:tcPr><w:p><w:r><w:t>B</w:t></w:r></w:p><w:p><w:r><w:t>B2</w:t></w:r></w:p></w:tc></w:tr>)"
             R"(<w:bookmarkStart w:id="3" w:name="between"/><w:bookmarkEnd w:id="3"/>)"
-            R"(<w:tr><w:trPr><w:gridBefore w:val="1"/><w:wBefore w:w="2000" w:type="dxa"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="3000" w:type="dxa"/><w:vMerge/></w:tcPr><w:p/></w:tc><w:tc><w:p><w:r><w:t>C</w:t></w:r></w:p></w:tc></w:tr></w:tbl>)";
+            R"(<w:tr><w:trPr><w:gridBefore w:val="1"/><w:wBefore w:w="2000" w:type="dxa"/><w:hidden/></w:trPr><w:tc><w:tcPr><w:tcW w:w="3000" w:type="dxa"/><w:vMerge/></w:tcPr><w:p/></w:tc><w:tc><w:p><w:r><w:t>C</w:t></w:r></w:p></w:tc></w:tr></w:tbl>)";
         Made m;
         m.body = "<w:p><w:r><w:t>before</w:t></w:r></w:p>" + table + R"(<w:p><w:r><w:t>after</w:t></w:r></w:p>)";
         Document d;
@@ -859,6 +1037,7 @@ private Q_SLOTS:
         QCOMPARE(firstRow->height, 500);
         QCOMPARE(firstRow->heightRule, QStringLiteral("exact"));
         QCOMPARE(secondRow->gridBefore, 1);
+        QVERIFY(secondRow->hidden && !firstRow->hidden);   // (a row that says it is hidden is)
         QCOMPARE(secondRow->widthBefore.w, 2000);
         QCOMPARE(firstCell->span, 2);
         QCOMPARE(firstCell->vMerge, QStringLiteral("restart"));

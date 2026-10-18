@@ -3,9 +3,11 @@
 
 #include "core/writedoc.h"
 
+#include "core/drawnitems.h"
 #include "core/tablemodel.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
+#include "text/textengine.h"
 #include "text/textprops.h"
 
 #include <QCoreApplication>
@@ -70,7 +72,11 @@ struct NumState {
 
 } // namespace
 
-void WriteDoc::buildStory(const QVector<Block> &body) { fillStory(story(), body, false); }
+void WriteDoc::buildStory(const QVector<Block> &body)
+{
+    m_letteringShapes = m_letteringLetters = 0;
+    fillStory(story(), body, false);
+}
 
 // The most fields that nest in one another that a header or footer shows live (deeper ones show what they last read).
 constexpr int kMostFieldNesting = 8;
@@ -327,7 +333,22 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 nextContinuous = body[i].para.props.section->type == QLatin1String("continuous");
             }
     }
+    // The width of the text of the section each paragraph is in (the paragraph that ends a section is in it, and those before it are): what a rule that is a share of the text's is a
+    // share of, less its paragraph's indents.
+    QVector<double> sectionText(int(body.size()), 0.0);
+    {
+        double next = sectionTextWidth(m_wml.lastSection);
+        for (int i = int(body.size()) - 1; i >= 0; --i) {
+            if (!body[i].isRaw && body[i].para.props.section) next = sectionTextWidth(*body[i].para.props.section);
+            sectionText[i] = next;
+        }
+    }
     int paragraphsMade = 0, endnoteNumber = 0, blockNumber = -1;
+    auto lineWidth = [&]() {
+        const double cell = tables.cellWidth();
+        const QTextBlockFormat now = c.blockFormat();
+        return std::max(1.0, (cell > 0 ? cell : sectionText.value(blockNumber, 468.0)) - now.leftMargin() - now.rightMargin());
+    };
     // The frame of the paragraph before (its properties as written, and its key): the paragraphs next to one another that have the same properties are one frame.
     QByteArray lastFrameXml;
     int lastFrameKey = 0;
@@ -561,7 +582,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     put(QString(QChar::ObjectReplacementCharacter), number);
                 } else if (in.kind == Inline::RunAtom && drawnTag(in.tag)) {
                     QTextCharFormat object = formatOf(styleId, in.props);
-                    if (drawnObjects(in, part, &object)) put(QString(QChar::ObjectReplacementCharacter), object);
+                    if (drawnObjects(in, part, &object, lineWidth(), &p.content)) put(QString(QChar::ObjectReplacementCharacter), object);
                 } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("instrText")) {
                     if (!fields.isEmpty() && !fields.last().inResult) fields.last().instruction += textOfXml(in.raw);
                 } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Open) {
@@ -611,7 +632,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     }
                 }
             }
-            if (in.kind == Inline::RunAtom && !deleted && drawnTag(in.tag) && drawnObjects(in, part, &af)) field = QStringLiteral("raw:");
+            if (in.kind == Inline::RunAtom && !deleted && drawnTag(in.tag) && drawnObjects(in, part, &af, lineWidth(), &p.content)) field = QStringLiteral("raw:");
             else if (in.tag == QLatin1String("footnoteReference") && m_noteBlocks.contains(QStringLiteral("fn") + in.key)) {
                 field = QStringLiteral("footnote:fn") + in.key;
                 if (markFollows(in.raw)) af.setProperty(tp::NoteMarkCustom, true);
@@ -682,26 +703,43 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     c.endEditBlock();
 }
 
-bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFormat *format)
+bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFormat *format, double lineWidth, const QVector<Inline> *content)
 {
     const QVector<Shape> shapes = readShapes(atom.raw);
     if (shapes.isEmpty()) return false;
     flow::FlowDocument &f = *m_flow;
     // The picture of a shape: its bytes (from the part the run is in), kept once for the document.
+    // Lettering on a path is bounded in how many shapes and how many letters (each is outlined letter by letter): what a file asks for past that is left out.
+    auto letteringFits = [&](const Shape &s) {
+        if (m_letteringShapes >= kMostLetteringShapes || m_letteringLetters + int(s.pathText.size()) > kMostLetteringCharacters) return false;
+        ++m_letteringShapes;
+        m_letteringLetters += int(s.pathText.size());
+        return true;
+    };
+    bool shownMissing = false;   // (the picture the last call made is the mark of a picture that cannot be shown)
     auto pictureOf = [&](const Shape &s) -> int {
+        shownMissing = false;
         if (s.embed.isEmpty() || f.images.size() >= kMostImages) return -1;
         QString target;
         const QVector<Relationship> &links = part.isEmpty() ? m_wml.mainRelationships : m_wml.partRelationships.value(part);
         for (const Relationship &r : links)
             if (r.id == s.embed && !r.external) target = r.target;
         if (target.isEmpty()) return -1;
-        const QByteArray bytes = partData(target);
+        QByteArray bytes = partData(target);
+        // (A picture whose other form is one that is not drawn is shown as a picture that cannot be.)
+        bool missing = false;
+        for (const Relationship &r : links)
+            if (!s.pictEmbed.isEmpty() && r.id == s.pictEmbed && !r.external && isUndrawnPictureTarget(r.target) && s.width > 0 && s.height > 0) {
+                bytes = missingPictureMarkPng();
+                missing = true;
+            }
+        shownMissing = missing;
         if (bytes.isEmpty()) return -1;
         for (int i = 0; i < f.images.size(); ++i)
             if (f.images[i].bytes == bytes) return i;
         flow::FlowImage image;
         image.bytes = bytes;
-        image.format = QFileInfo(target).suffix().toLower();
+        image.format = missing ? QStringLiteral("png") : QFileInfo(target).suffix().toLower();
         f.images.push_back(image);
         return int(f.images.size()) - 1;
     };
@@ -709,13 +747,26 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
     int firstObject = 0, lastObject = 0;
     bool inlinePicture = false;
     for (const Shape &s : shapes) {
+        // Lettering on a path and a horizontal rule that are not set at a place are set in the line, as a picture is.
+        const bool lettering = !s.rule && !s.pathText.isEmpty() && s.kind != Shape::Picture;
+        if (!s.floating && !inlinePicture && (s.rule || lettering)) {
+            const ItemPtr set = s.rule ? ruleItem(s, lineWidth, resolveCharFormat(*format, f.env).font(), content && holdsOnlyObjects(*content)) : (letteringFits(s) ? letteringItem(s) : nullptr);
+            if (set) {
+                if (!s.rule) set->wrap.left = set->wrap.right = set->wrap.top = set->wrap.bottom = 0;
+                format->setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(set->toJson()).toJson(QJsonDocument::Compact)));
+                inlinePicture = true;
+                continue;
+            }
+            if (lettering) continue;   // (past the bounds it is left out, not drawn as the box it is)
+        }
         if (s.kind == Shape::Picture && !s.floating && !inlinePicture) {
             const int image = pictureOf(s);
             if (image < 0 || s.width <= 0 || s.height <= 0) continue;
             // A picture in the line: an object set in the text, with no room round it of its own.
             auto pic = std::make_shared<PictureItem>();
             pic->rect = QRectF(0, 0, s.width, s.height);
-            pic->imgRect = QRectF(0, 0, s.width, s.height);
+            dressPicture(*pic, s);
+            if (shownMissing) showAsMissing(*pic);
             pic->imageId = QStringLiteral("flow-img:%1").arg(image);
             pic->wrap.left = pic->wrap.right = pic->wrap.top = pic->wrap.bottom = 0;
             pic->altText = s.alt;
@@ -757,11 +808,16 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         o.side = s.side == Shape::SideLeft ? flow::FloatingObject::Side::Left : s.side == Shape::SideRight ? flow::FloatingObject::Side::Right
                  : s.side == Shape::SideLargest ? flow::FloatingObject::Side::Largest : flow::FloatingObject::Side::Both;
         o.gap = QMarginsF(s.gapLeft, s.gapTop, s.gapRight, s.gapBottom);
-        if (s.kind == Shape::Picture) {
+        if (lettering) {
+            if (!letteringFits(s)) continue;
+            o.item = letteringItem(s);
+        } else if (s.kind == Shape::Picture) {
             const int image = pictureOf(s);
             if (image < 0) continue;
             auto pic = std::make_shared<PictureItem>();
             pic->rect = QRectF(0, 0, s.width, s.height);
+            dressPicture(*pic, s);
+            if (shownMissing) showAsMissing(*pic);
             pic->altText = s.alt;
             o.item = pic;
             o.image = image;
@@ -792,7 +848,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             } else {
                 auto shape = std::make_shared<ShapeItem>();
                 shape->rect = QRectF(0, 0, s.width, s.height);
-                shape->shape = s.kind == Shape::Oval ? QStringLiteral("ellipse") : QStringLiteral("rect");
+                shapeOfKind(*shape, s);
                 item = shape;
             }
             // (A shape that says it has no fill or no line has none: a shape's own are a color and a line that it was not given.)
@@ -809,6 +865,19 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         if (lastObject > 0) f.objects[lastObject - 1].next = id;
         else firstObject = id;
         lastObject = id;
+        // The sides of a picture's border that are lines beside it (a picture set by offsets: one that is aligned is not drawn with them).
+        if (s.kind == Shape::Picture && s.hAlign == Shape::NoAlign && s.vAlign == Shape::NoAlign)
+            for (const auto &line : borderLines(s)) {
+                if (f.objects.size() >= kMostObjects) break;
+                flow::FloatingObject lo = o;
+                lo.item = line;
+                lo.image = flow::FloatingObject().image;
+                lo.wrap = flow::FloatingObject::Wrap::None;
+                f.objects.push_back(lo);
+                const int lid = int(f.objects.size());
+                f.objects[lastObject - 1].next = lid;
+                lastObject = lid;
+            }
     }
     if (firstObject > 0) format->setProperty(flow::fp::AnchorId, firstObject);
     if (firstObject > 0 || inlinePicture) format->setProperty(tp::Field, QStringLiteral("raw:"));   // (the anchor shows nothing of its own)

@@ -8,6 +8,7 @@
 #include <QRegularExpression>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace jp::office::wml {
 
@@ -16,6 +17,10 @@ namespace {
 // The most objects of one element that are read (a group of more is cut there), and how deep groups go.
 constexpr int kMostShapes = 200;
 constexpr int kMostGroupDepth = 8;
+// The most characters of text on a path that are read.
+constexpr int kMostPathText = 500;
+// The most of a shape's own numbers that are read.
+constexpr int kMostAdjust = 16;
 
 // A number from a file brought into a range a page could be in: one that is past it, or is not a number, is the nearest end of it (or 0).
 double fin(double v) { return std::isfinite(v) ? std::clamp(v, -100000.0, 100000.0) : 0.0; }
@@ -104,6 +109,25 @@ Shape::Side sideOf(const QString &v)
     return Shape::SideBoth;
 }
 
+// A picture's cut edge as VML writes it: "3429f" is in sixty-five-thousandths of the whole picture, "10%" in percent, and another number is the share
+// itself. Zero for what is not a number.
+double cropOf(const QString &v)
+{
+    QString text = v.trimmed();
+    if (text.isEmpty()) return 0;
+    double scale = 1;
+    if (text.endsWith(QLatin1Char('f'))) {
+        text.chop(1);
+        scale = 1.0 / 65536;
+    } else if (text.endsWith(QLatin1Char('%'))) {
+        text.chop(1);
+        scale = 0.01;
+    }
+    bool ok = false;
+    const double n = text.toDouble(&ok) * scale;
+    return ok && std::isfinite(n) ? std::clamp(n, -1.0, 1.0) : 0.0;
+}
+
 // The prefixes an element kept as written may use, declared (the tree of a part declares them on its root, and a slice of it is not given those).
 QByteArray declarations()
 {
@@ -123,6 +147,26 @@ public:
     explicit Vml(const XmlTree &tree) : t(tree) {}
     const XmlTree &t;
     QVector<Shape> out;
+
+    // The number of the drawing format's shape that a shape's type is: the o:spt of the shape type it names, if that is in the element, or the number
+    // in the name the word processor gives its types (_x0000_t136).
+    int shapeTypeOf(int n) const
+    {
+        const QString type = t.attr(n, "type");
+        if (type.isEmpty()) return 0;
+        const QString id = type.startsWith(QLatin1Char('#')) ? type.mid(1) : type;
+        if (!m_typesRead) {
+            m_typesRead = true;
+            for (int i = 0; i < t.count() && i < 4000; ++i)
+                if (t.localName(i) == "shapetype") m_types.insert(t.attr(i, "id"), t.attrAny(i, "spt").toInt());
+        }
+        if (const int spt = m_types.value(id, 0); spt > 0) return spt;
+        static const QRegularExpression named(QStringLiteral("^_x0000_t(\\d{1,4})$"));
+        const QRegularExpressionMatch m = named.match(id);
+        return m.hasMatch() ? m.captured(1).toInt() : 0;
+    }
+    mutable bool m_typesRead = false;
+    mutable QHash<QString, int> m_types;
 
     // A text box's content, the wrap, and a picture's data are children of the shape.
     void shape(int n, const QByteArray &kind, double sx, double sy, double ox, double oy, int depth)
@@ -156,7 +200,10 @@ public:
         // Fill and line: a shape is filled unless it says not, and has a line unless it says not (a picture has neither).
         const bool picture = t.child(n, "imagedata", otherNs(n, "imagedata")) >= 0;
         s.kind = kind == "line" ? Shape::Line : kind == "oval" ? Shape::Oval : Shape::Rect;
-        s.filled = !offOf(t.attr(n, "filled")) && !picture;
+        s.shapeType = shapeTypeOf(n);
+        // (A shape type that is a line, an arc, a bracket, or a brace is not filled unless the shape says so.)
+        const bool openType = s.shapeType == 19 || s.shapeType == 20 || s.shapeType == 32 || (s.shapeType >= 85 && s.shapeType <= 88);
+        s.filled = (t.has(n, "filled") ? !offOf(t.attr(n, "filled")) : !openType) && !picture;
         s.stroked = !offOf(t.attr(n, "stroked")) && !picture;
         s.fillColor = colorOf(t.attr(n, "fillcolor"));
         if (s.fillColor.isEmpty() && s.filled) s.fillColor = QStringLiteral("FFFFFF");
@@ -164,6 +211,15 @@ public:
         if (s.strokeColor.isEmpty()) s.strokeColor = QStringLiteral("000000");
         s.strokeWeight = std::clamp(lengthOf(t.attr(n, "strokeweight"), 0.75), 0.0, 100.0);
         s.alt = t.attr(n, "alt");
+        // A horizontal rule is as wide as its share of the text (tenths of a percent), none that it gives and no width of its own being all of it.
+        if (const QString hr = t.attrAny(n, "hr"); hr == QLatin1String("t") || hr == QLatin1String("true") || hr == QLatin1String("1")) {
+            s.rule = true;
+            const QString pct = t.attrAny(n, "hrpct");
+            const double share = pct.toDouble() / 10;
+            s.rulePercent = share > 0 ? std::clamp(share, 0.0, 100.0) : (pct.isEmpty() && s.width <= 0 ? 100.0 : 0.0);
+            s.hAlign = alignOf(t.attrAny(n, "hralign"));
+            if (t.attr(n, "fillcolor").isEmpty()) s.fillColor = QStringLiteral("A0A0A0");   // (a rule that gives no color is gray)
+        }
         if (kind == "line") {
             auto point = [&](const QString &v, double *x, double *y) {
                 const QStringList f = v.split(QLatin1Char(','));
@@ -207,7 +263,40 @@ public:
             if (name == "imagedata") {
                 s.kind = Shape::Picture;
                 s.embed = t.attr(c, "id", NsR);
-                if (s.embed.isEmpty()) s.embed = t.attr(c, "pict", NsR);
+                s.pictEmbed = t.attr(c, "pict", NsR);
+                if (s.embed.isEmpty()) s.embed = s.pictEmbed;
+                s.cropL = cropOf(t.attr(c, "cropleft"));
+                s.cropT = cropOf(t.attr(c, "croptop"));
+                s.cropR = cropOf(t.attr(c, "cropright"));
+                s.cropB = cropOf(t.attr(c, "cropbottom"));
+                // (A cut that leaves nothing of the picture is none: it would draw nothing, and the frame is what the file means to show.)
+                if (s.cropL + s.cropR >= 0.98 || s.cropT + s.cropB >= 0.98) s.cropL = s.cropT = s.cropR = s.cropB = 0;
+                s.clearColor = colorOf(t.attr(c, "chromakey"));
+            } else if (name == "bordertop" || name == "borderleft" || name == "borderbottom" || name == "borderright") {
+                // (Eighths of a point, as a paragraph border's size is: no more than a hundred points, and a number that is not one is none.)
+                const QString type = t.attr(c, "type");
+                if (!type.isEmpty() && type != QLatin1String("none")) {
+                    const int side = name == "bordertop" ? 0 : name == "borderleft" ? 1 : name == "borderbottom" ? 2 : 3;
+                    s.borderSides[side] = std::clamp(fin(t.attr(c, "width").toDouble() / 8), 0.0, 100.0);
+                    s.borderWeight = std::max(s.borderWeight, s.borderSides[side]);
+                }
+            } else if (name == "textpath") {
+                if (!offOf(t.attr(c, "on")) && !t.attr(c, "string").isEmpty()) {
+                    s.pathText = t.attr(c, "string").left(kMostPathText);
+                    const QHash<QString, QString> tp = styleOf(t.attr(c, "style"));
+                    s.pathFont = tp.value(QStringLiteral("font-family")).remove(QLatin1Char('"')).trimmed();
+                    const QString slant = tp.value(QStringLiteral("font-style")), weight = tp.value(QStringLiteral("font-weight"));
+                    s.pathItalic = slant == QLatin1String("italic") || slant == QLatin1String("oblique");
+                    s.pathBold = weight == QLatin1String("bold") || weight.toInt() >= 600;
+                }
+            } else if (name == "shadow") {
+                if (!offOf(t.attr(c, "on")) && t.has(c, "on")) {
+                    s.shadow = true;
+                    s.shadowColor = colorOf(t.attr(c, "color"));
+                    const QStringList at = t.attr(c, "offset").split(QLatin1Char(','));
+                    s.shadowX = lengthOf(at.value(0), 2);
+                    s.shadowY = lengthOf(at.size() > 1 ? at.value(1) : at.value(0), 2);
+                }
             } else if (name == "wrap") {
                 const QString type = t.attr(c, "type");
                 s.wrap = type == QLatin1String("square") ? Shape::Square : type == QLatin1String("tight") || type == QLatin1String("through") ? Shape::Tight
@@ -232,6 +321,28 @@ public:
                 if (!t.attr(c, "inset").isEmpty())
                     for (int i = 0; i < 4 && i < in.size(); ++i)
                         if (!in[i].trimmed().isEmpty()) s.inset[i] = lengthOf(in[i], s.inset[i]);
+            }
+        }
+        // A picture's border is drawn in the color of the first side that names one, "this" being the shape's own line color; none named is black.
+        if (s.borderWeight > 0) {
+            s.borderColor = QStringLiteral("000000");
+            for (const char *attribute : {"bordertopcolor", "borderleftcolor", "borderbottomcolor", "borderrightcolor"}) {
+                const QString value = t.attrAny(n, attribute).trimmed();
+                if (value.isEmpty()) continue;
+                const QString color = colorOf(value);
+                if (!color.isEmpty() || value == QLatin1String("this")) {
+                    s.borderColor = color.isEmpty() ? s.strokeColor : color;
+                    break;
+                }
+            }
+        }
+        // The shape's own numbers (an empty place or a word is not a number, nor a number too large to be one).
+        if (const QString adj = t.attr(n, "adj"); !adj.isEmpty()) {
+            const QStringList numbers = adj.split(QLatin1Char(','));
+            for (int i = 0; i < numbers.size() && i < kMostAdjust; ++i) {
+                bool ok = false;
+                const double v = numbers[i].trimmed().toDouble(&ok);
+                s.adjust << (ok && std::isfinite(v) ? std::clamp(v, -1e9, 1e9) : std::numeric_limits<double>::quiet_NaN());
             }
         }
         // (A rule or box wrapped in a "wrap" with anchors for the text it follows is read as floating: a shape with a z-index is set so.)
@@ -345,7 +456,22 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
         while (!stack.empty() && s.embed.isEmpty() && s.textBox.isEmpty()) {
             const int n = stack.back();
             stack.pop_back();
-            if (t.localName(n) == "blip" && s.embed.isEmpty()) s.embed = t.attr(n, "embed", NsR);
+            if (t.localName(n) == "blip" && s.embed.isEmpty()) {
+                s.embed = t.attr(n, "embed", NsR);
+                // The cut edges are beside the blip, in its fill (thousandths of a percent).
+                for (int k = t.firstChild(t.parent(n)); k >= 0; k = t.next(k))
+                    if (t.localName(k) == "srcRect") {
+                        auto share = [&](const char *edge) {
+                            const double v = t.attr(k, edge).toDouble() / 100000.0;
+                            return std::isfinite(v) ? std::clamp(v, -1.0, 1.0) : 0.0;
+                        };
+                        s.cropL = share("l");
+                        s.cropT = share("t");
+                        s.cropR = share("r");
+                        s.cropB = share("b");
+                        if (s.cropL + s.cropR >= 0.98 || s.cropT + s.cropB >= 0.98) s.cropL = s.cropT = s.cropR = s.cropB = 0;
+                    }
+            }
             if (t.localName(n) == "txbxContent" && s.textBox.isEmpty()) {
                 s.textBox = textBoxXml(t, n);
                 s.kind = Shape::TextBox;
