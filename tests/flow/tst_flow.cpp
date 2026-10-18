@@ -12453,6 +12453,104 @@ private Q_SLOTS:
         QVERIFY2(last->tables[0]->heightOf(0) > 150 - 0.01, qPrintable(QStringLiteral("the last part is %1 high").arg(last->tables[0]->heightOf(0))));
     }
 
+    // The space between a table's cells (where it says it has some) is round each cell, at the table's edges too: the text, the fill, and the lines of a cell are in from the edges of
+    // its place by that much on every side, so that the fills do not cover the space, the first row is below the table's top by it, and the last row is above its foot by it.
+    void spaceBetweenCellsIsRoundEachCellItsFillAndLinesToo()
+    {
+        struct Made {
+            std::unique_ptr<FlowDocument> fd;
+            std::unique_ptr<Paginator> pg;
+            std::unique_ptr<MaterializedPage> page;
+        };
+        auto build = [](double spacing) {
+            Made m;
+            m.fd = std::make_unique<FlowDocument>();
+            m.fd->env.wordLines = true;
+            m.fd->sections[0].paper = QSizeF(300, 300);
+            m.fd->sections[0].margins = QMarginsF(30, 30, 30, 30);
+            TestTable spec;
+            spec.rows = 3;
+            spec.cols = 2;
+            spec.columnWidth = 100;
+            spec.setTable = [spacing](TableData &t) {
+                t.spaced = true;
+                t.spacing = spacing;
+            };
+            spec.setCell = [](int, int, CellData &cd) {
+                cd.fill = QColor(255, 0, 0);
+                TableLine line;
+                line.style = TableLine::Style::Single;
+                line.width = 1;
+                line.color = QColor(0, 0, 255);
+                cd.top = cd.left = cd.bottom = cd.right = line;
+            };
+            addTable(*m.fd, spec);
+            m.pg = std::make_unique<Paginator>(m.fd.get());
+            m.page = m.pg->materialize(0);
+            return m;
+        };
+        const Made plain = build(0), spaced = build(6);
+        QVERIFY(plain.page && spaced.page && plain.page->tables.size() == 1 && spaced.page->tables.size() == 1);
+        const TableFragment &a = *plain.page->tables[0], &b = *spaced.page->tables[0];
+        // The lines of the cells: the first row's top and the last row's foot, and the first cell's text across.
+        auto extent = [](const TableFragment &t, double *top, double *bottom, double *left, double *width) {
+            *top = 1e9;
+            *bottom = -1e9;
+            *left = -1;
+            t.forLines([&](const StoryLayout::LineBrief &, const QRectF &rect) {
+                *top = std::min(*top, rect.top());
+                *bottom = std::max(*bottom, rect.bottom());
+                if (*left < 0) {
+                    *left = rect.left();
+                    *width = rect.width();
+                }
+            });
+        };
+        double topA, bottomA, leftA, widthA, topB, bottomB, leftB, widthB;
+        extent(a, &topA, &bottomA, &leftA, &widthA);
+        extent(b, &topB, &bottomB, &leftB, &widthB);
+        QVERIFY2(std::abs((topB - b.rect().top()) - (topA - a.rect().top()) - 6) < 0.01, qPrintable(QStringLiteral("the first row's text is %1 below the table's top, %2 without space").arg(topB - b.rect().top()).arg(topA - a.rect().top())));
+        QVERIFY2(std::abs((b.rect().bottom() - bottomB) - (a.rect().bottom() - bottomA) - 6) < 0.01, qPrintable(QStringLiteral("the last row's text is %1 above the table's foot, %2 without space").arg(b.rect().bottom() - bottomB).arg(a.rect().bottom() - bottomA)));
+        QVERIFY2(std::abs((leftB - b.rect().left()) - (leftA - a.rect().left()) - 6) < 0.01 && std::abs(widthA - widthB - 12) < 0.01, qPrintable(QStringLiteral("a cell's text is at %1 across and %2 wide, %3 and %4 without space").arg(leftB - b.rect().left()).arg(widthB).arg(leftA - a.rect().left()).arg(widthA)));
+        // Drawn: the fill is in the cell and not in the space between cells or at the table's edge, and the cell's lines are at its own edges.
+        const int scale = 4;
+        QImage image(300 * scale, 300 * scale, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::white);
+        {
+            QPainter painter(&image);
+            painter.scale(scale, scale);
+            paintTables(&painter, *spaced.page, TablePaint());
+        }
+        const QPointF origin = b.origin;
+        auto count = [&](double x0, double y0, double x1, double y1, bool blue) {
+            int n = 0;
+            for (int y = int(y0 * scale); y < int(y1 * scale); ++y)
+                for (int x = int(x0 * scale); x < int(x1 * scale); ++x) {
+                    const QRgb px = image.pixel(x, y);
+                    n += blue ? (qBlue(px) > 200 && qRed(px) < 80 && qGreen(px) < 80) : (qRed(px) > 200 && qGreen(px) < 80 && qBlue(px) < 80);
+                }
+            return n;
+        };
+        const double y1 = origin.y() + b.heightOf(0) / 2;
+        QVERIFY2(count(origin.x() + 70, y1, origin.x() + 90, y1 + 4, false) > 100, "the cell is filled");
+        QCOMPARE(count(origin.x() + 96, y1, origin.x() + 104, y1 + 4, false), 0);   // between the cells (the one's edge is at 94 across, the other's at 106)
+        QCOMPARE(count(origin.x() + 20, origin.y(), origin.x() + 80, origin.y() + 5, false), 0);   // above the first row (the space at the table's top)
+        QCOMPARE(count(origin.x(), y1, origin.x() + 5, y1 + 4, false), 0);   // beside the first column (the space at the table's left)
+        QVERIFY2(count(origin.x() + 5, y1, origin.x() + 7.5, y1 + 4, true) > 20, "the first cell's left line is at the cell's edge, 6 in from the table's");
+        QCOMPARE(count(origin.x(), y1, origin.x() + 4.5, y1 + 4, true), 0);
+        QVERIFY2(count(origin.x() + 20, origin.y() + 5, origin.x() + 80, origin.y() + 7.5, true) > 100, "the first cell's top line is at the cell's edge, 6 down from the table's top");
+        // The last row and the last column are in from the table's foot and right edge by the same, and rows are apart by twice that.
+        const double foot = b.rect().bottom(), right = origin.x() + 200, between = origin.y() + b.heightOf(0);
+        QCOMPARE(count(origin.x() + 20, foot - 5, origin.x() + 80, foot, false), 0);
+        QVERIFY2(count(origin.x() + 20, foot - 7.5, origin.x() + 80, foot - 5, true) > 100, "the last row's foot line is at the cell's edge, 6 up from the table's foot");
+        QCOMPARE(count(origin.x() + 20, foot - 4.5, origin.x() + 80, foot, true), 0);
+        QCOMPARE(count(right - 5, y1, right, y1 + 4, false), 0);
+        QVERIFY2(count(right - 7.5, y1, right - 5, y1 + 4, true) > 20, "the last cell's right line is at the cell's edge, 6 in from the table's");
+        QCOMPARE(count(right - 4.5, y1, right, y1 + 4, true), 0);
+        QCOMPARE(count(origin.x() + 20, between - 5, origin.x() + 80, between + 5, false), 0);   // (no fill in the space between the rows, 12 high)
+        QVERIFY2(count(origin.x() + 20, between - 8, origin.x() + 80, between - 5, true) > 100 && count(origin.x() + 20, between + 5, origin.x() + 80, between + 8, true) > 100, "each row has its own line at its foot and at its top");
+    }
+
     // A row that cannot be split, citing N notes, costs N, not N squared: twice the notes take about twice as long.
     void aRowThatCannotBeSplitCitingManyNotesTakesTimeInStepWithThem()
     {

@@ -153,6 +153,7 @@ public:
         double need = -1;                   // the height its content needs with its margins (-1: not measured)
         QMarginsF margins;                  // (the top and the bottom have the room of the lines at the cell's top, and at the table's foot, added)
         int last = -1;                      // a cell joined down: the one that continues it in the last row it covers, whose bottom edge is the whole's (-1: none)
+        double inLeft = 0, inRight = 0;     // in a table with space between its cells: how far its box (its fill and its lines) is in from its place on each side (the margins have it added)
     };
     // A line of a cell's content: where it is, and the notes it cites.
     struct UnitLine {
@@ -335,6 +336,7 @@ private:
         int item = 0;
         QRectF rect;                        // page coordinates
         QRectF clip;                        // the part of it on the page (a cell joined down may reach past)
+        QRectF box;                         // the cell itself, in its place: the same, or in from it where the table has space between its cells (what its fill and its lines are drawn in)
         QPointF text;                       // where the cell's text area begins
         double cut = 1e18;                  // the page height below which its text is not drawn (a part of a row ends there, with lines left for the next)
         double from = -1e18;                // the page height above which it is not drawn (a part of a row that goes on from the one before begins its text there)
