@@ -266,12 +266,24 @@ QString LayoutEnv::key() const
 // 0.1% and positions within Qt's fixed-point range).
 namespace {
 constexpr double kFine = 8;
-// What a word processor's line holds: text no wider than its room less the pixel of the fine layout that Qt keeps back (the original program's lines break where that
-// has them: a fixed-pitch or justified line a few thousandths of a point over does not fit, nor one that exactly fills its room).
-constexpr double kWordFit = 0.0;
-// Where a line is meant to end at its room (a word wider than the line, text that ends at a right tab stop), or the text is measured against the room: as wide as it,
-// to what the layout's rounding leaves.
+// Qt keeps a pixel of the fine layout (an eighth of a point) back from the width a line is given, and the width of a line the room of which it exactly fills is
+// to be given back that much and a hair more (the layout's rounding).
+constexpr double kQtPixelBack = 0.126;
+// How far past its room a word processor's line may run: a pixel of the fine layout short of it, which is where the original program's lines break on the practice documents
+// (set to the room exactly, the lines of 37 of them end further from its own, and a page of V032 that matches goes out of step). Every place that fits a line to its room (the
+// first try, the word wider than the line, the punctuation that hangs, the space shrinking) uses it, so that they agree.
+constexpr double kRoomOffset = -0.125;
+// Where a line is set to end at its room (text that ends at a right tab stop): as wide as it, to what the layout's rounding leaves.
 constexpr double kExactFit = 0.13;
+// What the space shrinking of justified lines has done, for a test of its cost: characters looked at in finding the lines that could take another word, paragraphs with such a line,
+// paragraphs laid out again, paragraphs set from what an earlier layout of them came to, and characters measured in cutting the lines of a paragraph.
+static qint64 s_shrinkLooked = 0, s_shrinkPasses = 0, s_shrinkRelaid = 0, s_shrinkShared = 0, s_shrinkFull = 0;
+// What the shrinking made of paragraphs, kept for the layouts of the same paragraph that follow (the paginator's again, and the page's that draws it).
+static QCache<QString, ShrunkParagraph> &shrinkMemory()
+{
+    static QCache<QString, ShrunkParagraph> memory(3000);
+    return memory;
+}
 // Layout only: an underline's style while JeffPub draws it (drawUnderline).
 constexpr int kOwnUnderline = QTextFormat::UserProperty + 90;
 // Layout only: a missing stock font measured letter by letter, "family|bold|italic"
@@ -1956,6 +1968,7 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
 QVector<QTextLayout::FormatRange> applyLetterWidths(const QVector<QTextLayout::FormatRange> &in, const QString &disp) { return applyLetterWidthsTo(in, disp, nullptr); }
 
 double naturalLineEm(const QFont &f, const QString &requestedFamily) { return lineEmOf(f, requestedFamily); }
+qint64 spaceShrinkWorkForTest(int what) { return what == 0 ? s_shrinkLooked : what == 1 ? s_shrinkPasses : what == 2 ? s_shrinkRelaid : what == 3 ? s_shrinkShared : s_shrinkFull; }
 
 static quint64 nextBuildSerial()
 {
@@ -2680,6 +2693,22 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         opt.setFlags(QTextOption::IncludeTrailingSpaces);
         B->tl->setTextOption(opt);
         B->tl->setCacheEnabled(true);
+        // A justified paragraph that the space shrinking cut before (the same text, format, and option) is set as it came to, its lines checked once they are laid out.
+        B->shrunk.reset();
+        B->shrinkKey.clear();
+        if (env.wordLines && env.wordSpaceShrink > 0 && (al & Qt::AlignJustify) && !bf.boolProperty(tp::Distribute) && !hyphenate && B->disp.size() <= 2000 &&
+            !B->disp.contains(QLatin1Char('\t')) && !B->disp.contains(QChar::ObjectReplacementCharacter) && B->objects.isEmpty()) {
+            QString key = B->disp + QChar(1) + QString::number(env.wordSpaceShrink) + (B->lettersAdjusted ? QLatin1Char('a') : QLatin1Char('n')) + (m_span.keepRules ? QLatin1Char('k') : QLatin1Char('c'));
+            for (const QTextLayout::FormatRange &r : std::as_const(ranges)) {
+                const QTextCharFormat &f = r.format;
+                key += QStringLiteral("|%1,%2,%3,%4,%5").arg(r.start).arg(r.length).arg(f.font().key()).arg(f.fontLetterSpacing()).arg(f.fontWordSpacing());
+            }
+            B->shrinkKey = key;
+            if (const ShrunkParagraph *kept = shrinkMemory().object(key)) {
+                B->shrunk = *kept;
+                B->tl->setFormats(fineRanges(kept->ranges));
+            }
+        }
 
         // (The text after a page break that begins a paragraph is set as the paragraph's first line, indent and all, as a word processor sets it.)
         // (A break that is hidden text, as what a tracked change deleted is, is none.)
@@ -2947,7 +2976,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             // Nor is the text of a table's cell, whose column the text's own width may have set.)
             const bool alignedTab = wordTabs && B->disp.contains(QLatin1Char('\t')) &&
                                     std::any_of(ownTabs.cbegin(), ownTabs.cend(), [](const QTextOption::Tab &t) { return t.type != QTextOption::LeftTab; });
-            const double fit = env.wordLines ? (alignedTab || B->lettersAdjusted || !m_span.keepRules ? kExactFit : kWordFit) : 0.0;
+            const double fit = env.wordLines ? (alignedTab || B->lettersAdjusted || !m_span.keepRules ? kQtPixelBack : kQtPixelBack + kRoomOffset) : 0.0;
             const bool gridTabs = (bf.tabPositions().isEmpty() || wordTabs) && bf.layoutDirection() != Qt::RightToLeft && B->disp.contains(QLatin1Char('\t'));
             const double step = std::max(1.0, env.defaultTab) * scale;
             auto hangStop = [&](double from, bool hangLine) { return hangLine && hangs && !env.wordNoHangStop && B->marker.isEmpty() && leftM > from + 0.01; };
@@ -3065,6 +3094,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             if (gridTabs) B->tl->resetTabs();
             B->tl->beginLayout();
             int lineNo = 0;
+            std::unique_ptr<QTextBoundaryFinder> lineBreaks;   // (where a line may break, made when a line first ends inside a word)
             // (The lines of a paragraph past the stretch's last frame are laid out only as far as the caller asks: the text after them is cut as a
             // window cuts it. Where the window cut it, or it was not, it is as the window left it.)
             B->cut = windowCut;
@@ -3172,13 +3202,16 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // (A line that is as wide as its room, to what rounding in the layout leaves, fits.)
                     const double room = std::max(1.0, iv.x1 - iv.x0);
                     line.setLineWidth(room + fit);
-                    // A word wider than the line is broken where it must, and the letters that fit are as many as the room holds to the last hundredth (Qt keeps a pixel of the
-                    // layout back: a row of underscores as wide as the line is one line).
+                    // A word wider than the line is broken where it must (Qt breaks it anywhere), and the letters that fit are as many as the room holds: a row of underscores as
+                    // wide as the line is one line. A line that ends where a break may be (after a space, a dash, a slash) is no such, and fits as the others do.
                     if (env.wordLines) {
                         const int s0 = line.textStart(), e0 = s0 + line.textLength();
                         if (e0 > s0 && e0 < B->disp.size() && !B->disp[e0 - 1].isSpace() && !B->disp[e0].isSpace() && B->disp[e0 - 1] != QLatin1Char('-') && B->disp[e0 - 1].unicode() != 0x00AD &&
-                            B->disp[e0 - 1].unicode() != 0x200B && B->disp[e0 - 1].unicode() != 0x2060)
-                            line.setLineWidth(room + kExactFit);
+                            B->disp[e0 - 1].unicode() != 0x200B && B->disp[e0 - 1].unicode() != 0x2060) {
+                            if (!lineBreaks) lineBreaks = std::make_unique<QTextBoundaryFinder>(QTextBoundaryFinder::Line, B->disp);
+                            lineBreaks->setPosition(e0);
+                            if (!lineBreaks->isAtBoundary()) line.setLineWidth(room + kQtPixelBack);
+                        }
                     }
                     // A word processor's right tab stop that is past the paragraph's right indent and inside the column still takes the text after its tab (the page number of
                     // an entry in a table of contents, whose stop is at the margin where the paragraph keeps its right indent inside it): the line is as wide as the stop. What is
@@ -3212,14 +3245,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         const double hang = 0.34 * base.pointSizeF() / fontPointFactor();
                         const int endBefore = line.textStart() + line.textLength();
                         if (endBefore < B->disp.size()) {
-                            line.setLineWidth(room + kExactFit + hang);
+                            line.setLineWidth(room + fit + hang);
                             const int s0 = line.textStart(), e0 = s0 + line.textLength();
                             int k = e0 - 1;
                             while (k > s0 && B->disp[k].isSpace()) --k;
                             const double end = line.cursorToX(k + 1);
-                            if (end > room + kExactFit) {
+                            if (end > room + fit - kQtPixelBack) {
                                 static const QString marks = QStringLiteral(".,;:!?)]}\"'\u2019\u201D\u00BB\u2026");
-                                markHangs = marks.contains(B->disp[k]) && line.cursorToX(k) <= room + kExactFit && k > s0;
+                                markHangs = marks.contains(B->disp[k]) && line.cursorToX(k) <= room + fit - kQtPixelBack && k > s0;
                                 if (!markHangs) line.setLineWidth(room + fit);
                             } else if (al == Qt::AlignJustify) {
                                 line.setLineWidth(room + fit);   // (a justified line goes to the margin, not past it)
@@ -3538,111 +3571,193 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         };
         // A justified line of a word processor's text that may give up a share of each space (wordSpaceShrink) takes in the next word when it fits so: the lines are cut as the
         // option says, and the paragraph is laid out again with the spaces of each line that needs it narrower by what it needs. Where Qt does not cut the lines as that did,
-        // the paragraph is as it was.
-        if (env.wordLines && env.wordSpaceShrink > 0 && (al & Qt::AlignJustify) && !bf.boolProperty(tp::Distribute) && !B->cut && !hyphenate && B->lines.size() > 1 &&
+        // the paragraph is as it was. Only a paragraph with a line that could take the next word is worked on, and those lines are found from the lines as they are laid out.
+        bool shrinkDone = false;
+        if (B->shrunk) {
+            const ShrunkParagraph &kept = *B->shrunk;
+            bool same = !B->cut && B->lines.size() == kept.starts.size() && !B->lines.isEmpty() && B->lines.first().frame >= 0;
+            for (int i = 0; same && i < kept.starts.size(); ++i)
+                same = PtLine(B->tl->lineAt(i)).textStart() == kept.starts[i] && std::abs(B->lines[i].rect.width() - kept.rooms[i]) < 0.01;
+            if (same) {
+                ++s_shrinkShared;
+                shrinkDone = true;
+            } else {   // (the room is not what it was: the paragraph as it was, and worked on)
+                B->tl->setFormats(fineRanges(ranges));
+                redo(false, -1);
+            }
+            B->shrunk.reset();
+        }
+        if (!shrinkDone && env.wordLines && env.wordSpaceShrink > 0 && (al & Qt::AlignJustify) && !bf.boolProperty(tp::Distribute) && !B->cut && !hyphenate && B->lines.size() > 1 &&
             B->lines.first().frame >= 0 && B->disp.size() <= 2000 && !B->disp.contains(QLatin1Char('\t')) && !B->disp.contains(QChar::ObjectReplacementCharacter) && B->objects.isEmpty()) {
             const int n = int(B->disp.size());
-            // Where each character is on one long line of the paragraph as it stands (the spaces whole).
-            QTextLayout one(B->disp, fineFont(base));
-            one.setFormats(fineRanges(ranges));
-            QTextOption oneOption;
-            oneOption.setWrapMode(QTextOption::NoWrap);
-            oneOption.setFlags(QTextOption::IncludeTrailingSpaces);
-            one.setTextOption(oneOption);
-            one.beginLayout();
-            QTextLine oneLine = one.createLine();
-            QVector<double> at(n + 1, 0.0), spaces(n + 1, 0.0);   // (where each character begins; the room the spaces before it take)
-            if (oneLine.isValid()) {
-                oneLine.setLineWidth(100000);
-                for (int i = 0; i <= n; ++i) at[i] = oneLine.cursorToX(i) / kFine;
+            const double fitOffset = B->lettersAdjusted || !m_span.keepRules ? 0.0 : kRoomOffset;   // (as the lines were laid out)
+            const QVector<QTextLayout::FormatRange> fine = [&] {
+                QVector<QTextLayout::FormatRange> out;
+                out.reserve(ranges.size());
+                for (QTextLayout::FormatRange r : ranges) {
+                    r.format = fineFormat(r.format);
+                    out << r;
+                }
+                return out;
+            }();
+            // The advance of a character as Qt sets it: its glyph's, the letter spacing after it, and a space's word spacing (in layout units); the metrics of each range once.
+            struct RunMetrics {
+                std::unique_ptr<QFontMetricsF> fm;
+                double ascii[128];
+                RunMetrics() { std::fill(std::begin(ascii), std::end(ascii), -1.0); }
+            };
+            std::vector<RunMetrics> metrics(size_t(fine.size()));
+            int lastRange = -1;
+            auto advance = [&](int i) {
+                int r = lastRange;
+                if (r < 0 || i < fine[r].start || i >= fine[r].start + fine[r].length) {
+                    const auto it = std::upper_bound(fine.cbegin(), fine.cend(), i, [](int at, const QTextLayout::FormatRange &x) { return at < x.start; });
+                    r = it == fine.cbegin() ? -1 : int(it - fine.cbegin()) - 1;
+                    if (r >= 0 && i >= fine[r].start + fine[r].length) r = -1;
+                }
+                lastRange = r;
+                const QChar ch = B->disp[i];
+                ++s_shrinkLooked;
+                if (r < 0) return advanceOf(base, QString(ch));
+                RunMetrics &m = metrics[size_t(r)];
+                if (!m.fm) m.fm = std::make_unique<QFontMetricsF>(fine[r].format.font());
+                if (ch.unicode() < 128 && m.ascii[ch.unicode()] >= 0) return m.ascii[ch.unicode()];
+                const QTextCharFormat &f = fine[r].format;
+                const double a = (m.fm->horizontalAdvance(ch) + (f.fontLetterSpacingType() == QFont::AbsoluteSpacing ? f.fontLetterSpacing() : 0.0) +
+                                  (ch == QLatin1Char(' ') ? f.fontWordSpacing() : 0.0)) / kFine;
+                if (ch.unicode() < 128) m.ascii[ch.unicode()] = a;
+                return a;
+            };
+            // The lines that could take the next word if their spaces gave way: the room left by the line as Qt set it (its natural width without the spaces at its end) and
+            // the share of its spaces, against the width of the word that begins the next.
+            bool could = false;
+            for (int k = 0; k + 1 < B->lines.size() && !could; ++k) {
+                const PtLine line(B->tl->lineAt(k));
+                const int s0 = line.textStart(), e0 = s0 + line.textLength();
+                if (e0 >= n || e0 <= s0 || B->disp[e0 - 1] == QChar::LineSeparator) continue;
+                int te = e0;
+                double trailing = 0;
+                while (te > s0 && B->disp[te - 1].isSpace()) trailing += advance(--te);
+                double spaces = trailing;
+                for (int i = s0; i < te; ++i)
+                    if (B->disp[i] == QLatin1Char(' ')) spaces += advance(i);
+                double word = 0;
+                for (int i = e0; i < n && !B->disp[i].isSpace() && i < e0 + 40; ++i) word += advance(i);
+                const double room = std::max(1.0, B->lines[k].rect.width());
+                could = line.naturalTextWidth() + word <= room + fitOffset + env.wordSpaceShrink * spaces;   // (its natural width has the spaces at its end)
             }
-            one.endLayout();
-            for (int i = 0; i < n; ++i) {
-                const bool space = B->disp[i] == QLatin1Char(' ');
-                spaces[i + 1] = spaces[i] + (space ? at[i + 1] - at[i] : 0.0);
-            }
-            QVector<int> allowed;   // (where a line may begin)
-            QTextBoundaryFinder finder(QTextBoundaryFinder::Line, B->disp);
-            for (int p = finder.toNextBoundary(); p > 0 && p < n; p = finder.toNextBoundary()) allowed << p;
-            allowed << n;
-            struct Cut { int start = 0, end = 0, textEnd = 0; double share = 0; };
-            QVector<Cut> cuts;
-            bool any = false, usable = oneLine.isValid() && at[n] > 0;
-            for (int pos = 0, k = 0; usable && pos < n && k <= n; ++k) {
-                const double room = std::max(1.0, B->lines[std::min(k, int(B->lines.size()) - 1)].rect.width()), limit = room + (B->lettersAdjusted || !m_span.keepRules ? kExactFit : kWordFit) - 0.125;   // (Qt keeps a pixel of 1/8 point back)
-                int hard = n;
-                for (int i = pos; i < n; ++i)
-                    if (B->disp[i] == QChar::LineSeparator) {
-                        hard = i + 1;
+            if (could) {
+                ++s_shrinkPasses;
+                // Where each character begins on one long line of the paragraph (the spaces whole), and the room the spaces before it take.
+                QVector<double> at(n + 1, 0.0), spaces(n + 1, 0.0);
+                s_shrinkFull += n;
+                for (int i = 0; i < n; ++i) {
+                    const double a = advance(i);
+                    at[i + 1] = at[i] + a;
+                    spaces[i + 1] = spaces[i] + (B->disp[i] == QLatin1Char(' ') ? a : 0.0);
+                }
+                QVector<int> allowed;   // (where a line may begin)
+                QTextBoundaryFinder finder(QTextBoundaryFinder::Line, B->disp);
+                for (int p = finder.toNextBoundary(); p > 0 && p < n; p = finder.toNextBoundary()) allowed << p;
+                allowed << n;
+                struct Cut { int start = 0, end = 0, textEnd = 0; double share = 0, narrower = 0; };   // (share of a space given up; how much narrower each space of the line is)
+                QVector<Cut> cuts;
+                bool any = false, usable = at[n] > 0;
+                for (int pos = 0, k = 0; usable && pos < n && k <= n; ++k) {
+                    const double room = std::max(1.0, B->lines[std::min(k, int(B->lines.size()) - 1)].rect.width()), limit = room + fitOffset;
+                    int hard = n;
+                    for (int i = pos; i < n; ++i)
+                        if (B->disp[i] == QChar::LineSeparator) {
+                            hard = i + 1;
+                            break;
+                        }
+                    Cut cut;
+                    cut.start = pos;
+                    for (auto it = std::upper_bound(allowed.cbegin(), allowed.cend(), pos); it != allowed.cend(); ++it) {
+                        const int e = *it;
+                        if (e > hard) break;
+                        int te = e;
+                        while (te > pos && B->disp[te - 1].isSpace()) --te;
+                        const double natural = at[te] - at[pos], give = env.wordSpaceShrink * (spaces[te] - spaces[pos]);
+                        if (natural > limit + give) break;
+                        cut.end = e;
+                        cut.textEnd = te;
+                    }
+                    if (cut.end <= pos) {   // (not even the first word fits: Qt breaks it where it must)
+                        usable = false;
                         break;
                     }
-                Cut cut;
-                cut.start = pos;
-                for (auto it = std::upper_bound(allowed.cbegin(), allowed.cend(), pos); it != allowed.cend(); ++it) {
-                    const int e = *it;
-                    if (e > hard) break;
-                    int te = e;
-                    while (te > pos && B->disp[te - 1].isSpace()) --te;
-                    const double natural = at[te] - at[pos], give = env.wordSpaceShrink * (spaces[te] - spaces[pos]);
-                    if (natural > limit + give) break;
-                    cut.end = e;
-                    cut.textEnd = te;
+                    const double natural = at[cut.textEnd] - at[pos], taken = spaces[cut.textEnd] - spaces[pos];
+                    if (natural > limit && taken > 0) {
+                        cut.share = std::min(env.wordSpaceShrink, (natural - limit + 0.15) / taken);
+                        cut.narrower = cut.share * taken / std::max(1, int(std::count(B->disp.cbegin() + cut.start, B->disp.cbegin() + cut.textEnd, QLatin1Char(' '))));
+                        any = true;
+                    }
+                    cuts << cut;
+                    pos = cut.end;
                 }
-                if (cut.end <= pos) {   // (not even the first word fits: Qt breaks it where it must)
-                    usable = false;
-                    break;
-                }
-                const double natural = at[cut.textEnd] - at[pos], taken = spaces[cut.textEnd] - spaces[pos];
-                if (natural > limit && taken > 0) {
-                    cut.share = std::min(env.wordSpaceShrink, (natural - limit + 0.15) / taken);
-                    any = true;
-                }
-                cuts << cut;
-                pos = cut.end;
-            }
-            if (usable && any) {
-                // The spaces of the lines that give way, narrower (a range of their own for each).
-                QVector<QTextLayout::FormatRange> narrowed;
-                QVector<std::pair<int, double>> by;
-                for (const Cut &cut : cuts)
-                    if (cut.share > 0)
-                        for (int i = cut.start; i < cut.textEnd; ++i)
-                            if (B->disp[i] == QLatin1Char(' ')) by << std::pair<int, double>{i, -cut.share * (at[i + 1] - at[i])};
-                int next = 0;
-                for (const QTextLayout::FormatRange &r : ranges) {
-                    int from = r.start;
-                    const int to = r.start + r.length;
-                    while (next < by.size() && by[next].first < from) ++next;
-                    while (next < by.size() && by[next].first < to) {
-                        const int i = by[next].first;
-                        if (i > from) {
-                            QTextLayout::FormatRange a = r;
-                            a.start = from;
-                            a.length = i - from;
-                            narrowed << a;
+                if (usable && any) {
+                    // The spaces of the lines that give way, narrower. Qt adds a word spacing once to a run of spaces, so each space of a run has a range of its own; the rest of a line
+                    // is one.
+                    struct Piece { int start, end; double narrower; };
+                    QVector<Piece> pieces;
+                    for (const Cut &cut : cuts) {
+                        if (cut.share <= 0) continue;
+                        int from = cut.start;
+                        for (int i = cut.start; i < cut.textEnd; ++i) {
+                            if (B->disp[i] != QLatin1Char(' ') || !((i > 0 && B->disp[i - 1] == QLatin1Char(' ')) || (i + 1 < n && B->disp[i + 1] == QLatin1Char(' ')))) continue;
+                            if (i > from) pieces << Piece{from, i, cut.narrower};
+                            pieces << Piece{i, i + 1, cut.narrower};
+                            from = i + 1;
                         }
-                        QTextLayout::FormatRange m = r;
-                        m.start = i;
-                        m.length = 1;
-                        m.format.setFontWordSpacing(r.format.fontWordSpacing() + by[next].second);
-                        narrowed << m;
-                        from = i + 1;
-                        ++next;
+                        if (cut.textEnd > from) pieces << Piece{from, cut.textEnd, cut.narrower};
                     }
-                    if (from < to) {
-                        QTextLayout::FormatRange z = r;
-                        z.start = from;
-                        z.length = to - from;
-                        narrowed << z;
+                    QVector<QTextLayout::FormatRange> narrowed;
+                    int next = 0;
+                    for (const QTextLayout::FormatRange &r : ranges) {
+                        int from = r.start;
+                        const int to = r.start + r.length;
+                        while (next < pieces.size() && pieces[next].end <= from) ++next;
+                        for (int g = next; g < pieces.size() && pieces[g].start < to; ++g) {
+                            const int a = std::max(from, pieces[g].start), b = std::min(to, pieces[g].end);
+                            if (b <= a) continue;
+                            if (a > from) {
+                                QTextLayout::FormatRange before = r;
+                                before.start = from;
+                                before.length = a - from;
+                                narrowed << before;
+                            }
+                            QTextLayout::FormatRange m = r;
+                            m.start = a;
+                            m.length = b - a;
+                            m.format.setFontWordSpacing(r.format.fontWordSpacing() - pieces[g].narrower);
+                            narrowed << m;
+                            from = b;
+                        }
+                        if (from < to) {
+                            QTextLayout::FormatRange z = r;
+                            z.start = from;
+                            z.length = to - from;
+                            narrowed << z;
+                        }
                     }
-                }
-                B->tl->setFormats(fineRanges(narrowed));
-                redo(false, -1);
-                bool same = B->lines.size() == cuts.size();
-                for (int i = 0; same && i < cuts.size(); ++i) same = PtLine(B->tl->lineAt(i)).textStart() == cuts[i].start;
-                if (!same) {
-                    B->tl->setFormats(fineRanges(ranges));
+                    B->tl->setFormats(fineRanges(narrowed));
+                    ++s_shrinkRelaid;
                     redo(false, -1);
+                    bool same = B->lines.size() == cuts.size();
+                    for (int i = 0; same && i < cuts.size(); ++i) same = PtLine(B->tl->lineAt(i)).textStart() == cuts[i].start;
+                    if (!same) {
+                        B->tl->setFormats(fineRanges(ranges));
+                        redo(false, -1);
+                    } else if (!B->shrinkKey.isEmpty()) {
+                        auto *kept = new ShrunkParagraph;
+                        kept->ranges = narrowed;
+                        for (int i = 0; i < cuts.size(); ++i) {
+                            kept->starts << cuts[i].start;
+                            kept->rooms << B->lines[i].rect.width();
+                        }
+                        shrinkMemory().insert(B->shrinkKey, kept);
+                    }
                 }
             }
         }

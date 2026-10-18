@@ -31,6 +31,7 @@
 #include "render/renderer.h"
 #include "rtcheck.h"
 #include "app/spelling.h"
+#include "text/textengine.h"
 #include "text/textprops.h"
 #include "io/zip.h"
 #include "wml/wml.h"
@@ -188,6 +189,20 @@ QByteArray paragraphs(int n, int words = 60)
         out += "<w:p><w:pPr><w:spacing w:after=\"120\"/></w:pPr><w:r><w:t>" + text + ".</w:t></w:r></w:p>";
     }
     return out;
+}
+
+// The text of a long run of paragraphs for the cost tests of space shrinking: `each` words in each. A word is given, or (with none) of two to ten letters in turn so that the
+// room left at the lines' ends differs from line to line; each paragraph begins with a word of its own so that no two are the same text.
+QByteArray justifiedParagraphs(const QByteArray &word, int count, int each)
+{
+    QByteArray body;
+    for (int i = 0; i < count; ++i) {
+        body += "<w:p><w:pPr><w:jc w:val=\"both\"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii=\"Tinos\" w:hAnsi=\"Tinos\"/><w:sz w:val=\"24\"/></w:rPr><w:t xml:space=\"preserve\">p" +
+                QByteArray::number(i) + " ";
+        for (int w = 0; w < each; ++w) body += (word.isEmpty() ? QByteArray("abcdefghij").left(2 + (i * 5 + w * w + w * 7) % 9) : word + QByteArray::number(w % 7)) + " ";
+        body += "</w:t></w:r></w:p>";
+    }
+    return body;
 }
 
 void typeText(WriteDoc &doc, QTextCursor &c, const QString &text)
@@ -3932,7 +3947,7 @@ private Q_SLOTS:
             return QByteArray("<w:compat><w:suppressTopSpacingWP/><w:noLeading/><w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"") +
                    QByteArray::number(mode) + "\"/></w:compat>";
         };
-        struct Seen { bool wholeFlow, noLeadingFlow, wholePage, noLeadingPage, tableEmpty; };
+        struct Seen { bool wholeFlow, noLeadingFlow, wholePage, noLeadingPage, tableEmpty; double shrinkFlow, shrinkPage; };
         auto seen = [&](const QByteArray &settings) {
             auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {}, settings));
             Seen s{};
@@ -3941,10 +3956,12 @@ private Q_SLOTS:
             s.wholeFlow = env.wordWholePointLines;
             s.noLeadingFlow = env.wordNoLeading;
             s.tableEmpty = env.standIns.isEmpty();
+            s.shrinkFlow = env.wordSpaceShrink;
             if (const auto page = doc->pager().materialize(0)) {
                 const LayoutEnv pageEnv = Renderer::layoutEnv(*page->doc);
                 s.wholePage = pageEnv.wordWholePointLines;
                 s.noLeadingPage = pageEnv.wordNoLeading;
+                s.shrinkPage = pageEnv.wordSpaceShrink;
             }
             return s;
         };
@@ -3959,6 +3976,14 @@ private Q_SLOTS:
         QVERIFY(b.noLeadingFlow && b.noLeadingPage);
         const Seen c = seen("<w:compat/>");
         QVERIFY(!c.wholeFlow && !c.noLeadingFlow && !c.wholePage && !c.noLeadingPage && c.tableEmpty);
+        // w:wpJustification (the narrowing of the spaces of a justified line) is the same in both layouts: the share the flow's environment has is the one a page is drawn with,
+        // and a file without the option has none in either.
+        const Seen j = seen("<w:compat><w:wpJustification/></w:compat>");
+        QVERIFY2(j.shrinkFlow > 0 && j.shrinkPage == j.shrinkFlow, qPrintable(QString::number(j.shrinkFlow) + " and " + QString::number(j.shrinkPage)));
+        QVERIFY(c.shrinkFlow == 0 && c.shrinkPage == 0 && a.shrinkFlow == 0 && a.shrinkPage == 0);
+        Document made;
+        made.wordSpaceShrink = 0.25;
+        QCOMPARE(Renderer::layoutEnv(made).wordSpaceShrink, 0.25);
     }
 
     // A font table of thousands of fonts that say nothing is read in step with its size.
@@ -6349,6 +6374,40 @@ private Q_SLOTS:
         QVERIFY2(std::abs(startOf(false, true) - 36) < 2, qPrintable(QString::number(startOf(false, true))));   // (the option: the next default stop)
         QVERIFY2(std::abs(startOf(true, true) - 72) < 2, qPrintable(QString::number(startOf(true, true))));    // (a legacy level: the indent)
         QVERIFY2(std::abs(startOf(true, false) - 72) < 2, qPrintable(QString::number(startOf(true, false))));
+    }
+
+    // Space shrinking is worked only where a line could take another word: a paragraph none of whose lines can (here words of 120 points, three to a line with the room left under
+    // the width of another) is not measured through or laid out again.
+    void spaceShrinkingIsWorkedOnlyWhereALineCouldTakeAnotherWord()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const qint64 passes = spaceShrinkWorkForTest(1), relaid = spaceShrinkWorkForTest(2), full = spaceShrinkWorkForTest(4);
+        auto doc = open(makeDocxWithParts(justifiedParagraphs("xxxxxxxxxxxxxxxxxxxx", 150, 12), sect, {}, "<w:compat><w:wpJustification/></w:compat>", kStyles));
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() > 3);
+        QCOMPARE(spaceShrinkWorkForTest(1) - passes, qint64(0));
+        QCOMPARE(spaceShrinkWorkForTest(2) - relaid, qint64(0));
+        QCOMPARE(spaceShrinkWorkForTest(4) - full, qint64(0));
+    }
+
+    // The page that draws a paragraph is set from what the flow's layout of it came to: where lines could take another word, those paragraphs are worked on once, in laying out the
+    // pages, and drawing the pages works on none again (but the one that goes over from a page before, whose text begins in the middle of its paragraph).
+    void spaceShrinkingIsSharedWithThePageThatDrawsTheParagraph()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const qint64 passes = spaceShrinkWorkForTest(1), shared = spaceShrinkWorkForTest(3);
+        auto doc = open(makeDocxWithParts(justifiedParagraphs(QByteArray(), 120, 90), sect, {}, "<w:compat><w:wpJustification/></w:compat>", kStyles));
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() > 3);
+        const qint64 worked = spaceShrinkWorkForTest(1) - passes;
+        QVERIFY2(worked > 20, qPrintable(QString::number(worked)));
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        for (int k = 0; k < 3; ++k) view.pageImage(k, 400);
+        const qint64 again = spaceShrinkWorkForTest(1) - passes - worked;
+        QVERIFY2(again <= 3, qPrintable(QString::number(again) + " paragraphs worked on again of the 40 or so on three pages"));
+        QVERIFY2(spaceShrinkWorkForTest(3) - shared > 20, qPrintable(QString::number(spaceShrinkWorkForTest(3) - shared)));
     }
 
     // A line made as wide as its room on purpose stays one line: a row of letters that exactly fills it (the room of 432 points holds 72 underscores of 12 points), text that is
