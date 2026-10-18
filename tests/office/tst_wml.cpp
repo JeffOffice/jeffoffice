@@ -253,6 +253,20 @@ private Q_SLOTS:
         QVERIFY(documentXmlOf(writeDocx(d)).contains("<w:ruby>"));
     }
 
+    // The ruby of a file that is written with its elements on lines of their own is the text of its runs, as the text of runs is read (the blanks between the elements are not
+    // text).
+    void rubyOfAnIndentedFileHasNoIndentationInIt()
+    {
+        Made m;
+        m.body = "<w:p><w:r><w:ruby>\n  <w:rubyPr><w:rubyAlign w:val=\"center\"/></w:rubyPr>\n  <w:rt>\n    <w:r>\n      <w:t>\xe3\x81\xa8\xe3\x81\x86</w:t>\n    </w:r>\n  </w:rt>\n  <w:rubyBase>\n    <w:r>\n      <w:t>\xe6\x9d\xb1\xe4\xba\xac</w:t>\n    </w:r>\n  </w:rubyBase>\n</w:ruby></w:r></w:p>";
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        QString shown;
+        for (const Inline &in : d.body[0].para.content)
+            if (in.kind == Inline::RunAtom && in.tag == QLatin1String("ruby")) shown = in.display;
+        QCOMPARE(shown, QString::fromUtf8("\xe6\x9d\xb1\xe4\xba\xac(\xe3\x81\xa8\xe3\x81\x86)"));
+    }
+
     void sectionBreaksAreInTheParagraphThatEndsThem()
     {
         Made m;

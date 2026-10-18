@@ -314,14 +314,7 @@ public:
                 continue;
             } else if (name == "t") {
                 // (Text that is not marked to keep its blanks has none at its ends: the one before a space and the one after one are dropped.)
-                QString piece = t.text(c);
-                if (t.attrAny(c, "space") != QLatin1String("preserve")) {
-                    int from = 0, to = int(piece.size());
-                    while (from < to && (piece[from] == QLatin1Char(' ') || piece[from] == QLatin1Char('\t') || piece[from] == QLatin1Char('\n') || piece[from] == QLatin1Char('\r'))) ++from;
-                    while (to > from && (piece[to - 1] == QLatin1Char(' ') || piece[to - 1] == QLatin1Char('\t') || piece[to - 1] == QLatin1Char('\n') || piece[to - 1] == QLatin1Char('\r'))) --to;
-                    piece = piece.mid(from, to - from);
-                }
-                text += piece;
+                text += textOf(c);
             } else if (name == "tab") {
                 text += QLatin1Char('\t');
             } else if (name == "cr") {
@@ -345,7 +338,7 @@ public:
                 else if (name == "ruby") {
                     // (Ruby text over base text, which the pages do not set above it yet: its base text, and the ruby after it in brackets, so that neither is lost.)
                     const int base = t.child(c, "rubyBase"), ruby = t.child(c, "rt");
-                    const QString text = base >= 0 ? t.text(base).left(400) : QString(), over = ruby >= 0 ? t.text(ruby).left(400) : QString();
+                    const QString text = base >= 0 ? runsText(base, 400) : QString(), over = ruby >= 0 ? runsText(ruby, 400) : QString();
                     a.display = over.isEmpty() ? text : text + QLatin1Char('(') + over + QLatin1Char(')');
                 }
                 else if (name == "drawing") {
@@ -356,6 +349,31 @@ public:
             }
         }
         flush();
+    }
+
+    // The text of a w:t, as a word processor reads it: without the blanks at its ends, unless it says to keep them (xml:space="preserve").
+    QString textOf(int tNode) const
+    {
+        QString piece = t.text(tNode);
+        if (t.attrAny(tNode, "space") != QLatin1String("preserve")) {
+            auto blank = [](QChar ch) { return ch == QLatin1Char(' ') || ch == QLatin1Char('\t') || ch == QLatin1Char('\n') || ch == QLatin1Char('\r'); };
+            int from = 0, to = int(piece.size());
+            while (from < to && blank(piece[from])) ++from;
+            while (to > from && blank(piece[to - 1])) --to;
+            piece = piece.mid(from, to - from);
+        }
+        return piece;
+    }
+    // The text of the runs inside an element (a ruby's text or its base), in order, as far as `limit` characters and a few levels of elements go.
+    QString runsText(int parent, int limit, int depth = 0) const
+    {
+        QString out;
+        for (int c = t.firstChild(parent); c >= 0 && out.size() < limit; c = t.next(c)) {
+            if (t.is(c, "t")) out += textOf(c);
+            else if (t.is(c, "tab")) out += QLatin1Char('\t');
+            else if (t.ns(c) == NsW && depth < 6) out += runsText(c, limit - int(out.size()), depth + 1);
+        }
+        return out.left(limit);
     }
 
     // The elements that hold runs and paragraph content and may be read into, with their own start and end kept as tags.

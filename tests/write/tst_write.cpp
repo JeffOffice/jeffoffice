@@ -11345,6 +11345,20 @@ private Q_SLOTS:
         QVERIFY(documentXml(doc->toDocx()).contains("<w:lnNumType w:countBy=\"1\" w:distance=\"144\"/>"));
     }
 
+    // Ruby text in a header shows as it does in the text: the base, and the ruby after it in brackets.
+    void rubyInAHeaderIsShown()
+    {
+        const QByteArray ruby = "<w:r><w:ruby><w:rt><w:r><w:t>ruby</w:t></w:r></w:rt><w:rubyBase><w:r><w:t>base</w:t></w:r></w:rubyBase></w:ruby></w:r>";
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t xml:space=\"preserve\">Head </w:t></w:r>" + ruby})}};
+        auto doc = open(makeDocxWithParts(plainP("body"), sectionXml(6000, 6000, 720, "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"), parts));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        const auto heads = audit::itemsWith(*page, QStringLiteral("flow-header-box"));
+        QVERIFY(heads.size() == 1);
+        QCOMPARE(audit::storyOf(*page, heads[0]), QStringLiteral("Head base(ruby)"));
+    }
+
     // A field of a header that shows a paragraph style's text (STYLEREF), as the file would have it: its instruction, and a result `cached`.
     static QByteArray styleRefField(const char *instruction, const char *cached = "cached")
     {
