@@ -298,15 +298,18 @@ constexpr double kThinCourierInk = 0.69;
 // original's widths. News Gothic MT, the masthead of the public notices of one agency, is set in Libre Franklin, a gothic of the same bearing: its bold "PUBLIC NOTICE" at 48
 // points is 497 pixels wide to the original's 495. Univers is set in Arimo, 8 percent wider in its regular face (the original's lines in V018 are 1.05 to 1.09 of Arimo's,
 // word by word 1.0 to 1.16, which the stretch only takes the middle of) and as wide in its bold (0.99 to 1.0 over two lines); on the practice document it is set in, a
-// third of its score gone.
+// third of its score gone. Yu Gothic, the face the file's font table gives for another that the machine lacks (V104's FreeSerif), is set in Open Sans, whose widths are
+// the same to 0.4 percent (over 48 lines, a spread of 0.6) and whose ink is a third more.
 struct WordStandIn {
     QString family;
     int stretch = 100, boldStretch = 100;
+    double ink = 1.0;   // the share of its own ink the original's strokes carry (the text is drawn that much less opaque)
 };
 WordStandIn wordStandInOf(const QString &lowerFamily)
 {
     if (lowerFamily == QLatin1String("news gothic mt")) return {QStringLiteral("Libre Franklin"), 100, 100};
     if (lowerFamily == QLatin1String("univers")) return {QStringLiteral("Arimo"), 108, 100};
+    if (lowerFamily == QLatin1String("yu gothic")) return {QStringLiteral("Open Sans"), 100, 100, 0.75};
     return {};
 }
 
@@ -1101,11 +1104,15 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
         r.setFontUnderline(true);
     }
     // Courier Prime, the stand-in of Courier New, has strokes thicker than the original's hairlines: drawn as the original is in its pages (which carry 0.69 of the ink of this
-    // stand-in's, over 40 pages of V070), its letters are that much less opaque.
-    if (env.wordLines && r.fontFamilies().toStringList().value(0) == kThinCourier && r.foreground().style() == Qt::SolidPattern) {
-        QColor ink = r.foreground().color();
-        ink.setAlphaF(ink.alphaF() * kThinCourierInk);
-        r.setForeground(ink);
+    // stand-in's, over 40 pages of V070), its letters are that much less opaque, as those of any stand-in whose original's strokes are lighter (WordStandIn::ink).
+    if (env.wordLines && r.foreground().style() == Qt::SolidPattern) {
+        const QStringList drawn = r.fontFamilies().toStringList();
+        const double share = drawn.value(0) == kThinCourier ? kThinCourierInk : drawn.size() >= 2 && wordStandInOf(drawn[1].toLower()).family == drawn[0] ? wordStandInOf(drawn[1].toLower()).ink : 1.0;
+        if (share < 1.0) {
+            QColor ink = r.foreground().color();
+            ink.setAlphaF(ink.alphaF() * share);
+            r.setForeground(ink);
+        }
     }
     const QString href = f.stringProperty(tp::HighlightRefP);
     if (!href.isEmpty()) r.setBackground(ColorRef::fromString(href).resolve(env.colors));
@@ -1635,6 +1642,7 @@ static const WordFontRow kWordFonts[] = {
     {"times", 1825, 443, 1825, 443, 87},     {"helvetica", 1854, 434, 1854, 434, 67}, {"courier", 1705, 615, 1705, 615, 0},
     {"century", 2019, 442, 2019, 443, 0},    {"monotype corsiva", 1618, 620, 1618, 620, 60}, {"broadway", 1869, 450, 1869, 450, 0},
     {"tw cen mt condensed extra bold", 1788, 430, 1788, 430, 0}, {"news gothic mt", 2003, 458, 2003, 458, 0}, {"univers", 2025, 512, 2025, 512, 0},
+    {"yu gothic", 2017, 619, 1802, 455, 1169},
 };
 
 // The measured face a family asks for, by its style: the face itself, else what a word processor makes it from (a bold italic from the

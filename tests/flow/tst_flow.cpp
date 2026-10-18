@@ -2564,6 +2564,26 @@ private Q_SLOTS:
         QCOMPARE(resolveCharFormat(cf, word).foreground().color().alphaF(), 1.0);
     }
 
+    // A font the document's font table says its machine set in Yu Gothic (V104's FreeSerif, charset 128, with that alternate) is set in it by a machine that lacks FreeSerif:
+    // the alternate is one of the faces the word processor's machine has, drawn in Open Sans (the same widths) at 0.75 of its ink, and its line is 1.673 em (3426 units) as the
+    // original's pages have it.
+    void yuGothicIsDrawnInOpenSansAndSetAsItself()
+    {
+        QCOMPARE(wordStandInFor(QStringLiteral("Yu Gothic"), QStringLiteral("roman"), QStringLiteral("variable"), QString(), QStringLiteral("80")), QStringLiteral("Yu Gothic"));
+        if (QFontDatabase::hasFamily(QStringLiteral("Yu Gothic"))) QSKIP("Yu Gothic is installed");
+        LayoutEnv word;
+        word.wordLines = true;
+        word.colors.c[Main] = QColor(0, 0, 0);
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Yu Gothic")});
+        cf.setFontPointSize(11);
+        const QTextCharFormat drawn = resolveCharFormat(cf, word);
+        QCOMPARE(drawn.fontFamilies().toStringList().value(0), QStringLiteral("Open Sans"));
+        QVERIFY2(std::abs(drawn.foreground().color().alphaF() - 0.75) < 0.01, qPrintable(QString::number(drawn.foreground().color().alphaF())));
+        const auto lines = wordLinesOf({{QStringLiteral("Yu Gothic"), 11}});
+        QVERIFY2(std::abs(lines.value(0).rect.height() - 3426 / 2048.0 * 11) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
+    }
+
     // The line of Courier New is Courier New's wherever it is measured, though the text is drawn in Courier Prime (whose own line is 1.318 em, to Courier New's 1.133):
     // the number of a list item is a run of its own on the first line, and the paragraph after a keep-with-next one is measured for room.
     void aNumberedCourierNewItemKeepsCourierNewsLine()
