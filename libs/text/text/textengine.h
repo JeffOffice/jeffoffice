@@ -408,6 +408,7 @@ public:
     struct Line { int frame = -1; int column = 0; QRectF rect; double below = 0; double pushed = 0; double band = 0; double above = 0; };   // below: the spacing under the text; pushed: how far wrapping moved it down; band: the height of its text that wrapping kept clear of objects; above: of a paragraph's first line, the space before the paragraph that is above it (none where the paragraph's was not kept)
     struct Block {
         int docStart = 0, docLen = 0;
+        int propsStart = 0;   // where the paragraph whose properties it has begins: its last, where paragraphs are joined
         QString disp;
         QVector<Seg> map;
         std::unique_ptr<ParagraphLayout> tl;

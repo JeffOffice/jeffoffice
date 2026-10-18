@@ -2581,6 +2581,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         auto B = std::make_unique<Block>();
         B->docStart = head.position();
         B->docLen = b.position() + b.length() - 1 - B->docStart;
+        B->propsStart = b.position();
         const QTextBlockFormat bf = b.blockFormat();
         // The fill under the paragraph's text, for text of the automatic color: its own shading, else what its frame is on (a table cell's fill).
         QColor behind = frames.isEmpty() ? QColor() : frames[std::min(f, nF - 1)].backdrop;
@@ -4247,7 +4248,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         if (B->marker.isEmpty() || B->lines.isEmpty()) continue;
         const PtLine l0(B->tl->lineAt(0));
         const double lineX = l0.position().x();
-        QTextBlock tb = doc->findBlock(B->docStart);
+        QTextBlock tb = doc->findBlock(B->propsStart);   // (a run of joined paragraphs has the last's properties)
         const QTextBlockFormat bf = tb.blockFormat();
         const double ti = bf.textIndent() * scale, lm = bf.leftMargin() * scale;
         B->markerX = (ti < 0 && !B->markerSkipsIndent ? lineX + ti : lineX - B->markerOff) + B->markerClamp;

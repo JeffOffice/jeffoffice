@@ -87,7 +87,7 @@ Paginator::AnchorLine Paginator::anchorLineOf(const StoryLayout::LineBrief &ln, 
 {
     AnchorLine l{ln.block, ln.pos, ln.end, rect, columnLeft, ln.pushed, ln.line == 0, ln.end, ln.above};
     if (!ln.cut && ln.line == ln.lines - 1) {
-        const QTextBlock b = m_doc->story()->findBlock(ln.block);
+        const QTextBlock b = joinedEndOf(m_doc->story()->findBlock(ln.block));   // (the objects anchored in a run of joined paragraphs reach to its end)
         if (b.isValid()) l.reach = std::max(ln.end, b.position() + b.length() - 1);
     }
     return l;

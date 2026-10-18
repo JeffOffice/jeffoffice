@@ -114,7 +114,8 @@ bool Paginator::breakContinuesAt(const StoryLayout::LineBrief &last, PageStart *
 {
     if (m_tables->any() && m_tables->index().spanAt(last.pos) >= 0) return false;
     const QTextDocument *story = m_doc->story();
-    const QTextBlock block = story->findBlock(last.pos);
+    // (The paragraph is the run of joined ones that the line is of: it ends with the last of them, whose mark is the one left.)
+    const QTextBlock block = joinedEndOf(story->findBlock(last.block));
     if (!block.isValid()) return false;
     const bool onlyTheMarkLeft = last.end >= block.position() + block.length() - 1;
     if (last.line + 1 < last.lines && (!onlyTheMarkLeft || m_doc->markFollowsBreak)) {
@@ -438,7 +439,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                     part = layPart(frames, span, st);
                 } else {
                     // The first section's text, in the frame as tall as the page, up to the paragraph that ends it.
-                    const QTextBlock endBlock = m_doc->story()->findBlock(splitBlock);
+                    const QTextBlock endBlock = joinedEndOf(m_doc->story()->findBlock(splitBlock));
                     const int splitEnd = endBlock.position() + endBlock.length();
                     // (A section of columns has them as even as the lines let them be, where another section begins below it: the columns are made as tall as the lines
                     // need, as short as they can be (found between the share of the text's height each has and the page's, by halving).)
@@ -457,7 +458,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                     // (Where the next section has no more columns, that paragraph takes none unless it is all that the first section has on the page.)
                     bool aloneInFirst = false;
                     auto outOfFlow = [&](const StoryLayout::LineBrief &ln) {
-                        return (nextSection.columnCount() > firstColumns || (nextSection.columnCount() == firstColumns && !aloneInFirst)) && m_doc->story()->findBlock(ln.block).blockFormat().boolProperty(tp::OutOfFlow);
+                        return (nextSection.columnCount() > firstColumns || (nextSection.columnCount() == firstColumns && !aloneInFirst)) && joinedEndOf(m_doc->story()->findBlock(ln.block)).blockFormat().boolProperty(tp::OutOfFlow);
                     };
                     auto bottomOf = [&](const Part &part, int column) {
                         double bottom = 0;
@@ -473,7 +474,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                     Part p1 = layFirst(colH);
                     aloneInFirst = true;
                     for (const auto &ln : p1.lines)
-                        if (ln.frame >= run.firstFrame && ln.frame < run.firstFrame + firstColumns && !m_doc->story()->findBlock(ln.block).blockFormat().boolProperty(tp::OutOfFlow)) aloneInFirst = false;
+                        if (ln.frame >= run.firstFrame && ln.frame < run.firstFrame + firstColumns && !joinedEndOf(m_doc->story()->findBlock(ln.block)).blockFormat().boolProperty(tp::OutOfFlow)) aloneInFirst = false;
                     if (firstColumns > 1 && !overflows(p1)) {
                         double total = 0;
                         for (int c = 0; c < firstColumns; ++c) total += bottomOf(p1, c);
@@ -822,7 +823,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         if (ln.line == ln.lines - 1 && flags(ln.block).sectionAfter && !flags(ln.block).breakAfter && continuesOn(current, ln.block) && !(sectionEnds && i == c - 1)) ++current;
     }
     const int nextSection = sectionEnds ? std::min(current + 1, int(m_doc->sections.size()) - 1) : current;
-    const QTextBlock goesOn = c > 0 && c == L.size() && flags(L[c - 1].block).sectionAfter ? m_doc->story()->findBlock(L[c - 1].pos).next() : QTextBlock();
+    const QTextBlock goesOn = c > 0 && c == L.size() && flags(L[c - 1].block).sectionAfter ? joinedEndOf(m_doc->story()->findBlock(L[c - 1].block)).next() : QTextBlock();
     if (c < L.size()) {
         run.hasNext = true;
         run.next.pos = L[c].pos;
@@ -1083,8 +1084,10 @@ void Paginator::changed(int position, int removed, int added)
     const QTextDocument *story = m_doc->story();
     const int last = std::max(0, story->characterCount() - 1);
     const QTextBlock b0 = story->findBlock(std::min(position, last)), b1 = story->findBlock(std::min(position + added, last));
-    int from = b0.isValid() ? b0.position() : 0;
-    int to = b1.isValid() ? b1.position() + b1.length() : last + 1;
+    // (A run of joined paragraphs is laid out as one, from its first to its last: an edit in one of them is in all.)
+    const QTextBlock b1End = b1.isValid() ? joinedEndOf(b1) : b1;
+    int from = b0.isValid() ? paragraphStartOf(b0.position()) : 0;
+    int to = b1.isValid() ? b1End.position() + b1End.length() : last + 1;
     // The paragraphs of a table that is set at a place are too: its cells' (and the table's own place is where it is set from the paragraph after it, which the text round the
     // table is, and the pages from that on are laid out again). That is so for an edit that begins in the table, and for one that begins before it and goes into it (the cells of
     // a row put in at its top, opened at the end of the paragraph before the table) or through it.
@@ -1698,7 +1701,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         QVector<bool> shows(run.columns, false);
         for (int i = 0; i < run.kept; ++i) {
             const int col = run.lines[i].frame - run.firstFrame;
-            if (col >= 0 && col < run.columns && !m_doc->story()->findBlock(run.lines[i].block).blockFormat().boolProperty(tp::OutOfFlow)) shows[col] = true;
+            if (col >= 0 && col < run.columns && !joinedEndOf(m_doc->story()->findBlock(run.lines[i].block)).blockFormat().boolProperty(tp::OutOfFlow)) shows[col] = true;
         }
         for (int c = 0, first = true; c < run.columns; ++c) {
             if (shows[c]) first = false;
@@ -1709,7 +1712,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
             const int col = ln.frame - run.firstFrame;
             if (col < 0 || col >= run.columns || !shows[col]) continue;
             // (A paragraph that takes no room has no lines in the box, and does not make it taller: see `sliceOf`.)
-            const QTextBlock lineBlock = m_doc->story()->findBlock(ln.block);
+            const QTextBlock lineBlock = joinedEndOf(m_doc->story()->findBlock(ln.block));
             if (run.freeBreak && run.splitEnd >= 0 && lineBlock.position() + lineBlock.length() == run.splitEnd && lineBlock.blockFormat().boolProperty(tp::OutOfFlow)) continue;
             bottom[col] = std::max(bottom[col], ln.rect.bottom() - ln.below);
             if (top[col] < 0) top[col] = ln.rect.top();

@@ -4862,6 +4862,137 @@ private Q_SLOTS:
         QVERIFY2(copied <= 2 * length, qPrintable(QStringLiteral("%1 characters copied for the %2 pages of a story of %3").arg(copied).arg(pages).arg(length)));
     }
 
+    // A page break that ends the last line of a run of joined paragraphs, with no room on the page for the empty line after it, goes on at the paragraph after the run: nothing of the run
+    // (its empty last paragraph, here) is on the next page again.
+    void aPageBreakEndingAJoinedRunGoesOnAfterTheRun()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        // (A page that holds one line.)
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"6000\" w:h=\"1840\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+        auto linesOfPages = [&](const QByteArray &runEnd) {
+            const QByteArray body = "<w:p><w:pPr>" + deleted + "</w:pPr><w:r><w:t>alpha</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r></w:p>" + runEnd + "<w:p><w:r><w:t>After</w:t></w:r></w:p>";
+            auto doc = open(makeDocx(body, kStyles, QByteArray(), sect));
+            QStringList out;
+            if (!doc) return out;
+            const QString whole = doc->story()->toPlainText();
+            const int pages = doc->pager().pageCount();
+            for (int i = 0; i < pages; ++i) {
+                QStringList texts;
+                for (const auto &l : doc->pager().lines(i)) texts << whole.mid(l.pos, l.end - l.pos).remove(QLatin1Char('\n')).remove(QChar(0x000C));
+                out << texts.join(QLatin1Char('|'));
+            }
+            return out;
+        };
+        // The run ends with an empty paragraph: the page after the break is the paragraph after it, as when the run is one paragraph.
+        const QStringList joined = linesOfPages("<w:p/>");
+        QStringList alone;   // (the same as one paragraph that is the break, and the paragraph after it)
+        {
+            const QByteArray body = "<w:p><w:r><w:t>alpha</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r></w:p><w:p><w:r><w:t>After</w:t></w:r></w:p>";
+            auto doc = open(makeDocx(body, kStyles, QByteArray(), sect));
+            QVERIFY(doc);
+            const QString whole = doc->story()->toPlainText();
+            for (int i = 0; i < doc->pager().pageCount(); ++i) {
+                QStringList texts;
+                for (const auto &l : doc->pager().lines(i)) texts << whole.mid(l.pos, l.end - l.pos).remove(QLatin1Char('\n')).remove(QChar(0x000C));
+                alone << texts.join(QLatin1Char('|'));
+            }
+        }
+        QVERIFY2(joined.size() >= 2 && joined.last().contains(QStringLiteral("After")), qPrintable(joined.join(QStringLiteral(" // "))));
+        QCOMPARE(joined.size(), alone.size());
+    }
+
+    // What changes a run of joined paragraphs as a whole (the properties of its last paragraph, which the lines of all of them have) lays the pages of it out again from its first paragraph:
+    // the pages after such an edit are those of a document that had the change from the start.
+    void anEditOfTheLastParagraphOfAJoinedRunLaysOutAgainFromTheFirst()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"6000\" w:h=\"4800\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+        auto words = [](int count, const char *word) {
+            QByteArray out;
+            for (int i = 0; i < count; ++i) out += QByteArray(word) + QByteArray::number(i % 10) + " ";
+            return out;
+        };
+        auto bodyWith = [&](const QByteArray &lastProps) {
+            return "<w:p><w:pPr>" + deleted + "</w:pPr><w:r><w:t xml:space=\"preserve\">" + words(300, "alpha") + "</w:t></w:r></w:p>"
+                   "<w:p><w:pPr>" + deleted + "</w:pPr><w:r><w:t xml:space=\"preserve\">" + words(60, "beta") + "</w:t></w:r></w:p>"
+                   "<w:p><w:pPr>" + lastProps + "</w:pPr><w:r><w:t xml:space=\"preserve\">" + words(80, "gamma") + "</w:t></w:r></w:p><w:p><w:r><w:t>After</w:t></w:r></w:p>";
+        };
+        auto edited = open(makeDocx(bodyWith(QByteArray()), kStyles, QByteArray(), sect));
+        auto fresh = open(makeDocx(bodyWith("<w:ind w:left=\"1200\"/>"), kStyles, QByteArray(), sect));
+        QVERIFY(edited && fresh);
+        QVERIFY(edited->pager().pageCount() >= 4);
+        QTextCursor c(edited->story());
+        c.setPosition(edited->story()->findBlockByNumber(2).position() + 1);
+        QTextBlockFormat bf = c.blockFormat();
+        bf.setLeftMargin(60);
+        c.setBlockFormat(bf);
+        const int pages = edited->pager().pageCount();
+        QCOMPARE(pages, fresh->pager().pageCount());
+        for (int i = 0; i < pages; ++i) {
+            const auto a = edited->pager().lines(i), b = fresh->pager().lines(i);
+            QVERIFY2(a.size() == b.size(), qPrintable(QStringLiteral("page %1 has %2 lines, the new document's %3").arg(i + 1).arg(a.size()).arg(b.size())));
+            for (int k = 0; k < a.size(); ++k) QVERIFY2(a[k].pos == b[k].pos && a[k].end == b[k].end && a[k].rect == b[k].rect, qPrintable(QStringLiteral("page %1 line %2 differs").arg(i + 1).arg(k)));
+        }
+    }
+
+    // The bullet or number of a run of joined paragraphs is set from the properties of the run's last, as the lines are: it is where it is for that paragraph alone.
+    void theNumberOfAJoinedRunIsSetFromItsLastParagraph()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        const QByteArray level = "<w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/><w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl>";
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\">" + level + "</w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        const QByteArray item = "<w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr>";
+        const QByteArray own = "<w:ind w:left=\"2160\" w:hanging=\"720\"/>";
+        auto markerOf = [&](const QByteArray &body) {
+            auto doc = open(makeDocx(body, kStyles, numbering));
+            if (!doc) return -1000.0;
+            FrameSpec fs;
+            fs.size = QSizeF(400, 10000);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            StoryLayout layout;
+            layout.build(doc->story(), {fs}, doc->flow().env);
+            for (const auto &l : layout.lineInfo(0))
+                if (!l.marker.isEmpty()) return l.markerX;
+            return -1001.0;
+        };
+        const double joined = markerOf("<w:p><w:pPr>" + item + deleted + "</w:pPr><w:r><w:t>first </w:t></w:r></w:p><w:p><w:pPr>" + item + own + "</w:pPr><w:r><w:t>second</w:t></w:r></w:p>");
+        const double alone = markerOf("<w:p><w:pPr>" + item + own + "</w:pPr><w:r><w:t>first second</w:t></w:r></w:p>");
+        QVERIFY2(joined > -1000 && alone > -1000, qPrintable(QStringLiteral("%1 and %2").arg(joined).arg(alone)));
+        QVERIFY2(std::abs(joined - alone) < 0.5, qPrintable(QStringLiteral("the number is at %1 where the last paragraph alone has it at %2").arg(joined).arg(alone)));
+    }
+
+    // Backspace and Delete at the junction of a run of joined paragraphs, at the end of the first and at the start of the next, keep every character of the text and leave a layout that
+    // shows it: nothing is lost, and nothing is laid out twice.
+    void backspaceAndDeleteAtTheJunctionOfAJoinedRunKeepEveryCharacter()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        const QByteArray body = "<w:p><w:pPr>" + deleted + "</w:pPr><w:r><w:t>alpha</w:t></w:r></w:p><w:p><w:pPr>" + deleted + "</w:pPr><w:r><w:t>beta</w:t></w:r></w:p><w:p><w:r><w:t>gamma</w:t></w:r></w:p>";
+        auto letters = [](WriteDoc &doc) { return doc.story()->toPlainText().remove(QLatin1Char('\n')); };
+        for (int variant = 0; variant < 4; ++variant) {
+            auto doc = open(makeDocx(body, kStyles));
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            const int junction = doc->story()->findBlockByNumber(variant < 2 ? 1 : 2).position();
+            c.setPosition(variant % 2 ? junction - 1 : junction);
+            if (variant % 2) deleteForward(*doc, c, false);
+            else deleteBack(*doc, c, false);
+            QCOMPARE(letters(*doc), QStringLiteral("alphabetagamma"));
+            const QString whole = doc->story()->toPlainText();
+            QString shown;
+            int last = 0;
+            for (int i = 0; i < doc->pager().pageCount(); ++i)
+                for (const auto &l : doc->pager().lines(i)) {
+                    QVERIFY2(l.pos >= last, qPrintable(QStringLiteral("variant %1: a line at %2 begins before the one before it ends, at %3").arg(variant).arg(l.pos).arg(last)));
+                    shown += whole.mid(l.pos, l.end - l.pos);
+                    last = l.end;
+                }
+            QCOMPARE(shown.remove(QLatin1Char('\n')), QStringLiteral("alphabetagamma"));
+            const QByteArray x = documentXml(doc->toDocx());
+            QVERIFY2(x.contains("alpha") && x.contains("beta") && x.contains("gamma"), x.constData());
+        }
+    }
+
     // A deleted mark never joins the paragraphs of two table cells, nor a cell's last paragraph and the one after the table: the text of each cell is in its own cell, once.
     void aDeletedMarkNeverJoinsTheParagraphsOfTwoCells()
     {
