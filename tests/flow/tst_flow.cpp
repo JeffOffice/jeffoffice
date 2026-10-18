@@ -6432,6 +6432,8 @@ private Q_SLOTS:
         QVERIFY2(content.width() < 499 && content.width() > 400, qPrintable(QString::number(content.width())));
         QCOMPARE(int(wide.size()), 1);
         QVERIFY2(std::abs(wide[0].top() - (content.top() - 30)) < 0.01, qPrintable(audit::rectText(wide[0]) + QStringLiteral(" for the text area ") + audit::rectText(content)));
+        // It begins at the margin's edge and goes over the right margin: it is not cut to the text, nor moved in.
+        QVERIFY2(std::abs(wide[0].left() - content.left()) < 0.01 && wide[0].right() > content.right() + 20, qPrintable(audit::rectText(wide[0]) + QStringLiteral(" for the text area ") + audit::rectText(content)));
         QCOMPARE(int(floating(320).size()), 0);   // (a table wider than the page is in the text)
     }
 
@@ -7225,7 +7227,7 @@ private Q_SLOTS:
     // and that reaches down past the margin does hold the page's text below it, where it begins (a shape that is not wrapped, or behind the text, does not).
     void aWrappedObjectInTheHeaderHoldsTheBodyBelowItAndIsNoWall()
     {
-        struct Result { double top = 0; int walls = -1; int lines = 0; };
+        struct Result { double top = 0; int walls = -1; int lines = 0; QVector<StoryLayout::LineBrief> briefs; };
         auto layout = [](FloatingObject::Wrap wrap) {
             FlowDocument fd;
             fd.env.wordLines = true;
@@ -7250,7 +7252,8 @@ private Q_SLOTS:
             Paginator pg(&fd);
             Result r;
             r.top = pg.page(0).content.top();
-            r.lines = int(pg.lines(0).size());
+            r.briefs = pg.lines(0);
+            r.lines = int(r.briefs.size());
             if (const auto page = pg.materialize(0)) r.walls = int(audit::wallsOf(*page).size());
             return r;
         };
@@ -7260,6 +7263,13 @@ private Q_SLOTS:
         QVERIFY2(free.top < 100, qPrintable(QString::number(free.top)));
         QVERIFY2(std::abs(round.top - 180) < 0.01, qPrintable(QString::number(round.top)));
         QVERIFY(round.lines > 0 && round.lines < free.lines);
+        // The text is set as it is without the shape, line for line, and moved down by what the shape holds it: none of its lines goes round it.
+        for (int i = 0; i < round.lines; ++i) {
+            const auto &r = round.briefs[i], &f = free.briefs[i];
+            QVERIFY2(r.pos == f.pos && r.end == f.end && std::abs(r.rect.left() - f.rect.left()) < 0.01 && std::abs(r.rect.width() - f.rect.width()) < 0.01 &&
+                         std::abs(r.rect.top() - f.rect.top()) < 0.01 && std::abs(r.rect.height() - f.rect.height()) < 0.01,
+                     qPrintable(QStringLiteral("line %1: %2 and %3").arg(i).arg(audit::rectText(r.rect), audit::rectText(f.rect))));
+        }
     }
 
     // An object is anchored by a character of the story it is in: a header has the objects its own characters anchor, and the body's first paragraph (at the same place in its
