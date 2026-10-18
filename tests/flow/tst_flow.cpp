@@ -2523,6 +2523,25 @@ private Q_SLOTS:
         QVERIFY2(std::abs(lines.value(0).rect.height() - (2003 + 458) / 2048.0 * 48) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
     }
 
+    // Univers, the other face of the word processor's machine that no table measures, is drawn in Arimo, 8 percent wider in its regular face and no wider in its bold, and its
+    // line stays its own (2025 and 512 units).
+    void universIsDrawnInArimoWiderAndSetAsItself()
+    {
+        if (QFontDatabase::hasFamily(QStringLiteral("Univers"))) QSKIP("Univers is installed");
+        LayoutEnv word;
+        word.wordLines = true;
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Univers")});
+        cf.setFontPointSize(11);
+        const QTextCharFormat regular = resolveCharFormat(cf, word);
+        QCOMPARE(regular.fontFamilies().toStringList().value(0), QStringLiteral("Arimo"));
+        QCOMPARE(regular.fontStretch(), stretchToAsk(108));
+        cf.setFontWeight(QFont::Bold);
+        QVERIFY(resolveCharFormat(cf, word).fontStretch() != stretchToAsk(108));
+        const auto lines = wordLinesOf({{QStringLiteral("Univers"), 11}});
+        QVERIFY2(std::abs(lines.value(0).rect.height() - (2025 + 512) / 2048.0 * 11) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
+    }
+
     // The line of Courier New is Courier New's wherever it is measured, though the text is drawn in Courier Prime (whose own line is 1.318 em, to Courier New's 1.133):
     // the number of a list item is a run of its own on the first line, and the paragraph after a keep-with-next one is measured for room.
     void aNumberedCourierNewItemKeepsCourierNewsLine()
