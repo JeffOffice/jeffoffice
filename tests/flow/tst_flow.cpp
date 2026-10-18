@@ -7348,6 +7348,38 @@ private Q_SLOTS:
         }
     }
 
+    // The room above an object that the text goes round, set from its paragraph, does not reach up into the lines before the paragraph (text is laid out in order: they were
+    // there first, and the object is set from the paragraph's top): a frame as wide as the column with room above it leaves the line right above its paragraph where it is.
+    void theRoomAboveAnObjectSetFromItsParagraphLeavesTheLinesBeforeIt()
+    {
+        auto firstLines = [&](bool withObject, double *objectTop, int *pages = nullptr) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fillStory(fd.story(), 4, 91, {}, 3, 4);
+            if (withObject) addWrapped(&fd, 466, 100, fd.story()->findBlockByNumber(2).position(), FloatingObject::Wrap::Square, 1, 1, QMarginsF(12, 12, 12, 12));
+            Paginator pg(&fd);
+            if (pages) *pages = pg.pageCount();
+            const auto lines = pageLines(pg, fd, 0);
+            if (objectTop && withObject)
+                if (const auto page = pg.materialize(0))
+                    for (const auto &it : page->doc->pages[0]->items)
+                        if (it->id.contains(QLatin1String("flow-object"))) *objectTop = it->rect.top();
+            QVector<double> tops;
+            for (const PageLine &l : lines)
+                if (fd.story()->findBlock(l.pos).blockNumber() < 2) tops << l.rect.top();
+            return tops;
+        };
+        double objectTop = -1;
+        int pages = 0;
+        const auto free = firstLines(false, nullptr), held = firstLines(true, &objectTop, &pages);
+        QVERIFY(!free.isEmpty());
+        QVERIFY2(pages == 1, qPrintable(QStringLiteral("the page and the object fit one page, and the document has %1").arg(pages)));
+        QCOMPARE(held.size(), free.size());
+        for (int i = 0; i < free.size(); ++i) QVERIFY2(std::abs(held[i] - free[i]) < 0.01, qPrintable(QStringLiteral("line %1 of the paragraphs before the object's: %2 with it, %3 without").arg(i).arg(held[i]).arg(free[i])));
+        // (The object is where its paragraph begins, a point down.)
+        QVERIFY2(objectTop > free.last() && objectTop < free.last() + 60, qPrintable(QString::number(objectTop)));
+    }
+
     // An object is anchored by a character of the story it is in: a header has the objects its own characters anchor, and the body's first paragraph (at the same place in its
     // story) has its own, and each is drawn once.
     void anObjectIsDrawnOnceWhenThePageHasAHeaderToo()

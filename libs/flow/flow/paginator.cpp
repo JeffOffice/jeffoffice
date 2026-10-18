@@ -1453,7 +1453,10 @@ QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, con
             double below = 0;
             if (a.table >= 0 && a.paragraph >= 0 && r.left() - o.gap.left() <= a.columnLeft + 0.5 && r.right() + o.gap.right() >= a.columnLeft + sec.columnWidth() - 0.5)
                 below = std::max(0.0, story->findBlock(a.paragraph).blockFormat().topMargin());
-            out << Wrapped{id, a.pos, r, a.paragraph, a.frame, below};
+            Wrapped made{id, a.pos, r, a.paragraph, a.frame, below};
+            if (o.vRel == FloatingObject::Rel::Paragraph) made.anchorTop = a.paragraphTop;
+            else if (o.vRel == FloatingObject::Rel::Line) made.anchorTop = a.lineTop;
+            out << made;
             if (out.size() >= kMostWrapped) return out;
         }
     return out;

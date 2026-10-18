@@ -223,6 +223,7 @@ private:
         int paragraph = -1;   // the position of the paragraph its anchor is in (not a part of what makes two walls the same)
         std::shared_ptr<const FloatingObject> frame;   // (a frame's object: the paginator's cache of them may let it go while the page is laid out, so the page holds it)
         double below = 0;     // room kept clear under it that is not the object's: the space before of the paragraph that goes below a table as wide as the column
+        double anchorTop = -1e18;   // where the paragraph or the line it is set from begins (page coordinates; none for an object set from the margin or the page): the room above it goes no higher
         bool operator==(const Wrapped &o) const {
             return object == o.object && at == o.at && std::abs(below - o.below) < 0.01 && std::abs(rect.left() - o.rect.left()) < 0.01 && std::abs(rect.top() - o.rect.top()) < 0.01 && std::abs(rect.width() - o.rect.width()) < 0.01 && std::abs(rect.height() - o.rect.height()) < 0.01;
         }
@@ -239,6 +240,9 @@ private:
     // The frame-local polygons that a column on the page (its rectangle, page coordinates) has the objects in as places the text keeps out of (as the page layer finds them for the
     // text box that is made of the column: Renderer::wrapObstacles).
     QVector<QPolygonF> obstaclesFor(const QVector<Wrapped> &wrapped, const QRectF &column) const;
+    // The room a wrapped object takes: its rectangle and the distances round it (and what is kept clear under it). The distance above an object that is set from its paragraph or its
+    // line does not reach up into the lines before them: they are laid out first, and the object is set from where the paragraph begins.
+    static QRectF roomOf(const FloatingObject &o, const Wrapped &w);
     bool breakContinuesAt(const StoryLayout::LineBrief &last, PageStart *next) const;
     int numberOf(int index) const;
     void changed(int position, int removed, int added);   // the story was edited
