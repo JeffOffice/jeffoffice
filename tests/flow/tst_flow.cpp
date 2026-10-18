@@ -6889,6 +6889,100 @@ private Q_SLOTS:
         QVERIFY(pg.pageCount() >= pp.pageCount());
     }
 
+    // An object is set from where its anchor would be without the wall the text goes round it by: the lines that its wall moved down, to the next column, are back where they were,
+    // and the object is where the paragraph is without it (a negative offset puts it above, in the column before).
+    void anObjectIsSetFromItsAnchorWhereItWouldBeWithoutItsOwnWall()
+    {
+        auto make = [](bool wrapped, int *anchorBlock) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fd->sections[0].paper = QSizeF(300, 300);
+            fd->sections[0].margins = QMarginsF(30, 30, 30, 30);
+            fd->sections[0].columns = 2;
+            fd->sections[0].columnGap = 20;
+            fillStory(fd->story(), 14, 9, {}, 10, 20);
+            // The paragraph whose first line is the lowest in the first column without the object.
+            if (anchorBlock) {
+                Paginator probe(fd.get());
+                double lowest = -1;
+                *anchorBlock = -1;
+                for (const PageLine &l : pageLines(probe, *fd, 0))
+                    if (l.column == 0 && l.pos == l.block && l.rect.top() > lowest && l.rect.top() < 30 + 235 * 0.8) {
+                        lowest = l.rect.top();
+                        *anchorBlock = l.block;
+                    }
+            }
+            if (wrapped && anchorBlock && *anchorBlock >= 0) {
+                const double columnWidth = fd->sections[0].columnWidth();
+                const int id = addWrapped(fd.get(), columnWidth - 20, 120, *anchorBlock, FloatingObject::Wrap::TopBottom, 10, -110, QMarginsF(0, 0, 0, 0));
+                Q_UNUSED(id);
+            }
+            return fd;
+        };
+        int anchorBlock = -1;
+        auto plain = make(false, &anchorBlock);
+        QVERIFY(anchorBlock >= 0);
+        Paginator pp(plain.get());
+        const double natural = paragraphTopOn(pp, *plain, 0, anchorBlock);
+        QVERIFY(natural > 0);
+        auto wrapped = make(true, &anchorBlock);
+        Paginator pg(wrapped.get());
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const Item *obj = objectOfSize(*page, wrapped->sections[0].columnWidth() - 20, 120);
+        QVERIFY(obj);
+        const QRectF firstColumn = wrapped->sections[0].columnRect(0);
+        QVERIFY2(std::abs(obj->rect.top() - (natural - 110)) < 0.05, qPrintable(QStringLiteral("the object is at %1, its paragraph is at %2 without it").arg(obj->rect.top()).arg(natural)));
+        QVERIFY2(std::abs(obj->rect.left() - (firstColumn.left() + 10)) < 0.05, qPrintable(QStringLiteral("the object is at %1 across, the first column is at %2").arg(obj->rect.left()).arg(firstColumn.left())));
+        QVERIFY2(audit::problems(pg, wrapped->story()).isEmpty(), qPrintable(audit::problems(pg, wrapped->story())));
+    }
+
+    // The same where the lines that the wall moves are those of the paragraph before the anchor's, on the page where they go on: the object is set from where the anchor would be below
+    // them without it, and the lines are below the object, not a page on.
+    void anObjectAboveItsAnchorStaysOnThePageOfTheLinesItMoves()
+    {
+        auto make = [](unsigned seed, bool wrapped, int *anchorBlock, int *page) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fd->sections[0].paper = QSizeF(300, 300);
+            fd->sections[0].margins = QMarginsF(30, 30, 30, 30);
+            fillStory(fd->story(), 12, seed, {}, 8, 40);
+            // The first page that begins with the end of a paragraph that has few lines left, a paragraph after it on the page.
+            Paginator probe(fd.get());
+            *anchorBlock = -1;
+            *page = -1;
+            for (int k = 1; k < probe.pageCount() && *anchorBlock < 0; ++k) {
+                const auto lines = pageLines(probe, *fd, k);
+                if (lines.size() < 4 || lines[0].pos == lines[0].block) continue;
+                int tail = 0;
+                while (tail < lines.size() && lines[size_t(tail)].block == lines[0].block) ++tail;
+                if (tail > 3 || tail >= lines.size()) continue;
+                *anchorBlock = lines[size_t(tail)].block;
+                *page = k;
+            }
+            if (wrapped && *anchorBlock >= 0) addWrapped(fd.get(), 200, 90, *anchorBlock, FloatingObject::Wrap::TopBottom, 0, -20, QMarginsF(0, 0, 0, 0));
+            return fd;
+        };
+        unsigned seed = 1;
+        int anchorBlock = -1, page = -1;
+        std::unique_ptr<FlowDocument> plain;
+        for (; seed < 200 && anchorBlock < 0; ++seed) plain = make(seed, false, &anchorBlock, &page);
+        --seed;
+        QVERIFY2(anchorBlock >= 0, "no story has a page that begins with the end of a paragraph and has another after it");
+        Paginator pp(plain.get());
+        const double natural = paragraphTopOn(pp, *plain, page, anchorBlock);
+        QVERIFY(natural > 0);
+        int again = -1, againPage = -1;
+        auto wrapped = make(seed, true, &again, &againPage);
+        Paginator pg(wrapped.get());
+        const auto made = pg.materialize(page);
+        QVERIFY(made);
+        const Item *obj = objectOfSize(*made, 200, 90);
+        QVERIFY2(obj, qPrintable(QStringLiteral("the object is not on page %1, where the lines it moves are").arg(page)));
+        QVERIFY2(std::abs(obj->rect.top() - (natural - 20)) < 0.05, qPrintable(QStringLiteral("the object is at %1, its paragraph is at %2 without it").arg(obj->rect.top()).arg(natural)));
+        QVERIFY2(audit::problems(pg, wrapped->story()).isEmpty(), qPrintable(audit::problems(pg, wrapped->story())));
+    }
+
     // An empty paragraph is only its mark, and goes in any gap between objects that is a few points wide: a column of empty paragraphs between two pictures that are a little apart
     // stays a column there (each a line below the one before), where a paragraph of words, which has no room there, is below the pictures.
     void anEmptyParagraphGoesInANarrowGapBetweenObjects()

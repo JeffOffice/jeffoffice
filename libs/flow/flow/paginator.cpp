@@ -1457,10 +1457,92 @@ QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, con
         if (!inCell || ln.line == 0) firstLines << line;
     }
     const QVector<Anchor> anchors = anchorsOfLines(held, firstLines, sec.columnWidth());
+    // An object is set from where its anchor would be without the wall the text goes round it by: the lines that wall moved down from above the anchor, as far as the column's foot
+    // (and on, to the next column) are back where they were, and the anchor with them. (The page was laid out with the walls `run.wrapped`; the row of the anchor's own line is
+    // counted as the engine's `pushed` has it, and the rows above it that were moved by this wall, those that wanted a place inside its room.)
+    auto naturalAnchor = [&](Anchor *a, const Wrapped &w, const FloatingObject &o) {
+        if (a->table >= 0 || a->paragraph < 0 || story->findBlock(a->paragraph).blockFormat().intProperty(fp::Cell)) return;
+        int par = -1, line = -1;
+        for (int i = 0; i < run.kept; ++i) {
+            const StoryLayout::LineBrief &ln = run.lines[i];
+            if (ln.block != a->paragraph) continue;
+            if (par < 0) par = i;
+            if (a->pos >= ln.pos && a->pos < ln.end) {
+                line = i;
+                break;
+            }
+        }
+        if (par < 0) return;
+        if (line < 0) line = par;
+        const QRectF room = roomOf(o, w);
+        // The columns of the part of the page that the anchor's column is in, in order (a section that begins below another on the page has the columns of its own).
+        auto partOf = [&](int column) {
+            QVector<int> part;
+            for (int c = 0; c < run.cols.size(); ++c)
+                if (std::abs(run.cols[c].top() - run.cols[column].top()) < 0.01) part << c;
+            return part;
+        };
+        auto naturalOf = [&](int upTo, double *top, double *left) {
+            const StoryLayout::LineBrief &ln = run.lines[upTo];
+            const int column = ln.frame - run.firstFrame;
+            if (column < 0 || column >= run.cols.size()) return false;
+            double moved = ln.pushed;
+            for (int j = 0; j < upTo; ++j) {
+                const StoryLayout::LineBrief &above = run.lines[j];
+                const int c = above.frame - run.firstFrame;
+                if (above.pushed <= 0 || c < 0 || c >= run.cols.size()) continue;
+                if (j > 0 && run.lines[j - 1].frame == above.frame && std::abs(run.lines[j - 1].rect.top() - above.rect.top()) < 0.01) continue;   // (the pieces of one row)
+                const QRectF col(run.cols[c].left(), body.top() + run.cols[c].top(), run.cols[c].width(), run.cols[c].height());
+                const double wanted = col.top() + above.rect.top() - above.pushed;
+                // (It was moved by this wall if it wanted a place that the room is in the way of, and is now at the room's foot.)
+                const double lands = wanted + above.pushed;
+                if (room.intersects(col) && wanted < room.bottom() - 0.5 && lands >= room.bottom() - 0.5 && lands < room.bottom() + above.rect.height() + 0.5 && wanted + above.rect.height() > room.top() + 0.5) moved += above.pushed;
+            }
+            if (moved <= 0) return false;
+            const QVector<int> part = partOf(column);
+            // (The text a column holds is as tall as its lines reach: not a column's foot, which a line that did not fit left room before.)
+            QVector<double> reach(run.cols.size(), 0.0);
+            for (int j = 0; j < run.kept; ++j) {
+                const int c = run.lines[j].frame - run.firstFrame;
+                if (c >= 0 && c < reach.size()) reach[c] = std::max(reach[c], run.lines[j].rect.bottom());
+            }
+            double flow = ln.rect.top() - moved;
+            for (int c : part) {
+                if (c == column) break;
+                flow += reach[c];
+            }
+            flow = std::max(0.0, flow);
+            int at = part.first();
+            for (int c : part) {
+                at = c;
+                if (flow < reach[c] || c == part.last()) break;
+                flow -= reach[c];
+            }
+            *top = body.top() + run.cols[at].top() + flow;
+            *left = run.cols[at].left();
+            return true;
+        };
+        double top = 0, left = 0;
+        if (naturalOf(par, &top, &left)) {
+            a->paragraphTop = top - run.lines[par].above;
+            a->columnLeft = left;
+        }
+        if (naturalOf(line, &top, &left)) {
+            a->lineTop = top;
+            a->columnLeft = left;
+            if (line == par) a->paragraphTop = top - run.lines[par].above;
+        }
+    };
     int made = 0;
-    for (const Anchor &a : anchors)
-        for (int id = a.object; (a.frame || (id > 0 && id <= m_doc->objects.size())) && id > 0 && made < kMostObjects; id = objectAt(a, id).next, ++made) {
-            const FloatingObject &o = objectAt(a, id);
+    for (const Anchor &anchored : anchors)
+        for (int id = anchored.object; (anchored.frame || (id > 0 && id <= m_doc->objects.size())) && id > 0 && made < kMostObjects; id = objectAt(anchored, id).next, ++made) {
+            const FloatingObject &o = objectAt(anchored, id);
+            Anchor a = anchored;
+            for (const Wrapped &used : run.wrapped)
+                if (used.object == id && used.at == a.pos) {
+                    naturalAnchor(&a, used, o);
+                    break;
+                }
             using W = FloatingObject::Wrap;
             // A table set from its paragraph (down from the paragraph or the line) that goes over the foot of the text area is not on this page: it goes to the next with its paragraph.
             if (moveBefore && a.table >= 0 && o.item && (o.vRel == FloatingObject::Rel::Paragraph || o.vRel == FloatingObject::Rel::Line) && a.paragraph >= 0 &&
