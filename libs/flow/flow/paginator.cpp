@@ -1574,7 +1574,7 @@ void Paginator::addLineNumbers(Document *d, const Run &run, const QRectF &body)
         const QTextBlock block = story->findBlock(ln.block);
         const QTextBlockFormat bf = block.blockFormat();
         // (The text of a section: not the rows of a table, nor a paragraph that is set apart from the text.)
-        if (bf.intProperty(fp::Cell) || bf.boolProperty(tp::OutOfLayout)) continue;
+        if (bf.intProperty(fp::Cell) || bf.boolProperty(tp::OutOfLayout) || bf.boolProperty(fp::SuppressLineNumbers)) continue;   // (a paragraph that suppresses them is not counted either)
         const int column = ln.frame - run.firstFrame;
         if (column < 0 || column >= run.cols.size()) continue;
         const int section = std::clamp(int(std::upper_bound(starts.cbegin(), starts.cend(), ln.pos) - starts.cbegin()) - 1, 0, int(m_doc->sections.size()) - 1);

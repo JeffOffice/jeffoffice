@@ -460,6 +460,31 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         resolved.numId = numId;
         resolved.ilvl = level;
         QTextBlockFormat bf = paragraphFormatOf(resolved);
+        // (Line numbers: the paragraph's own element says, else its style's; an element that says off turns it off.)
+        {
+            auto suppresses = [](const QVector<RawChild> &extra, bool *stated) {
+                bool on = false;
+                for (const RawChild &child : extra) {
+                    static const QRegularExpression element(QStringLiteral("^<(?:[\\w.-]+:)?suppressLineNumbers\\b([^>]*)>"));
+                    const QRegularExpressionMatch m = element.match(QString::fromUtf8(child.xml.left(200)));
+                    if (!m.hasMatch()) continue;
+                    *stated = true;
+                    on = !(m.captured(1).contains(QLatin1String("=\"0\"")) || m.captured(1).contains(QLatin1String("=\"false\"")) || m.captured(1).contains(QLatin1String("=\"off\"")));
+                }
+                return on;
+            };
+            bool stated = false;
+            bool suppressed = suppresses(direct.extra, &stated);
+            // (The style's, or the nearest style it is based on that says.)
+            QString at = styleId;
+            for (int depth = 0; !stated && !at.isEmpty() && depth < 32; ++depth) {
+                const Style *style = sheet.find(at);
+                if (!style) break;
+                suppressed = suppresses(style->pPr.extra, &stated);
+                at = style->basedOn;
+            }
+            if (suppressed) bf.setProperty(flow::fp::SuppressLineNumbers, true);
+        }
         if (tables.key()) bf.setProperty(flow::fp::Cell, tables.key());
         // A paragraph of a frame in the body is set apart from the text: no lines and no room there, and a text box where the frame asks, at the paragraph after it.
         // (A header's or a footer's frame is a text box too where it is set at a place on the page: its logo, its page number at the page's top. One set beside the text, by its

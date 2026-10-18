@@ -11359,6 +11359,35 @@ private Q_SLOTS:
         QCOMPARE(audit::storyOf(*page, heads[0]), QStringLiteral("Head base(ruby)"));
     }
 
+    // A paragraph that says w:suppressLineNumbers (itself, or by its style) has no numbers, and the lines of the others are counted without it.
+    void aParagraphThatSuppressesLineNumbersIsNeitherNumberedNorCounted()
+    {
+        const QByteArray styles = kStyles + QByteArray("<w:style w:type=\"character\" w:styleId=\"LineNumber\"><w:name w:val=\"line number\"/><w:rPr><w:sz w:val=\"14\"/></w:rPr></w:style>"
+                                                          "<w:style w:type=\"paragraph\" w:styleId=\"Quiet\"><w:name w:val=\"Quiet\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:suppressLineNumbers/></w:pPr></w:style>");
+        QByteArray body = plainP(wordsOf("first", 20)) + plainP(wordsOf("direct", 20), QByteArray(), "<w:suppressLineNumbers/>") + plainP(wordsOf("third", 20)) +
+                          plainP(wordsOf("styled", 20), QByteArray(), "<w:pStyle w:val=\"Quiet\"/>") + plainP(wordsOf("fifth", 20)) + plainP(wordsOf("turned on again", 20), QByteArray(), "<w:suppressLineNumbers w:val=\"0\"/>");
+        const QByteArray sect = sectionXml(12240, 15840, 1440, QByteArray(), QByteArray(), "<w:lnNumType w:countBy=\"1\"/>");
+        auto doc = open(makeDocxWithParts(body, sect, {}, QByteArray(), styles));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        QCOMPARE(pg.pageCount(), 1);
+        const QTextDocument *story = doc->story();
+        int counted = 0;
+        for (const auto &l : pg.lines(0)) {
+            const QString text = story->findBlock(l.block).text();
+            counted += !text.startsWith(QLatin1String("direct")) && !text.startsWith(QLatin1String("styled"));
+        }
+        QVERIFY(counted > 4 && counted < int(pg.lines(0).size()));
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        QStringList numbers;
+        for (const auto &item : page->doc->pages[0]->items)
+            if (item->id.startsWith(QLatin1String("flow-lineno-box"))) numbers << page->doc->stories.value(dynamic_cast<const TextItem *>(item.get())->storyId)->doc->toPlainText();
+        QStringList want;
+        for (int i = 1; i <= counted; ++i) want << QString::number(i);
+        QCOMPARE(numbers, want);
+    }
+
     // A field of a header that shows a paragraph style's text (STYLEREF), as the file would have it: its instruction, and a result `cached`.
     static QByteArray styleRefField(const char *instruction, const char *cached = "cached")
     {

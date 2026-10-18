@@ -39,6 +39,8 @@ enum : int {
     // double: the paragraph's first line is no higher on the page than this many points from the page's top (a word processor's field that sets text at a place); where it would be
     // higher, the text is moved down to the place, and what follows it with it.
     AdvanceTop = QTextFormat::UserProperty + 304,
+    // bool: the paragraph has no line numbers, and its lines are not counted for the others' (w:suppressLineNumbers).
+    SuppressLineNumbers = QTextFormat::UserProperty + 305,
 };
 } // namespace fp
 
