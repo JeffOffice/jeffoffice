@@ -342,6 +342,12 @@ public:
                 if (name == "footnoteReference") a.display = QString::number(++footnotes);
                 else if (name == "endnoteReference") a.display = QString::number(++endnotes);
                 else if (name == "sym") a.display = symbolDisplay(t.attr(c, "font"), t.attr(c, "char"));
+                else if (name == "ruby") {
+                    // (Ruby text over base text, which the pages do not set above it yet: its base text, and the ruby after it in brackets, so that neither is lost.)
+                    const int base = t.child(c, "rubyBase"), ruby = t.child(c, "rt");
+                    const QString text = base >= 0 ? t.text(base).left(400) : QString(), over = ruby >= 0 ? t.text(ruby).left(400) : QString();
+                    a.display = over.isEmpty() ? text : text + QLatin1Char('(') + over + QLatin1Char(')');
+                }
                 else if (name == "drawing") {
                     for (int k = t.firstChild(c); k >= 0; k = t.next(k))
                         if (t.localName(k) == "inline") a.display = QCoreApplication::translate("jp::office::wml", "[picture]");

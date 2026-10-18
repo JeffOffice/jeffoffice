@@ -239,6 +239,20 @@ private Q_SLOTS:
         QCOMPARE(all, QStringLiteral("Beforeinside  twice kept After"));
     }
 
+    // Ruby text is shown with its base text where the pages cannot set it above: the base, and the ruby after it in brackets (an atom that is kept as it is written).
+    void rubyShowsItsBaseTextAndItsRuby()
+    {
+        Made m;
+        m.body = R"(<w:p><w:r><w:ruby><w:rubyPr><w:rubyAlign w:val="distributeSpace"/></w:rubyPr><w:rt><w:r><w:t>とうきょう</w:t></w:r></w:rt><w:rubyBase><w:r><w:t>東京</w:t></w:r></w:rubyBase></w:ruby></w:r></w:p>)";
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        QString shown;
+        for (const Inline &in : d.body[0].para.content)
+            if (in.kind == Inline::RunAtom && in.tag == QLatin1String("ruby")) shown = in.display;
+        QCOMPARE(shown, QString::fromUtf8("東京(とうきょう)"));
+        QVERIFY(documentXmlOf(writeDocx(d)).contains("<w:ruby>"));
+    }
+
     void sectionBreaksAreInTheParagraphThatEndsThem()
     {
         Made m;
