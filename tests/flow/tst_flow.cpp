@@ -4971,6 +4971,36 @@ private Q_SLOTS:
         QCOMPARE(single[1].frame, -1);
     }
 
+    // A word processor's justified line that has no space before its last word (a long word alone in a narrow column or frame) is set as a left-aligned line is, not with its letters
+    // spread over the width (V107's "Percent" in a frame that was as wide as "1998-2008": "P e r c e n t").
+    void aJustifiedLineWithoutASpaceKeepsItsLettersTogether()
+    {
+        auto placeOf = [&](Qt::Alignment al) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setAlignment(al);
+            c.setBlockFormat(bf);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Arimo")});
+            run.setFontPointSize(10);
+            run.setFontWeight(QFont::Bold);
+            c.insertText(QStringLiteral("Percent Change 1998-2008"), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(60, 200)}, env);
+            int frame = -1;
+            QRectF at6, at7;
+            lay.caretRect(6, &frame, &at6);   // (before the "t" of "Percent")
+            lay.caretRect(7, &frame, &at7);   // (after it)
+            return QVector<double>{at6.x(), at7.x()};
+        };
+        const QVector<double> justified = placeOf(Qt::AlignJustify), left = placeOf(Qt::AlignLeft);
+        QVERIFY2(left[1] < 55, "the word is narrower than the frame");
+        for (int i = 0; i < 2; ++i) QVERIFY2(std::abs(justified[i] - left[i]) < 0.01, qPrintable(QStringLiteral("letter %1 is at %2 justified, %3 left-aligned").arg(i + 6).arg(justified[i]).arg(left[i])));
+    }
+
     // A document whose first section begins on an even page numbers its first page 2 (the page before it is counted and nothing is drawn on it, as it is in a word processor's own
     // pages), and its pages go on from there; one that begins on an odd page numbers it 1; a restart in the section is the number it says.
     void aDocumentWhoseFirstSectionBeginsOnAnEvenPageNumbersItsFirstPageTwo()

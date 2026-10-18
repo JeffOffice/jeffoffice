@@ -622,6 +622,7 @@ public:
     double ascent() const { return m_l.ascent() / kFine; }
     double height() const { return m_l.height() / kFine; }
     double naturalTextWidth() const { return m_l.naturalTextWidth() / kFine; }
+    double lineWidth() const { return m_l.width() / kFine; }
     double y() const { return m_l.y() / kFine; }
     QPointF position() const { return m_l.position() / kFine; }
     void setPosition(const QPointF &p) { m_l.setPosition(p * kFine); }
@@ -3830,6 +3831,18 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                                 line.setLineWidth(room + spaces);
                                 if (line.textStart() + line.textLength() != e) line.setLineWidth(room);
                             }
+                        }
+                    }
+                    // A word processor does not spread the letters of a justified line that has no space before its last word (a long word of a narrow column or frame, alone in
+                    // its line): the line is set as a left-aligned one is. (Qt spreads the letters of such a line over the width the line was given.)
+                    if (env.wordLines && (B->tl->textOption().alignment() & Qt::AlignJustify) && bf.layoutDirection() != Qt::RightToLeft) {
+                        const int s0 = line.textStart(), e = s0 + line.textLength();
+                        if (e < B->disp.size() && B->disp[e - 1] != QChar::LineSeparator) {
+                            int k = e;
+                            while (k > s0 && B->disp[k - 1].isSpace()) --k;
+                            bool spaced = false;
+                            for (int i = s0; i < k && !spaced; ++i) spaced = B->disp[i].isSpace();
+                            if (!spaced) line.setLineWidth(line.naturalTextWidth() + 0.01);   // (the line is as wide as its letters: there is nothing to spread)
                         }
                     }
                     B->lines << Line{f, c, QRectF(iv.x0, col.top() + y, iv.x1 - iv.x0, h), below, rowPushed, band, lineNo == 0 && f == B->spaceFrame && c == B->spaceColumn ? B->spaceAbove : 0.0};
