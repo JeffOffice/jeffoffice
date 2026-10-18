@@ -320,6 +320,21 @@ public:
                     s.filled = false;
                 }
                 if (offOf(t.attr(c, "on"))) s.filled = false;
+                // (A fill that is clear, an opacity of nothing however it is written (a number, a percent, or a fixed-point number with an f: 65536 is all), is none, a picture's too; one that
+                // is nothing at its start and something at its end (the second opacity), as a gradient fading in is, is not clear.)
+                auto opacityOf = [](const QString &text, bool *given) {
+                    bool ok = false;
+                    const QString v = text.trimmed();
+                    const double value = v.endsWith(QLatin1Char('%')) ? v.chopped(1).toDouble(&ok) / 100 : v.endsWith(QLatin1Char('f'), Qt::CaseInsensitive) ? v.chopped(1).toDouble(&ok) / 65536 : v.toDouble(&ok);
+                    *given = ok;
+                    return value;
+                };
+                bool from = false, to = false;
+                const double start = opacityOf(t.attr(c, "opacity"), &from), end = opacityOf(t.attrAny(c, "opacity2"), &to);
+                if (from && start <= 0 && (!to || end <= 0)) {
+                    s.filled = false;
+                    s.fillEmbed.clear();
+                }
                 if (const QString color = colorOf(t.attr(c, "color")); !color.isEmpty() && t.attr(n, "fillcolor").isEmpty()) s.fillColor = color;
             } else if (name == "stroke") {
                 if (offOf(t.attr(c, "on"))) s.stroked = false;

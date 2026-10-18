@@ -41,7 +41,7 @@ struct NumState {
 
 void WriteDoc::buildStory(const QVector<Block> &body)
 {
-    m_letteringShapes = m_letteringLetters = 0;
+    m_letteringShapes = m_letteringLetters = m_boxTableCells = 0;
     fillStory(story(), body, false);
 }
 
@@ -52,6 +52,8 @@ constexpr int kMostHeaderParagraphs = 400;
 // The most objects set at places that a file's pages have, and the most pictures (a file with more has the rest left out).
 constexpr int kMostObjects = 20000;
 constexpr int kMostImages = 2000;
+// The most cells of the tables of text boxes that a document has laid out in its boxes (a box whose tables would go over it keeps them as stand-ins).
+constexpr int kMostBoxTableCells = 2000;
 
 namespace {
 bool drawnTag(const QString &tag)
@@ -467,8 +469,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         } else {
             lastFrameKey = 0;
         }
-        // An empty paragraph that is a continuous section break takes no room.
-        if (!header && blockNumber < continuousAfter.size() && continuousAfter[blockNumber] && p.content.isEmpty()) bf.setProperty(tp::OutOfFlow, true);
+        // An empty paragraph that is a continuous section break takes no room (it is where the text before it ends: the first paragraph of the document has none, and keeps its line).
+        if (!header && !firstBlock && blockNumber < continuousAfter.size() && continuousAfter[blockNumber] && p.content.isEmpty()) bf.setProperty(tp::OutOfFlow, true);
         if (header) {
             // A paragraph in a frame (the page number's, set to the side or the middle) is set that way, where the next paragraph begins, taking no room.
             for (const RawChild &ch : direct.extra) {
@@ -872,7 +874,18 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             std::shared_ptr<Item> item;
             if (s.kind == Shape::TextBox) {
                 QVector<Block> blocks;
-                if (readBlocks(s.textBox, &blocks)) {
+                bool read = readBlocks(s.textBox, &blocks, true);   // (its tables are laid out in the box, within the cells a document's boxes have in all)
+                if (read) {
+                    int cells = 0;
+                    for (const Block &blk : blocks) cells += blk.isRaw && blk.role == Inline::Open && blk.tag == QLatin1String("tc");
+                    if (m_boxTableCells + cells > kMostBoxTableCells) {
+                        blocks.clear();
+                        read = readBlocks(s.textBox, &blocks);
+                    } else {
+                        m_boxTableCells += cells;
+                    }
+                }
+                if (read) {
                     auto story = std::make_shared<QTextDocument>();
                     story->setDocumentMargin(0);
                     story->setDefaultFont(this->story()->defaultFont());

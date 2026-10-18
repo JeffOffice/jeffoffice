@@ -87,7 +87,7 @@ Paginator::AnchorLine Paginator::anchorLineOf(const StoryLayout::LineBrief &ln, 
 {
     AnchorLine l{ln.block, ln.pos, ln.end, rect, columnLeft, ln.pushed, ln.line == 0, ln.end, ln.above};
     if (!ln.cut && ln.line == ln.lines - 1) {
-        const QTextBlock b = m_doc->story()->findBlock(ln.block);
+        const QTextBlock b = joinedEndOf(m_doc->story()->findBlock(ln.block));   // (the objects anchored in a run of joined paragraphs reach to its end)
         if (b.isValid()) l.reach = std::max(ln.end, b.position() + b.length() - 1);
     }
     return l;
@@ -224,7 +224,41 @@ QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, cons
     return out;
 }
 
-void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number, const QVector<Wrapped> &wrapped, const QVector<QRectF> &columns, MaterializedPage *page, size_t front)
+void Paginator::tablesInBox(const QTextDocument *source, QTextDocument *copy, const QRectF &box, const QMarginsF &insets, int number, Document *d, MaterializedPage *page)
+{
+    const double width = std::max(1.0, box.width() - insets.left() - insets.right());
+    const auto laid = headerTablesOf(source, width, number, 0.0, true, d->flowPageTotal, d->flowSectionPageTotal, true);
+    page->showsTotal = page->showsTotal || laid->showsTotal;
+    QVector<const HeaderPart *> places;
+    for (const HeaderPart &part : laid->parts) {
+        if (!part.table) continue;
+        auto fragment = std::make_shared<TableFragment>(*part.table);
+        fragment->origin = QPointF(box.left() + insets.left() + fragment->layout->leftEdgeIn(width), box.top() + insets.top() + part.y);
+        fragment->clip = box;   // (a table taller than its box shows nothing below it)
+        page->furnitureTables.push_back(fragment);
+        places << &part;
+    }
+    // (From the last: the places before it are where they were. The paragraphs of the rows are joined into the first, which is given a place's format: one line as tall as the rows.)
+    for (auto it = places.crbegin(); it != places.crend(); ++it) {
+        const HeaderPart &part = **it;
+        QTextCursor cursor(copy);
+        cursor.setPosition(part.from);
+        cursor.setPosition(std::max(part.from, part.to - 1), QTextCursor::KeepAnchor);
+        cursor.removeSelectedText();
+        QTextBlockFormat bf;
+        bf.setLineHeight(part.height, QTextBlockFormat::FixedHeight);
+        bf.setTopMargin(0);
+        bf.setBottomMargin(0);
+        QTextCharFormat cf;
+        cf.setFontPointSize(1);
+        cursor.setBlockFormat(bf);
+        cursor.setBlockCharFormat(cf);
+        cursor.insertText(QString(QChar(0x200B)), cf);
+    }
+}
+
+void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number, const QVector<Wrapped> &wrapped, const QVector<QRectF> &columns, MaterializedPage *page, size_t front,
+                           MaterializedPage *boxTables)
 {
     // The objects are drawn in the order of their heights (the file's: z-index, relative height), and in the order of their anchors where those are the same: those behind the
     // text before the text, the rest after it.
@@ -289,6 +323,7 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
                 auto s = std::make_shared<Story>();
                 s->id = QStringLiteral("flow-boxtext-%1-%2-%3").arg(d->pages[0]->id).arg(id).arg(made);
                 s->doc = cloneStory(o.story.get());
+                if (MaterializedPage *rowsOn = boxTables ? boxTables : page; rowsOn && storyHasTables(o.story.get())) tablesInBox(o.story.get(), s->doc.get(), placed, o.insets, number, d, rowsOn);
                 resolveImages(s->doc.get(), d);
                 d->stories.insert(s->id, s);
                 box->storyId = s->id;
@@ -605,7 +640,7 @@ const Paginator::FloatIndex &Paginator::floatIndex()
             continue;
         }
         if (bf.boolProperty(tp::OutOfLayout)) strays << b.position();
-        if (!hasNoLines(b)) reach(b.position());
+        if (!hasNoLines(b) || (m_doc->env.wordLines && StoryLayout::joinsNext(b))) reach(b.position());   // (a run of paragraphs joined by hidden marks is laid out as one, from its first)
         section += ends(b);
         b = b.next();
     }

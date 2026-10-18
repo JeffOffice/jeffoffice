@@ -358,7 +358,7 @@ public:
     int lineEnd(int pos) const;
     QVector<QRectF> rangeRects(int frame, int from, int to) const;
     QVector<QRectF> lineRects(int frame) const;   // every line box in the frame, frame-local
-    struct LineInfo { QRectF rect; QString text; QString family; double pointSize = 0; int docStart = 0; double baseline = 0; double below = 0; double markerX = -1; int docPos = 0; int docEnd = 0; double above = 0; };   // docStart: where its paragraph starts; docPos, docEnd: the line's first character and just past its last, as document positions; below: line spacing under the text; markerX: where a list item's bullet is drawn (-1: none)
+    struct LineInfo { QRectF rect; QString text; QString family; double pointSize = 0; int docStart = 0; double baseline = 0; double below = 0; double markerX = -1; int docPos = 0; int docEnd = 0; double above = 0; QString marker; };   // docStart: where its paragraph starts; marker: of a list item's first line, its number or bullet's text; docPos, docEnd: the line's first character and just past its last, as document positions; below: line spacing under the text; markerX: where a list item's bullet is drawn (-1: none)
     QVector<LineInfo> lineInfo(int frame) const;  // for diagnostics (jpubtool layout)
     // Every line of the story in order, with where it is and nothing else (no text or fonts): for a caller that
     // works on the lines of a stretch of text, as the paginator does.
@@ -386,6 +386,17 @@ public:
     static qint64 lineHeightsMeasuredForTest();
     // The longest stretch of text, in letters, that a word processor's rules against a break after a question mark or between brackets have kept whole (a cost test: it is bounded).
     static qint64 longestJoinedStretchForTest();
+    // The most paragraphs that were laid out as one, for the marks between them being hidden (a word processor's deleted paragraph marks): a cost test, for a run of such paragraphs is
+    // cut into paragraphs of at most kMostJoinedParagraphs.
+    static qint64 longestJoinedParagraphsForTest();
+    static void resetLongestJoinedParagraphsForTest();
+    static constexpr int kMostJoinedParagraphs = 32;
+    // Whether a word processor's paragraph is joined to the one after it: its mark is hidden, and neither is set apart from the text, nor is the next at or past `end` (a stretch's
+    // end, if it has one). And the last of the paragraphs joined from `first`, the one whose mark is left and whose properties they have (`first` where it is joined to none).
+    static bool joinsNext(const QTextBlock &b, int end = -1);
+    static QTextBlock joinedEnd(const QTextBlock &first, int end = -1);
+    // The first of the paragraphs that are joined to `b`: `b` itself where none is (at most kMostJoinedParagraphs back).
+    static QTextBlock joinedHead(const QTextBlock &b);
 
     // An object set in the text (tp::InlineObject): where it's drawn,
     // frame-local, and the item as JSON. It sits on the baseline, padded by
@@ -397,6 +408,7 @@ public:
     struct Line { int frame = -1; int column = 0; QRectF rect; double below = 0; double pushed = 0; double band = 0; double above = 0; };   // below: the spacing under the text; pushed: how far wrapping moved it down; band: the height of its text that wrapping kept clear of objects; above: of a paragraph's first line, the space before the paragraph that is above it (none where the paragraph's was not kept)
     struct Block {
         int docStart = 0, docLen = 0;
+        int propsStart = 0;   // where the paragraph whose properties it has begins: its last, where paragraphs are joined
         QString disp;
         QVector<Seg> map;
         std::unique_ptr<ParagraphLayout> tl;

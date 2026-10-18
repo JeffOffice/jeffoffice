@@ -1256,6 +1256,7 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
     if (!layout || layout->rowCount() == 0) return;
     const std::vector<Placed> placed = place();
     p->save();
+    if (!clip.isEmpty()) p->setClipRect(clip, Qt::IntersectClip);
     // Shading: the table's under the cells'.
     if (layout->data().fill && layout->data().fill->alpha() > 0) p->fillRect(rect(), *layout->data().fill);
     for (const Placed &pl : placed) {

@@ -4096,7 +4096,7 @@ private Q_SLOTS:
     }
 
     // What a tracked change deleted is not in the lines: a paragraph whose mark was deleted and that shows nothing else takes no room, nor do the
-    // breaks and tabs of deleted runs; one whose mark was deleted but that shows text is still there. The file is saved with the changes as they were.
+    // breaks and tabs of deleted runs; one whose mark was deleted but that shows text is one paragraph with the next. The file is saved with the changes as they were.
     void whatATrackedChangeDeletedTakesNoRoom()
     {
         const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
@@ -4116,7 +4116,7 @@ private Q_SLOTS:
             QVERIFY2(std::abs(edited[i].rect.top() - plain[i].rect.top()) < 0.01, qPrintable(QStringLiteral("line %1 is at %2, not %3").arg(i).arg(edited[i].rect.top()).arg(plain[i].rect.top())));
             QVERIFY(std::abs(edited[i].rect.height() - plain[i].rect.height()) < 0.01);
         }
-        QCOMPARE(lines(para("one") + keptText + para("three")).size(), 3);
+        QCOMPARE(lines(para("one") + keptText + para("three")).size(), 2);   // ("one", and "text" and "three" together)
         // Saved after an edit: the deleted parts are as they were, and nothing is made hidden.
         auto doc = open(makeDocx(para("one") + deletedMark + deletedBreak + para("three")));
         QVERIFY(doc);
@@ -4615,6 +4615,409 @@ private Q_SLOTS:
         QCOMPARE(lineCount(para("alpha", true) + para("", false) + para("gamma", false)), 2);
     }
 
+    // A paragraph whose mark a tracked change deleted is one paragraph with the next as the text stands: its text and the next's are laid out together, with the properties of the
+    // next (the mark that is left), whatever the first has. Pages, and the pages as drawn, are those of the one paragraph the two make; a number is counted once for them; a tab that
+    // survives in the first goes on into the next's line; and editing it changes the text only, the file keeps both paragraphs and the deletion.
+    void aParagraphWhoseMarkWasDeletedIsOneParagraphWithTheNext()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        auto run = [](const QByteArray &text) { return "<w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r>"; };
+        auto para = [&](const QByteArray &props, const QByteArray &content, bool markDeleted) {
+            return "<w:p><w:pPr>" + props + (markDeleted ? deleted : QByteArray()) + "</w:pPr>" + content + "</w:p>";
+        };
+        auto words = [](int from, int count) {
+            static const char *const w[] = {"court", "rule", "appeal", "section", "evidence", "judgment", "provision", "reasonable", "interpretation", "the", "of", "and"};
+            QByteArray out;
+            for (int i = from; i < from + count; ++i) out += (i > from ? " " : "") + QByteArray(w[(i * 7 + i / 5) % 12]);
+            return out;
+        };
+        const QByteArray roomy = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray small = "<w:sectPr><w:pgSz w:w=\"6000\" w:h=\"4800\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray first = "<w:jc w:val=\"center\"/><w:spacing w:before=\"400\" w:after=\"600\"/>";   // (the first's properties are not the paragraph's)
+        const QByteArray next = "<w:ind w:left=\"720\" w:firstLine=\"0\"/><w:jc w:val=\"both\"/>";
+        auto doc = [&](const QByteArray &body, const QByteArray &sect) { return open(makeDocx(body, kStyles, QByteArray(), sect)); };
+
+        // One line, as the one paragraph: where the lines are, what they hold, and their indent (the next's).
+        {
+            auto joined = doc(para(first, run("alpha beta"), true) + para(next, run(" gamma delta"), false), roomy);
+            auto single = doc(para(next, run("alpha beta") + run(" gamma delta"), false), roomy);
+            QVERIFY(joined && single);
+            const auto a = joined->pager().lines(0), b = single->pager().lines(0);
+            QCOMPARE(a.size(), 1);
+            QCOMPARE(b.size(), 1);
+            QCOMPARE(a[0].pos, 0);
+            QCOMPARE(a[0].end, joined->story()->characterCount() - 1);
+            QCOMPARE(a[0].rect, b[0].rect);
+            QVERIFY2(std::abs(a[0].rect.left() - 36) < 0.01, qPrintable(QStringLiteral("the line begins at %1: the next paragraph's indent is 36 points").arg(a[0].rect.left())));
+        }
+        // Pages: five hundred words in two paragraphs of a page that holds a dozen lines are the pages (lines, positions, and pictures) of one paragraph of them.
+        {
+            auto joined = doc(para(first, run(words(0, 240)), true) + para(next, run(" " + words(240, 260)), false) + para(QByteArray(), run("After."), false), small);
+            auto single = doc(para(next, run(words(0, 240)) + run(" " + words(240, 260)), false) + para(QByteArray(), run("After."), false), small);
+            QVERIFY(joined && single);
+            const int pages = joined->pager().pageCount();
+            QVERIFY2(pages >= 5, qPrintable(QString::number(pages)));
+            QCOMPARE(pages, single->pager().pageCount());
+            PageView viewJoined, viewSingle;
+            viewJoined.resize(1000, 700);
+            viewSingle.resize(1000, 700);
+            viewJoined.setDocument(joined.get());
+            viewSingle.setDocument(single.get());
+            // (The characters of the one paragraph are the two's, less the mark between them.)
+            const int cut = joined->story()->findBlockByNumber(1).position();
+            auto unjoined = [&](int position) { return position >= cut ? position - 1 : position; };
+            for (int i = 0; i < pages; ++i) {
+                const auto a = joined->pager().lines(i), b = single->pager().lines(i);
+                QVERIFY2(a.size() == b.size(), qPrintable(QStringLiteral("page %1 has %2 lines, one paragraph's page %3").arg(i + 1).arg(a.size()).arg(b.size())));
+                for (int k = 0; k < a.size(); ++k) {
+                    QVERIFY2(a[k].rect == b[k].rect && unjoined(a[k].pos) == b[k].pos && unjoined(a[k].end) == b[k].end,
+                             qPrintable(QStringLiteral("page %1 line %2 is %3,%4 (%5 to %6), the one paragraph's %7,%8 (%9 to %10)").arg(i + 1).arg(k).arg(a[k].rect.left()).arg(a[k].rect.top()).arg(a[k].pos).arg(a[k].end)
+                                            .arg(b[k].rect.left()).arg(b[k].rect.top()).arg(b[k].pos).arg(b[k].end)));
+                }
+                QVERIFY2(viewJoined.pageImage(i, 400) == viewSingle.pageImage(i, 400), qPrintable(QStringLiteral("page %1 is drawn differently").arg(i + 1)));
+            }
+        }
+        // A number is counted once for the two (an item of the list, then the two, then another): 1., 2., 3.
+        {
+            const QByteArray level = "<w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/><w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl>";
+            const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\">" + level + "</w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+            const QByteArray item = "<w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr>";
+            auto numbered = open(makeDocx(para(item, run("one"), false) + para(item, run("two and"), true) + para(item, run(" three"), false) + para(item, run("four"), false), kStyles, numbering, roomy));
+            QVERIFY(numbered);
+            QStringList shown;
+            for (QTextBlock b = numbered->story()->begin(); b.isValid(); b = b.next())
+                if (b.textList() && !b.charFormat().boolProperty(tp::HiddenText))
+                    shown << (b.blockFormat().stringProperty(tp::BulletChar).isEmpty() ? b.textList()->itemText(b) : b.blockFormat().stringProperty(tp::BulletChar));
+            QCOMPARE(shown, (QStringList{QStringLiteral("1."), QStringLiteral("2."), QStringLiteral("3.")}));
+            QCOMPARE(int(numbered->pager().lines(0).size()), 3);
+        }
+        // A tab that survives in a paragraph that shows nothing else goes on into the next's line (it is no line of its own), and the next paragraph's own deleted tab is none.
+        {
+            const QByteArray stop = "<w:tabs><w:tab w:val=\"left\" w:pos=\"360\"/></w:tabs>";
+            auto tabbed = doc(para(stop, "<w:r><w:tab/></w:r>", true) + para(stop, "<w:del w:id=\"8\" w:author=\"a\"><w:r><w:tab/></w:r></w:del>" + run("text"), false), roomy);
+            QVERIFY(tabbed);
+            QCOMPARE(int(tabbed->pager().lines(0).size()), 1);
+        }
+        // Editing: typing at the end of the first and at the start of the next changes the text; the file has both paragraphs, with the deletion, and the lines are still one.
+        {
+            auto edited = doc(para(first, run("alpha"), true) + para(next, run("omega"), false), roomy);
+            QVERIFY(edited);
+            QTextCursor c(edited->story());
+            c.setPosition(5);
+            insertText(*edited, c, QStringLiteral("1"));
+            c.setPosition(edited->story()->findBlockByNumber(1).position());
+            insertText(*edited, c, QStringLiteral("2"));
+            QCOMPARE(edited->story()->toPlainText(), QStringLiteral("alpha1\n2omega"));
+            QCOMPARE(int(edited->pager().lines(0).size()), 1);
+            const QByteArray x = documentXml(edited->toDocx());
+            QCOMPARE(int(x.count("<w:p>")), 2);
+            QVERIFY2(x.contains("<w:del") && x.contains("alpha1") && x.contains("2omega"), x.constData());
+        }
+        // A run of thousands of paragraphs with deleted marks is cut into paragraphs of a bounded length, and every word is on a page.
+        {
+            QByteArray body;
+            const int count = 4000;
+            for (int i = 0; i < count; ++i) body += para(QByteArray(), run("w" + QByteArray::number(i) + " "), true);
+            body += para(QByteArray(), run("end"), false);
+            auto many = doc(body, small);
+            QVERIFY(many);
+            const int pages = many->pager().pageCount();
+            QVERIFY(pages > 3);
+            // (Every word is on a page once, the pages' lines one after another.)
+            const QString whole = many->story()->toPlainText();
+            QString shown;
+            int last = 0;
+            for (int i = 0; i < pages; ++i)
+                for (const auto &l : many->pager().lines(i)) {
+                    QVERIFY2(l.pos >= last, qPrintable(QStringLiteral("a line at %1 begins before the one before it ends, at %2").arg(l.pos).arg(last)));
+                    shown += whole.mid(l.pos, l.end - l.pos);
+                    last = l.end;
+                }
+            QCOMPARE(last, many->story()->characterCount() - 1);
+            QCOMPARE(shown.remove(QLatin1Char('\n')), QString(whole).remove(QLatin1Char('\n')));
+        }
+    }
+
+    // A run of paragraphs with deleted marks is cut into paragraphs of 32 of them (counted by the paragraphs' numbers in the story), whatever the run's length: the longest one made is 32.
+    void aLongRunOfJoinedParagraphsIsCutIntoParagraphsOfThirtyTwo()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        QByteArray body;
+        for (int i = 0; i < 100; ++i) body += "<w:p><w:pPr>" + (i + 1 < 100 ? deleted : QByteArray()) + "</w:pPr><w:r><w:t xml:space=\"preserve\">paragraph " + QByteArray::number(i) + " </w:t></w:r></w:p>";
+        StoryLayout::resetLongestJoinedParagraphsForTest();
+        auto doc = open(makeDocx(body, kStyles));
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() >= 1);
+        QCOMPARE(StoryLayout::longestJoinedParagraphsForTest(), qint64(StoryLayout::kMostJoinedParagraphs));
+    }
+
+    // The runs are cut at the same places wherever a layout begins: one that begins in the paragraph after a cut, or in the rest of a paragraph, has the lines the layout of the whole
+    // story has (the same paragraphs, every word once), and the items of a list are numbered as they are there (a run is one item).
+    void aJoinedRunIsCutAtTheSamePlacesWhereverALayoutBegins()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        const QByteArray level = "<w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/><w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl>";
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\">" + level + "</w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        const QByteArray item = "<w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"6000\" w:h=\"4800\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+        const int count = 70;
+        QByteArray body;
+        for (int i = 0; i < count; ++i)
+            body += "<w:p><w:pPr>" + item + (i + 1 < count ? deleted : QByteArray()) + "</w:pPr><w:r><w:t xml:space=\"preserve\">paragraph " + QByteArray::number(i) + " of the run goes on a while. </w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles, numbering, sect));
+        QVERIFY(doc);
+        const QTextDocument *story = doc->story();
+        const QString whole = story->toPlainText();
+        auto at = [&](int number) { return story->findBlockByNumber(number).position(); };
+        FrameSpec fs;
+        fs.size = QSizeF(300, 100000);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        fs.hyphenate = false;
+        auto markers = [&](const StoryLayout &layout) {
+            QMap<int, QString> out;
+            for (const auto &l : layout.lineInfo(0))
+                if (!l.marker.isEmpty()) out[l.docStart] = l.marker;
+            return out;
+        };
+        StoryLayout topDown;
+        topDown.build(story, {fs}, doc->flow().env);
+        const auto all = topDown.lineBriefs();
+        // (Runs of 32 paragraphs by their numbers: 0 to 31, 32 to 63, and 64 to 69, each an item: 1., 2., and 3.)
+        const auto top = markers(topDown);
+        QCOMPARE(top.size(), 3);
+        QCOMPARE(top.value(at(0)), QStringLiteral("1."));
+        QCOMPARE(top.value(at(32)), QStringLiteral("2."));
+        QCOMPARE(top.value(at(64)), QStringLiteral("3."));
+        // A layout that begins in paragraph 33, laid out whole, is that of the run from paragraph 32 on.
+        {
+            StoryLayout::Span span;
+            span.from = at(33);
+            StoryLayout later;
+            later.build(story, {fs}, doc->flow().env, span);
+            QVector<StoryLayout::LineBrief> wanted;
+            for (const auto &l : all)
+                if (l.block >= at(32)) wanted << l;
+            const auto got = later.lineBriefs();
+            QCOMPARE(got.size(), wanted.size());
+            for (int i = 0; i < got.size(); ++i)
+                QVERIFY2(got[i].block == wanted[i].block && got[i].line == wanted[i].line && got[i].pos == wanted[i].pos && got[i].end == wanted[i].end,
+                         qPrintable(QStringLiteral("line %1 is %2 to %3 of the paragraph at %4, the whole story's %5 to %6 of the one at %7").arg(i).arg(got[i].pos).arg(got[i].end).arg(got[i].block)
+                                        .arg(wanted[i].pos).arg(wanted[i].end).arg(wanted[i].block)));
+            QMap<int, QString> expected = top;
+            expected.remove(at(0));
+            QCOMPARE(markers(later), expected);
+        }
+        // One that begins in the rest of a paragraph in the middle of the second run shows every word of the rest once.
+        {
+            StoryLayout::Span span;
+            span.from = at(40) + 3;
+            span.continued = true;
+            StoryLayout rest;
+            rest.build(story, {fs}, doc->flow().env, span);
+            QString shown;
+            int last = span.from;
+            for (const auto &l : rest.lineBriefs()) {
+                QVERIFY2(l.pos >= last, qPrintable(QStringLiteral("a line at %1 begins before the one before it ends, at %2").arg(l.pos).arg(last)));
+                shown += whole.mid(l.pos, l.end - l.pos);
+                last = l.end;
+            }
+            QCOMPARE(shown.remove(QLatin1Char('\n')), whole.mid(span.from).remove(QLatin1Char('\n')));
+        }
+        // And the pages, which begin where the lines run out of room (in the middle of a run, and at the cut), show every word once.
+        {
+            const int pages = doc->pager().pageCount();
+            QVERIFY(pages >= 3);
+            QString shown;
+            int last = 0;
+            for (int i = 0; i < pages; ++i)
+                for (const auto &l : doc->pager().lines(i)) {
+                    QVERIFY2(l.pos >= last, qPrintable(QStringLiteral("page %1: a line at %2 begins before the one before it ends, at %3").arg(i + 1).arg(l.pos).arg(last)));
+                    shown += whole.mid(l.pos, l.end - l.pos);
+                    last = l.end;
+                }
+            QCOMPARE(shown.remove(QLatin1Char('\n')), QString(whole).remove(QLatin1Char('\n')));
+        }
+    }
+
+    // The copy of the text that a page is drawn from holds the page's own text of a run of joined paragraphs, not the whole of the run's paragraphs: the characters copied for the pages
+    // of thirty-two paragraphs of thousands of characters, each page a few lines of them, are about the characters there are, not that many for every page. (Counted.)
+    void thePagesCopiesOfAJoinedRunHoldOnlyTheirOwnText()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"6000\" w:h=\"4800\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+        QByteArray body;
+        for (int i = 0; i < 32; ++i) {
+            QByteArray text;
+            for (int w = 0; w < 200; ++w) text += "word" + QByteArray::number(w % 10) + " ";
+            body += "<w:p><w:pPr>" + (i < 31 ? deleted : QByteArray()) + "</w:pPr><w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r></w:p>";
+        }
+        body += "<w:p><w:r><w:t>After.</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles, QByteArray(), sect));
+        QVERIFY(doc);
+        const int pages = doc->pager().pageCount();
+        QVERIFY2(pages >= 40, qPrintable(QString::number(pages)));
+        const qint64 before = doc->pager().charsCopiedForTest();
+        for (int i = 0; i < pages; ++i) QVERIFY(doc->pager().materialize(i));
+        const qint64 copied = doc->pager().charsCopiedForTest() - before, length = doc->story()->characterCount();
+        QVERIFY2(copied <= 2 * length, qPrintable(QStringLiteral("%1 characters copied for the %2 pages of a story of %3").arg(copied).arg(pages).arg(length)));
+    }
+
+    // A page break that ends the last line of a run of joined paragraphs, with no room on the page for the empty line after it, goes on at the paragraph after the run: nothing of the run
+    // (its empty last paragraph, here) is on the next page again.
+    void aPageBreakEndingAJoinedRunGoesOnAfterTheRun()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        // (A page that holds one line.)
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"6000\" w:h=\"1840\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+        auto linesOfPages = [&](const QByteArray &runEnd) {
+            const QByteArray body = "<w:p><w:pPr>" + deleted + "</w:pPr><w:r><w:t>alpha</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r></w:p>" + runEnd + "<w:p><w:r><w:t>After</w:t></w:r></w:p>";
+            auto doc = open(makeDocx(body, kStyles, QByteArray(), sect));
+            QStringList out;
+            if (!doc) return out;
+            const QString whole = doc->story()->toPlainText();
+            const int pages = doc->pager().pageCount();
+            for (int i = 0; i < pages; ++i) {
+                QStringList texts;
+                for (const auto &l : doc->pager().lines(i)) texts << whole.mid(l.pos, l.end - l.pos).remove(QLatin1Char('\n')).remove(QChar(0x000C));
+                out << texts.join(QLatin1Char('|'));
+            }
+            return out;
+        };
+        // The run ends with an empty paragraph: the page after the break is the paragraph after it, as when the run is one paragraph.
+        const QStringList joined = linesOfPages("<w:p/>");
+        QStringList alone;   // (the same as one paragraph that is the break, and the paragraph after it)
+        {
+            const QByteArray body = "<w:p><w:r><w:t>alpha</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r></w:p><w:p><w:r><w:t>After</w:t></w:r></w:p>";
+            auto doc = open(makeDocx(body, kStyles, QByteArray(), sect));
+            QVERIFY(doc);
+            const QString whole = doc->story()->toPlainText();
+            for (int i = 0; i < doc->pager().pageCount(); ++i) {
+                QStringList texts;
+                for (const auto &l : doc->pager().lines(i)) texts << whole.mid(l.pos, l.end - l.pos).remove(QLatin1Char('\n')).remove(QChar(0x000C));
+                alone << texts.join(QLatin1Char('|'));
+            }
+        }
+        QVERIFY2(joined.size() >= 2 && joined.last().contains(QStringLiteral("After")), qPrintable(joined.join(QStringLiteral(" // "))));
+        QCOMPARE(joined.size(), alone.size());
+    }
+
+    // What changes a run of joined paragraphs as a whole (the properties of its last paragraph, which the lines of all of them have) lays the pages of it out again from its first paragraph:
+    // the pages after such an edit are those of a document that had the change from the start.
+    void anEditOfTheLastParagraphOfAJoinedRunLaysOutAgainFromTheFirst()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"6000\" w:h=\"4800\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+        auto words = [](int count, const char *word) {
+            QByteArray out;
+            for (int i = 0; i < count; ++i) out += QByteArray(word) + QByteArray::number(i % 10) + " ";
+            return out;
+        };
+        auto bodyWith = [&](const QByteArray &lastProps) {
+            return "<w:p><w:pPr>" + deleted + "</w:pPr><w:r><w:t xml:space=\"preserve\">" + words(300, "alpha") + "</w:t></w:r></w:p>"
+                   "<w:p><w:pPr>" + deleted + "</w:pPr><w:r><w:t xml:space=\"preserve\">" + words(60, "beta") + "</w:t></w:r></w:p>"
+                   "<w:p><w:pPr>" + lastProps + "</w:pPr><w:r><w:t xml:space=\"preserve\">" + words(80, "gamma") + "</w:t></w:r></w:p><w:p><w:r><w:t>After</w:t></w:r></w:p>";
+        };
+        auto edited = open(makeDocx(bodyWith(QByteArray()), kStyles, QByteArray(), sect));
+        auto fresh = open(makeDocx(bodyWith("<w:ind w:left=\"1200\"/>"), kStyles, QByteArray(), sect));
+        QVERIFY(edited && fresh);
+        QVERIFY(edited->pager().pageCount() >= 4);
+        QTextCursor c(edited->story());
+        c.setPosition(edited->story()->findBlockByNumber(2).position() + 1);
+        QTextBlockFormat bf = c.blockFormat();
+        bf.setLeftMargin(60);
+        c.setBlockFormat(bf);
+        const int pages = edited->pager().pageCount();
+        QCOMPARE(pages, fresh->pager().pageCount());
+        for (int i = 0; i < pages; ++i) {
+            const auto a = edited->pager().lines(i), b = fresh->pager().lines(i);
+            QVERIFY2(a.size() == b.size(), qPrintable(QStringLiteral("page %1 has %2 lines, the new document's %3").arg(i + 1).arg(a.size()).arg(b.size())));
+            for (int k = 0; k < a.size(); ++k) QVERIFY2(a[k].pos == b[k].pos && a[k].end == b[k].end && a[k].rect == b[k].rect, qPrintable(QStringLiteral("page %1 line %2 differs").arg(i + 1).arg(k)));
+        }
+    }
+
+    // The bullet or number of a run of joined paragraphs is set from the properties of the run's last, as the lines are: it is where it is for that paragraph alone.
+    void theNumberOfAJoinedRunIsSetFromItsLastParagraph()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        const QByteArray level = "<w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/><w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl>";
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\">" + level + "</w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        const QByteArray item = "<w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr>";
+        const QByteArray own = "<w:ind w:left=\"2160\" w:hanging=\"720\"/>";
+        auto markerOf = [&](const QByteArray &body) {
+            auto doc = open(makeDocx(body, kStyles, numbering));
+            if (!doc) return -1000.0;
+            FrameSpec fs;
+            fs.size = QSizeF(400, 10000);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            StoryLayout layout;
+            layout.build(doc->story(), {fs}, doc->flow().env);
+            for (const auto &l : layout.lineInfo(0))
+                if (!l.marker.isEmpty()) return l.markerX;
+            return -1001.0;
+        };
+        const double joined = markerOf("<w:p><w:pPr>" + item + deleted + "</w:pPr><w:r><w:t>first </w:t></w:r></w:p><w:p><w:pPr>" + item + own + "</w:pPr><w:r><w:t>second</w:t></w:r></w:p>");
+        const double alone = markerOf("<w:p><w:pPr>" + item + own + "</w:pPr><w:r><w:t>first second</w:t></w:r></w:p>");
+        QVERIFY2(joined > -1000 && alone > -1000, qPrintable(QStringLiteral("%1 and %2").arg(joined).arg(alone)));
+        QVERIFY2(std::abs(joined - alone) < 0.5, qPrintable(QStringLiteral("the number is at %1 where the last paragraph alone has it at %2").arg(joined).arg(alone)));
+    }
+
+    // Backspace and Delete at the junction of a run of joined paragraphs, at the end of the first and at the start of the next, keep every character of the text and leave a layout that
+    // shows it: nothing is lost, and nothing is laid out twice.
+    void backspaceAndDeleteAtTheJunctionOfAJoinedRunKeepEveryCharacter()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        const QByteArray body = "<w:p><w:pPr>" + deleted + "</w:pPr><w:r><w:t>alpha</w:t></w:r></w:p><w:p><w:pPr>" + deleted + "</w:pPr><w:r><w:t>beta</w:t></w:r></w:p><w:p><w:r><w:t>gamma</w:t></w:r></w:p>";
+        auto letters = [](WriteDoc &doc) { return doc.story()->toPlainText().remove(QLatin1Char('\n')); };
+        for (int variant = 0; variant < 4; ++variant) {
+            auto doc = open(makeDocx(body, kStyles));
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            const int junction = doc->story()->findBlockByNumber(variant < 2 ? 1 : 2).position();
+            c.setPosition(variant % 2 ? junction - 1 : junction);
+            if (variant % 2) deleteForward(*doc, c, false);
+            else deleteBack(*doc, c, false);
+            QCOMPARE(letters(*doc), QStringLiteral("alphabetagamma"));
+            const QString whole = doc->story()->toPlainText();
+            QString shown;
+            int last = 0;
+            for (int i = 0; i < doc->pager().pageCount(); ++i)
+                for (const auto &l : doc->pager().lines(i)) {
+                    QVERIFY2(l.pos >= last, qPrintable(QStringLiteral("variant %1: a line at %2 begins before the one before it ends, at %3").arg(variant).arg(l.pos).arg(last)));
+                    shown += whole.mid(l.pos, l.end - l.pos);
+                    last = l.end;
+                }
+            QCOMPARE(shown.remove(QLatin1Char('\n')), QStringLiteral("alphabetagamma"));
+            const QByteArray x = documentXml(doc->toDocx());
+            QVERIFY2(x.contains("alpha") && x.contains("beta") && x.contains("gamma"), x.constData());
+        }
+    }
+
+    // A deleted mark never joins the paragraphs of two table cells, nor a cell's last paragraph and the one after the table: the text of each cell is in its own cell, once.
+    void aDeletedMarkNeverJoinsTheParagraphsOfTwoCells()
+    {
+        const QByteArray deleted = "<w:rPr><w:del w:id=\"7\" w:author=\"a\"/></w:rPr>";
+        auto cell = [&](const char *text, bool markDeleted) {
+            return "<w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr><w:p><w:pPr>" + QByteArray(markDeleted ? deleted : QByteArray()) + "</w:pPr><w:r><w:t>" + text + "</w:t></w:r></w:p></w:tc>";
+        };
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"6000\" w:type=\"dxa\"/><w:tblLayout w:type=\"fixed\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/><w:gridCol w:w=\"3000\"/></w:tblGrid>"
+                                 "<w:tr>" + cell("CELLONE", true) + cell("CELLTWO", true) + "</w:tr></w:tbl>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Before</w:t></w:r></w:p>" + table + "<w:p><w:r><w:t>After</w:t></w:r></w:p>", kStyles));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        QCOMPARE(page->tables.size(), 1);
+        const QString whole = doc->story()->toPlainText();
+        QStringList texts;
+        page->tables.first()->forLines([&](const StoryLayout::LineBrief &line, const QRectF &) { texts << whole.mid(line.pos, line.end - line.pos).remove(QLatin1Char('\n')); });
+        texts.sort();
+        QCOMPARE(texts, (QStringList{QStringLiteral("CELLONE"), QStringLiteral("CELLTWO")}));
+        // The paragraph after the table is its own line, and the one before.
+        QStringList outside;
+        for (const auto &l : doc->pager().lines(0)) outside << whole.mid(l.pos, l.end - l.pos).remove(QLatin1Char('\n'));
+        QVERIFY2(outside.contains(QStringLiteral("Before")) && outside.contains(QStringLiteral("After")), qPrintable(outside.join(QLatin1Char('|'))));
+    }
+
     // What a paste from another document brings that points into the first's notes and objects points at nothing of the second's: a reference to a note is
     // left out (its text isn't there), and an object's place on the page isn't carried (the object isn't there); the rest of what was copied is.
     void aPasteFromAnotherDocumentLeavesNoDanglingNoteOrObject()
@@ -4920,6 +5323,24 @@ private Q_SLOTS:
         // (Before a section on a page of its own the empty paragraph keeps its line: the section after starts on the next page.)
         const auto apart = linesWith(QByteArray());
         QCOMPARE(int(apart.size()), 2);
+    }
+
+    // The empty paragraph that ends a section keeps its line when it is the first paragraph of the document (nothing is above it for its break to be the end of): the text after it is
+    // where it is below an empty paragraph of its own, whatever the next section's type.
+    void anEmptyBreakParagraphThatBeginsTheDocumentKeepsItsLine()
+    {
+        auto tops = [&](const QByteArray &firstParagraph, const QByteArray &type) {
+            const QByteArray second = "<w:p><w:r><w:t>Second</w:t></w:r></w:p>";
+            const QByteArray last = "<w:sectPr>" + type + "<w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+            auto doc = open(makeDocxWithParts(firstParagraph + second, last, {}));
+            const auto lines = doc ? doc->pager().lines(0) : QVector<StoryLayout::LineBrief>();
+            return lines.isEmpty() ? -1.0 : lines.last().rect.top();
+        };
+        const QByteArray breaking = "<w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr></w:pPr></w:p>";
+        const QByteArray ordinary = "<w:p/>";
+        const double continuous = tops(breaking, "<w:type w:val=\"continuous\"/>"), below = tops(ordinary, QByteArray());
+        QVERIFY(continuous >= 0 && below > 0);
+        QVERIFY2(std::abs(continuous - below) < 0.01, qPrintable(QStringLiteral("the text is at %1 after the break paragraph, %2 after an empty paragraph").arg(continuous).arg(below)));
     }
 
     // The columns of a continuous section that has more of them than the section before it begin where that section's text ends: the empty paragraph that ends the section before
@@ -5476,6 +5897,52 @@ private Q_SLOTS:
         const double one = contentTop(plain), tab = contentTop(tabbed);
         QVERIFY(one > 0 && tab > 0);
         QVERIFY2(std::abs(tab - one) < 0.1, qPrintable(QStringLiteral("the header with a right tab into the margin makes the text start at %1, one line at %2").arg(tab).arg(one)));
+    }
+
+    // Tabs that end a paragraph, after its last visible character, take no width and cause no wrap: with stops at 144, 288, and 468 points (the text area's edge) the fourth of four
+    // trailing tabs is past the margin, and the paragraph is still one line. Tabs that something follows are as they were (a tab past the margin takes the text after it to the next line).
+    void tabsThatEndAParagraphCauseNoWrap()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray stops = "<w:pPr><w:tabs><w:tab w:val=\"left\" w:pos=\"2880\"/><w:tab w:val=\"left\" w:pos=\"5760\"/><w:tab w:val=\"left\" w:pos=\"9360\"/></w:tabs></w:pPr>";
+        auto linesOf = [&](const QByteArray &runs) {
+            auto doc = open(makeDocxWithParts("<w:p>" + stops + runs + "</w:p>", sect, {}));
+            return doc ? int(doc->pager().lines(0).size()) : -1;
+        };
+        const QByteArray tab = "<w:r><w:tab/></w:r>";
+        const QByteArray total = "<w:r><w:t>Total</w:t></w:r>";
+        QCOMPARE(linesOf(total + tab + tab + tab), 1);
+        QCOMPARE(linesOf(total + tab + tab + tab + tab), 1);
+        QCOMPARE(linesOf(total + tab + tab + tab + tab + tab + tab), 1);
+        QCOMPARE(linesOf(total + tab + total + tab + tab + tab + tab), 1);
+        QCOMPARE(linesOf(total + tab + tab + tab + tab + total), 2);
+    }
+
+    // Trailing tabs that draw something keep their width: a signature line made of underlined tabs after the words is drawn to the margin, where tabs that show nothing take none.
+    void trailingTabsThatAreUnderlinedAreDrawn()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray stops = "<w:pPr><w:tabs><w:tab w:val=\"left\" w:pos=\"2880\"/><w:tab w:val=\"left\" w:pos=\"5760\"/><w:tab w:val=\"left\" w:pos=\"9360\"/></w:tabs></w:pPr>";
+        auto inkBeyondTheWords = [&](const QByteArray &tabRunProps) {
+            QByteArray tabs;
+            for (int i = 0; i < 6; ++i) tabs += "<w:r>" + tabRunProps + "<w:tab/></w:r>";
+            auto doc = open(makeDocxWithParts("<w:p>" + stops + "<w:r><w:t>Signature:</w:t></w:r>" + tabs + "</w:p>", sect, {}));
+            if (!doc) return -1;
+            PageView view;
+            view.resize(1000, 700);
+            view.setDocument(doc.get());
+            const QImage img = view.pageImage(0, 816);
+            const double perPoint = img.width() / 612.0;
+            int dark = 0;   // (in the lines of the paragraph, right of where its words end)
+            for (int y = int(72 * perPoint); y < int(100 * perPoint); ++y)
+                for (int x = int(200 * perPoint); x < int(460 * perPoint); ++x) dark += qGray(img.pixel(x, y)) < 128;
+            return dark;
+        };
+        const int underlined = inkBeyondTheWords("<w:rPr><w:u w:val=\"single\"/></w:rPr>"), plain = inkBeyondTheWords(QByteArray());
+        QCOMPARE(plain, 0);
+        QVERIFY2(underlined > 100, qPrintable(QStringLiteral("%1 dark points of the underline of the tabs").arg(underlined)));
     }
 
     // The border a file puts round a run (w:bdr) is the run's, drawn round its text; a drop-down field of a form, which shows the entry it has chosen, shows its first entry when the
@@ -6551,6 +7018,203 @@ private Q_SLOTS:
         auto set = std::dynamic_pointer_cast<PictureItem>(inlineObjectOf(*inlineDoc));
         QVERIFY(set);
         QVERIFY2(set->stroke.isNone(), "an inline picture with one side set has no outline");
+    }
+
+    // A text box that holds a table lays it out in the box: the rows are drawn under the paragraph before them, as wide as their columns, in the room the box has, and the paragraph that
+    // takes their place in the box's text is as tall as they are (so the text after them goes below). The fill a box says it has none of (v:fill opacity 0, however it is written) is not
+    // drawn, and one that is opaque is.
+    void aTableInATextBoxIsLaidOutInTheBox()
+    {
+        const QByteArray cell = "<w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>CELLTEXT</w:t></w:r></w:p></w:tc>";
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"4000\" w:type=\"dxa\"/><w:tblLayout w:type=\"fixed\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid>"
+                                 "<w:tr>" + cell + cell + "</w:tr><w:tr>" + cell + cell + "</w:tr></w:tbl>";
+        const QByteArray box = "<w:r><w:pict " + QByteArray(kVml) + "><v:shape id=\"b\" style=\"position:absolute;margin-left:100pt;margin-top:200pt;width:300pt;height:250pt;z-index:3;"
+                               "mso-position-horizontal-relative:page;mso-position-vertical-relative:page\" stroked=\"f\"><v:fill opacity=\"0\" color2=\"black\"/>"
+                               "<v:textbox inset=\"10pt,0,0,0\"><w:txbxContent><w:p><w:r><w:t>BOXTITLE</w:t></w:r></w:p>" + table + "<w:p><w:r><w:t>BOXAFTER</w:t></w:r></w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Body</w:t></w:r>" + box + "</w:p>", kStyles));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        std::shared_ptr<TextItem> item;
+        QString text;
+        for (const auto &candidate : page->doc->pages[0]->items)
+            if (const auto textItem = std::dynamic_pointer_cast<TextItem>(candidate))
+                if (page->doc->story(textItem->storyId) && page->doc->story(textItem->storyId)->doc->toPlainText().contains(QLatin1String("BOXTITLE"))) {
+                    item = textItem;
+                    text = page->doc->story(textItem->storyId)->doc->toPlainText();
+                }
+        QVERIFY2(item, "the text box is on the page");
+        QVERIFY2(text.contains(QLatin1String("BOXAFTER")) && !text.contains(QLatin1String("CELLTEXT")), qPrintable(text));   // (the cells are drawn by their rows)
+        QCOMPARE(page->furnitureTables.size(), 1);
+        const auto &rows = page->furnitureTables.first();
+        QCOMPARE(rows->layout->cellCount(), 4);
+        const QRectF at = rows->rect();
+        QVERIFY2(std::abs(at.width() - 200) < 0.5, qPrintable(QString::number(at.width())));   // (two columns of 100 points)
+        // (The rows' edge is where the box's text begins, or left of it by the room a cell keeps at its side: the first cell's text is where the text of the paragraphs is.)
+        QVERIFY2(at.left() > item->rect.left() + 10 - 6 && at.left() < item->rect.left() + 10 + 0.5, qPrintable(QStringLiteral("rows at %1, the box's text at %2").arg(at.left()).arg(item->rect.left() + 10)));
+        QVERIFY2(at.top() > item->rect.top() + 1 && at.bottom() < item->rect.bottom(), qPrintable(QStringLiteral("rows from %1 to %2 in a box from %3 to %4").arg(at.top()).arg(at.bottom()).arg(item->rect.top()).arg(item->rect.bottom())));
+        // The paragraph in their place is as tall as they are: the last line of the story holds nothing but the paragraph after.
+        const QTextBlock place = page->doc->story(item->storyId)->doc->findBlockByNumber(1);
+        QVERIFY2(place.blockFormat().lineHeightType() == QTextBlockFormat::FixedHeight && std::abs(place.blockFormat().lineHeight() - at.height()) < 0.01,
+                 qPrintable(QStringLiteral("the place is %1 high, the rows %2").arg(place.blockFormat().lineHeight()).arg(at.height())));
+        // The box has no fill where the file says it has none (an opacity of nothing, in any of its forms); an opaque one, or half of one, is drawn, and so is one that fades in
+        // from nothing (a second opacity that is not nothing).
+        QCOMPARE(item->fill.type, Fill::NoFill);
+        auto fillWith = [&](const QByteArray &fillElement) {
+            QByteArray b = box;
+            b.replace("<v:fill opacity=\"0\" color2=\"black\"/>", fillElement);
+            auto other = open(makeDocx("<w:p><w:r><w:t>Body</w:t></w:r>" + b + "</w:p>", kStyles));
+            if (!other) return -2;
+            const auto made = other->pager().materialize(0);
+            if (!made) return -2;
+            for (const auto &candidate : made->doc->pages[0]->items)
+                if (const auto textItem = std::dynamic_pointer_cast<TextItem>(candidate))
+                    if (made->doc->story(textItem->storyId) && made->doc->story(textItem->storyId)->doc->toPlainText().contains(QLatin1String("BOXTITLE"))) return int(textItem->fill.type);
+            return -1;   // (the box is not on the page)
+        };
+        for (const char *opacity : {"0", "0%", "0f", "0.0"})
+            QVERIFY2(fillWith(QByteArray("<v:fill opacity=\"") + opacity + "\"/>") == int(Fill::NoFill), opacity);
+        for (const char *opacity : {"1", "50%", "32768f", ".5"})
+            QVERIFY2(fillWith(QByteArray("<v:fill opacity=\"") + opacity + "\"/>") == int(Fill::Solid), opacity);
+        QVERIFY2(fillWith("<v:fill opacity=\"0\" o:opacity2=\"1\" color2=\"black\" type=\"gradient\"/>") == int(Fill::Solid), "a fill that fades in from nothing");
+    }
+
+    // A box filled with a picture that has no opacity is not drawn with it.
+    void aPictureFillOfNoOpacityIsNotDrawn()
+    {
+        auto fillOf = [&](const QByteArray &fill) {
+            auto doc = open(makeDocxWithPicture("<w:p><w:r><w:t>Text</w:t></w:r><w:r><w:pict " + QByteArray(kVml) + "><v:rect id=\"t\" style=\"position:absolute;margin-left:10pt;margin-top:5pt;width:120pt;height:40pt;z-index:3\" stroked=\"f\">" + fill +
+                                                 "<v:textbox inset=\"0,0,0,0\"><w:txbxContent><w:p><w:r><w:t>BOXTEXT</w:t></w:r></w:p></w:txbxContent></v:textbox></v:rect></w:pict></w:r></w:p>"));
+            if (!doc) return -2;
+            const auto page = doc->pager().materialize(0);
+            if (!page) return -2;
+            for (const auto &item : page->doc->pages[0]->items)
+                if (const auto box = std::dynamic_pointer_cast<TextItem>(item))
+                    if (page->doc->story(box->storyId) && page->doc->story(box->storyId)->doc->toPlainText().contains(QLatin1String("BOXTEXT"))) return int(box->fill.type);
+            return -1;
+        };
+        QCOMPARE(fillOf("<v:fill r:id=\"rIdPic\" type=\"frame\"/>"), int(Fill::Picture));
+        QCOMPARE(fillOf("<v:fill r:id=\"rIdPic\" type=\"frame\" opacity=\"0\"/>"), int(Fill::NoFill));
+    }
+
+    // A text box of a header holds its table as one of the body does: the rows are drawn in the box, and the cells' paragraphs are not stacked in its text.
+    void aTableInATextBoxOfAHeaderIsLaidOutInTheBox()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray cell = "<w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>CELLTEXT</w:t></w:r></w:p></w:tc>";
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"4000\" w:type=\"dxa\"/><w:tblLayout w:type=\"fixed\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid>"
+                                 "<w:tr>" + cell + cell + "</w:tr></w:tbl>";
+        const QByteArray shape = "<w:r><w:pict><v:shape id=\"s1\" style=\"position:absolute;margin-left:100pt;margin-top:30pt;width:300pt;height:100pt;z-index:1;mso-position-horizontal-relative:page;"
+                                 "mso-position-vertical-relative:page\" filled=\"f\" stroked=\"f\"><v:textbox><w:txbxContent><w:p><w:r><w:t>HEADBOX</w:t></w:r></w:p>" + table +
+                                 "<w:p/></w:txbxContent></v:textbox><w10:wrap type=\"none\"/></v:shape></w:pict></w:r>";
+        QByteArray header = headerPart("hdr", {shape});
+        header.replace("<w:hdr ", "<w:hdr xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\" ");
+        auto doc = open(makeDocxWithParts(paragraphs(3, 5), sect, {{QStringLiteral("/word/header1.xml"), header}}));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        QCOMPARE(page->furnitureTables.size(), 1);
+        QString text;
+        QRectF box;
+        for (const auto &candidate : page->doc->pages[0]->items)
+            if (const auto textItem = std::dynamic_pointer_cast<TextItem>(candidate))
+                if (page->doc->story(textItem->storyId) && page->doc->story(textItem->storyId)->doc->toPlainText().contains(QLatin1String("HEADBOX"))) {
+                    text = page->doc->story(textItem->storyId)->doc->toPlainText();
+                    box = textItem->rect;
+                }
+        QVERIFY2(text.contains(QLatin1String("HEADBOX")) && !text.contains(QLatin1String("CELLTEXT")), qPrintable(text));
+        // The rows are in the box (a point's room for rounding), below the box's first paragraph.
+        const QRectF rows = page->furnitureTables.first()->rect();
+        QVERIFY2(box.adjusted(-1, -1, 1, 1).contains(rows) && rows.top() > box.top() + 1, qPrintable(QStringLiteral("rows %1,%2 %3x%4 in a box at %5,%6 %7x%8").arg(rows.left()).arg(rows.top()).arg(rows.width()).arg(rows.height()).arg(box.left()).arg(box.top()).arg(box.width()).arg(box.height())));
+    }
+
+    // The rows of a box's table are clipped to the box: a table taller than its box shows nothing below it. (Ink below the box is counted.)
+    void aTextBoxClipsItsTable()
+    {
+        const QByteArray row = "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"4000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:sz w:val=\"28\"/></w:rPr><w:t>ROWTEXT</w:t></w:r></w:p></w:tc></w:tr>";
+        QByteArray rows;
+        for (int i = 0; i < 12; ++i) rows += row;
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"4000\" w:type=\"dxa\"/><w:tblLayout w:type=\"fixed\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"4000\"/></w:tblGrid>" + rows + "</w:tbl>";
+        const QByteArray box = "<w:r><w:pict " + QByteArray(kVml) + "><v:shape id=\"b\" style=\"position:absolute;margin-left:100pt;margin-top:300pt;width:300pt;height:60pt;z-index:3;"
+                               "mso-position-horizontal-relative:page;mso-position-vertical-relative:page\" filled=\"f\" stroked=\"f\"><v:textbox inset=\"0,0,0,0\"><w:txbxContent><w:p><w:r><w:t>BOXTITLE</w:t></w:r></w:p>" +
+                               table + "<w:p/></w:txbxContent></v:textbox></v:shape></w:pict></w:r>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Body</w:t></w:r>" + box + "</w:p>", kStyles));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        QCOMPARE(page->furnitureTables.size(), 1);
+        QVERIFY2(page->furnitureTables.first()->rect().bottom() > 300 + 60 + 40, "the table is taller than the box");
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        const QImage img = view.pageImage(0, 816);
+        const double perPoint = img.width() / 612.0;
+        int below = 0, inside = 0;
+        for (int y = int(300 * perPoint); y < int(520 * perPoint); ++y)
+            for (int x = int(100 * perPoint); x < int(400 * perPoint); ++x) (y < int(360 * perPoint) ? inside : below) += qGray(img.pixel(x, y)) < 128;
+        QVERIFY2(inside > 50, "the box shows its rows");
+        QVERIFY2(below == 0, qPrintable(QStringLiteral("%1 dark points of the table below its box").arg(below)));
+    }
+
+    // The tables of text boxes in a header are laid out once for the pages, not again on each page: the boxes' tables are held apart from the header's own, and from one another's, within
+    // their own bound. (Counted: the tables laid out over twenty pages.)
+    void theTablesOfAHeadersTextBoxesAreNotLaidOutAgainOnEachPage()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        QByteArray cells;
+        for (int i = 0; i < 190; ++i) cells += "<w:tc><w:tcPr><w:tcW w:w=\"200\" w:type=\"dxa\"/></w:tcPr><w:p/></w:tc>";
+        QByteArray grid;
+        for (int i = 0; i < 190; ++i) grid += "<w:gridCol w:w=\"200\"/>";
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"38000\" w:type=\"dxa\"/><w:tblLayout w:type=\"fixed\"/></w:tblPr><w:tblGrid>" + grid + "</w:tblGrid><w:tr>" + cells + "</w:tr><w:tr>" + cells + "</w:tr></w:tbl>";
+        QByteArray shapes;
+        for (int i = 0; i < 5; ++i)
+            shapes += "<w:r><w:pict><v:shape id=\"s" + QByteArray::number(i) + "\" style=\"position:absolute;margin-left:" + QByteArray::number(20 + i * 10) + "pt;margin-top:30pt;width:300pt;height:100pt;z-index:" +
+                      QByteArray::number(i + 1) + ";mso-position-horizontal-relative:page;mso-position-vertical-relative:page\" filled=\"f\" stroked=\"f\"><v:textbox><w:txbxContent><w:p><w:r><w:t>HEADBOX</w:t></w:r></w:p>" + table +
+                      "<w:p/></w:txbxContent></v:textbox><w10:wrap type=\"none\"/></v:shape></w:pict></w:r>";
+        QByteArray header = QByteArray("<w:hdr ") + kNs + " xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\">" + table + "<w:p>" + shapes + "</w:p></w:hdr>";
+        auto doc = open(makeDocxWithParts(paragraphs(200, 60), sect, {{QStringLiteral("/word/header1.xml"), header}}));
+        QVERIFY(doc);
+        const int pages = doc->pager().pageCount();
+        QVERIFY2(pages >= 20, qPrintable(QString::number(pages)));
+        const qint64 before = doc->pager().headerTablesLaidOutForTest();
+        for (int i = 0; i < 20; ++i) QVERIFY(doc->pager().materialize(i));
+        const qint64 made = doc->pager().headerTablesLaidOutForTest() - before;
+        QVERIFY2(made <= 12, qPrintable(QStringLiteral("%1 layouts of tables for 20 pages of a header with 6 stories of tables").arg(made)));
+    }
+
+    // The tables of text boxes are bounded in all, whatever the number of boxes: a file of many boxes each with a table of a thousand cells has the tables of the first laid out in
+    // their boxes, and the rest kept as they were (their boxes are drawn without them).
+    void theTablesOfManyTextBoxesAreBoundedInAll()
+    {
+        QByteArray grid, cells;
+        for (int i = 0; i < 250; ++i) {
+            grid += "<w:gridCol w:w=\"200\"/>";
+            cells += "<w:tc><w:tcPr><w:tcW w:w=\"200\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>x</w:t></w:r></w:p></w:tc>";
+        }
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"50000\" w:type=\"dxa\"/><w:tblLayout w:type=\"fixed\"/></w:tblPr><w:tblGrid>" + grid + "</w:tblGrid>"
+                                 "<w:tr>" + cells + "</w:tr><w:tr>" + cells + "</w:tr><w:tr>" + cells + "</w:tr><w:tr>" + cells + "</w:tr></w:tbl>";
+        QByteArray body = "<w:p><w:r><w:t>Body</w:t></w:r>";
+        const int boxes = 12;
+        for (int i = 0; i < boxes; ++i)
+            body += "<w:r><w:pict " + QByteArray(kVml) + "><v:shape id=\"b" + QByteArray::number(i) + "\" style=\"position:absolute;margin-left:100pt;margin-top:" + QByteArray::number(60 + i * 40) +
+                    "pt;width:300pt;height:30pt;z-index:3;mso-position-horizontal-relative:page;mso-position-vertical-relative:page\" stroked=\"f\"><v:textbox><w:txbxContent><w:p><w:r><w:t>BOX" +
+                    QByteArray::number(i) + "</w:t></w:r></w:p>" + table + "<w:p/></w:txbxContent></v:textbox></v:shape></w:pict></w:r>";
+        body += "</w:p>";
+        auto doc = open(makeDocx(body, kStyles));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        qint64 laid = 0;
+        for (const auto &rows : page->furnitureTables) laid += rows->layout->cellCount();
+        QVERIFY2(laid > 0, "the first box has its table");
+        QVERIFY2(laid <= 2000, qPrintable(QStringLiteral("%1 cells of the boxes' tables are laid out").arg(laid)));
+        int withText = 0;
+        for (const auto &candidate : page->doc->pages[0]->items)
+            if (const auto textItem = std::dynamic_pointer_cast<TextItem>(candidate))
+                if (page->doc->story(textItem->storyId) && page->doc->story(textItem->storyId)->doc->toPlainText().contains(QLatin1String("BOX"))) ++withText;
+        QCOMPARE(withText, boxes);   // (every box is on the page, with its own text)
     }
 
     // A box or a text box filled with a picture (a stretched fill) is still a box or a text box with the picture as its fill: the text box keeps its text, and the box its outline.

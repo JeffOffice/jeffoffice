@@ -102,6 +102,10 @@ enum : int {
     BulletItalic,                                // bool (list format): the same for italic
 };
 
+// The block property that holds the key of the table cell a paragraph is in (libs/flow's fp::Cell, which is this number): the text engine never joins paragraphs of two cells, or
+// a cell's and one outside a table, whatever their marks (LayoutEnv::wordLines).
+constexpr int TableCell = QTextFormat::UserProperty + 302;
+
 // A paragraph's borders and shading as a word processor draws them (LayoutEnv::wordLines): each side's line style, width in eighths of a point, and its
 // distance from the text in points, and the color the paragraph is filled with. Kept in a block's tp::Borders as text, ParaBox::spec.
 struct BoxSide {

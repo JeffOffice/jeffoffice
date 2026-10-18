@@ -178,6 +178,8 @@ public:
     qint64 tableCellsLaidOut() const { return m_tables ? m_tables->cellsLaidOut() : 0; }
     // How many pages the page numbers have been walked back over to find where their section began, for tests.
     qint64 numberStepsForTest() const { return m_numberSteps; }
+    // How many characters the copies of the text on the pages have held since it was made (the copy a page is drawn from holds that page's text and a line more): for tests of what a page costs.
+    qint64 charsCopiedForTest() const { return m_charsCopied; }
 
 private:
     struct Run;
@@ -230,6 +232,13 @@ private:
     std::vector<TableGroup> tableGroups(const QVector<StoryLayout::LineBrief> &lines, int kept, int firstFrame);
     bool tablePlaceholder(QTextCursor &dst, QTextBlock &b, bool first, const std::vector<TableGroup> &groups) const;
     QTextBlock lastBlockWithTables(const QVector<StoryLayout::LineBrief> &lines, int kept, const std::vector<TableGroup> &groups) const;
+    // The last of the paragraphs that a word processor's hidden marks join from `b` (the one whose properties they have): `b` where it is joined to none, and for a paragraph of a table.
+    QTextBlock joinedEndOf(const QTextBlock &b) const;
+    // Where the paragraph that has a position begins: where the first of those joined to it does.
+    int paragraphStartOf(int position) const;
+    // The tables of a text box's story, laid out at the room the box has: their rows are drawn in the page's furniture tables, each at its place in the box, and in the copy of the
+    // story that the box holds the paragraphs of each are one, as tall as the rows are.
+    void tablesInBox(const QTextDocument *source, QTextDocument *copy, const QRectF &box, const QMarginsF &insets, int number, Document *d, MaterializedPage *page);
     void addTableFragments(MaterializedPage *page, const QVector<QRectF> &cols, const QRectF &body, const std::vector<TableGroup> &groups);
     // An object that the text of a page goes round, as the page was laid out with it: which object (counted from 1) at which anchor character (a position in the story), and
     // the rectangle it is in on the page (page coordinates).
@@ -308,7 +317,7 @@ private:
     bool storyHasTables(const QTextDocument *story) { return storyFacts(story).tables; }
     // The story laid out for a page that shows `number`, in a document of `pages` pages of which `sectionPages` are the page's section's. It is laid out once for the pages it is the same
     // for: with no field of the page's in it, for all.
-    std::shared_ptr<const HeaderTables> headerTablesOf(const QTextDocument *story, double width, int number, double rightRoom, bool withSpaceAfter, int pages, int sectionPages);
+    std::shared_ptr<const HeaderTables> headerTablesOf(const QTextDocument *story, double width, int number, double rightRoom, bool withSpaceAfter, int pages, int sectionPages, bool ofABox = false);
     // The places the objects of a page are anchored: the anchor's object, its column's left edge, and where its paragraph and its line are (the page's y), and
     // the anchor's place across (x). The page's header and footer have theirs.
     // (`pos` is where the anchor character is in its story; the paragraph's top and the line's are where the text would have set them without the objects it goes round
@@ -413,8 +422,10 @@ private:
     // (An object with a wrap that leaves no text beside it is a wall as wide as the columns that it reaches into, which `columns` (their rectangles on the page) say: the page layer's
     // wall of that kind is as wide as the page, and would put the text of the other columns aside too.)
     // (`page` is given for the tables that are set at places: their rows are drawn from it. The objects behind the text go after the first `front` items of the page, which are
-    // those of its header and footer.)
-    void addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number, const QVector<Wrapped> &wrapped = {}, const QVector<QRectF> &columns = {}, MaterializedPage *page = nullptr, size_t front = 0);
+    // those of its header and footer. `boxTables` is the page that the tables of the text boxes are drawn on, where `page` (the body's, the frames of its text) is not given: for the objects of a header
+    // or a footer.)
+    void addObjects(Document *d, const QVector<Anchor> &anchors, const Section &sec, int number, const QVector<Wrapped> &wrapped = {}, const QVector<QRectF> &columns = {}, MaterializedPage *page = nullptr, size_t front = 0,
+                    MaterializedPage *boxTables = nullptr);
     // Changes the pictures of the inline objects in a story to the Ids they have in the page's document.
     void resolveImages(QTextDocument *story, Document *d);
     QString imageIdOf(Document *d, int image);
@@ -440,6 +451,10 @@ private:
     using HeaderTablesKey = std::tuple<const QTextDocument *, int, int, int, bool, int, int, int>;
     std::map<HeaderTablesKey, std::shared_ptr<HeaderTables>> m_headerTables;
     std::deque<HeaderTablesKey> m_headerTablesOrder;
+    // (The tables of text boxes are kept apart, with a bound of their own: they would otherwise take the room of a header's, which is laid out again on every page that is past the bound.)
+    std::map<HeaderTablesKey, std::shared_ptr<HeaderTables>> m_boxTables;
+    std::deque<HeaderTablesKey> m_boxTablesOrder;
+    qint64 m_boxTableCells = 0;
     std::map<std::tuple<const QTextDocument *, int, int, int, int, uint>, QVector<Anchor>> m_storyFrameAnchors;   // the frames of each header or footer story, by its width, revision, places, and the environment
     std::map<std::tuple<const QTextDocument *, int, QString>, double> m_headerBottoms;   // how far down the page the wrapped shapes of each header reach, by story, revision, and the section's places
     std::map<StoryKey, QVector<StoryLayout::LineInfo>> m_storyLines;   // the lines of each, from the same layout   // by story, its width in hundredths of a point, and its revision
@@ -459,6 +474,7 @@ private:
     qint64 m_laidOut = 0;
     qint64 m_passes = 0;
     qint64 m_headerFramesMade = 0, m_headerReachesMade = 0;
+    qint64 m_charsCopied = 0;
     qint64 m_headerTablesMade = 0, m_headerTableCells = 0;   // layouts of the tables made, and the cells held
     // The number of the page asked for last, so that the next one's is one more: a walk back to the section's first page is for a page that doesn't follow it.
     mutable int m_numberOf = -1, m_number = 0;
