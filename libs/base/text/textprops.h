@@ -157,6 +157,9 @@ struct ParaBox {
         return b;
     }
 };
+// Whether text of the automatic color is white on this fill: it is dark (its brightness, by the weights of a gray picture of it, is under a quarter of the range). A fill that
+// is none, or clear, is not.
+inline bool isDarkFill(const QColor &fill) { return fill.isValid() && fill.alpha() > 0 && 0.299 * fill.red() + 0.587 * fill.green() + 0.114 * fill.blue() < 64; }
 
 // A slide paragraph's space before (or after) as a share of its line, 0 when it has none in force. The share a file gave counts while the
 // margin is still the points it came to (to the hundredth of a point that the Paragraph dialog shows it in, so pressing OK there changes

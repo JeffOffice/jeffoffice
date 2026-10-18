@@ -786,7 +786,7 @@ static bool picturesInRunsFamily(const QString &family)
     return isSymbolFont(family) && !hasFamilyCached(family) && symbolFontLetterWidths(family);
 }
 
-QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutEnv &env)
+QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutEnv &env, const QColor &behind)
 {
     QTextCharFormat f = original;
     // (Not a symbol font this machine lacks, whose pictures the run's own family draws, by that font's widths below: fontconfig stands a symbol-encoded face in
@@ -977,6 +977,12 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
         r.setProperty(tp::HandBold, boldAlways ? 2 : 1);
     }
     if (f.boolProperty(tp::TrueSmallCaps)) r.setFontCapitalization(QFont::SmallCaps);
+    // Text of the automatic color is white where the fill under it is dark: the run's own (its highlight), else the one behind the text (its paragraph's shading, or its cell's).
+    if (env.wordLines && cref.isEmpty() && !f.hasProperty(QTextFormat::ForegroundBrush) && !f.isAnchor() && tf.isEmpty()) {
+        const QBrush own = r.background();
+        const bool shaded = own.style() == Qt::SolidPattern && own.color().alpha() > 0;
+        if (tp::isDarkFill(shaded ? own.color() : behind)) r.setForeground(Qt::white);
+    }
     return r;
 }
 
@@ -2342,6 +2348,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->docStart = b.position();
         B->docLen = b.length() - 1;
         const QTextBlockFormat bf = b.blockFormat();
+        // The fill under the paragraph's text, for text of the automatic color: its own shading, else what its frame is on (a table cell's fill).
+        QColor behind = frames.isEmpty() ? QColor() : frames[std::min(f, nF - 1)].backdrop;
+        if (env.wordLines && bf.hasProperty(tp::Borders))
+            if (const QColor fill = tp::ParaBox::parse(bf.stringProperty(tp::Borders)).fill; fill.isValid() && fill.alpha() > 0) behind = fill;
         // A paragraph set apart from the text shows nothing of it, unless the caller says it is laid out as the others are.
         const bool apart = env.wordLines && bf.boolProperty(tp::OutOfLayout) && !(m_span.inLayout && std::binary_search(m_span.inLayout->cbegin(), m_span.inLayout->cend(), b.position()));
         const FieldContext &ctx = frames.isEmpty() ? FieldContext() : frames[std::min(f, nF - 1)].ctx;
@@ -2383,7 +2393,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 B->map << Seg{rel, int(text.size()), int(B->disp.size()), 0, true};
                 continue;
             }
-            QTextCharFormat rf = resolveCharFormat(cf, env);
+            QTextCharFormat rf = resolveCharFormat(cf, env, behind);
             // An object set in the text: an em dash (a line may break on
             // either side, as at a picture) in the run's own font, so the
             // line's text metrics stay; letter spacing makes it as wide as the
@@ -2688,7 +2698,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             else if (lf.style() == QTextListFormat::ListCircle) B->marker = QStringLiteral("◦");
             else if (lf.style() == QTextListFormat::ListSquare) B->marker = QStringLiteral("▪");
             else B->marker = list->itemText(b);
-            QTextCharFormat mf = ranges.isEmpty() ? resolveCharFormat(b.charFormat(), env) : ranges.first().format;
+            QTextCharFormat mf = ranges.isEmpty() ? resolveCharFormat(b.charFormat(), env, behind) : ranges.first().format;
             B->markerFont = mf.font();
             if (lf.hasProperty(tp::BulletSize)) {
                 // (A slide's bullet, a share of its text, follows the whole-point size the text was shrunk to.)
