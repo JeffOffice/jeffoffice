@@ -825,8 +825,57 @@ void deleteTableRows(WriteDoc &doc, QTextCursor &c)
             }
         }
     }
+    // The kept pieces between the rows that go (a content control's start or end) whose partners are not among them: they go to what is left after the rows, so that a control is
+    // neither cut in two nor dropped with a row. (The pieces with partners go with the rows.)
+    QVector<office::wml::Block> carry;
+    {
+        QVector<office::wml::Block> pieces;
+        for (int r = area.r0; r <= area.r1; ++r)
+            if (const RowPart *rp = static_cast<const RowPart *>(t.row(r).data->app.get())) pieces += rp->before;
+        QVector<int> open;
+        QVector<bool> keep(pieces.size(), false);
+        for (int i = 0; i < pieces.size(); ++i) {
+            if (pieces[i].role == Inline::Open) {
+                open.push_back(i);
+            } else if (pieces[i].role == Inline::Close) {
+                int at = int(open.size()) - 1;
+                while (at >= 0 && pieces[open[at]].tag != pieces[i].tag) --at;
+                if (at >= 0) open.resize(at);
+                else keep[i] = true;
+            }
+        }
+        for (const int i : std::as_const(open)) keep[i] = true;
+        for (int i = 0; i < pieces.size(); ++i)
+            if (keep[i]) carry << pieces[i];
+    }
+    const flow::RowData *carriedTo = after < t.rowCount() ? t.row(after).data : nullptr;
+    std::shared_ptr<flow::RowData> carriedRow;
+    std::shared_ptr<flow::TableData> carriedTable;
+    if (!carry.isEmpty()) {
+        carriedTable = std::make_shared<flow::TableData>(t.data());
+        if (carriedTo) {
+            carriedRow = std::make_shared<flow::RowData>(*carriedTo);
+            const RowPart *rp = static_cast<const RowPart *>(carriedTo->app.get());
+            auto np = std::make_shared<RowPart>(rp ? *rp : RowPart());
+            np->before = carry + np->before;
+            carriedRow->app = np;
+        } else {
+            const TablePart *tp = static_cast<const TablePart *>(t.data().app.get());
+            auto np = std::make_shared<TablePart>(tp ? *tp : TablePart());
+            np->after = carry + np->after;
+            carriedTable->app = np;
+        }
+    }
     const int at = t.row(area.r0).from;
     removeParagraphs(d, d->findBlock(t.row(area.r0).from), d->findBlock(t.row(area.r1).to - 1));
+    if (carriedTable) {
+        const int stop = parentOf(*v);
+        auto changed = [&](const flow::CellRecord &old, flow::CellRecord *rec) {
+            if (carriedRow && old.row.get() == carriedTo) rec->row = carriedRow;
+        };
+        Rekey rekey(doc, &t.data(), carriedTable, stop, changed);
+        applyRekey(doc, &t.data(), &rekey);
+    }
     c.setPosition(std::clamp(at, 0, std::max(0, d->characterCount() - 1)));
     c.endEditBlock();
 }

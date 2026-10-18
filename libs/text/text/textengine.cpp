@@ -115,6 +115,8 @@ QString FieldContext::resolve(const QString &code) const
         return shown(pageNumber + from);
     }
     if (kind == "notemark") return noteMark;
+    // A paragraph style's text (STYLEREF) is the page's, which the pages put in; laid out as a story of its own it shows the result the file kept: after its switches and the style's name.
+    if (kind == "styleref") return arg.section(QChar(0x1f), 2, 2);
     if (kind == "pages") {
         const int total = doc ? doc->pageTotal() : 0;
         return QString::number(total > 0 ? total : pageCount);
@@ -1269,13 +1271,24 @@ qint64 StoryLayout::longestJoinedStretchForTest() { return g_longestJoinedStretc
 qint64 StoryLayout::longestJoinedParagraphsForTest() { return g_longestJoinedParagraphs.load(); }
 void StoryLayout::resetLongestJoinedParagraphsForTest() { g_longestJoinedParagraphs = 0; }
 
+// The number a paragraph has in the document it was copied from, where its story is a copy that says so (StoryLayout::kBlockNumbersProperty), else its own.
+static int sourceBlockNumber(const QTextBlock &b)
+{
+    const QVariant numbers = b.document()->property(StoryLayout::kBlockNumbersProperty);
+    if (numbers.isValid()) {
+        const QList<int> list = numbers.value<QList<int>>();
+        if (b.blockNumber() >= 0 && b.blockNumber() < list.size()) return list[b.blockNumber()];
+    }
+    return b.blockNumber();
+}
+
 bool StoryLayout::joinsNext(const QTextBlock &b, int end)
 {
     if (!b.charFormat().boolProperty(tp::HiddenText)) return false;
     const QTextBlock n = b.next();
     if (!n.isValid() || (end >= 0 && n.position() >= end)) return false;
     // (A run is cut into chunks of kMostJoinedParagraphs by the number of its paragraphs, so that whoever asks, wherever a stretch of the story begins, finds the same runs.)
-    if (n.blockNumber() % kMostJoinedParagraphs == 0) return false;
+    if (sourceBlockNumber(n) % kMostJoinedParagraphs == 0) return false;
     const QTextBlockFormat bf = b.blockFormat(), nf = n.blockFormat();
     // (Nor across a frame, or from one cell to another, or into or out of a table: the paragraphs of a cell are those that have its key.)
     if (bf.boolProperty(tp::OutOfLayout) || nf.boolProperty(tp::OutOfLayout)) return false;

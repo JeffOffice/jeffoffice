@@ -56,9 +56,9 @@ struct MaterializedPage {
     // The first line of the page may be the rest of a paragraph that began on the page before; and the last, the beginning of one that
     // goes on onto the next.
     bool continuesFromBefore = false, continuesOnAfter = false;
-    // Where the text of a section begins that has more columns than the first's and begins below the first's text on this page (-1: none): the empty paragraph that ends the
+    // Where the text of a section begins that has more columns than the one above it and begins below that text on this page (none: none): the empty paragraph that ends the
     // section above, which ends there, takes no room and has no line in the page's boxes.
-    int freeBreakEnd = -1;
+    QVector<int> freeBreakEnds;
     // The tables in the page's header and footer, drawn with the others (they are not the document's text: no position of the document's is in them).
     QVector<std::shared_ptr<TableFragment>> furnitureTables;
     // The rows of tables that are on the page, drawn after the text (Paginator::tables). Each has a place in the page's story: a paragraph of the
@@ -270,6 +270,9 @@ private:
     static QRectF roomOf(const FloatingObject &o, const Wrapped &w);
     bool breakContinuesAt(const StoryLayout::LineBrief &last, PageStart *next) const;
     int numberOf(int index) const;
+    bool beginsPageOf(int section, const PageStart &page) const;   // the page is the first of the section (not the page after one that a continuous section began in the middle of)
+    // The place each section begins at in the story (its first paragraph, the one after the break that ends the section before), as the story is.
+    const QVector<int> &sectionStarts() const;
     void changed(int position, int removed, int added);   // the story was edited
     void settle(int index);                               // lays out again what edits changed, until page `index` is right (-1: all)
     void settleStep();                                    // one page of that
@@ -291,7 +294,12 @@ private:
     // Puts the lines of the section's page borders on a page made for painting (the page's first items, under the text), where the section's borders say a page of it has them.
     void addPageBorders(Document *d, const Section &sec, bool firstOfSection, const Furniture &f);
     // Puts the page's header and footer (a copy of each story, in a text box) on a page made for painting, and the counts its fields show.
-    void addFurniture(Document *d, const Furniture &f, const Section &sec, int section, int number, MaterializedPage *page = nullptr);
+    // (`from` and `to`: the story's positions the page holds, for the fields of the header and footer that show the text of the page.)
+    void addFurniture(Document *d, const Furniture &f, const Section &sec, int section, int number, MaterializedPage *page = nullptr, int from = -1, int to = -1);
+    // The fields of a header's or footer's story that show a paragraph style's text (STYLEREF) show the page's paragraph of the style: the story is a copy made for the page.
+    bool substituteStyleRefs(QTextDocument *story, int from, int to) const;   // (whether any field showed another text)
+    // The line numbers of the sections' text, in the margin at each line of the page (a section that has them, and begins them again at each page).
+    void addLineNumbers(Document *d, const Run &run, const QRectF &body);
     // A header or footer with tables in it: its text before, between, and after them, and each table, laid out from the top at a width for the page that shows number `number`
     // (the page's number is what the fields in its cells show). The tables are laid out in a private copy of the story, with the table machinery of the document's own.
     struct HeaderPart {
@@ -479,6 +487,8 @@ private:
     // The number of the page asked for last, so that the next one's is one more: a walk back to the section's first page is for a page that doesn't follow it.
     mutable int m_numberOf = -1, m_number = 0;
     mutable qint64 m_numberSteps = 0;
+    mutable QVector<int> m_sectionStarts;
+    mutable int m_sectionStartsRevision = -1;
 };
 
 } // namespace jp::flow

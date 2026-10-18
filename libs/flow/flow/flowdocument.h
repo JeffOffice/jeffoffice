@@ -12,6 +12,7 @@
 #include <QRectF>
 #include <QSizeF>
 #include <QString>
+#include <QTextCharFormat>
 #include <QTextFormat>
 #include <QVector>
 #include <memory>
@@ -38,6 +39,8 @@ enum : int {
     // double: the paragraph's first line is no higher on the page than this many points from the page's top (a word processor's field that sets text at a place); where it would be
     // higher, the text is moved down to the place, and what follows it with it.
     AdvanceTop = QTextFormat::UserProperty + 304,
+    // bool: the paragraph has no line numbers, and its lines are not counted for the others' (w:suppressLineNumbers).
+    SuppressLineNumbers = QTextFormat::UserProperty + 305,
 };
 } // namespace fp
 
@@ -147,6 +150,14 @@ struct Section {
     PageBorders pageBorders;                 // the lines round its pages
     std::optional<int> firstPageNumber;      // the number the section's first page has (0 is a number; none: it goes on from the section before)
     QString pageNumberFormat;                // "", "roman", "ROMAN", "alpha", or "ALPHA" (the fields' own)
+    // Line numbers in the margin (w:lnNumType): a number for every `countBy` lines of the section's text (0: none), counted from `start`, `distance` points left of the column (0: the
+    // usual), in `format`; they begin again at each page, at each section, or not at all (only the first is drawn).
+    struct LineNumbers {
+        int countBy = 0, start = 1;
+        double distance = 0;
+        enum class Restart { NewPage, NewSection, Continuous } restart = Restart::NewPage;
+        QTextCharFormat format;
+    } lineNumbers;
 
     // The header and footer story a page uses, or none: the first page's of the section when the section asks for one and it is the section's
     // first page, else the even pages' when it asks for those and the page's number is even, else the odd pages' (the ordinary one).
@@ -189,6 +200,8 @@ public:
     LayoutEnv env;
     // What fields read (page numbers, notes); none by default.
     const FieldSource *fields = nullptr;
+    // What a header's or footer's field that shows a paragraph style's text (STYLEREF) is on a page: the source answers from the story (none: the field shows the result the file had).
+    const FieldSource *styleRefs = nullptr;
     // The notes' numbers begin again at 1 in each section (a word processor's option), where they go on through the document otherwise.
     bool restartNotesInSections = false;
     // The page number and the count of pages that the fields in the cells of tables show (a header's or footer's tables are laid out for the page they are on).

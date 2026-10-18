@@ -5369,6 +5369,165 @@ private Q_SLOTS:
         QCOMPARE(po.pageCount(), 2);
     }
 
+    // A page that three sections begin on, one under another (one column, two, one), is laid out in a part for each: the section of two columns has its columns as even as its lines let
+    // them be, and the section after it begins below both, as wide as the page.
+    void aPageOfThreeSectionsHasAPartForEach()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 13, 9, [](int i, QTextBlockFormat &bf) {
+            bf.setBottomMargin(4);
+            if (i == 1 || i == 9) bf.setProperty(fp::SectionBreakAfter, true);
+        }, 3, 4);
+        fd.sections[0].paper = QSizeF(300, 400);
+        fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+        Section two = fd.sections[0], three = fd.sections[0];
+        two.continuous = true;
+        two.columns = 2;
+        two.columnGap = 20;
+        three.continuous = true;
+        fd.sections << two << three;
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 1);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        QCOMPARE(int(page->boxes.size()), 4);   // (one box for the first section's column, one for each of the second's, and one for the third's)
+        std::vector<const TextItem *> boxes;
+        for (const QString &id : page->boxes) boxes.push_back(dynamic_cast<const TextItem *>(page->doc->item(id)));
+        for (const TextItem *b : boxes) QVERIFY(b);
+        // (A full line, as tall as the tallest the page has: the columns are as even as the lines let them be.)
+        double line = 0;
+        for (const auto &l : pg.lines(0)) line = std::max(line, l.rect.height());
+        QVERIFY(line > 0);
+        QVERIFY2(std::abs(boxes[1]->rect.height() - boxes[2]->rect.height()) <= line, qPrintable(QStringLiteral("the columns are %1 and %2 high").arg(boxes[1]->rect.height()).arg(boxes[2]->rect.height())));
+        QVERIFY2(boxes[1]->rect.height() > 0 && boxes[2]->rect.height() > 0, "both columns have lines");
+        QVERIFY(boxes[1]->rect.left() < boxes[2]->rect.left());
+        QVERIFY(std::abs(boxes[1]->rect.width() - boxes[2]->rect.width()) < 0.5 && boxes[1]->rect.width() < boxes[0]->rect.width() * 0.6);
+        QVERIFY2(boxes[3]->rect.top() >= std::max(boxes[1]->rect.bottom(), boxes[2]->rect.bottom()) - 0.5, qPrintable(QStringLiteral("the third section begins at %1, the columns end at %2 and %3")
+                                                                                                                       .arg(boxes[3]->rect.top()).arg(boxes[1]->rect.bottom()).arg(boxes[2]->rect.bottom())));
+        QVERIFY(std::abs(boxes[3]->rect.width() - boxes[0]->rect.width()) < 0.5);
+        QVERIFY(boxes[3]->rect.top() >= boxes[0]->rect.bottom());
+        // Every line of the text is on the page, once.
+        QCOMPARE(int(pg.lines(0).size()) > 0, true);
+        const QString bad = audit::problems(pg, fd.story());
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+    }
+
+    // More sections begin on one page than the parts a page is laid out in (sixteen): the page is laid out in as many as it may, the text of the rest goes on in the last part's
+    // columns, and every paragraph of the story is on some page.
+    void aPageOfSeventeenSectionsIsBoundedAndShowsEveryParagraph()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        const int sections = 17;
+        fillStory(fd.story(), sections * 2, 3, [&](int i, QTextBlockFormat &bf) {
+            bf.setBottomMargin(2);
+            if (i % 2 == 1 && i / 2 < sections - 1) bf.setProperty(fp::SectionBreakAfter, true);
+        }, 3, 5);
+        fd.sections[0].paper = QSizeF(300, 700);
+        fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+        for (int k = 1; k < sections; ++k) {
+            Section next = fd.sections[0];
+            next.continuous = true;
+            next.columns = k % 2 ? 2 : 1;
+            next.columnGap = 12;
+            fd.sections << next;
+        }
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 1 && pg.pageCount() <= 4);
+        QSet<int> shown;
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            QVERIFY(pg.materialize(k));
+            for (const auto &l : pg.lines(k)) shown.insert(l.block);
+        }
+        for (QTextBlock b = fd.story()->begin(); b.isValid(); b = b.next()) QVERIFY2(shown.contains(b.position()), qPrintable(QStringLiteral("the paragraph at %1 is on no page").arg(b.position())));
+    }
+
+    // A page is drawn from a copy of its text, whose paragraphs the copy numbers from its own first; a run of paragraphs joined by hidden marks is cut every kMostJoinedParagraphs by
+    // the document's numbers, and the copy cuts it where the document does: when a page begins inside a run of seventy, it shows the lines the paginator counted.
+    void aPagesCopyCutsARunOfJoinedParagraphsWhereTheDocumentDoes()
+    {
+        int insideEver = 0;
+        for (const double height : {200.0, 206.0, 212.0, 218.0, 224.0, 230.0, 236.0, 242.0}) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            {
+                QTextCursor c(fd.story());
+                QTextCharFormat run;
+                run.setFontFamilies({QStringLiteral("Times New Roman")});
+                run.setFontPointSize(11);
+                QTextCharFormat mark = run;
+                mark.setProperty(tp::HiddenText, true);
+                for (int i = 0; i < 70; ++i) {
+                    if (i == 0) c.setBlockCharFormat(mark);
+                    else c.insertBlock(QTextBlockFormat(), mark);
+                    c.insertText(i == 63 ? QStringLiteral("end") : QStringLiteral("alpha beta gamma delta %1").arg(i), run);   // (the second chunk of the run ends in a short line)
+                }
+            }
+            fd.sections[0].paper = QSizeF(200, height);
+            fd.sections[0].margins = QMarginsF(30, 30, 30, 30);
+            Paginator pg(&fd);
+            const int pages = pg.pageCount();
+            QVERIFY(pages >= 4);
+            // (Pages begin inside the second chunk of the run, its paragraphs 32 to 63: their copies begin there.)
+            for (int k = 1; k < pages; ++k) {
+                const int number = fd.story()->findBlock(pg.page(k).start.pos).blockNumber();
+                insideEver += number >= 33 && number <= 63;
+            }
+            // The page layer sets each page's text, from its copy, where the paginator's lines are.
+            for (int k = 0; k < pages; ++k) {
+                const auto m = pg.materialize(k);
+                QVERIFY(m);
+                const QString bad = audit::pageLayerProblems(pg, fd.story(), k, *m);
+                QVERIFY2(bad.isEmpty(), qPrintable(QStringLiteral("page height %1: %2").arg(height).arg(bad)));
+            }
+        }
+        QVERIFY(insideEver > 4);
+    }
+
+    // A section's line numbers (a number in the margin for each line, or each fifth, from its start, again at each page) are drawn left of the column, at the lines' own places,
+    // for the lines of the section's text: not for a table's rows.
+    void aSectionsLineNumbersAreDrawnInTheMarginAtEachLine()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 24, 4, [](int, QTextBlockFormat &bf) { bf.setBottomMargin(0); }, 6, 12);
+        fd.sections[0].paper = QSizeF(240, 200);
+        fd.sections[0].margins = QMarginsF(60, 30, 30, 30);
+        fd.sections[0].lineNumbers.countBy = 1;
+        fd.sections[0].lineNumbers.start = 1;
+        fd.sections[0].lineNumbers.distance = 10;
+        fd.sections[0].lineNumbers.format.setFontPointSize(7);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 3);
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            QVector<const TextItem *> numbers;
+            for (const auto &item : page->doc->pages[0]->items)
+                if (item->id.startsWith(QLatin1String("flow-lineno-box"))) numbers.push_back(dynamic_cast<const TextItem *>(item.get()));
+            const int lines = int(pg.lines(k).size());
+            QCOMPARE(int(numbers.size()), lines);
+            for (int i = 0; i < numbers.size(); ++i) {
+                QVERIFY(numbers[i]);
+                QCOMPARE(page->doc->stories.value(numbers[i]->storyId)->doc->toPlainText(), QString::number(i + 1));   // (again from 1 at each page)
+                QVERIFY2(numbers[i]->rect.right() <= 60 - 10 + 0.01, qPrintable(QString::number(numbers[i]->rect.right())));   // (the column's left, less the distance)
+                const auto &line = pg.lines(k)[i];
+                QVERIFY2(numbers[i]->rect.top() < pg.page(k).content.top() + line.rect.bottom() && numbers[i]->rect.bottom() > pg.page(k).content.top() + line.rect.top(), "the number is at its line");
+            }
+        }
+        // Every fifth line, when the section asks.
+        fd.sections[0].lineNumbers.countBy = 5;
+        Paginator five(&fd);
+        const auto page = five.materialize(0);
+        QVERIFY(page);
+        QStringList shown;
+        for (const auto &item : page->doc->pages[0]->items)
+            if (item->id.startsWith(QLatin1String("flow-lineno-box"))) shown << page->doc->stories.value(dynamic_cast<const TextItem *>(item.get())->storyId)->doc->toPlainText();
+        QVERIFY(shown.size() >= 2);
+        for (int i = 0; i < shown.size(); ++i) QCOMPARE(shown[i], QString::number(5 * (i + 1)));
+    }
+
     // A continuous section of two columns that holds a table: it begins below the text of the section before, the table is inside a column and flows into the next, and
     // the page's note (cited in the text above the table, in the first column) and furniture keep to their places.
     void aTableInAContinuousTwoColumnSectionIsInsideItsColumnBelowTheTextAbove()
@@ -12398,6 +12557,39 @@ private Q_SLOTS:
         QCOMPARE(pg.page(2).number, 1);
         QCOMPARE(pg.page(3).number, 2);   // (the third says nothing: it goes on)
         QCOMPARE(pg.materialize(1)->number, 0);
+    }
+
+    // A continuous section that begins among the lines of a page counts that page as its first: the page keeps the number it had, and the next is one more than the number
+    // the section restarts at. One that begins at the top of a page (after a page break) restarts them there.
+    void aContinuousSectionRestartsTheNumbersFromThePageItBeginsOn()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 60, 5, [](int i, QTextBlockFormat &bf) {
+            if (i == 0 || i == 20 || i == 40) bf.setProperty(flow::fp::SectionBreakAfter, true);
+            if (i == 20) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysAfter);
+        }, 14, 20);
+        fd.sections[0].paper = QSizeF(300, 300);
+        fd.sections[0].margins = QMarginsF(50, 50, 50, 50);
+        Section second = fd.sections[0], third = fd.sections[0], fourth = fd.sections[0];
+        second.continuous = true;
+        second.firstPageNumber = 5;   // (it begins below the first paragraph, in the middle of the first page: that page is 1, the next 6)
+        third.continuous = true;
+        third.firstPageNumber = 7;    // (it begins at the top of the page after a page break)
+        fd.sections << second << third << fourth;
+        Paginator pg(&fd);
+        int firstOfThird = -1;
+        for (int k = 0; k < pg.pageCount() && firstOfThird < 0; ++k)
+            if (pg.page(k).start.section == 2) firstOfThird = k;
+        QVERIFY(firstOfThird > 1);
+        QCOMPARE(pg.page(0).number, 1);
+        QCOMPARE(pg.page(1).number, 6);
+        QCOMPARE(pg.page(2).number, 7);
+        QCOMPARE(pg.page(firstOfThird - 1).number, 5 + firstOfThird - 1);
+        QCOMPARE(pg.page(firstOfThird).number, 7);
+        QCOMPARE(pg.page(firstOfThird + 1).number, 8);
+        QCOMPARE(pg.materialize(1)->number, 6);
+        QCOMPARE(pg.materialize(firstOfThird)->number, 7);
     }
 
     // A word processing document keeps pieces of its file as text that shows what the field names after "raw:", or nothing.

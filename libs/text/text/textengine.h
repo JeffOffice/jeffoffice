@@ -62,6 +62,10 @@ public:
     virtual double noteContinuationRuleAt() const { return -1; }
     virtual double noteContinuationRuleFrom() const { return 0; }
     virtual bool noteContinuationRuleFull() const { return true; }   // (the rule is as wide as the column, not two inches)
+    // For a word processor's running headers: what a field that shows a paragraph style's text (STYLEREF) shows on the page whose text is the story's positions [from, to): the first
+    // paragraph of the style `style` (a name) on the page, the last with the switch `l`, else the nearest before it, else the nearest after; the switches `n`, `w`, and `r` ask
+    // for its number. Null: there is none (the field shows what the file had in it); a publication has none.
+    virtual QString styleRefText(const QString &style, const QString &switches, int from, int to) const { Q_UNUSED(style) Q_UNUSED(switches) Q_UNUSED(from) Q_UNUSED(to) return QString(); }
 };
 
 // A stock font's average character width in ems (OS/2 xAvgCharWidth), the
@@ -391,6 +395,9 @@ public:
     static qint64 longestJoinedParagraphsForTest();
     static void resetLongestJoinedParagraphsForTest();
     static constexpr int kMostJoinedParagraphs = 32;
+    // A story that is a copy of part of another (a page's text, made from the document's) says which paragraph of the document each of its own is, as this property of the document
+    // (a list of block numbers, one for each): a run of joined paragraphs is cut by the document's numbers, so that the copy cuts it where the document does.
+    static constexpr const char *kBlockNumbersProperty = "jpBlockNumbers";
     // Whether a word processor's paragraph is joined to the one after it: its mark is hidden, and neither is set apart from the text, nor is the next at or past `end` (a stretch's
     // end, if it has one). And the last of the paragraphs joined from `first`, the one whose mark is left and whose properties they have (`first` where it is joined to none).
     static bool joinsNext(const QTextBlock &b, int end = -1);

@@ -54,16 +54,28 @@ public:
     double noteContinuationRuleAt() const override { return ruleAt; }
     double noteContinuationRuleFrom() const override { return ruleFrom; }
     bool noteContinuationRuleFull() const override { return ruleFull; }
+    QString styleRefText(const QString &style, const QString &switches, int from, int to) const override;
     double separator = 0, notice = 0, continuation = 0;   // the heights of the file's separator and continuation notice (the pages cut them: FrameSpec::noteRoomLimit)
     double ruleAt = -1, ruleFrom = 0;                     // where the rule is in the separator for the part of a note that goes on
     bool ruleFull = true;                                 // (and whether it is as wide as the column)
 
 private:
     WriteDoc *m_doc;
+    // What the fields that show a paragraph style's text keep, for the story as it is (by its revision): where the paragraphs of each style begin, the styles a name says, and the
+    // texts found.
+    mutable int m_styleRevision = -1, m_styleCount = -1;
+    mutable bool m_styleIndexMade = false;
+    mutable QHash<QString, QVector<int>> m_styleStarts;
+    mutable QHash<QString, QStringList> m_styleIds;
+    mutable QHash<qint64, QString> m_styleTexts;
 };
 
 // How many times a level's run properties have been looked at for the outline effect (for a test of the cost).
 int levelsScannedForOutlineForTest();
+// How many paragraphs the fields that show a paragraph style's text have looked at (to find where each style's paragraphs are, and to read one found), since the count was reset: a
+// cost test (a page's fields cost a search, not a walk over the story).
+qint64 styleRefParagraphsScannedForTest();
+void resetStyleRefParagraphsScannedForTest();
 
 class WriteDoc : public QObject {
     Q_OBJECT
@@ -216,6 +228,7 @@ private:
     qint64 m_sectionsMade = 0;
     qint64 m_dropDownSteps = 0;
     std::unique_ptr<NoteFields> m_noteFields;
+    std::unique_ptr<NoteFields> m_styleRefSource;   // (answers STYLEREF for the pages; the notes' own is above, there when the file has notes)
     std::unique_ptr<QTextDocument> m_noticeStory, m_continuationStory;   // (the file's continuation notice and its separator for the part of a note that goes on, made when a page sets them)
     QString m_notePart;                                               // the footnotes part's name
     QHash<QString, QVector<office::wml::Block>> m_noteBlocks;         // by "fn" and Id

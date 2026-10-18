@@ -41,6 +41,7 @@
 #include <QImage>
 #include <QPainter>
 #include <QApplication>
+#include <QXmlStreamReader>
 #include <climits>
 #include <QMenu>
 #include <QCheckBox>
@@ -2345,6 +2346,46 @@ private Q_SLOTS:
         QVERIFY(view.caretRect(&r));
         QVERIFY(view.pageRect(page).adjusted(-2, -2, 2, 2).contains(r.center()));
         QVERIFY(view.topPage() >= page - 1);   // (the view scrolled to it)
+    }
+
+    // The caret and a click use the page's text boxes only: a header, a footer, and the numbers of the lines are boxes too, and are not the text's columns.
+    void theCaretAndClicksIgnoreTheHeaderAndTheLineNumbers()
+    {
+        for (int scenario = 0; scenario < 4; ++scenario) {
+            const bool header = scenario & 1, numbers = scenario & 2;
+            QByteArray body;
+            for (int i = 0; i < 12; ++i) body += plainP(QByteArray("paragraph number ") + QByteArray::number(i) + " has some words in it to fill a line and then another line of words");
+            const QByteArray sect = sectionXml(12240, 15840, 1440, header ? "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>" : "", QByteArray(), numbers ? "<w:lnNumType w:countBy=\"1\" w:distance=\"360\"/>" : "");
+            const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>Header text</w:t></w:r>"})}};
+            auto doc = open(makeDocxWithParts(body, sect, header ? parts : QMap<QString, QByteArray>()));
+            QVERIFY(doc);
+            PageView view;
+            view.resize(1000, 900);
+            view.show();
+            view.setDocument(doc.get());
+            view.paginateAll();
+            int bad = 0, total = 0;
+            for (const int position : {3, 60, 150, 400, 700, 1000}) {
+                QTextCursor c(doc->story());
+                c.setPosition(position);
+                view.showCursor(c);
+                QRect r;
+                QVERIFY2(view.caretRect(&r), qPrintable(QStringLiteral("scenario %1: no caret at %2").arg(scenario).arg(position)));
+                QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(r.center().x() + 1, r.center().y()));
+                ++total;
+                bad += std::abs(view.cursor().position() - position) > 1;
+            }
+            QVERIFY2(bad == 0, qPrintable(QStringLiteral("scenario %1 (header %2, line numbers %3): %4 of %5 clicks at a caret missed it").arg(scenario).arg(header).arg(numbers).arg(bad).arg(total)));
+            // A click in the margin, level with the second line, puts the caret in that line (the line numbers are not where a click goes).
+            QTextCursor c(doc->story());
+            c.setPosition(100);
+            view.showCursor(c);
+            QRect r;
+            QVERIFY(view.caretRect(&r));
+            const QRect page = view.pageRect(0);
+            QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(page.left() + 20, r.center().y()));
+            QVERIFY2(view.cursor().position() > 40 && view.cursor().position() < 160, qPrintable(QStringLiteral("scenario %1: a click in the margin gave position %2").arg(scenario).arg(view.cursor().position())));
+        }
     }
 
     void clickingPlacesTheCaretAndDraggingSelects()
@@ -5023,7 +5064,7 @@ private Q_SLOTS:
     void aPasteFromAnotherDocumentLeavesNoDanglingNoteOrObject()
     {
         const QByteArray ns = "xmlns:v=\"urn:schemas-microsoft-com:vml\"";
-        const QByteArray body = "<w:p " + ns + "><w:r><w:t xml:space=\"preserve\">Cited</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r><w:r><w:pict><v:rect id=\"r\" style=\"position:absolute;margin-left:10pt;margin-top:5pt;width:50pt;height:20pt\" fillcolor=\"red\"/></w:pict></w:r><w:r><w:t> end.</w:t></w:r></w:p>";
+        const QByteArray body = "<w:p " + ns + "><w:r><w:t xml:space=\"preserve\">Cited</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r><w:r><w:pict><v:rect id=\"r\" style=\"position:absolute;margin-left:10pt;margin-top:5pt;width:50pt;height:20pt\" fillcolor=\"red\"/></w:pict></w:r><w:r><w:t xml:space=\"preserve\"> end.</w:t></w:r></w:p>";
         const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>The note.</w:t></w:r></w:p></w:footnote></w:footnotes>";
         auto source = open(makeDocxWithParts(body, QByteArray(), {{QStringLiteral("/word/footnotes.xml"), notes}}));
         QVERIFY(source);
@@ -8298,7 +8339,7 @@ private Q_SLOTS:
 
     void copyAndPasteKeepTheFormats()
     {
-        auto doc = open(makeDocx("<w:p><w:r><w:rPr><w:b/><w:color w:val=\"FF0000\"/></w:rPr><w:t>Bold red</w:t></w:r><w:r><w:t> and plain</w:t></w:r></w:p>", kStyles));
+        auto doc = open(makeDocx("<w:p><w:r><w:rPr><w:b/><w:color w:val=\"FF0000\"/></w:rPr><w:t>Bold red</w:t></w:r><w:r><w:t xml:space=\"preserve\"> and plain</w:t></w:r></w:p>", kStyles));
         PageView view;
         view.setDocument(doc.get());
         view.selectAll();
@@ -8360,7 +8401,7 @@ private Q_SLOTS:
     {
         // The paragraph has the style's look, and its direct formatting is only what it adds: nothing is written twice.
         const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Plain heading</w:t></w:r></w:p>"
-                                "<w:p><w:r><w:rPr><w:rStyle w:val=\"Strong\"/></w:rPr><w:t>strong</w:t></w:r><w:r><w:rPr><w:i/></w:rPr><w:t> italic</w:t></w:r></w:p>"
+                                "<w:p><w:r><w:rPr><w:rStyle w:val=\"Strong\"/></w:rPr><w:t>strong</w:t></w:r><w:r><w:rPr><w:i/></w:rPr><w:t xml:space=\"preserve\"> italic</w:t></w:r></w:p>"
                                 "<w:p><w:pPr><w:jc w:val=\"right\"/><w:spacing w:before=\"60\"/></w:pPr><w:r><w:t>right</w:t></w:r></w:p>";
         auto doc = open(makeDocx(body, kStyles));
         QCOMPARE(doc->story()->findBlockByNumber(0).blockFormat().stringProperty(tp::StyleName), QStringLiteral("Heading1"));
@@ -11189,6 +11230,304 @@ private Q_SLOTS:
             }
         }
         QCOMPARE(rowsShown(pg), 90);
+    }
+
+    // A row taken away beside a content control that holds rows (the table is itself in a content control) leaves the table and the controls valid: the control that held only
+    // that row stays, empty; the control before the row taken stays closed where it was.
+    void deletingARowBesideAContentControlKeepsTheTableAndTheControlsValid()
+    {
+        auto row = [](const char *text) { return QByteArray("<w:tr><w:tc><w:p><w:r><w:t>") + text + "</w:t></w:r></w:p></w:tc></w:tr>"; };
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid>" + row("r0") +
+                                 "<w:sdt><w:sdtPr><w:id w:val=\"2\"/></w:sdtPr><w:sdtContent>" + row("r1") + "</w:sdtContent></w:sdt>" + row("r2") + row("r3") + "</w:tbl>";
+        const QByteArray body = plainP("before") + "<w:sdt><w:sdtPr><w:id w:val=\"1\"/></w:sdtPr><w:sdtContent>" + table + "</w:sdtContent></w:sdt>" + plainP("after");
+        // The saved file is well formed, and every row is inside a table.
+        auto problems = [](const QByteArray &xmlText) {
+            QXmlStreamReader in(xmlText);
+            QStringList stack;
+            while (!in.atEnd()) {
+                in.readNext();
+                if (in.isStartElement()) {
+                    if (in.name() == QLatin1String("tr")) {
+                        int k = int(stack.size()) - 1;
+                        while (k >= 0 && (stack[k] == QLatin1String("sdt") || stack[k] == QLatin1String("sdtContent"))) --k;
+                        if (k < 0 || stack[k] != QLatin1String("tbl")) return QStringLiteral("a row is in a %1").arg(k < 0 ? QStringLiteral("nothing") : stack[k]);
+                    }
+                    stack << in.name().toString();
+                } else if (in.isEndElement() && !stack.isEmpty()) {
+                    stack.removeLast();
+                }
+            }
+            return in.hasError() ? in.errorString() : QString();
+        };
+        for (int which = 0; which < 2; ++which) {
+            auto doc = open(makeDocxWithParts(body, sectionXml(12240, 15840, 1440), {}));
+            QVERIFY(doc);
+            const QByteArray was = documentXml(doc->toDocx());
+            QVERIFY(was.contains(table));
+            QTextCursor c(doc->story());
+            c.setPosition(doc->story()->toPlainText().indexOf(which == 0 ? QStringLiteral("r1") : QStringLiteral("r2")));
+            deleteTableRows(*doc, c);
+            const QByteArray out = documentXml(doc->toDocx());
+            const QString label = which == 0 ? QStringLiteral("the row in the control") : QStringLiteral("the row after it");
+            QVERIFY2(problems(out).isEmpty(), qPrintable(label + QStringLiteral(": ") + problems(out) + QLatin1String(" in ") + QString::fromUtf8(out)));
+            QCOMPARE(out.count("<w:tbl>"), 1);
+            QCOMPARE(out.count("<w:tr>"), 3);
+            QCOMPARE(out.count("<w:sdt>"), 2);
+            QCOMPARE(out.count("</w:sdt>"), 2);
+            QVERIFY2(!out.contains(which == 0 ? "r1" : "r2"), qPrintable(label));
+            // (And the file opens as the table it is: three rows, the same controls.)
+            auto again = open(doc->toDocx());
+            QVERIFY(again);
+            const QByteArray second = documentXml(again->toDocx());
+            QCOMPARE(second.count("<w:tr>"), 3);
+            QCOMPARE(second.count("<w:sdt>"), 2);
+            QVERIFY(problems(second).isEmpty());
+            if (which == 1) QVERIFY2(out.contains("<w:sdtContent><w:tr>") && out.contains("r1</w:t></w:r></w:p></w:tc></w:tr></w:sdtContent></w:sdt>"), qPrintable(QString::fromUtf8(out)));
+            // Taken away and brought back, as it was.
+            doc->story()->undo();
+            QCOMPARE(documentXml(doc->toDocx()), was);
+        }
+    }
+
+    // Rows and cells that content controls hold are shown, and a file that is saved after one of their cells is edited has the controls as they were.
+    void aTableWhoseRowsAndCellsAreInContentControlsShowsThemAndKeepsThem()
+    {
+        const QByteArray controlRow = R"(<w:sdt><w:sdtPr><w:id w:val="1"/></w:sdtPr><w:sdtContent><w:sdt><w:sdtPr><w:id w:val="2"/></w:sdtPr><w:sdtContent>)"
+                                      R"(<w:tr><w:sdt><w:sdtPr><w:id w:val="3"/></w:sdtPr><w:sdtContent><w:tc><w:p><w:r><w:t>Choose an item.</w:t></w:r></w:p></w:tc></w:sdtContent></w:sdt>)"
+                                      R"(<w:tc><w:p><w:r><w:t>Here is a sample</w:t></w:r></w:p></w:tc></w:tr></w:sdtContent></w:sdt></w:sdtContent></w:sdt>)";
+        const QByteArray table = R"(<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/></w:tblPr><w:tblGrid><w:gridCol w:w="2000"/><w:gridCol w:w="2000"/></w:tblGrid>)"
+                                 R"(<w:tr><w:tc><w:p><w:r><w:t>Note</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>Details</w:t></w:r></w:p></w:tc></w:tr>)" + controlRow +
+                                 R"(<w:tr><w:tc><w:p><w:r><w:t>last</w:t></w:r></w:p></w:tc><w:tc><w:p/></w:tc></w:tr></w:tbl>)";
+        auto doc = open(makeDocxWithParts(plainP("Sample 1:") + table + plainP("after"), sectionXml(12240, 15840, 1440), {}));
+        QVERIFY(doc);
+        const QString text = doc->story()->toPlainText();
+        QVERIFY2(text.contains(QStringLiteral("Choose an item.")) && text.contains(QStringLiteral("Here is a sample")), qPrintable(text));
+        QVERIFY(documentXml(doc->toDocx()).contains(table));
+        // The sample cell is edited: the controls are written where they were.
+        QTextCursor c(doc->story());
+        c.setPosition(text.indexOf(QStringLiteral("Here is a sample")));
+        c.setPosition(c.position() + 4, QTextCursor::KeepAnchor);
+        c.insertText(QStringLiteral("There"));
+        const QByteArray out = documentXml(doc->toDocx());
+        QVERIFY2(out.contains("There is a sample"), out.constData());
+        QVERIFY(out.contains(R"(<w:sdtContent><w:sdt><w:sdtPr><w:id w:val="2"/></w:sdtPr><w:sdtContent><w:tr><w:sdt><w:sdtPr><w:id w:val="3"/></w:sdtPr><w:sdtContent><w:tc>)"));
+        QVERIFY(out.contains(R"(</w:tc></w:sdtContent></w:sdt><w:tc>)"));
+        QVERIFY(out.contains(R"(</w:tr></w:sdtContent></w:sdt></w:sdtContent></w:sdt><w:tr>)"));
+    }
+
+    // A section's line numbers (w:lnNumType) are drawn in the margin, left of the text by the distance the file says, in the "line number" character style, from 1 at each page, and are
+    // written back as they were.
+    void aSectionsLineNumbersAreDrawnAndKept()
+    {
+        const QByteArray styles = kStyles + QByteArray("<w:style w:type=\"character\" w:styleId=\"LineNumber\"><w:name w:val=\"line number\"/><w:rPr><w:sz w:val=\"14\"/></w:rPr></w:style>");
+        QByteArray body;
+        for (int i = 0; i < 40; ++i) body += plainP(wordsOf("line", 6));
+        const QByteArray sect = sectionXml(6000, 6000, 1440, QByteArray(), QByteArray(), "<w:lnNumType w:countBy=\"1\" w:distance=\"144\"/>");
+        auto doc = open(makeDocxWithParts(body, sect, {}, QByteArray(), styles));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        QVERIFY(pg.pageCount() >= 3);
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            QStringList numbers;
+            double right = 0;
+            for (const auto &item : page->doc->pages[0]->items)
+                if (item->id.startsWith(QLatin1String("flow-lineno-box"))) {
+                    numbers << page->doc->stories.value(dynamic_cast<const TextItem *>(item.get())->storyId)->doc->toPlainText();
+                    right = item->rect.right();
+                }
+            QCOMPARE(int(numbers.size()), int(pg.lines(k).size()));
+            QCOMPARE(numbers.value(0), QStringLiteral("1"));
+            QCOMPARE(numbers.last(), QString::number(numbers.size()));
+            QVERIFY2(std::abs(right - (pg.page(k).content.left() - 7.2)) < 0.01, qPrintable(QString::number(right)));
+        }
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:lnNumType w:countBy=\"1\" w:distance=\"144\"/>"));
+    }
+
+    // Ruby text in a header shows as it does in the text: the base, and the ruby after it in brackets.
+    void rubyInAHeaderIsShown()
+    {
+        const QByteArray ruby = "<w:r><w:ruby><w:rt><w:r><w:t>ruby</w:t></w:r></w:rt><w:rubyBase><w:r><w:t>base</w:t></w:r></w:rubyBase></w:ruby></w:r>";
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t xml:space=\"preserve\">Head </w:t></w:r>" + ruby})}};
+        auto doc = open(makeDocxWithParts(plainP("body"), sectionXml(6000, 6000, 720, "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"), parts));
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        const auto heads = audit::itemsWith(*page, QStringLiteral("flow-header-box"));
+        QVERIFY(heads.size() == 1);
+        QCOMPARE(audit::storyOf(*page, heads[0]), QStringLiteral("Head base(ruby)"));
+    }
+
+    // A paragraph that says w:suppressLineNumbers (itself, or by its style) has no numbers, and the lines of the others are counted without it.
+    void aParagraphThatSuppressesLineNumbersIsNeitherNumberedNorCounted()
+    {
+        const QByteArray styles = kStyles + QByteArray("<w:style w:type=\"character\" w:styleId=\"LineNumber\"><w:name w:val=\"line number\"/><w:rPr><w:sz w:val=\"14\"/></w:rPr></w:style>"
+                                                          "<w:style w:type=\"paragraph\" w:styleId=\"Quiet\"><w:name w:val=\"Quiet\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:suppressLineNumbers/></w:pPr></w:style>");
+        QByteArray body = plainP(wordsOf("first", 20)) + plainP(wordsOf("direct", 20), QByteArray(), "<w:suppressLineNumbers/>") + plainP(wordsOf("third", 20)) +
+                          plainP(wordsOf("styled", 20), QByteArray(), "<w:pStyle w:val=\"Quiet\"/>") + plainP(wordsOf("fifth", 20)) + plainP(wordsOf("turned on again", 20), QByteArray(), "<w:suppressLineNumbers w:val=\"0\"/>");
+        const QByteArray sect = sectionXml(12240, 15840, 1440, QByteArray(), QByteArray(), "<w:lnNumType w:countBy=\"1\"/>");
+        auto doc = open(makeDocxWithParts(body, sect, {}, QByteArray(), styles));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        QCOMPARE(pg.pageCount(), 1);
+        const QTextDocument *story = doc->story();
+        int counted = 0;
+        for (const auto &l : pg.lines(0)) {
+            const QString text = story->findBlock(l.block).text();
+            counted += !text.startsWith(QLatin1String("direct")) && !text.startsWith(QLatin1String("styled"));
+        }
+        QVERIFY(counted > 4 && counted < int(pg.lines(0).size()));
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        QStringList numbers;
+        for (const auto &item : page->doc->pages[0]->items)
+            if (item->id.startsWith(QLatin1String("flow-lineno-box"))) numbers << page->doc->stories.value(dynamic_cast<const TextItem *>(item.get())->storyId)->doc->toPlainText();
+        QStringList want;
+        for (int i = 1; i <= counted; ++i) want << QString::number(i);
+        QCOMPARE(numbers, want);
+    }
+
+    // A field of a header that shows a paragraph style's text (STYLEREF), as the file would have it: its instruction, and a result `cached`.
+    static QByteArray styleRefField(const char *instruction, const char *cached = "cached")
+    {
+        return "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> STYLEREF " + QByteArray(instruction) +
+               " </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>" + cached + "</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+    }
+
+    // What a header shows of a paragraph style (a STYLEREF field) is the page's own: the first paragraph of the style on the page (the last with \l, its number with \n), or the
+    // last before the page when it has none, or the first after it when there is none before (the pages before the first title show that one); the field's result in the file is
+    // what shows where the document has no paragraph of the style at all.
+    void aHeaderShowsTheStyledParagraphOfItsPage()
+    {
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"),
+                                               headerPart("hdr", {"<w:r><w:t xml:space=\"preserve\">First: </w:t></w:r>" + styleRefField("\"heading 1\""), "<w:r><w:t xml:space=\"preserve\">Last: </w:t></w:r>" + styleRefField("\"heading 1\" \\l"),
+                                                                  "<w:r><w:t xml:space=\"preserve\">Number: </w:t></w:r>" + styleRefField("\"heading 1\" \\n"),
+                                                                  "<w:r><w:t xml:space=\"preserve\">None: </w:t></w:r>" + styleRefField("\"No Such Style\"")})}};
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        QByteArray body;
+        for (int i = 0; i < 3; ++i) body += plainP(wordsOf("front", 150));   // (pages before the first title)
+        for (int h = 0; h < 4; ++h) {
+            body += "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:t>Chapter " + QByteArray::number(h + 1) + " title</w:t></w:r></w:p>";
+            for (int i = 0; i < (h == 1 || h == 2 ? 1 : 3); ++i) body += plainP(wordsOf("text", h == 1 || h == 2 ? 8 : 150));   // (the second and third chapters share a page)
+        }
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720, "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"), parts, QByteArray(), kStyles, numbering));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 8);
+        const QTextDocument *story = doc->story();
+        int sawBefore = 0, sawTwo = 0, sawAfter = 0;
+        for (int k = 0; k < pages; ++k) {
+            const int from = pg.page(k).start.pos, to = k + 1 < pages ? pg.page(k + 1).start.pos : story->characterCount();
+            QString first, last, before, after;
+            int firstNumber = 0, lastNumber = 0, beforeNumber = 0, afterNumber = 0, number = 0;
+            for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+                if (b.blockFormat().stringProperty(tp::StyleName) != QLatin1String("Heading1")) continue;
+                ++number;
+                if (b.position() + b.length() <= from) {
+                    before = b.text();
+                    beforeNumber = number;
+                } else if (b.position() < to) {
+                    if (first.isEmpty()) {
+                        first = b.text();
+                        firstNumber = number;
+                    }
+                    last = b.text();
+                    lastNumber = number;
+                } else if (after.isEmpty()) {
+                    after = b.text();
+                    afterNumber = number;
+                }
+            }
+            // (On the page, else the last before it, else the first after it.)
+            const QString shownFirst = !first.isEmpty() ? first : !before.isEmpty() ? before : after, shownLast = !last.isEmpty() ? last : !before.isEmpty() ? before : after;
+            const int shownNumber = firstNumber ? firstNumber : beforeNumber ? beforeNumber : afterNumber;
+            Q_UNUSED(lastNumber)
+            sawBefore += first.isEmpty() && !before.isEmpty();
+            sawTwo += first != last;
+            sawAfter += first.isEmpty() && before.isEmpty();
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            const auto heads = audit::itemsWith(*page, QStringLiteral("flow-header-box"));
+            QVERIFY(heads.size() == 1);
+            QString shown = audit::storyOf(*page, heads[0]);
+            const QString want = QStringLiteral("First: %1|Last: %2|Number: %3|None: ￼").arg(shownFirst, shownLast).arg(shownNumber);
+            QVERIFY2(shown.replace(QLatin1Char('\n'), QLatin1Char('|')).replace(QChar::ParagraphSeparator, QLatin1Char('|')) == want, qPrintable(QStringLiteral("page %1: %2 for %3").arg(k).arg(shown, want)));
+        }
+        QVERIFY2(sawBefore > 0 && sawTwo > 0 && sawAfter >= 3, "the pages have some with no title on them, one with two, and three before the first title");
+    }
+
+    // The fields of a header are as many as the page gives text to (the rest show what the file had), and a title is found however far from the page it is.
+    void theFieldsOfAHeaderAreBoundedAndFindTitlesAnyDistanceOff()
+    {
+        QByteArray fields;
+        for (int i = 0; i < 70; ++i) fields += "<w:r><w:t xml:space=\"preserve\"> n" + QByteArray::number(i) + "=</w:t></w:r>" + styleRefField("\"heading 1\"");
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", {fields})}};
+        QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>The only title</w:t></w:r></w:p>";
+        for (int i = 0; i < 25000; ++i) body += plainP("x");   // (more paragraphs than a search can walk)
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720, "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"), parts));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        const int pages = pg.pageCount();
+        QVERIFY(pages > 100);
+        const auto page = pg.materialize(pages - 1);
+        QVERIFY(page);
+        const auto heads = audit::itemsWith(*page, QStringLiteral("flow-header-box"));
+        QVERIFY(heads.size() == 1);
+        const QString shown = audit::storyOf(*page, heads[0]);
+        int givenText = 0;
+        for (const QChar ch : shown) givenText += ch == QChar::ObjectReplacementCharacter;
+        QCOMPARE(shown.count(QStringLiteral("The only title")), 64);   // (the title, in the first 64 fields, from 25,000 paragraphs off)
+        QCOMPARE(givenText, 6);                                         // (and the other six show what the file had)
+    }
+
+    // A page's fields cost a search each and no walk over the story: for 600 pages and 64 fields of a style that is declared and not used, and of one that is, the paragraphs looked at are
+    // about those of the story, once, and a few to a page.
+    void theFieldsOfAHeaderDoNotWalkTheStoryForEachPage()
+    {
+        const QByteArray styles = kStyles + QByteArray("<w:style w:type=\"paragraph\" w:styleId=\"Unused\"><w:name w:val=\"Never Used\"/><w:basedOn w:val=\"Normal\"/></w:style>");
+        QByteArray fields;
+        for (int i = 0; i < 64; ++i) fields += styleRefField(i % 2 ? "\"Never Used\"" : "\"heading 1\"");
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", {fields})}};
+        QByteArray body;
+        for (int i = 0; i < 6000; ++i) body += i % 500 == 0 ? QByteArray("<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Title ") + QByteArray::number(i) + "</w:t></w:r></w:p>" : plainP("line");
+        auto doc = open(makeDocxWithParts(body, sectionXml(3000, 2400, 360, "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"), parts, QByteArray(), styles));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 500);
+        resetStyleRefParagraphsScannedForTest();
+        for (int k = 0; k < pages; ++k) QVERIFY(pg.materialize(k));
+        const qint64 looked = styleRefParagraphsScannedForTest();
+        QVERIFY2(looked <= 2 * 6000 + qint64(pages) * 4, qPrintable(QStringLiteral("%1 paragraphs looked at for %2 pages of 64 fields").arg(looked).arg(pages)));
+    }
+
+    // A title that the page puts in a header's field and that is longer than the file's takes more lines: the box is as tall as the text, not a clip of the first line; and two fields
+    // next to one another that ask for the same are both given it.
+    void aLongTitleInAHeaderIsNotClippedAndTwoFieldsAreBothGivenIt()
+    {
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", {styleRefField("\"heading 1\"", "x") + styleRefField("\"heading 1\"", "x")})}};
+        QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>short</w:t></w:r></w:p>" + plainP(wordsOf("page", 120));
+        body += "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>" + wordsOf("A title that goes over several lines of the header because it is long", 30) + "</w:t></w:r></w:p>" + plainP(wordsOf("page", 120));
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720, "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"), parts));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 3);
+        double shortHeight = 0, longHeight = 0;
+        for (int k = 0; k < pages; ++k) {
+            const auto page = pg.materialize(k);
+            QVERIFY(page);
+            const auto heads = audit::itemsWith(*page, QStringLiteral("flow-header-box"));
+            QVERIFY(heads.size() == 1);
+            const QString shown = audit::storyOf(*page, heads[0]);
+            QVERIFY2(!shown.contains(QChar::ObjectReplacementCharacter), qPrintable(shown));   // (both fields are replaced)
+            if (shown.startsWith(QLatin1String("shortshort"))) shortHeight = heads[0]->rect.height();
+            if (shown.startsWith(QLatin1String("A title"))) longHeight = std::max(longHeight, heads[0]->rect.height());
+        }
+        QVERIFY2(shortHeight > 0 && longHeight > 1.8 * shortHeight, qPrintable(QStringLiteral("a short title's header is %1 high, a long one's %2").arg(shortHeight).arg(longHeight)));
     }
 
     // A note cited in the section before a continuous section of two columns, on the page where that begins: the notes are at the foot of the page, under the columns, and the

@@ -73,6 +73,29 @@ QString liveFieldOf(const QString &instruction)
     const QString kind = words.first().toUpper();
     if (kind == QLatin1String("NUMPAGES")) return QStringLiteral("pages");
     if (kind == QLatin1String("SECTIONPAGES")) return QStringLiteral("sectionpages");
+    if (kind == QLatin1String("STYLEREF")) {
+        // The style's name (quoted or not) and the switches that matter to what is shown; the result the file has is added after them, where the field is made.
+        QString name, switches;
+        int i = instruction.indexOf(QRegularExpression(QStringLiteral("STYLEREF"), QRegularExpression::CaseInsensitiveOption)) + 8;
+        while (i < instruction.size() && instruction[i].isSpace()) ++i;
+        if (i < instruction.size() && instruction[i] == QLatin1Char('"')) {
+            const int close = instruction.indexOf(QLatin1Char('"'), i + 1);
+            name = instruction.mid(i + 1, close < 0 ? -1 : close - i - 1);
+            i = close < 0 ? int(instruction.size()) : close + 1;
+        } else {
+            const int start = i;
+            while (i < instruction.size() && !instruction[i].isSpace() && instruction[i] != QLatin1Char('\\')) ++i;
+            name = instruction.mid(start, i - start);
+        }
+        for (; i + 1 < instruction.size(); ++i)
+            if (instruction[i] == QLatin1Char('\\')) {
+                const QChar letter = instruction[i + 1].toLower();
+                if (QStringLiteral("lnwrpt").contains(letter) && !switches.contains(letter)) switches += letter;
+                ++i;
+            }
+        name = name.trimmed().left(256);
+        return name.isEmpty() ? QString() : QStringLiteral("styleref:") + switches + QChar(0x1f) + name;
+    }
     if (kind != QLatin1String("PAGE")) return QString();
     for (int i = 1; i + 1 < words.size(); ++i)
         if (words[i] == QLatin1String("\\*")) {
@@ -344,6 +367,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         }
     }
     int paragraphsMade = 0, endnoteNumber = m_endnoteStart - 1, blockNumber = -1;
+    int styleRefsMade = 0;   // (each field that shows a paragraph style's text has a number in its code: two next to one another in one format would be one fragment of the text)
     // The format the endnote references of each paragraph are numbered in: its section's own (w:endnotePr of the section), else the settings'. Found as sectionText is, from
     // the sections as the file has them, for the story of the text alone.
     QVector<QString> endnoteFormats;
@@ -436,6 +460,31 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         resolved.numId = numId;
         resolved.ilvl = level;
         QTextBlockFormat bf = paragraphFormatOf(resolved);
+        // (Line numbers: the paragraph's own element says, else its style's; an element that says off turns it off.)
+        {
+            auto suppresses = [](const QVector<RawChild> &extra, bool *stated) {
+                bool on = false;
+                for (const RawChild &child : extra) {
+                    static const QRegularExpression element(QStringLiteral("^<(?:[\\w.-]+:)?suppressLineNumbers\\b([^>]*)>"));
+                    const QRegularExpressionMatch m = element.match(QString::fromUtf8(child.xml.left(200)));
+                    if (!m.hasMatch()) continue;
+                    *stated = true;
+                    on = !(m.captured(1).contains(QLatin1String("=\"0\"")) || m.captured(1).contains(QLatin1String("=\"false\"")) || m.captured(1).contains(QLatin1String("=\"off\"")));
+                }
+                return on;
+            };
+            bool stated = false;
+            bool suppressed = suppresses(direct.extra, &stated);
+            // (The style's, or the nearest style it is based on that says.)
+            QString at = styleId;
+            for (int depth = 0; !stated && !at.isEmpty() && depth < 32; ++depth) {
+                const Style *style = sheet.find(at);
+                if (!style) break;
+                suppressed = suppresses(style->pPr.extra, &stated);
+                at = style->basedOn;
+            }
+            if (suppressed) bf.setProperty(flow::fp::SuppressLineNumbers, true);
+        }
         if (tables.key()) bf.setProperty(flow::fp::Cell, tables.key());
         // A paragraph of a frame in the body is set apart from the text: no lines and no room there, and a text box where the frame asks, at the paragraph after it.
         // (A header's or a footer's frame is a text box too where it is set at a place on the page: its logo, its page number at the page's top. One set beside the text, by its
@@ -542,7 +591,13 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             };
             auto finish = [&] {
                 const Field f = fields.takeLast();
-                const QString live = liveFieldOf(f.instruction);
+                QString live = liveFieldOf(f.instruction);
+                if (live.startsWith(QLatin1String("styleref:"))) {
+                    // (The result the file has is kept in the code, for a page that shows no paragraph of the style, or a layout that is of no page.)
+                    QString kept;
+                    for (const auto &r : f.result) kept += r.first;
+                    live += QChar(0x1f) + kept.left(1000) + QChar(0x1f) + QString::number(++styleRefsMade);
+                }
                 if (!live.isEmpty()) {
                     QTextCharFormat ff = f.result.isEmpty() ? f.begin : f.result.first().second;
                     ff.setProperty(tp::Field, live);
@@ -583,12 +638,15 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 } else if (in.kind == Inline::RunAtom && drawnTag(in.tag)) {
                     QTextCharFormat object = formatOf(styleId, in.props);
                     if (drawnObjects(in, part, &object, lineWidth(), &p.content)) put(QString(QChar::ObjectReplacementCharacter), object);
+                } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("ruby") && !in.display.isEmpty()) {
+                    // (Ruby text, as in the text: its base, and the ruby after it in brackets.)
+                    put(in.display, formatOf(styleId, in.props));
                 } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("instrText")) {
                     if (!fields.isEmpty() && !fields.last().inResult) fields.last().instruction += textOfXml(in.raw);
                 } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Open) {
                     if (fields.size() < kMostFieldNesting) {
                         fields.push_back(Field());
-                        fields.last().instruction = attributeOfTag(in.raw, QStringLiteral("instr"));
+                        fields.last().instruction = QString(attributeOfTag(in.raw, QStringLiteral("instr"))).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&apos;"), QLatin1String("'")).replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&amp;"), QLatin1String("&"));
                         fields.last().inResult = true;
                     }
                 } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Close) {

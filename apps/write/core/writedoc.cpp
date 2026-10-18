@@ -121,6 +121,32 @@ flow::PageBorders pageBordersOf(const QVector<RawChild> &extra)
     return out;
 }
 
+// A section's line numbers (w:lnNumType, kept as written among the section's properties).
+flow::Section::LineNumbers lineNumbersOf(const QVector<RawChild> &extra)
+{
+    flow::Section::LineNumbers out;
+    static const QRegularExpression isNumbers(QStringLiteral("^<(?:[\\w.-]+:)?lnNumType\\b([^>]*)>"));
+    static const QRegularExpression attribute(QStringLiteral("\\s(?!xmlns)(?:[\\w.-]+:)?([\\w.-]+)\\s*=\\s*\"([^\"]*)\""));
+    for (const RawChild &child : extra) {
+        const QRegularExpressionMatch head = isNumbers.match(QString::fromUtf8(child.xml.left(400)));
+        if (!head.hasMatch()) continue;
+        QHash<QString, QString> at;
+        auto it = attribute.globalMatch(QLatin1Char(' ') + head.captured(1));
+        while (it.hasNext()) {
+            const QRegularExpressionMatch m = it.next();
+            at.insert(m.captured(1), m.captured(2));
+        }
+        out.countBy = std::clamp(at.value(QStringLiteral("countBy"), QStringLiteral("1")).toInt(), 1, 1000);
+        out.start = std::clamp(at.value(QStringLiteral("start"), QStringLiteral("1")).toInt(), 0, 100000);
+        out.distance = std::clamp(at.value(QStringLiteral("distance")).toDouble() / 20.0, 0.0, 144.0);
+        const QString restart = at.value(QStringLiteral("restart"));
+        out.restart = restart == QLatin1String("newSection") ? flow::Section::LineNumbers::Restart::NewSection : restart == QLatin1String("continuous") ? flow::Section::LineNumbers::Restart::Continuous
+                                                                                                                                             : flow::Section::LineNumbers::Restart::NewPage;
+        break;
+    }
+    return out;
+}
+
 flow::Section flowSectionOf(const SectionProps &p, bool evenAndOdd)
 {
     flow::Section s;
@@ -138,6 +164,7 @@ flow::Section flowSectionOf(const SectionProps &p, bool evenAndOdd)
     s.continuous = p.type == QLatin1String("continuous");
     s.startParity = p.type == QLatin1String("oddPage") ? flow::Section::Parity::Odd : p.type == QLatin1String("evenPage") ? flow::Section::Parity::Even : flow::Section::Parity::Any;
     s.pageBorders = pageBordersOf(p.extra);
+    s.lineNumbers = lineNumbersOf(p.extra);
     s.firstPageNumber = p.pageStart;
     s.pageNumberFormat = p.pageFormat == QLatin1String("lowerRoman") ? QStringLiteral("roman")
                          : p.pageFormat == QLatin1String("upperRoman") ? QStringLiteral("ROMAN")
@@ -575,6 +602,8 @@ void WriteDoc::attachHeaders(int from)
         s.footer.odd = pick(refs.footer[0], before ? before->footer.odd : nullptr);
         s.footer.first = pick(refs.footer[1], before ? before->footer.first : nullptr);
         s.footer.even = pick(refs.footer[2], before ? before->footer.even : nullptr);
+        // (The numbers of the lines are in the file's "line number" character style.)
+        if (s.lineNumbers.countBy > 0) s.lineNumbers.format = styleCharFormat(defaultParagraphStyle(), QStringLiteral("LineNumber"));
     }
 }
 

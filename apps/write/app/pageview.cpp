@@ -212,9 +212,11 @@ std::shared_ptr<PageView::Rendered> PageView::rendered(int index)
     if (index >= pg.pagesKnown()) return nullptr;
     auto r = std::make_shared<Rendered>();
     r->page = pg.materialize(index);
+    // (The page's text boxes, a column each, in order: a header, a footer, a note, and the numbers of the lines are text items too, and none of the text's columns.)
     if (r->page)
-        for (const ItemPtr &item : r->page->doc->pages[0]->items)
-            if (item->type() == ItemType::Text) r->boxes.push_back(static_cast<TextItem *>(item.get()));
+        for (const QString &id : r->page->boxes)
+            if (Item *item = r->page->doc->item(id))
+                if (item->type() == ItemType::Text) r->boxes.push_back(static_cast<TextItem *>(item));
     m_rendered.insert(index, r);
     m_recent.prepend(index);
     while (m_recent.size() > kKeptPages) m_rendered.remove(m_recent.takeLast());
