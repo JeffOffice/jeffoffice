@@ -224,6 +224,21 @@ private Q_SLOTS:
         QCOMPARE(d.lastSection.colSpace, 360);
     }
 
+    // Text that is not marked to keep its blanks has none at its ends (a space at the end of one run and the start of the next is no space between them); text that is
+    // marked keeps every one, and the blanks inside are the text's own either way.
+    void textWithoutPreserveLosesTheBlanksAtItsEnds()
+    {
+        Made m;
+        m.body = R"(<w:p><w:r><w:t>Before </w:t></w:r><w:r><w:t> inside  twice </w:t></w:r><w:r><w:t xml:space="preserve"> kept </w:t></w:r><w:r><w:t> </w:t></w:r><w:r><w:t>After</w:t></w:r></w:p>)";
+        Document d;
+        QString err;
+        QVERIFY2(readDocx(m.build(), &d, &err), qPrintable(err));
+        QCOMPARE(d.body.size(), 1);
+        QString all;
+        for (const Inline &in : d.body[0].para.content) all += in.text;
+        QCOMPARE(all, QStringLiteral("Beforeinside  twice kept After"));
+    }
+
     void sectionBreaksAreInTheParagraphThatEndsThem()
     {
         Made m;

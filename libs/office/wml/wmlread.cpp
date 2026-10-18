@@ -313,7 +313,15 @@ public:
             } else if (name == "rPr" || name == "lastRenderedPageBreak") {
                 continue;
             } else if (name == "t") {
-                text += t.text(c);
+                // (Text that is not marked to keep its blanks has none at its ends: the one before a space and the one after one are dropped.)
+                QString piece = t.text(c);
+                if (t.attrAny(c, "space") != QLatin1String("preserve")) {
+                    int from = 0, to = int(piece.size());
+                    while (from < to && (piece[from] == QLatin1Char(' ') || piece[from] == QLatin1Char('\t') || piece[from] == QLatin1Char('\n') || piece[from] == QLatin1Char('\r'))) ++from;
+                    while (to > from && (piece[to - 1] == QLatin1Char(' ') || piece[to - 1] == QLatin1Char('\t') || piece[to - 1] == QLatin1Char('\n') || piece[to - 1] == QLatin1Char('\r'))) --to;
+                    piece = piece.mid(from, to - from);
+                }
+                text += piece;
             } else if (name == "tab") {
                 text += QLatin1Char('\t');
             } else if (name == "cr") {
