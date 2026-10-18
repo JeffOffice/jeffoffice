@@ -2804,7 +2804,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     if (at > end + 0.01 && (stop < 0 || at < stop)) stop = at;
                 };
                 for (const QTextOption::Tab &t : bf.tabPositions()) consider(t.position * scale);
-                if (B->markerSkipsIndent && bf.hasProperty(tp::NumberTab)) consider(bf.doubleProperty(tp::NumberTab) * scale);
+                if (B->markerSkipsIndent && bf.hasProperty(tp::NumberTab)) {
+                    consider(bf.doubleProperty(tp::NumberTab) * scale);
+                } else if (B->markerSkipsIndent) {
+                    // (With no list tab, the paragraph clearing the level's or setting a stop of its own in its place, the text goes to the nearest of the paragraph's stops, the
+                    // hanging indent, and the next default stop.)
+                    if (textIndent < 0) consider(leftM);
+                    consider((std::floor((end + 0.01) / step) + 1) * step);
+                }
                 if (stop < 0) stop = (std::floor((std::max(end, last) + 0.01) / step) + 1) * step;
                 markerW = stop - first;
             }
