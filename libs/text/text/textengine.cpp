@@ -291,6 +291,14 @@ constexpr int kOwnUnderline = QTextFormat::UserProperty + 90;
 constexpr int kLetterWidths = QTextFormat::UserProperty + 91;
 // The face Courier New is drawn in where the machine lacks it (resolveCharFormat): its font's families are this and then the family whose line it keeps.
 const QString kThinCourier = QStringLiteral("Courier Prime");
+// The bundled face a word processor's face is drawn in where the machine lacks it, for the faces its machine has that no table of letter widths measures: the nearest of the same
+// kind, which a run's font lists before the face asked for (resolveCharFormat), as Courier Prime is. News Gothic MT, the masthead of the public notices of one agency, is set in
+// Libre Franklin, a gothic of the same bearing: its bold "PUBLIC NOTICE" at 48 points is 497 pixels wide to the original's 495.
+QString wordStandInOf(const QString &lowerFamily)
+{
+    if (lowerFamily == QLatin1String("news gothic mt")) return QStringLiteral("Libre Franklin");
+    return QString();
+}
 
 // A run's border from the text of its property (tp::RunBorder: style, width in eighths of a point, room in points, color): at most twelve points wide and thirty-one away, as a file
 // can say; none (not visible) where the style is none or nil.
@@ -1014,6 +1022,9 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
             // list marker's, or the next paragraph's.)
             fams.insert(0, kThinCourier);
             r.setFontFamilies(fams);
+        } else if (const QString standIn = wordStandInOf(lower); !standIn.isEmpty() && !hasFamilyCached(fams.first()) && hasFamilyCached(standIn)) {
+            fams.insert(0, standIn);
+            r.setFontFamilies(fams);
         }
     }
     // Sizes within the other program's range (to 1,638 pt): a file can claim
@@ -1642,7 +1653,8 @@ static QString metricFamilyOf(const QFont &f)
     const QStringList families = f.families();
     // (And for a run that shows the pictures of a symbol font the machine lacks, drawn in the run's own family: the font follows it in the list.)
     const bool pictures = families.size() >= 2 && isSymbolFont(families[1]) && !isSymbolFont(families.first()) && !hasFamilyCached(families[1]);
-    return families.size() >= 2 && (families.first() == kThinCourier || pictures) ? families[1] : requestedFamily(f);
+    const bool standIn = families.size() >= 2 && (families.first() == kThinCourier || wordStandInOf(families[1].toLower()) == families.first());
+    return standIn || pictures ? families[1] : requestedFamily(f);
 }
 
 // A font's ascent, descent, and leading in ems, as the word processor lays a line out with it (by the family the text asked for): the one place a line is

@@ -2504,6 +2504,25 @@ private Q_SLOTS:
         QVERIFY2(std::abs(lines.value(0).rect.height() - (1705 + 615) / 2048.0 * 20) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
     }
 
+    // A face the word processor's machine has and this one lacks, and no table of letter widths measures (News Gothic MT, whose bold is the masthead of every public notice),
+    // is drawn in the nearest bundled face of its kind (Libre Franklin, a gothic of the same bearing: "PUBLIC NOTICE" at 48 points bold is 495 pixels wide at 96 to the inch,
+    // 497 in Libre Franklin Bold, and 403 in the Calibri stand-in it had), and its line stays its own (2003 and 458 units).
+    void newsGothicIsDrawnInALikeGothicAndSetAsItself()
+    {
+        if (QFontDatabase::hasFamily(QStringLiteral("News Gothic MT"))) QSKIP("News Gothic MT is installed");
+        QVERIFY(QFontDatabase::hasFamily(QStringLiteral("Libre Franklin")));
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("News Gothic MT")});
+        cf.setFontPointSize(48);
+        cf.setFontWeight(QFont::Bold);
+        LayoutEnv word;
+        word.wordLines = true;
+        QCOMPARE(resolveCharFormat(cf, word).fontFamilies().toStringList().value(0), QStringLiteral("Libre Franklin"));
+        QCOMPARE(resolveCharFormat(cf, LayoutEnv()).fontFamilies().toStringList().value(0), QStringLiteral("News Gothic MT"));
+        const auto lines = wordLinesOf({{QStringLiteral("News Gothic MT"), 48}});
+        QVERIFY2(std::abs(lines.value(0).rect.height() - (2003 + 458) / 2048.0 * 48) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
+    }
+
     // The line of Courier New is Courier New's wherever it is measured, though the text is drawn in Courier Prime (whose own line is 1.318 em, to Courier New's 1.133):
     // the number of a list item is a run of its own on the first line, and the paragraph after a keep-with-next one is measured for room.
     void aNumberedCourierNewItemKeepsCourierNewsLine()
