@@ -42,7 +42,9 @@ struct NumState {
 void WriteDoc::buildStory(const QVector<Block> &body)
 {
     m_letteringShapes = m_letteringLetters = m_boxTableCells = 0;
+    m_endnoteRefs.clear();
     fillStory(story(), body, false);
+    appendEndnotes();
 }
 
 // The most fields that nest in one another that a header or footer shows live (deeper ones show what they last read).
@@ -54,6 +56,8 @@ constexpr int kMostObjects = 20000;
 constexpr int kMostImages = 2000;
 // The most cells of the tables of text boxes that a document has laid out in its boxes (a box whose tables would go over it keeps them as stand-ins).
 constexpr int kMostBoxTableCells = 2000;
+// The most endnotes that are set after the text (the rest are left out: a reference to one shows only its number), as many as the footnotes that are made into stories.
+constexpr int kMostEndnotes = 5000;
 
 namespace {
 bool drawnTag(const QString &tag)
@@ -284,7 +288,7 @@ flow::FloatingObject frameObjectOf(const QHash<QString, QString> &at)
 
 // Fills `story` from the elements of a body or of a header or footer. A header's or footer's (`header`) fields for the page's number and the page
 // counts are live fields of the text engine, its tables and pictures are left out, and a paragraph in a frame is set aligned as the frame is.
-void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool header, const QString &part, bool headerFooter)
+void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool header, const QString &part, bool headerFooter, bool append)
 {
     const StyleSheet &sheet = m_wml.styles;
     const Theme *thm = theme();
@@ -293,6 +297,10 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     QTextCursor c(story);
     c.beginEditBlock();
     bool firstBlock = true;
+    if (append) {
+        c.movePosition(QTextCursor::End);
+        firstBlock = false;
+    }
     auto startBlock = [&](const QTextBlockFormat &bf, const QTextCharFormat &cf) {
         if (firstBlock) {
             c.setBlockFormat(bf);
@@ -578,6 +586,12 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             newList = !continuing;
         }
 
+        if (append) {
+            // (The pages' copy of an endnote: it takes no part in what the document's paragraphs are, by their styles, outlines, or saved forms.)
+            bf.setProperty(prop::EndnoteBlock, true);
+            bf.clearProperty(prop::Outline);
+            bf.clearProperty(tp::StyleName);
+        }
         startBlock(bf, markFormat);
         if (numId > 0) {
             NumState &st = numbering[numId];
@@ -631,7 +645,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 } else if (in.kind == Inline::RunAtom && (in.tag == QLatin1String("footnoteRef") || in.tag == QLatin1String("endnoteRef"))) {
                     // (The mark that begins a note's text shows the note's number: the pages give it.)
                     QTextCharFormat mark = formatOf(styleId, in.props);
-                    mark.setProperty(tp::Field, QStringLiteral("notemark"));
+                    mark.setProperty(tp::Field, append && in.tag == QLatin1String("endnoteRef") ? QStringLiteral("raw:") + in.display : QStringLiteral("notemark"));
                     put(QString(QChar::ObjectReplacementCharacter), mark);
                 } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym") && !in.display.isEmpty() && isSymbolFontName(attributeOfTag(in.raw, QStringLiteral("font")))) {
                     // (A symbol of a symbol font, as the text has it: shown in that font. Where it is a blank, as an older program's mark of a note begins its text, it shows
@@ -753,7 +767,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 field = QStringLiteral("footnote:fn") + in.key;
                 if (markFollows(in.raw)) af.setProperty(tp::NoteMarkCustom, true);
             }
-            else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + (markFollows(in.raw) ? QString() : noteNumberText(endnoteFormats.value(blockNumber, m_endnoteFormat), deleted ? endnoteNumber + 1 : ++endnoteNumber));   // (a deleted one takes no number)
+            else if (in.tag == QLatin1String("endnoteReference")) {
+                const QString shown = markFollows(in.raw) ? QString() : noteNumberText(endnoteFormats.value(blockNumber, m_endnoteFormat), deleted ? endnoteNumber + 1 : ++endnoteNumber);   // (a deleted one takes no number)
+                field = QStringLiteral("raw:") + shown;
+                if (!header && !deleted && m_endnoteRefs.size() < kMostEndnotes) m_endnoteRefs.push_back({in.key, shown});
+            }
             af.setProperty(tp::Field, field);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);
         }

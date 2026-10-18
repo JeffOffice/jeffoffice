@@ -128,6 +128,53 @@ QList<const QTextDocument *> NoteFields::storyDocs() const
     return list;
 }
 
+void WriteDoc::loadEndnotes()
+{
+    m_endnoteBlocks.clear();
+    m_endnoteSeparator.clear();
+    m_endnotePart.clear();
+    for (const Relationship &r : m_wml.mainRelationships)
+        if (!r.external && r.type.endsWith(QLatin1String("/endnotes"))) {
+            m_endnotePart = r.target;
+            break;
+        }
+    if (m_endnotePart.isEmpty()) return;
+    QVector<NotePart> notes;
+    if (!office::wml::readNotes(partData(m_endnotePart), &notes)) return;
+    for (NotePart &n : notes) {
+        if (n.type.isEmpty() || n.type == QLatin1String("normal")) {
+            if (m_endnoteBlocks.size() < kMostNoteStories) m_endnoteBlocks.insert(QString::number(n.id), std::move(n.blocks));
+        } else if (n.type == QLatin1String("separator")) {
+            m_endnoteSeparator = std::move(n.blocks);
+        }
+    }
+    if (m_endnoteSeparator.size() > kMostNoticeParagraphs) m_endnoteSeparator.resize(kMostNoticeParagraphs);
+}
+
+// The endnotes after the document's last text: the file's separator for them, then the notes the text's references name, in the order of the references. (They are paragraphs of the
+// story that the file does not have: they are marked, and not written.) A last section that says it has no endnotes has none.
+void WriteDoc::appendEndnotes()
+{
+    if (m_endnoteRefs.isEmpty() || m_endnoteBlocks.isEmpty()) return;
+    for (const RawChild &ch : m_last.extra)
+        if (ch.xml.contains("noEndnote")) return;
+    QVector<Block> tail = m_endnoteSeparator;
+    int made = 0;
+    for (const EndnoteRef &ref : std::as_const(m_endnoteRefs)) {
+        const auto found = m_endnoteBlocks.constFind(ref.id);
+        if (found == m_endnoteBlocks.constEnd()) continue;
+        QVector<Block> blocks = found.value();
+        // (The mark that begins the note's text shows the number its reference has.)
+        for (Block &b : blocks)
+            for (Inline &in : b.para.content)
+                if (in.kind == Inline::RunAtom && in.tag == QLatin1String("endnoteRef")) in.display = ref.mark;
+        tail += blocks;
+        ++made;
+    }
+    if (made == 0) return;
+    fillStory(story(), tail, true, m_endnotePart, false, true);
+}
+
 void WriteDoc::loadNotes()
 {
     m_noteBlocks.clear();

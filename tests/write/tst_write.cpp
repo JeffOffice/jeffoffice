@@ -408,7 +408,7 @@ QByteArray makeDocxWithParts(const QByteArray &body, const QByteArray &sect, con
     }
     for (auto it = parts.cbegin(); it != parts.cend(); ++it) {
         const QString id = QStringLiteral("rId") + QFileInfo(it.key()).completeBaseName();
-        const QString kind = it.key().contains(QLatin1String("footnotes")) ? QStringLiteral("footnotes") : it.key().contains(QLatin1String("fontTable")) ? QStringLiteral("fontTable")
+        const QString kind = it.key().contains(QLatin1String("footnotes")) ? QStringLiteral("footnotes") : it.key().contains(QLatin1String("endnotes")) ? QStringLiteral("endnotes") : it.key().contains(QLatin1String("fontTable")) ? QStringLiteral("fontTable")
                              : it.key().contains(QLatin1String("footer")) ? QStringLiteral("footer") : QStringLiteral("header");
         w.addPart(it.key(), xml(it.value()), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.") + kind + "+xml");
         w.addRelationshipWithId(QStringLiteral("/word/document.xml"), id, rel + kind, it.key());
@@ -11401,6 +11401,55 @@ private Q_SLOTS:
         QVERIFY(!shown.isEmpty());
         QVERIFY2(std::abs(shown.last().right() - 228) < 0.5, qPrintable(QStringLiteral("the footer's text ends at %1, the margin is at 228").arg(shown.last().right())));
         QVERIFY(documentXml(doc->toDocx()).contains("<w:ptab w:relativeTo=\"margin\" w:alignment=\"right\" w:leader=\"none\"/>"));
+    }
+
+    // The endnotes are set after the document's last text, the file's separator for them first and then the notes its references name, each with its number: they are paragraphs of
+    // the pages' story that are not the document's own (no edit reaches them, saving leaves them out, and the file's part is kept as it was).
+    void theEndnotesAreSetAfterTheLastTextAndAreNotWritten()
+    {
+        const QByteArray body = "<w:p><w:r><w:t>First</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p><w:p><w:r><w:t>Second</w:t></w:r><w:r><w:endnoteReference w:id=\"3\"/></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:t>Sources</w:t></w:r></w:p></w:endnote>"
+                                 "<w:endnote w:type=\"continuationSeparator\" w:id=\"0\"><w:p><w:r><w:t>Continued</w:t></w:r></w:p></w:endnote>"
+                                 "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Alpha note</w:t></w:r></w:p></w:endnote>"
+                                 "<w:endnote w:id=\"3\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Beta note</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        const QByteArray zip = makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>");
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QCOMPARE(int(doc->story()->blockCount()), 5);   // (two paragraphs, the separator, and two notes)
+        // What the first page shows, line by line.
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page && !page->boxes.isEmpty());
+        const auto *box = dynamic_cast<const TextItem *>(page->doc->item(page->boxes[0]));
+        QVERIFY(box);
+        FrameSpec fs;
+        fs.size = box->rect.size();
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        fs.hyphenate = false;
+        StoryLayout layout;
+        layout.build(page->doc->story(box->storyId)->doc.get(), {fs}, doc->flow().env);
+        QStringList lines;
+        for (const auto &l : layout.lineInfo(0)) lines << l.text.trimmed();
+        QCOMPARE(lines, (QStringList{QStringLiteral("First1"), QStringLiteral("Second2"), QStringLiteral("Sources"), QStringLiteral("1 Alpha note"), QStringLiteral("2 Beta note")}));
+        // Nothing types into them, and Delete at the end of the text does not join the first of them to it.
+        const QString before = doc->story()->toPlainText();
+        QTextCursor c(doc->story());
+        c.movePosition(QTextCursor::End);
+        insertText(*doc, c, QStringLiteral("x"));
+        QCOMPARE(doc->story()->toPlainText(), before);
+        c.setPosition(doc->story()->findBlockByNumber(1).position() + doc->story()->findBlockByNumber(1).length() - 1);
+        deleteForward(*doc, c, false);
+        QCOMPARE(doc->story()->toPlainText(), before);
+        // Saved, the document has its two paragraphs, and the endnotes part is as the file had it; read again, it shows the same.
+        const QByteArray saved = doc->toDocx();
+        const QByteArray written = documentXml(saved);
+        QVERIFY(written.contains("First") && written.contains("Second"));
+        QVERIFY(!written.contains("Sources") && !written.contains("Alpha note"));
+        office::Package p;
+        p.read(saved);
+        QVERIFY(p.part(QStringLiteral("/word/endnotes.xml")).contains("Alpha note"));
+        auto again = open(saved);
+        QVERIFY(again);
+        QCOMPARE(again->story()->toPlainText(), before);
     }
 
     // A paragraph that says w:suppressLineNumbers (itself, or by its style) has no numbers, and the lines of the others are counted without it.

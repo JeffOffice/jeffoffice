@@ -48,6 +48,8 @@ enum : int {
     NumDirect,                                // bool: the paragraph says it is numbered as its style says (and so the list's indents are over the style's)
     JcRaw,                                    // QString: the alignment as the file wrote it, when it is a kind of justified ("distribute")
     OddTabs,                                  // QByteArray: tab stops of the paragraph's own that the engine has no kind for (a bar), packed (packTabs)
+    EndnoteBlock,                             // bool: the paragraph is part of the document's endnotes, which the pages set after its last text (made from the endnotes part, which is kept as it is: it is not
+                                              // written, and can't be edited)
 };
 }
 

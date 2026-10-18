@@ -190,7 +190,8 @@ private:
     void build(office::wml::Document &&doc);
     void buildStory(const QVector<office::wml::Block> &body);
     // (`header`: the story of a part, not the body's; `headerFooter`: it is a header's or a footer's, whose frames set on the page are text boxes there.)
-    void fillStory(QTextDocument *story, const QVector<office::wml::Block> &body, bool header, const QString &part = QString(), bool headerFooter = false);
+    // (`append`: the paragraphs go after the story's last, as the document's endnotes: they are marked as such, and the mark of a note's reference at the head of its text is the one its atom has.)
+    void fillStory(QTextDocument *story, const QVector<office::wml::Block> &body, bool header, const QString &part = QString(), bool headerFooter = false, bool append = false);
     // Makes of a drawn object of a run (its atom) what the pages show: a picture in the line is an inline object of the character, the rest are objects set at
     // places on the page of the paragraph they are anchored to. False when it makes none (nothing drawn, or a picture the file does not hold).
     // (`lineWidth` is the width of a line of the paragraph the object is in, for a rule that is a share of it: its cell's or its section's text, less its indents; `content` is
@@ -202,6 +203,10 @@ private:
     void attachHeaders(int from);
     // The footnotes of the file (its footnotes part), kept as what they hold and made into stories when a page asks for one ("fn" and the note's Id).
     void loadNotes();
+    // The endnotes of the file (its endnotes part), and the pages' copy of them after the last text: the paragraphs of the notes the text refers to, in the order of their references, after
+    // the file's separator for them.
+    void loadEndnotes();
+    void appendEndnotes();
     void measureNoteSeparator();
     const QTextDocument *noteStory(const QString &id);
     QTextBlockFormat paragraphFormatOf(const office::wml::ParaProps &p) const;
@@ -235,6 +240,13 @@ private:
     QVector<office::wml::Block> m_noteNotice;                         // the paragraphs of the file's continuation notice (none: no room is kept for one)
     QVector<office::wml::Block> m_noteContinuation;                   // the paragraphs of the file's separator for the part of a note that goes on (none: the separator's)
     QVector<office::wml::Block> m_noteSeparator;                      // the paragraphs of the file's note separator (none: a line of the Normal style)
+    QString m_endnotePart;                                            // the endnotes part's name
+    QHash<QString, QVector<office::wml::Block>> m_endnoteBlocks;      // by Id
+    QVector<office::wml::Block> m_endnoteSeparator;                   // the paragraphs of the file's separator for the endnotes
+    struct EndnoteRef {
+        QString id, mark;                                             // a note a reference of the text names, and the number the reference shows
+    };
+    QVector<EndnoteRef> m_endnoteRefs;                                // the references of the text, in order (a deleted one is none)
     // (The stories of the notes and of the headers and footers are made when a page needs them and are not edited: nothing in the program reaches them yet. When
     // something does, the paginator has to be told as it is of the story's edits (its measures of them are kept by the story's revision), and the pages that show
     // them made again.)

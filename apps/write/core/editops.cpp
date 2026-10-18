@@ -270,7 +270,7 @@ void rewrap(const QVector<Wrapper> &wrappers, QTextBlock first, QTextBlock secon
 
 } // namespace
 
-bool isLocked(const QTextBlock &block) { return block.isValid() && block.blockFormat().hasProperty(prop::RawBlock); }
+bool isLocked(const QTextBlock &block) { return block.isValid() && (block.blockFormat().hasProperty(prop::RawBlock) || block.blockFormat().hasProperty(prop::EndnoteBlock)); }
 
 bool isInvisibleAtom(const QTextCharFormat &format) { return isZeroWidth(format); }
 

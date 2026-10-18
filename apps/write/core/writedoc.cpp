@@ -297,6 +297,7 @@ void WriteDoc::build(office::wml::Document &&doc)
     m_last = m_wml.lastSection;
     setUpEnvironment();
     loadNotes();
+    loadEndnotes();
     buildStory(body);
     measureNoteSeparator();
     settleTables();
