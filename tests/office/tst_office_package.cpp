@@ -2,6 +2,9 @@
 #include "officehelpers.h"
 #include "../timing.h"
 
+#include <QFile>
+#include <QTemporaryDir>
+
 namespace {
 const QString kStrictRelBase = QStringLiteral("http://purl.oclc.org/ooxml/officeDocument/relationships/");
 const QString kRelsType = QStringLiteral("application/vnd.openxmlformats-package.relationships+xml");
@@ -114,6 +117,29 @@ class OfficePackageTests : public QObject {
 
 private Q_SLOTS:
     // ---- packages
+
+    // A file larger than the most the apps open is refused before anything is read (each is held whole at once); one of the most is read.
+    void aFileLargerThanTheMostIsRefusedBeforeItIsRead()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("big.docx"));
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            QCOMPARE(f.write(QByteArray(100, 'x')), qint64(100));
+        }
+        QByteArray bytes("left over");
+        QString why;
+        QVERIFY(!readWholeFile(path, &bytes, &why, 99));
+        QVERIFY(bytes.isEmpty());
+        QVERIFY(!why.isEmpty());
+        QVERIFY(readWholeFile(path, &bytes, &why, 100));
+        QCOMPARE(bytes.size(), qsizetype(100));
+        QVERIFY(!readWholeFile(dir.filePath(QStringLiteral("none.docx")), &bytes, &why));
+        QVERIFY(bytes.isEmpty());
+        QCOMPARE(kMaxOpenFileBytes, qint64(1) << 30);
+    }
 
     void packageReadsMinimal()
     {

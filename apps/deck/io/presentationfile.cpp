@@ -60,6 +60,11 @@ std::unique_ptr<Document> importAnyPresentationFile(const QString &path, QString
         if (error) *error = QCoreApplication::translate("PresentationFile", "The file can't be opened: %1").arg(f.errorString());
         return nullptr;
     }
+    // (A file larger than the apps open is refused before it is read: every kind is held whole at once.)
+    if (f.size() > office::kMaxOpenFileBytes) {
+        if (error) *error = QCoreApplication::translate("jp::office::doc", "The file is larger than this program can open.");
+        return nullptr;
+    }
     const QByteArray head = f.read(128);
     if (looksLikeOpenDocument(head)) {
         f.seek(0);

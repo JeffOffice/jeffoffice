@@ -12,6 +12,7 @@
 #include "app/telemetry.h"
 #include "app/writefilescreen.h"
 #include "core/appinfo.h"
+#include "office/package.h"
 
 #include <QAction>
 #include <QApplication>
@@ -102,12 +103,8 @@ bool WriteWindow::openFile(const QString &path)
     QString err;
     QStringList notes;
     std::unique_ptr<write::WriteDoc> doc;
-    {
-        QFile f(path);
-        if (f.open(QIODevice::ReadOnly)) bytes = f.readAll();
-        else err = f.errorString();
-        if (!bytes.isEmpty()) doc = write::WriteDoc::fromFile(bytes, &err, &notes);
-    }
+    // (A file larger than the apps open is refused before it is read: it would all be held at once.)
+    if (office::readWholeFile(path, &bytes, &err) && !bytes.isEmpty()) doc = write::WriteDoc::fromFile(bytes, &err, &notes);
     QApplication::restoreOverrideCursor();
     const QString name = QFileInfo(path).fileName();
     if (!doc) {
@@ -300,15 +297,8 @@ void WriteWindow::offerRecovery(bool askIfNone)
 WriteWindow *WriteWindow::openRecovered(const recovery::Recovered &r, QString *error)
 {
     QByteArray bytes;
-    {
-        // Closed before the old copy is discarded below: Windows can't delete an open file.
-        QFile copy(r.file);
-        if (!copy.open(QIODevice::ReadOnly)) {
-            if (error) *error = copy.errorString();
-            return nullptr;
-        }
-        bytes = copy.readAll();
-    }
+    // (Closed before the old copy is discarded below: Windows can't delete an open file.)
+    if (!office::readWholeFile(r.file, &bytes, error)) return nullptr;
     std::unique_ptr<write::WriteDoc> doc = write::WriteDoc::fromDocx(bytes, error);
     if (!doc) return nullptr;
     WriteWindow *target = this;

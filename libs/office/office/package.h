@@ -27,6 +27,16 @@ struct Relationship {
     bool external = false;
 };
 
+// The most a file the apps open may be: each is read whole into memory before
+// it is read (a .docx, .pptx, or .odp is a ZIP read from memory, a .doc or
+// .ppt a compound file), so a larger one is refused before anything is read.
+// 1 GB, as the .doc reader allows.
+constexpr qint64 kMaxOpenFileBytes = qint64(1) << 30;
+
+// The whole of the file at `path` in `out`; false, with a message in `error`,
+// when it can't be opened or is larger than `most` (nothing is read then).
+bool readWholeFile(const QString &path, QByteArray *out, QString *error = nullptr, qint64 most = kMaxOpenFileBytes);
+
 // Reads a package into memory. These files come from strangers: a damaged or
 // hostile one (more than 10,000 parts, more than 2 GB inflated, a DOCTYPE or
 // bad XML in [Content_Types].xml or a relationship part) is refused with a

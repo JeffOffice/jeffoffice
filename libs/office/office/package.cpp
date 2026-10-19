@@ -357,15 +357,36 @@ bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxIn
     return true;
 }
 
-bool Package::readFile(const QString &path, QString *error)
+bool readWholeFile(const QString &path, QByteArray *out, QString *error, qint64 most)
 {
+    out->clear();
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) {
-        *this = Package();
         if (error) *error = translate("The file couldn't be opened: %1").arg(f.errorString());
         return false;
     }
-    return read(f.readAll(), error);
+    if (f.size() > most) {
+        if (error) *error = QCoreApplication::translate("jp::office::doc", "The file is larger than this program can open.");
+        return false;
+    }
+    *out = f.readAll();
+    // (A file that grew after its size was read is refused too.)
+    if (out->size() > most) {
+        out->clear();
+        if (error) *error = QCoreApplication::translate("jp::office::doc", "The file is larger than this program can open.");
+        return false;
+    }
+    return true;
+}
+
+bool Package::readFile(const QString &path, QString *error)
+{
+    QByteArray bytes;
+    if (!readWholeFile(path, &bytes, error)) {
+        *this = Package();
+        return false;
+    }
+    return read(bytes, error);
 }
 
 QStringList Package::partNames() const { return m_parts.keys(); }
