@@ -3322,6 +3322,33 @@ private Q_SLOTS:
         QVERIFY2(std::abs(alone.right() - 300) < 0.5, qPrintable(QString::number(alone.right())));
     }
 
+    // A paragraph that has ordinary tabs and an absolute position tab keeps its own stops for the ordinary ones: "A", a tab to the paragraph's stop at 144, "B", the absolute
+    // position tab to the margin's right edge, and "C" ending at the margin (the stops of the paragraph were all replaced by the absolute tab's, and "B" was at the margin).
+    void anAbsolutePositionTabLeavesTheParagraphsStopsToItsOrdinaryTabs()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Tinos")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setTabPositions({QTextOption::Tab(144, QTextOption::LeftTab)});
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("A\tB"), run);
+        QTextCharFormat ptab = run;
+        ptab.setProperty(tp::AlignTab, QStringLiteral("right:margin:none"));
+        c.insertText(QStringLiteral("\t"), ptab);
+        c.insertText(QStringLiteral("C"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(300, 100)}, env);
+        QCOMPARE(int(lay.lineBriefs().size()), 1);
+        const QRectF b = lay.rangeRects(0, 2, 3).first(), last = lay.rangeRects(0, 4, 5).first();
+        QVERIFY2(std::abs(b.left() - 144) < 1, qPrintable(QStringLiteral("B begins at %1, the paragraph's stop is at 144").arg(b.left())));
+        QVERIFY2(std::abs(last.right() - 300) < 1, qPrintable(QStringLiteral("C ends at %1, the margin is at 300").arg(last.right())));
+    }
+
     // The leaders of JeffPub's and JeffDeck's text are as they were: an underscore goes in only where it fits between the grid's start and the stop less its gap (two fifths of
     // one), not where it is a hundredth of a point over that. The widths and places are the layout's own, measured: the stop is set 0.005 point short of where the first
     // underscore would fit.

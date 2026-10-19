@@ -3278,33 +3278,48 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             QList<QTextOption::Tab> ownTabs = bf.tabPositions();
             // (A paragraph with absolute position tabs has the stops they make in place of its own, from the width of the text area: each of them goes to the place it names.)
             const bool alignTabs = env.wordLines && !B->alignTabs.isEmpty();
+            // (A paragraph that has tabs of the ordinary kind as well keeps its own stops among them: its ordinary tabs go to those, the first stop past where they are, and an absolute
+            // position tab to its own place, unless a stop of the paragraph's is between.)
+            const QList<QTextOption::Tab> blockTabs = ownTabs;
+            const QString blockLeaders = B->leaders;
+            const bool ordinaryTabs = alignTabs && B->disp.count(QLatin1Char('\t')) > B->alignTabs.size();
             auto alignedStops = [&](double areaW) {
                 struct Stop {
                     double at;
-                    QTextOption::TabType type;
+                    QTextOption::Tab tab;
                     QChar leader;
                 };
                 QVector<Stop> stops;
+                if (ordinaryTabs)
+                    for (int i = 0; i < blockTabs.size(); ++i)
+                        stops << Stop{blockTabs[i].position * scale, blockTabs[i], i < blockLeaders.size() ? blockLeaders[i] : QChar(QLatin1Char(' '))};
                 for (const QString &spec : B->alignTabs) {
                     const QStringList parts = spec.split(QLatin1Char(':'));
                     const bool indent = parts.value(1) == QLatin1String("indent");
                     const double lo = indent ? leftM : 0.0, hi = indent ? std::max(lo, areaW - rightM) : areaW;
                     const QString kind = parts.value(0), leader = parts.value(2);
-                    Stop st{hi, QTextOption::RightTab, QChar(QLatin1Char(' '))};
-                    if (kind == QLatin1String("center")) st = {(lo + hi) / 2, QTextOption::CenterTab, st.leader};
-                    else if (kind == QLatin1String("left")) st = {lo, QTextOption::LeftTab, st.leader};
-                    if (leader == QLatin1String("dot")) st.leader = QLatin1Char('.');
-                    else if (leader == QLatin1String("hyphen")) st.leader = QLatin1Char('-');
-                    else if (leader == QLatin1String("underscore")) st.leader = QLatin1Char('_');
-                    else if (leader == QLatin1String("middleDot")) st.leader = QChar(0x00B7);
-                    stops << st;
+                    double at = hi;
+                    QTextOption::TabType type = QTextOption::RightTab;
+                    if (kind == QLatin1String("center")) {
+                        at = (lo + hi) / 2;
+                        type = QTextOption::CenterTab;
+                    } else if (kind == QLatin1String("left")) {
+                        at = lo;
+                        type = QTextOption::LeftTab;
+                    }
+                    QChar mark(QLatin1Char(' '));
+                    if (leader == QLatin1String("dot")) mark = QLatin1Char('.');
+                    else if (leader == QLatin1String("hyphen")) mark = QLatin1Char('-');
+                    else if (leader == QLatin1String("underscore")) mark = QLatin1Char('_');
+                    else if (leader == QLatin1String("middleDot")) mark = QChar(0x00B7);
+                    stops << Stop{at, QTextOption::Tab(at / scale, type), mark};
                 }
                 std::stable_sort(stops.begin(), stops.end(), [](const Stop &x, const Stop &y) { return x.at < y.at; });
                 QList<QTextOption::Tab> out;
                 QString leaders;
                 for (const Stop &st : stops) {
-                    if (!out.isEmpty() && std::abs(out.last().position - st.at / scale) < 0.01 && out.last().type == st.type) continue;
-                    out << QTextOption::Tab(st.at / scale, st.type);
+                    if (!out.isEmpty() && std::abs(out.last().position - st.tab.position) < 0.01 && out.last().type == st.tab.type) continue;
+                    out << st.tab;
                     leaders += st.leader;
                 }
                 B->leaders = leaders;
