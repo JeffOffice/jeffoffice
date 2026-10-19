@@ -76,6 +76,11 @@ int levelsScannedForOutlineForTest();
 // cost test (a page's fields cost a search, not a walk over the story).
 qint64 styleRefParagraphsScannedForTest();
 void resetStyleRefParagraphsScannedForTest();
+// The most paragraphs of the endnotes that are set after the text (a few for each of the at most 5,000 notes), and how many the program has made copies of for them since the
+// count was reset: a file whose one note of thousands of paragraphs is referred to thousands of times has no more of them made than the most.
+constexpr int kMostEndnoteParagraphs = 20000;
+qint64 endnoteParagraphsMadeForTest();
+void resetEndnoteParagraphsMadeForTest();
 
 class WriteDoc : public QObject {
     Q_OBJECT

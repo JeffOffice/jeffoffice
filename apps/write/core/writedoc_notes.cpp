@@ -37,6 +37,9 @@ constexpr int kMostStyleRefKept = 20000;
 } // namespace
 
 qint64 styleRefParagraphsScannedForTest() { return s_styleRefParagraphs.load(); }
+namespace { std::atomic<qint64> s_endnoteParagraphsMade{0}; }
+qint64 endnoteParagraphsMadeForTest() { return s_endnoteParagraphsMade.load(); }
+void resetEndnoteParagraphsMadeForTest() { s_endnoteParagraphsMade = 0; }
 void resetStyleRefParagraphsScannedForTest() { s_styleRefParagraphs = 0; }
 
 QString NoteFields::styleRefText(const QString &style, const QString &switches, int from, int to) const
@@ -161,14 +164,19 @@ void WriteDoc::appendEndnotes()
     QVector<Block> tail = m_endnoteSeparator;
     int made = 0;
     for (const EndnoteRef &ref : std::as_const(m_endnoteRefs)) {
+        if (tail.size() >= kMostEndnoteParagraphs) break;   // (no more are made than are set: a note of thousands of paragraphs that is referred to thousands of times is the first of them)
         const auto found = m_endnoteBlocks.constFind(ref.id);
         if (found == m_endnoteBlocks.constEnd()) continue;
-        QVector<Block> blocks = found.value();
-        // (The mark that begins the note's text shows the number its reference has.)
-        for (Block &b : blocks)
+        const QVector<Block> &note = found.value();
+        const int take = int(std::min<qsizetype>(note.size(), kMostEndnoteParagraphs - tail.size()));
+        for (int i = 0; i < take; ++i) {
+            Block b = note[i];
+            // (The mark that begins the note's text shows the number its reference has.)
             for (Inline &in : b.para.content)
                 if (in.kind == Inline::RunAtom && in.tag == QLatin1String("endnoteRef")) in.display = ref.mark;
-        tail += blocks;
+            tail.push_back(std::move(b));
+            ++s_endnoteParagraphsMade;
+        }
         ++made;
     }
     if (made == 0) return;

@@ -11800,6 +11800,22 @@ private Q_SLOTS:
         QCOMPARE(doc.story()->toPlainText(), whole);
     }
 
+    // A file whose one note of thousands of paragraphs is cited thousands of times has the copies of it that are set made and no more: the paragraphs made are as many as are set
+    // (the most), not as many as the notes the references name times their paragraphs (10 million here).
+    void oneNoteOfThousandsOfParagraphsCitedThousandsOfTimesIsBounded()
+    {
+        QByteArray body = "<w:p><w:r><w:t>Text</w:t></w:r>", notes = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:id=\"1\">";
+        for (int i = 0; i < 5000; ++i) body += "<w:r><w:endnoteReference w:id=\"1\"/></w:r>";
+        for (int i = 0; i < 2000; ++i) notes += "<w:p/>";
+        body += "</w:p>";
+        notes += "</w:endnote></w:endnotes>";
+        resetEndnoteParagraphsMadeForTest();
+        auto doc = open(makeDocxWithParts(body, QByteArray(), {{QStringLiteral("/word/endnotes.xml"), notes}}));
+        QVERIFY(doc);
+        QCOMPARE(endnoteParagraphsMadeForTest(), qint64(kMostEndnoteParagraphs));
+        QCOMPARE(int(doc->story()->blockCount()), 1 + kMostEndnoteParagraphs);
+    }
+
     // A paragraph that says w:suppressLineNumbers (itself, or by its style) has no numbers, and the lines of the others are counted without it.
     void aParagraphThatSuppressesLineNumbersIsNeitherNumberedNorCounted()
     {

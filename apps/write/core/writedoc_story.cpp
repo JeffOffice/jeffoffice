@@ -51,8 +51,6 @@ void WriteDoc::buildStory(const QVector<Block> &body)
 constexpr int kMostFieldNesting = 8;
 // The most paragraphs of a header or footer that are read (the rest is left out).
 constexpr int kMostHeaderParagraphs = 400;
-// The most paragraphs of the endnotes that are set after the text (the notes are as many as kMostEndnotes, a few paragraphs each).
-constexpr int kMostEndnoteParagraphs = 20000;
 // The most objects set at places that a file's pages have, and the most pictures (a file with more has the rest left out).
 constexpr int kMostObjects = 20000;
 constexpr int kMostImages = 2000;
