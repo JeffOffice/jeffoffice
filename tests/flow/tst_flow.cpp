@@ -777,11 +777,12 @@ QVector<StoryLayout::LineInfo> wordLinesOf(const QVector<std::pair<QString, doub
 // A line of text in a missing face the original's letter widths are measured for, as the layout sets it (size in points, on the word processor's path, kerned
 // or not, or the publication's): `x` is each caret's place (one more than there are characters), `cell` where the original's widths put each character (kerning
 // pairs included where the text is kerned), `stand` the advance of each character in the stand-in the layout draws (in em), and `width` the original's (in em).
+// `splits` are the places where the text goes on in a run of its own.
 struct LetterLine {
     QVector<double> x, cell, stand, width;
 };
 
-LetterLine letterLineOf(const QString &family, const QString &text, double size, bool word, bool kerned = true)
+LetterLine letterLineOf(const QString &family, const QString &text, double size, bool word, bool kerned = true, const QVector<int> &splits = {})
 {
     LetterLine line;
     QTextCharFormat cf;
@@ -793,7 +794,16 @@ LetterLine letterLineOf(const QString &family, const QString &text, double size,
     {
         QTextDocument doc;
         QTextCursor c(&doc);
-        c.insertText(text, cf);
+        // (A run of its own where the text is split: the same face in another color.)
+        int from = 0;
+        bool other = false;
+        for (int cut : splits + QVector<int>{int(text.size())}) {
+            QTextCharFormat part = cf;
+            if (other) part.setForeground(QColor(Qt::blue));
+            c.insertText(text.mid(from, cut - from), part);
+            from = cut;
+            other = !other;
+        }
         StoryLayout lay;
         lay.build(&doc, {plainFrame(8000, 400)}, env);
         for (int i = 0; i <= text.size(); ++i) {
@@ -2685,6 +2695,70 @@ private Q_SLOTS:
             }
             QCOMPARE(checked, 5);
         }
+    }
+
+    // A word that goes on in another run (a format change inside it: a bold I, a field's result) is one word all the same: what the letters of its first part
+    // can't take of the word's difference (a gap over a twentieth of an em) is taken by the letters of the next, not left after the first, where the "I" of
+    // "I llinois" parts the word.
+    void wordLettersShareTheirWidthsAcrossRuns()
+    {
+        double diff = 0;
+        const QString family = narrowStandInForI(&diff);
+        if (family.isEmpty()) QSKIP("every face with a narrow I stand-in is installed here");
+        const double size = 100;
+        const QString text = QStringLiteral("Illinois Includes SECTION II 1999 end");
+        for (const QVector<int> &splits : {QVector<int>{1}, QVector<int>{1, 2}, QVector<int>{10}, QVector<int>{1, 10, 11}}) {
+            const LetterLine line = letterLineOf(family, text, size, true, true, splits);
+            QVERIFY(line.x.size() == text.size() + 1);
+            const QString where = QStringLiteral("split at %1").arg(splits.value(0));
+            double widest = 0;
+            int at = 0;
+            for (int i = 0; i + 1 < text.size(); ++i) {
+                if (text[i].isSpace() || text[i + 1].isSpace()) continue;
+                const double gap = (line.x[i + 1] - line.x[i]) / size - line.stand[i];
+                if (gap > widest) {
+                    widest = gap;
+                    at = i;
+                }
+            }
+            QVERIFY2(widest <= 0.07, qPrintable(QStringLiteral("%1: a gap of %2 em after the %3 of \"%4\"").arg(where).arg(widest).arg(text[at]).arg(text.mid(at, 2))));
+            for (int stop = 0; stop < text.size(); ++stop) {
+                if (!text[stop].isSpace()) continue;
+                QVERIFY2(std::abs(line.x[stop] - line.x[0] - line.cell[stop]) <= 1, qPrintable(QStringLiteral("%1: the word before %2 ends at %3, not %4").arg(where).arg(stop).arg(line.x[stop] - line.x[0]).arg(line.cell[stop])));
+            }
+        }
+    }
+
+    // A run that takes no part in it (another face, which no table measures) after the I: the I keeps the whole of its difference after it, as the original's
+    // letter fills its width, and the line is no shorter.
+    void aWordsFirstPartKeepsItsWidthWhereTheNextRunTakesNone()
+    {
+        double diff = 0;
+        const QString family = narrowStandInForI(&diff);
+        if (family.isEmpty()) QSKIP("every face with a narrow I stand-in is installed here");
+        const double size = 100;
+        const QHash<char16_t, double> *widths = originalLetterWidths(family, false, false);
+        QVERIFY(widths);
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat cf;
+        cf.setFontFamilies({family});
+        cf.setFontPointSize(size);
+        c.insertText(QStringLiteral("I"), cf);
+        cf.setFontFamilies({QStringLiteral("Arimo")});
+        c.insertText(QStringLiteral("llinois"), cf);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(8000, 400)}, env);
+        auto x = [&](int pos) {
+            int frame = -1;
+            QRectF r;
+            lay.caretRect(pos, &frame, &r);
+            return r.x();
+        };
+        const double want = widths->value(u'I') * size;
+        QVERIFY2(std::abs(x(1) - x(0) - want) <= 1, qPrintable(QStringLiteral("the I is %1 wide, not %2").arg(x(1) - x(0)).arg(want)));
     }
 
     // The publication's text is set as it was: each letter of a missing, measured face centered in the original's width (the first letter of a run where the

@@ -2041,7 +2041,32 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
     out.reserve(in.size());
     static QHash<QString, double> advCache;     // stand-in advance per em, by font and letter (main thread only, like all layout)
     static QHash<QString, bool> needed;         // whether a font pairing needs it (likewise)
+    // What the letters of a word in one run can't take of its difference (more than a gap may), for the letters of the same word in the next run.
+    struct Owed {
+        double amount = 0;
+        int at = -1, letter = -1;   // where the word goes on, and its last letter so far
+        bool taken = false;
+    };
+    Owed owed, pending;
+    // A run that can't take it leaves it after the letter, where the word's difference stood without the next run.
+    auto settle = [&](const Owed &o) {
+        if (o.amount == 0 || o.taken) return;
+        for (int j = out.size() - 1; j >= 0; --j) {
+            QTextLayout::FormatRange &piece = out[j];
+            if (piece.start > o.letter || o.letter >= piece.start + piece.length) continue;
+            QTextLayout::FormatRange rest = piece;
+            rest.start = o.letter;
+            rest.length = piece.start + piece.length - o.letter;
+            rest.format.setFontLetterSpacing(piece.format.fontLetterSpacing() + o.amount);
+            piece.length = o.letter - piece.start;
+            if (piece.length > 0) out.insert(j + 1, rest); else piece = rest;
+            return;
+        }
+    };
     for (const auto &r : in) {
+        settle(pending);
+        pending = owed;
+        owed = Owed();
         const QString key = r.format.stringProperty(kLetterWidths);
         if (key.isEmpty() || r.length <= 0) { out << r; continue; }
         const QStringList k = key.split(QLatin1Char('|'));
@@ -2137,11 +2162,17 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
         // enough for a reader of the page's text to take for a space. A gap takes
         // no more than kGapCapEm (a word of two letters in a stand-in much
         // narrower than the original's would leave more); the rest goes after the
-        // word.
+        // word, or to the letters of the word's next part where it goes on in the
+        // next run.
         if (words) {
             constexpr double kGapCapEm = 0.05;
+            bool firstWord = true, spaced = false;
             for (int from = r.start; from < end;) {
-                if (transparent(disp[from]) || disp[from].isSpace()) { ++from; continue; }
+                if (transparent(disp[from]) || disp[from].isSpace()) {
+                    if (disp[from].isSpace()) spaced = true;
+                    ++from;
+                    continue;
+                }
                 QVector<int> at;
                 int to = from;
                 for (; to < end && (transparent(disp[to]) || !disp[to].isSpace()); ++to)
@@ -2153,10 +2184,19 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
                     total += diff[at[k] - r.start];
                     if (gapAfter(k)) ++gaps;
                 }
+                if (firstWord && !spaced && pending.at == r.start && pending.amount != 0) {   // (the word goes on from the run before)
+                    total += pending.amount;
+                    pending.taken = true;
+                }
+                firstWord = false;
                 const double each = gaps ? std::min(total / gaps, kGapCapEm * em) : 0;
                 for (int k = 0; k < at.size(); ++k)
                     want[at[k] - r.start] += (gapAfter(k) ? each : 0) - diff[at[k] - r.start];
-                want[at.last() - r.start] += total - each * gaps;
+                if (to == end && end < disp.size() && !disp[end].isSpace()) {
+                    if (const double left = total - each * gaps; left != 0) owed = {left, end, at.last(), false};
+                } else {
+                    want[at.last() - r.start] += total - each * gaps;
+                }
                 from = to;
             }
         }
@@ -2207,6 +2247,8 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
         }
         flush(end);
     }
+    settle(pending);
+    settle(owed);
     return out;
 }
 
