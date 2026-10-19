@@ -767,7 +767,12 @@ void PageView::ensureCaretVisible()
 
 void PageView::caretMoved(bool keepWanted)
 {
-    if (m_doc && m_cursor.document()) holdInBody(m_cursor);   // (the endnotes the pages set after the text are not the person's: no caret or selection reaches them)
+    // (The endnotes the pages set are not the person's: no caret or selection reaches them. A caret that has gone on past those at the end of a section is at the start of the next
+    // section's text, one that has gone back at the end of the last section's, and a click in them is at the nearer place.)
+    int direction = 0;
+    if (m_movedFrom >= 0 && m_cursor.document()) direction = m_cursor.position() > m_movedFrom ? 1 : m_cursor.position() < m_movedFrom ? -1 : 0;
+    m_movedFrom = -1;
+    if (m_doc && m_cursor.document()) holdInBody(m_cursor, direction);
     m_contextAt = -1;
     if (!keepWanted) m_wantedX = -1;
     m_caretOn = true;

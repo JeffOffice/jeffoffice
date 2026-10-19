@@ -17,8 +17,9 @@ bool isLocked(const QTextBlock &block);
 // Where the text the person has ends: the end of the last paragraph that is not one of the endnotes the pages set after it. Nothing is typed, deleted, copied, found, or
 // spelled past it: a caret and a selection are held to it, and what is wholly in the endnotes is none.
 int editableEnd(const QTextDocument *story);
-// Held too out of the endnotes set at the end of a section (a place in them is the end of the paragraph before them).
-void holdInBody(QTextCursor &c);
+// Held too out of the endnotes set at the end of a section: a place in them is the end of the paragraph before them, or, for a caret that has gone on (`direction` above 0), the start
+// of the paragraph after them, or, with none (0), the nearer of the two (a click).
+void holdInBody(QTextCursor &c, int direction = -1);
 // Whether any of [from, to] of the story is in the endnotes the pages set (at the end of a section, or after the text).
 bool touchesEndnotes(const QTextDocument *story, int from, int to);
 // `c` held to the text the person has (holdInBody); false when it is wholly in the endnotes, where nothing is to be done.

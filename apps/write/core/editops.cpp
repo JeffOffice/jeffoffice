@@ -299,13 +299,27 @@ int editableEnd(const QTextDocument *story)
 namespace {
 bool noteBlock(const QTextBlock &b) { return b.isValid() && b.blockFormat().hasProperty(prop::EndnoteBlock); }
 
-// The end of the paragraph before the endnotes that `p` is in (they are paragraphs of the story, in the middle of it where a section's are set at its end), or `p` where it is not in them.
-int outOfEndnotes(QTextDocument *d, int p)
+// The place the person may be at that `p` is held to when it is in the endnotes (they are paragraphs of the story, in the middle of it where a section's are set at its end): going on
+// (`direction` above 0), the start of the paragraph after them, where there is one; going back (below 0), the end of the paragraph before them; with none, the nearer of the two, by
+// the paragraph of the notes it is in (the first half is nearer the text above them). `p` itself where it is not in them.
+int outOfEndnotes(QTextDocument *d, int p, int direction)
 {
     QTextBlock b = d->findBlock(p);
     if (!noteBlock(b)) return p;
-    while (noteBlock(b.previous())) b = b.previous();
-    return std::max(0, b.position() - 1);
+    QTextBlock first = b, last = b;
+    while (noteBlock(first.previous())) first = first.previous();
+    while (noteBlock(last.next())) last = last.next();
+    const int before = std::max(0, first.position() - 1);
+    if (!last.next().isValid() || direction < 0) return before;
+    const int after = last.next().position();
+    if (direction > 0) return after;
+    int index = 0, count = 0;
+    for (QTextBlock x = first;; x = x.next()) {
+        if (x == b) index = count;
+        ++count;
+        if (x == last) break;
+    }
+    return index * 2 < count ? before : after;
 }
 } // namespace
 
@@ -317,12 +331,14 @@ bool touchesEndnotes(const QTextDocument *story, int from, int to)
     return false;
 }
 
-void holdInBody(QTextCursor &c)
+void holdInBody(QTextCursor &c, int direction)
 {
     QTextDocument *d = c.document();
     if (!d) return;
     const int end = editableEnd(d);
-    const int anchor = outOfEndnotes(d, std::min(c.anchor(), end)), position = outOfEndnotes(d, std::min(c.position(), end));
+    // (A caret with no selection is held as one place; the end a selection began at is held by where it is, the other by the way it went.)
+    const int position = outOfEndnotes(d, std::min(c.position(), end), direction);
+    const int anchor = c.anchor() == c.position() ? position : outOfEndnotes(d, std::min(c.anchor(), end), 0);
     if (anchor == c.anchor() && position == c.position()) return;
     c.setPosition(anchor);
     c.setPosition(position, QTextCursor::KeepAnchor);
@@ -560,8 +576,6 @@ void insertSectionBreak(WriteDoc &doc, QTextCursor &c, const QString &type)
     c.endEditBlock();
 }
 
-// A selection that holds the paragraphs of a frame and of the text round it (or of two frames) is cut a stretch at a time, each stretch being the paragraphs of one place: what is
-// selected of the text is cut from the text, and what is selected of the frame from the frame, and neither is joined to the other. True when it did that.
 // A selection that goes over endnotes set in the middle of the text (at the end of a section) takes the text on either side of them and not them: the paragraphs before and after them are
 // never joined.
 static bool removeSelectionAcrossEndnotes(WriteDoc &doc, QTextCursor &c)
@@ -602,6 +616,8 @@ static bool removeSelectionAcrossEndnotes(WriteDoc &doc, QTextCursor &c)
     return true;
 }
 
+// A selection that holds the paragraphs of a frame and of the text round it (or of two frames) is cut a stretch at a time, each stretch being the paragraphs of one place: what is
+// selected of the text is cut from the text, and what is selected of the frame from the frame, and neither is joined to the other. True when it did that.
 static bool removeSelectionAcrossFrames(WriteDoc &doc, QTextCursor &c)
 {
     if (!c.hasSelection() || doc.flow().frames.isEmpty()) return false;

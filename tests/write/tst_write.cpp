@@ -12364,6 +12364,73 @@ private Q_SLOTS:
         QCOMPARE(story->toPlainText(), whole);
     }
 
+    // The caret passes the endnotes set at a section's end: from the last place of text of a section, Right, Down, Ctrl+Right, and Ctrl+Down go to the first place of the next section's
+    // text; from that first place, Left, Up, Ctrl+Left, and Ctrl+Up go to the last place of the section before; with Shift the selection is extended the same way; and a click in the
+    // notes puts the caret at the nearest place the person may type, the notes' first lines being nearer the text above them and their last the text below.
+    void theCaretPassesTheEndnotesOfASection()
+    {
+        const QByteArray pr = "<w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>";
+        auto doc = open(sectionNotedDocx(pr, pr));
+        QVERIFY(doc);
+        PageView view;
+        view.resize(800, 700);
+        view.setDocument(doc.get());
+        view.show();
+        view.paginateAll();
+        QTextDocument *story = doc->story();
+        const QTextBlock second = story->findBlockByNumber(1), third = story->findBlockByNumber(4);
+        const int lastReal = second.position() + second.length() - 1, nextFirst = third.position();
+        QVERIFY(story->findBlockByNumber(2).blockFormat().hasProperty(prop::EndnoteBlock) && story->findBlockByNumber(3).blockFormat().hasProperty(prop::EndnoteBlock));
+        struct Key {
+            int key;
+            Qt::KeyboardModifiers modifiers;
+            const char *name;
+        };
+        const Key forward[] = {{Qt::Key_Right, Qt::NoModifier, "Right"}, {Qt::Key_Down, Qt::NoModifier, "Down"}, {Qt::Key_Right, Qt::ControlModifier, "Ctrl+Right"}, {Qt::Key_Down, Qt::ControlModifier, "Ctrl+Down"}};
+        const Key backward[] = {{Qt::Key_Left, Qt::NoModifier, "Left"}, {Qt::Key_Up, Qt::NoModifier, "Up"}, {Qt::Key_Left, Qt::ControlModifier, "Ctrl+Left"}, {Qt::Key_Up, Qt::ControlModifier, "Ctrl+Up"}};
+        auto press = [&](int at, const Key &k, bool shift) {
+            QTextCursor c(story);
+            c.setPosition(at);
+            view.setCursor(c);
+            view.typeKey(k.key, k.modifiers | (shift ? Qt::ShiftModifier : Qt::NoModifier));
+            return QPair<int, int>(view.cursor().anchor(), view.cursor().position());
+        };
+        auto expect = [&](int from, const Key &k, bool shift, QPair<int, int> want) {
+            const QPair<int, int> got = press(from, k, shift);
+            QVERIFY2(got == want, qPrintable(QStringLiteral("%1%2 from %3: anchor %4 and position %5, not %6 and %7").arg(shift ? "Shift+" : "", k.name).arg(from).arg(got.first).arg(got.second).arg(want.first).arg(want.second)));
+        };
+        for (const Key &k : forward) {
+            expect(lastReal, k, false, {nextFirst, nextFirst});
+            expect(lastReal, k, true, {lastReal, nextFirst});
+        }
+        for (const Key &k : backward) {
+            expect(nextFirst, k, false, {lastReal, lastReal});
+            expect(nextFirst, k, true, {nextFirst, lastReal});
+        }
+        // A click in the notes: the lines of the first page are the first section's two paragraphs, the separator, and the note.
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page && !page->boxes.isEmpty());
+        const auto *item = dynamic_cast<const TextItem *>(page->doc->item(page->boxes[0]));
+        QVERIFY(item);
+        FrameSpec fs;
+        fs.size = item->rect.size();
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        fs.hyphenate = false;
+        StoryLayout layout;
+        layout.build(page->doc->story(item->storyId)->doc.get(), {fs}, doc->flow().env);
+        const auto lines = layout.lineInfo(0);
+        QVERIFY(lines.size() == 4);
+        auto click = [&](int line) {
+            const QRect pageRect = view.pageRect(0);
+            const double scale = pageRect.width() / 300.0;
+            const QRectF r = lines[line].rect.translated(item->rect.topLeft());
+            QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(int(pageRect.left() + (r.left() + 20) * scale), int(pageRect.top() + r.center().y() * scale)));
+            return view.cursor().position();
+        };
+        QCOMPARE(click(2), lastReal);   // (the separator: the first of the notes)
+        QCOMPARE(click(3), nextFirst);  // (the note: the last)
+    }
+
     // The endnotes of a file of thousands of sections, each citing a note of many paragraphs, are made and set in the most the program sets in all (not that many for each section), and the
     // sections and the text are all there.
     void endnotesAtSectionEndsAreBoundedInAll()

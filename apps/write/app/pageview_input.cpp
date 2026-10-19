@@ -101,6 +101,7 @@ void PageView::insertText(const QString &text)
 void PageView::typeKey(int key, Qt::KeyboardModifiers m)
 {
     if (!m_doc) return;
+    m_movedFrom = m_cursor.position();
     const bool shift = m & Qt::ShiftModifier, ctrl = m & Qt::ControlModifier;
     const QTextCursor::MoveMode mode = shift ? QTextCursor::KeepAnchor : QTextCursor::MoveAnchor;
     switch (key) {
@@ -243,6 +244,7 @@ void PageView::mousePressEvent(QMouseEvent *e)
 {
     if (!m_doc) return;
     setFocus(Qt::MouseFocusReason);
+    m_movedFrom = -1;   // (a click has no way it went)
     const Hit hit = hitAt(e->position().toPoint());
     const int at = positionAt(hit);
     if (at < 0) return;
@@ -294,6 +296,7 @@ void PageView::mouseMoveEvent(QMouseEvent *e)
     } else {
         m_cursor.setPosition(at, QTextCursor::KeepAnchor);
     }
+    m_movedFrom = m_cursor.anchor();   // (a drag goes on or back from where it began)
     caretMoved();
 }
 
