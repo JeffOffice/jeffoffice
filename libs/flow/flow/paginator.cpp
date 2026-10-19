@@ -5,6 +5,7 @@
 #include <QElapsedTimer>
 #include <QHash>
 #include <QSet>
+#include <atomic>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -30,6 +31,10 @@ constexpr int kDenseNotes = 64;
 constexpr int kWrapPasses = 4;
 // The most parts a page is laid out in (the sections that begin on it, one under another, as far as it goes).
 constexpr int kMostParts = 16;
+// The most references to bookmarks on a page that are looked at to find their pages (the rest show what the file had).
+constexpr int kMostPageRefs = 2000;
+
+std::atomic<qint64> g_pageRefsAsked{0};
 
 // Whether the page shows the number of pages (in its text, its header, or its footer), and what number it was made with.
 void markTotals(MaterializedPage *out, const Document &d)
@@ -44,6 +49,8 @@ void markTotals(MaterializedPage *out, const Document &d)
 }
 
 } // namespace
+
+qint64 Paginator::pageRefsAskedForTest() { return g_pageRefsAsked.load(); }
 
 // What a paragraph asks of the pages.
 struct Paginator::BlockFlags {
@@ -105,17 +112,24 @@ const QVector<int> &Paginator::sectionStarts() const
     return m_sectionStarts;
 }
 
+// A document whose first section begins on an even page counts the page before it (nothing is drawn on that page): its first page is numbered 2, and the pages after it go on from there.
+static int firstPageShift(const FlowDocument &doc)
+{
+    return !doc.sections.isEmpty() && doc.sections[0].startParity == Section::Parity::Even && !doc.sections[0].firstPageNumber ? 1 : 0;
+}
+
 int Paginator::numberOf(int index) const
 {
     bool restarts = false;
     for (const Section &s : m_doc->sections) restarts |= s.firstPageNumber.has_value();
-    if (!restarts) return index + 1;
+    const int shift = firstPageShift(*m_doc);
+    if (!restarts) return index + 1 + shift;
     // The page after the one asked for last, in the same section: one more.
     if (index > 0 && index == m_numberOf + 1 && index < m_starts.size() && m_starts[index].section == m_starts[index - 1].section) {
         m_numberOf = index;
         return ++m_number;
     }
-    int number = index + 1;
+    int number = index + 1 + shift;
     for (int p = std::min(index, int(m_starts.size()) - 1); p >= 0; --p, ++m_numberSteps)
         if (p == 0 || m_starts[p].section != m_starts[p - 1].section) {
             const std::optional<int> first = m_doc->section(m_starts[p].section).firstPageNumber;
@@ -825,7 +839,8 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         // A page break character: the page ends after the line that holds it. (A line of a paragraph that the page's window cut is cut short only if it is the last
         // of those laid out: the lines before it end where they do.)
         const bool cutShort = ln.cut && (i + 1 >= L.size() || L[i + 1].block != ln.block);
-        if (!cutShort && ln.end > ln.pos && m_doc->story()->characterAt(ln.end - 1) == kPageBreak) {
+        // (A column break on the page's last line, in its last column, does the same: what follows it is the next page's.)
+        if (!cutShort && ln.end > ln.pos && (m_doc->story()->characterAt(ln.end - 1) == kPageBreak || (m_doc->story()->characterAt(ln.end - 1) == kColumnBreak && i + 1 == kept))) {
             c = i + 1;
             hard = forced = byCharacter = true;
             // (The empty line the text engine puts after a break that ends its paragraph stays with the page: the next paragraph is at the top
@@ -947,7 +962,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
     // the other kind than the page it begins, has a blank page of the section before it.
     if (run.hasNext && sectionEnds && nextSection != current && run.next.pos < m_doc->story()->characterCount()) {
         const Section &entered = m_doc->section(nextSection);
-        const bool oddPhysical = (index + 2) % 2 != 0;   // (the page the section would begin, by its place in the document)
+        const bool oddPhysical = (index + 2 + firstPageShift(*m_doc)) % 2 != 0;   // (the page the section would begin, by its place in the document)
         bool wrong = false;
         if (entered.startParity != Section::Parity::Any) wrong = oddPhysical != (entered.startParity == Section::Parity::Odd);
         else if (entered.differentOddEven && entered.firstPageNumber) wrong = oddPhysical != (std::abs(*entered.firstPageNumber) % 2 != 0);
@@ -1475,7 +1490,8 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         const bool tail = inFirst && L.first().line > 0;
         QTextBlockFormat bf = b.blockFormat();
         bf.clearProperty(QTextFormat::ObjectIndex);   // (the list is the document's, not this story's: it's made again below)
-        QTextList *list = tail ? nullptr : b.textList();
+        // (A paragraph that begins with a page break has its number on the line after it, where the next page begins.)
+        QTextList *list = tail && !(run.keepsIndent && main->characterAt(b.position()) == kPageBreak && b.length() > 1) ? nullptr : b.textList();
         // What the paginator decided is in the frames' heights; widow control and keeping paragraphs together are not asked of the text again.
         bf.clearProperty(tp::WidowControl);
         bf.clearProperty(tp::KeepTogether);
@@ -1955,8 +1971,41 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         if (!ids.isEmpty()) addNotes(d.get(), run.notes, run.rules, run.firstFrame, ids, run.cols, furniture.body, run.hasNext && !run.next.carried.isEmpty());
     }
     markTotals(out.get(), *d);
+    resolvePageRefs(out.get(), d.get());
     out->doc = std::move(d);
     return out;
+}
+
+void Paginator::resolvePageRefs(MaterializedPage *out, Document *d)
+{
+    const FieldSource *source = m_doc->styleRefs;
+    QSet<QString> seen;
+    for (const auto &story : d->stories)
+        for (QTextBlock b = story->doc->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QString code = it.fragment().charFormat().stringProperty(tp::Field);
+                if (!code.startsWith(QLatin1String("pageref:"))) continue;
+                out->showsRefs = true;   // (a page whose pages are not laid out yet shows the file's: it is made again when they are)
+                const QString name = code.mid(8);
+                if (!source || seen.contains(name)) continue;
+                if (seen.size() >= kMostPageRefs) return;
+                seen.insert(name);
+                ++g_pageRefsAsked;
+                const int at = source->bookmarkPosition(name);
+                if (at < 0 || m_pending) continue;
+                const int where = anchorOfPosition(at);
+                const auto page = std::upper_bound(m_starts.begin(), m_starts.end(), where, [](int pos, const PageStart &s) { return pos < s.pos; });
+                if (page == m_starts.end() && !m_complete) continue;   // (past the last page that is known: it is not laid out)
+                const int k = std::max(0, int(page - m_starts.begin()) - 1);
+                const Section &section = m_doc->section(m_starts[k].section);
+                // (A section whose page numbers carry the chapter's: the chapter of the bookmark's place, the last heading of that level at or before it, and the separator.)
+                QString prefix;
+                if (section.chapterStyle > 0) {
+                    const QString chapter = source->styleRefText(QStringLiteral("Heading %1").arg(section.chapterStyle), QStringLiteral("nl"), at, at + 1);
+                    if (!chapter.isEmpty()) prefix = chapter + (section.chapterSeparator.isEmpty() ? QStringLiteral("-") : section.chapterSeparator);
+                }
+                d->flowPageRefs.insert(name, prefix + pageNumberText(numberOf(k), section.pageNumberFormat));
+            }
 }
 
 } // namespace jp::flow

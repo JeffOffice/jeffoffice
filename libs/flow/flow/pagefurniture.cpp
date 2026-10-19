@@ -410,6 +410,12 @@ bool Paginator::substituteStyleRefs(QTextDocument *story, int from, int to) cons
 
 void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec, int section, int number, MaterializedPage *page, int from, int to)
 {
+    // A page number that carries a chapter's: the number of the last paragraph of the chapters' style on the page (else the nearest before it, or the first after), and the separator.
+    d->flowPagePrefix.clear();
+    if (sec.chapterStyle > 0 && m_doc->styleRefs && from >= 0) {
+        const QString chapter = m_doc->styleRefs->styleRefText(QStringLiteral("Heading %1").arg(sec.chapterStyle), QStringLiteral("nl"), from, to);
+        if (!chapter.isEmpty()) d->flowPagePrefix = chapter + (sec.chapterSeparator.isEmpty() ? QStringLiteral("-") : sec.chapterSeparator);
+    }
     // The counts the page's NUMPAGES and SECTIONPAGES fields show.
     d->flowPageTotal = std::max(1, int(m_starts.size()));
     int inSection = 0;

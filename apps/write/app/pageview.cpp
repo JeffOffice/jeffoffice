@@ -293,10 +293,11 @@ void PageView::relayout()
     }
     m_content = QSizeF(area + 2 * kMargin, rows ? y - kGap + kMargin : 2 * kMargin);
     const bool changed = known != m_knownPages;
-    // (A page that shows the number of pages was made with the number there was: with another, it is made again.)
+    // (A page that shows the number of pages was made with the number there was: with another, it is made again. So is one that shows the pages bookmarks are on, as far as the pages were
+    // laid out when it was made.)
     if (changed)
         for (auto it = m_rendered.begin(); it != m_rendered.end();) {
-            if (it.value()->page && it.value()->page->showsTotal) {
+            if (it.value()->page && (it.value()->page->showsTotal || it.value()->page->showsRefs)) {
                 m_recent.removeOne(it.key());
                 it = m_rendered.erase(it);
             } else {
@@ -766,6 +767,7 @@ void PageView::ensureCaretVisible()
 
 void PageView::caretMoved(bool keepWanted)
 {
+    if (m_doc && m_cursor.document()) holdInBody(m_cursor);   // (the endnotes the pages set after the text are not the person's: no caret or selection reaches them)
     m_contextAt = -1;
     if (!keepWanted) m_wantedX = -1;
     m_caretOn = true;

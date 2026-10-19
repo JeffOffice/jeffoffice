@@ -89,6 +89,18 @@ QDateTime fieldNow() { return g_fieldClock.isValid() ? g_fieldClock : QDateTime:
 
 void setFieldClock(const QDateTime &moment) { g_fieldClock = moment; }
 
+QString pageNumberText(int n, const QString &style)
+{
+    if (style == "roman" || style == "ROMAN") { const QString r = toRoman(n); return style == "roman" ? r.toLower() : r; }
+    if (style == "alpha" || style == "ALPHA") {
+        // a ... z, then aa ... zz, as the other program counts.
+        const QString one(QChar((style == "alpha" ? 'a' : 'A') + (n - 1) % 26));
+        return one.repeated((n - 1) / 26 + 1);
+    }
+    if (style == "dash") return QStringLiteral("- %1 -").arg(n);
+    return QString::number(n);
+}
+
 QString FieldContext::resolve(const QString &code) const
 {
     const QString kind = code.section(':', 0, 0);
@@ -99,22 +111,14 @@ QString FieldContext::resolve(const QString &code) const
         // unless the field names one (Format Page Numbers).
         const int from = doc ? doc->firstPageNumber() - 1 : 0;
         const QString style = arg.isEmpty() && doc ? doc->pageNumberFormat() : arg;
-        auto shown = [&](int n) {
-            if (style == "roman" || style == "ROMAN") { const QString r = toRoman(n); return style == "roman" ? r.toLower() : r; }
-            if (style == "alpha" || style == "ALPHA") {
-                // a ... z, then aa ... zz, as the other program counts.
-                const QString one(QChar((style == "alpha" ? 'a' : 'A') + (n - 1) % 26));
-                return one.repeated((n - 1) / 26 + 1);
-            }
-            if (style == "dash") return QStringLiteral("- %1 -").arg(n);
-            return QString::number(n);
-        };
+        auto shown = [&](int n) { return pageNumberText(n, style); };
         // The next or previous linked box's page; "#" without one, as in Publisher.
         if (arg == "next") return nextPage > 0 ? QString::number(nextPage + from) : QStringLiteral("#");
         if (arg == "prev") return prevPage > 0 ? QString::number(prevPage + from) : QStringLiteral("#");
-        return shown(pageNumber + from);
+        return (doc ? doc->pageNumberPrefix() : QString()) + shown(pageNumber + from);
     }
     if (kind == "notemark") return noteMark;
+    if (kind == "pageref") return doc ? doc->pageRefText(arg) : QString();
     // A paragraph style's text (STYLEREF) is the page's, which the pages put in; laid out as a story of its own it shows the result the file kept: after its switches and the style's name.
     if (kind == "styleref") return arg.section(QChar(0x1f), 2, 2);
     if (kind == "pages") {
@@ -268,11 +272,14 @@ QString LayoutEnv::key() const
 // 0.1% and positions within Qt's fixed-point range).
 namespace {
 constexpr double kFine = 8;
+// The most absolute position tabs of a paragraph that the engine goes to (a file can give a paragraph any number).
+constexpr int kMostAlignTabs = 64;
 // The most letters a word processor's lines are kept from breaking among by the rules after a question mark and between brackets (buildOnce): past it, a line may break there.
 constexpr int kMostUnbrokenStretch = 120;
 // The longest stretch they kept so, since the program began, for a test of their cost.
 std::atomic<qint64> g_longestJoinedStretch{0};
 std::atomic<qint64> g_longestJoinedParagraphs{0};
+std::atomic<qint64> g_hyphenationLetters{0};
 inline void noteJoinedParagraphs(int n)
 {
     qint64 seen = g_longestJoinedParagraphs.load(std::memory_order_relaxed);
@@ -1268,6 +1275,7 @@ namespace { std::atomic<qint64> g_lineHeightsMeasured{0}; }   // (see StoryLayou
 
 qint64 StoryLayout::lineHeightsMeasuredForTest() { return g_lineHeightsMeasured.load(); }
 qint64 StoryLayout::longestJoinedStretchForTest() { return g_longestJoinedStretch.load(); }
+qint64 StoryLayout::hyphenationLettersLookedUpForTest() { return g_hyphenationLetters.load(); }
 qint64 StoryLayout::longestJoinedParagraphsForTest() { return g_longestJoinedParagraphs.load(); }
 void StoryLayout::resetLongestJoinedParagraphsForTest() { g_longestJoinedParagraphs = 0; }
 
@@ -2340,11 +2348,15 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     double rowPushed = 0;      // how far down the row was moved by the objects the text goes round (of the line it begins, and every piece of it)
 
     bool columnEmpty = true;   // no line placed yet in the current column
+    bool columnBreakNext = false;   // the line placed last ended with a word processor's column break: the next goes on in the next column
+    // A column break goes on in the next column where there is one: in the next column of the frame, in a frame after it, or (where the laying out is of a page's text, which
+    // goes on in the next page) past the last frame. Where the text is in one frame with one column (a table's cell, a text box) it is a line break and no more: no text is lost.
+    auto nextColumnExists = [&] { return f < nF && (f + 1 < nF || c + 1 < std::max(1, frames[f].columns) || m_span.stopAtFrame >= 0); };
     if (m_span.startY > 0.001) {   // (a stretch that goes below something in its first frame)
         y = m_span.startY;
         columnEmpty = false;
     }
-    const bool hyphenate = !frames.isEmpty() && frames.first().hyphenate;
+    const bool hyphenateStory = !frames.isEmpty() && frames.first().hyphenate;
     const double zone = (frames.isEmpty() ? 18.0 : frames.first().hyphenZone) * env.fontScale;
 
     // Notes. A note's own text is laid out without notes of its own.
@@ -2596,6 +2608,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->docLen = b.position() + b.length() - 1 - B->docStart;
         B->propsStart = b.position();
         const QTextBlockFormat bf = b.blockFormat();
+        const bool hyphenate = hyphenateStory && !bf.boolProperty(tp::NoAutoHyphen);   // (a paragraph that says so is not hyphenated)
         // The fill under the paragraph's text, for text of the automatic color: its own shading, else what its frame is on (a table cell's fill).
         QColor behind = frames.isEmpty() ? QColor() : frames[std::min(f, nF - 1)].backdrop;
         if (env.wordLines && bf.hasProperty(tp::Borders))
@@ -2699,7 +2712,18 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 continue;
             }
             const QString field = cf.stringProperty(tp::Field);
-            if (!field.isEmpty()) {
+            // A word processor's page reference has its result's text as the text of the fragment, and shows the page the bookmark is on in its place, all of it as one: where the page is
+            // not known the fragment shows its own text.
+            if (env.wordLines && field.startsWith(QLatin1String("pageref:"))) {
+                if (const QString v = ctx.resolve(field); !v.isEmpty()) {
+                    B->map << Seg{rel, int(text.size()), int(B->disp.size()), int(v.size())};
+                    ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), rf};
+                    B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
+                    B->disp += v;
+                    continue;
+                }
+            }
+            if (!field.isEmpty() && !(env.wordLines && field.startsWith(QLatin1String("pageref:")))) {
                 const bool isNote = field.startsWith(QLatin1String("footnote:")) || field.startsWith(QLatin1String("endnote:"));
                 for (int i = 0; i < text.size(); ++i) {
                     // A note shows its number, counted here in the story's order.
@@ -2758,8 +2782,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     auto it = wordRe.globalMatch(raw);
                     while (it.hasNext()) {
                         const auto m = it.next();
+                        if (env.wordLines && m.capturedLength() > 64) continue;   // (a word processor's string of letters that long is no word to look up: a file can make one of any length)
                         const QString w = m.captured();
                         if (w == w.toUpper()) continue;   // leave all-caps words whole
+                        g_hyphenationLetters += int(w.size());
                         if (!hyphenationKnows(w, language)) continue;   // names and coined words stay whole
                         for (int pt : hyphenationPoints(w, language)) cuts.append({int(m.capturedStart()) + pt, QChar(0x00AD)});
                     }
@@ -2833,6 +2859,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 // A form feed ends the line as U+2028 does (a word processor's page break: the paginator ends the page after that line). One for
                 // one, so positions still map.
                 if (shown.contains(QChar(0x000C))) shown.replace(QChar(0x000C), QChar(QChar::LineSeparator));
+                // A word processor's column break ends the line likewise (the lines after it are in the next column).
+                if (env.wordLines && shown.contains(QChar(0x000E))) shown.replace(QChar(0x000E), QChar(QChar::LineSeparator));
                 // All capitals (or all lowercase): Qt ignores these in a
                 // layout's format ranges, so the letters are changed here, one
                 // for one so positions still map. That is deliberate: a letter
@@ -2969,6 +2997,13 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         opt.setTabs(tabs);
         opt.setTabStopDistance(std::max(1.0, env.defaultTab) * scale * kFine);
         B->leaders = bf.stringProperty(tp::TabLeaders);
+        // (A word processor's absolute position tabs: the tabs whose runs say where they go, as many as a paragraph may have.)
+        B->alignTabs.clear();
+        if (env.wordLines)
+            for (auto at = b.begin(); !at.atEnd() && B->alignTabs.size() < kMostAlignTabs; ++at) {
+                const QString spec = at.fragment().charFormat().stringProperty(tp::AlignTab);
+                for (int i = 0; !spec.isEmpty() && i < at.fragment().length() && B->alignTabs.size() < kMostAlignTabs; ++i) B->alignTabs << spec;
+            }
         if (bf.layoutDirection() == Qt::RightToLeft) opt.setTextDirection(Qt::RightToLeft);
         opt.setFlags(QTextOption::IncludeTrailingSpaces);
         B->tl->setTextOption(opt);
@@ -3018,7 +3053,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         // List marker.
         double markerW = 0, markerSingle = 0;
         WordLine markerWord;
-        if (QTextList *list = (env.slideLines && b.length() <= 1) || tail ? nullptr : b.textList()) {
+        // (A paragraph that begins with a page break has its number on the line after the break, which is the first of the next page: the piece that goes on there has it, and the break's own line has none.)
+        if (QTextList *list = (env.slideLines && b.length() <= 1) || (tail && !firstAfterBreak) || (env.wordLines && startsWithBreak && !tail) ? nullptr : b.textList()) {
             const QTextListFormat lf = list->format();
             B->markerSkipsIndent = env.wordNoNumberIndentStop && !lf.boolProperty(tp::LegacyNumber);
             QString custom = bf.stringProperty(tp::BulletChar);
@@ -3209,9 +3245,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             if (sameStyle(b, b.next())) after = 0;
         }
         const Spot startSpot{f, c, y, overflowY, rowH, row, rowIdx, rowActive, columnEmpty, m_overflow, m_blankPast, m_used, reserve, m_notes, carry, seeded};
+        const bool breakPending = columnBreakNext;
         const bool windowCut = B->cut;
         const int windowCutAt = B->cutAt;
         auto placeLines = [&](bool startNext, int breakAfter) {
+            if (columnBreakNext) {   // (the line before ended with a column break: this paragraph, or the rest of the one before, begins in the next column)
+                columnBreakNext = false;
+                if (nextColumnExists()) advance();
+            }
             // Start in next text box.
             if (!tail && bf.boolProperty(tp::StartInNextBox) && f < nF && (y > 0 || c > 0)) {
                 rowActive = false;
@@ -3253,7 +3294,57 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             const bool hangs = textIndent < -0.01;
             // (A word processor's tab stops are from the text area's edge whatever the line's indent, and the default stops go on past the last of the
             // paragraph's own: each line is laid out with a list of the paragraph's stops and the default ones after them.)
-            const QList<QTextOption::Tab> ownTabs = bf.tabPositions();
+            QList<QTextOption::Tab> ownTabs = bf.tabPositions();
+            // (A paragraph with absolute position tabs has the stops they make in place of its own, from the width of the text area: each of them goes to the place it names.)
+            const bool alignTabs = env.wordLines && !B->alignTabs.isEmpty();
+            // (A paragraph that has tabs of the ordinary kind as well keeps its own stops among them: its ordinary tabs go to those, the first stop past where they are, and an absolute
+            // position tab to its own place, unless a stop of the paragraph's is between.)
+            const QList<QTextOption::Tab> blockTabs = ownTabs;
+            const QString blockLeaders = B->leaders;
+            const bool ordinaryTabs = alignTabs && B->disp.count(QLatin1Char('\t')) > B->alignTabs.size();
+            auto alignedStops = [&](double areaW) {
+                struct Stop {
+                    double at;
+                    QTextOption::Tab tab;
+                    QChar leader;
+                };
+                QVector<Stop> stops;
+                if (ordinaryTabs)
+                    for (int i = 0; i < blockTabs.size(); ++i)
+                        stops << Stop{blockTabs[i].position * scale, blockTabs[i], i < blockLeaders.size() ? blockLeaders[i] : QChar(QLatin1Char(' '))};
+                for (const QString &spec : B->alignTabs) {
+                    const QStringList parts = spec.split(QLatin1Char(':'));
+                    const bool indent = parts.value(1) == QLatin1String("indent");
+                    const double lo = indent ? leftM : 0.0, hi = indent ? std::max(lo, areaW - rightM) : areaW;
+                    const QString kind = parts.value(0), leader = parts.value(2);
+                    double at = hi;
+                    QTextOption::TabType type = QTextOption::RightTab;
+                    if (kind == QLatin1String("center")) {
+                        at = (lo + hi) / 2;
+                        type = QTextOption::CenterTab;
+                    } else if (kind == QLatin1String("left")) {
+                        at = lo;
+                        type = QTextOption::LeftTab;
+                    }
+                    QChar mark(QLatin1Char(' '));
+                    if (leader == QLatin1String("dot")) mark = QLatin1Char('.');
+                    else if (leader == QLatin1String("hyphen")) mark = QLatin1Char('-');
+                    else if (leader == QLatin1String("underscore")) mark = QLatin1Char('_');
+                    else if (leader == QLatin1String("middleDot")) mark = QChar(0x00B7);
+                    stops << Stop{at, QTextOption::Tab(at / scale, type), mark};
+                }
+                std::stable_sort(stops.begin(), stops.end(), [](const Stop &x, const Stop &y) { return x.at < y.at; });
+                QList<QTextOption::Tab> out;
+                QString leaders;
+                for (const Stop &st : stops) {
+                    if (!out.isEmpty() && std::abs(out.last().position - st.tab.position) < 0.01 && out.last().type == st.tab.type) continue;
+                    out << st.tab;
+                    leaders += st.leader;
+                }
+                B->leaders = leaders;
+                return out;
+            };
+            if (alignTabs) ownTabs = alignedStops(nF ? colRect(0, 0).width() : 300.0);
             const bool wordTabs = env.wordLines && !ownTabs.isEmpty();
             // (Text aligned at a tab stop ends at the stop: a line with such a tab is as wide as its room when the stop is at the margin, which no pixel is to be kept back from.
             // Nor are the letters of a font whose widths are the original's (not a stand-in's own) measured so closely: they are a hair over or under what the original has.
@@ -3404,6 +3495,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 }
                 if (B->dropLines > 0 && lineNo < (B->dropUp ? 1 : B->dropLines)) indL += B->dropWidth;
                 if (lineNo == breakAfter && f < nF && !columnEmpty) advance();   // widow control: carry this line over
+                if (columnBreakNext) {
+                    columnBreakNext = false;
+                    if (nextColumnExists()) advance();
+                }
 
                 bool placed = false;
                 double lineHeightAtWalls = -1;   // (what the objects are checked against for this line, in a column: once, not at each step down)
@@ -3481,6 +3576,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         B->markerClamp = env.wordLines ? want - iv.x0 : 0.0;
                     }
                     if (gridTabs) {
+                        if (alignTabs) ownTabs = alignedStops(col.width());
                         if (moveFrom >= 0) iv.x0 = std::min(iv.x0 + movedBy(iv.x0 - col.left(), iv.x1 - col.left()), iv.x1);
                         B->tl->setLineTabs(stopsFor(iv.x0 - col.left(), iv.x1 - iv.x0, lineNo == 0));
                     }
@@ -3643,9 +3739,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         const bool bottom = bf.lineHeightType() == QTextBlockFormat::FixedHeight || (bf.lineHeightType() == QTextBlockFormat::MinimumHeight && h > ownSingle);
                         // (An exact height keeps the line's parts in proportion: the baseline is the ascent's share of the single line, of the exact height.)
                         baseDown = bf.lineHeightType() == QTextBlockFormat::FixedHeight && ownSingle > 0 ? wl.ascent * h / ownSingle : bottom ? std::max(0.0, h - wl.descent) : wl.ascent;
-                        // A paragraph's first line that holds only a page break (the paragraph begins with it) takes no room: it is at the foot of the page
-                        // the paragraph's text is to leave, whether or not there is room for a line there.
-                        if (lineNo == 0 && line.textLength() == 1 && doc->characterAt(B->docStart + B->docFromDisp(line.textStart())) == QChar(0x000C)) {
+                        // A paragraph's first line that holds only a page break or a column break (the paragraph begins with it) takes no room: it is at the foot of the page
+                        // or column the paragraph's text is to leave, whether or not there is room for a line there.
+                        if (lineNo == 0 && line.textLength() == 1 && (doc->characterAt(B->docStart + B->docFromDisp(line.textStart())) == QChar(0x000C) || doc->characterAt(B->docStart + B->docFromDisp(line.textStart())) == QChar(0x000E))) {
                             h = textH = 0;
                             baseDown = 0;
                             roomUnder = 0;
@@ -3774,6 +3870,28 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             }
                         }
                     }
+                    // A word processor does not spread the letters of a justified line that has no space before its last word (a long word of a narrow column or frame, alone in
+                    // its line, in a script that has spaces between its words): the line is set as a left-aligned one is. (Qt spreads the letters of such a line over the width the line was given.)
+                    if (env.wordLines && (B->tl->textOption().alignment() & Qt::AlignJustify) && bf.layoutDirection() != Qt::RightToLeft) {
+                        const int s0 = line.textStart(), e = s0 + line.textLength();
+                        if (e < B->disp.size() && B->disp[e - 1] != QChar::LineSeparator) {
+                            int k = e;
+                            while (k > s0 && B->disp[k - 1].isSpace()) --k;
+                            bool spaced = false, spreads = false;   // (spreads: a script that has no spaces between its words is spread over the width, by its characters, as the reference does)
+                            for (int i = s0; i < k && !spaced && !spreads; ++i) {
+                                const QChar ch = B->disp[i];
+                                spaced = ch.isSpace();
+                                if (ch.isSurrogate()) spreads = true;
+                                else
+                                    switch (ch.script()) {
+                                    case QChar::Script_Han: case QChar::Script_Hiragana: case QChar::Script_Katakana: case QChar::Script_Bopomofo: case QChar::Script_Thai: case QChar::Script_Lao:
+                                    case QChar::Script_Khmer: case QChar::Script_Myanmar: case QChar::Script_Tibetan: spreads = true; break;
+                                    default: break;
+                                    }
+                            }
+                            if (!spaced && !spreads) line.setLineWidth(line.naturalTextWidth() + 0.01);   // (the line is as wide as its letters: there is nothing to spread)
+                        }
+                    }
                     B->lines << Line{f, c, QRectF(iv.x0, col.top() + y, iv.x1 - iv.x0, h), below, rowPushed, band, lineNo == 0 && f == B->spaceFrame && c == B->spaceColumn ? B->spaceAbove : 0.0};
                     if (!lineNotes.isEmpty()) {
                         const bool firstNotes = !reserve.contains(rkey(f, c));
@@ -3806,6 +3924,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         moveTo = line.textStart() + line.textLength();
                     }
                     placed = true;
+                    if (env.wordLines) {
+                        const int last = line.textStart() + line.textLength();
+                        if (line.textLength() > 0 && B->disp[last - 1] == QChar::LineSeparator && doc->characterAt(B->docStart + B->docFromDisp(last - 1)) == QChar(0x000E)) columnBreakNext = true;
+                    }
                     if (m_span.overLines > 0 && m_span.stopAtFrame >= 0 && f >= m_span.stopAtFrame && ++overPlaced >= m_span.overLines) {
                         overFull = true;
                         B->cutAt = B->docFromDisp(line.textStart() + line.textLength());
@@ -3844,6 +3966,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             m_notes = startSpot.notes;
             carry = startSpot.carry;
             seeded = startSpot.seeded;
+            columnBreakNext = breakPending;
             B->lines.clear();
             placeLines(startNext, breakAfter < 0 ? firstBreak : breakAfter);
         };
@@ -4080,7 +4203,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 const int last = before.textStart() + before.textLength() - 1;
                 // (The display shows a page break as a line break. What stands between the last letter and the break and shows nothing, an anchored object, is the break's too.)
                 if (last >= 0)
-                    for (int k = B->docFromDisp(last), to = std::max(B->docFromDisp(last + 1), k + 1); k < to && !broken; ++k) broken = doc->characterAt(B->docStart + k) == QChar(0x000C);
+                    for (int k = B->docFromDisp(last), to = std::max(B->docFromDisp(last + 1), k + 1); k < to && !broken; ++k) broken = doc->characterAt(B->docStart + k) == QChar(0x000C) || doc->characterAt(B->docStart + k) == QChar(0x000E);
             }
             const bool split = at > 0 && B->lines[at].frame >= 0 && !broken;
             if (split && bf.boolProperty(tp::KeepTogether)) redo(true, -1);                 // keep lines together
@@ -4136,6 +4259,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             rowPushed = 0;
             rowIdx = startSpot.rowIdx;
             rowH = startSpot.rowH;
+            columnBreakNext = breakPending;
         }
         const bool cutBlock = B->cut;
         m_blocks.push_back(std::move(B));

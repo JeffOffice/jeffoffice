@@ -434,6 +434,22 @@ private Q_SLOTS:
         QVERIFY(readShapes("not xml").isEmpty());
     }
 
+    // A group inside a group: each shape of it is read once (the members of the outer group are not read again for each group in it), in the units of the groups it is in: the
+    // outer group's coordinate space is 1000 by 500 over 100 by 50 points, the inner one's 40 by 20 over 400 by 200 of the outer's units.
+    void readsEachShapeOfAGroupInAGroupOnce()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:v=\"urn:schemas-microsoft-com:vml\"";
+        const QVector<Shape> shapes = readShapes("<w:pict " + ns + "><v:group id='g' style='position:absolute;margin-left:10pt;margin-top:20pt;width:100pt;height:50pt' coordsize='1000,500' coordorigin='0,0'>"
+                                                 "<v:rect id='a' style='position:absolute;left:100;top:50;width:200;height:100' fillcolor='red'/>"
+                                                 "<v:group id='n' style='position:absolute;left:400;top:200;width:400;height:200' coordsize='40,20' coordorigin='0,0'>"
+                                                 "<v:rect id='b' style='position:absolute;left:10;top:5;width:20;height:10' fillcolor='blue'/></v:group>"
+                                                 "<v:rect id='c' style='position:absolute;left:600;top:50;width:100;height:100' fillcolor='green'/></v:group></w:pict>");
+        QCOMPARE(int(shapes.size()), 3);
+        QVERIFY(std::abs(shapes[0].left - 20) < 0.01 && std::abs(shapes[0].top - 25) < 0.01 && std::abs(shapes[0].width - 20) < 0.01 && std::abs(shapes[0].height - 10) < 0.01);
+        QVERIFY(std::abs(shapes[1].left - 60) < 0.01 && std::abs(shapes[1].top - 45) < 0.01 && std::abs(shapes[1].width - 20) < 0.01 && std::abs(shapes[1].height - 10) < 0.01);
+        QVERIFY(std::abs(shapes[2].left - 70) < 0.01 && std::abs(shapes[2].top - 25) < 0.01);
+    }
+
     // A line's turn and mirror are in its ends (a line has no frame of its own to turn about at draw time): a quarter turn
     // clockwise of a level segment about its middle makes a plumb one; a mirror of a steep one swaps its ends.
     void readsALineTurned()

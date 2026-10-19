@@ -575,6 +575,7 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
     if (p.widowControl.value_or(true)) bf.setProperty(tp::WidowControl, true);
     if (p.pageBreakBefore.value_or(false)) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore);
     if (p.contextualSpacing.value_or(false)) bf.setProperty(tp::ContextualSpacing, true);
+    if (p.suppressAutoHyphens.value_or(false)) bf.setProperty(tp::NoAutoHyphen, true);
     if (!p.overflowPunct.value_or(true)) bf.setProperty(tp::NoHangPunct, true);
     {
         tp::ParaBox box;
@@ -664,6 +665,7 @@ ParaProps paraPropsOf(const QTextBlockFormat &f)
     p.widowControl = f.boolProperty(tp::WidowControl);
     p.pageBreakBefore = (f.pageBreakPolicy() & QTextFormat::PageBreak_AlwaysBefore) != 0;
     p.contextualSpacing = f.boolProperty(tp::ContextualSpacing);
+    p.suppressAutoHyphens = f.boolProperty(tp::NoAutoHyphen);
     if (f.hasProperty(prop::Outline)) p.outlineLvl = f.intProperty(prop::Outline);
     if (f.hasProperty(prop::NumId)) {
         p.numId = f.intProperty(prop::NumId);

@@ -228,6 +228,7 @@ void ParaProps::overlay(const ParaProps &t)
     if (t.pageBreakBefore) pageBreakBefore = t.pageBreakBefore;
     if (t.widowControl) widowControl = t.widowControl;
     if (t.contextualSpacing) contextualSpacing = t.contextualSpacing;
+    if (t.suppressAutoHyphens) suppressAutoHyphens = t.suppressAutoHyphens;
     if (t.numId) numId = t.numId;
     if (t.ilvl) ilvl = t.ilvl;
     if (t.tabs) {
@@ -268,7 +269,7 @@ void ParaProps::overlay(const ParaProps &t)
 ParaProps ParaProps::normalized() const
 {
     ParaProps n = *this;
-    for (std::optional<bool> *b : {&n.keepNext, &n.keepLines, &n.pageBreakBefore, &n.contextualSpacing})
+    for (std::optional<bool> *b : {&n.keepNext, &n.keepLines, &n.pageBreakBefore, &n.contextualSpacing, &n.suppressAutoHyphens})
         if (!*b) *b = false;
     if (!n.widowControl) n.widowControl = true;
     if (!n.numId) n.numId = 0;
@@ -310,6 +311,7 @@ ParaProps ParaProps::differences(const ParaProps &base) const
     flag(&ParaProps::pageBreakBefore);
     flag(&ParaProps::widowControl);
     flag(&ParaProps::contextualSpacing);
+    flag(&ParaProps::suppressAutoHyphens);
     if (n.numId != b.numId || (n.numId.value_or(0) != 0 && n.ilvl != b.ilvl)) {
         d.numId = n.numId;
         if (n.numId.value_or(0) != 0) d.ilvl = n.ilvl;
@@ -748,6 +750,7 @@ QByteArray paraPropsXml(const ParaProps &p)
         parts.add(paraChildRank("ind"), e + p.indAttrs + "/>");
     }
     flag("contextualSpacing", p.contextualSpacing);
+    flag("suppressAutoHyphens", p.suppressAutoHyphens);
     if (!p.jc.isEmpty()) parts.add(paraChildRank("jc"), valEl("jc", p.jc));
     if (p.outlineLvl) parts.add(paraChildRank("outlineLvl"), intEl("outlineLvl", *p.outlineLvl));
     if (p.markRun) {

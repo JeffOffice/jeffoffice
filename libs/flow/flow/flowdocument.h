@@ -99,6 +99,8 @@ inline const QLatin1String kFlowImagePrefix("flow-img:");
 // "continues" is only that its next line is its line 1, never stored). A paragraph that ends with one leaves the next paragraph at the top of the
 // next page, with no empty line before it; one at the end of the last paragraph makes no page of its own.
 constexpr QChar kPageBreak = QChar(0x000C);
+// A column break (the text engine sends what follows it to the next column; in the last column of a page, that is the next page).
+constexpr QChar kColumnBreak = QChar(0x000E);
 
 // The most columns a page has (a section that asks for more has this many).
 constexpr int kMostColumns = 32;
@@ -150,6 +152,10 @@ struct Section {
     PageBorders pageBorders;                 // the lines round its pages
     std::optional<int> firstPageNumber;      // the number the section's first page has (0 is a number; none: it goes on from the section before)
     QString pageNumberFormat;                // "", "roman", "ROMAN", "alpha", or "ALPHA" (the fields' own)
+    // The section's page numbers carry the number of a chapter (w:chapStyle): the heading style of that level (1 to 9) whose paragraph's number is the page's chapter (the last of
+    // them on the page, else the nearest before it), and what stands between it and the page's number ("-" when empty). 0: none.
+    int chapterStyle = 0;
+    QString chapterSeparator;
     // Line numbers in the margin (w:lnNumType): a number for every `countBy` lines of the section's text (0: none), counted from `start`, `distance` points left of the column (0: the
     // usual), in `format`; they begin again at each page, at each section, or not at all (only the first is drawn).
     struct LineNumbers {

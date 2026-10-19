@@ -72,6 +72,10 @@ void WriteDoc::exportInto(BlockSink &sink)
     for (QTextBlock b = story->begin(); b.isValid();) {
         const QTextBlockFormat bf = b.blockFormat();
         tables.moveTo(bf.intProperty(flow::fp::Cell), out);   // (the end of the tables the paragraph is not in, and the start of those it is)
+        if (bf.hasProperty(prop::EndnoteBlock)) {   // (the endnotes the pages show after the text: the file's part is kept as it is)
+            b = b.next();
+            continue;
+        }
         if (bf.hasProperty(prop::RawBefore))
             for (const Block &r : unpackBlocks(storedBytes(bf, prop::RawBefore))) out.add(Block(r));
         if (bf.hasProperty(prop::RawBlock)) {

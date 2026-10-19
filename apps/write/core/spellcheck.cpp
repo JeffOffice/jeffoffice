@@ -1,6 +1,7 @@
 #include "core/spellcheck.h"
 
 #include "app/spelling.h"
+#include "core/editops.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
 
@@ -141,7 +142,8 @@ SpellCheck::Answer *SpellCheck::check(const QTextBlock &block, int revision, int
     }
     const int length = block.length() - 1;
     // (A paragraph that stands for an element kept as XML has no text of the person's.)
-    if (block.blockFormat().hasProperty(prop::RawBlock)) a->done = true;
+    // (Nor have the endnotes the pages set after the text, which nothing edits.)
+    if (block.blockFormat().hasProperty(prop::RawBlock) || block.blockFormat().hasProperty(prop::EndnoteBlock)) a->done = true;
     while (!a->done) {
         int stopped = 0, looked = 0;
         const auto part = misspellingsIn(block, m_language, a->checkedTo, kPieceWords, &stopped, &looked);
@@ -270,6 +272,7 @@ qint64 SpellCheck::keptBytes() const
 
 void replaceWord(QTextDocument *story, int from, int to, const QString &text)
 {
+    if (from >= editableEnd(story) || to > editableEnd(story)) return;   // (a word of the endnotes the pages set after the text is not changed)
     QTextCursor look(story);
     look.setPosition(from + 1);
     const QTextCharFormat format = look.charFormat();

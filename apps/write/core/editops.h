@@ -14,6 +14,12 @@ namespace jp::write {
 
 // A paragraph that stands for an element kept as XML (a table): not edited.
 bool isLocked(const QTextBlock &block);
+// Where the text the person has ends: the end of the last paragraph that is not one of the endnotes the pages set after it. Nothing is typed, deleted, copied, found, or
+// spelled past it: a caret and a selection are held to it, and what is wholly in the endnotes is none.
+int editableEnd(const QTextDocument *story);
+void holdInBody(QTextCursor &c);
+// `c` held to the text the person has (holdInBody); false when it is wholly in the endnotes, where nothing is to be done.
+bool intoBody(QTextCursor &c);
 // The character format of a paragraph's mark (what an empty paragraph is drawn with, and the paragraph mark's own formatting in the file). The engine
 // can't undo a change to the first paragraph's, so that one is kept in the paragraph's format as well, and read from there.
 QTextCharFormat markFormat(const QTextBlock &block);

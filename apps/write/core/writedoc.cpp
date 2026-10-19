@@ -166,6 +166,15 @@ flow::Section flowSectionOf(const SectionProps &p, bool evenAndOdd)
     s.pageBorders = pageBordersOf(p.extra);
     s.lineNumbers = lineNumbersOf(p.extra);
     s.firstPageNumber = p.pageStart;
+    // (Page numbers that carry a chapter's number: the heading level of the style (w:chapStyle) and the separator (w:chapSep: a hyphen when it says none).)
+    {
+        static const QRegularExpression style(QStringLiteral("[\\s:]chapStyle\\s*=\\s*\"([0-9]+)\"")), separator(QStringLiteral("[\\s:]chapSep\\s*=\\s*\"(\\w+)\""));
+        const QString attrs = QString::fromUtf8(p.pgNumAttrs.left(2000));
+        if (const QRegularExpressionMatch m = style.match(attrs); m.hasMatch()) s.chapterStyle = std::clamp(m.captured(1).left(3).toInt(), 0, 9);
+        const QString sep = separator.match(attrs).captured(1);
+        s.chapterSeparator = sep == QLatin1String("period") ? QStringLiteral(".") : sep == QLatin1String("colon") ? QStringLiteral(":") : sep == QLatin1String("emDash") ? QString(QChar(0x2014))
+                             : sep == QLatin1String("enDash") ? QString(QChar(0x2013)) : QStringLiteral("-");
+    }
     s.pageNumberFormat = p.pageFormat == QLatin1String("lowerRoman") ? QStringLiteral("roman")
                          : p.pageFormat == QLatin1String("upperRoman") ? QStringLiteral("ROMAN")
                          : p.pageFormat == QLatin1String("lowerLetter") ? QStringLiteral("alpha")
@@ -297,6 +306,7 @@ void WriteDoc::build(office::wml::Document &&doc)
     m_last = m_wml.lastSection;
     setUpEnvironment();
     loadNotes();
+    loadEndnotes();
     buildStory(body);
     measureNoteSeparator();
     settleTables();
@@ -342,6 +352,9 @@ void WriteDoc::setUpEnvironment()
     if (!m_wml.settingsName.isEmpty()) {
         // (One reading of the part for all of them.)
         const office::wml::CompatOptions compat = office::wml::readCompatOptions(partData(m_wml.settingsName));
+        // Words are hyphenated where the file asks (w:autoHyphenation), but for the zone that it sets.
+        f.hyphenate = compat.autoHyphenation;
+        f.hyphenZone = compat.hyphenationZone / 20.0;
         // (And how the endnotes are numbered, read here once, not at each story's making.)
         const office::wml::NoteNumbering endnotes = office::wml::readNoteNumbering(partData(m_wml.settingsName), "endnotePr");
         if (!endnotes.format.isEmpty()) m_endnoteFormat = endnotes.format;
@@ -987,7 +1000,7 @@ void WriteDoc::renumberLists(QTextDocument *story)
         Counter shared[9];                          // the definition's own count, which the numbering ids that restart no level go on with
         QHash<int, std::array<Counter, 9>> own;     // the counts of the ids that restart a level, for that level
     };
-    QHash<int, Count> counts;
+    QHash<int, Count> counts, endCounts;               // (the endnotes the pages set after the text count on their own)
     QHash<QTextList *, int> before;                 // the items of each Qt list seen so far (Qt's own count of the next)
     struct Change {
         int position;
@@ -1004,7 +1017,7 @@ void WriteDoc::renumberLists(QTextDocument *story)
         const int numId = bf.intProperty(prop::NumId), level = std::clamp(bf.intProperty(prop::NumLevel), 0, 8);
         const Level *l = numbering.levelOf(numId, level);
         if (!l) continue;
-        Count &count = counts[numbering.definitionOf(numId)];
+        Count &count = (bf.hasProperty(prop::EndnoteBlock) ? endCounts : counts)[numbering.definitionOf(numId)];
         for (int i = level + 1; i < 9; ++i) ++count.restarts[i];
         auto counterOf = [&](int k) -> Counter & {
             Counter &c = numbering.restartsLevel(numId, k) ? count.own[numId][k] : count.shared[k];
@@ -1021,6 +1034,12 @@ void WriteDoc::renumberLists(QTextDocument *story)
             n = c.number;
         }
         if (l->numFmt == QLatin1String("bullet") || l->numFmt == QLatin1String("none")) continue;
+        // A level above the item's that no item of the list has been at has begun its count with this item: it stands at its start, and the next item at that level is one more
+        // (a list that goes from 2.4 to 2.4.1.1 has its next item at the third level numbered 2.4.2).
+        for (int k = 0; k < level; ++k) {
+            Counter &above = counterOf(k);
+            if (above.number < 0) above.number = numbering.startOf(numId, k);
+        }
         // Qt can count a level with the one number of its own in the marker, in a style it has, and that is the number it would count.
         const bool simple = !l->legal && l->text.count(QLatin1Char('%')) <= 1 && l->text.contains(QStringLiteral("%%1").arg(level + 1));
         QString want;

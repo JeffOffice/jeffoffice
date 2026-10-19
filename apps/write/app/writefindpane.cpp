@@ -3,6 +3,7 @@
 #include "app/pageview.h"
 #include "app/writewindow.h"
 #include "core/editops.h"
+#include "core/writeprops.h"
 #include "text/textprops.h"
 
 #include <QCheckBox>
@@ -41,10 +42,11 @@ public:
             else m_runs.push_back({int(text.size()), at, int(piece.size())});
             text += piece;
         };
-        for (QTextBlock b = m_story->begin(); b.isValid(); b = b.next()) {
+        // (The endnotes the pages set after the text are not searched: they are the last paragraphs, marked as theirs.)
+        for (QTextBlock b = m_story->begin(); b.isValid() && !b.blockFormat().hasProperty(write::prop::EndnoteBlock); b = b.next()) {
             for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
                 if (!write::isInvisibleAtom(it.fragment().charFormat())) extend(it.fragment().position(), it.fragment().text());
-            if (b.next().isValid()) extend(b.position() + b.length() - 1, QStringLiteral("\n"));
+            if (b.next().isValid() && !b.next().blockFormat().hasProperty(write::prop::EndnoteBlock)) extend(b.position() + b.length() - 1, QStringLiteral("\n"));
         }
         m_words.setUndoRedoEnabled(false);
         m_words.setPlainText(text);
@@ -183,6 +185,7 @@ FindWords WriteFindPane::words()
     w.story = [text](const FindStory &) { return text ? text->words() : nullptr; };
     // Hidden text is not found (nor replaced): it is not shown.
     w.skip = [text, story](const QTextCursor &match) {
+        if (text->toStory(match.selectionStart()) >= write::editableEnd(story)) return true;   // (nor a match in the endnotes the pages set after the text)
         QTextCursor shown(story);
         shown.setPosition(text->toStory(match.selectionStart()));
         shown.setPosition(text->toStoryEnd(match.selectionEnd()), QTextCursor::KeepAnchor);

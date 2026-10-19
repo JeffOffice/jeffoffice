@@ -7,6 +7,7 @@
 
 #include <QClipboard>
 #include <QGuiApplication>
+#include <QPointer>
 #include <QTextBlock>
 #include <QTextDocument>
 #include <QTextList>
@@ -106,6 +107,8 @@ QTextCharFormat typingFormat(const QTextCursor &c)
         if (f.intProperty(prop::TrackedDeleted) == prop::HiddenByDeletion) f.clearProperty(tp::HiddenText);
         f.clearProperty(prop::TrackedDeleted);
     }
+    // (Text typed beside the result of a page reference is not that result: it shows as it is typed.)
+    if (f.stringProperty(tp::Field).startsWith(QLatin1String("pageref:"))) f.clearProperty(tp::Field);
     if (!isAtom(f)) return f;
     // Beside a piece kept as XML: the look of the text before it, else of the paragraph's mark.
     const QTextBlock b = c.block();
@@ -270,7 +273,44 @@ void rewrap(const QVector<Wrapper> &wrappers, QTextBlock first, QTextBlock secon
 
 } // namespace
 
-bool isLocked(const QTextBlock &block) { return block.isValid() && block.blockFormat().hasProperty(prop::RawBlock); }
+bool isLocked(const QTextBlock &block) { return block.isValid() && (block.blockFormat().hasProperty(prop::RawBlock) || block.blockFormat().hasProperty(prop::EndnoteBlock)); }
+
+int editableEnd(const QTextDocument *story)
+{
+    // (The endnotes the pages set are the last paragraphs of the story, marked as theirs: the text the person has ends where they begin. Where they begin is kept for the story as it
+    // is, and checked each time it is asked for: a story's revision goes back with an undo, so it does not say whether the story is as it was.)
+    static QPointer<const QTextDocument> seenStory;   // (a pointer that goes with the story: another at the same address is not it)
+    static int seenEnd = 0;
+    if (!story) return 0;
+    auto marked = [](const QTextBlock &b) { return b.isValid() && b.blockFormat().hasProperty(prop::EndnoteBlock); };
+    const int whole = story->characterCount() - 1;
+    if (!marked(story->lastBlock())) return whole;
+    if (seenStory.data() == story && seenEnd < whole) {
+        const QTextBlock first = story->findBlock(seenEnd + 1);
+        if (first.isValid() && first.position() == seenEnd + 1 && marked(first) && !marked(first.previous())) return seenEnd;
+    }
+    QTextBlock first = story->lastBlock();
+    while (marked(first.previous())) first = first.previous();
+    seenStory = story;
+    seenEnd = std::max(0, first.position() - 1);
+    return seenEnd;
+}
+
+void holdInBody(QTextCursor &c)
+{
+    const int end = editableEnd(c.document());
+    if (c.position() <= end && c.anchor() <= end) return;
+    const int anchor = std::min(c.anchor(), end), position = std::min(c.position(), end);
+    c.setPosition(anchor);
+    c.setPosition(position, QTextCursor::KeepAnchor);
+}
+
+bool intoBody(QTextCursor &c)
+{
+    if (!c.document() || c.selectionStart() > editableEnd(c.document())) return false;
+    holdInBody(c);
+    return true;
+}
 
 bool isInvisibleAtom(const QTextCharFormat &format) { return isZeroWidth(format); }
 
@@ -358,6 +398,7 @@ struct NumberGuard {
 
 void insertText(WriteDoc &doc, QTextCursor &c, const QString &text)
 {
+    if (!intoBody(c)) return;
     if (text.isEmpty()) return;
     if (isLocked(c.block()) && !c.hasSelection()) return;
     // (Typing a character changes no number; a selection replaced, or a paragraph made by the text, may.)
@@ -414,6 +455,7 @@ static QTextBlock splitParagraph(QTextCursor &c)
 
 void insertParagraph(WriteDoc &doc, QTextCursor &c)
 {
+    if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     c.beginEditBlock();
     if (c.hasSelection()) removeSelection(doc, c);
@@ -458,6 +500,7 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
 
 void insertPageBreak(WriteDoc &doc, QTextCursor &c)
 {
+    if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     if (isLocked(c.block())) return;
     c.beginEditBlock();
@@ -472,6 +515,7 @@ void insertPageBreak(WriteDoc &doc, QTextCursor &c)
 
 void insertSectionBreak(WriteDoc &doc, QTextCursor &c, const QString &type)
 {
+    if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     if (isLocked(c.block()) || inTable(c.block())) return;   // (a section ends in a paragraph that is not in a table's cell)
     c.beginEditBlock();
@@ -521,6 +565,7 @@ static bool removeSelectionAcrossFrames(WriteDoc &doc, QTextCursor &c)
 
 void removeSelection(WriteDoc &doc, QTextCursor &c)
 {
+    if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     if (!c.hasSelection()) return;
     const AdvanceGuard advance(c);
@@ -647,6 +692,7 @@ static void joinAcrossDeleted(WriteDoc &doc, QTextCursor &c, const QTextBlock &v
 
 void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
 {
+    if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     const AdvanceGuard advance(c);
     if (c.hasSelection()) {
@@ -700,6 +746,7 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
 
 void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
 {
+    if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     const AdvanceGuard advance(c);
     if (c.hasSelection()) {
@@ -739,6 +786,7 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
 
 void insertTab(WriteDoc &doc, QTextCursor &c, bool back)
 {
+    if (!intoBody(c)) return;
     const QTextBlock b = c.block();
     if (!c.hasSelection() && b.blockFormat().hasProperty(prop::NumId) && (c.atBlockStart() || back)) {
         changeIndent(doc, c, back ? -36 : 36);
@@ -751,9 +799,10 @@ void insertTab(WriteDoc &doc, QTextCursor &c, bool back)
 
 // ---- the clipboard
 
-QTextDocumentFragment selectionFragment(const QTextCursor &c)
+QTextDocumentFragment selectionFragment(const QTextCursor &whole)
 {
-    return c.hasSelection() ? QTextDocumentFragment(c) : QTextDocumentFragment();
+    QTextCursor c(whole);
+    return intoBody(c) && c.hasSelection() ? QTextDocumentFragment(c) : QTextDocumentFragment();
 }
 
 QString plainTextOf(const QTextDocumentFragment &f)
@@ -834,6 +883,7 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
     const bool targetFramed = tf.boolProperty(tp::OutOfLayout) && tf.intProperty(flow::fp::Frame) > 0 && !targetCell;
     for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() <= to; b = b.next()) {
         QTextBlockFormat nf = b.blockFormat();
+        nf.clearProperty(prop::EndnoteBlock);   // (a copy of an endnote's paragraph, from a clipboard of any time, is a paragraph of the text)
         if (targetFramed) {
             nf.setProperty(flow::fp::Frame, tf.property(flow::fp::Frame));
             nf.setProperty(tp::OutOfLayout, true);
@@ -873,6 +923,7 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
 
 void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment)
 {
+    if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     if (fragment.isEmpty()) return;
     int from = 0, to = 0;
@@ -907,9 +958,11 @@ QVector<Reference> referencesIn(const QByteArray &xml)
 
 } // namespace
 
-Clip copySelection(const WriteDoc &doc, const QTextCursor &c)
+Clip copySelection(const WriteDoc &doc, const QTextCursor &whole)
 {
     Clip clip;
+    QTextCursor c(whole);   // (what is copied is the person's text: the endnotes the pages set are not)
+    if (!intoBody(c)) return clip;
     clip.fragment = selectionFragment(c);
     clip.source = doc.id();
     clip.generation = byteStoreGeneration();
@@ -947,6 +1000,7 @@ Clip copySelection(const WriteDoc &doc, const QTextCursor &c)
 
 void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
 {
+    if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     if (clip.isEmpty()) return;
     const bool same = clip.source == doc.id();
@@ -1066,6 +1120,7 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
 
 void pasteText(WriteDoc &doc, QTextCursor &c, const QString &text)
 {
+    if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     QString t = text;
     t.replace(QLatin1String("\r\n"), QLatin1String("\n")).replace(QLatin1Char('\r'), QLatin1Char('\n'));
@@ -1134,6 +1189,7 @@ bool allSelected(const QTextCursor &c, const std::function<bool(const QTextCharF
 
 void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QTextCharFormat &)> &change)
 {
+    if (!intoBody(c)) return;
     Q_UNUSED(doc);
     QTextDocument *d = c.document();
     if (!c.hasSelection()) {
@@ -1179,18 +1235,21 @@ void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QT
 
 void toggleBold(WriteDoc &doc, QTextCursor &c)
 {
+    if (!intoBody(c)) return;
     const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.fontWeight() >= QFont::DemiBold; });
     changeCharFormat(doc, c, [on](QTextCharFormat &f) { f.setFontWeight(on ? QFont::Bold : QFont::Normal); });
 }
 
 void toggleItalic(WriteDoc &doc, QTextCursor &c)
 {
+    if (!intoBody(c)) return;
     const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.fontItalic(); });
     changeCharFormat(doc, c, [on](QTextCharFormat &f) { f.setFontItalic(on); });
 }
 
 void toggleUnderline(WriteDoc &doc, QTextCursor &c)
 {
+    if (!intoBody(c)) return;
     const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.underlineStyle() != QTextCharFormat::NoUnderline; });
     changeCharFormat(doc, c, [on](QTextCharFormat &f) {
         f.setUnderlineStyle(on ? QTextCharFormat::SingleUnderline : QTextCharFormat::NoUnderline);
@@ -1203,6 +1262,7 @@ void toggleUnderline(WriteDoc &doc, QTextCursor &c)
 
 void toggleStrike(WriteDoc &doc, QTextCursor &c)
 {
+    if (!intoBody(c)) return;
     const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.fontStrikeOut(); });
     changeCharFormat(doc, c, [on](QTextCharFormat &f) {
         f.setFontStrikeOut(on);
@@ -1212,18 +1272,21 @@ void toggleStrike(WriteDoc &doc, QTextCursor &c)
 
 void toggleSubscript(WriteDoc &doc, QTextCursor &c)
 {
+    if (!intoBody(c)) return;
     const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.verticalAlignment() == QTextCharFormat::AlignSubScript; });
     changeCharFormat(doc, c, [on](QTextCharFormat &f) { f.setVerticalAlignment(on ? QTextCharFormat::AlignSubScript : QTextCharFormat::AlignNormal); });
 }
 
 void toggleSuperscript(WriteDoc &doc, QTextCursor &c)
 {
+    if (!intoBody(c)) return;
     const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.verticalAlignment() == QTextCharFormat::AlignSuperScript; });
     changeCharFormat(doc, c, [on](QTextCharFormat &f) { f.setVerticalAlignment(on ? QTextCharFormat::AlignSuperScript : QTextCharFormat::AlignNormal); });
 }
 
 void setFontFamily(WriteDoc &doc, QTextCursor &c, const QString &family)
 {
+    if (!intoBody(c)) return;
     changeCharFormat(doc, c, [family](QTextCharFormat &f) {
         if (family == QLatin1String("+Heading") || family == QLatin1String("+Body")) {
             f.clearProperty(QTextFormat::FontFamilies);
@@ -1238,12 +1301,14 @@ void setFontFamily(WriteDoc &doc, QTextCursor &c, const QString &family)
 
 void setFontSize(WriteDoc &doc, QTextCursor &c, double points)
 {
+    if (!intoBody(c)) return;
     points = std::clamp(points, 1.0, 1638.0);
     changeCharFormat(doc, c, [points](QTextCharFormat &f) { f.setFontPointSize(points); });
 }
 
 void changeFontSize(WriteDoc &doc, QTextCursor &c, int steps)
 {
+    if (!intoBody(c)) return;
     static const double sizes[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72, 80, 96, 120, 144, 200, 300, 500, 1000, 1638};
     const double now = typingFormat(c).fontPointSize() > 0 ? typingFormat(c).fontPointSize() : 11;
     double target = now;
@@ -1265,6 +1330,7 @@ void changeFontSize(WriteDoc &doc, QTextCursor &c, int steps)
 
 void setTextColor(WriteDoc &doc, QTextCursor &c, const QColor &color)
 {
+    if (!intoBody(c)) return;
     changeCharFormat(doc, c, [color](QTextCharFormat &f) {
         f.clearProperty(prop::ColorAttrs);
         f.clearProperty(prop::ColorAttrsRgb);
@@ -1280,6 +1346,7 @@ void setTextColor(WriteDoc &doc, QTextCursor &c, const QColor &color)
 
 void setHighlight(WriteDoc &doc, QTextCursor &c, const QString &name)
 {
+    if (!intoBody(c)) return;
     changeCharFormat(doc, c, [name](QTextCharFormat &f) {
         if (name.isEmpty()) f.clearProperty(tp::HighlightRefP);
         else f.setProperty(tp::HighlightRefP, ColorRef::rgb(highlightColor(name)).toString());
@@ -1310,6 +1377,7 @@ QTextCharFormat restyled(const QTextCharFormat &f, const QTextCharFormat &was, c
 
 void clearFormatting(WriteDoc &doc, QTextCursor &c)
 {
+    if (!intoBody(c)) return;
     c.beginEditBlock();
     applyParagraphStyle(doc, c, doc.defaultParagraphStyle());
     const QTextCharFormat base = doc.styleCharFormat(doc.defaultParagraphStyle());
@@ -1333,6 +1401,7 @@ void clearFormatting(WriteDoc &doc, QTextCursor &c)
 
 void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QTextBlockFormat &)> &change)
 {
+    if (!intoBody(c)) return;
     Q_UNUSED(doc);
     c.beginEditBlock();
     for (const QTextBlock &b : selectedBlocks(c)) {
@@ -1347,6 +1416,7 @@ void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(Q
 
 void setAlignment(WriteDoc &doc, QTextCursor &c, Qt::Alignment alignment)
 {
+    if (!intoBody(c)) return;
     changeBlockFormat(doc, c, [alignment](QTextBlockFormat &bf) {
         bf.setAlignment(alignment);
         bf.clearProperty(prop::JcRaw);   // (a chosen alignment is the plain kind)
@@ -1357,6 +1427,7 @@ static void setBlockList(WriteDoc &doc, QTextBlock block, int numId, int level, 
 
 void changeIndent(WriteDoc &doc, QTextCursor &c, double points)
 {
+    if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     c.beginEditBlock();
     for (const QTextBlock &b : selectedBlocks(c)) {
@@ -1376,6 +1447,7 @@ void changeIndent(WriteDoc &doc, QTextCursor &c, double points)
 
 void setIndents(WriteDoc &doc, QTextCursor &c, double left, double right, double firstLine)
 {
+    if (!intoBody(c)) return;
     changeBlockFormat(doc, c, [&](QTextBlockFormat &bf) {
         bf.setLeftMargin(std::max(0.0, left));
         bf.setRightMargin(std::max(0.0, right));
@@ -1418,6 +1490,7 @@ void setSpaceAfter(QTextBlockFormat &bf, double points)
 
 void setSpacing(WriteDoc &doc, QTextCursor &c, double before, double after)
 {
+    if (!intoBody(c)) return;
     changeBlockFormat(doc, c, [&](QTextBlockFormat &bf) {
         setSpaceBefore(bf, before);
         setSpaceAfter(bf, after);
@@ -1426,6 +1499,7 @@ void setSpacing(WriteDoc &doc, QTextCursor &c, double before, double after)
 
 void setLineSpacing(WriteDoc &doc, QTextCursor &c, QTextBlockFormat::LineHeightTypes type, double value)
 {
+    if (!intoBody(c)) return;
     changeBlockFormat(doc, c, [&](QTextBlockFormat &bf) {
         if (type == QTextBlockFormat::ProportionalHeight) bf.setLineHeight(std::max(0.1, value) * 100.0, type);
         else bf.setLineHeight(std::max(0.1, value), type);
@@ -1479,6 +1553,7 @@ static void setBlockList(WriteDoc &doc, QTextBlock block, int numId, int level, 
 
 void toggleList(WriteDoc &doc, QTextCursor &c, bool numbered)
 {
+    if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     const QVector<QTextBlock> blocks = selectedBlocks(c);
     const ListKind want = numbered ? ListKind::Numbers : ListKind::Bullets;
@@ -1563,6 +1638,7 @@ static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleI
 
 void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 {
+    if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     if (!doc.ensureStyle(styleId)) return;
     c.beginEditBlock();
@@ -1575,6 +1651,7 @@ void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 
 void applyCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 {
+    if (!intoBody(c)) return;
     if (!doc.ensureStyle(styleId)) return;
     const QString paraStyle = paragraphStyleAt(doc, c);
     const QTextCharFormat base = doc.styleCharFormat(paraStyle);

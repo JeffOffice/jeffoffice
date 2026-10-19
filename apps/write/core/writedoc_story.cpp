@@ -20,6 +20,7 @@
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QTextList>
+#include <atomic>
 
 using namespace jp::office;
 using namespace jp::office::wml;
@@ -42,7 +43,9 @@ struct NumState {
 void WriteDoc::buildStory(const QVector<Block> &body)
 {
     m_letteringShapes = m_letteringLetters = m_boxTableCells = 0;
+    m_endnoteRefs.clear();
     fillStory(story(), body, false);
+    appendEndnotes();
 }
 
 // The most fields that nest in one another that a header or footer shows live (deeper ones show what they last read).
@@ -54,6 +57,8 @@ constexpr int kMostObjects = 20000;
 constexpr int kMostImages = 2000;
 // The most cells of the tables of text boxes that a document has laid out in its boxes (a box whose tables would go over it keeps them as stand-ins).
 constexpr int kMostBoxTableCells = 2000;
+// The most endnotes that are set after the text (the rest are left out: a reference to one shows only its number), as many as the footnotes that are made into stories.
+constexpr int kMostEndnotes = 5000;
 
 namespace {
 bool drawnTag(const QString &tag)
@@ -116,11 +121,30 @@ QString textOfXml(const QByteArray &xml)
         .replace(QLatin1String("&apos;"), QLatin1String("'")).replace(QLatin1String("&amp;"), QLatin1String("&"));
 }
 
+// How many expressions the attributes of tags have been looked for with since the program began (one for each name), for a test of the cost of reading a file.
+std::atomic<qint64> s_attributeExpressions{0};
+
 // The attribute of a start tag kept as written.
 QString attributeOfTag(const QByteArray &xml, const QString &name)
 {
-    const QRegularExpression re(QStringLiteral("[\\s:]%1\\s*=\\s*\"([^\"]*)\"").arg(QRegularExpression::escape(name)));
-    return re.match(QString::fromUtf8(xml.left(4000))).captured(1);
+    // (The expression of each name is made once: a file can have hundreds of thousands of elements that are asked their attributes.)
+    thread_local QHash<QString, QRegularExpression> expressions;
+    auto it = expressions.constFind(name);
+    if (it == expressions.constEnd()) {
+        it = expressions.insert(name, QRegularExpression(QStringLiteral("[\\s:]%1\\s*=\\s*\"([^\"]*)\"").arg(QRegularExpression::escape(name))));
+        ++s_attributeExpressions;
+    }
+    return it->match(QString::fromUtf8(xml.left(4000))).captured(1);
+}
+
+// Where an absolute position tab (w:ptab) takes the text after it, as tp::AlignTab says it: "alignment:relativeTo:leader" (right at the margin with no leader when the file says
+// nothing: the alignment and the leader are read, as the engine knows them, and nothing else is kept).
+QString alignTabOf(const QByteArray &ptab)
+{
+    const QString alignment = attributeOfTag(ptab, QStringLiteral("alignment")), relativeTo = attributeOfTag(ptab, QStringLiteral("relativeTo")), leader = attributeOfTag(ptab, QStringLiteral("leader"));
+    return (alignment == QLatin1String("center") || alignment == QLatin1String("left") ? alignment : QStringLiteral("right")) + QLatin1Char(':') +
+           (relativeTo == QLatin1String("indent") ? relativeTo : QStringLiteral("margin")) + QLatin1Char(':') +
+           (leader == QLatin1String("dot") || leader == QLatin1String("hyphen") || leader == QLatin1String("underscore") || leader == QLatin1String("middleDot") ? leader : QStringLiteral("none"));
 }
 
 // Whether a font a symbol names is a symbol font (its characters are pictures of its own).
@@ -272,9 +296,11 @@ flow::FloatingObject frameObjectOf(const QHash<QString, QString> &at)
 
 } // namespace
 
+qint64 attributeExpressionsMadeForTest() { return s_attributeExpressions.load(); }
+
 // Fills `story` from the elements of a body or of a header or footer. A header's or footer's (`header`) fields for the page's number and the page
 // counts are live fields of the text engine, its tables and pictures are left out, and a paragraph in a frame is set aligned as the frame is.
-void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool header, const QString &part, bool headerFooter)
+void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool header, const QString &part, bool headerFooter, bool append)
 {
     const StyleSheet &sheet = m_wml.styles;
     const Theme *thm = theme();
@@ -283,6 +309,10 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     QTextCursor c(story);
     c.beginEditBlock();
     bool firstBlock = true;
+    if (append) {
+        c.movePosition(QTextCursor::End);
+        firstBlock = false;
+    }
     auto startBlock = [&](const QTextBlockFormat &bf, const QTextCharFormat &cf) {
         if (firstBlock) {
             c.setBlockFormat(bf);
@@ -367,6 +397,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         }
     }
     int paragraphsMade = 0, endnoteNumber = m_endnoteStart - 1, blockNumber = -1;
+    const int mostParagraphs = append ? kMostEndnoteParagraphs : kMostHeaderParagraphs;
     int styleRefsMade = 0;   // (each field that shows a paragraph style's text has a number in its code: two next to one another in one format would be one fragment of the text)
     // The format the endnote references of each paragraph are numbered in: its section's own (w:endnotePr of the section), else the settings'. Found as sectionText is, from
     // the sections as the file has them, for the story of the text alone.
@@ -394,7 +425,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     for (const Block &blk : body) {
         ++blockNumber;
         // (A header's or footer's tables are laid out as the body's are: the parts of one are the blocks that make the cells; other raw elements are left out.)
-        if (header && ((blk.isRaw && !tables.isStructural(blk)) || paragraphsMade >= kMostHeaderParagraphs || (!blk.isRaw && ++paragraphsMade > kMostHeaderParagraphs))) continue;
+        if (header && ((blk.isRaw && !tables.isStructural(blk)) || paragraphsMade >= mostParagraphs || (!blk.isRaw && ++paragraphsMade > mostParagraphs))) continue;
         if (tables.isStructural(blk) || blk.isRaw) lastFrameKey = 0;
         if (tables.isStructural(blk)) {
             // The parts of a table (its start, rows, and cells) become the records of the cells that its paragraphs are given. What was kept after a cell's last
@@ -568,6 +599,27 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             newList = !continuing;
         }
 
+        if (append) {
+            // (The pages' copy of an endnote: it takes no part in what the document's paragraphs are, by their styles, outlines, or saved forms.)
+            bf.setProperty(prop::EndnoteBlock, true);
+            bf.clearProperty(prop::Outline);
+            bf.clearProperty(tp::StyleName);
+            // The file's separator for the endnotes (w:separator, in a paragraph of nothing else) is a rule two inches long, as the footnote separator is: the paragraph's lower edge, over the
+            // first 144 points of the column.
+            bool separator = false, text = false;
+            for (const Inline &in : p.content) {
+                separator = separator || (in.kind == Inline::RunAtom && in.tag == QLatin1String("separator"));
+                text = text || (in.kind == Inline::Text && !in.text.trimmed().isEmpty());
+            }
+            if (separator && !text) {
+                const int columns = std::max(1, m_last.cols);
+                const double wide = (std::max(0, m_last.pageW - std::max(0, m_last.left + m_last.gutter) - std::max(0, m_last.right)) - (columns - 1) * std::max(0, m_last.colSpace)) / 20.0 / columns;
+                tp::ParaBox box;
+                box.bottom = tp::BoxSide{QStringLiteral("single"), 4, 0, QColor()};
+                bf.setProperty(tp::Borders, box.spec());
+                bf.setRightMargin(std::max(0.0, wide - 144.0));
+            }
+        }
         startBlock(bf, markFormat);
         if (numId > 0) {
             NumState &st = numbering[numId];
@@ -621,7 +673,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 } else if (in.kind == Inline::RunAtom && (in.tag == QLatin1String("footnoteRef") || in.tag == QLatin1String("endnoteRef"))) {
                     // (The mark that begins a note's text shows the note's number: the pages give it.)
                     QTextCharFormat mark = formatOf(styleId, in.props);
-                    mark.setProperty(tp::Field, QStringLiteral("notemark"));
+                    mark.setProperty(tp::Field, append && in.tag == QLatin1String("endnoteRef") ? QStringLiteral("raw:") + in.display : QStringLiteral("notemark"));
                     put(QString(QChar::ObjectReplacementCharacter), mark);
                 } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym") && !in.display.isEmpty() && isSymbolFontName(attributeOfTag(in.raw, QStringLiteral("font")))) {
                     // (A symbol of a symbol font, as the text has it: shown in that font. Where it is a blank, as an older program's mark of a note begins its text, it shows
@@ -641,6 +693,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("ruby") && !in.display.isEmpty()) {
                     // (Ruby text, as in the text: its base, and the ruby after it in brackets.)
                     put(in.display, formatOf(styleId, in.props));
+                } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("ptab")) {
+                    // (An absolute position tab: a tab that goes where it says, whatever the paragraph's stops.)
+                    QTextCharFormat tab = formatOf(styleId, in.props);
+                    tab.setProperty(tp::AlignTab, alignTabOf(in.raw));
+                    put(QStringLiteral("\t"), tab);
                 } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("instrText")) {
                     if (!fields.isEmpty() && !fields.last().inResult) fields.last().instruction += textOfXml(in.raw);
                 } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Open) {
@@ -694,6 +751,60 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             }
             for (const Open &field : open) close(field);   // (a field the paragraph ended inside of)
         }
+        // The results of the paragraph's page references (PAGEREF, without a switch that asks for a place or a paragraph's number): the text of a result is one fragment that the pages
+        // show the number of the page the bookmark is on in place of (the file's own result is what is kept in the story, as it was). `refOf` says a field's first piece of text, and
+        // `refRest` the later pieces of its result, which are joined to the first.
+        QHash<int, QString> refOf;
+        QVector<bool> refRest(p.content.size(), false);
+        {
+            struct Open {
+                QString instruction, name;
+                bool inResult = false;
+                int first = -1;
+            };
+            QVector<Open> open;
+            int deleting = 0;
+            auto nameOf = [](const QString &instruction) -> QString {
+                const QStringList words = instruction.simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
+                if (words.size() < 2 || words[0].compare(QLatin1String("PAGEREF"), Qt::CaseInsensitive) != 0) return QString();
+                for (int i = 2; i < words.size(); ++i)
+                    if (words[i] == QLatin1String("\\p") || words[i] == QLatin1String("\\n") || words[i] == QLatin1String("\\r") || words[i] == QLatin1String("\\w")) return QString();
+                QString name = words[1];
+                name.remove(QLatin1Char('"'));
+                return name;
+            };
+            for (int i = 0; i < p.content.size(); ++i) {
+                const Inline &in = p.content[i];
+                if (in.kind == Inline::ParaAtom && isDeletedRevision(in.tag)) deleting = std::max(0, deleting + (in.role == Inline::Open ? 1 : in.role == Inline::Close ? -1 : 0));
+                if (in.kind == Inline::RunAtom && in.tag == QLatin1String("fldChar")) {
+                    if (in.key == QLatin1String("begin") && open.size() < kMostFieldNesting) open.push_back(Open());
+                    else if (in.key == QLatin1String("separate") && !open.isEmpty()) {
+                        open.last().inResult = true;
+                        open.last().name = nameOf(open.last().instruction);
+                    } else if (in.key == QLatin1String("end") && !open.isEmpty()) open.pop_back();
+                } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("instrText")) {
+                    if (!open.isEmpty() && !open.last().inResult) open.last().instruction += textOfXml(in.raw);
+                } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Open) {
+                    if (open.size() < kMostFieldNesting) {
+                        Open field;
+                        field.inResult = true;
+                        field.name = nameOf(QString(attributeOfTag(in.raw, QStringLiteral("instr"))).replace(QLatin1String("&quot;"), QLatin1String("\"")));
+                        open.push_back(field);
+                    }
+                } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Close) {
+                    if (!open.isEmpty()) open.pop_back();
+                } else if (in.kind == Inline::Text && !in.text.isEmpty() && deleting == 0 && !open.isEmpty() && open.last().inResult && !open.last().name.isEmpty()) {
+                    Open &field = open.last();
+                    if (field.first < 0) {
+                        field.first = i;
+                        refOf.insert(i, field.name + QChar(0x1f) + in.text);
+                    } else {
+                        refRest[i] = true;
+                        refOf[field.first] += in.text;
+                    }
+                }
+            }
+        }
         int deletedDepth = 0;   // (inside the content a tracked change deleted)
         double advanceTop = -1;   // (a field that sets the text after it at a place from the page's top, ADVANCE with \\y: the paragraph is no higher than that)
         for (int inAt = 0; inAt < p.content.size(); ++inAt) {
@@ -701,6 +812,13 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             if (in.kind == Inline::ParaAtom && isDeletedRevision(in.tag)) deletedDepth = std::max(0, deletedDepth + (in.role == Inline::Open ? 1 : in.role == Inline::Close ? -1 : 0));
             const bool deleted = deletedDepth > 0 && !(in.kind == Inline::ParaAtom && in.role != Inline::Single && isDeletedRevision(in.tag));
             if (in.kind == Inline::Text) {
+                if (refRest[inAt]) continue;   // (its text is in the first piece of the result)
+                if (const auto ref = refOf.constFind(inAt); ref != refOf.constEnd() && !deleted) {
+                    QTextCharFormat shown = formatOf(styleId, in.props);
+                    shown.setProperty(tp::Field, QStringLiteral("pageref:") + ref->section(QChar(0x1f), 0, 0));
+                    c.insertText(ref->section(QChar(0x1f), 1), shown);
+                    continue;
+                }
                 if (!in.text.isEmpty()) c.insertText(in.text, deleted ? asDeleted(formatOf(styleId, in.props)) : formatOf(styleId, in.props));
                 continue;
             }
@@ -729,12 +847,20 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     }
                 }
             }
-            if (in.kind == Inline::RunAtom && !deleted && drawnTag(in.tag) && drawnObjects(in, part, &af, lineWidth(), &p.content)) field = QStringLiteral("raw:");
+            if (in.kind == Inline::RunAtom && in.tag == QLatin1String("ptab") && !deleted) {
+                // (An absolute position tab shows as a tab that goes where it says; the file's element is kept as it is.)
+                field = QStringLiteral("raw:\t");
+                af.setProperty(tp::AlignTab, alignTabOf(in.raw));
+            } else if (in.kind == Inline::RunAtom && !deleted && drawnTag(in.tag) && drawnObjects(in, part, &af, lineWidth(), &p.content)) field = QStringLiteral("raw:");
             else if (in.tag == QLatin1String("footnoteReference") && m_noteBlocks.contains(QStringLiteral("fn") + in.key)) {
                 field = QStringLiteral("footnote:fn") + in.key;
                 if (markFollows(in.raw)) af.setProperty(tp::NoteMarkCustom, true);
             }
-            else if (in.tag == QLatin1String("endnoteReference")) field = QStringLiteral("raw:") + (markFollows(in.raw) ? QString() : noteNumberText(endnoteFormats.value(blockNumber, m_endnoteFormat), deleted ? endnoteNumber + 1 : ++endnoteNumber));   // (a deleted one takes no number)
+            else if (in.tag == QLatin1String("endnoteReference")) {
+                const QString shown = markFollows(in.raw) ? QString() : noteNumberText(endnoteFormats.value(blockNumber, m_endnoteFormat), deleted ? endnoteNumber + 1 : ++endnoteNumber);   // (a deleted one takes no number)
+                field = QStringLiteral("raw:") + shown;
+                if (!header && !deleted && m_endnoteRefs.size() < kMostEndnotes) m_endnoteRefs.push_back({in.key, shown});
+            }
             af.setProperty(tp::Field, field);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);
         }

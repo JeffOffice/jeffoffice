@@ -2,9 +2,11 @@
 
 #include "core/writedoc.h"
 
+#include "core/writeprops.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 
+#include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextList>
 #include <algorithm>
@@ -24,6 +26,8 @@ constexpr int kMostNoteStories = 5000;
 // quarter of a page of each at most, so the rest would only be copied to every page.)
 constexpr int kMostNoticeParagraphs = 64;
 constexpr int kMostNoticeCharacters = 4000;
+// The most bookmarks of the story that a page reference can find (the rest are not found: the reference shows what the file had).
+constexpr int kMostBookmarks = 20000;
 } // namespace
 
 const QTextDocument *NoteFields::storyDoc(const QString &id) const { return m_doc->noteStory(id); }
@@ -37,6 +41,9 @@ constexpr int kMostStyleRefKept = 20000;
 } // namespace
 
 qint64 styleRefParagraphsScannedForTest() { return s_styleRefParagraphs.load(); }
+namespace { std::atomic<qint64> s_endnoteParagraphsMade{0}; }
+qint64 endnoteParagraphsMadeForTest() { return s_endnoteParagraphsMade.load(); }
+void resetEndnoteParagraphsMadeForTest() { s_endnoteParagraphsMade = 0; }
 void resetStyleRefParagraphsScannedForTest() { s_styleRefParagraphs = 0; }
 
 QString NoteFields::styleRefText(const QString &style, const QString &switches, int from, int to) const
@@ -121,11 +128,87 @@ QString NoteFields::styleRefText(const QString &style, const QString &switches, 
     return text;
 }
 
+int NoteFields::bookmarkPosition(const QString &name) const
+{
+    const QTextDocument *story = m_doc->story();
+    if (m_bookmarkStory != story || m_bookmarkRevision != story->revision() || m_bookmarkSize != story->characterCount()) {
+        m_bookmarkStory = story;
+        m_bookmarkRevision = story->revision();
+        m_bookmarkSize = story->characterCount();
+        m_bookmarks.clear();
+        static const QRegularExpression named(QStringLiteral("[\\s:]name\\s*=\\s*\"([^\"]*)\""));
+        for (QTextBlock b = story->begin(); b.isValid() && m_bookmarks.size() < kMostBookmarks; b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QTextCharFormat cf = it.fragment().charFormat();
+                if (!cf.hasProperty(prop::Atom)) continue;
+                const QByteArray bytes = storedBytes(cf, prop::Atom);
+                if (!bytes.contains("bookmarkStart")) continue;
+                const Inline atom = unpackAtom(bytes);
+                if (atom.tag != QLatin1String("bookmarkStart")) continue;
+                const QString found = named.match(QString::fromUtf8(atom.raw.left(1000))).captured(1);
+                if (!found.isEmpty() && !m_bookmarks.contains(found)) m_bookmarks.insert(found, it.fragment().position());
+            }
+    }
+    return m_bookmarks.value(name, -1);
+}
+
 QList<const QTextDocument *> NoteFields::storyDocs() const
 {
     QList<const QTextDocument *> list;
     for (const auto &d : m_doc->m_noteStories) list << d.get();
     return list;
+}
+
+void WriteDoc::loadEndnotes()
+{
+    m_endnoteBlocks.clear();
+    m_endnoteSeparator.clear();
+    m_endnotePart.clear();
+    for (const Relationship &r : m_wml.mainRelationships)
+        if (!r.external && r.type.endsWith(QLatin1String("/endnotes"))) {
+            m_endnotePart = r.target;
+            break;
+        }
+    if (m_endnotePart.isEmpty()) return;
+    QVector<NotePart> notes;
+    if (!office::wml::readNotes(partData(m_endnotePart), &notes)) return;
+    for (NotePart &n : notes) {
+        if (n.type.isEmpty() || n.type == QLatin1String("normal")) {
+            if (m_endnoteBlocks.size() < kMostNoteStories) m_endnoteBlocks.insert(QString::number(n.id), std::move(n.blocks));
+        } else if (n.type == QLatin1String("separator")) {
+            m_endnoteSeparator = std::move(n.blocks);
+        }
+    }
+    if (m_endnoteSeparator.size() > kMostNoticeParagraphs) m_endnoteSeparator.resize(kMostNoticeParagraphs);
+}
+
+// The endnotes after the document's last text: the file's separator for them, then the notes the text's references name, in the order of the references. (They are paragraphs of the
+// story that the file does not have: they are marked, and not written.) A last section that says it has no endnotes has none.
+void WriteDoc::appendEndnotes()
+{
+    if (m_endnoteRefs.isEmpty() || m_endnoteBlocks.isEmpty()) return;
+    for (const RawChild &ch : m_last.extra)
+        if (ch.xml.contains("noEndnote")) return;
+    QVector<Block> tail = m_endnoteSeparator;
+    int made = 0;
+    for (const EndnoteRef &ref : std::as_const(m_endnoteRefs)) {
+        if (tail.size() >= kMostEndnoteParagraphs) break;   // (no more are made than are set: a note of thousands of paragraphs that is referred to thousands of times is the first of them)
+        const auto found = m_endnoteBlocks.constFind(ref.id);
+        if (found == m_endnoteBlocks.constEnd()) continue;
+        const QVector<Block> &note = found.value();
+        const int take = int(std::min<qsizetype>(note.size(), kMostEndnoteParagraphs - tail.size()));
+        for (int i = 0; i < take; ++i) {
+            Block b = note[i];
+            // (The mark that begins the note's text shows the number its reference has.)
+            for (Inline &in : b.para.content)
+                if (in.kind == Inline::RunAtom && in.tag == QLatin1String("endnoteRef")) in.display = ref.mark;
+            tail.push_back(std::move(b));
+            ++s_endnoteParagraphsMade;
+        }
+        ++made;
+    }
+    if (made == 0) return;
+    fillStory(story(), tail, true, m_endnotePart, false, true);
 }
 
 void WriteDoc::loadNotes()

@@ -3287,6 +3287,99 @@ private Q_SLOTS:
         QVERIFY2(std::abs((last + 1) / scale - tab.right()) < 0.4, qPrintable(QStringLiteral("the line ends at %1, the stop at %2").arg((last + 1) / scale).arg(tab.right())));
     }
 
+    // A word processor's absolute position tab (a tab that says where it goes) takes the text after it to the margin's right edge, its middle, or its left, whatever stops the
+    // paragraph has: a footer style's stops at the middle and the right do not catch it (W179's "Azeem_HW13", then "Page 14 of 14" at the margin).
+    void anAbsolutePositionTabGoesToItsPlaceWhateverTheParagraphsStops()
+    {
+        auto laid = [&](const QString &spec, bool stops, QString *shown) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Tinos")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            if (stops) bf.setTabPositions({QTextOption::Tab(100, QTextOption::CenterTab), QTextOption::Tab(250, QTextOption::RightTab)});
+            c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("Left"), run);
+            QTextCharFormat tab = run;
+            tab.setProperty(tp::AlignTab, spec);
+            c.insertText(QStringLiteral("\t"), tab);
+            c.insertText(QStringLiteral("Page"), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(300, 100)}, env);
+            if (shown) *shown = doc.toPlainText();
+            return lay.rangeRects(0, 5, 9).first();
+        };
+        QString text;
+        const QRectF right = laid(QStringLiteral("right:margin:none"), true, &text);
+        QVERIFY2(std::abs(right.right() - 300) < 0.5, qPrintable(QStringLiteral("the text ends at %1, the margin is at 300").arg(right.right())));
+        const QRectF centered = laid(QStringLiteral("center:margin:none"), true, nullptr);
+        QVERIFY2(std::abs((centered.left() + centered.right()) / 2 - 150) < 0.5, qPrintable(QStringLiteral("the text is centered at %1, the middle is 150").arg((centered.left() + centered.right()) / 2)));
+        // Without stops of the paragraph's own, as with them.
+        const QRectF alone = laid(QStringLiteral("right:margin:none"), false, nullptr);
+        QVERIFY2(std::abs(alone.right() - 300) < 0.5, qPrintable(QString::number(alone.right())));
+    }
+
+    // A paragraph that has ordinary tabs and an absolute position tab keeps its own stops for the ordinary ones: "A", a tab to the paragraph's stop at 144, "B", the absolute
+    // position tab to the margin's right edge, and "C" ending at the margin (the stops of the paragraph were all replaced by the absolute tab's, and "B" was at the margin).
+    void anAbsolutePositionTabLeavesTheParagraphsStopsToItsOrdinaryTabs()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Tinos")});
+        run.setFontPointSize(12);
+        QTextBlockFormat bf;
+        bf.setTabPositions({QTextOption::Tab(144, QTextOption::LeftTab)});
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("A\tB"), run);
+        QTextCharFormat ptab = run;
+        ptab.setProperty(tp::AlignTab, QStringLiteral("right:margin:none"));
+        c.insertText(QStringLiteral("\t"), ptab);
+        c.insertText(QStringLiteral("C"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(300, 100)}, env);
+        QCOMPARE(int(lay.lineBriefs().size()), 1);
+        const QRectF b = lay.rangeRects(0, 2, 3).first(), last = lay.rangeRects(0, 4, 5).first();
+        QVERIFY2(std::abs(b.left() - 144) < 1, qPrintable(QStringLiteral("B begins at %1, the paragraph's stop is at 144").arg(b.left())));
+        QVERIFY2(std::abs(last.right() - 300) < 1, qPrintable(QStringLiteral("C ends at %1, the margin is at 300").arg(last.right())));
+    }
+
+    // A justified line of a script that has no spaces between its words (Han, Kana, Thai) still has its characters spread over the width, as the reference does it: only the
+    // line of a script with spaces and no space in it is left as it is.
+    void aJustifiedLineOfAScriptWithoutSpacesStillSpreadsItsCharacters()
+    {
+        const QString text = QString::fromUtf8("\xE6\x97\xA5\xE6\x9C\xAC\xE8\xAA\x9E").repeated(40);   // (the characters of "Japanese", over and over: more than a line, whatever the width of the machine's)
+        auto edgeOf = [&](Qt::Alignment al, double width) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setAlignment(al);
+            c.setBlockFormat(bf);
+            QTextCharFormat run;
+            run.setFontPointSize(10);
+            c.insertText(text, run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(width, 200)}, env);
+            const auto lines = lay.lineBriefs();
+            return lay.rangeRects(0, lines.first().end - 1, lines.first().end).first().right();
+        };
+        int checked = 0;
+        for (double width = 60; width <= 70; width += 0.37) {
+            const double natural = edgeOf(Qt::AlignLeft, width);
+            if (width - natural < 0.8) continue;   // (a width the characters fill: nothing to spread)
+            ++checked;
+            QVERIFY2(edgeOf(Qt::AlignJustify, width) > width - 0.6, qPrintable(QStringLiteral("the line ends at %1 of %2 (%3 unjustified)").arg(edgeOf(Qt::AlignJustify, width)).arg(width).arg(natural)));
+        }
+        QVERIFY(checked > 0);
+    }
+
     // The leaders of JeffPub's and JeffDeck's text are as they were: an underscore goes in only where it fits between the grid's start and the stop less its gap (two fifths of
     // one), not where it is a hundredth of a point over that. The widths and places are the layout's own, measured: the stop is set 0.005 point short of where the first
     // underscore would fit.
@@ -4861,6 +4954,150 @@ private Q_SLOTS:
         QCOMPARE(seen, table.rowStarts);
     }
 
+    // A numbered paragraph that begins with a page break has its number on the line after the break, which is the first of the next page, not on the break's own line at the foot of
+    // the page before (a chapter heading whose first run is a page break: its "1." was drawn nowhere).
+    void aNumberFollowsAPageBreakThatBeginsItsParagraph()
+    {
+        auto fd = std::make_unique<FlowDocument>();
+        fd->env.wordLines = true;
+        fillStory(fd->story(), 2, 11, [&](int, QTextBlockFormat &bf) { bf.setBottomMargin(6); }, 8, 12);
+        {
+            QTextCursor c(fd->story());
+            c.movePosition(QTextCursor::End);
+            c.insertBlock();
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDecimal);
+            lf.setNumberSuffix(QStringLiteral("."));
+            lf.setIndent(1);
+            c.createList(lf);
+            QTextCharFormat body;
+            body.setFontPointSize(11);
+            c.insertText(QString(kPageBreak) + QStringLiteral("Heading text"), body);
+        }
+        Paginator pg(fd.get());
+        QCOMPARE(pg.pageCount(), 2);
+        auto markers = [&](int k) {
+            QStringList out;
+            const auto page = pg.materialize(k);
+            if (!page || page->boxes.isEmpty()) return out;
+            const auto *box = dynamic_cast<const TextItem *>(page->doc->item(page->boxes[0]));
+            FrameSpec fs = plainFrame(box->rect.width(), 5000);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(page->doc->story(box->storyId)->doc.get(), {fs}, env);
+            for (const auto &l : lay.lineInfo(0))
+                if (!l.marker.isEmpty()) out << l.marker + QLatin1Char(' ') + l.text.trimmed();
+            return out;
+        };
+        QCOMPARE(markers(0), QStringList());
+        QCOMPARE(markers(1), (QStringList{QStringLiteral("1. Heading text")}));
+    }
+
+    // A word processor's column break ends the line it is on, and what follows it (the rest of the paragraph, and the paragraphs after) is in the next column, whatever room the column
+    // it is in has left: in two columns the text after the break is at the second column's left edge; in the last column it is past the frame (the next page's).
+    void aColumnBreakGoesOnInTheNextColumn()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Tinos")});
+        run.setFontPointSize(11);
+        c.insertText(QStringLiteral("Alpha") + QChar(0x000E) + QStringLiteral("Beta"), run);
+        c.insertBlock();
+        c.insertText(QStringLiteral("Gamma"), run);
+        LayoutEnv env;
+        env.wordLines = true;
+        FrameSpec fs = plainFrame(300, 200);
+        fs.columns = 2;
+        fs.gap = 20;
+        StoryLayout two;
+        two.build(&doc, {fs}, env);
+        const auto lines = two.lineBriefs();
+        QCOMPARE(int(lines.size()), 3);
+        const double second = (300 - 20) / 2.0 + 20;
+        QVERIFY2(lines[0].rect.left() < 1, qPrintable(QString::number(lines[0].rect.left())));
+        QVERIFY2(std::abs(lines[1].rect.left() - second) < 0.5, qPrintable(QStringLiteral("the text after the break is at %1, the second column is at %2").arg(lines[1].rect.left()).arg(second)));
+        QVERIFY2(std::abs(lines[2].rect.left() - second) < 0.5, qPrintable(QStringLiteral("the next paragraph is at %1, the second column is at %2").arg(lines[2].rect.left()).arg(second)));
+        QVERIFY(lines[2].rect.top() > lines[1].rect.top());
+        // In a frame of one column, with none after it, the break is a line break: the text after it is where the lines go on, not lost (a table's cell, a text box).
+        StoryLayout one;
+        one.build(&doc, {plainFrame(300, 200)}, env);
+        const auto single = one.lineBriefs();
+        QCOMPARE(int(single.size()), 3);
+        for (const auto &l : single) QCOMPARE(l.frame, 0);
+        // With a frame after it (the next page's), it goes on there.
+        StoryLayout pages;
+        pages.build(&doc, {plainFrame(300, 200), plainFrame(300, 200)}, env);
+        const auto after = pages.lineBriefs();
+        QCOMPARE(int(after.size()), 3);
+        QCOMPARE(after[0].frame, 0);
+        QCOMPARE(after[1].frame, 1);
+        QCOMPARE(after[2].frame, 1);
+    }
+
+    // A word processor's justified line that has no space before its last word (a long word alone in a narrow column or frame) is set as a left-aligned line is, not with its letters
+    // spread over the width (V107's "Percent" in a frame that was as wide as "1998-2008": "P e r c e n t").
+    void aJustifiedLineWithoutASpaceKeepsItsLettersTogether()
+    {
+        auto placeOf = [&](Qt::Alignment al) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            bf.setAlignment(al);
+            c.setBlockFormat(bf);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Arimo")});
+            run.setFontPointSize(10);
+            run.setFontWeight(QFont::Bold);
+            c.insertText(QStringLiteral("Percent Change 1998-2008"), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(60, 200)}, env);
+            int frame = -1;
+            QRectF at6, at7;
+            lay.caretRect(6, &frame, &at6);   // (before the "t" of "Percent")
+            lay.caretRect(7, &frame, &at7);   // (after it)
+            return QVector<double>{at6.x(), at7.x()};
+        };
+        const QVector<double> justified = placeOf(Qt::AlignJustify), left = placeOf(Qt::AlignLeft);
+        QVERIFY2(left[1] < 55, "the word is narrower than the frame");
+        for (int i = 0; i < 2; ++i) QVERIFY2(std::abs(justified[i] - left[i]) < 1.0, qPrintable(QStringLiteral("letter %1 is at %2 justified, %3 left-aligned").arg(i + 6).arg(justified[i]).arg(left[i])));   // (to a point: the spread was 23)
+    }
+
+    // A document whose first section begins on an even page numbers its first page 2 (the page before it is counted and nothing is drawn on it, as it is in a word processor's own
+    // pages), and its pages go on from there; one that begins on an odd page numbers it 1; a restart in the section is the number it says.
+    void aDocumentWhoseFirstSectionBeginsOnAnEvenPageNumbersItsFirstPageTwo()
+    {
+        auto build = [&](Section::Parity parity, std::optional<int> restart) {
+            auto fd = std::make_unique<FlowDocument>();
+            fd->env.wordLines = true;
+            fillStory(fd->story(), 3, 11, [&](int i, QTextBlockFormat &bf) {
+                bf.setBottomMargin(6);
+                if (i < 2) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysAfter);
+            }, 8, 12);
+            fd->sections[0].startParity = parity;
+            fd->sections[0].firstPageNumber = restart;
+            return fd;
+        };
+        auto numbers = [&](Paginator &pg) {
+            QVector<int> out;
+            for (int k = 0; k < pg.pageCount(); ++k) out << pg.page(k).number;
+            return out;
+        };
+        for (const auto &[parity, restart, want] : {std::tuple{Section::Parity::Even, std::optional<int>(), QVector<int>{2, 3, 4}}, std::tuple{Section::Parity::Odd, std::optional<int>(), QVector<int>{1, 2, 3}},
+                                                     std::tuple{Section::Parity::Any, std::optional<int>(), QVector<int>{1, 2, 3}}, std::tuple{Section::Parity::Even, std::optional<int>(7), QVector<int>{7, 8, 9}}}) {
+            auto fd = build(parity, restart);
+            Paginator pg(fd.get());
+            QCOMPARE(pg.pageCount(), 3);
+            QCOMPARE(numbers(pg), want);
+            const auto page = pg.materialize(0);
+            QVERIFY(page);
+            QCOMPARE(page->number, want[0]);
+        }
+    }
+
     // A section that begins on an odd (or even) page leaves a page of its own before it blank when the page after the break would be an even (or odd) one by its place in the
     // document (a restart of the numbers in the new section is not counted); the blank page is a page of the section before, with no header or footer (as a word processor's own
     // pages for such a break have none).
@@ -5506,22 +5743,15 @@ private Q_SLOTS:
             QVector<const TextItem *> numbers;
             for (const auto &item : page->doc->pages[0]->items)
                 if (item->id.startsWith(QLatin1String("flow-lineno-box"))) numbers.push_back(dynamic_cast<const TextItem *>(item.get()));
-            const int lines = int(pg.lines(k).size());
+            const auto briefs = pg.lines(k);   // (kept: an element of a temporary list is gone when the statement ends)
+            const int lines = int(briefs.size());
             QCOMPARE(int(numbers.size()), lines);
             for (int i = 0; i < numbers.size(); ++i) {
                 QVERIFY(numbers[i]);
                 QCOMPARE(page->doc->stories.value(numbers[i]->storyId)->doc->toPlainText(), QString::number(i + 1));   // (again from 1 at each page)
                 QVERIFY2(numbers[i]->rect.right() <= 60 - 10 + 0.01, qPrintable(QString::number(numbers[i]->rect.right())));   // (the column's left, less the distance)
-                const auto &line = pg.lines(k)[i];
-                const double lineTop = pg.page(k).content.top() + line.rect.top(), lineBottom = pg.page(k).content.top() + line.rect.bottom();
-                const bool atLine = numbers[i]->rect.top() < lineBottom && numbers[i]->rect.bottom() > lineTop;
-                const QString where = QStringLiteral("the number is at its line: page %1 line %2, number %3 to %4, line %5 to %6, below %7")
-                                          .arg(k).arg(i).arg(numbers[i]->rect.top()).arg(numbers[i]->rect.bottom()).arg(lineTop).arg(lineBottom).arg(line.below);
-#ifdef Q_OS_MACOS
-                // (Seen only on the macOS runner, whose fonts measure differently: recorded with its numbers until the cause is found.)
-                if (!atLine) QEXPECT_FAIL("", qPrintable(where), Abort);
-#endif
-                QVERIFY2(atLine, qPrintable(where));
+                const auto &line = briefs[i];
+                QVERIFY2(numbers[i]->rect.top() < pg.page(k).content.top() + line.rect.bottom() && numbers[i]->rect.bottom() > pg.page(k).content.top() + line.rect.top(), "the number is at its line");
             }
         }
         // Every fifth line, when the section asks.

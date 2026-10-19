@@ -69,6 +69,8 @@ struct MaterializedPage {
     // made again when the document has another.
     bool showsTotal = false;
     int pageTotal = 0;
+    // The page has references to bookmarks that show the page each is on (PAGEREF), as far as the pages are laid out: it is made again when the pages that are known change.
+    bool showsRefs = false;
     // The pictures in the text of the table cells on the page: the id each has in the flow ("flow-img:" and its place in the document's images) and in the page's document.
     QHash<QString, QString> cellImages;
     // The frames set on the page: the positions of the story their paragraphs take (`from` to `to`, just past the last paragraph's end), and the id of the text box in the page
@@ -162,6 +164,8 @@ public:
     // be the one that has the paragraph's place in the story: -1 when the position is not in a table).
     int pageOfTablePosition(int position);
     qint64 pagesLaidOut() const { return m_laidOut; }
+    // How many page references have been looked at to find their pages since the program began (a cost test: a page's are bounded).
+    static qint64 pageRefsAskedForTest();
     // How many times a page has been laid out, the passes that find where its walls are included: for tests of what asking for a page costs.
     qint64 pagePassesForTest() const { return m_passes; }
     // How many times the frames of a header or footer were made, and how far down the page its wrapped shapes reach was worked out (each once for a story as it is, not for each page):
@@ -296,6 +300,9 @@ private:
     // Puts the page's header and footer (a copy of each story, in a text box) on a page made for painting, and the counts its fields show.
     // (`from` and `to`: the story's positions the page holds, for the fields of the header and footer that show the text of the page.)
     void addFurniture(Document *d, const Furniture &f, const Section &sec, int section, int number, MaterializedPage *page = nullptr, int from = -1, int to = -1);
+    // What the references to bookmarks on a made page show: the number of the page each bookmark is on, in its section's format, for those on pages that are laid out (the rest show what the
+    // file had in them). At most kMostPageRefs of the page's are looked at.
+    void resolvePageRefs(MaterializedPage *out, Document *d);
     // The fields of a header's or footer's story that show a paragraph style's text (STYLEREF) show the page's paragraph of the style: the story is a copy made for the page.
     bool substituteStyleRefs(QTextDocument *story, int from, int to) const;   // (whether any field showed another text)
     // The line numbers of the sections' text, in the margin at each line of the page (a section that has them, and begins them again at each page).

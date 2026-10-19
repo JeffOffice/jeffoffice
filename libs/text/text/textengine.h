@@ -34,6 +34,8 @@ public:
     virtual ~FieldSource() = default;
     virtual int firstPageNumber() const = 0;
     virtual QString pageNumberFormat() const = 0;
+    // For a word processor's page numbers that carry a chapter's ("2-3"): what comes before the number of a page, the chapter's number and its separator; none for a publication.
+    virtual QString pageNumberPrefix() const { return QString(); }
     virtual QString businessField(const QString &key) const = 0;
     virtual QStringList mergeFields() const = 0;
     virtual QString mergeValue(int record, const QString &field) const = 0;
@@ -66,7 +68,15 @@ public:
     // paragraph of the style `style` (a name) on the page, the last with the switch `l`, else the nearest before it, else the nearest after; the switches `n`, `w`, and `r` ask
     // for its number. Null: there is none (the field shows what the file had in it); a publication has none.
     virtual QString styleRefText(const QString &style, const QString &switches, int from, int to) const { Q_UNUSED(style) Q_UNUSED(switches) Q_UNUSED(from) Q_UNUSED(to) return QString(); }
+    // For a word processor's page references (PAGEREF): where a bookmark begins in the story (a position of it; -1: there is none), asked of the source of the story's own fields; and,
+    // asked of the source a page is drawn with, the text that a reference to the bookmark shows on it (the number of the page the bookmark is on, in its format; empty: the
+    // reference shows the result the file had in it).
+    virtual int bookmarkPosition(const QString &name) const { Q_UNUSED(name) return -1; }
+    virtual QString pageRefText(const QString &bookmark) const { Q_UNUSED(bookmark) return QString(); }
 };
+
+// A page's number as a field shows it, in a format ("", "roman", "ROMAN", "alpha", "ALPHA", or "dash").
+QString pageNumberText(int number, const QString &format);
 
 // A stock font's average character width in ems (OS/2 xAvgCharWidth), the
 // unit .pub tracking is measured in; -1 when it isn't one JeffPub knows.
@@ -385,6 +395,8 @@ public:
     QVector<CarriedNote> carriedNotes(int frame) const;
     // Whether the last build's window (Span::window) cut a paragraph before its lines reached the frame it stops at: it needs to be larger.
     bool windowShort() const { return m_windowShort; }
+    // How many letters of words were looked up for hyphenation points since the program began (a cost test: a string of letters that is longer than any word is not looked up).
+    static qint64 hyphenationLettersLookedUpForTest();
     // How many times a line's own height was measured for the objects it is checked against, since the program began (what a line beside an object costs, for tests: a line that goes
     // down by steps is measured once, not at each step).
     static qint64 lineHeightsMeasuredForTest();
@@ -451,6 +463,7 @@ public:
         int cutAt = 0;
         QVector<QPair<int, int>> fieldRanges;        // display ranges of fields
         QString leaders;                             // a leader character per tab stop (space = none)
+        QStringList alignTabs;                       // a word processor's absolute position tabs of the paragraph (tp::AlignTab of each), in order
         QVector<QPair<int, int>> noteRefs;           // a note reference's display position, and its index in notes()
         struct Box { int disp = 0; int docPos = 0; QString json; QSizeF size; QMarginsF pad; };
         QVector<Box> objects;                        // objects set in the text, by display position

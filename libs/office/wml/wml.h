@@ -119,7 +119,7 @@ struct Shading {
 
 struct ParaProps {
     QString style;                    // pStyle
-    std::optional<bool> keepNext, keepLines, pageBreakBefore, widowControl, contextualSpacing;
+    std::optional<bool> keepNext, keepLines, pageBreakBefore, widowControl, contextualSpacing, suppressAutoHyphens;
     std::optional<int> numId, ilvl;   // numPr
     std::optional<QVector<TabStop>> tabs;
     std::optional<int> before, after; // twentieths of a point
@@ -172,7 +172,7 @@ struct SectionProps {
 
 // What a paragraph holds, in order.
 struct Inline {
-    // Text is a run of text (a tab is U+0009, a line break U+2028, and a page break U+000C: <w:br w:type="page"/> reads as that character and
+    // Text is a run of text (a tab is U+0009, a line break U+2028, a column break U+000E, and a page break U+000C: <w:br w:type="page"/> reads as that character and
     // is written from it); a RunAtom is a child of a run that is kept as written (a picture, a field's code or mark, a footnote
     // reference...); a ParaAtom is an element between runs that is kept as written (a bookmark, the start or end tag of a hyperlink).
     enum Kind : quint8 { Text, RunAtom, ParaAtom };
@@ -563,6 +563,10 @@ bool compatOption(const QByteArray &settings, const char *name);
 struct CompatOptions {
     bool useFELayout = false, doNotWrapTextWithPunct = false, doNotUseHTMLParagraphAutoSpacing = false, noTabHangInd = false;
     bool doNotUseIndentAsNumberingTabStop = false, splitPgBreakAndParaMark = false, suppressTopSpacingWP = false, noLeading = false, suppressSpBfAfterPgBrk = false, wpJustification = false;
+    // Automatic hyphenation (w:autoHyphenation: on when stated and not turned off, and w:hyphenationZone: the room in twentieths of a point that a word is not hyphenated to fill, 360
+    // where the part says none), which are the settings' own, beside the options.
+    bool autoHyphenation = false;
+    int hyphenationZone = 360;
 };
 CompatOptions readCompatOptions(const QByteArray &settings);
 

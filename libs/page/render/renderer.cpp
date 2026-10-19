@@ -238,7 +238,8 @@ FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNu
     FrameSpec s;
     s.size = t.vertical ? QSizeF(t.rect.height(), t.rect.width()) : t.rect.size();
     s.insets = t.insets;
-    if (const double d = t.stroke.textShift(); d > 0) s.insets += QMarginsF(d, d, d, d);
+    // (A word processor's box has its text inside its insets alone: its line is drawn over the edge and takes no room from the text.)
+    if (const double d = t.stroke.textShift(); d > 0 && !doc.wordText) s.insets += QMarginsF(d, d, d, d);
     s.columns = std::max(1, t.columns);
     s.gap = t.columnGap;
     s.valign = t.valign;
@@ -949,7 +950,7 @@ const StoryLayout *Renderer::shapeTextLayout(const PaintContext &ctx, const Shap
     FrameSpec spec;
     spec.size = tr.size();
     spec.insets = s.insets;
-    if (const double d = s.stroke.textShift(); d > 0) spec.insets += QMarginsF(d, d, d, d);
+    if (const double d = s.stroke.textShift(); d > 0 && !ctx.doc->wordText) spec.insets += QMarginsF(d, d, d, d);
     spec.valign = s.valign;
     spec.noWrap = s.noWrap;
     spec.centerBlock = s.centerBlock;
