@@ -3159,6 +3159,28 @@ private Q_SLOTS:
         QVERIFY2(read <= 12 * text.size(), qPrintable(QStringLiteral("%1 characters read for a text of %2").arg(read).arg(text.size())));
     }
 
+    // The notes before a page that begins inside a paragraph are counted from where the count for the page before it left off, not from the paragraph's start: a paragraph of thousands
+    // of runs over many pages reads each run's format a few times in all.
+    void thePagesOfAParagraphOfThousandsOfRunsCountItsNotesFromWhereTheLastLeftOff()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        const int runs = 4000;
+        QTextCursor c(fd.story());
+        QTextCharFormat plain, bold;
+        plain.setFontFamilies({QStringLiteral("Arimo")});
+        plain.setFontPointSize(11);
+        bold = plain;
+        bold.setFontWeight(QFont::Bold);
+        for (int i = 0; i < runs; ++i) {
+            c.insertText(QStringLiteral("a"), i % 2 ? bold : plain);
+            if (i % 330 == 329) c.insertText(QString(flow::kPageBreak), i % 2 ? bold : plain);
+        }
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 12);
+        QVERIFY2(pg.noteFormatsReadForTest() <= 3 * runs, qPrintable(QStringLiteral("%1 formats read for %2 runs over %3 pages").arg(pg.noteFormatsReadForTest()).arg(runs).arg(pg.pageCount())));
+    }
+
     // The font database is scanned for the East Asian faces once for the program, not for each character looked up: laying out two documents of hundreds of different ideographs, in a
     // face that no machine has, scans it no more than once for each writing system (four, in all).
     void theFontDatabaseIsScannedForEastAsianFacesOnce()
