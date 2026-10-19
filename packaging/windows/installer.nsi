@@ -189,6 +189,7 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
 Function .onInit
   !insertmacro WaitForAppToClose
   Call ComingSoon
+  Call PresetWrite
   Call PresetStats
 FunctionEnd
 
@@ -344,6 +345,15 @@ Function ComingSoon
   SectionSetFlags ${SecCrunch} ${SF_RO}
   SectionSetFlags ${SecMail} ${SF_RO}
   SectionSetFlags ${SecBase} ${SF_RO}
+FunctionEnd
+
+; An update keeps JeffWrite where it is installed: its section starts ticked,
+; so its files are updated with the rest and never left a version behind.
+Function PresetWrite
+!ifdef WITH_WRITE
+  IfFileExists "$INSTDIR\${WRITEEXE}" 0 +2
+    SectionSetFlags ${SecWrite} ${SF_SELECTED}
+!endif
 FunctionEnd
 
 ; An update shows the choice already made: turned off in an app (or in
