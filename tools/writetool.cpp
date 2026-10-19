@@ -485,6 +485,7 @@ int main(int argc, char **argv)
         for (int k = 0; k < pages; ++k) {
             const QImage img = pageImage(pg, &cache, k, width, false, pages);
             if (img.isNull() || !img.save(dir.filePath(QStringLiteral("page-%1.png").arg(k + 1, 3, 10, QLatin1Char('0'))))) { out << "cannot save page " << k + 1 << "\n"; return 1; }
+            cache.clear();   // (each page has stories of its own: what was laid out for one is not wanted for the next, and held, a file of hundreds of pages takes a gigabyte)
         }
         out << "wrote\t" << pages << " pages\t" << timer.elapsed() << " ms\n";
         return 0;
@@ -522,6 +523,7 @@ int main(int argc, char **argv)
                 tp.output = TextOutput::Pdf;
                 paintTables(&p, *page, tp);
                 p.restore();
+                cache.clear();   // (as in render: the layouts of a page are not wanted for the next)
             }
             p.end();
         }

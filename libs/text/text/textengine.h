@@ -402,6 +402,13 @@ public:
     static qint64 lineHeightsMeasuredForTest();
     // The longest stretch of text, in letters, that a word processor's rules against a break after a question mark or between brackets have kept whole (a cost test: it is bounded).
     static qint64 longestJoinedStretchForTest();
+    // How many characters of paragraphs' text were copied or looked through beyond what the lines of a page are made of (the whole of a paragraph for a question that is asked of it
+    // for each page, or the whole of a run for the part of it a page holds), since the program began: a cost test, for a paragraph of hundreds of thousands of characters laid out
+    // over hundreds of pages must read each of its characters a few times, not once for each page.
+    static qint64 paragraphCharsReadForTest();
+    // How many ranges of format (the pieces Qt shapes and looks a font up for, at each line) the paragraphs' layouts were given since the program began: a cost test, for runs that have
+    // the format of the run before them, or show no letters, are no ranges of their own.
+    static qint64 formatRangesMadeForTest();
     // The most paragraphs that were laid out as one, for the marks between them being hidden (a word processor's deleted paragraph marks): a cost test, for a run of such paragraphs is
     // cut into paragraphs of at most kMostJoinedParagraphs.
     static qint64 longestJoinedParagraphsForTest();

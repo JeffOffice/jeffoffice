@@ -371,7 +371,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
     bool denseNotes = false;
     if (st.skip > 0 && st.pos > 0) {
         int footnotes = 0, endnotes = 0;
-        countNotes(paragraphStartOf(st.pos), st.pos, &footnotes, &endnotes);
+        countNotesBefore(st.pos, &footnotes, &endnotes);
         denseNotes = footnotes + endnotes > kDenseNotes;
     }
     const bool tail = afterBreak || denseNotes || st.wrapped || st.skip > std::max(0, m_doc->exactLines);
@@ -477,7 +477,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         span.endnotesBefore = st.end;
         if (tail && st.pos > 0) {
             int footnotes = 0, endnotes = 0;
-            countNotes(paragraphStartOf(st.pos), st.pos, &footnotes, &endnotes);
+            countNotesBefore(st.pos, &footnotes, &endnotes);
             span.footnotesBefore += footnotes;
             span.endnotesBefore += endnotes;
         }
@@ -1053,16 +1053,41 @@ void Paginator::countNotes(int from, int to, int *footnotes, int *endnotes, bool
             *footnotes = *endnotes = 0;
             if (restarted) *restarted = true;
         }
+        int at = b.position();   // (where each run begins: the lengths of the runs before it added, not a place looked up for each)
         for (auto it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment frag = it.fragment();
+            const int begin = at, length = int(frag.length());
+            at += length;
+            // (The fragments before the range, and after it, are passed by their places: a paragraph of a hundred thousand runs is asked about at each of its pages.)
+            if (begin + length <= from) continue;
+            if (begin >= to) break;
+            ++m_noteFormatsRead;
             const QString code = frag.charFormat().stringProperty(tp::Field);
             if (code.isEmpty()) continue;
-            const int lo = std::max(frag.position(), from), hi = std::min(frag.position() + frag.length(), to);
+            const int lo = std::max(begin, from), hi = std::min(begin + length, to);
             if (hi <= lo) continue;
             if (code.startsWith(QLatin1String("footnote:"))) *footnotes += frag.charFormat().boolProperty(tp::NoteMarkCustom) ? 0 : hi - lo;   // (a custom mark takes no number)
             else if (code.startsWith(QLatin1String("endnote:"))) *endnotes += hi - lo;
         }
     }
+}
+
+void Paginator::countNotesBefore(int position, int *footnotes, int *endnotes) const
+{
+    const QTextDocument *story = m_doc->story();
+    const int start = paragraphStartOf(position);
+    NoteTally &t = m_noteTally;
+    // (From where the last count ended, if it was in the same paragraph, inside a paragraph of the text and not at the start of one, where a restart of the numbers is looked for.)
+    if (t.start == start && t.revision == story->revision() && t.pos <= position && t.pos > story->findBlock(t.pos).position()) {
+        int more = 0, moreEnd = 0;
+        bool restarted = false;
+        countNotes(t.pos, position, &more, &moreEnd, &restarted);
+        *footnotes = (restarted ? 0 : t.footnotes) + more;
+        *endnotes = (restarted ? 0 : t.endnotes) + moreEnd;
+    } else {
+        countNotes(start, position, footnotes, endnotes);
+    }
+    t = NoteTally{start, position, story->revision(), *footnotes, *endnotes};
 }
 
 void Paginator::extend(int index)
@@ -1446,7 +1471,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
     int footnote = st.foot + 1, endnote = st.end + 1;
     {
         int before = 0, endBefore = 0;
-        countNotes(paragraphStartOf(from), from, &before, &endBefore);
+        countNotesBefore(from, &before, &endBefore);
         footnote += before;
         endnote += endBefore;
     }

@@ -204,6 +204,8 @@ public:
     qint64 charsCopiedForTest() const { return m_charsCopied; }
     // The lines looked at to number the lines of pages so far (a page's own, each time it is laid out): the work of line numbering, which is a page's lines and no more.
     qint64 lineNumberVisitsForTest() const { return m_lineNumberVisits; }
+    // How many runs' formats were read to count the notes before pages (a paragraph of thousands of runs is asked at each of its pages: the runs before the part asked are passed by their places).
+    qint64 noteFormatsReadForTest() const { return m_noteFormatsRead; }
 
 private:
     struct Run;
@@ -341,6 +343,7 @@ private:
     QVector<LineCount> m_lineCounts;
     int m_lineCountsValid = 0;
     qint64 m_lineNumberVisits = 0;   // see lineNumberVisitsForTest()
+    mutable qint64 m_noteFormatsRead = 0;   // see noteFormatsReadForTest()
     // A header or footer with tables in it: its text before, between, and after them, and each table, laid out from the top at a width for the page that shows number `number`
     // (the page's number is what the fields in its cells show). The tables are laid out in a private copy of the story, with the table machinery of the document's own.
     struct HeaderPart {
@@ -488,6 +491,14 @@ private:
     // How many footnote and endnote references the story has from `from` to `to`, document positions.
     // (Where numbers restart, in each section, they are those after the last place they do: `restarted` says whether one is in the stretch.)
     void countNotes(int from, int to, int *footnotes, int *endnotes, bool *restarted = nullptr) const;
+    // The notes in the paragraph of `position`, before it (countNotes from the paragraph's start). A page that begins inside a paragraph asks it, and so does each of the pages that
+    // follow it in the same paragraph: the count goes on from where the last one was (what a paragraph of hundreds of thousands of runs, over hundreds of pages, would otherwise count again
+    // from its start for each).
+    void countNotesBefore(int position, int *footnotes, int *endnotes) const;
+    struct NoteTally {
+        int start = -1, pos = 0, revision = -1, footnotes = 0, endnotes = 0;
+    };
+    mutable NoteTally m_noteTally;
     // Whether the numbers of the notes begin again at a paragraph (the one before it ends a section, and the notes restart in each).
     bool restartsNotesAt(const QTextBlock &block) const;
     // The places in the story from a position on, for as many characters, where the numbers of the notes begin again.

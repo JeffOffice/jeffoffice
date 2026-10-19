@@ -279,10 +279,17 @@ constexpr double kFine = 8;
 constexpr int kMostAlignTabs = 64;
 // The most letters a word processor's lines are kept from breaking among by the rules after a question mark and between brackets (buildOnce): past it, a line may break there.
 constexpr int kMostUnbrokenStretch = 120;
+// The most characters of white space that Qt is given in a row. Qt keeps the length of a stretch of white space in sixteen bits: where it is 65,536 characters or more, the lines it
+// makes after it are of no characters (or of the rest of the length modulo 65,536), one after another, each taking the time of the whole paragraph, and a page of them lays the text
+// out again, as long as a file likes (a paragraph of 70,000 spaces and a picture took more than two minutes). A longer stretch is cut by word joiners, which have no width and make no
+// place to break that the stretch did not have; the count runs over the runs that follow one another, whatever their formats.
+constexpr int kMostSpaceStretch = 60000;
 // The longest stretch they kept so, since the program began, for a test of their cost.
 std::atomic<qint64> g_longestJoinedStretch{0};
 std::atomic<qint64> g_longestJoinedParagraphs{0};
 std::atomic<qint64> g_hyphenationLetters{0};
+std::atomic<qint64> g_paragraphCharsRead{0};
+std::atomic<qint64> g_formatRangesMade{0};
 inline void noteJoinedParagraphs(int n)
 {
     qint64 seen = g_longestJoinedParagraphs.load(std::memory_order_relaxed);
@@ -1270,15 +1277,48 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
 // paragraph's layout font, for all its runs alike, so in a paragraph where only
 // some ask, the runs that do have small capitals made of capitals instead
 // (buildOnce) and the others are as they are.
+// The characters [begin, begin + count) of a fragment's text, copying only those (a fragment may be a paragraph of hundreds of thousands of characters, as where a page break is among
+// the plain text of a run: each page asks for a part of it).
+static QString fragmentPart(const QTextDocument *doc, const QTextFragment &frag, int begin, int count)
+{
+    if (frag.length() <= 4096) {
+        g_paragraphCharsRead += frag.length() - count;   // (what is copied past the part wanted)
+        return frag.text().mid(begin, count);
+    }
+    QString out(count, Qt::Uninitialized);
+    for (int i = 0; i < count; ++i) out[i] = doc->characterAt(frag.position() + begin + i);
+    return out;
+}
+static bool hasTrueSmallCapsOf(const QTextBlock &b);
+// (Asked for each page that holds a part of a long paragraph: the answer is kept while the same paragraph is asked, by the document's revision and the paragraph's place and length.)
 static bool hasTrueSmallCaps(const QTextBlock &b)
+{
+    if (b.length() < 4096) return hasTrueSmallCapsOf(b);
+    struct Kept {
+        const QTextDocument *doc = nullptr;
+        int revision = -1, position = -1, length = -1;
+        bool small = false;
+    };
+    thread_local Kept kept;
+    if (kept.doc == b.document() && kept.revision == b.document()->revision() && kept.position == b.position() && kept.length == b.length()) return kept.small;
+    kept = Kept{b.document(), b.document()->revision(), b.position(), b.length(), hasTrueSmallCapsOf(b)};
+    return kept.small;
+}
+static bool hasTrueSmallCapsOf(const QTextBlock &b)
 {
     if (b.begin().atEnd()) return b.charFormat().boolProperty(tp::TrueSmallCaps);
     bool any = false;
+    const QTextDocument *doc = b.document();
     for (auto it = b.begin(); !it.atEnd(); ++it) {
         const QTextFragment frag = it.fragment();
         if (!frag.isValid()) continue;
-        const QString text = frag.text();
-        if (std::none_of(text.cbegin(), text.cend(), [](QChar ch) { return ch.isLetter(); })) continue;
+        // (Whether it has a letter: the first is looked for where it is, not in a copy of all of it.)
+        bool letters = false;
+        for (int at = frag.position(), end = frag.position() + frag.length(); at < end && !letters; ++at) {
+            letters = doc->characterAt(at).isLetter();
+            ++g_paragraphCharsRead;
+        }
+        if (!letters) continue;
         if (!frag.charFormat().boolProperty(tp::TrueSmallCaps)) return false;
         any = true;
     }
@@ -1325,6 +1365,26 @@ static bool hasComplexScript(const QString &text)
     return false;
 }
 
+// (Asked of the whole text of a paragraph for each page that holds a part of it: the answer for a long paragraph is kept while the same one is asked, or the pages of a paragraph of
+// hundreds of thousands of characters would read it all each. It is the document's revision and the paragraph's place and length that say it is the same.)
+static bool paragraphHasComplexScript(const QTextBlock &b)
+{
+    if (b.length() < 4096) {
+        g_paragraphCharsRead += b.length();
+        return hasComplexScript(b.text());
+    }
+    struct Kept {
+        const QTextDocument *doc = nullptr;
+        int revision = -1, position = -1, length = -1;
+        bool complex = false;
+    };
+    thread_local Kept kept;
+    if (kept.doc == b.document() && kept.revision == b.document()->revision() && kept.position == b.position() && kept.length == b.length()) return kept.complex;
+    g_paragraphCharsRead += b.length();
+    kept = Kept{b.document(), b.document()->revision(), b.position(), b.length(), hasComplexScript(b.text())};
+    return kept.complex;
+}
+
 QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
 {
     QTextCharFormat cf = b.charFormat();
@@ -1342,7 +1402,7 @@ QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
     if (sp == 1) f.setFeature(QFont::Tag("pnum"), 1);
     if (sp == 2) f.setFeature(QFont::Tag("tnum"), 1);
     // (A word processor's text has none unless its file asks, and not the letters of the scripts that need them: those are shaped as the font does.)
-    const bool wordDefault = env.wordLines && !cf.hasProperty(tp::Ligatures) && !hasComplexScript(b.text());
+    const bool wordDefault = env.wordLines && !cf.hasProperty(tp::Ligatures) && !paragraphHasComplexScript(b);
     if (lig == 1 || env.noLigatures || wordDefault) { f.setFeature(QFont::Tag("liga"), 0); f.setFeature(QFont::Tag("clig"), 0); }
     if (lig == 2) { f.setFeature(QFont::Tag("dlig"), 1); f.setFeature(QFont::Tag("hlig"), 1); }
     const int ss = cf.intProperty(tp::StylisticSet);
@@ -1388,6 +1448,8 @@ namespace { std::atomic<qint64> g_lineHeightsMeasured{0}; }   // (see StoryLayou
 
 qint64 StoryLayout::lineHeightsMeasuredForTest() { return g_lineHeightsMeasured.load(); }
 qint64 StoryLayout::longestJoinedStretchForTest() { return g_longestJoinedStretch.load(); }
+qint64 StoryLayout::paragraphCharsReadForTest() { return g_paragraphCharsRead.load(); }
+qint64 StoryLayout::formatRangesMadeForTest() { return g_formatRangesMade.load(); }
 qint64 StoryLayout::hyphenationLettersLookedUpForTest() { return g_hyphenationLetters.load(); }
 qint64 StoryLayout::longestJoinedParagraphsForTest() { return g_longestJoinedParagraphs.load(); }
 void StoryLayout::resetLongestJoinedParagraphsForTest() { g_longestJoinedParagraphs = 0; }
@@ -2894,8 +2956,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         const int skipChars = tail ? m_span.from - head.position() : 0;
         const int limit = m_span.window > 0 ? m_span.window : std::numeric_limits<int>::max();
         int taken = 0;
+        int spaceStretch = 0;   // (how many characters of white space the text taken so far ends in: see kMostSpaceStretch)
         bool cutShort = false;
         QTextBlock part = head;   // (the paragraph of the run that the text is being taken from)
+        int fragOffset = 0;       // (where the run being taken begins, from the head's start: the lengths of the runs before it, not a place looked up for each)
         for (auto it = part.begin();; ++it) {
             // The end of a paragraph that is joined to the next: its mark, which shows nothing, and then the text of the next.
             bool runEnds = false;
@@ -2907,15 +2971,17 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 if (const int mark = part.position() + part.length() - 1 - head.position(); mark >= skipChars) B->map << Seg{mark, 1, int(B->disp.size()), 0, true};
                 part = part.next();
                 it = part.begin();
+                fragOffset = part.position() - head.position();
             }
             if (runEnds) break;
             if (cutShort) break;
             const QTextFragment frag = it.fragment();
             if (!frag.isValid()) continue;
-            int rel = frag.position() - head.position();
-            const QString whole = frag.text();
-            int begin = 0, count = int(whole.size());
-            if (rel + count <= skipChars) continue;
+            int rel = fragOffset;
+            fragOffset += int(frag.length());
+            // (The runs before the part wanted are passed by their lengths, without their text: a paragraph of a hundred thousand runs is asked for at each of its pages.)
+            if (rel + int(frag.length()) <= skipChars) continue;
+            int begin = 0, count = int(frag.length());
             if (rel < skipChars) {
                 begin = skipChars - rel;
                 count -= begin;
@@ -2926,7 +2992,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 cutShort = true;
                 B->cutAt = rel + count;
             }
-            const QString text = whole.mid(begin, count);   // (the part wanted of a long run only is copied)
+            const QString text = fragmentPart(doc, frag, begin, count);   // (the part wanted of a long run only is copied)
             taken += count;
             const QTextCharFormat cf = frag.charFormat();
             // A paragraph that is set apart from the text shows nothing of it, a picture in it included.
@@ -2971,6 +3037,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     B->objects << box;
                     B->disp += standIn;
                 }
+                spaceStretch = 0;
                 continue;
             }
             // Hidden text takes no room and shows nothing, though its characters are the story's (so does a paragraph that is set apart from the text).
@@ -3011,7 +3078,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         // (The numbers of references side by side are one run of text: Qt shapes each run of its own, and a paragraph of a
                         // thousand takes each page more than a tenth of a second.)
                         if (env.wordLines && !ranges.isEmpty() && ranges.last().start + ranges.last().length == int(B->disp.size()) && ranges.last().format == rf) ranges.last().length += int(v.size());
-                        else ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), rf};
+                        else if (!(env.wordLines && v.isEmpty() && !ranges.isEmpty())) ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), rf};   // (a range of no letters, after text, is none)
                         B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
                         B->disp += v;
                         continue;
@@ -3020,7 +3087,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     QString v = ctx.resolve(field);
                     v.replace(QLatin1String("\r\n"), QString(QChar::LineSeparator)).replace(QLatin1Char('\n'), QChar::LineSeparator);
                     B->map << Seg{rel + i, 1, int(B->disp.size()), int(v.size()), env.wordLines && v.isEmpty()};
-                    ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), env.wordLines ? withEastAsianFaces(rf, v) : rf};
+                    if (!(env.wordLines && v.isEmpty() && !ranges.isEmpty())) ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), env.wordLines ? withEastAsianFaces(rf, v) : rf};
                     B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
                     B->disp += v;
                 }
@@ -3110,6 +3177,17 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             if (const QString after = next.fragment().text(); !after.isEmpty() && !after[0].isSpace() && after[0] != QChar::LineSeparator) cuts.append({int(raw.size()), QChar(0x2060)});
                     }
                 }
+                // (A word processor's stretch of white space that is a hundred thousand characters long, or longer than Qt lays out, is cut by word joiners: see kMostSpaceStretch.)
+                if (env.wordLines) {
+                    for (int i = 0; i < int(raw.size()); ++i) {
+                        if (!raw[i].isSpace()) {
+                            spaceStretch = 0;
+                        } else if (++spaceStretch >= kMostSpaceStretch) {
+                            cuts.append({i + 1, QChar(0x2060)});
+                            spaceStretch = 0;
+                        }
+                    }
+                }
                 std::sort(cuts.begin(), cuts.end(), [](const auto &x, const auto &y) { return x.first < y.first; });
                 int piece = 0;
                 for (const auto &[cut, mark] : cuts) {
@@ -3186,6 +3264,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         from = at + 1;
                     }
                     if (from < int(shown.size())) ranges << QTextLayout::FormatRange{fr.start + from, int(shown.size()) - from, fr.format};
+                } else if (env.wordLines && !ranges.isEmpty() && ranges.last().start + ranges.last().length == fr.start && ranges.last().format == fr.format) {
+                    // (A run with the format of the one before it, and nothing between them, goes on that range: a file's bookmarks and the like cut a stretch of text into runs of one
+                    // letter, hundreds of thousands of them, and each would be a piece of the layout of its own that Qt makes a font for each time it is looked at.)
+                    ranges.last().length += fr.length;
                 } else {
                     ranges << fr;
                 }
@@ -3235,6 +3317,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         bool adjusted = false;
         ranges = applyLetterWidthsTo(ranges, B->disp, &adjusted, env.wordLines);
         B->lettersAdjusted = adjusted;
+        g_formatRangesMade += ranges.size();
         B->tl->setFormats(fineRanges(ranges));
         // Letters drawn taller, shorter, or slanted are drawn run by run, unless
         // the paragraph has highlighted or wavy-underlined text (Qt's own
@@ -3279,11 +3362,22 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->leaders = bf.stringProperty(tp::TabLeaders);
         // (A word processor's absolute position tabs: the tabs whose runs say where they go, as many as a paragraph may have.)
         B->alignTabs.clear();
-        if (env.wordLines)
+        if (env.wordLines) {
+            // (The runs after the part of the paragraph that is laid out are not looked at: a paragraph of hundreds of thousands of runs is laid out in parts, at each of its pages. A run
+            // with the format of the one before it, the format the same piece of the story's table, is not read again, nor is its place looked up: the lengths are added.)
+            int offset = b.position() - head.position(), lastFormat = -1;
+            QString spec;
             for (auto at = b.begin(); !at.atEnd() && B->alignTabs.size() < kMostAlignTabs; ++at) {
-                const QString spec = at.fragment().charFormat().stringProperty(tp::AlignTab);
-                for (int i = 0; !spec.isEmpty() && i < at.fragment().length() && B->alignTabs.size() < kMostAlignTabs; ++i) B->alignTabs << spec;
+                if (limit < std::numeric_limits<int>::max() && offset >= skipChars + limit) break;
+                const QTextFragment frag = at.fragment();
+                offset += int(frag.length());
+                if (frag.charFormatIndex() != lastFormat) {
+                    lastFormat = frag.charFormatIndex();
+                    spec = frag.charFormat().stringProperty(tp::AlignTab);
+                }
+                for (int i = 0; !spec.isEmpty() && i < frag.length() && B->alignTabs.size() < kMostAlignTabs; ++i) B->alignTabs << spec;
             }
+        }
         if (bf.layoutDirection() == Qt::RightToLeft) opt.setTextDirection(Qt::RightToLeft);
         opt.setFlags(QTextOption::IncludeTrailingSpaces);
         B->tl->setTextOption(opt);
@@ -3528,6 +3622,17 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         const bool breakPending = columnBreakNext;
         const bool windowCut = B->cut;
         const int windowCutAt = B->cutAt;
+        // Whether the paragraph's text is nothing but white space: asked for each line that goes past the frames or looks for room among objects, so it is found once for the text as it is
+        // (a paragraph of a hundred thousand characters would otherwise be copied for each line).
+        std::optional<bool> blank;
+        int blankFound = 0;
+        auto blankText = [&]() {
+            if (!blank) {
+                if (blankFound++ > 0) g_paragraphCharsRead += B->disp.size();   // (found again, as a cost test counts)
+                blank = B->disp.trimmed().isEmpty();
+            }
+            return *blank;
+        };
         auto placeLines = [&](bool startNext, int breakAfter) {
             if (columnBreakNext) {   // (the line before ended with a column break: this paragraph, or the rest of the one before, begins in the next column)
                 columnBreakNext = false;
@@ -3755,7 +3860,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             B->cut = windowCut;
             B->cutAt = windowCutAt;
             B->markerClamp = 0;
-            int overPlaced = 0;
+            int overPlaced = 0, noProgress = 0;
             bool overFull = false;
             while (true) {
                 PtLine line(B->tl->createLine());
@@ -3793,7 +3898,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         // (as in .pub layouts): a box doesn't shrink or warn for them.
                         // (In a slide's text box that runs over, they count in the place the text is centered at: the presentation program counts
                         // the empty paragraph that ends a text in the height it centers.)
-                        if (!B->disp.trimmed().isEmpty()) m_overflow = true;
+                        if (!blankText()) m_overflow = true;
                         else if (nF == 1 && frames[0].runsOver) m_blankPast = true;
                         placed = true;
                         break;
@@ -3820,7 +3925,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         QVector<Iv> ivs = freeIntervals(frames[f].obstacles, x0, x1, col.top() + y + touch, col.top() + y + wrapH - touch);
                         QVector<Iv> ok;
                         // (A word processor's empty paragraph is only its mark: it goes in any gap that is a few points wide, between two pictures a little apart as in a wider one.)
-                        const double minW = env.wordLines && B->disp.trimmed().isEmpty() ? 2.0 : std::max(18.0, base.pointSizeF() / fontPointFactor() * 2.5);
+                        const double minW = env.wordLines && blankText() ? 2.0 : std::max(18.0, base.pointSizeF() / fontPointFactor() * 2.5);
                         // The first line of a list item starts a bullet's hang in from the
                         // first place it has: that room is part of what it needs.
                         for (const Iv &iv : ivs)
@@ -4218,6 +4323,18 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     B->cut = true;
                     break;
                 }
+                // Lines of no characters where text is left (a layout that has come to what Qt cannot do, as a stretch of white space of 65,536 characters or more: see kMostSpaceStretch)
+                // would come one after another without end: the third of them ends the paragraph's lines, as a window's cut does (the pages go on from where it is, and end where they
+                // began).
+                if (env.wordLines && line.textLength() == 0 && line.textStart() < B->disp.size()) {
+                    if (++noProgress >= 3) {
+                        B->cut = true;
+                        B->cutAt = B->docFromDisp(line.textStart());
+                        break;
+                    }
+                } else {
+                    noProgress = 0;
+                }
             }
             B->tl->endLayout();
             if (rowActive) { y += rowH; rowActive = false; }
@@ -4276,6 +4393,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     }
                 if (changed) {
                     B->tl->setText(B->disp);
+                    blank.reset();
                     redo(false, -1);
                 }
             }

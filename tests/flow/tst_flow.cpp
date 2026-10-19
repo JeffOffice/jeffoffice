@@ -3082,6 +3082,136 @@ private Q_SLOTS:
         }
     }
 
+    // A stretch of white space of 65,536 characters or more, in one run or in several, and the words after it, are laid out in a few lines, the words on the last: Qt keeps the length
+    // of a stretch in sixteen bits, and gave lines of no characters one after another, each taking the time of the whole paragraph (a paragraph of 70,000 spaces and a picture took
+    // more than two minutes). The stretch is cut by word joiners every 60,000 characters, and the lines made (the work counted) are one for each part and one for the words.
+    void aStretchOfWhiteSpaceLongerThanQtLaysOutIsLaidOutInAFewLines()
+    {
+        LayoutEnv word;
+        word.wordLines = true;
+        for (const int n : {1000, 65535, 65536, 70000, 140000}) {
+            for (const bool split : {false, true}) {
+                QTextDocument doc;
+                QTextCursor c(&doc);
+                QTextCharFormat cf;
+                cf.setFontFamilies({QStringLiteral("Arimo")});
+                cf.setFontPointSize(11);
+                if (!split) {
+                    c.insertText(QString(n, QLatin1Char(' ')), cf);
+                } else {
+                    QTextCharFormat blue = cf;
+                    blue.setForeground(QColor(Qt::blue));
+                    c.insertText(QString(n / 2, QLatin1Char(' ')), cf);
+                    c.insertText(QString(n - n / 2, QLatin1Char(' ')), blue);
+                }
+                c.insertText(QStringLiteral("tail words"), cf);
+                StoryLayout layout;
+                layout.build(&doc, {plainFrame(300, 400)}, word);
+                const auto lines = layout.lineInfo(0);
+                const QString what = QStringLiteral("%1 spaces%2: %3 lines").arg(n).arg(split ? QStringLiteral(" in two runs") : QString()).arg(lines.size());
+                QVERIFY2(!lines.isEmpty() && lines.size() <= n / 60000 + 2, qPrintable(what));
+                const QVector<QRectF> tail = layout.rangeRects(0, n, n + 4);
+                QVERIFY2(!tail.isEmpty() && tail.first().top() >= lines.last().rect.top() - 0.01, qPrintable(what + QStringLiteral(": the words are not on the last line")));
+            }
+        }
+    }
+
+    // A paragraph that is one run, with a page break every few words (or every few spaces, which have no letter to settle small capitals by), over hundreds of pages: each page's lines
+    // are laid out from the part of the paragraph it holds, and the paragraph's text is read (copied or looked through) a few times in all, not once or more for each page (a paragraph
+    // of 8,000 pages of one run took more than two minutes).
+    void aParagraphOfOneRunOverHundredsOfPagesIsReadInProportionToItsText()
+    {
+        for (const bool letters : {true, false}) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            const int pages = 400;
+            QString text;
+            for (int i = 0; i < pages; ++i) text += (letters ? QStringLiteral("word %1 some more text here to fill ").arg(i) : QString(36, QLatin1Char(' '))) + flow::kPageBreak;
+            QTextCursor c(fd.story());
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Arimo")});
+            cf.setFontPointSize(11);
+            c.insertText(text, cf);
+            const qint64 before = StoryLayout::paragraphCharsReadForTest();
+            Paginator pg(&fd);
+            QVERIFY(pg.pageCount() >= pages);
+            const qint64 read = StoryLayout::paragraphCharsReadForTest() - before;
+            QVERIFY2(read <= 12 * text.size(), qPrintable(QStringLiteral("%1 characters read for a text of %2 (%3 pages, %4)").arg(read).arg(text.size()).arg(pg.pageCount()).arg(letters ? "words" : "spaces")));
+        }
+    }
+
+    // The lines of a paragraph that goes past the end of its frames ask, for each line, whether the paragraph's text is nothing but white space: it is found once, not by copying the
+    // paragraph's text at each line (a note of thousands of characters under a page's text, which has room for none of it, took more than a minute and a half).
+    void theLinesPastTheEndOfAFrameAskOnceWhetherTheTextIsBlank()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Arimo")});
+        cf.setFontPointSize(11);
+        QString text;
+        for (int i = 0; i < 4000; ++i) text += QStringLiteral("word ");
+        c.insertText(text, cf);
+        LayoutEnv word;
+        word.wordLines = true;
+        const qint64 before = StoryLayout::paragraphCharsReadForTest();
+        StoryLayout layout;
+        layout.build(&doc, {plainFrame(300, 40)}, word);
+        QVERIFY(layout.lineInfo(0).size() < 10);
+        const qint64 read = StoryLayout::paragraphCharsReadForTest() - before;
+        QVERIFY2(read <= 12 * text.size(), qPrintable(QStringLiteral("%1 characters read for a text of %2").arg(read).arg(text.size())));
+    }
+
+    // Runs that have the format of the run before them, and the pieces that show no letters between them (a file's bookmarks, which cut a stretch of text into runs of one letter), are
+    // no ranges of their own for the layout: Qt makes a font for each range each time it looks at it, and a paragraph of 300,000 such letters took each of its pages three quarters of a
+    // second.
+    void runsThatShowNothingBetweenThemAreOneRangeOfFormat()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat text, mark;
+        text.setFontFamilies({QStringLiteral("Arimo")});
+        text.setFontPointSize(11);
+        mark = text;
+        mark.setProperty(tp::Field, QStringLiteral("raw:"));   // (a piece kept as XML, as a bookmark's mark is: it shows nothing)
+        const int letters = 1500;
+        for (int i = 0; i < letters; ++i) {
+            c.insertText(QString(QChar::ObjectReplacementCharacter), mark);
+            c.insertText(QStringLiteral("x"), text);
+            c.insertText(QString(QChar::ObjectReplacementCharacter), mark);
+        }
+        LayoutEnv word;
+        word.wordLines = true;
+        const qint64 before = StoryLayout::formatRangesMadeForTest();
+        StoryLayout layout;
+        layout.build(&doc, {plainFrame(300, 4000)}, word);
+        const qint64 made = StoryLayout::formatRangesMadeForTest() - before;
+        QVERIFY2(made <= 4, qPrintable(QStringLiteral("%1 ranges for %2 letters").arg(made).arg(letters)));
+        QVERIFY(layout.lineInfo(0).size() >= 2);
+    }
+
+    // The notes before a page that begins inside a paragraph are counted from where the count for the page before it left off, not from the paragraph's start: a paragraph of thousands
+    // of runs over many pages reads each run's format a few times in all.
+    void thePagesOfAParagraphOfThousandsOfRunsCountItsNotesFromWhereTheLastLeftOff()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        const int runs = 4000;
+        QTextCursor c(fd.story());
+        QTextCharFormat plain, bold;
+        plain.setFontFamilies({QStringLiteral("Arimo")});
+        plain.setFontPointSize(11);
+        bold = plain;
+        bold.setFontWeight(QFont::Bold);
+        for (int i = 0; i < runs; ++i) {
+            c.insertText(QStringLiteral("a"), i % 2 ? bold : plain);
+            if (i % 330 == 329) c.insertText(QString(flow::kPageBreak), i % 2 ? bold : plain);
+        }
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 12);
+        QVERIFY2(pg.noteFormatsReadForTest() <= 3 * runs, qPrintable(QStringLiteral("%1 formats read for %2 runs over %3 pages").arg(pg.noteFormatsReadForTest()).arg(runs).arg(pg.pageCount())));
+    }
+
     // The font database is scanned for the East Asian faces once for the program, not for each character looked up: laying out two documents of hundreds of different ideographs, in a
     // face that no machine has, scans it no more than once for each writing system (four, in all).
     void theFontDatabaseIsScannedForEastAsianFacesOnce()
