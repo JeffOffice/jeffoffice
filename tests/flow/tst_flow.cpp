@@ -4962,13 +4962,20 @@ private Q_SLOTS:
         QVERIFY2(std::abs(lines[1].rect.left() - second) < 0.5, qPrintable(QStringLiteral("the text after the break is at %1, the second column is at %2").arg(lines[1].rect.left()).arg(second)));
         QVERIFY2(std::abs(lines[2].rect.left() - second) < 0.5, qPrintable(QStringLiteral("the next paragraph is at %1, the second column is at %2").arg(lines[2].rect.left()).arg(second)));
         QVERIFY(lines[2].rect.top() > lines[1].rect.top());
-        // In one column there is no column after: what follows the break is past the frame (the page after's).
+        // In a frame of one column, with none after it, the break is a line break: the text after it is where the lines go on, not lost (a table's cell, a text box).
         StoryLayout one;
         one.build(&doc, {plainFrame(300, 200)}, env);
         const auto single = one.lineBriefs();
         QCOMPARE(int(single.size()), 3);
-        QCOMPARE(single[0].frame, 0);
-        QCOMPARE(single[1].frame, -1);
+        for (const auto &l : single) QCOMPARE(l.frame, 0);
+        // With a frame after it (the next page's), it goes on there.
+        StoryLayout pages;
+        pages.build(&doc, {plainFrame(300, 200), plainFrame(300, 200)}, env);
+        const auto after = pages.lineBriefs();
+        QCOMPARE(int(after.size()), 3);
+        QCOMPARE(after[0].frame, 0);
+        QCOMPARE(after[1].frame, 1);
+        QCOMPARE(after[2].frame, 1);
     }
 
     // A word processor's justified line that has no space before its last word (a long word alone in a narrow column or frame) is set as a left-aligned line is, not with its letters

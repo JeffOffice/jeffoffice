@@ -11816,6 +11816,41 @@ private Q_SLOTS:
         QCOMPARE(int(doc->story()->blockCount()), 1 + kMostEndnoteParagraphs);
     }
 
+    // A column break where there is no next column to go on in (a table's cell, a text box) is a line break: the text before it and after it is shown, all of it.
+    void aColumnBreakInACellOrATextBoxLosesNoText()
+    {
+        const QByteArray content = "<w:p><w:r><w:t>alpha</w:t></w:r><w:r><w:br w:type=\"column\"/></w:r><w:r><w:t>beta</w:t></w:r></w:p><w:p><w:r><w:t>gamma</w:t></w:r></w:p>";
+        // In a cell.
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"3000\" w:type=\"dxa\"/><w:tblLayout w:type=\"fixed\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid>"
+                                 "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr>" + content + "</w:tc></w:tr></w:tbl>";
+        auto inCell = open(makeDocx("<w:p><w:r><w:t>Before</w:t></w:r></w:p>" + table + "<w:p><w:r><w:t>After</w:t></w:r></w:p>", kStyles));
+        QVERIFY(inCell);
+        const auto page = inCell->pager().materialize(0);
+        QVERIFY(page && page->tables.size() == 1);
+        const QString whole = inCell->story()->toPlainText();
+        QString shown;
+        page->tables.first()->forLines([&](const StoryLayout::LineBrief &line, const QRectF &) { shown += whole.mid(line.pos, line.end - line.pos) + QLatin1Char('|'); });
+        for (const char *word : {"alpha", "beta", "gamma"}) QVERIFY2(shown.contains(QLatin1String(word)), qPrintable(QStringLiteral("%1 is not shown in the cell: %2").arg(QLatin1String(word)).arg(shown)));
+        // In a text box.
+        const QByteArray box = "<w:p><w:r><w:pict " + QByteArray(kVml) + "><v:rect id='b' style='position:absolute;margin-left:72pt;margin-top:72pt;width:200pt;height:100pt' filled='f'>"
+                               "<v:textbox>" + QByteArray("<w:txbxContent>") + content + "</w:txbxContent></v:textbox></v:rect></w:pict></w:r></w:p>";
+        auto inBox = open(makeDocxWithParts(box, sectionXml(12240, 15840, 1440), {}));
+        QVERIFY(inBox);
+        const auto boxed = inBox->pager().materialize(0);
+        QVERIFY(boxed);
+        const TextItem *found = nullptr;
+        for (const auto &item : boxed->doc->pages[0]->items)
+            if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                if (const auto st = boxed->doc->story(t->storyId); st && st->doc->toPlainText().contains(QLatin1String("alpha"))) found = t;
+        QVERIFY(found);
+        StoryLayout layout;
+        layout.build(boxed->doc->story(found->storyId)->doc.get(), {Renderer::frameSpec(*boxed->doc, *found, 1, RenderOptions())}, inBox->flow().env);
+        QString text;
+        for (const auto &l : layout.lineInfo(0)) text += l.text.trimmed() + QLatin1Char('|');
+        for (const auto &l : layout.lineBriefs()) QVERIFY2(l.frame == 0, "every line is in the box");
+        for (const char *word : {"alpha", "beta", "gamma"}) QVERIFY2(text.contains(QLatin1String(word)), qPrintable(QStringLiteral("%1 is not shown in the box: %2").arg(QLatin1String(word)).arg(text)));
+    }
+
     // A paragraph that says w:suppressLineNumbers (itself, or by its style) has no numbers, and the lines of the others are counted without it.
     void aParagraphThatSuppressesLineNumbersIsNeitherNumberedNorCounted()
     {

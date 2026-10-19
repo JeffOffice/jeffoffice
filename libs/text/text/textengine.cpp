@@ -2344,6 +2344,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
 
     bool columnEmpty = true;   // no line placed yet in the current column
     bool columnBreakNext = false;   // the line placed last ended with a word processor's column break: the next goes on in the next column
+    // A column break goes on in the next column where there is one: in the next column of the frame, in a frame after it, or (where the laying out is of a page's text, which
+    // goes on in the next page) past the last frame. Where the text is in one frame with one column (a table's cell, a text box) it is a line break and no more: no text is lost.
+    auto nextColumnExists = [&] { return f < nF && (f + 1 < nF || c + 1 < std::max(1, frames[f].columns) || m_span.stopAtFrame >= 0); };
     if (m_span.startY > 0.001) {   // (a stretch that goes below something in its first frame)
         y = m_span.startY;
         columnEmpty = false;
@@ -3229,7 +3232,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         auto placeLines = [&](bool startNext, int breakAfter) {
             if (columnBreakNext) {   // (the line before ended with a column break: this paragraph, or the rest of the one before, begins in the next column)
                 columnBreakNext = false;
-                if (f < nF) advance();
+                if (nextColumnExists()) advance();
             }
             // Start in next text box.
             if (!tail && bf.boolProperty(tp::StartInNextBox) && f < nF && (y > 0 || c > 0)) {
@@ -3460,7 +3463,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 if (lineNo == breakAfter && f < nF && !columnEmpty) advance();   // widow control: carry this line over
                 if (columnBreakNext) {
                     columnBreakNext = false;
-                    if (f < nF) advance();
+                    if (nextColumnExists()) advance();
                 }
 
                 bool placed = false;
