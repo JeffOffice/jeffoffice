@@ -3131,6 +3131,19 @@ private Q_SLOTS:
         QVERIFY(eastAsianLookupsForTest() - start >= 1);
     }
 
+    // The family choice, tested directly (so that it fails without the feature on every machine, where Qt's own fallback would draw the characters anyway): a run in a face the machine
+    // lacks gains, after its own, the family of the machine's that has each of its East Asian characters, the first of the candidates that has it.
+    void aRunInAMissingFontGainsTheMachinesFamilyThatHasItsEastAsianCharacters()
+    {
+        if (installedFaceFor(0x6771).isEmpty() || installedFaceFor(0x3068).isEmpty()) QSKIP("this machine has no face for the Japanese characters of the test");
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Test Mincho That No Machine Has")});
+        const QTextCharFormat gained = withEastAsianFaces(cf, QString::fromUtf8("\xe6\x9d\xb1\xe4\xba\xac\xe3\x81\xa8"));
+        const QStringList families = gained.fontFamilies().toStringList();
+        QVERIFY2(families.size() >= 2 && families.first() == QStringLiteral("Test Mincho That No Machine Has"), qPrintable(families.join(QLatin1Char(','))));
+        QVERIFY2(families.contains(installedFaceFor(0x6771)) && families.contains(installedFaceFor(0x3068)), qPrintable(families.join(QLatin1Char(','))));
+    }
+
     // The line of Courier New is Courier New's wherever it is measured, though the text is drawn in TeX Gyre Cursor (whose own line is 1.201 em, to Courier New's 1.133):
     // the number of a list item is a run of its own on the first line, and the paragraph after a keep-with-next one is measured for room.
     void aNumberedCourierNewItemKeepsCourierNewsLine()

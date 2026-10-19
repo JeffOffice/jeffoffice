@@ -12433,6 +12433,14 @@ private Q_SLOTS:
         QVERIFY(at > 0);
         replaceWord(story, at, at + 5, QStringLiteral("brown"));
         QCOMPARE(story->toPlainText(), whole);
+        // Select All and typing: the text is replaced by what is typed, a paragraph to each stretch of text, and the notes and the saved part of them are as they were.
+        QTextCursor everything(story);
+        everything.select(QTextCursor::Document);
+        write::insertText(doc, everything, QStringLiteral("Z"));
+        QCOMPARE(tailOf(doc), 4);
+        QVERIFY(story->toPlainText().contains(QLatin1String(" Alpha body note brwon")) && story->toPlainText().contains(QLatin1String(" Beta body note")));
+        QVERIFY(story->findBlockByNumber(0).text().startsWith(QLatin1Char('Z')));
+        QCOMPARE(notesPartOf(doc.toDocx()), notesPartOf(zip));
     }
 
     // The caret passes the endnotes set at a section's end: from the last place of text of a section, Right, Down, Ctrl+Right, and Ctrl+Down go to the first place of the next section's
