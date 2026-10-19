@@ -111,13 +111,39 @@ QString liveFieldOf(const QString &instruction)
     return QStringLiteral("page");
 }
 
+// The text an XML text stands for: its character references decoded, the five named (&lt; &gt; &quot; &apos; &amp;) and the numeric ones (&#233; and &#xE9;), each once (the text
+// "&amp;#233;" is "&#233;"). A reference to something that is not a character the format allows is left as it was written.
+QString unescapedXml(const QString &text)
+{
+    if (!text.contains(QLatin1Char('&'))) return text;
+    static const QRegularExpression reference(QStringLiteral("&(?:#[xX]([0-9A-Fa-f]{1,8})|#([0-9]{1,10})|(lt|gt|quot|apos|amp));"));
+    QString out;
+    qsizetype last = 0;
+    for (auto it = reference.globalMatch(text); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        out += QStringView(text).mid(last, m.capturedStart() - last);
+        last = m.capturedEnd();
+        if (!m.captured(3).isEmpty()) {
+            const QString name = m.captured(3);
+            out += name == QLatin1String("lt") ? QLatin1Char('<') : name == QLatin1String("gt") ? QLatin1Char('>') : name == QLatin1String("quot") ? QLatin1Char('"') : name == QLatin1String("apos") ? QLatin1Char('\'') : QLatin1Char('&');
+            continue;
+        }
+        bool ok = false;
+        const uint code = m.captured(1).isEmpty() ? m.captured(2).toUInt(&ok, 10) : m.captured(1).toUInt(&ok, 16);
+        const bool allowed = ok && (code == 0x9 || code == 0xA || code == 0xD || (code >= 0x20 && code <= 0x10FFFF)) && !(code >= 0xD800 && code <= 0xDFFF) && code != 0xFFFE && code != 0xFFFF;
+        if (allowed) out += QString::fromUcs4(reinterpret_cast<const char32_t *>(&code), 1);
+        else out += m.captured(0);
+    }
+    out += QStringView(text).mid(last);
+    return out;
+}
+
 // The text inside an element kept as written (an instruction's words).
 QString textOfXml(const QByteArray &xml)
 {
     QString text = QString::fromUtf8(xml);
     text.remove(QRegularExpression(QStringLiteral("<[^>]*>")));
-    return text.replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&quot;"), QLatin1String("\""))
-        .replace(QLatin1String("&apos;"), QLatin1String("'")).replace(QLatin1String("&amp;"), QLatin1String("&"));
+    return unescapedXml(text);
 }
 
 // How many expressions the attributes of tags have been looked for with since the program began (one for each name), for a test of the cost of reading a file.
@@ -199,11 +225,9 @@ FormShown formShownOf(const QByteArray &begin)
 {
     FormShown shown;
     if (!begin.contains("ffData")) return shown;
-    auto unescaped = [](QString text) {
-        return text.replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&apos;"), QLatin1String("'"))
-            .replace(QLatin1String("&amp;"), QLatin1String("&"));
-    };
-    static const QRegularExpression entry(QStringLiteral("listEntry[^>]*?[\\s:]val\\s*=\\s*\"([^\"]*)\"")), resultAt(QStringLiteral("<w:result[^>]*?[\\s:]val\\s*=\\s*\"(-?\\d+)\"")),
+    auto unescaped = [](const QString &text) { return unescapedXml(text); };
+    // (A list's entry is an element named listEntry, with or without a prefix; one whose name only begins so, listEntryNote, is not.)
+    static const QRegularExpression entry(QStringLiteral("<(?:[\\w.-]+:)?listEntry(?=[\\s/>])[^>]*?[\\s:]val\\s*=\\s*\"([^\"]*)\"")), resultAt(QStringLiteral("<w:result[^>]*?[\\s:]val\\s*=\\s*\"(-?\\d+)\"")),
         defaultAt(QStringLiteral("<w:default[^>]*?[\\s:]val\\s*=\\s*\"([^\"]*)\"")), checkedAt(QStringLiteral("<w:checked\\b([^>]*)>")),
         valueOf(QStringLiteral("[\\s:]val\\s*=\\s*\"([^\"]*)\""));
     const QString raw = QString::fromUtf8(begin);

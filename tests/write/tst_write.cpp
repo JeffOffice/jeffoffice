@@ -11657,6 +11657,22 @@ private Q_SLOTS:
         QCOMPARE(audit::storyOf(*headedPage, heads[0]).split(QLatin1Char('\n')), shown);
     }
 
+    // The texts a form field shows have their character references decoded, the numeric ones too (&#233; and &#xE9;); a drop-down's entries are the entries of the list, not an element
+    // whose name only begins as one.
+    void aFormFieldsTextsHaveTheirCharacterReferencesDecoded()
+    {
+        auto field = [](const QByteArray &data, const QByteArray &code) {
+            return "<w:p><w:r><w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"F\"/>" + data + "</w:ffData></w:fldChar></w:r><w:r><w:instrText xml:space=\"preserve\"> " + code +
+                   " </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:p>";
+        };
+        const QByteArray text = "<w:textInput><w:default w:val=\"Caf&#233; &#xE9;t&#xE9; &amp; Co &#x1F600;\"/></w:textInput>";
+        const QByteArray drop = "<w:ddList><w:result w:val=\"1\"/><w:listEntryNote w:val=\"Not an entry\"/><w:listEntry w:val=\"Alpha\"/><w:listEntry w:val=\"Ren&#233;e &#x263A;\"/></w:ddList>";
+        auto doc = open(makeDocxWithParts(field(text, "FORMTEXT") + field(drop, "FORMDROPDOWN"), sectionXml(6000, 6000, 720), {}));
+        QVERIFY(doc);
+        QCOMPARE(boxLines(*doc), (QStringList{QString::fromUtf8("Caf\xc3\xa9 \xc3\xa9t\xc3\xa9 & Co \xf0\x9f\x98\x80"), QString::fromUtf8("Ren\xc3\xa9""e \xe2\x98\xba")}));
+        QVERIFY(documentXml(doc->toDocx()).contains(text) && documentXml(doc->toDocx()).contains(drop));
+    }
+
     // A frame that is aligned to the outside or the inside of the margin (w:xAlign) is set by the page's number: a paragraph of a header or a footer so aligned is marked to be (it is
     // not at one side for all pages), and the frame of the text is an object aligned to the inside or the outside.
     void aFrameAlignedInsideOrOutsideFollowsThePageNumber()
