@@ -100,6 +100,7 @@ enum : int {
     LegacyNumber,                                // bool (list format): the text after the number begins at the indent, whatever the file says of the hanging indent as a tab stop (a level of an older program's list; LayoutEnv::wordLines)
     BulletBold,                                  // bool (list format): the marker is bold or, when false, not, as its level's run properties say; absent: as the paragraph's mark (LayoutEnv::wordLines)
     BulletItalic,                                // bool (list format): the same for italic
+    NoAutoHyphen,                                // bool (paragraph): its words are not hyphenated by the layout though the story's frames hyphenate (a word processor's suppressAutoHyphens)
     AlignTab,                                    // QString (on a tab): a word processor's absolute position tab, "right|center|left:margin|indent:none|dot|hyphen|underscore|middleDot": the text after it goes to that place, whatever the paragraph's stops (LayoutEnv::wordLines)
 };
 

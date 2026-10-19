@@ -119,7 +119,7 @@ struct Shading {
 
 struct ParaProps {
     QString style;                    // pStyle
-    std::optional<bool> keepNext, keepLines, pageBreakBefore, widowControl, contextualSpacing;
+    std::optional<bool> keepNext, keepLines, pageBreakBefore, widowControl, contextualSpacing, suppressAutoHyphens;
     std::optional<int> numId, ilvl;   // numPr
     std::optional<QVector<TabStop>> tabs;
     std::optional<int> before, after; // twentieths of a point
@@ -563,6 +563,10 @@ bool compatOption(const QByteArray &settings, const char *name);
 struct CompatOptions {
     bool useFELayout = false, doNotWrapTextWithPunct = false, doNotUseHTMLParagraphAutoSpacing = false, noTabHangInd = false;
     bool doNotUseIndentAsNumberingTabStop = false, splitPgBreakAndParaMark = false, suppressTopSpacingWP = false, noLeading = false, suppressSpBfAfterPgBrk = false, wpJustification = false;
+    // Automatic hyphenation (w:autoHyphenation: on when stated and not turned off, and w:hyphenationZone: the room in twentieths of a point that a word is not hyphenated to fill, 360
+    // where the part says none), which are the settings' own, beside the options.
+    bool autoHyphenation = false;
+    int hyphenationZone = 360;
 };
 CompatOptions readCompatOptions(const QByteArray &settings);
 

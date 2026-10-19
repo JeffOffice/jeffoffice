@@ -209,6 +209,8 @@ public:
                 p.widowControl = onOffOf(t, c);
             } else if (name == "contextualSpacing") {
                 p.contextualSpacing = onOffOf(t, c);
+            } else if (name == "suppressAutoHyphens") {
+                p.suppressAutoHyphens = onOffOf(t, c);
             } else if (name == "numPr") {
                 for (int k = t.firstChild(c); k >= 0; k = t.next(k)) {
                     if (t.is(k, "ilvl")) p.ilvl = std::clamp(intOf(t, k).value_or(0), 0, 8);
@@ -1276,15 +1278,21 @@ CompatOptions readCompatOptions(const QByteArray &settings)
     CompatOptions o;
     XmlTree tree;
     if (!tree.parse(settings, nullptr)) return o;
-    const int compat = tree.child(tree.root(), "compat");
-    if (compat < 0) return o;
     // (As compatOption has it: stated, and not turned off.)
-    auto on = [&](const char *name) {
-        const int option = tree.child(compat, name);
+    auto isOn = [&](int option) {
         if (option < 0) return false;
         const QString value = tree.val(option).toLower();
         return !(value == QLatin1String("0") || value == QLatin1String("false") || value == QLatin1String("off"));
     };
+    o.autoHyphenation = isOn(tree.child(tree.root(), "autoHyphenation"));
+    if (const int zone = tree.child(tree.root(), "hyphenationZone"); zone >= 0) {
+        bool ok = false;
+        const int twips = tree.val(zone).toInt(&ok);
+        if (ok && twips > 0) o.hyphenationZone = std::min(twips, 31680);
+    }
+    const int compat = tree.child(tree.root(), "compat");
+    if (compat < 0) return o;
+    auto on = [&](const char *name) { return isOn(tree.child(compat, name)); };
     o.useFELayout = on("useFELayout");
     o.doNotWrapTextWithPunct = on("doNotWrapTextWithPunct");
     o.doNotUseHTMLParagraphAutoSpacing = on("doNotUseHTMLParagraphAutoSpacing");

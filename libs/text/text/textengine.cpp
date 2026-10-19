@@ -275,6 +275,7 @@ constexpr int kMostUnbrokenStretch = 120;
 // The longest stretch they kept so, since the program began, for a test of their cost.
 std::atomic<qint64> g_longestJoinedStretch{0};
 std::atomic<qint64> g_longestJoinedParagraphs{0};
+std::atomic<qint64> g_hyphenationLetters{0};
 inline void noteJoinedParagraphs(int n)
 {
     qint64 seen = g_longestJoinedParagraphs.load(std::memory_order_relaxed);
@@ -1271,6 +1272,7 @@ namespace { std::atomic<qint64> g_lineHeightsMeasured{0}; }   // (see StoryLayou
 
 qint64 StoryLayout::lineHeightsMeasuredForTest() { return g_lineHeightsMeasured.load(); }
 qint64 StoryLayout::longestJoinedStretchForTest() { return g_longestJoinedStretch.load(); }
+qint64 StoryLayout::hyphenationLettersLookedUpForTest() { return g_hyphenationLetters.load(); }
 qint64 StoryLayout::longestJoinedParagraphsForTest() { return g_longestJoinedParagraphs.load(); }
 void StoryLayout::resetLongestJoinedParagraphsForTest() { g_longestJoinedParagraphs = 0; }
 
@@ -2351,7 +2353,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         y = m_span.startY;
         columnEmpty = false;
     }
-    const bool hyphenate = !frames.isEmpty() && frames.first().hyphenate;
+    const bool hyphenateStory = !frames.isEmpty() && frames.first().hyphenate;
     const double zone = (frames.isEmpty() ? 18.0 : frames.first().hyphenZone) * env.fontScale;
 
     // Notes. A note's own text is laid out without notes of its own.
@@ -2603,6 +2605,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->docLen = b.position() + b.length() - 1 - B->docStart;
         B->propsStart = b.position();
         const QTextBlockFormat bf = b.blockFormat();
+        const bool hyphenate = hyphenateStory && !bf.boolProperty(tp::NoAutoHyphen);   // (a paragraph that says so is not hyphenated)
         // The fill under the paragraph's text, for text of the automatic color: its own shading, else what its frame is on (a table cell's fill).
         QColor behind = frames.isEmpty() ? QColor() : frames[std::min(f, nF - 1)].backdrop;
         if (env.wordLines && bf.hasProperty(tp::Borders))
@@ -2765,8 +2768,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     auto it = wordRe.globalMatch(raw);
                     while (it.hasNext()) {
                         const auto m = it.next();
+                        if (env.wordLines && m.capturedLength() > 64) continue;   // (a word processor's string of letters that long is no word to look up: a file can make one of any length)
                         const QString w = m.captured();
                         if (w == w.toUpper()) continue;   // leave all-caps words whole
+                        g_hyphenationLetters += int(w.size());
                         if (!hyphenationKnows(w, language)) continue;   // names and coined words stay whole
                         for (int pt : hyphenationPoints(w, language)) cuts.append({int(m.capturedStart()) + pt, QChar(0x00AD)});
                     }

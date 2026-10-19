@@ -352,6 +352,9 @@ void WriteDoc::setUpEnvironment()
     if (!m_wml.settingsName.isEmpty()) {
         // (One reading of the part for all of them.)
         const office::wml::CompatOptions compat = office::wml::readCompatOptions(partData(m_wml.settingsName));
+        // Words are hyphenated where the file asks (w:autoHyphenation), but for the zone that it sets.
+        f.hyphenate = compat.autoHyphenation;
+        f.hyphenZone = compat.hyphenationZone / 20.0;
         // (And how the endnotes are numbered, read here once, not at each story's making.)
         const office::wml::NoteNumbering endnotes = office::wml::readNoteNumbering(partData(m_wml.settingsName), "endnotePr");
         if (!endnotes.format.isEmpty()) m_endnoteFormat = endnotes.format;

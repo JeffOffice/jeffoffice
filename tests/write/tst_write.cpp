@@ -4471,6 +4471,61 @@ private Q_SLOTS:
         QVERIFY2(reads == 1, qPrintable(QStringLiteral("the settings were read %1 times").arg(reads)));
     }
 
+    // Words are hyphenated where the settings ask (w:autoHyphenation, by its value), for the zone they give (360 twentieths of a point where they give none); a paragraph that says
+    // suppressAutoHyphens, or whose style does, is not, and the mark is written back as it was read.
+    void autoHyphenationFollowsTheSettingsAndTheParagraphsMayRefuseIt()
+    {
+        const QByteArray plain = "<w:p><w:r><w:t>Alpha</w:t></w:r></w:p>";
+        auto flowOf = [&](const QByteArray &settings) { return open(makeDocxWithParts(plain, QByteArray(), {}, settings)); };
+        auto none = flowOf(QByteArray());
+        QVERIFY(none && !none->flow().hyphenate);
+        auto on = flowOf("<w:autoHyphenation/>");
+        QVERIFY(on && on->flow().hyphenate);
+        QCOMPARE(on->flow().hyphenZone, 18.0);
+        auto zone = flowOf("<w:autoHyphenation w:val=\"true\"/><w:hyphenationZone w:val=\"720\"/>");
+        QVERIFY(zone && zone->flow().hyphenate);
+        QCOMPARE(zone->flow().hyphenZone, 36.0);
+        auto off = flowOf("<w:autoHyphenation w:val=\"0\"/>");
+        QVERIFY(off && !off->flow().hyphenate);
+        const QByteArray styles = kStyles + "<w:style w:type=\"paragraph\" w:styleId=\"Tight\"><w:name w:val=\"Tight\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:suppressAutoHyphens/></w:pPr></w:style>";
+        const QByteArray body = "<w:p><w:r><w:t>none</w:t></w:r></w:p>"
+                                "<w:p><w:pPr><w:suppressAutoHyphens/></w:pPr><w:r><w:t>own</w:t></w:r></w:p>"
+                                "<w:p><w:pPr><w:pStyle w:val=\"Tight\"/></w:pPr><w:r><w:t>style</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, styles));
+        QVERIFY(doc);
+        QList<bool> refused;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) refused << b.blockFormat().boolProperty(tp::NoAutoHyphen);
+        QCOMPARE(refused, (QList<bool>{false, true, true}));
+        const QByteArray x = documentXml(doc->toDocx());
+        QCOMPARE(int(x.count("<w:suppressAutoHyphens/>")), 1);   // (the paragraph's own: the style's is the style's)
+    }
+
+    // With automatic hyphenation on, a word that does not fit the rest of its line breaks at one of its points (the lines of a narrow column take more of each word, and there are fewer
+    // of them); a paragraph that refuses it (suppressAutoHyphens) is as it is with it off; and a string of letters longer than any word is not looked up, whatever the file makes of it.
+    void hyphenatedWordsBreakAtTheirPointsAndALongStringIsNotLookedUp()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"3600\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"720\" w:bottom=\"1440\" w:left=\"720\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        QByteArray text;
+        for (int i = 0; i < 12; ++i) text += i % 2 ? "interpretation " : "reasonable ";
+        auto linesOf = [&](const QByteArray &settings, const QByteArray &props, const QByteArray &words) {
+            auto doc = open(makeDocxWithParts("<w:p><w:pPr>" + props + "</w:pPr><w:r><w:t xml:space=\"preserve\">" + words + "</w:t></w:r></w:p>", sect, {}, settings));
+            return doc ? int(doc->pager().lines(0).size()) : -1;
+        };
+        const int off = linesOf(QByteArray(), QByteArray(), text), on = linesOf("<w:autoHyphenation/>", QByteArray(), text);
+        QVERIFY2(off > 0 && on > 0 && on < off, qPrintable(QStringLiteral("%1 lines with hyphenation, %2 without").arg(on).arg(off)));
+        QCOMPARE(linesOf("<w:autoHyphenation/>", "<w:suppressAutoHyphens/>", text), off);
+        QCOMPARE(linesOf("<w:autoHyphenation w:val=\"false\"/>", QByteArray(), text), off);
+        // The same words with a string of twenty thousand letters among them have as many letters looked up as without it, and the few more of the word after it.
+        auto lookups = [&](const QByteArray &words) {
+            const qint64 before = StoryLayout::hyphenationLettersLookedUpForTest();
+            linesOf("<w:autoHyphenation/>", QByteArray(), words);
+            return StoryLayout::hyphenationLettersLookedUpForTest() - before;
+        };
+        const qint64 plainLookups = lookups(text), withString = lookups(text + QByteArray(20000, 'q') + " " + text.left(10));
+        QVERIFY2(plainLookups > 0, "the words are looked up");
+        QVERIFY2(withString <= plainLookups * 2, qPrintable(QStringLiteral("%1 lookups with the string, %2 without").arg(withString).arg(plainLookups)));
+    }
+
     // A file that says its hanging indents add no tab stop (noTabHangInd) is read so, by its value.
     void hangingIndentsAreNoTabStopsWhereTheFileSaysSo()
     {
