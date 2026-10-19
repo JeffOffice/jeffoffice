@@ -12431,6 +12431,71 @@ private Q_SLOTS:
         QCOMPARE(click(3), nextFirst);  // (the note: the last)
     }
 
+    // What is done to the characters of a selection that goes over the endnotes of a section reaches the text and not the notes: bold, italic, underline, a size, a color, a highlight, a
+    // face, super and subscript, a character style, and clearing the formatting; and a second Bold, over text that is all bold, turns it off (the notes' own looks are not counted).
+    void formattingASelectionLeavesTheEndnotesOfASectionAlone()
+    {
+        const QByteArray pr = "<w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>";
+        auto doc = open(sectionNotedDocx(pr, pr));
+        QVERIFY(doc);
+        QTextDocument *story = doc->story();
+        auto notes = [&] {
+            QList<QTextCharFormat> out;
+            for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+                if (b.blockFormat().hasProperty(prop::EndnoteBlock))
+                    for (auto it = b.begin(); !it.atEnd(); ++it) out << it.fragment().charFormat();
+            return out;
+        };
+        const QList<QTextCharFormat> before = notes();
+        QVERIFY(!before.isEmpty());
+        auto select = [&] {
+            QTextCursor c(story);
+            c.setPosition(0);
+            c.setPosition(story->findBlockByNumber(4).position() + story->findBlockByNumber(4).length() - 1, QTextCursor::KeepAnchor);
+            return c;
+        };
+        struct Change {
+            const char *name;
+            std::function<void(QTextCursor &)> make;
+        };
+        const Change changes[] = {
+            {"bold", [&](QTextCursor &c) { toggleBold(*doc, c); }},
+            {"italic", [&](QTextCursor &c) { toggleItalic(*doc, c); }},
+            {"underline", [&](QTextCursor &c) { toggleUnderline(*doc, c); }},
+            {"strike", [&](QTextCursor &c) { toggleStrike(*doc, c); }},
+            {"subscript", [&](QTextCursor &c) { toggleSubscript(*doc, c); }},
+            {"superscript", [&](QTextCursor &c) { toggleSuperscript(*doc, c); }},
+            {"size", [&](QTextCursor &c) { setFontSize(*doc, c, 30); }},
+            {"grow", [&](QTextCursor &c) { changeFontSize(*doc, c, 1); }},
+            {"face", [&](QTextCursor &c) { setFontFamily(*doc, c, QStringLiteral("Arimo")); }},
+            {"color", [&](QTextCursor &c) { setTextColor(*doc, c, QColor(200, 0, 0)); }},
+            {"highlight", [&](QTextCursor &c) { setHighlight(*doc, c, QStringLiteral("yellow")); }},
+            {"character style", [&](QTextCursor &c) { applyCharacterStyle(*doc, c, QStringLiteral("Strong")); }},
+            {"clear", [&](QTextCursor &c) { clearFormatting(*doc, c); }},
+        };
+        for (const Change &change : changes) {
+            QTextCursor c = select();
+            change.make(c);
+            QVERIFY2(notes() == before, change.name);
+        }
+        // The text took the formats: Bold on the whole is bold, and Bold again is not.
+        auto bold = [&] {
+            QTextCursor c = select();
+            return allSelected(c, [](const QTextCharFormat &f) { return f.fontWeight() >= QFont::DemiBold; });
+        };
+        QTextCursor c = select();
+        clearFormatting(*doc, c);
+        QVERIFY(!bold());
+        c = select();
+        toggleBold(*doc, c);
+        QVERIFY(bold());
+        QCOMPARE(notes(), before);
+        c = select();
+        toggleBold(*doc, c);
+        QVERIFY(!bold());
+        QCOMPARE(notes(), before);
+    }
+
     // The endnotes of a file of thousands of sections, each citing a note of many paragraphs, are made and set in the most the program sets in all (not that many for each section), and the
     // sections and the text are all there.
     void endnotesAtSectionEndsAreBoundedInAll()

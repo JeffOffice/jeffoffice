@@ -1285,9 +1285,11 @@ bool allSelected(const QTextCursor &c, const std::function<bool(const QTextCharF
     QTextDocument *d = c.document();
     const int from = c.selectionStart(), to = c.selectionEnd();
     // The pieces kept as XML (a bookmark, a field's code, a note's mark) are not the text's look: they are left out, unless the selection is nothing else.
+    // (The paragraphs that stand for something kept as XML, and the endnotes the pages set, are not the text's look either.)
     for (const bool withAtoms : {false, true}) {
         bool any = false;
-        for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next())
+        for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
+            if (isLocked(b)) continue;
             for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
                 const QTextFragment f = it.fragment();
                 if (f.position() + f.length() <= from || f.position() >= to) continue;
@@ -1295,6 +1297,7 @@ bool allSelected(const QTextCursor &c, const std::function<bool(const QTextCharF
                 any = true;
                 if (!test(f.charFormat())) return false;
             }
+        }
         if (any) return true;
     }
     return true;
@@ -1306,6 +1309,7 @@ void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QT
     Q_UNUSED(doc);
     QTextDocument *d = c.document();
     if (!c.hasSelection()) {
+        if (isLocked(c.block())) return;
         QTextCharFormat f = typingFormat(c);
         change(f);
         c.setCharFormat(f);
@@ -1321,6 +1325,7 @@ void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QT
     const int from = c.selectionStart(), to = c.selectionEnd();
     QVector<QPair<QTextBlock, QTextCharFormat>> marks;
     for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
+        if (isLocked(b)) continue;   // (what stands for a piece kept as XML, and the endnotes the pages set, are not the text: the looks of the characters leave them alone)
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment f = it.fragment();
             const int fs = std::max(f.position(), from), fe = std::min(f.position() + f.length(), to);
@@ -1329,7 +1334,7 @@ void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QT
             change(nf);
             if (nf != f.charFormat()) edits.push_back({fs, fe, nf});
         }
-        if (from <= b.position() && to > b.position() + b.length() - 1 && !isLocked(b)) {
+        if (from <= b.position() && to > b.position() + b.length() - 1) {
             QTextCharFormat nf = markFormat(b);
             change(nf);
             if (nf != markFormat(b)) marks.push_back({b, nf});
