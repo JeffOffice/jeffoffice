@@ -2290,7 +2290,7 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
             // 0.001 em of its place, or where no cut may fall; a new piece
             // takes up the drift.
             // (A space ends what a stretch's last letter can't carry alone, an unmeasured letter or an accent, so that what is left of the stretch doesn't go over the space.)
-            const bool spaceAfterStretch = byWord[before - r.start] && disp[i].isSpace();
+            const bool spaceAfterStretch = before >= 0 && byWord[before - r.start] && disp[i].isSpace();
             if (started && (std::abs(drift + pieceDelta - w) <= 0.001 * em || (!cuttable(disp[before]) && !spaceAfterStretch) || !cuttable(disp[i]))) {
                 drift += pieceDelta - w;
                 continue;
