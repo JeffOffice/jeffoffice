@@ -267,6 +267,86 @@ void WriteDoc::appendEndnotes()
     if (!closing.isEmpty()) fillStory(story(), closing, true, m_endnotePart, false, true);
 }
 
+// The endnotes the pages set are taken out of the story: each run of their paragraphs goes (with the break of a section that has them at its end, which goes back to the paragraph before
+// them, as the file has it). They are set again from the references the text has then (rebuildEndnoteTails).
+void WriteDoc::stripEndnoteTails()
+{
+    QTextDocument *d = story();
+    auto noteBlock = [](const QTextBlock &b) { return b.isValid() && b.blockFormat().hasProperty(prop::EndnoteBlock); };
+    QVector<std::pair<int, int>> runs;   // (the numbers of the first and the last paragraph of each run)
+    for (QTextBlock b = d->begin(); b.isValid(); b = b.next()) {
+        if (!noteBlock(b)) continue;
+        if (!runs.isEmpty() && runs.last().second == b.blockNumber() - 1) runs.last().second = b.blockNumber();
+        else runs.push_back({b.blockNumber(), b.blockNumber()});
+    }
+    for (int i = int(runs.size()) - 1; i >= 0; --i) {
+        const QTextBlock first = d->findBlockByNumber(runs[i].first), last = d->findBlockByNumber(runs[i].second), before = first.previous();
+        if (!before.isValid()) continue;   // (notes with no paragraph before them: none are made so)
+        const QTextBlockFormat lastFormat = last.blockFormat();
+        if (lastFormat.boolProperty(flow::fp::SectionBreakAfter)) {
+            QTextBlockFormat bf = before.blockFormat();
+            bf.setProperty(flow::fp::SectionBreakAfter, true);
+            if (lastFormat.hasProperty(prop::SectionData)) bf.setProperty(prop::SectionData, lastFormat.property(prop::SectionData));
+            QTextCursor(before).setBlockFormat(bf);
+        }
+        QTextCursor gone(d);
+        gone.setPosition(before.position() + before.length() - 1);
+        gone.setPosition(last.position() + last.length() - 1, QTextCursor::KeepAnchor);
+        gone.removeSelectedText();
+    }
+    m_tailsStripped = m_tailsStripped || !runs.isEmpty();
+}
+
+// The endnotes set again after an edit that changed the sections (or took them out of the story): from the references the text has now, in the sections it has now, as they were first
+// set. One step of the undo stack with the edit.
+void WriteDoc::rebuildEndnoteTails()
+{
+    m_tailsStripped = false;
+    if (!m_endnotesAtSectionEnds || m_endnoteBlocks.isEmpty()) return;
+    QTextDocument *d = story();
+    QTextCursor edit(d);
+    edit.joinPreviousEditBlock();
+    stripEndnoteTails();
+    m_tailsStripped = false;
+    // Where each section's notes go: its own properties say, else the settings.
+    auto atEndOf = [&](const SectionProps &section) {
+        office::wml::NoteNumbering own = office::wml::noteNumberingOf(section, "endnotePr");
+        if (own.position.isEmpty()) own.position = m_endnotePosition;
+        return own.position == QLatin1String("sectEnd");
+    };
+    QVector<bool> atEnd;
+    SectionProps before = m_last;
+    for (QTextBlock b = d->begin(); b.isValid(); b = b.next()) {
+        const QTextBlockFormat bf = b.blockFormat();
+        if (!bf.boolProperty(flow::fp::SectionBreakAfter)) continue;
+        if (bf.hasProperty(prop::SectionData)) before = unpackSection(storedBytes(bf, prop::SectionData));
+        atEnd.push_back(atEndOf(before));
+    }
+    atEnd.push_back(atEndOf(m_last));
+    m_endnoteRefs.clear();
+    int section = 0;
+    for (QTextBlock b = d->begin(); b.isValid() && m_endnoteRefs.size() < kMostEndnotes; b = b.next()) {
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd() && m_endnoteRefs.size() < kMostEndnotes; ++it) {
+            const QTextFragment f = it.fragment();
+            const QTextCharFormat cf = f.charFormat();
+            if (!cf.hasProperty(prop::Atom) || cf.hasProperty(prop::TrackedDeleted)) continue;
+            const QByteArray bytes = storedBytes(cf, prop::Atom);
+            if (!bytes.contains("endnoteReference")) continue;
+            const Inline atom = unpackAtom(bytes);
+            if (atom.tag != QLatin1String("endnoteReference")) continue;
+            const QString mark = cf.stringProperty(tp::Field).mid(4);   // ("raw:" and the number the reference shows)
+            for (const QChar ch : f.text())
+                if (ch == QChar::ObjectReplacementCharacter && m_endnoteRefs.size() < kMostEndnotes) m_endnoteRefs.push_back({atom.key, mark, section, atEnd.value(section)});
+        }
+        if (b.blockFormat().boolProperty(flow::fp::SectionBreakAfter)) ++section;
+    }
+    m_endnoteSections = section + 1;
+    appendEndnotes();
+    edit.endEditBlock();
+    m_blockCount = d->blockCount();
+    syncSections();
+}
+
 void WriteDoc::loadNotes()
 {
     m_noteBlocks.clear();

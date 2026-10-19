@@ -86,6 +86,8 @@ void resetStyleRefParagraphsScannedForTest();
 // The most paragraphs of the endnotes that are set after the text (a few for each of the at most 5,000 notes), and how many the program has made copies of for them since the
 // count was reset: a file whose one note of thousands of paragraphs is referred to thousands of times has no more of them made than the most.
 constexpr int kMostEndnoteParagraphs = 20000;
+// The most endnote references of the text that are counted for the notes set after it (the rest are left out: a reference to one shows only its number).
+constexpr int kMostEndnotes = 5000;
 qint64 endnoteParagraphsMadeForTest();
 void resetEndnoteParagraphsMadeForTest();
 
@@ -108,6 +110,16 @@ public:
     flow::FlowDocument &flow() { return *m_flow; }
     QTextDocument *story() const { return m_flow->story(); }
     flow::Paginator &pager() { return *m_pager; }
+
+    // ---- the endnotes the pages set
+    // Whether any section puts its endnotes at its end (w:pos sectEnd): they are paragraphs of the story in the middle of it, which an edit that changes the number of the sections sets
+    // again (in the edit's own undo step), as the references the text has now fall in the sections it has now.
+    bool hasSectionEndEndnotes() const { return m_endnotesAtSectionEnds; }
+    // Takes every run of the endnotes the pages set out of the story (a section's break goes back to the paragraph before its notes), and says so (they are set again by
+    // rebuildEndnoteTails, which the edit that took them out is to end with).
+    void stripEndnoteTails();
+    bool endnoteTailsStripped() const { return m_tailsStripped; }
+    void rebuildEndnoteTails();
 
     // ---- sections
     // The sections in order; the last has no break paragraph. Changing one writes it into its break paragraph, so it undoes with the text.
@@ -273,6 +285,8 @@ private:
     int m_endnoteStart = 1;                                    // and the number the first begins with
     QString m_endnotePosition;                                 // where the settings put the endnotes (w:pos): empty, or docEnd, at the document's end
     int m_endnoteSections = 1;                                 // the sections the text has
+    bool m_endnotesAtSectionEnds = false;                      // some section's endnotes are set at its end
+    bool m_tailsStripped = false;                              // the endnotes were taken out of the story, to be set again
     const office::wml::SectionProps *m_tailSection = nullptr;  // the section whose endnotes are being set (its page's width is the separator's), or none: the last
     int m_boxTableCells = 0;   // the cells of the tables that the text boxes drawn so far hold (a document's boxes have kMostBoxTableCells of them in all: the rest are kept as they were)
     int m_letteringShapes = 0, m_letteringLetters = 0;   // the lettering on a path the document has drawn so far, and its letters (each is outlined, and may be stroked: they are bounded)

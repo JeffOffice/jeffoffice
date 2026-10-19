@@ -12320,14 +12320,8 @@ private Q_SLOTS:
         word.setPosition(story->findBlockByNumber(3).position() + 7, QTextCursor::KeepAnchor);
         insertText(*doc, word, QStringLiteral("ZZZ"));
         QCOMPARE(story->toPlainText(), before);
-        // At the edges: Delete at the end of the section's last text does not take in the notes, nor Backspace at the start of the next section's.
+        // At the edges Delete and Backspace join the paragraphs round the notes and end the section's break (deleteAndBackspaceAtTheEndnotesOfASectionEndTheBreak).
         QTextCursor edge(story);
-        edge.setPosition(story->findBlockByNumber(1).position() + story->findBlockByNumber(1).length() - 1);
-        deleteForward(*doc, edge, false);
-        QCOMPARE(story->toPlainText(), before);
-        edge.setPosition(story->findBlockByNumber(4).position());
-        deleteBack(*doc, edge, false);
-        QCOMPARE(story->toPlainText(), before);
         // Typing at the end of the section's last text is typing in the text.
         edge.setPosition(story->findBlockByNumber(1).position() + story->findBlockByNumber(1).length() - 1);
         insertText(*doc, edge, QStringLiteral("!"));
@@ -12527,6 +12521,89 @@ private Q_SLOTS:
         toggleBold(*doc, c);
         QVERIFY(!bold());
         QCOMPARE(notes(), before);
+    }
+
+    // At the edge of the endnotes set at a section's end, Delete at the end of the section's last paragraph and Backspace at the start of the next section's join the two paragraphs and
+    // so end the section break, as they do where the section has no notes; the notes of the one section that is left are in one tail at its end, in the order of their references. One
+    // undo restores the sections and the notes exactly, and a redo does it again; and what is saved opens the same.
+    void deleteAndBackspaceAtTheEndnotesOfASectionEndTheBreak()
+    {
+        const QByteArray pr = "<w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>";
+        for (const bool forward : {true, false}) {
+            auto doc = open(sectionNotedDocx(pr, pr));
+            QVERIFY(doc);
+            QTextDocument *story = doc->story();
+            const QString before = story->toPlainText();
+            const QStringList paragraphsBefore = storyParagraphs(*doc);
+            QTextCursor c(story);
+            if (forward) c.setPosition(story->findBlockByNumber(1).position() + story->findBlockByNumber(1).length() - 1);
+            else c.setPosition(story->findBlockByNumber(4).position());
+            if (forward) deleteForward(*doc, c, false);
+            else deleteBack(*doc, c, false);
+            const QString which = forward ? QStringLiteral("Delete") : QStringLiteral("Backspace");
+            const QStringList joined = {QStringLiteral("First body"), QStringLiteral("Second bodyThird body"), QStringLiteral("Sources"), QStringLiteral("Alpha body note brwon"), QStringLiteral("Beta body note")};
+            QVERIFY2(storyParagraphs(*doc) == joined, qPrintable(which + QStringLiteral(": ") + storyParagraphs(*doc).join(QLatin1Char('|'))));
+            QCOMPARE(doc->sectionCount(), 1);
+            QCOMPARE(tailOf(*doc), 3);
+            const QString after = story->toPlainText();
+            const QByteArray written = documentXml(doc->toDocx());
+            QCOMPARE(written.count("<w:sectPr"), 1);
+            QCOMPARE(savedBody(*doc), QStringLiteral("First body|Second bodyThird body"));
+            auto reopened = open(doc->toDocx());
+            QVERIFY(reopened);
+            QCOMPARE(storyParagraphs(*reopened), joined);
+            story->undo();
+            QCOMPARE(story->toPlainText(), before);
+            QCOMPARE(storyParagraphs(*doc), paragraphsBefore);
+            QCOMPARE(doc->sectionCount(), 2);
+            QCOMPARE(documentXml(doc->toDocx()).count("<w:sectPr"), 2);
+            story->redo();
+            QCOMPARE(story->toPlainText(), after);
+            QCOMPARE(doc->sectionCount(), 1);
+        }
+    }
+
+    // A section break put inside a section that has its notes at its end sends each note to the end of the section its reference is in now (the first part's notes were after the second
+    // part's text until the file was opened again); one undo and one redo restore both exactly, and what is saved opens the same.
+    void aSectionBreakPutInASectionMovesItsNotesToTheEndOfTheRightPart()
+    {
+        const QByteArray pr = "<w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>";
+        const QByteArray body = "<w:p><w:r><w:t>First body</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p><w:p><w:r><w:t>Second body</w:t></w:r><w:r><w:endnoteReference w:id=\"3\"/></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:t>Sources</w:t></w:r></w:p></w:endnote>"
+                                 "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Alpha body note brwon</w:t></w:r></w:p></w:endnote>"
+                                 "<w:endnote w:id=\"3\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Beta body note</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        const QByteArray zip = makeDocxWithParts(body, sectionXml(6000, 6000, 720, pr), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>");
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *story = doc->story();
+        const QStringList one = {QStringLiteral("First body"), QStringLiteral("Second body"), QStringLiteral("Sources"), QStringLiteral("Alpha body note brwon"), QStringLiteral("Beta body note")};
+        QCOMPARE(storyParagraphs(*doc), one);
+        const QString before = story->toPlainText();
+        QTextCursor c(story);
+        c.setPosition(story->findBlockByNumber(0).position() + story->findBlockByNumber(0).length() - 1);
+        insertSectionBreak(*doc, c);
+        const QStringList two = {QStringLiteral("First body"), QStringLiteral("Sources"), QStringLiteral("Alpha body note brwon"), QString(), QStringLiteral("Second body"), QStringLiteral("Sources"), QStringLiteral("Beta body note")};
+        QVERIFY2(storyParagraphs(*doc) == two, qPrintable(storyParagraphs(*doc).join(QLatin1Char('|'))));
+        QCOMPARE(doc->sectionCount(), 2);
+        QList<bool> breaks;
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) breaks << b.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
+        QCOMPARE(breaks, (QList<bool>{false, false, true, false, false, false, false}));
+        const QString after = story->toPlainText();
+        const QByteArray written = documentXml(doc->toDocx());
+        QCOMPARE(written.count("<w:sectPr"), 2);
+        QCOMPARE(savedBody(*doc), QStringLiteral("First body||Second body"));
+        QCOMPARE(notesPartOf(doc->toDocx()), notesPartOf(zip));
+        auto reopened = open(doc->toDocx());
+        QVERIFY(reopened);
+        QCOMPARE(storyParagraphs(*reopened), two);
+        story->undo();
+        QCOMPARE(story->toPlainText(), before);
+        QCOMPARE(storyParagraphs(*doc), one);
+        QCOMPARE(doc->sectionCount(), 1);
+        story->redo();
+        QCOMPARE(story->toPlainText(), after);
+        QCOMPARE(storyParagraphs(*doc), two);
+        QCOMPARE(doc->sectionCount(), 2);
     }
 
     // The endnotes of a file of thousands of sections, each citing a note of many paragraphs, are made and set in the most the program sets in all (not that many for each section), and the

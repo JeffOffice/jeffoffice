@@ -58,7 +58,6 @@ constexpr int kMostImages = 2000;
 // The most cells of the tables of text boxes that a document has laid out in its boxes (a box whose tables would go over it keeps them as stand-ins).
 constexpr int kMostBoxTableCells = 2000;
 // The most endnotes that are set after the text (the rest are left out: a reference to one shows only its number), as many as the footnotes that are made into stories.
-constexpr int kMostEndnotes = 5000;
 
 namespace {
 bool drawnTag(const QString &tag)
@@ -501,11 +500,14 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             return own;
         };
         office::wml::NoteNumbering next = numberingOf(m_wml.lastSection);
+        bool anyAtEnd = next.position == QLatin1String("sectEnd");
         for (int i = int(body.size()) - 1; i >= 0; --i) {
             if (!body[i].isRaw && body[i].para.props.section) next = numberingOf(*body[i].para.props.section);
             endnoteFormats[i] = next.format;
             endnotesAtSectionEnd[i] = next.position == QLatin1String("sectEnd");
+            anyAtEnd = anyAtEnd || endnotesAtSectionEnd[i];
         }
+        if (!append) m_endnotesAtSectionEnds = anyAtEnd;
     }
     int sectionNo = 0;   // (the sections that have ended so far: the one the paragraph is in)
     auto lineWidth = [&]() {

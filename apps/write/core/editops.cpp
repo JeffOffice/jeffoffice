@@ -425,13 +425,45 @@ struct AdvanceGuard {
     const QTextCursor &c;
 };
 
+// An edit block that is opened when the edit needs it (the endnotes taken out of the story and the paragraphs joined are one step of the undo stack) and is ended with the scope.
+struct HeldEdit {
+    explicit HeldEdit(QTextDocument *d) : cursor(d) {}
+    ~HeldEdit()
+    {
+        if (open) cursor.endEditBlock();
+    }
+    void begin()
+    {
+        if (open) return;
+        open = true;
+        cursor.beginEditBlock();
+    }
+    QTextCursor cursor;
+    bool open = false;
+    HeldEdit(const HeldEdit &) = delete;
+    HeldEdit &operator=(const HeldEdit &) = delete;
+};
+
 // Numbers the items of the lists again when an edit that can change them is done (the guard is made before the edit's own edit block, and what it changes joins that edit's
 // undo step). Edits that call one another renumber once, when the first is done.
 struct NumberGuard {
-    NumberGuard(WriteDoc &d, QTextDocument *s) : doc(d), story(s) { ++depth(); }
+    NumberGuard(WriteDoc &d, QTextDocument *s) : doc(d), story(s)
+    {
+        if (depth()++ == 0) sections() = doc.sectionCount();
+    }
     ~NumberGuard()
     {
-        if (--depth() == 0) doc.renumberLists(story);
+        if (--depth() == 0) {
+            // (An edit that changed the sections, or took the notes out of the story to join the paragraphs round them, sets the endnotes at the ends of sections again, as part of its
+            // own undo step.)
+            if (doc.hasSectionEndEndnotes() && (doc.sectionCount() != sections() || doc.endnoteTailsStripped())) doc.rebuildEndnoteTails();
+            doc.renumberLists(story);
+        }
+    }
+    static int &sections()
+    {
+        static thread_local int n = 0;
+        return n;
     }
     NumberGuard(const NumberGuard &) = delete;
     NumberGuard &operator=(const NumberGuard &) = delete;
@@ -791,6 +823,7 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
         return;
     }
     QTextDocument *d = c.document();
+    HeldEdit held(d);
     if (isLocked(c.block())) return;
     settleBesideDeletions(c);
     if (byWord && !c.atBlockStart()) {
@@ -820,6 +853,16 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
     }
     QTextBlock prev = b.previous();
     while (prev.isValid() && isHiddenDeleted(prev)) prev = prev.previous();
+    // After the endnotes set at the end of a section: the break ends, as it does where there are none; the notes are taken out and set again when the paragraphs are joined.
+    if (prev.isValid() && noteBlock(prev) && doc.hasSectionEndEndnotes()) {
+        QTextBlock real = prev;
+        while (noteBlock(real)) real = real.previous();
+        if (!real.isValid() || isLocked(real) || !canJoinBlocks(real, b) || !sameFrame(real, b)) return;
+        held.begin();
+        doc.stripEndnoteTails();
+        b = c.block();
+        prev = b.previous();
+    }
     if (!prev.isValid() || isLocked(prev) || !canJoinBlocks(prev, b) || !sameFrame(prev, b)) return;
     if (prev.next() != b) {
         joinAcrossDeleted(doc, c, prev, b);
@@ -845,6 +888,7 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
         return;
     }
     QTextDocument *d = c.document();
+    HeldEdit held(d);
     if (isLocked(c.block())) return;
     settleBesideDeletions(c);
     if (byWord && !c.atBlockEnd()) {
@@ -865,6 +909,15 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
     }
     QTextBlock next = c.block().next();
     while (next.isValid() && isHiddenDeleted(next)) next = next.next();
+    // Before the endnotes set at the end of a section, with a paragraph after them: the break ends, as it does where there are none (as Backspace does at the start of that paragraph).
+    if (next.isValid() && noteBlock(next) && doc.hasSectionEndEndnotes()) {
+        QTextBlock real = next;
+        while (noteBlock(real)) real = real.next();
+        if (!real.isValid() || isLocked(real) || !canJoinBlocks(c.block(), real) || !sameFrame(c.block(), real)) return;
+        held.begin();
+        doc.stripEndnoteTails();
+        next = c.block().next();
+    }
     if (!next.isValid() || isLocked(next) || !canJoinBlocks(c.block(), next) || !sameFrame(c.block(), next)) return;
     if (c.block().next() != next) {
         joinAcrossDeleted(doc, c, c.block(), next);
