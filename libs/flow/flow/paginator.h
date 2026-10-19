@@ -468,6 +468,8 @@ private:
     QRectF placeOf(const FloatingObject &o, const Anchor &a, const Section &sec, bool clamp = true, double limit = -1) const;
     // The section as a page that has `number` has it: with facing pages (FlowDocument::mirrorMargins) a page with an even number has the sides of the margins swapped, in `scratch`.
     const Section &sectionOf(const PageStart &st, int number, Section *scratch) const;
+    // The section with that index as the page with that number has it (the margins' sides swapped on a page with an even number where the margins are mirrored): `scratch` holds the copy.
+    const Section &sectionNumbered(int index, int number, Section *scratch) const;
     // Puts the objects of the anchors on a page made for painting: pictures (their data in the page's document), rules, boxes, and text boxes, behind the
     // text or over it. Those in `wrapped` (the objects the page was laid out with) are where it was laid out with them and ask the text to go round; any other asks nothing.
     // (An object with a wrap that leaves no text beside it is a wall as wide as the columns that it reaches into, which `columns` (their rectangles on the page) say: the page layer's

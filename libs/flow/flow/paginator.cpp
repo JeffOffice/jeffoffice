@@ -121,7 +121,12 @@ static int firstPageShift(const FlowDocument &doc)
 
 const Section &Paginator::sectionOf(const PageStart &st, int number, Section *scratch) const
 {
-    const Section &base = m_doc->section(st.section);
+    return sectionNumbered(st.section, number, scratch);
+}
+
+const Section &Paginator::sectionNumbered(int index, int number, Section *scratch) const
+{
+    const Section &base = m_doc->section(index);
     if (!m_doc->mirrorMargins || number % 2 != 0 || base.margins.left() == base.margins.right()) return base;
     *scratch = base;
     scratch->margins = QMarginsF(base.margins.right(), base.margins.top(), base.margins.left(), base.margins.bottom());
@@ -440,7 +445,8 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         if (splitting) {
             // (The parts' columns, one part after another, are made below; here they are what the frame past the page's last comes after.)
             for (int k = 0; k < splitSections.size(); ++k) {
-                const Section &partSection = m_doc->section(splitSections[k]);
+                Section mirroredPart;
+                const Section &partSection = sectionNumbered(splitSections[k], number, &mirroredPart);
                 for (int c = 0; c < partSection.columnCount(); ++c) {
                     frames << frame(colW, colH);
                     run.cols << QRectF(partSection.columnRect(c).left(), 0, colW, colH);
@@ -506,8 +512,9 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                     int prevEnd = -1;   // where the part above ended
                     bool failed = false;
                     for (int k = 0; k < parts && !failed; ++k) {
-                        const Section &here = m_doc->section(splitSections[k]);
-                        const Section &below = m_doc->section(splitSections[std::min(k + 1, parts - 1)]);
+                        Section mirroredHere, mirroredBelow;
+                        const Section &here = sectionNumbered(splitSections[k], number, &mirroredHere);
+                        const Section &below = sectionNumbered(splitSections[std::min(k + 1, parts - 1)], number, &mirroredBelow);
                         const bool lastPart = k + 1 == parts;
                         const int columns = here.columnCount();
                         const double room = std::max(1.0, colH - top - reservedAbove);

@@ -4967,6 +4967,49 @@ private Q_SLOTS:
         }
     }
 
+    // The text of a page that is laid out in parts (a continuous section with other columns begins on it, under the text of the section before) is set between the mirrored margins on a
+    // page with an even number, in every part: the single column of the first and the columns of the second.
+    void mirroredMarginsHoldOnAPageLaidOutInParts()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.mirrorMargins = true;
+        fillStory(fd.story(), 14, 7, [](int i, QTextBlockFormat &bf) {
+            if (i == 1) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore);
+            if (i == 1) bf.setProperty(fp::SectionBreakAfter, true);
+        }, 40, 60);
+        Section &one = fd.sections[0];
+        one.margins = QMarginsF(100, 72, 40, 72);
+        Section two = one;
+        two.continuous = true;
+        two.columns = 2;
+        two.columnGap = 20;
+        fd.sections << two;
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        const auto m = pg.materialize(1);   // (the page with the number 2: the text of the first section, and the columns of the second under it)
+        QVERIFY(m);
+        QStringList all;
+        for (const auto &id : m->boxes)
+            if (const auto *box = dynamic_cast<const TextItem *>(m->doc->item(id))) all << QStringLiteral("[%1 %2]").arg(box->rect.left()).arg(box->rect.right());
+        QVERIFY2(m->boxes.size() >= 3, qPrintable(QStringLiteral("%1 pages, the boxes: %2").arg(pg.pageCount()).arg(all.join(QLatin1Char(' ')))));
+        QVector<double> lefts, rights;
+        for (const auto &id : m->boxes)
+            if (const auto *box = dynamic_cast<const TextItem *>(m->doc->item(id))) {
+                lefts << box->rect.left();
+                rights << box->rect.right();
+            }
+        QVERIFY(lefts.size() >= 3);
+        QVERIFY2(*std::min_element(lefts.begin(), lefts.end()) > 39.99 && *std::min_element(lefts.begin(), lefts.end()) < 40.01, qPrintable(QStringLiteral("the text begins at %1, not 40").arg(*std::min_element(lefts.begin(), lefts.end()))));
+        QVERIFY2(*std::max_element(rights.begin(), rights.end()) > 511.99 && *std::max_element(rights.begin(), rights.end()) < 512.01, qPrintable(QStringLiteral("the text ends at %1, not 512").arg(*std::max_element(rights.begin(), rights.end()))));
+        // (The columns are 226 wide, one from 40 and one from 286.)
+        int columns = 0;
+        for (const double left : lefts) columns += std::abs(left - 40) < 0.01 || std::abs(left - 286) < 0.01;
+        QStringList begins;
+        for (const double left : lefts) begins << QString::number(left);
+        QVERIFY2(columns == lefts.size(), qPrintable(QStringLiteral("boxes begin at %1").arg(begins.join(QLatin1Char(',')))));
+    }
+
     // Pages that an edit moves down by a page change from odd to even, and where odd and even pages have headers of other heights they are laid out again:
     // the pages after the edit are the ones a fresh paginator makes.
     void evenAndOddHeadersOfOtherHeightsSettleAfterAnEdit()
