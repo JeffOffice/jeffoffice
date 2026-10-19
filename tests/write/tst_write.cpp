@@ -11531,7 +11531,8 @@ private Q_SLOTS:
         QCOMPARE(audit::storyOf(*headedPage, heads[0]), line);
     }
 
-    // An equation that is a paragraph of its own (m:oMathPara) is a line of its own, centered.
+    // An equation that is a paragraph of its own (m:oMathPara) is a line of its own, centered on the page: the line it makes is in the middle of the text area, and the paragraphs round it
+    // begin at the left.
     void anEquationOfItsOwnParagraphIsCentered()
     {
         const QByteArray ns = "xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"";
@@ -11539,8 +11540,40 @@ private Q_SLOTS:
                                           sectionXml(6000, 6000, 720), {}));
         QVERIFY(doc);
         QCOMPARE(boxLines(*doc), (QStringList{QStringLiteral("Before"), QStringLiteral("a = b"), QStringLiteral("After")}));
-        QVERIFY(doc->story()->findBlockByNumber(1).blockFormat().alignment() & Qt::AlignHCenter);
-        QVERIFY(!(doc->story()->findBlockByNumber(0).blockFormat().alignment() & Qt::AlignHCenter));
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page && !page->boxes.isEmpty());
+        const auto *box = dynamic_cast<const TextItem *>(page->doc->item(page->boxes[0]));
+        QVERIFY(box);
+        FrameSpec fs;
+        fs.size = box->rect.size();
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        fs.hyphenate = false;
+        StoryLayout layout;
+        layout.build(page->doc->story(box->storyId)->doc.get(), {fs}, doc->flow().env);
+        auto rectOfBlock = [&](int number) {
+            const QTextBlock b = page->doc->story(box->storyId)->doc->findBlockByNumber(number);
+            const QVector<QRectF> rects = layout.rangeRects(0, b.position(), b.position() + std::max(1, b.length() - 1));
+            return rects.isEmpty() ? QRectF() : rects.first();
+        };
+        const QRectF equation = rectOfBlock(1), before = rectOfBlock(0);
+        QVERIFY2(equation.width() > 0 && std::abs((equation.left() + equation.right()) / 2 - fs.size.width() / 2) < 3, qPrintable(QStringLiteral("the equation is from %1 to %2 in %3").arg(equation.left()).arg(equation.right()).arg(fs.size.width())));
+        QVERIFY2(before.left() < 3, qPrintable(QStringLiteral("the paragraph before begins at %1").arg(before.left())));
+    }
+
+    // Opened and saved with no edit, a paragraph that is an equation of its own is as the file had it: the centering the pages give it is not written (no w:jc is added to it).
+    void anEquationOfItsOwnParagraphIsWrittenBackAsItWas()
+    {
+        const QByteArray ns = "xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"";
+        const QByteArray equation = "<w:p><m:oMathPara " + ns + "><m:oMath><m:r><m:t>a=b</m:t></m:r></m:oMath></m:oMathPara></w:p>";
+        auto doc = open(makeDocxWithParts("<w:p><w:r><w:t>Before</w:t></w:r></w:p>" + equation + "<w:p><w:r><w:t>After</w:t></w:r></w:p>", sectionXml(6000, 6000, 720), {}));
+        QVERIFY(doc);
+        const QByteArray saved = documentXml(doc->toDocx());
+        QVERIFY2(saved.contains(equation), saved.constData());
+        QVERIFY(!saved.contains("<w:jc"));
+        // (And a second save, after the file is opened again, is the same.)
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QCOMPARE(documentXml(again->toDocx()), saved);
     }
 
     // A letter of the mathematical alphanumeric block in the text (a run in a math face has it) is drawn as its letter, in the style it stands for (italic here), where no face of the

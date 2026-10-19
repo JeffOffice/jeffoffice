@@ -715,7 +715,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 bf.setRightMargin(std::max(0.0, wide - 144.0));
             }
         }
-        if (const int look = displayMathAlignment(p); look >= 0) bf.setAlignment(Qt::Alignment(look));
+        // (An equation alone in its paragraph is centered by the pages; what is written back is the paragraph as the file has it.)
+        if (const int look = displayMathAlignment(p); look >= 0) bf.setProperty(tp::DisplayAlignment, look);
         startBlock(bf, markFormat);
         if (numId > 0) {
             NumState &st = numbering[numId];

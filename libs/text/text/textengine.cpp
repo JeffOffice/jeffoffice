@@ -3195,6 +3195,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         QTextOption opt;
         Qt::Alignment al = bf.alignment() & Qt::AlignHorizontal_Mask;
         if (!al) al = Qt::AlignLeft;
+        // A paragraph that a word processor's file leaves to the layout to align (an equation alone in its paragraph is centered, whatever its alignment says): set while the paragraph
+        // holds nothing but pieces kept as XML.
+        if (env.wordLines && bf.hasProperty(tp::DisplayAlignment)) {
+            const QString shown = b.text();
+            bool alone = true;
+            for (const QChar ch : shown) alone = alone && (ch == QChar::ObjectReplacementCharacter || ch.isSpace());
+            if (alone) al = Qt::Alignment(bf.intProperty(tp::DisplayAlignment)) & Qt::AlignHorizontal_Mask;
+        }
         // A paragraph's left and right alignment are its start and end (as in
         // .pub files): a right-to-left paragraph starts at the right. Qt's
         // text layout takes them as the page's sides, so they swap here.
