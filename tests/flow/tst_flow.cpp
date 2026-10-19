@@ -10,6 +10,7 @@
 #include "../timing.h"
 #include "pageaudit.h"
 #include "render/renderer.h"
+#include "text/hyphenation.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 
@@ -777,12 +778,12 @@ QVector<StoryLayout::LineInfo> wordLinesOf(const QVector<std::pair<QString, doub
 // A line of text in a missing face the original's letter widths are measured for, as the layout sets it (size in points, on the word processor's path, kerned
 // or not, or the publication's): `x` is each caret's place (one more than there are characters), `cell` where the original's widths put each character (kerning
 // pairs included where the text is kerned), `stand` the advance of each character in the stand-in the layout draws (in em), and `width` the original's (in em).
-// `splits` are the places where the text goes on in a run of its own. A character that no table measures keeps its stand-in's width in `width` (as in the layout).
+// `splits` are the places where the text goes on in a run of its own; `hyphenate` lets the layout hyphenate words by its own rule. A character that no table measures keeps its stand-in's width in `width` (as in the layout).
 struct LetterLine {
     QVector<double> x, cell, stand, width;
 };
 
-LetterLine letterLineOf(const QString &family, const QString &text, double size, bool word, bool kerned = true, const QVector<int> &splits = {})
+LetterLine letterLineOf(const QString &family, const QString &text, double size, bool word, bool kerned = true, const QVector<int> &splits = {}, bool hyphenate = false)
 {
     LetterLine line;
     QTextCharFormat cf;
@@ -805,7 +806,9 @@ LetterLine letterLineOf(const QString &family, const QString &text, double size,
             other = !other;
         }
         StoryLayout lay;
-        lay.build(&doc, {plainFrame(8000, 400)}, env);
+        FrameSpec frame = plainFrame(8000, 400);
+        frame.hyphenate = hyphenate;
+        lay.build(&doc, {frame}, env);
         for (int i = 0; i <= text.size(); ++i) {
             int frame = -1;
             QRectF r;
@@ -825,6 +828,7 @@ LetterLine letterLineOf(const QString &family, const QString &text, double size,
         line.cell << at;
         line.stand << metrics.horizontalAdvance(text[i]) / 1000;
         line.width << (widths && widths->contains(text[i].unicode()) ? widths->value(text[i].unicode()) : line.stand.last());   // (a character the table doesn't measure keeps its stand-in's width)
+        if (text[i] == QChar(0x00AD) || text[i] == QChar(0x200B)) line.stand.last() = line.width.last() = 0;   // (shown only where a line breaks)
         at += line.width.last() * size;
         if (pairs && i + 1 < text.size()) at += pairs->value(quint32(text[i].unicode()) << 16 | text[i + 1].unicode()) * size;
     }
@@ -2752,6 +2756,29 @@ private Q_SLOTS:
         for (int i = 0; i + 1 < text.size(); ++i)
             if (!text[i].isSpace() && !text[i + 1].isSpace()) widest = std::max(widest, (line.x[i + 1] - line.x[i]) / size - line.stand[i]);
         QVERIFY2(widest <= 0.07, qPrintable(QString::number(widest)));
+    }
+
+    // A word with a soft hyphen or a zero-width space in it (or one that the layout hyphenates by its own rule) is shared out in the parts between the places a line may break, as
+    // a word with a hyphen is: the part before the place ends where the original's does.
+    void wordLettersKeepTheOriginalsPlaceAtASoftHyphenAndAHyphenationPoint()
+    {
+        double diff = 0;
+        const QString family = narrowStandInForI(&diff);
+        if (family.isEmpty()) QSKIP("every face with a narrow I stand-in is installed here");
+        const double size = 100;
+        const QString text = QStringLiteral("Illi\u00ADnois Includ\u200Bes Information end");
+        const QString hyphenated = QStringLiteral("Information");
+        QVector<int> places;   // the places a line may break, as the character that follows
+        for (int p = 0; p < text.size(); ++p)
+            if (text[p] == QChar(0x00AD) || text[p] == QChar(0x200B)) places << p + 1;
+        const int at = int(text.indexOf(hyphenated));
+        for (int point : hyphenationPoints(hyphenated)) places << at + point;
+        QCOMPARE(int(places.size()), 2 + int(hyphenationPoints(hyphenated).size()));
+        QVERIFY(places.size() >= 4);
+        const LetterLine line = letterLineOf(family, text, size, true, false, {}, true);
+        QVERIFY(line.x.size() == text.size() + 1);
+        for (int p : places)
+            QVERIFY2(std::abs(line.x[p] - line.x[0] - line.cell[p]) <= 1, qPrintable(QStringLiteral("a line may break before \"%1\" (at %2), the original's place is %3, not %4").arg(text.mid(p, 4)).arg(p).arg(line.cell[p]).arg(line.x[p] - line.x[0])));
     }
 
     // A line of Chinese text in a stand-in run (each character a piece of its own, no word between spaces) is set as the publication's text is, as it was before words were shared

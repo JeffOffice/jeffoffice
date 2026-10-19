@@ -2185,11 +2185,14 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
                 QVector<int> at;
                 int to = from;
                 bool mayBreak = false;
-                for (; to < end && (transparent(disp[to]) || !disp[to].isSpace()); ++to)
-                    if (!transparent(disp[to])) {
-                        at << to;
-                        mayBreak |= !disp[to].isLetterOrNumber() || disp[to].unicode() >= 0x0E00 || disp[to].isSurrogate();
+                for (; to < end && (transparent(disp[to]) || !disp[to].isSpace()); ++to) {
+                    if (transparent(disp[to])) {
+                        mayBreak |= disp[to].unicode() == 0x00AD || disp[to].unicode() == 0x200B;   // (a soft hyphen or a zero-width space marks a place a line may break)
+                        continue;
                     }
+                    at << to;
+                    mayBreak |= !disp[to].isLetterOrNumber() || disp[to].unicode() >= 0x0E00 || disp[to].isSurrogate();
+                }
                 const bool takesPending = firstWord && !spaced && pending.at == r.start && pending.amount != 0 && !lineMayBreakBefore(r.start);
                 const bool goesOn = to == end && end < disp.size() && !disp[end].isSpace() && !lineMayBreakBefore(end);
                 firstWord = false;
