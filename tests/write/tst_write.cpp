@@ -10909,8 +10909,10 @@ private Q_SLOTS:
         QVERIFY(o.hRel == FO::Rel::Margin && o.vRel == FO::Rel::Margin && o.hAlign == FO::Align::Center && o.vAlign == FO::Align::End);
         QVERIFY(o.wrap == FO::Wrap::TopBottom);
         o = frameOf("w:wrap=\"none\" w:xAlign=\"inside\" w:yAlign=\"top\"");
-        QVERIFY(o.wrap == FO::Wrap::None && o.hAlign == FO::Align::Start && o.vAlign == FO::Align::Start);
+        QVERIFY(o.wrap == FO::Wrap::None && o.hAlign == FO::Align::Inside && o.vAlign == FO::Align::Start);   // (inside, across, is the side of the binding: the page's number says which)
         QCOMPARE(o.frameWidth, 0.0);   // (as wide as its text)
+        o = frameOf("w:xAlign=\"outside\" w:yAlign=\"inside\"");
+        QVERIFY(o.hAlign == FO::Align::Outside && o.vAlign == FO::Align::Start);   // (down, inside is the top)
         o = frameOf("w:wrap=\"tight\" w:hSpace=\"240\"");
         QVERIFY(o.wrap == FO::Wrap::Square);
         QCOMPARE(o.gap.right(), 12.0);
@@ -11653,6 +11655,32 @@ private Q_SLOTS:
         const auto heads = audit::itemsWith(*headedPage, QStringLiteral("flow-header-box"));
         QVERIFY(heads.size() == 1);
         QCOMPARE(audit::storyOf(*headedPage, heads[0]).split(QLatin1Char('\n')), shown);
+    }
+
+    // A frame that is aligned to the outside or the inside of the margin (w:xAlign) is set by the page's number: a paragraph of a header or a footer so aligned is marked to be (it is
+    // not at one side for all pages), and the frame of the text is an object aligned to the inside or the outside.
+    void aFrameAlignedInsideOrOutsideFollowsThePageNumber()
+    {
+        for (const char *side : {"outside", "inside"}) {
+            const QByteArray frame = QByteArray("<w:framePr w:w=\"1000\" w:h=\"400\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:xAlign=\"") + side + "\" w:y=\"1\"/>";
+            const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:pPr>" + frame + "</w:pPr><w:r><w:t>5</w:t></w:r>"})}};
+            auto doc = open(makeDocxWithParts("<w:p><w:pPr>" + frame + "</w:pPr><w:r><w:t>FRAME</w:t></w:r></w:p><w:p><w:r><w:t>body</w:t></w:r></w:p>",
+                                              sectionXml(6000, 6000, 720, "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"), parts));
+            QVERIFY(doc);
+            const auto page = doc->pager().materialize(0);
+            QVERIFY(page);
+            const auto heads = audit::itemsWith(*page, QStringLiteral("flow-header-box"));
+            QVERIFY(heads.size() == 1);
+            const auto *box = dynamic_cast<const TextItem *>(heads[0]);
+            QVERIFY(box);
+            const QTextBlockFormat bf = page->doc->story(box->storyId)->doc->begin().blockFormat();
+            QCOMPARE(bf.intProperty(tp::PageSideAlign), std::string_view(side) == "outside" ? 1 : 2);
+            QVERIFY2(!bf.hasProperty(QTextFormat::BlockAlignment) || bf.alignment() == Qt::AlignLeft, side);
+            bool aligned = false;
+            for (const flow::FloatingObject &o : doc->flow().objects)
+                if (o.frame > 0) aligned = aligned || o.hAlign == (std::string_view(side) == "outside" ? flow::FloatingObject::Align::Outside : flow::FloatingObject::Align::Inside);
+            QVERIFY2(aligned, side);
+        }
     }
 
     // A content control shows its content wherever it stands (round runs, round paragraphs, inside a cell, round a cell, round a row), its placeholder text where it shows one, and is

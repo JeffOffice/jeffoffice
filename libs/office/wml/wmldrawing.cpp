@@ -92,8 +92,10 @@ Shape::Rel relOf(const QString &v, Shape::Rel def)
     return def;
 }
 
-Shape::Align alignOf(const QString &v)
+Shape::Align alignOf(const QString &v, bool across = false)
 {
+    if (across && v == QLatin1String("inside")) return Shape::Inside;
+    if (across && v == QLatin1String("outside")) return Shape::Outside;
     if (v == QLatin1String("left") || v == QLatin1String("top") || v == QLatin1String("inside")) return Shape::Start;
     if (v == QLatin1String("center")) return Shape::Center;
     if (v == QLatin1String("right") || v == QLatin1String("bottom") || v == QLatin1String("outside")) return Shape::End;
@@ -197,7 +199,7 @@ public:
         s.hRel = relOf(st.value(QStringLiteral("mso-position-horizontal-relative")), Shape::Column);
         s.vRel = relOf(st.value(QStringLiteral("mso-position-vertical-relative")), Shape::Paragraph);
         const QString hp = st.value(QStringLiteral("mso-position-horizontal")), vp = st.value(QStringLiteral("mso-position-vertical"));
-        s.hAlign = alignOf(hp);
+        s.hAlign = alignOf(hp, true);
         s.vAlign = alignOf(vp);
         if (hp == QLatin1String("absolute")) s.hAlign = Shape::NoAlign;
         if (vp == QLatin1String("absolute")) s.vAlign = Shape::NoAlign;
@@ -473,7 +475,7 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
                 (horizontal ? s.hRel : s.vRel) = rel;
                 for (int p = t.firstChild(k); p >= 0; p = t.next(p)) {
                     if (t.localName(p) == "posOffset") (horizontal ? s.left : s.top) = emu(t.text(p).trimmed());
-                    else if (t.localName(p) == "align") (horizontal ? s.hAlign : s.vAlign) = alignOf(t.text(p).trimmed());
+                    else if (t.localName(p) == "align") (horizontal ? s.hAlign : s.vAlign) = alignOf(t.text(p).trimmed(), horizontal);
                 }
             } else if (tag == "wrapSquare" || tag == "wrapTight" || tag == "wrapThrough" || tag == "wrapTopAndBottom") {
                 s.wrap = tag == "wrapSquare" ? Shape::Square : tag == "wrapTopAndBottom" ? Shape::TopBottom : Shape::Tight;

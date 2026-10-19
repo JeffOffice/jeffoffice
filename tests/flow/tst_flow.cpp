@@ -5059,6 +5059,87 @@ private Q_SLOTS:
         QVERIFY2(columns == lefts.size(), qPrintable(QStringLiteral("boxes begin at %1").arg(begins.join(QLatin1Char(',')))));
     }
 
+    // Inside and outside are the sides of the binding by the page's number, not by whether the margins are mirrored (ECMA-376 part 1, 17.18: the left and the right on a page with an odd
+    // number, the right and the left on an even one): an object aligned to the inside of the margin, and one aligned to the outside, one set from the inside margin's strip, and one
+    // from the outside's, are on the left and the right of odd pages and the right and the left of even pages, whether or not the margins are mirrored.
+    void insideAndOutsideAreTheSidesOfTheBindingByThePageNumber()
+    {
+        for (const bool mirrored : {false, true}) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.mirrorMargins = mirrored;
+            fillStory(fd.story(), 3, 7, [](int i, QTextBlockFormat &bf) { if (i > 0) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore); }, 10, 10);
+            fd.sections[0].margins = QMarginsF(100, 72, 40, 72);
+            struct Kind {
+                double width;
+                FloatingObject::Rel rel;
+                FloatingObject::Align align;
+            };
+            const Kind kinds[] = {{30, FloatingObject::Rel::Margin, FloatingObject::Align::Inside}, {31, FloatingObject::Rel::Margin, FloatingObject::Align::Outside},
+                                  {32, FloatingObject::Rel::InsideMargin, FloatingObject::Align::None}, {33, FloatingObject::Rel::OutsideMargin, FloatingObject::Align::None}};
+            for (int page = 2; page >= 0; --page)
+                for (const Kind &k : kinds) {
+                    auto item = std::make_shared<ShapeItem>();
+                    item->rect = QRectF(0, 0, k.width, 20);
+                    const int id = addObject(&fd, item, fd.story()->findBlockByNumber(page).position(), k.rel, FloatingObject::Rel::Paragraph, 0, 0);
+                    fd.objects[size_t(id) - 1].hAlign = k.align;
+                }
+            Paginator pg(&fd);
+            QCOMPARE(pg.pageCount(), 3);
+            for (int page = 0; page < 3; ++page) {
+                const auto m = pg.materialize(page);
+                QVERIFY(m);
+                QHash<int, double> at;   // (by the object's width)
+                for (const auto &it : m->doc->pages[0]->items)
+                    if (const auto *shape = dynamic_cast<const ShapeItem *>(it.get())) at.insert(int(std::lround(shape->rect.width())), shape->rect.left());
+                const bool even = page % 2 == 1;
+                const double leftMargin = mirrored && even ? 40 : 100, rightMargin = mirrored && even ? 100 : 40;   // (what the page's margins are)
+                const QString where = QStringLiteral("%1 page %2").arg(mirrored ? "mirrored" : "plain").arg(page + 1);
+                auto is = [&](int width, double expected, const char *what) {
+                    QVERIFY2(at.contains(width) && std::abs(at.value(width) - expected) < 0.01, qPrintable(where + QStringLiteral(": %1 is at %2, not %3").arg(QLatin1String(what)).arg(at.value(width, -1)).arg(expected)));
+                };
+                is(30, even ? 612 - rightMargin - 30 : leftMargin, "inside");
+                is(31, even ? leftMargin : 612 - rightMargin - 31, "outside");
+                is(32, even ? 612 - rightMargin : 0, "the inside strip");
+                is(33, even ? 0 : 612 - rightMargin, "the outside strip");
+            }
+        }
+    }
+
+    // A paragraph set to the outside (or the inside) of the page is at the right (the left) of a page with an odd number and at the left (the right) of one with an even number.
+    void aParagraphSetOutsideOrInsideFollowsThePageNumber()
+    {
+        for (const int side : {1, 2}) {   // (1: outside, 2: inside)
+            for (const int number : {1, 2, 3, 4}) {
+                QTextDocument doc;
+                QTextCursor c(&doc);
+                QTextBlockFormat bf;
+                bf.setProperty(tp::PageSideAlign, side);
+                c.setBlockFormat(bf);
+                QTextCharFormat cf;
+                cf.setFontPointSize(11);
+                cf.setFontFamilies({QStringLiteral("Arimo")});
+                c.insertText(QStringLiteral("Page"), cf);
+                FrameSpec fs;
+                fs.size = QSizeF(300, 100);
+                fs.insets = QMarginsF(0, 0, 0, 0);
+                fs.hyphenate = false;
+                fs.ctx.pageNumber = number;
+                fs.ctx.pageCount = 4;
+                LayoutEnv env;
+                env.wordLines = true;
+                StoryLayout layout;
+                layout.build(&doc, {fs}, env);
+                const QVector<QRectF> rects = layout.rangeRects(0, 0, 4);
+                QVERIFY(!rects.isEmpty());
+                const bool right = (side == 1) == (number % 2 == 1);
+                const QString what = QStringLiteral("%1 on page %2: the text is from %3 to %4").arg(side == 1 ? "outside" : "inside").arg(number).arg(rects.first().left()).arg(rects.last().right());
+                if (right) QVERIFY2(rects.last().right() > 299 && rects.first().left() > 200, qPrintable(what));
+                else QVERIFY2(rects.first().left() < 1 && rects.last().right() < 100, qPrintable(what));
+            }
+        }
+    }
+
     // Pages that an edit moves down by a page change from odd to even, and where odd and even pages have headers of other heights they are laid out again:
     // the pages after the edit are the ones a fresh paginator makes.
     void evenAndOddHeadersOfOtherHeightsSettleAfterAnEdit()

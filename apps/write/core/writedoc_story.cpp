@@ -358,8 +358,9 @@ flow::FloatingObject frameObjectOf(const QHash<QString, QString> &at)
     o.dx = points("x");
     o.dy = points("y");
     const QString xAlign = at.value(QStringLiteral("xAlign")), yAlign = at.value(QStringLiteral("yAlign"));
-    o.hAlign = xAlign == QLatin1String("center") ? FO::Align::Center : xAlign == QLatin1String("right") || xAlign == QLatin1String("outside") ? FO::Align::End
-               : xAlign == QLatin1String("left") || xAlign == QLatin1String("inside") ? FO::Align::Start : FO::Align::None;
+    // (Across, inside and outside are the side of the binding and the side away from it, by the page's number; down, inside is the top and outside the foot.)
+    o.hAlign = xAlign == QLatin1String("center") ? FO::Align::Center : xAlign == QLatin1String("right") ? FO::Align::End : xAlign == QLatin1String("left") ? FO::Align::Start
+               : xAlign == QLatin1String("outside") ? FO::Align::Outside : xAlign == QLatin1String("inside") ? FO::Align::Inside : FO::Align::None;
     o.vAlign = yAlign == QLatin1String("center") ? FO::Align::Center : yAlign == QLatin1String("bottom") || yAlign == QLatin1String("outside") ? FO::Align::End
                : yAlign == QLatin1String("top") || yAlign == QLatin1String("inside") ? FO::Align::Start : FO::Align::None;
     const double hSpace = std::max(0.0, points("hSpace")), vSpace = std::max(0.0, points("vSpace"));
@@ -653,8 +654,9 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 if (!ch.xml.contains("framePr")) continue;
                 const QString at = attributeOfTag(ch.xml, QStringLiteral("xAlign"));
                 if (at == QLatin1String("center")) bf.setAlignment(Qt::AlignHCenter);
-                else if (at == QLatin1String("right") || at == QLatin1String("outside")) bf.setAlignment(Qt::AlignRight);
-                else if (at == QLatin1String("left") || at == QLatin1String("inside")) bf.setAlignment(Qt::AlignLeft);
+                else if (at == QLatin1String("right")) bf.setAlignment(Qt::AlignRight);
+                else if (at == QLatin1String("left")) bf.setAlignment(Qt::AlignLeft);
+                else if (at == QLatin1String("outside") || at == QLatin1String("inside")) bf.setProperty(tp::PageSideAlign, at == QLatin1String("outside") ? 1 : 2);   // (the page's number says which side)
                 if (!at.isEmpty() && attributeOfTag(ch.xml, QStringLiteral("vAnchor")) != QLatin1String("page")) bf.setProperty(tp::OutOfFlow, true);
             }
         }
@@ -1135,7 +1137,8 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         o.hRel = relOf(s.hRel, true);
         o.vRel = relOf(s.vRel, false);
         auto align = [](Shape::Align a) { return a == Shape::Start ? flow::FloatingObject::Align::Start : a == Shape::Center ? flow::FloatingObject::Align::Center
-                                                                : a == Shape::End ? flow::FloatingObject::Align::End : flow::FloatingObject::Align::None; };
+                                                                : a == Shape::End ? flow::FloatingObject::Align::End : a == Shape::Inside ? flow::FloatingObject::Align::Inside
+                                                                : a == Shape::Outside ? flow::FloatingObject::Align::Outside : flow::FloatingObject::Align::None; };
         o.hAlign = align(s.hAlign);
         o.vAlign = align(s.vAlign);
         o.dx = s.left;

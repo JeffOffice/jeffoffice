@@ -464,7 +464,8 @@ struct Shape {
     enum Kind { Picture, Rect, Oval, Line, TextBox };
     // What a position is measured from; the margin areas are the strips of the page between its edge and the margins (inside and outside: the strip at the fold's side and the far side).
     enum Rel { Margin, Page, Column, Paragraph, LineOf, Character, LeftMargin, RightMargin, TopMargin, BottomMargin, InsideMargin, OutsideMargin };
-    enum Align { NoAlign, Start, Center, End };
+    // (Inside and Outside, across, are the side of the binding and the side away from it, by the page's number; down, inside is the top and outside the foot, as Start and End.)
+    enum Align { NoAlign, Start, Center, End, Inside, Outside };
     enum Wrap { WrapNone, Square, Tight, TopBottom };
     // Where the text goes beside a square or tight wrap.
     enum Side { SideBoth, SideLeft, SideRight, SideLargest };

@@ -1861,10 +1861,10 @@ QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, con
             using W = FloatingObject::Wrap;
             // A table set from its paragraph (down from the paragraph or the line) that goes over the foot of the text area is not on this page: it goes to the next with its paragraph.
             if (moveBefore && a.table >= 0 && o.item && (o.vRel == FloatingObject::Rel::Paragraph || o.vRel == FloatingObject::Rel::Line) && a.paragraph >= 0 &&
-                placeOf(o, a, sec, false, body.bottom()).bottom() > body.bottom() + 0.01 && (*moveBefore < 0 || a.paragraph < *moveBefore))
+                placeOf(o, a, sec, number, false, body.bottom()).bottom() > body.bottom() + 0.01 && (*moveBefore < 0 || a.paragraph < *moveBefore))
                 *moveBefore = a.paragraph;
             if (!o.item || o.behind || o.item->type() == ItemType::Line || (o.wrap != W::Square && o.wrap != W::Tight && o.wrap != W::TopBottom)) continue;
-            QRectF r = placeOf(o, a, sec, true, body.bottom());
+            QRectF r = placeOf(o, a, sec, number, true, body.bottom());
             if (o.item->rotation != 0) {
                 ItemPtr turned = o.item->clone();
                 turned->rect = r;

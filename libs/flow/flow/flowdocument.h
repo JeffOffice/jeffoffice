@@ -57,7 +57,9 @@ struct FloatingObject {
     // What a position is measured from. The margin areas (the strip between the page's edge and the margin, on the side or at the top or foot) are for an object set
     // in the margin: Inside and Outside are the left and right strips across, and the top and foot ones down.
     enum class Rel { Margin, Page, Column, Paragraph, Line, Character, LeftMargin, RightMargin, TopMargin, BottomMargin, InsideMargin, OutsideMargin };
-    enum class Align { None, Start, Center, End };
+    // Inside and Outside are the side of the binding and the side away from it, by the page's number: ECMA-376 part 1, 17.18 (the values `inside` and `outside` of the horizontal
+    // alignments and of the relative bases): the left and the right on a page that has an odd number, the right and the left on an even one, whether or not the margins are mirrored.
+    enum class Align { None, Start, Center, End, Inside, Outside };
     // How the text goes round it: not at all (it is behind the text or over it), round a rectangle (Tight is Square until the contours are read), or only above and below.
     enum class Wrap { None, Square, Tight, TopBottom };
     // Where the text goes beside a Square or Tight wrap: on both sides, or only the left, only the right, or the larger of the two.

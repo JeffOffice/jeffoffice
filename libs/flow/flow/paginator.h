@@ -465,7 +465,7 @@ private:
     // kept on the page (down from the paragraph or the line).
     // (A table set at a place from its paragraph that would go over `limit`, the foot of the text area, is slid up to end at it, if it still begins at or below its paragraph: the
     // table is on the page, and goes to the next only if it would not fit there; none: -1.)
-    QRectF placeOf(const FloatingObject &o, const Anchor &a, const Section &sec, bool clamp = true, double limit = -1) const;
+    QRectF placeOf(const FloatingObject &o, const Anchor &a, const Section &sec, int number, bool clamp = true, double limit = -1) const;
     // The section as a page that has `number` has it: with facing pages (FlowDocument::mirrorMargins) a page with an even number has the sides of the margins swapped, in `scratch`.
     const Section &sectionOf(const PageStart &st, int number, Section *scratch) const;
     // The section with that index as the page with that number has it (the margins' sides swapped on a page with an even number where the margins are mirrored): `scratch` holds the copy.

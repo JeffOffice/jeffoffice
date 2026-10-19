@@ -104,6 +104,7 @@ enum : int {
     NoAutoHyphen,                                // bool (paragraph): its words are not hyphenated by the layout though the story's frames hyphenate (a word processor's suppressAutoHyphens)
     AlignTab,                                    // QString (on a tab): a word processor's absolute position tab, "right|center|left:margin|indent:none|dot|hyphen|underscore|middleDot": the text after it goes to that place, whatever the paragraph's stops (LayoutEnv::wordLines)
     DisplayAlignment,                            // int (block): layout only, the paragraph is set with this horizontal alignment (Qt::Alignment) where its format does not say (an equation alone in its paragraph is centered): never written to a file (LayoutEnv::wordLines)
+    PageSideAlign,                               // int (block): the paragraph is aligned to the side of the page's outside (1) or inside (2) by the page's number: the right and the left, or the left and the right, of a page with an odd and an even number (LayoutEnv::wordLines)
 };
 
 // The block property that holds the key of the table cell a paragraph is in (libs/flow's fp::Cell, which is this number): the text engine never joins paragraphs of two cells, or

@@ -3260,6 +3260,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             for (const QChar ch : shown) alone = alone && (ch == QChar::ObjectReplacementCharacter || ch.isSpace());
             if (alone) al = Qt::Alignment(bf.intProperty(tp::DisplayAlignment)) & Qt::AlignHorizontal_Mask;
         }
+        // A paragraph set to the outside or the inside of the page (a frame's xAlign in a header or a footer) is at the right or the left by the page's number: the outside is the right of a
+        // page that has an odd number and the left of one that has an even number, the inside the other way (ECMA-376 part 1, 17.18.2 ST_AlignH).
+        if (env.wordLines && bf.hasProperty(tp::PageSideAlign)) al = (bf.intProperty(tp::PageSideAlign) == 1) == (ctx.pageNumber % 2 != 0) ? Qt::AlignRight : Qt::AlignLeft;
         // A paragraph's left and right alignment are its start and end (as in
         // .pub files): a right-to-left paragraph starts at the right. Qt's
         // text layout takes them as the page's sides, so they swap here.
