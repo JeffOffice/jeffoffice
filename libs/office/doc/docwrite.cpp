@@ -509,7 +509,7 @@ QByteArray sectionPropertiesXml(const Sep &s, const QByteArray &refs)
     if (s.hasLineNumbers && s.lineNumberModulus > 0) {
         x += "<w:lnNumType";
         attr(x, "w:countBy", s.lineNumberModulus);
-        if (s.lineNumberStart != 1) attr(x, "w:start", s.lineNumberStart);
+        if (s.lineNumberStart != 1) attr(x, "w:start", s.lineNumberStart - 1);   // (the format's start is how many numbers are skipped; the reader added the one)
         if (s.lineNumberDistance) attr(x, "w:distance", s.lineNumberDistance);
         attr(x, "w:restart", s.lineNumbering == 0 ? QStringLiteral("newPage") : s.lineNumbering == 1 ? QStringLiteral("newSection") : QStringLiteral("continuous"));
         x += "/>";

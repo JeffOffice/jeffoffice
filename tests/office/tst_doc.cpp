@@ -486,6 +486,24 @@ private Q_SLOTS:
         QCOMPARE(d.lastSection.type, QStringLiteral("continuous"));
     }
 
+    // A section's line numbering starts at the number the file's start sprm says, plus one (a start of 4 numbers the first line 5), and the .docx written from it says what
+    // that format's start means, the numbers skipped: 4.
+    void aSectionsLineNumberStartIsTheNumbersSkipped()
+    {
+        DocWriter w = simple(QStringLiteral("first\r"));
+        const QByteArray numbers = sprm2(0x5015, 1) + sprm1(0x3013, 2) + sprm2(0x501B, 4);   // countBy 1, continuous, start 4
+        w.sections = {{int(w.text.size()) + 1, numbers}};
+        w.paras = {{0, int(w.text.size()), 0, QByteArray()}};
+        Document d;
+        QVERIFY(read(w.build(), &d));
+        QVERIFY(d.lastSectionStated);
+        QByteArray numbering;
+        for (const wml::RawChild &child : d.lastSection.extra)
+            if (child.xml.contains("lnNumType")) numbering = child.xml;
+        QVERIFY2(numbering.contains("w:start=\"4\""), numbering.constData());
+        QVERIFY2(numbering.contains("w:restart=\"continuous\""), numbering.constData());
+    }
+
     void aFormFeedInAParagraphIsAPageBreak()
     {
         Document d;
