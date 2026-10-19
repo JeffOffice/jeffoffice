@@ -153,7 +153,10 @@ void WriteDoc::exportInto(BlockSink &sink)
             diff.style = mark.style;
             if (!runPropsXml(diff).isEmpty()) direct.markRun = diff;
         }
-        if (lastPart.blockFormat().boolProperty(flow::fp::SectionBreakAfter) && sectionIndex + 1 < int(m_sections.size()))
+        // (A section whose endnotes the pages set at its end has its break on the last of them in the story: it is the paragraph before them that ends the section in the file.)
+        bool endsSection = lastPart.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
+        for (QTextBlock n = lastPart.next(); !endsSection && n.isValid() && n.blockFormat().hasProperty(prop::EndnoteBlock); n = n.next()) endsSection = n.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
+        if (endsSection && sectionIndex + 1 < int(m_sections.size()))
             direct.section = std::make_shared<SectionProps>(m_sections[sectionIndex++]);
         p.props = direct;
         out.add(std::move(blk));

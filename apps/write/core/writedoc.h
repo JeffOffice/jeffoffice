@@ -203,7 +203,7 @@ private:
     void buildStory(const QVector<office::wml::Block> &body);
     // (`header`: the story of a part, not the body's; `headerFooter`: it is a header's or a footer's, whose frames set on the page are text boxes there.)
     // (`append`: the paragraphs go after the story's last, as the document's endnotes: they are marked as such, and the mark of a note's reference at the head of its text is the one its atom has.)
-    void fillStory(QTextDocument *story, const QVector<office::wml::Block> &body, bool header, const QString &part = QString(), bool headerFooter = false, bool append = false);
+    void fillStory(QTextDocument *story, const QVector<office::wml::Block> &body, bool header, const QString &part = QString(), bool headerFooter = false, bool append = false, int insertAt = -1);
     // Makes of a drawn object of a run (its atom) what the pages show: a picture in the line is an inline object of the character, the rest are objects set at
     // places on the page of the paragraph they are anchored to. False when it makes none (nothing drawn, or a picture the file does not hold).
     // (`lineWidth` is the width of a line of the paragraph the object is in, for a rule that is a share of it: its cell's or its section's text, less its indents; `content` is
@@ -257,6 +257,8 @@ private:
     QVector<office::wml::Block> m_endnoteSeparator;                   // the paragraphs of the file's separator for the endnotes
     struct EndnoteRef {
         QString id, mark;                                             // a note a reference of the text names, and the number the reference shows
+        int section = 0;                                              // the section the reference is in (by the breaks before it)
+        bool atSectionEnd = false;                                    // its section's notes are set at its end (w:pos sectEnd), not at the document's
     };
     QVector<EndnoteRef> m_endnoteRefs;                                // the references of the text, in order (a deleted one is none)
     // (The stories of the notes and of the headers and footers are made when a page needs them and are not edited: nothing in the program reaches them yet. When
@@ -269,6 +271,9 @@ private:
     int m_blockCount = 0;
     QString m_endnoteFormat = QStringLiteral("lowerRoman");   // the format the settings give the endnotes' numbers (lower case roman where they give none)
     int m_endnoteStart = 1;                                    // and the number the first begins with
+    QString m_endnotePosition;                                 // where the settings put the endnotes (w:pos): empty, or docEnd, at the document's end
+    int m_endnoteSections = 1;                                 // the sections the text has
+    const office::wml::SectionProps *m_tailSection = nullptr;  // the section whose endnotes are being set (its page's width is the separator's), or none: the last
     int m_boxTableCells = 0;   // the cells of the tables that the text boxes drawn so far hold (a document's boxes have kMostBoxTableCells of them in all: the rest are kept as they were)
     int m_letteringShapes = 0, m_letteringLetters = 0;   // the lettering on a path the document has drawn so far, and its letters (each is outlined, and may be stroked: they are bounded)
     bool m_syncing = false;

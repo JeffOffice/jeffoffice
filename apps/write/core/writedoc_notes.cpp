@@ -2,6 +2,7 @@
 
 #include "core/writedoc.h"
 
+#include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
@@ -182,33 +183,88 @@ void WriteDoc::loadEndnotes()
     if (m_endnoteSeparator.size() > kMostNoticeParagraphs) m_endnoteSeparator.resize(kMostNoticeParagraphs);
 }
 
-// The endnotes after the document's last text: the file's separator for them, then the notes the text's references name, in the order of the references. (They are paragraphs of the
-// story that the file does not have: they are marked, and not written.) A last section that says it has no endnotes has none.
+// The endnotes: after the document's last text, and at the end of each section whose notes are set there (w:pos sectEnd, of the section or the settings). Each is the file's separator for
+// them, then the notes the references name, in the order of the references. (They are paragraphs of the story that the file does not have: they are marked, and not written. A section's break
+// is after the last of its notes in the story, and is written on the paragraph before them.) A last section that says it has no endnotes has none. All of them together are at most the
+// most the program sets.
 void WriteDoc::appendEndnotes()
 {
     if (m_endnoteRefs.isEmpty() || m_endnoteBlocks.isEmpty()) return;
     for (const RawChild &ch : m_last.extra)
         if (ch.xml.contains("noEndnote")) return;
-    QVector<Block> tail = m_endnoteSeparator;
-    int made = 0;
-    for (const EndnoteRef &ref : std::as_const(m_endnoteRefs)) {
-        if (tail.size() >= kMostEndnoteParagraphs) break;   // (no more are made than are set: a note of thousands of paragraphs that is referred to thousands of times is the first of them)
-        const auto found = m_endnoteBlocks.constFind(ref.id);
-        if (found == m_endnoteBlocks.constEnd()) continue;
-        const QVector<Block> &note = found.value();
-        const int take = int(std::min<qsizetype>(note.size(), kMostEndnoteParagraphs - tail.size()));
-        for (int i = 0; i < take; ++i) {
-            Block b = note[i];
-            // (The mark that begins the note's text shows the number its reference has.)
-            for (Inline &in : b.para.content)
-                if (in.kind == Inline::RunAtom && in.tag == QLatin1String("endnoteRef")) in.display = ref.mark;
-            tail.push_back(std::move(b));
-            ++s_endnoteParagraphsMade;
+    int room = kMostEndnoteParagraphs;
+    // The paragraphs of the notes the references (by place in the list) name: the separator, then the notes.
+    auto tailFor = [&](const QVector<int> &refs) {
+        QVector<Block> tail = m_endnoteSeparator;
+        if (tail.size() > room) tail.resize(room);
+        int made = 0;
+        for (int index : refs) {
+            const EndnoteRef &ref = m_endnoteRefs[index];
+            if (tail.size() >= room) break;   // (no more are made than are set: a note of thousands of paragraphs that is referred to thousands of times is the first of them)
+            const auto found = m_endnoteBlocks.constFind(ref.id);
+            if (found == m_endnoteBlocks.constEnd()) continue;
+            const QVector<Block> &note = found.value();
+            const int take = int(std::min<qsizetype>(note.size(), room - tail.size()));
+            for (int i = 0; i < take; ++i) {
+                Block b = note[i];
+                // (The mark that begins the note's text shows the number its reference has.)
+                for (Inline &in : b.para.content)
+                    if (in.kind == Inline::RunAtom && in.tag == QLatin1String("endnoteRef")) in.display = ref.mark;
+                tail.push_back(std::move(b));
+                ++s_endnoteParagraphsMade;
+            }
+            ++made;
         }
-        ++made;
+        if (made == 0) return QVector<Block>();
+        room -= int(tail.size());
+        return tail;
+    };
+    // The references whose notes are at the end of their sections (all but the last section's, whose end is the document's), by section, and the rest.
+    const int lastSection = m_endnoteSections - 1;
+    QVector<int> atEnd;
+    QMap<int, QVector<int>> bySection;
+    for (int i = 0; i < m_endnoteRefs.size(); ++i) {
+        const EndnoteRef &ref = m_endnoteRefs[i];
+        if (ref.atSectionEnd && ref.section < lastSection) bySection[ref.section].push_back(i);
+        else atEnd.push_back(i);
     }
-    if (made == 0) return;
-    fillStory(story(), tail, true, m_endnotePart, false, true);
+    // (Made from the first section on, so that when there is not room for all it is the later ones that go without; set from the last back, so that the places before are still where they were.)
+    struct Place {
+        int section;
+        QVector<Block> tail;
+    };
+    QVector<Place> places;
+    for (auto it = bySection.cbegin(); it != bySection.cend(); ++it)
+        if (QVector<Block> tail = tailFor(it.value()); !tail.isEmpty()) places.push_back({it.key(), std::move(tail)});
+    const QVector<Block> closing = tailFor(atEnd);
+    if (!places.isEmpty()) {
+        QVector<int> ends;   // (the paragraphs that carry a section's break, in order)
+        for (QTextBlock b = story()->begin(); b.isValid(); b = b.next())
+            if (b.blockFormat().boolProperty(flow::fp::SectionBreakAfter)) ends.push_back(b.blockNumber());
+        for (int p = int(places.size()) - 1; p >= 0; --p) {
+            if (places[p].section >= ends.size()) continue;
+            const int endBlock = ends[places[p].section];
+            QTextBlock end = story()->findBlockByNumber(endBlock);
+            const QTextBlockFormat endFormat = end.blockFormat();
+            SectionProps section = endFormat.hasProperty(prop::SectionData) ? unpackSection(storedBytes(endFormat, prop::SectionData)) : m_last;
+            const int before = story()->blockCount();
+            m_tailSection = &section;
+            fillStory(story(), places[p].tail, true, m_endnotePart, false, true, end.position() + end.length() - 1);
+            m_tailSection = nullptr;
+            const int added = story()->blockCount() - before;
+            if (added <= 0) continue;
+            // The section ends after its last note: its break moves there from the paragraph the text had it on.
+            QTextBlockFormat text = story()->findBlockByNumber(endBlock).blockFormat();
+            text.clearProperty(flow::fp::SectionBreakAfter);
+            text.clearProperty(prop::SectionData);
+            QTextCursor(story()->findBlockByNumber(endBlock)).setBlockFormat(text);
+            QTextBlockFormat lastNote = story()->findBlockByNumber(endBlock + added).blockFormat();
+            lastNote.setProperty(flow::fp::SectionBreakAfter, true);
+            if (endFormat.hasProperty(prop::SectionData)) lastNote.setProperty(prop::SectionData, endFormat.property(prop::SectionData));
+            QTextCursor(story()->findBlockByNumber(endBlock + added)).setBlockFormat(lastNote);
+        }
+    }
+    if (!closing.isEmpty()) fillStory(story(), closing, true, m_endnotePart, false, true);
 }
 
 void WriteDoc::loadNotes()

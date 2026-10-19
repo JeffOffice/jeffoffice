@@ -296,18 +296,52 @@ int editableEnd(const QTextDocument *story)
     return seenEnd;
 }
 
+namespace {
+bool noteBlock(const QTextBlock &b) { return b.isValid() && b.blockFormat().hasProperty(prop::EndnoteBlock); }
+
+// The end of the paragraph before the endnotes that `p` is in (they are paragraphs of the story, in the middle of it where a section's are set at its end), or `p` where it is not in them.
+int outOfEndnotes(QTextDocument *d, int p)
+{
+    QTextBlock b = d->findBlock(p);
+    if (!noteBlock(b)) return p;
+    while (noteBlock(b.previous())) b = b.previous();
+    return std::max(0, b.position() - 1);
+}
+} // namespace
+
+bool touchesEndnotes(const QTextDocument *story, int from, int to)
+{
+    if (!story) return false;
+    for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() <= to; b = b.next())
+        if (noteBlock(b)) return true;
+    return false;
+}
+
 void holdInBody(QTextCursor &c)
 {
-    const int end = editableEnd(c.document());
-    if (c.position() <= end && c.anchor() <= end) return;
-    const int anchor = std::min(c.anchor(), end), position = std::min(c.position(), end);
+    QTextDocument *d = c.document();
+    if (!d) return;
+    const int end = editableEnd(d);
+    const int anchor = outOfEndnotes(d, std::min(c.anchor(), end)), position = outOfEndnotes(d, std::min(c.position(), end));
+    if (anchor == c.anchor() && position == c.position()) return;
     c.setPosition(anchor);
     c.setPosition(position, QTextCursor::KeepAnchor);
 }
 
 bool intoBody(QTextCursor &c)
 {
-    if (!c.document() || c.selectionStart() > editableEnd(c.document())) return false;
+    QTextDocument *d = c.document();
+    if (!d || c.selectionStart() > editableEnd(d)) return false;
+    // (Wholly in one run of endnotes set in the middle of the text: nothing is to be done either.)
+    const QTextBlock first = d->findBlock(c.selectionStart()), last = d->findBlock(c.selectionEnd());
+    if (noteBlock(first) && noteBlock(last)) {
+        bool run = true;
+        for (QTextBlock b = first; run; b = b.next()) {
+            run = noteBlock(b);
+            if (b == last) break;
+        }
+        if (run) return false;
+    }
     holdInBody(c);
     return true;
 }
@@ -528,6 +562,46 @@ void insertSectionBreak(WriteDoc &doc, QTextCursor &c, const QString &type)
 
 // A selection that holds the paragraphs of a frame and of the text round it (or of two frames) is cut a stretch at a time, each stretch being the paragraphs of one place: what is
 // selected of the text is cut from the text, and what is selected of the frame from the frame, and neither is joined to the other. True when it did that.
+// A selection that goes over endnotes set in the middle of the text (at the end of a section) takes the text on either side of them and not them: the paragraphs before and after them are
+// never joined.
+static bool removeSelectionAcrossEndnotes(WriteDoc &doc, QTextCursor &c)
+{
+    if (!c.hasSelection()) return false;
+    QTextDocument *d = c.document();
+    const int from = c.selectionStart(), to = c.selectionEnd();
+    const QTextBlock a = d->findBlock(from), b = d->findBlock(to);
+    if (a == b) return false;
+    struct Stretch {
+        int first, last;
+    };
+    QVector<Stretch> stretches;
+    bool notes = false, inNotes = true;
+    for (QTextBlock blk = a; blk.isValid(); blk = blk.next()) {
+        if (noteBlock(blk)) {
+            notes = inNotes = true;
+        } else {
+            if (inNotes || stretches.isEmpty()) stretches.push_back({blk.position(), blk.position()});
+            else stretches.last().last = blk.position();
+            inNotes = false;
+        }
+        if (blk == b) break;
+    }
+    if (!notes) return false;
+    c.beginEditBlock();
+    for (int i = int(stretches.size()) - 1; i >= 0; --i) {
+        const QTextBlock last = d->findBlock(stretches[i].last);
+        const int start = std::max(from, stretches[i].first), end = std::min(to, last.position() + last.length() - 1);
+        if (end <= start) continue;
+        QTextCursor part(d);
+        part.setPosition(start);
+        part.setPosition(end, QTextCursor::KeepAnchor);
+        removeSelection(doc, part);
+    }
+    c.setPosition(std::min(from, d->characterCount() - 1));
+    c.endEditBlock();
+    return true;
+}
+
 static bool removeSelectionAcrossFrames(WriteDoc &doc, QTextCursor &c)
 {
     if (!c.hasSelection() || doc.flow().frames.isEmpty()) return false;
@@ -588,6 +662,7 @@ void removeSelection(WriteDoc &doc, QTextCursor &c)
             c.setPosition(to, QTextCursor::KeepAnchor);
         }
     }
+    if (removeSelectionAcrossEndnotes(doc, c)) return;   // (the text round the endnotes of a section is cut from them, and never joined)
     if (removeSelectionAcrossFrames(doc, c)) return;   // (a frame's text is cut from the frame, and the text round it from the text: never joined)
     if (removeSelectionAcrossCells(doc, c)) return;   // (cells are emptied, and tables the selection holds go: paragraphs of different cells are never joined)
     QTextDocument *d = c.document();
@@ -802,7 +877,29 @@ void insertTab(WriteDoc &doc, QTextCursor &c, bool back)
 QTextDocumentFragment selectionFragment(const QTextCursor &whole)
 {
     QTextCursor c(whole);
-    return intoBody(c) && c.hasSelection() ? QTextDocumentFragment(c) : QTextDocumentFragment();
+    if (!intoBody(c) || !c.hasSelection()) return QTextDocumentFragment();
+    QTextDocumentFragment fragment(c);
+    if (!touchesEndnotes(c.document(), c.selectionStart(), c.selectionEnd())) return fragment;
+    // (Endnotes set in the middle of the text, at the end of a section, are not copied: their paragraphs are left out of a copy of what is round them.)
+    QTextDocument copy;
+    QTextCursor into(&copy);
+    into.insertFragment(fragment);
+    for (QTextBlock b = copy.lastBlock(); b.isValid();) {
+        const QTextBlock before = b.previous();
+        if (noteBlock(b)) {
+            QTextCursor gone(&copy);
+            if (before.isValid()) {
+                gone.setPosition(before.position() + before.length() - 1);
+                gone.setPosition(b.position() + b.length() - 1, QTextCursor::KeepAnchor);
+            } else {
+                gone.setPosition(b.position());
+                gone.setPosition(b.position() + b.length(), QTextCursor::KeepAnchor);
+            }
+            gone.removeSelectedText();
+        }
+        b = before;
+    }
+    return QTextDocumentFragment(&copy);
 }
 
 QString plainTextOf(const QTextDocumentFragment &f)

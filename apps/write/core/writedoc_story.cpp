@@ -386,7 +386,7 @@ qint64 attributeExpressionsMadeForTest() { return s_attributeExpressions.load();
 
 // Fills `story` from the elements of a body or of a header or footer. A header's or footer's (`header`) fields for the page's number and the page
 // counts are live fields of the text engine, its tables and pictures are left out, and a paragraph in a frame is set aligned as the frame is.
-void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool header, const QString &part, bool headerFooter, bool append)
+void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool header, const QString &part, bool headerFooter, bool append, int insertAt)
 {
     const StyleSheet &sheet = m_wml.styles;
     const Theme *thm = theme();
@@ -396,7 +396,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     c.beginEditBlock();
     bool firstBlock = true;
     if (append) {
-        c.movePosition(QTextCursor::End);
+        if (insertAt >= 0) c.setPosition(std::min(insertAt, story->characterCount() - 1));   // (the end of a section's last paragraph, for its endnotes)
+        else c.movePosition(QTextCursor::End);
         firstBlock = false;
     }
     auto startBlock = [&](const QTextBlockFormat &bf, const QTextCharFormat &cf) {
@@ -476,7 +477,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     // share of, less its paragraph's indents.
     QVector<double> sectionText(int(body.size()), 0.0);
     {
-        double next = sectionTextWidth(m_wml.lastSection);
+        double next = sectionTextWidth(m_tailSection ? *m_tailSection : m_wml.lastSection);
         for (int i = int(body.size()) - 1; i >= 0; --i) {
             if (!body[i].isRaw && body[i].para.props.section) next = sectionTextWidth(*body[i].para.props.section);
             sectionText[i] = next;
@@ -487,19 +488,26 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     int styleRefsMade = 0;   // (each field that shows a paragraph style's text has a number in its code: two next to one another in one format would be one fragment of the text)
     // The format the endnote references of each paragraph are numbered in: its section's own (w:endnotePr of the section), else the settings'. Found as sectionText is, from
     // the sections as the file has them, for the story of the text alone.
+    // (And whether its notes are set at the end of the section, which the section says (w:pos), else the settings.)
     QVector<QString> endnoteFormats;
+    QVector<bool> endnotesAtSectionEnd;
     if (!header) {
         endnoteFormats.resize(int(body.size()));
-        auto formatOf = [&](const office::wml::SectionProps &section) {
-            const office::wml::NoteNumbering own = office::wml::noteNumberingOf(section, "endnotePr");
-            return own.format.isEmpty() ? m_endnoteFormat : own.format;
+        endnotesAtSectionEnd.resize(int(body.size()));
+        auto numberingOf = [&](const office::wml::SectionProps &section) {
+            office::wml::NoteNumbering own = office::wml::noteNumberingOf(section, "endnotePr");
+            if (own.format.isEmpty()) own.format = m_endnoteFormat;
+            if (own.position.isEmpty()) own.position = m_endnotePosition;
+            return own;
         };
-        QString next = formatOf(m_wml.lastSection);
+        office::wml::NoteNumbering next = numberingOf(m_wml.lastSection);
         for (int i = int(body.size()) - 1; i >= 0; --i) {
-            if (!body[i].isRaw && body[i].para.props.section) next = formatOf(*body[i].para.props.section);
-            endnoteFormats[i] = next;
+            if (!body[i].isRaw && body[i].para.props.section) next = numberingOf(*body[i].para.props.section);
+            endnoteFormats[i] = next.format;
+            endnotesAtSectionEnd[i] = next.position == QLatin1String("sectEnd");
         }
     }
+    int sectionNo = 0;   // (the sections that have ended so far: the one the paragraph is in)
     auto lineWidth = [&]() {
         const double cell = tables.cellWidth();
         const QTextBlockFormat now = c.blockFormat();
@@ -698,8 +706,9 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 text = text || (in.kind == Inline::Text && !in.text.trimmed().isEmpty());
             }
             if (separator && !text) {
-                const int columns = std::max(1, m_last.cols);
-                const double wide = (std::max(0, m_last.pageW - std::max(0, m_last.left + m_last.gutter) - std::max(0, m_last.right)) - (columns - 1) * std::max(0, m_last.colSpace)) / 20.0 / columns;
+                const SectionProps &place = m_tailSection ? *m_tailSection : m_last;
+                const int columns = std::max(1, place.cols);
+                const double wide = (std::max(0, place.pageW - std::max(0, place.left + place.gutter) - std::max(0, place.right)) - (columns - 1) * std::max(0, place.colSpace)) / 20.0 / columns;
                 tp::ParaBox box;
                 box.bottom = tp::BoxSide{QStringLiteral("single"), 4, 0, QColor()};
                 bf.setProperty(tp::Borders, box.spec());
@@ -959,7 +968,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             else if (in.tag == QLatin1String("endnoteReference")) {
                 const QString shown = markFollows(in.raw) ? QString() : noteNumberText(endnoteFormats.value(blockNumber, m_endnoteFormat), deleted ? endnoteNumber + 1 : ++endnoteNumber);   // (a deleted one takes no number)
                 field = QStringLiteral("raw:") + shown;
-                if (!header && !deleted && m_endnoteRefs.size() < kMostEndnotes) m_endnoteRefs.push_back({in.key, shown});
+                if (!header && !deleted && m_endnoteRefs.size() < kMostEndnotes) m_endnoteRefs.push_back({in.key, shown, sectionNo, endnotesAtSectionEnd.value(blockNumber)});
             }
             af.setProperty(tp::Field, field);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);
@@ -974,8 +983,10 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             last.setProperty(flow::fp::SectionBreakAfter, true);
             setStored(last, prop::SectionData, packSection(*direct.section));
             c.setBlockFormat(last);
+            ++sectionNo;
         }
     }
+    if (!header && !append) m_endnoteSections = sectionNo + 1;
 
     if (firstBlock) {
         // Nothing in the body: one empty paragraph in the default style.

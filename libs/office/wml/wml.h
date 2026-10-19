@@ -552,6 +552,7 @@ QString noteNumberRestart(const QByteArray &settings, const char *group);
 struct NoteNumbering {
     QString format;
     int start = 0;
+    QString position;   // w:pos: where the notes are set (pageBottom, beneathText, sectEnd, docEnd); empty where the part says none
 };
 NoteNumbering readNoteNumbering(const QByteArray &settings, const char *group);
 NoteNumbering noteNumberingOf(const SectionProps &section, const char *group);

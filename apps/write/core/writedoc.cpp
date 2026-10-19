@@ -359,6 +359,7 @@ void WriteDoc::setUpEnvironment()
         const office::wml::NoteNumbering endnotes = office::wml::readNoteNumbering(partData(m_wml.settingsName), "endnotePr");
         if (!endnotes.format.isEmpty()) m_endnoteFormat = endnotes.format;
         if (endnotes.start > 0) m_endnoteStart = endnotes.start;
+        m_endnotePosition = endnotes.position;
         f.env.wordNoHang = !compat.useFELayout || compat.doNotWrapTextWithPunct;
         f.env.wordSpaceSums = compat.doNotUseHTMLParagraphAutoSpacing;
         f.env.wordNoHangStop = compat.noTabHangInd;

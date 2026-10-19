@@ -1327,6 +1327,7 @@ NoteNumbering readNoteNumbering(const QByteArray &settings, const char *group)
     if (notes < 0) return n;
     if (const int format = tree.child(notes, "numFmt"); format >= 0) n.format = tree.val(format);
     if (const int start = tree.child(notes, "numStart"); start >= 0) n.start = std::clamp(tree.val(start).toInt(), 0, 32767);
+    if (const int position = tree.child(notes, "pos"); position >= 0) n.position = tree.val(position);
     return n;
 }
 
@@ -1335,10 +1336,11 @@ NoteNumbering noteNumberingOf(const SectionProps &section, const char *group)
     NoteNumbering n;
     for (const RawChild &child : section.extra) {   // (a section keeps its note properties as written: "<w:endnotePr>...</w:endnotePr>")
         if (!child.xml.contains(group)) continue;
-        static const QRegularExpression format(QStringLiteral("numFmt\\s[^>]*?val=\"([^\"]*)\"")), start(QStringLiteral("numStart\\s[^>]*?val=\"(\\d+)\""));
+        static const QRegularExpression format(QStringLiteral("numFmt\\s[^>]*?val=\"([^\"]*)\"")), start(QStringLiteral("numStart\\s[^>]*?val=\"(\\d+)\"")), position(QStringLiteral("<(?:[\\w.-]+:)?pos\\s[^>]*?val=\"([^\"]*)\""));
         const QString text = QString::fromUtf8(child.xml.left(4096));
         if (const QRegularExpressionMatch m = format.match(text); m.hasMatch()) n.format = m.captured(1);
         if (const QRegularExpressionMatch m = start.match(text); m.hasMatch()) n.start = std::clamp(m.captured(1).toInt(), 0, 32767);
+        if (const QRegularExpressionMatch m = position.match(text); m.hasMatch()) n.position = m.captured(1);
     }
     return n;
 }
