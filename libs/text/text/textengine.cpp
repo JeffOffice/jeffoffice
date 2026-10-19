@@ -23,6 +23,7 @@
 #include <QRawFont>
 #include <QTextDocument>
 #include <QTextBoundaryFinder>
+#include <optional>
 #include <QTextDocumentFragment>
 #include <QTextList>
 #include <atomic>
@@ -2048,6 +2049,13 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
         bool taken = false;
     };
     Owed owed, pending;
+    // Whether a line may break before position p of the paragraph's text (found when first asked: most paragraphs have no word with a place to break in it).
+    std::optional<QTextBoundaryFinder> lines;
+    auto lineMayBreakBefore = [&](int p) {
+        if (!lines) lines.emplace(QTextBoundaryFinder::Line, disp);
+        lines->setPosition(p);
+        return lines->isAtBoundary();
+    };
     // A run that can't take it leaves it after the letter, where the word's difference stood without the next run.
     auto settle = [&](const Owed &o) {
         if (o.amount == 0 || o.taken) return;
@@ -2128,21 +2136,12 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
         const int end = std::min(r.start + r.length, int(disp.size()));
         auto transparent = [](QChar c) { return c.unicode() == 0x00AD || c.unicode() == 0x200B || c.unicode() == 0x2060 || c.unicode() == 0xFFFC; };
         QVector<double> diff(end - r.start, 0.0), shift(end - r.start, 0.0), want(end - r.start, 0.0);
-        bool first = true;
+        int firstLetter = -1;
         for (int i = r.start; i < end; ++i) {
             const QChar c = disp[i];
             if (transparent(c)) continue;
             if (auto t = table->constFind(c.unicode()); t != table->constEnd()) diff[i - r.start] = *t * em - adv(c);
-            if (!words && !first && !c.isSpace()) shift[i - r.start] = diff[i - r.start] / 2;
-            first = false;
-        }
-        // Its pairs are taken into the spacing; the pieces don't kern by the stand-in's.
-        for (int i = r.start, next = -1; i < end; ++i) {
-            if (transparent(disp[i])) continue;
-            next = i + 1;
-            while (next < end && transparent(disp[next])) ++next;
-            want[i - r.start] = diff[i - r.start] - shift[i - r.start] + (next < end ? shift[next - r.start] : 0);
-            if (kerning && next < end) want[i - r.start] += kerning->value(quint32(disp[i].unicode()) << 16 | disp[next].unicode()) * em;
+            if (firstLetter < 0) firstLetter = i;
         }
         // A piece is shaped alone, so a cut may fall only between two
         // characters the original's table measures, neither a surrogate, a
@@ -2156,16 +2155,26 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
                    c.joiningType() == QChar::Joining_None;
         };
         // A word processor's words (the letters between two spaces, or a run's
-        // ends) keep their places: the first letter starts where the original's
-        // does, the word ends where the original's ends, and its whole difference
-        // is shared evenly by the gaps between its letters, so that no gap is wide
-        // enough for a reader of the page's text to take for a space. A gap takes
-        // no more than kGapCapEm (a word of two letters in a stand-in much
-        // narrower than the original's would leave more); the rest goes after the
-        // word, or to the letters of the word's next part where it goes on in the
-        // next run.
+        // ends) keep their places: the stretches of a word between the places a
+        // line may break in it each start where the original's does and end
+        // where the original's ends, and the difference of a stretch is shared
+        // evenly by the gaps between its letters, so that no gap is wide enough
+        // for a reader of the page's text to take for a space. A gap takes no
+        // more than kGapCapEm (a stretch of two letters in a stand-in much
+        // narrower than the original's would leave more); the rest goes after
+        // the stretch, or to the letters of the word's next part where it goes
+        // on in the next run. Where no piece can carry what is left after the
+        // last letter (an unmeasured letter or an accent ends the stretch), the
+        // gaps share all of it, and a stretch with no gap, or of one letter (a
+        // character of a script that breaks between its characters), is set
+        // as before, each letter centered in the original's width.
+        struct Stretch {
+            QVector<int> at;
+            bool takesPending = false, goesOn = false, endCarries = false;
+        };
+        QVector<Stretch> stretches;
+        QVector<bool> byWord(end - r.start, false);
         if (words) {
-            constexpr double kGapCapEm = 0.05;
             bool firstWord = true, spaced = false;
             for (int from = r.start; from < end;) {
                 if (transparent(disp[from]) || disp[from].isSpace()) {
@@ -2175,29 +2184,76 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
                 }
                 QVector<int> at;
                 int to = from;
+                bool mayBreak = false;
                 for (; to < end && (transparent(disp[to]) || !disp[to].isSpace()); ++to)
-                    if (!transparent(disp[to])) at << to;
-                auto gapAfter = [&](int k) { return k + 1 < at.size() && cuttable(disp[at[k]]) && cuttable(disp[at[k + 1]]); };
-                double total = 0;
-                int gaps = 0;
-                for (int k = 0; k < at.size(); ++k) {
-                    total += diff[at[k] - r.start];
-                    if (gapAfter(k)) ++gaps;
-                }
-                if (firstWord && !spaced && pending.at == r.start && pending.amount != 0) {   // (the word goes on from the run before)
-                    total += pending.amount;
-                    pending.taken = true;
-                }
+                    if (!transparent(disp[to])) {
+                        at << to;
+                        mayBreak |= !disp[to].isLetterOrNumber() || disp[to].unicode() >= 0x0E00 || disp[to].isSurrogate();
+                    }
+                const bool takesPending = firstWord && !spaced && pending.at == r.start && pending.amount != 0 && !lineMayBreakBefore(r.start);
+                const bool goesOn = to == end && end < disp.size() && !disp[end].isSpace() && !lineMayBreakBefore(end);
                 firstWord = false;
-                const double each = gaps ? std::min(total / gaps, kGapCapEm * em) : 0;
-                for (int k = 0; k < at.size(); ++k)
-                    want[at[k] - r.start] += (gapAfter(k) ? each : 0) - diff[at[k] - r.start];
-                if (to == end && end < disp.size() && !disp[end].isSpace()) {
-                    if (const double left = total - each * gaps; left != 0) owed = {left, end, at.last(), false};
-                } else {
-                    want[at.last() - r.start] += total - each * gaps;
+                int begin = 0;
+                for (int k = 1; k <= at.size(); ++k) {
+                    if (k < at.size()) {
+                        bool breaks = false;
+                        if (mayBreak)
+                            for (int p = at[k - 1] + 1; p <= at[k] && !breaks; ++p) breaks = lineMayBreakBefore(p);
+                        if (!breaks) continue;
+                    }
+                    // The part of the word from at[begin] to at[k - 1].
+                    const int last = at[k - 1], count = k - begin;
+                    const int after = last + 1;
+                    const bool wordGoesOn = goesOn && k == at.size();
+                    const bool nextCarries = wordGoesOn || after >= end || disp[after].isSpace() || cuttable(disp[after]) || transparent(disp[after]);
+                    int gaps = 0;
+                    for (int j = begin; j + 1 < k; ++j) gaps += cuttable(disp[at[j]]) && cuttable(disp[at[j + 1]]);
+                    const bool takes = takesPending && begin == 0;
+                    // (A part of a word that goes on in the next run passes on all it can't take; one that goes on from the run before and is a letter alone takes it after itself.)
+                    const bool passes = wordGoesOn || (takes && count == 1 && cuttable(disp[last]) && nextCarries);
+                    if ((count > 1 && gaps > 0) || passes) {
+                        Stretch part;
+                        part.at = at.mid(begin, count);
+                        part.takesPending = takes;
+                        part.goesOn = wordGoesOn;
+                        part.endCarries = count > 1 && cuttable(disp[last]) && cuttable(disp[at[k - 2]]) && nextCarries;
+                        for (int i : part.at) byWord[i - r.start] = true;
+                        stretches << part;
+                    }
+                    begin = k;
                 }
                 from = to;
+            }
+        }
+        for (int i = r.start; i < end; ++i)
+            if (!byWord[i - r.start] && i != firstLetter && !transparent(disp[i]) && !disp[i].isSpace()) shift[i - r.start] = diff[i - r.start] / 2;
+        // Its pairs are taken into the spacing; the pieces don't kern by the stand-in's.
+        for (int i = r.start, next = -1; i < end; ++i) {
+            if (transparent(disp[i])) continue;
+            next = i + 1;
+            while (next < end && transparent(disp[next])) ++next;
+            want[i - r.start] = diff[i - r.start] - shift[i - r.start] + (next < end ? shift[next - r.start] : 0);
+            if (kerning && next < end) want[i - r.start] += kerning->value(quint32(disp[i].unicode()) << 16 | disp[next].unicode()) * em;
+        }
+        for (const Stretch &part : stretches) {
+            constexpr double kGapCapEm = 0.05;
+            auto gapAfter = [&](int k) { return k + 1 < part.at.size() && cuttable(disp[part.at[k]]) && cuttable(disp[part.at[k + 1]]); };
+            double total = 0;
+            int gaps = 0;
+            for (int k = 0; k < part.at.size(); ++k) {
+                total += diff[part.at[k] - r.start];
+                if (gapAfter(k)) ++gaps;
+            }
+            if (part.takesPending) {   // (the word goes on from the run before)
+                total += pending.amount;
+                pending.taken = true;
+            }
+            const double each = gaps == 0 ? 0 : part.endCarries ? std::min(total / gaps, kGapCapEm * em) : total / gaps;
+            for (int k = 0; k < part.at.size(); ++k)
+                want[part.at[k] - r.start] += (gapAfter(k) ? each : 0) - diff[part.at[k] - r.start];
+            if (const double left = total - each * gaps; std::abs(left) > 1e-6) {
+                if (part.goesOn) owed = {left, end, part.at.last(), false};
+                else want[part.at.last() - r.start] += left;
             }
         }
         int pieceStart = r.start;
@@ -2233,7 +2289,9 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
             // A character joins the piece while every one stays within
             // 0.001 em of its place, or where no cut may fall; a new piece
             // takes up the drift.
-            if (started && (std::abs(drift + pieceDelta - w) <= 0.001 * em || !cuttable(disp[before]) || !cuttable(disp[i]))) {
+            // (A space ends what a stretch's last letter can't carry alone, an unmeasured letter or an accent, so that what is left of the stretch doesn't go over the space.)
+            const bool spaceAfterStretch = byWord[before - r.start] && disp[i].isSpace();
+            if (started && (std::abs(drift + pieceDelta - w) <= 0.001 * em || (!cuttable(disp[before]) && !spaceAfterStretch) || !cuttable(disp[i]))) {
                 drift += pieceDelta - w;
                 continue;
             }

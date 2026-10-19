@@ -777,7 +777,7 @@ QVector<StoryLayout::LineInfo> wordLinesOf(const QVector<std::pair<QString, doub
 // A line of text in a missing face the original's letter widths are measured for, as the layout sets it (size in points, on the word processor's path, kerned
 // or not, or the publication's): `x` is each caret's place (one more than there are characters), `cell` where the original's widths put each character (kerning
 // pairs included where the text is kerned), `stand` the advance of each character in the stand-in the layout draws (in em), and `width` the original's (in em).
-// `splits` are the places where the text goes on in a run of its own.
+// `splits` are the places where the text goes on in a run of its own. A character that no table measures keeps its stand-in's width in `width` (as in the layout).
 struct LetterLine {
     QVector<double> x, cell, stand, width;
 };
@@ -824,7 +824,7 @@ LetterLine letterLineOf(const QString &family, const QString &text, double size,
     for (int i = 0; i < text.size(); ++i) {
         line.cell << at;
         line.stand << metrics.horizontalAdvance(text[i]) / 1000;
-        line.width << (widths ? widths->value(text[i].unicode()) : 0.0);
+        line.width << (widths && widths->contains(text[i].unicode()) ? widths->value(text[i].unicode()) : line.stand.last());   // (a character the table doesn't measure keeps its stand-in's width)
         at += line.width.last() * size;
         if (pairs && i + 1 < text.size()) at += pairs->value(quint32(text[i].unicode()) << 16 | text[i + 1].unicode()) * size;
     }
@@ -2725,6 +2725,91 @@ private Q_SLOTS:
                 start = stop;
             }
             QCOMPARE(checked, 5);
+        }
+    }
+
+    // A word is not set as one stretch where a line may break inside it (after a hyphen or a dash; a word processor's line does not break after a slash): the part before the break
+    // is shared out by itself and ends where the original's does, so that a line breaks as it does there; the rest of the word is the same.
+    void wordLettersKeepTheOriginalsPlaceAtEveryBreakInsideTheWord()
+    {
+        double diff = 0;
+        const QString family = narrowStandInForI(&diff);
+        if (family.isEmpty()) QSKIP("every face with a narrow I stand-in is installed here");
+        const double size = 100;
+        const QString text = QStringLiteral("well-known and/or Illinois-Includes Il\u2013In end");
+        const LetterLine line = letterLineOf(family, text, size, true, false);
+        QVERIFY(line.x.size() == text.size() + 1);
+        int checked = 0;
+        for (int p = 1; p < text.size(); ++p) {
+            if (text[p - 1] != QLatin1Char('-') && text[p - 1] != QChar(0x2013)) continue;
+            QVERIFY2(std::abs(line.x[p] - line.x[0] - line.cell[p]) <= 1, qPrintable(QStringLiteral("a line may break before \"%1\" (at %2), the original's place is %3, not %4").arg(text.mid(p, 4)).arg(p).arg(line.cell[p]).arg(line.x[p] - line.x[0])));
+            ++checked;
+        }
+        QCOMPARE(checked, 3);
+        for (int stop = 0; stop < text.size(); ++stop)   // (the words, "and/or" among them, end where the original's do)
+            if (text[stop].isSpace()) QVERIFY2(std::abs(line.x[stop] - line.x[0] - line.cell[stop]) <= 1, qPrintable(QStringLiteral("the word before %1 ends at %2, not %3").arg(stop).arg(line.x[stop] - line.x[0]).arg(line.cell[stop])));
+        double widest = 0;
+        for (int i = 0; i + 1 < text.size(); ++i)
+            if (!text[i].isSpace() && !text[i + 1].isSpace()) widest = std::max(widest, (line.x[i + 1] - line.x[i]) / size - line.stand[i]);
+        QVERIFY2(widest <= 0.07, qPrintable(QString::number(widest)));
+    }
+
+    // A line of Chinese text in a stand-in run (each character a piece of its own, no word between spaces) is set as the publication's text is, as it was before words were shared
+    // out: its Latin letters keep what they had.
+    void aLineOfChineseTextIsSetAsItWas()
+    {
+        double diff = 0;
+        const QString family = narrowStandInForI(&diff);
+        if (family.isEmpty()) QSKIP("every face with a narrow I stand-in is installed here");
+        const double size = 100;
+        for (const QString &text : {QStringLiteral("\u65E5\u672C\u8A9E\u306E\u30C6\u30AD\u30B9\u30C8"), QStringLiteral("\u65E5\u672CA\u8A9EI\u6587\u5B57I")}) {
+            const LetterLine word = letterLineOf(family, text, size, true, false), publication = letterLineOf(family, text, size, false, false);
+            QVERIFY(word.x.size() == text.size() + 1 && publication.x.size() == word.x.size());
+            for (int i = 1; i <= text.size(); ++i)
+                QVERIFY2(std::abs((word.x[i] - word.x[0]) - (publication.x[i] - publication.x[0])) <= 1, qPrintable(QStringLiteral("%1: character %2 is at %3, not %4").arg(text.left(3)).arg(i).arg(word.x[i] - word.x[0]).arg(publication.x[i] - publication.x[0])));
+        }
+    }
+
+    // A word whose last character the pieces can't carry alone (a letter the table doesn't measure, or a combining accent) still ends where the original's does, in the middle of a
+    // run and at the end of one, and what is left of its difference doesn't turn up in the first gap of the word after it.
+    void aWordEndingInACharacterNoPieceCanCarryStillEndsWhereTheOriginalsDoes()
+    {
+        double diff = 0;
+        const QString family = narrowStandInForI(&diff);
+        if (family.isEmpty()) QSKIP("every face with a narrow I stand-in is installed here");
+        const double size = 100;
+        const QString text = QStringLiteral("Includ\u017C Illinois\u0301 du\u017C\u0105 cafe\u0301 Illinois end");
+        QVector<int> everyWordEnd;
+        for (int i = 0; i < text.size(); ++i)
+            if (text[i].isSpace()) everyWordEnd << i;
+        for (const QVector<int> &splits : {QVector<int>(), everyWordEnd}) {
+            const LetterLine line = letterLineOf(family, text, size, true, false, splits);
+            QVERIFY(line.x.size() == text.size() + 1);
+            const QString where = splits.isEmpty() ? QStringLiteral("in a run") : QStringLiteral("at the end of a run");
+            for (int stop = 0; stop < text.size(); ++stop) {
+                if (!text[stop].isSpace()) continue;
+                QVERIFY2(std::abs(line.x[stop] - line.x[0] - line.cell[stop]) <= 1, qPrintable(QStringLiteral("%1: the word before %2 ends at %3, not %4").arg(where).arg(stop).arg(line.x[stop] - line.x[0]).arg(line.cell[stop])));
+            }
+            double widest = 0;
+            int at = 0;
+            for (int i = 0; i + 1 < text.size(); ++i) {
+                if (text[i].isSpace() || text[i + 1].isSpace()) continue;
+                const double gap = (line.x[i + 1] - line.x[i]) / size - line.stand[i];
+                if (gap > widest) {
+                    widest = gap;
+                    at = i;
+                }
+            }
+            QVERIFY2(widest <= 0.07, qPrintable(QStringLiteral("%1: a gap of %2 em after \"%3\"").arg(where).arg(widest).arg(text.mid(at, 2))));
+        }
+        // What is left of a word that the gaps can't take within the limit (its capitals much narrower) is taken by the gaps all the same, not dropped.
+        const QString narrow = QStringLiteral("III\u017C IIIi\u0301 end");
+        for (const QVector<int> &splits : {QVector<int>(), QVector<int>{4, 11}}) {
+            const LetterLine line = letterLineOf(family, narrow, size, true, false, splits);
+            QVERIFY(line.x.size() == narrow.size() + 1);
+            for (int stop = 0; stop < narrow.size(); ++stop)
+                if (narrow[stop].isSpace())
+                    QVERIFY2(std::abs(line.x[stop] - line.x[0] - line.cell[stop]) <= 1, qPrintable(QStringLiteral("\"%1\" ends at %2, not %3").arg(narrow.left(stop)).arg(line.x[stop] - line.x[0]).arg(line.cell[stop])));
         }
     }
 
