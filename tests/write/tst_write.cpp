@@ -8115,7 +8115,10 @@ private Q_SLOTS:
             auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notesPart(separator30, QByteArray(), note(2, " FIRST note") + note(3, " SECOND note"))}}));
             QVERIFY(doc);
             QCOMPARE(doc->pager().pageCount(), 2);
-            const TextItem *first = boxWithText(*doc->pager().materialize(0), QStringLiteral("FIRST note"));
+            // (The page owns its items: it is kept while the box is read, not made and dropped in the call that finds the box.)
+            const auto firstPage = doc->pager().materialize(0);
+            QVERIFY(firstPage);
+            const TextItem *first = boxWithText(*firstPage, QStringLiteral("FIRST note"));
             QVERIFY(first);
             QVERIFY2(std::abs(first->rect.bottom() - (792 - 72)) < 0.1, qPrintable(QString::number(first->rect.bottom())));
         }
