@@ -11415,6 +11415,33 @@ private Q_SLOTS:
         QVERIFY(documentXml(doc->toDocx()).contains("<w:lnNumType w:countBy=\"1\" w:distance=\"144\"/>"));
     }
 
+    // A section's line numbers skip as many numbers as the file's start says (3: the first line is 4), then go on from page to page when the file says they run on (w:restart
+    // "continuous") and begin again at each page when it says nothing.
+    void aSectionsLineNumbersSkipTheStartAndRunOnWhenTheFileSays()
+    {
+        QByteArray body;
+        for (int i = 0; i < 40; ++i) body += plainP(wordsOf("line", 6));
+        for (const bool runOn : {false, true}) {
+            const QByteArray numbering = runOn ? "<w:lnNumType w:countBy=\"1\" w:start=\"3\" w:restart=\"continuous\"/>" : "<w:lnNumType w:countBy=\"1\" w:start=\"3\"/>";
+            auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 1440, QByteArray(), QByteArray(), numbering), {}, QByteArray(), kStyles));
+            QVERIFY(doc);
+            flow::Paginator &pg = doc->pager();
+            QVERIFY(pg.pageCount() >= 3);
+            int before = 0;
+            for (int k = 0; k < pg.pageCount(); ++k) {
+                const auto page = pg.materialize(k);
+                QVERIFY(page);
+                QStringList numbers;
+                for (const auto &item : page->doc->pages[0]->items)
+                    if (item->id.startsWith(QLatin1String("flow-lineno-box"))) numbers << page->doc->stories.value(dynamic_cast<const TextItem *>(item.get())->storyId)->doc->toPlainText();
+                const int lines = int(pg.lines(k).size());
+                QCOMPARE(int(numbers.size()), lines);
+                QCOMPARE(numbers.value(0), QString::number(4 + (runOn ? before : 0)));
+                before += lines;
+            }
+        }
+    }
+
     // Ruby text in a header shows as it does in the text: the base, and the ruby after it in brackets.
     void rubyInAHeaderIsShown()
     {

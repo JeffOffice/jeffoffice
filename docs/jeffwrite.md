@@ -119,9 +119,9 @@ code; saving asks for a `.docx` name. On the practice half of the Word yardstick
 The words round (October 18, 2026) went through the words that the reference pages show and JeffWrite's lack. Page numbers after a continuous section that restarts them count the page it
 begins on as its first; a header's or footer's STYLEREF shows the page's paragraph of the style (the first on the page, the last with `\l`, else the nearest before, with the number
 switches giving its number); text without `xml:space="preserve"` has no blanks at its ends; rows and cells held by content controls (nested too) are the table's; sections' line numbers
-(`w:lnNumType`, again at each page) are drawn in the margin; ruby text shows after its base text in brackets; a page that three sections or more begin on, one under another, is laid out
+(`w:lnNumType`: again at each page, at each section, or running on; `w:start` is the numbers skipped) are drawn in the margin; ruby text shows after its base text in brackets; a page that three sections or more begin on, one under another, is laid out
 in a part for each (columns made even where another follows); and a page's copy of the text cuts runs of joined paragraphs where the document does. Not yet: mathematical alphanumerics in a face that lacks
-them, ruby set above its base, and line numbers that go on across pages or sections.
+them, and ruby set above its base.
 
 The second part of the words round (October 18, 2026): the endnotes the text refers to are set after its last text, after the file's separator for them, each with its number (they are
 paragraphs of the story that the file does not have: no edit reaches them, saving leaves them out, and the file's part is kept as it was; at most 5,000 are set); an absolute position

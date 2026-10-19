@@ -10,6 +10,7 @@
 #include "../timing.h"
 #include "pageaudit.h"
 #include "render/renderer.h"
+#include "text/hyphenation.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 
@@ -773,6 +774,111 @@ QVector<StoryLayout::LineInfo> wordLinesOf(const QVector<std::pair<QString, doub
     return lay.lineInfo(0);
 }
 
+
+// A line of text in a missing face the original's letter widths are measured for, as the layout sets it (size in points, on the word processor's path, kerned
+// or not, or the publication's): `x` is each caret's place (one more than there are characters), `cell` where the original's widths put each character (kerning
+// pairs included where the text is kerned), `stand` the advance of each character in the stand-in the layout draws (in em), and `width` the original's (in em).
+// `splits` are the places where the text goes on in a run of its own; `hyphenate` lets the layout hyphenate words by its own rule. A character that no table measures keeps its stand-in's width in `width` (as in the layout).
+struct LetterLine {
+    QVector<double> x, cell, stand, width;
+};
+
+LetterLine letterLineOf(const QString &family, const QString &text, double size, bool word, bool kerned = true, const QVector<int> &splits = {}, bool hyphenate = false)
+{
+    LetterLine line;
+    QTextCharFormat cf;
+    cf.setFontFamilies({family});
+    cf.setFontPointSize(size);
+    if (word && kerned) cf.setProperty(tp::KernAbove, 1.0);   // (a word processor's text is kerned only where its file asks)
+    LayoutEnv env;
+    env.wordLines = word;
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        // (A run of its own where the text is split: the same face in another color.)
+        int from = 0;
+        bool other = false;
+        for (int cut : splits + QVector<int>{int(text.size())}) {
+            QTextCharFormat part = cf;
+            if (other) part.setForeground(QColor(Qt::blue));
+            c.insertText(text.mid(from, cut - from), part);
+            from = cut;
+            other = !other;
+        }
+        StoryLayout lay;
+        FrameSpec frame = plainFrame(8000, 400);
+        frame.hyphenate = hyphenate;
+        lay.build(&doc, {frame}, env);
+        for (int i = 0; i <= text.size(); ++i) {
+            int frame = -1;
+            QRectF r;
+            lay.caretRect(i, &frame, &r);
+            line.x << r.x();
+        }
+    }
+    QFont standIn = resolveCharFormat(cf, env).font();
+    standIn.setPixelSize(1000);
+    standIn.setLetterSpacing(QFont::AbsoluteSpacing, 0);
+    standIn.setWordSpacing(0);
+    const QFontMetricsF metrics(standIn);
+    const QHash<char16_t, double> *widths = originalLetterWidths(family, false, false);
+    const QHash<quint32, double> *pairs = !word || kerned ? originalKerning(family, false, false) : nullptr;
+    double at = 0;
+    for (int i = 0; i < text.size(); ++i) {
+        line.cell << at;
+        line.stand << metrics.horizontalAdvance(text[i]) / 1000;
+        line.width << (widths && widths->contains(text[i].unicode()) ? widths->value(text[i].unicode()) : line.stand.last());   // (a character the table doesn't measure keeps its stand-in's width)
+        if (text[i] == QChar(0x00AD) || text[i] == QChar(0x200B)) line.stand.last() = line.width.last() = 0;   // (shown only where a line breaks)
+        at += line.width.last() * size;
+        if (pairs && i + 1 < text.size()) at += pairs->value(quint32(text[i].unicode()) << 16 | text[i + 1].unicode()) * size;
+    }
+    line.cell << at;
+    return line;
+}
+
+// A face this machine lacks, measured, whose stand-in's capital I is much narrower than the original's (by `diff` of an em).
+QString narrowStandInForI(double *diff)
+{
+    for (const char *name : {"Elephant", "Bodoni MT", "Verdana", "Tahoma"}) {
+        const QString family = QString::fromLatin1(name);
+        if (QFontDatabase::hasFamily(family) || !originalLetterWidths(family, false, false)) continue;
+        const LetterLine line = letterLineOf(family, QStringLiteral("I"), 10, true);
+        *diff = line.width.value(0) - line.stand.value(0);
+        if (*diff > 0.08) return family;
+    }
+    return QString();
+}
+
+// The line numbers drawn on page `k`, in order, as text.
+QStringList lineNumbersOnPage(Paginator &pg, int k)
+{
+    QStringList shown;
+    const auto page = pg.materialize(k);
+    if (!page) return shown;
+    for (const auto &item : page->doc->pages[0]->items)
+        if (item->id.startsWith(QLatin1String("flow-lineno-box"))) shown << page->doc->stories.value(dynamic_cast<const TextItem *>(item.get())->storyId)->doc->toPlainText();
+    return shown;
+}
+
+// A story of short paragraphs on small pages (about ten lines each), its first section numbering its lines.
+void numberedStory(FlowDocument &fd, int paragraphs, int countBy, Section::LineNumbers::Restart restart)
+{
+    fd.env.wordLines = true;
+    fillStory(fd.story(), paragraphs, 4, [](int, QTextBlockFormat &bf) { bf.setBottomMargin(0); }, 6, 12);
+    fd.sections[0].paper = QSizeF(240, 200);
+    fd.sections[0].margins = QMarginsF(60, 30, 30, 30);
+    fd.sections[0].lineNumbers.countBy = countBy;
+    fd.sections[0].lineNumbers.start = 1;
+    fd.sections[0].lineNumbers.distance = 10;
+    fd.sections[0].lineNumbers.restart = restart;
+    fd.sections[0].lineNumbers.format.setFontPointSize(7);
+    // (A bundled face, so that the lines to a page are the same on every machine.)
+    QTextCursor all(fd.story());
+    all.select(QTextCursor::Document);
+    QTextCharFormat face;
+    face.setFontFamilies({QStringLiteral("Arimo")});
+    all.mergeCharFormat(face);
+}
 
 // A header or footer story of the lines given, a paragraph each.
 std::shared_ptr<QTextDocument> furnitureStory(const QStringList &lines)
@@ -2578,6 +2684,242 @@ private Q_SLOTS:
         QFont font(QStringLiteral("TeX Gyre Cursor"));
         font.setPixelSize(1000);
         QVERIFY(std::abs(QFontMetricsF(font).horizontalAdvance(QLatin1Char('M')) - 1000 * 1229 / 2048.0) < 0.2);
+    }
+
+    // A word processor's missing face, measured, is drawn in a stand-in whose letters take the original's widths, the difference from the stand-in's going into the
+    // spacing after each letter. Where the stand-in's capital I is much narrower than the original's, the letters of a word shared that difference unevenly (the first
+    // letter of a run kept all of its own after it), and the gap beside the I was wide enough for a reader of the page's text to take "I llinois", "I ncludes", and
+    // "SECTION I I" for two words each (a gap of a tenth of an em parts a word there). The letters of a word now share the word's difference evenly, none of
+    // its gaps over a twentieth of an em, and the words keep their places on the line.
+    void wordLettersShareTheirWidthsEvenly()
+    {
+        double diff = 0;
+        const QString family = narrowStandInForI(&diff);
+        if (family.isEmpty()) QSKIP("every face with a narrow I stand-in is installed here");
+        qInfo() << family << "stand-in's I is narrower by" << diff << "em";
+        const double size = 100;
+        const QString text = QStringLiteral("Illinois Includes SECTION II 1999 end");
+        for (bool kerned : {false, true}) {
+            const LetterLine line = letterLineOf(family, text, size, true, kerned);
+            QVERIFY(line.x.size() == text.size() + 1);
+            // No gap between two letters of a word is wide enough to part it.
+            double widest = 0;
+            QString where;
+            for (int i = 0; i + 1 < text.size(); ++i) {
+                if (text[i].isSpace() || text[i + 1].isSpace()) continue;
+                const double gap = (line.x[i + 1] - line.x[i]) / size - line.stand[i];
+                if (gap > widest) {
+                    widest = gap;
+                    where = text.mid(i, 2);
+                }
+            }
+            QVERIFY2(widest <= 0.07, qPrintable(QStringLiteral("a gap of %1 em after the %2 of \"%3\"").arg(widest).arg(where.left(1), where)));
+            // Every word starts and ends where the original's widths put it, to a point.
+            int checked = 0;
+            for (int start = 0; start < text.size();) {
+                if (text[start].isSpace()) { ++start; continue; }
+                int stop = start;
+                while (stop < text.size() && !text[stop].isSpace()) ++stop;
+                if (stop < text.size()) {
+                    const QString word = text.mid(start, stop - start);
+                    QVERIFY2(std::abs(line.x[start] - line.x[0] - line.cell[start]) <= 1, qPrintable(QStringLiteral("\"%1\" starts at %2, not %3").arg(word).arg(line.x[start] - line.x[0]).arg(line.cell[start])));
+                    QVERIFY2(std::abs(line.x[stop] - line.x[0] - line.cell[stop]) <= 1, qPrintable(QStringLiteral("\"%1\" ends at %2, not %3").arg(word).arg(line.x[stop] - line.x[0]).arg(line.cell[stop])));
+                    ++checked;
+                }
+                start = stop;
+            }
+            QCOMPARE(checked, 5);
+        }
+    }
+
+    // A word is not set as one stretch where a line may break inside it (after a hyphen or a dash; a word processor's line does not break after a slash): the part before the break
+    // is shared out by itself and ends where the original's does, so that a line breaks as it does there; the rest of the word is the same.
+    void wordLettersKeepTheOriginalsPlaceAtEveryBreakInsideTheWord()
+    {
+        double diff = 0;
+        const QString family = narrowStandInForI(&diff);
+        if (family.isEmpty()) QSKIP("every face with a narrow I stand-in is installed here");
+        const double size = 100;
+        const QString text = QStringLiteral("well-known and/or Illinois-Includes Il\u2013In end");
+        const LetterLine line = letterLineOf(family, text, size, true, false);
+        QVERIFY(line.x.size() == text.size() + 1);
+        int checked = 0;
+        for (int p = 1; p < text.size(); ++p) {
+            if (text[p - 1] != QLatin1Char('-') && text[p - 1] != QChar(0x2013)) continue;
+            QVERIFY2(std::abs(line.x[p] - line.x[0] - line.cell[p]) <= 1, qPrintable(QStringLiteral("a line may break before \"%1\" (at %2), the original's place is %3, not %4").arg(text.mid(p, 4)).arg(p).arg(line.cell[p]).arg(line.x[p] - line.x[0])));
+            ++checked;
+        }
+        QCOMPARE(checked, 3);
+        for (int stop = 0; stop < text.size(); ++stop)   // (the words, "and/or" among them, end where the original's do)
+            if (text[stop].isSpace()) QVERIFY2(std::abs(line.x[stop] - line.x[0] - line.cell[stop]) <= 1, qPrintable(QStringLiteral("the word before %1 ends at %2, not %3").arg(stop).arg(line.x[stop] - line.x[0]).arg(line.cell[stop])));
+        double widest = 0;
+        for (int i = 0; i + 1 < text.size(); ++i)
+            if (!text[i].isSpace() && !text[i + 1].isSpace()) widest = std::max(widest, (line.x[i + 1] - line.x[i]) / size - line.stand[i]);
+        QVERIFY2(widest <= 0.07, qPrintable(QString::number(widest)));
+    }
+
+    // A word with a soft hyphen or a zero-width space in it (or one that the layout hyphenates by its own rule) is shared out in the parts between the places a line may break, as
+    // a word with a hyphen is: the part before the place ends where the original's does.
+    void wordLettersKeepTheOriginalsPlaceAtASoftHyphenAndAHyphenationPoint()
+    {
+        double diff = 0;
+        const QString family = narrowStandInForI(&diff);
+        if (family.isEmpty()) QSKIP("every face with a narrow I stand-in is installed here");
+        const double size = 100;
+        const QString text = QStringLiteral("Illi\u00ADnois Includ\u200Bes Information end");
+        const QString hyphenated = QStringLiteral("Information");
+        QVector<int> places;   // the places a line may break, as the character that follows
+        for (int p = 0; p < text.size(); ++p)
+            if (text[p] == QChar(0x00AD) || text[p] == QChar(0x200B)) places << p + 1;
+        const int at = int(text.indexOf(hyphenated));
+        for (int point : hyphenationPoints(hyphenated)) places << at + point;
+        QCOMPARE(int(places.size()), 2 + int(hyphenationPoints(hyphenated).size()));
+        QVERIFY(places.size() >= 4);
+        const LetterLine line = letterLineOf(family, text, size, true, false, {}, true);
+        QVERIFY(line.x.size() == text.size() + 1);
+        for (int p : places)
+            QVERIFY2(std::abs(line.x[p] - line.x[0] - line.cell[p]) <= 1, qPrintable(QStringLiteral("a line may break before \"%1\" (at %2), the original's place is %3, not %4").arg(text.mid(p, 4)).arg(p).arg(line.cell[p]).arg(line.x[p] - line.x[0])));
+    }
+
+    // A line of Chinese text in a stand-in run (each character a piece of its own, no word between spaces) is set as the publication's text is, as it was before words were shared
+    // out: its Latin letters keep what they had.
+    void aLineOfChineseTextIsSetAsItWas()
+    {
+        double diff = 0;
+        const QString family = narrowStandInForI(&diff);
+        if (family.isEmpty()) QSKIP("every face with a narrow I stand-in is installed here");
+        const double size = 100;
+        for (const QString &text : {QStringLiteral("\u65E5\u672C\u8A9E\u306E\u30C6\u30AD\u30B9\u30C8"), QStringLiteral("\u65E5\u672CA\u8A9EI\u6587\u5B57I")}) {
+            const LetterLine word = letterLineOf(family, text, size, true, false), publication = letterLineOf(family, text, size, false, false);
+            QVERIFY(word.x.size() == text.size() + 1 && publication.x.size() == word.x.size());
+            for (int i = 1; i <= text.size(); ++i)
+                QVERIFY2(std::abs((word.x[i] - word.x[0]) - (publication.x[i] - publication.x[0])) <= 1, qPrintable(QStringLiteral("%1: character %2 is at %3, not %4").arg(text.left(3)).arg(i).arg(word.x[i] - word.x[0]).arg(publication.x[i] - publication.x[0])));
+        }
+    }
+
+    // A word whose last character the pieces can't carry alone (a letter the table doesn't measure, or a combining accent) still ends where the original's does, in the middle of a
+    // run and at the end of one, and what is left of its difference doesn't turn up in the first gap of the word after it.
+    void aWordEndingInACharacterNoPieceCanCarryStillEndsWhereTheOriginalsDoes()
+    {
+        double diff = 0;
+        const QString family = narrowStandInForI(&diff);
+        if (family.isEmpty()) QSKIP("every face with a narrow I stand-in is installed here");
+        const double size = 100;
+        const QString text = QStringLiteral("Includ\u017C Illinois\u0301 du\u017C\u0105 cafe\u0301 Illinois end");
+        QVector<int> everyWordEnd;
+        for (int i = 0; i < text.size(); ++i)
+            if (text[i].isSpace()) everyWordEnd << i;
+        for (const QVector<int> &splits : {QVector<int>(), everyWordEnd}) {
+            const LetterLine line = letterLineOf(family, text, size, true, false, splits);
+            QVERIFY(line.x.size() == text.size() + 1);
+            const QString where = splits.isEmpty() ? QStringLiteral("in a run") : QStringLiteral("at the end of a run");
+            for (int stop = 0; stop < text.size(); ++stop) {
+                if (!text[stop].isSpace()) continue;
+                QVERIFY2(std::abs(line.x[stop] - line.x[0] - line.cell[stop]) <= 1, qPrintable(QStringLiteral("%1: the word before %2 ends at %3, not %4").arg(where).arg(stop).arg(line.x[stop] - line.x[0]).arg(line.cell[stop])));
+            }
+            double widest = 0;
+            int at = 0;
+            for (int i = 0; i + 1 < text.size(); ++i) {
+                if (text[i].isSpace() || text[i + 1].isSpace()) continue;
+                const double gap = (line.x[i + 1] - line.x[i]) / size - line.stand[i];
+                if (gap > widest) {
+                    widest = gap;
+                    at = i;
+                }
+            }
+            QVERIFY2(widest <= 0.07, qPrintable(QStringLiteral("%1: a gap of %2 em after \"%3\"").arg(where).arg(widest).arg(text.mid(at, 2))));
+        }
+        // What is left of a word that the gaps can't take within the limit (its capitals much narrower) is taken by the gaps all the same, not dropped.
+        const QString narrow = QStringLiteral("III\u017C IIIi\u0301 end");
+        for (const QVector<int> &splits : {QVector<int>(), QVector<int>{4, 11}}) {
+            const LetterLine line = letterLineOf(family, narrow, size, true, false, splits);
+            QVERIFY(line.x.size() == narrow.size() + 1);
+            for (int stop = 0; stop < narrow.size(); ++stop)
+                if (narrow[stop].isSpace())
+                    QVERIFY2(std::abs(line.x[stop] - line.x[0] - line.cell[stop]) <= 1, qPrintable(QStringLiteral("\"%1\" ends at %2, not %3").arg(narrow.left(stop)).arg(line.x[stop] - line.x[0]).arg(line.cell[stop])));
+        }
+    }
+
+    // A word that goes on in another run (a format change inside it: a bold I, a field's result) is one word all the same: what the letters of its first part
+    // can't take of the word's difference (a gap over a twentieth of an em) is taken by the letters of the next, not left after the first, where the "I" of
+    // "I llinois" parts the word.
+    void wordLettersShareTheirWidthsAcrossRuns()
+    {
+        double diff = 0;
+        const QString family = narrowStandInForI(&diff);
+        if (family.isEmpty()) QSKIP("every face with a narrow I stand-in is installed here");
+        const double size = 100;
+        const QString text = QStringLiteral("Illinois Includes SECTION II 1999 end");
+        for (const QVector<int> &splits : {QVector<int>{1}, QVector<int>{1, 2}, QVector<int>{10}, QVector<int>{1, 10, 11}}) {
+            const LetterLine line = letterLineOf(family, text, size, true, true, splits);
+            QVERIFY(line.x.size() == text.size() + 1);
+            const QString where = QStringLiteral("split at %1").arg(splits.value(0));
+            double widest = 0;
+            int at = 0;
+            for (int i = 0; i + 1 < text.size(); ++i) {
+                if (text[i].isSpace() || text[i + 1].isSpace()) continue;
+                const double gap = (line.x[i + 1] - line.x[i]) / size - line.stand[i];
+                if (gap > widest) {
+                    widest = gap;
+                    at = i;
+                }
+            }
+            QVERIFY2(widest <= 0.07, qPrintable(QStringLiteral("%1: a gap of %2 em after the %3 of \"%4\"").arg(where).arg(widest).arg(text[at]).arg(text.mid(at, 2))));
+            for (int stop = 0; stop < text.size(); ++stop) {
+                if (!text[stop].isSpace()) continue;
+                QVERIFY2(std::abs(line.x[stop] - line.x[0] - line.cell[stop]) <= 1, qPrintable(QStringLiteral("%1: the word before %2 ends at %3, not %4").arg(where).arg(stop).arg(line.x[stop] - line.x[0]).arg(line.cell[stop])));
+            }
+        }
+    }
+
+    // A run that takes no part in it (another face, which no table measures) after the I: the I keeps the whole of its difference after it, as the original's
+    // letter fills its width, and the line is no shorter.
+    void aWordsFirstPartKeepsItsWidthWhereTheNextRunTakesNone()
+    {
+        double diff = 0;
+        const QString family = narrowStandInForI(&diff);
+        if (family.isEmpty()) QSKIP("every face with a narrow I stand-in is installed here");
+        const double size = 100;
+        const QHash<char16_t, double> *widths = originalLetterWidths(family, false, false);
+        QVERIFY(widths);
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat cf;
+        cf.setFontFamilies({family});
+        cf.setFontPointSize(size);
+        c.insertText(QStringLiteral("I"), cf);
+        cf.setFontFamilies({QStringLiteral("Arimo")});
+        c.insertText(QStringLiteral("llinois"), cf);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(8000, 400)}, env);
+        auto x = [&](int pos) {
+            int frame = -1;
+            QRectF r;
+            lay.caretRect(pos, &frame, &r);
+            return r.x();
+        };
+        const double want = widths->value(u'I') * size;
+        QVERIFY2(std::abs(x(1) - x(0) - want) <= 1, qPrintable(QStringLiteral("the I is %1 wide, not %2").arg(x(1) - x(0)).arg(want)));
+    }
+
+    // The publication's text is set as it was: each letter of a missing, measured face centered in the original's width (the first letter of a run where the
+    // original's starts), whatever a word processor's words do.
+    void publicationLettersStayCenteredInTheirWidths()
+    {
+        double diff = 0;
+        const QString family = narrowStandInForI(&diff);
+        if (family.isEmpty()) QSKIP("every face with a narrow I stand-in is installed here");
+        const double size = 100;
+        const QString text = QStringLiteral("Illinois Includes SECTION II 1999 end");
+        const LetterLine line = letterLineOf(family, text, size, false);
+        QVERIFY(line.x.size() == text.size() + 1);
+        QVERIFY2(std::abs(line.x[0]) <= 1, qPrintable(QString::number(line.x[0])));
+        for (int i = 1; i < text.size(); ++i) {
+            const double shift = text[i].isSpace() ? 0 : (line.width[i] - line.stand[i]) * size / 2;
+            QVERIFY2(std::abs(line.x[i] - line.x[0] - line.cell[i] - shift) <= 1, qPrintable(QStringLiteral("character %1 (%2) is at %3, not %4").arg(i).arg(text[i]).arg(line.x[i] - line.x[0]).arg(line.cell[i] + shift)));
+        }
     }
 
     // A face the word processor's machine has and this one lacks, and no table of letter widths measures (News Gothic MT, whose bold is the masthead of every public notice),
@@ -5764,6 +6106,258 @@ private Q_SLOTS:
             if (item->id.startsWith(QLatin1String("flow-lineno-box"))) shown << page->doc->stories.value(dynamic_cast<const TextItem *>(item.get())->storyId)->doc->toPlainText();
         QVERIFY(shown.size() >= 2);
         for (int i = 0; i < shown.size(); ++i) QCOMPARE(shown[i], QString::number(5 * (i + 1)));
+    }
+
+    // Line numbers that run on (w:restart "continuous") go through the pages: a page's first line has the number after the last of the page before.
+    void continuousLineNumbersRunOnThroughThePages()
+    {
+        FlowDocument fd;
+        numberedStory(fd, 24, 1, Section::LineNumbers::Restart::Continuous);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 3);
+        int next = 1;
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const QStringList shown = lineNumbersOnPage(pg, k);
+            const int lines = int(pg.lines(k).size());
+            QVERIFY2(int(shown.size()) == lines, qPrintable(QStringLiteral("page %1 has %2 numbers for %3 lines").arg(k).arg(shown.size()).arg(lines)));
+            for (int i = 0; i < shown.size(); ++i) QCOMPARE(shown[i], QString::number(next + i));
+            next += lines;
+        }
+    }
+
+    // Line numbers that begin again at each section (w:restart "newSection") do so at the section's first line, wherever it is on the page, and go on across the section's pages.
+    void newSectionLineNumbersBeginAgainAtEachSection()
+    {
+        // (The paragraph that ends the first section is one of those that leave the second to begin in the middle of a page.)
+        bool beganMidPage = false;
+        for (int endsFirst = 9; endsFirst < 20 && !beganMidPage; ++endsFirst) {
+            FlowDocument fd;
+            numberedStory(fd, 24, 1, Section::LineNumbers::Restart::NewSection);
+            QTextCursor c(fd.story()->findBlockByNumber(endsFirst));
+            QTextBlockFormat bf = c.blockFormat();
+            bf.setProperty(fp::SectionBreakAfter, true);
+            c.setBlockFormat(bf);
+            const int secondStart = fd.story()->findBlockByNumber(endsFirst + 1).position();
+            Section second = fd.sections[0];
+            second.continuous = true;
+            fd.sections << second;
+            Paginator pg(&fd);
+            QVERIFY(pg.pageCount() >= 3);
+            int count[2] = {0, 0};
+            for (int k = 0; k < pg.pageCount(); ++k) {
+                const QStringList shown = lineNumbersOnPage(pg, k);
+                const auto briefs = pg.lines(k);
+                QVERIFY2(shown.size() == briefs.size(), qPrintable(QStringLiteral("page %1 has %2 numbers for %3 lines").arg(k).arg(shown.size()).arg(briefs.size())));
+                for (int i = 0; i < briefs.size(); ++i) {
+                    const int section = briefs[i].pos >= secondStart ? 1 : 0;
+                    QCOMPARE(shown[i], QString::number(++count[section]));
+                    beganMidPage |= section == 1 && count[1] == 1 && i > 0;
+                }
+            }
+            QVERIFY(count[0] > 5 && count[1] > 5);
+        }
+        QVERIFY(beganMidPage);
+    }
+
+    // Every fifth line, counted from the first of the document, whatever page it falls on.
+    void lineNumbersByFiveGoOnAcrossAPage()
+    {
+        FlowDocument fd;
+        numberedStory(fd, 24, 5, Section::LineNumbers::Restart::Continuous);
+        // (A page height at which the first page holds a number of lines that is no multiple of five, so that a page begins between two fifths.)
+        std::unique_ptr<Paginator> held;
+        for (double height = 185; height < 260 && !(held && int(held->lines(0).size()) % 5 != 0); height += 5) {
+            fd.sections[0].paper = QSizeF(240, height);
+            held = std::make_unique<Paginator>(&fd);
+        }
+        Paginator &pg = *held;
+        QVERIFY(pg.pageCount() >= 3);
+        QVERIFY(int(pg.lines(0).size()) % 5 != 0);
+        int before = 0, midway = 0;
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const QStringList shown = lineNumbersOnPage(pg, k);
+            const int lines = int(pg.lines(k).size());
+            QStringList want;
+            for (int line = before + 1; line <= before + lines; ++line)
+                if (line % 5 == 0) want << QString::number(line);
+            QVERIFY2(shown == want, qPrintable(QStringLiteral("page %1 shows %2, not %3").arg(k).arg(shown.join(',')).arg(want.join(','))));
+            midway += before % 5 != 0;
+            before += lines;
+        }
+        QVERIFY(midway > 0);   // (a page begins between two fifths)
+    }
+
+    // A paragraph that suppresses the numbers is neither numbered nor counted, where it runs over a page's foot as well.
+    void aSuppressedParagraphIsNeitherNumberedNorCountedAcrossAPage()
+    {
+        FlowDocument fd;
+        numberedStory(fd, 24, 1, Section::LineNumbers::Restart::Continuous);
+        QVector<int> suppressed;
+        {
+            Paginator first(&fd);
+            QVERIFY(first.pageCount() >= 3);
+            const auto last = first.lines(0);
+            const auto next = first.lines(1);
+            QVERIFY(!last.isEmpty() && !next.isEmpty());
+            suppressed << last.last().block << next.first().block;
+        }
+        for (int position : suppressed) {
+            QTextCursor c(fd.story()->findBlock(position));
+            QTextBlockFormat bf = c.blockFormat();
+            bf.setProperty(fp::SuppressLineNumbers, true);
+            c.setBlockFormat(bf);
+        }
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 3);
+        int next = 1, skipped = 0;
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const QStringList shown = lineNumbersOnPage(pg, k);
+            const auto briefs = pg.lines(k);
+            int counted = 0;
+            for (const auto &line : briefs) {
+                if (fd.story()->findBlock(line.block).blockFormat().boolProperty(fp::SuppressLineNumbers)) ++skipped;
+                else ++counted;
+            }
+            QVERIFY2(shown.size() == counted, qPrintable(QStringLiteral("page %1 has %2 numbers for %3 counted lines").arg(k).arg(shown.size()).arg(counted)));
+            for (int i = 0; i < shown.size(); ++i) QCOMPARE(shown[i], QString::number(next++));
+        }
+        QVERIFY(skipped >= 2);
+    }
+
+    // An edit that adds a tall line on the first page (fewer lines fit before the third page's) moves the numbers on the third, and they are the ones a paginator that never saw the
+    // edit gives.
+    void anEditOnTheFirstPageMovesTheLineNumbersOnTheThird()
+    {
+        FlowDocument fd;
+        numberedStory(fd, 24, 1, Section::LineNumbers::Restart::Continuous);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 4);
+        const QStringList before = lineNumbersOnPage(pg, 2);
+        QVERIFY(!before.isEmpty());
+        QTextCursor c(fd.story());
+        c.setPosition(0);
+        QTextCharFormat big;
+        big.setFontPointSize(30);
+        c.insertText(QStringLiteral("A heading\n"), big);
+        pg.pageCount();
+        const QStringList after = lineNumbersOnPage(pg, 2);
+        int linesBefore = 0;
+        for (int k = 0; k < 2; ++k) linesBefore += int(pg.lines(k).size());
+        QVERIFY(!after.isEmpty());
+        QCOMPARE(after.first(), QString::number(linesBefore + 1));
+        QVERIFY2(after.first() != before.first(), qPrintable(before.first()));
+        Paginator fresh(&fd);
+        for (int k = 0; k < std::min(pg.pageCount(), fresh.pageCount()); ++k) {
+            const QStringList kept = lineNumbersOnPage(pg, k), made = lineNumbersOnPage(fresh, k);
+            QVERIFY2(kept == made, qPrintable(QStringLiteral("page %1: %2 after the edit, %3 in a new paginator").arg(k).arg(kept.value(0)).arg(made.value(0))));
+        }
+        QCOMPARE(pg.pageCount(), fresh.pageCount());
+    }
+
+    // The work of numbering the lines is a page's lines and no more: a long document's pages don't count the lines of all the pages before (the count goes on from the page before's).
+    void lineNumberingWorkIsLinearInTheLinesOfTheDocument()
+    {
+        FlowDocument fd;
+        numberedStory(fd, 600, 1, Section::LineNumbers::Restart::Continuous);
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 60);
+        qint64 lines = 0;
+        for (int k = 0; k < pages; ++k) {
+            QVERIFY(pg.materialize(k));
+            lines += int(pg.lines(k).size());
+        }
+        const qint64 visits = pg.lineNumberVisitsForTest();
+        QVERIFY2(visits >= lines && visits <= 8 * lines, qPrintable(QStringLiteral("%1 lines looked at to number %2 lines on %3 pages").arg(visits).arg(lines).arg(pages)));
+        const QStringList last = lineNumbersOnPage(pg, pages - 1);
+        QVERIFY(!last.isEmpty());
+        QCOMPARE(last.last(), QString::number(lines));
+    }
+
+    // An edit that only moves the numbers (a line added inside the first page's text, where the pages after it begin where they did) lays out no page but the one it is in: the
+    // numbers of the pages after it are worked out when they are drawn, from the lines each page holds, and the number on page 150 is moved by the added lines.
+    void anEditThatOnlyMovesLineNumbersLaysOutNoLaterPage()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        QTextCharFormat face;
+        face.setFontFamilies({QStringLiteral("Arimo")});
+        face.setFontPointSize(11);
+        {
+            QTextCursor c(fd.story());
+            for (int i = 0; i < 200; ++i) {
+                if (i) c.insertBlock();
+                c.insertText(QStringLiteral("The court held that section applies. Reasonable notice was given.") + QChar(kPageBreak), face);
+            }
+        }
+        fd.sections[0].paper = QSizeF(240, 200);
+        fd.sections[0].margins = QMarginsF(60, 30, 30, 30);
+        fd.sections[0].lineNumbers.countBy = 1;
+        fd.sections[0].lineNumbers.restart = Section::LineNumbers::Restart::Continuous;
+        fd.sections[0].lineNumbers.format.setFontPointSize(7);
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 200);
+        const QStringList before = lineNumbersOnPage(pg, 150);
+        const int linesBefore = int(pg.lines(0).size());
+        QVERIFY(!before.isEmpty());
+        const qint64 laidOutBefore = pg.pagesLaidOut();
+        QTextCursor c(fd.story());
+        c.setPosition(0);
+        c.insertText(QStringLiteral("Words that make the first paragraph wrap onto more lines, set before the rest. "), face);
+        QCOMPARE(pg.pageCount(), 200);
+        const qint64 laidOut = pg.pagesLaidOut() - laidOutBefore;
+        const int added = int(pg.lines(0).size()) - linesBefore;
+        QVERIFY2(added >= 1, qPrintable(QString::number(added)));
+        QVERIFY2(laidOut <= 3, qPrintable(QStringLiteral("%1 pages laid out again").arg(laidOut)));
+        const QStringList after = lineNumbersOnPage(pg, 150);
+        QVERIFY(!after.isEmpty());
+        QCOMPARE(after.first().toInt(), before.first().toInt() + added);
+        Paginator fresh(&fd);
+        QCOMPARE(lineNumbersOnPage(fresh, 150), after);
+    }
+
+    // Sections that count their lines in different ways, one after the other: each line has the number the rules give it from the line counted before it, whatever pages the
+    // sections are on, and a section that goes on does not take its own start.
+    void sectionsOfDifferentLineNumberingGoOnFromOneAnother()
+    {
+        using Restart = Section::LineNumbers::Restart;
+        FlowDocument fd;
+        numberedStory(fd, 30, 1, Restart::NewPage);
+        const int breaks[2] = {8, 17};   // (the paragraphs that end the first and the second section)
+        for (int endsSection : breaks) {
+            QTextCursor c(fd.story()->findBlockByNumber(endsSection));
+            QTextBlockFormat bf = c.blockFormat();
+            bf.setProperty(fp::SectionBreakAfter, true);
+            c.setBlockFormat(bf);
+        }
+        const int secondStart = fd.story()->findBlockByNumber(breaks[0] + 1).position(), thirdStart = fd.story()->findBlockByNumber(breaks[1] + 1).position();
+        Section second = fd.sections[0], third = fd.sections[0];
+        second.continuous = true;
+        second.lineNumbers.restart = Restart::Continuous;
+        second.lineNumbers.start = 7;
+        third.continuous = true;
+        third.lineNumbers.restart = Restart::NewSection;
+        third.lineNumbers.start = 3;
+        fd.sections << second << third;
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 4);
+        int last = -1, lastSection = -1, lastPage = -1, again = 0;
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const QStringList shown = lineNumbersOnPage(pg, k);
+            const auto briefs = pg.lines(k);
+            QVERIFY2(shown.size() == briefs.size(), qPrintable(QStringLiteral("page %1 has %2 numbers for %3 lines").arg(k).arg(shown.size()).arg(briefs.size())));
+            for (int i = 0; i < briefs.size(); ++i) {
+                const int section = briefs[i].pos >= thirdStart ? 2 : briefs[i].pos >= secondStart ? 1 : 0;
+                const Section::LineNumbers &numbers = fd.sections[section].lineNumbers;
+                const bool begins = last < 0 || (numbers.restart == Restart::NewPage && lastPage != k) || (numbers.restart == Restart::NewSection && section != lastSection);
+                last = begins ? numbers.start : last + 1;
+                again += begins;
+                lastSection = section;
+                lastPage = k;
+                QVERIFY2(shown[i] == QString::number(last), qPrintable(QStringLiteral("page %1, line %2: %3, not %4").arg(k).arg(i).arg(shown[i]).arg(last)));
+            }
+        }
+        QVERIFY(again > 3 && lastSection == 2);
     }
 
     // A continuous section of two columns that holds a table: it begins below the text of the section before, the table is inside a column and flows into the next, and

@@ -156,8 +156,9 @@ struct Section {
     // them on the page, else the nearest before it), and what stands between it and the page's number ("-" when empty). 0: none.
     int chapterStyle = 0;
     QString chapterSeparator;
-    // Line numbers in the margin (w:lnNumType): a number for every `countBy` lines of the section's text (0: none), counted from `start`, `distance` points left of the column (0: the
-    // usual), in `format`; they begin again at each page, at each section, or not at all (only the first is drawn).
+    // Line numbers in the margin (w:lnNumType): a number for every `countBy` lines of the section's text (0: none), counted from `start` (the first line's number), `distance` points
+    // left of the column (0: the usual), in `format`; they begin again at each page, at each section's first line, or never (the count goes on from the last line counted before
+    // the section, if any, and the section's start counts only where there is none).
     struct LineNumbers {
         int countBy = 0, start = 1;
         double distance = 0;
