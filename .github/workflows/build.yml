@@ -13,7 +13,7 @@ jobs:
     env:
       # JeffWrite is built and tested on every run. It goes into the installer, the Linux packages, and the Mac disk image only when this is
       # "true": the owner decides when it ships.
-      SHIP_WRITE: 'false'
+      SHIP_WRITE: 'true'
     strategy:
       fail-fast: false
       matrix:

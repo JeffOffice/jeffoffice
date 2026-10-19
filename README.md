@@ -2,18 +2,19 @@
 
 > **JeffOffice is an independent project. It is not affiliated with, endorsed by, sponsored by, or supported by Microsoft Corporation.** See [Legal notices](#legal-notices).
 
-JeffOffice is a free, open-source office suite for **Windows, macOS, and Linux**. It has two apps today:
+JeffOffice is a free, open-source office suite for **Windows, macOS, and Linux**. It has three apps today:
 
 - **JeffPub**, for desktop publishing: flyers, newsletters, brochures, business cards, certificates, and other print pieces. It opens and saves Microsoft Publisher files.
 - **JeffDeck** (a preview), for presentations: it makes slides, plays slide shows, and opens PowerPoint files (`.pptx` and the older `.ppt`) and OpenDocument presentations (`.odp`), and saves `.pptx` and `.odp`.
+- **JeffWrite** (a preview), for documents: it opens Word files (`.docx` and the older `.doc`) and saves `.docx`, with tables, headers and footers, footnotes and endnotes, pictures and text boxes, spelling, printing, and PDF export.
 
-More apps are on the way: JeffWrite for documents, JeffCrunch for spreadsheets, JeffMail for email and calendars, and JeffBase for databases. Each will come in an update once it's ready.
+More apps are on the way: JeffCrunch for spreadsheets, JeffMail for email and calendars, and JeffBase for databases. Each will come in an update once it's ready.
 
-> **Status:** beta (0.7). JeffPub's features are in place and are being polished; JeffDeck is a preview, with the main features working and more still being built (see [JeffDeck](#jeffdeck)). Downloads are on the [Releases page](https://github.com/JeffOffice/jeffoffice/releases):
+> **Status:** beta (0.9). JeffPub's features are in place and are being polished; JeffDeck and JeffWrite are previews, with the main features working and more still being built (see [JeffDeck](#jeffdeck) and [JeffWrite](#jeffwrite)). Downloads are on the [Releases page](https://github.com/JeffOffice/jeffoffice/releases):
 >
-> - **Windows:** `JeffOffice-Setup.exe` installs JeffPub and JeffDeck (you can leave JeffDeck out). No administrator rights are needed.
-> - **Mac:** `JeffOffice-<version>.dmg` holds both apps. It isn't signed yet, so macOS asks before opening each one the first time.
-> - **Linux:** `jeffoffice_<version>_amd64.deb` installs both apps on Debian, Ubuntu, and their relatives (`sudo apt install ./jeffoffice_<version>_amd64.deb`; it replaces an earlier `jeffpub` package). For most other distributions there's an AppImage of each app: make the file executable and run it.
+> - **Windows:** `JeffOffice-Setup.exe` installs JeffPub and JeffDeck (you can leave JeffDeck out), and JeffWrite if you tick it. No administrator rights are needed.
+> - **Mac:** `JeffOffice-<version>.dmg` holds all three apps. It isn't signed yet, so macOS asks before opening each one the first time.
+> - **Linux:** `jeffoffice_<version>_amd64.deb` installs all three apps on Debian, Ubuntu, and their relatives (`sudo apt install ./jeffoffice_<version>_amd64.deb`; it replaces an earlier `jeffpub` package). For most other distributions there's an AppImage of each app: make the file executable and run it.
 
 ## JeffPub
 
@@ -56,6 +57,23 @@ JeffDeck makes presentations and plays them as slide shows. It's a **preview**: 
 ### Not yet in the preview
 
 Slides drawn a little differently from the presentation program's in places (most often text it shrank to fit its box, a picture's brightness and contrast, and some text shadows); editing SmartArt diagrams, equations, and charts (they're shown and kept); and animation triggers, sounds, and color effects (kept as the file has them). Help covers what JeffDeck does today, and [docs/jeffdeck.md](docs/jeffdeck.md) lists each feature and where it stands.
+
+## JeffWrite
+
+JeffWrite writes and edits documents. It's a **preview**: it opens most documents the way they were laid out, and some features are still being built.
+
+### What it does
+
+- **Pages as they print**, in a continuous view with zoom, laid out as the document's own settings say: page size and margins, sections, columns, facing pages, page borders, and line numbers.
+- **Editing** with undo: typing, the clipboard, character and paragraph formatting (the Font dialog among it), bulleted and numbered lists, styles, page and section breaks, and page setup.
+- **What a document holds:** tables, headers and footers with page numbers and other fields, footnotes and endnotes, pictures and text boxes that the text wraps around, frames, form fields and content controls, and equations (shown as a line of text).
+- **Find and Replace**, and **spelling** as you type, with suggestions and the Spelling pane (F7).
+- **Print and export** to paper or PDF, with copies, page ranges, and a preview.
+- **Document files.** Opens `.docx`, `.docm`, `.dotx`, and `.dotm`, and the older `.doc` and `.dot` files from Microsoft Word; saves `.docx`. What JeffWrite doesn't show or edit yet is kept and saved back as the file had it.
+
+### Not yet in the preview
+
+Pages drawn a little differently from the word processor's in places (most often where a line or a page breaks); editing the text of headers, footers, and notes; equations laid out as they are printed (they're shown as a line and kept); `.rtf` and `.odt` files; and the ruler. Help covers what JeffWrite does today, and [docs/jeffwrite.md](docs/jeffwrite.md) says where it stands.
 
 ## Privacy
 

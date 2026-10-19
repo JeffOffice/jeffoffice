@@ -261,7 +261,7 @@ private Q_SLOTS:
         auto *screen = w.findChild<FileScreen *>();
         QVERIFY(screen && screen->isVisible());
         const QStringList rows = {QStringLiteral("JeffPub, Publications, Available"), QStringLiteral("JeffDeck, Presentations, You're using it"),
-                                  QStringLiteral("JeffWrite, Documents, Coming soon"), QStringLiteral("JeffCrunch, Spreadsheets, Coming soon"),
+                                  QStringLiteral("JeffWrite, Documents, Preview"), QStringLiteral("JeffCrunch, Spreadsheets, Coming soon"),
                                   QStringLiteral("JeffMail, Email and calendar, Coming soon"), QStringLiteral("JeffBase, Databases, Coming soon")};
         QStringList named;
         int comingSoon = 0;
@@ -280,7 +280,7 @@ private Q_SLOTS:
         QStringList sorted = rows;
         sorted.sort();
         QCOMPARE(named, sorted);
-        QCOMPARE(comingSoon, 4);
+        QCOMPARE(comingSoon, 3);   // JeffDeck is out, and JeffWrite is a preview
         QVERIFY(version);
         QVERIFY(links);
         QVERIFY(license);

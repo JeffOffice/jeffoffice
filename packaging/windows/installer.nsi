@@ -2,7 +2,7 @@
 ; Installs the suite's apps that are ready (JeffPub, and JeffDeck as a
 ; preview) into one folder, per user: no administrator rights needed. The
 ; apps still being built are listed as coming soon and can't be chosen yet.
-; JeffWrite is one of those until the owner decides it ships: building with
+; JeffWrite was one of those until the owner decided it ships: building with
 ; /DWITH_WRITE (the workflow does, when its SHIP_WRITE is "true") makes it a
 ; preview that is not ticked by default.
 Unicode true
@@ -70,7 +70,11 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
 !define MUI_HEADERIMAGE_BITMAP "header.bmp"
 !define MUI_HEADERIMAGE_UNBITMAP "header.bmp"
 !define MUI_WELCOMEPAGE_TITLE "Welcome to ${SUITE}"
+!ifdef WITH_WRITE
+!define MUI_WELCOMEPAGE_TEXT "This will install ${SUITE} ${VERSION}, a free, open-source office suite.$\r$\n$\r$\n${APP}, for desktop publishing, is ready now, and ${DECK}, for presentations, and ${WRITE}, for documents, come as previews. JeffCrunch, JeffMail, and JeffBase are coming soon. If ${APP} is already installed, setup moves it into ${SUITE}, with your settings.$\r$\n$\r$\n${SUITE} is an independent open-source project.$\r$\n$\r$\nNo administrator rights are needed."
+!else
 !define MUI_WELCOMEPAGE_TEXT "This will install ${SUITE} ${VERSION}, a free, open-source office suite.$\r$\n$\r$\n${APP}, for desktop publishing, is ready now, and ${DECK}, for presentations, comes as a preview. JeffWrite, JeffCrunch, JeffMail, and JeffBase are coming soon. If ${APP} is already installed, setup moves it into ${SUITE}, with your settings.$\r$\n$\r$\n${SUITE} is an independent open-source project.$\r$\n$\r$\nNo administrator rights are needed."
+!endif
 !insertmacro MUI_PAGE_WELCOME
 ; The GNU GPL v3.0: Next stays disabled until the box is checked.
 !define MUI_LICENSEPAGE_TEXT_TOP "${SUITE} is free software under the GNU General Public License v3.0."
@@ -422,7 +426,11 @@ Function RemoveJeffPub79
 FunctionEnd
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
+!ifdef WITH_WRITE
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "The ${SUITE} apps. ${APP} is ready now, and ${DECK} and ${WRITE} are previews; the others are coming soon."
+!else
   !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "The ${SUITE} apps. ${APP} is ready now and ${DECK} is a preview; the others are coming soon."
+!endif
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} "Desktop publishing: flyers, newsletters, cards, and more. Opens .pub files. Comes with its fonts and spelling dictionaries."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecDeck} "Presentations and slide shows. A preview: it opens .pptx, .ppt, and .odp files, plays slide shows with their transitions and animations, and saves .pptx files. Some features are still being built."
 !ifdef WITH_WRITE
