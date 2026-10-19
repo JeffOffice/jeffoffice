@@ -604,6 +604,21 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             bf.setProperty(prop::EndnoteBlock, true);
             bf.clearProperty(prop::Outline);
             bf.clearProperty(tp::StyleName);
+            // The file's separator for the endnotes (w:separator, in a paragraph of nothing else) is a rule two inches long, as the footnote separator is: the paragraph's lower edge, over the
+            // first 144 points of the column.
+            bool separator = false, text = false;
+            for (const Inline &in : p.content) {
+                separator = separator || (in.kind == Inline::RunAtom && in.tag == QLatin1String("separator"));
+                text = text || (in.kind == Inline::Text && !in.text.trimmed().isEmpty());
+            }
+            if (separator && !text) {
+                const int columns = std::max(1, m_last.cols);
+                const double wide = (std::max(0, m_last.pageW - std::max(0, m_last.left + m_last.gutter) - std::max(0, m_last.right)) - (columns - 1) * std::max(0, m_last.colSpace)) / 20.0 / columns;
+                tp::ParaBox box;
+                box.bottom = tp::BoxSide{QStringLiteral("single"), 4, 0, QColor()};
+                bf.setProperty(tp::Borders, box.spec());
+                bf.setRightMargin(std::max(0.0, wide - 144.0));
+            }
         }
         startBlock(bf, markFormat);
         if (numId > 0) {

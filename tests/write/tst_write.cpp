@@ -11876,6 +11876,24 @@ private Q_SLOTS:
         QCOMPARE(markersOf(*doc), (QStringList{QStringLiteral("1."), QStringLiteral("2."), QStringLiteral("1.")}));
     }
 
+    // The file's separator for its endnotes (w:separator in a paragraph of nothing else) is a rule two inches long, as the footnote separator is: the paragraph's lower edge, over the first 144
+    // points of the column, not a blank line.
+    void theSeparatorOfTheEndnotesIsARule()
+    {
+        const QByteArray body = "<w:p><w:r><w:t>cited</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:endnote>"
+                                 "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> noted</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), notes}}));
+        QVERIFY(doc);
+        QCOMPARE(int(doc->story()->blockCount()), 3);
+        const QTextBlockFormat bf = doc->story()->findBlockByNumber(1).blockFormat();
+        QVERIFY(bf.hasProperty(prop::EndnoteBlock));
+        const tp::ParaBox box = tp::ParaBox::parse(bf.stringProperty(tp::Borders));
+        QVERIFY2(box.bottom.visible() && !box.top.visible(), "the separator has its rule");
+        QVERIFY2(std::abs(bf.rightMargin() - (228 - 144)) < 0.5, qPrintable(QString::number(bf.rightMargin())));   // (a column of 228 points, and a rule of 144)
+        QVERIFY(!doc->story()->findBlockByNumber(2).blockFormat().hasProperty(tp::Borders));
+    }
+
     // A paragraph that says w:suppressLineNumbers (itself, or by its style) has no numbers, and the lines of the others are counted without it.
     void aParagraphThatSuppressesLineNumbersIsNeitherNumberedNorCounted()
     {
