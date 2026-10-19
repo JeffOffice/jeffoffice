@@ -627,7 +627,6 @@ public:
     double ascent() const { return m_l.ascent() / kFine; }
     double height() const { return m_l.height() / kFine; }
     double naturalTextWidth() const { return m_l.naturalTextWidth() / kFine; }
-    double lineWidth() const { return m_l.width() / kFine; }
     double y() const { return m_l.y() / kFine; }
     QPointF position() const { return m_l.position() / kFine; }
     void setPosition(const QPointF &p) { m_l.setPosition(p * kFine); }
