@@ -5,12 +5,12 @@
 JeffOffice is a free, open-source office suite for **Windows, macOS, and Linux**. It has three apps today:
 
 - **JeffPub**, for desktop publishing: flyers, newsletters, brochures, business cards, certificates, and other print pieces. It opens and saves Microsoft Publisher files.
-- **JeffDeck** (a preview), for presentations: it makes slides, plays slide shows, and opens PowerPoint files (`.pptx` and the older `.ppt`) and OpenDocument presentations (`.odp`), and saves `.pptx` and `.odp`.
+- **JeffDeck**, for presentations: it makes slides, plays slide shows, and opens PowerPoint files (`.pptx` and the older `.ppt`) and OpenDocument presentations (`.odp`), and saves `.pptx` and `.odp`.
 - **JeffWrite** (a preview), for documents: it opens Word files (`.docx` and the older `.doc`) and saves `.docx`, with tables, headers and footers, footnotes and endnotes, pictures and text boxes, spelling, printing, and PDF export.
 
 More apps are on the way: JeffCrunch for spreadsheets, JeffMail for email and calendars, and JeffBase for databases. Each will come in an update once it's ready.
 
-> **Status:** beta (0.9). JeffPub's features are in place and are being polished; JeffDeck and JeffWrite are previews, with the main features working and more still being built (see [JeffDeck](#jeffdeck) and [JeffWrite](#jeffwrite)). Downloads are on the [Releases page](https://github.com/JeffOffice/jeffoffice/releases):
+> **Status:** beta (0.9). JeffPub's and JeffDeck's features are in place and are being polished; JeffWrite is a preview, with the main features working and more still being built (see [JeffWrite](#jeffwrite)). Downloads are on the [Releases page](https://github.com/JeffOffice/jeffoffice/releases):
 >
 > - **Windows:** `JeffOffice-Setup.exe` installs JeffPub and JeffDeck (you can leave JeffDeck out), and JeffWrite if you tick it. No administrator rights are needed.
 > - **Mac:** `JeffOffice-<version>.dmg` holds all three apps. It isn't signed yet, so macOS asks before opening each one the first time.
@@ -41,7 +41,7 @@ Every feature and where it stands is listed in [the feature lists](docs/features
 
 ## JeffDeck
 
-JeffDeck makes presentations and plays them as slide shows. It's a **preview**: the main features work, and some are still being built.
+JeffDeck makes presentations and plays them as slide shows.
 
 ### What it does
 
@@ -54,7 +54,7 @@ JeffDeck makes presentations and plays them as slide shows. It's a **preview**: 
 - **Print and export** slides, notes pages, handouts, and the outline, to paper or PDF, and slides as pictures.
 - **Presentation files.** Opens `.pptx`, `.potx`, `.ppsx`, and the older `.ppt` files from Microsoft PowerPoint, and OpenDocument presentations (`.odp`, `.otp`); saves `.pptx`, `.potx`, `.ppsx`, `.odp`, and `.otp`. A saved `.pptx` carries the fonts JeffOffice brings that others may not have, so it looks the same on their computers.
 
-### Not yet in the preview
+### Not yet in JeffDeck
 
 Slides drawn a little differently from the presentation program's in places (most often text it shrank to fit its box, a picture's brightness and contrast, and some text shadows); editing SmartArt diagrams, equations, and charts (they're shown and kept); and animation triggers, sounds, and color effects (kept as the file has them). Help covers what JeffDeck does today, and [docs/jeffdeck.md](docs/jeffdeck.md) lists each feature and where it stands.
 
