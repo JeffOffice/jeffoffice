@@ -12004,6 +12004,70 @@ private Q_SLOTS:
         QVERIFY(!doc->story()->findBlockByNumber(2).blockFormat().hasProperty(tp::Borders));
     }
 
+    // A reference to a bookmark (PAGEREF) shows the number of the page the bookmark is on, in the format of the page's section, where the pages are laid out; the file's own result stays in the
+    // story, and is what is saved. (A table of contents the file made before its pages moved: its numbers were all "2".) A reference to a bookmark that is not there shows the result the file had.
+    void aPageReferenceShowsThePageItsBookmarkIsOn()
+    {
+        auto field = [](const char *name, const char *cached) {
+            return "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> PAGEREF " + QByteArray(name) + " \\h </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>"
+                   "<w:r><w:t>" + QByteArray(cached) + "</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        };
+        auto body = [&](const char *name) {
+            return "<w:p><w:r><w:t xml:space=\"preserve\">See page </w:t></w:r>" + field(name, "9") + "<w:r><w:br w:type=\"page\"/></w:r></w:p><w:p><w:r><w:t>Middle</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r></w:p>"
+                   "<w:p><w:bookmarkStart w:id=\"1\" w:name=\"target\"/><w:r><w:t>Target</w:t></w:r><w:bookmarkEnd w:id=\"1\"/></w:p>";
+        };
+        // The first line of the first page, as the page's own fields show it.
+        auto shown = [&](const QByteArray &xml, const QByteArray &pgNum) {
+            auto doc = open(makeDocxWithParts(xml, sectionXml(6000, 6000, 720, QByteArray(), QByteArray(), pgNum), {}));
+            if (!doc || doc->pager().pageCount() != 3) return QStringLiteral("(%1 pages)").arg(doc ? doc->pager().pageCount() : -1);
+            const auto page = doc->pager().materialize(0);
+            if (!page || page->boxes.isEmpty()) return QStringLiteral("(no page)");
+            const auto *box = dynamic_cast<const TextItem *>(page->doc->item(page->boxes[0]));
+            FrameSpec fs = Renderer::frameSpec(*page->doc, *box, 1, RenderOptions());
+            StoryLayout layout;
+            layout.build(page->doc->story(box->storyId)->doc.get(), {fs}, doc->flow().env);
+            const auto lines = layout.lineInfo(0);
+            QString saved = savedBody(*doc);
+            return (lines.isEmpty() ? QString() : lines.first().text.trimmed()) + QLatin1Char('|') + saved.left(saved.indexOf(QLatin1Char('|')));
+        };
+        QCOMPARE(shown(body("target"), QByteArray()), QStringLiteral("See page 3|See page 9"));
+        QCOMPARE(shown(body("target"), "<w:pgNumType w:fmt=\"lowerRoman\"/>"), QStringLiteral("See page iii|See page 9"));
+        QCOMPARE(shown(body("target"), "<w:pgNumType w:start=\"5\"/>"), QStringLiteral("See page 7|See page 9"));
+        QCOMPARE(shown(body("nowhere"), QByteArray()), QStringLiteral("See page 9|See page 9"));
+        // In a section that carries the chapter's number, the number is the chapter of the bookmark's place before it: Heading 1 "One" on page 1, "Two" on page 2 with the bookmark after it.
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        auto heading = [](const char *text) { return QByteArray("<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:t>") + text + "</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r></w:p>"; };
+        const QByteArray chaptered = "<w:p><w:r><w:t xml:space=\"preserve\">See page </w:t></w:r>" + field("target", "9") + "<w:r><w:br w:type=\"page\"/></w:r></w:p>" + heading("One") +
+                                     "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:bookmarkStart w:id=\"1\" w:name=\"target\"/><w:r><w:t>Two</w:t></w:r><w:bookmarkEnd w:id=\"1\"/></w:p>";
+        auto doc = open(makeDocxWithParts(chaptered, sectionXml(6000, 6000, 720, QByteArray(), QByteArray(), "<w:pgNumType w:chapStyle=\"1\" w:chapSep=\"colon\"/>"), {}, QByteArray(), kStyles, numbering));
+        QVERIFY(doc && doc->pager().pageCount() == 3);
+        const auto first = doc->pager().materialize(0);
+        QVERIFY(first && !first->boxes.isEmpty());
+        const auto *box = dynamic_cast<const TextItem *>(first->doc->item(first->boxes[0]));
+        StoryLayout layout;
+        layout.build(first->doc->story(box->storyId)->doc.get(), {Renderer::frameSpec(*first->doc, *box, 1, RenderOptions())}, doc->flow().env);
+        QVERIFY2(layout.lineInfo(0).first().text.contains(QLatin1String("See page 2:3")), qPrintable(layout.lineInfo(0).first().text));
+    }
+
+    // The references to bookmarks on a page that are looked at to find their pages are bounded: a hostile file of thousands of them has the most looked at (the rest show what the file had), so
+    // that a page costs no more.
+    void thePageReferencesOfAPageAreBounded()
+    {
+        QByteArray body = "<w:p>";
+        for (int i = 0; i < 5000; ++i)
+            body += "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText> PAGEREF mark" + QByteArray::number(i) + " </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>"
+                    "<w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        body += "</w:p>";
+        auto doc = open(makeDocx(body, kStyles));
+        QVERIFY(doc);
+        const qint64 before = flow::Paginator::pageRefsAskedForTest();
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        const qint64 asked = flow::Paginator::pageRefsAskedForTest() - before;
+        QVERIFY2(asked > 0 && asked <= 2000, qPrintable(QString::number(asked)));
+    }
+
     // A paragraph that says w:suppressLineNumbers (itself, or by its style) has no numbers, and the lines of the others are counted without it.
     void aParagraphThatSuppressesLineNumbersIsNeitherNumberedNorCounted()
     {

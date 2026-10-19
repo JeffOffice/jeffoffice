@@ -68,7 +68,15 @@ public:
     // paragraph of the style `style` (a name) on the page, the last with the switch `l`, else the nearest before it, else the nearest after; the switches `n`, `w`, and `r` ask
     // for its number. Null: there is none (the field shows what the file had in it); a publication has none.
     virtual QString styleRefText(const QString &style, const QString &switches, int from, int to) const { Q_UNUSED(style) Q_UNUSED(switches) Q_UNUSED(from) Q_UNUSED(to) return QString(); }
+    // For a word processor's page references (PAGEREF): where a bookmark begins in the story (a position of it; -1: there is none), asked of the source of the story's own fields; and,
+    // asked of the source a page is drawn with, the text that a reference to the bookmark shows on it (the number of the page the bookmark is on, in its format; empty: the
+    // reference shows the result the file had in it).
+    virtual int bookmarkPosition(const QString &name) const { Q_UNUSED(name) return -1; }
+    virtual QString pageRefText(const QString &bookmark) const { Q_UNUSED(bookmark) return QString(); }
 };
+
+// A page's number as a field shows it, in a format ("", "roman", "ROMAN", "alpha", "ALPHA", or "dash").
+QString pageNumberText(int number, const QString &format);
 
 // A stock font's average character width in ems (OS/2 xAvgCharWidth), the
 // unit .pub tracking is measured in; -1 when it isn't one JeffPub knows.

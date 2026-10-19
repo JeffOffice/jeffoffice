@@ -107,6 +107,8 @@ QTextCharFormat typingFormat(const QTextCursor &c)
         if (f.intProperty(prop::TrackedDeleted) == prop::HiddenByDeletion) f.clearProperty(tp::HiddenText);
         f.clearProperty(prop::TrackedDeleted);
     }
+    // (Text typed beside the result of a page reference is not that result: it shows as it is typed.)
+    if (f.stringProperty(tp::Field).startsWith(QLatin1String("pageref:"))) f.clearProperty(tp::Field);
     if (!isAtom(f)) return f;
     // Beside a piece kept as XML: the look of the text before it, else of the paragraph's mark.
     const QTextBlock b = c.block();

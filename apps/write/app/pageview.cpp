@@ -293,10 +293,11 @@ void PageView::relayout()
     }
     m_content = QSizeF(area + 2 * kMargin, rows ? y - kGap + kMargin : 2 * kMargin);
     const bool changed = known != m_knownPages;
-    // (A page that shows the number of pages was made with the number there was: with another, it is made again.)
+    // (A page that shows the number of pages was made with the number there was: with another, it is made again. So is one that shows the pages bookmarks are on, as far as the pages were
+    // laid out when it was made.)
     if (changed)
         for (auto it = m_rendered.begin(); it != m_rendered.end();) {
-            if (it.value()->page && it.value()->page->showsTotal) {
+            if (it.value()->page && (it.value()->page->showsTotal || it.value()->page->showsRefs)) {
                 m_recent.removeOne(it.key());
                 it = m_rendered.erase(it);
             } else {

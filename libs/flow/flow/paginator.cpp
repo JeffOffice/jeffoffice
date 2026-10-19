@@ -5,6 +5,7 @@
 #include <QElapsedTimer>
 #include <QHash>
 #include <QSet>
+#include <atomic>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -30,6 +31,10 @@ constexpr int kDenseNotes = 64;
 constexpr int kWrapPasses = 4;
 // The most parts a page is laid out in (the sections that begin on it, one under another, as far as it goes).
 constexpr int kMostParts = 16;
+// The most references to bookmarks on a page that are looked at to find their pages (the rest show what the file had).
+constexpr int kMostPageRefs = 2000;
+
+std::atomic<qint64> g_pageRefsAsked{0};
 
 // Whether the page shows the number of pages (in its text, its header, or its footer), and what number it was made with.
 void markTotals(MaterializedPage *out, const Document &d)
@@ -44,6 +49,8 @@ void markTotals(MaterializedPage *out, const Document &d)
 }
 
 } // namespace
+
+qint64 Paginator::pageRefsAskedForTest() { return g_pageRefsAsked.load(); }
 
 // What a paragraph asks of the pages.
 struct Paginator::BlockFlags {
@@ -1964,8 +1971,41 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         if (!ids.isEmpty()) addNotes(d.get(), run.notes, run.rules, run.firstFrame, ids, run.cols, furniture.body, run.hasNext && !run.next.carried.isEmpty());
     }
     markTotals(out.get(), *d);
+    resolvePageRefs(out.get(), d.get());
     out->doc = std::move(d);
     return out;
+}
+
+void Paginator::resolvePageRefs(MaterializedPage *out, Document *d)
+{
+    const FieldSource *source = m_doc->styleRefs;
+    QSet<QString> seen;
+    for (const auto &story : d->stories)
+        for (QTextBlock b = story->doc->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QString code = it.fragment().charFormat().stringProperty(tp::Field);
+                if (!code.startsWith(QLatin1String("pageref:"))) continue;
+                out->showsRefs = true;   // (a page whose pages are not laid out yet shows the file's: it is made again when they are)
+                const QString name = code.mid(8);
+                if (!source || seen.contains(name)) continue;
+                if (seen.size() >= kMostPageRefs) return;
+                seen.insert(name);
+                ++g_pageRefsAsked;
+                const int at = source->bookmarkPosition(name);
+                if (at < 0 || m_pending) continue;
+                const int where = anchorOfPosition(at);
+                const auto page = std::upper_bound(m_starts.begin(), m_starts.end(), where, [](int pos, const PageStart &s) { return pos < s.pos; });
+                if (page == m_starts.end() && !m_complete) continue;   // (past the last page that is known: it is not laid out)
+                const int k = std::max(0, int(page - m_starts.begin()) - 1);
+                const Section &section = m_doc->section(m_starts[k].section);
+                // (A section whose page numbers carry the chapter's: the chapter of the bookmark's place, the last heading of that level at or before it, and the separator.)
+                QString prefix;
+                if (section.chapterStyle > 0) {
+                    const QString chapter = source->styleRefText(QStringLiteral("Heading %1").arg(section.chapterStyle), QStringLiteral("nl"), at, at + 1);
+                    if (!chapter.isEmpty()) prefix = chapter + (section.chapterSeparator.isEmpty() ? QStringLiteral("-") : section.chapterSeparator);
+                }
+                d->flowPageRefs.insert(name, prefix + pageNumberText(numberOf(k), section.pageNumberFormat));
+            }
 }
 
 } // namespace jp::flow

@@ -89,6 +89,18 @@ QDateTime fieldNow() { return g_fieldClock.isValid() ? g_fieldClock : QDateTime:
 
 void setFieldClock(const QDateTime &moment) { g_fieldClock = moment; }
 
+QString pageNumberText(int n, const QString &style)
+{
+    if (style == "roman" || style == "ROMAN") { const QString r = toRoman(n); return style == "roman" ? r.toLower() : r; }
+    if (style == "alpha" || style == "ALPHA") {
+        // a ... z, then aa ... zz, as the other program counts.
+        const QString one(QChar((style == "alpha" ? 'a' : 'A') + (n - 1) % 26));
+        return one.repeated((n - 1) / 26 + 1);
+    }
+    if (style == "dash") return QStringLiteral("- %1 -").arg(n);
+    return QString::number(n);
+}
+
 QString FieldContext::resolve(const QString &code) const
 {
     const QString kind = code.section(':', 0, 0);
@@ -99,22 +111,14 @@ QString FieldContext::resolve(const QString &code) const
         // unless the field names one (Format Page Numbers).
         const int from = doc ? doc->firstPageNumber() - 1 : 0;
         const QString style = arg.isEmpty() && doc ? doc->pageNumberFormat() : arg;
-        auto shown = [&](int n) {
-            if (style == "roman" || style == "ROMAN") { const QString r = toRoman(n); return style == "roman" ? r.toLower() : r; }
-            if (style == "alpha" || style == "ALPHA") {
-                // a ... z, then aa ... zz, as the other program counts.
-                const QString one(QChar((style == "alpha" ? 'a' : 'A') + (n - 1) % 26));
-                return one.repeated((n - 1) / 26 + 1);
-            }
-            if (style == "dash") return QStringLiteral("- %1 -").arg(n);
-            return QString::number(n);
-        };
+        auto shown = [&](int n) { return pageNumberText(n, style); };
         // The next or previous linked box's page; "#" without one, as in Publisher.
         if (arg == "next") return nextPage > 0 ? QString::number(nextPage + from) : QStringLiteral("#");
         if (arg == "prev") return prevPage > 0 ? QString::number(prevPage + from) : QStringLiteral("#");
         return (doc ? doc->pageNumberPrefix() : QString()) + shown(pageNumber + from);
     }
     if (kind == "notemark") return noteMark;
+    if (kind == "pageref") return doc ? doc->pageRefText(arg) : QString();
     // A paragraph style's text (STYLEREF) is the page's, which the pages put in; laid out as a story of its own it shows the result the file kept: after its switches and the style's name.
     if (kind == "styleref") return arg.section(QChar(0x1f), 2, 2);
     if (kind == "pages") {
@@ -2709,7 +2713,18 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 continue;
             }
             const QString field = cf.stringProperty(tp::Field);
-            if (!field.isEmpty()) {
+            // A word processor's page reference has its result's text as the text of the fragment, and shows the page the bookmark is on in its place, all of it as one: where the page is
+            // not known the fragment shows its own text.
+            if (env.wordLines && field.startsWith(QLatin1String("pageref:"))) {
+                if (const QString v = ctx.resolve(field); !v.isEmpty()) {
+                    B->map << Seg{rel, int(text.size()), int(B->disp.size()), int(v.size())};
+                    ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), rf};
+                    B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
+                    B->disp += v;
+                    continue;
+                }
+            }
+            if (!field.isEmpty() && !(env.wordLines && field.startsWith(QLatin1String("pageref:")))) {
                 const bool isNote = field.startsWith(QLatin1String("footnote:")) || field.startsWith(QLatin1String("endnote:"));
                 for (int i = 0; i < text.size(); ++i) {
                     // A note shows its number, counted here in the story's order.

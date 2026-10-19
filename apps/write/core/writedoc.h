@@ -55,6 +55,7 @@ public:
     double noteContinuationRuleFrom() const override { return ruleFrom; }
     bool noteContinuationRuleFull() const override { return ruleFull; }
     QString styleRefText(const QString &style, const QString &switches, int from, int to) const override;
+    int bookmarkPosition(const QString &name) const override;
     double separator = 0, notice = 0, continuation = 0;   // the heights of the file's separator and continuation notice (the pages cut them: FrameSpec::noteRoomLimit)
     double ruleAt = -1, ruleFrom = 0;                     // where the rule is in the separator for the part of a note that goes on
     bool ruleFull = true;                                 // (and whether it is as wide as the column)
@@ -68,6 +69,10 @@ private:
     mutable QHash<QString, QVector<int>> m_styleStarts;
     mutable QHash<QString, QStringList> m_styleIds;
     mutable QHash<qint64, QString> m_styleTexts;
+    // Where the bookmarks of the story begin (a page reference asks), for the story as it is: found in one pass when asked, and again after an edit.
+    mutable const QTextDocument *m_bookmarkStory = nullptr;
+    mutable int m_bookmarkRevision = -1, m_bookmarkSize = -1;
+    mutable QHash<QString, int> m_bookmarks;
 };
 
 // How many times a level's run properties have been looked at for the outline effect (for a test of the cost).

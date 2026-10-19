@@ -2,9 +2,11 @@
 
 #include "core/writedoc.h"
 
+#include "core/writeprops.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 
+#include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextList>
 #include <algorithm>
@@ -24,6 +26,8 @@ constexpr int kMostNoteStories = 5000;
 // quarter of a page of each at most, so the rest would only be copied to every page.)
 constexpr int kMostNoticeParagraphs = 64;
 constexpr int kMostNoticeCharacters = 4000;
+// The most bookmarks of the story that a page reference can find (the rest are not found: the reference shows what the file had).
+constexpr int kMostBookmarks = 20000;
 } // namespace
 
 const QTextDocument *NoteFields::storyDoc(const QString &id) const { return m_doc->noteStory(id); }
@@ -122,6 +126,30 @@ QString NoteFields::styleRefText(const QString &style, const QString &switches, 
     if (m_styleTexts.size() >= kMostStyleRefKept) m_styleTexts.clear();
     m_styleTexts.insert(key, text);
     return text;
+}
+
+int NoteFields::bookmarkPosition(const QString &name) const
+{
+    const QTextDocument *story = m_doc->story();
+    if (m_bookmarkStory != story || m_bookmarkRevision != story->revision() || m_bookmarkSize != story->characterCount()) {
+        m_bookmarkStory = story;
+        m_bookmarkRevision = story->revision();
+        m_bookmarkSize = story->characterCount();
+        m_bookmarks.clear();
+        static const QRegularExpression named(QStringLiteral("[\\s:]name\\s*=\\s*\"([^\"]*)\""));
+        for (QTextBlock b = story->begin(); b.isValid() && m_bookmarks.size() < kMostBookmarks; b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QTextCharFormat cf = it.fragment().charFormat();
+                if (!cf.hasProperty(prop::Atom)) continue;
+                const QByteArray bytes = storedBytes(cf, prop::Atom);
+                if (!bytes.contains("bookmarkStart")) continue;
+                const Inline atom = unpackAtom(bytes);
+                if (atom.tag != QLatin1String("bookmarkStart")) continue;
+                const QString found = named.match(QString::fromUtf8(atom.raw.left(1000))).captured(1);
+                if (!found.isEmpty() && !m_bookmarks.contains(found)) m_bookmarks.insert(found, it.fragment().position());
+            }
+    }
+    return m_bookmarks.value(name, -1);
 }
 
 QList<const QTextDocument *> NoteFields::storyDocs() const

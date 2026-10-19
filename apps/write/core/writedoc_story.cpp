@@ -751,6 +751,60 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             }
             for (const Open &field : open) close(field);   // (a field the paragraph ended inside of)
         }
+        // The results of the paragraph's page references (PAGEREF, without a switch that asks for a place or a paragraph's number): the text of a result is one fragment that the pages
+        // show the number of the page the bookmark is on in place of (the file's own result is what is kept in the story, as it was). `refOf` says a field's first piece of text, and
+        // `refRest` the later pieces of its result, which are joined to the first.
+        QHash<int, QString> refOf;
+        QVector<bool> refRest(p.content.size(), false);
+        {
+            struct Open {
+                QString instruction, name;
+                bool inResult = false;
+                int first = -1;
+            };
+            QVector<Open> open;
+            int deleting = 0;
+            auto nameOf = [](const QString &instruction) -> QString {
+                const QStringList words = instruction.simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
+                if (words.size() < 2 || words[0].compare(QLatin1String("PAGEREF"), Qt::CaseInsensitive) != 0) return QString();
+                for (int i = 2; i < words.size(); ++i)
+                    if (words[i] == QLatin1String("\\p") || words[i] == QLatin1String("\\n") || words[i] == QLatin1String("\\r") || words[i] == QLatin1String("\\w")) return QString();
+                QString name = words[1];
+                name.remove(QLatin1Char('"'));
+                return name;
+            };
+            for (int i = 0; i < p.content.size(); ++i) {
+                const Inline &in = p.content[i];
+                if (in.kind == Inline::ParaAtom && isDeletedRevision(in.tag)) deleting = std::max(0, deleting + (in.role == Inline::Open ? 1 : in.role == Inline::Close ? -1 : 0));
+                if (in.kind == Inline::RunAtom && in.tag == QLatin1String("fldChar")) {
+                    if (in.key == QLatin1String("begin") && open.size() < kMostFieldNesting) open.push_back(Open());
+                    else if (in.key == QLatin1String("separate") && !open.isEmpty()) {
+                        open.last().inResult = true;
+                        open.last().name = nameOf(open.last().instruction);
+                    } else if (in.key == QLatin1String("end") && !open.isEmpty()) open.pop_back();
+                } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("instrText")) {
+                    if (!open.isEmpty() && !open.last().inResult) open.last().instruction += textOfXml(in.raw);
+                } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Open) {
+                    if (open.size() < kMostFieldNesting) {
+                        Open field;
+                        field.inResult = true;
+                        field.name = nameOf(QString(attributeOfTag(in.raw, QStringLiteral("instr"))).replace(QLatin1String("&quot;"), QLatin1String("\"")));
+                        open.push_back(field);
+                    }
+                } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Close) {
+                    if (!open.isEmpty()) open.pop_back();
+                } else if (in.kind == Inline::Text && !in.text.isEmpty() && deleting == 0 && !open.isEmpty() && open.last().inResult && !open.last().name.isEmpty()) {
+                    Open &field = open.last();
+                    if (field.first < 0) {
+                        field.first = i;
+                        refOf.insert(i, field.name + QChar(0x1f) + in.text);
+                    } else {
+                        refRest[i] = true;
+                        refOf[field.first] += in.text;
+                    }
+                }
+            }
+        }
         int deletedDepth = 0;   // (inside the content a tracked change deleted)
         double advanceTop = -1;   // (a field that sets the text after it at a place from the page's top, ADVANCE with \\y: the paragraph is no higher than that)
         for (int inAt = 0; inAt < p.content.size(); ++inAt) {
@@ -758,6 +812,13 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             if (in.kind == Inline::ParaAtom && isDeletedRevision(in.tag)) deletedDepth = std::max(0, deletedDepth + (in.role == Inline::Open ? 1 : in.role == Inline::Close ? -1 : 0));
             const bool deleted = deletedDepth > 0 && !(in.kind == Inline::ParaAtom && in.role != Inline::Single && isDeletedRevision(in.tag));
             if (in.kind == Inline::Text) {
+                if (refRest[inAt]) continue;   // (its text is in the first piece of the result)
+                if (const auto ref = refOf.constFind(inAt); ref != refOf.constEnd() && !deleted) {
+                    QTextCharFormat shown = formatOf(styleId, in.props);
+                    shown.setProperty(tp::Field, QStringLiteral("pageref:") + ref->section(QChar(0x1f), 0, 0));
+                    c.insertText(ref->section(QChar(0x1f), 1), shown);
+                    continue;
+                }
                 if (!in.text.isEmpty()) c.insertText(in.text, deleted ? asDeleted(formatOf(styleId, in.props)) : formatOf(styleId, in.props));
                 continue;
             }
