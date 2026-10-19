@@ -1053,15 +1053,18 @@ void Paginator::countNotes(int from, int to, int *footnotes, int *endnotes, bool
             *footnotes = *endnotes = 0;
             if (restarted) *restarted = true;
         }
+        int at = b.position();   // (where each run begins: the lengths of the runs before it added, not a place looked up for each)
         for (auto it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment frag = it.fragment();
+            const int begin = at, length = int(frag.length());
+            at += length;
             // (The fragments before the range, and after it, are passed by their places: a paragraph of a hundred thousand runs is asked about at each of its pages.)
-            if (frag.position() + frag.length() <= from) continue;
-            if (frag.position() >= to) break;
+            if (begin + length <= from) continue;
+            if (begin >= to) break;
             ++m_noteFormatsRead;
             const QString code = frag.charFormat().stringProperty(tp::Field);
             if (code.isEmpty()) continue;
-            const int lo = std::max(frag.position(), from), hi = std::min(frag.position() + frag.length(), to);
+            const int lo = std::max(begin, from), hi = std::min(begin + length, to);
             if (hi <= lo) continue;
             if (code.startsWith(QLatin1String("footnote:"))) *footnotes += frag.charFormat().boolProperty(tp::NoteMarkCustom) ? 0 : hi - lo;   // (a custom mark takes no number)
             else if (code.startsWith(QLatin1String("endnote:"))) *endnotes += hi - lo;

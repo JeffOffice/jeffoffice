@@ -1289,7 +1289,22 @@ static QString fragmentPart(const QTextDocument *doc, const QTextFragment &frag,
     for (int i = 0; i < count; ++i) out[i] = doc->characterAt(frag.position() + begin + i);
     return out;
 }
+static bool hasTrueSmallCapsOf(const QTextBlock &b);
+// (Asked for each page that holds a part of a long paragraph: the answer is kept while the same paragraph is asked, by the document's revision and the paragraph's place and length.)
 static bool hasTrueSmallCaps(const QTextBlock &b)
+{
+    if (b.length() < 4096) return hasTrueSmallCapsOf(b);
+    struct Kept {
+        const QTextDocument *doc = nullptr;
+        int revision = -1, position = -1, length = -1;
+        bool small = false;
+    };
+    thread_local Kept kept;
+    if (kept.doc == b.document() && kept.revision == b.document()->revision() && kept.position == b.position() && kept.length == b.length()) return kept.small;
+    kept = Kept{b.document(), b.document()->revision(), b.position(), b.length(), hasTrueSmallCapsOf(b)};
+    return kept.small;
+}
+static bool hasTrueSmallCapsOf(const QTextBlock &b)
 {
     if (b.begin().atEnd()) return b.charFormat().boolProperty(tp::TrueSmallCaps);
     bool any = false;
@@ -2944,6 +2959,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         int spaceStretch = 0;   // (how many characters of white space the text taken so far ends in: see kMostSpaceStretch)
         bool cutShort = false;
         QTextBlock part = head;   // (the paragraph of the run that the text is being taken from)
+        int fragOffset = 0;       // (where the run being taken begins, from the head's start: the lengths of the runs before it, not a place looked up for each)
         for (auto it = part.begin();; ++it) {
             // The end of a paragraph that is joined to the next: its mark, which shows nothing, and then the text of the next.
             bool runEnds = false;
@@ -2955,12 +2971,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 if (const int mark = part.position() + part.length() - 1 - head.position(); mark >= skipChars) B->map << Seg{mark, 1, int(B->disp.size()), 0, true};
                 part = part.next();
                 it = part.begin();
+                fragOffset = part.position() - head.position();
             }
             if (runEnds) break;
             if (cutShort) break;
             const QTextFragment frag = it.fragment();
             if (!frag.isValid()) continue;
-            int rel = frag.position() - head.position();
+            int rel = fragOffset;
+            fragOffset += int(frag.length());
             // (The runs before the part wanted are passed by their lengths, without their text: a paragraph of a hundred thousand runs is asked for at each of its pages.)
             if (rel + int(frag.length()) <= skipChars) continue;
             int begin = 0, count = int(frag.length());
@@ -3344,11 +3362,22 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->leaders = bf.stringProperty(tp::TabLeaders);
         // (A word processor's absolute position tabs: the tabs whose runs say where they go, as many as a paragraph may have.)
         B->alignTabs.clear();
-        if (env.wordLines)
+        if (env.wordLines) {
+            // (The runs after the part of the paragraph that is laid out are not looked at: a paragraph of hundreds of thousands of runs is laid out in parts, at each of its pages. A run
+            // with the format of the one before it, the format the same piece of the story's table, is not read again, nor is its place looked up: the lengths are added.)
+            int offset = b.position() - head.position(), lastFormat = -1;
+            QString spec;
             for (auto at = b.begin(); !at.atEnd() && B->alignTabs.size() < kMostAlignTabs; ++at) {
-                const QString spec = at.fragment().charFormat().stringProperty(tp::AlignTab);
-                for (int i = 0; !spec.isEmpty() && i < at.fragment().length() && B->alignTabs.size() < kMostAlignTabs; ++i) B->alignTabs << spec;
+                if (limit < std::numeric_limits<int>::max() && offset >= skipChars + limit) break;
+                const QTextFragment frag = at.fragment();
+                offset += int(frag.length());
+                if (frag.charFormatIndex() != lastFormat) {
+                    lastFormat = frag.charFormatIndex();
+                    spec = frag.charFormat().stringProperty(tp::AlignTab);
+                }
+                for (int i = 0; !spec.isEmpty() && i < frag.length() && B->alignTabs.size() < kMostAlignTabs; ++i) B->alignTabs << spec;
             }
+        }
         if (bf.layoutDirection() == Qt::RightToLeft) opt.setTextDirection(Qt::RightToLeft);
         opt.setFlags(QTextOption::IncludeTrailingSpaces);
         B->tl->setTextOption(opt);
