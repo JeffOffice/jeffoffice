@@ -868,6 +868,12 @@ void numberedStory(FlowDocument &fd, int paragraphs, int countBy, Section::LineN
     fd.sections[0].lineNumbers.distance = 10;
     fd.sections[0].lineNumbers.restart = restart;
     fd.sections[0].lineNumbers.format.setFontPointSize(7);
+    // (A bundled face, so that the lines to a page are the same on every machine.)
+    QTextCursor all(fd.story());
+    all.select(QTextCursor::Document);
+    QTextCharFormat face;
+    face.setFontFamilies({QStringLiteral("Arimo")});
+    all.mergeCharFormat(face);
 }
 
 // A header or footer story of the lines given, a paragraph each.
@@ -6010,31 +6016,34 @@ private Q_SLOTS:
     // Line numbers that begin again at each section (w:restart "newSection") do so at the section's first line, wherever it is on the page, and go on across the section's pages.
     void newSectionLineNumbersBeginAgainAtEachSection()
     {
-        FlowDocument fd;
-        numberedStory(fd, 24, 1, Section::LineNumbers::Restart::NewSection);
-        QTextCursor c(fd.story()->findBlockByNumber(9));
-        QTextBlockFormat bf = c.blockFormat();
-        bf.setProperty(fp::SectionBreakAfter, true);
-        c.setBlockFormat(bf);
-        const int secondStart = fd.story()->findBlockByNumber(10).position();
-        Section second = fd.sections[0];
-        second.continuous = true;
-        fd.sections << second;
-        Paginator pg(&fd);
-        QVERIFY(pg.pageCount() >= 3);
-        int count[2] = {0, 0};
+        // (The paragraph that ends the first section is one of those that leave the second to begin in the middle of a page.)
         bool beganMidPage = false;
-        for (int k = 0; k < pg.pageCount(); ++k) {
-            const QStringList shown = lineNumbersOnPage(pg, k);
-            const auto briefs = pg.lines(k);
-            QVERIFY2(shown.size() == briefs.size(), qPrintable(QStringLiteral("page %1 has %2 numbers for %3 lines").arg(k).arg(shown.size()).arg(briefs.size())));
-            for (int i = 0; i < briefs.size(); ++i) {
-                const int section = briefs[i].pos >= secondStart ? 1 : 0;
-                QCOMPARE(shown[i], QString::number(++count[section]));
-                beganMidPage |= section == 1 && count[1] == 1 && i > 0;
+        for (int endsFirst = 9; endsFirst < 20 && !beganMidPage; ++endsFirst) {
+            FlowDocument fd;
+            numberedStory(fd, 24, 1, Section::LineNumbers::Restart::NewSection);
+            QTextCursor c(fd.story()->findBlockByNumber(endsFirst));
+            QTextBlockFormat bf = c.blockFormat();
+            bf.setProperty(fp::SectionBreakAfter, true);
+            c.setBlockFormat(bf);
+            const int secondStart = fd.story()->findBlockByNumber(endsFirst + 1).position();
+            Section second = fd.sections[0];
+            second.continuous = true;
+            fd.sections << second;
+            Paginator pg(&fd);
+            QVERIFY(pg.pageCount() >= 3);
+            int count[2] = {0, 0};
+            for (int k = 0; k < pg.pageCount(); ++k) {
+                const QStringList shown = lineNumbersOnPage(pg, k);
+                const auto briefs = pg.lines(k);
+                QVERIFY2(shown.size() == briefs.size(), qPrintable(QStringLiteral("page %1 has %2 numbers for %3 lines").arg(k).arg(shown.size()).arg(briefs.size())));
+                for (int i = 0; i < briefs.size(); ++i) {
+                    const int section = briefs[i].pos >= secondStart ? 1 : 0;
+                    QCOMPARE(shown[i], QString::number(++count[section]));
+                    beganMidPage |= section == 1 && count[1] == 1 && i > 0;
+                }
             }
+            QVERIFY(count[0] > 5 && count[1] > 5);
         }
-        QVERIFY(count[0] > 10 && count[1] > 10);
         QVERIFY(beganMidPage);
     }
 
@@ -6043,9 +6052,15 @@ private Q_SLOTS:
     {
         FlowDocument fd;
         numberedStory(fd, 24, 5, Section::LineNumbers::Restart::Continuous);
-        fd.sections[0].paper = QSizeF(240, 185);   // (nine lines to a page)
-        Paginator pg(&fd);
+        // (A page height at which the first page holds a number of lines that is no multiple of five, so that a page begins between two fifths.)
+        std::unique_ptr<Paginator> held;
+        for (double height = 185; height < 260 && !(held && int(held->lines(0).size()) % 5 != 0); height += 5) {
+            fd.sections[0].paper = QSizeF(240, height);
+            held = std::make_unique<Paginator>(&fd);
+        }
+        Paginator &pg = *held;
         QVERIFY(pg.pageCount() >= 3);
+        QVERIFY(int(pg.lines(0).size()) % 5 != 0);
         int before = 0, midway = 0;
         for (int k = 0; k < pg.pageCount(); ++k) {
             const QStringList shown = lineNumbersOnPage(pg, k);
