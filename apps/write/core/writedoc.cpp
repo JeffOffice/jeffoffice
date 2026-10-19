@@ -137,7 +137,7 @@ flow::Section::LineNumbers lineNumbersOf(const QVector<RawChild> &extra)
             at.insert(m.captured(1), m.captured(2));
         }
         out.countBy = std::clamp(at.value(QStringLiteral("countBy"), QStringLiteral("1")).toInt(), 1, 1000);
-        out.start = std::clamp(at.value(QStringLiteral("start"), QStringLiteral("1")).toInt(), 0, 100000);
+        out.start = std::clamp(at.value(QStringLiteral("start")).toInt(), 0, 32767) + 1;   // (the file's start is how many numbers are skipped: 3 numbers the first line 4)
         out.distance = std::clamp(at.value(QStringLiteral("distance")).toDouble() / 20.0, 0.0, 144.0);
         const QString restart = at.value(QStringLiteral("restart"));
         out.restart = restart == QLatin1String("newSection") ? flow::Section::LineNumbers::Restart::NewSection : restart == QLatin1String("continuous") ? flow::Section::LineNumbers::Restart::Continuous

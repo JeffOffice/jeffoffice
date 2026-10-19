@@ -988,6 +988,8 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         run.next.carried = carriedOut;
         // (The first page of a section is the one it begins at the top of: not the page after one that a continuous section began in the middle of.)
         run.next.firstOfSection = !run.next.blank && sectionEnds && run.next.section != st.section;
+        // The line numbers that go on from this page's.
+        if (lineNumbersRunOn()) numberLines(run, st, &run.next);
     }
     return run;
 }
@@ -1577,26 +1579,61 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
 // The most numbers a page's lines are given (a page holds a few hundred lines at the most).
 constexpr int kMostLineNumbers = 600;
 
-void Paginator::addLineNumbers(Document *d, const Run &run, const QRectF &body)
+bool Paginator::lineNumbersRunOn() const
 {
-    bool any = false;
-    for (const Section &s : m_doc->sections) any |= s.lineNumbers.countBy > 0;
-    if (!any || !m_doc->env.wordLines) return;
+    if (!m_doc->env.wordLines) return false;
+    for (const Section &s : m_doc->sections)
+        if (s.lineNumbers.countBy > 0 && s.lineNumbers.restart != Section::LineNumbers::Restart::NewPage) return true;
+    return false;
+}
+
+// A line takes the number after the last counted line before it, and the section's start where there is none or the section's numbers begin again: at the page's first counted line
+// (newPage), at the first of the section (newSection), never (continuous). The text of a section is counted: not the rows of a table, a paragraph that is set apart from the text, nor
+// one that suppresses the numbers.
+QVector<Paginator::NumberedLine> Paginator::numberLines(const Run &run, const PageStart &st, PageStart *after)
+{
+    QVector<NumberedLine> out;
     const QTextDocument *story = m_doc->story();
     const QVector<int> &starts = sectionStarts();
-    int number = 0, made = 0;
-    for (int i = 0; i < run.kept && made < kMostLineNumbers; ++i) {
+    int last = st.lineNumber, lastSection = st.lineSection;
+    bool onPage = false;
+    for (int i = 0; i < run.kept; ++i) {
+        ++m_lineNumberVisits;
         const StoryLayout::LineBrief &ln = run.lines[i];
         const QTextBlock block = story->findBlock(ln.block);
         const QTextBlockFormat bf = block.blockFormat();
-        // (The text of a section: not the rows of a table, nor a paragraph that is set apart from the text.)
-        if (bf.intProperty(fp::Cell) || bf.boolProperty(tp::OutOfLayout) || bf.boolProperty(fp::SuppressLineNumbers)) continue;   // (a paragraph that suppresses them is not counted either)
+        if (bf.intProperty(fp::Cell) || bf.boolProperty(tp::OutOfLayout) || bf.boolProperty(fp::SuppressLineNumbers)) continue;
         const int column = ln.frame - run.firstFrame;
         if (column < 0 || column >= run.cols.size()) continue;
         const int section = std::clamp(int(std::upper_bound(starts.cbegin(), starts.cend(), ln.pos) - starts.cbegin()) - 1, 0, int(m_doc->sections.size()) - 1);
         const Section::LineNumbers &numbers = m_doc->section(section).lineNumbers;
-        if (numbers.countBy <= 0 || numbers.restart != Section::LineNumbers::Restart::NewPage) continue;
-        const int n = numbers.start + number++;
+        if (numbers.countBy <= 0) continue;
+        using Restart = Section::LineNumbers::Restart;
+        const bool again = last < 0 || (numbers.restart == Restart::NewPage && !onPage) || (numbers.restart == Restart::NewSection && section != lastSection);
+        last = again ? numbers.start : last + 1;
+        lastSection = section;
+        onPage = true;
+        out.push_back({i, last, section});
+    }
+    if (after) {
+        after->lineNumber = last;
+        after->lineSection = lastSection;
+    }
+    return out;
+}
+
+void Paginator::addLineNumbers(Document *d, const Run &run, const PageStart &st, const QRectF &body)
+{
+    bool any = false;
+    for (const Section &s : m_doc->sections) any |= s.lineNumbers.countBy > 0;
+    if (!any || !m_doc->env.wordLines) return;
+    int made = 0;
+    for (const NumberedLine &counted : numberLines(run, st, nullptr)) {
+        if (made >= kMostLineNumbers) break;
+        const StoryLayout::LineBrief &ln = run.lines[counted.line];
+        const int column = ln.frame - run.firstFrame;
+        const Section::LineNumbers &numbers = m_doc->section(counted.section).lineNumbers;
+        const int n = counted.number;
         if (n % numbers.countBy != 0) continue;
         // The number sits at the line, its baseline where the line's is (a line's text is about four fifths above its baseline), right of nothing: its right edge is the distance left of the column.
         QTextCharFormat format = numbers.format;
@@ -1860,7 +1897,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         const StoryLayout::LineBrief &lastLine = run.lines[run.kept - 1];
         out->continuesOnAfter = lastLine.line < lastLine.lines - 1;
         out->freeBreakEnds = run.freeBreak ? run.splitEnds : QVector<int>();
-        addLineNumbers(d.get(), run, furniture.body);
+        addLineNumbers(d.get(), run, st, furniture.body);
 
         // A text box for each column that has lines, as tall as its lines are: the lines that follow, which went to the next page, don't fit
         // in it (a frame a line short of the text's bottom is how the page is cut where the paginator cut it).

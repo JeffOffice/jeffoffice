@@ -845,6 +845,31 @@ QString narrowStandInForI(double *diff)
     return QString();
 }
 
+// The line numbers drawn on page `k`, in order, as text.
+QStringList lineNumbersOnPage(Paginator &pg, int k)
+{
+    QStringList shown;
+    const auto page = pg.materialize(k);
+    if (!page) return shown;
+    for (const auto &item : page->doc->pages[0]->items)
+        if (item->id.startsWith(QLatin1String("flow-lineno-box"))) shown << page->doc->stories.value(dynamic_cast<const TextItem *>(item.get())->storyId)->doc->toPlainText();
+    return shown;
+}
+
+// A story of short paragraphs on small pages (about ten lines each), its first section numbering its lines.
+void numberedStory(FlowDocument &fd, int paragraphs, int countBy, Section::LineNumbers::Restart restart)
+{
+    fd.env.wordLines = true;
+    fillStory(fd.story(), paragraphs, 4, [](int, QTextBlockFormat &bf) { bf.setBottomMargin(0); }, 6, 12);
+    fd.sections[0].paper = QSizeF(240, 200);
+    fd.sections[0].margins = QMarginsF(60, 30, 30, 30);
+    fd.sections[0].lineNumbers.countBy = countBy;
+    fd.sections[0].lineNumbers.start = 1;
+    fd.sections[0].lineNumbers.distance = 10;
+    fd.sections[0].lineNumbers.restart = restart;
+    fd.sections[0].lineNumbers.format.setFontPointSize(7);
+}
+
 // A header or footer story of the lines given, a paragraph each.
 std::shared_ptr<QTextDocument> furnitureStory(const QStringList &lines)
 {
@@ -5963,6 +5988,163 @@ private Q_SLOTS:
             if (item->id.startsWith(QLatin1String("flow-lineno-box"))) shown << page->doc->stories.value(dynamic_cast<const TextItem *>(item.get())->storyId)->doc->toPlainText();
         QVERIFY(shown.size() >= 2);
         for (int i = 0; i < shown.size(); ++i) QCOMPARE(shown[i], QString::number(5 * (i + 1)));
+    }
+
+    // Line numbers that run on (w:restart "continuous") go through the pages: a page's first line has the number after the last of the page before.
+    void continuousLineNumbersRunOnThroughThePages()
+    {
+        FlowDocument fd;
+        numberedStory(fd, 24, 1, Section::LineNumbers::Restart::Continuous);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 3);
+        int next = 1;
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const QStringList shown = lineNumbersOnPage(pg, k);
+            const int lines = int(pg.lines(k).size());
+            QVERIFY2(int(shown.size()) == lines, qPrintable(QStringLiteral("page %1 has %2 numbers for %3 lines").arg(k).arg(shown.size()).arg(lines)));
+            for (int i = 0; i < shown.size(); ++i) QCOMPARE(shown[i], QString::number(next + i));
+            next += lines;
+        }
+    }
+
+    // Line numbers that begin again at each section (w:restart "newSection") do so at the section's first line, wherever it is on the page, and go on across the section's pages.
+    void newSectionLineNumbersBeginAgainAtEachSection()
+    {
+        FlowDocument fd;
+        numberedStory(fd, 24, 1, Section::LineNumbers::Restart::NewSection);
+        QTextCursor c(fd.story()->findBlockByNumber(9));
+        QTextBlockFormat bf = c.blockFormat();
+        bf.setProperty(fp::SectionBreakAfter, true);
+        c.setBlockFormat(bf);
+        const int secondStart = fd.story()->findBlockByNumber(10).position();
+        Section second = fd.sections[0];
+        second.continuous = true;
+        fd.sections << second;
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 3);
+        int count[2] = {0, 0};
+        bool beganMidPage = false;
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const QStringList shown = lineNumbersOnPage(pg, k);
+            const auto briefs = pg.lines(k);
+            QVERIFY2(shown.size() == briefs.size(), qPrintable(QStringLiteral("page %1 has %2 numbers for %3 lines").arg(k).arg(shown.size()).arg(briefs.size())));
+            for (int i = 0; i < briefs.size(); ++i) {
+                const int section = briefs[i].pos >= secondStart ? 1 : 0;
+                QCOMPARE(shown[i], QString::number(++count[section]));
+                beganMidPage |= section == 1 && count[1] == 1 && i > 0;
+            }
+        }
+        QVERIFY(count[0] > 10 && count[1] > 10);
+        QVERIFY(beganMidPage);
+    }
+
+    // Every fifth line, counted from the first of the document, whatever page it falls on.
+    void lineNumbersByFiveGoOnAcrossAPage()
+    {
+        FlowDocument fd;
+        numberedStory(fd, 24, 5, Section::LineNumbers::Restart::Continuous);
+        fd.sections[0].paper = QSizeF(240, 185);   // (nine lines to a page)
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 3);
+        int before = 0, midway = 0;
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const QStringList shown = lineNumbersOnPage(pg, k);
+            const int lines = int(pg.lines(k).size());
+            QStringList want;
+            for (int line = before + 1; line <= before + lines; ++line)
+                if (line % 5 == 0) want << QString::number(line);
+            QVERIFY2(shown == want, qPrintable(QStringLiteral("page %1 shows %2, not %3").arg(k).arg(shown.join(',')).arg(want.join(','))));
+            midway += before % 5 != 0;
+            before += lines;
+        }
+        QVERIFY(midway > 0);   // (a page begins between two fifths)
+    }
+
+    // A paragraph that suppresses the numbers is neither numbered nor counted, where it runs over a page's foot as well.
+    void aSuppressedParagraphIsNeitherNumberedNorCountedAcrossAPage()
+    {
+        FlowDocument fd;
+        numberedStory(fd, 24, 1, Section::LineNumbers::Restart::Continuous);
+        QVector<int> suppressed;
+        {
+            Paginator first(&fd);
+            QVERIFY(first.pageCount() >= 3);
+            const auto last = first.lines(0);
+            const auto next = first.lines(1);
+            QVERIFY(!last.isEmpty() && !next.isEmpty());
+            suppressed << last.last().block << next.first().block;
+        }
+        for (int position : suppressed) {
+            QTextCursor c(fd.story()->findBlock(position));
+            QTextBlockFormat bf = c.blockFormat();
+            bf.setProperty(fp::SuppressLineNumbers, true);
+            c.setBlockFormat(bf);
+        }
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 3);
+        int next = 1, skipped = 0;
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const QStringList shown = lineNumbersOnPage(pg, k);
+            const auto briefs = pg.lines(k);
+            int counted = 0;
+            for (const auto &line : briefs) {
+                if (fd.story()->findBlock(line.block).blockFormat().boolProperty(fp::SuppressLineNumbers)) ++skipped;
+                else ++counted;
+            }
+            QVERIFY2(shown.size() == counted, qPrintable(QStringLiteral("page %1 has %2 numbers for %3 counted lines").arg(k).arg(shown.size()).arg(counted)));
+            for (int i = 0; i < shown.size(); ++i) QCOMPARE(shown[i], QString::number(next++));
+        }
+        QVERIFY(skipped >= 2);
+    }
+
+    // An edit that adds a tall line on the first page (fewer lines fit before the third page's) moves the numbers on the third, and they are the ones a paginator that never saw the
+    // edit gives.
+    void anEditOnTheFirstPageMovesTheLineNumbersOnTheThird()
+    {
+        FlowDocument fd;
+        numberedStory(fd, 24, 1, Section::LineNumbers::Restart::Continuous);
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 4);
+        const QStringList before = lineNumbersOnPage(pg, 2);
+        QVERIFY(!before.isEmpty());
+        QTextCursor c(fd.story());
+        c.setPosition(0);
+        QTextCharFormat big;
+        big.setFontPointSize(30);
+        c.insertText(QStringLiteral("A heading\n"), big);
+        pg.pageCount();
+        const QStringList after = lineNumbersOnPage(pg, 2);
+        int linesBefore = 0;
+        for (int k = 0; k < 2; ++k) linesBefore += int(pg.lines(k).size());
+        QVERIFY(!after.isEmpty());
+        QCOMPARE(after.first(), QString::number(linesBefore + 1));
+        QVERIFY2(after.first() != before.first(), qPrintable(before.first()));
+        Paginator fresh(&fd);
+        for (int k = 0; k < std::min(pg.pageCount(), fresh.pageCount()); ++k) {
+            const QStringList kept = lineNumbersOnPage(pg, k), made = lineNumbersOnPage(fresh, k);
+            QVERIFY2(kept == made, qPrintable(QStringLiteral("page %1: %2 after the edit, %3 in a new paginator").arg(k).arg(kept.value(0)).arg(made.value(0))));
+        }
+        QCOMPARE(pg.pageCount(), fresh.pageCount());
+    }
+
+    // The work of numbering the lines is a page's lines and no more: a long document's pages don't count the lines of all the pages before (the count goes on from the page before's).
+    void lineNumberingWorkIsLinearInTheLinesOfTheDocument()
+    {
+        FlowDocument fd;
+        numberedStory(fd, 600, 1, Section::LineNumbers::Restart::Continuous);
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY(pages >= 60);
+        qint64 lines = 0;
+        for (int k = 0; k < pages; ++k) {
+            QVERIFY(pg.materialize(k));
+            lines += int(pg.lines(k).size());
+        }
+        const qint64 visits = pg.lineNumberVisitsForTest();
+        QVERIFY2(visits >= lines && visits <= 8 * lines, qPrintable(QStringLiteral("%1 lines looked at to number %2 lines on %3 pages").arg(visits).arg(lines).arg(pages)));
+        const QStringList last = lineNumbersOnPage(pg, pages - 1);
+        QVERIFY(!last.isEmpty());
+        QCOMPARE(last.last(), QString::number(lines));
     }
 
     // A continuous section of two columns that holds a table: it begins below the text of the section before, the table is inside a column and flows into the next, and

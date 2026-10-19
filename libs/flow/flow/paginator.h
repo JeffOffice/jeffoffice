@@ -113,7 +113,10 @@ public:
         // A blank page that an odd-page or even-page section break leaves: a page of the section before (`section`) with nothing on it, before the page that begins
         // the next section at `pos`.
         bool blank = false;
-        bool operator==(const PageStart &o) const { return blank == o.blank && pos == o.pos && skip == o.skip && hard == o.hard && section == o.section && piece == o.piece && pieceAt == o.pieceAt && foot == o.foot && end == o.end && carried == o.carried && firstOfSection == o.firstOfSection && wrapped == o.wrapped; }
+        // The line numbers that go on across pages or begin again at a section (w:lnNumType): the number the last counted line before the page has (-1: none) and the section it
+        // is in, which the page's lines go on from. Kept only while a section asks for numbers that don't begin again at each page.
+        int lineNumber = -1, lineSection = 0;
+        bool operator==(const PageStart &o) const { return blank == o.blank && pos == o.pos && skip == o.skip && hard == o.hard && section == o.section && piece == o.piece && pieceAt == o.pieceAt && foot == o.foot && end == o.end && carried == o.carried && firstOfSection == o.firstOfSection && wrapped == o.wrapped && lineNumber == o.lineNumber && lineSection == o.lineSection; }
         bool operator!=(const PageStart &o) const { return !(*this == o); }
     };
 
@@ -184,6 +187,8 @@ public:
     qint64 numberStepsForTest() const { return m_numberSteps; }
     // How many characters the copies of the text on the pages have held since it was made (the copy a page is drawn from holds that page's text and a line more): for tests of what a page costs.
     qint64 charsCopiedForTest() const { return m_charsCopied; }
+    // The lines looked at to number the lines of pages so far (a page's own, each time it is laid out): the work of line numbering, which is a page's lines and no more.
+    qint64 lineNumberVisitsForTest() const { return m_lineNumberVisits; }
 
 private:
     struct Run;
@@ -305,8 +310,16 @@ private:
     void resolvePageRefs(MaterializedPage *out, Document *d);
     // The fields of a header's or footer's story that show a paragraph style's text (STYLEREF) show the page's paragraph of the style: the story is a copy made for the page.
     bool substituteStyleRefs(QTextDocument *story, int from, int to) const;   // (whether any field showed another text)
-    // The line numbers of the sections' text, in the margin at each line of the page (a section that has them, and begins them again at each page).
-    void addLineNumbers(Document *d, const Run &run, const QRectF &body);
+    // The line numbers of the sections' text, in the margin at each line of the page (a section that has them).
+    void addLineNumbers(Document *d, const Run &run, const PageStart &st, const QRectF &body);
+    // The lines of a page that are counted, each with the number it has and its section. The page is given what the last counted line before it has (`st`); `after` is given what the
+    // page after goes on from. The pages are laid out one after the other, each holding what the next goes on from, so that no page counts the lines before it.
+    struct NumberedLine {
+        int line = 0, number = 0, section = 0;
+    };
+    QVector<NumberedLine> numberLines(const Run &run, const PageStart &st, PageStart *after);
+    bool lineNumbersRunOn() const;   // some section's numbers go on across pages, or begin again at a section
+    qint64 m_lineNumberVisits = 0;   // see lineNumberVisitsForTest()
     // A header or footer with tables in it: its text before, between, and after them, and each table, laid out from the top at a width for the page that shows number `number`
     // (the page's number is what the fields in its cells show). The tables are laid out in a private copy of the story, with the table machinery of the document's own.
     struct HeaderPart {
