@@ -11851,6 +11851,19 @@ private Q_SLOTS:
         for (const char *word : {"alpha", "beta", "gamma"}) QVERIFY2(text.contains(QLatin1String(word)), qPrintable(QStringLiteral("%1 is not shown in the box: %2").arg(QLatin1String(word)).arg(text)));
     }
 
+    // Reading a file asks its tags their attributes with an expression made once for each name, not one for each tag (a file with hundreds of thousands of absolute position tabs took
+    // most of a minute to read).
+    void tagsAreAskedTheirAttributesWithAnExpressionMadeOncePerName()
+    {
+        QByteArray runs;
+        for (int i = 0; i < 3000; ++i) runs += "<w:r><w:ptab w:relativeTo=\"margin\" w:alignment=\"right\" w:leader=\"none\"/></w:r>";
+        const qint64 before = attributeExpressionsMadeForTest();
+        auto doc = open(makeDocx("<w:p>" + runs + "</w:p>", kStyles));
+        QVERIFY(doc);
+        const qint64 made = attributeExpressionsMadeForTest() - before;
+        QVERIFY2(made <= 10, qPrintable(QString::number(made)));   // (a few names: the three of a tab's, and what the rest of reading asks; 9,000 when each tag made its own)
+    }
+
     // A paragraph that says w:suppressLineNumbers (itself, or by its style) has no numbers, and the lines of the others are counted without it.
     void aParagraphThatSuppressesLineNumbersIsNeitherNumberedNorCounted()
     {

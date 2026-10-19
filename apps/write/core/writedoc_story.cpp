@@ -20,6 +20,7 @@
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QTextList>
+#include <atomic>
 
 using namespace jp::office;
 using namespace jp::office::wml;
@@ -120,11 +121,20 @@ QString textOfXml(const QByteArray &xml)
         .replace(QLatin1String("&apos;"), QLatin1String("'")).replace(QLatin1String("&amp;"), QLatin1String("&"));
 }
 
+// How many expressions the attributes of tags have been looked for with since the program began (one for each name), for a test of the cost of reading a file.
+std::atomic<qint64> s_attributeExpressions{0};
+
 // The attribute of a start tag kept as written.
 QString attributeOfTag(const QByteArray &xml, const QString &name)
 {
-    const QRegularExpression re(QStringLiteral("[\\s:]%1\\s*=\\s*\"([^\"]*)\"").arg(QRegularExpression::escape(name)));
-    return re.match(QString::fromUtf8(xml.left(4000))).captured(1);
+    // (The expression of each name is made once: a file can have hundreds of thousands of elements that are asked their attributes.)
+    thread_local QHash<QString, QRegularExpression> expressions;
+    auto it = expressions.constFind(name);
+    if (it == expressions.constEnd()) {
+        it = expressions.insert(name, QRegularExpression(QStringLiteral("[\\s:]%1\\s*=\\s*\"([^\"]*)\"").arg(QRegularExpression::escape(name))));
+        ++s_attributeExpressions;
+    }
+    return it->match(QString::fromUtf8(xml.left(4000))).captured(1);
 }
 
 // Where an absolute position tab (w:ptab) takes the text after it, as tp::AlignTab says it: "alignment:relativeTo:leader" (right at the margin with no leader when the file says
@@ -285,6 +295,8 @@ flow::FloatingObject frameObjectOf(const QHash<QString, QString> &at)
 }
 
 } // namespace
+
+qint64 attributeExpressionsMadeForTest() { return s_attributeExpressions.load(); }
 
 // Fills `story` from the elements of a body or of a header or footer. A header's or footer's (`header`) fields for the page's number and the page
 // counts are live fields of the text engine, its tables and pictures are left out, and a paragraph in a frame is set aligned as the frame is.

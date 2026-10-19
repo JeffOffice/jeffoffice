@@ -72,6 +72,8 @@ private:
 
 // How many times a level's run properties have been looked at for the outline effect (for a test of the cost).
 int levelsScannedForOutlineForTest();
+// How many expressions the attributes of tags have been looked for with since the program began: one for each name, however many tags a file has.
+qint64 attributeExpressionsMadeForTest();
 // How many paragraphs the fields that show a paragraph style's text have looked at (to find where each style's paragraphs are, and to read one found), since the count was reset: a
 // cost test (a page's fields cost a search, not a walk over the story).
 qint64 styleRefParagraphsScannedForTest();
