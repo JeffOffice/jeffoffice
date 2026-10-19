@@ -2086,6 +2086,7 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
         const QStringList k = key.split(QLatin1Char('|'));
         const bool ofSymbols = isSymbolFont(k.value(0)) && !hasFamilyCached(k.value(0));
         const bool words = evenWords && !ofSymbols;   // (a symbol font's pictures are no words)
+        const bool byHand = r.format.hasProperty(tp::HandBold);   // (a stand-in drawn with a stroke by hand: see the stretches below)
         const QHash<char16_t, double> *table = ofSymbols ? symbolFontLetterWidths(k.value(0))
                                                : originalLetterWidths(k.value(0), k.value(1) == QLatin1String("1"), k.value(2) == QLatin1String("1"));
         QFont plain = r.format.font();
@@ -2247,22 +2248,38 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
         for (const Stretch &part : stretches) {
             constexpr double kGapCapEm = 0.05;
             auto gapAfter = [&](int k) { return k + 1 < part.at.size() && cuttable(disp[part.at[k]]) && cuttable(disp[part.at[k + 1]]); };
-            double total = 0;
+            // A stand-in drawn with a stroke by hand is drawn in two passes, the second under a mark that a PDF's text reader takes for the end of a word: each piece of text drawn so is a
+            // word of its own, and the letters of a word that the widths cut into pieces ("Propert" and "y") read as two. The letters of such a stretch are spaced alike, the last too (one
+            // gap more to share the stretch's difference), so that it is one piece; what the gaps may not take goes to the space after it.
+            int lastCut = -1;   // (the last letter the original's table measures: what follows it, a dash, rides in its piece)
+            for (int k = int(part.at.size()) - 1; k >= 0 && lastCut < 0; --k)
+                if (cuttable(disp[part.at[k]])) lastCut = k;
+            const bool whole = byHand && !part.goesOn && lastCut >= 1 && cuttable(disp[part.at[lastCut - 1]]);
+            auto spaced = [&](int k) { return gapAfter(k) || (whole && k == lastCut); };
+            // (The character after the stretch, a dash, sits centered in the width of the original's: the last letter's spacing was to take half of its difference, which is shared by the
+            // letters instead, so that all of them are spaced alike.)
+            int following = part.at.last() + 1;
+            while (following < end && transparent(disp[following])) ++following;
+            const double carried = whole && following < end ? shift[following - r.start] : 0.0;
+            double total = carried;
             int gaps = 0;
             for (int k = 0; k < part.at.size(); ++k) {
                 total += diff[part.at[k] - r.start];
-                if (gapAfter(k)) ++gaps;
+                if (spaced(k)) ++gaps;
             }
             if (part.takesPending) {   // (the word goes on from the run before)
                 total += pending.amount;
                 pending.taken = true;
             }
-            const double each = gaps == 0 ? 0 : part.endCarries ? std::min(total / gaps, kGapCapEm * em) : total / gaps;
+            const double each = gaps == 0 ? 0 : (part.endCarries || whole) ? std::min(total / gaps, kGapCapEm * em) : total / gaps;
             for (int k = 0; k < part.at.size(); ++k)
-                want[part.at[k] - r.start] += (gapAfter(k) ? each : 0) - diff[part.at[k] - r.start];
+                want[part.at[k] - r.start] += (spaced(k) ? each : 0) - diff[part.at[k] - r.start];
+            if (whole) want[part.at[lastCut] - r.start] -= carried;
             if (const double left = total - each * gaps; std::abs(left) > 1e-6) {
+                const int after = part.at.last() + 1;
                 if (part.goesOn) owed = {left, end, part.at.last(), false};
-                else want[part.at.last() - r.start] += left;
+                else if (whole && after < end && disp[after].isSpace()) want[after - r.start] += left;
+                else want[part.at[whole ? lastCut : int(part.at.size()) - 1] - r.start] += left;
             }
         }
         int pieceStart = r.start;
@@ -2320,6 +2337,7 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
 }
 
 QVector<QTextLayout::FormatRange> applyLetterWidths(const QVector<QTextLayout::FormatRange> &in, const QString &disp) { return applyLetterWidthsTo(in, disp, nullptr, false); }
+QVector<QTextLayout::FormatRange> applyWordLetterWidths(const QVector<QTextLayout::FormatRange> &in, const QString &disp) { return applyLetterWidthsTo(in, disp, nullptr, true); }
 
 double naturalLineEm(const QFont &f, const QString &requestedFamily) { return lineEmOf(f, requestedFamily); }
 qint64 spaceShrinkWorkForTest(int what) { return what == 0 ? s_shrinkLooked : what == 1 ? s_shrinkPasses : what == 2 ? s_shrinkRelaid : what == 3 ? s_shrinkShared : s_shrinkFull; }

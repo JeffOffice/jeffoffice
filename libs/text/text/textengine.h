@@ -578,6 +578,8 @@ double slideSpaceOf(const QTextBlock &b, int shareProperty, double scale);
 // a missing, measured stock font cut into pieces that take the original's
 // widths (resolveCharFormat marks those runs); the layout does this itself.
 QVector<QTextLayout::FormatRange> applyLetterWidths(const QVector<QTextLayout::FormatRange> &in, const QString &disp);
+// The same as a word processor's layout cuts them (LayoutEnv::wordLines): the letters of a word keep the places the original's have, and the pieces are cut where a word ends.
+QVector<QTextLayout::FormatRange> applyWordLetterWidths(const QVector<QTextLayout::FormatRange> &in, const QString &disp);
 
 // The date and time formats Publisher offers (US English), in its order and
 // in Qt's letters: a .pub date field's format number is the place here plus 1.

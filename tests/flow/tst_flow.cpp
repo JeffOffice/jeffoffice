@@ -3000,6 +3000,34 @@ private Q_SLOTS:
         }
     }
 
+    // A stand-in that is drawn with a stroke by hand (Bodoni MT Black, Rockwell Extra Bold) is drawn in two passes, and a PDF's text reader ends a word at each piece of text that is
+    // drawn so: a word that the letter widths cut into pieces reads as two ("Propert" and "y", in the heading of a practice document). Such a run is cut only where a word ends or a line
+    // may break in it, whatever the stand-in's widths are to the original's.
+    void aWordInAStandInDrawnByHandIsOnePiece()
+    {
+        LayoutEnv word;
+        word.wordLines = true;
+        const QString text = QString::fromUtf8("Property Scrapbook—Success & Dedication of Ownership");
+        int tested = 0;
+        for (const QString &family : {QStringLiteral("Bodoni MT Black"), QStringLiteral("Rockwell Extra Bold")}) {
+            if (QFontDatabase::hasFamily(family)) continue;   // (a machine with the face draws that)
+            QTextCharFormat cf;
+            cf.setFontFamilies({family});
+            cf.setFontPointSize(12);
+            const QTextCharFormat drawn = resolveCharFormat(cf, word);
+            if (!drawn.hasProperty(tp::HandBold)) continue;
+            ++tested;
+            const auto pieces = applyWordLetterWidths({QTextLayout::FormatRange{0, int(text.size()), drawn}}, text);
+            QVERIFY2(pieces.size() > 1, "the widths cut the run");
+            for (const auto &r : pieces) {
+                if (r.start == 0) continue;
+                const QChar before = text[r.start - 1], at = text[r.start];
+                QVERIFY2(before.isSpace() || at.isSpace() || before == QChar(0x2014) || at == QChar(0x2014), qPrintable(QStringLiteral("%1: a piece begins inside a word, at %2 (\"%3\")").arg(family).arg(r.start).arg(text.mid(std::max(0, r.start - 4), 8))));
+            }
+        }
+        if (!tested) QSKIP("no face of the kind is missing here");
+    }
+
     // The line of Courier New is Courier New's wherever it is measured, though the text is drawn in TeX Gyre Cursor (whose own line is 1.201 em, to Courier New's 1.133):
     // the number of a list item is a run of its own on the first line, and the paragraph after a keep-with-next one is measured for room.
     void aNumberedCourierNewItemKeepsCourierNewsLine()
