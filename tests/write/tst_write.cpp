@@ -7908,7 +7908,7 @@ private Q_SLOTS:
     }
 
     // An item at a deeper level than any the list has had counts the levels above it as begun, at their start: the third level's first item after items of the fourth level
-    // (numbered 1.1.1.1 and 1.1.1.2, the third level standing at 1) is 1.1.2, not 1.1.1 again (V117's "2.4.2 Cleanliness Check", which Word numbers so).
+    // (numbered 1.1.1.1 and 1.1.1.2, the third level standing at 1) is 1.1.2, not 1.1.1 again (V117's "2.4.2 Cleanliness Check", numbered so in the original's own pages).
     void anItemAfterItsDeeperLevelsGoesOnFromTheLevelsStart()
     {
         const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl>"
