@@ -292,7 +292,7 @@ double Paginator::headerObjectsBottom(const QTextDocument *story, const Section 
             const FloatingObject &o = objectAt(a, id);
             using W = FloatingObject::Wrap;
             if (!o.item || o.behind || (o.wrap != W::Square && o.wrap != W::Tight && o.wrap != W::TopBottom)) continue;
-            const QRectF r = placeOf(o, a, sec);
+            const QRectF r = placeOf(o, a, sec, number);
             if (r.right() <= content.left() || r.left() >= content.right()) continue;   // (beside the text area: the text is not under it)
             bottom = std::max(bottom, r.bottom() + o.gap.bottom());
         }
@@ -303,7 +303,8 @@ double Paginator::headerObjectsBottom(const QTextDocument *story, const Section 
 
 Paginator::Furniture Paginator::furnitureOf(int index, const PageStart &st, int number)
 {
-    const Section &sec = m_doc->section(st.section);
+    Section mirrored;
+    const Section &sec = sectionOf(st, number, &mirrored);
     Furniture f;
     f.body = sec.content();
     if (st.blank) return f;   // (a blank page that a section break leaves has no header or footer)

@@ -296,18 +296,68 @@ int editableEnd(const QTextDocument *story)
     return seenEnd;
 }
 
-void holdInBody(QTextCursor &c)
+namespace {
+bool noteBlock(const QTextBlock &b) { return b.isValid() && b.blockFormat().hasProperty(prop::EndnoteBlock); }
+
+// The place the person may be at that `p` is held to when it is in the endnotes (they are paragraphs of the story, in the middle of it where a section's are set at its end): going on
+// (`direction` above 0), the start of the paragraph after them, where there is one; going back (below 0), the end of the paragraph before them; with none, the nearer of the two, by
+// the paragraph of the notes it is in (the first half is nearer the text above them). `p` itself where it is not in them.
+int outOfEndnotes(QTextDocument *d, int p, int direction)
 {
-    const int end = editableEnd(c.document());
-    if (c.position() <= end && c.anchor() <= end) return;
-    const int anchor = std::min(c.anchor(), end), position = std::min(c.position(), end);
+    QTextBlock b = d->findBlock(p);
+    if (!noteBlock(b)) return p;
+    QTextBlock first = b, last = b;
+    while (noteBlock(first.previous())) first = first.previous();
+    while (noteBlock(last.next())) last = last.next();
+    const int before = std::max(0, first.position() - 1);
+    if (!last.next().isValid() || direction < 0) return before;
+    const int after = last.next().position();
+    if (direction > 0) return after;
+    int index = 0, count = 0;
+    for (QTextBlock x = first;; x = x.next()) {
+        if (x == b) index = count;
+        ++count;
+        if (x == last) break;
+    }
+    return index * 2 < count ? before : after;
+}
+} // namespace
+
+bool touchesEndnotes(const QTextDocument *story, int from, int to)
+{
+    if (!story) return false;
+    for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() <= to; b = b.next())
+        if (noteBlock(b)) return true;
+    return false;
+}
+
+void holdInBody(QTextCursor &c, int direction)
+{
+    QTextDocument *d = c.document();
+    if (!d) return;
+    const int end = editableEnd(d);
+    // (A caret with no selection is held as one place; the end a selection began at is held by where it is, the other by the way it went.)
+    const int position = outOfEndnotes(d, std::min(c.position(), end), direction);
+    const int anchor = c.anchor() == c.position() ? position : outOfEndnotes(d, std::min(c.anchor(), end), 0);
+    if (anchor == c.anchor() && position == c.position()) return;
     c.setPosition(anchor);
     c.setPosition(position, QTextCursor::KeepAnchor);
 }
 
 bool intoBody(QTextCursor &c)
 {
-    if (!c.document() || c.selectionStart() > editableEnd(c.document())) return false;
+    QTextDocument *d = c.document();
+    if (!d || c.selectionStart() > editableEnd(d)) return false;
+    // (Wholly in one run of endnotes set in the middle of the text: nothing is to be done either.)
+    const QTextBlock first = d->findBlock(c.selectionStart()), last = d->findBlock(c.selectionEnd());
+    if (noteBlock(first) && noteBlock(last)) {
+        bool run = true;
+        for (QTextBlock b = first; run; b = b.next()) {
+            run = noteBlock(b);
+            if (b == last) break;
+        }
+        if (run) return false;
+    }
     holdInBody(c);
     return true;
 }
@@ -375,13 +425,45 @@ struct AdvanceGuard {
     const QTextCursor &c;
 };
 
+// An edit block that is opened when the edit needs it (the endnotes taken out of the story and the paragraphs joined are one step of the undo stack) and is ended with the scope.
+struct HeldEdit {
+    explicit HeldEdit(QTextDocument *d) : cursor(d) {}
+    ~HeldEdit()
+    {
+        if (open) cursor.endEditBlock();
+    }
+    void begin()
+    {
+        if (open) return;
+        open = true;
+        cursor.beginEditBlock();
+    }
+    QTextCursor cursor;
+    bool open = false;
+    HeldEdit(const HeldEdit &) = delete;
+    HeldEdit &operator=(const HeldEdit &) = delete;
+};
+
 // Numbers the items of the lists again when an edit that can change them is done (the guard is made before the edit's own edit block, and what it changes joins that edit's
 // undo step). Edits that call one another renumber once, when the first is done.
 struct NumberGuard {
-    NumberGuard(WriteDoc &d, QTextDocument *s) : doc(d), story(s) { ++depth(); }
+    NumberGuard(WriteDoc &d, QTextDocument *s) : doc(d), story(s)
+    {
+        if (depth()++ == 0) sections() = doc.sectionCount();
+    }
     ~NumberGuard()
     {
-        if (--depth() == 0) doc.renumberLists(story);
+        if (--depth() == 0) {
+            // (An edit that changed the sections, or took the notes out of the story to join the paragraphs round them, sets the endnotes at the ends of sections again, as part of its
+            // own undo step.)
+            if (doc.hasSectionEndEndnotes() && (doc.sectionCount() != sections() || doc.endnoteTailsStripped())) doc.rebuildEndnoteTails();
+            doc.renumberLists(story);
+        }
+    }
+    static int &sections()
+    {
+        static thread_local int n = 0;
+        return n;
     }
     NumberGuard(const NumberGuard &) = delete;
     NumberGuard &operator=(const NumberGuard &) = delete;
@@ -526,6 +608,46 @@ void insertSectionBreak(WriteDoc &doc, QTextCursor &c, const QString &type)
     c.endEditBlock();
 }
 
+// A selection that goes over endnotes set in the middle of the text (at the end of a section) takes the text on either side of them and not them: the paragraphs before and after them are
+// never joined.
+static bool removeSelectionAcrossEndnotes(WriteDoc &doc, QTextCursor &c)
+{
+    if (!c.hasSelection()) return false;
+    QTextDocument *d = c.document();
+    const int from = c.selectionStart(), to = c.selectionEnd();
+    const QTextBlock a = d->findBlock(from), b = d->findBlock(to);
+    if (a == b) return false;
+    struct Stretch {
+        int first, last;
+    };
+    QVector<Stretch> stretches;
+    bool notes = false, inNotes = true;
+    for (QTextBlock blk = a; blk.isValid(); blk = blk.next()) {
+        if (noteBlock(blk)) {
+            notes = inNotes = true;
+        } else {
+            if (inNotes || stretches.isEmpty()) stretches.push_back({blk.position(), blk.position()});
+            else stretches.last().last = blk.position();
+            inNotes = false;
+        }
+        if (blk == b) break;
+    }
+    if (!notes) return false;
+    c.beginEditBlock();
+    for (int i = int(stretches.size()) - 1; i >= 0; --i) {
+        const QTextBlock last = d->findBlock(stretches[i].last);
+        const int start = std::max(from, stretches[i].first), end = std::min(to, last.position() + last.length() - 1);
+        if (end <= start) continue;
+        QTextCursor part(d);
+        part.setPosition(start);
+        part.setPosition(end, QTextCursor::KeepAnchor);
+        removeSelection(doc, part);
+    }
+    c.setPosition(std::min(from, d->characterCount() - 1));
+    c.endEditBlock();
+    return true;
+}
+
 // A selection that holds the paragraphs of a frame and of the text round it (or of two frames) is cut a stretch at a time, each stretch being the paragraphs of one place: what is
 // selected of the text is cut from the text, and what is selected of the frame from the frame, and neither is joined to the other. True when it did that.
 static bool removeSelectionAcrossFrames(WriteDoc &doc, QTextCursor &c)
@@ -588,6 +710,7 @@ void removeSelection(WriteDoc &doc, QTextCursor &c)
             c.setPosition(to, QTextCursor::KeepAnchor);
         }
     }
+    if (removeSelectionAcrossEndnotes(doc, c)) return;   // (the text round the endnotes of a section is cut from them, and never joined)
     if (removeSelectionAcrossFrames(doc, c)) return;   // (a frame's text is cut from the frame, and the text round it from the text: never joined)
     if (removeSelectionAcrossCells(doc, c)) return;   // (cells are emptied, and tables the selection holds go: paragraphs of different cells are never joined)
     QTextDocument *d = c.document();
@@ -700,6 +823,7 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
         return;
     }
     QTextDocument *d = c.document();
+    HeldEdit held(d);
     if (isLocked(c.block())) return;
     settleBesideDeletions(c);
     if (byWord && !c.atBlockStart()) {
@@ -729,6 +853,16 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
     }
     QTextBlock prev = b.previous();
     while (prev.isValid() && isHiddenDeleted(prev)) prev = prev.previous();
+    // After the endnotes set at the end of a section: the break ends, as it does where there are none; the notes are taken out and set again when the paragraphs are joined.
+    if (prev.isValid() && noteBlock(prev) && doc.hasSectionEndEndnotes()) {
+        QTextBlock real = prev;
+        while (noteBlock(real)) real = real.previous();
+        if (!real.isValid() || isLocked(real) || !canJoinBlocks(real, b) || !sameFrame(real, b)) return;
+        held.begin();
+        doc.stripEndnoteTails();
+        b = c.block();
+        prev = b.previous();
+    }
     if (!prev.isValid() || isLocked(prev) || !canJoinBlocks(prev, b) || !sameFrame(prev, b)) return;
     if (prev.next() != b) {
         joinAcrossDeleted(doc, c, prev, b);
@@ -754,6 +888,7 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
         return;
     }
     QTextDocument *d = c.document();
+    HeldEdit held(d);
     if (isLocked(c.block())) return;
     settleBesideDeletions(c);
     if (byWord && !c.atBlockEnd()) {
@@ -774,6 +909,15 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
     }
     QTextBlock next = c.block().next();
     while (next.isValid() && isHiddenDeleted(next)) next = next.next();
+    // Before the endnotes set at the end of a section, with a paragraph after them: the break ends, as it does where there are none (as Backspace does at the start of that paragraph).
+    if (next.isValid() && noteBlock(next) && doc.hasSectionEndEndnotes()) {
+        QTextBlock real = next;
+        while (noteBlock(real)) real = real.next();
+        if (!real.isValid() || isLocked(real) || !canJoinBlocks(c.block(), real) || !sameFrame(c.block(), real)) return;
+        held.begin();
+        doc.stripEndnoteTails();
+        next = c.block().next();
+    }
     if (!next.isValid() || isLocked(next) || !canJoinBlocks(c.block(), next) || !sameFrame(c.block(), next)) return;
     if (c.block().next() != next) {
         joinAcrossDeleted(doc, c, c.block(), next);
@@ -802,7 +946,29 @@ void insertTab(WriteDoc &doc, QTextCursor &c, bool back)
 QTextDocumentFragment selectionFragment(const QTextCursor &whole)
 {
     QTextCursor c(whole);
-    return intoBody(c) && c.hasSelection() ? QTextDocumentFragment(c) : QTextDocumentFragment();
+    if (!intoBody(c) || !c.hasSelection()) return QTextDocumentFragment();
+    QTextDocumentFragment fragment(c);
+    if (!touchesEndnotes(c.document(), c.selectionStart(), c.selectionEnd())) return fragment;
+    // (Endnotes set in the middle of the text, at the end of a section, are not copied: their paragraphs are left out of a copy of what is round them.)
+    QTextDocument copy;
+    QTextCursor into(&copy);
+    into.insertFragment(fragment);
+    for (QTextBlock b = copy.lastBlock(); b.isValid();) {
+        const QTextBlock before = b.previous();
+        if (noteBlock(b)) {
+            QTextCursor gone(&copy);
+            if (before.isValid()) {
+                gone.setPosition(before.position() + before.length() - 1);
+                gone.setPosition(b.position() + b.length() - 1, QTextCursor::KeepAnchor);
+            } else {
+                gone.setPosition(b.position());
+                gone.setPosition(b.position() + b.length(), QTextCursor::KeepAnchor);
+            }
+            gone.removeSelectedText();
+        }
+        b = before;
+    }
+    return QTextDocumentFragment(&copy);
 }
 
 QString plainTextOf(const QTextDocumentFragment &f)
@@ -1172,9 +1338,11 @@ bool allSelected(const QTextCursor &c, const std::function<bool(const QTextCharF
     QTextDocument *d = c.document();
     const int from = c.selectionStart(), to = c.selectionEnd();
     // The pieces kept as XML (a bookmark, a field's code, a note's mark) are not the text's look: they are left out, unless the selection is nothing else.
+    // (The paragraphs that stand for something kept as XML, and the endnotes the pages set, are not the text's look either.)
     for (const bool withAtoms : {false, true}) {
         bool any = false;
-        for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next())
+        for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
+            if (isLocked(b)) continue;
             for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
                 const QTextFragment f = it.fragment();
                 if (f.position() + f.length() <= from || f.position() >= to) continue;
@@ -1182,6 +1350,7 @@ bool allSelected(const QTextCursor &c, const std::function<bool(const QTextCharF
                 any = true;
                 if (!test(f.charFormat())) return false;
             }
+        }
         if (any) return true;
     }
     return true;
@@ -1193,6 +1362,7 @@ void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QT
     Q_UNUSED(doc);
     QTextDocument *d = c.document();
     if (!c.hasSelection()) {
+        if (isLocked(c.block())) return;
         QTextCharFormat f = typingFormat(c);
         change(f);
         c.setCharFormat(f);
@@ -1208,6 +1378,7 @@ void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QT
     const int from = c.selectionStart(), to = c.selectionEnd();
     QVector<QPair<QTextBlock, QTextCharFormat>> marks;
     for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
+        if (isLocked(b)) continue;   // (what stands for a piece kept as XML, and the endnotes the pages set, are not the text: the looks of the characters leave them alone)
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment f = it.fragment();
             const int fs = std::max(f.position(), from), fe = std::min(f.position() + f.length(), to);
@@ -1216,7 +1387,7 @@ void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QT
             change(nf);
             if (nf != f.charFormat()) edits.push_back({fs, fe, nf});
         }
-        if (from <= b.position() && to > b.position() + b.length() - 1 && !isLocked(b)) {
+        if (from <= b.position() && to > b.position() + b.length() - 1) {
             QTextCharFormat nf = markFormat(b);
             change(nf);
             if (nf != markFormat(b)) marks.push_back({b, nf});

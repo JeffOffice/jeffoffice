@@ -58,7 +58,6 @@ constexpr int kMostImages = 2000;
 // The most cells of the tables of text boxes that a document has laid out in its boxes (a box whose tables would go over it keeps them as stand-ins).
 constexpr int kMostBoxTableCells = 2000;
 // The most endnotes that are set after the text (the rest are left out: a reference to one shows only its number), as many as the footnotes that are made into stories.
-constexpr int kMostEndnotes = 5000;
 
 namespace {
 bool drawnTag(const QString &tag)
@@ -112,13 +111,39 @@ QString liveFieldOf(const QString &instruction)
     return QStringLiteral("page");
 }
 
+// The text an XML text stands for: its character references decoded, the five named (&lt; &gt; &quot; &apos; &amp;) and the numeric ones (&#233; and &#xE9;), each once (the text
+// "&amp;#233;" is "&#233;"). A reference to something that is not a character the format allows is left as it was written.
+QString unescapedXml(const QString &text)
+{
+    if (!text.contains(QLatin1Char('&'))) return text;
+    static const QRegularExpression reference(QStringLiteral("&(?:#[xX]([0-9A-Fa-f]{1,8})|#([0-9]{1,10})|(lt|gt|quot|apos|amp));"));
+    QString out;
+    qsizetype last = 0;
+    for (auto it = reference.globalMatch(text); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        out += QStringView(text).mid(last, m.capturedStart() - last);
+        last = m.capturedEnd();
+        if (!m.captured(3).isEmpty()) {
+            const QString name = m.captured(3);
+            out += name == QLatin1String("lt") ? QLatin1Char('<') : name == QLatin1String("gt") ? QLatin1Char('>') : name == QLatin1String("quot") ? QLatin1Char('"') : name == QLatin1String("apos") ? QLatin1Char('\'') : QLatin1Char('&');
+            continue;
+        }
+        bool ok = false;
+        const uint code = m.captured(1).isEmpty() ? m.captured(2).toUInt(&ok, 10) : m.captured(1).toUInt(&ok, 16);
+        const bool allowed = ok && (code == 0x9 || code == 0xA || code == 0xD || (code >= 0x20 && code <= 0x10FFFF)) && !(code >= 0xD800 && code <= 0xDFFF) && code != 0xFFFE && code != 0xFFFF;
+        if (allowed) out += QString::fromUcs4(reinterpret_cast<const char32_t *>(&code), 1);
+        else out += m.captured(0);
+    }
+    out += QStringView(text).mid(last);
+    return out;
+}
+
 // The text inside an element kept as written (an instruction's words).
 QString textOfXml(const QByteArray &xml)
 {
     QString text = QString::fromUtf8(xml);
     text.remove(QRegularExpression(QStringLiteral("<[^>]*>")));
-    return text.replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&quot;"), QLatin1String("\""))
-        .replace(QLatin1String("&apos;"), QLatin1String("'")).replace(QLatin1String("&amp;"), QLatin1String("&"));
+    return unescapedXml(text);
 }
 
 // How many expressions the attributes of tags have been looked for with since the program began (one for each name), for a test of the cost of reading a file.
@@ -155,6 +180,90 @@ bool isSymbolFontName(const QString &font)
 }
 
 // Whether a note's reference says its mark follows it as text, in the run (w:customMarkFollows): it shows no number of its own and takes none.
+// How an equation or a styled letter is set where its format does not say (layout only, never written): an equation's letters italic, bold, or neither as most of them are, the
+// letters of the mathematical alphanumeric block as the style they stand for, and a double-struck one in the bundled face that has it.
+void setMathLook(QTextCharFormat *format, const Inline &in)
+{
+    const bool equation = in.kind == Inline::ParaAtom && (in.tag == QLatin1String("oMath") || in.tag == QLatin1String("oMathPara"));
+    const bool styled = in.kind == Inline::RunAtom && in.tag == QLatin1String("t");
+    if ((!equation && !styled) || in.key.isEmpty()) return;
+    if (in.key == QLatin1String("d")) format->setProperty(tp::DisplayFamily, QStringLiteral("DejaVu Sans"));
+    else format->setProperty(tp::DisplayStyle, in.key);
+}
+
+// The alignment of a paragraph that holds nothing but equations that are paragraphs of their own (m:oMathPara): the group is centered unless its properties say left or right;
+// -1 for any other paragraph. (Blanks, bookmarks, and the like beside them do not count.)
+int displayMathAlignment(const Paragraph &p)
+{
+    bool found = false;
+    QString jc;
+    for (const Inline &in : p.content) {
+        if (in.kind == Inline::Text) {
+            if (!in.text.trimmed().isEmpty()) return -1;
+        } else if (in.kind == Inline::RunAtom) {
+            return -1;
+        } else if (in.tag == QLatin1String("oMathPara")) {
+            found = true;
+            static const QRegularExpression align(QStringLiteral("<(?:[\\w.-]+:)?oMathParaPr>\\s*<(?:[\\w.-]+:)?jc\\s[^>]*?val=\"(\\w+)\""));
+            if (jc.isEmpty()) jc = align.match(QString::fromUtf8(in.raw.left(600))).captured(1);
+        } else if (in.tag == QLatin1String("oMath")) {
+            return -1;
+        }
+    }
+    if (!found) return -1;
+    return jc == QLatin1String("left") ? int(Qt::AlignLeft) : jc == QLatin1String("right") ? int(Qt::AlignRight) : int(Qt::AlignHCenter);
+}
+
+// What a legacy form field shows where its result has no text of its own, from its begin mark's XML (the field's w:ffData): a check box its box (checked or not; as large as the
+// text, whatever size it states: the run's own size is what is written back), a text field its default text, a drop-down the entry it has chosen (the `result` the file kept, else its `default`, else the first).
+struct FormShown {
+    QString text;
+    bool box = false;
+};
+
+FormShown formShownOf(const QByteArray &begin)
+{
+    FormShown shown;
+    if (!begin.contains("ffData")) return shown;
+    auto unescaped = [](const QString &text) { return unescapedXml(text); };
+    // (A list's entry is an element named listEntry, with or without a prefix; one whose name only begins so, listEntryNote, is not.)
+    static const QRegularExpression entry(QStringLiteral("<(?:[\\w.-]+:)?listEntry(?=[\\s/>])[^>]*?[\\s:]val\\s*=\\s*\"([^\"]*)\"")), resultAt(QStringLiteral("<w:result[^>]*?[\\s:]val\\s*=\\s*\"(-?\\d+)\"")),
+        defaultAt(QStringLiteral("<w:default[^>]*?[\\s:]val\\s*=\\s*\"([^\"]*)\"")), checkedAt(QStringLiteral("<w:checked\\b([^>]*)>")),
+        valueOf(QStringLiteral("[\\s:]val\\s*=\\s*\"([^\"]*)\""));
+    const QString raw = QString::fromUtf8(begin);
+    if (begin.contains("ddList")) {
+        QStringList entries;
+        for (auto m = entry.globalMatch(raw); m.hasNext() && entries.size() < 4000;) entries << m.next().captured(1);
+        if (entries.isEmpty()) return shown;
+        const QRegularExpressionMatch result = resultAt.match(raw), def = defaultAt.match(raw);
+        const int chosen = result.hasMatch() ? result.captured(1).toInt() : def.hasMatch() ? std::max(def.captured(1).toInt(), 0) : 0;
+        shown.text = unescaped(entries.value(std::clamp(chosen, 0, int(entries.size()) - 1)));
+    } else if (begin.contains("checkBox")) {
+        // (A `checked` element is the state, whatever the default says; it is on unless it says off.)
+        bool checked = false;
+        if (const QRegularExpressionMatch m = checkedAt.match(raw); m.hasMatch()) {
+            const QRegularExpressionMatch v = valueOf.match(m.captured(1));
+            const QString value = v.captured(1).toLower();
+            checked = !(v.hasMatch() && (value == QLatin1String("0") || value == QLatin1String("false") || value == QLatin1String("off")));
+        } else if (const QRegularExpressionMatch d = defaultAt.match(raw); d.hasMatch()) {
+            const QString value = d.captured(1).toLower();
+            checked = value == QLatin1String("1") || value == QLatin1String("true") || value == QLatin1String("on");
+        }
+        shown.text = QString(QChar(checked ? 0x2612 : 0x2610));
+        shown.box = true;
+    } else if (begin.contains("textInput")) {
+        if (const QRegularExpressionMatch m = defaultAt.match(raw); m.hasMatch()) shown.text = unescaped(m.captured(1)).left(4000);
+    }
+    return shown;
+}
+
+// How a form field's shown text is set: a box in the bundled face that has it.
+void setFormLook(QTextCharFormat *format, const FormShown &shown)
+{
+    if (!shown.box) return;
+    format->setProperty(tp::DisplayFamily, QStringLiteral("DejaVu Sans"));
+}
+
 bool markFollows(const QByteArray &reference)
 {
     const QString value = attributeOfTag(reference, QStringLiteral("customMarkFollows"));
@@ -273,8 +382,9 @@ flow::FloatingObject frameObjectOf(const QHash<QString, QString> &at)
     o.dx = points("x");
     o.dy = points("y");
     const QString xAlign = at.value(QStringLiteral("xAlign")), yAlign = at.value(QStringLiteral("yAlign"));
-    o.hAlign = xAlign == QLatin1String("center") ? FO::Align::Center : xAlign == QLatin1String("right") || xAlign == QLatin1String("outside") ? FO::Align::End
-               : xAlign == QLatin1String("left") || xAlign == QLatin1String("inside") ? FO::Align::Start : FO::Align::None;
+    // (Across, inside and outside are the side of the binding and the side away from it, by the page's number; down, inside is the top and outside the foot.)
+    o.hAlign = xAlign == QLatin1String("center") ? FO::Align::Center : xAlign == QLatin1String("right") ? FO::Align::End : xAlign == QLatin1String("left") ? FO::Align::Start
+               : xAlign == QLatin1String("outside") ? FO::Align::Outside : xAlign == QLatin1String("inside") ? FO::Align::Inside : FO::Align::None;
     o.vAlign = yAlign == QLatin1String("center") ? FO::Align::Center : yAlign == QLatin1String("bottom") || yAlign == QLatin1String("outside") ? FO::Align::End
                : yAlign == QLatin1String("top") || yAlign == QLatin1String("inside") ? FO::Align::Start : FO::Align::None;
     const double hSpace = std::max(0.0, points("hSpace")), vSpace = std::max(0.0, points("vSpace"));
@@ -300,7 +410,7 @@ qint64 attributeExpressionsMadeForTest() { return s_attributeExpressions.load();
 
 // Fills `story` from the elements of a body or of a header or footer. A header's or footer's (`header`) fields for the page's number and the page
 // counts are live fields of the text engine, its tables and pictures are left out, and a paragraph in a frame is set aligned as the frame is.
-void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool header, const QString &part, bool headerFooter, bool append)
+void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool header, const QString &part, bool headerFooter, bool append, int insertAt)
 {
     const StyleSheet &sheet = m_wml.styles;
     const Theme *thm = theme();
@@ -310,7 +420,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     c.beginEditBlock();
     bool firstBlock = true;
     if (append) {
-        c.movePosition(QTextCursor::End);
+        if (insertAt >= 0) c.setPosition(std::min(insertAt, story->characterCount() - 1));   // (the end of a section's last paragraph, for its endnotes)
+        else c.movePosition(QTextCursor::End);
         firstBlock = false;
     }
     auto startBlock = [&](const QTextBlockFormat &bf, const QTextCharFormat &cf) {
@@ -390,7 +501,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     // share of, less its paragraph's indents.
     QVector<double> sectionText(int(body.size()), 0.0);
     {
-        double next = sectionTextWidth(m_wml.lastSection);
+        double next = sectionTextWidth(m_tailSection ? *m_tailSection : m_wml.lastSection);
         for (int i = int(body.size()) - 1; i >= 0; --i) {
             if (!body[i].isRaw && body[i].para.props.section) next = sectionTextWidth(*body[i].para.props.section);
             sectionText[i] = next;
@@ -401,19 +512,29 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     int styleRefsMade = 0;   // (each field that shows a paragraph style's text has a number in its code: two next to one another in one format would be one fragment of the text)
     // The format the endnote references of each paragraph are numbered in: its section's own (w:endnotePr of the section), else the settings'. Found as sectionText is, from
     // the sections as the file has them, for the story of the text alone.
+    // (And whether its notes are set at the end of the section, which the section says (w:pos), else the settings.)
     QVector<QString> endnoteFormats;
+    QVector<bool> endnotesAtSectionEnd;
     if (!header) {
         endnoteFormats.resize(int(body.size()));
-        auto formatOf = [&](const office::wml::SectionProps &section) {
-            const office::wml::NoteNumbering own = office::wml::noteNumberingOf(section, "endnotePr");
-            return own.format.isEmpty() ? m_endnoteFormat : own.format;
+        endnotesAtSectionEnd.resize(int(body.size()));
+        auto numberingOf = [&](const office::wml::SectionProps &section) {
+            office::wml::NoteNumbering own = office::wml::noteNumberingOf(section, "endnotePr");
+            if (own.format.isEmpty()) own.format = m_endnoteFormat;
+            if (own.position.isEmpty()) own.position = m_endnotePosition;
+            return own;
         };
-        QString next = formatOf(m_wml.lastSection);
+        office::wml::NoteNumbering next = numberingOf(m_wml.lastSection);
+        bool anyAtEnd = next.position == QLatin1String("sectEnd");
         for (int i = int(body.size()) - 1; i >= 0; --i) {
-            if (!body[i].isRaw && body[i].para.props.section) next = formatOf(*body[i].para.props.section);
-            endnoteFormats[i] = next;
+            if (!body[i].isRaw && body[i].para.props.section) next = numberingOf(*body[i].para.props.section);
+            endnoteFormats[i] = next.format;
+            endnotesAtSectionEnd[i] = next.position == QLatin1String("sectEnd");
+            anyAtEnd = anyAtEnd || endnotesAtSectionEnd[i];
         }
+        if (!append) m_endnotesAtSectionEnds = anyAtEnd;
     }
+    int sectionNo = 0;   // (the sections that have ended so far: the one the paragraph is in)
     auto lineWidth = [&]() {
         const double cell = tables.cellWidth();
         const QTextBlockFormat now = c.blockFormat();
@@ -557,8 +678,9 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 if (!ch.xml.contains("framePr")) continue;
                 const QString at = attributeOfTag(ch.xml, QStringLiteral("xAlign"));
                 if (at == QLatin1String("center")) bf.setAlignment(Qt::AlignHCenter);
-                else if (at == QLatin1String("right") || at == QLatin1String("outside")) bf.setAlignment(Qt::AlignRight);
-                else if (at == QLatin1String("left") || at == QLatin1String("inside")) bf.setAlignment(Qt::AlignLeft);
+                else if (at == QLatin1String("right")) bf.setAlignment(Qt::AlignRight);
+                else if (at == QLatin1String("left")) bf.setAlignment(Qt::AlignLeft);
+                else if (at == QLatin1String("outside") || at == QLatin1String("inside")) bf.setProperty(tp::PageSideAlign, at == QLatin1String("outside") ? 1 : 2);   // (the page's number says which side)
                 if (!at.isEmpty() && attributeOfTag(ch.xml, QStringLiteral("vAnchor")) != QLatin1String("page")) bf.setProperty(tp::OutOfFlow, true);
             }
         }
@@ -612,14 +734,17 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 text = text || (in.kind == Inline::Text && !in.text.trimmed().isEmpty());
             }
             if (separator && !text) {
-                const int columns = std::max(1, m_last.cols);
-                const double wide = (std::max(0, m_last.pageW - std::max(0, m_last.left + m_last.gutter) - std::max(0, m_last.right)) - (columns - 1) * std::max(0, m_last.colSpace)) / 20.0 / columns;
+                const SectionProps &place = m_tailSection ? *m_tailSection : m_last;
+                const int columns = std::max(1, place.cols);
+                const double wide = (std::max(0, place.pageW - std::max(0, place.left + place.gutter) - std::max(0, place.right)) - (columns - 1) * std::max(0, place.colSpace)) / 20.0 / columns;
                 tp::ParaBox box;
                 box.bottom = tp::BoxSide{QStringLiteral("single"), 4, 0, QColor()};
                 bf.setProperty(tp::Borders, box.spec());
                 bf.setRightMargin(std::max(0.0, wide - 144.0));
             }
         }
+        // (An equation alone in its paragraph is centered by the pages; what is written back is the paragraph as the file has it.)
+        if (const int look = displayMathAlignment(p); look >= 0) bf.setProperty(tp::DisplayAlignment, look);
         startBlock(bf, markFormat);
         if (numId > 0) {
             NumState &st = numbering[numId];
@@ -634,6 +759,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 QString instruction;
                 bool inResult = false;
                 QTextCharFormat begin;
+                QByteArray beginRaw;   // (the begin mark as written, with a form field's data)
                 QVector<std::pair<QString, QTextCharFormat>> result;
             };
             QVector<Field> fields;
@@ -655,7 +781,17 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     ff.setProperty(tp::Field, live);
                     put(QString(QChar::ObjectReplacementCharacter), ff);
                 } else {
-                    for (const auto &r : f.result) put(r.first, r.second);
+                    // (A form field whose result has no text shows what it would: its box, its default text, the entry it has chosen.)
+                    bool text = false;
+                    for (const auto &r : f.result) text = text || !r.first.trimmed().isEmpty();
+                    const FormShown form = text ? FormShown() : formShownOf(f.beginRaw);
+                    if (!form.text.isEmpty()) {
+                        QTextCharFormat ff = f.begin;
+                        setFormLook(&ff, form);
+                        put(form.text, ff);
+                    } else {
+                        for (const auto &r : f.result) put(r.first, r.second);
+                    }
                 }
             };
             for (const Inline &in : p.content) {
@@ -665,6 +801,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     if (in.key == QLatin1String("begin") && fields.size() < kMostFieldNesting) {
                         fields.push_back(Field());
                         fields.last().begin = formatOf(styleId, in.props);
+                        fields.last().beginRaw = in.raw;
                     } else if (in.key == QLatin1String("separate") && !fields.isEmpty()) {
                         fields.last().inResult = true;
                     } else if (in.key == QLatin1String("end") && !fields.isEmpty()) {
@@ -690,6 +827,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 } else if (in.kind == Inline::RunAtom && drawnTag(in.tag)) {
                     QTextCharFormat object = formatOf(styleId, in.props);
                     if (drawnObjects(in, part, &object, lineWidth(), &p.content)) put(QString(QChar::ObjectReplacementCharacter), object);
+                } else if (!in.display.isEmpty() && ((in.kind == Inline::ParaAtom && (in.tag == QLatin1String("oMath") || in.tag == QLatin1String("oMathPara"))) || (in.kind == Inline::RunAtom && in.tag == QLatin1String("t")))) {
+                    // (An equation, or a styled letter of the mathematical alphanumeric block: the line of text, or the letter it is a style of.)
+                    QTextCharFormat shown = formatOf(styleId, in.props);
+                    setMathLook(&shown, in);
+                    put(in.display, shown);
                 } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("ruby") && !in.display.isEmpty()) {
                     // (Ruby text, as in the text: its base, and the ruby after it in brackets.)
                     put(in.display, formatOf(styleId, in.props));
@@ -713,36 +855,30 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             while (!fields.isEmpty()) finish();   // (a field the paragraph ended inside of shows what it read)
             continue;
         }
-        // A drop-down field of a form that has no result (the text between its separator and its end) shows the entry it has chosen: the file's `result`, else its `default`, else
-        // the first. By the position of its first element in the paragraph's content. (One pass over the elements: the fields open at a time are a stack, each remembering whether
-        // it is a drop-down and whether its separator has come.)
-        QHash<int, QString> dropDown;
+        // A legacy form field whose result has no text shows what it would (formShownOf): a drop-down the entry it has chosen, a check box its box, a text field its default text. By the
+        // position of its begin mark in the paragraph's content. (One pass over the elements: the fields open at a time are a stack, each remembering whether its separator has come and
+        // whether its result has text.)
+        QHash<int, FormShown> formShown;
         {
-            static const QRegularExpression entry(QStringLiteral("listEntry[^>]*?[\\s:]val\\s*=\\s*\"([^\"]*)\""));
-            static const QRegularExpression resultAt(QStringLiteral("<w:result[^>]*?[\\s:]val\\s*=\\s*\"(-?\\d+)\"")), defaultAt(QStringLiteral("<w:default[^>]*?[\\s:]val\\s*=\\s*\"(-?\\d+)\""));
             struct Open {
                 int at = 0;
-                bool dropDown = false, separated = false;
+                bool separated = false, hasText = false;
             };
             QVector<Open> open;
             auto close = [&](const Open &field) {
-                if (!field.dropDown || field.separated) return;
-                const QString raw = QString::fromUtf8(p.content[field.at].raw);
-                QStringList entries;
-                for (auto m = entry.globalMatch(raw); m.hasNext();) entries << m.next().captured(1);
-                if (entries.isEmpty()) return;
-                // (The `result` the file kept, else its `default`, else the first entry.)
-                const QRegularExpressionMatch result = resultAt.match(raw), def = defaultAt.match(raw);
-                const int chosen = result.hasMatch() ? result.captured(1).toInt() : def.hasMatch() ? std::max(def.captured(1).toInt(), 0) : 0;
-                QString text = entries.value(std::clamp(chosen, 0, int(entries.size()) - 1));
-                text.replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&amp;"), QLatin1String("&"));
-                dropDown.insert(field.at, text);
+                if (field.hasText) return;
+                const FormShown shown = formShownOf(p.content[field.at].raw);
+                if (!shown.text.isEmpty()) formShown.insert(field.at, shown);
             };
             for (int at = 0; at < p.content.size(); ++at) {
                 ++m_dropDownSteps;
                 const Inline &in = p.content[at];
+                if (in.kind == Inline::Text) {
+                    if (!open.isEmpty() && open.last().separated && !in.text.trimmed().isEmpty()) open.last().hasText = true;
+                    continue;
+                }
                 if (in.kind != Inline::RunAtom || in.tag != QLatin1String("fldChar")) continue;
-                if (in.key == QLatin1String("begin")) open.push_back({at, in.raw.contains("ddList"), false});
+                if (in.key == QLatin1String("begin")) open.push_back({at, false, false});
                 else if (in.key == QLatin1String("separate") && !open.isEmpty()) open.last().separated = true;
                 else if (in.key == QLatin1String("end") && !open.isEmpty()) {
                     close(open.last());
@@ -827,9 +963,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             QTextCharFormat af = formatOf(styleId, in.props);
             if (deleted) af = asDeleted(af);
             setStored(af, prop::Atom, packAtom(in));
+            setMathLook(&af, in);
             // A reference to a footnote of the file is the note's (the pages lay it out at their foot); one to an endnote shows its number, in the format
             // the settings give (lower case roman numerals, a word processor's own).
-            QString field = in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum") ? liveFieldOf(QStringLiteral("PAGE")) : QStringLiteral("raw:") + (dropDown.contains(inAt) ? dropDown.value(inAt) : in.display);
+            QString field = in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum") ? liveFieldOf(QStringLiteral("PAGE")) : QStringLiteral("raw:") + (formShown.contains(inAt) ? formShown.value(inAt).text : in.display);
+            if (formShown.contains(inAt)) setFormLook(&af, formShown.value(inAt));
             // A symbol of a font that isn't a symbol font (and isn't on the machine) is its character, in that font's stand-in.
             if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym")) {
                 const QString font = attributeOfTag(in.raw, QStringLiteral("font"));
@@ -859,7 +997,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             else if (in.tag == QLatin1String("endnoteReference")) {
                 const QString shown = markFollows(in.raw) ? QString() : noteNumberText(endnoteFormats.value(blockNumber, m_endnoteFormat), deleted ? endnoteNumber + 1 : ++endnoteNumber);   // (a deleted one takes no number)
                 field = QStringLiteral("raw:") + shown;
-                if (!header && !deleted && m_endnoteRefs.size() < kMostEndnotes) m_endnoteRefs.push_back({in.key, shown});
+                if (!header && !deleted && m_endnoteRefs.size() < kMostEndnotes) m_endnoteRefs.push_back({in.key, shown, sectionNo, endnotesAtSectionEnd.value(blockNumber)});
             }
             af.setProperty(tp::Field, field);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);
@@ -874,8 +1012,10 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             last.setProperty(flow::fp::SectionBreakAfter, true);
             setStored(last, prop::SectionData, packSection(*direct.section));
             c.setBlockFormat(last);
+            ++sectionNo;
         }
     }
+    if (!header && !append) m_endnoteSections = sectionNo + 1;
 
     if (firstBlock) {
         // Nothing in the body: one empty paragraph in the default style.
@@ -1021,7 +1161,8 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         o.hRel = relOf(s.hRel, true);
         o.vRel = relOf(s.vRel, false);
         auto align = [](Shape::Align a) { return a == Shape::Start ? flow::FloatingObject::Align::Start : a == Shape::Center ? flow::FloatingObject::Align::Center
-                                                                : a == Shape::End ? flow::FloatingObject::Align::End : flow::FloatingObject::Align::None; };
+                                                                : a == Shape::End ? flow::FloatingObject::Align::End : a == Shape::Inside ? flow::FloatingObject::Align::Inside
+                                                                : a == Shape::Outside ? flow::FloatingObject::Align::Outside : flow::FloatingObject::Align::None; };
         o.hAlign = align(s.hAlign);
         o.vAlign = align(s.vAlign);
         o.dx = s.left;

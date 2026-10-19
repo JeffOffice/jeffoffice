@@ -136,6 +136,7 @@ private:
     int moveVertical(int position, int direction);
     int lineEdge(int position, bool end);
     void caretMoved(bool keepWanted = false);
+    int m_movedFrom = -1;   // where the caret (or the end of a drag) was before the key or the drag that moved it, for the way it went; -1 when it is not known (a click)
     void ensureCaretVisible();
     void documentChanged(int position, int removed, int added);
     void paginationStep();

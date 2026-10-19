@@ -272,7 +272,7 @@ qint64 SpellCheck::keptBytes() const
 
 void replaceWord(QTextDocument *story, int from, int to, const QString &text)
 {
-    if (from >= editableEnd(story) || to > editableEnd(story)) return;   // (a word of the endnotes the pages set after the text is not changed)
+    if (from >= editableEnd(story) || to > editableEnd(story) || touchesEndnotes(story, from, to)) return;   // (a word of the endnotes the pages set is not changed)
     QTextCursor look(story);
     look.setPosition(from + 1);
     const QTextCharFormat format = look.charFormat();

@@ -355,10 +355,12 @@ void WriteDoc::setUpEnvironment()
         // Words are hyphenated where the file asks (w:autoHyphenation), but for the zone that it sets.
         f.hyphenate = compat.autoHyphenation;
         f.hyphenZone = compat.hyphenationZone / 20.0;
+        f.mirrorMargins = compat.mirrorMargins;
         // (And how the endnotes are numbered, read here once, not at each story's making.)
         const office::wml::NoteNumbering endnotes = office::wml::readNoteNumbering(partData(m_wml.settingsName), "endnotePr");
         if (!endnotes.format.isEmpty()) m_endnoteFormat = endnotes.format;
         if (endnotes.start > 0) m_endnoteStart = endnotes.start;
+        m_endnotePosition = endnotes.position;
         f.env.wordNoHang = !compat.useFELayout || compat.doNotWrapTextWithPunct;
         f.env.wordSpaceSums = compat.doNotUseHTMLParagraphAutoSpacing;
         f.env.wordNoHangStop = compat.noTabHangInd;

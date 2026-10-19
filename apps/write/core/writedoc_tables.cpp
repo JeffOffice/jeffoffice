@@ -40,8 +40,8 @@ std::optional<flow::TableData::Place> floatingPlaceOf(const QByteArray &original
     };
     auto from = [&](const QString &v, Place::From def) { return v == QLatin1String("margin") ? Place::From::Margin : v == QLatin1String("page") ? Place::From::Page : v == QLatin1String("text") ? Place::From::Text : def; };
     auto spec = [&](const QString &v) {
-        return v == QLatin1String("center") ? Place::Spec::Center : v == QLatin1String("right") || v == QLatin1String("bottom") || v == QLatin1String("outside") ? Place::Spec::End
-               : v == QLatin1String("left") || v == QLatin1String("top") || v == QLatin1String("inside") ? Place::Spec::Start : Place::Spec::None;
+        return v == QLatin1String("center") ? Place::Spec::Center : v == QLatin1String("right") || v == QLatin1String("bottom") ? Place::Spec::End
+               : v == QLatin1String("left") || v == QLatin1String("top") ? Place::Spec::Start : v == QLatin1String("inside") ? Place::Spec::Inside : v == QLatin1String("outside") ? Place::Spec::Outside : Place::Spec::None;
     };
     Place p;
     p.across = from(at.value(QStringLiteral("horzAnchor")), Place::From::Text);

@@ -42,12 +42,14 @@ QVector<QTextCharFormat> selectedFormats(const QTextCursor &c)
     QVector<QTextCharFormat> out;
     if (c.hasSelection()) {
         const int from = c.selectionStart(), to = c.selectionEnd();
-        for (QTextBlock b = c.document()->findBlock(from); b.isValid() && b.position() < to; b = b.next())
+        for (QTextBlock b = c.document()->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
+            if (isLocked(b)) continue;   // (the endnotes the pages set are not the text: the dialog shows, and changes, the text's looks)
             for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
                 const QTextFragment f = it.fragment();
                 if (f.position() + f.length() <= from || f.position() >= to || isAtom(f.charFormat())) continue;
                 out.push_back(f.charFormat());
             }
+        }
     }
     if (out.isEmpty()) {
         QTextCharFormat cf = c.charFormat();

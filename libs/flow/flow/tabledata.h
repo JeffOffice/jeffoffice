@@ -49,7 +49,7 @@ struct TableData {
     // the margin, or the page, by an offset or at the start, middle, or end; `room` is what the text keeps from it (left, top, right, bottom).
     struct Place {
         enum class From : quint8 { Text, Margin, Page };
-        enum class Spec : quint8 { None, Start, Center, End };
+        enum class Spec : quint8 { None, Start, Center, End, Inside, Outside };   // (inside and outside across: the side of the binding and the side away from it, by the page's number)
         From across = From::Text, down = From::Text;
         Spec acrossSpec = Spec::None, downSpec = Spec::None;
         double x = 0, y = 0;

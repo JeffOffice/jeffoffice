@@ -144,10 +144,17 @@ void Paginator::resolveCellImages(MaterializedPage *page, Document *d)
     for (const auto &fragment : page->furnitureTables) look(fragment);
 }
 
-QRectF Paginator::placeOf(const FloatingObject &o, const Anchor &a, const Section &sec, bool clamp, double limit) const
+QRectF Paginator::placeOf(const FloatingObject &o, const Anchor &a, const Section &sec, int number, bool clamp, double limit) const
 {
     using Rel = FloatingObject::Rel;
     using Align = FloatingObject::Align;
+    // Inside and outside are the side of the binding and the side away from it, by the page's number and not by whether the margins are mirrored (ECMA-376 part 1, 17.18.2 ST_AlignH and
+    // 17.18.4 ST_RelFromH: the left and the right of a page that has an odd number, the right and the left of one that has an even number); the margins of `sec` are the page's own (the
+    // sides swapped where they are mirrored), so the strips are as wide as the page's.
+    const bool odd = number % 2 != 0;
+    const Align hAlign = o.hAlign == Align::Inside ? (odd ? Align::Start : Align::End) : o.hAlign == Align::Outside ? (odd ? Align::End : Align::Start) : o.hAlign;
+    const bool leftStrip_ = o.hRel == Rel::LeftMargin || (o.hRel == Rel::InsideMargin && odd) || (o.hRel == Rel::OutsideMargin && !odd);
+    const bool rightStrip_ = o.hRel == Rel::RightMargin || (o.hRel == Rel::InsideMargin && !odd) || (o.hRel == Rel::OutsideMargin && odd);
     const QSizeF pageSize = sec.pageSize();
     const QRectF page(0, 0, pageSize.width(), pageSize.height());
     const QRectF margin(sec.margins.left(), sec.margins.top(), std::max(1.0, pageSize.width() - sec.margins.left() - sec.margins.right()),
@@ -157,12 +164,11 @@ QRectF Paginator::placeOf(const FloatingObject &o, const Anchor &a, const Sectio
     // Across: from the page's edge, the margin's, a strip of the page beside the margin (the strips are as wide as the margins), the column's, or the anchor's place; or
     // put at the start, the middle, or the end of one of them.
     const QRectF leftStrip(0, 0, sec.margins.left(), pageSize.height()), rightStrip(pageSize.width() - sec.margins.right(), 0, sec.margins.right(), pageSize.height());
-    const QRectF across = o.hRel == Rel::Page ? page : o.hRel == Rel::Margin ? margin : o.hRel == Rel::LeftMargin || o.hRel == Rel::InsideMargin ? leftStrip
-                        : o.hRel == Rel::RightMargin || o.hRel == Rel::OutsideMargin ? rightStrip : column;
+    const QRectF across = o.hRel == Rel::Page ? page : o.hRel == Rel::Margin ? margin : leftStrip_ ? leftStrip : rightStrip_ ? rightStrip : column;
     double x = o.hRel == Rel::Character ? a.x + o.dx : across.left() + o.dx;
-    if (o.hAlign == Align::Start) x = across.left();
-    else if (o.hAlign == Align::Center) x = across.left() + (across.width() - size.width()) / 2;
-    else if (o.hAlign == Align::End) x = across.right() - size.width();
+    if (hAlign == Align::Start) x = across.left();
+    else if (hAlign == Align::Center) x = across.left() + (across.width() - size.width()) / 2;
+    else if (hAlign == Align::End) x = across.right() - size.width();
     // Down: the same, from the paragraph's top or the line's (the places the text would set them without the objects it goes round).
     const QRectF topStrip(0, 0, pageSize.width(), sec.margins.top()), footStrip(0, pageSize.height() - sec.margins.bottom(), pageSize.width(), sec.margins.bottom());
     const bool fromArea = o.vRel == Rel::Page || o.vRel == Rel::Margin || o.vRel == Rel::TopMargin || o.vRel == Rel::BottomMargin || o.vRel == Rel::InsideMargin || o.vRel == Rel::OutsideMargin;
@@ -281,7 +287,7 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
             for (const Wrapped &w : wrapped)
                 if (w.object == id && w.at == a.pos) wall = &w;
             const QSizeF size = o.item->rect.size();
-            QRectF placed = placeOf(o, a, sec);
+            QRectF placed = placeOf(o, a, sec, number);
             if (wall) placed = o.item->rotation != 0 ? QRectF(wall->rect.center() - QPointF(size.width() / 2, size.height() / 2), size) : wall->rect;
             ItemPtr item = o.item->clone();
             item->id = QStringLiteral("flow-object-%1-%2-%3").arg(d->pages[0]->id).arg(id).arg(made);
@@ -788,9 +794,13 @@ std::shared_ptr<const FloatingObject> Paginator::tableObject(int span, double co
     o.item = shape;
     o.hRel = p.across == Place::From::Margin ? Rel::Margin : p.across == Place::From::Page ? Rel::Page : Rel::Column;
     o.vRel = p.down == Place::From::Margin ? Rel::Margin : p.down == Place::From::Page ? Rel::Page : Rel::Paragraph;
-    auto align = [](Place::Spec s) { return s == Place::Spec::Start ? Align::Start : s == Place::Spec::Center ? Align::Center : s == Place::Spec::End ? Align::End : Align::None; };
+    auto align = [](Place::Spec s) {
+        return s == Place::Spec::Start ? Align::Start : s == Place::Spec::Center ? Align::Center : s == Place::Spec::End ? Align::End
+               : s == Place::Spec::Inside ? Align::Inside : s == Place::Spec::Outside ? Align::Outside : Align::None;
+    };
     o.hAlign = align(p.acrossSpec);
-    o.vAlign = align(p.downSpec);
+    // (Down, inside is the top and outside the foot: the vertical has no binding side.)
+    o.vAlign = p.downSpec == Place::Spec::Inside ? Align::Start : p.downSpec == Place::Spec::Outside ? Align::End : align(p.downSpec);
     o.dx = p.x;
     o.dy = p.y;
     o.gap = p.room;

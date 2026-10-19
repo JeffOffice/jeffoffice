@@ -21,6 +21,7 @@
 #include <QPainterPath>
 #include <QRegularExpression>
 #include <QRawFont>
+#include <QSet>
 #include <QTextDocument>
 #include <QTextBoundaryFinder>
 #include <optional>
@@ -30,6 +31,7 @@
 #include <cmath>
 #include <functional>
 #include <limits>
+#include <unordered_map>
 #include <cstring>
 
 namespace {
@@ -297,6 +299,110 @@ inline bool isEastAsian(QChar c)
     const char16_t u = c.unicode();
     return (u >= 0x2E80 && u <= 0xD7FF) || (u >= 0xF900 && u <= 0xFAFF) || (u >= 0xFF00 && u <= 0xFFEF) || c.isHighSurrogate();
 }
+// Whether a character (a code point) is East Asian, for the face the machine gives it: Han, kana, Hangul, and the full-width forms, the kana of the supplementary planes, and the ideographs
+// of the supplementary planes (U+20000 to U+3FFFF). Emoji and the letters of the mathematical alphanumeric block are not.
+inline bool isEastAsianCode(uint u)
+{
+    return (u >= 0x2E80 && u <= 0xD7FF) || (u >= 0xF900 && u <= 0xFAFF) || (u >= 0xFF00 && u <= 0xFFEF) || (u >= 0x1B000 && u <= 0x1B16F) || (u >= 0x20000 && u <= 0x3FFFF);
+}
+} // namespace
+
+static std::atomic<qint64> s_eastAsianFontScans{0}, s_eastAsianLookups{0};
+qint64 eastAsianFontScansForTest() { return s_eastAsianFontScans.load(); }
+qint64 eastAsianLookupsForTest() { return s_eastAsianLookups.load(); }
+
+namespace {
+// The families the machine lists for the writing systems that may have an East Asian character: Japanese, Simplified and Traditional Chinese, and Korean, the first 64 of each, and
+// the places in that list of the Korean ones and then the others (the order Hangul is looked up in). The font database is scanned for them once for the program.
+struct EastAsianCandidates {
+    QStringList all;
+    QVector<int> koreanFirst;
+};
+const EastAsianCandidates &eastAsianCandidates()
+{
+    static const EastAsianCandidates found = [] {
+        EastAsianCandidates out;
+        QStringList korean;
+        for (const QFontDatabase::WritingSystem system : {QFontDatabase::Japanese, QFontDatabase::SimplifiedChinese, QFontDatabase::TraditionalChinese, QFontDatabase::Korean}) {
+            ++s_eastAsianFontScans;
+            int looked = 0;
+            for (const QString &candidate : QFontDatabase::families(system)) {
+                if (++looked > 64) break;
+                if (system == QFontDatabase::Korean) korean << candidate;
+                if (!out.all.contains(candidate)) out.all << candidate;
+            }
+        }
+        for (const QString &candidate : std::as_const(korean))
+            if (const int at = int(out.all.indexOf(candidate)); !out.koreanFirst.contains(at)) out.koreanFirst << at;
+        for (int i = 0; i < out.all.size(); ++i)
+            if (!out.koreanFirst.contains(i)) out.koreanFirst << i;
+        return out;
+    }();
+    return found;
+}
+} // namespace
+
+QStringList eastAsianCandidateFamilies() { return eastAsianCandidates().all; }
+
+// The family among the machine's own fonts that has an East Asian character, for a run whose families lack it (the faces the documents name for them are the original program's, and are not
+// here): the first of the candidates that has it (Hangul looks among the Korean families first), found once for each character and kept for the program, in pages of 256 characters:
+// the characters this is asked for are the East Asian ones (isEastAsianCode), a few hundred thousand at most, so what is kept is bounded and is never cleared (a document of every
+// character, laid out again and again, finds each as it found it). Empty where no installed face has it. (Qt's own fallback looks only in the families the system ranks for the script it
+// takes the text to be: ideographs and Hangul came out as nothing on a machine whose one face for them is listed under Japanese.)
+static QString installedFamilyFor(uint ch)
+{
+    ++s_eastAsianLookups;
+    static QMutex lock;
+    static std::unordered_map<uint, QVector<qint16>> pages;   // zero: not looked up; -1: no face has it; else the place of the family in the candidates, and one
+    static QVector<QRawFont> faces;                            // (made as they are asked for)
+    static QVector<char> made;
+    const QMutexLocker guard(&lock);
+    const EastAsianCandidates &candidates = eastAsianCandidates();
+    QVector<qint16> &page = pages.try_emplace(ch >> 8, QVector<qint16>(256, 0)).first->second;
+    qint16 &slot = page[int(ch & 0xFF)];
+    if (slot != 0) return slot < 0 ? QString() : candidates.all.value(slot - 1);
+    if (faces.size() != candidates.all.size()) {
+        faces.resize(candidates.all.size());
+        made.fill(0, int(candidates.all.size()));
+    }
+    const bool hangul = (ch >= 0x1100 && ch <= 0x11FF) || (ch >= 0x3130 && ch <= 0x318F) || (ch >= 0xAC00 && ch <= 0xD7AF);
+    slot = -1;
+    for (int k = 0; k < candidates.all.size(); ++k) {
+        const int i = hangul ? candidates.koreanFirst[k] : k;
+        if (!made[i]) {
+            faces[i] = QRawFont::fromFont(QFont(candidates.all[i]));
+            made[i] = 1;
+        }
+        if (faces[i].isValid() && faces[i].supportsCharacter(ch)) {
+            slot = qint16(i + 1);
+            break;
+        }
+    }
+    return slot < 0 ? QString() : candidates.all.value(slot - 1);
+}
+// The format with the machine's own families that have the East Asian characters of `text` added after the families it has (its own are tried first).
+QTextCharFormat withEastAsianFaces(const QTextCharFormat &format, const QString &text)
+{
+    QStringList extra;
+    QSet<uint> asked;
+    for (qsizetype at = 0; at < text.size() && extra.size() < 4 && asked.size() < 256; ++at) {
+        uint code = text[at].unicode();
+        if (QChar::isHighSurrogate(code) && at + 1 < text.size() && QChar::isLowSurrogate(text[at + 1].unicode())) code = QChar::surrogateToUcs4(code, text[++at].unicode());
+        if (!isEastAsianCode(code)) continue;
+        if (asked.contains(code)) continue;
+        asked.insert(code);
+        if (const QString family = installedFamilyFor(code); !family.isEmpty() && !extra.contains(family)) extra << family;
+    }
+    if (extra.isEmpty()) return format;
+    QTextCharFormat out = format;
+    QStringList families = out.fontFamilies().toStringList();
+    for (const QString &family : std::as_const(extra))
+        if (!families.contains(family, Qt::CaseInsensitive)) families << family;
+    out.setFontFamilies(families);
+    return out;
+}
+
+namespace {
 // A pixel of the fine layout (an eighth of a point) and a hair more is what the width of a line the room of which it exactly fills is given over its room, for the layout's
 // rounding. It is the same on every machine: it is the layout's own, not the text engine's. (What the engine counts past the advance of a glyph at a line's end is another thing,
 // and a machine's own: qtGiveBack.)
@@ -949,6 +1055,12 @@ static bool picturesInRunsFamily(const QString &family)
 QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutEnv &env, const QColor &behind)
 {
     QTextCharFormat f = original;
+    // The style a run is shown in where its format does not say it (an equation's letters, a styled letter shown as the letter it is a style of): layout only.
+    if (env.wordLines && f.hasProperty(tp::DisplayStyle)) {
+        const QString style = f.stringProperty(tp::DisplayStyle);
+        if (style.contains(QLatin1Char('i'))) f.setFontItalic(true);
+        if (style.contains(QLatin1Char('b'))) f.setFontWeight(QFont::Bold);
+    }
     // (Not a symbol font this machine lacks, whose pictures the run's own family draws, by that font's widths below: fontconfig stands a symbol-encoded face in
     // for the name Symbol, which leaves a bullet and a diamond blank.)
     if (env.wordLines && f.hasProperty(tp::DisplayFamily) && !picturesInRunsFamily(f.stringProperty(tp::DisplayFamily))) f.setFontFamilies({f.stringProperty(tp::DisplayFamily)});
@@ -2080,6 +2192,7 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
         const QStringList k = key.split(QLatin1Char('|'));
         const bool ofSymbols = isSymbolFont(k.value(0)) && !hasFamilyCached(k.value(0));
         const bool words = evenWords && !ofSymbols;   // (a symbol font's pictures are no words)
+        const bool byHand = r.format.hasProperty(tp::HandBold);   // (a stand-in drawn with a stroke by hand: see the stretches below)
         const QHash<char16_t, double> *table = ofSymbols ? symbolFontLetterWidths(k.value(0))
                                                : originalLetterWidths(k.value(0), k.value(1) == QLatin1String("1"), k.value(2) == QLatin1String("1"));
         QFont plain = r.format.font();
@@ -2241,22 +2354,38 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
         for (const Stretch &part : stretches) {
             constexpr double kGapCapEm = 0.05;
             auto gapAfter = [&](int k) { return k + 1 < part.at.size() && cuttable(disp[part.at[k]]) && cuttable(disp[part.at[k + 1]]); };
-            double total = 0;
+            // A stand-in drawn with a stroke by hand is drawn in two passes, the second under a mark that a PDF's text reader takes for the end of a word: each piece of text drawn so is a
+            // word of its own, and the letters of a word that the widths cut into pieces ("Propert" and "y") read as two. The letters of such a stretch are spaced alike, the last too (one
+            // gap more to share the stretch's difference), so that it is one piece; what the gaps may not take goes to the space after it.
+            int lastCut = -1;   // (the last letter the original's table measures: what follows it, a dash, rides in its piece)
+            for (int k = int(part.at.size()) - 1; k >= 0 && lastCut < 0; --k)
+                if (cuttable(disp[part.at[k]])) lastCut = k;
+            const bool whole = byHand && !part.goesOn && lastCut >= 1 && cuttable(disp[part.at[lastCut - 1]]);
+            auto spaced = [&](int k) { return gapAfter(k) || (whole && k == lastCut); };
+            // (The character after the stretch, a dash, sits centered in the width of the original's: the last letter's spacing was to take half of its difference, which is shared by the
+            // letters instead, so that all of them are spaced alike.)
+            int following = part.at.last() + 1;
+            while (following < end && transparent(disp[following])) ++following;
+            const double carried = whole && following < end ? shift[following - r.start] : 0.0;
+            double total = carried;
             int gaps = 0;
             for (int k = 0; k < part.at.size(); ++k) {
                 total += diff[part.at[k] - r.start];
-                if (gapAfter(k)) ++gaps;
+                if (spaced(k)) ++gaps;
             }
             if (part.takesPending) {   // (the word goes on from the run before)
                 total += pending.amount;
                 pending.taken = true;
             }
-            const double each = gaps == 0 ? 0 : part.endCarries ? std::min(total / gaps, kGapCapEm * em) : total / gaps;
+            const double each = gaps == 0 ? 0 : (part.endCarries || whole) ? std::min(total / gaps, kGapCapEm * em) : total / gaps;
             for (int k = 0; k < part.at.size(); ++k)
-                want[part.at[k] - r.start] += (gapAfter(k) ? each : 0) - diff[part.at[k] - r.start];
+                want[part.at[k] - r.start] += (spaced(k) ? each : 0) - diff[part.at[k] - r.start];
+            if (whole) want[part.at[lastCut] - r.start] -= carried;
             if (const double left = total - each * gaps; std::abs(left) > 1e-6) {
+                const int after = part.at.last() + 1;
                 if (part.goesOn) owed = {left, end, part.at.last(), false};
-                else want[part.at.last() - r.start] += left;
+                else if (whole && after < end && disp[after].isSpace()) want[after - r.start] += left;
+                else want[part.at[whole ? lastCut : int(part.at.size()) - 1] - r.start] += left;
             }
         }
         int pieceStart = r.start;
@@ -2314,6 +2443,7 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
 }
 
 QVector<QTextLayout::FormatRange> applyLetterWidths(const QVector<QTextLayout::FormatRange> &in, const QString &disp) { return applyLetterWidthsTo(in, disp, nullptr, false); }
+QVector<QTextLayout::FormatRange> applyWordLetterWidths(const QVector<QTextLayout::FormatRange> &in, const QString &disp) { return applyLetterWidthsTo(in, disp, nullptr, true); }
 
 double naturalLineEm(const QFont &f, const QString &requestedFamily) { return lineEmOf(f, requestedFamily); }
 qint64 spaceShrinkWorkForTest(int what) { return what == 0 ? s_shrinkLooked : what == 1 ? s_shrinkPasses : what == 2 ? s_shrinkRelaid : what == 3 ? s_shrinkShared : s_shrinkFull; }
@@ -2890,7 +3020,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     QString v = ctx.resolve(field);
                     v.replace(QLatin1String("\r\n"), QString(QChar::LineSeparator)).replace(QLatin1Char('\n'), QChar::LineSeparator);
                     B->map << Seg{rel + i, 1, int(B->disp.size()), int(v.size()), env.wordLines && v.isEmpty()};
-                    ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), rf};
+                    ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), env.wordLines ? withEastAsianFaces(rf, v) : rf};
                     B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
                     B->disp += v;
                 }
@@ -3016,6 +3146,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         for (QChar &ch : shown)
                             if (const QChar picture = pictures->of(ch.unicode()); !picture.isNull()) ch = picture;
                 }
+                // East Asian characters that the run's families lack are set in a face of the machine that has them: its families are tried after the run's own.
+                if (env.wordLines) rf = withEastAsianFaces(rf, shown);
                 const int len = int(shown.size());
                 QTextLayout::FormatRange fr{int(B->disp.size()), len, rf};
                 if (rf.fontCapitalization() == QFont::SmallCaps && !(cf.boolProperty(tp::TrueSmallCaps) && trueSmallCaps)) {
@@ -3120,6 +3252,17 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         QTextOption opt;
         Qt::Alignment al = bf.alignment() & Qt::AlignHorizontal_Mask;
         if (!al) al = Qt::AlignLeft;
+        // A paragraph that a word processor's file leaves to the layout to align (an equation alone in its paragraph is centered, whatever its alignment says): set while the paragraph
+        // holds nothing but pieces kept as XML.
+        if (env.wordLines && bf.hasProperty(tp::DisplayAlignment)) {
+            const QString shown = b.text();
+            bool alone = true;
+            for (const QChar ch : shown) alone = alone && (ch == QChar::ObjectReplacementCharacter || ch.isSpace());
+            if (alone) al = Qt::Alignment(bf.intProperty(tp::DisplayAlignment)) & Qt::AlignHorizontal_Mask;
+        }
+        // A paragraph set to the outside or the inside of the page (a frame's xAlign in a header or a footer) is at the right or the left by the page's number: the outside is the right of a
+        // page that has an odd number and the left of one that has an even number, the inside the other way (ECMA-376 part 1, 17.18.2 ST_AlignH).
+        if (env.wordLines && bf.hasProperty(tp::PageSideAlign)) al = (bf.intProperty(tp::PageSideAlign) == 1) == (ctx.pageNumber % 2 != 0) ? Qt::AlignRight : Qt::AlignLeft;
         // A paragraph's left and right alignment are its start and end (as in
         // .pub files): a right-to-left paragraph starts at the right. Qt's
         // text layout takes them as the page's sides, so they swap here.

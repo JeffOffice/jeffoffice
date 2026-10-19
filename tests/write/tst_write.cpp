@@ -216,6 +216,36 @@ void typeText(WriteDoc &doc, QTextCursor &c, const QString &text)
 
 QString plain(WriteDoc &doc) { return doc.story()->toPlainText(); }
 
+// The text each line of one of a page's text boxes shows (by default the first page's first box, the text's), with the fields in their places, as the page's own box lays it out.
+QStringList boxLines(WriteDoc &doc, int pageNumber = 0, int box = 0)
+{
+    const auto page = doc.pager().materialize(pageNumber);
+    if (!page || box >= page->boxes.size()) return {};
+    const auto *item = dynamic_cast<const TextItem *>(page->doc->item(page->boxes[box]));
+    if (!item) return {};
+    FrameSpec fs;
+    fs.size = item->rect.size();
+    fs.insets = QMarginsF(0, 0, 0, 0);
+    fs.hyphenate = false;
+    StoryLayout layout;
+    layout.build(page->doc->story(item->storyId)->doc.get(), {fs}, doc.flow().env);
+    QStringList lines;
+    for (const auto &l : layout.lineInfo(0)) lines << l.text.trimmed();
+    return lines;
+}
+
+// The formats of a story's fragments that are atoms of the tag given (the ones that stand for something the file keeps as XML), in order.
+QList<QTextCharFormat> atomFormats(WriteDoc &doc, const QString &tag)
+{
+    QList<QTextCharFormat> out;
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextCharFormat cf = it.fragment().charFormat();
+            if (cf.hasProperty(prop::Atom) && unpackAtom(storedBytes(cf, prop::Atom)).tag == tag) out << cf;
+        }
+    return out;
+}
+
 // A random place in a table's cells (the cursor is not moved when the story has no table).
 bool placeInACell(WriteDoc &doc, QTextCursor &c, const std::function<int(int)> &pick)
 {
@@ -10879,8 +10909,10 @@ private Q_SLOTS:
         QVERIFY(o.hRel == FO::Rel::Margin && o.vRel == FO::Rel::Margin && o.hAlign == FO::Align::Center && o.vAlign == FO::Align::End);
         QVERIFY(o.wrap == FO::Wrap::TopBottom);
         o = frameOf("w:wrap=\"none\" w:xAlign=\"inside\" w:yAlign=\"top\"");
-        QVERIFY(o.wrap == FO::Wrap::None && o.hAlign == FO::Align::Start && o.vAlign == FO::Align::Start);
+        QVERIFY(o.wrap == FO::Wrap::None && o.hAlign == FO::Align::Inside && o.vAlign == FO::Align::Start);   // (inside, across, is the side of the binding: the page's number says which)
         QCOMPARE(o.frameWidth, 0.0);   // (as wide as its text)
+        o = frameOf("w:xAlign=\"outside\" w:yAlign=\"inside\"");
+        QVERIFY(o.hAlign == FO::Align::Outside && o.vAlign == FO::Align::Start);   // (down, inside is the top)
         o = frameOf("w:wrap=\"tight\" w:hSpace=\"240\"");
         QVERIFY(o.wrap == FO::Wrap::Square);
         QCOMPARE(o.gap.right(), 12.0);
@@ -11456,6 +11488,295 @@ private Q_SLOTS:
         QCOMPARE(audit::storyOf(*page, heads[0]), QStringLiteral("Head base(ruby)"));
     }
 
+    // An equation is drawn: the line of text that is its characters in order, on the baseline, in the size and face of its first run, in the text, in a cell of a table, in a text box,
+    // and in a header; saved, it is what the file had.
+    void anEquationIsDrawnAsALineOfText()
+    {
+        const QByteArray ns = "xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"";
+        const QByteArray eq = "<m:oMath " + ns + "><m:r><w:rPr><w:sz w:val=\"40\"/></w:rPr><m:t>y=</m:t></m:r><m:f><m:num><m:r><m:t>a</m:t></m:r></m:num><m:den><m:r><m:t>b+1</m:t></m:r></m:den></m:f></m:oMath>";
+        const QString line = QStringLiteral("y = a/(b + 1)");
+        // In the text: a line with the words round it, the atom is set as the run says and its letters are italic.
+        auto doc = open(makeDocxWithParts("<w:p><w:r><w:t xml:space=\"preserve\">Solve </w:t></w:r>" + eq + "<w:r><w:t xml:space=\"preserve\"> now</w:t></w:r></w:p>", sectionXml(6000, 6000, 720), {}));
+        QVERIFY(doc);
+        QCOMPARE(boxLines(*doc), QStringList{QStringLiteral("Solve y = a/(b + 1) now")});
+        const QList<QTextCharFormat> atoms = atomFormats(*doc, QStringLiteral("oMath"));
+        QCOMPARE(int(atoms.size()), 1);
+        QCOMPARE(atoms[0].stringProperty(tp::Field), QStringLiteral("raw:") + line);
+        QVERIFY2(std::abs(atoms[0].fontPointSize() - 20) < 0.01, qPrintable(QString::number(atoms[0].fontPointSize())));
+        QCOMPARE(atoms[0].stringProperty(tp::DisplayStyle), QStringLiteral("i"));
+        QVERIFY(atoms[0].fontFamilies().toStringList().contains(QStringLiteral("Cambria Math")));
+        const QByteArray saved = documentXml(doc->toDocx());
+        QVERIFY(saved.contains(eq));
+        QVERIFY(!saved.contains("DisplayStyle"));
+        // In a cell of a table.
+        auto table = open(makeDocxWithParts("<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr><w:p>" + eq +
+                                            "</w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>after</w:t></w:r></w:p>", sectionXml(6000, 6000, 720), {}));
+        QVERIFY(table);
+        QCOMPARE(int(atomFormats(*table, QStringLiteral("oMath")).size()), 1);
+        QCOMPARE(atomFormats(*table, QStringLiteral("oMath"))[0].stringProperty(tp::Field), QStringLiteral("raw:") + line);
+        QVERIFY(documentXml(table->toDocx()).contains(eq));
+        // In a text box of the text, and in a header.
+        const QByteArray box = "<w:p><w:r><w:t>text</w:t></w:r><w:r><w:pict " + QByteArray(kVml) + "><v:shape style=\"position:absolute;margin-left:10pt;margin-top:60pt;width:150pt;height:40pt;z-index:3\">"
+                               "<v:textbox><w:txbxContent><w:p>" + eq + "</w:p></w:txbxContent></v:textbox><w10:wrap type=\"square\"/></v:shape></w:pict></w:r></w:p>";
+        auto boxed = open(makeDocxWithParts(box, sectionXml(6000, 6000, 720), {}));
+        QVERIFY(boxed);
+        const auto boxedPage = boxed->pager().materialize(0);
+        QVERIFY(boxedPage);
+        QVERIFY2(boxWithText(*boxedPage, line), "the text box shows the equation");
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", {eq})}};
+        auto headed = open(makeDocxWithParts(plainP("body"), sectionXml(6000, 6000, 720, "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"), parts));
+        QVERIFY(headed);
+        const auto headedPage = headed->pager().materialize(0);
+        QVERIFY(headedPage);
+        const auto heads = audit::itemsWith(*headedPage, QStringLiteral("flow-header-box"));
+        QVERIFY(heads.size() == 1);
+        QCOMPARE(audit::storyOf(*headedPage, heads[0]), line);
+    }
+
+    // An equation that is a paragraph of its own (m:oMathPara) is a line of its own, centered on the page: the line it makes is in the middle of the text area, and the paragraphs round it
+    // begin at the left.
+    void anEquationOfItsOwnParagraphIsCentered()
+    {
+        const QByteArray ns = "xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"";
+        auto doc = open(makeDocxWithParts("<w:p><w:r><w:t>Before</w:t></w:r></w:p><w:p><m:oMathPara " + ns + "><m:oMath><m:r><m:t>a=b</m:t></m:r></m:oMath></m:oMathPara></w:p><w:p><w:r><w:t>After</w:t></w:r></w:p>",
+                                          sectionXml(6000, 6000, 720), {}));
+        QVERIFY(doc);
+        QCOMPARE(boxLines(*doc), (QStringList{QStringLiteral("Before"), QStringLiteral("a = b"), QStringLiteral("After")}));
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page && !page->boxes.isEmpty());
+        const auto *box = dynamic_cast<const TextItem *>(page->doc->item(page->boxes[0]));
+        QVERIFY(box);
+        FrameSpec fs;
+        fs.size = box->rect.size();
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        fs.hyphenate = false;
+        StoryLayout layout;
+        layout.build(page->doc->story(box->storyId)->doc.get(), {fs}, doc->flow().env);
+        auto rectOfBlock = [&](int number) {
+            const QTextBlock b = page->doc->story(box->storyId)->doc->findBlockByNumber(number);
+            const QVector<QRectF> rects = layout.rangeRects(0, b.position(), b.position() + std::max(1, b.length() - 1));
+            return rects.isEmpty() ? QRectF() : rects.first();
+        };
+        const QRectF equation = rectOfBlock(1), before = rectOfBlock(0);
+        QVERIFY2(equation.width() > 0 && std::abs((equation.left() + equation.right()) / 2 - fs.size.width() / 2) < 3, qPrintable(QStringLiteral("the equation is from %1 to %2 in %3").arg(equation.left()).arg(equation.right()).arg(fs.size.width())));
+        QVERIFY2(before.left() < 3, qPrintable(QStringLiteral("the paragraph before begins at %1").arg(before.left())));
+    }
+
+    // Opened and saved with no edit, a paragraph that is an equation of its own is as the file had it: the centering the pages give it is not written (no w:jc is added to it).
+    void anEquationOfItsOwnParagraphIsWrittenBackAsItWas()
+    {
+        const QByteArray ns = "xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"";
+        const QByteArray equation = "<w:p><m:oMathPara " + ns + "><m:oMath><m:r><m:t>a=b</m:t></m:r></m:oMath></m:oMathPara></w:p>";
+        auto doc = open(makeDocxWithParts("<w:p><w:r><w:t>Before</w:t></w:r></w:p>" + equation + "<w:p><w:r><w:t>After</w:t></w:r></w:p>", sectionXml(6000, 6000, 720), {}));
+        QVERIFY(doc);
+        const QByteArray saved = documentXml(doc->toDocx());
+        QVERIFY2(saved.contains(equation), saved.constData());
+        QVERIFY(!saved.contains("<w:jc"));
+        // (And a second save, after the file is opened again, is the same.)
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QCOMPARE(documentXml(again->toDocx()), saved);
+    }
+
+    // A letter of the mathematical alphanumeric block in the text (a run in a math face has it) is drawn as its letter, in the style it stands for (italic here), where no face of the
+    // machine has the block; a double-struck one is drawn as it is, in a bundled face that has it; the file's characters are written back as they were.
+    void aStyledLetterInTextIsDrawnAsItsLetter()
+    {
+        const QByteArray text = QString::fromUtf8("<w:p><w:r><w:rPr><w:rFonts w:ascii=\"Cambria Math\" w:hAnsi=\"Cambria Math\"/></w:rPr><w:t>\xf0\x9d\x91\x86</w:t></w:r>"
+                                                  "<w:r><w:t xml:space=\"preserve\"> and </w:t></w:r><w:r><w:t>\xf0\x9d\x94\xb8</w:t></w:r><w:r><w:t xml:space=\"preserve\"> and </w:t></w:r><w:r><w:t>\xf0\x9d\x90\x81x</w:t></w:r></w:p>").toUtf8();
+        auto doc = open(makeDocxWithParts(text, sectionXml(6000, 6000, 720), {}));
+        QVERIFY(doc);
+        QCOMPARE(boxLines(*doc), QStringList{QString::fromUtf8("S and \xf0\x9d\x94\xb8 and Bx")});
+        const QList<QTextCharFormat> atoms = atomFormats(*doc, QStringLiteral("t"));
+        QCOMPARE(int(atoms.size()), 3);
+        QCOMPARE(atoms[0].stringProperty(tp::Field), QStringLiteral("raw:S"));
+        QCOMPARE(atoms[0].stringProperty(tp::DisplayStyle), QStringLiteral("i"));
+        QCOMPARE(atoms[1].stringProperty(tp::Field), QString::fromUtf8("raw:\xf0\x9d\x94\xb8"));
+        QCOMPARE(atoms[1].stringProperty(tp::DisplayFamily), QStringLiteral("DejaVu Sans"));
+        QCOMPARE(atoms[2].stringProperty(tp::DisplayStyle), QStringLiteral("b"));
+        const QByteArray saved = documentXml(doc->toDocx());
+        QVERIFY(saved.contains("\xf0\x9d\x91\x86") && saved.contains("\xf0\x9d\x94\xb8") && saved.contains("\xf0\x9d\x90\x81"));
+        QVERIFY(!saved.contains("DisplayStyle") && !saved.contains("DisplayFamily"));
+        // In a text box too.
+        const QByteArray box = QString::fromUtf8("<w:p><w:r><w:t>text</w:t></w:r><w:r><w:pict ").toUtf8() + kVml + "><v:shape style=\"position:absolute;margin-left:10pt;margin-top:60pt;width:150pt;height:40pt;z-index:3\">"
+                               "<v:textbox><w:txbxContent><w:p><w:r><w:t>\xf0\x9d\x91\x86 plus</w:t></w:r></w:p></w:txbxContent></v:textbox><w10:wrap type=\"square\"/></v:shape></w:pict></w:r></w:p>";
+        auto boxed = open(makeDocxWithParts(box, sectionXml(6000, 6000, 720), {}));
+        QVERIFY(boxed);
+        const auto page = boxed->pager().materialize(0);
+        QVERIFY(page);
+        QVERIFY2(boxWithText(*page, QStringLiteral("S plus")), "the text box shows the letter");
+    }
+
+    // A legacy form field is drawn as what it shows: a check box its box (checked or not), a text field its result, or its default text where it has none, a drop-down the entry it has
+    // chosen; in the text, in a text box, and in a header; and the fields are written back as they were.
+    void aFormFieldIsDrawnAsWhatItShows()
+    {
+        auto field = [](const QByteArray &data, const QByteArray &code, const QByteArray &result = QByteArray()) {
+            return "<w:r><w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"F\"/><w:enabled/>" + data + "</w:ffData></w:fldChar></w:r><w:r><w:instrText xml:space=\"preserve\"> " + code +
+                   " </w:instrText></w:r>" + (result.isNull() ? QByteArray() : "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>" + result) + "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        };
+        auto line = [](const QByteArray &label, const QByteArray &content) { return "<w:p><w:r><w:t xml:space=\"preserve\">" + label + " </w:t></w:r>" + content + "</w:p>"; };
+        const QByteArray off = "<w:checkBox><w:sizeAuto/><w:default w:val=\"0\"/></w:checkBox>", on = "<w:checkBox><w:sizeAuto/><w:default w:val=\"1\"/></w:checkBox>";
+        const QByteArray ticked = "<w:checkBox><w:size w:val=\"24\"/><w:default w:val=\"0\"/><w:checked/></w:checkBox>", unticked = "<w:checkBox><w:sizeAuto/><w:default w:val=\"1\"/><w:checked w:val=\"0\"/></w:checkBox>";
+        const QByteArray text = "<w:textInput><w:default w:val=\"Jane &amp; Co\"/></w:textInput>";
+        const QByteArray drop = "<w:ddList><w:result w:val=\"1\"/><w:listEntry w:val=\"Alpha\"/><w:listEntry w:val=\"Beta\"/><w:listEntry w:val=\"Gamma\"/></w:ddList>";
+        const QByteArray blank = "<w:r><w:t> </w:t></w:r>";
+        const QList<QByteArray> bodies = {line("A", field(off, "FORMCHECKBOX")), line("B", field(on, "FORMCHECKBOX")), line("C", field(ticked, "FORMCHECKBOX")), line("D", field(unticked, "FORMCHECKBOX")),
+                                          line("E", field(text, "FORMTEXT", blank + blank)), line("F", field(text, "FORMTEXT", "<w:r><w:t>Alice</w:t></w:r>")), line("G", field(drop, "FORMDROPDOWN"))};
+        const QStringList shown = {QString::fromUtf8("A ☐"), QString::fromUtf8("B ☒"), QString::fromUtf8("C ☒"), QString::fromUtf8("D ☐"), QStringLiteral("E Jane & Co"), QStringLiteral("F Alice"),
+                                   QStringLiteral("G Beta")};
+        QByteArray body;
+        for (const QByteArray &b : bodies) body += b;
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 9000, 720), {}));
+        QVERIFY(doc);
+        QCOMPARE(boxLines(*doc), shown);
+        const QByteArray saved = documentXml(doc->toDocx());
+        for (const QByteArray &data : {off, on, ticked, unticked, text, drop}) QVERIFY2(saved.contains(data), data.constData());
+        QVERIFY(!saved.contains("DisplayFamily") && !saved.contains("<w:sz "));
+        // In a text box, and in a header: the same.
+        QByteArray inBox;
+        for (const QByteArray &b : bodies) inBox += b;
+        const QByteArray box = "<w:p><w:r><w:t>text</w:t></w:r><w:r><w:pict " + QByteArray(kVml) + "><v:shape style=\"position:absolute;margin-left:10pt;margin-top:60pt;width:150pt;height:200pt;z-index:3\">"
+                               "<v:textbox><w:txbxContent>" + inBox + "</w:txbxContent></v:textbox><w10:wrap type=\"square\"/></v:shape></w:pict></w:r></w:p>";
+        auto boxed = open(makeDocxWithParts(box, sectionXml(6000, 9000, 720), {}));
+        QVERIFY(boxed);
+        const auto page = boxed->pager().materialize(0);
+        QVERIFY(page);
+        const TextItem *boxItem = boxWithText(*page, QStringLiteral("G "));
+        QVERIFY2(boxItem, "the text box is there");
+        QCOMPARE(page->doc->story(boxItem->storyId)->doc->toPlainText().split(QLatin1Char('\n')), shown);
+        QList<QByteArray> headerParagraphs;
+        for (const QByteArray &b : bodies) headerParagraphs << b.mid(5, b.size() - 11);
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", headerParagraphs)}};
+        auto headed = open(makeDocxWithParts(plainP("body"), sectionXml(6000, 9000, 720, "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"), parts));
+        QVERIFY(headed);
+        const auto headedPage = headed->pager().materialize(0);
+        QVERIFY(headedPage);
+        const auto heads = audit::itemsWith(*headedPage, QStringLiteral("flow-header-box"));
+        QVERIFY(heads.size() == 1);
+        QCOMPARE(audit::storyOf(*headedPage, heads[0]).split(QLatin1Char('\n')), shown);
+    }
+
+    // The texts a form field shows have their character references decoded, the numeric ones too (&#233; and &#xE9;); a drop-down's entries are the entries of the list, not an element
+    // whose name only begins as one.
+    void aFormFieldsTextsHaveTheirCharacterReferencesDecoded()
+    {
+        auto field = [](const QByteArray &data, const QByteArray &code) {
+            return "<w:p><w:r><w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"F\"/>" + data + "</w:ffData></w:fldChar></w:r><w:r><w:instrText xml:space=\"preserve\"> " + code +
+                   " </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:p>";
+        };
+        const QByteArray text = "<w:textInput><w:default w:val=\"Caf&#233; &#xE9;t&#xE9; &amp; Co &#x1F600;\"/></w:textInput>";
+        const QByteArray drop = "<w:ddList><w:result w:val=\"1\"/><w:listEntryNote w:val=\"Not an entry\"/><w:listEntry w:val=\"Alpha\"/><w:listEntry w:val=\"Ren&#233;e &#x263A;\"/></w:ddList>";
+        auto doc = open(makeDocxWithParts(field(text, "FORMTEXT") + field(drop, "FORMDROPDOWN"), sectionXml(6000, 6000, 720), {}));
+        QVERIFY(doc);
+        QCOMPARE(boxLines(*doc), (QStringList{QString::fromUtf8("Caf\xc3\xa9 \xc3\xa9t\xc3\xa9 & Co \xf0\x9f\x98\x80"), QString::fromUtf8("Ren\xc3\xa9""e \xe2\x98\xba")}));
+        QVERIFY(documentXml(doc->toDocx()).contains(text) && documentXml(doc->toDocx()).contains(drop));
+    }
+
+    // A frame that is aligned to the outside or the inside of the margin (w:xAlign) is set by the page's number: a paragraph of a header or a footer so aligned is marked to be (it is
+    // not at one side for all pages), and the frame of the text is an object aligned to the inside or the outside.
+    void aFrameAlignedInsideOrOutsideFollowsThePageNumber()
+    {
+        for (const char *side : {"outside", "inside"}) {
+            const QByteArray frame = QByteArray("<w:framePr w:w=\"1000\" w:h=\"400\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:xAlign=\"") + side + "\" w:y=\"1\"/>";
+            const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:pPr>" + frame + "</w:pPr><w:r><w:t>5</w:t></w:r>"})}};
+            auto doc = open(makeDocxWithParts("<w:p><w:pPr>" + frame + "</w:pPr><w:r><w:t>FRAME</w:t></w:r></w:p><w:p><w:r><w:t>body</w:t></w:r></w:p>",
+                                              sectionXml(6000, 6000, 720, "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"), parts));
+            QVERIFY(doc);
+            const auto page = doc->pager().materialize(0);
+            QVERIFY(page);
+            const auto heads = audit::itemsWith(*page, QStringLiteral("flow-header-box"));
+            QVERIFY(heads.size() == 1);
+            const auto *box = dynamic_cast<const TextItem *>(heads[0]);
+            QVERIFY(box);
+            const QTextBlockFormat bf = page->doc->story(box->storyId)->doc->begin().blockFormat();
+            QCOMPARE(bf.intProperty(tp::PageSideAlign), std::string_view(side) == "outside" ? 1 : 2);
+            QVERIFY2(!bf.hasProperty(QTextFormat::BlockAlignment) || bf.alignment() == Qt::AlignLeft, side);
+            bool aligned = false;
+            for (const flow::FloatingObject &o : doc->flow().objects)
+                if (o.frame > 0) aligned = aligned || o.hAlign == (std::string_view(side) == "outside" ? flow::FloatingObject::Align::Outside : flow::FloatingObject::Align::Inside);
+            QVERIFY2(aligned, side);
+        }
+    }
+
+    // A content control shows its content wherever it stands (round runs, round paragraphs, inside a cell, round a cell, round a row), its placeholder text where it shows one, and is
+    // written back as it was.
+    void contentControlsShowTheirContentInEveryPlace()
+    {
+        auto control = [](const QByteArray &props, const QByteArray &content) { return "<w:sdt><w:sdtPr>" + props + "</w:sdtPr><w:sdtContent>" + content + "</w:sdtContent></w:sdt>"; };
+        auto para = [](const QByteArray &text) { return "<w:p><w:r><w:t>" + text + "</w:t></w:r></w:p>"; };
+        const QByteArray cellPr = "<w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr>";
+        const QByteArray table = "<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid>"
+                                 "<w:tr>" + control("<w:alias w:val=\"around a cell\"/>", "<w:tc>" + cellPr + para("AROUNDCELL") + "</w:tc>") +
+                                 "<w:tc>" + cellPr + control("<w:id w:val=\"5\"/>", para("INSIDECELL")) + "</w:tc></w:tr>" +
+                                 control("<w:id w:val=\"6\"/>", "<w:tr><w:tc>" + cellPr + para("AROUNDROW") + "</w:tc><w:tc>" + cellPr + "<w:p><w:r><w:t>ROWEND</w:t></w:r></w:p></w:tc></w:tr>") + "</w:tbl>";
+        const QByteArray body = "<w:p><w:r><w:t xml:space=\"preserve\">Name: </w:t></w:r>" + control("<w:showingPlcHdr/><w:text/>", "<w:r><w:rPr><w:rStyle w:val=\"PlaceholderText\"/></w:rPr><w:t>PLACEHOLDER</w:t></w:r>") +
+                                "<w:r><w:t xml:space=\"preserve\"> end</w:t></w:r></w:p>" + control("<w:id w:val=\"7\"/>", para("AROUNDPARA")) + table + "<w:p><w:r><w:t>last</w:t></w:r></w:p>";
+        auto doc = open(makeDocxWithParts(body, sectionXml(9000, 9000, 720), {}));
+        QVERIFY(doc);
+        QString story = doc->story()->toPlainText();
+        story.remove(QChar::ObjectReplacementCharacter);   // (a control's start and end are atoms in the text)
+        QVERIFY2(story.contains(QLatin1String("Name: PLACEHOLDER end")), qPrintable(story));
+        for (const char *word : {"AROUNDPARA", "AROUNDCELL", "INSIDECELL", "AROUNDROW", "ROWEND"}) QVERIFY2(story.contains(QLatin1String(word)), word);
+        const QByteArray saved = documentXml(doc->toDocx());
+        QCOMPARE(saved.count("<w:sdt>"), 5);
+        for (const char *tag : {"<w:showingPlcHdr/>", "<w:alias w:val=\"around a cell\"/>", "<w:id w:val=\"5\"/>", "<w:id w:val=\"6\"/>", "<w:id w:val=\"7\"/>"}) QVERIFY2(saved.contains(tag), tag);
+        // (The same in a text box and a header.)
+        const QByteArray box = "<w:p><w:r><w:t>text</w:t></w:r><w:r><w:pict " + QByteArray(kVml) + "><v:shape style=\"position:absolute;margin-left:10pt;margin-top:60pt;width:150pt;height:200pt;z-index:3\">"
+                               "<v:textbox><w:txbxContent>" + control("<w:id w:val=\"7\"/>", para("AROUNDPARA")) + "<w:p><w:r><w:t xml:space=\"preserve\">Name: </w:t></w:r>" +
+                               control("<w:showingPlcHdr/>", "<w:r><w:t>PLACEHOLDER</w:t></w:r>") + "</w:p></w:txbxContent></v:textbox><w10:wrap type=\"square\"/></v:shape></w:pict></w:r></w:p>";
+        auto boxed = open(makeDocxWithParts(box, sectionXml(6000, 9000, 720), {}));
+        QVERIFY(boxed);
+        const auto page = boxed->pager().materialize(0);
+        QVERIFY(page);
+        QVERIFY2(boxWithText(*page, QStringLiteral("Name: PLACEHOLDER")), "the control's placeholder in the text box");
+        QVERIFY2(boxWithText(*page, QStringLiteral("AROUNDPARA")), "the control round a paragraph in the text box");
+    }
+
+    // A file with facing pages (w:mirrorMargins in its settings) has the margins of its even pages swapped: the section's left margin is its inside, so the text of page two begins at
+    // the right margin's width; a file without has every page alike.
+    void facingPagesMirrorTheMarginsOfEvenPages()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"800\" w:bottom=\"1440\" w:left=\"2000\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray body = "<w:p><w:r><w:t>One</w:t></w:r></w:p><w:p><w:r><w:br w:type=\"page\"/></w:r></w:p><w:p><w:r><w:t>Two</w:t></w:r></w:p>";
+        for (const bool mirrored : {false, true}) {
+            auto doc = open(makeDocxWithParts(body, sect, {}, mirrored ? QByteArray("<w:mirrorMargins/>") : QByteArray()));
+            QVERIFY(doc);
+            QCOMPARE(doc->pager().pageCount(), 2);
+            for (int page = 0; page < 2; ++page) {
+                const auto m = doc->pager().materialize(page);
+                QVERIFY(m && !m->boxes.isEmpty());
+                const auto *box = dynamic_cast<const TextItem *>(m->doc->item(m->boxes[0]));
+                QVERIFY(box);
+                const double left = mirrored && page == 1 ? 40.0 : 100.0;
+                QVERIFY2(std::abs(box->rect.left() - left) < 0.01 && std::abs(box->rect.right() - (612 - (mirrored && page == 1 ? 100.0 : 40.0))) < 0.01,
+                         qPrintable(QStringLiteral("%1 page %2: the text is from %3 to %4").arg(mirrored ? "mirrored" : "plain").arg(page + 1).arg(box->rect.left()).arg(box->rect.right())));
+            }
+            QVERIFY(documentXml(doc->toDocx()).contains("w:left=\"2000\""));
+        }
+    }
+
+    // A run's display style makes its letters italic and bold where the layout is a word processor's, and is nothing in any other.
+    void aDisplayStyleSetsTheFaceOfAWordRun()
+    {
+        QTextCharFormat f;
+        f.setFontFamilies({QStringLiteral("Arimo")});
+        f.setFontPointSize(10);
+        auto resolved = [&](const QString &style, bool word) {
+            QTextCharFormat g = f;
+            g.setProperty(tp::DisplayStyle, style);
+            LayoutEnv env;
+            env.wordLines = word;
+            return resolveCharFormat(g, env);
+        };
+        QVERIFY(resolved(QStringLiteral("i"), true).fontItalic());
+        QVERIFY(!resolved(QStringLiteral("i"), true).fontWeight() || resolved(QStringLiteral("i"), true).fontWeight() < QFont::DemiBold);
+        QVERIFY(resolved(QStringLiteral("b"), true).fontWeight() >= QFont::DemiBold);
+        QVERIFY(!resolved(QStringLiteral("b"), true).fontItalic());
+        QVERIFY(resolved(QStringLiteral("ib"), true).fontItalic() && resolved(QStringLiteral("ib"), true).fontWeight() >= QFont::DemiBold);
+        QVERIFY(!resolved(QStringLiteral("ib"), false).fontItalic() && resolved(QStringLiteral("ib"), false).fontWeight() < QFont::DemiBold);
+    }
+
     // An absolute position tab (w:ptab) in a footer takes the text after it to the margin's right edge whatever stops the paragraph has (W179's footer: its name, then "Page 14 of 14"
     // at the margin, which ran together without a tab); one in the text is drawn the same and is written back as it was.
     void anAbsolutePositionTabGoesToTheMarginAndIsKept()
@@ -11935,6 +12256,426 @@ private Q_SLOTS:
         QVERIFY(at > 0);
         replaceWord(doc.story(), at, at + 5, QStringLiteral("brown"));
         QCOMPARE(doc.story()->toPlainText(), whole);
+    }
+
+    // ---- endnotes at the end of each section
+    // A document of two sections (the first ends in "Second body"), a note cited in each, and the notes' part (a separator "Sources"; "Alpha body note brwon" and "Beta body note"): the
+    // sections' properties and the settings' say where the endnotes go (`first`, `last`, and `settings` are the XML of an endnotePr, or empty).
+    static QByteArray sectionNotedDocx(const QByteArray &first, const QByteArray &last, const QByteArray &settings = QByteArray())
+    {
+        const QByteArray body = "<w:p><w:r><w:t>First body</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>"
+                                "<w:p><w:pPr>" + sectionXml(6000, 6000, 720, first) + "</w:pPr><w:r><w:t>Second body</w:t></w:r></w:p>"
+                                "<w:p><w:r><w:t>Third body</w:t></w:r><w:r><w:endnoteReference w:id=\"3\"/></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:t>Sources</w:t></w:r></w:p></w:endnote>"
+                                 "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Alpha body note brwon</w:t></w:r></w:p></w:endnote>"
+                                 "<w:endnote w:id=\"3\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Beta body note</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        return makeDocxWithParts(body, sectionXml(6000, 6000, 720, last), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/>" + settings + "</w:endnotePr>");
+    }
+    // The text of each paragraph of the story, without the pieces kept as XML, trimmed.
+    static QStringList storyParagraphs(WriteDoc &doc)
+    {
+        QStringList out;
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next()) out << b.text().remove(QChar::ObjectReplacementCharacter).trimmed();
+        return out;
+    }
+
+    // Where a section's properties say its endnotes go (w:pos "sectEnd"), the notes its references name are set at the end of that section, each section's after its own text and the file's
+    // separator first, and not at the end of the document. They are paragraphs of the pages' story that the file does not have: the section's break is after the last of them in the story,
+    // and is written back on the paragraph of the file's that came before.
+    void endnotesAreSetAtTheEndOfEachSectionThatSaysSo()
+    {
+        const QByteArray pr = "<w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>";
+        const QByteArray zip = sectionNotedDocx(pr, pr);
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QCOMPARE(storyParagraphs(*doc), (QStringList{QStringLiteral("First body"), QStringLiteral("Second body"), QStringLiteral("Sources"), QStringLiteral("Alpha body note brwon"), QStringLiteral("Third body"),
+                                                     QStringLiteral("Sources"), QStringLiteral("Beta body note")}));
+        QList<bool> breaks, marked;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) {
+            breaks << b.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
+            marked << b.blockFormat().hasProperty(prop::EndnoteBlock);
+        }
+        QCOMPARE(breaks, (QList<bool>{false, false, false, true, false, false, false}));
+        QCOMPARE(marked, (QList<bool>{false, false, true, true, false, true, true}));
+        QCOMPARE(doc->sectionCount(), 2);
+        // Each section's page ends with its own notes.
+        QCOMPARE(boxLines(*doc, 0), (QStringList{QStringLiteral("First body1"), QStringLiteral("Second body"), QStringLiteral("Sources"), QStringLiteral("1 Alpha body note brwon")}));
+        QCOMPARE(boxLines(*doc, 1), (QStringList{QStringLiteral("Third body2"), QStringLiteral("Sources"), QStringLiteral("2 Beta body note")}));
+        // Saved: the paragraphs of the file, the first section's break on its last, and the notes' part as it was.
+        QCOMPARE(savedBody(*doc), QStringLiteral("First body|Second body|Third body"));
+        const QByteArray written = documentXml(doc->toDocx());
+        QCOMPARE(written.count("<w:sectPr"), 2);
+        const qsizetype second = written.indexOf("Second body"), at = written.indexOf("<w:sectPr");
+        QVERIFY2(at > 0 && at < second, "the first section's break is in the paragraph of its last text");
+        QCOMPARE(notesPartOf(doc->toDocx()), notesPartOf(zip));
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QCOMPARE(storyParagraphs(*again), storyParagraphs(*doc));
+        QCOMPARE(documentXml(again->toDocx()), written);
+    }
+
+    // The settings' w:pos is the sections' where they say none; a section that says the end of the document (docEnd) has its notes after the document's last text, with the other
+    // sections' that are there, in the order of their references; and a file that says nothing has all of them at the end, as before.
+    void whereTheEndnotesGoFollowsTheSettingsAndTheSection()
+    {
+        const QByteArray sectEnd = "<w:pos w:val=\"sectEnd\"/>";
+        auto paragraphsOf = [&](const QByteArray &first, const QByteArray &last, const QByteArray &settings) {
+            auto doc = open(sectionNotedDocx(first, last, settings));
+            return doc ? storyParagraphs(*doc) : QStringList{QStringLiteral("NO DOCUMENT")};
+        };
+        const QStringList atSections = {QStringLiteral("First body"), QStringLiteral("Second body"), QStringLiteral("Sources"), QStringLiteral("Alpha body note brwon"), QStringLiteral("Third body"),
+                                        QStringLiteral("Sources"), QStringLiteral("Beta body note")};
+        const QStringList atEnd = {QStringLiteral("First body"), QStringLiteral("Second body"), QStringLiteral("Third body"), QStringLiteral("Sources"), QStringLiteral("Alpha body note brwon"),
+                                   QStringLiteral("Beta body note")};
+        QCOMPARE(paragraphsOf(QByteArray(), QByteArray(), sectEnd), atSections);   // (the settings')
+        QCOMPARE(paragraphsOf(QByteArray(), QByteArray(), QByteArray()), atEnd);
+        QCOMPARE(paragraphsOf(QByteArray(), QByteArray(), "<w:pos w:val=\"docEnd\"/>"), atEnd);
+        QCOMPARE(paragraphsOf("<w:endnotePr><w:pos w:val=\"docEnd\"/></w:endnotePr>", QByteArray(), sectEnd), atEnd);   // (the first section's own says the end of the document)
+        // (A document of one section has them at its end either way.)
+        auto one = open(makeDocxWithParts("<w:p><w:r><w:t>Only</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>", sectionXml(6000, 6000, 720, "<w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>"),
+                                          {{QStringLiteral("/word/endnotes.xml"), "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> Note</w:t></w:r></w:p></w:endnote></w:endnotes>"}}));
+        QVERIFY(one);
+        QCOMPARE(storyParagraphs(*one), (QStringList{QStringLiteral("Only"), QStringLiteral("Note")}));
+    }
+
+    // Nothing types into, deletes, or joins the endnotes set at a section's end, and a selection that goes over them changes the text round them and not them: what is deleted is the
+    // text's alone (the paragraphs before and after them are not joined), and it is one step of undo.
+    void editingNextToTheEndnotesOfASectionLeavesThem()
+    {
+        const QByteArray pr = "<w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>";
+        const QByteArray zip = sectionNotedDocx(pr, pr);
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *story = doc->story();
+        const QString before = story->toPlainText();
+        // In the endnotes: nothing happens (a caret in the separator or a note, a word of a note selected).
+        for (int number : {2, 3, 5, 6}) {
+            const QTextBlock b = story->findBlockByNumber(number);
+            QTextCursor at(story);
+            at.setPosition(b.position() + std::min(2, b.length() - 1));
+            insertText(*doc, at, QStringLiteral("ZZZ"));
+            insertParagraph(*doc, at);
+            deleteBack(*doc, at, false);
+            deleteForward(*doc, at, false);
+            QCOMPARE(story->toPlainText(), before);
+        }
+        QTextCursor word(story);
+        word.setPosition(story->findBlockByNumber(3).position() + 2);
+        word.setPosition(story->findBlockByNumber(3).position() + 7, QTextCursor::KeepAnchor);
+        insertText(*doc, word, QStringLiteral("ZZZ"));
+        QCOMPARE(story->toPlainText(), before);
+        // At the edges Delete and Backspace join the paragraphs round the notes and end the section's break (deleteAndBackspaceAtTheEndnotesOfASectionEndTheBreak).
+        QTextCursor edge(story);
+        // Typing at the end of the section's last text is typing in the text.
+        edge.setPosition(story->findBlockByNumber(1).position() + story->findBlockByNumber(1).length() - 1);
+        insertText(*doc, edge, QStringLiteral("!"));
+        QCOMPARE(storyParagraphs(*doc).value(1), QStringLiteral("Second body!"));
+        QCOMPARE(doc->sectionCount(), 2);
+        story->undo();
+        QCOMPARE(story->toPlainText(), before);
+        // A selection from inside the first paragraph to inside the last: the text between goes, the notes stay where they are, and what is left on either side of them is not joined.
+        QTextCursor over(story);
+        over.setPosition(story->findBlockByNumber(0).position() + 1);
+        over.setPosition(story->findBlockByNumber(4).position() + 1, QTextCursor::KeepAnchor);
+        removeSelection(*doc, over);
+        QCOMPARE(storyParagraphs(*doc), (QStringList{QStringLiteral("F"), QStringLiteral("Sources"), QStringLiteral("Alpha body note brwon"), QStringLiteral("hird body"), QStringLiteral("Sources"),
+                                                     QStringLiteral("Beta body note")}));
+        QCOMPARE(tailOf(*doc), 4);
+        QCOMPARE(doc->sectionCount(), 2);
+        QCOMPARE(savedBody(*doc), QStringLiteral("F|hird body"));
+        QCOMPARE(documentXml(doc->toDocx()).count("<w:sectPr"), 2);
+        QCOMPARE(notesPartOf(doc->toDocx()), notesPartOf(zip));
+        story->undo();
+        QCOMPARE(story->toPlainText(), before);
+    }
+
+    // A caret and a selection are held out of the endnotes set at a section's end, a copy has only the text, Replace All and spelling see the text alone, and Select All with typing changes the
+    // text and not the notes.
+    void copyFindAndSpellingLeaveTheEndnotesOfASectionAlone()
+    {
+        const QByteArray pr = "<w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>";
+        const QByteArray zip = sectionNotedDocx(pr, pr);
+        WriteWindow w;
+        w.setDocument(open(zip), QString());
+        w.show();
+        WriteDoc &doc = *w.document();
+        QTextDocument *story = doc.story();
+        // The caret: a position in a note is held at the end of the paragraph before it.
+        QTextCursor c(story);
+        c.setPosition(story->findBlockByNumber(3).position() + 3);
+        holdInBody(c);
+        QCOMPARE(c.position(), story->findBlockByNumber(1).position() + story->findBlockByNumber(1).length() - 1);
+        c.setPosition(0);
+        c.setPosition(story->findBlockByNumber(3).position() + 3, QTextCursor::KeepAnchor);
+        holdInBody(c);
+        QCOMPARE(c.selectionEnd(), story->findBlockByNumber(1).position() + story->findBlockByNumber(1).length() - 1);
+        // The copy of the whole story.
+        c.select(QTextCursor::Document);
+        const QString copied = plainTextOf(copySelection(doc, c).fragment);
+        QVERIFY2(copied.contains(QLatin1String("First body")) && copied.contains(QLatin1String("Third body")) && !copied.contains(QLatin1String("Alpha")) && !copied.contains(QLatin1String("Sources"))
+                     && !copied.contains(QLatin1String("Beta")), qPrintable(copied));
+        QVERIFY(!plainTextOf(selectionFragment(c)).contains(QLatin1String("Alpha")));
+        // Replace All.
+        w.showFindPane(true);
+        WriteFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("body"));
+        pane->replaceBox()->setText(QStringLiteral("text"));
+        pane->replaceAll();
+        QCOMPARE(pane->status(), QStringLiteral("JeffWrite made 3 replacements."));
+        QCOMPARE(savedBody(doc), QStringLiteral("First text|Second text|Third text"));
+        QVERIFY2(story->toPlainText().contains(QLatin1String(" Alpha body note brwon")) && story->toPlainText().contains(QLatin1String(" Beta body note")), "the notes are as they were");
+        QCOMPARE(notesPartOf(doc.toDocx()), notesPartOf(zip));
+        // Spelling: the notes' "brwon" is neither flagged nor replaced.
+        SpellCheck sc(story);
+        QVERIFY(flaggedWords(sc, doc).isEmpty());
+        const QString whole = story->toPlainText();
+        const int at = int(whole.indexOf(QLatin1String("brwon")));
+        QVERIFY(at > 0);
+        replaceWord(story, at, at + 5, QStringLiteral("brown"));
+        QCOMPARE(story->toPlainText(), whole);
+        // Select All and typing: the text is replaced by what is typed, a paragraph to each stretch of text, and the notes and the saved part of them are as they were.
+        QTextCursor everything(story);
+        everything.select(QTextCursor::Document);
+        write::insertText(doc, everything, QStringLiteral("Z"));
+        QCOMPARE(tailOf(doc), 4);
+        QVERIFY(story->toPlainText().contains(QLatin1String(" Alpha body note brwon")) && story->toPlainText().contains(QLatin1String(" Beta body note")));
+        QVERIFY(story->findBlockByNumber(0).text().startsWith(QLatin1Char('Z')));
+        QCOMPARE(notesPartOf(doc.toDocx()), notesPartOf(zip));
+    }
+
+    // The caret passes the endnotes set at a section's end: from the last place of text of a section, Right, Down, Ctrl+Right, and Ctrl+Down go to the first place of the next section's
+    // text; from that first place, Left, Up, Ctrl+Left, and Ctrl+Up go to the last place of the section before; with Shift the selection is extended the same way; and a click in the
+    // notes puts the caret at the nearest place the person may type, the notes' first lines being nearer the text above them and their last the text below.
+    void theCaretPassesTheEndnotesOfASection()
+    {
+        const QByteArray pr = "<w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>";
+        auto doc = open(sectionNotedDocx(pr, pr));
+        QVERIFY(doc);
+        PageView view;
+        view.resize(800, 700);
+        view.setDocument(doc.get());
+        view.show();
+        view.paginateAll();
+        QTextDocument *story = doc->story();
+        const QTextBlock second = story->findBlockByNumber(1), third = story->findBlockByNumber(4);
+        const int lastReal = second.position() + second.length() - 1, nextFirst = third.position();
+        QVERIFY(story->findBlockByNumber(2).blockFormat().hasProperty(prop::EndnoteBlock) && story->findBlockByNumber(3).blockFormat().hasProperty(prop::EndnoteBlock));
+        struct Key {
+            int key;
+            Qt::KeyboardModifiers modifiers;
+            const char *name;
+        };
+        const Key forward[] = {{Qt::Key_Right, Qt::NoModifier, "Right"}, {Qt::Key_Down, Qt::NoModifier, "Down"}, {Qt::Key_Right, Qt::ControlModifier, "Ctrl+Right"}, {Qt::Key_Down, Qt::ControlModifier, "Ctrl+Down"}};
+        const Key backward[] = {{Qt::Key_Left, Qt::NoModifier, "Left"}, {Qt::Key_Up, Qt::NoModifier, "Up"}, {Qt::Key_Left, Qt::ControlModifier, "Ctrl+Left"}, {Qt::Key_Up, Qt::ControlModifier, "Ctrl+Up"}};
+        auto press = [&](int at, const Key &k, bool shift) {
+            QTextCursor c(story);
+            c.setPosition(at);
+            view.setCursor(c);
+            view.typeKey(k.key, k.modifiers | (shift ? Qt::ShiftModifier : Qt::NoModifier));
+            return QPair<int, int>(view.cursor().anchor(), view.cursor().position());
+        };
+        auto expect = [&](int from, const Key &k, bool shift, QPair<int, int> want) {
+            const QPair<int, int> got = press(from, k, shift);
+            QVERIFY2(got == want, qPrintable(QStringLiteral("%1%2 from %3: anchor %4 and position %5, not %6 and %7").arg(shift ? "Shift+" : "", k.name).arg(from).arg(got.first).arg(got.second).arg(want.first).arg(want.second)));
+        };
+        for (const Key &k : forward) {
+            expect(lastReal, k, false, {nextFirst, nextFirst});
+            expect(lastReal, k, true, {lastReal, nextFirst});
+        }
+        for (const Key &k : backward) {
+            expect(nextFirst, k, false, {lastReal, lastReal});
+            expect(nextFirst, k, true, {nextFirst, lastReal});
+        }
+        // A click in the notes: the lines of the first page are the first section's two paragraphs, the separator, and the note.
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page && !page->boxes.isEmpty());
+        const auto *item = dynamic_cast<const TextItem *>(page->doc->item(page->boxes[0]));
+        QVERIFY(item);
+        FrameSpec fs;
+        fs.size = item->rect.size();
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        fs.hyphenate = false;
+        StoryLayout layout;
+        layout.build(page->doc->story(item->storyId)->doc.get(), {fs}, doc->flow().env);
+        const auto lines = layout.lineInfo(0);
+        QVERIFY(lines.size() == 4);
+        auto click = [&](int line) {
+            const QRect pageRect = view.pageRect(0);
+            const double scale = pageRect.width() / 300.0;
+            const QRectF r = lines[line].rect.translated(item->rect.topLeft());
+            QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(int(pageRect.left() + (r.left() + 20) * scale), int(pageRect.top() + r.center().y() * scale)));
+            return view.cursor().position();
+        };
+        QCOMPARE(click(2), lastReal);   // (the separator: the first of the notes)
+        QCOMPARE(click(3), nextFirst);  // (the note: the last)
+    }
+
+    // What is done to the characters of a selection that goes over the endnotes of a section reaches the text and not the notes: bold, italic, underline, a size, a color, a highlight, a
+    // face, super and subscript, a character style, and clearing the formatting; and a second Bold, over text that is all bold, turns it off (the notes' own looks are not counted).
+    void formattingASelectionLeavesTheEndnotesOfASectionAlone()
+    {
+        const QByteArray pr = "<w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>";
+        auto doc = open(sectionNotedDocx(pr, pr));
+        QVERIFY(doc);
+        QTextDocument *story = doc->story();
+        auto notes = [&] {
+            QList<QTextCharFormat> out;
+            for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+                if (b.blockFormat().hasProperty(prop::EndnoteBlock))
+                    for (auto it = b.begin(); !it.atEnd(); ++it) out << it.fragment().charFormat();
+            return out;
+        };
+        const QList<QTextCharFormat> before = notes();
+        QVERIFY(!before.isEmpty());
+        auto select = [&] {
+            QTextCursor c(story);
+            c.setPosition(0);
+            c.setPosition(story->findBlockByNumber(4).position() + story->findBlockByNumber(4).length() - 1, QTextCursor::KeepAnchor);
+            return c;
+        };
+        struct Change {
+            const char *name;
+            std::function<void(QTextCursor &)> make;
+        };
+        const Change changes[] = {
+            {"bold", [&](QTextCursor &c) { toggleBold(*doc, c); }},
+            {"italic", [&](QTextCursor &c) { toggleItalic(*doc, c); }},
+            {"underline", [&](QTextCursor &c) { toggleUnderline(*doc, c); }},
+            {"strike", [&](QTextCursor &c) { toggleStrike(*doc, c); }},
+            {"subscript", [&](QTextCursor &c) { toggleSubscript(*doc, c); }},
+            {"superscript", [&](QTextCursor &c) { toggleSuperscript(*doc, c); }},
+            {"size", [&](QTextCursor &c) { setFontSize(*doc, c, 30); }},
+            {"grow", [&](QTextCursor &c) { changeFontSize(*doc, c, 1); }},
+            {"face", [&](QTextCursor &c) { setFontFamily(*doc, c, QStringLiteral("Arimo")); }},
+            {"color", [&](QTextCursor &c) { setTextColor(*doc, c, QColor(200, 0, 0)); }},
+            {"highlight", [&](QTextCursor &c) { setHighlight(*doc, c, QStringLiteral("yellow")); }},
+            {"character style", [&](QTextCursor &c) { applyCharacterStyle(*doc, c, QStringLiteral("Strong")); }},
+            {"clear", [&](QTextCursor &c) { clearFormatting(*doc, c); }},
+        };
+        for (const Change &change : changes) {
+            QTextCursor c = select();
+            change.make(c);
+            QVERIFY2(notes() == before, change.name);
+        }
+        // The text took the formats: Bold on the whole is bold, and Bold again is not.
+        auto bold = [&] {
+            QTextCursor c = select();
+            return allSelected(c, [](const QTextCharFormat &f) { return f.fontWeight() >= QFont::DemiBold; });
+        };
+        QTextCursor c = select();
+        clearFormatting(*doc, c);
+        QVERIFY(!bold());
+        c = select();
+        toggleBold(*doc, c);
+        QVERIFY(bold());
+        QCOMPARE(notes(), before);
+        c = select();
+        toggleBold(*doc, c);
+        QVERIFY(!bold());
+        QCOMPARE(notes(), before);
+    }
+
+    // At the edge of the endnotes set at a section's end, Delete at the end of the section's last paragraph and Backspace at the start of the next section's join the two paragraphs and
+    // so end the section break, as they do where the section has no notes; the notes of the one section that is left are in one tail at its end, in the order of their references. One
+    // undo restores the sections and the notes exactly, and a redo does it again; and what is saved opens the same.
+    void deleteAndBackspaceAtTheEndnotesOfASectionEndTheBreak()
+    {
+        const QByteArray pr = "<w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>";
+        for (const bool forward : {true, false}) {
+            auto doc = open(sectionNotedDocx(pr, pr));
+            QVERIFY(doc);
+            QTextDocument *story = doc->story();
+            const QString before = story->toPlainText();
+            const QStringList paragraphsBefore = storyParagraphs(*doc);
+            QTextCursor c(story);
+            if (forward) c.setPosition(story->findBlockByNumber(1).position() + story->findBlockByNumber(1).length() - 1);
+            else c.setPosition(story->findBlockByNumber(4).position());
+            if (forward) deleteForward(*doc, c, false);
+            else deleteBack(*doc, c, false);
+            const QString which = forward ? QStringLiteral("Delete") : QStringLiteral("Backspace");
+            const QStringList joined = {QStringLiteral("First body"), QStringLiteral("Second bodyThird body"), QStringLiteral("Sources"), QStringLiteral("Alpha body note brwon"), QStringLiteral("Beta body note")};
+            QVERIFY2(storyParagraphs(*doc) == joined, qPrintable(which + QStringLiteral(": ") + storyParagraphs(*doc).join(QLatin1Char('|'))));
+            QCOMPARE(doc->sectionCount(), 1);
+            QCOMPARE(tailOf(*doc), 3);
+            const QString after = story->toPlainText();
+            const QByteArray written = documentXml(doc->toDocx());
+            QCOMPARE(written.count("<w:sectPr"), 1);
+            QCOMPARE(savedBody(*doc), QStringLiteral("First body|Second bodyThird body"));
+            auto reopened = open(doc->toDocx());
+            QVERIFY(reopened);
+            QCOMPARE(storyParagraphs(*reopened), joined);
+            story->undo();
+            QCOMPARE(story->toPlainText(), before);
+            QCOMPARE(storyParagraphs(*doc), paragraphsBefore);
+            QCOMPARE(doc->sectionCount(), 2);
+            QCOMPARE(documentXml(doc->toDocx()).count("<w:sectPr"), 2);
+            story->redo();
+            QCOMPARE(story->toPlainText(), after);
+            QCOMPARE(doc->sectionCount(), 1);
+        }
+    }
+
+    // A section break put inside a section that has its notes at its end sends each note to the end of the section its reference is in now (the first part's notes were after the second
+    // part's text until the file was opened again); one undo and one redo restore both exactly, and what is saved opens the same.
+    void aSectionBreakPutInASectionMovesItsNotesToTheEndOfTheRightPart()
+    {
+        const QByteArray pr = "<w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>";
+        const QByteArray body = "<w:p><w:r><w:t>First body</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p><w:p><w:r><w:t>Second body</w:t></w:r><w:r><w:endnoteReference w:id=\"3\"/></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:t>Sources</w:t></w:r></w:p></w:endnote>"
+                                 "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Alpha body note brwon</w:t></w:r></w:p></w:endnote>"
+                                 "<w:endnote w:id=\"3\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Beta body note</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        const QByteArray zip = makeDocxWithParts(body, sectionXml(6000, 6000, 720, pr), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>");
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *story = doc->story();
+        const QStringList one = {QStringLiteral("First body"), QStringLiteral("Second body"), QStringLiteral("Sources"), QStringLiteral("Alpha body note brwon"), QStringLiteral("Beta body note")};
+        QCOMPARE(storyParagraphs(*doc), one);
+        const QString before = story->toPlainText();
+        QTextCursor c(story);
+        c.setPosition(story->findBlockByNumber(0).position() + story->findBlockByNumber(0).length() - 1);
+        insertSectionBreak(*doc, c);
+        const QStringList two = {QStringLiteral("First body"), QStringLiteral("Sources"), QStringLiteral("Alpha body note brwon"), QString(), QStringLiteral("Second body"), QStringLiteral("Sources"), QStringLiteral("Beta body note")};
+        QVERIFY2(storyParagraphs(*doc) == two, qPrintable(storyParagraphs(*doc).join(QLatin1Char('|'))));
+        QCOMPARE(doc->sectionCount(), 2);
+        QList<bool> breaks;
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) breaks << b.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
+        QCOMPARE(breaks, (QList<bool>{false, false, true, false, false, false, false}));
+        const QString after = story->toPlainText();
+        const QByteArray written = documentXml(doc->toDocx());
+        QCOMPARE(written.count("<w:sectPr"), 2);
+        QCOMPARE(savedBody(*doc), QStringLiteral("First body||Second body"));
+        QCOMPARE(notesPartOf(doc->toDocx()), notesPartOf(zip));
+        auto reopened = open(doc->toDocx());
+        QVERIFY(reopened);
+        QCOMPARE(storyParagraphs(*reopened), two);
+        story->undo();
+        QCOMPARE(story->toPlainText(), before);
+        QCOMPARE(storyParagraphs(*doc), one);
+        QCOMPARE(doc->sectionCount(), 1);
+        story->redo();
+        QCOMPARE(story->toPlainText(), after);
+        QCOMPARE(storyParagraphs(*doc), two);
+        QCOMPARE(doc->sectionCount(), 2);
+    }
+
+    // The endnotes of a file of thousands of sections, each citing a note of many paragraphs, are made and set in the most the program sets in all (not that many for each section), and the
+    // sections and the text are all there.
+    void endnotesAtSectionEndsAreBoundedInAll()
+    {
+        const int sections = 1500;
+        QByteArray body, notes = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:id=\"1\">";
+        const QByteArray pr = "<w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>";
+        for (int i = 0; i < sections; ++i)
+            body += "<w:p><w:pPr>" + sectionXml(6000, 6000, 720, pr, "<w:type w:val=\"continuous\"/>") + "</w:pPr><w:r><w:t>S" + QByteArray::number(i) + "</w:t></w:r><w:r><w:endnoteReference w:id=\"1\"/></w:r></w:p>";
+        for (int i = 0; i < 40; ++i) notes += "<w:p><w:r><w:t>n" + QByteArray::number(i) + "</w:t></w:r></w:p>";
+        notes += "</w:endnote></w:endnotes>";
+        resetEndnoteParagraphsMadeForTest();
+        auto doc = open(makeDocxWithParts(body + "<w:p><w:r><w:t>Last</w:t></w:r></w:p>", sectionXml(6000, 6000, 720, pr, "<w:type w:val=\"continuous\"/>"), {{QStringLiteral("/word/endnotes.xml"), notes}}));
+        QVERIFY(doc);
+        QCOMPARE(endnoteParagraphsMadeForTest(), qint64(kMostEndnoteParagraphs));
+        QCOMPARE(tailOf(*doc), kMostEndnoteParagraphs);
+        QCOMPARE(doc->sectionCount(), sections + 1);
+        QVERIFY(savedBody(*doc).startsWith(QLatin1String("S0|S1|S2|")) && savedBody(*doc).endsWith(QLatin1String("|S1499|Last")));
     }
 
     // A file whose one note of thousands of paragraphs is cited thousands of times has the copies of it that are set made and no more: the paragraphs made are as many as are set

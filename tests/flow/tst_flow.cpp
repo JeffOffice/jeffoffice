@@ -28,6 +28,7 @@
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QFontDatabase>
+#include <QRawFont>
 #include <QTextDocument>
 #include <QTextList>
 #include <functional>
@@ -783,11 +784,27 @@ struct LetterLine {
     QVector<double> x, cell, stand, width;
 };
 
+// A family of the machine's own fonts that has the character (looked for among those the system lists for the East Asian writing systems), or none.
+QString installedFaceFor(uint ch)
+{
+    // (The candidates are the layout's own: the first 64 families of each East Asian writing system, in the order Japanese, Simplified and Traditional Chinese, and Korean.)
+    for (const QString &family : eastAsianCandidateFamilies())
+        if (QRawFont::fromFont(QFont(family)).supportsCharacter(ch)) return family;
+    return QString();
+}
+
 LetterLine letterLineOf(const QString &family, const QString &text, double size, bool word, bool kerned = true, const QVector<int> &splits = {}, bool hyphenate = false)
 {
     LetterLine line;
     QTextCharFormat cf;
     cf.setFontFamilies({family});
+    // (Where the machine has a face for the East Asian characters of the text, both layouts are given it, as a word processor's layout gives it itself: they are then drawn alike in both.)
+    for (const QChar ch : text)
+        if (ch.unicode() >= 0x2E80 && ch.unicode() <= 0xD7FF)
+            if (const QString face = installedFaceFor(ch.unicode()); !face.isEmpty()) {
+                cf.setFontFamilies({family, face});
+                break;
+            }
     cf.setFontPointSize(size);
     if (word && kerned) cf.setProperty(tp::KernAbove, 1.0);   // (a word processor's text is kerned only where its file asks)
     LayoutEnv env;
@@ -3000,6 +3017,133 @@ private Q_SLOTS:
         }
     }
 
+    // A stand-in that is drawn with a stroke by hand (Bodoni MT Black, Rockwell Extra Bold) is drawn in two passes, and a PDF's text reader ends a word at each piece of text that is
+    // drawn so: a word that the letter widths cut into pieces reads as two ("Propert" and "y", in the heading of a practice document). Such a run is cut only where a word ends or a line
+    // may break in it, whatever the stand-in's widths are to the original's.
+    void aWordInAStandInDrawnByHandIsOnePiece()
+    {
+        LayoutEnv word;
+        word.wordLines = true;
+        const QString text = QString::fromUtf8("Property Scrapbook—Success & Dedication of Ownership");
+        int tested = 0;
+        for (const QString &family : {QStringLiteral("Bodoni MT Black"), QStringLiteral("Rockwell Extra Bold")}) {
+            if (QFontDatabase::hasFamily(family)) continue;   // (a machine with the face draws that)
+            QTextCharFormat cf;
+            cf.setFontFamilies({family});
+            cf.setFontPointSize(12);
+            const QTextCharFormat drawn = resolveCharFormat(cf, word);
+            if (!drawn.hasProperty(tp::HandBold)) continue;
+            ++tested;
+            const auto pieces = applyWordLetterWidths({QTextLayout::FormatRange{0, int(text.size()), drawn}}, text);
+            QVERIFY2(pieces.size() > 1, "the widths cut the run");
+            for (const auto &r : pieces) {
+                if (r.start == 0) continue;
+                const QChar before = text[r.start - 1], at = text[r.start];
+                QVERIFY2(before.isSpace() || at.isSpace() || before == QChar(0x2014) || at == QChar(0x2014), qPrintable(QStringLiteral("%1: a piece begins inside a word, at %2 (\"%3\")").arg(family).arg(r.start).arg(text.mid(std::max(0, r.start - 4), 8))));
+            }
+        }
+        if (!tested) QSKIP("no face of the kind is missing here");
+    }
+
+    // East Asian characters that a run's font lacks are drawn in a face of the machine's own that has them (the system's fonts are what is relied on: none is bundled): in a font the
+    // machine lacks, "東京" is two ems wide, where a missing glyph is half an em of nothing. Skipped on a machine with no face for them (the macOS and Windows machines of CI have them;
+    // a Linux one has them only if its image installs a CJK font).
+    void aRunInAMissingFontDrawsEastAsianCharactersInTheMachinesOwnFace()
+    {
+        if (installedFaceFor(0x6771).isEmpty() || installedFaceFor(0x4EAC).isEmpty() || installedFaceFor(0x3068).isEmpty() || installedFaceFor(0x304D).isEmpty()) QSKIP("this machine has no face for the Japanese characters of the test (the ideographs and the kana)");
+        const QString family = QStringLiteral("Test Mincho That No Machine Has");
+        QVERIFY(!QFontDatabase::hasFamily(family));
+        // (As text, and as a field's result: a ruby's text, which the practice document's two characters are, is a piece kept as XML that shows text in its place.)
+        auto widthOf = [&](const QString &text, bool asField) {
+            auto doc = std::make_unique<QTextDocument>();
+            QTextCursor c(doc.get());
+            QTextCharFormat cf;
+            cf.setFontFamilies({family});
+            cf.setFontPointSize(20);
+            if (asField) cf.setProperty(tp::Field, QStringLiteral("raw:") + text);
+            c.insertText(asField ? QString(QChar::ObjectReplacementCharacter) : text, cf);
+            FrameSpec fs;
+            fs.size = QSizeF(600, 100);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            LayoutEnv word;
+            word.wordLines = true;
+            StoryLayout layout;
+            layout.build(doc.get(), {fs}, word);
+            double width = 0;
+            for (const QRectF &r : layout.rangeRects(0, 0, asField ? 1 : int(text.size()))) width += r.width();
+            return width;
+        };
+        const QString ideographs = QString::fromUtf8("東京"), kana = QString::fromUtf8("とうきょう");
+        for (const bool asField : {false, true}) {
+            const double wide = widthOf(ideographs, asField), small = widthOf(kana, asField);
+            QVERIFY2(wide >= 2 * 20 * 0.9, qPrintable(QStringLiteral("two ideographs are %1 points wide%2").arg(wide).arg(asField ? QStringLiteral(" as a field") : QString())));
+            QVERIFY2(small >= 5 * 20 * 0.9, qPrintable(QStringLiteral("five kana are %1 points wide%2").arg(small).arg(asField ? QStringLiteral(" as a field") : QString())));
+        }
+    }
+
+    // The font database is scanned for the East Asian faces once for the program, not for each character looked up: laying out two documents of hundreds of different ideographs, in a
+    // face that no machine has, scans it no more than once for each writing system (four, in all).
+    void theFontDatabaseIsScannedForEastAsianFacesOnce()
+    {
+        const QString family = QStringLiteral("Test Mincho That No Machine Has");
+        const qint64 before = eastAsianFontScansForTest();
+        for (int round = 0; round < 2; ++round) {
+            QString text;
+            for (int i = 0; i < 300; ++i) text += QChar(0x4E00 + round * 400 + i * 3);
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat cf;
+            cf.setFontFamilies({family});
+            cf.setFontPointSize(12);
+            c.insertText(text, cf);
+            FrameSpec fs;
+            fs.size = QSizeF(600, 400);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            LayoutEnv word;
+            word.wordLines = true;
+            StoryLayout layout;
+            layout.build(&doc, {fs}, word);
+        }
+        const qint64 scans = eastAsianFontScansForTest() - before;
+        QVERIFY2(scans <= 4, qPrintable(QStringLiteral("the font database was scanned %1 times").arg(scans)));
+    }
+
+    // Only East Asian characters go looking for a face: an emoji and a letter of the mathematical alphanumeric block do not, and an ideograph of the supplementary planes (U+20000 to
+    // U+3FFFF) does; Latin text gains no family.
+    void onlyEastAsianCharactersTakeTheirFaceFromTheMachine()
+    {
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Test Mincho That No Machine Has")});
+        const qint64 start = eastAsianLookupsForTest();
+        QString noise;
+        for (int i = 0; i < 100; ++i) {
+            const char32_t emoji = 0x1F600 + i, letter = 0x1D400 + i;
+            noise += QString::fromUcs4(&emoji, 1) + QString::fromUcs4(&letter, 1);
+        }
+        const QTextCharFormat kept = withEastAsianFaces(cf, noise + QStringLiteral(" Latin text, and 12345."));
+        QCOMPARE(eastAsianLookupsForTest() - start, qint64(0));
+        QCOMPARE(kept.fontFamilies().toStringList(), QStringList{QStringLiteral("Test Mincho That No Machine Has")});
+        // (An ideograph of the supplementary planes takes the way, whether or not a face has it.)
+        const char32_t extB = 0x20000;
+        withEastAsianFaces(cf, QString::fromUcs4(&extB, 1));
+        QVERIFY(eastAsianLookupsForTest() - start >= 1);
+    }
+
+    // The family choice, tested directly (so that it fails without the feature on every machine, where Qt's own fallback would draw the characters anyway): a run in a face the machine
+    // lacks gains, after its own, the family of the machine's that has each of its East Asian characters, the first of the candidates that has it.
+    void aRunInAMissingFontGainsTheMachinesFamilyThatHasItsEastAsianCharacters()
+    {
+        if (installedFaceFor(0x6771).isEmpty() || installedFaceFor(0x3068).isEmpty()) QSKIP("this machine has no face for the Japanese characters of the test");
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Test Mincho That No Machine Has")});
+        const QTextCharFormat gained = withEastAsianFaces(cf, QString::fromUtf8("\xe6\x9d\xb1\xe4\xba\xac\xe3\x81\xa8"));
+        const QStringList families = gained.fontFamilies().toStringList();
+        QVERIFY2(families.size() >= 2 && families.first() == QStringLiteral("Test Mincho That No Machine Has"), qPrintable(families.join(QLatin1Char(','))));
+        QVERIFY2(families.contains(installedFaceFor(0x6771)) && families.contains(installedFaceFor(0x3068)), qPrintable(families.join(QLatin1Char(','))));
+    }
+
     // The line of Courier New is Courier New's wherever it is measured, though the text is drawn in TeX Gyre Cursor (whose own line is 1.201 em, to Courier New's 1.133):
     // the number of a list item is a run of its own on the first line, and the paragraph after a keep-with-next one is measured for room.
     void aNumberedCourierNewItemKeepsCourierNewsLine()
@@ -4848,6 +4992,165 @@ private Q_SLOTS:
                         QCOMPARE(st->doc->begin().blockFormat().lineHeight(), 80.0);
                     }
         QVERIFY(box);
+    }
+
+    // With facing pages (mirrored margins) a section's left and right margins are its inside and its outside: the text, the header, and the footer of a page with an odd number are
+    // set as the section says, and those of a page with an even number have its right margin on the left and its left on the right, whatever the numbers of the pages begin at; the
+    // width of the text is the same on all, and a document without them has every page alike.
+    void mirroredMarginsSwapTheSidesOfEvenPages()
+    {
+        for (const bool mirrored : {false, true}) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.mirrorMargins = mirrored;
+            fillStory(fd.story(), 3, 7, [](int i, QTextBlockFormat &bf) { if (i > 0) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore); }, 10, 10);   // (a paragraph to a page)
+            Section &s = fd.sections[0];
+            s.margins = QMarginsF(100, 72, 40, 72);
+            s.header.first = s.header.odd = s.header.even = furnitureStory({QStringLiteral("HEAD")});
+            s.footer.first = s.footer.odd = s.footer.even = furnitureStory({QStringLiteral("FOOT")});
+            Paginator pg(&fd);
+            QCOMPARE(pg.pageCount(), 3);
+            for (int page = 0; page < 3; ++page) {
+                const auto m = pg.materialize(page);
+                QVERIFY(m && !m->boxes.isEmpty());
+                const double inside = 100, outside = 40, left = mirrored && page % 2 == 1 ? outside : inside, right = mirrored && page % 2 == 1 ? inside : outside;
+                const auto *body = dynamic_cast<const TextItem *>(m->doc->item(m->boxes[0]));
+                QVERIFY(body);
+                const QString where = QStringLiteral("%1 page %2").arg(mirrored ? "mirrored" : "plain").arg(page + 1);
+                QVERIFY2(std::abs(body->rect.left() - left) < 0.01, qPrintable(where + QStringLiteral(": the text begins at %1, not %2").arg(body->rect.left()).arg(left)));
+                QVERIFY2(std::abs(body->rect.right() - (612 - right)) < 0.01, qPrintable(where + QStringLiteral(": the text ends at %1, not %2").arg(body->rect.right()).arg(612 - right)));
+                for (const char *kind : {"flow-header-box", "flow-footer-box"}) {
+                    const auto boxes = audit::itemsWith(*m, QString::fromLatin1(kind));
+                    QVERIFY2(boxes.size() == 1, qPrintable(where + QStringLiteral(": %1 has %2 boxes").arg(kind).arg(boxes.size())));
+                    QVERIFY2(std::abs(boxes[0]->rect.left() - left) < 0.01 && std::abs(boxes[0]->rect.right() - (612 - right)) < 0.01,
+                             qPrintable(where + QStringLiteral(": %1 is at %2 to %3").arg(kind).arg(boxes[0]->rect.left()).arg(boxes[0]->rect.right())));
+                }
+            }
+        }
+    }
+
+    // The text of a page that is laid out in parts (a continuous section with other columns begins on it, under the text of the section before) is set between the mirrored margins on a
+    // page with an even number, in every part: the single column of the first and the columns of the second.
+    void mirroredMarginsHoldOnAPageLaidOutInParts()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fd.mirrorMargins = true;
+        fillStory(fd.story(), 14, 7, [](int i, QTextBlockFormat &bf) {
+            if (i == 1) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore);
+            if (i == 1) bf.setProperty(fp::SectionBreakAfter, true);
+        }, 40, 60);
+        Section &one = fd.sections[0];
+        one.margins = QMarginsF(100, 72, 40, 72);
+        Section two = one;
+        two.continuous = true;
+        two.columns = 2;
+        two.columnGap = 20;
+        fd.sections << two;
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 2);
+        const auto m = pg.materialize(1);   // (the page with the number 2: the text of the first section, and the columns of the second under it)
+        QVERIFY(m);
+        QStringList all;
+        for (const auto &id : m->boxes)
+            if (const auto *box = dynamic_cast<const TextItem *>(m->doc->item(id))) all << QStringLiteral("[%1 %2]").arg(box->rect.left()).arg(box->rect.right());
+        QVERIFY2(m->boxes.size() >= 3, qPrintable(QStringLiteral("%1 pages, the boxes: %2").arg(pg.pageCount()).arg(all.join(QLatin1Char(' ')))));
+        QVector<double> lefts, rights;
+        for (const auto &id : m->boxes)
+            if (const auto *box = dynamic_cast<const TextItem *>(m->doc->item(id))) {
+                lefts << box->rect.left();
+                rights << box->rect.right();
+            }
+        QVERIFY(lefts.size() >= 3);
+        QVERIFY2(*std::min_element(lefts.begin(), lefts.end()) > 39.99 && *std::min_element(lefts.begin(), lefts.end()) < 40.01, qPrintable(QStringLiteral("the text begins at %1, not 40").arg(*std::min_element(lefts.begin(), lefts.end()))));
+        QVERIFY2(*std::max_element(rights.begin(), rights.end()) > 511.99 && *std::max_element(rights.begin(), rights.end()) < 512.01, qPrintable(QStringLiteral("the text ends at %1, not 512").arg(*std::max_element(rights.begin(), rights.end()))));
+        // (The columns are 226 wide, one from 40 and one from 286.)
+        int columns = 0;
+        for (const double left : lefts) columns += std::abs(left - 40) < 0.01 || std::abs(left - 286) < 0.01;
+        QStringList begins;
+        for (const double left : lefts) begins << QString::number(left);
+        QVERIFY2(columns == lefts.size(), qPrintable(QStringLiteral("boxes begin at %1").arg(begins.join(QLatin1Char(',')))));
+    }
+
+    // Inside and outside are the sides of the binding by the page's number, not by whether the margins are mirrored (ECMA-376 part 1, 17.18: the left and the right on a page with an odd
+    // number, the right and the left on an even one): an object aligned to the inside of the margin, and one aligned to the outside, one set from the inside margin's strip, and one
+    // from the outside's, are on the left and the right of odd pages and the right and the left of even pages, whether or not the margins are mirrored.
+    void insideAndOutsideAreTheSidesOfTheBindingByThePageNumber()
+    {
+        for (const bool mirrored : {false, true}) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.mirrorMargins = mirrored;
+            fillStory(fd.story(), 3, 7, [](int i, QTextBlockFormat &bf) { if (i > 0) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore); }, 10, 10);
+            fd.sections[0].margins = QMarginsF(100, 72, 40, 72);
+            struct Kind {
+                double width;
+                FloatingObject::Rel rel;
+                FloatingObject::Align align;
+            };
+            const Kind kinds[] = {{30, FloatingObject::Rel::Margin, FloatingObject::Align::Inside}, {31, FloatingObject::Rel::Margin, FloatingObject::Align::Outside},
+                                  {32, FloatingObject::Rel::InsideMargin, FloatingObject::Align::None}, {33, FloatingObject::Rel::OutsideMargin, FloatingObject::Align::None}};
+            for (int page = 2; page >= 0; --page)
+                for (const Kind &k : kinds) {
+                    auto item = std::make_shared<ShapeItem>();
+                    item->rect = QRectF(0, 0, k.width, 20);
+                    const int id = addObject(&fd, item, fd.story()->findBlockByNumber(page).position(), k.rel, FloatingObject::Rel::Paragraph, 0, 0);
+                    fd.objects[size_t(id) - 1].hAlign = k.align;
+                }
+            Paginator pg(&fd);
+            QCOMPARE(pg.pageCount(), 3);
+            for (int page = 0; page < 3; ++page) {
+                const auto m = pg.materialize(page);
+                QVERIFY(m);
+                QHash<int, double> at;   // (by the object's width)
+                for (const auto &it : m->doc->pages[0]->items)
+                    if (const auto *shape = dynamic_cast<const ShapeItem *>(it.get())) at.insert(int(std::lround(shape->rect.width())), shape->rect.left());
+                const bool even = page % 2 == 1;
+                const double leftMargin = mirrored && even ? 40 : 100, rightMargin = mirrored && even ? 100 : 40;   // (what the page's margins are)
+                const QString where = QStringLiteral("%1 page %2").arg(mirrored ? "mirrored" : "plain").arg(page + 1);
+                auto is = [&](int width, double expected, const char *what) {
+                    QVERIFY2(at.contains(width) && std::abs(at.value(width) - expected) < 0.01, qPrintable(where + QStringLiteral(": %1 is at %2, not %3").arg(QLatin1String(what)).arg(at.value(width, -1)).arg(expected)));
+                };
+                is(30, even ? 612 - rightMargin - 30 : leftMargin, "inside");
+                is(31, even ? leftMargin : 612 - rightMargin - 31, "outside");
+                is(32, even ? 612 - rightMargin : 0, "the inside strip");
+                is(33, even ? 0 : 612 - rightMargin, "the outside strip");
+            }
+        }
+    }
+
+    // A paragraph set to the outside (or the inside) of the page is at the right (the left) of a page with an odd number and at the left (the right) of one with an even number.
+    void aParagraphSetOutsideOrInsideFollowsThePageNumber()
+    {
+        for (const int side : {1, 2}) {   // (1: outside, 2: inside)
+            for (const int number : {1, 2, 3, 4}) {
+                QTextDocument doc;
+                QTextCursor c(&doc);
+                QTextBlockFormat bf;
+                bf.setProperty(tp::PageSideAlign, side);
+                c.setBlockFormat(bf);
+                QTextCharFormat cf;
+                cf.setFontPointSize(11);
+                cf.setFontFamilies({QStringLiteral("Arimo")});
+                c.insertText(QStringLiteral("Page"), cf);
+                FrameSpec fs;
+                fs.size = QSizeF(300, 100);
+                fs.insets = QMarginsF(0, 0, 0, 0);
+                fs.hyphenate = false;
+                fs.ctx.pageNumber = number;
+                fs.ctx.pageCount = 4;
+                LayoutEnv env;
+                env.wordLines = true;
+                StoryLayout layout;
+                layout.build(&doc, {fs}, env);
+                const QVector<QRectF> rects = layout.rangeRects(0, 0, 4);
+                QVERIFY(!rects.isEmpty());
+                const bool right = (side == 1) == (number % 2 == 1);
+                const QString what = QStringLiteral("%1 on page %2: the text is from %3 to %4").arg(side == 1 ? "outside" : "inside").arg(number).arg(rects.first().left()).arg(rects.last().right());
+                if (right) QVERIFY2(rects.last().right() > 299 && rects.first().left() > 200, qPrintable(what));
+                else QVERIFY2(rects.first().left() < 1 && rects.last().right() < 100, qPrintable(what));
+            }
+        }
     }
 
     // Pages that an edit moves down by a page change from odd to even, and where odd and even pages have headers of other heights they are laid out again:

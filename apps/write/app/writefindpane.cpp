@@ -42,11 +42,15 @@ public:
             else m_runs.push_back({int(text.size()), at, int(piece.size())});
             text += piece;
         };
-        // (The endnotes the pages set after the text are not searched: they are the last paragraphs, marked as theirs.)
-        for (QTextBlock b = m_story->begin(); b.isValid() && !b.blockFormat().hasProperty(write::prop::EndnoteBlock); b = b.next()) {
+        // (The endnotes the pages set are not searched: they are paragraphs marked as theirs, the last ones, or those at the end of a section; the paragraphs round them are the text.)
+        auto note = [](const QTextBlock &b) { return b.blockFormat().hasProperty(write::prop::EndnoteBlock); };
+        for (QTextBlock b = m_story->begin(); b.isValid(); b = b.next()) {
+            if (note(b)) continue;
             for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
                 if (!write::isInvisibleAtom(it.fragment().charFormat())) extend(it.fragment().position(), it.fragment().text());
-            if (b.next().isValid() && !b.next().blockFormat().hasProperty(write::prop::EndnoteBlock)) extend(b.position() + b.length() - 1, QStringLiteral("\n"));
+            QTextBlock after = b.next();
+            while (after.isValid() && note(after)) after = after.next();
+            if (after.isValid()) extend(b.position() + b.length() - 1, QStringLiteral("\n"));
         }
         m_words.setUndoRedoEnabled(false);
         m_words.setPlainText(text);
@@ -186,6 +190,7 @@ FindWords WriteFindPane::words()
     // Hidden text is not found (nor replaced): it is not shown.
     w.skip = [text, story](const QTextCursor &match) {
         if (text->toStory(match.selectionStart()) >= write::editableEnd(story)) return true;   // (nor a match in the endnotes the pages set after the text)
+        if (write::touchesEndnotes(story, text->toStory(match.selectionStart()), text->toStoryEnd(match.selectionEnd()))) return true;   // (nor one that goes over those at the end of a section)
         QTextCursor shown(story);
         shown.setPosition(text->toStory(match.selectionStart()));
         shown.setPosition(text->toStoryEnd(match.selectionEnd()), QTextCursor::KeepAnchor);

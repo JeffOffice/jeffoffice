@@ -184,7 +184,7 @@ struct Inline {
     QString text;                     // Text: a tab is '\t', a line break U+2028, a no-break hyphen U+2011, a soft hyphen U+00AD
     QByteArray raw;                   // atoms: the XML (a RunAtom's is the child of the run, a ParaAtom's is the element, or the tag)
     QString display;                  // atoms: the text shown in the atom's place, none for most
-    QString tag, key;                 // atoms: the element's local name, and what pairs it with its partner (a bookmark's id, a field mark's type)
+    QString tag, key;                 // atoms: the element's local name, and what pairs it with its partner (a bookmark's id, a field mark's type); an equation's or a styled letter's style (i, b, ib, d)
 };
 
 struct Paragraph {
@@ -464,7 +464,8 @@ struct Shape {
     enum Kind { Picture, Rect, Oval, Line, TextBox };
     // What a position is measured from; the margin areas are the strips of the page between its edge and the margins (inside and outside: the strip at the fold's side and the far side).
     enum Rel { Margin, Page, Column, Paragraph, LineOf, Character, LeftMargin, RightMargin, TopMargin, BottomMargin, InsideMargin, OutsideMargin };
-    enum Align { NoAlign, Start, Center, End };
+    // (Inside and Outside, across, are the side of the binding and the side away from it, by the page's number; down, inside is the top and outside the foot, as Start and End.)
+    enum Align { NoAlign, Start, Center, End, Inside, Outside };
     enum Wrap { WrapNone, Square, Tight, TopBottom };
     // Where the text goes beside a square or tight wrap.
     enum Side { SideBoth, SideLeft, SideRight, SideLargest };
@@ -552,6 +553,7 @@ QString noteNumberRestart(const QByteArray &settings, const char *group);
 struct NoteNumbering {
     QString format;
     int start = 0;
+    QString position;   // w:pos: where the notes are set (pageBottom, beneathText, sectEnd, docEnd); empty where the part says none
 };
 NoteNumbering readNoteNumbering(const QByteArray &settings, const char *group);
 NoteNumbering noteNumberingOf(const SectionProps &section, const char *group);
@@ -567,6 +569,8 @@ struct CompatOptions {
     // where the part says none), which are the settings' own, beside the options.
     bool autoHyphenation = false;
     int hyphenationZone = 360;
+    // Facing pages (w:mirrorMargins, an element of the settings itself): the section's left and right margins are its inside and outside.
+    bool mirrorMargins = false;
 };
 CompatOptions readCompatOptions(const QByteArray &settings);
 
@@ -578,6 +582,15 @@ CompatOptions readCompatOptions(const QByteArray &settings);
 constexpr qint64 kMaxInflatedBytes = qint64(1) << 30;
 constexpr int kMaxParagraphs = 500000;
 constexpr int kMaxInlines = 1500000;
+// An equation (m:oMath, m:oMathPara) is shown as a line of text of at most this many characters, from content nested at most this deep (the rest of it is kept as written
+// and left out of the line), and all the equations of a document show at most the last number of characters.
+constexpr int kMaxEquationChars = 4000;
+constexpr int kMaxEquationDepth = 24;
+constexpr int kMaxEquationCharsTotal = 2000000;
+// The stretches of styled letters in a paragraph's text that are made atoms (the rest of the text is left as text, as it was), all together in a document, and for a test how many were made.
+constexpr int kMaxStyledAtoms = 10000;
+qint64 styledAtomsMadeForTest();
+void resetStyledAtomsMadeForTest();
 // A table is read as one of at most this many rows and columns (a word processor's own largest has 63 columns), of at most this many cells, nested at
 // most this deep, and all the tables of a document hold at most the last number of cells (the most that are laid out in a document: 50,000 short cells open and
 // are paged in a few seconds); a table that goes past any of them is kept whole as XML and shown as a stand-in, as every table was before, and the file's
