@@ -1764,9 +1764,10 @@ QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, con
 {
     QVector<Wrapped> out;
     if (!hasFloaters() || run.kept <= 0) return out;
+    const int number = numberOf(index);
     Section mirrored;
-    const Section &sec = sectionOf(start, numberOf(index), &mirrored);
-    const QRectF body = furnitureOf(index, start, numberOf(index)).body;
+    const Section &sec = sectionOf(start, number, &mirrored);
+    const QRectF body = furnitureOf(index, start, number).body;
     const QTextDocument *story = m_doc->story();
     QVector<AnchorLine> held, firstLines;
     pageAnchorLines(run, body, &held, &firstLines);
@@ -1901,13 +1902,14 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     // (A page with none of the body's lines is a page of notes that go on from the page before, when it has them.)
     if (run.kept <= 0 && !run.blank && st.carried.isEmpty()) return nullptr;
     const bool bodyless = run.kept <= 0 && !run.blank;
+    const int number = numberOf(index);
     Section mirrored;
-    const Section &sec = sectionOf(st, numberOf(index), &mirrored);
+    const Section &sec = sectionOf(st, number, &mirrored);
     auto out = std::make_unique<MaterializedPage>();
     m_imageIds.clear();
     out->index = index;
     out->section = st.section;
-    out->number = numberOf(index);
+    out->number = number;
     out->size = sec.pageSize();
 
     auto d = Document::blank(out->size, QString(), 1);
