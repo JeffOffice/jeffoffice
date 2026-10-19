@@ -997,7 +997,7 @@ void WriteDoc::renumberLists(QTextDocument *story)
         Counter shared[9];                          // the definition's own count, which the numbering ids that restart no level go on with
         QHash<int, std::array<Counter, 9>> own;     // the counts of the ids that restart a level, for that level
     };
-    QHash<int, Count> counts;
+    QHash<int, Count> counts, endCounts;               // (the endnotes the pages set after the text count on their own)
     QHash<QTextList *, int> before;                 // the items of each Qt list seen so far (Qt's own count of the next)
     struct Change {
         int position;
@@ -1014,7 +1014,7 @@ void WriteDoc::renumberLists(QTextDocument *story)
         const int numId = bf.intProperty(prop::NumId), level = std::clamp(bf.intProperty(prop::NumLevel), 0, 8);
         const Level *l = numbering.levelOf(numId, level);
         if (!l) continue;
-        Count &count = counts[numbering.definitionOf(numId)];
+        Count &count = (bf.hasProperty(prop::EndnoteBlock) ? endCounts : counts)[numbering.definitionOf(numId)];
         for (int i = level + 1; i < 9; ++i) ++count.restarts[i];
         auto counterOf = [&](int k) -> Counter & {
             Counter &c = numbering.restartsLevel(numId, k) ? count.own[numId][k] : count.shared[k];

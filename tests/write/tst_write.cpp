@@ -11864,6 +11864,18 @@ private Q_SLOTS:
         QVERIFY2(made <= 10, qPrintable(QString::number(made)));   // (a few names: the three of a tab's, and what the rest of reading asks; 9,000 when each tag made its own)
     }
 
+    // The endnotes' own numbered paragraphs count on their own: the first numbered paragraph of an endnote is 1, whatever the text before it has counted of the list it is in.
+    void anEndnotesNumberedParagraphsCountOnTheirOwn()
+    {
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl></w:abstractNum>"
+                                     "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        const QByteArray body = itemOf(1, 0, "one") + itemOf(1, 0, "two") + "<w:p><w:r><w:t>cited</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:id=\"2\"><w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:t>noted</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), notes}}, QByteArray(), kStyles, numbering));
+        QVERIFY(doc);
+        QCOMPARE(markersOf(*doc), (QStringList{QStringLiteral("1."), QStringLiteral("2."), QStringLiteral("1.")}));
+    }
+
     // A paragraph that says w:suppressLineNumbers (itself, or by its style) has no numbers, and the lines of the others are counted without it.
     void aParagraphThatSuppressesLineNumbersIsNeitherNumberedNorCounted()
     {
