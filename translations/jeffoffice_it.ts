@@ -10280,7 +10280,7 @@ Desktop publishing</translation>
         <translation type="unfinished">Portoghese (Portogallo)</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+144"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+151"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Formula di apertura»</translation>
     </message>
@@ -10310,7 +10310,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Continua da pagina %1)</translation>
     </message>
     <message>
-        <location line="+5120"/>
+        <location line="+5493"/>
         <source>Notes</source>
         <translation type="unfinished">Note</translation>
     </message>
@@ -22430,7 +22430,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::WriteFindPane</name>
     <message>
-        <location filename="../apps/write/app/writefindpane.cpp" line="+112"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="+114"/>
         <source>Find what:</source>
         <translation type="unfinished">Trova:</translation>
     </message>
@@ -22465,7 +22465,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Sostituisci tutto</translation>
     </message>
     <message>
-        <location line="+116"/>
+        <location line="+117"/>
         <source>JeffWrite finished searching the document. &quot;%1&quot; was not found.</source>
         <translation type="unfinished">JeffWrite ha completato la ricerca nel documento. &quot;%1&quot; non è stato trovato.</translation>
     </message>
@@ -23355,17 +23355,17 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::office::wml</name>
     <message>
-        <location filename="../libs/office/wml/wmlread.cpp" line="+339"/>
+        <location filename="../libs/office/wml/wmlread.cpp" line="+350"/>
         <source>[picture]</source>
         <translation type="unfinished">[immagine]</translation>
     </message>
     <message>
-        <location line="+434"/>
+        <location line="+524"/>
         <source>[Table: %1 rows by %2 columns]</source>
         <translation type="unfinished">[Tabella: %1 righe per %2 colonne]</translation>
     </message>
     <message>
-        <location line="+450"/>
+        <location line="+456"/>
         <source>The file has no document in it.</source>
         <translation type="unfinished">Il file non contiene alcun documento.</translation>
     </message>
@@ -23416,7 +23416,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         </translation>
     </message>
     <message>
-        <location filename="../libs/office/wml/wmlwrite.cpp" line="+719"/>
+        <location filename="../libs/office/wml/wmlwrite.cpp" line="+729"/>
         <source>The document could not be packaged.</source>
         <translation type="unfinished">Impossibile creare il pacchetto del documento.</translation>
     </message>

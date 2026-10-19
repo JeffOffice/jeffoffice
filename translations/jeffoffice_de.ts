@@ -10280,7 +10280,7 @@ Desktop-Publishing</translation>
         <translation type="unfinished">Portugiesisch (Portugal)</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+144"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+151"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Grußzeile»</translation>
     </message>
@@ -10310,7 +10310,7 @@ Desktop-Publishing</translation>
         <translation type="unfinished">(Fortsetzung von Seite %1)</translation>
     </message>
     <message>
-        <location line="+5120"/>
+        <location line="+5493"/>
         <source>Notes</source>
         <translation type="unfinished">Notizen</translation>
     </message>
@@ -22430,7 +22430,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
 <context>
     <name>jp::WriteFindPane</name>
     <message>
-        <location filename="../apps/write/app/writefindpane.cpp" line="+112"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="+114"/>
         <source>Find what:</source>
         <translation type="unfinished">Suchen nach:</translation>
     </message>
@@ -22465,7 +22465,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Alle ersetzen</translation>
     </message>
     <message>
-        <location line="+116"/>
+        <location line="+117"/>
         <source>JeffWrite finished searching the document. &quot;%1&quot; was not found.</source>
         <translation type="unfinished">JeffWrite hat das Dokument durchsucht. &quot;%1&quot; wurde nicht gefunden.</translation>
     </message>
@@ -23355,17 +23355,17 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
 <context>
     <name>jp::office::wml</name>
     <message>
-        <location filename="../libs/office/wml/wmlread.cpp" line="+339"/>
+        <location filename="../libs/office/wml/wmlread.cpp" line="+350"/>
         <source>[picture]</source>
         <translation type="unfinished">[Bild]</translation>
     </message>
     <message>
-        <location line="+434"/>
+        <location line="+524"/>
         <source>[Table: %1 rows by %2 columns]</source>
         <translation type="unfinished">[Tabelle: %1 Zeilen mal %2 Spalten]</translation>
     </message>
     <message>
-        <location line="+450"/>
+        <location line="+456"/>
         <source>The file has no document in it.</source>
         <translation type="unfinished">Die Datei enthält kein Dokument.</translation>
     </message>
@@ -23416,7 +23416,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         </translation>
     </message>
     <message>
-        <location filename="../libs/office/wml/wmlwrite.cpp" line="+719"/>
+        <location filename="../libs/office/wml/wmlwrite.cpp" line="+729"/>
         <source>The document could not be packaged.</source>
         <translation type="unfinished">Das Dokument konnte nicht gepackt werden.</translation>
     </message>

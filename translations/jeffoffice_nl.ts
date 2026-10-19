@@ -10280,7 +10280,7 @@ Desktop publishing</translation>
         <translation type="unfinished">Portugees (Portugal)</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+144"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+151"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Begroetingsregel»</translation>
     </message>
@@ -10310,7 +10310,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Vervolg van pagina %1)</translation>
     </message>
     <message>
-        <location line="+5120"/>
+        <location line="+5493"/>
         <source>Notes</source>
         <translation type="unfinished">Notities</translation>
     </message>
@@ -22430,7 +22430,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::WriteFindPane</name>
     <message>
-        <location filename="../apps/write/app/writefindpane.cpp" line="+112"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="+114"/>
         <source>Find what:</source>
         <translation type="unfinished">Zoeken naar:</translation>
     </message>
@@ -22465,7 +22465,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Alles vervangen</translation>
     </message>
     <message>
-        <location line="+116"/>
+        <location line="+117"/>
         <source>JeffWrite finished searching the document. &quot;%1&quot; was not found.</source>
         <translation type="unfinished">JeffWrite heeft het document doorzocht. &quot;%1&quot; is niet gevonden.</translation>
     </message>
@@ -23355,17 +23355,17 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::office::wml</name>
     <message>
-        <location filename="../libs/office/wml/wmlread.cpp" line="+339"/>
+        <location filename="../libs/office/wml/wmlread.cpp" line="+350"/>
         <source>[picture]</source>
         <translation type="unfinished">[afbeelding]</translation>
     </message>
     <message>
-        <location line="+434"/>
+        <location line="+524"/>
         <source>[Table: %1 rows by %2 columns]</source>
         <translation type="unfinished">[Tabel: %1 rijen bij %2 kolommen]</translation>
     </message>
     <message>
-        <location line="+450"/>
+        <location line="+456"/>
         <source>The file has no document in it.</source>
         <translation type="unfinished">Het bestand bevat geen document.</translation>
     </message>
@@ -23416,7 +23416,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         </translation>
     </message>
     <message>
-        <location filename="../libs/office/wml/wmlwrite.cpp" line="+719"/>
+        <location filename="../libs/office/wml/wmlwrite.cpp" line="+729"/>
         <source>The document could not be packaged.</source>
         <translation type="unfinished">Het document kon niet worden verpakt.</translation>
     </message>
