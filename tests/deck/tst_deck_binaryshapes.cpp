@@ -2472,7 +2472,7 @@ private Q_SLOTS:
     }
 
     // A slide's picture with a brightness and a contrast (a:lum) is drawn as the presentation program draws it: the contrast times 1 / (1 - it)
-    // the distance from the middle and the brightness moved by the mean of one and that (measured on the program's own pictures: a photo of a
+    // the distance from the middle and the brightness moved by the mean of one and that (measured on reference pictures: a photo of a
     // collar at 21% and 52% came darker than the program's by more than 40 gray levels with Publisher's), and the picture's bytes, and what
     // the file says of it, are written back as they were. A publication's picture keeps Publisher's own.
     void importPicturesAreDrawnWithTheirBrightnessAndContrast()

@@ -775,7 +775,7 @@ static QString symbolTextCharacter(const QString &family, uint code)
         if (code == 0x8B) return QString(QChar(char16_t(0x24FF)));
         if (code >= 0x8C && code <= 0x95) return QString(QChar(char16_t(0x2776 + (code - 0x8C))));
     } else if (f == QLatin1String("wingdings 2")) {
-        // The numbers 1 to 3 in dark circles (the rest of the row is read from the program's pictures when a file shows it).
+        // The numbers 1 to 3 in dark circles (the rest of the row is read from reference pictures when a file shows it).
         if (code >= 0x75 && code <= 0x77) return QString(QChar(char16_t(0x2776 + (code - 0x75))));
     }
     return symbolToUnicode(family, code);

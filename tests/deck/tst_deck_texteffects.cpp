@@ -220,7 +220,7 @@ private Q_SLOTS:
                 }
             }
         };
-        // To the right, 10 points: 40 pixels (the program's pictures put it a little nearer than the file says).
+        // To the right, 10 points: 40 pixels (the reference pictures put it a little nearer than the file says).
         const double nearer = kShadowNear;
         const TextEffects right = shadowOf(red, 0, 10, 0);
         EffectBar b = paintEffectBar(&right);

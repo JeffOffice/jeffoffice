@@ -2979,7 +2979,7 @@ private Q_SLOTS:
 
     // A font the document's font table says its machine set in Yu Gothic (V104's FreeSerif, charset 128, with that alternate) is set in it by a machine that lacks FreeSerif:
     // the alternate is one of the faces the word processor's machine has, drawn in Open Sans (the same widths), and its line is 1.673 em (3426 units) as the
-    // original's pages have it.
+    // reference pages have it.
     void yuGothicIsDrawnInOpenSansAndSetAsItself()
     {
         QCOMPARE(wordStandInFor(QStringLiteral("Yu Gothic"), QStringLiteral("roman"), QStringLiteral("variable"), QString(), QStringLiteral("80")), QStringLiteral("Yu Gothic"));
@@ -3616,8 +3616,8 @@ private Q_SLOTS:
     }
 
     // A multiple of single spacing makes the line that many times as tall with the text at its top; an exact height sets the baseline as far below the top
-    // as the font's ascent is of its single line, scaled to the exact height (the text's top is cut off where there is less room than the font's ascent; the original
-    // program's own pages: Times New Roman 12 in exactly 24 points has its baseline 2.8 points higher than a descent above the bottom); an at-least height sets it a
+    // as the font's ascent is of its single line, scaled to the exact height (the text's top is cut off where there is less room than the font's ascent; the reference
+    // pages: Times New Roman 12 in exactly 24 points has its baseline 2.8 points higher than a descent above the bottom); an at-least height sets it a
     // descent above its bottom when it is more than a single line, and is a single line when it is less.
     void wordLineHeightsFollowTheirRules()
     {

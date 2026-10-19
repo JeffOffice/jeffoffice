@@ -62,8 +62,8 @@ private Q_SLOTS:
         QCOMPARE(jp::originalAverageCharEm(QStringLiteral("No Such Font"), false, false), -1.0);
     }
 
-    // A missing stock font's letters take the original's widths (measured
-    // in the reference VM), not its stand-in's, so lines break where they
+    // A missing stock font's letters take the original's widths (from
+    // recorded measurements), not its stand-in's, so lines break where they
     // break in Publisher (Gill Sans MT's "W" is 1.04 em; its stand-in's
     // is its own).
     void missingFontsKeepTheirLetterWidths()

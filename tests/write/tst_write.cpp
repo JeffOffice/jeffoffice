@@ -5782,7 +5782,7 @@ private Q_SLOTS:
         QVERIFY(!automatic->flow().pageColor.isValid());
     }
 
-    // The page color is in the PDF export (a word processor's own PDF of such a file has it) and is not printed on paper.
+    // The page color is in the PDF export (a reference PDF of such a file has it) and is not printed on paper.
     void thePageColorIsInThePdfExportAndNotOnAPrinter()
     {
         QTemporaryDir dir;
@@ -7696,7 +7696,7 @@ private Q_SLOTS:
     }
 
     // With that option and no list tab (the level has none, or the paragraph clears it or sets a stop of its own in its place), the text after a number goes to the nearest of the
-    // paragraph's stops, the hanging indent, and the default stops (which lie only past the last stop of the paragraph's own, as they do for a tab in the text). Word's own pages:
+    // paragraph's stops, the hanging indent, and the default stops (which lie only past the last stop of the paragraph's own, as they do for a tab in the text). Reference pages:
     // V004's bullets (the paragraph clears the list tab at 720; the indent is 18 points) have their text at 18, not at the default stop at 36; W124's items (indent 72, the list
     // tab at 900 cleared) have theirs at 36; V094's items (the paragraph's own stop at 806, where the list tab is, and its own stops on to 8726) have theirs at 806, 40.3
     // points, though the default stop at 605 lies before it.
@@ -7993,7 +7993,7 @@ private Q_SLOTS:
     }
 
     // An item at a deeper level than any the list has had counts the levels above it as begun, at their start: the third level's first item after items of the fourth level
-    // (numbered 1.1.1.1 and 1.1.1.2, the third level standing at 1) is 1.1.2, not 1.1.1 again (V117's "2.4.2 Cleanliness Check", numbered so in the original's own pages).
+    // (numbered 1.1.1.1 and 1.1.1.2, the third level standing at 1) is 1.1.2, not 1.1.1 again (V117's "2.4.2 Cleanliness Check", numbered so in the reference pages).
     void anItemAfterItsDeeperLevelsGoesOnFromTheLevelsStart()
     {
         const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl>"

@@ -1523,7 +1523,7 @@ QString Importer::adjustedPicture(const QString &id, double brightness, double c
 }
 
 // A pattern's bitmap (black and white) drawn in the shape's colors, as the presentation program draws a pattern fill: its white bits in the
-// fill color and its black ones in the back color (checked against the program's pictures of a master's striped background, whose bitmap has
+// fill color and its black ones in the back color (checked against reference pictures of a master's striped background, whose bitmap has
 // three rows of black to one of white and whose pictures show three rows of the back color to one of the fill color). The picture itself
 // when it isn't a bitmap of black and white.
 QString Importer::patternedPicture(const QString &id, const QColor &fillColor, const QColor &backColor)

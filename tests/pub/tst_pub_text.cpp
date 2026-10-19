@@ -855,8 +855,8 @@ private Q_SLOTS:
         QVERIFY2(roomy.lines.size() == 2 && std::abs(roomy.starts[1] - 36) < 0.01, qPrintable(what(roomy)));
     }
 
-    // A publication's default tab stops (Publisher's Document.DefaultTabStop,
-    // 36 points unless it says otherwise) are the places the stops of a
+    // A publication's default tab stops (Publisher's: 36 points
+    // unless it says otherwise) are the places the stops of a
     // paragraph without its own are, counted from the text area's edge, not
     // from the line's start: Publisher's PDFs of a publication set to 20 and
     // to 14.4 put the text after a tab at multiples of those from the edge,

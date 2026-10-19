@@ -414,7 +414,7 @@ namespace {
 // rounding. It is the same on every machine: it is the layout's own, not the text engine's. (What the engine counts past the advance of a glyph at a line's end is another thing,
 // and a machine's own: qtGiveBack.)
 constexpr double kPixelBack = 0.126;
-// How far past its room a word processor's line may run: a pixel of the fine layout short of it, which is where the original program's lines break on the practice documents
+// How far past its room a word processor's line may run: a pixel of the fine layout short of it, which is where the reference lines break on the practice documents
 // (set to the room exactly, the lines of 37 of them end further from its own, and a page of V032 that matches goes out of step). Every place that fits a line to its room (the
 // first try, a line that ends at a dash, the word wider than the line, the space shrinking) uses it, so that they agree. The text before a mark that hangs is the one exception.
 constexpr double kRoomOffset = -0.125;
@@ -4007,7 +4007,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     }
                     // A word processor lets a mark of punctuation at the end of a line hang past the margin (a period, a comma, a closing quote: not a bracket, V055),
                     // so a word followed by one can be the last of a line it is a mark too wide for: the line is tried that much wider, and kept so if
-                    // it is only that last mark that is past the margin. The text before the mark may fill the room exactly (the original program's lines go so on the practice
+                    // it is only that last mark that is past the margin. The text before the mark may fill the room exactly (the reference lines go so on the practice
                     // documents, where a line that ends in a word stops a pixel short of its room, as the others here do).
                     bool markHangs = false;   // (a mark at the end of the line is past the margin)
                     if (env.wordLines && !env.wordNoHang && !bf.boolProperty(tp::NoHangPunct) && (al == Qt::AlignLeft || al == Qt::AlignJustify) && !bf.boolProperty(tp::Distribute)) {

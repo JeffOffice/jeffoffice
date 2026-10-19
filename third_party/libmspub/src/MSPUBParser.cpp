@@ -1477,7 +1477,7 @@ bool MSPUBParser::parseQuill(librevenge::RVNGInputStream *input)
     else if (i->name == "SGP ")
     {
       // JeffPub patch: the publication's default tab stop (Publisher's
-      // Document.DefaultTabStop): a property block with 00:22, in EMU, left
+      // own): a property block with 00:22, in EMU, left
       // out at 36 points. Read from a file Publisher saved with 14.4, 20, 72
       // and 100 points, and from a flyer that has 14.4 (Oct 11).
       // Optional: a damaged section loses its setting, never the text.

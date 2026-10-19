@@ -182,7 +182,7 @@ private Q_SLOTS:
         QVERIFY(c2.contains(QByteArray::fromHex("342002000000")));
     }
 
-    // Publisher's freeforms hold no text (COM: HasTextFrame is 0 for one), and
+    // Publisher's freeforms hold no text, and
     // it refuses a file with a freeform that has a text id, as JeffPub saved
     // a star, a callout, or any shape other than a rectangle that held text
     // (Oct 11: "cannot open the file"). Such a shape is saved as the shape and

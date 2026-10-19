@@ -390,7 +390,7 @@ private Q_SLOTS:
         QVERIFY(sameEffects(pic->colorEffects(), pic->blipEffects));
     }
 
-    // What each effect does to a color (all of a:blip's, in order): a:lum as the presentation program draws it (fitted to its own pictures: a
+    // What each effect does to a color (all of a:blip's, in order): a:lum as the presentation program draws it (fitted to reference pictures: a
     // brightness of 14% adds 36 to each color; with 21% and a contrast of 52% a 100 comes to 153, and the contrast takes 1 / (1 - 0.52) times
     // the distance from the middle), the clamps, the clear color, and that the picture itself is not changed.
     void blipEffectsChangeColorsAsThePresentationProgramDoes()

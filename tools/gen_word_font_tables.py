@@ -3,8 +3,8 @@
 
 Usage: gen_word_font_tables.py FONTNUMS_DIR OUT.inc
 
-FONTNUMS_DIR holds one JSON file per font face (family, face, unitsPerEm, hhea and os2 tables' numbers), measured on a
-Windows machine: numbers only, no font data. Each row of the output is a face: its family (lower case), its style
+FONTNUMS_DIR holds one JSON file per font face (family, face, unitsPerEm, hhea and os2 tables' numbers), taken from
+the fonts' own tables: numbers only, no font data. Each row of the output is a face: its family (lower case), its style
 (0 regular, 1 bold, 2 italic, 3 bold italic), the units per em, the Windows ascent and descent, and the ascent,
 descent, and line gap of the horizontal header, in font units. A font whose Windows height is over three ems (the math font's,
 made for stacking formulas) isn't a line of text's: its horizontal header's ascent and descent stand for them."""

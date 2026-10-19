@@ -65,7 +65,7 @@ double contrastFactor(double contrast);
 // The contrast (-1 to 1) that multiplies by `factor`: contrastFactor's other way, for a file that gives the factor.
 double contrastOfFactor(double factor);
 // What each of the 256 values of a color becomes with `brightness` (-1 to 1) and a contrast that multiplies by `factor`: its distance from the
-// middle times the factor, and the brightness moved by the mean of one and the factor (fitted to the presentation program's own pictures: a
+// middle times the factor, and the brightness moved by the mean of one and the factor (fitted to reference pictures: a
 // brightness of 21% with a contrast of 52% makes a 0 come to -56 (so, 0), and one of 14% alone adds 36 to each color).
 QVector<uchar> luminanceTable(double brightness, double factor);
 

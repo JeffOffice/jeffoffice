@@ -1,4 +1,4 @@
-// Generated from the stock Windows and Office fonts in the reference VM: each one's
+// Generated from the stock fonts that publications ask for: each one's
 // average character width (OS/2 xAvgCharWidth / unitsPerEm), the unit of .pub
 // tracking. Measurements only; no font data. Style: 0 regular, 1 bold, 2 italic, 3 bold italic.
 static const struct { const char *family; int style; double avg; } kPublisherAverageCharEm[] = {

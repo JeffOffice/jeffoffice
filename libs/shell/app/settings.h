@@ -12,7 +12,7 @@ namespace jp {
 enum class Unit { Inch, Centimeter, Millimeter, Point, Pica };
 
 // The unit a region measures pages in, until Options sets one: inches where
-// it measures in inches (the United States), else centimeters, as Office does.
+// it measures in inches (the United States), else centimeters, as is usual.
 Unit defaultUnit(const QLocale &region);
 
 // For an app that kept its settings and files under another name: copies
