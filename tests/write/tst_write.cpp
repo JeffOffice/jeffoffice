@@ -11559,6 +11559,247 @@ private Q_SLOTS:
         QVERIFY(doc->story()->toPlainText().contains(QLatin1String("N5000")) && !doc->story()->toPlainText().contains(QLatin1String("N5001")));
     }
 
+    // ---- the endnotes the pages set after the text are outside what is edited
+    // A document of two paragraphs, the second citing two endnotes, and their part (a separator "Sources"; the notes "Alpha body note brwon" and "Beta body note"): its package.
+    static QByteArray notedDocx()
+    {
+        const QByteArray body = "<w:p><w:r><w:t>First body paragraph</w:t></w:r></w:p><w:p><w:r><w:t>Second body paragraph</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r><w:r><w:endnoteReference w:id=\"3\"/></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:t>Sources</w:t></w:r></w:p></w:endnote>"
+                                 "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Alpha body note brwon</w:t></w:r></w:p></w:endnote>"
+                                 "<w:endnote w:id=\"3\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Beta body note</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        return makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>");
+    }
+    // The paragraphs of the document as it is saved, their text joined by "|".
+    static QString savedBody(WriteDoc &doc)
+    {
+        const QString x = QString::fromUtf8(documentXml(doc.toDocx()));
+        static const QRegularExpression para(QStringLiteral("<w:p[ >].*?</w:p>|<w:p/>")), text(QStringLiteral("<w:t[^>]*>([^<]*)</w:t>"));
+        QStringList out;
+        for (auto m = para.globalMatch(x); m.hasNext();) {
+            QString t;
+            for (auto n = text.globalMatch(m.next().captured()); n.hasNext();) t += n.next().captured(1);
+            out << t;
+        }
+        return out.join(QLatin1Char('|'));
+    }
+    static QByteArray notesPartOf(const QByteArray &zip)
+    {
+        office::Package p;
+        p.read(zip);
+        return p.part(QStringLiteral("/word/endnotes.xml"));
+    }
+    // How many paragraphs of the story are the endnotes', and whether they are all the last.
+    static int tailOf(WriteDoc &doc, bool *allLast = nullptr)
+    {
+        int marked = 0;
+        bool afterTail = false, last = true;
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next()) {
+            const bool is = b.blockFormat().hasProperty(prop::EndnoteBlock);
+            marked += is;
+            if (is) afterTail = true;
+            else if (afterTail) last = false;
+        }
+        if (allLast) *allLast = last;
+        return marked;
+    }
+
+    // Select All and typing (or Delete), and a selection from a paragraph's start to the end of the story, change the text the person has and not the endnotes: the selection ends
+    // where the text does. What is typed goes in the text, the text is saved whole, and the endnotes part is as it was.
+    void selectingAllAndTypingChangesOnlyTheText()
+    {
+        const QByteArray zip = notedDocx();
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QCOMPARE(tailOf(*doc), 3);
+        QTextCursor c(doc->story());
+        c.select(QTextCursor::Document);
+        insertText(*doc, c, QStringLiteral("X"));
+        QCOMPARE(savedBody(*doc), QStringLiteral("X"));
+        insertText(*doc, c, QStringLiteral("Y"));
+        QCOMPARE(savedBody(*doc), QStringLiteral("XY"));   // (typing goes on)
+        bool last = false;
+        QCOMPARE(tailOf(*doc, &last), 3);
+        QVERIFY(last);
+        c.select(QTextCursor::Document);
+        removeSelection(*doc, c);
+        QCOMPARE(savedBody(*doc), QString());
+        insertText(*doc, c, QStringLiteral("Z"));
+        QCOMPARE(savedBody(*doc), QStringLiteral("Z"));
+        // From the start of the last paragraph to the end of the story.
+        auto again = open(zip);
+        QVERIFY(again);
+        QTextCursor d(again->story());
+        d.setPosition(again->story()->findBlockByNumber(1).position());
+        d.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+        removeSelection(*again, d);
+        QCOMPARE(savedBody(*again), QStringLiteral("First body paragraph|"));
+        insertText(*again, d, QStringLiteral("Q"));
+        QCOMPARE(savedBody(*again), QStringLiteral("First body paragraph|Q"));
+        QCOMPARE(tailOf(*again), 3);
+        QCOMPARE(notesPartOf(again->toDocx()), notesPartOf(zip));
+    }
+
+    // A selection from the middle of the last paragraph into the middle of an endnote, deleted, takes the text's part of it away and not the rest of the endnote's, which is not joined to the
+    // text and saved there.
+    void aSelectionIntoAnEndnoteIsDeletedAsFarAsTheTextGoes()
+    {
+        const QByteArray zip = notedDocx();
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *story = doc->story();
+        QTextCursor c(story);
+        c.setPosition(story->findBlockByNumber(1).position() + 6);   // (after "Second")
+        c.setPosition(story->findBlockByNumber(3).position() + 8, QTextCursor::KeepAnchor);
+        removeSelection(*doc, c);
+        QCOMPARE(savedBody(*doc), QStringLiteral("First body paragraph|Second"));
+        QCOMPARE(tailOf(*doc), 3);
+        QVERIFY2(story->toPlainText().contains(QLatin1String(" Alpha body note brwon")), "the note is whole");
+        QCOMPARE(notesPartOf(doc->toDocx()), notesPartOf(zip));
+    }
+
+    // Typing, deleting, and making a paragraph where the caret or the selection is wholly in an endnote does nothing: the story and what is saved are as they were.
+    void typingInAnEndnoteDoesNothing()
+    {
+        const QByteArray zip = notedDocx();
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *story = doc->story();
+        const QString before = story->toPlainText(), body = savedBody(*doc);
+        const QTextBlock note = story->findBlockByNumber(3);
+        QTextCursor word(story);   // (a word inside the endnote)
+        word.setPosition(note.position() + 2);
+        word.setPosition(note.position() + 7, QTextCursor::KeepAnchor);
+        insertText(*doc, word, QStringLiteral("ZZZ"));
+        QCOMPARE(story->toPlainText(), before);
+        QTextCursor at(story);
+        at.setPosition(note.position() + 4);
+        insertText(*doc, at, QStringLiteral("ZZZ"));
+        insertParagraph(*doc, at);
+        deleteBack(*doc, at, false);
+        deleteForward(*doc, at, false);
+        at.movePosition(QTextCursor::End);
+        insertText(*doc, at, QStringLiteral("ZZZ"));
+        insertParagraph(*doc, at);
+        QCOMPARE(story->toPlainText(), before);
+        QCOMPARE(savedBody(*doc), body);
+        QCOMPARE(notesPartOf(doc->toDocx()), notesPartOf(zip));
+    }
+
+    // The caret and the selection in the page view are held where the text ends: Ctrl+End, Select All, and a click or drag past it do not reach the endnotes, so what is typed there is typed
+    // at the end of the text, and Enter makes a paragraph there.
+    void theViewsCaretStaysInTheText()
+    {
+        const QByteArray zip = notedDocx();
+        auto doc = open(zip);
+        QVERIFY(doc);
+        PageView view;
+        view.resize(800, 600);
+        view.setDocument(doc.get());
+        view.show();
+        const int end = editableEnd(doc->story());
+        QVERIFY(end > 0 && end < doc->story()->characterCount() - 1);
+        view.typeKey(Qt::Key_End, Qt::ControlModifier);
+        QCOMPARE(view.cursor().position(), end);
+        view.insertText(QStringLiteral("end"));
+        QCOMPARE(savedBody(*doc), QStringLiteral("First body paragraph|Second body paragraphend"));
+        view.typeKey(Qt::Key_Return, Qt::NoModifier);
+        view.insertText(QStringLiteral("n"));
+        QCOMPARE(savedBody(*doc), QStringLiteral("First body paragraph|Second body paragraphend|n"));
+        bool last = false;
+        QCOMPARE(tailOf(*doc, &last), 3);
+        QVERIFY(last);
+        view.selectAll();
+        QVERIFY(view.cursor().selectionEnd() <= editableEnd(doc->story()));
+        QTextCursor beyond(doc->story());
+        beyond.setPosition(0);
+        beyond.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+        view.setCursor(beyond);
+        QVERIFY(view.cursor().position() <= editableEnd(doc->story()) && view.cursor().anchor() <= editableEnd(doc->story()));
+        QCOMPARE(notesPartOf(doc->toDocx()), notesPartOf(zip));
+    }
+
+    // Where the text ends is where it ends after an edit, an undo, and another edit (the story's revision goes back with an undo, and is the same again with another edit: it does not say).
+    void whereTheTextEndsFollowsTheStoryThroughUndo()
+    {
+        auto doc = open(notedDocx());
+        QVERIFY(doc);
+        QTextDocument *story = doc->story();
+        auto end = [&] { return story->findBlockByNumber(1).position() + story->findBlockByNumber(1).length() - 1; };   // (the end of the last paragraph of the text)
+        const int first = end();
+        QCOMPARE(editableEnd(story), first);
+        QTextCursor c(story);
+        c.setPosition(first);
+        insertText(*doc, c, QStringLiteral("abc"));
+        QCOMPARE(editableEnd(story), first + 3);
+        story->undo(&c);
+        QCOMPARE(editableEnd(story), first);
+        c.setPosition(first);
+        insertText(*doc, c, QStringLiteral("Z"));
+        QCOMPARE(editableEnd(story), first + 1);
+        QCOMPARE(savedBody(*doc), QStringLiteral("First body paragraph|Second body paragraphZ"));
+    }
+
+    // A copy that takes in the endnotes has only the text, a paste of a paragraph that was an endnote's is a paragraph of the text and not a marked one in the middle of it, and the
+    // endnotes stay the last paragraphs.
+    void aCopyLeavesTheEndnotesOutAndAPasteMakesNoneInTheText()
+    {
+        const QByteArray zip = notedDocx();
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *story = doc->story();
+        QTextCursor c(story);
+        c.select(QTextCursor::Document);
+        const Clip clip = copySelection(*doc, c);
+        const QString copied = plainTextOf(clip.fragment);
+        QVERIFY2(copied.contains(QLatin1String("Second body paragraph")) && !copied.contains(QLatin1String("Alpha")) && !copied.contains(QLatin1String("Sources")), qPrintable(copied));
+        QVERIFY(!plainTextOf(selectionFragment(c)).contains(QLatin1String("Beta")));
+        QTextCursor at(story);
+        at.setPosition(story->findBlockByNumber(1).position());
+        pasteClip(*doc, at, clip);
+        bool last = false;
+        QCOMPARE(tailOf(*doc, &last), 3);
+        QVERIFY(last);
+        QVERIFY(!savedBody(*doc).contains(QLatin1String("Alpha")) && !savedBody(*doc).contains(QLatin1String("Sources")));
+        // A fragment of the endnotes themselves, pasted: its paragraphs are the text's.
+        QTextCursor notes(story);
+        notes.setPosition(story->findBlockByNumber(story->blockCount() - 3).position());
+        notes.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+        const QTextDocumentFragment endnotes(notes);
+        QTextCursor into(story);
+        into.setPosition(story->findBlockByNumber(1).position());
+        pasteFragment(*doc, into, endnotes);
+        QCOMPARE(tailOf(*doc, &last), 3);
+        QVERIFY(last);
+        QVERIFY(savedBody(*doc).contains(QLatin1String("Alpha body note")));   // (what was pasted is text, and is saved as such)
+    }
+
+    // Replace All and spelling see the text the person has: a word that is in an endnote too is changed in the text alone, and a misspelled word of an endnote is neither flagged nor replaced.
+    void findAndSpellingLeaveTheEndnotesAlone()
+    {
+        const QByteArray zip = notedDocx();
+        WriteWindow w;
+        w.setDocument(open(zip), QString());
+        w.show();
+        WriteDoc &doc = *w.document();
+        w.showFindPane(true);
+        WriteFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("body"));
+        pane->replaceBox()->setText(QStringLiteral("text"));
+        pane->replaceAll();
+        QCOMPARE(pane->status(), QStringLiteral("JeffWrite made 2 replacements."));
+        QCOMPARE(savedBody(doc), QStringLiteral("First text paragraph|Second text paragraph"));
+        QVERIFY2(doc.story()->toPlainText().contains(QLatin1String(" Alpha body note brwon")), "the endnote is as it was");
+        QCOMPARE(notesPartOf(doc.toDocx()), notesPartOf(zip));
+        // Spelling: the endnote's "brwon" is not flagged, and a replacement of it does nothing.
+        SpellCheck sc(doc.story());
+        QVERIFY(flaggedWords(sc, doc).isEmpty());
+        const QString whole = doc.story()->toPlainText();
+        const int at = int(whole.indexOf(QLatin1String("brwon")));
+        QVERIFY(at > 0);
+        replaceWord(doc.story(), at, at + 5, QStringLiteral("brown"));
+        QCOMPARE(doc.story()->toPlainText(), whole);
+    }
+
     // A paragraph that says w:suppressLineNumbers (itself, or by its style) has no numbers, and the lines of the others are counted without it.
     void aParagraphThatSuppressesLineNumbersIsNeitherNumberedNorCounted()
     {

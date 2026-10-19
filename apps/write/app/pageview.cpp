@@ -766,6 +766,7 @@ void PageView::ensureCaretVisible()
 
 void PageView::caretMoved(bool keepWanted)
 {
+    if (m_doc && m_cursor.document()) holdInBody(m_cursor);   // (the endnotes the pages set after the text are not the person's: no caret or selection reaches them)
     m_contextAt = -1;
     if (!keepWanted) m_wantedX = -1;
     m_caretOn = true;
