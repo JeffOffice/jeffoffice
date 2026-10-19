@@ -21,6 +21,7 @@
 #include <QPainterPath>
 #include <QRegularExpression>
 #include <QRawFont>
+#include <QSet>
 #include <QTextDocument>
 #include <QTextBoundaryFinder>
 #include <optional>
@@ -296,6 +297,54 @@ inline bool isEastAsian(QChar c)
 {
     const char16_t u = c.unicode();
     return (u >= 0x2E80 && u <= 0xD7FF) || (u >= 0xF900 && u <= 0xFAFF) || (u >= 0xFF00 && u <= 0xFFEF) || c.isHighSurrogate();
+}
+// The family among the machine's own fonts that has an East Asian character, for a run whose families lack it (the faces the documents name for them are the original program's, and are not
+// here): found once for each character, from the families the system lists for the writing systems that may have it (kana are Japanese, Hangul Korean, ideographs any of the four), and
+// kept. Empty where no installed face has it. (Qt's own fallback looks only in the families the system ranks for the script it takes the text to be: ideographs and Hangul came out as
+// nothing on a machine whose one face for them is listed under Japanese.)
+static QString installedFamilyFor(uint ch)
+{
+    static QHash<uint, QString> found;   // main thread only, like all layout
+    if (const auto it = found.constFind(ch); it != found.constEnd()) return it.value();
+    QString family;
+    QVector<QFontDatabase::WritingSystem> systems = {QFontDatabase::Japanese, QFontDatabase::SimplifiedChinese, QFontDatabase::TraditionalChinese, QFontDatabase::Korean};
+    if ((ch >= 0x1100 && ch <= 0x11FF) || (ch >= 0x3130 && ch <= 0x318F) || (ch >= 0xAC00 && ch <= 0xD7AF)) systems.move(3, 0);
+    for (const QFontDatabase::WritingSystem system : std::as_const(systems)) {
+        int looked = 0;
+        for (const QString &candidate : QFontDatabase::families(system)) {
+            if (++looked > 64) break;
+            const QRawFont raw = QRawFont::fromFont(QFont(candidate));
+            if (raw.isValid() && raw.supportsCharacter(ch)) {
+                family = candidate;
+                break;
+            }
+        }
+        if (!family.isEmpty()) break;
+    }
+    if (found.size() > 20000) found.clear();
+    found.insert(ch, family);
+    return family;
+}
+// The format with the machine's own families that have the East Asian characters of `text` added after the families it has (its own are tried first).
+static QTextCharFormat withEastAsianFaces(const QTextCharFormat &format, const QString &text)
+{
+    QStringList extra;
+    QSet<uint> asked;
+    for (qsizetype at = 0; at < text.size() && extra.size() < 4 && asked.size() < 256; ++at) {
+        uint code = text[at].unicode();
+        if (!isEastAsian(text[at])) continue;
+        if (QChar::isHighSurrogate(code) && at + 1 < text.size() && QChar::isLowSurrogate(text[at + 1].unicode())) code = QChar::surrogateToUcs4(code, text[++at].unicode());
+        if (asked.contains(code)) continue;
+        asked.insert(code);
+        if (const QString family = installedFamilyFor(code); !family.isEmpty() && !extra.contains(family)) extra << family;
+    }
+    if (extra.isEmpty()) return format;
+    QTextCharFormat out = format;
+    QStringList families = out.fontFamilies().toStringList();
+    for (const QString &family : std::as_const(extra))
+        if (!families.contains(family, Qt::CaseInsensitive)) families << family;
+    out.setFontFamilies(families);
+    return out;
 }
 // A pixel of the fine layout (an eighth of a point) and a hair more is what the width of a line the room of which it exactly fills is given over its room, for the layout's
 // rounding. It is the same on every machine: it is the layout's own, not the text engine's. (What the engine counts past the advance of a glyph at a line's end is another thing,
@@ -2914,7 +2963,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     QString v = ctx.resolve(field);
                     v.replace(QLatin1String("\r\n"), QString(QChar::LineSeparator)).replace(QLatin1Char('\n'), QChar::LineSeparator);
                     B->map << Seg{rel + i, 1, int(B->disp.size()), int(v.size()), env.wordLines && v.isEmpty()};
-                    ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), rf};
+                    ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), env.wordLines ? withEastAsianFaces(rf, v) : rf};
                     B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
                     B->disp += v;
                 }
@@ -3040,6 +3089,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         for (QChar &ch : shown)
                             if (const QChar picture = pictures->of(ch.unicode()); !picture.isNull()) ch = picture;
                 }
+                // East Asian characters that the run's families lack are set in a face of the machine that has them: its families are tried after the run's own.
+                if (env.wordLines) rf = withEastAsianFaces(rf, shown);
                 const int len = int(shown.size());
                 QTextLayout::FormatRange fr{int(B->disp.size()), len, rf};
                 if (rf.fontCapitalization() == QFont::SmallCaps && !(cf.boolProperty(tp::TrueSmallCaps) && trueSmallCaps)) {

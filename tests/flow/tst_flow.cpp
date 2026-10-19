@@ -28,6 +28,7 @@
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QFontDatabase>
+#include <QRawFont>
 #include <QTextDocument>
 #include <QTextList>
 #include <functional>
@@ -783,11 +784,27 @@ struct LetterLine {
     QVector<double> x, cell, stand, width;
 };
 
+// A family of the machine's own fonts that has the character (looked for among those the system lists for the East Asian writing systems), or none.
+QString installedFaceFor(uint ch)
+{
+    for (const auto system : {QFontDatabase::Japanese, QFontDatabase::SimplifiedChinese, QFontDatabase::TraditionalChinese, QFontDatabase::Korean})
+        for (const QString &family : QFontDatabase::families(system))
+            if (QRawFont::fromFont(QFont(family)).supportsCharacter(ch)) return family;
+    return QString();
+}
+
 LetterLine letterLineOf(const QString &family, const QString &text, double size, bool word, bool kerned = true, const QVector<int> &splits = {}, bool hyphenate = false)
 {
     LetterLine line;
     QTextCharFormat cf;
     cf.setFontFamilies({family});
+    // (Where the machine has a face for the East Asian characters of the text, both layouts are given it, as a word processor's layout gives it itself: they are then drawn alike in both.)
+    for (const QChar ch : text)
+        if (ch.unicode() >= 0x2E80 && ch.unicode() <= 0xD7FF)
+            if (const QString face = installedFaceFor(ch.unicode()); !face.isEmpty()) {
+                cf.setFontFamilies({family, face});
+                break;
+            }
     cf.setFontPointSize(size);
     if (word && kerned) cf.setProperty(tp::KernAbove, 1.0);   // (a word processor's text is kerned only where its file asks)
     LayoutEnv env;
@@ -3026,6 +3043,43 @@ private Q_SLOTS:
             }
         }
         if (!tested) QSKIP("no face of the kind is missing here");
+    }
+
+    // East Asian characters that a run's font lacks are drawn in a face of the machine's own that has them (the system's fonts are what is relied on: none is bundled): in a font the
+    // machine lacks, "東京" is two ems wide, where a missing glyph is half an em of nothing. Skipped on a machine with no face for them (the macOS and Windows machines of CI have them;
+    // a Linux one has them only if its image installs a CJK font).
+    void aRunInAMissingFontDrawsEastAsianCharactersInTheMachinesOwnFace()
+    {
+        if (installedFaceFor(0x6771).isEmpty() || installedFaceFor(0x4EAC).isEmpty() || installedFaceFor(0x3068).isEmpty() || installedFaceFor(0x304D).isEmpty()) QSKIP("this machine has no face for the Japanese characters of the test (the ideographs and the kana)");
+        const QString family = QStringLiteral("Test Mincho That No Machine Has");
+        QVERIFY(!QFontDatabase::hasFamily(family));
+        // (As text, and as a field's result: a ruby's text, which the practice document's two characters are, is a piece kept as XML that shows text in its place.)
+        auto widthOf = [&](const QString &text, bool asField) {
+            auto doc = std::make_unique<QTextDocument>();
+            QTextCursor c(doc.get());
+            QTextCharFormat cf;
+            cf.setFontFamilies({family});
+            cf.setFontPointSize(20);
+            if (asField) cf.setProperty(tp::Field, QStringLiteral("raw:") + text);
+            c.insertText(asField ? QString(QChar::ObjectReplacementCharacter) : text, cf);
+            FrameSpec fs;
+            fs.size = QSizeF(600, 100);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            LayoutEnv word;
+            word.wordLines = true;
+            StoryLayout layout;
+            layout.build(doc.get(), {fs}, word);
+            double width = 0;
+            for (const QRectF &r : layout.rangeRects(0, 0, asField ? 1 : int(text.size()))) width += r.width();
+            return width;
+        };
+        const QString ideographs = QString::fromUtf8("東京"), kana = QString::fromUtf8("とうきょう");
+        for (const bool asField : {false, true}) {
+            const double wide = widthOf(ideographs, asField), small = widthOf(kana, asField);
+            QVERIFY2(wide >= 2 * 20 * 0.9, qPrintable(QStringLiteral("two ideographs are %1 points wide%2").arg(wide).arg(asField ? QStringLiteral(" as a field") : QString())));
+            QVERIFY2(small >= 5 * 20 * 0.9, qPrintable(QStringLiteral("five kana are %1 points wide%2").arg(small).arg(asField ? QStringLiteral(" as a field") : QString())));
+        }
     }
 
     // The line of Courier New is Courier New's wherever it is measured, though the text is drawn in TeX Gyre Cursor (whose own line is 1.201 em, to Courier New's 1.133):
