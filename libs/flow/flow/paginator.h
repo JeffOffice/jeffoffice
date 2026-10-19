@@ -89,6 +89,21 @@ void paintTables(QPainter *p, const MaterializedPage &page, const TablePaint &op
 class Paginator {
 public:
     // Where a page starts, which is all the paginator keeps of it.
+    // The line numbers (w:lnNumType) of the sections' text go on from page to page or begin again at a section, so a page's first number is worked out when it is drawn, from what
+    // the pages before hold. What a page holds, as its lines were counted from a clean slate (see numberLines):
+    struct LineTally {
+        bool valid = false;
+        int counted = 0;                          // the lines counted on the page
+        int firstSection = 0, lastSection = 0;    // the sections of the first and the last
+        Section::LineNumbers::Restart firstRestart = Section::LineNumbers::Restart::NewPage;   // how the first line's numbers begin again
+        bool innerRestart = false;                // a line after the first begins them again
+        int lastIfFirstBegins = 0;                // the last line's number if the first begins them again
+    };
+    // The count the lines go on from: the number of the last line counted before (-1: none) and its section.
+    struct LineCount {
+        int last = -1, section = 0;
+    };
+
     struct PageStart {
         int pos = 0;            // the document position of the page's first line
         int skip = 0;           // the lines of that line's paragraph that the pages before hold
@@ -113,10 +128,10 @@ public:
         // A blank page that an odd-page or even-page section break leaves: a page of the section before (`section`) with nothing on it, before the page that begins
         // the next section at `pos`.
         bool blank = false;
-        // The line numbers that go on across pages or begin again at a section (w:lnNumType): the number the last counted line before the page has (-1: none) and the section it
-        // is in, which the page's lines go on from. Kept only while a section asks for numbers that don't begin again at each page.
-        int lineNumber = -1, lineSection = 0;
-        bool operator==(const PageStart &o) const { return blank == o.blank && pos == o.pos && skip == o.skip && hard == o.hard && section == o.section && piece == o.piece && pieceAt == o.pieceAt && foot == o.foot && end == o.end && carried == o.carried && firstOfSection == o.firstOfSection && wrapped == o.wrapped && lineNumber == o.lineNumber && lineSection == o.lineSection; }
+        // What the page's counted lines do to the line numbers, noted when the page is laid out (not part of what makes two starts the same: an edit that only moves the numbers lays
+        // out no page that it doesn't change).
+        LineTally tally;
+        bool operator==(const PageStart &o) const { return blank == o.blank && pos == o.pos && skip == o.skip && hard == o.hard && section == o.section && piece == o.piece && pieceAt == o.pieceAt && foot == o.foot && end == o.end && carried == o.carried && firstOfSection == o.firstOfSection && wrapped == o.wrapped; }
         bool operator!=(const PageStart &o) const { return !(*this == o); }
     };
 
@@ -310,15 +325,21 @@ private:
     void resolvePageRefs(MaterializedPage *out, Document *d);
     // The fields of a header's or footer's story that show a paragraph style's text (STYLEREF) show the page's paragraph of the style: the story is a copy made for the page.
     bool substituteStyleRefs(QTextDocument *story, int from, int to) const;   // (whether any field showed another text)
-    // The line numbers of the sections' text, in the margin at each line of the page (a section that has them).
-    void addLineNumbers(Document *d, const Run &run, const PageStart &st, const QRectF &body);
-    // The lines of a page that are counted, each with the number it has and its section. The page is given what the last counted line before it has (`st`); `after` is given what the
-    // page after goes on from. The pages are laid out one after the other, each holding what the next goes on from, so that no page counts the lines before it.
+    // The line numbers of the sections' text, in the margin at each line of the page (a section that has them), going on from `count`.
+    void addLineNumbers(Document *d, const Run &run, const LineCount &count, const QRectF &body);
+    // The lines of a page that are counted, each with the number it has and its section, going on from `count`. `tally` is given what the page does to the count (call it with an
+    // empty count).
     struct NumberedLine {
         int line = 0, number = 0, section = 0;
     };
-    QVector<NumberedLine> numberLines(const Run &run, const PageStart &st, PageStart *after);
+    QVector<NumberedLine> numberLines(const Run &run, LineCount count, LineTally *tally);
     bool lineNumbersRunOn() const;   // some section's numbers go on across pages, or begin again at a section
+    // The count the page `index` goes on from: the pages' tallies folded in order, kept for the pages up to m_lineCountsValid and forgotten from a page on when that page (or one
+    // before it) is laid out again, so that an edit that only moves the numbers lays out no page but its own, and no page counts the lines of all that come before it.
+    LineCount lineCountBefore(int index);
+    void forgetLineCounts(int from);
+    QVector<LineCount> m_lineCounts;
+    int m_lineCountsValid = 0;
     qint64 m_lineNumberVisits = 0;   // see lineNumberVisitsForTest()
     // A header or footer with tables in it: its text before, between, and after them, and each table, laid out from the top at a width for the page that shows number `number`
     // (the page's number is what the fields in its cells show). The tables are laid out in a private copy of the story, with the table machinery of the document's own.

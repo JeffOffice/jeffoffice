@@ -6162,6 +6162,92 @@ private Q_SLOTS:
         QCOMPARE(last.last(), QString::number(lines));
     }
 
+    // An edit that only moves the numbers (a line added inside the first page's text, where the pages after it begin where they did) lays out no page but the one it is in: the
+    // numbers of the pages after it are worked out when they are drawn, from the lines each page holds, and the number on page 150 is moved by the added lines.
+    void anEditThatOnlyMovesLineNumbersLaysOutNoLaterPage()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        QTextCharFormat face;
+        face.setFontFamilies({QStringLiteral("Arimo")});
+        face.setFontPointSize(11);
+        {
+            QTextCursor c(fd.story());
+            for (int i = 0; i < 200; ++i) {
+                if (i) c.insertBlock();
+                c.insertText(QStringLiteral("The court held that section applies. Reasonable notice was given.") + QChar(kPageBreak), face);
+            }
+        }
+        fd.sections[0].paper = QSizeF(240, 200);
+        fd.sections[0].margins = QMarginsF(60, 30, 30, 30);
+        fd.sections[0].lineNumbers.countBy = 1;
+        fd.sections[0].lineNumbers.restart = Section::LineNumbers::Restart::Continuous;
+        fd.sections[0].lineNumbers.format.setFontPointSize(7);
+        Paginator pg(&fd);
+        QCOMPARE(pg.pageCount(), 200);
+        const QStringList before = lineNumbersOnPage(pg, 150);
+        const int linesBefore = int(pg.lines(0).size());
+        QVERIFY(!before.isEmpty());
+        const qint64 laidOutBefore = pg.pagesLaidOut();
+        QTextCursor c(fd.story());
+        c.setPosition(0);
+        c.insertText(QStringLiteral("Words that make the first paragraph wrap onto more lines, set before the rest. "), face);
+        QCOMPARE(pg.pageCount(), 200);
+        const qint64 laidOut = pg.pagesLaidOut() - laidOutBefore;
+        const int added = int(pg.lines(0).size()) - linesBefore;
+        QVERIFY2(added >= 1, qPrintable(QString::number(added)));
+        QVERIFY2(laidOut <= 3, qPrintable(QStringLiteral("%1 pages laid out again").arg(laidOut)));
+        const QStringList after = lineNumbersOnPage(pg, 150);
+        QVERIFY(!after.isEmpty());
+        QCOMPARE(after.first().toInt(), before.first().toInt() + added);
+        Paginator fresh(&fd);
+        QCOMPARE(lineNumbersOnPage(fresh, 150), after);
+    }
+
+    // Sections that count their lines in different ways, one after the other: each line has the number the rules give it from the line counted before it, whatever pages the
+    // sections are on, and a section that goes on does not take its own start.
+    void sectionsOfDifferentLineNumberingGoOnFromOneAnother()
+    {
+        using Restart = Section::LineNumbers::Restart;
+        FlowDocument fd;
+        numberedStory(fd, 30, 1, Restart::NewPage);
+        const int breaks[2] = {8, 17};   // (the paragraphs that end the first and the second section)
+        for (int endsSection : breaks) {
+            QTextCursor c(fd.story()->findBlockByNumber(endsSection));
+            QTextBlockFormat bf = c.blockFormat();
+            bf.setProperty(fp::SectionBreakAfter, true);
+            c.setBlockFormat(bf);
+        }
+        const int secondStart = fd.story()->findBlockByNumber(breaks[0] + 1).position(), thirdStart = fd.story()->findBlockByNumber(breaks[1] + 1).position();
+        Section second = fd.sections[0], third = fd.sections[0];
+        second.continuous = true;
+        second.lineNumbers.restart = Restart::Continuous;
+        second.lineNumbers.start = 7;
+        third.continuous = true;
+        third.lineNumbers.restart = Restart::NewSection;
+        third.lineNumbers.start = 3;
+        fd.sections << second << third;
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 4);
+        int last = -1, lastSection = -1, lastPage = -1, again = 0;
+        for (int k = 0; k < pg.pageCount(); ++k) {
+            const QStringList shown = lineNumbersOnPage(pg, k);
+            const auto briefs = pg.lines(k);
+            QVERIFY2(shown.size() == briefs.size(), qPrintable(QStringLiteral("page %1 has %2 numbers for %3 lines").arg(k).arg(shown.size()).arg(briefs.size())));
+            for (int i = 0; i < briefs.size(); ++i) {
+                const int section = briefs[i].pos >= thirdStart ? 2 : briefs[i].pos >= secondStart ? 1 : 0;
+                const Section::LineNumbers &numbers = fd.sections[section].lineNumbers;
+                const bool begins = last < 0 || (numbers.restart == Restart::NewPage && lastPage != k) || (numbers.restart == Restart::NewSection && section != lastSection);
+                last = begins ? numbers.start : last + 1;
+                again += begins;
+                lastSection = section;
+                lastPage = k;
+                QVERIFY2(shown[i] == QString::number(last), qPrintable(QStringLiteral("page %1, line %2: %3, not %4").arg(k).arg(i).arg(shown[i]).arg(last)));
+            }
+        }
+        QVERIFY(again > 3 && lastSection == 2);
+    }
+
     // A continuous section of two columns that holds a table: it begins below the text of the section before, the table is inside a column and flows into the next, and
     // the page's note (cited in the text above the table, in the first column) and furniture keep to their places.
     void aTableInAContinuousTwoColumnSectionIsInsideItsColumnBelowTheTextAbove()

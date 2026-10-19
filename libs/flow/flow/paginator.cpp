@@ -83,6 +83,7 @@ struct Paginator::Run {
     QVector<Wrapped> wrapped;  // the objects the text of the page was laid out round
     QVector<QRectF> advanceWalls;   // the rooms (in page coordinates) kept clear above the paragraphs that asked to be lower on the page
     bool cut = false;          // the page ends before the paragraph it was asked to end before
+    LineTally tally;           // what its counted lines do to the line numbers (noted for a document with numbers that go on)
 };
 
 Paginator::Paginator(FlowDocument *doc) : m_doc(doc), m_tables(std::make_unique<TableFlow>(doc)), m_watch(std::make_unique<QObject>())
@@ -266,6 +267,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
 {
     ++m_passes;
     Run run;
+    run.tally.valid = true;
     run.wrapped = wrapped;
     // The page a break at the end of the text makes: it starts past the text's last character.
     // (With notes that go on from the page before, it is a page of notes alone.)
@@ -278,6 +280,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         run.blank = true;
         run.hasNext = true;
         run.next = st;
+        run.next.tally = LineTally();
         run.next.blank = false;
         run.next.section = std::min(st.section + 1, int(m_doc->sections.size()) - 1);
         run.next.firstOfSection = true;
@@ -988,9 +991,9 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         run.next.carried = carriedOut;
         // (The first page of a section is the one it begins at the top of: not the page after one that a continuous section began in the middle of.)
         run.next.firstOfSection = !run.next.blank && sectionEnds && run.next.section != st.section;
-        // The line numbers that go on from this page's.
-        if (lineNumbersRunOn()) numberLines(run, st, &run.next);
     }
+    // What the page's counted lines do to the line numbers that go on.
+    if (lineNumbersRunOn()) numberLines(run, LineCount(), &run.tally);
     return run;
 }
 
@@ -1049,6 +1052,8 @@ void Paginator::extend(int index)
 {
     while (!m_pending && !m_complete && (index < 0 || m_starts.size() <= index)) {
         const Run run = layoutPage(int(m_starts.size()) - 1, m_starts.back());
+        m_starts.back().tally = run.tally;
+        forgetLineCounts(int(m_starts.size()));
         if (!run.hasNext || run.next == m_starts.back()) {
             m_complete = true;
             break;
@@ -1091,6 +1096,7 @@ void Paginator::invalidate()
     m_tables->reset();
     m_noteHeights.clear();
     m_numberOf = -1;
+    forgetLineCounts(0);
     m_starts.clear();
     m_starts << PageStart();
     m_complete = false;
@@ -1105,6 +1111,7 @@ void Paginator::invalidateFrom(int section)
     keep = std::max(keep, 1);
     if (keep >= m_starts.size()) return;
     m_numberOf = -1;
+    forgetLineCounts(keep);
     m_starts.resize(keep);
     m_complete = false;
     // (Pages that edits had not been settled to are still waiting; none are beyond the last.)
@@ -1286,6 +1293,7 @@ void Paginator::changed(int position, int removed, int added)
     if (m_tables->any() && b0.isValid() && b0.blockFormat().intProperty(fp::Cell) != 0)
         while (holding > 0 && m_starts[holding].piece != 0) --holding;
     const int page = std::max(0, holding - 1);
+    forgetLineCounts(page + 1);
     if (!m_pending) {
         m_pending = true;
         m_shift = 0;
@@ -1313,7 +1321,9 @@ void Paginator::settleStep()
 {
     const int k = m_valid;
     const Run run = layoutPage(k, m_starts[k]);
-    if (m_numberOf > k) m_numberOf = -1;   // (the pages after this one are about to change)
+    m_starts[k].tally = run.tally;
+    forgetLineCounts(k + 1);   // (the pages after this one are about to change, and this one's lines may)
+    if (m_numberOf > k) m_numberOf = -1;
     if (!run.hasNext || run.next == m_starts[k]) {
         m_starts.resize(k + 1);
         m_high = std::min(m_high, k);
@@ -1590,12 +1600,12 @@ bool Paginator::lineNumbersRunOn() const
 // A line takes the number after the last counted line before it, and the section's start where there is none or the section's numbers begin again: at the page's first counted line
 // (newPage), at the first of the section (newSection), never (continuous). The text of a section is counted: not the rows of a table, a paragraph that is set apart from the text, nor
 // one that suppresses the numbers.
-QVector<Paginator::NumberedLine> Paginator::numberLines(const Run &run, const PageStart &st, PageStart *after)
+QVector<Paginator::NumberedLine> Paginator::numberLines(const Run &run, LineCount count, LineTally *tally)
 {
     QVector<NumberedLine> out;
     const QTextDocument *story = m_doc->story();
     const QVector<int> &starts = sectionStarts();
-    int last = st.lineNumber, lastSection = st.lineSection;
+    int last = count.last, lastSection = count.section;
     bool onPage = false;
     for (int i = 0; i < run.kept; ++i) {
         ++m_lineNumberVisits;
@@ -1610,25 +1620,66 @@ QVector<Paginator::NumberedLine> Paginator::numberLines(const Run &run, const Pa
         if (numbers.countBy <= 0) continue;
         using Restart = Section::LineNumbers::Restart;
         const bool again = last < 0 || (numbers.restart == Restart::NewPage && !onPage) || (numbers.restart == Restart::NewSection && section != lastSection);
+        if (tally) {
+            if (tally->counted == 0) {
+                tally->firstSection = section;
+                tally->firstRestart = numbers.restart;
+            } else if (again) {
+                tally->innerRestart = true;
+            }
+            ++tally->counted;
+            tally->lastSection = section;
+        }
         last = again ? numbers.start : last + 1;
         lastSection = section;
         onPage = true;
         out.push_back({i, last, section});
     }
-    if (after) {
-        after->lineNumber = last;
-        after->lineSection = lastSection;
+    if (tally) {
+        tally->lastIfFirstBegins = last;
+        tally->valid = true;
     }
     return out;
 }
 
-void Paginator::addLineNumbers(Document *d, const Run &run, const PageStart &st, const QRectF &body)
+// What the count is after a page whose lines were tallied, going on from `in`.
+static Paginator::LineCount afterPage(Paginator::LineCount in, const Paginator::LineTally &t)
+{
+    using Restart = Section::LineNumbers::Restart;
+    if (t.counted == 0) return in;
+    const bool begins = in.last < 0 || t.firstRestart == Restart::NewPage || (t.firstRestart == Restart::NewSection && t.firstSection != in.section);
+    return {t.innerRestart || begins ? t.lastIfFirstBegins : in.last + t.counted, t.lastSection};
+}
+
+Paginator::LineCount Paginator::lineCountBefore(int index)
+{
+    if (!lineNumbersRunOn()) return LineCount();
+    index = std::clamp(index, 0, int(m_starts.size()) - 1);
+    while (m_lineCountsValid <= index) {
+        const int j = m_lineCountsValid;
+        LineCount count;
+        if (j > 0) {
+            if (!m_starts[j - 1].tally.valid) m_starts[j - 1].tally = layoutPage(j - 1, m_starts[j - 1]).tally;
+            count = afterPage(m_lineCounts.value(j - 1), m_starts[j - 1].tally);
+        }
+        if (j < m_lineCounts.size()) m_lineCounts[j] = count; else m_lineCounts.push_back(count);
+        ++m_lineCountsValid;
+    }
+    return m_lineCounts[index];
+}
+
+void Paginator::forgetLineCounts(int from)
+{
+    m_lineCountsValid = std::min(m_lineCountsValid, from);
+}
+
+void Paginator::addLineNumbers(Document *d, const Run &run, const LineCount &count, const QRectF &body)
 {
     bool any = false;
     for (const Section &s : m_doc->sections) any |= s.lineNumbers.countBy > 0;
     if (!any || !m_doc->env.wordLines) return;
     int made = 0;
-    for (const NumberedLine &counted : numberLines(run, st, nullptr)) {
+    for (const NumberedLine &counted : numberLines(run, count, nullptr)) {
         if (made >= kMostLineNumbers) break;
         const StoryLayout::LineBrief &ln = run.lines[counted.line];
         const int column = ln.frame - run.firstFrame;
@@ -1897,7 +1948,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         const StoryLayout::LineBrief &lastLine = run.lines[run.kept - 1];
         out->continuesOnAfter = lastLine.line < lastLine.lines - 1;
         out->freeBreakEnds = run.freeBreak ? run.splitEnds : QVector<int>();
-        addLineNumbers(d.get(), run, st, furniture.body);
+        addLineNumbers(d.get(), run, lineCountBefore(index), furniture.body);
 
         // A text box for each column that has lines, as tall as its lines are: the lines that follow, which went to the next page, don't fit
         // in it (a frame a line short of the text's bottom is how the page is cut where the paginator cut it).
