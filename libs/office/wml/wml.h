@@ -184,7 +184,7 @@ struct Inline {
     QString text;                     // Text: a tab is '\t', a line break U+2028, a no-break hyphen U+2011, a soft hyphen U+00AD
     QByteArray raw;                   // atoms: the XML (a RunAtom's is the child of the run, a ParaAtom's is the element, or the tag)
     QString display;                  // atoms: the text shown in the atom's place, none for most
-    QString tag, key;                 // atoms: the element's local name, and what pairs it with its partner (a bookmark's id, a field mark's type)
+    QString tag, key;                 // atoms: the element's local name, and what pairs it with its partner (a bookmark's id, a field mark's type); an equation's or a styled letter's style (i, b, ib, d)
 };
 
 struct Paragraph {
@@ -578,6 +578,11 @@ CompatOptions readCompatOptions(const QByteArray &settings);
 constexpr qint64 kMaxInflatedBytes = qint64(1) << 30;
 constexpr int kMaxParagraphs = 500000;
 constexpr int kMaxInlines = 1500000;
+// An equation (m:oMath, m:oMathPara) is shown as a line of text of at most this many characters, from content nested at most this deep (the rest of it is kept as written
+// and left out of the line), and all the equations of a document show at most the last number of characters.
+constexpr int kMaxEquationChars = 4000;
+constexpr int kMaxEquationDepth = 24;
+constexpr int kMaxEquationCharsTotal = 2000000;
 // A table is read as one of at most this many rows and columns (a word processor's own largest has 63 columns), of at most this many cells, nested at
 // most this deep, and all the tables of a document hold at most the last number of cells (the most that are laid out in a document: 50,000 short cells open and
 // are paged in a few seconds); a table that goes past any of them is kept whole as XML and shown as a stand-in, as every table was before, and the file's

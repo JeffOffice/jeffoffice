@@ -267,6 +267,117 @@ private Q_SLOTS:
         QCOMPARE(shown, QString::fromUtf8("\xe6\x9d\xb1\xe4\xba\xac(\xe3\x81\xa8\xe3\x81\x86)"));
     }
 
+    // An equation (m:oMath, m:oMathPara) shows every character it has, in order, as a line of text on the baseline: a fraction is its numerator and then its denominator, a script comes
+    // after its base, a delimiter's characters round what is in it, an n-ary operator is followed by its limits and then what it works on, and a matrix goes row by row. The
+    // element itself is kept as it was written.
+    void anEquationShowsItsCharactersInOrderAsALine()
+    {
+        const QByteArray ns = "xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"";
+        auto run = [](const QByteArray &text) { return "<m:r><m:t>" + text + "</m:t></m:r>"; };
+        auto arg = [&](const char *name, const QByteArray &text) { return QByteArray("<m:") + name + ">" + run(text) + "</m:" + name + ">"; };
+        auto shown = [&](const QByteArray &inner, bool para = false) {
+            Made m;
+            m.body = "<w:p>" + QByteArray(para ? "<m:oMathPara " : "<m:oMath ") + ns + ">" + inner + (para ? "</m:oMathPara>" : "</m:oMath>") + "</w:p>";
+            Document d;
+            if (!readDocx(m.build(), &d)) return QStringLiteral("READ FAILED");
+            QString out = QStringLiteral("NO EQUATION");
+            for (const Inline &in : d.body[0].para.content)
+                if (in.kind == Inline::ParaAtom && (in.tag == QLatin1String("oMath") || in.tag == QLatin1String("oMathPara"))) out = in.display;
+            if (!documentXmlOf(writeDocx(d)).contains(m.body.mid(5, m.body.size() - 11))) out = QStringLiteral("NOT KEPT: ") + out;
+            return out;
+        };
+        QCOMPARE(shown("<m:f>" + arg("num", "a") + arg("den", "b") + "</m:f>"), QStringLiteral("a/b"));
+        QCOMPARE(shown("<m:f>" + arg("num", "x+1") + arg("den", "y") + "</m:f>"), QStringLiteral("(x + 1)/y"));
+        QCOMPARE(shown("<m:sSup>" + arg("e", "x") + arg("sup", "2") + "</m:sSup>"), QStringLiteral("x2"));
+        QCOMPARE(shown("<m:sSub>" + arg("e", "x") + arg("sub", "i") + "</m:sSub>"), QStringLiteral("xi"));
+        QCOMPARE(shown("<m:sSubSup>" + arg("e", "x") + arg("sub", "i") + arg("sup", "n") + "</m:sSubSup>"), QStringLiteral("xin"));
+        QCOMPARE(shown("<m:sPre>" + arg("sub", "1") + arg("sup", "2") + arg("e", "C") + "</m:sPre>"), QStringLiteral("12C"));
+        QCOMPARE(shown("<m:rad><m:radPr><m:degHide m:val=\"1\"/></m:radPr><m:deg/>" + arg("e", "x+1") + "</m:rad>"), QStringLiteral("\u221a(x + 1)"));
+        QCOMPARE(shown("<m:rad>" + arg("deg", "3") + arg("e", "x") + "</m:rad>"), QStringLiteral("3\u221ax"));
+        QCOMPARE(shown("<m:nary><m:naryPr><m:chr m:val=\"\u2211\"/></m:naryPr>" + arg("sub", "i=1") + arg("sup", "n") + arg("e", "x") + "</m:nary>"), QStringLiteral("\u2211 (i = 1) n x"));
+        QCOMPARE(shown("<m:nary><m:naryPr><m:subHide m:val=\"1\"/><m:supHide m:val=\"1\"/></m:naryPr><m:sub/><m:sup/>" + arg("e", "f(x)dx") + "</m:nary>"), QStringLiteral("\u222b f(x)dx"));
+        QCOMPARE(shown("<m:d><m:dPr><m:begChr m:val=\"[\"/><m:sepChr m:val=\",\"/><m:endChr m:val=\"]\"/></m:dPr>" + arg("e", "a") + arg("e", "b") + "</m:d>"), QStringLiteral("[a,b]"));
+        QCOMPARE(shown("<m:d>" + arg("e", "a") + "</m:d>"), QStringLiteral("(a)"));
+        QCOMPARE(shown("<m:func>" + arg("fName", "sin") + arg("e", "x") + "</m:func>"), QStringLiteral("sin x"));
+        QCOMPARE(shown("<m:limLow>" + arg("e", "lim") + arg("lim", "x\u21920") + "</m:limLow>"), QStringLiteral("lim x \u2192 0"));
+        QCOMPARE(shown("<m:m><m:mr>" + arg("e", "a") + arg("e", "b") + "</m:mr><m:mr>" + arg("e", "c") + arg("e", "d") + "</m:mr></m:m>"), QStringLiteral("a b; c d"));
+        // An equation of its own paragraph holds equations that are lines of their own.
+        QCOMPARE(shown("<m:oMath>" + run("a") + "</m:oMath><m:oMath>" + run("b=c") + "</m:oMath>", true), QStringLiteral("a\u2028b = c"));
+        // Operators have blanks round them where they work on two things, and none where they sign one.
+        QCOMPARE(shown(run("a+b=-c")), QStringLiteral("a + b = -c"));
+        // A run's own text of normal letters (w:t in an m:r) counts as well.
+        QCOMPARE(shown("<m:r><m:rPr><m:nor/></m:rPr><w:t>if</w:t></m:r>" + run("x")), QStringLiteral("ifx"));
+    }
+
+    // The characters of the mathematical alphanumeric block (U+1D400 to U+1D7FF) are shown as the letters and digits they are styles of, and how most of an equation's letters are
+    // set (italic, bold, both, or neither) is kept with it.
+    void anEquationsStyledLettersAreShownAsTheirLetters()
+    {
+        const QByteArray ns = "xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"";
+        auto read = [&](const QByteArray &text, QString *style) {
+            Made m;
+            m.body = "<w:p><m:oMath " + ns + "><m:r><m:t>" + text + "</m:t></m:r></m:oMath></w:p>";
+            Document d;
+            if (!readDocx(m.build(), &d)) return QStringLiteral("READ FAILED");
+            for (const Inline &in : d.body[0].para.content)
+                if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("oMath")) {
+                    *style = in.key;
+                    return in.display;
+                }
+            return QStringLiteral("NO EQUATION");
+        };
+        QString style;
+        QCOMPARE(read(QString::fromUtf8("\xf0\x9d\x91\xa5=\xf0\x9d\x9b\xbc+\xf0\x9d\x9f\x91").toUtf8(), &style), QStringLiteral("x = \u03b1 + 3"));   // (math italic x, italic alpha, bold digit 3)
+        QCOMPARE(style, QStringLiteral("i"));
+        QCOMPARE(read(QString::fromUtf8("\xf0\x9d\x90\x80\xf0\x9d\x90\x81").toUtf8(), &style), QStringLiteral("AB"));   // (bold A and B)
+        QCOMPARE(style, QStringLiteral("b"));
+        QCOMPARE(read("xy", &style), QStringLiteral("xy"));   // (letters a run has no style for are italic, as an equation's are)
+        QCOMPARE(style, QStringLiteral("i"));
+        QCOMPARE(read("12", &style), QStringLiteral("12"));
+        QCOMPARE(style, QString());
+    }
+
+    // A mathematical alphanumeric in a paragraph's text (as a run in Cambria Math has it) is kept as the text it is, written back as it was, and shown as its letter: an atom that holds the
+    // characters and shows the letters, its style in its key (italic i, bold b, bold italic ib; d for double-struck, which is shown as it is: a face has it).
+    void aStyledLetterInTextIsKeptAndShownAsItsLetter()
+    {
+        Made m;
+        m.body = QString::fromUtf8("<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>a \xf0\x9d\x91\x86 b \xf0\x9d\x90\x80\xf0\x9d\x90\x81 c \xf0\x9d\x94\xb8</w:t></w:r></w:p>").toUtf8();
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        QStringList parts;
+        for (const Inline &in : d.body[0].para.content) {
+            if (in.kind == Inline::Text) parts << QStringLiteral("T:") + in.text;
+            else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("t")) parts << QStringLiteral("A:") + in.display + QLatin1Char('/') + in.key;
+        }
+        QCOMPARE(parts, (QStringList{QStringLiteral("T:a "), QStringLiteral("A:S/i"), QStringLiteral("T: b "), QStringLiteral("A:AB/b"), QStringLiteral("T: c "), QString::fromUtf8("A:\xf0\x9d\x94\xb8/d")}));
+        const QByteArray written = documentXmlOf(writeDocx(d));
+        QVERIFY(written.contains("\xf0\x9d\x91\x86") && written.contains("\xf0\x9d\x90\x80\xf0\x9d\x90\x81") && written.contains("\xf0\x9d\x94\xb8"));
+        Document again;
+        QVERIFY(readDocx(writeDocx(d), &again));
+        QCOMPARE(documentXmlOf(writeDocx(again)), written);
+    }
+
+    // What a file controls about an equation is bounded: how deep it nests (what is deeper is left out of the line), and how much text the line holds.
+    void anEquationsDepthAndSizeAreBounded()
+    {
+        const QByteArray ns = "xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"";
+        QByteArray nested = "<m:r><m:t>x</m:t></m:r>";
+        for (int i = 0; i < 200; ++i) nested = "<m:sSup><m:e>" + nested + "</m:e><m:sup><m:r><m:t>y</m:t></m:r></m:sup></m:sSup>";
+        Made m;
+        m.body = "<w:p><m:oMath " + ns + ">" + nested + "</m:oMath></w:p><w:p><m:oMath " + ns + "><m:r><m:t>" + QByteArray(100000, 'z') + "</m:t></m:r></m:oMath></w:p>";
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        QVERIFY(d.body.size() >= 2);
+        for (int i = 0; i < 2; ++i) {
+            QString shown;
+            for (const Inline &in : d.body[i].para.content)
+                if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("oMath")) shown = in.display;
+            QVERIFY2(!shown.isEmpty() && shown.size() <= kMaxEquationChars, qPrintable(QStringLiteral("equation %1 shows %2 characters").arg(i).arg(shown.size())));
+        }
+        QVERIFY(documentXmlOf(writeDocx(d)).contains(nested.left(200)));   // (kept whole, whatever was drawn)
+    }
+
     void sectionBreaksAreInTheParagraphThatEndsThem()
     {
         Made m;

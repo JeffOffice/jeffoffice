@@ -2,6 +2,7 @@
 
 #include "wml/wml.h"
 
+#include "wml/wmlmath.h"
 #include "wml/xmltree.h"
 #include "core/fonts.h"
 
@@ -291,6 +292,62 @@ public:
         return a;
     }
 
+    // Text with characters of the mathematical alphanumeric block in it: the text between them as it is, and each stretch of them of one style an atom that holds the characters (a
+    // w:t, written back as it was) and shows the letters they are styles of (the stretch of double-struck ones as they are: a bundled face has them). Its key is the style: i (italic),
+    // b (bold), ib (both), d (double-struck), or empty (plain).
+    void styledText(const QString &text, const RunProps &props, QVector<Inline> *out) const
+    {
+        auto plain = [&](const QString &s) {
+            if (s.isEmpty()) return;
+            Inline x;
+            x.props = props;
+            x.text = s;
+            out->push_back(x);
+        };
+        QString ordinary;
+        for (qsizetype i = 0; i < text.size();) {
+            uint ch = text[i].unicode();
+            qsizetype width = 1;
+            if (QChar::isHighSurrogate(ch) && i + 1 < text.size() && QChar::isLowSurrogate(text[i + 1].unicode())) {
+                ch = QChar::surrogateToUcs4(ch, text[i + 1].unicode());
+                width = 2;
+            }
+            StyledLetter first;
+            if (!styledLetter(ch, &first)) {
+                ordinary += text.mid(i, width);
+                i += width;
+                continue;
+            }
+            plain(ordinary);
+            ordinary.clear();
+            // The stretch of characters that are set alike.
+            QString held, shown;
+            for (qsizetype k = i; k < text.size();) {
+                uint c2 = text[k].unicode();
+                qsizetype w2 = 1;
+                if (QChar::isHighSurrogate(c2) && k + 1 < text.size() && QChar::isLowSurrogate(text[k + 1].unicode())) {
+                    c2 = QChar::surrogateToUcs4(c2, text[k + 1].unicode());
+                    w2 = 2;
+                }
+                StyledLetter l;
+                if (!styledLetter(c2, &l) || l.style != first.style) break;
+                held += text.mid(k, w2);
+                shown += first.style == 'd' ? text.mid(k, w2) : QString(QChar::fromUcs4(char32_t(l.base)));
+                k += w2;
+            }
+            Inline a;
+            a.kind = Inline::RunAtom;
+            a.props = props;
+            a.tag = QStringLiteral("t");
+            a.raw = "<w:t xml:space=\"preserve\">" + escapeXml(held) + "</w:t>";
+            a.display = shown;
+            a.key = first.style == 'i' ? QStringLiteral("i") : first.style == 'b' ? QStringLiteral("b") : first.style == 'j' ? QStringLiteral("ib") : first.style == 'd' ? QStringLiteral("d") : QString();
+            out->push_back(a);
+            i += held.size();
+        }
+        plain(ordinary);
+    }
+
     void run(int n, QVector<Inline> *out)
     {
         RunProps props;
@@ -299,6 +356,11 @@ public:
         QString text;
         auto flush = [&] {
             if (text.isEmpty()) return;
+            if (text.contains(QChar(0xD835))) {
+                styledText(text, props, out);
+                text.clear();
+                return;
+            }
             Inline s;
             s.props = props;
             s.text = text;
@@ -387,6 +449,24 @@ public:
                name == "customXml" || name == "dir" || name == "bdo";
     }
 
+    int equationChars = 0;            // the characters the equations read so far show (kMaxEquationCharsTotal at most)
+
+    // An equation shows a line of text in the face and size of its first run (Cambria Math where it states none), set as most of its letters are (italic, bold, or neither: in
+    // its key).
+    void equation(int c, Inline *a)
+    {
+        const Equation e = equationText(t, c, std::min(kMaxEquationChars, kMaxEquationCharsTotal - equationChars));
+        equationChars += int(e.text.size());
+        a->display = e.text;
+        a->key = e.style;
+        if (e.runProps >= 0) a->props = rPr(e.runProps);
+        if (!a->props.fonts || (a->props.fonts->ascii.isEmpty() && a->props.fonts->hAnsi.isEmpty() && a->props.fonts->asciiTheme.isEmpty() && a->props.fonts->hAnsiTheme.isEmpty())) {
+            Fonts f = a->props.fonts.value_or(Fonts());
+            f.ascii = f.hAnsi = QStringLiteral("Cambria Math");
+            a->props.fonts = f;
+        }
+    }
+
     void paragraphContent(int n, QVector<Inline> *out, int depth)
     {
         for (int c = t.firstChild(n); c >= 0; c = t.next(c)) {
@@ -396,7 +476,9 @@ public:
             }
             const QByteArray name = t.localName(c);
             if (t.ns(c) != NsW) {
-                out->push_back(atom(c, Inline::ParaAtom));
+                Inline a = atom(c, Inline::ParaAtom);
+                if (name == "oMath" || name == "oMathPara") equation(c, &a);
+                out->push_back(a);
             } else if (name == "pPr" || name == "proofErr") {
                 continue;
             } else if (name == "r") {

@@ -949,6 +949,12 @@ static bool picturesInRunsFamily(const QString &family)
 QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutEnv &env, const QColor &behind)
 {
     QTextCharFormat f = original;
+    // The style a run is shown in where its format does not say it (an equation's letters, a styled letter shown as the letter it is a style of): layout only.
+    if (env.wordLines && f.hasProperty(tp::DisplayStyle)) {
+        const QString style = f.stringProperty(tp::DisplayStyle);
+        if (style.contains(QLatin1Char('i'))) f.setFontItalic(true);
+        if (style.contains(QLatin1Char('b'))) f.setFontWeight(QFont::Bold);
+    }
     // (Not a symbol font this machine lacks, whose pictures the run's own family draws, by that font's widths below: fontconfig stands a symbol-encoded face in
     // for the name Symbol, which leaves a bullet and a diamond blank.)
     if (env.wordLines && f.hasProperty(tp::DisplayFamily) && !picturesInRunsFamily(f.stringProperty(tp::DisplayFamily))) f.setFontFamilies({f.stringProperty(tp::DisplayFamily)});

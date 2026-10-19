@@ -216,6 +216,36 @@ void typeText(WriteDoc &doc, QTextCursor &c, const QString &text)
 
 QString plain(WriteDoc &doc) { return doc.story()->toPlainText(); }
 
+// The text each line of one of a page's text boxes shows (by default the first page's first box, the text's), with the fields in their places, as the page's own box lays it out.
+QStringList boxLines(WriteDoc &doc, int pageNumber = 0, int box = 0)
+{
+    const auto page = doc.pager().materialize(pageNumber);
+    if (!page || box >= page->boxes.size()) return {};
+    const auto *item = dynamic_cast<const TextItem *>(page->doc->item(page->boxes[box]));
+    if (!item) return {};
+    FrameSpec fs;
+    fs.size = item->rect.size();
+    fs.insets = QMarginsF(0, 0, 0, 0);
+    fs.hyphenate = false;
+    StoryLayout layout;
+    layout.build(page->doc->story(item->storyId)->doc.get(), {fs}, doc.flow().env);
+    QStringList lines;
+    for (const auto &l : layout.lineInfo(0)) lines << l.text.trimmed();
+    return lines;
+}
+
+// The formats of a story's fragments that are atoms of the tag given (the ones that stand for something the file keeps as XML), in order.
+QList<QTextCharFormat> atomFormats(WriteDoc &doc, const QString &tag)
+{
+    QList<QTextCharFormat> out;
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextCharFormat cf = it.fragment().charFormat();
+            if (cf.hasProperty(prop::Atom) && unpackAtom(storedBytes(cf, prop::Atom)).tag == tag) out << cf;
+        }
+    return out;
+}
+
 // A random place in a table's cells (the cursor is not moved when the story has no table).
 bool placeInACell(WriteDoc &doc, QTextCursor &c, const std::function<int(int)> &pick)
 {
@@ -11454,6 +11484,113 @@ private Q_SLOTS:
         const auto heads = audit::itemsWith(*page, QStringLiteral("flow-header-box"));
         QVERIFY(heads.size() == 1);
         QCOMPARE(audit::storyOf(*page, heads[0]), QStringLiteral("Head base(ruby)"));
+    }
+
+    // An equation is drawn: the line of text that is its characters in order, on the baseline, in the size and face of its first run, in the text, in a cell of a table, in a text box,
+    // and in a header; saved, it is what the file had.
+    void anEquationIsDrawnAsALineOfText()
+    {
+        const QByteArray ns = "xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"";
+        const QByteArray eq = "<m:oMath " + ns + "><m:r><w:rPr><w:sz w:val=\"40\"/></w:rPr><m:t>y=</m:t></m:r><m:f><m:num><m:r><m:t>a</m:t></m:r></m:num><m:den><m:r><m:t>b+1</m:t></m:r></m:den></m:f></m:oMath>";
+        const QString line = QStringLiteral("y = a/(b + 1)");
+        // In the text: a line with the words round it, the atom is set as the run says and its letters are italic.
+        auto doc = open(makeDocxWithParts("<w:p><w:r><w:t xml:space=\"preserve\">Solve </w:t></w:r>" + eq + "<w:r><w:t xml:space=\"preserve\"> now</w:t></w:r></w:p>", sectionXml(6000, 6000, 720), {}));
+        QVERIFY(doc);
+        QCOMPARE(boxLines(*doc), QStringList{QStringLiteral("Solve y = a/(b + 1) now")});
+        const QList<QTextCharFormat> atoms = atomFormats(*doc, QStringLiteral("oMath"));
+        QCOMPARE(int(atoms.size()), 1);
+        QCOMPARE(atoms[0].stringProperty(tp::Field), QStringLiteral("raw:") + line);
+        QVERIFY2(std::abs(atoms[0].fontPointSize() - 20) < 0.01, qPrintable(QString::number(atoms[0].fontPointSize())));
+        QCOMPARE(atoms[0].stringProperty(tp::DisplayStyle), QStringLiteral("i"));
+        QVERIFY(atoms[0].fontFamilies().toStringList().contains(QStringLiteral("Cambria Math")));
+        const QByteArray saved = documentXml(doc->toDocx());
+        QVERIFY(saved.contains(eq));
+        QVERIFY(!saved.contains("DisplayStyle"));
+        // In a cell of a table.
+        auto table = open(makeDocxWithParts("<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr><w:p>" + eq +
+                                            "</w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>after</w:t></w:r></w:p>", sectionXml(6000, 6000, 720), {}));
+        QVERIFY(table);
+        QCOMPARE(int(atomFormats(*table, QStringLiteral("oMath")).size()), 1);
+        QCOMPARE(atomFormats(*table, QStringLiteral("oMath"))[0].stringProperty(tp::Field), QStringLiteral("raw:") + line);
+        QVERIFY(documentXml(table->toDocx()).contains(eq));
+        // In a text box of the text, and in a header.
+        const QByteArray box = "<w:p><w:r><w:t>text</w:t></w:r><w:r><w:pict " + QByteArray(kVml) + "><v:shape style=\"position:absolute;margin-left:10pt;margin-top:60pt;width:150pt;height:40pt;z-index:3\">"
+                               "<v:textbox><w:txbxContent><w:p>" + eq + "</w:p></w:txbxContent></v:textbox><w10:wrap type=\"square\"/></v:shape></w:pict></w:r></w:p>";
+        auto boxed = open(makeDocxWithParts(box, sectionXml(6000, 6000, 720), {}));
+        QVERIFY(boxed);
+        const auto boxedPage = boxed->pager().materialize(0);
+        QVERIFY(boxedPage);
+        QVERIFY2(boxWithText(*boxedPage, line), "the text box shows the equation");
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", {eq})}};
+        auto headed = open(makeDocxWithParts(plainP("body"), sectionXml(6000, 6000, 720, "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"), parts));
+        QVERIFY(headed);
+        const auto headedPage = headed->pager().materialize(0);
+        QVERIFY(headedPage);
+        const auto heads = audit::itemsWith(*headedPage, QStringLiteral("flow-header-box"));
+        QVERIFY(heads.size() == 1);
+        QCOMPARE(audit::storyOf(*headedPage, heads[0]), line);
+    }
+
+    // An equation that is a paragraph of its own (m:oMathPara) is a line of its own, centered.
+    void anEquationOfItsOwnParagraphIsCentered()
+    {
+        const QByteArray ns = "xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"";
+        auto doc = open(makeDocxWithParts("<w:p><w:r><w:t>Before</w:t></w:r></w:p><w:p><m:oMathPara " + ns + "><m:oMath><m:r><m:t>a=b</m:t></m:r></m:oMath></m:oMathPara></w:p><w:p><w:r><w:t>After</w:t></w:r></w:p>",
+                                          sectionXml(6000, 6000, 720), {}));
+        QVERIFY(doc);
+        QCOMPARE(boxLines(*doc), (QStringList{QStringLiteral("Before"), QStringLiteral("a = b"), QStringLiteral("After")}));
+        QVERIFY(doc->story()->findBlockByNumber(1).blockFormat().alignment() & Qt::AlignHCenter);
+        QVERIFY(!(doc->story()->findBlockByNumber(0).blockFormat().alignment() & Qt::AlignHCenter));
+    }
+
+    // A letter of the mathematical alphanumeric block in the text (a run in a math face has it) is drawn as its letter, in the style it stands for (italic here), where no face of the
+    // machine has the block; a double-struck one is drawn as it is, in a bundled face that has it; the file's characters are written back as they were.
+    void aStyledLetterInTextIsDrawnAsItsLetter()
+    {
+        const QByteArray text = QString::fromUtf8("<w:p><w:r><w:rPr><w:rFonts w:ascii=\"Cambria Math\" w:hAnsi=\"Cambria Math\"/></w:rPr><w:t>\xf0\x9d\x91\x86</w:t></w:r>"
+                                                  "<w:r><w:t xml:space=\"preserve\"> and </w:t></w:r><w:r><w:t>\xf0\x9d\x94\xb8</w:t></w:r><w:r><w:t xml:space=\"preserve\"> and </w:t></w:r><w:r><w:t>\xf0\x9d\x90\x81x</w:t></w:r></w:p>").toUtf8();
+        auto doc = open(makeDocxWithParts(text, sectionXml(6000, 6000, 720), {}));
+        QVERIFY(doc);
+        QCOMPARE(boxLines(*doc), QStringList{QString::fromUtf8("S and \xf0\x9d\x94\xb8 and Bx")});
+        const QList<QTextCharFormat> atoms = atomFormats(*doc, QStringLiteral("t"));
+        QCOMPARE(int(atoms.size()), 3);
+        QCOMPARE(atoms[0].stringProperty(tp::Field), QStringLiteral("raw:S"));
+        QCOMPARE(atoms[0].stringProperty(tp::DisplayStyle), QStringLiteral("i"));
+        QCOMPARE(atoms[1].stringProperty(tp::Field), QString::fromUtf8("raw:\xf0\x9d\x94\xb8"));
+        QCOMPARE(atoms[1].stringProperty(tp::DisplayFamily), QStringLiteral("DejaVu Sans"));
+        QCOMPARE(atoms[2].stringProperty(tp::DisplayStyle), QStringLiteral("b"));
+        const QByteArray saved = documentXml(doc->toDocx());
+        QVERIFY(saved.contains("\xf0\x9d\x91\x86") && saved.contains("\xf0\x9d\x94\xb8") && saved.contains("\xf0\x9d\x90\x81"));
+        QVERIFY(!saved.contains("DisplayStyle") && !saved.contains("DisplayFamily"));
+        // In a text box too.
+        const QByteArray box = QString::fromUtf8("<w:p><w:r><w:t>text</w:t></w:r><w:r><w:pict ").toUtf8() + kVml + "><v:shape style=\"position:absolute;margin-left:10pt;margin-top:60pt;width:150pt;height:40pt;z-index:3\">"
+                               "<v:textbox><w:txbxContent><w:p><w:r><w:t>\xf0\x9d\x91\x86 plus</w:t></w:r></w:p></w:txbxContent></v:textbox><w10:wrap type=\"square\"/></v:shape></w:pict></w:r></w:p>";
+        auto boxed = open(makeDocxWithParts(box, sectionXml(6000, 6000, 720), {}));
+        QVERIFY(boxed);
+        const auto page = boxed->pager().materialize(0);
+        QVERIFY(page);
+        QVERIFY2(boxWithText(*page, QStringLiteral("S plus")), "the text box shows the letter");
+    }
+
+    // A run's display style makes its letters italic and bold where the layout is a word processor's, and is nothing in any other.
+    void aDisplayStyleSetsTheFaceOfAWordRun()
+    {
+        QTextCharFormat f;
+        f.setFontFamilies({QStringLiteral("Arimo")});
+        f.setFontPointSize(10);
+        auto resolved = [&](const QString &style, bool word) {
+            QTextCharFormat g = f;
+            g.setProperty(tp::DisplayStyle, style);
+            LayoutEnv env;
+            env.wordLines = word;
+            return resolveCharFormat(g, env);
+        };
+        QVERIFY(resolved(QStringLiteral("i"), true).fontItalic());
+        QVERIFY(!resolved(QStringLiteral("i"), true).fontWeight() || resolved(QStringLiteral("i"), true).fontWeight() < QFont::DemiBold);
+        QVERIFY(resolved(QStringLiteral("b"), true).fontWeight() >= QFont::DemiBold);
+        QVERIFY(!resolved(QStringLiteral("b"), true).fontItalic());
+        QVERIFY(resolved(QStringLiteral("ib"), true).fontItalic() && resolved(QStringLiteral("ib"), true).fontWeight() >= QFont::DemiBold);
+        QVERIFY(!resolved(QStringLiteral("ib"), false).fontItalic() && resolved(QStringLiteral("ib"), false).fontWeight() < QFont::DemiBold);
     }
 
     // An absolute position tab (w:ptab) in a footer takes the text after it to the margin's right edge whatever stops the paragraph has (W179's footer: its name, then "Page 14 of 14"

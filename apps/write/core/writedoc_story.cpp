@@ -155,6 +155,40 @@ bool isSymbolFontName(const QString &font)
 }
 
 // Whether a note's reference says its mark follows it as text, in the run (w:customMarkFollows): it shows no number of its own and takes none.
+// How an equation or a styled letter is set where its format does not say (layout only, never written): an equation's letters italic, bold, or neither as most of them are, the
+// letters of the mathematical alphanumeric block as the style they stand for, and a double-struck one in the bundled face that has it.
+void setMathLook(QTextCharFormat *format, const Inline &in)
+{
+    const bool equation = in.kind == Inline::ParaAtom && (in.tag == QLatin1String("oMath") || in.tag == QLatin1String("oMathPara"));
+    const bool styled = in.kind == Inline::RunAtom && in.tag == QLatin1String("t");
+    if ((!equation && !styled) || in.key.isEmpty()) return;
+    if (in.key == QLatin1String("d")) format->setProperty(tp::DisplayFamily, QStringLiteral("DejaVu Sans"));
+    else format->setProperty(tp::DisplayStyle, in.key);
+}
+
+// The alignment of a paragraph that holds nothing but equations that are paragraphs of their own (m:oMathPara): the group is centered unless its properties say left or right;
+// -1 for any other paragraph. (Blanks, bookmarks, and the like beside them do not count.)
+int displayMathAlignment(const Paragraph &p)
+{
+    bool found = false;
+    QString jc;
+    for (const Inline &in : p.content) {
+        if (in.kind == Inline::Text) {
+            if (!in.text.trimmed().isEmpty()) return -1;
+        } else if (in.kind == Inline::RunAtom) {
+            return -1;
+        } else if (in.tag == QLatin1String("oMathPara")) {
+            found = true;
+            static const QRegularExpression align(QStringLiteral("<(?:[\\w.-]+:)?oMathParaPr>\\s*<(?:[\\w.-]+:)?jc\\s[^>]*?val=\"(\\w+)\""));
+            if (jc.isEmpty()) jc = align.match(QString::fromUtf8(in.raw.left(600))).captured(1);
+        } else if (in.tag == QLatin1String("oMath")) {
+            return -1;
+        }
+    }
+    if (!found) return -1;
+    return jc == QLatin1String("left") ? int(Qt::AlignLeft) : jc == QLatin1String("right") ? int(Qt::AlignRight) : int(Qt::AlignHCenter);
+}
+
 bool markFollows(const QByteArray &reference)
 {
     const QString value = attributeOfTag(reference, QStringLiteral("customMarkFollows"));
@@ -620,6 +654,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 bf.setRightMargin(std::max(0.0, wide - 144.0));
             }
         }
+        if (const int look = displayMathAlignment(p); look >= 0) bf.setAlignment(Qt::Alignment(look));
         startBlock(bf, markFormat);
         if (numId > 0) {
             NumState &st = numbering[numId];
@@ -690,6 +725,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 } else if (in.kind == Inline::RunAtom && drawnTag(in.tag)) {
                     QTextCharFormat object = formatOf(styleId, in.props);
                     if (drawnObjects(in, part, &object, lineWidth(), &p.content)) put(QString(QChar::ObjectReplacementCharacter), object);
+                } else if (!in.display.isEmpty() && ((in.kind == Inline::ParaAtom && (in.tag == QLatin1String("oMath") || in.tag == QLatin1String("oMathPara"))) || (in.kind == Inline::RunAtom && in.tag == QLatin1String("t")))) {
+                    // (An equation, or a styled letter of the mathematical alphanumeric block: the line of text, or the letter it is a style of.)
+                    QTextCharFormat shown = formatOf(styleId, in.props);
+                    setMathLook(&shown, in);
+                    put(in.display, shown);
                 } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("ruby") && !in.display.isEmpty()) {
                     // (Ruby text, as in the text: its base, and the ruby after it in brackets.)
                     put(in.display, formatOf(styleId, in.props));
@@ -827,6 +867,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             QTextCharFormat af = formatOf(styleId, in.props);
             if (deleted) af = asDeleted(af);
             setStored(af, prop::Atom, packAtom(in));
+            setMathLook(&af, in);
             // A reference to a footnote of the file is the note's (the pages lay it out at their foot); one to an endnote shows its number, in the format
             // the settings give (lower case roman numerals, a word processor's own).
             QString field = in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum") ? liveFieldOf(QStringLiteral("PAGE")) : QStringLiteral("raw:") + (dropDown.contains(inAt) ? dropDown.value(inAt) : in.display);
