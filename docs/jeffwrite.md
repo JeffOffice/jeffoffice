@@ -1,12 +1,13 @@
 # JeffWrite
 
-JeffWrite is the word processor of JeffOffice, modeled on the one in Office 2021. It is the third
-JeffOffice app, built on the suite's shared engine. Its feature list is
+JeffWrite is the word processor of JeffOffice. JeffOffice is an independent project, and JeffWrite aims to
+work with Word files and the people who use them (compatibility and interoperability), and then to do
+more, and do it better. It is the third JeffOffice app, built on the suite's shared engine. Its feature list is
 [docs/features/jeffwrite.md](features/jeffwrite.md); the shared parts it builds and uses are in
 [docs/features/shared.md](features/shared.md). This file is how it is built. Decided October 16, 2026.
 
-**Ready for a first release when** the first-release items of its feature list work, the original
-program opens every file JeffWrite saves, and JeffWrite's pages match that program's own PDFs about as
+**Ready for a first release when** the first-release items of its feature list work, every file JeffWrite saves
+opens without a repair message, and JeffWrite's pages match the reference pages about as
 closely as JeffPub's pages match Publisher's, measured on documents never used for tuning.
 
 ## The decision: a flow library above the page layer
@@ -87,7 +88,7 @@ deleting, moving, selecting, the clipboard, character and paragraph formatting, 
 `.docx` reading and writing in `libs/office/wml` (the XML tree, the model, styles with inheritance, numbering, sections, and everything the
 program doesn't edit kept as XML or as whole parts and written back where it was); and packaging behind a switch that is off. What
 JeffWrite shows of a table, a picture, a field, a header or footer, or a note is a stand-in or nothing; it keeps them. Not yet: the pieces of
-wave 3 (notes, headers and footers, page fields, anchored pictures) and wave 4 (tables), `.rtf` and `.odt`, the ruler, and Word's own PDFs to measure the pages against.
+wave 3 (notes, headers and footers, page fields, anchored pictures) and wave 4 (tables), `.rtf` and `.odt`, the ruler, and reference pages to measure the pages against.
 
 Find and Replace and the Font dialog are built too. The Find and Replace pane gives libs/page's shared search (app/findreplace.h) the one story, through `FindWords`; the
 search does not reach the headers, footers, and notes, which are stories the program does not edit yet. The Font dialog changes what the person changed, as one undo step, and every
@@ -112,8 +113,8 @@ or moves to the next column rather than the next page, selecting text in a frame
 `.doc` (the binary files of 1997 to 2003) opens, in `libs/office/doc` (October 17, 2026): a reader turns the compound file (its text pieces,
 the bins of character and paragraph properties, the styles, lists, sections, headers and footers, notes, fields, tables, pictures, and the
 drawing's shapes) into the parts of a `.docx` package that the `.docx` reader then reads, so layout, editing, and saving as `.docx` are the same
-code; saving asks for a `.docx` name. On the practice half of the Word yardstick (the 75 government documents whose originals are `.doc`) the
-`.doc` renders score as well as the same documents' Word-made `.docx` (median page 1.19 for both).
+code; saving asks for a `.docx` name. On the practice half of the yardstick (the 75 government documents whose originals are `.doc`) the
+`.doc` renders score as well as the same documents' `.docx` counterparts (median page 1.19 for both).
 
 The words round (October 18, 2026) went through the words that the reference pages show and JeffWrite's lack. Page numbers after a continuous section that restarts them count the page it
 begins on as its first; a header's or footer's STYLEREF shows the page's paragraph of the style (the first on the page, the last with `\l`, else the nearest before, with the number
@@ -140,8 +141,8 @@ text, the headers and footers, the page borders, and what is set from the margin
 
 ## Checking it
 
-- The Windows test machine has Word 2021: reference PDFs of documents, and every file JeffWrite saves
-  opened and re-saved there.
+- Reference pages of documents, and every file JeffWrite saves opened and re-saved without a repair
+  message.
 - Documents: our own collection, the US government documents in Govdocs1 and Apache POI's test
   files, with a held-out half that no helper sees until the final check, as for JeffDeck.
 - JeffPub's render-compare must stay at 0 differences after every change below libs/flow.

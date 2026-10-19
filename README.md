@@ -10,6 +10,8 @@ JeffOffice is a free, open-source office suite for **Windows, macOS, and Linux**
 
 More apps are on the way: JeffCrunch for spreadsheets, JeffMail for email and calendars, and JeffBase for databases. Each will come in an update once it's ready.
 
+JeffOffice is an independent project. Its goals are compatibility and interoperability, so that it works with Office files and the people who use them, and then to do more, and to do it better.
+
 > **Status:** beta (0.9). JeffPub's and JeffDeck's features are in place and are being polished; JeffWrite is a preview, with the main features working and more still being built (see [JeffWrite](#jeffwrite)). Downloads are on the [Releases page](https://github.com/JeffOffice/jeffoffice/releases):
 >
 > - **Windows:** `JeffOffice-Setup.exe` installs JeffPub and JeffDeck (you can leave JeffDeck out), and JeffWrite if you tick it. No administrator rights are needed.

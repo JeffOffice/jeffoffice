@@ -1,6 +1,6 @@
 # JeffBase feature list
 
-JeffBase is the desktop database app of JeffOffice, modeled on Access in Office 2021 (the program people use for contact lists, inventories, and small-business records). It keeps its own data in a **SQLite** file by default, opens Access's `.accdb` and `.mdb` files, and saves `.accdb` for people who still use Access. It is not built yet: nothing exists except what the suite already does for every app, so `[x]` and `[~]` count only that. This list is the whole job, laid out the way the original is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), so the work can be planned and tracked.
+JeffBase is the desktop database app of JeffOffice, for contact lists, inventories, and small-business records. JeffOffice is an independent project: JeffBase aims to work with Access databases and the people who use them (compatibility and interoperability), and then to do more, and do it better. It keeps its own data in a **SQLite** file by default, opens Access's `.accdb` and `.mdb` files, and saves `.accdb` for people who still use Access. It is not built yet: nothing exists except what the suite already does for every app, so `[x]` and `[~]` count only that. This list is the whole job, a checklist of features: everything people rely on so their Access databases open, give the right answers, and keep working, and then more, grouped the way the app's ribbon is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), so the work can be planned and tracked.
 
 Last reviewed October 16, 2026.
 
@@ -14,13 +14,13 @@ Every item carries a tier:
 
 ## How the tiers were chosen
 
-**First release** is the first public build (a preview, as JeffDeck 0.7.0 is). It must be good enough for a contact list, an inventory, or a small record book: make tables, type and edit rows in the datasheet (the grid that shows a table), join tables with relationships, ask questions with select queries, enter data on simple forms, print a simple report, bring data in from and send it out to CSV files and spreadsheets, and open a person's existing `.accdb` or `.mdb` without damaging it. **1.0** is what a full replacement needs. Version 1.0 is ready to ship when Access 2021 opens every `.accdb` JeffBase saves (tables, relationships, and queries), Compact & Repair finishes on it without a message, and JeffBase's forms, reports, and queries give the same answers as Access's on the sample databases. An item is **later** when it is used by few databases, needs a piece the suite doesn't have yet, runs code, or depends on something outside the program. In this list **(alt)** also marks a usual way that depends on a Windows-only part, not only on an online service.
+**First release** is the first public build (a preview, as JeffDeck 0.7.0 is). It must be good enough for a contact list, an inventory, or a small record book: make tables, type and edit rows in the datasheet (the grid that shows a table), join tables with relationships, ask questions with select queries, enter data on simple forms, print a simple report, bring data in from and send it out to CSV files and spreadsheets, and open a person's existing `.accdb` or `.mdb` without damaging it. **1.0** is what a full replacement needs. Version 1.0 is ready to ship when every `.accdb` JeffBase saves (tables, relationships, and queries) opens without a repair message, Compact & Repair finishes on it without a message, and JeffBase's forms, reports, and queries give the reference answers on the sample databases. An item is **later** when it is used by few databases, needs a piece the suite doesn't have yet, runs code, or depends on something outside the program. In this list **(alt)** also marks a usual way that depends on a Windows-only part, not only on an online service.
 
 There are no usage counts for databases. The owner has no Access files, and the public collections used for the other apps hold almost none, so the tiers rest on what a person moving from Access needs on day one, then on what a full replacement needs. Three cautions:
 
-- Microsoft never published the `.accdb` and `.mdb` formats. Writing `.accdb` follows the format knowledge of Jackcess, an open-source Java library, and every claim is proved by opening the saved file in Access 2021 on the Windows test machine.
-- The ribbon below comes from Microsoft's published control list (Office 2019, the closest to 2021): 1,571 controls on the tabs, the Quick Access Toolbar, and the File page. Access's commands for SharePoint, web apps, replication, and source control are collected under "Left out on purpose".
-- How Access's expressions and SQL behave (what `Null` does in arithmetic, how `Like` matches, what `True` equals) is documented only in part. Each such rule is checked against Access 2021 on the Windows test machine before JeffBase copies it.
+- Microsoft never published the `.accdb` and `.mdb` formats. Writing `.accdb` follows the format knowledge of Jackcess, an open-source Java library, and every claim is proved by checks on the saved file: it must open without a repair message.
+- The ribbon below has 1,571 controls on the tabs, the Quick Access Toolbar, and the File page. Access's commands for SharePoint, web apps, replication, and source control are collected under "Left out on purpose".
+- How Access's expressions and SQL behave (what `Null` does in arithmetic, how `Like` matches, what `True` equals) is documented only in part. Each such rule is checked against reference answers from real databases before JeffBase copies it.
 
 ## Words used here
 
@@ -28,7 +28,7 @@ A small example carries through the list. A shop keeps a **table** (a list of ro
 
 ## Beyond Access
 
-What JeffBase offers that the original doesn't, then the plans that go past Access.
+What JeffBase offers that Access doesn't, then the plans that go past Access.
 
 - [~] **first release** Runs on Linux and Windows, and on macOS as the rest of the suite does; Access runs only on Windows *(shared: the suite's builds, installers, and AppImage; the macOS app is still a test build)*
 - [x] **first release** Free and open source (GPL-3.0): no license fee, no subscription, no account or sign-in, nothing that has to be online
@@ -459,12 +459,12 @@ Three different things: **import** copies data into a table, **link** leaves the
 
 ## Fidelity and testing
 
-JeffBase will be checked against Access. The Windows test machine has Office 2021 (Word, Excel, PowerPoint, Outlook, Access, and Publisher), so Access judges every file JeffBase saves as `.accdb` and every rule of its expressions, SQL, and sort orders that is only partly documented. Reference pictures stay on the build machine, and the test databases are kept out of the repository.
+JeffBase will be checked against real databases and their recorded answers. Every file JeffBase saves as `.accdb`, and every rule of its expressions, SQL, and sort orders that is only partly documented, is judged against reference files and reference answers. Reference pictures stay on the build machine, and the test databases are kept out of the repository.
 
-- [ ] **first release** Access 2021 on the Windows test machine opens every `.accdb` JeffBase saves, and Compact & Repair there finishes on it without a message (see File formats and Decided)
+- [ ] **first release** Every `.accdb` JeffBase saves opens without a repair message, and Compact & Repair finishes on it without a message (see File formats and Decided)
 - [ ] **first release** Databases held out from tuning are scored apart from the ones used for tuning, so the numbers are not flattered by the files the readers were fitted to
-- [ ] **1.0** Queries, forms, and reports give the same answers as Access's on the sample databases: each query's rows are compared with Access's, and each form and report is drawn by JeffBase and by Access and compared as pictures, on the scale JeffPub's comparison uses
-- [ ] **1.0** A collection of real `.accdb` and `.mdb` files is built for the test (the owner has none, and the public collections have almost none): the test databases published with open-source readers (Jackcess is one; licenses checked first), files made in Access 2021 on the Windows machine by script, and files gathered from public sources, kept out of the repository
+- [ ] **1.0** Queries, forms, and reports give the reference answers on the sample databases: each query's rows are compared with the recorded rows, and each form and report is drawn by JeffBase and compared as a picture with its reference picture, on the scale JeffPub's comparison uses
+- [ ] **1.0** A collection of real `.accdb` and `.mdb` files is built for the test (the owner has none, and the public collections have almost none): the test databases published with open-source readers (Jackcess is one; licenses checked first) and files gathered from public sources, kept out of the repository
 
 ## Safety and limits
 
@@ -484,7 +484,7 @@ Suite-wide rules decided October 11, 2026 (see Decided): nothing in a file runs 
 
 ## File formats
 
-What each format needs, to open, to save, and to come back unchanged. "Round trip" means open, save, and open again in the original program without a repair message or a visible change in the tables, the data, or the answers of the queries.
+What each format needs, to open, to save, and to come back unchanged. "Round trip" means open, save, and open again without a repair message or a visible change in the tables, the data, or the answers of the queries.
 
 ### JeffBase's own SQLite file
 - [ ] **first release** Open and save standard SQLite 3 files (`.sqlite`, `.sqlite3`, `.db`, and JeffBase's own extension), with the rollback journal and write-ahead log modes, and the sidecar files they use; a file on a network drive is flagged, since SQLite warns against sharing a file that way
@@ -496,12 +496,12 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 ### Access `.accdb` (Access 2007 to 2021)
 - [ ] **first release** Open `.accdb` made by Access 2007, 2010, 2013, 2016, 2019, and 2021: tables and their data of every type (attachments, multi-value fields, Large Number, and Date/Time Extended fields are shown read-only and kept), primary keys, indexes, relationships with their integrity and cascade settings, table and field properties (caption, format, input mask, default, validation, lookup), query definitions, hidden and system objects, linked-table definitions, and the database's own properties
 - [ ] **first release** Opening is by reading the file's pages directly, bounded in memory and time, never by running anything in it; a damaged page is reported with its place and the rest still opens
-- [ ] **first release** Save As `.accdb`: the tables, their data, primary keys, indexes, and relationships, so Access 2021 opens the file with no repair message and the same rows, and Compact & Repair finishes without a message *(ships only when the test on the Windows machine passes; see Decided)*
+- [ ] **first release** Save As `.accdb`: the tables, their data, primary keys, indexes, and relationships, so Access opens the file with no repair message and the same rows, and Compact & Repair finishes without a message *(ships only when the checks on saved files pass; see Decided)*
 - [ ] **1.0** Save As `.accdb` with queries: select queries and the action queries, parameter prompts, and crosstabs, as Access reads them, with the same answers on the sample databases
 - [ ] **1.0** Round trip keeps what JeffBase doesn't edit: forms, reports, macros, modules, system tables, and unknown properties, written back as they were from a file that came from Access *(approach: see Decided)*
 - [ ] **1.0** Complex columns (attachments, multi-value fields, and version-history memo fields), Large Number, and Date/Time Extended fields edited and written back to `.accdb`
 - [ ] **1.0** Open encrypted `.accdb` (the Office encryption Access applies when a password is set), asking for the password; save with a password follows once saving without one is solid
-- [ ] **later** Forms and reports saved in `.accdb`: only when the way Access stores them is understood well enough that Access 2021 opens them and draws them as designed (see Decided)
+- [ ] **later** Forms and reports saved in `.accdb`: only when the way Access stores them is understood well enough that Access opens them and draws them as designed (see Decided)
 - [ ] **1.0** `.accde` and `.mde` (the compiled copies Access makes) opened for their data and queries; their forms and code stay as they are and can't be edited
 - [ ] **later** `.accdr` (a copy that opens in runtime mode), `.accdt` (templates), and add-in files (`.accda`): not offered
 
@@ -518,7 +518,7 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 
 ### What a round trip must keep
 - [ ] **first release** SQLite to JeffBase to SQLite: every table, row, index, view, trigger, and pragma value the other tool wrote, the schema text of the objects not edited, and the file's encoding and page size
-- [ ] **first release** `.accdb` or `.mdb` to JeffBase to `.accdb`: all rows and values, keys and indexes, relationships with their options, field and table properties (including ones JeffBase doesn't use), and query definitions, checked by opening the saved file in Access 2021, running Compact & Repair, and comparing every table and every query's answer with the original
+- [ ] **first release** `.accdb` or `.mdb` to JeffBase to `.accdb`: all rows and values, keys and indexes, relationships with their options, field and table properties (including ones JeffBase doesn't use), and query definitions, checked by reading the saved file back and comparing every table and every query's answer with the original's
 
 ## Shared with other JeffOffice apps
 
@@ -538,7 +538,7 @@ What JeffBase builds on, and the pieces it should build so that JeffCrunch, Jeff
 - [ ] **first release** The calculation engine and the number-format language, shared with JeffCrunch's formulas, for expressions in queries, validation rules, defaults, calculated fields, and controls; the parts of Access's expression language that JeffCrunch's formulas don't cover (the `Null` rules, `Like`, `&`, `IIf`, `Nz`, the domain functions, and `Format` codes) are added on top *(needed by: JeffCrunch, JeffWrite, JeffDeck, JeffBase)*
 - [ ] **first release** A flow-document model and its page layout, which JeffWrite builds first, used for reports *(needed by: JeffWrite, JeffMail, JeffBase)*
 - [ ] **first release** A SQLite layer with the safety settings above, the Access-to-SQLite SQL translator, and the Access functions registered as SQLite functions, so JeffCrunch's "from a database" import and JeffBase run queries the same way *(needed by: JeffBase, JeffCrunch)*
-- [ ] **first release** A reader and writer for Jet and ACE database pages (`.mdb` and `.accdb`), built on what Jackcess documents, with a test harness that opens the saved files in Access on the Windows machine *(needed by: JeffBase; JeffCrunch's database import could read `.accdb` through it)*
+- [ ] **first release** A reader and writer for Jet and ACE database pages (`.mdb` and `.accdb`), built on what Jackcess documents, with a test harness that reads the saved files back and checks them *(needed by: JeffBase; JeffCrunch's database import could read `.accdb` through it)*
 - [ ] **1.0** A merge-source library (CSV, tab-delimited, spreadsheets, vCard, and JeffBase tables and queries) with filter, sort, duplicate, and address checks *(needed by: JeffPub, JeffWrite, JeffMail, JeffBase)*
 - [ ] **1.0** A data-source layer (text, CSV, JSON, XML, HTML tables, SQLite, ODBC, PostgreSQL, and MySQL) with the editable list of steps *(needed by: JeffCrunch, JeffBase)*
 - [ ] **1.0** Chart editing on top of libs/office chart, with the data picked from a JeffBase query *(needed by: JeffWrite, JeffDeck, JeffCrunch, JeffBase)*
@@ -555,11 +555,10 @@ Not planned, because they only work with an online service or a product JeffOffi
 
 - Native file (October 11, 2026): JeffBase's own file is **SQLite** by default, an open, widely used single-file database. Save As `.accdb` is offered for people who use Access.
 - Writing `.accdb` (October 11, 2026): follows the format knowledge of Jackcess, the open-source Java library, since Microsoft never published the format. Tables, relationships, and queries come first; forms and reports in `.accdb` come later, and only if they can be made reliable.
-- The `.accdb` gate (October 11, 2026): every `.accdb` JeffBase saves must open in Access 2021 on the Windows test machine, and Compact & Repair there without a message, before that feature ships.
+- The `.accdb` gate (October 11, 2026): every `.accdb` JeffBase saves must open without a repair message, and Compact & Repair must finish on it without a message, before that feature ships.
 - Shared parts (October 11, 2026): the datasheet (the table grid) reuses JeffCrunch's spreadsheet grid; formulas and expressions share JeffCrunch's calculation engine where they overlap; reports share JeffWrite's page layout and printing; and mail merge to JeffWrite uses JeffBase tables and queries as a data source.
 - Security (October 11, 2026, decided for the whole suite): nothing in a file runs or reaches out until the person allows it (macros, VBA, linked tables to remote servers, and pass-through queries), and every file reader is fuzzed and held to memory and time limits.
 - Old formats (October 11, 2026): opening `.mdb` (Access 97 to 2003 files) as well as `.accdb` is in scope.
-- Reference program: Access 2021 is installed on the Windows test machine (Office LTSC Professional Plus 2021), as Word, Excel, PowerPoint, and Publisher are.
 - How an opened `.accdb` is edited (in place, page by page, or read into a working SQLite copy and written whole at Save) is an engineering choice, made when building starts. What must hold either way: nothing in the file that JeffBase doesn't understand is lost.
 
 ## Open questions

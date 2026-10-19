@@ -1,6 +1,6 @@
 # JeffWrite feature list
 
-JeffWrite is the word processor of JeffOffice, modeled on Word in Office 2021: it saves `.docx` by default and opens and saves `.doc`, `.rtf`, and `.odt` too. Its first version (wave 2 of [the design](../jeffwrite.md), October 16, 2026) is a window with the ribbon, a page view, editing, and `.docx`; `[~]` counts what that version does of an item (the note says what is missing), and `[x]` what the suite already did for every app. This list is the whole job, laid out the way the original is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), so the work can be planned and tracked.
+JeffWrite is the word processor of JeffOffice. JeffOffice is an independent project: JeffWrite aims to work with Word files and the people who use them (compatibility and interoperability), and then to do more, and do it better. It saves `.docx` by default and opens and saves `.doc`, `.rtf`, and `.odt` too. Its first version (wave 2 of [the design](../jeffwrite.md), October 16, 2026) is a window with the ribbon, a page view, editing, and `.docx`; `[~]` counts what that version does of an item (the note says what is missing), and `[x]` what the suite already did for every app. This list is the whole job, a checklist of features: everything people rely on so their documents open, look right, and keep working, and then more, grouped the way the app's ribbon is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), so the work can be planned and tracked.
 
 Last reviewed October 16, 2026.
 
@@ -14,11 +14,11 @@ Every item carries a tier:
 
 ## The Preview bar (decided October 17, 2026)
 
-JeffWrite ships as a Preview when two things hold. First, its pages come close enough to Word's, measured against Word's own PDFs on documents never used for tuning (the reserved half of the Word yardstick in `/home/user/doc-corpus/word`, 95 documents): at least 70% of their pages scoring under 2, and every word Word shows also in JeffWrite's pages (differences only in how the two PDFs give their text don't count). A page's score is the mean difference in gray between JeffWrite's picture of it and Word's, where 0 is identical. On October 17 the reserved documents stood at 37% of pages under 2 (40 of 95 documents averaging under 2) and 2.2% of words missing. Second, five basics work: Find and Replace, the Font dialog, spell check as you type, opening old `.doc` files, and printing. The items that make up those basics are marked "(needed for the Preview)".
+JeffWrite ships as a Preview when two things hold. First, its pages come close enough to the reference pages, measured against reference PDFs on documents never used for tuning (the reserved half of the yardstick in `/home/user/doc-corpus/word`, 95 documents): at least 70% of their pages scoring under 2, and every word a reference page shows also in JeffWrite's pages (differences only in how the two PDFs give their text don't count). A page's score is the mean difference in gray between JeffWrite's picture of it and the reference picture, where 0 is identical. On October 17 the reserved documents stood at 37% of pages under 2 (40 of 95 documents averaging under 2) and 2.2% of words missing. Second, five basics work: Find and Replace, the Font dialog, spell check as you type, opening old `.doc` files, and printing. The items that make up those basics are marked "(needed for the Preview)".
 
 ## How the tiers were chosen
 
-**First release** is the first public build (a preview, as JeffDeck 0.7.0 is). It must open, edit, print, and save the kinds of documents in our collection and the public collections without damaging them, and be good enough for a letter, a report, a brief, or a book chapter. **1.0** is what someone coming from Word 2021 expects to find day to day; version 1.0 is ready to ship when Word opens every file JeffWrite saves and JeffWrite's pages match Word's own PDFs about as closely as JeffPub's match Publisher's. An item is **later** when few documents use it, when it needs a piece the suite doesn't have yet, or when it depends on something outside the program.
+**First release** is the first public build (a preview, as JeffDeck 0.7.0 is). It must open, edit, print, and save the kinds of documents in our collection and the public collections without damaging them, and be good enough for a letter, a report, a brief, or a book chapter. **1.0** is what someone coming from Word expects to find day to day; version 1.0 is ready to ship when every file JeffWrite saves opens without a repair message and JeffWrite's pages match the reference pages about as closely as JeffPub's match Publisher's. An item is **later** when few documents use it, when it needs a piece the suite doesn't have yet, or when it depends on something outside the program.
 
 How the evidence reads. Where the counts measure a feature, its item carries how many real documents use it, as "ours" and "public": **ours** is the share of our own collection of 2,082 working documents (1,056 `.docx`, plus 1,026 old `.doc` and `.rtf` files, about 3% of them `.rtf`), and **public** is the share of 1,527 U.S. government `.doc` files. The old files were converted to `.docx` to be counted. Where the two kinds of our files differ a lot, the item says so. Four cautions:
 
@@ -31,12 +31,12 @@ How the evidence reads. Where the counts measure a feature, its item carries how
 
 What JeffWrite offers that the original doesn't, then the plans that go past Word.
 
-- [~] **first release** Runs on Linux and Windows, where Word 2021 ran only on Windows and Mac, and on macOS as the rest of the suite does *(shared: the suite's builds, installers, and AppImage; the macOS app is still a test build)*
+- [~] **first release** Runs on Linux and Windows, where Word ran only on Windows and Mac, and on macOS as the rest of the suite does *(shared: the suite's builds, installers, and AppImage; the macOS app is still a test build)*
 - [x] **first release** Free and open source (GPL-3.0): no license fee, no subscription, no account or sign-in, nothing that has to be online
 - [~] **first release** Installs without administrator rights, or runs with no installation (Windows `.zip`, Linux AppImage) *(shared: the suite's packaging)*
 - [ ] **first release** OpenDocument text (`.odt`, `.ott`) is opened and saved with the same care as `.docx`, not as an afterthought (details under File formats)
 - [~] **first release** Nothing in a file is lost: whatever JeffWrite can't edit yet (SmartArt, content-control bindings, custom XML, unknown elements, macros, embedded objects) is kept with the document and written back as it was
-- [~] **first release** Lines and pages break where Word breaks them in the sample documents, judged against Word's own PDFs of them *(shared: the measuring tools and the metric-compatible fonts built for JeffPub)*
+- [~] **first release** Lines and pages break where the reference pages break them in the sample documents, judged against reference PDFs of them *(shared: the measuring tools and the metric-compatible fonts built for JeffPub)*
 - [x] **first release** Bundled open fonts, with stand-ins that keep the widths of Calibri, Cambria, Arial, Times New Roman, and Courier New, so a document lays out the same on a computer without Microsoft's fonts
 - [~] **first release** Spelling and hyphenation work offline, in 12 languages, with no cloud service *(spelling works in JeffWrite, as you type and in the Spelling pane; hyphenation is not there yet)* *(shared: the bundled dictionaries in libs/base/text)*
 - [ ] **first release** **(alt)** Grammar and style checking that runs on your own computer, instead of Word's online Editor: Harper (open source, Apache-2.0), English first, other languages later (decided October 11, 2026)
@@ -528,13 +528,13 @@ What a right-click offers depends on what is under the pointer. The commands are
 
 ## Fidelity and testing
 
-JeffWrite will be checked against Word, not against a guess. The Windows test machine has Office 2021 (Word, Excel, PowerPoint, Outlook, Access, and Publisher), so Word makes the reference PDFs and pictures that JeffWrite's pages are scored against, on the scale JeffPub's comparison uses (a page drawn small, blurred, and compared in gray, where 0 is identical). Reference pictures stay on the build machine and never go in the repository.
+JeffWrite will be checked against reference pages, not against a guess. JeffWrite's pages are scored against reference PDFs and pictures, on the scale JeffPub's comparison uses (a page drawn small, blurred, and compared in gray, where 0 is identical). Reference pictures stay on the build machine and never go in the repository.
 
-- [ ] **first release** Every file JeffWrite saves (`.docx`, and `.doc`, `.rtf`, and `.odt` too) opens in Word on the Windows test machine without a repair message, checked on a large collection
-- [ ] **first release** Our own collection of 2,082 working documents is the main test set: each document is opened, drawn, saved, and opened again, and its pages are scored against Word's own PDF of it
+- [ ] **first release** Every file JeffWrite saves (`.docx`, and `.doc`, `.rtf`, and `.odt` too) opens without a repair message, checked on a large collection
+- [ ] **first release** Our own collection of 2,082 working documents is the main test set: each document is opened, drawn, saved, and opened again, and its pages are scored against the reference PDF of it
 - [ ] **first release** Documents held out from tuning are scored apart from the ones used for tuning, so the numbers are not flattered by the files the layout was fitted to
 - [ ] **1.0** The public test collections: Govdocs1's government `.doc` files and Apache POI's Word test files (edge cases and damaged files) run through the readers and the save-and-reopen check, each file that does not open or does not save back listed with its cause
-- [ ] **1.0** A repeatable comparison anyone can run, made from `jwritetool` and Word's own PDFs, with the numbers written into each release's notes
+- [ ] **1.0** A repeatable comparison anyone can run, made from `jwritetool` and reference PDFs, with the numbers written into each release's notes
 
 ## Safety and limits
 
@@ -548,11 +548,11 @@ Suite-wide rules decided October 11, 2026 (see Decided): nothing in a file runs 
 
 ## File formats
 
-What each format needs, to open, to save, and to come back unchanged. "Round trip" means open, save, and open again in the original program without a repair message or a visible change.
+What each format needs, to open, to save, and to come back unchanged. "Round trip" means open, save, and open again without a repair message or a visible change.
 
 ### Word `.docx` and `.dotx` (Open XML)
 - [~] **first release** Open `.docx` from Word 2007 to 2021 (Transitional): body text and every kind of formatting, styles, numbering, sections and page setup, headers and footers, notes, fields with their results, bookmarks, links, tables, pictures, DrawingML shapes and text boxes, legacy VML shapes, equations, charts, content controls, comments, tracked changes, properties, themes, settings, and embedded fonts *(our own `.docx`: 1,056 files)*
-- [~] **first release** Save `.docx` so that Word opens every file without a repair message, checked on a large collection as JeffPub's `.pub` files were, and the layout matches Word's own
+- [~] **first release** Save `.docx` so that every file opens without a repair message, checked on a large collection as JeffPub's `.pub` files were, and the layout matches the reference pages
 - [~] **first release** Round trip keeps what JeffWrite can't edit: SmartArt, 3-D models, custom XML, document variables, the glossary document of building blocks, people and comment extensions, `mc:AlternateContent` choices, and the extension elements of newer Word versions (`w14`, `w15`, `w16`), written back as they were, and untouched parts kept byte for byte
 - [~] **first release** Open and save templates (`.dotx`) with their styles and building blocks
 - [ ] **1.0** Open and save macro-enabled files (`.docm`, `.dotm`), keeping the macro project untouched and never running it
@@ -618,7 +618,6 @@ Not planned, because they only work with an online service or a product JeffOffi
 
 - Old and open formats (October 11, 2026): the first release opens `.doc`, `.rtf`, and `.odt`; saving in them follows once `.docx` is solid, as JeffDeck did with `.ppt` and `.odp`. Until then, Save on such a file asks for a `.docx` name.
 - Grammar checking (October 11, 2026): Harper, English in the first release.
-- Reference pictures: Word 2021 is installed in the Windows test machine (Office LTSC Professional Plus 2021), as PowerPoint and Publisher are for JeffDeck and JeffPub.
 - Embedded fonts: follow JeffDeck's rule. Saving embeds, by default, the fonts JeffOffice brings that other computers may lack; fonts drawn in place of common ones are saved under the common name.
 - How text flows across pages (a new library or an extension of libs/page) is an engineering choice, made when building starts.
 

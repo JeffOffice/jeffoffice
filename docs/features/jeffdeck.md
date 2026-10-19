@@ -1,6 +1,6 @@
 # JeffDeck feature list
 
-JeffDeck is the presentation app of JeffOffice, modeled on PowerPoint in Office 2021: it saves `.pptx` by default, opens `.pptx`, `.potx`, `.ppsx`, `.ppt`, `.pps`, `.pot`, `.odp`, and `.otp`, and also saves `.potx`, `.ppsx`, `.odp`, and `.otp`. It is a preview (it shipped in 0.7.0 and again in 0.8.0), so unlike the lists for the apps not built yet, this one describes a program that exists, a box is checked only when the feature works in JeffDeck today, and every item carries a status checked against the code, the tests, the ribbon file, and Help on October 15, 2026 (see [docs/jeffdeck.md](../jeffdeck.md) for the design and status notes, which this list does not replace). It is laid out the way the original is (File, then each ribbon tab, the slide show, the tabs that appear only while something is selected, then what sits under the ribbon), so that the work can be planned and tracked, and so that it can settle one question: when does JeffDeck stop being a preview?
+JeffDeck is the presentation app of JeffOffice. JeffOffice is an independent project: JeffDeck aims to work with PowerPoint files and the people who use them (compatibility and interoperability), and then to do more, and do it better. It saves `.pptx` by default, opens `.pptx`, `.potx`, `.ppsx`, `.ppt`, `.pps`, `.pot`, `.odp`, and `.otp`, and also saves `.potx`, `.ppsx`, `.odp`, and `.otp`. It is a preview (it shipped in 0.7.0 and again in 0.8.0), so unlike the lists for the apps not built yet, this one describes a program that exists, a box is checked only when the feature works in JeffDeck today, and every item carries a status checked against the code, the tests, the ribbon file, and Help on October 15, 2026 (see [docs/jeffdeck.md](../jeffdeck.md) for the design and status notes, which this list does not replace). It is a checklist of features: everything people rely on so their presentations open, look right, and keep working, and then more, grouped the way the app's ribbon is (File, then each ribbon tab, the slide show, the tabs that appear only while something is selected, then what sits under the ribbon), so that the work can be planned and tracked, and so that it can settle one question: when does JeffDeck stop being a preview?
 
 Last reviewed October 16, 2026.
 
@@ -13,11 +13,11 @@ Every item carries a tier:
 
 ## How the tiers were chosen
 
-JeffDeck dropped its Preview label on October 17, 2026. The bar (decided October 16 and 17) was old `.ppt` files drawn close enough to the original, measured on decks never used for tuning: at least 70% of their slides scoring under 2, an average score of 2.0 or less, and every word the original shows on a slide also in JeffDeck's version (comparing the original's PDF with JeffDeck's own PDF export). A slide's score is how far JeffDeck's picture of it is from the original program's, as the mean difference in gray between the two pictures, where 0 is identical. On October 17 the held-out decks scored 74.8% under 2 and an average of 1.96, and 2 of 449 slides differed in words, both only in how the two PDFs give their text (a text box the original stacks twice, and a split superscript). Two causes of missing words were found by reading only the missing words of held-out decks (a date typed in the master's date box, and a misread run of text set at 1,638 pt), as Jeff chose; no held-out picture was used for tuning. The label also needed five basics: a right-click menu on slides, Find and Replace, picture cropping, table editing tools, and slide master editing (decided October 16, 2026). The items that make up those five basics are marked "(needed to drop Preview)".
+JeffDeck dropped its Preview label on October 17, 2026. The bar (decided October 16 and 17) was old `.ppt` files drawn close enough to the reference pages, measured on decks never used for tuning: at least 70% of their slides scoring under 2, an average score of 2.0 or less, and every word a reference page shows on a slide also in JeffDeck's version (comparing the reference PDF with JeffDeck's own PDF export). A slide's score is how far JeffDeck's picture of it is from the reference picture, as the mean difference in gray between the two pictures, where 0 is identical. On October 17 the held-out decks scored 74.8% under 2 and an average of 1.96, and 2 of 449 slides differed in words, both only in how the two PDFs give their text (a text box the reference stacks twice, and a split superscript). Two causes of missing words were found by reading only the missing words of held-out decks (a date typed in the master's date box, and a misread run of text set at 1,638 pt), as Jeff chose; no held-out picture was used for tuning. The label also needed five basics: a right-click menu on slides, Find and Replace, picture cropping, table editing tools, and slide master editing (decided October 16, 2026). The items that make up those five basics are marked "(needed to drop Preview)".
 
-There is no "first release" tier here, because JeffDeck already shipped. Version 1.0 asks for more: it is ready when PowerPoint opens every file JeffDeck saves (met so far for all 64 reference presentations) and JeffDeck's slides match PowerPoint's own pictures about as closely as JeffPub's pages match Publisher's (see Fidelity and testing, where JeffDeck is close on average and not yet on the median). A finished item is usually **1.0** too, since it counts toward the bar for version 1.0. An item is **later** when few presentations use it, when it needs a piece the suite doesn't have yet, or when it depends on something outside the program.
+There is no "first release" tier here, because JeffDeck already shipped. Version 1.0 asks for more: it is ready when every file JeffDeck saves opens without a repair message (met so far for all 64 reference presentations) and JeffDeck's slides match the reference pictures about as closely as JeffPub's pages match Publisher's (see Fidelity and testing, where JeffDeck is close on average and not yet on the median). A finished item is usually **1.0** too, since it counts toward the bar for version 1.0. An item is **later** when few presentations use it, when it needs a piece the suite doesn't have yet, or when it depends on something outside the program.
 
-How the evidence reads. A count reads "ours 4 of 19": the number of decks among our 19 real `.pptx` files that use the feature. Our reference collection is 54 real presentations (1,028 slides: 35 old `.ppt` and 19 `.pptx`) plus PowerPoint's 10 built-in designs; the 64 are the ones every score below is measured on. Only the `.pptx` were counted, by reading their XML (390 slides); the `.ppt` are binary and were not, and the held-out test set was not opened. Nothing is counted yet for public presentations: the 40 old `.ppt` files from the U.S. government collection Govdocs1 were used only to measure fidelity, so **public** figures do not exist yet. Four cautions:
+How the evidence reads. A count reads "ours 4 of 19": the number of decks among our 19 real `.pptx` files that use the feature. Our reference collection is 54 real presentations (1,028 slides: 35 old `.ppt` and 19 `.pptx`) plus 10 built-in designs; the 64 are the ones every score below is measured on. Only the `.pptx` were counted, by reading their XML (390 slides); the `.ppt` are binary and were not, and the held-out test set was not opened. Nothing is counted yet for public presentations: the 40 old `.ppt` files from the U.S. government collection Govdocs1 were used only to measure fidelity, so **public** figures do not exist yet. Four cautions:
 
 - The collection is old. 52 of the 54 real presentations are 4:3 (the other two are 16:9), 12 of the 19 `.pptx` have speaker notes, and almost none use the newer features (SmartArt, equations, sections, comments, custom shows, embedded fonts, and macros all read 0 of 19). A zero here means "not in the sample", not "nobody uses it".
 - Counts of a feature are decks, not occurrences: "ours 3 of 19" means 3 decks, and the item says how many uses when that helps. Where a count could be thrown off (for example, an old `.ppt` that PowerPoint converted writes empty timing parts), the item says which figure is trusted.
@@ -28,7 +28,7 @@ How the evidence reads. A count reads "ours 4 of 19": the number of decks among 
 
 What JeffDeck offers that the original doesn't, then the plans that go past PowerPoint.
 
-- [~] **1.0** Runs on Linux and Windows, where PowerPoint 2021 ran only on Windows and Mac, and on macOS as the rest of the suite does *(shared: the suite's builds, installers, and AppImage; the macOS app is still a test build)*
+- [~] **1.0** Runs on Linux and Windows, where PowerPoint ran only on Windows and Mac, and on macOS as the rest of the suite does *(shared: the suite's builds, installers, and AppImage; the macOS app is still a test build)*
 - [x] **1.0** Free and open source (GPL-3.0): no license fee, no subscription, no account or sign-in, nothing that has to be online
 - [~] **1.0** Installs without administrator rights, or runs with no installation (Windows `.zip`, Linux AppImage) *(shared: the suite's packaging)*
 - [x] **1.0** Nothing in a file is lost: what JeffDeck can't edit yet (charts, SmartArt diagrams, equations, animation effects it has no form for, transition effects it has no form for, and parts it doesn't know) is kept with its slide and written back whole; a duplicated slide keeps them too
@@ -241,7 +241,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 
 ## Draw tab
 
-The Draw tab of Office 2021 is for ink on slides while editing. JeffDeck has ink only in the slide show (see Slide show), kept as shapes.
+PowerPoint's Draw tab is for ink on slides while editing. JeffDeck has ink only in the slide show (see Slide show), kept as shapes.
 
 - [ ] **later** Draw with a mouse, pen, or touch on a slide while editing, with a Draw with Touch switch
 - [ ] **later** Pens (pen, pencil, highlighter), their colors and thicknesses, and your own favorite pens
@@ -271,7 +271,7 @@ The Draw tab of Office 2021 is for ink on slides while editing. JeffDeck has ink
 - [x] **1.0** Preview: plays the transition into the current slide; Esc stops it
 - [x] **1.0** The gallery: None, Morph, Fade, Push, Wipe, Split, Reveal, Cover, Uncover, Zoom, and Cut (a cut goes through black), shown on the slide in the pane with a star *(transitions: ours 3 of 19, 67 in all; where an effect is named it is fade, wipe, dissolve, or cut)*
 - [x] **1.0** Effect Options: the direction (from right, left, bottom, or top) for Push, Wipe, Reveal, Cover, and Uncover; Out or In for Split and Zoom; Objects, Words, or Characters for Morph
-- [x] **1.0** Morph as the 2019 program writes it, with a fade for older programs: pairs the objects of two slides (a name starting with `!!`, the same name, the same text, the same picture, the same kind of shape, the nearest first), moves each pair's place, size, turn, fill, and line, fades what has no pair, and moves the words or the characters two texts share; a text over 16,000 characters, a turned or flipped box, and a slide of more than 1,000 objects play as Objects or a fade; a group and a table move whole and dissolve rather than change shape
+- [x] **1.0** Morph as the file stores it, with a fade for older readers: pairs the objects of two slides (a name starting with `!!`, the same name, the same text, the same picture, the same kind of shape, the nearest first), moves each pair's place, size, turn, fill, and line, fades what has no pair, and moves the words or the characters two texts share; a text over 16,000 characters, a turned or flipped box, and a slide of more than 1,000 objects play as Objects or a fade; a group and a table move whole and dissolve rather than change shape
 - [ ] **1.0** Name an object (the Selection Pane) so that a `!!` name pairs two objects for Morph *(a `!!` name only comes from a file today)*
 - [x] **1.0** Timing: Duration (0.01 to 59 seconds; 0.7 by default, 2 for Morph), On Mouse Click, After (seconds, and both together moves on at whichever comes first), and Apply To All
 - [x] **1.0** A transition JeffDeck has no form for plays as a fade and is saved as it was *(an unnamed type in a file is kept)*
@@ -314,7 +314,7 @@ The Draw tab of Office 2021 is for ink on slides while editing. JeffDeck has ink
 
 ## Record tab
 
-Office 2021 has a Record tab that records a show with the speaker's voice, ink, laser pointer, and, if wanted, the speaker on camera. JeffDeck has the rehearsal of timings (see Slide Show), and none of the rest.
+PowerPoint has a Record tab that records a show with the speaker's voice, ink, laser pointer, and, if wanted, the speaker on camera. JeffDeck has the rehearsal of timings (see Slide Show), and none of the rest.
 
 - [ ] **later** Record Slide Show from the beginning or the current slide: narration, rehearsed timings, ink, and laser pointer saved on each slide, with the speaker's camera *(needs capture from the microphone and the camera)*
 - [ ] **later** Clear Timings and Narration on the current slide or all slides
@@ -537,11 +537,11 @@ JeffDeck has right-click menus in the slides pane, the Slide Sorter, and the sho
 
 ## Fidelity and testing
 
-JeffDeck is measured against the original's own pictures of each slide. PowerPoint on the Windows test machine draws every slide of the reference presentations; JeffDeck draws the same slides, and a score for each slide says how far apart the two pictures are (the average difference of the two blurred pictures in gray, at a small size, the scale JeffPub's comparison uses: lower is closer, and 2 is the line the percentages below use). The reference pictures stay on the build machine and never go in the repository.
+JeffDeck is measured against reference pictures of each slide. The reference presentations have a reference picture for every slide; JeffDeck draws the same slides, and a score for each slide says how far apart the two pictures are (the average difference of the two blurred pictures in gray, at a small size, the scale JeffPub's comparison uses: lower is closer, and 2 is the line the percentages below use). The reference pictures stay on the build machine and never go in the repository.
 
 | Set | Slides or files | Mean | Median | Under 2 |
 | --- | --- | --- | --- | --- |
-| Our 64 reference presentations (54 real ones, 35 of them old `.ppt`, and PowerPoint's 10 built-in designs) | 1,172 slides | 1.53 | 1.27 | 81% |
+| Our 64 reference presentations (54 real ones, 35 of them old `.ppt`, and 10 built-in designs) | 1,172 slides | 1.53 | 1.27 | 81% |
 | JeffPub's own pages against Publisher's, for comparison | | 1.74 | 0.96 | 73% |
 | 40 old `.ppt` files from the U.S. government collection Govdocs1, which JeffDeck was never tuned on | 40 files | | 1.77 | 57% |
 | Newer `.pptx` files | 2 files only | | 1.08 | |
@@ -556,16 +556,16 @@ Reading it: on its own decks JeffDeck's mean and its share under 2 are already b
 - [ ] **1.0** Test many more newer `.pptx` files, from PowerPoint 2010 through 2021 and from other programs, 16:9 ones among them, before trusting the 1.08 *(52 of the 54 real reference decks are 4:3, and so are 17 of the 19 real `.pptx`)*
 - [~] **1.0** The bar on our own decks: a mean and a share under 2 at least as good as JeffPub's, and a median that is too *(mean 1.53 against 1.74 and 81% against 73% are met; the median, 1.27 against 0.96, is not)*
 - [~] **1.0** Text the original shrank to fit its box, drawn as it draws it *(done for the reference decks and tested down to whole points and line reductions; the README still lists it as a gap; check again on the Govdocs1 set)*
-- [~] **1.0** A picture's brightness and contrast, drawn as the original draws them *(the formulas are fitted to its own pictures and tested; the README still lists it as a gap; a picture's blur, alpha effects, and fill overlay are neither drawn nor saved yet)*
+- [~] **1.0** A picture's brightness and contrast, drawn as the original draws them *(the formulas are fitted to reference pictures and tested; the README still lists it as a gap; a picture's blur, alpha effects, and fill overlay are neither drawn nor saved yet)*
 - [~] **1.0** Text shadows, glows, and reflections *(drawn as the original draws them and tested; the README still lists shadows as a gap; soft edges on words, bevels, and 3-D turns are not drawn)*
 - [ ] **1.0** Charts compared with PowerPoint's picture of each, as JeffCrunch's will be *(charts: ours 1 of 19 decks; the check finds how many charts the 64 hold)*
-- [ ] **1.0** Tables, SmartArt diagrams, and equations compared with PowerPoint's pictures the same way *(tables: ours 3 of 19; SmartArt 0; equations 0)*
-- [ ] **1.0** Notes pages, handouts, and the outline printed to PDF compared with PowerPoint's own PDF of them *(only slides are measured now)*
-- [ ] **1.0** Animations and transitions compared with PowerPoint's own frames *(the score looks at a still of each slide; effects are checked by the tests, not against the original)*
-- [ ] **1.0** A repeatable slide comparison anyone can run: the scoring of the 64 was done on the build machine, and `tools/fidelity.py` in this repository scores `.pub` files only; add the slide version, made from `jdecktool render` and PowerPoint's pictures, and write the numbers into each release's notes
+- [ ] **1.0** Tables, SmartArt diagrams, and equations compared with reference pictures the same way *(tables: ours 3 of 19; SmartArt 0; equations 0)*
+- [ ] **1.0** Notes pages, handouts, and the outline printed to PDF compared with reference PDFs of them *(only slides are measured now)*
+- [ ] **1.0** Animations and transitions compared with reference frames *(the score looks at a still of each slide; effects are checked by the tests, not against the reference)*
+- [ ] **1.0** A repeatable slide comparison anyone can run: the scoring of the 64 was done on the build machine, and `tools/fidelity.py` in this repository scores `.pub` files only; add the slide version, made from `jdecktool render` and reference pictures, and write the numbers into each release's notes
 - [ ] **1.0** A list of the lowest-scoring tenth of slides after each release, each with its cause, kept until the median is under 1
 - [x] **1.0** Fonts do not move text: bundled stand-ins keep the widths of Calibri, Arial, and the other common fonts, and a file's own embedded fonts are used while it is open
-- [x] **1.0** Files JeffDeck saves open in PowerPoint on the Windows test machine (Office 2021) without a repair message *(met so far for all 64 reference presentations)*
+- [x] **1.0** Files JeffDeck saves open without a repair message *(met so far for all 64 reference presentations)*
 - [~] **1.0** Decks held out from tuning are scored apart from the ones used for tuning *(the 40 old `.ppt` files from Govdocs1 are; the held-out test set of our own decks has not been opened)*
 - [ ] **1.0** The public test collections that hold presentations (Apache POI's slideshow test files, and the rest of Govdocs1's `.ppt` files) run through the readers and the save-and-reopen check, each file that does not open or does not save back listed with its cause
 
@@ -579,18 +579,18 @@ Suite-wide rules decided October 11, 2026 (see Decided): nothing in a file runs 
 
 ## File formats
 
-What each format needs, to open, to save, and to come back unchanged. "Round trip" means open, save, and open again in the original program without a repair message or a visible change.
+What each format needs, to open, to save, and to come back unchanged. "Round trip" means open, save, and open again without a repair message or a visible change.
 
 ### PowerPoint `.pptx`, `.potx`, and `.ppsx` (Open XML)
-- [x] **1.0** Open `.pptx` from PowerPoint 2007 to 2021 and Microsoft 365 (Transitional, and the Strict form too): slide sizes, masters, layouts, slides, notes, themes, text and its lists, tables, pictures, shapes, charts, SmartArt drawings, equations, comments, sections, transitions, animations, movies and sounds, and fonts that a file carries (plain, or squeezed the way PowerPoint squeezes them), with limits on how much one file may ask for
-- [x] **1.0** Save `.pptx` as a complete package with its elements in the standard's order, the master's text styles and theme, and the effects the editor makes; PowerPoint opens all 64 reference presentations JeffDeck saved *(the 54 real ones, old `.ppt` among them, and the 10 designs)*
+- [x] **1.0** Open `.pptx` from PowerPoint 2007 to 2021 and Microsoft 365 (Transitional, and the Strict form too): slide sizes, masters, layouts, slides, notes, themes, text and its lists, tables, pictures, shapes, charts, SmartArt drawings, equations, comments, sections, transitions, animations, movies and sounds, and fonts that a file carries (plain, or squeezed with MicroType Express), with limits on how much one file may ask for
+- [x] **1.0** Save `.pptx` as a complete package with its elements in the standard's order, the master's text styles and theme, and the effects the editor makes; all 64 reference presentations JeffDeck saved open without a repair message *(the 54 real ones, old `.ppt` among them, and the 10 designs)*
 - [x] **1.0** `.potx` and `.ppsx` open and save as the same format in its template and show forms; a file opened from a template is saved under a new name
 - [x] **1.0** Round trip keeps what JeffDeck can't edit: charts, SmartArt (links kept working when ids change), equations (both alternatives), animation effects it has no kind for, transition effects it has no form for, unread frames, and compatibility markup
 - [~] **1.0** Round trip keeps custom XML, tags, drawing and control parts, the VBA project, and printer settings *(could not be confirmed one by one; custom XML in files: ours 1 of 19, drawing parts 1, tags 0, VBA 0)*
 - [x] **1.0** Fonts in saved files: the bundled fonts the text uses, all characters, as an uncompressed Embedded OpenType part, on by default; fonts drawn in place of common ones are written as the common name; a font a file carries that JeffDeck doesn't have is written back while the slides still use it
 - [ ] **1.0** Open and save `.pptm`, `.ppsm`, and `.potm`, keeping the macro project untouched and never running it *(ours 0 of 19)*
 - [ ] **1.0** Open encrypted files and save with a password
-- [ ] **1.0** A round-trip check on a large collection, as JeffPub's `.pub` files had: PowerPoint opens every saved file with no repair message, and the slides come back unchanged *(64 files so far; the Govdocs1 files and newer `.pptx` should join)*
+- [ ] **1.0** A round-trip check on a large collection, as JeffPub's `.pub` files had: every saved file opens with no repair message, and the slides come back unchanged *(64 files so far; the Govdocs1 files and newer `.pptx` should join)*
 - [ ] **later** Save the Strict variant, and Flat OPC (`.xml`) files
 - [ ] **later** Open and save `.thmx` theme files (see Design)
 
@@ -669,7 +669,6 @@ Not planned, because they only work with an online service or a product JeffOffi
 
 - Old and open formats (October 11, 2026, for all the apps): the first release opens the old and the open kinds, and saving them follows once the main kind is solid. Until then, Save on an old file asks for a new name in the new kind. JeffDeck has since added saving `.odp` and `.otp`; saving `.ppt`, `.pps`, and `.pot` is **later**.
 - Embedded fonts (October 11, 2026): saving embeds, by default, the fonts JeffOffice brings that other computers may lack; fonts drawn in place of common ones are saved under the common name.
-- Reference pictures: PowerPoint is installed on the Windows test machine (Office LTSC Professional Plus 2021), as Word, Excel, and Publisher are.
 - Dropping the Preview label (October 16, 2026; done October 17, 2026): the measured bar and the five basics are met; see the top of this list.
 
 ## Open questions
@@ -679,7 +678,7 @@ Not planned, because they only work with an online service or a product JeffOffi
 3. The fidelity bar for dropping Preview: JeffPub's numbers on the 64 reference decks, and what share under 2 on files it was never tuned on (57% now on the 40 old `.ppt` files)?
 4. Which transitions and effects make 1.0: the 2007 set (about 30 transitions and 3 dozen effects), or all of the original's roughly 50 transitions and 150 effects?
 5. Video export: which encoder can ship, given that the FFmpeg libraries in the packages are the LGPL build (which may lack the usual MP4 video encoder), and is WebM beside or instead of MP4 acceptable?
-6. Record Slide Show (voice, camera, ink, and laser pointer saved on each slide): 1.0 or later, since Office 2021 puts it on its own tab?
+6. Record Slide Show (voice, camera, ink, and laser pointer saved on each slide): 1.0 or later, since PowerPoint puts it on its own tab?
 7. Present Online: leave it out, or build viewing on the local network in a browser, with no account?
 8. Compare and merge: 1.0, or later with the shared review model?
 9. Translate: is an offline translation model (size and license to check) worth shipping, or is Translate left out?

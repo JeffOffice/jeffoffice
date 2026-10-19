@@ -225,9 +225,8 @@ a rectangle holding text, lines of weight 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6,
 8, 12, and 24 (the ink of a letter 0.48 pt in per point of weight for a
 centered pen, 1.0 per point for an inset one, 12 pt in for an inset line of
 12; the right edge of right-aligned text moves in the same as the left edge,
-and the top moves as the left). The text frame's own bounds that COM reports
-(`Lines(n).BoundLeft`) leave the line out, so they cannot be used to measure
-this; the picture can. The margins in the file are the plain margins
+and the top moves as the left). The text frame's own bounds leave the line
+out, so they cannot be used to measure this; Publisher's pictures can. The margins in the file are the plain margins
 (0x0081-0x0084), whatever the line. JeffPub's boxes are laid out so.
 
 Reading it back: the library draws a text box's own fill and line as a
@@ -242,7 +241,7 @@ same place, which JeffPub reads as the box's border, takes the line's share
 off the box's margins, since the text of the original sat inside no line.
 
 A line of weight 0 (a text box, a rectangle, or a straight line, 0x01cb at 0
-with the line switched on; COM reports Visible and Weight 0) is no line:
+with the line switched on, so the line is visible with weight 0) is no line:
 Publisher's pictures and its PDF (Oct 11, weights 0, 0.25, and 0.75 side by
 side) draw nothing for it, and the text sits where a box with no line has it.
 Many old newsletters have text boxes so (a hairline the author never saw);
@@ -279,11 +278,11 @@ Whether a line fits in a box counts its text, not the spacing below it.
 
 Spacing given in points is one of two kinds, told apart by the `34:22` value
 (see Paragraph runs below): the points as eighths of an EMU plus 1 is
-Publisher's "Exactly" (`ParagraphFormat.LineSpacingRule` 4), and the same
-with nothing added is "At least" (rule 3, which the object model reads but
-cannot set: assigning 3 gives 4). Measured in Publisher 2021's PDFs of 10 and
+Publisher's "Exactly" (rule 4), and the same
+with nothing added is "At least" (rule 3, which Publisher reads from a file
+but has no way to set). Measured in Publisher 2021's PDFs of 10 and
 24 point text in Times New Roman, Arial, and Calibri, at 1, 1.4, 5, 8, 10, 12,
-20, and 30 points (Exactly made through the object model, At least from
+20, and 30 points (Exactly from Publisher's own files, At least from
 JeffPub's files, which Publisher read back as rule 3):
 
 - Exactly: the lines are the value apart whatever the text (the same for 10
@@ -532,39 +531,38 @@ count twice): JeffPub writes the cells first, then as many second halves as
 fit, and the save says what it left out.
 
 Text Direction is the cell's `06` and nothing else in the cell: in Publisher
-2021 `Cell.CellTextOrientation` is 1 for horizontal and 2 for turned, and
-accepts no other value. Found by setting it on one cell through the object
-model and through the Table Layout tab's Text Direction button (a toggle:
-twice is horizontal again) and comparing the saved files; setting another
+2021 it is 1 for horizontal and 2 for turned, and
+no other value is used. Found by setting it on one cell with the Table Layout
+tab's Text Direction button (a toggle: twice is horizontal again) and
+comparing the saved files; setting another
 cell moved `06` to that cell's record. JeffPub reads only its low byte, as
 for `05` and `07`. Publisher also records the cell's frame turned (see Frame
 layout below).
 
 Vertical alignment is the cell's `07` and nothing else in the file:
-`Cell.VerticalTextAlignment` is 0 (top), 1 (middle), or 2 (bottom), and
-accepts no other value. Setting it back to 0 removes the field. Found by
-setting each value on cells through the object model and comparing the saved
-files: only the cell list changed. On the first cell of a table the field has
+the value is 0 (top), 1 (middle), or 2 (bottom), and
+no other value is used. A cell set back to 0 has no field. Found by
+comparing files whose cells differ only in this value: only the cell list
+changed. On the first cell of a table the field has
 stray bits above its low byte (0x6C01, 0x3101, 0x3102 for 1, 1, and 2), so
 read only the low byte. In a turned cell, bottom puts the text at the left
-edge. JeffPub's files opened in Publisher read back each cell's alignment
-through the object model and drew the same positions as JeffPub, merged and
-turned cells included, and a Publisher-made table opened in JeffPub drew its
-cells at the same places.
+edge. JeffPub's files opened in Publisher showed each cell's alignment and
+drew the same positions as JeffPub, merged and turned cells included, and a
+Publisher-made table opened in JeffPub drew its cells at the same places.
 
 A cell divided by a diagonal (Table Layout > Merge > Diagonals) is two
 entries in the cell list, at the same row and column, each with its own text
 and `05` (a u16, type 0x10; read only its low byte, as the first entry's has
 stray high bits): bit 0 = divided, bit 1 = the line runs from top left to
-bottom right (`Cell.Diagonal` 2; 1 is bottom left to top right), bit 2 = the
+bottom right (diagonal 2; 1 is bottom left to top right), bit 2 = the
 first half. So the first half has 5 or 7 and the second 1 or 3. The first
 halves keep the cell's place in the list; the second halves are listed after
 all the grid's cells, in the same order, with the same `01`-`04`, margins, and
 other fields. The text follows the list order, so a divided cell adds a
 paragraph after the grid's text and an end to the `TCD ` list. Each half's
 frame in the frame layout is the whole cell's again, with `12` = 0 instead
-of 219456000. In the object model `Cells(r, c, r, c)` then has two items, the
-first half and the second (`Cell.Diagonal` 1 or 2 on both). Found by dividing
+of 219456000. Publisher then counts the cell as two items, the
+first half and the second (diagonal 1 or 2 on both). Found by dividing
 cells in both directions, with text in both halves, and comparing the saved
 files. Besides the records above, only the story record's `07` and the frame
 layout's first number changed, from 1 to 3 with two divided cells (JeffPub
@@ -573,10 +571,9 @@ half's text).
 
 Publisher draws the first half in the triangle with the cell's left edge (the
 upper left for `/`, the lower left for `\`) and wraps its text inside it. The
-dividing line itself is only a gridline: nothing prints, and `SaveAsPicture`
-draws it dotted, unless the cell has a diagonal border (Table Design >
-Borders; `Cell.BorderDiagonal`, with a `Weight` and a `Color.RGB` shared by
-both halves). That border is a line shape (type 20) in the table-format
+dividing line itself is only a gridline: nothing prints, and Publisher's
+pictures draw it dotted, unless the cell has a diagonal border (Table Design >
+Borders, with a weight and a color shared by both halves). That border is a line shape (type 20) in the table-format
 drawing, like a rule: its client anchor has `01 = 3`, `02` = the table, and
 the cell's grid box in `04`-`07` as a rule's (first row, first column, last
 row, last column), the shape's line color is `01c0` and width `01cb`, and its
@@ -598,22 +595,21 @@ directions, long text in both halves, and by typing in the application):
   empty, so the text starts lower. Words are hyphenated in the narrow
   tip ("Al-" and "pha" in the tip of a half).
 - Text a half can't hold is cut off at the cell's bottom, and the row does
-  not grow (200 points before and after a long text in each half, set through
-  the object model).
+  not grow (200 points before and after a long text in each half).
 - Vertical alignment applies to each half: middle puts the text where its
   height is centered in the cell, and bottom as low as it fits, so one word
   of a half whose point is at the bottom sits just above where the triangle
   gets too narrow for it. For a long text the two depend on where the lines
   fall, which Publisher settles in a way JeffPub only approximates.
-  (`SaveAsPicture` drew top alignment for alignment set through the object
-  model until the file was saved and opened again.)
+  (Publisher's pictures drew top alignment for a changed alignment until the
+  file was saved and opened again.)
 - Clicking puts the caret in the half the click is in, at the end of its text
   when the click is in empty space. Tab goes from the first half to the
   second and on to the next cell, selecting the text of the one it reaches
   (Shift+Tab was not tried). The Right and Down keys at the end of the first half go to the start of
   the second, and Left and Up at the start of the second go to the end of
   the first.
-- Setting `Cell.Diagonal` to 0 joins the halves into one paragraph, the
+- Setting the diagonal to 0 joins the halves into one paragraph, the
   first half's text and then the second's with nothing between ("A1" and
   "A2" make "A1A2"); a half with no text adds nothing. Changing the direction
   keeps each half's text with its half.
@@ -738,8 +734,8 @@ empty, the layout giving the sheet. Publisher's envelope designs don't set
 `11` at all (one page per sheet at an envelope's size); choosing Envelope
 in Page Setup sets `11` = 7. JeffPub writes 3 and 7 for its folded cards
 and envelopes, and Publisher kept both layouts when saving JeffPub's
-files again. (Publisher's object model reports a publication's design
-type instead, as `PublicationLayout`: 47 for a greeting card design, 23
+files again. (Publisher itself tells a publication's design
+type apart: 47 for a greeting card design, 23
 for JeffPub's copy, "custom".)
 
 ### Page numbering
@@ -755,8 +751,7 @@ the style, left out for 1 2 3: 1 = I II III, 2 = i ii iii, 3 = A B C, and
 4 = a b c. Its directory entry is stamped like the font chunk's: version
 0x0102, flag 08, `0b` = 1. Publisher refuses a start number above 1000.
 
-Confirmed October 2026 by numbering sections in Publisher 2021 through its
-object model (`Sections(1).PageNumberStart`, `.PageNumberFormat`), saving,
+Confirmed October 2026 by numbering sections in Publisher 2021, saving,
 and comparing the streams; then by opening JeffPub's own files in Publisher,
 which read back start 5 in lowercase roman numerals and drew v, vi, vii.
 JeffPub numbers a publication one way, so it writes one section and, when
@@ -843,9 +838,9 @@ outline, each part twice more (an even number of layers leaves the fill
 alone but draws the inner lines, like a smiley's eyes).
 
 Text in shapes: Publisher's rectangle holds text itself, and so do its own
-preset shapes (a star, a callout: COM `AddShape` shapes take text, and their
+preset shapes (a star, a callout: they take text, and their
 file records are the preset's `Sp` with a text id in OPT 0x0080 and in the
-chunk's 27). A freeform has no text frame (`HasTextFrame` is 0) and Publisher
+chunk's 27). A freeform has no text frame and Publisher
 refuses a file with a text id in one. JeffPub writes the text of a rectangle
 as the rectangle's own, and the text of any other shape (the preset or the
 freeform that draws it) as a text box over the shape: the box is the shape's
@@ -1003,7 +998,7 @@ CloisterBlack at 115% got 0.045 em (0.049). Small capitals get tracking at
 their own (0.8×) size.
 
 The default tab stop distance is the publication's, not a paragraph's
-(Publisher's `Document.DefaultTabStop`, 36 pt unless set; its Paragraph
+(Publisher's default tab stop, 36 pt unless set; its Paragraph
 dialog's Tabs page shows it as "Default tab stops", 0.2" for 14.4): the text
 stream's SGP section, a block list of one property, `00:22` in EMU, 182,880
 for 14.4 pt. A publication left at 36 pt has an empty list (length 4 only).
@@ -1056,9 +1051,9 @@ bold. The widths below are of an "I" stem, which grows by the stroke's width
 | Where | Arial Black, plain or bold | Rockwell Extra Bold, plain or bold | Franklin Gothic Demi, plain | Franklin Gothic Demi, bold |
 |---|---|---|---|---|
 | Plain letters (no growth), 48 pt | 10.64 pt (0.2217 em) | 12.63 pt | 7.4 pt (0.155 em) | |
-| `Page.SaveAsPicture` at 96, 150, and 300 dpi, and the window | no growth (10.69, 10.62) | no growth (12.66, 12.60) | no growth | +0.84 pt (0.0175 em; 96 pt +1.68; 24 pt +0.4) |
-| PDF export (`ExportAsFixedFormat`, all three intents) | +1.37 pt: fill and stroke (`2 Tr`), stroke 1/35 em (1.3714 w at 48 pt) | +1.40 pt (1.3721 w at 48.024 pt) | no stroke | +1.35 pt, stroke 1/35 em |
-| Printed (XPS with `StyleSimulations="BoldSimulation"` on these runs, through the Microsoft Print to PDF driver) | +0.47 pt: `2 Tr`, stroke 0.01 em (0.12, 0.24, 0.48, 0.96 pt at 12, 24, 48, 96 pt) | +0.5 pt | none (`StyleSimulations="None"`) | +0.51 pt, stroke 0.01 em |
+| Pictures at 96, 150, and 300 dpi, and the window | no growth (10.69, 10.62) | no growth (12.66, 12.60) | no growth | +0.84 pt (0.0175 em; 96 pt +1.68; 24 pt +0.4) |
+| PDF export (all three intents) | +1.37 pt: fill and stroke (`2 Tr`), stroke 1/35 em (1.3714 w at 48 pt) | +1.40 pt (1.3721 w at 48.024 pt) | no stroke | +1.35 pt, stroke 1/35 em |
+| Printed (`StyleSimulations="BoldSimulation"` on these runs) | +0.47 pt: `2 Tr`, stroke 0.01 em (0.12, 0.24, 0.48, 0.96 pt at 12, 24, 48, 96 pt) | +0.5 pt | none (`StyleSimulations="None"`) | +0.51 pt, stroke 0.01 em |
 
 - Arial Black and Rockwell Extra Bold are stroked in a PDF and on paper
   whether or not bold is set (85 of 85 runs in the reference PDFs); Franklin
@@ -1090,5 +1085,5 @@ bold. The widths below are of an "I" stem, which grows by the stroke's width
   JeffPub lays the text out the same for every place and adds the stroke
   as it paints (`TextOutput` in `PaintOptions`, set by `RenderOptions::
   textOutput`: a PDF export is `Pdf`, the printer `Print`, the rest `Picture`).
-  The printed 0.01 em is the Microsoft Print to PDF driver's reading of the
+  The printed 0.01 em is one printer driver's reading of the
   simulation; another driver may embolden by its own amount.

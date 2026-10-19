@@ -1,6 +1,6 @@
 # JeffPub feature list
 
-JeffPub is the desktop publishing app of JeffOffice, modeled on Publisher 2021: it opens and saves Publisher's `.pub` files, and it has its own open format, `.jpub`. It is in beta (version 0.8.0). Unlike the lists for the apps not built yet, this one describes a program that exists, so a box is checked only when the feature works in JeffPub, and every status was checked on October 16, 2026 against the code, the tests, the ribbon file (`resources/ribbon.json`), and the built-in Help. It is laid out the way the original is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), and it was compared control by control with Microsoft's published list of Publisher's ribbon controls (Office 2019), so that the work can be planned and tracked and so that it can settle one question: when does JeffPub stop being a beta?
+JeffPub is the desktop publishing app of JeffOffice. JeffOffice is an independent project: JeffPub aims to work with Publisher files and the people who use them (compatibility and interoperability), and then to do more, and do it better. It opens and saves Publisher's `.pub` files, and it has its own open format, `.jpub`. It is in beta (version 0.8.0). Unlike the lists for the apps not built yet, this one describes a program that exists, so a box is checked only when the feature works in JeffPub, and every status was checked on October 16, 2026 against the code, the tests, the ribbon file (`resources/ribbon.json`), and the built-in Help. It is a checklist of features: everything people rely on so their publications open, look right, and keep working, and then more, grouped the way the app's ribbon is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), so that the work can be planned and tracked and so that it can settle one question: when does JeffPub stop being a beta?
 
 Last reviewed October 16, 2026.
 
@@ -20,7 +20,7 @@ There are no usage counts for Publisher files yet. The owner's collection is 284
 - The collection is one person's, so a feature the owner never used reads as "not needed" here without being known to be rare. A count of features across the collection's `.pub` files would turn these judgments into figures (see the open questions).
 - The ribbon below was checked against Microsoft's published list of Publisher's controls (about 1,350 rows: the tabs and groups, the shortcut menus, the controls that are not on the ribbon, and the File page). Every tab and group was read; each control with no match was added as an item or put under Left out on purpose, except a few minor ones that are not listed (a printed sample of the color scheme, Picture Display, Ruled Lines, snapping to ruler marks, and the More Windows list).
 - Where the code, the tests, and Help could not show that a feature works as written, the item is `[~]` and says what could not be confirmed.
-- Publisher is installed on the Windows test machine, so every fidelity number compares JeffPub with the original's own output, never with a guess.
+- Every fidelity number compares JeffPub with Publisher's own output, never with a guess.
 
 ## Beyond Publisher
 
@@ -299,7 +299,7 @@ What a right-click offers depends on what is under the pointer: text being edite
 
 ## Fidelity and testing
 
-JeffPub is measured against the original's own output. Publisher is installed on the Windows test machine (Office 2021), so every reference PDF and picture comes from Publisher itself, never from a guess. The scale is the one every JeffOffice app uses to compare itself with its original: a page drawn at 40 dots per inch, blurred, and compared in gray, where 0 is identical. The owner's collection of publications stays on the build machine and never goes in the repository (see Decided).
+JeffPub is measured against Publisher's own output, so every reference PDF and picture comes from Publisher itself, never from a guess. The scale is the one every JeffOffice app uses to compare itself with its reference pages: a page drawn at 40 dots per inch, blurred, and compared in gray, where 0 is identical. The owner's collection of publications stays on the build machine and never goes in the repository (see Decided).
 
 - [~] **1.0** Checked against Publisher itself: Publisher opened and exported all 284 publications of a real collection, and opened every one of them after JeffPub saved it as `.pub`. Against Publisher's own pictures of the 375 pages of those publications, JeffPub's pages differ by a median blurred-pixel difference of 0.96 and a mean of 1.74, with 73% under 2 (0 is identical; measured with pages scaled to 40 dots per inch, the scale used to compare every JeffOffice app with its original, so these figures differ a little from earlier ones taken at another scale); on 78 template pages the median is 0.62 and 79% are under 2; and 95% of their text boxes break into the same words *(the rest differ by a word or two at a box's end; the text-box figure was measured earlier and not repeated for this review; the bar for leaving beta is an open question)*
 - [ ] **1.0** Score `.pub` files JeffPub was never tuned on (a held-out set, drawn from the same kinds of publications), so the bar for leaving beta is measured on fresh files *(see the open questions)*
@@ -317,7 +317,7 @@ Suite-wide rules decided October 11, 2026 (see Decided): nothing in a file runs 
 
 ## File formats
 
-What each format needs, to open, to save, and to come back unchanged. "Round trip" means open, save, and open again in Publisher without a repair message or a visible change. Publisher 2021 on the Windows test machine is the judge.
+What each format needs, to open, to save, and to come back unchanged. "Round trip" means open, save, and open again in Publisher without a repair message or a visible change. Publisher is the judge.
 
 ### Publisher `.pub`
 - [~] **1.0** Open `.pub` files from Publisher 98 on: pages, master pages, text and its formats, fields, linked text boxes, shapes, lines, pictures, tables, booklets, folded cards, envelopes, and objects in text *(Help says every version since 1998; all 284 publications of the owner's collection open and save again; the 26 public test files are read in the tests, three of them damaged on purpose; fonts stored inside a file, any section's page numbering after the first, and pictures the program cannot draw are reported when opening)*
@@ -400,7 +400,7 @@ Not planned, because they only work with an online service or a product JeffOffi
 ## Decided
 
 - Old and open formats (October 11, 2026, for all the apps): the first release of an app opens the old and the open kinds, and saving them follows once the main kind is solid. JeffPub already opens and saves its main kind, `.pub`, so this changes nothing here.
-- Reference program: Publisher is installed on the Windows test machine (Office LTSC Professional Plus 2021), as Word, Excel, and PowerPoint are. Every fidelity number in this list compares JeffPub with Publisher's own output.
+- Reference output: every fidelity number in this list compares JeffPub with Publisher's own output.
 - Security (October 11, 2026, decided for the whole suite): nothing in a file runs or reaches out until the person allows it, and every file reader is fuzzed and held to limits on memory and time. JeffPub's `.pub` reader is tested with damaged and fuzzed files.
 - Linked pictures (October 10, 2026): a publication opened from a file follows a link only if the picture is in the publication's own folder or below it; any other link, network paths and devices included, is never touched, and shows its stored copy as Not updated until the person runs Update Link or Change Link on it.
 - Email: JeffPub never sends a message itself. It writes a ready-to-send `.eml`, PDF, or HTML file (and one `.eml` per recipient for an email merge) to open in a mail program.
