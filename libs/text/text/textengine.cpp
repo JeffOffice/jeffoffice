@@ -279,6 +279,11 @@ constexpr double kFine = 8;
 constexpr int kMostAlignTabs = 64;
 // The most letters a word processor's lines are kept from breaking among by the rules after a question mark and between brackets (buildOnce): past it, a line may break there.
 constexpr int kMostUnbrokenStretch = 120;
+// The most characters of white space that Qt is given in a row. Qt keeps the length of a stretch of white space in sixteen bits: where it is 65,536 characters or more, the lines it
+// makes after it are of no characters (or of the rest of the length modulo 65,536), one after another, each taking the time of the whole paragraph, and a page of them lays the text
+// out again, as long as a file likes (a paragraph of 70,000 spaces and a picture took more than two minutes). A longer stretch is cut by word joiners, which have no width and make no
+// place to break that the stretch did not have; the count runs over the runs that follow one another, whatever their formats.
+constexpr int kMostSpaceStretch = 60000;
 // The longest stretch they kept so, since the program began, for a test of their cost.
 std::atomic<qint64> g_longestJoinedStretch{0};
 std::atomic<qint64> g_longestJoinedParagraphs{0};
@@ -2894,6 +2899,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         const int skipChars = tail ? m_span.from - head.position() : 0;
         const int limit = m_span.window > 0 ? m_span.window : std::numeric_limits<int>::max();
         int taken = 0;
+        int spaceStretch = 0;   // (how many characters of white space the text taken so far ends in: see kMostSpaceStretch)
         bool cutShort = false;
         QTextBlock part = head;   // (the paragraph of the run that the text is being taken from)
         for (auto it = part.begin();; ++it) {
@@ -2971,6 +2977,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     B->objects << box;
                     B->disp += standIn;
                 }
+                spaceStretch = 0;
                 continue;
             }
             // Hidden text takes no room and shows nothing, though its characters are the story's (so does a paragraph that is set apart from the text).
@@ -3108,6 +3115,17 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         ++next;
                         if (!next.atEnd())
                             if (const QString after = next.fragment().text(); !after.isEmpty() && !after[0].isSpace() && after[0] != QChar::LineSeparator) cuts.append({int(raw.size()), QChar(0x2060)});
+                    }
+                }
+                // (A word processor's stretch of white space that is a hundred thousand characters long, or longer than Qt lays out, is cut by word joiners: see kMostSpaceStretch.)
+                if (env.wordLines) {
+                    for (int i = 0; i < int(raw.size()); ++i) {
+                        if (!raw[i].isSpace()) {
+                            spaceStretch = 0;
+                        } else if (++spaceStretch >= kMostSpaceStretch) {
+                            cuts.append({i + 1, QChar(0x2060)});
+                            spaceStretch = 0;
+                        }
                     }
                 }
                 std::sort(cuts.begin(), cuts.end(), [](const auto &x, const auto &y) { return x.first < y.first; });
@@ -3755,7 +3773,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             B->cut = windowCut;
             B->cutAt = windowCutAt;
             B->markerClamp = 0;
-            int overPlaced = 0;
+            int overPlaced = 0, noProgress = 0;
             bool overFull = false;
             while (true) {
                 PtLine line(B->tl->createLine());
@@ -4217,6 +4235,18 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 if (overFull) {
                     B->cut = true;
                     break;
+                }
+                // Lines of no characters where text is left (a layout that has come to what Qt cannot do, as a stretch of white space of 65,536 characters or more: see kMostSpaceStretch)
+                // would come one after another without end: the third of them ends the paragraph's lines, as a window's cut does (the pages go on from where it is, and end where they
+                // began).
+                if (env.wordLines && line.textLength() == 0 && line.textStart() < B->disp.size()) {
+                    if (++noProgress >= 3) {
+                        B->cut = true;
+                        B->cutAt = B->docFromDisp(line.textStart());
+                        break;
+                    }
+                } else {
+                    noProgress = 0;
                 }
             }
             B->tl->endLayout();

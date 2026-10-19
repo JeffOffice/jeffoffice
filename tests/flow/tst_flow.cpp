@@ -3082,6 +3082,40 @@ private Q_SLOTS:
         }
     }
 
+    // A stretch of white space of 65,536 characters or more, in one run or in several, and the words after it, are laid out in a few lines, the words on the last: Qt keeps the length
+    // of a stretch in sixteen bits, and gave lines of no characters one after another, each taking the time of the whole paragraph (a paragraph of 70,000 spaces and a picture took
+    // more than two minutes). The stretch is cut by word joiners every 60,000 characters, and the lines made (the work counted) are one for each part and one for the words.
+    void aStretchOfWhiteSpaceLongerThanQtLaysOutIsLaidOutInAFewLines()
+    {
+        LayoutEnv word;
+        word.wordLines = true;
+        for (const int n : {1000, 65535, 65536, 70000, 140000}) {
+            for (const bool split : {false, true}) {
+                QTextDocument doc;
+                QTextCursor c(&doc);
+                QTextCharFormat cf;
+                cf.setFontFamilies({QStringLiteral("Arimo")});
+                cf.setFontPointSize(11);
+                if (!split) {
+                    c.insertText(QString(n, QLatin1Char(' ')), cf);
+                } else {
+                    QTextCharFormat blue = cf;
+                    blue.setForeground(QColor(Qt::blue));
+                    c.insertText(QString(n / 2, QLatin1Char(' ')), cf);
+                    c.insertText(QString(n - n / 2, QLatin1Char(' ')), blue);
+                }
+                c.insertText(QStringLiteral("tail words"), cf);
+                StoryLayout layout;
+                layout.build(&doc, {plainFrame(300, 400)}, word);
+                const auto lines = layout.lineInfo(0);
+                const QString what = QStringLiteral("%1 spaces%2: %3 lines").arg(n).arg(split ? QStringLiteral(" in two runs") : QString()).arg(lines.size());
+                QVERIFY2(!lines.isEmpty() && lines.size() <= n / 60000 + 2, qPrintable(what));
+                const QVector<QRectF> tail = layout.rangeRects(0, n, n + 4);
+                QVERIFY2(!tail.isEmpty() && tail.first().top() >= lines.last().rect.top() - 0.01, qPrintable(what + QStringLiteral(": the words are not on the last line")));
+            }
+        }
+    }
+
     // The font database is scanned for the East Asian faces once for the program, not for each character looked up: laying out two documents of hundreds of different ideographs, in a
     // face that no machine has, scans it no more than once for each writing system (four, in all).
     void theFontDatabaseIsScannedForEastAsianFacesOnce()
