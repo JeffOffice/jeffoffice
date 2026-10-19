@@ -774,6 +774,67 @@ QVector<StoryLayout::LineInfo> wordLinesOf(const QVector<std::pair<QString, doub
 }
 
 
+// A line of text in a missing face the original's letter widths are measured for, as the layout sets it (size in points, on the word processor's path, kerned
+// or not, or the publication's): `x` is each caret's place (one more than there are characters), `cell` where the original's widths put each character (kerning
+// pairs included where the text is kerned), `stand` the advance of each character in the stand-in the layout draws (in em), and `width` the original's (in em).
+struct LetterLine {
+    QVector<double> x, cell, stand, width;
+};
+
+LetterLine letterLineOf(const QString &family, const QString &text, double size, bool word, bool kerned = true)
+{
+    LetterLine line;
+    QTextCharFormat cf;
+    cf.setFontFamilies({family});
+    cf.setFontPointSize(size);
+    if (word && kerned) cf.setProperty(tp::KernAbove, 1.0);   // (a word processor's text is kerned only where its file asks)
+    LayoutEnv env;
+    env.wordLines = word;
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        c.insertText(text, cf);
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(8000, 400)}, env);
+        for (int i = 0; i <= text.size(); ++i) {
+            int frame = -1;
+            QRectF r;
+            lay.caretRect(i, &frame, &r);
+            line.x << r.x();
+        }
+    }
+    QFont standIn = resolveCharFormat(cf, env).font();
+    standIn.setPixelSize(1000);
+    standIn.setLetterSpacing(QFont::AbsoluteSpacing, 0);
+    standIn.setWordSpacing(0);
+    const QFontMetricsF metrics(standIn);
+    const QHash<char16_t, double> *widths = originalLetterWidths(family, false, false);
+    const QHash<quint32, double> *pairs = !word || kerned ? originalKerning(family, false, false) : nullptr;
+    double at = 0;
+    for (int i = 0; i < text.size(); ++i) {
+        line.cell << at;
+        line.stand << metrics.horizontalAdvance(text[i]) / 1000;
+        line.width << (widths ? widths->value(text[i].unicode()) : 0.0);
+        at += line.width.last() * size;
+        if (pairs && i + 1 < text.size()) at += pairs->value(quint32(text[i].unicode()) << 16 | text[i + 1].unicode()) * size;
+    }
+    line.cell << at;
+    return line;
+}
+
+// A face this machine lacks, measured, whose stand-in's capital I is much narrower than the original's (by `diff` of an em).
+QString narrowStandInForI(double *diff)
+{
+    for (const char *name : {"Elephant", "Bodoni MT", "Verdana", "Tahoma"}) {
+        const QString family = QString::fromLatin1(name);
+        if (QFontDatabase::hasFamily(family) || !originalLetterWidths(family, false, false)) continue;
+        const LetterLine line = letterLineOf(family, QStringLiteral("I"), 10, true);
+        *diff = line.width.value(0) - line.stand.value(0);
+        if (*diff > 0.08) return family;
+    }
+    return QString();
+}
+
 // A header or footer story of the lines given, a paragraph each.
 std::shared_ptr<QTextDocument> furnitureStory(const QStringList &lines)
 {
@@ -2578,6 +2639,70 @@ private Q_SLOTS:
         QFont font(QStringLiteral("TeX Gyre Cursor"));
         font.setPixelSize(1000);
         QVERIFY(std::abs(QFontMetricsF(font).horizontalAdvance(QLatin1Char('M')) - 1000 * 1229 / 2048.0) < 0.2);
+    }
+
+    // A word processor's missing face, measured, is drawn in a stand-in whose letters take the original's widths, the difference from the stand-in's going into the
+    // spacing after each letter. Where the stand-in's capital I is much narrower than the original's, the letters of a word shared that difference unevenly (the first
+    // letter of a run kept all of its own after it), and the gap beside the I was wide enough for a reader of the page's text to take "I llinois", "I ncludes", and
+    // "SECTION I I" for two words each (a gap of a tenth of an em parts a word there). The letters of a word now share the word's difference evenly, none of
+    // its gaps over a twentieth of an em, and the words keep their places on the line.
+    void wordLettersShareTheirWidthsEvenly()
+    {
+        double diff = 0;
+        const QString family = narrowStandInForI(&diff);
+        if (family.isEmpty()) QSKIP("every face with a narrow I stand-in is installed here");
+        qInfo() << family << "stand-in's I is narrower by" << diff << "em";
+        const double size = 100;
+        const QString text = QStringLiteral("Illinois Includes SECTION II 1999 end");
+        for (bool kerned : {false, true}) {
+            const LetterLine line = letterLineOf(family, text, size, true, kerned);
+            QVERIFY(line.x.size() == text.size() + 1);
+            // No gap between two letters of a word is wide enough to part it.
+            double widest = 0;
+            QString where;
+            for (int i = 0; i + 1 < text.size(); ++i) {
+                if (text[i].isSpace() || text[i + 1].isSpace()) continue;
+                const double gap = (line.x[i + 1] - line.x[i]) / size - line.stand[i];
+                if (gap > widest) {
+                    widest = gap;
+                    where = text.mid(i, 2);
+                }
+            }
+            QVERIFY2(widest <= 0.07, qPrintable(QStringLiteral("a gap of %1 em after the %2 of \"%3\"").arg(widest).arg(where.left(1), where)));
+            // Every word starts and ends where the original's widths put it, to a point.
+            int checked = 0;
+            for (int start = 0; start < text.size();) {
+                if (text[start].isSpace()) { ++start; continue; }
+                int stop = start;
+                while (stop < text.size() && !text[stop].isSpace()) ++stop;
+                if (stop < text.size()) {
+                    const QString word = text.mid(start, stop - start);
+                    QVERIFY2(std::abs(line.x[start] - line.x[0] - line.cell[start]) <= 1, qPrintable(QStringLiteral("\"%1\" starts at %2, not %3").arg(word).arg(line.x[start] - line.x[0]).arg(line.cell[start])));
+                    QVERIFY2(std::abs(line.x[stop] - line.x[0] - line.cell[stop]) <= 1, qPrintable(QStringLiteral("\"%1\" ends at %2, not %3").arg(word).arg(line.x[stop] - line.x[0]).arg(line.cell[stop])));
+                    ++checked;
+                }
+                start = stop;
+            }
+            QCOMPARE(checked, 5);
+        }
+    }
+
+    // The publication's text is set as it was: each letter of a missing, measured face centered in the original's width (the first letter of a run where the
+    // original's starts), whatever a word processor's words do.
+    void publicationLettersStayCenteredInTheirWidths()
+    {
+        double diff = 0;
+        const QString family = narrowStandInForI(&diff);
+        if (family.isEmpty()) QSKIP("every face with a narrow I stand-in is installed here");
+        const double size = 100;
+        const QString text = QStringLiteral("Illinois Includes SECTION II 1999 end");
+        const LetterLine line = letterLineOf(family, text, size, false);
+        QVERIFY(line.x.size() == text.size() + 1);
+        QVERIFY2(std::abs(line.x[0]) <= 1, qPrintable(QString::number(line.x[0])));
+        for (int i = 1; i < text.size(); ++i) {
+            const double shift = text[i].isSpace() ? 0 : (line.width[i] - line.stand[i]) * size / 2;
+            QVERIFY2(std::abs(line.x[i] - line.x[0] - line.cell[i] - shift) <= 1, qPrintable(QStringLiteral("character %1 (%2) is at %3, not %4").arg(i).arg(text[i]).arg(line.x[i] - line.x[0]).arg(line.cell[i] + shift)));
+        }
     }
 
     // A face the word processor's machine has and this one lacks, and no table of letter widths measures (News Gothic MT, whose bold is the masthead of every public notice),

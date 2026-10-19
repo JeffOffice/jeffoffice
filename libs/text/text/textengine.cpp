@@ -2032,8 +2032,10 @@ double originalAverageCharEm(const QString &family, bool bold, bool italic)
 // width: the difference from its stand-in's goes into the letter's spacing,
 // so a run is cut into pieces of (near) equal difference. Spaces keep theirs
 // (word spacing sets those). A stand-in already within 0.4% of the original on
-// letters and digits (Arimo for Arial) is left whole.
-static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QTextLayout::FormatRange> &in, const QString &disp, bool *adjusted)
+// letters and digits (Arimo for Arial) is left whole. A word processor's
+// words (evenWords) keep their places, and the letters inside one share its
+// difference evenly, so that no gap in a word is wide enough to part it.
+static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QTextLayout::FormatRange> &in, const QString &disp, bool *adjusted, bool evenWords)
 {
     QVector<QTextLayout::FormatRange> out;
     out.reserve(in.size());
@@ -2044,6 +2046,7 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
         if (key.isEmpty() || r.length <= 0) { out << r; continue; }
         const QStringList k = key.split(QLatin1Char('|'));
         const bool ofSymbols = isSymbolFont(k.value(0)) && !hasFamilyCached(k.value(0));
+        const bool words = evenWords && !ofSymbols;   // (a symbol font's pictures are no words)
         const QHash<char16_t, double> *table = ofSymbols ? symbolFontLetterWidths(k.value(0))
                                                : originalLetterWidths(k.value(0), k.value(1) == QLatin1String("1"), k.value(2) == QLatin1String("1"));
         QFont plain = r.format.font();
@@ -2093,7 +2096,8 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
         // Each stand-in letter sits centered in the original's width, the
         // difference split before and after it, so a narrower letter leaves
         // even gaps on both sides (the first letter of a run starts where
-        // the original's does). Spaces take the original's width too, by
+        // the original's does; a word processor's words are set as below).
+        // Spaces take the original's width too, by
         // letter spacing: word spacing does nothing on macOS. want[j]: the
         // space after character j.
         const int end = std::min(r.start + r.length, int(disp.size()));
@@ -2104,7 +2108,7 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
             const QChar c = disp[i];
             if (transparent(c)) continue;
             if (auto t = table->constFind(c.unicode()); t != table->constEnd()) diff[i - r.start] = *t * em - adv(c);
-            if (!first && !c.isSpace()) shift[i - r.start] = diff[i - r.start] / 2;
+            if (!words && !first && !c.isSpace()) shift[i - r.start] = diff[i - r.start] / 2;
             first = false;
         }
         // Its pairs are taken into the spacing; the pieces don't kern by the stand-in's.
@@ -2126,6 +2130,36 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
             return table->contains(u) && !c.isSurrogate() && !c.isMark() && u != 0x200C && u != 0x200D && !(u >= 0xFE00 && u <= 0xFE0F) &&
                    c.joiningType() == QChar::Joining_None;
         };
+        // A word processor's words (the letters between two spaces, or a run's
+        // ends) keep their places: the first letter starts where the original's
+        // does, the word ends where the original's ends, and its whole difference
+        // is shared evenly by the gaps between its letters, so that no gap is wide
+        // enough for a reader of the page's text to take for a space. A gap takes
+        // no more than kGapCapEm (a word of two letters in a stand-in much
+        // narrower than the original's would leave more); the rest goes after the
+        // word.
+        if (words) {
+            constexpr double kGapCapEm = 0.05;
+            for (int from = r.start; from < end;) {
+                if (transparent(disp[from]) || disp[from].isSpace()) { ++from; continue; }
+                QVector<int> at;
+                int to = from;
+                for (; to < end && (transparent(disp[to]) || !disp[to].isSpace()); ++to)
+                    if (!transparent(disp[to])) at << to;
+                auto gapAfter = [&](int k) { return k + 1 < at.size() && cuttable(disp[at[k]]) && cuttable(disp[at[k + 1]]); };
+                double total = 0;
+                int gaps = 0;
+                for (int k = 0; k < at.size(); ++k) {
+                    total += diff[at[k] - r.start];
+                    if (gapAfter(k)) ++gaps;
+                }
+                const double each = gaps ? std::min(total / gaps, kGapCapEm * em) : 0;
+                for (int k = 0; k < at.size(); ++k)
+                    want[at[k] - r.start] += (gapAfter(k) ? each : 0) - diff[at[k] - r.start];
+                want[at.last() - r.start] += total - each * gaps;
+                from = to;
+            }
+        }
         int pieceStart = r.start;
         double pieceDelta = 0, drift = 0;   // drift: how far the letters so far sit from their places
         bool started = false;
@@ -2176,7 +2210,7 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
     return out;
 }
 
-QVector<QTextLayout::FormatRange> applyLetterWidths(const QVector<QTextLayout::FormatRange> &in, const QString &disp) { return applyLetterWidthsTo(in, disp, nullptr); }
+QVector<QTextLayout::FormatRange> applyLetterWidths(const QVector<QTextLayout::FormatRange> &in, const QString &disp) { return applyLetterWidthsTo(in, disp, nullptr, false); }
 
 double naturalLineEm(const QFont &f, const QString &requestedFamily) { return lineEmOf(f, requestedFamily); }
 qint64 spaceShrinkWorkForTest(int what) { return what == 0 ? s_shrinkLooked : what == 1 ? s_shrinkPasses : what == 2 ? s_shrinkRelaid : what == 3 ? s_shrinkShared : s_shrinkFull; }
@@ -2964,7 +2998,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         }
         B->tl = std::make_unique<ParagraphLayout>(B->disp, fineFont(base));
         bool adjusted = false;
-        ranges = applyLetterWidthsTo(ranges, B->disp, &adjusted);
+        ranges = applyLetterWidthsTo(ranges, B->disp, &adjusted, env.wordLines);
         B->lettersAdjusted = adjusted;
         B->tl->setFormats(fineRanges(ranges));
         // Letters drawn taller, shorter, or slanted are drawn run by run, unless
