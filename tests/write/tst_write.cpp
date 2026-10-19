@@ -11572,6 +11572,90 @@ private Q_SLOTS:
         QVERIFY2(boxWithText(*page, QStringLiteral("S plus")), "the text box shows the letter");
     }
 
+    // A legacy form field is drawn as what it shows: a check box its box (checked or not), a text field its result, or its default text where it has none, a drop-down the entry it has
+    // chosen; in the text, in a text box, and in a header; and the fields are written back as they were.
+    void aFormFieldIsDrawnAsWhatItShows()
+    {
+        auto field = [](const QByteArray &data, const QByteArray &code, const QByteArray &result = QByteArray()) {
+            return "<w:r><w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"F\"/><w:enabled/>" + data + "</w:ffData></w:fldChar></w:r><w:r><w:instrText xml:space=\"preserve\"> " + code +
+                   " </w:instrText></w:r>" + (result.isNull() ? QByteArray() : "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>" + result) + "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        };
+        auto line = [](const QByteArray &label, const QByteArray &content) { return "<w:p><w:r><w:t xml:space=\"preserve\">" + label + " </w:t></w:r>" + content + "</w:p>"; };
+        const QByteArray off = "<w:checkBox><w:sizeAuto/><w:default w:val=\"0\"/></w:checkBox>", on = "<w:checkBox><w:sizeAuto/><w:default w:val=\"1\"/></w:checkBox>";
+        const QByteArray ticked = "<w:checkBox><w:size w:val=\"24\"/><w:default w:val=\"0\"/><w:checked/></w:checkBox>", unticked = "<w:checkBox><w:sizeAuto/><w:default w:val=\"1\"/><w:checked w:val=\"0\"/></w:checkBox>";
+        const QByteArray text = "<w:textInput><w:default w:val=\"Jane &amp; Co\"/></w:textInput>";
+        const QByteArray drop = "<w:ddList><w:result w:val=\"1\"/><w:listEntry w:val=\"Alpha\"/><w:listEntry w:val=\"Beta\"/><w:listEntry w:val=\"Gamma\"/></w:ddList>";
+        const QByteArray blank = "<w:r><w:t> </w:t></w:r>";
+        const QList<QByteArray> bodies = {line("A", field(off, "FORMCHECKBOX")), line("B", field(on, "FORMCHECKBOX")), line("C", field(ticked, "FORMCHECKBOX")), line("D", field(unticked, "FORMCHECKBOX")),
+                                          line("E", field(text, "FORMTEXT", blank + blank)), line("F", field(text, "FORMTEXT", "<w:r><w:t>Alice</w:t></w:r>")), line("G", field(drop, "FORMDROPDOWN"))};
+        const QStringList shown = {QString::fromUtf8("A ☐"), QString::fromUtf8("B ☒"), QString::fromUtf8("C ☒"), QString::fromUtf8("D ☐"), QStringLiteral("E Jane & Co"), QStringLiteral("F Alice"),
+                                   QStringLiteral("G Beta")};
+        QByteArray body;
+        for (const QByteArray &b : bodies) body += b;
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 9000, 720), {}));
+        QVERIFY(doc);
+        QCOMPARE(boxLines(*doc), shown);
+        const QByteArray saved = documentXml(doc->toDocx());
+        for (const QByteArray &data : {off, on, ticked, unticked, text, drop}) QVERIFY2(saved.contains(data), data.constData());
+        QVERIFY(!saved.contains("DisplayFamily") && !saved.contains("<w:sz "));
+        // In a text box, and in a header: the same.
+        QByteArray inBox;
+        for (const QByteArray &b : bodies) inBox += b;
+        const QByteArray box = "<w:p><w:r><w:t>text</w:t></w:r><w:r><w:pict " + QByteArray(kVml) + "><v:shape style=\"position:absolute;margin-left:10pt;margin-top:60pt;width:150pt;height:200pt;z-index:3\">"
+                               "<v:textbox><w:txbxContent>" + inBox + "</w:txbxContent></v:textbox><w10:wrap type=\"square\"/></v:shape></w:pict></w:r></w:p>";
+        auto boxed = open(makeDocxWithParts(box, sectionXml(6000, 9000, 720), {}));
+        QVERIFY(boxed);
+        const auto page = boxed->pager().materialize(0);
+        QVERIFY(page);
+        const TextItem *boxItem = boxWithText(*page, QStringLiteral("G "));
+        QVERIFY2(boxItem, "the text box is there");
+        QCOMPARE(page->doc->story(boxItem->storyId)->doc->toPlainText().split(QLatin1Char('\n')), shown);
+        QList<QByteArray> headerParagraphs;
+        for (const QByteArray &b : bodies) headerParagraphs << b.mid(5, b.size() - 11);
+        const QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", headerParagraphs)}};
+        auto headed = open(makeDocxWithParts(plainP("body"), sectionXml(6000, 9000, 720, "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>"), parts));
+        QVERIFY(headed);
+        const auto headedPage = headed->pager().materialize(0);
+        QVERIFY(headedPage);
+        const auto heads = audit::itemsWith(*headedPage, QStringLiteral("flow-header-box"));
+        QVERIFY(heads.size() == 1);
+        QCOMPARE(audit::storyOf(*headedPage, heads[0]).split(QLatin1Char('\n')), shown);
+    }
+
+    // A content control shows its content wherever it stands (round runs, round paragraphs, inside a cell, round a cell, round a row), its placeholder text where it shows one, and is
+    // written back as it was.
+    void contentControlsShowTheirContentInEveryPlace()
+    {
+        auto control = [](const QByteArray &props, const QByteArray &content) { return "<w:sdt><w:sdtPr>" + props + "</w:sdtPr><w:sdtContent>" + content + "</w:sdtContent></w:sdt>"; };
+        auto para = [](const QByteArray &text) { return "<w:p><w:r><w:t>" + text + "</w:t></w:r></w:p>"; };
+        const QByteArray cellPr = "<w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr>";
+        const QByteArray table = "<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid>"
+                                 "<w:tr>" + control("<w:alias w:val=\"around a cell\"/>", "<w:tc>" + cellPr + para("AROUNDCELL") + "</w:tc>") +
+                                 "<w:tc>" + cellPr + control("<w:id w:val=\"5\"/>", para("INSIDECELL")) + "</w:tc></w:tr>" +
+                                 control("<w:id w:val=\"6\"/>", "<w:tr><w:tc>" + cellPr + para("AROUNDROW") + "</w:tc><w:tc>" + cellPr + "<w:p><w:r><w:t>ROWEND</w:t></w:r></w:p></w:tc></w:tr>") + "</w:tbl>";
+        const QByteArray body = "<w:p><w:r><w:t xml:space=\"preserve\">Name: </w:t></w:r>" + control("<w:showingPlcHdr/><w:text/>", "<w:r><w:rPr><w:rStyle w:val=\"PlaceholderText\"/></w:rPr><w:t>PLACEHOLDER</w:t></w:r>") +
+                                "<w:r><w:t xml:space=\"preserve\"> end</w:t></w:r></w:p>" + control("<w:id w:val=\"7\"/>", para("AROUNDPARA")) + table + "<w:p><w:r><w:t>last</w:t></w:r></w:p>";
+        auto doc = open(makeDocxWithParts(body, sectionXml(9000, 9000, 720), {}));
+        QVERIFY(doc);
+        QString story = doc->story()->toPlainText();
+        story.remove(QChar::ObjectReplacementCharacter);   // (a control's start and end are atoms in the text)
+        QVERIFY2(story.contains(QLatin1String("Name: PLACEHOLDER end")), qPrintable(story));
+        for (const char *word : {"AROUNDPARA", "AROUNDCELL", "INSIDECELL", "AROUNDROW", "ROWEND"}) QVERIFY2(story.contains(QLatin1String(word)), word);
+        const QByteArray saved = documentXml(doc->toDocx());
+        QCOMPARE(saved.count("<w:sdt>"), 5);
+        for (const char *tag : {"<w:showingPlcHdr/>", "<w:alias w:val=\"around a cell\"/>", "<w:id w:val=\"5\"/>", "<w:id w:val=\"6\"/>", "<w:id w:val=\"7\"/>"}) QVERIFY2(saved.contains(tag), tag);
+        // (The same in a text box and a header.)
+        const QByteArray box = "<w:p><w:r><w:t>text</w:t></w:r><w:r><w:pict " + QByteArray(kVml) + "><v:shape style=\"position:absolute;margin-left:10pt;margin-top:60pt;width:150pt;height:200pt;z-index:3\">"
+                               "<v:textbox><w:txbxContent>" + control("<w:id w:val=\"7\"/>", para("AROUNDPARA")) + "<w:p><w:r><w:t xml:space=\"preserve\">Name: </w:t></w:r>" +
+                               control("<w:showingPlcHdr/>", "<w:r><w:t>PLACEHOLDER</w:t></w:r>") + "</w:p></w:txbxContent></v:textbox><w10:wrap type=\"square\"/></v:shape></w:pict></w:r></w:p>";
+        auto boxed = open(makeDocxWithParts(box, sectionXml(6000, 9000, 720), {}));
+        QVERIFY(boxed);
+        const auto page = boxed->pager().materialize(0);
+        QVERIFY(page);
+        QVERIFY2(boxWithText(*page, QStringLiteral("Name: PLACEHOLDER")), "the control's placeholder in the text box");
+        QVERIFY2(boxWithText(*page, QStringLiteral("AROUNDPARA")), "the control round a paragraph in the text box");
+    }
+
     // A run's display style makes its letters italic and bold where the layout is a word processor's, and is nothing in any other.
     void aDisplayStyleSetsTheFaceOfAWordRun()
     {

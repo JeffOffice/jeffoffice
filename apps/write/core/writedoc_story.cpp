@@ -189,6 +189,58 @@ int displayMathAlignment(const Paragraph &p)
     return jc == QLatin1String("left") ? int(Qt::AlignLeft) : jc == QLatin1String("right") ? int(Qt::AlignRight) : int(Qt::AlignHCenter);
 }
 
+// What a legacy form field shows where its result has no text of its own, from its begin mark's XML (the field's w:ffData): a check box its box (checked or not; as large as the
+// text, whatever size it states: the run's own size is what is written back), a text field its default text, a drop-down the entry it has chosen (the `result` the file kept, else its `default`, else the first).
+struct FormShown {
+    QString text;
+    bool box = false;
+};
+
+FormShown formShownOf(const QByteArray &begin)
+{
+    FormShown shown;
+    if (!begin.contains("ffData")) return shown;
+    auto unescaped = [](QString text) {
+        return text.replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&apos;"), QLatin1String("'"))
+            .replace(QLatin1String("&amp;"), QLatin1String("&"));
+    };
+    static const QRegularExpression entry(QStringLiteral("listEntry[^>]*?[\\s:]val\\s*=\\s*\"([^\"]*)\"")), resultAt(QStringLiteral("<w:result[^>]*?[\\s:]val\\s*=\\s*\"(-?\\d+)\"")),
+        defaultAt(QStringLiteral("<w:default[^>]*?[\\s:]val\\s*=\\s*\"([^\"]*)\"")), checkedAt(QStringLiteral("<w:checked\\b([^>]*)>")),
+        valueOf(QStringLiteral("[\\s:]val\\s*=\\s*\"([^\"]*)\""));
+    const QString raw = QString::fromUtf8(begin);
+    if (begin.contains("ddList")) {
+        QStringList entries;
+        for (auto m = entry.globalMatch(raw); m.hasNext() && entries.size() < 4000;) entries << m.next().captured(1);
+        if (entries.isEmpty()) return shown;
+        const QRegularExpressionMatch result = resultAt.match(raw), def = defaultAt.match(raw);
+        const int chosen = result.hasMatch() ? result.captured(1).toInt() : def.hasMatch() ? std::max(def.captured(1).toInt(), 0) : 0;
+        shown.text = unescaped(entries.value(std::clamp(chosen, 0, int(entries.size()) - 1)));
+    } else if (begin.contains("checkBox")) {
+        // (A `checked` element is the state, whatever the default says; it is on unless it says off.)
+        bool checked = false;
+        if (const QRegularExpressionMatch m = checkedAt.match(raw); m.hasMatch()) {
+            const QRegularExpressionMatch v = valueOf.match(m.captured(1));
+            const QString value = v.captured(1).toLower();
+            checked = !(v.hasMatch() && (value == QLatin1String("0") || value == QLatin1String("false") || value == QLatin1String("off")));
+        } else if (const QRegularExpressionMatch d = defaultAt.match(raw); d.hasMatch()) {
+            const QString value = d.captured(1).toLower();
+            checked = value == QLatin1String("1") || value == QLatin1String("true") || value == QLatin1String("on");
+        }
+        shown.text = QString(QChar(checked ? 0x2612 : 0x2610));
+        shown.box = true;
+    } else if (begin.contains("textInput")) {
+        if (const QRegularExpressionMatch m = defaultAt.match(raw); m.hasMatch()) shown.text = unescaped(m.captured(1)).left(4000);
+    }
+    return shown;
+}
+
+// How a form field's shown text is set: a box in the bundled face that has it.
+void setFormLook(QTextCharFormat *format, const FormShown &shown)
+{
+    if (!shown.box) return;
+    format->setProperty(tp::DisplayFamily, QStringLiteral("DejaVu Sans"));
+}
+
 bool markFollows(const QByteArray &reference)
 {
     const QString value = attributeOfTag(reference, QStringLiteral("customMarkFollows"));
@@ -669,6 +721,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 QString instruction;
                 bool inResult = false;
                 QTextCharFormat begin;
+                QByteArray beginRaw;   // (the begin mark as written, with a form field's data)
                 QVector<std::pair<QString, QTextCharFormat>> result;
             };
             QVector<Field> fields;
@@ -690,7 +743,17 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     ff.setProperty(tp::Field, live);
                     put(QString(QChar::ObjectReplacementCharacter), ff);
                 } else {
-                    for (const auto &r : f.result) put(r.first, r.second);
+                    // (A form field whose result has no text shows what it would: its box, its default text, the entry it has chosen.)
+                    bool text = false;
+                    for (const auto &r : f.result) text = text || !r.first.trimmed().isEmpty();
+                    const FormShown form = text ? FormShown() : formShownOf(f.beginRaw);
+                    if (!form.text.isEmpty()) {
+                        QTextCharFormat ff = f.begin;
+                        setFormLook(&ff, form);
+                        put(form.text, ff);
+                    } else {
+                        for (const auto &r : f.result) put(r.first, r.second);
+                    }
                 }
             };
             for (const Inline &in : p.content) {
@@ -700,6 +763,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     if (in.key == QLatin1String("begin") && fields.size() < kMostFieldNesting) {
                         fields.push_back(Field());
                         fields.last().begin = formatOf(styleId, in.props);
+                        fields.last().beginRaw = in.raw;
                     } else if (in.key == QLatin1String("separate") && !fields.isEmpty()) {
                         fields.last().inResult = true;
                     } else if (in.key == QLatin1String("end") && !fields.isEmpty()) {
@@ -753,36 +817,30 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             while (!fields.isEmpty()) finish();   // (a field the paragraph ended inside of shows what it read)
             continue;
         }
-        // A drop-down field of a form that has no result (the text between its separator and its end) shows the entry it has chosen: the file's `result`, else its `default`, else
-        // the first. By the position of its first element in the paragraph's content. (One pass over the elements: the fields open at a time are a stack, each remembering whether
-        // it is a drop-down and whether its separator has come.)
-        QHash<int, QString> dropDown;
+        // A legacy form field whose result has no text shows what it would (formShownOf): a drop-down the entry it has chosen, a check box its box, a text field its default text. By the
+        // position of its begin mark in the paragraph's content. (One pass over the elements: the fields open at a time are a stack, each remembering whether its separator has come and
+        // whether its result has text.)
+        QHash<int, FormShown> formShown;
         {
-            static const QRegularExpression entry(QStringLiteral("listEntry[^>]*?[\\s:]val\\s*=\\s*\"([^\"]*)\""));
-            static const QRegularExpression resultAt(QStringLiteral("<w:result[^>]*?[\\s:]val\\s*=\\s*\"(-?\\d+)\"")), defaultAt(QStringLiteral("<w:default[^>]*?[\\s:]val\\s*=\\s*\"(-?\\d+)\""));
             struct Open {
                 int at = 0;
-                bool dropDown = false, separated = false;
+                bool separated = false, hasText = false;
             };
             QVector<Open> open;
             auto close = [&](const Open &field) {
-                if (!field.dropDown || field.separated) return;
-                const QString raw = QString::fromUtf8(p.content[field.at].raw);
-                QStringList entries;
-                for (auto m = entry.globalMatch(raw); m.hasNext();) entries << m.next().captured(1);
-                if (entries.isEmpty()) return;
-                // (The `result` the file kept, else its `default`, else the first entry.)
-                const QRegularExpressionMatch result = resultAt.match(raw), def = defaultAt.match(raw);
-                const int chosen = result.hasMatch() ? result.captured(1).toInt() : def.hasMatch() ? std::max(def.captured(1).toInt(), 0) : 0;
-                QString text = entries.value(std::clamp(chosen, 0, int(entries.size()) - 1));
-                text.replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&amp;"), QLatin1String("&"));
-                dropDown.insert(field.at, text);
+                if (field.hasText) return;
+                const FormShown shown = formShownOf(p.content[field.at].raw);
+                if (!shown.text.isEmpty()) formShown.insert(field.at, shown);
             };
             for (int at = 0; at < p.content.size(); ++at) {
                 ++m_dropDownSteps;
                 const Inline &in = p.content[at];
+                if (in.kind == Inline::Text) {
+                    if (!open.isEmpty() && open.last().separated && !in.text.trimmed().isEmpty()) open.last().hasText = true;
+                    continue;
+                }
                 if (in.kind != Inline::RunAtom || in.tag != QLatin1String("fldChar")) continue;
-                if (in.key == QLatin1String("begin")) open.push_back({at, in.raw.contains("ddList"), false});
+                if (in.key == QLatin1String("begin")) open.push_back({at, false, false});
                 else if (in.key == QLatin1String("separate") && !open.isEmpty()) open.last().separated = true;
                 else if (in.key == QLatin1String("end") && !open.isEmpty()) {
                     close(open.last());
@@ -870,7 +928,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             setMathLook(&af, in);
             // A reference to a footnote of the file is the note's (the pages lay it out at their foot); one to an endnote shows its number, in the format
             // the settings give (lower case roman numerals, a word processor's own).
-            QString field = in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum") ? liveFieldOf(QStringLiteral("PAGE")) : QStringLiteral("raw:") + (dropDown.contains(inAt) ? dropDown.value(inAt) : in.display);
+            QString field = in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum") ? liveFieldOf(QStringLiteral("PAGE")) : QStringLiteral("raw:") + (formShown.contains(inAt) ? formShown.value(inAt).text : in.display);
+            if (formShown.contains(inAt)) setFormLook(&af, formShown.value(inAt));
             // A symbol of a font that isn't a symbol font (and isn't on the machine) is its character, in that font's stand-in.
             if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym")) {
                 const QString font = attributeOfTag(in.raw, QStringLiteral("font"));
