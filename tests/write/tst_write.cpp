@@ -11527,20 +11527,75 @@ private Q_SLOTS:
     // insets of 3.6 holds two lines of 8-point text, as it does where the file was made; the program took half the line's width from each side, and cut off the second line).
     void aBoxesLineDoesNotTakeRoomFromItsText()
     {
-        const QByteArray box = "<w:p><w:r><w:pict " + QByteArray(kVml) + "><v:rect id='b' style='position:absolute;margin-left:72pt;margin-top:72pt;width:100pt;height:40pt' strokeweight='6pt' filled='f'>"
-                               "<v:textbox inset='7.2pt,3.6pt,7.2pt,3.6pt'><w:txbxContent><w:p><w:r><w:t>Some text of the box</w:t></w:r></w:p></w:txbxContent></v:textbox></v:rect></w:pict></w:r></w:p>";
-        auto doc = open(makeDocxWithParts(box, sectionXml(12240, 15840, 1440), {}));
-        QVERIFY(doc);
-        const auto page = doc->pager().materialize(0);
-        QVERIFY(page);
-        const TextItem *found = nullptr;
-        for (const auto &item : page->doc->pages[0]->items)
-            if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
-                if (const auto st = page->doc->story(t->storyId); st && st->doc->toPlainText().contains(QLatin1String("Some text"))) found = t;
+        // A box whose text is a few lines of 8-point text, `height` points high, with a 6-point line and insets of 3.6 above and below; the item of it on the page, and the page.
+        auto boxed = [&](double height, std::unique_ptr<WriteDoc> *keep, std::unique_ptr<flow::MaterializedPage> *page) -> const TextItem * {
+            const QByteArray box = "<w:p><w:r><w:pict " + QByteArray(kVml) + "><v:rect id='b' style='position:absolute;margin-left:72pt;margin-top:72pt;width:100pt;height:" + QByteArray::number(height) +
+                                   "pt' strokeweight='6pt' filled='f'><v:textbox inset='7.2pt,3.6pt,7.2pt,3.6pt'><w:txbxContent><w:p><w:r><w:rPr><w:sz w:val=\"16\"/></w:rPr>"
+                                   "<w:t>Some text of the box and more of it</w:t></w:r></w:p></w:txbxContent></v:textbox></v:rect></w:pict></w:r></w:p>";
+            *keep = open(makeDocxWithParts(box, sectionXml(12240, 15840, 1440), {}));
+            if (!*keep) return nullptr;
+            *page = (*keep)->pager().materialize(0);
+            if (!*page) return nullptr;
+            for (const auto &item : (*page)->doc->pages[0]->items)
+                if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                    if (const auto st = (*page)->doc->story(t->storyId); st && st->doc->toPlainText().contains(QLatin1String("Some text"))) return t;
+            return nullptr;
+        };
+        std::unique_ptr<WriteDoc> tallDoc, fitDoc;
+        std::unique_ptr<flow::MaterializedPage> tall, fit;
+        const TextItem *big = boxed(200, &tallDoc, &tall);
+        QVERIFY(big);
+        QVERIFY2(big->stroke.width >= 5, "the box has its line");
+        // The height its lines need, with the insets: a box of that height and a line of 6 points holds them (the line was half of it each side from the insets, and one line fell out).
+        StoryLayout need;
+        need.build(tall->doc->story(big->storyId)->doc.get(), {Renderer::frameSpec(*tall->doc, *big, 1, RenderOptions())}, tallDoc->flow().env);
+        const auto wanted = need.lineInfo(0);
+        QVERIFY(wanted.size() >= 2);
+        const double height = wanted.last().rect.bottom() + big->insets.top() + big->insets.bottom() + 0.5;
+        const TextItem *found = boxed(height, &fitDoc, &fit);
         QVERIFY(found);
-        QVERIFY2(found->stroke.width >= 5, "the box has its line");
-        const FrameSpec spec = Renderer::frameSpec(*page->doc, *found, 1, RenderOptions());
+        const FrameSpec spec = Renderer::frameSpec(*fit->doc, *found, 1, RenderOptions());
         QCOMPARE(spec.insets, found->insets);
+        StoryLayout lay;
+        lay.build(fit->doc->story(found->storyId)->doc.get(), {spec}, fitDoc->flow().env);
+        QCOMPARE(int(lay.lineBriefs().size()), int(wanted.size()));
+        for (const auto &l : lay.lineBriefs()) QVERIFY2(l.frame == 0, "every line is in the box");
+    }
+
+    // A word processor's document has the line of a drawn box and of a drawn shape over its edge, taking no room from the text; a publication's keeps half the line's width on each side
+    // (the text of a box and of a shape both).
+    void aBoxesAndAShapesLineTakeRoomFromTextOnlyInAPublication()
+    {
+        auto d = Document::blank(QSizeF(612, 792), QString(), 1);
+        auto shape = std::make_shared<ShapeItem>();
+        shape->rect = QRectF(100, 100, 100, 60);
+        shape->insets = QMarginsF(0, 0, 0, 0);
+        shape->stroke = Stroke::line(ColorRef::rgb(Qt::black), 10);
+        shape->storyId = d->createStory();
+        d->storyDoc(shape->storyId)->setPlainText(QStringLiteral("alpha beta"));
+        d->pages[0]->items.push_back(shape);
+        auto box = std::make_shared<TextItem>();
+        box->rect = QRectF(300, 100, 100, 60);
+        box->insets = QMarginsF(2, 3, 4, 5);
+        box->stroke = Stroke::line(ColorRef::rgb(Qt::black), 10);
+        box->storyId = d->createStory();
+        d->storyDoc(box->storyId)->setPlainText(QStringLiteral("alpha beta"));
+        d->pages[0]->items.push_back(box);
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = d.get();
+        ctx.cache = &cache;
+        for (const bool word : {true, false}) {
+            d->wordText = word;
+            cache.clear();
+            const double shift = word ? 0.0 : 5.0;   // (half of the line's 10 points)
+            QPointF origin;
+            const StoryLayout *shown = Renderer::shapeTextLayout(ctx, *shape, &origin);
+            QVERIFY(shown);
+            QVERIFY2(std::abs(shown->lineInfo(0).first().rect.left() - shift) < 0.5, qPrintable(QStringLiteral("a shape's text begins at %1, %2 word processor").arg(shown->lineInfo(0).first().rect.left()).arg(word ? "a" : "no")));
+            const FrameSpec spec = Renderer::frameSpec(*d, *box, 1, RenderOptions());
+            QCOMPARE(spec.insets, box->insets + QMarginsF(shift, shift, shift, shift));
+        }
     }
 
     // A file with more endnotes than the program sets has the first of them set and the rest left out (the references show their numbers): a hostile file's cost is bounded.
