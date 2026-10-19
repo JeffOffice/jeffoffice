@@ -85,7 +85,10 @@ jobs:
       - name: ccache (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: choco install ccache -y --no-progress
+        # (The package feed is sometimes down: try three times, and build without the cache if it stays down.)
+        run: |
+          foreach ($try in 1..3) { choco install ccache -y --no-progress; if (Get-Command ccache -ErrorAction SilentlyContinue) { break }; Start-Sleep -Seconds 20 }
+          exit 0
 
       - uses: actions/cache@v4
         with:
@@ -107,18 +110,21 @@ jobs:
           if [ "$RUNNER_OS" = "Windows" ]; then CC=gcc CXX=g++; else CC=cc CXX=c++; fi
           EXTRA=""
           if [ "$RUNNER_OS" = "macOS" ]; then EXTRA="-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0"; fi
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache $EXTRA
+          LAUNCH=""
+          if command -v ccache >/dev/null 2>&1; then LAUNCH="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"; else echo "ccache is missing: building without it"; fi
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX $LAUNCH $EXTRA
 
       - name: Build
+        shell: bash
         env:
           CCACHE_DIR: ${{ github.workspace }}/.ccache
           CCACHE_BASEDIR: ${{ github.workspace }}
           CCACHE_MAXSIZE: 3G   # (macOS builds for two processors, so it keeps two of everything: about 1.3 GB)
           CCACHE_COMPILERCHECK: content
         run: |
-          ccache --zero-stats
+          if command -v ccache >/dev/null 2>&1; then ccache --zero-stats; fi
           cmake --build build --parallel
-          ccache --show-stats
+          if command -v ccache >/dev/null 2>&1; then ccache --show-stats; fi
 
       - name: Test
         shell: bash
