@@ -36,4 +36,8 @@ struct StyledLetter {
 };
 bool styledLetter(uint ch, StyledLetter *out);
 
+// For a test of cost: the elements an equation's line was made from and the characters it was put together from (the pieces joined, before they are cut to what the line may hold).
+qint64 equationWorkForTest();
+void resetEquationWorkForTest();
+
 } // namespace jp::office::wml

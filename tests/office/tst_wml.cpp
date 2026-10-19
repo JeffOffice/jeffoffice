@@ -4,6 +4,7 @@
 #include "office/package.h"
 #include "office/xml.h"
 #include "wml/wml.h"
+#include "wml/wmlmath.h"
 #include "wml/xmltree.h"
 
 #include "core/fonts.h"
@@ -376,6 +377,46 @@ private Q_SLOTS:
             QVERIFY2(!shown.isEmpty() && shown.size() <= kMaxEquationChars, qPrintable(QStringLiteral("equation %1 shows %2 characters").arg(i).arg(shown.size())));
         }
         QVERIFY(documentXmlOf(writeDocx(d)).contains(nested.left(200)));   // (kept whole, whatever was drawn)
+    }
+
+    // What a file controls about an equation costs work that is bounded: a separator of thousands of characters between thousands of empty arguments, brackets and operators of
+    // thousands of characters, and a very long run of empty arguments put no more together, and look at no more elements, than the most a line may hold (a few characters stand
+    // for each of those characters, and each argument counts, empty or not).
+    void anEquationsDelimitersAndEmptyArgumentsCostBoundedWork()
+    {
+        const QByteArray ns = "xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"";
+        auto shown = [&](const QByteArray &inner, QString *line) {
+            Made m;
+            m.body = "<w:p><m:oMath " + ns + ">" + inner + "</m:oMath></w:p>";
+            Document d;
+            resetEquationWorkForTest();
+            if (!readDocx(m.build(), &d)) return false;
+            for (const Inline &in : d.body[0].para.content)
+                if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("oMath")) *line = in.display;
+            return documentXmlOf(writeDocx(d)).contains(inner);
+        };
+        const qint64 most = 100000;
+        QString line;
+        // Thousands of empty arguments with a long separator between them.
+        QByteArray args;
+        for (int i = 0; i < 3000; ++i) args += "<m:e/>";
+        QVERIFY(shown("<m:d><m:dPr><m:sepChr m:val=\"" + QByteArray(20000, 'x') + "\"/></m:dPr>" + args + "</m:d>", &line));
+        QVERIFY2(equationWorkForTest() <= most, qPrintable(QStringLiteral("a long separator took %1 steps").arg(equationWorkForTest())));
+        QVERIFY(line.size() <= kMaxEquationChars);
+        // A run of 150,000 empty arguments.
+        args.clear();
+        for (int i = 0; i < 150000; ++i) args += "<m:e/>";
+        QVERIFY(shown("<m:d>" + args + "</m:d>", &line));
+        QVERIFY2(equationWorkForTest() <= most, qPrintable(QStringLiteral("150,000 empty arguments took %1 steps").arg(equationWorkForTest())));
+        QVERIFY(line.size() <= kMaxEquationChars);
+        // Brackets, a sign, and an accent of thousands of characters are a few.
+        const QByteArray big(20000, 'B');
+        QVERIFY(shown("<m:d><m:dPr><m:begChr m:val=\"" + big + "\"/><m:endChr m:val=\"" + big + "\"/></m:dPr><m:e><m:r><m:t>x</m:t></m:r></m:e></m:d>", &line));
+        QVERIFY2(line.size() <= 20, qPrintable(QStringLiteral("brackets of 20,000 characters show %1").arg(line.size())));
+        QVERIFY(shown("<m:nary><m:naryPr><m:chr m:val=\"" + big + "\"/></m:naryPr><m:e><m:r><m:t>x</m:t></m:r></m:e></m:nary>", &line));
+        QVERIFY2(line.size() <= 20, qPrintable(QStringLiteral("a sign of 20,000 characters shows %1").arg(line.size())));
+        QVERIFY(shown("<m:acc><m:accPr><m:chr m:val=\"" + big + "\"/></m:accPr><m:e><m:r><m:t>x</m:t></m:r></m:e></m:acc>", &line));
+        QVERIFY2(line.size() <= 20, qPrintable(QStringLiteral("an accent of 20,000 characters shows %1").arg(line.size())));
     }
 
     void sectionBreaksAreInTheParagraphThatEndsThem()

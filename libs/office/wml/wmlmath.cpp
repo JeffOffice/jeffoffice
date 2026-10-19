@@ -7,6 +7,7 @@
 #include <QByteArray>
 #include <QStringList>
 #include <algorithm>
+#include <atomic>
 #include <utility>
 
 namespace jp::office::wml {
@@ -54,6 +55,10 @@ bool styledLetter(uint ch, StyledLetter *out)
 namespace {
 
 constexpr int kMostNodes = 50000;
+// What a value of the markup that is shown (a bracket, a separator, a sign, an accent) can be of: a few characters, whatever the file puts in it.
+constexpr int kMostValueChars = 8;
+// (The work of the lines made, for a test: the elements looked at and the characters put together.)
+std::atomic<qint64> s_work{0};
 
 bool isRelation(uint c)
 {
@@ -118,9 +123,10 @@ public:
     const int maxChars;
     QString out;
     bool operand = false;   // the line so far ends in something that an operator after it works on
-    bool cut = false;
+    mutable bool cut = false;
     int tight = 0;          // inside a script: no blanks round operators
-    int used = 0, nodes = 0;
+    int used = 0;
+    mutable int nodes = 0;  // the elements looked at, empty ones and those only looked through too (kMostNodes at most)
     int letters = 0, italic = 0, bold = 0;
     int firstRunProps = -1;
     QByteArray runStyle;    // the style of the run being read: "p", "b", "i", "bi", or empty
@@ -129,15 +135,25 @@ public:
     int child(int n, const char *name) const
     {
         if (n < 0) return -1;
-        for (int c = t.firstChild(n); c >= 0; c = t.next(c))
+        for (int c = t.firstChild(n); c >= 0; c = t.next(c)) {
+            if (++nodes > kMostNodes) {
+                cut = true;
+                return -1;
+            }
             if (t.ns(c) != NsW && t.localName(c) == name) return c;
+        }
         return -1;
     }
+    // The value of an element (m:val), as much of it as is ever shown.
     QString valOf(int n) const
     {
         if (n < 0) return QString();
         QString v = t.attr(n, "val", t.ns(n));
         if (v.isEmpty()) v = t.attrAny(n, "val");
+        if (v.size() > kMostValueChars) {
+            v.truncate(kMostValueChars);
+            if (v.back().isHighSurrogate()) v.chop(1);
+        }
         return v;
     }
     // A property that is on unless it says off (a missing one is `otherwise`).
@@ -159,8 +175,31 @@ public:
     }
     void raw(const QString &s)
     {
+        s_work += s.size();
+        // (No more than the line may hold is put on it.)
+        const int room = std::max(0, maxChars - used);
+        if (s.size() > room) {
+            out += s.left(room);
+            used += room;
+            cut = true;
+            return;
+        }
         out += s;
         used += int(s.size());
+    }
+    // The strings joined with `between` in the places, as far as the line has room (nothing past it is put together).
+    QString joined(const QStringList &list, const QString &between)
+    {
+        QString got;
+        for (int i = 0; i < list.size(); ++i) {
+            if (used + got.size() >= maxChars) {
+                cut = true;
+                break;
+            }
+            if (i) got += between;
+            got += list[i];
+        }
+        return got;
     }
 
     // One character of a run's text.
@@ -214,6 +253,11 @@ public:
     // The text of what is inside an element, apart from the line so far.
     QString captured(int n, int depth, bool script = false)
     {
+        ++s_work;
+        if (++nodes > kMostNodes) {
+            cut = true;
+            return QString();
+        }
         QString saved;
         std::swap(saved, out);
         const bool before = operand;
@@ -234,8 +278,11 @@ public:
     QStringList parts(int n, const char *name, int depth)
     {
         QStringList got;
-        for (int c = t.firstChild(n); c >= 0 && used < maxChars; c = t.next(c))
+        for (int c = t.firstChild(n); c >= 0 && used < maxChars; c = t.next(c)) {
+            if (nodes > kMostNodes) break;
             if (t.ns(c) != NsW && t.localName(c) == name) got << captured(c, depth);
+            else ++nodes;
+        }
         return got;
     }
 
@@ -274,6 +321,7 @@ public:
             cut = true;
             return;
         }
+        ++s_work;
         if (++nodes > kMostNodes || used >= maxChars) {
             cut = true;
             return;
@@ -336,7 +384,7 @@ public:
                 const int c = child(pr, which);
                 return c >= 0 ? valOf(c) : otherwise;
             };
-            raw(chr("begChr", QStringLiteral("(")) + parts(n, "e", depth).join(chr("sepChr", QStringLiteral("|"))) + chr("endChr", QStringLiteral(")")));
+            raw(chr("begChr", QStringLiteral("(")) + joined(parts(n, "e", depth), chr("sepChr", QStringLiteral("|"))) + chr("endChr", QStringLiteral(")")));
             operand = true;
         } else if (name == "func") {
             const QString function = part(n, "fName", depth), arg = part(n, "e", depth);
@@ -348,12 +396,14 @@ public:
             operand = true;
         } else if (name == "m") {
             QStringList rows;
-            for (int c = t.firstChild(n); c >= 0 && used < maxChars; c = t.next(c))
-                if (t.ns(c) != NsW && t.localName(c) == "mr") rows << parts(c, "e", depth).join(QLatin1Char(' '));
-            raw(rows.join(QStringLiteral("; ")));
+            for (int c = t.firstChild(n); c >= 0 && used < maxChars && nodes <= kMostNodes; c = t.next(c)) {
+                if (t.ns(c) != NsW && t.localName(c) == "mr") rows << joined(parts(c, "e", depth), QStringLiteral(" "));
+                else ++nodes;
+            }
+            raw(joined(rows, QStringLiteral("; ")));
             operand = true;
         } else if (name == "eqArr") {
-            raw(parts(n, "e", depth).join(QLatin1Char(' ')));
+            raw(joined(parts(n, "e", depth), QStringLiteral(" ")));
             operand = true;
         } else if (name == "acc") {
             const int chr = child(child(n, "accPr"), "chr");
@@ -375,6 +425,9 @@ public:
 };
 
 } // namespace
+
+qint64 equationWorkForTest() { return s_work.load(); }
+void resetEquationWorkForTest() { s_work = 0; }
 
 Equation equationText(const XmlTree &t, int n, int maxChars)
 {
