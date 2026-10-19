@@ -3116,6 +3116,49 @@ private Q_SLOTS:
         }
     }
 
+    // A paragraph that is one run, with a page break every few words, over hundreds of pages: each page's lines are laid out from the part of the paragraph it holds, and the paragraph's
+    // text is read (copied or looked through) a few times in all, not once or more for each page (a paragraph of 8,000 pages of one run took more than two minutes).
+    void aParagraphOfOneRunOverHundredsOfPagesIsReadInProportionToItsText()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        const int pages = 400;
+        QString text;
+        for (int i = 0; i < pages; ++i) text += QStringLiteral("word %1 some more text here to fill ").arg(i) + flow::kPageBreak;
+        QTextCursor c(fd.story());
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Arimo")});
+        cf.setFontPointSize(11);
+        c.insertText(text, cf);
+        const qint64 before = StoryLayout::paragraphCharsReadForTest();
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= pages);
+        const qint64 read = StoryLayout::paragraphCharsReadForTest() - before;
+        QVERIFY2(read <= 12 * text.size(), qPrintable(QStringLiteral("%1 characters read for a text of %2 (%3 pages)").arg(read).arg(text.size()).arg(pg.pageCount())));
+    }
+
+    // The lines of a paragraph that goes past the end of its frames ask, for each line, whether the paragraph's text is nothing but white space: it is found once, not by copying the
+    // paragraph's text at each line (a note of thousands of characters under a page's text, which has room for none of it, took more than a minute and a half).
+    void theLinesPastTheEndOfAFrameAskOnceWhetherTheTextIsBlank()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Arimo")});
+        cf.setFontPointSize(11);
+        QString text;
+        for (int i = 0; i < 4000; ++i) text += QStringLiteral("word ");
+        c.insertText(text, cf);
+        LayoutEnv word;
+        word.wordLines = true;
+        const qint64 before = StoryLayout::paragraphCharsReadForTest();
+        StoryLayout layout;
+        layout.build(&doc, {plainFrame(300, 40)}, word);
+        QVERIFY(layout.lineInfo(0).size() < 10);
+        const qint64 read = StoryLayout::paragraphCharsReadForTest() - before;
+        QVERIFY2(read <= 12 * text.size(), qPrintable(QStringLiteral("%1 characters read for a text of %2").arg(read).arg(text.size())));
+    }
+
     // The font database is scanned for the East Asian faces once for the program, not for each character looked up: laying out two documents of hundreds of different ideographs, in a
     // face that no machine has, scans it no more than once for each writing system (four, in all).
     void theFontDatabaseIsScannedForEastAsianFacesOnce()

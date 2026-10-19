@@ -288,6 +288,7 @@ constexpr int kMostSpaceStretch = 60000;
 std::atomic<qint64> g_longestJoinedStretch{0};
 std::atomic<qint64> g_longestJoinedParagraphs{0};
 std::atomic<qint64> g_hyphenationLetters{0};
+std::atomic<qint64> g_paragraphCharsRead{0};
 inline void noteJoinedParagraphs(int n)
 {
     qint64 seen = g_longestJoinedParagraphs.load(std::memory_order_relaxed);
@@ -1275,15 +1276,33 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
 // paragraph's layout font, for all its runs alike, so in a paragraph where only
 // some ask, the runs that do have small capitals made of capitals instead
 // (buildOnce) and the others are as they are.
+// The characters [begin, begin + count) of a fragment's text, copying only those (a fragment may be a paragraph of hundreds of thousands of characters, as where a page break is among
+// the plain text of a run: each page asks for a part of it).
+static QString fragmentPart(const QTextDocument *doc, const QTextFragment &frag, int begin, int count)
+{
+    if (frag.length() <= 4096) {
+        g_paragraphCharsRead += frag.length() - count;   // (what is copied past the part wanted)
+        return frag.text().mid(begin, count);
+    }
+    QString out(count, Qt::Uninitialized);
+    for (int i = 0; i < count; ++i) out[i] = doc->characterAt(frag.position() + begin + i);
+    return out;
+}
 static bool hasTrueSmallCaps(const QTextBlock &b)
 {
     if (b.begin().atEnd()) return b.charFormat().boolProperty(tp::TrueSmallCaps);
     bool any = false;
+    const QTextDocument *doc = b.document();
     for (auto it = b.begin(); !it.atEnd(); ++it) {
         const QTextFragment frag = it.fragment();
         if (!frag.isValid()) continue;
-        const QString text = frag.text();
-        if (std::none_of(text.cbegin(), text.cend(), [](QChar ch) { return ch.isLetter(); })) continue;
+        // (Whether it has a letter: the first is looked for where it is, not in a copy of all of it.)
+        bool letters = false;
+        for (int at = frag.position(), end = frag.position() + frag.length(); at < end && !letters; ++at) {
+            letters = doc->characterAt(at).isLetter();
+            ++g_paragraphCharsRead;
+        }
+        if (!letters) continue;
         if (!frag.charFormat().boolProperty(tp::TrueSmallCaps)) return false;
         any = true;
     }
@@ -1330,6 +1349,26 @@ static bool hasComplexScript(const QString &text)
     return false;
 }
 
+// (Asked of the whole text of a paragraph for each page that holds a part of it: the answer for a long paragraph is kept while the same one is asked, or the pages of a paragraph of
+// hundreds of thousands of characters would read it all each. It is the document's revision and the paragraph's place and length that say it is the same.)
+static bool paragraphHasComplexScript(const QTextBlock &b)
+{
+    if (b.length() < 4096) {
+        g_paragraphCharsRead += b.length();
+        return hasComplexScript(b.text());
+    }
+    struct Kept {
+        const QTextDocument *doc = nullptr;
+        int revision = -1, position = -1, length = -1;
+        bool complex = false;
+    };
+    thread_local Kept kept;
+    if (kept.doc == b.document() && kept.revision == b.document()->revision() && kept.position == b.position() && kept.length == b.length()) return kept.complex;
+    g_paragraphCharsRead += b.length();
+    kept = Kept{b.document(), b.document()->revision(), b.position(), b.length(), hasComplexScript(b.text())};
+    return kept.complex;
+}
+
 QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
 {
     QTextCharFormat cf = b.charFormat();
@@ -1347,7 +1386,7 @@ QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
     if (sp == 1) f.setFeature(QFont::Tag("pnum"), 1);
     if (sp == 2) f.setFeature(QFont::Tag("tnum"), 1);
     // (A word processor's text has none unless its file asks, and not the letters of the scripts that need them: those are shaped as the font does.)
-    const bool wordDefault = env.wordLines && !cf.hasProperty(tp::Ligatures) && !hasComplexScript(b.text());
+    const bool wordDefault = env.wordLines && !cf.hasProperty(tp::Ligatures) && !paragraphHasComplexScript(b);
     if (lig == 1 || env.noLigatures || wordDefault) { f.setFeature(QFont::Tag("liga"), 0); f.setFeature(QFont::Tag("clig"), 0); }
     if (lig == 2) { f.setFeature(QFont::Tag("dlig"), 1); f.setFeature(QFont::Tag("hlig"), 1); }
     const int ss = cf.intProperty(tp::StylisticSet);
@@ -1393,6 +1432,7 @@ namespace { std::atomic<qint64> g_lineHeightsMeasured{0}; }   // (see StoryLayou
 
 qint64 StoryLayout::lineHeightsMeasuredForTest() { return g_lineHeightsMeasured.load(); }
 qint64 StoryLayout::longestJoinedStretchForTest() { return g_longestJoinedStretch.load(); }
+qint64 StoryLayout::paragraphCharsReadForTest() { return g_paragraphCharsRead.load(); }
 qint64 StoryLayout::hyphenationLettersLookedUpForTest() { return g_hyphenationLetters.load(); }
 qint64 StoryLayout::longestJoinedParagraphsForTest() { return g_longestJoinedParagraphs.load(); }
 void StoryLayout::resetLongestJoinedParagraphsForTest() { g_longestJoinedParagraphs = 0; }
@@ -2919,9 +2959,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             const QTextFragment frag = it.fragment();
             if (!frag.isValid()) continue;
             int rel = frag.position() - head.position();
-            const QString whole = frag.text();
-            int begin = 0, count = int(whole.size());
-            if (rel + count <= skipChars) continue;
+            // (The runs before the part wanted are passed by their lengths, without their text: a paragraph of a hundred thousand runs is asked for at each of its pages.)
+            if (rel + int(frag.length()) <= skipChars) continue;
+            int begin = 0, count = int(frag.length());
             if (rel < skipChars) {
                 begin = skipChars - rel;
                 count -= begin;
@@ -2932,7 +2972,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 cutShort = true;
                 B->cutAt = rel + count;
             }
-            const QString text = whole.mid(begin, count);   // (the part wanted of a long run only is copied)
+            const QString text = fragmentPart(doc, frag, begin, count);   // (the part wanted of a long run only is copied)
             taken += count;
             const QTextCharFormat cf = frag.charFormat();
             // A paragraph that is set apart from the text shows nothing of it, a picture in it included.
@@ -3546,6 +3586,17 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         const bool breakPending = columnBreakNext;
         const bool windowCut = B->cut;
         const int windowCutAt = B->cutAt;
+        // Whether the paragraph's text is nothing but white space: asked for each line that goes past the frames or looks for room among objects, so it is found once for the text as it is
+        // (a paragraph of a hundred thousand characters would otherwise be copied for each line).
+        std::optional<bool> blank;
+        int blankFound = 0;
+        auto blankText = [&]() {
+            if (!blank) {
+                if (blankFound++ > 0) g_paragraphCharsRead += B->disp.size();   // (found again, as a cost test counts)
+                blank = B->disp.trimmed().isEmpty();
+            }
+            return *blank;
+        };
         auto placeLines = [&](bool startNext, int breakAfter) {
             if (columnBreakNext) {   // (the line before ended with a column break: this paragraph, or the rest of the one before, begins in the next column)
                 columnBreakNext = false;
@@ -3811,7 +3862,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         // (as in .pub layouts): a box doesn't shrink or warn for them.
                         // (In a slide's text box that runs over, they count in the place the text is centered at: the presentation program counts
                         // the empty paragraph that ends a text in the height it centers.)
-                        if (!B->disp.trimmed().isEmpty()) m_overflow = true;
+                        if (!blankText()) m_overflow = true;
                         else if (nF == 1 && frames[0].runsOver) m_blankPast = true;
                         placed = true;
                         break;
@@ -3838,7 +3889,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         QVector<Iv> ivs = freeIntervals(frames[f].obstacles, x0, x1, col.top() + y + touch, col.top() + y + wrapH - touch);
                         QVector<Iv> ok;
                         // (A word processor's empty paragraph is only its mark: it goes in any gap that is a few points wide, between two pictures a little apart as in a wider one.)
-                        const double minW = env.wordLines && B->disp.trimmed().isEmpty() ? 2.0 : std::max(18.0, base.pointSizeF() / fontPointFactor() * 2.5);
+                        const double minW = env.wordLines && blankText() ? 2.0 : std::max(18.0, base.pointSizeF() / fontPointFactor() * 2.5);
                         // The first line of a list item starts a bullet's hang in from the
                         // first place it has: that room is part of what it needs.
                         for (const Iv &iv : ivs)
@@ -4306,6 +4357,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     }
                 if (changed) {
                     B->tl->setText(B->disp);
+                    blank.reset();
                     redo(false, -1);
                 }
             }
