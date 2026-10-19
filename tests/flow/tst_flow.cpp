@@ -3159,6 +3159,34 @@ private Q_SLOTS:
         QVERIFY2(read <= 12 * text.size(), qPrintable(QStringLiteral("%1 characters read for a text of %2").arg(read).arg(text.size())));
     }
 
+    // Runs that have the format of the run before them, and the pieces that show no letters between them (a file's bookmarks, which cut a stretch of text into runs of one letter), are
+    // no ranges of their own for the layout: Qt makes a font for each range each time it looks at it, and a paragraph of 300,000 such letters took each of its pages three quarters of a
+    // second.
+    void runsThatShowNothingBetweenThemAreOneRangeOfFormat()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat text, mark;
+        text.setFontFamilies({QStringLiteral("Arimo")});
+        text.setFontPointSize(11);
+        mark = text;
+        mark.setProperty(tp::Field, QStringLiteral("raw:"));   // (a piece kept as XML, as a bookmark's mark is: it shows nothing)
+        const int letters = 1500;
+        for (int i = 0; i < letters; ++i) {
+            c.insertText(QString(QChar::ObjectReplacementCharacter), mark);
+            c.insertText(QStringLiteral("x"), text);
+            c.insertText(QString(QChar::ObjectReplacementCharacter), mark);
+        }
+        LayoutEnv word;
+        word.wordLines = true;
+        const qint64 before = StoryLayout::formatRangesMadeForTest();
+        StoryLayout layout;
+        layout.build(&doc, {plainFrame(300, 4000)}, word);
+        const qint64 made = StoryLayout::formatRangesMadeForTest() - before;
+        QVERIFY2(made <= 4, qPrintable(QStringLiteral("%1 ranges for %2 letters").arg(made).arg(letters)));
+        QVERIFY(layout.lineInfo(0).size() >= 2);
+    }
+
     // The notes before a page that begins inside a paragraph are counted from where the count for the page before it left off, not from the paragraph's start: a paragraph of thousands
     // of runs over many pages reads each run's format a few times in all.
     void thePagesOfAParagraphOfThousandsOfRunsCountItsNotesFromWhereTheLastLeftOff()

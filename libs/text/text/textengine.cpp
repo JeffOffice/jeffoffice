@@ -289,6 +289,7 @@ std::atomic<qint64> g_longestJoinedStretch{0};
 std::atomic<qint64> g_longestJoinedParagraphs{0};
 std::atomic<qint64> g_hyphenationLetters{0};
 std::atomic<qint64> g_paragraphCharsRead{0};
+std::atomic<qint64> g_formatRangesMade{0};
 inline void noteJoinedParagraphs(int n)
 {
     qint64 seen = g_longestJoinedParagraphs.load(std::memory_order_relaxed);
@@ -1433,6 +1434,7 @@ namespace { std::atomic<qint64> g_lineHeightsMeasured{0}; }   // (see StoryLayou
 qint64 StoryLayout::lineHeightsMeasuredForTest() { return g_lineHeightsMeasured.load(); }
 qint64 StoryLayout::longestJoinedStretchForTest() { return g_longestJoinedStretch.load(); }
 qint64 StoryLayout::paragraphCharsReadForTest() { return g_paragraphCharsRead.load(); }
+qint64 StoryLayout::formatRangesMadeForTest() { return g_formatRangesMade.load(); }
 qint64 StoryLayout::hyphenationLettersLookedUpForTest() { return g_hyphenationLetters.load(); }
 qint64 StoryLayout::longestJoinedParagraphsForTest() { return g_longestJoinedParagraphs.load(); }
 void StoryLayout::resetLongestJoinedParagraphsForTest() { g_longestJoinedParagraphs = 0; }
@@ -3058,7 +3060,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         // (The numbers of references side by side are one run of text: Qt shapes each run of its own, and a paragraph of a
                         // thousand takes each page more than a tenth of a second.)
                         if (env.wordLines && !ranges.isEmpty() && ranges.last().start + ranges.last().length == int(B->disp.size()) && ranges.last().format == rf) ranges.last().length += int(v.size());
-                        else ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), rf};
+                        else if (!(env.wordLines && v.isEmpty() && !ranges.isEmpty())) ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), rf};   // (a range of no letters, after text, is none)
                         B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
                         B->disp += v;
                         continue;
@@ -3067,7 +3069,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     QString v = ctx.resolve(field);
                     v.replace(QLatin1String("\r\n"), QString(QChar::LineSeparator)).replace(QLatin1Char('\n'), QChar::LineSeparator);
                     B->map << Seg{rel + i, 1, int(B->disp.size()), int(v.size()), env.wordLines && v.isEmpty()};
-                    ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), env.wordLines ? withEastAsianFaces(rf, v) : rf};
+                    if (!(env.wordLines && v.isEmpty() && !ranges.isEmpty())) ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), env.wordLines ? withEastAsianFaces(rf, v) : rf};
                     B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
                     B->disp += v;
                 }
@@ -3244,6 +3246,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         from = at + 1;
                     }
                     if (from < int(shown.size())) ranges << QTextLayout::FormatRange{fr.start + from, int(shown.size()) - from, fr.format};
+                } else if (env.wordLines && !ranges.isEmpty() && ranges.last().start + ranges.last().length == fr.start && ranges.last().format == fr.format) {
+                    // (A run with the format of the one before it, and nothing between them, goes on that range: a file's bookmarks and the like cut a stretch of text into runs of one
+                    // letter, hundreds of thousands of them, and each would be a piece of the layout of its own that Qt makes a font for each time it is looked at.)
+                    ranges.last().length += fr.length;
                 } else {
                     ranges << fr;
                 }
@@ -3293,6 +3299,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         bool adjusted = false;
         ranges = applyLetterWidthsTo(ranges, B->disp, &adjusted, env.wordLines);
         B->lettersAdjusted = adjusted;
+        g_formatRangesMade += ranges.size();
         B->tl->setFormats(fineRanges(ranges));
         // Letters drawn taller, shorter, or slanted are drawn run by run, unless
         // the paragraph has highlighted or wavy-underlined text (Qt's own
