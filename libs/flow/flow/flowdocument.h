@@ -223,6 +223,9 @@ public:
     bool markFollowsBreak = false;
     // The paragraph that begins with a page break has its space before again at the top of the page after the break (off where the file says to suppress it, as the 2003 program's does).
     bool spaceBeforeAfterBreak = true;
+    // Facing pages (a word processor's mirrored margins): a section's left and right margins are its inside and outside, so a page that has an even number has the right margin on its
+    // left and the left on its right.
+    bool mirrorMargins = false;
     // Widow and orphan control, for paragraphs that ask for it (tp::WidowControl): the fewest lines of a paragraph to leave at the foot
     // of a page, and to take to the top of the next. (The text engine keeps two: more than that is asked for here.)
     int widowLines = 2, orphanLines = 2;

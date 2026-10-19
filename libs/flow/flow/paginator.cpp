@@ -119,6 +119,15 @@ static int firstPageShift(const FlowDocument &doc)
     return !doc.sections.isEmpty() && doc.sections[0].startParity == Section::Parity::Even && !doc.sections[0].firstPageNumber ? 1 : 0;
 }
 
+const Section &Paginator::sectionOf(const PageStart &st, int number, Section *scratch) const
+{
+    const Section &base = m_doc->section(st.section);
+    if (!m_doc->mirrorMargins || number % 2 != 0 || base.margins.left() == base.margins.right()) return base;
+    *scratch = base;
+    scratch->margins = QMarginsF(base.margins.right(), base.margins.top(), base.margins.left(), base.margins.bottom());
+    return *scratch;
+}
+
 int Paginator::numberOf(int index) const
 {
     bool restarts = false;
@@ -287,7 +296,9 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         run.next.hard = true;
         return run;
     }
-    const Section &sec = m_doc->section(st.section);
+    const int number = numberOf(index);
+    Section mirrored;
+    const Section &sec = sectionOf(st, number, &mirrored);
     // (The text after a page break that begins its paragraph is the paragraph's first line: it has the space before. The rest of a paragraph after a break that has
     // something before it on its line goes on, with none.)
     // (The break that begins the page is the paragraph's first character: not any break in it, whatever its first character is.)
@@ -296,7 +307,6 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
     run.keepsSpace = st.hard && st.skip > 0 && breakFirst && m_doc->spaceBeforeAfterBreak;
     run.keepsIndent = st.hard && st.skip > 0 && breakFirst;
     const double colW = sec.columnWidth();
-    const int number = numberOf(index);
     const QRectF body = furnitureOf(index, st, number).body;
     const double colH = body.height();
     auto frame = [&](double width, double height) {
@@ -1126,8 +1136,9 @@ Paginator::Page Paginator::page(int index)
     Page p;
     index = std::clamp(index, 0, int(m_starts.size()) - 1);
     p.start = m_starts[index];
-    const Section &sec = m_doc->section(p.start.section);
     p.number = numberOf(index);
+    Section mirrored;
+    const Section &sec = sectionOf(p.start, p.number, &mirrored);
     p.size = sec.pageSize();
     p.content = furnitureOf(index, p.start, p.number).body;
     p.columns = sec.columnCount();
@@ -1746,7 +1757,8 @@ QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, con
 {
     QVector<Wrapped> out;
     if (!hasFloaters() || run.kept <= 0) return out;
-    const Section &sec = m_doc->section(start.section);
+    Section mirrored;
+    const Section &sec = sectionOf(start, numberOf(index), &mirrored);
     const QRectF body = furnitureOf(index, start, numberOf(index)).body;
     const QTextDocument *story = m_doc->story();
     QVector<AnchorLine> held, firstLines;
@@ -1882,7 +1894,8 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     // (A page with none of the body's lines is a page of notes that go on from the page before, when it has them.)
     if (run.kept <= 0 && !run.blank && st.carried.isEmpty()) return nullptr;
     const bool bodyless = run.kept <= 0 && !run.blank;
-    const Section &sec = m_doc->section(st.section);
+    Section mirrored;
+    const Section &sec = sectionOf(st, numberOf(index), &mirrored);
     auto out = std::make_unique<MaterializedPage>();
     m_imageIds.clear();
     out->index = index;

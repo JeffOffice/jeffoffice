@@ -568,6 +568,8 @@ struct CompatOptions {
     // where the part says none), which are the settings' own, beside the options.
     bool autoHyphenation = false;
     int hyphenationZone = 360;
+    // Facing pages (w:mirrorMargins, an element of the settings itself): the section's left and right margins are its inside and outside.
+    bool mirrorMargins = false;
 };
 CompatOptions readCompatOptions(const QByteArray &settings);
 

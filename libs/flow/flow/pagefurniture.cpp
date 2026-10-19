@@ -303,7 +303,8 @@ double Paginator::headerObjectsBottom(const QTextDocument *story, const Section 
 
 Paginator::Furniture Paginator::furnitureOf(int index, const PageStart &st, int number)
 {
-    const Section &sec = m_doc->section(st.section);
+    Section mirrored;
+    const Section &sec = sectionOf(st, number, &mirrored);
     Furniture f;
     f.body = sec.content();
     if (st.blank) return f;   // (a blank page that a section break leaves has no header or footer)

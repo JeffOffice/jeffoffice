@@ -1369,6 +1369,7 @@ CompatOptions readCompatOptions(const QByteArray &settings)
         return !(value == QLatin1String("0") || value == QLatin1String("false") || value == QLatin1String("off"));
     };
     o.autoHyphenation = isOn(tree.child(tree.root(), "autoHyphenation"));
+    o.mirrorMargins = isOn(tree.child(tree.root(), "mirrorMargins"));
     if (const int zone = tree.child(tree.root(), "hyphenationZone"); zone >= 0) {
         bool ok = false;
         const int twips = tree.val(zone).toInt(&ok);

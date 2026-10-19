@@ -11656,6 +11656,29 @@ private Q_SLOTS:
         QVERIFY2(boxWithText(*page, QStringLiteral("AROUNDPARA")), "the control round a paragraph in the text box");
     }
 
+    // A file with facing pages (w:mirrorMargins in its settings) has the margins of its even pages swapped: the section's left margin is its inside, so the text of page two begins at
+    // the right margin's width; a file without has every page alike.
+    void facingPagesMirrorTheMarginsOfEvenPages()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"800\" w:bottom=\"1440\" w:left=\"2000\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray body = "<w:p><w:r><w:t>One</w:t></w:r></w:p><w:p><w:r><w:br w:type=\"page\"/></w:r></w:p><w:p><w:r><w:t>Two</w:t></w:r></w:p>";
+        for (const bool mirrored : {false, true}) {
+            auto doc = open(makeDocxWithParts(body, sect, {}, mirrored ? QByteArray("<w:mirrorMargins/>") : QByteArray()));
+            QVERIFY(doc);
+            QCOMPARE(doc->pager().pageCount(), 2);
+            for (int page = 0; page < 2; ++page) {
+                const auto m = doc->pager().materialize(page);
+                QVERIFY(m && !m->boxes.isEmpty());
+                const auto *box = dynamic_cast<const TextItem *>(m->doc->item(m->boxes[0]));
+                QVERIFY(box);
+                const double left = mirrored && page == 1 ? 40.0 : 100.0;
+                QVERIFY2(std::abs(box->rect.left() - left) < 0.01 && std::abs(box->rect.right() - (612 - (mirrored && page == 1 ? 100.0 : 40.0))) < 0.01,
+                         qPrintable(QStringLiteral("%1 page %2: the text is from %3 to %4").arg(mirrored ? "mirrored" : "plain").arg(page + 1).arg(box->rect.left()).arg(box->rect.right())));
+            }
+            QVERIFY(documentXml(doc->toDocx()).contains("w:left=\"2000\""));
+        }
+    }
+
     // A run's display style makes its letters italic and bold where the layout is a word processor's, and is nothing in any other.
     void aDisplayStyleSetsTheFaceOfAWordRun()
     {

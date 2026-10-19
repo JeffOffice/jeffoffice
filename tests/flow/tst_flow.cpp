@@ -4932,6 +4932,41 @@ private Q_SLOTS:
         QVERIFY(box);
     }
 
+    // With facing pages (mirrored margins) a section's left and right margins are its inside and its outside: the text, the header, and the footer of a page with an odd number are
+    // set as the section says, and those of a page with an even number have its right margin on the left and its left on the right, whatever the numbers of the pages begin at; the
+    // width of the text is the same on all, and a document without them has every page alike.
+    void mirroredMarginsSwapTheSidesOfEvenPages()
+    {
+        for (const bool mirrored : {false, true}) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            fd.mirrorMargins = mirrored;
+            fillStory(fd.story(), 3, 7, [](int i, QTextBlockFormat &bf) { if (i > 0) bf.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore); }, 10, 10);   // (a paragraph to a page)
+            Section &s = fd.sections[0];
+            s.margins = QMarginsF(100, 72, 40, 72);
+            s.header.first = s.header.odd = s.header.even = furnitureStory({QStringLiteral("HEAD")});
+            s.footer.first = s.footer.odd = s.footer.even = furnitureStory({QStringLiteral("FOOT")});
+            Paginator pg(&fd);
+            QCOMPARE(pg.pageCount(), 3);
+            for (int page = 0; page < 3; ++page) {
+                const auto m = pg.materialize(page);
+                QVERIFY(m && !m->boxes.isEmpty());
+                const double inside = 100, outside = 40, left = mirrored && page % 2 == 1 ? outside : inside, right = mirrored && page % 2 == 1 ? inside : outside;
+                const auto *body = dynamic_cast<const TextItem *>(m->doc->item(m->boxes[0]));
+                QVERIFY(body);
+                const QString where = QStringLiteral("%1 page %2").arg(mirrored ? "mirrored" : "plain").arg(page + 1);
+                QVERIFY2(std::abs(body->rect.left() - left) < 0.01, qPrintable(where + QStringLiteral(": the text begins at %1, not %2").arg(body->rect.left()).arg(left)));
+                QVERIFY2(std::abs(body->rect.right() - (612 - right)) < 0.01, qPrintable(where + QStringLiteral(": the text ends at %1, not %2").arg(body->rect.right()).arg(612 - right)));
+                for (const char *kind : {"flow-header-box", "flow-footer-box"}) {
+                    const auto boxes = audit::itemsWith(*m, QString::fromLatin1(kind));
+                    QVERIFY2(boxes.size() == 1, qPrintable(where + QStringLiteral(": %1 has %2 boxes").arg(kind).arg(boxes.size())));
+                    QVERIFY2(std::abs(boxes[0]->rect.left() - left) < 0.01 && std::abs(boxes[0]->rect.right() - (612 - right)) < 0.01,
+                             qPrintable(where + QStringLiteral(": %1 is at %2 to %3").arg(kind).arg(boxes[0]->rect.left()).arg(boxes[0]->rect.right())));
+                }
+            }
+        }
+    }
+
     // Pages that an edit moves down by a page change from odd to even, and where odd and even pages have headers of other heights they are laid out again:
     // the pages after the edit are the ones a fresh paginator makes.
     void evenAndOddHeadersOfOtherHeightsSettleAfterAnEdit()
