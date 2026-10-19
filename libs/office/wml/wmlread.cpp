@@ -18,6 +18,8 @@ namespace jp::office::wml {
 
 namespace {
 
+std::atomic<qint64> s_styledAtomsMade{0};
+
 // Containers nest only a few deep in real files (a hyperlink in a content control in a tracked insertion is three); past this a
 // container is kept whole as one element instead of being read into.
 constexpr int kMaxContainerDepth = 24;
@@ -295,7 +297,7 @@ public:
     // Text with characters of the mathematical alphanumeric block in it: the text between them as it is, and each stretch of them of one style an atom that holds the characters (a
     // w:t, written back as it was) and shows the letters they are styles of (the stretch of double-struck ones as they are: a bundled face has them). Its key is the style: i (italic),
     // b (bold), ib (both), d (double-struck), or empty (plain).
-    void styledText(const QString &text, const RunProps &props, QVector<Inline> *out) const
+    void styledText(const QString &text, const RunProps &props, QVector<Inline> *out)
     {
         auto plain = [&](const QString &s) {
             if (s.isEmpty()) return;
@@ -318,6 +320,11 @@ public:
                 i += width;
                 continue;
             }
+            // (Past the most atoms a document may have of them, and the room the paragraph has for inlines, the rest of the text is left as the text it is.)
+            if (styledAtoms >= kMaxStyledAtoms || inlines + int(out->size()) >= kMaxInlines) {
+                ordinary += text.mid(i);
+                break;
+            }
             plain(ordinary);
             ordinary.clear();
             // The stretch of characters that are set alike.
@@ -335,6 +342,8 @@ public:
                 shown += first.style == 'd' ? text.mid(k, w2) : QString(QChar::fromUcs4(char32_t(l.base)));
                 k += w2;
             }
+            ++s_styledAtomsMade;
+            ++styledAtoms;
             Inline a;
             a.kind = Inline::RunAtom;
             a.props = props;
@@ -450,6 +459,7 @@ public:
     }
 
     int equationChars = 0;            // the characters the equations read so far show (kMaxEquationCharsTotal at most)
+    int styledAtoms = 0;              // the stretches of styled letters made atoms so far (kMaxStyledAtoms at most)
 
     // An equation shows a line of text in the face and size of its first run (Cambria Math where it states none), set as most of its letters are (italic, bold, or neither: in
     // its key).
@@ -470,7 +480,7 @@ public:
     void paragraphContent(int n, QVector<Inline> *out, int depth)
     {
         for (int c = t.firstChild(n); c >= 0; c = t.next(c)) {
-            if (inlines >= kMaxInlines) {
+            if (inlines + int(out->size()) >= kMaxInlines) {
                 truncated = true;
                 return;
             }
@@ -1400,6 +1410,9 @@ bool readBlocks(const QByteArray &xml, QVector<Block> *blocks, bool tables)
     reader.bodyContent(tree.root(), blocks, 0, nullptr, nullptr);
     return true;
 }
+
+qint64 styledAtomsMadeForTest() { return s_styledAtomsMade.load(); }
+void resetStyledAtomsMadeForTest() { s_styledAtomsMade = 0; }
 
 bool readDocx(const QByteArray &zip, Document *doc, QString *error, ReadNotes *notes)
 {

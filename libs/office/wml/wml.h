@@ -586,6 +586,10 @@ constexpr int kMaxInlines = 1500000;
 constexpr int kMaxEquationChars = 4000;
 constexpr int kMaxEquationDepth = 24;
 constexpr int kMaxEquationCharsTotal = 2000000;
+// The stretches of styled letters in a paragraph's text that are made atoms (the rest of the text is left as text, as it was), all together in a document, and for a test how many were made.
+constexpr int kMaxStyledAtoms = 10000;
+qint64 styledAtomsMadeForTest();
+void resetStyledAtomsMadeForTest();
 // A table is read as one of at most this many rows and columns (a word processor's own largest has 63 columns), of at most this many cells, nested at
 // most this deep, and all the tables of a document hold at most the last number of cells (the most that are laid out in a document: 50,000 short cells open and
 // are paged in a few seconds); a table that goes past any of them is kept whole as XML and shown as a stand-in, as every table was before, and the file's

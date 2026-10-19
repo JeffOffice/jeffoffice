@@ -14,6 +14,7 @@
 #include <QFileInfo>
 #include <QFontDatabase>
 #include <QElapsedTimer>
+#include <QRegularExpression>
 #include <QTest>
 
 using namespace jp::office;
@@ -417,6 +418,28 @@ private Q_SLOTS:
         QVERIFY2(line.size() <= 20, qPrintable(QStringLiteral("a sign of 20,000 characters shows %1").arg(line.size())));
         QVERIFY(shown("<m:acc><m:accPr><m:chr m:val=\"" + big + "\"/></m:accPr><m:e><m:r><m:t>x</m:t></m:r></m:e></m:acc>", &line));
         QVERIFY2(line.size() <= 20, qPrintable(QStringLiteral("an accent of 20,000 characters shows %1").arg(line.size())));
+    }
+
+    // A paragraph's text of thousands of styled letters (the characters of the mathematical alphanumeric block between others) makes atoms only up to the most a document may have:
+    // the rest of the text is left as text, so that what is written back is the text that was read.
+    void styledLettersMakeAtomsOnlyUpToTheMost()
+    {
+        const QString pair = QString::fromUtf8("a\xf0\x9d\x90\x80");
+        QString text;
+        for (int i = 0; i < 30000; ++i) text += pair;
+        Made m;
+        m.body = "<w:p><w:r><w:t>" + text.toUtf8() + "</w:t></w:r></w:p>";
+        resetStyledAtomsMadeForTest();
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        QVERIFY2(styledAtomsMadeForTest() <= kMaxStyledAtoms, qPrintable(QStringLiteral("%1 atoms were made").arg(styledAtomsMadeForTest())));
+        QVERIFY(d.body[0].para.content.size() <= 2 * kMaxStyledAtoms + 2);
+        // (The text, joined, is what was read.)
+        const QString written = QString::fromUtf8(documentXmlOf(writeDocx(d)));
+        QString joined;
+        static const QRegularExpression piece(QStringLiteral("<w:t[^>]*>([^<]*)</w:t>"));
+        for (auto it = piece.globalMatch(written); it.hasNext();) joined += it.next().captured(1);
+        QCOMPARE(joined, text);
     }
 
     void sectionBreaksAreInTheParagraphThatEndsThem()
