@@ -578,6 +578,13 @@ double slideSpaceOf(const QTextBlock &b, int shareProperty, double scale);
 // a missing, measured stock font cut into pieces that take the original's
 // widths (resolveCharFormat marks those runs); the layout does this itself.
 QVector<QTextLayout::FormatRange> applyLetterWidths(const QVector<QTextLayout::FormatRange> &in, const QString &disp);
+// The machine's own fonts for East Asian characters that a run's families lack (a word processor's layout, LayoutEnv::wordLines): the families the system lists for the writing
+// systems Japanese, Simplified and Traditional Chinese, and Korean (the first 64 of each), the format with the families that have the characters of `text` added after its own, and
+// for a test, how many times the font database was scanned for them and how many characters were looked up.
+QStringList eastAsianCandidateFamilies();
+QTextCharFormat withEastAsianFaces(const QTextCharFormat &format, const QString &text);
+qint64 eastAsianFontScansForTest();
+qint64 eastAsianLookupsForTest();
 // The same as a word processor's layout cuts them (LayoutEnv::wordLines): the letters of a word keep the places the original's have, and the pieces are cut where a word ends.
 QVector<QTextLayout::FormatRange> applyWordLetterWidths(const QVector<QTextLayout::FormatRange> &in, const QString &disp);
 

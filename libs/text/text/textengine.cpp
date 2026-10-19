@@ -31,6 +31,7 @@
 #include <cmath>
 #include <functional>
 #include <limits>
+#include <unordered_map>
 #include <cstring>
 
 namespace {
@@ -298,42 +299,96 @@ inline bool isEastAsian(QChar c)
     const char16_t u = c.unicode();
     return (u >= 0x2E80 && u <= 0xD7FF) || (u >= 0xF900 && u <= 0xFAFF) || (u >= 0xFF00 && u <= 0xFFEF) || c.isHighSurrogate();
 }
-// The family among the machine's own fonts that has an East Asian character, for a run whose families lack it (the faces the documents name for them are the original program's, and are not
-// here): found once for each character, from the families the system lists for the writing systems that may have it (kana are Japanese, Hangul Korean, ideographs any of the four), and
-// kept. Empty where no installed face has it. (Qt's own fallback looks only in the families the system ranks for the script it takes the text to be: ideographs and Hangul came out as
-// nothing on a machine whose one face for them is listed under Japanese.)
-static QString installedFamilyFor(uint ch)
+// Whether a character (a code point) is East Asian, for the face the machine gives it: Han, kana, Hangul, and the full-width forms, the kana of the supplementary planes, and the ideographs
+// of the supplementary planes (U+20000 to U+3FFFF). Emoji and the letters of the mathematical alphanumeric block are not.
+inline bool isEastAsianCode(uint u)
 {
-    static QHash<uint, QString> found;   // main thread only, like all layout
-    if (const auto it = found.constFind(ch); it != found.constEnd()) return it.value();
-    QString family;
-    QVector<QFontDatabase::WritingSystem> systems = {QFontDatabase::Japanese, QFontDatabase::SimplifiedChinese, QFontDatabase::TraditionalChinese, QFontDatabase::Korean};
-    if ((ch >= 0x1100 && ch <= 0x11FF) || (ch >= 0x3130 && ch <= 0x318F) || (ch >= 0xAC00 && ch <= 0xD7AF)) systems.move(3, 0);
-    for (const QFontDatabase::WritingSystem system : std::as_const(systems)) {
-        int looked = 0;
-        for (const QString &candidate : QFontDatabase::families(system)) {
-            if (++looked > 64) break;
-            const QRawFont raw = QRawFont::fromFont(QFont(candidate));
-            if (raw.isValid() && raw.supportsCharacter(ch)) {
-                family = candidate;
-                break;
+    return (u >= 0x2E80 && u <= 0xD7FF) || (u >= 0xF900 && u <= 0xFAFF) || (u >= 0xFF00 && u <= 0xFFEF) || (u >= 0x1B000 && u <= 0x1B16F) || (u >= 0x20000 && u <= 0x3FFFF);
+}
+} // namespace
+
+static std::atomic<qint64> s_eastAsianFontScans{0}, s_eastAsianLookups{0};
+qint64 eastAsianFontScansForTest() { return s_eastAsianFontScans.load(); }
+qint64 eastAsianLookupsForTest() { return s_eastAsianLookups.load(); }
+
+namespace {
+// The families the machine lists for the writing systems that may have an East Asian character: Japanese, Simplified and Traditional Chinese, and Korean, the first 64 of each, and
+// the places in that list of the Korean ones and then the others (the order Hangul is looked up in). The font database is scanned for them once for the program.
+struct EastAsianCandidates {
+    QStringList all;
+    QVector<int> koreanFirst;
+};
+const EastAsianCandidates &eastAsianCandidates()
+{
+    static const EastAsianCandidates found = [] {
+        EastAsianCandidates out;
+        QStringList korean;
+        for (const QFontDatabase::WritingSystem system : {QFontDatabase::Japanese, QFontDatabase::SimplifiedChinese, QFontDatabase::TraditionalChinese, QFontDatabase::Korean}) {
+            ++s_eastAsianFontScans;
+            int looked = 0;
+            for (const QString &candidate : QFontDatabase::families(system)) {
+                if (++looked > 64) break;
+                if (system == QFontDatabase::Korean) korean << candidate;
+                if (!out.all.contains(candidate)) out.all << candidate;
             }
         }
-        if (!family.isEmpty()) break;
+        for (const QString &candidate : std::as_const(korean))
+            if (const int at = int(out.all.indexOf(candidate)); !out.koreanFirst.contains(at)) out.koreanFirst << at;
+        for (int i = 0; i < out.all.size(); ++i)
+            if (!out.koreanFirst.contains(i)) out.koreanFirst << i;
+        return out;
+    }();
+    return found;
+}
+} // namespace
+
+QStringList eastAsianCandidateFamilies() { return eastAsianCandidates().all; }
+
+// The family among the machine's own fonts that has an East Asian character, for a run whose families lack it (the faces the documents name for them are the original program's, and are not
+// here): the first of the candidates that has it (Hangul looks among the Korean families first), found once for each character and kept for the program, in pages of 256 characters:
+// the characters this is asked for are the East Asian ones (isEastAsianCode), a few hundred thousand at most, so what is kept is bounded and is never cleared (a document of every
+// character, laid out again and again, finds each as it found it). Empty where no installed face has it. (Qt's own fallback looks only in the families the system ranks for the script it
+// takes the text to be: ideographs and Hangul came out as nothing on a machine whose one face for them is listed under Japanese.)
+static QString installedFamilyFor(uint ch)
+{
+    ++s_eastAsianLookups;
+    static QMutex lock;
+    static std::unordered_map<uint, QVector<qint16>> pages;   // zero: not looked up; -1: no face has it; else the place of the family in the candidates, and one
+    static QVector<QRawFont> faces;                            // (made as they are asked for)
+    static QVector<char> made;
+    const QMutexLocker guard(&lock);
+    const EastAsianCandidates &candidates = eastAsianCandidates();
+    QVector<qint16> &page = pages.try_emplace(ch >> 8, QVector<qint16>(256, 0)).first->second;
+    qint16 &slot = page[int(ch & 0xFF)];
+    if (slot != 0) return slot < 0 ? QString() : candidates.all.value(slot - 1);
+    if (faces.size() != candidates.all.size()) {
+        faces.resize(candidates.all.size());
+        made.fill(0, int(candidates.all.size()));
     }
-    if (found.size() > 20000) found.clear();
-    found.insert(ch, family);
-    return family;
+    const bool hangul = (ch >= 0x1100 && ch <= 0x11FF) || (ch >= 0x3130 && ch <= 0x318F) || (ch >= 0xAC00 && ch <= 0xD7AF);
+    slot = -1;
+    for (int k = 0; k < candidates.all.size(); ++k) {
+        const int i = hangul ? candidates.koreanFirst[k] : k;
+        if (!made[i]) {
+            faces[i] = QRawFont::fromFont(QFont(candidates.all[i]));
+            made[i] = 1;
+        }
+        if (faces[i].isValid() && faces[i].supportsCharacter(ch)) {
+            slot = qint16(i + 1);
+            break;
+        }
+    }
+    return slot < 0 ? QString() : candidates.all.value(slot - 1);
 }
 // The format with the machine's own families that have the East Asian characters of `text` added after the families it has (its own are tried first).
-static QTextCharFormat withEastAsianFaces(const QTextCharFormat &format, const QString &text)
+QTextCharFormat withEastAsianFaces(const QTextCharFormat &format, const QString &text)
 {
     QStringList extra;
     QSet<uint> asked;
     for (qsizetype at = 0; at < text.size() && extra.size() < 4 && asked.size() < 256; ++at) {
         uint code = text[at].unicode();
-        if (!isEastAsian(text[at])) continue;
         if (QChar::isHighSurrogate(code) && at + 1 < text.size() && QChar::isLowSurrogate(text[at + 1].unicode())) code = QChar::surrogateToUcs4(code, text[++at].unicode());
+        if (!isEastAsianCode(code)) continue;
         if (asked.contains(code)) continue;
         asked.insert(code);
         if (const QString family = installedFamilyFor(code); !family.isEmpty() && !extra.contains(family)) extra << family;
@@ -346,6 +401,8 @@ static QTextCharFormat withEastAsianFaces(const QTextCharFormat &format, const Q
     out.setFontFamilies(families);
     return out;
 }
+
+namespace {
 // A pixel of the fine layout (an eighth of a point) and a hair more is what the width of a line the room of which it exactly fills is given over its room, for the layout's
 // rounding. It is the same on every machine: it is the layout's own, not the text engine's. (What the engine counts past the advance of a glyph at a line's end is another thing,
 // and a machine's own: qtGiveBack.)

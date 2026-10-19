@@ -787,9 +787,9 @@ struct LetterLine {
 // A family of the machine's own fonts that has the character (looked for among those the system lists for the East Asian writing systems), or none.
 QString installedFaceFor(uint ch)
 {
-    for (const auto system : {QFontDatabase::Japanese, QFontDatabase::SimplifiedChinese, QFontDatabase::TraditionalChinese, QFontDatabase::Korean})
-        for (const QString &family : QFontDatabase::families(system))
-            if (QRawFont::fromFont(QFont(family)).supportsCharacter(ch)) return family;
+    // (The candidates are the layout's own: the first 64 families of each East Asian writing system, in the order Japanese, Simplified and Traditional Chinese, and Korean.)
+    for (const QString &family : eastAsianCandidateFamilies())
+        if (QRawFont::fromFont(QFont(family)).supportsCharacter(ch)) return family;
     return QString();
 }
 
@@ -3080,6 +3080,55 @@ private Q_SLOTS:
             QVERIFY2(wide >= 2 * 20 * 0.9, qPrintable(QStringLiteral("two ideographs are %1 points wide%2").arg(wide).arg(asField ? QStringLiteral(" as a field") : QString())));
             QVERIFY2(small >= 5 * 20 * 0.9, qPrintable(QStringLiteral("five kana are %1 points wide%2").arg(small).arg(asField ? QStringLiteral(" as a field") : QString())));
         }
+    }
+
+    // The font database is scanned for the East Asian faces once for the program, not for each character looked up: laying out two documents of hundreds of different ideographs, in a
+    // face that no machine has, scans it no more than once for each writing system (four, in all).
+    void theFontDatabaseIsScannedForEastAsianFacesOnce()
+    {
+        const QString family = QStringLiteral("Test Mincho That No Machine Has");
+        const qint64 before = eastAsianFontScansForTest();
+        for (int round = 0; round < 2; ++round) {
+            QString text;
+            for (int i = 0; i < 300; ++i) text += QChar(0x4E00 + round * 400 + i * 3);
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat cf;
+            cf.setFontFamilies({family});
+            cf.setFontPointSize(12);
+            c.insertText(text, cf);
+            FrameSpec fs;
+            fs.size = QSizeF(600, 400);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            LayoutEnv word;
+            word.wordLines = true;
+            StoryLayout layout;
+            layout.build(&doc, {fs}, word);
+        }
+        const qint64 scans = eastAsianFontScansForTest() - before;
+        QVERIFY2(scans <= 4, qPrintable(QStringLiteral("the font database was scanned %1 times").arg(scans)));
+    }
+
+    // Only East Asian characters go looking for a face: an emoji and a letter of the mathematical alphanumeric block do not, and an ideograph of the supplementary planes (U+20000 to
+    // U+3FFFF) does; Latin text gains no family.
+    void onlyEastAsianCharactersTakeTheirFaceFromTheMachine()
+    {
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Test Mincho That No Machine Has")});
+        const qint64 start = eastAsianLookupsForTest();
+        QString noise;
+        for (int i = 0; i < 100; ++i) {
+            const char32_t emoji = 0x1F600 + i, letter = 0x1D400 + i;
+            noise += QString::fromUcs4(&emoji, 1) + QString::fromUcs4(&letter, 1);
+        }
+        const QTextCharFormat kept = withEastAsianFaces(cf, noise + QStringLiteral(" Latin text, and 12345."));
+        QCOMPARE(eastAsianLookupsForTest() - start, qint64(0));
+        QCOMPARE(kept.fontFamilies().toStringList(), QStringList{QStringLiteral("Test Mincho That No Machine Has")});
+        // (An ideograph of the supplementary planes takes the way, whether or not a face has it.)
+        const char32_t extB = 0x20000;
+        withEastAsianFaces(cf, QString::fromUcs4(&extB, 1));
+        QVERIFY(eastAsianLookupsForTest() - start >= 1);
     }
 
     // The line of Courier New is Courier New's wherever it is measured, though the text is drawn in TeX Gyre Cursor (whose own line is 1.201 em, to Courier New's 1.133):
