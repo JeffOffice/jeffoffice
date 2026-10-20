@@ -10280,7 +10280,7 @@ Desktop publishing</translation>
         <translation type="unfinished">Portoghese (Portogallo)</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+151"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+153"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Formula di apertura»</translation>
     </message>
@@ -10310,7 +10310,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Continua da pagina %1)</translation>
     </message>
     <message>
-        <location line="+5493"/>
+        <location line="+5752"/>
         <source>Notes</source>
         <translation type="unfinished">Note</translation>
     </message>
@@ -22430,7 +22430,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::WriteFindPane</name>
     <message>
-        <location filename="../apps/write/app/writefindpane.cpp" line="+114"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="+118"/>
         <source>Find what:</source>
         <translation type="unfinished">Trova:</translation>
     </message>
@@ -22465,7 +22465,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Sostituisci tutto</translation>
     </message>
     <message>
-        <location line="+117"/>
+        <location line="+118"/>
         <source>JeffWrite finished searching the document. &quot;%1&quot; was not found.</source>
         <translation type="unfinished">JeffWrite ha completato la ricerca nel documento. &quot;%1&quot; non è stato trovato.</translation>
     </message>
@@ -22832,20 +22832,20 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Non salvare</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_file.cpp" line="+63"/>
+        <location filename="../apps/write/app/writewindow_file.cpp" line="+64"/>
         <source>New</source>
         <translation type="unfinished">Nuovo</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+46"/>
+        <location line="+42"/>
         <location line="+21"/>
         <location line="+139"/>
         <source>Open</source>
         <translation type="unfinished">Apri</translation>
     </message>
     <message>
-        <location line="-205"/>
+        <location line="-201"/>
         <source>Open Document</source>
         <translation type="unfinished">Apri documento</translation>
     </message>
@@ -22866,7 +22866,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+1"/>
-        <location line="+67"/>
+        <location line="+63"/>
         <location line="+3"/>
         <location line="+35"/>
         <location line="+5"/>
@@ -22875,13 +22875,13 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Salva</translation>
     </message>
     <message>
-        <location line="-123"/>
-        <location line="+93"/>
+        <location line="-119"/>
+        <location line="+89"/>
         <source>Save As</source>
         <translation type="unfinished">Salva con nome</translation>
     </message>
     <message>
-        <location line="-92"/>
+        <location line="-88"/>
         <source>Print…</source>
         <translation type="unfinished">Stampa…</translation>
     </message>
@@ -22896,7 +22896,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Opzioni</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+30"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 non può aprire &quot;%2&quot;.
@@ -23272,6 +23272,9 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+15"/>
+        <location filename="../libs/office/office/package.cpp" line="+369"/>
+        <location line="+7"/>
+        <location filename="../apps/deck/io/presentationfile.cpp" line="+5"/>
         <source>The file is larger than this program can open.</source>
         <translation type="unfinished">Il file è più grande di quanto questo programma possa aprire.</translation>
     </message>
@@ -23355,17 +23358,17 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::office::wml</name>
     <message>
-        <location filename="../libs/office/wml/wmlread.cpp" line="+350"/>
+        <location filename="../libs/office/wml/wmlread.cpp" line="+421"/>
         <source>[picture]</source>
         <translation type="unfinished">[immagine]</translation>
     </message>
     <message>
-        <location line="+524"/>
+        <location line="+545"/>
         <source>[Table: %1 rows by %2 columns]</source>
         <translation type="unfinished">[Tabella: %1 righe per %2 colonne]</translation>
     </message>
     <message>
-        <location line="+456"/>
+        <location line="+462"/>
         <source>The file has no document in it.</source>
         <translation type="unfinished">Il file non contiene alcun documento.</translation>
     </message>
@@ -23424,7 +23427,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::write::Dialogs</name>
     <message>
-        <location filename="../apps/write/app/writedialogs.cpp" line="+424"/>
+        <location filename="../apps/write/app/writedialogs.cpp" line="+426"/>
         <source>Paragraph</source>
         <translation type="unfinished">Paragrafo</translation>
     </message>
