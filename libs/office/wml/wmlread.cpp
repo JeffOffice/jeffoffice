@@ -1023,6 +1023,9 @@ public:
             } else if (t.is(c, "style")) {
                 Style s;
                 s.id = t.attr(c, "styleId");
+                // (A style a program wrote without an id is the one its name names, as a paragraph that asks for it by that name finds it.)
+                if (s.id.isEmpty())
+                    if (const int nameAt = t.child(c, "name"); nameAt >= 0) s.id = QString(t.val(nameAt)).remove(QLatin1Char(' ')).left(256);
                 if (s.id.isEmpty()) continue;
                 s.type = t.attr(c, "type").isEmpty() ? QStringLiteral("paragraph") : t.attr(c, "type");
                 s.isDefault = onOffString(t.attr(c, "default"));

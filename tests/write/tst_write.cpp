@@ -5377,6 +5377,32 @@ private Q_SLOTS:
         QVERIFY(lineHeight(40, false) > small + 5);
     }
 
+    // A style that has no styleId is the one its name names, as a paragraph that asks for it by that name finds it (a file whose style sheet was written by a program that left the id out:
+    // the reference sets such a paragraph in the 1 point type the style gives it).
+    void aStyleWithNoIdIsFoundByItsName()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray styles = kStyles + "<w:style><w:name w:val=\"TinyCellLayout\"/><w:basedOn w:val=\"Normal\"/><w:rPr><w:sz w:val=\"2\"/></w:rPr></w:style>";
+        auto lineHeight = [&](const QByteArray &style) {
+            const QByteArray body = "<w:p><w:pPr>" + style + "<w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/></w:pPr></w:p>";
+            auto doc = open(makeDocx(body, styles, QByteArray(), sect));
+            if (!doc) return -1.0;
+            const auto lines = doc->pager().lines(0);
+            return lines.isEmpty() ? -1.0 : lines.first().rect.height();
+        };
+        const double tiny = lineHeight("<w:pStyle w:val=\"TinyCellLayout\"/>"), plain = lineHeight(QByteArray());
+        QVERIFY(tiny > 0 && plain > 0);
+        QVERIFY2(tiny < plain / 3, qPrintable(QStringLiteral("the line is %1 points in the style the name names, %2 in no style").arg(tiny).arg(plain)));
+        // Saved, the style is as the file had it, with no id written for it.
+        auto doc = open(makeDocx("<w:p><w:pPr><w:pStyle w:val=\"TinyCellLayout\"/></w:pPr></w:p>", styles, QByteArray(), sect));
+        QVERIFY(doc);
+        office::Package saved;
+        QVERIFY(saved.read(doc->toDocx()));
+        const QByteArray out = saved.part(QStringLiteral("/word/styles.xml"));
+        QVERIFY(out.contains("<w:style><w:name w:val=\"TinyCellLayout\"/>"));
+        QVERIFY(!out.contains("w:styleId=\"TinyCellLayout\""));
+    }
+
     void aSymbolSetsTheLineOfItsFont()
     {
         // The point from the page's top where the second of two paragraphs, each of one line, has its first ink.
