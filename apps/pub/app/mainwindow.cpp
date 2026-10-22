@@ -1113,7 +1113,7 @@ void MainWindow::exportImages()
     // A vector drawing has no resolution to ask for.
     if (QFileInfo(path).suffix().compare(QLatin1String("svg"), Qt::CaseInsensitive) == 0) {
         QString error;
-        if (exportSvgTo(path, &error)) statusBar()->showMessage(tr("Saved %1 drawing(s).").arg(m_ed->doc()->pages.size()), 5000);
+        if (exportSvgTo(path, &error)) statusBar()->showMessage(tr("Saved %n drawing(s).", nullptr, int(m_ed->doc()->pages.size())), 5000);
         else QMessageBox::warning(this, tr("Save as Picture"), tr("The drawing couldn't be saved: %1").arg(error));
         return;
     }
@@ -1136,7 +1136,7 @@ void MainWindow::exportImages()
         const QString out = n == 1 ? path : fi.absolutePath() + "/" + fi.completeBaseName() + QStringLiteral("-%1.").arg(i + 1) + fi.suffix();
         img.save(out);
     }
-    statusBar()->showMessage(tr("Saved %1 picture(s).").arg(n), 5000);
+    statusBar()->showMessage(tr("Saved %n picture(s).", nullptr, n), 5000);
 }
 
 bool MainWindow::exportSvgTo(const QString &path, QString *error)

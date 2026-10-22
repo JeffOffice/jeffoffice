@@ -60,6 +60,7 @@
 #include <QStandardPaths>
 #include <QSpinBox>
 #include <QTimer>
+#include <QTranslator>
 #include <QElapsedTimer>
 #include <QDir>
 #include <QDirIterator>
@@ -3263,6 +3264,79 @@ private Q_SLOTS:
         QTextDocument doc;
         doc.setPlainText(QStringLiteral("JeffWritee Jeffoffice qzxqzx"));
         QCOMPARE(int(misspellingsIn(doc.begin(), QStringLiteral("en-US")).size()), 3);
+    }
+
+    // English gets "1 word" and "652 words" from the suite's own plural file, not the "(s)" of the source text.
+    void theWordCountSaysWordAndWordsInEnglish()
+    {
+        QTranslator english;
+        if (!english.load(QStringLiteral(":/i18n/jeffoffice_en.qm"))) QSKIP("the translations are not built into this build");
+        QCoreApplication::installTranslator(&english);
+        struct Remove {
+            QTranslator *t;
+            ~Remove() { QCoreApplication::removeTranslator(t); }
+        } remove{&english};
+        WriteWindow w;
+        w.show();
+        QLabel *label = w.findChild<QLabel *>(QStringLiteral("wordCount"));
+        QVERIFY(label);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("one"));
+        QTRY_COMPARE(label->text(), QStringLiteral("1 word"));
+        QString more;
+        for (int i = 1; i < 652; ++i) more += QStringLiteral(" word");
+        typeText(*w.document(), w.view()->cursor(), more);
+        QTRY_COMPARE(label->text(), QStringLiteral("652 words"));
+    }
+
+    // Every text that counts (%n) has its two English forms, and no count on screen is worded with "(s)" and an argument, which has no forms at all.
+    void countedTextHasItsEnglishFormsAndNoneIsLeftAsPluralMarker()
+    {
+        QHash<QString, QStringList> forms;
+        QFile ts(QStringLiteral(JW_SOURCE_DIR "/translations/jeffoffice_en.ts"));
+        QVERIFY(ts.open(QIODevice::ReadOnly));
+        QXmlStreamReader xml(&ts);
+        QString source;
+        QStringList got;
+        while (!xml.atEnd()) {
+            xml.readNext();
+            if (xml.isStartElement() && xml.name() == QLatin1String("message")) {
+                source.clear();
+                got.clear();
+            } else if (xml.isStartElement() && xml.name() == QLatin1String("source")) {
+                source = xml.readElementText();
+            } else if (xml.isStartElement() && xml.name() == QLatin1String("numerusform")) {
+                got << xml.readElementText();
+            } else if (xml.isEndElement() && xml.name() == QLatin1String("message") && !got.isEmpty()) {
+                forms.insert(source, got);
+            }
+        }
+        QVERIFY(!xml.hasError());
+        QStringList problems;
+        int counted = 0;
+        static const QRegularExpression literal(QStringLiteral("\"((?:[^\"\\\\\\n]|\\\\.)*)\""));
+        for (const char *dir : {"/apps", "/libs"}) {
+            QDirIterator it(QStringLiteral(JW_SOURCE_DIR) + QLatin1String(dir), {QStringLiteral("*.cpp")}, QDir::Files, QDirIterator::Subdirectories);
+            while (it.hasNext()) {
+                QFile f(it.next());
+                if (!f.open(QIODevice::ReadOnly)) continue;
+                const QString text = QString::fromUtf8(f.readAll());
+                for (auto m = literal.globalMatch(text); m.hasNext();) {
+                    QString s = m.next().captured(1);
+                    s.replace(QStringLiteral("\\\""), QStringLiteral("\"")).replace(QStringLiteral("\\\\"), QStringLiteral("\\"));
+                    static const QRegularExpression marker(QStringLiteral("[A-Za-z]\\((s|es)\\)"));
+                    if (s.contains(QStringLiteral("%n"))) {
+                        ++counted;
+                        const QStringList f2 = forms.value(s);
+                        if (f2.size() != 2 || f2[0].isEmpty() || f2[1].isEmpty() || !f2[0].contains(QStringLiteral("%n")) || !f2[1].contains(QStringLiteral("%n")) || f2[0].contains(marker) || f2[1].contains(marker))
+                            problems << QStringLiteral("no English forms: ") + s.left(60);
+                    } else if (s.contains(marker)) {
+                        problems << QStringLiteral("counts with %1, not %n: ") + s.left(60);
+                    }
+                }
+            }
+        }
+        QVERIFY2(counted >= 5, "the sources were not found");
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QLatin1Char('\n'))));
     }
 
     void rightClickingInsideASelectionOffersTheWordClickedNotTheCaret()
