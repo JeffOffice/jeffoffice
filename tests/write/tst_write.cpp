@@ -31,6 +31,7 @@
 #include "render/renderer.h"
 #include "rtcheck.h"
 #include "app/spelling.h"
+#include "text/dictionaries.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 #include "io/zip.h"
@@ -3236,6 +3237,32 @@ private Q_SLOTS:
         QString third;
         QVERIFY(!spellingAdd(QStringLiteral("qzxfailthree"), &third));
         QVERIFY(!third.isEmpty());
+    }
+
+    // The suite's own names are right in every language the checker has, with a possessive, whatever the options let go; a typo beside a name is still flagged.
+    void theNamesOfTheSuiteAreNeverFlaggedInAnyLanguage()
+    {
+        const QStringList names = {QStringLiteral("JeffWrite"), QStringLiteral("JeffPub"),    QStringLiteral("JeffDeck"), QStringLiteral("JeffOffice"),
+                                   QStringLiteral("JeffCrunch"), QStringLiteral("JeffMail"), QStringLiteral("JeffBase"), QStringLiteral("LLC")};
+        QVERIFY(dict::languages().size() >= 12);
+        for (const dict::Language &l : dict::languages()) {
+            for (const bool upper : {true, false}) {
+                Speller::Rules rules;
+                rules.ignoreUpper = upper;
+                rules.ignoreNumbers = false;
+                for (const QString &name : names)
+                    for (const QString &form : {name, name + QStringLiteral("'s"), name + QChar(0x2019) + QLatin1Char('s')})
+                        QVERIFY2(Speller::get().check(l.code, form, rules), qPrintable(l.code + QLatin1Char(' ') + form + (upper ? " (capitals let go)" : "")));
+            }
+            // In a paragraph, as the checker as you type reads it.
+            QTextDocument doc;
+            doc.setPlainText(names.join(QLatin1Char(' ')) + QStringLiteral(" JeffWrite's, JeffPub\u2019s."));
+            QVERIFY2(misspellingsIn(doc.begin(), l.code).isEmpty(), qPrintable(l.code));
+        }
+        // Only the names are let through: a word that is not one, and a name misspelled, are still wrong.
+        QTextDocument doc;
+        doc.setPlainText(QStringLiteral("JeffWritee Jeffoffice qzxqzx"));
+        QCOMPARE(int(misspellingsIn(doc.begin(), QStringLiteral("en-US")).size()), 3);
     }
 
     void rightClickingInsideASelectionOffersTheWordClickedNotTheCaret()
