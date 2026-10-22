@@ -2,7 +2,7 @@
 
 JeffCrunch is the spreadsheet app of JeffOffice. JeffOffice is an independent project: JeffCrunch aims to work with Excel workbooks and the people who use them (compatibility and interoperability), and then to do more, and do it better. It saves `.xlsx` by default. Its first release also opens `.xls` (Excel 5 to 2003), `.ods`, and `.csv`; saving in `.xls` and `.ods` follows once `.xlsx` is solid (decided October 11, 2026). It is not built yet: nothing exists except what the suite already does for every app, so `[x]` and `[~]` count only that. This list is the whole job, a checklist of features: everything people rely on so their workbooks open, calculate the same numbers, look right, and keep working, and then more, grouped the way the app's ribbon is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), so the work can be planned and tracked.
 
-Last reviewed October 16, 2026.
+Last reviewed October 22, 2026.
 
 Legend: `[x]` done · `[~]` partly there (the note says what's missing, or which shared JeffOffice part it builds on) · `[ ]` not yet · **(alt)** the usual way depends on a proprietary online service, so the app offers an open replacement.
 
@@ -83,7 +83,8 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 - [ ] **1.0** Open read-only, open as a copy, and open in a new window
 - [ ] **1.0** Open an encrypted workbook by asking for its password
 - [ ] **1.0** Save `.xls` and `.ods` (follows once `.xlsx` is solid; see File formats)
-- [ ] **1.0** Open `.xlsm` and `.xltm` (macro-enabled), keeping the macro project untouched and never running it; save them back the same way *(macro projects: ours 1% (2 of 146 old files), public 10% of the old files (EUSES 8%, government 12%); none can sit in a plain `.xlsx`; POI 2%, LibreOffice 1%)*
+- [ ] **first release** Open `.xlsm` and `.xltm` (macro-enabled), keeping the macro project untouched and never running it; save them back the same way *(macro projects: ours 1% (2 of 146 old files), public 10% of the old files (EUSES 8%, government 12%); none can sit in a plain `.xlsx`; POI 2%, LibreOffice 1%)*
+- [ ] **1.0** Convert a workbook's macros to a JeffOffice script: the macros are translated to JavaScript, shown to you to review, and run only when you allow it, in a sandbox with no files or network unless you grant them; anything that can't be translated is marked, never dropped *(decided October 22, 2026: after the preview, as its own project)*
 - [ ] **later** Open and save the binary workbook `.xlsb`, and open `.xlam` add-ins as data
 - [ ] **later** Protected View: files from the Internet open for reading only until you choose to edit them
 - [ ] **later** Open from a web address (HTTP and WebDAV) and save back
@@ -660,7 +661,7 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 - [ ] **first release** Round trip keeps what JeffCrunch can't edit: pivot tables and caches, slicers, timelines, sparklines, the data model, Power Query definitions and their data mashup, custom XML and XML maps, form-control and ActiveX parts, the macro project of a macro-enabled file, rich data, printer settings, the metadata that marks dynamic arrays, the `x14`, `x15`, and `x16` extension lists, the `mc:AlternateContent` choices, and every part or attribute JeffCrunch doesn't know, written back as they were, and untouched parts kept byte for byte
 - [ ] **first release** What a saved formula carries: the formula text in the file's own syntax (English names, periods, `_xlfn.` prefixes for newer functions), its stored result with the right type, shared formulas where the original would write them, and array formulas with their ranges; the file says to calculate fully on load whenever a stored result can't be trusted (for example, a function JeffCrunch doesn't have) *(workbooks that already say so: 19% of 600 Enron files sampled)*
 - [ ] **first release** Open and save templates (`.xltx`) with their styles and sheets
-- [ ] **1.0** Open and save macro-enabled files (`.xlsm`, `.xltm`), keeping the macro project untouched and never running it; Save As offers `.xlsm` when the workbook came from a file with macros, so they aren't dropped without a word *(old files that hold macros: ours 1%, EUSES 8%, government 12%)*
+- [ ] **first release** Open and save macro-enabled files (`.xlsm`, `.xltm`), keeping the macro project untouched and never running it; Save As offers `.xlsm` when the workbook came from a file with macros, so they aren't dropped without a word *(old files that hold macros: ours 1%, EUSES 8%, government 12%)*
 - [ ] **1.0** Open encrypted files and save with a password (agile encryption, AES)
 - [ ] **later** Open and save the binary workbook `.xlsb`, the Strict variant of Open XML, and Flat OPC (`.xml`) files *(`.xlsb` in LibreOffice's tests: 8 files)*
 
