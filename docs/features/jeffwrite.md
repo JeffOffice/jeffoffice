@@ -391,7 +391,7 @@ The tabs that appear only while something is selected or being edited: a table, 
 - [ ] **first release** Shading and borders: every border style, width, and color on any side or inside, the border painter, the Borders and Shading dialog, and View Gridlines *(shading: ours 6%, public 17%)*
 - [~] **first release** Select a cell, row, column, or table; insert rows above or below and columns left or right; delete cells, rows, columns, or the table; the Tab key at the last cell adds a row *(0.9.0: the Tab key at the last cell adds a row, and the editing functions add and take away rows and columns and keep merged cells whole; no commands or menus offer them yet)*
 - [ ] **first release** Merge Cells and Split Cells (across and down), and Split Table *(merged across: ours 4%, public 20%; merged down: ours 1%, public 8%; shared: JeffPub's merged cells)*
-- [~] **first release** Nested tables, a table inside a cell *(nested: ours 2%, public 2%)* *(0.9.0: nested tables are laid out down to a limit, and past it the text below stays as plain paragraphs)*
+- [~] **first release** Nested tables, a table inside a cell *(nested: ours 2%, public 2%)* *(0.9.0: nested tables are laid out down to a limit, and past it the text of the tables stays as plain paragraphs)*
 - [ ] **first release** Cell size: row height (at least or exactly), column width (points or percent), AutoFit to contents, to the window, or fixed, and Distribute Rows and Columns *(shared: JeffPub)*
 - [ ] **first release** Table Properties: alignment, indent, text wrapping around the table, preferred width, default cell margins, space between cells, "allow row to break across pages," **Repeat as header row at the top of each page**, vertical alignment, no wrap, fit text, and alt text *(repeating header rows: ours 1%, public 7%)*
 - [ ] **first release** Cell alignment in nine positions, and text direction in a cell
@@ -456,7 +456,7 @@ What a right-click offers depends on what is under the pointer. The commands are
 
 ### Editing basics
 - [~] **first release** Typing and selecting: move by character, word, sentence, line, paragraph, and page; extend with Shift, F8, or the mouse; select a column with Alt+drag; select several places with Ctrl; double- and triple-click; Click and Type *(shared: the text editing in libs/page/app)*
-- [~] **first release** Undo and Redo with a history list, and Repeat (F4 or Ctrl+Y) *(0.9.0: Undo and Redo, one step for a typed word and one for each command; no history list or Repeat)*
+- [~] **first release** Undo and Redo with a history list, and Repeat (F4 or Ctrl+Y) *(0.9.0: Undo and Redo, with typing and each command one step; no history list or Repeat)*
 - [ ] **first release** Drag-and-drop to move or copy text, with automatic scrolling
 - [ ] **first release** AutoCorrect and AutoFormat as you type: smart quotes, lists started by typing "1." or "*", borders from a row of dashes, ordinals, fractions, dashes, web addresses turned into links, and *bold* and _underline_ marks turned into formatting *(shared: JeffPub's AutoCorrect)*
 - [ ] **1.0** Spike (collect several cuts and paste them together), Overtype, and the Insert key
