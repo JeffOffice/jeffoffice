@@ -5349,6 +5349,34 @@ private Q_SLOTS:
     }
 
     // A symbol sets the line as its own font does: a line with a big diamond of Symbol is as tall as Symbol makes it, not as the run's font does.
+    // The result of a field that is nothing but blanks (a reference to a form field with no text in it) is shown as the file has it, but takes no part in its line's height, whatever size
+    // its run is in; blanks that are no field's result count as they did.
+    void aFieldResultOfBlanksTakesNoPartInTheLineHeight()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray none = "<w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/></w:pPr>";
+        auto props = [](int halfPoints) { return "<w:rPr><w:rFonts w:ascii=\"Arial\" w:hAnsi=\"Arial\"/><w:sz w:val=\"" + QByteArray::number(halfPoints) + "\"/></w:rPr>"; };
+        // The height of the line of a small text with four blanks in it, as a field's result in a run of `blanks` half points, or as plain text.
+        auto lineHeight = [&](int blanks, bool inField) {
+            QByteArray body = "<w:p>" + none + "<w:r>" + props(14) + "<w:t xml:space=\"preserve\">at </w:t></w:r>";
+            if (inField)
+                body += "<w:r>" + props(14) + "<w:fldChar w:fldCharType=\"begin\"/></w:r><w:r>" + props(14) + "<w:instrText xml:space=\"preserve\"> REF dropdown23 \\* MERGEFORMAT </w:instrText></w:r><w:r>" +
+                        props(14) + "<w:fldChar w:fldCharType=\"separate\"/></w:r><w:r>" + props(blanks) + "<w:t xml:space=\"preserve\">    </w:t></w:r><w:r>" + props(14) + "<w:fldChar w:fldCharType=\"end\"/></w:r>";
+            else
+                body += "<w:r>" + props(blanks) + "<w:t xml:space=\"preserve\">    </w:t></w:r>";
+            body += "<w:r>" + props(14) + "<w:t xml:space=\"preserve\"> Plant Location</w:t></w:r></w:p>";
+            auto doc = open(makeDocx(body, kStyles, QByteArray(), sect));
+            if (!doc) return -1.0;
+            const auto lines = doc->pager().lines(0);
+            return lines.isEmpty() ? -1.0 : lines.first().rect.height();
+        };
+        const double small = lineHeight(14, true), big = lineHeight(40, true);
+        QVERIFY(small > 0 && big > 0);
+        QVERIFY2(std::abs(big - small) < 0.01, qPrintable(QStringLiteral("the line is %1 points with the blanks of a field in 20 point type, %2 in 7 point").arg(big).arg(small)));
+        // Not in a field, the same blanks make the line as tall as their size does.
+        QVERIFY(lineHeight(40, false) > small + 5);
+    }
+
     void aSymbolSetsTheLineOfItsFont()
     {
         // The point from the page's top where the second of two paragraphs, each of one line, has its first ink.

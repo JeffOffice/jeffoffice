@@ -55,6 +55,7 @@ enum : int {
     DisplayFamily,                               // QString: layout only, the family a run is set in when it isn't the family the format says (a symbol's font): never written to a file (LayoutEnv::wordLines)
     RunBorder,                                   // QString: a border round the run, "style;eighths;space;RRGGBB" (style single, double, dashed...; space in points; color empty for automatic): drawn by LayoutEnv::wordLines text
     DisplayStyle,                                // QString: layout only, how a run is set when its format does not say: "i" italic, "b" bold, "ib" both (an equation's letters, a styled letter of the mathematical alphanumeric block shown as its letter): never written to a file (LayoutEnv::wordLines)
+    BlankFieldResult,                            // bool: layout only, the run is the result of a field (a reference) that is nothing but blanks: it is shown, and takes no part in its line's height (LayoutEnv::wordLines)
 
     // block
     StyleName = QTextFormat::UserProperty + 100, // QString paragraph style

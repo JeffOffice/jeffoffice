@@ -790,7 +790,14 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                         setFormLook(&ff, form);
                         put(form.text, ff);
                     } else {
-                        for (const auto &r : f.result) put(r.first, r.second);
+                        // (A reference whose result is nothing but blanks, to a form field that has none of its own: the word processor shows the text it refers to, and the blanks are no part of a
+                        // line's height. They are shown as the file has them.)
+                        const bool blank = !text && f.instruction.trimmed().startsWith(QLatin1String("REF "), Qt::CaseInsensitive);
+                        for (const auto &r : f.result) {
+                            QTextCharFormat shown = r.second;
+                            if (blank) shown.setProperty(tp::BlankFieldResult, true);
+                            put(r.first, shown);
+                        }
                     }
                 }
             };
@@ -859,14 +866,19 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         // position of its begin mark in the paragraph's content. (One pass over the elements: the fields open at a time are a stack, each remembering whether its separator has come and
         // whether its result has text.)
         QHash<int, FormShown> formShown;
+        QSet<int> blankResult;   // (the pieces of text that are the result of a reference that is nothing but blanks: they are no part of a line's height)
         {
             struct Open {
                 int at = 0;
                 bool separated = false, hasText = false;
+                QString instruction;
+                QVector<int> pieces;
             };
             QVector<Open> open;
             auto close = [&](const Open &field) {
                 if (field.hasText) return;
+                if (field.instruction.trimmed().startsWith(QLatin1String("REF "), Qt::CaseInsensitive))
+                    for (const int piece : field.pieces) blankResult.insert(piece);
                 const FormShown shown = formShownOf(p.content[field.at].raw);
                 if (!shown.text.isEmpty()) formShown.insert(field.at, shown);
             };
@@ -874,7 +886,14 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 ++m_dropDownSteps;
                 const Inline &in = p.content[at];
                 if (in.kind == Inline::Text) {
-                    if (!open.isEmpty() && open.last().separated && !in.text.trimmed().isEmpty()) open.last().hasText = true;
+                    if (!open.isEmpty() && open.last().separated) {
+                        if (!in.text.trimmed().isEmpty()) open.last().hasText = true;
+                        else if (open.last().pieces.size() < 64 && in.text.size() >= 2) open.last().pieces << at;
+                    }
+                    continue;
+                }
+                if (in.kind == Inline::RunAtom && in.tag == QLatin1String("instrText")) {
+                    if (!open.isEmpty() && !open.last().separated && open.last().instruction.size() < 64) open.last().instruction += textOfXml(in.raw);
                     continue;
                 }
                 if (in.kind != Inline::RunAtom || in.tag != QLatin1String("fldChar")) continue;
@@ -955,7 +974,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     c.insertText(ref->section(QChar(0x1f), 1), shown);
                     continue;
                 }
-                if (!in.text.isEmpty()) c.insertText(in.text, deleted ? asDeleted(formatOf(styleId, in.props)) : formatOf(styleId, in.props));
+                if (!in.text.isEmpty()) {
+                    QTextCharFormat shown = deleted ? asDeleted(formatOf(styleId, in.props)) : formatOf(styleId, in.props);
+                    if (blankResult.contains(inAt)) shown.setProperty(tp::BlankFieldResult, true);
+                    c.insertText(in.text, shown);
+                }
                 continue;
             }
             if (!deleted && advanceTop < 0)

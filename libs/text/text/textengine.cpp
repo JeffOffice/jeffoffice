@@ -2135,7 +2135,7 @@ static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int 
                     onlyBlanks = c == QLatin1Char('\t') || c == QLatin1Char(' ');
                     onlyTabs = onlyTabs && c == QLatin1Char('\t');
                 }
-                if (onlyTabs || (onlyBlanks && b - a < 2)) continue;
+                if (onlyTabs || (onlyBlanks && (b - a < 2 || (env.wordLines && r.format.boolProperty(tp::BlankFieldResult))))) continue;
             }
             const QFont f = r.format.font();
             const double size = r.format.hasProperty(tp::LineSize) ? r.format.property(tp::LineSize).toDouble() : f.pointSizeF();
