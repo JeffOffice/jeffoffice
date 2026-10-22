@@ -3190,6 +3190,102 @@ private Q_SLOTS:
         QVERIFY(layout.lineInfo(0).size() >= 2);
     }
 
+    // A paragraph of letters with no place to break a line (a file that cuts one long word into runs of a letter) is laid out with its lines allowed to break anywhere, and gets the same
+    // lines: Qt reads on to the end of such a word for each line, at a font lookup for each run, and a paragraph of 500,000 such runs took each of its pages a second.
+    void aParagraphWithNoPlaceToBreakIsLaidOutAsBreakingAnywhereWithTheSameLines()
+    {
+        auto build = [](const QString &end, qint64 *anywhere) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            for (int i = 0; i < 1200; ++i) {
+                QTextCharFormat cf;
+                cf.setFontFamilies({QStringLiteral("Arimo")});
+                cf.setFontPointSize(10 + i % 3);
+                cf.setFontWeight(i % 2 ? QFont::Bold : QFont::Normal);
+                c.insertText(QString(QLatin1Char(char('a' + i % 7))), cf);
+            }
+            if (!end.isEmpty()) {
+                QTextCharFormat cf;
+                cf.setFontFamilies({QStringLiteral("Arimo")});
+                cf.setFontPointSize(11);
+                c.insertText(end, cf);
+            }
+            LayoutEnv word;
+            word.wordLines = true;
+            const qint64 before = StoryLayout::unbreakableParagraphsForTest();
+            StoryLayout layout;
+            layout.build(&doc, {plainFrame(300, 4000)}, word);
+            *anywhere = StoryLayout::unbreakableParagraphsForTest() - before;
+            return layout.lineInfo(0);
+        };
+        qint64 broken = 0, withSpace = 0;
+        const auto lines = build(QString(), &broken);
+        const auto reference = build(QStringLiteral(" "), &withSpace);   // (a space at its end is a place to break: the paragraph is laid out as any is)
+        QCOMPARE(withSpace, qint64(0));
+        QVERIFY2(broken >= 1, "the paragraph of letters with no place to break was not set to break anywhere");
+        QVERIFY(lines.size() >= 5);
+        QCOMPARE(lines.size(), reference.size());
+        for (int i = 0; i + 1 < lines.size(); ++i) {
+            QCOMPARE(lines[i].docPos, reference[i].docPos);
+            QCOMPARE(lines[i].docEnd, reference[i].docEnd);
+        }
+    }
+
+    // A word processor's tab goes to the default stop after the paragraph's own stops as Qt's own default stops would take it: no list of them is made for each line, which makes Qt read
+    // the rest of the paragraph for every tab it answers (a paragraph of 100,000 absolute position tabs took each page a tenth of a second).
+    void tabsPastAParagraphsOwnStopsGoToQtsDefaultStopsNotAListOfThemForEachLine()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextBlockFormat bf;
+        bf.setTabPositions({QTextOption::Tab(100, QTextOption::LeftTab)});
+        c.setBlockFormat(bf);
+        for (int i = 0; i < 1200; ++i) {
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Arimo")});
+            cf.setFontPointSize(10 + i % 2);
+            c.insertText(QStringLiteral("x\t"), cf);
+        }
+        LayoutEnv word;
+        word.wordLines = true;
+        word.defaultTab = 36;
+        const qint64 before = StoryLayout::defaultTabStopsListedForTest();
+        StoryLayout layout;
+        layout.build(&doc, {plainFrame(300, 8000)}, word);
+        const qint64 listed = StoryLayout::defaultTabStopsListedForTest() - before;
+        QVERIFY2(listed == 0, qPrintable(QStringLiteral("%1 default stops were listed for Qt's tabs").arg(listed)));
+        // The tabs go to the paragraph's stop (100) and then to the stops 36 apart: 108, 144, ..., 288 are on a line 300 wide, and the next goes past it.
+        const auto lines = layout.lineInfo(0);
+        QVERIFY(lines.size() >= 100);
+        for (int i = 0; i + 1 < lines.size(); ++i) {
+            const int tabs = int(lines[i].text.count(QLatin1Char('\t')));
+            QVERIFY2(tabs >= 7 && tabs <= 9, qPrintable(QStringLiteral("line %1 has %2 tabs").arg(i).arg(tabs)));
+        }
+    }
+
+    // A paragraph of many runs over many pages is not passed run by run to the place each page begins at, to the place its text is taken from, nor to where its tabs are looked for: the
+    // runs before the place were passed by the page before it, and the new page goes on from there (a paragraph of 500,000 runs took each page more than the one before it).
+    void thePagesOfAParagraphOfManyRunsPassTheRunsBeforeThemOnceInAll()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        const int runs = 30000;
+        QTextCursor c(fd.story());
+        c.beginEditBlock();   // (the cursor does not find its x for each run)
+        for (int i = 0; i < runs; ++i) {
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Arimo")});
+            cf.setFontPointSize(10 + i % 2);
+            c.insertText(i % 5 == 4 ? QStringLiteral(" ") : QStringLiteral("w"), cf);
+        }
+        c.endEditBlock();
+        const qint64 before = StoryLayout::runsPassedForTest();
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 8);
+        const qint64 passed = StoryLayout::runsPassedForTest() - before;
+        QVERIFY2(passed <= 8 * runs, qPrintable(QStringLiteral("%1 runs passed for a paragraph of %2 runs over %3 pages").arg(passed).arg(runs).arg(pg.pageCount())));
+    }
+
     // The notes before a page that begins inside a paragraph are counted from where the count for the page before it left off, not from the paragraph's start: a paragraph of thousands
     // of runs over many pages reads each run's format a few times in all.
     void thePagesOfAParagraphOfThousandsOfRunsCountItsNotesFromWhereTheLastLeftOff()

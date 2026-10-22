@@ -1054,11 +1054,17 @@ void Paginator::countNotes(int from, int to, int *footnotes, int *endnotes, bool
             if (restarted) *restarted = true;
         }
         int at = b.position();   // (where each run begins: the lengths of the runs before it added, not a place looked up for each)
-        for (auto it = b.begin(); !it.atEnd(); ++it) {
+        // (The runs before the range are not passed again for each page: a paragraph of a hundred thousand runs is asked about at each of its pages.)
+        auto it = b.begin();
+        if (from > b.position()) {
+            const RunSeek seek = findRun(b, from);
+            it = seek.it;
+            at = seek.begin;
+        }
+        for (; !it.atEnd(); ++it) {
             const QTextFragment frag = it.fragment();
             const int begin = at, length = int(frag.length());
             at += length;
-            // (The fragments before the range, and after it, are passed by their places: a paragraph of a hundred thousand runs is asked about at each of its pages.)
             if (begin + length <= from) continue;
             if (begin >= to) break;
             ++m_noteFormatsRead;
