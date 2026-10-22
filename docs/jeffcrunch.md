@@ -50,3 +50,14 @@ Each wave ends with its own gate: the tests, the layer check, and the yardstick 
 3. **Formulas.** The tokenizer, parser, and evaluator, the dependency graph, and the first 110 functions, scored by recalculating every formula.
 4. **The grid and editing.** The window, the grid, selection, editing, undo, formatting, and saving `.xlsx`, scored for speed and for saving.
 5. **Toward the preview.** `.xls` and `.ods` reading, printing, charts that follow their cells, and the remaining preview items in the checklist, then the hostile sweep and the held-out scores.
+
+## Where it stands
+
+Wave 1 is built: the readers and the yardstick, on the practice half of the public workbooks (8,371) and no further.
+
+- **Opening.** `jcrunchtool scan` ran every practice workbook in a child process with 120 seconds and 4 GB: all 8,371 opened, none crashed or timed out, and none was read only in part. The slowest is the workbook of the 151 MB sheet (two sheets of 151 MB of XML and 14.8 million cells in all) at 22 seconds and 236 MB; every other workbook took under 4 seconds and 45 MB. The 730 files kept for crash and hang sweeps (LibreOffice and POI test files, damaged and hostile ones among them) gave 0 crashes and 0 hangs, 706 opened, 24 refused with a message (not a usable package).
+- **Reading.** Cells, formula cells, and formula cells with a stored result were counted again by a separate program for 500 workbooks, and 477,554 cells of shared formulas (200 workbooks) were expanded again by a second implementation: no difference. Of 9,116,886 formula cells, every one has a result stored, so the recalculation score in wave 3 has an answer to check each formula against. The functions are in the table `jcrunchtool scan` writes; the top 25 are IF, SUM, VLOOKUP, INDEX, MONTH, YEAR, MATCH, MAX, ISNUMBER, FIND, AVERAGE, LEFT, WEEKDAY, AND, OFFSET, SQRT, OR, EXP, MIN, RAND, ABS, LN, SUMIF, HOUR, and ROUND.
+- **Memory and limits.** A package keeps each part compressed until it is asked for (`Package::readLazy`), a part is inflated as it is read, and a sheet is read in pieces into 24-byte cells, so memory follows the cells and not the XML: tests count the bytes taken from the part against the cells read so far. Each limit a file controls is at least ten times the largest found in the practice workbooks, and is noted where it is set (`libs/office/sheet/sheetreader.h`).
+- **Speed.** The parser (`QXmlStreamReader`) takes about three quarters of the time, and the whole reads about 18 MB of XML a second: a sheet of 151 MB takes about 9 seconds. The first-screen target of wave 4 is met by stopping the read after the first rows, which the reader allows.
+
+Not yet: styles and number formats (wave 2), merged ranges, names, tables, and the parts a workbook keeps as read; `.xls` and `.ods`; ZIP64 packages, which every reader here refuses. The held-out half has not been scored (only the lead scores it, in totals).
