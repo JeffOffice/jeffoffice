@@ -177,7 +177,12 @@ set_tests_properties(officetests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscre
 # The tests of the spreadsheet readers (libs/office/sheet) and of the package reader that inflates parts as they are asked for.
 qt_add_executable(sheettests
   tests/testrunner.cpp
-  tests/sheet/tst_sheet_package.cpp)
+  tests/sheet/sheethelpers.cpp
+  tests/sheet/tst_sheet_cells.cpp
+  tests/sheet/tst_sheet_formulas.cpp
+  tests/sheet/tst_sheet_limits.cpp
+  tests/sheet/tst_sheet_package.cpp
+  tests/sheet/tst_sheet_workbook.cpp)
 target_link_libraries(sheettests PRIVATE jo_office Qt6::Test)
 set_target_properties(sheettests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME sheettests COMMAND sheettests)
