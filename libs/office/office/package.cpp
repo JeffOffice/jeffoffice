@@ -1,8 +1,10 @@
 #include "office/package.h"
 
 #include "io/zip.h"
+#include "io/zipindex.h"
 #include "office/xml.h"
 
+#include <QBuffer>
 #include <QCoreApplication>
 #include <QFile>
 #include <QLocale>
@@ -271,9 +273,30 @@ bool Package::read(const QByteArray &zip, QString *error, qint64 maxInflated) { 
 
 bool Package::readOpenDocument(const QByteArray &zip, QString *error) { return load(zip, error, false, kDefaultMaxInflated); }
 
+// What a lazy package keeps of the file: its bytes (shared, not copied) and where each part is in them.
+struct Package::Lazy {
+    QByteArray zip;
+    QHash<QString, jp::ZipEntry> entries;           // by part name
+    jp::InflateCounter inflated = std::make_shared<std::atomic<qint64>>(0);
+};
+
+bool Package::readLazy(const QByteArray &zip, QString *error, qint64 maxInflated) { return load(zip, error, true, maxInflated, true); }
+
+bool Package::readLazyFile(const QString &path, QString *error)
+{
+    QByteArray bytes;
+    if (!readWholeFile(path, &bytes, error)) {
+        *this = Package();
+        return false;
+    }
+    return readLazy(bytes, error);
+}
+
+bool Package::isLazy() const { return bool(m_lazy); }
+
 int Package::skippedCount() const { return m_skipped; }
 
-bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxInflated)
+bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxInflated, bool lazy)
 {
     *this = Package();
     auto fail = [&](const QString &message) {
@@ -292,14 +315,40 @@ bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxIn
     const bool haveOrder = scanDirectory(zip, &declared, &order);
     if (haveOrder && declared > maxInflated) return tooMuch();
     QMap<QString, QByteArray> items;
-    if (!readZip(zip, items)) return fail(translate("The file is damaged, or is not a package of the kind this program opens."));
-    // Each entry was inflated into a buffer of the size the directory gave,
-    // and refused if it did not fit exactly, so the total is no more than was
-    // checked; looking again at what is there keeps that true whatever the
-    // directory said.
-    qint64 inflated = 0;
-    for (const QByteArray &data : std::as_const(items)) inflated += data.size();
-    if (inflated > maxInflated) return tooMuch();
+    std::shared_ptr<Lazy> state;
+    QHash<QString, jp::ZipEntry> directoryEntries;   // a lazy package's entries by the name the file gives them
+    if (lazy) {
+        // Only the directory is read: each entry stays where it is in the file
+        // until it is asked for. (As in readZip, of two entries of one name
+        // the later one is the one that is read.)
+        QVector<jp::ZipEntry> directory;
+        if (!jp::readZipDirectory(zip, &directory)) return fail(translate("The file is damaged, or is not a package of the kind this program opens."));
+        state = std::make_shared<Lazy>();
+        state->zip = zip;
+        for (const jp::ZipEntry &e : std::as_const(directory)) {
+            items.insert(e.name, QByteArray());
+            directoryEntries.insert(e.name, e);
+        }
+    } else {
+        if (!readZip(zip, items)) return fail(translate("The file is damaged, or is not a package of the kind this program opens."));
+        // Each entry was inflated into a buffer of the size the directory gave,
+        // and refused if it did not fit exactly, so the total is no more than was
+        // checked; looking again at what is there keeps that true whatever the
+        // directory said.
+        qint64 inflated = 0;
+        for (const QByteArray &data : std::as_const(items)) inflated += data.size();
+        if (inflated > maxInflated) return tooMuch();
+    }
+    // What an entry holds now: for a lazy package, the entries the package is
+    // made of (the content types, the relationships) are inflated here, and a
+    // damaged one is refused as it would be if every entry had been inflated.
+    bool damaged = false;
+    auto dataOf = [&](const QString &entry) {
+        if (!lazy) return items.value(entry);
+        QByteArray bytes;
+        if (!jp::inflateZipEntry(zip, directoryEntries.value(entry), &bytes, state->inflated)) damaged = true;
+        return bytes;
+    };
 
     QByteArray types;
     bool haveTypes = false;
@@ -319,7 +368,8 @@ bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxIn
                 ++m_skipped;
                 continue;
             }
-            types = items.value(entry);
+            types = dataOf(entry);
+            if (damaged) return fail(translate("The file is damaged, or is not a package of the kind this program opens."));
             haveTypes = true;
             continue;
         }
@@ -333,13 +383,16 @@ bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxIn
         }
         keys.insert(name.toLower());
         if (isRelationshipPart(name)) {
-            relationshipParts.insert(name, items.value(entry));
+            relationshipParts.insert(name, dataOf(entry));
+            if (damaged) return fail(translate("The file is damaged, or is not a package of the kind this program opens."));
         } else {
-            m_parts.insert(name, items.value(entry));
+            m_parts.insert(name, lazy ? QByteArray() : items.value(entry));
             m_names.insert(name.toLower(), name);
+            if (lazy) state->entries.insert(name, directoryEntries.value(entry));
         }
     }
     if (m_parts.size() > kMaxParts) return fail(translate("The file holds more parts than a document can, which is 10,000."));
+    m_lazy = state;
     if (!opc) return true;
     if (!haveTypes) return fail(translate("The file has no [Content_Types].xml, so it is not a package."));
     if (!parseContentTypes(types, &m_defaults, &m_overrides)) return fail(translate("The file's [Content_Types].xml is damaged."));
@@ -393,7 +446,47 @@ QStringList Package::partNames() const { return m_parts.keys(); }
 
 bool Package::hasPart(const QString &name) const { return m_names.contains(nameKey(name)); }
 
-QByteArray Package::part(const QString &name) const { return m_parts.value(m_names.value(nameKey(name))); }
+QByteArray Package::part(const QString &name) const
+{
+    const QString stored = m_names.value(nameKey(name));
+    if (!m_lazy) return m_parts.value(stored);
+    const auto entry = m_lazy->entries.constFind(stored);
+    QByteArray bytes;
+    if (entry == m_lazy->entries.cend() || !jp::inflateZipEntry(m_lazy->zip, *entry, &bytes, m_lazy->inflated)) return {};
+    return bytes;
+}
+
+qint64 Package::partSize(const QString &name) const
+{
+    const QString stored = m_names.value(nameKey(name));
+    if (!m_names.contains(nameKey(name))) return -1;
+    if (!m_lazy) return m_parts.value(stored).size();
+    const auto entry = m_lazy->entries.constFind(stored);
+    return entry == m_lazy->entries.cend() ? -1 : entry->usize;
+}
+
+std::unique_ptr<QIODevice> Package::openPart(const QString &name) const
+{
+    if (!m_names.contains(nameKey(name))) return nullptr;
+    const QString stored = m_names.value(nameKey(name));
+    if (!m_lazy) {
+        auto buffer = std::make_unique<QBuffer>();
+        buffer->setData(m_parts.value(stored));
+        buffer->open(QIODevice::ReadOnly);
+        return buffer;
+    }
+    const auto entry = m_lazy->entries.constFind(stored);
+    if (entry == m_lazy->entries.cend()) return nullptr;
+    return std::make_unique<jp::ZipEntryDevice>(m_lazy->zip, *entry, m_lazy->inflated);
+}
+
+qint64 Package::inflatedBytes() const
+{
+    if (m_lazy) return m_lazy->inflated->load();
+    qint64 total = 0;
+    for (const QByteArray &data : m_parts) total += data.size();
+    return total;
+}
 
 QString Package::contentType(const QString &name) const
 {
