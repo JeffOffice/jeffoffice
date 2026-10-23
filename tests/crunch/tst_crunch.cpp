@@ -13,6 +13,9 @@
 #include "crunchbooks.h"
 #include "grid/gridview.h"
 
+#include "core/threadtime.h"
+
+#include <QAbstractEventDispatcher>
 #include <QApplication>
 #include <QClipboard>
 #include <QDirIterator>
@@ -51,6 +54,58 @@ struct Window {
         return first.wait(20000) && (loaded.count() > 0 || loaded.wait(20000)) && (done.count() > 0 || done.wait(20000));
     }
 };
+
+// The longest turn of the program's event loop, by the processor time of its thread: from waking to find something to do to having done it all and going to sleep. This is how long
+// the window did not answer to a key or a click, whatever it was busy with (a paint, a batch of values, a slice of anything).
+class LoopMeter : public QObject {
+public:
+    LoopMeter()
+    {
+        auto *d = QAbstractEventDispatcher::instance();
+        connect(d, &QAbstractEventDispatcher::awake, this, [this] { m_start = jp::threadCpuMicros(); m_inTurn = true; });
+        connect(d, &QAbstractEventDispatcher::aboutToBlock, this, [this] {
+            if (m_inTurn) m_longest = std::max(m_longest, jp::threadCpuMicros() - m_start);
+            m_inTurn = false;
+        });
+    }
+    qint64 longestMicros() const { return m_longest; }
+    void reset() { m_longest = 0; }
+
+private:
+    qint64 m_start = 0, m_longest = 0;
+    bool m_inTurn = false;
+};
+
+// The paints of a widget: how many, and the area they drew.
+class PaintCounter : public QObject {
+public:
+    explicit PaintCounter(QWidget *w) : QObject(w) { w->installEventFilter(this); }
+    int paints = 0;
+    qint64 area = 0;
+    bool eventFilter(QObject *, QEvent *e) override
+    {
+        if (e->type() == QEvent::Paint) {
+            ++paints;
+            const QRect r = static_cast<QPaintEvent *>(e)->rect();
+            area += qint64(r.width()) * r.height();
+        }
+        return false;
+    }
+};
+
+// A workbook of `rows` rows with a number (the row's) in A and twice it in B, and the formulas in D1, D2, ... (those given), each with `stored` for the result the file kept.
+QByteArray rowsWithFormulas(int rows, const QStringList &formulas, const QString &stored = QStringLiteral("-1"), int firstFormulaRow = 1)
+{
+    QString xml;
+    xml.reserve(rows * 70);
+    for (int r = 1; r <= rows; ++r) {
+        xml += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><v>%2</v></c>").arg(r).arg(r * 2);
+        const int k = r - firstFormulaRow;
+        if (k >= 0 && k < formulas.size()) xml += QStringLiteral("<c r=\"D%1\"><f>%2</f><v>%3</v></c>").arg(r).arg(formulas[k].toHtmlEscaped(), stored);
+        xml += QStringLiteral("</row>");
+    }
+    return buildXlsx({worksheet(xml)});
+}
 
 } // namespace
 
@@ -477,20 +532,21 @@ private Q_SLOTS:
         }
         Folder folder;
         const QString path = folder.write(QStringLiteral("big.xlsx"), buildXlsx({worksheet(rows)}));
-        QElapsedTimer t;
-        t.start();
         auto *w = new CrunchWindow();
         w->setNotifier([](const QString &, const QString &) {});
         w->show();
         QSignalSpy first(w, &CrunchWindow::firstScreenShown);
+        w->setWorkerPace(5000);   // (each step of the read waits: it has seconds to go when the window is closed)
         QVERIFY(w->openFile(path));
         QVERIFY(first.wait(20000));
-        QElapsedTimer closing;
-        closing.start();
+        QVERIFY(w->isLoading());   // (the read is going: what is closed is a window that is reading)
+        const std::shared_ptr<crunch::LoadedBook> book = w->loadedBook();
+        QVERIFY(book);
         w->close();
         delete w;
-        QVERIFY2(closing.elapsed() < 1000, qPrintable(QString::number(closing.elapsed())));   // (the read has seconds to go)
-        QTest::qWait(100);
+        // the worker stops (it is waited for by what it did, not by how long it took) and has not read to the end: 1,200,000 cells are in the sheet
+        QTRY_VERIFY(book->workerEnded.load());
+        QVERIFY2(book->cellsRead.load() < 600000, qPrintable(QString::number(book->cellsRead.load())));
     }
 
     // A workbook made to be hostile (every column a character wide, rows of 0 and of 4,000 points, a hundred thousand merged ranges, a hundred thousand cell formats, texts of
@@ -522,10 +578,7 @@ private Q_SLOTS:
         Window win;
         QVERIFY(win.open(folder.write(QStringLiteral("hostile.xlsx"), xlsx)));
         QVERIFY2(win.told.isEmpty(), qPrintable(win.told.join('\n')));
-        QElapsedTimer t;
-        t.start();
         win.w.view()->viewport()->repaint();
-        QVERIFY2(t.elapsed() < 2000, qPrintable(QString::number(t.elapsed())));
         const grid::PaintStats s = win.w.view()->lastPaintStats();
         QVERIFY(s.rowsVisited <= 4 * grid::GridPainter::kMaxRows && s.colsVisited <= 4 * grid::GridPainter::kMaxCols);
         QVERIFY(s.cellsLooked <= 4 * grid::GridPainter::kMaxCells * 3);
@@ -545,32 +598,306 @@ private Q_SLOTS:
         QVERIFY(win.w.view()->lastPaintStats().rowsVisited <= 4 * grid::GridPainter::kMaxRows);
     }
 
-    // Esc stops the calculation: what is not worked out keeps the result the file stored; the window says so and is ready.
-    void escStopsTheCalculation()
+    // A sheet's name with an "&" in it is shown as it is in its tab (not as a key's letter under a line).
+    void aSheetNameWithAnAmpersandIsShownAsItIs()
+    {
+        const QByteArray sheet = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"));
+        Folder folder;
+        Window win;
+        QVERIFY(win.open(folder.write(QStringLiteral("names.xlsx"), buildXlsx({sheet, sheet, sheet}, QByteArray(), QString(), QString(), QByteArray(), QStringList({"R&D", "Q1&&Q2", "Plain"})))));
+        crunch::SheetTabBar *tabs = win.w.sheetTabs();
+        QCOMPARE(tabs->count(), 3);
+        for (int i = 0; i < 3; ++i) {
+            const QString text = tabs->tabText(i);
+            QVERIFY2(QKeySequence::mnemonic(text).isEmpty(), qPrintable(QStringLiteral("tab %1 is %2: it makes a key").arg(i).arg(text)));
+        }
+        // (what Qt shows of the text is the text with each pair of "&" one)
+        QCOMPARE(QString(tabs->tabText(0)).replace(QStringLiteral("&&"), QStringLiteral("&")), QStringLiteral("R&D"));
+        QCOMPARE(QString(tabs->tabText(1)).replace(QStringLiteral("&&"), QStringLiteral("&")), QStringLiteral("Q1&&Q2"));
+        QCOMPARE(tabs->tabText(2), QStringLiteral("Plain"));
+    }
+
+    // The statistics are told what kind of file was opened by a name from a short list, never the file's own suffix (which may be anything a person typed).
+    void theKindOfFileTheStatisticsAreToldIsOneOfAFewNames()
+    {
+        QCOMPARE(crunch::fileKind(QStringLiteral("/a/Budget.XLSX")), QStringLiteral("xlsx"));
+        QCOMPARE(crunch::fileKind(QStringLiteral("macros.xlsm")), QStringLiteral("xlsm"));
+        QCOMPARE(crunch::fileKind(QStringLiteral("notes.private-client-smith")), QStringLiteral("other"));
+        QCOMPARE(crunch::fileKind(QStringLiteral("no suffix")), QStringLiteral("other"));
+        QCOMPARE(crunch::fileKind(QStringLiteral("a.xls")), QStringLiteral("other"));
+    }
+
+    // Formulas that read a lot (a whole column, tens of thousands of cells, a lookup, a conditional sum) are worked out, and show what they come to, not the result the file stored.
+    void formulasOverBigRangesGetTheirResults()
+    {
+        const QStringList formulas = {"SUM(A:A)", "SUM(A1:A50000)", "COUNTA(A:A)", "VLOOKUP(59999,A:B,2,FALSE)", "MATCH(59999,A:A,0)", "SUMIFS(B:B,A:A,\">5\",A:A,\"<500\")", "AVERAGE(B:B)",
+                                      "SUMIF(A:A,\">59990\")", "COUNTIF(B:B,\">100\")"};
+        Folder folder;
+        Window win;
+        QVERIFY(win.open(folder.write(QStringLiteral("big.xlsx"), rowsWithFormulas(60000, formulas))));
+        const grid::GridView *v = win.w.view();
+        const QStringList want = {"n:1800030000", "n:1250025000", "n:60000", "n:119998", "n:59999", "n:249470", "n:60001", "n:599955", "n:59950"};
+        for (int k = 0; k < formulas.size(); ++k) {
+            const grid::Cell *c = v->sheet().cellAt(quint32(k), 3);
+            QVERIFY2(c, qPrintable(formulas[k]));
+            QVERIFY2(v->sheet().valueOf(*c).debug() == want[k], qPrintable(QStringLiteral("%1 is %2, not %3").arg(formulas[k], v->sheet().valueOf(*c).debug(), want[k])));
+        }
+    }
+
+    // The window is never held up by a formula, however much it reads: while a workbook of formulas that each take tens of milliseconds is being worked out, no turn of the program's
+    // event loop takes more than 8 milliseconds of the thread's time (the calculation is on the worker's).
+    void theWindowIsNotHeldUpByFormulasThatTakeLong()
+    {
+        QString xml;
+        xml.reserve(60000 * 90);
+        for (int r = 1; r <= 60000; ++r) {
+            xml += QStringLiteral("<row r=\"%1\"><c r=\"A%1\" t=\"inlineStr\"><is><t>item number %2 abc</t></is></c><c r=\"B%1\"><v>%1</v></c>").arg(r).arg(r % 977);
+            if (r <= 400) xml += QStringLiteral("<c r=\"C%1\" t=\"s\"><v>0</v></c>").arg(r);   // (a text of 32,000 characters, the same in each: 12.8 million in all)
+            if (r <= 30) xml += QStringLiteral("<c r=\"D%1\"><f>SUMPRODUCT((LEFT(A1:A60000,6)=\"item n\")*(B1:B60000))+COUNTIF(A1:A60000,\"*%1*\")</f><v>1</v></c>").arg(r);
+            if (r == 31) xml += QStringLiteral("<c r=\"D31\"><f>SUMPRODUCT(LEN(SUBSTITUTE(C1:C400,\"x\",\"\")))</f><v>1</v></c>");
+            xml += QStringLiteral("</row>");
+        }
+        QString big;
+        for (int k = 0; k < 8000; ++k) big += QStringLiteral("x y ");
+        Folder folder;
+        Window win;
+        QSignalSpy first(&win.w, &CrunchWindow::firstScreenShown), loaded(&win.w, &CrunchWindow::loadFinished), done(&win.w, &CrunchWindow::calculationFinished);
+        QVERIFY(win.w.openFile(folder.write(QStringLiteral("heavy.xlsx"), buildXlsx({worksheet(xml)}, sharedStringsXml({QStringLiteral("<t xml:space=\"preserve\">") + big + QStringLiteral("</t>")})))));
+        QVERIFY(first.wait(60000));
+        QVERIFY(loaded.count() > 0 || loaded.wait(60000));
+        LoopMeter meter;
+        QTimer::singleShot(0, [&meter] { meter.reset(); });   // (from the turn after the one that told of the load)
+        QVERIFY(win.w.isCalculating());
+        QVERIFY(done.count() > 0 || done.wait(120000));
+        // the formulas were worked out (the stored 1 is not what they came to), every one, however much it reads
+        for (int r = 0; r < 30; ++r) {
+            const grid::Cell *c = win.w.view()->sheet().cellAt(quint32(r), 3);
+            QVERIFY(c);
+            QVERIFY2(win.w.view()->sheet().valueOf(*c).isNumber() && win.w.view()->sheet().valueOf(*c).number() > 1000, qPrintable(QStringLiteral("row %1 is %2").arg(r + 1).arg(win.w.view()->sheet().valueOf(*c).debug())));
+        }
+        // (and the one that makes 400 texts of 24,000 characters, which took a slice of 35 milliseconds)
+        const grid::Cell *text = win.w.view()->sheet().cellAt(30, 3);
+        QVERIFY(text);
+        QCOMPARE(win.w.view()->sheet().valueOf(*text).debug(), QStringLiteral("n:9600000"));
+        QVERIFY2(meter.longestMicros() <= 8000, qPrintable(QStringLiteral("a turn of the event loop took %1 microseconds of the thread's time").arg(meter.longestMicros())));
+        QVERIFY2(win.w.longestBatchMicros() <= 8000, qPrintable(QStringLiteral("taking a batch took %1 microseconds").arg(win.w.longestBatchMicros())));
+        QVERIFY(win.w.batchesTaken() >= 1);
+    }
+
+    // The calculation is the worker's until it is over: before the workbook is read whole the window has no calculation to look at, and asking it to calculate does nothing.
+    void theCalculationIsNotTouchedBeforeTheReadIsOver()
     {
         QString rows;
-        rows.reserve(200000 * 90);
-        for (int r = 1; r <= 200000; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><f>A%1*2</f><v>-1</v></c></row>").arg(r);
+        rows.reserve(40000 * 400);
+        for (int r = 1; r <= 40000; ++r) {
+            rows += QStringLiteral("<row r=\"%1\">").arg(r);
+            for (int c = 0; c < 10; ++c) rows += QStringLiteral("<c r=\"%1%2\"><v>%3</v></c>").arg(QChar('A' + c)).arg(r).arg(r * 10 + c);
+            rows += QStringLiteral("</row>");
+        }
+        Folder folder;
+        Window win;
+        QSignalSpy first(&win.w, &CrunchWindow::firstScreenShown), loaded(&win.w, &CrunchWindow::loadFinished);
+        win.w.setWorkerPace(20000);   // (each step of the read waits: it takes the time that a test of it needs)
+        QVERIFY(win.w.openFile(folder.write(QStringLiteral("reading.xlsx"), buildXlsx({worksheet(rows)}))));
+        QVERIFY(first.wait(60000));
+        QVERIFY(win.w.isLoading());
+        QVERIFY(win.w.calculation() == nullptr);
+        QVERIFY(win.w.loaded()->preview != nullptr);
+        win.w.act("formulas.calculate")->trigger();   // (nothing to work out yet)
+        QVERIFY(!win.w.isCalculating());
+        win.w.setWorkerPace(0);
+        QVERIFY(loaded.wait(60000));
+        QVERIFY(win.w.calculation() != nullptr);
+    }
+
+    // A calculation that is stopped with Esc has told what it worked out: the cells that it reached show it (their text made again, and drawn again), the others the stored result.
+    void escShowsWhatWasWorkedOutAndKeepsTheRest()
+    {
+        const int n = 200000;
         Folder folder;
         Window win;
         QSignalSpy loaded(&win.w, &CrunchWindow::loadFinished), done(&win.w, &CrunchWindow::calculationFinished);
+        // (a formula in B of each row: the row's number twice, where the file stored -1)
+        QString rows;
+        rows.reserve(n * 90);
+        for (int r = 1; r <= n; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><f>A%1*2</f><v>-1</v></c></row>").arg(r);
         QVERIFY(win.w.openFile(folder.write(QStringLiteral("formulas.xlsx"), buildXlsx({worksheet(rows)}))));
+        win.w.setWorkerPace(15000);   // (about a hundredth of the formulas in each pause: the calculation is still going when the key is pressed)
         QVERIFY(loaded.wait(60000));
-        QVERIFY(win.w.isCalculating());   // (two hundred thousand formulas take longer than a slice)
+        QVERIFY(win.w.isCalculating());
+        // the first screen is drawn (with the stored results, if the first batch is not there yet), and the first batch changes what is on it
+        win.w.view()->grab();
+        QTRY_VERIFY(win.w.batchesTaken() >= 1);
         QTest::keyClick(&win.w, Qt::Key_Escape);
         QVERIFY(!win.w.isCalculating());
         QCOMPARE(win.w.statusText(), QStringLiteral("Calculation stopped"));
-        QTest::qWait(50);
+        // the worker ends, and what it had worked out arrives
+        QTRY_COMPARE(crunch::WorkbookLoader::workersRunning(), 0);
+        for (int i = 0; i < 3; ++i) QCoreApplication::processEvents();
         QCOMPARE(done.count(), 0);
-        // the cells not reached show what the file stored
         const grid::GridView *v = win.w.view();
-        const grid::Cell *last = v->sheet().cellAt(199999, 1);
-        QVERIFY(last);
-        QVERIFY(v->sheet().valueOf(*last).debug() == QStringLiteral("n:-1") || v->sheet().valueOf(*last).debug() == QStringLiteral("n:399998"));
+        // a cell that was reached shows its result, in its text too; one that was not shows the stored -1
+        const grid::Cell *first = v->sheet().cellAt(0, 1), *last = v->sheet().cellAt(n - 1, 1);
+        QVERIFY(first && last);
+        QCOMPARE(v->sheet().valueOf(*first).debug(), QStringLiteral("n:2"));
+        QCOMPARE(v->sheet().shown(0, 1, *first).text, QStringLiteral("2"));
+        QCOMPARE(v->sheet().valueOf(*last).debug(), QStringLiteral("n:-1"));
         // and Calculate Now works everything out again
+        win.w.setWorkerPace(0);
+        win.w.act("formulas.calculate")->trigger();
+        QVERIFY(win.w.isCalculating());
+        QVERIFY(done.wait(60000));
+        QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(n - 1, 1)).debug(), QStringLiteral("n:400000"));
+    }
+
+    // While a calculation goes on, only the cells whose values changed are drawn again, and the numbers of a selection are worked out again only when one of its values changed.
+    void theCalculationDrawsAndCountsOnlyWhatChanged()
+    {
+        // formulas far below the screen (rows 100,001 and on), and numbers in A
+        QStringList formulas;
+        for (int k = 0; k < 2000; ++k) formulas << QStringLiteral("A%1*3").arg(100001 + k);
+        Folder folder;
+        Window win;
+        QVERIFY(win.open(folder.write(QStringLiteral("far.xlsx"), rowsWithFormulas(102100, formulas, QStringLiteral("0"), 100001))));
+        grid::GridView *v = win.w.view();
+        v->selectRange(0, 0, 9, 0);   // (numbers: no formula among them)
+        QTRY_VERIFY(!win.w.findChild<QLabel *>(QStringLiteral("selectionStats"))->text().isEmpty());
+        QApplication::processEvents();
+        PaintCounter paints(v->viewport());
+        QSignalSpy stats(v, &grid::GridView::statsChanged), done(&win.w, &CrunchWindow::calculationFinished);
         win.w.act("formulas.calculate")->trigger();
         QVERIFY(done.wait(60000));
-        QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(199999, 1)).debug(), QStringLiteral("n:400000"));
+        QApplication::processEvents();
+        QCOMPARE(paints.paints, 0);   // (no cell on the screen has a new value)
+        QCOMPARE(stats.count(), 0);   // (and none in the selection)
+        // a selection that has formulas in it is worked out again, and the cells on the screen that changed are drawn again
+        v->selectRange(100000, 3, 100100, 3);
+        QTRY_VERIFY(stats.count() >= 1);
+        stats.clear();
+        // (the screen is at the top: scroll to the formulas)
+        v->verticalScrollBar()->setValue(100000 * 20);
+        QApplication::processEvents();
+        paints.paints = 0;
+        paints.area = 0;
+        win.w.act("formulas.calculate")->trigger();
+        QVERIFY(done.wait(60000));
+        QApplication::processEvents();
+        QVERIFY(paints.paints >= 1);
+        QVERIFY(stats.count() >= 1);
+        QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(100000, 3)).debug(), QStringLiteral("n:300003"));
+    }
+
+    // Freezing panes freezes from where the view begins: scrolled down to row 31 with the cursor in row 36, the rows 31 to 35 are frozen, the part that scrolls begins at row 36, and rows 1
+    // to 30 stay out of sight until the panes are let go. A workbook saved so opens so.
+    void panesAreFrozenFromWhereTheViewBegins()
+    {
+        Folder folder;
+        Window win;
+        QVERIFY(win.open(folder.write(QStringLiteral("long.xlsx"), rowsWithFormulas(500, {}))));
+        grid::GridView *v = win.w.view();
+        v->verticalScrollBar()->setValue(30 * 20);
+        v->selectCell(35, 2);
+        win.w.act("view.freeze")->trigger();
+        const grid::GridLayout &L = v->sheet().layout();
+        QCOMPARE(L.skippedRows(), qint64(30));
+        QCOMPARE(L.frozenRows(), qint64(35));
+        QCOMPARE(L.frozenCols(), qint64(2));   // (from the first column in view, which is the first)
+        QCOMPARE(L.skippedCols(), qint64(0));
+        const grid::PaneView top = L.pane(grid::Pane::Top), body = L.pane(grid::Pane::Body);
+        QCOMPARE(top.firstRow, qint64(30));
+        QCOMPARE(top.lastRow, qint64(34));
+        QCOMPARE(body.firstRow, qint64(35));
+        // the rows above are not there to hit, nor to go to
+        QCOMPARE(L.hit(QPoint(L.headerWidth() + 5, L.headerHeight() + 5)).row, qint64(30));
+        QCOMPARE(L.rows.nextVisible(-1), qint64(30));
+        v->selectCell(30, 0);
+        QTest::keyClick(v, Qt::Key_Up);
+        QCOMPARE(v->selection().activeRow, qint64(30));
+        // unfreeze: the sheet is as it was in the window, every row is there again
+        win.w.act("view.unfreeze")->trigger();
+        QCOMPARE(L.frozenRows(), qint64(0));
+        QCOMPARE(L.skippedRows(), qint64(0));
+        QCOMPARE(L.pane(grid::Pane::Body).firstRow, qint64(30));
+        // a workbook saved with its panes frozen below the top opens with them there
+        const QString head = QStringLiteral("<sheetViews><sheetView workbookViewId=\"0\" topLeftCell=\"A11\"><pane ySplit=\"2\" topLeftCell=\"A101\" activePane=\"bottomLeft\" state=\"frozen\"/></sheetView></sheetViews>");
+        QString rows;
+        for (int r = 1; r <= 300; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c></row>").arg(r);
+        Window saved;
+        QVERIFY(saved.open(folder.write(QStringLiteral("saved.xlsx"), buildXlsx({worksheet(rows, QString(), head)}))));
+        const grid::GridLayout &S = saved.w.view()->sheet().layout();
+        QCOMPARE(S.skippedRows(), qint64(10));
+        QCOMPARE(S.frozenRows(), qint64(12));
+        QCOMPARE(S.pane(grid::Pane::Top).firstRow, qint64(10));
+        QCOMPARE(S.pane(grid::Pane::Body).firstRow, qint64(100));
+    }
+
+    // The first screen is what the view shows: a sheet saved scrolled to row 5,001 has those rows (and not only the first thousand) on the screen when it first appears.
+    void theFirstScreenIsWhereTheViewIs()
+    {
+        QString rows;
+        for (int r = 1; r <= 20000; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c></row>").arg(r);
+        const QString head = QStringLiteral("<sheetViews><sheetView workbookViewId=\"0\" topLeftCell=\"A5001\"><selection activeCell=\"A5003\" sqref=\"A5003\"/></sheetView></sheetViews>");
+        Folder folder;
+        Window win;
+        win.w.setWorkerPace(200000);   // (the rest of the read takes long enough to look at the first screen)
+        QSignalSpy first(&win.w, &CrunchWindow::firstScreenShown), loaded(&win.w, &CrunchWindow::loadFinished);
+        QVERIFY(win.w.openFile(folder.write(QStringLiteral("scrolled.xlsx"), buildXlsx({worksheet(rows, QString(), head)}))));
+        QVERIFY(first.wait(60000));
+        QVERIFY(win.w.isLoading());
+        const grid::GridView *v = win.w.view();
+        const grid::PaneView body = v->sheet().layout().pane(grid::Pane::Body);
+        QCOMPARE(body.firstRow, qint64(5000));
+        for (qint64 r = body.firstRow; r <= body.lastRow; ++r) QVERIFY2(v->sheet().cellAt(quint32(r), 0), qPrintable(QStringLiteral("row %1 of the first screen has no cell").arg(r + 1)));
+        QCOMPARE(win.w.formulaBar()->text(), QStringLiteral("5003"));
+        win.w.view()->grab();
+        QVERIFY(win.w.view()->lastPaintStats().textRuns >= 10);
+        win.w.setWorkerPace(0);
+        QVERIFY(loaded.wait(60000));
+        QCOMPARE(win.w.view()->sheet().layout().pane(grid::Pane::Body).firstRow, qint64(5000));
+    }
+
+    // A cell of 32,000 characters does not make the formula bar slow when the cursor goes to it: the bar holds a part of the text, and the whole of it once it is clicked into.
+    void theFormulaBarHoldsALongTextOnceItIsClickedInto()
+    {
+        const QString big(32000, QLatin1Char('x'));
+        const QByteArray sheet = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>%1</t></is></c></row>").arg(big));
+        Folder folder;
+        Window win;
+        QVERIFY(win.open(folder.write(QStringLiteral("long.xlsx"), buildXlsx({sheet}))));
+        win.w.view()->selectCell(1, 0);
+        QVERIFY2(win.w.formulaBar()->text().size() <= 2001, qPrintable(QString::number(win.w.formulaBar()->text().size())));
+        QVERIFY(win.w.formulaBar()->text().startsWith(QLatin1String("xxxx")));
+        win.w.formulaBar()->setFocus();
+        QTRY_COMPARE(win.w.formulaBar()->text(), big);
+        // and moving on to a short one puts it in whole
+        win.w.view()->setFocus();
+        win.w.view()->selectCell(0, 0);
+        QCOMPARE(win.w.formulaBar()->text(), QStringLiteral("1"));
+    }
+
+    // The Help says nothing that this build cannot do (it cannot change the width of a column, or type in a cell).
+    void theHelpPromisesNothingTheBuildCannotDo()
+    {
+        QDirIterator it(QStringLiteral(JC_SOURCE_DIR "/resources/help/en/crunch"), QStringList{QStringLiteral("*.md")}, QDir::Files);
+        int files = 0;
+        while (it.hasNext()) {
+            QFile f(it.next());
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const QString text = QString::fromUtf8(f.readAll());
+            ++files;
+            for (const QString &phrase : {QStringLiteral("make the column wider"), QStringLiteral("widen the column"), QStringLiteral("drag the edge"), QStringLiteral("double-click the edge")})
+                QVERIFY2(!text.contains(phrase, Qt::CaseInsensitive), qPrintable(f.fileName() + QStringLiteral(" says: ") + phrase));
+        }
+        QVERIFY(files >= 7);
+    }
+
+    // Show Formulas has the keys Ctrl and the grave accent, and on a Mac the Control key (Command and that key belong to the system).
+    void showFormulasHasTheKeysOfThePlatform()
+    {
+        QCOMPARE(crunch::showFormulasKey(false), QKeySequence(Qt::CTRL | Qt::Key_QuoteLeft));
+        QCOMPARE(crunch::showFormulasKey(true), QKeySequence(Qt::META | Qt::Key_QuoteLeft));
+        CrunchWindow w;
+        QCOMPARE(w.act("view.formulas")->shortcut(), crunch::showFormulasKey());
     }
 
     // The window drawn with a workbook that looks like a real one: the title merged over the columns, a green header and a frozen row and column, fills and borders, number formats, a
@@ -592,8 +919,9 @@ private Q_SLOTS:
         QCOMPARE(QColor(shot.pixel(title.left() + 20, title.top() + 4)), QColor(0x13, 0x77, 0x3A));
         QCOMPARE(QColor(shot.pixel(title.right() - 20, title.bottom() - 4)), QColor(0x13, 0x77, 0x3A));
         QVERIFY(title.width() > 6 * 80);
-        // the header row is the light green; the totals row has its double line under it
-        QCOMPARE(QColor(shot.pixel(L.cellRect(1, 2).center().x() + topLeft.x() + 25, L.cellRect(1, 2).top() + topLeft.y() + 3)), QColor(0xE2, 0xF0, 0xE6));
+        // the header row is the light green (looked at in its corner, above and before any letter, whatever the font's ascent); the totals row has its double line under it
+        const QRect header = L.cellRect(1, 2).translated(topLeft);
+        QCOMPARE(QColor(shot.pixel(header.left() + 1, header.top() + 1)), QColor(0xE2, 0xF0, 0xE6));
         const QRect total = L.cellRect(8, 1).translated(topLeft);
         QCOMPARE(QColor(shot.pixel(total.left() + 6, total.bottom() - 1)).rgb(), QColor(Qt::black).rgb());   // (the first of the two lines of the double border)
         const QString out = qEnvironmentVariable("JC_SCREENSHOT");

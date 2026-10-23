@@ -13,7 +13,7 @@ JeffCrunch has more than 200 functions, and it is still growing. A formula that 
 
 ## Show the formulas
 
-Click **Show Formulas** on the **Formulas** tab, or press **Ctrl+`**, to see the formula in each cell in place of its value.
+Click **Show Formulas** on the **Formulas** tab, or press **Ctrl+`** (on a Mac, the Control key, not the Command key), to see the formula in each cell in place of its value.
 
 ## Changing formulas
 

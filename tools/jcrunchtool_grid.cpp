@@ -11,6 +11,7 @@
 //   jcrunchtool grid-sweep <keys.txt> <out-dir> [jobs]   runs `grid-one` on each workbook listed, each in a child process that has 120 seconds and 4 GB, and writes <out-dir>/grid.tsv;
 //                                                  prints how many crashed or timed out and the times (tools/crunch_grid.py does the work)
 
+#include "core/threadtime.h"
 #include "app/crunchwindow.h"
 #include "core/loader.h"
 #include "grid/gridview.h"
@@ -18,6 +19,7 @@
 #include "io/zip.h"
 #include "office/package.h"
 
+#include <QAbstractEventDispatcher>
 #include <QApplication>
 #include <QDir>
 #include <QScrollBar>
@@ -117,29 +119,51 @@ int gridOne(const QString &path, bool full)
         sheet.setData(data);
         sheet.layout().setViewport(QSize(1280, 800));
         draw();
-        // the formulas, a slice at a time as the window works them (a few milliseconds each, by the clock)
+        // the formulas, a slice at a time as the worker works them (a few milliseconds each, by the clock), and what the window does with what it is told of them: puts it in its store, in
+        // batches as the worker sends them, and makes the texts of those cells again. The thread's own (processor) time is kept beside the wall's: it is what a loaded machine does not change.
         Calculation *calc = book.calc.get();
-        double longest = 0, total = 0;
+        double longest = 0, longestCpu = 0, longestApply = 0, total = 0;
         int slices = 0;
+        std::vector<grid::ValueStore::Item> items;
+        calc->setResultSink([&](int sheetIndex, quint32 row, quint32 col, const jp::calc::Value &v) {
+            grid::ValueStore::Item it;
+            it.sheet = sheetIndex;
+            it.row = row;
+            it.col = col;
+            it.value = v;
+            items.push_back(std::move(it));
+        });
+        grid::ValueStore store;
         QElapsedTimer calcTimer;
         calcTimer.start();
         while (calcTimer.elapsed() < 120000) {
             QElapsedTimer s;
             s.start();
+            const qint64 cpu0 = jp::threadCpuMicros();
             const Calculation::Progress pr = calc->recalculate(0, nullptr, crunch::kSliceMicros);
-            const double sliceMs = double(s.nsecsElapsed()) / 1e6;
-            if (qEnvironmentVariableIsSet("JC_GRID_SLICES")) err() << "slice " << slices << ": work " << pr.work << ", " << ms(sliceMs) << " ms, " << pr.evaluated << " formulas\n";
+            const double sliceMs = double(s.nsecsElapsed()) / 1e6, sliceCpu = double(jp::threadCpuMicros() - cpu0) / 1e3;
+            if (qEnvironmentVariableIsSet("JC_GRID_SLICES")) err() << "slice " << slices << ": work " << pr.work << ", " << ms(sliceMs) << " ms (" << ms(sliceCpu) << " ms of the thread's time), " << pr.evaluated << " formulas\n";
             longest = std::max(longest, sliceMs);
+            longestCpu = std::max(longestCpu, sliceCpu);
             total += sliceMs;
             ++slices;
+            for (size_t at = 0; at < items.size(); at += size_t(crunch::kBatchValues)) {
+                const qint64 a0 = jp::threadCpuMicros();
+                const std::vector<grid::ValueStore::Item> batch(items.begin() + std::ptrdiff_t(at), items.begin() + std::ptrdiff_t(std::min(items.size(), at + size_t(crunch::kBatchValues))));
+                store.apply(batch);
+                for (const grid::ValueStore::Item &it : batch) sheet.invalidateText(it.row, it.col);
+                longestApply = std::max(longestApply, double(jp::threadCpuMicros() - a0) / 1e3);
+            }
+            items.clear();
             if (pr.finished) break;
         }
+        calc->setResultSink(nullptr);
         // formulas that took more steps than one may (they keep the result the file stored)
         qint64 bounded = 0;
         calc->forEachFormula([&](const Calculation::FormulaCell &f) {
             if (f.kept == 'L') ++bounded;
         });
-        fullFields = QStringLiteral("\t%1\t%2\t%3\t%4\t%5").arg(ms(loadMs), ms(total), ms(longest)).arg(slices).arg(bounded);
+        fullFields = QStringLiteral("\t%1\t%2\t%3\t%4\t%5\t%6\t%7").arg(ms(loadMs), ms(total), ms(longest), ms(longestCpu), ms(longestApply)).arg(slices).arg(bounded);
         if (!book.problem.isEmpty()) exit = 2;
     }
     out() << path << '\t' << exit << '\t' << ms(firstMs) << '\t' << ms(percentile(warm, 0.5)) << '\t' << ms(percentile(warm, 0.95)) << '\t' << stats.rowsVisited << '\t' << stats.colsVisited << '\t'
@@ -159,6 +183,21 @@ void spin(QEventLoop *loop, int msec)
     QTimer::singleShot(msec, loop, &QEventLoop::quit);
     loop->exec();
 }
+
+// The longest turn of the event loop by the thread's own time (the time the window could not answer in).
+struct TurnMeter : QObject {
+    TurnMeter()
+    {
+        auto *d = QAbstractEventDispatcher::instance();
+        connect(d, &QAbstractEventDispatcher::awake, this, [this] { start = jp::threadCpuMicros(); inTurn = true; });
+        connect(d, &QAbstractEventDispatcher::aboutToBlock, this, [this] {
+            if (inTurn) longest = std::max(longest, jp::threadCpuMicros() - start);
+            inTurn = false;
+        });
+    }
+    qint64 start = 0, longest = 0;
+    bool inTurn = false;
+};
 
 WindowTimes timeWindow(CrunchWindow *w, const QString &path, int limitSeconds = 300)
 {
@@ -196,8 +235,11 @@ int gridWindow(const QString &path)
     w.setNotifier([](const QString &, const QString &) {});
     w.resize(1280, 800);
     w.show();
+    TurnMeter meter;
     const WindowTimes t = timeWindow(&w, path);
-    out() << path << "\tfirst screen " << ms(t.firstScreenMs) << " ms\tfirst screen drawn " << ms(t.firstPaintMs) << " ms\tread whole " << ms(t.loadMs) << " ms\tcalculated " << ms(t.calcMs) << " ms\n";
+    out() << path << "\tfirst screen " << ms(t.firstScreenMs) << " ms\tfirst screen drawn " << ms(t.firstPaintMs) << " ms\tread whole " << ms(t.loadMs) << " ms\tcalculated " << ms(t.calcMs)
+          << " ms\tlongest turn of the event loop " << ms(double(meter.longest) / 1e3) << " ms of the thread's time\tlongest batch taken " << ms(double(w.longestBatchMicros()) / 1e3) << " ms ("
+          << w.batchesTaken() << " batches)\n";
     return t.ok ? 0 : 1;
 }
 

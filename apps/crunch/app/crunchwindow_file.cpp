@@ -6,6 +6,7 @@
 #include "app/sheettabs.h"
 #include "app/telemetry.h"
 #include "core/appinfo.h"
+#include "core/threadtime.h"
 
 #include <QApplication>
 #include <QFileInfo>
@@ -48,13 +49,16 @@ bool CrunchWindow::openFile(const QString &path)
     m_path = path;
     m_loading = true;
     m_haveFirstScreen = m_haveCalc = false;
+    m_calculating = false;
+    m_values.clear();
+    m_longestBatchMicros = m_batches = 0;
     m_loadProblem.clear();
     m_loader.start(path);
     setStatus(tr("Opening %1…").arg(name));
     updateTitle();
     hideFileScreen();
     Settings::get().addRecentFile(path);
-    telemetry::count(QStringLiteral("file.open.") + info.suffix().toLower());
+    telemetry::count(QStringLiteral("file.open.") + crunch::fileKind(path));
     return true;
 }
 
@@ -100,16 +104,18 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     // the stripes the sheets ask for, now that every sheet is read
     const jp::office::sheet::Styles &styles = m_loaded->book->styles();
     for (int tab = 0; tab < m_tabSheets.size(); ++tab) {
-        const auto &color = m_loaded->calc->sheet(m_tabSheets[tab]).tabColor;
+        const auto &color = m_loaded->calc->sheet(m_tabSheets[tab]).tabColor;   // (m_haveCalc is set above: the worker has put the calculation there)
         if (color.isSet()) m_tabs->setStripe(tab, QColor::fromRgb(styles.resolve(color, 0x808080)));
     }
     // the sheet read whole takes the place of its first rows (what the person did with the view stays)
     showSheet(m_sheet, true);
     m_loaded->preview.reset();
     m_loadProblem = m_loaded->problem;
+    // (the worker goes on to work the formulas out, and tells what it has as it has it: onCalcBatch)
+    m_calculating = true;
+    setStatus(tr("Calculating…"));
     if (!m_loadProblem.isEmpty()) notice(tr("Open"), m_loadProblem, true);
     Q_EMIT loadFinished(true);
-    startCalculation();
 }
 
 // ---- the sheets
@@ -123,7 +129,8 @@ void CrunchWindow::fillTabs()
         const auto &sheets = m_loaded->book->info().sheets;
         for (int i = 0; i < sheets.size(); ++i) {
             if (sheets[i].state != SheetState::Visible) continue;   // (hidden and very hidden sheets are kept out)
-            const int tab = m_tabs->addTab(sheets[i].name);
+            // (the name is shown as it is: a "&" in a tab's text makes the next letter a key, and a name that has one is shown without it, unless it is doubled)
+            const int tab = m_tabs->addTab(QString(sheets[i].name).replace(QLatin1Char('&'), QStringLiteral("&&")));
             m_tabSheets.append(i);
             m_tabs->setTabEnabled(tab, i == m_sheet);
             if (i == m_sheet) m_tabs->setCurrentIndex(tab);
@@ -146,9 +153,9 @@ void CrunchWindow::showSheet(int sheetIndex, bool keepView)
     d.strings = &m_loaded->book->sharedStrings();
     d.dateSystem = m_loaded->book->info().dateSystem;
     d.sheetIndex = sheetIndex;
-    if (m_loaded->calc && m_haveCalc) {
+    if (m_haveCalc && m_loaded->calc) {   // (the worker puts the calculation there while it reads: not looked at before the read is over)
         d.sheet = &m_loaded->calc->sheet(sheetIndex);
-        d.calc = m_loaded->calc.get();
+        d.values = &m_values;
         if (size_t(sheetIndex) < m_loaded->geometry.size()) d.geometry = m_loaded->geometry[size_t(sheetIndex)];
     } else if (m_loaded->preview && sheetIndex == m_loaded->previewSheet) {
         d.sheet = m_loaded->preview.get();
@@ -186,49 +193,41 @@ void CrunchWindow::setActiveSheet(int sheetIndex)
     else if (!m_calculating && !m_loading) setStatus(tr("Ready"));
 }
 
-// ---- the calculation, a few milliseconds at a time
+// ---- the calculation, on the worker
 
-void CrunchWindow::startCalculation()
-{
-    if (!m_loaded || !m_loaded->calc) return;
-    m_calculating = true;
-    m_stopCalc = false;
-    m_sinceRepaint.start();
-    setStatus(tr("Calculating…"));
-    m_calcTimer.start(0);
-}
-
+// Esc: the worker stops (what it has worked out is told, and is shown; the rest keeps the result the file stored).
 void CrunchWindow::stopCalculation()
 {
-    m_stopCalc = true;
-    m_calcTimer.stop();
+    m_loader.stopCalculation();
     if (m_calculating) {
         m_calculating = false;
         setStatus(tr("Ready"));
     }
 }
 
-void CrunchWindow::calculationStep()
+// A batch of what the calculation has worked out: put in the store, and what of it is on the screen is drawn again.
+void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
 {
-    if (!m_loaded || !m_loaded->calc || !m_calculating) return;
-    jp::office::sheet::Calculation *calc = m_loaded->calc.get();
-    // a slice of a few milliseconds, by the clock
-    const jp::office::sheet::Calculation::Progress p = calc->recalculate(0, &m_stopCalc, crunch::kSliceMicros);
-    const bool done = p.finished || p.cancelled;
-    if (done || m_sinceRepaint.elapsed() > 250) {
-        m_view->invalidateValues();
-        updateBars();
-        m_sinceRepaint.restart();
+    if (!m_loaded || !batch) return;
+    const qint64 cpu0 = jp::threadCpuMicros();
+    m_values.apply(batch->items);
+    const bool active = m_view->valuesChanged(m_sheet, batch->items);
+    if (active) updateBars();
+    ++m_batches;
+    if (batch->last) {
+        // (a calculation that was stopped has been said to be: only one that finished says so now)
+        if (!batch->stopped && m_calculating) {
+            m_calculating = false;
+            setStatus(tr("Ready"));
+            updateBars();
+            m_longestBatchMicros = std::max(m_longestBatchMicros, jp::threadCpuMicros() - cpu0);
+            Q_EMIT calculationFinished();
+            return;
+        }
+    } else if (m_calculating) {
+        setStatus(tr("Calculating… %1%").arg(batch->percent));
     }
-    if (!done) {
-        const qint64 total = std::max<qint64>(1, calc->formulaCount());
-        setStatus(tr("Calculating… %1%").arg(std::max<qint64>(0, 100 - 100 * calc->dirtyCount() / total)));
-        m_calcTimer.start(0);
-        return;
-    }
-    m_calculating = false;
-    setStatus(tr("Ready"));
-    Q_EMIT calculationFinished();
+    m_longestBatchMicros = std::max(m_longestBatchMicros, jp::threadCpuMicros() - cpu0);
 }
 
 } // namespace jp

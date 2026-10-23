@@ -1,6 +1,7 @@
 #include "app/crunchwindow.h"
 
 #include "app/crunchfilescreen.h"
+#include "app/crunchinfo.h"
 #include "app/editor.h"
 #include "app/icons.h"
 #include "app/keytips.h"
@@ -100,8 +101,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     connect(&m_loader, &crunch::WorkbookLoader::firstScreen, this, &CrunchWindow::onFirstScreen);
     connect(&m_loader, &crunch::WorkbookLoader::progress, this, &CrunchWindow::onProgress);
     connect(&m_loader, &crunch::WorkbookLoader::finished, this, &CrunchWindow::onFinished);
-    m_calcTimer.setSingleShot(true);
-    connect(&m_calcTimer, &QTimer::timeout, this, &CrunchWindow::calculationStep);
+    connect(&m_loader, &crunch::WorkbookLoader::calcBatch, this, &CrunchWindow::onCalcBatch);
     m_copyTimer.setSingleShot(true);
     connect(&m_copyTimer, &QTimer::timeout, this, &CrunchWindow::copyStep);
     connect(m_tabs, &QTabBar::currentChanged, this, [this](int tab) {
@@ -114,11 +114,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     updateBars();
 }
 
-CrunchWindow::~CrunchWindow()
-{
-    m_stopCalc = true;
-    m_loader.cancel();
-}
+CrunchWindow::~CrunchWindow() { m_loader.cancel(); }
 
 QAction *CrunchWindow::mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn, bool checkable, bool enabled)
 {
@@ -193,6 +189,7 @@ void CrunchWindow::buildCentral()
     v->addWidget(m_tabs);
     setCentralWidget(central);
     connect(m_nameBox, &QLineEdit::returnPressed, this, &CrunchWindow::goToName);
+    m_formulaBar->installEventFilter(this);
 }
 
 void CrunchWindow::buildStatusBar()
@@ -258,7 +255,7 @@ void CrunchWindow::createActions()
     mk("view.gridlines", tr("Gridlines"), "grid-3x3", QKeySequence(), [this] { m_view->setShowGridlines(act("view.gridlines")->isChecked()); }, true)->setChecked(true);
     mk("view.headings", tr("Headings"), "table-properties", QKeySequence(), [this] { m_view->setShowHeadings(act("view.headings")->isChecked()); }, true)->setChecked(true);
     mk("view.formulaBar", tr("Formula Bar"), "text-cursor-input", QKeySequence(), [this] { m_formulaRow->setVisible(act("view.formulaBar")->isChecked()); }, true)->setChecked(true);
-    mk("view.formulas", tr("Show Formulas"), "square-function", QKeySequence(Qt::CTRL | Qt::Key_QuoteLeft), [this] {
+    mk("view.formulas", tr("Show Formulas"), "square-function", crunch::showFormulasKey(), [this] {
         m_view->sheet().setShowFormulas(act("view.formulas")->isChecked());
         m_view->invalidateValues();
     }, true);
@@ -269,14 +266,15 @@ void CrunchWindow::createActions()
     }
     act("zoom.100")->setText(tr("100%"));
     mk("view.freeze", tr("Freeze Panes"), "snowflake", QKeySequence(), [this] { freezeAtSelection(); });
-    mk("view.freezeRow", tr("Freeze Top Row"), "panel-top", QKeySequence(), [this] { m_view->setFrozen(1, m_view->sheet().layout().frozenCols()); });
-    mk("view.freezeCol", tr("Freeze First Column"), "panel-left", QKeySequence(), [this] { m_view->setFrozen(m_view->sheet().layout().frozenRows(), 1); });
-    mk("view.unfreeze", tr("Unfreeze Panes"), "panels-top-left", QKeySequence(), [this] { m_view->setFrozen(0, 0); });
+    mk("view.freezeRow", tr("Freeze Top Row"), "panel-top", QKeySequence(), [this] { m_view->freezeTopRow(); });
+    mk("view.freezeCol", tr("Freeze First Column"), "panel-left", QKeySequence(), [this] { m_view->freezeFirstColumn(); });
+    mk("view.unfreeze", tr("Unfreeze Panes"), "panels-top-left", QKeySequence(), [this] { m_view->unfreeze(); });
     // ---- formulas
     mk("formulas.calculate", tr("Calculate Now"), "calculator", QKeySequence(Qt::Key_F9), [this] {
-        if (!m_loaded || !m_loaded->calc || m_loading) return;
-        m_loaded->calc->invalidateAll();
-        startCalculation();
+        // (the calculation is the worker's: it is asked to work everything out again, and does)
+        if (m_loading || !m_haveCalc || !m_loader.recalculate()) return;
+        m_calculating = true;
+        setStatus(tr("Calculating…"));
     });
     // ---- help
     mk("help.show", tr("Help"), "circle-help", QKeySequence::HelpContents, [this] { showHelp(helpContext()); });
@@ -337,6 +335,12 @@ void CrunchWindow::copyStep()
         m_copyTimer.start(0);
         return;
     }
+    if (m_copy->tooLarge()) {
+        m_copy.reset();
+        notice(tr("Copy"), tr("That is more text than JeffCrunch copies at once. Select fewer cells."), false);
+        if (!m_calculating && !m_loading) setStatus(tr("Ready"));
+        return;
+    }
     QApplication::clipboard()->setText(m_copy->text());
     m_copy.reset();
     if (!m_calculating && !m_loading) setStatus(tr("Ready"));
@@ -344,8 +348,9 @@ void CrunchWindow::copyStep()
 
 void CrunchWindow::freezeAtSelection()
 {
+    // the rows above the cell with the cursor that are in view, and the columns to its left that are (what was scrolled out of sight stays out of sight)
     const grid::Selection &s = m_view->selection();
-    m_view->setFrozen(s.activeRow, s.activeCol);
+    m_view->freezeAt(s.activeRow, s.activeCol);
 }
 
 void CrunchWindow::notice(const QString &title, const QString &text, bool warning)
@@ -363,7 +368,12 @@ void CrunchWindow::notice(const QString &title, const QString &text, bool warnin
 void CrunchWindow::updateBars()
 {
     if (!m_nameBox->hasFocus()) m_nameBox->setText(m_view->selectionName());
-    m_formulaBar->setText(m_view->activeCellText());
+    // The formula bar takes about 20 milliseconds to be given 32,000 characters, whenever the cursor moves on to a cell that has them: it is given a part of a long text (with "…"
+    // after it) until it is clicked into or tabbed to, and the whole of it then.
+    constexpr int kShown = 2000;
+    m_formulaFull = m_view->activeCellText();
+    if (m_formulaFull.size() <= kShown || m_formulaBar->hasFocus()) m_formulaBar->setText(m_formulaFull);
+    else m_formulaBar->setText(m_formulaFull.left(kShown) + QChar(0x2026));
     m_formulaBar->setCursorPosition(0);
 }
 
@@ -431,6 +441,11 @@ void CrunchWindow::resizeEvent(QResizeEvent *e)
 
 bool CrunchWindow::eventFilter(QObject *o, QEvent *e)
 {
+    // the formula bar has the whole of a long text once it has the focus
+    if (o == m_formulaBar && e->type() == QEvent::FocusIn && m_formulaBar->text() != m_formulaFull) {
+        m_formulaBar->setText(m_formulaFull);
+        m_formulaBar->setCursorPosition(0);
+    }
     // Escape closes the File screen from anywhere in the window.
     if (e->type() == QEvent::KeyPress && static_cast<QKeyEvent *>(e)->key() == Qt::Key_Escape && m_fileScreen->isVisible()) {
         auto *w = qobject_cast<QWidget *>(o);

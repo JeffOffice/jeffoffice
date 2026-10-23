@@ -15,10 +15,10 @@ In the **Show** group, turn the **Gridlines** (the pale lines between cells), th
 
 **Frozen** rows and columns stay in place while the rest of the sheet scrolls, so a heading row is always in view. On the **View** tab, click **Freeze Panes**:
 
-- **Freeze Panes** freezes the rows above the selected cell and the columns to its left.
-- **Freeze Top Row** freezes the first row.
-- **Freeze First Column** freezes the first column.
-- **Unfreeze Panes** puts them back.
+- **Freeze Panes** freezes the rows above the selected cell and the columns to its left, from the first row and column you can see. Rows and columns that you scrolled out of sight stay out of sight until you unfreeze.
+- **Freeze Top Row** freezes the top row you can see.
+- **Freeze First Column** freezes the first column you can see.
+- **Unfreeze Panes** puts them back, and the sheet stays where it is.
 
 A workbook that was saved with frozen panes opens with them.
 
@@ -28,4 +28,4 @@ The tabs at the bottom are the sheets of the workbook. Click a tab to show that 
 
 ## Show formulas
 
-On the **Formulas** tab, **Show Formulas** (Ctrl+`) shows the formula in every cell that has one, in place of its value.
+On the **Formulas** tab, **Show Formulas** (Ctrl+`; on a Mac, the Control key, not the Command key) shows the formula in every cell that has one, in place of its value.

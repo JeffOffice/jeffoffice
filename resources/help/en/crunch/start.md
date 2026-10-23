@@ -17,7 +17,7 @@ This version shows workbooks, and it does not change them yet. You can open a wo
 
 ## What you see
 
-A workbook looks as it was saved: the widths of the columns and the heights of the rows, the fonts, colors, fills, and borders, merged cells, frozen panes, and the number formats that turn a stored number into a date, a percent, or a price. Text that is too long for its cell spills into the empty cells beside it. A number that is too wide for its cell shows as a row of # signs; make the column wider to see it.
+A workbook looks as it was saved: the widths of the columns and the heights of the rows, the fonts, colors, fills, and borders, merged cells, frozen panes, and the number formats that turn a stored number into a date, a percent, or a price. Text that is too long for its cell spills into the empty cells beside it. A number that is too wide for its cell shows as a row of # signs; select the cell to read the number in the formula bar (changing the width of a column comes in a later version).
 
 ## Keep a copy
 

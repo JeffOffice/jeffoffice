@@ -5,6 +5,7 @@
 #include "app/appwindow.h"
 #include "core/loader.h"
 #include "grid/gridview.h"
+#include "grid/valuestore.h"
 
 #include <QElapsedTimer>
 #include <QHash>
@@ -60,8 +61,19 @@ public:
     QVector<int> shownSheets() const { return m_tabSheets; }
     int activeSheet() const { return m_sheet; }
     void setActiveSheet(int sheetIndex);
-    const jp::office::sheet::Calculation *calculation() const { return m_loaded ? m_loaded->calc.get() : nullptr; }
+    // The calculation, once the workbook is read whole: it is the worker's (which works the formulas out on its own thread, and tells the window what it has), so it is only to be
+    // looked at when the calculation is not going (a test, after calculationFinished).
+    const jp::office::sheet::Calculation *calculation() const { return m_haveCalc && m_loaded ? m_loaded->calc.get() : nullptr; }
+    // What the calculation has worked out so far, as the grid reads it.
+    const jp::grid::ValueStore &values() const { return m_values; }
+    // The longest time (the thread's own, in microseconds) the window has spent in taking one batch of values from the calculation: what the calculation costs the window's thread.
+    qint64 longestBatchMicros() const { return m_longestBatchMicros; }
+    qint64 batchesTaken() const { return m_batches; }
+    // For tests: slows the worker (see WorkbookLoader::setPace).
+    void setWorkerPace(int micros) { m_loader.setPace(micros); }
     const crunch::LoadedBook *loaded() const { return m_loaded.get(); }
+    // The workbook as read so far, held by whoever keeps it (a test, after the window is gone).
+    std::shared_ptr<crunch::LoadedBook> loadedBook() const { return m_loaded; }
 
     // ---- the File screen, Help
     void showFileScreen(const QString &page = QString());
@@ -108,8 +120,7 @@ private:
     void onFirstScreen();
     void onProgress(int sheet, qint64 cells);
     void onFinished(bool ok, const QString &message);
-    void startCalculation();
-    void calculationStep();
+    void onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch);
     void stopCalculation();
     void setStatus(const QString &text);
     void goToName();
@@ -148,12 +159,12 @@ private:
     // a copy of a large selection, made a few milliseconds at a time
     std::unique_ptr<grid::TextWalk> m_copy;
     QTimer m_copyTimer;
-    // the calculation, in slices
-    QTimer m_calcTimer;
-    QElapsedTimer m_sinceRepaint;
-    std::atomic<bool> m_stopCalc{false};
+    // the values the calculation (on the worker) has told
+    jp::grid::ValueStore m_values;
+    qint64 m_longestBatchMicros = 0, m_batches = 0;
     std::function<void(const QString &, const QString &)> m_notifier;
     QString m_loadProblem;
+    QString m_formulaFull;    // what the cell with the cursor holds, whole (the formula bar shows a part of a long text until it has the focus)
 };
 
 } // namespace jp
