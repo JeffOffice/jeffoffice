@@ -287,6 +287,30 @@ private Q_SLOTS:
         CHECK_EVALS(cases, Grid(), Settings());
     }
 
+    // YEARFRAC by actual days over actual years: the length of the year is that of the one the span is in; of a span of a year or less that holds a February 29, 366; of a
+    // longer one, the average of the years it touches.
+    void aYearFractionOfActualDaysDividesByTheLengthOfTheYear()
+    {
+        const E cases[] = {
+            {"YEARFRAC(DATE(2023,6,1),DATE(2024,3,1),1)", "n:0.748633879781421"},      // 274 days, a year with a February 29 in it: 366
+            {"YEARFRAC(DATE(2023,1,1),DATE(2023,7,1),1)", "n:0.495890410958904"},      // 181 of 365
+            {"YEARFRAC(DATE(2024,1,1),DATE(2024,7,1),1)", "n:0.497267759562842"},      // 182 of 366
+            {"YEARFRAC(DATE(2023,3,1),DATE(2024,3,1),1)", "n:1"},
+            {"YEARFRAC(DATE(2024,3,1),DATE(2025,2,28),1)", "n:0.997260273972603"},     // 364 of 365: the February 29 of 2024 is before it
+            {"YEARFRAC(DATE(2024,2,1),DATE(2025,1,31),1)", "n:0.997267759562842"},     // 365 of 366: the February 29 of 2024 is in it
+            {"YEARFRAC(DATE(2024,2,29),DATE(2025,2,28),1)", "n:0.997267759562842"},    // (from the 29th itself)
+            {"YEARFRAC(DATE(2022,1,1),DATE(2024,7,1),1)", "n:2.4963503649635"},       // more than a year: 912 days over (365+365+366)/3
+            {"YEARFRAC(DATE(2024,7,1),DATE(2022,1,1),1)", "n:2.4963503649635"},        // the dates the other way round
+            {"YEARFRAC(DATE(2019,12,1),DATE(2020,12,1),1)", "n:1"},
+            {"YEARFRAC(DATE(2019,12,1),DATE(2020,11,30),1)", "n:0.997267759562842"},   // 365 of 366
+            {"YEARFRAC(DATE(2019,1,1),DATE(2019,1,1),1)", "n:0"},
+            {"YEARFRAC(DATE(2023,6,1),DATE(2024,3,1),3)", "n:0.750684931506849"},
+            {"YEARFRAC(DATE(2023,6,1),DATE(2024,3,1),2)", "n:0.761111111111111"},
+            {"YEARFRAC(DATE(2023,6,1),DATE(2024,3,1),5)", "e:#NUM!"},
+        };
+        CHECK_EVALS(cases, Grid(), Settings());
+    }
+
     void nowAndTodayAreTheClockAsTheContextSaysIt()
     {
         Settings s;

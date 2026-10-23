@@ -405,12 +405,21 @@ Value fnYearFrac(Call &c)
     case 2: return Value::number((b - a) / 360.0);
     case 3: return Value::number((b - a) / 365.0);
     case 1: {
-        // actual days over the average length of the years the dates span
-        double years = 0;
-        for (int y = y1; y <= y2; ++y) years += isLeap(y) ? 366 : 365;
-        const double avg = years / double(y2 - y1 + 1);
-        if (y1 == y2) return Value::number((b - a) / (isLeap(y1) ? 366.0 : 365.0));
-        return Value::number((b - a) / avg);
+        // actual days over the length of the year: that of the year a span within one year lies in; for a span of a year or less across two, 366 if it holds a February 29,
+        // else 365; for a longer one the average of the years it touches
+        double length;
+        if (y1 == y2) {
+            length = isLeap(y1) ? 366.0 : 365.0;
+        } else if (y2 == y1 + 1 && (m1 > m2 || (m1 == m2 && d1 >= d2))) {
+            const bool febFirst = isLeap(y1) && (m1 < 2 || (m1 == 2 && d1 <= 29));
+            const bool febSecond = isLeap(y2) && (m2 > 2 || (m2 == 2 && d2 == 29));
+            length = febFirst || febSecond ? 366.0 : 365.0;
+        } else {
+            double years = 0;
+            for (int y = y1; y <= y2; ++y) years += isLeap(y) ? 366 : 365;
+            length = years / double(y2 - y1 + 1);
+        }
+        return Value::number((b - a) / length);
     }
     default: return c.error(ErrorKind::Num);
     }
