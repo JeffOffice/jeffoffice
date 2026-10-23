@@ -148,7 +148,8 @@ public:
     const WorkbookInfo &info() const { return m_info; }
     const SharedStrings &sharedStrings() const { return m_shared; }
     QString sharedStringsError() const { return m_sharedError; }
-    // The number formats: empty (everything General) if the workbook has no styles part or it is damaged, which stylesError() then says.
+    // The number formats: none (everything General) if the workbook has no styles part. A part that is damaged or past a limit keeps what was read before the
+    // problem, and stylesError() says what it was.
     const Styles &styles() const { return m_styles; }
     QString stylesError() const { return m_stylesError; }
     // Reads sheet `index`. A sheet of a chart, and one with no relationship to a part, is read as an empty sheet; false, with the sheet's error saying why, if

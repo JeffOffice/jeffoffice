@@ -715,6 +715,53 @@ private Q_SLOTS:
         QCOMPARE(fmt(QStringLiteral("[$-407]#,##0.00"), 1234.5), QStringLiteral("1,234.50"));
     }
 
+    // The names of months and days in each language known by name, full and abbreviated, as the spreadsheet's own locales spell them.
+    void namesOfMonthsAndDays()
+    {
+        const struct {
+            const char *locale;
+            const char *months;
+            const char *monthsShort;
+            const char *days;
+            const char *daysShort;
+        } languages[] = {
+            {"409", "January,February,March,April,May,June,July,August,September,October,November,December", "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",
+             "Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday", "Sun,Mon,Tue,Wed,Thu,Fri,Sat"},
+            {"407", "Januar,Februar,M\xC3\xA4rz,April,Mai,Juni,Juli,August,September,Oktober,November,Dezember", "Jan,Feb,Mrz,Apr,Mai,Jun,Jul,Aug,Sep,Okt,Nov,Dez",
+             "Sonntag,Montag,Dienstag,Mittwoch,Donnerstag,Freitag,Samstag", "So,Mo,Di,Mi,Do,Fr,Sa"},
+            {"40C", "janvier,f\xC3\xA9vrier,mars,avril,mai,juin,juillet,ao\xC3\xBBt,septembre,octobre,novembre,d\xC3\xA9" "cembre",
+             "janv.,f\xC3\xA9vr.,mars,avr.,mai,juin,juil.,ao\xC3\xBBt,sept.,oct.,nov.,d\xC3\xA9" "c.", "dimanche,lundi,mardi,mercredi,jeudi,vendredi,samedi",
+             "dim.,lun.,mar.,mer.,jeu.,ven.,sam."},
+            {"40A", "enero,febrero,marzo,abril,mayo,junio,julio,agosto,septiembre,octubre,noviembre,diciembre", "ene,feb,mar,abr,may,jun,jul,ago,sep,oct,nov,dic",
+             "domingo,lunes,martes,mi\xC3\xA9rcoles,jueves,viernes,s\xC3\xA1" "bado", "dom,lun,mar,mi\xC3\xA9,jue,vie,s\xC3\xA1" "b"},
+            {"410", "gennaio,febbraio,marzo,aprile,maggio,giugno,luglio,agosto,settembre,ottobre,novembre,dicembre", "gen,feb,mar,apr,mag,giu,lug,ago,set,ott,nov,dic",
+             "domenica,luned\xC3\xAC,marted\xC3\xAC,mercoled\xC3\xAC,gioved\xC3\xAC,venerd\xC3\xAC,sabato", "dom,lun,mar,mer,gio,ven,sab"},
+            {"416", "janeiro,fevereiro,mar\xC3\xA7o,abril,maio,junho,julho,agosto,setembro,outubro,novembro,dezembro", "jan,fev,mar,abr,mai,jun,jul,ago,set,out,nov,dez",
+             "domingo,segunda-feira,ter\xC3\xA7" "a-feira,quarta-feira,quinta-feira,sexta-feira,s\xC3\xA1" "bado", "dom,seg,ter,qua,qui,sex,s\xC3\xA1" "b"},
+            {"413", "januari,februari,maart,april,mei,juni,juli,augustus,september,oktober,november,december", "jan,feb,mrt,apr,mei,jun,jul,aug,sep,okt,nov,dec",
+             "zondag,maandag,dinsdag,woensdag,donderdag,vrijdag,zaterdag", "zo,ma,di,wo,do,vr,za"},
+        };
+        // The first of each month of 2023 (a Sunday, January 1) and the seven days from it.
+        const double firsts[12] = {44927, 44958, 44986, 45017, 45047, 45078, 45108, 45139, 45170, 45200, 45231, 45261};
+        for (const auto &l : languages) {
+            const QStringList months = QString::fromUtf8(l.months).split(QLatin1Char(','));
+            const QStringList monthsShort = QString::fromUtf8(l.monthsShort).split(QLatin1Char(','));
+            const QStringList days = QString::fromUtf8(l.days).split(QLatin1Char(','));
+            const QStringList daysShort = QString::fromUtf8(l.daysShort).split(QLatin1Char(','));
+            QCOMPARE(months.size(), 12);
+            QCOMPARE(days.size(), 7);
+            const QString tag = QStringLiteral("[$-%1]").arg(QString::fromLatin1(l.locale));
+            for (int m = 0; m < 12; ++m) {
+                QCOMPARE(fmt(tag + QStringLiteral("mmmm"), firsts[m]), months[m]);
+                QCOMPARE(fmt(tag + QStringLiteral("mmm"), firsts[m]), monthsShort[m]);
+            }
+            for (int d = 0; d < 7; ++d) {
+                QCOMPARE(fmt(tag + QStringLiteral("dddd"), 44927 + d), days[d]);
+                QCOMPARE(fmt(tag + QStringLiteral("ddd"), 44927 + d), daysShort[d]);
+            }
+        }
+    }
+
     // The system's long date and time ([$-F800], [$-F400], [$-x-sysdate], [$-x-systime]) with the pattern a file stores after them show it once: that pattern is what
     // the file says the style was when it was saved. With none after them the United States' pattern is shown. A locale may be a language tag too.
     void systemPatternsAndLanguageTags()

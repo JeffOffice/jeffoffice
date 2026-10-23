@@ -33,7 +33,7 @@ const Names &names(int lang)
     static const Names all[7] = {
         make("January,February,March,April,May,June,July,August,September,October,November,December", "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",
              "Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday", "Sun,Mon,Tue,Wed,Thu,Fri,Sat"),
-        make("Januar,Februar,März,April,Mai,Juni,Juli,August,September,Oktober,November,Dezember", "Jan,Feb,Mär,Apr,Mai,Jun,Jul,Aug,Sep,Okt,Nov,Dez",
+        make("Januar,Februar,März,April,Mai,Juni,Juli,August,September,Oktober,November,Dezember", "Jan,Feb,Mrz,Apr,Mai,Jun,Jul,Aug,Sep,Okt,Nov,Dez",
              "Sonntag,Montag,Dienstag,Mittwoch,Donnerstag,Freitag,Samstag", "So,Mo,Di,Mi,Do,Fr,Sa"),
         make("janvier,février,mars,avril,mai,juin,juillet,août,septembre,octobre,novembre,décembre", "janv.,févr.,mars,avr.,mai,juin,juil.,août,sept.,oct.,nov.,déc.",
              "dimanche,lundi,mardi,mercredi,jeudi,vendredi,samedi", "dim.,lun.,mar.,mer.,jeu.,ven.,sam."),
