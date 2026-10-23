@@ -259,7 +259,9 @@ Item Machine::binary(Op op, quint8 flags, const Item &ia, const Item &ib)
         for (int j = 0; j < cols; ++j) {
             const Value &x = a.at(a.rows() == 1 ? 0 : i, a.cols() == 1 ? 0 : j);
             const Value &y = b.at(b.rows() == 1 ? 0 : i, b.cols() == 1 ? 0 : j);
-            r.set(i, j, scalarBinary(op, x, y, false, ctx.dateSystem));
+            const Value e = scalarBinary(op, x, y, false, ctx.dateSystem);
+            if (!charge(0) || (e.isText() && !chargeText(e.text().size()))) return Item::ofError(ErrorKind::Value);   // (the steps of comparing texts count here)
+            r.set(i, j, e);
         }
     return Item::ofValue(r);
 }
@@ -355,6 +357,7 @@ Item Machine::callFunction(const FunctionInfo &f, std::vector<Item> &args, bool 
             Value v = f.impl(call);
             if (call.hasResult()) v = scalar(call.result(), false);
             if (v.isArray()) v = v.at(0, 0);
+            if (v.isText() && !chargeText(v.text().size())) break;
             result.set(r, c, v);
         }
     return Item::ofValue(result);
@@ -588,6 +591,7 @@ Value Machine::run(const Program &p, const EvalContext &c)
     unsupported = 0;
     m_clockRead = false;
     peakCells = 0;
+    textMade = 0;
     stack.clear();
     if (!ctx.source) return Value::error(ErrorKind::Value);
     // a date written as a month and a day alone is in the year of the clock this evaluation reads

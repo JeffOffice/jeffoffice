@@ -5,7 +5,7 @@
 //
 // Work is bounded: one evaluation does at most a fixed number of steps (an operation, a function call, or a cell read from a range), builds no array of more than
 // kMaxArrayCells cells and has no more than kMaxLiveArrayCells alive at once, nests no name or INDIRECT deeper than kMaxNameDepth, and makes no text of more than
-// kMaxValueTextChars characters. Past a bound the evaluation stops and status() says which; the value is then an error.
+// kMaxValueTextChars characters, nor in all kMaxMadeTextChars characters of them in arrays. Past a bound the evaluation stops and status() says which; the value is then an error.
 
 #include "calc/formula.h"
 #include "calc/value.h"
@@ -19,6 +19,8 @@ namespace jp::calc {
 
 constexpr qint64 kMaxEvalWork = 50000000;
 constexpr int kMaxNameDepth = 16;
+// The characters of text one evaluation may make as the elements of arrays (a text is two bytes a character): a column of long texts joined to itself is millions of them.
+constexpr qint64 kMaxMadeTextChars = 64000000;
 
 class CellSource {
 public:

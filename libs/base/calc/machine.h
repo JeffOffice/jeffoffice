@@ -216,6 +216,13 @@ public:
         over = true;
         status = EvalStatus::TooLarge;
     }
+    // Counts the characters of a text made as an element of an array; false when the evaluation has made more than it may (then stopped() is true).
+    bool chargeText(qint64 chars)
+    {
+        textMade += chars;
+        if (textMade > kMaxMadeTextChars && !over) tooLarge();
+        return !over;
+    }
     // An array of rows by columns, empty: or, if it may not be made, the error #VALUE! and the evaluation is stopped.
     Value newArray(int rows, int cols)
     {
@@ -247,6 +254,7 @@ public:
     EvalContext ctx;
     qint64 work = 0, limit = kMaxEvalWork;
     qint64 peakCells = 0;   // the most cells of arrays alive at once in the last evaluation
+    qint64 textMade = 0;    // the characters of text made as elements of arrays, in this one
     bool over = false;
     EvalStatus status = EvalStatus::Ok;
     std::mt19937_64 rng;

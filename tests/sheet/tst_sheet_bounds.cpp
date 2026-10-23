@@ -93,6 +93,25 @@ private Q_SLOTS:
         QVERIFY2(one.text == "n:549756338176" && one.work >= 1048576, qPrintable(said(one)));
     }
 
+    // A text of 16,000 characters in every cell of a column, joined to itself, is a million texts of 32,000: the characters made are counted, and past a budget it stops.
+    void textsMadeInAnArrayAreCountedByTheirSize()
+    {
+        Grid g;
+        QVariantList cells;
+        const QString big(16000, QLatin1Char('x'));
+        for (int i = 0; i < 8000; ++i) cells << big;
+        g.column("A1", cells);
+        {
+            const MemoryWatch watch;
+            const Outcome joined = evOutcome("SUMPRODUCT(LEN(A1:A8000&A1:A8000))", g);
+            QVERIFY2(joined.text.startsWith("e:") && joined.status == EvalStatus::TooLarge, qPrintable(said(joined, watch.growthMegabytes())));
+            QVERIFY2(watch.growthMegabytes() < kMostGrowth, qPrintable(said(joined, watch.growthMegabytes())));
+        }
+        // as many texts as a budget holds are no trouble
+        const Outcome some = evOutcome("SUMPRODUCT(LEN(A1:A1000&A1:A1000))", g);
+        QVERIFY2(some.text == "n:32000000" && some.status == EvalStatus::Ok, qPrintable(said(some)));
+    }
+
     // ---- time
 
 };
