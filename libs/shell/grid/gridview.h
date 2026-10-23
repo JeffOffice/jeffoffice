@@ -96,8 +96,14 @@ public:
     bool valuesChanged(int sheetIndex, const std::vector<ValueStore::Item> &items);   // values (or formats) changed: draw again
 
     // For measuring: the time of each paint, in milliseconds, since the last clear; and the work the last paint did.
+    // How long each paint took (milliseconds, by the wall and by the thread's own processor time, which another program using the machine does not change).
     const std::vector<double> &paintTimes() const { return m_paintTimes; }
-    void clearPaintTimes() { m_paintTimes.clear(); }
+    const std::vector<double> &paintCpuTimes() const { return m_paintCpuTimes; }
+    void clearPaintTimes()
+    {
+        m_paintTimes.clear();
+        m_paintCpuTimes.clear();
+    }
     const PaintStats &lastPaintStats() const { return m_painter->stats(); }
     // Scrolls done by moving the pixels already on the screen (and drawing the strip they left), and by drawing the window again: counted, so that a test can see which a scroll was
     // on a window system that may not move pixels (the strip is then drawn as part of a larger piece).
@@ -164,7 +170,7 @@ private:
     int m_headerDigits = 0;
     bool m_syncingBars = false;
     qint64 m_lastScrollX = 0, m_lastScrollY = 0;
-    std::vector<double> m_paintTimes;
+    std::vector<double> m_paintTimes, m_paintCpuTimes;
     qint64 m_blits = 0, m_fullScrolls = 0;
 };
 

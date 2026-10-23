@@ -19,7 +19,6 @@
 #include "io/zip.h"
 #include "office/package.h"
 
-#include <QAbstractEventDispatcher>
 #include <QApplication>
 #include <QDir>
 #include <QScrollBar>
@@ -184,22 +183,29 @@ void spin(QEventLoop *loop, int msec)
     loop->exec();
 }
 
-// The longest turn of the event loop by the thread's own time (the time the window could not answer in).
+// The most work the thread does between two ticks of a timer of a millisecond (by its own processor time): the longest the window could not answer in.
 struct TurnMeter : QObject {
     TurnMeter()
     {
-        auto *d = QAbstractEventDispatcher::instance();
-        connect(d, &QAbstractEventDispatcher::awake, this, [this] { start = jp::threadCpuMicros(); inTurn = true; });
-        connect(d, &QAbstractEventDispatcher::aboutToBlock, this, [this] {
-            if (inTurn) longest = std::max(longest, jp::threadCpuMicros() - start);
-            inTurn = false;
+        tick.setInterval(1);
+        connect(&tick, &QTimer::timeout, this, [this] {
+            const qint64 now = jp::threadCpuMicros();
+            if (last) {
+                longest = std::max(longest, now - last);
+                byPhase[phase] = std::max(byPhase[phase], now - last);
+            }
+            last = now;
         });
+        last = jp::threadCpuMicros();
+        tick.start();
     }
-    qint64 start = 0, longest = 0;
-    bool inTurn = false;
+    QTimer tick;
+    qint64 last = 0, longest = 0;
+    int phase = 0;                  // 0 before the first screen, 1 reading the rest, 2 calculating, 3 done
+    qint64 byPhase[4] = {0, 0, 0, 0};
 };
 
-WindowTimes timeWindow(CrunchWindow *w, const QString &path, int limitSeconds = 300)
+WindowTimes timeWindow(CrunchWindow *w, const QString &path, int limitSeconds = 300, TurnMeter *meter = nullptr)
 {
     WindowTimes t;
     QElapsedTimer clock;
@@ -208,15 +214,17 @@ WindowTimes timeWindow(CrunchWindow *w, const QString &path, int limitSeconds = 
     // (the draws counted when the first screen is given to the grid: the next is its first draw)
     QObject::connect(w, &CrunchWindow::firstScreenShown, w, [&] {
         first = true;
+        if (meter) meter->phase = 1;
         t.firstScreenMs = double(clock.nsecsElapsed()) / 1e6;
         paintsAtFirst = w->view()->paintTimes().size();
     });
     QObject::connect(w, &CrunchWindow::loadFinished, w, [&](bool good) {
         loaded = true;
+        if (meter) meter->phase = 2;
         ok = good;
         t.loadMs = double(clock.nsecsElapsed()) / 1e6;
     });
-    QObject::connect(w, &CrunchWindow::calculationFinished, w, [&] { done = true; t.calcMs = double(clock.nsecsElapsed()) / 1e6; });
+    QObject::connect(w, &CrunchWindow::calculationFinished, w, [&] { done = true; if (meter) meter->phase = 3; t.calcMs = double(clock.nsecsElapsed()) / 1e6; });
     w->view()->clearPaintTimes();
     clock.start();
     if (!w->openFile(path)) return t;
@@ -236,9 +244,10 @@ int gridWindow(const QString &path)
     w.resize(1280, 800);
     w.show();
     TurnMeter meter;
-    const WindowTimes t = timeWindow(&w, path);
+    const WindowTimes t = timeWindow(&w, path, 300, &meter);
     out() << path << "\tfirst screen " << ms(t.firstScreenMs) << " ms\tfirst screen drawn " << ms(t.firstPaintMs) << " ms\tread whole " << ms(t.loadMs) << " ms\tcalculated " << ms(t.calcMs)
-          << " ms\tlongest turn of the event loop " << ms(double(meter.longest) / 1e3) << " ms of the thread's time\tlongest batch taken " << ms(double(w.longestBatchMicros()) / 1e3) << " ms ("
+          << " ms\tlongest turn of the event loop " << ms(double(meter.longest) / 1e3) << " ms of the thread's time (before the first screen " << ms(double(meter.byPhase[0]) / 1e3)
+          << ", reading " << ms(double(meter.byPhase[1]) / 1e3) << ", calculating " << ms(double(meter.byPhase[2]) / 1e3) << ")\tlongest batch taken " << ms(double(w.longestBatchMicros()) / 1e3) << " ms ("
           << w.batchesTaken() << " batches)\n";
     return t.ok ? 0 : 1;
 }
@@ -292,10 +301,11 @@ QByteArray bigWorkbook(int rows, int cols)
     return w.finish();
 }
 
-void summarize(const char *what, const std::vector<double> &v)
+void summarize(const char *what, const std::vector<double> &v, const std::vector<double> &cpu)
 {
     out() << "  " << QString::fromLatin1(what).leftJustified(34) << v.size() << " draws: middle " << ms(percentile(v, 0.5)) << " ms, 95th percentile " << ms(percentile(v, 0.95)) << " ms, longest "
-          << ms(v.empty() ? 0 : *std::max_element(v.begin(), v.end())) << " ms\n";
+          << ms(v.empty() ? 0 : *std::max_element(v.begin(), v.end())) << " ms; by the thread's own time: middle " << ms(percentile(cpu, 0.5)) << " ms, 95th percentile " << ms(percentile(cpu, 0.95))
+          << " ms, longest " << ms(cpu.empty() ? 0 : *std::max_element(cpu.begin(), cpu.end())) << " ms\n";
 }
 
 int gridBench(int rows, int cols)
@@ -336,7 +346,7 @@ int gridBench(int rows, int cols)
         QApplication::sendEvent(v->viewport(), &wheel);
         QCoreApplication::processEvents();
     }
-    summarize("scrolling, 3 rows at a time", v->paintTimes());
+    summarize("scrolling, 3 rows at a time", v->paintTimes(), v->paintCpuTimes());
     const double scrollP95 = percentile(v->paintTimes(), 0.95);
     // page jumps: a screen of new rows each
     v->clearPaintTimes();
@@ -345,15 +355,35 @@ int gridBench(int rows, int cols)
         QApplication::sendEvent(v, &press);
         QCoreApplication::processEvents();
     }
-    summarize("page down", v->paintTimes());
+    summarize("page down", v->paintTimes(), v->paintCpuTimes());
     // the whole window drawn (a resize, a zoom, a jump from the other end of the sheet)
     v->clearPaintTimes();
     for (int i = 0; i < 100; ++i) {
         v->verticalScrollBar()->setValue(v->verticalScrollBar()->value() + 40000 * (i % 2 ? -1 : 1));
         v->viewport()->repaint();
     }
-    summarize("the whole window", v->paintTimes());
+    summarize("the whole window", v->paintTimes(), v->paintCpuTimes());
     out() << "scrolling 95th percentile " << ms(scrollP95) << " ms (the bar: 8 ms)\n";
+    // other zooms: a whole window drawn again, and a scroll of three rows (which moves the pixels already drawn where the scroll is a whole number of them at the zoom)
+    for (double zoom : {0.5, 0.75, 1.5, 2.0, 4.0}) {
+        v->setZoom(zoom);
+        v->verticalScrollBar()->setValue(v->verticalScrollBar()->maximum() / 2);
+        QCoreApplication::processEvents();
+        v->clearPaintTimes();
+        for (int i = 0; i < 60; ++i) {
+            v->verticalScrollBar()->setValue(v->verticalScrollBar()->value() + 30000 * (i % 2 ? -1 : 1));
+            v->viewport()->repaint();
+        }
+        summarize(qPrintable(QStringLiteral("zoom %1%, the whole window").arg(int(zoom * 100))), v->paintTimes(), v->paintCpuTimes());
+        const qint64 blits = v->blitScrolls(), fulls = v->fullScrolls();
+        v->clearPaintTimes();
+        for (int i = 0; i < 120; ++i) {
+            QWheelEvent wheel(QPointF(300, 300), QPointF(300, 300), QPoint(), QPoint(0, -120), Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+            QApplication::sendEvent(v->viewport(), &wheel);
+            QCoreApplication::processEvents();
+        }
+        summarize(qPrintable(QStringLiteral("zoom %1%, scrolling 3 rows (%2 moved, %3 drawn whole)").arg(int(zoom * 100)).arg(v->blitScrolls() - blits).arg(v->fullScrolls() - fulls)), v->paintTimes(), v->paintCpuTimes());
+    }
     return 0;
 }
 

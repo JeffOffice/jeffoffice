@@ -51,7 +51,7 @@ struct CalcBatch {
 // A slice of the calculation (on the worker): the clock ends it after a formula once this many microseconds have passed, and the worker tells the window what it has worked out (a batch
 // every so many values or milliseconds, and whenever it stops), looks at the stop flag between slices and, inside a formula, as it takes its steps.
 constexpr qint64 kSliceMicros = 5000;
-constexpr int kBatchValues = 20000;      // the most values a batch holds (the window puts them in a store in a few milliseconds)
+constexpr int kBatchValues = 4096;       // the most values a batch holds (the window puts them in its store, and makes their texts again, in about two milliseconds)
 constexpr int kBatchMillis = 30;         // and the longest a value waits to be told
 constexpr int kMaxBatchesWaiting = 3;    // the worker waits for the window to take what it has been sent when this many have not been
 

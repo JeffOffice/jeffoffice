@@ -15,7 +15,6 @@
 
 #include "core/threadtime.h"
 
-#include <QAbstractEventDispatcher>
 #include <QApplication>
 #include <QClipboard>
 #include <QDirIterator>
@@ -55,25 +54,32 @@ struct Window {
     }
 };
 
-// The longest turn of the program's event loop, by the processor time of its thread: from waking to find something to do to having done it all and going to sleep. This is how long
-// the window did not answer to a key or a click, whatever it was busy with (a paint, a batch of values, a slice of anything).
+// How long the program's event loop did not answer, by the processor time of its thread (which counts only the time the thread was working, not the time it was waiting, or the
+// machine was another program's): a timer of a millisecond ticks whenever the loop gets to it, and the most work the thread did between two ticks is the longest the loop was held up
+// (whatever it was busy with: a paint, a batch of values, a slice of anything).
 class LoopMeter : public QObject {
 public:
     LoopMeter()
     {
-        auto *d = QAbstractEventDispatcher::instance();
-        connect(d, &QAbstractEventDispatcher::awake, this, [this] { m_start = jp::threadCpuMicros(); m_inTurn = true; });
-        connect(d, &QAbstractEventDispatcher::aboutToBlock, this, [this] {
-            if (m_inTurn) m_longest = std::max(m_longest, jp::threadCpuMicros() - m_start);
-            m_inTurn = false;
+        m_tick.setInterval(1);
+        connect(&m_tick, &QTimer::timeout, this, [this] {
+            const qint64 now = jp::threadCpuMicros();
+            if (m_last) m_longest = std::max(m_longest, now - m_last);
+            m_last = now;
         });
+        m_last = jp::threadCpuMicros();
+        m_tick.start();
     }
     qint64 longestMicros() const { return m_longest; }
-    void reset() { m_longest = 0; }
+    void reset()
+    {
+        m_longest = 0;
+        m_last = jp::threadCpuMicros();
+    }
 
 private:
-    qint64 m_start = 0, m_longest = 0;
-    bool m_inTurn = false;
+    QTimer m_tick;
+    qint64 m_last = 0, m_longest = 0;
 };
 
 // The paints of a widget: how many, and the area they drew.

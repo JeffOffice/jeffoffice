@@ -1,6 +1,7 @@
 #include "grid/gridview.h"
 
 #include "app/icons.h"
+#include "core/threadtime.h"
 #include "grid/textwalk.h"
 #include "sheet/cellref.h"
 
@@ -611,10 +612,14 @@ void GridView::paintEvent(QPaintEvent *e)
 {
     QElapsedTimer t;
     t.start();
+    const qint64 cpu0 = jp::threadCpuMicros();
     QPainter p(viewport());
     m_painter->paint(&p, e->rect(), paintOptions());
     p.end();
-    if (m_paintTimes.size() < 100000) m_paintTimes.push_back(double(t.nsecsElapsed()) / 1e6);
+    if (m_paintTimes.size() < 100000) {
+        m_paintTimes.push_back(double(t.nsecsElapsed()) / 1e6);
+        m_paintCpuTimes.push_back(double(jp::threadCpuMicros() - cpu0) / 1e3);
+    }
 }
 
 void GridView::resizeEvent(QResizeEvent *e)
