@@ -455,7 +455,9 @@ void WriteWindow::refreshUi()
         if (editing || m_view->inNote())
             for (const char *id : {"insert.pageBreak", "layout.sectionBreak"}) act(QString::fromLatin1(id))->setEnabled(false);
         // (And no note.)
-        act("refs.footnote")->setEnabled(!editing && !m_view->inNote());
+        const bool inNoteWords = write::inEndnoteWords(c);
+        act("refs.footnote")->setEnabled(!editing && !m_view->inNote() && !inNoteWords);
+        act("refs.endnote")->setEnabled(!editing && !m_view->inNote() && !inNoteWords);
         act("hf.differentFirst")->setChecked(editing && m_doc->differentFirstPage(e.section));
         act("hf.differentOddEven")->setChecked(m_doc->differentOddEven());
         act("hf.linkPrevious")->setEnabled(editing && e.section > 0);

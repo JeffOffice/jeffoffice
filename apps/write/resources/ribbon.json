@@ -377,6 +377,10 @@
             {
               "large": "refs.footnote",
               "keytip": "F"
+            },
+            {
+              "large": "refs.endnote",
+              "keytip": "E"
             }
           ]
         }

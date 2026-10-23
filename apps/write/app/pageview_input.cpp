@@ -139,6 +139,15 @@ void PageView::typeKey(int key, Qt::KeyboardModifiers m)
                 break;
             }
             const int to = moveVertical(m_cursor.position(), dir);
+            // Up from the first line of an endnote and Down from its last leave it, for the text just after its reference.
+            if (!m_note.active && !m_hf.active && !shift && !m_cursor.hasSelection()) {
+                const EndnoteSpan span = endnoteSpanAt(m_doc->story(), m_cursor.position());
+                int id = 0;
+                if (span.valid && span.editable && (to < span.textFrom || to > span.textTo || to == m_cursor.position()) && m_doc->endnoteIdOf(m_doc->story()->findBlock(m_cursor.position()), &id)) {
+                    leaveEndnote(id);
+                    break;
+                }
+            }
             m_cursor.setPosition(to, mode);
             caretMoved(true);
         }
@@ -201,6 +210,10 @@ void PageView::typeKey(int key, Qt::KeyboardModifiers m)
         }
         if (m_note.active) {
             leaveNote(true);
+            break;
+        }
+        if (int id = 0; !m_hf.active && !m_cursor.hasSelection() && inEndnoteWords(m_cursor) && m_doc->endnoteIdOf(m_doc->story()->findBlock(m_cursor.position()), &id)) {
+            leaveEndnote(id);
             break;
         }
         if (m_cursor.hasSelection()) {

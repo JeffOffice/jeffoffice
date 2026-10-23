@@ -850,9 +850,10 @@ void PageView::caretMoved(bool keepWanted)
     // (The endnotes the pages set are not the person's: no caret or selection reaches them. A caret that has gone on past those at the end of a section is at the start of the next
     // section's text, one that has gone back at the end of the last section's, and a click in them is at the nearer place.)
     int direction = 0;
+    const int movedFrom = m_movedFrom;
     if (m_movedFrom >= 0 && m_cursor.document()) direction = m_cursor.position() > m_movedFrom ? 1 : m_cursor.position() < m_movedFrom ? -1 : 0;
     m_movedFrom = -1;
-    if (m_doc && m_cursor.document()) holdInBody(m_cursor, direction);
+    if (m_doc && m_cursor.document() && !holdInEndnote(movedFrom)) holdInBody(m_cursor, direction);
     m_contextAt = -1;
     if (!keepWanted) m_wantedX = -1;
     m_caretOn = true;
@@ -860,6 +861,34 @@ void PageView::caretMoved(bool keepWanted)
     ensureCaretVisible();
     viewport()->update();
     Q_EMIT caretChanged();
+}
+
+bool PageView::holdInEndnote(int movedFrom)
+{
+    QTextDocument *d = m_cursor.document();
+    if (!d || !m_doc || d != m_doc->story()) return false;
+    // Where it began: a key or a drag went from a place (in a note or not), a click began where its anchor is. Only what begins in a note's words is held in them; a key that goes from
+    // the text into the notes is not (it skips them, as ever).
+    const EndnoteSpan s = endnoteSpanAt(d, movedFrom >= 0 ? movedFrom : m_cursor.anchor());
+    if (!(s.valid && s.editable)) return false;
+    const int began = movedFrom >= 0 ? movedFrom : m_cursor.anchor();
+    if (began < s.blockFrom || began > s.textTo) return false;
+    const int position = std::clamp(m_cursor.position(), s.textFrom, s.textTo), anchor = std::clamp(m_cursor.anchor(), s.textFrom, s.textTo);
+    if (position != m_cursor.position() || anchor != m_cursor.anchor()) {
+        m_cursor.setPosition(anchor);
+        m_cursor.setPosition(position, QTextCursor::KeepAnchor);
+    }
+    return true;
+}
+
+void PageView::leaveEndnote(int id)
+{
+    if (!m_doc) return;
+    const QVector<int> refs = m_doc->endnoteReferences(id);
+    if (refs.isEmpty()) return;
+    m_cursor.setPosition(std::min(refs.first() + 1, m_doc->story()->characterCount() - 1));
+    m_movedFrom = -1;   // (it went from a place in the note: the text is not held by the note)
+    caretMoved();
 }
 
 void PageView::blink()
@@ -1288,6 +1317,7 @@ void PageView::leaveNote(bool atReference)
     }
     viewport()->update();
     Q_EMIT noteModeChanged();
+    m_movedFrom = -1;   // (a place in the note is no place of the text's)
     caretMoved();
 }
 

@@ -195,6 +195,11 @@ private:
     void settleNote();
     // Whether the caret is in the first (dir < 0) or the last (dir > 0) line of the box of the note being edited.
     bool noteLineAtEdge(int dir);
+    // The caret (and a selection that began in an endnote's words) held in them: a click put it there, or a key moved it inside the note. False where it is in none, or a key took it
+    // there from the text (which skips the notes, as ever).
+    bool holdInEndnote(int movedFrom);
+    // Leaves the endnote whose words the caret is in, for the text just after its reference.
+    void leaveEndnote(int id);
     // The story being edited beside the text (a header or footer, or a note), the page it is edited on, and the boxes of that story on a drawn page.
     const QTextDocument *sideStory() const { return m_hf.active ? m_hf.story : m_note.active ? m_note.story : nullptr; }
     int sidePage() const { return m_hf.active ? m_hf.page : m_note.page; }
