@@ -224,7 +224,9 @@ PaneView GridLayout::pane(Pane which) const
                 *last = -1;
                 return;
             }
-            // (a frozen part wider than the window shows those whose start is in it)
+            // (a frozen part wider than the window shows those whose start is in it: found from the place, not by walking back over the rows that are frozen)
+            const qint64 cap = axis.indexAt(qint64(std::ceil(double(device) / m_zoom)));
+            if (cap >= 0 && cap < b) b = cap;
             while (b > a && scaled(axis.position(b), m_zoom) >= device) b = axis.previousVisible(b);
         } else {
             a = axis.indexAt(origin);

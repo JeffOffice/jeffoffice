@@ -334,6 +334,30 @@ private Q_SLOTS:
         QCOMPARE(g.yEdge(2, true), 20 + 40);
     }
 
+    // A file that holds half a million rows in place (more than any window shows) costs the rows the window shows: the parts are worked out with a few steps, not by walking the frozen rows.
+    void aHugeFrozenPartIsWorkedOutInAFewSteps()
+    {
+        GridLayout g;
+        g.setHeaders(true, 40, 20);
+        g.setViewport(QSize(680, 420));
+        g.setFrozen(500000, 3);
+        const qint64 before = g.rows.probes();
+        const PaneView top = g.pane(Pane::Top), corner = g.pane(Pane::Corner), body = g.pane(Pane::Body);
+        QVERIFY2(g.rows.probes() - before < 400, qPrintable(QString::number(g.rows.probes() - before)));
+        QCOMPARE(top.firstRow, qint64(0));
+        QCOMPARE(top.lastRow, qint64(19));                        // (400 pixels of 20: the window is all frozen rows)
+        QCOMPARE(corner.lastRow, qint64(19));
+        QVERIFY(body.isEmpty() || body.rect.height() <= 0);       // (nothing is left for the part that scrolls)
+        QCOMPARE(g.hit(QPoint(40 + 10, 20 + 25)).row, qint64(1));
+        // the same with a hundred thousand of them hidden at the start
+        for (qint64 r = 0; r < 100000; ++r) g.rows.setSize(r, 0);
+        const qint64 before2 = g.rows.probes();
+        const PaneView hidden = g.pane(Pane::Top);
+        QVERIFY2(g.rows.probes() - before2 < 400, qPrintable(QString::number(g.rows.probes() - before2)));
+        QCOMPARE(hidden.firstRow, qint64(100000));
+        QCOMPARE(hidden.lastRow, qint64(100019));
+    }
+
     // The scroll is kept where the last row can be the first, and a cell is scrolled into view by the least that shows it.
     void scrollIsKeptInRangeAndACellIsBroughtIntoView()
     {
