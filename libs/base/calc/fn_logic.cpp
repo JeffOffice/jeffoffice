@@ -25,7 +25,8 @@ Value zipN(Call &c, const std::vector<Value> &parts, int rows, int cols, F f)
         return c.error(ErrorKind::Value);
     }
     if (!c.machine().charge(qint64(rows) * cols)) return c.error(ErrorKind::Value);
-    Value r = Value::array(rows, cols);
+    Value r = c.machine().newArray(rows, cols);
+    if (!r.isArray()) return r;
     std::vector<const Value *> cell(parts.size());
     for (int i = 0; i < rows; ++i)
         for (int j = 0; j < cols; ++j) {

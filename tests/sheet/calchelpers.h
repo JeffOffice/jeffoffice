@@ -73,9 +73,28 @@ QString ev(const QString &formula, const Grid &grid, const Settings &settings = 
 QString ev(const QString &formula);
 // The same, and how the evaluation ended; `limit` is the most steps it may take (0: the engine's own).
 QString evStatus(const QString &formula, const Grid &grid, const Settings &settings, jp::calc::EvalStatus *status, qint64 limit = 0);
+// The same, with what the evaluation took: the steps (the work), and the most cells of arrays it held at once.
+struct Outcome {
+    QString text;
+    jp::calc::EvalStatus status = jp::calc::EvalStatus::Ok;
+    qint64 work = 0;
+    qint64 peakCells = 0;
+};
+Outcome evOutcome(const QString &formula, const Grid &grid, const Settings &settings = Settings(), qint64 limit = 0);
 // The formula in each of the cells in turn (`cells` are references, as Settings::at is), all worked out by one evaluator, as a recalculation does: what one evaluation
 // remembers for the next shows. The other settings are the same for all.
 QStringList evInCells(const QString &formula, const Grid &grid, const QStringList &cells, const Settings &settings = Settings());
+// What the process takes in memory, where the system tells it (Linux): the growth from the moment the watch was made to the most it has had since, in megabytes; -1
+// where it can't be told.
+class MemoryWatch {
+public:
+    MemoryWatch();
+    qint64 growthMegabytes() const;
+
+private:
+    qint64 m_start = -1;
+};
+
 // The same for a number, to 15 digits: "n:" and the digits.
 QString num(double v);
 

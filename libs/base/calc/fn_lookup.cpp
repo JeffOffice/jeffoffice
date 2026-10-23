@@ -252,10 +252,11 @@ Value fnIndex(Call &c)
     if (r > 0 && col > 0) return array.at(int(r - 1), int(col - 1));
     const int outRows = r > 0 ? 1 : int(rows), outCols = col > 0 ? 1 : int(cols);
     if (outRows == 1 && outCols == 1) return array.at(r > 0 ? int(r - 1) : 0, col > 0 ? int(col - 1) : 0);
-    Value out = Value::array(outRows, outCols);
+    if (!m.charge(qint64(outRows) * outCols)) return c.error(ErrorKind::Value);
+    Value out = m.newArray(outRows, outCols);
+    if (!out.isArray()) return out;
     for (int i = 0; i < outRows; ++i)
         for (int j = 0; j < outCols; ++j) out.set(i, j, array.at(r > 0 ? int(r - 1) : i, col > 0 ? int(col - 1) : j));
-    Q_UNUSED(m);
     return out;
 }
 
@@ -306,7 +307,9 @@ Value fnRow(Call &c)
     const RefArea &a = it.area;
     if (c.arrayMode() && a.rows() > 1) {
         if (a.rows() > kMaxArrayCells) return c.error(ErrorKind::Value);
-        Value out = Value::array(int(a.rows()), 1);
+        if (!c.machine().charge(a.rows())) return c.error(ErrorKind::Value);
+        Value out = c.machine().newArray(int(a.rows()), 1);
+        if (!out.isArray()) return out;
         for (qint64 i = 0; i < a.rows(); ++i) out.set(int(i), 0, Value::number(double(a.row1) + double(i) + 1));
         return out;
     }
@@ -319,7 +322,9 @@ Value fnColumn(Call &c)
     const Item &it = c.item(0);
     const RefArea &a = it.area;
     if (c.arrayMode() && a.cols() > 1) {
-        Value out = Value::array(1, int(a.cols()));
+        if (!c.machine().charge(a.cols())) return c.error(ErrorKind::Value);
+        Value out = c.machine().newArray(1, int(a.cols()));
+        if (!out.isArray()) return out;
         for (qint64 i = 0; i < a.cols(); ++i) out.set(0, int(i), Value::number(double(a.col1) + double(i) + 1));
         return out;
     }
@@ -416,7 +421,9 @@ Value fnTranspose(Call &c)
 {
     Value a;
     if (!c.array(0, &a)) return c.failure();
-    Value out = Value::array(a.cols(), a.rows());
+    if (!c.machine().charge(qint64(a.rows()) * a.cols())) return c.error(ErrorKind::Value);
+    Value out = c.machine().newArray(a.cols(), a.rows());
+    if (!out.isArray()) return out;
     for (int i = 0; i < a.rows(); ++i)
         for (int j = 0; j < a.cols(); ++j) out.set(j, i, a.at(i, j));
     return out;

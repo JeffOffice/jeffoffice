@@ -1,6 +1,7 @@
 #pragma once
 // What the evaluator and the functions share (internal to calc/): the stack machine's items, and Call, which is what a function sees of its arguments.
 
+#include "calc/budget.h"
 #include "calc/eval.h"
 #include "calc/functions.h"
 
@@ -206,6 +207,7 @@ public:
             over = true;
             if (status == EvalStatus::Ok) status = EvalStatus::TooMuchWork;
         }
+        if (!over && budget::refused()) tooLarge();   // an array was refused for the cells alive at once
         return !over;
     }
     bool stopped() const { return over; }
@@ -213,6 +215,16 @@ public:
     {
         over = true;
         status = EvalStatus::TooLarge;
+    }
+    // An array of rows by columns, empty: or, if it may not be made, the error #VALUE! and the evaluation is stopped.
+    Value newArray(int rows, int cols)
+    {
+        Value a = Value::array(rows, cols);
+        if (!a.isArray()) {
+            tooLarge();
+            return Value::error(ErrorKind::Value);
+        }
+        return a;
     }
     Value cell(int sheet, quint32 row, quint32 col) const { return ctx.source->cell(sheet, row, col); }
     // The value of an item as one value (see Call::scalar).
@@ -234,6 +246,7 @@ public:
 
     EvalContext ctx;
     qint64 work = 0, limit = kMaxEvalWork;
+    qint64 peakCells = 0;   // the most cells of arrays alive at once in the last evaluation
     bool over = false;
     EvalStatus status = EvalStatus::Ok;
     std::mt19937_64 rng;

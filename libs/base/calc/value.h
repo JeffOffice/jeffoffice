@@ -27,6 +27,8 @@ ErrorKind errorKindFromText(QStringView text, bool *known = nullptr);
 constexpr int kMaxValueTextChars = 32767;
 // Cells in one array value (a range read into an array, an array constant, or the result of an operation on arrays); past it the work is refused.
 constexpr qint64 kMaxArrayCells = 2000000;
+// Cells of arrays one evaluation may have alive at once (an array takes 56 bytes a cell): more arrays than that are refused as they are asked for, not when they are all built.
+constexpr qint64 kMaxLiveArrayCells = 6000000;
 
 struct ArrayData;
 
@@ -64,7 +66,8 @@ public:
         r.m_error = e;
         return r;
     }
-    // An array of rows by columns, every element empty. At least 1 by 1; empty (and a null array) if the cells would pass kMaxArrayCells.
+    // An array of rows by columns, every element empty. At least 1 by 1; empty (and a null array) if the cells would pass kMaxArrayCells, or the cells an evaluation may
+    // have alive at once (kMaxLiveArrayCells: the evaluation is then stopped).
     static Value array(int rows, int cols);
 
     Kind kind() const { return m_kind; }
@@ -104,6 +107,10 @@ private:
 };
 
 struct ArrayData {
+    ArrayData() = default;
+    ArrayData(const ArrayData &other);   // (the cells of an array count while it lives: see calc/budget.h)
+    ArrayData &operator=(const ArrayData &) = delete;
+    ~ArrayData();
     int rows = 0, cols = 0;
     std::vector<Value> cells;   // by row
 };

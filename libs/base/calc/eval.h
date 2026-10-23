@@ -4,8 +4,8 @@
 // should be zero coming out as zero. See calc/value.h for the rules of values.
 //
 // Work is bounded: one evaluation does at most a fixed number of steps (an operation, a function call, or a cell read from a range), builds no array of more than
-// kMaxArrayCells cells, nests no name or INDIRECT deeper than kMaxNameDepth, and makes no text of more than kMaxValueTextChars characters. Past a bound the
-// evaluation stops and status() says which; the value is then an error.
+// kMaxArrayCells cells and has no more than kMaxLiveArrayCells alive at once, nests no name or INDIRECT deeper than kMaxNameDepth, and makes no text of more than
+// kMaxValueTextChars characters. Past a bound the evaluation stops and status() says which; the value is then an error.
 
 #include "calc/formula.h"
 #include "calc/value.h"
@@ -76,6 +76,8 @@ public:
     int unsupportedKinds() const;
     // The steps the last evaluation took.
     qint64 work() const;
+    // The most cells of arrays the last evaluation had alive at once.
+    qint64 peakArrayCells() const;
     void setWorkLimit(qint64 steps);
     // The numbers RAND gives follow from this.
     void seedRandom(quint64 seed);

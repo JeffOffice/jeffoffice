@@ -2,6 +2,8 @@
 
 #include "sheet/cellref.h"
 
+#include <QFile>
+
 namespace calctest {
 
 Grid::Grid() { addSheet(QStringLiteral("Sheet1")); }
@@ -149,19 +151,35 @@ static jp::calc::EvalContext contextAt(const Grid &grid, const Settings &setting
     return ctx;
 }
 
-QString evStatus(const QString &formula, const Grid &grid, const Settings &settings, jp::calc::EvalStatus *status, qint64 limit)
+Outcome evOutcome(const QString &formula, const Grid &grid, const Settings &settings, qint64 limit)
 {
     using namespace jp::calc;
+    Outcome out;
     quint32 row = 0, col = 0;
     const ParseResult parsed = parseAt(formula, settings, &row, &col);
-    if (!parsed.ok()) return QStringLiteral("!parse: ") + parsed.error;
-    if (!parsed.program->supported()) return QStringLiteral("!unsupported: ") + parsed.program->unknownFunctions.join(QLatin1Char(','));
+    if (!parsed.ok()) {
+        out.text = QStringLiteral("!parse: ") + parsed.error;
+        return out;
+    }
+    if (!parsed.program->supported()) {
+        out.text = QStringLiteral("!unsupported: ") + parsed.program->unknownFunctions.join(QLatin1Char(','));
+        return out;
+    }
     Evaluator evaluator;
     evaluator.seedRandom(1);
     if (limit > 0) evaluator.setWorkLimit(limit);
-    const QString result = evaluator.evaluate(*parsed.program, contextAt(grid, settings, row, col)).debug();
-    *status = evaluator.status();
-    return result;
+    out.text = evaluator.evaluate(*parsed.program, contextAt(grid, settings, row, col)).debug();
+    out.status = evaluator.status();
+    out.work = evaluator.work();
+    out.peakCells = evaluator.peakArrayCells();
+    return out;
+}
+
+QString evStatus(const QString &formula, const Grid &grid, const Settings &settings, jp::calc::EvalStatus *status, qint64 limit)
+{
+    const Outcome out = evOutcome(formula, grid, settings, limit);
+    *status = out.status;
+    return out.text;
 }
 
 QStringList evInCells(const QString &formula, const Grid &grid, const QStringList &cells, const Settings &settings)
@@ -182,6 +200,39 @@ QStringList evInCells(const QString &formula, const Grid &grid, const QStringLis
         results << evaluator.evaluate(*parsed.program, contextAt(grid, here, row, col)).debug();
     }
     return results;
+}
+
+namespace {
+// A line of /proc/self/status in kilobytes, as megabytes; -1 if there is none.
+qint64 statusMegabytes(const char *key)
+{
+    QFile status(QStringLiteral("/proc/self/status"));
+    if (!status.open(QIODevice::ReadOnly)) return -1;
+    const QList<QByteArray> lines = status.readAll().split('\n');
+    for (const QByteArray &line : lines)
+        if (line.startsWith(key)) return line.mid(qstrlen(key)).trimmed().split(' ').value(0).toLongLong() / 1024;
+    return -1;
+}
+} // namespace
+
+MemoryWatch::MemoryWatch()
+{
+#ifdef Q_OS_LINUX
+    // VmHWM is the most the process has had resident; writing 5 to clear_refs starts it again from what it has now.
+    QFile reset(QStringLiteral("/proc/self/clear_refs"));
+    if (reset.open(QIODevice::WriteOnly)) {
+        reset.write("5");
+        reset.close();
+        m_start = statusMegabytes("VmRSS:");
+    }
+#endif
+}
+
+qint64 MemoryWatch::growthMegabytes() const
+{
+    if (m_start < 0) return -1;
+    const qint64 peak = statusMegabytes("VmHWM:");
+    return peak < 0 ? -1 : qMax<qint64>(0, peak - m_start);
 }
 
 QString ev(const QString &formula) { return ev(formula, Grid()); }

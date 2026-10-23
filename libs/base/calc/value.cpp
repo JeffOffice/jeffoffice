@@ -1,5 +1,6 @@
 #include "calc/value.h"
 
+#include "calc/budget.h"
 #include "calc/numfmt.h"
 
 #include <QByteArray>
@@ -39,17 +40,23 @@ ErrorKind errorKindFromText(QStringView text, bool *known)
     return ErrorKind::Unknown;
 }
 
+ArrayData::ArrayData(const ArrayData &other) : rows(other.rows), cols(other.cols), cells(other.cells) { budget::arrayMade(qint64(cells.size())); }
+
+ArrayData::~ArrayData() { budget::arrayFreed(qint64(cells.size())); }
+
 Value Value::array(int rows, int cols)
 {
     Value r;
     if (rows < 1) rows = 1;
     if (cols < 1) cols = 1;
     if (qint64(rows) * qint64(cols) > kMaxArrayCells) return r;
+    if (!budget::mayMake(qint64(rows) * qint64(cols))) return r;
     r.m_kind = Kind::Array;
     r.m_array = std::make_shared<ArrayData>();
     r.m_array->rows = rows;
     r.m_array->cols = cols;
     r.m_array->cells.resize(size_t(rows) * size_t(cols));
+    budget::arrayMade(qint64(r.m_array->cells.size()));
     return r;
 }
 
@@ -66,7 +73,10 @@ const Value &Value::at(int row, int col) const
 void Value::set(int row, int col, const Value &v)
 {
     if (m_kind != Kind::Array || row < 0 || col < 0 || row >= m_array->rows || col >= m_array->cols) return;
-    if (m_array.use_count() > 1) m_array = std::make_shared<ArrayData>(*m_array);
+    if (m_array.use_count() > 1) {
+        budget::mayMake(qint64(m_array->cells.size()));   // (past the budget this notes it: the copy is made all the same, and the evaluation stopped at its next step)
+        m_array = std::make_shared<ArrayData>(*m_array);
+    }
     m_array->cells[size_t(row) * size_t(m_array->cols) + size_t(col)] = v;
 }
 

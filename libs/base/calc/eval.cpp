@@ -147,8 +147,9 @@ Value Machine::toArray(const Item &item)
         tooLarge();
         return Value::error(ErrorKind::Value);
     }
-    if (!charge(a.rows() * a.cols() / 4 + 1)) return Value::error(ErrorKind::Value);
-    Value array = Value::array(int(a.rows()), int(a.cols()));
+    if (!charge(a.rows() * a.cols() / 2 + 1)) return Value::error(ErrorKind::Value);
+    Value array = newArray(int(a.rows()), int(a.cols()));
+    if (!array.isArray()) return array;
     ctx.source->visit(a.sheet1, a.row1, a.col1, a.row2, a.col2, [&](quint32 r, quint32 c, const Value &v) {
         if (!charge(1)) return false;
         if (!v.isEmpty()) array.set(int(r - a.row1), int(c - a.col1), v);
@@ -172,8 +173,9 @@ Item Machine::unaryOp(Op op, quint8 flags, const Item &item)
         tooLarge();
         return Item::ofError(ErrorKind::Value);
     }
-    charge(qint64(a.rows()) * a.cols());
-    Value r = Value::array(a.rows(), a.cols());
+    if (!charge(qint64(a.rows()) * a.cols())) return Item::ofError(ErrorKind::Value);
+    Value r = newArray(a.rows(), a.cols());
+    if (!r.isArray()) return Item::ofValue(r);
     for (int i = 0; i < a.rows(); ++i)
         for (int j = 0; j < a.cols(); ++j) r.set(i, j, one(a.at(i, j)));
     return Item::ofValue(r);
@@ -251,7 +253,8 @@ Item Machine::binary(Op op, quint8 flags, const Item &ia, const Item &ib)
         return Item::ofError(ErrorKind::Value);
     }
     if (!charge(qint64(rows) * cols)) return Item::ofError(ErrorKind::Value);
-    Value r = Value::array(rows, cols);
+    Value r = newArray(rows, cols);
+    if (!r.isArray()) return Item::ofValue(r);
     for (int i = 0; i < rows; ++i)
         for (int j = 0; j < cols; ++j) {
             const Value &x = a.at(a.rows() == 1 ? 0 : i, a.cols() == 1 ? 0 : j);
@@ -335,7 +338,8 @@ Item Machine::callFunction(const FunctionInfo &f, std::vector<Item> &args, bool 
         return Item::ofError(ErrorKind::Value);
     }
     if (!charge(qint64(rows) * cols)) return Item::ofError(ErrorKind::Value);
-    Value result = Value::array(rows, cols);
+    Value result = newArray(rows, cols);
+    if (!result.isArray()) return Item::ofValue(result);
     std::vector<Item> one(args.size());
     for (int r = 0; r < rows && !over; ++r)
         for (int c = 0; c < cols; ++c) {
@@ -583,6 +587,7 @@ Value Machine::run(const Program &p, const EvalContext &c)
     nameDepth = 0;
     unsupported = 0;
     m_clockRead = false;
+    peakCells = 0;
     stack.clear();
     if (!ctx.source) return Value::error(ErrorKind::Value);
     // a date written as a month and a day alone is in the year of the clock this evaluation reads
@@ -593,7 +598,15 @@ Value Machine::run(const Program &p, const EvalContext &c)
     int clockYear = 0, clockMonth = 0, clockDay = 0;
     serialToDate(std::floor(now()), ctx.dateSystem, &clockYear, &clockMonth, &clockDay);
     const YearScope yearScope(clockYear);
+    // the arrays alive at once are counted from here, and one more than the budget allows is refused (and stops the evaluation at its next step)
+    struct BudgetScope {
+        explicit BudgetScope(qint64 limit) { budget::beginEvaluation(limit); }
+        ~BudgetScope() { budget::endEvaluation(); }
+    };
+    const BudgetScope budgetScope(kMaxLiveArrayCells);
     const Item r = runProgram(p, p.arrayFormula);
+    peakCells = budget::peakCells();
+    if (!over && budget::refused()) tooLarge();
     if (over) return Value::error(ErrorKind::Value);
     Value v;
     switch (r.kind) {
@@ -626,6 +639,7 @@ Value Evaluator::evaluate(const Program &program, const EvalContext &context) { 
 EvalStatus Evaluator::status() const { return d->machine.status; }
 int Evaluator::unsupportedKinds() const { return d->machine.unsupported; }
 qint64 Evaluator::work() const { return d->machine.work; }
+qint64 Evaluator::peakArrayCells() const { return d->machine.peakCells; }
 void Evaluator::setWorkLimit(qint64 steps) { d->machine.limit = steps; }
 void Evaluator::seedRandom(quint64 seed) { d->machine.rng.seed(seed); }
 
