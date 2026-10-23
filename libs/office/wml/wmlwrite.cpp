@@ -782,13 +782,15 @@ QByteArray notesPartXml(const QByteArray &original, bool endnotes, const NotesCh
         if (root.endsWith("/>")) root = root.left(root.size() - 2) + ">";
         root = withKnownPrefixes(withW(root), written);
         out = kXmlHead + root;
+        QSet<int> seen;   // (Of notes with one Id the first is the note: the others are kept as they were.)
         for (int c = tree.firstChild(tree.root()); c >= 0; c = tree.next(c)) {
             bool ok = false;
             const int id = tree.is(c, tag.constData()) ? tree.attr(c, "id").toInt(&ok) : 0;
-            if (!ok) {
+            if (!ok || seen.contains(id)) {
                 out += tree.raw(c);
                 continue;
             }
+            seen.insert(id);
             if (change.removed.contains(id)) continue;
             const auto replaced = change.replaced.constFind(id);
             if (replaced == change.replaced.constEnd()) {

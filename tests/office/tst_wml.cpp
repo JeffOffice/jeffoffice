@@ -1180,6 +1180,16 @@ private Q_SLOTS:
         endChange.added.push_back({2, paragraph("two")});
         const QByteArray endOut = notesPartXml(ends, true, endChange);
         QVERIFY2(endOut.contains("<w:endnote w:id=\"2\"><w:p><w:r><w:t xml:space=\"preserve\">two</w:t></w:r></w:p></w:endnote></w:endnotes>"), qPrintable(show(endOut)));
+        // Of two notes with one Id the first is the one that changes: the other is kept as it was.
+        const QByteArray twice = xmlDoc(QByteArray("<w:footnotes ") + kW + "><w:footnote w:id=\"4\"><w:p><w:r><w:t>a</w:t></w:r></w:p></w:footnote><w:footnote w:id=\"4\"><w:p><w:r><w:t>b</w:t></w:r></w:p></w:footnote></w:footnotes>");
+        NotesChange first;
+        first.replaced.insert(4, paragraph("A"));
+        const QByteArray edited = notesPartXml(twice, false, first);
+        QVERIFY2(edited.contains("preserve\">A</w:t>") && !edited.contains("<w:t>a</w:t>") && edited.contains("<w:t>b</w:t>"), qPrintable(show(edited)));
+        NotesChange gone;
+        gone.removed.insert(4);
+        const QByteArray left = notesPartXml(twice, false, gone);
+        QVERIFY2(!left.contains("<w:t>a</w:t>") && left.contains("<w:t>b</w:t>"), qPrintable(show(left)));
         // A part that is not XML is not made over: nothing comes back.
         QVERIFY(notesPartXml("<w:footnotes", false, change).isEmpty());
     }

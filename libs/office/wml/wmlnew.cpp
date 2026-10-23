@@ -181,6 +181,29 @@ Style builtinStyle(const QString &id)
         s.pPr.tabs = QVector<TabStop>{TabStop{4680, QStringLiteral("center"), QString()}, TabStop{9360, QStringLiteral("right"), QString()}};
         return s;
     }
+    if (id == QLatin1String("FootnoteText") || id == QLatin1String("EndnoteText")) {
+        // The text of a note: smaller than the text it is cited from, close set.
+        Style s = paragraphStyle(id, id == QLatin1String("FootnoteText") ? QStringLiteral("footnote text") : QStringLiteral("endnote text"), 99);
+        s.next.clear();
+        s.qFormat = false;
+        s.unhideWhenUsed = true;
+        s.pPr.after = 0;
+        s.pPr.line = 240;
+        s.pPr.lineRule = QStringLiteral("auto");
+        s.rPr.size = 20;
+        return s;
+    }
+    if (id == QLatin1String("FootnoteReference") || id == QLatin1String("EndnoteReference")) {
+        // The raised number of a note's mark and of the reference to it.
+        Style s;
+        s.id = id;
+        s.name = id == QLatin1String("FootnoteReference") ? QStringLiteral("footnote reference") : QStringLiteral("endnote reference");
+        s.type = QStringLiteral("character");
+        s.uiPriority = 99;
+        s.unhideWhenUsed = true;
+        s.rPr.vertAlign = QStringLiteral("superscript");
+        return s;
+    }
     if (id == QLatin1String("Hyperlink")) {
         Style s;
         s.id = id;
