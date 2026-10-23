@@ -19172,6 +19172,33 @@ private Q_SLOTS:
         }
     }
 
+    // ---- endnotes: the most notes, in the window
+
+    // A document with the most endnotes the program holds (each cited): in the window Insert Endnote is off, the status bar says why, and Insert Footnote (another count) is on.
+    void aDocumentWithTheMostEndnotesTurnsInsertEndnoteOffInTheWindow()
+    {
+        const int count = kMostNoteStories;
+        QByteArray ends = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote();
+        QByteArray body;
+        for (int i = 1; i <= count; ++i) {
+            ends += "<w:endnote w:id=\"" + QByteArray::number(i) + "\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> e" + QByteArray::number(i) + "</w:t></w:r></w:p></w:endnote>";
+            body += "<w:p><w:r><w:t>q" + QByteArray::number(i) + "</w:t></w:r><w:r><w:endnoteReference w:id=\"" + QByteArray::number(i) + "\"/></w:r></w:p>";
+        }
+        ends += "</w:endnotes>";
+        const QByteArray zip = makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), ends}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>");
+        WriteWindow w;
+        w.resize(1000, 900);
+        w.show();
+        w.setDocument(open(zip), QString());
+        QTRY_VERIFY(!w.act("refs.endnote")->isEnabled());
+        QTRY_VERIFY2(w.statusBar()->currentMessage().contains(QLocale().toString(count)), qPrintable(w.statusBar()->currentMessage()));
+        QVERIFY(w.act("refs.footnote")->isEnabled());
+        QVERIFY(w.act("refs.endnote")->statusTip().contains(QLocale().toString(count)));
+        // Triggered all the same (a shortcut can be): nothing is made.
+        const int blocks = w.document()->story()->blockCount();
+        w.act("refs.endnote")->trigger();
+        QCOMPARE(w.document()->story()->blockCount(), blocks);
+    }
 
 
 };
