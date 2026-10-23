@@ -249,7 +249,8 @@ public:
     Value intersect(const RefArea &area) const;
     // A text as a program for a defined name or INDIRECT: the item it comes to (a reference, a value, or an error).
     // `relativeToA1`: the references in it that move are those of a defined name, written for the cell A1 and moved to the cell of the formula.
-    Item evaluateText(const QString &formula, bool r1c1, bool relativeToA1, int sheetForNames);
+    // `identity` says what is being worked out for a circle to be seen (a name is its scope and its name; a text given to INDIRECT is the text, which is what none says).
+    Item evaluateText(const QString &formula, bool r1c1, bool relativeToA1, int sheetForNames, const QString &identity = QString());
     // The sheets a reference through several covers, as places; -1 if one is not there.
     int sheetCount() const { return ctx.source->sheetCount(); }
     // The last row and column that hold anything, plus one.
@@ -288,7 +289,7 @@ private:
     };
     QHash<QString, Cached> m_texts;
     qint64 m_textsBytes = 0;   // about what the texts above, their programs, and their keys take
-    std::vector<QString> m_active;   // the keys of the texts being worked out, the one inside the other
+    std::vector<QString> m_active;   // what is being worked out (a name, or a text), the one inside the other
 };
 
 } // namespace jp::calc

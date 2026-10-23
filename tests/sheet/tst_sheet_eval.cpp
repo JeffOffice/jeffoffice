@@ -350,6 +350,45 @@ private Q_SLOTS:
         CHECK_EVALS(cases, g, Settings());
     }
 
+    // A circle is seen by what the names are, not by the text they stand for: names on different sheets that stand for the same text, and a name of a sheet that stands for
+    // the workbook's name of the same name, are no circle; one that goes round through names of other sheets is.
+    void namesAreTakenForCirclesByTheirScopeAndSheetNotTheirText()
+    {
+        Grid g;
+        g.addSheet("Sheet2");
+        g.addSheet("Sheet3");
+        g.name("Gross", "100");
+        g.name("Net", "Gross*0.9", 0);
+        g.name("Net", "Gross*0.9", 1);
+        g.name("Outer", "Sheet2!Net+1", 0);
+        g.name("Rate", "Sheet2!Rate+1", 0);       // the sheet's Rate stands for the workbook's, which it names through another sheet
+        g.name("Rate", "5");
+        g.name("Twin", "Sheet3!Twin2*2", 0);
+        g.name("Twin", "Sheet3!Twin2*2", 1);
+        g.name("Twin2", "7", 2);
+        g.name("P", "Sheet2!P+1", 0);              // a circle through the names of two sheets
+        g.name("P", "Sheet1!P+1", 1);
+        g.name("Q", "Sheet2!R+Sheet2!R", 0);       // not a circle: the same name twice
+        g.name("R", "Sheet3!R*3", 1);
+        g.name("R", "2", 2);
+        const E cases[] = {
+            {"Sheet1!Net+Sheet2!Net", "n:180"},
+            {"Outer", "n:91"},
+            {"Rate", "n:6"},
+            {"Sheet1!Rate+Sheet2!Rate", "n:11"},
+            {"Twin+Sheet2!Twin", "n:28"},
+            {"Q", "n:12"},
+            {"P", "e:#REF!"},
+            {"Sheet2!P", "e:#REF!"},
+            {"Sheet1!P+1", "e:#REF!"},
+        };
+        CHECK_EVALS(cases, g, Settings());
+        const Outcome circle = evOutcome("P+Sheet2!P", g);
+        QVERIFY2(circle.text == "e:#REF!" && circle.status == EvalStatus::TooDeep && circle.work < 200, qPrintable(said(circle)));
+        const Outcome fine = evOutcome("Q", g);
+        QVERIFY2(fine.status == EvalStatus::Ok, qPrintable(said(fine)));
+    }
+
     void sharedFormulasMoveTheirReferences()
     {
         Grid g;

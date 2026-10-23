@@ -434,7 +434,9 @@ Item Machine::runProgram(const Program &p, bool)
                 stack.push_back(Item::ofError(ErrorKind::Name));
                 break;
             }
-            stack.push_back(evaluateText(formula, false, true, sheet));
+            // The name is known by what it is: the sheet whose own name it is, or the workbook's (when the sheet has none of its own, the workbook's is the one that answers).
+            const int scope = formula == ctx.source->definedName(-1, name) ? -1 : sheet;
+            stack.push_back(evaluateText(formula, false, true, sheet, QString::number(scope) + QLatin1Char('|') + name.toUpper()));
             break;
         }
         case Op::PushTable: unsupported |= 2; stack.push_back(Item::ofError(ErrorKind::Ref)); break;
@@ -553,7 +555,7 @@ Item Machine::runProgram(const Program &p, bool)
     return pop();
 }
 
-Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, int)
+Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, int, const QString &identity)
 {
     // Looking a text up takes as long as it is (its key is made and hashed).
     if (!charge(2 + qint64(text.size()) / 64)) return Item::ofError(ErrorKind::Value);
@@ -567,8 +569,9 @@ Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, in
     key += text;
     // A text that is asked for while it is being worked out is a circle: a name that stands for itself, directly or through others. It is no number, and is not worked out
     // again inside itself (a name of three uses of itself would be three to the sixteenth evaluations to the depth that stops it).
+    const QString &who = identity.isEmpty() ? key : identity;
     for (const QString &active : m_active)
-        if (active == key) {
+        if (active == who) {
             if (status == EvalStatus::Ok) status = EvalStatus::TooDeep;
             return Item::ofError(ErrorKind::Ref);
         }
@@ -602,7 +605,7 @@ Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, in
     const bool savedWrap = wrapRefs;
     wrapRefs = relativeToA1;
     ++nameDepth;
-    m_active.push_back(key);
+    m_active.push_back(who);
     Item r = runProgram(*program, false);
     m_active.pop_back();
     --nameDepth;
