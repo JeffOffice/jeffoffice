@@ -164,6 +164,62 @@ bool readSharedStrings(QIODevice *in, const Limits &limits, SharedStrings *out, 
     return true;
 }
 
+// ---- the styles part
+
+bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error)
+{
+    *out = Styles();
+    XmlSource src(in, limits);
+    QXmlStreamReader &r = src.reader;
+    auto fail = [&](const QString &why) {
+        if (error) *error = why;
+        return false;
+    };
+    enum class Where { Other, NumFmts, CellXfs };
+    Where where = Where::Other;
+    int depth = 0;
+    qint64 numFmtElements = 0;
+    bool rootSeen = false;
+    while (!r.atEnd()) {
+        switch (r.readNext()) {
+        case QXmlStreamReader::DTD:
+            return fail(translate("The XML has a DOCTYPE, which is not allowed."));
+        case QXmlStreamReader::StartElement:
+            if (++depth > kMaxXmlDepth) return fail(translate("The XML is nested too deeply."));
+            if (depth == 1) {
+                if (!isElement(r, "styleSheet")) return fail(translate("The part is not a list of styles."));
+                rootSeen = true;
+            } else if (depth == 2) {
+                where = isElement(r, "numFmts") ? Where::NumFmts : isElement(r, "cellXfs") ? Where::CellXfs : Where::Other;
+            } else if (depth == 3 && where == Where::NumFmts && isElement(r, "numFmt")) {
+                if (++numFmtElements > limits.numFmts) return fail(translate("The file has more number formats than any real file has."));
+                bool ok = false;
+                const int id = attribute(r, "numFmtId").toInt(&ok);
+                const QString code = attribute(r, "formatCode").toString();
+                out->chars += code.size();
+                if (out->chars > limits.numFmtChars) return fail(translate("The number formats have more characters than any real file has."));
+                if (ok) out->numFmts.insert(id, code);
+            } else if (depth == 3 && where == Where::CellXfs && isElement(r, "xf")) {
+                if (out->cellXfs.size() >= limits.cellXfs) return fail(translate("The file has more cell formats than any real file has."));
+                bool ok = false;
+                const int id = attribute(r, "numFmtId").toInt(&ok);
+                out->cellXfs.append(ok ? id : 0);
+            }
+            break;
+        case QXmlStreamReader::EndElement:
+            if (depth == 2) where = Where::Other;
+            --depth;
+            break;
+        default:
+            break;
+        }
+    }
+    const QString why = src.problem();
+    if (!why.isEmpty()) return fail(why);
+    if (!rootSeen) return fail(translate("The part is not a list of styles."));
+    return true;
+}
+
 // ---- the workbook part
 
 bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QString *error)
@@ -176,7 +232,9 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
         return false;
     };
     int depth = 0;
-    bool inSheets = false, rootSeen = false;
+    bool inSheets = false, inNames = false, inName = false, rootSeen = false;
+    DefinedName name;
+    qint64 nameChars = 0;
     while (!r.atEnd()) {
         switch (r.readNext()) {
         case QXmlStreamReader::DTD:
@@ -192,6 +250,20 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
                 const QStringView mode = attribute(r, "calcMode");
                 out->calcMode = mode == QLatin1String("manual") ? CalcMode::Manual : mode == QLatin1String("autoNoTable") ? CalcMode::AutoNoTable : CalcMode::Auto;
                 out->fullCalcOnLoad = parseBool(attribute(r, "fullCalcOnLoad").toString());
+                out->iterate = parseBool(attribute(r, "iterate").toString());
+            } else if (depth == 2 && isElement(r, "definedNames")) {
+                inNames = true;
+            } else if (depth == 3 && inNames && isElement(r, "definedName")) {
+                if (out->definedNames.size() >= limits.definedNames) return fail(translate("The workbook has more names than any real file has."));
+                name = DefinedName();
+                name.name = attribute(r, "name").toString();
+                bool ok = false;
+                const int local = attribute(r, "localSheetId").toInt(&ok);
+                name.localSheet = ok ? local : -1;
+                name.hidden = parseBool(attribute(r, "hidden").toString());
+                nameChars += name.name.size();
+                if (nameChars > limits.definedNameChars) return fail(translate("The names have more characters than any real file has."));
+                inName = true;
             } else if (depth == 2 && isElement(r, "sheets")) {
                 inSheets = true;
             } else if (depth == 3 && inSheets && isElement(r, "sheet")) {
@@ -208,8 +280,22 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
                 out->sheets.append(e);
             }
             break;
+        case QXmlStreamReader::Characters:
+            if (inName) {
+                nameChars += r.text().size();
+                if (nameChars > limits.definedNameChars) return fail(translate("The names have more characters than any real file has."));
+                name.ref += r.text();
+            }
+            break;
         case QXmlStreamReader::EndElement:
-            if (depth == 2) inSheets = false;
+            if (depth == 3 && inName) {
+                out->definedNames.append(name);
+                inName = false;
+            }
+            if (depth == 2) {
+                inSheets = false;
+                inNames = false;
+            }
             --depth;
             break;
         default:
@@ -538,7 +624,7 @@ bool SheetReader::endCell()
             c.number = double(int(errorFromText(QStringView(m_value).trimmed())));
         } else if (type == QLatin1String("d")) {
             double serial = 0;
-            if (parseIsoDate(m_value, m_options.dateSystem, &serial) || toNumber(m_value, &serial)) {
+            if (calc::parseIsoDate(m_value, m_options.dateSystem, &serial) || toNumber(m_value, &serial)) {
                 c.type = CellType::Date;
                 c.number = serial;
             } else if (!m_value.trimmed().isEmpty()) {
@@ -726,6 +812,14 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
         if (rel.external || !package.hasPart(rel.target)) continue;
         const auto device = package.openPart(rel.target);
         readSharedStrings(device.get(), limits, &m_shared, &m_sharedError);
+        break;
+    }
+    // The styles: a part that is damaged keeps the formats read before the damage (stylesError says what it was) and the workbook open.
+    const QVector<Relationship> styles = package.relationshipsOfType(main, QStringLiteral("/styles"));
+    for (const Relationship &rel : styles) {
+        if (rel.external || !package.hasPart(rel.target)) continue;
+        const auto device = package.openPart(rel.target);
+        readStyles(device.get(), limits, &m_styles, &m_stylesError);
         break;
     }
     return true;

@@ -5,7 +5,7 @@
 #include "io/zip.h"
 #include "office/package.h"
 #include "sheet/cellref.h"
-#include "sheet/dates.h"
+#include "calc/dates.h"
 #include "sheet/sheetmodel.h"
 #include "sheet/sheetreader.h"
 
@@ -20,6 +20,7 @@
 
 using namespace jp::office;
 using namespace jp::office::sheet;
+using namespace jp::calc;
 
 namespace sheettest {
 
@@ -32,8 +33,12 @@ QByteArray worksheet(const QString &rows, const QString &after = QString(), cons
 QByteArray sharedStringsXml(const QStringList &items);
 // A workbook as an .xlsx: one sheet part per entry of `sheets` (named Sheet1, Sheet2, ...), the shared strings if given,
 // and `workbookPr` and `calcPr` as the attributes of those elements.
+// `styles` is the styles part if given, `names` the sheets' names if given (else Sheet1, Sheet2, ...), and `definedNames` the inside of definedNames.
 QByteArray buildXlsx(const QVector<QByteArray> &sheets, const QByteArray &sharedStrings = QByteArray(), const QString &workbookPr = QString(),
-                     const QString &calcPr = QString());
+                     const QString &calcPr = QString(), const QByteArray &styles = QByteArray(), const QStringList &names = QStringList(),
+                     const QString &definedNames = QString());
+// A styles part: the inside of numFmts (the numFmt elements), then the inside of cellXfs (the xf elements), and the rest of the stylesheet after them.
+QByteArray stylesXml(const QString &numFmts, const QString &cellXfs, const QString &after = QString());
 
 // Reads the XML as a sheet part.
 bool readSheetXml(const QByteArray &xml, Sheet *out, const ReadOptions &options = ReadOptions());

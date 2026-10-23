@@ -1,6 +1,8 @@
 // Tests of the cells a worksheet is read into: the store, every type of cell, the shared strings, and the shape the part declares.
 #include "sheethelpers.h"
 
+#include <random>
+
 namespace {
 
 Cell makeCell(quint32 row, quint32 col, double number = 0)
@@ -119,6 +121,125 @@ private Q_SLOTS:
         QCOMPARE(copy.cellCount(), qint64(3001));
         QVERIFY(!ordered.find(5000, 0));
         QCOMPARE(ordered.find(999, 2)->number, 2999.0);
+    }
+
+    // A rectangle of a sheet is visited cell by cell in order, and only its own cells: the same as asking every cell whether it is inside.
+    void aRectangleOfTheStoreVisitsExactlyItsCells()
+    {
+        std::mt19937 rng(20261023);
+        CellStore store;
+        for (int i = 0; i < 6000; ++i) store.add(makeCell(rng() % 400, rng() % 40, i));
+        // a few whole rows, so that rows with many cells meet rows with few
+        for (quint32 col = 0; col < 40; ++col) store.add(makeCell(100, col, 1));
+        store.finish();
+        for (int trial = 0; trial < 3000; ++trial) {
+            quint32 r1 = rng() % 420, r2 = rng() % 420, c1 = rng() % 45, c2 = rng() % 45;
+            if (r1 > r2) std::swap(r1, r2);
+            if (c1 > c2) std::swap(c1, c2);
+            QVector<QPair<quint32, quint32>> expected, got;
+            store.forEach([&](const Cell &c) {
+                if (c.row >= r1 && c.row <= r2 && c.col >= c1 && c.col <= c2) expected.append({c.row, c.col});
+            });
+            store.forEachInRange(r1, c1, r2, c2, [&](const Cell &c) {
+                got.append({c.row, c.col});
+                return true;
+            });
+            QVERIFY2(got == expected, qPrintable(QStringLiteral("rows %1-%2, columns %3-%4: %5 cells, expected %6").arg(r1).arg(r2).arg(c1).arg(c2).arg(got.size()).arg(expected.size())));
+        }
+        // and it stops when asked
+        int seen = 0;
+        store.forEachInRange(0, 0, 399, 39, [&](const Cell &) { return ++seen < 5; });
+        QCOMPARE(seen, 5);
+    }
+
+    // A narrow range of a wide sheet costs what it holds, not what the rows hold: column A of rows that have 16,384 cells each steps over the cells of the column and no
+    // others, and finds the first cell of each row by halving. What is counted is what the walk did (see CellStore::RangeWalk), not a count kept apart from it.
+    void aNarrowRangeOfAWideSheetDoesNotStepOverTheRestOfEachRow()
+    {
+        CellStore store;
+        for (quint32 r = 0; r < 64; ++r)
+            for (quint32 c = 0; c < 16384; ++c) store.add(makeCell(r, c, r * 16384 + c));
+        store.finish();
+        CellStore::RangeWalk walk;
+        int seen = 0;
+        double last = -1;
+        store.forEachInRange(0, 0, 63, 0, [&](const Cell &c) {
+            ++seen;
+            last = c.number;
+            return true;
+        }, &walk);
+        QCOMPARE(seen, 64);
+        QCOMPARE(last, 63.0 * 16384);
+        const QString said = QStringLiteral("stepped over %1 cells and made %2 comparisons for 64 cells").arg(walk.stepped).arg(walk.compared);
+        QVERIFY2(walk.stepped == 64 && walk.compared <= 64 * 22, qPrintable(said));
+        // a column in the middle, and a block of columns
+        CellStore::RangeWalk middle;
+        seen = 0;
+        store.forEachInRange(0, 8000, 63, 8003, [&](const Cell &) { return ++seen > 0; }, &middle);
+        QCOMPARE(seen, 64 * 4);
+        const QString saidMiddle = QStringLiteral("stepped over %1 cells and made %2 comparisons for 256 cells").arg(middle.stepped).arg(middle.compared);
+        QVERIFY2(middle.stepped == 64 * 4 && middle.compared <= 64 * 22, qPrintable(saidMiddle));
+        // the last column, and a range that holds nothing
+        CellStore::RangeWalk edge, none;
+        seen = 0;
+        store.forEachInRange(0, 16383, 63, 16383, [&](const Cell &) { return ++seen > 0; }, &edge);
+        QCOMPARE(seen, 64);
+        QVERIFY2(edge.stepped == 64 && edge.compared <= 64 * 22, qPrintable(QStringLiteral("%1 stepped, %2 compared").arg(edge.stepped).arg(edge.compared)));
+        store.forEachInRange(100, 0, 163, 5, [&](const Cell &) { return true; }, &none);
+        QVERIFY2(none.stepped == 0 && none.compared == 0, qPrintable(QStringLiteral("%1 stepped, %2 compared").arg(none.stepped).arg(none.compared)));
+    }
+
+    // Cells put in and taken out of a finished store, in any order, leave it what a map of places to cells would be: find, the walk over a rectangle, and the count agree.
+    void cellsSetAndErasedKeepTheStoreInOrder()
+    {
+        std::mt19937 rng(20261024);
+        CellStore store;
+        std::map<std::pair<quint32, quint32>, double> want;
+        for (int i = 0; i < 3000; ++i) {
+            const quint32 r = rng() % 300, c = rng() % 30;
+            store.add(makeCell(r, c, i));
+            want[{r, c}] = i;
+        }
+        store.finish();
+        for (int i = 0; i < 6000; ++i) {
+            const quint32 r = rng() % 340, c = rng() % 34;
+            if (rng() % 3 == 0) {
+                QCOMPARE(store.erase(r, c), want.erase({r, c}) == 1);
+            } else {
+                const Cell *put = store.set(makeCell(r, c, 100000 + i));
+                QVERIFY(put && put->row == r && put->col == c && put->number == 100000 + i);
+                want[{r, c}] = 100000 + i;
+            }
+        }
+        QCOMPARE(store.cellCount(), qint64(want.size()));
+        for (quint32 r = 0; r < 340; ++r)
+            for (quint32 c = 0; c < 34; ++c) {
+                const Cell *found = store.find(r, c);
+                const auto it = want.find({r, c});
+                QVERIFY2((found != nullptr) == (it != want.end()), qPrintable(QStringLiteral("%1,%2").arg(r).arg(c)));
+                if (found) QCOMPARE(found->number, it->second);
+            }
+        // the walk over the store is in order and holds every cell once
+        std::vector<std::pair<quint32, quint32>> walked;
+        store.forEach([&](const Cell &cell) { walked.push_back({cell.row, cell.col}); });
+        QVERIFY(std::is_sorted(walked.begin(), walked.end()));
+        QCOMPARE(qint64(walked.size()), qint64(want.size()));
+        // a rectangle of it
+        QVector<QPair<quint32, quint32>> got, expected;
+        store.forEachInRange(50, 3, 250, 20, [&](const Cell &cell) {
+            got.append({cell.row, cell.col});
+            return true;
+        });
+        for (const auto &entry : want)
+            if (entry.first.first >= 50 && entry.first.first <= 250 && entry.first.second >= 3 && entry.first.second <= 20) expected.append({entry.first.first, entry.first.second});
+        QVERIFY(got == expected);
+        // a cell is changed where it is
+        Cell *edit = store.findMutable(want.begin()->first.first, want.begin()->first.second);
+        QVERIFY(edit);
+        edit->number = -5;
+        QCOMPARE(store.find(want.begin()->first.first, want.begin()->first.second)->number, -5.0);
+        QVERIFY(!store.findMutable(100000, 3));
+        QVERIFY(!store.erase(100000, 3));
     }
 
     // A store that was moved from is empty and has nothing of the one it was moved to: cells added to either go where they should.

@@ -10,6 +10,7 @@
 #include <QString>
 #include <QVector>
 
+#include <algorithm>
 #include <map>
 #include <vector>
 
@@ -38,6 +39,8 @@ enum CellFlag : quint8 {
     ArrayFormula = 2,    // the cell holds the formula of an array (its range is in the formula)
     SharedFormula = 4,   // the formula is one a group of cells share, as written for the first of them
     DataTable = 8,       // the formula is a what-if data table
+    ArrayMember = 16,    // a cell of the range of an array formula that is not its first cell: its value is the formula's (set by the calculation; `formula` then names the array's formula)
+    Tainted = 32,        // a value the calculation could not check (a cell of a data table, or of an array whose formula it kept apart)
 };
 
 // One cell: 24 bytes. A cell always has its place in the grid; its value is
@@ -106,12 +109,77 @@ public:
     qint64 cellCount() const { return m_count; }
     // The cell at the place, or null.
     const Cell *find(quint32 row, quint32 col) const;
+    // Edits, for a store that is finished: the cell at the place, to be changed where it is (null if there is none); a cell put where it belongs, in place of the one that is
+    // there, and the cell as it is held; a cell taken away (false if there was none). A cell is put in at the cost of moving the cells after it in its block of rows.
+    Cell *findMutable(quint32 row, quint32 col);
+    Cell *set(const Cell &cell);
+    bool erase(quint32 row, quint32 col);
     // Calls f(cell) for each cell in order of row, then column.
     template <class F>
     void forEach(F f) const
     {
         for (const auto &block : m_blocks)
             for (const Cell &c : block.second.cells) f(c);
+    }
+    // What a walk over a range did, counted as it did it: the cells it stepped over one by one (every move of the cursor along a row of a block is counted), and the
+    // comparisons of its searches for the first cell of each row. A test counts them to see that a narrow range of a wide sheet costs what it holds.
+    struct RangeWalk {
+        qint64 stepped = 0;
+        qint64 compared = 0;
+    };
+    // Calls f(cell) for each cell inside the rectangle (both ends in it), in order of row and then column; f gives false to stop. Only the rows and cells in it are
+    // looked at: a narrow range of a wide sheet costs what it holds, and a search for each row's first cell, not a walk over the cells before it. (`walk`, if given,
+    // counts what was done: see RangeWalk.)
+    template <class F>
+    void forEachInRange(quint32 row1, quint32 col1, quint32 row2, quint32 col2, F f, RangeWalk *walk = nullptr) const
+    {
+        // The place in a block's cells. Every step along them is made, and counted, here.
+        class Cursor {
+        public:
+            Cursor(std::vector<Cell>::const_iterator at, RangeWalk *walk) : m_at(at), m_walk(walk) {}
+            const Cell &operator*() const { return *m_at; }
+            const Cell *operator->() const { return &*m_at; }
+            Cursor &operator++()
+            {
+                ++m_at;
+                if (m_walk) ++m_walk->stepped;
+                return *this;
+            }
+            std::vector<Cell>::const_iterator at() const { return m_at; }
+            void jumpTo(std::vector<Cell>::const_iterator at) { m_at = at; }
+
+        private:
+            std::vector<Cell>::const_iterator m_at;
+            RangeWalk *m_walk;
+        };
+        for (auto block = m_blocks.lower_bound(row1 / kBlockRows); block != m_blocks.end() && block->first * kBlockRows <= row2; ++block) {
+            const std::vector<Cell> &cells = block->second.cells;
+            const quint32 first = block->first * kBlockRows;
+            quint32 r = std::max(row1, first);
+            const quint32 last = std::min(row2, first + kBlockRows - 1);
+            Cursor pos(cells.begin(), walk);
+            while (r <= last && pos.at() != cells.end()) {
+                Cell key;
+                key.row = r;
+                key.col = quint16(col1);
+                pos.jumpTo(std::lower_bound(pos.at(), cells.end(), key, [walk](const Cell &a, const Cell &b) {
+                    if (walk) ++walk->compared;
+                    return a.row != b.row ? a.row < b.row : a.col < b.col;
+                }));
+                if (pos.at() == cells.end() || pos->row > last) break;
+                if (pos->row != r) {
+                    // that row has no cell at or after the first column: look for the first column again in the row that has one
+                    r = pos->row;
+                    continue;
+                }
+                while (pos.at() != cells.end() && pos->row == r && pos->col <= col2) {
+                    if (!f(*pos)) return;
+                    ++pos;
+                }
+                // the rest of this row's cells are right of the range: the search for the next row's first cell passes them
+                ++r;
+            }
+        }
     }
     int blockCount() const { return int(m_blocks.size()); }
     // What the cells take, in bytes, as the blocks hold them.

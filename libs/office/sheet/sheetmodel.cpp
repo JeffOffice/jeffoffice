@@ -78,6 +78,38 @@ const Cell *CellStore::find(quint32 row, quint32 col) const
     return at != cells.end() && at->row == row && at->col == col ? &*at : nullptr;
 }
 
+Cell *CellStore::findMutable(quint32 row, quint32 col) { return const_cast<Cell *>(find(row, col)); }
+
+Cell *CellStore::set(const Cell &cell)
+{
+    Block &block = m_blocks[cell.row / kBlockRows];
+    m_last = nullptr;
+    const auto at = std::lower_bound(block.cells.begin(), block.cells.end(), cell, before);
+    if (at != block.cells.end() && at->row == cell.row && at->col == cell.col) {
+        *at = cell;
+        return &*at;
+    }
+    ++m_count;
+    return &*block.cells.insert(at, cell);
+}
+
+bool CellStore::erase(quint32 row, quint32 col)
+{
+    const auto block = m_blocks.find(row / kBlockRows);
+    if (block == m_blocks.end()) return false;
+    Cell key;
+    key.row = row;
+    key.col = quint16(col);
+    auto &cells = block->second.cells;
+    const auto at = std::lower_bound(cells.begin(), cells.end(), key, before);
+    if (at == cells.end() || at->row != row || at->col != col) return false;
+    cells.erase(at);
+    --m_count;
+    m_last = nullptr;
+    if (cells.empty()) m_blocks.erase(block);
+    return true;
+}
+
 qint64 CellStore::memoryBytes() const
 {
     qint64 bytes = 0;
