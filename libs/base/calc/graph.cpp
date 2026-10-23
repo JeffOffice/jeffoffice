@@ -14,12 +14,17 @@ constexpr int kMaxSheetsOfABlock = 1024;
 constexpr size_t kBufferMax = 64;                      // the intervals a node holds that are not yet in a run, which a query looks at one by one
 constexpr quint32 kMaxNode = quint32(1) << 28;         // (the caller numbers its formulas from 0; a number past this is refused rather than made room for)
 constexpr qint64 kPlanItemBytes = 24;                  // what an interval is counted to take before it is in a run (20 there: 16 and 4 for the largest end below it)
-constexpr qint64 kStructureBytes = 160;                // what a node of the tree takes, besides its intervals
+constexpr qint64 kStructureBytes = 160;                // what a node of the tree takes, besides its intervals and their buffer
+constexpr size_t kKeepPlan = 4096;                     // a list of the places of a formula longer than this is let go of when the formula is done
+constexpr size_t kMostPlaces = size_t(1) << 22;        // a formula that names more places than this is refused before they are listed
 constexpr qint64 kStaleFloor = 1 << 14;                // the dropped intervals that are let go of only past this many (or as many as are held)
 
 struct Item {
     quint32 lo, hi, node, gen;
 };
+
+// What a node of the tree that is not there yet is counted to take: its entry in the map, and the buffer it reserves for its first intervals.
+constexpr qint64 kFreshStructureBytes = kStructureBytes + qint64(kBufferMax * sizeof(Item));
 
 // What the graph knows of each formula: the generation of what it told last (what it told before has another), how many intervals that took, and a hash of it, so that
 // telling the same again is known.
@@ -86,11 +91,16 @@ public:
     qint64 held() const { return m_held; }
     bool empty() const { return m_buffer.empty() && m_runs.empty(); }
 
+    // An interval is counted to take what it takes in a run as soon as it is put in the buffer (which is reserved whole with the first), so that the node does not grow past
+    // what was counted when its intervals are made a run.
     void add(const Item &item, Ctx &ctx)
     {
-        const size_t cap = m_buffer.capacity();
+        if (m_buffer.capacity() == 0) {
+            m_buffer.reserve(kBufferMax);
+            m_held += qint64(kBufferMax * sizeof(Item));
+        }
         m_buffer.push_back(item);
-        m_held += qint64(m_buffer.capacity() - cap) * qint64(sizeof(Item));
+        m_held += kPlanItemBytes;
         if (m_buffer.size() >= kBufferMax) flush(ctx);
     }
 
@@ -117,7 +127,7 @@ public:
         for (const Item &it : m_buffer) keep(it, ctx, &all);
         for (const Run &run : m_runs)
             for (const Item &it : run.items) keep(it, ctx, &all);
-        m_buffer = std::vector<Item>();
+        m_buffer.clear();   // (its room stays reserved)
         m_runs.clear();
         m_runs.shrink_to_fit();
         if (all.empty()) {
@@ -192,7 +202,7 @@ private:
 
     void recount()
     {
-        qint64 bytes = qint64(m_buffer.capacity() * sizeof(Item) + m_runs.capacity() * sizeof(Run));
+        qint64 bytes = qint64(m_buffer.capacity() * sizeof(Item) + m_runs.capacity() * sizeof(Run)) + qint64(m_buffer.size()) * kPlanItemBytes;
         for (const Run &run : m_runs) bytes += run.bytes();
         m_held = bytes;
     }
@@ -266,12 +276,13 @@ struct DependencyGraph::Impl {
         return n;
     }
 
-    // Where each of the areas goes. Returns how many of the places have no node yet; -1 if they are more than `most` (a formula that names more than the graph could ever hold
-    // is refused before its places are listed, whatever the sheets and columns it names).
+    qint64 planBytes() const { return qint64(plan.capacity() * sizeof(Placement)); }
+
+    // Where each of the areas goes, in order of sheet and node. Returns how many of the nodes of the tree they go to have no entry yet; -1 if there are more places than `most`
+    // (a formula that names more than the graph could ever hold is refused before its places are listed, whatever the sheets and columns it names).
     qint64 placements(const std::vector<CellArea> &areas, size_t most)
     {
         plan.clear();
-        qint64 fresh = 0;
         int levels[2 * kLevels];
         quint32 indices[2 * kLevels];
         for (const CellArea &a : areas) {
@@ -281,10 +292,14 @@ struct DependencyGraph::Impl {
             for (quint32 s = quint32(a.sheet1); s <= last; ++s)
                 for (int i = 0; i < n; ++i) {
                     if (plan.size() >= most) return -1;
-                    const quint32 key = nodeKey(levels[i], indices[i]);
-                    plan.push_back({s, key, a.row1, a.row2});
-                    if (s >= sheets.size() || sheets[s].nodes.find(key) == sheets[s].nodes.end()) ++fresh;
+                    plan.push_back({s, nodeKey(levels[i], indices[i]), a.row1, a.row2});
                 }
+        }
+        std::sort(plan.begin(), plan.end(), [](const Placement &x, const Placement &y) { return x.sheet != y.sheet ? x.sheet < y.sheet : x.key < y.key; });
+        qint64 fresh = 0;
+        for (size_t i = 0; i < plan.size(); ++i) {
+            if (i > 0 && plan[i].sheet == plan[i - 1].sheet && plan[i].key == plan[i - 1].key) continue;   // (the nodes are counted once each)
+            if (plan[i].sheet >= sheets.size() || sheets[plan[i].sheet].nodes.find(plan[i].key) == sheets[plan[i].sheet].nodes.end()) ++fresh;
         }
         return fresh;
     }
@@ -334,17 +349,30 @@ bool DependencyGraph::setPrecedents(Node node, const std::vector<CellArea> &area
         r.hash = 0;
         if (++r.gen == 0) r.gen = 1;
     }
-    // what it will take: its place in the table of formulas, and its intervals (and the nodes of the tree that have none yet)
+    // what it will take: its place in the table of formulas, its intervals, the nodes of the tree that have none yet, and the sheets it names that the graph has not made room
+    // for; and, while the formula is told, the list of its places
+    struct Scratch {
+        Impl &g;
+        ~Scratch()
+        {
+            if (g.plan.capacity() > kKeepPlan) std::vector<Placement>().swap(g.plan);
+        }
+    } scratch{g};
     size_t tableWant = g.rec.capacity();
     if (size_t(node) + 1 > g.rec.capacity()) tableWant = std::max<size_t>(size_t(node) + 1, g.rec.capacity() + g.rec.capacity() / 2);
-    const qint64 fresh = g.placements(areas, size_t(std::max<qint64>(1, m_max / kPlanItemBytes)));
+    const qint64 room = std::max<qint64>(1, (m_max - g.bytes) / (kPlanItemBytes + qint64(sizeof(Placement))));
+    const qint64 fresh = g.placements(areas, size_t(std::min<qint64>(room, qint64(kMostPlaces))));
     if (fresh < 0) return false;
-    const qint64 wanted = qint64(tableWant - g.rec.capacity()) * qint64(sizeof(Rec)) + qint64(g.plan.size()) * kPlanItemBytes + fresh * kStructureBytes;
-    if (g.bytes + wanted > m_max) {
+    const size_t sheetsWant = g.plan.empty() ? g.sheets.size() : std::max<size_t>(g.sheets.size(), size_t(g.plan.back().sheet) + 1);
+    const qint64 sheetGrowth = sheetsWant > g.sheets.capacity() ? qint64(sheetsWant - g.sheets.capacity()) * qint64(sizeof(SheetIndex)) : 0;
+    const qint64 wanted = qint64(tableWant - g.rec.capacity()) * qint64(sizeof(Rec)) + qint64(g.plan.size()) * kPlanItemBytes + fresh * kFreshStructureBytes + sheetGrowth;
+    // (a margin of a 256th of the bytes is left, for what grows by more than it was counted to: the lists of runs)
+    auto over = [&]() { return g.bytes + g.planBytes() + wanted + m_max / 256 > m_max; };
+    if (over()) {
         // letting go of the dropped is done only if it gives back a sixteenth of what the graph may take at least, so that it is not done again for every formula: else the
         // graph is full, and says no at once, and goes on saying it
         if (g.stale * 20 >= m_max / 16) g.compactAll();
-        if (g.bytes + wanted > m_max) return false;
+        if (over()) return false;
     }
     if (g.rec.size() <= node) {
         const qint64 before = g.tableBytes();
@@ -352,14 +380,15 @@ bool DependencyGraph::setPrecedents(Node node, const std::vector<CellArea> &area
         g.rec.resize(size_t(node) + 1);
         g.bytes += g.tableBytes() - before;
     }
+    if (sheetsWant > g.sheets.size()) {
+        const qint64 before = g.tableBytes();
+        g.sheets.reserve(sheetsWant);
+        g.sheets.resize(sheetsWant);
+        g.bytes += g.tableBytes() - before;
+    }
     if (g.rec[node].gen == 0) g.rec[node].gen = 1;   // (a formula not told before)
     const quint32 gen = g.rec[node].gen;
     for (const Placement &p : g.plan) {
-        if (g.sheets.size() <= p.sheet) {
-            const qint64 before = g.tableBytes();
-            g.sheets.resize(size_t(p.sheet) + 1);
-            g.bytes += g.tableBytes() - before;
-        }
         SheetIndex &sh = g.sheets[p.sheet];
         auto found = sh.nodes.try_emplace(p.key);
         if (found.second) {
@@ -448,7 +477,7 @@ void DependencyGraph::dependentsOfArea(const CellArea &area, std::vector<Node> *
 }
 
 qint64 DependencyGraph::entryCount() const { return d->live; }
-qint64 DependencyGraph::memoryBytes() const { return d->bytes; }
+qint64 DependencyGraph::memoryBytes() const { return d->bytes + d->planBytes(); }
 void DependencyGraph::compact() { d->compactAll(); }
 qint64 DependencyGraph::queryWork() const { return d->queryWork; }
 qint64 DependencyGraph::compactions() const { return d->compactions; }

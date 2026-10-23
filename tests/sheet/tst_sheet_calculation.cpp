@@ -768,7 +768,7 @@ private Q_SLOTS:
         QVERIFY(b.open(buildXlsx({worksheet(rows)}), options));
         QVERIFY2(b.calc->untrackedCount() > n / 4 && b.calc->untrackedCount() < n, qPrintable(QString::number(b.calc->untrackedCount())));
         QVERIFY2(b.calc->graph().compactions() <= 3, qPrintable(QStringLiteral("%1 compactions").arg(b.calc->graph().compactions())));
-        QVERIFY(b.calc->graph().memoryBytes() <= options.maxGraphBytes + options.maxGraphBytes / 8);
+        QVERIFY(b.calc->graph().memoryBytes() <= options.maxGraphBytes);
         settle(b);
         QCOMPARE(b.at("A7"), QStringLiteral("n:%1").arg(k));
         QVERIFY(b.set("B5", Value::number(7)));
@@ -852,7 +852,7 @@ private Q_SLOTS:
         QVERIFY(b.open(buildXlsx({worksheet(rows)}), options));
         settle(b);
         QVERIFY(b.calc->untrackedCount() > 0);
-        QVERIFY(b.calc->graph().memoryBytes() <= 30000 + 8192);
+        QVERIFY(b.calc->graph().memoryBytes() <= 30000);
         QCOMPARE(b.at("C400"), QStringLiteral("n:801"));
         QVERIFY(b.set("A10", Value::number(1000)));
         const Calculation::Progress p = settle(b);

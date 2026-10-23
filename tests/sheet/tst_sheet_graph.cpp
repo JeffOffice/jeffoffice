@@ -190,7 +190,7 @@ private Q_SLOTS:
         int refused = 0;
         for (quint32 n = 0; n < 600; ++n)
             if (!graph.setPrecedents(n, {cellArea(0, n, 0), cellArea(0, n, 1)})) ++refused;
-        QVERIFY2(refused > 0 && graph.memoryBytes() <= budget + 4096, qPrintable(QStringLiteral("%1 refused, %2 bytes held of %3").arg(refused).arg(graph.memoryBytes()).arg(budget)));
+        QVERIFY2(refused > 0 && graph.memoryBytes() <= budget, qPrintable(QStringLiteral("%1 refused, %2 bytes held of %3").arg(refused).arg(graph.memoryBytes()).arg(budget)));
         // dropped entries are let go of to make room
         for (quint32 n = 0; n < 600; ++n) graph.clearPrecedents(n);
         QVERIFY(graph.setPrecedents(700, {cellArea(0, 1, 1), cellArea(0, 2, 2)}));
@@ -198,7 +198,7 @@ private Q_SLOTS:
         graph.dependentsOfCell(0, 1, 1, &got);
         QCOMPARE(asSet(got), (std::set<quint32>{700}));
         // a formula refused is told nothing: what it told before is gone
-        DependencyGraph small(1000);
+        DependencyGraph small(4000);
         QVERIFY(small.setPrecedents(1, {cellArea(0, 0, 0), cellArea(0, 1, 0)}));
         std::vector<CellArea> more;
         for (quint32 r = 5; r < 200; ++r) more.push_back(cellArea(0, r, 0));
@@ -206,7 +206,7 @@ private Q_SLOTS:
         got.clear();
         small.dependentsOfCell(0, 0, 0, &got);
         QVERIFY(got.empty());
-        QVERIFY(small.memoryBytes() <= 1000 + 4096);
+        QVERIFY(small.memoryBytes() <= 4000);
     }
 
     // A query for the formulas that read a cell looks at a number of items that grows with the logarithm of what the graph holds, at every size (counted, not timed): not
@@ -290,7 +290,7 @@ private Q_SLOTS:
             else ++refused;
         }
         QVERIFY2(refused > 0, qPrintable(QStringLiteral("it never said no: %1 formulas, %2 MB held of %3").arg(told).arg(graph.memoryBytes() >> 20).arg(budget >> 20)));
-        QVERIFY2(graph.memoryBytes() <= budget + budget / 4, qPrintable(QStringLiteral("%1 MB held of %2").arg(graph.memoryBytes() >> 20).arg(budget >> 20)));
+        QVERIFY2(graph.memoryBytes() <= budget, qPrintable(QStringLiteral("%1 bytes held of %2").arg(graph.memoryBytes()).arg(budget)));
         QVERIFY2(told > 10000, qPrintable(QString::number(told)));
         QVERIFY2(graph.buildWork() - work0 <= 80 * qint64(told), qPrintable(QStringLiteral("%1 steps to hold %2 formulas").arg(graph.buildWork() - work0).arg(told)));
     }
@@ -305,13 +305,31 @@ private Q_SLOTS:
         through.sheet2 = 1023;
         std::vector<CellArea> many(300, through);
         QVERIFY(!graph.setPrecedents(2, many));
-        QVERIFY(graph.memoryBytes() <= 100000 + 4096);
+        QVERIFY(graph.memoryBytes() <= 100000);
         std::vector<quint32> got;
         graph.dependentsOfCell(0, 5, 5, &got);
         QCOMPARE(asSet(got), (std::set<quint32>{1}));
         got.clear();
         graph.dependentsOfCell(1000, 5, 5, &got);
         QVERIFY(got.empty());
+    }
+
+    // The list of places a formula's blocks go to, which the graph makes while it works, is counted in the bytes it takes (and let go of when it is a large one): a formula whose
+    // places fit in the bytes but not with their list is refused, and the same in a graph with room for both is held without the list.
+    void theListOfPlacesOfAFormulaIsCountedInTheBytes()
+    {
+        std::vector<CellArea> cells;
+        for (quint32 i = 0; i < 200000; ++i) cells.push_back(cellArea(0, i, 3));
+        DependencyGraph tight(6 << 20);   // the 200,000 places take about 4.8 MB, and their list 3.2 MB
+        QVERIFY(!tight.setPrecedents(1, cells));
+        QVERIFY(tight.memoryBytes() <= (6 << 20));
+        DependencyGraph roomy(16 << 20);
+        QVERIFY(roomy.setPrecedents(1, cells));
+        QVERIFY2(roomy.memoryBytes() <= 200000 * 24 + (1 << 20), qPrintable(QString::number(roomy.memoryBytes())));
+        QVERIFY(roomy.memoryBytes() <= (16 << 20));
+        std::vector<quint32> got;
+        roomy.dependentsOfCell(0, 123456, 3, &got);
+        QCOMPARE(got.size(), size_t(1));
     }
 
     // Blocks that are wide are found by their columns as well as their rows: twenty thousand blocks of twelve columns that share their rows are not all looked at for a cell.
