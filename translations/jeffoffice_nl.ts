@@ -4666,29 +4666,41 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">een RGB-kleurruimte die JeffPub niet kon converteren</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2338"/>
-        <source>%1 object(s) couldn&apos;t be saved to .pub</source>
-        <translation type="unfinished">%1 object(en) kon(den) niet in .pub worden opgeslagen</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>%1 table cell(s) couldn&apos;t be saved to .pub</source>
-        <translation type="unfinished">%1 tabelcel(len) kon(den) niet in .pub worden opgeslagen</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>the second half of %1 divided table cell(s) couldn&apos;t be saved to .pub</source>
-        <translation type="unfinished">de tweede helft van %1 gesplitste tabelcel(len) kon niet in .pub worden opgeslagen</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>%1 table border(s), shading(s), or diagonal(s) couldn&apos;t be saved to .pub</source>
-        <translation type="unfinished">%1 tabelrand(en), arcering(en) of diagona(a)l(en) kon(den) niet in .pub worden opgeslagen</translation>
-    </message>
-    <message>
         <location filename="../libs/base/io/qtpdf.cpp" line="-26"/>
         <source>not a PDF this program wrote</source>
         <translation type="unfinished">geen PDF die door dit programma is gemaakt</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2338"/>
+        <source>%n object(s) couldn&apos;t be saved to .pub</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n table cell(s) couldn&apos;t be saved to .pub</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>the second half of %n divided table cell(s) couldn&apos;t be saved to .pub</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n table border(s), shading(s), or diagonal(s) couldn&apos;t be saved to .pub</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -5057,10 +5069,13 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
         <source>Save Email Files To</source>
         <translation type="unfinished">E-mailbestanden opslaan in</translation>
     </message>
-    <message>
+    <message numerus="yes">
         <location line="+30"/>
-        <source>Created %1 email file(s) in %2.</source>
-        <translation type="unfinished">%1 e-mailbestand(en) gemaakt in %2.</translation>
+        <source>Created %n email file(s) in %1.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
         <location line="+42"/>
@@ -5703,7 +5718,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">(Geen spellingsuggesties)</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/spelling.cpp" line="+87"/>
+        <location filename="../libs/shell/app/spelling.cpp" line="+108"/>
         <source>A word to add can&apos;t be empty or run over more than one line.</source>
         <translation type="unfinished">Een toe te voegen woord mag niet leeg zijn en niet over meer dan één regel lopen.</translation>
     </message>
@@ -8101,21 +8116,27 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <source>ZIP (*.zip)</source>
         <translation type="unfinished">ZIP (*.zip)</translation>
     </message>
-    <message>
+    <message numerus="yes">
         <location line="+8"/>
-        <source>Saved %1 with the publication and %2 font file(s).</source>
-        <translation type="unfinished">%1 is opgeslagen met de publicatie en %2 lettertypebestand(en).</translation>
+        <source>Saved %1 with the publication and %n font file(s).</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+18"/>
+        <source>Saved %n picture(s) at 300 dpi.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="-12"/>
         <location line="+12"/>
         <source>Save for a Photo Printer</source>
         <translation type="unfinished">Opslaan voor een fotoprinter</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Saved %1 picture(s) at 300 dpi.</source>
-        <translation type="unfinished">%1 afbeelding(en) opgeslagen met 300 dpi.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -10280,7 +10301,7 @@ Desktop publishing</translation>
         <translation type="unfinished">Portugees (Portugal)</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+153"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+154"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Begroetingsregel»</translation>
     </message>
@@ -10310,7 +10331,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Vervolg van pagina %1)</translation>
     </message>
     <message>
-        <location line="+5752"/>
+        <location line="+5920"/>
         <source>Notes</source>
         <translation type="unfinished">Notities</translation>
     </message>
@@ -16034,10 +16055,13 @@ Bron: %3</translation>
         <source>JeffPub finished searching the publication. &quot;%1&quot; was not found.</source>
         <translation type="unfinished">JeffPub heeft de publicatie doorzocht. &quot;%1&quot; is niet gevonden.</translation>
     </message>
-    <message>
+    <message numerus="yes">
         <location line="+25"/>
-        <source>JeffPub made %1 replacement(s).</source>
-        <translation type="unfinished">JeffPub heeft %1 vervanging(en) uitgevoerd.</translation>
+        <source>JeffPub made %n replacement(s).</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -17599,13 +17623,24 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
         <source>SVG vector drawing (*.svg)</source>
         <translation type="unfinished">SVG-vectortekening (*.svg)</translation>
     </message>
-    <message>
+    <message numerus="yes">
         <location line="+5"/>
-        <source>Saved %1 drawing(s).</source>
-        <translation type="unfinished">%1 tekening(en) opgeslagen.</translation>
+        <source>Saved %n drawing(s).</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+23"/>
+        <source>Saved %n picture(s).</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-22"/>
         <source>The drawing couldn&apos;t be saved: %1</source>
         <translation type="unfinished">De tekening kan niet worden opgeslagen: %1</translation>
     </message>
@@ -17615,12 +17650,7 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
         <translation type="unfinished">Resolutie (dpi):</translation>
     </message>
     <message>
-        <location line="+18"/>
-        <source>Saved %1 picture(s).</source>
-        <translation type="unfinished">%1 afbeelding(en) opgeslagen.</translation>
-    </message>
-    <message>
-        <location line="+24"/>
+        <location line="+42"/>
         <location line="+32"/>
         <location line="+9"/>
         <source>Save as E-book</source>
@@ -23272,7 +23302,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+15"/>
-        <location filename="../libs/office/office/package.cpp" line="+369"/>
+        <location filename="../libs/office/office/package.cpp" line="+429"/>
         <location line="+7"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="+5"/>
         <source>The file is larger than this program can open.</source>
@@ -23368,7 +23398,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">[Tabel: %1 rijen bij %2 kolommen]</translation>
     </message>
     <message>
-        <location line="+462"/>
+        <location line="+465"/>
         <source>The file has no document in it.</source>
         <translation type="unfinished">Het bestand bevat geen document.</translation>
     </message>

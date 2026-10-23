@@ -4666,29 +4666,41 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">uno spazio colore RGB che JeffPub non è riuscito a convertire</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2338"/>
-        <source>%1 object(s) couldn&apos;t be saved to .pub</source>
-        <translation type="unfinished">impossibile salvare in .pub oggetti: %1</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>%1 table cell(s) couldn&apos;t be saved to .pub</source>
-        <translation type="unfinished">impossibile salvare in .pub celle di tabella: %1</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>the second half of %1 divided table cell(s) couldn&apos;t be saved to .pub</source>
-        <translation type="unfinished">impossibile salvare in .pub la seconda metà di celle di tabella divise: %1</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>%1 table border(s), shading(s), or diagonal(s) couldn&apos;t be saved to .pub</source>
-        <translation type="unfinished">impossibile salvare in .pub bordi, sfondi o diagonali di tabella: %1</translation>
-    </message>
-    <message>
         <location filename="../libs/base/io/qtpdf.cpp" line="-26"/>
         <source>not a PDF this program wrote</source>
         <translation type="unfinished">non è un PDF creato da questo programma</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2338"/>
+        <source>%n object(s) couldn&apos;t be saved to .pub</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n table cell(s) couldn&apos;t be saved to .pub</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>the second half of %n divided table cell(s) couldn&apos;t be saved to .pub</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n table border(s), shading(s), or diagonal(s) couldn&apos;t be saved to .pub</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -5057,10 +5069,13 @@ Aprili con il programma di posta elettronica per inviarli.</translation>
         <source>Save Email Files To</source>
         <translation type="unfinished">Salva file di posta elettronica in</translation>
     </message>
-    <message>
+    <message numerus="yes">
         <location line="+30"/>
-        <source>Created %1 email file(s) in %2.</source>
-        <translation type="unfinished">File di posta elettronica creati in %2: %1.</translation>
+        <source>Created %n email file(s) in %1.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
         <location line="+42"/>
@@ -5703,7 +5718,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">(Nessun suggerimento ortografico)</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/spelling.cpp" line="+87"/>
+        <location filename="../libs/shell/app/spelling.cpp" line="+108"/>
         <source>A word to add can&apos;t be empty or run over more than one line.</source>
         <translation type="unfinished">La parola da aggiungere non può essere vuota né occupare più di una riga.</translation>
     </message>
@@ -8101,21 +8116,27 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <source>ZIP (*.zip)</source>
         <translation type="unfinished">ZIP (*.zip)</translation>
     </message>
-    <message>
+    <message numerus="yes">
         <location line="+8"/>
-        <source>Saved %1 with the publication and %2 font file(s).</source>
-        <translation type="unfinished">%1 salvato con la pubblicazione e %2 file di tipi di carattere.</translation>
+        <source>Saved %1 with the publication and %n font file(s).</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+18"/>
+        <source>Saved %n picture(s) at 300 dpi.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="-12"/>
         <location line="+12"/>
         <source>Save for a Photo Printer</source>
         <translation type="unfinished">Salva per la stampa fotografica</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Saved %1 picture(s) at 300 dpi.</source>
-        <translation type="unfinished">Immagini salvate a 300 dpi: %1.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -10280,7 +10301,7 @@ Desktop publishing</translation>
         <translation type="unfinished">Portoghese (Portogallo)</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+153"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+154"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Formula di apertura»</translation>
     </message>
@@ -10310,7 +10331,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Continua da pagina %1)</translation>
     </message>
     <message>
-        <location line="+5752"/>
+        <location line="+5920"/>
         <source>Notes</source>
         <translation type="unfinished">Note</translation>
     </message>
@@ -16034,10 +16055,13 @@ Origine: %3</translation>
         <source>JeffPub finished searching the publication. &quot;%1&quot; was not found.</source>
         <translation type="unfinished">JeffPub ha terminato la ricerca nella pubblicazione. &quot;%1&quot; non è stato trovato.</translation>
     </message>
-    <message>
+    <message numerus="yes">
         <location line="+25"/>
-        <source>JeffPub made %1 replacement(s).</source>
-        <translation type="unfinished">Sostituzioni effettuate da JeffPub: %1.</translation>
+        <source>JeffPub made %n replacement(s).</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -17599,13 +17623,24 @@ Questi elementi vengono mantenuti se si salva come pubblicazione JeffPub (.jpub)
         <source>SVG vector drawing (*.svg)</source>
         <translation type="unfinished">Disegno vettoriale SVG (*.svg)</translation>
     </message>
-    <message>
+    <message numerus="yes">
         <location line="+5"/>
-        <source>Saved %1 drawing(s).</source>
-        <translation type="unfinished">Disegni salvati: %1.</translation>
+        <source>Saved %n drawing(s).</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+23"/>
+        <source>Saved %n picture(s).</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-22"/>
         <source>The drawing couldn&apos;t be saved: %1</source>
         <translation type="unfinished">Impossibile salvare il disegno: %1</translation>
     </message>
@@ -17615,12 +17650,7 @@ Questi elementi vengono mantenuti se si salva come pubblicazione JeffPub (.jpub)
         <translation type="unfinished">Risoluzione (punti per pollice):</translation>
     </message>
     <message>
-        <location line="+18"/>
-        <source>Saved %1 picture(s).</source>
-        <translation type="unfinished">Immagini salvate: %1.</translation>
-    </message>
-    <message>
-        <location line="+24"/>
+        <location line="+42"/>
         <location line="+32"/>
         <location line="+9"/>
         <source>Save as E-book</source>
@@ -23272,7 +23302,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+15"/>
-        <location filename="../libs/office/office/package.cpp" line="+369"/>
+        <location filename="../libs/office/office/package.cpp" line="+429"/>
         <location line="+7"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="+5"/>
         <source>The file is larger than this program can open.</source>
@@ -23368,7 +23398,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">[Tabella: %1 righe per %2 colonne]</translation>
     </message>
     <message>
-        <location line="+462"/>
+        <location line="+465"/>
         <source>The file has no document in it.</source>
         <translation type="unfinished">Il file non contiene alcun documento.</translation>
     </message>
