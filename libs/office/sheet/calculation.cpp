@@ -1164,7 +1164,13 @@ void Calculation::dropNode(quint32 id)
     m_freeNodes.push_back(id);
 }
 
-bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v)
+void Calculation::queueDependents(const CellArea &area)
+{
+    if (!m_running) beginRecalculation();
+    m_begin.changed.push_back(area);
+}
+
+bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v, Marking marking, qint32 sharedString)
 {
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows || v.isArray()) return false;
     Sheet &s = m_sheets[size_t(sheet)];
@@ -1185,30 +1191,43 @@ bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v)
     case Value::Kind::Bool: c.type = CellType::Bool; c.number = v.boolean() ? 1 : 0; break;
     case Value::Kind::Error: c.type = CellType::Error; c.number = double(int(v.errorKind())); break;
     case Value::Kind::Text:
-        if (c.type == CellType::InlineString && c.textIndex() >= 0 && c.textIndex() < s.texts.size()) {
-            s.texts[c.textIndex()] = v.text();
+        if (sharedString >= 0 && sharedString < m_book.sharedStrings().strings.size()) {
+            c.type = CellType::SharedString;
+            c.number = double(sharedString);
         } else {
-            s.texts.append(v.text());
-            c.number = double(s.texts.size() - 1);
+            if (c.type == CellType::InlineString && c.textIndex() >= 0 && c.textIndex() < s.texts.size()) {
+                s.texts[c.textIndex()] = v.text();
+            } else {
+                s.texts.append(v.text());
+                c.number = double(s.texts.size() - 1);
+            }
+            c.type = CellType::InlineString;
         }
-        c.type = CellType::InlineString;
         break;
     default: c.type = CellType::Empty; c.number = 0; break;
     }
     if (c.type == CellType::Empty && c.style == 0) s.cells.erase(row, col);
     else s.cells.set(c);
-    if (c.type != CellType::Empty) useExtent(sheet, row, col);
-    std::vector<CellArea> changed;
+    if (c.type != CellType::Empty) {
+        useExtent(sheet, row, col);
+        s.extentRows = std::max(s.extentRows, row + 1);
+        s.extentCols = std::max<quint32>(s.extentCols, col + 1);
+    }
     CellArea a;
     a.sheet1 = a.sheet2 = sheet;
     a.row1 = a.row2 = row;
     a.col1 = a.col2 = col;
+    if (marking == Marking::Later) {
+        queueDependents(a);
+        return true;
+    }
+    std::vector<CellArea> changed;
     changed.push_back(a);
     markDependents(&changed);
     return true;
 }
 
-bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString &formula)
+bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString &formula, Marking marking)
 {
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows) return false;
     ParseOptions po;
@@ -1233,11 +1252,82 @@ bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString 
     c.number = 0;
     s.cells.set(c);
     useExtent(sheet, row, col);
+    s.extentRows = std::max(s.extentRows, row + 1);
+    s.extentCols = std::max<quint32>(s.extentCols, col + 1);
     const quint32 id = addNode(sheet, c, c.formula);
+    const CellArea a = areaOf(m_nodes[id]);
+    if (marking == Marking::Later) {
+        queueDependents(a);
+        return true;
+    }
     std::vector<CellArea> changed;
-    changed.push_back(areaOf(m_nodes[id]));
+    changed.push_back(a);
     markDependents(&changed);
     return true;
+}
+
+bool Calculation::setStyle(int sheet, quint32 row, quint32 col, quint32 style)
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows) return false;
+    Sheet &s = m_sheets[size_t(sheet)];
+    Cell *found = s.cells.findMutable(row, col);
+    if (!found) {
+        if (style == 0) return true;
+        Cell c;
+        c.row = row;
+        c.col = quint16(col);
+        c.style = style;
+        s.cells.set(c);
+    } else if (found->style != style) {
+        found->style = style;
+        if (found->type == CellType::Empty && !found->hasFormula() && style == 0) s.cells.erase(row, col);
+    }
+    if (style != 0) {
+        s.extentRows = std::max(s.extentRows, row + 1);
+        s.extentCols = std::max<quint32>(s.extentCols, col + 1);
+    }
+    return true;
+}
+
+Calculation::CellContent Calculation::content(int sheet, quint32 row, quint32 col) const
+{
+    CellContent out;
+    if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows) return out;
+    const Sheet &s = m_sheets[size_t(sheet)];
+    const Cell *c = s.cells.find(row, col);
+    if (!c) return out;
+    out.exists = true;
+    out.style = c->style;
+    if (c->flags & (ArrayMember | ArrayFormula | DataTable)) out.editable = false;
+    if (c->hasFormula()) {
+        out.isFormula = true;
+        out.formula = s.formulaText(*c);
+        return out;
+    }
+    switch (c->type) {
+    case CellType::Empty: break;
+    case CellType::Number:
+    case CellType::Date: out.value = Value::number(c->number); break;
+    case CellType::SharedString:
+        out.value = Value::text(m_book.sharedStrings().at(c->textIndex()));
+        out.sharedString = c->textIndex();
+        break;
+    case CellType::InlineString:
+    case CellType::FormulaString: out.value = Value::text(s.texts.value(c->textIndex())); break;
+    case CellType::Bool: out.value = Value::boolean(c->number != 0); break;
+    case CellType::Error: out.value = Value::error(ErrorKind(std::max(0, std::min(int(ErrorKind::Unknown), int(c->number))))); break;
+    }
+    return out;
+}
+
+bool Calculation::put(int sheet, quint32 row, quint32 col, const CellContent &c, Marking marking)
+{
+    if (!c.exists) {
+        if (!setValue(sheet, row, col, Value(), marking)) return false;
+        return setStyle(sheet, row, col, 0);
+    }
+    const bool ok = c.isFormula ? setFormula(sheet, row, col, c.formula, marking) : setValue(sheet, row, col, c.value, marking, c.sharedString);
+    return ok && setStyle(sheet, row, col, c.style);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
