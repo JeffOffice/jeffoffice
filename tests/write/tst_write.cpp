@@ -18124,6 +18124,227 @@ private Q_SLOTS:
         }
     }
 
+    // ---- notes and headers: one mode at a time
+
+    // A document with notes, no header yet, for the tests of entering a header or a footer from a note.
+    static QByteArray notesAndHeaderDocx() { return threeNotesDocx(); }
+
+    // Insert > Header and Insert > Footer while a note is edited: the note is left, the header is entered, and the two Escapes that follow end in the text with its own caret.
+    void insertingAHeaderWhileAFootnoteIsEditedLeavesTheNote()
+    {
+        WriteWindow w;
+        w.resize(1300, 1000);
+        w.show();
+        w.setDocument(open(notesAndHeaderDocx()), QString());
+        PageView *v = w.view();
+        v->paginateAll();
+        QTextCursor at(w.document()->story());
+        at.setPosition(3);
+        v->setCursor(at);
+        for (const char *command : {"insert.header", "insert.footer"}) {
+            QVERIFY(v->enterFootnote(3));
+            QVERIFY(v->inNote());
+            w.act(command)->trigger();
+            QVERIFY2(!(v->inNote() && v->inHeaderFooter()), command);
+            QVERIFY2(v->inHeaderFooter(), command);
+            QVERIFY(!v->inNote());
+            QCOMPARE(v->cursor().document(), v->headerFooterEdit().story);
+            QTest::keyClick(v, Qt::Key_Escape);
+            QVERIFY(!v->inHeaderFooter());
+            QVERIFY(!v->inNote());
+            QCOMPARE(v->cursor().document(), w.document()->story());
+            QCOMPARE(v->cursor().position(), 3);   // (the place in the text that was left for the note)
+            QTest::keyClick(v, Qt::Key_Escape);
+            QCOMPARE(v->cursor().document(), w.document()->story());
+            QVERIFY(!v->inNote() && !v->inHeaderFooter());
+        }
+        // Typing after all that is typing in the text.
+        const QString before = plain(*w.document());
+        QTest::keyClicks(v, "Q");
+        QCOMPARE(plain(*w.document()).size(), before.size() + 1);
+    }
+
+    // Entering a header or footer, or a note, leaves the other: by the commands, and by the calls the view's other paths make.
+    void enteringANoteOrAHeaderLeavesTheOtherMode()
+    {
+        auto doc = open(notesAndHeaderDocx());
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 1200);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        QTextCursor at(doc->story());
+        at.setPosition(5);
+        view.setCursor(at);
+        QVERIFY(view.enterFootnote(2));
+        QVERIFY(view.inNote());
+        QVERIFY(view.enterHeaderFooter(0, false, true));
+        QVERIFY(view.inHeaderFooter());
+        QVERIFY(!view.inNote());
+        QVERIFY(view.enterFootnote(3));
+        QVERIFY(view.inNote());
+        QVERIFY(!view.inHeaderFooter());
+        QVERIFY(view.enterFootnote(2));
+        QVERIFY(view.enterHeaderFooterAtCaret(true));
+        QVERIFY(view.inHeaderFooter() && !view.inNote());
+        view.leaveHeaderFooter();
+        QCOMPARE(view.cursor().document(), doc->story());
+        QCOMPARE(view.cursor().position(), 5);
+        QVERIFY(view.enterFootnote(2));
+        view.leaveNote();
+        QCOMPARE(view.cursor().document(), doc->story());
+        view.leaveNote();
+        view.leaveHeaderFooter();
+        QCOMPARE(view.cursor().document(), doc->story());
+        // From the caret in an endnote's words (a place in the text) a header is entered and left as from any place.
+        auto ended = open(notedDocx());
+        QVERIFY(ended);
+        PageView other;
+        other.resize(1000, 1200);
+        other.show();
+        other.setDocument(ended.get());
+        other.paginateAll();
+        QTextCursor inNote(ended->story());
+        inNote.setPosition(ended->story()->findBlockByNumber(3).position() + 4);
+        other.setCursor(inNote);
+        QVERIFY(other.enterHeaderFooterAtCaret(false));
+        QVERIFY(other.inHeaderFooter());
+        other.leaveHeaderFooter();
+        QCOMPARE(other.cursor().document(), ended->story());
+        QCOMPARE(other.cursor().position(), inNote.position());
+    }
+
+    // Random keys, clicks, and commands in the window (the notes, the headers, the clipboard, and the history among them): after each, at most one of the note mode and the header mode is on,
+    // the caret is in the story of the mode it is in, and in a note the caret is drawn; and what is saved at the end is whole. JW_FUZZ_SEEDS says how many seeds.
+    void randomInputInTheWindowKeepsOneModeAtATime()
+    {
+        const int seeds = qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") > 0 ? qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") : 6;
+        auto lorem = [](int n) {
+            static const char *const w[] = {"alpha", "beta", "gamma", "delta"};
+            QByteArray out;
+            for (int i = 0; i < n; ++i) out += (i ? " " : "") + QByteArray(w[i % 4]) + QByteArray::number(i);
+            return out;
+        };
+        const QByteArray body = citing("First", 2) + paragraphs(8, 40) + citing("Second", 3) + "<w:p><w:r><w:t>Endnote cite</w:t></w:r><w:r><w:endnoteReference w:id=\"1\"/></w:r></w:p>" + paragraphs(30, 40) + citing("Third", 4);
+        const QByteArray notes = footnotesPart({{2, plainRun(" " + lorem(500))}, {3, plainRun(" short")}, {4, plainRun(" " + lorem(60))}});
+        const QByteArray ends = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:endnote>"
+                                "<w:endnote w:id=\"1\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> endnote words here</w:t></w:r></w:p><w:p><w:r><w:t>second endnote paragraph</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        const QByteArray header = headerPart("hdr", {"<w:r><w:t>Header</w:t></w:r>"});
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>" + QByteArray(kPage) + "</w:sectPr>";
+        const QByteArray zip = makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}, {QStringLiteral("/word/endnotes.xml"), ends}, {QStringLiteral("/word/header1.xml"), header}},
+                                                 "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>", noteStyles());
+        static const int keys[] = {Qt::Key_Left, Qt::Key_Right, Qt::Key_Up, Qt::Key_Down, Qt::Key_Home, Qt::Key_End, Qt::Key_PageUp, Qt::Key_PageDown, Qt::Key_Backspace, Qt::Key_Delete,
+                                   Qt::Key_Return, Qt::Key_Tab, Qt::Key_Escape};
+        for (int seed = 1; seed <= seeds; ++seed) {
+            auto doc = open(zip);
+            QVERIFY(doc);
+            WriteWindow w;
+            w.resize(1300, 1000);
+            w.show();
+            w.setDocument(std::move(doc), QString());
+            PageView *v = w.view();
+            WriteDoc *d = w.document();
+            v->paginateAll();
+            std::mt19937 rng(seed);
+            auto pick = [&](int n) { return int(rng() % unsigned(std::max(1, n))); };
+            QStringList log;
+            for (int step = 0; step < 120; ++step) {
+                switch (pick(12)) {
+                case 0:
+                case 1:
+                case 2: {
+                    const int k = keys[pick(int(sizeof(keys) / sizeof(keys[0])))];
+                    const Qt::KeyboardModifiers m = pick(3) == 0 ? Qt::ShiftModifier : pick(4) == 0 ? Qt::ControlModifier : Qt::NoModifier;
+                    QTest::keyClick(v, Qt::Key(k), m);
+                    log << QStringLiteral("key%1/%2").arg(k, 0, 16).arg(int(m));
+                    break;
+                }
+                case 3:
+                    QTest::keyClicks(v, QStringLiteral("ab c"));
+                    log << QStringLiteral("type");
+                    break;
+                case 4: {
+                    const int pg = pick(std::max(1, d->pager().pageCount()));
+                    const auto page = d->pager().materialize(pg);
+                    if (!page) break;
+                    if (!page->noteBoxes.isEmpty() && pick(3)) {
+                        const auto nb = page->noteBoxes[pick(int(page->noteBoxes.size()))];
+                        if (const Item *it = page->doc->item(nb.itemId)) {
+                            QTest::mouseClick(v->viewport(), Qt::LeftButton, pick(4) == 0 ? Qt::ShiftModifier : Qt::NoModifier,
+                                              pagePoint(*v, pg, it->rect.left() + 10 + pick(300), it->rect.top() + 3 + pick(std::max(1, int(it->rect.height()) - 4))));
+                            log << QStringLiteral("clickNote");
+                        }
+                    } else {
+                        QTest::mouseClick(v->viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(*v, pg, 72 + pick(450), 72 + pick(600)));
+                        log << QStringLiteral("clickPage");
+                    }
+                    break;
+                }
+                case 5: {
+                    const QVector<int> ids = d->citedFootnotes();
+                    if (!ids.isEmpty()) {
+                        v->enterFootnote(ids[pick(int(ids.size()))]);
+                        log << QStringLiteral("enterFootnote");
+                    }
+                    break;
+                }
+                case 6:
+                    w.act("refs.footnote")->trigger();
+                    log << QStringLiteral("insFootnote");
+                    break;
+                case 7:
+                    w.act("refs.endnote")->trigger();
+                    log << QStringLiteral("insEndnote");
+                    break;
+                case 8:
+                    v->undo();
+                    log << QStringLiteral("undo");
+                    break;
+                case 9:
+                    v->redo();
+                    log << QStringLiteral("redo");
+                    break;
+                case 10: {
+                    const int what = pick(6);
+                    if (what == 0) v->copy();
+                    else if (what == 1) v->cut();
+                    else if (what == 2) v->paste();
+                    else if (what == 3) v->selectAll();
+                    else if (what == 4) w.act("fmt.bold")->trigger();
+                    else w.act("style.normal")->trigger();
+                    log << QStringLiteral("edit%1").arg(what);
+                    break;
+                }
+                default:
+                    if (pick(2)) {
+                        w.act(pick(2) ? "insert.header" : "insert.footer")->trigger();
+                        log << QStringLiteral("hdrButton");
+                    } else {
+                        QTest::mouseDClick(v->viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(*v, 0, 300, 40));
+                        log << QStringLiteral("dblclickHeader");
+                    }
+                    break;
+                }
+                QCoreApplication::processEvents();
+                const QString trail = QStringLiteral("seed %1 step %2 after ").arg(seed).arg(step) + log.mid(std::max<qsizetype>(0, log.size() - 6)).join(QLatin1Char(' '));
+                const QTextDocument *cd = v->cursor().document();
+                QVERIFY2(!(v->inNote() && v->inHeaderFooter()), qPrintable(trail + QStringLiteral(": both modes are on")));
+                if (v->inNote()) QVERIFY2(cd == v->noteEdit().story, qPrintable(trail + QStringLiteral(": in a note, the caret is elsewhere")));
+                else if (v->inHeaderFooter()) QVERIFY2(cd == v->headerFooterEdit().story, qPrintable(trail + QStringLiteral(": in a header, the caret is elsewhere")));
+                else QVERIFY2(cd == d->story(), qPrintable(trail + QStringLiteral(": in no mode, the caret is not in the text")));
+                if (v->inNote()) {
+                    QRect caret;
+                    QVERIFY2(v->caretRect(&caret), qPrintable(trail + QStringLiteral(": in a note, the caret has no place")));
+                }
+            }
+            QString err;
+            const QByteArray saved = d->toDocx(&err);
+            QVERIFY2(!saved.isEmpty(), qPrintable(QStringLiteral("seed %1: %2").arg(seed).arg(err)));
+            QVERIFY2(rt::strictProblems(saved, QByteArray()).isEmpty(), qPrintable(QStringLiteral("seed %1: ").arg(seed) + rt::strictProblems(saved, QByteArray()).join(QLatin1Char(' '))));
+            QVERIFY2(rt::danglingReferences(saved).isEmpty(), qPrintable(QStringLiteral("seed %1: ").arg(seed) + rt::danglingReferences(saved).join(QLatin1Char(' '))));
+        }
+    }
 
 
 

@@ -127,6 +127,8 @@ public:
     bool enterFootnote(int id);
     // Back to the text: the caret where it was, or with `atReference` just after the note's reference.
     void leaveNote(bool atReference = false);
+    // A header or footer and a note are never edited together: at most one of inHeaderFooter() and inNote() holds.
+    bool sideModesExclusive() const { return !(m_hf.active && m_note.active); }
     // The section the caret is in (the text's, or that of the page whose header, footer, or note is being edited).
     int cursorSection();
 
@@ -200,6 +202,10 @@ private:
     bool holdInEndnote(int movedFrom);
     // Leaves the endnote whose words the caret is in, for the text just after its reference.
     void leaveEndnote(int id);
+    // Entering a header or footer (or a note) leaves the note (or the header or footer) that was being edited, which puts the caret back in the text: the one place the two modes meet.
+    void leaveSideModeFor(bool noteMode);
+    // The caret back in the text, where it was before a header, footer, or note was entered (the start of the text where that place is not known).
+    void restoreBodyCursor();
     // The story being edited beside the text (a header or footer, or a note), the page it is edited on, and the boxes of that story on a drawn page.
     const QTextDocument *sideStory() const { return m_hf.active ? m_hf.story : m_note.active ? m_note.story : nullptr; }
     int sidePage() const { return m_hf.active ? m_hf.page : m_note.page; }

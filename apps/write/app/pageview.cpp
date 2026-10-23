@@ -949,6 +949,7 @@ bool PageView::enterHeaderFooterAtCaret(bool footer) { return enterHeaderFooter(
 bool PageView::enterHeaderFooterFor(int section, bool footer, int slot, int page, bool makeNow)
 {
     if (!m_doc) return false;
+    leaveSideModeFor(false);
     if (m_hf.active && m_hf.section == section && m_hf.footer == footer && m_hf.slot == slot && m_doc->headerFooterStory(section, footer, slot) == m_hf.story) {
         m_hf.page = page;
         if (makeNow) m_doc->createHeaderFooter(section, footer, slot);
@@ -984,6 +985,26 @@ bool PageView::enterHeaderFooterFor(int section, bool footer, int slot, int page
     return true;
 }
 
+void PageView::leaveSideModeFor(bool noteMode)
+{
+    if (noteMode) {
+        if (m_hf.active) leaveHeaderFooter();
+    } else if (m_note.active) {
+        leaveNote();
+    }
+}
+
+void PageView::restoreBodyCursor()
+{
+    if (m_doc && m_bodyCursor.document() == m_doc->story()) {
+        m_cursor = m_bodyCursor;
+    } else if (m_doc) {
+        m_cursor = QTextCursor(m_doc->story());
+        m_cursor.setPosition(0);
+    }
+    m_bodyCursor = QTextCursor();
+}
+
 void PageView::leaveHeaderFooter()
 {
     if (!m_hf.active) return;
@@ -993,8 +1014,7 @@ void PageView::leaveHeaderFooter()
     m_hfSpell.reset();
     m_dragging = false;
     m_editEnd = -1;
-    if (m_bodyCursor.document()) m_cursor = m_bodyCursor;
-    m_bodyCursor = QTextCursor();
+    restoreBodyCursor();
     if (m_doc) m_doc->discardPendingHeaderFooter();   // (an empty one that nothing was put in is not made)
     dropRendered(0);
     relayout();
@@ -1262,7 +1282,7 @@ bool PageView::enterNote(QTextDocument *story, int id, int page)
         viewport()->update();
         return true;
     }
-    if (m_hf.active) leaveHeaderFooter();
+    leaveSideModeFor(true);
     const bool was = m_note.active;
     if (!was) m_bodyCursor = m_cursor;
     else QObject::disconnect(m_hfEdit);
@@ -1302,8 +1322,7 @@ void PageView::leaveNote(bool atReference)
     m_hfSpell.reset();
     m_dragging = false;
     m_editEnd = -1;
-    if (m_bodyCursor.document()) m_cursor = m_bodyCursor;
-    m_bodyCursor = QTextCursor();
+    restoreBodyCursor();
     if (atReference && m_doc) {
         // Just after the reference (the one on the page the note was edited on, else the first).
         const QVector<int> refs = m_doc->footnoteReferences(id);
