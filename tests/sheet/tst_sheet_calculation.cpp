@@ -5,6 +5,8 @@
 
 #include "sheet/calculation.h"
 
+#include <QRandomGenerator>
+
 #include <atomic>
 #include <memory>
 
@@ -323,6 +325,110 @@ private Q_SLOTS:
         QCOMPARE(q.evaluated, qint64(n - 1));
         QCOMPARE(u.at("A1"), QStringLiteral("n:%1").arg(n + 4));
         QVERIFY2(q.deepest <= 2, qPrintable(QString::number(q.deepest)));
+    }
+
+    // Edits, in any number and order, leave the values a whole recalculation gives: a grid of formulas that read cells and blocks of cells wherever they are (but never in a
+    // circle), edited over and over, is the same after each recalculation as it is after working out every formula again.
+    void editsLeaveWhatAWholeRecalculationGives()
+    {
+        const int rows = 24, cols = 7, cellsN = rows * cols;
+        QRandomGenerator rng(20261025);
+        // a rank for every cell: a formula reads only cells of lower rank, so there is no circle, whatever the places
+        std::vector<int> rank(static_cast<size_t>(cellsN));
+        for (int i = 0; i < cellsN; ++i) rank[size_t(i)] = i;
+        for (int i = cellsN - 1; i > 0; --i) std::swap(rank[size_t(i)], rank[size_t(rng.bounded(quint32(i + 1)))]);
+        auto name = [&](int r, int c) { return QStringLiteral("%1%2").arg(QChar(QLatin1Char('A' + c))).arg(r + 1); };
+        auto lower = [&](int r, int c) {
+            std::vector<QPair<int, int>> ok;
+            for (int rr = 0; rr < rows; ++rr)
+                for (int cc = 0; cc < cols; ++cc)
+                    if (rank[size_t(rr * cols + cc)] < rank[size_t(r * cols + c)]) ok.push_back({rr, cc});
+            return ok;
+        };
+        auto refOf = [&](int r, int c) {
+            // a cell of lower rank, or a block of them
+            const std::vector<QPair<int, int>> ok = lower(r, c);
+            if (ok.empty()) return QString();
+            const QPair<int, int> p = ok[rng.bounded(quint32(ok.size()))];
+            if (rng.bounded(3) == 0) {
+                for (int attempt = 0; attempt < 8; ++attempt) {
+                    const int r2 = qMin(rows - 1, p.first + int(rng.bounded(5))), c2 = qMin(cols - 1, p.second + int(rng.bounded(3)));
+                    bool allLower = true;
+                    for (int rr = p.first; rr <= r2 && allLower; ++rr)
+                        for (int cc = p.second; cc <= c2; ++cc)
+                            if (rank[size_t(rr * cols + cc)] >= rank[size_t(r * cols + c)]) {
+                                allLower = false;
+                                break;
+                            }
+                    if (allLower) return name(p.first, p.second) + QLatin1Char(':') + name(r2, c2);
+                }
+            }
+            return name(p.first, p.second);
+        };
+        auto formulaFor = [&](int r, int c) {
+            const QString a = refOf(r, c);
+            if (a.isEmpty()) return QStringLiteral("%1").arg(1 + int(rng.bounded(9)));
+            const QString b = refOf(r, c);
+            switch (rng.bounded(7)) {
+            case 0: return QStringLiteral("SUM(%1)+1").arg(a);
+            case 1: return QStringLiteral("%1*2").arg(a.contains(':') ? QStringLiteral("MAX(%1)").arg(a) : a);
+            case 2: return QStringLiteral("IF(SUM(%1)>10,SUM(%2),-1)").arg(a, b.isEmpty() ? a : b);
+            case 3: return QStringLiteral("COUNT(%1)+SUM(%2)").arg(a, b.isEmpty() ? a : b);
+            case 4: return QStringLiteral("AVERAGE(%1,%2)").arg(a, b.isEmpty() ? a : b);
+            case 5: return QStringLiteral("IFERROR(1/SUM(%1),0)").arg(a);
+            default: return QStringLiteral("SUM(%1)-MIN(%2)").arg(a, b.isEmpty() ? a : b);
+            }
+        };
+        QString sheet;
+        std::vector<bool> isFormula(static_cast<size_t>(cellsN), false);
+        for (int r = 0; r < rows; ++r) {
+            QString cellsXml;
+            for (int c = 0; c < cols; ++c)
+                if (rng.bounded(3) == 0) cellsXml += constant(name(r, c), QString::number(int(rng.bounded(20))));
+                else {
+                    cellsXml += cellXml(name(r, c), formulaFor(r, c));
+                    isFormula[size_t(r * cols + c)] = true;
+                }
+            sheet += rowXml(r + 1, cellsXml);
+        }
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(sheet)})));
+        settle(b);
+        auto snapshot = [&]() {
+            QStringList all;
+            for (int r = 0; r < rows; ++r)
+                for (int c = 0; c < cols; ++c) all << b.calc->cell(0, quint32(r), quint32(c)).debug();
+            return all;
+        };
+        for (int step = 0; step < 400; ++step) {
+            const int edits = 1 + int(rng.bounded(3));
+            for (int e = 0; e < edits; ++e) {
+                const int r = int(rng.bounded(rows)), c = int(rng.bounded(cols));
+                switch (rng.bounded(4)) {
+                case 0: QVERIFY(b.set(name(r, c), Value::number(int(rng.bounded(20))))); break;
+                case 1: QVERIFY(b.setFormula(name(r, c), formulaFor(r, c))); break;
+                case 2: QVERIFY(b.set(name(r, c), Value::text(QStringLiteral("t")))); break;
+                default: QVERIFY(b.calc->clearCell(0, quint32(r), quint32(c))); break;
+                }
+            }
+            // sometimes a slice at a time, sometimes stopped part of the way and then finished
+            if (rng.bounded(4) == 0) {
+                std::atomic<bool> stop{false};
+                b.calc->recalculate(1 + qint64(rng.bounded(30)), &stop);
+                if (rng.bounded(2)) {
+                    stop = true;
+                    b.calc->recalculate(0, &stop);
+                }
+            }
+            QVERIFY(b.calc->recalculate().finished || true);
+            const Calculation::Progress done = b.calc->recalculate();
+            QVERIFY(done.finished);
+            const QStringList incremental = snapshot();
+            b.calc->invalidateAll();
+            QVERIFY(b.calc->recalculate().finished);
+            const QStringList whole = snapshot();
+            QVERIFY2(incremental == whole, qPrintable(QStringLiteral("after edit %1 the values differ from a whole recalculation").arg(step)));
+        }
     }
 
     // What a formula reads through a name, INDIRECT, or OFFSET is told as it is worked out, and told again each time: a change to a cell it reads now works it out, one to a

@@ -404,6 +404,18 @@ void Calculation::beginRecalculation()
     m_dirtyCursor = 0;
 }
 
+void Calculation::invalidateAll()
+{
+    abandon();
+    for (quint32 id = 0; id < m_nodes.size(); ++id) {
+        Node &n = m_nodes[id];
+        if ((n.flags & (Dead | Kept)) || n.state != Done) continue;
+        n.state = Dirty;
+        ++m_notDone;
+        m_dirty.push_back(id);
+    }
+}
+
 void Calculation::abandon()
 {
     if (!m_running && m_stack.empty()) return;
@@ -532,10 +544,11 @@ Calculation::Progress Calculation::recalculate(qint64 budget, const std::atomic<
             for (size_t i = circleFrom; i < m_stack.size(); ++i) {
                 Node &c = m_nodes[m_stack[i].node];
                 if (c.state == Done || (c.state != Waiting && m_stack[i].node != id)) continue;
-                if (m_options.keepApart && m_iterate) {
+                if (m_options.keepApart) {
+                    // (the file's value of a cell in a circle is what the last calculation left, 0 or another, or what iterating gave: it is kept, and marks what reads it)
                     c.flags |= Kept | NodeTainted | Circular;
-                    c.kept = 'I';
-                    keepStored(c, 'I');
+                    c.kept = m_iterate ? 'I' : 'C';
+                    keepStored(c, c.kept);
                 } else {
                     storeResult(c, m_stack[i].node, Value::number(0));
                     c.flags |= Circular;

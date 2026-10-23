@@ -164,26 +164,28 @@ private Q_SLOTS:
         QCOMPARE(run.cellText("Sheet1", "F2").left(2), QStringLiteral("Z|"));
         QCOMPARE(run.cellText("Sheet1", "D3").left(2), QStringLiteral("E|"));
         QCOMPARE(run.cellText("Sheet1", "E3"), QStringLiteral("Z|D3*2|10|10"));
-        // the circle is 0, as the file has it; what reads it is no part of it
-        QCOMPARE(run.cellText("Sheet1", "A3"), QStringLiteral("M|B3+1|0|0"));
-        QCOMPARE(run.cellText("Sheet1", "B3"), QStringLiteral("M|A3+1|0|0"));
-        QCOMPARE(run.cellText("Sheet1", "C3"), QStringLiteral("M|A3+5|5|5"));
+        // a circle is kept apart, with the value the file has (what the last calculation left), and what reads it is told apart; the engine's own result for it is 0
+        QCOMPARE(run.cellText("Sheet1", "A3").left(2), QStringLiteral("C|"));
+        QCOMPARE(run.cellText("Sheet1", "B3").left(2), QStringLiteral("C|"));
+        QCOMPARE(run.cellText("Sheet1", "C3"), QStringLiteral("Z|A3+5|5|5"));
         QCOMPARE(r.circular, qint64(2));
+        QCOMPARE(r.circularStoredZero, qint64(2));
         // OFFSET depends on cells only: worked out, counted apart, told whether it matches, and what reads it is not set apart
         QCOMPARE(run.cellText("Sheet1", "F3").left(2), QStringLiteral("V|"));
         QCOMPARE(r.volatileChecked, qint64(1));
         QCOMPARE(r.volatileMatched, qint64(1));
         QCOMPARE(run.cellText("Sheet1", "G3"), QStringLiteral("M|F3+1|3|3"));
-        QCOMPARE(r.byClass.value('M'), qint64(5));      // D2, A3, B3, C3, and G3
+        QCOMPARE(r.byClass.value('M'), qint64(2));      // D2 and G3
+        QCOMPARE(r.byClass.value('C'), qint64(2));
         QCOMPARE(r.byClass.value('X'), qint64(3));
         QCOMPARE(r.rootMismatches, qint64(1));          // C1; D1 and E1 follow it
         QCOMPARE(r.byClass.value('U'), qint64(1));
         QCOMPARE(r.byClass.value('V'), qint64(2));      // NOW, and OFFSET
         QCOMPARE(r.byClass.value('E'), qint64(1));
-        QCOMPARE(r.byClass.value('Z'), qint64(4));      // B2, C2, F2, E3
-        QCOMPARE(r.taintedMatched, qint64(4));          // B2, C2, F2 (45001 from the stored 45000), and E3: all match the file
+        QCOMPARE(r.byClass.value('Z'), qint64(5));      // B2, C2, F2, E3, and C3
+        QCOMPARE(r.taintedMatched, qint64(5));          // B2, C2, F2 (45001 from the stored 45000), E3, and C3: all match the file
         QCOMPARE(r.unsupportedFunctions.value("FOO"), qint64(1));
-        QCOMPARE(r.checked(), qint64(8));
+        QCOMPARE(r.checked(), qint64(5));
         QVERIFY(r.whole);
         QVERIFY(r.loadSeconds >= 0 && r.calcSeconds >= 0);
         QVERIFY(r.graphEntries > 0);

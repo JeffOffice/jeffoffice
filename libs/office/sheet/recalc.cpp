@@ -423,7 +423,11 @@ bool recalcFull(const Workbook &book, const FullOptions &options, const std::fun
             for (const auto &call : fc.program->calls) out.functions << QString::fromLatin1(functionAt(call.first).name);
             out.functions << fc.program->unknownFunctions;
         }
-        if (fc.circular) ++report->circular;
+        if (fc.circular) {
+            ++report->circular;
+            if (fc.stored.isNumber() && fc.stored.number() == 0) ++report->circularStoredZero;
+        }
+        out.cascaded = fc.cascaded;
         if (!fc.worked) {
             finish(RecalcClass::Skipped);
             return;
@@ -431,7 +435,7 @@ bool recalcFull(const Workbook &book, const FullOptions &options, const std::fun
         if (fc.kept) {
             if (fc.kept == 'U' && fc.program)
                 for (const QString &name : fc.program->unknownFunctions) ++report->unsupportedFunctions[name];
-            haveValues = fc.kept == 'P' || fc.kept == 'L' || fc.kept == 'I';
+            haveValues = fc.kept == 'P' || fc.kept == 'L' || fc.kept == 'I' || fc.kept == 'C';
             finish(RecalcClass(fc.kept));
             return;
         }

@@ -3,7 +3,8 @@
 // is a node; the dependency graph (calc/graph.h) says which nodes read a cell, and an edit marks those nodes, and the nodes that read them, dirty. A recalculation works
 // the dirty nodes out in the order they depend on each other, with an explicit stack: a formula that reads a cell not yet worked out waits for it, so a running balance of
 // a hundred thousand rows deep needs no deeper a call stack than one row. A formula that is found to read itself, directly or round a circle, is circular, and its result is
-// 0, as it is in the files; a workbook that asks for iterative calculation is not worked out that way yet, and its circles are kept apart. A recalculation reads the clock
+// 0 (what a calculation gives it); a workbook that asks for iterative calculation is not worked out that way yet, and with keepApart the circles of any workbook are kept apart,
+// since what a file stores for them is what the last calculation left. A recalculation reads the clock
 // once, can be done in slices of a given work and stopped, and a formula that reads where its values say (INDIRECT, OFFSET, a name) tells the graph what it read each time it
 // is worked out. Formulas that change by themselves (NOW, RAND, OFFSET, INDIRECT) are worked out in every recalculation.
 //
@@ -53,6 +54,8 @@ public:
     // Works out what is to be worked out (and the formulas that change by themselves): all of it, or about `workBudget` steps of it, then stops with `finished` false and the
     // rest to be done by the next call. If `cancel` is set it stops at once, with `cancelled` true.
     Progress recalculate(qint64 workBudget = 0, const std::atomic<bool> *cancel = nullptr);
+    // Marks every formula to be worked out again (the next recalculation is a whole one).
+    void invalidateAll();
     // Formulas that have yet to be worked out.
     bool isDirty() const { return m_notDone > 0 || m_running; }
     qint64 dirtyCount() const { return m_notDone; }
@@ -76,7 +79,7 @@ public:
     bool isTainted(int sheet, quint32 row, quint32 col) const;
     bool isCascaded(int sheet, quint32 row, quint32 col) const;   // reads (through others) a formula that `verify` called a mismatch
     // For a formula kept apart: why, as the yardstick's classes say (U a function it lacks, V changes by itself, E another workbook, T a table's columns, P not parsed, N no
-    // result stored or no formula, D a data table, L past the bounds, I circular in a workbook that iterates); 0 for a formula that was worked out.
+    // result stored or no formula, D a data table, L past the bounds, I circular in a workbook that iterates, C circular); 0 for a formula that was worked out.
     char keptClass(int sheet, quint32 row, quint32 col) const;
 
     // Every formula cell, in the order of the sheets and cells: what the yardstick compares.

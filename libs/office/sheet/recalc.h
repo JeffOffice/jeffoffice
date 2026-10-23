@@ -70,12 +70,14 @@ enum class RecalcClass : char {
     Skipped = 'S',       // not looked at: the time given ran out
     Tainted = 'Z',       // (full recalculation) worked out from a formula that was kept apart: not counted, but told whether it matches
     Iterative = 'I',     // (full recalculation) in a circle of a workbook that asks for iterative calculation
+    Circular = 'C',      // (full recalculation) in a circle: the file's value is kept (what the last calculation left), and marks what reads it
 };
 
 struct RecalcCell {
     QString sheet, cell, formula, stored, ours;
     RecalcClass cls = RecalcClass::Match;
     QStringList functions;   // the functions it calls, upper case, once each
+    bool cascaded = false;   // (full recalculation) a mismatch that reads a formula that is one
 };
 
 struct RecalcOptions {
@@ -120,13 +122,14 @@ struct FullOptions {
 
 struct FullReport {
     qint64 formulaCells = 0;
-    QMap<char, qint64> byClass;                   // M X U V E T P N D L I Z S
+    QMap<char, qint64> byClass;                   // M X U V E T P N D L I C Z S
     QMap<QString, FunctionTally> functions;       // for the formulas that were checked
     QMap<QString, qint64> unsupportedFunctions;
     QMap<QString, qint64> patterns;
     qint64 volatileChecked = 0, volatileMatched = 0;   // OFFSET and INDIRECT, worked out and counted apart
     qint64 taintedMatched = 0;                    // of the formulas worked out from one that was kept apart, those that match what the file stored
-    qint64 circular = 0;                          // formulas in a circle (worked out as 0)
+    qint64 circular = 0;                          // formulas in a circle (kept apart: the engine's own result is 0), and of them those the file stored 0 for
+    qint64 circularStoredZero = 0;
     qint64 rootMismatches = 0;                    // of the mismatches, those that read no formula that is a mismatch: wrong of their own, where the others follow a wrong one
     qint64 evaluations = 0;                       // times the engine worked a formula out (one that waited for another is worked out again)
     qint64 graphEntries = 0, graphBytes = 0, untracked = 0;
