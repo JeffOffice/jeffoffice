@@ -13,6 +13,7 @@
 #include "flow/paginator.h"
 #include "text/textprops.h"
 
+#include <QRegularExpression>
 #include <QSet>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -31,6 +32,81 @@ const QLatin1String kFootnotesType("application/vnd.openxmlformats-officedocumen
 const QLatin1String kSettingsRel2("http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings");
 const QLatin1String kSettingsType2("application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml");
 } // namespace
+
+// ---- the places that cite notes
+
+namespace {
+// The Ids of the footnotes and the endnotes that the references in a piece of XML name (the form a text box, a drawing, or a header that was not made over is kept in).
+void collectNoteReferences(const QByteArray &xml, QSet<int> *footnotes, QSet<int> *endnotes)
+{
+    if (!xml.contains("oteReference")) return;
+    static const QRegularExpression element(QStringLiteral("<(?:[A-Za-z0-9_.-]+:)?(foot|end)noteReference\\b([^>]*)>"));
+    static const QRegularExpression idAttribute(QStringLiteral("(?:^|\\s)(?:[A-Za-z0-9_.-]+:)?id\\s*=\\s*[\"'](-?[0-9]+)[\"']"));
+    const QString text = QString::fromUtf8(xml);
+    for (auto m = element.globalMatch(text); m.hasNext();) {
+        const QRegularExpressionMatch e = m.next();
+        const QRegularExpressionMatch a = idAttribute.match(e.captured(2));
+        if (a.hasMatch()) (e.captured(1) == QLatin1String("foot") ? footnotes : endnotes)->insert(a.captured(1).toInt());
+    }
+}
+
+void collectNoteReferencesInBlocks(const QVector<Block> &blocks, QSet<int> *footnotes, QSet<int> *endnotes)
+{
+    for (const Block &b : blocks) {
+        if (b.isRaw) collectNoteReferences(b.raw, footnotes, endnotes);
+        for (const Inline &in : b.para.content)
+            if (in.kind != Inline::Text) collectNoteReferences(in.raw, footnotes, endnotes);
+    }
+}
+
+// The references among the pieces of a story that are kept as XML (and, with `references`, the story's own reference characters too: the text's are known already).
+void collectNoteReferencesInStory(const QTextDocument *story, bool references, QSet<int> *footnotes, QSet<int> *endnotes)
+{
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        const QTextBlockFormat bf = b.blockFormat();
+        if (bf.hasProperty(prop::EndnoteBlock)) continue;   // (the endnotes the pages set: the notes are looked through themselves)
+        for (const int key : {int(prop::RawBefore), int(prop::RawBlock), int(prop::RawAfter)})
+            if (bf.hasProperty(key)) collectNoteReferencesInBlocks(unpackBlocks(storedBytes(bf, key)), footnotes, endnotes);
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextCharFormat cf = it.fragment().charFormat();
+            if (!cf.hasProperty(prop::Atom)) continue;
+            const QByteArray bytes = storedBytes(cf, prop::Atom);
+            if (!bytes.contains("oteReference")) continue;
+            const Inline atom = unpackAtom(bytes);
+            const bool own = atom.tag == QLatin1String("footnoteReference") || atom.tag == QLatin1String("endnoteReference");
+            if (own && !references) continue;
+            collectNoteReferences(atom.raw, footnotes, endnotes);
+        }
+    }
+}
+} // namespace
+
+void WriteDoc::notesCitedBeyondTheText(QSet<int> *footnotes, QSet<int> *endnotes)
+{
+    collectNoteReferencesInStory(story(), false, footnotes, endnotes);
+    for (auto it = m_headerParts.cbegin(); it != m_headerParts.cend(); ++it) {
+        const HeaderPart &part = it.value();
+        if (part.editForm && part.story) collectNoteReferencesInStory(part.story.get(), true, footnotes, endnotes);
+        else if (!part.created) collectNoteReferences(partData(part.name), footnotes, endnotes);
+    }
+    // (The notes: one that cites itself is not kept alive by it.)
+    for (auto it = m_noteBlocks.cbegin(); it != m_noteBlocks.cend(); ++it) {
+        QSet<int> f, e;
+        const auto story = m_noteStories.constFind(it.key());
+        if (story != m_noteStories.cend()) collectNoteReferencesInStory(story.value().get(), true, &f, &e);
+        else collectNoteReferencesInBlocks(it.value(), &f, &e);
+        f.remove(it.key().mid(2).toInt());
+        *footnotes += f;
+        *endnotes += e;
+    }
+    for (auto it = m_endnoteBlocks.cbegin(); it != m_endnoteBlocks.cend(); ++it) {
+        QSet<int> f, e;
+        collectNoteReferencesInBlocks(it.value(), &f, &e);
+        e.remove(it.key().toInt());
+        *footnotes += f;
+        *endnotes += e;
+    }
+}
 
 // ---- the stories
 
@@ -127,6 +203,12 @@ int WriteDoc::nextFootnoteId()
     QSet<int> used;
     for (auto it = m_noteBlocks.cbegin(); it != m_noteBlocks.cend(); ++it) used.insert(it.key().mid(2).toInt());
     for (auto it = m_footnoteRefs.cbegin(); it != m_footnoteRefs.cend(); ++it) used.insert(it.key());
+    {
+        // (And every Id that a header, a text box, or another note cites: a new note is not to be the note that they name.)
+        QSet<int> beyond, unused;
+        notesCitedBeyondTheText(&beyond, &unused);
+        used += beyond;
+    }
     int highest = m_footnotePartHighest;   // (above the Id of every element of the part: the separators have Ids as the notes have)
     for (const int id : std::as_const(used)) highest = std::max(highest, id);
     if (highest < 1'000'000'000) return highest + 1;
@@ -360,6 +442,11 @@ int WriteDoc::nextEndnoteId()
     QSet<int> used;
     for (auto it = m_endnoteBlocks.cbegin(); it != m_endnoteBlocks.cend(); ++it) used.insert(it.key().toInt());
     for (auto it = m_endnoteRefIndex.cbegin(); it != m_endnoteRefIndex.cend(); ++it) used.insert(it.key());
+    {
+        QSet<int> unused, beyond;
+        notesCitedBeyondTheText(&unused, &beyond);
+        used += beyond;
+    }
     for (const int id : std::as_const(used)) highest = std::max(highest, id);
     if (highest < 1'000'000'000) return highest + 1;
     for (int id = m_endnotePartHighest + 1;; ++id)
@@ -495,7 +582,9 @@ void WriteDoc::writeNoteParts(office::wml::Document *out)
     NotesChange change;
     // The notes that were edited are written from their stories (whether or not the text cites them: a note the file keeps is the file's), unless their last reference was taken
     // out of the text.
-    auto cited = [&](int id) { return m_footnoteRefs.contains(id); };
+    QSet<int> beyond, unusedEndnotes;
+    notesCitedBeyondTheText(&beyond, &unusedEndnotes);   // (a note that a header, a text box, or another note cites is cited though the text does not)
+    auto cited = [&](int id) { return m_footnoteRefs.contains(id) || beyond.contains(id); };
     for (auto it = m_noteStories.cbegin(); it != m_noteStories.cend(); ++it) {
         const int id = it.key().mid(2).toInt();
         QTextDocument *s = it.value().get();
@@ -550,7 +639,9 @@ void WriteDoc::writeEndnoteParts(office::wml::Document *out)
     if (m_endnotesPart != NotesPart::Readable) return;
     captureEndnotes();
     indexEndnoteReferences();
-    auto cited = [&](int id) { return m_endnoteRefIndex.contains(id); };
+    QSet<int> unusedFootnotes, beyond;
+    notesCitedBeyondTheText(&unusedFootnotes, &beyond);   // (a note that a header, a text box, or another note cites is cited though the text does not)
+    auto cited = [&](int id) { return m_endnoteRefIndex.contains(id) || beyond.contains(id); };
     NotesChange change;
     // The notes that were touched are written again if they say something other than they did when they were read.
     for (const int id : std::as_const(m_endnoteEdited)) {

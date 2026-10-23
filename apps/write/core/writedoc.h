@@ -415,6 +415,9 @@ private:
     QHash<int, QVector<int>> m_footnoteRefs;                          // the references of the text, by the note's Id, found when asked and let go with any change to the text
     bool m_footnoteRefsValid = false;
     void indexFootnoteReferences();
+    // The Ids of the footnotes and endnotes that places other than the text's own references cite: the headers and footers, the text boxes and other pieces of the text that are kept as XML,
+    // and the notes themselves. A note stays in the file while one of them cites it, though the text no longer does.
+    void notesCitedBeyondTheText(QSet<int> *footnotes, QSet<int> *endnotes);
     // The endnotes (writedoc_noteedit.cpp)
     QHash<int, int> m_endnoteCopyIds;                                 // the Id of the note each copy that the pages set is a copy of (by the number EndnoteNote gives it)
     int m_nextEndnoteSerial = 1;

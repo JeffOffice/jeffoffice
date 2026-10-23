@@ -18544,6 +18544,85 @@ private Q_SLOTS:
         }
     }
 
+    // ---- notes: cited from other places
+
+    // A note that the text cites and a header, a text box, or another note cites too is still cited when the text's reference is taken out: it stays in the notes part (and the places
+    // that cite it still have their references); the note goes when the last place that cites it lets it go.
+    void aNoteStaysWhileAHeaderATextBoxOrAnotherNoteStillCitesIt()
+    {
+        for (const bool endnotes : {false, true})
+            for (int where = 0; where < 3; ++where) {
+                if (endnotes && where == 2) continue;   // (the endnote's own note-in-a-note case is the footnote's)
+                const QString name = endnotes ? QStringLiteral("endnote") : QStringLiteral("footnote");
+                const QByteArray ref = endnotes ? "<w:r><w:endnoteReference w:id=\"2\"/></w:r>" : "<w:r><w:footnoteReference w:id=\"2\"/></w:r>";
+                QByteArray body = endnotes ? "<w:p><w:r><w:t>Body one</w:t></w:r>" + ref + "</w:p><w:p><w:r><w:t>Body two</w:t></w:r><w:r><w:endnoteReference w:id=\"3\"/></w:r></w:p>"
+                                           : citing("Body one", 2) + citing("Body two", 3);
+                QByteArray sect = pageSection();
+                QMap<QString, QByteArray> parts;
+                if (where == 0) {
+                    parts[QStringLiteral("/word/header1.xml")] = headerPart("hdr", {"<w:r><w:t>Head</w:t></w:r>" + ref});
+                    sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>" + QByteArray(kPage) + "</w:sectPr>";
+                } else if (where == 1) {
+                    body = QByteArray("<w:p><w:r><w:t>Body one</w:t></w:r>") + ref + "<w:r><w:pict><v:shape xmlns:v=\"urn:schemas-microsoft-com:vml\" id=\"s1\" style=\"width:100pt;height:50pt\"><v:textbox><w:txbxContent><w:p><w:r><w:t>in the box</w:t></w:r>" +
+                           ref + "</w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r></w:p>" + (endnotes ? QByteArray("<w:p><w:r><w:t>Body two</w:t></w:r><w:r><w:endnoteReference w:id=\"3\"/></w:r></w:p>") : citing("Body two", 3));
+                }
+                const QByteArray notesXml = endnotes ? "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote() +
+                                                           "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> note two</w:t></w:r></w:p></w:endnote>"
+                                                           "<w:endnote w:id=\"3\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> note three</w:t></w:r></w:p></w:endnote></w:endnotes>"
+                                                     : footnotesPart({{2, plainRun(" note two")}, {3, plainRun(" note three") + (where == 2 ? ref : QByteArray())}});
+                parts[endnotes ? QStringLiteral("/word/endnotes.xml") : QStringLiteral("/word/footnotes.xml")] = notesXml;
+                const QByteArray zip = makeDocxWithParts(body, sect, parts, endnotes ? QByteArray("<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>") : QByteArray(), noteStyles());
+                auto doc = open(zip);
+                QVERIFY(doc);
+                const QString what = name + QStringLiteral(" cited from ") + (where == 0 ? QStringLiteral("a header") : where == 1 ? QStringLiteral("a text box") : QStringLiteral("a note"));
+                const QVector<int> refs = endnotes ? doc->endnoteReferences(2) : doc->footnoteReferences(2);
+                QVERIFY2(!refs.isEmpty(), qPrintable(what));
+                QTextCursor c(doc->story());
+                c.setPosition(refs.first());
+                c.setPosition(refs.first() + 1, QTextCursor::KeepAnchor);
+                removeSelection(*doc, c);
+                QVERIFY2((endnotes ? doc->endnoteReferences(2) : doc->footnoteReferences(2)).size() == refs.size() - 1, qPrintable(what + QStringLiteral(": the reference was not taken out")));
+                const QString partName = endnotes ? QStringLiteral("/word/endnotes.xml") : QStringLiteral("/word/footnotes.xml");
+                const QByteArray saved = doc->toDocx();
+                const QStringList kept = noteElementsOf(partOf(saved, partName), endnotes ? "endnote" : "footnote");
+                QVERIFY2(kept.contains(QStringLiteral("normal:2")), qPrintable(what + QStringLiteral(": the note went with the text's reference: ") + kept.join(QLatin1Char(' '))));
+                QVERIFY2(kept.contains(QStringLiteral("normal:3")), qPrintable(what));
+                QVERIFY2(rt::strictProblems(saved, zip).isEmpty(), qPrintable(what));
+                // An undo gives the reference back, and the file is as it was.
+                while (doc->canUndo()) doc->undo();
+                QCOMPARE(partOf(doc->toDocx(), partName), partOf(zip, partName));
+            }
+    }
+
+    // A note cited by a header only (its text's reference gone) goes when the header lets it go.
+    void aNoteGoesWhenTheLastPlaceThatCitesItLetsItGo()
+    {
+        const QByteArray ref = "<w:r><w:footnoteReference w:id=\"2\"/></w:r>";
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>" + QByteArray(kPage) + "</w:sectPr>";
+        const QByteArray zip = makeDocxWithParts(citing("Body one", 2) + citing("Body two", 3), sect,
+                                                 {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>Head</w:t></w:r>" + ref})}, {QStringLiteral("/word/footnotes.xml"), footnotesPart({{2, plainRun(" two")}, {3, plainRun(" three")}})}},
+                                                 QByteArray(), noteStyles());
+        auto doc = open(zip);
+        QVERIFY(doc);
+        const QVector<int> refs = doc->footnoteReferences(2);
+        QCOMPARE(int(refs.size()), 1);
+        QTextCursor c(doc->story());
+        c.setPosition(refs.first());
+        c.setPosition(refs.first() + 1, QTextCursor::KeepAnchor);
+        removeSelection(*doc, c);
+        QTextDocument *header = doc->editableHeaderFooter(0, false, 0);
+        QVERIFY(header);
+        const int at = header->toPlainText().indexOf(QChar::ObjectReplacementCharacter);
+        QVERIFY(at >= 0);
+        QTextCursor h(header);
+        h.setPosition(at);
+        h.setPosition(at + 1, QTextCursor::KeepAnchor);
+        removeSelection(*doc, h);
+        const QByteArray saved = doc->toDocx();
+        const QStringList kept = noteElementsOf(partOf(saved, QStringLiteral("/word/footnotes.xml")), "footnote");
+        QVERIFY2(!kept.contains(QStringLiteral("normal:2")) && kept.contains(QStringLiteral("normal:3")), qPrintable(kept.join(QLatin1Char(' '))));
+        QVERIFY(rt::strictProblems(saved, zip).isEmpty());
+    }
 
 
 };
