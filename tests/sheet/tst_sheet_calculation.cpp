@@ -665,6 +665,32 @@ private Q_SLOTS:
         QCOMPARE(b.at("F1"), QStringLiteral("e:#VALUE!"));
         QCOMPARE(b.at("G1"), QStringLiteral("e:#VALUE!"));
     }
+
+    // A defined name that calls a function that changes by itself makes the formulas that use it change by themselves: they are worked out in every recalculation, as a formula
+    // that calls RAND is, through a name of a name too; and kept apart, they are the volatile ones.
+    void aNameThatCallsAVolatileFunctionMakesItsFormulasVolatile()
+    {
+        const QString rows = rowXml(1, constant("A1", "5") + cellXml("B1", "tn+A1", "1") + cellXml("C1", "tm*2+A1", "1") + cellXml("D1", "A1+1", "6") + cellXml("E1", "SUM(tp)", "5"));
+        const QString names = QStringLiteral("<definedName name=\"tn\">RAND()</definedName><definedName name=\"tm\">tn</definedName><definedName name=\"tp\">Sheet1!$A$1:$A$2</definedName>");
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), names)));
+        settle(b);
+        const QString b1 = b.at("B1"), c1 = b.at("C1");
+        const Calculation::Progress p = settle(b);   // nothing was edited
+        QVERIFY2(p.evaluated >= 2, qPrintable(QStringLiteral("%1 formulas worked out again").arg(p.evaluated)));
+        QVERIFY(b.at("B1") != b1);
+        QVERIFY(b.at("C1") != c1);
+        QCOMPARE(b.at("D1"), QStringLiteral("n:6"));
+        CalcOptions apart;
+        apart.keepApart = true;
+        Book k;
+        QVERIFY(k.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), names), apart));
+        settle(k);
+        QCOMPARE(k.calc->keptClass(0, k.row("B1"), k.col("B1")), 'V');
+        QCOMPARE(k.calc->keptClass(0, k.row("C1"), k.col("C1")), 'V');
+        QCOMPARE(k.calc->keptClass(0, k.row("D1"), k.col("D1")), char(0));
+        QCOMPARE(k.calc->keptClass(0, k.row("E1"), k.col("E1")), char(0));
+    }
 };
 
 JP_TEST_CLASS(SheetCalculationTests)

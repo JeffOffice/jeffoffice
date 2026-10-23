@@ -47,13 +47,14 @@ Calculation::Compiled &Calculation::compiled(int sheet, qint32 text, bool array)
         slot.program = pr.program;
         slot.error = pr.error;
         if (slot.program) {
-            const ProgramTraits t = traitsOf(*slot.program);
+            slot.bound = bindSheetNames(*slot.program, *this);
+            // (what the names it uses stand for counts: a name that calls RAND makes the formula change by itself)
+            const ProgramTraits t = traitsFollowingNames(*slot.program, slot.bound, sheet, *this, &m_nameTraits);
             slot.usesNames = t.usesNames;
             slot.dynamic = t.dynamic;
             slot.reaches = t.reachesBeyond;
             slot.changesByItself = t.changesByItself;
             slot.iterative = t.iterative;
-            slot.bound = bindSheetNames(*slot.program, *this);
         }
         slot.traitsKnown = true;
     }

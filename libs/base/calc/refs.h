@@ -7,6 +7,9 @@
 #include "calc/eval.h"
 #include "calc/formula.h"
 
+#include <QHash>
+#include <QString>
+
 #include <vector>
 
 namespace jp::calc {
@@ -23,6 +26,12 @@ struct ProgramTraits {
     bool readsWhereItIsTold() const { return usesNames || dynamic || reachesBeyond; }
 };
 ProgramTraits traitsOf(const Program &program);
+
+// What the traits are for what the program is, and what every defined name it uses stands for, and every name those use (a name that calls RAND makes every formula that uses it
+// change by itself). `boundSheets` says which sheet each of the program's sheet names is, `sheet` is the sheet of the cell it is in; `cache`, if given, keeps what was found for
+// each name, by its scope and name.
+using NameTraitsCache = QHash<QString, ProgramTraits>;
+ProgramTraits traitsFollowingNames(const Program &program, const std::vector<qint32> &boundSheets, int sheet, const CellSource &source, NameTraitsCache *cache = nullptr);
 
 // The place of each of the program's sheet names in the source (-1 for a name it has no sheet of).
 std::vector<qint32> bindSheetNames(const Program &program, const CellSource &source);

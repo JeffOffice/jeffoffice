@@ -13,6 +13,7 @@
 
 #include "calc/eval.h"
 #include "calc/graph.h"
+#include "calc/refs.h"
 #include "sheet/recalc.h"
 
 #include <QHash>
@@ -153,6 +154,7 @@ private:
     QVector<QString> m_texts;
     std::vector<qint32> m_freeTexts;
     QHash<quint32, jp::calc::Value> m_arrays;
+    jp::calc::NameTraitsCache m_nameTraits;   // what each defined name calls (by its scope and name)
     std::vector<quint32> m_always;            // formulas worked out in every recalculation, each once (a node on it has AlwaysListed); those that are not, or are gone, are left out at the next
     void listAlways(quint32 id);
     std::vector<quint32> m_dirty;             // formulas to start from, and where in it the recalculation is
