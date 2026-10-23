@@ -315,6 +315,7 @@ void WriteDoc::build(office::wml::Document &&doc)
     loadNotes();
     loadEndnotes();
     buildStory(body);
+    spreadCitationsAtOpen();
     measureNoteSeparator();
     settleTables();
     syncSections();

@@ -420,6 +420,19 @@ private:
     // The Ids of the footnotes and endnotes that places other than the text's own references cite: the headers and footers, the text boxes and other pieces of the text that are kept as XML,
     // and the notes themselves. A note stays in the file while one of them cites it, though the text no longer does.
     void notesCitedBeyondTheText(QSet<int> *footnotes, QSet<int> *endnotes);
+    // What cites what: the notes that the text's kept pieces and the headers and footers cite, and, for each note, the footnotes and the endnotes that its words cite (with `notesOnly`, only the
+    // second: what the notes cite).
+    struct NoteCitations {
+        QSet<int> beyondFootnotes, beyondEndnotes;
+        QHash<int, std::pair<QSet<int>, QSet<int>>> byFootnote, byEndnote;
+    };
+    NoteCitations noteCitations(bool notesOnly);
+    // The Ids of the notes that are alive: those the text cites (by its own references or by its kept pieces), those a header or a footer cites, and those that a note that is alive cites, and so on.
+    // Notes that cite only one another are not alive.
+    void liveNotes(QSet<int> *footnotes, QSet<int> *endnotes);
+    // When the file is read: the notes that the text cites, and those they cite, and so on, are the ones that are let go with the text's last reference to them.
+    void spreadCitationsAtOpen();
+    static void spreadThroughNotes(const NoteCitations &c, QSet<int> *footnotes, QSet<int> *endnotes);
     // Notes made since the document was read, each with the history step that made it (0 until that step is added): a note whose last reference was taken out, and whose step is in neither
     // log any more (it was undone, and an edit since has made it impossible to redo), can never come back, and is let go with its slot. (An Id that was used is not used again.)
     QHash<int, quint64> m_createdFootnoteStep, m_createdEndnoteStep;

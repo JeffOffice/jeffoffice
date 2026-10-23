@@ -19070,6 +19070,107 @@ private Q_SLOTS:
         }
     }
 
+    // ---- notes: what keeps a note in the file
+
+    // A header that was edited (it is in the form it is edited in) says what it cites now, not what the part it was read from said: the note it still cites stays when the text's reference goes,
+    // and the note whose reference was taken out of the header goes with the text's (the part as it was read still names both).
+    void aNoteStaysWhileAnEditedHeaderStillCitesIt()
+    {
+        const QByteArray ref2 = "<w:r><w:footnoteReference w:id=\"2\"/></w:r>", ref3 = "<w:r><w:footnoteReference w:id=\"3\"/></w:r>";
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>" + QByteArray(kPage) + "</w:sectPr>";
+        const QByteArray zip = makeDocxWithParts(citing("Body one", 2) + citing("Body two", 3), sect,
+                                                 {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>Head</w:t></w:r>" + ref2 + ref3})}, {QStringLiteral("/word/footnotes.xml"), footnotesPart({{2, plainRun(" two")}, {3, plainRun(" three")}})}},
+                                                 QByteArray(), noteStyles());
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *header = doc->editableHeaderFooter(0, false, 0);
+        QVERIFY(header);
+        typeAtEnd(*doc, header, QStringLiteral(" edited"));
+        // The header's reference to note 3 is taken out.
+        const int at = header->toPlainText().lastIndexOf(QChar::ObjectReplacementCharacter);
+        QVERIFY(at >= 0);
+        QTextCursor h(header);
+        h.setPosition(at);
+        h.setPosition(at + 1, QTextCursor::KeepAnchor);
+        removeSelection(*doc, h);
+        for (const int id : {2, 3}) {
+            const QVector<int> refs = doc->footnoteReferences(id);
+            QCOMPARE(int(refs.size()), 1);
+            QTextCursor c(doc->story());
+            c.setPosition(refs.first());
+            c.setPosition(refs.first() + 1, QTextCursor::KeepAnchor);
+            removeSelection(*doc, c);
+        }
+        const QByteArray saved = doc->toDocx();
+        const QStringList kept = noteElementsOf(partOf(saved, QStringLiteral("/word/footnotes.xml")), "footnote");
+        QVERIFY2(kept.contains(QStringLiteral("normal:2")), qPrintable(kept.join(QLatin1Char(' ')) + QStringLiteral(": the note went while the edited header cites it")));
+        QVERIFY2(!kept.contains(QStringLiteral("normal:3")), qPrintable(kept.join(QLatin1Char(' ')) + QStringLiteral(": the note stayed though the edited header no longer cites it")));
+        QVERIFY(partOf(saved, QStringLiteral("/word/header1.xml")).contains("footnoteReference w:id=\"2\""));
+        QVERIFY(!partOf(saved, QStringLiteral("/word/header1.xml")).contains("footnoteReference w:id=\"3\""));
+        QVERIFY(partOf(saved, QStringLiteral("/word/header1.xml")).contains(" edited"));
+        QVERIFY(rt::strictProblems(saved, zip).isEmpty());
+    }
+
+    // Notes that cite only one another are let go with the text's last reference to them: a note that only a note that is let go cites goes too (A cites B and B cites A; A cites B; a footnote
+    // and an endnote that cite one another), and one that a note that stays cites stays.
+    void notesThatCiteOnlyOneAnotherGoWithTheTextsLastReference()
+    {
+        const QByteArray fnRef2 = "<w:r><w:footnoteReference w:id=\"2\"/></w:r>", fnRef3 = "<w:r><w:footnoteReference w:id=\"3\"/></w:r>", enRef1 = "<w:r><w:endnoteReference w:id=\"1\"/></w:r>";
+        auto savedNotes = [](WriteDoc &doc, const QByteArray &zip, const QString &part, const char *tag) {
+            const QByteArray saved = doc.toDocx();
+            [&] { QVERIFY(rt::strictProblems(saved, zip).isEmpty()); }();
+            return noteElementsOf(partOf(saved, part), tag);
+        };
+        auto dropBodyReference = [](WriteDoc &doc, int id) {
+            const QVector<int> refs = doc.footnoteReferences(id);
+            QCOMPARE(int(refs.size()), 1);
+            QTextCursor c(doc.story());
+            c.setPosition(refs.first());
+            c.setPosition(refs.first() + 1, QTextCursor::KeepAnchor);
+            removeSelection(doc, c);
+        };
+        {
+            // A cites B and B cites A; the text cites A.
+            const QByteArray zip = notesDocx(citing("Body", 2) + citing("Other", 4), footnotesPart({{2, plainRun(" two") + fnRef3}, {3, plainRun(" three") + fnRef2}, {4, plainRun(" four")}}));
+            auto doc = open(zip);
+            QVERIFY(doc);
+            QCOMPARE(savedNotes(*doc, zip, QStringLiteral("/word/footnotes.xml"), "footnote"), (QStringList{"separator:-1", "continuationSeparator:0", "normal:2", "normal:3", "normal:4"}));
+            dropBodyReference(*doc, 2);
+            QCOMPARE(savedNotes(*doc, zip, QStringLiteral("/word/footnotes.xml"), "footnote"), (QStringList{"separator:-1", "continuationSeparator:0", "normal:4"}));
+            while (doc->canUndo()) doc->undo();
+            QCOMPARE(partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")), partOf(zip, QStringLiteral("/word/footnotes.xml")));
+        }
+        {
+            // A cites B; the text cites A; B cites nothing.
+            const QByteArray zip = notesDocx(citing("Body", 2), footnotesPart({{2, plainRun(" two") + fnRef3}, {3, plainRun(" three")}}));
+            auto doc = open(zip);
+            QVERIFY(doc);
+            dropBodyReference(*doc, 2);
+            QCOMPARE(savedNotes(*doc, zip, QStringLiteral("/word/footnotes.xml"), "footnote"), (QStringList{"separator:-1", "continuationSeparator:0"}));
+        }
+        {
+            // The text cites B, and A and B cite one another: when the text lets A go, A stays, for B (which the text cites) cites it.
+            const QByteArray zip = notesDocx(citing("Body", 2) + citing("Other", 3), footnotesPart({{2, plainRun(" two") + fnRef3}, {3, plainRun(" three") + fnRef2}}));
+            auto doc = open(zip);
+            QVERIFY(doc);
+            dropBodyReference(*doc, 2);
+            QCOMPARE(savedNotes(*doc, zip, QStringLiteral("/word/footnotes.xml"), "footnote"), (QStringList{"separator:-1", "continuationSeparator:0", "normal:2", "normal:3"}));
+        }
+        {
+            // A footnote and an endnote that cite one another.
+            const QByteArray body = citing("Body", 2);
+            const QByteArray notes = footnotesPart({{2, plainRun(" two") + enRef1}});
+            const QByteArray ends = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote() + "<w:endnote w:id=\"1\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> one</w:t></w:r>" + fnRef2 + "</w:p></w:endnote></w:endnotes>";
+            const QByteArray zip = makeDocxWithParts(body, pageSection(), {{QStringLiteral("/word/footnotes.xml"), notes}, {QStringLiteral("/word/endnotes.xml"), ends}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>", noteStyles());
+            auto doc = open(zip);
+            QVERIFY(doc);
+            dropBodyReference(*doc, 2);
+            const QByteArray saved = doc->toDocx();
+            QCOMPARE(noteElementsOf(partOf(saved, QStringLiteral("/word/footnotes.xml")), "footnote"), (QStringList{"separator:-1", "continuationSeparator:0"}));
+            QCOMPARE(noteElementsOf(partOf(saved, QStringLiteral("/word/endnotes.xml")), "endnote"), (QStringList{"separator:-1"}));
+            QVERIFY(rt::strictProblems(saved, zip).isEmpty());
+        }
+    }
 
 
 

@@ -81,13 +81,16 @@ void collectNoteReferencesInStory(const QTextDocument *story, bool references, Q
 }
 } // namespace
 
-void WriteDoc::notesCitedBeyondTheText(QSet<int> *footnotes, QSet<int> *endnotes)
+WriteDoc::NoteCitations WriteDoc::noteCitations(bool notesOnly)
 {
-    collectNoteReferencesInStory(story(), false, footnotes, endnotes);
-    for (auto it = m_headerParts.cbegin(); it != m_headerParts.cend(); ++it) {
-        const HeaderPart &part = it.value();
-        if (part.editForm && part.story) collectNoteReferencesInStory(part.story.get(), true, footnotes, endnotes);
-        else if (!part.created) collectNoteReferences(partData(part.name), footnotes, endnotes);
+    NoteCitations out;
+    if (!notesOnly) {
+        collectNoteReferencesInStory(story(), false, &out.beyondFootnotes, &out.beyondEndnotes);
+        for (auto it = m_headerParts.cbegin(); it != m_headerParts.cend(); ++it) {
+            const HeaderPart &part = it.value();
+            if (part.editForm && part.story) collectNoteReferencesInStory(part.story.get(), true, &out.beyondFootnotes, &out.beyondEndnotes);
+            else if (!part.created) collectNoteReferences(partData(part.name), &out.beyondFootnotes, &out.beyondEndnotes);
+        }
     }
     // (The notes: one that cites itself is not kept alive by it.)
     for (auto it = m_noteBlocks.cbegin(); it != m_noteBlocks.cend(); ++it) {
@@ -95,17 +98,75 @@ void WriteDoc::notesCitedBeyondTheText(QSet<int> *footnotes, QSet<int> *endnotes
         const auto story = m_noteStories.constFind(it.key());
         if (story != m_noteStories.cend()) collectNoteReferencesInStory(story.value().get(), true, &f, &e);
         else collectNoteReferencesInBlocks(it.value(), &f, &e);
-        f.remove(it.key().mid(2).toInt());
-        *footnotes += f;
-        *endnotes += e;
+        const int id = it.key().mid(2).toInt();
+        f.remove(id);
+        if (!f.isEmpty() || !e.isEmpty()) out.byFootnote.insert(id, {f, e});
     }
     for (auto it = m_endnoteBlocks.cbegin(); it != m_endnoteBlocks.cend(); ++it) {
         QSet<int> f, e;
         collectNoteReferencesInBlocks(it.value(), &f, &e);
-        e.remove(it.key().toInt());
-        *footnotes += f;
-        *endnotes += e;
+        const int id = it.key().toInt();
+        e.remove(id);
+        if (!f.isEmpty() || !e.isEmpty()) out.byEndnote.insert(id, {f, e});
     }
+    return out;
+}
+
+void WriteDoc::notesCitedBeyondTheText(QSet<int> *footnotes, QSet<int> *endnotes)
+{
+    const NoteCitations c = noteCitations(false);
+    *footnotes += c.beyondFootnotes;
+    *endnotes += c.beyondEndnotes;
+    for (const auto &cites : c.byFootnote) {
+        *footnotes += cites.first;
+        *endnotes += cites.second;
+    }
+    for (const auto &cites : c.byEndnote) {
+        *footnotes += cites.first;
+        *endnotes += cites.second;
+    }
+}
+
+// Notes reached from `footnotes` and `endnotes` by what the notes cite.
+void WriteDoc::spreadThroughNotes(const NoteCitations &c, QSet<int> *footnotes, QSet<int> *endnotes)
+{
+    QVector<std::pair<bool, int>> work;
+    for (const int id : std::as_const(*footnotes)) work.push_back({false, id});
+    for (const int id : std::as_const(*endnotes)) work.push_back({true, id});
+    while (!work.isEmpty()) {
+        const auto [isEndnote, id] = work.takeLast();
+        const auto it = isEndnote ? c.byEndnote.constFind(id) : c.byFootnote.constFind(id);
+        if (it == (isEndnote ? c.byEndnote.cend() : c.byFootnote.cend())) continue;
+        for (const int f : it->first)
+            if (!footnotes->contains(f)) {
+                footnotes->insert(f);
+                work.push_back({false, f});
+            }
+        for (const int e : it->second)
+            if (!endnotes->contains(e)) {
+                endnotes->insert(e);
+                work.push_back({true, e});
+            }
+    }
+}
+
+void WriteDoc::liveNotes(QSet<int> *footnotes, QSet<int> *endnotes)
+{
+    indexFootnoteReferences();
+    indexEndnoteReferences();
+    const NoteCitations c = noteCitations(false);
+    *footnotes = c.beyondFootnotes;
+    *endnotes = c.beyondEndnotes;
+    for (auto it = m_footnoteRefs.cbegin(); it != m_footnoteRefs.cend(); ++it) footnotes->insert(it.key());
+    for (auto it = m_endnoteRefIndex.cbegin(); it != m_endnoteRefIndex.cend(); ++it) endnotes->insert(it.key());
+    spreadThroughNotes(c, footnotes, endnotes);
+}
+
+void WriteDoc::spreadCitationsAtOpen()
+{
+    const NoteCitations c = noteCitations(true);
+    if (c.byFootnote.isEmpty() && c.byEndnote.isEmpty()) return;
+    spreadThroughNotes(c, &m_footnotesCitedAtOpen, &m_endnotesCitedAtOpen);
 }
 
 // ---- the stories
@@ -729,9 +790,9 @@ void WriteDoc::writeNoteParts(office::wml::Document *out)
     NotesChange change;
     // The notes that were edited are written from their stories (whether or not the text cites them: a note the file keeps is the file's), unless their last reference was taken
     // out of the text.
-    QSet<int> beyond, unusedEndnotes;
-    notesCitedBeyondTheText(&beyond, &unusedEndnotes);   // (a note that a header, a text box, or another note cites is cited though the text does not)
-    auto cited = [&](int id) { return m_footnoteRefs.contains(id) || beyond.contains(id); };
+    QSet<int> live, unusedEndnotes;
+    liveNotes(&live, &unusedEndnotes);   // (a note that a header, a text box, or a note that is alive cites is cited though the text does not)
+    auto cited = [&](int id) { return live.contains(id); };
     for (auto it = m_noteStories.cbegin(); it != m_noteStories.cend(); ++it) {
         const int id = it.key().mid(2).toInt();
         QTextDocument *s = it.value().get();
@@ -786,9 +847,9 @@ void WriteDoc::writeEndnoteParts(office::wml::Document *out)
     if (m_endnotesPart != NotesPart::Readable) return;
     captureEndnotes();
     indexEndnoteReferences();
-    QSet<int> unusedFootnotes, beyond;
-    notesCitedBeyondTheText(&unusedFootnotes, &beyond);   // (a note that a header, a text box, or another note cites is cited though the text does not)
-    auto cited = [&](int id) { return m_endnoteRefIndex.contains(id) || beyond.contains(id); };
+    QSet<int> unusedFootnotes, live;
+    liveNotes(&unusedFootnotes, &live);   // (a note that a header, a text box, or a note that is alive cites is cited though the text does not)
+    auto cited = [&](int id) { return live.contains(id); };
     NotesChange change;
     // The notes that were touched are written again if they say something other than they did when they were read.
     for (const int id : std::as_const(m_endnoteEdited)) {
