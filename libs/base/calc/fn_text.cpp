@@ -134,6 +134,8 @@ Value fnSubstitute(Call &c)
         out += s.mid(pos, at - pos);
         if (!one || double(found) == instance) out += to;
         else out += from;
+        // (a text of more than a cell holds is no result: it is not made longer to be told so)
+        if (out.size() > kMaxValueTextChars || !c.machine().charge(1)) return c.error(ErrorKind::Value);
         pos = at + from.size();
         if (one && double(found) == instance) break;
     }

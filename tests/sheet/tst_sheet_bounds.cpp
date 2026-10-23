@@ -112,6 +112,25 @@ private Q_SLOTS:
         QVERIFY2(some.text == "n:32000000" && some.status == EvalStatus::Ok, qPrintable(said(some)));
     }
 
+    // SUBSTITUTE stops as the text it makes passes what a cell holds; it does not make a gigabyte and then look.
+    void substituteStopsWhereACellEnds()
+    {
+        {
+            const MemoryWatch watch;
+            const Outcome grow = evOutcome("LEN(SUBSTITUTE(REPT(\"a\",32767),\"a\",REPT(\"b\",32767)))", Grid());
+            QVERIFY2(grow.text == "e:#VALUE!", qPrintable(said(grow, watch.growthMegabytes())));
+            QVERIFY2(watch.growthMegabytes() < 100, qPrintable(said(grow, watch.growthMegabytes())));
+        }
+        // the longest text that fits is made, one past it is not
+        QCOMPARE(ev("LEN(SUBSTITUTE(REPT(\"a\",16383),\"a\",\"bb\"))"), num(32766));
+        QCOMPARE(ev("LEN(SUBSTITUTE(REPT(\"a\",32767),\"a\",\"b\"))"), num(32767));
+        QCOMPARE(ev("LEN(SUBSTITUTE(REPT(\"a\",32767),\"a\",\"bb\"))"), QStringLiteral("e:#VALUE!"));
+        QCOMPARE(ev("LEN(SUBSTITUTE(REPT(\"a\",16384),\"a\",\"bb\"))"), QStringLiteral("e:#VALUE!"));
+        QCOMPARE(ev("SUBSTITUTE(\"banana\",\"an\",\"AN\")"), QStringLiteral("s:bANANa"));
+        QCOMPARE(ev("SUBSTITUTE(\"banana\",\"an\",\"AN\",2)"), QStringLiteral("s:banANa"));
+        QCOMPARE(ev("SUBSTITUTE(\"banana\",\"\",\"x\")"), QStringLiteral("s:banana"));
+    }
+
     // ---- time
 
 };
