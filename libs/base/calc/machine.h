@@ -70,9 +70,8 @@ bool coerceBool(const Value &v, bool *out, ErrorKind *error);
 
 // Does the text match the pattern, from character ti of the text and pi of the pattern? Any case; "?" is one character, "*" any number, "~" makes the next one plain.
 // With `prefix` the pattern need only match the start of what is left of the text (SEARCH); else all of it.
-// The steps the matching has taken since the last call, which Machine::charge counts into the work of the evaluation.
+// (The steps the matching takes are added to the work of the evaluation with the next charge: see calc/budget.h.)
 bool wildcardMatch(const QString &text, int ti, const QString &pattern, int pi, bool prefix = false);
-qint64 takeWildcardSteps();
 bool hasWildcards(const QString &s);
 
 // The numbers of the arguments of a call from `first` on, as functions of many numbers take them: in a reference or an array the numbers; typed, a text read as a number
@@ -202,7 +201,7 @@ public:
     // Counts n steps; false when the evaluation has gone past its limit (then stopped() is true).
     bool charge(qint64 n)
     {
-        work += n + takeWildcardSteps();
+        work += n + budget::takeWork();
         if (work > limit && !over) {
             over = true;
             if (status == EvalStatus::Ok) status = EvalStatus::TooMuchWork;
@@ -221,7 +220,7 @@ public:
     {
         textMade += chars;
         if (textMade > kMaxMadeTextChars && !over) tooLarge();
-        return !over;
+        return charge(chars / 64);   // (making it takes time too)
     }
     // An array of rows by columns, empty: or, if it may not be made, the error #VALUE! and the evaluation is stopped.
     Value newArray(int rows, int cols)

@@ -153,6 +153,7 @@ Value findText(Call &c, bool caseSensitive)
     start = std::trunc(start);
     if (start < 1 || start > double(within.size()) + (what.isEmpty() ? 1 : 0)) return c.error(ErrorKind::Value);
     const int from = int(start) - 1;
+    if (!c.machine().charge(qint64(within.size() - from) / 32)) return c.error(ErrorKind::Value);   // (the search goes over what is left of the text)
     if (what.isEmpty()) return Value::number(double(from + 1));
     if (caseSensitive) {
         const int at = within.indexOf(what, from, Qt::CaseSensitive);
@@ -175,6 +176,7 @@ Value fnExact(Call &c)
 {
     QString a, b;
     if (!c.text(0, &a) || !c.text(1, &b)) return c.failure();
+    if (!c.machine().charge(qint64(std::min(a.size(), b.size())) / 32)) return c.error(ErrorKind::Value);   // (as long as the texts agree)
     return Value::boolean(a == b);
 }
 

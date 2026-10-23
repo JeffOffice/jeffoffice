@@ -173,6 +173,34 @@ private Q_SLOTS:
         QCOMPARE(ev("Twice*Twice", g), num(36));
     }
 
+    // Comparing two texts takes as long as they are, and is counted so: a column of long texts matched against a long text runs out of steps, instead of taking seconds
+    // at a hundred thousand steps.
+    void comparingLongTextsIsChargedByTheirLength()
+    {
+        Grid g;
+        QVariantList cells;
+        const QString big(32767, QLatin1Char('x'));
+        for (int i = 0; i < 60000; ++i) cells << big;
+        g.column("A1", cells);
+        g.s("B1", big);
+        Settings array;
+        array.array = true;
+        const Outcome countIf = evOutcome("COUNTIF(A1:A60000,B1)", g);
+        QVERIFY2(countIf.text.startsWith("e:") && countIf.status == EvalStatus::TooMuchWork, qPrintable(said(countIf)));
+        const Outcome product = evOutcome("SUMPRODUCT(--(A1:A60000=B1))", g);
+        QVERIFY2(product.text.startsWith("e:") && product.status == EvalStatus::TooMuchWork, qPrintable(said(product)));
+        // fewer of them are counted by the length of what they compare, the same formula over short texts by almost nothing
+        const Outcome fewLong = evOutcome("COUNTIF(A1:A2000,B1)", g);
+        QVERIFY2(fewLong.text == "n:2000" && fewLong.work >= 2000 * (32767 / 64), qPrintable(said(fewLong)));
+        Grid shortTexts;
+        QVariantList small;
+        for (int i = 0; i < 2000; ++i) small << QStringLiteral("xyz");
+        shortTexts.column("A1", small);
+        shortTexts.s("B1", "xyz");
+        const Outcome fewShort = evOutcome("COUNTIF(A1:A2000,B1)", shortTexts);
+        QVERIFY2(fewShort.text == "n:2000" && fewShort.work < 2100, qPrintable(said(fewShort)));
+    }
+
 };
 
 JP_TEST_CLASS(SheetBoundsTests)

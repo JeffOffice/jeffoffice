@@ -65,17 +65,6 @@ bool hasWildcards(const QString &s)
     return false;
 }
 
-namespace {
-thread_local qint64 g_wildcardSteps = 0;
-}
-
-qint64 takeWildcardSteps()
-{
-    const qint64 n = g_wildcardSteps;
-    g_wildcardSteps = 0;
-    return n;
-}
-
 bool wildcardMatch(const QString &text, int ti, const QString &pat, int pi, bool prefix)
 {
     const int n = int(text.size()), m = int(pat.size());
@@ -121,7 +110,7 @@ bool wildcardMatch(const QString &text, int ti, const QString &pat, int pi, bool
         ti = starT;
         pi = starP;
     }
-    g_wildcardSteps += steps;
+    budget::addWork(steps);
     return result;
 }
 

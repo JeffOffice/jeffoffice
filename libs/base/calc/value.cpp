@@ -328,12 +328,20 @@ bool textToNumber(const QString &text, DateSystem system, double *out)
 int compareText(const QString &a, const QString &b)
 {
     const qsizetype n = std::min(a.size(), b.size());
-    for (qsizetype i = 0; i < n; ++i) {
+    qsizetype i = 0;
+    int order = 0;
+    for (; i < n; ++i) {
         if (a[i] == b[i]) continue;
         const quint32 x = CollationKey::of(a[i]), y = CollationKey::of(b[i]);
-        if (x != y) return x < y ? -1 : 1;
+        if (x != y) {
+            order = x < y ? -1 : 1;
+            break;
+        }
     }
-    return a.size() == b.size() ? 0 : (a.size() < b.size() ? -1 : 1);
+    if (i == n) order = a.size() == b.size() ? 0 : (a.size() < b.size() ? -1 : 1);
+    // comparing takes as long as the texts agree: a step for each 32 characters, counted with the next charge of the evaluation
+    if (i >= 32) budget::addWork(qint64(i / 32));
+    return order;
 }
 
 double roundTo15Digits(double v)
