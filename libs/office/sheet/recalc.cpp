@@ -283,6 +283,13 @@ bool recalcWorkbook(const Workbook &book, const RecalcOptions &options, const st
                 finish(RecalcClass::Unsupported);
                 return;
             }
+            // a rate found by trying numbers: the file's digits are those of one program's iteration, so it is kept apart
+            bool iterative = false;
+            for (const auto &call : p.calls) iterative = iterative || (functionAt(call.first).flags & kFnIterative);
+            if (iterative) {
+                finish(RecalcClass::Iterated);
+                return;
+            }
             if (p.external) {
                 finish(RecalcClass::External);
                 return;

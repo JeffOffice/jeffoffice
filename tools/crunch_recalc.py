@@ -13,7 +13,7 @@ another workbook or to the columns of a table, data tables, formulas that did no
 (OFFSET and INDIRECT are volatile too, but depend only on cells: they are worked out and counted apart.)
 
 out-dir/cells.tsv has a line for each formula cell that did not match, a few of each kind that were kept apart, and a few that matched: workbook, sheet, cell, formula,
-stored, ours, class (M match, X mismatch, U unknown function, V volatile, E external, T table columns, P not parsed, N no result, D data table, L work bound, S out of time).
+stored, ours, class (M match, X mismatch, U unknown function, V volatile, E external, T table columns, P not parsed, N no result, D data table, L work bound, S out of time, R a rate found by iteration).
 out-dir/books.tsv has a line for each workbook; out-dir/unsupported.tsv lists the functions the engine lacks, with the cells that call each. The summary is printed: the cells and the share that matched, the workbooks that matched whole, how each function of the
 most used fared, the commonest mismatches, and the commonest unsupported functions.
 """
@@ -29,7 +29,7 @@ from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from crunch_scan import LIMIT_SECONDS, SetupFailed, check_systemd_run, need_linux  # noqa: E402
 
-CLASSES = "MXUVETPNDLS"
+CLASSES = "MXUVETPNDLSR"
 
 
 def unescape(text):
@@ -66,7 +66,7 @@ def run_one(tool, path, matches, seconds):
             unsup.append((unescape(f[1]), int(f[2])))
         elif f[0] == "pat" and len(f) == 3:
             pats.append((unescape(f[1]), int(f[2])))
-        elif f[0] == "book" and len(f) >= 18:
+        elif f[0] == "book" and len(f) >= 19:
             book = f[1:]
     return path, code, rows, fns, unsup, pats, book, message
 
@@ -128,8 +128,8 @@ def main():
             if book is None:
                 books.write("%s\t%d\n" % (escape(path), code))
                 continue
-            counts = [int(x) for x in book[:12]]   # formula cells, then the 11 classes
-            vc, vm, manual, whole, seconds = int(book[12]), int(book[13]), int(book[14]), int(book[15]), book[16]
+            counts = [int(x) for x in book[:13]]   # formula cells, then the 12 classes
+            vc, vm, manual, whole, seconds = int(book[13]), int(book[14]), int(book[15]), int(book[16]), book[17]
             books.write("%s\t%d\t%s\t%d\t%d\t%d\t%d\t%s\n" % (escape(path), code, "\t".join(map(str, counts)), vc, vm, manual, whole, seconds))
             totals["formula cells"] += counts[0]
             for k, c in zip(CLASSES, counts[1:]):
@@ -162,7 +162,7 @@ def main():
     print(f"recalc: workbooks {len(paths)} (opened {opened}, not opened {not_opened}, crashed {crashed}, timed out {timed_out}); formula cells {totals['formula cells']}, "
           f"checked {checked} of which matched {totals['M']} ({pct(totals['M'], checked)}); kept apart: unknown function {totals['U']}, volatile {totals['V']} "
           f"(OFFSET and INDIRECT worked out: {volatile_checked}, matched {volatile_matched}), another workbook {totals['E']}, table columns {totals['T']}, not parsed {totals['P']}, "
-          f"no result stored {totals['N']}, data table {totals['D']}, work bound {totals['L']}, out of time {totals['S']}; workbooks with formulas {formula_books}, "
+          f"no result stored {totals['N']}, data table {totals['D']}, work bound {totals['L']}, rate found by iteration {totals['R']}, out of time {totals['S']}; workbooks with formulas {formula_books}, "
           f"with something checked {checked_books}, matched whole {whole_books} ({pct(whole_books, checked_books)}); of those on manual calculation {manual_books}, {manual_mismatch} with mismatches; "
           f"{time.time() - started:.0f} s")
     print("functions by calls (calls, share of calls in cells that matched, cells, share of cells that matched):")

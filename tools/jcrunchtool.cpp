@@ -321,7 +321,7 @@ int recalcOne(const QString &path, int keepMatches, double seconds)
     for (auto it = report.unsupportedFunctions.cbegin(); it != report.unsupportedFunctions.cend(); ++it) out() << "unsup\t" << escapeField(it.key()) << '\t' << it.value() << "\n";
     for (auto it = report.patterns.cbegin(); it != report.patterns.cend(); ++it) out() << "pat\t" << escapeField(it.key()) << '\t' << it.value() << "\n";
     out() << "book\t" << report.formulaCells;
-    for (const char cls : {'M', 'X', 'U', 'V', 'E', 'T', 'P', 'N', 'D', 'L', 'S'}) out() << '\t' << report.byClass.value(cls);
+    for (const char cls : {'M', 'X', 'U', 'V', 'E', 'T', 'P', 'N', 'D', 'L', 'S', 'R'}) out() << '\t' << report.byClass.value(cls);
     out() << '\t' << report.volatileChecked << '\t' << report.volatileMatched << '\t' << (report.manualCalc ? 1 : 0) << '\t' << (report.whole ? 1 : 0) << '\t' << QString::number(report.seconds, 'f', 2) << "\n";
     return report.whole ? 0 : 2;
 }

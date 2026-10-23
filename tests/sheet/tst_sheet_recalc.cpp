@@ -252,6 +252,20 @@ private Q_SLOTS:
         QCOMPARE(timed.report.byClass.value('S'), qint64(2));
     }
 
+    // A rate found by trying numbers is worked out by the engine but kept apart here too: the file's digits are those of one program's iteration.
+    void aRateFoundByIterationIsKeptApartInTheCheckOfEachOnItsOwn()
+    {
+        const QString rows = row(1, plain("A1", "-100") + plain("B1", "110") + cell("C1", "IRR(A1:B1)", "0.10000000012") + cell("D1", "A1+B1", "10"));
+        Run run;
+        RecalcOptions options;
+        options.keepMatches = 10;
+        QVERIFY(runWorkbook(buildXlsx({worksheet(rows)}), &run, options));
+        QCOMPARE(run.cellText("Sheet1", "C1").left(2), QStringLiteral("R|"));
+        QCOMPARE(run.report.byClass.value('R'), qint64(1));
+        QCOMPARE(run.report.byClass.value('M'), qint64(1));
+        QCOMPARE(run.report.checked(), qint64(1));
+    }
+
     void stateOfTheWorkbookIsTold()
     {
         Run manual;
