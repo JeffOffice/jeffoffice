@@ -1,0 +1,244 @@
+#include "calc/machine.h"
+
+#include <algorithm>
+#include <cmath>
+
+namespace jp::calc {
+
+bool coerceNumber(const Value &v, DateSystem system, double *out, ErrorKind *error)
+{
+    switch (v.kind()) {
+    case Value::Kind::Number:
+    case Value::Kind::Bool: *out = v.number(); return true;
+    case Value::Kind::Empty: *out = 0; return true;
+    case Value::Kind::Text:
+        if (textToNumber(v.text(), system, out)) return true;
+        *error = ErrorKind::Value;
+        return false;
+    case Value::Kind::Error: *error = v.errorKind(); return false;
+    case Value::Kind::Array: *error = ErrorKind::Value; return false;
+    }
+    *error = ErrorKind::Value;
+    return false;
+}
+
+bool coerceText(const Value &v, QString *out, ErrorKind *error)
+{
+    switch (v.kind()) {
+    case Value::Kind::Number: *out = numberToText(v.number()); return true;
+    case Value::Kind::Bool: *out = v.boolean() ? QStringLiteral("TRUE") : QStringLiteral("FALSE"); return true;
+    case Value::Kind::Empty: out->clear(); return true;
+    case Value::Kind::Text: *out = v.text(); return true;
+    case Value::Kind::Error: *error = v.errorKind(); return false;
+    case Value::Kind::Array: *error = ErrorKind::Value; return false;
+    }
+    return false;
+}
+
+bool coerceBool(const Value &v, bool *out, ErrorKind *error)
+{
+    switch (v.kind()) {
+    case Value::Kind::Number:
+    case Value::Kind::Bool: *out = v.number() != 0; return true;
+    case Value::Kind::Empty: *out = false; return true;
+    case Value::Kind::Text:
+        if (v.text().compare(QLatin1String("TRUE"), Qt::CaseInsensitive) == 0) {
+            *out = true;
+            return true;
+        }
+        if (v.text().compare(QLatin1String("FALSE"), Qt::CaseInsensitive) == 0) {
+            *out = false;
+            return true;
+        }
+        *error = ErrorKind::Value;
+        return false;
+    case Value::Kind::Error: *error = v.errorKind(); return false;
+    case Value::Kind::Array: *error = ErrorKind::Value; return false;
+    }
+    return false;
+}
+
+bool hasWildcards(const QString &s)
+{
+    for (const QChar ch : s)
+        if (ch == QLatin1Char('?') || ch == QLatin1Char('*') || ch == QLatin1Char('~')) return true;
+    return false;
+}
+
+bool wildcardMatch(const QString &text, int ti, const QString &pat, int pi, bool prefix)
+{
+    while (pi < pat.size()) {
+        const QChar p = pat[pi];
+        if (p == QLatin1Char('*')) {
+            while (pi < pat.size() && pat[pi] == QLatin1Char('*')) ++pi;
+            if (pi == pat.size()) return true;
+            for (int k = ti; k <= text.size(); ++k)
+                if (wildcardMatch(text, k, pat, pi, prefix)) return true;
+            return false;
+        }
+        if (ti >= text.size()) return false;
+        if (p == QLatin1Char('?')) {
+            ++ti;
+            ++pi;
+            continue;
+        }
+        QChar want = p;
+        if (p == QLatin1Char('~') && pi + 1 < pat.size()) want = pat[++pi];
+        if (text[ti].toCaseFolded() != want.toCaseFolded()) return false;
+        ++ti;
+        ++pi;
+    }
+    return prefix || ti == text.size();
+}
+
+Value Table::at(qint64 row, qint64 col) const
+{
+    if (m_isRef) {
+        if (row < 0 || col < 0 || row >= m_fullRows || col >= m_fullCols) return Value();
+        return m_machine->cell(m_area.sheet1, quint32(qint64(m_area.row1) + row), quint32(qint64(m_area.col1) + col));
+    }
+    if (row < 0 || col < 0 || row >= m_fullRows || col >= m_fullCols) return Value();
+    return m_array.at(int(row), int(col));
+}
+
+const EvalContext &Call::context() const { return m.context(); }
+
+Value Call::scalar(int i)
+{
+    if (i >= argc()) return Value();
+    return m.scalar(m_args[size_t(i)], false);
+}
+
+bool Call::number(int i, double *out)
+{
+    ErrorKind e = ErrorKind::Value;
+    if (coerceNumber(scalar(i), m.context().dateSystem, out, &e)) return true;
+    m_failure = Value::error(e);
+    return false;
+}
+
+bool Call::integer(int i, qint64 *out)
+{
+    double x;
+    if (!number(i, &x)) return false;
+    x = std::trunc(x);
+    if (!(std::fabs(x) <= 9007199254740992.0)) {
+        m_failure = Value::error(ErrorKind::Num);
+        return false;
+    }
+    *out = qint64(x);
+    return true;
+}
+
+bool Call::text(int i, QString *out)
+{
+    ErrorKind e = ErrorKind::Value;
+    if (coerceText(scalar(i), out, &e)) return true;
+    m_failure = Value::error(e);
+    return false;
+}
+
+bool Call::boolean(int i, bool *out)
+{
+    ErrorKind e = ErrorKind::Value;
+    if (coerceBool(scalar(i), out, &e)) return true;
+    m_failure = Value::error(e);
+    return false;
+}
+
+bool Call::each(int i, const std::function<bool(const Value &, bool)> &f)
+{
+    if (i >= argc()) return true;
+    const Item &it = m_args[size_t(i)];
+    if (it.kind == Item::Kind::Missing) return f(Value(), true);
+    if (it.kind == Item::Kind::Value && !it.value.isArray()) return f(it.value, true);
+    return eachAt(i, [&](const Value &v, quint32, quint32) { return f(v, false); });
+}
+
+bool Call::eachAt(int i, const std::function<bool(const Value &, quint32, quint32)> &f)
+{
+    if (i >= argc()) return true;
+    const Item &it = m_args[size_t(i)];
+    switch (it.kind) {
+    case Item::Kind::Missing: return true;
+    case Item::Kind::Value:
+        if (it.value.isArray()) {
+            for (int r = 0; r < it.value.rows(); ++r)
+                for (int c = 0; c < it.value.cols(); ++c) {
+                    const Value &v = it.value.at(r, c);
+                    if (v.isEmpty()) continue;
+                    if (!m.charge(1) || !f(v, quint32(r), quint32(c))) return false;
+                }
+            return true;
+        }
+        return f(it.value, 0, 0);
+    case Item::Kind::Ref:
+        for (int a = 0; a < it.areaCount(); ++a) {
+            const RefArea &area = it.areaAt(a);
+            for (int s = area.sheet1; s <= area.sheet2; ++s) {
+                bool go = true;
+                m.source().visit(s, area.row1, area.col1, area.row2, area.col2, [&](quint32 r, quint32 c, const Value &v) {
+                    if (!m.charge(1)) {
+                        go = false;
+                        return false;
+                    }
+                    if (v.isEmpty()) return true;
+                    if (!f(v, r, c)) {
+                        go = false;
+                        return false;
+                    }
+                    return true;
+                });
+                if (!go) return false;
+            }
+        }
+        return true;
+    }
+    return true;
+}
+
+bool Call::table(int i, Table *t, bool clip)
+{
+    m_failure = Value::error(ErrorKind::Value);
+    if (i >= argc() || m_args[size_t(i)].isMissing()) return false;
+    const Item &it = m_args[size_t(i)];
+    t->m_machine = &m;
+    if (it.isRef()) {
+        if (it.more || it.area.sheet1 != it.area.sheet2) return false;
+        t->m_isRef = true;
+        t->m_area = it.area;
+        t->m_fullRows = t->m_rows = it.area.rows();
+        t->m_fullCols = t->m_cols = it.area.cols();
+        if (clip) {
+            quint32 usedRows = 0, usedCols = 0;
+            m.usedExtent(it.area.sheet1, &usedRows, &usedCols);
+            t->m_rows = std::min<qint64>(t->m_fullRows, std::max<qint64>(0, qint64(usedRows) - qint64(it.area.row1)));
+            t->m_cols = std::min<qint64>(t->m_fullCols, std::max<qint64>(0, qint64(usedCols) - qint64(it.area.col1)));
+        }
+        return true;
+    }
+    const Value &v = it.value;
+    if (v.isError()) {
+        m_failure = v;
+        return false;
+    }
+    t->m_isRef = false;
+    t->m_array = v;
+    t->m_fullRows = t->m_rows = v.rows();
+    t->m_fullCols = t->m_cols = v.cols();
+    return true;
+}
+
+bool Call::array(int i, Value *out)
+{
+    if (i >= argc()) return false;
+    const Item &it = m_args[size_t(i)];
+    *out = it.isRef() ? m.toArray(it) : it.kind == Item::Kind::Value ? it.value : Value();
+    if (out->isError()) {
+        m_failure = *out;
+        return false;
+    }
+    return true;
+}
+
+} // namespace jp::calc

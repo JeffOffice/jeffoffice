@@ -178,12 +178,20 @@ set_tests_properties(officetests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscre
 qt_add_executable(sheettests
   tests/testrunner.cpp
   tests/sheet/sheethelpers.cpp
+  tests/sheet/calchelpers.cpp
   tests/sheet/tst_sheet_cells.cpp
+  tests/sheet/tst_sheet_eval.cpp
+  tests/sheet/tst_sheet_fn_date.cpp
+  tests/sheet/tst_sheet_fn_logic.cpp
+  tests/sheet/tst_sheet_fn_lookup.cpp
+  tests/sheet/tst_sheet_fn_math.cpp
+  tests/sheet/tst_sheet_fn_text.cpp
   tests/sheet/tst_sheet_formats.cpp
   tests/sheet/tst_sheet_formulas.cpp
   tests/sheet/tst_sheet_limits.cpp
   tests/sheet/tst_sheet_numfmt.cpp
   tests/sheet/tst_sheet_package.cpp
+  tests/sheet/tst_sheet_parser.cpp
   tests/sheet/tst_sheet_workbook.cpp)
 target_link_libraries(sheettests PRIVATE jo_office Qt6::Test)
 set_target_properties(sheettests PROPERTIES WIN32_EXECUTABLE OFF)

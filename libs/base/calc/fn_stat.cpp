@@ -1,0 +1,499 @@
+// Conditional sums and counts, SUMPRODUCT, SUBTOTAL, and the statistics the workbooks use.
+#include "calc/machine.h"
+
+#include <algorithm>
+#include <cmath>
+
+namespace jp::calc {
+
+namespace {
+
+// ---- a criterion of SUMIF, COUNTIF, and the others: a number, a text with ? and * in it, TRUE or FALSE, an error, or any of these after =, <>, <, <=, >, or >=
+
+struct Criterion {
+    enum class Kind { Number, Text, Bool, Error, Blank, NotBlank, EmptyText } kind = Kind::Text;
+    enum class Cmp { Eq, Ne, Lt, Le, Gt, Ge } cmp = Cmp::Eq;
+    double number = 0;
+    bool boolean = false;
+    ErrorKind error = ErrorKind::NA;
+    QString text;       // Text: the pattern; Number: the text it was written as (a text cell with the same characters matches)
+    bool wildcards = false;
+    bool matchesEmpty = false;   // an empty cell matches
+};
+
+bool parseCriterion(const Value &v, DateSystem system, Criterion *out)
+{
+    Criterion c;
+    switch (v.kind()) {
+    case Value::Kind::Number: c.kind = Criterion::Kind::Number; c.number = v.number(); c.text = numberToText(v.number()); *out = c; return true;
+    case Value::Kind::Bool: c.kind = Criterion::Kind::Bool; c.boolean = v.boolean(); *out = c; return true;
+    case Value::Kind::Error: c.kind = Criterion::Kind::Error; c.error = v.errorKind(); *out = c; return true;
+    case Value::Kind::Empty: c.kind = Criterion::Kind::Number; c.number = 0; c.text = QStringLiteral("0"); *out = c; return true;
+    case Value::Kind::Array: return false;
+    case Value::Kind::Text: break;
+    }
+    QString s = v.text();
+    int n = 0;
+    if (s.startsWith(QLatin1String("<>"))) { c.cmp = Criterion::Cmp::Ne; n = 2; }
+    else if (s.startsWith(QLatin1String("<="))) { c.cmp = Criterion::Cmp::Le; n = 2; }
+    else if (s.startsWith(QLatin1String(">="))) { c.cmp = Criterion::Cmp::Ge; n = 2; }
+    else if (s.startsWith(QLatin1Char('<'))) { c.cmp = Criterion::Cmp::Lt; n = 1; }
+    else if (s.startsWith(QLatin1Char('>'))) { c.cmp = Criterion::Cmp::Gt; n = 1; }
+    else if (s.startsWith(QLatin1Char('='))) { c.cmp = Criterion::Cmp::Eq; n = 1; }
+    const bool hadOperator = n > 0;
+    const QString rest = s.mid(n);
+    if (rest.isEmpty()) {
+        if (!hadOperator) {
+            c.kind = Criterion::Kind::EmptyText;
+            c.matchesEmpty = true;
+        } else if (c.cmp == Criterion::Cmp::Eq) {
+            c.kind = Criterion::Kind::Blank;
+            c.matchesEmpty = true;
+        } else if (c.cmp == Criterion::Cmp::Ne) {
+            c.kind = Criterion::Kind::NotBlank;
+        } else {
+            c.kind = Criterion::Kind::Text;
+        }
+        *out = c;
+        return true;
+    }
+    double x;
+    bool errKnown = false;
+    const ErrorKind e = errorKindFromText(rest, &errKnown);
+    if (errKnown) {
+        c.kind = Criterion::Kind::Error;
+        c.error = e;
+    } else if (rest.compare(QLatin1String("TRUE"), Qt::CaseInsensitive) == 0 || rest.compare(QLatin1String("FALSE"), Qt::CaseInsensitive) == 0) {
+        c.kind = Criterion::Kind::Bool;
+        c.boolean = rest.size() == 4;
+    } else if (textToNumber(rest, system, &x)) {
+        c.kind = Criterion::Kind::Number;
+        c.number = x;
+        c.text = rest;
+    } else {
+        c.kind = Criterion::Kind::Text;
+        c.text = rest;
+        c.wildcards = hasWildcards(rest);
+    }
+    c.matchesEmpty = c.cmp == Criterion::Cmp::Ne;
+    *out = c;
+    return true;
+}
+
+bool criterionMatches(const Criterion &c, const Value &v, DateSystem system)
+{
+    if (v.isEmpty()) return c.matchesEmpty;
+    switch (c.kind) {
+    case Criterion::Kind::Blank: return false;
+    case Criterion::Kind::EmptyText: return v.isText() && v.text().isEmpty();
+    case Criterion::Kind::NotBlank: return true;
+    case Criterion::Kind::Number: {
+        bool eq = false;
+        if (v.isNumber()) {
+            const double y = v.number();
+            switch (c.cmp) {
+            case Criterion::Cmp::Eq: return sameTo15Digits(y, c.number);
+            case Criterion::Cmp::Ne: return !sameTo15Digits(y, c.number);
+            case Criterion::Cmp::Lt: return y < c.number && !sameTo15Digits(y, c.number);
+            case Criterion::Cmp::Le: return y < c.number || sameTo15Digits(y, c.number);
+            case Criterion::Cmp::Gt: return y > c.number && !sameTo15Digits(y, c.number);
+            case Criterion::Cmp::Ge: return y > c.number || sameTo15Digits(y, c.number);
+            }
+        }
+        if (v.isText() && (c.cmp == Criterion::Cmp::Eq || c.cmp == Criterion::Cmp::Ne)) {
+            double y;
+            eq = v.text().compare(c.text, Qt::CaseInsensitive) == 0 || (textToNumber(v.text(), system, &y) && sameTo15Digits(y, c.number));
+            return c.cmp == Criterion::Cmp::Eq ? eq : !eq;
+        }
+        return c.cmp == Criterion::Cmp::Ne;
+    }
+    case Criterion::Kind::Bool: {
+        const bool eq = v.isBool() && v.boolean() == c.boolean;
+        if (c.cmp == Criterion::Cmp::Eq) return eq;
+        if (c.cmp == Criterion::Cmp::Ne) return !eq;
+        return false;
+    }
+    case Criterion::Kind::Error: {
+        const bool eq = v.isError() && v.errorKind() == c.error;
+        if (c.cmp == Criterion::Cmp::Eq) return eq;
+        if (c.cmp == Criterion::Cmp::Ne) return !eq;
+        return false;
+    }
+    case Criterion::Kind::Text: {
+        if (!v.isText()) return c.cmp == Criterion::Cmp::Ne;
+        const QString &t = v.text();
+        int order;
+        switch (c.cmp) {
+        case Criterion::Cmp::Eq: return c.wildcards ? wildcardMatch(t, 0, c.text, 0) : compareText(t, c.text) == 0;
+        case Criterion::Cmp::Ne: return !(c.wildcards ? wildcardMatch(t, 0, c.text, 0) : compareText(t, c.text) == 0);
+        default: break;
+        }
+        order = compareText(t, c.text);
+        switch (c.cmp) {
+        case Criterion::Cmp::Lt: return order < 0;
+        case Criterion::Cmp::Le: return order <= 0;
+        case Criterion::Cmp::Gt: return order > 0;
+        default: return order >= 0;
+        }
+    }
+    }
+    return false;
+}
+
+// The one area of argument i, for a function that takes a range of cells.
+bool oneArea(Call &c, int i, RefArea *area)
+{
+    if (c.missing(i) || !c.item(i).isRef() || c.item(i).more || c.item(i).area.sheet1 != c.item(i).area.sheet2) {
+        c.error(ErrorKind::Value);
+        return false;
+    }
+    *area = c.item(i).area;
+    return true;
+}
+
+Value fnSumIf(Call &c)
+{
+    RefArea range;
+    if (!oneArea(c, 0, &range)) return c.failure();
+    Criterion crit;
+    if (!parseCriterion(c.scalar(1), c.context().dateSystem, &crit)) return c.error(ErrorKind::Value);
+    RefArea sumArea = range;
+    const bool hasSum = c.argc() > 2 && !c.missing(2);
+    if (hasSum) {
+        if (!oneArea(c, 2, &sumArea)) return c.failure();
+        // the same shape as the range, from the first cell of the sum range
+        sumArea.row2 = quint32(std::min<qint64>(qint64(sumArea.row1) + range.rows() - 1, kGridRows - 1));
+        sumArea.col2 = quint32(std::min<qint64>(qint64(sumArea.col1) + range.cols() - 1, kGridCols - 1));
+    }
+    double sum = 0;
+    Value error;
+    Machine &m = c.machine();
+    const bool done = c.eachAt(0, [&](const Value &v, quint32 row, quint32 col) {
+        if (!criterionMatches(crit, v, c.context().dateSystem)) return true;
+        Value target = v;
+        if (hasSum) target = m.cell(sumArea.sheet1, sumArea.row1 + (row - range.row1), sumArea.col1 + (col - range.col1));
+        if (target.isNumber()) sum += target.number();
+        else if (target.isError()) {
+            error = target;
+            return false;
+        }
+        return true;
+    });
+    if (!done) return error.isError() ? error : c.error(ErrorKind::Value);
+    return numberResult(sum);
+}
+
+Value fnCountIf(Call &c)
+{
+    RefArea range;
+    if (!oneArea(c, 0, &range)) return c.failure();
+    Criterion crit;
+    if (!parseCriterion(c.scalar(1), c.context().dateSystem, &crit)) return c.error(ErrorKind::Value);
+    qint64 matched = 0, visited = 0;
+    const bool done = c.eachAt(0, [&](const Value &v, quint32, quint32) {
+        ++visited;
+        if (criterionMatches(crit, v, c.context().dateSystem)) ++matched;
+        return true;
+    });
+    if (!done) return c.error(ErrorKind::Value);
+    if (crit.matchesEmpty) matched += range.cells() - visited;
+    return Value::number(double(matched));
+}
+
+// ---- SUMPRODUCT
+
+Value fnSumProduct(Call &c)
+{
+    std::vector<Value> arrays;
+    for (int i = 0; i < c.argc(); ++i) {
+        Value a;
+        if (c.missing(i)) a = Value::number(0);
+        else if (!c.array(i, &a)) return c.failure();
+        if (!arrays.empty() && (a.rows() != arrays[0].rows() || a.cols() != arrays[0].cols())) return c.error(ErrorKind::Value);
+        arrays.push_back(a);
+    }
+    const int rows = arrays[0].rows(), cols = arrays[0].cols();
+    if (!c.machine().charge(qint64(rows) * cols * qint64(arrays.size()))) return c.error(ErrorKind::Value);
+    double sum = 0;
+    for (int r = 0; r < rows; ++r)
+        for (int col = 0; col < cols; ++col) {
+            double product = 1;
+            for (const Value &a : arrays) {
+                const Value &v = a.at(r, col);
+                if (v.isError()) return v;
+                product *= v.isNumber() ? v.number() : 0;
+            }
+            sum += product;
+        }
+    return numberResult(sum);
+}
+
+// ---- the statistics
+
+// The numbers of arguments from `first` on: in a reference or array the numbers; typed, a text read as a number, a boolean as 1 or 0. An error stops it.
+bool gatherNumbers(Call &c, int first, std::vector<double> *out, Value *error)
+{
+    for (int i = first; i < c.argc(); ++i) {
+        bool ok = true;
+        const bool done = c.each(i, [&](const Value &v, bool typed) {
+            double x;
+            switch (v.kind()) {
+            case Value::Kind::Number: out->push_back(v.number()); break;
+            case Value::Kind::Bool:
+                if (typed) out->push_back(v.number());
+                break;
+            case Value::Kind::Text:
+                if (typed) {
+                    if (!textToNumber(v.text(), c.context().dateSystem, &x)) {
+                        *error = Value::error(ErrorKind::Value);
+                        ok = false;
+                        return false;
+                    }
+                    out->push_back(x);
+                }
+                break;
+            case Value::Kind::Error:
+                *error = v;
+                ok = false;
+                return false;
+            default: break;
+            }
+            return true;
+        });
+        if (!done) {
+            if (ok) *error = Value::error(ErrorKind::Value);
+            return false;
+        }
+    }
+    return true;
+}
+
+// Mean and sum of squared deviations.
+void moments(const std::vector<double> &x, double *mean, double *ss)
+{
+    double sum = 0;
+    for (const double v : x) sum += v;
+    *mean = sum / double(x.size());
+    double acc = 0;
+    for (const double v : x) acc += (v - *mean) * (v - *mean);
+    *ss = acc;
+}
+
+Value spread(Call &c, bool sample, bool root)
+{
+    std::vector<double> x;
+    Value error;
+    if (!gatherNumbers(c, 0, &x, &error)) return error;
+    const size_t n = x.size();
+    if (sample ? n < 2 : n < 1) return c.error(ErrorKind::Div0);
+    double mean, ss;
+    moments(x, &mean, &ss);
+    const double var = ss / double(sample ? n - 1 : n);
+    return numberResult(root ? std::sqrt(var) : var);
+}
+Value fnStdev(Call &c) { return spread(c, true, true); }
+Value fnStdevP(Call &c) { return spread(c, false, true); }
+Value fnVar(Call &c) { return spread(c, true, false); }
+Value fnVarP(Call &c) { return spread(c, false, false); }
+
+Value fnMedian(Call &c)
+{
+    std::vector<double> x;
+    Value error;
+    if (!gatherNumbers(c, 0, &x, &error)) return error;
+    if (x.empty()) return c.error(ErrorKind::Num);
+    std::sort(x.begin(), x.end());
+    const size_t n = x.size();
+    return numberResult(n % 2 ? x[n / 2] : (x[n / 2 - 1] + x[n / 2]) / 2);
+}
+
+Value kth(Call &c, bool largest)
+{
+    std::vector<double> x;
+    Value error;
+    double k;
+    if (!c.number(1, &k)) return c.failure();
+    // the numbers of the array or reference only
+    bool ok = true;
+    const bool done = c.each(0, [&](const Value &v, bool) {
+        if (v.isNumber()) x.push_back(v.number());
+        else if (v.isError()) {
+            error = v;
+            ok = false;
+            return false;
+        }
+        return true;
+    });
+    if (!done) return ok ? c.error(ErrorKind::Value) : error;
+    k = std::ceil(k);
+    if (x.empty() || !(k >= 1) || k > double(x.size())) return c.error(ErrorKind::Num);
+    std::sort(x.begin(), x.end());
+    return Value::number(largest ? x[x.size() - size_t(k)] : x[size_t(k) - 1]);
+}
+Value fnLarge(Call &c) { return kth(c, true); }
+Value fnSmall(Call &c) { return kth(c, false); }
+
+Value fnRank(Call &c)
+{
+    double number, order;
+    if (!c.number(0, &number) || !c.numberOr(2, 0, &order)) return c.failure();
+    qint64 ahead = 0;
+    bool found = false;
+    Value error;
+    bool ok = true;
+    const bool done = c.each(1, [&](const Value &v, bool) {
+        if (v.isError()) {
+            error = v;
+            ok = false;
+            return false;
+        }
+        if (!v.isNumber()) return true;
+        if (sameTo15Digits(v.number(), number)) found = true;
+        else if (order == 0 ? v.number() > number : v.number() < number) ++ahead;
+        return true;
+    });
+    if (!done) return ok ? c.error(ErrorKind::Value) : error;
+    if (!found) return c.error(ErrorKind::NA);
+    return Value::number(double(ahead + 1));
+}
+
+// SUBTOTAL(function, ref1, ...): 1 to 11 for a function of the numbers (101 to 111 the same here; the hidden rows are not known to the cell source).
+Value fnSubtotal(Call &c)
+{
+    double f;
+    if (!c.number(0, &f)) return c.failure();
+    int fn = int(std::trunc(f));
+    if (fn >= 101 && fn <= 111) fn -= 100;
+    if (fn < 1 || fn > 11) return c.error(ErrorKind::Value);
+    if (fn == 3) {
+        qint64 n = 0;
+        for (int i = 1; i < c.argc(); ++i)
+            if (!c.each(i, [&](const Value &, bool) {
+                    ++n;
+                    return true;
+                }))
+                return c.error(ErrorKind::Value);
+        return Value::number(double(n));
+    }
+    std::vector<double> x;
+    Value error;
+    // cells only: a typed value counts the same, but references are what SUBTOTAL is given
+    if (!gatherNumbers(c, 1, &x, &error)) return error;
+    const size_t n = x.size();
+    double sum = 0;
+    for (const double v : x) sum += v;
+    switch (fn) {
+    case 1: return n ? numberResult(sum / double(n)) : c.error(ErrorKind::Div0);
+    case 2: return Value::number(double(n));
+    case 4: return Value::number(n ? *std::max_element(x.begin(), x.end()) : 0);
+    case 5: return Value::number(n ? *std::min_element(x.begin(), x.end()) : 0);
+    case 6: {
+        double p = 1;
+        for (const double v : x) p *= v;
+        return numberResult(n ? p : 0);
+    }
+    case 7: case 8: case 10: case 11: {
+        const bool sample = fn == 7 || fn == 10;
+        if (sample ? n < 2 : n < 1) return c.error(ErrorKind::Div0);
+        double mean, ss;
+        moments(x, &mean, &ss);
+        const double var = ss / double(sample ? n - 1 : n);
+        return numberResult(fn == 7 || fn == 8 ? std::sqrt(var) : var);
+    }
+    default: return numberResult(sum);
+    }
+}
+
+// ---- the normal distribution
+
+double normalCdf(double x) { return 0.5 * std::erfc(-x / std::sqrt(2.0)); }
+
+// The inverse of the standard normal distribution: an approximation, then a step of Halley's method.
+bool normalInverse(double p, double *out)
+{
+    if (!(p > 0 && p < 1)) return false;
+    static const double a[] = {-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00};
+    static const double b[] = {-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01};
+    static const double cc[] = {-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00};
+    static const double d[] = {7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00};
+    double x;
+    if (p < 0.02425) {
+        const double q = std::sqrt(-2 * std::log(p));
+        x = (((((cc[0] * q + cc[1]) * q + cc[2]) * q + cc[3]) * q + cc[4]) * q + cc[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    } else if (p > 1 - 0.02425) {
+        const double q = std::sqrt(-2 * std::log(1 - p));
+        x = -(((((cc[0] * q + cc[1]) * q + cc[2]) * q + cc[3]) * q + cc[4]) * q + cc[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    } else {
+        const double q = p - 0.5, r = q * q;
+        x = (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+    }
+    for (int i = 0; i < 2; ++i) {
+        const double e = normalCdf(x) - p;
+        const double u = e * std::sqrt(2 * 3.14159265358979323846) * std::exp(x * x / 2);
+        x = x - u / (1 + x * u / 2);
+    }
+    *out = x;
+    return true;
+}
+
+Value fnNormSDist(Call &c)
+{
+    double z;
+    if (!c.number(0, &z)) return c.failure();
+    return Value::number(normalCdf(z));
+}
+
+Value fnNormSInv(Call &c)
+{
+    double p, x;
+    if (!c.number(0, &p)) return c.failure();
+    if (!normalInverse(p, &x)) return c.error(ErrorKind::Num);
+    return Value::number(x);
+}
+
+Value fnNormDist(Call &c)
+{
+    double x, mean, sd;
+    bool cumulative;
+    if (!c.number(0, &x) || !c.number(1, &mean) || !c.number(2, &sd) || !c.boolean(3, &cumulative)) return c.failure();
+    if (sd <= 0) return c.error(ErrorKind::Num);
+    const double z = (x - mean) / sd;
+    if (cumulative) return Value::number(normalCdf(z));
+    return numberResult(std::exp(-z * z / 2) / (sd * std::sqrt(2 * 3.14159265358979323846)));
+}
+
+Value fnNormInv(Call &c)
+{
+    double p, mean, sd, z;
+    if (!c.number(0, &p) || !c.number(1, &mean) || !c.number(2, &sd)) return c.failure();
+    if (sd <= 0 || !normalInverse(p, &z)) return c.error(ErrorKind::Num);
+    return numberResult(mean + sd * z);
+}
+
+} // namespace
+
+void registerStatFunctions(std::vector<FunctionInfo> &r)
+{
+    r.push_back({"SUMIF", 2, 3, "xvx", 0, fnSumIf});
+    r.push_back({"COUNTIF", 2, 2, "xv", 0, fnCountIf});
+    r.push_back({"SUMPRODUCT", 1, 255, "a", 0, fnSumProduct});
+    r.push_back({"SUBTOTAL", 2, 255, "vr", 0, fnSubtotal});
+    r.push_back({"MEDIAN", 1, 255, "r", 0, fnMedian});
+    r.push_back({"STDEV", 1, 255, "r", 0, fnStdev});
+    r.push_back({"STDEV.S", 1, 255, "r", 0, fnStdev});
+    r.push_back({"STDEVP", 1, 255, "r", 0, fnStdevP});
+    r.push_back({"STDEV.P", 1, 255, "r", 0, fnStdevP});
+    r.push_back({"VAR", 1, 255, "r", 0, fnVar});
+    r.push_back({"VAR.S", 1, 255, "r", 0, fnVar});
+    r.push_back({"VARP", 1, 255, "r", 0, fnVarP});
+    r.push_back({"VAR.P", 1, 255, "r", 0, fnVarP});
+    r.push_back({"LARGE", 2, 2, "rv", 0, fnLarge});
+    r.push_back({"SMALL", 2, 2, "rv", 0, fnSmall});
+    r.push_back({"RANK", 2, 3, "vrv", 0, fnRank});
+    r.push_back({"NORMSDIST", 1, 1, "v", 0, fnNormSDist});
+    r.push_back({"NORMSINV", 1, 1, "v", 0, fnNormSInv});
+    r.push_back({"NORMDIST", 4, 4, "vvvv", 0, fnNormDist});
+    r.push_back({"NORMINV", 3, 3, "vvv", 0, fnNormInv});
+}
+
+} // namespace jp::calc
