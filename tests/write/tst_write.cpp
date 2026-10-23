@@ -18359,7 +18359,7 @@ private Q_SLOTS:
                 QCoreApplication::processEvents();
                 const QString trail = QStringLiteral("seed %1 step %2 after ").arg(seed).arg(step) + log.mid(std::max<qsizetype>(0, log.size() - 6)).join(QLatin1Char(' '));
                 const QTextDocument *cd = v->cursor().document();
-                QVERIFY2(!(v->inNote() && v->inHeaderFooter()), qPrintable(trail + QStringLiteral(": both modes are on")));
+                QVERIFY2(v->sideModesExclusive(), qPrintable(trail + QStringLiteral(": both modes are on")));
                 if (v->inNote()) QVERIFY2(cd == v->noteEdit().story, qPrintable(trail + QStringLiteral(": in a note, the caret is elsewhere")));
                 else if (v->inHeaderFooter()) QVERIFY2(cd == v->headerFooterEdit().story, qPrintable(trail + QStringLiteral(": in a header, the caret is elsewhere")));
                 else QVERIFY2(cd == d->story(), qPrintable(trail + QStringLiteral(": in no mode, the caret is not in the text")));
