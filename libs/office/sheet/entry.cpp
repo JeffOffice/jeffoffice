@@ -609,17 +609,8 @@ EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
             }
         }
     }
-    // a formula that begins with a sign
-    if (signStart) {
-        const QChar c = typed[1];
-        if (!c.isSpace() || typed.trimmed().size() > 1) {
-            const EntryResult f = formula(typed);
-            if (f.ok || typed.trimmed().size() > 1) {
-                // (a sign and more that is no formula is a problem, as it is in the programs people know: "- hello")
-                return f;
-            }
-        }
-    }
+    // a formula that begins with a sign (a sign and more that is no formula is a problem, as it is in the programs people know: "- hello" is not text)
+    if (signStart && typed.trimmed().size() > 1) return formula(typed);
     r.entry.kind = Entry::Kind::Text;
     r.entry.text = typed;
     return r;

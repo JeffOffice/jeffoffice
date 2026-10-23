@@ -18,8 +18,6 @@ using jp::grid::ValueStore;
 
 namespace {
 
-QString tr(const char *text) { return QCoreApplication::translate("jp::crunch::EditSession", text); }
-
 bool sameMeaning(const Calculation::CellContent &a, const Calculation::CellContent &b)
 {
     return a.exists == b.exists && a.isFormula == b.isFormula && a.formula == b.formula && a.value == b.value && a.style == b.style;
