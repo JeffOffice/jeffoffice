@@ -209,6 +209,8 @@ Value fnSumProduct(Call &c)
         Value a;
         if (c.missing(i)) a = Value::number(0);
         else if (!c.array(i, &a)) return c.failure();
+        // an argument that is one value, or one cell, and holds a text, is no array of numbers to count as zeros: #VALUE! (as the stored results of the files show)
+        if (a.rows() == 1 && a.cols() == 1 && a.at(0, 0).isText() && !c.item(i).isMissing()) return c.error(ErrorKind::Value);
         if (!arrays.empty() && (a.rows() != arrays[0].rows() || a.cols() != arrays[0].cols())) return c.error(ErrorKind::Value);
         arrays.push_back(a);
     }
@@ -229,48 +231,6 @@ Value fnSumProduct(Call &c)
 }
 
 // ---- the statistics
-
-// The numbers of arguments from `first` on: in a reference or array the numbers; typed, a text read as a number, a boolean as 1 or 0. An error stops it. With
-// `skipSubtotals` the cells of references that hold a SUBTOTAL are left out.
-bool gatherNumbers(Call &c, int first, std::vector<double> *out, Value *error, bool skipSubtotals = false)
-{
-    for (int i = first; i < c.argc(); ++i) {
-        bool ok = true;
-        const bool typedArgument = !c.missing(i) && c.item(i).kind == Item::Kind::Value && !c.item(i).value.isArray();
-        const bool done = c.eachCell(i, [&](const Value &v, int sheet, quint32 row, quint32 col) {
-            const bool typed = typedArgument;
-            if (skipSubtotals && sheet >= 0 && c.machine().source().isSubtotal(sheet, row, col)) return true;
-            double x;
-            switch (v.kind()) {
-            case Value::Kind::Number: out->push_back(v.number()); break;
-            case Value::Kind::Bool:
-                if (typed) out->push_back(v.number());
-                break;
-            case Value::Kind::Text:
-                if (typed) {
-                    if (!textToNumber(v.text(), c.context().dateSystem, &x)) {
-                        *error = Value::error(ErrorKind::Value);
-                        ok = false;
-                        return false;
-                    }
-                    out->push_back(x);
-                }
-                break;
-            case Value::Kind::Error:
-                *error = v;
-                ok = false;
-                return false;
-            default: break;
-            }
-            return true;
-        });
-        if (!done) {
-            if (ok) *error = Value::error(ErrorKind::Value);
-            return false;
-        }
-    }
-    return true;
-}
 
 // Mean and sum of squared deviations.
 void moments(const std::vector<double> &x, double *mean, double *ss)
@@ -408,6 +368,311 @@ Value fnSubtotal(Call &c)
     }
 }
 
+// ---- two series: correlation and the line through them
+
+// The pairs of numbers of two series (both cells numbers; any other pair is left out). False, with the error, if they are not of one shape.
+bool pairsOf(Call &c, int a, int b, std::vector<double> *xs, std::vector<double> *ys)
+{
+    Table ta, tb;
+    if (!c.table(a, &ta, false)) return false;
+    if (!c.table(b, &tb, false)) return false;
+    if (ta.fullRows() != tb.fullRows() || ta.fullCols() != tb.fullCols()) {
+        c.error(ErrorKind::NA);
+        return false;
+    }
+    if (ta.fullRows() * ta.fullCols() > kMaxArrayCells || !c.machine().charge(ta.fullRows() * ta.fullCols())) {
+        c.error(ErrorKind::Value);
+        return false;
+    }
+    for (qint64 r = 0; r < ta.fullRows(); ++r)
+        for (qint64 col = 0; col < ta.fullCols(); ++col) {
+            const Value x = ta.at(r, col), y = tb.at(r, col);
+            if (x.isError()) {
+                c.error(x.errorKind());
+                return false;
+            }
+            if (y.isError()) {
+                c.error(y.errorKind());
+                return false;
+            }
+            if (x.isNumber() && y.isNumber()) {
+                xs->push_back(x.number());
+                ys->push_back(y.number());
+            }
+        }
+    return true;
+}
+
+struct Fit {
+    double mx = 0, my = 0, sxx = 0, syy = 0, sxy = 0;
+    size_t n = 0;
+};
+
+bool fitOf(Call &c, int first, int second, Fit *fit)
+{
+    std::vector<double> xs, ys;
+    if (!pairsOf(c, first, second, &xs, &ys)) return false;
+    fit->n = xs.size();
+    if (fit->n < 1) {
+        c.error(ErrorKind::Div0);
+        return false;
+    }
+    double sx = 0, sy = 0;
+    for (size_t i = 0; i < xs.size(); ++i) {
+        sx += xs[i];
+        sy += ys[i];
+    }
+    fit->mx = sx / double(fit->n);
+    fit->my = sy / double(fit->n);
+    for (size_t i = 0; i < xs.size(); ++i) {
+        fit->sxx += (xs[i] - fit->mx) * (xs[i] - fit->mx);
+        fit->syy += (ys[i] - fit->my) * (ys[i] - fit->my);
+        fit->sxy += (xs[i] - fit->mx) * (ys[i] - fit->my);
+    }
+    return true;
+}
+
+Value fnCorrel(Call &c)
+{
+    Fit f;
+    if (!fitOf(c, 0, 1, &f)) return c.failure();
+    if (f.n < 2 || f.sxx == 0 || f.syy == 0) return c.error(ErrorKind::Div0);
+    return numberResult(f.sxy / std::sqrt(f.sxx * f.syy));
+}
+
+Value fnRsq(Call &c)
+{
+    Fit f;
+    if (!fitOf(c, 0, 1, &f)) return c.failure();
+    if (f.n < 2 || f.sxx == 0 || f.syy == 0) return c.error(ErrorKind::Div0);
+    return numberResult(f.sxy * f.sxy / (f.sxx * f.syy));
+}
+
+// SLOPE(known_y, known_x), INTERCEPT, and FORECAST(x, known_y, known_x)
+Value fnSlope(Call &c)
+{
+    Fit f;
+    if (!fitOf(c, 1, 0, &f)) return c.failure();   // (x is the second argument, y the first, so the pairs are made the other way round)
+    if (f.n < 2 || f.sxx == 0) return c.error(ErrorKind::Div0);
+    return numberResult(f.sxy / f.sxx);
+}
+
+Value fnIntercept(Call &c)
+{
+    Fit f;
+    if (!fitOf(c, 1, 0, &f)) return c.failure();
+    if (f.n < 2 || f.sxx == 0) return c.error(ErrorKind::Div0);
+    return numberResult(f.my - f.sxy / f.sxx * f.mx);
+}
+
+Value fnForecast(Call &c)
+{
+    double x;
+    if (!c.number(0, &x)) return c.failure();
+    Fit f;
+    if (!fitOf(c, 2, 1, &f)) return c.failure();
+    if (f.n < 2 || f.sxx == 0) return c.error(ErrorKind::Div0);
+    const double slope = f.sxy / f.sxx;
+    return numberResult(f.my - slope * f.mx + slope * x);
+}
+
+Value fnCovar(Call &c)
+{
+    Fit f;
+    if (!fitOf(c, 0, 1, &f)) return c.failure();
+    return numberResult(f.sxy / double(f.n));
+}
+
+// ---- percentiles and the mode
+
+bool numbersOf(Call &c, int arg, std::vector<double> *x, Value *error)
+{
+    bool ok = true;
+    const bool done = c.each(arg, [&](const Value &v, bool) {
+        if (v.isNumber()) x->push_back(v.number());
+        else if (v.isError()) {
+            *error = v;
+            ok = false;
+            return false;
+        }
+        return true;
+    });
+    if (!done) {
+        if (ok) *error = Value::error(ErrorKind::Value);
+        return false;
+    }
+    return true;
+}
+
+Value percentile(Call &c, double k)
+{
+    std::vector<double> x;
+    Value error;
+    if (!numbersOf(c, 0, &x, &error)) return error;
+    if (x.empty() || !(k >= 0 && k <= 1)) return c.error(ErrorKind::Num);
+    std::sort(x.begin(), x.end());
+    const double pos = k * double(x.size() - 1);
+    const size_t lo = size_t(std::floor(pos));
+    const double frac = pos - double(lo);
+    if (lo + 1 >= x.size()) return Value::number(x.back());
+    return numberResult(x[lo] + (x[lo + 1] - x[lo]) * frac);
+}
+
+Value fnPercentile(Call &c)
+{
+    double k;
+    if (!c.number(1, &k)) return c.failure();
+    return percentile(c, k);
+}
+
+Value fnQuartile(Call &c)
+{
+    double q;
+    if (!c.number(1, &q)) return c.failure();
+    q = std::trunc(q);
+    if (q < 0 || q > 4) return c.error(ErrorKind::Num);
+    return percentile(c, q / 4);
+}
+
+Value fnMode(Call &c)
+{
+    std::vector<double> x;
+    Value error;
+    if (!gatherNumbers(c, 0, &x, &error)) return error;
+    double best = 0;
+    size_t bestCount = 1;
+    for (size_t i = 0; i < x.size(); ++i) {
+        size_t count = 0;
+        for (size_t j = 0; j < x.size(); ++j)
+            if (x[j] == x[i]) ++count;
+        if (count > bestCount) {
+            bestCount = count;
+            best = x[i];
+        }
+    }
+    if (bestCount < 2) return c.error(ErrorKind::NA);
+    return Value::number(best);
+}
+
+// ---- conditions on several ranges: SUMIFS, COUNTIFS, AVERAGEIF, AVERAGEIFS, MAXIFS, MINIFS
+
+enum class Aggregate { Sum, Count, Average, Max, Min };
+
+// Goes over the cells of the value range (or, for a count, of the first range) that meet every condition; `conds` is the number of pairs of range and criterion from
+// argument `firstCond` on. The value range, if there is one, is argument 0; AVERAGEIF (`averageIf`) has its range first, then the criterion, then the value range.
+Value aggregateIf(Call &c, Aggregate how, bool hasValues, int firstCond, bool averageIf = false)
+{
+    const DateSystem sys = c.context().dateSystem;
+    struct Cond {
+        RefArea area;
+        Criterion crit;
+    };
+    std::vector<Cond> conds;
+    RefArea values;
+    if (averageIf) {
+        Cond cond;
+        if (!oneArea(c, 0, &cond.area)) return c.failure();
+        if (!parseCriterion(c.scalar(1), sys, &cond.crit)) return c.error(ErrorKind::Value);
+        conds.push_back(cond);
+        values = cond.area;
+        if (c.argc() > 2 && !c.missing(2)) {
+            if (!oneArea(c, 2, &values)) return c.failure();
+            values.row2 = quint32(std::min<qint64>(qint64(values.row1) + cond.area.rows() - 1, kGridRows - 1));
+            values.col2 = quint32(std::min<qint64>(qint64(values.col1) + cond.area.cols() - 1, kGridCols - 1));
+        }
+    } else {
+        if (hasValues && !oneArea(c, 0, &values)) return c.failure();
+        for (int i = firstCond; i < c.argc(); i += 2) {
+            Cond cond;
+            if (i + 1 >= c.argc()) return c.error(ErrorKind::Value);
+            if (!oneArea(c, i, &cond.area)) return c.failure();
+            if (!parseCriterion(c.scalar(i + 1), sys, &cond.crit)) return c.error(ErrorKind::Value);
+            conds.push_back(cond);
+        }
+        if (conds.empty()) return c.error(ErrorKind::Value);
+        if (!hasValues) values = conds[0].area;
+        for (const Cond &cond : conds)
+            if (cond.area.rows() != values.rows() || cond.area.cols() != values.cols()) return c.error(ErrorKind::Value);
+    }
+    Machine &m = c.machine();
+    double sum = 0, best = 0;
+    qint64 count = 0;
+    Value error;
+    auto meets = [&](quint32 dr, quint32 dc) {
+        for (const Cond &cond : conds)
+            if (!criterionMatches(cond.crit, m.cell(cond.area.sheet1, cond.area.row1 + dr, cond.area.col1 + dc), sys)) return false;
+        return true;
+    };
+    auto take = [&](const Value &v) {
+        if (how == Aggregate::Count) {
+            ++count;
+            return true;
+        }
+        if (v.isError()) {
+            error = v;
+            return false;
+        }
+        if (!v.isNumber()) return true;
+        ++count;
+        sum += v.number();
+        if (count == 1 || (how == Aggregate::Max ? v.number() > best : v.number() < best)) best = v.number();
+        return true;
+    };
+    if (how == Aggregate::Count) {
+        // every cell of the shape may count (an empty one meets "=" and "<>x"): the cells of the first range that hold something, and the empty rest
+        bool anyMatchesEmpty = false;
+        for (const Cond &cond : conds) anyMatchesEmpty = anyMatchesEmpty || cond.crit.matchesEmpty;
+        if (!anyMatchesEmpty) {
+            const RefArea &first = conds[0].area;
+            bool ok = true;
+            for (int s = first.sheet1; s <= first.sheet2 && ok; ++s)
+                m.source().visit(s, first.row1, first.col1, first.row2, first.col2, [&](quint32 row, quint32 col, const Value &) {
+                    if (!m.charge(conds.size())) {
+                        ok = false;
+                        return false;
+                    }
+                    if (meets(row - first.row1, col - first.col1)) ++count;
+                    return true;
+                });
+            if (!ok) return c.error(ErrorKind::Value);
+        } else {
+            const qint64 cells = values.rows() * values.cols();
+            if (cells > kMaxArrayCells * 4 || !m.charge(cells * qint64(conds.size()))) return c.error(ErrorKind::Value);
+            for (quint32 dr = 0; dr < values.rows(); ++dr)
+                for (quint32 dc = 0; dc < values.cols(); ++dc)
+                    if (meets(dr, dc)) ++count;
+        }
+        return Value::number(double(count));
+    }
+    bool ok = true;
+    for (int s = values.sheet1; s <= values.sheet2 && ok; ++s)
+        m.source().visit(s, values.row1, values.col1, values.row2, values.col2, [&](quint32 row, quint32 col, const Value &v) {
+            if (!m.charge(conds.size() + 1)) {
+                ok = false;
+                return false;
+            }
+            if (v.isEmpty() || !meets(row - values.row1, col - values.col1)) return true;
+            if (!take(v)) {
+                ok = false;
+                return false;
+            }
+            return true;
+        });
+    if (!ok) return error.isError() ? error : c.error(ErrorKind::Value);
+    switch (how) {
+    case Aggregate::Sum: return numberResult(sum);
+    case Aggregate::Average: return count ? numberResult(sum / double(count)) : c.error(ErrorKind::Div0);
+    default: return Value::number(count ? best : 0);
+    }
+}
+
+Value fnSumIfs(Call &c) { return aggregateIf(c, Aggregate::Sum, true, 1); }
+Value fnCountIfs(Call &c) { return aggregateIf(c, Aggregate::Count, false, 0); }
+Value fnAverageIf(Call &c) { return aggregateIf(c, Aggregate::Average, true, 0, true); }
+Value fnAverageIfs(Call &c) { return aggregateIf(c, Aggregate::Average, true, 1); }
+Value fnMaxIfs(Call &c) { return aggregateIf(c, Aggregate::Max, true, 1); }
+Value fnMinIfs(Call &c) { return aggregateIf(c, Aggregate::Min, true, 1); }
+
 // ---- the normal distribution
 
 double normalCdf(double x) { return 0.5 * std::erfc(-x / std::sqrt(2.0)); }
@@ -476,6 +741,48 @@ Value fnNormInv(Call &c)
 
 } // namespace
 
+// The numbers of arguments from `first` on: in a reference or array the numbers; typed, a text read as a number, a boolean as 1 or 0. An error stops it. With
+// `skipSubtotals` the cells of references that hold a SUBTOTAL are left out.
+bool gatherNumbers(Call &c, int first, std::vector<double> *out, Value *error, bool skipSubtotals)
+{
+    for (int i = first; i < c.argc(); ++i) {
+        bool ok = true;
+        const bool typedArgument = !c.missing(i) && c.item(i).kind == Item::Kind::Value && !c.item(i).value.isArray();
+        const bool done = c.eachCell(i, [&](const Value &v, int sheet, quint32 row, quint32 col) {
+            const bool typed = typedArgument;
+            if (skipSubtotals && sheet >= 0 && c.machine().source().isSubtotal(sheet, row, col)) return true;
+            double x;
+            switch (v.kind()) {
+            case Value::Kind::Number: out->push_back(v.number()); break;
+            case Value::Kind::Bool:
+                if (typed) out->push_back(v.number());
+                break;
+            case Value::Kind::Text:
+                if (typed) {
+                    if (!textToNumber(v.text(), c.context().dateSystem, &x)) {
+                        *error = Value::error(ErrorKind::Value);
+                        ok = false;
+                        return false;
+                    }
+                    out->push_back(x);
+                }
+                break;
+            case Value::Kind::Error:
+                *error = v;
+                ok = false;
+                return false;
+            default: break;
+            }
+            return true;
+        });
+        if (!done) {
+            if (ok) *error = Value::error(ErrorKind::Value);
+            return false;
+        }
+    }
+    return true;
+}
+
 void registerStatFunctions(std::vector<FunctionInfo> &r)
 {
     r.push_back({"SUMIF", 2, 3, "xvx", 0, fnSumIf});
@@ -494,6 +801,22 @@ void registerStatFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"LARGE", 2, 2, "rv", 0, fnLarge});
     r.push_back({"SMALL", 2, 2, "rv", 0, fnSmall});
     r.push_back({"RANK", 2, 3, "vrv", 0, fnRank});
+    r.push_back({"SUMIFS", 3, 255, "n", 0, fnSumIfs});
+    r.push_back({"COUNTIFS", 2, 254, "n", 0, fnCountIfs});
+    r.push_back({"AVERAGEIF", 2, 3, "n", 0, fnAverageIf});
+    r.push_back({"AVERAGEIFS", 3, 255, "n", 0, fnAverageIfs});
+    r.push_back({"MAXIFS", 3, 255, "n", kFnFuture, fnMaxIfs});
+    r.push_back({"MINIFS", 3, 255, "n", kFnFuture, fnMinIfs});
+    r.push_back({"CORREL", 2, 2, "rr", 0, fnCorrel});
+    r.push_back({"PEARSON", 2, 2, "rr", 0, fnCorrel});
+    r.push_back({"RSQ", 2, 2, "rr", 0, fnRsq});
+    r.push_back({"SLOPE", 2, 2, "rr", 0, fnSlope});
+    r.push_back({"INTERCEPT", 2, 2, "rr", 0, fnIntercept});
+    r.push_back({"FORECAST", 3, 3, "vrr", 0, fnForecast});
+    r.push_back({"COVAR", 2, 2, "rr", 0, fnCovar});
+    r.push_back({"PERCENTILE", 2, 2, "rv", 0, fnPercentile});
+    r.push_back({"QUARTILE", 2, 2, "rv", 0, fnQuartile});
+    r.push_back({"MODE", 1, 255, "r", 0, fnMode});
     r.push_back({"NORMSDIST", 1, 1, "v", 0, fnNormSDist});
     r.push_back({"NORMSINV", 1, 1, "v", 0, fnNormSInv});
     r.push_back({"NORMDIST", 4, 4, "vvvv", 0, fnNormDist});

@@ -22,10 +22,14 @@
 
 namespace jp::office::sheet {
 
+// What all the sheets of a workbook may take to hold, in bytes as the reader counts them (kMaxSheetBytes for one sheet; 207 MB is the most counted for a sheet of the
+// practice workbooks, and 414 MB for a workbook): past this, the sheets not yet read are left out.
+constexpr qint64 kMaxWorkbookBytes = 2000000000;
+
 // The cells of a whole workbook, read into memory, as the formula engine asks for them.
 class WorkbookSource : public jp::calc::CellSource {
 public:
-    explicit WorkbookSource(const Workbook &book);
+    explicit WorkbookSource(const Workbook &book, qint64 maxBytes = kMaxWorkbookBytes);
     // Reads every sheet. False if one could not be read whole (what was read stays, and notWhole() says which).
     bool loadAll();
     QStringList notWhole() const { return m_notWhole; }
@@ -49,6 +53,7 @@ private:
     QHash<QString, int> m_byName;
     QHash<QString, QString> m_names;   // "<sheet>|<NAME>" -> what it stands for; the sheet counted from 0, or -1
     QStringList m_notWhole;
+    qint64 m_maxBytes;
 };
 
 enum class RecalcClass : char {
@@ -76,6 +81,7 @@ struct RecalcOptions {
     qint64 workLimit = 0;        // steps for one formula; 0: the engine's own
     int keepMatches = 0;         // how many matching cells to hand to `each`, besides all the others
     bool volatileToo = true;     // work out the volatile formulas that always give the same (OFFSET, INDIRECT) and count them apart
+    qint64 workbookBytes = kMaxWorkbookBytes;   // what the sheets may take together (the ones not read before it is passed are left out)
 };
 
 struct FunctionTally {

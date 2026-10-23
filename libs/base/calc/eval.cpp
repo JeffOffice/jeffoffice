@@ -58,6 +58,14 @@ bool Machine::resolveRef(const Program &p, const RefLit &r, RefArea *area, Error
     qint64 r2 = (r.flags & kRefRow2Abs) ? qint64(r.row2) : qint64(r.row2) + dr;
     qint64 c1 = (r.flags & kRefCol1Abs) ? qint64(r.col1) : qint64(r.col1) + dc;
     qint64 c2 = (r.flags & kRefCol2Abs) ? qint64(r.col2) : qint64(r.col2) + dc;
+    if (wrapRefs) {
+        // the references of a defined name come round the other side of the sheet
+        auto wrap = [](qint64 v, qint64 n) { return v >= 0 ? v % n : ((v % n) + n) % n; };
+        if (!(r.flags & kRefRow1Abs)) r1 = wrap(r1, kGridRows);
+        if (!(r.flags & kRefRow2Abs)) r2 = wrap(r2, kGridRows);
+        if (!(r.flags & kRefCol1Abs)) c1 = wrap(c1, kGridCols);
+        if (!(r.flags & kRefCol2Abs)) c2 = wrap(c2, kGridCols);
+    }
     if (r1 > r2) std::swap(r1, r2);
     if (c1 > c2) std::swap(c1, c2);
     if (r1 < 0 || r2 >= qint64(kGridRows) || c1 < 0 || c2 >= qint64(kGridCols)) {
@@ -528,9 +536,12 @@ Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, in
     const int savedRows = ctx.shiftRows, savedCols = ctx.shiftCols;
     ctx.shiftRows = relativeToA1 ? int(ctx.row) : 0;
     ctx.shiftCols = relativeToA1 ? int(ctx.col) : 0;
+    const bool savedWrap = wrapRefs;
+    wrapRefs = relativeToA1;
     ++nameDepth;
     Item r = runProgram(*program, false);
     --nameDepth;
+    wrapRefs = savedWrap;
     ctx.shiftRows = savedRows;
     ctx.shiftCols = savedCols;
     return r;
@@ -556,6 +567,12 @@ Value Machine::run(const Program &p, const EvalContext &c)
     }
     if (v.isArray() && !p.arrayFormula) v = v.at(0, 0);
     if (v.isEmpty()) v = Value::number(0);
+    if (v.isArray()) {
+        // the empty cells of an array a formula makes show as 0
+        for (int i = 0; i < v.rows(); ++i)
+            for (int j = 0; j < v.cols(); ++j)
+                if (v.at(i, j).isEmpty()) v.set(i, j, Value::number(0));
+    }
     return v;
 }
 

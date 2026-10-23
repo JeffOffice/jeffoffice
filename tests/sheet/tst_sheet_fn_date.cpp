@@ -134,6 +134,7 @@ private Q_SLOTS:
             {"TIMEVALUE(\"12:00\")", "n:0.5"}, {"TIMEVALUE(\"6:00 PM\")", "n:0.75"}, {"TIMEVALUE(\"abc\")", "e:#VALUE!"},
             {"DATEVALUE(\"2024-03-15\")", "n:45366"}, {"DATEVALUE(\"3/15/2024\")", "n:45366"}, {"DATEVALUE(\"15-Mar-2024\")", "n:45366"},
             {"DATEVALUE(\"abc\")", "e:#VALUE!"}, {"DATEVALUE(45366)", "e:#VALUE!"},
+            {"DATEVALUE(\"Sep-2000\")", "n:36770"}, {"DATEVALUE(\"OCT-2000\")", "n:36800"}, {"DATEVALUE(\"March 2024\")", "n:45352"}, {"DATEVALUE(\"Foo-2000\")", "e:#VALUE!"},
         };
         CHECK_EVALS(cases, Grid(), Settings());
     }
@@ -153,6 +154,10 @@ private Q_SLOTS:
             {"DAYS360(DATE(2024,1,1),DATE(2024,12,31))", "n:360"}, {"DAYS360(DATE(2024,1,1),DATE(2024,12,31),TRUE)", "n:359"},
             {"DAYS360(DATE(2024,1,31),DATE(2024,3,31))", "n:60"},
             {"YEARFRAC(DATE(2024,1,1),DATE(2024,7,1))", "n:0.5"},
+            {"DATEDIF(DATE(2020,1,15),DATE(2024,3,10),\"Y\")", "n:4"}, {"DATEDIF(DATE(2020,1,15),DATE(2024,3,10),\"M\")", "n:49"},
+            {"DATEDIF(DATE(2020,1,15),DATE(2024,3,10),\"D\")", "n:1516"}, {"DATEDIF(DATE(2020,1,15),DATE(2024,3,10),\"YM\")", "n:1"},
+            {"DATEDIF(DATE(2024,3,10),DATE(2020,1,15),\"Y\")", "e:#NUM!"}, {"DATEDIF(DATE(2020,1,15),DATE(2024,3,10),\"Q\")", "e:#NUM!"},
+            {"DATEDIF(DATE(2020,1,15),DATE(2024,1,15),\"y\")", "n:4"}, {"DATEDIF(DATE(2020,1,15),DATE(2024,1,14),\"Y\")", "n:3"},
         };
         CHECK_EVALS(cases, Grid(), Settings());
     }

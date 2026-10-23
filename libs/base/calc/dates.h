@@ -25,7 +25,7 @@ bool parseIsoDate(const QString &text, DateSystem system, double *serial);
 // DATEVALUE: the day number of a date written as text: month, day, and year as numbers with "/", "-", or "." between ("3/15/2024", "03-15-24"), the year
 // first with "/" or "-" ("2024-03-15", "2024/3/5"), or with the month in English ("15-Mar-2024", "15 March 2024", "Mar 15, 2024"). A year of two digits is
 // 2000 to 2029 for 00 to 29 and 1930 to 1999 for 30 to 99. A time of day after the date ("10:30", "10:30:15.5", "10:30 PM") is read and ignored. False if the
-// text is none of these or not a date.
+// text is none of these or not a date. A month's name and a year of four digits ("Sep-2000", "March 2024") is the first day of the month.
 bool dateValueOf(const QString &text, DateSystem system, double *serial);
 
 } // namespace jp::calc

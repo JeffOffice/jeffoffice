@@ -123,6 +123,8 @@ private Q_SLOTS:
             {"MATCH(1,A1:C4,0)", "e:#N/A"},                    // the range must be one row or one column
             {"MATCH(30,E1:E5,0)", "n:3"},
             {"MATCH(25,E1:E5)", "n:2"},                         // the type left out is 1
+            {"MATCH(25,E1:E5,)", "e:#N/A"},                     // and an empty one is 0: an exact match
+            {"MATCH(20,E1:E5,)", "n:2"},
             {"MATCH(20,E1:E5,1)", "n:2"},
             {"MATCH(5,E1:E5,1)", "e:#N/A"},
             {"MATCH(100,E1:E5,1)", "n:5"},
@@ -142,6 +144,53 @@ private Q_SLOTS:
             {"MATCH(#N/A,N1:Q1,0)", "e:#N/A"},
         };
         CHECK_EVALS(cases, g, Settings());
+    }
+
+    // The approximate mode compares two numbers exactly: -0.09999999999999998 is after -0.1, though they agree to 15 digits and the = operator calls them the same.
+    void numbersInALookupAreComparedExactly()
+    {
+        Grid g;
+        g.column("A1", {-0.12, -0.11, -0.09999999999999998, -0.09});
+        g.column("B1", {QString("a"), QString("b"), QString("c"), QString("d")});
+        const E cases[] = {
+            {"-0.1=A3", "b:1"},
+            {"VLOOKUP(-0.1,A1:B4,2)", "s:b"},
+            {"MATCH(-0.1,A1:A4,1)", "n:2"},
+            {"VLOOKUP(-0.09999999999999998,A1:B4,2)", "s:c"},
+        };
+        CHECK_EVALS(cases, g, Settings());
+    }
+
+    // CELL tells where a cell is and what it holds; what depends on the file or the program (the file's name, the width of a column) is not worked out here.
+    void cellTellsAboutACell()
+    {
+        Grid g;
+        g.n("A1", 5).s("A2", "text");
+        const E cases[] = {
+            {"CELL(\"address\",C5)", "s:$C$5"},
+            {"CELL(\"col\",C5)", "n:3"},
+            {"CELL(\"row\",C5)", "n:5"},
+            {"CELL(\"contents\",A1)", "n:5"},
+            {"CELL(\"type\",A1)", "s:v"},
+            {"CELL(\"type\",A2)", "s:l"},
+            {"CELL(\"type\",A3)", "s:b"},
+            {"CELL(\"ADDRESS\",Sheet1!B2)", "s:$B$2"},
+            {"CELL(\"nonsense\",A1)", "e:#VALUE!"},
+        };
+        CHECK_EVALS(cases, g, Settings());
+        // not worked out: the engine says so (the yardstick then lists the cell apart)
+        const ParseResult p = parseFormula(QStringLiteral("CELL(\"filename\",A1)"));
+        QVERIFY(p.ok());
+        Evaluator evaluator;
+        EvalContext ctx;
+        ctx.source = &g;
+        ctx.row = 9;
+        ctx.col = 9;
+        evaluator.evaluate(*p.program, ctx);
+        QCOMPARE(evaluator.unsupportedKinds(), 4);
+        const ParseResult q = parseFormula(QStringLiteral("SUM(1,2)"));
+        evaluator.evaluate(*q.program, ctx);
+        QCOMPARE(evaluator.unsupportedKinds(), 0);
     }
 
     void hlookupAndLookup()

@@ -437,6 +437,99 @@ Value fnRandBetween(Call &c)
     return Value::number(std::min(hi, lo + std::floor(d(c.machine().random()) * (hi - lo + 1))));
 }
 
+Value gcdLcm(Call &c, bool lcm)
+{
+    double result = lcm ? 1 : 0;
+    for (int i = 0; i < c.argc(); ++i) {
+        bool failed = false;
+        Value error;
+        const bool done = c.each(i, [&](const Value &v, bool typed) {
+            double x;
+            ErrorKind e = ErrorKind::Value;
+            if (!v.isNumber() && !(typed && coerceNumber(v, c.context().dateSystem, &x, &e))) {
+                if (v.isError()) {
+                    error = v;
+                    failed = true;
+                    return false;
+                }
+                if (typed) {
+                    error = Value::error(e);
+                    failed = true;
+                    return false;
+                }
+                return true;
+            }
+            x = v.isNumber() ? v.number() : x;
+            x = std::floor(x);
+            if (x < 0 || x > 9007199254740991.0) {
+                error = Value::error(ErrorKind::Num);
+                failed = true;
+                return false;
+            }
+            if (lcm) {
+                if (x == 0) {
+                    result = 0;
+                } else if (result != 0) {
+                    double a = result, b = x;
+                    while (b != 0) {
+                        const double t = std::fmod(a, b);
+                        a = b;
+                        b = t;
+                    }
+                    result = result / a * x;
+                }
+            } else {
+                double a = result, b = x;
+                while (b != 0) {
+                    const double t = std::fmod(a, b);
+                    a = b;
+                    b = t;
+                }
+                result = a;
+            }
+            return true;
+        });
+        if (!done) return failed ? error : c.error(ErrorKind::Value);
+    }
+    return numberResult(result);
+}
+Value fnGcd(Call &c) { return gcdLcm(c, false); }
+Value fnLcm(Call &c) { return gcdLcm(c, true); }
+
+Value fnCombin(Call &c)
+{
+    double n, k;
+    if (!c.number(0, &n) || !c.number(1, &k)) return c.failure();
+    n = std::trunc(n);
+    k = std::trunc(k);
+    if (n < 0 || k < 0 || k > n) return c.error(ErrorKind::Num);
+    k = std::min(k, n - k);
+    double r = 1;
+    for (double i = 1; i <= k && std::isfinite(r); i += 1) r = r * (n - k + i) / i;
+    return numberResult(std::round(r));
+}
+
+Value fnPermut(Call &c)
+{
+    double n, k;
+    if (!c.number(0, &n) || !c.number(1, &k)) return c.failure();
+    n = std::trunc(n);
+    k = std::trunc(k);
+    if (n < 0 || k < 0 || k > n) return c.error(ErrorKind::Num);
+    double r = 1;
+    for (double i = 0; i < k && std::isfinite(r); i += 1) r *= n - i;
+    return numberResult(r);
+}
+
+Value fnMround(Call &c)
+{
+    double n, m;
+    if (!c.number(0, &n) || !c.number(1, &m)) return c.failure();
+    if (m == 0) return Value::number(0);
+    if ((n > 0 && m < 0) || (n < 0 && m > 0)) return c.error(ErrorKind::Num);
+    return numberResult(std::floor(std::fabs(roundTo15Digits(n / m)) + 0.5) * std::fabs(m) * (n < 0 ? -1 : 1));
+}
+
 double toRadians(double x) { return x * 3.14159265358979323846 / 180.0; }
 double toDegrees(double x) { return x * 180.0 / 3.14159265358979323846; }
 
@@ -506,6 +599,11 @@ void registerMathFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"FACT", 1, 1, "v", 0, fnFact});
     r.push_back({"RAND", 0, 0, "", kFnVolatile, fnRand});
     r.push_back({"RANDBETWEEN", 2, 2, "vv", kFnVolatile, fnRandBetween});
+    r.push_back({"GCD", 1, 255, "r", 0, fnGcd});
+    r.push_back({"LCM", 1, 255, "r", 0, fnLcm});
+    r.push_back({"COMBIN", 2, 2, "vv", 0, fnCombin});
+    r.push_back({"PERMUT", 2, 2, "vv", 0, fnPermut});
+    r.push_back({"MROUND", 2, 2, "vv", 0, fnMround});
     r.push_back({"SIN", 1, 1, "v", 0, domain1<sinF>});
     r.push_back({"COS", 1, 1, "v", 0, domain1<cosF>});
     r.push_back({"TAN", 1, 1, "v", 0, domain1<tanF>});

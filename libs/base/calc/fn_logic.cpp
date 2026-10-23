@@ -108,6 +108,35 @@ Value fnChoose(Call &c)
     });
 }
 
+// IFS(condition1, value1, condition2, value2, ...): the value of the first condition that is true. (Every argument is worked out first, so an error in a later one
+// shows where the original, which stops at the first true condition, gives the value.)
+Value fnIfs(Call &c)
+{
+    if (c.argc() % 2 != 0) return c.error(ErrorKind::NA);
+    for (int i = 0; i < c.argc(); i += 2) {
+        bool truth = false;
+        ErrorKind e = ErrorKind::Value;
+        if (!coerceBool(c.scalar(i), &truth, &e)) return c.error(e);
+        if (truth) return pick(c, c.item(i + 1));
+    }
+    return c.error(ErrorKind::NA);
+}
+
+// SWITCH(expression, value1, result1, value2, result2, ..., default)
+Value fnSwitch(Call &c)
+{
+    const Value what = c.scalar(0);
+    if (what.isError()) return what;
+    int i = 1;
+    for (; i + 1 < c.argc(); i += 2) {
+        const Value v = c.scalar(i);
+        if (v.isError()) continue;
+        if (compareValues(what, v.isEmpty() ? Value::number(0) : v) == 0) return pick(c, c.item(i + 1));
+    }
+    if (i < c.argc()) return pick(c, c.item(i));
+    return c.error(ErrorKind::NA);
+}
+
 // ---- AND, OR, XOR
 
 // Goes over the arguments: a typed value counts if it is a boolean, a number, or the text TRUE or FALSE (any other text is #VALUE!); in a reference or an array a
@@ -266,6 +295,8 @@ void registerLogicFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"IFERROR", 2, 2, "nn", kFnLazy, fnIfErrorF});
     r.push_back({"IFNA", 2, 2, "nn", kFnLazy | kFnFuture, fnIfNaF});
     r.push_back({"CHOOSE", 2, 254, "nn", kFnLazy, fnChoose});
+    r.push_back({"IFS", 2, 254, "n", kFnFuture, fnIfs});
+    r.push_back({"SWITCH", 3, 254, "n", kFnFuture, fnSwitch});
     r.push_back({"AND", 1, 255, "r", 0, fnAnd});
     r.push_back({"OR", 1, 255, "r", 0, fnOr});
     r.push_back({"XOR", 1, 255, "r", kFnFuture, fnXor});

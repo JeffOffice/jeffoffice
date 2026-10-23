@@ -303,6 +303,13 @@ bool dateValueOf(const QString &text, DateSystem system, double *serial)
         month = monthOfName(p[2].word);
         day = p[0].value;
         if (!month || !yearOf(p[4], &year)) return false;
+    } else if (p.size() == 3 && !p[0].number && !p[0].word.isEmpty() && (isSep(p[1], QLatin1Char('-')) || isSep(p[1], QLatin1Char('/')) || isSep(p[1], QLatin1Char(' '))) && p[2].number
+               && p[2].digits == 4) {
+        // month's name and a year of four digits: the first day of the month ("Sep-2000", "March 2024")
+        month = monthOfName(p[0].word);
+        year = p[2].value;
+        day = 1;
+        if (!month) return false;
     } else if ((p.size() == 5 || p.size() == 6) && !p[0].number && !p[0].word.isEmpty() && isSep(p[1], QLatin1Char(' ')) && small(p[2])) {
         // month's name, day, year (with a comma after the day or not)
         month = monthOfName(p[0].word);

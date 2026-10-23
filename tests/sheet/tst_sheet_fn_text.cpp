@@ -133,6 +133,8 @@ private Q_SLOTS:
             {"UPPER(1.5)", "s:1.5"},
             {"UPPER(TRUE)", "s:TRUE"},
             {"LOWER(A9)", "s:"},
+            {"HYPERLINK(\"http://example.com\",\"click\")", "s:click"},
+            {"HYPERLINK(\"http://example.com\")", "s:http://example.com"},
             {"T(\"x\")", "s:x"},
             {"T(1)", "s:"},
             {"T(A1)", "s:x"},

@@ -15,7 +15,8 @@ namespace {
 int compareForLookup(const Value &key, const Value &cell)
 {
     if (key.isNumber() && cell.isNumber()) {
-        if (sameTo15Digits(key.number(), cell.number())) return 0;
+        // exactly: a lookup does not take two numbers for the same because they agree to 15 digits, as the = operator does
+        if (key.number() == cell.number()) return 0;
         return key.number() < cell.number() ? -1 : 1;
     }
     if (key.isText() && cell.isText()) return compareText(key.text(), cell.text());
@@ -135,6 +136,7 @@ Value fnMatch(Call &c)
     double type;
     if (!lookupKey(c, 0, &key)) return c.failure();
     if (!c.table(1, &t) || !c.numberOr(2, 1, &type)) return c.failure();
+    if (c.argc() > 2 && c.item(2).isMissing()) type = 0;   // (an empty argument is not an argument left off: it is 0)
     if (t.fullRows() != 1 && t.fullCols() != 1) return c.error(ErrorKind::NA);
     const bool column = t.fullCols() == 1;
     const qint64 n = column ? t.rows() : t.cols();
@@ -361,6 +363,43 @@ Value fnAddress(Call &c)
     return Value::text(s);
 }
 
+// CELL(info_type, [reference]): the position of a cell and what it holds. What depends on the file or on the program that shows it (the file's name, the format, the
+// color, the width of the column) is not worked out: the evaluation says so, and the yardstick lists the cell apart.
+Value fnCell(Call &c)
+{
+    QString kind;
+    if (!c.text(0, &kind)) return c.failure();
+    kind = kind.toLower();
+    RefArea at;
+    at.sheet1 = at.sheet2 = c.context().sheet;
+    at.row1 = at.row2 = c.context().row;
+    at.col1 = at.col2 = c.context().col;
+    if (c.argc() > 1 && !c.missing(1)) {
+        if (!c.item(1).isRef()) return c.error(ErrorKind::Value);
+        at = c.item(1).area;
+    }
+    if (kind == QLatin1String("address")) {
+        QString s = QStringLiteral("$") + columnLetters(at.col1) + QStringLiteral("$") + QString::number(qint64(at.row1) + 1);
+        if (at.sheet1 != c.context().sheet) {
+            // another sheet: its name is not known to the engine, so only the cell
+        }
+        return Value::text(s);
+    }
+    if (kind == QLatin1String("col")) return Value::number(double(at.col1) + 1);
+    if (kind == QLatin1String("row")) return Value::number(double(at.row1) + 1);
+    if (kind == QLatin1String("contents")) return c.machine().cell(at.sheet1, at.row1, at.col1);
+    if (kind == QLatin1String("type")) {
+        const Value v = c.machine().cell(at.sheet1, at.row1, at.col1);
+        return Value::text(v.isEmpty() ? QStringLiteral("b") : v.isText() ? QStringLiteral("l") : QStringLiteral("v"));
+    }
+    for (const char *later : {"filename", "format", "color", "parentheses", "prefix", "protect", "width"})
+        if (kind == QLatin1String(later)) {
+            c.machine().unsupported |= 4;
+            return c.error(ErrorKind::Value);
+        }
+    return c.error(ErrorKind::Value);
+}
+
 Value fnTranspose(Call &c)
 {
     Value a;
@@ -387,6 +426,7 @@ void registerLookupFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"ROWS", 1, 1, "n", 0, fnRows});
     r.push_back({"COLUMNS", 1, 1, "n", 0, fnColumns});
     r.push_back({"ADDRESS", 2, 5, "vvvvv", 0, fnAddress});
+    r.push_back({"CELL", 1, 2, "vn", 0, fnCell});
     r.push_back({"TRANSPOSE", 1, 1, "a", 0, fnTranspose});
 }
 

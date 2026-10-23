@@ -182,9 +182,11 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_cells.cpp
   tests/sheet/tst_sheet_eval.cpp
   tests/sheet/tst_sheet_fn_date.cpp
+  tests/sheet/tst_sheet_fn_finance.cpp
   tests/sheet/tst_sheet_fn_logic.cpp
   tests/sheet/tst_sheet_fn_lookup.cpp
   tests/sheet/tst_sheet_fn_math.cpp
+  tests/sheet/tst_sheet_fn_stats.cpp
   tests/sheet/tst_sheet_fn_text.cpp
   tests/sheet/tst_sheet_formats.cpp
   tests/sheet/tst_sheet_formulas.cpp

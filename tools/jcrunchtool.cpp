@@ -23,6 +23,8 @@
 //                                                matched, cells, matched cells; `unsup`: a function not in the registry and the cells that call it; `pat`: how mismatches look and
 //                                                how many; and `book`: the formula cells, the cells of each class in the order above, the volatile ones that were worked out and
 //                                                matched, whether the workbook calculates by hand, whether every sheet was read, and the seconds
+//   jcrunchtool eval <file.xlsx> <sheet> <cell> <formula>   the formula worked out as if it were in that cell of that sheet (a name, or a number counting from 1), reading the values the file stored:
+//                                                the value, as `n:1.5`, `s:text`, `b:1`, `e:#N/A`, or `a:2x2[...]`
 //   jcrunchtool recalc <keys.txt> <out-dir> [jobs]   runs `recalc-one` on each workbook listed under the same limits as `scan`, writes <out-dir>/cells.tsv (workbook, sheet, cell, formula,
 //                                                  stored, ours, class: the cells that do not match, with a few that do) and books.tsv, and prints the summary: how many formula cells
 //                                                  matched, how many workbooks matched whole, how each function fared, the commonest mismatches, and the commonest unsupported
@@ -308,6 +310,41 @@ int recalcOne(const QString &path, int keepMatches, double seconds)
     return report.whole ? 0 : 2;
 }
 
+int evalFormula(const QString &path, const QString &sheetArg, const QString &cell, const QString &formula)
+{
+    Package package;
+    QString why;
+    Workbook book;
+    if (!package.readLazyFile(path, &why) || !book.open(package, &why)) {
+        err() << path << ": " << why << "\n";
+        return 1;
+    }
+    WorkbookSource source(book);
+    source.loadAll();
+    int sheet = source.sheetIndex(sheetArg);
+    if (sheet < 0) sheet = sheetArg.toInt() - 1;
+    quint32 row = 0, col = 0;
+    if (sheet < 0 || sheet >= source.sheetCount() || !parseCellRef(cell, &row, &col)) {
+        err() << "jcrunchtool: no such sheet or cell\n";
+        return 2;
+    }
+    const jp::calc::ParseResult parsed = jp::calc::parseFormula(formula);
+    if (!parsed.ok()) {
+        out() << "!parse: " << parsed.error << " at " << parsed.errorPos << "\n";
+        return 2;
+    }
+    jp::calc::Evaluator evaluator;
+    jp::calc::EvalContext ctx;
+    ctx.source = &source;
+    ctx.sheet = sheet;
+    ctx.row = row;
+    ctx.col = col;
+    ctx.dateSystem = book.info().dateSystem;
+    ctx.now = 45366.5;
+    out() << evaluator.evaluate(*parsed.program, ctx).debug() << (parsed.program->supported() ? "" : "  (not all of it is worked out)") << "\n";
+    return 0;
+}
+
 int formats(const QString &keys, const QString &outDir, const QString &jobs)
 {
 #ifndef Q_OS_LINUX
@@ -410,6 +447,7 @@ int usage()
              "       jcrunchtool formats-one <file.xlsx>\n"
              "       jcrunchtool formats <keys.txt> <out-dir> [jobs]\n"
              "       jcrunchtool recalc-one <file.xlsx> [matches=3] [seconds=100]\n"
+             "       jcrunchtool eval <file.xlsx> <sheet> <cell> <formula>\n"
              "       jcrunchtool recalc <keys.txt> <out-dir> [jobs]\n";
     return 2;
 }
@@ -432,5 +470,6 @@ int main(int argc, char **argv)
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("formats")) return formats(args[1], args[2], args.value(3));
     if (args.size() >= 2 && args.size() <= 4 && args[0] == QLatin1String("recalc-one")) return recalcOne(args[1], args.value(2, QStringLiteral("3")).toInt(), args.value(3, QStringLiteral("100")).toDouble());
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("recalc")) return recalc(args[1], args[2], args.value(3));
+    if (args.size() == 5 && args[0] == QLatin1String("eval")) return evalFormula(args[1], args[2], args[3], args[4]);
     return usage();
 }

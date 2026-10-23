@@ -294,6 +294,44 @@ Value fnNetworkDays(Call &c)
     return Value::number(a <= b ? double(n) : -double(n));
 }
 
+// DATEDIF(start, end, unit): complete years ("Y"), months ("M"), or days ("D") between two dates, or the months ("YM"), days ("MD"), or days ("YD") left over once the
+// years, the years and months, or the years are taken off.
+Value fnDatedif(Call &c)
+{
+    double a, b;
+    QString unit;
+    if (!serialArg(c, 0, &a) || !serialArg(c, 1, &b) || !c.text(2, &unit)) return c.failure();
+    a = std::floor(a);
+    b = std::floor(b);
+    if (a > b) return c.error(ErrorKind::Num);
+    const DateSystem sys = c.context().dateSystem;
+    int y1, m1, d1, y2, m2, d2;
+    if (!dateOf(a, sys, &y1, &m1, &d1) || !dateOf(b, sys, &y2, &m2, &d2)) return c.error(ErrorKind::Num);
+    unit = unit.toUpper();
+    int months = (y2 - y1) * 12 + (m2 - m1);
+    if (d2 < d1) --months;
+    if (unit == QLatin1String("D")) return Value::number(b - a);
+    if (unit == QLatin1String("M")) return Value::number(months);
+    if (unit == QLatin1String("Y")) return Value::number(months / 12);
+    if (unit == QLatin1String("YM")) return Value::number(months % 12);
+    if (unit == QLatin1String("MD")) {
+        if (d2 >= d1) return Value::number(d2 - d1);
+        const int pm = m2 == 1 ? 12 : m2 - 1, py = m2 == 1 ? y2 - 1 : y2;
+        return Value::number(monthDays(py, pm, sys) - d1 + d2);
+    }
+    if (unit == QLatin1String("YD")) {
+        double anchor;
+        int ay = y2;
+        if (!dateToSerial(ay, m1, std::min(d1, monthDays(ay, m1, sys)), sys, &anchor)) return c.error(ErrorKind::Num);
+        if (anchor > b) {
+            --ay;
+            if (!dateToSerial(ay, m1, std::min(d1, monthDays(ay, m1, sys)), sys, &anchor)) return c.error(ErrorKind::Num);
+        }
+        return Value::number(b - anchor);
+    }
+    return c.error(ErrorKind::Num);
+}
+
 Value fnDays(Call &c)
 {
     double e, s;
@@ -387,6 +425,7 @@ void registerDateFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"WORKDAY", 2, 3, "vvr", 0, fnWorkday});
     r.push_back({"NETWORKDAYS", 2, 3, "vvr", 0, fnNetworkDays});
     r.push_back({"DAYS", 2, 2, "vv", kFnFuture, fnDays});
+    r.push_back({"DATEDIF", 3, 3, "vvv", 0, fnDatedif});
     r.push_back({"DAYS360", 2, 3, "vvv", 0, fnDays360});
     r.push_back({"YEARFRAC", 2, 3, "vvv", 0, fnYearFrac});
 }

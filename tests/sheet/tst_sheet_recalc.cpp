@@ -157,6 +157,22 @@ private Q_SLOTS:
         QCOMPARE(timed.report.byClass.value('S'), qint64(1));
     }
 
+    // The sheets of a workbook are held in memory together; past what they may take, the sheets not yet read are left out, and the report says so.
+    void sheetsPastWhatAWorkbookMayTakeAreLeftOut()
+    {
+        const QByteArray zip = buildXlsx({worksheet(row(1, plain("A1", "1") + cell("B1", "A1+1", "2"))), worksheet(row(1, plain("A1", "1") + cell("B1", "A1+1", "2")))});
+        Run all;
+        QVERIFY(runWorkbook(zip, &all));
+        QCOMPARE(all.report.formulaCells, qint64(2));
+        QVERIFY(all.report.whole);
+        Run cut;
+        RecalcOptions small;
+        small.workbookBytes = 1;
+        QVERIFY(runWorkbook(zip, &cut, small));
+        QCOMPARE(cut.report.formulaCells, qint64(1));    // the first sheet is read, and then the bound is passed
+        QVERIFY(!cut.report.whole);
+    }
+
     void theCellsOfAWorkbookAreReadFromTheStoredValuesInAnyKind()
     {
         // texts from the shared strings, true and false, errors, and an empty cell, read as values by the engine

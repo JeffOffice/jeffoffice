@@ -16,7 +16,7 @@ using namespace jp::calc;
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 // the cells of a workbook
 
-WorkbookSource::WorkbookSource(const Workbook &book) : m_book(book)
+WorkbookSource::WorkbookSource(const Workbook &book, qint64 maxBytes) : m_book(book), m_maxBytes(maxBytes)
 {
     const WorkbookInfo &info = book.info();
     m_sheets.resize(size_t(info.sheets.size()));
@@ -35,13 +35,21 @@ WorkbookSource::WorkbookSource(const Workbook &book) : m_book(book)
 bool WorkbookSource::loadAll()
 {
     bool whole = true;
+    qint64 held = 0;
     for (int i = 0; i < m_book.info().sheets.size(); ++i) {
         if (m_book.info().sheets[i].kind == SheetKind::Chartsheet) continue;
         Sheet &s = m_sheets[size_t(i)];
+        if (held > m_maxBytes) {
+            // the sheets read so far take all that a workbook may: this one is left out
+            whole = false;
+            m_notWhole << m_book.info().sheets[i].name;
+            continue;
+        }
         if (!m_book.readSheet(i, &s)) {
             whole = false;
             m_notWhole << m_book.info().sheets[i].name;
         }
+        held += s.stats.heldBytes;
         quint32 rows = 0, cols = 0;
         s.cells.forEach([&](const Cell &c) {
             if (c.type == CellType::Empty) return;
@@ -186,7 +194,7 @@ bool recalcWorkbook(const Workbook &book, const RecalcOptions &options, const st
 {
     QElapsedTimer timer;
     timer.start();
-    WorkbookSource source(book);
+    WorkbookSource source(book, options.workbookBytes);
     *report = RecalcReport();
     report->manualCalc = book.info().calcMode == CalcMode::Manual;
     report->whole = source.loadAll();

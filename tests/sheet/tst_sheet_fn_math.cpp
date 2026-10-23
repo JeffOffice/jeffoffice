@@ -278,6 +278,9 @@ private Q_SLOTS:
             {"SUMPRODUCT(A1:A3,B1:B2)", "e:#VALUE!"},          // arrays of different sizes
             {"SUMPRODUCT((E1:E5>2)*(E1:E5<5))", "n:2"},
             {"SUMPRODUCT({1,2,3},{4,5,6})", "n:32"},
+            {"SUMPRODUCT(\"a\",2)", "e:#VALUE!"},            // a text that is one value, or the only cell of a range, is no array of zeros
+            {"SUMPRODUCT(C2:C2,A2:A2)", "e:#VALUE!"},
+            {"SUMPRODUCT(C1:C2,A1:A2)", "n:1"},
         };
         CHECK_EVALS(cases, g, Settings());
     }

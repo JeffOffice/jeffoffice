@@ -280,6 +280,11 @@ private Q_SLOTS:
             {"A1:B2*{1,10}", "a:2x2[n:1,n:100;n:2,n:200]"},
         };
         CHECK_EVALS(cases, g, array);
+        // an empty cell in the array a formula makes is 0, as it is anywhere a formula's value is
+        Grid sparse;
+        sparse.n("A1", 1);
+        QCOMPARE(ev("A1:A2", sparse, array), QStringLiteral("a:2x1[n:1;n:0]"));
+        QCOMPARE(ev("TRANSPOSE(A1:B1)", sparse, array), QStringLiteral("a:2x1[n:1;n:0]"));
         // The same functions of a formula that is not an array formula work on one value: the first of an array.
         const E single[] = {
             {"ABS({-1,2,-3})", "n:1"},
@@ -307,6 +312,12 @@ private Q_SLOTS:
         g.name("Chain", "Rate*2");
         g.name("Loop", "Loop+1");
         g.name("Bad", "SUM(");
+        // a name whose reference moves with the cell is written for A1: used far from it, past the edge of the sheet, it comes round the other side
+        g.name("Far", "B1048537:B1048555");
+        g.n("K10", 5);
+        Settings farAway;
+        farAway.at = "J50";
+        QCOMPARE(ev("SUM(Far)", g, farAway), num(5));
         const E cases[] = {
             {"Sheet2!A1+1", "n:3"},
             {"sheet2!a1", "n:2"},
@@ -466,6 +477,39 @@ private Q_SLOTS:
         Grid texts;
         for (int i = 1; i <= 3000; ++i) texts.s(QStringLiteral("A%1").arg(i), QStringLiteral("some words here"));
         QVERIFY(ev("SUM(LEN(A1:A3000))", texts, array) == num(3000 * 15));
+    }
+
+    // Formulas as hostile as a file can make them (within the length a formula may have) are worked out, or refused, in bounded time and memory.
+    void hostileFormulasAreBounded()
+    {
+        QCOMPARE(ev("SUM(" + QString("1,").repeated(999) + "1)"), num(1000));
+        QCOMPARE(ev(QString("ABS(").repeated(100) + "-1" + QString(")").repeated(100)), num(1));
+        QCOMPARE(ev(QString("(").repeated(100) + "7" + QString(")").repeated(100)), num(7));
+        QCOMPARE(ev(QString("IF(TRUE,").repeated(100) + "9" + QString(",0)").repeated(100)), num(9));
+        // names that call themselves, through INDIRECT as well
+        Grid loops;
+        loops.name("Selfie", "INDIRECT(\"Selfie\")+1");
+        loops.name("Ping", "Pong+1");
+        loops.name("Pong", "Ping+1");
+        for (const char *f : {"Selfie", "Ping", "Selfie+Ping", "SUM(Pong)"}) QVERIFY2(ev(f, loops).startsWith("e:"), f);
+        // arrays of the most that a formula can write, and of a column of the grid
+        Settings array;
+        array.array = true;
+        QString ones = QStringLiteral("{1");
+        for (int i = 1; i < 7000; ++i) ones += QStringLiteral(",1");
+        ones += QLatin1Char('}');
+        QCOMPARE(ev("SUM(" + ones + "*" + ones + ")", Grid(), array), num(7000));
+        QCOMPARE(ev("SUM(ROW(1:1048576))", Grid(), array), num(549756338176.0));
+        QCOMPARE(ev("SUM(IF(ROW(1:100000)>5,1,0))", Grid(), array), num(99995));
+        // through a great many sheets
+        Grid sheets;
+        for (int i = 2; i <= 200; ++i) sheets.addSheet(QStringLiteral("Sheet%1").arg(i));
+        for (int i = 0; i < 200; ++i) sheets.n("A1", 1, i);
+        QCOMPARE(ev("SUM(Sheet1:Sheet200!A1)", sheets), num(200));
+        QCOMPARE(ev("SUM(Sheet1:Sheet200!A:A)", sheets), num(200));
+        // a long text, built and cut
+        QCOMPARE(ev("LEN(REPT(\"ab\",16000)&\"x\")"), num(32001));
+        QCOMPARE(ev("LEN(REPT(\"ab\",16000)&REPT(\"c\",800))"), QStringLiteral("e:#VALUE!"));
     }
 
     void randomFunctionCallsNeverCrashOrLoop()

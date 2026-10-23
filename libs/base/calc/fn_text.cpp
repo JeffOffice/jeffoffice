@@ -269,6 +269,13 @@ Value fnProper(Call &c)
     return Value::text(s);
 }
 
+Value fnHyperlink(Call &c)
+{
+    const Value link = c.scalar(0);
+    if (c.argc() > 1 && !c.missing(1)) return c.scalar(1);
+    return link;
+}
+
 Value fnT(Call &c)
 {
     const Value v = c.scalar(0);
@@ -380,6 +387,7 @@ void registerTextFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"UPPER", 1, 1, "v", 0, fnUpper});
     r.push_back({"LOWER", 1, 1, "v", 0, fnLower});
     r.push_back({"PROPER", 1, 1, "v", 0, fnProper});
+    r.push_back({"HYPERLINK", 1, 2, "vv", 0, fnHyperlink});
     r.push_back({"T", 1, 1, "v", 0, fnT});
     r.push_back({"CHAR", 1, 1, "v", 0, fnChar});
     r.push_back({"CODE", 1, 1, "v", 0, fnCode});

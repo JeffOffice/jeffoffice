@@ -72,6 +72,10 @@ bool coerceBool(const Value &v, bool *out, ErrorKind *error);
 bool wildcardMatch(const QString &text, int ti, const QString &pattern, int pi, bool prefix = false);
 bool hasWildcards(const QString &s);
 
+// The numbers of the arguments of a call from `first` on, as functions of many numbers take them: in a reference or an array the numbers; typed, a text read as a number
+// and true and false as 1 and 0. False, with `*error` the error to give, if one is met. With skipSubtotals the cells of references that hold a SUBTOTAL are left out.
+bool gatherNumbers(Call &c, int first, std::vector<double> *out, Value *error, bool skipSubtotals = false);
+
 // x to the power y once the cases with no answer are out (0^0, 0 to a negative power, a negative number to a fraction), as the original works it out: a whole
 // exponent by squaring and multiplying, any other as exp(y ln x) in double arithmetic. (A correctly rounded pow gives other last digits in one cell of a few hundred, and
 // the files kept the digits of the original: with these two rules 21 cells in 3.1 million of the practice workbooks, instead of 1,900, differ by more than a few units of the last place.)
@@ -231,6 +235,7 @@ public:
     std::mt19937_64 rng;
     int nameDepth = 0;
     int unsupported = 0;
+    bool wrapRefs = false;   // the references that move are those of a defined name: past the edge of the sheet they come round to the other side
 
 private:
     friend class Evaluator;
