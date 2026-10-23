@@ -19231,6 +19231,125 @@ private Q_SLOTS:
         QVERIFY2(many <= few + 40, qPrintable(QStringLiteral("%1 places for a keystroke with 1000 references after it, %2 with 20").arg(many).arg(few)));
     }
 
+    // ---- endnotes: the caret across pages and copies
+
+    // An endnote that goes on over several pages: a click on any page puts the caret there (its page, and the place drawn), typing leaves it, Ctrl+End and Ctrl+Home go to the end and the
+    // start of the note's words, and Down from the first line to the last goes through every page that has the note.
+    void theCaretStaysOnThePageOfAnEndnoteThatContinuesOnAnotherPage()
+    {
+        QByteArray words;
+        for (int i = 0; i < 2600; ++i) words += " word" + QByteArray::number(i);
+        const QByteArray ends = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:endnote><w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\">" +
+                                words + "</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        const QByteArray body = "<w:p><w:r><w:t>Body text</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+        auto doc = open(makeDocxWithParts(body, pageSection(), {{QStringLiteral("/word/endnotes.xml"), ends}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 1200);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        int from = 0, to = 0;
+        QVERIFY(doc->endnoteWords(2, &from, &to));
+        const int firstPage = doc->pager().pageOfPosition(from), lastPage = doc->pager().pageOfPosition(to);
+        QVERIFY2(lastPage - firstPage >= 2, qPrintable(QString::number(lastPage - firstPage)));
+        auto caretOnPage = [&](int page) {
+            QRect caret;
+            return view.caretRect(&caret) && view.pageRect(page).adjusted(-3, -3, 3, 3).contains(caret) && view.currentPage() == page;
+        };
+        auto scrollTo = [&](int page) {
+            view.verticalScrollBar()->setValue(view.verticalScrollBar()->value() + view.pageRect(page).top());
+            QCoreApplication::processEvents();
+        };
+        for (int page = firstPage; page <= lastPage; ++page) {
+            scrollTo(page);
+            // (Not at the same place as the click before, or the clicks go for a double and a triple click, which select a word and the paragraph.)
+            QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, page, 200 + 40 * (page - firstPage), page == firstPage ? 600 : 300));
+            const EndnoteSpan span = endnoteSpanAt(doc->story(), view.cursor().position());
+            int noteId = 0;
+            QVERIFY2(span.valid && span.editable && doc->endnoteIdOf(doc->story()->findBlock(view.cursor().position()), &noteId) && noteId == 2, qPrintable(QStringLiteral("a click on page %1: the caret is at %2").arg(page).arg(view.cursor().position())));
+            QVERIFY2(caretOnPage(page), qPrintable(QStringLiteral("a click on page %1").arg(page)));
+            QTest::keyClicks(&view, "x");
+            QVERIFY2(caretOnPage(page), qPrintable(QStringLiteral("typing on page %1").arg(page)));
+        }
+        QTest::keyClick(&view, Qt::Key_End, Qt::ControlModifier);
+        QVERIFY(doc->endnoteWords(2, &from, &to));
+        QCOMPARE(view.cursor().position(), to);
+        QVERIFY(caretOnPage(doc->pager().pageOfPosition(to)));
+        QTest::keyClick(&view, Qt::Key_Home, Qt::ControlModifier);
+        QCOMPARE(view.cursor().position(), from);
+        QVERIFY(caretOnPage(doc->pager().pageOfPosition(from)));
+        QSet<int> visited{view.currentPage()};
+        for (int press = 0; press < 500; ++press) {
+            QTest::keyClick(&view, Qt::Key_Down);
+            const EndnoteSpan span = endnoteSpanAt(doc->story(), view.cursor().position());
+            if (!(span.valid && span.editable)) break;
+            visited.insert(view.currentPage());
+            QRect caret;
+            QVERIFY2(view.caretRect(&caret), qPrintable(QStringLiteral("Down, press %1").arg(press)));
+        }
+        QCOMPARE(int(visited.size()), doc->pager().pageOfPosition(to) - doc->pager().pageOfPosition(from) + 1);
+    }
+
+    // An endnote cited twice is set twice, and only the first copy is edited: a click in the first copy puts the caret in it, on the page clicked; a click in the second copy (which is shown, and
+    // no more) leaves the caret and the view where they were, and what is typed after goes where the caret was, not into a note.
+    void aClickInTheSecondCopyOfAnEndnoteLeavesTheCaretAndTheViewAlone()
+    {
+        QByteArray words;
+        for (int i = 0; i < 1500; ++i) words += " word" + QByteArray::number(i);
+        const QByteArray ends = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:endnote><w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\">" +
+                                words + "</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        const QByteArray body = "<w:p><w:r><w:t>First</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p><w:p><w:r><w:t>Second</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+        auto doc = open(makeDocxWithParts(body, pageSection(), {{QStringLiteral("/word/endnotes.xml"), ends}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 1200);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        QTextBlock copyOne, copyTwo;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) {
+            const int serial = b.blockFormat().intProperty(prop::EndnoteNote);
+            if (b.blockFormat().hasProperty(prop::EndnoteBlock) && serial > 0) copyOne = b;
+            if (b.blockFormat().hasProperty(prop::EndnoteBlock) && serial < 0) copyTwo = b;
+        }
+        QVERIFY(copyOne.isValid() && copyTwo.isValid());
+        const int copyTwoFirst = doc->pager().pageOfPosition(copyTwo.position());
+        const int copyTwoLast = doc->pager().pageOfPosition(copyTwo.position() + copyTwo.length() - 1);
+        QVERIFY2(copyTwoLast - copyTwoFirst >= 1, qPrintable(QString::number(copyTwoLast - copyTwoFirst)));
+        // The caret in the text, at the start.
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, 0, 74, 80));
+        QVERIFY(!endnoteSpanAt(doc->story(), view.cursor().position()).valid);
+        const int where = view.cursor().position();
+        const int page = view.currentPage();
+        const int top = view.verticalScrollBar()->value();
+        const QString notes = plain(*doc);
+        const int copyOneLast = doc->pager().pageOfPosition(copyOne.position() + copyOne.length() - 1);
+        QVERIFY(copyTwoLast > copyOneLast);
+        for (int at = copyOneLast + 1; at <= copyTwoLast; ++at) {   // (the pages that have the second copy's words only)
+            view.verticalScrollBar()->setValue(view.verticalScrollBar()->value() + view.pageRect(at).top());
+            QCoreApplication::processEvents();
+            const int scrolled = view.verticalScrollBar()->value();
+            QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, at, 200, 300));
+            QCOMPARE(view.cursor().position(), where);
+            QCOMPARE(view.verticalScrollBar()->value(), scrolled);   // (the view is where it was put to click: it did not go after the caret)
+        }
+        view.verticalScrollBar()->setValue(top);
+        QCoreApplication::processEvents();
+        QCOMPARE(view.cursor().position(), where);
+        QCOMPARE(view.currentPage(), page);
+        QTest::keyClicks(&view, "Z");
+        QCOMPARE(int(plain(*doc).size()), int(notes.size()) + 1);
+        QVERIFY(plain(*doc).left(30).contains(QLatin1Char('Z')));
+        // A click in the first copy is in it, on the page clicked.
+        const int firstPage = doc->pager().pageOfPosition(copyOne.position());
+        view.verticalScrollBar()->setValue(view.verticalScrollBar()->value() + view.pageRect(firstPage + 1).top());
+        QCoreApplication::processEvents();
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, firstPage + 1, 200, 300));
+        const EndnoteSpan span = endnoteSpanAt(doc->story(), view.cursor().position());
+        QVERIFY(span.valid && span.editable);
+        QCOMPARE(view.currentPage(), firstPage + 1);
+    }
 };
 
 QTEST_MAIN(WriteTests)
