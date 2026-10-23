@@ -240,6 +240,8 @@ public:
     // A copy of an endnote as a note of its own (what a pasted copy of a reference cites): its Id, 0 for none.
     int duplicateEndnote(int id);
     QTextCharFormat endnoteReferenceFormat(int id, const QString &paragraphStyle);
+    // (A test of the settling: whether the references followed as the story changed are the ones a new look through it finds.)
+    bool endnoteSequenceMatchesStoryForTest();
     // After an edit of the text: if the notes that the text's references name are not the notes the pages set, the notes are set again (as part of the edit's own undo step), and the
     // references and the notes' numbers are made anew.
     void settleEndnotes();
@@ -424,6 +426,17 @@ private:
     QVector<std::pair<bool, int>> m_noteStepPending;   // (endnote?, Id) of the notes made since the last step: the next step is theirs
     int m_footnoteIdFloor = 0, m_endnoteIdFloor = 0;   // the highest Id made in this session
     void reclaimDeadNotes(bool endnotes, int keep);
+    // The references to endnotes that the settling counts (those that name a note the document has, and are not what a tracked change deleted), each by its place and Id, in order: kept as
+    // the story changes (followEndnoteReferences), so that an edit that touches none of them does not look through the story again. Valid once the settling has looked through it, and
+    // until the notes are set again, an undo or a redo is done, or the story is made anew.
+    struct EndnoteSeqEntry {
+        int position = 0, id = 0;
+    };
+    QVector<EndnoteSeqEntry> m_endnoteRefSeq;
+    bool m_endnoteSeqValid = false, m_endnoteSeqChanged = false;
+    void followEndnoteReferences(int position, int removed, int added);
+    QVector<EndnoteSeqEntry> endnoteReferencesIn(int from, int to);
+    bool countedEndnoteReference(const QTextCharFormat &format, int *id) const;
     // The endnotes (writedoc_noteedit.cpp)
     QHash<int, int> m_endnoteCopyIds;                                 // the Id of the note each copy that the pages set is a copy of (by the number EndnoteNote gives it)
     int m_nextEndnoteSerial = 1;

@@ -607,6 +607,7 @@ qint64 attributeExpressionsMadeForTest() { return s_attributeExpressions.load();
 // counts are live fields of the text engine, its tables and pictures are left out, and a paragraph in a frame is set aligned as the frame is.
 void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, bool header, const QString &part, bool headerFooter, bool append, int insertAt, bool editable)
 {
+    if (story == this->story()) m_endnoteSeqValid = false;   // (the story is made anew: the references are looked for again)
     QVector<Block> prepared, overflow;
     // (A header's or footer's: the page shows, and the form it is edited in has, the same first part of it.)
     if (editable && append) {

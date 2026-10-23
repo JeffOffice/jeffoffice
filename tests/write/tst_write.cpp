@@ -18710,6 +18710,120 @@ private Q_SLOTS:
         QVERIFY(!ended->isModified());
     }
 
+    // ---- endnotes: what an edit costs
+
+    // The ids of the endnotes the references of the text name, and of those the pages set, each in order (they are the same list when the notes are set as the text asks).
+    static QStringList endnoteIdsOfReferences(WriteDoc &doc)
+    {
+        QStringList out;
+        for (const QString &r : endnoteReferenceNumbers(doc)) out << r.section(QLatin1Char(':'), 0, 0);
+        return out;
+    }
+    static QStringList endnoteIdsOfTails(WriteDoc &doc)
+    {
+        QStringList out;
+        for (const QString &r : endnoteMarks(doc)) out << r.section(QLatin1Char(':'), 0, 0);
+        return out;
+    }
+
+    // Typing, Enter, and Backspace in a long text with an endnotes part cost what the edit touched: the story is not walked again to see whether the notes the text names are those the
+    // pages set (the references are followed as the story changes); and the notes are still set again, as the text asks, when an edit takes a reference out, puts one in, or moves one.
+    void settlingTheEndnotesCostsWhatTheEditTouchedNotWhatTheStoryHolds()
+    {
+        QByteArray body = paragraphs(3000, 8);
+        body += "<w:p><w:r><w:t>First cite</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>" + paragraphs(5, 8) + "<w:p><w:r><w:t>Second cite</w:t></w:r><w:r><w:endnoteReference w:id=\"3\"/></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote() + "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Alpha note</w:t></w:r></w:p></w:endnote>" + betaNote() + "</w:endnotes>";
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+        QVERIFY(doc);
+        QCOMPARE(endnoteIdsOfReferences(*doc), endnoteIdsOfTails(*doc));
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->findBlockByNumber(1500).position() + 3);
+        insertParagraph(*doc, c);   // (the first edits that can change the notes: the references are looked for once)
+        deleteBack(*doc, c, false);
+        resetEndnoteSettleWorkForTest();
+        for (int i = 0; i < 40; ++i) insertText(*doc, c, QStringLiteral("x"));
+        for (int i = 0; i < 20; ++i) insertParagraph(*doc, c);
+        for (int i = 0; i < 20; ++i) deleteBack(*doc, c, false);
+        for (int i = 0; i < 10; ++i) deleteForward(*doc, c, false);
+        QVERIFY2(endnoteSettleScansForTest() == 0, qPrintable(QStringLiteral("%1 walks over the story, %2 paragraphs looked at").arg(endnoteSettleScansForTest()).arg(endnoteSettleVisitedForTest())));
+        QVERIFY2(endnoteSettleVisitedForTest() < 400, qPrintable(QString::number(endnoteSettleVisitedForTest())));
+        QCOMPARE(endnoteIdsOfReferences(*doc), endnoteIdsOfTails(*doc));
+        // Edits that change the references are followed: taking one out, putting one in, and moving one set the notes again.
+        auto step = [&](const QString &what) {
+            const bool same = endnoteIdsOfReferences(*doc) == endnoteIdsOfTails(*doc);
+            if (!same)
+                QTest::qFail(qPrintable(what + QStringLiteral(": the references name ") + endnoteIdsOfReferences(*doc).join(QLatin1Char(' ')) + QStringLiteral(", the pages set ") + endnoteIdsOfTails(*doc).join(QLatin1Char(' '))), __FILE__, __LINE__);
+            const bool followed = doc->endnoteSequenceMatchesStoryForTest();
+            if (!followed) QTest::qFail(qPrintable(what + QStringLiteral(": the references followed are not those the story has")), __FILE__, __LINE__);
+            return same && followed;
+        };
+        QVERIFY(step(QStringLiteral("typing and Enter")));
+        const QVector<int> refs = doc->endnoteReferences(2);
+        QCOMPARE(int(refs.size()), 1);
+        QTextCursor d(doc->story());
+        d.setPosition(refs.first());
+        d.setPosition(refs.first() + 1, QTextCursor::KeepAnchor);
+        const Clip clip = copySelection(*doc, d);
+        removeSelection(*doc, d);
+        QVERIFY(step(QStringLiteral("a reference taken out")));
+        QCOMPARE(endnoteIdsOfTails(*doc), (QStringList{"3"}));
+        QTextCursor e(doc->story());
+        e.setPosition(doc->story()->findBlockByNumber(10).position() + 2);
+        pasteClip(*doc, e, clip);
+        QVERIFY(step(QStringLiteral("a reference pasted")));
+        QCOMPARE(int(endnoteIdsOfTails(*doc).size()), 2);
+        QTextCursor f(doc->story());
+        f.setPosition(doc->story()->findBlockByNumber(20).position() + 1);
+        QVERIFY(insertEndnote(*doc, f));
+        QVERIFY(step(QStringLiteral("a note inserted")));
+        QCOMPARE(int(endnoteIdsOfTails(*doc).size()), 3);
+        QVERIFY2(endnoteSettleScansForTest() >= 1, "the notes were not set again");
+        while (doc->canUndo()) {
+            doc->undo();
+            QVERIFY(step(QStringLiteral("an undo")));
+        }
+        while (doc->canRedo()) {
+            doc->redo();
+            QVERIFY(step(QStringLiteral("a redo")));
+        }
+        QCOMPARE(int(endnoteIdsOfTails(*doc).size()), 3);
+        // Random edits at and beside the references, and what undoes and does them again: the references followed are always those the story has, and the pages set the notes they name.
+        std::mt19937 rng(11);
+        for (int i = 0; i < 300; ++i) {
+            QVector<int> places;
+            for (QTextBlock b = doc->story()->begin(); b.isValid() && b.position() < editableEnd(doc->story()); b = b.next())
+                if (b.text().contains(QChar::ObjectReplacementCharacter)) places << b.position() + int(b.text().indexOf(QChar::ObjectReplacementCharacter));
+            auto somewhere = [&] {
+                const int end = std::max(1, editableEnd(doc->story()) - 1);
+                if (!places.isEmpty() && rng() % 3 != 0) return std::clamp(places[rng() % unsigned(places.size())] + int(rng() % 3) - 1, 0, end);
+                return int(rng() % unsigned(end));
+            };
+            QTextCursor r(doc->story());
+            r.setPosition(somewhere());
+            QString what;
+            switch (rng() % 9) {
+            case 0: what = QStringLiteral("type"); insertText(*doc, r, QStringLiteral("x")); break;
+            case 1: what = QStringLiteral("Enter"); insertParagraph(*doc, r); break;
+            case 2: what = QStringLiteral("Backspace"); deleteBack(*doc, r, false); break;
+            case 3: what = QStringLiteral("Delete"); deleteForward(*doc, r, false); break;
+            case 4: what = QStringLiteral("delete three"); r.setPosition(std::min(r.position() + 3, editableEnd(doc->story()) - 1), QTextCursor::KeepAnchor); removeSelection(*doc, r); break;
+            case 5: what = QStringLiteral("insert an endnote"); insertEndnote(*doc, r); break;
+            case 6: {
+                what = QStringLiteral("copy and paste a reference");
+                if (places.isEmpty()) break;
+                QTextCursor from(doc->story());
+                from.setPosition(places[rng() % unsigned(places.size())]);
+                from.setPosition(from.position() + 1, QTextCursor::KeepAnchor);
+                const Clip piece = copySelection(*doc, from);
+                pasteClip(*doc, r, piece);
+                break;
+            }
+            case 7: what = QStringLiteral("undo"); doc->undo(); break;
+            default: what = QStringLiteral("redo"); doc->redo(); break;
+            }
+            QVERIFY(step(QStringLiteral("random edit %1 (%2)").arg(i).arg(what)));
+        }
+    }
 };
 
 QTEST_MAIN(WriteTests)

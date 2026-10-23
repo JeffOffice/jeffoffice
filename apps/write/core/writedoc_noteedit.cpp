@@ -580,6 +580,76 @@ QTextCharFormat WriteDoc::endnoteReferenceFormat(int id, const QString &paragrap
 namespace {
 std::atomic<qint64> s_settleScans{0}, s_settleVisited{0};
 } // namespace
+
+// Whether the character format is that of a reference to an endnote that the settling counts, and the Id it names.
+bool WriteDoc::countedEndnoteReference(const QTextCharFormat &cf, int *id) const
+{
+    if (!cf.hasProperty(prop::Atom) || cf.hasProperty(prop::TrackedDeleted)) return false;
+    const QByteArray bytes = storedBytes(cf, prop::Atom);
+    if (!bytes.contains("endnoteReference")) return false;
+    const Inline atom = unpackAtom(bytes);
+    bool ok = false;
+    const int found = atom.tag == QLatin1String("endnoteReference") ? atom.key.toInt(&ok) : 0;
+    if (!ok || !hasEndnote(found)) return false;
+    *id = found;
+    return true;
+}
+
+// The references among the characters from `from` to `to` (of the story as it is now).
+QVector<WriteDoc::EndnoteSeqEntry> WriteDoc::endnoteReferencesIn(int from, int to)
+{
+    QVector<EndnoteSeqEntry> out;
+    QTextDocument *d = story();
+    const int end = d->characterCount();
+    from = std::clamp(from, 0, end);
+    to = std::clamp(to, from, end);
+    for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            if (f.position() + f.length() <= from) continue;
+            if (f.position() >= to) break;
+            int id = 0;
+            if (!countedEndnoteReference(f.charFormat(), &id)) continue;
+            const QString text = f.text();
+            for (int k = 0; k < text.size(); ++k) {
+                const int at = f.position() + k;
+                if (text[k] == QChar::ObjectReplacementCharacter && at >= from && at < to) out.push_back({at, id});
+            }
+        }
+    return out;
+}
+
+// The story changed from `position`: `removed` characters went and `added` came. The references that were among those that went are let go, those after are as far on as the change moved
+// them, and those among the new ones are found; if the Ids they name are not the same, the notes will need to be set again.
+void WriteDoc::followEndnoteReferences(int position, int removed, int added)
+{
+    if (!m_endnoteSeqValid) return;
+    auto lo = std::lower_bound(m_endnoteRefSeq.begin(), m_endnoteRefSeq.end(), position, [](const EndnoteSeqEntry &r, int at) { return r.position < at; });
+    auto hi = std::lower_bound(lo, m_endnoteRefSeq.end(), position + removed, [](const EndnoteSeqEntry &r, int at) { return r.position < at; });
+    QVector<int> gone;
+    for (auto it = lo; it != hi; ++it) gone.push_back(it->id);
+    const qsizetype at = lo - m_endnoteRefSeq.begin();
+    m_endnoteRefSeq.erase(lo, hi);
+    if (added != removed)
+        for (qsizetype i = at; i < m_endnoteRefSeq.size(); ++i) m_endnoteRefSeq[i].position += added - removed;
+    const QVector<EndnoteSeqEntry> now = endnoteReferencesIn(position, position + added);
+    QVector<int> named;
+    for (const EndnoteSeqEntry &r : now) named.push_back(r.id);
+    if (gone != named) m_endnoteSeqChanged = true;
+    m_endnoteRefSeq.insert(at, now.size(), EndnoteSeqEntry());
+    std::copy(now.cbegin(), now.cend(), m_endnoteRefSeq.begin() + at);
+    if (m_endnoteRefSeq.size() >= kMostEndnotes) m_endnoteSeqValid = false;   // (more than the program counts: it looks through the story each time, as it did)
+}
+
+bool WriteDoc::endnoteSequenceMatchesStoryForTest()
+{
+    if (!m_endnoteSeqValid) return true;
+    const QVector<EndnoteSeqEntry> fresh = endnoteReferencesIn(0, story()->characterCount());
+    if (fresh.size() != m_endnoteRefSeq.size()) return false;
+    for (qsizetype i = 0; i < fresh.size(); ++i)
+        if (fresh[i].position != m_endnoteRefSeq[i].position || fresh[i].id != m_endnoteRefSeq[i].id) return false;
+    return true;
+}
 qint64 endnoteSettleScansForTest() { return s_settleScans.load(); }
 qint64 endnoteSettleVisitedForTest() { return s_settleVisited.load(); }
 void resetEndnoteSettleWorkForTest()
@@ -593,8 +663,10 @@ void WriteDoc::settleEndnotes()
     if (m_endnotesPart != NotesPart::Readable || m_syncing || m_buildingEndnotes || m_endnoteCapped) return;
     for (const RawChild &ch : m_last.extra)
         if (ch.xml.contains("noEndnote")) return;
+    if (m_endnoteSeqValid && !m_endnoteSeqChanged) return;   // (the references name the notes they named when the notes were last set, and the pages set those)
     QTextDocument *d = story();
     QVector<int> refs, tails;
+    QVector<EndnoteSeqEntry> sequence;
     ++s_settleScans;
     for (QTextBlock b = d->begin(); b.isValid(); b = b.next()) {
         ++s_settleVisited;
@@ -607,9 +679,13 @@ void WriteDoc::settleEndnotes()
             bool ok = false;
             const int id = atom.tag == QLatin1String("endnoteReference") ? atom.key.toInt(&ok) : 0;
             if (!ok || !hasEndnote(id)) continue;
-            const QString text = it.fragment().text();
-            for (const QChar ch : text)
-                if (ch == QChar::ObjectReplacementCharacter && refs.size() < kMostEndnotes) refs.push_back(id);
+            const QTextFragment fragment = it.fragment();
+            const QString text = fragment.text();
+            for (int k = 0; k < text.size(); ++k)
+                if (text[k] == QChar::ObjectReplacementCharacter && refs.size() < kMostEndnotes) {
+                    refs.push_back(id);
+                    sequence.push_back({fragment.position() + k, id});
+                }
         }
         const QTextBlockFormat bf = b.blockFormat();
         if (!bf.hasProperty(prop::EndnoteBlock) || bf.intProperty(prop::EndnoteNote) == 0) continue;
@@ -618,6 +694,9 @@ void WriteDoc::settleEndnotes()
         if (before.isValid() && before.blockFormat().hasProperty(prop::EndnoteBlock) && before.blockFormat().intProperty(prop::EndnoteNote) == serial) continue;
         tails.push_back(m_endnoteCopyIds.value(std::abs(serial)));
     }
+    m_endnoteRefSeq = sequence;
+    m_endnoteSeqValid = refs.size() < kMostEndnotes;
+    m_endnoteSeqChanged = false;
     if (refs != tails) rebuildEndnoteTails();
 }
 

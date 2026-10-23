@@ -702,6 +702,7 @@ QTextDocument *WriteDoc::undo(QTextCursor *cursor)
     discardPendingHeaderFooter();   // (the empty one shown to be typed in is no step)
     if (m_undoLog.isEmpty()) return nullptr;
     const Step step = m_undoLog.takeLast();
+    m_endnoteSeqValid = false;   // (what an undo changes is looked through once more by the next settling)
     QTextCursor at(step.story);
     step.story->undo(&at);
     if (cursor) *cursor = at;
@@ -720,6 +721,7 @@ QTextDocument *WriteDoc::redo(QTextCursor *cursor)
     discardPendingHeaderFooter();
     if (m_redoLog.isEmpty()) return nullptr;
     const Step step = m_redoLog.takeLast();
+    m_endnoteSeqValid = false;
     QTextCursor at(step.story);
     step.story->redo(&at);
     if (cursor) *cursor = at;

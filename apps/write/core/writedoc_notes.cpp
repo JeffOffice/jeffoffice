@@ -174,6 +174,7 @@ void WriteDoc::loadEndnotes()
     m_endnoteOriginal.clear();
     m_createdEndnoteStep.clear();
     m_endnoteIdFloor = 0;
+    m_endnoteSeqValid = false;
     m_endnotesPart = NotesPart::Absent;
     m_endnotesPartNew = false;
     m_endnoteCapped = false;
@@ -435,6 +436,7 @@ void WriteDoc::rebuildEndnoteTails()
     edit.endEditBlock();
     m_buildingEndnotes = false;
     m_endnoteRefIndexValid = false;
+    m_endnoteSeqValid = false;   // (the next settling looks through the story again, once)
     m_blockCount = d->blockCount();
     syncSections();
 }

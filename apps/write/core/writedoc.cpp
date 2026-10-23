@@ -403,6 +403,7 @@ void WriteDoc::storyChanged(int position, int removed, int added)
 {
     m_footnoteRefsValid = false;
     m_endnoteRefIndexValid = false;
+    if (m_endnotesPart == NotesPart::Readable) followEndnoteReferences(position, removed, added);
     if (m_endnotesPart == NotesPart::Readable && !m_buildingEndnotes && !m_syncing) touchEndnotes(position, removed, added);
     if (m_syncing) return;
     const int blocks = story()->blockCount();
