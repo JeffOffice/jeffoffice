@@ -164,6 +164,7 @@ Value fnSumIf(Call &c)
         // the same shape as the range, from the first cell of the sum range
         sumArea.row2 = quint32(std::min<qint64>(qint64(sumArea.row1) + range.rows() - 1, kGridRows - 1));
         sumArea.col2 = quint32(std::min<qint64>(qint64(sumArea.col1) + range.cols() - 1, kGridCols - 1));
+        c.noteRead(sumArea);   // (the cells read are these, not the sum range as it was written)
     }
     double sum = 0;
     Value error;
@@ -604,6 +605,7 @@ Value aggregateIf(Call &c, Aggregate how, bool hasValues, int firstCond, bool av
             if (!oneArea(c, 2, &values)) return c.failure();
             values.row2 = quint32(std::min<qint64>(qint64(values.row1) + cond.area.rows() - 1, kGridRows - 1));
             values.col2 = quint32(std::min<qint64>(qint64(values.col1) + cond.area.cols() - 1, kGridCols - 1));
+            c.noteRead(values);
         }
     } else {
         if (hasValues && !oneArea(c, 0, &values)) return c.failure();

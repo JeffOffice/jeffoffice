@@ -626,6 +626,45 @@ private Q_SLOTS:
         const Calculation::Progress p = settle(b);
         QCOMPARE(p.evaluated, qint64(0));
     }
+
+    // The range operator over references that functions give makes a block the formula reads whole: an edit to a cell inside it, which no reference of the formula names,
+    // reaches the formula.
+    void aRangeMadeOfReferencesThatFunctionsGiveIsToldToTheGraph()
+    {
+        const QString rows = rowXml(1, constant("A1", "1") + constant("B1", "2") + constant("C1", "3") + cellXml("E1", "SUM(A1:INDEX(C:C,3))") + cellXml("F1", "SUM(INDEX(A:A,1):INDEX(C:C,3))"))
+            + rowXml(2, constant("A2", "10") + constant("B2", "20") + constant("C2", "30")) + rowXml(3, constant("A3", "100") + constant("B3", "200") + constant("C3", "300"));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        settle(b);
+        QCOMPARE(b.at("E1"), QStringLiteral("n:666"));
+        QCOMPARE(b.at("F1"), QStringLiteral("n:666"));
+        QVERIFY(b.set("B2", Value::number(1000)));   // inside the block, and in no column or cell the formulas name
+        settle(b);
+        QCOMPARE(b.at("E1"), QStringLiteral("n:1646"));
+        QCOMPARE(b.at("F1"), QStringLiteral("n:1646"));
+    }
+
+    // SUMIF and AVERAGEIF with a sum range shorter than the range read the cells of the shape of the range, from the first of the sum range: those are what the formula reads. (The
+    // others that take a range and a sum range, SUMIFS and the rest, give #VALUE! when the shapes differ, and read no more than they name.)
+    void aSumRangeShorterThanTheRangeIsReadAsTheShapeOfTheRange()
+    {
+        const QString rows = rowXml(1, constant("A1", "1") + constant("B1", "10") + cellXml("D1", "SUMIF(A1:A3,\">0\",B1)") + cellXml("E1", "AVERAGEIF(A1:A3,\">0\",B1)") + cellXml("F1", "SUMIFS(B1,A1:A3,\">0\")")
+                                           + cellXml("G1", "COUNTIFS(A1:A3,\">0\",B1:B2,\">0\")"))
+            + rowXml(2, constant("A2", "2") + constant("B2", "20")) + rowXml(3, constant("A3", "3") + constant("B3", "30"));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        settle(b);
+        QCOMPARE(b.at("D1"), QStringLiteral("n:60"));
+        QCOMPARE(b.at("E1"), QStringLiteral("n:20"));
+        QCOMPARE(b.at("F1"), QStringLiteral("e:#VALUE!"));
+        QCOMPARE(b.at("G1"), QStringLiteral("e:#VALUE!"));
+        QVERIFY(b.set("B3", Value::number(100)));   // read as the sum range's third cell, which is named by no reference
+        settle(b);
+        QCOMPARE(b.at("D1"), QStringLiteral("n:130"));
+        QCOMPARE(b.at("E1"), QStringLiteral("n:%1").arg(130.0 / 3.0, 0, 'g', 15));
+        QCOMPARE(b.at("F1"), QStringLiteral("e:#VALUE!"));
+        QCOMPARE(b.at("G1"), QStringLiteral("e:#VALUE!"));
+    }
 };
 
 JP_TEST_CLASS(SheetCalculationTests)

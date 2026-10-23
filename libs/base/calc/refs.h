@@ -17,8 +17,10 @@ struct ProgramTraits {
     bool dynamic = false;         // calls INDIRECT or OFFSET: where it reads depends on values
     bool changesByItself = false; // calls NOW, TODAY, RAND, or RANDBETWEEN: its value changes with no cell changing
     bool iterative = false;       // calls a function found by trying numbers (IRR, XIRR): the digits are those of one program's iteration
+    bool reachesBeyond = false;   // a block it reads is made as it is worked out: from references that functions give (the range operator, A1:INDEX(C:C,3)), or of the shape of another
+                                  // (the sum range of SUMIF and AVERAGEIF is read as large as the range), so that the cells in it may be named by no reference of the formula
     // Whether where it reads is told as it is worked out, besides what its references name.
-    bool readsWhereItIsTold() const { return usesNames || dynamic; }
+    bool readsWhereItIsTold() const { return usesNames || dynamic || reachesBeyond; }
 };
 ProgramTraits traitsOf(const Program &program);
 

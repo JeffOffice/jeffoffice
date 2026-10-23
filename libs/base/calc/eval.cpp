@@ -460,7 +460,9 @@ Item Machine::runProgram(const Program &p, bool)
             if (!have(2)) return bad();
             const Item b = pop();
             const Item a = pop();
-            stack.push_back(referenceOp(in.op, a, b));
+            const Item r = referenceOp(in.op, a, b);
+            if (ctx.touched && in.op == Op::Range && r.isRef()) noteRefs(r);   // (a block made of references that functions give may hold cells no reference names)
+            stack.push_back(r);
             break;
         }
         case Op::Neg: case Op::Percent: {

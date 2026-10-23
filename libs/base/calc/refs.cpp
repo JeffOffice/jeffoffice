@@ -10,16 +10,16 @@ namespace jp::calc {
 ProgramTraits traitsOf(const Program &program)
 {
     ProgramTraits t;
-    for (const Instr &in : program.code)
-        if (in.op == Op::PushName) {
-            t.usesNames = true;
-            break;
-        }
+    for (const Instr &in : program.code) {
+        if (in.op == Op::PushName) t.usesNames = true;
+        else if (in.op == Op::Range) t.reachesBeyond = true;
+    }
     for (const auto &call : program.calls) {
         const FunctionInfo &f = functionAt(call.first);
         if (std::strcmp(f.name, "INDIRECT") == 0 || std::strcmp(f.name, "OFFSET") == 0) t.dynamic = true;
         else if (f.flags & kFnVolatile) t.changesByItself = true;
         if (f.flags & kFnIterative) t.iterative = true;
+        if (std::strcmp(f.name, "SUMIF") == 0 || std::strcmp(f.name, "AVERAGEIF") == 0) t.reachesBeyond = true;
     }
     return t;
 }

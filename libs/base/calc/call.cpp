@@ -187,6 +187,11 @@ qint64 Table::previousFilled(bool column, qint64 i, qint64 first) const
 
 const EvalContext &Call::context() const { return m.context(); }
 
+void Call::noteRead(const RefArea &area) const
+{
+    if (m.context().touched) m.context().touched->push_back(area);
+}
+
 Value Call::scalar(int i)
 {
     if (i >= argc()) return Value();

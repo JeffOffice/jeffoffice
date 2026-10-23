@@ -131,6 +131,8 @@ public:
     bool arrayMode() const { return m_array; }
     Machine &machine() const { return m; }
     const EvalContext &context() const;
+    // Says that the call read the cells of the area, which no argument names (a sum range as large as the range it goes with): where a formula reads is told to the graph.
+    void noteRead(const RefArea &area) const;
 
     // The value of argument i as one value: a value as it is, a reference by the cell it names (a block by implicit intersection), an array by its first element. An
     // argument left out is an empty value.

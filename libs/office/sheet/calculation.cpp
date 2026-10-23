@@ -50,6 +50,7 @@ Calculation::Compiled &Calculation::compiled(int sheet, qint32 text, bool array)
             const ProgramTraits t = traitsOf(*slot.program);
             slot.usesNames = t.usesNames;
             slot.dynamic = t.dynamic;
+            slot.reaches = t.reachesBeyond;
             slot.changesByItself = t.changesByItself;
             slot.iterative = t.iterative;
             slot.bound = bindSheetNames(*slot.program, *this);
@@ -103,7 +104,7 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
             kept = 'P';
         } else {
             const Program &p = *slot.program;
-            told = slot.usesNames || slot.dynamic;
+            told = slot.usesNames || slot.dynamic || slot.reaches;
             always = slot.dynamic || slot.changesByItself;
             if (m_options.keepApart) {
                 if (!p.unknownFunctions.isEmpty()) kept = 'U';
