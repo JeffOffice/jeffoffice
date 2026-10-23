@@ -292,6 +292,7 @@ void Calculation::visit(int sheet, quint32 row1, quint32 col1, quint32 row2, qui
 
 bool Calculation::load()
 {
+    static_assert(sizeof(Node) == 32, "a formula's node is 32 bytes");
     const bool whole = loadAll();
     const int sheets = int(m_sheets.size());
     m_state.assign(size_t(sheets), SheetState());
