@@ -527,6 +527,31 @@ private Q_SLOTS:
             for (qint64 r = 0; r < 60; ++r) QCOMPARE(g.yEdge(r, false), before[size_t(r)] - moved);
         }
     }
+
+    // A frozen part that begins below the first row: the rows above it are out of sight, the frozen rows are at the top, and the part that scrolls begins where they end.
+    void frozenRowsThatBeginBelowTheFirstAreAtTheTop()
+    {
+        GridLayout g = plain();
+        g.setSkipped(10, 0);
+        g.setFrozen(12, 0);
+        const PaneView top = g.pane(Pane::Top), body = g.pane(Pane::Body);
+        QCOMPARE(top.firstRow, qint64(10));
+        QCOMPARE(top.lastRow, qint64(11));
+        QCOMPARE(body.firstRow, qint64(12));
+        QCOMPARE(g.cellRect(10, 0).top(), 20);   // (just under the headers)
+        QCOMPARE(g.cellRect(12, 0).top(), 20 + 2 * 20);
+        QCOMPARE(g.hit(QPoint(100, 25)).row, qint64(10));
+        QCOMPARE(g.hit(QPoint(100, 25)).pane, Pane::Top);
+        QCOMPARE(g.hit(QPoint(100, 25 + 40)).row, qint64(12));
+        // scrolling moves the part below the frozen rows, and no more than there are rows
+        g.setScroll(0, 5 * 20);
+        QCOMPARE(g.pane(Pane::Body).firstRow, qint64(17));
+        QCOMPARE(g.maxScrollY(), g.rows.position(999) - g.rows.position(12));
+        // nothing frozen: the rows are all there again
+        g.setFrozen(0, 0);
+        g.setSkipped(0, 0);
+        QCOMPARE(g.pane(Pane::Body).firstRow, qint64(5));
+    }
 };
 
 JP_TEST_CLASS(GridMergeTests)

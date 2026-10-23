@@ -33,6 +33,10 @@ public:
     int defaultSize() const { return m_default; }
     void setCount(qint64 count);
     void setDefaultSize(int size);
+    // The first `count` rows are not shown (as if hidden, and not kept apart from the rest: a view whose frozen rows begin below the first has the rows above them scrolled out of
+    // sight). Nothing in them is a row any search finds, and the rows after them begin where the first of them would have.
+    void setSkipped(qint64 count);
+    qint64 skipped() const { return m_skip; }
 
     // A place with a size of its own (0 hides it). A size equal to the default is the default again. For a few edits; a sheet's own list is given whole to assign().
     void setSize(qint64 index, int size);
@@ -67,7 +71,10 @@ private:
     // The place with this index, or -1.
     int find(qint64 index) const;
 
+    qint64 rawPosition(qint64 index) const;   // where a row begins, with the skipped rows counted at their own sizes
+
     qint64 m_count = 0;
+    qint64 m_skip = 0;
     int m_default = 20;
     std::shared_ptr<Data> m_d;   // the places that differ, and what is worked out from them
     mutable qint64 m_probes = 0;

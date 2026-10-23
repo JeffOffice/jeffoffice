@@ -6,6 +6,7 @@
 #include "grid/layout.h"
 #include "grid/look.h"
 #include "grid/text.h"
+#include "grid/valuestore.h"
 #include "sheet/calculation.h"
 #include "sheet/sheetmodel.h"
 #include "sheet/styles.h"
@@ -34,7 +35,8 @@ struct GridData {
     const Styles *styles = nullptr;
     const SharedStrings *strings = nullptr;
     const Sheet *sheet = nullptr;
-    const jp::office::sheet::Calculation *calc = nullptr;
+    const jp::office::sheet::Calculation *calc = nullptr;   // read directly (only where nothing else is changing it: a tool, a test)
+    const ValueStore *values = nullptr;                      // what a calculation on another thread has worked out and told (the window's way): a formula not in it shows what the file stored
     int sheetIndex = 0;
     jp::calc::DateSystem dateSystem = jp::calc::DateSystem::Date1900;
     std::shared_ptr<const GridGeometry> geometry;   // the sheet's geometry, made ahead by GridSheet::makeGeometry; none: setData makes it
@@ -69,8 +71,9 @@ public:
     Shown shown(quint32 row, quint32 col, const Cell &cell) const;
     // The text of a cell for a copy: what it holds as its format shows it, not cut to its cell (a number is never "#", a text keeps its line breaks and all its letters).
     QString textOf(const Cell &cell) const;
-    // Forgets the texts (values or formats changed).
+    // Forgets the texts (values or formats changed), or the text of one cell.
     void invalidateTexts() const;
+    void invalidateText(quint32 row, quint32 col) const { m_texts.erase((quint64(row) << 16) | col); }
     // Shows the formula of a cell that has one in place of its value ("=SUM(A1:A3)", as text).
     void setShowFormulas(bool on);
     bool showFormulas() const { return m_showFormulas; }

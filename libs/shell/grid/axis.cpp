@@ -19,7 +19,7 @@ struct Axis::Data {
 Axis::Axis(qint64 count, int defaultSize) : m_count(std::max<qint64>(count, 0)), m_default(std::max(1, std::min(defaultSize, kMaxSize))), m_d(std::make_shared<Data>()) {}
 
 // A copy shares the places (and what is worked out from them) with the axis it is made from: both are worked out first, so that what is shared is never changed by being asked.
-Axis::Axis(const Axis &o) : m_count(o.m_count), m_default(o.m_default), m_d(o.m_d), m_probes(o.m_probes)
+Axis::Axis(const Axis &o) : m_count(o.m_count), m_skip(o.m_skip), m_default(o.m_default), m_d(o.m_d), m_probes(o.m_probes)
 {
     o.ensureBuilt();
 }
@@ -29,6 +29,7 @@ Axis &Axis::operator=(const Axis &o)
     if (this != &o) {
         o.ensureBuilt();
         m_count = o.m_count;
+        m_skip = o.m_skip;
         m_default = o.m_default;
         m_d = o.m_d;
         m_probes = o.m_probes;
@@ -52,6 +53,7 @@ int Axis::placeCount() const { return int(m_d->places.size()); }
 void Axis::setCount(qint64 count)
 {
     m_count = std::max<qint64>(count, 0);
+    m_skip = std::min(m_skip, m_count);
     // (the places past the last row are not rows)
     Data &d = writable();
     while (!d.places.empty() && d.places.back().index >= m_count) d.places.pop_back();
@@ -136,14 +138,22 @@ void Axis::rebuild() const
     d.dirty = false;
 }
 
+void Axis::setSkipped(qint64 count) { m_skip = std::max<qint64>(0, std::min(count, m_count)); }
+
 int Axis::size(qint64 index) const
 {
-    if (index < 0 || index >= m_count) return 0;
+    if (index < 0 || index >= m_count || index < m_skip) return 0;
     const int k = find(index);
     return k >= 0 ? m_d->places[size_t(k)].size : m_default;
 }
 
 qint64 Axis::position(qint64 index) const
+{
+    if (m_skip <= 0) return rawPosition(index);
+    return index <= m_skip ? 0 : rawPosition(index) - rawPosition(m_skip);
+}
+
+qint64 Axis::rawPosition(qint64 index) const
 {
     if (index <= 0) return 0;
     if (index > m_count) index = m_count;
@@ -159,9 +169,10 @@ qint64 Axis::position(qint64 index) const
     return index * m_default + m_d->before[size_t(lo)];
 }
 
-qint64 Axis::indexAt(qint64 pos) const
+qint64 Axis::indexAt(qint64 given) const
 {
-    if (pos < 0 || pos >= total()) return -1;
+    if (given < 0 || given >= total()) return -1;
+    const qint64 pos = given + (m_skip > 0 ? rawPosition(m_skip) : 0);
     // the places that begin at or before pos: a place's own start is its index times the default, and what the places before it differ by
     auto startOf = [&](qint64 k) { return m_d->places[size_t(k)].index * m_default + m_d->before[size_t(k)]; };
     qint64 lo = 0, hi = qint64(m_d->places.size());
@@ -181,7 +192,7 @@ qint64 Axis::indexAt(qint64 pos) const
 
 qint64 Axis::nextVisible(qint64 index) const
 {
-    qint64 next = index + 1;
+    qint64 next = std::max(index + 1, m_skip);
     if (next >= m_count) return m_count;
     if (next < 0) next = 0;
     ensureBuilt();
@@ -200,8 +211,8 @@ qint64 Axis::previousVisible(qint64 index) const
     qint64 prev = std::min(index, m_count) - 1;
     if (prev < 0) return -1;
     ensureBuilt();
-    // a hidden row is stepped over with the run it is in, back to the run's first
-    while (prev >= 0) {
+    // a hidden row is stepped over with the run it is in, back to the run's first (and the rows that are skipped are hidden, all of them)
+    while (prev >= m_skip) {
         ++m_probes;
         const int k = find(prev);
         if (k < 0 || m_d->places[size_t(k)].size != 0) return prev;

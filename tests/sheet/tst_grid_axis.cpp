@@ -231,6 +231,50 @@ private Q_SLOTS:
         QCOMPARE(d.position(6), c.position(6));
         QCOMPARE(d.position(6), qint64(5 * 20 + 7));
     }
+
+    // The first rows can be skipped (a view scrolled down and then frozen has the rows it scrolled past out of sight): they have no size, no search finds them, and the rows after them
+    // begin where the first of them would have.
+    void aSkippedPrefixIsNotThereToSearchForOrWalkOver()
+    {
+        Axis a(100, 20);
+        a.setSize(12, 0);
+        a.setSize(30, 50);
+        a.setSkipped(10);
+        QCOMPARE(a.skipped(), qint64(10));
+        QCOMPARE(a.size(5), 0);
+        QVERIFY(a.isHidden(9));
+        QCOMPARE(a.position(10), qint64(0));
+        QCOMPARE(a.position(11), qint64(20));
+        QCOMPARE(a.position(13), qint64(40));   // (12 is hidden)
+        QCOMPARE(a.position(31), a.position(30) + 50);
+        QCOMPARE(a.total(), a.position(100));
+        QCOMPARE(a.indexAt(0), qint64(10));
+        QCOMPARE(a.indexAt(20), qint64(11));
+        QCOMPARE(a.indexAt(40), qint64(13));
+        QCOMPARE(a.indexAt(a.total() - 1), qint64(99));
+        QCOMPARE(a.indexAt(a.total()), qint64(-1));
+        QCOMPARE(a.nextVisible(-1), qint64(10));
+        QCOMPARE(a.nextVisible(3), qint64(10));
+        QCOMPARE(a.firstVisible(), qint64(10));
+        QCOMPARE(a.previousVisible(10), qint64(-1));
+        QCOMPARE(a.previousVisible(11), qint64(10));
+        QCOMPARE(a.previousVisible(13), qint64(11));
+        QCOMPARE(a.previousVisible(14), qint64(13));
+        QCOMPARE(a.lastVisible(), qint64(99));
+        // skipping up to and over a hidden row: the first shown is after it
+        a.setSkipped(12);
+        QCOMPARE(a.firstVisible(), qint64(13));
+        QCOMPARE(a.previousVisible(13), qint64(-1));
+        // none skipped: as it was
+        a.setSkipped(0);
+        QCOMPARE(a.position(11), qint64(220));
+        QCOMPARE(a.firstVisible(), qint64(0));
+        // a copy keeps what is skipped
+        a.setSkipped(5);
+        Axis b = a;
+        QCOMPARE(b.skipped(), qint64(5));
+        QCOMPARE(b.position(6), qint64(20));
+    }
 };
 
 JP_TEST_CLASS(GridAxisTests)

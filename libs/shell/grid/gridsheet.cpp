@@ -119,7 +119,10 @@ std::shared_ptr<GridGeometry> GridSheet::makeGeometry(const Sheet &sheet, const 
     layout.setZoom(v.zoom / 100.0);
     layout.setHeaders(v.showHeadings, 40, 20);
     if (v.frozen) {
-        layout.setFrozen(qint64(v.frozenRows), qint64(v.frozenCols));
+        // (a frozen part may begin below the first row, or right of the first column: the view's top left is where it begins, and what is before it is out of sight)
+        const qint64 skipRows = v.frozenRows > 0 ? qint64(v.topRow) : 0, skipCols = v.frozenCols > 0 ? qint64(v.leftCol) : 0;
+        layout.setSkipped(skipRows, skipCols);
+        layout.setFrozen(skipRows + qint64(v.frozenRows), skipCols + qint64(v.frozenCols));
         layout.setScroll(layout.cols.position(qint64(v.paneCol)) - layout.cols.position(layout.frozenCols()), layout.rows.position(qint64(v.paneRow)) - layout.rows.position(layout.frozenRows()));
     } else {
         layout.setScroll(layout.cols.position(qint64(v.leftCol)), layout.rows.position(qint64(v.topRow)));
@@ -136,7 +139,12 @@ jp::calc::Value GridSheet::valueOf(const Cell &cell) const
 {
     using jp::calc::Value;
     if (!m_data.sheet) return Value();
-    if (m_data.calc) return m_data.calc->shown(m_data.sheetIndex, cell.row, cell.col);
+    if (m_data.values && (cell.hasFormula() || (cell.flags & jp::office::sheet::ArrayMember))) {
+        Value v;
+        if (m_data.values->find(m_data.sheetIndex, cell.row, cell.col, &v)) return v;
+    } else if (m_data.calc) {
+        return m_data.calc->shown(m_data.sheetIndex, cell.row, cell.col);
+    }
     switch (cell.type) {
     case CellType::Empty: return Value();
     case CellType::Number:

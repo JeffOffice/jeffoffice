@@ -58,6 +58,12 @@ public:
     void setFrozen(qint64 rows, qint64 cols);
     qint64 frozenRows() const { return m_frozenRows; }
     qint64 frozenCols() const { return m_frozenCols; }
+    // The first rows and columns that are out of sight above and to the left of a frozen part that does not begin at the first row or column (a view scrolled down a sheet, and then
+    // frozen, has the rows it scrolled past out of sight until it is unfrozen). frozenRows() and frozenCols() are then where the frozen part ends, counted from the first of the sheet:
+    // the frozen part is the rows from skippedRows() to frozenRows(). The axes do not find the rows that are skipped.
+    void setSkipped(qint64 rows, qint64 cols);
+    qint64 skippedRows() const { return rows.skipped(); }
+    qint64 skippedCols() const { return cols.skipped(); }
 
     // How far the part that scrolls has gone, in the grid's units, from where it begins (the end of the frozen rows or columns); kept between 0 and what lets the last row
     // (or column) be at the top (left) of the part.

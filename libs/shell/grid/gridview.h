@@ -36,7 +36,8 @@ public:
     struct ViewState {
         Selection selection;
         qint64 scrollX = 0, scrollY = 0;
-        qint64 frozenRows = 0, frozenCols = 0;
+        qint64 frozenRows = 0, frozenCols = 0;   // where the frozen part ends, from the first row and column of the sheet
+        qint64 skipRows = 0, skipCols = 0;       // and the rows and columns before where it begins, which are out of sight
         double zoom = 1.0;
         bool gridlines = true, headings = true;
         bool valid = false;
@@ -52,6 +53,17 @@ public:
     void setShowHeadings(bool on);
     // The first rows and columns held in place, now (a view change, not saved).
     void setFrozen(qint64 rows, qint64 cols);
+    // Freezes as people expect: the rows from the first one in view down to (but not including) `row` stay in place, and the columns from the first in view to `col`; rows and columns
+    // scrolled out of sight before them stay out of sight, and the part that scrolls begins at `row` and `col`. A row at or above the first in view freezes no rows (and the sheet is
+    // left scrolled as it was); likewise columns.
+    void freezeAt(qint64 row, qint64 col);
+    // Freezes the first row in view (and keeps the columns frozen), the first column in view (and keeps the rows), or lets everything go (the sheet stays scrolled as it was).
+    void freezeTopRow();
+    void freezeFirstColumn();
+    void unfreeze();
+    // The first row and column that are shown in the grid's top left: the frozen part's, or if there is none the part that scrolls's.
+    qint64 firstRowInView() const;
+    qint64 firstColInView() const;
 
     const Selection &selection() const { return m_selection; }
     void setSelection(const Selection &s);
@@ -77,7 +89,11 @@ public:
     bool ensureVisible(qint64 row, qint64 col);
     // The shown rows that are whole in the part of the grid that scrolls (at least one): what Page Down moves by.
     int wholeRowsInView() const;
-    void invalidateValues();   // values (or formats) changed: draw again
+    void invalidateValues();
+    // Values the calculation worked out for cells of a sheet were put in the store the grid reads: when the sheet is the one in view, the texts of those cells are made again and the
+    // part of the screen they are in is drawn again (the whole of it, if there are many), and the numbers of the selection are worked out again if one of them is in it. True if
+    // the cell with the cursor is one of them (what the formula bar says of it is new). Cost is in proportion to the items.
+    bool valuesChanged(int sheetIndex, const std::vector<ValueStore::Item> &items);   // values (or formats) changed: draw again
 
     // For measuring: the time of each paint, in milliseconds, since the last clear; and the work the last paint did.
     const std::vector<double> &paintTimes() const { return m_paintTimes; }

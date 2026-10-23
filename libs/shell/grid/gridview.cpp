@@ -77,6 +77,8 @@ GridView::ViewState GridView::viewState() const
     v.scrollY = m_sheet.layout().scrollY();
     v.frozenRows = m_sheet.layout().frozenRows();
     v.frozenCols = m_sheet.layout().frozenCols();
+    v.skipRows = m_sheet.layout().skippedRows();
+    v.skipCols = m_sheet.layout().skippedCols();
     v.zoom = zoom();
     v.gridlines = m_gridlines;
     v.headings = m_headings;
@@ -91,6 +93,7 @@ void GridView::setViewState(const ViewState &v)
     m_gridlines = v.gridlines;
     m_headings = v.headings;
     L.setZoom(v.zoom);
+    L.setSkipped(v.skipRows, v.skipCols);
     L.setFrozen(v.frozenRows, v.frozenCols);
     L.setScroll(v.scrollX, v.scrollY);
     // (clamped to the sheet it is now: a sheet read whole may have fewer rows than the one the state was made for, never more than a sheet can have)
@@ -286,11 +289,100 @@ void GridView::setFrozen(qint64 rows, qint64 cols)
     layoutChanged();
 }
 
+qint64 GridView::firstRowInView() const
+{
+    const GridLayout &L = m_sheet.layout();
+    const qint64 first = L.rows.nextVisible(-1);
+    if (first < L.frozenRows()) return first;   // (the frozen rows are the top of the view)
+    const qint64 top = L.rows.indexAt(L.rows.position(L.frozenRows()) + L.scrollY());
+    return top >= 0 ? top : L.rows.lastVisible();
+}
+
+qint64 GridView::firstColInView() const
+{
+    const GridLayout &L = m_sheet.layout();
+    const qint64 first = L.cols.nextVisible(-1);
+    if (first < L.frozenCols()) return first;
+    const qint64 left = L.cols.indexAt(L.cols.position(L.frozenCols()) + L.scrollX());
+    return left >= 0 ? left : L.cols.lastVisible();
+}
+
+void GridView::freezeAt(qint64 row, qint64 col)
+{
+    GridLayout &L = m_sheet.layout();
+    // where the view begins now (before what is frozen is changed)
+    const qint64 viewTop = firstRowInView(), viewLeft = firstColInView();
+    const bool rowsFrozen = row > viewTop, colsFrozen = col > viewLeft;
+    L.setFrozen(0, 0);
+    L.setSkipped(0, 0);
+    L.setSkipped(rowsFrozen ? viewTop : 0, colsFrozen ? viewLeft : 0);
+    L.setFrozen(rowsFrozen ? row : 0, colsFrozen ? col : 0);
+    // the part that scrolls begins at the cell (the frozen part ends there), or where the view was when nothing is frozen in that direction
+    const qint64 bodyRow = rowsFrozen ? row : viewTop, bodyCol = colsFrozen ? col : viewLeft;
+    L.setScroll(L.cols.position(bodyCol) - L.cols.position(L.frozenCols()), L.rows.position(bodyRow) - L.rows.position(L.frozenRows()));
+    layoutChanged();
+}
+
+void GridView::freezeTopRow()
+{
+    const GridLayout &L = m_sheet.layout();
+    const qint64 keptCols = L.frozenCols() > L.skippedCols() ? L.frozenCols() : 0;
+    freezeAt(L.rows.nextVisible(firstRowInView()), keptCols);
+}
+
+void GridView::freezeFirstColumn()
+{
+    const GridLayout &L = m_sheet.layout();
+    const qint64 keptRows = L.frozenRows() > L.skippedRows() ? L.frozenRows() : 0;
+    freezeAt(keptRows, L.cols.nextVisible(firstColInView()));
+}
+
+void GridView::unfreeze() { freezeAt(0, 0); }
+
 void GridView::invalidateValues()
 {
     m_sheet.invalidateTexts();
     viewport()->update();
     startStats();
+}
+
+bool GridView::valuesChanged(int sheetIndex, const std::vector<ValueStore::Item> &items)
+{
+    if (sheetIndex != m_sheet.data().sheetIndex) return false;
+    const GridLayout &L = m_sheet.layout();
+    struct Part {
+        Pane pane;
+        PaneView view;
+    };
+    std::vector<Part> parts;
+    for (Pane p : {Pane::Corner, Pane::Top, Pane::Left, Pane::Body}) {
+        const PaneView v = L.pane(p);
+        if (!v.isEmpty()) parts.push_back({p, v});
+    }
+    const GridRange &sel = m_selection.range;
+    bool active = false, inSelection = false, all = false;
+    int visible = 0;
+    QRegion dirty;
+    for (const ValueStore::Item &it : items) {
+        if (it.sheet != sheetIndex) continue;
+        m_sheet.invalidateText(it.row, it.col);
+        if (qint64(it.row) == m_selection.activeRow && qint64(it.col) == m_selection.activeCol) active = true;
+        if (qint64(it.row) >= sel.row1 && qint64(it.row) <= sel.row2 && qint64(it.col) >= sel.col1 && qint64(it.col) <= sel.col2) inSelection = true;
+        if (all) continue;
+        for (const Part &p : parts) {
+            if (qint64(it.row) < p.view.firstRow || qint64(it.row) > p.view.lastRow || qint64(it.col) < p.view.firstCol || qint64(it.col) > p.view.lastCol) continue;
+            // (the strip of the part that the row crosses: text may run into the cells beside it)
+            if (++visible > 200) {
+                all = true;
+                break;
+            }
+            dirty += L.rangeRectIn(p.pane, it.row, p.view.firstCol, it.row, p.view.lastCol) & p.view.rect;
+        }
+    }
+    if (all) viewport()->update();
+    else if (!dirty.isEmpty()) viewport()->update(dirty);
+    if (inSelection) startStats();
+    return active;
 }
 
 // ---- the selection

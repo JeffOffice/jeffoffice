@@ -29,6 +29,13 @@ void GridLayout::setFrozen(qint64 r, qint64 c)
     setScroll(m_scrollX, m_scrollY);
 }
 
+void GridLayout::setSkipped(qint64 r, qint64 c)
+{
+    rows.setSkipped(r);
+    cols.setSkipped(c);
+    setScroll(m_scrollX, m_scrollY);
+}
+
 qint64 GridLayout::maxScrollX() const
 {
     const qint64 last = cols.lastVisible();
