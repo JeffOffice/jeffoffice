@@ -2335,12 +2335,12 @@ QByteArray PubWriter::write(QStringList *skipped)
             }
         }
     }
-    if (skipped && skippedCount) *skipped << QCoreApplication::translate("Export", "%1 object(s) couldn't be saved to .pub").arg(skippedCount);
-    if (skipped && droppedCells) *skipped << QCoreApplication::translate("Export", "%1 table cell(s) couldn't be saved to .pub").arg(droppedCells);
+    if (skipped && skippedCount) *skipped << QCoreApplication::translate("Export", "%n object(s) couldn't be saved to .pub", nullptr, skippedCount);
+    if (skipped && droppedCells) *skipped << QCoreApplication::translate("Export", "%n table cell(s) couldn't be saved to .pub", nullptr, droppedCells);
     if (skipped && droppedHalves)
-        *skipped << QCoreApplication::translate("Export", "the second half of %1 divided table cell(s) couldn't be saved to .pub").arg(droppedHalves);
+        *skipped << QCoreApplication::translate("Export", "the second half of %n divided table cell(s) couldn't be saved to .pub", nullptr, droppedHalves);
     if (skipped && droppedFormats)
-        *skipped << QCoreApplication::translate("Export", "%1 table border(s), shading(s), or diagonal(s) couldn't be saved to .pub").arg(droppedFormats);
+        *skipped << QCoreApplication::translate("Export", "%n table border(s), shading(s), or diagonal(s) couldn't be saved to .pub", nullptr, droppedFormats);
     // An object set in text says so (03) and gives its number (0f), with 34
     // = 0, as in Publisher's files (Oct 7); an index lists each number's
     // story and object.

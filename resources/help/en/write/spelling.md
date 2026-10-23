@@ -5,7 +5,7 @@ JeffWrite checks your spelling as you type. A word that is not in the dictionary
 
 ## While you type
 
-- A red wavy line means the dictionary does not have the word. The word may still be right. Names and new words are often missing.
+- A red wavy line means the dictionary does not have the word. The word may still be right. Names and new words are often missing. The names of the JeffOffice apps (JeffWrite, JeffPub, JeffDeck, JeffOffice, JeffCrunch, JeffMail, and JeffBase) and LLC are never marked, in any language, with or without an 's.
 - The word you are typing is left alone until you move on, so a half-typed word does not flicker.
 - The lines show on the screen only. They never print, and they never go into a PDF.
 
@@ -42,7 +42,7 @@ The 12 dictionaries are English (American, British, Canadian, and Australian), S
 
 ## What is not checked yet
 
-Red lines do not show in tables, headers, footers, or notes yet. The Spelling pane does check the text in tables.
+Red lines show in the text and in the cells of tables. They do not show in headers, footers, notes, or text boxes yet, and the Spelling pane does not check them.
 
 ## Related
 

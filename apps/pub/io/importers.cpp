@@ -648,7 +648,7 @@ void mergeToEmailFiles(QWidget *parent, Editor *ed)
         QFile f(QDir(dir).filePath(safe + ".eml"));
         if (f.open(QIODevice::WriteOnly)) { f.write(eml.toUtf8()); ++n; }
     }
-    QMessageBox::information(parent, QCoreApplication::translate("Import", "Merge to Email"), QCoreApplication::translate("Import", "Created %1 email file(s) in %2.").arg(n).arg(dir));
+    QMessageBox::information(parent, QCoreApplication::translate("Import", "Merge to Email"), QCoreApplication::translate("Import", "Created %n email file(s) in %1.", nullptr, n).arg(dir));
 }
 
 std::unique_ptr<Document> loadAnyPublication(const QString &path, QString *error)

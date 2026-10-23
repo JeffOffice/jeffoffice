@@ -186,7 +186,7 @@ void packAndGo(QWidget *parent, MainWindow *win, bool forPrinter)
         QMessageBox::warning(parent, QCoreApplication::translate("Sharing", "Pack and Go"), err);
         return;
     }
-    QMessageBox::information(parent, QCoreApplication::translate("Sharing", "Pack and Go"), QCoreApplication::translate("Sharing", "Saved %1 with the publication and %2 font file(s).").arg(QFileInfo(path).fileName()).arg(fonts));
+    QMessageBox::information(parent, QCoreApplication::translate("Sharing", "Pack and Go"), QCoreApplication::translate("Sharing", "Saved %1 with the publication and %n font file(s).", nullptr, fonts).arg(QFileInfo(path).fileName()));
 }
 
 void saveForPhotoPrinter(QWidget *parent, MainWindow *win)
@@ -204,7 +204,7 @@ void saveForPhotoPrinter(QWidget *parent, MainWindow *win)
         img.setDotsPerMeterY(11811);
         img.save(QDir(dir).filePath(QStringLiteral("%1-page%2.jpg").arg(ed->displayName()).arg(i + 1)), "JPG", 95);
     }
-    QMessageBox::information(parent, QCoreApplication::translate("Sharing", "Save for a Photo Printer"), QCoreApplication::translate("Sharing", "Saved %1 picture(s) at 300 dpi.").arg(ed->doc()->pages.size()));
+    QMessageBox::information(parent, QCoreApplication::translate("Sharing", "Save for a Photo Printer"), QCoreApplication::translate("Sharing", "Saved %n picture(s) at 300 dpi.", nullptr, int(ed->doc()->pages.size())));
 }
 
 void saveAsTemplate(QWidget *parent, MainWindow *win)

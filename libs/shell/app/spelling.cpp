@@ -33,11 +33,32 @@ Speller::Rules Speller::rules()
     return r;
 }
 
+namespace {
+
+// The names of the suite's own apps and of the company, right in every language and every app: no dictionary lists them. A name is right as it is written,
+// in capitals, and with a possessive ("JeffWrite's", "JEFFWRITE'S"); "JeffOffice LLC" is two words to the checker.
+bool isOwnName(QString w)
+{
+    static const QSet<QString> names = [] {
+        QSet<QString> set;
+        for (const char *n : {"JeffWrite", "JeffPub", "JeffDeck", "JeffOffice", "JeffCrunch", "JeffMail", "JeffBase", "LLC"}) {
+            set.insert(QString::fromLatin1(n));
+            set.insert(QString::fromLatin1(n).toUpper());
+        }
+        return set;
+    }();
+    // (A name in capitals has its possessive in capitals: "JEFFWRITE'S".)
+    if (w.size() > 2 && (w.endsWith(QLatin1String("'s"), Qt::CaseInsensitive) || w.endsWith(QString(QChar(0x2019)) + QLatin1Char('s'), Qt::CaseInsensitive))) w.chop(2);
+    return names.contains(w);
+}
+
+} // namespace
+
 bool Speller::check(const QString &code, const QString &w) { return check(code, w, rules()); }
 
 bool Speller::check(const QString &code, const QString &w, const Rules &r)
 {
-    if (w.isEmpty()) return true;
+    if (w.isEmpty() || isOwnName(w)) return true;
     if (m_ignore.contains(w.toLower()) || m_custom.contains(w) || m_custom.contains(w.toLower())) return true;
     if (r.ignoreUpper && w == w.toUpper() && w.size() > 1) return true;
     if (r.ignoreNumbers && std::any_of(w.cbegin(), w.cend(), [](QChar c) { return c.isDigit(); })) return true;

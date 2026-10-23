@@ -31,6 +31,7 @@
 #include "render/renderer.h"
 #include "rtcheck.h"
 #include "app/spelling.h"
+#include "text/dictionaries.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 #include "io/zip.h"
@@ -59,6 +60,7 @@
 #include <QStandardPaths>
 #include <QSpinBox>
 #include <QTimer>
+#include <QTranslator>
 #include <QElapsedTimer>
 #include <QDir>
 #include <QDirIterator>
@@ -1540,6 +1542,21 @@ private Q_SLOTS:
         QVERIFY2(!start.contains(QLatin1String("Headers, footers, and page numbers are not shown")), "headers and footers are drawn now");
     }
 
+    // The welcome topic says what this version does and does not do: it shows tables, headers and footers, notes, pictures, shapes, and text boxes, reads .doc files, and lays out sections
+    // that go on the same page (none of which it used to say), and it does not say the old things. The topics on opening and on spelling say the same.
+    void theWelcomeTopicSaysWhatThisVersionDoesAndDoesNotDo()
+    {
+        const QString start = jp::help::topic(QStringLiteral("start")).markdown;
+        for (const char *stale : {"Tables are not shown", "Pictures, shapes, and text boxes are not shown", "show their numbers, but not their text", "open or save .doc", "start a new page instead", "**[picture]**"})
+            QVERIFY2(!start.contains(QLatin1String(stale)), stale);
+        for (const char *now : {".doc, and .dot", "tables, headers and footers, footnotes and endnotes, pictures", "continue on the same page", "Tab", "no ruler"})
+            QVERIFY2(start.contains(QLatin1String(now)), now);
+        QVERIFY(jp::help::topic(QStringLiteral("open-save")).markdown.contains(QLatin1String("**.doc**")));
+        const QString spelling = jp::help::topic(QStringLiteral("spelling")).markdown;
+        QVERIFY2(!spelling.contains(QLatin1String("not show in tables")), "red lines show in a table's cells");
+        QVERIFY(spelling.contains(QLatin1String("JeffWrite, JeffPub")));
+    }
+
     // Over characters that differ in font, style, size, color, or underline, the boxes show nothing; whatever is set then goes to all of them, also what the first
     // characters have.
     void aFontBoxOverSelectionsThatDifferShowsNothingAndWhatIsSetGoesToAll()
@@ -2774,6 +2791,34 @@ private Q_SLOTS:
         QTRY_VERIFY((redBounds(view.grab().toImage(), view.pageRect(0), &count), count > 8));
     }
 
+    // Red lines show under the misspelled words of a table's cells, as under those of the paragraphs; the words of a header are not underlined yet.
+    void misspelledWordsInATableCellAreUnderlinedAndThoseInAHeaderAreNot()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray cell = "<w:tbl><w:tblPr><w:tblW w:w=\"6000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"6000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"6000\" w:type=\"dxa\"/></w:tcPr>"
+                                "<w:p><w:r><w:t>Alpha brwon gamma</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>after</w:t></w:r></w:p>";
+        const QByteArray header = headerPart("hdr", {"<w:r><w:t>Alpha brwon gamma</w:t></w:r>"});
+        auto redIn = [&](const QByteArray &body, const QMap<QString, QByteArray> &parts) {
+            auto doc = open(makeDocxWithParts(body, sect, parts));
+            if (!doc) return -1;
+            PageView view;
+            view.resize(1000, 700);
+            view.setDocument(doc.get());
+            view.show();
+            int count = 0;
+            for (int i = 0; i < 20 && count == 0; ++i) {   // (checked as the page is drawn, or a moment after)
+                redBounds(view.grab().toImage(), view.pageRect(0), &count);
+                QTest::qWait(20);
+            }
+            return count;
+        };
+        const int inCell = redIn(cell, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>plain words</w:t></w:r>"})}});
+        QVERIFY2(inCell > 8, qPrintable(QStringLiteral("%1 red pixels under the misspelled word of a table's cell").arg(inCell)));
+        const int inHeader = redIn("<w:p><w:r><w:t>after</w:t></w:r></w:p>", {{QStringLiteral("/word/header1.xml"), header}});
+        QCOMPARE(inHeader, 0);
+    }
+
     void aWordStillBeingTypedIsNotUnderlinedUntilTheCaretMovesOn()
     {
         auto doc = textDoc({""});
@@ -3236,6 +3281,134 @@ private Q_SLOTS:
         QString third;
         QVERIFY(!spellingAdd(QStringLiteral("qzxfailthree"), &third));
         QVERIFY(!third.isEmpty());
+    }
+
+    // The suite's own names are right in every language the checker has, with a possessive, whatever the options let go; a typo beside a name is still flagged.
+    void theNamesOfTheSuiteAreNeverFlaggedInAnyLanguage()
+    {
+        const QStringList names = {QStringLiteral("JeffWrite"), QStringLiteral("JeffPub"),    QStringLiteral("JeffDeck"), QStringLiteral("JeffOffice"),
+                                   QStringLiteral("JeffCrunch"), QStringLiteral("JeffMail"), QStringLiteral("JeffBase"), QStringLiteral("LLC")};
+        QVERIFY(dict::languages().size() >= 12);
+        for (const dict::Language &l : dict::languages()) {
+            for (const bool upper : {false, true}) {
+                Speller::Rules rules;
+                rules.ignoreUpper = upper;
+                rules.ignoreNumbers = false;
+                for (const QString &name : names)
+                    for (const QString &form : {name, name + QStringLiteral("'s"), name + QChar(0x2019) + QLatin1Char('s'), name.toUpper() + QStringLiteral("'S"), name.toUpper() + QChar(0x2019) + QLatin1Char('S'),
+                                                name + QStringLiteral("'S")})   // (the possessive of a name in capitals is in capitals)
+                        QVERIFY2(Speller::get().check(l.code, form, rules), qPrintable(l.code + QLatin1Char(' ') + form + (upper ? " (capitals let go)" : "")));
+            }
+            // In a paragraph, as the checker as you type reads it.
+            QTextDocument doc;
+            doc.setPlainText(names.join(QLatin1Char(' ')) + QStringLiteral(" JeffWrite's, JeffPub\u2019s."));
+            QVERIFY2(misspellingsIn(doc.begin(), l.code).isEmpty(), qPrintable(l.code));
+        }
+        // Only the names are let through: a word that is not one, and a name misspelled, are still wrong.
+        QTextDocument doc;
+        doc.setPlainText(QStringLiteral("JeffWritee Jeffoffice qzxqzx"));
+        QCOMPARE(int(misspellingsIn(doc.begin(), QStringLiteral("en-US")).size()), 3);
+    }
+
+    // English gets "1 word" and "652 words" from the suite's own plural file, not the "(s)" of the source text.
+    void theWordCountSaysWordAndWordsInEnglish()
+    {
+        QTranslator english;
+        if (!english.load(QStringLiteral(":/i18n/jeffoffice_en.qm"))) QSKIP("the translations are not built into this build");
+        QCoreApplication::installTranslator(&english);
+        struct Remove {
+            QTranslator *t;
+            ~Remove() { QCoreApplication::removeTranslator(t); }
+        } remove{&english};
+        WriteWindow w;
+        w.show();
+        QLabel *label = w.findChild<QLabel *>(QStringLiteral("wordCount"));
+        QVERIFY(label);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("one"));
+        QTRY_COMPARE(label->text(), QStringLiteral("1 word"));
+        QString more;
+        for (int i = 1; i < 652; ++i) more += QStringLiteral(" word");
+        typeText(*w.document(), w.view()->cursor(), more);
+        QTRY_COMPARE(label->text(), QStringLiteral("652 words"));
+    }
+
+    // Every text that counts (%n) has its two English forms in the context the program asks for it in, and no count on screen is worded with "(s)" and an argument, which has no forms at
+    // all. (The context is the one a call of translate() names, or the class that tr() belongs to: the class of the function the call is in, or the one that names it, in the namespaces
+    // around it. A form kept under another context is never found, and the text is shown with its marker.)
+    void countedTextHasItsEnglishFormsAndNoneIsLeftAsPluralMarker()
+    {
+        QHash<QString, QStringList> forms;   // (by context, a tab, and the text)
+        QFile ts(QStringLiteral(JW_SOURCE_DIR "/translations/jeffoffice_en.ts"));
+        QVERIFY(ts.open(QIODevice::ReadOnly));
+        QXmlStreamReader xml(&ts);
+        QString context, source;
+        QStringList got;
+        bool inMessage = false;
+        while (!xml.atEnd()) {
+            xml.readNext();
+            if (xml.isStartElement() && xml.name() == QLatin1String("message")) {
+                source.clear();
+                got.clear();
+                inMessage = true;
+            } else if (xml.isStartElement() && xml.name() == QLatin1String("name") && !inMessage) {
+                context = xml.readElementText();
+            } else if (xml.isStartElement() && xml.name() == QLatin1String("source")) {
+                source = xml.readElementText();
+            } else if (xml.isStartElement() && xml.name() == QLatin1String("numerusform")) {
+                got << xml.readElementText();
+            } else if (xml.isEndElement() && xml.name() == QLatin1String("message")) {
+                if (!got.isEmpty()) forms.insert(context + QLatin1Char('\t') + source, got);
+                inMessage = false;
+            }
+        }
+        QVERIFY(!xml.hasError());
+        QStringList problems;
+        int counted = 0;
+        static const QRegularExpression literal(QStringLiteral("(?:\\b(\\w+(?:::\\w+)*)::)?\\b(translate|tr)\\(\\s*(?:\"((?:[^\"\\\\\\n]|\\\\.)*)\"\\s*,\\s*)?\"((?:[^\"\\\\\\n]|\\\\.)*)\""));
+        static const QRegularExpression marker(QStringLiteral("[A-Za-z]\\((s|es)\\)"));
+        static const QRegularExpression opens(QStringLiteral("^namespace\\s*([\\w:]*)\\s*\\{")), closes(QStringLiteral("^\\}\\s*(//\\s*)?namespace\\b"));
+        static const QRegularExpression definition(QStringLiteral("^[A-Za-z_][^\\n(;]*?\\b([A-Za-z_]\\w*(?:::[A-Za-z_]\\w*)*)::~?[A-Za-z_]\\w*\\s*\\("));
+        auto unescaped = [](QString t) { return t.replace(QStringLiteral("\\\""), QStringLiteral("\"")).replace(QStringLiteral("\\\\"), QStringLiteral("\\")); };
+        static const QRegularExpression classHead(QStringLiteral("^(?:class|struct)\\s+(\\w+)\\b[^;]*$"));
+        // The class a tr() at `at` belongs to, with the namespaces open there: the one whose body at the left margin it is in, or of the function definition at the left margin before it.
+        auto classOf = [&](const QString &text, qsizetype at, const QString &named) {
+            QStringList spaces;
+            QString function, body;
+            for (const QString &line : text.left(at).split(QLatin1Char('\n'))) {
+                if (const auto m = opens.match(line); m.hasMatch()) spaces << m.captured(1);
+                else if (closes.match(line).hasMatch() && !spaces.isEmpty()) spaces.removeLast();
+                else if (const auto m = classHead.match(line); m.hasMatch()) body = m.captured(1);
+                else if (line.startsWith(QStringLiteral("};"))) body.clear();
+                else if (const auto m = definition.match(line); m.hasMatch()) function = m.captured(1);
+            }
+            spaces.removeAll(QString());
+            return (spaces + QStringList{!named.isEmpty() ? named : !body.isEmpty() ? body : function}).join(QStringLiteral("::"));
+        };
+        for (const char *dir : {"/apps", "/libs"}) {
+            QDirIterator it(QStringLiteral(JW_SOURCE_DIR) + QLatin1String(dir), {QStringLiteral("*.cpp")}, QDir::Files, QDirIterator::Subdirectories);
+            while (it.hasNext()) {
+                QFile f(it.next());
+                if (!f.open(QIODevice::ReadOnly)) continue;
+                const QString text = QString::fromUtf8(f.readAll());
+                for (auto m = literal.globalMatch(text); m.hasNext();) {
+                    const QRegularExpressionMatch call = m.next();
+                    const QString s = unescaped(call.captured(4));
+                    const bool translate = call.captured(2) == QLatin1String("translate");
+                    if (translate != call.hasCaptured(3)) continue;   // (translate() names its context; tr() does not)
+                    if (s.contains(QStringLiteral("%n"))) {
+                        ++counted;
+                        const QString where = translate ? unescaped(call.captured(3)) : classOf(text, call.capturedStart(), call.captured(1));
+                        const QStringList f2 = forms.value(where + QLatin1Char('\t') + s);
+                        if (f2.size() != 2 || f2[0].isEmpty() || f2[1].isEmpty() || !f2[0].contains(QStringLiteral("%n")) || !f2[1].contains(QStringLiteral("%n")) || f2[0].contains(marker) || f2[1].contains(marker))
+                            problems << QStringLiteral("no English forms in %1: ").arg(where) + s.left(60);
+                    } else if (s.contains(marker)) {
+                        problems << QStringLiteral("counts with (s), not %n: ") + s.left(60);
+                    }
+                }
+            }
+        }
+        QVERIFY2(counted >= 19, qPrintable(QStringLiteral("%1 counted texts were found in the sources").arg(counted)));
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QLatin1Char('\n'))));
     }
 
     void rightClickingInsideASelectionOffersTheWordClickedNotTheCaret()
@@ -5245,6 +5418,91 @@ private Q_SLOTS:
             const double advance = with[1].first - without[0].first, wanted = widths->value(c.picture) * 11.5;
             QVERIFY2(std::abs(advance - wanted) < 0.8, qPrintable(QStringLiteral("%1: the symbol takes %2 points, the font's picture is %3").arg(font).arg(advance).arg(wanted)));
         }
+    }
+
+    // The result of a field that is nothing but blanks (a reference to a form field with no text in it) is shown as the file has it, but takes no part in its line's height, whatever size
+    // its run is in; blanks that are no field's result count as they did.
+    void aFieldResultOfBlanksTakesNoPartInTheLineHeight()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray none = "<w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/></w:pPr>";
+        auto props = [](int halfPoints) { return "<w:rPr><w:rFonts w:ascii=\"Arial\" w:hAnsi=\"Arial\"/><w:sz w:val=\"" + QByteArray::number(halfPoints) + "\"/></w:rPr>"; };
+        // The height of the line of a small text with four blanks in it, as a field's result in a run of `blanks` half points, or as plain text.
+        auto lineHeight = [&](int blanks, bool inField) {
+            QByteArray body = "<w:p>" + none + "<w:r>" + props(14) + "<w:t xml:space=\"preserve\">at </w:t></w:r>";
+            if (inField)
+                body += "<w:r>" + props(14) + "<w:fldChar w:fldCharType=\"begin\"/></w:r><w:r>" + props(14) + "<w:instrText xml:space=\"preserve\"> REF dropdown23 \\* MERGEFORMAT </w:instrText></w:r><w:r>" +
+                        props(14) + "<w:fldChar w:fldCharType=\"separate\"/></w:r><w:r>" + props(blanks) + "<w:t xml:space=\"preserve\">    </w:t></w:r><w:r>" + props(14) + "<w:fldChar w:fldCharType=\"end\"/></w:r>";
+            else
+                body += "<w:r>" + props(blanks) + "<w:t xml:space=\"preserve\">    </w:t></w:r>";
+            body += "<w:r>" + props(14) + "<w:t xml:space=\"preserve\"> Plant Location</w:t></w:r></w:p>";
+            auto doc = open(makeDocx(body, kStyles, QByteArray(), sect));
+            if (!doc) return -1.0;
+            const auto lines = doc->pager().lines(0);
+            return lines.isEmpty() ? -1.0 : lines.first().rect.height();
+        };
+        const double small = lineHeight(14, true), big = lineHeight(40, true);
+        QVERIFY(small > 0 && big > 0);
+        QVERIFY2(std::abs(big - small) < 0.01, qPrintable(QStringLiteral("the line is %1 points with the blanks of a field in 20 point type, %2 in 7 point").arg(big).arg(small)));
+        // Not in a field, the same blanks make the line as tall as their size does.
+        QVERIFY(lineHeight(40, false) > small + 5);
+    }
+
+    // Blanks typed right after the blanks that are a reference's result are the typist's own: they count in the line's height as blanks typed anywhere do. (They took the result's mark of
+    // taking no part in it, and a line of spaces typed there stayed as short as the field's.) The saved file has them as plain text, and the mark is no part of it.
+    void blanksTypedAfterABlankFieldResultCountInTheLineHeight()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray none = "<w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/></w:pPr>";
+        auto props = [](int halfPoints) { return "<w:rPr><w:rFonts w:ascii=\"Arial\" w:hAnsi=\"Arial\"/><w:sz w:val=\"" + QByteArray::number(halfPoints) + "\"/></w:rPr>"; };
+        const QByteArray body = "<w:p>" + none + "<w:r>" + props(14) + "<w:t xml:space=\"preserve\">at </w:t></w:r><w:r>" + props(14) + "<w:fldChar w:fldCharType=\"begin\"/></w:r><w:r>" + props(14) +
+                                "<w:instrText xml:space=\"preserve\"> REF dropdown23 \\* MERGEFORMAT </w:instrText></w:r><w:r>" + props(14) + "<w:fldChar w:fldCharType=\"separate\"/></w:r><w:r>" +
+                                props(40) + "<w:t xml:space=\"preserve\">    </w:t></w:r><w:r>" + props(14) + "<w:fldChar w:fldCharType=\"end\"/></w:r><w:r>" + props(14) +
+                                "<w:t xml:space=\"preserve\"> Plant Location</w:t></w:r></w:p>";
+        auto height = [](WriteDoc &doc) {
+            const auto lines = doc.pager().lines(0);
+            return lines.isEmpty() ? -1.0 : lines.first().rect.height();
+        };
+        auto doc = open(makeDocx(body, kStyles, QByteArray(), sect));
+        QVERIFY(doc);
+        const double small = height(*doc);
+        QVERIFY(small > 0);
+        QTextCursor c(doc->story());
+        c.setPosition(int(doc->story()->toPlainText().indexOf(QStringLiteral(" Plant"))));
+        typeText(*doc, c, QStringLiteral("    "));
+        const double typed = height(*doc);
+        QVERIFY2(typed > small + 5, qPrintable(QStringLiteral("the line is %1 points with four blanks typed after the field's, %2 without").arg(typed).arg(small)));
+        // The file has the blanks as text, and when it is opened again they are as tall.
+        const QByteArray saved = doc->toDocx();
+        auto again = open(saved);
+        QVERIFY(again);
+        QVERIFY2(std::abs(height(*again) - typed) < 0.01, qPrintable(QStringLiteral("%1 points when opened again, %2 before").arg(height(*again)).arg(typed)));
+    }
+
+    // A style that has no styleId is the one its name names, as a paragraph that asks for it by that name finds it (a file whose style sheet was written by a program that left the id out:
+    // the reference sets such a paragraph in the 1 point type the style gives it).
+    void aStyleWithNoIdIsFoundByItsName()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray styles = kStyles + "<w:style><w:name w:val=\"TinyCellLayout\"/><w:basedOn w:val=\"Normal\"/><w:rPr><w:sz w:val=\"2\"/></w:rPr></w:style>";
+        auto lineHeight = [&](const QByteArray &style) {
+            const QByteArray body = "<w:p><w:pPr>" + style + "<w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/></w:pPr></w:p>";
+            auto doc = open(makeDocx(body, styles, QByteArray(), sect));
+            if (!doc) return -1.0;
+            const auto lines = doc->pager().lines(0);
+            return lines.isEmpty() ? -1.0 : lines.first().rect.height();
+        };
+        const double tiny = lineHeight("<w:pStyle w:val=\"TinyCellLayout\"/>"), plain = lineHeight(QByteArray());
+        QVERIFY(tiny > 0 && plain > 0);
+        QVERIFY2(tiny < plain / 3, qPrintable(QStringLiteral("the line is %1 points in the style the name names, %2 in no style").arg(tiny).arg(plain)));
+        // Saved, the style is as the file had it, with no id written for it.
+        auto doc = open(makeDocx("<w:p><w:pPr><w:pStyle w:val=\"TinyCellLayout\"/></w:pPr></w:p>", styles, QByteArray(), sect));
+        QVERIFY(doc);
+        office::Package saved;
+        QVERIFY(saved.read(doc->toDocx()));
+        const QByteArray out = saved.part(QStringLiteral("/word/styles.xml"));
+        QVERIFY(out.contains("<w:style><w:name w:val=\"TinyCellLayout\"/>"));
+        QVERIFY(!out.contains("w:styleId=\"TinyCellLayout\""));
     }
 
     // A symbol sets the line as its own font does: a line with a big diamond of Symbol is as tall as Symbol makes it, not as the run's font does.

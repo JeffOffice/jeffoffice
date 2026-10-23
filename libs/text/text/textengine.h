@@ -409,6 +409,16 @@ public:
     // How many ranges of format (the pieces Qt shapes and looks a font up for, at each line) the paragraphs' layouts were given since the program began: a cost test, for runs that have
     // the format of the run before them, or show no letters, are no ranges of their own.
     static qint64 formatRangesMadeForTest();
+    // How many paragraph layouts were set to break a line anywhere because the text they hold has no place to break one, and how many default stops were listed for Qt's tabs as left
+    // stops (a left stop makes Qt read the rest of the paragraph for every tab that one answers: a word processor's default stops are listed as stops that do not), since the program
+    // began: cost tests.
+    static qint64 unbreakableParagraphsForTest();
+    static qint64 defaultTabStopsListedForTest();
+    // How many default stops of either kind a word processor's lines were given for Qt's tabs since the program began (none for a paragraph set right to left, whose tabs are Qt's own).
+    static qint64 defaultTabStopsMadeForTest();
+    // How many runs of paragraphs were passed over by a layout (or a count) to reach the place in a paragraph that a page begins at, or to look for what a paragraph's runs say of their tabs,
+    // since the program began: a cost test, for a paragraph of hundreds of thousands of runs over hundreds of pages passes each run a few times in all, not once for each page.
+    static qint64 runsPassedForTest();
     // The most paragraphs that were laid out as one, for the marks between them being hidden (a word processor's deleted paragraph marks): a cost test, for a run of such paragraphs is
     // cut into paragraphs of at most kMostJoinedParagraphs.
     static qint64 longestJoinedParagraphsForTest();
@@ -614,6 +624,15 @@ private:
     qint64 m_left = 0;
     bool m_owner = false;
 };
+// The run (fragment) of a paragraph that holds a place in it, found for a page that begins there: a paragraph of hundreds of thousands of runs over hundreds of pages would otherwise pass
+// every run before the place for each page. Where a search for a place in the same paragraph (of the same version of the text) ended, at or before this place, is kept, and the search goes
+// on from there. `it` is at the run (at its end if no run of the paragraph holds the place), `begin` is where the run begins, a document position.
+struct RunSeek {
+    QTextBlock::iterator it;
+    int begin = 0;
+};
+RunSeek findRun(const QTextBlock &block, int position);
+
 // How many pictures of effects have been made (not taken from those kept), for tests.
 int effectPicturesBuiltForTest();
 
