@@ -82,19 +82,53 @@ private Q_SLOTS:
         CHECK_EVALS(cases, Grid(), Settings());
     }
 
-    // A logical or a text in a reference is not a flow: IRR and XIRR leave it out, as they do from an array (a logical is not counted as 1).
+    // A logical or a text in a reference is not a flow: IRR leaves it out, as it does from an array (a logical is not counted as 1).
     void referencesIgnoreLogicalsAndText()
     {
         Grid g;
         g.n("C1", -10).b("C2", true).n("C3", 20);
         g.n("D1", -10).s("D2", "x").n("D3", 20);
-        g.n("E1", -100).b("E2", true).n("E3", 110);
-        g.n("F1", 40000).b("F2", true).n("F3", 40365);
         const E cases[] = {
             {"IRR(C1:C3)", "n:1"},
             {"IRR(D1:D3)", "n:1"},
             {"IRR({-10,TRUE,20})", "n:1"},
-            {"ROUND(XIRR(E1:E3,F1:F3),6)", "n:0.1"},
+        };
+        CHECK_EVALS(cases, g, Settings());
+    }
+
+    // XIRR and XNPV take the values and the dates as pairs by position (the n-th value is on the n-th date), whatever the cells hold: an empty cell is 0, a number is a number,
+    // and anything else (a text or a logical, in either) is the error #VALUE! (the dates that are no dates are, in the descriptions of the functions); as many of each, else
+    // #NUM!. A logical in one range and not at that place in the other does not pair a value with the date of another.
+    void valuesAndDatesArePairsByPosition()
+    {
+        Grid g;
+        // values -100, 50, TRUE, 60 and dates 40000, TRUE, 40365, 40730: leaving out the logicals one range at a time would pair 50 with 40365
+        g.n("A1", -100).n("A2", 50).b("A3", true).n("A4", 60);
+        g.n("B1", 40000).b("B2", true).n("B3", 40365).n("B4", 40730);
+        // text in the values (and the same count), and text in the dates
+        g.n("C1", -100).s("C2", "x").n("C3", 110);
+        g.n("D1", 40000).n("D2", 40100).n("D3", 40365);
+        g.n("E1", -100).n("E2", 0).n("E3", 110);
+        g.n("F1", 40000).s("F2", "x").n("F3", 40365);
+        // an empty cell among the values is a flow of nothing; the dates are all there
+        g.n("G1", -100).n("G3", 110);
+        g.n("H1", 40000).n("H2", 40100).n("H3", 40365);
+        // an empty date is the day 0, before the first
+        g.n("I1", -100).n("I2", 5).n("I3", 110);
+        g.n("J1", 40000).n("J3", 40365);
+        const E cases[] = {
+            {"XIRR(A1:A4,B1:B4)", "e:#VALUE!"},
+            {"XNPV(0.1,A1:A4,B1:B4)", "e:#VALUE!"},
+            {"XIRR(C1:C3,D1:D3)", "e:#VALUE!"},
+            {"XNPV(0.1,C1:C3,D1:D3)", "e:#VALUE!"},
+            {"XIRR(E1:E3,F1:F3)", "e:#VALUE!"},
+            {"XNPV(0.1,E1:E3,F1:F3)", "e:#VALUE!"},
+            {"ROUND(XIRR(G1:G3,H1:H3),6)", "n:0.1"},
+            {"ROUND(XNPV(0.1,G1:G3,H1:H3),6)", "n:0"},
+            {"XIRR(I1:I3,J1:J3)", "e:#NUM!"},
+            {"XIRR({-100,50,110},{40000,40365})", "e:#NUM!"},          // as many dates as values
+            {"XIRR({-100,TRUE,110},{40000,40100,40365})", "e:#VALUE!"},
+            {"ROUND(XIRR({-100,110},{40000,40365}),6)", "n:0.1"},
         };
         CHECK_EVALS(cases, g, Settings());
     }

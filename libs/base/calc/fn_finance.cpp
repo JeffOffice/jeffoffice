@@ -340,34 +340,48 @@ Value fnIrr(Call &c)
     return rate > -1 ? numberResult(rate) : c.error(ErrorKind::Num);
 }
 
-// The values and the dates (whole days) of XNPV and XIRR: as many of each; false, with the error, if they are not.
+// The values and the dates (whole days) of XNPV and XIRR, as pairs by position: the n-th value is on the n-th date, whatever the cells hold. An empty cell is 0, a number is
+// itself (a text typed as the argument is read as one), and anything else, in either, is the error #VALUE! (so a value is never paired with the date of another entry); an error
+// in a cell is the result, the values' first. As many dates as values, else #NUM!. False, with the error, if they are not.
 bool datedFlows(Call &c, int valuesAt, int datesAt, std::vector<double> *v, std::vector<double> *d, Value *error)
 {
     for (int pass = 0; pass < 2; ++pass) {
         std::vector<double> &out = pass == 0 ? *v : *d;
-        bool bad = false;
-        const bool done = c.each(pass == 0 ? valuesAt : datesAt, [&](const Value &x, bool typed) {
-            if (x.isError()) {
-                *error = x;
-                bad = true;
-                return false;
-            }
+        const int at = pass == 0 ? valuesAt : datesAt;
+        auto take = [&](const Value &x, bool typed) {
             double n;
             ErrorKind e = ErrorKind::Value;
-            if (x.isNumber() || (typed && x.isBool())) out.push_back(pass == 0 ? x.number() : std::floor(x.number()));   // (a logical in a reference or an array is left out)
-            else if (!typed && x.isBool()) return true;
-            else if (typed && coerceNumber(x, c.context().dateSystem, &n, &e)) out.push_back(pass == 0 ? n : std::floor(n));
-            else if (typed || pass == 1) {
-                *error = Value::error(typed ? e : ErrorKind::Value);
-                bad = true;
+            if (x.isError()) {
+                *error = x;
                 return false;
             }
+            if (x.isNumber() || (typed && x.isBool())) n = x.number();
+            else if (x.isEmpty()) n = 0;
+            else if (!(typed && x.isText() && coerceNumber(x, c.context().dateSystem, &n, &e))) {
+                *error = Value::error(ErrorKind::Value);
+                return false;
+            }
+            out.push_back(pass == 0 ? n : std::floor(n));
             return true;
-        });
-        if (!done) {
-            if (!bad) *error = c.error(ErrorKind::Value);
+        };
+        const Item &it = c.item(at);
+        if (at < c.argc() && it.kind == Item::Kind::Value && !it.value.isArray()) {
+            if (!take(it.value, true)) return false;
+            continue;
+        }
+        Table t;
+        if (!c.table(at, &t)) {
+            *error = c.failure();
             return false;
         }
+        const qint64 cells = t.rows() * t.cols();
+        if (cells > kMaxArrayCells || !c.machine().charge(cells + 1)) {
+            *error = c.error(ErrorKind::Value);
+            return false;
+        }
+        for (qint64 r = 0; r < t.rows(); ++r)
+            for (qint64 k = 0; k < t.cols(); ++k)
+                if (!take(t.at(r, k), false)) return false;
     }
     if (v->size() != d->size() || v->empty()) {
         *error = c.error(ErrorKind::Num);
