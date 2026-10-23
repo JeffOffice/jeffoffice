@@ -77,6 +77,8 @@ public:
     qint64 made() const { return m_made; }
     // Font signatures built so far (a test counts them to see that a look costs no copy of its font's name).
     qint64 signaturesMade() const { return m_signaturesMade; }
+    // The places the table of the fonts' numbers holds (a test checks that it is the size of the file's fonts, not of the number a cell format names).
+    size_t fontSlots() const { return m_fontIdOfFont.size(); }
 
 private:
     CellLook make(quint32 xf) const;

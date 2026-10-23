@@ -49,6 +49,9 @@ QString displayFormula(const QString &formula);
 
 // A cell shows at most this many characters of a text.
 constexpr int kMaxShownChars = 1024;
+// And no more than this many are looked at to find them (a text of millions of carriage returns, which show as nothing, is not read to its end: what comes after the first
+// sixteen thousand characters of it is not shown).
+constexpr int kMaxScannedChars = 16 * kMaxShownChars;
 // The text of a text cell as the grid shows it: line breaks are spaces (or kept, when the cell wraps), carriage returns go, and no more than kMaxShownChars remain. `scanned`, if
 // given, is told how many characters of the text were looked at.
 QString shownLine(const QString &text, bool wrap, qint64 *scanned = nullptr);

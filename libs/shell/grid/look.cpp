@@ -71,7 +71,9 @@ const CellLook &LookTable::look(quint32 xf) const
 
 quint32 LookTable::fontIdOf(quint32 fontIndex, const CellLook &l) const
 {
-    // (a font is looked up by its place in the styles: its signature, which holds its name, is built once for each font and not for each look)
+    // (a font is looked up by its place in the styles: its signature, which holds its name, is built once for each font and not for each look. A place past the fonts the file has is
+    // the default font, as Styles::font says, and has the one place after them: the table is as long as the file's fonts are, whatever number a cell format names.)
+    fontIndex = std::min<quint32>(fontIndex, m_styles ? quint32(m_styles->fonts.size()) : 0u);
     if (fontIndex < m_fontIdOfFont.size() && m_fontIdOfFont[fontIndex] >= 0) return quint32(m_fontIdOfFont[fontIndex]);
     ++m_signaturesMade;
     const std::string signature = l.family.toStdString() + '|' + std::to_string(l.pointSize) + '|' + char('0' + l.bold) + char('0' + l.italic) + char('0' + l.strike) +
@@ -84,10 +86,8 @@ quint32 LookTable::fontIdOf(quint32 fontIndex, const CellLook &l) const
         id = quint32(m_fontIds.size());
         m_fontIds.emplace(signature, id);
     }
-    if (fontIndex < 100000000u) {
-        if (fontIndex >= m_fontIdOfFont.size()) m_fontIdOfFont.resize(size_t(fontIndex) + 1, -1);
-        m_fontIdOfFont[fontIndex] = id;
-    }
+    if (fontIndex >= m_fontIdOfFont.size()) m_fontIdOfFont.resize(size_t(fontIndex) + 1, -1);
+    m_fontIdOfFont[fontIndex] = id;
     return id;
 }
 

@@ -139,7 +139,9 @@ QString shownLine(const QString &given, bool wrap, qint64 *scanned)
     QString out;
     out.reserve(int(std::min<qsizetype>(n, kMaxShownChars)));
     qint64 looked = 0;
-    for (qsizetype i = 0; i < n && out.size() < kMaxShownChars; ++i) {
+    // (and no more than kMaxScannedChars are looked at to find them: a text of millions of carriage returns, which show as nothing, is not read to its end)
+    const qsizetype scan = std::min<qsizetype>(n, kMaxScannedChars);
+    for (qsizetype i = 0; i < scan && out.size() < kMaxShownChars; ++i) {
         ++looked;
         const QChar c = given.at(i);
         if (c == QLatin1Char('\r')) continue;

@@ -8,6 +8,7 @@
 #include "grid/look.h"
 #include "grid/text.h"
 #include "sheet/calculation.h"
+#include "calchelpers.h"
 
 #include <cmath>
 
@@ -847,6 +848,15 @@ private Q_SLOTS:
         scanned = 0;
         shownLine(huge, true, &scanned);
         QVERIFY2(scanned <= 4 * kMaxShownChars, qPrintable(QString::number(scanned)));
+        // a text of twenty million carriage returns (which show as nothing, so that none of them counts toward what is shown) is not read to its end either
+        const QString returns(20000000, QLatin1Char('\r'));
+        scanned = 0;
+        QCOMPARE(shownLine(returns, false, &scanned), QString());
+        QVERIFY2(scanned <= kMaxScannedChars, qPrintable(QStringLiteral("%1 characters of returns were looked at").arg(scanned)));
+        // (what the bound leaves out is only what follows more than that many characters that show nothing)
+        QString late(kMaxScannedChars - 10, QLatin1Char('\r'));
+        late += QStringLiteral("abc");
+        QCOMPARE(shownLine(late, false), QStringLiteral("abc"));
     }
 
     // A look is made from its cell format's font by its number: the name of the font is not copied for every look (a font may have a very long one, and a file a million formats).
@@ -953,6 +963,35 @@ private Q_SLOTS:
         QCOMPARE(g.layout().rows.size(3), 7);
         QCOMPARE(geometry->layout.rows.size(3), 40);
         QVERIFY(!g.layout().rows.sharesStorageWith(geometry->layout.rows));
+    }
+
+    // A cell format that names a font, fill, border, or number format the file does not define has the default of it, and no table is made as long as the number it names: a reference
+    // to font 99,999,999 costs what a reference to font 0 does.
+    void aReferenceToAFontPastTheEndCostsNothing()
+    {
+        const QByteArray xml = stylesXml(QStringLiteral("<numFmt numFmtId=\"99999999\" formatCode=\"0.0\"/>"),
+                                         QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/><xf numFmtId=\"99999999\" fontId=\"99999999\" fillId=\"99999999\" borderId=\"99999999\"/>"
+                                                       "<xf numFmtId=\"4294967295\" fontId=\"4294967295\" fillId=\"4294967295\" borderId=\"4294967295\"/>"),
+                                         QStringLiteral("<fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts><fills count=\"1\"><fill><patternFill patternType=\"none\"/></fill></fills>"
+                                                        "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders>"));
+        QByteArray copy = xml;
+        QBuffer buffer(&copy);
+        buffer.open(QIODevice::ReadOnly);
+        Styles s;
+        QString why;
+        QVERIFY2(jp::office::sheet::readStyles(&buffer, jp::office::sheet::Limits(), &s, &why), qPrintable(why));
+        QCOMPARE(s.formats.size(), 3);
+        MemoryWatch memory;
+        LookTable looks(&s);
+        const CellLook plain = looks.look(0);
+        const CellLook past = looks.look(1);
+        const CellLook last = looks.look(2);
+        QVERIFY2(looks.fontSlots() <= size_t(s.fonts.size()) + 1, qPrintable(QStringLiteral("a table of %1 places for %2 fonts").arg(looks.fontSlots()).arg(s.fonts.size())));
+        QVERIFY2(memory.growthMegabytes() < 100, qPrintable(QStringLiteral("memory grew %1 MB").arg(memory.growthMegabytes())));
+        // a font that is not there is the default font, and a fill and a border that are not there are none
+        QCOMPARE(past.fontId, last.fontId);
+        QVERIFY(!past.hasFill() && !past.hasBorder() && !last.hasFill() && !last.hasBorder());
+        QCOMPARE(plain.pattern, PatternKind::None);
     }
 };
 
