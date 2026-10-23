@@ -150,6 +150,9 @@ struct ReadOptions {
     // of the sheet, which a view that was scrolled far has left behind; the cells of the rows between are not kept, but their heights are). A sheet whose view comes after its cells,
     // or says nothing, begins at its first row.
     qint64 screenRows = 0;
+    // With screenRows: the rows above the view are cut down before the parser sees them (see rowskip.h), which is far faster for a sheet saved scrolled far down; false gives every row to the
+    // parser (what a test compares the result with).
+    bool skipRows = true;
     DateSystem dateSystem = DateSystem::Date1900;   // for the cells of type "d", written as dates
     // Called after every 4,096 cells, with how many have been read; false
     // stops the read (the sheet's error says it was stopped).

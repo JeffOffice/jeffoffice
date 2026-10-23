@@ -1,6 +1,7 @@
 #include "sheet/sheetreader.h"
 
 #include "calc/numfmt.h"
+#include "sheet/rowskip.h"
 
 #include "office/theme.h"
 #include "office/xml.h"
@@ -1193,6 +1194,14 @@ bool readSheetPart(QIODevice *in, const ReadOptions &options, Sheet *out)
 {
     *out = Sheet();
     SheetReader reader(options, out);
+    // The first screen of a sheet that was left scrolled down: the rows above the view are cut down before the parser sees them.
+    if (options.screenRows > 0 && options.skipRows) {
+        RowSkipDevice skip(in, options);
+        const bool ok = reader.read(&skip);
+        // (a failure of the part's own stream is the part's)
+        if (!ok && out->error.isEmpty() && !in->errorString().isEmpty()) out->error = in->errorString();
+        return ok;
+    }
     return reader.read(in);
 }
 
