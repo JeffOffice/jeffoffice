@@ -5405,6 +5405,37 @@ private Q_SLOTS:
         QVERIFY(lineHeight(40, false) > small + 5);
     }
 
+    // Blanks typed right after the blanks that are a reference's result are the typist's own: they count in the line's height as blanks typed anywhere do. (They took the result's mark of
+    // taking no part in it, and a line of spaces typed there stayed as short as the field's.) The saved file has them as plain text, and the mark is no part of it.
+    void blanksTypedAfterABlankFieldResultCountInTheLineHeight()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray none = "<w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/></w:pPr>";
+        auto props = [](int halfPoints) { return "<w:rPr><w:rFonts w:ascii=\"Arial\" w:hAnsi=\"Arial\"/><w:sz w:val=\"" + QByteArray::number(halfPoints) + "\"/></w:rPr>"; };
+        const QByteArray body = "<w:p>" + none + "<w:r>" + props(14) + "<w:t xml:space=\"preserve\">at </w:t></w:r><w:r>" + props(14) + "<w:fldChar w:fldCharType=\"begin\"/></w:r><w:r>" + props(14) +
+                                "<w:instrText xml:space=\"preserve\"> REF dropdown23 \\* MERGEFORMAT </w:instrText></w:r><w:r>" + props(14) + "<w:fldChar w:fldCharType=\"separate\"/></w:r><w:r>" +
+                                props(40) + "<w:t xml:space=\"preserve\">    </w:t></w:r><w:r>" + props(14) + "<w:fldChar w:fldCharType=\"end\"/></w:r><w:r>" + props(14) +
+                                "<w:t xml:space=\"preserve\"> Plant Location</w:t></w:r></w:p>";
+        auto height = [](WriteDoc &doc) {
+            const auto lines = doc.pager().lines(0);
+            return lines.isEmpty() ? -1.0 : lines.first().rect.height();
+        };
+        auto doc = open(makeDocx(body, kStyles, QByteArray(), sect));
+        QVERIFY(doc);
+        const double small = height(*doc);
+        QVERIFY(small > 0);
+        QTextCursor c(doc->story());
+        c.setPosition(int(doc->story()->toPlainText().indexOf(QStringLiteral(" Plant"))));
+        typeText(*doc, c, QStringLiteral("    "));
+        const double typed = height(*doc);
+        QVERIFY2(typed > small + 5, qPrintable(QStringLiteral("the line is %1 points with four blanks typed after the field's, %2 without").arg(typed).arg(small)));
+        // The file has the blanks as text, and when it is opened again they are as tall.
+        const QByteArray saved = doc->toDocx();
+        auto again = open(saved);
+        QVERIFY(again);
+        QVERIFY2(std::abs(height(*again) - typed) < 0.01, qPrintable(QStringLiteral("%1 points when opened again, %2 before").arg(height(*again)).arg(typed)));
+    }
+
     // A style that has no styleId is the one its name names, as a paragraph that asks for it by that name finds it (a file whose style sheet was written by a program that left the id out:
     // the reference sets such a paragraph in the 1 point type the style gives it).
     void aStyleWithNoIdIsFoundByItsName()

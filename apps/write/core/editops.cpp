@@ -109,11 +109,14 @@ QTextCharFormat typingFormat(const QTextCursor &c)
     }
     // (Text typed beside the result of a page reference is not that result: it shows as it is typed.)
     if (f.stringProperty(tp::Field).startsWith(QLatin1String("pageref:"))) f.clearProperty(tp::Field);
+    // (Nor is text typed beside the blanks that are a reference's result: its blanks count in the line's height as any typed do.)
+    f.clearProperty(tp::BlankFieldResult);
     if (!isAtom(f)) return f;
     // Beside a piece kept as XML: the look of the text before it, else of the paragraph's mark.
     const QTextBlock b = c.block();
     for (int p = c.position() - 1; p >= b.position(); --p) {
-        const QTextCharFormat t = charAt(c.document(), p);
+        QTextCharFormat t = charAt(c.document(), p);
+        t.clearProperty(tp::BlankFieldResult);
         if (!isAtom(t)) return t;
     }
     return withoutAtom(markFormat(b));
