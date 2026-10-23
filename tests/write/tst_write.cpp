@@ -6976,10 +6976,28 @@ private Q_SLOTS:
         c.movePosition(QTextCursor::NextWord, QTextCursor::KeepAnchor);
         c.movePosition(QTextCursor::NextWord, QTextCursor::KeepAnchor);
         w.view()->setCaretWithoutFocus(true);
+        // The ribbon follows the caret a moment later (it refreshes on a timer): its font and size boxes show the note's own look, not the heading's they showed before.
+        const QTextCharFormat shown = c.charFormat();
+        QVERIFY(shown.fontPointSize() > 0 && shown.fontPointSize() < 17);
+        const QList<FontCombo *> fonts = w.findChildren<FontCombo *>();
+        const QList<SizeCombo *> sizes = w.findChildren<SizeCombo *>();
+        QVERIFY(!fonts.isEmpty() && !sizes.isEmpty());
+        const QString family = shown.hasProperty(QTextFormat::FontFamilies) && !shown.fontFamilies().toStringList().isEmpty() ? shown.fontFamilies().toStringList().first() : w.document()->flow().env.fonts.body;
+        QTRY_COMPARE(sizes.first()->currentText(), QString::number(shown.fontPointSize()));
+        QTRY_COMPARE(fonts.first()->currentText(), family);
         QCoreApplication::processEvents();
         const QImage shot = w.grab().toImage();
         QVERIFY(!shot.isNull());
+        QCOMPARE(shot.size(), w.size() * int(shot.devicePixelRatio()));
         QVERIFY(w.view()->inNote());
+        // The picture has the note in it: text is drawn in the box of the note, over the white of the page.
+        QRectF box;
+        QVERIFY(noteBoxOf(*w.document(), 0, 3, &box));
+        const QRect inWindow(w.view()->viewport()->mapTo(&w, pagePoint(*w.view(), 0, box.left(), box.top())), w.view()->viewport()->mapTo(&w, pagePoint(*w.view(), 0, box.right(), box.bottom())));
+        int ink = 0;
+        for (int y = inWindow.top(); y < inWindow.bottom(); y += 2)
+            for (int x = inWindow.left(); x < inWindow.right(); x += 2) ink += qGray(shot.pixel(QPoint(x, y) * int(shot.devicePixelRatio()))) < 128;
+        QVERIFY2(ink > 50, qPrintable(QString::number(ink)));
         if (qEnvironmentVariableIsSet("JW_NOTE_SHOT")) QVERIFY(shot.save(qEnvironmentVariable("JW_NOTE_SHOT")));
     }
 
@@ -6987,16 +7005,22 @@ private Q_SLOTS:
     // edited anywhere in its words, and the pages after are as a new paginator makes them: those that hold the rest of it are laid out again too.
     void aNoteThatGoesOnFromPageToPageIsEditedAnywhereAndThePagesFollow()
     {
-        auto doc = open(richMixedDocx());
-        QVERIFY(doc);
-        QTextDocument *note = doc->editableFootnote(4);
-        QVERIFY(note);
+        // (The note is made long enough to be cut over three pages or more, whatever the fonts the machine has: its length doubles until it is.)
+        std::unique_ptr<WriteDoc> doc;
+        QTextDocument *note = nullptr;
+        int carriers = 0;
+        for (int words = 220; carriers < 2 && words <= 7040; words *= 2) {
+            doc = open(richMixedDocx(words));
+            QVERIFY(doc);
+            note = doc->editableFootnote(4);
+            QVERIFY(note);
+            carriers = 0;
+            for (int k = 0; k < doc->pager().pageCount(); ++k)
+                for (const QString &c : doc->pager().page(k).start.carried) carriers += c.startsWith(QLatin1String("fn4|"));
+        }
+        QVERIFY2(carriers >= 2, qPrintable(QString::number(carriers)));
         QVERIFY(layoutDiffersFromFresh(*doc).isEmpty());
         const int total = note->characterCount();
-        int carriers = 0;
-        for (int k = 0; k < doc->pager().pageCount(); ++k)
-            for (const QString &c : doc->pager().page(k).start.carried) carriers += c.startsWith(QLatin1String("fn4|"));
-        QVERIFY2(carriers >= 2, qPrintable(QString::number(carriers)));   // (the note is cut over three pages or more)
         for (int kind = 0; kind < 4; ++kind)
             for (int at = 1; at < total - 1; at += 151) {
                 QTextCursor nc(note);
@@ -7479,17 +7503,16 @@ private Q_SLOTS:
         for (int i = 1; i <= count; ++i) notes << std::make_pair(i, plainRun(" note " + QByteArray::number(i)));
         for (int i = 1; i <= 40; ++i) body += citing("Paragraph " + QByteArray::number(i), i);
         const QByteArray zip = notesDocx(body, footnotesPart(notes));
-        QElapsedTimer timer;
-        timer.start();
+        resetNoteStoriesMadeForTest();
         auto doc = open(zip);
         QVERIFY(doc);
         QVERIFY(doc->pager().pageCount() >= 1);
-        QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(noteStoriesMadeForTest() <= 60, qPrintable(QString::number(noteStoriesMadeForTest())));   // (the notes of the pages laid out, not the part's thousands)
         QTextDocument *first = doc->editableFootnote(1);
         QVERIFY(first);
-        timer.restart();
+        const qint64 madeBefore = noteStoriesMadeForTest();
         typeAtEnd(*doc, first, QStringLiteral(" edited"));
-        QVERIFY2(timer.elapsed() < 3000, qPrintable(QString::number(timer.elapsed())));
+        QCOMPARE(noteStoriesMadeForTest(), madeBefore);   // (typing in a note makes no other story)
         QTextCursor c(doc->story());
         c.setPosition(2);
         QVERIFY(doc->roomForFootnote());   // (forty are cited: the part's other notes are no count)
@@ -7659,20 +7682,19 @@ private Q_SLOTS:
         QByteArray body;
         for (int i = 1; i <= 40; ++i) body += "<w:p><w:r><w:t>Paragraph " + QByteArray::number(i) + "</w:t></w:r><w:r><w:endnoteReference w:id=\"" + QByteArray::number(i) + "\"/></w:r></w:p>";
         const QByteArray zip = makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>");
-        QElapsedTimer timer;
-        timer.start();
+        resetEndnoteParagraphsMadeForTest();
         auto doc = open(zip);
         QVERIFY(doc);
         QVERIFY(doc->pager().pageCount() >= 1);
-        QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(endnoteParagraphsMadeForTest() <= 200, qPrintable(QString::number(endnoteParagraphsMadeForTest())));   // (the forty notes the text cites, not the part's thousands)
         QCOMPARE(tailOf(*doc), 41);
         int from = 0, to = 0;
         QVERIFY(doc->endnoteWords(1, &from, &to));
-        timer.restart();
+        const qint64 madeBefore = endnoteParagraphsMadeForTest();
         QTextCursor c(doc->story());
         c.setPosition(to);
         for (const QChar ch : QStringLiteral(" edited")) insertText(*doc, c, QString(ch));
-        QVERIFY2(timer.elapsed() < 3000, qPrintable(QString::number(timer.elapsed())));
+        QCOMPARE(endnoteParagraphsMadeForTest(), madeBefore);   // (typing in a note sets no note again)
         QTextCursor at(doc->story());
         at.setPosition(2);
         QVERIFY(doc->roomForEndnote());   // (forty are cited: the part's other notes are no count)
@@ -14680,7 +14702,7 @@ private Q_SLOTS:
     // A file for the random commands with the tables, notes, headers, footers, and sections together: a first section of tables (the one of richTableDocx, a note cited in
     // the paragraph before them, one in a cell, and a long one after them), with headers and footers for the first, odd, and even pages of other heights; a continuous section
     // of two columns with a table in it and a note; and a section on a page of its own with a header of its own, a note, and a page break.
-    static QByteArray richMixedDocx()
+    static QByteArray richMixedDocx(int gammaWords = 220)
     {
         const RichTables t = richTables(refTo(3));
         const QString rel = QStringLiteral("rId");
@@ -14698,7 +14720,7 @@ private Q_SLOTS:
                                                                        "<w:fldSimple w:instr=\" NUMPAGES \"><w:r><w:t>1</w:t></w:r></w:fldSimple>"});
         parts[QStringLiteral("/word/footer2.xml")] = headerPart("ftr", lines("FIRST FOOT", 2));
         parts[QStringLiteral("/word/footer3.xml")] = headerPart("ftr", lines("EVEN FOOT", 3));
-        parts[QStringLiteral("/word/footnotes.xml")] = notesPart({{2, "ALPHA note of the paragraph before the tables"}, {3, wordsOf("BETA", 25)}, {4, wordsOf("GAMMA", 220)}, {5, wordsOf("DELTA", 8)}, {6, wordsOf("EPSILON", 15)}});
+        parts[QStringLiteral("/word/footnotes.xml")] = notesPart({{2, "ALPHA note of the paragraph before the tables"}, {3, wordsOf("BETA", 25)}, {4, wordsOf("GAMMA", gammaWords)}, {5, wordsOf("DELTA", 8)}, {6, wordsOf("EPSILON", 15)}});
         parts[QStringLiteral("/word/endnotes.xml")] = endnotesOf({{12, "ENDNOTE ONE of the paragraph before the tables"}, {13, wordsOf("TWO", 30)}, {14, wordsOf("THREE", 12)}});
         const QByteArray refsOne = "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:headerReference w:type=\"first\" r:id=\"rIdheader2\"/><w:headerReference w:type=\"even\" r:id=\"rIdheader3\"/>"
                                    "<w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/><w:footerReference w:type=\"first\" r:id=\"rIdfooter2\"/><w:footerReference w:type=\"even\" r:id=\"rIdfooter3\"/>";
