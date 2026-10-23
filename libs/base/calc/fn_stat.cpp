@@ -168,16 +168,38 @@ Value fnSumIf(Call &c)
     double sum = 0;
     Value error;
     Machine &m = c.machine();
-    const bool done = c.eachAt(0, [&](const Value &v, quint32 row, quint32 col) {
-        if (!criterionMatches(crit, v, c.context().dateSystem)) return true;
-        Value target = v;
-        if (hasSum) target = m.cell(sumArea.sheet1, sumArea.row1 + (row - range.row1), sumArea.col1 + (col - range.col1));
+    auto add = [&](const Value &target) {
         if (target.isNumber()) sum += target.number();
         else if (target.isError()) {
             error = target;
             return false;
         }
         return true;
+    };
+    if (hasSum && crit.matchesEmpty) {
+        // An empty cell meets the criterion, and empty cells are not among those the range holds: the cells that are there are the sum range's, each with the cell of the
+        // range beside it (empty or not) to meet the criterion.
+        bool ok = true;
+        m.source().visit(sumArea.sheet1, sumArea.row1, sumArea.col1, sumArea.row2, sumArea.col2, [&](quint32 row, quint32 col, const Value &target) {
+            if (!m.charge(1)) {
+                ok = false;
+                return false;
+            }
+            if (target.isEmpty()) return true;
+            const Value tested = m.cell(range.sheet1, range.row1 + (row - sumArea.row1), range.col1 + (col - sumArea.col1));
+            if (!criterionMatches(crit, tested, c.context().dateSystem)) return true;
+            if (!add(target)) {
+                ok = false;
+                return false;
+            }
+            return true;
+        });
+        if (!ok) return error.isError() ? error : c.error(ErrorKind::Value);
+        return numberResult(sum);
+    }
+    const bool done = c.eachAt(0, [&](const Value &v, quint32 row, quint32 col) {
+        if (!criterionMatches(crit, v, c.context().dateSystem)) return true;
+        return add(hasSum ? m.cell(sumArea.sheet1, sumArea.row1 + (row - range.row1), sumArea.col1 + (col - range.col1)) : v);
     });
     if (!done) return error.isError() ? error : c.error(ErrorKind::Value);
     return numberResult(sum);

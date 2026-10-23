@@ -241,6 +241,65 @@ private Q_SLOTS:
         CHECK_EVALS(cases, sample(), Settings());
     }
 
+    // A criterion that an empty cell meets ("", "=", "<>x") takes the cells beside the empty ones into a sum range too, though the empty ones are not stored.
+    void criteriaThatEmptyCellsMeetTakeTheCellsBesideThem()
+    {
+        Grid g;
+        g.s("A1", "x").s("A3", "y");
+        g.column("B1", {10, 20, 30, 40});
+        g.column("C1", {1, 2, 3, 4});
+        const E cases[] = {
+            {"SUMIF(A1:A4,\"<>x\",B1:B4)", "n:90"},
+            {"SUMIF(A1:A4,\"\",B1:B4)", "n:60"},
+            {"SUMIF(A1:A4,\"=\",B1:B4)", "n:60"},
+            {"SUMIF(A1:A4,\"<>\",B1:B4)", "n:40"},
+            {"SUMIF(A1:A4,\"y\",B1:B4)", "n:30"},
+            {"SUMIF(A1:A4,\"<>q\",B1:B4)", "n:100"},
+            {"SUMIF(A1:A4,\"<>x\",C1:C4)", "n:9"},
+            {"SUMIF(A1:A4,\"\",C1:C4)", "n:6"},
+            {"SUMIF(A1:A4,\"<>x\")", "n:0"},                   // (the cells it sums are the texts of A1:A4)
+            {"SUMIF(A1:A2,\"\",B3:B4)", "n:40"},              // the sum range takes the shape of the criteria range, from its first cell: B3:B4
+            {"SUMIF(A2:A4,\"=\",B1:B4)", "n:40"},             // (B1:B3 then: A2 and A4 are empty, and beside them are B1 and B3)
+            {"COUNTIF(A1:A4,\"\")", "n:2"},
+            {"COUNTIF(A1:A4,\"=\")", "n:2"},
+            {"COUNTIF(A1:A4,\"<>x\")", "n:3"},
+            {"COUNTIF(A1:A4,\"<>\")", "n:2"},
+            {"AVERAGEIF(A1:A4,\"<>x\",B1:B4)", "n:30"},
+            {"AVERAGEIF(A1:A4,\"\",B1:B4)", "n:30"},
+            {"AVERAGEIF(A1:A4,\"=\")", "e:#DIV/0!"},
+            {"SUMIFS(B1:B4,A1:A4,\"<>x\")", "n:90"},
+            {"SUMIFS(B1:B4,A1:A4,\"\")", "n:60"},
+            {"SUMIFS(B1:B4,A1:A4,\"=\")", "n:60"},
+            {"SUMIFS(B1:B4,A1:A4,\"\",C1:C4,\">2\")", "n:40"},
+            {"COUNTIFS(A1:A4,\"\")", "n:2"},
+            {"COUNTIFS(A1:A4,\"<>x\",B1:B4,\">20\")", "n:2"},
+            {"AVERAGEIFS(B1:B4,A1:A4,\"\")", "n:30"},
+            {"_xlfn.MAXIFS(B1:B4,A1:A4,\"\")", "n:40"},
+            {"_xlfn.MINIFS(B1:B4,A1:A4,\"<>x\")", "n:20"},
+        };
+        CHECK_EVALS(cases, g, Settings());
+        // a cell that holds an empty text meets "" but not "="; the cell after it, empty, meets both
+        Grid h;
+        h.s("A1", "x").set("A2", Value::text("")).s("A3", "y");
+        h.column("B1", {10, 20, 30, 40});
+        const E texts[] = {
+            {"SUMIF(A1:A4,\"\",B1:B4)", "n:60"},
+            {"SUMIF(A1:A4,\"=\",B1:B4)", "n:40"},
+            {"SUMIF(A1:A4,\"<>\",B1:B4)", "n:60"},
+            {"COUNTIF(A1:A4,\"\")", "n:2"},
+            {"COUNTIF(A1:A4,\"=\")", "n:1"},
+        };
+        CHECK_EVALS(texts, h, Settings());
+        // an error in the sum range is the result only where the criterion is met
+        Grid err;
+        err.s("A1", "x").s("A3", "y");
+        err.column("B1", {10, 20, 30, 40});
+        err.e("B1", ErrorKind::Div0);
+        QCOMPARE(ev("SUMIF(A1:A4,\"<>x\",B1:B4)", err), QStringLiteral("n:90"));
+        QCOMPARE(ev("SUMIF(A1:A4,\"x\",B1:B4)", err), QStringLiteral("e:#DIV/0!"));
+        QCOMPARE(ev("SUMIF(A1:A4,\"\",B1:B4)", err), QStringLiteral("n:60"));
+    }
+
     void conditionalSumsAndCountsFollowTheirCriteria()
     {
         const Grid g = sample();
