@@ -102,7 +102,7 @@ private Q_SLOTS:
         QVERIFY(m.crossing(250000, 0, 250040, 5, 100, &found));
         QCOMPARE(int(found.size()), 9);
         QVERIFY2(m.examined() - before2 < 2000, qPrintable(QString::number(m.examined() - before2)));
-        // the same hundred thousand all in one place (made so that every search would look at all of them) are looked at to a bound
+        // the same hundred thousand all in one place (made so that a search that looked at what is near would look at all of them) cost the same few steps
         QVector<CellRange> stacked;
         for (quint32 i = 0; i < 100000; ++i) stacked.append(range(100, 0, 105 + i % 900, 1 + i / 900));
         MergeIndex s;
@@ -110,18 +110,106 @@ private Q_SLOTS:
         QVERIFY(s.count() > 90000);
         const qint64 before3 = s.examined();
         s.at(110, 50);
-        QVERIFY2(s.examined() - before3 <= MergeIndex::kMaxScan, qPrintable(QString::number(s.examined() - before3)));
+        QVERIFY2(s.examined() - before3 <= 700, qPrintable(QString::number(s.examined() - before3)));
         const qint64 before4 = s.examined();
         std::vector<int> some;
         s.crossing(100, 0, 900, 199, 20, &some);
-        QVERIFY(s.examined() - before4 <= MergeIndex::kMaxScan);
+        QVERIFY(s.examined() - before4 <= MergeIndex::kMaxCrossingVisits + 10000);
         QCOMPARE(int(some.size()), 20);
-        // hundreds of tall merges: only the first kMaxTall are kept
+        // a thousand tall merges are all kept
         QVector<CellRange> tall;
         for (quint32 i = 0; i < 1000; ++i) tall.append(range(0, i % 100, 5000 + i, i % 100 + 1));
         MergeIndex t;
         t.assign(tall);
-        QVERIFY(t.count() <= MergeIndex::kMaxTall + 100);
+        QCOMPARE(t.count(), 1000);
+    }
+
+    // A hundred thousand merges (a hostile file's): the search for the merge of a cell costs the same few steps as for a hundred, and every one of them is found.
+    void aSearchCostsTheLogarithmWhateverTheNumberOfMerges()
+    {
+        auto build = [](quint32 n) {
+            QVector<CellRange> v;
+            for (quint32 i = 0; i < n; ++i) v.append(range(i / 8192, (i % 8192) * 2, i / 8192, (i % 8192) * 2 + 1));   // 8,192 two-column merges to a row
+            return v;
+        };
+        MergeIndex few, many;
+        few.assign(build(1000));
+        many.assign(build(100000));
+        QCOMPARE(many.count(), 100000);
+        auto steps = [](MergeIndex &m, quint32 n) {
+            qint64 most = 0;
+            for (quint32 i = 0; i < n; i += 997) {
+                const qint64 before = m.examined();
+                const int found = m.at(i / 8192, (i % 8192) * 2 + 1);
+                most = std::max(most, m.examined() - before);
+                if (found < 0 || !(m.range(found) == range(i / 8192, (i % 8192) * 2, i / 8192, (i % 8192) * 2 + 1))) return qint64(-1);
+            }
+            return most;
+        };
+        const qint64 a = steps(few, 1000), b = steps(many, 100000);
+        QVERIFY2(a >= 0 && b >= 0, "a merge was not found");
+        QVERIFY2(b <= 600, qPrintable(QString::number(b)));
+        QVERIFY2(b <= a * 3 + 50, qPrintable(QStringLiteral("%1 steps for 100,000 merges, %2 for 1,000").arg(b).arg(a)));
+        // a cell in none of them
+        QCOMPARE(many.at(20, 5), -1);
+    }
+
+    // Merges are never lost to a limit: sixty thousand beginning on ten rows (the scan the old search stopped at was fifty thousand), and a thousand tall ones (the old list of tall
+    // ones held two hundred and fifty-six) are all found.
+    void noMergeIsMissedPastAnyLimit()
+    {
+        QVector<CellRange> v;
+        for (quint32 i = 0; i < 60000; ++i) v.append(range(i / 6000, (i % 6000) * 2, i / 6000, (i % 6000) * 2 + 1));
+        v.append(range(0, 16000, 9, 16001));   // (one that is ten rows tall: a search for a cell of row 9 then begins at row 0, which is past fifty thousand merges from row 9's)
+        for (quint32 i = 0; i < 1000; ++i) v.append(range(100, 12000 + i, 2100, 12000 + i));   // a column wide, two thousand rows tall (in columns the others do not reach)
+        MergeIndex m;
+        m.assign(v);
+        QCOMPARE(m.count(), 61001);
+        for (quint32 i : {0u, 12345u, 54001u, 59999u}) QVERIFY2(m.at(i / 6000, (i % 6000) * 2 + 1) >= 0, qPrintable(QString::number(i)));
+        for (quint32 i = 0; i < 1000; ++i) {
+            const int found = m.at(1500, 12000 + i);
+            QVERIFY2(found >= 0 && m.range(found) == range(100, 12000 + i, 2100, 12000 + i), qPrintable(QString::number(i)));
+        }
+        QCOMPARE(m.at(2101, 12000), -1);
+        // and a block that crosses them says all it found, or says that it did not look at all
+        std::vector<int> out;
+        const bool whole = m.crossing(1400, 12000, 1600, 12999, 100000, &out);
+        QVERIFY(whole);
+        QCOMPARE(int(out.size()), 1000);
+        QVERIFY(std::is_sorted(out.begin(), out.end()));
+    }
+
+    // Merges that overlap (a file may say so): the cell is in the first of them in order, as before, whatever else holds it.
+    void ofMergesThatOverlapTheFirstInOrderHoldsTheCell()
+    {
+        MergeIndex m;
+        m.assign({range(1, 1, 3, 3), range(0, 0, 2, 2), range(2, 2, 5, 5), range(0, 2, 0, 4)});
+        // in order of first row, first column: (0,0)-(2,2), (0,2)-(0,4), (1,1)-(3,3), (2,2)-(5,5)
+        QVERIFY(m.range(m.at(1, 1)) == range(0, 0, 2, 2));
+        QVERIFY(m.range(m.at(2, 2)) == range(0, 0, 2, 2));
+        QVERIFY(m.range(m.at(3, 3)) == range(1, 1, 3, 3));
+        QVERIFY(m.range(m.at(4, 4)) == range(2, 2, 5, 5));
+        QVERIFY(m.range(m.at(0, 3)) == range(0, 2, 0, 4));
+        QCOMPARE(m.at(6, 6), -1);
+        std::vector<int> out;
+        QVERIFY(m.crossing(2, 2, 2, 2, 10, &out));
+        QCOMPARE(int(out.size()), 3);
+    }
+
+    // Merges are kept as the index builds them: a copy of one is the same merges without a copy of them, until the copy is given others.
+    void aCopyOfTheIndexSharesWhatItHolds()
+    {
+        MergeIndex a;
+        QVector<CellRange> v;
+        for (quint32 i = 0; i < 1000; ++i) v.append(range(i, 0, i, 1));
+        a.assign(v);
+        MergeIndex b = a;
+        QVERIFY(b.sharesStorageWith(a));
+        QCOMPARE(b.at(5, 1), a.at(5, 1));
+        b.assign({range(0, 0, 1, 1)});
+        QVERIFY(!b.sharesStorageWith(a));
+        QCOMPARE(a.count(), 1000);
+        QCOMPARE(b.count(), 1);
     }
 };
 
@@ -417,6 +505,27 @@ private Q_SLOTS:
         small.setFrozen(100, 0);
         QVERIFY(small.pane(Pane::Body).isEmpty() || small.pane(Pane::Body).rect.height() <= 0);
         QCOMPARE(small.pane(Pane::Top).rect.height(), 400);
+    }
+
+    // The property a scroll that moves the pixels already drawn relies on: when the scroll is a whole number of pixels at the zoom, every edge of every row moves by that many.
+    void aScrollOfWholePixelsMovesEveryEdgeByThemAtAnyZoom()
+    {
+        for (double zoom : {0.5, 0.75, 1.0, 1.25, 2.0, 3.0, 0.25}) {
+            GridLayout g = plain();
+            g.rows.setSize(3, 33);
+            g.rows.setSize(8, 0);
+            g.rows.setSize(9, 17);
+            g.cols.setSize(2, 41);
+            g.setZoom(zoom);
+            std::vector<int> before;
+            for (qint64 r = 0; r < 60; ++r) before.push_back(g.yEdge(r, false));
+            // a scroll of 80 logical units: whole pixels at every zoom here
+            const double pixels = 80 * zoom;
+            if (std::abs(pixels - std::round(pixels)) > 1e-9) continue;
+            g.setScroll(0, 80);
+            const int moved = int(std::lround(pixels));
+            for (qint64 r = 0; r < 60; ++r) QCOMPARE(g.yEdge(r, false), before[size_t(r)] - moved);
+        }
     }
 };
 
