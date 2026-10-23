@@ -196,9 +196,16 @@ void GridView::scrollTo(qint64 x, qint64 y)
     const int dx = int(std::lround(double(L.scrollX() - ox) * z)), dy = int(std::lround(double(L.scrollY() - oy) * z));
     const PaneView body = L.pane(Pane::Body);
     const bool exact = z == 1.0 && digits == m_headerDigits;
-    if (exact && dx == 0 && dy != 0 && std::abs(dy) < body.rect.height()) viewport()->scroll(0, -dy, bodyScrollRect(true));
-    else if (exact && dy == 0 && dx != 0 && std::abs(dx) < body.rect.width()) viewport()->scroll(-dx, 0, bodyScrollRect(false));
-    else viewport()->update();
+    if (exact && dx == 0 && dy != 0 && std::abs(dy) < body.rect.height()) {
+        viewport()->scroll(0, -dy, bodyScrollRect(true));
+        ++m_blits;
+    } else if (exact && dy == 0 && dx != 0 && std::abs(dx) < body.rect.width()) {
+        viewport()->scroll(-dx, 0, bodyScrollRect(false));
+        ++m_blits;
+    } else {
+        viewport()->update();
+        ++m_fullScrolls;
+    }
     Q_EMIT viewChanged();
 }
 

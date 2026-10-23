@@ -81,6 +81,10 @@ public:
     const std::vector<double> &paintTimes() const { return m_paintTimes; }
     void clearPaintTimes() { m_paintTimes.clear(); }
     const PaintStats &lastPaintStats() const { return m_painter->stats(); }
+    // Scrolls done by moving the pixels already on the screen (and drawing the strip they left), and by drawing the window again: counted, so that a test can see which a scroll was
+    // on a window system that may not move pixels (the strip is then drawn as part of a larger piece).
+    qint64 blitScrolls() const { return m_blits; }
+    qint64 fullScrolls() const { return m_fullScrolls; }
     // True while a walk for the edge of the data or the numbers of a selection is going on.
     bool busy() const { return m_jump || m_statsWalk; }
 
@@ -143,6 +147,7 @@ private:
     bool m_syncingBars = false;
     qint64 m_lastScrollX = 0, m_lastScrollY = 0;
     std::vector<double> m_paintTimes;
+    qint64 m_blits = 0, m_fullScrolls = 0;
 };
 
 } // namespace jp::grid

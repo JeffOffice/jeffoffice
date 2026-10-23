@@ -6,6 +6,7 @@
 #include "grid/gridview.h"
 
 #include <QApplication>
+#include <QGuiApplication>
 #include <QScrollBar>
 #include <QSignalSpy>
 #include <QTest>
@@ -117,12 +118,18 @@ private Q_SLOTS:
         QWheelEvent wheel(QPointF(100, 100), QPointF(100, 100), QPoint(), QPoint(0, -120), Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
         QApplication::sendEvent(b.view->viewport(), &wheel);
         QCOMPARE(b.layout().scrollY(), qint64(60));
+        QCOMPARE(b.view->blitScrolls(), qint64(1));   // (the pixels already there are moved, whatever the window system does with that)
+        QCOMPARE(b.view->fullScrolls(), qint64(0));
         QTRY_VERIFY(!rec.rects.isEmpty());
         QApplication::processEvents();
-        const QSize v = b.view->viewport()->size();
-        QVERIFY2(rec.area() < v.width() * 100, qPrintable(QStringLiteral("drew %1 pixels of %2").arg(rec.area()).arg(v.width() * v.height())));
-        QVERIFY2(b.view->lastPaintStats().rowsVisited <= 8, qPrintable(QString::number(b.view->lastPaintStats().rowsVisited)));
-        QVERIFY(b.view->lastPaintStats().textRuns <= 8 * 12);
+        // The window systems that move pixels leave a strip of a few rows to draw; the rest (which may draw the whole window) are not asked.
+        const QString platform = QGuiApplication::platformName();
+        if (platform == QLatin1String("offscreen") || platform == QLatin1String("xcb") || platform == QLatin1String("cocoa")) {
+            const QSize v = b.view->viewport()->size();
+            QVERIFY2(rec.area() < v.width() * 100, qPrintable(QStringLiteral("drew %1 pixels of %2").arg(rec.area()).arg(v.width() * v.height())));
+            QVERIFY2(b.view->lastPaintStats().rowsVisited <= 8, qPrintable(QString::number(b.view->lastPaintStats().rowsVisited)));
+            QVERIFY(b.view->lastPaintStats().textRuns <= 8 * 12);
+        }
         // the scroll bar and the layout agree, and a jump a long way draws the screen
         QCOMPARE(b.view->verticalScrollBar()->value(), 60);
         b.view->verticalScrollBar()->setValue(90000 * 20);
