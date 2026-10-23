@@ -109,6 +109,10 @@ public:
     qint64 fullRows() const { return m_fullRows; }
     qint64 fullCols() const { return m_fullCols; }
     Value at(qint64 row, qint64 col) const;
+    // Along column 0 (`column`) or row 0 of the table: the first place from i to `last` that holds something, or last + 1 if there is none; and the last place from i
+    // back to `first` that does, or first - 1. For cells these are found among those the sheet stores, not by looking at each place.
+    qint64 nextFilled(bool column, qint64 i, qint64 last) const;
+    qint64 previousFilled(bool column, qint64 i, qint64 first) const;
     // Where the table starts on its sheet (for a reference).
     bool isRef() const { return m_isRef; }
     const RefArea &area() const { return m_area; }

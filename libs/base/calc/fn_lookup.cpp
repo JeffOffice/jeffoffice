@@ -31,10 +31,16 @@ bool matchesExactly(const Value &key, const Value &cell, bool wildcards)
     return compareForLookup(key, cell) == 0;
 }
 
+// A column or a row of a table, read place by place: the places that hold nothing in a sheet that is mostly empty are jumped over, not stepped on.
+struct Line {
+    const Table &table;
+    bool column;
+    Value at(qint64 i) const { return column ? table.at(i, 0) : table.at(0, i); }
+};
+
 // The position of the last cell of a column or row of n not after (ascending) or not before (descending) the value, found by halving; -1 for none, and -2 if the
-// work gave out. `at` gives cell i. Each cell looked at counts as a step.
-template <class At>
-qint64 searchSorted(Call &c, const Value &key, qint64 n, bool descending, At at)
+// work gave out. Each cell looked at counts as a step, and so does each run of empty cells passed over.
+qint64 searchSorted(Call &c, const Value &key, qint64 n, bool descending, const Line &line)
 {
     qint64 lo = 0, hi = n - 1, result = -1;
     Machine &m = c.machine();
@@ -43,14 +49,29 @@ qint64 searchSorted(Call &c, const Value &key, qint64 n, bool descending, At at)
         // a cell of another kind is passed over: the next one that can be compared, up to hi, else down from mid
         qint64 j = mid;
         int order = 2;
-        while (j <= hi && (order = compareForLookup(key, at(j))) == 2) {
-            ++j;
+        while (j <= hi) {
+            const Value cell = line.at(j);
+            if (cell.isEmpty()) {
+                j = line.table.nextFilled(line.column, j + 1, hi);
+            } else if ((order = compareForLookup(key, cell)) == 2) {
+                ++j;
+            } else {
+                break;
+            }
             if (!m.charge(1)) return -2;
         }
         if (j > hi) {
             j = mid - 1;
-            while (j >= lo && (order = compareForLookup(key, at(j))) == 2) {
-                --j;
+            order = 2;
+            while (j >= lo) {
+                const Value cell = line.at(j);
+                if (cell.isEmpty()) {
+                    j = line.table.previousFilled(line.column, j - 1, lo);
+                } else if ((order = compareForLookup(key, cell)) == 2) {
+                    --j;
+                } else {
+                    break;
+                }
                 if (!m.charge(1)) return -2;
             }
             if (j < lo) break;
@@ -75,14 +96,14 @@ qint64 searchSorted(Call &c, const Value &key, qint64 n, bool descending, At at)
     return result;
 }
 
-// The first cell of a column or row of n equal to the value, in the order of the sheet; -1 for none.
-template <class At>
-qint64 searchExact(Call &c, const Value &key, qint64 n, At at)
+// The first cell of a column or row of n equal to the value, in the order of the sheet; -1 for none. An empty cell is equal to no value looked for, so only the cells
+// that hold something are looked at.
+qint64 searchExact(Call &c, const Value &key, qint64 n, const Line &line)
 {
     const bool wildcards = key.isText() && hasWildcards(key.text());
-    for (qint64 i = 0; i < n; ++i) {
+    for (qint64 i = line.table.nextFilled(line.column, 0, n - 1); i < n; i = line.table.nextFilled(line.column, i + 1, n - 1)) {
         if (!c.machine().charge(1)) return -2;
-        if (matchesExactly(key, at(i), wildcards)) return i;
+        if (matchesExactly(key, line.at(i), wildcards)) return i;
     }
     return -1;
 }
@@ -122,13 +143,13 @@ Value tableLookup(Call &c, bool vertical)
     const qint64 span = vertical ? t.fullCols() : t.fullRows();   // the columns of the table (rows for HLOOKUP)
     if (index > double(span)) return c.error(ErrorKind::Ref);
     const qint64 n = vertical ? t.rows() : t.cols();
-    auto at = [&](qint64 i) { return vertical ? t.at(i, 0) : t.at(0, i); };
+    const Line line{t, vertical};
     qint64 found;
     if (exact) {
-        found = searchExact(c, key, n, at);
+        found = searchExact(c, key, n, line);
         if (found == -2) return c.error(ErrorKind::Value);
     } else {
-        found = searchSorted(c, key, n, false, at);
+        found = searchSorted(c, key, n, false, line);
         if (found == -2) return c.error(ErrorKind::Value);
     }
     if (found < 0) return c.error(ErrorKind::NA);
@@ -150,13 +171,13 @@ Value fnMatch(Call &c)
     if (t.fullRows() != 1 && t.fullCols() != 1) return c.error(ErrorKind::NA);
     const bool column = t.fullCols() == 1;
     const qint64 n = column ? t.rows() : t.cols();
-    auto at = [&](qint64 i) { return column ? t.at(i, 0) : t.at(0, i); };
+    const Line line{t, column};
     qint64 found;
     if (type == 0) {
-        found = searchExact(c, key, n, at);
+        found = searchExact(c, key, n, line);
         if (found == -2) return c.error(ErrorKind::Value);
     } else {
-        found = searchSorted(c, key, n, type < 0, at);
+        found = searchSorted(c, key, n, type < 0, line);
         if (found == -2) return c.error(ErrorKind::Value);
     }
     if (found < 0) return c.error(ErrorKind::NA);
@@ -185,8 +206,8 @@ Value fnLookup(Call &c)
         vectorColumn = t.fullCols() <= t.fullRows();
         n = vectorColumn ? t.rows() : t.cols();
     }
-    auto at = [&](qint64 i) { return vectorColumn ? t.at(i, 0) : t.at(0, i); };
-    const qint64 found = searchSorted(c, key, n, false, at);
+    const Line line{t, vectorColumn};
+    const qint64 found = searchSorted(c, key, n, false, line);
     if (found == -2) return c.error(ErrorKind::Value);
     if (found < 0) return c.error(ErrorKind::NA);
     if (hasResult) {
@@ -194,7 +215,7 @@ Value fnLookup(Call &c)
         if (found >= count) return c.error(ErrorKind::NA);
         return result.fullCols() == 1 ? result.at(found, 0) : result.at(0, found);
     }
-    if (t.fullRows() == 1 || t.fullCols() == 1) return at(found);
+    if (t.fullRows() == 1 || t.fullCols() == 1) return line.at(found);
     return vectorColumn ? t.at(found, t.fullCols() - 1) : t.at(t.fullRows() - 1, found);
 }
 

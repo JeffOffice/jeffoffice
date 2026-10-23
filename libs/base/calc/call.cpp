@@ -146,6 +146,45 @@ Value Table::at(qint64 row, qint64 col) const
     return m_array.at(int(row), int(col));
 }
 
+qint64 Table::nextFilled(bool column, qint64 i, qint64 last) const
+{
+    if (i > last) return last + 1;
+    if (!m_isRef) {
+        for (; i <= last; ++i)
+            if (!(column ? m_array.at(int(i), 0) : m_array.at(0, int(i))).isEmpty()) return i;
+        return last + 1;
+    }
+    qint64 found = last + 1;
+    const RefArea &a = m_area;
+    auto take = [&](quint32 row, quint32 col, const Value &v) {
+        if (v.isEmpty()) return true;
+        found = column ? qint64(row) - qint64(a.row1) : qint64(col) - qint64(a.col1);
+        return false;
+    };
+    if (column) m_machine->source().visit(a.sheet1, quint32(qint64(a.row1) + i), a.col1, quint32(qint64(a.row1) + last), a.col1, take);
+    else m_machine->source().visit(a.sheet1, a.row1, quint32(qint64(a.col1) + i), a.row1, quint32(qint64(a.col1) + last), take);
+    return found;
+}
+
+qint64 Table::previousFilled(bool column, qint64 i, qint64 first) const
+{
+    if (i < first) return first - 1;
+    if (!m_isRef) {
+        for (; i >= first; --i)
+            if (!(column ? m_array.at(int(i), 0) : m_array.at(0, int(i))).isEmpty()) return i;
+        return first - 1;
+    }
+    // the last place that holds something is the greatest x for which there is one from x to i: halve over x
+    if (nextFilled(column, first, i) > i) return first - 1;
+    qint64 lo = first, hi = i;
+    while (lo < hi) {
+        const qint64 mid = lo + (hi - lo + 1) / 2;
+        if (nextFilled(column, mid, i) <= i) lo = mid;
+        else hi = mid - 1;
+    }
+    return lo;
+}
+
 const EvalContext &Call::context() const { return m.context(); }
 
 Value Call::scalar(int i)

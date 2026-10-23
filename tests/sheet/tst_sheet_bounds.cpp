@@ -239,6 +239,57 @@ private Q_SLOTS:
         QVERIFY2(workday.work >= (day - 1) * 3 / 2, qPrintable(said(workday) + QStringLiteral(", days ") + QString::number(day - 1)));
     }
 
+    // Approximate MATCH, LOOKUP, and VLOOKUP over a column of a million rows that holds two cells do not go over the million: they halve over the cells that are there.
+    void aSortedLookupInASparseColumnJumpsOverTheEmptyRuns()
+    {
+        Grid g;
+        g.n("A1", 5).n("A1048576", 100).n("B1048576", 1);
+        struct Case {
+            const char *formula;
+            const char *value;
+        };
+        const Case cases[] = {
+            {"MATCH(7,A:A,1)", "n:1"},
+            {"MATCH(7,A1:A1048576,1)", "n:1"},
+            {"MATCH(200,A:A,1)", "n:1048576"},
+            {"MATCH(100,A:A,1)", "n:1048576"},
+            {"MATCH(5,A:A,1)", "n:1"},
+            {"MATCH(3,A:A,1)", "e:#N/A"},
+            {"MATCH(-1,A:A,-1)", "n:1048576"},
+            {"MATCH(7,A:A,-1)", "n:1048576"},
+            {"LOOKUP(7,A:A)", "n:5"},
+            {"LOOKUP(200,A:A)", "n:100"},
+            {"VLOOKUP(7,A:B,2,TRUE)", "n:0"},
+            {"VLOOKUP(200,A:B,2,TRUE)", "n:1"},
+            {"MATCH(7,A:A,0)", "e:#N/A"},
+            {"MATCH(100,A:A,0)", "n:1048576"},
+            {"VLOOKUP(100,A:B,2,FALSE)", "n:1"},
+        };
+        for (const Case &c : cases) {
+            const Outcome o = evOutcome(QString::fromLatin1(c.formula), g);
+            QVERIFY2(o.text == QString::fromLatin1(c.value) && o.work < 200, qPrintable(QString::fromLatin1(c.formula) + QStringLiteral(" -> ") + said(o) + QStringLiteral(", expected ") + QString::fromLatin1(c.value)));
+        }
+        // a row of cells, and cells of other kinds between the numbers
+        Grid mixed;
+        mixed.s("A1", "a").n("A5", 3).s("A9", "b").n("A1000000", 9).b("A1000001", true);
+        const Case more[] = {
+            {"MATCH(4,A:A,1)", "n:5"},
+            {"MATCH(9,A:A,1)", "n:1000000"},
+            {"MATCH(2,A:A,1)", "e:#N/A"},
+            {"MATCH(\"c\",A:A,1)", "n:9"},
+            {"MATCH(TRUE,A:A,1)", "n:1000001"},
+        };
+        for (const Case &c : more) {
+            const Outcome o = evOutcome(QString::fromLatin1(c.formula), mixed);
+            QVERIFY2(o.text == QString::fromLatin1(c.value) && o.work < 200, qPrintable(QString::fromLatin1(c.formula) + QStringLiteral(" -> ") + said(o) + QStringLiteral(", expected ") + QString::fromLatin1(c.value)));
+        }
+        Grid row;
+        row.n("A1", 5).n("XFD1", 100);
+        const Outcome h = evOutcome("HLOOKUP(7,A1:XFD1,1,TRUE)", row);
+        QVERIFY2(h.text == "n:5" && h.work < 200, qPrintable(said(h)));
+        const Outcome m = evOutcome("MATCH(7,1:1,1)", row);
+        QVERIFY2(m.text == "n:1" && m.work < 200, qPrintable(said(m)));
+    }
 };
 
 JP_TEST_CLASS(SheetBoundsTests)
