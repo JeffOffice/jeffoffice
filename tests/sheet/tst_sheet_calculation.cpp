@@ -364,6 +364,7 @@ private Q_SLOTS:
             {QStringLiteral("nNest"), QStringLiteral("nBlock"), 2, 1, 4, 3, true},
             {QStringLiteral("nVol"), QStringLiteral("RAND()*0+Sheet1!$E$2"), 1, 4, 1, 4, false},
             {QStringLiteral("nIdx"), QStringLiteral("INDEX(Sheet1!$A$1:$G$24,4,3)"), 3, 2, 3, 2, false},
+            {QStringLiteral("nNow"), QStringLiteral("NOW()*4"), -1, -1, -1, -1, false},   // (reads no cell; the time is set for each step, so that it is what it is worked out from)
         };
         QString definedNames;
         for (const NamedCells &n : names) definedNames += QStringLiteral("<definedName name=\"%1\">%2</definedName>").arg(n.name, n.formula.toHtmlEscaped());
@@ -419,7 +420,7 @@ private Q_SLOTS:
             case 11: case 12: case 13: {   // a defined name, if the cells it stands for are all of lower rank
                 std::vector<const NamedCells *> usable;
                 for (const NamedCells &n : names)
-                    if (allLower(n.r1, n.c1, n.r2, n.c2, r, c)) usable.push_back(&n);
+                    if (n.r1 < 0 || allLower(n.r1, n.c1, n.r2, n.c2, r, c)) usable.push_back(&n);
                 if (usable.empty()) break;
                 const NamedCells &n = *usable[rng.bounded(quint32(usable.size()))];
                 if (!n.block) return QStringLiteral("%1*2+%2").arg(n.name, a.contains(':') ? QStringLiteral("COUNT(%1)").arg(a) : a);
@@ -446,7 +447,9 @@ private Q_SLOTS:
             sheet += rowXml(r + 1, cellsXml);
         }
         Book b;
-        QVERIFY(b.open(buildXlsx({worksheet(sheet)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), definedNames)));
+        CalcOptions at;
+        at.now = 45000;
+        QVERIFY(b.open(buildXlsx({worksheet(sheet)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), definedNames), at));
         settle(b);
         auto snapshot = [&]() {
             QStringList all;
@@ -455,6 +458,7 @@ private Q_SLOTS:
             return all;
         };
         for (int step = 0; step < 600; ++step) {
+            b.calc->setNow(45000.0 + 0.25 * step);   // (a day number a step: what reads NOW, through a name or not, is worked out again)
             const int edits = 1 + int(rng.bounded(3));
             for (int e = 0; e < edits; ++e) {
                 const int r = int(rng.bounded(rows)), c = int(rng.bounded(cols));

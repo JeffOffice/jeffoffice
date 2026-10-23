@@ -57,6 +57,8 @@ public:
     // Works out what is to be worked out (and the formulas that change by themselves): all of it, or about `workBudget` steps of it, then stops with `finished` false and the
     // rest to be done by the next call. If `cancel` is set it stops at once, with `cancelled` true.
     Progress recalculate(qint64 workBudget = 0, const std::atomic<bool> *cancel = nullptr);
+    // The day number NOW and TODAY give from the next recalculation (0: the clock is read at each, as it is when the calculation is made without a time).
+    void setNow(double serial) { m_options.now = serial; }
     // Marks every formula to be worked out again (the next recalculation is a whole one).
     void invalidateAll();
     // Formulas that have yet to be worked out.
