@@ -180,6 +180,7 @@ qt_add_executable(sheettests
   tests/sheet/sheethelpers.cpp
   tests/sheet/calchelpers.cpp
   tests/sheet/tst_sheet_bounds.cpp
+  tests/sheet/tst_sheet_calculation.cpp
   tests/sheet/tst_sheet_cells.cpp
   tests/sheet/tst_sheet_eval.cpp
   tests/sheet/tst_sheet_fn_date.cpp

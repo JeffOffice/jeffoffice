@@ -45,7 +45,7 @@ public:
     const SharedStrings &shared() const { return m_book.sharedStrings(); }
     jp::calc::Value valueOf(const Sheet &sheet, const Cell &cell) const;
 
-private:
+protected:
     const Workbook &m_book;
     std::vector<Sheet> m_sheets;
     std::vector<quint32> m_rows, m_cols;

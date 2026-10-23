@@ -39,6 +39,8 @@ enum CellFlag : quint8 {
     ArrayFormula = 2,    // the cell holds the formula of an array (its range is in the formula)
     SharedFormula = 4,   // the formula is one a group of cells share, as written for the first of them
     DataTable = 8,       // the formula is a what-if data table
+    ArrayMember = 16,    // a cell of the range of an array formula that is not its first cell: its value is the formula's (set by the calculation; `formula` then names the array's formula)
+    Tainted = 32,        // a value the calculation could not check (a cell of a data table, or of an array whose formula it kept apart)
 };
 
 // One cell: 24 bytes. A cell always has its place in the grid; its value is

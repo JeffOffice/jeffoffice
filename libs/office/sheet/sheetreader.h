@@ -105,6 +105,7 @@ struct WorkbookInfo {
     DateSystem dateSystem = DateSystem::Date1900;
     CalcMode calcMode = CalcMode::Auto;
     bool fullCalcOnLoad = false;
+    bool iterate = false;   // the workbook asks for iterative calculation (circular references are worked out by going round them)
 };
 
 // Reads the workbook part. Each sheet has its name, id, state, and the Id of
