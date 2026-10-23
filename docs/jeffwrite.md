@@ -143,14 +143,19 @@ The 0.9.1 round (October 22, 2026) made the fixes people notice: the status bar 
 
 Headers and footers are edited (October 23, 2026). A header or footer is a story of its own, in the form the text is edited in: a field is one character that shows its result (the page's number, the count, a
 paragraph style's text, or what the file had), each element the program does not edit (a picture or shape, a bookmark, a link, a content control, a table) is a piece kept as written and put back where it
-was, and a part with more paragraphs than are shown keeps the rest. Double-clicking a page's header or footer area, or Insert > Header and Footer, enters it for the page's section and slot (the first page's,
+was, and a part with more paragraphs than are shown (400, those of a table's cells counted; a table is cut between its rows) keeps the rest, in the table where it was; the page and the
+form the part is edited in show the same of it, and a paragraph a tracked change deleted is out of both and is written back. Double-clicking a page's header or footer area, or Insert > Header and Footer, enters it for the page's section and slot (the first page's,
 the even pages', or the ordinary one); the text dims, the Header & Footer tab shows, and Esc, a double click in the text, or Close leaves. Everything in `editops.h` works there (the cursor is in the story), a
 page number is `insertPageNumber`, and Different First Page (a section's `w:titlePg`), Different Odd & Even Pages (the document's `w:evenAndOddHeaders`, carried by the last section's record so that it undoes
-with the text), and Link to Previous (a section with no reference of its own has the section before's; off, it has a copy with a part and relationship of its own) are steps of the history. There is one
-history (`WriteDoc::undo` and `redo`): the steps of the text and of each header and footer in the order they were made (a story's next edit after another story's is not joined to its last step), and the view
-follows a step into the header it was in. Saving writes a header or footer from its story only if it was edited (a part that was not is written back as the bytes it was read as), new parts get a name, a
+with the text), and Link to Previous (a section with no reference of its own has the section before's; off, it has a copy with a part and relationship of its own) are steps of the history. A double click in the margin of a page whose section has none of its own shows an empty header or footer to type in, and makes nothing in the file until something is put in it
+(`createHeaderFooter` with `lazy`; leaving it as it is leaves the document as it was, and Insert > Header and Footer makes it at once); the blank page that an odd-page or even-page section
+break leaves has none to enter. A header or footer takes no page, column, or section break, and no reference to a note or a comment: the commands are grayed there, typing and pasting leave them
+out, and copied text has a field as the text it shows (the number of the page being edited, the count of pages, the date as the file had it). There is one
+history (`WriteDoc::undo` and `redo`): the steps of the text and of each header and footer in the order they were made (a story's next edit after another story's is not joined to its last step; an edit that joins the block of the one before it is one step, not two), and the view
+follows a step into the header it was in. Saving writes a header or footer from its story only if the history has steps in it (a part that was not edited, or whose edits are all taken back, is written back as the bytes it was read as; so are the
+styles, when the Header and Footer styles that making one added have no paragraph left), new parts get a name, a
 relationship, a content type, and the section's reference, and a part no section names any more is not written. A part that cannot be read (not XML), one that is past the 64 parts read, and a reference
-that names an address outside the file are never replaced. Find and Replace and the Spelling pane look through the text only (opening them leaves the header), and misspelled words are marked in the header
+that names an address outside the file are never replaced. Find and Replace and the Spelling pane look through the text only (opening them leaves the header, and so does any cursor in the text that the view is given), and misspelled words are marked in the header
 being edited. Not yet: editing a header's pictures and shapes, and its tables' rows and columns (their text is edited), the gallery of built-in designs, Go to Header and Go to Footer, and Date and Time.
 
 ## Checking it
