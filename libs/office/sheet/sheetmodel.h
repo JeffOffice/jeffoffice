@@ -5,6 +5,7 @@
 // The shared strings of a workbook are one list that every sheet refers to.
 
 #include "sheet/cellref.h"
+#include "sheet/styles.h"
 
 #include <QHash>
 #include <QString>
@@ -226,6 +227,53 @@ struct SheetStats {
     qint64 heldBytes = 0;            // what the sheet takes to hold, as Limits::sheetBytes counts it
     qint64 largestToken = 0;         // the most bytes of XML in one piece (a tag with its attributes, a text, a comment) the parser was given
     qint64 largestRead = 0;          // the most bytes the parser asked for at one time
+    qint64 columnSpans = 0;          // `col` elements
+    qint64 rowSpecs = 0;             // rows that were kept as not the default
+};
+
+// What the file says about a run of columns (a `col` element): its width in characters of the default font's widest digit (with the padding the format adds),
+// whether it is hidden, and the cell format that the cells of the columns that hold nothing have.
+struct ColumnSpan {
+    quint32 first = 0, last = 0;   // the columns (from 0), both ends in the run
+    double width = -1;             // characters; -1 when the file gives none
+    bool hidden = false;
+    bool customWidth = false;
+    quint32 style = 0;             // the place of a cell format; 0 for none
+};
+
+// What the file says about a row that is not as the sheet's default: its height in points (-1 for none), whether it is hidden, and the cell format (when the row
+// asks for it, `customFormat`) that the cells of the row that hold nothing have.
+struct RowSpec {
+    quint32 row = 0;
+    double height = -1;
+    bool hidden = false;
+    bool customHeight = false;
+    bool customFormat = false;
+    quint32 style = 0;
+};
+
+// `sheetFormatPr`: the sizes of rows and columns that have none of their own.
+struct SheetFormat {
+    double defaultRowHeight = 15;   // points
+    double defaultColWidth = 0;     // characters, with the padding; 0 when the file gives none (the base width says)
+    int baseColWidth = 8;           // characters of the default font's widest digit, with no padding
+    bool zeroHeight = false;        // the rows that have no row element are hidden
+    bool customHeight = false;
+};
+
+// `sheetView`: how the sheet was left on the screen.
+struct SheetView {
+    bool showGridLines = true;
+    bool showHeadings = true;
+    bool showZeros = true;
+    bool rightToLeft = false;
+    bool tabSelected = false;
+    int zoom = 100;                 // percent
+    bool frozen = false;            // the first rows and columns stay in place (a split that is not frozen is not kept)
+    quint32 frozenRows = 0, frozenCols = 0;
+    quint32 topRow = 0, leftCol = 0;           // the cell at the top left of what shows (of the frozen part, when there is one)
+    quint32 paneRow = 0, paneCol = 0;          // the cell at the top left of the part that scrolls, when frozen
+    quint32 activeRow = 0, activeCol = 0;      // the cell the sheet was left on
 };
 
 struct Sheet {
@@ -236,6 +284,13 @@ struct Sheet {
     QVector<CellRange> ranges;        // the cells of array formulas and data tables
     CellRange dimension;              // what the part says the used cells are (it may be wrong, or missing)
     qint64 mergeCount = 0;            // merged ranges
+    QVector<CellRange> merges;        // the merged ranges read (as many as the limit allows), in the order of the file
+    QVector<ColumnSpan> columns;      // in the order of the file
+    QVector<RowSpec> rowSpecs;        // the rows that are not as the default, in the order of the file
+    SheetFormat format;
+    SheetView view;
+    ColorSpec tabColor;               // the color of the sheet's tab
+    bool partial = false;             // the read was stopped at a row asked for (ReadOptions::stopAfterRow): the cells of the rows after it, and what follows the cells (the merged ranges), are not here
     qint64 formulaCells = 0;          // cells with a formula
     qint64 storedResults = 0;         // of them, those the file stored a result for
     SheetStats stats;

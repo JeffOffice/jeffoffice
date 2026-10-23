@@ -194,6 +194,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_graph.cpp
   tests/sheet/tst_sheet_formulas.cpp
   tests/sheet/tst_sheet_limits.cpp
+  tests/sheet/tst_sheet_look.cpp
   tests/sheet/tst_sheet_numfmt.cpp
   tests/sheet/tst_sheet_package.cpp
   tests/sheet/tst_sheet_parser.cpp

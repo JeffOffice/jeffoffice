@@ -28,7 +28,7 @@ QByteArray stylesXml(const QString &numFmts, const QString &cellXfs, const QStri
 }
 
 QByteArray buildXlsx(const QVector<QByteArray> &sheets, const QByteArray &sharedStrings, const QString &workbookPr, const QString &calcPr, const QByteArray &styles,
-                     const QStringList &names, const QString &definedNames)
+                     const QStringList &names, const QString &definedNames, const QByteArray &theme, const QString &bookViews)
 {
     PackageWriter w;
     const QString relBase = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
@@ -50,8 +50,12 @@ QByteArray buildXlsx(const QVector<QByteArray> &sheets, const QByteArray &shared
         w.addPart(QStringLiteral("/xl/styles.xml"), styles, QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"));
         w.addRelationship(QStringLiteral("/xl/workbook.xml"), relBase + "styles", QStringLiteral("/xl/styles.xml"));
     }
+    if (!theme.isEmpty()) {
+        w.addPart(QStringLiteral("/xl/theme/theme1.xml"), theme, QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml"));
+        w.addRelationship(QStringLiteral("/xl/workbook.xml"), relBase + "theme", QStringLiteral("/xl/theme/theme1.xml"));
+    }
     const QByteArray workbook = ("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<workbook xmlns=\"" + kMainNs + "\" xmlns:r=\"" + kRelNs + "\">"
-                                 + (workbookPr.isEmpty() ? QString() : "<workbookPr " + workbookPr + "/>") + "<sheets>" + sheetList + "</sheets>" + (definedNames.isEmpty() ? QString() : "<definedNames>" + definedNames + "</definedNames>")
+                                 + (workbookPr.isEmpty() ? QString() : "<workbookPr " + workbookPr + "/>") + (bookViews.isEmpty() ? QString() : "<bookViews>" + bookViews + "</bookViews>") + "<sheets>" + sheetList + "</sheets>" + (definedNames.isEmpty() ? QString() : "<definedNames>" + definedNames + "</definedNames>")
                                  + (calcPr.isEmpty() ? QString() : "<calcPr " + calcPr + "/>") + "</workbook>").toUtf8();
     w.addPart(QStringLiteral("/xl/workbook.xml"), workbook, QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"));
     return w.finish();
