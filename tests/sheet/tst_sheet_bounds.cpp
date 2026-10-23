@@ -131,6 +131,20 @@ private Q_SLOTS:
         QCOMPARE(ev("SUBSTITUTE(\"banana\",\"\",\"x\")"), QStringLiteral("s:banana"));
     }
 
+    // The texts INDIRECT is given are kept to be worked out again, up to a number of bytes, not a number of texts: two thousand long ones don't take hundreds of megabytes.
+    void theTextsOfIndirectAreKeptWithinAByteBudget()
+    {
+        Grid g;
+        g.n("A1", 1);
+        Settings array;
+        array.array = true;
+        // 2,000 texts of 21,000 characters each, every one different: a formula of 7,000 references, which a program of some 400 kilobytes comes of
+        const MemoryWatch watch;
+        const Outcome many = evOutcome("SUMPRODUCT(--ISERROR(INDIRECT(REPT(\"A1+\",7000)&ROW(1:2000))))", g, array);
+        QVERIFY2(many.status == EvalStatus::Ok, qPrintable(said(many, watch.growthMegabytes())));
+        QVERIFY2(watch.growthMegabytes() < 300, qPrintable(said(many, watch.growthMegabytes())));
+    }
+
     // ---- time
 
 };

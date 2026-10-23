@@ -280,6 +280,7 @@ private:
         std::shared_ptr<const Program> program;
     };
     QHash<QString, Cached> m_texts;
+    qint64 m_textsBytes = 0;   // about what the texts above, their programs, and their keys take
 };
 
 } // namespace jp::calc

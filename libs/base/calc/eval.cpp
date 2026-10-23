@@ -13,6 +13,18 @@ namespace {
 
 bool isErr(const Value &v) { return v.kind() == Value::Kind::Error; }
 
+// About the bytes a program takes (what the cache of INDIRECT's texts counts).
+qint64 programBytes(const Program &p)
+{
+    qint64 n = qint64(sizeof(Program)) + qint64(p.code.size() * sizeof(Instr)) + qint64(p.numbers.size() * sizeof(double)) + qint64(p.refs.size() * sizeof(RefLit));
+    for (const QString &t : p.texts) n += 32 + 2 * qint64(t.size());
+    for (const Value &a : p.arrays) n += qint64(a.rows()) * a.cols() * qint64(sizeof(Value));
+    return n;
+}
+
+// The texts INDIRECT and the defined names are worked out from are kept, parsed, to be worked out again; up to this many bytes (then they are all let go).
+constexpr qint64 kMaxCachedTextBytes = 16000000;
+
 // Is the program only references and names, with the operators between references? (A call, a number, a sum are none.)
 bool namesAReference(const Program &p)
 {
@@ -549,7 +561,10 @@ Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, in
     key += text;
     auto it = m_texts.find(key);
     if (it == m_texts.end()) {
-        if (m_texts.size() > 4096) m_texts.clear();
+        if (m_texts.size() > 4096 || m_textsBytes > kMaxCachedTextBytes) {
+            m_texts.clear();
+            m_textsBytes = 0;
+        }
         ParseOptions options;
         options.r1c1 = r1c1;
         options.definedName = relativeToA1;
@@ -558,6 +573,7 @@ Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, in
         Cached c;
         const ParseResult r = parseFormula(text, options);
         if (r.ok()) c.program = r.program;
+        m_textsBytes += 64 + 2 * qint64(key.size()) + (c.program ? programBytes(*c.program) : 0);
         it = m_texts.insert(key, c);
     }
     if (!it->program) return Item::ofError(relativeToA1 ? ErrorKind::Name : ErrorKind::Ref);
