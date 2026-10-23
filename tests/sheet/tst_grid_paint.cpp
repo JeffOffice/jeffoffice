@@ -748,6 +748,39 @@ private Q_SLOTS:
         f.render();
         QVERIFY(f.painter->stats().textRuns > 100);
     }
+
+    // Every merged range on the screen is drawn, however many (a form of merged cells at a small zoom has thousands: the old bound was two thousand, and the rest were left out).
+    void everyMergeOnTheScreenIsDrawn()
+    {
+        Fixture f;
+        f.size = QSize(1280, 800);
+        for (quint32 r = 0; r < 160; ++r)
+            for (quint32 c = 0; c < 40; ++c) f.sheet.merges.append(mergeOf(r, c * 2, r, c * 2 + 1));
+        f.build();
+        f.grid.layout().setZoom(0.25);   // (cells of 16 by 5 pixels: eighty columns and a hundred and sixty rows)
+        f.grid.layout().setViewport(f.size);
+        f.render();
+        const PaintStats s = f.painter->stats();
+        QCOMPARE(s.mergesDrawn, qint64(6400));
+        QCOMPARE(s.mergesLeftOut, qint64(0));
+        QVERIFY(!s.truncated);
+    }
+
+    // A file that stacks merged ranges over the screen (a hundred and sixty thousand, each a different size, all taking in what is on it) is drawn as far as a few screens of fill, and
+    // every merge that is not drawn is counted: the ones that cross the block and the ones left out of the list add up to all of them.
+    void mergesPastTheBoundsAreCounted()
+    {
+        Fixture f;
+        for (quint32 r = 1; r <= 400; ++r)
+            for (quint32 c = 1; c <= 400; ++c) f.sheet.merges.append(mergeOf(0, 0, r, c));
+        f.build();
+        f.render();
+        const PaintStats s = f.painter->stats();
+        QCOMPARE(s.mergesDrawn + s.mergesLeftOut, qint64(160000));
+        QVERIFY(s.mergesLeftOut > 150000);
+        QVERIFY(s.mergesDrawn >= 50 && s.mergesDrawn <= 2000);
+        QVERIFY(s.truncated);
+    }
 };
 
 JP_TEST_CLASS(GridPaintTests)

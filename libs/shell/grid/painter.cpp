@@ -502,7 +502,9 @@ void GridPainter::paintPane(QPainter *p, Pane which, const QRect &clip, const Pa
     // ---- merged ranges that cross what is drawn, and the cells under them
     std::vector<int> merges;
     if (L.merges.count() > 0) {
-        if (!L.merges.crossing(quint32(firstRow.index), quint32(firstCol.index), quint32(lastRow.index), quint32(lastCol.index), kMaxMerges, &merges)) m_stats.truncated = true;
+        qint64 crossed = 0;
+        if (!L.merges.crossing(quint32(firstRow.index), quint32(firstCol.index), quint32(lastRow.index), quint32(lastCol.index), kMaxMerges, &merges, &crossed)) m_stats.truncated = true;
+        if (crossed > qint64(merges.size())) m_stats.mergesLeftOut += crossed - qint64(merges.size());   // (counted, and the paint says it was cut short)
         w.covered.assign(R * C, 0);
         for (int id : merges) {
             const jp::office::sheet::CellRange &m = L.merges.range(id);
@@ -643,10 +645,21 @@ marked:
             drawEdge(p, heavier(here ? &here->bottom : nullptr, below ? &below->top : nullptr), w.cols[j].start, rs.start + rs.size, w.cols[j].size, false, area);
         }
     // ---- merged ranges, each as one cell: its fill (over the gridlines inside it, but not those that bound it), its borders from the cells at its corners, and its first cell's text
-    for (int id : merges) {
+    // (merged ranges do not overlap in a sheet that is whole, so what they cover is the screen at the most; a file that stacks a hundred thousand of them over it is drawn as far as
+    // eight screens of fill, and the rest are counted as left out)
+    qint64 mergeArea = 8 * qint64(area.width()) * area.height();
+    for (size_t at = 0; at < merges.size(); ++at) {
+        const int id = merges[at];
         const jp::office::sheet::CellRange &m = L.merges.range(id);
         const QRect rect = L.rangeRectIn(which, m.row1, m.col1, m.row2, m.col2);
         if (rect.isEmpty() || !rect.intersects(area)) continue;
+        const QRect shown = rect & area;
+        mergeArea -= qint64(shown.width()) * shown.height();
+        if (mergeArea < 0) {
+            m_stats.mergesLeftOut += qint64(merges.size() - at);
+            m_stats.truncated = true;
+            break;
+        }
         ++m_stats.mergesDrawn;
         const Cell *anchor = m_sheet->cellAt(m.row1, m.col1);
         const quint32 xf = anchor ? anchor->style : m_sheet->styleOf(m.row1, m.col1, nullptr);

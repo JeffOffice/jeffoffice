@@ -53,6 +53,7 @@ struct PaintStats {
     qint64 textChars = 0;        // their characters
     qint64 hashed = 0;           // numbers too wide for their cells, drawn as "#"
     qint64 mergesDrawn = 0;
+    qint64 mergesLeftOut = 0;    // merged ranges on the screen that were not drawn for want of room (the bound is far above what a sheet has)
     qint64 mergeMarks = 0;       // cells marked as part of a merged range
     qint64 headersDrawn = 0;
     qint64 textsMade = 0;        // texts of cells made (not found in the cache) during the drawing
@@ -66,7 +67,7 @@ public:
     // marked as under a merged range. A font smaller than this many pixels is not drawn (text that small is not readable, and costs the same).
     static constexpr int kMaxRows = 2048, kMaxCols = 2048;
     static constexpr qint64 kMaxCells = 60000, kMaxTextRuns = 12000, kMaxSpillProbes = 20000, kMaxMergeMarks = 200000;
-    static constexpr int kMaxMerges = 2000;
+    static constexpr int kMaxMerges = 100000;   // far above what a screen of a real sheet has (its cells are at most 60,000, and a merged range is two of them or more); the ones left out are counted
     static constexpr int kMinFontPixels = 4;
 
     explicit GridPainter(GridSheet *sheet);

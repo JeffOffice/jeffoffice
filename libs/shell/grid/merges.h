@@ -36,7 +36,8 @@ public:
     // The merge the cell is in: its place (for range()), or -1.
     int at(quint32 row, quint32 col) const;
     // Calls out->push_back for the merges that cross the block (both ends in it), in order, at most `limit` of them; false if there were more, or if the search stopped short.
-    bool crossing(quint32 row1, quint32 col1, quint32 row2, quint32 col2, int limit, std::vector<int> *out) const;
+    // `total`, if given, is told how many merges cross the block (those found: all of them unless the search stopped short), whatever the limit.
+    bool crossing(quint32 row1, quint32 col1, quint32 row2, quint32 col2, int limit, std::vector<int> *out, qint64 *total = nullptr) const;
 
     // True if the two hold the same merges (a copy shares them until one is assigned others).
     bool sharesStorageWith(const MergeIndex &other) const { return m_d && m_d == other.m_d; }

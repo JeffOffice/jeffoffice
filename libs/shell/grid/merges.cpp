@@ -182,8 +182,9 @@ int MergeIndex::at(quint32 row, quint32 col) const
     return best == INT_MAX ? -1 : int(best);
 }
 
-bool MergeIndex::crossing(quint32 row1, quint32 col1, quint32 row2, quint32 col2, int limit, std::vector<int> *out) const
+bool MergeIndex::crossing(quint32 row1, quint32 col1, quint32 row2, quint32 col2, int limit, std::vector<int> *out, qint64 *total) const
 {
+    if (total) *total = 0;
     const Data *d = m_d.get();
     if (!d || d->infos.empty() || row1 >= kLeaves) return true;
     row2 = std::min(row2, kLeaves - 1);
@@ -245,6 +246,7 @@ bool MergeIndex::crossing(quint32 row1, quint32 col1, quint32 row2, quint32 col2
     }
     std::sort(found.begin(), found.end());
     found.erase(std::unique(found.begin(), found.end()), found.end());
+    if (total) *total = qint64(found.size());
     for (const quint32 id : found) {
         if (int(out->size()) >= limit) return false;
         out->push_back(int(id));
