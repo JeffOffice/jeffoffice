@@ -83,6 +83,13 @@ int loadBundledFonts() { return loadFontsFrom(bundledFontDirs()); }
 
 int loadFontsFrom(const QStringList &dirs)
 {
+#if !defined(Q_OS_WIN) && !defined(Q_OS_MACOS)
+    // Qt keeps the font added last when two have a family and style. Fonts added before the database is first used are listed with the computer's own by
+    // fontconfig, in an order that follows a hash of each file's path: so for a family both have (DejaVu Sans, Carlito, and Caladea, on many Linux computers) the winner
+    // depended on the folder the fonts were in (an AppImage's changes at every start). Built first, the database has the computer's fonts before ours are added, as it does
+    // when Qt rebuilds it after a font is removed, and ours come last, wherever they are.
+    (void)QFontDatabase::families();
+#endif
     int n = 0;
     for (const QString &d : dirs) {
         QDir dir(d);

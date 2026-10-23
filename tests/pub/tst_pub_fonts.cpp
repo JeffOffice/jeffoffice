@@ -1100,6 +1100,36 @@ private Q_SLOTS:
         QCOMPARE(removed, QStringLiteral("Calibri"));
     }
 
+    // The program's own fonts win over a font of the same family and style that the computer has (DejaVu Sans, Carlito, and Caladea are on many Linux computers),
+    // wherever the program is installed. Qt's database keeps the font added last, and fontconfig lists the fonts added before the database is first used in an order
+    // that follows a hash of each file's path, so which of two was last depended on the folder the program's fonts were in (an AppImage's changes at every start).
+    // The same fonts in folders of different names, each loaded by a program of its own (the database is one for a whole program), each with a twin from memory.
+    void ownFontsWinWhereverTheyAreInstalled()
+    {
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
+        QSKIP("Qt's font databases here do not list fonts in the order of their paths.");
+#else
+        const QStringList names{QStringLiteral("Arimo-Regular.ttf"), QStringLiteral("Arimo-Bold.ttf"), QStringLiteral("Tinos-Regular.ttf"), QStringLiteral("Cousine-Regular.ttf")};
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        std::vector<std::unique_ptr<QProcess>> runs;
+        for (int i = 0; i < 10; ++i) {
+            const QString folder = root.filePath(QStringLiteral("fonts-%1/%2").arg(i).arg(QString(i + 1, QLatin1Char('f'))));
+            QVERIFY(QDir().mkpath(folder));
+            for (const QString &name : names) QVERIFY(QFile::copy(QStringLiteral(JP_TEST_DATA "/../../resources/fonts/") + name, folder + QLatin1Char('/') + name));
+            runs.push_back(std::make_unique<QProcess>());
+            runs.back()->start(QStringLiteral(JP_FONTTEST), QStringList{folder} + names);
+        }
+        for (const auto &run : runs) {
+            QVERIFY(run->waitForFinished(120000));
+            QVERIFY2(run->exitStatus() == QProcess::NormalExit && run->exitCode() == 0, qPrintable(QStringLiteral("exit code %1").arg(run->exitCode())));
+            const QList<QByteArray> lines = run->readAllStandardOutput().trimmed().split('\n');
+            QCOMPARE(lines.size(), names.size());
+            for (const QByteArray &line : lines) QVERIFY2(line.endsWith(" yes"), line.constData());
+        }
+#endif
+    }
+
     // Franklin Gothic Heavy, the missing font Publisher's own designs use
     // most, is drawn in Libre Franklin ExtraBold, narrowed to its width
     // (98.30 ems for this sample in the Windows font).

@@ -149,6 +149,12 @@ target_link_libraries(jpcrashtest PRIVATE jo_shell)
 set_target_properties(jpcrashtest PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF)
 add_dependencies(jptests jpcrashtest)
 target_compile_definitions(jptests PRIVATE JP_CRASHTEST="$<TARGET_FILE:jpcrashtest>")
+# Loads fonts the way a program does, for the test of which fonts win.
+qt_add_executable(jpfonttest tests/fonttest.cpp)
+target_link_libraries(jpfonttest PRIVATE jo_base)
+set_target_properties(jpfonttest PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF)
+add_dependencies(jptests jpfonttest)
+target_compile_definitions(jptests PRIVATE JP_FONTTEST="$<TARGET_FILE:jpfonttest>")
 add_test(NAME jptests COMMAND jptests)
 set_tests_properties(jptests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
