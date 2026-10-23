@@ -120,6 +120,8 @@ public:
         bool active = false;
         int id = 0, page = 0;   // the note (its w:id) and the page it is edited on
         QTextDocument *story = nullptr;
+        int copy = 0;           // of the copies the pages set of it (it is set again for each citation), the one that is edited: its place in the order of the pages
+        int number = 0;         // the number that copy has now (to tell its box from another copy's on the same page)
     };
     bool inNote() const { return m_note.active; }
     const NoteEdit &noteEdit() const { return m_note; }
@@ -190,10 +192,10 @@ private:
     int hfMoveVertical(int position, int direction);
     Area areaOf(const Hit &hit);
     // A footnote's story and its Id where a point on a page is in the box of one; false where it is not.
-    bool noteAt(const Hit &hit, QTextDocument **story, int *id);
+    bool noteAt(const Hit &hit, QTextDocument **story, int *id, int *number = nullptr);
     // The page whose foot has the note (the first that has a box of it), -1 where none is found.
     int pageShowingNote(const QTextDocument *story);
-    bool enterNote(QTextDocument *story, int id, int page);
+    bool enterNote(QTextDocument *story, int id, int page, int number = 0);
     // After the pages were laid out again: the page the note being edited is on.
     void settleNote();
     // Whether the caret is in the first (dir < 0) or the last (dir > 0) line of the note being edited (not of a part of it that goes on from or to another page).
@@ -202,12 +204,18 @@ private:
     // part for each page, and a note cited on two pages is shown in a copy for each citation (the parts of a copy begin again at the start of the note). They are the parts of the copy
     // that `hintPage` has, in order.
     struct NotePart {
-        int page = 0, from = 0;
+        int page = 0, from = 0, number = 0;
     };
+    // Every copy of the note being edited that the pages set (by the number each has, the parts of one copy on consecutive pages), in the order of the pages.
+    QVector<QVector<NotePart>> copiesOfEditedNote();
+    // The copy being edited: the one that `m_note.copy` names while it has a part on `hintPage`, else the nearest to that page; -1 where none.
+    int editedCopyIndex(const QVector<QVector<NotePart>> &copies, int hintPage) const;
     QVector<NotePart> partsOfEditedNote(int hintPage);
+    // The copy that has the box clicked (or the first that has a part on the page): which copy is edited, and its number.
+    void chooseCopy(int page, int number);
     static int partIndexAt(const QVector<NotePart> &parts, int position);   // the part that has a place of the note: the last that begins at or before it
     // The page that shows a place in the note being edited (in the copy being edited), -1 where none does; and the note's page made that of the caret.
-    int pageOfNotePosition(int position);
+    int pageOfNotePosition(int position, int *number = nullptr, int *copy = nullptr);
     void syncNotePage();
     // The caret (and a selection that began in an endnote's words) held in them: a click put it there, or a key moved it inside the note. False where it is in none, or a key took it
     // there from the text (which skips the notes, as ever).

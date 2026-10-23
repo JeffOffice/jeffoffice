@@ -70,6 +70,7 @@ struct MaterializedPage {
         bool footer = false;
         const QTextDocument *source = nullptr;
         int from = 0;
+        int number = 0;   // a note's box: the number the note has in this place (the copies of a note cited more than once have each their own; the parts of a copy have the one)
     };
     QVector<FurnitureBox> furniture;
     // The text boxes that show a footnote of the page (the same kind of record: the box, the note's own story as the document has it, and the position in that story where the box's

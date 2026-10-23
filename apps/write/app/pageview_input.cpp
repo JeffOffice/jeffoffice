@@ -290,9 +290,9 @@ void PageView::mousePressEvent(QMouseEvent *e)
     } else {
         // A click in a footnote's text puts the caret there, in the note; a click anywhere else is in the text, and leaves the note it was in.
         QTextDocument *noteStory = nullptr;
-        int noteId = 0;
-        if (noteAt(hit, &noteStory, &noteId)) {
-            if (!enterNote(noteStory, noteId, hit.page)) return;
+        int noteId = 0, noteNumber = 0;
+        if (noteAt(hit, &noteStory, &noteId, &noteNumber)) {
+            if (!enterNote(noteStory, noteId, hit.page, noteNumber)) return;
         } else if (m_note.active) {
             leaveNote();
         }

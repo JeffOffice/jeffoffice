@@ -10,6 +10,7 @@
 #include <QImage>
 #include <QPaintEvent>
 #include <QPainter>
+#include <QMap>
 #include <QScrollBar>
 #include <QSet>
 #include <QTimer>
@@ -1122,8 +1123,11 @@ bool PageView::hfSpotAt(Rendered &r, int position, FrameSpot *spot)
 {
     if (!r.page) return false;
     const flow::MaterializedPage::FurnitureBox *best = nullptr;
-    for (const auto &fb : boxesOf(*r.page, m_note.active))
-        if (fb.source == sideStory() && fb.from <= position && (!best || fb.from >= best->from)) best = &fb;
+    // (A page can set two copies of a note, and a part of one that goes on from the page before beside the start of another: the boxes of the copy being edited are the ones to look at.)
+    const auto &boxes = boxesOf(*r.page, m_note.active);
+    const bool ofCopy = m_note.active && m_note.number != 0 && std::any_of(boxes.cbegin(), boxes.cend(), [&](const auto &fb) { return fb.source == sideStory() && fb.number == m_note.number; });
+    for (const auto &fb : boxes)
+        if (fb.source == sideStory() && (!ofCopy || fb.number == m_note.number) && fb.from <= position && (!best || fb.from >= best->from)) best = &fb;
     if (!best) return false;
     for (const auto &it : r.page->doc->pages[0]->items) {
         if (it->id != best->itemId || it->type() != ItemType::Text) continue;
@@ -1259,7 +1263,7 @@ int PageView::hfMoveVertical(int position, int direction)
 
 // ---- footnotes
 
-bool PageView::noteAt(const Hit &hit, QTextDocument **story, int *id)
+bool PageView::noteAt(const Hit &hit, QTextDocument **story, int *id, int *number)
 {
     if (hit.page < 0) return false;
     const auto r = rendered(hit.page);
@@ -1271,6 +1275,7 @@ bool PageView::noteAt(const Hit &hit, QTextDocument **story, int *id)
         if (!m_doc->footnoteIdOf(nb.source, &noteId)) continue;
         if (story) *story = m_doc->editableFootnote(noteId);
         if (id) *id = noteId;
+        if (number) *number = nb.number;
         return story ? *story != nullptr : true;
     }
     return false;
@@ -1294,11 +1299,12 @@ int PageView::pageShowingNote(const QTextDocument *story)
     return -1;
 }
 
-bool PageView::enterNote(QTextDocument *story, int id, int page)
+bool PageView::enterNote(QTextDocument *story, int id, int page, int number)
 {
     if (!m_doc || !story) return false;
     if (m_note.active && m_note.story == story) {
         m_note.page = page;
+        chooseCopy(page, number);
         viewport()->update();
         return true;
     }
@@ -1307,6 +1313,7 @@ bool PageView::enterNote(QTextDocument *story, int id, int page)
     if (!was) m_bodyCursor = m_cursor;
     else QObject::disconnect(m_hfEdit);
     m_note = NoteEdit{true, id, page, story};
+    chooseCopy(page, number);
     m_hfSpell = std::make_unique<SpellCheck>(story);
     m_hfSpell->setDefaultLanguage(m_doc->proofingLanguage());
     m_hfSpell->setEnabled(m_spellOn);
@@ -1362,19 +1369,19 @@ void PageView::leaveNote(bool atReference)
     caretMoved();
 }
 
-QVector<PageView::NotePart> PageView::partsOfEditedNote(int hintPage)
+QVector<QVector<PageView::NotePart>> PageView::copiesOfEditedNote()
 {
     QVector<NotePart> all;
-    if (!m_note.active || !m_doc) return all;
+    if (!m_note.active || !m_doc) return {};
     flow::Paginator &pg = m_doc->pager();
     const QVector<int> refs = m_doc->footnoteReferences(m_note.id);
     auto partsOn = [&](int page) {
-        QVector<int> froms;
+        QVector<NotePart> found;
         const auto r = rendered(page);
         if (r && r->page)
             for (const auto &nb : r->page->noteBoxes)
-                if (nb.source == m_note.story) froms << nb.from;
-        return froms;
+                if (nb.source == m_note.story) found.push_back({page, nb.from, nb.number});
+        return found;
     };
     // (Each citation: the page that has its note's first part is its own page or one of the next two; the rest of the note is on the pages that follow, one after another.)
     QSet<int> done;
@@ -1385,30 +1392,64 @@ QVector<PageView::NotePart> PageView::partsOfEditedNote(int hintPage)
             if (done.contains(page) || !partsOn(page).isEmpty()) start = page;
         if (start < 0) continue;
         for (int page = start; page < start + 64 && !done.contains(page); ++page) {
-            const QVector<int> froms = partsOn(page);
-            if (froms.isEmpty()) break;
+            const QVector<NotePart> found = partsOn(page);
+            if (found.isEmpty()) break;
             done.insert(page);
-            for (const int from : froms) all.push_back({page, from});
+            all += found;
         }
     }
-    std::sort(all.begin(), all.end(), [](const NotePart &a, const NotePart &b) { return a.page != b.page ? a.page < b.page : a.from < b.from; });
-    // The copies: a part that begins no later in the note than the one before it is the start of another copy.
+    // The copies: the boxes of one number, in the order of the pages; one that begins no later in the note than the box before it, or that is not on the page after it, is another copy that has
+    // the number (the numbers begin again on each page when the settings say so).
+    QMap<int, QVector<NotePart>> byNumber;
+    for (const NotePart &part : std::as_const(all)) byNumber[part.number].push_back(part);
     QVector<QVector<NotePart>> copies;
-    for (const NotePart &part : std::as_const(all)) {
-        if (copies.isEmpty() || part.from <= copies.last().last().from) copies.push_back({});
-        copies.last().push_back(part);
+    for (auto it = byNumber.begin(); it != byNumber.end(); ++it) {
+        QVector<NotePart> &parts = it.value();
+        std::sort(parts.begin(), parts.end(), [](const NotePart &a, const NotePart &b) { return a.page != b.page ? a.page < b.page : a.from < b.from; });
+        for (const NotePart &part : std::as_const(parts)) {
+            if (copies.isEmpty() || copies.last().first().number != part.number || part.from <= copies.last().last().from || part.page - copies.last().last().page > 1) copies.push_back({});
+            copies.last().push_back(part);
+        }
     }
-    const QVector<NotePart> *best = nullptr;
-    int bestDistance = std::numeric_limits<int>::max();
-    for (const QVector<NotePart> &copy : std::as_const(copies)) {
+    std::sort(copies.begin(), copies.end(), [](const QVector<NotePart> &a, const QVector<NotePart> &b) { return a.first().page != b.first().page ? a.first().page < b.first().page : a.first().from < b.first().from; });
+    return copies;
+}
+
+int PageView::editedCopyIndex(const QVector<QVector<NotePart>> &copies, int hintPage) const
+{
+    if (copies.isEmpty()) return -1;
+    if (m_note.copy >= 0 && m_note.copy < copies.size())
+        for (const NotePart &part : copies[m_note.copy])
+            if (part.page == hintPage) return m_note.copy;
+    int best = 0, bestDistance = std::numeric_limits<int>::max();
+    for (int i = 0; i < copies.size(); ++i) {
         int distance = std::numeric_limits<int>::max();
-        for (const NotePart &part : copy) distance = std::min(distance, std::abs(part.page - hintPage));
+        for (const NotePart &part : copies[i]) distance = std::min(distance, std::abs(part.page - hintPage));
         if (distance < bestDistance) {
             bestDistance = distance;
-            best = &copy;
+            best = i;
         }
     }
-    return best ? *best : QVector<NotePart>();
+    return best;
+}
+
+QVector<PageView::NotePart> PageView::partsOfEditedNote(int hintPage)
+{
+    const QVector<QVector<NotePart>> copies = copiesOfEditedNote();
+    const int index = editedCopyIndex(copies, hintPage);
+    return index < 0 ? QVector<NotePart>() : copies[index];
+}
+
+void PageView::chooseCopy(int page, int number)
+{
+    const QVector<QVector<NotePart>> copies = copiesOfEditedNote();
+    for (int i = 0; i < copies.size(); ++i)
+        for (const NotePart &part : copies[i])
+            if (part.page == page && (number == 0 || part.number == number)) {
+                m_note.copy = i;
+                m_note.number = part.number;
+                return;
+            }
 }
 
 int PageView::partIndexAt(const QVector<NotePart> &parts, int position)
@@ -1419,25 +1460,40 @@ int PageView::partIndexAt(const QVector<NotePart> &parts, int position)
     return at;
 }
 
-int PageView::pageOfNotePosition(int position)
+int PageView::pageOfNotePosition(int position, int *number, int *copy)
 {
-    const QVector<NotePart> parts = partsOfEditedNote(m_note.page);
-    return parts.isEmpty() ? -1 : parts[partIndexAt(parts, position)].page;
+    const QVector<QVector<NotePart>> copies = copiesOfEditedNote();
+    const int index = editedCopyIndex(copies, m_note.page);
+    if (index < 0) return -1;
+    const NotePart &part = copies[index][partIndexAt(copies[index], position)];
+    if (number) *number = part.number;
+    if (copy) *copy = index;
+    return part.page;
 }
 
 void PageView::syncNotePage()
 {
     if (!m_note.active || m_notePinned || m_cursor.document() != m_note.story) return;
-    const int page = pageOfNotePosition(m_cursor.position());
-    if (page >= 0) m_note.page = page;
+    int number = 0, copy = 0;
+    const int page = pageOfNotePosition(m_cursor.position(), &number, &copy);
+    if (page < 0) return;
+    m_note.page = page;
+    m_note.number = number;
+    m_note.copy = copy;
 }
 
 void PageView::settleNote()
 {
     if (!m_note.active || !m_doc) return;
-    const int page = pageOfNotePosition(m_cursor.document() == m_note.story ? m_cursor.position() : 0);
-    if (page < 0) leaveNote();
-    else m_note.page = page;
+    int number = 0, copy = 0;
+    const int page = pageOfNotePosition(m_cursor.document() == m_note.story ? m_cursor.position() : 0, &number, &copy);
+    if (page < 0) {
+        leaveNote();
+    } else {
+        m_note.page = page;
+        m_note.number = number;
+        m_note.copy = copy;
+    }
 }
 
 bool PageView::noteLineAtEdge(int dir)

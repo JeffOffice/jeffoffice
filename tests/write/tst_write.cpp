@@ -691,6 +691,12 @@ struct LookCommand {
     std::function<void(WriteDoc &, QTextCursor &)> run;
 };
 
+// Where one box that sets a note is: the page, the box, and where in the note it begins.
+struct NoteBox {
+    int page;
+    QRectF rect;
+    int from;
+};
 
 class WriteTests : public QObject {
     Q_OBJECT
@@ -18970,6 +18976,99 @@ private Q_SLOTS:
         }
     }
 
+    // ---- footnotes: copies of a note that share a page
+
+    // Every box that sets the note with this Id, on every page: the page, the box, and where in the note it begins.
+    static QList<NoteBox> boxesOfNote(WriteDoc &doc, int id)
+    {
+        QList<NoteBox> out;
+        for (int pg = 0; pg < doc.pager().pageCount(); ++pg) {
+            const auto page = doc.pager().materialize(pg);
+            if (!page) continue;
+            for (const auto &nb : page->noteBoxes) {
+                int found = 0;
+                if (!doc.footnoteIdOf(nb.source, &found) || found != id) continue;
+                if (const Item *item = page->doc->item(nb.itemId)) out.push_back({pg, item->rect, nb.from});
+            }
+        }
+        return out;
+    }
+
+    // A note cited twice whose first copy goes on over pages, the second citation put so that the second copy begins on a page that the first goes on to: each part is clicked, and the caret
+    // is in that part (its page, and its box) while the note is typed in and the keys move the caret.
+    void theCaretStaysInThePartClickedWhereOneCopyGoesOnAndAnotherBegins()
+    {
+        std::unique_ptr<WriteDoc> doc;
+        QList<NoteBox> boxes;
+        bool shared = false;
+        for (int attempt = 0; attempt < 80 && !shared; ++attempt) {
+            const int filler = 1 + attempt % 40, wordCount = attempt < 40 ? 1400 : 800;
+            QByteArray words;
+            for (int i = 0; i < wordCount; ++i) words += " word" + QByteArray::number(i);
+            doc = open(notesDocx(citing("First citation", 2) + paragraphs(filler, 40) + citing("Second citation", 2), footnotesPart({{2, plainRun(words)}})));
+            QVERIFY(doc);
+            PageView probe;
+            probe.resize(1000, 1200);
+            probe.setDocument(doc.get());
+            probe.paginateAll();
+            boxes = boxesOfNote(*doc, 2);
+            QSet<int> seen;
+            for (const NoteBox &b : boxes) {
+                if (seen.contains(b.page)) shared = true;
+                seen.insert(b.page);
+            }
+        }
+        QVERIFY2(shared, "no layout was found in which two copies of the note share a page");
+        PageView view;
+        view.resize(1000, 1200);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        boxes = boxesOfNote(*doc, 2);
+        QVERIFY(boxes.size() >= 3);
+        auto inView = [&](const QRectF &box, int page) { return QRect(pagePoint(view, page, box.left(), box.top()), pagePoint(view, page, box.right(), box.bottom())).adjusted(-3, -3, 3, 3); };
+        for (int index = 0; index < boxes.size(); ++index) {
+            const NoteBox box = boxesOfNote(*doc, 2).value(index);
+            QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, box.page, box.rect.left() + 50, box.rect.top() + 5));
+            const QString where = QStringLiteral("the part %1 of %2 (page %3, from %4)").arg(index).arg(boxes.size()).arg(box.page).arg(box.from);
+            QVERIFY2(view.inNote(), qPrintable(where));
+            QCOMPARE(view.noteEdit().page, box.page);
+            QRect caret;
+            QVERIFY2(view.caretRect(&caret) && inView(box.rect, box.page).contains(caret), qPrintable(where + QStringLiteral(": after the click")));
+            QTest::keyClicks(&view, "x");
+            const NoteBox again = boxesOfNote(*doc, 2).value(index);
+            QVERIFY2(view.caretRect(&caret) && inView(again.rect, again.page).contains(caret), qPrintable(where + QStringLiteral(": after typing")));
+            QCOMPARE(view.noteEdit().page, box.page);
+            QTest::keyClick(&view, Qt::Key_End);
+            QVERIFY2(view.caretRect(&caret) && inView(boxesOfNote(*doc, 2).value(index).rect, box.page).contains(caret), qPrintable(where + QStringLiteral(": after End")));
+            QTest::keyClick(&view, Qt::Key_Escape);
+            QVERIFY(!view.inNote());
+        }
+        // From the start of each copy, Down goes through all of it, a line at a time (a part that goes on is followed by the next part of the same copy, though another copy's part may be on
+        // its page), and leaves the note only after the note's last line.
+        QTextDocument *note = doc->editableFootnote(2);
+        QVERIFY(note);
+        const int end = note->characterCount() - 1;
+        for (int index = 0; index < boxes.size(); ++index) {
+            const NoteBox box = boxesOfNote(*doc, 2).value(index);
+            if (box.from != 0) continue;
+            QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, box.page, box.rect.left() + 50, box.rect.top() + 5));
+            QVERIFY(view.inNote());
+            QTest::keyClick(&view, Qt::Key_Home, Qt::ControlModifier);
+            int last = view.cursor().position();
+            for (int press = 0; press < 700 && view.inNote(); ++press) {
+                QTest::keyClick(&view, Qt::Key_Down);
+                if (!view.inNote()) break;
+                const int now = view.cursor().position();
+                const QString where = QStringLiteral("the copy at page %1, press %2: from %3 to %4").arg(box.page).arg(press).arg(last).arg(now);
+                QVERIFY2(now > last && now - last < 600, qPrintable(where));
+                last = now;
+            }
+            QVERIFY2(!view.inNote(), "the note was never left");
+            QVERIFY2(last >= end - 300, qPrintable(QStringLiteral("the copy at page %1 was left at %2 of %3").arg(box.page).arg(last).arg(end)));
+            view.setCursor(QTextCursor(doc->story()));
+        }
+    }
 
 
 
