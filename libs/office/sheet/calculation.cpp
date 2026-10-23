@@ -34,6 +34,32 @@ quint64 hashOfAreas(const std::vector<CellArea> &areas)
     return h ? h : 1;
 }
 
+// What a step that goes a chunk at a time does as it goes: it counts what it has done (Progress::jobItems), adds it to the work of the slice (so that a slice given a work budget is
+// ended by it as by the clock), and after each chunk asks whether the slice is over. The first chunk is always done, so that a call gets on.
+struct Chunker {
+    static constexpr size_t kChunk = 256;
+    qint64 *items, *spent;
+    const std::function<bool()> &timeUp;
+    size_t done = 0;
+    // About to do `units` more things: false if a chunk is done and the slice is over.
+    bool next(size_t units = 1)
+    {
+        if (done >= kChunk) {
+            *spent += qint64(done);
+            done = 0;
+            if (timeUp()) return false;
+        }
+        done += units;
+        *items += qint64(units);
+        return true;
+    }
+    void finish()
+    {
+        *spent += qint64(done);
+        done = 0;
+    }
+};
+
 constexpr qint64 kMaxArrayCellsMarked = 1000000;   // an array formula's range larger than this is not made members of (no real one is)
 constexpr qint64 kMaxMembersAdded = 200000;        // the cells of arrays that the file has no cell for, which are put in (each costs the cells after it in its block of rows)
 
@@ -400,6 +426,7 @@ Value Calculation::shown(int sheet, quint32 row, quint32 col) const
 void Calculation::visit(int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2, const std::function<bool(quint32, quint32, const Value &)> &f) const
 {
     if (sheet < 0 || sheet >= int(m_sheets.size())) return;
+    if (m_visitHook) m_visitHook();
     const Sheet &s = m_sheets[size_t(sheet)];
     CellStore::RangeWalk walk;
     s.cells.forEachInRange(row1, col1, row2, std::min<quint32>(col2, kMaxColumns - 1), [&](const Cell &c) {
@@ -550,18 +577,13 @@ void Calculation::beginRecalculation()
 }
 
 // Marks the formulas that are worked out in every recalculation, and those that read them, to be worked out; a chunk at a time. True when all are marked.
-bool Calculation::stepBegin(const std::function<bool()> &timeUp)
+bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
 {
-    constexpr size_t kChunk = 256;
     BeginJob &j = m_begin;
-    size_t done = 0;
+    Chunker ck{&m_items, spent, timeUp};
     // (the list is kept to the formulas that are on it: one that is gone, or not volatile now, is left off)
     while (!j.dependents && j.alwaysAt < m_always.size()) {
-        if (done >= kChunk) {
-            if (timeUp()) return false;
-            done = 0;
-        }
-        ++done;
+        if (!ck.next()) return false;
         const quint32 id = m_always[j.alwaysAt++];
         Node &n = m_nodes[id];
         if ((n.flags & Dead) || !(n.flags & Always)) {
@@ -579,29 +601,23 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp)
     // what reads those marked: each block that changed asks the graph, and what it finds is marked and changes in its turn
     for (;;) {
         while (j.foundAt < j.found.size()) {
-            if (done >= kChunk) {
-                if (timeUp()) return false;
-                done = 0;
-            }
-            ++done;
+            if (!ck.next()) return false;
             const quint32 id = j.found[j.foundAt++];
             const Node &n = m_nodes[id];
             if ((n.flags & (Dead | Kept)) || n.state != Done) continue;
             markDirty(id, &j.changed);
         }
         if (j.changed.empty()) break;
-        if (done >= kChunk) {
-            if (timeUp()) return false;
-            done = 0;
-        }
+        if (!ck.next()) return false;
         const CellArea a = j.changed.back();
         j.changed.pop_back();
         j.found.clear();
         j.foundAt = 0;
         if (a.single()) m_graph->dependentsOfCell(a.sheet1, a.row1, a.col1, &j.found);
         else m_graph->dependentsOfArea(a, &j.found);
-        done += j.found.size() / 16 + 1;   // (what the graph looks through to find them)
+        ck.next(j.found.size());   // (what the graph gave: a cell that very many formulas read is one query of that many, which is as small as the step can be made)
     }
+    ck.finish();
     m_dirtyCursor = 0;
     m_begin = BeginJob();
     return true;
@@ -615,16 +631,11 @@ void Calculation::invalidateAll()
     m_invalidate.at = 0;
 }
 
-bool Calculation::stepInvalidate(const std::function<bool()> &timeUp)
+bool Calculation::stepInvalidate(const std::function<bool()> &timeUp, qint64 *spent)
 {
-    constexpr size_t kChunk = 512;
-    size_t done = 0;
+    Chunker ck{&m_items, spent, timeUp};
     while (m_invalidate.at < m_nodes.size()) {
-        if (done >= kChunk) {
-            if (timeUp()) return false;
-            done = 0;
-        }
-        ++done;
+        if (!ck.next()) return false;
         const quint32 id = quint32(m_invalidate.at++);
         Node &n = m_nodes[id];
         if ((n.flags & (Dead | Kept)) || n.state != Done) continue;
@@ -632,6 +643,7 @@ bool Calculation::stepInvalidate(const std::function<bool()> &timeUp)
         ++m_notDone;
         m_dirty.push_back(id);
     }
+    ck.finish();
     m_invalidate = InvalidateJob();
     return true;
 }
@@ -639,45 +651,82 @@ bool Calculation::stepInvalidate(const std::function<bool()> &timeUp)
 void Calculation::abandon()
 {
     if (!m_running && m_stack.empty() && m_job.phase == GroupJob::None && !m_refuse.active) return;
-    // what is waiting or queued is to be worked out again, with what was not yet started
-    std::vector<quint32> again;
-    // (the formulas of a group that was being closed, or woken, and not yet given back to the stack: to be worked out again too)
+    // what is waiting or queued is to be worked out again, with what was not yet started: the lists of them are taken in hand (which costs nothing), and put right a chunk at a time
+    // by stepAbandon, in the calls that follow; the formulas of a group that was being closed or woken, and not yet given back to the stack, are to be worked out again too
+    AbandonJob &a = m_abandon;
+    a = AbandonJob();
+    a.active = true;
     if (m_job.phase != GroupJob::None) {
-        const size_t end = m_job.phase == GroupJob::Apply ? m_job.cursor : m_job.open.size();   // (Collect and Sort: all of them are still to be given back)
-        for (size_t i = 0; i < end; ++i) {
-            Node &n = m_nodes[m_job.open[i]];
-            if (n.state == Done) continue;
-            n.state = Dirty;
-            n.flags &= quint16(~Retried);
-            again.push_back(m_job.open[i]);
-        }
+        a.openEnd = m_job.phase == GroupJob::Apply ? m_job.cursor : m_job.open.size();   // (Collect and Sort: all of them are still to be given back)
+        a.open = std::move(m_job.open);
     }
+    a.stack = std::move(m_stack);
+    a.comp = std::move(m_comp);
+    a.dirty = std::move(m_dirty);
+    a.dirtyAt = std::min(m_dirtyCursor, a.dirty.size());
+    m_stack.clear();
+    m_comp.clear();
+    m_dirty.clear();
     m_job = GroupJob();
     m_refuse = RefuseJob();
-    m_begin = BeginJob();
-    for (const Frame &f : m_stack) {
-        Node &n = m_nodes[f.node];
+    // (a beginning that is part way goes on: the formulas it has marked are to be worked out, and what reads them is still to be marked; the marks begin from the start again only when
+    // there is no beginning that is part way)
+    if (!m_begin.active) m_begin = BeginJob();
+    m_dirtyCursor = 0;
+    m_running = m_begin.active;
+}
+
+bool Calculation::stepAbandon(const std::function<bool()> &timeUp, qint64 *spent)
+{
+    AbandonJob &a = m_abandon;
+    Chunker ck{&m_items, spent, timeUp};
+    // (in the order the lists were put right in when it was done at once: the formulas of the group, the stack, the group that waits, and those not started)
+    while (a.openAt < a.openEnd) {
+        if (!ck.next()) return false;
+        const quint32 x = a.open[a.openAt++];
+        Node &n = m_nodes[x];
+        if (n.state == Done) continue;
+        n.state = Dirty;
+        n.flags &= quint16(~Retried);
+        m_dirty.push_back(x);
+    }
+    while (a.stackAt < a.stack.size()) {
+        if (!ck.next()) return false;
+        const quint32 x = a.stack[a.stackAt++].node;
+        Node &n = m_nodes[x];
         if (n.state == Waiting || n.state == Queued) {
             n.state = Dirty;
             n.flags &= quint16(~Retried);
-            again.push_back(f.node);
+            m_dirty.push_back(x);
         }
     }
-    for (const quint32 x : m_comp) {
+    while (a.compAt < a.comp.size()) {
+        if (!ck.next()) return false;
+        const quint32 x = a.comp[a.compAt++];
         Node &n = m_nodes[x];
         m_index[x] = m_low[x] = 0;
         if (n.state == Suspended) {
             n.state = Dirty;
             n.flags &= quint16(~Retried);
-            again.push_back(x);
+            m_dirty.push_back(x);
         }
     }
-    m_comp.clear();
-    for (size_t i = m_dirtyCursor; i < m_dirty.size(); ++i) again.push_back(m_dirty[i]);
-    m_stack.clear();
-    m_dirty.swap(again);
-    m_dirtyCursor = 0;
-    m_running = false;
+    while (a.dirtyAt < a.dirty.size()) {
+        if (!ck.next()) return false;
+        m_dirty.push_back(a.dirty[a.dirtyAt++]);
+    }
+    ck.finish();
+    m_abandon = AbandonJob();
+    return true;
+}
+
+void Calculation::abandonNow()
+{
+    abandon();
+    if (m_abandon.active) {
+        qint64 spent = 0;
+        stepAbandon([] { return false; }, &spent);
+    }
 }
 
 Value Calculation::runFormula(quint32 id, qint64 *work)
@@ -774,31 +823,26 @@ void Calculation::refuseTheRest(Progress &pr)
     m_refuse.active = true;
 }
 
-bool Calculation::stepRefuse(Progress &pr, const std::function<bool()> &timeUp)
+bool Calculation::stepRefuse(Progress &pr, const std::function<bool()> &timeUp, qint64 *spent)
 {
-    constexpr size_t kChunk = 256;
-    size_t done = 0;
-    auto more = [&] {
-        if (done++ < kChunk) return true;
-        done = 0;
-        return !timeUp();
-    };
+    Chunker ck{&m_items, spent, timeUp};
     RefuseJob &j = m_refuse;
     while (j.stackAt < m_stack.size()) {
-        if (!more()) return false;
+        if (!ck.next()) return false;
         refuseNode(m_stack[j.stackAt++].node, pr);
     }
     while (j.compAt < m_comp.size()) {
-        if (!more()) return false;
+        if (!ck.next()) return false;
         const quint32 x = m_comp[j.compAt++];
         refuseNode(x, pr);
         m_index[x] = m_low[x] = 0;
     }
     if (j.dirtyAt < m_dirtyCursor) j.dirtyAt = m_dirtyCursor;
     while (j.dirtyAt < m_dirty.size()) {
-        if (!more()) return false;
+        if (!ck.next()) return false;
         refuseNode(m_dirty[j.dirtyAt++], pr);
     }
+    ck.finish();
     m_stack.clear();
     m_comp.clear();
     m_running = false;
@@ -831,18 +875,6 @@ void Calculation::markCircular(quint32 id, Progress &pr)
     ++pr.circular;
 }
 
-// One pass of a radix sort of places of nodes (a circle of a million has a million: three passes of eleven bits, each of which is a step of its own, where a sort that compares takes
-// a dozen milliseconds of a slice).
-static void radixPass(std::vector<quint32> &v, int shift)
-{
-    std::vector<quint32> tmp(v.size());
-    std::vector<size_t> count(2049, 0);
-    for (const quint32 x : v) ++count[((x >> shift) & 2047) + 1];
-    for (size_t i = 0; i < 2048; ++i) count[i + 1] += count[i];
-    for (const quint32 x : v) tmp[count[(x >> shift) & 2047]++] = x;
-    v.swap(tmp);
-}
-
 // `root` waits for formulas that wait, directly or through others, for it: the formulas on the group's stack from it up are a group that waits for itself. Each was worked out
 // with the formulas of the group not worked out (read as empty), so what one read may be a read it would not make with their values; a group is therefore given a second
 // try, each formula worked out again, and one that waits again is in a circle: it has the result 0, as has every other formula of the group that waits again.
@@ -869,19 +901,12 @@ void Calculation::leaveGroup(quint32 node, quint32 parent)
 
 bool Calculation::stepGroup(Progress &pr, const std::function<bool()> &timeUp, qint64 *spent)
 {
-    constexpr size_t kChunk = 256;
     GroupJob &j = m_job;
-    size_t done = 0;
-    auto more = [&] {
-        if (done++ < kChunk) return true;
-        *spent += qint64(kChunk);
-        done = 0;
-        return !timeUp();
-    };
+    Chunker ck{&m_items, spent, timeUp};
     if (j.phase == GroupJob::Collect) {
         // the formulas of the group, from the top of its stack down to the one that began it
         while (!m_comp.empty()) {
-            if (!more()) return false;
+            if (!ck.next()) return false;
             const quint32 x = m_comp.back();
             m_comp.pop_back();
             m_index[x] = m_low[x] = 0;
@@ -896,26 +921,54 @@ bool Calculation::stepGroup(Progress &pr, const std::function<bool()> &timeUp, q
         }
         j.phase = GroupJob::Sort;
         j.sortPass = 0;
+        j.sortStage = 0;
+        j.sortAt = 0;
     }
     if (j.phase == GroupJob::Sort) {
-        if (j.open.size() < 512) {
+        // (three passes of a radix sort, each of two parts, counting the places and putting them where they go, and each of those in blocks: nothing is more than a chunk between two looks
+        // at the clock)
+        constexpr size_t kBlock = 128;
+        const size_t n = j.open.size();
+        if (n < 512) {
             std::sort(j.open.begin(), j.open.end());
             j.sortPass = 3;
         }
         while (j.sortPass < 3) {
-            if (j.sortPass > 0 && timeUp()) return false;
-            radixPass(j.open, 11 * j.sortPass);
+            const int shift = 11 * j.sortPass;
+            if (j.sortStage == 0) {
+                if (j.sortAt == 0) j.sortCount.assign(2049, 0);
+                while (j.sortAt < n) {
+                    if (!ck.next(kBlock)) return false;
+                    const size_t end = std::min(n, j.sortAt + kBlock);
+                    for (; j.sortAt < end; ++j.sortAt) ++j.sortCount[((j.open[j.sortAt] >> shift) & 2047) + 1];
+                }
+                for (size_t i = 0; i < 2048; ++i) j.sortCount[i + 1] += j.sortCount[i];
+                j.sortTmp.resize(n);
+                j.sortStage = 1;
+                j.sortAt = 0;
+            }
+            while (j.sortAt < n) {
+                if (!ck.next(kBlock)) return false;
+                const size_t end = std::min(n, j.sortAt + kBlock);
+                for (; j.sortAt < end; ++j.sortAt) {
+                    const quint32 x = j.open[j.sortAt];
+                    j.sortTmp[j.sortCount[(x >> shift) & 2047]++] = x;
+                }
+            }
+            j.open.swap(j.sortTmp);
             ++j.sortPass;
-            *spent += qint64(j.open.size()) / 8;
+            j.sortStage = 0;
+            j.sortAt = 0;
         }
+        j.sortCount = std::vector<size_t>();
+        j.sortTmp = std::vector<quint32>();
         j.cursor = j.open.size();
         j.phase = GroupJob::Apply;
-        if (j.sortPass > 0 && timeUp()) return false;
     }
     // the formulas of the group, each given back to the stack (the first of them is worked out first), or the result of a circle
     const bool circle = j.closing && !j.fresh;
     while (j.cursor > 0) {
-        if (!more()) return false;
+        if (!ck.next()) return false;
         const quint32 x = j.open[--j.cursor];
         if (circle) {
             markCircular(x, pr);
@@ -928,11 +981,20 @@ bool Calculation::stepGroup(Progress &pr, const std::function<bool()> &timeUp, q
             m_stack.push_back({x, j.parent});
         }
     }
+    ck.finish();
     m_job = GroupJob();
     return true;
 }
 
 Calculation::Progress Calculation::recalculate(qint64 budget, const std::atomic<bool> *cancel, qint64 timeBudgetMicros)
+{
+    const qint64 before = m_items;
+    Progress pr = recalculateSlice(budget, cancel, timeBudgetMicros);
+    pr.jobItems = m_items - before;
+    return pr;
+}
+
+Calculation::Progress Calculation::recalculateSlice(qint64 budget, const std::atomic<bool> *cancel, qint64 timeBudgetMicros)
 {
     Progress pr;
     qint64 spent = 0;
@@ -940,16 +1002,22 @@ Calculation::Progress Calculation::recalculate(qint64 budget, const std::atomic<
     const std::atomic<bool> *stop = cancel ? cancel : m_cancel;
     m_ctx.cancel = stop;
     auto stopped = [&] { return stop && stop->load(std::memory_order_relaxed); };
+    // The slice is over when its time is, or when the work it was given is done: the steps that go a chunk at a time add what they do to `spent`, as a formula's steps are added to it, so
+    // that a slice with a work budget is as bounded as one with a time (and a test can count it).
     const std::function<bool()> timeUp = [&] {
+        if (budget > 0 && spent >= budget) return true;
         return timeBudgetMicros > 0 && std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started).count() >= timeBudgetMicros;
     };
-    // (marking every formula to be worked out again, and the marks a recalculation begins with, are done in slices of the time too)
+    // (what a stop left to put right, marking every formula to be worked out again, and the marks a recalculation begins with, are done a chunk at a time, in the slices)
+    if (m_abandon.active) {
+        if (!stepAbandon(timeUp, &spent)) return pr;
+    }
     if (m_invalidate.active) {
         if (stopped()) {
             pr.cancelled = true;
             return pr;
         }
-        if (!stepInvalidate(timeUp)) return pr;
+        if (!stepInvalidate(timeUp, &spent)) return pr;
     }
     if (!m_running) beginRecalculation();
     if (m_begin.active) {
@@ -958,7 +1026,7 @@ Calculation::Progress Calculation::recalculate(qint64 budget, const std::atomic<
             pr.cancelled = true;
             return pr;
         }
-        if (!stepBegin(timeUp)) return pr;
+        if (!stepBegin(timeUp, &spent)) return pr;
     }
     for (;;) {
         if (stopped()) {
@@ -967,7 +1035,7 @@ Calculation::Progress Calculation::recalculate(qint64 budget, const std::atomic<
             return pr;
         }
         if (m_refuse.active) {
-            stepRefuse(pr, timeUp);
+            stepRefuse(pr, timeUp, &spent);
             return pr;
         }
         if (m_job.phase != GroupJob::None) {
@@ -1102,7 +1170,7 @@ bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v)
     Sheet &s = m_sheets[size_t(sheet)];
     const Cell *found = s.cells.find(row, col);
     if (found && ((found->flags & (ArrayMember | ArrayFormula)))) return false;   // (a cell of an array is not edited alone)
-    abandon();
+    abandonNow();
     Cell c = found ? *found : Cell();
     c.row = row;
     c.col = quint16(col);
@@ -1149,7 +1217,7 @@ bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString 
     Sheet &s = m_sheets[size_t(sheet)];
     const Cell *found = s.cells.find(row, col);
     if (found && (found->flags & (ArrayMember | ArrayFormula))) return false;
-    abandon();
+    abandonNow();
     SheetState &st = m_state[size_t(sheet)];
     Cell c = found ? *found : Cell();
     c.row = row;

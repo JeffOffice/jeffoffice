@@ -63,6 +63,8 @@ public:
         qint64 deepest = 0;         // the most formulas waiting for others at once
         bool overBudget = false;    // the recalculation took the steps it may; the formulas it had not worked out have the error #VALUE! (or, kept apart, keep what the file stored)
         qint64 refused = 0;         // formulas that were given that error for want of steps, or because the values held would pass the bound
+        qint64 jobItems = 0;        // things done by the steps that go a chunk at a time (formulas of a group given back, marked, refused, put right after a stop) in this call: what a test counts
+                                    // to see that a slice does a bounded amount of work, whatever the machine's speed
         qint64 circleWork = 0;      // steps taken to place what a formula waits for, and the formulas of the groups that wait for each other (counted: a test can see that a circle is not found
                                     // by going over the stack again and again)
     };
@@ -71,6 +73,8 @@ public:
     // `timeBudgetMicros` ends a slice by the clock as well: it stops, after a formula that has been worked out (at least one in every call, so that a call always gets on), once
     // that many microseconds have passed (0 for no limit). The work of one formula is bounded (CalcOptions::workLimit), so a slice is that long and one formula more.
     Progress recalculate(qint64 workBudget = 0, const std::atomic<bool> *cancel = nullptr, qint64 timeBudgetMicros = 0);
+    // For tests: called as a formula reads a block of cells (in the middle of working it out), so that one can act at a place that is certainly inside a formula.
+    void setVisitHook(std::function<void()> hook) { m_visitHook = std::move(hook); }
     // A flag that stops the calculation wherever it is: a load that is registering formulas, a recalculation between formulas, and a formula that is being worked out (the
     // evaluator looks at it as it takes its steps). The flag is only read; it must stay where it is as long as the calculation is used.
     void setCancel(const std::atomic<bool> *cancel) { m_cancel = cancel; }
@@ -173,17 +177,26 @@ private:
     void beginRecalculation();
     // The parts of a recalculation that are done in slices of the time they are given: each does some of its work, and says whether it is all done. `timeUp` is asked every
     // few thousand things done. Each does at least one chunk, so that a call always gets on.
-    bool stepInvalidate(const std::function<bool()> &timeUp);
-    bool stepBegin(const std::function<bool()> &timeUp);
-    bool stepGroup(Progress &pr, const std::function<bool()> &timeUp, qint64 *done);
-    bool stepRefuse(Progress &pr, const std::function<bool()> &timeUp);
+    // `spent` is the work of the slice so far, which each adds what it does to (a slice given a work budget is ended by it, as by the clock).
+    bool stepInvalidate(const std::function<bool()> &timeUp, qint64 *spent);
+    bool stepBegin(const std::function<bool()> &timeUp, qint64 *spent);
+    bool stepGroup(Progress &pr, const std::function<bool()> &timeUp, qint64 *spent);
+    bool stepRefuse(Progress &pr, const std::function<bool()> &timeUp, qint64 *spent);
+    bool stepAbandon(const std::function<bool()> &timeUp, qint64 *spent);
+    // Stops a recalculation that is going: what it had begun is to be worked out again. It takes what is to be put right (the stack, the formulas waiting in a group, those not yet
+    // started) in its hands and puts it right a chunk at a time in the calls that follow (stepAbandon), so that a stop costs nothing in the call that is stopped; abandonNow() does all of
+    // it at once, for an edit.
     void abandon();
+    void abandonNow();
     void dropNode(quint32 id);
     void useExtent(int sheet, quint32 row, quint32 col);
     jp::calc::Value runFormula(quint32 id, qint64 *work);
     static constexpr quint32 kNone = 0xFFFFFFFFu;
 
+    Progress recalculateSlice(qint64 workBudget, const std::atomic<bool> *cancel, qint64 timeBudgetMicros);
     CalcOptions m_options;
+    qint64 m_items = 0;                       // everything the chunked steps have done (Progress::jobItems is the part of it in one call)
+    std::function<void()> m_visitHook;
     const std::atomic<bool> *m_cancel = nullptr;
     ResultSink m_sink;
     std::unique_ptr<jp::calc::DependencyGraph> m_graph;
@@ -223,9 +236,24 @@ private:
         quint32 root = 0, parent = 0;
         bool fresh = false;        // some formula of the group has not had its second try
         std::vector<quint32> open;
-        int sortPass = 0;          // for Sort: the passes of the radix sort done
+        int sortPass = 0;          // for Sort: the passes of the radix sort done (each is two parts: the places counted, and put where they go, each a block at a time)
+        int sortStage = 0;
+        size_t sortAt = 0;
+        std::vector<size_t> sortCount;
+        std::vector<quint32> sortTmp;
         size_t cursor = 0;         // for Apply: those before it are still to be done (it goes from the last to the first)
     } m_job;
+    struct AbandonJob {
+        bool active = false;
+        std::vector<quint32> open;              // formulas of a group that were not yet given back to the stack: those before openEnd
+        size_t openEnd = 0, openAt = 0;
+        std::vector<Frame> stack;
+        size_t stackAt = 0;
+        std::vector<quint32> comp;
+        size_t compAt = 0;
+        std::vector<quint32> dirty;             // those that were to be started, from dirtyAt
+        size_t dirtyAt = 0;
+    } m_abandon;
     struct RefuseJob {
         bool active = false;
         size_t stackAt = 0, compAt = 0, dirtyAt = 0;
