@@ -1542,6 +1542,21 @@ private Q_SLOTS:
         QVERIFY2(!start.contains(QLatin1String("Headers, footers, and page numbers are not shown")), "headers and footers are drawn now");
     }
 
+    // The welcome topic says what this version does and does not do: it shows tables, headers and footers, notes, pictures, shapes, and text boxes, reads .doc files, and lays out sections
+    // that go on the same page (none of which it used to say), and it does not say the old things. The topics on opening and on spelling say the same.
+    void theWelcomeTopicSaysWhatThisVersionDoesAndDoesNotDo()
+    {
+        const QString start = jp::help::topic(QStringLiteral("start")).markdown;
+        for (const char *stale : {"Tables are not shown", "Pictures, shapes, and text boxes are not shown", "show their numbers, but not their text", "open or save .doc", "start a new page instead", "**[picture]**"})
+            QVERIFY2(!start.contains(QLatin1String(stale)), stale);
+        for (const char *now : {".doc, and .dot", "tables, headers and footers, footnotes and endnotes, pictures", "continue on the same page", "Tab", "no ruler"})
+            QVERIFY2(start.contains(QLatin1String(now)), now);
+        QVERIFY(jp::help::topic(QStringLiteral("open-save")).markdown.contains(QLatin1String("**.doc**")));
+        const QString spelling = jp::help::topic(QStringLiteral("spelling")).markdown;
+        QVERIFY2(!spelling.contains(QLatin1String("not show in tables")), "red lines show in a table's cells");
+        QVERIFY(spelling.contains(QLatin1String("JeffWrite, JeffPub")));
+    }
+
     // Over characters that differ in font, style, size, color, or underline, the boxes show nothing; whatever is set then goes to all of them, also what the first
     // characters have.
     void aFontBoxOverSelectionsThatDifferShowsNothingAndWhatIsSetGoesToAll()
@@ -2774,6 +2789,34 @@ private Q_SLOTS:
         QCOMPARE(count, 0);
         view.setSpellingEnabled(true);
         QTRY_VERIFY((redBounds(view.grab().toImage(), view.pageRect(0), &count), count > 8));
+    }
+
+    // Red lines show under the misspelled words of a table's cells, as under those of the paragraphs; the words of a header are not underlined yet.
+    void misspelledWordsInATableCellAreUnderlinedAndThoseInAHeaderAreNot()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray cell = "<w:tbl><w:tblPr><w:tblW w:w=\"6000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"6000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"6000\" w:type=\"dxa\"/></w:tcPr>"
+                                "<w:p><w:r><w:t>Alpha brwon gamma</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>after</w:t></w:r></w:p>";
+        const QByteArray header = headerPart("hdr", {"<w:r><w:t>Alpha brwon gamma</w:t></w:r>"});
+        auto redIn = [&](const QByteArray &body, const QMap<QString, QByteArray> &parts) {
+            auto doc = open(makeDocxWithParts(body, sect, parts));
+            if (!doc) return -1;
+            PageView view;
+            view.resize(1000, 700);
+            view.setDocument(doc.get());
+            view.show();
+            int count = 0;
+            for (int i = 0; i < 20 && count == 0; ++i) {   // (checked as the page is drawn, or a moment after)
+                redBounds(view.grab().toImage(), view.pageRect(0), &count);
+                QTest::qWait(20);
+            }
+            return count;
+        };
+        const int inCell = redIn(cell, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>plain words</w:t></w:r>"})}});
+        QVERIFY2(inCell > 8, qPrintable(QStringLiteral("%1 red pixels under the misspelled word of a table's cell").arg(inCell)));
+        const int inHeader = redIn("<w:p><w:r><w:t>after</w:t></w:r></w:p>", {{QStringLiteral("/word/header1.xml"), header}});
+        QCOMPARE(inHeader, 0);
     }
 
     void aWordStillBeingTypedIsNotUnderlinedUntilTheCaretMovesOn()
