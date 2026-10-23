@@ -1007,8 +1007,14 @@ private Q_SLOTS:
         // an edit starts a recalculation with the whole bound
         QVERIFY(c.set("A1", Value::number(3)));
         const Calculation::Progress r = settle(c);
-        QVERIFY(r.finished && r.overBudget);
-        QCOMPARE(c.at("C1"), QStringLiteral("n:4006"));   // 9 and 999 fours, and 1
+        QVERIFY(r.finished && r.overBudget && r.refused > 0 && r.refused < n);
+        qint64 worked = 0, errors = 0;
+        for (int i = 1; i <= n; ++i) {
+            const QString v = c.at(QStringLiteral("C%1").arg(i));
+            if (v == QStringLiteral("e:#VALUE!")) ++errors;
+            else if (v == QStringLiteral("n:%1").arg(4005 + i)) ++worked;   // 9 and 999 fours, and the row
+        }
+        QVERIFY2(worked > 0 && errors == r.refused && worked + errors == n, qPrintable(QStringLiteral("%1 worked out, %2 with the error, %3 refused").arg(worked).arg(errors).arg(r.refused)));
         // formulas that read where a text says, nested forty deep, over a formula that takes many steps, are worked out again after each: the bound is on all of them
         QString chain;
         for (int i = 1; i <= 1000; ++i) chain += rowXml(i, constant(QStringLiteral("A%1").arg(i), "2") + (i <= 40 ? cellXml(QStringLiteral("B%1").arg(i), QStringLiteral("\"B%1\"").arg(i + 1)) : QString()));

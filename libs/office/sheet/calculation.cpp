@@ -449,8 +449,6 @@ void Calculation::markDependents(std::vector<CellArea> *changed)
         found.clear();
         if (a.single()) m_graph->dependentsOfCell(a.sheet1, a.row1, a.col1, &found);
         else m_graph->dependentsOfArea(a, &found);
-        std::sort(found.begin(), found.end());   // (in the order of their numbers, which is the order of the cells: what is worked out first is the same each time)
-        found.erase(std::unique(found.begin(), found.end()), found.end());
         for (const quint32 id : found) {
             const Node &n = m_nodes[id];
             if ((n.flags & (Dead | Kept)) || n.state != Done) continue;
