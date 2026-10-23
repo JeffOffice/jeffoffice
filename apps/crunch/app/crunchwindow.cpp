@@ -36,6 +36,8 @@
 #include <QStandardPaths>
 #include <QStatusBar>
 #include <QToolButton>
+#include <QUndoStack>
+#include <QThread>
 #include <QVBoxLayout>
 
 #include <cmath>
@@ -82,14 +84,48 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     connect(m_ribbon, &Ribbon::fileClicked, this, [this] { showFileScreen(); });
     connect(m_ribbon, &Ribbon::leaveRequested, this, [this] { m_view->setFocus(Qt::OtherFocusReason); });
     connect(m_view, &grid::GridView::selectionChanged, this, &CrunchWindow::updateBars);
+    connect(m_view, &grid::GridView::selectionChanged, this, [this] {
+        if (!m_finishing) m_tabOriginCol = m_tabRow = -1;
+    });
+    // editing: a key that types starts an entry in the cell, F2 and a double click edit what it holds, Delete clears
+    connect(m_view, &grid::GridView::typingStarted, this, [this](const QString &text) { beginEdit(text, CellEditor::Mode::Typing, false); });
+    connect(m_view, &grid::GridView::editRequested, this, [this] {
+        if (m_edit.active || !editingAllowed()) return;
+        const grid::Selection &sel = m_view->selection();
+        beginEdit(m_session->editText(m_sheet, quint32(std::max<qint64>(0, sel.activeRow)), quint32(std::max<qint64>(0, sel.activeCol))), CellEditor::Mode::Editing, false);
+    });
+    connect(m_view, &grid::GridView::clearRequested, this, &CrunchWindow::clearSelection);
+    connect(m_view, &grid::GridView::viewChanged, this, &CrunchWindow::placeEditor);
+    m_view->setClickGuard([this] { return commitEdit(CellEditor::Way::Stay); });
+    connect(m_cellEditor, &CellEditor::finished, this, [this](CellEditor::Way way) { commitEdit(way); });
+    connect(m_cellEditor, &CellEditor::cancelled, this, &CrunchWindow::cancelEdit);
+    connect(m_cellEditor, &QLineEdit::textEdited, this, [this](const QString &text) {
+        if (m_syncingEditors) return;
+        m_syncingEditors = true;
+        m_formulaBar->setText(text);
+        m_syncingEditors = false;
+        placeEditor();
+    });
+    connect(m_formulaBar, &QLineEdit::textEdited, this, [this](const QString &text) {
+        if (m_syncingEditors) return;
+        if (!m_edit.active) {
+            beginEdit(text, CellEditor::Mode::Editing, true);
+            return;
+        }
+        m_syncingEditors = true;
+        m_cellEditor->setText(text);
+        m_syncingEditors = false;
+        placeEditor();
+    });
     connect(m_view, &grid::GridView::statsChanged, this, [this](const QString &text) { m_stats->setText(text); });
     connect(m_view, &grid::GridView::zoomChanged, this, [this](double z) {
+        placeEditor();
         m_zoomLabel->setText(QStringLiteral("%1%").arg(std::lround(z * 100)));
         const QSignalBlocker block(m_zoomSlider);
         m_zoomSlider->setValue(int(std::lround(std::log(z) / std::log(1.05))));
     });
     connect(m_view, &grid::GridView::contextMenuRequested, this, [this](const QPoint &globalPos) {
-        // the commands of a right click: copying works now, and the others are dimmed until editing comes
+        // the commands of a right click: copying works now, and the others are dimmed until they come
         auto *menu = new QMenu(this);
         menu->setAttribute(Qt::WA_DeleteOnClose);
         menu->setObjectName(QStringLiteral("cellMenu"));
@@ -114,7 +150,17 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     updateBars();
 }
 
-CrunchWindow::~CrunchWindow() { m_loader.cancel(); }
+CrunchWindow::~CrunchWindow()
+{
+    // (the session's undo stack tells the window as its steps go: it is let go of first, and the window is not told)
+    if (m_session) {
+        m_session->undoStack()->disconnect(this);
+        m_session->disconnect(this);
+        m_session.reset();
+    }
+    m_loader.cancel();
+    if (m_saveThread) m_saveThread->wait();   // (a save that is going on is finished: it ends with the file whole)
+}
 
 QAction *CrunchWindow::mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn, bool checkable, bool enabled)
 {
@@ -174,9 +220,9 @@ void CrunchWindow::buildCentral()
     fx->setFont(fxFont);
     m_formulaBar = new QLineEdit(m_formulaRow);
     m_formulaBar->setObjectName(QStringLiteral("formulaBar"));
-    m_formulaBar->setReadOnly(true);
+    m_formulaBar->setMaxLength(1 << 20);
     m_formulaBar->setAccessibleName(tr("Formula bar"));
-    m_formulaBar->setAccessibleDescription(tr("What the selected cell holds: its formula, or its value. It can't be changed yet."));
+    m_formulaBar->setAccessibleDescription(tr("What the selected cell holds: its formula, or its value. Type here to change it, and press Enter."));
     row->addWidget(m_nameBox);
     row->addWidget(fx);
     row->addWidget(m_formulaBar, 1);
@@ -185,6 +231,10 @@ void CrunchWindow::buildCentral()
     m_view->setAccessibleName(tr("Sheet"));
     m_view->setAccessibleDescription(tr("The cells of the sheet. The arrow keys move the selection; Ctrl and an arrow go to the edge of the data."));
     v->addWidget(m_view, 1);
+    m_cellEditor = new CellEditor(m_view->viewport());
+    m_cellEditor->hide();
+    m_cellEditor->setAccessibleName(tr("Cell editor"));
+    m_cellEditor->setAccessibleDescription(tr("The cell being typed into. Enter and Tab finish the entry; Escape gives it up."));
     m_tabs = new crunch::SheetTabBar(central);
     v->addWidget(m_tabs);
     setCentralWidget(central);
@@ -243,7 +293,18 @@ void CrunchWindow::createActions()
         Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
         openFile(p);
     });
+    mk("file.save", tr("Save"), "save", QKeySequence::Save, [this] { save(); }, false, false);
+    mk("file.saveAs", tr("Save As…"), "save", QKeySequence::SaveAs, [this] {
+        if (!m_loaded || !m_session || m_saving || !commitEdit()) return;
+        const QString kind = saveKind();
+        const QString start = m_path.isEmpty() ? displayName() + QLatin1Char('.') + kind : m_path;
+        const QString filter = kind == QLatin1String("xlsm") ? tr("Macro-enabled workbooks (*.xlsm)") : tr("Workbooks (*.xlsx)");
+        const QString p = QFileDialog::getSaveFileName(this, tr("Save Workbook As"), start, filter);
+        if (!p.isEmpty()) saveAs(p);
+    }, false, false);
     mk("file.close", tr("Close"), "circle-x", QKeySequence::Close, [this] { close(); });
+    mk("edit.undo", tr("Undo"), "undo-2", QKeySequence::Undo, [this] { undoRedo(false); }, false, false);
+    mk("edit.redo", tr("Redo"), "redo-2", QKeySequence::Redo, [this] { undoRedo(true); }, false, false);
     mk("file.options", tr("Options"), "settings", QKeySequence(), [this] {
         // The shared pages (General, Proofing); JeffCrunch has no pages of its own yet.
         Editor stand;
@@ -289,8 +350,8 @@ void CrunchWindow::createDisabledActions()
         const char *id, *text, *icon;
     };
     static const Command commands[] = {
-        {"edit.cut", QT_TR_NOOP("Cut"), "scissors"}, {"edit.paste", QT_TR_NOOP("Paste"), "clipboard-paste"}, {"edit.undo", QT_TR_NOOP("Undo"), "undo-2"},
-        {"edit.redo", QT_TR_NOOP("Redo"), "redo-2"}, {"edit.fill", QT_TR_NOOP("Fill"), "arrow-down-to-line"}, {"edit.clear", QT_TR_NOOP("Clear"), "eraser"},
+        {"edit.cut", QT_TR_NOOP("Cut"), "scissors"}, {"edit.paste", QT_TR_NOOP("Paste"), "clipboard-paste"},
+        {"edit.fill", QT_TR_NOOP("Fill"), "arrow-down-to-line"}, {"edit.clear", QT_TR_NOOP("Clear"), "eraser"},
         {"edit.sort", QT_TR_NOOP("Sort and Filter"), "arrow-down-a-z"}, {"edit.find", QT_TR_NOOP("Find and Select"), "search"}, {"edit.autosum", QT_TR_NOOP("AutoSum"), "sigma"},
         {"fmt.bold", QT_TR_NOOP("Bold"), "bold"}, {"fmt.italic", QT_TR_NOOP("Italic"), "italic"}, {"fmt.underline", QT_TR_NOOP("Underline"), "underline"},
         {"fmt.strike", QT_TR_NOOP("Strikethrough"), "strikethrough"}, {"fmt.fillColor", QT_TR_NOOP("Fill Color"), "paint-bucket"}, {"fmt.fontColor", QT_TR_NOOP("Font Color"), "baseline"},
@@ -368,6 +429,7 @@ void CrunchWindow::notice(const QString &title, const QString &text, bool warnin
 void CrunchWindow::updateBars()
 {
     if (!m_nameBox->hasFocus()) m_nameBox->setText(m_view->selectionName());
+    if (m_edit.active) return;   // (the formula bar holds what is being typed)
     // The formula bar takes about 20 milliseconds to be given 32,000 characters, whenever the cursor moves on to a cell that has them: it is given a part of a long text (with "…"
     // after it) until it is clicked into or tabbed to, and the whole of it then.
     constexpr int kShown = 2000;
@@ -379,6 +441,7 @@ void CrunchWindow::updateBars()
 
 void CrunchWindow::goToName()
 {
+    if (!commitEdit()) return;
     const QString text = m_nameBox->text().trimmed();
     static const QRegularExpression columns(QStringLiteral("^([A-Za-z]{1,3}):([A-Za-z]{1,3})$")), rows(QStringLiteral("^(\\d{1,7}):(\\d{1,7})$"));
     jp::office::sheet::CellRange range;
@@ -407,7 +470,7 @@ void CrunchWindow::goToName()
 void CrunchWindow::updateTitle()
 {
     const QString name = m_path.isEmpty() ? tr("Book%1").arg(s_untitledCount) : QFileInfo(m_path).fileName();
-    setWindowTitle(QStringLiteral("%1 - %2").arg(name, appInfo().name));
+    setWindowTitle(QStringLiteral("%1[*] - %2").arg(name, appInfo().name));
 }
 
 QString CrunchWindow::displayName() const { return m_path.isEmpty() ? tr("Book%1").arg(s_untitledCount) : QFileInfo(m_path).completeBaseName(); }
@@ -445,6 +508,20 @@ bool CrunchWindow::eventFilter(QObject *o, QEvent *e)
     if (o == m_formulaBar && e->type() == QEvent::FocusIn && m_formulaBar->text() != m_formulaFull) {
         m_formulaBar->setText(m_formulaFull);
         m_formulaBar->setCursorPosition(0);
+    }
+    // Enter and Escape in the formula bar finish or give up the entry in it (and take the focus back to the grid)
+    if (o == m_formulaBar && e->type() == QEvent::KeyPress) {
+        auto *k = static_cast<QKeyEvent *>(e);
+        if (k->key() == Qt::Key_Return || k->key() == Qt::Key_Enter) {
+            if (m_edit.active) commitEdit((k->modifiers() & Qt::ShiftModifier) ? CellEditor::Way::ShiftEnter : CellEditor::Way::Enter);
+            else m_view->setFocus(Qt::OtherFocusReason);
+            return true;
+        }
+        if (k->key() == Qt::Key_Escape && !m_fileScreen->isVisible()) {
+            if (m_edit.active) cancelEdit();
+            else m_view->setFocus(Qt::OtherFocusReason);
+            return true;
+        }
     }
     // Escape closes the File screen from anywhere in the window.
     if (e->type() == QEvent::KeyPress && static_cast<QKeyEvent *>(e)->key() == Qt::Key_Escape && m_fileScreen->isVisible()) {
@@ -487,6 +564,11 @@ void CrunchWindow::keyPressEvent(QKeyEvent *e)
 
 void CrunchWindow::closeEvent(QCloseEvent *e)
 {
+    // an entry that is being made is finished (or the window stays, with the reason shown), and changes that are not saved are asked about
+    if (!commitEdit() || !askAboutChanges()) {
+        e->ignore();
+        return;
+    }
     stopCalculation();
     m_loader.cancel();
     e->accept();

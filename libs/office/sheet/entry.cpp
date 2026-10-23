@@ -547,7 +547,7 @@ EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
         const jp::calc::ParseResult p = jp::calc::parseFormula(text, po);
         if (!p.ok()) {
             r.ok = false;
-            r.problem = tr("JeffCrunch can't read this formula. %1").arg(p.error);
+            r.problem = tr("The formula can't be read. %1").arg(p.error);
             r.problemAt = p.errorPos + (typed.startsWith(QLatin1Char('=')) ? 1 : 0);
             return r;
         }

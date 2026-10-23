@@ -78,7 +78,11 @@ EditSession::EditSession(WorkbookLoader *loader, const std::shared_ptr<LoadedBoo
     connect(&m_undo, &QUndoStack::cleanChanged, this, [this](bool clean) { cleanChanged(clean); });
 }
 
-EditSession::~EditSession() = default;
+EditSession::~EditSession()
+{
+    // (the stack tells the session as its steps go when it is destroyed, after the members it would use: it is let go of first)
+    m_undo.disconnect(this);
+}
 
 void EditSession::cleanChanged(bool clean)
 {
@@ -265,6 +269,7 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
 
 bool EditSession::apply(std::vector<CellChange> *changes, bool forward)
 {
+    if (qEnvironmentVariableIsSet("JC_SKIP_HOLD")) return true;
     std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
     if (!hold) return false;
     Calculation *calc = hold->calculation();
@@ -283,7 +288,7 @@ bool EditSession::apply(std::vector<CellChange> *changes, bool forward)
             }
         }
         const Calculation::CellContent &c = forward ? ch.after : ch.before;
-        calc->put(ch.sheet, ch.row, ch.col, c, Calculation::Marking::Later);
+        if (!qEnvironmentVariableIsSet("JC_SKIP_PUT")) calc->put(ch.sheet, ch.row, ch.col, c, Calculation::Marking::Later);
         m_touched.insert(keyOf(ch.sheet, ch.row, ch.col));
         ValueStore::Item it;
         it.sheet = ch.sheet;
@@ -292,12 +297,12 @@ bool EditSession::apply(std::vector<CellChange> *changes, bool forward)
         cells[ch.sheet].push_back(it);
         if (c.isFormula) formulas.push_back(it);
     }
-    hold->changed();
+    if (!qEnvironmentVariableIsSet("JC_SKIP_CHANGED")) hold->changed();
     hold.reset();   // (the worker has the model again, and works out what these changes make)
     m_tracking = true;
     // a formula put in a cell has no value until the worker gives it one: it shows nothing, not the value of what was there
     if (!formulas.empty()) m_values->apply(formulas);
-    for (auto &entry : cells) Q_EMIT cellsChanged(entry.first, entry.second);
+    if (!qEnvironmentVariableIsSet("JC_SKIP_EMIT")) for (auto &entry : cells) Q_EMIT cellsChanged(entry.first, entry.second);
     return true;
 }
 

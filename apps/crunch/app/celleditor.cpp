@@ -8,6 +8,7 @@ CellEditor::CellEditor(QWidget *parent) : QLineEdit(parent)
 {
     setObjectName(QStringLiteral("cellEditor"));
     setFrame(false);
+    setMaxLength(1 << 20);   // (a line holds 32,767 characters by default and cuts what is typed or pasted past that; a cell's limit is told to the person when the entry is finished)
     setContextMenuPolicy(Qt::DefaultContextMenu);
 }
 

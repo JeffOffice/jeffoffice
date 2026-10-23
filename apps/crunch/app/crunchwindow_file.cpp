@@ -89,6 +89,7 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     if (!ok) {
         const QString name = QFileInfo(m_path).fileName();
         m_path.clear();
+        m_session.reset();
         m_loaded.reset();
         showBlank();
         fillTabs();
@@ -100,6 +101,7 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     }
     m_loaded = m_loader.result();
     m_haveCalc = true;
+    createEditing();
     for (int i = 0; i < m_tabs->count(); ++i) m_tabs->setTabEnabled(i, true);
     // the stripes the sheets ask for, now that every sheet is read
     const jp::office::sheet::Styles &styles = m_loaded->book->styles();
@@ -183,6 +185,16 @@ void CrunchWindow::setActiveSheet(int sheetIndex)
 {
     if (!m_loaded || !m_loaded->book || sheetIndex == m_sheet || sheetIndex < 0 || sheetIndex >= m_loaded->book->info().sheets.size()) return;
     if (!m_haveCalc && sheetIndex != m_loaded->previewSheet) return;   // (the other sheets are not read yet)
+    if (!commitEdit()) {
+        // (the entry could not be finished: the tab goes back to the sheet it is for)
+        const int back = m_tabSheets.indexOf(m_sheet);
+        if (back >= 0 && m_tabs->currentIndex() != back) {
+            m_switchingTabs = true;
+            m_tabs->setCurrentIndex(back);
+            m_switchingTabs = false;
+        }
+        return;
+    }
     rememberView();
     m_sheet = sheetIndex;
     const int tab = m_tabSheets.indexOf(sheetIndex);
@@ -215,17 +227,23 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
     const qint64 cpu0 = jp::threadCpuMicros();
     m_longestBatchItems = std::max<qint64>(m_longestBatchItems, qint64(batch->items.size()));
     m_values.apply(batch->items);
+    if (m_session) m_session->noteResults(batch->items);
     const bool active = m_view->valuesChanged(m_sheet, batch->items);
     if (active) updateBars();
     ++m_batches;
     if (batch->last) {
-        // (a calculation that was stopped has been said to be: only one that finished says so now)
-        if (!batch->stopped && m_calculating) {
+        // (a calculation that was stopped has been said to be: only one that finished says so now; and one that has not worked out all the changes made since is not over)
+        if (!batch->stopped && m_calculating && batch->epoch >= m_loader.changesMade()) {
             m_calculating = false;
-            setStatus(tr("Ready"));
+            if (!m_saving) setStatus(tr("Ready"));
             updateBars();
             m_longestBatchMicros = std::max(m_longestBatchMicros, jp::threadCpuMicros() - cpu0);
             Q_EMIT calculationFinished();
+            if (!m_saveAfterCalculation.isNull()) {
+                const QString path = m_saveAfterCalculation;
+                m_saveAfterCalculation.clear();
+                startSave(path);
+            }
             return;
         }
     } else if (m_calculating) {

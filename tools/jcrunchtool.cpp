@@ -77,6 +77,8 @@ using namespace jp::office::sheet;
 namespace jp::crunchtool {
 // The grid's commands (tools/jcrunchtool_grid.cpp): the code to exit with, or -1 for a line that is none of them.
 int gridMain(const QStringList &args);
+// The editing commands (tools/jcrunchtool_edit.cpp: roundtrip, edit-bench), the same.
+int editMain(const QStringList &args);
 }
 #endif
 
@@ -693,7 +695,7 @@ int main(int argc, char **argv)
     qputenv("JP_NO_TELEMETRY", "1");
 #ifdef JC_GRID
     // the grid commands draw: they need the program's own window system parts (offscreen unless the person chose another)
-    if (argc > 1 && QByteArray(argv[1]).startsWith("grid-")) {
+    if (argc > 1 && (QByteArray(argv[1]).startsWith("grid-") || QByteArray(argv[1]).startsWith("roundtrip") || QByteArray(argv[1]).startsWith("edit-"))) {
         if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM")) qputenv("QT_QPA_PLATFORM", "offscreen");
         Q_INIT_RESOURCE(resources);
         Q_INIT_RESOURCE(crunch);
@@ -702,7 +704,8 @@ int main(int argc, char **argv)
         // (JC_CRASH_REPORT names a file for the report of a crash: where the program stopped, which addr2line turns to lines)
         if (!qEnvironmentVariableIsEmpty("JC_CRASH_REPORT")) ::jp::crash::install(qEnvironmentVariable("JC_CRASH_REPORT"));
         ::jp::initCore();   // the program's own fonts, as JeffCrunch loads them
-        const int code = ::jp::crunchtool::gridMain(gui.arguments().mid(1));
+        int code = ::jp::crunchtool::gridMain(gui.arguments().mid(1));
+        if (code < 0) code = ::jp::crunchtool::editMain(gui.arguments().mid(1));
         return code >= 0 ? code : usage();
     }
 #endif
