@@ -79,10 +79,12 @@ static int addFontFile(const QDir &dir, const QString &name)
     return id;
 }
 
-int loadBundledFonts()
+int loadBundledFonts() { return loadFontsFrom(bundledFontDirs()); }
+
+int loadFontsFrom(const QStringList &dirs)
 {
     int n = 0;
-    for (const QString &d : bundledFontDirs()) {
+    for (const QString &d : dirs) {
         QDir dir(d);
         if (!dir.exists()) continue;
         for (const QString &f : dir.entryList({"*.ttf", "*.otf"}, QDir::Files)) {
