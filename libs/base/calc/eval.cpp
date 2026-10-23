@@ -13,6 +13,18 @@ namespace {
 
 bool isErr(const Value &v) { return v.kind() == Value::Kind::Error; }
 
+// Is the program only references and names, with the operators between references? (A call, a number, a sum are none.)
+bool namesAReference(const Program &p)
+{
+    for (const Instr &in : p.code) {
+        switch (in.op) {
+        case Op::PushRef: case Op::PushName: case Op::PushTable: case Op::PushExternal: case Op::Range: case Op::Union: case Op::Intersect: break;
+        default: return false;
+        }
+    }
+    return !p.code.empty();
+}
+
 } // namespace
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
@@ -534,6 +546,8 @@ Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, in
     }
     if (!it->program) return Item::ofError(relativeToA1 ? ErrorKind::Name : ErrorKind::Ref);
     const std::shared_ptr<const Program> program = it->program;
+    // What INDIRECT is given names a reference (a cell, a range, a name): a formula that works one out is not a reference to take.
+    if (!relativeToA1 && !namesAReference(*program)) return Item::ofError(ErrorKind::Ref);
     if (program->external) unsupported |= 1;
     if (program->structured) unsupported |= 2;
     if (!program->unknownFunctions.isEmpty()) unsupported |= 4;

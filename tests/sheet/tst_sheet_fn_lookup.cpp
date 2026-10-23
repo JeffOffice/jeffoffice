@@ -314,6 +314,31 @@ private Q_SLOTS:
         QCOMPARE(evInCells("INDIRECT(\"NextToLeft\")", g, {"A1", "B1"}), (QStringList{"n:22", "n:0"}));
     }
 
+    // INDIRECT takes a text that names a reference (a cell, a range, a name, with a sheet or without): not a formula, whose value it would give.
+    void indirectDoesNotWorkOutFormulas()
+    {
+        Grid g = sample();
+        g.name("Moving", "OFFSET(Sheet1!$E$1,1,0)");
+        g.name("Calc", "Sheet1!$E$1+1");
+        const E cases[] = {
+            {"INDIRECT(\"OFFSET(A1,1,0)\")", "e:#REF!"},
+            {"INDIRECT(\"IF(TRUE,A1,A2)\")", "e:#REF!"},
+            {"INDIRECT(\"A1+1\")", "e:#REF!"},
+            {"INDIRECT(\"SUM(E1:E3)\")", "e:#REF!"},
+            {"INDIRECT(\"1\")", "e:#REF!"},
+            {"INDIRECT(\"\"\"x\"\"\")", "e:#REF!"},
+            {"INDIRECT(\"TRUE\")", "e:#REF!"},
+            {"SUM(INDIRECT(\"E1:E3\"))", "n:60"},
+            {"SUM(INDIRECT(\"Sheet1!E1:E3\"))", "n:60"},
+            {"INDIRECT(\"Moving\")", "n:20"},         // a name stands for what it was given, a function or not
+            {"INDIRECT(\"Calc\")", "e:#REF!"},
+            {"INDIRECT(\"R2C2\",FALSE)", "n:2"},
+            {"INDIRECT(\"R[-8]C[-8]\",FALSE)", "n:2"},
+            {"INDIRECT(\"OFFSET(R1C1,1,0)\",FALSE)", "e:#REF!"},
+        };
+        CHECK_EVALS(cases, g, Settings());
+    }
+
     void rowsColumnsAndAddresses()
     {
         const Grid g = sample();
