@@ -631,8 +631,12 @@ bool WriteDoc::partEdited(const HeaderPart &part) const
 
 void WriteDoc::stepAdded(QTextDocument *story)
 {
-    m_undoLog.push_back(Step{story, m_nextSerial++, story->availableUndoSteps()});
+    const quint64 serial = m_nextSerial++;
+    m_undoLog.push_back(Step{story, serial, story->availableUndoSteps()});
     m_redoLog.clear();
+    // (The notes made by this edit are known by its step.)
+    for (const auto &made : std::as_const(m_noteStepPending)) (made.first ? m_createdEndnoteStep : m_createdFootnoteStep)[made.second] = serial;
+    m_noteStepPending.clear();
     checkModified();
     Q_EMIT historyChanged();
 }

@@ -29,6 +29,7 @@
 #include <QMessageBox>
 #include <QPainter>
 #include <QSlider>
+#include <QLocale>
 #include <QStatusBar>
 #include <QTextBlock>
 #include <QTextDocument>
@@ -456,8 +457,22 @@ void WriteWindow::refreshUi()
             for (const char *id : {"insert.pageBreak", "layout.sectionBreak"}) act(QString::fromLatin1(id))->setEnabled(false);
         // (And no note.)
         const bool inNoteWords = write::inEndnoteWords(c);
-        act("refs.footnote")->setEnabled(!editing && !m_view->inNote() && !inNoteWords);
-        act("refs.endnote")->setEnabled(!editing && !m_view->inNote() && !inNoteWords);
+        const bool noteAllowed = !editing && !m_view->inNote() && !inNoteWords;
+        // (A document with the most notes it holds: the commands are off, and the status bar says why.)
+        const bool footnoteRoom = !noteAllowed || m_doc->roomForFootnote(), endnoteRoom = !noteAllowed || m_doc->roomForEndnote();
+        const QString full = tr("This document has the most notes JeffWrite can hold (%1), so no more can be added.").arg(QLocale().toString(write::kMostNoteStories));
+        act("refs.footnote")->setEnabled(noteAllowed && footnoteRoom);
+        act("refs.endnote")->setEnabled(noteAllowed && endnoteRoom);
+        act("refs.footnote")->setStatusTip(footnoteRoom ? QString() : full);
+        act("refs.endnote")->setStatusTip(endnoteRoom ? QString() : full);
+        act("refs.footnote")->setToolTip(footnoteRoom ? QString() : full);
+        act("refs.endnote")->setToolTip(endnoteRoom ? QString() : full);
+        if (!footnoteRoom || !endnoteRoom) {
+            if (!m_noteLimitShown) statusBar()->showMessage(full, 8000);
+            m_noteLimitShown = true;
+        } else {
+            m_noteLimitShown = false;
+        }
         act("hf.differentFirst")->setChecked(editing && m_doc->differentFirstPage(e.section));
         act("hf.differentOddEven")->setChecked(m_doc->differentOddEven());
         act("hf.linkPrevious")->setEnabled(editing && e.section > 0);

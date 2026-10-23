@@ -172,6 +172,8 @@ void WriteDoc::loadEndnotes()
     m_endnotesCitedAtOpen.clear();
     m_endnoteEdited.clear();
     m_endnoteOriginal.clear();
+    m_createdEndnoteStep.clear();
+    m_endnoteIdFloor = 0;
     m_endnotesPart = NotesPart::Absent;
     m_endnotesPartNew = false;
     m_endnoteCapped = false;
@@ -464,6 +466,9 @@ void WriteDoc::loadNotes()
     m_dirtyNotes.clear();
     m_createdFootnotes.clear();
     m_footnotesCitedAtOpen.clear();
+    m_createdFootnoteStep.clear();
+    m_noteStepPending.clear();
+    m_footnoteIdFloor = 0;
     m_footnotesPart = NotesPart::Absent;
     m_footnotesPartNew = false;
     m_footnoteRefsValid = false;

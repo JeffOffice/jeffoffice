@@ -209,26 +209,81 @@ int WriteDoc::nextFootnoteId()
         notesCitedBeyondTheText(&beyond, &unused);
         used += beyond;
     }
-    int highest = m_footnotePartHighest;   // (above the Id of every element of the part: the separators have Ids as the notes have)
+    int highest = std::max(m_footnotePartHighest, m_footnoteIdFloor);   // (above the Id of every element of the part: the separators have Ids as the notes have)
     for (const int id : std::as_const(used)) highest = std::max(highest, id);
     if (highest < 1'000'000'000) return highest + 1;
     for (int id = m_footnotePartHighest + 1;; ++id)
-        if (!used.contains(id)) return id;
+        if (!used.contains(id) && id > m_footnoteIdFloor) return id;
 }
 
-bool WriteDoc::roomForFootnote() { return m_footnotesPart != NotesPart::Unusable && int(m_noteBlocks.size()) < kMostNoteStories; }
+// Whether a note can be made: the document is not one with the most notes it holds (counted by the notes the text cites, and by the stories made), and its part is one the program can
+// add to. Notes that were put in and taken back are no count.
+bool WriteDoc::roomForFootnote()
+{
+    if (m_footnotesPart == NotesPart::Unusable) return false;
+    if (int(m_noteBlocks.size()) < kMostNoteStories && int(m_noteStories.size()) < kMostNoteStories) return true;   // (the common case costs nothing)
+    reclaimDeadNotes(false, 0);
+    return int(citedFootnotes().size()) < kMostNoteStories && int(m_noteStories.size()) < kMostNoteStories;
+}
 
 bool WriteDoc::roomForEndnote()
 {
-    if (m_endnotesPart == NotesPart::Unusable || int(m_endnoteBlocks.size()) >= kMostNoteStories) return false;
+    if (m_endnotesPart == NotesPart::Unusable || m_endnoteCapped) return false;
     for (const RawChild &ch : m_last.extra)
-        if (ch.xml.contains("noEndnote")) return false;
-    return true;
+        if (ch.xml.contains("noEndnote")) return false;   // (the last section says it has none: they would not be set)
+    if (int(m_endnoteBlocks.size()) < kMostNoteStories) return true;
+    reclaimDeadNotes(true, 0);
+    return int(citedEndnotes().size()) < kMostNoteStories;
+}
+
+// Lets go the notes that were made since the document was read, are cited by nothing, and have no step of the history that could bring a reference to them back.
+void WriteDoc::reclaimDeadNotes(bool endnotes, int keep)
+{
+    const QSet<int> &made = endnotes ? m_createdEndnotes : m_createdFootnotes;
+    const QHash<int, quint64> &steps = endnotes ? m_createdEndnoteStep : m_createdFootnoteStep;
+    if (made.isEmpty()) return;
+    if (endnotes) indexEndnoteReferences();
+    else indexFootnoteReferences();
+    QHash<int, quint64> candidates;   // (the notes nothing cites, by their steps)
+    for (const int id : made) {
+        const quint64 step = steps.value(id, 0);
+        const bool cited = endnotes ? m_endnoteRefIndex.contains(id) : m_footnoteRefs.contains(id);
+        if (id != keep && step != 0 && !cited) candidates.insert(id, step);
+    }
+    if (candidates.isEmpty()) return;
+    QSet<quint64> wanted, present;
+    for (auto it = candidates.cbegin(); it != candidates.cend(); ++it) wanted.insert(it.value());
+    for (const Step &s : std::as_const(m_undoLog))
+        if (wanted.contains(s.serial)) present.insert(s.serial);
+    for (const Step &s : std::as_const(m_redoLog))
+        if (wanted.contains(s.serial)) present.insert(s.serial);
+    for (auto it = candidates.cbegin(); it != candidates.cend(); ++it) {
+        if (present.contains(it.value())) continue;   // (an undo or a redo can still bring its reference back)
+        const int id = it.key();
+        if (endnotes) {
+            m_endnoteBlocks.remove(QString::number(id));
+            m_createdEndnotes.remove(id);
+            m_createdEndnoteStep.remove(id);
+            m_endnoteEdited.remove(id);
+        } else {
+            const QString key = QStringLiteral("fn%1").arg(id);
+            const auto story = m_noteStories.constFind(key);
+            if (story != m_noteStories.cend()) {
+                m_noteIds.remove(story.value().get());
+                m_dirtyNotes.removeAll(story.value().get());
+                m_noteStories.erase(story);
+            }
+            m_noteBlocks.remove(key);
+            m_createdFootnotes.remove(id);
+            m_createdFootnoteStep.remove(id);
+        }
+    }
 }
 
 int WriteDoc::makeFootnote()
 {
-    if (m_footnotesPart == NotesPart::Unusable || int(m_noteBlocks.size()) >= kMostNoteStories) return 0;
+    reclaimDeadNotes(false, 0);   // (the edit that makes the note makes any redo impossible)
+    if (!roomForFootnote()) return 0;
     activateNotes();
     // The styles a note has (a document that lacks them gets them: they are written only while a note that is written has them).
     const qsizetype had = m_wml.styles.styles.size();
@@ -255,13 +310,17 @@ int WriteDoc::makeFootnote()
         m_createdFootnotes.remove(id);
         return 0;
     }
+    m_footnoteIdFloor = id;
+    m_createdFootnoteStep[id] = 0;
+    m_noteStepPending.push_back({false, id});
     return id;
 }
 
 int WriteDoc::duplicateFootnote(int id)
 {
     const QString key = QStringLiteral("fn%1").arg(id);
-    if (m_footnotesPart == NotesPart::Unusable || !m_noteBlocks.contains(key) || int(m_noteBlocks.size()) >= kMostNoteStories) return 0;
+    reclaimDeadNotes(false, id);
+    if (!m_noteBlocks.contains(key) || !roomForFootnote()) return 0;
     QVector<Block> blocks;
     if (QTextDocument *s = editableFootnote(id)) {
         VectorSink sink(&blocks);
@@ -278,6 +337,9 @@ int WriteDoc::duplicateFootnote(int id)
         m_createdFootnotes.remove(fresh);
         return 0;
     }
+    m_footnoteIdFloor = fresh;
+    m_createdFootnoteStep[fresh] = 0;
+    m_noteStepPending.push_back({false, fresh});
     return fresh;
 }
 
@@ -438,7 +500,7 @@ void WriteDoc::activateEndnotes()
 int WriteDoc::nextEndnoteId()
 {
     indexEndnoteReferences();
-    int highest = m_endnotePartHighest;   // (above the Id of every element of the part)
+    int highest = std::max(m_endnotePartHighest, m_endnoteIdFloor);   // (above the Id of every element of the part)
     QSet<int> used;
     for (auto it = m_endnoteBlocks.cbegin(); it != m_endnoteBlocks.cend(); ++it) used.insert(it.key().toInt());
     for (auto it = m_endnoteRefIndex.cbegin(); it != m_endnoteRefIndex.cend(); ++it) used.insert(it.key());
@@ -450,14 +512,13 @@ int WriteDoc::nextEndnoteId()
     for (const int id : std::as_const(used)) highest = std::max(highest, id);
     if (highest < 1'000'000'000) return highest + 1;
     for (int id = m_endnotePartHighest + 1;; ++id)
-        if (!used.contains(id)) return id;
+        if (!used.contains(id) && id > m_endnoteIdFloor) return id;
 }
 
 int WriteDoc::makeEndnote()
 {
-    if (m_endnotesPart == NotesPart::Unusable || int(m_endnoteBlocks.size()) >= kMostNoteStories) return 0;
-    for (const RawChild &ch : m_last.extra)
-        if (ch.xml.contains("noEndnote")) return 0;   // (the last section says it has none: they would not be set)
+    reclaimDeadNotes(true, 0);   // (the edit that makes the note makes any redo impossible)
+    if (!roomForEndnote()) return 0;
     activateEndnotes();
     const qsizetype had = m_wml.styles.styles.size();
     ensureStyle(QStringLiteral("EndnoteText"));
@@ -477,19 +538,26 @@ int WriteDoc::makeEndnote()
     note.para.content.push_back(blank);
     m_endnoteBlocks.insert(QString::number(id), {note});
     m_createdEndnotes.insert(id);
+    m_endnoteIdFloor = id;
+    m_createdEndnoteStep[id] = 0;
+    m_noteStepPending.push_back({true, id});
     return id;
 }
 
 int WriteDoc::duplicateEndnote(int id)
 {
     const QString key = QString::number(id);
-    if (m_endnotesPart == NotesPart::Unusable || !m_endnoteBlocks.contains(key) || int(m_endnoteBlocks.size()) >= kMostNoteStories) return 0;
+    reclaimDeadNotes(true, id);
+    if (!m_endnoteBlocks.contains(key) || !roomForEndnote()) return 0;
     const QSet<int> one{id};
     captureEndnotes(&one);   // (what was said in it so far)
     const QVector<Block> blocks = m_endnoteBlocks.value(key);
     const int fresh = nextEndnoteId();
     m_endnoteBlocks.insert(QString::number(fresh), blocks);
     m_createdEndnotes.insert(fresh);
+    m_endnoteIdFloor = fresh;
+    m_createdEndnoteStep[fresh] = 0;
+    m_noteStepPending.push_back({true, fresh});
     return fresh;
 }
 

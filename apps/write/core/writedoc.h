@@ -418,6 +418,12 @@ private:
     // The Ids of the footnotes and endnotes that places other than the text's own references cite: the headers and footers, the text boxes and other pieces of the text that are kept as XML,
     // and the notes themselves. A note stays in the file while one of them cites it, though the text no longer does.
     void notesCitedBeyondTheText(QSet<int> *footnotes, QSet<int> *endnotes);
+    // Notes made since the document was read, each with the history step that made it (0 until that step is added): a note whose last reference was taken out, and whose step is in neither
+    // log any more (it was undone, and an edit since has made it impossible to redo), can never come back, and is let go with its slot. (An Id that was used is not used again.)
+    QHash<int, quint64> m_createdFootnoteStep, m_createdEndnoteStep;
+    QVector<std::pair<bool, int>> m_noteStepPending;   // (endnote?, Id) of the notes made since the last step: the next step is theirs
+    int m_footnoteIdFloor = 0, m_endnoteIdFloor = 0;   // the highest Id made in this session
+    void reclaimDeadNotes(bool endnotes, int keep);
     // The endnotes (writedoc_noteedit.cpp)
     QHash<int, int> m_endnoteCopyIds;                                 // the Id of the note each copy that the pages set is a copy of (by the number EndnoteNote gives it)
     int m_nextEndnoteSerial = 1;

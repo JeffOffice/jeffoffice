@@ -157,6 +157,7 @@ private:
     QDockWidget *m_findDock = nullptr;
     QLabel *m_pageLabel = nullptr, *m_wordLabel = nullptr, *m_zoomLabel = nullptr;
     QSlider *m_zoomSlider = nullptr;
+    bool m_noteLimitShown = false;   // the status bar has said that the document holds the most notes
     QList<FontCombo *> m_fontCombos;
     QList<SizeCombo *> m_sizeCombos;
     QList<ColorButton *> m_colorButtons;

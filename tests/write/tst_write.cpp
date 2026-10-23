@@ -7492,10 +7492,10 @@ private Q_SLOTS:
         QVERIFY2(timer.elapsed() < 3000, qPrintable(QString::number(timer.elapsed())));
         QTextCursor c(doc->story());
         c.setPosition(2);
-        QVERIFY(!insertFootnote(*doc, c));   // (no more notes than the program makes)
-        QVERIFY(c.document() == doc->story());
-        QCOMPARE(doc->undo(), first);   // (what was refused changed nothing: the last step is the typing)
-        doc->redo();
+        QVERIFY(doc->roomForFootnote());   // (forty are cited: the part's other notes are no count)
+        QTextDocument *made = insertFootnote(*doc, c);
+        QVERIFY(made && made != first);
+        QCOMPARE(doc->undo(), doc->story());   // (the insertion is the last step: undone, the part is as it was)
         const QByteArray saved = doc->toDocx();
         QVERIFY(rt::strictProblems(saved, zip).isEmpty());
         const QByteArray part = partOf(saved, QStringLiteral("/word/footnotes.xml"));
@@ -7675,8 +7675,9 @@ private Q_SLOTS:
         QVERIFY2(timer.elapsed() < 3000, qPrintable(QString::number(timer.elapsed())));
         QTextCursor at(doc->story());
         at.setPosition(2);
-        QVERIFY(!insertEndnote(*doc, at));   // (no more notes than the program makes)
-        QVERIFY(at.document() == doc->story());
+        QVERIFY(doc->roomForEndnote());   // (forty are cited: the part's other notes are no count)
+        QVERIFY(insertEndnote(*doc, at));
+        doc->undo();   // (taken back at once: the part is as it was)
         const QByteArray saved = doc->toDocx();
         QVERIFY(rt::strictProblems(saved, zip).isEmpty());
         const QByteArray part = notesPartOf(saved);
@@ -18624,6 +18625,90 @@ private Q_SLOTS:
         QVERIFY(rt::strictProblems(saved, zip).isEmpty());
     }
 
+    // ---- notes: the most the program holds
+
+    // Notes put in and taken back, over and over, use up nothing: after more cycles than the most notes, one more can still be put in, and what the document holds is a few.
+    void insertingAndUndoingNotesOverAndOverNeverFillsTheDocument()
+    {
+        for (const bool endnotes : {false, true}) {
+            auto doc = open(endnotes ? notedDocx() : threeNotesDocx());
+            QVERIFY(doc);
+            const QByteArray before = doc->toDocx();
+            for (int cycle = 0; cycle < int(kMostNoteStories) + 100; ++cycle) {
+                QTextCursor c(doc->story());
+                c.setPosition(3);
+                if (endnotes) QVERIFY2(insertEndnote(*doc, c), qPrintable(QStringLiteral("endnote cycle %1").arg(cycle)));
+                else QVERIFY2(insertFootnote(*doc, c), qPrintable(QStringLiteral("footnote cycle %1").arg(cycle)));
+                doc->undo();
+            }
+            QVERIFY(endnotes ? doc->roomForEndnote() : doc->roomForFootnote());
+            QVERIFY2((endnotes ? doc->heldEndnotesForTest() : doc->heldFootnotesForTest()) <= 5, qPrintable(QString::number(endnotes ? doc->heldEndnotesForTest() : doc->heldFootnotesForTest())));
+            QTextCursor c(doc->story());
+            c.setPosition(3);
+            QVERIFY(endnotes ? insertEndnote(*doc, c) : bool(insertFootnote(*doc, c)));
+            while (doc->canUndo()) doc->undo();
+            QCOMPARE(documentXml(doc->toDocx()), documentXml(before));
+            QCOMPARE(partOf(doc->toDocx(), endnotes ? QStringLiteral("/word/endnotes.xml") : QStringLiteral("/word/footnotes.xml")),
+                     partOf(before, endnotes ? QStringLiteral("/word/endnotes.xml") : QStringLiteral("/word/footnotes.xml")));
+            // (Taken back and put in again by a redo: the note is the one that was.)
+            QTextCursor d(doc->story());
+            d.setPosition(3);
+            QVERIFY(endnotes ? insertEndnote(*doc, d) : bool(insertFootnote(*doc, d)));
+            const QByteArray inserted = doc->toDocx();
+            doc->undo();
+            doc->redo();
+            QCOMPARE(documentXml(doc->toDocx()), documentXml(inserted));
+            QCOMPARE(partOf(doc->toDocx(), endnotes ? QStringLiteral("/word/endnotes.xml") : QStringLiteral("/word/footnotes.xml")),
+                     partOf(inserted, endnotes ? QStringLiteral("/word/endnotes.xml") : QStringLiteral("/word/footnotes.xml")));
+        }
+    }
+
+    // A document with the most notes the program holds (each cited): no more can be made; the commands are off, and the status bar says why. A document with that many notes in its part
+    // and only a few cited has room: a note can still be made.
+    void aDocumentWithTheMostNotesTurnsTheCommandsOffAndSaysWhy()
+    {
+        const int count = kMostNoteStories;
+        QByteArray body;
+        QList<std::pair<int, QByteArray>> notes;
+        for (int i = 1; i <= count; ++i) {
+            body += "<w:p><w:r><w:t>p" + QByteArray::number(i) + "</w:t></w:r><w:r><w:footnoteReference w:id=\"" + QByteArray::number(i) + "\"/></w:r></w:p>";
+            notes << std::make_pair(i, plainRun(" note " + QByteArray::number(i)));
+        }
+        const QByteArray zip = notesDocx(body, footnotesPart(notes));
+        {
+            auto doc = open(zip);
+            QVERIFY(doc);
+            QVERIFY(!doc->roomForFootnote());
+            QTextCursor c(doc->story());
+            c.setPosition(2);
+            QVERIFY(!insertFootnote(*doc, c));
+            QVERIFY(c.document() == doc->story());
+            QVERIFY(!doc->isModified());
+        }
+        WriteWindow w;
+        w.resize(1000, 900);
+        w.show();
+        w.setDocument(open(zip), QString());
+        QTRY_VERIFY(!w.act("refs.footnote")->isEnabled());
+        QTRY_VERIFY2(w.statusBar()->currentMessage().contains(QLocale().toString(count)), qPrintable(w.statusBar()->currentMessage()));
+        QVERIFY(w.act("refs.endnote")->isEnabled());   // (the document's endnotes are another count)
+        // The same count of endnotes.
+        QByteArray ends = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote();
+        QByteArray endBody;
+        for (int i = 1; i <= count; ++i) {
+            ends += "<w:endnote w:id=\"" + QByteArray::number(i) + "\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> e" + QByteArray::number(i) + "</w:t></w:r></w:p></w:endnote>";
+            endBody += "<w:p><w:r><w:t>q" + QByteArray::number(i) + "</w:t></w:r><w:r><w:endnoteReference w:id=\"" + QByteArray::number(i) + "\"/></w:r></w:p>";
+        }
+        ends += "</w:endnotes>";
+        const QByteArray endZip = makeDocxWithParts(endBody, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), ends}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>");
+        auto ended = open(endZip);
+        QVERIFY(ended);
+        QVERIFY(!ended->roomForEndnote());
+        QTextCursor c(ended->story());
+        c.setPosition(2);
+        QVERIFY(!insertEndnote(*ended, c));
+        QVERIFY(!ended->isModified());
+    }
 
 };
 
