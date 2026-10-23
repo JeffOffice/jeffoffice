@@ -1130,6 +1130,73 @@ private Q_SLOTS:
         QCOMPARE(d.at("B2"), QStringLiteral("n:4"));
         QVERIFY2(d.calc->heldBytes() <= 2048, qPrintable(QString::number(d.calc->heldBytes())));
     }
+
+    // A load that is being watched is told before each sheet and as a sheet is read, and a "no" stops it there: the sheets not read are not whole.
+    void aLoadCanBeStoppedAndSaysHowFarItCame()
+    {
+        QVector<QByteArray> sheets;
+        for (int i = 0; i < 3; ++i) {
+            QString rows;
+            for (int r = 1; r <= 3000; ++r) rows += rowXml(r, constant(QStringLiteral("A%1").arg(r), QStringLiteral("1")) + constant(QStringLiteral("B%1").arg(r), QStringLiteral("2")));
+            sheets.append(worksheet(rows));
+        }
+        Package package;
+        Workbook book;
+        QString why;
+        QVERIFY(package.readLazy(buildXlsx(sheets), &why) && book.open(package, &why));
+        // asked to go on: it is told 0 cells before each sheet, and about every 4,096 cells in it
+        Calculation whole(book);
+        QVector<QPair<int, qint64>> told;
+        whole.setProgress([&](int sheet, qint64 cells) {
+            told.append({sheet, cells});
+            return true;
+        });
+        QVERIFY(whole.load());
+        QVERIFY(told.contains({0, 0}) && told.contains({1, 0}) && told.contains({2, 0}));
+        QVERIFY(told.contains({1, 4096}));   // (6,000 cells in a sheet)
+        // told no before the second sheet: the first is read, the others are not
+        Calculation stopped(book);
+        int lastSheet = -1;
+        stopped.setProgress([&](int sheet, qint64) {
+            lastSheet = sheet;
+            return sheet < 1;
+        });
+        QVERIFY(!stopped.load());
+        QCOMPARE(lastSheet, 1);
+        QCOMPARE(stopped.sheet(0).cells.cellCount(), qint64(6000));
+        QCOMPARE(stopped.sheet(1).cells.cellCount(), qint64(0));
+        QCOMPARE(stopped.sheet(2).cells.cellCount(), qint64(0));
+        QCOMPARE(stopped.notWhole(), QStringList({QStringLiteral("Sheet2"), QStringLiteral("Sheet3")}));
+        // told no in the middle of a sheet: the sheet is not whole, and what came before is there
+        Calculation middle(book);
+        middle.setProgress([&](int sheet, qint64 cells) { return !(sheet == 1 && cells >= 4096); });
+        QVERIFY(!middle.load());
+        QVERIFY(middle.sheet(1).cells.cellCount() > 0 && middle.sheet(1).cells.cellCount() < 6000);
+        QCOMPARE(middle.sheet(2).cells.cellCount(), qint64(0));
+    }
+
+    // Until a formula is worked out a cell shows the result the file stored for it (nothing if there is none); then its own value. A constant is itself.
+    void aFormulaShowsItsStoredResultUntilItIsWorkedOut()
+    {
+        const QString rows = rowXml(1, constant("A1", "5") + cellXml("B1", "A1*2", "99") + cellXml("C1", "A1+1") + cellXml("D1", "\"x\"&A1", "old", "str"));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        auto shown = [&](const QString &ref) { return b.calc->shown(0, b.row(ref), b.col(ref)).debug(); };
+        QCOMPARE(shown("A1"), QStringLiteral("n:5"));
+        QCOMPARE(shown("B1"), QStringLiteral("n:99"));
+        QCOMPARE(shown("C1"), QStringLiteral("-"));
+        QCOMPARE(shown("D1"), QStringLiteral("s:old"));
+        QCOMPARE(shown("E1"), QStringLiteral("-"));
+        QVERIFY(settle(b).finished);
+        QCOMPARE(shown("B1"), QStringLiteral("n:10"));
+        QCOMPARE(shown("C1"), QStringLiteral("n:6"));
+        QCOMPARE(shown("D1"), QStringLiteral("s:x5"));
+        // a change makes the formulas that read it wait again, showing what they showed
+        QVERIFY(b.set("A1", Value::number(7)));
+        QCOMPARE(shown("B1"), QStringLiteral("n:10"));
+        QVERIFY(settle(b).finished);
+        QCOMPARE(shown("B1"), QStringLiteral("n:14"));
+    }
 };
 
 JP_TEST_CLASS(SheetCalculationTests)

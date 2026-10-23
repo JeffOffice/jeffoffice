@@ -305,6 +305,7 @@ void Calculation::storeResult(Node &n, quint32 id, const Value &given)
         n.text = -1;
     }
     if (n.kind == KindArray && !v.isArray()) m_arrays.remove(id);
+    n.flags |= Worked;
     switch (v.kind()) {
     case Value::Kind::Number: n.kind = KindNumber; n.number = v.number(); break;
     case Value::Kind::Bool: n.kind = KindBool; n.number = v.boolean() ? 1 : 0; break;
@@ -367,6 +368,23 @@ Value Calculation::cell(int sheet, quint32 row, quint32 col) const
         return v;
     }
     if (c->flags & Tainted) m_readTaint = true;
+    return valueOf(s, *c);
+}
+
+Value Calculation::shown(int sheet, quint32 row, quint32 col) const
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns) return Value();
+    const Sheet &s = m_sheets[size_t(sheet)];
+    const Cell *c = s.cells.find(row, col);
+    if (!c) return Value();
+    if ((c->hasFormula() || (c->flags & ArrayMember)) && size_t(sheet) < m_state.size()) {
+        const SheetState &st = m_state[size_t(sheet)];
+        const quint32 id = c->formula >= 0 && size_t(c->formula) < st.nodeOf.size() ? st.nodeOf[size_t(c->formula)] : kNone;
+        if (id != kNone && m_nodes[id].state != Done && !(m_nodes[id].flags & Worked)) return valueOf(s, *c);
+        Value v;
+        formulaValue(sheet, *c, &v);
+        return v;
+    }
     return valueOf(s, *c);
 }
 

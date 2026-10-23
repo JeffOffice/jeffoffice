@@ -37,18 +37,26 @@ WorkbookSource::WorkbookSource(const Workbook &book, qint64 maxBytes) : m_book(b
 
 bool WorkbookSource::loadAll()
 {
-    bool whole = true;
+    bool whole = true, stopped = false;
     qint64 held = 0;
     for (int i = 0; i < m_book.info().sheets.size(); ++i) {
         if (m_book.info().sheets[i].kind == SheetKind::Chartsheet) continue;
         Sheet &s = m_sheets[size_t(i)];
-        if (held > m_maxBytes) {
-            // the sheets read so far take all that a workbook may: this one is left out
+        if (stopped || held > m_maxBytes || (m_progress && !m_progress(i, 0))) {
+            // the sheets read so far take all that a workbook may, or the load was stopped: this one is left out
             whole = false;
+            stopped = stopped || (held <= m_maxBytes);
             m_notWhole << m_book.info().sheets[i].name;
             continue;
         }
-        if (!m_book.readSheet(i, &s)) {
+        std::function<bool(qint64)> progress;
+        if (m_progress)
+            progress = [&](qint64 cells) {
+                if (m_progress(i, cells)) return true;
+                stopped = true;
+                return false;
+            };
+        if (!m_book.readSheet(i, &s, progress)) {
             whole = false;
             m_notWhole << m_book.info().sheets[i].name;
         }

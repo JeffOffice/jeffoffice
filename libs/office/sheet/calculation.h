@@ -80,6 +80,10 @@ public:
     jp::calc::Value cell(int sheet, quint32 row, quint32 col) const override;
     void visit(int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2, const std::function<bool(quint32, quint32, const jp::calc::Value &)> &f) const override;
 
+    // What a cell shows: its value; a formula that has never been worked out shows the result the file stored for it (nothing if it stored none), and one that waits to be
+    // worked out again the value it had.
+    jp::calc::Value shown(int sheet, quint32 row, quint32 col) const;
+
     // Edits. Each marks what depends on the cell; the values change at the next recalculation. False, with nothing changed, if the cell is off the sheet or the text no formula.
     bool setValue(int sheet, quint32 row, quint32 col, const jp::calc::Value &value);   // an empty value empties the cell
     bool setFormula(int sheet, quint32 row, quint32 col, const QString &formula);        // as the file writes it, with no "=" in front
@@ -117,7 +121,7 @@ public:
 
 private:
     enum : quint8 { Dirty = 0, Queued = 1, Waiting = 2, Done = 3, Suspended = 4 };   // (Suspended: worked out, found to wait only for formulas on the way to it or in its own group)
-    enum : quint16 { Kept = 1, NodeTainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128, Mismatch = 256, Cascade = 512, AlwaysListed = 1024, Retried = 2048 };
+    enum : quint16 { Kept = 1, NodeTainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128, Mismatch = 256, Cascade = 512, AlwaysListed = 1024, Retried = 2048, Worked = 4096 };
     enum : quint8 { KindEmpty = 0, KindNumber, KindText, KindBool, KindError, KindArray };
     struct Node {
         double number = 0;
