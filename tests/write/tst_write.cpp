@@ -3247,12 +3247,13 @@ private Q_SLOTS:
                                    QStringLiteral("JeffCrunch"), QStringLiteral("JeffMail"), QStringLiteral("JeffBase"), QStringLiteral("LLC")};
         QVERIFY(dict::languages().size() >= 12);
         for (const dict::Language &l : dict::languages()) {
-            for (const bool upper : {true, false}) {
+            for (const bool upper : {false, true}) {
                 Speller::Rules rules;
                 rules.ignoreUpper = upper;
                 rules.ignoreNumbers = false;
                 for (const QString &name : names)
-                    for (const QString &form : {name, name + QStringLiteral("'s"), name + QChar(0x2019) + QLatin1Char('s')})
+                    for (const QString &form : {name, name + QStringLiteral("'s"), name + QChar(0x2019) + QLatin1Char('s'), name.toUpper() + QStringLiteral("'S"), name.toUpper() + QChar(0x2019) + QLatin1Char('S'),
+                                                name + QStringLiteral("'S")})   // (the possessive of a name in capitals is in capitals)
                         QVERIFY2(Speller::get().check(l.code, form, rules), qPrintable(l.code + QLatin1Char(' ') + form + (upper ? " (capitals let go)" : "")));
             }
             // In a paragraph, as the checker as you type reads it.

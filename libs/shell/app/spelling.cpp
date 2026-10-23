@@ -36,7 +36,7 @@ Speller::Rules Speller::rules()
 namespace {
 
 // The names of the suite's own apps and of the company, right in every language and every app: no dictionary lists them. A name is right as it is written,
-// in capitals, and with a possessive ("JeffWrite's"); "JeffOffice LLC" is two words to the checker.
+// in capitals, and with a possessive ("JeffWrite's", "JEFFWRITE'S"); "JeffOffice LLC" is two words to the checker.
 bool isOwnName(QString w)
 {
     static const QSet<QString> names = [] {
@@ -47,7 +47,8 @@ bool isOwnName(QString w)
         }
         return set;
     }();
-    if (w.size() > 2 && (w.endsWith(QLatin1String("'s")) || w.endsWith(QString(QChar(0x2019)) + QLatin1Char('s')))) w.chop(2);
+    // (A name in capitals has its possessive in capitals: "JEFFWRITE'S".)
+    if (w.size() > 2 && (w.endsWith(QLatin1String("'s"), Qt::CaseInsensitive) || w.endsWith(QString(QChar(0x2019)) + QLatin1Char('s'), Qt::CaseInsensitive))) w.chop(2);
     return names.contains(w);
 }
 
