@@ -691,6 +691,84 @@ private Q_SLOTS:
         QCOMPARE(k.calc->keptClass(0, k.row("D1"), k.col("D1")), char(0));
         QCOMPARE(k.calc->keptClass(0, k.row("E1"), k.col("E1")), char(0));
     }
+
+    // A circle through a name is broken by an edit to what the name stands for: the formula that closed the circle told what it read through the name, though the circle stopped
+    // its work, so the edit reaches it.
+    void aCircleThroughANameIsBrokenByAnEditToWhatItReads()
+    {
+        const QString rows = rowXml(1, cellXml("A1", "D1+1") + cellXml("D1", "SUM(me)"));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), QStringLiteral("<definedName name=\"me\">Sheet1!$A$1</definedName>"))));
+        settle(b);
+        QVERIFY(b.circular("A1") && b.circular("D1"));
+        QVERIFY(b.set("A1", Value::number(5)));
+        settle(b);
+        QCOMPARE(b.at("A1"), QStringLiteral("n:5"));
+        QCOMPARE(b.at("D1"), QStringLiteral("n:5"));
+        QVERIFY(!b.circular("D1"));
+    }
+
+    // What is in a circle is found from what the formulas read, with the values of what is not in it: a formula that reads a cell only when another is empty is no part of a circle
+    // when the other holds something, however the work happens to be ordered; and when circles overlap, every formula of them is marked.
+    void aCircleIsFoundByWhatIsReadAndEveryFormulaOfItIsMarked()
+    {
+        // A1 reads C1 only if B1 is empty, and B1 holds the text of D1 (the formula "x")
+        const QString rows = rowXml(1, cellXml("A1", "IF(B1=\"\",C1,1)") + cellXml("B1", "D1") + cellXml("C1", "A1+1") + cellXml("D1", "\"x\""))
+            + rowXml(3, cellXml("A3", "IF(ISNUMBER(B3),B3,C3)") + cellXml("B3", "A4*2") + cellXml("C3", "A3+1") + constant("A4", "5"))
+            // the cycles A6-B6 and A6-C6 share A6; D6 reads them and is in none
+            + rowXml(6, cellXml("A6", "B6+C6") + cellXml("B6", "A6") + cellXml("C6", "A6") + cellXml("D6", "A6+B6+C6+1"));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        settle(b);
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1"));
+        QCOMPARE(b.at("C1"), QStringLiteral("n:2"));
+        QCOMPARE(b.at("A3"), QStringLiteral("n:10"));
+        QCOMPARE(b.at("C3"), QStringLiteral("n:11"));
+        for (const char *ref : {"A1", "B1", "C1", "A3", "B3", "C3", "D6"}) QVERIFY2(!b.circular(QString::fromLatin1(ref)), ref);
+        for (const char *ref : {"A6", "B6", "C6"}) QVERIFY2(b.circular(QString::fromLatin1(ref)), ref);
+        QCOMPARE(b.at("D6"), QStringLiteral("n:1"));
+        // B5 reads the block that holds it, and the first cell of the block is an error: the error is the result, and nothing is read in a circle; whichever edit comes first
+        const QString block = rowXml(1, cellXml("A1", "IF(X1=1,NA(),2)") + constant("X1", "0")) + rowXml(5, cellXml("B5", "MAX(A1:D6)")) + rowXml(6, constant("D6", "5"));
+        for (int order = 0; order < 2; ++order) {
+            Book c;
+            QVERIFY(c.open(buildXlsx({worksheet(block)})));
+            settle(c);
+            QVERIFY(c.circular("B5"));            // (A1 is 2, and B5 reads itself)
+            if (order == 0) {
+                QVERIFY(c.set("D6", Value::number(6)));
+                QVERIFY(c.set("X1", Value::number(1)));
+            } else {
+                QVERIFY(c.set("X1", Value::number(1)));
+                QVERIFY(c.set("D6", Value::number(6)));
+            }
+            settle(c);
+            QCOMPARE(c.at("B5"), QStringLiteral("e:#N/A"));
+            QVERIFY(!c.circular("B5"));
+        }
+    }
+
+    // A circle of a hundred thousand formulas, one of them reading a block that holds all the others, is found in time in proportion to its size (counted), not by going over the
+    // others again for each.
+    void aLongCircleIsFoundInTimeInProportionToItsSize()
+    {
+        const int n = 60000;
+        QString rows;
+        for (int i = 1; i < n; ++i) rows += rowXml(i, cellXml(QStringLiteral("A%1").arg(i), QStringLiteral("A%1+1").arg(i + 1)));
+        rows += rowXml(n, cellXml(QStringLiteral("A%1").arg(n), QStringLiteral("SUM(A1:A%1)").arg(n - 1)));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        const Calculation::Progress p = settle(b);
+        QVERIFY(p.finished);
+        QCOMPARE(p.circular, qint64(n));
+        QVERIFY2(p.circleWork <= 10 * qint64(n), qPrintable(QStringLiteral("%1 steps to find a circle of %2").arg(p.circleWork).arg(n)));
+        QVERIFY2(p.evaluated <= 4 * qint64(n), qPrintable(QString::number(p.evaluated)));
+        QVERIFY(b.circular("A1") && b.circular(QStringLiteral("A%1").arg(n)));
+        QVERIFY(b.set(QStringLiteral("A%1").arg(n), Value::number(5)));   // broken at the end: the others are worked out
+        const Calculation::Progress q = settle(b);
+        QCOMPARE(b.at("A1"), QStringLiteral("n:%1").arg(5 + n - 1));
+        QVERIFY2(q.evaluated <= 4 * qint64(n), qPrintable(QString::number(q.evaluated)));
+        QVERIFY(!b.circular("A1"));
+    }
 };
 
 JP_TEST_CLASS(SheetCalculationTests)

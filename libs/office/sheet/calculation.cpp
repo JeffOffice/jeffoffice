@@ -73,6 +73,8 @@ quint32 Calculation::addNode(int sheet, const Cell &cell, qint32 formulaIndex)
     } else {
         id = quint32(m_nodes.size());
         m_nodes.emplace_back();
+        m_index.push_back(0);
+        m_low.push_back(0);
     }
     Node &n = m_nodes[id];
     n.sheet = sheet;
@@ -309,6 +311,10 @@ bool Calculation::load()
     const int sheets = int(m_sheets.size());
     m_state.assign(size_t(sheets), SheetState());
     m_nodes.clear();
+    m_index.clear();
+    m_low.clear();
+    m_comp.clear();
+    m_counter = 0;
     m_dirty.clear();
     m_always.clear();
     std::vector<quint32> masters;   // array formulas, whose cells are then made members of them
@@ -453,9 +459,20 @@ void Calculation::abandon()
         Node &n = m_nodes[f.node];
         if (n.state == Waiting || n.state == Queued) {
             n.state = Dirty;
+            n.flags &= quint16(~Retried);
             again.push_back(f.node);
         }
     }
+    for (const quint32 x : m_comp) {
+        Node &n = m_nodes[x];
+        m_index[x] = m_low[x] = 0;
+        if (n.state == Suspended) {
+            n.state = Dirty;
+            n.flags &= quint16(~Retried);
+            again.push_back(x);
+        }
+    }
+    m_comp.clear();
     for (size_t i = m_dirtyCursor; i < m_dirty.size(); ++i) again.push_back(m_dirty[i]);
     m_stack.clear();
     m_dirty.swap(again);
@@ -488,6 +505,103 @@ Value Calculation::runFormula(quint32 id, qint64 *work)
     return v;
 }
 
+// What a formula worked out is: its result, whether it read anything kept apart, and whether it is a mismatch with what the file stored (or reads one).
+void Calculation::finishNode(Node &n, quint32 id, const Value &v)
+{
+    const EvalStatus status = m_evaluator.status();
+    const int unsupported = m_evaluator.unsupportedKinds();
+    if (m_options.keepApart && unsupported) {
+        n.flags |= Kept | NodeTainted;
+        n.kept = (unsupported & 1) ? 'E' : (unsupported & 2) ? 'T' : 'U';
+        keepStored(n, n.kept);
+    } else if (m_options.keepApart && status != EvalStatus::Ok) {
+        n.flags |= Kept | NodeTainted;
+        n.kept = 'L';
+        keepStored(n, 'L');
+    } else {
+        storeResult(n, id, v);
+        n.flags &= quint16(~Circular);
+        if (m_readTaint) n.flags |= NodeTainted;
+        else n.flags &= quint16(~NodeTainted);
+        n.flags &= quint16(~(Mismatch | Cascade));
+        if (m_readCascade) n.flags |= Cascade;
+        if (m_options.verify) {
+            const Sheet &sh = m_sheets[size_t(n.sheet)];
+            const Cell *stored = sh.cells.find(n.row, n.col);
+            if (stored && !m_options.verify(valueOf(sh, *stored), nodeValue(n, id))) n.flags |= Mismatch;
+        }
+    }
+    n.flags &= quint16(~Retried);
+}
+
+// A formula in a circle has the result 0 (kept apart, the file's value, which marks what reads it).
+void Calculation::markCircular(quint32 id, Progress &pr)
+{
+    Node &c = m_nodes[id];
+    if (m_options.keepApart) {
+        // (the file's value of a cell in a circle is what the last calculation left, 0 or another, or what iterating gave: it is kept, and marks what reads it)
+        c.flags |= Kept | NodeTainted | Circular;
+        c.kept = m_iterate ? 'I' : 'C';
+        keepStored(c, c.kept);
+    } else {
+        storeResult(c, id, Value::number(0));
+        c.flags |= Circular;
+        c.flags &= quint16(~NodeTainted);
+    }
+    c.flags &= quint16(~Retried);
+    c.state = Done;
+    --m_notDone;
+    ++pr.recalculated;
+    ++pr.circular;
+}
+
+// `root` waits for formulas that wait, directly or through others, for it: the formulas on the group's stack from it up are a group that waits for itself. Each was worked out
+// with the formulas of the group not worked out (read as empty), so what one read may be a read it would not make with their values; a group is therefore given a second
+// try, each formula worked out again, and one that waits again is in a circle: it has the result 0, as has every other formula of the group that waits again.
+void Calculation::closeGroup(quint32 root, quint32 parent, Progress &pr)
+{
+    std::vector<quint32> open;
+    bool fresh = false;
+    for (;;) {
+        const quint32 x = m_comp.back();
+        m_comp.pop_back();
+        m_index[x] = m_low[x] = 0;
+        ++pr.circleWork;
+        const Node &c = m_nodes[x];
+        if (c.state != Done) {
+            open.push_back(x);
+            if (!(c.flags & Retried)) fresh = true;
+        }
+        if (x == root) break;
+    }
+    std::sort(open.begin(), open.end());
+    if (fresh) {
+        for (const quint32 x : open) {
+            m_nodes[x].flags |= Retried;
+            m_nodes[x].state = Queued;
+        }
+        for (size_t i = open.size(); i-- > 0;) m_stack.push_back({open[i], parent});   // (the first of them is worked out first)
+        return;
+    }
+    for (const quint32 x : open) markCircular(x, pr);
+}
+
+// `node` is worked out, and the formulas suspended since it began to wait were waiting for it or for a way round it: they are worked out again.
+void Calculation::leaveGroup(quint32 node, quint32 parent)
+{
+    std::vector<quint32> woken;
+    for (;;) {
+        const quint32 x = m_comp.back();
+        m_comp.pop_back();
+        m_index[x] = m_low[x] = 0;
+        if (x == node) break;
+        if (m_nodes[x].state != Done) woken.push_back(x);
+    }
+    std::sort(woken.begin(), woken.end());
+    for (const quint32 x : woken) m_nodes[x].state = Queued;
+    for (size_t i = woken.size(); i-- > 0;) m_stack.push_back({woken[i], parent});
+}
+
 Calculation::Progress Calculation::recalculate(qint64 budget, const std::atomic<bool> *cancel)
 {
     Progress pr;
@@ -511,13 +625,17 @@ Calculation::Progress Calculation::recalculate(qint64 budget, const std::atomic<
             }
             if (root == kNone) break;
             m_nodes[root].state = Queued;
-            m_stack.push_back({root});
+            m_stack.push_back({root, kNone});
         }
         if (budget > 0 && spent >= budget) return pr;
-        const quint32 id = m_stack.back().node;
-        if (m_nodes[id].state == Done || (m_nodes[id].flags & Dead)) {
-            m_stack.pop_back();
-            continue;
+        const Frame frame = m_stack.back();
+        const quint32 id = frame.node;
+        {
+            const Node &top = m_nodes[id];
+            if (top.state == Done || top.state == Suspended || (top.flags & Dead)) {
+                m_stack.pop_back();
+                continue;
+            }
         }
         qint64 work = 0;
         const Value v = runFormula(id, &work);
@@ -525,77 +643,49 @@ Calculation::Progress Calculation::recalculate(qint64 budget, const std::atomic<
         spent += work;
         pr.work += work;
         ++pr.evaluated;
+        // (what it read through a name, INDIRECT, or OFFSET is told each time it is worked out, whether or not it can be finished: a circle it closes is broken by an edit to that)
+        if (n.flags & Told) registerNode(id, &m_touched);
         if (m_pending.empty()) {
-            const EvalStatus status = m_evaluator.status();
-            const int unsupported = m_evaluator.unsupportedKinds();
-            if (m_options.keepApart && unsupported) {
-                n.flags |= Kept | NodeTainted;
-                n.kept = (unsupported & 1) ? 'E' : (unsupported & 2) ? 'T' : 'U';
-                keepStored(n, n.kept);
-            } else if (m_options.keepApart && status != EvalStatus::Ok) {
-                n.flags |= Kept | NodeTainted;
-                n.kept = 'L';
-                keepStored(n, 'L');
-            } else {
-                storeResult(n, id, v);
-                n.flags &= quint16(~Circular);
-                if (m_readTaint) n.flags |= NodeTainted;
-                else n.flags &= quint16(~NodeTainted);
-                n.flags &= quint16(~(Mismatch | Cascade));
-                if (m_readCascade) n.flags |= Cascade;
-                if (m_options.verify) {
-                    const Sheet &sh = m_sheets[size_t(n.sheet)];
-                    const Cell *stored = sh.cells.find(n.row, n.col);
-                    if (stored && !m_options.verify(valueOf(sh, *stored), nodeValue(n, id))) n.flags |= Mismatch;
-                }
-            }
-            if (n.flags & Told) registerNode(id, &m_touched);
+            finishNode(n, id, v);
             n.state = Done;
             --m_notDone;
             ++pr.recalculated;
             m_stack.pop_back();
+            if (m_index[id]) leaveGroup(id, frame.parent);
             continue;
         }
-        // it read formulas that are not worked out: they are worked out first, and it again after them; one that is waiting (or itself) is a circle
+        // it read formulas that are not worked out: those that can be are worked out first, and it again after them
         std::sort(m_pending.begin(), m_pending.end());
         m_pending.erase(std::unique(m_pending.begin(), m_pending.end()), m_pending.end());
-        size_t circleFrom = m_stack.size();
-        for (const quint32 y : m_pending) {
-            if (y != id && m_nodes[y].state != Waiting) continue;
-            size_t at = m_stack.size() - 1;
-            if (y != id) {
-                while (at > 0 && !(m_stack[at].node == y && m_nodes[y].state == Waiting)) --at;
-            }
-            circleFrom = std::min(circleFrom, at);
+        if (!m_index[id]) {
+            m_index[id] = m_low[id] = ++m_counter;
+            m_comp.push_back(id);
         }
-        if (circleFrom < m_stack.size()) {
-            for (size_t i = circleFrom; i < m_stack.size(); ++i) {
-                Node &c = m_nodes[m_stack[i].node];
-                if (c.state == Done || (c.state != Waiting && m_stack[i].node != id)) continue;
-                if (m_options.keepApart) {
-                    // (the file's value of a cell in a circle is what the last calculation left, 0 or another, or what iterating gave: it is kept, and marks what reads it)
-                    c.flags |= Kept | NodeTainted | Circular;
-                    c.kept = m_iterate ? 'I' : 'C';
-                    keepStored(c, c.kept);
-                } else {
-                    storeResult(c, m_stack[i].node, Value::number(0));
-                    c.flags |= Circular;
-                    c.flags &= quint16(~NodeTainted);
-                }
-                c.state = Done;
-                --m_notDone;
-                ++pr.recalculated;
-                ++pr.circular;
+        const size_t before = m_stack.size();
+        for (const quint32 y : m_pending) {
+            ++pr.circleWork;
+            Node &d = m_nodes[y];
+            if (y == id || d.state == Waiting || d.state == Suspended) {
+                // one it waits for already, or itself, or one suspended: it is in a group with the formulas from there up
+                m_low[id] = std::min(m_low[id], m_index[y]);
+            } else {
+                if (d.state == Dirty) d.state = Queued;
+                m_stack.push_back({y, id});
             }
+        }
+        if (m_stack.size() > before) {
+            n.state = Waiting;
+            pr.deepest = std::max<qint64>(pr.deepest, qint64(m_stack.size()));
             continue;
         }
-        n.state = Waiting;
-        for (const quint32 y : m_pending) {
-            Node &d = m_nodes[y];
-            if (d.state == Dirty) d.state = Queued;
-            m_stack.push_back({y});
+        // it waits only for formulas on the way to it, or itself, or those suspended: it cannot be worked out until they are
+        m_stack.pop_back();
+        if (m_low[id] < m_index[id]) {
+            n.state = Suspended;
+            if (frame.parent != kNone) m_low[frame.parent] = std::min(m_low[frame.parent], m_low[id]);
+            continue;
         }
-        pr.deepest = std::max<qint64>(pr.deepest, qint64(m_stack.size()));
+        closeGroup(id, frame.parent, pr);
     }
     m_running = false;
     m_dirty.clear();

@@ -51,6 +51,8 @@ public:
         qint64 work = 0;            // steps taken
         qint64 circular = 0;        // formulas found circular
         qint64 deepest = 0;         // the most formulas waiting for others at once
+        qint64 circleWork = 0;      // steps taken to place what a formula waits for, and the formulas of the groups that wait for each other (counted: a test can see that a circle is not found
+                                    // by going over the stack again and again)
     };
     // Works out what is to be worked out (and the formulas that change by themselves): all of it, or about `workBudget` steps of it, then stops with `finished` false and the
     // rest to be done by the next call. If `cancel` is set it stops at once, with `cancelled` true.
@@ -98,8 +100,8 @@ public:
     void forEachFormula(const std::function<void(const FormulaCell &)> &f) const;
 
 private:
-    enum : quint8 { Dirty = 0, Queued = 1, Waiting = 2, Done = 3 };
-    enum : quint16 { Kept = 1, NodeTainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128, Mismatch = 256, Cascade = 512, AlwaysListed = 1024 };
+    enum : quint8 { Dirty = 0, Queued = 1, Waiting = 2, Done = 3, Suspended = 4 };   // (Suspended: worked out, found to wait only for formulas on the way to it or in its own group)
+    enum : quint16 { Kept = 1, NodeTainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128, Mismatch = 256, Cascade = 512, AlwaysListed = 1024, Retried = 2048 };
     enum : quint8 { KindEmpty = 0, KindNumber, KindText, KindBool, KindError, KindArray };
     struct Node {
         double number = 0;
@@ -161,8 +163,19 @@ private:
     size_t m_dirtyCursor = 0;
     struct Frame {
         quint32 node;
+        quint32 parent;   // the formula that waits for it (kNone for one the recalculation started from)
     };
     std::vector<Frame> m_stack;
+    // The groups of formulas that wait for each other (strongly connected components, found as the work goes: Tarjan's way, with the stack of the work as its depth-first
+    // search): a formula that waits is given a number when it first does, and a formula worked out that waits only for those on the way to it, or in its own group, is left
+    // suspended on the stack of the group until the group is complete. m_index and m_low are 0 for a formula not on that stack.
+    std::vector<quint32> m_index, m_low;
+    std::vector<quint32> m_comp;
+    quint32 m_counter = 0;
+    void closeGroup(quint32 root, quint32 parent, Progress &pr);
+    void leaveGroup(quint32 node, quint32 parent);
+    void markCircular(quint32 id, Progress &pr);
+    void finishNode(Node &n, quint32 id, const jp::calc::Value &v);
     bool m_running = false;
     double m_now = 0;
     qint64 m_notDone = 0, m_formulaCount = 0, m_untracked = 0;
