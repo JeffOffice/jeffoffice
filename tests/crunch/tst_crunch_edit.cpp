@@ -1002,6 +1002,43 @@ private Q_SLOTS:
         QCOMPARE(show(s, b.sharedStrings(), QStringLiteral("B2")), QStringLiteral("n:4"));
     }
 
+    // Only the results the edit changed are written: a formula that is worked out again with the value the engine gave it before keeps the result the file stored (the engine's differences from
+    // the program that wrote the file are not made into changes).
+    void onlyTheResultsTheEditChangedAreWritten()
+    {
+        // A1 is 1; B1 = A1*0 and C1 = A1*2, both stored as 999 (which the engine does not give)
+        const QByteArray book = buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><f>A1*0</f><v>999</v></c><c r=\"C1\"><f>A1*2</f><v>999</v></c></row>"))});
+        EditWindow e;
+        QVERIFY(e.open(book));
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:0"));
+        QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("n:2"));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        auto savedValue = [&](const QString &ref) -> QString {
+            Package p;
+            Workbook b;
+            Sheet s;
+            if (!p.readLazyFile(e.path) || !b.open(p) || !b.readSheet(0, &s)) return QStringLiteral("the file does not open");
+            return show(s, b.sharedStrings(), ref);
+        };
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("5"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("n:10"));
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.wait(20000));
+        QCOMPARE(savedValue(QStringLiteral("A1")), QStringLiteral("n:5"));
+        QCOMPARE(savedValue(QStringLiteral("C1")), QStringLiteral("n:10"));    // the engine changed it
+        QCOMPARE(savedValue(QStringLiteral("B1")), QStringLiteral("n:999"));   // worked out again, and the same (0): the file's own stays
+        // typed back: C1 is what the engine says again (2), B1 still the file's
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("1"));
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.count() == 2 || saved.wait(20000));
+        QCOMPARE(savedValue(QStringLiteral("C1")), QStringLiteral("n:2"));
+        QCOMPARE(savedValue(QStringLiteral("B1")), QStringLiteral("n:999"));
+    }
+
     // A workbook with macros is saved as a .xlsm with its macros as they were, and cannot be given another ending.
     void aWorkbookWithMacrosKeepsThem()
     {

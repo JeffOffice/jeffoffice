@@ -77,7 +77,8 @@ public:
     // kMaxCellsPerEdit.
     Outcome clear(int sheet, qint64 row1, qint64 col1, qint64 row2, qint64 col2);
 
-    // The worker's results, as they reach the window: kept for saving (those that differ from what the file holds).
+    // The worker's results, as they reach the window (before the window's store has them: the store's value is the engine's before it): kept for saving, those that the engine changed and that
+    // differ from what the file holds.
     void noteResults(const std::vector<jp::grid::ValueStore::Item> &items);
 
     // ---- saving
@@ -133,6 +134,7 @@ private:
     bool m_tracking = false;               // an edit has been made: results are compared with the file's
     std::set<quint64> m_touched;           // cells changed by the person (written whole), by sheet, row, column
     std::map<quint64, jp::calc::Value> m_results;      // formulas whose value is not the file's
+    std::map<quint64, jp::calc::Value> m_engineAtStart;  // for a formula whose result has changed: the engine's value before its first change since the file was read or saved
     std::map<quint64, jp::calc::Value> m_fileResults;  // what the file holds for formulas whose value there is not the one the workbook was read with (after a save)
 };
 

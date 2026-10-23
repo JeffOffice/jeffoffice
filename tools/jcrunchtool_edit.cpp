@@ -107,8 +107,8 @@ struct Opened {
                     const bool same = had && ((old.isNumber() && it.value.isNumber() && jp::calc::sameTo15Digits(old.number(), it.value.number())) || old == it.value);
                     if (!same) changedByEdit.insert(crunch::EditSession::keyOf(it.sheet, it.row, it.col));
                 }
+            if (session) session->noteResults(b->items);   // (before the store has them)
             values.apply(b->items);
-            if (session) session->noteResults(b->items);
             ++batches;
             if (!b->items.empty() && firstValuesAt < 0) firstValuesAt = clock.nsecsElapsed();
             if (b->last && !b->stopped) {
@@ -207,6 +207,14 @@ bool sameStored(const Sheet &sa, const SharedStrings &ha, const Cell &a, const S
     case CellType::Empty: return true;
     default: return a.number == b.number || jp::calc::sameTo15Digits(a.number, b.number);
     }
+}
+
+// Whether the cell is what was typed: the number, or (in a cell whose format is Text) the text of it.
+bool isTyped(const Cell &c, const Sheet &s, const SharedStrings &shared, double value, const QString &typed)
+{
+    if (c.type == CellType::Number) return c.number == value;
+    if (c.type == CellType::SharedString || c.type == CellType::InlineString || c.type == CellType::FormulaString) return s.text(c, shared) == typed;
+    return false;
 }
 
 struct Report {
@@ -326,7 +334,7 @@ int roundtripOne(const QString &path)
 
     // ---- (2) one edit
     Opened w;
-    QString cellName_, editWhy;
+    QString cellName_, editWhy, typedText;
     qint64 dependents = 0, resultsChanged = 0, unexpected = 0;
     int editParts = 0, editPartsSame = 0;
     bool cellRight = false;
@@ -377,10 +385,11 @@ int roundtripOne(const QString &path)
             std::vector<quint32> readers;
             calc->graph().dependentsOfCell(sheet, row, col, &readers);
             dependents = qint64(readers.size());
+            typedText = QString::number(newValue, 'g', 17);
             w.session->setLocale(QLocale::c());
             w.trackChanges = true;
             w.beginEdit();
-            const crunch::EditSession::Outcome o = w.session->type(sheet, row, col, QString::number(newValue, 'g', 17));
+            const crunch::EditSession::Outcome o = w.session->type(sheet, row, col, typedText);
             if (!o.ok) {
                 edited.add(QStringLiteral("edit refused: ") + o.problem);
             } else if (!w.settle()) {
@@ -406,6 +415,11 @@ int roundtripOne(const QString &path)
                         if (b.contains(it.key()) && b.value(it.key()) == it.value()) ++editPartsSame;
                         else edited.add(QStringLiteral("an untouched part differs"));
                     }
+                    const QString keepAs = qEnvironmentVariable("JC_ROUNDTRIP_KEEP");
+                    if (!keepAs.isEmpty()) {
+                        QFile kept(keepAs);
+                        if (kept.open(QIODevice::WriteOnly)) kept.write(bytes);
+                    }
                     Read after(bytes);
                     if (!after.ok) {
                         edited.add(QStringLiteral("the saved file does not open: ") + after.why);
@@ -425,9 +439,11 @@ int roundtripOne(const QString &path)
                                 const Cell *a1 = i < pa.size() ? pa[i] : nullptr, *b1 = j < pb.size() ? pb[j] : nullptr;
                                 if (a1 && b1 && key(a1) == key(b1)) {
                                     const bool isEdited = si == sheet && key(a1) == editedKey;
+                                    const Cell *model = calc->sheet(si).cells.find(b1->row, b1->col);
+                                    const bool arrayMember = model && (model->flags & ArrayMember);
                                     if (isEdited) {
-                                        cellRight = b1->type == CellType::Number && b1->number == newValue;
-                                    } else if (b1->hasFormula() || (b1->flags & ArrayMember)) {
+                                        cellRight = isTyped(*b1, sb, hb, newValue, typedText);
+                                    } else if (b1->hasFormula() || arrayMember) {
                                         // a formula's result: the engine's now if the edit changed it, else the file's as it was
                                         const jp::calc::Value ours = calc->cell(si, b1->row, b1->col);
                                         if (w.changedByEdit.count(crunch::EditSession::keyOf(si, b1->row, b1->col))) {
@@ -458,7 +474,7 @@ int roundtripOne(const QString &path)
                                         ++unexpected;
                                         edited.add(QStringLiteral("a cell came"));
                                     } else {
-                                        cellRight = b1->type == CellType::Number && b1->number == newValue;
+                                        cellRight = isTyped(*b1, sb, hb, newValue, typedText);
                                     }
                                     ++j;
                                 }
@@ -470,6 +486,7 @@ int roundtripOne(const QString &path)
         }
         editMs = double(t2.nsecsElapsed()) / 1e6;
     }
+    if (!qEnvironmentVariableIsEmpty("JC_ROUNDTRIP_KEEP") && !cellRight) err() << "the edited cell is not right: " << cellName_ << "\n";
     const bool cellsOk = cellsSame && untouched.differences.isEmpty() && partsSame == partsTotal;
     out() << path << '\t' << exit << '\t' << fixed(double(total.nsecsElapsed()) / 1e9) << '\t' << fixed(peakMegabytes()) << '\t' << partsTotal << '\t' << partsSame << '\t' << (cellsOk ? 1 : 0) << '\t'
           << untouched.differences.join(QLatin1String("; ")) << '\t' << cellName_ << '\t' << dependents << '\t' << resultsChanged << '\t' << unexpected << '\t' << editParts << '\t' << editPartsSame << '\t'
