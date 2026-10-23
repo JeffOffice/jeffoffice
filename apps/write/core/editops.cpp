@@ -617,11 +617,17 @@ void insertText(WriteDoc &doc, QTextCursor &c, const QString &typed)
     }
 }
 
+// The style of a paragraph: its own, or, for a paragraph of an endnote the pages set (which keeps its style apart from the document's), the note's.
+static QString styleOf(const QTextBlockFormat &bf)
+{
+    return bf.hasProperty(prop::EndnoteBlock) ? bf.stringProperty(prop::EndnoteStyle) : bf.stringProperty(tp::StyleName);
+}
+
 static void removeFromList(WriteDoc &doc, QTextBlock block)
 {
     if (QTextList *l = block.textList()) l->remove(block);
     QTextBlockFormat nf = block.blockFormat();
-    const QString style = nf.stringProperty(tp::StyleName);
+    const QString style = styleOf(nf);
     const QTextBlockFormat base = doc.styleBlockFormat(style);
     nf.clearProperty(prop::NumId);
     nf.clearProperty(prop::NumLevel);
@@ -678,7 +684,7 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
     }
     settleAtEdges(c);
     const bool atEnd = c.atBlockEnd();
-    const QString style = cur.blockFormat().stringProperty(tp::StyleName);
+    const QString style = styleOf(cur.blockFormat());
     splitParagraph(c);
     // At the end of a paragraph, the next one is in the style the style says follows it (a heading is followed by body text); it is a paragraph of
     // that style, with the paragraph mark's own (a section that ends here...) that the end of the paragraph had.
@@ -690,6 +696,11 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
             QTextBlockFormat nf = doc.styleBlockFormat(s->next);
             copyTail(tailOwner, &nf);
             copyPlace(tailOwner, &nf);   // (the paragraph after it is in its cell, or its frame)
+            if (nf.hasProperty(prop::EndnoteBlock)) {
+                nf.setProperty(prop::EndnoteStyle, s->next);   // (a paragraph of a note says its style so, and has no style name)
+                nf.clearProperty(tp::StyleName);
+                nf.clearProperty(prop::Outline);
+            }
             setBlockFormatInList(b, nf, nullptr);
             setMarkFormat(b, doc.styleCharFormat(s->next));
             c.setCharFormat(doc.styleCharFormat(s->next));
@@ -2148,8 +2159,7 @@ void toggleList(WriteDoc &doc, QTextCursor &c, bool numbered)
 
 QString paragraphStyleAt(const WriteDoc &doc, const QTextCursor &c)
 {
-    const QTextBlockFormat bf = c.block().blockFormat();
-    const QString id = bf.hasProperty(prop::EndnoteBlock) ? bf.stringProperty(prop::EndnoteStyle) : bf.stringProperty(tp::StyleName);
+    const QString id = styleOf(c.block().blockFormat());
     return id.isEmpty() ? doc.defaultParagraphStyle() : id;
 }
 
@@ -2158,7 +2168,7 @@ static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleI
     const QTextBlockFormat bf = b.blockFormat();
     // (A paragraph of an endnote the pages set keeps its style apart from the document's: it says the style itself.)
     const bool ofNote = bf.hasProperty(prop::EndnoteBlock);
-    const QString has = ofNote ? bf.stringProperty(prop::EndnoteStyle) : bf.stringProperty(tp::StyleName);
+    const QString has = styleOf(bf);
     const QString was = has.isEmpty() ? doc.defaultParagraphStyle() : has;
     QTextBlockFormat nf = doc.styleBlockFormat(styleId);
     // What belongs to the paragraph in the file, not to its style.

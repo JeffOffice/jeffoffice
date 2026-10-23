@@ -18926,6 +18926,49 @@ private Q_SLOTS:
         QVERIFY2(firstSectionIn(written) == kept, written.constData());
     }
 
+    // ---- notes: lists
+
+    // Turning a list off in a note gives its paragraph what its style gives: a note's own style (its paragraphs of the endnotes the pages set keep it apart from the document's styles),
+    // not the style the document has by default.
+    void turningAListOffInANoteGivesBackTheNotesOwnStyle()
+    {
+        const QByteArray styles = kStyles +
+            "<w:style w:type=\"paragraph\" w:styleId=\"EndnoteText\"><w:name w:val=\"endnote text\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:ind w:left=\"720\"/></w:pPr></w:style>"
+            "<w:style w:type=\"paragraph\" w:styleId=\"FootnoteText\"><w:name w:val=\"footnote text\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:ind w:left=\"720\"/></w:pPr></w:style>"
+            "<w:style w:type=\"character\" w:styleId=\"FootnoteReference\"><w:name w:val=\"footnote reference\"/><w:rPr><w:vertAlign w:val=\"superscript\"/></w:rPr></w:style>";
+        {
+            const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote() +
+                                     "<w:endnote w:id=\"2\"><w:p><w:pPr><w:pStyle w:val=\"EndnoteText\"/></w:pPr><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Alpha note</w:t></w:r></w:p></w:endnote></w:endnotes>";
+            const QByteArray body = "<w:p><w:r><w:t>Body</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+            auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>", styles));
+            QVERIFY(doc);
+            const QTextBlock note = doc->story()->findBlockByNumber(2);
+            QCOMPARE(note.blockFormat().leftMargin(), 36.0);
+            QTextCursor c(doc->story());
+            c.setPosition(note.position() + 4);
+            toggleList(*doc, c, false);
+            QVERIFY(doc->story()->findBlockByNumber(2).blockFormat().hasProperty(prop::NumId));
+            toggleList(*doc, c, false);
+            const QTextBlock after = doc->story()->findBlockByNumber(2);
+            QVERIFY(!after.blockFormat().hasProperty(prop::NumId));
+            QCOMPARE(after.blockFormat().leftMargin(), 36.0);
+            QCOMPARE(after.blockFormat().stringProperty(prop::EndnoteStyle), QStringLiteral("EndnoteText"));
+        }
+        {
+            auto doc = open(makeDocxWithParts(citing("Body", 2), pageSection(), {{QStringLiteral("/word/footnotes.xml"), footnotesPart({{2, plainRun(" Alpha note")}})}}, QByteArray(), styles));
+            QVERIFY(doc);
+            QTextDocument *note = doc->editableFootnote(2);
+            QVERIFY(note);
+            QCOMPARE(note->firstBlock().blockFormat().leftMargin(), 36.0);
+            QTextCursor c(note);
+            c.setPosition(noteTextStart(note) + 3);
+            toggleList(*doc, c, true);
+            QVERIFY(note->firstBlock().blockFormat().hasProperty(prop::NumId));
+            toggleList(*doc, c, true);
+            QVERIFY(!note->firstBlock().blockFormat().hasProperty(prop::NumId));
+            QCOMPARE(note->firstBlock().blockFormat().leftMargin(), 36.0);
+        }
+    }
 
 
 
