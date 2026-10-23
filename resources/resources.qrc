@@ -1642,6 +1642,14 @@
     <file alias="en/change-template.md">help/en/change-template.md</file>
     <file alias="en/color-schemes.md">help/en/color-schemes.md</file>
     <file alias="en/create.md">help/en/create.md</file>
+    <file alias="en/crunch/context.json">help/en/crunch/context.json</file>
+    <file alias="en/crunch/formulas.md">help/en/crunch/formulas.md</file>
+    <file alias="en/crunch/index.md">help/en/crunch/index.md</file>
+    <file alias="en/crunch/keyboard.md">help/en/crunch/keyboard.md</file>
+    <file alias="en/crunch/open-save.md">help/en/crunch/open-save.md</file>
+    <file alias="en/crunch/select-and-move.md">help/en/crunch/select-and-move.md</file>
+    <file alias="en/crunch/start.md">help/en/crunch/start.md</file>
+    <file alias="en/crunch/view.md">help/en/crunch/view.md</file>
     <file alias="en/deck/animations.md">help/en/deck/animations.md</file>
     <file alias="en/deck/comments.md">help/en/deck/comments.md</file>
     <file alias="en/deck/context.json">help/en/deck/context.json</file>
