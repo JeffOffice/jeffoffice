@@ -257,7 +257,7 @@ private:
     // process held at its peak against what was counted), rounded up. A cell is 24 bytes in a block that grows by doubling; a string is a slot of 24 in a list
     // that grows by doubling, and a block of the allocator's (its own 24-byte header, the characters twice over and a terminator, and 8 for the allocator,
     // to a multiple of 16, 32 at the least); a shared formula waiting for its first cell is an entry in a table of them (a key, a list, and the list's block),
-    // and each cell waiting in it 12 bytes.
+    // and each cell waiting in it 16 bytes.
     static constexpr qint64 kCellBytes = 32, kFormulaBytes = 24, kRangeBytes = 24, kMasterBytes = 48, kWaitingBytes = 128, kWaitingCellBytes = 16, kSlotBytes = 32;
     static qint64 stringBytes(qint64 chars) { return kSlotBytes + std::max<qint64>(32, (24 + 2 * chars + 2 + 8 + 15) / 16 * 16); }
     bool startRow(const QXmlStreamReader &r);

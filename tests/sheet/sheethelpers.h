@@ -10,7 +10,6 @@
 #include "sheet/sheetreader.h"
 
 #include <QBuffer>
-#include <QElapsedTimer>
 #include <QtEndian>
 
 #include <QtTest>
