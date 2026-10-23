@@ -152,30 +152,41 @@ private Q_SLOTS:
         QCOMPARE(seen, 5);
     }
 
-    // A narrow range of a wide sheet costs what it holds, not what the rows hold: column A of rows that have 16,384 cells each looks at one cell outside it for each row, and no more.
+    // A narrow range of a wide sheet costs what it holds, not what the rows hold: column A of rows that have 16,384 cells each steps over the cells of the column and no
+    // others, and finds the first cell of each row by halving. What is counted is what the walk did (see CellStore::RangeWalk), not a count kept apart from it.
     void aNarrowRangeOfAWideSheetDoesNotStepOverTheRestOfEachRow()
     {
         CellStore store;
         for (quint32 r = 0; r < 64; ++r)
             for (quint32 c = 0; c < 16384; ++c) store.add(makeCell(r, c, r * 16384 + c));
         store.finish();
-        qint64 passed = 0;
+        CellStore::RangeWalk walk;
         int seen = 0;
         double last = -1;
         store.forEachInRange(0, 0, 63, 0, [&](const Cell &c) {
             ++seen;
             last = c.number;
             return true;
-        }, &passed);
+        }, &walk);
         QCOMPARE(seen, 64);
         QCOMPARE(last, 63.0 * 16384);
-        QVERIFY2(passed <= 64, qPrintable(QStringLiteral("%1 cells outside the range were looked at, for 64 rows").arg(passed)));
+        const QString said = QStringLiteral("stepped over %1 cells and made %2 comparisons for 64 cells").arg(walk.stepped).arg(walk.compared);
+        QVERIFY2(walk.stepped == 64 && walk.compared <= 64 * 22, qPrintable(said));
         // a column in the middle, and a block of columns
-        passed = 0;
+        CellStore::RangeWalk middle;
         seen = 0;
-        store.forEachInRange(0, 8000, 63, 8003, [&](const Cell &) { return ++seen > 0; }, &passed);
+        store.forEachInRange(0, 8000, 63, 8003, [&](const Cell &) { return ++seen > 0; }, &middle);
         QCOMPARE(seen, 64 * 4);
-        QVERIFY2(passed <= 64, qPrintable(QStringLiteral("%1 cells outside the range were looked at, for 64 rows").arg(passed)));
+        const QString saidMiddle = QStringLiteral("stepped over %1 cells and made %2 comparisons for 256 cells").arg(middle.stepped).arg(middle.compared);
+        QVERIFY2(middle.stepped == 64 * 4 && middle.compared <= 64 * 22, qPrintable(saidMiddle));
+        // the last column, and a range that holds nothing
+        CellStore::RangeWalk edge, none;
+        seen = 0;
+        store.forEachInRange(0, 16383, 63, 16383, [&](const Cell &) { return ++seen > 0; }, &edge);
+        QCOMPARE(seen, 64);
+        QVERIFY2(edge.stepped == 64 && edge.compared <= 64 * 22, qPrintable(QStringLiteral("%1 stepped, %2 compared").arg(edge.stepped).arg(edge.compared)));
+        store.forEachInRange(100, 0, 163, 5, [&](const Cell &) { return true; }, &none);
+        QVERIFY2(none.stepped == 0 && none.compared == 0, qPrintable(QStringLiteral("%1 stepped, %2 compared").arg(none.stepped).arg(none.compared)));
     }
 
     // A store that was moved from is empty and has nothing of the one it was moved to: cells added to either go where they should.

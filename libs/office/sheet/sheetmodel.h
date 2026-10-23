@@ -114,35 +114,62 @@ public:
         for (const auto &block : m_blocks)
             for (const Cell &c : block.second.cells) f(c);
     }
+    // What a walk over a range did, counted as it did it: the cells it stepped over one by one (every move of the cursor along a row of a block is counted), and the
+    // comparisons of its searches for the first cell of each row. A test counts them to see that a narrow range of a wide sheet costs what it holds.
+    struct RangeWalk {
+        qint64 stepped = 0;
+        qint64 compared = 0;
+    };
     // Calls f(cell) for each cell inside the rectangle (both ends in it), in order of row and then column; f gives false to stop. Only the rows and cells in it are
-    // looked at: a narrow range of a wide sheet costs what it holds, and a search for each row's first cell, not a walk over the cells before it. (`passed`, if given,
-    // gets how many cells outside the rectangle were looked at, which a test counts: no more than one for each row, the first right of the rectangle.)
+    // looked at: a narrow range of a wide sheet costs what it holds, and a search for each row's first cell, not a walk over the cells before it. (`walk`, if given,
+    // counts what was done: see RangeWalk.)
     template <class F>
-    void forEachInRange(quint32 row1, quint32 col1, quint32 row2, quint32 col2, F f, qint64 *passed = nullptr) const
+    void forEachInRange(quint32 row1, quint32 col1, quint32 row2, quint32 col2, F f, RangeWalk *walk = nullptr) const
     {
+        // The place in a block's cells. Every step along them is made, and counted, here.
+        class Cursor {
+        public:
+            Cursor(std::vector<Cell>::const_iterator at, RangeWalk *walk) : m_at(at), m_walk(walk) {}
+            const Cell &operator*() const { return *m_at; }
+            const Cell *operator->() const { return &*m_at; }
+            Cursor &operator++()
+            {
+                ++m_at;
+                if (m_walk) ++m_walk->stepped;
+                return *this;
+            }
+            std::vector<Cell>::const_iterator at() const { return m_at; }
+            void jumpTo(std::vector<Cell>::const_iterator at) { m_at = at; }
+
+        private:
+            std::vector<Cell>::const_iterator m_at;
+            RangeWalk *m_walk;
+        };
         for (auto block = m_blocks.lower_bound(row1 / kBlockRows); block != m_blocks.end() && block->first * kBlockRows <= row2; ++block) {
             const std::vector<Cell> &cells = block->second.cells;
             const quint32 first = block->first * kBlockRows;
             quint32 r = std::max(row1, first);
             const quint32 last = std::min(row2, first + kBlockRows - 1);
-            auto pos = cells.begin();
-            while (r <= last && pos != cells.end()) {
+            Cursor pos(cells.begin(), walk);
+            while (r <= last && pos.at() != cells.end()) {
                 Cell key;
                 key.row = r;
                 key.col = quint16(col1);
-                pos = std::lower_bound(pos, cells.end(), key, [](const Cell &a, const Cell &b) { return a.row != b.row ? a.row < b.row : a.col < b.col; });
-                if (pos == cells.end() || pos->row > last) break;
+                pos.jumpTo(std::lower_bound(pos.at(), cells.end(), key, [walk](const Cell &a, const Cell &b) {
+                    if (walk) ++walk->compared;
+                    return a.row != b.row ? a.row < b.row : a.col < b.col;
+                }));
+                if (pos.at() == cells.end() || pos->row > last) break;
                 if (pos->row != r) {
                     // that row has no cell at or after the first column: look for the first column again in the row that has one
                     r = pos->row;
                     continue;
                 }
-                while (pos != cells.end() && pos->row == r && pos->col <= col2) {
+                while (pos.at() != cells.end() && pos->row == r && pos->col <= col2) {
                     if (!f(*pos)) return;
                     ++pos;
                 }
                 // the rest of this row's cells are right of the range: the search for the next row's first cell passes them
-                if (passed && pos != cells.end() && pos->row == r) ++*passed;
                 ++r;
             }
         }
