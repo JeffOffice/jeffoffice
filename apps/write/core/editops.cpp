@@ -2148,18 +2148,30 @@ void toggleList(WriteDoc &doc, QTextCursor &c, bool numbered)
 
 QString paragraphStyleAt(const WriteDoc &doc, const QTextCursor &c)
 {
-    const QString id = c.block().blockFormat().stringProperty(tp::StyleName);
+    const QTextBlockFormat bf = c.block().blockFormat();
+    const QString id = bf.hasProperty(prop::EndnoteBlock) ? bf.stringProperty(prop::EndnoteStyle) : bf.stringProperty(tp::StyleName);
     return id.isEmpty() ? doc.defaultParagraphStyle() : id;
 }
 
 static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleId)
 {
     const QTextBlockFormat bf = b.blockFormat();
-    const QString was = bf.stringProperty(tp::StyleName).isEmpty() ? doc.defaultParagraphStyle() : bf.stringProperty(tp::StyleName);
+    // (A paragraph of an endnote the pages set keeps its style apart from the document's: it says the style itself.)
+    const bool ofNote = bf.hasProperty(prop::EndnoteBlock);
+    const QString has = ofNote ? bf.stringProperty(prop::EndnoteStyle) : bf.stringProperty(tp::StyleName);
+    const QString was = has.isEmpty() ? doc.defaultParagraphStyle() : has;
     QTextBlockFormat nf = doc.styleBlockFormat(styleId);
     // What belongs to the paragraph in the file, not to its style.
     for (int key : {int(prop::MarkFormat), int(prop::LastSection), int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs), int(flow::fp::SectionBreakAfter), int(prop::SectionData), int(flow::fp::Cell), int(flow::fp::Frame), int(tp::OutOfLayout), int(flow::fp::AdvanceTop)})
         if (bf.hasProperty(key)) nf.setProperty(key, bf.property(key));
+    if (ofNote) {
+        // A paragraph of a note stays one, whatever style it is given: it is the same copy of the same note, and its style is the one it was given (the pages' copy has no style name of its own).
+        nf.setProperty(prop::EndnoteBlock, bf.property(prop::EndnoteBlock));
+        if (bf.hasProperty(prop::EndnoteNote)) nf.setProperty(prop::EndnoteNote, bf.property(prop::EndnoteNote));
+        nf.setProperty(prop::EndnoteStyle, styleId);
+        nf.clearProperty(tp::StyleName);
+        nf.clearProperty(prop::Outline);
+    }
     const int numId = nf.intProperty(prop::NumId), level = nf.intProperty(prop::NumLevel);
     const bool wasList = bf.hasProperty(prop::NumId);
     nf.clearProperty(prop::NumId);

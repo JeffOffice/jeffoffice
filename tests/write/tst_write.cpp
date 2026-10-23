@@ -53,6 +53,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPrinter>
+#include <QStatusBar>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QCheckBox>
@@ -683,6 +684,12 @@ QString runPropsOfText(const QByteArray &documentXml, const QString &text)
     return run.match(QString::fromUtf8(documentXml)).captured(1);
 }
 } // namespace
+
+// A command that changes how paragraphs or characters look, as the ribbon, the shortcuts, and the dialogs run it.
+struct LookCommand {
+    const char *name;
+    std::function<void(WriteDoc &, QTextCursor &)> run;
+};
 
 class WriteTests : public QObject {
     Q_OBJECT
@@ -17955,6 +17962,173 @@ private Q_SLOTS:
         QVERIFY(q.read(bare->toDocx()));
         QVERIFY(q.part(QStringLiteral("/word/styles.xml")).contains("w:styleId=\"Heading2\""));
     }
+
+    // ---- notes: the style and look commands
+
+    static QList<LookCommand> lookCommands()
+    {
+        return {
+            {"style Heading 1", [](WriteDoc &d, QTextCursor &c) { applyParagraphStyle(d, c, QStringLiteral("Heading1")); }},
+            {"style Normal", [](WriteDoc &d, QTextCursor &c) { applyParagraphStyle(d, c, d.defaultParagraphStyle()); }},
+            {"style Title", [](WriteDoc &d, QTextCursor &c) { applyParagraphStyle(d, c, QStringLiteral("Title")); }},
+            {"clear formatting", [](WriteDoc &d, QTextCursor &c) { clearFormatting(d, c); }},
+            {"center", [](WriteDoc &d, QTextCursor &c) { setAlignment(d, c, Qt::AlignHCenter); }},
+            {"indent", [](WriteDoc &d, QTextCursor &c) { changeIndent(d, c, 36); }},
+            {"indents", [](WriteDoc &d, QTextCursor &c) { setIndents(d, c, 20, 10, 5); }},
+            {"spacing", [](WriteDoc &d, QTextCursor &c) { setSpacing(d, c, 6, 6); }},
+            {"line spacing", [](WriteDoc &d, QTextCursor &c) { setLineSpacing(d, c, QTextBlockFormat::ProportionalHeight, 200); }},
+            {"bullets", [](WriteDoc &d, QTextCursor &c) { toggleList(d, c, false); }},
+            {"numbers", [](WriteDoc &d, QTextCursor &c) { toggleList(d, c, true); }},
+            {"paragraph dialog", [](WriteDoc &d, QTextCursor &c) { changeBlockFormat(d, c, [](QTextBlockFormat &bf) { bf.setAlignment(Qt::AlignRight); bf.setTopMargin(4); }); }},
+            {"bold", [](WriteDoc &d, QTextCursor &c) { toggleBold(d, c); }},
+            {"character style", [](WriteDoc &d, QTextCursor &c) { applyCharacterStyle(d, c, QStringLiteral("Strong")); }},
+            {"font size", [](WriteDoc &d, QTextCursor &c) { setFontSize(d, c, 14); }},
+        };
+    }
+
+    // Which paragraphs of the story are tails (endnotes the pages set), and of which copy, in order.
+    static QString tailShape(WriteDoc &doc)
+    {
+        QString out;
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+            out += b.blockFormat().hasProperty(prop::EndnoteBlock) ? QStringLiteral("E%1 ").arg(b.blockFormat().intProperty(prop::EndnoteNote)) : QStringLiteral("- ");
+        return out;
+    }
+
+    // The words of the note with this Id in a saved notes part, its runs joined; the elements of the part by tag ("footnote" or "endnote").
+    static QString notePartText(const QByteArray &part, const char *tag, int id)
+    {
+        const QString x = QString::fromUtf8(part);
+        const QRegularExpression note(QStringLiteral("<w:%1 w:id=\"%2\"[^>]*>(.*?)</w:%1>").arg(QLatin1String(tag)).arg(id), QRegularExpression::DotMatchesEverythingOption);
+        const QRegularExpressionMatch m = note.match(x);
+        if (!m.hasMatch()) return QString();
+        QString out;
+        static const QRegularExpression text(QStringLiteral("<w:t[^>]*>([^<]*)</w:t>"));
+        for (auto n = text.globalMatch(m.captured(1)); n.hasNext();) out += n.next().captured(1);
+        return out;
+    }
+
+    // Each command of the look, with the caret in an endnote's words or a selection in them: the paragraph stays one of its note (the text of the document is as it was, the file's text
+    // has none of the note's words, and the notes part has them), and an undo gives the file's own notes back.
+    void styleAndLookCommandsKeepAnEndnoteParagraphAnEndnote()
+    {
+        const QByteArray zip = notedDocx();
+        for (const LookCommand &command : lookCommands())
+            for (int selected = 0; selected < 2; ++selected) {
+                const QString what = QString::fromLatin1(command.name) + (selected ? QStringLiteral(" (selection)") : QStringLiteral(" (caret)"));
+                auto doc = open(zip);
+                QVERIFY(doc);
+                const QString body = savedBody(*doc);
+                const QString shape = tailShape(*doc);
+                QTextCursor c(doc->story());
+                const QTextBlock alpha = doc->story()->findBlockByNumber(3);
+                c.setPosition(alpha.position() + 4);
+                if (selected) c.setPosition(alpha.position() + 9, QTextCursor::KeepAnchor);
+                command.run(*doc, c);
+                QVERIFY2(tailShape(*doc) == shape, qPrintable(what + QStringLiteral(": the paragraphs of the notes are now ") + tailShape(*doc) + QStringLiteral(", were ") + shape));
+                QVERIFY2(savedBody(*doc) == body, qPrintable(what + QStringLiteral(": the text of the document is now ") + savedBody(*doc)));
+                const QByteArray saved = doc->toDocx();
+                QVERIFY2(!documentXml(saved).contains("<w:endnoteRef/>"), qPrintable(what + QStringLiteral(": a note's mark is in the text")));
+                QVERIFY2(!documentXml(saved).contains("Alpha"), qPrintable(what + QStringLiteral(": a note's words are in the text")));
+                QVERIFY2(notePartText(notesPartOf(saved), "endnote", 2).contains(QLatin1String(" Alpha body note brwon")), qPrintable(what + QStringLiteral(": ") + notePartText(notesPartOf(saved), "endnote", 2)));
+                QVERIFY2(rt::strictProblems(saved, zip).isEmpty(), qPrintable(what));
+                while (doc->canUndo()) doc->undo();
+                QVERIFY2(tailShape(*doc) == shape, qPrintable(what + QStringLiteral(" after undo")));
+                QVERIFY2(notesPartOf(doc->toDocx()) == notesPartOf(zip), qPrintable(what + QStringLiteral(": the notes part after undo")));
+            }
+    }
+
+    // The same with the caret in a footnote's words: the note keeps its mark and its place, the text of the page is as it was, and the notes part has the words.
+    void styleAndLookCommandsKeepAFootnoteWhole()
+    {
+        const QByteArray zip = threeNotesDocx();
+        for (const LookCommand &command : lookCommands())
+            for (int selected = 0; selected < 2; ++selected) {
+                const QString what = QString::fromLatin1(command.name) + (selected ? QStringLiteral(" (selection)") : QStringLiteral(" (caret)"));
+                auto doc = open(zip);
+                QVERIFY(doc);
+                QTextDocument *note = doc->editableFootnote(3);
+                QVERIFY(note);
+                const QString body = plain(*doc);
+                QTextCursor c(note);
+                c.setPosition(noteTextStart(note) + 3);
+                if (selected) c.setPosition(noteTextStart(note) + 8, QTextCursor::KeepAnchor);
+                command.run(*doc, c);
+                QVERIFY2(plain(*doc) == body, qPrintable(what + QStringLiteral(": the text changed")));
+                QVERIFY2(note->toPlainText().startsWith(noteMark()), qPrintable(what + QStringLiteral(": the note lost its mark: ") + note->toPlainText()));
+                const QByteArray saved = doc->toDocx();
+                QVERIFY2(!documentXml(saved).contains("<w:footnoteRef/>"), qPrintable(what + QStringLiteral(": a note's mark is in the text")));
+                QVERIFY2(!documentXml(saved).contains("note three"), qPrintable(what + QStringLiteral(": a note's words are in the text")));
+                const QByteArray part = partOf(saved, QStringLiteral("/word/footnotes.xml"));
+                QVERIFY2(notePartText(part, "footnote", 3).contains(QLatin1String(" note three text")), qPrintable(what + QStringLiteral(": ") + notePartText(part, "footnote", 3)));
+                QCOMPARE(int(part.count("<w:footnoteRef/>")), 3);
+                QVERIFY2(rt::strictProblems(saved, zip).isEmpty(), qPrintable(what));
+                while (doc->canUndo()) doc->undo();
+                QVERIFY2(partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")) == partOf(zip, QStringLiteral("/word/footnotes.xml")), qPrintable(what + QStringLiteral(": the notes part after undo")));
+            }
+    }
+
+    // A style chosen in a note is the note's: the note's paragraph is written with it, the other notes as they were; Ctrl+Shift+N and Clear All Formatting in the window do the same.
+    void aStyleChosenInANoteIsTheNotesAndIsSavedInIt()
+    {
+        {
+            const QByteArray zip = notedDocx();
+            auto doc = open(zip);
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            c.setPosition(doc->story()->findBlockByNumber(3).position() + 4);
+            applyParagraphStyle(*doc, c, QStringLiteral("Heading1"));
+            const QByteArray part = notesPartOf(doc->toDocx());
+            const int at = part.indexOf("<w:endnote w:id=\"2\"");
+            QVERIFY(at >= 0);
+            const QByteArray note = part.mid(at, part.indexOf("</w:endnote>", at) - at);
+            QVERIFY2(note.contains("<w:pStyle w:val=\"Heading1\"/>"), note.constData());
+            QVERIFY2(part.contains(betaNote()), part.constData());
+            QCOMPARE(endnoteParagraphs(*doc, 2).size(), 1);
+            QCOMPARE(endnoteParagraphs(*doc, 2).first().blockFormat().stringProperty(prop::EndnoteStyle), QStringLiteral("Heading1"));
+        }
+        {
+            const QByteArray zip = notedDocx();
+            WriteWindow w;
+            w.resize(1000, 900);
+            w.show();
+            w.setDocument(open(zip), QString());
+            WriteDoc *doc = w.document();
+            QTextCursor c(doc->story());
+            c.setPosition(doc->story()->findBlockByNumber(3).position() + 4);
+            w.view()->setCursor(c);
+            const QString shape = tailShape(*doc);
+            w.act("style.heading2")->trigger();
+            QCOMPARE(tailShape(*doc), shape);
+            w.act("style.normal")->trigger();
+            QCOMPARE(tailShape(*doc), shape);
+            w.act("fmt.clear")->trigger();
+            QCOMPARE(tailShape(*doc), shape);
+            const QByteArray saved = doc->toDocx();
+            QVERIFY(!documentXml(saved).contains("<w:endnoteRef/>"));
+            QVERIFY(!documentXml(saved).contains("Alpha"));
+            QVERIFY(notePartText(notesPartOf(saved), "endnote", 2).contains(QLatin1String(" Alpha body note brwon")));
+        }
+        {
+            const QByteArray zip = threeNotesDocx();
+            auto doc = open(zip);
+            QVERIFY(doc);
+            QTextDocument *note = doc->editableFootnote(3);
+            QTextCursor c(note);
+            c.setPosition(noteTextStart(note) + 3);
+            applyParagraphStyle(*doc, c, QStringLiteral("Heading1"));
+            const QByteArray part = partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml"));
+            const int at = part.indexOf("<w:footnote w:id=\"3\"");
+            QVERIFY(at >= 0);
+            QVERIFY(part.mid(at, part.indexOf("</w:footnote>", at) - at).contains("<w:pStyle w:val=\"Heading1\"/>"));
+        }
+    }
+
+
+
+
+
+
 };
 
 QTEST_MAIN(WriteTests)
