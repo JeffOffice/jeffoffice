@@ -29,7 +29,7 @@ inline QByteArray budgetStyles()
                        "<fills count=\"5\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill>"
                        "<fill><patternFill patternType=\"solid\"><fgColor rgb=\"FF13773A\"/></patternFill></fill>"
                        "<fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFE2F0E6\"/></patternFill></fill>"
-                       "<fill><patternFill patternType=\"lightGrid\"><fgColor rgb=\"FFB0B0B0\"/></patternFill></fill></fills>"
+                       "<fill><patternFill patternType=\"lightUp\"><fgColor rgb=\"FFCFCFCF\"/><bgColor rgb=\"FFF6F6F6\"/></patternFill></fill></fills>"
                        "<borders count=\"3\"><border><left/><right/><top/><bottom/><diagonal/></border>"
                        "<border><left/><right/><top/><bottom style=\"medium\"><color rgb=\"FF13773A\"/></bottom><diagonal/></border>"
                        "<border><left style=\"thin\"><color auto=\"1\"/></left><right style=\"thin\"><color auto=\"1\"/></right><top style=\"thin\"><color auto=\"1\"/></top>"
