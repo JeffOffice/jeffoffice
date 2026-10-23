@@ -43,6 +43,7 @@ QByteArray withW(QByteArray tag)
 // The prefixes of the namespaces word processing files use besides the main ones, with their names. A piece kept as XML may come from
 // another file (copied across), whose root declared a prefix that this file's does not; the prefixes the pieces use are declared on the root.
 const char *const kKnownPrefixes[][2] = {
+    {"r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"},
     {"wp", "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"},
     {"a", "http://schemas.openxmlformats.org/drawingml/2006/main"},
     {"pic", "http://schemas.openxmlformats.org/drawingml/2006/picture"},
@@ -99,7 +100,7 @@ QSet<QByteArray> declaredPrefixes(const QByteArray &tag)
     return out;
 }
 
-QByteArray withKnownPrefixes(QByteArray rootTag, const QVector<Block> &body)
+QByteArray withKnownPrefixes(QByteArray rootTag, const QVector<Block> &body, const SectionProps *last = nullptr)
 {
     const QSet<QByteArray> declared = declaredPrefixes(rootTag);
     QSet<QByteArray> used;
@@ -110,7 +111,12 @@ QByteArray withKnownPrefixes(QByteArray rootTag, const QVector<Block> &body)
         }
         for (const Inline &a : b.para.content)
             if (a.kind != Inline::Text) collectPrefixes(a.raw, &used);
+        // (A section's references to its headers and footers are by relationship Id: r:id.)
+        if (b.para.props.section)
+            for (const RawChild &c : b.para.props.section->extra) collectPrefixes(c.xml, &used);
     }
+    if (last)
+        for (const RawChild &c : last->extra) collectPrefixes(c.xml, &used);
     for (const auto &known : kKnownPrefixes) {
         const QByteArray prefix(known[0]);
         if (!used.contains(prefix) || declared.contains(prefix)) continue;
@@ -597,7 +603,7 @@ QByteArray documentXml(const Document &doc)
     out += kXmlHead;
     QByteArray root = doc.rootStart;
     if (root.isEmpty()) root = QByteArray("<w:document xmlns:w=\"") + kWNs + "\" xmlns:r=\"" + kRNs + "\">";
-    root = withKnownPrefixes(withW(root), doc.body);
+    root = withKnownPrefixes(withW(root), doc.body, &doc.lastSection);
     out += root;
     out += doc.beforeBody;
     out += "<w:body>";
@@ -714,6 +720,13 @@ QByteArray blocksPartXml(const QVector<Block> &blocks, const QByteArray &rootSta
     out += root;
     writeBodyBlocks(out, blocks, Whole(blocks));
     out += "</" + qnameOf(root) + ">";
+    return out;
+}
+
+QByteArray blockXml(const Block &block)
+{
+    QByteArray out;
+    writeBlock(out, block, 0, nullptr);
     return out;
 }
 

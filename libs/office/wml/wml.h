@@ -163,6 +163,9 @@ struct SectionProps {
     std::optional<int> pageStart;     // pgNumType start (empty: not stated; 0 is a number a section can start at)
     QString pageFormat;               // pgNumType fmt (decimal when empty)
     bool titlePg = false;
+    // Not a property of a section in a file: the document's use of different headers on odd and even pages (w:evenAndOddHeaders of the settings), carried by the record of the
+    // last section in a program that edits it, so that a change to it goes with the text's steps. Never written to a section.
+    bool oddEvenHeaders = false;
     bool hasPgSz = false, hasPgMar = false, hasCols = false;   // stated in the file
     QByteArray attrs;                 // the attributes of w:sectPr (revision marks), as written
     // The attributes of w:pgSz (code...), w:pgMar, w:pgNumType (chapStyle, chapSep...), and w:cols that have no field here, as written.
@@ -461,6 +464,8 @@ bool readBlocks(const QByteArray &xml, QVector<Block> *blocks, bool tables = fal
 // A header, footer, or note part from its blocks, written as the body is (a tag whose partner is missing is left out). `rootStart` is the start tag the part was read with (empty:
 // the usual one for `rootName`, "w:hdr" or "w:ftr"); the prefixes the pieces kept as XML use are declared on it.
 QByteArray blocksPartXml(const QVector<Block> &blocks, const QByteArray &rootStart, const QByteArray &rootName);
+// One block (a paragraph, or an element kept as written) as XML, the way a body is written.
+QByteArray blockXml(const Block &block);
 // The content [from, to) of a paragraph as XML, the way a paragraph is written.
 QByteArray inlinesXml(const QVector<Inline> &content, qsizetype from, qsizetype to);
 // A complex field that a program shows and edits as one piece is a ParaAtom of this tag: `raw` is the runs that make the field (begin mark, code, separator, result, end mark)
