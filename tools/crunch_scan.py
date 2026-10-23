@@ -16,6 +16,7 @@ memory cap if the peak is near 4 GB). The peak memory is the child's own, as the
 NAME:count pairs, the most used first.
 """
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -23,6 +24,32 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 LIMIT_SECONDS = 120
+
+
+class SetupFailed(Exception):
+    """What runs the workbooks (systemd-run, timeout, the program) failed, so no workbook's result would mean anything."""
+
+
+def need_linux():
+    # The memory cap is systemd's, the peak memory comes from wait4, and the limits are those of Linux's cgroups.
+    if sys.platform != "linux":
+        print("crunch_scan.py runs on Linux only: it caps each workbook's memory with systemd-run. "
+              "`jcrunchtool info <file>` works on every system.", file=sys.stderr)
+        return False
+    return True
+
+
+def check_systemd_run():
+    """Starts a memory-capped scope that does nothing; raises SetupFailed with systemd's own words if it can't."""
+    if shutil.which("systemd-run") is None:
+        raise SetupFailed("systemd-run is not installed, which this scan needs to cap each workbook's memory.")
+    try:
+        done = subprocess.run(["systemd-run", "--user", "--scope", "-p", "MemoryMax=4G", "-p", "MemorySwapMax=0", "-q", "true"],
+                              capture_output=True, text=True, timeout=60)
+    except subprocess.TimeoutExpired:
+        raise SetupFailed("systemd-run did not start a memory-capped scope in 60 seconds.")
+    if done.returncode != 0:
+        raise SetupFailed("systemd-run could not start a memory-capped scope (%s): %s" % (done.returncode, (done.stderr or "").strip() or "no message"))
 HEADER = "path\texit\tseconds\tpeak MB\tsheets\tcells\tformula cells\tstored results\tfunctions used"
 
 
@@ -42,11 +69,14 @@ def run_one(tool, path):
     code = os.waitstatus_to_exitcode(status)
     if code < 0:
         code = 128 - code
+    # The program says what it found wrong with a workbook beginning with its path; a message that doesn't is the system's, from what could not be run.
+    if code in (126, 127) or (code == 1 and message and not output and path not in message):
+        raise SetupFailed("the scan could not run the program (exit %d): %s" % (code, message or "no message"))
     fields = output.decode("utf-8", "replace").rstrip("\n").split("\t")
     values = fields[:5] if code in (0, 2) and len(fields) >= 5 else ["-"] * 5
     problems = fields[5] if code == 2 and len(fields) > 5 else message
     peak = usage.ru_maxrss / 1024.0
-    largest = fields[6:16] if code in (0, 2) and len(fields) >= 16 else ["-"] * 10
+    largest = fields[6:17] if code in (0, 2) and len(fields) >= 17 else ["-"] * 11
     return [path, str(code), f"{seconds:.2f}", f"{peak:.0f}"] + values[:4] + [values[4] or "-"], problems, [path] + largest
 
 
@@ -54,25 +84,38 @@ def main():
     if len(sys.argv) < 4:
         print(__doc__)
         return 2
+    if not need_linux():
+        return 2
     tool, keys, out_dir = sys.argv[1:4]
+    try:
+        check_systemd_run()
+    except SetupFailed as why:
+        print("crunch_scan.py: %s" % why, file=sys.stderr)
+        return 1
     jobs = int(sys.argv[4]) if len(sys.argv) > 4 else 8
     with open(keys, encoding="utf-8", errors="surrogateescape") as f:
         paths = [line for line in f.read().splitlines() if line]
     print(f"{len(paths)} keys", flush=True)
     os.makedirs(out_dir, exist_ok=True)
     results = []
-    with ThreadPoolExecutor(max_workers=jobs) as pool:
-        for n, (row, problem, largest) in enumerate(pool.map(lambda p: run_one(tool, p), paths), 1):
-            results.append((row, problem, largest))
-            if n % 500 == 0:
-                print(f"{n} of {len(paths)}", file=sys.stderr, flush=True)
+    try:
+        with ThreadPoolExecutor(max_workers=jobs) as pool:
+            for n, (row, problem, largest) in enumerate(pool.map(lambda p: run_one(tool, p), paths), 1):
+                results.append((row, problem, largest))
+                if n % 500 == 0:
+                    print(f"{n} of {len(paths)}", file=sys.stderr, flush=True)
+    except SetupFailed as why:
+        # No table is written: a table of workbooks that were never run says nothing of them.
+        print("crunch_scan.py: stopped after %d of %d workbooks: %s" % (len(results), len(paths), why), file=sys.stderr)
+        pool.shutdown(wait=True, cancel_futures=True)
+        return 1
     with open(os.path.join(out_dir, "books.tsv"), "w", encoding="utf-8", errors="surrogateescape") as f:
         f.write(HEADER + "\n")
         for row, _, _ in results:
             f.write("\t".join(row) + "\n")
     # The most any one thing came to in each workbook, for choosing the limits of the readers.
     with open(os.path.join(out_dir, "limits.tsv"), "w", encoding="utf-8", errors="surrogateescape") as f:
-        f.write("path\tcells in a sheet\tXML bytes of a sheet\tstring chars\tformula chars\tshared formulas\tshared range cells\texpanded formula chars\tshared strings\tshared string chars\tsheets\n")
+        f.write("path\tcells in a sheet\tXML bytes of a sheet\tstring chars\tformula chars\tshared formulas\tshared range cells\texpanded formula chars\tshared strings\tshared string chars\tsheets\tbytes counted for the largest sheet\n")
         for _, _, largest in results:
             f.write("\t".join(largest) + "\n")
     # What went wrong, for the workbooks that were not read whole.

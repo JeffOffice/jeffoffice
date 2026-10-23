@@ -3,7 +3,7 @@
 //                                                call with how often, and the time the read took; --tsv is that as one line of tab-separated fields (sheets, cells,
 //                                                formula cells, stored results, functions as NAME:count,..., problems, and the most that any one thing came to, for choosing limits:
 //                                                cells in a sheet, XML bytes of a sheet, longest string, longest formula, shared formulas in a sheet, cells of the largest shared
-//                                                range, formula characters expanded in a sheet, shared strings, their characters, sheets). Exits 0 if all was read, 2 if it was opened
+//                                                range, formula characters expanded in a sheet, shared strings, their characters, sheets, bytes counted to hold the largest sheet). Exits 0 if all was read, 2 if it was opened
 //                                                but a sheet is only partly read, and 1 if it could not be opened.
 //   jcrunchtool dump <file.xlsx> [sheet=1] [max=100]   the first cells of a sheet (counting from 1), one to a line: address, type, value, and formula
 //   jcrunchtool scan <keys.txt> <out-dir> [jobs]   runs `info` on each workbook listed (one path to a line), each in a child process that has 120 seconds and 4 GB,
@@ -44,7 +44,7 @@ QTextStream &err()
 
 // The most any one thing came to, over the sheets: what the limits of the sheet reader are chosen above.
 struct Largest {
-    qint64 cellsInSheet = 0, string = 0, formula = 0, sharedFormulas = 0, sharedRange = 0, expandedChars = 0, xmlBytes = 0;
+    qint64 cellsInSheet = 0, string = 0, formula = 0, sharedFormulas = 0, sharedRange = 0, expandedChars = 0, xmlBytes = 0, heldBytes = 0;
     void take(const Sheet &s)
     {
         cellsInSheet = std::max(cellsInSheet, s.cells.cellCount());
@@ -54,6 +54,7 @@ struct Largest {
         sharedRange = std::max(sharedRange, s.stats.largestSharedRange);
         expandedChars = std::max(expandedChars, s.stats.expandedFormulaChars);
         xmlBytes = std::max(xmlBytes, s.stats.xmlBytes);
+        heldBytes = std::max(heldBytes, s.stats.heldBytes);
     }
 };
 
@@ -119,7 +120,7 @@ int info(const QString &path, bool tsv)
         out() << worksheets << '\t' << cells << '\t' << formulaCells << '\t' << storedResults << '\t' << used.join(',') << '\t' << problems.join(QStringLiteral("; ")).replace('\t', ' ');
         // and the most any one thing came to, for choosing the limits
         for (qint64 n : {largest.cellsInSheet, largest.xmlBytes, largest.string, largest.formula, largest.sharedFormulas, largest.sharedRange, largest.expandedChars,
-                         qint64(book.sharedStrings().strings.size()), book.sharedStrings().chars, qint64(book.info().sheets.size())})
+                         qint64(book.sharedStrings().strings.size()), book.sharedStrings().chars, qint64(book.info().sheets.size()), largest.heldBytes})
             out() << '\t' << n;
         out() << "\n";
     } else {
@@ -132,7 +133,7 @@ int info(const QString &path, bool tsv)
         out() << "shared strings:        " << book.sharedStrings().strings.size() << " (" << book.sharedStrings().chars << " characters)\n";
         out() << "largest:               " << largest.cellsInSheet << " cells in a sheet, " << largest.xmlBytes << " bytes of XML, a string of " << largest.string << " characters, a formula of "
               << largest.formula << ", " << largest.sharedFormulas << " shared formulas, a shared range of " << largest.sharedRange << " cells, " << largest.expandedChars
-              << " formula characters expanded\n";
+              << " formula characters expanded, " << largest.heldBytes << " bytes counted to hold the largest sheet\n";
         out() << "functions:             " << ranked.size() << " distinct\n";
         for (const auto &f : ranked) out() << "  " << f.first.leftJustified(20) << f.second << "\n";
         const double peak = peakMegabytes();
@@ -189,6 +190,13 @@ int dump(const QString &path, int sheetNumber, qint64 most)
 
 int scan(const QString &keys, const QString &outDir, const QString &jobs)
 {
+#ifndef Q_OS_LINUX
+    Q_UNUSED(keys);
+    Q_UNUSED(outDir);
+    Q_UNUSED(jobs);
+    err() << "jcrunchtool: scan runs on Linux only (it caps each workbook's memory with systemd-run); info and dump work on every system.\n";
+    return 2;
+#else
     QString script = QCoreApplication::applicationDirPath() + QStringLiteral("/../tools/crunch_scan.py");
 #ifdef JCRUNCH_TOOLS_DIR
     if (!QFileInfo::exists(script)) script = QStringLiteral(JCRUNCH_TOOLS_DIR) + QStringLiteral("/crunch_scan.py");
@@ -202,11 +210,13 @@ int scan(const QString &keys, const QString &outDir, const QString &jobs)
     QStringList args = {script, QCoreApplication::applicationFilePath(), keys, outDir};
     if (!jobs.isEmpty()) args << jobs;
     python.start(QStringLiteral("python3"), args);
-    if (!python.waitForFinished(-1)) {
-        err() << "jcrunchtool: python3 could not be run\n";
+    if (!python.waitForStarted()) {
+        err() << "jcrunchtool: python3 could not be started, which scan needs\n";
         return 1;
     }
-    return python.exitCode();
+    python.waitForFinished(-1);
+    return python.exitStatus() == QProcess::NormalExit ? python.exitCode() : 1;
+#endif
 }
 
 int usage()
