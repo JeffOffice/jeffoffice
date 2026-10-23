@@ -613,7 +613,7 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
 }
 
 void Paginator::addNotes(Document *d, const QVector<StoryLayout::NotePlace> &places, const QVector<StoryLayout::Rule> &rules, int firstFrame, const QStringList &ids,
-                         const QVector<QRectF> &cols, const QRectF &body, bool notesGoOn)
+                         const QVector<QRectF> &cols, const QRectF &body, bool notesGoOn, MaterializedPage *page)
 {
     if (!m_doc->fields) return;
     auto at = [&](int frame) { return frame - firstFrame; };
@@ -675,6 +675,7 @@ void Paginator::addNotes(Document *d, const QVector<StoryLayout::NotePlace> &pla
         t->storyId = s->id;
         t->wrap.mode = Wrap::None;
         d->pages[0]->items.push_back(t);
+        if (page) page->noteBoxes.push_back({t->id, false, source, std::clamp(pl.from, 0, std::max(0, total))});
         ++made;
     }
     // Over the part of a note that goes on from the page before: the file's own separator for it, in the room the layout left for it above the part; under the last note of a
