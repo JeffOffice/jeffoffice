@@ -4304,8 +4304,17 @@ private Q_SLOTS:
         QTextDocument *story = doc->editableHeaderFooter(0, false, WriteDoc::kDefaultSlot);
         QVERIFY(story);
         QCOMPARE(story->blockCount(), 3);   // (the content control's paragraph is a paragraph of the story)
+        // The picture is a character of the story as it is in the file's header, on the page.
+        auto pictures = [&] {
+            int n = 0;
+            for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+                for (auto it = b.begin(); !it.atEnd(); ++it) n += !it.fragment().charFormat().stringProperty(tp::InlineObject).isEmpty();
+            return n;
+        };
+        QCOMPARE(pictures(), 1);
         QTextCursor c(story);
         insertText(*doc, c, QStringLiteral(">> "));
+        QCOMPARE(pictures(), 1);
         QVERIFY2(QString(story->toPlainText()).remove(QChar::ObjectReplacementCharacter).startsWith(QLatin1String(">> Left")), qPrintable(story->toPlainText()));
         const QByteArray saved = doc->toDocx();
         const QByteArray out = partOf(saved, QStringLiteral("/word/header1.xml"));
@@ -4336,6 +4345,37 @@ private Q_SLOTS:
         QVERIFY(again);
         QVERIFY(headerOfPage(*again, 0).remove(QChar::ObjectReplacementCharacter).startsWith(QLatin1String(">> Left")));
         QVERIFY(!again->flow().objects.isEmpty() || !again->flow().images.isEmpty());
+    }
+
+    // A shape set at a place in a header stays where it is, and the text below it still goes round it, when the header's text is edited; and it is written back as it was.
+    void aFloatingShapeInAHeaderStaysWhereItIsWhenTheHeaderIsEdited()
+    {
+        const QByteArray shape = "<w:r><w:pict><v:shapetype id=\"t202\" coordsize=\"21600,21600\" o:spt=\"202\" path=\"m,l,21600r21600,l21600,xe\"/>"
+                                 "<v:shape id=\"s1\" type=\"#t202\" style=\"position:absolute;margin-left:-20pt;margin-top:0;width:400pt;height:150pt;mso-position-vertical-relative:page;z-index:1\" filled=\"f\" stroked=\"f\">"
+                                 "<v:textbox><w:txbxContent><w:p><w:r><w:t>banner</w:t></w:r></w:p></w:txbxContent></v:textbox><w10:wrap type=\"square\"/></v:shape></w:pict></w:r>";
+        QByteArray header = headerPart("hdr", {"<w:r><w:t>text</w:t></w:r>" + shape});
+        header.replace("<w:hdr ", "<w:hdr xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\" ");
+        auto doc = open(makeDocxWithParts(paragraphs(10, 5), sectionNaming({{"default", "rIdheader1"}}), {{QStringLiteral("/word/header1.xml"), header}}));
+        QVERIFY(doc);
+        const double top = doc->pager().page(0).content.top();
+        QVERIFY2(top > 149.9 && top < 170, qPrintable(QString::number(top)));
+        QTextDocument *story = doc->editableHeaderFooter(0, false, 0);
+        QVERIFY(story);
+        int anchored = 0;
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) anchored += it.fragment().charFormat().intProperty(flow::fp::AnchorId) > 0;
+        QCOMPARE(anchored, 1);
+        typeAtEnd(*doc, story, QStringLiteral(" and more words"));
+        QCOMPARE(doc->pager().page(0).content.top(), top);
+        const QByteArray saved = doc->toDocx();
+        const QByteArray out = partOf(saved, QStringLiteral("/word/header1.xml"));
+        QVERIFY2(out.contains("<v:shape id=\"s1\" type=\"#t202\" style=\"position:absolute;margin-left:-20pt;margin-top:0;width:400pt;height:150pt;mso-position-vertical-relative:page;z-index:1\""), out.constData());
+        QVERIFY(out.contains("<w10:wrap type=\"square\"/>"));
+        QVERIFY(out.contains("banner"));
+        QVERIFY(out.indexOf("</w:pict>") > 0 && out.indexOf("</w:pict>") < out.indexOf("and more words"));   // (typed after it, at the end of the paragraph)
+        auto again = open(saved);
+        QVERIFY(again);
+        QCOMPARE(again->pager().page(0).content.top(), top);
     }
 
     // The fields of a header are one character each, shown as their results: an edit can't break into one, and deleting takes all of it. What a field is made of is written back.
@@ -5355,11 +5395,26 @@ private Q_SLOTS:
         QCOMPARE(redInHeader(), 0);
         view.cursor().movePosition(QTextCursor::End);
         for (const QChar ch : QStringLiteral(" brwon ")) view.insertText(QString(ch));
-        QVERIFY(view.spelling());
-        QCOMPARE(view.spelling()->story(), doc->headerFooterStory(0, false, 0));
-        QVERIFY(!view.spelling()->misspelledIn(0, 40).isEmpty());
+        QVERIFY(view.editedSpelling());
+        QCOMPARE(view.editedSpelling()->story(), doc->headerFooterStory(0, false, 0));
+        QCOMPARE(view.spelling()->story(), doc->story());   // (the text's check is the text's still)
+        QVERIFY(!view.editedSpelling()->misspelledIn(0, 40).isEmpty());
         const int count = redInHeader();
         QVERIFY2(count > 8, qPrintable(QStringLiteral("%1 red pixels").arg(count)));
+        // The right-click menu offers the header's word, and a suggestion takes the place of that word, not of anything in the text.
+        {
+            const QString shown = doc->headerFooterStory(0, false, 0)->toPlainText();
+            view.cursor().setPosition(shown.indexOf(QLatin1String("brwon")) + 2);
+            QMenu menu;
+            QVERIFY(addSpellingSuggestions(menu, &view));
+            QAction *first = menu.actions().value(0);
+            QVERIFY(first && first->isEnabled());
+            const QString body = doc->story()->toPlainText();
+            first->trigger();
+            QVERIFY2(!doc->headerFooterStory(0, false, 0)->toPlainText().contains(QLatin1String("brwon")), qPrintable(doc->headerFooterStory(0, false, 0)->toPlainText()));
+            QCOMPARE(doc->story()->toPlainText(), body);
+            QVERIFY(view.inHeaderFooter());
+        }
         // Left, the header is as any: no marks.
         view.leaveHeaderFooter();
         QCOMPARE(redInHeader(), 0);
@@ -5433,6 +5488,29 @@ private Q_SLOTS:
         QVERIFY(!shot.isNull());
         QVERIFY(w.view()->inHeaderFooter());
         if (qEnvironmentVariableIsSet("JW_HEADER_SHOT")) QVERIFY(shot.save(qEnvironmentVariable("JW_HEADER_SHOT")));
+    }
+
+    // A header that is edited shows the result its file kept for a field that shows a heading's text (so that a place in the page's copy is a place in the story); the pages
+    // that are printed show the page's own.
+    void aHeaderBeingEditedKeepsTheResultOfAFieldThatShowsAHeading()
+    {
+        auto styleRef = [](const QByteArray &result) {
+            return "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> STYLEREF \"heading 1\" </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>"
+                   "<w:r><w:t>" + result + "</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        };
+        const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Chapter One</w:t></w:r></w:p>" + paragraphs(2, 20);
+        auto doc = open(makeDocxWithParts(body, sectionNaming({{"default", "rIdheader1"}}), {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t xml:space=\"preserve\">Title: </w:t></w:r>" + styleRef("old result")})}}));
+        QVERIFY(doc);
+        auto shown = [&] { return headerOfPage(*doc, 0); };
+        QCOMPARE(shown(), QStringLiteral("Title: Chapter One"));
+        QTextDocument *story = doc->editableHeaderFooter(0, false, 0);
+        QVERIFY(story);
+        QCOMPARE(shown(), QStringLiteral("Title: Chapter One"));   // (made ready to edit: the page is as it was)
+        doc->pager().setEditedStory(story);
+        QCOMPARE(int(shown().count(QChar::ObjectReplacementCharacter)), 1);   // (the field is a character of the story, in its place)
+        QVERIFY(shown().startsWith(QLatin1String("Title: ")));
+        doc->pager().setEditedStory(nullptr);
+        QCOMPARE(shown(), QStringLiteral("Title: Chapter One"));
     }
 
     // A page says which text boxes show its header and footer, the story each shows, where its text area is, and whether it begins its section.

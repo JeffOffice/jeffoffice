@@ -73,7 +73,8 @@ public:
     bool showMarks() const { return m_marks; }
     // Spelling as you type: misspelled words get a red wave on the screen. The checking is the document's own, found a paragraph at a time for the pages in view.
     // (The check of what is being edited: the header's or footer's while one is, else the text's.)
-    SpellCheck *spelling() const { return m_hf.active && m_hfSpell ? m_hfSpell.get() : m_spell.get(); }
+    SpellCheck *editedSpelling() const { return m_hf.active && m_hfSpell ? m_hfSpell.get() : m_spell.get(); }
+    SpellCheck *spelling() const { return m_spell.get(); }
     bool spellingEnabled() const { return m_spellOn; }
     // The place a menu is for: where the last right click was (a click inside a selection leaves the selection and the caret as they were), else the caret.
     int contextPosition() const { return m_contextAt >= 0 ? m_contextAt : m_cursor.position(); }

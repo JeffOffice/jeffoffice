@@ -349,7 +349,7 @@ void WriteWindow::showContextMenu(const QPoint &globalPos)
     menu.addAction(act("para.dialog"));
     menu.addAction(act("edit.selectAll"));
     // In a table: its rows and columns.
-    if (m_doc && write::cellPlace(*m_doc, m_view->cursor()).inTable) {
+    if (m_doc && !m_view->inHeaderFooter() && write::cellPlace(*m_doc, m_view->cursor()).inTable) {
         menu.addSeparator();
         auto table = [&](const QString &text, const std::function<void(write::WriteDoc &, QTextCursor &)> &command) {
             menu.addAction(text, this, [this, command] {
