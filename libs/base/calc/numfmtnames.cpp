@@ -70,6 +70,14 @@ int formatLanguageOf(quint32 lcid)
     }
 }
 
+int formatLanguageOfTag(const QString &primary)
+{
+    static const char *const tags[] = {"en", "de", "fr", "es", "it", "pt", "nl"};
+    for (int i = 0; i < 7; ++i)
+        if (primary == QLatin1String(tags[i])) return i;
+    return 0;
+}
+
 const QString &formatMonthName(int lang, int month, int form)
 {
     if (month < 1 || month > 12) return empty();

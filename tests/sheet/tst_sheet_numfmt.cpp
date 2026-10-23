@@ -589,6 +589,51 @@ private Q_SLOTS:
         QCOMPARE(fmt(QStringLiteral("[$-407]#,##0.00"), 1234.5), QStringLiteral("1,234.50"));
     }
 
+    // The system's long date and time ([$-F800], [$-F400], [$-x-sysdate], [$-x-systime]) with the pattern a file stores after them show it once: that pattern is what
+    // the file says the style was when it was saved. With none after them the United States' pattern is shown. A locale may be a language tag too.
+    void systemPatternsAndLanguageTags()
+    {
+        const double noon = 44927.5;   // Sunday, January 1, 2023, 12:00
+        const struct {
+            const char *code;
+            const char *want;
+        } cases[] = {
+            {"[$-F800]dddd\\,\\ mmmm\\ dd\\,\\ yyyy", "Sunday, January 01, 2023"},
+            {"[$-F400]h:mm:ss\\ AM/PM", "12:00:00 PM"},
+            {"[$-x-sysdate]dddd\\,\\ mmmm\\ dd\\,\\ yyyy", "Sunday, January 01, 2023"},
+            {"[$-x-systime]h:mm:ss\\ AM/PM", "12:00:00 PM"},
+            {"[$-X-SYSDATE]dddd, mmmm d", "Sunday, January 1"},
+            {"[$-F800]", "Sunday, January 1, 2023"},
+            {"[$-x-sysdate]", "Sunday, January 1, 2023"},
+            {"[$-F400]", "12:00:00 PM"},
+            {"[$-x-systime]", "12:00:00 PM"},
+            {"dddd[$-F800]", "Sunday"},
+            {"[$-en-US]mmmm d", "January 1"},
+            {"[$-en-GB]dddd", "Sunday"},
+            {"[$-de-DE]mmmm d", "Januar 1"},
+            {"[$-fr-FR]dddd", "dimanche"},
+            {"[$-es-ES]mmmm", "enero"},
+            {"[$-it-IT]dddd", "domenica"},
+            {"[$-pt-BR]dddd", "domingo"},
+            {"[$-nl-NL]mmmm", "januari"},
+            {"[$-ja-JP]mmmm", "January"},
+            {"[$-zh-Hans-CN]mmmm", "January"},
+            {"[$-DE-de]mmmm", "Januar"},
+            {"[$-en-US]0.0", "44927.5"},
+            {"[$\xE2\x82\xAC-de-DE]#,##0.00", "\xE2\x82\xAC" "44,927.50"},
+            {"[$\xE2\x82\xAC-407]#,##0.00", "\xE2\x82\xAC" "44,927.50"},
+            {"[$USD-en-US] 0", "USD 44928"},
+            {"[$US-Dollar-409] 0", "US-Dollar 44928"},
+        };
+        for (const auto &c : cases) {
+            const QString code = QString::fromUtf8(c.code);
+            const QString got = fmt(code, noon);
+            QVERIFY2(got == QString::fromUtf8(c.want), qPrintable(QStringLiteral("code [%1]: got [%2], wanted [%3]").arg(code, got, QString::fromUtf8(c.want))));
+        }
+        // A tag that is neither a language nor a number stays text, as it always was.
+        QCOMPARE(fmt(QStringLiteral("[$-xyz123abc]0"), 5), QStringLiteral("-xyz123abc5"));
+    }
+
     // General: up to 15 significant digits with no trailing zeros, and scientific notation from 1E+15 and under 0.0001; in a cell's width fewer digits fit.
     void generalFormat()
     {

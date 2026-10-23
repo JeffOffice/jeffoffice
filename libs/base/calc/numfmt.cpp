@@ -231,6 +231,7 @@ struct Section {
     Cond cond;
     int color = 0;
     int lang = 0;
+    int systemPattern = 0;            // 1 for the system's long date ([$-F800]), 2 for its time ([$-F400])
     Kind kind = Kind::Number;
     // Numbers.
     int nInt = 0, nFrac = 0;          // places before and after the point (of the mantissa, in scientific notation)
@@ -286,10 +287,44 @@ bool parseHex(QStringView s, quint32 *out)
     return true;
 }
 
-bool tokenize(QStringView s, Section *sec, int *brackets, int depth);
+bool tokenize(QStringView s, Section *sec, int *brackets);
+
+// A locale: a number in hex (a locale id, the upper half of which, the calendar and the number system, is not read), "x-sysdate" and "x-systime" for the
+// system's long date and time (F800 and F400), or a language tag such as en-US or zh-Hans-CN. False if it is none of these.
+bool readLocale(QStringView t, Section *sec)
+{
+    quint32 lcid = 0;
+    if (parseHex(t, &lcid)) {
+        const quint32 low = lcid & 0xFFFF;
+        if (low == 0xF800) sec->systemPattern = 1;
+        else if (low == 0xF400) sec->systemPattern = 2;
+        else sec->lang = formatLanguageOf(low);
+        return true;
+    }
+    const QString lower = t.toString().toLower();
+    if (lower == QLatin1String("x-sysdate")) {
+        sec->systemPattern = 1;
+        return true;
+    }
+    if (lower == QLatin1String("x-systime")) {
+        sec->systemPattern = 2;
+        return true;
+    }
+    const QStringList parts = lower.split(QLatin1Char('-'));
+    if (parts.size() > 4) return false;
+    for (int i = 0; i < parts.size(); ++i) {
+        const QString &p = parts[i];
+        if (p.isEmpty() || p.size() > 8 || (i == 0 && (p.size() < 2 || p.size() > 3))) return false;
+        for (QChar c : p)
+            if (!((c.unicode() >= 'a' && c.unicode() <= 'z') || (i > 0 && c.unicode() >= '0' && c.unicode() <= '9'))) return false;
+        if (i > 0 && p.size() < 2) return false;
+    }
+    sec->lang = formatLanguageOfTag(parts[0]);
+    return true;
+}
 
 // A bracket: a condition, a color, an elapsed time, a currency and locale; anything else is passed over. False for one that can't be read.
-bool bracket(QStringView b, Section *sec, int *brackets, int depth)
+bool bracket(QStringView b, Section *sec)
 {
     if (b.isEmpty()) return true;
     const ushort first = b[0].unicode();
@@ -311,28 +346,17 @@ bool bracket(QStringView b, Section *sec, int *brackets, int depth)
         return true;
     }
     if (first == '$') {
+        // "[$text-locale]": the text is shown; the locale is a number in hex, a language tag, or the system's long date or time. The first dash with a locale
+        // after it is the one, so a currency may have a dash in it.
         const QStringView rest = b.mid(1);
-        const int dash = int(rest.lastIndexOf(QLatin1Char('-')));
         QStringView text = rest;
-        quint32 lcid = 0;
-        bool haveLcid = false;
-        if (dash >= 0 && parseHex(rest.mid(dash + 1), &lcid)) {
-            text = rest.left(dash);
-            haveLcid = true;
+        for (int dash = int(rest.indexOf(QLatin1Char('-'))); dash >= 0; dash = int(rest.indexOf(QLatin1Char('-'), dash + 1))) {
+            if (readLocale(rest.mid(dash + 1), sec)) {
+                text = rest.left(dash);
+                break;
+            }
         }
         addLit(sec, text);
-        if (haveLcid) {
-            const quint32 low = lcid & 0xFFFF;
-            if (low == 0xF800) {
-                if (depth > 0) return false;
-                return tokenize(QStringLiteral("dddd, mmmm dd, yyyy"), sec, brackets, depth + 1);
-            }
-            if (low == 0xF400) {
-                if (depth > 0) return false;
-                return tokenize(QStringLiteral("h:mm:ss AM/PM"), sec, brackets, depth + 1);
-            }
-            sec->lang = formatLanguageOf(low);
-        }
         return true;
     }
     const QString lower = b.toString().trimmed().toLower();
@@ -360,7 +384,7 @@ bool bracket(QStringView b, Section *sec, int *brackets, int depth)
     return true;   // [DBNum1], [Natural], and the like change nothing here
 }
 
-bool tokenize(QStringView s, Section *sec, int *brackets, int depth)
+bool tokenize(QStringView s, Section *sec, int *brackets)
 {
     const int n = int(s.size());
     int i = 0;
@@ -393,7 +417,7 @@ bool tokenize(QStringView s, Section *sec, int *brackets, int depth)
             if (++*brackets > kMaxFormatBrackets) return false;
             const int j = int(s.indexOf(QLatin1Char(']'), i + 1));
             if (j < 0 || j - i > 300) return false;
-            if (!bracket(s.mid(i + 1, j - i - 1), sec, brackets, depth)) return false;
+            if (!bracket(s.mid(i + 1, j - i - 1), sec)) return false;
             i = j + 1;
             break;
         }
@@ -769,7 +793,14 @@ Parsed parseCode(const QString &code)
     for (const QStringView &part : parts) {
         Section s;
         int brackets = 0;
-        if (!tokenize(part, &s, &brackets, 0) || !analyze(&s)) return invalid();
+        if (!tokenize(part, &s, &brackets)) return invalid();
+        // The system's long date or time stands for its pattern only where the code gives none of its own: a file stores the style with the pattern it had.
+        if (s.systemPattern) {
+            bool own = false;
+            for (const Tok &k : s.toks) own = own || isDateTok(k.kind);
+            if (!own && !tokenize(s.systemPattern == 1 ? QStringLiteral("dddd, mmmm d, yyyy") : QStringLiteral("h:mm:ss AM/PM"), &s, &brackets)) return invalid();
+        }
+        if (!analyze(&s)) return invalid();
         p.secs.append(s);
     }
     if (p.secs.size() == 1 && p.secs[0].kind == Kind::General) {

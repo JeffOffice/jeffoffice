@@ -7,6 +7,8 @@ namespace jp::calc {
 
 // The language of a locale id ([$-LCID]): 0 English (and every locale with no names here), 1 German, 2 French, 3 Spanish, 4 Italian, 5 Portuguese, 6 Dutch.
 int formatLanguageOf(quint32 lcid);
+// The same for the first part of a language tag in lower case ("en", "de", "pt"); 0 for any other.
+int formatLanguageOfTag(const QString &primary);
 // Month 1 to 12 in full (form 0) or abbreviated (form 1); a month out of range gives the empty string.
 const QString &formatMonthName(int lang, int month, int form);
 // Day 0 (Sunday) to 6 in full (form 0) or abbreviated (form 1).

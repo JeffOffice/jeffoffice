@@ -11,7 +11,10 @@
 //     of a multiple of the integer digits' number, so ##0.0E+0 is engineering notation), fractions ("# ?/?" with up to nine places on either side of the slash, "# ?/8" with a fixed denominator, "?/?" with no whole part), and "General";
 //   - dates and times: d dd ddd dddd, m mm mmm mmmm mmmmm (m and mm are minutes after h and before s), yy yyyy, h hh, s ss with ".0" ".00" ".000", AM/PM,
 //     am/pm, A/P, a/p, and the elapsed forms [h] [hh] [m] [mm] [s] [ss].
-//   - "[$text-LCID]" (a currency sign or any text, and a locale), and the locales "[$-F800]" (the system long date) and "[$-F400]" (the system time).
+//   - "[$text-locale]": a currency sign or any text, and a locale, which is a number in hex ("409"), a language tag ("en-US", "de-DE"), or the system's long
+//     date and time ("F800" or "x-sysdate", "F400" or "x-systime"). The system's long date and time stand for the pattern after them if the code has one
+//     (a file stores the style with the pattern it had when it was saved, and that is shown, once), else for the United States' ("dddd, mmmm d, yyyy" and
+//     "h:mm:ss AM/PM").
 // Locales: a code's locale chooses the names of months and days. English is the default and the names of every English locale; German, French, Spanish,
 // Italian, Portuguese, and Dutch are known by name. Any other locale gets English names. The separators of numbers are never changed by a locale: a code
 // is always written with "." and ",", and the text it makes follows them (the reading of TEXT() in a workbook of another language is that program's).
