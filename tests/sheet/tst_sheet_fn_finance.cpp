@@ -60,6 +60,23 @@ private Q_SLOTS:
         CHECK_EVALS(cases, Grid(), Settings());
     }
 
+    // A logical or a text in a reference is not a flow: IRR and XIRR leave it out, as they do from an array (a logical is not counted as 1).
+    void referencesIgnoreLogicalsAndText()
+    {
+        Grid g;
+        g.n("C1", -10).b("C2", true).n("C3", 20);
+        g.n("D1", -10).s("D2", "x").n("D3", 20);
+        g.n("E1", -100).b("E2", true).n("E3", 110);
+        g.n("F1", 40000).b("F2", true).n("F3", 40365);
+        const E cases[] = {
+            {"IRR(C1:C3)", "n:1"},
+            {"IRR(D1:D3)", "n:1"},
+            {"IRR({-10,TRUE,20})", "n:1"},
+            {"ROUND(XIRR(E1:E3,F1:F3),6)", "n:0.1"},
+        };
+        CHECK_EVALS(cases, g, Settings());
+    }
+
     // VDB for a stretch that begins or ends part way through a period takes the part of the period's amount that the stretch covers, and the amounts of stretches that make
     // up a longer one make up its amount, whatever the factor and whether or not the straight line is gone over to.
     void depreciationOfPartsOfPeriodsAddsUp()

@@ -227,9 +227,11 @@ Value fnIrr(Call &c)
         }
         double n;
         ErrorKind e = ErrorKind::Value;
-        if (x.isNumber() || x.isBool()) v.push_back(x.number());
-        else if (typed && coerceNumber(x, c.context().dateSystem, &n, &e)) v.push_back(n);
-        else if (typed) {
+        if (x.isNumber()) v.push_back(x.number());
+        else if (!typed) return true;   // (a logical or a text in a reference or an array is not a flow)
+        else if (x.isBool()) v.push_back(x.number());
+        else if (coerceNumber(x, c.context().dateSystem, &n, &e)) v.push_back(n);
+        else {
             error = Value::error(e);
             bad = true;
             return false;
@@ -275,7 +277,8 @@ bool datedFlows(Call &c, int valuesAt, int datesAt, std::vector<double> *v, std:
             }
             double n;
             ErrorKind e = ErrorKind::Value;
-            if (x.isNumber() || x.isBool()) out.push_back(pass == 0 ? x.number() : std::floor(x.number()));
+            if (x.isNumber() || (typed && x.isBool())) out.push_back(pass == 0 ? x.number() : std::floor(x.number()));   // (a logical in a reference or an array is left out)
+            else if (!typed && x.isBool()) return true;
             else if (typed && coerceNumber(x, c.context().dateSystem, &n, &e)) out.push_back(pass == 0 ? n : std::floor(n));
             else if (typed || pass == 1) {
                 *error = Value::error(typed ? e : ErrorKind::Value);
