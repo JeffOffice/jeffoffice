@@ -49,6 +49,9 @@ enum : int {
 // and the text area gives way to one that is taller than its margin leaves room for.
 struct HeaderFooter {
     std::shared_ptr<QTextDocument> first, odd, even;
+    // By slot: 0 the ordinary (odd) pages', 1 the first page's, 2 the even pages'.
+    std::shared_ptr<QTextDocument> &slot(int index) { return index == 1 ? first : index == 2 ? even : odd; }
+    const std::shared_ptr<QTextDocument> &slot(int index) const { return index == 1 ? first : index == 2 ? even : odd; }
 };
 
 // A picture, rule, box, or text box that is set at a place on the page its anchor (a character in a story, fp::AnchorId) is on, rather than in a line:
@@ -172,6 +175,8 @@ struct Section {
     // first page, else the even pages' when it asks for those and the page's number is even, else the odd pages' (the ordinary one).
     const QTextDocument *headerFor(bool firstOfSection, int pageNumber) const;
     const QTextDocument *footerFor(bool firstOfSection, int pageNumber) const;
+    // Which slot (0 ordinary, 1 first page, 2 even pages) a page of the section uses, by the same rule.
+    int slotFor(bool firstOfSection, int pageNumber) const;
 
     int columnCount() const;                 // `columns`, from 1 to kMostColumns
     QSizeF pageSize() const;                 // as the paper is turned
@@ -239,6 +244,10 @@ public:
 private:
     std::unique_ptr<QTextDocument> m_story;
 };
+
+// Makes the story say what an edit changed (QTextDocument::contentsChange): Qt's documents do so only with a layout, and this one lays out nothing. For a story that is edited
+// but not laid out by Qt (the body's is made so; so is a header's or a footer's that a person edits).
+void watchEdits(QTextDocument *story);
 
 // A copy of a story for a page. (Qt's own copy leaves the first paragraph, when it is empty, without its formatting: its line height, and the size of
 // its mark, so it is as tall as the document's default font makes it.)

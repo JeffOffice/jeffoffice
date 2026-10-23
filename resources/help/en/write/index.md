@@ -16,6 +16,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 ## Write and change text
 
 - [Change how text looks](font)
+- [Add headers, footers, and page numbers](headers-footers)
 - [Find and replace words](find-replace)
 
 ## Work faster

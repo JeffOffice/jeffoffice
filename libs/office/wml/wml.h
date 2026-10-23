@@ -163,6 +163,9 @@ struct SectionProps {
     std::optional<int> pageStart;     // pgNumType start (empty: not stated; 0 is a number a section can start at)
     QString pageFormat;               // pgNumType fmt (decimal when empty)
     bool titlePg = false;
+    // Not a property of a section in a file: the document's use of different headers on odd and even pages (w:evenAndOddHeaders of the settings), carried by the record of the
+    // last section in a program that edits it, so that a change to it goes with the text's steps. Never written to a section.
+    bool oddEvenHeaders = false;
     bool hasPgSz = false, hasPgMar = false, hasCols = false;   // stated in the file
     QByteArray attrs;                 // the attributes of w:sectPr (revision marks), as written
     // The attributes of w:pgSz (code...), w:pgMar, w:pgNumType (chapStyle, chapSep...), and w:cols that have no field here, as written.
@@ -184,6 +187,8 @@ struct Inline {
     QString text;                     // Text: a tab is '\t', a line break U+2028, a no-break hyphen U+2011, a soft hyphen U+00AD
     QByteArray raw;                   // atoms: the XML (a RunAtom's is the child of the run, a ParaAtom's is the element, or the tag)
     QString display;                  // atoms: the text shown in the atom's place, none for most
+    QByteArray look;                  // a field group (kFieldGroupTag): the properties (as XML) that its `props` came to as the group was made; while they are still those, its runs are
+                                      // written with the properties they have of their own, else every run is written with the group's
     QString tag, key;                 // atoms: the element's local name, and what pairs it with its partner (a bookmark's id, a field mark's type); an equation's or a styled letter's style (i, b, ib, d)
 };
 
@@ -317,6 +322,8 @@ public:
     QString defaultId(const QString &type) const;
     // Adds a style (replacing one of the id); false for an empty id.
     bool add(const Style &style);
+    // Takes a style out (the styles based on it keep their word for it); false if there is none by that id.
+    bool remove(const QString &id);
     // What a paragraph of style `id` has: the document's defaults, then the styles it is based on, then the style. A style no file
     // defines gives the defaults. In a table's cell, the table style's properties for it go after the defaults.
     ParaProps paragraph(const QString &id, const TableLayer *table = nullptr) const;
@@ -456,7 +463,23 @@ HeaderRefs headerRefsOf(const SectionProps &section);
 
 // The paragraphs of a header, footer, or note part, and the elements kept as written (a table, a content control's ends), read as the body
 // is. False, with nothing read, when the part isn't XML. The tables are stand-ins, or (`tables`) the blocks of their parts, as the body's are.
-bool readBlocks(const QByteArray &xml, QVector<Block> *blocks, bool tables = false);
+// (`rootStart`, if given, gets the part's start tag as written, with the namespaces its pieces kept as XML use.)
+bool readBlocks(const QByteArray &xml, QVector<Block> *blocks, bool tables = false, QByteArray *rootStart = nullptr);
+// A header, footer, or note part from its blocks, written as the body is (a tag whose partner is missing is left out). `rootStart` is the start tag the part was read with (empty:
+// the usual one for `rootName`, "w:hdr" or "w:ftr"); the prefixes the pieces kept as XML use are declared on it.
+QByteArray blocksPartXml(const QVector<Block> &blocks, const QByteArray &rootStart, const QByteArray &rootName);
+// One block (a paragraph, or an element kept as written) as XML, the way a body is written.
+QByteArray blockXml(const Block &block);
+// The content [from, to) of a paragraph as XML, the way a paragraph is written.
+QByteArray inlinesXml(const QVector<Inline> &content, qsizetype from, qsizetype to);
+// A complex field that a program shows and edits as one piece is a ParaAtom of this tag: `raw` is the runs that make the field (begin mark, code, separator, result, end mark)
+// with no properties of their own, and the atom's `props` are every run's.
+inline const QLatin1String kFieldGroupTag("jwfield");
+// Makes the section's reference of this kind (slot 0 the ordinary pages', 1 the first page's, 2 the even pages') name the relationship `relationshipId`; with an empty Id, takes the
+// reference out (the section then has the section before's).
+void setHeaderReference(SectionProps *section, bool footer, int slot, const QString &relationshipId);
+// The settings part with the use of different headers on odd and even pages (w:evenAndOddHeaders) on or off, in the place the schema gives it. An empty part gives a minimal one.
+QByteArray settingsWithEvenAndOddHeaders(const QByteArray &settings, bool on);
 
 // A drawn object of a run: a picture, a rule, a box, or a text box, read from the VML of a w:pict (or an object) or the DrawingML of a w:drawing. Sizes are
 // points. An object is `floating` where its style says it is set at a place (anchored to a paragraph, the margin, or the page), else it is in the line.

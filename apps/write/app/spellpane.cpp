@@ -26,12 +26,12 @@ namespace jp::write {
 namespace {
 
 // The language of the word at a position: the text's own, else the document's.
-QString languageAt(PageView *view, int position)
+QString languageAt(SpellCheck *spelling, int position)
 {
-    QTextCursor c(view->document()->story());
+    QTextCursor c(spelling->story());
     c.setPosition(position + 1);
     const QString language = c.charFormat().stringProperty(tp::Language);
-    return language.isEmpty() ? view->spelling()->defaultLanguage() : language;
+    return language.isEmpty() ? spelling->defaultLanguage() : language;
 }
 
 constexpr int kSliceMs = 30;   // the time the pane's search takes at a time
@@ -40,14 +40,17 @@ constexpr int kSliceMs = 30;   // the time the pane's search takes at a time
 
 bool addSpellingSuggestions(QMenu &menu, PageView *view)
 {
-    if (!view || !view->document() || !view->spelling() || !view->spelling()->enabled()) return false;
-    const QPair<int, int> word = view->spelling()->misspellingAt(view->contextPosition());
+    // (Of what is being edited: the text, or the header or footer.)
+    SpellCheck *spelling = view ? view->editedSpelling() : nullptr;
+    if (!view || !view->document() || !spelling || !spelling->enabled() || !spelling->story()) return false;
+    const QPair<int, int> word = spelling->misspellingAt(view->contextPosition());
     if (word.first < 0) return false;
-    QTextCursor w(view->document()->story());
+    QTextDocument *story = spelling->story();
+    QTextCursor w(story);
     w.setPosition(word.first);
     w.setPosition(word.second, QTextCursor::KeepAnchor);
     const QString text = w.selectedText();
-    const QStringList suggestions = spellingSuggestions(text, languageAt(view, word.first)).mid(0, 6);
+    const QStringList suggestions = spellingSuggestions(text, languageAt(spelling, word.first)).mid(0, 6);
     QPointer<PageView> where = view;
     bool first = true;
     for (const QString &s : suggestions) {
@@ -58,9 +61,10 @@ bool addSpellingSuggestions(QMenu &menu, PageView *view)
             a->setFont(f);
             first = false;
         }
-        QObject::connect(a, &QAction::triggered, &menu, [where, word, s] {
-            if (!where) return;
-            replaceWord(where->document()->story(), word.first, word.second, s);
+        QPointer<QTextDocument> whose = story;
+        QObject::connect(a, &QAction::triggered, &menu, [where, whose, word, s] {
+            if (!where || !whose) return;
+            replaceWord(whose, word.first, word.second, s);
             QTextCursor c = where->cursor();
             c.setPosition(word.first + int(s.size()));
             where->setCursor(c);
@@ -69,12 +73,12 @@ bool addSpellingSuggestions(QMenu &menu, PageView *view)
     if (suggestions.isEmpty()) menu.addAction(QCoreApplication::translate("Proofing", "(No spelling suggestions)"))->setEnabled(false);
     QObject::connect(menu.addAction(QCoreApplication::translate("Proofing", "Ignore All")), &QAction::triggered, &menu, [where, text] {
         spellingIgnore(text);
-        if (where) where->spelling()->refresh();
+        if (where) where->editedSpelling()->refresh();
     });
     QObject::connect(menu.addAction(QCoreApplication::translate("Proofing", "Add to Dictionary")), &QAction::triggered, &menu, [where, text] {
         QString failure;
         if (!spellingAdd(text, &failure)) spellingReportFailure(where, failure);
-        if (where) where->spelling()->refresh();
+        if (where) where->editedSpelling()->refresh();
     });
     menu.addSeparator();
     return true;
@@ -146,6 +150,7 @@ void SpellPane::start()
         finish();
         return;
     }
+    m_view->leaveHeaderFooter();   // (the check is of the text: its caret is the text's)
     m_start = m_view->cursor().selectionStart();
     m_wrapped = false;
     m_complete = false;

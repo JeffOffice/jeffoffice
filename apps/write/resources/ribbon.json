@@ -221,6 +221,20 @@
               "keytip": "BR"
             }
           ]
+        },
+        {
+          "name": "Header & Footer",
+          "keytip": "ZH",
+          "items": [
+            {
+              "large": "insert.header",
+              "keytip": "H"
+            },
+            {
+              "large": "insert.footer",
+              "keytip": "F"
+            }
+          ]
         }
       ]
     },
@@ -434,6 +448,52 @@
             {
               "large": "zoom.pageWidth",
               "keytip": "I"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Header & Footer",
+      "keytip": "JH",
+      "context": "Header & Footer",
+      "color": "headerFooter",
+      "groups": [
+        {
+          "name": "Close",
+          "keytip": "ZX",
+          "items": [
+            {
+              "large": "hf.close",
+              "keytip": "C"
+            }
+          ]
+        },
+        {
+          "name": "Insert",
+          "keytip": "ZI",
+          "items": [
+            {
+              "large": "hf.pageNumber",
+              "keytip": "PN"
+            }
+          ]
+        },
+        {
+          "name": "Options",
+          "keytip": "ZO",
+          "items": [
+            {
+              "small": "hf.differentFirst",
+              "keytip": "DF"
+            },
+            {
+              "small": "hf.differentOddEven",
+              "keytip": "DO"
+            },
+            {
+              "small": "hf.linkPrevious",
+              "keytip": "LP"
             }
           ]
         }

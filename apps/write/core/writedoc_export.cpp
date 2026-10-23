@@ -41,15 +41,25 @@ void settleKinds(RunProps *run, const RunProps &base)
 
 } // namespace
 
+RunProps WriteDoc::runPropsWritten(const QTextCharFormat &format, const QString &styleId, const TableLayer *layer) const
+{
+    RunProps run = runPropsOf(format);
+    const RunProps base = m_wml.styles.run(styleId, run.style, layer);
+    settleKinds(&run, base);
+    RunProps diff = run.differences(base);
+    diff.style = run.style;
+    return diff;
+}
+
 void WriteDoc::exportBody(QVector<Block> *out)
 {
     VectorSink sink(out);
     exportInto(sink);
 }
 
-void WriteDoc::exportInto(BlockSink &sink)
+void WriteDoc::exportInto(BlockSink &sink, QTextDocument *whose)
 {
-    QTextDocument *story = this->story();
+    QTextDocument *story = whose ? whose : this->story();
     const StyleSheet &sheet = m_wml.styles;
     const QString defaultStyle = defaultParagraphStyle();
     int sectionIndex = 0;
@@ -176,6 +186,8 @@ QByteArray WriteDoc::toDocx(QString *error, bool template_)
     exportBody(&out.body);
     out.lastSection = m_last;
     out.lastSectionStated = true;
+    writeHeaderParts(&out);
+    dropHeaderStyles(&out);
     // Styles a document that had none got when one was applied: the part, and the link to it.
     if (out.stylesName.isEmpty() && !out.styles.styles.isEmpty()) {
         out.stylesName = QStringLiteral("/word/styles.xml");

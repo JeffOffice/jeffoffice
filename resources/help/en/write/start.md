@@ -29,7 +29,7 @@ The first page appears at once, even in a very long document. JeffWrite works ou
 The **ribbon** is the band of buttons across the top. Each tab holds groups of buttons.
 
 - **Home** has Clipboard (cut, copy, and paste), Font, Paragraph, Styles, and Editing, which is Find and Replace.
-- **Insert** has Page Break.
+- **Insert** has Page Break, Header, and Footer. While a header or footer is open for editing, the **Header & Footer** tab appears.
 - **Layout** has Margins, Orientation, Size, Columns, and Breaks, and boxes for a paragraph's indents and spacing.
 - **Review** has Spelling & Grammar and Check Spelling as You Type.
 - **View** has Print Layout, the **¶** button, and the zoom choices.
@@ -49,19 +49,20 @@ This version of JeffWrite is a **Preview**. It is ready to try on real work, but
 - Bulleted and numbered lists, with levels.
 - Styles. The gallery has Normal, headings, Title, and more.
 - Pages: paper size, orientation, margins, columns (one, two, or three), page breaks, and section breaks that start a new page.
+- Headers and footers: double-click in the top or bottom margin of a page, or use **Insert > Header** and **Insert > Footer**, then type, add a page number, and choose a different first page, different odd and even pages, or a link to the section before. See [Headers and footers](headers-footers).
 - Opening .docx, .docm, .dotx, .dotm, .doc, and .dot files. Saving .docx and .dotx files.
 - Showing what a file has, where the file puts it: tables, headers and footers, footnotes and endnotes, pictures, shapes, and text boxes (with the text going around those that float), page borders and page color, line numbers, and sections that continue on the same page. A **header** is text at the top of every page, and a **footer** is text at the bottom. A **footnote** is a note at the foot of the page that cites it, and an **endnote** is one at the end.
-- Page numbers in headers and footers. They are worked out as the pages are laid out, and so is the number of pages.
+- Page numbers in headers and footers. They are worked out as the pages are laid out, and so is the number of pages. **Insert Page Number** is on the **Header & Footer** tab.
 - Zoom, and showing the paragraph marks (the **¶** button).
 - Spelling: red lines as you type, suggestions when you right-click, and the Spelling pane (**F7**). See [Check your spelling](spelling).
 - Printing, with a preview, copies, and page ranges, PDF files, and AutoRecover, which keeps a spare copy of unsaved work. See [Print](print).
 
 **What does not work yet**
 
-- Headers, footers, footnotes, and endnotes can't be edited, added, or taken away. JeffWrite shows them and keeps them as the file has them.
+- Footnotes and endnotes can't be edited, added, or taken away. JeffWrite shows them and keeps them as the file has them. The pictures, shapes, and tables in a header or footer are kept, but not edited yet.
 - Tables can't be inserted yet. In a table you open, you can type in the cells, press **Tab** to go to the next cell, and press **Tab** in the last cell to add a row. There are no commands yet to add or delete cells, rows, or columns, or to merge cells.
 - Pictures, shapes, and text boxes can't be inserted or changed. JeffWrite keeps them.
-- Fields can't be inserted. A **field** is text that the file fills in, such as a date or a table of contents. Page numbers in headers and footers, and references to the page of a bookmark, are worked out. Other fields show the words the file had, and they do not update.
+- Only the page number field can be inserted, in a header or footer. A **field** is text that the file fills in, such as a date or a table of contents. Page numbers in headers and footers, and references to the page of a bookmark, are worked out. Other fields show the words the file had, and they do not update.
 - Comments and tracked changes are kept, but not shown. A **comment** is a note in the margin. A **tracked change** is an edit that a reviewer marked. Text that a tracked change added shows as plain text, and text it deleted stays hidden. You can't add, accept, or reject them.
 - An equation shows as one line of text, in order, not laid out as it would print.
 - You can't open .rtf or .odt files yet. You can't save .doc, .rtf, or .odt files. A .doc file is saved as a new .docx file.
@@ -84,6 +85,7 @@ If something goes wrong, click **File > About**, then **Report a problem**.
 
 ## Related
 
+- [Headers and footers](headers-footers)
 - [Open, save, print, and export](open-save)
 - [Check your spelling](spelling)
 - [Print](print)

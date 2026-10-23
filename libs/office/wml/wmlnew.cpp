@@ -169,6 +169,18 @@ Style builtinStyle(const QString &id)
         else s.rPr.italic = true;
         return s;
     }
+    if (id == QLatin1String("Header") || id == QLatin1String("Footer")) {
+        // The styles of the text in a page's header and footer: a center tab and a right tab at the middle and the end of a line of the usual page's text.
+        Style s = paragraphStyle(id, id, 99);
+        s.next.clear();
+        s.qFormat = false;
+        s.unhideWhenUsed = true;
+        s.pPr.after = 0;
+        s.pPr.line = 240;
+        s.pPr.lineRule = QStringLiteral("auto");
+        s.pPr.tabs = QVector<TabStop>{TabStop{4680, QStringLiteral("center"), QString()}, TabStop{9360, QStringLiteral("right"), QString()}};
+        return s;
+    }
     if (id == QLatin1String("Hyperlink")) {
         Style s;
         s.id = id;
