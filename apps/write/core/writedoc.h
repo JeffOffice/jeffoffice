@@ -210,6 +210,26 @@ public:
     // Whether the story is one the document's header or footer, or a note, has: the stories that take no page break, section break, or note.
     bool isSideStory(const QTextDocument *story) const { return isHeaderFooterStory(story) || footnoteIdOf(story); }
 
+    // ---- endnotes (the notes the pages set after the text, or at the end of a section: paragraphs of the story that are marked as theirs; their words are edited where they stand)
+    // Whether the paragraph is one of a note's among them, and the Id of the note (a note cited again is set again: its copies have the one Id).
+    bool endnoteIdOf(const QTextBlock &block, int *id = nullptr) const;
+    // Whether the document has an endnote by that Id (one of the file's, or one made since).
+    bool hasEndnote(int id) const { return m_endnoteBlocks.contains(QString::number(id)); }
+    // The positions in the text of the characters that cite endnote `id`, in order; and the Ids of the notes the text cites now (in order of Id).
+    QVector<int> endnoteReferences(int id);
+    QVector<int> citedEndnotes();
+    // Where the words of the note by that Id begin (after its number) and end in the story, as the pages set it (its first copy); false where no page of notes has it.
+    bool endnoteWords(int id, int *from, int *to);
+    // A new endnote for a reference to be put in the text: its Id (one more than any the file or its references use); 0 where none can be made (the document has the most notes, or its
+    // endnotes part is one the program cannot add to). As with footnotes, a note is the document's while the text cites it.
+    int makeEndnote();
+    // A copy of an endnote as a note of its own (what a pasted copy of a reference cites): its Id, 0 for none.
+    int duplicateEndnote(int id);
+    QTextCharFormat endnoteReferenceFormat(int id, const QString &paragraphStyle);
+    // After an edit of the text: if the notes that the text's references name are not the notes the pages set, the notes are set again (as part of the edit's own undo step), and the
+    // references and the notes' numbers are made anew.
+    void settleEndnotes();
+
     // ---- one history
     // The steps of the text and of the headers and footers in the order they were made: an undo undoes the last, wherever it was, and a redo does it again. Returns the story the
     // step was in (null when there was none); the cursor, if given, is put where the step changed the story.
@@ -327,7 +347,8 @@ private:
     const QTextDocument *continuationStory();
     friend class NoteFields;
     void exportBody(QVector<office::wml::Block> *body);
-    void exportInto(BlockSink &sink, QTextDocument *story = nullptr);
+    // (`first` to `last`, the paragraphs of an endnote that the pages set: they are written as a note's paragraphs, which end no section.)
+    void exportInto(BlockSink &sink, QTextDocument *story = nullptr, QTextBlock first = QTextBlock(), QTextBlock last = QTextBlock(), bool asNote = false);
     // What writing gives a run of this format, in a paragraph of this style (and table layer): the properties it has beyond its style's.
     office::wml::RunProps runPropsWritten(const QTextCharFormat &format, const QString &styleId, const office::wml::TableLayer *layer) const;
     void settleTables();
@@ -379,6 +400,25 @@ private:
     QHash<int, QVector<int>> m_footnoteRefs;                          // the references of the text, by the note's Id, found when asked and let go with any change to the text
     bool m_footnoteRefsValid = false;
     void indexFootnoteReferences();
+    // The endnotes (writedoc_noteedit.cpp)
+    QHash<int, int> m_endnoteCopyIds;                                 // the Id of the note each copy that the pages set is a copy of (by the number EndnoteNote gives it)
+    int m_nextEndnoteSerial = 1;
+    QSet<int> m_createdEndnotes, m_endnotesCitedAtOpen, m_endnoteEdited;   // made since the document was read; cited by its text when it was read; edited (some of its paragraphs were touched) since
+    QHash<int, QByteArray> m_endnoteOriginal;                         // the file's notes, by Id: a fingerprint of the blocks as read (to tell a note that was touched and is as it was)
+    NotesPart m_endnotesPart = NotesPart::Absent;
+    bool m_endnotesPartNew = false;
+    bool m_endnoteCapped = false;                                     // some of the notes the text cites are not set (too many, or too long)
+    bool m_endnoteLast = false;                                       // the last section says it has no endnotes
+    bool m_buildingEndnotes = false;                                  // the notes the pages set are being made again (the edits that does are not edits of the notes)
+    QHash<int, QVector<int>> m_endnoteRefIndex;
+    bool m_endnoteRefIndexValid = false;
+    void indexEndnoteReferences();
+    int nextEndnoteId();
+    void activateEndnotes();
+    void captureEndnotes(const QSet<int> *only = nullptr);
+    bool tailsOf(const QTextDocument *d) const;
+    void touchEndnotes(int position, int removed, int added);
+    void writeEndnoteParts(office::wml::Document *out);
     int nextFootnoteId();
     void activateNotes();
     void noteEdited(QTextDocument *story);

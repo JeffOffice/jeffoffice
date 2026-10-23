@@ -65,7 +65,7 @@ bool sameFrame(const QTextBlock &a, const QTextBlock &b) { return frameKeyOf(a) 
 // What puts a paragraph where it is, besides its cell: the frame it is a part of. A format made for the paragraph (a style's) has these given from the paragraph's own.
 void copyPlace(const QTextBlockFormat &from, QTextBlockFormat *to)
 {
-    for (int key : {int(flow::fp::Cell), int(flow::fp::Frame), int(tp::OutOfLayout)}) {
+    for (int key : {int(flow::fp::Cell), int(flow::fp::Frame), int(tp::OutOfLayout), int(prop::EndnoteBlock), int(prop::EndnoteNote), int(prop::EndnoteStyle)}) {
         if (from.hasProperty(key)) to->setProperty(key, from.property(key));
         else to->clearProperty(key);
     }
@@ -278,7 +278,72 @@ void rewrap(const QVector<Wrapper> &wrappers, QTextBlock first, QTextBlock secon
 
 } // namespace
 
-bool isLocked(const QTextBlock &block) { return block.isValid() && (block.blockFormat().hasProperty(prop::RawBlock) || block.blockFormat().hasProperty(prop::EndnoteBlock)); }
+namespace {
+// The copy of an endnote whose words the edit that is going on is in (see NoteScopeGuard): 0 for none.
+thread_local int t_noteScope = 0;
+} // namespace
+
+bool isLocked(const QTextBlock &block)
+{
+    if (!block.isValid()) return false;
+    const QTextBlockFormat f = block.blockFormat();
+    if (f.hasProperty(prop::RawBlock)) return true;
+    if (!f.hasProperty(prop::EndnoteBlock)) return false;
+    return !(t_noteScope != 0 && f.intProperty(prop::EndnoteNote) == t_noteScope);   // (every paragraph of the endnotes but those of the note that is being edited)
+}
+
+EndnoteSpan endnoteSpanAt(const QTextDocument *story, int position)
+{
+    EndnoteSpan s;
+    if (!story || position < 0) return s;
+    QTextBlock b = story->findBlock(position);
+    if (!b.isValid() || !b.blockFormat().hasProperty(prop::EndnoteBlock)) return s;
+    const int serial = b.blockFormat().intProperty(prop::EndnoteNote);
+    if (serial == 0) return s;   // (the separator)
+    auto same = [&](const QTextBlock &x) { return x.isValid() && x.blockFormat().hasProperty(prop::EndnoteBlock) && x.blockFormat().intProperty(prop::EndnoteNote) == serial; };
+    QTextBlock first = b, last = b;
+    while (same(first.previous())) first = first.previous();
+    while (same(last.next())) last = last.next();
+    s.valid = true;
+    s.editable = serial > 0;
+    s.serial = std::abs(serial);
+    s.blockFrom = first.position();
+    s.textTo = last.position() + last.length() - 1;
+    s.textFrom = s.blockFrom;
+    // The number that begins the note is the first character of its first paragraph.
+    if (first.length() > 1) {
+        const QTextFragment f = first.begin().fragment();
+        const QTextCharFormat cf = f.charFormat();
+        if (f.isValid() && cf.hasProperty(prop::Atom)) {
+            const QByteArray bytes = storedBytes(cf, prop::Atom);
+            if (bytes.contains("endnoteRef") && unpackAtom(bytes).tag == QLatin1String("endnoteRef")) s.textFrom = first.position() + 1;
+        }
+    }
+    return s;
+}
+
+bool inEndnoteWords(const QTextCursor &c)
+{
+    if (!c.document()) return false;
+    const EndnoteSpan s = endnoteSpanAt(c.document(), c.anchor());
+    return s.valid && s.editable;
+}
+
+NoteScopeGuard::NoteScopeGuard(const QTextCursor &c) : m_before(t_noteScope)
+{
+    const EndnoteSpan s = c.document() ? endnoteSpanAt(c.document(), c.anchor()) : EndnoteSpan();
+    t_noteScope = s.valid && s.editable ? s.serial : 0;
+}
+
+NoteScopeGuard::~NoteScopeGuard() { t_noteScope = m_before; }
+
+int noteStartOf(const QTextCursor &c)
+{
+    if (!c.document()) return 0;
+    if (const int start = noteTextStart(c.document())) return start;
+    const EndnoteSpan s = endnoteSpanAt(c.document(), c.anchor());
+    return s.valid && s.editable ? s.textFrom : 0;
+}
 
 int editableEnd(const QTextDocument *story)
 {
@@ -375,7 +440,17 @@ void holdInBody(QTextCursor &c, int direction)
 bool intoBody(QTextCursor &c)
 {
     QTextDocument *d = c.document();
-    if (!d || c.selectionStart() > editableEnd(d)) return false;
+    if (!d) return false;
+    // The words of one endnote: an edit there is the note's, and the selection stays in them.
+    if (const EndnoteSpan s = endnoteSpanAt(d, c.anchor()); s.valid && s.editable) {
+        const int position = std::clamp(c.position(), s.textFrom, s.textTo), anchor = std::clamp(c.anchor(), s.textFrom, s.textTo);
+        if (position != c.position() || anchor != c.anchor()) {
+            c.setPosition(anchor);
+            c.setPosition(position, QTextCursor::KeepAnchor);
+        }
+        return true;
+    }
+    if (c.selectionStart() > editableEnd(d)) return false;
     // (Wholly in one run of endnotes set in the middle of the text: nothing is to be done either.)
     const QTextBlock first = d->findBlock(c.selectionStart()), last = d->findBlock(c.selectionEnd());
     if (noteBlock(first) && noteBlock(last)) {
@@ -477,7 +552,10 @@ struct HeldEdit {
 struct NumberGuard {
     NumberGuard(WriteDoc &d, QTextDocument *s) : doc(d), story(s)
     {
-        if (depth()++ == 0) sections() = doc.sectionCount();
+        if (depth()++ == 0) {
+            sections() = doc.sectionCount();
+            revision() = s->revision();
+        }
     }
     ~NumberGuard()
     {
@@ -485,10 +563,17 @@ struct NumberGuard {
             // (An edit that changed the sections, or took the notes out of the story to join the paragraphs round them, sets the endnotes at the ends of sections again, as part of its
             // own undo step.)
             if (doc.hasSectionEndEndnotes() && (doc.sectionCount() != sections() || doc.endnoteTailsStripped())) doc.rebuildEndnoteTails();
+            // (An edit of the text that changed which notes its references name sets the endnotes again, and numbers the notes and their references anew, as part of its own undo step.)
+            if (story == doc.story() && story->revision() != revision()) doc.settleEndnotes();
             doc.renumberLists(story);
         }
     }
     static int &sections()
+    {
+        static thread_local int n = 0;
+        return n;
+    }
+    static int &revision()
     {
         static thread_local int n = 0;
         return n;
@@ -508,10 +593,11 @@ struct NumberGuard {
 
 void insertText(WriteDoc &doc, QTextCursor &c, const QString &typed)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     // (A header or footer has no page or column breaks: they are not typed into one.)
     QString text = typed;
-    if (doc.isSideStory(c.document()) && (text.contains(flow::kPageBreak) || text.contains(flow::kColumnBreak))) text.remove(flow::kPageBreak).remove(flow::kColumnBreak);
+    if ((doc.isSideStory(c.document()) || inEndnoteWords(c)) && (text.contains(flow::kPageBreak) || text.contains(flow::kColumnBreak))) text.remove(flow::kPageBreak).remove(flow::kColumnBreak);
     if (text.isEmpty()) return;
     if (isLocked(c.block()) && !c.hasSelection()) return;
     // (Typing a character changes no number; a selection replaced, or a paragraph made by the text, may.)
@@ -568,6 +654,7 @@ static QTextBlock splitParagraph(QTextCursor &c)
 
 void insertParagraph(WriteDoc &doc, QTextCursor &c)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     c.beginEditBlock();
@@ -613,7 +700,8 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
 
 void insertPageBreak(WriteDoc &doc, QTextCursor &c)
 {
-    if (!intoBody(c) || doc.isSideStory(c.document())) return;   // (a header, a footer, or a note has no pages to break)
+    const NoteScopeGuard scopeGuard(c);
+    if (!intoBody(c) || doc.isSideStory(c.document()) || inEndnoteWords(c)) return;   // (a header, a footer, or a note has no pages to break)
     NumberGuard numbers(doc, c.document());
     if (isLocked(c.block())) return;
     c.beginEditBlock();
@@ -628,7 +716,8 @@ void insertPageBreak(WriteDoc &doc, QTextCursor &c)
 
 void insertSectionBreak(WriteDoc &doc, QTextCursor &c, const QString &type)
 {
-    if (!intoBody(c) || doc.isSideStory(c.document())) return;   // (nor sections)
+    const NoteScopeGuard scopeGuard(c);
+    if (!intoBody(c) || doc.isSideStory(c.document()) || inEndnoteWords(c)) return;   // (nor sections)
     NumberGuard numbers(doc, c.document());
     if (isLocked(c.block()) || inTable(c.block())) return;   // (a section ends in a paragraph that is not in a table's cell)
     c.beginEditBlock();
@@ -643,7 +732,7 @@ void insertSectionBreak(WriteDoc &doc, QTextCursor &c, const QString &type)
 // never joined.
 static bool removeSelectionAcrossEndnotes(WriteDoc &doc, QTextCursor &c)
 {
-    if (!c.hasSelection()) return false;
+    if (!c.hasSelection() || inEndnoteWords(c)) return false;   // (a selection in the words of one note is the note's: it is held in them)
     QTextDocument *d = c.document();
     const int from = c.selectionStart(), to = c.selectionEnd();
     const QTextBlock a = d->findBlock(from), b = d->findBlock(to);
@@ -718,6 +807,7 @@ static bool removeSelectionAcrossFrames(WriteDoc &doc, QTextCursor &c)
 
 void removeSelection(WriteDoc &doc, QTextCursor &c)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     if (!c.hasSelection()) return;
@@ -846,6 +936,7 @@ static void joinAcrossDeleted(WriteDoc &doc, QTextCursor &c, const QTextBlock &v
 
 void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     const AdvanceGuard advance(c);
@@ -853,7 +944,7 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
         removeSelection(doc, c);
         return;
     }
-    if (c.position() <= noteTextStart(c.document())) return;   // (just after a note's number: nothing is behind the caret that is the text's)
+    if (c.position() <= noteStartOf(c)) return;   // (just after a note's number: nothing is behind the caret that is the text's)
     QTextDocument *d = c.document();
     HeldEdit held(d);
     if (isLocked(c.block())) return;
@@ -865,14 +956,19 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
     }
     const int at = visibleBefore(d, c.position());
     if (at >= 0) {
+        // (In an edit block: what the edit does to the notes after it joins its undo step, and Qt joins a step only to one that is a block.)
         if (at + 1 == c.position()) {
+            c.beginEditBlock();
             c.deletePreviousChar();
+            c.endEditBlock();
             return;
         }
         // The pieces kept as XML between the cursor and the letter stay: the letter goes alone.
         QTextCursor t(d);
         t.setPosition(at + 1);
+        t.beginEditBlock();
         t.deletePreviousChar();
+        t.endEditBlock();
         return;
     }
     // At the start of a paragraph.
@@ -896,6 +992,7 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
         prev = b.previous();
     }
     if (!prev.isValid() || isLocked(prev) || !canJoinBlocks(prev, b) || !sameFrame(prev, b)) return;
+    if (inEndnoteWords(c) && prev.blockFormat().intProperty(prop::EndnoteNote) != b.blockFormat().intProperty(prop::EndnoteNote)) return;   // (a note's paragraphs are joined to its own and no other)
     if (prev.next() != b) {
         joinAcrossDeleted(doc, c, prev, b);
         return;
@@ -912,6 +1009,7 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
 
 void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     const AdvanceGuard advance(c);
@@ -931,12 +1029,16 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
     const int at = visibleAfter(d, c.position());
     if (at >= 0) {
         if (at == c.position()) {
+            c.beginEditBlock();
             c.deleteChar();
+            c.endEditBlock();
             return;
         }
         QTextCursor t(d);
         t.setPosition(at);
+        t.beginEditBlock();
         t.deleteChar();
+        t.endEditBlock();
         return;
     }
     QTextBlock next = c.block().next();
@@ -951,6 +1053,7 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
         next = c.block().next();
     }
     if (!next.isValid() || isLocked(next) || !canJoinBlocks(c.block(), next) || !sameFrame(c.block(), next)) return;
+    if (inEndnoteWords(c) && next.blockFormat().intProperty(prop::EndnoteNote) != c.block().blockFormat().intProperty(prop::EndnoteNote)) return;
     if (c.block().next() != next) {
         joinAcrossDeleted(doc, c, c.block(), next);
         return;
@@ -962,6 +1065,7 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
 
 void insertTab(WriteDoc &doc, QTextCursor &c, bool back)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     const QTextBlock b = c.block();
     if (!c.hasSelection() && b.blockFormat().hasProperty(prop::NumId) && (c.atBlockStart() || back)) {
@@ -978,9 +1082,10 @@ void insertTab(WriteDoc &doc, QTextCursor &c, bool back)
 QTextDocumentFragment selectionFragment(const QTextCursor &whole)
 {
     QTextCursor c(whole);
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c) || !c.hasSelection()) return QTextDocumentFragment();
     QTextDocumentFragment fragment(c);
-    if (!touchesEndnotes(c.document(), c.selectionStart(), c.selectionEnd())) return fragment;
+    if (inEndnoteWords(c) || !touchesEndnotes(c.document(), c.selectionStart(), c.selectionEnd())) return fragment;
     // (Endnotes set in the middle of the text, at the end of a section, are not copied: their paragraphs are left out of a copy of what is round them.)
     QTextDocument copy;
     QTextCursor into(&copy);
@@ -1075,7 +1180,7 @@ static void keepOutOfFurniture(QTextDocument *d, int from, int to)
     }
 }
 
-// A reference to a footnote that was pasted cites the note it cited if nothing else in the text does now (it was cut: the note moves with it), and else a copy of the note
+// A reference to a footnote or an endnote that was pasted cites the note it cited if nothing else in the text does now (it was cut: the note moves with it), and else a copy of the note
 // (it was copied: the pasted reference has a note of its own that says the same, and several pasted references to one note cite one copy).
 static void settlePastedNoteReferences(WriteDoc &doc, QTextDocument *d, int from, int to)
 {
@@ -1085,53 +1190,61 @@ static void settlePastedNoteReferences(WriteDoc &doc, QTextDocument *d, int from
         QTextCharFormat format;
         office::wml::Inline atom;
     };
-    QVector<Found> found;
-    QSet<int> ids;
-    for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
-        if (isLocked(b)) continue;
-        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
-            const QTextFragment f = it.fragment();
-            const QTextCharFormat cf = f.charFormat();
-            if (!cf.hasProperty(prop::Atom) || f.position() + f.length() <= from || f.position() >= to) continue;
-            const QByteArray bytes = storedBytes(cf, prop::Atom);
-            if (!bytes.contains("footnoteReference")) continue;
-            const office::wml::Inline atom = unpackAtom(bytes);
-            bool ok = false;
-            const int id = atom.tag == QLatin1String("footnoteReference") ? atom.key.toInt(&ok) : 0;
-            if (!ok || !doc.hasFootnote(id)) continue;
-            const QString text = f.text();
-            for (int k = 0; k < text.size(); ++k)
-                if (text[k] == QChar::ObjectReplacementCharacter && f.position() + k >= from && f.position() + k < to) found.push_back({f.position() + k, id, cf, atom});
-            ids.insert(id);
+    for (const bool endnote : {false, true}) {
+        const QByteArray tag = endnote ? "endnoteReference" : "footnoteReference";
+        QVector<Found> found;
+        QSet<int> ids;
+        for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
+            if (isLocked(b)) continue;
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                const QTextFragment f = it.fragment();
+                const QTextCharFormat cf = f.charFormat();
+                if (!cf.hasProperty(prop::Atom) || f.position() + f.length() <= from || f.position() >= to) continue;
+                const QByteArray bytes = storedBytes(cf, prop::Atom);
+                if (!bytes.contains(tag)) continue;
+                const office::wml::Inline atom = unpackAtom(bytes);
+                bool ok = false;
+                const int id = atom.tag == QString::fromLatin1(tag) ? atom.key.toInt(&ok) : 0;
+                if (!ok || !(endnote ? doc.hasEndnote(id) : doc.hasFootnote(id))) continue;
+                const QString text = f.text();
+                for (int k = 0; k < text.size(); ++k)
+                    if (text[k] == QChar::ObjectReplacementCharacter && f.position() + k >= from && f.position() + k < to) found.push_back({f.position() + k, id, cf, atom});
+                ids.insert(id);
+            }
         }
-    }
-    if (found.isEmpty()) return;
-    QHash<int, int> outside;
-    for (const int id : std::as_const(ids)) {
-        int n = 0;
-        for (const int at : doc.footnoteReferences(id)) n += at < from || at >= to;
-        outside.insert(id, n);
-    }
-    QHash<int, int> copies;
-    static const QRegularExpression idAttribute(QStringLiteral("\\b((?:[\\w.-]+:)?id=\")\\d+(\")"));
-    for (const Found &f : std::as_const(found)) {
-        if (outside.value(f.id) == 0) continue;
-        int fresh = copies.value(f.id);
-        if (!fresh) {
-            fresh = doc.duplicateFootnote(f.id);
-            if (!fresh) continue;   // (no more notes can be made: the pasted reference cites the one the copied did)
-            copies.insert(f.id, fresh);
+        if (found.isEmpty()) continue;
+        QHash<int, int> outside;
+        for (const int id : std::as_const(ids)) {
+            int n = 0;
+            for (const int at : endnote ? doc.endnoteReferences(id) : doc.footnoteReferences(id)) n += at < from || at >= to;
+            outside.insert(id, n);
         }
-        office::wml::Inline atom = f.atom;
-        atom.key = QString::number(fresh);
-        atom.raw = QString::fromUtf8(atom.raw).replace(idAttribute, QStringLiteral("\\1%1\\2").arg(fresh)).toUtf8();
-        QTextCharFormat nf = f.format;
-        setStored(nf, prop::Atom, packAtom(atom));
-        nf.setProperty(tp::Field, QStringLiteral("footnote:fn%1").arg(fresh));
-        QTextCursor t(d);
-        t.setPosition(f.at);
-        t.setPosition(f.at + 1, QTextCursor::KeepAnchor);
-        t.setCharFormat(nf);
+        QHash<int, int> copies;
+        static const QRegularExpression idAttribute(QStringLiteral("\\b((?:[\\w.-]+:)?id=\")\\d+(\")"));
+        for (const Found &f : std::as_const(found)) {
+            if (outside.value(f.id) == 0) continue;
+            int fresh = copies.value(f.id);
+            if (!fresh) {
+                fresh = endnote ? doc.duplicateEndnote(f.id) : doc.duplicateFootnote(f.id);
+                if (!fresh) continue;   // (no more notes can be made: the pasted reference cites the one the copied did)
+                copies.insert(f.id, fresh);
+            }
+            office::wml::Inline atom = f.atom;
+            atom.key = QString::number(fresh);
+            {
+                QString raw = QString::fromUtf8(atom.raw);
+                const QRegularExpressionMatch m = idAttribute.match(raw);
+                if (m.hasMatch()) raw.replace(m.capturedStart(0), m.capturedLength(0), m.captured(1) + QString::number(fresh) + m.captured(2));
+                atom.raw = raw.toUtf8();
+            }
+            QTextCharFormat nf = f.format;
+            setStored(nf, prop::Atom, packAtom(atom));
+            if (!endnote) nf.setProperty(tp::Field, QStringLiteral("footnote:fn%1").arg(fresh));
+            QTextCursor t(d);
+            t.setPosition(f.at);
+            t.setPosition(f.at + 1, QTextCursor::KeepAnchor);
+            t.setCharFormat(nf);
+        }
     }
 }
 
@@ -1157,6 +1270,8 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
     // look of what was copied where the cursor is at its start, and takes its section break away.)
     const QTextBlock target = c.block();
     const QTextBlockFormat tf = target.blockFormat();
+    const int targetNote = tf.hasProperty(prop::EndnoteBlock) && t_noteScope != 0 ? tf.intProperty(prop::EndnoteNote) : 0;   // (the note whose words are pasted into, else none)
+    const QString targetNoteStyle = tf.stringProperty(prop::EndnoteStyle);
     const int targetCell = cellKeyOf(target);
     const QTextCharFormat tmark = markFormat(target);
     const int targetListId = target.textList() ? target.blockFormat().objectIndex() : -1;   // (the list, found again after the paste: it may be gone with the paragraph that was its only one)
@@ -1207,7 +1322,16 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
     const bool targetFramed = tf.boolProperty(tp::OutOfLayout) && tf.intProperty(flow::fp::Frame) > 0 && !targetCell;
     for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() <= to; b = b.next()) {
         QTextBlockFormat nf = b.blockFormat();
-        nf.clearProperty(prop::EndnoteBlock);   // (a copy of an endnote's paragraph, from a clipboard of any time, is a paragraph of the text)
+        // (A copy of an endnote's paragraph, from a clipboard of any time, is a paragraph of the text; one pasted in the words of a note is a paragraph of that note.)
+        if (targetNote > 0) {
+            nf.setProperty(prop::EndnoteBlock, true);
+            nf.setProperty(prop::EndnoteNote, targetNote);
+            nf.setProperty(prop::EndnoteStyle, targetNoteStyle);
+        } else {
+            nf.clearProperty(prop::EndnoteBlock);
+            nf.clearProperty(prop::EndnoteNote);
+            nf.clearProperty(prop::EndnoteStyle);
+        }
         if (targetFramed) {
             nf.setProperty(flow::fp::Frame, tf.property(flow::fp::Frame));
             nf.setProperty(tp::OutOfLayout, true);
@@ -1242,7 +1366,7 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
         t.removeSelectedText();
     }
     // A header, a footer, or a note takes the words and their look, not a note's reference, a comment, a break of a page, a column, or a section.
-    if (doc.isSideStory(d)) keepOutOfFurniture(d, from, c.position());
+    if (doc.isSideStory(d) || targetNote > 0) keepOutOfFurniture(d, from, c.position());
     else if (sameDocument) settlePastedNoteReferences(doc, d, from, c.position());
     *pastedTo = c.position();
     c.endEditBlock();
@@ -1250,6 +1374,7 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
 
 void insertPageNumber(WriteDoc &doc, QTextCursor &c)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     if (isLocked(c.block()) && !c.hasSelection()) return;
     // The field as the file has it: its begin mark, code, separator, result (the number 1), and end mark. The look of its runs is the atom's.
@@ -1279,7 +1404,7 @@ QTextDocument *insertFootnote(WriteDoc &doc, QTextCursor &c)
 {
     if (c.document() != doc.story()) return nullptr;   // (a header, a footer, or a note takes none)
     QTextCursor at = c;
-    if (!intoBody(at)) return nullptr;
+    if (!intoBody(at) || inEndnoteWords(at)) return nullptr;
     if (at.hasSelection()) at.setPosition(at.selectionEnd());
     if (isLocked(at.block())) return nullptr;
     NumberGuard numbers(doc, doc.story());
@@ -1298,8 +1423,35 @@ QTextDocument *insertFootnote(WriteDoc &doc, QTextCursor &c)
     return note;
 }
 
+bool insertEndnote(WriteDoc &doc, QTextCursor &c)
+{
+    if (c.document() != doc.story()) return false;   // (a header, a footer, or a note takes none)
+    QTextCursor at = c;
+    if (!intoBody(at) || inEndnoteWords(at)) return false;
+    if (at.hasSelection()) at.setPosition(at.selectionEnd());
+    if (isLocked(at.block())) return false;
+    int id = 0;
+    {
+        NumberGuard numbers(doc, doc.story());
+        id = doc.makeEndnote();
+        if (!id) return false;
+        const QString style = at.blockFormat().stringProperty(tp::StyleName);
+        at.beginEditBlock();
+        settleBesideDeletions(at);
+        at.insertText(QString(QChar::ObjectReplacementCharacter), doc.endnoteReferenceFormat(id, style));
+        at.endEditBlock();
+    }   // (the notes are set again as the guard ends, the new one among them, and the notes and their references are numbered anew)
+    int from = 0, to = 0;
+    if (!doc.endnoteWords(id, &from, &to)) return true;   // (the note is not set: too many, or too long; the reference is in the text)
+    QTextCursor inNote(doc.story());
+    inNote.setPosition(to);
+    c = inNote;
+    return true;
+}
+
 void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     if (fragment.isEmpty()) return;
@@ -1339,6 +1491,7 @@ Clip copySelection(const WriteDoc &doc, const QTextCursor &whole)
 {
     Clip clip;
     QTextCursor c(whole);   // (what is copied is the person's text: the endnotes the pages set are not)
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return clip;
     clip.fragment = selectionFragment(c);
     clip.source = doc.id();
@@ -1377,6 +1530,7 @@ Clip copySelection(const WriteDoc &doc, const QTextCursor &whole)
 
 void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     if (clip.isEmpty()) return;
@@ -1497,6 +1651,7 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
 
 void pasteText(WriteDoc &doc, QTextCursor &c, const QString &text)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     QString t = text;
@@ -1569,6 +1724,7 @@ bool allSelected(const QTextCursor &c, const std::function<bool(const QTextCharF
 
 void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QTextCharFormat &)> &change)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     Q_UNUSED(doc);
     QTextDocument *d = c.document();
@@ -1617,6 +1773,7 @@ void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QT
 
 void toggleBold(WriteDoc &doc, QTextCursor &c)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.fontWeight() >= QFont::DemiBold; });
     changeCharFormat(doc, c, [on](QTextCharFormat &f) { f.setFontWeight(on ? QFont::Bold : QFont::Normal); });
@@ -1624,6 +1781,7 @@ void toggleBold(WriteDoc &doc, QTextCursor &c)
 
 void toggleItalic(WriteDoc &doc, QTextCursor &c)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.fontItalic(); });
     changeCharFormat(doc, c, [on](QTextCharFormat &f) { f.setFontItalic(on); });
@@ -1631,6 +1789,7 @@ void toggleItalic(WriteDoc &doc, QTextCursor &c)
 
 void toggleUnderline(WriteDoc &doc, QTextCursor &c)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.underlineStyle() != QTextCharFormat::NoUnderline; });
     changeCharFormat(doc, c, [on](QTextCharFormat &f) {
@@ -1644,6 +1803,7 @@ void toggleUnderline(WriteDoc &doc, QTextCursor &c)
 
 void toggleStrike(WriteDoc &doc, QTextCursor &c)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.fontStrikeOut(); });
     changeCharFormat(doc, c, [on](QTextCharFormat &f) {
@@ -1654,6 +1814,7 @@ void toggleStrike(WriteDoc &doc, QTextCursor &c)
 
 void toggleSubscript(WriteDoc &doc, QTextCursor &c)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.verticalAlignment() == QTextCharFormat::AlignSubScript; });
     changeCharFormat(doc, c, [on](QTextCharFormat &f) { f.setVerticalAlignment(on ? QTextCharFormat::AlignSubScript : QTextCharFormat::AlignNormal); });
@@ -1661,6 +1822,7 @@ void toggleSubscript(WriteDoc &doc, QTextCursor &c)
 
 void toggleSuperscript(WriteDoc &doc, QTextCursor &c)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.verticalAlignment() == QTextCharFormat::AlignSuperScript; });
     changeCharFormat(doc, c, [on](QTextCharFormat &f) { f.setVerticalAlignment(on ? QTextCharFormat::AlignSuperScript : QTextCharFormat::AlignNormal); });
@@ -1668,6 +1830,7 @@ void toggleSuperscript(WriteDoc &doc, QTextCursor &c)
 
 void setFontFamily(WriteDoc &doc, QTextCursor &c, const QString &family)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     changeCharFormat(doc, c, [family](QTextCharFormat &f) {
         if (family == QLatin1String("+Heading") || family == QLatin1String("+Body")) {
@@ -1683,6 +1846,7 @@ void setFontFamily(WriteDoc &doc, QTextCursor &c, const QString &family)
 
 void setFontSize(WriteDoc &doc, QTextCursor &c, double points)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     points = std::clamp(points, 1.0, 1638.0);
     changeCharFormat(doc, c, [points](QTextCharFormat &f) { f.setFontPointSize(points); });
@@ -1690,6 +1854,7 @@ void setFontSize(WriteDoc &doc, QTextCursor &c, double points)
 
 void changeFontSize(WriteDoc &doc, QTextCursor &c, int steps)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     static const double sizes[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72, 80, 96, 120, 144, 200, 300, 500, 1000, 1638};
     const double now = typingFormat(c).fontPointSize() > 0 ? typingFormat(c).fontPointSize() : 11;
@@ -1712,6 +1877,7 @@ void changeFontSize(WriteDoc &doc, QTextCursor &c, int steps)
 
 void setTextColor(WriteDoc &doc, QTextCursor &c, const QColor &color)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     changeCharFormat(doc, c, [color](QTextCharFormat &f) {
         f.clearProperty(prop::ColorAttrs);
@@ -1728,6 +1894,7 @@ void setTextColor(WriteDoc &doc, QTextCursor &c, const QColor &color)
 
 void setHighlight(WriteDoc &doc, QTextCursor &c, const QString &name)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     changeCharFormat(doc, c, [name](QTextCharFormat &f) {
         if (name.isEmpty()) f.clearProperty(tp::HighlightRefP);
@@ -1759,6 +1926,7 @@ QTextCharFormat restyled(const QTextCharFormat &f, const QTextCharFormat &was, c
 
 void clearFormatting(WriteDoc &doc, QTextCursor &c)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     c.beginEditBlock();
     applyParagraphStyle(doc, c, doc.defaultParagraphStyle());
@@ -1783,6 +1951,7 @@ void clearFormatting(WriteDoc &doc, QTextCursor &c)
 
 void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QTextBlockFormat &)> &change)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     Q_UNUSED(doc);
     c.beginEditBlock();
@@ -1798,6 +1967,7 @@ void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(Q
 
 void setAlignment(WriteDoc &doc, QTextCursor &c, Qt::Alignment alignment)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     changeBlockFormat(doc, c, [alignment](QTextBlockFormat &bf) {
         bf.setAlignment(alignment);
@@ -1809,6 +1979,7 @@ static void setBlockList(WriteDoc &doc, QTextBlock block, int numId, int level, 
 
 void changeIndent(WriteDoc &doc, QTextCursor &c, double points)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     c.beginEditBlock();
@@ -1829,6 +2000,7 @@ void changeIndent(WriteDoc &doc, QTextCursor &c, double points)
 
 void setIndents(WriteDoc &doc, QTextCursor &c, double left, double right, double firstLine)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     changeBlockFormat(doc, c, [&](QTextBlockFormat &bf) {
         bf.setLeftMargin(std::max(0.0, left));
@@ -1872,6 +2044,7 @@ void setSpaceAfter(QTextBlockFormat &bf, double points)
 
 void setSpacing(WriteDoc &doc, QTextCursor &c, double before, double after)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     changeBlockFormat(doc, c, [&](QTextBlockFormat &bf) {
         setSpaceBefore(bf, before);
@@ -1881,6 +2054,7 @@ void setSpacing(WriteDoc &doc, QTextCursor &c, double before, double after)
 
 void setLineSpacing(WriteDoc &doc, QTextCursor &c, QTextBlockFormat::LineHeightTypes type, double value)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     changeBlockFormat(doc, c, [&](QTextBlockFormat &bf) {
         if (type == QTextBlockFormat::ProportionalHeight) bf.setLineHeight(std::max(0.1, value) * 100.0, type);
@@ -1935,6 +2109,7 @@ static void setBlockList(WriteDoc &doc, QTextBlock block, int numId, int level, 
 
 void toggleList(WriteDoc &doc, QTextCursor &c, bool numbered)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     const QVector<QTextBlock> blocks = selectedBlocks(c);
@@ -2020,6 +2195,7 @@ static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleI
 
 void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     if (!doc.ensureStyle(styleId)) return;
@@ -2033,6 +2209,7 @@ void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 
 void applyCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 {
+    const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return;
     if (!doc.ensureStyle(styleId)) return;
     const QString paraStyle = paragraphStyleAt(doc, c);

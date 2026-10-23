@@ -203,6 +203,245 @@ QTextCharFormat WriteDoc::footnoteReferenceFormat(int id, const QString &paragra
     return f;
 }
 
+// ---- the endnotes
+
+namespace {
+const QLatin1String kEndnotesRel("http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes");
+const QLatin1String kEndnotesType("application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml");
+} // namespace
+
+bool WriteDoc::endnoteIdOf(const QTextBlock &block, int *id) const
+{
+    if (!block.isValid() || !block.blockFormat().hasProperty(prop::EndnoteBlock)) return false;
+    const int serial = block.blockFormat().intProperty(prop::EndnoteNote);
+    if (serial == 0) return false;
+    const auto found = m_endnoteCopyIds.constFind(std::abs(serial));
+    if (found == m_endnoteCopyIds.cend()) return false;
+    if (id) *id = found.value();
+    return true;
+}
+
+// The references of the text to endnotes, by Id (a reference to a note the file lacks is one too).
+void WriteDoc::indexEndnoteReferences()
+{
+    if (m_endnoteRefIndexValid) return;
+    m_endnoteRefIndex.clear();
+    for (QTextBlock b = story()->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            const QTextCharFormat cf = f.charFormat();
+            if (!cf.hasProperty(prop::Atom)) continue;
+            const QByteArray bytes = storedBytes(cf, prop::Atom);
+            if (!bytes.contains("endnoteReference")) continue;
+            const Inline atom = unpackAtom(bytes);
+            if (atom.tag != QLatin1String("endnoteReference")) continue;
+            bool ok = false;
+            const int id = atom.key.toInt(&ok);
+            if (!ok) continue;
+            const QString text = f.text();
+            for (int k = 0; k < text.size(); ++k)
+                if (text[k] == QChar::ObjectReplacementCharacter) m_endnoteRefIndex[id].push_back(f.position() + k);
+        }
+    m_endnoteRefIndexValid = true;
+}
+
+QVector<int> WriteDoc::endnoteReferences(int id)
+{
+    indexEndnoteReferences();
+    return m_endnoteRefIndex.value(id);
+}
+
+QVector<int> WriteDoc::citedEndnotes()
+{
+    indexEndnoteReferences();
+    QVector<int> ids;
+    for (auto it = m_endnoteRefIndex.cbegin(); it != m_endnoteRefIndex.cend(); ++it)
+        if (hasEndnote(it.key())) ids.push_back(it.key());
+    std::sort(ids.begin(), ids.end());
+    return ids;
+}
+
+bool WriteDoc::endnoteWords(int id, int *from, int *to)
+{
+    for (QTextBlock b = story()->lastBlock(); b.isValid(); b = b.previous()) {
+        int found = 0;
+        if (!endnoteIdOf(b, &found) || found != id || b.blockFormat().intProperty(prop::EndnoteNote) <= 0) continue;
+        EndnoteSpan span = endnoteSpanAt(story(), b.position());
+        if (!span.valid) return false;
+        // A table the note holds is kept as it was, and is not among the note's own words: the words before it are the start of the note.
+        const int serial = b.blockFormat().intProperty(prop::EndnoteNote);
+        for (;;) {
+            QTextBlock skip = story()->findBlock(span.blockFrom).previous();
+            while (skip.isValid() && !skip.blockFormat().hasProperty(prop::EndnoteBlock) && skip.blockFormat().hasProperty(prop::RawBlock)) skip = skip.previous();
+            if (!skip.isValid() || !skip.blockFormat().hasProperty(prop::EndnoteBlock) || skip.blockFormat().intProperty(prop::EndnoteNote) != serial) break;
+            const EndnoteSpan before = endnoteSpanAt(story(), skip.position());
+            span.blockFrom = before.blockFrom;
+            span.textFrom = before.textFrom;
+        }
+        if (from) *from = span.textFrom;
+        if (to) *to = span.textTo;
+        return span.valid;
+    }
+    return false;
+}
+
+// The words of the notes that were edited, taken back from the story as the blocks the notes are made of (a note that was not edited is made again from the blocks it was read as). `only`
+// names the notes to take back, else those that were edited.
+void WriteDoc::captureEndnotes(const QSet<int> *only)
+{
+    QTextDocument *d = story();
+    struct Run {
+        QTextBlock first, last;
+    };
+    QHash<int, Run> runs;   // by the number of the copy
+    for (QTextBlock b = d->begin(); b.isValid(); b = b.next()) {
+        if (!b.blockFormat().hasProperty(prop::EndnoteBlock)) continue;
+        const int serial = b.blockFormat().intProperty(prop::EndnoteNote);
+        if (serial <= 0) continue;   // (the separator, and the copies that are only shown)
+        const auto it = runs.find(serial);
+        if (it == runs.end()) runs.insert(serial, {b, b});
+        else it->last = b;
+    }
+    for (auto it = runs.cbegin(); it != runs.cend(); ++it) {
+        const int id = m_endnoteCopyIds.value(it.key());
+        if (only ? !only->contains(id) : !m_endnoteEdited.contains(id)) continue;
+        QVector<Block> blocks;
+        VectorSink sink(&blocks);
+        exportInto(sink, d, it->first, it->last, true);
+        if (!blocks.isEmpty()) m_endnoteBlocks[QString::number(id)] = blocks;
+    }
+}
+
+// An edit touched the paragraphs of a note: the note was edited.
+void WriteDoc::touchEndnotes(int position, int removed, int added)
+{
+    Q_UNUSED(removed);
+    QTextDocument *d = story();
+    const int last = std::max(0, d->characterCount() - 1);
+    const QTextBlock end = d->findBlock(std::min(position + std::max(added, 0), last));
+    for (QTextBlock b = d->findBlock(std::min(position, last)); b.isValid(); b = b.next()) {
+        const QTextBlockFormat bf = b.blockFormat();
+        if (bf.hasProperty(prop::EndnoteBlock) && bf.intProperty(prop::EndnoteNote) != 0) m_endnoteEdited.insert(m_endnoteCopyIds.value(std::abs(bf.intProperty(prop::EndnoteNote))));
+        if (b == end) break;
+    }
+}
+
+void WriteDoc::activateEndnotes()
+{
+    if (m_endnotePart.isEmpty()) {
+        QString name = QStringLiteral("/word/endnotes.xml");
+        for (int n = 2; partExists(name) || name.compare(m_wml.mainName, Qt::CaseInsensitive) == 0 || name.compare(m_notePart, Qt::CaseInsensitive) == 0; ++n) name = QStringLiteral("/word/endnotes%1.xml").arg(n);
+        m_endnotePart = name;
+        m_endnotesPartNew = true;
+        m_endnotesPart = NotesPart::Readable;
+        QVector<NotePart> fresh;
+        office::wml::readNotes(notesPartXml(QByteArray(), true, NotesChange()), &fresh);
+        for (NotePart &n : fresh)
+            if (n.type == QLatin1String("separator")) m_endnoteSeparator = std::move(n.blocks);
+    }
+}
+
+// One more than every Id the file's endnotes and the text's references use.
+int WriteDoc::nextEndnoteId()
+{
+    indexEndnoteReferences();
+    int highest = 0;
+    QSet<int> used;
+    for (auto it = m_endnoteBlocks.cbegin(); it != m_endnoteBlocks.cend(); ++it) used.insert(it.key().toInt());
+    for (auto it = m_endnoteRefIndex.cbegin(); it != m_endnoteRefIndex.cend(); ++it) used.insert(it.key());
+    for (const int id : std::as_const(used)) highest = std::max(highest, id);
+    if (highest < 1'000'000'000) return highest + 1;
+    for (int id = 1;; ++id)
+        if (!used.contains(id)) return id;
+}
+
+int WriteDoc::makeEndnote()
+{
+    if (m_endnotesPart == NotesPart::Unusable || int(m_endnoteBlocks.size()) >= kMostNoteStories) return 0;
+    for (const RawChild &ch : m_last.extra)
+        if (ch.xml.contains("noEndnote")) return 0;   // (the last section says it has none: they would not be set)
+    activateEndnotes();
+    const qsizetype had = m_wml.styles.styles.size();
+    ensureStyle(QStringLiteral("EndnoteText"));
+    ensureStyle(QStringLiteral("EndnoteReference"));
+    for (qsizetype i = had; i < m_wml.styles.styles.size(); ++i) m_headerStyles.insert(m_wml.styles.styles[i].id);
+    const int id = nextEndnoteId();
+    Block note;
+    note.para.props.style = QStringLiteral("EndnoteText");
+    Inline mark;
+    mark.kind = Inline::RunAtom;
+    mark.tag = QStringLiteral("endnoteRef");
+    mark.raw = "<w:endnoteRef/>";
+    mark.props.style = QStringLiteral("EndnoteReference");
+    note.para.content.push_back(mark);
+    Inline blank;
+    blank.text = QStringLiteral(" ");
+    note.para.content.push_back(blank);
+    m_endnoteBlocks.insert(QString::number(id), {note});
+    m_createdEndnotes.insert(id);
+    return id;
+}
+
+int WriteDoc::duplicateEndnote(int id)
+{
+    const QString key = QString::number(id);
+    if (m_endnotesPart == NotesPart::Unusable || !m_endnoteBlocks.contains(key) || int(m_endnoteBlocks.size()) >= kMostNoteStories) return 0;
+    const QSet<int> one{id};
+    captureEndnotes(&one);   // (what was said in it so far)
+    const QVector<Block> blocks = m_endnoteBlocks.value(key);
+    const int fresh = nextEndnoteId();
+    m_endnoteBlocks.insert(QString::number(fresh), blocks);
+    m_createdEndnotes.insert(fresh);
+    return fresh;
+}
+
+QTextCharFormat WriteDoc::endnoteReferenceFormat(int id, const QString &paragraphStyle)
+{
+    ensureStyle(QStringLiteral("EndnoteReference"));
+    QTextCharFormat f = styleCharFormat(paragraphStyle.isEmpty() ? defaultParagraphStyle() : paragraphStyle, QStringLiteral("EndnoteReference"));
+    Inline ref;
+    ref.kind = Inline::RunAtom;
+    ref.tag = QStringLiteral("endnoteReference");
+    ref.key = QString::number(id);
+    ref.raw = "<w:endnoteReference w:id=\"" + QByteArray::number(id) + "\"/>";
+    ref.props.style = QStringLiteral("EndnoteReference");
+    setStored(f, prop::Atom, packAtom(ref));
+    f.setProperty(tp::Field, QStringLiteral("raw:"));   // (the number it shows is given when the notes are set)
+    return f;
+}
+
+// The notes that the text's references name, and those the pages set, each in order of the references: when they are not the same the notes are set again.
+void WriteDoc::settleEndnotes()
+{
+    if (m_endnotesPart != NotesPart::Readable || m_syncing || m_buildingEndnotes || m_endnoteCapped) return;
+    for (const RawChild &ch : m_last.extra)
+        if (ch.xml.contains("noEndnote")) return;
+    QTextDocument *d = story();
+    QVector<int> refs, tails;
+    for (QTextBlock b = d->begin(); b.isValid(); b = b.next()) {
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd() && refs.size() < kMostEndnotes; ++it) {
+            const QTextCharFormat cf = it.fragment().charFormat();
+            if (!cf.hasProperty(prop::Atom) || cf.hasProperty(prop::TrackedDeleted)) continue;
+            const QByteArray bytes = storedBytes(cf, prop::Atom);
+            if (!bytes.contains("endnoteReference")) continue;
+            const Inline atom = unpackAtom(bytes);
+            bool ok = false;
+            const int id = atom.tag == QLatin1String("endnoteReference") ? atom.key.toInt(&ok) : 0;
+            if (!ok || !hasEndnote(id)) continue;
+            const QString text = it.fragment().text();
+            for (const QChar ch : text)
+                if (ch == QChar::ObjectReplacementCharacter && refs.size() < kMostEndnotes) refs.push_back(id);
+        }
+        const QTextBlockFormat bf = b.blockFormat();
+        if (!bf.hasProperty(prop::EndnoteBlock) || bf.intProperty(prop::EndnoteNote) == 0) continue;
+        const int serial = bf.intProperty(prop::EndnoteNote);
+        const QTextBlock before = b.previous();
+        if (before.isValid() && before.blockFormat().hasProperty(prop::EndnoteBlock) && before.blockFormat().intProperty(prop::EndnoteNote) == serial) continue;
+        tails.push_back(m_endnoteCopyIds.value(std::abs(serial)));
+    }
+    if (refs != tails) rebuildEndnoteTails();
+}
+
 // ---- writing them
 
 KeptPart *WriteDoc::settingsPartFor(office::wml::Document *out)
@@ -279,6 +518,53 @@ void WriteDoc::writeNoteParts(office::wml::Document *out)
     out->mainRelationships.push_back(r);
     KeptPart *settings = settingsPartFor(out);
     settings->data = settingsWithNoteSeparators(settings->data, false);
+}
+
+// The endnotes part as the notes are now (as the footnotes' is): what was edited, made, or whose last reference was taken out; a part nothing of which changed is as it was read.
+void WriteDoc::writeEndnoteParts(office::wml::Document *out)
+{
+    if (m_endnotesPart != NotesPart::Readable) return;
+    captureEndnotes();
+    indexEndnoteReferences();
+    auto cited = [&](int id) { return m_endnoteRefIndex.contains(id); };
+    NotesChange change;
+    // The notes that were touched are written again if they say something other than they did when they were read.
+    for (const int id : std::as_const(m_endnoteEdited)) {
+        const QString key = QString::number(id);
+        if (!m_endnoteBlocks.contains(key) || m_createdEndnotes.contains(id) || (m_endnotesCitedAtOpen.contains(id) && !cited(id))) continue;
+        const QVector<Block> &blocks = m_endnoteBlocks[key];
+        if (blocksFingerprint(blocks, 0, blocks.size()) != m_endnoteOriginal.value(id)) change.replaced.insert(id, blocks);
+    }
+    for (const int id : std::as_const(m_endnotesCitedAtOpen))
+        if (!cited(id) && m_endnoteBlocks.contains(QString::number(id))) change.removed.insert(id);
+    QVector<int> made = m_createdEndnotes.values();
+    std::sort(made.begin(), made.end());
+    for (const int id : std::as_const(made))
+        if (cited(id) && m_endnoteBlocks.contains(QString::number(id))) change.added.push_back({id, m_endnoteBlocks.value(QString::number(id))});
+    if (change.replaced.isEmpty() && change.removed.isEmpty() && change.added.isEmpty()) return;
+    const QByteArray original = m_endnotesPartNew ? QByteArray() : partData(m_endnotePart);
+    const QByteArray data = notesPartXml(original, true, change);
+    if (data.isEmpty()) return;
+    if (!m_endnotesPartNew) {
+        for (KeptPart &kept : out->parts)
+            if (kept.name.compare(m_endnotePart, Qt::CaseInsensitive) == 0) {
+                kept.data = data;
+                break;
+            }
+        return;
+    }
+    KeptPart kept;
+    kept.name = m_endnotePart;
+    kept.contentType = QString(kEndnotesType);
+    kept.data = data;
+    out->parts.push_back(kept);
+    Relationship r;
+    r.id = nextRelationshipId(out->mainRelationships);
+    r.type = QString(kEndnotesRel);
+    r.target = m_endnotePart;
+    out->mainRelationships.push_back(r);
+    KeptPart *settings = settingsPartFor(out);
+    settings->data = settingsWithNoteSeparators(settings->data, true);
 }
 
 } // namespace jp::write

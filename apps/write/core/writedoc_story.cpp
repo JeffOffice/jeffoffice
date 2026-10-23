@@ -609,7 +609,13 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
 {
     QVector<Block> prepared, overflow;
     // (A header's or footer's: the page shows, and the form it is edited in has, the same first part of it.)
-    if (editable) blocksForEditing(bodyIn, &prepared, &overflow);
+    if (editable && append) {
+        // (The endnotes the pages set are in the form the text is in, and no more than the pages set of them: what is shown is bounded by the most endnote paragraphs, not by a header's.)
+        int styleRefs = 0;
+        for (const Block &b : bodyIn) prepared.push_back(b.isRaw ? b : withFieldsAsAtoms(b, &styleRefs));
+    } else if (editable) {
+        blocksForEditing(bodyIn, &prepared, &overflow);
+    }
     else if (headerFooter && !append) boundedBlocks(bodyIn, &prepared, &overflow);
     const QVector<Block> &body = editable || (headerFooter && !append) ? prepared : bodyIn;
     const StyleSheet &sheet = m_wml.styles;
@@ -926,6 +932,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
             bf.setProperty(prop::EndnoteBlock, true);
             bf.clearProperty(prop::Outline);
             bf.clearProperty(tp::StyleName);
+            if (editable) {
+                // (A note's paragraph says which copy of its note it is of, and what its style is, which the copy does not carry: it is written back from those.)
+                bf.setProperty(prop::EndnoteStyle, styleId);
+                if (const int copy = blk.key.toInt()) bf.setProperty(prop::EndnoteNote, copy);
+            }
             // The file's separator for the endnotes (w:separator, in a paragraph of nothing else) is a rule two inches long, as the footnote separator is: the paragraph's lower edge, over the
             // first 144 points of the column.
             bool separator = false, text = false;
@@ -1181,6 +1192,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 }
                 continue;
             }
+            // (The rule of the notes' separator is its paragraph's border: the mark in it is no character of the pages' copy, which is not written back.)
+            if (append && in.kind == Inline::RunAtom && (in.tag == QLatin1String("separator") || in.tag == QLatin1String("continuationSeparator"))) continue;
             if (!deleted && advanceTop < 0)
                 if (const std::optional<double> asked = advanceTopOf(in)) advanceTop = *asked;
             QTextCharFormat af = formatOf(styleId, in.props);
@@ -1227,6 +1240,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 const QString shown = markFollows(in.raw) ? QString() : noteNumberText(endnoteFormats.value(blockNumber, m_endnoteFormat), deleted ? endnoteNumber + 1 : ++endnoteNumber);   // (a deleted one takes no number)
                 field = QStringLiteral("raw:") + shown;
                 if (!header && !deleted && m_endnoteRefs.size() < kMostEndnotes) m_endnoteRefs.push_back({in.key, shown, sectionNo, endnotesAtSectionEnd.value(blockNumber)});
+                if (!header && !append && !deleted && m_endnoteBlocks.contains(in.key)) m_endnotesCitedAtOpen.insert(in.key.toInt());
             }
             af.setProperty(tp::Field, field);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);

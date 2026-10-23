@@ -49,7 +49,11 @@ enum : int {
     JcRaw,                                    // QString: the alignment as the file wrote it, when it is a kind of justified ("distribute")
     OddTabs,                                  // QByteArray: tab stops of the paragraph's own that the engine has no kind for (a bar), packed (packTabs)
     EndnoteBlock,                             // bool: the paragraph is part of the document's endnotes, which the pages set after its last text (made from the endnotes part, which is kept as it is: it is not
-                                              // written, and can't be edited)
+                                              // written with the text, and no edit of the text reaches it)
+    EndnoteNote,                              // int, on the paragraphs of a note among those (EndnoteBlock too): which copy of a note it is of (a number of its own for each copy the pages
+                                              // set); positive for a copy whose words are edited in place, negative for a note cited again (the first copy is the note's: the rest are shown and not edited).
+                                              // None: the paragraphs of the separator
+    EndnoteStyle,                             // QString: the paragraph's style, which the pages' copy of an endnote does not carry (it takes no part in what the document's paragraphs are, by their styles)
 };
 }
 
