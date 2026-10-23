@@ -295,6 +295,25 @@ private Q_SLOTS:
         QVERIFY2(graph.buildWork() - work0 <= 80 * qint64(told), qPrintable(QStringLiteral("%1 steps to hold %2 formulas").arg(graph.buildWork() - work0).arg(told)));
     }
 
+    // A formula that names more places than the graph could ever hold (a block through a thousand sheets, with columns that make many nodes of the tree on each) is refused
+    // before its places are listed, and the graph is as it was.
+    void aFormulaThatNamesMoreThanTheGraphCouldHoldIsRefusedAtOnce()
+    {
+        DependencyGraph graph(100000);
+        QVERIFY(graph.setPrecedents(1, {cellArea(0, 5, 5)}));
+        CellArea through = blockArea(0, 0, 1, 1000, 16000);
+        through.sheet2 = 1023;
+        std::vector<CellArea> many(300, through);
+        QVERIFY(!graph.setPrecedents(2, many));
+        QVERIFY(graph.memoryBytes() <= 100000 + 4096);
+        std::vector<quint32> got;
+        graph.dependentsOfCell(0, 5, 5, &got);
+        QCOMPARE(asSet(got), (std::set<quint32>{1}));
+        got.clear();
+        graph.dependentsOfCell(1000, 5, 5, &got);
+        QVERIFY(got.empty());
+    }
+
     // Blocks that are wide are found by their columns as well as their rows: twenty thousand blocks of twelve columns that share their rows are not all looked at for a cell.
     void wideBlocksAreFoundByTheirColumnsToo()
     {

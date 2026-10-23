@@ -266,8 +266,9 @@ struct DependencyGraph::Impl {
         return n;
     }
 
-    // Where each of the areas goes. Returns how many of the places have no node yet.
-    qint64 placements(const std::vector<CellArea> &areas)
+    // Where each of the areas goes. Returns how many of the places have no node yet; -1 if they are more than `most` (a formula that names more than the graph could ever hold
+    // is refused before its places are listed, whatever the sheets and columns it names).
+    qint64 placements(const std::vector<CellArea> &areas, size_t most)
     {
         plan.clear();
         qint64 fresh = 0;
@@ -279,6 +280,7 @@ struct DependencyGraph::Impl {
             const quint32 last = std::min<quint32>(quint32(a.sheet2), quint32(a.sheet1) + kMaxSheetsOfABlock - 1);
             for (quint32 s = quint32(a.sheet1); s <= last; ++s)
                 for (int i = 0; i < n; ++i) {
+                    if (plan.size() >= most) return -1;
                     const quint32 key = nodeKey(levels[i], indices[i]);
                     plan.push_back({s, key, a.row1, a.row2});
                     if (s >= sheets.size() || sheets[s].nodes.find(key) == sheets[s].nodes.end()) ++fresh;
@@ -335,7 +337,8 @@ bool DependencyGraph::setPrecedents(Node node, const std::vector<CellArea> &area
     // what it will take: its place in the table of formulas, and its intervals (and the nodes of the tree that have none yet)
     size_t tableWant = g.rec.capacity();
     if (size_t(node) + 1 > g.rec.capacity()) tableWant = std::max<size_t>(size_t(node) + 1, g.rec.capacity() + g.rec.capacity() / 2);
-    const qint64 fresh = g.placements(areas);
+    const qint64 fresh = g.placements(areas, size_t(std::max<qint64>(1, m_max / kPlanItemBytes)));
+    if (fresh < 0) return false;
     const qint64 wanted = qint64(tableWant - g.rec.capacity()) * qint64(sizeof(Rec)) + qint64(g.plan.size()) * kPlanItemBytes + fresh * kStructureBytes;
     if (g.bytes + wanted > m_max) {
         // letting go of the dropped is done only if it gives back a sixteenth of what the graph may take at least, so that it is not done again for every formula: else the
