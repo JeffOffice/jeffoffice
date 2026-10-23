@@ -141,17 +141,23 @@ private Q_SLOTS:
         QVERIFY(b.calc->setValue(0, 0, 0, Value::number(5), Calculation::Marking::Later));
         QCOMPARE(b.calc->graph().queryWork(), queried);
         QCOMPARE(b.calc->dirtyCount(), qint64(0));
-        // the slices that follow: each stays near the work it is given (the one query of the cell is one step, as small as it can be made)
-        qint64 slices = 0, longest = 0, evaluated = 0;
+        // the slices that follow: each stays near the work it is given, but the one that makes the search for the readers of the cell (one step, as small as it can be made: what the graph gave is
+        // one query of that many); the marking of what it found, and the asking of the graph about each of the cells found (which read nothing here), go a chunk at a time
+        std::vector<qint64> jobs;
+        qint64 slices = 0, evaluated = 0;
         for (;;) {
             const Calculation::Progress p = b.calc->recalculate(500);
             ++slices;
-            longest = std::max(longest, p.work + p.jobItems);
+            jobs.push_back(p.jobItems);
+            QVERIFY2(p.work <= 500 + 1024, qPrintable(QString::number(p.work)));
             evaluated += p.evaluated;
             if (p.finished) break;
             QVERIFY(slices < 100000);
         }
+        std::sort(jobs.begin(), jobs.end());
         QVERIFY2(slices > 10, qPrintable(QString::number(slices)));
+        QVERIFY2(jobs.back() >= n - 1, qPrintable(QString::number(jobs.back())));                          // the search is one step
+        QVERIFY2(jobs[jobs.size() - 2] <= 500 + 1024, qPrintable(QString::number(jobs[jobs.size() - 2])));   // and no other slice goes over what it was given
         QCOMPARE(evaluated, qint64(n - 1));
         QCOMPARE(b.at("B20000"), QStringLiteral("n:20005"));
         QVERIFY(b.calc->graph().queryWork() >= queried + n - 1);

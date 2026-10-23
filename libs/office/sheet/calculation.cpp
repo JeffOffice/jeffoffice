@@ -635,9 +635,16 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
         j.changed.pop_back();
         j.found.clear();
         j.foundAt = 0;
-        if (a.single()) m_graph->dependentsOfCell(a.sheet1, a.row1, a.col1, &j.found);
-        else m_graph->dependentsOfArea(a, &j.found);
-        ck.next(j.found.size());   // (what the graph gave: a cell that very many formulas read is one query of that many, which is as small as the step can be made)
+        // (a stop ends the search where it is: it is made again, whole, when the calculation goes on; a cell that two hundred thousand formulas read is a search that long)
+        const bool whole = a.single() ? m_graph->dependentsOfCell(a.sheet1, a.row1, a.col1, &j.found, m_ctx.cancel) : m_graph->dependentsOfArea(a, &j.found, m_ctx.cancel);
+        if (!whole) {
+            j.found.clear();
+            j.changed.push_back(a);
+            return false;
+        }
+        // (what the graph gave: a cell that very many formulas read is one query of that many, which is as small as the step can be made. The slice may be over after it: the formulas it found are
+        // marked by the next, from where they are kept. The answer of this call is not to be dropped: it is the one place in the loop where a chunk ends, when the areas found have none.)
+        if (!ck.next(j.found.size())) return false;
     }
     ck.finish();
     m_dirtyCursor = 0;
@@ -1027,6 +1034,8 @@ Calculation::Progress Calculation::recalculateSlice(qint64 budget, const std::at
     // The slice is over when its time is, or when the work it was given is done: the steps that go a chunk at a time add what they do to `spent`, as a formula's steps are added to it, so
     // that a slice with a work budget is as bounded as one with a time (and a test can count it).
     const std::function<bool()> timeUp = [&] {
+        // (a stop asked for ends the step at its next chunk: a window that wants the calculation for an edit waits for a chunk, and not for the rest of the slice)
+        if (stopped()) return true;
         if (budget > 0 && spent >= budget) return true;
         return timeBudgetMicros > 0 && std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started).count() >= timeBudgetMicros;
     };

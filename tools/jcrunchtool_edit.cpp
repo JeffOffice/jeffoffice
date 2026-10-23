@@ -599,6 +599,7 @@ int editBench(const QString &pathIn, int edits, int rows, int cols, int readers)
         for (int i = 0; i < edits; ++i) targets.push_back(candidates[size_t(i) * candidates.size() / size_t(edits)]);
     }
     grid::GridView *v = w.view();
+    const bool noWait = !qEnvironmentVariableIsEmpty("JC_BENCH_NOWAIT");
     std::vector<double> commitCpu, paintCpu, totalCpu, totalWall, holdWait, workerCpu, allValues;
     qint64 dependentsMax = 0;
     for (size_t i = 0; i < targets.size(); ++i) {
@@ -636,9 +637,10 @@ int editBench(const QString &pathIn, int edits, int rows, int cols, int readers)
         totalWall.push_back(wallMs);
         holdWait.push_back(double(w.session()->lastHoldWaitMicros()) / 1000.0);
         // until every formula that depends has its value
+        // (JC_BENCH_NOWAIT: the next edit is made as soon as this one is drawn, with the worker still at work on what depends: the wait for it to let go is then what is measured)
         QElapsedTimer waiting;
         waiting.start();
-        while (w.isCalculating() && waiting.elapsed() < 120000) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+        while (!noWait && w.isCalculating() && waiting.elapsed() < 120000) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
         allValues.push_back(double(wall.nsecsElapsed()) / 1e6);
         workerCpu.push_back(double(w.workerCpuMicros() - workerBefore) / 1000.0);
         dependentsMax = std::max<qint64>(dependentsMax, w.batchesTaken());

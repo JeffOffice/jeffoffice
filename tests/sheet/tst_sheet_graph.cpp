@@ -360,6 +360,36 @@ private Q_SLOTS:
     }
 
     // The blocks a formula's references name, for the cell it is in (a shared formula moves its relative references; names of other sheets are bound).
+    // A cell that very many formulas read is one query of that many: with a flag that says stop, the query ends at its next check (every 4,096 formulas found) with some of the answer and says
+    // so, so that a caller that must stop soon does not wait for the whole of it; with no flag, or one that is not set, the answer is whole.
+    void aQueryCanBeStoppedWhereItIs()
+    {
+        const int n = 20000;
+        DependencyGraph g;
+        for (int i = 0; i < n; ++i) QVERIFY(g.setPrecedents(quint32(i), {cellArea(0, 5, 5)}));
+        std::vector<quint32> all;
+        QVERIFY(g.dependentsOfCell(0, 5, 5, &all));
+        QCOMPARE(int(all.size()), n);
+        std::atomic<bool> stop{false};
+        std::vector<quint32> whole;
+        QVERIFY(g.dependentsOfCell(0, 5, 5, &whole, &stop));
+        QCOMPARE(int(whole.size()), n);
+        stop = true;
+        std::vector<quint32> part;
+        const qint64 before = g.queryWork();
+        QVERIFY(!g.dependentsOfCell(0, 5, 5, &part, &stop));
+        QVERIFY2(part.size() >= 1 && part.size() <= 4096, qPrintable(QString::number(part.size())));
+        QVERIFY2(g.queryWork() - before < 4 * 4096, qPrintable(QString::number(g.queryWork() - before)));
+        // a block too
+        std::vector<quint32> blockPart;
+        QVERIFY(!g.dependentsOfArea(blockArea(0, 0, 0, 10, 10), &blockPart, &stop));
+        QVERIFY(blockPart.size() <= 4096);
+        stop = false;
+        std::vector<quint32> blockAll;
+        QVERIFY(g.dependentsOfArea(blockArea(0, 0, 0, 10, 10), &blockAll, &stop));
+        QCOMPARE(int(blockAll.size()), n);
+    }
+
     void theReferencesOfAProgramAreItsBlocks()
     {
         Grid g;
