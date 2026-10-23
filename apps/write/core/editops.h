@@ -44,6 +44,10 @@ void removeSelection(WriteDoc &doc, QTextCursor &c);
 // The tab key: a tab character, or a deeper (or shallower, with `back`) level in a list.
 void insertTab(WriteDoc &doc, QTextCursor &c, bool back);
 
+// Puts a field that shows the number of the page it is on (PAGE) where the cursor is, as one piece that is a single character of the story: the text typed beside it is
+// not in it, a delete takes all of it, and the characters of the text it is put in are its look.
+void insertPageNumber(WriteDoc &doc, QTextCursor &c);
+
 // ---- the clipboard
 // The selection as text and as a fragment that keeps its formats (null fragment when nothing is selected).
 QTextDocumentFragment selectionFragment(const QTextCursor &c);

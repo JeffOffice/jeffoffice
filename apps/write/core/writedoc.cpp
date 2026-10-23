@@ -33,7 +33,7 @@ QByteArray packSection(const SectionProps &s)
     d << s.type << qint32(s.pageW) << qint32(s.pageH) << s.orient << qint32(s.top) << qint32(s.right) << qint32(s.bottom) << qint32(s.left) << qint32(s.header)
       << qint32(s.footer) << qint32(s.gutter) << qint32(s.cols) << qint32(s.colSpace) << s.colSep << s.colEqual << qint32(s.colDefs.size());
     for (const ColumnDef &c : s.colDefs) d << qint32(c.width) << qint32(c.space);
-    d << qint32(s.pageStart.value_or(-1)) << s.pageFormat << s.titlePg << s.hasPgSz << s.hasPgMar << s.hasCols << s.attrs << packRaw(s.extra) << s.pgSzAttrs << s.pgMarAttrs << s.pgNumAttrs << s.colsAttrs;
+    d << qint32(s.pageStart.value_or(-1)) << s.pageFormat << s.titlePg << s.hasPgSz << s.hasPgMar << s.hasCols << s.attrs << packRaw(s.extra) << s.pgSzAttrs << s.pgMarAttrs << s.pgNumAttrs << s.colsAttrs << s.oddEvenHeaders;
     return out;
 }
 
@@ -64,6 +64,9 @@ SectionProps unpackSection(const QByteArray &packed)
     d >> start >> s.pageFormat >> s.titlePg >> s.hasPgSz >> s.hasPgMar >> s.hasCols >> s.attrs >> extra >> s.pgSzAttrs >> s.pgMarAttrs >> s.pgNumAttrs >> s.colsAttrs;
     if (start >= 0) s.pageStart = start;
     s.extra = unpackRaw(extra);
+    bool oddEven = false;
+    d >> oddEven;
+    s.oddEvenHeaders = d.status() == QDataStream::Ok && oddEven;
     return s;
 }
 
@@ -304,6 +307,8 @@ void WriteDoc::build(office::wml::Document &&doc)
     QVector<Block> body;
     body.swap(m_wml.body);
     m_last = m_wml.lastSection;
+    m_last.oddEvenHeaders = m_wml.evenAndOddHeaders;
+    m_oddEvenAtOpen = m_wml.evenAndOddHeaders;
     setUpEnvironment();
     loadNotes();
     loadEndnotes();
@@ -317,6 +322,7 @@ void WriteDoc::build(office::wml::Document &&doc)
     s->setModified(false);
     m_blockCount = s->blockCount();
     connect(s, &QTextDocument::contentsChange, this, &WriteDoc::storyChanged);
+    watchHistory(s);
 }
 
 void WriteDoc::setUpEnvironment()
@@ -422,7 +428,6 @@ QByteArray WriteDoc::partData(const QString &name, QString *contentType) const
     return {};
 }
 
-namespace {
 QString nextRelationshipId(const QVector<Relationship> &links)
 {
     QSet<QString> used;
@@ -430,7 +435,6 @@ QString nextRelationshipId(const QVector<Relationship> &links)
     for (int n = int(links.size()) + 1;; ++n)
         if (!used.contains(QStringLiteral("rId%1").arg(n))) return QStringLiteral("rId%1").arg(n);
 }
-} // namespace
 
 QString WriteDoc::addExternalLink(const QString &type, const QString &target)
 {
@@ -479,11 +483,18 @@ void WriteDoc::syncSections()
 {
     if (m_syncing) return;
     m_syncing = true;
+    bool oddEvenChanged = false;
     // The last section's properties are the first paragraph's, so that a change to them is one step of the text's undo.
     {
         const QByteArray bytes = storedBytes(story()->begin().blockFormat(), prop::LastSection);
         if (!bytes.isEmpty()) m_last = unpackSection(bytes);
         m_lastBytes = bytes;
+        // (Different headers on odd and even pages is the document's: the last section's record carries it, so that an undo brings it back.)
+        if (m_last.oddEvenHeaders != m_wml.evenAndOddHeaders) {
+            m_wml.evenAndOddHeaders = m_last.oddEvenHeaders;
+            for (flow::Section &section : m_flow->sections) section.differentOddEven = m_wml.evenAndOddHeaders;
+            oddEvenChanged = true;
+        }
     }
     // Each break paragraph's record of its section is a key of bytes; which sections changed is found from the keys, and only those are made again
     // (a document of twenty thousand sections is not unpacked at each Enter).
@@ -549,7 +560,13 @@ void WriteDoc::syncSections()
         }
     }
     m_sectionKeys = keys;
+    if (oddEvenChanged && !changed) {
+        // (Only the setting changed: every page may use another slot.)
+        if (m_pager) m_pager->invalidateFrom(0);
+        Q_EMIT sectionsChanged();
+    }
     if (changed) {
+        if (oddEvenChanged) from = 0;
         attachHeaders(from);
         if (m_pager) m_pager->invalidateFrom(from);
         Q_EMIT sectionsChanged();
@@ -558,9 +575,6 @@ void WriteDoc::syncSections()
 }
 
 namespace {
-// The most distinct header and footer parts that are read; a file with more has the rest left out (a section's reference to one shows nothing).
-constexpr int kMostHeaderParts = 64;
-
 // A header or footer as the text stands: the paragraphs whose marks a tracked change deleted, with nothing of their own to show, are gone. (Not the last
 // paragraph, which has no mark to join the next, nor one in a table.)
 void leaveOutDeletedParagraphs(QVector<Block> *blocks)
@@ -584,19 +598,28 @@ std::shared_ptr<QTextDocument> WriteDoc::headerStory(const QString &relationship
 {
     const Relationship rel = mainRelationship(relationshipId);
     if (rel.id.isEmpty() || rel.external) return nullptr;
-    const auto found = m_headerStories.constFind(rel.target);
-    if (found != m_headerStories.constEnd()) return found.value();
-    if (m_headerStories.size() >= kMostHeaderParts) return nullptr;
+    const auto found = m_headerParts.constFind(rel.target);
+    if (found != m_headerParts.constEnd()) return found.value().story;
+    if (m_headerParts.size() >= kMostHeaderParts) return nullptr;
     QVector<Block> blocks;
     auto doc = std::make_shared<QTextDocument>();
-    if (readBlocks(partData(rel.target), &blocks, true)) {
+    HeaderPart part;
+    part.name = rel.target;
+    part.footer = rel.type.endsWith(QLatin1String("/footer"));
+    part.story = doc;
+    part.relationship = rel.id;
+    if (readBlocks(partData(rel.target), &blocks, true, &part.rootStart)) {
         leaveOutDeletedParagraphs(&blocks);
         doc->setDocumentMargin(0);
         doc->setDefaultFont(story()->defaultFont());
         doc->setUndoRedoEnabled(false);
         fillStory(doc.get(), blocks, true, rel.target, true);
+    } else if (partExists(rel.target)) {
+        part.unreadable = true;
+    } else {
+        part.missing = true;
     }
-    m_headerStories.insert(rel.target, doc);
+    m_headerParts.insert(rel.target, part);
     return doc;
 }
 

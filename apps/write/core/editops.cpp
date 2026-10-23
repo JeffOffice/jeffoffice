@@ -1090,6 +1090,33 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
     c.endEditBlock();
 }
 
+void insertPageNumber(WriteDoc &doc, QTextCursor &c)
+{
+    if (!intoBody(c)) return;
+    if (isLocked(c.block()) && !c.hasSelection()) return;
+    // The field as the file has it: its begin mark, code, separator, result (the number 1), and end mark. The look of its runs is the atom's.
+    office::wml::Inline field;
+    field.kind = office::wml::Inline::ParaAtom;
+    field.role = office::wml::Inline::Single;
+    field.tag = office::wml::kFieldGroupTag;
+    field.raw = "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>"
+                "<w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+    field.key = liveFieldFor(QStringLiteral(" PAGE "));
+    field.display = QStringLiteral("1");
+    std::optional<NumberGuard> numbers;
+    if (c.hasSelection()) numbers.emplace(doc, c.document());
+    QTextCursor edit = c;
+    edit.beginEditBlock();
+    if (edit.hasSelection()) removeSelection(doc, edit);
+    settleBesideDeletions(edit);
+    QTextCharFormat f = typingFormat(edit);
+    setStored(f, prop::Atom, packAtom(field));
+    f.setProperty(tp::Field, field.key);
+    edit.insertText(QString(QChar::ObjectReplacementCharacter), f);
+    edit.endEditBlock();
+    c = edit;
+}
+
 void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment)
 {
     if (!intoBody(c)) return;
