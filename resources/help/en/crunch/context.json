@@ -1,0 +1,9 @@
+{
+  "tab:Home": "start",
+  "tab:Insert": "start",
+  "tab:Formulas": "formulas",
+  "tab:View": "view",
+  "pane:help": "index",
+  "file:open": "open-save",
+  "file:about": "start"
+}

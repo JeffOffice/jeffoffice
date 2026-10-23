@@ -57,6 +57,17 @@ constexpr qint64 kMaxSharedStringChars = 50000000;
 constexpr qint64 kMaxNumFmts = 100000;
 constexpr qint64 kMaxCellXfs = 1000000;
 constexpr qint64 kMaxNumFmtChars = 4000000;
+// Fonts, fills, and borders in the styles (cell formats have their own limit above). A font's name is 31 characters at the most in the format; 255 are kept, so that a styles part
+// of a hundred thousand fonts each with a name of a million characters holds no more than the 4 GB budget says (the fonts take 50 MB at the most).
+constexpr qint64 kMaxFonts = 100000;
+constexpr int kMaxFontNameChars = 255;
+constexpr qint64 kMaxFills = 100000;
+constexpr qint64 kMaxBorders = 100000;
+// `col` elements in one sheet (the columns that hold one each are 16,384 at the most), rows kept as not the default (a sheet has 1,048,576 rows; one a file names more
+// than once counts each time), and merged ranges.
+constexpr qint64 kMaxColumnSpans = 163840;
+constexpr qint64 kMaxRowSpecs = 2097152;
+constexpr qint64 kMaxMerges = 1000000;
 // Defined names in a workbook (3,295 found), and the characters of all their names and what they stand for (a name stands for 4,553 characters at the most).
 constexpr qint64 kMaxDefinedNames = 100000;
 constexpr qint64 kMaxDefinedNameChars = 20000000;
@@ -75,6 +86,12 @@ struct Limits {
     qint64 numFmts = kMaxNumFmts;
     qint64 cellXfs = kMaxCellXfs;
     qint64 numFmtChars = kMaxNumFmtChars;
+    qint64 fonts = kMaxFonts;
+    qint64 fills = kMaxFills;
+    qint64 borders = kMaxBorders;
+    qint64 columnSpans = kMaxColumnSpans;
+    qint64 rowSpecs = kMaxRowSpecs;
+    qint64 merges = kMaxMerges;
     qint64 definedNames = kMaxDefinedNames;
     qint64 definedNameChars = kMaxDefinedNameChars;
 };
@@ -106,6 +123,8 @@ struct WorkbookInfo {
     CalcMode calcMode = CalcMode::Auto;
     bool fullCalcOnLoad = false;
     bool iterate = false;   // the workbook asks for iterative calculation (circular references are worked out by going round them)
+    int activeTab = 0;      // the sheet (from 0, in the order the workbook has them) that was open when it was saved
+    int firstSheet = 0;     // the first tab of the row of tabs that shows
 };
 
 // Reads the workbook part. Each sheet has its name, id, state, and the Id of
@@ -124,6 +143,13 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
 
 struct ReadOptions {
     Limits limits;
+    // Stops, with no error, at the first row after this one (counted from 0): the sheet has the cells read so far, and `partial` says so. -1 reads it all. The
+    // first screen of a large sheet is the rows it shows, read in a moment, and the rest is read afterwards.
+    qint64 stopAfterRow = -1;
+    // If above 0: reads what the sheet's view shows, and stops (with `partial`): the view's frozen rows, and this many rows from where the part that scrolls begins (not the first rows
+    // of the sheet, which a view that was scrolled far has left behind; the cells of the rows between are not kept, but their heights are). A sheet whose view comes after its cells,
+    // or says nothing, begins at its first row.
+    qint64 screenRows = 0;
     DateSystem dateSystem = DateSystem::Date1900;   // for the cells of type "d", written as dates
     // Called after every 4,096 cells, with how many have been read; false
     // stops the read (the sheet's error says it was stopped).
@@ -155,7 +181,9 @@ public:
     QString stylesError() const { return m_stylesError; }
     // Reads sheet `index`. A sheet of a chart, and one with no relationship to a part, is read as an empty sheet; false, with the sheet's error saying why, if
     // there is no such sheet or its part is missing, or if the part could not be read whole.
-    bool readSheet(int index, Sheet *out, const std::function<bool(qint64)> &progress = nullptr) const;
+    // `stopAfterRow` (from 0) reads only the rows up to it, and the sheet says it is `partial` (ReadOptions::stopAfterRow); -1 reads it all.
+    // `screenRows` reads what the view shows, from where it begins (ReadOptions::screenRows).
+    bool readSheet(int index, Sheet *out, const std::function<bool(qint64)> &progress = nullptr, qint64 stopAfterRow = -1, qint64 screenRows = 0) const;
     const Package &package() const { return m_package; }
 
 private:

@@ -185,6 +185,12 @@ qt_add_executable(sheettests
   tests/testrunner.cpp
   tests/sheet/sheethelpers.cpp
   tests/sheet/calchelpers.cpp
+  tests/sheet/tst_grid_axis.cpp
+  tests/sheet/tst_grid_cells.cpp
+  tests/sheet/tst_grid_layout.cpp
+  tests/sheet/tst_grid_paint.cpp
+  tests/sheet/tst_grid_select.cpp
+  tests/sheet/tst_grid_view.cpp
   tests/sheet/tst_sheet_bounds.cpp
   tests/sheet/tst_sheet_calculation.cpp
   tests/sheet/tst_sheet_cells.cpp
@@ -200,12 +206,13 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_graph.cpp
   tests/sheet/tst_sheet_formulas.cpp
   tests/sheet/tst_sheet_limits.cpp
+  tests/sheet/tst_sheet_look.cpp
   tests/sheet/tst_sheet_numfmt.cpp
   tests/sheet/tst_sheet_package.cpp
   tests/sheet/tst_sheet_parser.cpp
   tests/sheet/tst_sheet_recalc.cpp
   tests/sheet/tst_sheet_workbook.cpp)
-target_link_libraries(sheettests PRIVATE jo_office Qt6::Test)
+target_link_libraries(sheettests PRIVATE jo_shell Qt6::Test)
 set_target_properties(sheettests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME sheettests COMMAND sheettests)
 set_tests_properties(sheettests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
@@ -364,6 +371,62 @@ add_test(NAME writetests COMMAND writetests)
 set_tests_properties(writetests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
 
+# JeffCrunch, the spreadsheet app: like JeffWrite, everything except main() is a library its tests link. It reads workbooks in libs/office/sheet, works their formulas out
+# with libs/base/calc, and shows them through the grid of libs/shell/grid. -DJP_BUILD_CRUNCH=OFF builds the rest without it.
+option(JP_BUILD_CRUNCH "Build JeffCrunch" ON)
+if(JP_BUILD_CRUNCH)
+file(GLOB_RECURSE JC_SOURCES CONFIGURE_DEPENDS apps/crunch/*.cpp apps/crunch/*.h)
+list(REMOVE_ITEM JC_SOURCES ${CMAKE_SOURCE_DIR}/apps/crunch/main.cpp)
+add_library(jccore STATIC ${JC_SOURCES} apps/crunch/resources/crunch.qrc)
+target_include_directories(jccore PUBLIC apps/crunch)
+target_link_libraries(jccore PUBLIC jo_page)
+qt_add_executable(jeffcrunch WIN32 MACOSX_BUNDLE apps/crunch/main.cpp)
+if(APPLE)
+  # As JeffWrite's: an icon from its 256-pixel picture, document types (the formats it opens, never as their default), and the fonts
+  # and dictionaries in Contents/Resources.
+  set(JC_ICONSET ${CMAKE_BINARY_DIR}/JeffCrunch.iconset)
+  set(JC_ICNS ${CMAKE_BINARY_DIR}/JeffCrunch.icns)
+  set(JC_PNG ${CMAKE_SOURCE_DIR}/apps/crunch/resources/app.png)
+  add_custom_command(OUTPUT ${JC_ICNS}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${JC_ICONSET}
+    COMMAND sips -z 16 16 ${JC_PNG} --out ${JC_ICONSET}/icon_16x16.png
+    COMMAND sips -z 32 32 ${JC_PNG} --out ${JC_ICONSET}/icon_16x16@2x.png
+    COMMAND sips -z 32 32 ${JC_PNG} --out ${JC_ICONSET}/icon_32x32.png
+    COMMAND sips -z 64 64 ${JC_PNG} --out ${JC_ICONSET}/icon_32x32@2x.png
+    COMMAND sips -z 128 128 ${JC_PNG} --out ${JC_ICONSET}/icon_128x128.png
+    COMMAND sips -z 256 256 ${JC_PNG} --out ${JC_ICONSET}/icon_128x128@2x.png
+    COMMAND sips -z 256 256 ${JC_PNG} --out ${JC_ICONSET}/icon_256x256.png
+    COMMAND iconutil -c icns ${JC_ICONSET} -o ${JC_ICNS}
+    DEPENDS ${JC_PNG}
+    VERBATIM)
+  set_source_files_properties(${JC_ICNS} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+  target_sources(jeffcrunch PRIVATE ${JC_ICNS})
+  set_target_properties(jeffcrunch PROPERTIES
+    MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/packaging/macos/JeffCrunch-Info.plist.in
+    MACOSX_BUNDLE_GUI_IDENTIFIER com.jeffoffice.jeffcrunch
+    MACOSX_BUNDLE_ICON_FILE JeffCrunch.icns
+    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
+    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
+  add_custom_command(TARGET jeffcrunch POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/fonts $<TARGET_BUNDLE_CONTENT_DIR:jeffcrunch>/Resources/fonts
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/dict $<TARGET_BUNDLE_CONTENT_DIR:jeffcrunch>/Resources/dict
+    VERBATIM)
+endif()
+if(WIN32)
+  target_sources(jeffcrunch PRIVATE apps/crunch/resources/app.rc)
+endif()
+target_link_libraries(jeffcrunch PRIVATE jccore)
+set_target_properties(jeffcrunch PROPERTIES OUTPUT_NAME JeffCrunch)
+# The tests of the window (the grid's own are in sheettests).
+qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp tests/sheet/sheethelpers.cpp)
+target_link_libraries(crunchtests PRIVATE jccore Qt6::Test)
+target_include_directories(crunchtests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
+target_compile_definitions(crunchtests PRIVATE JC_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+set_target_properties(crunchtests PROPERTIES WIN32_EXECUTABLE OFF)
+add_test(NAME crunchtests COMMAND crunchtests)
+set_tests_properties(crunchtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()
+
 # Translations of the apps' own text, one set for the suite. `cmake --build
 # build --target jeffoffice_lupdate` gathers every string marked for
 # translation (tr(), QCoreApplication::translate()) in the shared libraries,
@@ -380,6 +443,9 @@ if(JP_BUILD_DECK)
 endif()
 if(JP_BUILD_WRITE)
   list(APPEND JP_LUPDATE_TARGETS jwcore jeffwrite)
+endif()
+if(JP_BUILD_CRUNCH)
+  list(APPEND JP_LUPDATE_TARGETS jccore jeffcrunch)
 endif()
 if(Qt6LinguistTools_FOUND)
   file(GLOB JP_TRANSLATIONS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/translations/jeffoffice_*.ts)
@@ -438,6 +504,12 @@ qt_add_executable(jcrunchtool tools/jcrunchtool.cpp)
 target_link_libraries(jcrunchtool PRIVATE jo_office)
 target_compile_definitions(jcrunchtool PRIVATE JCRUNCH_TOOLS_DIR="${CMAKE_SOURCE_DIR}/tools")
 set_target_properties(jcrunchtool PROPERTIES WIN32_EXECUTABLE OFF)
+if(JP_BUILD_CRUNCH)
+  # Its grid commands (how fast a workbook is on the screen, and a sweep of a list of workbooks through the grid model) use the window's parts.
+  target_sources(jcrunchtool PRIVATE tools/jcrunchtool_grid.cpp)
+  target_link_libraries(jcrunchtool PRIVATE jccore)
+  target_compile_definitions(jcrunchtool PRIVATE JC_GRID=1)
+endif()
 
 # Developer tool for rendering and converting publications from the command line.
 qt_add_executable(jpubtool tools/jpubtool.cpp)

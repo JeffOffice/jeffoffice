@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/crunch">
+        <file>ribbon.json</file>
+    </qresource>
+</RCC>

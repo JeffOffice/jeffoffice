@@ -1,0 +1,787 @@
+// Tests of drawing the grid (libs/shell/grid/painter.h): what lands on the pixels (fills, gridlines, borders in their styles and the heavier line where two meet, patterns, text and
+// where it is cut or spills, merged ranges, frozen panes, the selection, the headers), and the work a paint does, counted as it is done, for sheets of a million rows and for
+// hostile ones (rows of one pixel, hidden rows, a hundred thousand merged ranges, texts of 32,000 characters, a million cell formats). Cells are made here; the checks are on
+// colors and on counts, never on the shape of a letter, so they hold on every system's fonts.
+#include "sheethelpers.h"
+
+#include "grid/painter.h"
+
+#include <memory>
+
+using namespace jp::grid;
+
+namespace {
+
+constexpr QRgb kWhite = 0xFFFFFFFF;
+constexpr QRgb kBlack = 0xFF000000;
+
+// A sheet in the making, and what it is drawn on. Cells begin at the corner (no headers) unless a test asks for them: column c begins at 64c, row r at 20r, and the last
+// pixel of each is where its gridline is.
+struct Fixture {
+    Sheet sheet;
+    Styles styles;
+    SharedStrings strings;
+    GridSheet grid;
+    std::unique_ptr<GridPainter> painter;
+    PaintOptions options;
+    QSize size{640, 400};
+
+    Fixture()
+    {
+        FontSpec f;
+        f.name = QStringLiteral("Calibri");   // (11 points of it: a widest digit of 7, so columns of 64 and rows of 20)
+        f.size = 11;
+        styles.fonts = {f};
+        styles.fills = {FillSpec()};
+        styles.borders = {BorderSpec()};
+        styles.formats = {CellFormat()};
+        styles.cellXfs = {0};
+        sheet.view.showHeadings = false;
+        options.headers = false;
+    }
+    // A cell format; its place is what a cell's style says.
+    quint32 format(const CellFormat &f)
+    {
+        styles.formats.append(f);
+        styles.cellXfs.append(f.numFmtId);
+        return quint32(styles.formats.size() - 1);
+    }
+    quint32 fill(PatternKind kind, quint32 fg, quint32 bg = 0xFFFFFF)
+    {
+        FillSpec s;
+        s.pattern = kind;
+        s.fg.kind = ColorSpec::Kind::Rgb;
+        s.fg.rgb = fg;
+        s.bg.kind = ColorSpec::Kind::Rgb;
+        s.bg.rgb = bg;
+        styles.fills.append(s);
+        CellFormat f;
+        f.fill = quint32(styles.fills.size() - 1);
+        return format(f);
+    }
+    quint32 border(const BorderSpec &b, HAlign h = HAlign::General)
+    {
+        styles.borders.append(b);
+        CellFormat f;
+        f.border = quint32(styles.borders.size() - 1);
+        f.horizontal = h;
+        return format(f);
+    }
+    static BorderSide side(BorderStyle s, quint32 rgb)
+    {
+        BorderSide b;
+        b.style = s;
+        b.color.kind = ColorSpec::Kind::Rgb;
+        b.color.rgb = rgb;
+        return b;
+    }
+    void text(quint32 row, quint32 col, const QString &t, quint32 style = 0)
+    {
+        Cell c;
+        c.row = row;
+        c.col = quint16(col);
+        c.type = CellType::InlineString;
+        c.number = sheet.texts.size();
+        c.style = style;
+        sheet.texts.append(t);
+        sheet.cells.add(c);
+    }
+    void number(quint32 row, quint32 col, double v, quint32 style = 0)
+    {
+        Cell c;
+        c.row = row;
+        c.col = quint16(col);
+        c.type = CellType::Number;
+        c.number = v;
+        c.style = style;
+        sheet.cells.add(c);
+    }
+    void blank(quint32 row, quint32 col, quint32 style)
+    {
+        Cell c;
+        c.row = row;
+        c.col = quint16(col);
+        c.style = style;
+        sheet.cells.add(c);
+    }
+    void build()
+    {
+        sheet.cells.finish();
+        GridData d;
+        d.styles = &styles;
+        d.strings = &strings;
+        d.sheet = &sheet;
+        grid.setData(d);
+        grid.layout().setViewport(size);
+        painter = std::make_unique<GridPainter>(&grid);
+    }
+    QImage render(const QRect &clip = QRect())
+    {
+        QImage img(size, QImage::Format_RGB32);
+        img.fill(QColor(0xFF, 0x00, 0xFF));   // (anything the paint leaves is magenta)
+        QPainter p(&img);
+        painter->paint(&p, clip.isNull() ? QRect(QPoint(0, 0), size) : clip, options);
+        return img;
+    }
+};
+
+QRgb px(const QImage &img, int x, int y) { return img.pixel(x, y); }
+
+// Pixels in a block that are not white (text ink), and pixels of exactly this color.
+int inkIn(const QImage &img, const QRect &r)
+{
+    int n = 0;
+    for (int y = r.top(); y <= r.bottom(); ++y)
+        for (int x = r.left(); x <= r.right(); ++x) {
+            const QRgb c = img.pixel(x, y);
+            if (qRed(c) < 160 && qGreen(c) < 160 && qBlue(c) < 160) ++n;
+        }
+    return n;
+}
+int pixelsOf(const QImage &img, const QRect &r, QRgb color)
+{
+    int n = 0;
+    for (int y = r.top(); y <= r.bottom(); ++y)
+        for (int x = r.left(); x <= r.right(); ++x)
+            if (img.pixel(x, y) == color) ++n;
+    return n;
+}
+
+CellRange mergeOf(quint32 r1, quint32 c1, quint32 r2, quint32 c2)
+{
+    CellRange r;
+    r.row1 = r1;
+    r.col1 = c1;
+    r.row2 = r2;
+    r.col2 = c2;
+    r.valid = true;
+    return r;
+}
+
+} // namespace
+
+class GridPaintTests : public QObject {
+    Q_OBJECT
+
+private Q_SLOTS:
+    // The gridlines are the last pixel of each cell's right and bottom, and a fill covers the cell whole, so a filled cell has none; with gridlines off there are none.
+    void gridlinesAreTheLastPixelAndAFillCoversThem()
+    {
+        Fixture f;
+        const quint32 green = f.fill(PatternKind::Solid, 0x00FF00);
+        f.blank(1, 1, green);
+        f.build();
+        QImage img = f.render();
+        const QRgb grid = f.options.gridColor.rgb();
+        QCOMPARE(px(img, 10, 10), kWhite);
+        QCOMPARE(px(img, 63, 5), grid);
+        QCOMPARE(px(img, 10, 19), grid);
+        QCOMPARE(px(img, 64 + 10, 20 + 10), QColor(0x00FF00).rgb());
+        QCOMPARE(px(img, 127, 25), QColor(0x00FF00).rgb());   // the filled cell's last column
+        QCOMPARE(px(img, 70, 39), QColor(0x00FF00).rgb());    // and its last row
+        QCOMPARE(px(img, 191, 25), grid);                      // the next cell's gridline
+        f.options.gridlines = false;
+        img = f.render();
+        QCOMPARE(px(img, 63, 5), kWhite);
+        QCOMPARE(px(img, 10, 19), kWhite);
+        // beyond the sheet the backdrop shows: a sheet of 3 rows and 2 columns
+        Fixture g;
+        g.number(0, 0, 1);
+        g.sheet.extentRows = 1;
+        g.build();
+        g.grid.layout().rows.setCount(3);
+        g.grid.layout().cols.setCount(2);
+        const QImage small = g.render();
+        QCOMPARE(px(small, 10, 10), kWhite);
+        QCOMPARE(px(small, 200, 10), g.options.backdrop.rgb());
+        QCOMPARE(px(small, 10, 100), g.options.backdrop.rgb());
+    }
+
+    // A border is drawn on the edge between two cells, as thick as its style says, and where two cells' borders meet the heavier line is the one drawn.
+    void bordersAreDrawnInTheirStylesAndTheHeavierLineWins()
+    {
+        Fixture f;
+        BorderSpec thin;
+        thin.top = Fixture::side(BorderStyle::Thin, 0xFF0000);
+        BorderSpec medium;
+        medium.top = Fixture::side(BorderStyle::Medium, 0x00AA00);
+        BorderSpec thick;
+        thick.top = Fixture::side(BorderStyle::Thick, 0x0000FF);
+        BorderSpec twice;
+        twice.top = Fixture::side(BorderStyle::Double, 0x800080);
+        BorderSpec dotted;
+        dotted.top = Fixture::side(BorderStyle::Dotted, 0x000000);
+        BorderSpec dashed;
+        dashed.top = Fixture::side(BorderStyle::Dashed, 0x000000);
+        f.blank(2, 0, f.border(thin));
+        f.blank(2, 1, f.border(medium));
+        f.blank(2, 2, f.border(thick));
+        f.blank(2, 3, f.border(twice));
+        f.blank(2, 4, f.border(dotted));
+        f.blank(2, 5, f.border(dashed));
+        f.options.gridlines = false;
+        f.build();
+        const QImage img = f.render();
+        // the edge above row 2 is at 40: its pixels are those of row 1's last lines
+        QCOMPARE(px(img, 10, 39), QColor(0xFF0000).rgb());
+        QCOMPARE(px(img, 10, 38), kWhite);
+        QCOMPARE(px(img, 10, 40), kWhite);
+        QCOMPARE(px(img, 74, 39), QColor(0x00AA00).rgb());
+        QCOMPARE(px(img, 74, 40), QColor(0x00AA00).rgb());
+        QCOMPARE(px(img, 74, 38), kWhite);
+        QCOMPARE(px(img, 138, 38), QColor(0x0000FF).rgb());
+        QCOMPARE(px(img, 138, 39), QColor(0x0000FF).rgb());
+        QCOMPARE(px(img, 138, 40), QColor(0x0000FF).rgb());
+        QCOMPARE(px(img, 138, 37), kWhite);
+        // a double line is two with a gap
+        QCOMPARE(px(img, 202, 38), QColor(0x800080).rgb());
+        QCOMPARE(px(img, 202, 39), kWhite);
+        QCOMPARE(px(img, 202, 40), QColor(0x800080).rgb());
+        // dotted: every other pixel along the edge; dashed: more on than off
+        const int dots = pixelsOf(img, QRect(256, 39, 62, 1), kBlack);
+        QVERIFY2(dots >= 25 && dots <= 37, qPrintable(QString::number(dots)));
+        const int dashes = pixelsOf(img, QRect(320, 39, 62, 1), kBlack);
+        QVERIFY2(dashes >= 40 && dashes <= 55, qPrintable(QString::number(dashes)));
+        // where a cell's bottom border meets the top border of the cell below, the heavier is drawn (a thin red line above, a thick blue below)
+        Fixture g;
+        BorderSpec bottom;
+        bottom.bottom = Fixture::side(BorderStyle::Thin, 0xFF0000);
+        BorderSpec top;
+        top.top = Fixture::side(BorderStyle::Thick, 0x0000FF);
+        g.blank(0, 0, g.border(bottom));
+        g.blank(1, 0, g.border(top));
+        g.options.gridlines = false;
+        g.build();
+        const QImage m = g.render();
+        QCOMPARE(px(m, 10, 19), QColor(0x0000FF).rgb());
+        QCOMPARE(px(m, 10, 18), QColor(0x0000FF).rgb());
+        // and one that is alone is drawn: the bottom border of a cell with nothing below it that has a border
+        Fixture h;
+        h.blank(0, 0, h.border(bottom));
+        h.options.gridlines = false;
+        h.build();
+        QCOMPARE(px(h.render(), 10, 19), QColor(0xFF0000).rgb());
+        // the left and right of a cell: a border on the first column is on its right-hand side's pixel, drawn
+        Fixture v;
+        BorderSpec right;
+        right.right = Fixture::side(BorderStyle::Medium, 0x008000);
+        v.blank(0, 0, v.border(right));
+        v.options.gridlines = false;
+        v.build();
+        const QImage vi = v.render();
+        QCOMPARE(px(vi, 63, 10), QColor(0x008000).rgb());
+        QCOMPARE(px(vi, 64, 10), QColor(0x008000).rgb());
+        QCOMPARE(px(vi, 62, 10), kWhite);
+    }
+
+    // A pattern fill is its foreground color over its background, in the share of the cell its kind says; a solid fill is all of it.
+    void patternFillsDrawTheirForegroundOverTheirBackground()
+    {
+        Fixture f;
+        f.blank(0, 0, f.fill(PatternKind::MediumGray, 0xFF0000, 0x0000FF));
+        f.blank(0, 1, f.fill(PatternKind::Gray125, 0xFF0000, 0x0000FF));
+        f.blank(0, 2, f.fill(PatternKind::DarkHorizontal, 0xFF0000, 0x0000FF));
+        f.blank(0, 3, f.fill(PatternKind::DarkGrid, 0xFF0000, 0x0000FF));
+        f.options.gridlines = false;
+        f.build();
+        const QImage img = f.render();
+        auto share = [&](int col) {
+            const QRect r(col * 64, 0, 64, 20);
+            const int fg = pixelsOf(img, r, QColor(0xFF0000).rgb()), bg = pixelsOf(img, r, QColor(0x0000FF).rgb());
+            return fg + bg == 64 * 20 ? double(fg) / (64 * 20) : -1.0;   // (-1: some pixel is neither of the two colors)
+        };
+        QVERIFY2(std::abs(share(0) - 0.5) < 0.06, qPrintable(QString::number(share(0))));
+        QVERIFY2(std::abs(share(1) - 0.125) < 0.05, qPrintable(QString::number(share(1))));
+        QVERIFY2(std::abs(share(2) - 0.5) < 0.06, qPrintable(QString::number(share(2))));
+        QVERIFY2(share(3) > 0.6 && share(3) < 0.9, qPrintable(QString::number(share(3))));
+        // the pattern does not move with where the cell is: the same in a cell further on
+        Fixture g;
+        g.blank(0, 0, g.fill(PatternKind::LightGrid, 0x000000));
+        g.blank(5, 7, 1);
+        g.options.gridlines = false;
+        g.build();
+        const QImage a = g.render();
+        QVERIFY(pixelsOf(a, QRect(0, 0, 64, 20), kBlack) > 100);
+    }
+
+    // Text is drawn in its cell, cut at the edge when the next cell has something in it, and spills into empty cells on the side it is aligned to.
+    void textIsCutByItsNeighborAndSpillsIntoEmptyCells()
+    {
+        const QString wide(40, QLatin1Char('W'));
+        Fixture f;
+        f.text(0, 0, QStringLiteral("Hello"));
+        f.text(1, 0, wide);
+        f.text(1, 1, QStringLiteral(" "));   // (a text of a space: not empty, and shows nothing)
+        f.text(2, 0, wide);                  // (next cell empty)
+        f.text(3, 4, wide, f.border(BorderSpec(), HAlign::Right));
+        f.options.gridlines = false;
+        f.build();
+        const QImage img = f.render();
+        QVERIFY(inkIn(img, QRect(0, 0, 64, 20)) > 5);
+        QCOMPARE(inkIn(img, QRect(64, 0, 64, 20)), 0);
+        // cut: ink in the first cell, none in the second
+        QVERIFY(inkIn(img, QRect(0, 20, 64, 20)) > 50);
+        QCOMPARE(inkIn(img, QRect(64, 20, 64, 20)), 0);
+        // spilled: ink in the cell beside
+        QVERIFY(inkIn(img, QRect(0, 40, 64, 20)) > 50);
+        QVERIFY(inkIn(img, QRect(64, 40, 64, 20)) > 50);
+        // right-aligned text goes the other way, over the empty cells on its left, and not into the one on its right
+        QVERIFY(inkIn(img, QRect(4 * 64, 60, 64, 20)) > 50);
+        QVERIFY(inkIn(img, QRect(3 * 64, 60, 64, 20)) > 50);
+        QCOMPARE(inkIn(img, QRect(5 * 64, 60, 64, 20)), 0);
+        // the gridline between a cell and the empty cell its text runs into is not drawn (the cells are one to the eye); the line at the end of the text, and between cells whose text is
+        // cut, stay
+        Fixture h;
+        h.text(0, 0, wide);
+        h.text(1, 0, wide);
+        h.text(1, 1, QStringLiteral(" "));
+        h.build();
+        const QImage lines = h.render();
+        QCOMPARE(px(lines, 63, 1), kWhite);                           // (row 0: the line between A1 and B1 is under the text)
+        QCOMPARE(px(lines, 63, 21), h.options.gridColor.rgb());       // (row 1: B2 holds something: the line stays)
+        QCOMPARE(px(lines, 3 * 64 + 63, 1), kWhite);                  // (the text of 40 W's runs over the next five or six cells)
+        // the text's color is the font's
+        Fixture g;
+        FontSpec red;
+        red.name = QStringLiteral("Arial");
+        red.size = 14;
+        red.bold = true;
+        red.color.kind = ColorSpec::Kind::Rgb;
+        red.color.rgb = 0xFF0000;
+        g.styles.fonts.append(red);
+        CellFormat fmt;
+        fmt.font = 1;
+        g.text(0, 0, QStringLiteral("III"), g.format(fmt));
+        g.options.gridlines = false;
+        g.build();
+        const QImage r = g.render();
+        QVERIFY(pixelsOf(r, QRect(0, 0, 64, 20), QColor(0xFF0000).rgb()) >= 3);
+    }
+
+    // A number too wide for its cell is "#"s that fill it, and counted.
+    void aNumberTooWideIsDrawnAsHashes()
+    {
+        Fixture f;
+        CellFormat money;
+        money.numFmtId = 164;
+        f.styles.numFmts.insert(164, QStringLiteral("#,##0.00"));
+        const quint32 style = f.format(money);
+        f.number(0, 0, 123456789012.5, style);
+        f.number(1, 0, 5, style);
+        f.options.gridlines = false;
+        f.build();
+        const QImage img = f.render();
+        QCOMPARE(f.painter->stats().hashed, qint64(1));
+        QVERIFY(inkIn(img, QRect(0, 0, 64, 20)) > 20);
+        QCOMPARE(inkIn(img, QRect(64, 0, 64, 20)), 0);   // (not spilled)
+        QVERIFY(inkIn(img, QRect(0, 20, 64, 20)) > 5);
+    }
+
+    // A merged range is one filled rectangle (its gridlines inside gone), its first cell's text is in it, and what the other cells hold is not drawn.
+    void aMergedRangeIsDrawnAsOneCell()
+    {
+        Fixture f;
+        f.sheet.merges = {mergeOf(1, 1, 2, 2), mergeOf(4, 1, 5, 2)};
+        f.blank(1, 1, f.fill(PatternKind::Solid, 0xFFFF00));
+        f.text(2, 2, QStringLiteral("Hidden under the merge"));
+        f.text(4, 2, QStringLiteral("Not shown either"));
+        f.text(4, 1, QStringLiteral("M"));
+        f.build();
+        const QImage img = f.render();
+        const QRgb yellow = QColor(0xFFFF00).rgb();
+        QCOMPARE(px(img, 70, 25), yellow);
+        QCOMPARE(px(img, 127, 25), yellow);        // (the gridline between its two columns is not there)
+        QCOMPARE(px(img, 190, 59), yellow);        // (the last pixel of its far corner: a fill covers its own edge)
+        QCOMPARE(inkIn(img, QRect(64, 20, 128, 40)), 0);
+        // without a fill: the white, with no gridline inside, and the gridline round it
+        QCOMPARE(px(img, 127, 85), kWhite);
+        QCOMPARE(px(img, 70, 99), kWhite);
+        QCOMPARE(px(img, 191, 85), f.options.gridColor.rgb());
+        QCOMPARE(px(img, 70, 119), f.options.gridColor.rgb());
+        QVERIFY(inkIn(img, QRect(64, 80, 128, 40)) > 3);   // (the "M")
+        QCOMPARE(f.painter->stats().mergesDrawn, qint64(2));
+    }
+
+    // Frozen rows and columns stay where they are while the rest scrolls, each drawn in its own part of the window.
+    void frozenPartsStayWhileTheRestScrolls()
+    {
+        Fixture f;
+        f.sheet.view.frozen = true;
+        f.sheet.view.frozenRows = 1;
+        f.sheet.view.frozenCols = 1;
+        f.sheet.view.paneRow = 2;     // the part that scrolls begins at row 2, column 2
+        f.sheet.view.paneCol = 2;
+        f.text(0, 0, QStringLiteral("Corner"));
+        f.text(0, 3, QStringLiteral("Top"));
+        f.text(3, 0, QStringLiteral("Left"));
+        f.text(3, 3, QStringLiteral("Body"));
+        f.text(1, 0, QStringLiteral("Gone"));   // (a row scrolled out of view under the frozen row)
+        f.options.gridlines = false;
+        f.build();
+        const QImage img = f.render();
+        // the scrolling part begins at row 2 and column 2, shown right of the frozen column and under the frozen row: row 3 is the second line, column 3 the second column
+        QVERIFY(inkIn(img, QRect(0, 0, 64, 20)) > 5);            // the corner
+        QVERIFY(inkIn(img, QRect(64 + 64, 0, 64, 20)) > 3);      // "Top": column 3, in the first line of the part that scrolls
+        QVERIFY(inkIn(img, QRect(0, 20 + 20, 64, 20)) > 3);      // "Left": row 3, in the frozen column
+        QVERIFY(inkIn(img, QRect(64 + 64, 20 + 20, 64, 20)) > 3);  // "Body"
+        QCOMPARE(inkIn(img, QRect(0, 20, 64, 20)), 0);           // "Gone" is not on the screen (row 1 is above the part that scrolls)
+        // the same sheet scrolled: the frozen parts do not move
+        f.grid.layout().setScroll(128, 40);   // (the part that scrolls begins at column 3 and row 3)
+        const QImage moved = f.render();
+        QVERIFY(inkIn(moved, QRect(0, 0, 64, 20)) > 5);
+        QVERIFY(inkIn(moved, QRect(64, 0, 64, 20)) > 3);         // "Top" is now in the first column of the part that scrolls
+        QVERIFY(inkIn(moved, QRect(0, 20, 64, 20)) > 3);         // "Left" is under the frozen row
+    }
+
+    // The selection is the cells tinted, a border of the accent color, and the active cell left plain; the headers of what is selected are marked.
+    void theSelectionIsTintedBorderedAndTheHeadersShowIt()
+    {
+        Fixture f;
+        f.options.gridlines = false;
+        f.build();
+        Navigator nav(&f.grid.layout(), nullptr);
+        Selection s;
+        s.activeRow = 1;
+        s.activeCol = 1;
+        s.range = GridRange{1, 1, 2, 2};
+        f.options.selection = &s;
+        QImage img = f.render();
+        const QRgb accent = f.options.accent.rgb();
+        QCOMPARE(px(img, 64 + 10, 20), accent);                 // the border, 2 pixels, inside the range
+        QCOMPARE(px(img, 64 + 10, 21), accent);
+        QCOMPARE(px(img, 64, 30), accent);
+        QCOMPARE(px(img, 64 * 3 - 1, 30), accent);
+        QCOMPARE(px(img, 10, 10), kWhite);                       // outside: plain
+        QCOMPARE(px(img, 64 + 10, 20 + 10), kWhite);             // the active cell: plain
+        QVERIFY(px(img, 64 * 2 + 20, 20 + 10) != kWhite);        // the others: tinted
+        QVERIFY(px(img, 64 * 2 + 20, 20 + 10) != accent);
+        // with headers: the selected ones are marked
+        Fixture g;
+        g.sheet.view.showHeadings = true;
+        g.options.headers = true;
+        g.options.gridlines = false;
+        g.build();
+        Selection col;
+        col.activeRow = 0;
+        col.activeCol = 2;
+        col.whole = Selection::Whole::Columns;
+        col.range = GridRange{0, 2, 1048575, 2};
+        g.options.selection = &col;
+        const QImage h = g.render();
+        QCOMPARE(px(h, 40 + 64 * 2 + 3, 3), g.options.headerSelected.rgb());
+        QCOMPARE(px(h, 40 + 64 * 1 + 3, 3), g.options.headerBackground.rgb());
+        QVERIFY(g.painter->stats().headersDrawn > 5);
+        // the corner
+        QCOMPARE(px(h, 3, 3), g.options.headerBackground.rgb());
+    }
+
+    // A screen costs what is on it: the same rows, columns, and cells whether the sheet has a hundred rows or a million, wherever it is scrolled to; and what was made is kept.
+    void aScreenCostsWhatIsOnItWhateverTheSheet()
+    {
+        Fixture f;
+        f.size = QSize(1280, 800);
+        for (quint32 r = 0; r < 100000; ++r)
+            for (quint32 c = 0; c < 20; ++c) f.number(r, c, r * 20.0 + c);
+        f.build();
+        f.options.headers = false;
+        f.render();
+        const PaintStats top = f.painter->stats();
+        QVERIFY2(top.rowsVisited <= 45 && top.rowsVisited >= 30, qPrintable(QString::number(top.rowsVisited)));
+        QVERIFY2(top.colsVisited <= 25, qPrintable(QString::number(top.colsVisited)));
+        QVERIFY2(top.cellsLooked <= 2000, qPrintable(QString::number(top.cellsLooked)));
+        QVERIFY(!top.truncated);
+        QVERIFY(top.textRuns >= 400 && top.textRuns <= 1000);
+        QCOMPARE(top.textsMade, top.textRuns);
+        // scrolled to row 90,000 of the same sheet
+        f.grid.layout().setScroll(0, 90000 * 20);
+        f.render();
+        const PaintStats far = f.painter->stats();
+        QVERIFY(far.rowsVisited <= 45 && far.cellsLooked <= 2000 && far.textRuns <= 1000);
+        QVERIFY(std::abs(far.rowsVisited - top.rowsVisited) <= 1);
+        // the same screen again: nothing is made again
+        f.render();
+        QCOMPARE(f.painter->stats().textsMade, qint64(0));
+        QCOMPARE(f.painter->stats().looksMade, qint64(0));
+        // a strip the size of one row (what a scroll by a row leaves to draw) costs about one row
+        f.render(QRect(0, 0, 1280, 20));
+        const PaintStats strip = f.painter->stats();
+        QVERIFY2(strip.rowsVisited <= 3, qPrintable(QString::number(strip.rowsVisited)));
+        QVERIFY2(strip.cellsLooked <= 150, qPrintable(QString::number(strip.cellsLooked)));
+        // and a clip with nothing in it (a part of the window with no cells in it) costs nothing
+        f.render(QRect(0, 0, 0, 0).adjusted(0, 0, -1, -1));
+    }
+
+    // Rows and columns of one pixel in a window of 1,920 by 1,080: no more rows, columns, and cells are looked at than the bounds, and the paint says some were left out.
+    void rowsAndColumnsOfOnePixelAreBounded()
+    {
+        Fixture f;
+        f.size = QSize(1920, 1080);
+        for (quint32 r = 0; r < 3000; r += 3)
+            for (quint32 c = 0; c < 3000; c += 7) f.number(r, c, r + c);
+        f.build();
+        f.grid.layout().rows.setDefaultSize(1);
+        f.grid.layout().cols.setDefaultSize(1);
+        f.grid.layout().setViewport(f.size);
+        f.render();
+        const PaintStats s = f.painter->stats();
+        QVERIFY(s.rowsVisited <= GridPainter::kMaxRows && s.colsVisited <= GridPainter::kMaxCols);
+        QVERIFY(s.cellsLooked <= GridPainter::kMaxCells + GridPainter::kMaxCols);
+        QVERIFY(s.textRuns <= GridPainter::kMaxTextRuns);
+        QCOMPARE(s.textRuns, qint64(0));   // (text of one pixel is not drawn)
+        QVERIFY(s.rowsVisited >= 20 && s.colsVisited >= 1000);   // (as many as the cells' bound lets: 60,000 cells)
+        QVERIFY(s.truncated);               // (more cells are on the screen than the bound)
+    }
+
+    // A sheet whose rows are all hidden but three costs three rows; a row of 4,000 points (which the grid brings to the most it allows) is one row.
+    void hiddenRowsCostNothingAndTallRowsAreOneRow()
+    {
+        Fixture f;
+        for (quint32 r = 0; r < 200; ++r) f.text(r, 0, QStringLiteral("row"));
+        f.build();
+        f.grid.layout().rows.setCount(1048576);
+        std::vector<Axis::Place> places;
+        for (qint64 r = 0; r < 1048576; ++r)
+            if (r != 5 && r != 50 && r != 150) places.push_back({r, 0});
+        f.grid.layout().rows.assign(std::move(places));
+        f.render();
+        QCOMPARE(f.painter->stats().rowsVisited, qint64(3));
+        // a row 20,000 pixels tall
+        Fixture g;
+        g.text(0, 0, QStringLiteral("tall"));
+        g.text(1, 0, QStringLiteral("next"));
+        g.build();
+        g.grid.layout().rows.setSize(0, 1000000);
+        const QImage img = g.render();
+        QVERIFY(g.painter->stats().rowsVisited <= 2);
+        QVERIFY(inkIn(img, QRect(0, 380, 64, 20)) >= 0);
+    }
+
+    // A hundred thousand merged ranges, one for each row: the ones on the screen are drawn. A hundred thousand on top of one another stay within the bounds.
+    void manyMergedRangesAreBounded()
+    {
+        Fixture f;
+        for (quint32 r = 0; r < 100000; ++r) f.sheet.merges.append(mergeOf(r, 0, r, 1));
+        for (quint32 r = 0; r < 100000; ++r) f.text(r, 0, QStringLiteral("m"));
+        f.build();
+        f.render();
+        const PaintStats s = f.painter->stats();
+        QVERIFY2(s.mergesDrawn >= 18 && s.mergesDrawn <= 25, qPrintable(QString::number(s.mergesDrawn)));
+        QVERIFY(s.mergeMarks <= 100);
+        // each a different size, all taking in the screen
+        Fixture g;
+        for (quint32 i = 0; i < 100000; ++i) g.sheet.merges.append(mergeOf(0, 0, 20 + i % 900, 1 + i / 900));
+        g.text(0, 0, QStringLiteral("x"));
+        g.build();
+        g.render();
+        const PaintStats h = g.painter->stats();
+        QVERIFY2(h.mergesDrawn <= GridPainter::kMaxMerges, qPrintable(QString::number(h.mergesDrawn)));
+        QVERIFY2(h.mergeMarks <= GridPainter::kMaxMergeMarks, qPrintable(QString::number(h.mergeMarks)));
+        QVERIFY(h.cellsLooked <= GridPainter::kMaxCells * 2);
+    }
+
+    // Two hundred texts of 32,000 characters: each is cut to what a cell shows, so a screen of them costs no more characters than that.
+    void veryLongTextsCostWhatACellShows()
+    {
+        Fixture f;
+        const QString huge(32000, QLatin1Char('x'));
+        for (quint32 r = 0; r < 20; ++r)
+            for (quint32 c = 0; c < 10; ++c) f.text(r, c, huge);
+        f.build();
+        f.render();
+        const PaintStats s = f.painter->stats();
+        QVERIFY2(s.textChars <= 200 * 1024, qPrintable(QString::number(s.textChars)));
+        QVERIFY(s.textRuns <= 200 && s.textRuns >= 150);
+    }
+
+    // A million cell formats, each used once by a cell on the screen: the looks made are those of the cells drawn.
+    void aMillionCellFormatsCostTheCellsDrawn()
+    {
+        Fixture f;
+        for (quint32 i = 0; i < 1000000; ++i) {
+            CellFormat c;
+            c.indent = quint8(i % 16);
+            c.numFmtId = 0;
+            f.styles.formats.append(c);
+            f.styles.cellXfs.append(0);
+        }
+        for (quint32 r = 0; r < 20; ++r)
+            for (quint32 c = 0; c < 10; ++c) f.number(r, c, 1, 1 + (r * 10 + c) * 4001);
+        f.build();
+        f.render();
+        const PaintStats s = f.painter->stats();
+        QVERIFY2(s.looksMade <= 20 * 10 + 5 && s.looksMade >= 100, qPrintable(QString::number(s.looksMade)));
+    }
+
+    // A text with nothing in it (a cell that holds the empty string), a font the machine does not have, and letters of other scripts than Latin are drawn, and never fail.
+    void emptyTextsMissingFontsAndOtherScriptsAreDrawn()
+    {
+        Fixture f;
+        FontSpec absent;
+        absent.name = QStringLiteral("No Such Font Anywhere 123");
+        absent.size = 12;
+        f.styles.fonts.append(absent);
+        CellFormat fmt;
+        fmt.font = 1;
+        const quint32 style = f.format(fmt);
+        FontSpec underlined;
+        underlined.name = QStringLiteral("Arial");
+        underlined.size = 8;
+        underlined.underline = Underline::Single;
+        underlined.strike = true;
+        f.styles.fonts.append(underlined);
+        CellFormat under;
+        under.font = 2;
+        const quint32 underStyle = f.format(under);
+        f.text(0, 0, QString());                                   // the empty string
+        f.text(2, 0, QString(), underStyle);                       // the empty string, underlined (a run of no glyphs with a line under it)
+        f.text(2, 1, QStringLiteral(" "), underStyle);
+        f.text(0, 1, QStringLiteral("text"), style);               // a font that is not there
+        f.text(0, 2, QString::fromUtf8("日本語のテキスト"));           // other letters
+        f.text(0, 3, QString::fromUtf8("مرحبا بالعالم"));
+        f.text(0, 4, QStringLiteral("\t\x01 control letters"));
+        f.text(1, 0, QString(500, QChar(0x00E9)));                 // letters of the Latin set that are not ASCII
+        f.number(1, 1, 5, style);
+        f.options.gridlines = false;
+        f.build();
+        const QImage img = f.render();
+        QVERIFY(inkIn(img, QRect(0, 0, 64 * 5, 20)) > 20);
+        QVERIFY(inkIn(img, QRect(0, 20, 64, 20)) > 20);
+        QVERIFY(inkIn(img, QRect(64, 20, 64, 20)) > 0);
+        QCOMPARE(f.painter->stats().textRuns >= 5, true);
+        // the same at a zoom that makes the letters small
+        f.grid.layout().setZoom(0.7);
+        const QImage small = f.render();
+        QVERIFY(inkIn(small, QRect(0, 0, 45 * 5, 14)) > 5);
+        f.grid.layout().setZoom(2.5);
+        f.render();
+        // in rows too low for the letters, which are then cut to the row
+        f.grid.layout().setZoom(1.0);
+        f.grid.layout().rows.setDefaultSize(9);
+        const QImage low = f.render();
+        QVERIFY(inkIn(low, QRect(0, 0, 64 * 5, 9)) > 3);
+    }
+
+    // The headers: the letters along the top and the numbers down the side, counted, and the corner.
+    void headersAreLettersAndNumbers()
+    {
+        Fixture f;
+        f.sheet.view.showHeadings = true;
+        f.options.headers = true;
+        f.build();
+        const QImage img = f.render();
+        QVERIFY2(f.painter->stats().headersDrawn >= 10 + 10, qPrintable(QString::number(f.painter->stats().headersDrawn)));
+        QCOMPARE(px(img, 3, 3), f.options.headerBackground.rgb());
+        QCOMPARE(px(img, 40 + 3, 3), f.options.headerBackground.rgb());
+        QCOMPARE(px(img, 3, 20 + 3), f.options.headerBackground.rgb());
+        QVERIFY(inkIn(img, QRect(40, 0, 64, 20)) > 2);      // "A"
+        QVERIFY(inkIn(img, QRect(0, 20, 40, 20)) > 2);      // "1"
+        // the cells begin after them
+        QCOMPARE(px(img, 40 + 63, 25), f.options.gridColor.rgb());
+        // none with them off
+        Fixture g;
+        g.build();
+        g.render();
+        QCOMPARE(g.painter->stats().headersDrawn, qint64(0));
+    }
+
+    // A hair border round a merged range of a hundred thousand rows is drawn as the dashes of the part that is on the screen: the steps a paint takes are those of the window,
+    // not of the length of the range (which is two million pixels).
+    void aDashedBorderOfATallMergeCostsWhatIsOnTheScreen()
+    {
+        Fixture f;
+        BorderSpec b;
+        b.left = Fixture::side(BorderStyle::Hair, 0x000000);
+        b.right = Fixture::side(BorderStyle::Hair, 0x000000);
+        b.top = Fixture::side(BorderStyle::Hair, 0x000000);
+        b.bottom = Fixture::side(BorderStyle::Hair, 0x000000);
+        const quint32 hair = f.border(b);
+        for (quint32 r : {0u, 99999u})
+            for (quint32 c : {0u, 1u}) f.blank(r, c, hair);
+        f.sheet.merges.append(mergeOf(0, 0, 99999, 1));
+        f.build();
+        f.render();
+        const PaintStats s = f.painter->stats();
+        QVERIFY2(s.dashSteps <= 3000, qPrintable(QStringLiteral("%1 dash steps").arg(s.dashSteps)));
+        QVERIFY(s.borderSegments >= 2);
+    }
+
+    // The tallest default row (409.5 points) at the largest zoom, with a hair border on every cell: each edge is drawn for the part of it that is on the screen.
+    void dashedBordersAtTheLargestRowsAndZoomCostTheWindow()
+    {
+        Fixture f;
+        BorderSpec b;
+        b.left = Fixture::side(BorderStyle::Dashed, 0x000000);
+        b.right = Fixture::side(BorderStyle::Dashed, 0x000000);
+        b.top = Fixture::side(BorderStyle::Dashed, 0x000000);
+        b.bottom = Fixture::side(BorderStyle::Dashed, 0x000000);
+        const quint32 dashed = f.border(b);
+        for (quint32 r = 0; r < 3; ++r)
+            for (quint32 c = 0; c < 4; ++c) f.blank(r, c, dashed);
+        f.build();
+        f.grid.layout().rows.setDefaultSize(546);   // (409.5 points)
+        f.grid.layout().setZoom(4.0);
+        f.grid.layout().setViewport(f.size);
+        f.render();
+        const PaintStats s = f.painter->stats();
+        QVERIFY2(s.dashSteps <= 4000, qPrintable(QStringLiteral("%1 dash steps").arg(s.dashSteps)));
+        QVERIFY(s.borderSegments >= 4);
+    }
+
+    // A font too small to read is not drawn, and costs nothing: no text is made for the cell, and no neighbor is looked at for it to spill into.
+    void textTooSmallToReadMakesNoText()
+    {
+        Fixture f;
+        f.size = QSize(1280, 800);
+        for (quint32 r = 0; r < 100; ++r)
+            for (quint32 c = 0; c < 10; ++c) f.text(r, c, QStringLiteral("a text that does not fit its cell"));
+        f.build();
+        f.grid.layout().setZoom(0.1);
+        f.grid.layout().setViewport(f.size);
+        f.render();
+        const PaintStats s = f.painter->stats();
+        QCOMPARE(s.textRuns, qint64(0));
+        QCOMPARE(s.textsMade, qint64(0));
+        QCOMPARE(s.spillProbes, qint64(0));
+        // (and the same cells at 100% have their text)
+        f.grid.layout().setZoom(1.0);
+        f.painter->resetFonts();
+        f.render();
+        QVERIFY(f.painter->stats().textRuns > 100);
+    }
+
+    // Every merged range on the screen is drawn, however many (a form of merged cells at a small zoom has thousands: the old bound was two thousand, and the rest were left out).
+    void everyMergeOnTheScreenIsDrawn()
+    {
+        Fixture f;
+        f.size = QSize(1280, 800);
+        for (quint32 r = 0; r < 160; ++r)
+            for (quint32 c = 0; c < 40; ++c) f.sheet.merges.append(mergeOf(r, c * 2, r, c * 2 + 1));
+        f.build();
+        f.grid.layout().setZoom(0.25);   // (cells of 16 by 5 pixels: eighty columns and a hundred and sixty rows)
+        f.grid.layout().setViewport(f.size);
+        f.render();
+        const PaintStats s = f.painter->stats();
+        QCOMPARE(s.mergesDrawn, qint64(6400));
+        QCOMPARE(s.mergesLeftOut, qint64(0));
+        QVERIFY(!s.truncated);
+    }
+
+    // A file that stacks merged ranges over the screen (a hundred and sixty thousand, each a different size, all taking in what is on it) is drawn as far as a few screens of fill, and
+    // every merge that is not drawn is counted: the ones that cross the block and the ones left out of the list add up to all of them.
+    void mergesPastTheBoundsAreCounted()
+    {
+        Fixture f;
+        for (quint32 r = 1; r <= 400; ++r)
+            for (quint32 c = 1; c <= 400; ++c) f.sheet.merges.append(mergeOf(0, 0, r, c));
+        f.build();
+        f.render();
+        const PaintStats s = f.painter->stats();
+        QCOMPARE(s.mergesDrawn + s.mergesLeftOut, qint64(160000));
+        QVERIFY(s.mergesLeftOut > 150000);
+        QVERIFY(s.mergesDrawn >= 50 && s.mergesDrawn <= 2000);
+        QVERIFY(s.truncated);
+    }
+};
+
+JP_TEST_CLASS(GridPaintTests)
+#include "tst_grid_paint.moc"

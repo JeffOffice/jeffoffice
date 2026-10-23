@@ -33,6 +33,7 @@ constexpr qint64 kMaxHeldBytes = qint64(512) << 20;
 
 struct CalcOptions {
     bool keepApart = false;           // formulas the engine cannot work out keep the stored result (and mark what reads them): see the class
+    bool workOutWhatHasNoResult = false;   // with keepApart: a formula the file stored no result for is worked out (the yardstick keeps it apart, for want of a result to compare with; a window has nothing else to show)
     qint64 workLimit = 0;             // steps for one formula; 0: the engine's own
     qint64 recalcWorkLimit = 0;       // the most steps a recalculation takes in all its slices; 0: kMaxRecalcWork
     qint64 maxHeldBytes = 0;          // the most bytes the texts and arrays that formulas gave may take together; 0: kMaxHeldBytes
@@ -62,23 +63,41 @@ public:
         qint64 deepest = 0;         // the most formulas waiting for others at once
         bool overBudget = false;    // the recalculation took the steps it may; the formulas it had not worked out have the error #VALUE! (or, kept apart, keep what the file stored)
         qint64 refused = 0;         // formulas that were given that error for want of steps, or because the values held would pass the bound
+        qint64 jobItems = 0;        // things done by the steps that go a chunk at a time (formulas of a group given back, marked, refused, put right after a stop) in this call: what a test counts
+                                    // to see that a slice does a bounded amount of work, whatever the machine's speed
         qint64 circleWork = 0;      // steps taken to place what a formula waits for, and the formulas of the groups that wait for each other (counted: a test can see that a circle is not found
                                     // by going over the stack again and again)
     };
     // Works out what is to be worked out (and the formulas that change by themselves): all of it, or about `workBudget` steps of it, then stops with `finished` false and the
     // rest to be done by the next call. If `cancel` is set it stops at once, with `cancelled` true.
-    Progress recalculate(qint64 workBudget = 0, const std::atomic<bool> *cancel = nullptr);
+    // `timeBudgetMicros` ends a slice by the clock as well: it stops, after a formula that has been worked out (at least one in every call, so that a call always gets on), once
+    // that many microseconds have passed (0 for no limit). The work of one formula is bounded (CalcOptions::workLimit), so a slice is that long and one formula more.
+    Progress recalculate(qint64 workBudget = 0, const std::atomic<bool> *cancel = nullptr, qint64 timeBudgetMicros = 0);
+    // For tests: called as a formula reads a block of cells (in the middle of working it out), so that one can act at a place that is certainly inside a formula.
+    void setVisitHook(std::function<void()> hook) { m_visitHook = std::move(hook); }
+    // A flag that stops the calculation wherever it is: a load that is registering formulas, a recalculation between formulas, and a formula that is being worked out (the
+    // evaluator looks at it as it takes its steps). The flag is only read; it must stay where it is as long as the calculation is used.
+    void setCancel(const std::atomic<bool> *cancel) { m_cancel = cancel; }
+    // Called with each result a recalculation gives a cell: the value of a formula (and of each cell of an array it made), where the grid can show it. Not with the result of a formula
+    // that is kept apart (the file's value is what is shown then). Called on the thread that recalculates.
+    using ResultSink = std::function<void(int sheet, quint32 row, quint32 col, const jp::calc::Value &value)>;
+    void setResultSink(ResultSink sink) { m_sink = std::move(sink); }
     // The day number NOW and TODAY give from the next recalculation (0: the clock is read at each, as it is when the calculation is made without a time).
     void setNow(double serial) { m_options.now = serial; }
     // Marks every formula to be worked out again (the next recalculation is a whole one).
     void invalidateAll();
     // Formulas that have yet to be worked out.
-    bool isDirty() const { return m_notDone > 0 || m_running; }
-    qint64 dirtyCount() const { return m_notDone; }
+    bool isDirty() const { return m_notDone > 0 || m_running || m_invalidate.active; }
+    // The formulas still to be worked out (while all of them are being marked, the ones not marked yet are counted, those that cannot be worked out among them).
+    qint64 dirtyCount() const { return m_notDone + (m_invalidate.active ? qint64(m_nodes.size()) - qint64(m_invalidate.at) : 0); }
 
     // What the cells hold now: a formula's value is its last result, a constant what was put or read.
     jp::calc::Value cell(int sheet, quint32 row, quint32 col) const override;
     void visit(int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2, const std::function<bool(quint32, quint32, const jp::calc::Value &)> &f) const override;
+
+    // What a cell shows: its value; a formula that has never been worked out shows the result the file stored for it (nothing if it stored none), and one that waits to be
+    // worked out again the value it had.
+    jp::calc::Value shown(int sheet, quint32 row, quint32 col) const;
 
     // Edits. Each marks what depends on the cell; the values change at the next recalculation. False, with nothing changed, if the cell is off the sheet or the text no formula.
     bool setValue(int sheet, quint32 row, quint32 col, const jp::calc::Value &value);   // an empty value empties the cell
@@ -117,7 +136,7 @@ public:
 
 private:
     enum : quint8 { Dirty = 0, Queued = 1, Waiting = 2, Done = 3, Suspended = 4 };   // (Suspended: worked out, found to wait only for formulas on the way to it or in its own group)
-    enum : quint16 { Kept = 1, NodeTainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128, Mismatch = 256, Cascade = 512, AlwaysListed = 1024, Retried = 2048 };
+    enum : quint16 { Kept = 1, NodeTainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128, Mismatch = 256, Cascade = 512, AlwaysListed = 1024, Retried = 2048, Worked = 4096 };
     enum : quint8 { KindEmpty = 0, KindNumber, KindText, KindBool, KindError, KindArray };
     struct Node {
         double number = 0;
@@ -149,20 +168,37 @@ private:
     quint32 addNode(int sheet, const Cell &cell, qint32 formulaIndex);
     void registerNode(quint32 id, const std::vector<jp::calc::CellArea> *told);
     jp::calc::Value nodeValue(const Node &n, quint32 id) const;
-    void storeResult(Node &n, quint32 id, const jp::calc::Value &v);
+    void storeResult(Node &n, quint32 id, const jp::calc::Value &v, bool publish = true);
     void keepStored(Node &n, char cls);
     bool formulaValue(int sheet, const Cell &c, jp::calc::Value *out) const;
     jp::calc::CellArea areaOf(const Node &n) const;
     void markDependents(std::vector<jp::calc::CellArea> *changed);
     void markDirty(quint32 id, std::vector<jp::calc::CellArea> *changed);
     void beginRecalculation();
+    // The parts of a recalculation that are done in slices of the time they are given: each does some of its work, and says whether it is all done. `timeUp` is asked every
+    // few thousand things done. Each does at least one chunk, so that a call always gets on.
+    // `spent` is the work of the slice so far, which each adds what it does to (a slice given a work budget is ended by it, as by the clock).
+    bool stepInvalidate(const std::function<bool()> &timeUp, qint64 *spent);
+    bool stepBegin(const std::function<bool()> &timeUp, qint64 *spent);
+    bool stepGroup(Progress &pr, const std::function<bool()> &timeUp, qint64 *spent);
+    bool stepRefuse(Progress &pr, const std::function<bool()> &timeUp, qint64 *spent);
+    bool stepAbandon(const std::function<bool()> &timeUp, qint64 *spent);
+    // Stops a recalculation that is going: what it had begun is to be worked out again. It takes what is to be put right (the stack, the formulas waiting in a group, those not yet
+    // started) in its hands and puts it right a chunk at a time in the calls that follow (stepAbandon), so that a stop costs nothing in the call that is stopped; abandonNow() does all of
+    // it at once, for an edit.
     void abandon();
+    void abandonNow();
     void dropNode(quint32 id);
     void useExtent(int sheet, quint32 row, quint32 col);
     jp::calc::Value runFormula(quint32 id, qint64 *work);
     static constexpr quint32 kNone = 0xFFFFFFFFu;
 
+    Progress recalculateSlice(qint64 workBudget, const std::atomic<bool> *cancel, qint64 timeBudgetMicros);
     CalcOptions m_options;
+    qint64 m_items = 0;                       // everything the chunked steps have done (Progress::jobItems is the part of it in one call)
+    std::function<void()> m_visitHook;
+    const std::atomic<bool> *m_cancel = nullptr;
+    ResultSink m_sink;
     std::unique_ptr<jp::calc::DependencyGraph> m_graph;
     jp::calc::Evaluator m_evaluator;
     jp::calc::EvalContext m_ctx;
@@ -190,8 +226,50 @@ private:
     std::vector<jp::calc::CellArea> m_toldSet;
     std::vector<quint32> m_comp;
     quint32 m_counter = 0;
+    // Closing a group of formulas that wait for each other, and waking the formulas suspended behind one that is worked out, are jobs of their own (a circle may be a million formulas):
+    // closeGroup() and leaveGroup() begin one, and stepGroup() does it, a chunk at a time.
     void closeGroup(quint32 root, quint32 parent, Progress &pr);
     void leaveGroup(quint32 node, quint32 parent);
+    struct GroupJob {
+        enum Phase : quint8 { None, Collect, Sort, Apply } phase = None;
+        bool closing = false;      // closeGroup, or leaveGroup
+        quint32 root = 0, parent = 0;
+        bool fresh = false;        // some formula of the group has not had its second try
+        std::vector<quint32> open;
+        int sortPass = 0;          // for Sort: the passes of the radix sort done (each is two parts: the places counted, and put where they go, each a block at a time)
+        int sortStage = 0;
+        size_t sortAt = 0;
+        std::vector<size_t> sortCount;
+        std::vector<quint32> sortTmp;
+        size_t cursor = 0;         // for Apply: those before it are still to be done (it goes from the last to the first)
+    } m_job;
+    struct AbandonJob {
+        bool active = false;
+        std::vector<quint32> open;              // formulas of a group that were not yet given back to the stack: those before openEnd
+        size_t openEnd = 0, openAt = 0;
+        std::vector<Frame> stack;
+        size_t stackAt = 0;
+        std::vector<quint32> comp;
+        size_t compAt = 0;
+        std::vector<quint32> dirty;             // those that were to be started, from dirtyAt
+        size_t dirtyAt = 0;
+    } m_abandon;
+    struct RefuseJob {
+        bool active = false;
+        size_t stackAt = 0, compAt = 0, dirtyAt = 0;
+    } m_refuse;
+    struct BeginJob {
+        bool active = false;
+        size_t alwaysAt = 0, listed = 0;
+        bool dependents = false;
+        std::vector<jp::calc::CellArea> changed;
+        std::vector<quint32> found;
+        size_t foundAt = 0;
+    } m_begin;
+    struct InvalidateJob {
+        bool active = false;
+        size_t at = 0;
+    } m_invalidate;
     void markCircular(quint32 id, Progress &pr);
     bool finishNode(Node &n, quint32 id, const jp::calc::Value &v);   // true if the value was not held for want of room
     void giveError(Node &n, quint32 id);

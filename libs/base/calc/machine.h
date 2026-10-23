@@ -206,6 +206,14 @@ public:
             over = true;
             if (status == EvalStatus::Ok) status = EvalStatus::TooMuchWork;
         }
+        if (work >= pollAt) {
+            // (the cancel flag is looked at every few thousand steps)
+            pollAt = work + 2048;
+            if (!over && ctx.cancel && ctx.cancel->load(std::memory_order_relaxed)) {
+                over = true;
+                status = EvalStatus::Cancelled;
+            }
+        }
         if (!over && budget::refused()) tooLarge();   // an array was refused for the cells alive at once
         return !over;
     }
@@ -257,6 +265,7 @@ public:
 
     EvalContext ctx;
     qint64 work = 0, limit = kMaxEvalWork;
+    qint64 pollAt = 0;      // the work at which the cancel flag is looked at next
     qint64 peakCells = 0;   // the most cells of arrays alive at once in the last evaluation
     qint64 textMade = 0;    // the characters of text made as elements of arrays, in this one
     bool over = false;

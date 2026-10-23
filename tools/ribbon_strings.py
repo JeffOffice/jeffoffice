@@ -2,9 +2,9 @@
 """Lists the ribbons' text for translators.
 
 The ribbons' labels live in JSON files (JeffPub's resources/ribbon.json,
-JeffDeck's apps/deck/resources/ribbon.json, and JeffWrite's apps/write/resources/ribbon.json), where Qt's lupdate can't see
+JeffDeck's apps/deck/resources/ribbon.json, JeffWrite's apps/write/resources/ribbon.json, and JeffCrunch's apps/crunch/resources/ribbon.json), where Qt's lupdate can't see
 them. This writes a ribbon_strings.cpp beside each app (apps/pub/app/,
-apps/deck/app/, and apps/write/app/), which marks each label with QT_TRANSLATE_NOOP("Ribbon", ...)
+apps/deck/app/, apps/write/app/, and apps/crunch/app/), which marks each label with QT_TRANSLATE_NOOP("Ribbon", ...)
 so lupdate gathers them; the ribbon builder translates them with the same
 context. Run it after changing either file's text (the tests
 ribbonStringsListed, in JeffPub's and JeffDeck's, check they're current):
@@ -34,6 +34,7 @@ RIBBONS = (
     (("resources", "ribbon.json"), ("apps", "pub", "app", "ribbon_strings.cpp")),
     (("apps", "deck", "resources", "ribbon.json"), ("apps", "deck", "app", "ribbon_strings.cpp")),
     (("apps", "write", "resources", "ribbon.json"), ("apps", "write", "app", "ribbon_strings.cpp")),
+    (("apps", "crunch", "resources", "ribbon.json"), ("apps", "crunch", "app", "ribbon_strings.cpp")),
 )
 
 

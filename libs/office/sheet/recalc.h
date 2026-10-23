@@ -32,6 +32,9 @@ public:
     explicit WorkbookSource(const Workbook &book, qint64 maxBytes = kMaxWorkbookBytes);
     // Reads every sheet. False if one could not be read whole (what was read stays, and notWhole() says which).
     bool loadAll();
+    // Called before each sheet is read (with 0 cells) and as the read of it goes on (every few thousand cells, and every so many bytes), with the sheet's place and the cells
+    // read of it; false stops the load, and the sheet that was being read, and those after it, are not whole.
+    void setProgress(const std::function<bool(int sheet, qint64 cells)> &progress) { m_progress = progress; }
     QStringList notWhole() const { return m_notWhole; }
     int sheetCount() const override { return int(m_sheets.size()); }
     int sheetIndex(const QString &name) const override;
@@ -54,6 +57,7 @@ protected:
     QHash<QString, QString> m_names;   // "<sheet>|<NAME>" -> what it stands for; the sheet counted from 0, or -1
     QStringList m_notWhole;
     qint64 m_maxBytes;
+    std::function<bool(int, qint64)> m_progress;
 };
 
 enum class RecalcClass : char {

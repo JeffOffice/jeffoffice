@@ -1,0 +1,203 @@
+{
+  "fileKeytip": "F",
+  "quickAccess": [
+    {"cmd": "file.open", "keytip": "1"},
+    {"cmd": "edit.copy", "keytip": "2"}
+  ],
+  "tabs": [
+    {
+      "name": "Home",
+      "keytip": "H",
+      "groups": [
+        {
+          "name": "Clipboard",
+          "keytip": "ZC",
+          "items": [
+            {"large": "edit.paste", "keytip": "V"},
+            {"small": "edit.cut", "keytip": "X"},
+            {"small": "edit.copy", "keytip": "C"}
+          ]
+        },
+        {
+          "name": "Font",
+          "keytip": "ZF",
+          "items": [
+            {"row": [
+              {"icon": "fmt.bold", "keytip": "1"},
+              {"icon": "fmt.italic", "keytip": "2"},
+              {"icon": "fmt.underline", "keytip": "3"},
+              {"icon": "fmt.strike", "keytip": "4"}
+            ]},
+            {"row": [
+              {"icon": "fmt.fillColor", "keytip": "H"},
+              {"icon": "fmt.fontColor", "keytip": "FC"}
+            ]}
+          ]
+        },
+        {
+          "name": "Alignment",
+          "keytip": "ZA",
+          "items": [
+            {"row": [
+              {"icon": "fmt.alignLeft", "keytip": "AL"},
+              {"icon": "fmt.alignCenter", "keytip": "AC"},
+              {"icon": "fmt.alignRight", "keytip": "AR"}
+            ]},
+            {"row": [
+              {"icon": "fmt.indentDec", "keytip": "AO"},
+              {"icon": "fmt.indentInc", "keytip": "AN"}
+            ]},
+            {"small": "fmt.wrap", "keytip": "W"},
+            {"small": "fmt.merge", "keytip": "M"}
+          ]
+        },
+        {
+          "name": "Number",
+          "keytip": "ZN",
+          "items": [
+            {"row": [
+              {"icon": "fmt.currency", "keytip": "AA"},
+              {"icon": "fmt.percent", "keytip": "P"},
+              {"icon": "fmt.comma", "keytip": "K"}
+            ]},
+            {"row": [
+              {"icon": "fmt.decimalInc", "keytip": "0"},
+              {"icon": "fmt.decimalDec", "keytip": "9"}
+            ]}
+          ]
+        },
+        {
+          "name": "Cells",
+          "keytip": "ZL",
+          "items": [
+            {"large": "cells.insert", "keytip": "I"},
+            {"large": "cells.delete", "keytip": "D"},
+            {"large": "cells.format", "keytip": "O"}
+          ]
+        },
+        {
+          "name": "Editing",
+          "keytip": "ZE",
+          "items": [
+            {"small": "edit.autosum", "keytip": "U"},
+            {"small": "edit.fill", "keytip": "FI"},
+            {"small": "edit.clear", "keytip": "E"},
+            {"large": "edit.sort", "keytip": "SS"},
+            {"large": "edit.find", "keytip": "FD"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Insert",
+      "keytip": "N",
+      "groups": [
+        {
+          "name": "Tables",
+          "keytip": "ZT",
+          "items": [
+            {"large": "insert.table", "keytip": "T"},
+            {"large": "insert.pivot", "keytip": "V"}
+          ]
+        },
+        {
+          "name": "Illustrations",
+          "keytip": "ZI",
+          "items": [
+            {"large": "insert.picture", "keytip": "P"},
+            {"large": "insert.shape", "keytip": "SH"}
+          ]
+        },
+        {
+          "name": "Charts",
+          "keytip": "ZH",
+          "items": [
+            {"large": "insert.chart", "keytip": "C"}
+          ]
+        },
+        {
+          "name": "Links",
+          "keytip": "ZK",
+          "items": [
+            {"large": "insert.link", "keytip": "K"}
+          ]
+        },
+        {
+          "name": "Text",
+          "keytip": "ZX",
+          "items": [
+            {"large": "insert.text", "keytip": "X"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Formulas",
+      "keytip": "M",
+      "groups": [
+        {
+          "name": "Function Library",
+          "keytip": "ZU",
+          "items": [
+            {"large": "formulas.insertFunction", "keytip": "F"},
+            {"large": "edit.autosum", "keytip": "U"}
+          ]
+        },
+        {
+          "name": "Defined Names",
+          "keytip": "ZD",
+          "items": [
+            {"large": "formulas.names", "keytip": "N"}
+          ]
+        },
+        {
+          "name": "Calculation",
+          "keytip": "ZB",
+          "items": [
+            {"large": "formulas.calculate", "keytip": "B"},
+            {"large": "view.formulas", "keytip": "H"},
+            {"large": "formulas.options", "keytip": "O"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "View",
+      "keytip": "W",
+      "groups": [
+        {
+          "name": "Show",
+          "keytip": "ZS",
+          "items": [
+            {"small": "view.gridlines", "keytip": "SG"},
+            {"small": "view.headings", "keytip": "SH"},
+            {"small": "view.formulaBar", "keytip": "SF"}
+          ]
+        },
+        {
+          "name": "Zoom",
+          "keytip": "ZZ",
+          "items": [
+            {
+              "large": {"id": "ribbon.zoom", "text": "Zoom", "icon": "zoom-in"},
+              "keytip": "Q",
+              "menu": ["zoom.200", "zoom.150", "zoom.100", "zoom.75", "zoom.50", "zoom.25", "zoom.10"]
+            },
+            {"large": "zoom.100", "keytip": "J"}
+          ]
+        },
+        {
+          "name": "Window",
+          "keytip": "ZW",
+          "items": [
+            {
+              "large": {"id": "ribbon.freeze", "text": "Freeze Panes", "icon": "snowflake"},
+              "keytip": "FZ",
+              "menu": ["view.freeze", "view.freezeRow", "view.freezeCol", "-", "view.unfreeze"]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
