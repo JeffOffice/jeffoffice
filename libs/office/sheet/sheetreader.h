@@ -146,6 +146,10 @@ struct ReadOptions {
     // Stops, with no error, at the first row after this one (counted from 0): the sheet has the cells read so far, and `partial` says so. -1 reads it all. The
     // first screen of a large sheet is the rows it shows, read in a moment, and the rest is read afterwards.
     qint64 stopAfterRow = -1;
+    // If above 0: reads what the sheet's view shows, and stops (with `partial`): the view's frozen rows, and this many rows from where the part that scrolls begins (not the first rows
+    // of the sheet, which a view that was scrolled far has left behind; the cells of the rows between are not kept, but their heights are). A sheet whose view comes after its cells,
+    // or says nothing, begins at its first row.
+    qint64 screenRows = 0;
     DateSystem dateSystem = DateSystem::Date1900;   // for the cells of type "d", written as dates
     // Called after every 4,096 cells, with how many have been read; false
     // stops the read (the sheet's error says it was stopped).
@@ -178,7 +182,8 @@ public:
     // Reads sheet `index`. A sheet of a chart, and one with no relationship to a part, is read as an empty sheet; false, with the sheet's error saying why, if
     // there is no such sheet or its part is missing, or if the part could not be read whole.
     // `stopAfterRow` (from 0) reads only the rows up to it, and the sheet says it is `partial` (ReadOptions::stopAfterRow); -1 reads it all.
-    bool readSheet(int index, Sheet *out, const std::function<bool(qint64)> &progress = nullptr, qint64 stopAfterRow = -1) const;
+    // `screenRows` reads what the view shows, from where it begins (ReadOptions::screenRows).
+    bool readSheet(int index, Sheet *out, const std::function<bool(qint64)> &progress = nullptr, qint64 stopAfterRow = -1, qint64 screenRows = 0) const;
     const Package &package() const { return m_package; }
 
 private:

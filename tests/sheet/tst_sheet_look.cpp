@@ -464,6 +464,47 @@ private Q_SLOTS:
         QCOMPARE(s.fonts[1].name.size(), kMaxFontNameChars);
         QCOMPARE(s.fonts[1].name, huge.left(kMaxFontNameChars));
     }
+
+    // A read for the screen keeps what the view shows: from the row the view begins at (not the first rows, which a view scrolled far has left), and the frozen rows, whether they begin
+    // at the top of the sheet or below it; the rows between, and above, keep no cells (but the read goes by them as quick as it can, and can be stopped).
+    void aReadForTheScreenKeepsWhatTheViewShows()
+    {
+        QString rows;
+        for (int r = 1; r <= 5000; ++r) rows += row(r, QStringLiteral("<c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><v>7</v></c>").arg(r), r == 2500 ? QStringLiteral("ht=\"40\" customHeight=\"1\"") : QString());
+        auto readWith = [&](const QString &views, Sheet *out) {
+            ReadOptions o;
+            o.screenRows = 100;
+            return readSheetXml(worksheet(rows, QString(), views), out, o);
+        };
+        auto has = [](const Sheet &s, const char *ref) { return at(s, QLatin1String(ref)) != nullptr; };
+        // scrolled to row 3001
+        Sheet scrolled;
+        QVERIFY(readWith(QStringLiteral("<sheetViews><sheetView workbookViewId=\"0\" topLeftCell=\"A3001\"/></sheetViews>"), &scrolled));
+        QVERIFY(scrolled.partial);
+        QVERIFY(has(scrolled, "A3001") && has(scrolled, "B3100"));
+        QVERIFY2(!has(scrolled, "A3101") && !has(scrolled, "A1") && !has(scrolled, "A3000"), "cells outside what the view shows were kept");
+        QCOMPARE(scrolled.view.topRow, quint32(3000));
+        // the height of a row above it is kept: where the view begins depends on it
+        QVERIFY(scrolled.rowSpecs.size() == 1 && scrolled.rowSpecs[0].row == 2499);
+        // two rows frozen, the part that scrolls begun at row 2001
+        Sheet frozen;
+        QVERIFY(readWith(QStringLiteral("<sheetViews><sheetView workbookViewId=\"0\"><pane ySplit=\"2\" topLeftCell=\"A2001\" activePane=\"bottomLeft\" state=\"frozen\"/></sheetView></sheetViews>"), &frozen));
+        QVERIFY(has(frozen, "A1") && has(frozen, "A2") && has(frozen, "A2001") && has(frozen, "A2100"));
+        QVERIFY2(!has(frozen, "A3") && !has(frozen, "A2000") && !has(frozen, "A2101"), "cells outside what the view shows were kept");
+        // frozen rows that begin below the first (rows 11 and 12), then the part that scrolls from row 2001
+        Sheet below;
+        QVERIFY(readWith(QStringLiteral("<sheetViews><sheetView workbookViewId=\"0\" topLeftCell=\"A11\"><pane ySplit=\"2\" topLeftCell=\"A2001\" activePane=\"bottomLeft\" state=\"frozen\"/></sheetView></sheetViews>"), &below));
+        QVERIFY(has(below, "A11") && has(below, "A12") && has(below, "A2001") && has(below, "A2100"));
+        QVERIFY2(!has(below, "A1") && !has(below, "A10") && !has(below, "A13") && !has(below, "A2000"), "cells outside what the view shows were kept");
+        // a view that says nothing begins at the first row
+        Sheet plain;
+        QVERIFY(readWith(QString(), &plain));
+        QVERIFY(has(plain, "A1") && has(plain, "A100") && !has(plain, "A101"));
+        // and without the option the whole sheet is read
+        Sheet whole;
+        QVERIFY(readSheetXml(worksheet(rows, QString(), QStringLiteral("<sheetViews><sheetView workbookViewId=\"0\" topLeftCell=\"A3001\"/></sheetViews>")), &whole));
+        QVERIFY(has(whole, "A1") && has(whole, "A5000") && !whole.partial);
+    }
 };
 
 JP_TEST_CLASS(SheetLookTests)

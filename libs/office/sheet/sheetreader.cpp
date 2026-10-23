@@ -586,6 +586,8 @@ private:
     QString m_activePane;
     bool m_viewSeen = false;
     bool m_stop = false;             // a row past the one the read was asked to stop at has begun
+    bool m_skipCells = false;        // the current row is one whose cells are not kept (ReadOptions::screenRows)
+    qint64 m_skipped = 0;            // cells that went by so
     // the place
     quint32 m_row = 0;               // the current row
     bool m_haveRow = false;
@@ -644,6 +646,19 @@ bool SheetReader::startRow(const QXmlStreamReader &r)
         m_sheet.partial = true;
         m_stop = true;
         return true;
+    }
+    if (m_options.screenRows > 0) {
+        // the rows the view shows: those of a frozen part (which may begin below the first row), and `screenRows` from where the part that scrolls begins
+        const SheetView &v = m_sheet.view;
+        const qint64 skipTop = v.frozen ? qint64(v.topRow) : 0;
+        const qint64 frozenEnd = v.frozen ? skipTop + qint64(v.frozenRows) : 0;
+        const qint64 begin = std::max(frozenEnd, v.frozen ? qint64(v.paneRow) : qint64(v.topRow));
+        if (qint64(m_row) >= begin + m_options.screenRows) {
+            m_sheet.partial = true;
+            m_stop = true;
+            return true;
+        }
+        m_skipCells = qint64(m_row) < skipTop || (qint64(m_row) >= frozenEnd && qint64(m_row) < begin);
     }
     // A row that is not as the sheet's default is kept: its height, whether it is hidden, and the format its empty cells have.
     bool hasHeight = false;
@@ -1007,6 +1022,11 @@ bool SheetReader::endCell()
         if (c.type != CellType::Empty) ++m_sheet.storedResults;
     }
     if (!room) return false;
+    if (m_skipCells) {
+        // (a row the view has left above it: its cells are not kept; the read can still be stopped as they go by)
+        if (++m_skipped % kProgressEvery == 0 && m_options.progress && !m_options.progress(m_cells + m_skipped)) return fail(translate("The read was stopped."));
+        return true;
+    }
     if (m_cells >= m_limits.cellsPerSheet) return fail(translate("The sheet has more cells than any real file has."));
     if (!take(kCellBytes)) return false;
     ++m_cells;
@@ -1238,7 +1258,7 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
     return true;
 }
 
-bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)> &progress, qint64 stopAfterRow) const
+bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)> &progress, qint64 stopAfterRow, qint64 screenRows) const
 {
     *out = Sheet();
     if (index < 0 || index >= m_info.sheets.size()) {
@@ -1262,6 +1282,7 @@ bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)
     options.dateSystem = m_info.dateSystem;
     options.progress = progress;
     options.stopAfterRow = stopAfterRow;
+    options.screenRows = screenRows;
     return readSheetPart(device.get(), options, out);
 }
 
