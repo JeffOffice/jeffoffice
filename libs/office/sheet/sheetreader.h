@@ -185,9 +185,44 @@ public:
     // `screenRows` reads what the view shows, from where it begins (ReadOptions::screenRows).
     bool readSheet(int index, Sheet *out, const std::function<bool(qint64)> &progress = nullptr, qint64 stopAfterRow = -1, qint64 screenRows = 0) const;
     const Package &package() const { return m_package; }
+    // The parts the workbook is made of (empty for one it has not): its own, the shared strings, and the styles.
+    QString mainPart() const { return m_mainPart; }
+    QString sharedStringsPart() const { return m_sharedPart; }
+    QString stylesPart() const { return m_stylesPart; }
+    // The number of strings in the shared strings part and of cell formats in the styles part when the workbook was opened (or last saved): what is added to either afterwards goes at the end.
+    qint64 sharedStringsInFile() const { return m_sharedInFile; }
+    qint64 cellFormatsInFile() const { return m_formatsInFile; }
+
+    // ---- changes (the window's, once a person edits). They only add: a place already given is never moved.
+    // The place of a shared string that holds the text, added at the end if it is not among those added since the file was read.
+    qint32 addSharedString(const QString &text);
+    // The id of a number format with the code (the built-in one, or one the file has, or a new one), and the place of the cell format that is the cell format `base` with that number
+    // format (the one it is already, or one made).
+    int numberFormatId(const QString &code);
+    quint32 formatWithNumberFormat(quint32 base, int numFmtId);
+    // The additions since the file was read or saved, for saving them: the strings, the number formats (id and code), and the cell formats (the one each is a copy of, and its number format).
+    QStringList addedSharedStrings() const { return m_sharedAdded; }
+    struct AddedNumberFormat {
+        int id;
+        QString code;
+    };
+    struct AddedCellFormat {
+        quint32 base;
+        int numFmtId;
+    };
+    QVector<AddedNumberFormat> addedNumberFormats() const { return m_numFmtsAdded; }
+    QVector<AddedCellFormat> addedCellFormats() const { return m_formatsAdded; }
+    // The file has been written with the first `strings`, `numberFormats`, and `cellFormats` of what was added: the package is the new file's, and those are in it.
+    void savedTo(const Package &package, int strings, int numberFormats, int cellFormats);
 
 private:
     Package m_package;
+    QString m_mainPart, m_sharedPart, m_stylesPart;
+    qint64 m_sharedInFile = 0, m_formatsInFile = 0;
+    QStringList m_sharedAdded;
+    QHash<QString, qint32> m_sharedAddedAt;
+    QVector<AddedNumberFormat> m_numFmtsAdded;
+    QVector<AddedCellFormat> m_formatsAdded;
     WorkbookInfo m_info;
     SharedStrings m_shared;
     QString m_sharedError;

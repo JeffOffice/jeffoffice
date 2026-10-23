@@ -1,5 +1,7 @@
 #include "sheet/sheetreader.h"
 
+#include "calc/numfmt.h"
+
 #include "office/theme.h"
 #include "office/xml.h"
 #include "io/zipindex.h"
@@ -1228,11 +1230,14 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
         else if (rel.type.endsWith(QLatin1String("acrosheet"))) e.kind = SheetKind::Macrosheet;
     }
     m_package = package;
+    m_mainPart = main;
     const QVector<Relationship> strings = package.relationshipsOfType(main, QStringLiteral("/sharedStrings"));
     for (const Relationship &rel : strings) {
         if (rel.external || !package.hasPart(rel.target)) continue;
         const auto device = package.openPart(rel.target);
         readSharedStrings(device.get(), limits, &m_shared, &m_sharedError);
+        m_sharedPart = rel.target;
+        m_sharedInFile = m_shared.strings.size();
         break;
     }
     // The styles: a part that is damaged keeps the formats read before the damage (stylesError says what it was) and the workbook open.
@@ -1241,6 +1246,8 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
         if (rel.external || !package.hasPart(rel.target)) continue;
         const auto device = package.openPart(rel.target);
         readStyles(device.get(), limits, &m_styles, &m_stylesError);
+        m_stylesPart = rel.target;
+        m_formatsInFile = m_styles.formats.size();
         break;
     }
     // The theme: the colors the styles name by place. A part that is missing or can't be read leaves the usual ones.
@@ -1257,6 +1264,65 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
         break;
     }
     return true;
+}
+
+// ---- changes
+
+qint32 Workbook::addSharedString(const QString &text)
+{
+    const auto found = m_sharedAddedAt.constFind(text);
+    if (found != m_sharedAddedAt.constEnd()) return found.value();
+    const qint32 at = qint32(m_shared.strings.size());
+    m_shared.strings.append(text);
+    m_shared.chars += text.size();
+    m_sharedAdded.append(text);
+    m_sharedAddedAt.insert(text, at);
+    return at;
+}
+
+int Workbook::numberFormatId(const QString &code)
+{
+    for (int id = 0; id <= 58; ++id)
+        if (jp::calc::builtinFormatCode(id) == code) return id;
+    int highest = 163;
+    for (auto it = m_styles.numFmts.constBegin(); it != m_styles.numFmts.constEnd(); ++it) {
+        if (it.value() == code) return it.key();
+        highest = std::max(highest, it.key());
+    }
+    const int id = highest + 1;
+    m_styles.numFmts.insert(id, code);
+    m_styles.chars += code.size();
+    m_numFmtsAdded.append({id, code});
+    return id;
+}
+
+quint32 Workbook::formatWithNumberFormat(quint32 base, int numFmtId)
+{
+    if (m_styles.formats.isEmpty()) return base;
+    if (base >= quint32(m_styles.formats.size())) base = 0;
+    if (m_styles.formats[int(base)].numFmtId == numFmtId) return base;
+    // (one made before for the same cell format and number format stands for it)
+    for (int i = 0; i < m_formatsAdded.size(); ++i)
+        if (m_formatsAdded[i].base == base && m_formatsAdded[i].numFmtId == numFmtId) return quint32(m_formatsInFile + i);
+    if (m_styles.formats.size() >= kMaxCellXfs) return base;
+    CellFormat f = m_styles.formats[int(base)];
+    f.numFmtId = numFmtId;
+    m_styles.formats.append(f);
+    m_styles.cellXfs.append(numFmtId);
+    m_formatsAdded.append({base, numFmtId});
+    return quint32(m_styles.formats.size() - 1);
+}
+
+void Workbook::savedTo(const Package &package, int strings, int numberFormats, int cellFormats)
+{
+    m_package = package;
+    m_sharedInFile += strings;
+    m_formatsInFile += cellFormats;
+    m_sharedAdded = m_sharedAdded.mid(strings);
+    m_numFmtsAdded = m_numFmtsAdded.mid(numberFormats);
+    m_formatsAdded = m_formatsAdded.mid(cellFormats);
+    m_sharedAddedAt.clear();
+    for (int i = 0; i < m_sharedAdded.size(); ++i) m_sharedAddedAt.insert(m_sharedAdded[i], qint32(m_sharedInFile + i));
 }
 
 bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)> &progress, qint64 stopAfterRow, qint64 screenRows) const

@@ -1,0 +1,115 @@
+#pragma once
+// Saving a workbook as .xlsx or .xlsm without writing it again: the new file is the old file's ZIP with only what changed put in anew. Every part the person did not change
+// (the other sheets, the styles when no format was added, the theme, drawings, the VBA project, everything the program does not read) is copied as it is in the old file, compressed
+// bytes and all, so it is the same to the last bit. A sheet that has changed is the old sheet's XML with the changed cells put in their places (and nothing else of it touched: its
+// conditional formats, validations, drawings, and the rest are as they were); the shared strings and styles parts get what was added at their ends; and the calculation chain,
+// which lists the formulas in the order a program last worked them out and which a program refuses to open when it names a cell that no longer holds one, is left out (the other
+// program makes it again when it opens the file).
+//
+// The changes are handed over as plain data (`SaveChanges`), taken from the workbook when the save begins, so that the file can be made on a thread of its own while the window goes
+// on: nothing here reads the workbook's cells.
+
+#include "office/package.h"
+#include "sheet/sheetreader.h"
+
+#include <QByteArray>
+#include <QString>
+#include <QStringList>
+#include <QVector>
+
+#include <atomic>
+#include <map>
+#include <vector>
+
+namespace jp::office::sheet {
+
+// A value as a cell of the new file holds it.
+struct SavedValue {
+    enum class Kind : quint8 { Empty, Number, Text, Bool, Error } kind = Kind::Empty;
+    double number = 0;          // a number; 1 or 0 for a bool; the error's place (CellError) for an error
+    QString text;
+    qint32 sharedString = -1;   // a text: its place in the shared strings if it has one (the file is given them), else it is written in the cell
+};
+
+// A cell the person changed, put in whole: what it holds, its format, and its formula.
+struct SavedCell {
+    quint32 row = 0;
+    quint16 col = 0;
+    quint32 style = 0;          // the place of its cell format
+    SavedValue value;           // the value, or a formula's result
+    bool isFormula = false;
+    QString formula;            // as the file writes it, with no "=" in front
+    bool hasResult = true;      // a formula's result is known (else the cell has the formula and no value)
+};
+
+// The result of a formula that the person did not change, worked out again after a change to what it reads.
+struct SavedResult {
+    quint32 row = 0;
+    quint16 col = 0;
+    SavedValue value;
+};
+
+struct SheetChanges {
+    std::vector<SavedCell> cells;       // sorted by row, then column
+    std::vector<SavedResult> results;   // sorted the same way
+    bool empty() const { return cells.empty() && results.empty(); }
+};
+
+struct SaveChanges {
+    std::map<int, SheetChanges> sheets;           // by the sheet's place in the workbook
+    // Strings added to the end of the shared strings (the first is at the place `sharedStringsBefore`), and the number of strings the file has now.
+    QStringList newSharedStrings;
+    qint64 sharedStringsBefore = 0;
+    // Number formats and cell formats added to the styles: each cell format is an old one with another number format (the first is at the place `cellFormatsBefore`).
+    struct NumberFormat {
+        int id = 0;
+        QString code;
+    };
+    struct CellFormatAdded {
+        quint32 base = 0;       // the cell format it is a copy of
+        int numFmtId = 0;
+    };
+    QVector<NumberFormat> newNumberFormats;
+    QVector<CellFormatAdded> newCellFormats;
+    qint64 cellFormatsBefore = 0;
+    // Ask the program that opens the file to work every formula out again (a result that could not be worked out here is stale).
+    bool fullCalcOnLoad = false;
+};
+
+struct SaveReport {
+    int sheetsRewritten = 0;
+    int partsCopied = 0;                 // copied as they were
+    int partsChanged = 0;                // and written anew (sheets, shared strings, styles, content types, relationships, workbook)
+    qint64 cellsChanged = 0, resultsChanged = 0;
+    bool calcChainDropped = false;
+    QStringList changedParts;            // the names, as the file has them
+};
+
+// Makes the new file's bytes from the old (the lazy package `book` was opened from) and the changes. `cancel`, if given, is looked at as the sheets are copied. False, with a message, if
+// the file cannot be made (a sheet is not XML this can change, the package is not lazy, the workbook has no part to put a change in).
+bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out, QString *error = nullptr, SaveReport *report = nullptr, const std::atomic<bool> *cancel = nullptr);
+
+// Writes the bytes to `path` without touching a file that is already there until they are all written: they go to a file of their own in the same folder, which then takes the place
+// of the old (renamed over it). False, with a message, if anything failed; the old file is then as it was.
+bool writeFileAtomically(const QString &path, const QByteArray &bytes, QString *error = nullptr);
+
+// ---- the parts' changes, one by one (saveXlsx puts them together; they are public for the tests)
+
+// A sheet's XML with the changes put in. `in` is read to its end and the new XML written to `out` (a ZipWriter stream, or any sink); false, with a message, if it cannot be made.
+class PartSink {
+public:
+    virtual ~PartSink() = default;
+    virtual void write(const char *data, qsizetype size) = 0;
+};
+bool patchSheet(QIODevice *in, PartSink *out, const SheetChanges &changes, bool hasSharedStrings, QString *error = nullptr, const std::atomic<bool> *cancel = nullptr);
+// The shared strings part with the strings added at its end (and its counts raised).
+bool patchSharedStrings(const QByteArray &xml, const QStringList &added, QByteArray *out, QString *error = nullptr);
+// The styles part with the number formats and cell formats added.
+bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *out, QString *error = nullptr);
+// [Content_Types].xml without the Override of a part, and a relationships part without the link of a type (whose Type ends with the given words); false (nothing changed) if there is none.
+bool removeContentTypeOverride(const QByteArray &xml, const QString &partName, QByteArray *out);
+bool removeRelationshipOfType(const QByteArray &xml, const QString &typeSuffix, QByteArray *out);
+// The workbook part with fullCalcOnLoad="1" on its calcPr (made if there is none).
+bool setFullCalcOnLoad(const QByteArray &xml, QByteArray *out);
+
+} // namespace jp::office::sheet
