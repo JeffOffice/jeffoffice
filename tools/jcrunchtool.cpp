@@ -25,8 +25,9 @@
 //                                                matched, whether the workbook calculates by hand, whether every sheet was read, and the seconds
 //   jcrunchtool functions                      the functions the formula engine has: name, fewest and most arguments, and v (volatile) or f (written with the prefix _xlfn.)
 //   jcrunchtool mutate <file.xlsx> [count=3000] [seed=1] [seconds=60]   the formulas of the workbook, each damaged in a few places (a character changed, taken out, or put in, a piece
-//                                                repeated or moved) and parsed and worked out against the workbook's cells with the work bounded, as a sweep for crashes and hangs; prints
-//                                                how many were parsed and worked out
+//                                                repeated or moved), some grown by repeating them as the arguments of a sum or the parts of a text up to the 32,768 characters a formula
+//                                                may have, and parsed and worked out against the workbook's cells with the engine's own bounds on steps and cells, as a sweep for crashes
+//                                                and hangs; prints how many were parsed and worked out
 //   jcrunchtool eval <file.xlsx> <sheet> <cell> <formula>   the formula worked out as if it were in that cell of that sheet (a name, or a number counting from 1), reading the values the file stored:
 //                                                the value, as `n:1.5`, `s:text`, `b:1`, `e:#N/A`, or `a:2x2[...]`
 //   jcrunchtool recalc <keys.txt> <out-dir> [jobs]   runs `recalc-one` on each workbook listed under the same limits as `scan`, writes <out-dir>/cells.tsv (workbook, sheet, cell, formula,
@@ -341,8 +342,7 @@ int mutate(const QString &path, int count, quint32 seed, double seconds)
     std::mt19937 rng(seed);
     QElapsedTimer timer;
     timer.start();
-    jp::calc::Evaluator evaluator;
-    evaluator.setWorkLimit(5000000);
+    jp::calc::Evaluator evaluator;   // (with the engine's own limit on steps: a sweep with a smaller one never reaches what the real limit lets through)
     qint64 parsed = 0, worked = 0, tried = 0;
     for (int i = 0; i < count && timer.elapsed() < seconds * 1000.0; ++i) {
         QString f = formulas[int(rng() % quint32(formulas.size()))];
@@ -356,7 +356,15 @@ int mutate(const QString &path, int count, quint32 seed, double seconds)
             case 3: f.insert(pos, f.mid(int(rng() % quint32(std::max(1, int(f.size())))), 1 + int(rng() % 12))); break;
             default: f.replace(pos, 1, QString(QChar(ushort(32 + rng() % 95)))); break;
             }
-            if (f.size() > 3000) f.truncate(3000);
+            if (f.size() > jp::calc::kMaxFormulaChars + 8) f.truncate(jp::calc::kMaxFormulaChars + 8);
+        }
+        // a formula of the most characters a file may give: the damaged one repeated as the arguments of a sum, or the parts of a text (some a few characters too long, to be refused)
+        if (rng() % 8 == 0 && !f.isEmpty()) {
+            const int target = int(rng() % 4 == 0 ? jp::calc::kMaxFormulaChars + 8 : 2000 + rng() % 30000);
+            const int copies = std::max(1, std::min(target / int(f.size() + 1), 60000));
+            if (rng() % 2) f = QStringLiteral("SUM(") + (f + QLatin1Char(',')).repeated(copies) + QStringLiteral("0)");
+            else f = (f + QLatin1Char('&')).repeated(copies) + QStringLiteral("\"\"");
+            if (f.size() > jp::calc::kMaxFormulaChars + 8) f.truncate(jp::calc::kMaxFormulaChars + 8);
         }
         ++tried;
         for (int mode = 0; mode < 2; ++mode) {
