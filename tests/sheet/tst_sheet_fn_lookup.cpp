@@ -199,6 +199,28 @@ private Q_SLOTS:
         }
     }
 
+    // A value of more than 255 characters is a #VALUE! in VLOOKUP, HLOOKUP, and MATCH, whatever the mode, whether or not it has a wildcard in it; one of 255 is looked up.
+    void aTextValueOfMoreThan255CharactersIsAValueError()
+    {
+        Grid g;
+        g.column("A1", {QString(255, QLatin1Char('a')), QString("b")});
+        g.column("B1", {1, 2});
+        const E cases[] = {
+            {"VLOOKUP(REPT(\"a\",255),A1:B2,2,FALSE)", "n:1"},
+            {"VLOOKUP(REPT(\"a\",256),A1:B2,2,FALSE)", "e:#VALUE!"},
+            {"VLOOKUP(REPT(\"a\",256),A1:B2,2)", "e:#VALUE!"},
+            {"VLOOKUP(REPT(\"a\",256),A1:B2,2,TRUE)", "e:#VALUE!"},
+            {"VLOOKUP(REPT(\"a\",255)&\"*\",A1:B2,2,FALSE)", "e:#VALUE!"},
+            {"HLOOKUP(REPT(\"a\",256),A1:B2,2,FALSE)", "e:#VALUE!"},
+            {"HLOOKUP(REPT(\"a\",256),A1:B2,2)", "e:#VALUE!"},
+            {"MATCH(REPT(\"a\",256),A1:A2,0)", "e:#VALUE!"},
+            {"MATCH(REPT(\"a\",256),A1:A2,1)", "e:#VALUE!"},
+            {"MATCH(REPT(\"a\",256),A1:A2)", "e:#VALUE!"},
+            {"MATCH(REPT(\"a\",255),A1:A2,0)", "n:1"},
+        };
+        CHECK_EVALS(cases, g, Settings());
+    }
+
     void matchInItsThreeModes()
     {
         const Grid g = sample();

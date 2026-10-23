@@ -153,12 +153,17 @@ qint64 searchExact(Call &c, const Value &key, qint64 n, const Line &line)
     return -1;
 }
 
-// The value looked for: an empty one is 0; an error is the result.
-bool lookupKey(Call &c, int i, Value *key)
+// The value looked for: an empty one is 0; an error is the result. With `limited` a text of more than 255 characters is a #VALUE! (VLOOKUP, HLOOKUP, and MATCH
+// cannot look for one, in any of their modes).
+bool lookupKey(Call &c, int i, Value *key, bool limited = false)
 {
     *key = c.scalar(i);
     if (key->isError()) {
         c.error(key->errorKind());
+        return false;
+    }
+    if (limited && key->isText() && key->text().size() > 255) {
+        c.error(ErrorKind::Value);
         return false;
     }
     if (key->isEmpty()) *key = Value::number(0);
@@ -172,7 +177,7 @@ Value tableLookup(Call &c, bool vertical)
     Value key;
     Table t;
     double index;
-    if (!lookupKey(c, 0, &key) || !c.table(1, &t) || !c.number(2, &index)) return c.failure();
+    if (!lookupKey(c, 0, &key, true) || !c.table(1, &t) || !c.number(2, &index)) return c.failure();
     bool exact = false;
     if (c.argc() > 3) {
         if (c.item(3).isMissing()) {
@@ -210,7 +215,7 @@ Value fnMatch(Call &c)
     Value key;
     Table t;
     double type;
-    if (!lookupKey(c, 0, &key)) return c.failure();
+    if (!lookupKey(c, 0, &key, true)) return c.failure();
     if (!c.table(1, &t) || !c.numberOr(2, 1, &type)) return c.failure();
     if (c.argc() > 2 && c.item(2).isMissing()) type = 0;   // (an empty argument is not an argument left off: it is 0)
     if (t.fullRows() != 1 && t.fullCols() != 1) return c.error(ErrorKind::NA);
