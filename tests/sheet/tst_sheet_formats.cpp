@@ -163,6 +163,30 @@ private Q_SLOTS:
         QVERIFY(!b3.stylesError().isEmpty());
         QVERIFY(b3.readSheet(0, &sheet));
     }
+
+    // A styles part damaged partway keeps the formats read before the damage, in the reader and in a workbook.
+    void aDamagedStylesPartKeepsWhatCameBefore()
+    {
+        const QByteArray cut = ("<?xml version=\"1.0\"?>\n<styleSheet xmlns=\"" + kMainNs + "\"><numFmts><numFmt numFmtId=\"164\" formatCode=\"0.000\"/>"
+                                "<numFmt numFmtId=\"165\" formatCode=\"0.0%\"/></numFmts><cellXfs><xf numFmtId=\"164\"/><xf numFmtId=\"165\"/><xf numFmtId=\"2\"/>").toUtf8();
+        Styles st;
+        QString why;
+        QVERIFY(!readStylesXml(cut, &st, &why));
+        QVERIFY(!why.isEmpty());
+        QCOMPARE(st.numFmts.size(), 2);
+        QCOMPARE(st.cellXfs.size(), 3);
+        QCOMPARE(st.formatCode(0), QStringLiteral("0.000"));
+        QCOMPARE(st.formatCode(1), QStringLiteral("0.0%"));
+        QCOMPARE(st.formatCode(2), QStringLiteral("0.00"));
+        const QVector<QByteArray> sheets = {worksheet(row(1, QStringLiteral("<c r=\"A1\" s=\"1\"><v>0.25</v></c>")))};
+        Package package;
+        QVERIFY2(package.readLazy(buildXlsx(sheets, QByteArray(), QString(), QString(), cut), &why), qPrintable(why));
+        Workbook book;
+        QVERIFY2(book.open(package, &why), qPrintable(why));
+        QVERIFY(!book.stylesError().isEmpty());
+        QCOMPARE(book.styles().formatCode(1), QStringLiteral("0.0%"));
+        QCOMPARE(jp::calc::NumberFormat(book.styles().formatCode(1)).format(0.25).text, QStringLiteral("25.0%"));
+    }
 };
 
 JP_TEST_CLASS(SheetStylesTests)

@@ -813,7 +813,7 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
         readSharedStrings(device.get(), limits, &m_shared, &m_sharedError);
         break;
     }
-    // The styles: a part that is damaged leaves the cells General (stylesError says why) and the workbook open.
+    // The styles: a part that is damaged keeps the formats read before the damage (stylesError says what it was) and the workbook open.
     const QVector<Relationship> styles = package.relationshipsOfType(main, QStringLiteral("/styles"));
     for (const Relationship &rel : styles) {
         if (rel.external || !package.hasPart(rel.target)) continue;
