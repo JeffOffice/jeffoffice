@@ -34,10 +34,11 @@ QByteArray sharedStringsXml(const QStringList &items);
 // A workbook as an .xlsx: one sheet part per entry of `sheets` (named Sheet1, Sheet2, ...), the shared strings if given,
 // and `workbookPr` and `calcPr` as the attributes of those elements.
 // `styles` is the styles part if given, `names` the sheets' names if given (else Sheet1, Sheet2, ...), and `definedNames` the inside of definedNames.
-// `theme` is the theme part if given, `bookViews` the inside of bookViews (the workbookView elements).
+// `theme` is the theme part if given, `bookViews` the inside of bookViews (the workbookView elements), `hidden` the places (from 0) of the sheets that are hidden.
 QByteArray buildXlsx(const QVector<QByteArray> &sheets, const QByteArray &sharedStrings = QByteArray(), const QString &workbookPr = QString(),
                      const QString &calcPr = QString(), const QByteArray &styles = QByteArray(), const QStringList &names = QStringList(),
-                     const QString &definedNames = QString(), const QByteArray &theme = QByteArray(), const QString &bookViews = QString());
+                     const QString &definedNames = QString(), const QByteArray &theme = QByteArray(), const QString &bookViews = QString(),
+                     const QList<int> &hidden = QList<int>());
 // A styles part: the inside of numFmts (the numFmt elements), then the inside of cellXfs (the xf elements), and the rest of the stylesheet after them.
 QByteArray stylesXml(const QString &numFmts, const QString &cellXfs, const QString &after = QString());
 

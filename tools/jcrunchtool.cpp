@@ -51,6 +51,11 @@
 #include "sheet/recalc.h"
 #include "sheet/sheetreader.h"
 
+#ifdef JC_GRID
+#include "app/crunchinfo.h"
+#include "core/fonts.h"
+#include <QApplication>
+#endif
 #include <QCoreApplication>
 #include <QDir>
 #include <QElapsedTimer>
@@ -66,6 +71,13 @@
 
 using namespace jp::office;
 using namespace jp::office::sheet;
+
+#ifdef JC_GRID
+namespace jp::crunchtool {
+// The grid's commands (tools/jcrunchtool_grid.cpp): the code to exit with, or -1 for a line that is none of them.
+int gridMain(const QStringList &args);
+}
+#endif
 
 namespace {
 
@@ -665,7 +677,11 @@ int usage()
              "       jcrunchtool eval <file.xlsx> <sheet> <cell> <formula>\n"
              "       jcrunchtool recalc <keys.txt> <out-dir> [jobs]\n"
              "       jcrunchtool recalc-full-one <file.xlsx> [matches=3] [seconds=100]\n"
-             "       jcrunchtool recalc-full <keys.txt> <out-dir> [jobs]\n";
+             "       jcrunchtool recalc-full <keys.txt> <out-dir> [jobs]\n"
+             "       jcrunchtool grid-one [--full] <file.xlsx>\n"
+             "       jcrunchtool grid-window <file.xlsx>\n"
+             "       jcrunchtool grid-bench [rows=100000] [cols=20]\n"
+             "       jcrunchtool grid-sweep <keys.txt> <out-dir> [jobs]\n";
     return 2;
 }
 
@@ -674,6 +690,19 @@ int usage()
 int main(int argc, char **argv)
 {
     qputenv("JP_NO_TELEMETRY", "1");
+#ifdef JC_GRID
+    // the grid commands draw: they need the program's own window system parts (offscreen unless the person chose another)
+    if (argc > 1 && QByteArray(argv[1]).startsWith("grid-")) {
+        if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM")) qputenv("QT_QPA_PLATFORM", "offscreen");
+        Q_INIT_RESOURCE(resources);
+        Q_INIT_RESOURCE(crunch);
+        ::jp::setAppInfo(::jp::crunchAppInfo());
+        QApplication gui(argc, argv);
+        ::jp::initCore();   // the program's own fonts, as JeffCrunch loads them
+        const int code = ::jp::crunchtool::gridMain(gui.arguments().mid(1));
+        return code >= 0 ? code : usage();
+    }
+#endif
     QCoreApplication app(argc, argv);
     const QStringList args = app.arguments().mid(1);
     if (args.size() >= 2 && args[0] == QLatin1String("info")) {

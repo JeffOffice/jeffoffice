@@ -28,7 +28,7 @@ QByteArray stylesXml(const QString &numFmts, const QString &cellXfs, const QStri
 }
 
 QByteArray buildXlsx(const QVector<QByteArray> &sheets, const QByteArray &sharedStrings, const QString &workbookPr, const QString &calcPr, const QByteArray &styles,
-                     const QStringList &names, const QString &definedNames, const QByteArray &theme, const QString &bookViews)
+                     const QStringList &names, const QString &definedNames, const QByteArray &theme, const QString &bookViews, const QList<int> &hidden)
 {
     PackageWriter w;
     const QString relBase = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
@@ -40,7 +40,8 @@ QByteArray buildXlsx(const QVector<QByteArray> &sheets, const QByteArray &shared
         w.addPart(part, sheets[i], QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"));
         const QString id = w.addRelationship(QStringLiteral("/xl/workbook.xml"), relBase + "worksheet", part);
         const QString name = i < names.size() ? names[i] : QStringLiteral("Sheet%1").arg(i + 1);
-        sheetList += QStringLiteral("<sheet name=\"%3\" sheetId=\"%1\" r:id=\"%2\"/>").arg(i + 1).arg(id, name.toHtmlEscaped().replace(QLatin1Char('"'), QLatin1String("&quot;")));
+        sheetList += QStringLiteral("<sheet name=\"%3\" sheetId=\"%1\"%4 r:id=\"%2\"/>").arg(i + 1).arg(id, name.toHtmlEscaped().replace(QLatin1Char('"'), QLatin1String("&quot;")),
+                                                                                          hidden.contains(i) ? QStringLiteral(" state=\"hidden\"") : QString());
     }
     if (!sharedStrings.isEmpty()) {
         w.addPart(QStringLiteral("/xl/sharedStrings.xml"), sharedStrings, QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"));
