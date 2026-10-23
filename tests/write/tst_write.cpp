@@ -5348,7 +5348,6 @@ private Q_SLOTS:
         }
     }
 
-    // A symbol sets the line as its own font does: a line with a big diamond of Symbol is as tall as Symbol makes it, not as the run's font does.
     // The result of a field that is nothing but blanks (a reference to a form field with no text in it) is shown as the file has it, but takes no part in its line's height, whatever size
     // its run is in; blanks that are no field's result count as they did.
     void aFieldResultOfBlanksTakesNoPartInTheLineHeight()
@@ -5403,6 +5402,7 @@ private Q_SLOTS:
         QVERIFY(!out.contains("w:styleId=\"TinyCellLayout\""));
     }
 
+    // A symbol sets the line as its own font does: a line with a big diamond of Symbol is as tall as Symbol makes it, not as the run's font does.
     void aSymbolSetsTheLineOfItsFont()
     {
         // The point from the page's top where the second of two paragraphs, each of one line, has its first ink.
