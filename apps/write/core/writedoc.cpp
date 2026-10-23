@@ -309,6 +309,8 @@ void WriteDoc::build(office::wml::Document &&doc)
     m_last = m_wml.lastSection;
     m_last.oddEvenHeaders = m_wml.evenAndOddHeaders;
     m_oddEvenAtOpen = m_wml.evenAndOddHeaders;
+    m_stylesCountAtOpen = m_wml.styles.styles.size();
+    m_stylesModifiedAtOpen = m_wml.styles.modified;
     setUpEnvironment();
     loadNotes();
     loadEndnotes();
@@ -560,6 +562,7 @@ void WriteDoc::syncSections()
         }
     }
     m_sectionKeys = keys;
+    if (m_pending.section >= int(m_sections.size())) m_pending = Pending();   // (its section is gone)
     if (oddEvenChanged && !changed) {
         // (Only the setting changed: every page may use another slot.)
         if (m_pager) m_pager->invalidateFrom(0);
@@ -574,10 +577,9 @@ void WriteDoc::syncSections()
     m_syncing = false;
 }
 
-namespace {
 // A header or footer as the text stands: the paragraphs whose marks a tracked change deleted, with nothing of their own to show, are gone. (Not the last
 // paragraph, which has no mark to join the next, nor one in a table.)
-void leaveOutDeletedParagraphs(QVector<Block> *blocks)
+void leaveOutDeletedParagraphs(QVector<Block> *blocks, bool keepAsXml)
 {
     int last = -1;
     for (int i = 0; i < blocks->size(); ++i)
@@ -587,12 +589,19 @@ void leaveOutDeletedParagraphs(QVector<Block> *blocks)
     for (int i = 0; i < blocks->size(); ++i) {
         const Block &b = (*blocks)[i];
         if (!b.isRaw && b.tag == QLatin1String("tbl")) depth += b.role == Inline::Open ? 1 : b.role == Inline::Close ? -1 : 0;
-        if (!b.isRaw && b.tag.isEmpty() && depth == 0 && i != last && isDeletedAway(b.para)) continue;
+        if (!b.isRaw && b.tag.isEmpty() && depth == 0 && i != last && isDeletedAway(b.para)) {
+            if (keepAsXml) {
+                Block xmlBlock;
+                xmlBlock.isRaw = true;
+                xmlBlock.raw = blockXml(b);
+                kept << xmlBlock;
+            }
+            continue;
+        }
         kept << b;
     }
     *blocks = kept;
 }
-} // namespace
 
 std::shared_ptr<QTextDocument> WriteDoc::headerStory(const QString &relationshipId)
 {
@@ -640,6 +649,11 @@ void WriteDoc::attachHeaders(int from)
         s.footer.odd = pick(refs.footer[0], before ? before->footer.odd : nullptr);
         s.footer.first = pick(refs.footer[1], before ? before->footer.first : nullptr);
         s.footer.even = pick(refs.footer[2], before ? before->footer.even : nullptr);
+        // (The empty header or footer shown to be typed in: in its place, and the sections after it that have none of their own have it.)
+        if (m_pending.section == i) {
+            const auto part = m_headerParts.constFind(m_pending.part);
+            if (part != m_headerParts.constEnd()) (m_pending.footer ? s.footer : s.header).slot(m_pending.slot) = part.value().story;
+        }
         // (The numbers of the lines are in the file's "line number" character style.)
         if (s.lineNumbers.countBy > 0) s.lineNumbers.format = styleCharFormat(defaultParagraphStyle(), QStringLiteral("LineNumber"));
     }

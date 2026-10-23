@@ -218,6 +218,37 @@ QByteArray settingsWithEvenAndOddHeaders(const QByteArray &settings, bool on)
         if (!on) return QByteArray();
         return QByteArray(kXml) + "<w:settings xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><w:evenAndOddHeaders/></w:settings>";
     }
+    // A part that is one empty element: made one with a start and an end for the setting to be in.
+    {
+        qsizetype at = 0;
+        for (;;) {
+            at = settings.indexOf('<', at);
+            if (at < 0 || at + 1 >= settings.size()) break;
+            if (settings[at + 1] == '?') {
+                at = settings.indexOf("?>", at);
+                if (at < 0) break;
+                at += 2;
+                continue;
+            }
+            if (settings[at + 1] == '!') {
+                at = settings.indexOf("-->", at);
+                if (at < 0) break;
+                at += 3;
+                continue;
+            }
+            const qsizetype close = settings.indexOf('>', at);
+            if (close > at && settings[close - 1] == '/') {
+                if (!on) return settings;
+                QByteArray open = settings.mid(at, close - 1 - at).trimmed();
+                const qsizetype space = open.indexOf(' ');
+                const QByteArray qname = open.mid(1, space < 0 ? -1 : space - 1);
+                const qsizetype colon = qname.indexOf(':');
+                const QByteArray name = colon >= 0 ? qname.left(colon + 1) : QByteArray();
+                return settings.left(at) + open + ">" + "<" + name + "evenAndOddHeaders/></" + qname + ">" + settings.mid(close + 1);
+            }
+            break;
+        }
+    }
     QVector<SettingsChild> children;
     qsizetype rootEnd = 0;
     QByteArray prefix;
@@ -501,6 +532,18 @@ const Style *StyleSheet::find(const QString &id) const
     if (m_indexed != styles.size()) reindex();
     const auto it = m_index.constFind(id);
     return it == m_index.constEnd() ? nullptr : &styles[it.value()];
+}
+
+bool StyleSheet::remove(const QString &id)
+{
+    for (qsizetype i = 0; i < styles.size(); ++i)
+        if (styles[i].id == id) {
+            styles.removeAt(i);
+            modified = true;
+            changed();
+            return true;
+        }
+    return false;
 }
 
 QString StyleSheet::defaultId(const QString &type) const

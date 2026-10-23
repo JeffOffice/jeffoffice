@@ -399,6 +399,13 @@ void Paginator::watchFurniture(const QTextDocument *story)
     m_furnitureBaseline[story] = furnitureExtents(story, &first);
 }
 
+void Paginator::releaseStory(const QTextDocument *story)
+{
+    forgetStory(story);
+    m_furnitureBaseline.erase(story);
+    if (m_editedStory == story) m_editedStory = nullptr;
+}
+
 void Paginator::furnitureChanged(const QTextDocument *story)
 {
     forgetStory(story);

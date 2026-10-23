@@ -32,6 +32,7 @@ QString s_copiedText;
 void PageView::undo()
 {
     if (!m_doc) return;
+    if (m_hf.active && m_doc->isPendingHeaderFooter(m_hf.story)) leaveHeaderFooter();   // (an empty one shown to be typed in has no step to take back)
     QTextCursor at;
     if (QTextDocument *story = m_doc->undo(&at)) followHistory(story, at);
 }
@@ -39,6 +40,7 @@ void PageView::undo()
 void PageView::redo()
 {
     if (!m_doc) return;
+    if (m_hf.active && m_doc->isPendingHeaderFooter(m_hf.story)) leaveHeaderFooter();
     QTextCursor at;
     if (QTextDocument *story = m_doc->redo(&at)) followHistory(story, at);
 }
@@ -49,7 +51,16 @@ void PageView::copy()
     const Clip clip = copySelection(*m_doc, m_cursor);
     const QTextDocumentFragment &f = clip.fragment;
     auto *mime = new QMimeData;
-    const QString text = plainTextOf(f);
+    // (A field is the text it shows on the page being edited, or the one the caret is on.)
+    FieldContext shown;
+    shown.doc = m_doc->flow().fields;
+    {
+        flow::Paginator &pg = m_doc->pager();
+        const int page = std::clamp(currentPage(), 0, std::max(0, pg.pagesKnown() - 1));
+        shown.pageNumber = pg.pagesKnown() > 0 ? pg.page(page).number : 1;
+        shown.pageCount = std::max(1, pg.pageCount());
+    }
+    const QString text = plainTextOf(f, &shown);
     mime->setText(text);
     mime->setHtml(f.toHtml());
     mime->setData(QStringLiteral("application/x-jeffwrite-fragment"), text.toUtf8());

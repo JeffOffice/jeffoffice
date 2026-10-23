@@ -150,6 +150,7 @@ void SpellPane::start()
         finish();
         return;
     }
+    m_view->leaveHeaderFooter();   // (the check is of the text: its caret is the text's)
     m_start = m_view->cursor().selectionStart();
     m_wrapped = false;
     m_complete = false;

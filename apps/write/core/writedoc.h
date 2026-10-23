@@ -80,6 +80,10 @@ private:
 // section's, or a paragraph style's text; empty for the rest, which show what they read.
 QString liveFieldFor(const QString &instruction);
 
+// The paragraphs of a header or footer part that a tracked change deleted whole (mark and text) are left out of what is shown: with `keepAsXml` they stay among the blocks as
+// elements kept as written (what the story of the part holds, in the form it is edited in, and writes back).
+void leaveOutDeletedParagraphs(QVector<office::wml::Block> *blocks, bool keepAsXml = false);
+
 // The most distinct header and footer parts that are read; a file with more has the rest left as it is (a section's reference to one shows nothing, and nothing replaces it).
 constexpr int kMostHeaderParts = 64;
 // An Id for a relationship that none of `links` has.
@@ -158,8 +162,11 @@ public:
     bool hasOwnHeaderFooter(int section, bool footer, int slot) const;
     bool linkedToPrevious(int section, bool footer, int slot) const;
     // Makes a blank header (footer) of its own for the slot of a section that has none there (its own nor the section before's), as one step of the history. True when the slot has
-    // a story now; false where it holds a part the program could not read (making one would lose it).
-    bool createHeaderFooter(int section, bool footer, int slot);
+    // a story now; false where it holds a part the program could not read (making one would lose it). With `lazy`, the blank one is shown in the slot to be typed in and is not made in
+    // the document (no part, no reference, no step, the document not modified) until something is put in it; discardPendingHeaderFooter takes it away unmade.
+    bool createHeaderFooter(int section, bool footer, int slot, bool lazy = false);
+    bool isPendingHeaderFooter(const QTextDocument *story) const;
+    void discardPendingHeaderFooter();
     // Link to Previous: on, the section has the section before's (its own is let go); off, it has a copy of the one it had, of its own to edit. False where that cannot be done
     // (the first section, which has none before it; or a slot that has no header to copy). One step of the history.
     bool setLinkedToPrevious(int section, bool footer, int slot, bool linked);
@@ -292,6 +299,8 @@ private:
     friend class NoteFields;
     void exportBody(QVector<office::wml::Block> *body);
     void exportInto(BlockSink &sink, QTextDocument *story = nullptr);
+    // What writing gives a run of this format, in a paragraph of this style (and table layer): the properties it has beyond its style's.
+    office::wml::RunProps runPropsWritten(const QTextCharFormat &format, const QString &styleId, const office::wml::TableLayer *layer) const;
     void settleTables();
     void setUpEnvironment();
     void storyChanged(int position, int removed, int added);
@@ -338,16 +347,18 @@ private:
         QByteArray rootStart;               // the part's root as read (empty for one the program made)
         QString relationship;               // the Id of the main part's relationship to it
         bool editForm = false;              // the story is in the form it is edited in
-        bool modified = false;              // edited since it was read
         bool created = false;               // made by the program: there is no such part in the file
         bool unreadable = false;            // the part is there but could not be read (not XML): it is kept as it is
         bool missing = false;               // the file has no such part: the reference to it names nothing
     };
     QHash<QString, HeaderPart> m_headerParts;                          // by part name
     // The history: a step is a story and the number that tells it from the others.
+    // (`raw`: the story's count of undo commands when the step was logged; Qt says twice of a step that an edit joined to the block of the one before it, and the entry of commands
+    // that an undo has taken away is none.)
     struct Step {
         QTextDocument *story = nullptr;
         quint64 serial = 0;
+        int raw = 0;
     };
     QVector<Step> m_undoLog, m_redoLog;
     quint64 m_nextSerial = 1, m_cleanSerial = 0;
@@ -355,6 +366,22 @@ private:
     bool m_wasModified = false;
     bool m_oddEvenAtOpen = false;                                      // the file's use of different headers on odd and even pages when it was read
     QSet<QString> m_released;                                          // parts the sections let go of (a reference taken out): written no more if nothing names them
+    // The empty header or footer shown to be typed in that is not made in the document yet (createHeaderFooter with `lazy`): its part, and the place it is shown in.
+    struct Pending {
+        QString part;
+        int section = -1, slot = 0;
+        bool footer = false;
+    } m_pending;
+    bool commitPending();
+    bool m_committing = false;   // the document is being changed to make the header or footer that was shown to be typed in (the story being typed in is not sealed by it)
+    // Takes the styles that making a header or footer added out of the styles to write when no paragraph written has them.
+    void dropHeaderStyles(office::wml::Document *out) const;
+    // The styles that making a header or footer added to the document (Header and Footer, and what they are based on): they are written only for a header or footer that is kept.
+    QSet<QString> m_headerStyles;
+    qsizetype m_stylesCountAtOpen = 0;
+    bool m_stylesModifiedAtOpen = false;
+    bool partEdited(const HeaderPart &part) const;
+    void renewIds(QTextDocument *copy);
     // Headers and footers (writedoc_headers.cpp)
     HeaderPart *partOfStory(const QTextDocument *story);
     const HeaderPart *partOfStory(const QTextDocument *story) const;
@@ -369,7 +396,7 @@ private:
     void sealStories();
     void checkModified();
     // A new part, with its relationship and a story to show; the section's reference to it is not made.
-    HeaderPart *addHeaderPart(bool footer, std::shared_ptr<QTextDocument> story, const QString &copyRelationshipsOf = QString());
+    HeaderPart *addHeaderPart(bool footer, std::shared_ptr<QTextDocument> story, const QString &copyRelationshipsOf = QString(), bool withRelationship = true);
     QString newPartName(bool footer) const;
     void writeHeaderParts(office::wml::Document *out);
     QByteArray headerPartXml(const HeaderPart &part);

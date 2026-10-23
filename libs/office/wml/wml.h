@@ -187,6 +187,8 @@ struct Inline {
     QString text;                     // Text: a tab is '\t', a line break U+2028, a no-break hyphen U+2011, a soft hyphen U+00AD
     QByteArray raw;                   // atoms: the XML (a RunAtom's is the child of the run, a ParaAtom's is the element, or the tag)
     QString display;                  // atoms: the text shown in the atom's place, none for most
+    QByteArray look;                  // a field group (kFieldGroupTag): the properties (as XML) that its `props` came to as the group was made; while they are still those, its runs are
+                                      // written with the properties they have of their own, else every run is written with the group's
     QString tag, key;                 // atoms: the element's local name, and what pairs it with its partner (a bookmark's id, a field mark's type); an equation's or a styled letter's style (i, b, ib, d)
 };
 
@@ -320,6 +322,8 @@ public:
     QString defaultId(const QString &type) const;
     // Adds a style (replacing one of the id); false for an empty id.
     bool add(const Style &style);
+    // Takes a style out (the styles based on it keep their word for it); false if there is none by that id.
+    bool remove(const QString &id);
     // What a paragraph of style `id` has: the document's defaults, then the styles it is based on, then the style. A style no file
     // defines gives the defaults. In a table's cell, the table style's properties for it go after the defaults.
     ParaProps paragraph(const QString &id, const TableLayer *table = nullptr) const;

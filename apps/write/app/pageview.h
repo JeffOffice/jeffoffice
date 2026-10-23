@@ -103,9 +103,11 @@ public:
     bool inHeaderFooter() const { return m_hf.active; }
     const HeaderFooterEdit &headerFooterEdit() const { return m_hf; }
     // Edits the header (footer) a page uses: its section's, in the slot that the page's number and place in the section choose. A blank one is made where there is none.
-    bool enterHeaderFooter(int page, bool footer);
-    bool enterHeaderFooterFor(int section, bool footer, int slot, int page);
-    bool enterHeaderFooterAtCaret(bool footer);   // for the page the caret is on
+    // (Where there is none, an empty one is shown to be typed in, and is made in the document when something is put in it: leaving it as it is leaves the document as it was. With
+    // `makeNow` it is made at once. A blank page, which an odd-page or even-page section break leaves, has none to edit.)
+    bool enterHeaderFooter(int page, bool footer, bool makeNow = false);
+    bool enterHeaderFooterFor(int section, bool footer, int slot, int page, bool makeNow = false);
+    bool enterHeaderFooterAtCaret(bool footer);   // for the page the caret is on (made at once: Insert > Header)
     void leaveHeaderFooter();
     // After a change to the sections or to their options: the header (footer) being edited is the one that its page uses now (else the one that is, made blank if `create`, else editing ends).
     void refreshHeaderFooter(bool create);
@@ -213,6 +215,8 @@ private:
     bool m_spellOn = true;
     int m_contextAt = -1;           // where the right click was, until the caret moves or the menu is gone
     int m_editEnd = -1;             // where the last edit left off (a word being typed ends the caret's way)
+    // The caret is in the text or in the header or footer being edited: a cursor in the other is not the view's. The text's takes the view out of the header; another story's is refused.
+    bool takeCursorOf(const QTextCursor &c);
     HeaderFooterEdit m_hf;
     QTextCursor m_bodyCursor;       // the text's cursor while a header or footer is edited
     std::unique_ptr<SpellCheck> m_hfSpell;

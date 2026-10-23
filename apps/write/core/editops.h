@@ -4,6 +4,7 @@
 // page view call these; they know nothing of pages.
 
 #include "core/writedoc.h"
+#include "text/textengine.h"
 
 #include <QColor>
 #include <QTextCursor>
@@ -54,8 +55,9 @@ QTextDocumentFragment selectionFragment(const QTextCursor &c);
 // A fragment pasted where the cursor is, as a copy from this same document (what its kept pieces refer to is this document's).
 void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment);
 void pasteText(WriteDoc &doc, QTextCursor &c, const QString &text);
-// What a fragment says in plain text: with the pieces kept as XML left out, and a line break as a new line.
-QString plainTextOf(const QTextDocumentFragment &fragment);
+// What a fragment says in plain text: with the pieces kept as XML left out, and a line break as a new line. With `shown`, a field is the text it shows there (the page's number, the
+// count of pages, the date as it stands...), else it is left out.
+QString plainTextOf(const QTextDocumentFragment &fragment, const FieldContext *shown = nullptr);
 
 // A copy that can be pasted into another document: the fragment, and what the pieces kept as XML in it refer to in the document it came from (a
 // picture's bytes, a hyperlink's address). Pasting it into another document carries pictures and hyperlinks over, with relationships of the

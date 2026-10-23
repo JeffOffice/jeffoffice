@@ -492,12 +492,42 @@ void writeRunText(QByteArray &out, const RunProps &props, const QString &text)
     out += "</w:r>";
 }
 
-// A field the program edits as one piece (kFieldGroupTag) is the runs that make it, without properties of their own: its atom's properties are every run's.
-QByteArray fieldGroupXml(const QByteArray &raw, const RunProps &props)
+// The runs of `xml` (written as the program writes them: `<w:r><w:rPr>`) without their properties, which can hold a w:rPr of their own (a recorded change of them).
+QByteArray withoutRunProperties(const QByteArray &xml)
+{
+    static const QByteArray start = "<w:r><w:rPr>", open = "<w:rPr>", close = "</w:rPr>";
+    QByteArray out;
+    qsizetype from = 0;
+    for (;;) {
+        const qsizetype at = xml.indexOf(start, from);
+        if (at < 0) break;
+        qsizetype p = at + start.size();
+        for (int depth = 1; depth > 0;) {
+            const qsizetype nextOpen = xml.indexOf(open, p), nextClose = xml.indexOf(close, p);
+            if (nextClose < 0) return xml;   // (not as written: left as it is)
+            if (nextOpen >= 0 && nextOpen < nextClose) {
+                ++depth;
+                p = nextOpen + open.size();
+            } else {
+                --depth;
+                p = nextClose + close.size();
+            }
+        }
+        out += xml.mid(from, at - from) + "<w:r>";
+        from = p;
+    }
+    return out + xml.mid(from);
+}
+
+// A field the program edits as one piece (kFieldGroupTag) is the runs that make it. As the program made it, the runs keep the properties they have; once its atom's properties are not
+// what they were (`look`: the field was formatted), they are every run's.
+QByteArray fieldGroupXml(const QByteArray &raw, const RunProps &props, const QByteArray &look)
 {
     const QByteArray rpr = runPropsXml(props);
-    if (rpr.isEmpty() || raw.contains("txbxContent")) return raw;
-    QByteArray out = raw;
+    // (As it was made: the runs have their own properties. Given a look, every run has it.)
+    if (rpr == look || raw.contains("txbxContent")) return raw;
+    QByteArray out = withoutRunProperties(raw);
+    if (rpr.isEmpty()) return out;
     out.replace("<w:r>", "<w:r><w:rPr>" + rpr + "</w:rPr>");
     return out;
 }
@@ -534,7 +564,7 @@ void writeInlines(QByteArray &out, const QVector<Inline> &content, qsizetype fro
             if (!rpr.isEmpty()) out += "<w:rPr>" + rpr + "</w:rPr>";
             out += a.raw + "</w:r>";
         } else if (a.tag == kFieldGroupTag) {
-            out += fieldGroupXml(a.raw, a.props);
+            out += fieldGroupXml(a.raw, a.props, a.look);
         } else {
             out += whole ? withId(a.raw, whole->newId(int(b), int(i))) : a.raw;
         }

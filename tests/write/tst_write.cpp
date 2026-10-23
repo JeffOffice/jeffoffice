@@ -5181,20 +5181,9 @@ private Q_SLOTS:
         QVERIFY(doc->differentFirstPage(1));
         QCOMPARE(w.view()->headerFooterEdit().slot, WriteDoc::kFirstSlot);
         QCOMPARE(w.view()->cursor().document()->toPlainText(), QString());
-        {
-            QString own;
-            for (int sec = 0; sec < 2; ++sec)
-                for (int slot = 0; slot < 3; ++slot) {
-                    const wml::HeaderRefs refs = wml::headerRefsOf(doc->sectionProps(sec));
-                    own += QStringLiteral("[s%1 slot%2 own=%3 refs='%4']").arg(sec).arg(slot).arg(doc->hasOwnHeaderFooter(sec, false, slot)).arg(refs.header[slot]);
-                }
-            QVERIFY2(doc->hasOwnHeaderFooter(1, false, WriteDoc::kFirstSlot), qPrintable(own));
-        }
-        QVERIFY2(doc->hasOwnHeaderFooter(1, false, WriteDoc::kFirstSlot), qPrintable(QStringLiteral("editing section %1 slot %2 footer %3 page %4 (second %5); own of section 0: %6, of 1: %7; first page of 0: %8, of 1: %9; sections %10; refs of 0: %11 | of 1: %12").arg(w.view()->headerFooterEdit().section)
-                 .arg(w.view()->headerFooterEdit().slot).arg(w.view()->headerFooterEdit().footer).arg(w.view()->headerFooterEdit().page).arg(secondPage).arg(doc->hasOwnHeaderFooter(0, false, 1)).arg(doc->hasOwnHeaderFooter(1, false, 1))
-                 .arg(doc->differentFirstPage(0)).arg(doc->differentFirstPage(1)).arg(doc->sectionCount())
-                 .arg(QString::fromUtf8(wml::sectionPropsXml(doc->sectionProps(0)))).arg(QString::fromUtf8(wml::sectionPropsXml(doc->sectionProps(1))))));
+        QVERIFY(!doc->hasOwnHeaderFooter(1, false, WriteDoc::kFirstSlot));   // (it is made when something is typed in it)
         typeText(*doc, w.view()->cursor(), QStringLiteral("S2 FIRST"));
+        QVERIFY(doc->hasOwnHeaderFooter(1, false, WriteDoc::kFirstSlot));
         QCOMPARE(headerOfPage(*doc, secondPage), QStringLiteral("S2 FIRST"));
         // Insert Page Number puts the page's number in the header being edited.
         QTRY_VERIFY(w.act("hf.pageNumber")->isEnabled());
@@ -5316,10 +5305,12 @@ private Q_SLOTS:
         const TextItem *box = boxWithText(*page, QStringLiteral("more header text"));
         QVERIFY(box);
         QVERIFY2(bodyTop(1) >= box->rect.bottom() - 0.5, qPrintable(QStringLiteral("text at %1, header ends at %2").arg(bodyTop(1)).arg(box->rect.bottom())));
-        QVERIFY2(bodyTop(1) > topBefore + 60, qPrintable(QStringLiteral("%1 before, %2 after").arg(topBefore).arg(bodyTop(1))));
-        QVERIFY(bodyTop(2) > topLater + 60);
+        // The text's first line moved down by what the header's growth took of the margin: from where it was to the foot of the header.
+        const double growth = box->rect.bottom() - topBefore;
+        QVERIFY2(growth > 60, qPrintable(QString::number(growth)));
+        QVERIFY2(std::abs((bodyTop(1) - topBefore) - growth) < 0.5, qPrintable(QStringLiteral("%1 before, %2 after, the header grew to %3").arg(topBefore).arg(bodyTop(1)).arg(box->rect.bottom())));
+        QVERIFY2(std::abs((bodyTop(2) - topLater) - growth) < 0.5, qPrintable(QStringLiteral("%1 before, %2 after").arg(topLater).arg(bodyTop(2))));
         QCOMPARE(bodyTop(0), topFirst);   // (the first page has a header of its own)
-        QVERIFY2(doc->pager().pageCount() > pagesBefore, qPrintable(QStringLiteral("%1 pages before, %2 after").arg(pagesBefore).arg(doc->pager().pageCount())));
         // Shorter again: back where it was.
         doc->undo();
         doc->undo();
@@ -5380,27 +5371,29 @@ private Q_SLOTS:
         view.show();
         view.setDocument(doc.get());
         view.paginateAll();
-        auto redInHeader = [&] {
-            int count = 0;
+        // The red pixels in the header's area (the checking of the words that are drawn is done in idle time: it is waited for).
+        auto headerArea = [&] {
             const QRect page = view.pageRect(0);
-            const QRect area(page.left(), page.top(), page.width(), int(72 * 96 / 72 * view.zoom()));
-            for (int i = 0; i < 20 && count == 0; ++i) {
-                redBounds(view.grab().toImage(), area, &count);
-                if (count == 0) QTest::qWait(20);
-            }
-            return count;
+            return QRect(page.left(), page.top(), page.width(), int(72 * 96 / 72 * view.zoom()));
         };
-        QCOMPARE(redInHeader(), 0);
+        auto redNow = [&] {
+            int n = 0;
+            redBounds(view.grab().toImage(), headerArea(), &n);
+            return n;
+        };
+        QTRY_VERIFY((view.grab(), !view.editedSpelling()->pending()));
+        QCOMPARE(redNow(), 0);
         QVERIFY(view.enterHeaderFooter(0, false));
-        QCOMPARE(redInHeader(), 0);
+        QTRY_VERIFY((view.grab(), !view.editedSpelling()->pending()));
+        QCOMPARE(redNow(), 0);
         view.cursor().movePosition(QTextCursor::End);
         for (const QChar ch : QStringLiteral(" brwon ")) view.insertText(QString(ch));
         QVERIFY(view.editedSpelling());
         QCOMPARE(view.editedSpelling()->story(), doc->headerFooterStory(0, false, 0));
         QCOMPARE(view.spelling()->story(), doc->story());   // (the text's check is the text's still)
         QVERIFY(!view.editedSpelling()->misspelledIn(0, 40).isEmpty());
-        const int count = redInHeader();
-        QVERIFY2(count > 8, qPrintable(QStringLiteral("%1 red pixels").arg(count)));
+        int count = 0;
+        QTRY_VERIFY((redBounds(view.grab().toImage(), headerArea(), &count), count > 8));
         // The right-click menu offers the header's word, and a suggestion takes the place of that word, not of anything in the text.
         {
             const QString shown = doc->headerFooterStory(0, false, 0)->toPlainText();
@@ -5417,7 +5410,8 @@ private Q_SLOTS:
         }
         // Left, the header is as any: no marks.
         view.leaveHeaderFooter();
-        QCOMPARE(redInHeader(), 0);
+        QTRY_VERIFY((view.grab(), !view.editedSpelling()->pending()));
+        QCOMPARE(redNow(), 0);
     }
 
     // AutoRecover writes the headers and footers with the rest: a copy of work that is not saved has the edited header.
@@ -5598,6 +5592,602 @@ private Q_SLOTS:
         QTextDocument *back = again->editableHeaderFooter(0, false, 0);
         QVERIFY(back);
         QCOMPARE(back->toPlainText(), story->toPlainText());
+    }
+
+    // ---- review fixes
+
+    // A multi-level list and a page header, for the tests of the history.
+    static std::unique_ptr<WriteDoc> listAndHeaderDoc()
+    {
+        const QByteArray numbering = "<w:abstractNum w:abstractNumId=\"0\"><w:multiLevelType w:val=\"multilevel\"/><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/>"
+                                     "<w:lvlJc w:val=\"left\"/><w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl><w:lvl w:ilvl=\"1\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.%2\"/>"
+                                     "<w:lvlJc w:val=\"left\"/><w:pPr><w:ind w:left=\"1440\" w:hanging=\"360\"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+        QByteArray body = itemOf(1, 0, "top");
+        for (int i = 1; i <= 5; ++i) body += itemOf(1, 1, ("sub " + QByteArray::number(i)).constData());
+        body += itemOf(1, 0, "top2") + "<w:p><w:r><w:t>plain text after the list</w:t></w:r></w:p>";
+        return open(makeDocxWithParts(body, sectionNaming({{"default", "rIdheader1"}}), {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>HEAD</w:t></w:r>"})}}, QByteArray(), kStyles, numbering));
+    }
+
+    // An edit that renumbers a list is one step of the history, in its place: typing in the text, then in the header, then pressing Enter in the middle of a sub-item, is three steps
+    // that undo in the order they were made.
+    void anEditThatRenumbersAListIsOneStepOfTheHistory()
+    {
+        auto doc = listAndHeaderDoc();
+        QVERIFY(doc);
+        QTextDocument *body = doc->story(), *header = doc->editableHeaderFooter(0, false, 0);
+        QVERIFY(header);
+        const QString original = body->toPlainText();
+        QTextCursor bc(body);
+        bc.movePosition(QTextCursor::End);
+        insertText(*doc, bc, QStringLiteral("X"));
+        typeAtEnd(*doc, header, QStringLiteral("h"));
+        QTextCursor ec(body);
+        ec.setPosition(body->toPlainText().indexOf(QLatin1String("sub 2")) + 3);
+        const QStringList markers = markersOf(*doc);
+        insertParagraph(*doc, ec);
+        QVERIFY(markersOf(*doc) != markers);   // (the items were numbered again by the edit)
+        QCOMPARE(doc->undo(), body);
+        QVERIFY2(body->toPlainText().endsWith(QLatin1Char('X')), qPrintable(body->toPlainText().right(30)));
+        QCOMPARE(markersOf(*doc), markers);
+        QTextDocument *second = doc->undo();
+        QVERIFY2(second == header, second == body ? "the second undo took the text's X" : "the second undo was in no story");
+        QCOMPARE(header->toPlainText(), QStringLiteral("HEAD"));
+        QCOMPARE(doc->undo(), body);
+        QCOMPARE(body->toPlainText(), original);
+        QVERIFY(!doc->canUndo());
+        QVERIFY(!doc->isModified());
+        // And again, in the order they were made.
+        QCOMPARE(doc->redo(), body);
+        QCOMPARE(doc->redo(), header);
+        QCOMPARE(doc->redo(), body);
+        QVERIFY(!doc->canRedo());
+    }
+
+    // Random edits of a list and a header, among them those that number the list again and the steps back and forward through all of it: each step back lands on a state that was
+    // there before, in the reverse order, back to the file as it was; and every step forward goes back to the last.
+    void randomEditsThatRenumberKeepTheOrderOfTheHistory()
+    {
+        QStringList failures;
+        for (unsigned seed = 1; seed <= 12; ++seed) {
+            auto doc = listAndHeaderDoc();
+            QVERIFY(doc);
+            QTextDocument *body = doc->story(), *header = doc->editableHeaderFooter(0, false, 0);
+            std::mt19937 rng(seed * 7919u);
+            auto pick = [&](int n) { return int(rng() % unsigned(std::max(1, n))); };
+            // (What the text says, with the number each item of the list shows, and the header's text.)
+            auto state = [&] {
+                QString out;
+                for (QTextBlock b = body->begin(); b.isValid(); b = b.next()) out += b.blockFormat().stringProperty(tp::BulletChar) + QLatin1Char('#') + QString::number(b.blockFormat().intProperty(prop::NumLevel)) + QLatin1Char(':') + b.text() + QLatin1Char('\n');
+                return out + QLatin1Char('\u0001') + header->toPlainText();
+            };
+            QStringList snaps{state()};
+            for (int step = 0; step < 60; ++step) {
+                QTextCursor c(body), h(header);
+                c.setPosition(pick(body->characterCount() - 1));
+                h.setPosition(pick(header->characterCount() - 1));
+                switch (pick(9)) {
+                case 0: case 1: insertText(*doc, c, QString(QChar('a' + pick(26)))); break;
+                case 2: case 3: insertParagraph(*doc, c); break;   // (in the list: the items are numbered again)
+                case 4: deleteBack(*doc, c, false); break;
+                case 5: toggleList(*doc, c, pick(2)); break;
+                case 6: insertText(*doc, h, QString(QChar('A' + pick(26)))); break;
+                case 7: insertParagraph(*doc, h); break;
+                default: if (pick(2)) doc->undo(); else doc->redo(); break;
+                }
+                if (state() != snaps.last()) snaps << state();
+            }
+            // (The steps that were left to go forward again are gone through, so that the last state is the one all of them come to.)
+            int guard = 0;
+            while (doc->canRedo() && guard++ < 500) {
+                doc->redo();
+                if (state() != snaps.last()) snaps << state();
+            }
+            QStringList seen{state()};
+            guard = 0;
+            while (doc->canUndo() && guard++ < 500) {
+                if (!doc->undo()) break;
+                seen << state();
+            }
+            int at = int(snaps.size()) - 1, bad = 0;
+            for (int i = 1; i < seen.size(); ++i) {
+                if (seen[i] == seen[i - 1]) continue;   // (a step that changes nothing that shows: a list made and unmade, a property)
+                int found = -1;
+                for (int j = at - 1; j >= 0 && found < 0; --j)
+                    if (snaps[j] == seen[i]) found = j;
+                if (found < 0) ++bad;
+                else at = found;
+            }
+            if (bad > 0 || state() != snaps.first() || doc->canUndo())
+                failures << QStringLiteral("seed %1: %2 steps back landed on no earlier state; back to the first state: %3; can still undo: %4").arg(seed).arg(bad).arg(state() == snaps.first()).arg(doc->canUndo());
+            guard = 0;
+            while (doc->canRedo() && guard++ < 500) doc->redo();
+            if (state() != snaps.last()) failures << QStringLiteral("seed %1: redo did not come back to the last state").arg(seed);
+        }
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
+    }
+
+    // ---- the Find pane and the Spelling pane beside an open header
+
+    // Find Next with a header open takes the window to the text: the header is left, the match is selected, and what is typed goes into the text.
+    void findNextWithAHeaderOpenLeavesTheHeader()
+    {
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocxWithParts(paragraphs(2, 10) + "<w:p><w:r><w:t>find the needle here</w:t></w:r></w:p>", sectionNaming({{"default", "rIdheader1"}}),
+                                             {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>HEAD</w:t></w:r>"})}})), QString());
+        w.showFindPane(false);
+        WriteFindPane *pane = w.findPane();
+        QVERIFY(pane);
+        pane->findBox()->setText(QStringLiteral("needle"));
+        QVERIFY(w.view()->enterHeaderFooter(0, false));
+        QTRY_VERIFY(w.act("hf.close")->isEnabled());
+        QVERIFY(pane->findNext());
+        QVERIFY2(!w.view()->inHeaderFooter(), "the view stayed in the header");
+        QCOMPARE(w.view()->cursor().document(), w.document()->story());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("needle"));
+        QTRY_VERIFY(!w.act("hf.close")->isEnabled());
+        QTest::keyClicks(w.view(), QStringLiteral("Z"));
+        QCOMPARE(w.document()->headerFooterStory(0, false, 0)->toPlainText(), QStringLiteral("HEAD"));
+        QVERIFY(w.document()->story()->toPlainText().contains(QLatin1String("find the Z here")));
+    }
+
+    // A cursor in the text, given to the view while a header is open, ends the header's editing (the view never has the caret in one story and the tab of another).
+    void aCursorInTheTextGivenToTheViewLeavesTheHeader()
+    {
+        auto doc = open(makeDocxWithParts(paragraphs(3, 20), sectionNaming({{"default", "rIdheader1"}}), {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>HEAD</w:t></w:r>"})}}));
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 900);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        for (const bool show : {false, true}) {
+            QVERIFY(view.enterHeaderFooter(0, false));
+            QTextCursor c(doc->story());
+            c.setPosition(5);
+            if (show) view.showCursor(c);
+            else view.setCursor(c);
+            QVERIFY2(!view.inHeaderFooter(), show ? "showCursor" : "setCursor");
+            QCOMPARE(view.cursor().document(), doc->story());
+            QCOMPARE(view.cursor().position(), 5);
+        }
+        // A cursor in the header that is open is its own.
+        QVERIFY(view.enterHeaderFooter(0, false));
+        QTextCursor own(doc->headerFooterStory(0, false, 0));
+        own.setPosition(2);
+        view.setCursor(own);
+        QVERIFY(view.inHeaderFooter());
+        QCOMPARE(view.cursor().position(), 2);
+    }
+
+    // The Spelling pane, when it goes on to the next word with a header open, leaves the header: the word is shown in the text.
+    void theSpellingPaneWithAHeaderOpenLeavesTheHeader()
+    {
+        const SettingGuard asType(QStringLiteral("proof/asYouType"), true, true);
+        WriteWindow w;
+        w.setDocument(open(makeDocxWithParts("<w:p><w:r><w:t>Zzalpha is first.</w:t></w:r></w:p><w:p><w:r><w:t>Then zzbeta follows.</w:t></w:r></w:p>", sectionNaming({{"default", "rIdheader1"}}),
+                                             {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>HEAD</w:t></w:r>"})}})), QString());
+        w.show();
+        w.act("review.spelling")->trigger();
+        auto *pane = w.findChild<SpellPane *>();
+        QVERIFY(pane);
+        QTRY_COMPARE(pane->word(), QStringLiteral("Zzalpha"));
+        QVERIFY(w.view()->enterHeaderFooter(0, false));
+        pane->findChild<QPushButton *>(QStringLiteral("spellIgnore"))->click();
+        QTRY_COMPARE(pane->word(), QStringLiteral("zzbeta"));
+        QVERIFY2(!w.view()->inHeaderFooter(), "the view stayed in the header");
+        QCOMPARE(w.view()->cursor().document(), w.document()->story());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("zzbeta"));
+    }
+
+    // ---- what a header takes of the text's commands
+
+    // A section break, a page break, and a note's reference are not made in a header or footer: the commands do nothing there, and what is pasted into one loses them.
+    void aHeaderTakesNoSectionBreakPageBreakOrNote()
+    {
+        const QByteArray body = "<w:p><w:pPr>" + sectionNaming({}) + "</w:pPr><w:r><w:t>first section</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p><w:p><w:r><w:t>second</w:t></w:r></w:p>";
+        auto doc = open(makeDocxWithParts(body, sectionNaming({{"default", "rIdheader1"}}), {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>HEAD</w:t></w:r>"})},
+                                                                                              {QStringLiteral("/word/footnotes.xml"), notesPart({{2, "A note"}})}}));
+        QVERIFY(doc);
+        QCOMPARE(doc->sectionCount(), 2);
+        QTextDocument *header = doc->editableHeaderFooter(1, false, 0);
+        QVERIFY(header);
+        QTextCursor c(header);
+        c.movePosition(QTextCursor::End);
+        // The commands do nothing.
+        insertSectionBreak(*doc, c);
+        insertPageBreak(*doc, c);
+        QCOMPARE(header->toPlainText(), QStringLiteral("HEAD"));
+        QCOMPARE(header->blockCount(), 1);
+        QCOMPARE(doc->sectionCount(), 2);
+        // The text's own, with a note and a section break in it, is pasted: the words come, and not those.
+        QTextCursor all(doc->story());
+        all.select(QTextCursor::Document);
+        const Clip clip = copySelection(*doc, all);
+        QVERIFY(!clip.isEmpty());
+        pasteClip(*doc, c, clip);
+        QVERIFY(header->toPlainText().contains(QLatin1String("first section")));
+        QVERIFY(header->toPlainText().contains(QLatin1String("second")));
+        pasteFragment(*doc, c, clip.fragment);
+        QCOMPARE(doc->sectionCount(), 2);
+        const QByteArray out = partOf(doc->toDocx(), QStringLiteral("/word/header1.xml"));
+        QVERIFY2(!out.contains("sectPr"), out.constData());
+        QVERIFY2(!out.contains("footnoteReference"), out.constData());
+        QVERIFY2(!out.contains("w:br"), out.constData());
+        QVERIFY(out.contains("first section"));
+    }
+
+    // The ribbon commands for those are grayed while a header is edited, and the keys for them do nothing there.
+    void theBreakCommandsAreGrayedWhileAHeaderIsEdited()
+    {
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocxWithParts(paragraphs(3, 20), sectionNaming({{"default", "rIdheader1"}}), {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>HEAD</w:t></w:r>"})}})), QString());
+        QTRY_VERIFY(w.act("insert.pageBreak")->isEnabled());
+        QVERIFY(w.act("layout.sectionBreak")->isEnabled());
+        QVERIFY(w.view()->enterHeaderFooter(0, false));
+        QTRY_VERIFY(!w.act("insert.pageBreak")->isEnabled());
+        QVERIFY(!w.act("layout.sectionBreak")->isEnabled());
+        const int sections = w.document()->sectionCount();
+        w.view()->setFocus();
+        QTest::keyClick(w.view(), Qt::Key_Return, Qt::ControlModifier);
+        QCOMPARE(w.document()->headerFooterStory(0, false, 0)->toPlainText(), QStringLiteral("HEAD"));
+        QCOMPARE(w.document()->sectionCount(), sections);
+        w.view()->leaveHeaderFooter();
+        QTRY_VERIFY(w.act("insert.pageBreak")->isEnabled());
+        QVERIFY(w.act("layout.sectionBreak")->isEnabled());
+    }
+
+    // ---- copying
+
+    // What is copied from a header as text has its fields as they are shown (the page's number, the count of pages, the date as it is), and a copy within the program
+    // keeps them fields.
+    void copyingHeaderTextKeepsWhatItsFieldsShow()
+    {
+        auto field = [](const QByteArray &code, const QByteArray &result) {
+            return "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> " + code + " </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>"
+                   "<w:r><w:t>" + result + "</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        };
+        const QByteArray text = "<w:r><w:t>AB</w:t></w:r>" + field("PAGE", "7") + "<w:r><w:t>CD</w:t></w:r>" + field("NUMPAGES", "9") + "<w:r><w:t>EF</w:t></w:r>" + field("DATE \\@ \"MMMM d, yyyy\"", "June 5, 2024") + "<w:r><w:t>GH</w:t></w:r>";
+        auto doc = open(makeDocxWithParts(paragraphs(60, 40), sectionNaming({{"default", "rIdheader1"}}), {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {text})}}));
+        QVERIFY(doc);
+        const int pages = doc->pager().pageCount();
+        QVERIFY(pages >= 3);
+        PageView view;
+        view.resize(1000, 900);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        QVERIFY(view.enterHeaderFooter(0, false));
+        view.selectAll();
+        view.copy();
+        QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("AB1CD%1EFJune 5, 2024GH").arg(pages));
+        // Pasted in the program, the fields come as fields.
+        QTextDocument *story = doc->headerFooterStory(0, false, 0);
+        QCOMPARE(int(story->toPlainText().count(QChar::ObjectReplacementCharacter)), 3);
+        view.cursor().movePosition(QTextCursor::End);
+        view.paste();
+        QCOMPARE(int(story->toPlainText().count(QChar::ObjectReplacementCharacter)), 6);
+        // Copied on the third page, the page's number is that page's.
+        view.leaveHeaderFooter();
+        QVERIFY(view.enterHeaderFooter(2, false));
+        view.selectAll();
+        view.copy();
+        QVERIFY2(QApplication::clipboard()->text().startsWith(QLatin1String("AB3CD")), qPrintable(QApplication::clipboard()->text()));
+    }
+
+    // ---- entering the edit form shows what the display showed
+
+    // A paragraph whose mark and text a tracked change deleted takes no room in the header, and entering the edit form for the header leaves the page as it was (the paragraph is kept and
+    // written back).
+    void enteringAHeaderForEditingLeavesThePageAsItWas()
+    {
+        const QByteArray deleted = "<w:p><w:pPr><w:rPr><w:del w:id=\"1\" w:author=\"A\" w:date=\"2020-01-01T00:00:00Z\"/></w:rPr></w:pPr><w:del w:id=\"2\" w:author=\"A\" w:date=\"2020-01-01T00:00:00Z\">"
+                                   "<w:r><w:delText>gone words</w:delText></w:r></w:del></w:p>";
+        const QByteArray header = "<w:hdr " + QByteArray(kNs) + "><w:p><w:r><w:t>One</w:t></w:r></w:p>" + deleted + "<w:p><w:r><w:t>Three</w:t></w:r></w:p></w:hdr>";
+        auto doc = open(makeDocxWithParts(paragraphs(6, 30), sectionNaming({{"default", "rIdheader1"}}), {{QStringLiteral("/word/header1.xml"), header}}));
+        QVERIFY(doc);
+        auto look = [&] {
+            const auto page = doc->pager().materialize(0);
+            QString s;
+            for (const auto &item : page->doc->pages[0]->items) s += QStringLiteral("%1:%2,%3,%4,%5 ").arg(item->id).arg(item->rect.left()).arg(item->rect.top()).arg(item->rect.width()).arg(item->rect.height());
+            return s + QStringLiteral("body %1 %2 | ").arg(page->bodyArea.top()).arg(page->bodyArea.bottom()) + shownHeader(*page);
+        };
+        const QString before = look();
+        QTextDocument *story = doc->editableHeaderFooter(0, false, 0);
+        QVERIFY(story);
+        QCOMPARE(look(), before);
+        QVERIFY(!story->toPlainText().contains(QLatin1String("gone")));
+        typeAtEnd(*doc, story, QStringLiteral("!"));
+        const QByteArray out = partOf(doc->toDocx(), QStringLiteral("/word/header1.xml"));
+        QVERIFY2(out.contains("gone words") && out.contains("<w:del w:id=\"1\"") && out.indexOf("One") < out.indexOf("gone words") && out.indexOf("gone words") < out.indexOf("Three!"), out.constData());
+    }
+
+    // A header with a table of thousands of rows is bounded when it is entered as it is when it is shown: what is past the bound is not made into the story, and is kept and written back
+    // as it was.
+    void aHugeTableInAHeaderIsBoundedWhenItIsEntered()
+    {
+        constexpr int rows = 3000;
+        QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"6000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/><w:gridCol w:w=\"3000\"/></w:tblGrid>";
+        for (int r = 0; r < rows; ++r)
+            table += "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>r" + QByteArray::number(r) + "a</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr>"
+                     "<w:p><w:r><w:t>r" + QByteArray::number(r) + "b</w:t></w:r></w:p></w:tc></w:tr>";
+        table += "</w:tbl>";
+        const QByteArray header = "<w:hdr " + QByteArray(kNs) + "><w:p><w:r><w:t>Before</w:t></w:r></w:p>" + table + "<w:p><w:r><w:t>After</w:t></w:r></w:p></w:hdr>";
+        auto doc = open(makeDocxWithParts(paragraphs(3, 20), sectionNaming({{"default", "rIdheader1"}}), {{QStringLiteral("/word/header1.xml"), header}}));
+        QVERIFY(doc);
+        const int cellsShown = doc->flow().tables.count();
+        QVERIFY2(cellsShown <= 400, qPrintable(QString::number(cellsShown)));
+        auto tablesOnPage = [&] { return int(doc->pager().materialize(0)->furnitureTables.size()); };
+        const int tablesBefore = tablesOnPage();
+        QTextDocument *story = doc->editableHeaderFooter(0, false, 0);
+        QVERIFY(story);
+        // (The work of entering: the cells made, and the paragraphs of the story, are what the display had.)
+        QVERIFY2(doc->flow().tables.count() - cellsShown <= 400, qPrintable(QString::number(doc->flow().tables.count() - cellsShown)));
+        QVERIFY2(story->blockCount() <= 410, qPrintable(QString::number(story->blockCount())));
+        QCOMPARE(tablesOnPage(), tablesBefore);
+        QTextCursor c(story);
+        insertText(*doc, c, QStringLiteral(">"));
+        const QByteArray out = partOf(doc->toDocx(), QStringLiteral("/word/header1.xml"));
+        QCOMPARE(int(out.count("<w:tr>")), rows);
+        QVERIFY(out.contains("&gt;Before<"));
+        QVERIFY(out.indexOf("Before") < out.indexOf("<w:tbl>") && out.indexOf("</w:tbl>") < out.indexOf("After"));
+        QVERIFY(out.contains("r2999b"));
+    }
+
+    // ---- what is written
+
+    // The runs of a field keep their own properties (the marks and the code are not the result's): only a look the person gave the field is given to all of its runs.
+    void theRunsOfAFieldKeepTheirOwnProperties()
+    {
+        const QByteArray field = "<w:r><w:rPr><w:i/></w:rPr><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:rPr><w:i/></w:rPr><w:instrText xml:space=\"preserve\"> FILENAME </w:instrText></w:r>"
+                                 "<w:r><w:rPr><w:i/></w:rPr><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>name.docx</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        auto doc = open(makeDocxWithParts(paragraphs(2, 20), sectionNaming({{"default", "rIdheader1"}}), {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>x</w:t></w:r>" + field})}}));
+        QVERIFY(doc);
+        QTextDocument *story = doc->editableHeaderFooter(0, false, 0);
+        QVERIFY(story);
+        QTextCursor c(story);
+        insertText(*doc, c, QStringLiteral(">"));
+        const QByteArray out = partOf(doc->toDocx(), QStringLiteral("/word/header1.xml"));
+        QVERIFY2(out.contains("<w:r><w:rPr><w:i/></w:rPr><w:fldChar w:fldCharType=\"begin\"/></w:r>"), out.constData());
+        QVERIFY2(out.contains("<w:r><w:rPr><w:i/></w:rPr><w:instrText xml:space=\"preserve\"> FILENAME </w:instrText></w:r>"), out.constData());
+        QVERIFY2(out.contains("<w:r><w:rPr><w:i/></w:rPr><w:fldChar w:fldCharType=\"separate\"/></w:r>"), out.constData());
+        QVERIFY2(out.contains("<w:r><w:rPr><w:b/></w:rPr><w:t xml:space=\"preserve\">name.docx</w:t></w:r>"), out.constData());
+        QVERIFY2(out.contains("<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>"), out.constData());
+        // A look given to the field is given to the runs of it.
+        QTextCursor all(story);
+        all.select(QTextCursor::Document);
+        toggleUnderline(*doc, all);
+        const QByteArray styled = partOf(doc->toDocx(), QStringLiteral("/word/header1.xml"));
+        QVERIFY2(styled.count("<w:u w:val=\"single\"/>") >= 6, styled.constData());
+    }
+
+    // After an edit that is all undone, the part is written as the file had it (not made again from the story), and what making a header added to the styles is not written.
+    void anEditThatIsUndoneLeavesTheFileAsItWas()
+    {
+        // A header part with bytes that a rewrite would change.
+        const QByteArray odd = "<w:hdr " + QByteArray(kNs) + " xmlns:x=\"urn:x\"><!-- kept --><w:p  w:rsidR=\"00A1\"   ><w:pPr><x:odd a=\"1\"/></w:pPr><w:r ><w:t>ODD  bytes</w:t></w:r></w:p>\n</w:hdr>";
+        const QByteArray zip = makeDocxWithParts(paragraphs(3, 20), sectionNaming({{"default", "rIdheader1"}}), {{QStringLiteral("/word/header1.xml"), odd}});
+        auto doc = open(zip);
+        QVERIFY(doc);
+        typeAtEnd(*doc, doc->editableHeaderFooter(0, false, 0), QStringLiteral("abc"));
+        QVERIFY(doc->isModified());
+        QVERIFY(partOf(doc->toDocx(), QStringLiteral("/word/header1.xml")) != xml(odd));
+        while (doc->canUndo()) doc->undo();
+        QVERIFY(!doc->isModified());
+        QCOMPARE(partOf(doc->toDocx(), QStringLiteral("/word/header1.xml")), xml(odd));
+        // Again: edited, and written again from the story.
+        while (doc->canRedo()) doc->redo();
+        QVERIFY(partOf(doc->toDocx(), QStringLiteral("/word/header1.xml")).contains("ODD  bytesabc"));
+        // A header made, typed in, and all of it undone: no part, and the styles as they were.
+        const QByteArray plainZip = makeDocxWithParts(paragraphs(3, 20), QByteArray(), {});
+        auto made = open(plainZip);
+        QVERIFY(made);
+        QVERIFY(made->createHeaderFooter(0, false, 0));
+        typeAtEnd(*made, made->headerFooterStory(0, false, 0), QStringLiteral("Top"));
+        QVERIFY(partOf(made->toDocx(), QStringLiteral("/word/styles.xml")).contains("w:styleId=\"Header\""));
+        while (made->canUndo()) made->undo();
+        const QByteArray saved = made->toDocx();
+        office::Package pkg;
+        QVERIFY(pkg.read(saved));
+        for (const QString &n : pkg.partNames()) QVERIFY2(!n.startsWith(QLatin1String("/word/header")), qPrintable(n));
+        QCOMPARE(pkg.part(QStringLiteral("/word/styles.xml")), partOf(plainZip, QStringLiteral("/word/styles.xml")));
+        QCOMPARE(documentXml(saved), documentXml(open(plainZip)->toDocx()));   // (as the file saves with nothing done to it)
+    }
+
+    // A copy that Link to Previous off makes has the ids of its own: its bookmarks, drawings, and comment ranges are not the ones of the part it was copied from.
+    void aCopyMadeByUnlinkingHasIdsOfItsOwn()
+    {
+        const QByteArray inner = "<w:p><w:bookmarkStart w:id=\"4\" w:name=\"hdrmark\"/><w:r><w:t>text</w:t></w:r><w:bookmarkEnd w:id=\"4\"/><w:commentRangeStart w:id=\"3\"/><w:r><w:t>c</w:t></w:r><w:commentRangeEnd w:id=\"3\"/>"
+                                 "<w:r><w:drawing><wp:inline><wp:extent cx=\"100\" cy=\"100\"/><wp:docPr id=\"7\" name=\"Logo\"/></wp:inline></w:drawing></w:r></w:p>";
+        const QByteArray header = "<w:hdr " + QByteArray(kNs) + " xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\">" + inner + "</w:hdr>";
+        const QByteArray body = "<w:p><w:pPr>" + sectionNaming({{"default", "rIdheader1"}}) + "</w:pPr><w:r><w:t>one</w:t></w:r></w:p><w:p><w:r><w:t>two</w:t></w:r></w:p>";
+        auto doc = open(makeDocxWithParts(body, sectionNaming({}), {{QStringLiteral("/word/header1.xml"), header}}));
+        QVERIFY(doc);
+        QVERIFY(doc->setLinkedToPrevious(1, false, 0, false));
+        const QByteArray saved = doc->toDocx();
+        office::Package pkg;
+        QVERIFY(pkg.read(saved));
+        const QByteArray first = pkg.part(QStringLiteral("/word/header1.xml")), second = pkg.part(QStringLiteral("/word/header2.xml"));
+        QVERIFY(!second.isEmpty());
+        auto idsOf = [](const QByteArray &xmlPart, const char *element, const char *attribute) {
+            QSet<QString> ids;
+            const QRegularExpression re(QStringLiteral("<%1\\b[^>]*\\b%2=\"([^\"]*)\"").arg(QLatin1String(element), QLatin1String(attribute)));
+            for (auto m = re.globalMatch(QString::fromUtf8(xmlPart)); m.hasNext();) ids.insert(m.next().captured(1));
+            return ids;
+        };
+        for (const auto &what : {std::make_pair("w:bookmarkStart", "w:id"), std::make_pair("w:bookmarkEnd", "w:id"), std::make_pair("w:bookmarkStart", "w:name"), std::make_pair("wp:docPr", "id"),
+                                 std::make_pair("w:commentRangeStart", "w:id"), std::make_pair("w:commentRangeEnd", "w:id")}) {
+            const QSet<QString> a = idsOf(first, what.first, what.second), b = idsOf(second, what.first, what.second);
+            QVERIFY2(!a.isEmpty() && !b.isEmpty(), what.first);
+            QVERIFY2(!a.intersects(b), qPrintable(QStringLiteral("%1 %2 is the same in both parts: %3").arg(QLatin1String(what.first), QLatin1String(what.second), QStringList(QList<QString>(a.begin(), a.end())).join(QLatin1Char(',')))));
+        }
+        // The pairs are still pairs.
+        QCOMPARE(idsOf(second, "w:bookmarkStart", "w:id"), idsOf(second, "w:bookmarkEnd", "w:id"));
+        QCOMPARE(idsOf(second, "w:commentRangeStart", "w:id"), idsOf(second, "w:commentRangeEnd", "w:id"));
+    }
+
+    // A part that no section names any more takes the pictures only it used with it; a picture another part uses stays.
+    void aDroppedPartTakesItsOwnPicturesWithIt()
+    {
+        QImage image(4, 4, QImage::Format_RGB32);
+        image.fill(Qt::blue);
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+        auto drawing = [](const char *id) { return QByteArray("<w:r><w:pict><v:shape id=\"s\" style=\"width:20pt;height:20pt\"><v:imagedata r:id=\"") + id + "\"/></v:shape></w:pict></w:r>"; };
+        const QByteArray vml = " xmlns:v=\"urn:schemas-microsoft-com:vml\"";
+        office::PackageWriter w;
+        const QString rel = QString::fromLatin1(kRelNs);
+        const QByteArray body = "<w:p><w:pPr>" + sectionNaming({{"default", "rIdheader1"}}) + "</w:pPr><w:r><w:t>one</w:t></w:r></w:p><w:p><w:r><w:t>two</w:t></w:r></w:p>";
+        w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + "><w:body>" + body + sectionNaming({{"default", "rIdheader2"}}) + "</w:body></w:document>"),
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addPart(QStringLiteral("/word/header1.xml"), xml("<w:hdr " + QByteArray(kNs) + vml + "><w:p>" + drawing("rId9") + "</w:p></w:hdr>"), QString::fromLatin1(kHeaderType));
+        w.addPart(QStringLiteral("/word/header2.xml"), xml("<w:hdr " + QByteArray(kNs) + vml + "><w:p><w:r><w:t>own</w:t></w:r>" + drawing("rId8") + drawing("rId9") + "</w:p></w:hdr>"), QString::fromLatin1(kHeaderType));
+        w.addPart(QStringLiteral("/word/media/shared.png"), png, QStringLiteral("image/png"));
+        w.addPart(QStringLiteral("/word/media/only2.png"), png + "2", QStringLiteral("image/png"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdheader1"), rel + QStringLiteral("header"), QStringLiteral("/word/header1.xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdheader2"), rel + QStringLiteral("header"), QStringLiteral("/word/header2.xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/header1.xml"), QStringLiteral("rId9"), rel + QStringLiteral("image"), QStringLiteral("/word/media/shared.png"));
+        w.addRelationshipWithId(QStringLiteral("/word/header2.xml"), QStringLiteral("rId8"), rel + QStringLiteral("image"), QStringLiteral("/word/media/only2.png"));
+        w.addRelationshipWithId(QStringLiteral("/word/header2.xml"), QStringLiteral("rId9"), rel + QStringLiteral("image"), QStringLiteral("/word/media/shared.png"));
+        auto doc = open(w.finish());
+        QVERIFY(doc);
+        QCOMPARE(doc->sectionCount(), 2);
+        QVERIFY(doc->hasOwnHeaderFooter(1, false, 0));
+        QVERIFY(doc->setLinkedToPrevious(1, false, 0, true));
+        const QByteArray saved = doc->toDocx();
+        office::Package pkg;
+        QVERIFY(pkg.read(saved));
+        QVERIFY(!pkg.hasPart(QStringLiteral("/word/header2.xml")));
+        QVERIFY2(!pkg.hasPart(QStringLiteral("/word/media/only2.png")), "the picture only the dropped part used is still in the file");
+        QVERIFY(pkg.hasPart(QStringLiteral("/word/media/shared.png")));
+        QVERIFY(pkg.relationships(QStringLiteral("/word/header2.xml")).isEmpty());
+    }
+
+    // A settings part that is one empty element takes the setting.
+    void aSelfClosingSettingsPartTakesTheOddEvenSetting()
+    {
+        const QByteArray settings = "<w:settings xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"/>";
+        const QByteArray on = wml::settingsWithEvenAndOddHeaders(xml(settings), true);
+        QVERIFY2(on.contains("<w:evenAndOddHeaders/>") && on.endsWith("</w:settings>"), on.constData());
+        QXmlStreamReader reader(on);
+        while (!reader.atEnd()) reader.readNext();
+        QVERIFY2(!reader.hasError(), qPrintable(reader.errorString()));
+        QCOMPARE(wml::settingsWithEvenAndOddHeaders(xml(settings), false), xml(settings));
+        // In a file: the toggle is kept when it is saved.
+        office::PackageWriter w;
+        const QString rel = QString::fromLatin1(kRelNs);
+        w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + "><w:body>" + paragraphs(2, 10) + "</w:body></w:document>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addPart(QStringLiteral("/word/settings.xml"), xml(settings), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdset"), rel + QStringLiteral("settings"), QStringLiteral("/word/settings.xml"));
+        auto doc = open(w.finish());
+        QVERIFY(doc);
+        doc->setDifferentOddEven(true);
+        const QByteArray saved = doc->toDocx();
+        QVERIFY2(partOf(saved, QStringLiteral("/word/settings.xml")).contains("evenAndOddHeaders"), partOf(saved, QStringLiteral("/word/settings.xml")).constData());
+        auto again = open(saved);
+        QVERIFY(again);
+        QVERIFY(again->differentOddEven());
+    }
+
+    // ---- entering a header
+
+    // A double click in the margin of a page whose section has no header shows an empty header to edit, and makes nothing in the document until something is typed there: leaving
+    // it as it is leaves the document as it was; typing makes the part, and an undo takes the typing and then the header away.
+    void aDoubleClickInAMarginWithNoHeaderMakesNothingUntilSomethingIsTyped()
+    {
+        const QByteArray zip = makeDocxWithParts(paragraphs(3, 20), QByteArray(), {});
+        auto doc = open(zip);
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 1200);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        auto at = [&](double x, double y) {
+            const QRect r = view.pageRect(0);
+            return QPoint(r.left() + int(x * 96 / 72 * view.zoom()), r.top() + int(y * 96 / 72 * view.zoom()));
+        };
+        const QByteArray untouched = documentXml(open(zip)->toDocx());   // (what the file saves as with nothing done to it)
+        auto fileIsAsItWas = [&] {
+            const QByteArray saved = doc->toDocx();
+            office::Package pkg;
+            if (!pkg.read(saved)) return false;
+            for (const QString &n : pkg.partNames())
+                if (n.startsWith(QLatin1String("/word/header")) || n.startsWith(QLatin1String("/word/footer"))) return false;
+            return pkg.part(QStringLiteral("/word/styles.xml")) == partOf(zip, QStringLiteral("/word/styles.xml")) && documentXml(saved) == untouched;
+        };
+        QTest::mouseDClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, at(300, 20));
+        QVERIFY(view.inHeaderFooter());
+        QVERIFY(doc->headerFooterStory(0, false, 0));   // (an empty one is there to type in)
+        QCOMPARE(view.cursor().document(), doc->headerFooterStory(0, false, 0));
+        QVERIFY2(!doc->isModified(), "entering made the document modified");
+        QVERIFY(!doc->canUndo());
+        QVERIFY(!doc->hasOwnHeaderFooter(0, false, 0));
+        QVERIFY(fileIsAsItWas());
+        QRect caret;
+        QVERIFY(view.caretRect(&caret));
+        QTest::keyClick(&view, Qt::Key_Escape);
+        QVERIFY(!view.inHeaderFooter());
+        QVERIFY2(!doc->headerFooterStory(0, false, 0), "an empty header that nobody typed in is still there");
+        QVERIFY(!doc->isModified());
+        QVERIFY(!doc->canUndo());
+        QVERIFY(fileIsAsItWas());
+        // Entered again, and typed in.
+        QTest::mouseDClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, at(300, 20));
+        QVERIFY(view.inHeaderFooter());
+        QTest::keyClicks(&view, QStringLiteral("Top"));
+        QVERIFY(doc->isModified());
+        QVERIFY(doc->hasOwnHeaderFooter(0, false, 0));
+        QCOMPARE(doc->headerFooterStory(0, false, 0)->toPlainText(), QStringLiteral("Top"));
+        const QByteArray saved = doc->toDocx();
+        QVERIFY(partOf(saved, QStringLiteral("/word/header1.xml")).contains(">Top<"));
+        QVERIFY(partOf(saved, QStringLiteral("/word/styles.xml")).contains("w:styleId=\"Header\""));
+        view.undo();   // the typing
+        QCOMPARE(doc->headerFooterStory(0, false, 0)->toPlainText(), QString());
+        QVERIFY(doc->hasOwnHeaderFooter(0, false, 0));
+        view.undo();   // the header
+        QVERIFY(!doc->hasOwnHeaderFooter(0, false, 0));
+        QVERIFY(!doc->isModified());
+        QTRY_VERIFY(!view.inHeaderFooter());
+        QVERIFY(fileIsAsItWas());
+        // Insert > Header (the command) makes it at once.
+        QVERIFY(view.enterHeaderFooterAtCaret(false));
+        QVERIFY(doc->hasOwnHeaderFooter(0, false, 0));
+        QVERIFY(doc->isModified());
+    }
+
+    // The blank page that a section starting on an odd page leaves has no header or footer, so there is nothing to edit on it: a double click in its margin does not enter one.
+    void aBlankPageOfAnOddPageSectionIsNotEntered()
+    {
+        const QByteArray one = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>" + QByteArray(kPage) + "</w:sectPr>";
+        const QByteArray two = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:type w:val=\"oddPage\"/>" + QByteArray(kPage) + "</w:sectPr>";
+        const QByteArray body = "<w:p><w:pPr>" + one + "</w:pPr><w:r><w:t>one</w:t></w:r></w:p><w:p><w:r><w:t>two</w:t></w:r></w:p>";
+        auto doc = open(makeDocxWithParts(body, two, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>HEAD</w:t></w:r>"})}}));
+        QVERIFY(doc);
+        QCOMPARE(doc->pager().pageCount(), 3);
+        QVERIFY(doc->pager().page(1).start.blank);
+        PageView view;
+        view.resize(1000, 1200);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        QVERIFY(!view.enterHeaderFooter(1, false));
+        QVERIFY(!view.inHeaderFooter());
+        const QRect r = view.pageRect(1);
+        QTest::mouseDClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(r.left() + 300, r.top() + 26));
+        QVERIFY(!view.inHeaderFooter());
+        // The pages with text are entered as before.
+        QVERIFY(view.enterHeaderFooter(0, false));
+        QVERIFY(view.enterHeaderFooter(2, true));
+        QRect caret;
+        QTRY_VERIFY(view.caretRect(&caret));
     }
 
     // The file's font table says what a font it names is set in where the machine lacks it: its alternate (when the machine has that), a symbol font for a symbol

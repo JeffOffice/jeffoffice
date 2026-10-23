@@ -108,6 +108,7 @@ void PageView::setDocument(WriteDoc *doc)
     if (m_connected) disconnect(m_connected, nullptr, this, nullptr);
     m_connected = nullptr;
     if (m_doc) disconnect(m_doc, nullptr, this, nullptr);
+    if (m_doc) m_doc->discardPendingHeaderFooter();   // (the empty header or footer that was shown to be typed in is not kept)
     m_spell.reset();
     m_editEnd = -1;
     m_rendered.clear();
@@ -156,15 +157,26 @@ void PageView::setDocument(WriteDoc *doc)
     Q_EMIT caretChanged();
 }
 
+bool PageView::takeCursorOf(const QTextCursor &c)
+{
+    QTextDocument *d = c.document();
+    if (!m_doc || !d) return true;
+    if (m_hf.active && d == m_hf.story) return true;
+    if (d != m_doc->story()) return false;
+    if (m_hf.active) leaveHeaderFooter();
+    return true;
+}
+
 void PageView::setCursor(const QTextCursor &c)
 {
+    if (!takeCursorOf(c)) return;
     m_cursor = c;
     caretMoved();
 }
 
 void PageView::showCursor(const QTextCursor &c)
 {
-    if (!m_doc) return;
+    if (!m_doc || !takeCursorOf(c)) return;
     // A page is known once the one before it is laid out: lay out pages until the one with the position on it is.
     flow::Paginator &pg = m_doc->pager();
     while (!pg.complete()) {
@@ -858,28 +870,32 @@ PageView::Area PageView::areaOf(const Hit &hit)
 
 PageView::Area PageView::areaAt(const QPoint &viewportPos) { return areaOf(hitAt(viewportPos)); }
 
-bool PageView::enterHeaderFooter(int page, bool footer)
+bool PageView::enterHeaderFooter(int page, bool footer, bool makeNow)
 {
     if (!m_doc) return false;
     flow::Paginator &pg = m_doc->pager();
     pg.paginate(page);
     if (page < 0 || page >= pg.pagesKnown()) return false;
     const flow::Paginator::Page p = pg.page(page);
+    if (p.start.blank) return false;   // (a page with nothing on it: no header or footer is shown on it, so there is nothing to edit)
     const int section = p.start.section;
-    return enterHeaderFooterFor(section, footer, m_doc->headerSlotOf(section, page <= 0 || p.start.firstOfSection, p.number), page);
+    return enterHeaderFooterFor(section, footer, m_doc->headerSlotOf(section, page <= 0 || p.start.firstOfSection, p.number), page, makeNow);
 }
 
-bool PageView::enterHeaderFooterAtCaret(bool footer) { return enterHeaderFooter(currentPage(), footer); }
+bool PageView::enterHeaderFooterAtCaret(bool footer) { return enterHeaderFooter(currentPage(), footer, true); }
 
-bool PageView::enterHeaderFooterFor(int section, bool footer, int slot, int page)
+bool PageView::enterHeaderFooterFor(int section, bool footer, int slot, int page, bool makeNow)
 {
     if (!m_doc) return false;
     if (m_hf.active && m_hf.section == section && m_hf.footer == footer && m_hf.slot == slot && m_doc->headerFooterStory(section, footer, slot) == m_hf.story) {
         m_hf.page = page;
+        if (makeNow) m_doc->createHeaderFooter(section, footer, slot);
         viewport()->update();
         return true;
     }
-    if (!m_doc->createHeaderFooter(section, footer, slot)) return false;
+    // (The empty one that was shown to be typed in goes when another is entered.)
+    if (m_hf.active && m_doc->isPendingHeaderFooter(m_hf.story)) leaveHeaderFooter();
+    if (!m_doc->createHeaderFooter(section, footer, slot, !makeNow)) return false;
     QTextDocument *story = m_doc->editableHeaderFooter(section, footer, slot);
     if (!story) return false;
     const bool was = m_hf.active;
@@ -917,6 +933,7 @@ void PageView::leaveHeaderFooter()
     m_editEnd = -1;
     if (m_bodyCursor.document()) m_cursor = m_bodyCursor;
     m_bodyCursor = QTextCursor();
+    if (m_doc) m_doc->discardPendingHeaderFooter();   // (an empty one that nothing was put in is not made)
     dropRendered(0);
     relayout();
     viewport()->update();
@@ -936,6 +953,10 @@ void PageView::refreshHeaderFooter(bool create)
     if (pg.pagesKnown() == 0) return;
     const int page = std::clamp(m_hf.page, 0, pg.pagesKnown() - 1);
     const flow::Paginator::Page p = pg.page(page);
+    if (p.start.blank) {
+        leaveHeaderFooter();
+        return;
+    }
     const int section = p.start.section, slot = m_doc->headerSlotOf(section, page <= 0 || p.start.firstOfSection, p.number);
     QTextDocument *now = m_doc->headerFooterStory(section, m_hf.footer, slot);
     if (now == m_hf.story && section == m_hf.section && slot == m_hf.slot) return;
@@ -952,7 +973,7 @@ int PageView::pageShowing(int section, bool footer, int slot)
     for (int step = 0; step < known && step < 4000; ++step) {
         const int i = (from + step) % known;
         const flow::Paginator::Page p = pg.page(i);
-        if (p.start.section == section && m_doc->headerSlotOf(section, i <= 0 || p.start.firstOfSection, p.number) == slot) return i;
+        if (!p.start.blank && p.start.section == section && m_doc->headerSlotOf(section, i <= 0 || p.start.firstOfSection, p.number) == slot) return i;
     }
     return -1;
 }
@@ -964,6 +985,7 @@ bool PageView::takeFurnitureAt(const Hit &hit, bool footer)
     pg.paginate(hit.page);
     if (hit.page >= pg.pagesKnown()) return false;
     const flow::Paginator::Page p = pg.page(hit.page);
+    if (p.start.blank) return false;
     const int section = p.start.section, slot = m_doc->headerSlotOf(section, hit.page <= 0 || p.start.firstOfSection, p.number);
     if (m_hf.active && m_hf.section == section && m_hf.footer == footer && m_hf.slot == slot) {
         if (m_hf.page != hit.page) {

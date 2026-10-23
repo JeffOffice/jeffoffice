@@ -56,7 +56,7 @@ QByteArray packAtom(const Inline &a)
     QByteArray out;
     QDataStream s(&out, QIODevice::WriteOnly);
     s.setVersion(QDataStream::Qt_6_0);
-    s << qint8(a.kind) << qint8(a.role) << a.tag << a.key << a.display << a.raw;
+    s << qint8(a.kind) << qint8(a.role) << a.tag << a.key << a.display << a.raw << a.look;
     return out;
 }
 
@@ -66,7 +66,8 @@ Inline unpackAtom(const QByteArray &packed)
     QDataStream s(packed);
     s.setVersion(QDataStream::Qt_6_0);
     qint8 kind = 0, role = 0;
-    s >> kind >> role >> a.tag >> a.key >> a.display >> a.raw;
+    s >> kind >> role >> a.tag >> a.key >> a.display >> a.raw >> a.look;
+    if (s.status() != QDataStream::Ok) a.look.clear();   // (an atom packed before the look was kept)
     a.kind = kind == Inline::RunAtom ? Inline::RunAtom : Inline::ParaAtom;
     a.role = role == Inline::Open ? Inline::Open : role == Inline::Close ? Inline::Close : Inline::Single;
     return a;

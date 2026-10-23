@@ -187,6 +187,8 @@ public:
     // Notes the room that the story and the other furniture of the sections that use it leave the text now, for furnitureChanged to compare with (a story is about to be put in the
     // form it is edited in, which should leave the pages as they are).
     void watchFurniture(const QTextDocument *story);
+    // A header or footer story is going away: nothing of it is kept.
+    void releaseStory(const QTextDocument *story);
     // The header or footer story a person is editing: a field of it that shows the text of a page (STYLEREF) shows the result the file had, so that a place in the page's copy of the
     // story is the same place in the story.
     void setEditedStory(const QTextDocument *story) { m_editedStory = story; }

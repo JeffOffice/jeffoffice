@@ -7,10 +7,13 @@
 #include "core/writeprops.h"
 #include "flow/paginator.h"
 
+#include <QRegularExpression>
+#include <QSet>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
 #include <algorithm>
+#include <functional>
 
 using namespace jp::office;
 using namespace jp::office::wml;
@@ -60,21 +63,22 @@ QString WriteDoc::newPartName(bool footer) const
     }
 }
 
-WriteDoc::HeaderPart *WriteDoc::addHeaderPart(bool footer, std::shared_ptr<QTextDocument> story, const QString &copyRelationshipsOf)
+WriteDoc::HeaderPart *WriteDoc::addHeaderPart(bool footer, std::shared_ptr<QTextDocument> story, const QString &copyRelationshipsOf, bool withRelationship)
 {
     HeaderPart part;
     part.name = newPartName(footer);
     part.footer = footer;
     part.story = std::move(story);
     part.created = true;
-    part.modified = true;
     part.editForm = true;
-    Relationship r;
-    r.id = nextRelationshipId(m_wml.mainRelationships);
-    r.type = footer ? QString(kFooterRel) : QString(kHeaderRel);
-    r.target = part.name;
-    m_wml.mainRelationships.push_back(r);
-    part.relationship = r.id;
+    if (withRelationship) {
+        Relationship r;
+        r.id = nextRelationshipId(m_wml.mainRelationships);
+        r.type = footer ? QString(kFooterRel) : QString(kHeaderRel);
+        r.target = part.name;
+        m_wml.mainRelationships.push_back(r);
+        part.relationship = r.id;
+    }
     if (!copyRelationshipsOf.isEmpty()) {
         // (A copy of a part that has pictures refers to the same pictures through relationships of its own.)
         const QVector<Relationship> rels = m_wml.partRelationships.value(copyRelationshipsOf);
@@ -100,6 +104,7 @@ bool WriteDoc::makeEditable(HeaderPart &part)
     QVector<Block> blocks;
     QByteArray root;
     if (!readBlocks(partData(part.name), &blocks, true, &root)) return false;
+    leaveOutDeletedParagraphs(&blocks, true);   // (as the page shows it: what a tracked change deleted is not in the story, and is written back as it was)
     QTextDocument *s = part.story.get();
     // (The pages keep the room that the story leaves the text: it is the same story, and the pages stay as they are unless the new form takes another room.)
     if (m_pager) m_pager->watchFurniture(s);
@@ -168,10 +173,22 @@ bool WriteDoc::headerFooterSlotOf(const QTextDocument *story, int *section, bool
     return false;
 }
 
-bool WriteDoc::createHeaderFooter(int section, bool footer, int slot)
+bool WriteDoc::isPendingHeaderFooter(const QTextDocument *story) const
+{
+    if (m_pending.section < 0 || !story) return false;
+    const auto it = m_headerParts.constFind(m_pending.part);
+    return it != m_headerParts.cend() && it->story.get() == story;
+}
+
+bool WriteDoc::createHeaderFooter(int section, bool footer, int slot, bool lazy)
 {
     if (section < 0 || section >= sectionCount()) return false;
     slot = std::clamp(slot, 0, 2);
+    // The empty one that is shown to be typed in: asked for again, it is the one (made at once, if it is not asked for lazily); another slot's takes its place.
+    if (m_pending.section >= 0) {
+        if (m_pending.section == section && m_pending.footer == footer && m_pending.slot == slot) return lazy ? true : commitPending();
+        discardPendingHeaderFooter();
+    }
     if (QTextDocument *have = headerFooterStory(section, footer, slot)) {
         const HeaderPart *part = partOfStory(have);
         if (part && !part->missing) return !part->unreadable;
@@ -186,19 +203,81 @@ bool WriteDoc::createHeaderFooter(int section, bool footer, int slot)
         if (!rel.id.isEmpty() && (rel.external || partExists(rel.target))) return false;
     }
     const QString style = footer ? QStringLiteral("Footer") : QStringLiteral("Header");
-    ensureStyle(style);
+    {
+        // (The styles it adds are written only if a header or footer that is kept has them: see dropHeaderStyles.)
+        const qsizetype had = m_wml.styles.styles.size();
+        ensureStyle(style);
+        for (qsizetype i = had; i < m_wml.styles.styles.size(); ++i) m_headerStyles.insert(m_wml.styles.styles[i].id);
+    }
     Block blank;
     blank.para.props.style = style;
     auto story = std::make_shared<QTextDocument>();
     story->setDocumentMargin(0);
     story->setDefaultFont(this->story()->defaultFont());
     story->setUndoRedoEnabled(false);
-    HeaderPart *part = addHeaderPart(footer, story);
+    HeaderPart *part = addHeaderPart(footer, story, QString(), !lazy);
     fillStory(story.get(), {blank}, true, part->name, true, false, -1, true);
     finishEditable(*part);
+    if (lazy) {
+        m_pending = Pending{part->name, section, slot, footer};
+        attachHeaders(section);
+        if (m_pager) m_pager->invalidateFrom(section);
+        Q_EMIT sectionsChanged();
+        return true;
+    }
     setHeaderReference(&props, footer, slot, part->relationship);
     setSectionProps(section, props);
     return true;
+}
+
+bool WriteDoc::commitPending()
+{
+    if (m_pending.section < 0) return false;
+    const Pending pending = m_pending;
+    const auto found = m_headerParts.find(pending.part);
+    if (found == m_headerParts.end()) {
+        m_pending = Pending();
+        return false;
+    }
+    HeaderPart &part = found.value();
+    QTextDocument *typed = part.story.get();
+    // The part is in the file now: its relationship, and the section's reference to it.
+    Relationship r;
+    r.id = nextRelationshipId(m_wml.mainRelationships);
+    r.type = part.footer ? QString(kFooterRel) : QString(kHeaderRel);
+    r.target = part.name;
+    m_wml.mainRelationships.push_back(r);
+    part.relationship = r.id;
+    m_pending = Pending();
+    SectionProps props = sectionProps(pending.section);
+    setHeaderReference(&props, pending.footer, pending.slot, part.relationship);
+    // (The change of the section is a step of the history before the typing that made it: the typing's step was logged first, and is put after.)
+    const bool typedLast = !m_undoLog.isEmpty() && m_undoLog.last().story == typed;
+    const int logged = int(m_undoLog.size());
+    m_committing = true;
+    setSectionProps(pending.section, props);
+    m_committing = false;
+    if (typedLast && int(m_undoLog.size()) > logged) std::rotate(m_undoLog.begin() + (logged - 1), m_undoLog.begin() + logged, m_undoLog.end());
+    return true;
+}
+
+void WriteDoc::discardPendingHeaderFooter()
+{
+    if (m_pending.section < 0) return;
+    const Pending pending = m_pending;
+    m_pending = Pending();
+    std::shared_ptr<QTextDocument> story;
+    const auto found = m_headerParts.find(pending.part);
+    if (found != m_headerParts.end()) {
+        story = found->story;
+        m_headerParts.erase(found);
+    }
+    attachHeaders(pending.section);
+    if (m_pager) {
+        if (story) m_pager->releaseStory(story.get());
+        m_pager->invalidateFrom(pending.section);
+    }
+    Q_EMIT sectionsChanged();
 }
 
 bool WriteDoc::setLinkedToPrevious(int section, bool footer, int slot, bool linked)
@@ -225,6 +304,8 @@ bool WriteDoc::setLinkedToPrevious(int section, bool footer, int slot, bool link
     HeaderPart *source = partOfStory(shown);
     if (!source || !makeEditable(*source)) return false;
     auto copy = std::shared_ptr<QTextDocument>(flow::cloneStory(shown).release());
+    copy->setUndoRedoEnabled(false);
+    renewIds(copy.get());
     copy->setDocumentMargin(shown->documentMargin());
     copy->setDefaultFont(shown->defaultFont());
     copy->setDefaultTextOption(shown->defaultTextOption());
@@ -258,6 +339,136 @@ void WriteDoc::setDifferentOddEven(bool on)
     setSectionProps(sectionCount() - 1, last);
 }
 
+// ---- ids of a copy
+
+namespace {
+
+// The XML pieces a story keeps as written (the atoms of its paragraphs, and the elements kept between them), to be read, and changed where `visit` says it changed one.
+void eachKeptXml(QTextDocument *story, const std::function<bool(QByteArray *)> &visit)
+{
+    struct Fix {
+        int from, to;
+        QTextCharFormat format;
+    };
+    QVector<Fix> atoms;
+    struct BlockFix {
+        int position;
+        QTextBlockFormat format;
+    };
+    QVector<BlockFix> blocks;
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        QTextBlockFormat bf = b.blockFormat();
+        bool blockChanged = false;
+        for (const int key : {int(prop::RawBefore), int(prop::RawBlock), int(prop::RawAfter)}) {
+            if (!bf.hasProperty(key)) continue;
+            QVector<Block> kept = unpackBlocks(storedBytes(bf, key));
+            bool changed = false;
+            for (Block &k : kept)
+                if (k.isRaw) changed = visit(&k.raw) || changed;
+            if (changed) {
+                setStored(bf, key, packBlocks(kept));
+                blockChanged = true;
+            }
+        }
+        if (blockChanged) blocks.push_back({b.position(), bf});
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            const QTextCharFormat cf = f.charFormat();
+            if (!cf.hasProperty(prop::Atom)) continue;
+            Inline a = unpackAtom(storedBytes(cf, prop::Atom));
+            if (!visit(&a.raw)) continue;
+            QTextCharFormat nf = cf;
+            setStored(nf, prop::Atom, packAtom(a));
+            atoms.push_back({f.position(), f.position() + f.length(), nf});
+        }
+    }
+    for (const Fix &fix : atoms) {
+        QTextCursor c(story);
+        c.setPosition(fix.from);
+        c.setPosition(fix.to, QTextCursor::KeepAnchor);
+        c.setCharFormat(fix.format);
+    }
+    for (const BlockFix &fix : blocks) QTextCursor(story->findBlock(fix.position)).setBlockFormat(fix.format);
+}
+
+// The elements whose ids have to differ from those of all the others in a file (a bookmark's, a drawing's, a comment range's, a tracked change's).
+const QRegularExpression &idElement()
+{
+    static const QRegularExpression re(QStringLiteral("<((?:[\\w.-]+:)?(?:bookmarkStart|bookmarkEnd|commentRangeStart|commentRangeEnd|docPr|ins|del|moveFrom|moveTo))\\b([^>]*)>"));
+    return re;
+}
+const QRegularExpression &idAttribute()
+{
+    static const QRegularExpression re(QStringLiteral("(\\s(?:[\\w.-]+:)?id=\")(\\d+)(\")"));
+    return re;
+}
+const QRegularExpression &nameAttribute()
+{
+    static const QRegularExpression re(QStringLiteral("(\\s(?:[\\w.-]+:)?name=\")([^\"]*)(\")"));
+    return re;
+}
+
+} // namespace
+
+// A copy of a story has the same ids as the story: its bookmarks (by id and by name), drawings, comment ranges, and tracked changes are given others, in pairs as they were.
+void WriteDoc::renewIds(QTextDocument *copy)
+{
+    qint64 highest = 0;
+    QSet<QString> names;
+    auto read = [&](QByteArray *xml) {
+        const QString text = QString::fromUtf8(*xml);
+        for (auto e = idElement().globalMatch(text); e.hasNext();) {
+            const QString attributes = e.next().captured(2);
+            if (const auto id = idAttribute().match(attributes); id.hasMatch()) highest = std::max(highest, id.captured(2).toLongLong());
+            if (const auto name = nameAttribute().match(attributes); name.hasMatch()) names.insert(name.captured(2));
+        }
+        return false;
+    };
+    // (The ids of the text and of every header and footer, in the form it is shown or edited in: the pieces kept as written are in the story in both.)
+    eachKeptXml(story(), read);
+    for (auto it = m_headerParts.cbegin(); it != m_headerParts.cend(); ++it)
+        if (it->story) eachKeptXml(it->story.get(), read);
+    qint64 next = highest + 1;
+    QHash<QString, QString> ids, renamed;
+    eachKeptXml(copy, [&](QByteArray *xml) {
+        const QString text = QString::fromUtf8(*xml);
+        QString out;
+        qsizetype from = 0;
+        bool changed = false;
+        for (auto e = idElement().globalMatch(text); e.hasNext();) {
+            const QRegularExpressionMatch m = e.next();
+            const QString element = m.captured(1).section(QLatin1Char(':'), -1);
+            const bool bookmark = element.startsWith(QLatin1String("bookmark"));
+            const QString kind = bookmark ? QStringLiteral("b") : element.startsWith(QLatin1String("comment")) ? QStringLiteral("c") : element == QLatin1String("docPr") ? QStringLiteral("d") : QStringLiteral("r");
+            QString replaced = m.captured(2);
+            if (const auto id = idAttribute().match(replaced); id.hasMatch()) {
+                const QString key = kind + id.captured(2);
+                if (!ids.contains(key)) ids.insert(key, QString::number(next++));
+                replaced.replace(id.capturedStart(2), id.capturedLength(2), ids.value(key));
+            }
+            if (element == QLatin1String("bookmarkStart")) {
+                if (const auto name = nameAttribute().match(replaced); name.hasMatch()) {
+                    const QString old = name.captured(2);
+                    if (!renamed.contains(old)) {
+                        QString fresh;
+                        for (int n = 2; fresh.isEmpty() || names.contains(fresh); ++n) fresh = old.left(36 - QString::number(n).size() - 1) + QLatin1Char('_') + QString::number(n);
+                        names.insert(fresh);
+                        renamed.insert(old, fresh);
+                    }
+                    replaced.replace(name.capturedStart(2), name.capturedLength(2), renamed.value(old));
+                }
+            }
+            out += text.mid(from, m.capturedStart(2) - from) + replaced;
+            from = m.capturedEnd(2);
+            changed = true;
+        }
+        if (!changed) return false;
+        out += text.mid(from);
+        *xml = out.toUtf8();
+        return true;
+    });
+}
+
 // ---- writing them
 
 QByteArray WriteDoc::headerPartXml(const HeaderPart &part)
@@ -281,7 +492,23 @@ void WriteDoc::writeHeaderParts(office::wml::Document *out)
                 if (!rel.id.isEmpty() && !rel.external) used.insert(rel.target.toLower());
             }
     }
-    auto dropPart = [&](const QString &name) {
+    // Whether a relationship of the file (of the package, the main part, or another part) is to the part.
+    auto referenced = [&](const QString &target) {
+        auto has = [&](const QVector<Relationship> &list) {
+            return std::any_of(list.begin(), list.end(), [&](const Relationship &r) { return !r.external && r.target.compare(target, Qt::CaseInsensitive) == 0; });
+        };
+        if (has(out->mainRelationships) || has(out->packageRelationships)) return true;
+        for (auto it = out->partRelationships.cbegin(); it != out->partRelationships.cend(); ++it)
+            if (has(it.value())) return true;
+        return false;
+    };
+    // A part that is let go, with its relationships, and the parts only it had a relationship to (its pictures) with theirs.
+    std::function<void(const QString &)> dropPart = [&](const QString &name) {
+        QStringList theirs;
+        for (auto it = out->partRelationships.cbegin(); it != out->partRelationships.cend(); ++it)
+            if (it.key().compare(name, Qt::CaseInsensitive) == 0)
+                for (const Relationship &r : it.value())
+                    if (!r.external) theirs << r.target;
         for (int i = int(out->parts.size()) - 1; i >= 0; --i)
             if (out->parts[i].name.compare(name, Qt::CaseInsensitive) == 0) out->parts.removeAt(i);
         out->mainRelationships.erase(std::remove_if(out->mainRelationships.begin(), out->mainRelationships.end(),
@@ -291,6 +518,8 @@ void WriteDoc::writeHeaderParts(office::wml::Document *out)
             if (it.key().compare(name, Qt::CaseInsensitive) == 0) it = out->partRelationships.erase(it);
             else ++it;
         }
+        for (const QString &target : std::as_const(theirs))
+            if (target.compare(name, Qt::CaseInsensitive) != 0 && !referenced(target)) dropPart(target);
     };
     QStringList names = m_headerParts.keys();
     names.sort();
@@ -313,7 +542,7 @@ void WriteDoc::writeHeaderParts(office::wml::Document *out)
             dropPart(name);
             continue;
         }
-        if (part.modified && part.editForm) {
+        if (partEdited(part)) {
             const QByteArray data = headerPartXml(part);
             for (KeptPart &kept : out->parts)
                 if (kept.name.compare(name, Qt::CaseInsensitive) == 0) {
@@ -350,6 +579,37 @@ void WriteDoc::writeHeaderParts(office::wml::Document *out)
     }
 }
 
+void WriteDoc::dropHeaderStyles(office::wml::Document *out) const
+{
+    if (m_headerStyles.isEmpty()) return;
+    // The styles a paragraph that is written has: the text's, and those of the parts the program made.
+    QSet<QString> keep;
+    for (const Block &b : std::as_const(out->body))
+        if (!b.isRaw && m_headerStyles.contains(b.para.props.style)) keep.insert(b.para.props.style);
+    for (const KeptPart &part : std::as_const(out->parts)) {
+        const auto found = m_headerParts.constFind(part.name);
+        if (found == m_headerParts.cend() || !found->created) continue;
+        for (const QString &id : m_headerStyles)
+            if (part.data.contains("w:val=\"" + id.toUtf8() + "\"")) keep.insert(id);
+    }
+    // (And the styles those are based on, or go on to.)
+    for (bool grew = true; grew;) {
+        grew = false;
+        for (const QString &id : QSet<QString>(keep))
+            if (const Style *style = out->styles.find(id))
+                for (const QString &other : {style->basedOn, style->next, style->link})
+                    if (m_headerStyles.contains(other) && !keep.contains(other)) {
+                        keep.insert(other);
+                        grew = true;
+                    }
+    }
+    bool dropped = false;
+    for (const QString &id : m_headerStyles)
+        if (!keep.contains(id)) dropped = out->styles.remove(id) || dropped;
+    // All that the program added is gone and nothing else was: the styles are as the file had them.
+    if (dropped && out->styles.styles.size() == m_stylesCountAtOpen) out->styles.modified = m_stylesModifiedAtOpen;
+}
+
 // ---- the one history
 
 void WriteDoc::watchHistory(QTextDocument *story)
@@ -358,9 +618,15 @@ void WriteDoc::watchHistory(QTextDocument *story)
     connect(story, &QTextDocument::contentsChange, this, [this, story](int, int, int) { storyEdited(story); });
 }
 
+bool WriteDoc::partEdited(const HeaderPart &part) const
+{
+    // (Edited since it was read, as the history has it: one that is edited and all of it taken back is as it was, and is written as the file had it.)
+    return part.editForm && part.story && part.story->availableUndoSteps() > 0;
+}
+
 void WriteDoc::stepAdded(QTextDocument *story)
 {
-    m_undoLog.push_back(Step{story, m_nextSerial++});
+    m_undoLog.push_back(Step{story, m_nextSerial++, story->availableUndoSteps()});
     m_redoLog.clear();
     checkModified();
     Q_EMIT historyChanged();
@@ -368,7 +634,10 @@ void WriteDoc::stepAdded(QTextDocument *story)
 
 void WriteDoc::storyEdited(QTextDocument *story)
 {
+    // The first edit of the empty header or footer that was shown to be typed in makes it, in the document.
+    if (m_pending.section >= 0 && isPendingHeaderFooter(story)) commitPending();
     // The next edit of any other story is not a continuation of its last step (the steps are in the order they were made).
+    if (m_committing) return;
     if (story != this->story()) this->story()->setModified(false);
     for (auto it = m_headerParts.begin(); it != m_headerParts.end(); ++it)
         if (it->editForm && it->story.get() != story) it->story->setModified(false);
@@ -377,7 +646,6 @@ void WriteDoc::storyEdited(QTextDocument *story)
 
 void WriteDoc::headerEdited(QTextDocument *story)
 {
-    if (HeaderPart *part = partOfStory(story)) part->modified = true;
     if (m_pager) m_pager->furnitureChanged(story);
     Q_EMIT headerFooterChanged(story);
 }
@@ -417,12 +685,16 @@ void WriteDoc::checkModified()
 
 QTextDocument *WriteDoc::undo(QTextCursor *cursor)
 {
+    discardPendingHeaderFooter();   // (the empty one shown to be typed in is no step)
     if (m_undoLog.isEmpty()) return nullptr;
     const Step step = m_undoLog.takeLast();
     QTextCursor at(step.story);
     step.story->undo(&at);
     if (cursor) *cursor = at;
     m_redoLog.push_back(step);
+    // (An edit that joined the block of the step before it was told of twice: the entry of the step it was a part of is taken back with it.)
+    const int left = step.story->availableUndoSteps();
+    while (!m_undoLog.isEmpty() && m_undoLog.last().story == step.story && m_undoLog.last().raw > left) m_redoLog.push_back(m_undoLog.takeLast());
     sealStories();
     checkModified();
     Q_EMIT historyChanged();
@@ -431,12 +703,15 @@ QTextDocument *WriteDoc::undo(QTextCursor *cursor)
 
 QTextDocument *WriteDoc::redo(QTextCursor *cursor)
 {
+    discardPendingHeaderFooter();
     if (m_redoLog.isEmpty()) return nullptr;
     const Step step = m_redoLog.takeLast();
     QTextCursor at(step.story);
     step.story->redo(&at);
     if (cursor) *cursor = at;
     m_undoLog.push_back(step);
+    const int now = step.story->availableUndoSteps();
+    while (!m_redoLog.isEmpty() && m_redoLog.last().story == step.story && m_redoLog.last().raw <= now) m_undoLog.push_back(m_redoLog.takeLast());
     sealStories();
     checkModified();
     Q_EMIT historyChanged();
