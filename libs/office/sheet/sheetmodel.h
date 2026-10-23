@@ -115,9 +115,10 @@ public:
             for (const Cell &c : block.second.cells) f(c);
     }
     // Calls f(cell) for each cell inside the rectangle (both ends in it), in order of row and then column; f gives false to stop. Only the rows and cells in it are
-    // looked at: a narrow range of a wide sheet costs what it holds.
+    // looked at: a narrow range of a wide sheet costs what it holds, and a search for each row's first cell, not a walk over the cells before it. (`passed`, if given,
+    // gets how many cells outside the rectangle were looked at, which a test counts: no more than one for each row, the first right of the rectangle.)
     template <class F>
-    void forEachInRange(quint32 row1, quint32 col1, quint32 row2, quint32 col2, F f) const
+    void forEachInRange(quint32 row1, quint32 col1, quint32 row2, quint32 col2, F f, qint64 *passed = nullptr) const
     {
         for (auto block = m_blocks.lower_bound(row1 / kBlockRows); block != m_blocks.end() && block->first * kBlockRows <= row2; ++block) {
             const std::vector<Cell> &cells = block->second.cells;
@@ -140,8 +141,8 @@ public:
                     if (!f(*pos)) return;
                     ++pos;
                 }
-                // the rest of this row's cells are right of the range
-                while (pos != cells.end() && pos->row == r) ++pos;
+                // the rest of this row's cells are right of the range: the search for the next row's first cell passes them
+                if (passed && pos != cells.end() && pos->row == r) ++*passed;
                 ++r;
             }
         }

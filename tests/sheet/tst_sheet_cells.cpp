@@ -152,6 +152,32 @@ private Q_SLOTS:
         QCOMPARE(seen, 5);
     }
 
+    // A narrow range of a wide sheet costs what it holds, not what the rows hold: column A of rows that have 16,384 cells each looks at one cell outside it for each row, and no more.
+    void aNarrowRangeOfAWideSheetDoesNotStepOverTheRestOfEachRow()
+    {
+        CellStore store;
+        for (quint32 r = 0; r < 64; ++r)
+            for (quint32 c = 0; c < 16384; ++c) store.add(makeCell(r, c, r * 16384 + c));
+        store.finish();
+        qint64 passed = 0;
+        int seen = 0;
+        double last = -1;
+        store.forEachInRange(0, 0, 63, 0, [&](const Cell &c) {
+            ++seen;
+            last = c.number;
+            return true;
+        }, &passed);
+        QCOMPARE(seen, 64);
+        QCOMPARE(last, 63.0 * 16384);
+        QVERIFY2(passed <= 64, qPrintable(QStringLiteral("%1 cells outside the range were looked at, for 64 rows").arg(passed)));
+        // a column in the middle, and a block of columns
+        passed = 0;
+        seen = 0;
+        store.forEachInRange(0, 8000, 63, 8003, [&](const Cell &) { return ++seen > 0; }, &passed);
+        QCOMPARE(seen, 64 * 4);
+        QVERIFY2(passed <= 64, qPrintable(QStringLiteral("%1 cells outside the range were looked at, for 64 rows").arg(passed)));
+    }
+
     // A store that was moved from is empty and has nothing of the one it was moved to: cells added to either go where they should.
     void aStoreMovedFromAndTheOneItWentToAreSeparate()
     {
