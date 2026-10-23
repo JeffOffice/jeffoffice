@@ -187,6 +187,7 @@ QByteArray WriteDoc::toDocx(QString *error, bool template_)
     out.lastSection = m_last;
     out.lastSectionStated = true;
     writeHeaderParts(&out);
+    writeNoteParts(&out);
     dropHeaderStyles(&out);
     // Styles a document that had none got when one was applied: the part, and the link to it.
     if (out.stylesName.isEmpty() && !out.styles.styles.isEmpty()) {

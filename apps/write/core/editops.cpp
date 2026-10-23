@@ -8,6 +8,8 @@
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QPointer>
+#include <QRegularExpression>
+#include <QSet>
 #include <QTextBlock>
 #include <QTextDocument>
 #include <QTextList>
@@ -334,10 +336,33 @@ bool touchesEndnotes(const QTextDocument *story, int from, int to)
     return false;
 }
 
+int noteTextStart(const QTextDocument *story)
+{
+    if (!story || !story->property("jwNote").toBool()) return 0;
+    // The number's mark is the first character of the first paragraph (a note that has none, which a custom mark may do, has all its text to edit).
+    const QTextBlock first = story->begin();
+    if (!first.isValid() || first.length() < 2) return 0;
+    const QTextFragment f = first.begin().fragment();
+    const QTextCharFormat cf = f.charFormat();
+    if (!f.isValid() || !cf.hasProperty(prop::Atom) || f.position() != first.position()) return 0;
+    const QByteArray bytes = storedBytes(cf, prop::Atom);
+    if (!bytes.contains("footnoteRef")) return 0;
+    return unpackAtom(bytes).tag == QLatin1String("footnoteRef") ? first.position() + 1 : 0;
+}
+
 void holdInBody(QTextCursor &c, int direction)
 {
     QTextDocument *d = c.document();
     if (!d) return;
+    // A note's story: the number's mark is held out (the caret and a selection begin after it).
+    if (const int start = noteTextStart(d)) {
+        const int position = std::max(c.position(), start), anchor = std::max(c.anchor(), start);
+        if (position != c.position() || anchor != c.anchor()) {
+            c.setPosition(anchor);
+            c.setPosition(position, QTextCursor::KeepAnchor);
+        }
+        return;
+    }
     const int end = editableEnd(d);
     // (A caret with no selection is held as one place; the end a selection began at is held by where it is, the other by the way it went.)
     const int position = outOfEndnotes(d, std::min(c.position(), end), direction);
@@ -486,7 +511,7 @@ void insertText(WriteDoc &doc, QTextCursor &c, const QString &typed)
     if (!intoBody(c)) return;
     // (A header or footer has no page or column breaks: they are not typed into one.)
     QString text = typed;
-    if (doc.isHeaderFooterStory(c.document()) && (text.contains(flow::kPageBreak) || text.contains(flow::kColumnBreak))) text.remove(flow::kPageBreak).remove(flow::kColumnBreak);
+    if (doc.isSideStory(c.document()) && (text.contains(flow::kPageBreak) || text.contains(flow::kColumnBreak))) text.remove(flow::kPageBreak).remove(flow::kColumnBreak);
     if (text.isEmpty()) return;
     if (isLocked(c.block()) && !c.hasSelection()) return;
     // (Typing a character changes no number; a selection replaced, or a paragraph made by the text, may.)
@@ -588,7 +613,7 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
 
 void insertPageBreak(WriteDoc &doc, QTextCursor &c)
 {
-    if (!intoBody(c) || doc.isHeaderFooterStory(c.document())) return;   // (a header or footer has no pages to break)
+    if (!intoBody(c) || doc.isSideStory(c.document())) return;   // (a header, a footer, or a note has no pages to break)
     NumberGuard numbers(doc, c.document());
     if (isLocked(c.block())) return;
     c.beginEditBlock();
@@ -603,7 +628,7 @@ void insertPageBreak(WriteDoc &doc, QTextCursor &c)
 
 void insertSectionBreak(WriteDoc &doc, QTextCursor &c, const QString &type)
 {
-    if (!intoBody(c) || doc.isHeaderFooterStory(c.document())) return;   // (nor sections)
+    if (!intoBody(c) || doc.isSideStory(c.document())) return;   // (nor sections)
     NumberGuard numbers(doc, c.document());
     if (isLocked(c.block()) || inTable(c.block())) return;   // (a section ends in a paragraph that is not in a table's cell)
     c.beginEditBlock();
@@ -828,6 +853,7 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
         removeSelection(doc, c);
         return;
     }
+    if (c.position() <= noteTextStart(c.document())) return;   // (just after a note's number: nothing is behind the caret that is the text's)
     QTextDocument *d = c.document();
     HeldEdit held(d);
     if (isLocked(c.block())) return;
@@ -1025,11 +1051,11 @@ static void keepOutOfFurniture(QTextDocument *d, int from, int to)
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment f = it.fragment();
             const QTextCharFormat cf = f.charFormat();
-            if (f.position() >= to) continue;
+            if (f.position() >= to || f.position() + f.length() <= from) continue;   // (only what was pasted: a note's own mark before it stays)
             bool drop = cf.stringProperty(tp::Field).startsWith(QLatin1String("footnote:")) || cf.stringProperty(tp::Field).startsWith(QLatin1String("endnote:"));
             if (!drop && cf.hasProperty(prop::Atom)) {
                 const QString tag = unpackAtom(storedBytes(cf, prop::Atom)).tag;
-                drop = tag == QLatin1String("footnoteReference") || tag == QLatin1String("endnoteReference") || tag == QLatin1String("commentReference") ||
+                drop = tag == QLatin1String("footnoteReference") || tag == QLatin1String("endnoteReference") || tag == QLatin1String("footnoteRef") || tag == QLatin1String("endnoteRef") || tag == QLatin1String("commentReference") ||
                        tag == QLatin1String("commentRangeStart") || tag == QLatin1String("commentRangeEnd") || tag == QLatin1String("sectPr");
             }
             if (drop) {
@@ -1038,7 +1064,7 @@ static void keepOutOfFurniture(QTextDocument *d, int from, int to)
             }
             const QString text = f.text();
             for (int i = 0; i < text.size(); ++i)
-                if (text[i] == flow::kPageBreak || text[i] == flow::kColumnBreak) gone.push_back({f.position() + i, 1});
+                if ((text[i] == flow::kPageBreak || text[i] == flow::kColumnBreak) && f.position() + i >= from && f.position() + i < to) gone.push_back({f.position() + i, 1});
         }
     }
     for (int i = int(gone.size()) - 1; i >= 0; --i) {
@@ -1049,8 +1075,70 @@ static void keepOutOfFurniture(QTextDocument *d, int from, int to)
     }
 }
 
+// A reference to a footnote that was pasted cites the note it cited if nothing else in the text does now (it was cut: the note moves with it), and else a copy of the note
+// (it was copied: the pasted reference has a note of its own that says the same, and several pasted references to one note cite one copy).
+static void settlePastedNoteReferences(WriteDoc &doc, QTextDocument *d, int from, int to)
+{
+    if (d != doc.story()) return;
+    struct Found {
+        int at = 0, id = 0;
+        QTextCharFormat format;
+        office::wml::Inline atom;
+    };
+    QVector<Found> found;
+    QSet<int> ids;
+    for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
+        if (isLocked(b)) continue;
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            const QTextCharFormat cf = f.charFormat();
+            if (!cf.hasProperty(prop::Atom) || f.position() + f.length() <= from || f.position() >= to) continue;
+            const QByteArray bytes = storedBytes(cf, prop::Atom);
+            if (!bytes.contains("footnoteReference")) continue;
+            const office::wml::Inline atom = unpackAtom(bytes);
+            bool ok = false;
+            const int id = atom.tag == QLatin1String("footnoteReference") ? atom.key.toInt(&ok) : 0;
+            if (!ok || !doc.hasFootnote(id)) continue;
+            const QString text = f.text();
+            for (int k = 0; k < text.size(); ++k)
+                if (text[k] == QChar::ObjectReplacementCharacter && f.position() + k >= from && f.position() + k < to) found.push_back({f.position() + k, id, cf, atom});
+            ids.insert(id);
+        }
+    }
+    if (found.isEmpty()) return;
+    QHash<int, int> outside;
+    for (const int id : std::as_const(ids)) {
+        int n = 0;
+        for (const int at : doc.footnoteReferences(id)) n += at < from || at >= to;
+        outside.insert(id, n);
+    }
+    QHash<int, int> copies;
+    static const QRegularExpression idAttribute(QStringLiteral("\\b((?:[\\w.-]+:)?id=\")\\d+(\")"));
+    for (const Found &f : std::as_const(found)) {
+        if (outside.value(f.id) == 0) continue;
+        int fresh = copies.value(f.id);
+        if (!fresh) {
+            fresh = doc.duplicateFootnote(f.id);
+            if (!fresh) continue;   // (no more notes can be made: the pasted reference cites the one the copied did)
+            copies.insert(f.id, fresh);
+        }
+        office::wml::Inline atom = f.atom;
+        atom.key = QString::number(fresh);
+        atom.raw = QString::fromUtf8(atom.raw).replace(idAttribute, QStringLiteral("\\1%1\\2").arg(fresh)).toUtf8();
+        QTextCharFormat nf = f.format;
+        setStored(nf, prop::Atom, packAtom(atom));
+        nf.setProperty(tp::Field, QStringLiteral("footnote:fn%1").arg(fresh));
+        QTextCursor t(d);
+        t.setPosition(f.at);
+        t.setPosition(f.at + 1, QTextCursor::KeepAnchor);
+        t.setCharFormat(nf);
+    }
+}
+
 // Pastes, and says where what was pasted is (from, to) when the paste is done.
-static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment, int *pastedFrom, int *pastedTo)
+static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment, int *pastedFrom, int *pastedTo, bool sameDocument);
+
+static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment, int *pastedFrom, int *pastedTo, bool sameDocument)
 {
     NumberGuard numbers(doc, c.document());
     c.beginEditBlock();
@@ -1153,8 +1241,9 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
         t.setPosition(strays[i].first + strays[i].second, QTextCursor::KeepAnchor);
         t.removeSelectedText();
     }
-    // A header or footer takes the words and their look, not a note's reference, a comment, a break of a page, a column, or a section.
-    if (doc.isHeaderFooterStory(d)) keepOutOfFurniture(d, from, c.position());
+    // A header, a footer, or a note takes the words and their look, not a note's reference, a comment, a break of a page, a column, or a section.
+    if (doc.isSideStory(d)) keepOutOfFurniture(d, from, c.position());
+    else if (sameDocument) settlePastedNoteReferences(doc, d, from, c.position());
     *pastedTo = c.position();
     c.endEditBlock();
 }
@@ -1186,13 +1275,36 @@ void insertPageNumber(WriteDoc &doc, QTextCursor &c)
     c = edit;
 }
 
+QTextDocument *insertFootnote(WriteDoc &doc, QTextCursor &c)
+{
+    if (c.document() != doc.story()) return nullptr;   // (a header, a footer, or a note takes none)
+    QTextCursor at = c;
+    if (!intoBody(at)) return nullptr;
+    if (at.hasSelection()) at.setPosition(at.selectionEnd());
+    if (isLocked(at.block())) return nullptr;
+    NumberGuard numbers(doc, doc.story());
+    const int id = doc.makeFootnote();
+    if (!id) return nullptr;
+    const QString style = at.blockFormat().stringProperty(tp::StyleName);
+    at.beginEditBlock();
+    settleBesideDeletions(at);
+    at.insertText(QString(QChar::ObjectReplacementCharacter), doc.footnoteReferenceFormat(id, style));
+    at.endEditBlock();
+    QTextDocument *note = doc.editableFootnote(id);
+    if (!note) return nullptr;
+    QTextCursor inNote(note);
+    inNote.setPosition(note->characterCount() - 1);
+    c = inNote;
+    return note;
+}
+
 void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment)
 {
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     if (fragment.isEmpty()) return;
     int from = 0, to = 0;
-    pasteInto(doc, c, fragment, &from, &to);
+    pasteInto(doc, c, fragment, &from, &to, true);
 }
 
 namespace {
@@ -1275,7 +1387,7 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
     }
     c.beginEditBlock();
     int from = 0, to = 0;
-    pasteInto(doc, c, clip.fragment, &from, &to);
+    pasteInto(doc, c, clip.fragment, &from, &to, same);
     if (same) {
         c.endEditBlock();
         return;

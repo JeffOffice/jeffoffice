@@ -401,6 +401,7 @@ void WriteDoc::setUpEnvironment()
 
 void WriteDoc::storyChanged(int position, int removed, int added)
 {
+    m_footnoteRefsValid = false;
     if (m_syncing) return;
     const int blocks = story()->blockCount();
     if (blocks != m_blockCount || removed > 1 || added > 1) {

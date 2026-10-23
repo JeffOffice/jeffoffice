@@ -49,6 +49,15 @@ void insertTab(WriteDoc &doc, QTextCursor &c, bool back);
 // not in it, a delete takes all of it, and the characters of the text it is put in are its look.
 void insertPageNumber(WriteDoc &doc, QTextCursor &c);
 
+// ---- notes
+// Insert > Footnote (Ctrl+Alt+F): a reference to a new footnote where the cursor is (the end of a selection; nothing is replaced), and the note, which begins with its number and a
+// blank, as one step of the history with the reference. Every later note's number follows from its place among the references. `c` is put in the new note's story, after its number
+// and the blank, for the person to type the note in; null, with `c` where it was, where no note can be made (in a header, a footer, or a note, in the endnotes the pages set,
+// in a paragraph that stands for a kept element, or when the document has the most notes).
+QTextDocument *insertFootnote(WriteDoc &doc, QTextCursor &c);
+// The place in a note's story where its text begins: just after its number mark (0 for a story that is not a note's).
+int noteTextStart(const QTextDocument *story);
+
 // ---- the clipboard
 // The selection as text and as a fragment that keeps its formats (null fragment when nothing is selected).
 QTextDocumentFragment selectionFragment(const QTextCursor &c);

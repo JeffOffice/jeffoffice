@@ -1,0 +1,284 @@
+// Editing the notes of a document: the footnotes in the form they are edited in, the history they are in, making and copying them, and the notes' parts written back.
+//
+// A footnote is the document's only while the text cites it: its story is made when a page asks for it (or when a person edits it), and lives as long as the document does; a
+// reference taken out of the text leaves the note's story where it is, and the pages set only the notes the references of the text name, so taking a reference out takes the note
+// off the pages, and an undo that brings the reference back brings the note back with the words it had. Writing, the same: the part has the notes the text cites (and those it
+// cited when it was read and the file keeps).
+
+#include "core/writedoc.h"
+
+#include "core/editops.h"
+#include "core/tablemodel.h"
+#include "core/writeprops.h"
+#include "flow/paginator.h"
+#include "text/textprops.h"
+
+#include <QSet>
+#include <QTextBlock>
+#include <QTextCursor>
+#include <QTextDocument>
+#include <algorithm>
+
+using namespace jp::office;
+using namespace jp::office::wml;
+
+namespace jp::write {
+
+namespace {
+const QLatin1String kFootnotesRel("http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes");
+const QLatin1String kFootnotesType("application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml");
+const QLatin1String kSettingsRel2("http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings");
+const QLatin1String kSettingsType2("application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml");
+} // namespace
+
+// ---- the stories
+
+QTextDocument *WriteDoc::editableFootnote(int id) { return const_cast<QTextDocument *>(noteStory(QStringLiteral("fn%1").arg(id))); }
+
+bool WriteDoc::footnoteIdOf(const QTextDocument *story, int *id) const
+{
+    const auto found = m_noteIds.constFind(story);
+    if (found == m_noteIds.cend()) return false;
+    if (id) *id = found.value();
+    return true;
+}
+
+// The references of the text to footnotes, by Id (a reference to a note the file lacks is one too: its Id is used).
+void WriteDoc::indexFootnoteReferences()
+{
+    if (m_footnoteRefsValid) return;
+    m_footnoteRefs.clear();
+    for (QTextBlock b = story()->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            const QTextCharFormat cf = f.charFormat();
+            if (!cf.hasProperty(prop::Atom)) continue;
+            const QByteArray bytes = storedBytes(cf, prop::Atom);
+            if (!bytes.contains("footnoteReference")) continue;
+            const Inline atom = unpackAtom(bytes);
+            if (atom.tag != QLatin1String("footnoteReference")) continue;
+            bool ok = false;
+            const int id = atom.key.toInt(&ok);
+            if (!ok) continue;
+            const QString text = f.text();
+            for (int k = 0; k < text.size(); ++k)
+                if (text[k] == QChar::ObjectReplacementCharacter) m_footnoteRefs[id].push_back(f.position() + k);
+        }
+    m_footnoteRefsValid = true;
+}
+
+QVector<int> WriteDoc::footnoteReferences(int id)
+{
+    indexFootnoteReferences();
+    return m_footnoteRefs.value(id);
+}
+
+QVector<int> WriteDoc::citedFootnotes()
+{
+    indexFootnoteReferences();
+    QVector<int> ids;
+    for (auto it = m_footnoteRefs.cbegin(); it != m_footnoteRefs.cend(); ++it)
+        if (hasFootnote(it.key())) ids.push_back(it.key());
+    std::sort(ids.begin(), ids.end());
+    return ids;
+}
+
+void WriteDoc::noteEdited(QTextDocument *story)
+{
+    int id = 0;
+    if (!footnoteIdOf(story, &id)) return;
+    if (!m_dirtyNotes.contains(story)) m_dirtyNotes.push_back(story);
+    if (m_pager) m_pager->noteEdited(QStringLiteral("fn%1").arg(id), footnoteReferences(id));
+    Q_EMIT noteChanged(story);
+}
+
+// ---- making notes
+
+// The document has notes now: the pages ask for them. (A document that had none has no part yet: the part is made, with its separators, when the document is written.)
+void WriteDoc::activateNotes()
+{
+    if (m_noteFields) return;
+    if (m_notePart.isEmpty()) {
+        QString name = QStringLiteral("/word/footnotes.xml");
+        for (int n = 2; partExists(name) || name.compare(m_wml.mainName, Qt::CaseInsensitive) == 0; ++n) name = QStringLiteral("/word/footnotes%1.xml").arg(n);
+        m_notePart = name;
+        m_footnotesPartNew = true;
+        m_footnotesPart = NotesPart::Readable;
+        QVector<NotePart> fresh;
+        office::wml::readNotes(notesPartXml(QByteArray(), false, NotesChange()), &fresh);
+        for (NotePart &n : fresh) {
+            if (n.type == QLatin1String("separator")) m_noteSeparator = std::move(n.blocks);
+            else if (n.type == QLatin1String("continuationSeparator")) m_noteContinuation = std::move(n.blocks);
+        }
+    }
+    m_noteFields = std::make_unique<NoteFields>(this);
+    m_flow->fields = m_noteFields.get();
+    const QByteArray settings = m_wml.settingsName.isEmpty() ? QByteArray() : partData(m_wml.settingsName);
+    m_flow->restartNotesInSections = office::wml::noteNumberRestart(settings, "footnotePr") == QLatin1String("eachSect");
+    measureNoteSeparator();
+    if (m_pager) m_pager->invalidate();
+}
+
+// One more than every Id the file's notes and the text's references use (1 where there are none; a gap when the highest is out of the range of an Id).
+int WriteDoc::nextFootnoteId()
+{
+    indexFootnoteReferences();
+    QSet<int> used;
+    for (auto it = m_noteBlocks.cbegin(); it != m_noteBlocks.cend(); ++it) used.insert(it.key().mid(2).toInt());
+    for (auto it = m_footnoteRefs.cbegin(); it != m_footnoteRefs.cend(); ++it) used.insert(it.key());
+    int highest = 0;
+    for (const int id : std::as_const(used)) highest = std::max(highest, id);
+    if (highest < 1'000'000'000) return highest + 1;
+    for (int id = 1;; ++id)
+        if (!used.contains(id)) return id;
+}
+
+int WriteDoc::makeFootnote()
+{
+    if (m_footnotesPart == NotesPart::Unusable || int(m_noteBlocks.size()) >= kMostNoteStories) return 0;
+    activateNotes();
+    // The styles a note has (a document that lacks them gets them: they are written only while a note that is written has them).
+    const qsizetype had = m_wml.styles.styles.size();
+    ensureStyle(QStringLiteral("FootnoteText"));
+    ensureStyle(QStringLiteral("FootnoteReference"));
+    for (qsizetype i = had; i < m_wml.styles.styles.size(); ++i) m_headerStyles.insert(m_wml.styles.styles[i].id);
+    const int id = nextFootnoteId();
+    Block note;
+    note.para.props.style = QStringLiteral("FootnoteText");
+    Inline mark;
+    mark.kind = Inline::RunAtom;
+    mark.tag = QStringLiteral("footnoteRef");
+    mark.raw = "<w:footnoteRef/>";
+    mark.props.style = QStringLiteral("FootnoteReference");
+    note.para.content.push_back(mark);
+    Inline blank;
+    blank.text = QStringLiteral(" ");
+    note.para.content.push_back(blank);
+    const QString key = QStringLiteral("fn%1").arg(id);
+    m_noteBlocks.insert(key, {note});
+    m_createdFootnotes.insert(id);
+    if (!noteStory(key)) {
+        m_noteBlocks.remove(key);
+        m_createdFootnotes.remove(id);
+        return 0;
+    }
+    return id;
+}
+
+int WriteDoc::duplicateFootnote(int id)
+{
+    const QString key = QStringLiteral("fn%1").arg(id);
+    if (m_footnotesPart == NotesPart::Unusable || !m_noteBlocks.contains(key) || int(m_noteBlocks.size()) >= kMostNoteStories) return 0;
+    QVector<Block> blocks;
+    if (QTextDocument *s = editableFootnote(id)) {
+        VectorSink sink(&blocks);
+        exportInto(sink, s);
+    } else {
+        blocks = m_noteBlocks.value(key);
+    }
+    const int fresh = nextFootnoteId();
+    const QString freshKey = QStringLiteral("fn%1").arg(fresh);
+    m_noteBlocks.insert(freshKey, blocks);
+    m_createdFootnotes.insert(fresh);
+    if (!noteStory(freshKey)) {
+        m_noteBlocks.remove(freshKey);
+        m_createdFootnotes.remove(fresh);
+        return 0;
+    }
+    return fresh;
+}
+
+QTextCharFormat WriteDoc::footnoteReferenceFormat(int id, const QString &paragraphStyle)
+{
+    ensureStyle(QStringLiteral("FootnoteReference"));
+    QTextCharFormat f = styleCharFormat(paragraphStyle.isEmpty() ? defaultParagraphStyle() : paragraphStyle, QStringLiteral("FootnoteReference"));
+    Inline ref;
+    ref.kind = Inline::RunAtom;
+    ref.tag = QStringLiteral("footnoteReference");
+    ref.key = QString::number(id);
+    ref.raw = "<w:footnoteReference w:id=\"" + QByteArray::number(id) + "\"/>";
+    ref.props.style = QStringLiteral("FootnoteReference");
+    setStored(f, prop::Atom, packAtom(ref));
+    f.setProperty(tp::Field, QStringLiteral("footnote:fn%1").arg(id));
+    return f;
+}
+
+// ---- writing them
+
+KeptPart *WriteDoc::settingsPartFor(office::wml::Document *out)
+{
+    if (!out->settingsName.isEmpty())
+        for (KeptPart &kept : out->parts)
+            if (kept.name.compare(out->settingsName, Qt::CaseInsensitive) == 0) return &kept;
+    KeptPart kept;
+    kept.name = QStringLiteral("/word/settings.xml");
+    for (int n = 2; partExists(kept.name) || kept.name.compare(out->mainName, Qt::CaseInsensitive) == 0; ++n) kept.name = QStringLiteral("/word/settings%1.xml").arg(n);
+    kept.contentType = QString(kSettingsType2);
+    out->parts.push_back(kept);
+    Relationship r;
+    r.id = nextRelationshipId(out->mainRelationships);
+    r.type = QString(kSettingsRel2);
+    r.target = kept.name;
+    out->mainRelationships.push_back(r);
+    out->settingsName = kept.name;
+    return &out->parts.last();
+}
+
+// The notes parts as the notes are now: what was edited, made, or whose last reference was taken out; a part nothing of which changed is as it was read.
+void WriteDoc::writeNoteParts(office::wml::Document *out)
+{
+    if (m_footnotesPart != NotesPart::Readable) return;
+    indexFootnoteReferences();
+    NotesChange change;
+    // The notes that were edited are written from their stories (whether or not the text cites them: a note the file keeps is the file's), unless their last reference was taken
+    // out of the text.
+    auto cited = [&](int id) { return m_footnoteRefs.contains(id); };
+    for (auto it = m_noteStories.cbegin(); it != m_noteStories.cend(); ++it) {
+        const int id = it.key().mid(2).toInt();
+        QTextDocument *s = it.value().get();
+        if (m_createdFootnotes.contains(id) || s->availableUndoSteps() == 0) continue;
+        if (m_footnotesCitedAtOpen.contains(id) && !cited(id)) continue;
+        VectorSink sink(&change.replaced[id]);
+        exportInto(sink, s);
+    }
+    for (const int id : std::as_const(m_footnotesCitedAtOpen))
+        if (!cited(id) && m_noteBlocks.contains(QStringLiteral("fn%1").arg(id))) change.removed.insert(id);
+    QVector<int> made = m_createdFootnotes.values();
+    std::sort(made.begin(), made.end());
+    for (const int id : std::as_const(made)) {
+        if (!cited(id)) continue;
+        QVector<Block> blocks;
+        if (QTextDocument *s = editableFootnote(id)) {
+            VectorSink sink(&blocks);
+            exportInto(sink, s);
+        }
+        change.added.push_back({id, blocks});
+    }
+    if (change.replaced.isEmpty() && change.removed.isEmpty() && change.added.isEmpty()) return;
+    const QByteArray original = m_footnotesPartNew ? QByteArray() : partData(m_notePart);
+    const QByteArray data = notesPartXml(original, false, change);
+    if (data.isEmpty()) return;
+    if (!m_footnotesPartNew) {
+        for (KeptPart &kept : out->parts)
+            if (kept.name.compare(m_notePart, Qt::CaseInsensitive) == 0) {
+                kept.data = data;
+                break;
+            }
+        return;
+    }
+    // A part the document did not have: the part, the relationship to it, and the settings that name its separators.
+    KeptPart kept;
+    kept.name = m_notePart;
+    kept.contentType = QString(kFootnotesType);
+    kept.data = data;
+    out->parts.push_back(kept);
+    Relationship r;
+    r.id = nextRelationshipId(out->mainRelationships);
+    r.type = QString(kFootnotesRel);
+    r.target = m_notePart;
+    out->mainRelationships.push_back(r);
+    KeptPart *settings = settingsPartFor(out);
+    settings->data = settingsWithNoteSeparators(settings->data, false);
+}
+
+} // namespace jp::write

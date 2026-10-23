@@ -102,6 +102,9 @@ void resetStyleRefParagraphsScannedForTest();
 constexpr int kMostEndnoteParagraphs = 20000;
 // The most endnote references of the text that are counted for the notes set after it (the rest are left out: a reference to one shows only its number).
 constexpr int kMostEndnotes = 5000;
+// The most notes of a part that are made into stories (the rest are left as they are: a reference to one shows only its number), and the most footnotes the program has in a
+// document (it makes no more).
+constexpr int kMostNoteStories = 5000;
 qint64 endnoteParagraphsMadeForTest();
 void resetEndnoteParagraphsMadeForTest();
 
@@ -183,6 +186,30 @@ public:
     bool isHeaderFooterStory(const QTextDocument *story) const;
     bool headerFooterSlotOf(const QTextDocument *story, int *section, bool *footer, int *slot) const;
 
+    // ---- footnotes
+    // The story of footnote `id` (its w:id) in the form it is edited in, as the pages show it at their foot: its number mark is one character that no edit takes (an atom), what the
+    // program does not edit is kept as pieces and written back where it was, and its steps are in the one history. Null for a note the document does not have.
+    QTextDocument *editableFootnote(int id);
+    // Whether the story is a footnote's, and which (its w:id).
+    bool footnoteIdOf(const QTextDocument *story, int *id = nullptr) const;
+    // The positions in the text of the characters that cite footnote `id`, in order.
+    QVector<int> footnoteReferences(int id);
+    // The Ids of the footnotes the text cites now (and the document has), in order of Id.
+    QVector<int> citedFootnotes();
+    // Whether the document has a footnote by that Id (one of the file's, or one made since).
+    bool hasFootnote(int id) const { return m_noteBlocks.contains(QStringLiteral("fn%1").arg(id)); }
+    // A new footnote, for a reference to be put in the text: its Id (one more than any the file or its references use), with a story that begins with its number mark and a blank;
+    // 0 where none can be made (the document has the most notes, or its notes part is one the program cannot add to). A note is the document's only while the text cites it:
+    // one whose last reference was taken out is not written, and one whose reference comes back (an undo, a paste of what was cut) is again.
+    int makeFootnote();
+    // A copy of a footnote as a note of its own (what a pasted copy of a reference cites): its Id, 0 for none.
+    int duplicateFootnote(int id);
+    // The look and the pieces of a reference to footnote `id`: its character format (the reference character style over the look of a paragraph of this style), to put
+    // where the reference is.
+    QTextCharFormat footnoteReferenceFormat(int id, const QString &paragraphStyle);
+    // Whether the story is one the document's header or footer, or a note, has: the stories that take no page break, section break, or note.
+    bool isSideStory(const QTextDocument *story) const { return isHeaderFooterStory(story) || footnoteIdOf(story); }
+
     // ---- one history
     // The steps of the text and of the headers and footers in the order they were made: an undo undoes the last, wherever it was, and a redo does it again. Returns the story the
     // step was in (null when there was none); the cursor, if given, is put where the step changed the story.
@@ -263,6 +290,8 @@ Q_SIGNALS:
     void sectionsChanged();
     // A header or footer story was edited (by a step, an undo, or a redo).
     void headerFooterChanged(QTextDocument *story);
+    // A footnote's story was edited (by a step, an undo, or a redo).
+    void noteChanged(QTextDocument *story);
     // The steps that can be undone or done again changed, or whether the document is modified.
     void historyChanged();
     void modifiedChanged();
@@ -338,7 +367,24 @@ private:
     // (The stories of the notes and of the headers and footers are made when a page needs them and are not edited: nothing in the program reaches them yet. When
     // something does, the paginator has to be told as it is of the story's edits (its measures of them are kept by the story's revision), and the pages that show
     // them made again.)
-    QHash<QString, std::shared_ptr<QTextDocument>> m_noteStories;     // the stories made of them
+    QHash<QString, std::shared_ptr<QTextDocument>> m_noteStories;     // the stories made of them (each in the form it is edited in, in the one history)
+    // Editing the notes (writedoc_noteedit.cpp)
+    QHash<const QTextDocument *, int> m_noteIds;                      // the footnote each of those stories is (its w:id)
+    QVector<QTextDocument *> m_dirtyNotes;                            // the stories of the notes that were edited, which another story's edit seals
+    QSet<int> m_createdFootnotes;                                     // the footnotes made since the document was read (written while the text cites them)
+    QSet<int> m_footnotesCitedAtOpen;                                 // those of the file the text cited when it was read (one whose last reference was taken out is not written)
+    enum class NotesPart { Absent, Readable, Unusable };
+    NotesPart m_footnotesPart = NotesPart::Absent;                    // the file's footnotes part: none, one the program reads, or one it cannot (not XML, or no part by its name)
+    bool m_footnotesPartNew = false;                                  // the part named by m_notePart is one the program will make (there is none in the file)
+    QHash<int, QVector<int>> m_footnoteRefs;                          // the references of the text, by the note's Id, found when asked and let go with any change to the text
+    bool m_footnoteRefsValid = false;
+    void indexFootnoteReferences();
+    int nextFootnoteId();
+    void activateNotes();
+    void noteEdited(QTextDocument *story);
+    void writeNoteParts(office::wml::Document *out);
+    // The settings part of a package being written (made, with its relationship and content type, where there is none).
+    office::wml::KeptPart *settingsPartFor(office::wml::Document *out);
     // A header or footer part: its story (made when a page needs it), and what writing it back needs.
     struct HeaderPart {
         QString name;                       // "/word/header1.xml"

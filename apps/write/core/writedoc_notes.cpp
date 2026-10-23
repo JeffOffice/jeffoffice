@@ -21,8 +21,6 @@ using namespace jp::office::wml;
 namespace jp::write {
 
 namespace {
-// The most notes of a file that are made into stories (the rest is left out: a reference to one shows only its number).
-constexpr int kMostNoteStories = 5000;
 // The most of the file's continuation notice, and of its separator for the part of a note that goes on, that is read: the paragraphs, and the characters of them. (The pages set a
 // quarter of a page of each at most, so the rest would only be copied to every page.)
 constexpr int kMostNoticeParagraphs = 64;
@@ -361,6 +359,13 @@ void WriteDoc::loadNotes()
     // (What a header's field that shows a paragraph style's text finds on each page: this document's story, with or without notes.)
     m_styleRefSource = std::make_unique<NoteFields>(this);
     m_flow->styleRefs = m_styleRefSource.get();
+    m_noteIds.clear();
+    m_dirtyNotes.clear();
+    m_createdFootnotes.clear();
+    m_footnotesCitedAtOpen.clear();
+    m_footnotesPart = NotesPart::Absent;
+    m_footnotesPartNew = false;
+    m_footnoteRefsValid = false;
     QString part;
     for (const Relationship &r : m_wml.mainRelationships)
         if (!r.external && r.type.endsWith(QLatin1String("/footnotes"))) {
@@ -370,9 +375,15 @@ void WriteDoc::loadNotes()
         }
     if (part.isEmpty()) return;
     QVector<NotePart> notes;
-    if (!office::wml::readNotes(partData(part), &notes)) return;
+    m_footnotesPart = NotesPart::Unusable;
+    if (!partExists(part) || !office::wml::readNotes(partData(part), &notes)) return;
+    m_footnotesPart = NotesPart::Readable;
     for (NotePart &n : notes) {
-        if (n.type.isEmpty() || n.type == QLatin1String("normal")) m_noteBlocks.insert(QStringLiteral("fn%1").arg(n.id), std::move(n.blocks));
+        // (Of two notes with one Id, the first is the note: it is the one that is written back.)
+        if (n.type.isEmpty() || n.type == QLatin1String("normal")) {
+            const QString key = QStringLiteral("fn%1").arg(n.id);
+            if (!m_noteBlocks.contains(key)) m_noteBlocks.insert(key, std::move(n.blocks));
+        }
         else if (n.type == QLatin1String("separator")) m_noteSeparator = std::move(n.blocks);
         else if (n.type == QLatin1String("continuationSeparator")) m_noteContinuation = std::move(n.blocks);
         else if (n.type == QLatin1String("continuationNotice")) m_noteNotice = std::move(n.blocks);
@@ -518,12 +529,20 @@ const QTextDocument *WriteDoc::noteStory(const QString &id)
     if (made != m_noteStories.constEnd()) return made.value().get();
     const auto blocks = m_noteBlocks.constFind(id);
     if (blocks == m_noteBlocks.constEnd() || m_noteStories.size() >= kMostNoteStories) return nullptr;
+    // A note's story is as the pages show it and as it is edited: one story, in the form the text is in (what the program does not edit is a piece kept as written, the number
+    // mark is a character of its own), whose steps are in the one history.
     auto doc = std::make_shared<QTextDocument>();
     doc->setDocumentMargin(0);
     doc->setDefaultFont(story()->defaultFont());
     doc->setUndoRedoEnabled(false);
-    fillStory(doc.get(), blocks.value(), true, m_notePart);
+    doc->setProperty("jwNote", true);   // (editops.h's noteTextStart knows a note's story by this)
+    fillStory(doc.get(), blocks.value(), true, m_notePart, false, false, -1, true);
+    flow::watchEdits(doc.get());
+    doc->setUndoRedoEnabled(true);
+    doc->setModified(false);
+    watchHistory(doc.get());
     m_noteStories.insert(id, doc);
+    m_noteIds.insert(doc.get(), id.mid(2).toInt());
     return doc.get();
 }
 

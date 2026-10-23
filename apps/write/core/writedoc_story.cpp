@@ -1193,6 +1193,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
             // the settings give (lower case roman numerals, a word processor's own).
             QString field = in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum") ? liveFieldOf(QStringLiteral("PAGE")) : QStringLiteral("raw:") + (formShown.contains(inAt) ? formShown.value(inAt).text : in.display);
             if (formShown.contains(inAt)) setFormLook(&af, formShown.value(inAt));
+            // (The mark that begins a note's text shows the number the pages give it.)
+            if (in.kind == Inline::RunAtom && in.tag == QLatin1String("footnoteRef") && !append) field = QStringLiteral("notemark");
             if (in.kind == Inline::ParaAtom && in.tag == kFieldGroupTag && !in.key.isEmpty()) field = in.key;   // (a field the pages answer: the page's number, the count of pages...)
             // A symbol of a font that isn't a symbol font (and isn't on the machine) is its character, in that font's stand-in.
             if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym")) {
@@ -1218,6 +1220,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
             } else if (in.kind == Inline::RunAtom && !deleted && drawnTag(in.tag) && drawnObjects(in, part, &af, lineWidth(), &p.content)) field = QStringLiteral("raw:");
             else if (in.tag == QLatin1String("footnoteReference") && m_noteBlocks.contains(QStringLiteral("fn") + in.key)) {
                 field = QStringLiteral("footnote:fn") + in.key;
+                if (!header && !append) m_footnotesCitedAtOpen.insert(in.key.toInt());
                 if (markFollows(in.raw)) af.setProperty(tp::NoteMarkCustom, true);
             }
             else if (in.tag == QLatin1String("endnoteReference")) {
