@@ -3288,32 +3288,58 @@ private Q_SLOTS:
         QTRY_COMPARE(label->text(), QStringLiteral("652 words"));
     }
 
-    // Every text that counts (%n) has its two English forms, and no count on screen is worded with "(s)" and an argument, which has no forms at all.
+    // Every text that counts (%n) has its two English forms in the context the program asks for it in, and no count on screen is worded with "(s)" and an argument, which has no forms at
+    // all. (The context is the one a call of translate() names, or the class that tr() belongs to: the class of the function the call is in, or the one that names it, in the namespaces
+    // around it. A form kept under another context is never found, and the text is shown with its marker.)
     void countedTextHasItsEnglishFormsAndNoneIsLeftAsPluralMarker()
     {
-        QHash<QString, QStringList> forms;
+        QHash<QString, QStringList> forms;   // (by context, a tab, and the text)
         QFile ts(QStringLiteral(JW_SOURCE_DIR "/translations/jeffoffice_en.ts"));
         QVERIFY(ts.open(QIODevice::ReadOnly));
         QXmlStreamReader xml(&ts);
-        QString source;
+        QString context, source;
         QStringList got;
+        bool inMessage = false;
         while (!xml.atEnd()) {
             xml.readNext();
             if (xml.isStartElement() && xml.name() == QLatin1String("message")) {
                 source.clear();
                 got.clear();
+                inMessage = true;
+            } else if (xml.isStartElement() && xml.name() == QLatin1String("name") && !inMessage) {
+                context = xml.readElementText();
             } else if (xml.isStartElement() && xml.name() == QLatin1String("source")) {
                 source = xml.readElementText();
             } else if (xml.isStartElement() && xml.name() == QLatin1String("numerusform")) {
                 got << xml.readElementText();
-            } else if (xml.isEndElement() && xml.name() == QLatin1String("message") && !got.isEmpty()) {
-                forms.insert(source, got);
+            } else if (xml.isEndElement() && xml.name() == QLatin1String("message")) {
+                if (!got.isEmpty()) forms.insert(context + QLatin1Char('\t') + source, got);
+                inMessage = false;
             }
         }
         QVERIFY(!xml.hasError());
         QStringList problems;
         int counted = 0;
-        static const QRegularExpression literal(QStringLiteral("\"((?:[^\"\\\\\\n]|\\\\.)*)\""));
+        static const QRegularExpression literal(QStringLiteral("(?:\\b(\\w+(?:::\\w+)*)::)?\\b(translate|tr)\\(\\s*(?:\"((?:[^\"\\\\\\n]|\\\\.)*)\"\\s*,\\s*)?\"((?:[^\"\\\\\\n]|\\\\.)*)\""));
+        static const QRegularExpression marker(QStringLiteral("[A-Za-z]\\((s|es)\\)"));
+        static const QRegularExpression opens(QStringLiteral("^namespace\\s*([\\w:]*)\\s*\\{")), closes(QStringLiteral("^\\}\\s*(//\\s*)?namespace\\b"));
+        static const QRegularExpression definition(QStringLiteral("^[A-Za-z_][^\\n(;]*?\\b([A-Za-z_]\\w*(?:::[A-Za-z_]\\w*)*)::~?[A-Za-z_]\\w*\\s*\\("));
+        auto unescaped = [](QString t) { return t.replace(QStringLiteral("\\\""), QStringLiteral("\"")).replace(QStringLiteral("\\\\"), QStringLiteral("\\")); };
+        static const QRegularExpression classHead(QStringLiteral("^(?:class|struct)\\s+(\\w+)\\b[^;]*$"));
+        // The class a tr() at `at` belongs to, with the namespaces open there: the one whose body at the left margin it is in, or of the function definition at the left margin before it.
+        auto classOf = [&](const QString &text, qsizetype at, const QString &named) {
+            QStringList spaces;
+            QString function, body;
+            for (const QString &line : text.left(at).split(QLatin1Char('\n'))) {
+                if (const auto m = opens.match(line); m.hasMatch()) spaces << m.captured(1);
+                else if (closes.match(line).hasMatch() && !spaces.isEmpty()) spaces.removeLast();
+                else if (const auto m = classHead.match(line); m.hasMatch()) body = m.captured(1);
+                else if (line.startsWith(QStringLiteral("};"))) body.clear();
+                else if (const auto m = definition.match(line); m.hasMatch()) function = m.captured(1);
+            }
+            spaces.removeAll(QString());
+            return (spaces + QStringList{!named.isEmpty() ? named : !body.isEmpty() ? body : function}).join(QStringLiteral("::"));
+        };
         for (const char *dir : {"/apps", "/libs"}) {
             QDirIterator it(QStringLiteral(JW_SOURCE_DIR) + QLatin1String(dir), {QStringLiteral("*.cpp")}, QDir::Files, QDirIterator::Subdirectories);
             while (it.hasNext()) {
@@ -3321,21 +3347,23 @@ private Q_SLOTS:
                 if (!f.open(QIODevice::ReadOnly)) continue;
                 const QString text = QString::fromUtf8(f.readAll());
                 for (auto m = literal.globalMatch(text); m.hasNext();) {
-                    QString s = m.next().captured(1);
-                    s.replace(QStringLiteral("\\\""), QStringLiteral("\"")).replace(QStringLiteral("\\\\"), QStringLiteral("\\"));
-                    static const QRegularExpression marker(QStringLiteral("[A-Za-z]\\((s|es)\\)"));
+                    const QRegularExpressionMatch call = m.next();
+                    const QString s = unescaped(call.captured(4));
+                    const bool translate = call.captured(2) == QLatin1String("translate");
+                    if (translate != call.hasCaptured(3)) continue;   // (translate() names its context; tr() does not)
                     if (s.contains(QStringLiteral("%n"))) {
                         ++counted;
-                        const QStringList f2 = forms.value(s);
+                        const QString where = translate ? unescaped(call.captured(3)) : classOf(text, call.capturedStart(), call.captured(1));
+                        const QStringList f2 = forms.value(where + QLatin1Char('\t') + s);
                         if (f2.size() != 2 || f2[0].isEmpty() || f2[1].isEmpty() || !f2[0].contains(QStringLiteral("%n")) || !f2[1].contains(QStringLiteral("%n")) || f2[0].contains(marker) || f2[1].contains(marker))
-                            problems << QStringLiteral("no English forms: ") + s.left(60);
+                            problems << QStringLiteral("no English forms in %1: ").arg(where) + s.left(60);
                     } else if (s.contains(marker)) {
-                        problems << QStringLiteral("counts with %1, not %n: ") + s.left(60);
+                        problems << QStringLiteral("counts with (s), not %n: ") + s.left(60);
                     }
                 }
             }
         }
-        QVERIFY2(counted >= 5, "the sources were not found");
+        QVERIFY2(counted >= 19, qPrintable(QStringLiteral("%1 counted texts were found in the sources").arg(counted)));
         QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QLatin1Char('\n'))));
     }
 
