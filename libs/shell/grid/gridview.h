@@ -11,6 +11,7 @@
 #include "grid/textwalk.h"
 
 #include <QAbstractScrollArea>
+#include <QInputMethodEvent>
 #include <QElapsedTimer>
 #include <QTimer>
 
@@ -145,6 +146,8 @@ protected:
     void wheelEvent(QWheelEvent *e) override;
     void keyPressEvent(QKeyEvent *e) override;
     bool focusNextPrevChild(bool) override { return false; }
+    void inputMethodEvent(QInputMethodEvent *e) override;
+    QVariant inputMethodQuery(Qt::InputMethodQuery query) const override;
     void focusInEvent(QFocusEvent *e) override;
     void focusOutEvent(QFocusEvent *e) override;
     void scrollContentsBy(int, int) override {}

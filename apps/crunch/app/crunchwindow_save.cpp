@@ -5,7 +5,9 @@
 #include "app/crunchwindow.h"
 
 #include "app/settings.h"
+#include "app/telemetry.h"
 #include "core/appinfo.h"
+#include "core/loader.h"
 #include "sheet/xlsxsave.h"
 
 #include <QAction>
@@ -117,6 +119,7 @@ void CrunchWindow::onSaved(bool ok, const QString &message, const QString &path,
             updateTitle();
         }
         Settings::get().addRecentFile(path);
+        telemetry::count(QStringLiteral("file.save.") + crunch::fileKind(path));
         setStatus(tr("Saved %1").arg(QFileInfo(path).fileName()));
     } else {
         m_closeAfterSave = false;

@@ -19,6 +19,20 @@
 | Shift+Space | Select the whole row |
 | Ctrl+A | Select everything |
 
+## Changing cells
+
+| Keys | What they do |
+| --- | --- |
+| Any character | Start an entry in the active cell, in place of what it holds |
+| F2 | Edit what the active cell holds, in the cell |
+| Enter, Shift+Enter | Keep the entry, and move down or up |
+| Tab, Shift+Tab | Keep the entry, and move right or left |
+| Esc | Give the entry up |
+| Alt+Enter | Start a new line in the cell |
+| Delete | Clear the selected cells |
+| Ctrl+Z, Ctrl+Y | Undo, redo |
+| Ctrl+S | Save |
+
 ## Commands
 
 <!-- shortcuts -->

@@ -17,6 +17,7 @@
 #include <QLineEdit>
 #include <QSettings>
 #include <QSignalSpy>
+#include <QThread>
 #include <QUndoStack>
 
 using namespace jp;
@@ -479,6 +480,106 @@ private Q_SLOTS:
             QVERIFY(c);
             QCOMPARE(gs.valueOf(*c).debug(), QStringLiteral("n:%1").arg((r + 1) * 2 + 5));
         }
+    }
+
+    // Counted: an edit made with the worker held does not ask the graph who reads the cell, marks nothing, and registers no formula but the one typed; the worker does that after, and the
+    // results come back. (The cell is read by twenty thousand formulas: were the window to look for them, the graph's work would show it.)
+    void anEditCostsTheWindowOnlyWhatPuttingTheCellInCosts()
+    {
+        const int n = 20000;
+        QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>");
+        for (int r = 2; r <= n + 1; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"B%1\"><f>$A$1+%1</f><v>-1</v></c></row>").arg(r);
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        qint64 queried0 = -1, queried1 = -1, dirty1 = -1, registered0 = -1, registered1 = -1, holds = 0;
+        e.win.w.session()->setHoldHook([&](Calculation *calc, bool after) {
+            ++holds;
+            if (!after) {
+                queried0 = calc->graph().queryWork();
+                registered0 = calc->registrations();
+            } else {
+                queried1 = calc->graph().queryWork();
+                dirty1 = calc->dirtyCount();
+                registered1 = calc->registrations();
+            }
+        });
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("100"));
+        QCOMPARE(holds, qint64(2));
+        QCOMPARE(queried1, queried0);        // the graph was not asked
+        QCOMPARE(dirty1, qint64(0));         // nothing was marked
+        QCOMPARE(registered1, registered0);  // and no formula told it what it reads
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("n:102"));
+        QCOMPARE(e.valueAt(QStringLiteral("B20001")), QStringLiteral("n:20101"));
+        // a formula typed registers once
+        e.select(QStringLiteral("D1"));
+        e.enter(QStringLiteral("=A1*2"));
+        QCOMPARE(registered1 - registered0, qint64(1));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("D1")), QStringLiteral("n:200"));
+    }
+
+    // The worker stays when the formulas are worked out, and goes with the window.
+    void theWorkerStaysAndGoesWithTheWindow()
+    {
+        {
+            EditWindow e;
+            QVERIFY(e.open(editBook()));
+            QVERIFY(e.win.w.loaded()->calcIdle.load());
+            QVERIFY(crunch::WorkbookLoader::workersRunning() >= 1);
+            QVERIFY(!e.win.w.loaded()->workerEnded.load());
+        }
+        QTRY_COMPARE(crunch::WorkbookLoader::workersRunning(), 0);
+    }
+
+    // A calculation stopped with Esc, and then a cell typed in: the worker takes up what is left and the new change, and ends with every formula worked out.
+    void anEditAfterEscResumesTheCalculation()
+    {
+        const int n = 60000;
+        QString rows;
+        rows.reserve(n * 90);
+        for (int r = 1; r <= n; ++r)
+            rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><f>A%1*2+$D$1</f><v>-1</v></c>%2</row>").arg(r).arg(r == 1 ? QStringLiteral("<c r=\"D1\"><v>0</v></c>") : QString());
+        Folder folder;
+        Window win;
+        QSignalSpy loaded(&win.w, &CrunchWindow::loadFinished);
+        win.w.setWorkerPace(20000);
+        QVERIFY(win.w.openFile(folder.write(QStringLiteral("big.xlsx"), buildXlsx({worksheet(rows)}))));
+        QVERIFY(loaded.wait(60000));
+        QTRY_VERIFY(win.w.batchesTaken() >= 1);
+        QTest::keyClick(&win.w, Qt::Key_Escape);
+        QVERIFY(!win.w.isCalculating());
+        QTRY_VERIFY(win.w.loaded()->calcIdle.load());
+        win.w.setWorkerPace(0);
+        win.w.view()->selectCell(0, 3);
+        QTest::keyClick(win.w.view(), Qt::Key_9);
+        QTest::keyClick(win.w.cellEditor(), Qt::Key_Return);
+        QVERIFY(win.w.isCalculating());
+        QVERIFY(QTest::qWaitFor([&] { return !win.w.isCalculating(); }, 60000));
+        const grid::GridSheet &gs = win.w.view()->sheet();
+        for (const quint32 r : {0u, 30000u, quint32(n - 1)}) QCOMPARE(gs.valueOf(*gs.cellAt(r, 1)).debug(), QStringLiteral("n:%1").arg((r + 1) * 2 + 9));
+    }
+
+    // Edits one after the other, before the worker has worked out the first: all of them are worked out, and the window says it is calculating until the last is.
+    void editsOneAfterTheOtherAreAllWorkedOut()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        e.win.w.setWorkerPace(5000);
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("100"));
+        e.select(QStringLiteral("A2"));
+        e.enter(QStringLiteral("200"));
+        e.select(QStringLiteral("A3"));
+        e.enter(QStringLiteral("300"));
+        QVERIFY(e.win.w.isCalculating());
+        e.win.w.setWorkerPace(0);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:200"));
+        QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("n:300"));      // SUM(A1:A2)
+        QCOMPARE(e.valueAt(QStringLiteral("B3")), QStringLiteral("n:301"));
+        QCOMPARE(e.win.w.undoStack()->count(), 3);
     }
 
     // Nothing can be changed until the workbook is read whole: the person is told so in the status line, with no message box in the way.

@@ -41,6 +41,7 @@
 #include <cmath>
 #include <functional>
 #include <unordered_map>
+#include <unordered_set>
 
 using namespace jp;
 using namespace jp::office;
@@ -94,6 +95,13 @@ struct Opened {
             message = m;
         });
         c2 = QObject::connect(&loader, &crunch::WorkbookLoader::calcBatch, &loader, [this](const std::shared_ptr<crunch::CalcBatch> &b) {
+            if (trackChanges)
+                for (const grid::ValueStore::Item &it : b->items) {
+                    jp::calc::Value old;
+                    const bool had = values.find(it.sheet, it.row, it.col, &old);
+                    const bool same = had && ((old.isNumber() && it.value.isNumber() && jp::calc::sameTo15Digits(old.number(), it.value.number())) || old == it.value);
+                    if (!same) changedByEdit.insert(crunch::EditSession::keyOf(it.sheet, it.row, it.col));
+                }
             values.apply(b->items);
             if (session) session->noteResults(b->items);
             ++batches;
@@ -134,6 +142,9 @@ struct Opened {
     qint64 batches = 0;
     qint64 firstValuesAt = -1, lastAt = -1;
     QElapsedTimer clock;
+    // From the edit on: the formulas whose result the worker changed (by the store's value before it, if it had one).
+    bool trackChanges = false;
+    std::unordered_set<quint64> changedByEdit;
 };
 
 // ---- comparing two reads of a workbook
@@ -352,7 +363,8 @@ int roundtripOne(const QString &path)
             for (int si = 0; si < sheetCount && sheet < 0; ++si)
                 if (w.loader.result()->book->info().sheets[si].kind == SheetKind::Worksheet) sheet = si;
         if (sheet < 0) {
-            edited.add(QStringLiteral("no sheet of cells"));
+            cellRight = true;   // (a workbook of chart sheets has no cell to change)
+            cellName_ = QStringLiteral("(no sheet of cells)");
         } else {
             cellName_ = w.loader.result()->book->info().sheets[sheet].name + QLatin1Char('!') + cellName(row, col);
             const Calculation::CellContent old = calc->content(sheet, row, col);
@@ -361,6 +373,7 @@ int roundtripOne(const QString &path)
             calc->graph().dependentsOfCell(sheet, row, col, &readers);
             dependents = qint64(readers.size());
             w.session->setLocale(QLocale::c());
+            w.trackChanges = true;
             w.beginEdit();
             const crunch::EditSession::Outcome o = w.session->type(sheet, row, col, QString::number(newValue, 'g', 17));
             if (!o.ok) {
@@ -410,21 +423,16 @@ int roundtripOne(const QString &path)
                                     if (isEdited) {
                                         cellRight = b1->type == CellType::Number && b1->number == newValue;
                                     } else if (b1->hasFormula() || (b1->flags & ArrayMember)) {
-                                        // a formula's result: the engine's now, if it differs from the file's, else the file's
+                                        // a formula's result: the engine's now if the edit changed it, else the file's as it was
                                         const jp::calc::Value ours = calc->cell(si, b1->row, b1->col);
-                                        const bool engineSame = storedIs(sa, ha, *a1, ours);
-                                        const bool tracked = (calc->keptClass(si, b1->row, b1->col) != 0);
-                                        if (engineSame || tracked) {
-                                            if (!sameStored(sa, ha, *a1, sb, hb, *b1)) {
+                                        if (w.changedByEdit.count(crunch::EditSession::keyOf(si, b1->row, b1->col))) {
+                                            if (!storedIs(sb, hb, *b1, ours)) {
                                                 ++unexpected;
-                                                edited.add(QStringLiteral("a result changed that the engine did not change"));
+                                                edited.add(QStringLiteral("a result is not the engine's"));
                                             }
-                                        } else if (!storedIs(sb, hb, *b1, ours)) {
+                                        } else if (!sameStored(sa, ha, *a1, sb, hb, *b1)) {
                                             ++unexpected;
-                                            edited.add(QStringLiteral("a result is not the engine's"));
-                                        }
-                                        if (!engineSame && !tracked) {
-                                            /* a dependent whose result changed */
+                                            edited.add(QStringLiteral("a result changed that the edit did not change"));
                                         }
                                         if (a1->style != b1->style || a1->hasFormula() != b1->hasFormula() || (a1->hasFormula() && sa.formulaText(*a1) != sb.formulaText(*b1))) {
                                             ++unexpected;

@@ -16,6 +16,7 @@
 #include <QObject>
 #include <QUndoStack>
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <set>
@@ -97,6 +98,8 @@ public:
     // How many cells have been changed since the file was read or saved, and how many formulas' results differ from the file's (for tests and the status).
     qint64 changedCells() const { return qint64(m_touched.size()); }
     qint64 changedResults() const { return qint64(m_results.size()); }
+    // For tests: called with the calculation while the worker is held, before the changes of an edit are put in and after (so that a test can count what the edit did to it).
+    void setHoldHook(const std::function<void(jp::office::sheet::Calculation *calc, bool after)> &hook) { m_holdHook = hook; }
     // Edits are held off (a save is going on).
     void setBusy(bool busy) { m_busy = busy; }
     bool isBusy() const { return m_busy; }
@@ -122,6 +125,7 @@ private:
     QLocale m_locale;
     QDate m_today;
     bool m_busy = false;
+    std::function<void(jp::office::sheet::Calculation *, bool)> m_holdHook;
     bool m_tracking = false;               // an edit has been made: results are compared with the file's
     std::set<quint64> m_touched;           // cells changed by the person (written whole), by sheet, row, column
     std::map<quint64, jp::calc::Value> m_results;      // formulas whose value is not the file's

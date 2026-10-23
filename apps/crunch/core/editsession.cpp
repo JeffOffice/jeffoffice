@@ -269,11 +269,11 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
 
 bool EditSession::apply(std::vector<CellChange> *changes, bool forward)
 {
-    if (qEnvironmentVariableIsSet("JC_SKIP_HOLD")) return true;
     std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
     if (!hold) return false;
     Calculation *calc = hold->calculation();
     Workbook &book = *m_book->book;
+    if (m_holdHook) m_holdHook(calc, false);
     std::map<int, std::vector<ValueStore::Item>> cells;
     std::vector<ValueStore::Item> formulas;
     for (CellChange &ch : *changes) {
@@ -288,7 +288,7 @@ bool EditSession::apply(std::vector<CellChange> *changes, bool forward)
             }
         }
         const Calculation::CellContent &c = forward ? ch.after : ch.before;
-        if (!qEnvironmentVariableIsSet("JC_SKIP_PUT")) calc->put(ch.sheet, ch.row, ch.col, c, Calculation::Marking::Later);
+        calc->put(ch.sheet, ch.row, ch.col, c, Calculation::Marking::Later);
         m_touched.insert(keyOf(ch.sheet, ch.row, ch.col));
         ValueStore::Item it;
         it.sheet = ch.sheet;
@@ -297,12 +297,13 @@ bool EditSession::apply(std::vector<CellChange> *changes, bool forward)
         cells[ch.sheet].push_back(it);
         if (c.isFormula) formulas.push_back(it);
     }
-    if (!qEnvironmentVariableIsSet("JC_SKIP_CHANGED")) hold->changed();
+    if (m_holdHook) m_holdHook(calc, true);
+    hold->changed();
     hold.reset();   // (the worker has the model again, and works out what these changes make)
     m_tracking = true;
     // a formula put in a cell has no value until the worker gives it one: it shows nothing, not the value of what was there
     if (!formulas.empty()) m_values->apply(formulas);
-    if (!qEnvironmentVariableIsSet("JC_SKIP_EMIT")) for (auto &entry : cells) Q_EMIT cellsChanged(entry.first, entry.second);
+    for (auto &entry : cells) Q_EMIT cellsChanged(entry.first, entry.second);
     return true;
 }
 

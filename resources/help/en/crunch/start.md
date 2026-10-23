@@ -7,13 +7,14 @@ The file you work on is called a **workbook**. A workbook holds one or more **sh
 
 ## JeffCrunch is an early Preview
 
-This version shows workbooks, and it does not change them yet. You can open a workbook, look at every sheet, select cells, copy them as text, zoom, and freeze rows and columns for your own view. Typing in cells, formatting, sorting, charts, saving, and printing come in later versions. The ribbon shows those commands now, dimmed, so you can see where they will go.
+This version opens workbooks, lets you type in cells, and saves them. You can open a workbook, look at every sheet, select cells, copy them as text, zoom, and freeze rows and columns for your own view. You can type numbers, text, and formulas in cells, clear cells, undo and redo, and save the workbook. Formatting, cut and paste, inserting rows and columns, sorting, charts, and printing come in later versions. The ribbon shows those commands now, dimmed, so you can see where they will go.
 
 ## Do these three things first
 
 1. **Open a workbook.** Press **Ctrl+O**, or click **File** and then **Open**. The first rows appear at once, even in a very large workbook, while JeffCrunch reads the rest.
 2. **Look around.** Click a cell to select it. Its address is in the **Name box** at the top left, and what it holds is in the **formula bar** next to it. Use the arrow keys, the mouse wheel, and the scroll bars to move. See [Select cells and move around](select-and-move).
-3. **Change the view.** Use the **View** tab to zoom, to turn the gridlines and headings on or off, and to freeze the top rows or the first columns. See [Change the view](view).
+3. **Change a cell.** Select a cell and type. Press **Enter** to keep what you typed. See [Type in cells](edit-cells).
+4. **Change the view.** Use the **View** tab to zoom, to turn the gridlines and headings on or off, and to freeze the top rows or the first columns. See [Change the view](view).
 
 ## What you see
 
@@ -21,4 +22,4 @@ A workbook looks as it was saved: the widths of the columns and the heights of t
 
 ## Keep a copy
 
-Because this is a Preview, keep a copy of any workbook that matters. JeffCrunch never writes over a file, but it does not save yet.
+Because this is a Preview, keep a copy of any workbook that matters. **Save** writes your changes into the workbook you opened, and **Save As** writes them into a new file. See [Open and save workbooks](open-save).

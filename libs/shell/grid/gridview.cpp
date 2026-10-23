@@ -45,6 +45,7 @@ GridView::GridView(QWidget *parent) : QAbstractScrollArea(parent)
 {
     setObjectName(QStringLiteral("gridView"));
     setFocusPolicy(Qt::StrongFocus);
+    setAttribute(Qt::WA_InputMethodEnabled, true);
     setFrameShape(QFrame::NoFrame);
     viewport()->setAttribute(Qt::WA_OpaquePaintEvent);
     viewport()->setBackgroundRole(QPalette::Window);
@@ -628,6 +629,19 @@ void GridView::resizeEvent(QResizeEvent *e)
     layoutChanged();
 }
 
+// What an input method (for Chinese, Japanese, and Korean, or accents made of two keys) finishes writing starts an entry in the cell; what it is still composing is not shown here.
+void GridView::inputMethodEvent(QInputMethodEvent *e)
+{
+    if (!e->commitString().isEmpty()) Q_EMIT typingStarted(e->commitString());
+    e->accept();
+}
+
+QVariant GridView::inputMethodQuery(Qt::InputMethodQuery query) const
+{
+    if (query == Qt::ImEnabled) return true;
+    return QAbstractScrollArea::inputMethodQuery(query);
+}
+
 void GridView::focusInEvent(QFocusEvent *e)
 {
     QAbstractScrollArea::focusInEvent(e);
@@ -795,7 +809,9 @@ void GridView::keyPressEvent(QKeyEvent *e)
     auto go = [&](const Selection &s) { setSelectionInternal(s); };
     // a character that prints starts an entry
     auto typed = [&]() {
-        if (ctrl || !plain) return false;
+        // (AltGr, which gives the characters some keyboards have on their letters, arrives as Ctrl and Alt together)
+        const bool altGr = ctrl && (e->modifiers() & Qt::AltModifier) && !(e->modifiers() & Qt::MetaModifier);
+        if (!altGr && (ctrl || !plain)) return false;
         const QString text = e->text();
         if (text.isEmpty() || !text.front().isPrint()) return false;
         Q_EMIT typingStarted(text);
