@@ -68,7 +68,7 @@ void ValueStore::apply(const std::vector<Item> &items)
         const quint64 key = keyOf(it.row, it.col);
         const quint64 h = mix(key);
         Chunk &c = t.chunks[size_t(h >> (64 - kChunkBits))];
-        if (c.slots.empty()) c.slots.assign(64, Slot());
+        if (c.slots.empty()) c.slots.assign(16, Slot());
         // (grown while it is less than three-fifths full: the table of one chunk, which holds a thousandth of the sheet's values)
         if ((c.used + 1) * 5 > c.slots.size() * 3) {
             std::vector<Slot> bigger(c.slots.size() * 2);
