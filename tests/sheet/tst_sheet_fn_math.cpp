@@ -300,6 +300,24 @@ private Q_SLOTS:
         QCOMPARE(ev("SUMIF(A1:A4,\"\",B1:B4)", err), QStringLiteral("n:60"));
     }
 
+    // A least common multiple past what a number holds exactly (2^53) is #NUM!; it does not become infinite, and go on being looked for.
+    void aLeastCommonMultipleThatPassesTheLimitIsAnError()
+    {
+        Settings array;
+        array.array = true;
+        const E cases[] = {
+            {"LCM(4,6)", "n:12"},
+            {"LCM(ROW(1:40))=5342931457063200", "b:1"},       // the least common multiple of 1 to 40
+            {"LCM(ROW(1:41))", "e:#NUM!"},
+            {"LCM(ROW(1:100))", "e:#NUM!"},
+            {"LCM(2.5,ROW(1:1000),-1)", "e:#NUM!"},
+            {"LCM(9007199254740991,9007199254740990)", "e:#NUM!"},
+            {"LCM(9007199254740991,1)=9007199254740991", "b:1"},
+            {"GCD(ROW(1:100))", "n:1"},
+        };
+        CHECK_EVALS(cases, Grid(), array);
+    }
+
     void conditionalSumsAndCountsFollowTheirCriteria()
     {
         const Grid g = sample();

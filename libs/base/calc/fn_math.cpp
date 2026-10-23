@@ -477,6 +477,12 @@ Value gcdLcm(Call &c, bool lcm)
                         b = t;
                     }
                     result = result / a * x;
+                    // past what a number holds exactly it is no multiple to give (and an infinite one would never come to the end of the division of the next)
+                    if (!(result <= 9007199254740991.0)) {
+                        error = Value::error(ErrorKind::Num);
+                        failed = true;
+                        return false;
+                    }
                 }
             } else {
                 double a = result, b = x;
