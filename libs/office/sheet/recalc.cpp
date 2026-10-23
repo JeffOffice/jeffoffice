@@ -1,5 +1,7 @@
 #include "sheet/recalc.h"
 
+#include "sheet/calculation.h"
+
 #include "calc/formula.h"
 #include "calc/functions.h"
 
@@ -359,6 +361,131 @@ bool recalcWorkbook(const Workbook &book, const RecalcOptions &options, const st
         });
     }
     report->seconds = timer.elapsed() / 1000.0;
+    return true;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+// the full recalculation
+
+bool recalcFull(const Workbook &book, const FullOptions &options, const std::function<void(const RecalcCell &)> &each, FullReport *report, QString *error)
+{
+    QElapsedTimer timer;
+    timer.start();
+    *report = FullReport();
+    if (book.info().sheets.isEmpty()) {
+        if (error) *error = QStringLiteral("The workbook has no sheets.");
+        return false;
+    }
+    CalcOptions copts;
+    copts.keepApart = true;
+    copts.workLimit = options.workLimit;
+    copts.now = options.now;
+    copts.workbookBytes = options.workbookBytes;
+    copts.verify = [](const Value &stored, const Value &ours) { return sameResult(ours.isArray() ? ours.at(0, 0) : ours, stored, false); };
+    Calculation calc(book, copts);
+    report->manualCalc = book.info().calcMode == CalcMode::Manual;
+    report->whole = calc.load();
+    report->loadSeconds = double(timer.nsecsElapsed()) / 1e9;
+    QElapsedTimer calcTimer;
+    calcTimer.start();
+    for (;;) {
+        if (options.seconds > 0 && double(timer.nsecsElapsed()) > options.seconds * 1e9) break;   // (what is not reached is kept apart)
+        const Calculation::Progress p = calc.recalculate(options.seconds > 0 ? 200000 : 0);
+        report->evaluations += p.evaluated;
+        if (p.finished) break;
+    }
+    report->calcSeconds = double(calcTimer.nsecsElapsed()) / 1e9;
+    qint64 kept = 0;
+    calc.forEachFormula([&](const Calculation::FormulaCell &fc) {
+        ++report->formulaCells;
+        const Sheet &sheet = calc.sheet(fc.sheet);
+        const Cell &c = *fc.cell;
+        RecalcCell out;
+        bool haveValues = false;
+        auto finish = [&](RecalcClass cls) {
+            out.cls = cls;
+            ++report->byClass[char(cls)];
+            if (cls == RecalcClass::Match) {
+                if (kept >= options.keepMatches) return;
+                ++kept;
+            }
+            if (!each) return;
+            out.sheet = book.info().sheets[fc.sheet].name;
+            out.cell = cellName(c.row, c.col);
+            out.formula = sheet.formulaText(c);
+            if (haveValues) {
+                out.stored = display(fc.stored);
+                out.ours = display(fc.ours);
+            }
+            each(out);
+        };
+        if (fc.program) {
+            for (const auto &call : fc.program->calls) out.functions << QString::fromLatin1(functionAt(call.first).name);
+            out.functions << fc.program->unknownFunctions;
+        }
+        if (fc.circular) ++report->circular;
+        if (!fc.worked) {
+            finish(RecalcClass::Skipped);
+            return;
+        }
+        if (fc.kept) {
+            if (fc.kept == 'U' && fc.program)
+                for (const QString &name : fc.program->unknownFunctions) ++report->unsupportedFunctions[name];
+            haveValues = fc.kept == 'P' || fc.kept == 'L' || fc.kept == 'I';
+            finish(RecalcClass(fc.kept));
+            return;
+        }
+        Value ours = fc.ours;
+        if (ours.isArray()) ours = ours.at(0, 0);
+        const bool match = sameResult(ours, fc.stored, c.type == CellType::Date);
+        haveValues = true;
+        if (fc.tainted) {
+            if (match) ++report->taintedMatched;
+            finish(RecalcClass::Tainted);
+            return;
+        }
+        bool dynamic = false;
+        if (fc.program)
+            for (const auto &call : fc.program->calls) {
+                const char *name = functionAt(call.first).name;
+                if (strcmp(name, "OFFSET") == 0 || strcmp(name, "INDIRECT") == 0) dynamic = true;
+            }
+        if (dynamic) {
+            ++report->volatileChecked;
+            if (match) ++report->volatileMatched;
+            finish(RecalcClass::Volatile);
+            return;
+        }
+        if (fc.program) {
+            for (const auto &call : fc.program->calls) {
+                FunctionTally &t = report->functions[QString::fromLatin1(functionAt(call.first).name)];
+                t.calls += call.second;
+                ++t.cells;
+                if (match) {
+                    t.matchedCalls += call.second;
+                    ++t.matchedCells;
+                }
+            }
+        }
+        if (match) {
+            finish(RecalcClass::Match);
+            return;
+        }
+        QStringList fns = out.functions;
+        fns.removeDuplicates();
+        fns.sort();
+        // a mismatch that follows another is told by its own pattern: the commonest are the roots
+        if (!fc.cascaded) {
+            ++report->rootMismatches;
+            ++report->patterns[kindOf(fc.stored) + QStringLiteral(" -> ") + kindOf(ours) + QStringLiteral(": ") + fns.join(QLatin1Char('+'))];
+        }
+        finish(RecalcClass::Mismatch);
+    });
+    report->graphEntries = calc.graph().entryCount();
+    report->graphBytes = calc.graph().memoryBytes();
+    report->untracked = calc.untrackedCount();
+    for (int i = 0; i < calc.sheetCount(); ++i) report->sheetXmlBytes = std::max(report->sheetXmlBytes, calc.sheet(i).stats.xmlBytes);
+    report->seconds = double(timer.nsecsElapsed()) / 1e9;
     return true;
 }
 

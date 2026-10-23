@@ -29,6 +29,28 @@ bool runWorkbook(const QByteArray &zip, Run *out, const RecalcOptions &options =
     return recalcWorkbook(book, options, [&](const RecalcCell &c) { out->cells.push_back(c); }, &out->report, &why);
 }
 
+// The same for the full recalculation: every formula worked out from the constants.
+struct FullRun {
+    FullReport report;
+    QVector<RecalcCell> cells;
+    QString cellText(const QString &sheet, const QString &ref) const
+    {
+        for (const RecalcCell &c : cells)
+            if (c.sheet == sheet && c.cell == ref) return QStringLiteral("%1|%2|%3|%4").arg(QChar(char(c.cls)), c.formula, c.stored, c.ours);
+        return QStringLiteral("(not called)");
+    }
+};
+
+bool runFull(const QByteArray &zip, FullRun *out, const FullOptions &options = FullOptions())
+{
+    Package package;
+    QString why;
+    if (!package.readLazy(zip, &why)) return false;
+    Workbook book;
+    if (!book.open(package, &why)) return false;
+    return recalcFull(book, options, [&](const RecalcCell &c) { out->cells.push_back(c); }, &out->report, &why);
+}
+
 QString cell(const QString &ref, const QString &formula, const QString &value, const QString &type = QString())
 {
     return QStringLiteral("<c r=\"%1\"%2><f>%3</f><v>%4</v></c>").arg(ref, type.isEmpty() ? QString() : QStringLiteral(" t=\"%1\"").arg(type), formula.toHtmlEscaped(), value.toHtmlEscaped());
@@ -112,6 +134,102 @@ private Q_SLOTS:
         QCOMPARE(run.cellText("Sheet2", "A3"), QStringLiteral("M|SUM(Sheet1:Sheet2!A1)|4|4"));   // 1 on the first sheet and 3 on the second
         QCOMPARE(run.report.formulaCells, qint64(7));
         QCOMPARE(run.report.byClass.value('X'), qint64(2));
+    }
+
+    // Every formula is worked out from the constants, so that a formula that reads one that is wrong is wrong too, where the check of each on its own would call it right; what
+    // reads a formula that is kept apart is told apart, and a circle gives the 0 a file stores for it.
+    void aFullRecalculationWorksEveryFormulaOutFromTheConstants()
+    {
+        const QString rows = row(1, plain("A1", "1") + plain("B1", "2") + cell("C1", "SUM(A1:B1)", "4") + cell("D1", "C1*2", "8") + cell("E1", "D1+A1", "9"))
+            + row(2, cell("A2", "FOO(A1)", "7") + cell("B2", "A2+1", "8") + cell("C2", "B2*2", "16") + cell("D2", "A1+10", "11") + cell("E2", "NOW()", "45000") + cell("F2", "E2+1", "45001"))
+            + row(3, cell("A3", "B3+1", "0") + cell("B3", "A3+1", "0") + cell("C3", "A3+5", "5") + cell("D3", "[1]Sheet1!A1", "5") + cell("E3", "D3*2", "10") + cell("F3", "OFFSET(A1,0,1)", "2")
+                          + cell("G3", "F3+1", "3"));
+        FullRun run;
+        FullOptions options;
+        options.keepMatches = 100;
+        QVERIFY(runFull(buildXlsx({worksheet(rows)}), &run, options));
+        const FullReport &r = run.report;
+        QCOMPARE(r.formulaCells, qint64(16));
+        // from the constants, C1 is 3 where the file has 4, and D1 and E1 follow it: 6 and 7, where the file has 8 and 9 (each is right of the one before it)
+        QCOMPARE(run.cellText("Sheet1", "C1"), QStringLiteral("X|SUM(A1:B1)|4|3"));
+        QCOMPARE(run.cellText("Sheet1", "D1"), QStringLiteral("X|C1*2|8|6"));
+        QCOMPARE(run.cellText("Sheet1", "E1"), QStringLiteral("X|D1+A1|9|7"));
+        QCOMPARE(run.cellText("Sheet1", "D2"), QStringLiteral("M|A1+10|11|11"));
+        // kept apart: a function it lacks, one that changes by itself, another workbook; and what reads them, from the file's results, is told apart
+        QCOMPARE(run.cellText("Sheet1", "A2").left(2), QStringLiteral("U|"));
+        QCOMPARE(run.cellText("Sheet1", "B2").left(2), QStringLiteral("Z|"));
+        QCOMPARE(run.cellText("Sheet1", "B2"), QStringLiteral("Z|A2+1|8|8"));
+        QCOMPARE(run.cellText("Sheet1", "C2"), QStringLiteral("Z|B2*2|16|16"));
+        QCOMPARE(run.cellText("Sheet1", "E2").left(2), QStringLiteral("V|"));
+        QCOMPARE(run.cellText("Sheet1", "F2").left(2), QStringLiteral("Z|"));
+        QCOMPARE(run.cellText("Sheet1", "D3").left(2), QStringLiteral("E|"));
+        QCOMPARE(run.cellText("Sheet1", "E3"), QStringLiteral("Z|D3*2|10|10"));
+        // the circle is 0, as the file has it; what reads it is no part of it
+        QCOMPARE(run.cellText("Sheet1", "A3"), QStringLiteral("M|B3+1|0|0"));
+        QCOMPARE(run.cellText("Sheet1", "B3"), QStringLiteral("M|A3+1|0|0"));
+        QCOMPARE(run.cellText("Sheet1", "C3"), QStringLiteral("M|A3+5|5|5"));
+        QCOMPARE(r.circular, qint64(2));
+        // OFFSET depends on cells only: worked out, counted apart, told whether it matches, and what reads it is not set apart
+        QCOMPARE(run.cellText("Sheet1", "F3").left(2), QStringLiteral("V|"));
+        QCOMPARE(r.volatileChecked, qint64(1));
+        QCOMPARE(r.volatileMatched, qint64(1));
+        QCOMPARE(run.cellText("Sheet1", "G3"), QStringLiteral("M|F3+1|3|3"));
+        QCOMPARE(r.byClass.value('M'), qint64(5));      // D2, A3, B3, C3, and G3
+        QCOMPARE(r.byClass.value('X'), qint64(3));
+        QCOMPARE(r.rootMismatches, qint64(1));          // C1; D1 and E1 follow it
+        QCOMPARE(r.byClass.value('U'), qint64(1));
+        QCOMPARE(r.byClass.value('V'), qint64(2));      // NOW, and OFFSET
+        QCOMPARE(r.byClass.value('E'), qint64(1));
+        QCOMPARE(r.byClass.value('Z'), qint64(4));      // B2, C2, F2, E3
+        QCOMPARE(r.taintedMatched, qint64(4));          // B2, C2, F2 (45001 from the stored 45000), and E3: all match the file
+        QCOMPARE(r.unsupportedFunctions.value("FOO"), qint64(1));
+        QCOMPARE(r.checked(), qint64(8));
+        QVERIFY(r.whole);
+        QVERIFY(r.loadSeconds >= 0 && r.calcSeconds >= 0);
+        QVERIFY(r.graphEntries > 0);
+        QVERIFY(r.evaluations >= 13);
+        // the functions are counted for the formulas that were checked
+        QCOMPARE(r.functions.value("SUM").calls, qint64(1));
+        QCOMPARE(r.functions.value("SUM").matchedCalls, qint64(0));
+        QVERIFY(!r.functions.contains(QStringLiteral("FOO")));
+    }
+
+    // The constants are the file's, not what formulas gave: a formula cell that the file stored a value for gives that value to nothing but itself.
+    void aFormulaIsWorkedOutFromTheCellsItReadsNotTheirStoredResults()
+    {
+        const QString rows = row(1, plain("A1", "2") + cell("B1", "A1*3", "1000") + cell("C1", "B1+1", "1001"));
+        FullRun run;
+        FullOptions options;
+        options.keepMatches = 10;
+        QVERIFY(runFull(buildXlsx({worksheet(rows)}), &run, options));
+        QCOMPARE(run.cellText("Sheet1", "B1"), QStringLiteral("X|A1*3|1000|6"));
+        QCOMPARE(run.cellText("Sheet1", "C1"), QStringLiteral("X|B1+1|1001|7"));
+        QCOMPARE(run.report.byClass.value('X'), qint64(2));
+        QVERIFY(run.report.patterns.contains(QStringLiteral("number -> number: ")));
+    }
+
+    // A recalculation that runs out of the time it was given keeps the rest apart; so does a formula past the work it may take, with what reads it.
+    void whatTheFullRecalculationDoesNotReachIsKeptApart()
+    {
+        QString rows;
+        for (int i = 1; i <= 50; ++i) rows += row(i, plain(QStringLiteral("A%1").arg(i), "1"));
+        rows += row(60, cell("A60", "SUM(A1:A50)", "50") + cell("B60", "A60+1", "51"));
+        const QByteArray zip = buildXlsx({worksheet(rows)});
+        FullRun limited;
+        FullOptions tight;
+        tight.workLimit = 20;
+        QVERIFY(runFull(zip, &limited, tight));
+        QCOMPARE(limited.report.byClass.value('L'), qint64(1));
+        QCOMPARE(limited.report.byClass.value('Z'), qint64(1));
+        QCOMPARE(limited.report.checked(), qint64(0));
+        FullRun fine;
+        QVERIFY(runFull(zip, &fine));
+        QCOMPARE(fine.report.byClass.value('M'), qint64(2));
+        FullRun timed;
+        FullOptions noTime;
+        noTime.seconds = 1e-9;
+        QVERIFY(runFull(zip, &timed, noTime));
+        QCOMPARE(timed.report.byClass.value('S'), qint64(2));
     }
 
     void stateOfTheWorkbookIsTold()

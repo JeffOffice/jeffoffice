@@ -24,6 +24,12 @@
 //                                                how many; and `book`: the formula cells, the cells of each class in the order above, the volatile ones that were worked out and
 //                                                matched, whether the workbook calculates by hand, whether every sheet was read, and the seconds
 //   jcrunchtool functions                      the functions the formula engine has: name, fewest and most arguments, and v (volatile) or f (written with the prefix _xlfn.)
+//   jcrunchtool recalc-full-one <file.xlsx> [matches=3] [seconds=100]   every formula worked out from the constants (not from the results the file stored), in dependency order, and
+//                                                compared with its stored result; the formulas the engine cannot work out keep the stored result and mark what reads them (class Z);
+//                                                prints the cells that do not match, the functions, and a line for the workbook with the seconds and the peak memory
+//   jcrunchtool recalc-full <keys.txt> <out-dir> [jobs]   runs `recalc-full-one` on each workbook listed under the limits of `recalc`, writes <out-dir>/cells.tsv and books.tsv, and prints the
+//                                                summary: the cells and the share that match, the workbooks that match whole, how each of the commonest functions fared, the commonest
+//                                                mismatches, and the time and memory (tools/crunch_recalc_full.py does the work)
 //   jcrunchtool mutate <file.xlsx> [count=3000] [seed=1] [seconds=60]   the formulas of the workbook, each damaged in a few places (a character changed, taken out, or put in, a piece
 //                                                repeated or moved), some grown by repeating them as the arguments of a sum or the parts of a text up to the 32,768 characters a formula
 //                                                may have, and parsed and worked out against the workbook's cells with the engine's own bounds on steps and cells, as a sweep for crashes
@@ -317,6 +323,47 @@ int recalcOne(const QString &path, int keepMatches, double seconds)
     return report.whole ? 0 : 2;
 }
 
+int recalcFullOne(const QString &path, int keepMatches, double seconds)
+{
+    Package package;
+    QString why;
+    if (!package.readLazyFile(path, &why)) {
+        err() << path << ": " << why << "\n";
+        return 1;
+    }
+    Workbook book;
+    if (!book.open(package, &why)) {
+        err() << path << ": " << why << "\n";
+        return 1;
+    }
+    FullOptions options;
+    options.keepMatches = keepMatches;
+    options.seconds = seconds;
+    FullReport report;
+    QHash<char, int> printed;
+    const auto each = [&](const RecalcCell &c) {
+        const char cls = char(c.cls);
+        const int cap = cls == 'X' ? 400 : cls == 'M' ? keepMatches : 25;
+        if (printed[cls]++ >= cap) return;
+        out() << "row\t" << escapeField(c.sheet) << '\t' << c.cell << '\t' << cls << '\t' << escapeField(c.formula) << '\t' << escapeField(c.stored) << '\t' << escapeField(c.ours) << '\t'
+              << c.functions.join(QLatin1Char(',')) << "\n";
+    };
+    if (!recalcFull(book, options, each, &report, &why)) {
+        err() << path << ": " << why << "\n";
+        return 1;
+    }
+    for (auto it = report.functions.cbegin(); it != report.functions.cend(); ++it)
+        out() << "fn\t" << it.key() << '\t' << it.value().calls << '\t' << it.value().matchedCalls << '\t' << it.value().cells << '\t' << it.value().matchedCells << "\n";
+    for (auto it = report.unsupportedFunctions.cbegin(); it != report.unsupportedFunctions.cend(); ++it) out() << "unsup\t" << escapeField(it.key()) << '\t' << it.value() << "\n";
+    for (auto it = report.patterns.cbegin(); it != report.patterns.cend(); ++it) out() << "pat\t" << escapeField(it.key()) << '\t' << it.value() << "\n";
+    out() << "fullbook\t" << report.formulaCells;
+    for (const char cls : {'M', 'X', 'U', 'V', 'E', 'T', 'P', 'N', 'D', 'L', 'I', 'Z', 'S'}) out() << '\t' << report.byClass.value(cls);
+    out() << '\t' << report.volatileChecked << '\t' << report.volatileMatched << '\t' << report.taintedMatched << '\t' << report.circular << '\t' << report.rootMismatches << '\t' << (report.manualCalc ? 1 : 0) << '\t'
+          << (report.whole ? 1 : 0) << '\t' << QString::number(report.seconds, 'f', 2) << '\t' << QString::number(report.loadSeconds, 'f', 2) << '\t' << QString::number(report.calcSeconds, 'f', 2)
+          << '\t' << QString::number(peakMegabytes(), 'f', 0) << '\t' << QString::number(double(report.sheetXmlBytes) / 1048576.0, 'f', 1) << '\t' << report.graphEntries << '\t' << report.evaluations << "\n";
+    return report.whole ? 0 : 2;
+}
+
 int mutate(const QString &path, int count, quint32 seed, double seconds)
 {
     Package package;
@@ -466,7 +513,7 @@ int formats(const QString &keys, const QString &outDir, const QString &jobs)
 #endif
 }
 
-int recalc(const QString &keys, const QString &outDir, const QString &jobs)
+int recalc(const QString &keys, const QString &outDir, const QString &jobs, const QString &scriptName = QStringLiteral("crunch_recalc.py"))
 {
 #ifndef Q_OS_LINUX
     Q_UNUSED(keys);
@@ -475,12 +522,12 @@ int recalc(const QString &keys, const QString &outDir, const QString &jobs)
     err() << "jcrunchtool: recalc runs on Linux only (it caps each workbook's memory with systemd-run); recalc-one works on every system.\n";
     return 2;
 #else
-    QString script = QCoreApplication::applicationDirPath() + QStringLiteral("/../tools/crunch_recalc.py");
+    QString script = QCoreApplication::applicationDirPath() + QStringLiteral("/../tools/") + scriptName;
 #ifdef JCRUNCH_TOOLS_DIR
-    if (!QFileInfo::exists(script)) script = QStringLiteral(JCRUNCH_TOOLS_DIR) + QStringLiteral("/crunch_recalc.py");
+    if (!QFileInfo::exists(script)) script = QStringLiteral(JCRUNCH_TOOLS_DIR) + QLatin1Char('/') + scriptName;
 #endif
     if (!QFileInfo::exists(script)) {
-        err() << "jcrunchtool: crunch_recalc.py is not beside the program\n";
+        err() << "jcrunchtool: " << scriptName << " is not beside the program\n";
         return 1;
     }
     QProcess python;
@@ -540,7 +587,9 @@ int usage()
              "       jcrunchtool mutate <file.xlsx> [count=3000] [seed=1] [seconds=60]\n"
              "       jcrunchtool functions\n"
              "       jcrunchtool eval <file.xlsx> <sheet> <cell> <formula>\n"
-             "       jcrunchtool recalc <keys.txt> <out-dir> [jobs]\n";
+             "       jcrunchtool recalc <keys.txt> <out-dir> [jobs]\n"
+             "       jcrunchtool recalc-full-one <file.xlsx> [matches=3] [seconds=100]\n"
+             "       jcrunchtool recalc-full <keys.txt> <out-dir> [jobs]\n";
     return 2;
 }
 
@@ -562,6 +611,8 @@ int main(int argc, char **argv)
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("formats")) return formats(args[1], args[2], args.value(3));
     if (args.size() >= 2 && args.size() <= 4 && args[0] == QLatin1String("recalc-one")) return recalcOne(args[1], args.value(2, QStringLiteral("3")).toInt(), args.value(3, QStringLiteral("100")).toDouble());
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("recalc")) return recalc(args[1], args[2], args.value(3));
+    if (args.size() >= 2 && args.size() <= 4 && args[0] == QLatin1String("recalc-full-one")) return recalcFullOne(args[1], args.value(2, QStringLiteral("3")).toInt(), args.value(3, QStringLiteral("100")).toDouble());
+    if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("recalc-full")) return recalc(args[1], args[2], args.value(3), QStringLiteral("crunch_recalc_full.py"));
     if (args.size() == 1 && args[0] == QLatin1String("functions")) return listFunctions();
     if (args.size() >= 2 && args.size() <= 5 && args[0] == QLatin1String("mutate"))
         return mutate(args[1], args.value(2, QStringLiteral("3000")).toInt(), args.value(3, QStringLiteral("1")).toUInt(), args.value(4, QStringLiteral("60")).toDouble());

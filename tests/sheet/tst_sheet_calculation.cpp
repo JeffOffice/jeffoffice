@@ -463,6 +463,27 @@ private Q_SLOTS:
         QCOMPARE(b.at("D1"), QStringLiteral("n:25"));
     }
 
+    // An array that is kept apart, and a data table, give their cells the file's values, and what reads one of those cells is marked.
+    void cellsOfWhatIsKeptApartInAnArrayAreTheFilesAndMarked()
+    {
+        const QString rows = rowXml(1, constant("A1", "1") + QStringLiteral("<c r=\"C1\"><f t=\"array\" ref=\"C1:C3\">FOO(A1:A3)</f><v>7</v></c>") + cellXml("D1", "C2+1", "0")
+                                           + QStringLiteral("<c r=\"F1\"><f t=\"dataTable\" ref=\"F1:F2\" r1=\"A1\"/><v>5</v></c>") + cellXml("G1", "F2*2", "0") + cellXml("H1", "A1+1", "0"))
+            + rowXml(2, QStringLiteral("<c r=\"C2\"><v>8</v></c><c r=\"F2\"><v>6</v></c>")) + rowXml(3, QStringLiteral("<c r=\"C3\"><v>9</v></c>"));
+        CalcOptions options;
+        options.keepApart = true;
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)}), options));
+        settle(b);
+        QCOMPARE(b.at("C2"), QStringLiteral("n:8"));
+        QCOMPARE(b.at("D1"), QStringLiteral("n:9"));
+        QVERIFY(b.tainted("D1"));
+        QCOMPARE(b.at("G1"), QStringLiteral("n:12"));
+        QVERIFY(b.tainted("G1"));
+        QVERIFY(!b.tainted("H1"));
+        QCOMPARE(b.calc->keptClass(0, b.row("C1"), b.col("C1")), 'U');
+        QCOMPARE(b.calc->keptClass(0, b.row("F1"), b.col("F1")), 'D');
+    }
+
     // Formulas of other sheets, three-dimensional references, and a formula that reads the cell it is on through another sheet.
     void formulasOfOtherSheetsAreWorkedOutInOrder()
     {

@@ -113,7 +113,7 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
     if (kept) {
         n.flags |= Kept;
         n.kept = kept;
-        if (m_options.keepApart) n.flags |= Tainted;
+        if (m_options.keepApart) n.flags |= NodeTainted;
         keepStored(n, kept);
         n.state = Done;
         return;
@@ -242,7 +242,8 @@ bool Calculation::formulaValue(int sheet, const Cell &c, Value *out) const
         *out = Value();
         return false;
     }
-    if (n.flags & Tainted) m_readTaint = true;
+    if (n.flags & NodeTainted) m_readTaint = true;
+    if (n.flags & (Mismatch | Cascade)) m_readCascade = true;
     if (c.flags & ArrayMember) {
         const Value array = m_arrays.value(id);
         *out = array.isArray() ? array.at(int(c.row - n.row), int(c.col) - int(n.col)) : nodeValue(n, id);
@@ -439,6 +440,7 @@ Value Calculation::runFormula(quint32 id, qint64 *work)
     m_ctx.touched = (n.flags & Told) ? &m_touched : nullptr;
     m_pending.clear();
     m_readTaint = false;
+    m_readCascade = false;
     m_evaluating = true;
     const Value v = m_evaluator.evaluate(*slot.program, m_ctx);
     m_evaluating = false;
@@ -487,18 +489,25 @@ Calculation::Progress Calculation::recalculate(qint64 budget, const std::atomic<
             const EvalStatus status = m_evaluator.status();
             const int unsupported = m_evaluator.unsupportedKinds();
             if (m_options.keepApart && unsupported) {
-                n.flags |= Kept | Tainted;
+                n.flags |= Kept | NodeTainted;
                 n.kept = (unsupported & 1) ? 'E' : (unsupported & 2) ? 'T' : 'U';
                 keepStored(n, n.kept);
             } else if (m_options.keepApart && status != EvalStatus::Ok) {
-                n.flags |= Kept | Tainted;
+                n.flags |= Kept | NodeTainted;
                 n.kept = 'L';
                 keepStored(n, 'L');
             } else {
                 storeResult(n, id, v);
-                n.flags &= quint8(~Circular);
-                if (m_readTaint) n.flags |= Tainted;
-                else n.flags &= quint8(~Tainted);
+                n.flags &= quint16(~Circular);
+                if (m_readTaint) n.flags |= NodeTainted;
+                else n.flags &= quint16(~NodeTainted);
+                n.flags &= quint16(~(Mismatch | Cascade));
+                if (m_readCascade) n.flags |= Cascade;
+                if (m_options.verify) {
+                    const Sheet &sh = m_sheets[size_t(n.sheet)];
+                    const Cell *stored = sh.cells.find(n.row, n.col);
+                    if (stored && !m_options.verify(valueOf(sh, *stored), nodeValue(n, id))) n.flags |= Mismatch;
+                }
             }
             if (n.flags & Told) registerNode(id, &m_touched);
             n.state = Done;
@@ -524,13 +533,13 @@ Calculation::Progress Calculation::recalculate(qint64 budget, const std::atomic<
                 Node &c = m_nodes[m_stack[i].node];
                 if (c.state == Done || (c.state != Waiting && m_stack[i].node != id)) continue;
                 if (m_options.keepApart && m_iterate) {
-                    c.flags |= Kept | Tainted | Circular;
+                    c.flags |= Kept | NodeTainted | Circular;
                     c.kept = 'I';
                     keepStored(c, 'I');
                 } else {
                     storeResult(c, m_stack[i].node, Value::number(0));
                     c.flags |= Circular;
-                    c.flags &= quint8(~Tainted);
+                    c.flags &= quint16(~NodeTainted);
                 }
                 c.state = Done;
                 --m_notDone;
@@ -678,7 +687,13 @@ bool Calculation::isCircular(int sheet, quint32 row, quint32 col) const
 bool Calculation::isTainted(int sheet, quint32 row, quint32 col) const
 {
     const quint32 id = nodeAt(sheet, row, col);
-    return id != kNone && (m_nodes[id].flags & Tainted);
+    return id != kNone && (m_nodes[id].flags & NodeTainted);
+}
+
+bool Calculation::isCascaded(int sheet, quint32 row, quint32 col) const
+{
+    const quint32 id = nodeAt(sheet, row, col);
+    return id != kNone && (m_nodes[id].flags & Cascade);
 }
 
 char Calculation::keptClass(int sheet, quint32 row, quint32 col) const
@@ -702,18 +717,21 @@ void Calculation::forEachFormula(const std::function<void(const FormulaCell &)> 
             out.stored = valueOf(s, c);
             out.ours = nodeValue(n, id);
             out.kept = n.kept;
-            out.tainted = n.flags & Tainted;
+            out.tainted = n.flags & NodeTainted;
             out.circular = n.flags & Circular;
+            out.mismatch = n.flags & Mismatch;
+            out.cascaded = n.flags & Cascade;
+            out.worked = n.state == Done;
             out.changesByItself = false;
             out.readsWhereToldOrNames = n.flags & Told;
+            out.program = nullptr;
             const Formula &fm = s.formulas[n.formula];
             if (fm.text >= 0 && fm.text < s.formulaTexts.size()) {
                 const std::vector<Compiled> &slots = (n.flags & Array) ? st.array : st.plain;
                 if (size_t(fm.text) < slots.size() && slots[size_t(fm.text)].program) {
                     const Compiled &slot = slots[size_t(fm.text)];
                     out.changesByItself = slot.changesByItself;
-                    for (const auto &call : slot.program->calls) out.functions << QString::fromLatin1(functionAt(call.first).name);
-                    out.functions << slot.program->unknownFunctions;
+                    out.program = slot.program.get();
                 }
             }
             f(out);

@@ -28,6 +28,9 @@ struct CalcOptions {
     qint64 maxGraphEntries = 16000000;   // what the graph may hold; the formulas past it are not tracked and are worked out in every recalculation
     double now = 0;                   // 0: the clock is read at each recalculation; else the day number NOW and TODAY give
     qint64 workbookBytes = kMaxWorkbookBytes;
+    // If set, called with the result the file stored for a formula and the one worked out; false marks the formula a mismatch, and every formula that reads one, directly or
+    // through others, a cascade (isCascaded): the yardstick tells the formulas that are wrong of their own from those that follow a wrong one.
+    std::function<bool(const jp::calc::Value &stored, const jp::calc::Value &ours)> verify;
 };
 
 class Calculation : public WorkbookSource {
@@ -71,6 +74,7 @@ public:
     quint32 nodeAt(int sheet, quint32 row, quint32 col) const;
     bool isCircular(int sheet, quint32 row, quint32 col) const;
     bool isTainted(int sheet, quint32 row, quint32 col) const;
+    bool isCascaded(int sheet, quint32 row, quint32 col) const;   // reads (through others) a formula that `verify` called a mismatch
     // For a formula kept apart: why, as the yardstick's classes say (U a function it lacks, V changes by itself, E another workbook, T a table's columns, P not parsed, N no
     // result stored or no formula, D a data table, L past the bounds, I circular in a workbook that iterates); 0 for a formula that was worked out.
     char keptClass(int sheet, quint32 row, quint32 col) const;
@@ -81,15 +85,16 @@ public:
         const Cell *cell;
         jp::calc::Value stored, ours;
         char kept;
-        bool tainted, circular;
-        QStringList functions;   // the functions it calls, upper case, once each
+        bool tainted, circular, mismatch, cascaded;
+        bool worked;                                  // it has its value (a recalculation that was stopped, or timed out, left others)
         bool changesByItself, readsWhereToldOrNames;
+        const jp::calc::Program *program;             // null for a formula with no text, or that did not parse; held as long as the calculation is
     };
     void forEachFormula(const std::function<void(const FormulaCell &)> &f) const;
 
 private:
     enum : quint8 { Dirty = 0, Queued = 1, Waiting = 2, Done = 3 };
-    enum : quint8 { Kept = 1, Tainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128 };
+    enum : quint16 { Kept = 1, NodeTainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128, Mismatch = 256, Cascade = 512 };
     enum : quint8 { KindEmpty = 0, KindNumber, KindText, KindBool, KindError, KindArray };
     struct Node {
         double number = 0;
@@ -100,8 +105,8 @@ private:
         quint16 col = 0;
         quint8 kind = KindEmpty;
         quint8 state = Dirty;
-        quint8 flags = 0;
         char kept = 0;
+        quint16 flags = 0;
     };
     struct Compiled {
         std::shared_ptr<const jp::calc::Program> program;
@@ -158,7 +163,7 @@ private:
     // while a formula is being worked out
     mutable bool m_evaluating = false;
     mutable std::vector<quint32> m_pending;   // formulas it read that were not worked out yet
-    mutable bool m_readTaint = false;
+    mutable bool m_readTaint = false, m_readCascade = false;
     std::vector<jp::calc::CellArea> m_touched, m_areas;
 };
 

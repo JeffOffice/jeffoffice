@@ -68,6 +68,8 @@ enum class RecalcClass : char {
     DataTable = 'D',
     Limit = 'L',
     Skipped = 'S',       // not looked at: the time given ran out
+    Tainted = 'Z',       // (full recalculation) worked out from a formula that was kept apart: not counted, but told whether it matches
+    Iterative = 'I',     // (full recalculation) in a circle of a workbook that asks for iterative calculation
 };
 
 struct RecalcCell {
@@ -105,5 +107,38 @@ struct RecalcReport {
 // Works out every formula cell of the workbook and compares it with the result stored. `each` is called for every cell that is not a match (and for the first
 // keepMatches that are). False, with `error`, only if the workbook can't be read at all.
 bool recalcWorkbook(const Workbook &book, const RecalcOptions &options, const std::function<void(const RecalcCell &)> &each, RecalcReport *report, QString *error = nullptr);
+
+// ---- the full recalculation (docs/jeffcrunch.md): every formula worked out from the constants, in dependency order, not from the results the file stored.
+
+struct FullOptions {
+    double seconds = 0;          // 0: no limit; what the time did not reach is kept apart
+    qint64 workLimit = 0;        // steps for one formula; 0: the engine's own
+    int keepMatches = 0;         // how many matching cells to hand to `each`, besides all the others
+    qint64 workbookBytes = kMaxWorkbookBytes;
+    double now = 45366.5;        // the time NOW and TODAY give (the formulas that change by themselves are kept apart, so this reaches only those that read the clock otherwise)
+};
+
+struct FullReport {
+    qint64 formulaCells = 0;
+    QMap<char, qint64> byClass;                   // M X U V E T P N D L I Z S
+    QMap<QString, FunctionTally> functions;       // for the formulas that were checked
+    QMap<QString, qint64> unsupportedFunctions;
+    QMap<QString, qint64> patterns;
+    qint64 volatileChecked = 0, volatileMatched = 0;   // OFFSET and INDIRECT, worked out and counted apart
+    qint64 taintedMatched = 0;                    // of the formulas worked out from one that was kept apart, those that match what the file stored
+    qint64 circular = 0;                          // formulas in a circle (worked out as 0)
+    qint64 rootMismatches = 0;                    // of the mismatches, those that read no formula that is a mismatch: wrong of their own, where the others follow a wrong one
+    qint64 evaluations = 0;                       // times the engine worked a formula out (one that waited for another is worked out again)
+    qint64 graphEntries = 0, graphBytes = 0, untracked = 0;
+    qint64 sheetXmlBytes = 0;                     // the most any one sheet's part had
+    bool manualCalc = false;
+    bool whole = true;
+    double loadSeconds = 0, calcSeconds = 0, seconds = 0;
+    qint64 checked() const { return byClass.value('M') + byClass.value('X'); }
+};
+
+// Reads the workbook, works out every formula, and compares each with the result the file stored. `each` is called for every cell that is not a match (and for the first
+// keepMatches that are). False, with `error`, only if the workbook can't be read at all.
+bool recalcFull(const Workbook &book, const FullOptions &options, const std::function<void(const RecalcCell &)> &each, FullReport *report, QString *error = nullptr);
 
 } // namespace jp::office::sheet
