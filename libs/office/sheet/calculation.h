@@ -26,7 +26,7 @@ namespace jp::office::sheet {
 struct CalcOptions {
     bool keepApart = false;           // formulas the engine cannot work out keep the stored result (and mark what reads them): see the class
     qint64 workLimit = 0;             // steps for one formula; 0: the engine's own
-    qint64 maxGraphEntries = 16000000;   // what the graph may hold; the formulas past it are not tracked and are worked out in every recalculation
+    qint64 maxGraphBytes = jp::calc::DependencyGraph::kDefaultBytes;   // what the graph may take; the formulas past it are not tracked and are worked out in every recalculation
     double now = 0;                   // 0: the clock is read at each recalculation; else the day number NOW and TODAY give
     qint64 workbookBytes = kMaxWorkbookBytes;
     // If set, called with the result the file stored for a formula and the one worked out; false marks the formula a mismatch, and every formula that reads one, directly or

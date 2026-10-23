@@ -8,364 +8,447 @@ namespace jp::calc {
 
 namespace {
 
-constexpr int kNarrowColumns = 8;   // a block of this many columns or fewer is in the index of each of its columns; a wider one in one for all
-constexpr size_t kMaxSheetsOfABlock = 1024;
+constexpr quint32 kColumns = 16384;                    // the columns of a sheet: the leaves of the tree over them
+constexpr int kLevels = 15;                            // the levels of the tree: a node of level L holds 2^L columns (the one of level 14 holds all of them)
+constexpr int kMaxSheetsOfABlock = 1024;
+constexpr size_t kBufferMax = 64;                      // the intervals a node holds that are not yet in a run, which a query looks at one by one
+constexpr quint32 kMaxNode = quint32(1) << 28;         // (the caller numbers its formulas from 0; a number past this is refused rather than made room for)
+constexpr qint64 kPlanItemBytes = 24;                  // what an interval is counted to take before it is in a run (20 there: 16 and 4 for the largest end below it)
+constexpr qint64 kStructureBytes = 160;                // what a node of the tree takes, besides its intervals
+constexpr qint64 kStaleFloor = 1 << 14;                // the dropped intervals that are let go of only past this many (or as many as are held)
 
-quint64 cellKey(quint32 row, quint32 col) { return (quint64(row) << 14) | quint64(col); }
+struct Item {
+    quint32 lo, hi, node, gen;
+};
 
-// A set of intervals of rows, each with a number, asked which of them hold a row or meet a stretch of rows. A tree built for the set as it was (a node holds the intervals
-// that meet its centre, in two orders; the rest are in its left or right), and the intervals added since, searched one by one until there are enough of them to be built in.
-class RowIntervals {
+// What the graph knows of each formula: the generation of what it told last (what it told before has another), how many intervals that took, and a hash of it, so that
+// telling the same again is known.
+struct Rec {
+    quint32 gen = 0;
+    quint32 items = 0;
+    quint64 hash = 0;
+};
+
+// What the sorting and merging need to know, and what they found.
+struct Ctx {
+    const std::vector<Rec> *rec = nullptr;
+    qint64 dropped = 0;     // intervals of formulas that told again, left out of a run
+    qint64 buildWork = 0;   // intervals moved
+    bool live(const Item &it) const { return it.node < rec->size() && (*rec)[it.node].gen == it.gen; }
+};
+
+// A run of intervals in order of where they begin, as a balanced tree laid over the array without any pointers: the middle is the root of the whole, and of the two halves
+// either side; `maxHi` at a middle is the largest end of any interval in its half, so that a half that ends before the query begins is passed over whole.
+struct Run {
+    std::vector<Item> items;
+    std::vector<quint32> maxHi;
+    qint64 bytes() const { return qint64(items.capacity() * sizeof(Item) + maxHi.capacity() * sizeof(quint32)); }
+};
+
+quint32 fillMax(Run &run, size_t l, size_t r)
+{
+    if (l >= r) return 0;
+    const size_t mid = l + (r - l) / 2;
+    quint32 m = std::max(run.items[mid].hi, fillMax(run, l, mid));
+    m = std::max(m, fillMax(run, mid + 1, r));
+    run.maxHi[mid] = m;
+    return m;
+}
+
+void finishRun(Run &run)
+{
+    if (run.items.capacity() != run.items.size()) run.items.shrink_to_fit();
+    run.maxHi.assign(run.items.size(), 0);
+    fillMax(run, 0, run.items.size());
+}
+
+// Calls f(item) for each interval of the half [l, r) of the run that meets [qlo, qhi]; the number of middles looked at is added to `work`.
+template <class F>
+void search(const Run &run, size_t l, size_t r, quint32 qlo, quint32 qhi, F &f, qint64 &work)
+{
+    while (l < r) {
+        const size_t mid = l + (r - l) / 2;
+        ++work;
+        if (run.maxHi[mid] < qlo) return;
+        search(run, l, mid, qlo, qhi, f, work);
+        const Item &it = run.items[mid];
+        if (it.lo > qhi) return;
+        if (it.hi >= qlo) f(it);
+        l = mid + 1;
+    }
+}
+
+bool byLo(const Item &a, const Item &b) { return a.lo < b.lo; }
+
+// The intervals of rows told to one node of the tree: the last few in a buffer, the rest in runs that are merged as they come to be about as long as the one before.
+class Intervals {
 public:
-    struct Item {
-        quint32 lo, hi, id;
-    };
+    qint64 held() const { return m_held; }
+    bool empty() const { return m_buffer.empty() && m_runs.empty(); }
 
-    void add(quint32 lo, quint32 hi, quint32 id)
+    void add(const Item &item, Ctx &ctx)
     {
-        m_loose.push_back({lo, hi, id});
-        if (m_loose.size() > std::max<size_t>(64, m_built / 8)) rebuild();
+        const size_t cap = m_buffer.capacity();
+        m_buffer.push_back(item);
+        m_held += qint64(m_buffer.capacity() - cap) * qint64(sizeof(Item));
+        if (m_buffer.size() >= kBufferMax) flush(ctx);
     }
-    size_t size() const { return m_built + m_loose.size(); }
-    void clear()
-    {
-        m_nodes.clear();
-        m_byLo.clear();
-        m_byHi.clear();
-        m_loose.clear();
-        m_built = 0;
-    }
-    // Calls f(id) for each interval that meets [lo, hi].
+
+    // Calls f(item) for each interval that meets [lo, hi], and adds what it looked at to `work`.
     template <class F>
-    void overlap(quint32 lo, quint32 hi, F f) const
+    void overlap(quint32 lo, quint32 hi, F &&f, qint64 &work) const
     {
-        for (const Item &it : m_loose)
-            if (it.lo <= hi && it.hi >= lo) f(it.id);
-        if (m_nodes.empty()) return;
-        size_t stack[64];
-        int top = 0;
-        stack[top++] = 0;
-        while (top > 0) {
-            const Node &n = m_nodes[stack[--top]];
-            if (hi < n.center) {
-                for (quint32 i = n.begin; i < n.begin + n.count && m_byLo[i].lo <= hi; ++i) f(m_byLo[i].id);
-                if (n.left >= 0 && top < 62) stack[top++] = size_t(n.left);
-            } else if (lo > n.center) {
-                for (quint32 i = n.begin; i < n.begin + n.count && m_byHi[i].hi >= lo; ++i) f(m_byHi[i].id);
-                if (n.right >= 0 && top < 62) stack[top++] = size_t(n.right);
-            } else {
-                for (quint32 i = n.begin; i < n.begin + n.count; ++i) f(m_byLo[i].id);
-                if (n.left >= 0 && top < 62) stack[top++] = size_t(n.left);
-                if (n.right >= 0 && top < 62) stack[top++] = size_t(n.right);
-            }
+        work += 1 + qint64(m_buffer.size());
+        for (const Item &it : m_buffer)
+            if (it.lo <= hi && it.hi >= lo) f(it);
+        for (const Run &run : m_runs) {
+            ++work;
+            search(run, 0, run.items.size(), lo, hi, f, work);
         }
     }
-    void rebuild()
+
+    // Everything in one run, with what was dropped left out. False if nothing is left.
+    bool rebuild(Ctx &ctx)
     {
         std::vector<Item> all;
-        all.reserve(m_byLo.size() + m_loose.size());
-        // every interval is in exactly one node's lists: take them from the lists by lo
-        for (const Item &it : m_byLo) all.push_back(it);
-        for (const Item &it : m_loose) all.push_back(it);
-        m_loose.clear();
-        build(std::move(all));
+        size_t total = m_buffer.size();
+        for (const Run &run : m_runs) total += run.items.size();
+        all.reserve(total);
+        for (const Item &it : m_buffer) keep(it, ctx, &all);
+        for (const Run &run : m_runs)
+            for (const Item &it : run.items) keep(it, ctx, &all);
+        m_buffer = std::vector<Item>();
+        m_runs.clear();
+        m_runs.shrink_to_fit();
+        if (all.empty()) {
+            m_held = 0;
+            return false;
+        }
+        std::sort(all.begin(), all.end(), byLo);
+        ctx.buildWork += qint64(all.size());
+        Run run;
+        run.items = std::move(all);
+        finishRun(run);
+        m_runs.push_back(std::move(run));
+        recount();
+        return true;
     }
-    qint64 memoryBytes() const { return qint64(m_nodes.capacity() * sizeof(Node) + (m_byLo.capacity() + m_byHi.capacity() + m_loose.capacity()) * sizeof(Item)); }
 
 private:
-    struct Node {
-        quint32 center = 0;
-        quint32 begin = 0, count = 0;
-        qint32 left = -1, right = -1;
-    };
-    void build(std::vector<Item> items)
+    static void keep(const Item &it, Ctx &ctx, std::vector<Item> *to)
     {
-        m_nodes.clear();
-        m_byLo.clear();
-        m_byHi.clear();
-        m_built = items.size();
-        if (items.empty()) return;
-        // an explicit stack of (node, items) to build, so that no depth of tree is a depth of recursion
-        struct Job {
-            qint32 node;
-            std::vector<Item> items;
-        };
-        std::vector<Job> jobs;
-        m_nodes.emplace_back();
-        jobs.push_back({0, std::move(items)});
-        while (!jobs.empty()) {
-            Job job = std::move(jobs.back());
-            jobs.pop_back();
-            std::vector<quint32> ends;
-            ends.reserve(job.items.size() * 2);
-            for (const Item &it : job.items) {
-                ends.push_back(it.lo);
-                ends.push_back(it.hi);
-            }
-            std::nth_element(ends.begin(), ends.begin() + ptrdiff_t(ends.size() / 2), ends.end());
-            const quint32 center = ends[ends.size() / 2];
-            std::vector<Item> left, right, here;
-            for (const Item &it : job.items) {
-                if (it.hi < center) left.push_back(it);
-                else if (it.lo > center) right.push_back(it);
-                else here.push_back(it);
-            }
-            Node &n = m_nodes[size_t(job.node)];
-            n.center = center;
-            n.begin = quint32(m_byLo.size());
-            n.count = quint32(here.size());
-            std::vector<Item> byHi = here;
-            std::sort(here.begin(), here.end(), [](const Item &a, const Item &b) { return a.lo < b.lo; });
-            std::sort(byHi.begin(), byHi.end(), [](const Item &a, const Item &b) { return a.hi > b.hi; });
-            m_byLo.insert(m_byLo.end(), here.begin(), here.end());
-            m_byHi.insert(m_byHi.end(), byHi.begin(), byHi.end());
-            if (!left.empty()) {
-                const qint32 l = qint32(m_nodes.size());
-                m_nodes.emplace_back();
-                m_nodes[size_t(job.node)].left = l;
-                jobs.push_back({l, std::move(left)});
-            }
-            if (!right.empty()) {
-                const qint32 r = qint32(m_nodes.size());
-                m_nodes.emplace_back();
-                m_nodes[size_t(job.node)].right = r;
-                jobs.push_back({r, std::move(right)});
-            }
+        if (ctx.live(it)) to->push_back(it);
+        else ++ctx.dropped;
+    }
+
+    void flush(Ctx &ctx)
+    {
+        size_t kept = 0;
+        for (const Item &it : m_buffer) {
+            if (ctx.live(it)) m_buffer[kept++] = it;
+            else ++ctx.dropped;
+        }
+        m_buffer.resize(kept);
+        if (kept > 0) {
+            std::sort(m_buffer.begin(), m_buffer.end(), byLo);
+            ctx.buildWork += qint64(kept);
+            Run run;
+            run.items.assign(m_buffer.begin(), m_buffer.end());
+            finishRun(run);
+            m_runs.push_back(std::move(run));
+            mergeDown(ctx);
+        }
+        m_buffer.clear();
+        recount();
+    }
+
+    // Two runs at the end of which the first is no more than twice the second are made one, again and again.
+    void mergeDown(Ctx &ctx)
+    {
+        while (m_runs.size() >= 2 && m_runs[m_runs.size() - 2].items.size() <= 2 * m_runs.back().items.size()) {
+            Run merged = merge(m_runs[m_runs.size() - 2], m_runs.back(), ctx);
+            m_runs.pop_back();
+            m_runs.pop_back();
+            if (!merged.items.empty()) m_runs.push_back(std::move(merged));
         }
     }
-    std::vector<Node> m_nodes;
-    std::vector<Item> m_byLo, m_byHi;
-    std::vector<Item> m_loose;
-    size_t m_built = 0;
-};
 
-struct SingleEdge {
-    quint64 key;
-    quint32 node;
-    quint32 gen;
-};
-
-struct Link {
-    quint32 node;
-    quint32 gen;
-};
-
-struct RangeEntry {
-    quint32 row1, row2;
-    quint16 col1, col2;
-    std::vector<Link> links;
-};
-
-struct RangeKey {
-    quint32 row1, row2;
-    quint32 cols;   // col1 << 16 | col2
-    bool operator==(const RangeKey &o) const { return row1 == o.row1 && row2 == o.row2 && cols == o.cols; }
-};
-struct RangeKeyHash {
-    size_t operator()(const RangeKey &k) const
+    static Run merge(const Run &a, const Run &b, Ctx &ctx)
     {
-        quint64 h = k.row1 * 0x9E3779B97F4A7C15ull;
-        h ^= (k.row2 + 0x7F4A7C15ull) * 0xC2B2AE3D27D4EB4Full + (h << 6) + (h >> 2);
-        h ^= (k.cols + 0x165667B1ull) * 0x9E3779B97F4A7C15ull + (h << 6) + (h >> 2);
-        return size_t(h);
+        Run out;
+        out.items.reserve(a.items.size() + b.items.size());
+        ctx.buildWork += qint64(a.items.size() + b.items.size());
+        size_t i = 0, j = 0;
+        auto take = [&](const Item &it) { keep(it, ctx, &out.items); };
+        while (i < a.items.size() && j < b.items.size()) {
+            if (b.items[j].lo < a.items[i].lo) take(b.items[j++]);
+            else take(a.items[i++]);
+        }
+        while (i < a.items.size()) take(a.items[i++]);
+        while (j < b.items.size()) take(b.items[j++]);
+        finishRun(out);
+        return out;
     }
+
+    void recount()
+    {
+        qint64 bytes = qint64(m_buffer.capacity() * sizeof(Item) + m_runs.capacity() * sizeof(Run));
+        for (const Run &run : m_runs) bytes += run.bytes();
+        m_held = bytes;
+    }
+
+    std::vector<Item> m_buffer;
+    std::vector<Run> m_runs;   // the longest first
+    qint64 m_held = 0;
 };
+
+// A node of the tree over the columns of a sheet is named by its level and its place among the nodes of the level.
+quint32 nodeKey(int level, quint32 index) { return (quint32(level) << 16) | index; }
 
 struct SheetIndex {
-    std::vector<SingleEdge> sorted;   // by key
-    std::vector<SingleEdge> loose;    // told since, in no order
-    std::vector<RangeEntry> ranges;
-    std::unordered_map<RangeKey, quint32, RangeKeyHash> rangeIds;
-    std::unordered_map<quint16, RowIntervals> byColumn;
-    RowIntervals wide;
+    std::unordered_map<quint32, Intervals> nodes;
+    quint32 levels = 0;   // the levels some node of which exists, a bit for each
 };
+
+struct Placement {
+    quint32 sheet;
+    quint32 key;
+    quint32 lo, hi;
+};
+
+quint64 hashOf(const std::vector<CellArea> &areas)
+{
+    quint64 h = 1469598103934665603ull ^ quint64(areas.size());
+    auto mix = [&](quint64 v) {
+        h ^= v + 0x9E3779B97F4A7C15ull + (h << 6) + (h >> 2);
+        h *= 0xFF51AFD7ED558CCDull;
+        h ^= h >> 32;
+    };
+    for (const CellArea &a : areas) {
+        mix((quint64(quint32(a.sheet1)) << 32) | quint64(quint32(a.sheet2)));
+        mix((quint64(a.row1) << 32) | quint64(a.row2));
+        mix((quint64(a.col1) << 32) | quint64(a.col2));
+    }
+    return h ? h : 1;
+}
 
 } // namespace
 
 struct DependencyGraph::Impl {
+    std::vector<Rec> rec;
     std::vector<SheetIndex> sheets;
-    std::vector<quint32> generation;   // by node: the generation of what it told last; what it told before has another
+    std::vector<Placement> plan;
+    Ctx ctx;
+    qint64 live = 0, stale = 0;   // intervals of the latest reads, and of the earlier
+    qint64 bytes = 0;             // what the graph takes
+    mutable qint64 queryWork = 0;
+    qint64 compactions = 0;
+
+    Impl() { ctx.rec = &rec; }
+
+    qint64 tableBytes() const { return qint64(rec.capacity() * sizeof(Rec) + sheets.capacity() * sizeof(SheetIndex)); }
+
+    // The nodes of the tree that hold the columns [c1, c2] between them, and how many.
+    static int decompose(quint32 c1, quint32 c2, int *levels, quint32 *indices)
+    {
+        int n = 0;
+        quint32 lo = c1, hi = c2 + 1;
+        for (int level = 0; lo < hi && level < kLevels; ++level, lo >>= 1, hi >>= 1) {
+            if (lo & 1) {
+                levels[n] = level;
+                indices[n++] = lo++;
+            }
+            if (hi & 1) {
+                levels[n] = level;
+                indices[n++] = --hi;
+            }
+        }
+        return n;
+    }
+
+    // Where each of the areas goes. Returns how many of the places have no node yet.
+    qint64 placements(const std::vector<CellArea> &areas)
+    {
+        plan.clear();
+        qint64 fresh = 0;
+        int levels[2 * kLevels];
+        quint32 indices[2 * kLevels];
+        for (const CellArea &a : areas) {
+            if (a.sheet1 < 0 || a.sheet2 < a.sheet1 || a.col1 >= kColumns || a.col1 > a.col2 || a.row1 > a.row2) continue;
+            const int n = decompose(a.col1, std::min<quint32>(a.col2, kColumns - 1), levels, indices);
+            const quint32 last = std::min<quint32>(quint32(a.sheet2), quint32(a.sheet1) + kMaxSheetsOfABlock - 1);
+            for (quint32 s = quint32(a.sheet1); s <= last; ++s)
+                for (int i = 0; i < n; ++i) {
+                    const quint32 key = nodeKey(levels[i], indices[i]);
+                    plan.push_back({s, key, a.row1, a.row2});
+                    if (s >= sheets.size() || sheets[s].nodes.find(key) == sheets[s].nodes.end()) ++fresh;
+                }
+        }
+        return fresh;
+    }
+
+    // Lets go of the dropped intervals in every node, and recounts.
+    void compactAll()
+    {
+        ++compactions;
+        qint64 held = 0;
+        for (SheetIndex &sh : sheets) {
+            sh.levels = 0;
+            for (auto it = sh.nodes.begin(); it != sh.nodes.end();) {
+                if (it->second.rebuild(ctx)) {
+                    sh.levels |= quint32(1) << (it->first >> 16);
+                    held += it->second.held() + kStructureBytes;
+                    ++it;
+                } else {
+                    it = sh.nodes.erase(it);
+                }
+            }
+        }
+        stale = 0;
+        ctx.dropped = 0;
+        live = 0;
+        for (const Rec &r : rec) live += r.items;
+        bytes = held + tableBytes();
+    }
+
+    bool shouldLetGoOfTheDropped() const { return stale > std::max<qint64>(kStaleFloor, live); }
 };
 
-DependencyGraph::DependencyGraph(qint64 maxEntries) : d(new Impl), m_max(maxEntries) {}
+DependencyGraph::DependencyGraph(qint64 maxBytes) : d(new Impl), m_max(maxBytes) {}
 DependencyGraph::~DependencyGraph() = default;
 
 bool DependencyGraph::setPrecedents(Node node, const std::vector<CellArea> &areas)
 {
-    if (d->generation.size() <= node) d->generation.resize(size_t(node) + 1, 0);
-    ++d->generation[node];
-    if (d->generation[node] == 0) d->generation[node] = 1;
-    qint64 wanted = 0;
-    for (const CellArea &a : areas) wanted += 1 + (a.single() ? 0 : 1) + qint64(std::min<size_t>(kMaxSheetsOfABlock, size_t(std::max<qint32>(0, a.sheet2 - a.sheet1))));
-    if (m_entries + wanted > m_max) compact();
-    if (m_entries + wanted > m_max) {
-        ++d->generation[node];   // nothing told: whatever it told before is dropped too
-        return false;
+    Impl &g = *d;
+    if (node >= kMaxNode) return false;
+    const quint64 hash = hashOf(areas);
+    if (node < g.rec.size()) {
+        Rec &r = g.rec[node];
+        if (r.hash == hash) return true;   // what it told before: nothing changes
+        // what it told before is dropped now, whatever comes of what it tells
+        g.live -= r.items;
+        g.stale += r.items;
+        r.items = 0;
+        r.hash = 0;
+        if (++r.gen == 0) r.gen = 1;
     }
-    const quint32 gen = d->generation[node];
-    for (const CellArea &a : areas) {
-        if (a.sheet1 < 0 || a.sheet2 < a.sheet1) continue;
-        const size_t last = std::min<size_t>(size_t(a.sheet2), size_t(a.sheet1) + kMaxSheetsOfABlock - 1);
-        for (size_t s = size_t(a.sheet1); s <= last; ++s) {
-            if (d->sheets.size() <= s) d->sheets.resize(s + 1);
-            SheetIndex &sh = d->sheets[s];
-            if (a.row1 == a.row2 && a.col1 == a.col2) {
-                sh.loose.push_back({cellKey(a.row1, a.col1), node, gen});
-                ++m_entries;
-                if (sh.loose.size() > std::max<size_t>(2048, sh.sorted.size() / 4)) {
-                    std::sort(sh.loose.begin(), sh.loose.end(), [](const SingleEdge &x, const SingleEdge &y) { return x.key < y.key; });
-                    std::vector<SingleEdge> merged;
-                    merged.reserve(sh.sorted.size() + sh.loose.size());
-                    std::merge(sh.sorted.begin(), sh.sorted.end(), sh.loose.begin(), sh.loose.end(), std::back_inserter(merged), [](const SingleEdge &x, const SingleEdge &y) { return x.key < y.key; });
-                    sh.sorted.swap(merged);
-                    sh.loose.clear();
-                }
-                continue;
-            }
-            const RangeKey key{a.row1, a.row2, (quint32(a.col1) << 16) | quint32(a.col2)};
-            auto it = sh.rangeIds.find(key);
-            quint32 id;
-            if (it == sh.rangeIds.end()) {
-                id = quint32(sh.ranges.size());
-                sh.ranges.push_back({a.row1, a.row2, quint16(a.col1), quint16(a.col2), {}});
-                sh.rangeIds.emplace(key, id);
-                ++m_entries;
-                if (a.col2 - a.col1 < quint32(kNarrowColumns)) {
-                    for (quint32 c = a.col1; c <= a.col2; ++c) sh.byColumn[quint16(c)].add(a.row1, a.row2, id);
-                } else {
-                    sh.wide.add(a.row1, a.row2, id);
-                }
-            } else {
-                id = it->second;
-            }
-            std::vector<Link> &links = sh.ranges[id].links;
-            if (links.empty() || links.back().node != node || links.back().gen != gen) {
-                links.push_back({node, gen});
-                ++m_entries;
-            }
+    // what it will take: its place in the table of formulas, and its intervals (and the nodes of the tree that have none yet)
+    size_t tableWant = g.rec.capacity();
+    if (size_t(node) + 1 > g.rec.capacity()) tableWant = std::max<size_t>(size_t(node) + 1, g.rec.capacity() + g.rec.capacity() / 2);
+    const qint64 fresh = g.placements(areas);
+    const qint64 wanted = qint64(tableWant - g.rec.capacity()) * qint64(sizeof(Rec)) + qint64(g.plan.size()) * kPlanItemBytes + fresh * kStructureBytes;
+    if (g.bytes + wanted > m_max) {
+        // letting go of the dropped is done only if it gives back a sixteenth of what the graph may take at least, so that it is not done again for every formula: else the
+        // graph is full, and says no at once, and goes on saying it
+        if (g.stale * 20 >= m_max / 16) g.compactAll();
+        if (g.bytes + wanted > m_max) return false;
+    }
+    if (g.rec.size() <= node) {
+        const qint64 before = g.tableBytes();
+        g.rec.reserve(tableWant);
+        g.rec.resize(size_t(node) + 1);
+        g.bytes += g.tableBytes() - before;
+    }
+    if (g.rec[node].gen == 0) g.rec[node].gen = 1;   // (a formula not told before)
+    const quint32 gen = g.rec[node].gen;
+    for (const Placement &p : g.plan) {
+        if (g.sheets.size() <= p.sheet) {
+            const qint64 before = g.tableBytes();
+            g.sheets.resize(size_t(p.sheet) + 1);
+            g.bytes += g.tableBytes() - before;
         }
+        SheetIndex &sh = g.sheets[p.sheet];
+        auto found = sh.nodes.try_emplace(p.key);
+        if (found.second) {
+            g.bytes += kStructureBytes;
+            sh.levels |= quint32(1) << (p.key >> 16);
+        }
+        Intervals &iv = found.first->second;
+        const qint64 held = iv.held();
+        iv.add(Item{p.lo, p.hi, node, gen}, g.ctx);
+        g.bytes += iv.held() - held;
+        g.stale -= g.ctx.dropped;
+        g.ctx.dropped = 0;
     }
+    Rec &after = g.rec[node];   // (the table did not move, but it is read again)
+    after.items = quint32(std::min<size_t>(g.plan.size(), std::numeric_limits<quint32>::max()));
+    after.hash = hash;
+    g.live += after.items;
+    if (g.shouldLetGoOfTheDropped()) g.compactAll();
     return true;
 }
 
 void DependencyGraph::clearPrecedents(Node node)
 {
-    if (d->generation.size() <= node) return;
-    ++d->generation[node];
-    if (d->generation[node] == 0) d->generation[node] = 1;
+    Impl &g = *d;
+    if (node >= g.rec.size()) return;
+    Rec &r = g.rec[node];
+    g.live -= r.items;
+    g.stale += r.items;
+    r.items = 0;
+    r.hash = 0;
+    if (++r.gen == 0) r.gen = 1;
 }
 
 void DependencyGraph::dependentsOfCell(qint32 sheet, quint32 row, quint32 col, std::vector<Node> *out) const
 {
-    if (sheet < 0 || size_t(sheet) >= d->sheets.size() || col >= 16384) return;
-    const SheetIndex &sh = d->sheets[size_t(sheet)];
-    auto live = [&](quint32 node, quint32 gen) { return node < d->generation.size() && d->generation[node] == gen; };
-    const quint64 key = cellKey(row, col);
-    const auto range = std::equal_range(sh.sorted.begin(), sh.sorted.end(), SingleEdge{key, 0, 0}, [](const SingleEdge &a, const SingleEdge &b) { return a.key < b.key; });
-    for (auto it = range.first; it != range.second; ++it)
-        if (live(it->node, it->gen)) out->push_back(it->node);
-    for (const SingleEdge &e : sh.loose)
-        if (e.key == key && live(e.node, e.gen)) out->push_back(e.node);
-    auto report = [&](quint32 id) {
-        for (const Link &l : sh.ranges[id].links)
-            if (live(l.node, l.gen)) out->push_back(l.node);
+    const Impl &g = *d;
+    if (sheet < 0 || size_t(sheet) >= g.sheets.size() || col >= kColumns) return;
+    const SheetIndex &sh = g.sheets[size_t(sheet)];
+    qint64 &work = g.queryWork;
+    auto report = [&](const Item &it) {
+        ++work;
+        if (g.ctx.live(it)) out->push_back(it.node);
     };
-    const auto column = sh.byColumn.find(quint16(col));
-    if (column != sh.byColumn.end()) column->second.overlap(row, row, report);
-    sh.wide.overlap(row, row, [&](quint32 id) {
-        const RangeEntry &e = sh.ranges[id];
-        if (e.col1 <= col && col <= e.col2) report(id);
-    });
+    for (int level = 0; level < kLevels; ++level) {
+        if (!(sh.levels & (quint32(1) << level))) continue;
+        ++work;
+        const auto found = sh.nodes.find(nodeKey(level, col >> level));
+        if (found != sh.nodes.end()) found->second.overlap(row, row, report, work);
+    }
 }
 
 void DependencyGraph::dependentsOfArea(const CellArea &area, std::vector<Node> *out) const
 {
-    for (qint32 sheet = std::max<qint32>(0, area.sheet1); sheet <= area.sheet2 && size_t(sheet) < d->sheets.size(); ++sheet) {
-        const SheetIndex &sh = d->sheets[size_t(sheet)];
-        auto live = [&](quint32 node, quint32 gen) { return node < d->generation.size() && d->generation[node] == gen; };
-        const quint32 col2 = std::min<quint32>(area.col2, 16383);
-        // single cells: the keys from the first cell to the last are the rows between, with the columns outside the block among them
-        const quint64 lo = cellKey(area.row1, area.col1), hi = cellKey(area.row2, col2);
-        auto inside = [&](quint64 key) {
-            const quint32 c = quint32(key & 16383);
-            return c >= area.col1 && c <= col2;
-        };
-        for (auto it = std::lower_bound(sh.sorted.begin(), sh.sorted.end(), SingleEdge{lo, 0, 0}, [](const SingleEdge &a, const SingleEdge &b) { return a.key < b.key; });
-             it != sh.sorted.end() && it->key <= hi; ++it)
-            if (inside(it->key) && live(it->node, it->gen)) out->push_back(it->node);
-        for (const SingleEdge &e : sh.loose)
-            if (e.key >= lo && e.key <= hi && inside(e.key) && live(e.node, e.gen)) out->push_back(e.node);
-        // blocks that meet it
-        std::vector<quint32> ids;
-        if (col2 - area.col1 < 64) {
-            for (quint32 c = area.col1; c <= col2; ++c) {
-                const auto column = sh.byColumn.find(quint16(c));
-                if (column != sh.byColumn.end()) column->second.overlap(area.row1, area.row2, [&](quint32 id) { ids.push_back(id); });
+    const Impl &g = *d;
+    if (area.col1 >= kColumns || area.col1 > area.col2 || area.row1 > area.row2) return;
+    const quint32 col2 = std::min<quint32>(area.col2, kColumns - 1);
+    qint64 &work = g.queryWork;
+    auto report = [&](const Item &it) {
+        ++work;
+        if (g.ctx.live(it)) out->push_back(it.node);
+    };
+    for (qint32 sheet = std::max<qint32>(0, area.sheet1); sheet <= area.sheet2 && size_t(sheet) < g.sheets.size(); ++sheet) {
+        const SheetIndex &sh = g.sheets[size_t(sheet)];
+        // the nodes whose columns meet the block's: for each level, those from the one that holds its first column to the one that holds its last
+        qint64 lookups = 0;
+        for (int level = 0; level < kLevels; ++level)
+            if (sh.levels & (quint32(1) << level)) lookups += qint64(col2 >> level) - qint64(area.col1 >> level) + 1;
+        if (lookups <= qint64(sh.nodes.size())) {
+            for (int level = 0; level < kLevels; ++level) {
+                if (!(sh.levels & (quint32(1) << level))) continue;
+                for (quint32 index = area.col1 >> level; index <= (col2 >> level); ++index) {
+                    ++work;
+                    const auto found = sh.nodes.find(nodeKey(level, index));
+                    if (found != sh.nodes.end()) found->second.overlap(area.row1, area.row2, report, work);
+                }
             }
         } else {
-            for (const auto &column : sh.byColumn)
-                if (column.first >= area.col1 && column.first <= col2) column.second.overlap(area.row1, area.row2, [&](quint32 id) { ids.push_back(id); });
-        }
-        sh.wide.overlap(area.row1, area.row2, [&](quint32 id) {
-            const RangeEntry &e = sh.ranges[id];
-            if (e.col1 <= col2 && e.col2 >= area.col1) ids.push_back(id);
-        });
-        std::sort(ids.begin(), ids.end());
-        ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
-        for (const quint32 id : ids)
-            for (const Link &l : sh.ranges[id].links)
-                if (live(l.node, l.gen)) out->push_back(l.node);
-    }
-}
-
-void DependencyGraph::compact()
-{
-    qint64 held = 0;
-    auto live = [&](quint32 node, quint32 gen) { return node < d->generation.size() && d->generation[node] == gen; };
-    for (SheetIndex &sh : d->sheets) {
-        auto alive = [&](const SingleEdge &e) { return live(e.node, e.gen); };
-        sh.sorted.erase(std::remove_if(sh.sorted.begin(), sh.sorted.end(), [&](const SingleEdge &e) { return !alive(e); }), sh.sorted.end());
-        sh.loose.erase(std::remove_if(sh.loose.begin(), sh.loose.end(), [&](const SingleEdge &e) { return !alive(e); }), sh.loose.end());
-        sh.sorted.shrink_to_fit();
-        held += qint64(sh.sorted.size() + sh.loose.size());
-        // the blocks no formula reads now are dropped, and the index of the others made again
-        std::vector<RangeEntry> kept;
-        for (RangeEntry &e : sh.ranges) {
-            e.links.erase(std::remove_if(e.links.begin(), e.links.end(), [&](const Link &l) { return !live(l.node, l.gen); }), e.links.end());
-            if (e.links.empty()) continue;
-            e.links.shrink_to_fit();
-            kept.push_back(std::move(e));
-        }
-        sh.ranges.swap(kept);
-        sh.rangeIds.clear();
-        sh.byColumn.clear();
-        sh.wide.clear();
-        for (quint32 id = 0; id < sh.ranges.size(); ++id) {
-            const RangeEntry &e = sh.ranges[id];
-            sh.rangeIds.emplace(RangeKey{e.row1, e.row2, (quint32(e.col1) << 16) | quint32(e.col2)}, id);
-            if (e.col2 - e.col1 < kNarrowColumns) {
-                for (quint32 c = e.col1; c <= e.col2; ++c) sh.byColumn[quint16(c)].add(e.row1, e.row2, id);
-            } else {
-                sh.wide.add(e.row1, e.row2, id);
+            for (const auto &node : sh.nodes) {
+                ++work;
+                const quint32 level = node.first >> 16, index = node.first & 0xFFFF;
+                if (((index + 1) << level) <= area.col1 || (index << level) > col2) continue;
+                node.second.overlap(area.row1, area.row2, report, work);
             }
-            held += 1 + qint64(e.links.size());
         }
-        for (auto &column : sh.byColumn) column.second.rebuild();
-        sh.wide.rebuild();
     }
-    m_entries = held;
 }
 
-qint64 DependencyGraph::memoryBytes() const
-{
-    qint64 bytes = qint64(d->generation.capacity() * sizeof(quint32));
-    for (const SheetIndex &sh : d->sheets) {
-        bytes += qint64((sh.sorted.capacity() + sh.loose.capacity()) * sizeof(SingleEdge));
-        for (const RangeEntry &e : sh.ranges) bytes += qint64(sizeof(RangeEntry) + e.links.capacity() * sizeof(Link) + 48);
-        for (const auto &column : sh.byColumn) bytes += column.second.memoryBytes() + 48;
-        bytes += sh.wide.memoryBytes();
-    }
-    return bytes;
-}
+qint64 DependencyGraph::entryCount() const { return d->live; }
+qint64 DependencyGraph::memoryBytes() const { return d->bytes; }
+void DependencyGraph::compact() { d->compactAll(); }
+qint64 DependencyGraph::queryWork() const { return d->queryWork; }
+qint64 DependencyGraph::compactions() const { return d->compactions; }
+qint64 DependencyGraph::buildWork() const { return d->ctx.buildWork; }
 
 } // namespace jp::calc

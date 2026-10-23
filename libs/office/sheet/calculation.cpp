@@ -20,7 +20,7 @@ constexpr qint64 kMaxMembersAdded = 200000;        // the cells of arrays that t
 
 } // namespace
 
-Calculation::Calculation(const Workbook &book, const CalcOptions &options) : WorkbookSource(book, options.workbookBytes), m_options(options), m_graph(new DependencyGraph(options.maxGraphEntries))
+Calculation::Calculation(const Workbook &book, const CalcOptions &options) : WorkbookSource(book, options.workbookBytes), m_options(options), m_graph(new DependencyGraph(options.maxGraphBytes))
 {
     m_evaluator.seedRandom(quint64(QDateTime::currentMSecsSinceEpoch()) * 0x9E3779B97F4A7C15ull + 12345);
     if (options.workLimit > 0) m_evaluator.setWorkLimit(options.workLimit);

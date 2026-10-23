@@ -77,6 +77,9 @@ private Q_SLOTS:
                 a.sheet2 = std::min(2, a.sheet1 + 1 + int(rng.bounded(2)));   // through several sheets
                 a.row2 = a.row1 + rng.bounded(5);
                 a.col2 = a.col1 + rng.bounded(5);
+            } else if (kind == 3) {
+                a.row2 = a.row1 + rng.bounded(200);   // a block of many columns
+                a.col2 = std::min<quint32>(16383, a.col1 + 9 + rng.bounded(rng.bounded(5) ? 60 : 16000));
             }
             return a;
         };
@@ -179,14 +182,15 @@ private Q_SLOTS:
         QVERIFY(graph.entryCount() <= 3);
     }
 
-    // The graph holds no more than it is allowed: past it a formula is told no, tells nothing, and what it told before is gone.
+    // The graph holds no more bytes than it is allowed: past it a formula is told no, tells nothing, and what it told before is gone; what is dropped makes room.
     void theGraphHoldsNoMoreThanItMay()
     {
-        DependencyGraph graph(1000);
+        const qint64 budget = 20000;
+        DependencyGraph graph(budget);
         int refused = 0;
         for (quint32 n = 0; n < 600; ++n)
             if (!graph.setPrecedents(n, {cellArea(0, n, 0), cellArea(0, n, 1)})) ++refused;
-        QVERIFY2(refused > 0 && graph.entryCount() <= 1000, qPrintable(QStringLiteral("%1 refused, %2 held").arg(refused).arg(graph.entryCount())));
+        QVERIFY2(refused > 0 && graph.memoryBytes() <= budget + 4096, qPrintable(QStringLiteral("%1 refused, %2 bytes held of %3").arg(refused).arg(graph.memoryBytes()).arg(budget)));
         // dropped entries are let go of to make room
         for (quint32 n = 0; n < 600; ++n) graph.clearPrecedents(n);
         QVERIFY(graph.setPrecedents(700, {cellArea(0, 1, 1), cellArea(0, 2, 2)}));
@@ -194,12 +198,128 @@ private Q_SLOTS:
         graph.dependentsOfCell(0, 1, 1, &got);
         QCOMPARE(asSet(got), (std::set<quint32>{700}));
         // a formula refused is told nothing: what it told before is gone
-        DependencyGraph small(4);
+        DependencyGraph small(1000);
         QVERIFY(small.setPrecedents(1, {cellArea(0, 0, 0), cellArea(0, 1, 0)}));
-        QVERIFY(!small.setPrecedents(1, {cellArea(0, 5, 0), cellArea(0, 6, 0), cellArea(0, 7, 0), cellArea(0, 8, 0), cellArea(0, 9, 0), cellArea(0, 10, 0)}));
+        std::vector<CellArea> more;
+        for (quint32 r = 5; r < 200; ++r) more.push_back(cellArea(0, r, 0));
+        QVERIFY(!small.setPrecedents(1, more));
         got.clear();
         small.dependentsOfCell(0, 0, 0, &got);
         QVERIFY(got.empty());
+        QVERIFY(small.memoryBytes() <= 1000 + 4096);
+    }
+
+    // A query for the formulas that read a cell looks at a number of items that grows with the logarithm of what the graph holds, at every size (counted, not timed): not
+    // with the cells told since the graph last put its cells in order.
+    void aPointQueryLooksAtFewItemsAtEverySize()
+    {
+        DependencyGraph graph;
+        const quint32 n = 600000;
+        qint64 worst = 0;
+        quint32 worstAt = 0;
+        for (quint32 node = 0; node < n; ++node) {
+            QVERIFY(graph.setPrecedents(node, {cellArea(0, (node * 7919u) % 1000003u, node % 16000)}));
+            if (node % 15000 != 14999) continue;
+            for (quint32 q = 0; q < 10; ++q) {
+                const quint32 k = (node * 31u + q * 977u) % (node + 1);
+                std::vector<quint32> got;
+                const qint64 before = graph.queryWork();
+                graph.dependentsOfCell(0, (k * 7919u) % 1000003u, k % 16000, &got);
+                QVERIFY2(got.size() == 1 && got[0] == k, qPrintable(QString::number(k)));
+                if (graph.queryWork() - before > worst) {
+                    worst = graph.queryWork() - before;
+                    worstAt = node;
+                }
+            }
+        }
+        QVERIFY2(worst <= 3000, qPrintable(QStringLiteral("a query looked at %1 items with %2 formulas told").arg(worst).arg(worstAt)));
+    }
+
+    // A graph that is full says no at once, and goes on saying it: it does not put itself in order again for every formula it refuses (counted).
+    void aFullGraphRefusesWithoutGoingOverItsWorkAgain()
+    {
+        DependencyGraph graph(200000);
+        quint32 node = 0;
+        while (node < 1000000 && graph.setPrecedents(node, {cellArea(0, node, 0), cellArea(0, node, 1), cellArea(0, node, 2)})) ++node;
+        QVERIFY2(node >= 500 && node < 1000000, qPrintable(QString::number(node)));
+        const qint64 before = graph.compactions();
+        int refused = 0;
+        for (quint32 k = 0; k < 2000; ++k)
+            if (!graph.setPrecedents(node + 1 + k, {cellArea(0, node + k, 5)})) ++refused;
+        QVERIFY2(refused >= 1990, qPrintable(QString::number(refused)));
+        QVERIFY2(graph.compactions() - before <= 2, qPrintable(QStringLiteral("%1 compactions for 2000 refusals").arg(graph.compactions() - before)));
+        // what was dropped makes room again
+        for (quint32 k = 0; k < node / 2; ++k) graph.clearPrecedents(k);
+        QVERIFY(graph.setPrecedents(node + 5000, {cellArea(0, 9, 9)}));
+    }
+
+    // What a formula told before is dropped when it tells again: a thousand formulas that tell the same block and a cell that moves, sixty times, hold what they read now, and a
+    // query at the head of the block looks at those that read it, not at what they read before.
+    void whatAFormulaToldBeforeDoesNotPileUp()
+    {
+        DependencyGraph graph;
+        const quint32 formulas = 1000;
+        for (quint32 round = 0; round < 60; ++round)
+            for (quint32 node = 0; node < formulas; ++node)
+                QVERIFY(graph.setPrecedents(node, {blockArea(0, 0, 0, 19999, 0), cellArea(0, node, 3), cellArea(0, 1000 + (node + round) % 5000, 5)}));
+        QVERIFY2(graph.entryCount() <= 2 * 3 * formulas + 100, qPrintable(QStringLiteral("%1 entries for %2 reads").arg(graph.entryCount()).arg(3 * formulas)));
+        QVERIFY2(graph.memoryBytes() <= 2 * 1000 * 1000, qPrintable(QString::number(graph.memoryBytes())));
+        std::vector<quint32> got;
+        const qint64 before = graph.queryWork();
+        graph.dependentsOfCell(0, 0, 0, &got);
+        QCOMPARE(got.size(), size_t(formulas));
+        QVERIFY2(graph.queryWork() - before <= 4 * formulas + 200, qPrintable(QStringLiteral("looked at %1 items").arg(graph.queryWork() - before)));
+        // a cell that read where it was, and now reads elsewhere, is not found where it was
+        got.clear();
+        graph.dependentsOfCell(0, 1000 + (5 + 0) % 5000, 5, &got);   // (the cell node 5 read in round 0; node 5 read 1000 + (5 + 59) % 5000 last)
+        QVERIFY(std::find(got.begin(), got.end(), quint32(5)) == got.end());
+    }
+
+    // The graph holds no more bytes than it is given, whatever it is told, and takes time in proportion to what it holds (counted): narrow blocks of eight columns are
+    // refused when they would take it past its bytes.
+    void theGraphHoldsNoMoreBytesThanItMayAndBuildsInProportion()
+    {
+        const qint64 budget = qint64(24) << 20;
+        DependencyGraph graph(budget);
+        int refused = 0;
+        quint32 told = 0;
+        const qint64 work0 = graph.buildWork();
+        for (quint32 n = 0; n < 300000 && refused < 100; ++n) {
+            const quint32 col = n % 8000, row = (n * 13u) % 900000u;
+            if (graph.setPrecedents(n, {blockArea(0, row, col, row + 1 + n % 40, col + 7)})) ++told;
+            else ++refused;
+        }
+        QVERIFY2(refused > 0, qPrintable(QStringLiteral("it never said no: %1 formulas, %2 MB held of %3").arg(told).arg(graph.memoryBytes() >> 20).arg(budget >> 20)));
+        QVERIFY2(graph.memoryBytes() <= budget + budget / 4, qPrintable(QStringLiteral("%1 MB held of %2").arg(graph.memoryBytes() >> 20).arg(budget >> 20)));
+        QVERIFY2(told > 10000, qPrintable(QString::number(told)));
+        QVERIFY2(graph.buildWork() - work0 <= 80 * qint64(told), qPrintable(QStringLiteral("%1 steps to hold %2 formulas").arg(graph.buildWork() - work0).arg(told)));
+    }
+
+    // Blocks that are wide are found by their columns as well as their rows: twenty thousand blocks of twelve columns that share their rows are not all looked at for a cell.
+    void wideBlocksAreFoundByTheirColumnsToo()
+    {
+        DependencyGraph graph;
+        const quint32 n = 20000;
+        std::vector<CellArea> block(n);
+        for (quint32 i = 0; i < n; ++i) {
+            block[i] = blockArea(0, 0, i % 6000, 1000000 - i, i % 6000 + 11);
+            QVERIFY(graph.setPrecedents(i, {block[i]}));
+        }
+        qint64 worst = 0;
+        size_t most = 0;
+        for (quint32 q = 0; q < 200; ++q) {
+            const quint32 row = 500 + q, col = (q * 31) % 6000 + 5;
+            std::vector<quint32> got;
+            const qint64 before = graph.queryWork();
+            graph.dependentsOfCell(0, row, col, &got);
+            worst = std::max(worst, graph.queryWork() - before);
+            most = std::max(most, got.size());
+            std::set<quint32> expected;
+            for (quint32 i = 0; i < n; ++i)
+                if (covers(block[i], 0, row, col)) expected.insert(i);
+            QVERIFY2(asSet(got) == expected, qPrintable(QString::number(q)));
+        }
+        QVERIFY2(worst <= 400 + 60 * qint64(most), qPrintable(QStringLiteral("a query looked at %1 items to find at most %2 formulas").arg(worst).arg(most)));
     }
 
     // The blocks a formula's references name, for the cell it is in (a shared formula moves its relative references; names of other sheets are bound).

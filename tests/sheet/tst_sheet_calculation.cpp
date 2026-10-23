@@ -501,12 +501,12 @@ private Q_SLOTS:
         QString rows;
         for (int i = 1; i <= 400; ++i) rows += rowXml(i, constant(QStringLiteral("A%1").arg(i), QString::number(i)) + cellXml(QStringLiteral("B%1").arg(i), QStringLiteral("A%1*2").arg(i)) + cellXml(QStringLiteral("C%1").arg(i), QStringLiteral("B%1+1").arg(i)));
         CalcOptions options;
-        options.maxGraphEntries = 300;
+        options.maxGraphBytes = 30000;
         Book b;
         QVERIFY(b.open(buildXlsx({worksheet(rows)}), options));
         settle(b);
         QVERIFY(b.calc->untrackedCount() > 0);
-        QVERIFY(b.calc->graph().entryCount() <= 300);
+        QVERIFY(b.calc->graph().memoryBytes() <= 30000 + 8192);
         QCOMPARE(b.at("C400"), QStringLiteral("n:801"));
         QVERIFY(b.set("A10", Value::number(1000)));
         const Calculation::Progress p = settle(b);
