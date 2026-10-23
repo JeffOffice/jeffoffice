@@ -698,6 +698,156 @@ Value fnAverageIfs(Call &c) { return aggregateIf(c, Aggregate::Average, true, 1)
 Value fnMaxIfs(Call &c) { return aggregateIf(c, Aggregate::Max, true, 1); }
 Value fnMinIfs(Call &c) { return aggregateIf(c, Aggregate::Min, true, 1); }
 
+// ---- the database functions: DSUM, DAVERAGE, DCOUNT, ... over a table whose first row names its fields, for the records that meet a block of criteria
+
+// What one cell of the criteria asks of a field. A text with no operator in it is the texts that begin with it (and may have ? and * in it); "=" and the other operators work
+// as they do for COUNTIF. False if the cell asks nothing (it is empty, or an empty text).
+bool databaseCriterion(const Value &v, DateSystem system, Criterion *out)
+{
+    if (v.isEmpty() || (v.isText() && v.text().isEmpty())) return false;
+    if (v.isText()) {
+        const QString &t = v.text();
+        const QChar first = t[0];
+        double number;
+        if (first != QLatin1Char('=') && first != QLatin1Char('<') && first != QLatin1Char('>') && !textToNumber(t, system, &number)) {
+            Criterion c;
+            c.kind = Criterion::Kind::Text;
+            c.cmp = Criterion::Cmp::Eq;
+            c.text = t + QLatin1Char('*');
+            c.wildcards = true;
+            *out = c;
+            return true;
+        }
+    }
+    return parseCriterion(v, system, out);
+}
+
+enum class Db { Sum, Average, Count, CountA, Max, Min, Get, Product, Stdev, StdevP, Var, VarP };
+
+Value databaseFunction(Call &c, Db what)
+{
+    Machine &m = c.machine();
+    const DateSystem sys = c.context().dateSystem;
+    Table db, crit;
+    // (the table and the criteria are blocks of cells: one value is neither)
+    const auto isBlock = [&](int i) { return c.item(i).isRef() || (c.item(i).kind == Item::Kind::Value && c.item(i).value.isArray()); };
+    for (const int i : {0, 2})
+        if (!c.missing(i) && c.item(i).kind == Item::Kind::Value && c.item(i).value.isError()) return c.item(i).value;   // (an error given for either is the result)
+    if (!isBlock(0) || !isBlock(2) || !c.table(0, &db, true) || !c.table(2, &crit, true)) return c.error(ErrorKind::Value);
+    const Value fieldArg = c.scalar(1);
+    if (fieldArg.isError()) return fieldArg;
+    if (db.cols() < 1) return c.error(ErrorKind::Value);
+    // the field: its name in the first row (without regard to case), or its number from 1
+    qint64 field = -1;
+    if (fieldArg.isText()) {
+        for (qint64 j = 0; j < db.cols() && field < 0; ++j) {
+            const Value name = db.at(0, j);
+            if (name.isText() && name.text().compare(fieldArg.text(), Qt::CaseInsensitive) == 0) field = j;
+        }
+    } else if (fieldArg.isNumber()) {
+        const double k = std::trunc(fieldArg.number());
+        if (k >= 1 && k <= double(db.cols())) field = qint64(k) - 1;
+    }
+    if (field < 0) return c.error(ErrorKind::Value);
+    // what each column of the criteria asks, and of which field of the table
+    std::vector<qint64> fieldOf(size_t(std::max<qint64>(0, crit.cols())), -1);
+    for (qint64 k = 0; k < crit.cols(); ++k) {
+        const Value label = crit.at(0, k);
+        if (label.isEmpty()) continue;
+        const QString name = label.isText() ? label.text() : numberToText(label.isNumber() ? label.number() : 0);
+        for (qint64 j = 0; j < db.cols(); ++j) {
+            const Value h = db.at(0, j);
+            if (h.isText() && h.text().compare(name, Qt::CaseInsensitive) == 0) {
+                fieldOf[size_t(k)] = j;
+                break;
+            }
+        }
+    }
+    struct Condition {
+        qint64 field;
+        Criterion criterion;
+    };
+    std::vector<std::vector<Condition>> rows;   // the rows of the criteria, each of the conditions that must all be met
+    for (qint64 r = 1; r < crit.rows(); ++r) {
+        std::vector<Condition> row;
+        for (qint64 k = 0; k < crit.cols(); ++k) {
+            Criterion cr;
+            if (!databaseCriterion(crit.at(r, k), sys, &cr)) continue;
+            if (fieldOf[size_t(k)] < 0) {
+                m.unsupported |= 4;   // (a condition under a name that is no field is a formula for each record: it is not worked out)
+                return c.error(ErrorKind::Value);
+            }
+            row.push_back({fieldOf[size_t(k)], cr});
+        }
+        rows.push_back(std::move(row));
+    }
+    bool matchesAll = rows.empty();
+    for (const auto &row : rows) matchesAll = matchesAll || row.empty();
+    qint64 matched = 0, numbers = 0, nonEmpty = 0;
+    double sum = 0, product = 1, best = 0;
+    std::vector<double> values;   // (for the spread: worked out as STDEV works it out)
+    Value only, error;
+    for (qint64 i = 1; i < db.rows(); ++i) {
+        if (!m.charge(1 + qint64(rows.size()))) return c.error(ErrorKind::Value);
+        bool met = matchesAll;
+        for (size_t r = 0; r < rows.size() && !met; ++r) {
+            bool all = true;
+            for (const Condition &cond : rows[r])
+                if (!criterionMatches(cond.criterion, db.at(i, cond.field), sys)) {
+                    all = false;
+                    break;
+                }
+            met = all;
+        }
+        if (!met) continue;
+        ++matched;
+        const Value v = db.at(i, field);
+        if (!v.isEmpty()) ++nonEmpty;
+        if (what == Db::Get) only = v;
+        if (v.isError() && what != Db::Count && what != Db::CountA && what != Db::Get) {
+            if (!error.isError()) error = v;
+            continue;
+        }
+        if (!v.isNumber()) continue;
+        const double x = v.number();
+        ++numbers;
+        sum += x;
+        product *= x;
+        if (numbers == 1 || (what == Db::Max ? x > best : x < best)) best = x;
+        if (what == Db::Stdev || what == Db::StdevP || what == Db::Var || what == Db::VarP) values.push_back(x);
+    }
+    double m2 = 0, mean = 0;
+    if (!values.empty()) moments(values, &mean, &m2);
+    if (error.isError()) return error;
+    switch (what) {
+    case Db::Sum: return numberResult(sum);
+    case Db::Average: return numbers ? numberResult(sum / double(numbers)) : c.error(ErrorKind::Div0);
+    case Db::Count: return Value::number(double(numbers));
+    case Db::CountA: return Value::number(double(nonEmpty));
+    case Db::Max: case Db::Min: return Value::number(numbers ? best : 0);
+    case Db::Product: return numberResult(numbers ? product : 0);
+    case Db::Get:
+        if (matched == 0) return c.error(ErrorKind::Value);
+        if (matched > 1) return c.error(ErrorKind::Num);
+        return only.isEmpty() ? Value::number(0) : only;
+    case Db::Stdev: case Db::Var: return numbers > 1 ? numberResult(what == Db::Var ? m2 / double(numbers - 1) : std::sqrt(m2 / double(numbers - 1))) : c.error(ErrorKind::Div0);
+    case Db::StdevP: case Db::VarP: return numbers > 0 ? numberResult(what == Db::VarP ? m2 / double(numbers) : std::sqrt(m2 / double(numbers))) : c.error(ErrorKind::Div0);
+    }
+    return c.error(ErrorKind::Value);
+}
+Value fnDSum(Call &c) { return databaseFunction(c, Db::Sum); }
+Value fnDAverage(Call &c) { return databaseFunction(c, Db::Average); }
+Value fnDCount(Call &c) { return databaseFunction(c, Db::Count); }
+Value fnDCountA(Call &c) { return databaseFunction(c, Db::CountA); }
+Value fnDMax(Call &c) { return databaseFunction(c, Db::Max); }
+Value fnDMin(Call &c) { return databaseFunction(c, Db::Min); }
+Value fnDGet(Call &c) { return databaseFunction(c, Db::Get); }
+Value fnDProduct(Call &c) { return databaseFunction(c, Db::Product); }
+Value fnDStdev(Call &c) { return databaseFunction(c, Db::Stdev); }
+Value fnDStdevP(Call &c) { return databaseFunction(c, Db::StdevP); }
+Value fnDVar(Call &c) { return databaseFunction(c, Db::Var); }
+Value fnDVarP(Call &c) { return databaseFunction(c, Db::VarP); }
+
 // ---- the normal distribution
 
 double normalCdf(double x) { return 0.5 * std::erfc(-x / std::sqrt(2.0)); }
@@ -832,6 +982,18 @@ void registerStatFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"AVERAGEIFS", 3, 255, "n", 0, fnAverageIfs});
     r.push_back({"MAXIFS", 3, 255, "n", kFnFuture, fnMaxIfs});
     r.push_back({"MINIFS", 3, 255, "n", kFnFuture, fnMinIfs});
+    r.push_back({"DSUM", 3, 3, "rvr", 0, fnDSum});
+    r.push_back({"DAVERAGE", 3, 3, "rvr", 0, fnDAverage});
+    r.push_back({"DCOUNT", 3, 3, "rvr", 0, fnDCount});
+    r.push_back({"DCOUNTA", 3, 3, "rvr", 0, fnDCountA});
+    r.push_back({"DMAX", 3, 3, "rvr", 0, fnDMax});
+    r.push_back({"DMIN", 3, 3, "rvr", 0, fnDMin});
+    r.push_back({"DGET", 3, 3, "rvr", 0, fnDGet});
+    r.push_back({"DPRODUCT", 3, 3, "rvr", 0, fnDProduct});
+    r.push_back({"DSTDEV", 3, 3, "rvr", 0, fnDStdev});
+    r.push_back({"DSTDEVP", 3, 3, "rvr", 0, fnDStdevP});
+    r.push_back({"DVAR", 3, 3, "rvr", 0, fnDVar});
+    r.push_back({"DVARP", 3, 3, "rvr", 0, fnDVarP});
     r.push_back({"CORREL", 2, 2, "rr", 0, fnCorrel});
     r.push_back({"PEARSON", 2, 2, "rr", 0, fnCorrel});
     r.push_back({"RSQ", 2, 2, "rr", 0, fnRsq});
