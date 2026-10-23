@@ -1962,6 +1962,8 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     d->wordSpaceShrink = m_doc->env.wordSpaceShrink;
     d->wordStandIns = m_doc->env.standIns;
     const Furniture furniture = furnitureOf(index, st, out->number);
+    out->bodyArea = furniture.body;
+    out->firstOfSection = index <= 0 || st.firstOfSection;
     d->fontAliases = m_doc->env.familyAliases;
     // The page's color, under everything else.
     if (m_doc->pageColor.isValid()) {

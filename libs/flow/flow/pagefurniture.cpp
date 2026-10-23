@@ -305,10 +305,18 @@ Paginator::Furniture Paginator::furnitureOf(int index, const PageStart &st, int 
 {
     Section mirrored;
     const Section &sec = sectionOf(st, number, &mirrored);
+    if (st.blank) {   // (a blank page that a section break leaves has no header or footer)
+        Furniture f;
+        f.body = sec.content();
+        return f;
+    }
+    return furnitureFor(sec, index <= 0 || st.firstOfSection, number);
+}
+
+Paginator::Furniture Paginator::furnitureFor(const Section &sec, bool first, int number)
+{
     Furniture f;
     f.body = sec.content();
-    if (st.blank) return f;   // (a blank page that a section break leaves has no header or footer)
-    const bool first = index <= 0 || st.firstOfSection;
     f.header = sec.headerFor(first, number);
     f.footer = sec.footerFor(first, number);
     if (!f.header && !f.footer) return f;
@@ -332,6 +340,74 @@ Paginator::Furniture Paginator::furnitureOf(int index, const PageStart &st, int 
     f.body.setTop(top);
     f.body.setBottom(std::max(top + kLeastBody, pageHeight - bottom));   // (the least a text area is, as Section::content() has it)
     return f;
+}
+
+void Paginator::forgetStory(const QTextDocument *story)
+{
+    auto drop = [&](auto &cache) {
+        for (auto it = cache.begin(); it != cache.end();) {
+            if (std::get<0>(it->first) == story) it = cache.erase(it);
+            else ++it;
+        }
+    };
+    drop(m_storyHeights);
+    drop(m_storyLines);
+    drop(m_storyFrameAnchors);
+    drop(m_headerBottoms);
+    for (auto it = m_storyFacts.begin(); it != m_storyFacts.end();) {
+        if (it->first.first == story) it = m_storyFacts.erase(it);
+        else ++it;
+    }
+    auto dropTables = [&](auto &cache, auto &order, qint64 &held) {
+        for (auto it = cache.begin(); it != cache.end();) {
+            if (std::get<0>(it->first) == story) {
+                held -= it->second->cells;
+                it = cache.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        order.erase(std::remove_if(order.begin(), order.end(), [&](const HeaderTablesKey &k) { return std::get<0>(k) == story; }), order.end());
+    };
+    dropTables(m_headerTables, m_headerTablesOrder, m_headerTableCells);
+    dropTables(m_boxTables, m_boxTablesOrder, m_boxTableCells);
+}
+
+std::vector<double> Paginator::furnitureExtents(const QTextDocument *story, int *firstSection)
+{
+    // The text area each section that uses the story has, for a first page, an even page, and an odd one.
+    std::vector<double> now;
+    *firstSection = -1;
+    for (int i = 0; i < m_doc->sections.size(); ++i) {
+        const Section &sec = m_doc->sections[i];
+        bool uses = false;
+        for (int slot = 0; slot < 3; ++slot) uses = uses || sec.header.slot(slot).get() == story || sec.footer.slot(slot).get() == story;
+        if (!uses) continue;
+        if (*firstSection < 0) *firstSection = i;
+        for (const auto &page : {std::make_pair(true, 1), std::make_pair(false, 2), std::make_pair(false, 3)}) {
+            const Furniture f = furnitureFor(sec, page.first, page.second);
+            now.push_back(f.body.top());
+            now.push_back(f.body.bottom());
+        }
+    }
+    return now;
+}
+
+void Paginator::watchFurniture(const QTextDocument *story)
+{
+    int first = -1;
+    m_furnitureBaseline[story] = furnitureExtents(story, &first);
+}
+
+void Paginator::furnitureChanged(const QTextDocument *story)
+{
+    forgetStory(story);
+    int first = -1;
+    const std::vector<double> now = furnitureExtents(story, &first);
+    auto &was = m_furnitureBaseline[story];
+    const bool same = !was.empty() && was == now;
+    was = now;
+    if (!same && first >= 0) invalidateFrom(first);
 }
 
 void Paginator::addPageBorders(Document *d, const Section &sec, bool firstOfSection, const Furniture &f)
@@ -442,6 +518,7 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
                     auto fragment = std::make_shared<TableFragment>(*part.table);
                     fragment->origin = QPointF(content.left() + fragment->layout->leftEdgeIn(content.width()), top + part.y);
                     page->furnitureTables.push_back(fragment);
+                    page->furnitureTableSources.push_back(story);
                     continue;
                 }
                 // (The text of the stretch, as it is in the story: its paragraphs without the separator that ends the last.)
@@ -455,7 +532,7 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
                     src.setPosition(std::max(part.from, part.to - 1), QTextCursor::KeepAnchor);
                     QTextCursor(text.get()).insertFragment(QTextDocumentFragment(src));
                 }
-                substituteStyleRefs(text.get(), from, to);
+                if (story != m_editedStory) substituteStyleRefs(text.get(), from, to);
                 QTextCursor(text->begin()).setBlockFormat(story->findBlock(part.from).blockFormat());
                 auto s = std::make_shared<Story>();
                 s->id = QStringLiteral("flow-%1-%2-%3").arg(QLatin1String(name)).arg(d->pages[0]->id).arg(stretches);
@@ -472,6 +549,7 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
                 t->storyId = s->id;
                 t->wrap.mode = Wrap::None;
                 d->pages[0]->items.push_back(t);
+                page->furniture.push_back({t->id, std::string(name) == "footer", story, part.from});
             }
             if (!m_doc->images.isEmpty()) resolveCellImages(page, d);
             if (!m_doc->objects.isEmpty()) anchorObjects(laid->lines);
@@ -484,7 +562,7 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
         // A title that the page puts in a field may be longer than the one the file had, and take more lines than the room kept: the box is as tall as the text then (over the
         // text's top, or up from the footer's foot), not a clip of it; the page's lines do not wait for it.
         double shown = height;
-        if (substituteStyleRefs(s->doc.get(), from, to)) {
+        if (story != m_editedStory && substituteStyleRefs(s->doc.get(), from, to)) {
             FrameSpec fs;
             fs.size = QSizeF(std::max(1.0, content.width()), 100000);
             fs.insets = QMarginsF(0, 0, 0, 0);
@@ -520,6 +598,7 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
         t->storyId = s->id;
         t->wrap.mode = Wrap::None;
         d->pages[0]->items.push_back(t);
+        if (page) page->furniture.push_back({t->id, std::string(name) == "footer", story, 0});
     };
     place(f.header, sec.headerDistance, f.headerHeight, "header");
     place(f.footer, sec.pageSize().height() - sec.footerDistance - f.footerHeight, f.footerHeight, "footer");
