@@ -3306,43 +3306,58 @@ private Q_SLOTS:
     }
 
     // A paragraph of letters with no place to break a line (a file that cuts one long word into runs of a letter) is laid out with its lines allowed to break anywhere, and gets the same
-    // lines: Qt reads on to the end of such a word for each line, at a font lookup for each run, and a paragraph of 500,000 such runs took each of its pages a second.
+    // lines: Qt reads on to the end of such a word for each line, at a font lookup for each run, and a paragraph of 500,000 such runs took each of its pages a second. The lines are
+    // compared with those of the same text with a space at its end (a place to break, so the paragraph is laid out as any is) in each of the program's own families (every system has
+    // them), at three widths, and of letters, capitals, and digits: the lines break at the same letters and stand in the same places.
     void aParagraphWithNoPlaceToBreakIsLaidOutAsBreakingAnywhereWithTheSameLines()
     {
-        auto build = [](const QString &end, qint64 *anywhere) {
+        auto build = [](const QString &family, const QString &letters, const QString &end, qint64 *anywhere, double width) {
             QTextDocument doc;
             QTextCursor c(&doc);
-            for (int i = 0; i < 1200; ++i) {
+            c.beginEditBlock();   // (the cursor does not find its x for each run)
+            for (int i = 0; i < 900; ++i) {
                 QTextCharFormat cf;
-                cf.setFontFamilies({QStringLiteral("Arimo")});
+                cf.setFontFamilies({family});
                 cf.setFontPointSize(10 + i % 3);
                 cf.setFontWeight(i % 2 ? QFont::Bold : QFont::Normal);
-                c.insertText(QString(QLatin1Char(char('a' + i % 7))), cf);
+                c.insertText(QString(letters[(i * 7 + i / 5) % letters.size()]), cf);
             }
             if (!end.isEmpty()) {
                 QTextCharFormat cf;
-                cf.setFontFamilies({QStringLiteral("Arimo")});
+                cf.setFontFamilies({family});
                 cf.setFontPointSize(11);
                 c.insertText(end, cf);
             }
+            c.endEditBlock();
             LayoutEnv word;
             word.wordLines = true;
             const qint64 before = StoryLayout::unbreakableParagraphsForTest();
             StoryLayout layout;
-            layout.build(&doc, {plainFrame(300, 4000)}, word);
+            layout.build(&doc, {plainFrame(width, 8000)}, word);
             *anywhere = StoryLayout::unbreakableParagraphsForTest() - before;
             return layout.lineInfo(0);
         };
-        qint64 broken = 0, withSpace = 0;
-        const auto lines = build(QString(), &broken);
-        const auto reference = build(QStringLiteral(" "), &withSpace);   // (a space at its end is a place to break: the paragraph is laid out as any is)
-        QCOMPARE(withSpace, qint64(0));
-        QVERIFY2(broken >= 1, "the paragraph of letters with no place to break was not set to break anywhere");
-        QVERIFY(lines.size() >= 5);
-        QCOMPARE(lines.size(), reference.size());
-        for (int i = 0; i + 1 < lines.size(); ++i) {
-            QCOMPARE(lines[i].docPos, reference[i].docPos);
-            QCOMPARE(lines[i].docEnd, reference[i].docEnd);
+        const QStringList alphabets = {QStringLiteral("abcdefg"), QStringLiteral("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), QStringLiteral("0123456789abcXYZ")};
+        for (const QString &family : {QStringLiteral("Arimo"), QStringLiteral("Tinos"), QStringLiteral("Cousine")}) {   // (the program's own: no system font is looked for, nothing is skipped)
+            QVERIFY2(QFontDatabase::hasFamily(family), qPrintable(family));
+            for (const double width : {137.0, 300.0, 481.5}) {
+                for (const QString &letters : alphabets) {
+                    const QString what = QStringLiteral("%1, %2 wide, %3").arg(family).arg(width).arg(letters.left(4));
+                    qint64 broken = 0, withSpace = 0;
+                    const auto lines = build(family, letters, QString(), &broken, width);
+                    const auto reference = build(family, letters, QStringLiteral(" "), &withSpace, width);
+                    QVERIFY2(withSpace == 0, qPrintable(what));
+                    QVERIFY2(broken >= 1, qPrintable(what + ": the paragraph of letters with no place to break was not set to break anywhere"));
+                    QVERIFY2(lines.size() >= 5, qPrintable(what));
+                    QCOMPARE(lines.size(), reference.size());
+                    for (int i = 0; i + 1 < lines.size(); ++i) {   // (the last line of the reference has the space at its end)
+                        QVERIFY2(lines[i].docPos == reference[i].docPos && lines[i].docEnd == reference[i].docEnd, qPrintable(QStringLiteral("%1: line %2").arg(what).arg(i)));
+                        QVERIFY2(std::abs(lines[i].rect.left() - reference[i].rect.left()) < 1e-6 && std::abs(lines[i].rect.top() - reference[i].rect.top()) < 1e-6 &&
+                                     std::abs(lines[i].rect.width() - reference[i].rect.width()) < 1e-6,
+                                 qPrintable(QStringLiteral("%1: line %2 stands elsewhere").arg(what).arg(i)));
+                    }
+                }
+            }
         }
     }
 
