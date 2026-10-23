@@ -32,6 +32,46 @@ void setMarkFormat(QTextBlock block, const QTextCharFormat &format);
 // Text that is kept as XML and shows nothing (a bookmark, a field's code).
 bool isInvisibleAtom(const QTextCharFormat &format);
 
+// ---- the notes among the endnotes the pages set
+// A note of the endnotes the pages set after the text (or at the end of a section), as a place in the story is in it: the words of a note are paragraphs marked as its own, and an edit
+// that begins in them stays in them (a selection never goes past the end of the note it began in, into another note, the separator, or the text, and never takes the number
+// that begins the note).
+struct EndnoteSpan {
+    bool valid = false;          // the place is in a note (not in the separator, and not in the text)
+    bool editable = false;       // its words are edited in place (the first copy of a note: one cited again is shown and not edited)
+    int serial = 0;              // which copy of the note it is (the same for all its paragraphs)
+    int blockFrom = 0;           // where its first paragraph begins
+    int textFrom = 0;            // where its words begin: after the number that begins it
+    int textTo = 0;              // where the text of its last paragraph ends
+};
+EndnoteSpan endnoteSpanAt(const QTextDocument *story, int position);
+// Whether the cursor (where its selection began) is in the words of an endnote that is edited in place.
+bool inEndnoteWords(const QTextCursor &c);
+// Holds edits to the words of the one note the cursor is in while it is alive: the paragraphs of that note are not "locked" for it (isLocked), as the paragraphs of the endnotes are for
+// every other edit.
+// (When the outermost of them ends, the copies that the pages show of an endnote that was edited are set again from its first copy.)
+class NoteScopeGuard {
+public:
+    NoteScopeGuard(WriteDoc &doc, QTextCursor &c);   // (the cursor is kept where it was in the note, if the note is set again)
+    explicit NoteScopeGuard(const QTextCursor &c);   // (for what only reads: nothing is set again when it ends)
+    ~NoteScopeGuard();
+    NoteScopeGuard(const NoteScopeGuard &) = delete;
+    NoteScopeGuard &operator=(const NoteScopeGuard &) = delete;
+
+private:
+    void enter(const QTextCursor &c);
+    WriteDoc *m_doc = nullptr;
+    QTextCursor *m_cursor = nullptr;
+    int m_before = 0;
+    bool m_outermost = false;
+};
+// The place before which the cursor is held when it is in a note: where the note's words begin (after its number), 0 where the cursor is in no note (footnotes and endnotes).
+int noteStartOf(const QTextCursor &c);
+// Insert > Endnote (Ctrl+Alt+D): a reference to a new endnote where the cursor is (the end of a selection), and the note, set with the others after the text or at the end of the
+// section, which begins with its number and a blank; the later notes are numbered anew. `c` is put in the note's words, at their end, for the person to type the note in. False,
+// with `c` where it was, where no note can be made (in a header, a footer, or a note, in a paragraph that stands for a kept element, or when the document has the most notes).
+bool insertEndnote(WriteDoc &doc, QTextCursor &c);
+
 // ---- typing and deleting
 void insertText(WriteDoc &doc, QTextCursor &c, const QString &text);
 void insertParagraph(WriteDoc &doc, QTextCursor &c);
@@ -48,6 +88,15 @@ void insertTab(WriteDoc &doc, QTextCursor &c, bool back);
 // Puts a field that shows the number of the page it is on (PAGE) where the cursor is, as one piece that is a single character of the story: the text typed beside it is
 // not in it, a delete takes all of it, and the characters of the text it is put in are its look.
 void insertPageNumber(WriteDoc &doc, QTextCursor &c);
+
+// ---- notes
+// Insert > Footnote (Ctrl+Alt+F): a reference to a new footnote where the cursor is (the end of a selection; nothing is replaced), and the note, which begins with its number and a
+// blank, as one step of the history with the reference. Every later note's number follows from its place among the references. `c` is put in the new note's story, after its number
+// and the blank, for the person to type the note in; null, with `c` where it was, where no note can be made (in a header, a footer, or a note, in the endnotes the pages set,
+// in a paragraph that stands for a kept element, or when the document has the most notes).
+QTextDocument *insertFootnote(WriteDoc &doc, QTextCursor &c);
+// The place in a note's story where its text begins: just after its number mark (0 for a story that is not a note's).
+int noteTextStart(const QTextDocument *story);
 
 // ---- the clipboard
 // The selection as text and as a fragment that keeps its formats (null fragment when nothing is selected).

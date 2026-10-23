@@ -607,9 +607,16 @@ qint64 attributeExpressionsMadeForTest() { return s_attributeExpressions.load();
 // counts are live fields of the text engine, its tables and pictures are left out, and a paragraph in a frame is set aligned as the frame is.
 void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, bool header, const QString &part, bool headerFooter, bool append, int insertAt, bool editable)
 {
+    if (story == this->story() && !m_refreshingCopies) m_endnoteSeqValid = false;   // (the story is made anew: the references are looked for again; a copy of a note set again alone has none)
     QVector<Block> prepared, overflow;
     // (A header's or footer's: the page shows, and the form it is edited in has, the same first part of it.)
-    if (editable) blocksForEditing(bodyIn, &prepared, &overflow);
+    if (editable && append) {
+        // (The endnotes the pages set are in the form the text is in, and no more than the pages set of them: what is shown is bounded by the most endnote paragraphs, not by a header's.)
+        int styleRefs = 0;
+        for (const Block &b : bodyIn) prepared.push_back(b.isRaw ? b : withFieldsAsAtoms(b, &styleRefs));
+    } else if (editable) {
+        blocksForEditing(bodyIn, &prepared, &overflow);
+    }
     else if (headerFooter && !append) boundedBlocks(bodyIn, &prepared, &overflow);
     const QVector<Block> &body = editable || (headerFooter && !append) ? prepared : bodyIn;
     const StyleSheet &sheet = m_wml.styles;
@@ -926,6 +933,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
             bf.setProperty(prop::EndnoteBlock, true);
             bf.clearProperty(prop::Outline);
             bf.clearProperty(tp::StyleName);
+            if (editable) {
+                // (A note's paragraph says which copy of its note it is of, and what its style is, which the copy does not carry: it is written back from those.)
+                bf.setProperty(prop::EndnoteStyle, styleId);
+                if (const int copy = blk.key.toInt()) bf.setProperty(prop::EndnoteNote, copy);
+            }
             // The file's separator for the endnotes (w:separator, in a paragraph of nothing else) is a rule two inches long, as the footnote separator is: the paragraph's lower edge, over the
             // first 144 points of the column.
             bool separator = false, text = false;
@@ -1181,6 +1193,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 }
                 continue;
             }
+            // (The rule of the notes' separator is its paragraph's border: the mark in it is no character of the pages' copy, which is not written back.)
+            if (append && in.kind == Inline::RunAtom && (in.tag == QLatin1String("separator") || in.tag == QLatin1String("continuationSeparator"))) continue;
             if (!deleted && advanceTop < 0)
                 if (const std::optional<double> asked = advanceTopOf(in)) advanceTop = *asked;
             QTextCharFormat af = formatOf(styleId, in.props);
@@ -1193,6 +1207,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
             // the settings give (lower case roman numerals, a word processor's own).
             QString field = in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum") ? liveFieldOf(QStringLiteral("PAGE")) : QStringLiteral("raw:") + (formShown.contains(inAt) ? formShown.value(inAt).text : in.display);
             if (formShown.contains(inAt)) setFormLook(&af, formShown.value(inAt));
+            // (The mark that begins a note's text shows the number the pages give it.)
+            if (in.kind == Inline::RunAtom && in.tag == QLatin1String("footnoteRef") && !append) field = QStringLiteral("notemark");
             if (in.kind == Inline::ParaAtom && in.tag == kFieldGroupTag && !in.key.isEmpty()) field = in.key;   // (a field the pages answer: the page's number, the count of pages...)
             // A symbol of a font that isn't a symbol font (and isn't on the machine) is its character, in that font's stand-in.
             if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym")) {
@@ -1218,12 +1234,14 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
             } else if (in.kind == Inline::RunAtom && !deleted && drawnTag(in.tag) && drawnObjects(in, part, &af, lineWidth(), &p.content)) field = QStringLiteral("raw:");
             else if (in.tag == QLatin1String("footnoteReference") && m_noteBlocks.contains(QStringLiteral("fn") + in.key)) {
                 field = QStringLiteral("footnote:fn") + in.key;
+                if (!header && !append) m_footnotesCitedAtOpen.insert(in.key.toInt());
                 if (markFollows(in.raw)) af.setProperty(tp::NoteMarkCustom, true);
             }
             else if (in.tag == QLatin1String("endnoteReference")) {
                 const QString shown = markFollows(in.raw) ? QString() : noteNumberText(endnoteFormats.value(blockNumber, m_endnoteFormat), deleted ? endnoteNumber + 1 : ++endnoteNumber);   // (a deleted one takes no number)
                 field = QStringLiteral("raw:") + shown;
                 if (!header && !deleted && m_endnoteRefs.size() < kMostEndnotes) m_endnoteRefs.push_back({in.key, shown, sectionNo, endnotesAtSectionEnd.value(blockNumber)});
+                if (!header && !append && !deleted && m_endnoteBlocks.contains(in.key)) m_endnotesCitedAtOpen.insert(in.key.toInt());
             }
             af.setProperty(tp::Field, field);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);
@@ -1234,11 +1252,14 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
             c.setBlockFormat(asked);
         }
         if (direct.section) {
+            // (The text's sections end at their paragraphs. A note, a header, or a footer has none: the properties a producer put in one of its paragraphs are kept with it, as they were
+            // read, and written back.)
+            const bool ends = !header && !append;
             QTextBlockFormat last = c.blockFormat();
-            last.setProperty(flow::fp::SectionBreakAfter, true);
+            if (ends) last.setProperty(flow::fp::SectionBreakAfter, true);
             setStored(last, prop::SectionData, packSection(*direct.section));
             c.setBlockFormat(last);
-            ++sectionNo;
+            if (ends) ++sectionNo;
         }
     }
     if (!header && !append) m_endnoteSections = sectionNo + 1;
@@ -1283,13 +1304,15 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 setStored(bf, prop::RawAfter, packBlocks(pending));
                 c.setBlockFormat(bf);
             }
-            QTextCursor first(story->begin());
-            QTextBlockFormat bf = story->begin().blockFormat();
-            setStored(bf, prop::MarkFormat, packFormat(story->begin().charFormat()));
-            first.setBlockFormat(bf);
+            if (!m_refreshingCopies) {   // (a copy of a note set again alone leaves the story's first paragraph as it is)
+                QTextCursor first(story->begin());
+                QTextBlockFormat bf = story->begin().blockFormat();
+                setStored(bf, prop::MarkFormat, packFormat(story->begin().charFormat()));
+                first.setBlockFormat(bf);
+            }
         }
         c.endEditBlock();
-        renumberLists(story);
+        if (!m_refreshingCopies) renumberLists(story);   // (and counts its own list items, if it has any: the story's are not looked through again for it)
         return;
     }
     if (!pending.isEmpty()) {

@@ -32,6 +32,7 @@ struct PageDrawing {
     SpellCheck *editSpelling = nullptr;
     int editTypingAt = -1;
     bool editFooter = false;
+    bool editIsNote = false;   // the edited story is a footnote's (its box is among the page's notes; the text of the page is not dimmed)
 };
 
 // Paints the page in its own coordinates (points from its top left corner) on the painter.

@@ -73,7 +73,7 @@ public:
     bool showMarks() const { return m_marks; }
     // Spelling as you type: misspelled words get a red wave on the screen. The checking is the document's own, found a paragraph at a time for the pages in view.
     // (The check of what is being edited: the header's or footer's while one is, else the text's.)
-    SpellCheck *editedSpelling() const { return m_hf.active && m_hfSpell ? m_hfSpell.get() : m_spell.get(); }
+    SpellCheck *editedSpelling() const { return (m_hf.active || m_note.active) && m_hfSpell ? m_hfSpell.get() : m_spell.get(); }
     SpellCheck *spelling() const { return m_spell.get(); }
     bool spellingEnabled() const { return m_spellOn; }
     // The place a menu is for: where the last right click was (a click inside a selection leaves the selection and the caret as they were), else the caret.
@@ -113,6 +113,27 @@ public:
     void refreshHeaderFooter(bool create);
     Area areaAt(const QPoint &viewportPos);
 
+    // ---- footnotes
+    // A footnote being edited in place, at the foot of a page: the caret and every edit are in the note's own story (its number mark and the separator are not to be edited), and
+    // Up and Down at the edges of its lines, Esc, or a click in the text leave it.
+    struct NoteEdit {
+        bool active = false;
+        int id = 0, page = 0;   // the note (its w:id) and the page it is edited on
+        QTextDocument *story = nullptr;
+        int copy = 0;           // of the copies the pages set of it (it is set again for each citation), the one that is edited: its place in the order of the pages
+        int number = 0;         // the number that copy has now (to tell its box from another copy's on the same page)
+    };
+    bool inNote() const { return m_note.active; }
+    const NoteEdit &noteEdit() const { return m_note; }
+    // Edits footnote `id` where the pages set it (the first page that has it). False where no page has it.
+    bool enterFootnote(int id);
+    // Back to the text: the caret where it was, or with `atReference` just after the note's reference.
+    void leaveNote(bool atReference = false);
+    // A header or footer and a note are never edited together: at most one of inHeaderFooter() and inNote() holds.
+    bool sideModesExclusive() const { return !(m_hf.active && m_note.active); }
+    // The section the caret is in (the text's, or that of the page whose header, footer, or note is being edited).
+    int cursorSection();
+
     // Lays out every page now (for the count).
     void paginateAll();
     // The pages the window is set to show, laid out and drawn once more.
@@ -125,6 +146,7 @@ Q_SIGNALS:
     void contentChanged();                  // the text was edited
     void contextMenuWanted(const QPoint &globalPos);
     void headerFooterModeChanged();         // a header or footer is edited now, or none is any more
+    void noteModeChanged();                 // a footnote is edited now, or none is any more
 
 protected:
     void paintEvent(QPaintEvent *e) override;
@@ -159,6 +181,7 @@ private:
     bool caretLine(int position, int *page, QLineF *line);   // in points on the page
     // The text box of a frame on a drawn page that holds a position of the story (a frame's paragraphs have no lines in the page's text), its layout, and the position in its own text.
     struct FrameSpot;
+    static bool onEdgeLine(const FrameSpot &spot, int dir);   // whether the place is on the first (dir < 0) or the last line of its frame's text
     bool frameSpotAt(Rendered &r, int position, FrameSpot *spot);
     int moveVertical(int position, int direction);
     // The same, for the header or footer that is being edited: where its boxes on the page being edited put a position, and which position a point is at.
@@ -168,6 +191,46 @@ private:
     int hfLineEdge(int position, bool end);
     int hfMoveVertical(int position, int direction);
     Area areaOf(const Hit &hit);
+    // A footnote's story and its Id where a point on a page is in the box of one; false where it is not.
+    bool noteAt(const Hit &hit, QTextDocument **story, int *id, int *number = nullptr);
+    // The page whose foot has the note (the first that has a box of it), -1 where none is found.
+    int pageShowingNote(const QTextDocument *story);
+    bool enterNote(QTextDocument *story, int id, int page, int number = 0);
+    // After the pages were laid out again: the page the note being edited is on.
+    void settleNote();
+    // Whether the caret is in the first (dir < 0) or the last (dir > 0) line of the note being edited (not of a part of it that goes on from or to another page).
+    bool noteLineAtEdge(int dir);
+    // The parts the note being edited is shown in on the pages, each a page and the position in the note's story where the part begins: a note that goes on from a page to the next is a
+    // part for each page, and a note cited on two pages is shown in a copy for each citation (the parts of a copy begin again at the start of the note). They are the parts of the copy
+    // that `hintPage` has, in order.
+    struct NotePart {
+        int page = 0, from = 0, number = 0;
+    };
+    // Every copy of the note being edited that the pages set (by the number each has, the parts of one copy on consecutive pages), in the order of the pages.
+    QVector<QVector<NotePart>> copiesOfEditedNote();
+    // The copy being edited: the one that `m_note.copy` names while it has a part on `hintPage`, else the nearest to that page; -1 where none.
+    int editedCopyIndex(const QVector<QVector<NotePart>> &copies, int hintPage) const;
+    QVector<NotePart> partsOfEditedNote(int hintPage);
+    // The copy that has the box clicked (or the first that has a part on the page): which copy is edited, and its number.
+    void chooseCopy(int page, int number);
+    static int partIndexAt(const QVector<NotePart> &parts, int position);   // the part that has a place of the note: the last that begins at or before it
+    // The page that shows a place in the note being edited (in the copy being edited), -1 where none does; and the note's page made that of the caret.
+    int pageOfNotePosition(int position, int *number = nullptr, int *copy = nullptr);
+    void syncNotePage();
+    // The caret (and a selection that began in an endnote's words) held in them: a click put it there, or a key moved it inside the note. False where it is in none, or a key took it
+    // there from the text (which skips the notes, as ever).
+    bool holdInEndnote(int movedFrom);
+    // A place in the second or a later copy of an endnote (a copy that is shown and not edited) is the same place in the first copy; any other place is itself.
+    int placeInFirstCopy(int position) const;
+    // Leaves the endnote whose words the caret is in, for the text just after its reference.
+    void leaveEndnote(int id);
+    // Entering a header or footer (or a note) leaves the note (or the header or footer) that was being edited, which puts the caret back in the text: the one place the two modes meet.
+    void leaveSideModeFor(bool noteMode);
+    // The caret back in the text, where it was before a header, footer, or note was entered (the start of the text where that place is not known).
+    void restoreBodyCursor();
+    // The story being edited beside the text (a header or footer, or a note), the page it is edited on, and the boxes of that story on a drawn page.
+    const QTextDocument *sideStory() const { return m_hf.active ? m_hf.story : m_note.active ? m_note.story : nullptr; }
+    int sidePage() const { return m_hf.active ? m_hf.page : m_note.page; }
     // The header (footer) clicked: the one being edited, or another that the click goes to.
     bool takeFurnitureAt(const Hit &hit, bool footer);
     int pageShowing(int section, bool footer, int slot);
@@ -218,6 +281,8 @@ private:
     // The caret is in the text or in the header or footer being edited: a cursor in the other is not the view's. The text's takes the view out of the header; another story's is refused.
     bool takeCursorOf(const QTextCursor &c);
     HeaderFooterEdit m_hf;
+    NoteEdit m_note;
+    bool m_notePinned = false;      // the note was just entered: its page is the one that was clicked, not the page of the start of its text
     QTextCursor m_bodyCursor;       // the text's cursor while a header or footer is edited
     std::unique_ptr<SpellCheck> m_hfSpell;
     QMetaObject::Connection m_hfEdit;

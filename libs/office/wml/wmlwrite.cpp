@@ -753,6 +753,64 @@ QByteArray blocksPartXml(const QVector<Block> &blocks, const QByteArray &rootSta
     return out;
 }
 
+QByteArray notesPartXml(const QByteArray &original, bool endnotes, const NotesChange &change)
+{
+    const QByteArray tag = endnotes ? "endnote" : "footnote";
+    const QByteArray rootName = endnotes ? "w:endnotes" : "w:footnotes";
+    // The paragraphs and kept elements of the notes that are written, for the prefixes their pieces use.
+    QVector<Block> written;
+    for (auto it = change.replaced.cbegin(); it != change.replaced.cend(); ++it) written += it.value();
+    for (const auto &add : change.added) written += add.second;
+    auto content = [](const QVector<Block> &blocks) {
+        QByteArray out;
+        writeBodyBlocks(out, blocks, Whole(blocks));
+        return out;
+    };
+    QByteArray root, out;
+    if (original.isEmpty()) {
+        root = withKnownPrefixes(QByteArray("<") + rootName + " xmlns:w=\"" + kWNs + "\" xmlns:r=\"" + kRNs + "\">", written);
+        out = kXmlHead + root;
+        for (const char *const kind : {"separator", "continuationSeparator"}) {
+            const bool first = QByteArray(kind) == "separator";
+            out += "<w:" + tag + " w:type=\"" + kind + "\" w:id=\"" + (first ? "-1" : "0") + "\"><w:p><w:pPr><w:spacing w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/></w:pPr><w:r><w:" + kind + "/></w:r></w:p></w:" + tag + ">";
+        }
+    } else {
+        if (change.replaced.isEmpty() && change.removed.isEmpty() && change.added.isEmpty()) return original;
+        XmlTree tree;
+        if (!tree.parse(original, nullptr) || tree.root() < 0) return QByteArray();
+        root = tree.startTag(tree.root());
+        if (root.endsWith("/>")) root = root.left(root.size() - 2) + ">";
+        root = withKnownPrefixes(withW(root), written);
+        out = kXmlHead + root;
+        QSet<int> seen;   // (Of notes with one Id the first is the note: the others are kept as they were.)
+        for (int c = tree.firstChild(tree.root()); c >= 0; c = tree.next(c)) {
+            bool ok = false;
+            // (The separator, the continuation separator, and the notice have Ids as the notes have, and some producers number them as notes: only an element of no type, or of the type
+            // "normal", is the note of its Id.)
+            const QString type = tree.is(c, tag.constData()) ? tree.attr(c, "type") : QString();
+            const bool normal = type.isEmpty() || type == QLatin1String("normal");
+            const int id = tree.is(c, tag.constData()) && normal ? tree.attr(c, "id").toInt(&ok) : 0;
+            if (!ok || seen.contains(id)) {
+                out += tree.raw(c);
+                continue;
+            }
+            seen.insert(id);
+            if (change.removed.contains(id)) continue;
+            const auto replaced = change.replaced.constFind(id);
+            if (replaced == change.replaced.constEnd()) {
+                out += tree.raw(c);
+                continue;
+            }
+            QByteArray start = tree.startTag(c);
+            if (start.endsWith("/>")) start = start.left(start.size() - 2) + ">";
+            out += start + content(replaced.value()) + "</" + qnameOf(start) + ">";
+        }
+    }
+    for (const auto &add : change.added) out += "<w:" + tag + " w:id=\"" + QByteArray::number(add.first) + "\">" + content(add.second) + "</w:" + tag + ">";
+    out += "</" + qnameOf(root) + ">";
+    return out;
+}
+
 QByteArray blockXml(const Block &block)
 {
     QByteArray out;

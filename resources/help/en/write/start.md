@@ -50,6 +50,7 @@ This version of JeffWrite is a **Preview**. It is ready to try on real work, but
 - Styles. The gallery has Normal, headings, Title, and more.
 - Pages: paper size, orientation, margins, columns (one, two, or three), page breaks, and section breaks that start a new page.
 - Headers and footers: double-click in the top or bottom margin of a page, or use **Insert > Header** and **Insert > Footer**, then type, add a page number, and choose a different first page, different odd and even pages, or a link to the section before. See [Headers and footers](headers-footers).
+- Footnotes and endnotes: click in a note to edit it where it stands, and use **References > Insert Footnote** (Ctrl+Alt+F) and **Insert Endnote** (Ctrl+Alt+D) to add one. See [Footnotes and endnotes](footnotes-endnotes).
 - Opening .docx, .docm, .dotx, .dotm, .doc, and .dot files. Saving .docx and .dotx files.
 - Showing what a file has, where the file puts it: tables, headers and footers, footnotes and endnotes, pictures, shapes, and text boxes (with the text going around those that float), page borders and page color, line numbers, and sections that continue on the same page. A **header** is text at the top of every page, and a **footer** is text at the bottom. A **footnote** is a note at the foot of the page that cites it, and an **endnote** is one at the end.
 - Page numbers in headers and footers. They are worked out as the pages are laid out, and so is the number of pages. **Insert Page Number** is on the **Header & Footer** tab.
@@ -59,7 +60,7 @@ This version of JeffWrite is a **Preview**. It is ready to try on real work, but
 
 **What does not work yet**
 
-- Footnotes and endnotes can't be edited, added, or taken away. JeffWrite shows them and keeps them as the file has them. The pictures, shapes, and tables in a header or footer are kept, but not edited yet.
+- The pictures, shapes, and tables in a header, a footer, or a note are kept, but not edited yet.
 - Tables can't be inserted yet. In a table you open, you can type in the cells, press **Tab** to go to the next cell, and press **Tab** in the last cell to add a row. There are no commands yet to add or delete cells, rows, or columns, or to merge cells.
 - Pictures, shapes, and text boxes can't be inserted or changed. JeffWrite keeps them.
 - Only the page number field can be inserted, in a header or footer. A **field** is text that the file fills in, such as a date or a table of contents. Page numbers in headers and footers, and references to the page of a bookmark, are worked out. Other fields show the words the file had, and they do not update.
@@ -86,6 +87,7 @@ If something goes wrong, click **File > About**, then **Report a problem**.
 ## Related
 
 - [Headers and footers](headers-footers)
+- [Footnotes and endnotes](footnotes-endnotes)
 - [Open, save, print, and export](open-save)
 - [Check your spelling](spelling)
 - [Print](print)

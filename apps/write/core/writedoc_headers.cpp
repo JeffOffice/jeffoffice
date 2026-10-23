@@ -582,13 +582,18 @@ void WriteDoc::writeHeaderParts(office::wml::Document *out)
 void WriteDoc::dropHeaderStyles(office::wml::Document *out) const
 {
     if (m_headerStyles.isEmpty()) return;
-    // The styles a paragraph that is written has: the text's, and those of the parts the program made.
+    // The styles a paragraph or a run that is written has: the text's, and those of the parts the program made or rewrote (a header or footer it made, a notes part).
     QSet<QString> keep;
-    for (const Block &b : std::as_const(out->body))
-        if (!b.isRaw && m_headerStyles.contains(b.para.props.style)) keep.insert(b.para.props.style);
+    for (const Block &b : std::as_const(out->body)) {
+        if (b.isRaw) continue;
+        if (m_headerStyles.contains(b.para.props.style)) keep.insert(b.para.props.style);
+        for (const Inline &in : b.para.content)
+            if (m_headerStyles.contains(in.props.style)) keep.insert(in.props.style);
+    }
     for (const KeptPart &part : std::as_const(out->parts)) {
         const auto found = m_headerParts.constFind(part.name);
-        if (found == m_headerParts.cend() || !found->created) continue;
+        const bool notes = part.name.compare(m_notePart, Qt::CaseInsensitive) == 0 || part.name.compare(m_endnotePart, Qt::CaseInsensitive) == 0;
+        if (!notes && (found == m_headerParts.cend() || !found->created)) continue;
         for (const QString &id : m_headerStyles)
             if (part.data.contains("w:val=\"" + id.toUtf8() + "\"")) keep.insert(id);
     }
@@ -626,8 +631,12 @@ bool WriteDoc::partEdited(const HeaderPart &part) const
 
 void WriteDoc::stepAdded(QTextDocument *story)
 {
-    m_undoLog.push_back(Step{story, m_nextSerial++, story->availableUndoSteps()});
+    const quint64 serial = m_nextSerial++;
+    m_undoLog.push_back(Step{story, serial, story->availableUndoSteps()});
     m_redoLog.clear();
+    // (The notes made by this edit are known by its step.)
+    for (const auto &made : std::as_const(m_noteStepPending)) (made.first ? m_createdEndnoteStep : m_createdFootnoteStep)[made.second] = serial;
+    m_noteStepPending.clear();
     checkModified();
     Q_EMIT historyChanged();
 }
@@ -641,7 +650,11 @@ void WriteDoc::storyEdited(QTextDocument *story)
     if (story != this->story()) this->story()->setModified(false);
     for (auto it = m_headerParts.begin(); it != m_headerParts.end(); ++it)
         if (it->editForm && it->story.get() != story) it->story->setModified(false);
-    if (story != this->story()) headerEdited(story);
+    for (QTextDocument *note : std::as_const(m_dirtyNotes))
+        if (note != story) note->setModified(false);
+    if (story == this->story()) return;
+    if (footnoteIdOf(story)) noteEdited(story);
+    else headerEdited(story);
 }
 
 void WriteDoc::headerEdited(QTextDocument *story)
@@ -655,6 +668,7 @@ void WriteDoc::sealStories()
     story()->setModified(false);
     for (auto it = m_headerParts.begin(); it != m_headerParts.end(); ++it)
         if (it->editForm) it->story->setModified(false);
+    for (QTextDocument *note : std::as_const(m_dirtyNotes)) note->setModified(false);
 }
 
 bool WriteDoc::isModified() const
@@ -688,6 +702,7 @@ QTextDocument *WriteDoc::undo(QTextCursor *cursor)
     discardPendingHeaderFooter();   // (the empty one shown to be typed in is no step)
     if (m_undoLog.isEmpty()) return nullptr;
     const Step step = m_undoLog.takeLast();
+    m_endnoteSeqValid = false;   // (what an undo changes is looked through once more by the next settling)
     QTextCursor at(step.story);
     step.story->undo(&at);
     if (cursor) *cursor = at;
@@ -706,6 +721,7 @@ QTextDocument *WriteDoc::redo(QTextCursor *cursor)
     discardPendingHeaderFooter();
     if (m_redoLog.isEmpty()) return nullptr;
     const Step step = m_redoLog.takeLast();
+    m_endnoteSeqValid = false;
     QTextCursor at(step.story);
     step.story->redo(&at);
     if (cursor) *cursor = at;

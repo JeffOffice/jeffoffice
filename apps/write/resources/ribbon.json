@@ -367,6 +367,26 @@
       ]
     },
     {
+      "name": "References",
+      "keytip": "S",
+      "groups": [
+        {
+          "name": "Footnotes",
+          "keytip": "ZN",
+          "items": [
+            {
+              "large": "refs.footnote",
+              "keytip": "F"
+            },
+            {
+              "large": "refs.endnote",
+              "keytip": "E"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Review",
       "keytip": "R",
       "groups": [

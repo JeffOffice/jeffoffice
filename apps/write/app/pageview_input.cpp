@@ -3,6 +3,7 @@
 #include "app/pageview.h"
 
 #include "core/editops.h"
+#include "core/writeprops.h"
 
 #include <QApplication>
 #include <QClipboard>
@@ -133,7 +134,21 @@ void PageView::typeKey(int key, Qt::KeyboardModifiers m)
             m_cursor.movePosition(dir < 0 ? QTextCursor::PreviousBlock : QTextCursor::NextBlock, mode);
             caretMoved();
         } else {
+            // Up from a note's first line and Down from its last leave it, for the text, just after its reference.
+            if (m_note.active && !shift && !m_cursor.hasSelection() && noteLineAtEdge(dir)) {
+                leaveNote(true);
+                break;
+            }
             const int to = moveVertical(m_cursor.position(), dir);
+            // Up from the first line of an endnote and Down from its last leave it, for the text just after its reference.
+            if (!m_note.active && !m_hf.active && !shift && !m_cursor.hasSelection()) {
+                const EndnoteSpan span = endnoteSpanAt(m_doc->story(), m_cursor.position());
+                int id = 0;
+                if (span.valid && span.editable && (to < span.textFrom || to > span.textTo || to == m_cursor.position()) && m_doc->endnoteIdOf(m_doc->story()->findBlock(m_cursor.position()), &id)) {
+                    leaveEndnote(id);
+                    break;
+                }
+            }
             m_cursor.setPosition(to, mode);
             caretMoved(true);
         }
@@ -192,6 +207,14 @@ void PageView::typeKey(int key, Qt::KeyboardModifiers m)
     case Qt::Key_Escape:
         if (m_hf.active) {
             leaveHeaderFooter();
+            break;
+        }
+        if (m_note.active) {
+            leaveNote(true);
+            break;
+        }
+        if (int id = 0; !m_hf.active && !m_cursor.hasSelection() && inEndnoteWords(m_cursor) && m_doc->endnoteIdOf(m_doc->story()->findBlock(m_cursor.position()), &id)) {
+            leaveEndnote(id);
             break;
         }
         if (m_cursor.hasSelection()) {
@@ -265,9 +288,20 @@ void PageView::mousePressEvent(QMouseEvent *e)
         // A click in the text does nothing while a header or footer is edited (a double click leaves); one in a header's or a footer's area goes to it.
         const Area area = areaOf(hit);
         if (area == Area::Body || !takeFurnitureAt(hit, area == Area::Footer)) return;
+    } else {
+        // A click in a footnote's text puts the caret there, in the note; a click anywhere else is in the text, and leaves the note it was in.
+        QTextDocument *noteStory = nullptr;
+        int noteId = 0, noteNumber = 0;
+        if (noteAt(hit, &noteStory, &noteId, &noteNumber)) {
+            if (!enterNote(noteStory, noteId, hit.page, noteNumber)) return;
+        } else if (m_note.active) {
+            leaveNote();
+        }
     }
-    const int at = positionAt(hit);
+    int at = positionAt(hit);
     if (at < 0) return;
+    // A click in the second or a later copy of an endnote (which the pages show, and no more) is a click at the same place of its first copy, the note's own.
+    if (!m_note.active && !m_hf.active && m_cursor.document() == m_doc->story()) at = placeInFirstCopy(at);
     if (e->button() == Qt::RightButton) {
         if (!m_cursor.hasSelection() || at < m_cursor.selectionStart() || at > m_cursor.selectionEnd()) {
             m_cursor.setPosition(at);
@@ -343,7 +377,7 @@ void PageView::mouseDoubleClickEvent(QMouseEvent *e)
             e->accept();
             return;
         }
-        if (!m_hf.active && area != Area::Body && enterHeaderFooter(hit.page, area == Area::Footer)) {
+        if (!m_hf.active && area != Area::Body && (leaveNote(), enterHeaderFooter(hit.page, area == Area::Footer))) {
             const int at = positionAt(hit);
             if (at >= 0) {
                 m_cursor.setPosition(at);

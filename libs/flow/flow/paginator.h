@@ -70,8 +70,12 @@ struct MaterializedPage {
         bool footer = false;
         const QTextDocument *source = nullptr;
         int from = 0;
+        int number = 0;   // a note's box: the number the note has in this place (the copies of a note cited more than once have each their own; the parts of a copy have the one)
     };
     QVector<FurnitureBox> furniture;
+    // The text boxes that show a footnote of the page (the same kind of record: the box, the note's own story as the document has it, and the position in that story where the box's
+    // text begins: 0, or where the part of a note that goes on from the page before begins), so that a place in a box is a place in the note's story.
+    QVector<FurnitureBox> noteBoxes;
     // The text area of the page (below its header and above its footer), in page coordinates; and whether the page is the first of its section.
     QRectF bodyArea;
     bool firstOfSection = false;
@@ -195,6 +199,10 @@ public:
     // The pages from where section `section` begins again (that section, or one after it, changed, or sections came or went from it on): the pages
     // of the sections before it are as they were.
     void invalidateFrom(int section);
+    // A footnote's story was edited (`storyId` is its id as the notes' field source says it; `references` are the positions of the story's characters that cite it): what the
+    // paginator measured of it is let go, and the pages that cite it are laid out again, as for an edit at each of those places (the pages after them follow where the note's
+    // room moved their text).
+    void noteEdited(const QString &storyId, const QVector<int> &references);
 
     Page page(int index);                       // a page that is known
     int pageOfPosition(int position);           // the page whose lines hold a position; the last known one past them
@@ -535,7 +543,7 @@ private:
     // places are the layout's own (`places`, `rules`: its notes, and the frames the columns are in) and `ids` the notes the page's lines cite.
     // (Over the part of a note that goes on from the page before, the file's own separator for it; under the last note, when `notesGoOn`, the file's continuation notice.)
     void addNotes(Document *d, const QVector<StoryLayout::NotePlace> &places, const QVector<StoryLayout::Rule> &rules, int firstFrame, const QStringList &ids,
-                  const QVector<QRectF> &cols, const QRectF &body, bool notesGoOn);
+                  const QVector<QRectF> &cols, const QRectF &body, bool notesGoOn, MaterializedPage *page = nullptr);
     std::map<StoryKey, double> m_storyHeights;
     std::map<std::pair<const QTextDocument *, int>, StoryFacts> m_storyFacts;   // what each header or footer story (as of its revision) holds
     // The layouts of the tables of headers and footers kept, by story, width, revision, room beside, whether the space after counts, and the page number, count of pages, and count of

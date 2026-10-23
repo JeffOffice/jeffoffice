@@ -281,6 +281,48 @@ QByteArray settingsWithEvenAndOddHeaders(const QByteArray &settings, bool on)
     return settings.left(at) + element + settings.mid(at);
 }
 
+QByteArray settingsWithNoteSeparators(const QByteArray &settings, bool endnotes)
+{
+    static const char kXml[] = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n";
+    const QByteArray group = endnotes ? "endnotePr" : "footnotePr", note = endnotes ? "endnote" : "footnote";
+    const QByteArray names = "<w:" + note + " w:id=\"-1\"/><w:" + note + " w:id=\"0\"/>";
+    if (settings.trimmed().isEmpty())
+        return QByteArray(kXml) + "<w:settings xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><w:" + group + ">" +
+               names + "</w:" + group + "></w:settings>";
+    QVector<SettingsChild> children;
+    qsizetype rootEnd = 0;
+    QByteArray prefix;
+    if (!settingsChildren(settings, &children, &rootEnd, &prefix)) return settings;
+    const QByteArray open = "<" + prefix + group + ">", close = "</" + prefix + group + ">";
+    const QByteArray inside = "<" + prefix + note + " " + prefix + "id=\"-1\"/><" + prefix + note + " " + prefix + "id=\"0\"/>";
+    for (const SettingsChild &c : children) {
+        if (c.name != group) continue;
+        const QByteArray whole = settings.mid(c.begin, c.end - c.begin);
+        if (whole.contains("<" + prefix + note + " ") || whole.contains("<" + prefix + note + "/")) return settings;
+        if (whole.endsWith("/>")) {
+            // One written empty (with attributes, maybe): made to hold the notes.
+            const qsizetype gt = whole.size() - 2;
+            return settings.left(c.begin) + whole.left(gt).trimmed() + ">" + inside + close + settings.mid(c.end);
+        }
+        const qsizetype end = whole.lastIndexOf("</");
+        if (end < 0) return settings;
+        return settings.left(c.begin + end) + inside + settings.mid(c.begin + end);
+    }
+    // After the elements before it, and before those the schema puts after it.
+    static const char *const later[] = {"endnotePr", "compat", "docVars", "rsids", "mathPr", "attachedSchema", "themeFontLang", "clrSchemeMapping", "doNotIncludeSubdocsInStats", "doNotAutoCompressPictures",
+                                        "forceUpgrade", "captions", "readModeInkLockDown", "smartTagType", "schemaLibrary", "shapeDefaults", "doNotEmbedSmartTags", "decimalSymbol", "listSeparator"};
+    qsizetype at = rootEnd;
+    for (const SettingsChild &c : children) {
+        bool after = false;
+        for (const char *name : later) after = after || (c.name == name && !(endnotes && c.name == "endnotePr"));
+        if (after) {
+            at = c.begin;
+            break;
+        }
+    }
+    return settings.left(at) + open + inside + close + settings.mid(at);
+}
+
 // ---- Fonts
 
 bool Fonts::operator==(const Fonts &o) const

@@ -10,6 +10,7 @@
 #include "text/textprops.h"
 
 #include <QSet>
+#include <limits>
 #include <QTextBlock>
 #include <algorithm>
 #include <QTextCursor>
@@ -57,7 +58,7 @@ void WriteDoc::exportBody(QVector<Block> *out)
     exportInto(sink);
 }
 
-void WriteDoc::exportInto(BlockSink &sink, QTextDocument *whose)
+void WriteDoc::exportInto(BlockSink &sink, QTextDocument *whose, QTextBlock first, QTextBlock last, bool asNote)
 {
     QTextDocument *story = whose ? whose : this->story();
     const StyleSheet &sheet = m_wml.styles;
@@ -79,10 +80,11 @@ void WriteDoc::exportInto(BlockSink &sink, QTextDocument *whose)
         void tableClosed(TablePart *p) override { to.tableClosed(p); }
     } out(sink, lastClosesTable);
 
-    for (QTextBlock b = story->begin(); b.isValid();) {
+    const int lastAt = last.isValid() ? last.position() : std::numeric_limits<int>::max();
+    for (QTextBlock b = first.isValid() ? first : story->begin(); b.isValid() && b.position() <= lastAt;) {
         const QTextBlockFormat bf = b.blockFormat();
         tables.moveTo(bf.intProperty(flow::fp::Cell), out);   // (the end of the tables the paragraph is not in, and the start of those it is)
-        if (bf.hasProperty(prop::EndnoteBlock)) {   // (the endnotes the pages show after the text: the file's part is kept as it is)
+        if (bf.hasProperty(prop::EndnoteBlock) && !asNote) {   // (the endnotes the pages show after the text: they are written from the notes, not with the text)
             b = b.next();
             continue;
         }
@@ -98,6 +100,7 @@ void WriteDoc::exportInto(BlockSink &sink, QTextDocument *whose)
 
         // The paragraph, and the paragraphs that a page break cut from it.
         ParaProps full = paraPropsOf(bf);
+        if (asNote && bf.hasProperty(prop::EndnoteStyle)) full.style = bf.stringProperty(prop::EndnoteStyle);   // (the pages' copy of an endnote carries it apart from the document's styles)
         const QString styleId = full.style.isEmpty() ? defaultStyle : full.style;
         const int numId = full.numId.value_or(0), level = full.ilvl.value_or(0);
         const bool numberedByItself = numId > 0 && bf.boolProperty(prop::NumDirect);
@@ -164,10 +167,15 @@ void WriteDoc::exportInto(BlockSink &sink, QTextDocument *whose)
             if (!runPropsXml(diff).isEmpty()) direct.markRun = diff;
         }
         // (A section whose endnotes the pages set at its end has its break on the last of them in the story: it is the paragraph before them that ends the section in the file.)
-        bool endsSection = lastPart.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
-        for (QTextBlock n = lastPart.next(); !endsSection && n.isValid() && n.blockFormat().hasProperty(prop::EndnoteBlock); n = n.next()) endsSection = n.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
+        const bool ofText = !asNote && story == this->story();   // (a note, a header, and a footer have no sections of their own)
+        bool endsSection = ofText && lastPart.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
+        for (QTextBlock n = lastPart.next(); ofText && !endsSection && n.isValid() && n.blockFormat().hasProperty(prop::EndnoteBlock); n = n.next()) endsSection = n.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
         if (endsSection && sectionIndex + 1 < int(m_sections.size()))
             direct.section = std::make_shared<SectionProps>(m_sections[sectionIndex++]);
+        // (What a producer put in a paragraph of a note, a header, or a footer is written as it was read. A section's break that the pages moved onto the last of the endnotes at its end is
+        // the text's, not the note's: it has SectionBreakAfter, and is written on the paragraph before the notes.)
+        if (!ofText && lastPart.blockFormat().hasProperty(prop::SectionData) && !lastPart.blockFormat().boolProperty(flow::fp::SectionBreakAfter))
+            direct.section = std::make_shared<SectionProps>(unpackSection(storedBytes(lastPart.blockFormat(), prop::SectionData)));
         p.props = direct;
         out.add(std::move(blk));
         const QTextBlockFormat lastFormat = lastPart.blockFormat();
@@ -187,6 +195,8 @@ QByteArray WriteDoc::toDocx(QString *error, bool template_)
     out.lastSection = m_last;
     out.lastSectionStated = true;
     writeHeaderParts(&out);
+    writeNoteParts(&out);
+    writeEndnoteParts(&out);
     dropHeaderStyles(&out);
     // Styles a document that had none got when one was applied: the part, and the link to it.
     if (out.stylesName.isEmpty() && !out.styles.styles.isEmpty()) {
