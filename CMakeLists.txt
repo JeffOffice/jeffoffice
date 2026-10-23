@@ -181,6 +181,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_cells.cpp
   tests/sheet/tst_sheet_formulas.cpp
   tests/sheet/tst_sheet_limits.cpp
+  tests/sheet/tst_sheet_numfmt.cpp
   tests/sheet/tst_sheet_package.cpp
   tests/sheet/tst_sheet_workbook.cpp)
 target_link_libraries(sheettests PRIVATE jo_office Qt6::Test)

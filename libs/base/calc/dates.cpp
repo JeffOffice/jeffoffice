@@ -1,5 +1,7 @@
 #include "calc/dates.h"
 
+#include <QVector>
+
 #include <cmath>
 
 namespace jp::calc {
@@ -160,6 +162,107 @@ bool parseIsoDate(const QString &text, DateSystem system, double *serial)
     }
     *serial = day + time;
     return true;
+}
+
+namespace {
+
+// A date written out is its pieces: whole numbers, words, and the characters between them.
+struct Piece {
+    bool number = false;
+    int value = 0;       // a number
+    int digits = 0;
+    QString word;        // lower case
+    QChar sep;           // a separator
+};
+
+bool splitDateText(const QString &t, QVector<Piece> *out)
+{
+    int i = 0;
+    while (i < t.size()) {
+        const QChar c = t[i];
+        Piece p;
+        if (c.unicode() >= '0' && c.unicode() <= '9') {
+            int v = 0, n = 0;
+            while (i < t.size() && t[i].unicode() >= '0' && t[i].unicode() <= '9') {
+                if (++n > 6) return false;
+                v = v * 10 + (t[i].unicode() - '0');
+                ++i;
+            }
+            p.number = true;
+            p.value = v;
+            p.digits = n;
+        } else if (c.unicode() < 128 && c.isLetter()) {
+            int j = i;
+            while (j < t.size() && t[j].unicode() < 128 && t[j].isLetter()) ++j;
+            p.word = t.mid(i, j - i).toLower();
+            i = j;
+        } else if (c == QLatin1Char('/') || c == QLatin1Char('-') || c == QLatin1Char('.') || c == QLatin1Char(',') || c == QLatin1Char(' ')) {
+            p.sep = c;
+            ++i;
+        } else {
+            return false;
+        }
+        out->append(p);
+        if (out->size() > 12) return false;
+    }
+    return true;
+}
+
+int monthOfName(const QString &w)
+{
+    static const char *const names[12] = {"january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"};
+    if (w.size() < 3) return 0;
+    for (int m = 0; m < 12; ++m) {
+        const QString full = QLatin1String(names[m]);
+        if (w == full || w == full.left(3) || (m == 8 && w == QLatin1String("sept"))) return m + 1;
+    }
+    return 0;
+}
+
+// A year as it is written: four digits are the year, one or two are in 1930 to 2029 (00 to 29 are 2000 to 2029).
+bool yearOf(const Piece &p, int *year)
+{
+    if (!p.number) return false;
+    if (p.digits == 4) *year = p.value;
+    else if (p.digits == 1 || p.digits == 2) *year = p.value < 30 ? 2000 + p.value : 1900 + p.value;
+    else return false;
+    return true;
+}
+
+} // namespace
+
+bool dateValueOf(const QString &text, DateSystem system, double *serial)
+{
+    const QString t = text.trimmed();
+    if (t.isEmpty() || t.size() > 64) return false;
+    QVector<Piece> p;
+    if (!splitDateText(t, &p)) return false;
+    int year = 0, month = 0, day = 0;
+    auto small = [](const Piece &x) { return x.number && x.digits >= 1 && x.digits <= 2; };
+    auto isSep = [](const Piece &x, QChar c) { return !x.number && x.word.isEmpty() && x.sep == c; };
+    if (p.size() == 5 && p[0].number && p[2].number && p[4].number && !p[1].number && p[1].word.isEmpty() && (p[1].sep == QLatin1Char('/') || p[1].sep == QLatin1Char('-') || p[1].sep == QLatin1Char('.'))
+        && isSep(p[3], p[1].sep)) {
+        // month, day, year
+        if (!small(p[0]) || !small(p[2]) || !yearOf(p[4], &year)) return false;
+        month = p[0].value;
+        day = p[2].value;
+    } else if (p.size() == 5 && small(p[0]) && !p[2].word.isEmpty() && p[4].number && !p[1].number && !p[3].number && p[1].word.isEmpty() && p[3].word.isEmpty()
+               && (p[1].sep == QLatin1Char('-') || p[1].sep == QLatin1Char(' ')) && isSep(p[3], p[1].sep)) {
+        // day, month's name, year
+        month = monthOfName(p[2].word);
+        day = p[0].value;
+        if (!month || !yearOf(p[4], &year)) return false;
+    } else if ((p.size() == 5 || p.size() == 6) && !p[0].number && !p[0].word.isEmpty() && isSep(p[1], QLatin1Char(' ')) && small(p[2])) {
+        // month's name, day, year (with a comma after the day or not)
+        month = monthOfName(p[0].word);
+        day = p[2].value;
+        int k = 3;
+        if (isSep(p[k], QLatin1Char(','))) ++k;
+        if (k >= p.size() || !isSep(p[k], QLatin1Char(' ')) || k + 2 != p.size() || !month || !yearOf(p[k + 1], &year)) return false;
+    } else {
+        return false;
+    }
+    return dateToSerial(year, month, day, system, serial);
 }
 
 } // namespace jp::calc

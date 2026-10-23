@@ -22,4 +22,9 @@ bool serialToDate(double serial, DateSystem system, int *year, int *month, int *
 // The day number it comes to; false if it is none of these.
 bool parseIsoDate(const QString &text, DateSystem system, double *serial);
 
+// DATEVALUE: the day number of a date written as text the way the United States writes one: month, day, and year as numbers with "/", "-", or "." between
+// ("3/15/2024", "03-15-24"), or with the month in English ("15-Mar-2024", "15 March 2024", "Mar 15, 2024"). A year of two digits is 2000 to 2029 for 00 to
+// 29 and 1930 to 1999 for 30 to 99. False if the text is none of these or not a date.
+bool dateValueOf(const QString &text, DateSystem system, double *serial);
+
 } // namespace jp::calc
