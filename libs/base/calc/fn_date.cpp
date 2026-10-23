@@ -358,27 +358,22 @@ Value fnDays(Call &c)
     return Value::number(std::floor(e) - std::floor(s));
 }
 
-// Days between two dates counting 30 days to a month (the United States' rule, or with european = true the european one).
+// Is the date the last day of February? (The February 29 of the 1900 system, which the calendar lacks, is one.)
+bool lastDayOfFebruary(int y, int m, int d, DateSystem sys) { return m == 2 && d >= monthDays(y, 2, sys); }
+
+// Days between two dates counting 30 days to a month. The United States' rule (NASD), as the standard states it: if both dates are the last day of February, the end date
+// is the 30th; if the start date is the 31st or the last day of February, it is the 30th; if the end date is the 31st and the start date is now the 30th, the end date is the
+// 30th. The european rule: a 31st is the 30th, at the start and at the end.
 double days360(int y1, int m1, int d1, int y2, int m2, int d2, bool european, DateSystem sys)
 {
     if (european) {
         if (d1 == 31) d1 = 30;
         if (d2 == 31) d2 = 30;
     } else {
-        const bool startLast = d1 == monthDays(y1, m1, sys);
-        const bool endLast = d2 == monthDays(y2, m2, sys);
-        if (startLast) d1 = 30;
-        if (endLast) {
-            if (d1 < 30) {
-                d2 = 1;
-                if (++m2 > 12) {
-                    m2 = 1;
-                    ++y2;
-                }
-            } else {
-                d2 = 30;
-            }
-        }
+        const bool startFebruary = lastDayOfFebruary(y1, m1, d1, sys), endFebruary = lastDayOfFebruary(y2, m2, d2, sys);
+        if (startFebruary && endFebruary) d2 = 30;
+        if (startFebruary || d1 == 31) d1 = 30;
+        if (d2 == 31 && d1 == 30) d2 = 30;
     }
     return double((y2 - y1) * 360 + (m2 - m1) * 30 + (d2 - d1));
 }

@@ -242,6 +242,51 @@ private Q_SLOTS:
         CHECK_EVALS(cases, Grid(), Settings());
     }
 
+    // Counting 30 days to a month: the United States' (NASD) rule and the european one, with the ends of months, of February in years of 28 and of 29 days, and months of 30.
+    void daysAreCountedThirtyToAMonth()
+    {
+        const E cases[] = {
+            {"DAYS360(DATE(2011,1,1),DATE(2011,4,30))", "n:119"},       // the 30th of a 30-day month is the 30th, not the end of a month to move on from
+            {"DAYS360(DATE(2011,1,1),DATE(2011,4,30),TRUE)", "n:119"},
+            {"DAYS360(DATE(2023,1,15),DATE(2023,2,28))", "n:43"},       // the 28th of February is moved only when the start is the end of February too
+            {"DAYS360(DATE(2023,1,15),DATE(2023,2,28),TRUE)", "n:43"},
+            {"DAYS360(DATE(2011,1,31),DATE(2011,3,31))", "n:60"},
+            {"DAYS360(DATE(2011,1,31),DATE(2011,3,31),TRUE)", "n:60"},
+            {"DAYS360(DATE(2011,1,30),DATE(2011,3,31))", "n:60"},
+            {"DAYS360(DATE(2011,1,29),DATE(2011,3,31))", "n:62"},       // the 31st stays when the start is before the 30th
+            {"DAYS360(DATE(2011,1,29),DATE(2011,3,31),TRUE)", "n:61"},
+            {"DAYS360(DATE(2011,2,28),DATE(2011,3,31))", "n:30"},       // the end of February is the 30th, and then the 31st is
+            {"DAYS360(DATE(2011,2,28),DATE(2011,3,31),TRUE)", "n:32"},
+            {"DAYS360(DATE(2012,2,29),DATE(2012,3,31))", "n:30"},
+            {"DAYS360(DATE(2012,2,29),DATE(2012,3,31),TRUE)", "n:31"},
+            {"DAYS360(DATE(2012,2,28),DATE(2012,3,31))", "n:33"},       // (the end of February 2012 is the 29th)
+            {"DAYS360(DATE(2012,2,28),DATE(2012,3,31),TRUE)", "n:32"},
+            {"DAYS360(DATE(2011,2,28),DATE(2012,2,29))", "n:360"},      // both the ends of February: the end is the 30th for both
+            {"DAYS360(DATE(2011,2,28),DATE(2012,2,29),TRUE)", "n:361"},
+            {"DAYS360(DATE(2011,2,28),DATE(2011,2,28))", "n:0"},
+            {"DAYS360(DATE(2011,1,30),DATE(2011,2,28))", "n:28"},
+            {"DAYS360(DATE(2011,1,30),DATE(2011,2,28),TRUE)", "n:28"},
+            {"DAYS360(DATE(2011,4,30),DATE(2011,5,31))", "n:30"},
+            {"DAYS360(DATE(2011,4,30),DATE(2011,5,31),TRUE)", "n:30"},
+            {"DAYS360(DATE(2011,4,30),DATE(2011,6,30))", "n:60"},
+            {"DAYS360(DATE(2011,6,15),DATE(2011,6,30))", "n:15"},
+            {"DAYS360(DATE(2011,6,15),DATE(2011,6,30),TRUE)", "n:15"},
+            {"DAYS360(DATE(2011,4,30),DATE(2011,4,30))", "n:0"},
+            {"DAYS360(DATE(2011,4,30),DATE(2011,1,1))", "n:-119"},
+            {"DAYS360(DATE(2011,3,31),DATE(2011,2,28))", "n:-32"},      // 31 is the 30th; the end of February stays the 28th
+            {"DAYS360(DATE(2024,1,1),DATE(2024,12,31))", "n:360"},
+            {"DAYS360(DATE(2024,1,1),DATE(2024,12,31),TRUE)", "n:359"},
+            {"DAYS360(DATE(2024,2,29),DATE(2025,2,28))", "n:360"},      // the end of February to the end of February: both are the 30th
+            {"DAYS360(DATE(2024,2,29),DATE(2025,2,28),TRUE)", "n:359"},
+            {"DAYS360(DATE(2023,2,28),DATE(2024,2,29))", "n:360"},
+            {"DAYS360(\"x\",DATE(2011,1,1))", "e:#VALUE!"},
+            {"YEARFRAC(DATE(2011,1,1),DATE(2011,4,30))", "n:0.330555555555556"},
+            {"YEARFRAC(DATE(2011,1,1),DATE(2011,4,30),4)", "n:0.330555555555556"},
+            {"YEARFRAC(DATE(2011,1,29),DATE(2011,3,31),0)", "n:0.172222222222222"},
+        };
+        CHECK_EVALS(cases, Grid(), Settings());
+    }
+
     void nowAndTodayAreTheClockAsTheContextSaysIt()
     {
         Settings s;
