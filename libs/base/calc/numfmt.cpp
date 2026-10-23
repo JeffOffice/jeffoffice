@@ -1060,6 +1060,21 @@ void bestFraction(u128 p, u128 q, u128 maxDen, u128 *num, u128 *den)
     *den = kCur;
 }
 
+// A whole number written out, times a number of at most nine digits.
+QString timesText(const QString &digits, qint64 factor)
+{
+    QString r;
+    r.reserve(digits.size() + 10);
+    qint64 carry = 0;
+    for (int i = int(digits.size()) - 1; i >= 0; --i) {
+        const qint64 t = (digits[i].unicode() - '0') * factor + carry;
+        r.prepend(QChar('0' + int(t % 10)));
+        carry = t / 10;
+    }
+    for (; carry > 0; carry /= 10) r.prepend(QChar('0' + int(carry % 10)));
+    return r;
+}
+
 QString u128Text(u128 v)
 {
     if (v == 0) return QStringLiteral("0");
@@ -1116,15 +1131,13 @@ void renderFraction(const Section &s, Dec d, Out *o)
     QString ip;      // the whole part, when there are places for it
     u128 num = 0, den = 1;
     if (big) {
+        // 1E+15 and up are whole numbers, over 1 or over the fixed denominator.
         ip = intPart(d);
         num = 0;
-        den = 1;
-        if (improper) wholeText = ip;
+        den = s.fixedDen > 0 ? u128(s.fixedDen) : 1;
+        if (improper) wholeText = s.fixedDen > 0 ? timesText(ip, s.fixedDen) : ip;
     } else if (improper) {
-        if (d.point > 4) {
-            wholeText = intPart(d);
-            num = 0;
-        } else if (s.fixedDen > 0) {
+        if (s.fixedDen > 0) {
             den = u128(s.fixedDen);
             num = (2 * p * den + q) / (2 * q);
         } else {

@@ -500,6 +500,34 @@ private Q_SLOTS:
         CHECK_ALL(cases);
     }
 
+    // A fraction with no whole part is the same at every size: the best fraction of the whole number, the numerator growing as it must.
+    void improperFractionsFollowOneRuleAtEverySize()
+    {
+        const C cases[] = {
+            {"?/?", 1.5, "3/2"},
+            {"?/?", 999.5, "1999/2"},
+            {"?/?", 9999.5, "19999/2"},
+            {"?/?", 10000.5, "20001/2"},
+            {"?/?", 12345.5, "24691/2"},
+            {"?/?", 99999.5, "199999/2"},
+            {"?/?", 123456.25, "493825/4"},
+            {"?/?", 1234567.125, "9876537/8"},
+            {"?/?", 12345678901.5, "24691357803/2"},
+            {"?/?", 99999.9, "899999/9"},
+            {"?/?", 12345, "12345/1"},
+            {"?/?", 1e15, "1000000000000000/1"},
+            {"?/?", 1e20, "100000000000000000000/1"},
+            {"?/?", -12345.5, "-24691/2"},
+            {"?/4", 12345.5, "49382/4"},
+            {"?/4", 99999.9, "400000/4"},
+            {"?/4", 1e20, "400000000000000000000/4"},
+            {"?/16", 1e15, "16000000000000000/16"},
+            {"# ?/?", 12345.5, "12345 1/2"},
+            {"# ?/?", 1e20, "100000000000000000000    "},
+        };
+        CHECK_ALL(cases);
+    }
+
     // d dd ddd dddd, m mm mmm mmmm mmmmm, yy yyyy, h hh, s ss, AM/PM and A/P, the fractions of a second; m is minutes after h and before s.
     void datesAndTimes()
     {
