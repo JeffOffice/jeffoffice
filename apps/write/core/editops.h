@@ -49,15 +49,21 @@ EndnoteSpan endnoteSpanAt(const QTextDocument *story, int position);
 bool inEndnoteWords(const QTextCursor &c);
 // Holds edits to the words of the one note the cursor is in while it is alive: the paragraphs of that note are not "locked" for it (isLocked), as the paragraphs of the endnotes are for
 // every other edit.
+// (When the outermost of them ends, the copies that the pages show of an endnote that was edited are set again from its first copy.)
 class NoteScopeGuard {
 public:
-    explicit NoteScopeGuard(const QTextCursor &c);
+    NoteScopeGuard(WriteDoc &doc, QTextCursor &c);   // (the cursor is kept where it was in the note, if the note is set again)
+    explicit NoteScopeGuard(const QTextCursor &c);   // (for what only reads: nothing is set again when it ends)
     ~NoteScopeGuard();
     NoteScopeGuard(const NoteScopeGuard &) = delete;
     NoteScopeGuard &operator=(const NoteScopeGuard &) = delete;
 
 private:
+    void enter(const QTextCursor &c);
+    WriteDoc *m_doc = nullptr;
+    QTextCursor *m_cursor = nullptr;
     int m_before = 0;
+    bool m_outermost = false;
 };
 // The place before which the cursor is held when it is in a note: where the note's words begin (after its number), 0 where the cursor is in no note (footnotes and endnotes).
 int noteStartOf(const QTextCursor &c);

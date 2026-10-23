@@ -153,6 +153,9 @@ public:
     void stripEndnoteTails();
     bool endnoteTailsStripped() const { return m_tailsStripped; }
     void rebuildEndnoteTails();
+    // The shown copies of an endnote that was edited are set again from its first copy (nothing is done when no note with other copies was touched).
+    // (`keep`, a cursor in the words of the note, is put back at the same place of the note.)
+    void refreshEndnoteCopies(QTextCursor *keep = nullptr);
 
     // ---- sections
     // The sections in order; the last has no break paragraph. Changing one writes it into its break paragraph, so it undoes with the text.
@@ -465,6 +468,10 @@ private:
     qsizetype endnoteSeqBefore(int position, int *last) const;
     void endnoteSeqMove(qsizetype rank, int by);
     void followEndnoteReferences(int position, int removed, int added);
+    // An endnote cited more than once is set once for each citation: the first copy is the one whose words are edited, and the others show them. After an edit in a note that has others
+    // they are set again (at the end of the edit, as one step with it).
+    QHash<int, int> m_endnoteCopyCount;   // by Id: how many copies of the note the pages set
+    bool m_endnoteCopiesStale = false;
     QVector<EndnoteSeqEntry> endnoteReferencesIn(int from, int to);
     bool countedEndnoteReference(const QTextCharFormat &format, int *id) const;
     // The endnotes (writedoc_noteedit.cpp)

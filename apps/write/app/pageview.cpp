@@ -3,6 +3,7 @@
 #include "app/icons.h"
 #include "app/pagepaint.h"
 #include "core/editops.h"
+#include "core/writeprops.h"
 #include "core/spellcheck.h"
 #include "render/renderer.h"
 
@@ -891,6 +892,19 @@ bool PageView::holdInEndnote(int movedFrom)
         m_cursor.setPosition(position, QTextCursor::KeepAnchor);
     }
     return true;
+}
+
+int PageView::placeInFirstCopy(int position) const
+{
+    const QTextDocument *d = m_doc ? m_doc->story() : nullptr;
+    if (!d) return position;
+    const QTextBlock clicked = d->findBlock(position);
+    if (!clicked.isValid() || !clicked.blockFormat().hasProperty(prop::EndnoteBlock) || clicked.blockFormat().intProperty(prop::EndnoteNote) >= 0) return position;
+    int id = 0, from = 0, to = 0;
+    if (!m_doc->endnoteIdOf(clicked, &id) || !m_doc->endnoteWords(id, &from, &to)) return position;
+    const EndnoteSpan shown = endnoteSpanAt(d, position), first = endnoteSpanAt(d, from);
+    if (!shown.valid || !first.valid) return position;
+    return std::clamp(first.blockFrom + (position - shown.blockFrom), from, to);
 }
 
 void PageView::leaveEndnote(int id)

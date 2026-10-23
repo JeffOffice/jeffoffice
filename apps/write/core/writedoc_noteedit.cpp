@@ -552,8 +552,34 @@ void WriteDoc::touchEndnotes(int position, int removed, int added)
     for (QTextBlock b = d->findBlock(std::min(position, last)); b.isValid(); b = b.next()) {
         ++s_noteWalk;
         const QTextBlockFormat bf = b.blockFormat();
-        if (bf.hasProperty(prop::EndnoteBlock) && bf.intProperty(prop::EndnoteNote) != 0) m_endnoteEdited.insert(m_endnoteCopyIds.value(std::abs(bf.intProperty(prop::EndnoteNote))));
+        if (bf.hasProperty(prop::EndnoteBlock) && bf.intProperty(prop::EndnoteNote) != 0) {
+            const int id = m_endnoteCopyIds.value(std::abs(bf.intProperty(prop::EndnoteNote)));
+            m_endnoteEdited.insert(id);
+            if (bf.intProperty(prop::EndnoteNote) > 0 && m_endnoteCopyCount.value(id) > 1) m_endnoteCopiesStale = true;   // (its other copies show what it said)
+        }
         if (b == end) break;
+    }
+}
+
+void WriteDoc::refreshEndnoteCopies(QTextCursor *keep)
+{
+    if (!m_endnoteCopiesStale || m_buildingEndnotes || m_syncing) return;
+    m_endnoteCopiesStale = false;
+    // (Setting the notes again takes the caret out with the paragraphs it was in: it is put back at the same place of the note, which is the first copy of it still.)
+    int id = 0, anchorAt = -1, positionAt = -1;
+    if (keep && keep->document() == story()) {
+        const EndnoteSpan a = endnoteSpanAt(story(), keep->anchor()), p = endnoteSpanAt(story(), keep->position());
+        if (a.valid && a.editable && p.valid && p.editable && a.blockFrom == p.blockFrom && endnoteIdOf(story()->findBlock(keep->position()), &id)) {
+            anchorAt = keep->anchor() - a.blockFrom;
+            positionAt = keep->position() - a.blockFrom;
+        }
+    }
+    rebuildEndnoteTails();
+    int from = 0, to = 0;
+    if (positionAt >= 0 && endnoteWords(id, &from, &to)) {
+        const EndnoteSpan f = endnoteSpanAt(story(), from);
+        keep->setPosition(std::clamp(f.blockFrom + anchorAt, f.blockFrom, f.textTo));
+        keep->setPosition(std::clamp(f.blockFrom + positionAt, f.blockFrom, f.textTo), QTextCursor::KeepAnchor);
     }
 }
 

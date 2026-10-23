@@ -211,6 +211,8 @@ void WriteDoc::loadEndnotes()
 // most the program sets.
 void WriteDoc::appendEndnotes()
 {
+    m_endnoteCopyCount.clear();
+    m_endnoteCopiesStale = false;
     if (m_endnoteRefs.isEmpty() || m_endnoteBlocks.isEmpty()) return;
     for (const RawChild &ch : m_last.extra)
         if (ch.xml.contains("noEndnote")) return;
@@ -236,6 +238,7 @@ void WriteDoc::appendEndnotes()
             const int id = ref.id.toInt();
             const int serial = m_nextEndnoteSerial++;
             m_endnoteCopyIds.insert(serial, id);
+            ++m_endnoteCopyCount[id];
             const bool editable = take == note.size() && !placed.contains(id);
             if (take < note.size()) m_endnoteCapped = true;
             placed.insert(id);

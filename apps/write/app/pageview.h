@@ -220,6 +220,8 @@ private:
     // The caret (and a selection that began in an endnote's words) held in them: a click put it there, or a key moved it inside the note. False where it is in none, or a key took it
     // there from the text (which skips the notes, as ever).
     bool holdInEndnote(int movedFrom);
+    // A place in the second or a later copy of an endnote (a copy that is shown and not edited) is the same place in the first copy; any other place is itself.
+    int placeInFirstCopy(int position) const;
     // Leaves the endnote whose words the caret is in, for the text just after its reference.
     void leaveEndnote(int id);
     // Entering a header or footer (or a note) leaves the note (or the header or footer) that was being edited, which puts the caret back in the text: the one place the two modes meet.

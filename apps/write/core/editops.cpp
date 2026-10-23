@@ -329,13 +329,27 @@ bool inEndnoteWords(const QTextCursor &c)
     return s.valid && s.editable;
 }
 
-NoteScopeGuard::NoteScopeGuard(const QTextCursor &c) : m_before(t_noteScope)
+namespace {
+thread_local int t_guardDepth = 0;
+} // namespace
+
+NoteScopeGuard::NoteScopeGuard(WriteDoc &doc, QTextCursor &c) : m_doc(&doc), m_cursor(&c), m_before(t_noteScope), m_outermost(t_guardDepth++ == 0) { enter(c); }
+
+NoteScopeGuard::NoteScopeGuard(const QTextCursor &c) : m_before(t_noteScope) { enter(c); }
+
+void NoteScopeGuard::enter(const QTextCursor &c)
 {
     const EndnoteSpan s = c.document() ? endnoteSpanAt(c.document(), c.anchor()) : EndnoteSpan();
     t_noteScope = s.valid && s.editable ? s.serial : 0;
 }
 
-NoteScopeGuard::~NoteScopeGuard() { t_noteScope = m_before; }
+NoteScopeGuard::~NoteScopeGuard()
+{
+    t_noteScope = m_before;
+    if (!m_doc) return;
+    --t_guardDepth;
+    if (m_outermost) m_doc->refreshEndnoteCopies(m_cursor);
+}
 
 int noteStartOf(const QTextCursor &c)
 {
@@ -593,7 +607,7 @@ struct NumberGuard {
 
 void insertText(WriteDoc &doc, QTextCursor &c, const QString &typed)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     // (A header or footer has no page or column breaks: they are not typed into one.)
     QString text = typed;
@@ -660,7 +674,7 @@ static QTextBlock splitParagraph(QTextCursor &c)
 
 void insertParagraph(WriteDoc &doc, QTextCursor &c)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     c.beginEditBlock();
@@ -711,7 +725,7 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
 
 void insertPageBreak(WriteDoc &doc, QTextCursor &c)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c) || doc.isSideStory(c.document()) || inEndnoteWords(c)) return;   // (a header, a footer, or a note has no pages to break)
     NumberGuard numbers(doc, c.document());
     if (isLocked(c.block())) return;
@@ -727,7 +741,7 @@ void insertPageBreak(WriteDoc &doc, QTextCursor &c)
 
 void insertSectionBreak(WriteDoc &doc, QTextCursor &c, const QString &type)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c) || doc.isSideStory(c.document()) || inEndnoteWords(c)) return;   // (nor sections)
     NumberGuard numbers(doc, c.document());
     if (isLocked(c.block()) || inTable(c.block())) return;   // (a section ends in a paragraph that is not in a table's cell)
@@ -818,7 +832,7 @@ static bool removeSelectionAcrossFrames(WriteDoc &doc, QTextCursor &c)
 
 void removeSelection(WriteDoc &doc, QTextCursor &c)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     if (!c.hasSelection()) return;
@@ -947,7 +961,7 @@ static void joinAcrossDeleted(WriteDoc &doc, QTextCursor &c, const QTextBlock &v
 
 void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     const AdvanceGuard advance(c);
@@ -1020,7 +1034,7 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
 
 void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     const AdvanceGuard advance(c);
@@ -1076,7 +1090,7 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
 
 void insertTab(WriteDoc &doc, QTextCursor &c, bool back)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     const QTextBlock b = c.block();
     if (!c.hasSelection() && b.blockFormat().hasProperty(prop::NumId) && (c.atBlockStart() || back)) {
@@ -1385,7 +1399,7 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
 
 void insertPageNumber(WriteDoc &doc, QTextCursor &c)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     if (isLocked(c.block()) && !c.hasSelection()) return;
     // The field as the file has it: its begin mark, code, separator, result (the number 1), and end mark. The look of its runs is the atom's.
@@ -1462,7 +1476,7 @@ bool insertEndnote(WriteDoc &doc, QTextCursor &c)
 
 void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     if (fragment.isEmpty()) return;
@@ -1541,7 +1555,7 @@ Clip copySelection(const WriteDoc &doc, const QTextCursor &whole)
 
 void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     if (clip.isEmpty()) return;
@@ -1662,7 +1676,7 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
 
 void pasteText(WriteDoc &doc, QTextCursor &c, const QString &text)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     QString t = text;
@@ -1735,7 +1749,7 @@ bool allSelected(const QTextCursor &c, const std::function<bool(const QTextCharF
 
 void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QTextCharFormat &)> &change)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     Q_UNUSED(doc);
     QTextDocument *d = c.document();
@@ -1784,7 +1798,7 @@ void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QT
 
 void toggleBold(WriteDoc &doc, QTextCursor &c)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.fontWeight() >= QFont::DemiBold; });
     changeCharFormat(doc, c, [on](QTextCharFormat &f) { f.setFontWeight(on ? QFont::Bold : QFont::Normal); });
@@ -1792,7 +1806,7 @@ void toggleBold(WriteDoc &doc, QTextCursor &c)
 
 void toggleItalic(WriteDoc &doc, QTextCursor &c)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.fontItalic(); });
     changeCharFormat(doc, c, [on](QTextCharFormat &f) { f.setFontItalic(on); });
@@ -1800,7 +1814,7 @@ void toggleItalic(WriteDoc &doc, QTextCursor &c)
 
 void toggleUnderline(WriteDoc &doc, QTextCursor &c)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.underlineStyle() != QTextCharFormat::NoUnderline; });
     changeCharFormat(doc, c, [on](QTextCharFormat &f) {
@@ -1814,7 +1828,7 @@ void toggleUnderline(WriteDoc &doc, QTextCursor &c)
 
 void toggleStrike(WriteDoc &doc, QTextCursor &c)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.fontStrikeOut(); });
     changeCharFormat(doc, c, [on](QTextCharFormat &f) {
@@ -1825,7 +1839,7 @@ void toggleStrike(WriteDoc &doc, QTextCursor &c)
 
 void toggleSubscript(WriteDoc &doc, QTextCursor &c)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.verticalAlignment() == QTextCharFormat::AlignSubScript; });
     changeCharFormat(doc, c, [on](QTextCharFormat &f) { f.setVerticalAlignment(on ? QTextCharFormat::AlignSubScript : QTextCharFormat::AlignNormal); });
@@ -1833,7 +1847,7 @@ void toggleSubscript(WriteDoc &doc, QTextCursor &c)
 
 void toggleSuperscript(WriteDoc &doc, QTextCursor &c)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     const bool on = !allSelected(c, [](const QTextCharFormat &f) { return f.verticalAlignment() == QTextCharFormat::AlignSuperScript; });
     changeCharFormat(doc, c, [on](QTextCharFormat &f) { f.setVerticalAlignment(on ? QTextCharFormat::AlignSuperScript : QTextCharFormat::AlignNormal); });
@@ -1841,7 +1855,7 @@ void toggleSuperscript(WriteDoc &doc, QTextCursor &c)
 
 void setFontFamily(WriteDoc &doc, QTextCursor &c, const QString &family)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     changeCharFormat(doc, c, [family](QTextCharFormat &f) {
         if (family == QLatin1String("+Heading") || family == QLatin1String("+Body")) {
@@ -1857,7 +1871,7 @@ void setFontFamily(WriteDoc &doc, QTextCursor &c, const QString &family)
 
 void setFontSize(WriteDoc &doc, QTextCursor &c, double points)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     points = std::clamp(points, 1.0, 1638.0);
     changeCharFormat(doc, c, [points](QTextCharFormat &f) { f.setFontPointSize(points); });
@@ -1865,7 +1879,7 @@ void setFontSize(WriteDoc &doc, QTextCursor &c, double points)
 
 void changeFontSize(WriteDoc &doc, QTextCursor &c, int steps)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     static const double sizes[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72, 80, 96, 120, 144, 200, 300, 500, 1000, 1638};
     const double now = typingFormat(c).fontPointSize() > 0 ? typingFormat(c).fontPointSize() : 11;
@@ -1888,7 +1902,7 @@ void changeFontSize(WriteDoc &doc, QTextCursor &c, int steps)
 
 void setTextColor(WriteDoc &doc, QTextCursor &c, const QColor &color)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     changeCharFormat(doc, c, [color](QTextCharFormat &f) {
         f.clearProperty(prop::ColorAttrs);
@@ -1905,7 +1919,7 @@ void setTextColor(WriteDoc &doc, QTextCursor &c, const QColor &color)
 
 void setHighlight(WriteDoc &doc, QTextCursor &c, const QString &name)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     changeCharFormat(doc, c, [name](QTextCharFormat &f) {
         if (name.isEmpty()) f.clearProperty(tp::HighlightRefP);
@@ -1937,7 +1951,7 @@ QTextCharFormat restyled(const QTextCharFormat &f, const QTextCharFormat &was, c
 
 void clearFormatting(WriteDoc &doc, QTextCursor &c)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     c.beginEditBlock();
     applyParagraphStyle(doc, c, doc.defaultParagraphStyle());
@@ -1962,7 +1976,7 @@ void clearFormatting(WriteDoc &doc, QTextCursor &c)
 
 void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QTextBlockFormat &)> &change)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     Q_UNUSED(doc);
     c.beginEditBlock();
@@ -1978,7 +1992,7 @@ void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(Q
 
 void setAlignment(WriteDoc &doc, QTextCursor &c, Qt::Alignment alignment)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     changeBlockFormat(doc, c, [alignment](QTextBlockFormat &bf) {
         bf.setAlignment(alignment);
@@ -1990,7 +2004,7 @@ static void setBlockList(WriteDoc &doc, QTextBlock block, int numId, int level, 
 
 void changeIndent(WriteDoc &doc, QTextCursor &c, double points)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     c.beginEditBlock();
@@ -2011,7 +2025,7 @@ void changeIndent(WriteDoc &doc, QTextCursor &c, double points)
 
 void setIndents(WriteDoc &doc, QTextCursor &c, double left, double right, double firstLine)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     changeBlockFormat(doc, c, [&](QTextBlockFormat &bf) {
         bf.setLeftMargin(std::max(0.0, left));
@@ -2055,7 +2069,7 @@ void setSpaceAfter(QTextBlockFormat &bf, double points)
 
 void setSpacing(WriteDoc &doc, QTextCursor &c, double before, double after)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     changeBlockFormat(doc, c, [&](QTextBlockFormat &bf) {
         setSpaceBefore(bf, before);
@@ -2065,7 +2079,7 @@ void setSpacing(WriteDoc &doc, QTextCursor &c, double before, double after)
 
 void setLineSpacing(WriteDoc &doc, QTextCursor &c, QTextBlockFormat::LineHeightTypes type, double value)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     changeBlockFormat(doc, c, [&](QTextBlockFormat &bf) {
         if (type == QTextBlockFormat::ProportionalHeight) bf.setLineHeight(std::max(0.1, value) * 100.0, type);
@@ -2120,7 +2134,7 @@ static void setBlockList(WriteDoc &doc, QTextBlock block, int numId, int level, 
 
 void toggleList(WriteDoc &doc, QTextCursor &c, bool numbered)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     const QVector<QTextBlock> blocks = selectedBlocks(c);
@@ -2217,7 +2231,7 @@ static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleI
 
 void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     if (!doc.ensureStyle(styleId)) return;
@@ -2231,7 +2245,7 @@ void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 
 void applyCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 {
-    const NoteScopeGuard scopeGuard(c);
+    const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     if (!doc.ensureStyle(styleId)) return;
     const QString paraStyle = paragraphStyleAt(doc, c);

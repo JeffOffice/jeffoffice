@@ -298,13 +298,10 @@ void PageView::mousePressEvent(QMouseEvent *e)
             leaveNote();
         }
     }
-    const int at = positionAt(hit);
+    int at = positionAt(hit);
     if (at < 0) return;
-    // A click in the second or a later copy of an endnote (which the pages show, and no more) is none: the caret and the view stay where they were.
-    if (!m_note.active && !m_hf.active && m_cursor.document() == m_doc->story()) {
-        const QTextBlockFormat clicked = m_doc->story()->findBlock(at).blockFormat();
-        if (clicked.hasProperty(prop::EndnoteBlock) && clicked.intProperty(prop::EndnoteNote) < 0) return;
-    }
+    // A click in the second or a later copy of an endnote (which the pages show, and no more) is a click at the same place of its first copy, the note's own.
+    if (!m_note.active && !m_hf.active && m_cursor.document() == m_doc->story()) at = placeInFirstCopy(at);
     if (e->button() == Qt::RightButton) {
         if (!m_cursor.hasSelection() || at < m_cursor.selectionStart() || at > m_cursor.selectionEnd()) {
             m_cursor.setPosition(at);
