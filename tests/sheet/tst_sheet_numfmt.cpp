@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <limits>
 #include <random>
 
@@ -398,6 +399,46 @@ private Q_SLOTS:
             if (n < 0) wantGrouped.prepend(QLatin1Char('-'));
             QVERIFY2(fmt(QStringLiteral("#,##0.00"), v) == wantGrouped, qPrintable(QStringLiteral("%1: got [%2], wanted [%3]").arg(n).arg(fmt(QStringLiteral("#,##0.00"), v), wantGrouped)));
         }
+    }
+
+    // The 15 digits are one rounding of the exact value of the number, half up: not a rounding of a rounding, and not the binary value's nearest tie.
+    void fifteenDigitsAreRoundedOnce()
+    {
+        const C cases[] = {
+            // 0.000133860304670089|49..., which a rounding to 21 digits first would make ...|5 and round up
+            {"General", 0.0001338603046700895, "0.000133860304670089"},
+            {"0.000000000000000000", 0.0001338603046700895, "0.000133860304670089"},
+            {"0.00000000000000E+00", 0.0001338603046700895, "1.33860304670089E-04"},
+            // exact ties at the 16th digit go up, as they do from the decimal form
+            {"General", 1234567890123.125, "1234567890123.13"},
+            {"General", -1234567890123.125, "-1234567890123.13"},
+            {"0.00", 1234567890123.125, "1234567890123.13"},
+            {"0", 562949953421312.5, "562949953421313"},
+            {"General", 562949953421312.5, "562949953421313"},
+        };
+        CHECK_ALL(cases);
+        // the number just under the tie goes down
+        QCOMPARE(fmt(QStringLiteral("General"), std::nextafter(1234567890123.125, 0.0)), QStringLiteral("1234567890123.12"));
+        QCOMPARE(fmt(QStringLiteral("General"), std::nextafter(1234567890123.125, 2e12)), QStringLiteral("1234567890123.13"));
+        // Random doubles (every bit pattern, the smallest and the largest too) against Qt's own single rounding to 15 digits.
+        std::mt19937_64 rng(2026);
+        int checked = 0;
+        for (int i = 0; i < 40000; ++i) {
+            quint64 bits = rng();
+            if (i % 10 == 0) bits &= 0x800FFFFFFFFFFFFFULL;                    // subnormals
+            else if (i % 10 == 1) bits = (bits & 0x800FFFFFFFFFFFFFULL) | (quint64(1023 + int(rng() % 80) - 40) << 52);   // around 1
+            if (((bits >> 52) & 0x7FF) == 0x7FF) continue;
+            double v;
+            memcpy(&v, &bits, sizeof v);
+            const QString want = QString::number(v, 'G', 15);
+            const QString got = fmt(QStringLiteral("General"), v);
+            QVERIFY2(got == want, qPrintable(QStringLiteral("%1: got [%2], wanted [%3]").arg(v, 0, 'g', 17).arg(got, want)));
+            const QString wantE = QString::number(v, 'E', 14);
+            const QString gotE = fmt(QStringLiteral("0.00000000000000E+00"), v);
+            QVERIFY2(gotE == wantE, qPrintable(QStringLiteral("%1: got [%2], wanted [%3]").arg(v, 0, 'g', 17).arg(gotE, wantE)));
+            ++checked;
+        }
+        QVERIFY(checked > 39000);
     }
 
     // "%" multiplies by 100 each time; E+ E- E show a value in scientific notation, with the exponent a multiple of the integer places.

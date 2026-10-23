@@ -7,6 +7,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
+#include <vector>
 
 #if defined(__SIZEOF_INT128__)
 using u128 = unsigned __int128;
@@ -33,25 +35,72 @@ void stripZeros(Dec *d)
     if (d->digits.isEmpty()) d->point = 0;
 }
 
-// The digits of |v| to 15 significant ones, the rest rounded half up (v must be finite).
+// The digits of |v| to 15 significant ones, rounded once from the number's exact decimal value, half up (v must be finite). The exact value is a whole
+// number times a power of 2 (or of 1/2); written out in base 10^9 it is all its digits, 767 at the most.
 void toDec(double v, Dec *d)
 {
     d->digits.clear();
     d->point = 0;
     v = std::fabs(v);
     if (v == 0) return;
-    // The exact decimal expansion of the binary value, to 21 digits; the rounding to 15 is done here, half up.
-    const QByteArray s = QString::number(v, 'e', 20).toLatin1();
-    const int e = int(s.indexOf('e'));
-    if (e < 3) return;
+    quint64 bits;
+    std::memcpy(&bits, &v, sizeof bits);
+    const int biased = int((bits >> 52) & 0x7FF);
+    quint64 mant = bits & ((quint64(1) << 52) - 1);
+    int exp2 = -1074;
+    if (biased != 0) {
+        mant |= quint64(1) << 52;
+        exp2 = biased - 1075;
+    }
+    // Fewer digits to work with when the number has trailing zero bits.
+    while (exp2 < 0 && (mant & 1) == 0) {
+        mant >>= 1;
+        ++exp2;
+    }
+    std::vector<quint32> limbs;   // little-endian, base 10^9
+    for (; mant; mant /= 1000000000) limbs.push_back(quint32(mant % 1000000000));
+    auto multiply = [&limbs](quint64 factor) {
+        quint64 carry = 0;
+        for (quint32 &limb : limbs) {
+            const quint64 t = quint64(limb) * factor + carry;
+            limb = quint32(t % 1000000000);
+            carry = t / 1000000000;
+        }
+        while (carry) {
+            limbs.push_back(quint32(carry % 1000000000));
+            carry /= 1000000000;
+        }
+    };
+    int scale = 0;   // the value is the whole number times 10^-scale
+    if (exp2 >= 0) {
+        for (int left = exp2; left > 0;) {
+            const int step = std::min(left, 29);
+            multiply(quint64(1) << step);
+            left -= step;
+        }
+    } else {
+        scale = -exp2;
+        for (int left = scale; left > 0;) {
+            const int step = std::min(left, 13);
+            quint64 f = 1;
+            for (int i = 0; i < step; ++i) f *= 5;
+            multiply(f);
+            left -= step;
+        }
+    }
     QByteArray digits;
-    digits.reserve(22);
-    digits.append(s[0]);
-    digits.append(s.mid(2, e - 2));
-    int exp = s.mid(e + 1).toInt();
+    digits.reserve(int(limbs.size()) * 9);
+    digits.append(QByteArray::number(limbs.back()));
+    for (int i = int(limbs.size()) - 2; i >= 0; --i) {
+        const QByteArray part = QByteArray::number(limbs[size_t(i)]);
+        digits.append(QByteArray(9 - int(part.size()), '0'));
+        digits.append(part);
+    }
+    const int point = int(digits.size()) - scale;
     if (digits.size() > 15) {
         const bool up = digits[15] >= '5';
         digits.truncate(15);
+        int carry = point;
         if (up) {
             int i = 14;
             while (i >= 0 && digits[i] == '9') digits[i--] = '0';
@@ -59,12 +108,14 @@ void toDec(double v, Dec *d)
                 ++digits[i];
             } else {
                 digits = QByteArray("1");
-                ++exp;
+                ++carry;
             }
         }
+        d->point = carry;
+    } else {
+        d->point = point;
     }
     d->digits = digits;
-    d->point = exp + 1;
     stripZeros(d);
 }
 

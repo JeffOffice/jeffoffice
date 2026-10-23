@@ -21,7 +21,8 @@
 // Italian, Portuguese, and Dutch are known by name. Any other locale gets English names. The separators of numbers are never changed by a locale: a code
 // is always written with "." and ",", and the text it makes follows them (the reading of TEXT() in a workbook of another language is that program's).
 //
-// A value is rounded as the original does: from its 15 significant digits as decimal text, not from the binary value, so 2.675 is "2.68" with "0.00" and
+// A value is rounded as the original does: from its 15 significant digits as decimal text (one rounding of the exact value of the number, half up), not
+// from the binary value, so 2.675 is "2.68" with "0.00" and
 // a value of 15 digits or more shows zeros after the 15th. Dates and times are rounded to the least unit the code shows (a second, or the digits of
 // seconds it has; a code with no time shows the day and drops the time).
 //
