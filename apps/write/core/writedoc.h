@@ -116,6 +116,10 @@ void resetEndnoteSettleWorkForTest();
 // number of the references).
 qint64 endnoteSequenceWorkForTest();
 void resetEndnoteSequenceWorkForTest();
+// All the work the notes' bookkeeping does when the text is edited, counted in the paragraphs and places it looks at (the walks of the settling, the places of the references that are followed,
+// and the walks that find the references, the places that cite notes, and the notes touched), since the count was reset: a cost test (an edit costs what it touched, with notes or without).
+qint64 noteWorkForTest();
+void resetNoteWorkForTest();
 // How many footnote stories have been made since the count was reset: a cost test (only the notes that are shown or edited have one).
 qint64 noteStoriesMadeForTest();
 void resetNoteStoriesMadeForTest();

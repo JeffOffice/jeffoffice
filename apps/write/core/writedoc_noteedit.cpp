@@ -33,6 +33,18 @@ const QLatin1String kSettingsRel2("http://schemas.openxmlformats.org/officeDocum
 const QLatin1String kSettingsType2("application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml");
 } // namespace
 
+namespace {
+std::atomic<qint64> s_settleScans{0}, s_settleVisited{0}, s_sequenceWork{0}, s_noteWalk{0};
+} // namespace
+qint64 noteWorkForTest() { return s_settleVisited.load() + s_sequenceWork.load() + s_noteWalk.load(); }
+void resetNoteWorkForTest()
+{
+    s_settleScans = 0;
+    s_settleVisited = 0;
+    s_sequenceWork = 0;
+    s_noteWalk = 0;
+}
+
 // ---- the places that cite notes
 
 namespace {
@@ -62,7 +74,7 @@ void collectNoteReferencesInBlocks(const QVector<Block> &blocks, QSet<int> *foot
 // The references among the pieces of a story that are kept as XML (and, with `references`, the story's own reference characters too: the text's are known already).
 void collectNoteReferencesInStory(const QTextDocument *story, bool references, QSet<int> *footnotes, QSet<int> *endnotes)
 {
-    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next(), ++s_noteWalk) {
         const QTextBlockFormat bf = b.blockFormat();
         if (bf.hasProperty(prop::EndnoteBlock)) continue;   // (the endnotes the pages set: the notes are looked through themselves)
         for (const int key : {int(prop::RawBefore), int(prop::RawBlock), int(prop::RawAfter)})
@@ -186,7 +198,7 @@ void WriteDoc::indexFootnoteReferences()
 {
     if (m_footnoteRefsValid) return;
     m_footnoteRefs.clear();
-    for (QTextBlock b = story()->begin(); b.isValid(); b = b.next())
+    for (QTextBlock b = story()->begin(); b.isValid(); b = b.next(), ++s_noteWalk)
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment f = it.fragment();
             const QTextCharFormat cf = f.charFormat();
@@ -307,6 +319,7 @@ void WriteDoc::reclaimDeadNotes(bool endnotes, int keep)
     else indexFootnoteReferences();
     QHash<int, quint64> candidates;   // (the notes nothing cites, by their steps)
     for (const int id : made) {
+        ++s_noteWalk;
         const quint64 step = steps.value(id, 0);
         const bool cited = endnotes ? m_endnoteRefIndex.contains(id) : m_footnoteRefs.contains(id);
         if (id != keep && step != 0 && !cited) candidates.insert(id, step);
@@ -442,7 +455,7 @@ void WriteDoc::indexEndnoteReferences()
 {
     if (m_endnoteRefIndexValid) return;
     m_endnoteRefIndex.clear();
-    for (QTextBlock b = story()->begin(); b.isValid(); b = b.next())
+    for (QTextBlock b = story()->begin(); b.isValid(); b = b.next(), ++s_noteWalk)
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment f = it.fragment();
             const QTextCharFormat cf = f.charFormat();
@@ -511,6 +524,7 @@ void WriteDoc::captureEndnotes(const QSet<int> *only)
     };
     QHash<int, Run> runs;   // by the number of the copy
     for (QTextBlock b = d->begin(); b.isValid(); b = b.next()) {
+        ++s_noteWalk;
         if (!b.blockFormat().hasProperty(prop::EndnoteBlock)) continue;
         const int serial = b.blockFormat().intProperty(prop::EndnoteNote);
         if (serial <= 0) continue;   // (the separator, and the copies that are only shown)
@@ -536,6 +550,7 @@ void WriteDoc::touchEndnotes(int position, int removed, int added)
     const int last = std::max(0, d->characterCount() - 1);
     const QTextBlock end = d->findBlock(std::min(position + std::max(added, 0), last));
     for (QTextBlock b = d->findBlock(std::min(position, last)); b.isValid(); b = b.next()) {
+        ++s_noteWalk;
         const QTextBlockFormat bf = b.blockFormat();
         if (bf.hasProperty(prop::EndnoteBlock) && bf.intProperty(prop::EndnoteNote) != 0) m_endnoteEdited.insert(m_endnoteCopyIds.value(std::abs(bf.intProperty(prop::EndnoteNote))));
         if (b == end) break;
@@ -638,9 +653,6 @@ QTextCharFormat WriteDoc::endnoteReferenceFormat(int id, const QString &paragrap
 }
 
 // The notes that the text's references name, and those the pages set, each in order of the references: when they are not the same the notes are set again.
-namespace {
-std::atomic<qint64> s_settleScans{0}, s_settleVisited{0}, s_sequenceWork{0};
-} // namespace
 qint64 endnoteSequenceWorkForTest() { return s_sequenceWork.load(); }
 void resetEndnoteSequenceWorkForTest() { s_sequenceWork = 0; }
 
@@ -666,7 +678,7 @@ QVector<WriteDoc::EndnoteSeqEntry> WriteDoc::endnoteReferencesIn(int from, int t
     const int end = d->characterCount();
     from = std::clamp(from, 0, end);
     to = std::clamp(to, from, end);
-    for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next())
+    for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next(), ++s_noteWalk)
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment f = it.fragment();
             if (f.position() + f.length() <= from) continue;

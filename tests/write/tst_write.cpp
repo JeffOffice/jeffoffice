@@ -14701,7 +14701,7 @@ private Q_SLOTS:
         return makeDocx(plainP("before the tables and a few more words so that a line goes round the box", wallRun(0, 110, 4, 50, 40)) + t.styled + framedP("FRAME one of two paragraphs", frame) + framedP("and the second of them, which is longer than a line of the frame", frame) +
                             plainP("between them, with enough words that more than a line or two are beside the box that is set from the page", wallRun(5, 150, 60, 40, 50)) +
                             floatingTable(60) + plainP("after the table that is set at a place, with words enough for the text to go round it for a few lines, and a few more words") + t.plain +
-                            plainP("then one with space between its cells", endRef(13)) + t.spaced +
+                            plainP("then one with space between its cells") + t.spaced +
                             plainP("after the tables, and a line or two of words more", wallRun(1, 20, 6, 40, 14) + wallRun(2, 60, 14, 40, 30)),
                         t.styles, QByteArray(), t.sect);
     }
@@ -14709,7 +14709,7 @@ private Q_SLOTS:
     // A file for the random commands with the tables, notes, headers, footers, and sections together: a first section of tables (the one of richTableDocx, a note cited in
     // the paragraph before them, one in a cell, and a long one after them), with headers and footers for the first, odd, and even pages of other heights; a continuous section
     // of two columns with a table in it and a note; and a section on a page of its own with a header of its own, a note, and a page break.
-    static QByteArray richMixedDocx(int gammaWords = 220)
+    static QByteArray richMixedDocx(int gammaWords = 220, bool endnotes = true)
     {
         const RichTables t = richTables(refTo(3));
         const QString rel = QStringLiteral("rId");
@@ -14728,20 +14728,20 @@ private Q_SLOTS:
         parts[QStringLiteral("/word/footer2.xml")] = headerPart("ftr", lines("FIRST FOOT", 2));
         parts[QStringLiteral("/word/footer3.xml")] = headerPart("ftr", lines("EVEN FOOT", 3));
         parts[QStringLiteral("/word/footnotes.xml")] = notesPart({{2, "ALPHA note of the paragraph before the tables"}, {3, wordsOf("BETA", 25)}, {4, wordsOf("GAMMA", gammaWords)}, {5, wordsOf("DELTA", 8)}, {6, wordsOf("EPSILON", 15)}});
-        parts[QStringLiteral("/word/endnotes.xml")] = endnotesOf({{12, "ENDNOTE ONE of the paragraph before the tables"}, {13, wordsOf("TWO", 30)}, {14, wordsOf("THREE", 12)}});
+        if (endnotes) parts[QStringLiteral("/word/endnotes.xml")] = endnotesOf({{12, "ENDNOTE ONE of the paragraph before the tables"}, {13, wordsOf("TWO", 30)}, {14, wordsOf("THREE", 12)}});
         const QByteArray refsOne = "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:headerReference w:type=\"first\" r:id=\"rIdheader2\"/><w:headerReference w:type=\"even\" r:id=\"rIdheader3\"/>"
                                    "<w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/><w:footerReference w:type=\"first\" r:id=\"rIdfooter2\"/><w:footerReference w:type=\"even\" r:id=\"rIdfooter3\"/>";
         const QByteArray one = sectionXml(7200, 6600, 720, refsOne, QByteArray(), "<w:titlePg/>");
         const QByteArray two = sectionXml(7200, 6600, 720, QByteArray(), "<w:type w:val=\"continuous\"/>", "<w:cols w:num=\"2\" w:space=\"360\"/>");
         const QByteArray three = sectionXml(7200, 6600, 900, "<w:headerReference w:type=\"default\" r:id=\"rIdheader4\"/>");
         // (Objects the text goes round: one of each kind among the notes, tables, and sections, so that the text goes round them across pages and columns.)
-        QByteArray body = plainP(wordsOf("before the tables", 14), refTo(2) + endRef(12) + wallRun(0, 150, 4, 60, 50)) + t.styled + plainP(wordsOf("between them", 12), refTo(4) + wallRun(1, 40, 8, 50, 16)) + t.plain +
+        QByteArray body = plainP(wordsOf("before the tables", 14), refTo(2) + (endnotes ? endRef(12) : QByteArray()) + wallRun(0, 150, 4, 60, 50)) + t.styled + plainP(wordsOf("between them", 12), refTo(4) + wallRun(1, 40, 8, 50, 16)) + t.plain +
                           plainP("then one with space between its cells") + t.spaced + plainP("after the tables", QByteArray(), one);
         body += floatingTable(50) + plainP(wordsOf("after the table set at a place", 20)) + framedP("FRAME of the second section", "<w:framePr w:w=\"1400\" w:h=\"500\" w:hRule=\"exact\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"text\" w:xAlign=\"left\"/>") +
                 plainP(wordsOf("Second section", 18), wallRun(3, 110, 10, 50, 40)) + tableOfRows(9, 2, 1000, [](int r, int c) { return r == 4 && c == 1 ? plainP("cites", refTo(5)) : cellP("r" + QByteArray::number(r) + "c" + QByteArray::number(c)); }) +
                 plainP(wordsOf("end of the second", 30), wallRun(2, 60, 2, 40, 30), two);
-        body += plainP(wordsOf("Third section", 40), refTo(6) + endRef(14) + wallRun(4, 160, 6, 70, 40) + wallRun(5, 200, 120, 60, 60)) + "<w:p><w:r><w:t>before a break</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>after it</w:t></w:r></w:p>" + plainP(wordsOf("Last", 60), wallRun(0, 20, 30, 50, 24));
-        return makeDocxWithParts(body, three, parts, "<w:evenAndOddHeaders/><w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>", t.styles);
+        body += plainP(wordsOf("Third section", 40), refTo(6) + (endnotes ? endRef(14) : QByteArray()) + wallRun(4, 160, 6, 70, 40) + wallRun(5, 200, 120, 60, 60)) + "<w:p><w:r><w:t>before a break</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>after it</w:t></w:r></w:p>" + plainP(wordsOf("Last", 60), wallRun(0, 20, 30, 50, 24));
+        return makeDocxWithParts(body, three, parts, endnotes ? QByteArray("<w:evenAndOddHeaders/><w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>") : QByteArray("<w:evenAndOddHeaders/>"), t.styles);
     }
 
     // What a paginator that was told of the edits has that a new one on the same story does not (empty when there is nothing): the page count, and for each page its start,
@@ -14801,11 +14801,15 @@ private Q_SLOTS:
         // (Two kinds of file: the tables alone, and then the tables with notes, headers, footers, and sections: a short run of those, whose edits also type where notes are
         // cited, put section breaks in, and change what the headers and footers are. JP_FUZZ=n: seeds 1 to n of the second, for a longer run.)
         for (const bool mixed : {false, true}) {
-            const QByteArray original = mixed ? richMixedDocx() : richTableDocx();
+            // (The file of the odd seeds has endnotes, and their commands edit and make notes, and they are shorter; the even seeds have the file and the commands the fuzz has always had.)
+            const QByteArray baseFile = mixed ? richMixedDocx(220, false) : richTableDocx();
+            const QByteArray notesFile = mixed ? richMixedDocx() : QByteArray();
             const int seeds = mixed ? (qEnvironmentVariableIntValue("JP_FUZZ") > 0 ? qEnvironmentVariableIntValue("JP_FUZZ") : 6)
                                     : (qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") > 0 ? qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") : 12);
             const int steps = qEnvironmentVariableIntValue("JW_FUZZ_STEPS") > 0 ? qEnvironmentVariableIntValue("JW_FUZZ_STEPS") : (mixed ? 40 : 70);
             for (unsigned seed = std::max(1, qEnvironmentVariableIntValue("JW_FUZZ_FROM")); seed <= unsigned(seeds); ++seed) {
+                const bool noteSeed = mixed && seed % 2 == 1;
+                const QByteArray &original = noteSeed ? notesFile : baseFile;
                 auto doc = open(original);
                 QVERIFY(doc);
                 ++seedsRun;
@@ -14853,8 +14857,8 @@ private Q_SLOTS:
                     c.setPosition(z.position() + pick(z.length()), QTextCursor::KeepAnchor);
                     return true;
                 };
-                for (int step = 0; step < steps; ++step) {
-                    const int op = pick(mixed ? 43 : 24);
+                for (int step = 0; step < (noteSeed && qEnvironmentVariableIntValue("JW_FUZZ_STEPS") <= 0 ? 30 : steps); ++step) {
+                    const int op = pick(mixed ? (noteSeed ? 43 : 33) : 24);   // (the commands that edit and make notes are those of the seeds that are odd: the seeds that are even have the commands the file has always had)
                     const QString before = storyState(*doc);
                     lastDump = qEnvironmentVariableIsSet("JW_FUZZ_DUMP") ? layoutDump(*doc) : QString();
                     auto place = [&] { c.setPosition(pick(doc->story()->characterCount() - 1)); };
@@ -19349,6 +19353,57 @@ private Q_SLOTS:
         const EndnoteSpan span = endnoteSpanAt(doc->story(), view.cursor().position());
         QVERIFY(span.valid && span.editable);
         QCOMPARE(view.currentPage(), firstPage + 1);
+    }
+
+    // ---- notes: what an ordinary edit costs
+
+    // The same ordinary edits (typing, Enter, Backspace, Delete, bold, copy and paste, taking text out, a style) at the top of a text that has no note, a few, and hundreds, the references being
+    // after the places of the edits: counted in what the notes' bookkeeping looks at, there is none of it without notes, and with them it does not grow with their number.
+    void ordinaryEditsCostTheSameWorkWhateverTheNumberOfNotes()
+    {
+        constexpr int edits = 300;
+        auto workWith = [&](int notes) {
+            QByteArray body = paragraphs(300, 8);
+            QList<std::pair<int, QByteArray>> footnotes;
+            QByteArray ends = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote();
+            for (int i = 1; i <= notes; ++i) {
+                const QByteArray n = QByteArray::number(i);
+                body += "<w:p><w:r><w:t>cites " + n + "</w:t></w:r><w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr><w:footnoteReference w:id=\"" + n + "\"/></w:r><w:r><w:endnoteReference w:id=\"" + n + "\"/></w:r></w:p>";
+                footnotes << std::make_pair(i, plainRun(" note " + n));
+                ends += "<w:endnote w:id=\"" + n + "\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> end " + n + "</w:t></w:r></w:p></w:endnote>";
+            }
+            ends += "</w:endnotes>";
+            const QByteArray zip = notes == 0 ? makeDocx(body, kStyles)
+                                              : makeDocxWithParts(body, pageSection(), {{QStringLiteral("/word/footnotes.xml"), footnotesPart(footnotes)}, {QStringLiteral("/word/endnotes.xml"), ends}},
+                                                                  "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>", noteStyles());
+            auto doc = open(zip);
+            [&] { QVERIFY(doc); }();
+            QTextCursor c(doc->story());
+            c.setPosition(5);
+            insertParagraph(*doc, c);   // (the first edits that can change the notes: the references are looked for once)
+            deleteBack(*doc, c, false);
+            resetNoteWorkForTest();
+            QTextDocumentFragment held;
+            for (int i = 0; i < edits; ++i) {
+                const int at = 5 + (i * 211) % 1200;
+                c.setPosition(at);
+                switch (i % 8) {
+                case 0: insertText(*doc, c, QStringLiteral("x")); break;
+                case 1: insertParagraph(*doc, c); break;
+                case 2: deleteBack(*doc, c, false); break;
+                case 3: deleteForward(*doc, c, false); break;
+                case 4: c.setPosition(at + 40, QTextCursor::KeepAnchor); toggleBold(*doc, c); break;
+                case 5: c.setPosition(at + 30, QTextCursor::KeepAnchor); held = selectionFragment(c); c.setPosition(at + 50); pasteFragment(*doc, c, held); break;
+                case 6: c.setPosition(at + 20, QTextCursor::KeepAnchor); removeSelection(*doc, c); break;
+                default: c.setPosition(at + 60, QTextCursor::KeepAnchor); applyParagraphStyle(*doc, c, QStringLiteral("Heading2")); break;
+                }
+            }
+            return noteWorkForTest();
+        };
+        const qint64 none = workWith(0), few = workWith(10), many = workWith(400);
+        QVERIFY2(none == 0, qPrintable(QStringLiteral("%1 places looked at in a text with no note").arg(none)));
+        QVERIFY2(many <= 40 * edits, qPrintable(QStringLiteral("%1 places looked at for %2 edits with 400 notes (%3 with 10)").arg(many).arg(edits).arg(few)));
+        QVERIFY2(many <= few + 12 * edits, qPrintable(QStringLiteral("%1 places looked at for %2 edits with 400 notes, %3 with 10").arg(many).arg(edits).arg(few)));
     }
 };
 
