@@ -281,6 +281,7 @@ private:
     };
     QHash<QString, Cached> m_texts;
     qint64 m_textsBytes = 0;   // about what the texts above, their programs, and their keys take
+    std::vector<QString> m_active;   // the keys of the texts being worked out, the one inside the other
 };
 
 } // namespace jp::calc

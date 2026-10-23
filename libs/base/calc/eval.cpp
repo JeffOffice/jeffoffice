@@ -551,6 +551,8 @@ Item Machine::runProgram(const Program &p, bool)
 
 Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, int)
 {
+    // Looking a text up takes as long as it is (its key is made and hashed).
+    if (!charge(2 + qint64(text.size()) / 64)) return Item::ofError(ErrorKind::Value);
     if (nameDepth >= kMaxNameDepth) {
         if (status == EvalStatus::Ok) status = EvalStatus::TooDeep;
         return Item::ofError(ErrorKind::Ref);
@@ -559,6 +561,13 @@ Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, in
     QString key = QString(r1c1 ? QLatin1Char('R') : QLatin1Char('A')) + (relativeToA1 ? QLatin1Char('n') : QLatin1Char('t'));
     if (r1c1) key += QString::number(ctx.row) + QLatin1Char(',') + QString::number(ctx.col) + QLatin1Char(':');
     key += text;
+    // A text that is asked for while it is being worked out is a circle: a name that stands for itself, directly or through others. It is no number, and is not worked out
+    // again inside itself (a name of three uses of itself would be three to the sixteenth evaluations to the depth that stops it).
+    for (const QString &active : m_active)
+        if (active == key) {
+            if (status == EvalStatus::Ok) status = EvalStatus::TooDeep;
+            return Item::ofError(ErrorKind::Ref);
+        }
     auto it = m_texts.find(key);
     if (it == m_texts.end()) {
         if (m_texts.size() > 4096 || m_textsBytes > kMaxCachedTextBytes) {
@@ -589,7 +598,9 @@ Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, in
     const bool savedWrap = wrapRefs;
     wrapRefs = relativeToA1;
     ++nameDepth;
+    m_active.push_back(key);
     Item r = runProgram(*program, false);
+    m_active.pop_back();
     --nameDepth;
     wrapRefs = savedWrap;
     ctx.shiftRows = savedRows;
@@ -604,6 +615,7 @@ Value Machine::run(const Program &p, const EvalContext &c)
     over = false;
     status = EvalStatus::Ok;
     nameDepth = 0;
+    m_active.clear();
     unsupported = 0;
     m_clockRead = false;
     peakCells = 0;

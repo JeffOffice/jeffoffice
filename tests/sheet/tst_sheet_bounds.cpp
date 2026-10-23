@@ -147,6 +147,32 @@ private Q_SLOTS:
 
     // ---- time
 
+    // A name that stands for itself, directly or through others, is a circular reference: it is met once and gives the error such a name has always given, not a
+    // tree of three to the sixteenth evaluations of it.
+    void aNameThatRefersToItselfIsMetOnce()
+    {
+        Grid g;
+        g.name("M", "M+M+M");
+        g.name("Q", "SUM(Q,Q,Q,Q)");
+        g.name("Alpha", "Beta+Beta");
+        g.name("Beta", "Alpha+Alpha");
+        g.name("P", "P&P");
+        g.name("R", "INDIRECT(\"R\")+INDIRECT(\"R\")");
+        g.name("Chain", "Chain2*2");
+        g.name("Chain2", "Chain3*2");
+        g.name("Chain3", "5");
+        for (const char *f : {"M", "Q", "Alpha", "LEN(P)", "R", "M+Q+Alpha+Beta", "SUM(M,M,M)"}) {
+            const Outcome o = evOutcome(QString::fromLatin1(f), g, Settings(), 2000000);
+            QVERIFY2(o.text == "e:#REF!" && o.status == EvalStatus::TooDeep && o.work < 500, qPrintable(QString::fromLatin1(f) + QStringLiteral(": ") + said(o)));
+        }
+        // names that call one another without a circle are worked out as they always were
+        const Outcome chain = evOutcome("Chain+Chain", g);
+        QVERIFY2(chain.text == "n:40" && chain.status == EvalStatus::Ok, qPrintable(said(chain)));
+        // a name used twice in one formula is not a circle
+        g.name("Twice", "Chain3+1");
+        QCOMPARE(ev("Twice*Twice", g), num(36));
+    }
+
 };
 
 JP_TEST_CLASS(SheetBoundsTests)
