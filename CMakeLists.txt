@@ -192,6 +192,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_numfmt.cpp
   tests/sheet/tst_sheet_package.cpp
   tests/sheet/tst_sheet_parser.cpp
+  tests/sheet/tst_sheet_recalc.cpp
   tests/sheet/tst_sheet_workbook.cpp)
 target_link_libraries(sheettests PRIVATE jo_office Qt6::Test)
 set_target_properties(sheettests PROPERTIES WIN32_EXECUTABLE OFF)

@@ -10,6 +10,7 @@
 #include <QString>
 #include <QVector>
 
+#include <algorithm>
 #include <map>
 #include <vector>
 
@@ -112,6 +113,34 @@ public:
     {
         for (const auto &block : m_blocks)
             for (const Cell &c : block.second.cells) f(c);
+    }
+    // Calls f(cell) for each cell inside the rectangle (both ends in it), in order of row and then column; f gives false to stop. Only the rows and cells in it are
+    // looked at: a narrow range of a wide sheet costs what it holds.
+    template <class F>
+    void forEachInRange(quint32 row1, quint32 col1, quint32 row2, quint32 col2, F f) const
+    {
+        for (auto block = m_blocks.lower_bound(row1 / kBlockRows); block != m_blocks.end() && block->first * kBlockRows <= row2; ++block) {
+            const std::vector<Cell> &cells = block->second.cells;
+            const quint32 first = block->first * kBlockRows;
+            quint32 r = std::max(row1, first);
+            const quint32 last = std::min(row2, first + kBlockRows - 1);
+            auto pos = cells.begin();
+            while (r <= last && pos != cells.end()) {
+                Cell key;
+                key.row = r;
+                key.col = quint16(col1);
+                pos = std::lower_bound(pos, cells.end(), key, [](const Cell &a, const Cell &b) { return a.row != b.row ? a.row < b.row : a.col < b.col; });
+                if (pos == cells.end() || pos->row > last) break;
+                r = pos->row;
+                while (pos != cells.end() && pos->row == r && pos->col <= col2) {
+                    if (!f(*pos)) return;
+                    ++pos;
+                }
+                // the rest of this row's cells are right of the range
+                while (pos != cells.end() && pos->row == r) ++pos;
+                ++r;
+            }
+        }
     }
     int blockCount() const { return int(m_blocks.size()); }
     // What the cells take, in bytes, as the blocks hold them.

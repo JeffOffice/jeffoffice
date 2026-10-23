@@ -15,11 +15,24 @@
 //                                                line `use` for each format code the cells use (the code, how many cells with a value, 1 if it parses)
 //   jcrunchtool formats <keys.txt> <out-dir> [jobs]   runs `formats-one` on each workbook listed under the same limits as `scan`, writes <out-dir>/formats.tsv
 //                                                  and codes.tsv, and prints the share of cases that match (tools/crunch_formats.py does the work)
+//   jcrunchtool recalc-one <file.xlsx> [matches=3] [seconds=100]   every formula cell worked out once, reading what it refers to from the values the file stored, and compared with the
+//                                                result stored with it (15 digits for a number; text, true or false, and the kind of an error exactly). Lines: `row` for each cell
+//                                                that does not match (a few of each kind besides, and a few that match): sheet, cell, class (M match, X mismatch, U calls a function
+//                                                not in the registry, V volatile, E another workbook, T a table's columns, P not parsed, N no result stored, D data table, L past the
+//                                                work bound, S not reached in time), formula, stored, ours, and the functions it calls; `fn`: a function, calls, calls in cells that
+//                                                matched, cells, matched cells; `unsup`: a function not in the registry and the cells that call it; `pat`: how mismatches look and
+//                                                how many; and `book`: the formula cells, the cells of each class in the order above, the volatile ones that were worked out and
+//                                                matched, whether the workbook calculates by hand, whether every sheet was read, and the seconds
+//   jcrunchtool recalc <keys.txt> <out-dir> [jobs]   runs `recalc-one` on each workbook listed under the same limits as `scan`, writes <out-dir>/cells.tsv (workbook, sheet, cell, formula,
+//                                                  stored, ours, class: the cells that do not match, with a few that do) and books.tsv, and prints the summary: how many formula cells
+//                                                  matched, how many workbooks matched whole, how each function fared, the commonest mismatches, and the commonest unsupported
+//                                                  functions (tools/crunch_recalc.py does the work)
 
 #include "office/package.h"
 #include "calc/numfmt.h"
 #include "sheet/cellref.h"
 #include "sheet/formatcases.h"
+#include "sheet/recalc.h"
 #include "sheet/sheetreader.h"
 
 #include <QCoreApplication>
@@ -256,6 +269,45 @@ int formatsOne(const QString &path)
     return whole ? 0 : 2;
 }
 
+int recalcOne(const QString &path, int keepMatches, double seconds)
+{
+    Package package;
+    QString why;
+    if (!package.readLazyFile(path, &why)) {
+        err() << path << ": " << why << "\n";
+        return 1;
+    }
+    Workbook book;
+    if (!book.open(package, &why)) {
+        err() << path << ": " << why << "\n";
+        return 1;
+    }
+    RecalcOptions options;
+    options.keepMatches = keepMatches;
+    options.seconds = seconds;
+    RecalcReport report;
+    QHash<char, int> printed;
+    const auto each = [&](const RecalcCell &c) {
+        const char cls = char(c.cls);
+        const int cap = cls == 'X' ? 400 : cls == 'M' ? keepMatches : 25;
+        if (printed[cls]++ >= cap) return;
+        out() << "row\t" << escapeField(c.sheet) << '\t' << c.cell << '\t' << cls << '\t' << escapeField(c.formula) << '\t' << escapeField(c.stored) << '\t' << escapeField(c.ours) << '\t'
+              << c.functions.join(QLatin1Char(',')) << "\n";
+    };
+    if (!recalcWorkbook(book, options, each, &report, &why)) {
+        err() << path << ": " << why << "\n";
+        return 1;
+    }
+    for (auto it = report.functions.cbegin(); it != report.functions.cend(); ++it)
+        out() << "fn\t" << it.key() << '\t' << it.value().calls << '\t' << it.value().matchedCalls << '\t' << it.value().cells << '\t' << it.value().matchedCells << "\n";
+    for (auto it = report.unsupportedFunctions.cbegin(); it != report.unsupportedFunctions.cend(); ++it) out() << "unsup\t" << escapeField(it.key()) << '\t' << it.value() << "\n";
+    for (auto it = report.patterns.cbegin(); it != report.patterns.cend(); ++it) out() << "pat\t" << escapeField(it.key()) << '\t' << it.value() << "\n";
+    out() << "book\t" << report.formulaCells;
+    for (const char cls : {'M', 'X', 'U', 'V', 'E', 'T', 'P', 'N', 'D', 'L', 'S'}) out() << '\t' << report.byClass.value(cls);
+    out() << '\t' << report.volatileChecked << '\t' << report.volatileMatched << '\t' << (report.manualCalc ? 1 : 0) << '\t' << (report.whole ? 1 : 0) << '\t' << QString::number(report.seconds, 'f', 2) << "\n";
+    return report.whole ? 0 : 2;
+}
+
 int formats(const QString &keys, const QString &outDir, const QString &jobs)
 {
 #ifndef Q_OS_LINUX
@@ -280,6 +332,37 @@ int formats(const QString &keys, const QString &outDir, const QString &jobs)
     python.start(QStringLiteral("python3"), args);
     if (!python.waitForStarted()) {
         err() << "jcrunchtool: python3 could not be started, which formats needs\n";
+        return 1;
+    }
+    python.waitForFinished(-1);
+    return python.exitStatus() == QProcess::NormalExit ? python.exitCode() : 1;
+#endif
+}
+
+int recalc(const QString &keys, const QString &outDir, const QString &jobs)
+{
+#ifndef Q_OS_LINUX
+    Q_UNUSED(keys);
+    Q_UNUSED(outDir);
+    Q_UNUSED(jobs);
+    err() << "jcrunchtool: recalc runs on Linux only (it caps each workbook's memory with systemd-run); recalc-one works on every system.\n";
+    return 2;
+#else
+    QString script = QCoreApplication::applicationDirPath() + QStringLiteral("/../tools/crunch_recalc.py");
+#ifdef JCRUNCH_TOOLS_DIR
+    if (!QFileInfo::exists(script)) script = QStringLiteral(JCRUNCH_TOOLS_DIR) + QStringLiteral("/crunch_recalc.py");
+#endif
+    if (!QFileInfo::exists(script)) {
+        err() << "jcrunchtool: crunch_recalc.py is not beside the program\n";
+        return 1;
+    }
+    QProcess python;
+    python.setProcessChannelMode(QProcess::ForwardedChannels);
+    QStringList args = {script, QCoreApplication::applicationFilePath(), keys, outDir};
+    if (!jobs.isEmpty()) args << jobs;
+    python.start(QStringLiteral("python3"), args);
+    if (!python.waitForStarted()) {
+        err() << "jcrunchtool: python3 could not be started, which recalc needs\n";
         return 1;
     }
     python.waitForFinished(-1);
@@ -325,7 +408,9 @@ int usage()
              "       jcrunchtool scan <keys.txt> <out-dir> [jobs]\n"
              "       jcrunchtool format <code> <number> [1904]\n"
              "       jcrunchtool formats-one <file.xlsx>\n"
-             "       jcrunchtool formats <keys.txt> <out-dir> [jobs]\n";
+             "       jcrunchtool formats <keys.txt> <out-dir> [jobs]\n"
+             "       jcrunchtool recalc-one <file.xlsx> [matches=3] [seconds=100]\n"
+             "       jcrunchtool recalc <keys.txt> <out-dir> [jobs]\n";
     return 2;
 }
 
@@ -345,5 +430,7 @@ int main(int argc, char **argv)
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("format")) return formatOne(args[1], args[2], args.value(3) == QLatin1String("1904"));
     if (args.size() == 2 && args[0] == QLatin1String("formats-one")) return formatsOne(args[1]);
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("formats")) return formats(args[1], args[2], args.value(3));
+    if (args.size() >= 2 && args.size() <= 4 && args[0] == QLatin1String("recalc-one")) return recalcOne(args[1], args.value(2, QStringLiteral("3")).toInt(), args.value(3, QStringLiteral("100")).toDouble());
+    if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("recalc")) return recalc(args[1], args[2], args.value(3));
     return usage();
 }
