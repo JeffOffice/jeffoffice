@@ -522,7 +522,7 @@ private Q_SLOTS:
         // the keyboard topic's table comes from the commands themselves
         const QString keys = help::displayMarkdown(help::topic(QStringLiteral("keyboard")), &w);
         QVERIFY(!keys.contains(QLatin1String("<!--")));
-        QVERIFY(keys.contains(QLatin1String("Ctrl+O")));
+        QVERIFY2(keys.contains(QKeySequence(QKeySequence::Open).toString(QKeySequence::NativeText)), qPrintable(keys.left(2000)));   // (Ctrl+O, or the Mac's own)
     }
 
     // Closing a window that is still reading a large workbook stops the read and does not wait for it; the program goes on.
