@@ -4,7 +4,8 @@
 //
 // A code has up to four sections, split at ";": positive, negative, zero, text. A section of text that comes last (as in "m/d/yy;@") takes no numbers: the
 // sections before it do, so "m/d/yy;@" is one section for every number, with the minus sign that a code of one section has. A section may begin with a
-// condition ("[>100]", "[<=-5]", "[=0]", "[<>3]") and a color ("[Red]", "[Color12]"). It is made of
+// condition ("[>100]", "[<=-5]", "[=0]", "[<>3]") and a color ("[Red]", "[Color12]"); a value that no section takes (a code of "[>100]0.0" and the
+// value 50, or of "[>10]0;[<-10]0" and 5) can't be shown (Formatted::failed). It is made of
 //   - text: "quoted", \x for one character, the characters that need no quotes ($ - + / ( ) : ! ^ & ' ~ { } < > = and a space), "_x" for a space as wide
 //     as x, "*x" for x repeated to fill the column (see Formatted::fillAt), and "@" for the text of a text cell;
 //   - digits: 0 (a digit or 0), # (a digit or nothing), ? (a digit or a space), "." for the decimal point, "," between digits for groups of three and

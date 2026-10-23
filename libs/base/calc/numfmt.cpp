@@ -1333,8 +1333,12 @@ bool pick(const Parsed &p, double v, Pick *out)
     const int nn = p.numeric;
     out->dropSign = false;
     if (nn <= 1) {
+        // One section takes every number, unless it has a condition: then it takes what meets it (as the first of two conditioned sections does), and a
+        // condition of the negative ones ("[<0]") leaves the sign to the section.
+        const Cond &c = p.secs[0].cond;
         out->index = 0;
-        return true;
+        out->dropSign = isNegative(c);
+        return matches(c, v);
     }
     const Cond &c0 = p.secs[0].cond, &c1 = p.secs[1].cond;
     if (nn == 2) {

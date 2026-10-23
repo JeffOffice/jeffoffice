@@ -144,6 +144,29 @@ private Q_SLOTS:
         QCOMPARE(fmtText(QStringLiteral("m/d/yy;@"), QStringLiteral("abc")), QStringLiteral("abc"));
     }
 
+    // One section with a condition takes the numbers that meet it and no others, as the first of two conditioned sections does: the rest can't be shown.
+    void aSingleConditionedSectionTakesWhatMatches()
+    {
+        const C cases[] = {
+            {"[>100]0.0", 150, "150.0"},
+            {"[>=100]0.0", 100, "100.0"},
+            {"[<0]0.0", -5, "5.0"},
+            {"[=0]\"zero\"", 0, "zero"},
+            {"[<>5]0", 4, "4"},
+            {"[>100]0.0;@", 150, "150.0"},
+            {"[Red][>100]0", 150, "150"},
+        };
+        CHECK_ALL(cases);
+        for (const char *code : {"[>100]0.0", "[>=100]0.0", "[<0]0.0", "[=0]\"zero\"", "[<>5]0", "[>100]0.0;@", "[Red][>100]0"}) {
+            const double miss = QString::fromLatin1(code).contains(QLatin1String("<>")) ? 5 : QString::fromLatin1(code).contains(QLatin1String("[=0]")) ? 1 : QString::fromLatin1(code).contains(QLatin1String("[<0]")) ? 5 : 50;
+            const Formatted f = NumberFormat(QString::fromLatin1(code)).format(miss);
+            QVERIFY2(f.failed && f.text.isEmpty(), code);
+        }
+        // Without a condition one section takes everything, and two conditioned sections that miss fail as before.
+        QCOMPARE(fmt(QStringLiteral("0.0"), -50), QStringLiteral("-50.0"));
+        QVERIFY(NumberFormat(QStringLiteral("[>10]0;[<-10]0")).format(5).failed);
+    }
+
     // [Red], [Blue], ..., [Color1] to [Color56] come back as the palette number; the RGB of each is known.
     void colors()
     {
