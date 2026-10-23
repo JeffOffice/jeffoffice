@@ -5,6 +5,7 @@
 #include <QRawFont>
 #include <QFontInfo>
 #include <QFontMetricsF>
+#include "core/fonts.h"
 #include "sheethelpers.h"
 
 #include "grid/painter.h"
@@ -182,6 +183,10 @@ class GridPaintTests : public QObject {
     Q_OBJECT
 
 private Q_SLOTS:
+    // The program's own fonts and their stand-ins, as JeffCrunch loads them at its start: without them a computer with no Calibri (and, under the offscreen platform on
+    // Windows, with no fonts at all) draws every letter as wide as the font is tall.
+    void initTestCase() { jp::initCore(); }
+
     // The gridlines are the last pixel of each cell's right and bottom, and a fill covers the cell whole, so a filled cell has none; with gridlines off there are none.
     void gridlinesAreTheLastPixelAndAFillCoversThem()
     {
