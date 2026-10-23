@@ -110,6 +110,7 @@ Value fnRept(Call &c)
     if (n < 0) return c.error(ErrorKind::Value);
     if (s.isEmpty() || n == 0) return Value::text(QString());
     if (double(s.size()) * n > kMaxValueTextChars) return c.error(ErrorKind::Value);
+    if (!c.machine().charge(qint64(double(s.size()) * n) / 64)) return c.error(ErrorKind::Value);   // (making it takes as long as it is)
     return Value::text(s.repeated(int(n)));
 }
 
@@ -125,8 +126,23 @@ Value fnSubstitute(Call &c)
         if (instance < 1) return c.error(ErrorKind::Value);
     }
     if (from.isEmpty()) return Value::text(s);
-    QString out;
+    // The length of what it will be, found before it is made: a text that would pass a cell is no result, and is not made to be told so.
+    qint64 length = s.size();
     int pos = 0, found = 0;
+    for (;;) {
+        const int at = s.indexOf(from, pos, Qt::CaseSensitive);
+        if (at < 0) break;
+        ++found;
+        if (!one || double(found) == instance) length += qint64(to.size()) - from.size();
+        if (length > kMaxValueTextChars || !c.machine().charge(1)) return c.error(ErrorKind::Value);
+        pos = at + from.size();
+        if (one && double(found) == instance) break;
+    }
+    if (!c.machine().charge(length / 64)) return c.error(ErrorKind::Value);   // (making it takes as long as it is)
+    QString out;
+    out.reserve(int(length));
+    pos = 0;
+    found = 0;
     for (;;) {
         const int at = s.indexOf(from, pos, Qt::CaseSensitive);
         if (at < 0) break;
@@ -134,13 +150,11 @@ Value fnSubstitute(Call &c)
         out += s.mid(pos, at - pos);
         if (!one || double(found) == instance) out += to;
         else out += from;
-        // (a text of more than a cell holds is no result: it is not made longer to be told so)
-        if (out.size() > kMaxValueTextChars || !c.machine().charge(1)) return c.error(ErrorKind::Value);
         pos = at + from.size();
         if (one && double(found) == instance) break;
     }
     out += s.mid(pos);
-    return textResult(out);
+    return Value::text(out);
 }
 
 // ---- finding

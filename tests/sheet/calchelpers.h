@@ -79,6 +79,7 @@ struct Outcome {
     jp::calc::EvalStatus status = jp::calc::EvalStatus::Ok;
     qint64 work = 0;
     qint64 peakCells = 0;
+    qint64 textChars = 0;   // the characters of text made as the elements of arrays
 };
 Outcome evOutcome(const QString &formula, const Grid &grid, const Settings &settings = Settings(), qint64 limit = 0);
 // What an outcome says in one line, for a failure to show; with the megabytes the process grew by, if they are known (not -1).

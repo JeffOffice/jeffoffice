@@ -80,6 +80,8 @@ public:
     qint64 work() const;
     // The most cells of arrays the last evaluation had alive at once.
     qint64 peakArrayCells() const;
+    // The characters of text the last evaluation made as the elements of arrays (counted before they are made; never more than kMaxMadeTextChars).
+    qint64 madeTextChars() const;
     void setWorkLimit(qint64 steps);
     // The numbers RAND gives follow from this.
     void seedRandom(quint64 seed);

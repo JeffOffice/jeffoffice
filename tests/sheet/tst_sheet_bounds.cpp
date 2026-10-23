@@ -93,6 +93,34 @@ private Q_SLOTS:
         QVERIFY2(some.text == "n:32000000" && some.status == EvalStatus::Ok, qPrintable(said(some)));
     }
 
+    // Text made as the elements of an array is charged before it is made, so what is counted is never more than the budget: the element that would pass it is not made.
+    void textIsChargedBeforeItIsMade()
+    {
+        Grid g;
+        QVariantList cells;
+        const QString big(16000, QLatin1Char('x'));
+        for (int i = 0; i < 8000; ++i) cells << big;
+        g.column("A1", cells);
+        g.s("B1", QString(32767, QLatin1Char('a')));
+        const Outcome joined = evOutcome("SUMPRODUCT(LEN(A1:A8000&A1:A8000))", g);
+        QVERIFY2(joined.status == EvalStatus::TooLarge && joined.textChars <= kMaxMadeTextChars && joined.textChars > kMaxMadeTextChars - 32001, qPrintable(said(joined)));
+        // the same through a function of one value made for each element
+        Settings array;
+        array.array = true;
+        const Outcome upper = evOutcome("SUMPRODUCT(LEN(UPPER(A1:A8000&A1:A8000)))", g, array);
+        QVERIFY2(upper.status == EvalStatus::TooLarge && upper.textChars <= kMaxMadeTextChars, qPrintable(said(upper)));
+        // and a text made on its own is charged by its size (a step for every 64 characters) as it is made: a join, a repeat, and a substitution
+        const Outcome join = evOutcome("LEN(A1&A1)", g);
+        QVERIFY2(join.text == "n:32000" && join.work >= 32000 / 64, qPrintable(said(join)));
+        const Outcome repeat = evOutcome("LEN(REPT(\"a\",32767))", g);
+        QVERIFY2(repeat.text == "n:32767" && repeat.work >= 32767 / 64, qPrintable(said(repeat)));
+        const Outcome substituted = evOutcome("LEN(SUBSTITUTE(B1,\"a\",\"b\"))", g);
+        QVERIFY2(substituted.text == "n:32767" && substituted.work >= 32767 / 64, qPrintable(said(substituted)));
+        // one that would pass a cell is refused without being made, and without being charged for
+        const Outcome refused = evOutcome("LEN(SUBSTITUTE(B1,\"a\",\"bb\"))", g);
+        QVERIFY2(refused.text == "e:#VALUE!" && refused.work < 32767 / 64, qPrintable(said(refused)));
+    }
+
     // SUBSTITUTE stops as the text it makes passes what a cell holds; it does not make a gigabyte and then look.
     void substituteStopsWhereACellEnds()
     {

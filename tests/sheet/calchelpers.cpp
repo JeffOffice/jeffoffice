@@ -172,13 +172,14 @@ Outcome evOutcome(const QString &formula, const Grid &grid, const Settings &sett
     out.status = evaluator.status();
     out.work = evaluator.work();
     out.peakCells = evaluator.peakArrayCells();
+    out.textChars = evaluator.madeTextChars();
     return out;
 }
 
 QString said(const Outcome &o, qint64 growthMegabytes)
 {
     static const char *const statuses[] = {"Ok", "TooMuchWork", "TooLarge", "TooDeep"};
-    QString s = QStringLiteral("%1 (status %2, work %3, most cells held %4").arg(o.text.left(40), QLatin1String(statuses[int(o.status)])).arg(o.work).arg(o.peakCells);
+    QString s = QStringLiteral("%1 (status %2, work %3, most cells held %4, text made %5").arg(o.text.left(40), QLatin1String(statuses[int(o.status)])).arg(o.work).arg(o.peakCells).arg(o.textChars);
     if (growthMegabytes >= 0) s += QStringLiteral(", memory grew %1 MB").arg(growthMegabytes);
     return s + QLatin1Char(')');
 }

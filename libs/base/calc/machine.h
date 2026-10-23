@@ -219,11 +219,15 @@ public:
         over = true;
         status = EvalStatus::TooLarge;
     }
-    // Counts the characters of a text made as an element of an array; false when the evaluation has made more than it may (then stopped() is true).
+    // Counts the characters of a text about to be made as an element of an array; false when that would be more than the evaluation may make (then stopped() is true).
+    // Called before the text is made: one that would pass the budget is not made, and is not counted.
     bool chargeText(qint64 chars)
     {
+        if (textMade + chars > kMaxMadeTextChars) {
+            if (!over) tooLarge();
+            return false;
+        }
         textMade += chars;
-        if (textMade > kMaxMadeTextChars && !over) tooLarge();
         return charge(chars / 64);   // (making it takes time too)
     }
     // An array of rows by columns, empty: or, if it may not be made, the error #VALUE! and the evaluation is stopped.

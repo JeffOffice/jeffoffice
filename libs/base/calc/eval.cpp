@@ -195,7 +195,9 @@ Item Machine::unaryOp(Op op, quint8 flags, const Item &item)
 
 namespace {
 
-Value scalarBinary(Op op, const Value &a, const Value &b, bool final, DateSystem system)
+// One operation on two values. A text a join makes is charged before it is made: by its size as an element of an array (`element`, with the budget for the text of
+// arrays), else as a step for every 64 characters.
+Value scalarBinary(Op op, const Value &a, const Value &b, bool final, DateSystem system, Machine *machine = nullptr, bool element = false)
 {
     switch (op) {
     case Op::Add: case Op::Sub: case Op::Mul: case Op::Div: case Op::Pow: {
@@ -232,7 +234,9 @@ Value scalarBinary(Op op, const Value &a, const Value &b, bool final, DateSystem
         ErrorKind e = ErrorKind::Value;
         if (!coerceText(a, &x, &e)) return Value::error(e);
         if (!coerceText(b, &y, &e)) return Value::error(e);
-        if (qint64(x.size()) + y.size() > kMaxValueTextChars) return Value::error(ErrorKind::Value);
+        const qint64 size = qint64(x.size()) + y.size();
+        if (size > kMaxValueTextChars) return Value::error(ErrorKind::Value);
+        if (machine && !(element ? machine->chargeText(size) : machine->charge(size / 64))) return Value::error(ErrorKind::Value);
         return Value::text(x + y);
     }
     default: {
@@ -258,7 +262,7 @@ Item Machine::binary(Op op, quint8 flags, const Item &ia, const Item &ib)
     const bool keep = flags & kInstrArray;
     const Value a = scalar(ia, keep);
     const Value b = scalar(ib, keep);
-    if (!a.isArray() && !b.isArray()) return Item::ofValue(scalarBinary(op, a, b, flags & kInstrFinal, ctx.dateSystem));
+    if (!a.isArray() && !b.isArray()) return Item::ofValue(scalarBinary(op, a, b, flags & kInstrFinal, ctx.dateSystem, this));
     const int rows = std::max(a.rows(), b.rows()), cols = std::max(a.cols(), b.cols());
     if (qint64(rows) * cols > kMaxArrayCells) {
         tooLarge();
@@ -271,8 +275,8 @@ Item Machine::binary(Op op, quint8 flags, const Item &ia, const Item &ib)
         for (int j = 0; j < cols; ++j) {
             const Value &x = a.at(a.rows() == 1 ? 0 : i, a.cols() == 1 ? 0 : j);
             const Value &y = b.at(b.rows() == 1 ? 0 : i, b.cols() == 1 ? 0 : j);
-            const Value e = scalarBinary(op, x, y, false, ctx.dateSystem);
-            if (!charge(0) || (e.isText() && !chargeText(e.text().size()))) return Item::ofError(ErrorKind::Value);   // (the steps of comparing texts count here)
+            const Value e = scalarBinary(op, x, y, false, ctx.dateSystem, this, true);
+            if (!charge(0)) return Item::ofError(ErrorKind::Value);   // (the steps of comparing texts count here)
             r.set(i, j, e);
         }
     return Item::ofValue(r);
@@ -672,6 +676,7 @@ EvalStatus Evaluator::status() const { return d->machine.status; }
 int Evaluator::unsupportedKinds() const { return d->machine.unsupported; }
 qint64 Evaluator::work() const { return d->machine.work; }
 qint64 Evaluator::peakArrayCells() const { return d->machine.peakCells; }
+qint64 Evaluator::madeTextChars() const { return d->machine.textMade; }
 void Evaluator::setWorkLimit(qint64 steps) { d->machine.limit = steps; }
 void Evaluator::seedRandom(quint64 seed) { d->machine.rng.seed(seed); }
 
