@@ -44,6 +44,9 @@ namespace { std::atomic<qint64> s_endnoteParagraphsMade{0}; }
 qint64 endnoteParagraphsMadeForTest() { return s_endnoteParagraphsMade.load(); }
 void resetEndnoteParagraphsMadeForTest() { s_endnoteParagraphsMade = 0; }
 void resetStyleRefParagraphsScannedForTest() { s_styleRefParagraphs = 0; }
+namespace { std::atomic<qint64> s_noteStoriesMade{0}; }
+qint64 noteStoriesMadeForTest() { return s_noteStoriesMade.load(); }
+void resetNoteStoriesMadeForTest() { s_noteStoriesMade = 0; }
 
 QString NoteFields::styleRefText(const QString &style, const QString &switches, int from, int to) const
 {
@@ -181,7 +184,8 @@ void WriteDoc::loadEndnotes()
     if (m_endnotePart.isEmpty()) return;
     m_endnotesPart = NotesPart::Unusable;
     QVector<NotePart> notes;
-    if (!partExists(m_endnotePart) || !office::wml::readNotes(partData(m_endnotePart), &notes)) return;
+    m_endnotePartHighest = 0;
+    if (!partExists(m_endnotePart) || !office::wml::readNotes(partData(m_endnotePart), &notes, &m_endnotePartHighest)) return;
     m_endnotesPart = NotesPart::Readable;
     for (NotePart &n : notes) {
         if (n.type.isEmpty() || n.type == QLatin1String("normal")) {
@@ -473,7 +477,8 @@ void WriteDoc::loadNotes()
     if (part.isEmpty()) return;
     QVector<NotePart> notes;
     m_footnotesPart = NotesPart::Unusable;
-    if (!partExists(part) || !office::wml::readNotes(partData(part), &notes)) return;
+    m_footnotePartHighest = 0;
+    if (!partExists(part) || !office::wml::readNotes(partData(part), &notes, &m_footnotePartHighest)) return;
     m_footnotesPart = NotesPart::Readable;
     for (NotePart &n : notes) {
         // (Of two notes with one Id, the first is the note: it is the one that is written back.)
@@ -640,6 +645,7 @@ const QTextDocument *WriteDoc::noteStory(const QString &id)
     watchHistory(doc.get());
     m_noteStories.insert(id, doc);
     m_noteIds.insert(doc.get(), id.mid(2).toInt());
+    ++s_noteStoriesMade;
     return doc.get();
 }
 

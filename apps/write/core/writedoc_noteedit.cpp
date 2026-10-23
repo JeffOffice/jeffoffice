@@ -18,6 +18,7 @@
 #include <QTextCursor>
 #include <QTextDocument>
 #include <algorithm>
+#include <atomic>
 
 using namespace jp::office;
 using namespace jp::office::wml;
@@ -126,11 +127,21 @@ int WriteDoc::nextFootnoteId()
     QSet<int> used;
     for (auto it = m_noteBlocks.cbegin(); it != m_noteBlocks.cend(); ++it) used.insert(it.key().mid(2).toInt());
     for (auto it = m_footnoteRefs.cbegin(); it != m_footnoteRefs.cend(); ++it) used.insert(it.key());
-    int highest = 0;
+    int highest = m_footnotePartHighest;   // (above the Id of every element of the part: the separators have Ids as the notes have)
     for (const int id : std::as_const(used)) highest = std::max(highest, id);
     if (highest < 1'000'000'000) return highest + 1;
-    for (int id = 1;; ++id)
+    for (int id = m_footnotePartHighest + 1;; ++id)
         if (!used.contains(id)) return id;
+}
+
+bool WriteDoc::roomForFootnote() { return m_footnotesPart != NotesPart::Unusable && int(m_noteBlocks.size()) < kMostNoteStories; }
+
+bool WriteDoc::roomForEndnote()
+{
+    if (m_endnotesPart == NotesPart::Unusable || int(m_endnoteBlocks.size()) >= kMostNoteStories) return false;
+    for (const RawChild &ch : m_last.extra)
+        if (ch.xml.contains("noEndnote")) return false;
+    return true;
 }
 
 int WriteDoc::makeFootnote()
@@ -345,13 +356,13 @@ void WriteDoc::activateEndnotes()
 int WriteDoc::nextEndnoteId()
 {
     indexEndnoteReferences();
-    int highest = 0;
+    int highest = m_endnotePartHighest;   // (above the Id of every element of the part)
     QSet<int> used;
     for (auto it = m_endnoteBlocks.cbegin(); it != m_endnoteBlocks.cend(); ++it) used.insert(it.key().toInt());
     for (auto it = m_endnoteRefIndex.cbegin(); it != m_endnoteRefIndex.cend(); ++it) used.insert(it.key());
     for (const int id : std::as_const(used)) highest = std::max(highest, id);
     if (highest < 1'000'000'000) return highest + 1;
-    for (int id = 1;; ++id)
+    for (int id = m_endnotePartHighest + 1;; ++id)
         if (!used.contains(id)) return id;
 }
 
@@ -411,6 +422,17 @@ QTextCharFormat WriteDoc::endnoteReferenceFormat(int id, const QString &paragrap
 }
 
 // The notes that the text's references name, and those the pages set, each in order of the references: when they are not the same the notes are set again.
+namespace {
+std::atomic<qint64> s_settleScans{0}, s_settleVisited{0};
+} // namespace
+qint64 endnoteSettleScansForTest() { return s_settleScans.load(); }
+qint64 endnoteSettleVisitedForTest() { return s_settleVisited.load(); }
+void resetEndnoteSettleWorkForTest()
+{
+    s_settleScans = 0;
+    s_settleVisited = 0;
+}
+
 void WriteDoc::settleEndnotes()
 {
     if (m_endnotesPart != NotesPart::Readable || m_syncing || m_buildingEndnotes || m_endnoteCapped) return;
@@ -418,7 +440,9 @@ void WriteDoc::settleEndnotes()
         if (ch.xml.contains("noEndnote")) return;
     QTextDocument *d = story();
     QVector<int> refs, tails;
+    ++s_settleScans;
     for (QTextBlock b = d->begin(); b.isValid(); b = b.next()) {
+        ++s_settleVisited;
         for (QTextBlock::iterator it = b.begin(); !it.atEnd() && refs.size() < kMostEndnotes; ++it) {
             const QTextCharFormat cf = it.fragment().charFormat();
             if (!cf.hasProperty(prop::Atom) || cf.hasProperty(prop::TrackedDeleted)) continue;

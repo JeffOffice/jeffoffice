@@ -107,6 +107,14 @@ constexpr int kMostEndnotes = 5000;
 constexpr int kMostNoteStories = 5000;
 qint64 endnoteParagraphsMadeForTest();
 void resetEndnoteParagraphsMadeForTest();
+// How many walks over the whole story the endnotes' settling has made (to see whether the notes the references name are those the pages set), and how many paragraphs it has looked at in
+// all, since the count was reset: a cost test (an edit that touches no reference costs neither).
+qint64 endnoteSettleScansForTest();
+qint64 endnoteSettleVisitedForTest();
+void resetEndnoteSettleWorkForTest();
+// How many footnote stories have been made since the count was reset: a cost test (only the notes that are shown or edited have one).
+qint64 noteStoriesMadeForTest();
+void resetNoteStoriesMadeForTest();
 
 class WriteDoc : public QObject {
     Q_OBJECT
@@ -202,6 +210,12 @@ public:
     // 0 where none can be made (the document has the most notes, or its notes part is one the program cannot add to). A note is the document's only while the text cites it:
     // one whose last reference was taken out is not written, and one whose reference comes back (an undo, a paste of what was cut) is again.
     int makeFootnote();
+    // Whether a footnote or an endnote can be made now (the document is not one with the most notes, and its part is one the program can add to).
+    bool roomForFootnote();
+    bool roomForEndnote();
+    // How many notes of each kind the document holds (a test of what undone notes leave).
+    int heldFootnotesForTest() const { return int(m_noteBlocks.size()); }
+    int heldEndnotesForTest() const { return int(m_endnoteBlocks.size()); }
     // A copy of a footnote as a note of its own (what a pasted copy of a reference cites): its Id, 0 for none.
     int duplicateFootnote(int id);
     // The look and the pieces of a reference to footnote `id`: its character format (the reference character style over the look of a paragraph of this style), to put
@@ -392,6 +406,7 @@ private:
     // Editing the notes (writedoc_noteedit.cpp)
     QHash<const QTextDocument *, int> m_noteIds;                      // the footnote each of those stories is (its w:id)
     QVector<QTextDocument *> m_dirtyNotes;                            // the stories of the notes that were edited, which another story's edit seals
+    int m_footnotePartHighest = 0;                                    // the highest Id of any element of the file's footnotes part (a new note takes one above it)
     QSet<int> m_createdFootnotes;                                     // the footnotes made since the document was read (written while the text cites them)
     QSet<int> m_footnotesCitedAtOpen;                                 // those of the file the text cited when it was read (one whose last reference was taken out is not written)
     enum class NotesPart { Absent, Readable, Unusable };
@@ -403,6 +418,7 @@ private:
     // The endnotes (writedoc_noteedit.cpp)
     QHash<int, int> m_endnoteCopyIds;                                 // the Id of the note each copy that the pages set is a copy of (by the number EndnoteNote gives it)
     int m_nextEndnoteSerial = 1;
+    int m_endnotePartHighest = 0;                                     // the same for the endnotes part
     QSet<int> m_createdEndnotes, m_endnotesCitedAtOpen, m_endnoteEdited;   // made since the document was read; cited by its text when it was read; edited (some of its paragraphs were touched) since
     QHash<int, QByteArray> m_endnoteOriginal;                         // the file's notes, by Id: a fingerprint of the blocks as read (to tell a note that was touched and is as it was)
     NotesPart m_endnotesPart = NotesPart::Absent;

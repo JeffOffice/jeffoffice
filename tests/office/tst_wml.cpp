@@ -1194,6 +1194,33 @@ private Q_SLOTS:
         QVERIFY(notesPartXml("<w:footnotes", false, change).isEmpty());
     }
 
+    // The notes of a part are matched by their Id and their type both: where a separator is numbered as a note is (a continuation separator and a note with one Id), the note is the
+    // one that is rewritten or left out, and the separator is the bytes it was.
+    void aNotesPartIsWrittenOnTheIdAndTheTypeBoth()
+    {
+        auto show = [](const QByteArray &x) { return QString::fromUtf8(x).replace(QLatin1Char('\r'), QLatin1Char(' ')).replace(QLatin1Char('\n'), QLatin1Char(' ')); };
+        const QByteArray one = R"(<w:footnote w:type="separator" w:id="0"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>)";
+        const QByteArray two = R"(<w:footnote w:type="continuationSeparator" w:id="1"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>)";
+        const QByteArray note1 = R"(<w:footnote w:id="1"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>one</w:t></w:r></w:p></w:footnote>)";
+        const QByteArray note0 = R"(<w:footnote w:id="0"><w:p><w:r><w:t>zero</w:t></w:r></w:p></w:footnote>)";
+        const QByteArray original = xmlDoc(QByteArray("<w:footnotes ") + kW + ">" + one + two + note1 + note0 + "</w:footnotes>");
+        auto paragraph = [](const char *text) {
+            QVector<Block> blocks;
+            readBlocks(QByteArray("<w:ftr ") + kW + "><w:p><w:r><w:t>" + text + "</w:t></w:r></w:p></w:ftr>", &blocks);
+            return blocks;
+        };
+        NotesChange replace;
+        replace.replaced.insert(1, paragraph("ONE"));
+        const QByteArray out = notesPartXml(original, false, replace);
+        QVERIFY2(out.contains(one + two), qPrintable(show(out)));
+        QVERIFY2(out.contains("<w:footnote w:id=\"1\"><w:p><w:r><w:t xml:space=\"preserve\">ONE</w:t></w:r></w:p></w:footnote>"), qPrintable(show(out)));
+        QVERIFY2(out.contains(note0), qPrintable(show(out)));
+        NotesChange gone;
+        gone.removed.insert(0);
+        const QByteArray left = notesPartXml(original, false, gone);
+        QVERIFY2(left.contains(one + two) && left.contains(note1) && !left.contains("zero"), qPrintable(show(left)));
+    }
+
     // A notes part that is new has its separator and its continuation separator, as the program that reads it expects, and the notes made.
     void aNewNotesPartHasItsSeparators()
     {

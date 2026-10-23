@@ -18468,6 +18468,81 @@ private Q_SLOTS:
         QCOMPARE(doc->pager().pageOfPosition(view.cursor().position()), page);
     }
 
+    // ---- notes: the Ids of a part
+
+    // The separator and the continuation separator of a notes part, with the Ids given (producers number them as they like).
+    static QByteArray separatorsAt(const char *tag, int separator, int continuation)
+    {
+        const QByteArray t(tag);
+        return "<w:" + t + " w:type=\"separator\" w:id=\"" + QByteArray::number(separator) + "\"><w:p><w:r><w:separator/></w:r></w:p></w:" + t + ">" +
+               "<w:" + t + " w:type=\"continuationSeparator\" w:id=\"" + QByteArray::number(continuation) + "\"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:" + t + ">";
+    }
+
+    // The elements of a notes part, each as its type and its Id ("separator:0", "normal:2").
+    static QStringList noteElementsOf(const QByteArray &part, const char *tag)
+    {
+        QStringList out;
+        QXmlStreamReader xml(part);
+        xml.setNamespaceProcessing(false);
+        while (!xml.atEnd()) {
+            xml.readNext();
+            if (!xml.isStartElement() || xml.qualifiedName() != QLatin1String("w:") + QLatin1String(tag)) continue;
+            const QString type = xml.attributes().value(QStringLiteral("w:type")).toString();
+            out << (type.isEmpty() ? QStringLiteral("normal") : type) + QLatin1Char(':') + xml.attributes().value(QStringLiteral("w:id")).toString();
+        }
+        return out;
+    }
+
+    // A part with separators at Ids 0 and 1 and no note: a note made in it takes an Id above them, the separators are as the file had them, and the note is edited again after the file is
+    // read again, with the words of the separators untouched.
+    void aNewNoteTakesAnIdAboveEveryIdOfItsPartTheSeparatorsToo()
+    {
+        for (const bool endnotes : {false, true}) {
+            const char *tag = endnotes ? "endnote" : "footnote";
+            const QString name = endnotes ? QStringLiteral("/word/endnotes.xml") : QStringLiteral("/word/footnotes.xml");
+            const QByteArray part = QByteArray("<w:") + (endnotes ? "endnotes " : "footnotes ") + kNs + ">" + separatorsAt(tag, 0, 1) + (endnotes ? "</w:endnotes>" : "</w:footnotes>");
+            const QByteArray zip = makeDocxWithParts("<w:p><w:r><w:t>One paragraph of text</w:t></w:r></w:p>", pageSection(), {{name, part}}, endnotes ? QByteArray("<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>") : QByteArray(), noteStyles());
+            auto doc = open(zip);
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            c.setPosition(5);
+            int id = 0;
+            if (endnotes) {
+                QVERIFY(insertEndnote(*doc, c));
+                QVERIFY(doc->endnoteIdOf(c.block(), &id));
+                typeText(*doc, c, QStringLiteral("typed"));
+            } else {
+                QTextDocument *note = insertFootnote(*doc, c);
+                QVERIFY(note);
+                QVERIFY(doc->footnoteIdOf(note, &id));
+                typeAtEnd(*doc, note, QStringLiteral("typed"));
+            }
+            QVERIFY2(id >= 2, qPrintable(QStringLiteral("%1: the new note is Id %2").arg(QLatin1String(tag)).arg(id)));
+            const QByteArray saved = doc->toDocx();
+            const QByteArray written = partOf(saved, name);
+            QCOMPARE(noteElementsOf(written, tag), (QStringList{"separator:0", "continuationSeparator:1", QStringLiteral("normal:%1").arg(id)}));
+            QVERIFY(written.contains(separatorsAt(tag, 0, 1)));
+            // Read again, the note is edited and saved again: the separators keep their bytes and none of the words.
+            auto again = open(saved);
+            QVERIFY(again);
+            if (endnotes) {
+                int from = 0, to = 0;
+                QVERIFY(again->endnoteWords(id, &from, &to));
+                QTextCursor e(again->story());
+                e.setPosition(to);
+                typeText(*again, e, QStringLiteral("more"));
+            } else {
+                QTextDocument *note = again->editableFootnote(id);
+                QVERIFY(note);
+                QVERIFY(note->toPlainText().contains(QLatin1String("typed")));
+                typeAtEnd(*again, note, QStringLiteral("more"));
+            }
+            const QByteArray second = partOf(again->toDocx(), name);
+            QVERIFY(second.contains(separatorsAt(tag, 0, 1)));
+            QCOMPARE(noteElementsOf(second, tag), noteElementsOf(written, tag));
+            QVERIFY2(notePartText(second, tag, id).contains(QLatin1String("typedmore")), qPrintable(notePartText(second, tag, id)));
+        }
+    }
 
 
 

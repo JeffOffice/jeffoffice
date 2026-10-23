@@ -555,8 +555,9 @@ struct NotePart {
 };
 // The most notes of one part that are read (a file with more has the rest left out).
 constexpr int kMaxNotes = 20000;
-// Reads the notes of a footnotes or endnotes part. False, with nothing read, when the part isn't XML.
-bool readNotes(const QByteArray &xml, QVector<NotePart> *notes);
+// Reads the notes of a footnotes or endnotes part. False, with nothing read, when the part isn't XML. `highestId`, if given, gets the highest Id of any note the part has, the separators
+// and the notes past the most that are read among them (a new note is to have an Id above every one).
+bool readNotes(const QByteArray &xml, QVector<NotePart> *notes, int *highestId = nullptr);
 
 // What changes in a notes part (footnotes or endnotes), the notes by their Ids.
 struct NotesChange {

@@ -785,7 +785,11 @@ QByteArray notesPartXml(const QByteArray &original, bool endnotes, const NotesCh
         QSet<int> seen;   // (Of notes with one Id the first is the note: the others are kept as they were.)
         for (int c = tree.firstChild(tree.root()); c >= 0; c = tree.next(c)) {
             bool ok = false;
-            const int id = tree.is(c, tag.constData()) ? tree.attr(c, "id").toInt(&ok) : 0;
+            // (The separator, the continuation separator, and the notice have Ids as the notes have, and some producers number them as notes: only an element of no type, or of the type
+            // "normal", is the note of its Id.)
+            const QString type = tree.is(c, tag.constData()) ? tree.attr(c, "type") : QString();
+            const bool normal = type.isEmpty() || type == QLatin1String("normal");
+            const int id = tree.is(c, tag.constData()) && normal ? tree.attr(c, "id").toInt(&ok) : 0;
             if (!ok || seen.contains(id)) {
                 out += tree.raw(c);
                 continue;
