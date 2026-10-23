@@ -223,13 +223,23 @@ private Q_SLOTS:
                     if (ownIds) w->addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdX%1").arg(i), QStringLiteral("http://x/hyperlink"), QStringLiteral("https://example.com/%1").arg(i), true);
                     else w->addRelationship(QStringLiteral("/word/document.xml"), QStringLiteral("http://x/hyperlink"), QStringLiteral("https://example.com/%1").arg(i), true);
                 }
-            }, 5, [&] { w = std::make_unique<PackageWriter>(); }) / 1e6;
+            }, 1, [&] { w = std::make_unique<PackageWriter>(); }) / 1e6;
+        };
+        // The size and four times it take turns, the fastest of five rounds of each, so a load that comes or goes partway through slows
+        // both alike (timed one after the other, a busy spell over the larger size alone once made a linear writer look slow).
+        auto inTurns = [&](int links, int parts, bool ownIds) {
+            double small = std::numeric_limits<double>::max(), large = small;
+            for (int round = 0; round < 5; ++round) {
+                small = std::min(small, timeIt(links, parts, ownIds));
+                large = std::min(large, timeIt(4 * links, 4 * parts, ownIds));
+            }
+            return std::make_pair(std::max(small, 1.0), large);
         };
         for (bool ownIds : {false, true}) {
-            const double small = std::max(timeIt(5000, 0, ownIds), 1.0), large = timeIt(20000, 0, ownIds);
+            const auto [small, large] = inTurns(5000, 0, ownIds);
             QVERIFY2(large < 9 * small, qPrintable(QStringLiteral("links, own ids %1: 5,000 took %2 ms, 20,000 took %3 ms").arg(ownIds).arg(small).arg(large)));
         }
-        const double smallParts = std::max(timeIt(0, 1500, false), 1.0), largeParts = timeIt(0, 6000, false);
+        const auto [smallParts, largeParts] = inTurns(0, 1500, false);
         QVERIFY2(largeParts < 9 * smallParts, qPrintable(QStringLiteral("parts: 1,500 took %1 ms, 6,000 took %2 ms").arg(smallParts).arg(largeParts)));
     }
 
