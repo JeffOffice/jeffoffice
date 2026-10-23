@@ -13,6 +13,7 @@
 
 #include <QString>
 
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <vector>
@@ -57,13 +58,15 @@ struct EvalContext {
     // If set, every block of cells the evaluation names is added to it: what the formula's own references name (as they were worked out), what a name or a text given
     // to INDIRECT stands for, and what OFFSET and the like give. What a formula that reads where its values say it reads, is told to the dependency graph with.
     std::vector<CellArea> *touched = nullptr;
+    // If set, the evaluation stops (with the status Cancelled and an error as its value) soon after the flag is true: it is looked at as the evaluation takes its steps.
+    const std::atomic<bool> *cancel = nullptr;
 };
 
 // The clock as a day number with the time as its fraction, in the date system. A recalculation of many formulas reads it once and gives it to each as EvalContext::now,
 // so every NOW in it is the same moment.
 double clockSerial(DateSystem system);
 
-enum class EvalStatus : quint8 { Ok, TooMuchWork, TooLarge, TooDeep };
+enum class EvalStatus : quint8 { Ok, TooMuchWork, TooLarge, TooDeep, Cancelled };
 
 // An Evaluator, and a Program while it is run (it remembers which sheet each name it uses is), belong to one thread at a time.
 class Evaluator {

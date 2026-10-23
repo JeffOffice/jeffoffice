@@ -628,6 +628,7 @@ Value Machine::run(const Program &p, const EvalContext &c)
 {
     ctx = c;
     work = 0;
+    pollAt = 0;
     over = false;
     status = EvalStatus::Ok;
     nameDepth = 0;

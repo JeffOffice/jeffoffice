@@ -5,10 +5,13 @@
 
 #include "sheet/calculation.h"
 
+#include "core/threadtime.h"
+
 #include <QRandomGenerator>
 
 #include <atomic>
 #include <memory>
+#include <thread>
 
 namespace {
 
@@ -1224,6 +1227,179 @@ private Q_SLOTS:
         QCOMPARE(shown("B1"), QStringLiteral("n:10"));
         QVERIFY(settle(b).finished);
         QCOMPARE(shown("B1"), QStringLiteral("n:14"));
+    }
+
+    // A load that registers formulas (a hundred thousand of them) stops where the cancel flag says: a window that is closed does not wait for the rest.
+    void aLoadStopsWhereTheCancelFlagIsSetWhileFormulasAreRegistered()
+    {
+        QString rows;
+        rows.reserve(100000 * 50);
+        for (int r = 1; r <= 100000; ++r) rows += rowXml(r, cellXml(QStringLiteral("A%1").arg(r), QStringLiteral("1+1")));
+        Package package;
+        Workbook book;
+        QString why;
+        QVERIFY(package.readLazy(buildXlsx({worksheet(rows)}), &why) && book.open(package, &why));
+        std::atomic<bool> stop{true};
+        Calculation c(book);
+        c.setCancel(&stop);
+        QVERIFY(!c.load());
+        QVERIFY2(c.formulaCount() <= 4096 + 8, qPrintable(QStringLiteral("%1 formulas registered after the flag was set").arg(c.formulaCount())));
+        // (and without the flag, all of them)
+        std::atomic<bool> go{false};
+        Calculation all(book);
+        all.setCancel(&go);
+        QVERIFY(all.load());
+        QCOMPARE(all.formulaCount(), qint64(100000));
+    }
+
+    // A formula that is being worked out stops at the cancel flag too: one that reads a million cells is not waited for to the end.
+    void aFormulaBeingWorkedOutStopsAtTheCancelFlag()
+    {
+        QString rows;
+        rows.reserve(300000 * 40);
+        for (int r = 1; r <= 300000; ++r) rows += rowXml(r, constant(QStringLiteral("A%1").arg(r), QString::number(r)) + (r == 1 ? cellXml(QStringLiteral("C1"), QStringLiteral("SUMPRODUCT((A1:A300000*2+1)*(A1:A300000-3)*(A1:A300000+7)*(A1:A300000+9))")) : QString()));
+        const QByteArray zip = buildXlsx({worksheet(rows)});
+        Book whole;
+        QVERIFY(whole.open(zip));
+        const qint64 t0 = jp::threadCpuMicros();
+        QVERIFY(whole.calc->recalculate().finished);
+        const qint64 full = jp::threadCpuMicros() - t0;
+        // the same, with the flag set from another thread a few milliseconds after it begins
+        Book cut;
+        QVERIFY(cut.open(zip));
+        std::atomic<bool> stop{false};
+        cut.calc->setCancel(&stop);
+        std::thread stopper([&] {
+            std::this_thread::sleep_for(std::chrono::milliseconds(3));
+            stop = true;
+        });
+        const qint64 c0 = jp::threadCpuMicros();
+        const Calculation::Progress p = cut.calc->recalculate(0, nullptr);
+        const qint64 cutTime = jp::threadCpuMicros() - c0;
+        stopper.join();
+        QVERIFY2(full > 60000, qPrintable(QStringLiteral("the whole formula took %1 microseconds: too quick to tell").arg(full)));
+        QVERIFY(p.cancelled);
+        QVERIFY2(cutTime < full / 3, qPrintable(QStringLiteral("%1 microseconds of %2 before it stopped").arg(cutTime).arg(full)));
+        // what was cut is to be worked out again
+        QVERIFY(cut.calc->isDirty());
+        stop = false;
+        QVERIFY(cut.calc->recalculate().finished);
+        QCOMPARE(cut.at("C1"), whole.at("C1"));
+    }
+
+    // With formulas kept apart (the file's results are what is shown for those the engine cannot work out), a formula that the file stored no result for is kept apart too, unless it
+    // is asked to be worked out: a workbook that another program wrote has no results, and a window has nothing else to show.
+    void aFormulaWithNoStoredResultIsWorkedOutWhenAskedTo()
+    {
+        const QString rows = rowXml(1, constant("A1", "2") + constant("B1", "3") + cellXml("C1", "A1*B1"));
+        CalcOptions yardstick;
+        yardstick.keepApart = true;
+        Book kept;
+        QVERIFY(kept.open(buildXlsx({worksheet(rows)}), yardstick));
+        QVERIFY(settle(kept).finished);
+        QCOMPARE(kept.at("C1"), QStringLiteral("-"));
+        QCOMPARE(kept.calc->keptClass(0, 0, 2), 'N');
+        CalcOptions window = yardstick;
+        window.workOutWhatHasNoResult = true;
+        Book worked;
+        QVERIFY(worked.open(buildXlsx({worksheet(rows)}), window));
+        QVERIFY(settle(worked).finished);
+        QCOMPARE(worked.at("C1"), QStringLiteral("n:6"));
+        QCOMPARE(worked.calc->keptClass(0, 0, 2), char(0));
+    }
+
+    // Each result of a recalculation is told to the sink: the value of every formula worked out, each cell of an array, and the 0 of one in a circle; what is kept apart is not.
+    void everyResultOfARecalculationIsToldToTheSink()
+    {
+        const QString rows = rowXml(1, constant("A1", "2") + constant("B1", "3") + cellXml("C1", "A1*B1") + cellXml("D1", "\"x\"&A1", QString(), "str") + cellXml("E1", "F1+1") + cellXml("F1", "E1+1"))
+                             + rowXml(2, constant("A2", "5") + cellXml("B2", "_xll.NOPE(A2)", "99"))
+                             + rowXml(3, QStringLiteral("<c r=\"A3\"><f t=\"array\" ref=\"A3:B4\">A1:B2*2</f><v>4</v></c>"));
+        CalcOptions options;
+        options.keepApart = true;
+        options.workOutWhatHasNoResult = true;   // (the formulas here store none)
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)}), options));
+        QMap<QString, QString> told;
+        int calls = 0;
+        b.calc->setResultSink([&](int sheet, quint32 row, quint32 col, const Value &v) {
+            ++calls;
+            told.insert(QStringLiteral("%1:%2").arg(sheet).arg(cellName(row, col)), v.debug());
+        });
+        QVERIFY(settle(b).finished);
+        QCOMPARE(told.value("0:C1"), QStringLiteral("n:6"));
+        QCOMPARE(told.value("0:D1"), QStringLiteral("s:x2"));
+        QVERIFY2(!told.contains("0:E1") && !told.contains("0:F1"), "a formula in a circle, kept apart, is told");
+        QVERIFY2(!told.contains("0:B2"), "a formula kept apart is told");
+        QCOMPARE(told.value("0:A3"), QStringLiteral("n:4"));
+        QCOMPARE(told.value("0:B3"), QStringLiteral("n:6"));
+        QCOMPARE(told.value("0:A4"), QStringLiteral("n:10"));
+        QVERIFY(calls >= 6);
+        // not kept apart, the 0 of a formula in a circle is told, and so is the error of one that calls what is not there
+        Book plain;
+        QVERIFY(plain.open(buildXlsx({worksheet(rows)})));
+        QMap<QString, QString> plainTold;
+        plain.calc->setResultSink([&](int sheet, quint32 row, quint32 col, const Value &v) { plainTold.insert(QStringLiteral("%1:%2").arg(sheet).arg(cellName(row, col)), v.debug()); });
+        QVERIFY(settle(plain).finished);
+        QCOMPARE(plainTold.value("0:E1"), QStringLiteral("n:0"));
+        QCOMPARE(plainTold.value("0:F1"), QStringLiteral("n:0"));
+        QCOMPARE(plainTold.value("0:B2"), QStringLiteral("e:#NAME?"));
+    }
+
+    // The closing of a circle of two hundred thousand formulas is done in slices of the time given: none is more than a few milliseconds of the thread's time.
+    void aCircleIsClosedInSlices()
+    {
+        const int n = 200000;
+        QString rows;
+        rows.reserve(n * 60);
+        for (int r = 1; r <= n; ++r) rows += rowXml(r, cellXml(QStringLiteral("A%1").arg(r), QStringLiteral("A%1+1").arg(r == n ? 1 : r + 1)));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        qint64 most = 0, slices = 0;
+        for (;;) {
+            const qint64 t0 = jp::threadCpuMicros();
+            const Calculation::Progress p = b.calc->recalculate(0, nullptr, 4000);
+            most = std::max(most, jp::threadCpuMicros() - t0);
+            ++slices;
+            if (p.finished) break;
+            QVERIFY(slices < 1000000);
+        }
+        QVERIFY2(most <= 8000, qPrintable(QStringLiteral("a slice took %1 microseconds of the thread's time").arg(most)));
+        QVERIFY(b.circular("A1") && b.circular("A100000"));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:0"));
+    }
+
+    // A volatile formula that two hundred thousand formulas read: marking them to be worked out again is done in slices, and so is a call to work everything out again.
+    void marksForARecalculationAreMadeInSlices()
+    {
+        const int n = 200000;
+        QString rows = rowXml(1, cellXml(QStringLiteral("A1"), QStringLiteral("NOW()")));
+        rows.reserve(n * 60);
+        for (int r = 2; r <= n + 1; ++r) rows += rowXml(r, cellXml(QStringLiteral("A%1").arg(r), QStringLiteral("A1+%1").arg(r)));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        QVERIFY(settle(b).finished);
+        // the next recalculation begins by marking what reads NOW: every one of them
+        qint64 most = 0, slices = 0, evaluated = 0;
+        for (;;) {
+            const qint64 t0 = jp::threadCpuMicros();
+            const Calculation::Progress p = b.calc->recalculate(0, nullptr, 4000);
+            most = std::max(most, jp::threadCpuMicros() - t0);
+            evaluated += p.evaluated;
+            ++slices;
+            if (p.finished) break;
+            QVERIFY(slices < 1000000);
+        }
+        QVERIFY2(most <= 8000, qPrintable(QStringLiteral("a slice took %1 microseconds of the thread's time").arg(most)));
+        QCOMPARE(evaluated, qint64(n + 1));
+        // all of it again
+        const qint64 t1 = jp::threadCpuMicros();
+        b.calc->invalidateAll();
+        const qint64 invalidate = jp::threadCpuMicros() - t1;
+        QVERIFY2(invalidate <= 8000, qPrintable(QStringLiteral("invalidateAll took %1 microseconds of the thread's time").arg(invalidate)));
+        QCOMPARE(b.calc->dirtyCount(), qint64(n + 1));
+        QVERIFY(b.calc->isDirty());
+        QVERIFY(settle(b).finished);
+        QVERIFY(!b.calc->isDirty());
     }
 };
 
