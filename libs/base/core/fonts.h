@@ -11,6 +11,7 @@ namespace jp {
 
 QStringList bundledFontDirs();                // where the fonts that ship with JeffPub are
 int loadBundledFonts();                      // returns number of font files loaded
+int loadFontsFrom(const QStringList &dirs);  // the same from the first of these folders that has fonts (for the test of which fonts win)
 // A number that changes whenever fonts are added to or taken from the application's font database, for what is worked out from which families there are (the answer
 // to "is this family here" is asked for every run of text a document has, and is not cheap).
 int fontGeneration();
