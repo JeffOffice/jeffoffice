@@ -19,6 +19,7 @@
 #include <QCryptographicHash>
 #include <QHash>
 #include <QMap>
+#include <QSet>
 #include <QString>
 #include <QVector>
 #include <memory>
@@ -556,6 +557,19 @@ struct NotePart {
 constexpr int kMaxNotes = 20000;
 // Reads the notes of a footnotes or endnotes part. False, with nothing read, when the part isn't XML.
 bool readNotes(const QByteArray &xml, QVector<NotePart> *notes);
+
+// What changes in a notes part (footnotes or endnotes), the notes by their Ids.
+struct NotesChange {
+    QHash<int, QVector<Block>> replaced;   // notes whose paragraphs are written from these blocks (the note's own tag, with its attributes, is kept)
+    QSet<int> removed;                     // notes left out
+    QVector<std::pair<int, QVector<Block>>> added;   // new notes, after the others, in this order
+};
+// The notes part with the changes made and every other child of it as it was written: a note that is not named is byte for byte what it was, and so are the separator and
+// continuation notes. With no `original`, a new part: the separator and the continuation separator, then the added notes.
+QByteArray notesPartXml(const QByteArray &original, bool endnotes, const NotesChange &change);
+// The settings with the Ids of the separator notes named (w:footnotePr, or w:endnotePr, with a w:footnote or w:endnote child for each of -1 and 0), put where the schema has the
+// group; one that names notes already is as it was. An empty part gives a minimal one.
+QByteArray settingsWithNoteSeparators(const QByteArray &settings, bool endnotes);
 
 // A font of a font table: its name, the alternate it names (a family to set it in where it is missing), its kind (roman, swiss, modern, script,
 // decorative, or auto), its pitch (fixed, variable, or default), its PANOSE classification (ten two-digit numbers), and its character set (two hex digits,

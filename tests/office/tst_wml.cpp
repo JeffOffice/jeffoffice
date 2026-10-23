@@ -1128,6 +1128,113 @@ private Q_SLOTS:
         QCOMPARE(int(capped.size()), kMaxNotes);
     }
 
+    // A notes part is written with the notes that changed rewritten and every other child as it was: the separators, the notes not named, and the declarations.
+    void aNotesPartIsWrittenWithOnlyTheNotesThatChanged()
+    {
+        auto show = [](const QByteArray &x) { return QString::fromUtf8(x).replace(QLatin1Char('\r'), QLatin1Char(' ')).replace(QLatin1Char('\n'), QLatin1Char(' ')); };
+        const QByteArray one = R"(<w:footnote w:type="separator" w:id="-1"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>)";
+        const QByteArray two = R"(<w:footnote w:type="continuationSeparator" w:id="0"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>)";
+        const QByteArray note2 = R"(<w:footnote w:id="2" x:keep="yes"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space="preserve"> two  </w:t></w:r></w:p></w:footnote>)";
+        const QByteArray note3 = R"(<w:footnote w:id="3"><w:p w:rsidR="00A1"><w:r><w:footnoteRef/></w:r><w:r><w:t>three</w:t></w:r></w:p></w:footnote>)";
+        const QByteArray note4 = "<w:footnote w:id=\"4\"  >\n  <w:p><w:r><w:t>four</w:t></w:r></w:p>\n</w:footnote>";
+        const QByteArray original = xmlDoc(QByteArray("<w:footnotes ") + kW + " xmlns:x=\"urn:x\"><!-- kept -->" + one + two + note2 + note3 + note4 + "</w:footnotes>");
+        auto paragraph = [](const char *text) {
+            QVector<Block> blocks;
+            readBlocks(QByteArray("<w:ftr ") + kW + "><w:p><w:r><w:t>" + text + "</w:t></w:r></w:p></w:ftr>", &blocks);
+            return blocks;
+        };
+        // Nothing changed: the part as it was.
+        QCOMPARE(notesPartXml(original, false, NotesChange()), original);
+        NotesChange change;
+        change.replaced.insert(2, paragraph("TWO"));
+        change.removed.insert(3);
+        change.added.push_back({5, paragraph("five")});
+        const QByteArray out = notesPartXml(original, false, change);
+        QVERIFY(!out.isEmpty());
+        // What is not named is the bytes it was, in its place.
+        QVERIFY2(out.contains(one + two), qPrintable(show(out)));
+        QVERIFY(out.contains(note4));
+        QVERIFY2(out.contains(" xmlns:x=\"urn:x\""), qPrintable(show(out)));
+        // The rewritten note keeps its own tag and attributes, and has the new paragraphs; the removed one is gone; the new one is last.
+        QVERIFY2(out.contains("<w:footnote w:id=\"2\" x:keep=\"yes\"><w:p><w:r><w:t xml:space=\"preserve\">TWO</w:t></w:r></w:p></w:footnote>"), qPrintable(show(out)));
+        QVERIFY(!out.contains("three"));
+        QVERIFY(out.indexOf("four") < out.indexOf("five"));
+        QVector<NotePart> read;
+        QVERIFY(readNotes(out, &read));
+        QCOMPARE(int(read.size()), 5);
+        QCOMPARE(read[0].type, QStringLiteral("separator"));
+        QCOMPARE(read[1].type, QStringLiteral("continuationSeparator"));
+        QCOMPARE(read[2].id, 2);
+        QCOMPARE(read[3].id, 4);
+        QCOMPARE(read[4].id, 5);
+        QCOMPARE(read[4].blocks[0].para.content[0].text, QStringLiteral("five"));
+        // A note's element written as empty (<w:footnote w:id="6"/>) is rewritten with content.
+        const QByteArray bare = xmlDoc(QByteArray("<w:footnotes ") + kW + "><w:footnote w:id=\"6\"/></w:footnotes>");
+        NotesChange fill;
+        fill.replaced.insert(6, paragraph("six"));
+        const QByteArray filled = notesPartXml(bare, false, fill);
+        QVERIFY2(filled.contains("<w:footnote w:id=\"6\"><w:p><w:r><w:t xml:space=\"preserve\">six</w:t></w:r></w:p></w:footnote>"), qPrintable(show(filled)));
+        // Endnotes are the same with their own tags.
+        const QByteArray ends = xmlDoc(QByteArray("<w:endnotes ") + kW + "><w:endnote w:id=\"1\"><w:p><w:r><w:t>one</w:t></w:r></w:p></w:endnote></w:endnotes>");
+        NotesChange endChange;
+        endChange.added.push_back({2, paragraph("two")});
+        const QByteArray endOut = notesPartXml(ends, true, endChange);
+        QVERIFY2(endOut.contains("<w:endnote w:id=\"2\"><w:p><w:r><w:t xml:space=\"preserve\">two</w:t></w:r></w:p></w:endnote></w:endnotes>"), qPrintable(show(endOut)));
+        // A part that is not XML is not made over: nothing comes back.
+        QVERIFY(notesPartXml("<w:footnotes", false, change).isEmpty());
+    }
+
+    // A notes part that is new has its separator and its continuation separator, as the program that reads it expects, and the notes made.
+    void aNewNotesPartHasItsSeparators()
+    {
+        NotesChange change;
+        QVector<Block> blocks;
+        readBlocks(QByteArray("<w:ftr ") + kW + "><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> text</w:t></w:r></w:p></w:ftr>", &blocks);
+        change.added.push_back({1, blocks});
+        for (const bool endnotes : {false, true}) {
+            const QByteArray part = notesPartXml(QByteArray(), endnotes, change);
+            QVERIFY2(part.contains(endnotes ? "<w:endnotes " : "<w:footnotes "), part.constData());
+            QVector<NotePart> read;
+            QVERIFY(readNotes(part, &read));
+            QCOMPARE(int(read.size()), 3);
+            QCOMPARE(read[0].id, -1);
+            QCOMPARE(read[0].type, QStringLiteral("separator"));
+            QCOMPARE(read[1].id, 0);
+            QCOMPARE(read[1].type, QStringLiteral("continuationSeparator"));
+            QCOMPARE(read[2].id, 1);
+            QVERIFY(read[2].type.isEmpty());
+            QCOMPARE(read[2].blocks[0].para.content[0].tag, QStringLiteral("footnoteRef"));
+            QVERIFY(part.contains(" xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\""));
+        }
+    }
+
+    // The settings name the separator notes in the group the schema has for them, before what follows it, and are left as they were when they name them already.
+    void theSettingsNameTheSeparatorNotes()
+    {
+        const QByteArray settings = xmlDoc(QByteArray("<w:settings ") + kW + "><w:zoom w:percent=\"100\"/><w:hdrShapeDefaults/><w:compat/><w:rsids/></w:settings>");
+        const QByteArray foot = settingsWithNoteSeparators(settings, false);
+        QVERIFY2(foot.contains("<w:footnotePr><w:footnote w:id=\"-1\"/><w:footnote w:id=\"0\"/></w:footnotePr>"), foot.constData());
+        QVERIFY(foot.indexOf("<w:hdrShapeDefaults/>") < foot.indexOf("<w:footnotePr>"));
+        QVERIFY(foot.indexOf("<w:footnotePr>") < foot.indexOf("<w:compat/>"));
+        QCOMPARE(settingsWithNoteSeparators(foot, false), foot);
+        const QByteArray both = settingsWithNoteSeparators(foot, true);
+        QVERIFY2(both.contains("<w:endnotePr><w:endnote w:id=\"-1\"/><w:endnote w:id=\"0\"/></w:endnotePr>"), both.constData());
+        QVERIFY(both.indexOf("</w:footnotePr>") < both.indexOf("<w:endnotePr>"));
+        QVERIFY(both.indexOf("</w:endnotePr>") < both.indexOf("<w:compat/>"));
+        // A group the settings state (the numbers' format) keeps what it says and gets the notes after it.
+        const QByteArray styled = xmlDoc(QByteArray("<w:settings ") + kW + "><w:footnotePr><w:numFmt w:val=\"lowerRoman\"/></w:footnotePr><w:compat/></w:settings>");
+        const QByteArray named = settingsWithNoteSeparators(styled, false);
+        QVERIFY2(named.contains("<w:footnotePr><w:numFmt w:val=\"lowerRoman\"/><w:footnote w:id=\"-1\"/><w:footnote w:id=\"0\"/></w:footnotePr>"), named.constData());
+        // One written empty is made to hold them.
+        const QByteArray empty = xmlDoc(QByteArray("<w:settings ") + kW + "><w:footnotePr/></w:settings>");
+        QVERIFY2(settingsWithNoteSeparators(empty, false).contains("<w:footnotePr><w:footnote w:id=\"-1\"/>"), settingsWithNoteSeparators(empty, false).constData());
+        // No settings: a minimal part that reads back.
+        const QByteArray fresh = settingsWithNoteSeparators(QByteArray(), false);
+        QVERIFY2(fresh.contains("<w:settings") && fresh.contains("<w:footnotePr>"), fresh.constData());
+        XmlTree tree;
+        QVERIFY(tree.parse(fresh));
+    }
+
     // The fonts of a font table come with their alternates and kinds; a part of thousands of fonts is read in step with its size, and one that is
     // not XML (unclosed elements) is refused.
     void readsTheFontsOfAFontTable()
