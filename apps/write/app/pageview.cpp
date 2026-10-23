@@ -98,6 +98,13 @@ PageView::~PageView() = default;
 
 void PageView::setDocument(WriteDoc *doc)
 {
+    if (m_note.active) {
+        QObject::disconnect(m_hfEdit);
+        m_note = NoteEdit();
+        m_hfSpell.reset();
+        m_bodyCursor = QTextCursor();
+        Q_EMIT noteModeChanged();
+    }
     if (m_hf.active) {
         QObject::disconnect(m_hfEdit);
         if (m_doc) m_doc->pager().setEditedStory(nullptr);
@@ -147,6 +154,14 @@ void PageView::setDocument(WriteDoc *doc)
         viewport()->update();
         Q_EMIT contentChanged();
     });
+    connect(doc, &WriteDoc::noteChanged, this, [this](QTextDocument *) {
+        dropRendered(0);
+        relayout();
+        startPagination();
+        viewport()->update();
+        settleNote();
+        Q_EMIT contentChanged();
+    });
     doc->pager().paginate(0);
     if (m_mode != ZoomMode::Percent) applyZoomMode();
     relayout();
@@ -162,8 +177,15 @@ bool PageView::takeCursorOf(const QTextCursor &c)
     QTextDocument *d = c.document();
     if (!m_doc || !d) return true;
     if (m_hf.active && d == m_hf.story) return true;
+    if (m_note.active && d == m_note.story) return true;
+    if (int id = 0; m_doc->footnoteIdOf(d, &id)) {
+        // A cursor in a note's story is the view's if the note is on a page: the note is edited there.
+        const int page = pageShowingNote(d);
+        return page >= 0 && enterNote(d, id, page);
+    }
     if (d != m_doc->story()) return false;
     if (m_hf.active) leaveHeaderFooter();
+    if (m_note.active) leaveNote();
     return true;
 }
 
@@ -200,7 +222,7 @@ bool PageView::pagesComplete() const { return m_complete; }
 int PageView::currentPage() const
 {
     if (!m_doc) return 0;
-    if (m_hf.active) return std::clamp(m_hf.page, 0, std::max(0, m_knownPages - 1));
+    if (m_hf.active || m_note.active) return std::clamp(sidePage(), 0, std::max(0, m_knownPages - 1));
     return std::clamp(m_doc->pager().pageOfPosition(m_cursor.position()), 0, std::max(0, m_knownPages - 1));
 }
 
@@ -533,6 +555,17 @@ void PageView::paintEvent(QPaintEvent *e)
                     d.editSelFrom = m_cursor.selectionStart();
                     d.editSelTo = m_cursor.selectionEnd();
                 }
+            } else if (m_note.active) {
+                // (A note is edited where it stands: the text of the page is not dimmed, and its own misspelled words show.)
+                d.spelling = m_spell.get();
+                d.editedStory = m_note.story;
+                d.editIsNote = true;
+                d.editSpelling = m_hfSpell.get();
+                d.editTypingAt = !m_cursor.hasSelection() && m_cursor.position() == m_editEnd ? m_cursor.position() : -1;
+                if (m_cursor.hasSelection()) {
+                    d.editSelFrom = m_cursor.selectionStart();
+                    d.editSelTo = m_cursor.selectionEnd();
+                }
             } else {
                 d.spelling = m_spell.get();
                 d.typingAt = !m_cursor.hasSelection() && m_cursor.position() == m_editEnd ? m_cursor.position() : -1;
@@ -594,7 +627,7 @@ QImage PageView::pageImage(int index, int width)
 bool PageView::caretLine(int position, int *pageOut, QLineF *line)
 {
     if (!m_doc) return false;
-    if (m_hf.active) return hfCaretLine(position, pageOut, line);
+    if (m_hf.active || m_note.active) return hfCaretLine(position, pageOut, line);
     flow::Paginator &pg = m_doc->pager();
     const int home = pg.pageOfPosition(std::clamp(position, 0, std::max(0, m_doc->story()->characterCount() - 1)));
     QVector<int> candidates;
@@ -680,7 +713,7 @@ PageView::Hit PageView::hitAt(const QPoint &vp)
 int PageView::positionAt(const Hit &hit)
 {
     if (hit.page < 0) return -1;
-    if (m_hf.active) return hfPositionAt(hit);
+    if (m_hf.active || m_note.active) return hfPositionAt(hit);
     const auto r = rendered(hit.page);
     const int last = std::max(0, m_doc->story()->characterCount() - 1);
     // A point in the rows of a table (beside them, too) is in the nearest of the cells.
@@ -740,7 +773,7 @@ int PageView::positionAt(const Hit &hit)
 
 int PageView::lineEdge(int position, bool end)
 {
-    if (m_hf.active) return hfLineEdge(position, end);
+    if (m_hf.active || m_note.active) return hfLineEdge(position, end);
     int page = 0;
     QLineF line;
     if (!caretLine(position, &page, &line)) return position;
@@ -758,7 +791,7 @@ int PageView::lineEdge(int position, bool end)
 
 int PageView::moveVertical(int position, int direction)
 {
-    if (m_hf.active) return hfMoveVertical(position, direction);
+    if (m_hf.active || m_note.active) return hfMoveVertical(position, direction);
     int page = 0;
     QLineF line;
     if (!caretLine(position, &page, &line)) return position;
@@ -1001,13 +1034,19 @@ void PageView::followHistory(QTextDocument *story, const QTextCursor &at)
 {
     if (story == m_doc->story()) {
         if (m_hf.active) leaveHeaderFooter();
+        if (m_note.active) leaveNote();
         m_cursor = at;
-    } else if (m_hf.active && m_hf.story == story) {
+    } else if ((m_hf.active && m_hf.story == story) || (m_note.active && m_note.story == story)) {
         m_cursor = at;
+    } else if (int id = 0; m_doc->footnoteIdOf(story, &id)) {
+        // (A note that is on no page, its reference gone, is left alone: the view stays where it is.)
+        const int page = pageShowingNote(story);
+        if (page >= 0 && enterNote(story, id, page)) m_cursor = at;
     } else {
         int section = 0, slot = 0;
         bool footer = false;
         if (m_doc->headerFooterSlotOf(story, &section, &footer, &slot)) {
+            if (m_note.active) leaveNote();
             const int page = pageShowing(section, footer, slot);
             if (page >= 0 && enterHeaderFooterFor(section, footer, slot, page)) m_cursor = at;
         }
@@ -1016,13 +1055,15 @@ void PageView::followHistory(QTextDocument *story, const QTextCursor &at)
     caretMoved();
 }
 
+static const QVector<flow::MaterializedPage::FurnitureBox> &boxesOf(const flow::MaterializedPage &page, bool note) { return note ? page.noteBoxes : page.furniture; }
+
 // Where the boxes of the edited story on the page being edited put a position: the last box that begins at or before it (a story with tables is a box for each stretch of text).
 bool PageView::hfSpotAt(Rendered &r, int position, FrameSpot *spot)
 {
     if (!r.page) return false;
     const flow::MaterializedPage::FurnitureBox *best = nullptr;
-    for (const auto &fb : r.page->furniture)
-        if (fb.source == m_hf.story && fb.from <= position && (!best || fb.from >= best->from)) best = &fb;
+    for (const auto &fb : boxesOf(*r.page, m_note.active))
+        if (fb.source == sideStory() && fb.from <= position && (!best || fb.from >= best->from)) best = &fb;
     if (!best) return false;
     for (const auto &it : r.page->doc->pages[0]->items) {
         if (it->id != best->itemId || it->type() != ItemType::Text) continue;
@@ -1037,17 +1078,18 @@ bool PageView::hfSpotAt(Rendered &r, int position, FrameSpot *spot)
 
 bool PageView::hfCaretLine(int position, int *pageOut, QLineF *line)
 {
-    const auto r = rendered(m_hf.page);
+    const auto r = rendered(sidePage());
     if (!r || !r->page) return false;
-    for (int i = 0; i < r->page->furnitureTables.size(); ++i) {
-        if (r->page->furnitureTableSources.value(i) != m_hf.story) continue;
-        QLineF cellLine;
-        if (r->page->furnitureTables[i]->caretLine(position, &cellLine)) {
-            *line = cellLine;
-            *pageOut = m_hf.page;
-            return true;
+    if (m_hf.active)
+        for (int i = 0; i < r->page->furnitureTables.size(); ++i) {
+            if (r->page->furnitureTableSources.value(i) != sideStory()) continue;
+            QLineF cellLine;
+            if (r->page->furnitureTables[i]->caretLine(position, &cellLine)) {
+                *line = cellLine;
+                *pageOut = sidePage();
+                return true;
+            }
         }
-    }
     FrameSpot spot;
     if (!hfSpotAt(*r, position, &spot)) return false;
     int frame = -1;
@@ -1055,28 +1097,29 @@ bool PageView::hfCaretLine(int position, int *pageOut, QLineF *line)
     if (!spot.fl.layout->caretRect(spot.inFrame, &frame, &rect)) return false;
     const double x = spot.box->rect.left() + rect.x();
     *line = QLineF(x, spot.box->rect.top() + rect.top(), x, spot.box->rect.top() + rect.bottom());
-    *pageOut = m_hf.page;
+    *pageOut = sidePage();
     return true;
 }
 
 int PageView::hfPositionAt(const Hit &hit)
 {
     const auto r = rendered(hit.page);
-    const int last = std::max(0, m_hf.story->characterCount() - 1);
+    const int last = std::max(0, sideStory()->characterCount() - 1);
     if (!r || !r->page) return -1;
-    for (int i = 0; i < r->page->furnitureTables.size(); ++i) {
-        if (r->page->furnitureTableSources.value(i) != m_hf.story) continue;
-        const QRectF fr = r->page->furnitureTables[i]->rect();
-        if (hit.point.y() < fr.top() - 1 || hit.point.y() > fr.bottom() + 1) continue;
-        const int at = r->page->furnitureTables[i]->positionAt(hit.point);
-        if (at >= 0) return std::clamp(at, 0, last);
-    }
+    if (m_hf.active)
+        for (int i = 0; i < r->page->furnitureTables.size(); ++i) {
+            if (r->page->furnitureTableSources.value(i) != sideStory()) continue;
+            const QRectF fr = r->page->furnitureTables[i]->rect();
+            if (hit.point.y() < fr.top() - 1 || hit.point.y() > fr.bottom() + 1) continue;
+            const int at = r->page->furnitureTables[i]->positionAt(hit.point);
+            if (at >= 0) return std::clamp(at, 0, last);
+        }
     // The box of the edited story nearest the point (above or below it).
     const TextItem *nearest = nullptr;
     const flow::MaterializedPage::FurnitureBox *nearestBox = nullptr;
     double bestGap = 1e18;
-    for (const auto &fb : r->page->furniture) {
-        if (fb.source != m_hf.story) continue;
+    for (const auto &fb : boxesOf(*r->page, m_note.active)) {
+        if (fb.source != sideStory()) continue;
         for (const auto &it : r->page->doc->pages[0]->items) {
             if (it->id != fb.itemId || it->type() != ItemType::Text) continue;
             const QRectF &b = it->rect;
@@ -1111,13 +1154,14 @@ int PageView::hfPositionAt(const Hit &hit)
 
 int PageView::hfLineEdge(int position, bool end)
 {
-    const auto r = rendered(m_hf.page);
+    const auto r = rendered(sidePage());
     if (!r || !r->page) return position;
-    for (int i = 0; i < r->page->furnitureTables.size(); ++i) {
-        if (r->page->furnitureTableSources.value(i) != m_hf.story) continue;
-        int edge = 0;
-        if (r->page->furnitureTables[i]->lineEdge(position, end, &edge)) return edge;
-    }
+    if (m_hf.active)
+        for (int i = 0; i < r->page->furnitureTables.size(); ++i) {
+            if (r->page->furnitureTableSources.value(i) != sideStory()) continue;
+            int edge = 0;
+            if (r->page->furnitureTables[i]->lineEdge(position, end, &edge)) return edge;
+        }
     FrameSpot spot;
     if (!hfSpotAt(*r, position, &spot)) return position;
     return spot.from + (end ? spot.fl.layout->lineEnd(spot.inFrame) : spot.fl.layout->lineStart(spot.inFrame));
@@ -1125,14 +1169,15 @@ int PageView::hfLineEdge(int position, bool end)
 
 int PageView::hfMoveVertical(int position, int direction)
 {
-    const auto r = rendered(m_hf.page);
+    const auto r = rendered(sidePage());
     if (!r || !r->page) return position;
-    for (int i = 0; i < r->page->furnitureTables.size(); ++i) {
-        if (r->page->furnitureTableSources.value(i) != m_hf.story || !r->page->furnitureTables[i]->contains(position)) continue;
-        const int moved = r->page->furnitureTables[i]->moveVertical(position, direction, &m_wantedX);
-        if (moved != position) return moved;
-        break;
-    }
+    if (m_hf.active)
+        for (int i = 0; i < r->page->furnitureTables.size(); ++i) {
+            if (r->page->furnitureTableSources.value(i) != sideStory() || !r->page->furnitureTables[i]->contains(position)) continue;
+            const int moved = r->page->furnitureTables[i]->moveVertical(position, direction, &m_wantedX);
+            if (moved != position) return moved;
+            break;
+        }
     FrameSpot spot;
     if (!hfSpotAt(*r, position, &spot)) return position;
     if (m_wantedX < 0) {
@@ -1141,6 +1186,138 @@ int PageView::hfMoveVertical(int position, int direction)
         if (spot.fl.layout->caretRect(spot.inFrame, &frame, &rect)) m_wantedX = rect.x();
     }
     return spot.from + spot.fl.layout->moveVertical(spot.inFrame, direction, m_wantedX);
+}
+
+// ---- footnotes
+
+bool PageView::noteAt(const Hit &hit, QTextDocument **story, int *id)
+{
+    if (hit.page < 0) return false;
+    const auto r = rendered(hit.page);
+    if (!r || !r->page) return false;
+    for (const auto &nb : r->page->noteBoxes) {
+        const Item *item = r->page->doc->item(nb.itemId);
+        if (!item || !item->rect.contains(hit.point)) continue;
+        int noteId = 0;
+        if (!m_doc->footnoteIdOf(nb.source, &noteId)) continue;
+        if (story) *story = m_doc->editableFootnote(noteId);
+        if (id) *id = noteId;
+        return story ? *story != nullptr : true;
+    }
+    return false;
+}
+
+int PageView::pageShowingNote(const QTextDocument *story)
+{
+    int id = 0;
+    if (!m_doc || !m_doc->footnoteIdOf(story, &id)) return -1;
+    flow::Paginator &pg = m_doc->pager();
+    const QVector<int> refs = m_doc->footnoteReferences(id);
+    for (int k = 0; k < refs.size() && k < 8; ++k) {
+        const int home = pg.pageOfPosition(std::clamp(refs[k], 0, std::max(0, m_doc->story()->characterCount() - 1)));
+        for (int page = home; page <= home + 2; ++page) {
+            const auto r = rendered(page);
+            if (!r || !r->page) continue;
+            for (const auto &nb : r->page->noteBoxes)
+                if (nb.source == story) return page;
+        }
+    }
+    return -1;
+}
+
+bool PageView::enterNote(QTextDocument *story, int id, int page)
+{
+    if (!m_doc || !story) return false;
+    if (m_note.active && m_note.story == story) {
+        m_note.page = page;
+        viewport()->update();
+        return true;
+    }
+    if (m_hf.active) leaveHeaderFooter();
+    const bool was = m_note.active;
+    if (!was) m_bodyCursor = m_cursor;
+    else QObject::disconnect(m_hfEdit);
+    m_note = NoteEdit{true, id, page, story};
+    m_hfSpell = std::make_unique<SpellCheck>(story);
+    m_hfSpell->setDefaultLanguage(m_doc->proofingLanguage());
+    m_hfSpell->setEnabled(m_spellOn);
+    connect(m_hfSpell.get(), &SpellCheck::changed, viewport(), qOverload<>(&QWidget::update));
+    m_hfEdit = connect(story, &QTextDocument::contentsChange, this, [this](int position, int, int added) { m_editEnd = position + added; });
+    m_cursor = QTextCursor(story);
+    m_cursor.setPosition(noteTextStart(story));
+    m_wantedX = -1;
+    m_movedFrom = -1;
+    m_dragging = false;
+    m_editEnd = -1;
+    viewport()->update();
+    Q_EMIT noteModeChanged();
+    caretMoved();
+    return true;
+}
+
+bool PageView::enterFootnote(int id)
+{
+    if (!m_doc) return false;
+    QTextDocument *story = m_doc->editableFootnote(id);
+    if (!story) return false;
+    const int page = pageShowingNote(story);
+    return page >= 0 && enterNote(story, id, page);
+}
+
+void PageView::leaveNote(bool atReference)
+{
+    if (!m_note.active) return;
+    QObject::disconnect(m_hfEdit);
+    const int id = m_note.id, page = m_note.page;
+    m_note = NoteEdit();
+    m_hfSpell.reset();
+    m_dragging = false;
+    m_editEnd = -1;
+    if (m_bodyCursor.document()) m_cursor = m_bodyCursor;
+    m_bodyCursor = QTextCursor();
+    if (atReference && m_doc) {
+        // Just after the reference (the one on the page the note was edited on, else the first).
+        const QVector<int> refs = m_doc->footnoteReferences(id);
+        int at = refs.isEmpty() ? -1 : refs.first();
+        for (const int ref : refs)
+            if (m_doc->pager().pageOfPosition(ref) == page) {
+                at = ref;
+                break;
+            }
+        if (at >= 0) m_cursor.setPosition(std::min(at + 1, m_doc->story()->characterCount() - 1));
+    }
+    viewport()->update();
+    Q_EMIT noteModeChanged();
+    caretMoved();
+}
+
+void PageView::settleNote()
+{
+    if (!m_note.active || !m_doc) return;
+    const int page = pageShowingNote(m_note.story);
+    if (page < 0) leaveNote();
+    else m_note.page = page;
+}
+
+bool PageView::noteLineAtEdge(int dir)
+{
+    if (!m_note.active) return false;
+    const auto r = rendered(m_note.page);
+    FrameSpot spot;
+    if (!r || !r->page || !hfSpotAt(*r, m_cursor.position(), &spot)) return true;
+    return dir < 0 ? spot.fl.layout->lineStart(spot.inFrame) <= spot.fl.layout->firstPosition(0) : spot.fl.layout->lineEnd(spot.inFrame) >= spot.fl.layout->lastPosition(0);
+}
+
+int PageView::cursorSection()
+{
+    if (!m_doc) return 0;
+    if (m_hf.active) return m_hf.section;
+    if (m_note.active) {
+        flow::Paginator &pg = m_doc->pager();
+        pg.paginate(m_note.page);
+        return pg.pagesKnown() > 0 ? pg.page(std::clamp(m_note.page, 0, pg.pagesKnown() - 1)).start.section : 0;
+    }
+    return m_doc->sectionAt(m_cursor.position());
 }
 
 } // namespace jp::write

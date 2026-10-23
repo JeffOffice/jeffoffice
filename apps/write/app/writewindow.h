@@ -122,6 +122,7 @@ private:
     void createReviewActions();
     void createEditingActions();
     void createHeaderFooterActions();
+    void createNoteActions();
     void headerFooterModeChanged();
     void buildRibbon();
     void ribbonParts(RibbonParts &parts);

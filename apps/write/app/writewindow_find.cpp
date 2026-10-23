@@ -20,6 +20,7 @@ void WriteWindow::showFindPane(bool replace)
 {
     // (Find and Replace look through the text of the document, not its headers and footers: a header being edited is left first.)
     m_view->leaveHeaderFooter();
+    m_view->leaveNote();
     if (!m_find) {
         m_findDock = new QDockWidget(tr("Find and Replace"), this);
         m_findDock->setObjectName(QStringLiteral("findDock"));

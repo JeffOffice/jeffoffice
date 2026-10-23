@@ -84,6 +84,7 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     connect(m_view, &write::PageView::pagesChanged, this, queue);
     connect(m_view, &write::PageView::contextMenuWanted, this, &WriteWindow::showContextMenu);
     connect(m_view, &write::PageView::headerFooterModeChanged, this, &WriteWindow::headerFooterModeChanged);
+    connect(m_view, &write::PageView::noteModeChanged, this, queue);
     connect(m_view, &write::PageView::zoomChanged, this, [this](double z) {
         m_zoomLabel->setText(QStringLiteral("%1%").arg(std::lround(z * 100)));
         const QSignalBlocker block(m_zoomSlider);
@@ -181,6 +182,7 @@ void WriteWindow::createActions()
     createHelpActions();
     createEditingActions();
     createHeaderFooterActions();
+    createNoteActions();
 }
 
 namespace {
@@ -251,7 +253,7 @@ void WriteWindow::createFormatActions()
 void WriteWindow::changeSection(const std::function<void(flow::Section &)> &change)
 {
     if (!m_doc) return;
-    const int index = m_view->inHeaderFooter() ? m_view->headerFooterEdit().section : m_doc->sectionAt(m_view->cursor().position());
+    const int index = m_view->cursorSection();
     office::wml::SectionProps props = m_doc->sectionProps(index);
     flow::Section s = flow::Section(m_doc->flow().section(index));
     const flow::Section was = s;
@@ -349,7 +351,7 @@ void WriteWindow::showContextMenu(const QPoint &globalPos)
     menu.addAction(act("para.dialog"));
     menu.addAction(act("edit.selectAll"));
     // In a table: its rows and columns.
-    if (m_doc && !m_view->inHeaderFooter() && write::cellPlace(*m_doc, m_view->cursor()).inTable) {
+    if (m_doc && !m_view->inHeaderFooter() && !m_view->inNote() && write::cellPlace(*m_doc, m_view->cursor()).inTable) {
         menu.addSeparator();
         auto table = [&](const QString &text, const std::function<void(write::WriteDoc &, QTextCursor &)> &command) {
             menu.addAction(text, this, [this, command] {
@@ -421,7 +423,7 @@ void WriteWindow::refreshUi()
     for (ColorButton *b : m_colorButtons) b->setScheme(m_doc->flow().env.colors);
 
     // Page setup of the section the caret is in.
-    const int section = m_view->inHeaderFooter() ? m_view->headerFooterEdit().section : m_doc->sectionAt(c.position());
+    const int section = m_view->cursorSection();
     const flow::Section s = m_doc->flow().section(section);
     act("layout.portrait")->setChecked(s.orientation == flow::Section::Orientation::Portrait);
     act("layout.landscape")->setChecked(s.orientation == flow::Section::Orientation::Landscape);
@@ -449,9 +451,11 @@ void WriteWindow::refreshUi()
         const bool editing = m_view->inHeaderFooter();
         const write::PageView::HeaderFooterEdit &e = m_view->headerFooterEdit();
         for (const char *id : {"hf.close", "hf.pageNumber", "hf.differentFirst", "hf.differentOddEven"}) act(QString::fromLatin1(id))->setEnabled(editing);
-        // (A header or footer takes no break of a page or a section.)
-        if (editing)
+        // (A header, a footer, or a note takes no break of a page or a section.)
+        if (editing || m_view->inNote())
             for (const char *id : {"insert.pageBreak", "layout.sectionBreak"}) act(QString::fromLatin1(id))->setEnabled(false);
+        // (And no note.)
+        act("refs.footnote")->setEnabled(!editing && !m_view->inNote());
         act("hf.differentFirst")->setChecked(editing && m_doc->differentFirstPage(e.section));
         act("hf.differentOddEven")->setChecked(m_doc->differentOddEven());
         act("hf.linkPrevious")->setEnabled(editing && e.section > 0);

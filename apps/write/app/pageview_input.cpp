@@ -133,6 +133,11 @@ void PageView::typeKey(int key, Qt::KeyboardModifiers m)
             m_cursor.movePosition(dir < 0 ? QTextCursor::PreviousBlock : QTextCursor::NextBlock, mode);
             caretMoved();
         } else {
+            // Up from a note's first line and Down from its last leave it, for the text, just after its reference.
+            if (m_note.active && !shift && !m_cursor.hasSelection() && noteLineAtEdge(dir)) {
+                leaveNote(true);
+                break;
+            }
             const int to = moveVertical(m_cursor.position(), dir);
             m_cursor.setPosition(to, mode);
             caretMoved(true);
@@ -192,6 +197,10 @@ void PageView::typeKey(int key, Qt::KeyboardModifiers m)
     case Qt::Key_Escape:
         if (m_hf.active) {
             leaveHeaderFooter();
+            break;
+        }
+        if (m_note.active) {
+            leaveNote(true);
             break;
         }
         if (m_cursor.hasSelection()) {
@@ -265,6 +274,15 @@ void PageView::mousePressEvent(QMouseEvent *e)
         // A click in the text does nothing while a header or footer is edited (a double click leaves); one in a header's or a footer's area goes to it.
         const Area area = areaOf(hit);
         if (area == Area::Body || !takeFurnitureAt(hit, area == Area::Footer)) return;
+    } else {
+        // A click in a footnote's text puts the caret there, in the note; a click anywhere else is in the text, and leaves the note it was in.
+        QTextDocument *noteStory = nullptr;
+        int noteId = 0;
+        if (noteAt(hit, &noteStory, &noteId)) {
+            if (!enterNote(noteStory, noteId, hit.page)) return;
+        } else if (m_note.active) {
+            leaveNote();
+        }
     }
     const int at = positionAt(hit);
     if (at < 0) return;
@@ -343,7 +361,7 @@ void PageView::mouseDoubleClickEvent(QMouseEvent *e)
             e->accept();
             return;
         }
-        if (!m_hf.active && area != Area::Body && enterHeaderFooter(hit.page, area == Area::Footer)) {
+        if (!m_hf.active && area != Area::Body && (leaveNote(), enterHeaderFooter(hit.page, area == Area::Footer))) {
             const int at = positionAt(hit);
             if (at >= 0) {
                 m_cursor.setPosition(at);

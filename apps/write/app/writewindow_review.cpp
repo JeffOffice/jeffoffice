@@ -29,6 +29,7 @@ void WriteWindow::showSpelling()
 {
     if (!m_doc) return;
     m_view->leaveHeaderFooter();   // (the Spelling pane goes through the text of the document, not its headers and footers)
+    m_view->leaveNote();
     if (m_fileScreen->isVisible()) hideFileScreen();
     if (!m_spellDock) {
         m_spellDock = new QDockWidget(tr("Spelling"), this);
