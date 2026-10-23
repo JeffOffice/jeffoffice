@@ -169,12 +169,9 @@ private Q_SLOTS:
             QVERIFY(fraction >= 0 && fraction < 1);
         }
         // the next recalculation reads the clock again (the volatile formulas are worked out again)
-        QElapsedTimer wait;
-        wait.start();
-        while (wait.elapsed() < 3) {}
         const Calculation::Progress p = settle(b);
         QCOMPARE(p.evaluated, qint64(1200));
-        QVERIFY(b.calc->cell(0, 0, 0).number() > first);
+        QVERIFY(b.calc->cell(0, 0, 0).number() >= first);   // (a clock may tick once in fifteen milliseconds: the reading is again, not before)
         QCOMPARE(b.calc->cell(0, 299, 0).number(), b.calc->cell(0, 0, 0).number());
         // a time that is given is the time
         CalcOptions fixed;
@@ -328,7 +325,9 @@ private Q_SLOTS:
     }
 
     // Edits, in any number and order, leave the values a whole recalculation gives: a grid of formulas that read cells and blocks of cells wherever they are (but never in a
-    // circle), edited over and over, is the same after each recalculation as it is after working out every formula again.
+    // circle), edited over and over, is the same after each recalculation as it is after working out every formula again. The formulas read through INDEX and the range
+    // operator (a block made of references that functions give), through SUMIF and AVERAGEIF with a sum range shorter than the range, and through defined names (of blocks,
+    // of other names, of OFFSET, of INDEX, and of a volatile formula).
     void editsLeaveWhatAWholeRecalculationGives()
     {
         const int rows = 24, cols = 7, cellsN = rows * cols;
@@ -338,6 +337,7 @@ private Q_SLOTS:
         for (int i = 0; i < cellsN; ++i) rank[size_t(i)] = i;
         for (int i = cellsN - 1; i > 0; --i) std::swap(rank[size_t(i)], rank[size_t(rng.bounded(quint32(i + 1)))]);
         auto name = [&](int r, int c) { return QStringLiteral("%1%2").arg(QChar(QLatin1Char('A' + c))).arg(r + 1); };
+        auto colName = [&](int c) { return QString(QChar(QLatin1Char('A' + c))); };
         auto lower = [&](int r, int c) {
             std::vector<QPair<int, int>> ok;
             for (int rr = 0; rr < rows; ++rr)
@@ -345,6 +345,28 @@ private Q_SLOTS:
                     if (rank[size_t(rr * cols + cc)] < rank[size_t(r * cols + c)]) ok.push_back({rr, cc});
             return ok;
         };
+        auto allLower = [&](int r1, int c1, int r2, int c2, int r, int c) {
+            for (int rr = r1; rr <= r2; ++rr)
+                for (int cc = c1; cc <= c2; ++cc)
+                    if (rank[size_t(rr * cols + cc)] >= rank[size_t(r * cols + c)]) return false;
+            return true;
+        };
+        // the names, and the cells each one stands for
+        struct NamedCells {
+            QString name, formula;
+            int r1, c1, r2, c2;
+            bool block;
+        };
+        const std::vector<NamedCells> names = {
+            {QStringLiteral("nBlock"), QStringLiteral("Sheet1!$B$3:$D$5"), 2, 1, 4, 3, true},
+            {QStringLiteral("nCell"), QStringLiteral("Sheet1!$A$2"), 1, 0, 1, 0, false},
+            {QStringLiteral("nOff"), QStringLiteral("OFFSET(Sheet1!$A$1,5,1,2,2)"), 5, 1, 6, 2, true},
+            {QStringLiteral("nNest"), QStringLiteral("nBlock"), 2, 1, 4, 3, true},
+            {QStringLiteral("nVol"), QStringLiteral("RAND()*0+Sheet1!$E$2"), 1, 4, 1, 4, false},
+            {QStringLiteral("nIdx"), QStringLiteral("INDEX(Sheet1!$A$1:$G$24,4,3)"), 3, 2, 3, 2, false},
+        };
+        QString definedNames;
+        for (const NamedCells &n : names) definedNames += QStringLiteral("<definedName name=\"%1\">%2</definedName>").arg(n.name, n.formula.toHtmlEscaped());
         auto refOf = [&](int r, int c) {
             // a cell of lower rank, or a block of them
             const std::vector<QPair<int, int>> ok = lower(r, c);
@@ -353,23 +375,59 @@ private Q_SLOTS:
             if (rng.bounded(3) == 0) {
                 for (int attempt = 0; attempt < 8; ++attempt) {
                     const int r2 = qMin(rows - 1, p.first + int(rng.bounded(5))), c2 = qMin(cols - 1, p.second + int(rng.bounded(3)));
-                    bool allLower = true;
-                    for (int rr = p.first; rr <= r2 && allLower; ++rr)
-                        for (int cc = p.second; cc <= c2; ++cc)
-                            if (rank[size_t(rr * cols + cc)] >= rank[size_t(r * cols + c)]) {
-                                allLower = false;
-                                break;
-                            }
-                    if (allLower) return name(p.first, p.second) + QLatin1Char(':') + name(r2, c2);
+                    if (allLower(p.first, p.second, r2, c2, r, c)) return name(p.first, p.second) + QLatin1Char(':') + name(r2, c2);
                 }
             }
             return name(p.first, p.second);
+        };
+        // a block of cells of lower rank, of more than one cell
+        auto rectOf = [&](int r, int c, int *r1, int *c1, int *r2, int *c2) {
+            const std::vector<QPair<int, int>> ok = lower(r, c);
+            for (int attempt = 0; attempt < 12 && !ok.empty(); ++attempt) {
+                const QPair<int, int> p = ok[rng.bounded(quint32(ok.size()))];
+                *r1 = p.first;
+                *c1 = p.second;
+                *r2 = qMin(rows - 1, *r1 + 1 + int(rng.bounded(4)));
+                *c2 = qMin(cols - 1, *c1 + int(rng.bounded(3)));
+                if ((*r2 > *r1 || *c2 > *c1) && allLower(*r1, *c1, *r2, *c2, r, c)) return true;
+            }
+            return false;
         };
         auto formulaFor = [&](int r, int c) {
             const QString a = refOf(r, c);
             if (a.isEmpty()) return QStringLiteral("%1").arg(1 + int(rng.bounded(9)));
             const QString b = refOf(r, c);
-            switch (rng.bounded(7)) {
+            const int kind = int(rng.bounded(16));
+            int r1 = 0, c1 = 0, r2 = 0, c2 = 0;
+            switch (kind) {
+            case 7:   // a block from a cell to the cell a function gives
+                if (rectOf(r, c, &r1, &c1, &r2, &c2)) return QStringLiteral("SUM(%1:INDEX(%2:%2,%3))").arg(name(r1, c1), colName(c2)).arg(r2 + 1);
+                break;
+            case 8:   // a block from the cell a function gives to the cell another gives
+                if (rectOf(r, c, &r1, &c1, &r2, &c2)) return QStringLiteral("MAX(INDEX(%1:%1,%2):INDEX(%3:%3,%4))").arg(colName(c1)).arg(r1 + 1).arg(colName(c2)).arg(r2 + 1);
+                break;
+            case 9: case 10:   // SUMIF and AVERAGEIF with a sum range of one cell, which is the shape of the range
+                if (rectOf(r, c, &r1, &c1, &r2, &c2)) {
+                    for (int attempt = 0; attempt < 12; ++attempt) {
+                        const int sr = int(rng.bounded(quint32(rows - (r2 - r1)))), sc = int(rng.bounded(quint32(cols - (c2 - c1))));
+                        if (!allLower(sr, sc, sr + (r2 - r1), sc + (c2 - c1), r, c)) continue;
+                        const QString range = name(r1, c1) + QLatin1Char(':') + name(r2, c2);
+                        return kind == 9 ? QStringLiteral("SUMIF(%1,\">3\",%2)").arg(range, name(sr, sc)) : QStringLiteral("IFERROR(AVERAGEIF(%1,\">=0\",%2),-1)").arg(range, name(sr, sc));
+                    }
+                }
+                break;
+            case 11: case 12: case 13: {   // a defined name, if the cells it stands for are all of lower rank
+                std::vector<const NamedCells *> usable;
+                for (const NamedCells &n : names)
+                    if (allLower(n.r1, n.c1, n.r2, n.c2, r, c)) usable.push_back(&n);
+                if (usable.empty()) break;
+                const NamedCells &n = *usable[rng.bounded(quint32(usable.size()))];
+                if (!n.block) return QStringLiteral("%1*2+%2").arg(n.name, a.contains(':') ? QStringLiteral("COUNT(%1)").arg(a) : a);
+                return kind == 11 ? QStringLiteral("SUM(%1)+1").arg(n.name) : QStringLiteral("MAX(%1,%2)").arg(n.name, a.contains(':') ? QStringLiteral("MIN(%1)").arg(a) : a);
+            }
+            default: break;
+            }
+            switch (kind % 7) {
             case 0: return QStringLiteral("SUM(%1)+1").arg(a);
             case 1: return QStringLiteral("%1*2").arg(a.contains(':') ? QStringLiteral("MAX(%1)").arg(a) : a);
             case 2: return QStringLiteral("IF(SUM(%1)>10,SUM(%2),-1)").arg(a, b.isEmpty() ? a : b);
@@ -380,19 +438,15 @@ private Q_SLOTS:
             }
         };
         QString sheet;
-        std::vector<bool> isFormula(static_cast<size_t>(cellsN), false);
         for (int r = 0; r < rows; ++r) {
             QString cellsXml;
             for (int c = 0; c < cols; ++c)
                 if (rng.bounded(3) == 0) cellsXml += constant(name(r, c), QString::number(int(rng.bounded(20))));
-                else {
-                    cellsXml += cellXml(name(r, c), formulaFor(r, c));
-                    isFormula[size_t(r * cols + c)] = true;
-                }
+                else cellsXml += cellXml(name(r, c), formulaFor(r, c));
             sheet += rowXml(r + 1, cellsXml);
         }
         Book b;
-        QVERIFY(b.open(buildXlsx({worksheet(sheet)})));
+        QVERIFY(b.open(buildXlsx({worksheet(sheet)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), definedNames)));
         settle(b);
         auto snapshot = [&]() {
             QStringList all;
@@ -400,7 +454,7 @@ private Q_SLOTS:
                 for (int c = 0; c < cols; ++c) all << b.calc->cell(0, quint32(r), quint32(c)).debug();
             return all;
         };
-        for (int step = 0; step < 400; ++step) {
+        for (int step = 0; step < 600; ++step) {
             const int edits = 1 + int(rng.bounded(3));
             for (int e = 0; e < edits; ++e) {
                 const int r = int(rng.bounded(rows)), c = int(rng.bounded(cols));
@@ -420,15 +474,303 @@ private Q_SLOTS:
                     b.calc->recalculate(0, &stop);
                 }
             }
-            QVERIFY(b.calc->recalculate().finished || true);
-            const Calculation::Progress done = b.calc->recalculate();
-            QVERIFY(done.finished);
+            QVERIFY(b.calc->recalculate().finished);
             const QStringList incremental = snapshot();
             b.calc->invalidateAll();
             QVERIFY(b.calc->recalculate().finished);
             const QStringList whole = snapshot();
-            QVERIFY2(incremental == whole, qPrintable(QStringLiteral("after edit %1 the values differ from a whole recalculation").arg(step)));
+            if (incremental != whole) {
+                QString first;
+                for (int i = 0; i < incremental.size() && first.isEmpty(); ++i)
+                    if (incremental[i] != whole[i]) first = QStringLiteral("%1: %2 after the edits, %3 after a whole recalculation").arg(name(i / cols, i % cols), incremental[i], whole[i]);
+                QFAIL(qPrintable(QStringLiteral("after edit %1 the values differ from a whole recalculation: %2").arg(step).arg(first)));
+            }
         }
+    }
+
+    // The same with circles: formulas that read cells and blocks of cells wherever they are, edited so that circles are made, joined, and broken, are the same after each
+    // recalculation (the value of each cell, and whether it is in a circle) as they are after working out every formula again. A circle is found by what the formulas read, with
+    // the values of what is not in it, not by the order the work was done in.
+    void circlesMadeAndBrokenLeaveWhatAWholeRecalculationGives()
+    {
+        const int rows = 4, cols = 4;
+        qint64 circles = 0;
+        for (int seed = 0; seed < 4; ++seed) {
+            QRandomGenerator rng(quint32(20261026 + seed));
+            auto name = [&](int r, int c) { return QStringLiteral("%1%2").arg(QChar(QLatin1Char('A' + c))).arg(r + 1); };
+            auto cell = [&]() { return name(int(rng.bounded(rows)), int(rng.bounded(cols))); };
+            auto block = [&]() {
+                const int r1 = int(rng.bounded(rows)), c1 = int(rng.bounded(cols));
+                return name(r1, c1) + QLatin1Char(':') + name(qMin(rows - 1, r1 + int(rng.bounded(3))), qMin(cols - 1, c1 + int(rng.bounded(3))));
+            };
+            auto formulaFor = [&]() {
+                switch (rng.bounded(18)) {
+                case 0: return QStringLiteral("%1+1").arg(cell());
+                case 1: return QStringLiteral("SUM(%1)").arg(block());
+                case 2: return QStringLiteral("IF(ISNUMBER(%1),%1,%2)").arg(cell(), cell());
+                case 3: return QStringLiteral("IF(%1=\"\",%2,1)").arg(cell(), cell());
+                case 4: return QStringLiteral("MAX(%1)").arg(block());
+                case 5: return QStringLiteral("IFERROR(%1,0)").arg(cell());
+                case 6: return QStringLiteral("%1&\"a\"").arg(cell());
+                case 7: return QStringLiteral("INDEX(%1,1,1)").arg(block());
+                case 8: return QStringLiteral("COUNT(%1)+1").arg(block());
+                case 9: return QStringLiteral("IF(%1>3,%2,2)").arg(cell(), cell());
+                case 10: return QStringLiteral("INDIRECT(\"%1\")+1").arg(cell());
+                case 11: return QStringLiteral("IF(%1<2,%2,%3)").arg(cell(), cell(), cell());
+                case 12: return QStringLiteral("SUM(nCorner)+1");
+                case 13: return QStringLiteral("MAX(nBlock)");
+                case 14: return QStringLiteral("SUM(%1:INDEX(%2:%2,%3))").arg(cell(), QString(QChar(QLatin1Char('A' + int(rng.bounded(cols))))), QString::number(1 + int(rng.bounded(rows))));
+                case 15: return QStringLiteral("IF(%1=\"\",%2,%3)").arg(cell(), cell(), cell());
+                case 16: return QStringLiteral("SUMIF(%1,\">1\",%2)").arg(block(), cell());
+                default: return QStringLiteral("MIN(%1,%2)").arg(cell(), cell());
+                }
+            };
+            QString sheet;
+            for (int r = 0; r < rows; ++r) {
+                QString cellsXml;
+                for (int c = 0; c < cols; ++c)
+                    if (rng.bounded(4) == 0) cellsXml += constant(name(r, c), QString::number(int(rng.bounded(10))));
+                    else cellsXml += cellXml(name(r, c), formulaFor());
+                sheet += rowXml(r + 1, cellsXml);
+            }
+            Book b;
+            QVERIFY(b.open(buildXlsx({worksheet(sheet)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(),
+                                     QStringLiteral("<definedName name=\"nCorner\">Sheet1!$A$1</definedName><definedName name=\"nBlock\">Sheet1!$B$2:$C$3</definedName>"))));
+            settle(b);
+            auto snapshot = [&]() {
+                QStringList all;
+                for (int r = 0; r < rows; ++r)
+                    for (int c = 0; c < cols; ++c) all << b.calc->cell(0, quint32(r), quint32(c)).debug() + (b.circular(name(r, c)) ? QStringLiteral("@circle") : QString());
+                return all;
+            };
+            for (int step = 0; step < 700; ++step) {
+                const int edits = 1 + int(rng.bounded(2));
+                QStringList what;
+                for (int e = 0; e < edits; ++e) {
+                    const int r = int(rng.bounded(rows)), c = int(rng.bounded(cols));
+                    switch (rng.bounded(4)) {
+                    case 0: QVERIFY(b.set(name(r, c), Value::number(int(rng.bounded(10))))); what << name(r, c) + QStringLiteral(" number"); break;
+                    case 1: {
+                        const QString f = formulaFor();
+                        QVERIFY(b.setFormula(name(r, c), f));
+                        what << name(r, c) + QStringLiteral(" =") + f;
+                        break;
+                    }
+                    case 2: QVERIFY(b.set(name(r, c), Value::text(QStringLiteral("t")))); what << name(r, c) + QStringLiteral(" text"); break;
+                    default: QVERIFY(b.calc->clearCell(0, quint32(r), quint32(c))); what << name(r, c) + QStringLiteral(" cleared"); break;
+                    }
+                }
+                if (rng.bounded(4) == 0) {
+                    std::atomic<bool> stop{false};
+                    b.calc->recalculate(1 + qint64(rng.bounded(30)), &stop);
+                    if (rng.bounded(2)) {
+                        stop = true;
+                        b.calc->recalculate(0, &stop);
+                    }
+                }
+                QVERIFY(b.calc->recalculate().finished);
+                const QStringList incremental = snapshot();
+                b.calc->invalidateAll();
+                const Calculation::Progress whole = b.calc->recalculate();
+                QVERIFY(whole.finished);
+                circles += whole.circular;
+                const QStringList fresh = snapshot();
+                if (incremental != fresh) {
+                    QString first;
+                    for (int i = 0; i < incremental.size() && first.isEmpty(); ++i)
+                        if (incremental[i] != fresh[i]) first = QStringLiteral("%1: %2 after the edits, %3 after a whole recalculation").arg(name(i / cols, i % cols), incremental[i], fresh[i]);
+                    QFAIL(qPrintable(QStringLiteral("seed %1, after edit %2 (%3) the values differ from a whole recalculation: %4").arg(seed).arg(step).arg(what.join(QStringLiteral("; ")), first)));
+                }
+            }
+        }
+        QVERIFY2(circles > 500, qPrintable(QStringLiteral("only %1 cells were in circles").arg(circles)));   // (the edits do make circles)
+    }
+
+    // The range operator over references that functions give makes a block the formula reads whole: an edit to a cell inside it, which no reference of the formula names,
+    // reaches the formula.
+    void aRangeMadeOfReferencesThatFunctionsGiveIsToldToTheGraph()
+    {
+        const QString rows = rowXml(1, constant("A1", "1") + constant("B1", "2") + constant("C1", "3") + cellXml("E1", "SUM(A1:INDEX(C:C,3))") + cellXml("F1", "SUM(INDEX(A:A,1):INDEX(C:C,3))"))
+            + rowXml(2, constant("A2", "10") + constant("B2", "20") + constant("C2", "30")) + rowXml(3, constant("A3", "100") + constant("B3", "200") + constant("C3", "300"));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        settle(b);
+        QCOMPARE(b.at("E1"), QStringLiteral("n:666"));
+        QCOMPARE(b.at("F1"), QStringLiteral("n:666"));
+        QVERIFY(b.set("B2", Value::number(1000)));   // inside the block, and in no column or cell the formulas name
+        settle(b);
+        QCOMPARE(b.at("E1"), QStringLiteral("n:1646"));
+        QCOMPARE(b.at("F1"), QStringLiteral("n:1646"));
+    }
+
+    // SUMIF and AVERAGEIF with a sum range shorter than the range read the cells of the shape of the range, from the first of the sum range: those are what the formula reads. (The
+    // others that take a range and a sum range, SUMIFS and the rest, give #VALUE! when the shapes differ, and read no more than they name.)
+    void aSumRangeShorterThanTheRangeIsReadAsTheShapeOfTheRange()
+    {
+        const QString rows = rowXml(1, constant("A1", "1") + constant("B1", "10") + cellXml("D1", "SUMIF(A1:A3,\">0\",B1)") + cellXml("E1", "AVERAGEIF(A1:A3,\">0\",B1)") + cellXml("F1", "SUMIFS(B1,A1:A3,\">0\")")
+                                           + cellXml("G1", "COUNTIFS(A1:A3,\">0\",B1:B2,\">0\")"))
+            + rowXml(2, constant("A2", "2") + constant("B2", "20")) + rowXml(3, constant("A3", "3") + constant("B3", "30"));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        settle(b);
+        QCOMPARE(b.at("D1"), QStringLiteral("n:60"));
+        QCOMPARE(b.at("E1"), QStringLiteral("n:20"));
+        QCOMPARE(b.at("F1"), QStringLiteral("e:#VALUE!"));
+        QCOMPARE(b.at("G1"), QStringLiteral("e:#VALUE!"));
+        QVERIFY(b.set("B3", Value::number(100)));   // read as the sum range's third cell, which is named by no reference
+        settle(b);
+        QCOMPARE(b.at("D1"), QStringLiteral("n:130"));
+        QCOMPARE(b.at("E1"), QStringLiteral("n:%1").arg(130.0 / 3.0, 0, 'g', 15));
+        QCOMPARE(b.at("F1"), QStringLiteral("e:#VALUE!"));
+        QCOMPARE(b.at("G1"), QStringLiteral("e:#VALUE!"));
+    }
+
+    // A defined name that calls a function that changes by itself makes the formulas that use it change by themselves: they are worked out in every recalculation, as a formula
+    // that calls RAND is, through a name of a name too; and kept apart, they are the volatile ones.
+    void aNameThatCallsAVolatileFunctionMakesItsFormulasVolatile()
+    {
+        const QString rows = rowXml(1, constant("A1", "5") + cellXml("B1", "tn+A1", "1") + cellXml("C1", "tm*2+A1", "1") + cellXml("D1", "A1+1", "6") + cellXml("E1", "SUM(tp)", "5"));
+        const QString names = QStringLiteral("<definedName name=\"tn\">RAND()</definedName><definedName name=\"tm\">tn</definedName><definedName name=\"tp\">Sheet1!$A$1:$A$2</definedName>");
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), names)));
+        settle(b);
+        const QString b1 = b.at("B1"), c1 = b.at("C1");
+        const Calculation::Progress p = settle(b);   // nothing was edited
+        QVERIFY2(p.evaluated >= 2, qPrintable(QStringLiteral("%1 formulas worked out again").arg(p.evaluated)));
+        QVERIFY(b.at("B1") != b1);
+        QVERIFY(b.at("C1") != c1);
+        QCOMPARE(b.at("D1"), QStringLiteral("n:6"));
+        CalcOptions apart;
+        apart.keepApart = true;
+        Book k;
+        QVERIFY(k.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), names), apart));
+        settle(k);
+        QCOMPARE(k.calc->keptClass(0, k.row("B1"), k.col("B1")), 'V');
+        QCOMPARE(k.calc->keptClass(0, k.row("C1"), k.col("C1")), 'V');
+        QCOMPARE(k.calc->keptClass(0, k.row("D1"), k.col("D1")), char(0));
+        QCOMPARE(k.calc->keptClass(0, k.row("E1"), k.col("E1")), char(0));
+    }
+
+    // A circle through a name is broken by an edit to what the name stands for: the formula that closed the circle told what it read through the name, though the circle stopped
+    // its work, so the edit reaches it.
+    void aCircleThroughANameIsBrokenByAnEditToWhatItReads()
+    {
+        const QString rows = rowXml(1, cellXml("A1", "D1+1") + cellXml("D1", "SUM(me)"));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), QStringLiteral("<definedName name=\"me\">Sheet1!$A$1</definedName>"))));
+        settle(b);
+        QVERIFY(b.circular("A1") && b.circular("D1"));
+        QVERIFY(b.set("A1", Value::number(5)));
+        settle(b);
+        QCOMPARE(b.at("A1"), QStringLiteral("n:5"));
+        QCOMPARE(b.at("D1"), QStringLiteral("n:5"));
+        QVERIFY(!b.circular("D1"));
+    }
+
+    // What is in a circle is found from what the formulas read, with the values of what is not in it: a formula that reads a cell only when another is empty is no part of a circle
+    // when the other holds something, however the work happens to be ordered; and when circles overlap, every formula of them is marked.
+    void aCircleIsFoundByWhatIsReadAndEveryFormulaOfItIsMarked()
+    {
+        // A1 reads C1 only if B1 is empty, and B1 holds the text of D1 (the formula "x")
+        const QString rows = rowXml(1, cellXml("A1", "IF(B1=\"\",C1,1)") + cellXml("B1", "D1") + cellXml("C1", "A1+1") + cellXml("D1", "\"x\""))
+            + rowXml(3, cellXml("A3", "IF(ISNUMBER(B3),B3,C3)") + cellXml("B3", "A4*2") + cellXml("C3", "A3+1") + constant("A4", "5"))
+            // the cycles A6-B6 and A6-C6 share A6; D6 reads them and is in none
+            + rowXml(6, cellXml("A6", "B6+C6") + cellXml("B6", "A6") + cellXml("C6", "A6") + cellXml("D6", "A6+B6+C6+1"));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        settle(b);
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1"));
+        QCOMPARE(b.at("C1"), QStringLiteral("n:2"));
+        QCOMPARE(b.at("A3"), QStringLiteral("n:10"));
+        QCOMPARE(b.at("C3"), QStringLiteral("n:11"));
+        for (const char *ref : {"A1", "B1", "C1", "A3", "B3", "C3", "D6"}) QVERIFY2(!b.circular(QString::fromLatin1(ref)), ref);
+        for (const char *ref : {"A6", "B6", "C6"}) QVERIFY2(b.circular(QString::fromLatin1(ref)), ref);
+        QCOMPARE(b.at("D6"), QStringLiteral("n:1"));
+        // B5 reads the block that holds it, and the first cell of the block is an error: the error is the result, and nothing is read in a circle; whichever edit comes first
+        const QString block = rowXml(1, cellXml("A1", "IF(X1=1,NA(),2)") + constant("X1", "0")) + rowXml(5, cellXml("B5", "MAX(A1:D6)")) + rowXml(6, constant("D6", "5"));
+        for (int order = 0; order < 2; ++order) {
+            Book c;
+            QVERIFY(c.open(buildXlsx({worksheet(block)})));
+            settle(c);
+            QVERIFY(c.circular("B5"));            // (A1 is 2, and B5 reads itself)
+            if (order == 0) {
+                QVERIFY(c.set("D6", Value::number(6)));
+                QVERIFY(c.set("X1", Value::number(1)));
+            } else {
+                QVERIFY(c.set("X1", Value::number(1)));
+                QVERIFY(c.set("D6", Value::number(6)));
+            }
+            settle(c);
+            QCOMPARE(c.at("B5"), QStringLiteral("e:#N/A"));
+            QVERIFY(!c.circular("B5"));
+        }
+    }
+
+    // A circle of a hundred thousand formulas, one of them reading a block that holds all the others, is found in time in proportion to its size (counted), not by going over the
+    // others again for each.
+    void aLongCircleIsFoundInTimeInProportionToItsSize()
+    {
+        const int n = 60000;
+        QString rows;
+        for (int i = 1; i < n; ++i) rows += rowXml(i, cellXml(QStringLiteral("A%1").arg(i), QStringLiteral("A%1+1").arg(i + 1)));
+        rows += rowXml(n, cellXml(QStringLiteral("A%1").arg(n), QStringLiteral("SUM(A1:A%1)").arg(n - 1)));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        const Calculation::Progress p = settle(b);
+        QVERIFY(p.finished);
+        QCOMPARE(p.circular, qint64(n));
+        QVERIFY2(p.circleWork <= 10 * qint64(n), qPrintable(QStringLiteral("%1 steps to find a circle of %2").arg(p.circleWork).arg(n)));
+        QVERIFY2(p.evaluated <= 4 * qint64(n), qPrintable(QString::number(p.evaluated)));
+        QVERIFY(b.circular("A1") && b.circular(QStringLiteral("A%1").arg(n)));
+        QVERIFY(b.set(QStringLiteral("A%1").arg(n), Value::number(5)));   // broken at the end: the others are worked out
+        const Calculation::Progress q = settle(b);
+        QCOMPARE(b.at("A1"), QStringLiteral("n:%1").arg(5 + n - 1));
+        QVERIFY2(q.evaluated <= 4 * qint64(n), qPrintable(QString::number(q.evaluated)));
+        QVERIFY(!b.circular("A1"));
+    }
+
+    // A volatile formula edited over and over is on the list of those worked out in every recalculation once, and a formula that is not volatile any more is not on it.
+    void aVolatileFormulaEditedManyTimesIsListedOnce()
+    {
+        const QString rows = rowXml(1, constant("A1", "1") + cellXml("B1", "RAND()") + cellXml("C1", "NOW()"));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        settle(b);
+        for (int i = 0; i < 2000; ++i) QVERIFY(b.setFormula("B1", QStringLiteral("RAND()+%1").arg(i)));
+        settle(b);
+        QVERIFY2(b.calc->alwaysListed() <= 2, qPrintable(QString::number(b.calc->alwaysListed())));
+        QVERIFY(b.setFormula("B1", "1+1"));
+        QVERIFY(b.setFormula("C1", "A1+1"));
+        settle(b);
+        QCOMPARE(b.calc->alwaysListed(), qint64(0));
+        const Calculation::Progress p = settle(b);
+        QCOMPARE(p.evaluated, qint64(0));
+    }
+
+    // A graph that is full at a realistic size (thirty thousand formulas, seventeen cells each, a graph of about half that) says no at once to the rest: it is not gone over
+    // again for each of the formulas it refuses (counted), and every value is still right.
+    void aFullGraphAtARealisticSizeIsNotGoneOverForEachFormulaItRefuses()
+    {
+        const int n = 30000, k = 17;
+        QString rows;
+        for (int i = 1; i <= n; ++i) {
+            QString f;
+            for (int j = 0; j < k; ++j) f += (j ? QStringLiteral("+") : QString()) + QStringLiteral("B%1").arg(1 + ((i + j * 37) % n));
+            rows += rowXml(i, constant(QStringLiteral("B%1").arg(i), "1") + cellXml(QStringLiteral("A%1").arg(i), f));
+        }
+        CalcOptions options;
+        options.maxGraphBytes = qint64(n) * k * 12;
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)}), options));
+        QVERIFY2(b.calc->untrackedCount() > n / 4 && b.calc->untrackedCount() < n, qPrintable(QString::number(b.calc->untrackedCount())));
+        QVERIFY2(b.calc->graph().compactions() <= 3, qPrintable(QStringLiteral("%1 compactions").arg(b.calc->graph().compactions())));
+        QVERIFY(b.calc->graph().memoryBytes() <= options.maxGraphBytes + options.maxGraphBytes / 8);
+        settle(b);
+        QCOMPARE(b.at("A7"), QStringLiteral("n:%1").arg(k));
+        QVERIFY(b.set("B5", Value::number(7)));
+        settle(b);
+        QCOMPARE(b.at("A4"), QStringLiteral("n:%1").arg(k + 6));   // (A4 reads B5)
+        QCOMPARE(b.at(QStringLiteral("A%1").arg(n)), QStringLiteral("n:%1").arg(k));
     }
 
     // What a formula reads through a name, INDIRECT, or OFFSET is told as it is worked out, and told again each time: a change to a cell it reads now works it out, one to a
@@ -607,167 +949,6 @@ private Q_SLOTS:
         QCOMPARE(b.at("A1", 1), QStringLiteral("n:20"));
         QCOMPARE(b.at("B1", 0), QStringLiteral("n:21"));
         QCOMPARE(b.at("A2", 1), QStringLiteral("n:%1").arg(1 + 20 + 2 + 21));
-    }
-
-    // A volatile formula edited over and over is on the list of those worked out in every recalculation once, and a formula that is not volatile any more is not on it.
-    void aVolatileFormulaEditedManyTimesIsListedOnce()
-    {
-        const QString rows = rowXml(1, constant("A1", "1") + cellXml("B1", "RAND()") + cellXml("C1", "NOW()"));
-        Book b;
-        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
-        settle(b);
-        for (int i = 0; i < 2000; ++i) QVERIFY(b.setFormula("B1", QStringLiteral("RAND()+%1").arg(i)));
-        settle(b);
-        QVERIFY2(b.calc->alwaysListed() <= 2, qPrintable(QString::number(b.calc->alwaysListed())));
-        QVERIFY(b.setFormula("B1", "1+1"));
-        QVERIFY(b.setFormula("C1", "A1+1"));
-        settle(b);
-        QCOMPARE(b.calc->alwaysListed(), qint64(0));
-        const Calculation::Progress p = settle(b);
-        QCOMPARE(p.evaluated, qint64(0));
-    }
-
-    // The range operator over references that functions give makes a block the formula reads whole: an edit to a cell inside it, which no reference of the formula names,
-    // reaches the formula.
-    void aRangeMadeOfReferencesThatFunctionsGiveIsToldToTheGraph()
-    {
-        const QString rows = rowXml(1, constant("A1", "1") + constant("B1", "2") + constant("C1", "3") + cellXml("E1", "SUM(A1:INDEX(C:C,3))") + cellXml("F1", "SUM(INDEX(A:A,1):INDEX(C:C,3))"))
-            + rowXml(2, constant("A2", "10") + constant("B2", "20") + constant("C2", "30")) + rowXml(3, constant("A3", "100") + constant("B3", "200") + constant("C3", "300"));
-        Book b;
-        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
-        settle(b);
-        QCOMPARE(b.at("E1"), QStringLiteral("n:666"));
-        QCOMPARE(b.at("F1"), QStringLiteral("n:666"));
-        QVERIFY(b.set("B2", Value::number(1000)));   // inside the block, and in no column or cell the formulas name
-        settle(b);
-        QCOMPARE(b.at("E1"), QStringLiteral("n:1646"));
-        QCOMPARE(b.at("F1"), QStringLiteral("n:1646"));
-    }
-
-    // SUMIF and AVERAGEIF with a sum range shorter than the range read the cells of the shape of the range, from the first of the sum range: those are what the formula reads. (The
-    // others that take a range and a sum range, SUMIFS and the rest, give #VALUE! when the shapes differ, and read no more than they name.)
-    void aSumRangeShorterThanTheRangeIsReadAsTheShapeOfTheRange()
-    {
-        const QString rows = rowXml(1, constant("A1", "1") + constant("B1", "10") + cellXml("D1", "SUMIF(A1:A3,\">0\",B1)") + cellXml("E1", "AVERAGEIF(A1:A3,\">0\",B1)") + cellXml("F1", "SUMIFS(B1,A1:A3,\">0\")")
-                                           + cellXml("G1", "COUNTIFS(A1:A3,\">0\",B1:B2,\">0\")"))
-            + rowXml(2, constant("A2", "2") + constant("B2", "20")) + rowXml(3, constant("A3", "3") + constant("B3", "30"));
-        Book b;
-        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
-        settle(b);
-        QCOMPARE(b.at("D1"), QStringLiteral("n:60"));
-        QCOMPARE(b.at("E1"), QStringLiteral("n:20"));
-        QCOMPARE(b.at("F1"), QStringLiteral("e:#VALUE!"));
-        QCOMPARE(b.at("G1"), QStringLiteral("e:#VALUE!"));
-        QVERIFY(b.set("B3", Value::number(100)));   // read as the sum range's third cell, which is named by no reference
-        settle(b);
-        QCOMPARE(b.at("D1"), QStringLiteral("n:130"));
-        QCOMPARE(b.at("E1"), QStringLiteral("n:%1").arg(130.0 / 3.0, 0, 'g', 15));
-        QCOMPARE(b.at("F1"), QStringLiteral("e:#VALUE!"));
-        QCOMPARE(b.at("G1"), QStringLiteral("e:#VALUE!"));
-    }
-
-    // A defined name that calls a function that changes by itself makes the formulas that use it change by themselves: they are worked out in every recalculation, as a formula
-    // that calls RAND is, through a name of a name too; and kept apart, they are the volatile ones.
-    void aNameThatCallsAVolatileFunctionMakesItsFormulasVolatile()
-    {
-        const QString rows = rowXml(1, constant("A1", "5") + cellXml("B1", "tn+A1", "1") + cellXml("C1", "tm*2+A1", "1") + cellXml("D1", "A1+1", "6") + cellXml("E1", "SUM(tp)", "5"));
-        const QString names = QStringLiteral("<definedName name=\"tn\">RAND()</definedName><definedName name=\"tm\">tn</definedName><definedName name=\"tp\">Sheet1!$A$1:$A$2</definedName>");
-        Book b;
-        QVERIFY(b.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), names)));
-        settle(b);
-        const QString b1 = b.at("B1"), c1 = b.at("C1");
-        const Calculation::Progress p = settle(b);   // nothing was edited
-        QVERIFY2(p.evaluated >= 2, qPrintable(QStringLiteral("%1 formulas worked out again").arg(p.evaluated)));
-        QVERIFY(b.at("B1") != b1);
-        QVERIFY(b.at("C1") != c1);
-        QCOMPARE(b.at("D1"), QStringLiteral("n:6"));
-        CalcOptions apart;
-        apart.keepApart = true;
-        Book k;
-        QVERIFY(k.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), names), apart));
-        settle(k);
-        QCOMPARE(k.calc->keptClass(0, k.row("B1"), k.col("B1")), 'V');
-        QCOMPARE(k.calc->keptClass(0, k.row("C1"), k.col("C1")), 'V');
-        QCOMPARE(k.calc->keptClass(0, k.row("D1"), k.col("D1")), char(0));
-        QCOMPARE(k.calc->keptClass(0, k.row("E1"), k.col("E1")), char(0));
-    }
-
-    // A circle through a name is broken by an edit to what the name stands for: the formula that closed the circle told what it read through the name, though the circle stopped
-    // its work, so the edit reaches it.
-    void aCircleThroughANameIsBrokenByAnEditToWhatItReads()
-    {
-        const QString rows = rowXml(1, cellXml("A1", "D1+1") + cellXml("D1", "SUM(me)"));
-        Book b;
-        QVERIFY(b.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), QStringLiteral("<definedName name=\"me\">Sheet1!$A$1</definedName>"))));
-        settle(b);
-        QVERIFY(b.circular("A1") && b.circular("D1"));
-        QVERIFY(b.set("A1", Value::number(5)));
-        settle(b);
-        QCOMPARE(b.at("A1"), QStringLiteral("n:5"));
-        QCOMPARE(b.at("D1"), QStringLiteral("n:5"));
-        QVERIFY(!b.circular("D1"));
-    }
-
-    // What is in a circle is found from what the formulas read, with the values of what is not in it: a formula that reads a cell only when another is empty is no part of a circle
-    // when the other holds something, however the work happens to be ordered; and when circles overlap, every formula of them is marked.
-    void aCircleIsFoundByWhatIsReadAndEveryFormulaOfItIsMarked()
-    {
-        // A1 reads C1 only if B1 is empty, and B1 holds the text of D1 (the formula "x")
-        const QString rows = rowXml(1, cellXml("A1", "IF(B1=\"\",C1,1)") + cellXml("B1", "D1") + cellXml("C1", "A1+1") + cellXml("D1", "\"x\""))
-            + rowXml(3, cellXml("A3", "IF(ISNUMBER(B3),B3,C3)") + cellXml("B3", "A4*2") + cellXml("C3", "A3+1") + constant("A4", "5"))
-            // the cycles A6-B6 and A6-C6 share A6; D6 reads them and is in none
-            + rowXml(6, cellXml("A6", "B6+C6") + cellXml("B6", "A6") + cellXml("C6", "A6") + cellXml("D6", "A6+B6+C6+1"));
-        Book b;
-        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
-        settle(b);
-        QCOMPARE(b.at("A1"), QStringLiteral("n:1"));
-        QCOMPARE(b.at("C1"), QStringLiteral("n:2"));
-        QCOMPARE(b.at("A3"), QStringLiteral("n:10"));
-        QCOMPARE(b.at("C3"), QStringLiteral("n:11"));
-        for (const char *ref : {"A1", "B1", "C1", "A3", "B3", "C3", "D6"}) QVERIFY2(!b.circular(QString::fromLatin1(ref)), ref);
-        for (const char *ref : {"A6", "B6", "C6"}) QVERIFY2(b.circular(QString::fromLatin1(ref)), ref);
-        QCOMPARE(b.at("D6"), QStringLiteral("n:1"));
-        // B5 reads the block that holds it, and the first cell of the block is an error: the error is the result, and nothing is read in a circle; whichever edit comes first
-        const QString block = rowXml(1, cellXml("A1", "IF(X1=1,NA(),2)") + constant("X1", "0")) + rowXml(5, cellXml("B5", "MAX(A1:D6)")) + rowXml(6, constant("D6", "5"));
-        for (int order = 0; order < 2; ++order) {
-            Book c;
-            QVERIFY(c.open(buildXlsx({worksheet(block)})));
-            settle(c);
-            QVERIFY(c.circular("B5"));            // (A1 is 2, and B5 reads itself)
-            if (order == 0) {
-                QVERIFY(c.set("D6", Value::number(6)));
-                QVERIFY(c.set("X1", Value::number(1)));
-            } else {
-                QVERIFY(c.set("X1", Value::number(1)));
-                QVERIFY(c.set("D6", Value::number(6)));
-            }
-            settle(c);
-            QCOMPARE(c.at("B5"), QStringLiteral("e:#N/A"));
-            QVERIFY(!c.circular("B5"));
-        }
-    }
-
-    // A circle of a hundred thousand formulas, one of them reading a block that holds all the others, is found in time in proportion to its size (counted), not by going over the
-    // others again for each.
-    void aLongCircleIsFoundInTimeInProportionToItsSize()
-    {
-        const int n = 60000;
-        QString rows;
-        for (int i = 1; i < n; ++i) rows += rowXml(i, cellXml(QStringLiteral("A%1").arg(i), QStringLiteral("A%1+1").arg(i + 1)));
-        rows += rowXml(n, cellXml(QStringLiteral("A%1").arg(n), QStringLiteral("SUM(A1:A%1)").arg(n - 1)));
-        Book b;
-        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
-        const Calculation::Progress p = settle(b);
-        QVERIFY(p.finished);
-        QCOMPARE(p.circular, qint64(n));
-        QVERIFY2(p.circleWork <= 10 * qint64(n), qPrintable(QStringLiteral("%1 steps to find a circle of %2").arg(p.circleWork).arg(n)));
-        QVERIFY2(p.evaluated <= 4 * qint64(n), qPrintable(QString::number(p.evaluated)));
-        QVERIFY(b.circular("A1") && b.circular(QStringLiteral("A%1").arg(n)));
-        QVERIFY(b.set(QStringLiteral("A%1").arg(n), Value::number(5)));   // broken at the end: the others are worked out
-        const Calculation::Progress q = settle(b);
-        QCOMPARE(b.at("A1"), QStringLiteral("n:%1").arg(5 + n - 1));
-        QVERIFY2(q.evaluated <= 4 * qint64(n), qPrintable(QString::number(q.evaluated)));
-        QVERIFY(!b.circular("A1"));
     }
 };
 
