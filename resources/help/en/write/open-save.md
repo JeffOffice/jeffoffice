@@ -1,5 +1,5 @@
 # Open, save, print, and export
-<!-- keywords: open, save, save as, docx, template, dotx, recent, pin, new, close, print, pdf, export, recover, autorecover, unsaved, crash, file screen, file formats -->
+<!-- keywords: open, save, save as, docx, doc, dot, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, autorecover, unsaved, crash, file screen, file formats -->
 
 Click **File** at the top left to see the File screen. It has pages for New, Open, Print, and Export, and commands for Save and Save As. Press **Esc** to go back to your document.
 
@@ -14,10 +14,11 @@ Press **Ctrl+O**, or click **File > Open**. Click **Browse** to pick a file. Jef
 - **.docx** is a document.
 - **.dotx** is a template. A template opens as a new document made from it, so the template stays as it is.
 - **.docm** and **.dotm** open too. JeffWrite does not keep their macros. It tells you so the first time you save such a document, and it saves a .docx file.
+- **.doc** and **.dot** are the older kinds of document and template. JeffWrite reads them, and it saves what you do with them as a new .docx file.
 
 The **Open** page also lists the documents you opened or saved lately. Click one to open it. Right-click one to pin it to the top of the list, or take it off the list.
 
-If a file has parts that JeffWrite can't show yet, it keeps them. See [Welcome to JeffWrite](start). If part of a file can't be read at all, JeffWrite tells you what it left out. It then does not save over that file: Save asks for a new name, so that the original keeps what the copy lost.
+If a file has parts that JeffWrite can't edit yet, such as a table's layout or a header, it keeps them. See [Welcome to JeffWrite](start). If part of a file can't be read at all, JeffWrite tells you what it left out. It then does not save over that file: Save asks for a new name, so that the original keeps what the copy lost.
 
 ## Save a document
 

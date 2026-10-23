@@ -61,6 +61,20 @@ struct MaterializedPage {
     QVector<int> freeBreakEnds;
     // The tables in the page's header and footer, drawn with the others (they are not the document's text: no position of the document's is in them).
     QVector<std::shared_ptr<TableFragment>> furnitureTables;
+    QVector<const QTextDocument *> furnitureTableSources;   // the story each of them is a table of (the section's own story, as FurnitureBox::source is)
+    // The text boxes that show a header or a footer: the box (an item of the page), whether it is the footer's, the story it shows (the section's own, not the copy the page made),
+    // and the position in that story where the box's text begins (0 but for the stretches of text between the tables of a story that has tables). A header or footer that has
+    // tables is more than one box.
+    struct FurnitureBox {
+        QString itemId;
+        bool footer = false;
+        const QTextDocument *source = nullptr;
+        int from = 0;
+    };
+    QVector<FurnitureBox> furniture;
+    // The text area of the page (below its header and above its footer), in page coordinates; and whether the page is the first of its section.
+    QRectF bodyArea;
+    bool firstOfSection = false;
     // The rows of tables that are on the page, drawn after the text (Paginator::tables). Each has a place in the page's story: a paragraph of the
     // same number of characters as the rows have in the document's, one line as tall as they are, so that every other position in it is as it is in
     // the document's.
@@ -167,6 +181,17 @@ public:
     int pageCount() { paginate(-1); return pagesKnown(); }
     // Everything again (the sections or the settings changed).
     void invalidate();
+    // A header or footer story was edited: what the paginator kept of it is let go, and the pages are laid out again from the first section that uses it if the room that it and
+    // the section's other furniture leave the text has changed (else nothing but what the story shows is different, and the pages already laid out stand).
+    void furnitureChanged(const QTextDocument *story);
+    // Notes the room that the story and the other furniture of the sections that use it leave the text now, for furnitureChanged to compare with (a story is about to be put in the
+    // form it is edited in, which should leave the pages as they are).
+    void watchFurniture(const QTextDocument *story);
+    // A header or footer story is going away: nothing of it is kept.
+    void releaseStory(const QTextDocument *story);
+    // The header or footer story a person is editing: a field of it that shows the text of a page (STYLEREF) shows the result the file had, so that a place in the page's copy of the
+    // story is the same place in the story.
+    void setEditedStory(const QTextDocument *story) { m_editedStory = story; }
     // The pages from where section `section` begins again (that section, or one after it, changed, or sections came or went from it on): the pages
     // of the sections before it are as they were.
     void invalidateFrom(int section);
@@ -313,6 +338,9 @@ private:
         double headerHeight = 0, footerHeight = 0;
     };
     Furniture furnitureOf(int index, const PageStart &st, int number);
+    Furniture furnitureFor(const Section &sec, bool first, int number);
+    std::vector<double> furnitureExtents(const QTextDocument *story, int *firstSection);
+    void forgetStory(const QTextDocument *story);
     // (A header's or footer's layout is kept by its story, its width and the room beside it to the page's edge in hundredths of a point, and the story's revision.)
     using StoryKey = std::tuple<const QTextDocument *, int, int, int>;
     static StoryKey storyKey(const QTextDocument *story, double width, double rightRoom) { return {story, int(std::lround(width * 100)), story->revision(), int(std::lround(rightRoom * 100))}; }
@@ -523,6 +551,8 @@ private:
     std::map<std::tuple<const QTextDocument *, int, QString>, double> m_headerBottoms;   // how far down the page the wrapped shapes of each header reach, by story, revision, and the section's places
     std::map<StoryKey, QVector<StoryLayout::LineInfo>> m_storyLines;   // the lines of each, from the same layout   // by story, its width in hundredths of a point, and its revision
 
+    const QTextDocument *m_editedStory = nullptr;
+    std::map<const QTextDocument *, std::vector<double>> m_furnitureBaseline;   // the text areas the sections that use a story had when it was last edited
     FlowDocument *m_doc;
     std::unique_ptr<TableFlow> m_tables;
     std::unique_ptr<QObject> m_watch;

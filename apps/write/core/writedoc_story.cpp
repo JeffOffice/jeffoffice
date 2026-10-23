@@ -292,6 +292,199 @@ QTextCharFormat asDeleted(QTextCharFormat format)
     return format;
 }
 
+// A paragraph of a header or footer in the form it is edited in: each field that begins and ends in it is one atom (kFieldGroupTag) of the runs that make it, written back as they
+// were, which the story shows as one character with the result the field has (its live code where the pages answer it). A field whose pieces stand among tags that begin or end
+// outside it, or one the paragraph ends inside, is left as the atoms it is.
+Block withFieldsAsAtoms(const Block &block, int *styleRefs)
+{
+    const QVector<Inline> &c = block.para.content;
+    bool any = false;
+    for (const Inline &in : c)
+        if ((in.kind == Inline::RunAtom && in.tag == QLatin1String("fldChar")) || (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple"))) {
+            any = true;
+            break;
+        }
+    if (!any) return block;
+    Block out = block;
+    out.para.content.clear();
+    auto isMark = [](const Inline &x, const char *key) { return x.kind == Inline::RunAtom && x.tag == QLatin1String("fldChar") && x.key == QLatin1String(key); };
+    auto isSimple = [](const Inline &x, Inline::Role role) { return x.kind == Inline::ParaAtom && x.tag == QLatin1String("fldSimple") && x.role == role; };
+    for (int i = 0; i < c.size();) {
+        if (!isMark(c[i], "begin") && !isSimple(c[i], Inline::Open)) {
+            out.para.content.push_back(c[i]);
+            ++i;
+            continue;
+        }
+        int depth = 0, end = -1;
+        for (int k = i; k < c.size() && end < 0; ++k) {
+            if (isMark(c[k], "begin") || isSimple(c[k], Inline::Open)) ++depth;
+            else if ((isMark(c[k], "end") || isSimple(c[k], Inline::Close)) && --depth <= 0) end = k;
+        }
+        const bool ended = end >= 0;
+        if (!ended) end = int(c.size()) - 1;
+        // The tags inside it must come in pairs.
+        bool paired = ended;
+        QStringList open;
+        for (int k = i; k <= end && paired; ++k) {
+            const Inline &x = c[k];
+            if (x.kind != Inline::ParaAtom || x.tag == QLatin1String("fldSimple")) continue;
+            if (x.role == Inline::Open) {
+                open << x.tag;
+            } else if (x.role == Inline::Close) {
+                if (open.isEmpty() || open.last() != x.tag) paired = false;
+                else open.removeLast();
+            }
+        }
+        if (!open.isEmpty()) paired = false;
+        if (!paired) {
+            for (int k = i; k <= end; ++k) out.para.content.push_back(c[k]);
+            i = end + 1;
+            continue;
+        }
+        // What the field is: its code (the instruction of the outermost), the text of its result, and the properties of the first of that text.
+        QString instruction, result;
+        RunProps look = c[i].props;
+        bool separated = isSimple(c[i], Inline::Open), looked = false;
+        int nesting = 0;
+        if (separated)
+            instruction = QString(attributeOfTag(c[i].raw, QStringLiteral("instr"))).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&apos;"), QLatin1String("'")).replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&amp;"), QLatin1String("&"));
+        QVector<Inline> runs;
+        for (int k = i; k <= end; ++k) {
+            const Inline &x = c[k];
+            if (isMark(x, "begin") || isSimple(x, Inline::Open)) ++nesting;
+            else if (isMark(x, "end") || isSimple(x, Inline::Close)) --nesting;
+            else if (isMark(x, "separate") && nesting == 1) separated = true;
+            else if (x.kind == Inline::RunAtom && x.tag == QLatin1String("instrText") && nesting == 1 && !separated) instruction += textOfXml(x.raw);
+            else if (x.kind == Inline::Text && separated && !x.text.isEmpty()) {
+                result += x.text;
+                if (!looked && !x.text.trimmed().isEmpty()) {
+                    look = x.props;
+                    looked = true;
+                }
+            }
+            runs.push_back(x);   // (each run keeps the properties it has: a field's runs need not look alike)
+        }
+        Inline group;
+        group.kind = Inline::ParaAtom;
+        group.role = Inline::Single;
+        group.tag = kFieldGroupTag;
+        group.props = look;
+        group.raw = inlinesXml(runs, 0, runs.size());
+        group.display = result;
+        QString live = liveFieldOf(instruction);
+        if (live.startsWith(QLatin1String("styleref:"))) live += QChar(0x1f) + result.left(1000) + QChar(0x1f) + QString::number(++*styleRefs);
+        group.key = live;
+        if (live.isEmpty() && result.trimmed().isEmpty() && isMark(c[i], "begin"))
+            if (const FormShown form = formShownOf(c[i].raw); !form.text.isEmpty()) group.display = form.text;
+        out.para.content.push_back(group);
+        i = end + 1;
+    }
+    return out;
+}
+
+// The blocks of a header or footer part that the program shows (kMostHeaderParagraphs paragraphs, those of the cells of a table counted), and the rest of the part as elements kept as
+// written. A table is cut between its rows: the rows past the limit are one piece kept as XML, among the pieces kept between the rows (so they go back where they were); a table whose
+// first row would pass the limit is kept whole. The paragraph that follows a cut table is shown too (what is kept after it goes after a paragraph that is not in its cells). The page
+// shows this and so does the form the part is edited in: what is shown does not change as the part is opened for editing.
+void boundedBlocks(const QVector<Block> &in, QVector<Block> *shown, QVector<Block> *kept)
+{
+    struct Row {
+        qsizetype last;
+        int paragraphs;
+    };
+    const qsizetype n = in.size();
+    int paragraphs = 0;
+    bool over = false, wantParagraph = false;
+    auto keep = [&](const Block &b) {
+        Block k = b;
+        if (!b.isRaw) {
+            k = Block();
+            k.isRaw = true;
+            k.raw = blockXml(b);
+        }
+        kept->push_back(k);
+    };
+    auto isStructure = [](const Block &b) {
+        return b.isRaw && b.role != Inline::Single && (b.tag == QLatin1String("tbl") || b.tag == QLatin1String("tr") || b.tag == QLatin1String("tc"));
+    };
+    for (qsizetype i = 0; i < n; ++i) {
+        const Block &b = in[i];
+        if (over) {
+            keep(b);
+            continue;
+        }
+        if (!(isStructure(b) && b.tag == QLatin1String("tbl") && b.role == Inline::Open)) {
+            if (!b.isRaw) {
+                if (wantParagraph) {
+                    over = true;   // (this one, and no more)
+                } else if (paragraphs >= kMostHeaderParagraphs) {
+                    over = true;
+                    keep(b);
+                    continue;
+                }
+                ++paragraphs;
+                wantParagraph = false;
+            }
+            shown->push_back(b);
+            continue;
+        }
+        // A table: where it ends, and its rows (a row has the paragraphs of its cells, and of the tables in them).
+        qsizetype end = n - 1;
+        QVector<Row> rows;
+        int tables = 0, parts = 0;
+        for (qsizetype k = i; k < n; ++k) {
+            const Block &x = in[k];
+            if (isStructure(x)) {
+                const int step = x.role == Inline::Open ? 1 : -1;
+                if (x.tag == QLatin1String("tbl")) tables += step;
+                else if (x.tag == QLatin1String("tr") && tables == 1 && x.role == Inline::Open) rows.push_back({k, 0});
+                else if (x.tag == QLatin1String("tr") && tables == 1 && !rows.isEmpty()) rows.last().last = k;
+                parts += step;
+                if (tables == 0) {
+                    end = k;
+                    break;
+                }
+            } else if (!x.isRaw && !rows.isEmpty()) {
+                ++rows.last().paragraphs;
+            }
+        }
+        const bool closed = tables == 0 && parts == 0;
+        int fit = 0, sum = paragraphs;
+        while (closed && fit < rows.size() && sum + rows[fit].paragraphs <= kMostHeaderParagraphs) sum += rows[fit++].paragraphs;
+        if (!closed || (fit == 0 && !rows.isEmpty())) {
+            for (qsizetype k = i; k <= end; ++k) keep(in[k]);
+            over = true;
+            continue;
+        }
+        if (fit == rows.size()) {
+            for (qsizetype k = i; k <= end; ++k) shown->push_back(in[k]);
+            paragraphs = sum;
+            i = end;
+            continue;
+        }
+        // Cut after row `fit - 1`: the rows from there to the table's end are kept, in the table.
+        for (qsizetype k = i; k <= rows[fit - 1].last; ++k) shown->push_back(in[k]);
+        Block rest;
+        rest.isRaw = true;
+        for (qsizetype k = rows[fit - 1].last + 1; k < end; ++k) rest.raw += blockXml(in[k]);
+        shown->push_back(rest);
+        shown->push_back(in[end]);
+        paragraphs = sum;
+        wantParagraph = true;
+        i = end;
+    }
+}
+
+// The blocks of a header or footer part for the form it is edited in: those the page shows, with the fields of their paragraphs as atoms; the rest, kept as written, goes back after the
+// last of the paragraphs.
+void blocksForEditing(const QVector<Block> &in, QVector<Block> *out, QVector<Block> *overflow)
+{
+    QVector<Block> shown;
+    boundedBlocks(in, &shown, overflow);
+    int styleRefs = 0;
+    for (const Block &b : shown) out->push_back(b.isRaw ? b : withFieldsAsAtoms(b, &styleRefs));
+}
+
 // The properties of a frame (w:framePr, an element of a paragraph's properties kept as written), by their local names; empty for something that is not one.
 QHash<QString, QString> framePropertiesOf(const QVector<RawChild> &extra, QByteArray *xml)
 {
@@ -406,12 +599,19 @@ flow::FloatingObject frameObjectOf(const QHash<QString, QString> &at)
 
 } // namespace
 
+QString liveFieldFor(const QString &instruction) { return liveFieldOf(instruction); }
+
 qint64 attributeExpressionsMadeForTest() { return s_attributeExpressions.load(); }
 
 // Fills `story` from the elements of a body or of a header or footer. A header's or footer's (`header`) fields for the page's number and the page
 // counts are live fields of the text engine, its tables and pictures are left out, and a paragraph in a frame is set aligned as the frame is.
-void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool header, const QString &part, bool headerFooter, bool append, int insertAt)
+void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, bool header, const QString &part, bool headerFooter, bool append, int insertAt, bool editable)
 {
+    QVector<Block> prepared, overflow;
+    // (A header's or footer's: the page shows, and the form it is edited in has, the same first part of it.)
+    if (editable) blocksForEditing(bodyIn, &prepared, &overflow);
+    else if (headerFooter && !append) boundedBlocks(bodyIn, &prepared, &overflow);
+    const QVector<Block> &body = editable || (headerFooter && !append) ? prepared : bodyIn;
     const StyleSheet &sheet = m_wml.styles;
     const Theme *thm = theme();
     const QString defaultStyle = defaultParagraphStyle();
@@ -546,7 +746,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
     for (const Block &blk : body) {
         ++blockNumber;
         // (A header's or footer's tables are laid out as the body's are: the parts of one are the blocks that make the cells; other raw elements are left out.)
-        if (header && ((blk.isRaw && !tables.isStructural(blk)) || paragraphsMade >= mostParagraphs || (!blk.isRaw && ++paragraphsMade > mostParagraphs))) continue;
+        if (header && !editable && ((blk.isRaw && !tables.isStructural(blk)) || (!(headerFooter && !append) && (paragraphsMade >= mostParagraphs || (!blk.isRaw && ++paragraphsMade > mostParagraphs))))) continue;
         if (tables.isStructural(blk) || blk.isRaw) lastFrameKey = 0;
         if (tables.isStructural(blk)) {
             // The parts of a table (its start, rows, and cells) become the records of the cells that its paragraphs are given. What was kept after a cell's last
@@ -752,7 +952,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
             else continuing->add(c.block());
         }
 
-        if (header) {
+        if (header && !editable) {
             // A field's instruction and result: the result (the text between its separator and its end) shows, or, for the page's number and the
             // page counts, one live field takes its place.
             struct Field {
@@ -790,7 +990,14 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                         setFormLook(&ff, form);
                         put(form.text, ff);
                     } else {
-                        for (const auto &r : f.result) put(r.first, r.second);
+                        // (A reference whose result is nothing but blanks, to a form field that has none of its own: the word processor shows the text it refers to, and the blanks are no part of a
+                        // line's height. They are shown as the file has them.)
+                        const bool blank = !text && f.instruction.trimmed().startsWith(QLatin1String("REF "), Qt::CaseInsensitive);
+                        for (const auto &r : f.result) {
+                            QTextCharFormat shown = r.second;
+                            if (blank) shown.setProperty(tp::BlankFieldResult, true);
+                            put(r.first, shown);
+                        }
                     }
                 }
             };
@@ -859,14 +1066,19 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         // position of its begin mark in the paragraph's content. (One pass over the elements: the fields open at a time are a stack, each remembering whether its separator has come and
         // whether its result has text.)
         QHash<int, FormShown> formShown;
+        QSet<int> blankResult;   // (the pieces of text that are the result of a reference that is nothing but blanks: they are no part of a line's height)
         {
             struct Open {
                 int at = 0;
                 bool separated = false, hasText = false;
+                QString instruction;
+                QVector<int> pieces;
             };
             QVector<Open> open;
             auto close = [&](const Open &field) {
                 if (field.hasText) return;
+                if (field.instruction.trimmed().startsWith(QLatin1String("REF "), Qt::CaseInsensitive))
+                    for (const int piece : field.pieces) blankResult.insert(piece);
                 const FormShown shown = formShownOf(p.content[field.at].raw);
                 if (!shown.text.isEmpty()) formShown.insert(field.at, shown);
             };
@@ -874,7 +1086,14 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                 ++m_dropDownSteps;
                 const Inline &in = p.content[at];
                 if (in.kind == Inline::Text) {
-                    if (!open.isEmpty() && open.last().separated && !in.text.trimmed().isEmpty()) open.last().hasText = true;
+                    if (!open.isEmpty() && open.last().separated) {
+                        if (!in.text.trimmed().isEmpty()) open.last().hasText = true;
+                        else if (open.last().pieces.size() < 64 && in.text.size() >= 2) open.last().pieces << at;
+                    }
+                    continue;
+                }
+                if (in.kind == Inline::RunAtom && in.tag == QLatin1String("instrText")) {
+                    if (!open.isEmpty() && !open.last().separated && open.last().instruction.size() < 64) open.last().instruction += textOfXml(in.raw);
                     continue;
                 }
                 if (in.kind != Inline::RunAtom || in.tag != QLatin1String("fldChar")) continue;
@@ -955,19 +1174,26 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
                     c.insertText(ref->section(QChar(0x1f), 1), shown);
                     continue;
                 }
-                if (!in.text.isEmpty()) c.insertText(in.text, deleted ? asDeleted(formatOf(styleId, in.props)) : formatOf(styleId, in.props));
+                if (!in.text.isEmpty()) {
+                    QTextCharFormat shown = deleted ? asDeleted(formatOf(styleId, in.props)) : formatOf(styleId, in.props);
+                    if (blankResult.contains(inAt)) shown.setProperty(tp::BlankFieldResult, true);
+                    c.insertText(in.text, shown);
+                }
                 continue;
             }
             if (!deleted && advanceTop < 0)
                 if (const std::optional<double> asked = advanceTopOf(in)) advanceTop = *asked;
             QTextCharFormat af = formatOf(styleId, in.props);
             if (deleted) af = asDeleted(af);
-            setStored(af, prop::Atom, packAtom(in));
+            Inline packed = in;
+            if (in.kind == Inline::ParaAtom && in.tag == kFieldGroupTag) packed.look = runPropsXml(runPropsWritten(af, styleId, layer));   // (what writing the story gives it, to tell it formatted)
+            setStored(af, prop::Atom, packAtom(packed));
             setMathLook(&af, in);
             // A reference to a footnote of the file is the note's (the pages lay it out at their foot); one to an endnote shows its number, in the format
             // the settings give (lower case roman numerals, a word processor's own).
             QString field = in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum") ? liveFieldOf(QStringLiteral("PAGE")) : QStringLiteral("raw:") + (formShown.contains(inAt) ? formShown.value(inAt).text : in.display);
             if (formShown.contains(inAt)) setFormLook(&af, formShown.value(inAt));
+            if (in.kind == Inline::ParaAtom && in.tag == kFieldGroupTag && !in.key.isEmpty()) field = in.key;   // (a field the pages answer: the page's number, the count of pages...)
             // A symbol of a font that isn't a symbol font (and isn't on the machine) is its character, in that font's stand-in.
             if (in.kind == Inline::RunAtom && in.tag == QLatin1String("sym")) {
                 const QString font = attributeOfTag(in.raw, QStringLiteral("font"));
@@ -1047,6 +1273,21 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &body, bool 
         }
     }
     if (header) {
+        if (editable) {
+            // What stands after the last paragraph (elements kept as XML, and the paragraphs past the limit) is kept with it.
+            for (const Block &b : overflow) pending.push_back(b);
+            // (What stands after a table that ends the shown part goes after a paragraph of the story itself, not in the cell that the last paragraph is in.)
+            if (!pending.isEmpty() && c.blockFormat().intProperty(flow::fp::Cell) != 0) startBlock(styleBlockFormat(defaultStyle), styleCharFormat(defaultStyle));
+            if (!pending.isEmpty()) {
+                QTextBlockFormat bf = c.blockFormat();
+                setStored(bf, prop::RawAfter, packBlocks(pending));
+                c.setBlockFormat(bf);
+            }
+            QTextCursor first(story->begin());
+            QTextBlockFormat bf = story->begin().blockFormat();
+            setStored(bf, prop::MarkFormat, packFormat(story->begin().charFormat()));
+            first.setBlockFormat(bf);
+        }
         c.endEditBlock();
         renumberLists(story);
         return;

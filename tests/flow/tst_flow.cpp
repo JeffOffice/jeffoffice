@@ -1200,6 +1200,134 @@ double millisecondsToPaginate(const std::function<void(FlowDocument &, TestNotes
     }) / 1e6;
 }
 
+// The tests of where a word processor's tabs go lay a story out twice: once as it is, and once with the default stops (past a paragraph's own) listed as its own, which is where the
+// list of a line's stops puts a tab. The two are to be the same in every line and at every letter. (A story is made of its seed alone, so a failure names it.)
+struct TabPara {
+    QList<QTextOption::Tab> stops;
+    double left = 0, indent = 0;
+    bool rtl = false;   // set right to left
+    QList<std::pair<QString, QTextCharFormat>> runs;
+};
+
+// `script`: 0 Latin letters; 1 Hebrew first, and Hebrew and Latin words after; 2 the same in Arabic; 3 a Latin word first, and Hebrew and Latin words after. `rtl`: the paragraphs are set right to left.
+QList<TabPara> randomTabParas(unsigned seed, int script = 0, bool rtl = false)
+{
+    std::mt19937 rng(seed * 2654435761u + 17u);
+    auto pick = [&](int n) { return int(rng() % unsigned(n)); };
+    static const char *const words[] = {"a", "ii", "lil", "tab", "stop", "ledger", "iiiiii", "mm", "of", "the", "text", "illicit", "w", "..."};
+    QList<TabPara> paras;
+    const int count = 1 + pick(3);
+    for (int n = 0; n < count; ++n) {
+        TabPara p;
+        p.rtl = rtl;
+        const int stops = 1 + pick(3);
+        double at = 6 + pick(40) + pick(10) / 10.0;
+        for (int k = 0; k < stops; ++k) {
+            const int t = pick(6);
+            QTextOption::Tab stop(at, t < 3 ? QTextOption::LeftTab : t == 3 ? QTextOption::RightTab : t == 4 ? QTextOption::CenterTab : QTextOption::DelimiterTab);
+            if (stop.type == QTextOption::DelimiterTab) stop.delimiter = QLatin1Char('.');
+            p.stops << stop;
+            at += 12 + pick(90) + pick(10) / 10.0;
+        }
+        static const double lefts[] = {0, 0, 0, 18, 36, 50.5};
+        p.left = lefts[pick(6)];
+        const int shape = pick(4);
+        p.indent = shape == 0 ? 14 : shape == 1 && p.left >= 20 ? -20 : 0;
+        const int pieces = 8 + pick(40);
+        QTextCharFormat cf;
+        for (int k = 0; k < pieces; ++k) {
+            if (k == 0 || pick(5) == 0) {
+                cf = QTextCharFormat();
+                cf.setFontFamilies({pick(2) ? QStringLiteral("Arimo") : QStringLiteral("Tinos")});
+                if (script == 2) cf.setFontFamilies({QStringLiteral("DejaVu Sans")});   // (the program's own face that has the Arabic letters)
+                cf.setFontPointSize(9 + pick(17) * 0.25);
+                if (pick(6) == 0) cf.setFontWeight(QFont::Bold);
+            }
+            QString text = QString::fromLatin1(words[pick(int(sizeof words / sizeof *words))]);
+            if (script != 0) {
+                static const QString hebrew[] = {QStringLiteral("\u05E9\u05DC\u05D5\u05DD"), QStringLiteral("\u05E2\u05D5\u05DC\u05DD"), QStringLiteral("\u05DE\u05E1\u05DE\u05DA"),
+                                                 QStringLiteral("\u05D8\u05E7\u05E1\u05D8"), QStringLiteral("\u05D0\u05D1")};
+                static const QString arabic[] = {QStringLiteral("\u0645\u0631\u062D\u0628\u0627"), QStringLiteral("\u0627\u0644\u0639\u0627\u0644\u0645"), QStringLiteral("\u0643\u062A\u0627\u0628"),
+                                                 QStringLiteral("\u0646\u0635")};
+                const bool inScript = k == 0 ? script != 3 : pick(5) != 0;
+                if (inScript) text = script == 2 ? arabic[pick(4)] : hebrew[pick(5)];
+            }
+            if (pick(4) != 0) text += QLatin1Char('\t');
+            else if (pick(2)) text += QLatin1Char(' ');
+            p.runs << std::make_pair(text, cf);
+        }
+        paras << p;
+    }
+    return paras;
+}
+
+struct TabPlaces {
+    QVector<StoryLayout::LineInfo> lines;
+    QVector<double> carets;   // where each character of the story starts: its frame's, and its x
+};
+
+// `listed`: the default stops past each paragraph's own are the paragraph's own stops (every one the frame can reach).
+TabPlaces tabPlaces(const QList<TabPara> &paras, double step, double width, bool listed)
+{
+    QTextDocument doc;
+    QTextCursor c(&doc);
+    for (int n = 0; n < paras.size(); ++n) {
+        const TabPara &p = paras[n];
+        QTextBlockFormat bf;
+        QList<QTextOption::Tab> stops = p.stops;
+        if (listed) {
+            double last = p.left;
+            for (const auto &t : p.stops) last = std::max(last, t.position);
+            for (int j = int(std::floor((last + 0.01) / step)) + 1; j * step < width + 3 * step; ++j) stops << QTextOption::Tab(j * step, QTextOption::LeftTab);   // (each at a multiple of the distance, not a sum of them)
+        }
+        bf.setTabPositions(stops);
+        bf.setLeftMargin(p.left);
+        bf.setTextIndent(p.indent);
+        if (p.rtl) bf.setLayoutDirection(Qt::RightToLeft);
+        if (n == 0) c.setBlockFormat(bf); else c.insertBlock(bf);
+        for (const auto &run : p.runs) c.insertText(run.first, run.second);
+    }
+    LayoutEnv word;
+    word.wordLines = true;
+    word.defaultTab = step;
+    StoryLayout layout;
+    layout.build(&doc, {plainFrame(width, 20000)}, word);
+    TabPlaces out;
+    out.lines = layout.lineInfo(0);
+    for (int pos = 0; pos < doc.characterCount(); ++pos) {
+        int frame = -1;
+        QRectF r;
+        layout.caretRect(pos, &frame, &r);
+        out.carets << r.x() << r.y();
+    }
+    return out;
+}
+
+// Whether two layouts of one story are the same: a line for a line, and a letter for a letter. The first difference is told.
+QString tabPlacesDiffer(const TabPlaces &a, const TabPlaces &b)
+{
+    if (a.lines.size() != b.lines.size()) return QStringLiteral("%1 lines against %2").arg(a.lines.size()).arg(b.lines.size());
+    for (int i = 0; i < a.lines.size(); ++i)
+        if (a.lines[i].docPos != b.lines[i].docPos || a.lines[i].docEnd != b.lines[i].docEnd)
+            return QStringLiteral("line %1 is %2-%3 against %4-%5").arg(i).arg(a.lines[i].docPos).arg(a.lines[i].docEnd).arg(b.lines[i].docPos).arg(b.lines[i].docEnd);
+    for (int i = 0; i + 1 < a.carets.size() && i + 1 < b.carets.size(); i += 2)
+        if (std::abs(a.carets[i] - b.carets[i]) > 1e-4 || std::abs(a.carets[i + 1] - b.carets[i + 1]) > 1e-4)
+            return QStringLiteral("letter %1 is at x %2 against %3").arg(i / 2).arg(a.carets[i]).arg(b.carets[i]);
+    return QString();
+}
+
+// The first of `stories` stories (made of the seeds 0 on) that is laid out differently with the default stops `step` points apart left to the engine than with them listed, told by its
+// seed and what differs; none: an empty string.
+QString firstTabStoryThatDiffers(double step, unsigned stories, int script = 0)
+{
+    for (unsigned seed = 0; seed < stories; ++seed) {
+        const QList<TabPara> paras = randomTabParas(seed, script);
+        const QString why = tabPlacesDiffer(tabPlaces(paras, step, 468, false), tabPlaces(paras, step, 468, true));
+        if (!why.isEmpty()) return QStringLiteral("story %1 (script %2) with stops %3 apart: %4").arg(seed).arg(script).arg(step).arg(why);
+    }
+    return QString();
+}
+
 } // namespace
 
 class FlowTests : public QObject {
@@ -3188,6 +3316,172 @@ private Q_SLOTS:
         const qint64 made = StoryLayout::formatRangesMadeForTest() - before;
         QVERIFY2(made <= 4, qPrintable(QStringLiteral("%1 ranges for %2 letters").arg(made).arg(letters)));
         QVERIFY(layout.lineInfo(0).size() >= 2);
+    }
+
+    // A paragraph of letters with no place to break a line (a file that cuts one long word into runs of a letter) is laid out with its lines allowed to break anywhere, and gets the same
+    // lines: Qt reads on to the end of such a word for each line, at a font lookup for each run, and a paragraph of 500,000 such runs took each of its pages a second. The lines are
+    // compared with those of the same text with a space at its end (a place to break, so the paragraph is laid out as any is) in each of the program's own families (every system has
+    // them), at three widths, and of letters, capitals, and digits: the lines break at the same letters and stand in the same places.
+    void aParagraphWithNoPlaceToBreakIsLaidOutAsBreakingAnywhereWithTheSameLines()
+    {
+        auto build = [](const QString &family, const QString &letters, const QString &end, qint64 *anywhere, double width) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            c.beginEditBlock();   // (the cursor does not find its x for each run)
+            for (int i = 0; i < 900; ++i) {
+                QTextCharFormat cf;
+                cf.setFontFamilies({family});
+                cf.setFontPointSize(10 + i % 3);
+                cf.setFontWeight(i % 2 ? QFont::Bold : QFont::Normal);
+                c.insertText(QString(letters[(i * 7 + i / 5) % letters.size()]), cf);
+            }
+            if (!end.isEmpty()) {
+                QTextCharFormat cf;
+                cf.setFontFamilies({family});
+                cf.setFontPointSize(11);
+                c.insertText(end, cf);
+            }
+            c.endEditBlock();
+            LayoutEnv word;
+            word.wordLines = true;
+            const qint64 before = StoryLayout::unbreakableParagraphsForTest();
+            StoryLayout layout;
+            layout.build(&doc, {plainFrame(width, 8000)}, word);
+            *anywhere = StoryLayout::unbreakableParagraphsForTest() - before;
+            return layout.lineInfo(0);
+        };
+        const QStringList alphabets = {QStringLiteral("abcdefg"), QStringLiteral("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), QStringLiteral("0123456789abcXYZ")};
+        for (const QString &family : {QStringLiteral("Arimo"), QStringLiteral("Tinos"), QStringLiteral("Cousine")}) {   // (the program's own: no system font is looked for, nothing is skipped)
+            QVERIFY2(QFontDatabase::hasFamily(family), qPrintable(family));
+            for (const double width : {137.0, 300.0, 481.5}) {
+                for (const QString &letters : alphabets) {
+                    const QString what = QStringLiteral("%1, %2 wide, %3").arg(family).arg(width).arg(letters.left(4));
+                    qint64 broken = 0, withSpace = 0;
+                    const auto lines = build(family, letters, QString(), &broken, width);
+                    const auto reference = build(family, letters, QStringLiteral(" "), &withSpace, width);
+                    QVERIFY2(withSpace == 0, qPrintable(what));
+                    QVERIFY2(broken >= 1, qPrintable(what + ": the paragraph of letters with no place to break was not set to break anywhere"));
+                    QVERIFY2(lines.size() >= 5, qPrintable(what));
+                    QCOMPARE(lines.size(), reference.size());
+                    for (int i = 0; i + 1 < lines.size(); ++i) {   // (the last line of the reference has the space at its end)
+                        QVERIFY2(lines[i].docPos == reference[i].docPos && lines[i].docEnd == reference[i].docEnd, qPrintable(QStringLiteral("%1: line %2").arg(what).arg(i)));
+                        QVERIFY2(std::abs(lines[i].rect.left() - reference[i].rect.left()) < 1e-6 && std::abs(lines[i].rect.top() - reference[i].rect.top()) < 1e-6 &&
+                                     std::abs(lines[i].rect.width() - reference[i].rect.width()) < 1e-6,
+                                 qPrintable(QStringLiteral("%1: line %2 stands elsewhere").arg(what).arg(i)));
+                    }
+                }
+            }
+        }
+    }
+
+    // A tab that starts a hair before a default stop goes to that stop, as the list of a line's stops puts it: Qt's own default stops pass over a stop that a tab starts a fraction of a point
+    // before. (A text of 162 letters i of 11 points, in a paragraph with a stop of its own at 20 points, has its tab start a tenth of a point before the stop at 396; the tab went on to
+    // 432, and a text after it was a stop to the right.) The size of the letters moves the tab's start across the stop.
+    void aTabThatStartsJustBeforeADefaultStopGoesToItAsTheListOfStopsPutsIt()
+    {
+        for (int k = -30; k <= 30; ++k) {
+            QList<TabPara> paras(1);
+            paras[0].stops = {QTextOption::Tab(20, QTextOption::LeftTab)};
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Arimo")});
+            cf.setFontPointSize(11 + k * 0.001);
+            paras[0].runs << std::make_pair(QString(162, QLatin1Char('i')) + QStringLiteral("\tzzzzzz"), cf);
+            const TabPlaces left = tabPlaces(paras, 36, 450, false), listed = tabPlaces(paras, 36, 450, true);
+            QVERIFY(left.lines.size() >= 1);
+            const QString why = tabPlacesDiffer(left, listed);
+            QVERIFY2(why.isEmpty(), qPrintable(QStringLiteral("size %1: %2").arg(11 + k * 0.001).arg(why)));
+        }
+    }
+
+    // A word processor's tab goes where the list of the paragraph's own stops and the default stops past them would put it, in stories of paragraphs with stops of every kind, indents,
+    // and hanging lines: the lines break at the same letters, and every letter is at the same place.
+    void tabsOfStoriesWithTheirOwnStopsGoWhereTheListOfDefaultStopsPutsThem()
+    {
+        const QString why = firstTabStoryThatDiffers(36, 150);
+        QVERIFY2(why.isEmpty(), qPrintable(why));
+    }
+
+    // The same with default stops 709 twips apart (35.45 points, and 28.35): Qt rounds a distance of stops to 64ths of a pixel, so the stops it goes to drift from the list's.
+    void tabsToDefaultStopsOfAnUnevenDistanceGoWhereTheListPutsThem()
+    {
+        for (const double step : {35.45, 28.35}) {
+            const QString why = firstTabStoryThatDiffers(step, 150);
+            QVERIFY2(why.isEmpty(), qPrintable(why));
+        }
+    }
+
+    // A paragraph whose text begins with a letter that reads right to left (Hebrew, Arabic) is laid out right to left by Qt whatever the direction it is set to, and Qt turns the left stops of its
+    // list into right stops: its tabs go where the list of its stops, the default ones too as left stops, puts them. (So do those of a paragraph that begins with a Latin word.)
+    void tabsOfParagraphsThatReadRightToLeftGoWhereTheListOfDefaultStopsPutsThem()
+    {
+        QVERIFY(QFontDatabase::hasFamily(QStringLiteral("DejaVu Sans")));
+        for (const int script : {1, 2, 3})
+            for (const double step : {36.0, 35.45}) {
+                const QString why = firstTabStoryThatDiffers(step, 60, script);
+                QVERIFY2(why.isEmpty(), qPrintable(why));
+            }
+    }
+
+    // A paragraph set right to left has Qt's own tabs, as it always had: no default stops are made for its lines, whatever stops of its own it has.
+    void aParagraphSetRightToLeftIsGivenNoDefaultStops()
+    {
+        for (const int script : {1, 2})
+            for (const double step : {36.0, 35.45})
+                for (unsigned seed = 0; seed < 30; ++seed) {
+                    const QList<TabPara> paras = randomTabParas(seed, script, true);
+                    const qint64 before = StoryLayout::defaultTabStopsMadeForTest();
+                    const TabPlaces places = tabPlaces(paras, step, 468, false);
+                    const qint64 made = StoryLayout::defaultTabStopsMadeForTest() - before;
+                    QVERIFY(places.lines.size() >= 1);
+                    QVERIFY2(made == 0, qPrintable(QStringLiteral("script %1, story %2, stops %3 apart: %4 default stops were made").arg(script).arg(seed).arg(step).arg(made)));
+                }
+    }
+
+    // The default stops past a paragraph's own are not listed in the form that makes Qt read the rest of the paragraph for every tab it answers (a left stop does: a paragraph of 100,000
+    // absolute position tabs took each page a tenth of a second), whether the lines start on the stops' grid or off it (an indent, a hanging line).
+    void defaultStopsPastAParagraphsOwnAreNotListedAsStopsThatMakeQtReadTheParagraph()
+    {
+        for (const double left : {0.0, 10.0}) {
+            QList<TabPara> paras(1);
+            paras[0].stops = {QTextOption::Tab(100, QTextOption::LeftTab)};
+            paras[0].left = left;
+            for (int i = 0; i < 300; ++i) {
+                QTextCharFormat cf;
+                cf.setFontFamilies({QStringLiteral("Arimo")});
+                cf.setFontPointSize(10 + i % 2);
+                paras[0].runs << std::make_pair(QStringLiteral("x\t"), cf);
+            }
+            const qint64 before = StoryLayout::defaultTabStopsListedForTest();
+            const TabPlaces places = tabPlaces(paras, 36, 300, false);
+            const qint64 listed = StoryLayout::defaultTabStopsListedForTest() - before;
+            QVERIFY2(listed == 0, qPrintable(QStringLiteral("with the lines starting %1 from the edge, %2 default stops were listed as left stops").arg(left).arg(listed)));
+            QVERIFY(places.lines.size() >= 25);
+            const QString why = tabPlacesDiffer(places, tabPlaces(paras, 36, 300, true));
+            QVERIFY2(why.isEmpty(), qPrintable(QStringLiteral("with the lines starting %1 from the edge: %2").arg(left).arg(why)));
+        }
+    }
+
+    // A paragraph of many runs over many pages is not passed run by run to the place each page begins at, to the place its text is taken from, nor to where its tabs are looked for: the
+    // runs before the place were passed by the page before it, and the new page goes on from there (a paragraph of 500,000 runs took each page more than the one before it).
+    void thePagesOfAParagraphOfManyRunsPassTheRunsBeforeThemOnceInAll()
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        const int runs = 30000;
+        QTextCursor c(fd.story());
+        c.beginEditBlock();   // (the cursor does not find its x for each run)
+        for (int i = 0; i < runs; ++i) {
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Arimo")});
+            cf.setFontPointSize(10 + i % 2);
+            c.insertText(i % 5 == 4 ? QStringLiteral(" ") : QStringLiteral("w"), cf);
+        }
+        c.endEditBlock();
+        const qint64 before = StoryLayout::runsPassedForTest();
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 8);
+        const qint64 passed = StoryLayout::runsPassedForTest() - before;
+        QVERIFY2(passed <= 8 * runs, qPrintable(QStringLiteral("%1 runs passed for a paragraph of %2 runs over %3 pages").arg(passed).arg(runs).arg(pg.pageCount())));
     }
 
     // The notes before a page that begins inside a paragraph are counted from where the count for the page before it left off, not from the paragraph's start: a paragraph of thousands

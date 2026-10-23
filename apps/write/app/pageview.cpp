@@ -11,6 +11,7 @@
 #include <QPaintEvent>
 #include <QPainter>
 #include <QScrollBar>
+#include <QTimer>
 #include <QTextBlock>
 #include <QTextDocument>
 #include <algorithm>
@@ -97,9 +98,17 @@ PageView::~PageView() = default;
 
 void PageView::setDocument(WriteDoc *doc)
 {
+    if (m_hf.active) {
+        QObject::disconnect(m_hfEdit);
+        if (m_doc) m_doc->pager().setEditedStory(nullptr);
+        m_hf = HeaderFooterEdit();
+        m_hfSpell.reset();
+        Q_EMIT headerFooterModeChanged();
+    }
     if (m_connected) disconnect(m_connected, nullptr, this, nullptr);
     m_connected = nullptr;
     if (m_doc) disconnect(m_doc, nullptr, this, nullptr);
+    if (m_doc) m_doc->discardPendingHeaderFooter();   // (the empty header or footer that was shown to be typed in is not kept)
     m_spell.reset();
     m_editEnd = -1;
     m_rendered.clear();
@@ -128,6 +137,15 @@ void PageView::setDocument(WriteDoc *doc)
         if (m_mode != ZoomMode::Percent) applyZoomMode();
         relayout();
         viewport()->update();
+        // (The header being edited may be another now, or none: after the change is done.)
+        if (m_hf.active) QTimer::singleShot(0, this, [this] { refreshHeaderFooter(false); });
+    });
+    connect(doc, &WriteDoc::headerFooterChanged, this, [this](QTextDocument *) {
+        dropRendered(0);
+        relayout();
+        startPagination();
+        viewport()->update();
+        Q_EMIT contentChanged();
     });
     doc->pager().paginate(0);
     if (m_mode != ZoomMode::Percent) applyZoomMode();
@@ -139,15 +157,26 @@ void PageView::setDocument(WriteDoc *doc)
     Q_EMIT caretChanged();
 }
 
+bool PageView::takeCursorOf(const QTextCursor &c)
+{
+    QTextDocument *d = c.document();
+    if (!m_doc || !d) return true;
+    if (m_hf.active && d == m_hf.story) return true;
+    if (d != m_doc->story()) return false;
+    if (m_hf.active) leaveHeaderFooter();
+    return true;
+}
+
 void PageView::setCursor(const QTextCursor &c)
 {
+    if (!takeCursorOf(c)) return;
     m_cursor = c;
     caretMoved();
 }
 
 void PageView::showCursor(const QTextCursor &c)
 {
-    if (!m_doc) return;
+    if (!m_doc || !takeCursorOf(c)) return;
     // A page is known once the one before it is laid out: lay out pages until the one with the position on it is.
     flow::Paginator &pg = m_doc->pager();
     while (!pg.complete()) {
@@ -171,6 +200,7 @@ bool PageView::pagesComplete() const { return m_complete; }
 int PageView::currentPage() const
 {
     if (!m_doc) return 0;
+    if (m_hf.active) return std::clamp(m_hf.page, 0, std::max(0, m_knownPages - 1));
     return std::clamp(m_doc->pager().pageOfPosition(m_cursor.position()), 0, std::max(0, m_knownPages - 1));
 }
 
@@ -466,6 +496,8 @@ void PageView::paintEvent(QPaintEvent *e)
     const int cols = std::max(1, m_across);
     // (The misspelled words of the pages are found within a few milliseconds; what is left waits for idle time.)
     SpellCheck::Pass spellingTime(*m_spell, 6);
+    std::unique_ptr<SpellCheck::Pass> headerSpellingTime;
+    if (m_hfSpell) headerSpellingTime = std::make_unique<SpellCheck::Pass>(*m_hfSpell, 6);
     // The first row that reaches into the window.
     int firstRow = int(std::upper_bound(m_rowTops.begin(), m_rowTops.end(), visible.top()) - m_rowTops.begin()) - 1;
     firstRow = std::max(0, firstRow);
@@ -492,11 +524,22 @@ void PageView::paintEvent(QPaintEvent *e)
             PageDrawing d;
             d.marks = m_marks;
             d.pageCount = std::max(1, m_knownPages);
-            d.spelling = m_spell.get();
-            d.typingAt = !m_cursor.hasSelection() && m_cursor.position() == m_editEnd ? m_cursor.position() : -1;
-            if (m_cursor.hasSelection()) {
-                d.selectionFrom = m_cursor.selectionStart();
-                d.selectionTo = m_cursor.selectionEnd();
+            if (m_hf.active) {
+                d.editedStory = m_hf.story;
+                d.editFooter = m_hf.footer;
+                d.editSpelling = m_hfSpell.get();
+                d.editTypingAt = !m_cursor.hasSelection() && m_cursor.position() == m_editEnd ? m_cursor.position() : -1;
+                if (m_cursor.hasSelection()) {
+                    d.editSelFrom = m_cursor.selectionStart();
+                    d.editSelTo = m_cursor.selectionEnd();
+                }
+            } else {
+                d.spelling = m_spell.get();
+                d.typingAt = !m_cursor.hasSelection() && m_cursor.position() == m_editEnd ? m_cursor.position() : -1;
+                if (m_cursor.hasSelection()) {
+                    d.selectionFrom = m_cursor.selectionStart();
+                    d.selectionTo = m_cursor.selectionEnd();
+                }
             }
             paintPage(&p, *page->page, &page->layouts, d);
             p.restore();
@@ -551,6 +594,7 @@ QImage PageView::pageImage(int index, int width)
 bool PageView::caretLine(int position, int *pageOut, QLineF *line)
 {
     if (!m_doc) return false;
+    if (m_hf.active) return hfCaretLine(position, pageOut, line);
     flow::Paginator &pg = m_doc->pager();
     const int home = pg.pageOfPosition(std::clamp(position, 0, std::max(0, m_doc->story()->characterCount() - 1)));
     QVector<int> candidates;
@@ -636,6 +680,7 @@ PageView::Hit PageView::hitAt(const QPoint &vp)
 int PageView::positionAt(const Hit &hit)
 {
     if (hit.page < 0) return -1;
+    if (m_hf.active) return hfPositionAt(hit);
     const auto r = rendered(hit.page);
     const int last = std::max(0, m_doc->story()->characterCount() - 1);
     // A point in the rows of a table (beside them, too) is in the nearest of the cells.
@@ -695,6 +740,7 @@ int PageView::positionAt(const Hit &hit)
 
 int PageView::lineEdge(int position, bool end)
 {
+    if (m_hf.active) return hfLineEdge(position, end);
     int page = 0;
     QLineF line;
     if (!caretLine(position, &page, &line)) return position;
@@ -712,6 +758,7 @@ int PageView::lineEdge(int position, bool end)
 
 int PageView::moveVertical(int position, int direction)
 {
+    if (m_hf.active) return hfMoveVertical(position, direction);
     int page = 0;
     QLineF line;
     if (!caretLine(position, &page, &line)) return position;
@@ -805,5 +852,295 @@ void PageView::focusOutEvent(QFocusEvent *e)
 }
 
 bool PageView::focusNextPrevChild(bool) { return false; }
+
+// ---- headers and footers
+
+PageView::Area PageView::areaOf(const Hit &hit)
+{
+    if (hit.page < 0) return Area::Body;
+    const auto r = rendered(hit.page);
+    if (!r || !r->page) return Area::Body;
+    // (Only a point on the page itself is in a header's or a footer's area.)
+    if (!QRectF(QPointF(0, 0), r->page->size).contains(hit.point)) return Area::Body;
+    const QRectF body = r->page->bodyArea;
+    if (hit.point.y() < body.top()) return Area::Header;
+    if (hit.point.y() > body.bottom()) return Area::Footer;
+    return Area::Body;
+}
+
+PageView::Area PageView::areaAt(const QPoint &viewportPos) { return areaOf(hitAt(viewportPos)); }
+
+bool PageView::enterHeaderFooter(int page, bool footer, bool makeNow)
+{
+    if (!m_doc) return false;
+    flow::Paginator &pg = m_doc->pager();
+    pg.paginate(page);
+    if (page < 0 || page >= pg.pagesKnown()) return false;
+    const flow::Paginator::Page p = pg.page(page);
+    if (p.start.blank) return false;   // (a page with nothing on it: no header or footer is shown on it, so there is nothing to edit)
+    const int section = p.start.section;
+    return enterHeaderFooterFor(section, footer, m_doc->headerSlotOf(section, page <= 0 || p.start.firstOfSection, p.number), page, makeNow);
+}
+
+bool PageView::enterHeaderFooterAtCaret(bool footer) { return enterHeaderFooter(currentPage(), footer, true); }
+
+bool PageView::enterHeaderFooterFor(int section, bool footer, int slot, int page, bool makeNow)
+{
+    if (!m_doc) return false;
+    if (m_hf.active && m_hf.section == section && m_hf.footer == footer && m_hf.slot == slot && m_doc->headerFooterStory(section, footer, slot) == m_hf.story) {
+        m_hf.page = page;
+        if (makeNow) m_doc->createHeaderFooter(section, footer, slot);
+        viewport()->update();
+        return true;
+    }
+    // (The empty one that was shown to be typed in goes when another is entered.)
+    if (m_hf.active && m_doc->isPendingHeaderFooter(m_hf.story)) leaveHeaderFooter();
+    if (!m_doc->createHeaderFooter(section, footer, slot, !makeNow)) return false;
+    QTextDocument *story = m_doc->editableHeaderFooter(section, footer, slot);
+    if (!story) return false;
+    const bool was = m_hf.active;
+    if (!was) m_bodyCursor = m_cursor;
+    else QObject::disconnect(m_hfEdit);
+    m_hf = HeaderFooterEdit{true, section, slot, page, footer, story};
+    m_doc->pager().setEditedStory(story);
+    m_hfSpell = std::make_unique<SpellCheck>(story);
+    m_hfSpell->setDefaultLanguage(m_doc->proofingLanguage());
+    m_hfSpell->setEnabled(m_spellOn);
+    connect(m_hfSpell.get(), &SpellCheck::changed, viewport(), qOverload<>(&QWidget::update));
+    m_hfEdit = connect(story, &QTextDocument::contentsChange, this, [this](int position, int, int added) { m_editEnd = position + added; });
+    m_cursor = QTextCursor(story);
+    m_cursor.setPosition(0);
+    m_wantedX = -1;
+    m_movedFrom = -1;
+    m_dragging = false;
+    m_editEnd = -1;
+    dropRendered(0);
+    relayout();
+    viewport()->update();
+    Q_EMIT headerFooterModeChanged();
+    caretMoved();
+    return true;
+}
+
+void PageView::leaveHeaderFooter()
+{
+    if (!m_hf.active) return;
+    QObject::disconnect(m_hfEdit);
+    if (m_doc) m_doc->pager().setEditedStory(nullptr);
+    m_hf = HeaderFooterEdit();
+    m_hfSpell.reset();
+    m_dragging = false;
+    m_editEnd = -1;
+    if (m_bodyCursor.document()) m_cursor = m_bodyCursor;
+    m_bodyCursor = QTextCursor();
+    if (m_doc) m_doc->discardPendingHeaderFooter();   // (an empty one that nothing was put in is not made)
+    dropRendered(0);
+    relayout();
+    viewport()->update();
+    Q_EMIT headerFooterModeChanged();
+    caretMoved();
+}
+
+void PageView::refreshHeaderFooter(bool create)
+{
+    if (!m_hf.active || !m_doc) return;
+    if (m_hf.section >= m_doc->sectionCount()) {
+        leaveHeaderFooter();
+        return;
+    }
+    flow::Paginator &pg = m_doc->pager();
+    pg.paginate(m_hf.page);
+    if (pg.pagesKnown() == 0) return;
+    const int page = std::clamp(m_hf.page, 0, pg.pagesKnown() - 1);
+    const flow::Paginator::Page p = pg.page(page);
+    if (p.start.blank) {
+        leaveHeaderFooter();
+        return;
+    }
+    const int section = p.start.section, slot = m_doc->headerSlotOf(section, page <= 0 || p.start.firstOfSection, p.number);
+    QTextDocument *now = m_doc->headerFooterStory(section, m_hf.footer, slot);
+    if (now == m_hf.story && section == m_hf.section && slot == m_hf.slot) return;
+    if ((!now && !create) || !enterHeaderFooterFor(section, m_hf.footer, slot, page)) leaveHeaderFooter();
+}
+
+int PageView::pageShowing(int section, bool footer, int slot)
+{
+    Q_UNUSED(footer);
+    flow::Paginator &pg = m_doc->pager();
+    const int known = pg.pagesKnown();
+    if (known <= 0) return -1;
+    const int from = std::clamp(topPage(), 0, known - 1);
+    for (int step = 0; step < known && step < 4000; ++step) {
+        const int i = (from + step) % known;
+        const flow::Paginator::Page p = pg.page(i);
+        if (!p.start.blank && p.start.section == section && m_doc->headerSlotOf(section, i <= 0 || p.start.firstOfSection, p.number) == slot) return i;
+    }
+    return -1;
+}
+
+bool PageView::takeFurnitureAt(const Hit &hit, bool footer)
+{
+    if (hit.page < 0) return false;
+    flow::Paginator &pg = m_doc->pager();
+    pg.paginate(hit.page);
+    if (hit.page >= pg.pagesKnown()) return false;
+    const flow::Paginator::Page p = pg.page(hit.page);
+    if (p.start.blank) return false;
+    const int section = p.start.section, slot = m_doc->headerSlotOf(section, hit.page <= 0 || p.start.firstOfSection, p.number);
+    if (m_hf.active && m_hf.section == section && m_hf.footer == footer && m_hf.slot == slot) {
+        if (m_hf.page != hit.page) {
+            m_hf.page = hit.page;
+            viewport()->update();
+        }
+        return true;
+    }
+    return enterHeaderFooterFor(section, footer, slot, hit.page);
+}
+
+void PageView::followHistory(QTextDocument *story, const QTextCursor &at)
+{
+    if (story == m_doc->story()) {
+        if (m_hf.active) leaveHeaderFooter();
+        m_cursor = at;
+    } else if (m_hf.active && m_hf.story == story) {
+        m_cursor = at;
+    } else {
+        int section = 0, slot = 0;
+        bool footer = false;
+        if (m_doc->headerFooterSlotOf(story, &section, &footer, &slot)) {
+            const int page = pageShowing(section, footer, slot);
+            if (page >= 0 && enterHeaderFooterFor(section, footer, slot, page)) m_cursor = at;
+        }
+    }
+    if (m_hf.active) refreshHeaderFooter(false);
+    caretMoved();
+}
+
+// Where the boxes of the edited story on the page being edited put a position: the last box that begins at or before it (a story with tables is a box for each stretch of text).
+bool PageView::hfSpotAt(Rendered &r, int position, FrameSpot *spot)
+{
+    if (!r.page) return false;
+    const flow::MaterializedPage::FurnitureBox *best = nullptr;
+    for (const auto &fb : r.page->furniture)
+        if (fb.source == m_hf.story && fb.from <= position && (!best || fb.from >= best->from)) best = &fb;
+    if (!best) return false;
+    for (const auto &it : r.page->doc->pages[0]->items) {
+        if (it->id != best->itemId || it->type() != ItemType::Text) continue;
+        spot->box = static_cast<const TextItem *>(it.get());
+        spot->fl = r.layouts.textFrame(*r.page->doc, *spot->box, r.page->number, RenderOptions());
+        spot->from = best->from;
+        spot->inFrame = position - best->from;
+        return spot->fl.layout != nullptr;
+    }
+    return false;
+}
+
+bool PageView::hfCaretLine(int position, int *pageOut, QLineF *line)
+{
+    const auto r = rendered(m_hf.page);
+    if (!r || !r->page) return false;
+    for (int i = 0; i < r->page->furnitureTables.size(); ++i) {
+        if (r->page->furnitureTableSources.value(i) != m_hf.story) continue;
+        QLineF cellLine;
+        if (r->page->furnitureTables[i]->caretLine(position, &cellLine)) {
+            *line = cellLine;
+            *pageOut = m_hf.page;
+            return true;
+        }
+    }
+    FrameSpot spot;
+    if (!hfSpotAt(*r, position, &spot)) return false;
+    int frame = -1;
+    QRectF rect;
+    if (!spot.fl.layout->caretRect(spot.inFrame, &frame, &rect)) return false;
+    const double x = spot.box->rect.left() + rect.x();
+    *line = QLineF(x, spot.box->rect.top() + rect.top(), x, spot.box->rect.top() + rect.bottom());
+    *pageOut = m_hf.page;
+    return true;
+}
+
+int PageView::hfPositionAt(const Hit &hit)
+{
+    const auto r = rendered(hit.page);
+    const int last = std::max(0, m_hf.story->characterCount() - 1);
+    if (!r || !r->page) return -1;
+    for (int i = 0; i < r->page->furnitureTables.size(); ++i) {
+        if (r->page->furnitureTableSources.value(i) != m_hf.story) continue;
+        const QRectF fr = r->page->furnitureTables[i]->rect();
+        if (hit.point.y() < fr.top() - 1 || hit.point.y() > fr.bottom() + 1) continue;
+        const int at = r->page->furnitureTables[i]->positionAt(hit.point);
+        if (at >= 0) return std::clamp(at, 0, last);
+    }
+    // The box of the edited story nearest the point (above or below it).
+    const TextItem *nearest = nullptr;
+    const flow::MaterializedPage::FurnitureBox *nearestBox = nullptr;
+    double bestGap = 1e18;
+    for (const auto &fb : r->page->furniture) {
+        if (fb.source != m_hf.story) continue;
+        for (const auto &it : r->page->doc->pages[0]->items) {
+            if (it->id != fb.itemId || it->type() != ItemType::Text) continue;
+            const QRectF &b = it->rect;
+            const double gap = hit.point.y() < b.top() ? b.top() - hit.point.y() : hit.point.y() > b.bottom() ? hit.point.y() - b.bottom() : 0;
+            if (gap < bestGap) {
+                bestGap = gap;
+                nearest = static_cast<const TextItem *>(it.get());
+                nearestBox = &fb;
+            }
+        }
+    }
+    if (!nearest) return -1;
+    const LayoutCache::FrameLayout fl = r->layouts.textFrame(*r->page->doc, *nearest, r->page->number, RenderOptions());
+    if (!fl.layout) return -1;
+    const QVector<QRectF> lines = fl.layout->lineRects(0);
+    if (lines.isEmpty()) return std::clamp(nearestBox->from + std::max(0, fl.layout->firstPosition(0)), 0, last);
+    const double y = hit.point.y() - nearest->rect.top();
+    int line = 0;
+    double bestDistance = 1e18;
+    for (int i = 0; i < lines.size(); ++i) {
+        const double d = y < lines[i].top() ? lines[i].top() - y : y > lines[i].bottom() ? y - lines[i].bottom() : 0;
+        if (d < bestDistance) {
+            bestDistance = d;
+            line = i;
+        }
+    }
+    const QPointF local(hit.point.x() - nearest->rect.left(), lines[line].center().y());
+    int pos = fl.layout->hitTest(0, local);
+    if (pos < 0) pos = hit.point.x() < nearest->rect.left() ? fl.layout->lineStart(fl.layout->firstPosition(0)) : fl.layout->lastPosition(0);
+    return std::clamp(pos + nearestBox->from, 0, last);
+}
+
+int PageView::hfLineEdge(int position, bool end)
+{
+    const auto r = rendered(m_hf.page);
+    if (!r || !r->page) return position;
+    for (int i = 0; i < r->page->furnitureTables.size(); ++i) {
+        if (r->page->furnitureTableSources.value(i) != m_hf.story) continue;
+        int edge = 0;
+        if (r->page->furnitureTables[i]->lineEdge(position, end, &edge)) return edge;
+    }
+    FrameSpot spot;
+    if (!hfSpotAt(*r, position, &spot)) return position;
+    return spot.from + (end ? spot.fl.layout->lineEnd(spot.inFrame) : spot.fl.layout->lineStart(spot.inFrame));
+}
+
+int PageView::hfMoveVertical(int position, int direction)
+{
+    const auto r = rendered(m_hf.page);
+    if (!r || !r->page) return position;
+    for (int i = 0; i < r->page->furnitureTables.size(); ++i) {
+        if (r->page->furnitureTableSources.value(i) != m_hf.story || !r->page->furnitureTables[i]->contains(position)) continue;
+        const int moved = r->page->furnitureTables[i]->moveVertical(position, direction, &m_wantedX);
+        if (moved != position) return moved;
+        break;
+    }
+    FrameSpot spot;
+    if (!hfSpotAt(*r, position, &spot)) return position;
+    if (m_wantedX < 0) {
+        int frame = 0;
+        QRectF rect;
+        if (spot.fl.layout->caretRect(spot.inFrame, &frame, &rect)) m_wantedX = rect.x();
+    }
+    return spot.from + spot.fl.layout->moveVertical(spot.inFrame, direction, m_wantedX);
+}
 
 } // namespace jp::write

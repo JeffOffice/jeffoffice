@@ -24,6 +24,16 @@
 
 namespace jp {
 
+namespace {
+// What a printer or a PDF shows of a header that is being edited is what the pages have: its fields that show a heading's text are worked out for each page, as they are for any header.
+struct EditedStoryHeld {
+    flow::Paginator &pager;
+    const QTextDocument *story;
+    EditedStoryHeld(flow::Paginator &p, const QTextDocument *s) : pager(p), story(s) { pager.setEditedStory(nullptr); }
+    ~EditedStoryHeld() { pager.setEditedStory(story); }
+};
+} // namespace
+
 QVector<int> WriteWindow::outputPages(const WriteOutputOptions &options)
 {
     QVector<int> out;
@@ -54,6 +64,7 @@ QString WriteWindow::pdfPathToWrite(const QString &title)
 bool WriteWindow::exportPdf()
 {
     if (!m_doc) return false;
+    EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
     const QString path = pdfPathToWrite(tr("Export to PDF"));
     if (path.isEmpty()) return false;
     const QVector<int> pages = outputPages(WriteOutputOptions());
@@ -87,6 +98,7 @@ bool WriteWindow::exportPdf()
 bool WriteWindow::printOutput(const WriteOutputOptions &options)
 {
     if (!m_doc) return false;
+    EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
     const QVector<int> pages = outputPages(options);
     if (pages.isEmpty()) return false;
     QPrinter printer(QPrinter::HighResolution);

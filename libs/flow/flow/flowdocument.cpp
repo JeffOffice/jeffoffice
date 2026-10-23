@@ -29,20 +29,26 @@ protected:
 
 } // namespace
 
-static const QTextDocument *slotFor(const HeaderFooter &hf, bool firstPage, bool evenPage)
+static const QTextDocument *pickSlot(const HeaderFooter &hf, bool firstPage, bool evenPage)
 {
     if (firstPage) return hf.first.get();
     return evenPage ? hf.even.get() : hf.odd.get();
 }
 
+int Section::slotFor(bool firstOfSection, int pageNumber) const
+{
+    if (differentFirstPage && firstOfSection) return 1;
+    return differentOddEven && pageNumber % 2 == 0 ? 2 : 0;
+}
+
 const QTextDocument *Section::headerFor(bool firstOfSection, int pageNumber) const
 {
-    return slotFor(header, differentFirstPage && firstOfSection, differentOddEven && pageNumber % 2 == 0);
+    return pickSlot(header, differentFirstPage && firstOfSection, differentOddEven && pageNumber % 2 == 0);
 }
 
 const QTextDocument *Section::footerFor(bool firstOfSection, int pageNumber) const
 {
-    return slotFor(footer, differentFirstPage && firstOfSection, differentOddEven && pageNumber % 2 == 0);
+    return pickSlot(footer, differentFirstPage && firstOfSection, differentOddEven && pageNumber % 2 == 0);
 }
 
 int Section::columnCount() const { return std::clamp(columns, 1, kMostColumns); }
@@ -71,6 +77,8 @@ QRectF Section::columnRect(int column) const
     const double w = columnWidth();
     return QRectF(all.left() + column * (w + columnGap), all.top(), w, all.height());
 }
+
+void watchEdits(QTextDocument *story) { story->setDocumentLayout(new NoLayout(story)); }
 
 FlowDocument::FlowDocument() : m_story(std::make_unique<QTextDocument>())
 {

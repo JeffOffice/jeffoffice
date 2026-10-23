@@ -16,6 +16,7 @@ You can do everything in JeffWrite with the keyboard. This page lists the keys.
 
 - **Enter** starts a new paragraph. **Shift+Enter** starts a new line in the same paragraph.
 - **Ctrl+Enter** starts a new page.
+- **Esc** closes a header or footer you are editing.
 - **Tab** adds a tab. In a list, it makes the item one level deeper. **Shift+Tab** makes it one level shallower.
 - **Backspace** and **Delete** remove text. Hold **Ctrl** to remove a word.
 

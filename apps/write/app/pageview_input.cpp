@@ -32,15 +32,17 @@ QString s_copiedText;
 void PageView::undo()
 {
     if (!m_doc) return;
-    m_doc->story()->undo(&m_cursor);
-    caretMoved();
+    if (m_hf.active && m_doc->isPendingHeaderFooter(m_hf.story)) leaveHeaderFooter();   // (an empty one shown to be typed in has no step to take back)
+    QTextCursor at;
+    if (QTextDocument *story = m_doc->undo(&at)) followHistory(story, at);
 }
 
 void PageView::redo()
 {
     if (!m_doc) return;
-    m_doc->story()->redo(&m_cursor);
-    caretMoved();
+    if (m_hf.active && m_doc->isPendingHeaderFooter(m_hf.story)) leaveHeaderFooter();
+    QTextCursor at;
+    if (QTextDocument *story = m_doc->redo(&at)) followHistory(story, at);
 }
 
 void PageView::copy()
@@ -49,7 +51,16 @@ void PageView::copy()
     const Clip clip = copySelection(*m_doc, m_cursor);
     const QTextDocumentFragment &f = clip.fragment;
     auto *mime = new QMimeData;
-    const QString text = plainTextOf(f);
+    // (A field is the text it shows on the page being edited, or the one the caret is on.)
+    FieldContext shown;
+    shown.doc = m_doc->flow().fields;
+    {
+        flow::Paginator &pg = m_doc->pager();
+        const int page = std::clamp(currentPage(), 0, std::max(0, pg.pagesKnown() - 1));
+        shown.pageNumber = pg.pagesKnown() > 0 ? pg.page(page).number : 1;
+        shown.pageCount = std::max(1, pg.pageCount());
+    }
+    const QString text = plainTextOf(f, &shown);
     mime->setText(text);
     mime->setHtml(f.toHtml());
     mime->setData(QStringLiteral("application/x-jeffwrite-fragment"), text.toUtf8());
@@ -179,6 +190,10 @@ void PageView::typeKey(int key, Qt::KeyboardModifiers m)
         caretMoved();
         break;
     case Qt::Key_Escape:
+        if (m_hf.active) {
+            leaveHeaderFooter();
+            break;
+        }
         if (m_cursor.hasSelection()) {
             m_cursor.clearSelection();
             caretMoved();
@@ -246,6 +261,11 @@ void PageView::mousePressEvent(QMouseEvent *e)
     setFocus(Qt::MouseFocusReason);
     m_movedFrom = -1;   // (a click has no way it went)
     const Hit hit = hitAt(e->position().toPoint());
+    if (m_hf.active) {
+        // A click in the text does nothing while a header or footer is edited (a double click leaves); one in a header's or a footer's area goes to it.
+        const Area area = areaOf(hit);
+        if (area == Area::Body || !takeFurnitureAt(hit, area == Area::Footer)) return;
+    }
     const int at = positionAt(hit);
     if (at < 0) return;
     if (e->button() == Qt::RightButton) {
@@ -287,7 +307,7 @@ void PageView::mouseMoveEvent(QMouseEvent *e)
     if (at < 0) return;
     if (m_clicks == 2) {
         // By words.
-        QTextCursor w(m_doc->story());
+        QTextCursor w(m_cursor.document());
         w.setPosition(at);
         w.select(QTextCursor::WordUnderCursor);
         const int anchor = m_cursor.anchor() < m_cursor.position() ? m_cursor.selectionStart() : m_cursor.selectionEnd();
@@ -309,6 +329,30 @@ void PageView::mouseReleaseEvent(QMouseEvent *e)
 
 void PageView::mouseDoubleClickEvent(QMouseEvent *e)
 {
+    if (m_doc && e->button() == Qt::LeftButton) {
+        const Hit hit = hitAt(e->position().toPoint());
+        const Area area = areaOf(hit);
+        if (m_hf.active && area == Area::Body) {
+            // In the text of a page: the header or footer is left, and the caret goes where the click was.
+            leaveHeaderFooter();
+            const int at = positionAt(hit);
+            if (at >= 0) {
+                m_cursor.setPosition(at);
+                caretMoved();
+            }
+            e->accept();
+            return;
+        }
+        if (!m_hf.active && area != Area::Body && enterHeaderFooter(hit.page, area == Area::Footer)) {
+            const int at = positionAt(hit);
+            if (at >= 0) {
+                m_cursor.setPosition(at);
+                caretMoved();
+            }
+            e->accept();
+            return;
+        }
+    }
     // (A double click is a second press: the press handler counts it.)
     mousePressEvent(e);
 }

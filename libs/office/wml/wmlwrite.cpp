@@ -43,6 +43,7 @@ QByteArray withW(QByteArray tag)
 // The prefixes of the namespaces word processing files use besides the main ones, with their names. A piece kept as XML may come from
 // another file (copied across), whose root declared a prefix that this file's does not; the prefixes the pieces use are declared on the root.
 const char *const kKnownPrefixes[][2] = {
+    {"r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"},
     {"wp", "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"},
     {"a", "http://schemas.openxmlformats.org/drawingml/2006/main"},
     {"pic", "http://schemas.openxmlformats.org/drawingml/2006/picture"},
@@ -99,18 +100,23 @@ QSet<QByteArray> declaredPrefixes(const QByteArray &tag)
     return out;
 }
 
-QByteArray withKnownPrefixes(QByteArray rootTag, const Document &doc)
+QByteArray withKnownPrefixes(QByteArray rootTag, const QVector<Block> &body, const SectionProps *last = nullptr)
 {
     const QSet<QByteArray> declared = declaredPrefixes(rootTag);
     QSet<QByteArray> used;
-    for (const Block &b : doc.body) {
+    for (const Block &b : body) {
         if (b.isRaw) {
             collectPrefixes(b.raw, &used);
             continue;
         }
         for (const Inline &a : b.para.content)
             if (a.kind != Inline::Text) collectPrefixes(a.raw, &used);
+        // (A section's references to its headers and footers are by relationship Id: r:id.)
+        if (b.para.props.section)
+            for (const RawChild &c : b.para.props.section->extra) collectPrefixes(c.xml, &used);
     }
+    if (last)
+        for (const RawChild &c : last->extra) collectPrefixes(c.xml, &used);
     for (const auto &known : kKnownPrefixes) {
         const QByteArray prefix(known[0]);
         if (!used.contains(prefix) || declared.contains(prefix)) continue;
@@ -150,19 +156,20 @@ QByteArray withGridAfter(const QByteArray &raw, int total)
 // Which of the pieces kept as XML are written: the ones whose partners are there.
 class Whole {
 public:
-    explicit Whole(const Document &doc)
+    explicit Whole(const Document &doc) : Whole(doc.body) {}
+    explicit Whole(const QVector<Block> &body)
     {
-        const int n = int(doc.body.size());
+        const int n = int(body.size());
         m_blocks.assign(n, true);
         m_inlines.resize(n);
-        for (int b = 0; b < n; ++b) m_inlines[b].assign(doc.body[b].para.content.size(), true);
+        for (int b = 0; b < n; ++b) m_inlines[b].assign(body[b].para.content.size(), true);
 
         // Tags with a start and an end (hyperlink, content controls...), in the body and in each paragraph. An end closes the nearest start of its
         // tag that is open; a start that is open above that one (a stray one, from a copy that took the start of a tag and not its end) is left
         // out, and the pair is kept.
         QVector<int> stack;
         for (int b = 0; b < n; ++b) {
-            const Block &blk = doc.body[b];
+            const Block &blk = body[b];
             if (blk.isRaw) {
                 if (blk.role == Inline::Open) {
                     stack.push_back(b);
@@ -171,8 +178,8 @@ public:
                     // inside it, and an end whose start is not in the table is a stray one, which closes nothing outside.)
                     auto tablePart = [](const QString &tag) { return tag == QLatin1String("tbl") || tag == QLatin1String("tr") || tag == QLatin1String("tc"); };
                     int at = int(stack.size()) - 1;
-                    while (at >= 0 && doc.body[stack[at]].tag != blk.tag) {
-                        if (!tablePart(blk.tag) && tablePart(doc.body[stack[at]].tag)) {
+                    while (at >= 0 && body[stack[at]].tag != blk.tag) {
+                        if (!tablePart(blk.tag) && tablePart(body[stack[at]].tag)) {
                             at = -1;
                             break;
                         }
@@ -265,7 +272,7 @@ public:
             }
         };
         for (int b = 0; b < n; ++b) {
-            const Block &blk = doc.body[b];
+            const Block &blk = body[b];
             if (blk.isRaw) {
                 if (blk.role == Inline::Open || blk.role == Inline::Close) {
                     if (blk.role == Inline::Open && isRevision(blk.tag)) {
@@ -360,7 +367,7 @@ public:
         struct Field { QVector<QPair<int, int>> pieces; bool separated = false; };
         QVector<Field> fields;
         for (int b = 0; b < n; ++b) {
-            const auto &content = doc.body[b].para.content;
+            const auto &content = body[b].para.content;
             for (int i = 0; i < content.size(); ++i) {
                 const Inline &a = content[i];
                 if (a.kind != Inline::RunAtom || (a.tag != QLatin1String("fldChar") && a.tag != QLatin1String("instrText"))) continue;
@@ -388,7 +395,7 @@ public:
         struct Frame { int grid = 0, row = -1, covered = 0, cells = 0, after = 0; };
         QVector<Frame> tables;
         for (int b = 0; b < n; ++b) {
-            const Block &blk = doc.body[b];
+            const Block &blk = body[b];
             if (!blk.isRaw || !m_blocks[b] || blk.role == Inline::Single) continue;
             const bool opens = blk.role == Inline::Open;
             if (blk.tag == QLatin1String("tbl")) {
@@ -485,6 +492,86 @@ void writeRunText(QByteArray &out, const RunProps &props, const QString &text)
     out += "</w:r>";
 }
 
+// The runs of `xml` (written as the program writes them: `<w:r><w:rPr>`) without their properties, which can hold a w:rPr of their own (a recorded change of them).
+QByteArray withoutRunProperties(const QByteArray &xml)
+{
+    static const QByteArray start = "<w:r><w:rPr>", open = "<w:rPr>", close = "</w:rPr>";
+    QByteArray out;
+    qsizetype from = 0;
+    for (;;) {
+        const qsizetype at = xml.indexOf(start, from);
+        if (at < 0) break;
+        qsizetype p = at + start.size();
+        for (int depth = 1; depth > 0;) {
+            const qsizetype nextOpen = xml.indexOf(open, p), nextClose = xml.indexOf(close, p);
+            if (nextClose < 0) return xml;   // (not as written: left as it is)
+            if (nextOpen >= 0 && nextOpen < nextClose) {
+                ++depth;
+                p = nextOpen + open.size();
+            } else {
+                --depth;
+                p = nextClose + close.size();
+            }
+        }
+        out += xml.mid(from, at - from) + "<w:r>";
+        from = p;
+    }
+    return out + xml.mid(from);
+}
+
+// A field the program edits as one piece (kFieldGroupTag) is the runs that make it. As the program made it, the runs keep the properties they have; once its atom's properties are not
+// what they were (`look`: the field was formatted), they are every run's.
+QByteArray fieldGroupXml(const QByteArray &raw, const RunProps &props, const QByteArray &look)
+{
+    const QByteArray rpr = runPropsXml(props);
+    // (As it was made: the runs have their own properties. Given a look, every run has it.)
+    if (rpr == look || raw.contains("txbxContent")) return raw;
+    QByteArray out = withoutRunProperties(raw);
+    if (rpr.isEmpty()) return out;
+    out.replace("<w:r>", "<w:r><w:rPr>" + rpr + "</w:rPr>");
+    return out;
+}
+
+// The content [from, to) of paragraph `b` as XML. `whole` says which pieces kept as XML are written (all of them without).
+void writeInlines(QByteArray &out, const QVector<Inline> &content, qsizetype from, qsizetype to, qsizetype b, const Whole *whole)
+{
+    // Runs of text with the same properties are one run (those that pieces kept as XML, left out above, had kept apart, too).
+    QString pending;
+    const RunProps *pendingProps = nullptr;
+    auto flush = [&] {
+        if (!pendingProps) return;
+        writeRunText(out, *pendingProps, pending);
+        pendingProps = nullptr;
+        pending.clear();
+    };
+    for (qsizetype i = from; i < to && i < content.size(); ++i) {
+        if (whole && !whole->inlineKept(int(b), int(i))) continue;
+        const Inline &a = content[i];
+        if (a.kind == Inline::Text) {
+            if (pendingProps && *pendingProps == a.props) {
+                pending += a.text;
+            } else {
+                flush();
+                pendingProps = &a.props;
+                pending = a.text;
+            }
+            continue;
+        }
+        flush();
+        if (a.kind == Inline::RunAtom) {
+            const QByteArray rpr = runPropsXml(a.props);
+            out += "<w:r>";
+            if (!rpr.isEmpty()) out += "<w:rPr>" + rpr + "</w:rPr>";
+            out += a.raw + "</w:r>";
+        } else if (a.tag == kFieldGroupTag) {
+            out += fieldGroupXml(a.raw, a.props, a.look);
+        } else {
+            out += whole ? withId(a.raw, whole->newId(int(b), int(i))) : a.raw;
+        }
+    }
+    flush();
+}
+
 // Block `b` of a body as XML. `whole` says which pieces kept as XML are written (all of them without).
 void writeBlock(QByteArray &out, const Block &blk, qsizetype b, const Whole *whole)
 {
@@ -497,40 +584,7 @@ void writeBlock(QByteArray &out, const Block &blk, qsizetype b, const Whole *who
         out += "<w:p" + blk.para.attrs + ">";
         const QByteArray ppr = paraPropsXml(blk.para.props);
         if (!ppr.isEmpty()) out += "<w:pPr>" + ppr + "</w:pPr>";
-        const auto &content = blk.para.content;
-        // Runs of text with the same properties are one run (those that pieces kept as XML, left out above, had kept apart, too).
-        QString pending;
-        const RunProps *pendingProps = nullptr;
-        auto flush = [&] {
-            if (!pendingProps) return;
-            writeRunText(out, *pendingProps, pending);
-            pendingProps = nullptr;
-            pending.clear();
-        };
-        for (int i = 0; i < content.size(); ++i) {
-            if (whole && !whole->inlineKept(int(b), i)) continue;
-            const Inline &a = content[i];
-            if (a.kind == Inline::Text) {
-                if (pendingProps && *pendingProps == a.props) {
-                    pending += a.text;
-                } else {
-                    flush();
-                    pendingProps = &a.props;
-                    pending = a.text;
-                }
-                continue;
-            }
-            flush();
-            if (a.kind == Inline::RunAtom) {
-                const QByteArray rpr = runPropsXml(a.props);
-                out += "<w:r>";
-                if (!rpr.isEmpty()) out += "<w:rPr>" + rpr + "</w:rPr>";
-                out += a.raw + "</w:r>";
-            } else {
-                out += whole ? withId(a.raw, whole->newId(int(b), i)) : a.raw;
-            }
-        }
-        flush();
+        writeInlines(out, blk.para.content, 0, blk.para.content.size(), b, whole);
         out += "</w:p>";
     }
 }
@@ -541,6 +595,36 @@ void writeBlocks(QByteArray &out, const QVector<Block> &body, qsizetype from, qs
     for (qsizetype b = from; b < to; ++b) writeBlock(out, body[b], b, whole);
 }
 
+// The blocks of a body (or of a header, footer, or note part) as XML: a table that is as it was read (its blocks come to the fingerprint they had) is written as it was.
+void writeBodyBlocks(QByteArray &out, const QVector<Block> &body, const Whole &whole)
+{
+    const qsizetype n = body.size();
+    for (qsizetype b = 0; b < n; ++b) {
+        const Block &blk = body[b];
+        // A table that is as it was read (its blocks come to the fingerprint they had) is written as it was: what the writing of a body leaves out or gives an Id of its own (a
+        // bookmark with no end, a second of an Id) is the file's own in a table nobody changed, and the fingerprint was taken of the blocks as they are.
+        if (blk.isRaw && blk.role == Inline::Open && blk.tag == QLatin1String("tbl") && blk.table && !blk.table->original.isEmpty() && whole.block(int(b))) {
+            qsizetype depth = 0, end = b;
+            for (; end < n; ++end) {
+                const Block &x = body[end];
+                if (!x.isRaw || x.tag != QLatin1String("tbl")) continue;
+                depth += x.role == Inline::Open ? 1 : x.role == Inline::Close ? -1 : 0;
+                if (depth == 0) break;
+            }
+            if (end < n) {
+                QByteArray piece;
+                writeBlocks(piece, body, b, end + 1, nullptr);
+                if (QCryptographicHash::hash(piece, QCryptographicHash::Sha1) == blk.table->fingerprint) {
+                    out += blk.table->original;
+                    b = end;
+                    continue;
+                }
+            }
+        }
+        writeBlocks(out, body, b, b + 1, &whole);
+    }
+}
+
 QByteArray documentXml(const Document &doc)
 {
     const Whole whole(doc);
@@ -549,35 +633,11 @@ QByteArray documentXml(const Document &doc)
     out += kXmlHead;
     QByteArray root = doc.rootStart;
     if (root.isEmpty()) root = QByteArray("<w:document xmlns:w=\"") + kWNs + "\" xmlns:r=\"" + kRNs + "\">";
-    root = withKnownPrefixes(withW(root), doc);
+    root = withKnownPrefixes(withW(root), doc.body, &doc.lastSection);
     out += root;
     out += doc.beforeBody;
     out += "<w:body>";
-    const qsizetype n = doc.body.size();
-    for (qsizetype b = 0; b < n; ++b) {
-        const Block &blk = doc.body[b];
-        // A table that is as it was read (its blocks come to the fingerprint they had) is written as it was: what the writing of a body leaves out or gives an Id of its own (a
-        // bookmark with no end, a second of an Id) is the file's own in a table nobody changed, and the fingerprint was taken of the blocks as they are.
-        if (blk.isRaw && blk.role == Inline::Open && blk.tag == QLatin1String("tbl") && blk.table && !blk.table->original.isEmpty() && whole.block(int(b))) {
-            qsizetype depth = 0, end = b;
-            for (; end < n; ++end) {
-                const Block &x = doc.body[end];
-                if (!x.isRaw || x.tag != QLatin1String("tbl")) continue;
-                depth += x.role == Inline::Open ? 1 : x.role == Inline::Close ? -1 : 0;
-                if (depth == 0) break;
-            }
-            if (end < n) {
-                QByteArray piece;
-                writeBlocks(piece, doc.body, b, end + 1, nullptr);
-                if (QCryptographicHash::hash(piece, QCryptographicHash::Sha1) == blk.table->fingerprint) {
-                    out += blk.table->original;
-                    b = end;
-                    continue;
-                }
-            }
-        }
-        writeBlocks(out, doc.body, b, b + 1, &whole);
-    }
+    writeBodyBlocks(out, doc.body, whole);
     out += sectionPropsXml(doc.lastSection);
     out += "</w:body>";
     out += doc.afterBody;
@@ -679,6 +739,33 @@ QByteArray numberingXml(const Numbering &num)
 }
 
 } // namespace
+
+QByteArray blocksPartXml(const QVector<Block> &blocks, const QByteArray &rootStart, const QByteArray &rootName)
+{
+    QByteArray root = rootStart;
+    if (root.isEmpty()) root = "<" + rootName + " xmlns:w=\"" + kWNs + "\" xmlns:r=\"" + kRNs + "\">";
+    if (root.endsWith("/>")) root = root.left(root.size() - 2) + ">";
+    root = withKnownPrefixes(withW(root), blocks);
+    QByteArray out = kXmlHead;
+    out += root;
+    writeBodyBlocks(out, blocks, Whole(blocks));
+    out += "</" + qnameOf(root) + ">";
+    return out;
+}
+
+QByteArray blockXml(const Block &block)
+{
+    QByteArray out;
+    writeBlock(out, block, 0, nullptr);
+    return out;
+}
+
+QByteArray inlinesXml(const QVector<Inline> &content, qsizetype from, qsizetype to)
+{
+    QByteArray out;
+    writeInlines(out, content, from, to, 0, nullptr);
+    return out;
+}
 
 QByteArray blocksFingerprint(const QVector<Block> &body, qsizetype from, qsizetype to)
 {

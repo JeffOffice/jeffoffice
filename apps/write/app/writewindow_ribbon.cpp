@@ -82,6 +82,7 @@ void WriteWindow::buildRibbon()
     RibbonParts parts;
     parts.action = [this](const QString &id) { return m_actions.value(id); };
     ribbonParts(parts);
+    parts.colors[QStringLiteral("headerFooter")] = QColor(0x2E, 0x8B, 0x57);
     QFile f(QStringLiteral(":/write/ribbon.json"));
     QByteArray json;
     if (f.open(QIODevice::ReadOnly)) json = f.readAll();

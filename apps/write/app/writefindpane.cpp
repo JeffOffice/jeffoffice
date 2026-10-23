@@ -229,6 +229,7 @@ QVector<FindStory> WriteFindPane::stories() const
 // Whether what is selected is a match, as the search sees it (so that Replace does not change words the search would not have shown).
 bool WriteFindPane::selectionIsMatch()
 {
+    m_win->view()->leaveHeaderFooter();   // (the search is of the text: its caret is the text's)
     const QTextCursor &sel = m_win->view()->cursor();
     StoryWords *text = storyWords();
     if (!text || !sel.hasSelection() || m_find->text().isEmpty()) return false;
@@ -239,6 +240,7 @@ bool WriteFindPane::selectionIsMatch()
 
 bool WriteFindPane::findNext()
 {
+    m_win->view()->leaveHeaderFooter();
     const QString q = m_find->text();
     StoryWords *text = storyWords();
     if (!text || q.isEmpty()) return false;
@@ -259,6 +261,7 @@ bool WriteFindPane::findNext()
 void WriteFindPane::replaceOne()
 {
     if (!m_win->document() || m_find->text().isEmpty()) return;
+    m_win->view()->leaveHeaderFooter();
     if (selectionIsMatch()) {
         StoryWords *text = storyWords();
         const QTextCursor &sel = m_win->view()->cursor();
@@ -279,6 +282,7 @@ void WriteFindPane::replaceAll()
 {
     const QString q = m_find->text();
     if (!m_win->document() || q.isEmpty()) return;
+    m_win->view()->leaveHeaderFooter();
     // Each swap is a step of its own; the edit block makes them one.
     QTextCursor block(m_win->document()->story());
     block.beginEditBlock();

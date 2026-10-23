@@ -17,6 +17,7 @@
 #include <QGlyphRun>
 #include <QHash>
 #include <QPaintEngine>
+#include <QPointer>
 #include <QPainter>
 #include <QPainterPath>
 #include <QRegularExpression>
@@ -290,6 +291,7 @@ std::atomic<qint64> g_longestJoinedParagraphs{0};
 std::atomic<qint64> g_hyphenationLetters{0};
 std::atomic<qint64> g_paragraphCharsRead{0};
 std::atomic<qint64> g_formatRangesMade{0};
+std::atomic<qint64> g_unbreakableParagraphs{0}, g_defaultTabStopsListed{0}, g_defaultTabStopsMade{0}, g_runsPassed{0};
 inline void noteJoinedParagraphs(int n)
 {
     qint64 seen = g_longestJoinedParagraphs.load(std::memory_order_relaxed);
@@ -719,8 +721,24 @@ QList<QTextLayout::FormatRange> fineRanges(const QVector<QTextLayout::FormatRang
 {
     QList<QTextLayout::FormatRange> out;
     out.reserve(ranges.size());
+    // (A paragraph of hundreds of thousands of runs has a few formats: each is made fine once, and the ones made last are looked at first.)
+    struct Made {
+        QTextCharFormat from, fine;
+    };
+    Made made[4];
+    int have = 0;
     for (QTextLayout::FormatRange r : ranges) {
-        r.format = fineFormat(r.format);
+        int k = 0;
+        while (k < have && !(made[k].from == r.format)) ++k;
+        if (k == have) {
+            if (have < 4) ++have;
+            else k = 3;
+            made[k] = Made{r.format, fineFormat(r.format)};
+        }
+        const Made hit = made[k];
+        for (; k > 0; --k) made[k] = made[k - 1];
+        made[0] = hit;
+        r.format = hit.fine;
         out << r;
     }
     return out;
@@ -790,6 +808,27 @@ double hangTrailingSpaces(const PtLine &line, const QString &disp, const QTextOp
     return (center ? (width - ink) / 2 : right ? width - ink : 0) - left;
 }
 } // namespace
+
+// Whether text is long, and of the letters and digits of the ASCII alone, between which no line may break (none of the places a line may break by the rules of the standard are among them).
+static bool breaksNowhere(const QString &text)
+{
+    if (text.size() < 256) return false;
+    return std::all_of(text.cbegin(), text.cend(), [](QChar ch) {
+        const ushort u = ch.unicode();
+        return (u >= '0' && u <= '9') || (u >= 'A' && u <= 'Z') || (u >= 'a' && u <= 'z');
+    });
+}
+
+// A character that is not in the text: one of the 32 noncharacters U+FDD0 to U+FDEF, which no text of a file has (a null one is returned for a text that has them all).
+static QChar charNotIn(const QString &text)
+{
+    quint32 seen = 0;
+    for (const QChar ch : text)
+        if (ch.unicode() >= 0xFDD0 && ch.unicode() <= 0xFDEF) seen |= quint32(1) << (ch.unicode() - 0xFDD0);
+    for (int i = 0; i < 32; ++i)
+        if (!(seen & (quint32(1) << i))) return QChar(ushort(0xFDD0 + i));
+    return QChar();
+}
 
 void ParagraphLayout::resetTabs()
 {
@@ -1450,6 +1489,98 @@ qint64 StoryLayout::lineHeightsMeasuredForTest() { return g_lineHeightsMeasured.
 qint64 StoryLayout::longestJoinedStretchForTest() { return g_longestJoinedStretch.load(); }
 qint64 StoryLayout::paragraphCharsReadForTest() { return g_paragraphCharsRead.load(); }
 qint64 StoryLayout::formatRangesMadeForTest() { return g_formatRangesMade.load(); }
+qint64 StoryLayout::unbreakableParagraphsForTest() { return g_unbreakableParagraphs.load(); }
+qint64 StoryLayout::defaultTabStopsListedForTest() { return g_defaultTabStopsListed.load(); }
+qint64 StoryLayout::defaultTabStopsMadeForTest() { return g_defaultTabStopsMade.load(); }
+qint64 StoryLayout::runsPassedForTest() { return g_runsPassed.load(); }
+
+// The absolute position tabs of the runs of a paragraph (the tp::AlignTab of each tab character), in order, as many as a paragraph may have, from the paragraph's start to the first run that
+// begins at `stop` or past it (counted from `headPosition`, the start of the paragraphs joined to it). The pages of a paragraph of hundreds of thousands of runs each ask for this up to the end
+// of their part of it: where the last search of the same paragraph (of the same version of the text) ended, before the end this one wants, the search goes on from there.
+QStringList alignTabSpecsOf(const QTextBlock &b, int headPosition, int stop)
+{
+    struct Kept {
+        QPointer<const QTextDocument> doc;
+        int revision = -1, blockPosition = -1, headPosition = -1;
+        QTextBlock::iterator at;
+        int offset = 0, lastBegin = -1, lastFormat = -1;
+        QString spec;
+        QStringList specs;
+    };
+    static thread_local Kept kept[4];
+    static thread_local unsigned next = 0;
+    const QTextDocument *doc = b.document();
+    const int revision = doc ? doc->revision() : -1;
+    Kept *use = nullptr;
+    for (Kept &k : kept)
+        if (doc && k.doc == doc && k.revision == revision && k.blockPosition == b.position() && k.headPosition == headPosition && k.lastBegin < stop) use = &k;
+    Kept state;
+    if (use) state = *use;
+    else {
+        state.at = b.begin();
+        state.offset = b.position() - headPosition;
+    }
+    qint64 passed = 0;
+    for (; !state.at.atEnd() && state.specs.size() < kMostAlignTabs; ++state.at) {
+        if (stop < std::numeric_limits<int>::max() && state.offset >= stop) break;
+        const QTextFragment frag = state.at.fragment();
+        ++passed;
+        state.lastBegin = state.offset;
+        state.offset += int(frag.length());
+        if (frag.charFormatIndex() != state.lastFormat) {
+            state.lastFormat = frag.charFormatIndex();
+            state.spec = frag.charFormat().stringProperty(tp::AlignTab);
+        }
+        for (int i = 0; !state.spec.isEmpty() && i < frag.length() && state.specs.size() < kMostAlignTabs; ++i) state.specs << state.spec;
+    }
+    g_runsPassed += passed;
+    if (doc && (use || passed > 64)) {
+        Kept &slot = use ? *use : kept[next++ % 4];
+        slot = state;
+        slot.doc = doc;
+        slot.revision = revision;
+        slot.blockPosition = b.position();
+        slot.headPosition = headPosition;
+    }
+    return state.specs;
+}
+
+RunSeek findRun(const QTextBlock &block, int position)
+{
+    // (Kept for each thread: a few paragraphs' searches, as a page that holds the end of one paragraph and the start of another asks about both. A document that is gone, or edited,
+    // since, leaves nothing that is used: the revision changes with every edit, an undo too.)
+    struct Kept {
+        QPointer<const QTextDocument> doc;
+        int revision = -1, blockPosition = -1, begin = 0;
+        QTextBlock::iterator it;
+    };
+    static thread_local Kept kept[4];
+    static thread_local unsigned next = 0;
+    const QTextDocument *doc = block.document();
+    const int revision = doc ? doc->revision() : -1;
+    Kept *use = nullptr;
+    for (Kept &k : kept)
+        if (doc && k.doc == doc && k.revision == revision && k.blockPosition == block.position() && k.begin <= position && (!use || k.begin > use->begin)) use = &k;
+    QTextBlock::iterator it = use ? use->it : block.begin();
+    int begin = use ? use->begin : block.position();
+    qint64 passed = 0;
+    for (; !it.atEnd(); ++it) {
+        const int length = int(it.fragment().length());
+        if (begin + length > position) break;
+        begin += length;
+        ++passed;
+    }
+    g_runsPassed += passed;
+    if (doc) {
+        Kept &slot = use ? *use : kept[next++ % 4];
+        slot.doc = doc;
+        slot.revision = revision;
+        slot.blockPosition = block.position();
+        slot.begin = begin;
+        slot.it = it;
+    }
+    return RunSeek{it, begin};
+}
 qint64 StoryLayout::hyphenationLettersLookedUpForTest() { return g_hyphenationLetters.load(); }
 qint64 StoryLayout::longestJoinedParagraphsForTest() { return g_longestJoinedParagraphs.load(); }
 void StoryLayout::resetLongestJoinedParagraphsForTest() { g_longestJoinedParagraphs = 0; }
@@ -2015,7 +2146,7 @@ static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int 
                     onlyBlanks = c == QLatin1Char('\t') || c == QLatin1Char(' ');
                     onlyTabs = onlyTabs && c == QLatin1Char('\t');
                 }
-                if (onlyTabs || (onlyBlanks && b - a < 2)) continue;
+                if (onlyTabs || (onlyBlanks && (b - a < 2 || (env.wordLines && r.format.boolProperty(tp::BlankFieldResult))))) continue;
             }
             const QFont f = r.format.font();
             const double size = r.format.hasProperty(tp::LineSize) ? r.format.property(tp::LineSize).toDouble() : f.pointSizeF();
@@ -2951,6 +3082,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         const int dropLines = tail ? 0 : bf.intProperty(tp::DropCapLines);
         int dropRemaining = dropLines > 0 ? std::max(1, bf.intProperty(tp::DropCapChars)) : 0;
         QVector<QTextLayout::FormatRange> ranges;
+        QHash<int, QTextCharFormat> resolved;   // (the look of each format of the story that the runs have, made once: a paragraph of hundreds of thousands of runs has few)
         QTextCharFormat dropFmt;
         // The paragraph's text from where the rest of it begins, and no more than the window holds.
         const int skipChars = tail ? m_span.from - head.position() : 0;
@@ -2960,7 +3092,16 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         bool cutShort = false;
         QTextBlock part = head;   // (the paragraph of the run that the text is being taken from)
         int fragOffset = 0;       // (where the run being taken begins, from the head's start: the lengths of the runs before it, not a place looked up for each)
-        for (auto it = part.begin();; ++it) {
+        QTextBlock::iterator it = part.begin();
+        if (skipChars > 0) {
+            // (The paragraphs joined to this one that end before the place wanted are passed by their lengths, and the runs of the one that holds it are found from where the page
+            // before it found its place: a paragraph of a hundred thousand runs is asked for at each of its pages.)
+            while (part != b && part.next().isValid() && part.position() + part.length() - head.position() <= skipChars) part = part.next();
+            const RunSeek seek = findRun(part, head.position() + skipChars);
+            it = seek.it;
+            fragOffset = seek.begin - head.position();
+        }
+        for (;; ++it) {
             // The end of a paragraph that is joined to the next: its mark, which shows nothing, and then the text of the next.
             bool runEnds = false;
             while (it.atEnd()) {
@@ -2980,7 +3121,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             int rel = fragOffset;
             fragOffset += int(frag.length());
             // (The runs before the part wanted are passed by their lengths, without their text: a paragraph of a hundred thousand runs is asked for at each of its pages.)
-            if (rel + int(frag.length()) <= skipChars) continue;
+            if (rel + int(frag.length()) <= skipChars) {
+                ++g_runsPassed;
+                continue;
+            }
             int begin = 0, count = int(frag.length());
             if (rel < skipChars) {
                 begin = skipChars - rel;
@@ -3000,7 +3144,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 B->map << Seg{rel, int(text.size()), int(B->disp.size()), 0, true};
                 continue;
             }
-            QTextCharFormat rf = resolveCharFormat(cf, env, behind);
+            QTextCharFormat rf;
+            if (const auto known = resolved.constFind(frag.charFormatIndex()); known != resolved.constEnd()) rf = known.value();
+            else resolved.insert(frag.charFormatIndex(), rf = resolveCharFormat(cf, env, behind));
             // An object set in the text: an em dash (a line may break on
             // either side, as at a picture) in the run's own font, so the
             // line's text metrics stay; letter spacing makes it as wide as the
@@ -3365,21 +3511,17 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         if (env.wordLines) {
             // (The runs after the part of the paragraph that is laid out are not looked at: a paragraph of hundreds of thousands of runs is laid out in parts, at each of its pages. A run
             // with the format of the one before it, the format the same piece of the story's table, is not read again, nor is its place looked up: the lengths are added.)
-            int offset = b.position() - head.position(), lastFormat = -1;
-            QString spec;
-            for (auto at = b.begin(); !at.atEnd() && B->alignTabs.size() < kMostAlignTabs; ++at) {
-                if (limit < std::numeric_limits<int>::max() && offset >= skipChars + limit) break;
-                const QTextFragment frag = at.fragment();
-                offset += int(frag.length());
-                if (frag.charFormatIndex() != lastFormat) {
-                    lastFormat = frag.charFormatIndex();
-                    spec = frag.charFormat().stringProperty(tp::AlignTab);
-                }
-                for (int i = 0; !spec.isEmpty() && i < frag.length() && B->alignTabs.size() < kMostAlignTabs; ++i) B->alignTabs << spec;
-            }
+            B->alignTabs = alignTabSpecsOf(b, head.position(), limit < std::numeric_limits<int>::max() ? skipChars + limit : std::numeric_limits<int>::max());
         }
         if (bf.layoutDirection() == Qt::RightToLeft) opt.setTextDirection(Qt::RightToLeft);
         opt.setFlags(QTextOption::IncludeTrailingSpaces);
+        // (A word processor's text of letters and digits alone has no place to break a line but the end of a line's room, which is where Qt breaks it when it has found none to the end of the word:
+        // it reads on to the end of the word for each line, at a font lookup for each run of the word, so a paragraph of thousands of runs of one letter cost each line all of its runs. The
+        // lines are the same where a line may break anywhere.)
+        if (env.wordLines && opt.wrapMode() == QTextOption::WrapAtWordBoundaryOrAnywhere && breaksNowhere(B->disp)) {
+            opt.setWrapMode(QTextOption::WrapAnywhere);
+            ++g_unbreakableParagraphs;
+        }
         B->tl->setTextOption(opt);
         B->tl->setCacheEnabled(true);
         // A justified paragraph that the space shrinking cut before (the same text, format, and option) is set as it came to, its lines checked once they are laid out.
@@ -3687,7 +3829,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             const QList<QTextOption::Tab> blockTabs = ownTabs;
             const QString blockLeaders = B->leaders;
             const bool ordinaryTabs = alignTabs && B->disp.count(QLatin1Char('\t')) > B->alignTabs.size();
-            auto alignedStops = [&](double areaW) {
+            auto stopsOfAlignTabs = [&](double areaW) {
                 struct Stop {
                     double at;
                     QTextOption::Tab tab;
@@ -3729,6 +3871,19 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 B->leaders = leaders;
                 return out;
             };
+            // (The stops are the same for each line of a width, and a paragraph of thousands of lines asked for them, a split of each tab's words, at every line.)
+            double alignedWidth = -1;
+            QList<QTextOption::Tab> alignedTabs;
+            QString alignedLeaders;
+            auto alignedStops = [&](double areaW) {
+                if (areaW != alignedWidth) {
+                    alignedTabs = stopsOfAlignTabs(areaW);
+                    alignedLeaders = B->leaders;
+                    alignedWidth = areaW;
+                }
+                B->leaders = alignedLeaders;
+                return alignedTabs;
+            };
             if (alignTabs) ownTabs = alignedStops(nF ? colRect(0, 0).width() : 300.0);
             const bool wordTabs = env.wordLines && !ownTabs.isEmpty();
             // (Text aligned at a tab stop ends at the stop: a line with such a tab is as wide as its room when the stop is at the margin, which no pixel is to be kept back from.
@@ -3742,6 +3897,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             auto hangStop = [&](double from, bool hangLine) { return hangLine && hangs && !env.wordNoHangStop && B->marker.isEmpty() && leftM > from + 0.01; };
             // The first stop past `pen`, measured from the text area's edge.
             auto nextStop = [&](double pen, bool hangLine) { return hangStop(pen, hangLine) ? leftM : (std::floor((pen + 0.01) / step) + 1) * step; };
+            // (A character the paragraph's text has none of, for the default stops of a word processor's lines. Not for a paragraph that Qt reads right to left, as it does one whose
+            // text begins with a letter that reads that way whatever the direction the paragraph is set to: Qt turns the left stops of its list into right stops, and a stop for text that
+            // ends at a delimiter it does not: the default stops of such a paragraph are left stops, as they were.)
+            const QChar noDelimiter = wordTabs && gridTabs && !B->disp.isRightToLeft() ? charNotIn(B->disp) : QChar();
             // The list for a line that starts `off` from the edge and is `w` wide, measured from its start.
             auto stopsFor = [&](double off, double w, bool hangLine) {
                 QList<QTextOption::Tab> tabs;
@@ -3768,9 +3927,19 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         tabs << QTextOption::Tab((leftM - off) * kFine, QTextOption::LeftTab);
                         last = std::max(last, leftM);
                     }
+                    // (The default stops are listed for the line as far as it reaches, so that a tab goes to the stop that follows where it starts, as it goes to a stop of the paragraph's own:
+                    // Qt's own default stops are not the same, they pass over a stop that a tab starts a fraction of a point before, and are at multiples of a distance it rounds. A left
+                    // stop makes Qt read the rest of the paragraph for the width of the text of each tab that goes to it, a paragraph of thousands of tabs having each of them cost all
+                    // the others, so the stops are ones for text that ends at a delimiter the paragraph has none of: they take a tab to their position, and Qt reads no more of the text.)
                     for (double pen = std::max(off, last); tabs.size() < 1000;) {
                         const double stop = (std::floor((pen + 0.01) / step) + 1) * step;
-                        tabs << QTextOption::Tab((stop - off) * kFine, QTextOption::LeftTab);
+                        ++g_defaultTabStopsMade;
+                        if (noDelimiter.isNull()) {
+                            tabs << QTextOption::Tab((stop - off) * kFine, QTextOption::LeftTab);
+                            ++g_defaultTabStopsListed;
+                        } else {
+                            tabs << QTextOption::Tab((stop - off) * kFine, QTextOption::DelimiterTab, noDelimiter);
+                        }
                         if (stop - off > w) break;
                         pen = stop;
                     }

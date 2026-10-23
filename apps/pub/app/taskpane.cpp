@@ -322,7 +322,7 @@ private:
             n = replaceInStories(*ed->doc(), findStories(*ed->doc()), q, flags(), m_replace->text(), &changed);
             refitFoundStories(ed, changed);
         });
-        m_status->setText(tr("JeffPub made %1 replacement(s).").arg(n));
+        m_status->setText(tr("JeffPub made %n replacement(s).", nullptr, n));
     }
     MainWindow *m_win;
     QLineEdit *m_find, *m_replace;

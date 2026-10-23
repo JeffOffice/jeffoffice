@@ -83,6 +83,7 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     connect(m_view, &write::PageView::contentChanged, this, queue);
     connect(m_view, &write::PageView::pagesChanged, this, queue);
     connect(m_view, &write::PageView::contextMenuWanted, this, &WriteWindow::showContextMenu);
+    connect(m_view, &write::PageView::headerFooterModeChanged, this, &WriteWindow::headerFooterModeChanged);
     connect(m_view, &write::PageView::zoomChanged, this, [this](double z) {
         m_zoomLabel->setText(QStringLiteral("%1%").arg(std::lround(z * 100)));
         const QSignalBlocker block(m_zoomSlider);
@@ -148,9 +149,8 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
     m_path = path;
     if (m_doc) {
         m_doc->filePath = path;
-        connect(m_doc->story(), &QTextDocument::modificationChanged, this, [this] { updateTitle(); });
-        connect(m_doc->story(), &QTextDocument::undoAvailable, this, [this] { m_refreshTimer.start(); });
-        connect(m_doc->story(), &QTextDocument::redoAvailable, this, [this] { m_refreshTimer.start(); });
+        connect(m_doc.get(), &write::WriteDoc::modifiedChanged, this, [this] { updateTitle(); });
+        connect(m_doc.get(), &write::WriteDoc::historyChanged, this, [this] { m_refreshTimer.start(); });
     }
     m_view->setDocument(m_doc.get());
     m_view->setZoomMode(write::PageView::ZoomMode::Percent);
@@ -180,6 +180,7 @@ void WriteWindow::createActions()
     createReviewActions();
     createHelpActions();
     createEditingActions();
+    createHeaderFooterActions();
 }
 
 namespace {
@@ -250,7 +251,7 @@ void WriteWindow::createFormatActions()
 void WriteWindow::changeSection(const std::function<void(flow::Section &)> &change)
 {
     if (!m_doc) return;
-    const int index = m_doc->sectionAt(m_view->cursor().position());
+    const int index = m_view->inHeaderFooter() ? m_view->headerFooterEdit().section : m_doc->sectionAt(m_view->cursor().position());
     office::wml::SectionProps props = m_doc->sectionProps(index);
     flow::Section s = flow::Section(m_doc->flow().section(index));
     const flow::Section was = s;
@@ -348,7 +349,7 @@ void WriteWindow::showContextMenu(const QPoint &globalPos)
     menu.addAction(act("para.dialog"));
     menu.addAction(act("edit.selectAll"));
     // In a table: its rows and columns.
-    if (m_doc && write::cellPlace(*m_doc, m_view->cursor()).inTable) {
+    if (m_doc && !m_view->inHeaderFooter() && write::cellPlace(*m_doc, m_view->cursor()).inTable) {
         menu.addSeparator();
         auto table = [&](const QString &text, const std::function<void(write::WriteDoc &, QTextCursor &)> &command) {
             menu.addAction(text, this, [this, command] {
@@ -381,9 +382,8 @@ void WriteWindow::refreshUi()
     }
     if (!has) return;
     QTextCursor &c = m_view->cursor();
-    QTextDocument *story = m_doc->story();
-    act("edit.undo")->setEnabled(story->isUndoAvailable());
-    act("edit.redo")->setEnabled(story->isRedoAvailable());
+    act("edit.undo")->setEnabled(m_doc->canUndo());
+    act("edit.redo")->setEnabled(m_doc->canRedo());
     for (const char *id : {"edit.cut", "edit.copy"}) act(QString::fromLatin1(id))->setEnabled(c.hasSelection());
     // The look of the selection (of its start, when it is long): checked when all of it has it.
     const bool shortSelection = c.selectionEnd() - c.selectionStart() < 20000;
@@ -421,7 +421,7 @@ void WriteWindow::refreshUi()
     for (ColorButton *b : m_colorButtons) b->setScheme(m_doc->flow().env.colors);
 
     // Page setup of the section the caret is in.
-    const int section = m_doc->sectionAt(c.position());
+    const int section = m_view->inHeaderFooter() ? m_view->headerFooterEdit().section : m_doc->sectionAt(c.position());
     const flow::Section s = m_doc->flow().section(section);
     act("layout.portrait")->setChecked(s.orientation == flow::Section::Orientation::Portrait);
     act("layout.landscape")->setChecked(s.orientation == flow::Section::Orientation::Landscape);
@@ -444,6 +444,19 @@ void WriteWindow::refreshUi()
         m_indentFields[3]->setPoints(bf.bottomMargin());
     }
     m_updatingFields = false;
+    // The Header & Footer tab: its options for the section and the slot being edited.
+    {
+        const bool editing = m_view->inHeaderFooter();
+        const write::PageView::HeaderFooterEdit &e = m_view->headerFooterEdit();
+        for (const char *id : {"hf.close", "hf.pageNumber", "hf.differentFirst", "hf.differentOddEven"}) act(QString::fromLatin1(id))->setEnabled(editing);
+        // (A header or footer takes no break of a page or a section.)
+        if (editing)
+            for (const char *id : {"insert.pageBreak", "layout.sectionBreak"}) act(QString::fromLatin1(id))->setEnabled(false);
+        act("hf.differentFirst")->setChecked(editing && m_doc->differentFirstPage(e.section));
+        act("hf.differentOddEven")->setChecked(m_doc->differentOddEven());
+        act("hf.linkPrevious")->setEnabled(editing && e.section > 0);
+        act("hf.linkPrevious")->setChecked(editing && m_doc->linkedToPrevious(e.section, e.footer, e.slot));
+    }
 }
 
 void WriteWindow::updateStatus()

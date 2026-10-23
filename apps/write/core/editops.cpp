@@ -109,11 +109,14 @@ QTextCharFormat typingFormat(const QTextCursor &c)
     }
     // (Text typed beside the result of a page reference is not that result: it shows as it is typed.)
     if (f.stringProperty(tp::Field).startsWith(QLatin1String("pageref:"))) f.clearProperty(tp::Field);
+    // (Nor is text typed beside the blanks that are a reference's result: its blanks count in the line's height as any typed do.)
+    f.clearProperty(tp::BlankFieldResult);
     if (!isAtom(f)) return f;
     // Beside a piece kept as XML: the look of the text before it, else of the paragraph's mark.
     const QTextBlock b = c.block();
     for (int p = c.position() - 1; p >= b.position(); --p) {
-        const QTextCharFormat t = charAt(c.document(), p);
+        QTextCharFormat t = charAt(c.document(), p);
+        t.clearProperty(tp::BlankFieldResult);
         if (!isAtom(t)) return t;
     }
     return withoutAtom(markFormat(b));
@@ -478,9 +481,12 @@ struct NumberGuard {
 
 } // namespace
 
-void insertText(WriteDoc &doc, QTextCursor &c, const QString &text)
+void insertText(WriteDoc &doc, QTextCursor &c, const QString &typed)
 {
     if (!intoBody(c)) return;
+    // (A header or footer has no page or column breaks: they are not typed into one.)
+    QString text = typed;
+    if (doc.isHeaderFooterStory(c.document()) && (text.contains(flow::kPageBreak) || text.contains(flow::kColumnBreak))) text.remove(flow::kPageBreak).remove(flow::kColumnBreak);
     if (text.isEmpty()) return;
     if (isLocked(c.block()) && !c.hasSelection()) return;
     // (Typing a character changes no number; a selection replaced, or a paragraph made by the text, may.)
@@ -582,7 +588,7 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
 
 void insertPageBreak(WriteDoc &doc, QTextCursor &c)
 {
-    if (!intoBody(c)) return;
+    if (!intoBody(c) || doc.isHeaderFooterStory(c.document())) return;   // (a header or footer has no pages to break)
     NumberGuard numbers(doc, c.document());
     if (isLocked(c.block())) return;
     c.beginEditBlock();
@@ -597,7 +603,7 @@ void insertPageBreak(WriteDoc &doc, QTextCursor &c)
 
 void insertSectionBreak(WriteDoc &doc, QTextCursor &c, const QString &type)
 {
-    if (!intoBody(c)) return;
+    if (!intoBody(c) || doc.isHeaderFooterStory(c.document())) return;   // (nor sections)
     NumberGuard numbers(doc, c.document());
     if (isLocked(c.block()) || inTable(c.block())) return;   // (a section ends in a paragraph that is not in a table's cell)
     c.beginEditBlock();
@@ -971,12 +977,76 @@ QTextDocumentFragment selectionFragment(const QTextCursor &whole)
     return QTextDocumentFragment(&copy);
 }
 
-QString plainTextOf(const QTextDocumentFragment &f)
+QString plainTextOf(const QTextDocumentFragment &f, const FieldContext *shown)
 {
     QString t = f.toPlainText();
-    t.remove(QChar::ObjectReplacementCharacter);
+    if (shown && t.contains(QChar::ObjectReplacementCharacter)) {
+        // What each stand-in character shows, in the order they come.
+        QTextDocument copy;
+        QTextCursor(&copy).insertFragment(f);
+        QStringList results;
+        for (QTextBlock b = copy.begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                const QTextFragment part = it.fragment();
+                const QString code = part.charFormat().stringProperty(tp::Field);
+                for (const QChar ch : part.text())
+                    if (ch == QChar::ObjectReplacementCharacter) results << (code.isEmpty() ? QString() : shown->resolve(code));
+            }
+        QString out;
+        int next = 0;
+        for (const QChar ch : std::as_const(t)) {
+            if (ch != QChar::ObjectReplacementCharacter) out += ch;
+            else if (next < results.size()) out += results[next++];
+        }
+        t = out;
+    } else {
+        t.remove(QChar::ObjectReplacementCharacter);
+    }
     t.replace(QChar(QChar::LineSeparator), QLatin1Char('\n'));
     return t;
+}
+
+// What was pasted into a header or footer between `from` and `to` that it does not take is taken out again.
+static void keepOutOfFurniture(QTextDocument *d, int from, int to)
+{
+    for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() <= to; b = b.next()) {
+        QTextBlockFormat nf = b.blockFormat();
+        bool changed = false;
+        for (const int key : {int(flow::fp::SectionBreakAfter), int(prop::SectionData), int(prop::LastSection)})
+            if (nf.hasProperty(key)) {
+                nf.clearProperty(key);
+                changed = true;
+            }
+        if (changed) setBlockFormatKeepingList(b, nf);
+    }
+    QVector<QPair<int, int>> gone;   // (position, length)
+    for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() <= to; b = b.next()) {
+        if (isLocked(b)) continue;
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            const QTextCharFormat cf = f.charFormat();
+            if (f.position() >= to) continue;
+            bool drop = cf.stringProperty(tp::Field).startsWith(QLatin1String("footnote:")) || cf.stringProperty(tp::Field).startsWith(QLatin1String("endnote:"));
+            if (!drop && cf.hasProperty(prop::Atom)) {
+                const QString tag = unpackAtom(storedBytes(cf, prop::Atom)).tag;
+                drop = tag == QLatin1String("footnoteReference") || tag == QLatin1String("endnoteReference") || tag == QLatin1String("commentReference") ||
+                       tag == QLatin1String("commentRangeStart") || tag == QLatin1String("commentRangeEnd") || tag == QLatin1String("sectPr");
+            }
+            if (drop) {
+                gone.push_back({f.position(), f.length()});
+                continue;
+            }
+            const QString text = f.text();
+            for (int i = 0; i < text.size(); ++i)
+                if (text[i] == flow::kPageBreak || text[i] == flow::kColumnBreak) gone.push_back({f.position() + i, 1});
+        }
+    }
+    for (int i = int(gone.size()) - 1; i >= 0; --i) {
+        QTextCursor t(d);
+        t.setPosition(gone[i].first);
+        t.setPosition(gone[i].first + gone[i].second, QTextCursor::KeepAnchor);
+        t.removeSelectedText();
+    }
 }
 
 // Pastes, and says where what was pasted is (from, to) when the paste is done.
@@ -1083,8 +1153,37 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
         t.setPosition(strays[i].first + strays[i].second, QTextCursor::KeepAnchor);
         t.removeSelectedText();
     }
+    // A header or footer takes the words and their look, not a note's reference, a comment, a break of a page, a column, or a section.
+    if (doc.isHeaderFooterStory(d)) keepOutOfFurniture(d, from, c.position());
     *pastedTo = c.position();
     c.endEditBlock();
+}
+
+void insertPageNumber(WriteDoc &doc, QTextCursor &c)
+{
+    if (!intoBody(c)) return;
+    if (isLocked(c.block()) && !c.hasSelection()) return;
+    // The field as the file has it: its begin mark, code, separator, result (the number 1), and end mark. The look of its runs is the atom's.
+    office::wml::Inline field;
+    field.kind = office::wml::Inline::ParaAtom;
+    field.role = office::wml::Inline::Single;
+    field.tag = office::wml::kFieldGroupTag;
+    field.raw = "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>"
+                "<w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+    field.key = liveFieldFor(QStringLiteral(" PAGE "));
+    field.display = QStringLiteral("1");
+    std::optional<NumberGuard> numbers;
+    if (c.hasSelection()) numbers.emplace(doc, c.document());
+    QTextCursor edit = c;
+    edit.beginEditBlock();
+    if (edit.hasSelection()) removeSelection(doc, edit);
+    settleBesideDeletions(edit);
+    QTextCharFormat f = typingFormat(edit);
+    setStored(f, prop::Atom, packAtom(field));
+    f.setProperty(tp::Field, field.key);
+    edit.insertText(QString(QChar::ObjectReplacementCharacter), f);
+    edit.endEditBlock();
+    c = edit;
 }
 
 void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment)
