@@ -110,6 +110,40 @@ private Q_SLOTS:
         QVERIFY(!NumberFormat(QStringLiteral(";;;")).format(5).failed);
     }
 
+    // When the last section is the text section, every number uses the sections before it as if it were not there: one section takes all numbers, with the
+    // minus sign a code of one section has.
+    void aLastTextSectionTakesNoNumbers()
+    {
+        const C cases[] = {
+            {"m/d/yy;@", 45366, "3/15/24"},
+            {"0.00;@", -5, "-5.00"},
+            {"0.00;@", 5, "5.00"},
+            {"0.00;@", 0, "0.00"},
+            {"#,##0;@", -1234, "-1,234"},
+            {"0;-0;@", 5, "5"},
+            {"0;-0;@", -5, "-5"},
+            {"0;-0;@", 0, "0"},
+            {"0;(0);@", -5, "(5)"},
+            {"0.0;@\"!\"", -2.5, "-2.5"},
+            {"[Red]0.00;@", -5, "-5.00"},
+            {"General;@", -5, "-5"},
+            {"0%;@", -0.5, "-50%"},
+            {"0.00E+00;@", -12345, "-1.23E+04"},
+            // Three sections that are all for numbers are as they were.
+            {"0;-0;\"zero\"", -5, "-5"},
+            {"0;-0;\"zero\"", 0, "zero"},
+        };
+        CHECK_ALL(cases);
+        QVERIFY(NumberFormat(QStringLiteral("m/d/yy;@")).format(-1).failed);
+        QVERIFY(!NumberFormat(QStringLiteral("m/d/yy;@")).format(1).failed);
+        QCOMPARE(NumberFormat(QStringLiteral("[Red]0.00;@")).format(-5).color, 3);
+        QCOMPARE(NumberFormat(QStringLiteral("0.00;[Blue]0.00;@")).format(-5).color, 5);
+        QCOMPARE(fmt(QStringLiteral("0.00;[Blue]0.00;@"), -5), QStringLiteral("5.00"));
+        QCOMPARE(fmtText(QStringLiteral("0.00;@"), QStringLiteral("abc")), QStringLiteral("abc"));
+        QCOMPARE(fmtText(QStringLiteral("0.00;\"t: \"@"), QStringLiteral("abc")), QStringLiteral("t: abc"));
+        QCOMPARE(fmtText(QStringLiteral("m/d/yy;@"), QStringLiteral("abc")), QStringLiteral("abc"));
+    }
+
     // [Red], [Blue], ..., [Color1] to [Color56] come back as the palette number; the RGB of each is known.
     void colors()
     {

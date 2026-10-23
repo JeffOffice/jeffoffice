@@ -2,8 +2,9 @@
 // Number formats: what turns a cell's value and its format code into the text a person sees (ECMA-376 18.8.30 and 18.8.31, and the behavior workbooks
 // depend on). No GUI: the grid, the text of a field, a chart axis, and TEXT() all call this.
 //
-// A code has up to four sections, split at ";": positive, negative, zero, text. A section may begin with a condition ("[>100]", "[<=-5]", "[=0]",
-// "[<>3]") and a color ("[Red]", "[Color12]"). It is made of
+// A code has up to four sections, split at ";": positive, negative, zero, text. A section of text that comes last (as in "m/d/yy;@") takes no numbers: the
+// sections before it do, so "m/d/yy;@" is one section for every number, with the minus sign that a code of one section has. A section may begin with a
+// condition ("[>100]", "[<=-5]", "[=0]", "[<>3]") and a color ("[Red]", "[Color12]"). It is made of
 //   - text: "quoted", \x for one character, the characters that need no quotes ($ - + / ( ) : ! ^ & ' ~ { } < > = and a space), "_x" for a space as wide
 //     as x, "*x" for x repeated to fill the column (see Formatted::fillAt), and "@" for the text of a text cell;
 //   - digits: 0 (a digit or 0), # (a digit or nothing), ? (a digit or a space), "." for the decimal point, "," between digits for groups of three and

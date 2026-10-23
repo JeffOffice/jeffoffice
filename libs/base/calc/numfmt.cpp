@@ -252,6 +252,7 @@ struct Parsed {
     bool valid = true;
     bool general = false;     // the whole code is General
     int textSection = -1;
+    int numeric = 0;          // the sections that take numbers: those before a text section that comes last
 };
 
 void addLit(Section *sec, QStringView text)
@@ -819,6 +820,10 @@ Parsed parseCode(const QString &code)
                 break;
             }
     }
+    // A text section last takes no numbers: "m/d/yy;@" is one section for numbers, as "m/d/yy" is.
+    const int count = int(p.secs.size());
+    p.numeric = count == 4 ? 3 : count;
+    if (count > 1 && count < 4 && p.textSection == count - 1) p.numeric = count - 1;
     return p;
 }
 
@@ -1325,8 +1330,7 @@ struct Pick {
 
 bool pick(const Parsed &p, double v, Pick *out)
 {
-    const int count = int(p.secs.size());
-    const int nn = count == 4 ? 3 : count;
+    const int nn = p.numeric;
     out->dropSign = false;
     if (nn <= 1) {
         out->index = 0;
