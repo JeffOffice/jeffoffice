@@ -167,10 +167,15 @@ void WriteDoc::exportInto(BlockSink &sink, QTextDocument *whose, QTextBlock firs
             if (!runPropsXml(diff).isEmpty()) direct.markRun = diff;
         }
         // (A section whose endnotes the pages set at its end has its break on the last of them in the story: it is the paragraph before them that ends the section in the file.)
-        bool endsSection = !asNote && lastPart.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
-        for (QTextBlock n = lastPart.next(); !asNote && !endsSection && n.isValid() && n.blockFormat().hasProperty(prop::EndnoteBlock); n = n.next()) endsSection = n.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
+        const bool ofText = !asNote && story == this->story();   // (a note, a header, and a footer have no sections of their own)
+        bool endsSection = ofText && lastPart.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
+        for (QTextBlock n = lastPart.next(); ofText && !endsSection && n.isValid() && n.blockFormat().hasProperty(prop::EndnoteBlock); n = n.next()) endsSection = n.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
         if (endsSection && sectionIndex + 1 < int(m_sections.size()))
             direct.section = std::make_shared<SectionProps>(m_sections[sectionIndex++]);
+        // (What a producer put in a paragraph of a note, a header, or a footer is written as it was read. A section's break that the pages moved onto the last of the endnotes at its end is
+        // the text's, not the note's: it has SectionBreakAfter, and is written on the paragraph before the notes.)
+        if (!ofText && lastPart.blockFormat().hasProperty(prop::SectionData) && !lastPart.blockFormat().boolProperty(flow::fp::SectionBreakAfter))
+            direct.section = std::make_shared<SectionProps>(unpackSection(storedBytes(lastPart.blockFormat(), prop::SectionData)));
         p.props = direct;
         out.add(std::move(blk));
         const QTextBlockFormat lastFormat = lastPart.blockFormat();

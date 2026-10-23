@@ -1252,11 +1252,14 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
             c.setBlockFormat(asked);
         }
         if (direct.section) {
+            // (The text's sections end at their paragraphs. A note, a header, or a footer has none: the properties a producer put in one of its paragraphs are kept with it, as they were
+            // read, and written back.)
+            const bool ends = !header && !append;
             QTextBlockFormat last = c.blockFormat();
-            last.setProperty(flow::fp::SectionBreakAfter, true);
+            if (ends) last.setProperty(flow::fp::SectionBreakAfter, true);
             setStored(last, prop::SectionData, packSection(*direct.section));
             c.setBlockFormat(last);
-            ++sectionNo;
+            if (ends) ++sectionNo;
         }
     }
     if (!header && !append) m_endnoteSections = sectionNo + 1;

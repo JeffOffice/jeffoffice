@@ -691,6 +691,7 @@ struct LookCommand {
     std::function<void(WriteDoc &, QTextCursor &)> run;
 };
 
+
 class WriteTests : public QObject {
     Q_OBJECT
 public:
@@ -18846,6 +18847,90 @@ private Q_SLOTS:
             QVERIFY(step(QStringLiteral("random edit %1 (%2)").arg(i).arg(what)));
         }
     }
+
+    // ---- notes: a paragraph that carries the properties of a section
+
+    // The section properties a producer wrote into a note's paragraph (a note has no sections, but a file may say so), as the program writes them.
+    static QByteArray sectionAsWritten(const QByteArray &sectPr)
+    {
+        auto doc = open(makeDocx("<w:p><w:pPr>" + sectPr + "</w:pPr><w:r><w:t>a</w:t></w:r></w:p><w:p><w:r><w:t>b</w:t></w:r></w:p>"));
+        const QByteArray part = documentXml(doc->toDocx());
+        const int at = part.indexOf("<w:sectPr");
+        return part.mid(at, part.indexOf("</w:sectPr>", at) + 11 - at);
+    }
+    static QByteArray firstSectionIn(const QByteArray &xml)
+    {
+        const int at = xml.indexOf("<w:sectPr");
+        return at < 0 ? QByteArray() : xml.mid(at, xml.indexOf("</w:sectPr>", at) + 11 - at);
+    }
+
+    // A note's paragraph that has a section's properties keeps them when the note is edited and saved, as they were read (in a document of two sections, whose own are not put in their place),
+    // and the file the note makes is the same when it is read and saved again.
+    void aSectionInANotesParagraphIsKeptWhenTheNoteIsEdited()
+    {
+        const QByteArray landscape = "<w:sectPr><w:pgSz w:w=\"15840\" w:h=\"12240\" w:orient=\"landscape\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/><w:cols w:num=\"2\" w:space=\"360\"/></w:sectPr>";
+        const QByteArray kept = sectionAsWritten(landscape);
+        QVERIFY2(kept.contains("w:orient=\"landscape\""), kept.constData());
+        const QByteArray firstSection = "<w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr></w:pPr><w:r><w:t>One</w:t></w:r></w:p>";
+        for (const bool endnotes : {false, true}) {
+            const QString name = endnotes ? QStringLiteral("/word/endnotes.xml") : QStringLiteral("/word/footnotes.xml");
+            const QByteArray first = endnotes ? "<w:endnote w:id=\"2\">" : "<w:footnote w:id=\"2\">";
+            const QByteArray last = endnotes ? "</w:endnote>" : "</w:footnote>";
+            const QByteArray paragraphs = "<w:p><w:r><w:" + QByteArray(endnotes ? "endnoteRef" : "footnoteRef") + "/></w:r><w:r><w:t xml:space=\"preserve\"> first</w:t></w:r></w:p>"
+                                          "<w:p><w:pPr>" + kept + "</w:pPr><w:r><w:t>second</w:t></w:r></w:p>";
+            const QByteArray part = endnotes ? "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote() + first + paragraphs + last + "</w:endnotes>"
+                                             : "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>" + first + paragraphs + last + "</w:footnotes>";
+            const QByteArray body = firstSection + (endnotes ? QByteArray("<w:p><w:r><w:t>Two</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>") : citing("Two", 2));
+            const QByteArray zip = makeDocxWithParts(body, pageSection(), {{name, part}}, endnotes ? QByteArray("<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>") : QByteArray(), noteStyles());
+            auto doc = open(zip);
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            if (endnotes) {
+                int from = 0, to = 0;
+                QVERIFY(doc->endnoteWords(2, &from, &to));
+                c.setPosition(from + 2);
+                insertText(*doc, c, QStringLiteral("EDIT"));
+            } else {
+                QTextDocument *note = doc->editableFootnote(2);
+                QVERIFY(note);
+                c = QTextCursor(note);
+                c.setPosition(noteTextStart(note) + 2);
+                insertText(*doc, c, QStringLiteral("EDIT"));
+            }
+            const QByteArray saved = doc->toDocx();
+            const QByteArray written = partOf(saved, name);
+            const QByteArray what = endnotes ? "endnote: " : "footnote: ";
+            QVERIFY2(written.contains("EDIT"), what.constData());
+            QVERIFY2(firstSectionIn(written.mid(written.indexOf("w:id=\"2\""))) == kept, qPrintable(QString::fromLatin1(what) + QString::fromUtf8(firstSectionIn(written.mid(written.indexOf("w:id=\"2\""))))));
+            QCOMPARE(int(written.count("<w:sectPr")), 1);
+            QVERIFY2(!documentXml(saved).contains("w:orient=\"landscape\""), "the note's section went into the text");
+            QCOMPARE(int(documentXml(saved).count("<w:sectPr")), 2);   // (the first paragraph's, and the text's last)
+            auto again = open(saved);
+            QVERIFY(again);
+            QCOMPARE(partOf(again->toDocx(), name), written);
+            QVERIFY(rt::strictProblems(saved, zip).isEmpty());
+        }
+        // A header's paragraph is the same.
+        const QByteArray header = "<w:hdr " + QByteArray(kNs) + "><w:p><w:r><w:t>Head</w:t></w:r></w:p><w:p><w:pPr>" + kept + "</w:pPr><w:r><w:t>second</w:t></w:r></w:p></w:hdr>";
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>" + QByteArray(kPage) + "</w:sectPr>";
+        const QByteArray zip = makeDocxWithParts(firstSection + "<w:p><w:r><w:t>Two</w:t></w:r></w:p>", sect, {{QStringLiteral("/word/header1.xml"), header}});
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *story = doc->editableHeaderFooter(1, false, 0);   // (the header is the last section's)
+        QVERIFY(story);
+        QTextCursor h(story);
+        h.setPosition(2);
+        insertText(*doc, h, QStringLiteral("EDIT"));
+        const QByteArray written = partOf(doc->toDocx(), QStringLiteral("/word/header1.xml"));
+        QVERIFY(written.contains("EDIT"));
+        QVERIFY2(firstSectionIn(written) == kept, written.constData());
+    }
+
+
+
+
+
+
 };
 
 QTEST_MAIN(WriteTests)
