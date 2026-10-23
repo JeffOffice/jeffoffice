@@ -969,6 +969,39 @@ private Q_SLOTS:
         QCOMPARE(show(s, b.sharedStrings(), QStringLiteral("B%1").arg(n)), QStringLiteral("n:%1").arg(2 * n + 1));
     }
 
+    // The first cell of a shared formula typed over, and the workbook saved: the cells that shared its formula keep theirs (each written out), with the results the worker gave them.
+    void aSharedFormulaSurvivesItsFirstCellBeingTypedOver()
+    {
+        QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><f t=\"shared\" ref=\"B1:B4\" si=\"0\">A1*2</f><v>2</v></c></row>");
+        for (int r = 2; r <= 4; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><f t=\"shared\" si=\"0\"/><v>%2</v></c></row>").arg(r).arg(r * 2);
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        e.select(QStringLiteral("B1"));
+        e.enter(QStringLiteral("99"));
+        e.select(QStringLiteral("A3"));
+        e.enter(QStringLiteral("30"));
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.wait(20000));
+        QCOMPARE(saved.first().at(1).toBool(), true);
+        Package p;
+        QVERIFY(p.readLazyFile(e.path));
+        Workbook b;
+        QVERIFY(b.open(p));
+        Sheet s;
+        QVERIFY(b.readSheet(0, &s));
+        QCOMPARE(show(s, b.sharedStrings(), QStringLiteral("B1")), QStringLiteral("n:99"));
+        QVERIFY(!at(s, QStringLiteral("B1"))->hasFormula());
+        for (const int r : {2, 3, 4}) {
+            const Cell *c = at(s, QStringLiteral("B%1").arg(r));
+            QVERIFY(c && c->hasFormula());
+            QCOMPARE(s.formulaText(*c), QStringLiteral("A%1*2").arg(r));
+        }
+        QCOMPARE(show(s, b.sharedStrings(), QStringLiteral("B3")), QStringLiteral("n:60"));
+        QCOMPARE(show(s, b.sharedStrings(), QStringLiteral("B2")), QStringLiteral("n:4"));
+    }
+
     // A workbook with macros is saved as a .xlsm with its macros as they were, and cannot be given another ending.
     void aWorkbookWithMacrosKeepsThem()
     {

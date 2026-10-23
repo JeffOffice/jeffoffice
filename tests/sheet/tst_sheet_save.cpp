@@ -412,6 +412,13 @@ private Q_SLOTS:
         QCOMPARE(sheet.formulaText(*at(sheet, QStringLiteral("B4"))), QStringLiteral("A4*2+$A$1"));
         // (a group that was not touched stays a shared formula)
         QVERIFY(out.contains("<c r=\"B5\"><f t=\"shared\" si=\"9\"/><v>0</v></c>"));
+        // a cell that shares the formula and whose result changed has the formula written out, with the new result
+        const QByteArray withResult = patch(xml, changesOf({number(0, 1, 99)}, {resultNumber(2, 1, 1234)}));
+        Sheet sheet2;
+        QVERIFY(readSheetXml(withResult, &sheet2));
+        QCOMPARE(sheet2.formulaText(*at(sheet2, QStringLiteral("B3"))), QStringLiteral("A3*2+$A$1"));
+        QCOMPARE(show(sheet2, SharedStrings(), QStringLiteral("B3")), QStringLiteral("n:1234"));
+        QCOMPARE(sheet2.formulaText(*at(sheet2, QStringLiteral("B4"))), QStringLiteral("A4*2+$A$1"));
         // and a cell of the group changed, not the first: the others stay shared
         const QByteArray other = patch(xml, changesOf({number(2, 1, 99)}));
         QVERIFY(other.contains("<f t=\"shared\" ref=\"B1:B4\" si=\"3\">A1*2+$A$1</f>"));

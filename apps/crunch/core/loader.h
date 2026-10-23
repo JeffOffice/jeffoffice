@@ -3,7 +3,7 @@
 // rows of the sheet that was open, which the window shows at once (the first screen); then it reads every sheet whole and puts the formulas in the calculation, and goes on to work
 // them out, on the same thread, telling the window each batch of values as it has them (the window puts them in its ValueStore, a few thousand at a time). Nothing of the calculation
 // is done on the window's thread, so no formula of any size holds the window up. The window shows the first rows while the rest is read, and stops the worker when it is closed or
-// asked for another file.
+// asked for another file. The worker stays when the formulas are worked out: it waits, and works out what the window changes (see WorkbookLoader::hold).
 
 #include "grid/gridsheet.h"
 #include "grid/valuestore.h"

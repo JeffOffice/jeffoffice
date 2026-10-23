@@ -486,7 +486,9 @@ private:
                         widen(col);
                     }
                 } else if (item && item->result) {
-                    body += resultCell(cell, openTag, t.selfClosing, *item->result);
+                    // (a cell that shares the formula of a cell that was changed has its own formula written out, and then its result)
+                    const bool shared = !m_dropped.isEmpty() && rowIdx <= m_sharedUntil;
+                    body += resultCell(shared ? sharedChild(cell, rowIdx, col) : cell, openTag, t.selfClosing, *item->result);
                 } else if (!m_dropped.isEmpty() && rowIdx <= m_sharedUntil) {
                     body += sharedChild(cell, rowIdx, col);
                 } else {
