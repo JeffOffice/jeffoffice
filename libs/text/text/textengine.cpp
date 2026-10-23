@@ -1492,7 +1492,6 @@ qint64 StoryLayout::formatRangesMadeForTest() { return g_formatRangesMade.load()
 qint64 StoryLayout::unbreakableParagraphsForTest() { return g_unbreakableParagraphs.load(); }
 qint64 StoryLayout::defaultTabStopsListedForTest() { return g_defaultTabStopsListed.load(); }
 qint64 StoryLayout::runsPassedForTest() { return g_runsPassed.load(); }
-void noteRunsPassed(qint64 n) { g_runsPassed += n; }
 
 // The absolute position tabs of the runs of a paragraph (the tp::AlignTab of each tab character), in order, as many as a paragraph may have, from the paragraph's start to the first run that
 // begins at `stop` or past it (counted from `headPosition`, the start of the paragraphs joined to it). The pages of a paragraph of hundreds of thousands of runs each ask for this up to the end

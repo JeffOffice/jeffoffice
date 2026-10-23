@@ -630,8 +630,6 @@ struct RunSeek {
     int begin = 0;
 };
 RunSeek findRun(const QTextBlock &block, int position);
-// For the cost tests (StoryLayout::runsPassedForTest): runs passed over by a caller that looks through a paragraph's runs itself.
-void noteRunsPassed(qint64 n);
 
 // How many pictures of effects have been made (not taken from those kept), for tests.
 int effectPicturesBuiltForTest();
