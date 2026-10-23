@@ -189,6 +189,59 @@ private Q_SLOTS:
         QVERIFY2(none.stepped == 0 && none.compared == 0, qPrintable(QStringLiteral("%1 stepped, %2 compared").arg(none.stepped).arg(none.compared)));
     }
 
+    // Cells put in and taken out of a finished store, in any order, leave it what a map of places to cells would be: find, the walk over a rectangle, and the count agree.
+    void cellsSetAndErasedKeepTheStoreInOrder()
+    {
+        std::mt19937 rng(20261024);
+        CellStore store;
+        std::map<std::pair<quint32, quint32>, double> want;
+        for (int i = 0; i < 3000; ++i) {
+            const quint32 r = rng() % 300, c = rng() % 30;
+            store.add(makeCell(r, c, i));
+            want[{r, c}] = i;
+        }
+        store.finish();
+        for (int i = 0; i < 6000; ++i) {
+            const quint32 r = rng() % 340, c = rng() % 34;
+            if (rng() % 3 == 0) {
+                QCOMPARE(store.erase(r, c), want.erase({r, c}) == 1);
+            } else {
+                const Cell *put = store.set(makeCell(r, c, 100000 + i));
+                QVERIFY(put && put->row == r && put->col == c && put->number == 100000 + i);
+                want[{r, c}] = 100000 + i;
+            }
+        }
+        QCOMPARE(store.cellCount(), qint64(want.size()));
+        for (quint32 r = 0; r < 340; ++r)
+            for (quint32 c = 0; c < 34; ++c) {
+                const Cell *found = store.find(r, c);
+                const auto it = want.find({r, c});
+                QVERIFY2((found != nullptr) == (it != want.end()), qPrintable(QStringLiteral("%1,%2").arg(r).arg(c)));
+                if (found) QCOMPARE(found->number, it->second);
+            }
+        // the walk over the store is in order and holds every cell once
+        std::vector<std::pair<quint32, quint32>> walked;
+        store.forEach([&](const Cell &cell) { walked.push_back({cell.row, cell.col}); });
+        QVERIFY(std::is_sorted(walked.begin(), walked.end()));
+        QCOMPARE(qint64(walked.size()), qint64(want.size()));
+        // a rectangle of it
+        QVector<QPair<quint32, quint32>> got, expected;
+        store.forEachInRange(50, 3, 250, 20, [&](const Cell &cell) {
+            got.append({cell.row, cell.col});
+            return true;
+        });
+        for (const auto &entry : want)
+            if (entry.first.first >= 50 && entry.first.first <= 250 && entry.first.second >= 3 && entry.first.second <= 20) expected.append({entry.first.first, entry.first.second});
+        QVERIFY(got == expected);
+        // a cell is changed where it is
+        Cell *edit = store.findMutable(want.begin()->first.first, want.begin()->first.second);
+        QVERIFY(edit);
+        edit->number = -5;
+        QCOMPARE(store.find(want.begin()->first.first, want.begin()->first.second)->number, -5.0);
+        QVERIFY(!store.findMutable(100000, 3));
+        QVERIFY(!store.erase(100000, 3));
+    }
+
     // A store that was moved from is empty and has nothing of the one it was moved to: cells added to either go where they should.
     void aStoreMovedFromAndTheOneItWentToAreSeparate()
     {

@@ -107,6 +107,11 @@ public:
     qint64 cellCount() const { return m_count; }
     // The cell at the place, or null.
     const Cell *find(quint32 row, quint32 col) const;
+    // Edits, for a store that is finished: the cell at the place, to be changed where it is (null if there is none); a cell put where it belongs, in place of the one that is
+    // there, and the cell as it is held; a cell taken away (false if there was none). A cell is put in at the cost of moving the cells after it in its block of rows.
+    Cell *findMutable(quint32 row, quint32 col);
+    Cell *set(const Cell &cell);
+    bool erase(quint32 row, quint32 col);
     // Calls f(cell) for each cell in order of row, then column.
     template <class F>
     void forEach(F f) const
