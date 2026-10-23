@@ -172,11 +172,11 @@ Value scalarBinary(Op op, const Value &a, const Value &b, bool final, DateSystem
         switch (op) {
         case Op::Add:
             r = x + y;
-            if (final && r != 0 && (x < 0) != (y < 0) && std::fabs(r) <= std::max(std::fabs(x), std::fabs(y)) * kZeroSnap) r = 0;
+            if (final && r != 0 && (x < 0) != (y < 0) && std::fabs(r) <= std::max(std::fabs(x), std::fabs(y)) * kOperatorSnap) r = 0;
             break;
         case Op::Sub:
             r = x - y;
-            if (final && r != 0 && (x < 0) == (y < 0) && std::fabs(r) <= std::max(std::fabs(x), std::fabs(y)) * kZeroSnap) r = 0;
+            if (final && r != 0 && (x < 0) == (y < 0) && std::fabs(r) <= std::max(std::fabs(x), std::fabs(y)) * kOperatorSnap) r = 0;
             break;
         case Op::Mul: r = x * y; break;
         case Op::Div:
@@ -318,6 +318,7 @@ Item Machine::callFunction(const FunctionInfo &f, std::vector<Item> &args, bool 
     std::vector<Item> one(args.size());
     for (int r = 0; r < rows && !over; ++r)
         for (int c = 0; c < cols; ++c) {
+            if (!charge(1)) break;
             for (int i = 0; i < n; ++i) {
                 const Item &it = args[size_t(i)];
                 if (paramClass(f, i) == 'v' && it.kind == Item::Kind::Value && it.value.isArray())

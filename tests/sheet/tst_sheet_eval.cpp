@@ -3,6 +3,7 @@
 // hostile formulas. Each expected value is written from the rules of the language, not from what the evaluator gave.
 #include "calchelpers.h"
 
+#include <QElapsedTimer>
 #include <QRandomGenerator>
 
 #include <cmath>
@@ -61,7 +62,7 @@ private Q_SLOTS:
             {"10/4", "n:2.5"},
             {"10/2/5", "n:1"},
             {"1+2=3", "b:1"},
-            {"2^0.5", "n:1.41421356237309"},       // a power is exp(0.5 ln 2) in doubles, one unit of the last place under the square root
+            {"ROUND(2^0.5,10)", "n:1.4142135624"},    // (a power is exp(y ln x) in doubles, so its last digit is the math library's)
             {"1/3*3", "n:1"},
             {"(1+2)*(3+4)", "n:21"},
             {"200%", "n:2"},
@@ -231,6 +232,13 @@ private Q_SLOTS:
         QCOMPARE(ev("(0.5-0.4-0.1)"), num(-2.7755575615628914e-17));
         QCOMPARE(ev("1E-20+0"), num(1e-20));
         QCOMPARE(ev("1E-20"), num(1e-20));
+        // differences of a few units of the last place are zero in the last operation (what the files show: the limit is 2^-49 of the larger term) ...
+        QCOMPARE(ev("9450-9449.999999999989"), num(0));
+        QCOMPARE(ev("3535803.000000004-3535803.000000001"), num(0));
+        QCOMPARE(ev("1-0.999999999999999"), num(0));
+        // ... and not more: 0.01 less 0.00999999999999997 is 3E-17, a few times the limit
+        QCOMPARE(ev("0.01-0.00999999999999997"), num(0.01 - 0.00999999999999997));
+        QCOMPARE(ev("1*(9450-9449.999999999989)"), num(9450.0 - 9449.999999999989));
         // a difference of numbers that are not near each other is its own
         QCOMPARE(ev("1-0.9"), num(0.09999999999999998));
         QCOMPARE(ev("1000000-0.000001"), num(999999.999999));
@@ -507,6 +515,29 @@ private Q_SLOTS:
         for (int i = 0; i < 200; ++i) sheets.n("A1", 1, i);
         QCOMPARE(ev("SUM(Sheet1:Sheet200!A1)", sheets), num(200));
         QCOMPARE(ev("SUM(Sheet1:Sheet200!A:A)", sheets), num(200));
+        // a pattern that makes the matching backtrack as much as it can, over a long text: it runs out of steps, and does not run on
+        const QString pattern = QString("a*").repeated(100) + "b";
+        EvalStatus status = EvalStatus::Ok;
+        const QString searched = evStatus("SEARCH(\"" + pattern + "\",REPT(\"a\",30000))", Grid(), Settings(), &status, 5000000);
+        QVERIFY2(searched.startsWith("e:"), qPrintable(searched));
+        QCOMPARE(status, EvalStatus::TooMuchWork);
+        QCOMPARE(ev("SEARCH(\"" + QString("a*").repeated(200) + "b\",REPT(\"a\",100))"), QStringLiteral("e:#VALUE!"));   // a pattern of more than 255 characters is none
+        QCOMPARE(ev("SEARCH(\"a*b\",\"xxaxxxbxx\")"), num(3));
+        // a lookup of a million values in a million, most of them empty, and a mode of a great many numbers: they run out of steps, or are quick, and do not run on
+        Grid wide;
+        QVariantList names;
+        for (int i = 0; i < 1000; ++i) names << QStringLiteral("name%1").arg(i);
+        wide.column("B1", names);
+        QElapsedTimer clock;
+        clock.start();
+        const QString lookedUp = evStatus("SUM(IFERROR(MATCH(B:B,B:B&0),0))", wide, array, &status, 20000000);
+        QVERIFY2(clock.elapsed() < 30000, qPrintable(QString::number(clock.elapsed())));
+        QVERIFY2(lookedUp.startsWith("e:") || lookedUp.startsWith("n:"), qPrintable(lookedUp));
+        clock.restart();
+        QCOMPARE(ev("MODE(ROW(1:200000))", Grid(), array), QStringLiteral("e:#N/A"));
+        QVERIFY2(clock.elapsed() < 30000, qPrintable(QString::number(clock.elapsed())));
+        QCOMPARE(ev("MODE({3,1,2,1,3,2,3})", Grid(), array), num(3));
+        QCOMPARE(ev("MODE({1,2,2,1})"), num(1));    // the first of those that come equally often
         // a long text, built and cut
         QCOMPARE(ev("LEN(REPT(\"ab\",16000)&\"x\")"), num(32001));
         QCOMPARE(ev("LEN(REPT(\"ab\",16000)&REPT(\"c\",800))"), QStringLiteral("e:#VALUE!"));

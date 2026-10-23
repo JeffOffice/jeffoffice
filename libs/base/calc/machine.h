@@ -69,7 +69,9 @@ bool coerceBool(const Value &v, bool *out, ErrorKind *error);
 
 // Does the text match the pattern, from character ti of the text and pi of the pattern? Any case; "?" is one character, "*" any number, "~" makes the next one plain.
 // With `prefix` the pattern need only match the start of what is left of the text (SEARCH); else all of it.
+// The steps the matching has taken since the last call, which Machine::charge counts into the work of the evaluation.
 bool wildcardMatch(const QString &text, int ti, const QString &pattern, int pi, bool prefix = false);
+qint64 takeWildcardSteps();
 bool hasWildcards(const QString &s);
 
 // The numbers of the arguments of a call from `first` on, as functions of many numbers take them: in a reference or an array the numbers; typed, a text read as a number
@@ -81,14 +83,15 @@ bool gatherNumbers(Call &c, int first, std::vector<double> *out, Value *error, b
 // the files kept the digits of the original: with these two rules 21 cells in 3.1 million of the practice workbooks, instead of 1,900, differ by more than a few units of the last place.)
 double powerOf(double x, double y);
 
-// A sum or difference within 2^-50 (relative to the larger term) of zero is zero: a smaller one than that is the rounding error of numbers that cancel, and the
-// original does not keep it (found by comparing with the results of the files: a wider limit makes a zero of sums it keeps, a narrower one keeps the rounding error of
-// sums it makes zero). SUM applies it to each step.
-constexpr double kZeroSnap = 8.881784197001252e-16;
+// A sum or difference of numbers that cancel is zero where what is left is no more than the rounding error of the terms. The limits were found by comparing with the
+// results of the files (a wider one makes a zero of differences the files keep, a narrower one keeps the rounding error of differences they make zero): the last
+// operation of a formula is zero within 2^-49 of the larger term (9450 - 9449.999999999989 is zero; 0.01 - 0.00999999999999997 is not), and SUM, at each step, within 2^-50.
+constexpr double kOperatorSnap = 1.7763568394002505e-15;
+constexpr double kSumSnap = 8.881784197001252e-16;
 inline double snappedSum(double a, double b)
 {
     const double r = a + b;
-    if (r != 0 && a != 0 && b != 0 && (a < 0) != (b < 0) && std::fabs(r) <= std::max(std::fabs(a), std::fabs(b)) * kZeroSnap) return 0;
+    if (r != 0 && a != 0 && b != 0 && (a < 0) != (b < 0) && std::fabs(r) <= std::max(std::fabs(a), std::fabs(b)) * kSumSnap) return 0;
     return r;
 }
 
@@ -198,7 +201,7 @@ public:
     // Counts n steps; false when the evaluation has gone past its limit (then stopped() is true).
     bool charge(qint64 n)
     {
-        work += n;
+        work += n + takeWildcardSteps();
         if (work > limit && !over) {
             over = true;
             if (status == EvalStatus::Ok) status = EvalStatus::TooMuchWork;

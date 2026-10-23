@@ -263,12 +263,14 @@ private Q_SLOTS:
         QCOMPARE(int(sum->minArgs), 1);
         QCOMPARE(int(sum->maxArgs), 255);
         QCOMPARE(&functionAt(functionIndex("SUM")), sum);
-        // every registered function has a name in upper case, an implementation, and parameters for the arguments it must have
+        // every registered function has a name in upper case, an implementation, and a letter for its parameters
         for (int i = 0; i < functionCount(); ++i) {
             const FunctionInfo &f = functionAt(i);
             const QString name = QString::fromLatin1(f.name);
             QVERIFY2(name == name.toUpper() && f.impl, qPrintable(name));
-            QVERIFY2(int(strlen(f.params)) >= int(f.minArgs) || f.maxArgs == 255, qPrintable(name));
+            // a letter for each parameter, the last standing for more when the function takes more arguments than it has letters
+            QVERIFY2((f.maxArgs == 0) == (strlen(f.params) == 0) && (f.maxArgs == 255 || int(strlen(f.params)) <= int(f.maxArgs)), qPrintable(name));
+            QVERIFY2(f.minArgs <= f.maxArgs, qPrintable(name));
             QCOMPARE(functionIndex(name), i);
         }
     }

@@ -160,8 +160,10 @@ Value findText(Call &c, bool caseSensitive)
         const int at = within.indexOf(what, from, Qt::CaseInsensitive);
         return at < 0 ? c.error(ErrorKind::Value) : Value::number(double(at + 1));
     }
-    for (int i = from; i <= within.size(); ++i)
+    for (int i = from; i <= within.size(); ++i) {
+        if (!c.machine().charge(1)) return c.error(ErrorKind::Value);   // (the steps of the matching are counted with it)
         if (wildcardMatch(within, i, what, 0, true)) return Value::number(double(i + 1));
+    }
     return c.error(ErrorKind::Value);
 }
 Value fnFind(Call &c) { return findText(c, true); }

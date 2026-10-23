@@ -539,19 +539,22 @@ Value fnMode(Call &c)
     std::vector<double> x;
     Value error;
     if (!gatherNumbers(c, 0, &x, &error)) return error;
-    double best = 0;
+    // the value that comes most often; of several that come as often, the first in the order the numbers came
+    std::vector<double> sorted = x;
+    std::sort(sorted.begin(), sorted.end());
     size_t bestCount = 1;
-    for (size_t i = 0; i < x.size(); ++i) {
-        size_t count = 0;
-        for (size_t j = 0; j < x.size(); ++j)
-            if (x[j] == x[i]) ++count;
-        if (count > bestCount) {
-            bestCount = count;
-            best = x[i];
-        }
+    for (size_t i = 0; i < sorted.size();) {
+        size_t j = i;
+        while (j < sorted.size() && sorted[j] == sorted[i]) ++j;
+        bestCount = std::max(bestCount, j - i);
+        i = j;
     }
     if (bestCount < 2) return c.error(ErrorKind::NA);
-    return Value::number(best);
+    for (const double v : x) {
+        const auto range = std::equal_range(sorted.begin(), sorted.end(), v);
+        if (size_t(range.second - range.first) == bestCount) return Value::number(v);
+    }
+    return c.error(ErrorKind::NA);
 }
 
 // ---- conditions on several ranges: SUMIFS, COUNTIFS, AVERAGEIF, AVERAGEIFS, MAXIFS, MINIFS

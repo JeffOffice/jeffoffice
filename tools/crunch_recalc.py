@@ -14,7 +14,7 @@ another workbook or to the columns of a table, data tables, formulas that did no
 
 out-dir/cells.tsv has a line for each formula cell that did not match, a few of each kind that were kept apart, and a few that matched: workbook, sheet, cell, formula,
 stored, ours, class (M match, X mismatch, U unknown function, V volatile, E external, T table columns, P not parsed, N no result, D data table, L work bound, S out of time).
-out-dir/books.tsv has a line for each workbook. The summary is printed: the cells and the share that matched, the workbooks that matched whole, how each function of the
+out-dir/books.tsv has a line for each workbook; out-dir/unsupported.tsv lists the functions the engine lacks, with the cells that call each. The summary is printed: the cells and the share that matched, the workbooks that matched whole, how each function of the
 most used fared, the commonest mismatches, and the commonest unsupported functions.
 """
 import os
@@ -171,6 +171,10 @@ def main():
     print(f"{len(patterns)} mismatch patterns, the 15 commonest:")
     for name, n in patterns.most_common(15):
         print("  %8d  %s" % (n, name))
+    with open(os.path.join(out_dir, "unsupported.tsv"), "w", encoding="utf-8", errors="surrogateescape") as f:
+        f.write("function\tcells\n")
+        for name, n in unsupported.most_common():
+            f.write("%s\t%d\n" % (name, n))
     print("unsupported functions (cells that call them):")
     for name, n in unsupported.most_common(40):
         print("  %8d  %s" % (n, name))

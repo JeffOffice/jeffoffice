@@ -65,30 +65,64 @@ bool hasWildcards(const QString &s)
     return false;
 }
 
+namespace {
+thread_local qint64 g_wildcardSteps = 0;
+}
+
+qint64 takeWildcardSteps()
+{
+    const qint64 n = g_wildcardSteps;
+    g_wildcardSteps = 0;
+    return n;
+}
+
 bool wildcardMatch(const QString &text, int ti, const QString &pat, int pi, bool prefix)
 {
-    while (pi < pat.size()) {
-        const QChar p = pat[pi];
-        if (p == QLatin1Char('*')) {
-            while (pi < pat.size() && pat[pi] == QLatin1Char('*')) ++pi;
-            if (pi == pat.size()) return true;
-            for (int k = ti; k <= text.size(); ++k)
-                if (wildcardMatch(text, k, pat, pi, prefix)) return true;
-            return false;
+    const int n = int(text.size()), m = int(pat.size());
+    if (m - pi > 255) return false;   // (a criterion or a pattern of more than 255 characters is no pattern)
+    int starP = -1, starT = -1;
+    qint64 steps = 0;
+    bool result = false;
+    for (;;) {
+        ++steps;
+        if (pi < m) {
+            const QChar p = pat[pi];
+            if (p == QLatin1Char('*')) {
+                while (pi < m && pat[pi] == QLatin1Char('*')) ++pi;
+                if (pi == m) {
+                    result = true;
+                    break;
+                }
+                starP = pi;
+                starT = ti;
+                continue;
+            }
+            int advance = 1;
+            bool any = false;
+            QChar want = p;
+            if (p == QLatin1Char('?')) {
+                any = true;
+            } else if (p == QLatin1Char('~') && pi + 1 < m) {
+                want = pat[pi + 1];
+                advance = 2;
+            }
+            if (ti < n && (any || text[ti].toCaseFolded() == want.toCaseFolded())) {
+                ++ti;
+                pi += advance;
+                continue;
+            }
+        } else if (prefix || ti == n) {
+            result = true;
+            break;
         }
-        if (ti >= text.size()) return false;
-        if (p == QLatin1Char('?')) {
-            ++ti;
-            ++pi;
-            continue;
-        }
-        QChar want = p;
-        if (p == QLatin1Char('~') && pi + 1 < pat.size()) want = pat[++pi];
-        if (text[ti].toCaseFolded() != want.toCaseFolded()) return false;
-        ++ti;
-        ++pi;
+        // no match here: the last "*" takes one more character of the text
+        if (starP < 0 || starT >= n) break;
+        ++starT;
+        ti = starT;
+        pi = starP;
     }
-    return prefix || ti == text.size();
+    g_wildcardSteps += steps;
+    return result;
 }
 
 double powerOf(double x, double y)

@@ -38,7 +38,8 @@ public:
     virtual QString definedName(int sheet, const QString &name) const { Q_UNUSED(sheet); Q_UNUSED(name); return {}; }
     // The cell holds a formula that is a SUBTOTAL, which SUBTOTAL leaves out of what it adds up.
     virtual bool isSubtotal(int sheet, quint32 row, quint32 col) const { Q_UNUSED(sheet); Q_UNUSED(row); Q_UNUSED(col); return false; }
-    // Changes when the sheets or their names do, so a program re-reads which sheet each name is.
+    // Changes when the sheets or their names do, so a program re-reads which sheet each name is (a source that is replaced by another at the same address must
+    // change it too).
     virtual qint64 generation() const { return 0; }
 };
 
@@ -53,6 +54,7 @@ struct EvalContext {
 
 enum class EvalStatus : quint8 { Ok, TooMuchWork, TooLarge, TooDeep };
 
+// An Evaluator, and a Program while it is run (it remembers which sheet each name it uses is), belong to one thread at a time.
 class Evaluator {
 public:
     Evaluator();

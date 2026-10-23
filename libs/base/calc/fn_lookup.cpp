@@ -31,20 +31,28 @@ bool matchesExactly(const Value &key, const Value &cell, bool wildcards)
     return compareForLookup(key, cell) == 0;
 }
 
-// The position of the last cell of a column or row of n not after (ascending) or not before (descending) the value, found by halving; -1 for none. `at` gives cell i.
+// The position of the last cell of a column or row of n not after (ascending) or not before (descending) the value, found by halving; -1 for none, and -2 if the
+// work gave out. `at` gives cell i. Each cell looked at counts as a step.
 template <class At>
-qint64 searchSorted(const Value &key, qint64 n, bool descending, At at)
+qint64 searchSorted(Call &c, const Value &key, qint64 n, bool descending, At at)
 {
     qint64 lo = 0, hi = n - 1, result = -1;
+    Machine &m = c.machine();
     while (lo <= hi) {
         qint64 mid = lo + (hi - lo) / 2;
         // a cell of another kind is passed over: the next one that can be compared, up to hi, else down from mid
         qint64 j = mid;
         int order = 2;
-        while (j <= hi && (order = compareForLookup(key, at(j))) == 2) ++j;
+        while (j <= hi && (order = compareForLookup(key, at(j))) == 2) {
+            ++j;
+            if (!m.charge(1)) return -2;
+        }
         if (j > hi) {
             j = mid - 1;
-            while (j >= lo && (order = compareForLookup(key, at(j))) == 2) --j;
+            while (j >= lo && (order = compareForLookup(key, at(j))) == 2) {
+                --j;
+                if (!m.charge(1)) return -2;
+            }
             if (j < lo) break;
             // everything after j in the range is passed over
             const bool notAfter = descending ? order <= 0 : order >= 0;
@@ -55,6 +63,7 @@ qint64 searchSorted(const Value &key, qint64 n, bool descending, At at)
             hi = j - 1;
             continue;
         }
+        if (!m.charge(1)) return -2;
         const bool notAfter = descending ? order <= 0 : order >= 0;   // the cell is not after (not before) the value
         if (notAfter) {
             result = j;
@@ -119,7 +128,8 @@ Value tableLookup(Call &c, bool vertical)
         found = searchExact(c, key, n, at);
         if (found == -2) return c.error(ErrorKind::Value);
     } else {
-        found = searchSorted(key, n, false, at);
+        found = searchSorted(c, key, n, false, at);
+        if (found == -2) return c.error(ErrorKind::Value);
     }
     if (found < 0) return c.error(ErrorKind::NA);
     return vertical ? t.at(found, qint64(index) - 1) : t.at(qint64(index) - 1, found);
@@ -146,7 +156,8 @@ Value fnMatch(Call &c)
         found = searchExact(c, key, n, at);
         if (found == -2) return c.error(ErrorKind::Value);
     } else {
-        found = searchSorted(key, n, type < 0, at);
+        found = searchSorted(c, key, n, type < 0, at);
+        if (found == -2) return c.error(ErrorKind::Value);
     }
     if (found < 0) return c.error(ErrorKind::NA);
     return Value::number(double(found + 1));
@@ -175,7 +186,8 @@ Value fnLookup(Call &c)
         n = vectorColumn ? t.rows() : t.cols();
     }
     auto at = [&](qint64 i) { return vectorColumn ? t.at(i, 0) : t.at(0, i); };
-    const qint64 found = searchSorted(key, n, false, at);
+    const qint64 found = searchSorted(c, key, n, false, at);
+    if (found == -2) return c.error(ErrorKind::Value);
     if (found < 0) return c.error(ErrorKind::NA);
     if (hasResult) {
         const qint64 count = result.fullRows() * result.fullCols();

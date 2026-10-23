@@ -23,6 +23,10 @@
 //                                                matched, cells, matched cells; `unsup`: a function not in the registry and the cells that call it; `pat`: how mismatches look and
 //                                                how many; and `book`: the formula cells, the cells of each class in the order above, the volatile ones that were worked out and
 //                                                matched, whether the workbook calculates by hand, whether every sheet was read, and the seconds
+//   jcrunchtool functions                      the functions the formula engine has: name, fewest and most arguments, and v (volatile) or f (written with the prefix _xlfn.)
+//   jcrunchtool mutate <file.xlsx> [count=3000] [seed=1] [seconds=60]   the formulas of the workbook, each damaged in a few places (a character changed, taken out, or put in, a piece
+//                                                repeated or moved) and parsed and worked out against the workbook's cells with the work bounded, as a sweep for crashes and hangs; prints
+//                                                how many were parsed and worked out
 //   jcrunchtool eval <file.xlsx> <sheet> <cell> <formula>   the formula worked out as if it were in that cell of that sheet (a name, or a number counting from 1), reading the values the file stored:
 //                                                the value, as `n:1.5`, `s:text`, `b:1`, `e:#N/A`, or `a:2x2[...]`
 //   jcrunchtool recalc <keys.txt> <out-dir> [jobs]   runs `recalc-one` on each workbook listed under the same limits as `scan`, writes <out-dir>/cells.tsv (workbook, sheet, cell, formula,
@@ -31,6 +35,7 @@
 //                                                  functions (tools/crunch_recalc.py does the work)
 
 #include "office/package.h"
+#include "calc/functions.h"
 #include "calc/numfmt.h"
 #include "sheet/cellref.h"
 #include "sheet/formatcases.h"
@@ -47,6 +52,7 @@
 #include <QTextStream>
 
 #include <algorithm>
+#include <random>
 
 using namespace jp::office;
 using namespace jp::office::sheet;
@@ -310,6 +316,82 @@ int recalcOne(const QString &path, int keepMatches, double seconds)
     return report.whole ? 0 : 2;
 }
 
+int mutate(const QString &path, int count, quint32 seed, double seconds)
+{
+    Package package;
+    QString why;
+    Workbook book;
+    if (!package.readLazyFile(path, &why) || !book.open(package, &why)) {
+        err() << path << ": " << why << "\n";
+        return 1;
+    }
+    WorkbookSource source(book);
+    source.loadAll();
+    QStringList formulas;
+    for (int i = 0; i < source.sheetCount() && formulas.size() < 4000; ++i)
+        for (const QString &f : source.sheet(i).formulaTexts)
+            if (formulas.size() < 4000) formulas << f;
+    if (formulas.isEmpty()) {
+        out() << "mutate: no formulas\n";
+        return 0;
+    }
+    static const char *const pieces[] = {"(", ")", ",", ";", "'", "\"", "{", "}", "[", "]", "!", ":", " ", "$", "#", "%", "^", "&", "<=", "<>", "-", "+", "*", "/", "A1", "B2:C3", "1:1", "A:A", "0", "1E308",
+                                         "1E-308", "SUM(", "IF(", "INDEX(", "OFFSET(", "INDIRECT(", "VLOOKUP(", "REPT(", "SEARCH(", "Sheet1!", "'x'!", "TRUE", "#N/A", "{1,2;3,4}", "\\", "?", "*?", "~"};
+    const int nPieces = int(sizeof(pieces) / sizeof(pieces[0]));
+    std::mt19937 rng(seed);
+    QElapsedTimer timer;
+    timer.start();
+    jp::calc::Evaluator evaluator;
+    evaluator.setWorkLimit(5000000);
+    qint64 parsed = 0, worked = 0, tried = 0;
+    for (int i = 0; i < count && timer.elapsed() < seconds * 1000.0; ++i) {
+        QString f = formulas[int(rng() % quint32(formulas.size()))];
+        const int edits = 1 + int(rng() % 4);
+        for (int k = 0; k < edits; ++k) {
+            const int pos = f.isEmpty() ? 0 : int(rng() % quint32(f.size()));
+            switch (rng() % 5) {
+            case 0: f.replace(pos, 1, QString::fromLatin1(pieces[rng() % quint32(nPieces)])); break;
+            case 1: f.remove(pos, 1 + int(rng() % 3)); break;
+            case 2: f.insert(pos, QString::fromLatin1(pieces[rng() % quint32(nPieces)])); break;
+            case 3: f.insert(pos, f.mid(int(rng() % quint32(std::max(1, int(f.size())))), 1 + int(rng() % 12))); break;
+            default: f.replace(pos, 1, QString(QChar(ushort(32 + rng() % 95)))); break;
+            }
+            if (f.size() > 3000) f.truncate(3000);
+        }
+        ++tried;
+        for (int mode = 0; mode < 2; ++mode) {
+            jp::calc::ParseOptions po;
+            po.arrayFormula = mode == 1;
+            const jp::calc::ParseResult pr = jp::calc::parseFormula(f, po);
+            if (!pr.ok()) continue;
+            ++parsed;
+            jp::calc::EvalContext ctx;
+            ctx.source = &source;
+            ctx.sheet = int(rng() % quint32(source.sheetCount()));
+            ctx.row = rng() % 200;
+            ctx.col = rng() % 30;
+            ctx.shiftRows = int(rng() % 5);
+            ctx.shiftCols = int(rng() % 5);
+            ctx.now = 45366.5;
+            evaluator.evaluate(*pr.program, ctx);
+            ++worked;
+        }
+    }
+    out() << "mutate: " << tried << " formulas damaged, " << parsed << " parsed, " << worked << " worked out, " << QString::number(timer.elapsed() / 1000.0, 'f', 1) << " s\n";
+    return 0;
+}
+
+int listFunctions()
+{
+    for (int i = 0; i < jp::calc::functionCount(); ++i) {
+        const jp::calc::FunctionInfo &f = jp::calc::functionAt(i);
+        out() << f.name << '\t' << int(f.minArgs) << '\t' << (f.maxArgs == 255 ? QStringLiteral("any") : QString::number(f.maxArgs)) << '\t' << ((f.flags & jp::calc::kFnVolatile) ? "v" : "")
+              << ((f.flags & jp::calc::kFnFuture) ? "f" : "") << "\n";
+    }
+    out() << jp::calc::functionCount() << " functions\n";
+    return 0;
+}
+
 int evalFormula(const QString &path, const QString &sheetArg, const QString &cell, const QString &formula)
 {
     Package package;
@@ -447,6 +529,8 @@ int usage()
              "       jcrunchtool formats-one <file.xlsx>\n"
              "       jcrunchtool formats <keys.txt> <out-dir> [jobs]\n"
              "       jcrunchtool recalc-one <file.xlsx> [matches=3] [seconds=100]\n"
+             "       jcrunchtool mutate <file.xlsx> [count=3000] [seed=1] [seconds=60]\n"
+             "       jcrunchtool functions\n"
              "       jcrunchtool eval <file.xlsx> <sheet> <cell> <formula>\n"
              "       jcrunchtool recalc <keys.txt> <out-dir> [jobs]\n";
     return 2;
@@ -470,6 +554,9 @@ int main(int argc, char **argv)
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("formats")) return formats(args[1], args[2], args.value(3));
     if (args.size() >= 2 && args.size() <= 4 && args[0] == QLatin1String("recalc-one")) return recalcOne(args[1], args.value(2, QStringLiteral("3")).toInt(), args.value(3, QStringLiteral("100")).toDouble());
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("recalc")) return recalc(args[1], args[2], args.value(3));
+    if (args.size() == 1 && args[0] == QLatin1String("functions")) return listFunctions();
+    if (args.size() >= 2 && args.size() <= 5 && args[0] == QLatin1String("mutate"))
+        return mutate(args[1], args.value(2, QStringLiteral("3000")).toInt(), args.value(3, QStringLiteral("1")).toUInt(), args.value(4, QStringLiteral("60")).toDouble());
     if (args.size() == 5 && args[0] == QLatin1String("eval")) return evalFormula(args[1], args[2], args[3], args[4]);
     return usage();
 }
