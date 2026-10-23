@@ -26,6 +26,7 @@
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QPainter>
@@ -85,6 +86,16 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
         m_zoomLabel->setText(QStringLiteral("%1%").arg(std::lround(z * 100)));
         const QSignalBlocker block(m_zoomSlider);
         m_zoomSlider->setValue(int(std::lround(std::log(z) / std::log(1.05))));
+    });
+    connect(m_view, &grid::GridView::contextMenuRequested, this, [this](const QPoint &globalPos) {
+        // the commands of a right click: copying works now, and the others are dimmed until editing comes
+        auto *menu = new QMenu(this);
+        menu->setAttribute(Qt::WA_DeleteOnClose);
+        menu->setObjectName(QStringLiteral("cellMenu"));
+        for (const char *id : {"edit.cut", "edit.copy", "edit.paste"}) menu->addAction(act(QString::fromLatin1(id)));
+        menu->addSeparator();
+        menu->addAction(act("edit.selectAll"));
+        menu->popup(globalPos);
     });
     connect(&m_loader, &crunch::WorkbookLoader::firstScreen, this, &CrunchWindow::onFirstScreen);
     connect(&m_loader, &crunch::WorkbookLoader::progress, this, &CrunchWindow::onProgress);

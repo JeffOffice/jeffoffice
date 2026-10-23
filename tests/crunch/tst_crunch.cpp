@@ -20,6 +20,7 @@
 #include <QJsonObject>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMenu>
 #include <QLabel>
 #include <QRegularExpression>
 #include <QScrollBar>
@@ -278,6 +279,26 @@ private Q_SLOTS:
             QVERIFY(win.w.hasWorkbook());   // (every sheet hidden: the window still opens it)
             QCOMPARE(win.w.sheetTabs()->count(), 0);
         }
+    }
+
+    // A right click on the grid opens a menu of the commands for cells: copy works, cut and paste are dimmed.
+    void aRightClickOpensTheCellMenu()
+    {
+        Folder folder;
+        Window win;
+        QVERIFY(win.open(folder.write(QStringLiteral("budget.xlsx"), budgetWorkbook())));
+        QTest::mouseClick(win.w.view()->viewport(), Qt::RightButton, Qt::NoModifier, win.w.view()->sheet().layout().cellRect(4, 3).center());
+        QTRY_VERIFY(qobject_cast<QMenu *>(QApplication::activePopupWidget()));
+        QMenu *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+        QCOMPARE(win.w.view()->selectionName(), QStringLiteral("D5"));   // (what is under the click is selected)
+        QStringList enabled, dimmed;
+        for (QAction *a : menu->actions()) {
+            if (a->isSeparator()) continue;
+            (a->isEnabled() ? enabled : dimmed) << a->objectName();
+        }
+        QCOMPARE(enabled, (QStringList{"edit.copy", "edit.selectAll"}));
+        QCOMPARE(dimmed, (QStringList{"edit.cut", "edit.paste"}));
+        menu->close();
     }
 
     // The name box goes to an address (a cell, a range, columns, rows); one that is no address says so and keeps the selection.
