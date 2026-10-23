@@ -132,6 +132,8 @@ public:
 
     // About the formulas.
     qint64 formulaCount() const { return m_formulaCount; }
+    // Formulas the engine cannot work out and keeps apart (they keep the result the file stored); it walks the formulas, so it is for the times it is needed (a save).
+    qint64 keptCount() const;
     qint64 untrackedCount() const { return m_untracked; }      // formulas the graph was too full to hold
     qint64 textSlotBytes() const;   // what the strings in the slots that hold the formulas' texts take, the free slots' too (a free slot holds none)
     qint64 heldBytes() const { return m_heldBytes; }   // what the texts and arrays that formulas gave take (the bound: CalcOptions::maxHeldBytes)

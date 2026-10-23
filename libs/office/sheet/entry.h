@@ -43,6 +43,11 @@ struct EntryResult {
 // Reads what was typed.
 EntryResult readEntry(const QString &typed, const EntryOptions &options);
 
+// A formula as a person types it, written as a file writes it: the names of functions in capitals, and the prefix "_xlfn." put before those that were added after the first release of the
+// file format (without it the other programs take the name for a function of someone's own: STDEV.S is _xlfn.STDEV.S in a file). Text in quotes, names of sheets, and names a function
+// does not have are left as they are. Reading a formula back for a person (displayFormula in grid/text.h) takes the prefixes away.
+QString toFileFormula(const QString &typed);
+
 // What a cell is shown as when it is edited: the value as it would be typed to give the same value (a percent with its "%", a date in the locale's short form), not cut to the
 // width of the cell. A text that would be read as something else (a number, a date, TRUE, a formula) has an apostrophe put in front.
 // `formatCode` is the cell's number format.

@@ -671,6 +671,7 @@ void GridView::dragTo(const QPoint &pos)
 
 void GridView::mousePressEvent(QMouseEvent *e)
 {
+    if (e->button() == Qt::LeftButton && m_clickGuard && !m_clickGuard()) return;
     setFocus(Qt::MouseFocusReason);
     m_jump.reset();
     const GridLayout &L = m_sheet.layout();
@@ -715,6 +716,49 @@ void GridView::mouseReleaseEvent(QMouseEvent *)
     m_autoScroll.stop();
 }
 
+void GridView::mouseDoubleClickEvent(QMouseEvent *e)
+{
+    if (e->button() != Qt::LeftButton) return;
+    const Hit h = m_sheet.layout().hit(e->pos());
+    if (h.kind == Hit::Kind::Cell) Q_EMIT editRequested();
+}
+
+QRect GridView::cellRect(qint64 row, qint64 col) const
+{
+    const GridLayout &L = m_sheet.layout();
+    GridRange r{row, col, row, col};
+    const int m = row >= 0 && col >= 0 ? L.merges.at(quint32(row), quint32(col)) : -1;
+    if (m >= 0) {
+        const jp::office::sheet::CellRange &range = L.merges.range(m);
+        r = GridRange{qint64(range.row1), qint64(range.col1), qint64(range.row2), qint64(range.col2)};
+    }
+    for (Pane p : {Pane::Corner, Pane::Top, Pane::Left, Pane::Body}) {
+        const PaneView v = L.pane(p);
+        if (v.isEmpty() || row < v.firstRow || row > v.lastRow || col < v.firstCol || col > v.lastCol) continue;
+        const QRect rect = L.rangeRectIn(p, r.row1, r.col1, r.row2, r.col2);
+        return rect & v.rect;
+    }
+    return QRect();
+}
+
+void GridView::moveAfterEnter(bool up)
+{
+    Navigator nav(&m_sheet.layout(), m_nav.get());
+    setSelectionInternal(nav.enter(m_selection, up));
+}
+
+void GridView::moveAfterTab(bool back)
+{
+    Navigator nav(&m_sheet.layout(), m_nav.get());
+    setSelectionInternal(nav.tab(m_selection, back));
+}
+
+void GridView::moveAfterArrow(int dRow, int dCol)
+{
+    Navigator nav(&m_sheet.layout(), m_nav.get());
+    setSelectionInternal(nav.move(m_selection, dRow, dCol, false));
+}
+
 void GridView::wheelEvent(QWheelEvent *e)
 {
     if (e->modifiers() & Qt::ControlModifier) {
@@ -749,6 +793,32 @@ void GridView::keyPressEvent(QKeyEvent *e)
     }
     Navigator nav(&m_sheet.layout(), m_nav.get());
     auto go = [&](const Selection &s) { setSelectionInternal(s); };
+    // a character that prints starts an entry
+    auto typed = [&]() {
+        if (ctrl || !plain) return false;
+        const QString text = e->text();
+        if (text.isEmpty() || !text.front().isPrint()) return false;
+        Q_EMIT typingStarted(text);
+        e->accept();
+        return true;
+    };
+    if (plain && !ctrl) {
+        if (e->key() == Qt::Key_F2 && !shift) {
+            Q_EMIT editRequested();
+            e->accept();
+            return;
+        }
+        if (e->key() == Qt::Key_Delete) {
+            Q_EMIT clearRequested();
+            e->accept();
+            return;
+        }
+        if (e->key() == Qt::Key_Backspace) {
+            Q_EMIT typingStarted(QString());
+            e->accept();
+            return;
+        }
+    }
     int dRow = 0, dCol = 0;
     switch (e->key()) {
     case Qt::Key_Left: dCol = -1; break;
@@ -788,13 +858,15 @@ void GridView::keyPressEvent(QKeyEvent *e)
     case Qt::Key_Space:
         if (ctrl) go(nav.selectWholeColumns(m_selection));
         else if (shift) go(nav.selectWholeRows(m_selection));
-        else QAbstractScrollArea::keyPressEvent(e);
+        else if (!typed()) QAbstractScrollArea::keyPressEvent(e);
         return;
     case Qt::Key_A:
         if (ctrl) go(nav.selectAll(m_selection));
-        else QAbstractScrollArea::keyPressEvent(e);
+        else if (!typed()) QAbstractScrollArea::keyPressEvent(e);
         return;
-    default: QAbstractScrollArea::keyPressEvent(e); return;
+    default:
+        if (!typed()) QAbstractScrollArea::keyPressEvent(e);
+        return;
     }
     e->accept();
 }

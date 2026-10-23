@@ -1,6 +1,7 @@
 #include "sheet/entry.h"
 
 #include "calc/formula.h"
+#include "calc/functions.h"
 #include "calc/numfmt.h"
 
 #include <QCoreApplication>
@@ -472,6 +473,58 @@ bool readDateTime(const QString &typed, const EntryOptions &o, double *value, QS
 
 } // namespace
 
+QString toFileFormula(const QString &typed)
+{
+    QString out;
+    out.reserve(typed.size() + 8);
+    const int n = typed.size();
+    auto identStart = [](QChar c) { return c.isLetter() || c == QLatin1Char('_'); };
+    auto identChar = [](QChar c) { return c.isLetterOrNumber() || c == QLatin1Char('_') || c == QLatin1Char('.'); };
+    for (int i = 0; i < n;) {
+        const QChar c = typed[i];
+        if (c == QLatin1Char('"') || c == QLatin1Char('\'') || c == QLatin1Char('[')) {
+            // a text, a sheet's name, or a table's columns: as it is, to its end (a doubled quote is one inside)
+            const QChar close = c == QLatin1Char('[') ? QLatin1Char(']') : c;
+            int j = i + 1;
+            while (j < n) {
+                if (typed[j] == close) {
+                    if (close != QLatin1Char(']') && j + 1 < n && typed[j + 1] == close) {
+                        j += 2;
+                        continue;
+                    }
+                    break;
+                }
+                ++j;
+            }
+            out += typed.mid(i, std::min(n, j + 1) - i);
+            i = j + 1;
+            continue;
+        }
+        if (identStart(c) && (i == 0 || !identChar(typed[i - 1]))) {
+            int j = i;
+            while (j < n && identChar(typed[j])) ++j;
+            int k = j;
+            while (k < n && typed[k].isSpace()) ++k;
+            const QString word = typed.mid(i, j - i);
+            if (k < n && typed[k] == QLatin1Char('(') && !word.startsWith(QLatin1String("_xl"), Qt::CaseInsensitive)) {
+                const jp::calc::FunctionInfo *f = jp::calc::findFunction(word);
+                if (f) {
+                    if (f->flags & jp::calc::kFnFuture) out += QLatin1String("_xlfn.");
+                    out += QString::fromLatin1(f->name);
+                    i = j;
+                    continue;
+                }
+            }
+            out += word;
+            i = j;
+            continue;
+        }
+        out += c;
+        ++i;
+    }
+    return out;
+}
+
 EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
 {
     EntryResult r;
@@ -499,7 +552,7 @@ EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
             return r;
         }
         r.entry.kind = Entry::Kind::Formula;
-        r.entry.text = text;
+        r.entry.text = toFileFormula(text);
         return r;
     };
     if (typed.front() == QLatin1Char('=') && typed.size() > 1) return formula(typed.mid(1));

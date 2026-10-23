@@ -743,8 +743,8 @@ private Q_SLOTS:
         QTest::keyClick(&win.w, Qt::Key_Escape);
         QVERIFY(!win.w.isCalculating());
         QCOMPARE(win.w.statusText(), QStringLiteral("Calculation stopped"));
-        // the worker ends, and what it had worked out arrives
-        QTRY_COMPARE(crunch::WorkbookLoader::workersRunning(), 0);
+        // the worker stops working (and stays, to work out what the window changes), and what it had worked out arrives
+        QTRY_VERIFY(win.w.loaded()->calcIdle.load());
         for (int i = 0; i < 3; ++i) QCoreApplication::processEvents();
         QCOMPARE(done.count(), 0);
         const grid::GridView *v = win.w.view();

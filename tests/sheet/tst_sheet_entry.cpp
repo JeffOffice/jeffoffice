@@ -240,6 +240,21 @@ private Q_SLOTS:
         QCOMPARE(readEntry(QStringLiteral("=1+2)"), o).problemAt, 4);
     }
 
+    // A formula is kept as a file writes it: functions in capitals, and those added after the format's first release with the prefix the other programs need.
+    void aFormulaIsKeptAsAFileWritesIt()
+    {
+        const EntryOptions o = options(en);
+        QCOMPARE(read(QStringLiteral("=stdev.s(a1:a3)+sum(1,2)"), o), QStringLiteral("f:_xlfn.STDEV.S(a1:a3)+SUM(1,2)"));
+        QCOMPARE(read(QStringLiteral("=IFNA(A1, 0)"), o), QStringLiteral("f:_xlfn.IFNA(A1, 0)"));
+        QCOMPARE(read(QStringLiteral("=_xlfn.STDEV.S(A1:A3)"), o), QStringLiteral("f:_xlfn.STDEV.S(A1:A3)"));
+        QCOMPARE(read(QStringLiteral("=CONCAT(\"stdev.s(\",'Sheet(1)'!A1,TEXTJOIN(\",\",1,B1:B2))"), o), QStringLiteral("f:_xlfn.CONCAT(\"stdev.s(\",'Sheet(1)'!A1,_xlfn.TEXTJOIN(\",\",1,B1:B2))"));
+        QCOMPARE(read(QStringLiteral("=NoSuch(1)+if(A1,1,2)"), o), QStringLiteral("f:NoSuch(1)+IF(A1,1,2)"));
+        QCOMPARE(toFileFormula(QStringLiteral("SUM (A1)")), QStringLiteral("SUM (A1)"));
+        QCOMPARE(toFileFormula(QStringLiteral("Table1[Col (1)]+max(1)")), QStringLiteral("Table1[Col (1)]+MAX(1)"));
+        // (a name that is not followed by a bracket is not a function)
+        QCOMPARE(toFileFormula(QStringLiteral("sum+A1")), QStringLiteral("sum+A1"));
+    }
+
     void limits()
     {
         const EntryOptions o = options(en);

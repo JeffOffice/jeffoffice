@@ -1333,6 +1333,14 @@ bool Calculation::put(int sheet, quint32 row, quint32 col, const CellContent &c,
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 // about the formulas
 
+qint64 Calculation::keptCount() const
+{
+    qint64 n = 0;
+    for (const Node &node : m_nodes)
+        if (!(node.flags & Dead) && (node.flags & Kept)) ++n;
+    return n;
+}
+
 quint32 Calculation::nodeAt(int sheet, quint32 row, quint32 col) const
 {
     if (sheet < 0 || sheet >= int(m_sheets.size())) return kNone;
