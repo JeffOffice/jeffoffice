@@ -123,7 +123,6 @@ private Q_SLOTS:
         QCOMPARE(ordered.find(999, 2)->number, 2999.0);
     }
 
-    // A store that was moved from is empty and has nothing of the one it was moved to: cells added to either go where they should.
     // A rectangle of a sheet is visited cell by cell in order, and only its own cells: the same as asking every cell whether it is inside.
     void aRectangleOfTheStoreVisitsExactlyItsCells()
     {
@@ -153,6 +152,7 @@ private Q_SLOTS:
         QCOMPARE(seen, 5);
     }
 
+    // A store that was moved from is empty and has nothing of the one it was moved to: cells added to either go where they should.
     void aStoreMovedFromAndTheOneItWentToAreSeparate()
     {
         CellStore a;
