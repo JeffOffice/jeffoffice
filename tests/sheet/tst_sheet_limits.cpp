@@ -2,6 +2,11 @@
 // with the work counted (bytes taken from the part, cells held) and never the time.
 #include "sheethelpers.h"
 
+#include "office/xml.h"
+#include "office/xmlstream.h"
+
+#include <QXmlStreamReader>
+
 #include <cstring>
 
 namespace {
@@ -97,23 +102,24 @@ private Q_SLOTS:
     void whatASheetTakesToHoldIsBounded()
     {
         ReadOptions options;
-        options.limits.sheetBytes = 100000;
+        options.limits.sheetBytes = 150000;
         const auto row = [](int i) {
             QString cells;
             for (int c = 0; c < 20; ++c) cells += QStringLiteral("<c r=\"%1%2\" t=\"inlineStr\"><is><t>%3</t></is></c>").arg(columnName(quint32(c))).arg(i + 1).arg(QString(100, 'x'));
             return QStringLiteral("<row r=\"%1\">").arg(i + 1) + cells + "</row>";
         };
-        // 20 cells of 100 characters is 20 * (24 + 40 + 200) = 5,280 bytes a row.
+        // 20 cells of 100 characters is 20 * (32 for the cell + 32 for the slot of its text + 240 for the block that holds it) = 6,080 bytes a row.
         QString rows;
-        for (int i = 0; i < 18; ++i) rows += row(i);
+        for (int i = 0; i < 24; ++i) rows += row(i);
         Sheet ok;
         QVERIFY2(readSheetXml(worksheet(rows), &ok, options), qPrintable(ok.error));
-        QCOMPARE(ok.cells.cellCount(), qint64(360));
-        rows += row(18) + row(19);
+        QCOMPARE(ok.cells.cellCount(), qint64(480));
+        QCOMPARE(ok.stats.heldBytes, qint64(24 * 6080));
+        rows += row(24) + row(25);
         Sheet over;
         QVERIFY(!readSheetXml(worksheet(rows), &over, options));
         QVERIFY2(over.error.contains(QStringLiteral("memory")), qPrintable(over.error));
-        QVERIFY(over.cells.cellCount() >= 360 && over.cells.cellCount() < 400);
+        QVERIFY(over.cells.cellCount() >= 480 && over.cells.cellCount() < 520);
         // Formulas count too.
         ReadOptions formulas;
         formulas.limits.sheetBytes = 5000;
@@ -121,8 +127,9 @@ private Q_SLOTS:
         for (int i = 0; i < 100; ++i) cells += QStringLiteral("<c r=\"A%1\"><f>%2</f><v>1</v></c>").arg(i + 1).arg(QString(50, '1'));
         Sheet many;
         QVERIFY(!readSheetXml(worksheet("<row r=\"1\">" + cells + "</row>"), &many, formulas));
-        QVERIFY(kMaxSheetBytes >= 10 * 236000000);
-        QVERIFY(kMaxSheetBytes <= qint64(4) << 30);
+        QVERIFY(kMaxSheetBytes >= 10 * qint64(207576864));   // the most counted for a sheet of the practice workbooks
+        QVERIFY(kMaxSheetBytes <= 2500000000);                // so that with the file, the shared strings, and the parser, a read stays within 4 GB
+        QVERIFY(kMaxSharedStrings >= 10 * 66608 && kMaxSharedStringChars >= 10 * 547609);
     }
 
     void theLengthOfAStringIsBounded()
@@ -198,6 +205,8 @@ private Q_SLOTS:
         Sheet grid;
         QVERIFY(!readSheetXml(worksheet(master(0, "A1:XFD1048576")), &grid));
         QVERIFY(kMaxSharedRangeCells >= 10 * 5000000);
+        // The most formula characters expanded in one sheet found is 8,054,139: the limit is about ten times that, no more.
+        QVERIFY(kMaxExpandedFormulaChars >= 10 * qint64(8054139) && kMaxExpandedFormulaChars <= 200000000);
         // The characters of every formula asked for, a shared formula counted once for each cell: 20 characters in 3 cells is 60.
         ReadOptions expanded;
         expanded.limits.expandedFormulaChars = 59;
@@ -313,11 +322,10 @@ private Q_SLOTS:
         QString attributes;
         for (int i = 0; i < 100000; ++i) attributes += QStringLiteral(" a%1=\"\"").arg(i);
         Sheet crowded;
-        QElapsedTimer timer;
-        timer.start();
         QVERIFY(!readSheetXml(worksheet("<row r=\"1\"><c r=\"A1\"" + attributes + "><v>1</v></c></row>"), &crowded));
         QVERIFY2(crowded.error.contains(QStringLiteral("attributes")), qPrintable(crowded.error));
-        QVERIFY2(timer.elapsed() < 5000, "refused without the parser's quadratic time");
+        // The work is what the parser is given: the first thousand attributes of 1.3 MB of them, never the rest.
+        QVERIFY2(crowded.stats.xmlBytes > 0 && crowded.stats.xmlBytes < 20000, qPrintable(QString::number(crowded.stats.xmlBytes)));
         Sheet crowdedRoot;
         QVERIFY(!readSheetXml("<worksheet" + attributes.toUtf8() + "><sheetData/></worksheet>", &crowdedRoot));
         // 1,000 attributes are allowed, in a quoted value too.
@@ -346,6 +354,195 @@ private Q_SLOTS:
         QVERIFY(!readSheetXml("PK\x03\x04 this is not xml at all", &junk));
         Sheet empty;
         QVERIFY(!readSheetXml(QByteArray(), &empty));
+    }
+
+    // XML that is not UTF-8 is refused before it is parsed: the parser would take bytes such as 22 01 (one letter of UTF-16) for what they are in UTF-8, a
+    // quote, and the guard that counts attributes would count wrong. Nothing but the first bytes is ever passed on.
+    void xmlThatIsNotUtf8IsRefusedBeforeItIsParsed()
+    {
+        QString attributes;
+        for (int i = 0; i < 20000; ++i) attributes += QStringLiteral(" a\u0122%1=\"v\u0122\"").arg(i);
+        const QString xml = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-16\"?><worksheet xmlns=\"") + kMainNs + "\"><sheetData><row r=\"1\"><c r=\"A1\"" + attributes
+            + "><v>1</v></c></row></sheetData></worksheet>";
+        QStringEncoder little(QStringConverter::Utf16LE, QStringConverter::Flag::Default), big(QStringConverter::Utf16BE, QStringConverter::Flag::Default);
+        const QByteArray withMark = QByteArray("\xff\xfe", 2) + QByteArray(little(xml));
+        const QByteArray bigNoMark = QByteArray(big(xml));
+        const QByteArray littleNoMark = QByteArray(little(xml));
+        for (const QByteArray &bytes : {withMark, bigNoMark, littleNoMark}) {
+            Sheet s;
+            QVERIFY2(!readSheetXml(bytes, &s), bytes.left(8).toHex().constData());
+            QVERIFY2(s.error.contains(QStringLiteral("UTF-8")), qPrintable(s.error));
+            QVERIFY2(s.stats.xmlBytes < 4096, qPrintable(QString::number(s.stats.xmlBytes)));
+            QCOMPARE(s.cells.cellCount(), qint64(0));
+        }
+        // The same letters in UTF-8 are read.
+        Sheet utf8;
+        QByteArray plain = worksheet("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>\u0122\u0122</t></is></c></row>");
+        QVERIFY2(readSheetXml("\xef\xbb\xbf" + plain, &utf8), qPrintable(utf8.error));
+        QCOMPARE(show(utf8, SharedStrings(), "A1"), QStringLiteral("i:\u0122\u0122"));
+    }
+
+    // Each kind of piece of XML has the most bytes it may have, checked before the parser has it: a text, an attribute value, a comment, a CDATA section, a
+    // processing instruction, a name. A file of 200 MB of one would otherwise be held whole.
+    void aSinglePieceOfXmlIsBounded()
+    {
+        const int size = int(kMaxXmlTokenBytes) * 4;
+        const QByteArray big(size, 'x');
+        const QByteArray row = "<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>";
+        const auto sheetOf = [&](const QByteArray &before, const QByteArray &token, const QByteArray &after) {
+            return ("<?xml version=\"1.0\"?><worksheet xmlns=\"" + kMainNs + "\"><sheetData>").toUtf8() + before + token + after + "</sheetData></worksheet>";
+        };
+        const QVector<QPair<QString, QByteArray>> cases = {
+            {QStringLiteral("text"), sheetOf("<row r=\"1\"><c r=\"A1\"><v>", big, "</v></c></row>")},
+            {QStringLiteral("inline text"), sheetOf("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>", big, "</t></is></c></row>")},
+            {QStringLiteral("attribute value"), sheetOf(row + "<x a=\"", big, "\"/>")},
+            {QStringLiteral("single-quoted value"), sheetOf(row + "<x a='", big, "'/>")},
+            {QStringLiteral("comment"), sheetOf(row + "<!--", big, "-->")},
+            {QStringLiteral("cdata"), sheetOf(row + "<![CDATA[", big, "]]>")},
+            {QStringLiteral("processing instruction"), sheetOf(row + "<?pi ", big, "?>")},
+            {QStringLiteral("element name"), sheetOf(row + "<", big, "/>")},
+            {QStringLiteral("attribute name"), sheetOf(row + "<x ", big, "=\"1\"/>")},
+            {QStringLiteral("text between elements"), sheetOf(row, big, "")},
+            {QStringLiteral("many small attributes"), sheetOf(row + "<x", QByteArray(" a=\"" + QByteArray(2000, 'y') + "\"").repeated(900), "/>")},
+        };
+        for (const auto &c : cases) {
+            Sheet s;
+            QVERIFY2(!readSheetXml(c.second, &s), qPrintable(c.first));
+            // (A name of more than 4 KiB characters is refused by the parser itself, which says the XML is damaged.)
+            QVERIFY2(s.error.contains(QStringLiteral("longer")) || (c.first.contains(QStringLiteral("name")) && s.error.contains(QStringLiteral("damaged"))), qPrintable(c.first + ": " + s.error));
+            // What the parser was given stops at the bound, and not a byte of the rest is read.
+            QVERIFY2(s.stats.xmlBytes <= kMaxXmlTokenBytes + 70000, qPrintable(c.first + ": " + QString::number(s.stats.xmlBytes)));
+            QVERIFY2(s.stats.largestToken <= kMaxXmlTokenBytes, qPrintable(c.first));
+        }
+        // A piece as large as the bound is passed (a string of 32,767 characters is 98,301 bytes at the most).
+        Sheet fits;
+        QVERIFY2(readSheetXml(sheetOf("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>", QByteArray(int(kMaxStringChars), 'x'), "</t></is></c></row>"), &fits), qPrintable(fits.error));
+        QVERIFY(fits.stats.largestToken >= kMaxStringChars);
+    }
+
+    // What the guard refuses, it refuses whatever the parser would have made of it: forms of comment and declaration that the standard doesn't have (and
+    // that parsers disagree on) are refused as damaged, and the forms it has are followed to where they end.
+    void theGuardAndTheParserAgreeOnWhereTagsAre()
+    {
+        QString attributes;
+        for (int i = 0; i < 40000; ++i) attributes += QStringLiteral(" a%1=\"1\"").arg(i);
+        const auto sheetWith = [&](const QString &token) {
+            return ("<?xml version=\"1.0\"?><worksheet xmlns=\"" + kMainNs + "\"><sheetData><row r=\"1\"><c r=\"A1\"><v>1</v></c></row>" + token + "<x" + attributes + "/></sheetData></worksheet>").toUtf8();
+        };
+        // Forms the standard has: the element after them is the crowded one, and is refused as that.
+        for (const char *token : {"<!---->", "<!-- a - b -->", "<?pi >?>", "<?pi ?>", "<![CDATA[x]]]>", "<!-- <x a=\"> -->", "<?pi \"?>"}) {
+            Sheet s;
+            QVERIFY2(!readSheetXml(sheetWith(QString::fromLatin1(token)), &s), token);
+            QVERIFY2(s.error.contains(QStringLiteral("attributes")), qPrintable(QString::fromLatin1(token) + ": " + s.error));
+        }
+        // Forms it doesn't have: refused as damaged, before anything after them is passed on.
+        for (const char *token : {"<!--->", "<!-->", "<!-- a -- b -->", "<!--- x --->", "<!-- x --!>", "<!x>", "<![CDAT[x]]>", "<", "< x/>", "<x <y/>>", "<x a=\"<\"/>", "<?>", "<!>"}) {
+            Sheet s;
+            QVERIFY2(!readSheetXml(sheetWith(QString::fromLatin1(token)), &s), token);
+            QVERIFY2(s.error.contains(QStringLiteral("damaged")) || s.error.contains(QStringLiteral("DOCTYPE")), qPrintable(QString::fromLatin1(token) + ": " + s.error));
+            QVERIFY2(s.stats.xmlBytes < 4000, qPrintable(QString::fromLatin1(token) + ": " + QString::number(s.stats.xmlBytes)));
+        }
+    }
+
+    // Whatever comes before an element with more attributes than any file has (random pieces of what looks like XML), the parser is never given more attributes
+    // than the limit on one element.
+    void theParserNeverSeesACrowdedElement()
+    {
+        static const char *const pieces[] = {"<", ">", "</", "/>", "<!--", "-->", "--", "-", "<![CDATA[", "]]>", "]", "<?", "?>", "?", "\"", "'", "=", " ", "a", "<x", "<c ", "<!", "!",
+                                             "[", "&", ";", "\n", "<x a=\"", "<x a='", "<!DOCTYPE", "<?xml ", "\xc4\xa2", "x=\"1\" ", "/", ":"};
+        const int count = int(sizeof(pieces) / sizeof(pieces[0]));
+        const int scale = std::max(1, qEnvironmentVariableIntValue("JP_FUZZ") / 20);
+        QRandomGenerator rng(20261023);
+        QByteArray crowdDouble = "<z", crowdSingle = "<z";
+        for (int i = 0; i < 1500; ++i) {
+            crowdDouble += " b" + QByteArray::number(i) + "=\"1\"";
+            crowdSingle += " b" + QByteArray::number(i) + "='1'";
+        }
+        crowdDouble += "/>";
+        crowdSingle += "/>";
+        qint64 most = 0, whole = 0;
+        for (int round = 0; round < 6000 * scale; ++round) {
+            QByteArray xml = "<?xml version=\"1.0\"?><r>";
+            for (int n = int(rng.bounded(10)); n > 0; --n) xml += pieces[rng.bounded(count)];
+            xml += rng.bounded(2) ? crowdDouble : crowdSingle;
+            xml += "</r>";
+            QBuffer source(&xml);
+            source.open(QIODevice::ReadOnly);
+            XmlGuardDevice guard(&source);
+            QXmlStreamReader reader(&guard);
+            qint64 inElement = 0;
+            while (!reader.atEnd())
+                if (reader.readNext() == QXmlStreamReader::StartElement) inElement = std::max<qint64>(inElement, reader.attributes().size() + reader.namespaceDeclarations().size());
+            most = std::max(most, inElement);
+            if (guard.bytesPassed() == xml.size()) ++whole;
+            QVERIFY2(inElement <= kMaxAttributesPerElement, qPrintable(QString("round %1: %2 attributes after %3").arg(round).arg(inElement).arg(QString::fromLatin1(xml.left(80)))));
+        }
+        // Some pieces make no difference and some end the document, but no round is the same.
+        QVERIFY(whole < 6000 * scale);
+    }
+
+    // A read of a sheet that is nothing but merged ranges, or an extension list, can be stopped: the check is made as the XML is read, not only as cells are.
+    void aReadOfNothingButMergedRangesCanBeStopped()
+    {
+        QString merges;
+        for (int i = 0; i < 200000; ++i) merges += QStringLiteral("<mergeCell ref=\"A1:B2\"/>");
+        const QByteArray xml = worksheet(QString(), "<mergeCells count=\"200000\">" + merges + "</mergeCells>");
+        ReadOptions options;
+        qint64 calls = 0;
+        options.progress = [&](qint64) {
+            ++calls;
+            return false;
+        };
+        Sheet s;
+        QVERIFY(!readSheetXml(xml, &s, options));
+        QVERIFY2(s.error.contains(QStringLiteral("stopped")), qPrintable(s.error));
+        QCOMPARE(calls, qint64(1));
+        // Of 5 MB of XML, not a tenth was read.
+        QVERIFY2(s.stats.xmlBytes < xml.size() / 10, qPrintable(QString::number(s.stats.xmlBytes)));
+        QVERIFY(s.mergeCount < 20000);
+        // An extension list is the same.
+        QString extensions;
+        for (int i = 0; i < 200000; ++i) extensions += QStringLiteral("<e a=\"1\"/>");
+        const QByteArray other = worksheet(QString(), "<extLst>" + extensions + "</extLst>");
+        calls = 0;
+        Sheet t;
+        QVERIFY(!readSheetXml(other, &t, options));
+        QCOMPARE(calls, qint64(1));
+        QVERIFY(t.stats.xmlBytes < other.size() / 10);
+    }
+
+    // What the sheet takes is counted at what it costs: a cell with an inline string, 96 bytes at the least (the cell, the slot for its text, and the text's own
+    // block); a cell of a shared formula whose first cell has not come, 140 (and the formula, and its entry in the list of those waiting).
+    void whatASheetTakesIsCountedAtWhatItCosts()
+    {
+        const auto rowsOf = [](int count, const std::function<QString(int)> &cell) {
+            QString rows;
+            for (int i = 0; i < count; ++i) {
+                if (i % 1000 == 0) rows += (i ? QStringLiteral("</row>") : QString()) + QStringLiteral("<row r=\"%1\">").arg(i / 1000 + 1);
+                rows += cell(i);
+            }
+            return worksheet(rows + "</row>");
+        };
+        Sheet inlineStrings;
+        QVERIFY2(readSheetXml(rowsOf(3000, [](int) { return QStringLiteral("<c t=\"inlineStr\"><is><t>a1</t></is></c>"); }), &inlineStrings), qPrintable(inlineStrings.error));
+        QVERIFY2(inlineStrings.stats.heldBytes >= 3000 * 96, qPrintable(QString::number(inlineStrings.stats.heldBytes)));
+        Sheet waiting;
+        QVERIFY2(readSheetXml(rowsOf(5000, [](int i) { return QStringLiteral("<c><f t=\"shared\" si=\"%1\"/></c>").arg(i); }), &waiting), qPrintable(waiting.error));
+        QVERIFY2(waiting.stats.heldBytes >= 5000 * 140, qPrintable(QString::number(waiting.stats.heldBytes)));
+        // So a sheet of them comes to the budget at the number of cells that cost that.
+        ReadOptions budget;
+        budget.limits.sheetBytes = 5000 * 140 - 1;
+        Sheet over;
+        QVERIFY(!readSheetXml(rowsOf(5000, [](int i) { return QStringLiteral("<c><f t=\"shared\" si=\"%1\"/></c>").arg(i); }), &over, budget));
+        QVERIFY2(over.error.contains(QStringLiteral("memory")), qPrintable(over.error));
+        // How many different numbers wait for a first cell is bounded as the number of shared formulas is.
+        ReadOptions few;
+        few.limits.sharedFormulas = 1000;
+        Sheet many;
+        QVERIFY(!readSheetXml(rowsOf(1500, [](int i) { return QStringLiteral("<c><f t=\"shared\" si=\"%1\"/></c>").arg(i); }), &many, few));
+        QVERIFY2(many.error.contains(QStringLiteral("shared")), qPrintable(many.error));
+        Sheet allowed;
+        QVERIFY2(readSheetXml(rowsOf(900, [](int i) { return QStringLiteral("<c><f t=\"shared\" si=\"%1\"/></c>").arg(i); }), &allowed, few), qPrintable(allowed.error));
     }
 
     // Files damaged at random (a byte changed, a piece cut out, doubled, or cut off, a quote or a bracket put in) are read or refused, whatever is left of them,
@@ -432,7 +629,7 @@ private Q_SLOTS:
         GeneratedSheet device(10000);
         QVERIFY(!readSheetPart(&device, options, &s));
         QVERIFY2(s.error.contains(QStringLiteral("stopped")), qPrintable(s.error));
-        QCOMPARE(calls, qint64(2));
+        QVERIFY(calls >= 2);
         QVERIFY(s.cells.cellCount() >= 8192 && s.cells.cellCount() < 8192 + 4096 + 5);
     }
 
@@ -468,6 +665,9 @@ private Q_SLOTS:
         QVERIFY(last);
         QCOMPARE(sheet.formulaText(*last), QStringLiteral("A%1*2").arg(rows));
         QCOMPARE(sheet.stats.xmlBytes, device.served());
+        // What the parser held at once is what it was given at once: no piece of XML larger than a row, and no read larger than a few pieces.
+        QVERIFY2(sheet.stats.largestToken > 0 && sheet.stats.largestToken < 1000, qPrintable(QString::number(sheet.stats.largestToken)));
+        QVERIFY2(sheet.stats.largestRead > 0 && sheet.stats.largestRead <= 65536, qPrintable(QString::number(sheet.stats.largestRead)));
     }
 
     // The same through a package that inflates as it is read: the bytes inflated so far stay within a few pieces of what the cells read so far come to, and
@@ -496,6 +696,8 @@ private Q_SLOTS:
         QCOMPARE(sheet.cells.cellCount(), rows * 5);
         QCOMPARE(book.package().inflatedBytes() - base, qint64(xml.size()));
         QVERIFY2(largestAhead < 256 * 1024, qPrintable(QString::number(largestAhead)));
+        QVERIFY2(sheet.stats.largestToken > 0 && sheet.stats.largestToken < 1000, qPrintable(QString::number(sheet.stats.largestToken)));
+        QVERIFY2(sheet.stats.largestRead > 0 && sheet.stats.largestRead <= 65536, qPrintable(QString::number(sheet.stats.largestRead)));
         // A part damaged at its end (its CRC) is not read as whole: the cells come, and the sheet says it is damaged.
         QByteArray damaged = zip;
         for (qsizetype at = damaged.indexOf(QByteArray("PK\x01\x02", 4)); at >= 0; at = damaged.indexOf(QByteArray("PK\x01\x02", 4), at + 4)) {

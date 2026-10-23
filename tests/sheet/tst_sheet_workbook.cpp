@@ -195,6 +195,97 @@ private Q_SLOTS:
         QCOMPARE(two.stats.xmlBytes, qint64(big.size()));
     }
 
+    // Each sheet has a part of its own: a workbook whose sheets share one (which would have one part read again for each) is refused.
+    void sheetsCannotShareAPart()
+    {
+        PackageWriter w;
+        const QString relBase = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        w.addPart(QStringLiteral("/xl/workbook.xml"), workbookXml("<sheets><sheet name=\"A\" sheetId=\"1\" r:id=\"rId1\"/><sheet name=\"B\" sheetId=\"2\" r:id=\"rId2\"/>"
+                                                                  "<sheet name=\"C\" sheetId=\"3\" r:id=\"rId3\"/></sheets>"),
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"));
+        w.addRelationship(QStringLiteral("/"), relBase + "officeDocument", QStringLiteral("/xl/workbook.xml"));
+        w.addPart(QStringLiteral("/xl/worksheets/sheet1.xml"), worksheet("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"), QStringLiteral("application/xml"));
+        w.addPart(QStringLiteral("/xl/worksheets/sheet2.xml"), worksheet("<row r=\"1\"><c r=\"A1\"><v>2</v></c></row>"), QStringLiteral("application/xml"));
+        w.addRelationship(QStringLiteral("/xl/workbook.xml"), relBase + "worksheet", QStringLiteral("/xl/worksheets/sheet1.xml"));
+        w.addRelationship(QStringLiteral("/xl/workbook.xml"), relBase + "worksheet", QStringLiteral("/xl/worksheets/sheet2.xml"));
+        w.addRelationship(QStringLiteral("/xl/workbook.xml"), relBase + "worksheet", QStringLiteral("/XL/Worksheets/Sheet1.xml"));   // the first again, in other letters
+        Package package;
+        QVERIFY(package.readLazy(w.finish()));
+        Workbook book;
+        QString why;
+        QVERIFY(!book.open(package, &why));
+        QVERIFY2(why.contains(QStringLiteral("share")), qPrintable(why));
+        QCOMPARE(book.info().sheets.size(), 0);
+    }
+
+    // The XML of the workbook part and of the shared strings is refused as a sheet's is when it has a DOCTYPE (how an entity is defined), when it is
+    // not UTF-8, and when an element has more attributes than any file has, whatever its letters.
+    void theWorkbookAndTheSharedStringsAreGuardedAsSheetsAre()
+    {
+        const QByteArray doctype = "<!DOCTYPE x [<!ENTITY a \"b\">]>";
+        WorkbookInfo info;
+        QString why;
+        QVERIFY(!readWorkbookXml("<?xml version=\"1.0\"?>" + doctype + workbookXml("<sheets/>"), &info, &why));
+        QVERIFY2(why.contains(QStringLiteral("DOCTYPE")), qPrintable(why));
+        QByteArray sst = sharedStringsXml({QStringLiteral("<t>a</t>")});
+        SharedStrings strings;
+        QByteArray copy = "<?xml version=\"1.0\"?>" + doctype + sst.mid(sst.indexOf("<sst"));
+        QBuffer in(&copy);
+        in.open(QIODevice::ReadOnly);
+        QVERIFY(!readSharedStrings(&in, Limits(), &strings, &why));
+        QVERIFY2(why.contains(QStringLiteral("DOCTYPE")), qPrintable(why));
+        // UTF-16, in each form the parser would know it by: a byte order mark, a "<" with a zero beside it, and what the declaration says.
+        const auto utf16 = [](const QByteArray &utf8, bool bigEndian, bool bom) {
+            QStringEncoder encode(bigEndian ? QStringConverter::Utf16BE : QStringConverter::Utf16LE, QStringConverter::Flag::Default);
+            QByteArray out = bom ? (bigEndian ? QByteArray("\xfe\xff", 2) : QByteArray("\xff\xfe", 2)) : QByteArray();
+            return out + QByteArray(encode(QString::fromUtf8(utf8)));
+        };
+        const QByteArray plain = workbookXml("<sheets/>");
+        const QByteArray body = plain.mid(plain.indexOf("<workbook"));
+        QByteArray attributes;
+        for (int i = 0; i < 20000; ++i) attributes += QString(" a\u0122%1=\"v\u0122\"").arg(i).toUtf8();
+        const QByteArray crowded = "<workbook xmlns=\"" + kMainNs.toUtf8() + "\"><sheets><sheet name=\"S\"" + attributes + "/></sheets></workbook>";
+        for (const QByteArray &xml : {utf16(plain, false, true), utf16(plain, true, true), utf16(plain, false, false), utf16(plain, true, false), utf16(crowded, false, true),
+                                      QByteArray("\xff\xfe\0\0<\0\0\0", 8), QByteArray("\0\0\xfe\xff\0\0\0<", 8),
+                                      "<?xml version=\"1.0\" encoding=\"UTF-16\"?>" + body, "<?xml version=\"1.0\" encoding='utf-32'?>" + body,
+                                      "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>" + body}) {
+            WorkbookInfo w;
+            QVERIFY2(!readWorkbookXml(xml, &w, &why), xml.left(24).toHex().constData());
+            QVERIFY2(why.contains(QStringLiteral("UTF-8")), qPrintable(why));
+            QByteArray text = xml;
+            QBuffer buffer(&text);
+            buffer.open(QIODevice::ReadOnly);
+            SharedStrings s;
+            QVERIFY(!readSharedStrings(&buffer, Limits(), &s, &why));
+            QVERIFY2(why.contains(QStringLiteral("UTF-8")), qPrintable(why));
+        }
+        // UTF-8, with or without its mark, and with the name in any letters, is what is read.
+        for (const QByteArray &xml : {plain, "\xef\xbb\xbf" + plain, "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>" + body,
+                                      "\xef\xbb\xbf<?xml version='1.0' encoding='UTF-8'?>\n" + body, body}) {
+            WorkbookInfo w;
+            QVERIFY2(readWorkbookXml(xml, &w, &why), qPrintable(why));
+        }
+    }
+
+    // A part larger than any real part is said to be too large, not damaged.
+    void aSheetPartTooLargeIsSaidSo()
+    {
+        QByteArray zip = buildXlsx({worksheet("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>")});
+        for (qsizetype at = zip.indexOf(QByteArray("PK\x01\x02", 4)); at >= 0; at = zip.indexOf(QByteArray("PK\x01\x02", 4), at + 4)) {
+            const quint16 nameLength = qFromLittleEndian<quint16>(zip.constData() + at + 28);
+            if (QString::fromUtf8(zip.mid(at + 46, nameLength)).endsWith(QLatin1String("sheet1.xml"))) qToLittleEndian<quint32>(0xF0000000u, zip.data() + at + 24);
+        }
+        Package package;
+        QString why;
+        QVERIFY2(package.readLazy(zip, &why, qint64(8) << 30), qPrintable(why));
+        Workbook book;
+        QVERIFY2(book.open(package, &why), qPrintable(why));
+        Sheet sheet;
+        QVERIFY(!book.readSheet(0, &sheet));
+        QVERIFY2(sheet.error.contains(QStringLiteral("too large")) || sheet.error.contains(QStringLiteral("larger")), qPrintable(sheet.error));
+        QVERIFY2(!sheet.error.contains(QStringLiteral("damaged")), qPrintable(sheet.error));
+    }
+
     // A sheet whose relationship is missing or is not a worksheet, and a package with no workbook.
     void sheetsThatCantBeReadAreSaid()
     {

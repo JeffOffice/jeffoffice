@@ -1,9 +1,11 @@
 #include "sheet/sheetreader.h"
 
 #include "office/xml.h"
+#include "io/zipindex.h"
 #include "office/xmlstream.h"
 
 #include <QCoreApplication>
+#include <QSet>
 #include <QXmlStreamReader>
 #include <algorithm>
 #include <cmath>
@@ -13,6 +15,7 @@ namespace jp::office::sheet {
 namespace {
 
 constexpr qint64 kProgressEvery = 4096;
+constexpr qint64 kReportEveryBytes = 65536;
 
 QString translate(const char *text) { return QCoreApplication::translate("Sheet", text); }
 
@@ -47,15 +50,27 @@ void decodeEscapes(QString *s)
 // A stream of XML tokens from a device, through the guard that keeps an element from crowding the parser with attributes; and what to say when the
 // reader stops for a reason that isn't in the XML.
 struct XmlSource {
+    QIODevice *raw;
     XmlGuardDevice guard;
     QXmlStreamReader reader;
-    explicit XmlSource(QIODevice *in) : guard(in), reader(&guard) {}
+    // The most bytes of XML in one piece is four to a character of a string at the most (and at least what no tag or declaration comes to).
+    XmlSource(QIODevice *in, const Limits &limits) : raw(in), guard(in, std::max<qint64>(4 * limits.stringChars, 65536)), reader(&guard) {}
 
     // Why the reading stopped short, in words; empty if it didn't.
     QString problem() const
     {
         if (guard.crowded()) return translate("An element of the XML has more attributes than any real file has.");
-        if (guard.sourceFailed()) return translate("The part is damaged: its data or its checksum is wrong.");
+        if (guard.tooLong()) return translate("A piece of the XML (a text, a tag with its attributes, a comment) is longer than any real file has.");
+        if (guard.notUtf8()) return translate("The XML is not UTF-8, which is the only form this program reads.");
+        if (guard.doctype()) return translate("The XML has a DOCTYPE, which is not allowed.");
+        if (guard.malformed()) return translate("The XML is damaged: it is not written as XML is.");
+        if (guard.sourceFailed()) {
+            if (const auto *entry = dynamic_cast<const jp::ZipEntryDevice *>(raw)) {
+                if (entry->failure() == jp::ZipFailure::TooLarge) return translate("The part is larger than any real file's part, so it is not read.");
+                if (entry->failure() == jp::ZipFailure::OverBudget) return translate("The file's parts, read together, come to more than this program reads.");
+            }
+            return translate("The part is damaged: its data or its checksum is wrong.");
+        }
         if (reader.hasError()) return translate("The XML is damaged: %1").arg(reader.errorString());
         return {};
     }
@@ -92,7 +107,7 @@ bool toNumber(const QString &text, double *value)
 bool readSharedStrings(QIODevice *in, const Limits &limits, SharedStrings *out, QString *error)
 {
     *out = SharedStrings();
-    XmlSource src(in);
+    XmlSource src(in, limits);
     QXmlStreamReader &r = src.reader;
     auto fail = [&](const QString &why) {
         if (error) *error = why;
@@ -154,7 +169,7 @@ bool readSharedStrings(QIODevice *in, const Limits &limits, SharedStrings *out, 
 bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QString *error)
 {
     *out = WorkbookInfo();
-    XmlSource src(in);
+    XmlSource src(in, limits);
     QXmlStreamReader &r = src.reader;
     auto fail = [&](const QString &why) {
         if (error) *error = why;
@@ -238,8 +253,13 @@ private:
         m_bytes += n;
         return m_bytes <= m_limits.sheetBytes || fail(translate("The sheet would take more memory to hold than any real file's does."));
     }
-    // A string or a formula text kept: its characters twice over (they are UTF-16) and the 40 bytes it takes besides.
-    static qint64 stringBytes(qint64 chars) { return 40 + 2 * chars; }
+    // What things cost to hold, as measured (the practice workbooks' largest sheet, and sheets made to be the worst case, read by jcrunchtool: the bytes the
+    // process held at its peak against what was counted), rounded up. A cell is 24 bytes in a block that grows by doubling; a string is a slot of 24 in a list
+    // that grows by doubling, and a block of the allocator's (its own 24-byte header, the characters twice over and a terminator, and 8 for the allocator,
+    // to a multiple of 16, 32 at the least); a shared formula waiting for its first cell is an entry in a table of them (a key, a list, and the list's block),
+    // and each cell waiting in it 12 bytes.
+    static constexpr qint64 kCellBytes = 32, kFormulaBytes = 24, kRangeBytes = 24, kMasterBytes = 48, kWaitingBytes = 128, kWaitingCellBytes = 16, kSlotBytes = 32;
+    static qint64 stringBytes(qint64 chars) { return kSlotBytes + std::max<qint64>(32, (24 + 2 * chars + 2 + 8 + 15) / 16 * 16); }
     bool startRow(const QXmlStreamReader &r);
     bool startCell(const QXmlStreamReader &r);
     bool startFormula(const QXmlStreamReader &r);
@@ -421,6 +441,7 @@ bool SheetReader::endFormula()
                     if (m_ref.cellCount() > m_limits.sharedRangeCells) return fail(translate("A shared formula covers a range larger than any real file has."));
                     m_sheet.stats.largestSharedRange = std::max(m_sheet.stats.largestSharedRange, m_ref.cellCount());
                 }
+                if (!take(kMasterBytes)) return false;
                 m_masters.insert(m_si, {text, m_cell.row, m_cell.col});
                 // The cells that came before the first cell of the formula have it now.
                 const auto waiting = m_pending.find(m_si);
@@ -439,15 +460,26 @@ bool SheetReader::endFormula()
     }
     if (m_sheet.stats.expandedFormulaChars > m_limits.expandedFormulaChars) return fail(translate("The formulas, all together, are longer than any real file has."));
     f.text = text;
-    if (!take(qint64(sizeof(Formula)))) return false;
+    if (!take(kFormulaBytes)) return false;
     if ((m_kind == Array || m_kind == Table) && m_haveRef) {
-        if (!take(qint64(sizeof(CellRange)))) return false;
+        if (!take(kRangeBytes)) return false;
         m_sheet.ranges.append(m_ref);
         f.range = qint32(m_sheet.ranges.size() - 1);
     }
     m_sheet.formulas.append(f);
     m_cell.formula = qint32(m_sheet.formulas.size() - 1);
-    if (text < 0 && m_kind == Shared) m_pending[m_si].append({m_cell.formula, m_cell.row, m_cell.col});
+    if (text < 0 && m_kind == Shared) {
+        // Waiting for the first cell of its formula: each such cell is held, and how many different formulas are waited for is bounded as those that have come.
+        auto waiting = m_pending.find(m_si);
+        if (waiting == m_pending.end()) {
+            if (m_pending.size() >= m_limits.sharedFormulas) return fail(translate("The sheet has more shared formulas than any real file has."));
+            if (!take(kWaitingBytes)) return false;
+            waiting = m_pending.insert(m_si, QVector<Pending>());
+        } else if (!take(kWaitingCellBytes)) {
+            return false;
+        }
+        waiting->append({m_cell.formula, m_cell.row, m_cell.col});
+    }
     return true;
 }
 
@@ -523,7 +555,7 @@ bool SheetReader::endCell()
     }
     if (!room) return false;
     if (m_cells >= m_limits.cellsPerSheet) return fail(translate("The sheet has more cells than any real file has."));
-    if (!take(qint64(sizeof(Cell)))) return false;
+    if (!take(kCellBytes)) return false;
     ++m_cells;
     m_sheet.cells.add(c);
     if (m_cells % kProgressEvery == 0 && m_options.progress && !m_options.progress(m_cells)) return fail(translate("The read was stopped."));
@@ -534,12 +566,20 @@ void SheetReader::finish() { m_sheet.cells.finish(); }
 
 bool SheetReader::read(QIODevice *in)
 {
-    XmlSource src(in);
+    XmlSource src(in, m_limits);
     QXmlStreamReader &r = src.reader;
     int depth = 0, phonetic = 0;
     bool rootSeen = false, inData = false, inRow = false, inCell = false, inFormula = false, inValue = false, inInline = false, inText = false, inMerge = false;
     bool ok = true;
+    // Whoever asked to be told how far the read has come is told at least once for every so many bytes of the XML, so that a sheet of anything (merged ranges,
+    // an extension list) and not only of cells can be stopped.
+    qint64 nextReport = kReportEveryBytes;
     while (ok && !r.atEnd()) {
+        if (src.guard.bytesPassed() >= nextReport) {
+            nextReport = src.guard.bytesPassed() + kReportEveryBytes;
+            if (m_options.progress && !m_options.progress(m_cells)) ok = fail(translate("The read was stopped."));
+            if (!ok) break;
+        }
         switch (r.readNext()) {
         case QXmlStreamReader::DTD:
             ok = fail(translate("The XML has a DOCTYPE, which is not allowed."));
@@ -631,7 +671,9 @@ bool SheetReader::read(QIODevice *in)
         else if (!rootSeen) ok = fail(translate("The part is not a worksheet."));
     }
     m_sheet.stats.xmlBytes = src.guard.bytesPassed();
-    if (!ok && !m_sheet.error.isEmpty() && src.guard.crowded()) m_sheet.error = src.problem();
+    m_sheet.stats.largestToken = src.guard.largestToken();
+    m_sheet.stats.largestRead = src.guard.largestRead();
+    m_sheet.stats.heldBytes = m_bytes;
     finish();
     return ok;
 }
@@ -665,9 +707,14 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
         QString why;
         if (!readWorkbookPart(device.get(), limits, &m_info, &why)) return fail(why);
     }
+    // Each sheet has a part of its own. A workbook whose sheets share one would have it read again for each, and a few lines of it would be as much work
+    // as there are sheets times the size of the part.
+    QSet<QString> parts;
     for (SheetEntry &e : m_info.sheets) {
         const Relationship rel = package.relationship(main, e.relId);
         if (rel.id.isEmpty() || rel.external || !package.hasPart(rel.target)) continue;
+        if (parts.contains(rel.target.toLower())) return fail(translate("Two sheets of the workbook share one part, which no real file has."));
+        parts.insert(rel.target.toLower());
         e.part = rel.target;
         if (rel.type.endsWith(QLatin1String("/chartsheet"))) e.kind = SheetKind::Chartsheet;
         else if (rel.type.endsWith(QLatin1String("/dialogsheet"))) e.kind = SheetKind::Dialogsheet;

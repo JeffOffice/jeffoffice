@@ -25,11 +25,15 @@ namespace jp::office::sheet {
 //
 // Cells in one sheet (6,486,777 found; cells with a style and no value count).
 constexpr qint64 kMaxCellsPerSheet = 100000000;
-// What one sheet takes to hold, in bytes: its cells, texts, and formulas as they are counted (a cell 24 bytes, a string or formula its characters twice over and
-// 40 more), so that a sheet of cells with texts stays within the 4 GB a read may use whatever the other limits say. 236 MB is the most found.
-constexpr qint64 kMaxSheetBytes = 3000000000;
+// What one sheet takes to hold, in bytes, as the reader counts it (a cell 32, a string or formula its slot and its block, a waiting shared formula its entry:
+// each measured, rounded up, against the bytes a process held at its peak). Together with the bytes of the file (which a lazy package holds, at most 1 GB),
+// the shared strings (about 260 MB at their limits), and the parser's own, it keeps a read within the 4 GB that a read may use whatever the other limits say.
+// 207 MB is the most counted for a sheet found (its 6.5 million cells).
+constexpr qint64 kMaxSheetBytes = 2200000000;
 // Characters of one string, a cell's or a shared string (1,380 found; a cell holds 32,767 at most).
 constexpr qint64 kMaxStringChars = 400000;
+// Bytes of XML in one piece the parser is given: a text, a tag with its attributes, a comment, a CDATA section, or a processing instruction.
+constexpr qint64 kMaxXmlTokenBytes = 4 * kMaxStringChars;
 // Characters of one formula (943 found; the format allows 8,192).
 constexpr qint64 kMaxFormulaChars = 100000;
 // Distinct shared formulas in one sheet (2,131 found).
@@ -37,14 +41,14 @@ constexpr qint64 kMaxSharedFormulas = 1000000;
 // Cells a shared formula says it covers, by its ref (407 found; a formula down a whole column of a sheet is 1,048,576).
 constexpr qint64 kMaxSharedRangeCells = 100000000;
 // All the formulas' characters in one sheet, a shared formula counted once for each cell it is in: what asking for every formula's text takes (8,054,139 found).
-constexpr qint64 kMaxExpandedFormulaChars = 1000000000;
+constexpr qint64 kMaxExpandedFormulaChars = 100000000;
 // Sheets in one workbook (89 found).
 constexpr int kMaxSheets = 1000;
 // Characters of a sheet's name (the format allows 31).
 constexpr int kMaxSheetNameChars = 1000;
 // Shared strings (66,608 found), and all their characters together (547,609 found).
-constexpr qint64 kMaxSharedStrings = 10000000;
-constexpr qint64 kMaxSharedStringChars = 100000000;
+constexpr qint64 kMaxSharedStrings = 2000000;
+constexpr qint64 kMaxSharedStringChars = 50000000;
 
 struct Limits {
     qint64 cellsPerSheet = kMaxCellsPerSheet;

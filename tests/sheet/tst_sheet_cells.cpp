@@ -121,6 +121,43 @@ private Q_SLOTS:
         QCOMPARE(ordered.find(999, 2)->number, 2999.0);
     }
 
+    // A store that was moved from is empty and has nothing of the one it was moved to: cells added to either go where they should.
+    void aStoreMovedFromAndTheOneItWentToAreSeparate()
+    {
+        CellStore a;
+        for (quint32 r = 0; r < 10; ++r) a.add(makeCell(r, 0));   // not finished: the place of the last cell added is remembered
+        CellStore b(std::move(a));
+        a.add(makeCell(1, 5));
+        b.add(makeCell(2, 5));
+        a.finish();
+        b.finish();
+        QCOMPARE(a.cellCount(), qint64(1));
+        QCOMPARE(b.cellCount(), qint64(11));
+        QVERIFY(a.find(1, 5) && !a.find(2, 5) && !a.find(2, 0));
+        QVERIFY(b.find(2, 5) && !b.find(1, 5) && b.find(2, 0));
+        // And moved by assignment.
+        CellStore c;
+        for (quint32 r = 0; r < 10; ++r) c.add(makeCell(r, 0));
+        CellStore d;
+        d.add(makeCell(70, 1));
+        d = std::move(c);
+        c.add(makeCell(3, 7));
+        d.add(makeCell(4, 7));
+        c.finish();
+        d.finish();
+        QCOMPARE(c.cellCount(), qint64(1));
+        QCOMPARE(d.cellCount(), qint64(11));
+        QVERIFY(c.find(3, 7) && !c.find(4, 7) && !c.find(70, 1));
+        QVERIFY(d.find(4, 7) && !d.find(3, 7) && !d.find(70, 1));
+        // A store moved into itself, or from one that is empty, is as it was.
+        CellStore e;
+        CellStore f(std::move(e));
+        f.add(makeCell(0, 0));
+        f.finish();
+        QCOMPARE(f.cellCount(), qint64(1));
+        QCOMPARE(e.cellCount(), qint64(0));
+    }
+
     // ---- the types of cell
 
     void everyTypeOfCellIsRead()

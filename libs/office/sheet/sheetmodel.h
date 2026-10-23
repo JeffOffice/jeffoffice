@@ -76,8 +76,25 @@ public:
         m_last = nullptr;
         return *this;
     }
-    CellStore(CellStore &&) = default;
-    CellStore &operator=(CellStore &&) = default;
+    // A move takes the blocks and leaves the store it was taken from empty, with no memory of where it last added a cell (that place is a block it no longer has).
+    CellStore(CellStore &&o) noexcept : m_blocks(std::move(o.m_blocks)), m_count(o.m_count)
+    {
+        o.m_blocks.clear();
+        o.m_count = 0;
+        o.m_last = nullptr;
+    }
+    CellStore &operator=(CellStore &&o) noexcept
+    {
+        if (this != &o) {
+            m_blocks = std::move(o.m_blocks);
+            m_count = o.m_count;
+            m_last = nullptr;
+            o.m_blocks.clear();
+            o.m_count = 0;
+            o.m_last = nullptr;
+        }
+        return *this;
+    }
 
     // Adds a cell. A cell at a place that has one already replaces it (the
     // later one stands), as finish() decides.
@@ -138,6 +155,9 @@ struct SheetStats {
     qint64 largestSharedRange = 0;   // cells
     qint64 expandedFormulaChars = 0; // the formulas' characters, a shared formula counted once for each cell
     qint64 xmlBytes = 0;             // what was read of the part
+    qint64 heldBytes = 0;            // what the sheet takes to hold, as Limits::sheetBytes counts it
+    qint64 largestToken = 0;         // the most bytes of XML in one piece (a tag with its attributes, a text, a comment) the parser was given
+    qint64 largestRead = 0;          // the most bytes the parser asked for at one time
 };
 
 struct Sheet {
