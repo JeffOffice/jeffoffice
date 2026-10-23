@@ -379,7 +379,9 @@ int mutate(const QString &path, int count, quint32 seed, double seconds)
         return 1;
     }
     WorkbookSource source(book);
+    if (qEnvironmentVariableIsSet("JCRUNCH_TRACE")) { fprintf(stderr, "opened\n"); fflush(stderr); }
     source.loadAll();
+    if (qEnvironmentVariableIsSet("JCRUNCH_TRACE")) { fprintf(stderr, "read\n"); fflush(stderr); }
     QStringList formulas;
     for (int i = 0; i < source.sheetCount() && formulas.size() < 4000; ++i)
         for (const QString &f : source.sheet(i).formulaTexts)
@@ -438,6 +440,7 @@ int mutate(const QString &path, int count, quint32 seed, double seconds)
             ctx.shiftRows = int(rng() % 5);
             ctx.shiftCols = int(rng() % 5);
             ctx.now = 45366.5;
+            if (qEnvironmentVariableIsSet("JCRUNCH_TRACE")) { fprintf(stderr, "evaluate (array %d) %s\n", mode, qPrintable(f.left(400))); fflush(stderr); }
             evaluator.evaluate(*pr.program, ctx);
             ++worked;
         }
@@ -448,9 +451,20 @@ int mutate(const QString &path, int count, quint32 seed, double seconds)
     {
         CalcOptions options;
         options.now = 45366.5;
+        if (qEnvironmentVariableIsSet("JCRUNCH_TRACE")) { fprintf(stderr, "phase 1 done after %lld ms\n", static_cast<long long>(timer.elapsed())); fflush(stderr); }
         Calculation calc(book, options);
+        std::atomic<bool> stop{false};
+        // a recalculation in slices of a few million steps, stopped when the time is out (a formula may take as long as the bounds let it, but not all of them in one go)
+        const auto settle = [&]() {
+            for (;;) {
+                const Calculation::Progress p = calc.recalculate(3000000, &stop);
+                if (p.finished || p.cancelled || timer.elapsed() > seconds * 1000.0) break;
+            }
+        };
         calc.load();
-        calc.recalculate();
+        if (qEnvironmentVariableIsSet("JCRUNCH_TRACE")) { fprintf(stderr, "loaded after %lld ms\n", static_cast<long long>(timer.elapsed())); fflush(stderr); }
+        settle();
+        if (qEnvironmentVariableIsSet("JCRUNCH_TRACE")) { fprintf(stderr, "calculated after %lld ms\n", static_cast<long long>(timer.elapsed())); fflush(stderr); }
         struct At {
             int sheet;
             quint32 row, col;
@@ -461,16 +475,22 @@ int mutate(const QString &path, int count, quint32 seed, double seconds)
                 if (c.hasFormula() && places.size() < 4000) places.push_back({si, c.row, c.col});
             });
         if (places.empty()) places.push_back({0, 0, 0});
-        std::atomic<bool> stop{false};
         while (timer.elapsed() < seconds * 1000.0 && edits < count) {
             At at = places[rng() % places.size()];
             if (rng() % 4 == 0) at = {int(rng() % quint32(source.sheetCount())), rng() % 300, rng() % 40};
+            const bool trace = qEnvironmentVariableIsSet("JCRUNCH_TRACE");
+            if (trace) { fprintf(stderr, "edit %lld at %d:%u:%u\n", static_cast<long long>(edits), at.sheet, at.row, at.col); fflush(stderr); }
             switch (rng() % 6) {
             case 0: calc.setValue(at.sheet, at.row, at.col, jp::calc::Value::number(double(int(rng() % 2000)) / 7.0)); break;
             case 1: calc.setValue(at.sheet, at.row, at.col, jp::calc::Value::text(QStringLiteral("t%1").arg(rng() % 100))); break;
             case 2: calc.setValue(at.sheet, at.row, at.col, jp::calc::Value::error(jp::calc::ErrorKind(rng() % 7))); break;
             case 3: calc.clearCell(at.sheet, at.row, at.col); break;
-            default: calc.setFormula(at.sheet, at.row, at.col, damaged()); break;
+            default: {
+                const QString f = damaged();
+                if (trace) { fprintf(stderr, "  formula %s\n", qPrintable(f.left(300))); fflush(stderr); }
+                calc.setFormula(at.sheet, at.row, at.col, f);
+                break;
+            }
             }
             ++edits;
             if (rng() % 3 == 0) {
@@ -482,10 +502,10 @@ int mutate(const QString &path, int count, quint32 seed, double seconds)
                     calc.recalculate(0, &stop);
                 }
             }
-            if (rng() % 2) calc.recalculate();
+            if (rng() % 2) settle();
         }
         stop = false;
-        calc.recalculate();
+        settle();
     }
     out() << "mutate: " << tried << " formulas damaged, " << parsed << " parsed, " << worked << " worked out, " << edits << " edits in " << sliced << " slices, "
           << QString::number(timer.elapsed() / 1000.0, 'f', 1) << " s\n";
