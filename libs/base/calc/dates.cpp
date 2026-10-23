@@ -229,18 +229,69 @@ bool yearOf(const Piece &p, int *year)
     return true;
 }
 
+// A time of day after a date: h:mm, h:mm:ss, or with fractions of a second, and AM or PM after it if the hour is of 12. It adds nothing to a day number.
+bool timeOfDayText(const QString &t)
+{
+    int i = 0;
+    auto number = [&](int minDigits, int maxDigits, int *v) {
+        int n = 0, value = 0;
+        while (i < t.size() && t[i].unicode() >= '0' && t[i].unicode() <= '9' && n < maxDigits) {
+            value = value * 10 + (t[i].unicode() - '0');
+            ++i;
+            ++n;
+        }
+        *v = value;
+        return n >= minDigits;
+    };
+    int hour = 0, minute = 0, second = 0;
+    if (!number(1, 2, &hour) || i >= t.size() || t[i] != QLatin1Char(':')) return false;
+    ++i;
+    if (!number(2, 2, &minute)) return false;
+    if (i < t.size() && t[i] == QLatin1Char(':')) {
+        ++i;
+        if (!number(2, 2, &second)) return false;
+        if (i < t.size() && t[i] == QLatin1Char('.')) {
+            ++i;
+            int frac = 0;
+            if (!number(1, 9, &frac)) return false;
+        }
+    }
+    bool twelve = false;
+    while (i < t.size() && t[i] == QLatin1Char(' ')) ++i;
+    if (i < t.size()) {
+        const QString rest = t.mid(i).toLower();
+        if (rest != QLatin1String("am") && rest != QLatin1String("pm")) return false;
+        twelve = true;
+    }
+    if (minute > 59 || second > 59) return false;
+    return twelve ? hour >= 1 && hour <= 12 : hour <= 23;
+}
+
 } // namespace
 
 bool dateValueOf(const QString &text, DateSystem system, double *serial)
 {
-    const QString t = text.trimmed();
+    QString t = text.trimmed();
     if (t.isEmpty() || t.size() > 64) return false;
+    // A time after the date is read and dropped.
+    const int colon = int(t.indexOf(QLatin1Char(':')));
+    if (colon >= 0) {
+        const int space = int(t.lastIndexOf(QLatin1Char(' '), colon));
+        if (space < 0 || !timeOfDayText(t.mid(space + 1).trimmed())) return false;
+        t = t.left(space).trimmed();
+    }
     QVector<Piece> p;
     if (!splitDateText(t, &p)) return false;
     int year = 0, month = 0, day = 0;
     auto small = [](const Piece &x) { return x.number && x.digits >= 1 && x.digits <= 2; };
     auto isSep = [](const Piece &x, QChar c) { return !x.number && x.word.isEmpty() && x.sep == c; };
-    if (p.size() == 5 && p[0].number && p[2].number && p[4].number && !p[1].number && p[1].word.isEmpty() && (p[1].sep == QLatin1Char('/') || p[1].sep == QLatin1Char('-') || p[1].sep == QLatin1Char('.'))
+    if (p.size() == 5 && p[0].number && p[0].digits == 4 && p[2].number && p[4].number && (isSep(p[1], QLatin1Char('-')) || isSep(p[1], QLatin1Char('/'))) && isSep(p[3], p[1].sep)) {
+        // year, month, day
+        if (!small(p[2]) || !small(p[4])) return false;
+        year = p[0].value;
+        month = p[2].value;
+        day = p[4].value;
+    } else if (p.size() == 5 && p[0].number && p[2].number && p[4].number && !p[1].number && p[1].word.isEmpty() && (p[1].sep == QLatin1Char('/') || p[1].sep == QLatin1Char('-') || p[1].sep == QLatin1Char('.'))
         && isSep(p[3], p[1].sep)) {
         // month, day, year
         if (!small(p[0]) || !small(p[2]) || !yearOf(p[4], &year)) return false;

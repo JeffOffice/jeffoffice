@@ -918,6 +918,44 @@ private Q_SLOTS:
         }
     }
 
+    // DATEVALUE also reads the year first (2024-03-15, 2024/03/15) and a time after the date, which it ignores.
+    void dateValueOfReadsIsoDatesAndTimes()
+    {
+        const struct {
+            const char *text;
+            double serial;
+        } cases[] = {
+            {"2024-03-15", 45366},
+            {"2024/03/15", 45366},
+            {"2024-3-5", 45356},
+            {"2024/3/5", 45356},
+            {"3/15/2024 10:30", 45366},
+            {"3/15/2024  10:30:15", 45366},
+            {"3/15/2024 10:30 PM", 45366},
+            {"3/15/2024 12:00 AM", 45366},
+            {"3/15/2024 12:59:59 pm", 45366},
+            {"2024-03-15 10:30:00", 45366},
+            {"2024-03-15 23:59:59.5", 45366},
+            {"Mar 15, 2024 10:30", 45366},
+            {"15-Mar-2024 8:05 am", 45366},
+            {"3/15/24 0:00", 45366},
+            {"1900-01-01", 1},
+            {"9999-12-31", 2958465},
+        };
+        for (const auto &c : cases) {
+            double got = -1;
+            QVERIFY2(dateValueOf(QString::fromLatin1(c.text), DateSystem::Date1900, &got), c.text);
+            QVERIFY2(got == c.serial, qPrintable(QStringLiteral("%1: got %2, wanted %3").arg(QString::fromLatin1(c.text)).arg(got).arg(c.serial)));
+        }
+        double s = -1;
+        QVERIFY(dateValueOf(QStringLiteral("2024-03-15"), DateSystem::Date1904, &s));
+        QCOMPARE(s, 43904.0);
+        for (const char *bad : {"2024-02-30", "2024-13-01", "2024-00-10", "2024-03", "2024-03-15-01", "2024/03-15", "2024-03-32", "1899-12-31", "10000-01-01", "202-01-01", "24-03-15",
+                                "3/15/2024 25:00", "3/15/2024 10:70", "3/15/2024 10:30 XM", "3/15/2024 13:00 PM", "3/15/2024 0:30 PM", "2024-03-15 abc", "2024-03-15 10",
+                                "3/15/2024 10:30:61", "3/15/2024 :30", "3/15/2024 10:", "3/15/2024 10:30 PM x"})
+            QVERIFY2(!dateValueOf(QString::fromLatin1(bad), DateSystem::Date1900, &s), bad);
+    }
+
     // TEXT(value, code): the same text, with no fill, and #VALUE! (false) for what can't be shown.
     void textFunction()
     {
