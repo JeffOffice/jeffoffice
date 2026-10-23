@@ -471,7 +471,13 @@ private:
     // An endnote cited more than once is set once for each citation: the first copy is the one whose words are edited, and the others show them. After an edit in a note that has others
     // they are set again (at the end of the edit, as one step with it).
     QHash<int, int> m_endnoteCopyCount;   // by Id: how many copies of the note the pages set
-    bool m_endnoteCopiesStale = false;
+    QSet<int> m_endnoteCopiesStale;       // the Ids of the notes whose first copy was edited and that have other copies
+    QHash<int, QVector<int>> m_endnoteCopiesOf;   // by Id: the numbers (EndnoteNote) of the copies the pages set, in the order of the story (the first is the one whose words are edited)
+    // Whether the notes the pages set are one run of plain paragraphs at the story's end (none at the end of a section, none cut for room, no table or other element kept as XML in them): a
+    // copy of a note is then found by its number, as the numbers grow with the story, and set again alone (refreshEndnoteCopiesInPlace).
+    bool m_endnoteTailLocal = false;
+    bool m_refreshingCopies = false;      // the shown copies of an edited note are being set again, each alone (the edits that does touch no section, no note's words, and no reference)
+    bool refreshEndnoteCopiesInPlace(const QSet<int> &ids);
     QVector<EndnoteSeqEntry> endnoteReferencesIn(int from, int to);
     bool countedEndnoteReference(const QTextCharFormat &format, int *id) const;
     // The endnotes (writedoc_noteedit.cpp)

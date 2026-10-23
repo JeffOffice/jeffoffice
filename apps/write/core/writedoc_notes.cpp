@@ -212,7 +212,9 @@ void WriteDoc::loadEndnotes()
 void WriteDoc::appendEndnotes()
 {
     m_endnoteCopyCount.clear();
-    m_endnoteCopiesStale = false;
+    m_endnoteCopiesOf.clear();
+    m_endnoteCopiesStale.clear();
+    m_endnoteTailLocal = false;
     if (m_endnoteRefs.isEmpty() || m_endnoteBlocks.isEmpty()) return;
     for (const RawChild &ch : m_last.extra)
         if (ch.xml.contains("noEndnote")) return;
@@ -239,6 +241,7 @@ void WriteDoc::appendEndnotes()
             const int serial = m_nextEndnoteSerial++;
             m_endnoteCopyIds.insert(serial, id);
             ++m_endnoteCopyCount[id];
+            m_endnoteCopiesOf[id].push_back(serial);
             const bool editable = take == note.size() && !placed.contains(id);
             if (take < note.size()) m_endnoteCapped = true;
             placed.insert(id);
@@ -302,7 +305,12 @@ void WriteDoc::appendEndnotes()
             QTextCursor(story()->findBlockByNumber(endBlock + added)).setBlockFormat(lastNote);
         }
     }
-    if (!closing.isEmpty()) fillStory(story(), closing, true, m_endnotePart, false, true, -1, true);
+    if (!closing.isEmpty()) {
+        const int had = story()->blockCount();
+        fillStory(story(), closing, true, m_endnotePart, false, true, -1, true);
+        // (Each of the notes' paragraphs is one of the story's, and the notes are all at its end, in the order of their numbers: a copy can be found, and set again, alone.)
+        m_endnoteTailLocal = places.isEmpty() && !m_endnoteCapped && story()->blockCount() - had == closing.size() && std::none_of(closing.cbegin(), closing.cend(), [](const Block &b) { return b.isRaw; });
+    }
 }
 
 // The endnotes the pages set are taken out of the story: each run of their paragraphs goes (with the break of a section that has them at its end, which goes back to the paragraph before

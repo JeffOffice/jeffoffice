@@ -555,16 +555,149 @@ void WriteDoc::touchEndnotes(int position, int removed, int added)
         if (bf.hasProperty(prop::EndnoteBlock) && bf.intProperty(prop::EndnoteNote) != 0) {
             const int id = m_endnoteCopyIds.value(std::abs(bf.intProperty(prop::EndnoteNote)));
             m_endnoteEdited.insert(id);
-            if (bf.intProperty(prop::EndnoteNote) > 0 && m_endnoteCopyCount.value(id) > 1) m_endnoteCopiesStale = true;   // (its other copies show what it said)
+            if (bf.intProperty(prop::EndnoteNote) > 0 && m_endnoteCopyCount.value(id) > 1) m_endnoteCopiesStale.insert(id);   // (its other copies show what it said)
         }
         if (b == end) break;
     }
 }
 
+// The shown copies of the notes whose first copy was edited, each set again alone from the words of the first copy, where it is: the notes the pages set are the story's last paragraphs and
+// their copies' numbers grow with the story, so a copy is found by its number (a search, not a walk through the story), and its paragraphs are made again after it and then taken out, whatever
+// the number of the other notes. False, with the story as it was, when the notes are not as that needs (they are set again, all of them, by the caller): some are in the middle of the story or are
+// not plain paragraphs, not all of them are set, a copy is not where its number says or is not as long as it was set, the first copy holds a reference, or they would be more than are set.
+bool WriteDoc::refreshEndnoteCopiesInPlace(const QSet<int> &ids)
+{
+    if (!m_endnoteTailLocal || m_endnoteCapped || m_tailsStripped || m_endnotesPart != NotesPart::Readable) return false;
+    QTextDocument *d = story();
+    const int count = d->blockCount();
+    auto formatAt = [&](int n) {
+        ++s_noteWalk;
+        return d->findBlockByNumber(n).blockFormat();
+    };
+    // Where the notes begin: their paragraphs are the story's last, so the first of them is found by halving.
+    int lo = 0, hi = count;
+    while (lo < hi) {
+        const int mid = lo + (hi - lo) / 2;
+        if (formatAt(mid).hasProperty(prop::EndnoteBlock)) hi = mid;
+        else lo = mid + 1;
+    }
+    const int tailFrom = lo;
+    if (tailFrom <= 0 || tailFrom >= count) return false;
+    struct Run {
+        QTextBlock first, last;
+        int blocks = 0;
+        QString mark;   // (the number its reference shows)
+    };
+    // The paragraphs of the copy with the number `serial` (negative for a copy that is shown): found by halving, as the numbers grow with the story (the separator has none), and checked.
+    auto runOf = [&](int serial, Run *run) {
+        int a = tailFrom, b = count;
+        while (a < b) {
+            const int mid = a + (b - a) / 2;
+            const QTextBlockFormat f = formatAt(mid);
+            if (!f.hasProperty(prop::EndnoteBlock)) return false;
+            if (std::abs(f.intProperty(prop::EndnoteNote)) >= std::abs(serial)) b = mid;
+            else a = mid + 1;
+        }
+        if (a >= count || (a > tailFrom && formatAt(a - 1).intProperty(prop::EndnoteNote) == serial)) return false;
+        bool marked = false;
+        for (QTextBlock x = d->findBlockByNumber(a); x.isValid(); x = x.next()) {
+            ++s_noteWalk;
+            const QTextBlockFormat f = x.blockFormat();
+            if (!f.hasProperty(prop::EndnoteBlock) || f.intProperty(prop::EndnoteNote) != serial) break;
+            if (f.boolProperty(flow::fp::SectionBreakAfter)) return false;
+            if (!run->first.isValid()) run->first = x;
+            run->last = x;
+            ++run->blocks;
+            for (QTextBlock::iterator it = x.begin(); !marked && !it.atEnd(); ++it) {
+                const QTextCharFormat cf = it.fragment().charFormat();
+                if (!cf.hasProperty(prop::Atom)) continue;
+                const QByteArray bytes = storedBytes(cf, prop::Atom);
+                if (!bytes.contains("endnoteRef")) continue;
+                const Inline atom = unpackAtom(bytes);
+                if (atom.tag != QLatin1String("endnoteRef")) continue;
+                run->mark = atom.display;
+                marked = true;
+            }
+        }
+        return run->blocks > 0 && run->first.previous().isValid();
+    };
+    struct Plan {
+        int id = 0;
+        QVector<Block> blocks;
+        QVector<int> serials;
+        QVector<Run> shown;
+    };
+    QVector<Plan> plans;
+    int total = count - tailFrom;   // (the paragraphs the notes are, with the separator's)
+    for (const int id : ids) {
+        Plan plan;
+        plan.id = id;
+        plan.serials = m_endnoteCopiesOf.value(id);
+        if (plan.serials.size() < 2) return false;
+        Run first;
+        if (!runOf(plan.serials[0], &first)) return false;
+        VectorSink sink(&plan.blocks);
+        exportInto(sink, d, first.first, first.last, true);
+        if (plan.blocks.size() != first.blocks) return false;
+        for (const Block &b : std::as_const(plan.blocks)) {
+            if (b.isRaw || !b.tag.isEmpty()) return false;
+            for (const Inline &in : b.para.content)
+                if (in.kind == Inline::RunAtom && in.tag == QLatin1String("endnoteReference")) return false;
+        }
+        for (int k = 1; k < plan.serials.size(); ++k) {
+            Run run;
+            if (!runOf(-plan.serials[k], &run)) return false;
+            total += int(plan.blocks.size()) - run.blocks;
+            plan.shown.push_back(run);
+        }
+        plans.push_back(std::move(plan));
+    }
+    if (total > kMostEndnoteParagraphs) return false;
+    // (Nothing is changed before this: the copies are all where they are to be found.)
+    m_buildingEndnotes = true;
+    m_refreshingCopies = true;
+    bool listed = false;
+    for (const Plan &plan : std::as_const(plans)) {
+        m_endnoteBlocks[QString::number(plan.id)] = plan.blocks;
+        for (qsizetype k = 0; k < plan.shown.size(); ++k) {
+            const Run &run = plan.shown[k];
+            QVector<Block> shown = plan.blocks;
+            for (Block &b : shown) {
+                b.key = QString::number(-plan.serials[k + 1]);
+                for (Inline &in : b.para.content)
+                    if (in.kind == Inline::RunAtom && in.tag == QLatin1String("endnoteRef")) in.display = run.mark;
+            }
+            QTextCursor edit(d);
+            edit.joinPreviousEditBlock();
+            const QTextBlock before = run.first.previous();
+            const QTextBlockFormat beforeFormat = before.blockFormat();
+            const QTextCharFormat beforeMark = before.charFormat();
+            fillStory(d, shown, true, m_endnotePart, false, true, run.last.position() + run.last.length() - 1, true);
+            s_noteWalk += shown.size();
+            QTextBlock made = run.last.next();
+            for (qsizetype i = 0; i < shown.size() && made.isValid(); ++i, made = made.next()) listed = listed || made.textList();
+            QTextCursor gone(d);
+            gone.setPosition(before.position() + before.length() - 1);
+            gone.setPosition(run.last.position() + run.last.length() - 1, QTextCursor::KeepAnchor);
+            gone.removeSelectedText();
+            // (The paragraph before is as it was, whatever it held.)
+            if (before.blockFormat() != beforeFormat) QTextCursor(before).setBlockFormat(beforeFormat);
+            if (before.charFormat() != beforeMark) QTextCursor(before).setBlockCharFormat(beforeMark);
+            edit.endEditBlock();
+        }
+    }
+    m_refreshingCopies = false;
+    m_buildingEndnotes = false;
+    m_blockCount = d->blockCount();
+    if (listed) renumberLists(d);   // (a note with list items counts them with the other notes')
+    return true;
+}
+
 void WriteDoc::refreshEndnoteCopies(QTextCursor *keep)
 {
-    if (!m_endnoteCopiesStale || m_buildingEndnotes || m_syncing) return;
-    m_endnoteCopiesStale = false;
+    if (m_endnoteCopiesStale.isEmpty() || m_buildingEndnotes || m_syncing) return;
+    const QSet<int> stale = std::exchange(m_endnoteCopiesStale, QSet<int>());
+    if (refreshEndnoteCopiesInPlace(stale)) return;
     // (Setting the notes again takes the caret out with the paragraphs it was in: it is put back at the same place of the note, which is the first copy of it still.)
     int id = 0, anchorAt = -1, positionAt = -1;
     if (keep && keep->document() == story()) {

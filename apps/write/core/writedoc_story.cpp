@@ -607,7 +607,7 @@ qint64 attributeExpressionsMadeForTest() { return s_attributeExpressions.load();
 // counts are live fields of the text engine, its tables and pictures are left out, and a paragraph in a frame is set aligned as the frame is.
 void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, bool header, const QString &part, bool headerFooter, bool append, int insertAt, bool editable)
 {
-    if (story == this->story()) m_endnoteSeqValid = false;   // (the story is made anew: the references are looked for again)
+    if (story == this->story() && !m_refreshingCopies) m_endnoteSeqValid = false;   // (the story is made anew: the references are looked for again; a copy of a note set again alone has none)
     QVector<Block> prepared, overflow;
     // (A header's or footer's: the page shows, and the form it is edited in has, the same first part of it.)
     if (editable && append) {
@@ -1304,13 +1304,15 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 setStored(bf, prop::RawAfter, packBlocks(pending));
                 c.setBlockFormat(bf);
             }
-            QTextCursor first(story->begin());
-            QTextBlockFormat bf = story->begin().blockFormat();
-            setStored(bf, prop::MarkFormat, packFormat(story->begin().charFormat()));
-            first.setBlockFormat(bf);
+            if (!m_refreshingCopies) {   // (a copy of a note set again alone leaves the story's first paragraph as it is)
+                QTextCursor first(story->begin());
+                QTextBlockFormat bf = story->begin().blockFormat();
+                setStored(bf, prop::MarkFormat, packFormat(story->begin().charFormat()));
+                first.setBlockFormat(bf);
+            }
         }
         c.endEditBlock();
-        renumberLists(story);
+        if (!m_refreshingCopies) renumberLists(story);   // (and counts its own list items, if it has any: the story's are not looked through again for it)
         return;
     }
     if (!pending.isEmpty()) {

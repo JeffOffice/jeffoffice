@@ -19425,6 +19425,163 @@ private Q_SLOTS:
         QVERIFY2(many <= 40 * edits, qPrintable(QStringLiteral("%1 places looked at for %2 edits with 400 notes (%3 with 10)").arg(many).arg(edits).arg(few)));
         QVERIFY2(many <= few + 12 * edits, qPrintable(QStringLiteral("%1 places looked at for %2 edits with 400 notes, %3 with 10").arg(many).arg(edits).arg(few)));
     }
+
+    // ---- endnotes: a keystroke in a note that has copies
+
+    // A keystroke in an endnote that is cited twice sets its other copy again, and that copy only: counted in what the notes' bookkeeping looks at and the endnote paragraphs it makes, it does not
+    // grow with the number of other endnotes (a keystroke that set all of them again would make as many paragraphs as the notes there are), and the copies say the same.
+    void aKeystrokeInAnEndnoteWithCopiesCostsWhatTheNoteIsNotWhatTheOthersAre()
+    {
+        constexpr int keys = 40;
+        auto workPerKey = [&](int others) {
+            QByteArray body, ends = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote();
+            for (int i = 1; i <= others; ++i) {
+                const QByteArray n = QByteArray::number(i);
+                body += "<w:p><w:r><w:t>cites " + n + "</w:t></w:r><w:r><w:endnoteReference w:id=\"" + n + "\"/></w:r></w:p>";
+                ends += "<w:endnote w:id=\"" + n + "\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> end " + n + "</w:t></w:r></w:p></w:endnote>";
+            }
+            const QByteArray twice = QByteArray::number(others + 1);
+            body += "<w:p><w:r><w:t>twice</w:t></w:r><w:r><w:endnoteReference w:id=\"" + twice + "\"/></w:r></w:p><w:p><w:r><w:t>again</w:t></w:r><w:r><w:endnoteReference w:id=\"" + twice + "\"/></w:r></w:p>";
+            ends += "<w:endnote w:id=\"" + twice + "\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> the note cited twice</w:t></w:r></w:p><w:p><w:r><w:t>and its second paragraph</w:t></w:r></w:p></w:endnote></w:endnotes>";
+            auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), ends}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+            [&] { QVERIFY(doc); }();
+            int from = 0, to = 0;
+            [&] { QVERIFY(doc->endnoteWords(others + 1, &from, &to)); }();
+            QTextCursor c(doc->story());
+            c.setPosition(to);
+            insertText(*doc, c, QStringLiteral("x"));   // (the first edit: the references are looked for once)
+            resetNoteWorkForTest();
+            resetEndnoteParagraphsMadeForTest();
+            for (int i = 0; i < keys; ++i) insertText(*doc, c, QStringLiteral("y"));
+            const qint64 work = noteWorkForTest() + endnoteParagraphsMadeForTest();
+            // The copies say the same, in the story and in what is saved.
+            auto copy = [&](bool first) {
+                QStringList out;
+                for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) {
+                    const int serial = b.blockFormat().intProperty(prop::EndnoteNote);
+                    int found = 0;
+                    if (b.blockFormat().hasProperty(prop::EndnoteBlock) && (first ? serial > 0 : serial < 0) && doc->endnoteIdOf(b, &found) && found == others + 1) out << b.text();
+                }
+                return out.join(QLatin1Char('\n'));
+            };
+            const QString typed = QString(QLatin1Char('x')) + QString(keys, QLatin1Char('y'));
+            [&] {
+                QVERIFY2(copy(true).contains(typed), qPrintable(copy(true)));
+                QCOMPARE(copy(false), copy(true));
+                QVERIFY(notePartText(notesPartOf(doc->toDocx()), "endnote", others + 1).contains(typed));
+            }();
+            return double(work) / keys;
+        };
+        const double few = workPerKey(20), many = workPerKey(2500);
+        QVERIFY2(many <= 60, qPrintable(QStringLiteral("%1 places and paragraphs for a keystroke with 2500 other endnotes, %2 with 20").arg(many).arg(few)));
+        QVERIFY2(many <= few + 30, qPrintable(QStringLiteral("%1 places and paragraphs for a keystroke with 2500 other endnotes, %2 with 20").arg(many).arg(few)));
+    }
+
+    // The copies set again alone give the story that setting every note again gives: after typing, a paragraph made, one left empty, one taken out, in a note cited three times between others.
+    void theCopiesOfAnEditedEndnoteSetAgainAloneAreWhatSettingAllOfThemAgainGives()
+    {
+        QByteArray body, ends = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote();
+        for (int i = 1; i <= 4; ++i) {
+            const QByteArray n = QByteArray::number(i);
+            body += "<w:p><w:r><w:t>cites " + n + "</w:t></w:r><w:r><w:endnoteReference w:id=\"" + n + "\"/></w:r></w:p><w:p><w:r><w:t>and the note cited more than once</w:t></w:r><w:r><w:endnoteReference w:id=\"9\"/></w:r></w:p>";
+            ends += "<w:endnote w:id=\"" + n + "\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> end " + n + "</w:t></w:r></w:p></w:endnote>";
+        }
+        ends += "<w:endnote w:id=\"9\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> the first paragraph of it</w:t></w:r></w:p><w:p/><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>the last one, in bold</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        // (Three references to it are the three copies: the body above cites it four times, so drop the fourth.)
+        const int cut = body.lastIndexOf("<w:p><w:r><w:t>and the note cited more than once");
+        body.remove(cut, body.indexOf("</w:p>", cut) + 6 - cut);
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), ends}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+        QVERIFY(doc);
+        // The notes' paragraphs: their text, and every property of their paragraphs' and fragments' formats, with the copies' numbers by the order they come in.
+        auto dump = [](WriteDoc &w) {
+            auto props = [](const QTextFormat &f) {
+                QString s;
+                const QMap<int, QVariant> all = f.properties();
+                for (auto it = all.cbegin(); it != all.cend(); ++it)
+                    s += QString::number(it.key()) + QLatin1Char('=') + (it.value().typeId() == QMetaType::QByteArray ? QString::fromLatin1(it.value().toByteArray().toHex()) : it.value().toString()) + QLatin1Char(';');
+                return s;
+            };
+            QString out;
+            QHash<int, int> order;
+            for (QTextBlock b = w.story()->begin(); b.isValid(); b = b.next()) {
+                if (!b.blockFormat().hasProperty(prop::EndnoteBlock)) continue;
+                QTextBlockFormat bf = b.blockFormat();
+                const int serial = bf.intProperty(prop::EndnoteNote);
+                if (serial != 0) {
+                    if (!order.contains(std::abs(serial))) order.insert(std::abs(serial), order.size() + 1);
+                    bf.setProperty(prop::EndnoteNote, serial < 0 ? -order.value(-serial) : order.value(serial));
+                }
+                out += QStringLiteral("[%1|%2]").arg(b.text(), props(bf));
+                for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) out += QStringLiteral("{%1|%2}").arg(it.fragment().text(), props(it.fragment().charFormat()));
+                out += QLatin1Char('\n');
+            }
+            return out;
+        };
+        auto cursorAt = [&](bool end) {
+            int from = 0, to = 0;
+            [&] { QVERIFY(doc->endnoteWords(9, &from, &to)); }();
+            QTextCursor c(doc->story());
+            c.setPosition(end ? to : from + 3);
+            return c;
+        };
+        resetEndnoteParagraphsMadeForTest();
+        auto same = [&](const char *what) {
+            // (The edit made no endnote paragraph by setting the notes: the copies were set again alone, which is what is looked at.)
+            QVERIFY2(endnoteParagraphsMadeForTest() == 0, what);
+            QVERIFY2(doc->endnoteSequenceMatchesStoryForTest(), what);   // (and the places of the references are followed through it)
+            const QString alone = dump(*doc);
+            doc->rebuildEndnoteTails();   // (every note set again)
+            resetEndnoteParagraphsMadeForTest();
+            const QString all = dump(*doc);
+            QVERIFY2(alone == all, qPrintable(QStringLiteral("after %1:\n%2\nagainst setting them all again:\n%3").arg(QLatin1String(what), alone, all)));
+        };
+        {
+            QSet<int> copies;
+            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) {
+                int id = 0;
+                if (doc->endnoteIdOf(b, &id) && id == 9) copies.insert(b.blockFormat().intProperty(prop::EndnoteNote));
+            }
+            QCOMPARE(int(copies.size()), 3);
+        }
+        { QTextCursor c = cursorAt(true); insertText(*doc, c, QStringLiteral("ab")); }
+        same("typing at the end");
+        { QTextCursor c = cursorAt(true); insertParagraph(*doc, c); insertText(*doc, c, QStringLiteral("new")); }
+        same("a paragraph made");
+        { QTextCursor c = cursorAt(true); insertParagraph(*doc, c); }
+        same("a paragraph left empty at the end");
+        { QTextCursor c = cursorAt(false); insertText(*doc, c, QStringLiteral("z")); }
+        same("typing inside the first paragraph");
+        { QTextCursor c = cursorAt(false); deleteBack(*doc, c, false); deleteBack(*doc, c, false); }
+        same("taking two out");
+        { QTextCursor c = cursorAt(true); deleteBack(*doc, c, false); insertText(*doc, c, QStringLiteral("again")); }
+        same("the empty paragraph taken out and typed in");
+    }
+
+    // Where notes are set at the end of their sections, a copy cannot be found by its number among the story's last paragraphs: an edit in the first copy sets the notes again, and the other copy says the same.
+    void aCopyOfAnEndnoteAtTheEndOfASectionStillShowsWhatTheFirstCopySays()
+    {
+        const QByteArray pr = "<w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>";
+        const QByteArray body = "<w:p><w:r><w:t>First body</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>"
+                                "<w:p><w:pPr>" + sectionXml(6000, 6000, 720, pr) + "</w:pPr><w:r><w:t>Second body</w:t></w:r></w:p>"
+                                "<w:p><w:r><w:t>Third body</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:t>Sources</w:t></w:r></w:p></w:endnote>"
+                                 "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Alpha body note</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720, pr), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+        QVERIFY(doc);
+        int from = 0, to = 0;
+        QVERIFY(doc->endnoteWords(2, &from, &to));
+        resetEndnoteParagraphsMadeForTest();
+        QTextCursor c(doc->story());
+        c.setPosition(to);
+        insertText(*doc, c, QStringLiteral("XY"));
+        QVERIFY2(endnoteParagraphsMadeForTest() > 0, "the notes were set again");
+        int shown = 0;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            if (b.blockFormat().hasProperty(prop::EndnoteBlock) && b.text().contains(QLatin1String("Alpha body noteXY"))) ++shown;
+        QCOMPARE(shown, 2);
+        QCOMPARE(doc->sectionCount(), 2);
+        QVERIFY(notePartText(notesPartOf(doc->toDocx()), "endnote", 2).contains(QLatin1String("Alpha body noteXY")));
+    }
 };
 
 QTEST_MAIN(WriteTests)
