@@ -173,6 +173,13 @@ jobs:
           echo "--- sheettests-results.txt"; cat sheettests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
           echo "sheettests exit code: $scode"
           if [ "$code" -eq 0 ]; then code=$scode; fi
+          # JeffCrunch's tests (the window, the grid it shows, and the calculation behind it).
+          if [ "$RUNNER_OS" = "Windows" ]; then C=build/crunchtests.exe; else C=build/crunchtests; fi
+          "$C" -v1 -o crunchtests-results.txt,txt -o -,txt
+          ccode=$?
+          echo "--- crunchtests-results.txt"; cat crunchtests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
+          echo "crunchtests exit code: $ccode"
+          if [ "$code" -eq 0 ]; then code=$ccode; fi
           # JeffDeck's tests.
           if [ "$RUNNER_OS" = "Windows" ]; then D=build/jdtests.exe; else D=build/jdtests; fi
           "$D" -v1 -o jdtests-results.txt,txt -o -,txt
