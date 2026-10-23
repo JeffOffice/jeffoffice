@@ -55,6 +55,11 @@ public:
     const Selection &selection() const { return m_selection; }
     void setSelection(const Selection &s);
     void selectCell(qint64 row, qint64 col);
+    // A range, from its first cell to its last (a merged range at an edge taken whole); whole rows, whole columns, and everything.
+    void selectRange(qint64 row1, qint64 col1, qint64 row2, qint64 col2);
+    void selectRows(qint64 from, qint64 to);
+    void selectColumns(qint64 from, qint64 to);
+    void selectAll();
     // The address of the cell with the cursor ("B7"; a merged range's first cell), and its text as the formula bar shows it: its formula, or what it holds. rangeName() is what
     // is selected ("A1:C5", "A:C", "2:4", or the cell's address).
     QString selectionName() const;

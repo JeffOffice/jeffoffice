@@ -285,6 +285,30 @@ void GridView::selectCell(qint64 row, qint64 col)
     setSelectionInternal(nav.click(row, col));
 }
 
+void GridView::selectRange(qint64 row1, qint64 col1, qint64 row2, qint64 col2)
+{
+    Navigator nav(&m_sheet.layout(), m_nav.get());
+    setSelectionInternal(nav.extendTo(nav.click(row1, col1), row2, col2));
+}
+
+void GridView::selectRows(qint64 from, qint64 to)
+{
+    Navigator nav(&m_sheet.layout(), m_nav.get());
+    setSelectionInternal(nav.selectRows(from, to), false);
+}
+
+void GridView::selectColumns(qint64 from, qint64 to)
+{
+    Navigator nav(&m_sheet.layout(), m_nav.get());
+    setSelectionInternal(nav.selectColumns(from, to), false);
+}
+
+void GridView::selectAll()
+{
+    Navigator nav(&m_sheet.layout(), m_nav.get());
+    setSelectionInternal(nav.selectAll(m_selection), false);
+}
+
 void GridView::showActive()
 {
     // the corner that moved is the one to keep in view: the head when the selection is extended

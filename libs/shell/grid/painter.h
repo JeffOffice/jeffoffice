@@ -19,6 +19,7 @@
 #include <QHash>
 #include <QPainter>
 
+#include <memory>
 #include <vector>
 
 namespace jp::grid {
@@ -80,6 +81,7 @@ public:
 
 private:
     class QtMeter;
+    class GlyphFace;
     struct Span {
         qint64 index;
         int start, size;
@@ -103,6 +105,10 @@ private:
     std::vector<bool> m_fontMade;
     double m_fontZoom = 0;
     QHash<quint64, QBrush> m_patterns;
+    std::vector<std::unique_ptr<GlyphFace>> m_faces;          // by font id, at the zoom of the last paint
+    int m_lastFontId = -1;      // what the painter was last given, so a run in the same font and color sets neither again
+    double m_lastFontZoom = 0;
+    QRgb m_lastInk = 0;
 };
 
 } // namespace jp::grid

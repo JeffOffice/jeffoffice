@@ -2,8 +2,10 @@
 
 #include "sheet/cellref.h"
 
+#include <QGlyphRun>
 #include <QImage>
 #include <QPixmap>
+#include <QRawFont>
 
 #include <algorithm>
 #include <cmath>
@@ -77,6 +79,73 @@ bool inPattern(PatternKind kind, int x, int y)
 
 } // namespace
 
+// ---- text as glyphs
+// A cell's text is a line of letters in one font, which a spreadsheet draws without kerning or ligatures; the glyphs of the letters of Latin script (up to U+00FF) are
+// looked up once in the font, and a line of them is put together and drawn as a run of glyphs, without the shaping that the layout of text does for every script (a text of
+// any other letters takes that way). The width of a line is the sum of its glyphs' advances, the same in the meter and in the drawing.
+class GridPainter::GlyphFace {
+public:
+    explicit GlyphFace(const QFont &font) : m_font(font), m_raw(QRawFont::fromFont(font)), m_metrics(font)
+    {
+        for (int i = 0; i < 256; ++i) m_known[i] = false;
+    }
+    const QFont &font() const { return m_font; }
+    const QRawFont &raw() const { return m_raw; }
+    double ascent() const { return m_metrics.ascent(); }
+    double descent() const { return m_metrics.descent(); }
+    // The glyphs and where each begins (from 0), and the width of the line; false if a letter of the line is not one of the simple ones.
+    bool layout(const QString &text, QList<quint32> *glyphs, QList<QPointF> *positions, double *width) const
+    {
+        glyphs->reserve(text.size());
+        positions->reserve(text.size());
+        double x = 0;
+        for (const QChar c : text) {
+            const ushort u = c.unicode();
+            if (u < 0x20 || u > 0xFF || (u >= 0x7F && u < 0xA0)) return false;
+            if (!m_known[u]) {
+                const QList<quint32> g = m_raw.glyphIndexesForString(QString(c));
+                if (g.size() != 1) return false;
+                m_glyph[u] = g.first();
+                m_advance[u] = m_raw.advancesForGlyphIndexes(g, QRawFont::UseDesignMetrics).first().x();
+                m_known[u] = true;
+            }
+            glyphs->append(m_glyph[u]);
+            positions->append(QPointF(x, 0));
+            x += m_advance[u];
+        }
+        *width = x;
+        return true;
+    }
+    // The width of a text: from the glyphs when they are simple, else from the layout.
+    double width(const QString &text) const
+    {
+        double w = 0;
+        double sum = 0;
+        for (const QChar c : text) {
+            const ushort u = c.unicode();
+            if (u < 0x20 || u > 0xFF || (u >= 0x7F && u < 0xA0)) return m_metrics.horizontalAdvance(text);
+            if (!m_known[u]) {
+                const QList<quint32> g = m_raw.glyphIndexesForString(QString(c));
+                if (g.size() != 1) return m_metrics.horizontalAdvance(text);
+                m_glyph[u] = g.first();
+                m_advance[u] = m_raw.advancesForGlyphIndexes(g, QRawFont::UseDesignMetrics).first().x();
+                m_known[u] = true;
+            }
+            sum += m_advance[u];
+        }
+        w = sum;
+        return w;
+    }
+
+private:
+    QFont m_font;
+    QRawFont m_raw;
+    QFontMetricsF m_metrics;
+    mutable quint32 m_glyph[256];
+    mutable double m_advance[256];
+    mutable bool m_known[256];
+};
+
 // ---- measuring text, for the model
 
 class GridPainter::QtMeter : public TextMeter {
@@ -85,27 +154,23 @@ public:
     {
         if (text.isEmpty()) return 0;
         const size_t id = look.fontId;
-        if (id >= m_entries.size()) m_entries.resize(id + 1);
-        std::unique_ptr<Entry> &e = m_entries[id];
+        if (id >= m_faces.size()) m_faces.resize(id + 1);
+        std::unique_ptr<GridPainter::GlyphFace> &e = m_faces[id];
         if (!e) {
             QFont f(look.family.isEmpty() ? QFont().family() : look.family);
             f.setPixelSize(std::max(1, int(std::lround(look.pointSize * 96.0 / 72.0 * (look.vertAlign ? 0.65 : 1.0)))));
             f.setBold(look.bold);
             f.setItalic(look.italic);
+            f.setKerning(false);
             f.setHintingPreference(QFont::PreferNoHinting);
-            e = std::make_unique<Entry>(f);
+            e = std::make_unique<GridPainter::GlyphFace>(f);
         }
-        return e->metrics.horizontalAdvance(text);
+        return e->width(text);
     }
-    void reset() { m_entries.clear(); }
+    void reset() { m_faces.clear(); }
 
 private:
-    struct Entry {
-        explicit Entry(const QFont &f) : font(f), metrics(font) {}
-        QFont font;
-        QFontMetricsF metrics;
-    };
-    mutable std::vector<std::unique_ptr<Entry>> m_entries;
+    mutable std::vector<std::unique_ptr<GridPainter::GlyphFace>> m_faces;
 };
 
 GridPainter::GridPainter(GridSheet *sheet) : m_sheet(sheet), m_meter(new QtMeter)
@@ -139,10 +204,12 @@ const QFont &GridPainter::fontFor(const CellLook &look, double scale)
         f.setItalic(look.italic);
         f.setStrikeOut(look.strike);
         f.setUnderline(look.underline != Underline::None);
+        f.setKerning(false);
         f.setStyleStrategy(QFont::PreferAntialias);
         f.setHintingPreference(QFont::PreferNoHinting);
         m_fonts[id] = f;
         m_fontMade[id] = true;
+        if (id < m_faces.size()) m_faces[id].reset();
     }
     Q_UNUSED(scale);
     return m_fonts[id];
@@ -261,11 +328,38 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
         const int n = int((r.width() - deviceWidth) / charWidth);
         if (n > 0) text = text.left(sh.fillAt) + QString(n, sh.fillChar) + text.mid(sh.fillAt);
     }
-    p->setFont(font);
-    p->setPen(QColor::fromRgba(sh.color ? sh.color : look.textColor));
     ++m_stats.textRuns;
     m_stats.textChars += text.size();
     if (sh.hashes) ++m_stats.hashed;
+    const QRgb ink = sh.color ? sh.color : look.textColor;
+    // A line of text with nothing special (not turned, not wrapped, not shrunk) is drawn from its baseline as a run of glyphs, where no layout of a box is needed.
+    if (look.rotation == 0 && !look.wrap && font.pixelSize() == fontFor(look, z).pixelSize()) {
+        const size_t id = look.fontId;
+        if (id >= m_faces.size()) m_faces.resize(id + 1);
+        if (!m_faces[id]) m_faces[id] = std::make_unique<GlyphFace>(font);
+        const GlyphFace &face = *m_faces[id];
+        QList<quint32> glyphs;
+        QList<QPointF> positions;
+        double w = 0;
+        if (face.layout(text, &glyphs, &positions, &w)) {
+            const double x = left ? r.left() : right ? r.right() + 1 - w : r.left() + (r.width() - w) / 2;
+            const double ascent = face.ascent(), descent = face.descent();
+            const double y = (flags & Qt::AlignTop) ? r.top() + ascent : (flags & Qt::AlignVCenter) ? r.top() + (r.height() - (ascent + descent)) / 2 + ascent : r.bottom() + 1 - descent;
+            QGlyphRun run;
+            run.setRawFont(face.raw());
+            run.setGlyphIndexes(glyphs);
+            run.setPositions(positions);
+            run.setUnderline(look.underline != Underline::None);
+            run.setStrikeOut(look.strike);
+            if (clip) p->setClipRect(box & area);
+            p->setPen(QColor::fromRgba(ink));
+            p->drawGlyphRun(QPointF(std::round(x), std::round(y)), run);
+            if (clip) p->setClipRect(area);
+            return;
+        }
+    }
+    p->setFont(font);
+    p->setPen(QColor::fromRgba(ink));
     if (look.rotation != 0 && look.rotation != 255) {
         // turned: about the middle of the cell, in a box turned with it
         const int turn = look.rotation <= 90 ? look.rotation : -(look.rotation - 90);
