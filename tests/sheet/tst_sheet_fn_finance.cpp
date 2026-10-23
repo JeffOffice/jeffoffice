@@ -60,6 +60,42 @@ private Q_SLOTS:
         CHECK_EVALS(cases, Grid(), Settings());
     }
 
+    // VDB for a stretch that begins or ends part way through a period takes the part of the period's amount that the stretch covers, and the amounts of stretches that make
+    // up a longer one make up its amount, whatever the factor and whether or not the straight line is gone over to.
+    void depreciationOfPartsOfPeriodsAddsUp()
+    {
+        auto vdb = [](const QString &args) {
+            const QString got = ev(QStringLiteral("VDB(") + args + QLatin1Char(')'));
+            [&] { QVERIFY2(got.startsWith(QStringLiteral("n:")), qPrintable(args + QStringLiteral(" gave ") + got)); }();
+            return got.mid(2).toDouble();
+        };
+        QVERIFY(!QTest::currentTestFailed());
+        struct Case {
+            const char *asset;
+            const char *tail;   // the factor and no_switch
+        };
+        const Case assets[] = {{"2400,300,10", ""}, {"2400,300,10", ",1.5"}, {"2400,300,10", ",3"}, {"2400,300,10", ",2,TRUE"}, {"10000,0,7.5", ",2"}, {"1500,100,5", ",1.2"}, {"500,50,3", ",4"}};
+        const double points[] = {0, 0.5, 1, 1.25, 2, 2.5, 3.3, 4, 5.75, 6, 7, 8.2, 9, 10};
+        for (const Case &a : assets) {
+            const double life = QString::fromLatin1(a.asset).split(',')[2].toDouble();
+            for (size_t i = 0; i < sizeof(points) / sizeof(points[0]); ++i)
+                for (size_t j = i + 1; j < sizeof(points) / sizeof(points[0]); ++j)
+                    for (size_t k = j + 1; k < sizeof(points) / sizeof(points[0]); ++k) {
+                        if (points[k] > life) continue;
+                        const auto part = [&](double from, double to) { return vdb(QStringLiteral("%1,%2,%3%4").arg(QString::fromLatin1(a.asset)).arg(from).arg(to).arg(QString::fromLatin1(a.tail))); };
+                        const double whole = part(points[i], points[k]), sum = part(points[i], points[j]) + part(points[j], points[k]);
+                        QVERIFY2(std::fabs(whole - sum) <= 1e-9 * std::max(1.0, std::fabs(whole)),
+                                 qPrintable(QStringLiteral("%1%2: from %3 to %4 is %5, and by way of %6 it is %7").arg(QString::fromLatin1(a.asset), QString::fromLatin1(a.tail)).arg(points[i]).arg(points[k]).arg(whole, 0, 'f', 9).arg(points[j]).arg(sum, 0, 'f', 9)));
+                    }
+        }
+        const E cases[] = {
+            {"ROUND(VDB(2400,300,10,2,4),6)", "n:552.96"},
+            {"ROUND(VDB(2400,300,10,2,2.5)+VDB(2400,300,10,2.5,4),6)", "n:552.96"},
+            {"ROUND(VDB(2400,300,10,0,0.875,1.5),6)", "n:315"},
+        };
+        CHECK_EVALS(cases, Grid(), Settings());
+    }
+
     void loansAndSavings()
     {
         const E cases[] = {

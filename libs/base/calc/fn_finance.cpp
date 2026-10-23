@@ -169,29 +169,32 @@ Value fnDdb(Call &c)
     return numberResult(decliningBalance(cost, salvage, life, period, factor));
 }
 
-// What the declining balance (or the straight line, once that gives more) takes off in the first `period` periods: whole periods, and the part of the last.
-double variableBalance(double cost, double salvage, double life, double lifeLeft, double period, double factor)
+// The depreciation of the stretch of the asset's life from `start` to `end`, in periods: the declining balance in each period (or, once the straight line over what is left of
+// the life gives more, the straight line), and of a period the stretch begins or ends in, the part the stretch covers. The amounts of the periods are those from the first
+// period of the life whatever the stretch, so that stretches that make up a longer one make up its amount.
+double variableBalance(double cost, double salvage, double life, double start, double end, double factor, bool noSwitch)
 {
     double total = 0, left = cost - salvage, line = 0;
     bool straight = false;
-    const double last = std::ceil(period);
-    for (qint64 i = 1; i <= qint64(last); ++i) {
-        double term;
-        if (!straight) {
-            const double declining = decliningBalance(cost, salvage, life, double(i), factor);
-            line = left / (lifeLeft - double(i - 1));
-            if (line > declining) {
-                term = line;
-                straight = true;
+    const qint64 last = qint64(std::ceil(end));
+    for (qint64 i = 1; i <= last; ++i) {
+        const double declining = decliningBalance(cost, salvage, life, double(i), factor);
+        double term = declining;
+        if (!noSwitch) {
+            if (!straight) {
+                line = left / (life - double(i - 1));
+                if (line > declining) {
+                    term = line;
+                    straight = true;
+                } else {
+                    left -= declining;
+                }
             } else {
-                term = declining;
-                left -= declining;
+                term = line;
             }
-        } else {
-            term = line;
         }
-        if (double(i) == last) term *= period + 1 - last;
-        total += term;
+        const double covered = std::min(end, double(i)) - std::max(start, double(i - 1));
+        if (covered > 0) total += term * covered;
     }
     return total;
 }
@@ -203,27 +206,8 @@ Value fnVdb(Call &c)
     if (!c.number(0, &cost) || !c.number(1, &salvage) || !c.number(2, &life) || !c.number(3, &start) || !c.number(4, &end) || !c.numberOr(5, 2, &factor) || !c.booleanOr(6, false, &noSwitch))
         return c.failure();
     if (cost < 0 || salvage < 0 || life <= 0 || start < 0 || end < start || end > life || factor <= 0) return c.error(ErrorKind::Num);
-    if (!c.machine().charge(qint64(std::min(life, 1e7)) + 1)) return c.error(ErrorKind::Value);
-    if (noSwitch) {
-        const double first = std::floor(start), last = std::ceil(end);
-        double total = 0;
-        for (qint64 i = qint64(first) + 1; i <= qint64(last); ++i) {
-            double term = decliningBalance(cost, salvage, life, double(i), factor);
-            if (double(i) == first + 1) term *= std::min(end, first + 1) - start;
-            else if (double(i) == last) term *= end + 1 - last;
-            total += term;
-        }
-        return numberResult(total);
-    }
-    double lifeLeft = life;
-    if (start != std::floor(start) && factor > 1 && start >= life / 2) {
-        const double part = start - life / 2;
-        start = life / 2;
-        end -= part;
-        lifeLeft += 1;
-    }
-    cost -= variableBalance(cost, salvage, life, lifeLeft, start, factor);
-    return numberResult(variableBalance(cost, salvage, life, life - start, end - start, factor));
+    if (!c.machine().charge(qint64(std::min(std::ceil(end), 1e7)) + 1)) return c.error(ErrorKind::Value);
+    return numberResult(variableBalance(cost, salvage, life, start, end, factor, noSwitch));
 }
 
 // ---- cash flows: IRR and XIRR are found by Newton's method from a guess; XNPV is a sum
