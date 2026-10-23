@@ -216,6 +216,20 @@ Value Calculation::nodeValue(const Node &n, quint32 id) const
     }
 }
 
+// A slot of the texts that is free holds no string (the one it held is let go of, not kept for the slot's next use).
+void Calculation::freeTextSlot(qint32 slot)
+{
+    m_texts[slot] = QString();
+    m_freeTexts.push_back(slot);
+}
+
+qint64 Calculation::textSlotBytes() const
+{
+    qint64 bytes = 0;
+    for (const QString &t : m_texts) bytes += qint64(t.capacity()) * 2;
+    return bytes;
+}
+
 qint64 Calculation::heldByValue(const Value &v)
 {
     if (v.isText()) return qint64(v.text().size()) * 2 + 64;
@@ -256,7 +270,7 @@ void Calculation::storeResult(Node &n, quint32 id, const Value &given)
         ~Account() { c->m_heldBytes += c->heldBy(n, id) - before; }
     } account{this, n, id, held};
     if (n.kind == KindText && n.text >= 0 && !v.isText()) {
-        m_freeTexts.push_back(n.text);
+        freeTextSlot(n.text);
         n.text = -1;
     }
     if (n.kind == KindArray && !v.isArray()) m_arrays.remove(id);
@@ -807,7 +821,7 @@ void Calculation::dropNode(quint32 id)
     if (n.flags & Dead) return;
     if (!(n.flags & Kept) && n.state != Done) --m_notDone;
     m_heldBytes -= heldBy(n, id);
-    if (n.kind == KindText && n.text >= 0) m_freeTexts.push_back(n.text);
+    if (n.kind == KindText && n.text >= 0) freeTextSlot(n.text);
     m_arrays.remove(id);
     m_graph->clearPrecedents(id);
     SheetState &st = m_state[size_t(n.sheet)];

@@ -751,6 +751,28 @@ private Q_SLOTS:
         QCOMPARE(p.evaluated, qint64(0));
     }
 
+    // The text of a formula's value is let go of when the formula is gone or has another value: the slots it was in are free, and hold no string (what is held and what the slots
+    // take are the same).
+    void theTextsOfValuesThatAreGoneAreLetGoOf()
+    {
+        const int n = 300;
+        QString rows;
+        for (int i = 1; i <= n; ++i) rows += rowXml(i, constant(QStringLiteral("B%1").arg(i), "1") + cellXml(QStringLiteral("A%1").arg(i), QStringLiteral("IF(B%1=1,REPT(\"x\",30000),0)").arg(i)) + cellXml(QStringLiteral("C%1").arg(i), QStringLiteral("REPT(\"y\",30000)&%1").arg(i)));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        settle(b);
+        QVERIFY2(b.calc->heldBytes() >= qint64(n) * 2 * 60000, qPrintable(QString::number(b.calc->heldBytes())));
+        QVERIFY(b.calc->textSlotBytes() >= b.calc->heldBytes() - qint64(n) * 2 * 64);
+        for (int i = 1; i <= n; ++i) {
+            QVERIFY(b.set(QStringLiteral("B%1").arg(i), Value::number(0)));   // the value of A becomes a number
+            QVERIFY(b.set(QStringLiteral("C%1").arg(i), Value::number(5)));   // and C is a constant
+        }
+        settle(b);
+        QCOMPARE(b.at("A7"), QStringLiteral("n:0"));
+        QVERIFY2(b.calc->heldBytes() < (1 << 20), qPrintable(QString::number(b.calc->heldBytes())));
+        QVERIFY2(b.calc->textSlotBytes() < (1 << 20), qPrintable(QStringLiteral("%1 bytes of strings in the slots, %2 held").arg(b.calc->textSlotBytes()).arg(b.calc->heldBytes())));
+    }
+
     // A graph that is full at a realistic size (thirty thousand formulas, seventeen cells each, a graph of about half that) says no at once to the rest: it is not gone over
     // again for each of the formulas it refuses (counted), and every value is still right.
     void aFullGraphAtARealisticSizeIsNotGoneOverForEachFormulaItRefuses()

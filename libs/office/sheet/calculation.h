@@ -88,6 +88,7 @@ public:
     // About the formulas.
     qint64 formulaCount() const { return m_formulaCount; }
     qint64 untrackedCount() const { return m_untracked; }      // formulas the graph was too full to hold
+    qint64 textSlotBytes() const;   // what the strings in the slots that hold the formulas' texts take, the free slots' too (a free slot holds none)
     qint64 heldBytes() const { return m_heldBytes; }   // what the texts and arrays that formulas gave take (the bound: CalcOptions::maxHeldBytes)
     qint64 alwaysListed() const { return qint64(m_always.size()); }   // formulas on the list of those worked out in every recalculation
     const jp::calc::DependencyGraph &graph() const { return *m_graph; }
@@ -194,6 +195,7 @@ private:
     void refuseNode(quint32 id, Progress &pr);
     void refuseTheRest(Progress &pr);
     qint64 heldBy(const Node &n, quint32 id) const;
+    void freeTextSlot(qint32 slot);
     static qint64 heldByValue(const jp::calc::Value &v);
     jp::calc::Value fitToRange(const Node &n, const jp::calc::Value &v) const;
     qint64 m_workUsed = 0, m_workLimit = kMaxRecalcWork;   // the steps this recalculation has taken in all its slices, and the most it may
