@@ -1168,6 +1168,23 @@ void Paginator::invalidateFrom(int section)
     if (m_pending && m_valid >= keep - 1) m_pending = false;
 }
 
+void Paginator::noteEdited(const QString &storyId, const QVector<int> &references)
+{
+    // (What was measured of the note: the key has its story's revision, which an undo and another edit bring round again for another text.)
+    auto at = m_noteHeights.lower_bound(std::make_tuple(storyId, std::numeric_limits<int>::min(), std::numeric_limits<int>::min(), std::numeric_limits<int>::min(), 0u));
+    while (at != m_noteHeights.end() && std::get<0>(at->first) == storyId) at = m_noteHeights.erase(at);
+    const int last = std::max(0, m_doc->story()->characterCount() - 1);
+    for (const int position : references) changed(std::clamp(position, 0, last), 0, 0);
+    // A note that goes on from page to page is laid out on each of them, from where the page before left off: the pages it goes on to are laid out again too, not only the
+    // page that cites it (they are not always the pages right after it), up to the last of them.
+    int lastCarrier = -1;
+    for (int k = 0; k < m_starts.size(); ++k)
+        for (const QString &c : m_starts[k].carried)
+            if (c.section(QLatin1Char('|'), 0, 0) == storyId) lastCarrier = k;
+    // (Up to the page after the last, and past the others that begin at the same place: pages of the notes alone begin where the one after them does.)
+    if (lastCarrier >= 0 && !references.isEmpty()) m_dirtyEnd = std::max(m_dirtyEnd, (lastCarrier + 1 < m_starts.size() ? m_starts[lastCarrier + 1].pos : last) + 1);
+}
+
 Paginator::Page Paginator::page(int index)
 {
     settle(index);
@@ -2111,7 +2128,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
                     for (int k = lo; k < hi; ++k) ids << code.mid(9);
                 }
         }
-        if (!ids.isEmpty()) addNotes(d.get(), run.notes, run.rules, run.firstFrame, ids, run.cols, furniture.body, run.hasNext && !run.next.carried.isEmpty());
+        if (!ids.isEmpty()) addNotes(d.get(), run.notes, run.rules, run.firstFrame, ids, run.cols, furniture.body, run.hasNext && !run.next.carried.isEmpty(), out.get());
     }
     markTotals(out.get(), *d);
     resolvePageRefs(out.get(), d.get());

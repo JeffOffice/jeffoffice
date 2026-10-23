@@ -53,6 +53,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPrinter>
+#include <QStatusBar>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QCheckBox>
@@ -684,6 +685,19 @@ QString runPropsOfText(const QByteArray &documentXml, const QString &text)
 }
 } // namespace
 
+// A command that changes how paragraphs or characters look, as the ribbon, the shortcuts, and the dialogs run it.
+struct LookCommand {
+    const char *name;
+    std::function<void(WriteDoc &, QTextCursor &)> run;
+};
+
+// Where one box that sets a note is: the page, the box, and where in the note it begins.
+struct NoteBox {
+    int page;
+    QRectF rect;
+    int from;
+};
+
 class WriteTests : public QObject {
     Q_OBJECT
 public:
@@ -721,7 +735,7 @@ private Q_SLOTS:
         QCOMPARE(w.ribbonErrors(), QString());
         QStringList tabs;
         for (int i = 0; i < w.ribbon()->tabCount(); ++i) tabs << w.ribbon()->tabName(i);
-        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Layout", "Review", "View", "Header & Footer"}));   // (the last is there while a header or footer is edited)
+        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Layout", "References", "Review", "View", "Header & Footer"}));   // (the last is there while a header or footer is edited)
         QCOMPARE(w.ribbon()->fileKeytip(), QStringLiteral("F"));
         QVERIFY(w.windowTitle().contains(QLatin1String("JeffWrite")));
         QVERIFY(w.windowTitle().startsWith(QLatin1String("Document")));
@@ -5451,6 +5465,21 @@ private Q_SLOTS:
         QVERIFY(!start.contains(QLatin1String("Headers, footers, footnotes, and endnotes can't be edited")));
     }
 
+    void helpHasATopicForFootnotesAndEndnotes()
+    {
+        const jp::help::Topic topic = jp::help::topic(QStringLiteral("footnotes-endnotes"));
+        QVERIFY(!topic.markdown.isEmpty());
+        QVERIFY(topic.markdown.startsWith(QLatin1String("# Footnotes and endnotes")));
+        QCOMPARE(jp::help::contextTopic(QStringLiteral("tab:References")), QStringLiteral("footnotes-endnotes"));
+        for (const char *banned : {"Microsoft", "Word", "Office 2021", "Windows", "virtual machine", " VM ", "Excel"})
+            QVERIFY2(!topic.markdown.contains(QLatin1String(banned)), banned);
+        for (const char *needed : {"Ctrl+Alt+F", "Ctrl+Alt+D", "Insert Footnote", "Insert Endnote", "Esc", "Undo", "number", "reference"}) QVERIFY2(topic.markdown.contains(QLatin1String(needed)), needed);
+        // The welcome topic says notes can be edited, and links to the topic.
+        const QString start = jp::help::topic(QStringLiteral("start")).markdown;
+        QVERIFY(start.contains(QLatin1String("(footnotes-endnotes)")));
+        QVERIFY(!start.contains(QLatin1String("Footnotes and endnotes can't be edited")));
+    }
+
     // The window with a header being edited, as it looks (a picture of it is saved where JW_HEADER_SHOT says, for the documentation; without it, the picture is only made).
     void aHeaderBeingEditedIsShownInTheWindow()
     {
@@ -5935,6 +5964,1994 @@ private Q_SLOTS:
         QVERIFY(out.contains("&gt;Before<"));
         QVERIFY(out.indexOf("Before") < out.indexOf("<w:tbl>") && out.indexOf("</w:tbl>") < out.indexOf("After"));
         QVERIFY(out.contains("r2999b"));
+    }
+
+    // ---- footnotes: editing them
+
+    // The styles of the sample documents with the two a note has: its text, and the raised number of its mark and its reference.
+    static const QByteArray &noteStyles()
+    {
+        static const QByteArray s = kStyles +
+            "<w:style w:type=\"paragraph\" w:styleId=\"FootnoteText\"><w:name w:val=\"footnote text\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:spacing w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/></w:pPr><w:rPr><w:sz w:val=\"20\"/></w:rPr></w:style>"
+            "<w:style w:type=\"character\" w:styleId=\"FootnoteReference\"><w:name w:val=\"footnote reference\"/><w:rPr><w:vertAlign w:val=\"superscript\"/></w:rPr></w:style>";
+        return s;
+    }
+
+    // A footnotes part with the separators and the notes given: each a w:id and what follows the mark in its first paragraph (the XML of runs).
+    static QByteArray footnotesPart(const QList<std::pair<int, QByteArray>> &notes)
+    {
+        QByteArray out = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>"
+                         "<w:footnote w:type=\"continuationSeparator\" w:id=\"0\"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>";
+        for (const auto &n : notes)
+            out += "<w:footnote w:id=\"" + QByteArray::number(n.first) + "\"><w:p><w:pPr><w:pStyle w:val=\"FootnoteText\"/></w:pPr><w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr><w:footnoteRef/></w:r>" +
+                   n.second + "</w:p></w:footnote>";
+        return out + "</w:footnotes>";
+    }
+
+    static QByteArray plainRun(const QByteArray &text) { return "<w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r>"; }
+
+    // A paragraph of words with a reference to note `id` after them.
+    static QByteArray citing(const QByteArray &text, int id)
+    {
+        return "<w:p><w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r><w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr><w:footnoteReference w:id=\"" + QByteArray::number(id) +
+               "\"/></w:r><w:r><w:t xml:space=\"preserve\"> and the words that follow it.</w:t></w:r></w:p>";
+    }
+
+    static QByteArray pageSection() { return "<w:sectPr>" + QByteArray(kPage) + "</w:sectPr>"; }
+
+    static QByteArray notesDocx(const QByteArray &body, const QByteArray &notes, const QByteArray &settings = QByteArray())
+    {
+        return makeDocxWithParts(body, pageSection(), {{QStringLiteral("/word/footnotes.xml"), notes}}, settings, noteStyles());
+    }
+
+    // Three paragraphs, each citing a note of its own: 2, 3, and 5 (the Ids of a file need not follow one another).
+    static QByteArray threeNotesBody()
+    {
+        return citing("First paragraph", 2) + citing("Second paragraph", 3) + citing("Third paragraph", 5);
+    }
+
+    static QList<std::pair<int, QByteArray>> threeNotes()
+    {
+        return {{2, plainRun(" note two text")}, {3, plainRun(" note three text")}, {5, plainRun(" note five text")}};
+    }
+
+    static QByteArray threeNotesDocx() { return notesDocx(threeNotesBody(), footnotesPart(threeNotes())); }
+
+    // The notes a page shows: each note's Id and the number its mark shows, in the order of the page's boxes.
+    static QList<std::pair<int, int>> notesOnPage(WriteDoc &doc, int index)
+    {
+        QList<std::pair<int, int>> out;
+        const auto page = doc.pager().materialize(index);
+        if (!page) return out;
+        for (const auto &nb : page->noteBoxes) {
+            int id = 0;
+            if (!doc.footnoteIdOf(nb.source, &id)) continue;
+            int number = 0;
+            if (const Item *item = page->doc->item(nb.itemId))
+                if (const Story *s = page->doc->story(static_cast<const TextItem *>(item)->storyId))
+                    for (QTextBlock b = s->doc->begin(); b.isValid() && !number; b = b.next())
+                        for (auto it = b.begin(); !it.atEnd(); ++it) {
+                            const QString field = it.fragment().charFormat().stringProperty(tp::Field);
+                            if (field.startsWith(QLatin1String("raw:")) && field.size() > 4) {
+                                number = field.mid(4).toInt();
+                                break;
+                            }
+                        }
+            out << std::make_pair(id, number);
+        }
+        return out;
+    }
+
+    static QString noteMark() { return QString(QChar::ObjectReplacementCharacter); }
+
+    // A footnote of the file is edited in a story of its own, and the one history holds its steps with the text's.
+    void aFootnoteIsEditedInItsOwnStoryAndTheHistoryHoldsItsSteps()
+    {
+        auto doc = open(threeNotesDocx());
+        QVERIFY(doc);
+        QTextDocument *note = doc->editableFootnote(3);
+        QVERIFY(note);
+        int id = 0;
+        QVERIFY(doc->footnoteIdOf(note, &id));
+        QCOMPARE(id, 3);
+        QVERIFY(!doc->footnoteIdOf(doc->story()));
+        QCOMPARE(doc->editableFootnote(3), note);   // (made once)
+        QVERIFY(!doc->editableFootnote(99));
+        QCOMPARE(note->toPlainText(), noteMark() + QStringLiteral(" note three text"));
+        QVERIFY(!doc->isModified());
+        QVERIFY(!doc->canUndo());
+        typeAtEnd(*doc, note, QStringLiteral(" typed"));
+        QCOMPARE(note->toPlainText().mid(1), QStringLiteral(" note three text typed"));
+        QVERIFY(doc->isModified());
+        QTextCursor body(doc->story());
+        body.setPosition(0);
+        insertText(*doc, body, QStringLiteral("B"));
+        typeAtEnd(*doc, note, QStringLiteral("!"));
+        // (The steps come back in the order they were made, each in the story it was made in.)
+        QCOMPARE(doc->undo(), note);
+        QCOMPARE(note->toPlainText().mid(1), QStringLiteral(" note three text typed"));
+        QCOMPARE(doc->undo(), doc->story());
+        QVERIFY(!plain(*doc).startsWith(QLatin1Char('B')));
+        QCOMPARE(doc->undo(), note);
+        QCOMPARE(note->toPlainText().mid(1), QStringLiteral(" note three text"));
+        QVERIFY(!doc->canUndo());
+        QVERIFY(!doc->isModified());
+        QCOMPARE(doc->redo(), note);
+        QCOMPARE(doc->redo(), doc->story());
+        QCOMPARE(doc->redo(), note);
+        QCOMPARE(note->toPlainText().mid(1), QStringLiteral(" note three text typed!"));
+    }
+
+    // The number that begins a note's text is one character that no edit takes: typing before it goes after it, and Backspace, a selection, and a cut leave it.
+    void theNumberMarkOfANoteIsOneCharacterThatNoEditTakes()
+    {
+        auto doc = open(threeNotesDocx());
+        QVERIFY(doc);
+        QTextDocument *note = doc->editableFootnote(2);
+        QVERIFY(note);
+        QCOMPARE(noteTextStart(note), 1);
+        QCOMPARE(noteTextStart(doc->story()), 0);
+        const QString mark = noteMark();
+        QTextCursor c(note);
+        c.setPosition(1);
+        deleteBack(*doc, c, false);
+        deleteBack(*doc, c, true);
+        QCOMPARE(note->toPlainText(), mark + QStringLiteral(" note two text"));
+        QVERIFY(!doc->canUndo());
+        c.setPosition(0);
+        insertText(*doc, c, QStringLiteral("X"));
+        QCOMPARE(note->toPlainText(), mark + QStringLiteral("X note two text"));
+        c.setPosition(0);
+        c.setPosition(2, QTextCursor::KeepAnchor);
+        removeSelection(*doc, c);
+        QCOMPARE(note->toPlainText(), mark + QStringLiteral(" note two text"));
+        // Everything selected: deleted, the mark stays; a paste at the start goes after it; a cut takes the words only.
+        c.select(QTextCursor::Document);
+        removeSelection(*doc, c);
+        QCOMPARE(note->toPlainText(), mark);
+        c.setPosition(0);
+        pasteText(*doc, c, QStringLiteral("pasted"));
+        QCOMPARE(note->toPlainText(), mark + QStringLiteral("pasted"));
+        c.select(QTextCursor::Document);
+        const QTextDocumentFragment taken = selectionFragment(c);
+        QCOMPARE(plainTextOf(taken), QStringLiteral("pasted"));
+        removeSelection(*doc, c);
+        QCOMPARE(note->toPlainText(), mark);
+        // (Typing over everything selected replaces the words.)
+        typeAtEnd(*doc, note, QStringLiteral("new words"));
+        c.select(QTextCursor::Document);
+        insertText(*doc, c, QStringLiteral("again"));
+        QCOMPARE(note->toPlainText(), mark + QStringLiteral("again"));
+        // What is written has the mark as the file had it, in each note.
+        const QByteArray part = partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml"));
+        QCOMPARE(int(part.count("<w:footnoteRef/>")), 3);
+        QVERIFY(part.contains("again"));
+    }
+
+    // A note is edited as the text is: characters and paragraphs get their looks, Enter makes a paragraph, the clipboard works; and all of it is written, and all of it undone.
+    void aFootnoteIsEditedAsTheTextIs()
+    {
+        auto doc = open(threeNotesDocx());
+        QVERIFY(doc);
+        const QByteArray was = partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml"));
+        QTextDocument *note = doc->editableFootnote(3);
+        QVERIFY(note);
+        QTextCursor c(note);
+        c.setPosition(1);
+        c.setPosition(note->characterCount() - 1, QTextCursor::KeepAnchor);
+        toggleBold(*doc, c);
+        QVERIFY(allSelected(c, [](const QTextCharFormat &f) { return f.fontWeight() >= QFont::DemiBold; }));
+        setAlignment(*doc, c, Qt::AlignRight);
+        QCOMPARE(int(note->begin().blockFormat().alignment() & Qt::AlignHorizontal_Mask), int(Qt::AlignRight));
+        c.movePosition(QTextCursor::End);
+        insertParagraph(*doc, c);
+        typeText(*doc, c, QStringLiteral("second"));
+        QCOMPARE(note->blockCount(), 2);
+        c.setPosition(note->lastBlock().position());
+        deleteBack(*doc, c, false);
+        QCOMPARE(note->blockCount(), 1);
+        // The clipboard: some words copied, and pasted at the end.
+        c.setPosition(2);
+        c.setPosition(6, QTextCursor::KeepAnchor);
+        const QString words = c.selectedText();
+        const QTextDocumentFragment held = selectionFragment(c);
+        c.movePosition(QTextCursor::End);
+        pasteFragment(*doc, c, held);
+        QVERIFY(note->toPlainText().endsWith(words));
+        const QByteArray part = partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml"));
+        QVERIFY2(part.contains("<w:jc w:val=\"right\"/>"), part.constData());
+        QVERIFY(part.contains("<w:b/>"));
+        QVERIFY(part.contains(words.toUtf8()));
+        QVERIFY(part.contains("<w:footnoteRef/>"));
+        // Taken back to the end, the part is the bytes it was.
+        while (doc->canUndo()) doc->undo();
+        QCOMPARE(note->toPlainText(), noteMark() + QStringLiteral(" note three text"));
+        QCOMPARE(partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")), was);
+    }
+
+    // The pages say which story each of their notes shows, and where in it the box's text begins: a place in a box is a place in the note's story.
+    void thePagesSayWhichStoryEachOfTheirNotesShows()
+    {
+        auto doc = open(threeNotesDocx());
+        QVERIFY(doc);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        QCOMPARE(int(page->noteBoxes.size()), 3);
+        QVector<int> ids;
+        for (const auto &nb : page->noteBoxes) {
+            int id = 0;
+            QVERIFY(nb.source && doc->footnoteIdOf(nb.source, &id));
+            ids << id;
+            QCOMPARE(nb.from, 0);
+            const Item *item = page->doc->item(nb.itemId);
+            QVERIFY(item && item->type() == ItemType::Text);
+            // (The box shows the note's text, from the place the page says.)
+            const Story *shown = page->doc->story(static_cast<const TextItem *>(item)->storyId);
+            QVERIFY(shown);
+            QCOMPARE(shown->doc->toPlainText(), nb.source->toPlainText().mid(nb.from));
+        }
+        QCOMPARE(ids, (QVector<int>{2, 3, 5}));
+        // A note that goes on to the next page: the next page's box begins where the part before it ended.
+        QByteArray longNote;
+        for (int i = 0; i < 160; ++i) longNote += plainRun(" a long note of many words that goes over the page and goes on to the next one " + QByteArray::number(i));
+        auto big = open(notesDocx(citing("A paragraph", 7) + paragraphs(4, 30), footnotesPart({{7, longNote}})));
+        QVERIFY(big);
+        QVERIFY(big->pager().pageCount() >= 2);
+        int found = 0;
+        for (int p = 0; p < big->pager().pageCount() && p < 4; ++p) {
+            const auto pg = big->pager().materialize(p);
+            for (const auto &nb : pg->noteBoxes) {
+                const Item *item = pg->doc->item(nb.itemId);
+                const Story *shown = pg->doc->story(static_cast<const TextItem *>(item)->storyId);
+                QVERIFY(shown);
+                if (p > 0) QVERIFY2(nb.from > 0, qPrintable(QString::number(nb.from)));
+                QCOMPARE(shown->doc->toPlainText().left(60), nb.source->toPlainText().mid(nb.from, 60));
+                ++found;
+            }
+        }
+        QVERIFY(found >= 2);
+    }
+
+    // What a note's edit does to the pages is what a new paginator makes of the document: the notes at the foot of the page move the text, the pages after follow, and an undo gives them back.
+    void editingAFootnoteLaysThePagesOutAsANewPaginatorDoes()
+    {
+        QByteArray body;
+        QList<std::pair<int, QByteArray>> notes;
+        for (int i = 0; i < 14; ++i) {
+            body += citing("Paragraph " + QByteArray::number(i) + " of the text, with enough words in it to fill some lines of the page, and some more words to run on for a while", 10 + i);
+            notes << std::make_pair(10 + i, plainRun(" note " + QByteArray::number(i) + " words words words words"));
+        }
+        auto doc = open(notesDocx(body + paragraphs(24, 40), footnotesPart(notes)));
+        QVERIFY(doc);
+        const int pagesBefore = doc->pager().pageCount();
+        QVERIFY(pagesBefore >= 3);
+        QVERIFY(layoutDiffersFromFresh(*doc).isEmpty());
+        QTextDocument *note = doc->editableFootnote(12);
+        QVERIFY(note);
+        QString longText;
+        for (int i = 0; i < 30; ++i) longText += QStringLiteral(" typed words that make the note taller %1").arg(i);
+        typeAtEnd(*doc, note, longText);
+        const QString differs = layoutDiffersFromFresh(*doc);
+        QVERIFY2(differs.isEmpty(), qPrintable(differs));
+        QVERIFY(doc->pager().pageCount() >= pagesBefore);
+        // The page that cites the note shows the typed words in its note's box.
+        const int cited = doc->pager().pageOfPosition(doc->footnoteReferences(12).first());
+        bool shown = false;
+        for (int p = cited; p <= cited + 1 && !shown; ++p) shown = boxWithText(*doc->pager().materialize(p), QStringLiteral("typed words that make the note taller 0")) != nullptr;
+        QVERIFY(shown);
+        // Undone step by step, the pages are a new paginator's at each, and the document is what it was.
+        int steps = 0;
+        while (doc->canUndo()) {
+            doc->undo();
+            if (++steps % 7 == 0) {
+                const QString d = layoutDiffersFromFresh(*doc);
+                QVERIFY2(d.isEmpty(), qPrintable(d));
+            }
+        }
+        QVERIFY(layoutDiffersFromFresh(*doc).isEmpty());
+        QCOMPARE(doc->pager().pageCount(), pagesBefore);
+        QCOMPARE(note->toPlainText(), noteMark() + QStringLiteral(" note 2 words words words words"));
+    }
+
+    // Insert > Footnote puts a reference in the text and a new note with its number, and the caret goes into the note.
+    void insertFootnoteMakesAReferenceAndANoteAndMovesTheCaretIntoIt()
+    {
+        auto doc = open(threeNotesDocx());
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        const QTextBlock second = doc->story()->findBlockByNumber(1);
+        const int at = second.position() + 3;
+        c.setPosition(at);
+        QTextDocument *note = insertFootnote(*doc, c);
+        QVERIFY(note);
+        QCOMPARE(c.document(), note);
+        QCOMPARE(c.position(), note->characterCount() - 1);
+        QCOMPARE(note->toPlainText(), noteMark() + QStringLiteral(" "));
+        int id = 0;
+        QVERIFY(doc->footnoteIdOf(note, &id));
+        QCOMPARE(id, 6);   // (one more than the highest the file has)
+        QCOMPARE(doc->footnoteReferences(6), (QVector<int>{at}));
+        QCOMPARE(doc->story()->characterAt(at), QChar(QChar::ObjectReplacementCharacter));
+        QTextCursor probe(doc->story());
+        probe.setPosition(at + 1);
+        QCOMPARE(probe.charFormat().stringProperty(tp::Field), QStringLiteral("footnote:fn6"));
+        // The note is at the foot of the page, and the notes are numbered by where their references are: 2, then the new one (before the third's reference), then 3 and 5.
+        QCOMPARE(notesOnPage(*doc, 0), (QList<std::pair<int, int>>{{2, 1}, {6, 2}, {3, 3}, {5, 4}}));
+        // What is typed in the note is the note's, in the one history with the reference: an undo takes the typing, then the reference and the note with it.
+        typeAtEnd(*doc, note, QStringLiteral("A new note."));
+        QCOMPARE(note->toPlainText(), noteMark() + QStringLiteral(" A new note."));
+        QCOMPARE(doc->undo(), note);
+        QCOMPARE(note->toPlainText(), noteMark() + QStringLiteral(" "));
+        QCOMPARE(doc->undo(), doc->story());
+        QVERIFY(doc->footnoteReferences(6).isEmpty());
+        QCOMPARE(notesOnPage(*doc, 0), (QList<std::pair<int, int>>{{2, 1}, {3, 2}, {5, 3}}));
+        QVERIFY(!doc->canUndo());
+        QVERIFY(!doc->isModified());
+        // And done again, both come back with the words.
+        QCOMPARE(doc->redo(), doc->story());
+        QCOMPARE(doc->redo(), note);
+        QCOMPARE(notesOnPage(*doc, 0), (QList<std::pair<int, int>>{{2, 1}, {6, 2}, {3, 3}, {5, 4}}));
+        QByteArray saved = doc->toDocx();
+        const QByteArray part = partOf(saved, QStringLiteral("/word/footnotes.xml"));
+        QVERIFY2(part.contains("<w:footnote w:id=\"6\">") && part.contains("A new note."), part.constData());
+        QCOMPARE(int(documentXml(saved).count("<w:footnoteReference w:id=\"6\"/>")), 1);
+    }
+
+    // The notes that come after a new one are renumbered, and so are all of them when one goes: the number of a note is its place among the references.
+    void laterNotesAreRenumberedAsReferencesComeAndGo()
+    {
+        auto doc = open(threeNotesDocx());
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QTextDocument *first = insertFootnote(*doc, c);
+        QVERIFY(first);
+        QCOMPARE(notesOnPage(*doc, 0), (QList<std::pair<int, int>>{{6, 1}, {2, 2}, {3, 3}, {5, 4}}));
+        QTextCursor end(doc->story());
+        end.movePosition(QTextCursor::End);
+        QTextDocument *last = insertFootnote(*doc, end);
+        QVERIFY(last);
+        QCOMPARE(notesOnPage(*doc, 0), (QList<std::pair<int, int>>{{6, 1}, {2, 2}, {3, 3}, {5, 4}, {7, 5}}));
+        // A reference taken out: the numbers close up.
+        QTextCursor gone(doc->story());
+        const int at = doc->footnoteReferences(2).first();
+        gone.setPosition(at);
+        gone.setPosition(at + 1, QTextCursor::KeepAnchor);
+        removeSelection(*doc, gone);
+        QCOMPARE(notesOnPage(*doc, 0), (QList<std::pair<int, int>>{{6, 1}, {3, 2}, {5, 3}, {7, 4}}));
+    }
+
+    // A reference taken out takes its note with it, in the text and in the file; an undo brings both back, and so does a redo take them away again.
+    void deletingAReferenceDeletesItsNoteAndUndoBringsBothBack()
+    {
+        auto doc = open(threeNotesDocx());
+        QVERIFY(doc);
+        const QByteArray original = partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml"));
+        QVERIFY(original.contains("note three text"));
+        const QVector<int> refs = doc->footnoteReferences(3);
+        QCOMPARE(int(refs.size()), 1);
+        QTextCursor c(doc->story());
+        c.setPosition(refs[0]);
+        c.setPosition(refs[0] + 1, QTextCursor::KeepAnchor);
+        removeSelection(*doc, c);
+        QVERIFY(doc->footnoteReferences(3).isEmpty());
+        QCOMPARE(notesOnPage(*doc, 0), (QList<std::pair<int, int>>{{2, 1}, {5, 2}}));
+        QByteArray saved = doc->toDocx();
+        QByteArray part = partOf(saved, QStringLiteral("/word/footnotes.xml"));
+        QVERIFY2(!part.contains("w:id=\"3\"") && !part.contains("note three text"), part.constData());
+        QVERIFY(part.contains("w:id=\"2\"") && part.contains("w:id=\"5\"") && part.contains("w:type=\"separator\""));
+        QVERIFY(!documentXml(saved).contains("footnoteReference w:id=\"3\""));
+        doc->undo();
+        QCOMPARE(notesOnPage(*doc, 0), (QList<std::pair<int, int>>{{2, 1}, {3, 2}, {5, 3}}));
+        QCOMPARE(partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")), original);
+        doc->redo();
+        QVERIFY(doc->footnoteReferences(3).isEmpty());
+        QVERIFY(!partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")).contains("note three text"));
+        doc->undo();
+        // Backspace after a reference, and Delete before one, are the same.
+        QTextCursor key(doc->story());
+        key.setPosition(doc->footnoteReferences(5).first() + 1);
+        deleteBack(*doc, key, false);
+        QVERIFY(doc->footnoteReferences(5).isEmpty());
+        QVERIFY(!partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")).contains("note five text"));
+        doc->undo();
+        QCOMPARE(int(doc->footnoteReferences(5).size()), 1);
+        key.setPosition(doc->footnoteReferences(2).first());
+        deleteForward(*doc, key, false);
+        QVERIFY(doc->footnoteReferences(2).isEmpty());
+        QVERIFY(!partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")).contains("note two text"));
+        // The whole text selected and deleted: no notes. Undone: all three.
+        doc->undo();
+        key.select(QTextCursor::Document);
+        removeSelection(*doc, key);
+        QCOMPARE(notesOnPage(*doc, 0), (QList<std::pair<int, int>>{}));
+        QVERIFY(!partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")).contains("note two text"));
+        doc->undo();
+        QCOMPARE(partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")), original);
+    }
+
+    // A note cited twice stays until its last reference goes: taking one reference out leaves the note, and the second takes it.
+    void aNoteCitedTwiceStaysUntilItsLastReferenceGoes()
+    {
+        const QByteArray body = citing("First", 2) + citing("Second", 2) + citing("Third", 5);
+        auto doc = open(notesDocx(body, footnotesPart({{2, plainRun(" shared note")}, {5, plainRun(" other note")}})));
+        QVERIFY(doc);
+        QCOMPARE(int(doc->footnoteReferences(2).size()), 2);
+        auto remove = [&](int at) {
+            QTextCursor c(doc->story());
+            c.setPosition(at);
+            c.setPosition(at + 1, QTextCursor::KeepAnchor);
+            removeSelection(*doc, c);
+        };
+        remove(doc->footnoteReferences(2).first());
+        QCOMPARE(int(doc->footnoteReferences(2).size()), 1);
+        QVERIFY(partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")).contains("shared note"));
+        remove(doc->footnoteReferences(2).first());
+        QVERIFY(!partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")).contains("shared note"));
+        QVERIFY(partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")).contains("other note"));
+        doc->undo();
+        doc->undo();
+        QCOMPARE(int(doc->footnoteReferences(2).size()), 2);
+        QCOMPARE(int(documentXml(doc->toDocx()).count("<w:footnoteReference w:id=\"2\"/>")), 2);
+    }
+
+    // Cutting a reference and pasting it moves its note (and what had been written in it); copying one and pasting it makes a note of its own with the same words.
+    void cuttingAndPastingAReferenceMovesItsNote()
+    {
+        auto doc = open(threeNotesDocx());
+        QVERIFY(doc);
+        QTextDocument *three = doc->editableFootnote(3);
+        QVERIFY(three);
+        typeAtEnd(*doc, three, QStringLiteral(" edited"));
+        QTextCursor c(doc->story());
+        QVERIFY(!doc->footnoteReferences(3).isEmpty());
+        const int at = doc->footnoteReferences(3).first();
+        c.setPosition(at);
+        c.setPosition(at + 1, QTextCursor::KeepAnchor);
+        const QTextDocumentFragment held = selectionFragment(c);
+        removeSelection(*doc, c);
+        QVERIFY(doc->footnoteReferences(3).isEmpty());
+        QCOMPARE(notesOnPage(*doc, 0), (QList<std::pair<int, int>>{{2, 1}, {5, 2}}));
+        c.setPosition(0);
+        pasteFragment(*doc, c, held);
+        QCOMPARE(doc->footnoteReferences(3), (QVector<int>{0}));
+        // (It is the first reference now: its note is the first, with the words it had.)
+        QCOMPARE(notesOnPage(*doc, 0), (QList<std::pair<int, int>>{{3, 1}, {2, 2}, {5, 3}}));
+        QVERIFY(three->toPlainText().endsWith(QStringLiteral("note three text edited")));
+        QByteArray part = partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml"));
+        QCOMPARE(int(part.count("w:id=\"3\"")), 1);
+        QVERIFY(part.contains("note three text edited"));
+        // A copy: a new reference with a new note that says the same.
+        QTextCursor copy(doc->story());
+        copy.setPosition(0);
+        copy.setPosition(1, QTextCursor::KeepAnchor);
+        const QTextDocumentFragment again = selectionFragment(copy);
+        copy.movePosition(QTextCursor::End);
+        pasteFragment(*doc, copy, again);
+        QCOMPARE(int(doc->footnoteReferences(3).size()), 1);
+        QCOMPARE(int(doc->footnoteReferences(6).size()), 1);
+        QTextDocument *six = doc->editableFootnote(6);
+        QVERIFY(six && six->toPlainText().endsWith(QStringLiteral("note three text edited")));
+        QCOMPARE(notesOnPage(*doc, 0), (QList<std::pair<int, int>>{{3, 1}, {2, 2}, {5, 3}, {6, 4}}));
+        part = partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml"));
+        QCOMPARE(int(part.count("note three text edited")), 2);
+        // (The file's references say which: the copy's is to the new note.)
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:footnoteReference w:id=\"6\"/>"));
+        QCOMPARE(int(documentXml(doc->toDocx()).count("<w:footnoteReference w:id=\"3\"/>")), 1);
+        // Undone, the copy is gone and the first note is as it was.
+        doc->undo();
+        QVERIFY(doc->footnoteReferences(6).isEmpty());
+        QCOMPARE(int(partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")).count("note three text edited")), 1);
+    }
+
+    // No note is made in a header or in a note.
+    void aFootnoteIsNotInsertedInAHeaderOrInANote()
+    {
+        auto doc = open(makeDocxWithParts(threeNotesBody(), sectionNaming({{"default", "rIdheader1"}}),
+                                          {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>Head</w:t></w:r>"})}, {QStringLiteral("/word/footnotes.xml"), footnotesPart(threeNotes())}},
+                                          QByteArray(), noteStyles()));
+        QVERIFY(doc);
+        QTextDocument *header = doc->editableHeaderFooter(0, false, WriteDoc::kDefaultSlot);
+        QVERIFY(header);
+        QTextCursor h(header);
+        h.movePosition(QTextCursor::End);
+        QVERIFY(!insertFootnote(*doc, h));
+        QCOMPARE(h.document(), header);
+        QCOMPARE(header->toPlainText(), QStringLiteral("Head"));
+        QTextDocument *note = doc->editableFootnote(2);
+        QVERIFY(note);
+        QTextCursor n(note);
+        n.movePosition(QTextCursor::End);
+        QVERIFY(!insertFootnote(*doc, n));
+        QCOMPARE(n.document(), note);
+        QCOMPARE(note->toPlainText(), noteMark() + QStringLiteral(" note two text"));
+        QVERIFY(!doc->canUndo());
+        QVERIFY(!doc->isModified());
+    }
+
+    // ---- footnotes: writing them
+
+    // A footnotes part nobody edited is written back byte for byte, though its notes were made ready to edit and shown, and though an edit of one was taken back.
+    void anUneditedFootnotesPartIsWrittenByteForByte()
+    {
+        // (Bytes a rewrite would change: a comment, odd spacing, an attribute order, an unknown element, a declared prefix nobody uses.)
+        const QByteArray odd = "<w:footnotes " + QByteArray(kNs) + " xmlns:x=\"urn:x\"><!-- kept --><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>\n"
+                               "<w:footnote w:type=\"continuationSeparator\" w:id=\"0\"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>"
+                               "<w:footnote  w:id=\"2\" x:odd=\"1\"><w:p  w:rsidR=\"00A1\"><w:pPr><w:pStyle w:val=\"FootnoteText\"/><x:odd a=\"1\"/></w:pPr><w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr><w:footnoteRef/></w:r>"
+                               "<w:r ><w:t>ODD  bytes</w:t></w:r></w:p>\n</w:footnote><x:extra/>"
+                               "<w:footnote w:id=\"3\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>three</w:t></w:r></w:p></w:footnote><w:footnote w:id=\"5\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>five</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        auto doc = open(notesDocx(threeNotesBody(), odd));
+        QVERIFY(doc);
+        // Shown on the pages and made ready to edit, not edited.
+        QCOMPARE(int(notesOnPage(*doc, 0).size()), 3);
+        QVERIFY(doc->editableFootnote(2));
+        QTextDocument *three = doc->editableFootnote(3);
+        QVERIFY(three);
+        QCOMPARE(partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")), xml(odd));
+        // An edit that is taken back is no edit.
+        typeAtEnd(*doc, three, QStringLiteral("!"));
+        QVERIFY(partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")).contains("three!"));
+        doc->undo();
+        QCOMPARE(partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")), xml(odd));
+        // One edited: the others (and the separators, the comment, the extra element) are as they were.
+        typeAtEnd(*doc, three, QStringLiteral("!"));
+        const QByteArray out = partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml"));
+        QVERIFY(out.contains("<w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>"));
+        QVERIFY(out.contains("<w:footnote  w:id=\"2\" x:odd=\"1\"><w:p  w:rsidR=\"00A1\">"));
+        QVERIFY(out.contains("<x:extra/>"));
+        QVERIFY(out.contains("<w:footnote w:id=\"5\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>five</w:t></w:r></w:p></w:footnote>"));
+        QVERIFY(out.contains("three!"));
+        QVERIFY(out.contains(" xmlns:x=\"urn:x\""));
+    }
+
+    // An edited note keeps what the program cannot edit where it was (a bookmark, a field, a picture's run), its own tag and attributes, and the others' bytes; and it reads back as the note that was edited.
+    void anEditedFootnoteKeepsItsAtomsAndWritesBackAsTheNoteThatWasEdited()
+    {
+        const QByteArray atoms = "<w:r><w:t xml:space=\"preserve\"> before </w:t></w:r><w:bookmarkStart w:id=\"7\" w:name=\"inNote\"/><w:r><w:t>marked</w:t></w:r><w:bookmarkEnd w:id=\"7\"/>"
+                                 "<w:r><w:tab/></w:r><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> AUTHOR </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>"
+                                 "<w:r><w:t>Ann</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r><w:r><w:rPr><w:b/></w:rPr><w:t xml:space=\"preserve\"> bold </w:t></w:r><w:r><w:sym w:font=\"Symbol\" w:char=\"F0B7\"/></w:r>";
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>"
+                                 "<w:footnote w:type=\"continuationSeparator\" w:id=\"0\"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>"
+                                 "<w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>two</w:t></w:r></w:p></w:footnote>"
+                                 "<w:footnote w:id=\"3\" w:rsid=\"0012\"><w:p w:rsidR=\"00A2\"><w:pPr><w:pStyle w:val=\"FootnoteText\"/></w:pPr><w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr><w:footnoteRef/></w:r>" + atoms +
+                                 "</w:p><w:p><w:r><w:t>second paragraph</w:t></w:r></w:p></w:footnote>"
+                                 "<w:footnote w:id=\"5\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>five</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        const QByteArray zip = notesDocx(threeNotesBody(), notes);
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *note = doc->editableFootnote(3);
+        QVERIFY(note);
+        QVERIFY(note->toPlainText().contains(QStringLiteral("before")) && note->toPlainText().contains(QStringLiteral("bold")));
+        // The words are typed in the middle, and a paragraph's end gets some.
+        QTextCursor c(note);
+        c.setPosition(2);
+        insertText(*doc, c, QStringLiteral("NEW"));
+        typeAtEnd(*doc, note, QStringLiteral("!"));
+        const QByteArray saved = doc->toDocx();
+        const QByteArray out = partOf(saved, QStringLiteral("/word/footnotes.xml"));
+        QVERIFY2(out.contains("<w:footnote w:id=\"3\" w:rsid=\"0012\">"), out.constData());
+        QVERIFY(out.contains("<w:bookmarkStart w:id=\"7\" w:name=\"inNote\"/>") && out.contains("<w:bookmarkEnd w:id=\"7\"/>"));
+        QVERIFY(out.contains("<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r>"));
+        QVERIFY(out.contains("<w:instrText xml:space=\"preserve\"> AUTHOR </w:instrText>") && out.contains("Ann"));
+        QVERIFY(out.contains("<w:sym w:font=\"Symbol\" w:char=\"F0B7\"/>"));
+        QVERIFY(out.contains("<w:tab/>"));
+        QVERIFY(out.contains("<w:rPr><w:b/></w:rPr>"));
+        QVERIFY(out.contains("NEW") && out.contains("second paragraph!"));
+        QCOMPARE(int(out.count("<w:footnoteRef/>")), 3);
+        QVERIFY(out.contains("<w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>two</w:t></w:r></w:p></w:footnote>"));
+        QVERIFY(out.contains("<w:footnote w:type=\"continuationSeparator\" w:id=\"0\"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>"));
+        QVERIFY(out.contains("<w:footnote w:id=\"5\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>five</w:t></w:r></w:p></w:footnote>"));
+        QVERIFY(rt::strictProblems(saved, zip).isEmpty());
+        // It reads back as the note that was edited, and saves the bytes again.
+        auto back = open(saved);
+        QVERIFY(back);
+        QTextDocument *again = back->editableFootnote(3);
+        QVERIFY(again);
+        QCOMPARE(again->toPlainText(), note->toPlainText());
+        QCOMPARE(partOf(back->toDocx(), QStringLiteral("/word/footnotes.xml")), out);
+        QCOMPARE(documentXml(back->toDocx()), documentXml(saved));
+    }
+
+    // A document with no notes gets a footnotes part when a footnote is inserted: the part with its separators, its content type and relationship, the settings that name them, and the styles; and it reads back.
+    void aNewFootnotesPartIsValidAndReadsBack()
+    {
+        const QByteArray original = makeDocxWithParts(paragraphs(3, 20), pageSection(), {}, QByteArray(), kStyles);
+        auto doc = open(original);
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->findBlockByNumber(1).position() + 4);
+        QTextDocument *note = insertFootnote(*doc, c);
+        QVERIFY(note);
+        typeAtEnd(*doc, note, QStringLiteral("A new note."));
+        const QByteArray saved = doc->toDocx();
+        QStringList problems = rt::strictProblems(saved, original);
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QLatin1Char('\n'))));
+        QVERIFY(rt::danglingReferences(saved).isEmpty());
+        office::Package pkg;
+        QVERIFY(pkg.read(saved));
+        QVERIFY(pkg.hasPart(QStringLiteral("/word/footnotes.xml")));
+        QCOMPARE(pkg.contentType(QStringLiteral("/word/footnotes.xml")), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"));
+        QCOMPARE(int(pkg.relationshipsOfType(pkg.mainPart(), QStringLiteral("/footnotes")).size()), 1);
+        QVERIFY(pkg.relationshipsOfType(pkg.mainPart(), QStringLiteral("/footnotes")).first().target.endsWith(QLatin1String("footnotes.xml")));
+        QVector<wml::NotePart> notes;
+        QVERIFY(wml::readNotes(pkg.part(QStringLiteral("/word/footnotes.xml")), &notes));
+        QCOMPARE(int(notes.size()), 3);
+        QCOMPARE(notes[0].type, QStringLiteral("separator"));
+        QCOMPARE(notes[1].type, QStringLiteral("continuationSeparator"));
+        QCOMPARE(notes[2].id, 1);
+        // The settings name the separators (a part made for it, with its relationship and type), and the styles that the note and its reference use are there.
+        QCOMPARE(int(pkg.relationshipsOfType(pkg.mainPart(), QStringLiteral("/settings")).size()), 1);
+        const QString settingsName = pkg.relationshipsOfType(pkg.mainPart(), QStringLiteral("/settings")).first().target;
+        QVERIFY(pkg.part(settingsName).contains("<w:footnotePr><w:footnote w:id=\"-1\"/><w:footnote w:id=\"0\"/></w:footnotePr>"));
+        QCOMPARE(pkg.contentType(settingsName), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"));
+        const QByteArray styles = pkg.part(QStringLiteral("/word/styles.xml"));
+        QVERIFY(styles.contains("w:styleId=\"FootnoteText\"") && styles.contains("w:styleId=\"FootnoteReference\""));
+        const QByteArray main = documentXml(saved);
+        QVERIFY2(main.contains("<w:footnoteReference w:id=\"1\"/>") && main.contains("<w:rStyle w:val=\"FootnoteReference\"/>"), main.constData());
+        // It reads back: the reference, the note and its words, on the page; saved again, the same bytes.
+        auto back = open(saved);
+        QVERIFY(back);
+        QCOMPARE(int(back->footnoteReferences(1).size()), 1);
+        QTextDocument *readBack = back->editableFootnote(1);
+        QVERIFY(readBack && readBack->toPlainText().endsWith(QStringLiteral("A new note.")));
+        QCOMPARE(int(notesOnPage(*back, 0).size()), 1);
+        QCOMPARE(partOf(back->toDocx(), QStringLiteral("/word/footnotes.xml")), pkg.part(QStringLiteral("/word/footnotes.xml")));
+        QCOMPARE(documentXml(back->toDocx()), main);
+        // A document that had a footnotes part with only its separators gets the note in that part, and its settings are as they were.
+        const QByteArray settings = "<w:footnotePr><w:footnote w:id=\"-1\"/><w:footnote w:id=\"0\"/></w:footnotePr>";
+        const QByteArray bare = notesDocx(paragraphs(2, 20), footnotesPart({}), settings);
+        auto doc2 = open(bare);
+        QVERIFY(doc2);
+        QTextCursor c2(doc2->story());
+        c2.setPosition(3);
+        QVERIFY(insertFootnote(*doc2, c2));
+        office::Package pkg2;
+        QVERIFY(pkg2.read(doc2->toDocx()));
+        office::Package was;
+        QVERIFY(was.read(bare));
+        QCOMPARE(pkg2.part(QStringLiteral("/word/settings.xml")), was.part(QStringLiteral("/word/settings.xml")));
+        QCOMPARE(int(pkg2.relationshipsOfType(pkg2.mainPart(), QStringLiteral("/footnotes")).size()), 1);
+        QVERIFY(pkg2.part(QStringLiteral("/word/footnotes.xml")).contains("w:id=\"1\""));
+    }
+
+    // A footnote put in and taken back leaves the document as it was: no part, no relationship, no styles, not modified.
+    void aFootnoteInsertedAndTakenBackLeavesTheFileAsItWas()
+    {
+        const QByteArray original = makeDocxWithParts(paragraphs(3, 20), pageSection(), {}, QByteArray(), kStyles);
+        auto doc = open(original);
+        QVERIFY(doc);
+        const QByteArray before = doc->toDocx();
+        QTextCursor c(doc->story());
+        c.setPosition(4);
+        QTextDocument *note = insertFootnote(*doc, c);
+        QVERIFY(note);
+        typeAtEnd(*doc, note, QStringLiteral("typed"));
+        while (doc->canUndo()) doc->undo();
+        QVERIFY(!doc->isModified());
+        const QByteArray after = doc->toDocx();
+        office::Package a, b;
+        QVERIFY(a.read(before));
+        QVERIFY(b.read(after));
+        QCOMPARE(b.partNames(), a.partNames());
+        QCOMPARE(b.part(QStringLiteral("/word/styles.xml")), a.part(QStringLiteral("/word/styles.xml")));
+        QCOMPARE(documentXml(after), documentXml(before));
+        QVERIFY(!b.hasPart(QStringLiteral("/word/footnotes.xml")));
+        QCOMPARE(int(b.relationships(b.mainPart()).size()), int(a.relationships(a.mainPart()).size()));
+    }
+
+    // ---- footnotes: in the window
+
+    // A point on a page, in points from its top left corner, as a place in the view's window.
+    static QPoint pagePoint(PageView &view, int page, double x, double y)
+    {
+        const QRect r = view.pageRect(page);
+        return QPoint(r.left() + int(x * 96 / 72 * view.zoom()), r.top() + int(y * 96 / 72 * view.zoom()));
+    }
+
+    // The box of a note on a page (in page coordinates): where the page sets the note with that Id.
+    static bool noteBoxOf(WriteDoc &doc, int page, int id, QRectF *rect)
+    {
+        const auto pg = doc.pager().materialize(page);
+        if (!pg) return false;
+        for (const auto &nb : pg->noteBoxes) {
+            int found = 0;
+            if (!doc.footnoteIdOf(nb.source, &found) || found != id) continue;
+            if (const Item *item = pg->doc->item(nb.itemId)) {
+                *rect = item->rect;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Clicking in a note's words at the foot of a page puts the caret there: typing, deleting, selecting, and the clipboard are the note's, and the text of the page is as it was.
+    void clickingInAFootnoteOnThePagePutsTheCaretThereAndEditsAreTheNotes()
+    {
+        auto doc = open(threeNotesDocx());
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 1200);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        QSignalSpy mode(&view, &PageView::noteModeChanged);
+        QRectF box;
+        QVERIFY(noteBoxOf(*doc, 0, 3, &box));
+        QTextDocument *note = doc->editableFootnote(3);
+        QVERIFY(note);
+        const QString body = plain(*doc);
+        QVERIFY(!view.inNote());
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, 0, box.left() + 60, box.center().y()));
+        QVERIFY(view.inNote());
+        QCOMPARE(mode.count(), 1);
+        QCOMPARE(view.noteEdit().id, 3);
+        QCOMPARE(view.noteEdit().page, 0);
+        QCOMPARE(view.cursor().document(), note);
+        QVERIFY(view.cursor().position() >= noteTextStart(note));
+        // The caret is drawn in the note's box.
+        QRect caret;
+        QVERIFY(view.caretRect(&caret));
+        const QRect inView(pagePoint(view, 0, box.left(), box.top()), pagePoint(view, 0, box.right(), box.bottom()));
+        QVERIFY2(inView.adjusted(-3, -3, 3, 3).contains(caret), qPrintable(QStringLiteral("caret %1,%2 box %3,%4 %5x%6").arg(caret.x()).arg(caret.y()).arg(inView.x()).arg(inView.y()).arg(inView.width()).arg(inView.height())));
+        // Typing and deleting.
+        QTest::keyClicks(&view, "xyz");
+        QVERIFY(note->toPlainText().contains(QLatin1String("xyz")));
+        QTest::keyClick(&view, Qt::Key_Backspace);
+        QVERIFY(note->toPlainText().contains(QLatin1String("xy")) && !note->toPlainText().contains(QLatin1String("xyz")));
+        const int length = int(note->toPlainText().size());
+        QTest::keyClick(&view, Qt::Key_Delete);
+        QCOMPARE(int(note->toPlainText().size()), length - 1);
+        // Selecting with the keys, and the clipboard: a copy of the words, pasted at the end.
+        QTest::keyClick(&view, Qt::Key_Left, Qt::ShiftModifier);
+        QTest::keyClick(&view, Qt::Key_Left, Qt::ShiftModifier);
+        QVERIFY(view.cursor().hasSelection());
+        QCOMPARE(view.cursor().document(), note);
+        const QString picked = view.cursor().selectedText();
+        view.copy();
+        QTest::keyClick(&view, Qt::Key_End, Qt::ControlModifier);
+        view.paste();
+        QVERIFY(note->toPlainText().endsWith(picked));
+        // Everything in the note selected and cut: the words go, the number stays; and an undo gives them back.
+        view.selectAll();
+        QCOMPARE(view.cursor().selectionStart(), noteTextStart(note));
+        view.cut();
+        QCOMPARE(note->toPlainText(), noteMark());
+        view.undo();
+        QVERIFY(note->toPlainText().size() > 10);
+        // The text of the page is as it was, and the note is the document's the whole time.
+        QCOMPARE(plain(*doc), body);
+        QVERIFY(doc->isModified());
+        QVERIFY(layoutDiffersFromFresh(*doc).isEmpty());
+    }
+
+    // The commands that change how text looks work in a note as they do in the text.
+    void theLooksOfTextAreGivenToWordsInAFootnote()
+    {
+        WriteWindow w;
+        w.resize(1300, 1000);
+        w.show();
+        w.setDocument(open(threeNotesDocx()), QString());
+        WriteDoc *doc = w.document();
+        w.view()->paginateAll();
+        QVERIFY(w.view()->enterFootnote(3));
+        QTextDocument *note = doc->editableFootnote(3);
+        QVERIFY(note);
+        QTextCursor &c = w.view()->cursor();
+        QCOMPARE(c.document(), note);
+        c.setPosition(noteTextStart(note));
+        c.setPosition(note->characterCount() - 1, QTextCursor::KeepAnchor);
+        w.act("fmt.bold")->trigger();
+        w.act("fmt.alignRight")->trigger();
+        QVERIFY(allSelected(c, [](const QTextCharFormat &f) { return f.fontWeight() >= QFont::DemiBold; }));
+        QCOMPARE(int(note->begin().blockFormat().alignment() & Qt::AlignHorizontal_Mask), int(Qt::AlignRight));
+        // (The commands for a page's breaks and for a note are gray in a note.)
+        QTRY_VERIFY(!w.act("insert.pageBreak")->isEnabled());
+        QVERIFY(!w.act("layout.sectionBreak")->isEnabled());
+        QVERIFY(!w.act("refs.footnote")->isEnabled());
+        const QByteArray part = partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml"));
+        QVERIFY2(part.contains("<w:b/>") && part.contains("<w:jc w:val=\"right\"/>"), part.constData());
+        // Out of the note, and they are enabled again.
+        QTest::keyClick(w.view(), Qt::Key_Escape);
+        QVERIFY(!w.view()->inNote());
+        QTRY_VERIFY(w.act("insert.pageBreak")->isEnabled());
+        QVERIFY(w.act("refs.footnote")->isEnabled());
+    }
+
+    // Neither the number that begins a note nor the line above the notes can be edited: a click on the number puts the caret after it, and a click on the line is in neither note.
+    void aClickOnTheNumberMarkOrTheSeparatorEditsNothing()
+    {
+        auto doc = open(threeNotesDocx());
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 1200);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        QRectF box;
+        QVERIFY(noteBoxOf(*doc, 0, 2, &box));
+        QTextDocument *note = doc->editableFootnote(2);
+        QVERIFY(note);
+        const QString was = note->toPlainText();
+        // A click on the number (the left edge of the box): the caret is after it; Home keeps it there; Backspace and a select-all with Delete leave it.
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, 0, box.left() + 0.5, box.center().y()));
+        QVERIFY(view.inNote());
+        QVERIFY(view.cursor().position() >= noteTextStart(note));
+        QTest::keyClick(&view, Qt::Key_Home);
+        QCOMPARE(view.cursor().position(), noteTextStart(note));
+        QTest::keyClick(&view, Qt::Key_Backspace);
+        QCOMPARE(note->toPlainText(), was);
+        view.selectAll();
+        QTest::keyClick(&view, Qt::Key_Delete);
+        QCOMPARE(note->toPlainText(), noteMark());
+        QTest::keyClick(&view, Qt::Key_Backspace);
+        QCOMPARE(note->toPlainText(), noteMark());
+        view.undo();
+        QCOMPARE(note->toPlainText(), was);
+        // The line above the notes: a click on it enters no note (the text is where the caret goes).
+        view.leaveNote();
+        const auto page = doc->pager().materialize(0);
+        const LineItem *rule = nullptr;
+        for (const auto &item : page->doc->pages[0]->items)
+            if (const auto *line = dynamic_cast<const LineItem *>(item.get())) rule = line;
+        QVERIFY(rule);
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, 0, (rule->p1.x() + rule->p2.x()) / 2, rule->p1.y()));
+        QVERIFY(!view.inNote());
+        QCOMPARE(view.cursor().document(), doc->story());
+        // And the separator is written as it was whatever was done.
+        const QByteArray part = partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml"));
+        QVERIFY(part.contains("<w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>"));
+        QVERIFY(part.contains("<w:footnote w:type=\"continuationSeparator\" w:id=\"0\"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>"));
+    }
+
+    // Up from a note's first line and Down from its last leave it, with the caret in the text just after the note's reference; so do Esc and a click in the text. Inside the note the keys move by its lines.
+    void upAndDownAndAClickInTheTextLeaveTheNote()
+    {
+        QByteArray longNote;
+        for (int i = 0; i < 40; ++i) longNote += plainRun(" words that fill the lines of this note, " + QByteArray::number(i));
+        auto doc = open(notesDocx(citing("First paragraph", 2) + paragraphs(3, 30) + citing("Second", 3), footnotesPart({{2, plainRun(" short note")}, {3, longNote}})));
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 1200);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        QSignalSpy mode(&view, &PageView::noteModeChanged);
+        QRectF box;
+        QVERIFY(noteBoxOf(*doc, 0, 2, &box));
+        QTextDocument *shortNote = doc->editableFootnote(2);
+        QVERIFY(shortNote);
+        const int after = doc->footnoteReferences(2).first() + 1;
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, 0, box.left() + 40, box.center().y()));
+        QVERIFY(view.inNote());
+        QTest::keyClick(&view, Qt::Key_Up);
+        QVERIFY(!view.inNote());
+        QCOMPARE(view.cursor().document(), doc->story());
+        QCOMPARE(view.cursor().position(), after);
+        QCOMPARE(mode.count(), 2);
+        QVERIFY(view.enterFootnote(2));
+        QTest::keyClick(&view, Qt::Key_Down);
+        QVERIFY(!view.inNote());
+        QCOMPARE(view.cursor().position(), after);
+        QVERIFY(view.enterFootnote(2));
+        QTest::keyClick(&view, Qt::Key_Escape);
+        QVERIFY(!view.inNote());
+        QCOMPARE(view.cursor().position(), after);
+        // A click in the text of the page leaves the note, and the caret is where the click was.
+        QVERIFY(view.enterFootnote(2));
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, 0, 200, 120));
+        QVERIFY(!view.inNote());
+        QCOMPARE(view.cursor().document(), doc->story());
+        QVERIFY(view.cursor().position() != after);
+        // A note of many lines: the keys move by its lines first. From the last line, Up goes up the note, and only from the first does it leave.
+        QRectF big;
+        const int page = doc->pager().pageOfPosition(doc->footnoteReferences(3).first());
+        QVERIFY(noteBoxOf(*doc, page, 3, &big));
+        QVERIFY(view.enterFootnote(3));
+        QTextDocument *longStory = doc->editableFootnote(3);
+        view.cursor().setPosition(longStory->characterCount() - 1);
+        const int last = view.cursor().position();
+        QTest::keyClick(&view, Qt::Key_Up);
+        QVERIFY(view.inNote());
+        QVERIFY(view.cursor().position() < last);
+        for (int i = 0; i < 60 && view.inNote(); ++i) QTest::keyClick(&view, Qt::Key_Up);
+        QVERIFY(!view.inNote());
+        QCOMPARE(view.cursor().position(), doc->footnoteReferences(3).first() + 1);
+    }
+
+    // The one history holds the text's steps, a header's, and a note's, in the order they were made; the view follows an undo into the note or the header it was made in.
+    void oneHistoryInterleavesTheTextAHeaderAndANote()
+    {
+        auto doc = open(makeDocxWithParts(threeNotesBody(), sectionNaming({{"default", "rIdheader1"}}),
+                                          {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>Head</w:t></w:r>"})}, {QStringLiteral("/word/footnotes.xml"), footnotesPart(threeNotes())}},
+                                          QByteArray(), noteStyles()));
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 1200);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        QTextDocument *header = doc->editableHeaderFooter(0, false, WriteDoc::kDefaultSlot);
+        QTextDocument *note = doc->editableFootnote(5);
+        QVERIFY(header && note);
+        QTextCursor body(doc->story());
+        body.setPosition(0);
+        insertText(*doc, body, QStringLiteral("B"));
+        typeAtEnd(*doc, header, QStringLiteral("H"));
+        typeAtEnd(*doc, note, QStringLiteral("N"));
+        insertText(*doc, body, QStringLiteral("b"));
+        QCOMPARE(header->toPlainText(), QStringLiteral("HeadH"));
+        // Undone one step at a time, the view goes where the step was.
+        view.undo();   // the text's second step
+        QVERIFY(!view.inNote() && !view.inHeaderFooter());
+        QVERIFY(plain(*doc).startsWith(QStringLiteral("B")) && !plain(*doc).startsWith(QStringLiteral("Bb")));
+        view.undo();   // the note's
+        QVERIFY(view.inNote());
+        QCOMPARE(view.noteEdit().id, 5);
+        QCOMPARE(view.cursor().document(), note);
+        QVERIFY(!note->toPlainText().endsWith(QLatin1Char('N')));
+        view.undo();   // the header's: the view leaves the note for it
+        QVERIFY(view.inHeaderFooter());
+        QVERIFY(!view.inNote());
+        QCOMPARE(header->toPlainText(), QStringLiteral("Head"));
+        view.undo();   // the text's first
+        QVERIFY(!view.inHeaderFooter() && !view.inNote());
+        QVERIFY(!plain(*doc).startsWith(QLatin1Char('B')));
+        QVERIFY(!doc->canUndo());
+        // Done again, in the same order.
+        view.redo();
+        view.redo();
+        QVERIFY(view.inHeaderFooter());
+        view.redo();
+        QVERIFY(view.inNote());
+        QVERIFY(note->toPlainText().endsWith(QLatin1Char('N')));
+        view.redo();
+        QVERIFY(!view.inNote() && !view.inHeaderFooter());
+        QVERIFY(plain(*doc).startsWith(QStringLiteral("Bb")));
+        QVERIFY(!doc->canRedo());
+        QVERIFY(layoutDiffersFromFresh(*doc).isEmpty());
+    }
+
+    // Insert Footnote on the References tab, and Ctrl+Alt+F: the window makes the note and the caret is in it, at the foot of the page, for typing.
+    void insertFootnoteIsOnTheReferencesTabAndMovesTheCaretIntoTheNote()
+    {
+        WriteWindow w;
+        w.resize(1300, 1000);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        QStringList tabs;
+        for (int i = 0; i < w.ribbon()->tabCount(); ++i) tabs << w.ribbon()->tabName(i);
+        QVERIFY2(tabs.contains(QStringLiteral("References")), qPrintable(tabs.join(QLatin1Char(','))));
+        QVERIFY(tabs.indexOf(QStringLiteral("Layout")) < tabs.indexOf(QStringLiteral("References")) && tabs.indexOf(QStringLiteral("References")) < tabs.indexOf(QStringLiteral("Review")));
+        QVERIFY(w.act("refs.footnote"));
+        QCOMPARE(w.act("refs.footnote")->shortcut(), QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_F));
+        w.setDocument(open(makeDocxWithParts(paragraphs(4, 40), pageSection(), {}, QByteArray(), kStyles)), QString());
+        WriteDoc *doc = w.document();
+        w.view()->paginateAll();
+        w.view()->cursor().setPosition(doc->story()->findBlockByNumber(1).position() + 5);
+        QVERIFY(w.act("refs.footnote")->isEnabled());
+        w.act("refs.footnote")->trigger();
+        QVERIFY(w.view()->inNote());
+        QCOMPARE(w.view()->noteEdit().id, 1);
+        QCOMPARE(w.view()->cursor().document(), doc->editableFootnote(1));
+        QCOMPARE(w.view()->cursor().position(), doc->editableFootnote(1)->characterCount() - 1);
+        // (The caret is drawn in the note, on the page.)
+        QRect caret;
+        QVERIFY(w.view()->caretRect(&caret));
+        QRectF box;
+        QVERIFY(noteBoxOf(*doc, 0, 1, &box));
+        QTest::keyClicks(w.view(), "A note typed in the window");
+        QVERIFY(doc->editableFootnote(1)->toPlainText().endsWith(QStringLiteral("A note typed in the window")));
+        QVERIFY(partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")).contains("A note typed in the window"));
+        // The key combination does it too, from the text: a second note, numbered by its place.
+        QTest::keyClick(w.view(), Qt::Key_Escape);
+        QVERIFY(!w.view()->inNote());
+        w.view()->cursor().setPosition(doc->story()->findBlockByNumber(0).position() + 3);
+        QTest::keyClick(w.view(), Qt::Key_F, Qt::ControlModifier | Qt::AltModifier);
+        QVERIFY(w.view()->inNote());
+        QCOMPARE(w.view()->noteEdit().id, 2);
+        QCOMPARE(notesOnPage(*doc, 0), (QList<std::pair<int, int>>{{2, 1}, {1, 2}}));
+        // Not in a header: the command is gray and does nothing.
+        QTest::keyClick(w.view(), Qt::Key_Escape);
+        QVERIFY(w.view()->enterHeaderFooter(0, false, true));
+        QTRY_VERIFY(!w.act("refs.footnote")->isEnabled());
+        const int notes = int(notesOnPage(*doc, 0).size());
+        w.act("refs.footnote")->trigger();
+        QCOMPARE(int(notesOnPage(*doc, 0).size()), notes);
+        QVERIFY(w.view()->inHeaderFooter());
+    }
+
+    // A footnote being edited, as the window shows it (a picture of it is saved where JW_NOTE_SHOT says, for the documentation; without it, the picture is only made).
+    void aFootnoteBeingEditedIsShownInTheWindow()
+    {
+        QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Results for the third quarter</w:t></w:r></w:p>";
+        body += citing("Sales rose in every region, led by the northern offices", 2);
+        body += paragraphs(3, 45);
+        body += citing("The cost of materials fell for the second quarter in a row", 3);
+        const QByteArray notes = footnotesPart({{2, plainRun(" Figures are in thousands, and the quarter ended on September 30.")},
+                                                {3, plainRun(" Prices come from the suppliers' own lists, which are published every month.")}});
+        WriteWindow w;
+        w.resize(1440, 1270);
+        w.show();
+        w.setDocument(open(notesDocx(body, notes)), QString());
+        w.view()->setZoom(1.0);
+        w.view()->paginateAll();
+        QVERIFY(w.view()->enterFootnote(3));
+        // The caret after "Prices come from", and the words after it to the end of the line selected: the picture shows the caret's place and a selection.
+        QTextCursor &c = w.view()->cursor();
+        QTextDocument *note = w.document()->editableFootnote(3);
+        c.setPosition(noteTextStart(note) + 1);
+        c.movePosition(QTextCursor::NextWord, QTextCursor::KeepAnchor);
+        c.movePosition(QTextCursor::NextWord, QTextCursor::KeepAnchor);
+        w.view()->setCaretWithoutFocus(true);
+        // The ribbon follows the caret a moment later (it refreshes on a timer): its font and size boxes show the note's own look, not the heading's they showed before.
+        const QTextCharFormat shown = c.charFormat();
+        QVERIFY(shown.fontPointSize() > 0 && shown.fontPointSize() < 17);
+        const QList<FontCombo *> fonts = w.findChildren<FontCombo *>();
+        const QList<SizeCombo *> sizes = w.findChildren<SizeCombo *>();
+        QVERIFY(!fonts.isEmpty() && !sizes.isEmpty());
+        const QString family = shown.hasProperty(QTextFormat::FontFamilies) && !shown.fontFamilies().toStringList().isEmpty() ? shown.fontFamilies().toStringList().first() : w.document()->flow().env.fonts.body;
+        QTRY_COMPARE(sizes.first()->currentText(), QString::number(shown.fontPointSize()));
+        QTRY_COMPARE(fonts.first()->currentText(), family);
+        QCoreApplication::processEvents();
+        const QImage shot = w.grab().toImage();
+        QVERIFY(!shot.isNull());
+        QCOMPARE(shot.size(), w.size() * int(shot.devicePixelRatio()));
+        QVERIFY(w.view()->inNote());
+        // The picture has the note in it: text is drawn in the box of the note, over the white of the page.
+        QRectF box;
+        QVERIFY(noteBoxOf(*w.document(), 0, 3, &box));
+        const QRect inWindow(w.view()->viewport()->mapTo(&w, pagePoint(*w.view(), 0, box.left(), box.top())), w.view()->viewport()->mapTo(&w, pagePoint(*w.view(), 0, box.right(), box.bottom())));
+        int ink = 0;
+        for (int y = inWindow.top(); y < inWindow.bottom(); y += 2)
+            for (int x = inWindow.left(); x < inWindow.right(); x += 2) ink += qGray(shot.pixel(QPoint(x, y) * int(shot.devicePixelRatio()))) < 128;
+        QVERIFY2(ink > 50, qPrintable(QString::number(ink)));
+        if (qEnvironmentVariableIsSet("JW_NOTE_SHOT")) QVERIFY(shot.save(qEnvironmentVariable("JW_NOTE_SHOT")));
+    }
+
+    // A note that goes on from page to page (it is cited among tables and objects, and the pages that hold the rest of it are not the pages right after the one that cites it) is
+    // edited anywhere in its words, and the pages after are as a new paginator makes them: those that hold the rest of it are laid out again too.
+    void aNoteThatGoesOnFromPageToPageIsEditedAnywhereAndThePagesFollow()
+    {
+        // (The note is made long enough to be cut over three pages or more, whatever the fonts the machine has: its length doubles until it is.)
+        std::unique_ptr<WriteDoc> doc;
+        QTextDocument *note = nullptr;
+        int carriers = 0;
+        for (int words = 220; carriers < 2 && words <= 7040; words *= 2) {
+            doc = open(richMixedDocx(words));
+            QVERIFY(doc);
+            note = doc->editableFootnote(4);
+            QVERIFY(note);
+            carriers = 0;
+            for (int k = 0; k < doc->pager().pageCount(); ++k)
+                for (const QString &c : doc->pager().page(k).start.carried) carriers += c.startsWith(QLatin1String("fn4|"));
+        }
+        QVERIFY2(carriers >= 2, qPrintable(QString::number(carriers)));
+        QVERIFY(layoutDiffersFromFresh(*doc).isEmpty());
+        const int total = note->characterCount();
+        for (int kind = 0; kind < 4; ++kind)
+            for (int at = 1; at < total - 1; at += 151) {
+                QTextCursor nc(note);
+                nc.setPosition(at);
+                nc.setPosition(std::min(at + 25, total - 1), QTextCursor::KeepAnchor);
+                switch (kind) {
+                case 0: removeSelection(*doc, nc); break;
+                case 1: toggleBold(*doc, nc); break;
+                case 2: deleteBack(*doc, nc, false); break;
+                default: insertParagraph(*doc, nc); break;
+                }
+                const QString d = layoutDiffersFromFresh(*doc);
+                QVERIFY2(d.isEmpty(), qPrintable(QStringLiteral("kind %1 at %2: %3").arg(kind).arg(at).arg(d.left(400))));
+                while (doc->canUndo()) doc->undo();
+                const QString back = layoutDiffersFromFresh(*doc);
+                QVERIFY2(back.isEmpty(), qPrintable(QStringLiteral("after undoing kind %1 at %2: %3").arg(kind).arg(at).arg(back.left(400))));
+            }
+    }
+
+    // ---- endnotes: editing them where they stand
+
+    // The paragraphs of the story that are one endnote's (the first copy of it), in order.
+    static QVector<QTextBlock> endnoteParagraphs(WriteDoc &doc, int id)
+    {
+        QVector<QTextBlock> out;
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next()) {
+            int found = 0;
+            if (doc.endnoteIdOf(b, &found) && found == id && b.blockFormat().intProperty(prop::EndnoteNote) > 0) out << b;
+        }
+        return out;
+    }
+
+    // The notes the pages set, in order, each as its Id and the number its mark shows ("2:1"); and the references of the text, each as the Id it names and the number it shows.
+    static QStringList endnoteMarks(WriteDoc &doc)
+    {
+        QStringList out;
+        int last = 0;
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next()) {
+            int id = 0;
+            const int serial = b.blockFormat().intProperty(prop::EndnoteNote);
+            if (!doc.endnoteIdOf(b, &id) || serial == last) continue;
+            last = serial;
+            out << QStringLiteral("%1:%2").arg(id).arg(b.begin().fragment().charFormat().stringProperty(tp::Field).mid(4));
+        }
+        return out;
+    }
+    static QStringList endnoteReferenceNumbers(WriteDoc &doc)
+    {
+        QStringList out;
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QTextCharFormat cf = it.fragment().charFormat();
+                if (!cf.hasProperty(prop::Atom) || !storedBytes(cf, prop::Atom).contains("endnoteReference")) continue;
+                const wml::Inline atom = unpackAtom(storedBytes(cf, prop::Atom));
+                for (int k = 0; k < it.fragment().length(); ++k) out << atom.key + QLatin1Char(':') + cf.stringProperty(tp::Field).mid(4);
+            }
+        return out;
+    }
+    static const QByteArray &betaNote()
+    {
+        static const QByteArray s = "<w:endnote w:id=\"3\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Beta body note</w:t></w:r></w:p></w:endnote>";
+        return s;
+    }
+    static const QByteArray &sourcesNote()
+    {
+        static const QByteArray s = "<w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:t>Sources</w:t></w:r></w:p></w:endnote>";
+        return s;
+    }
+
+    // The words of an endnote are edited where the pages set them: typing in them is the note's, the body and the other notes and the separator are as they were, and what is
+    // saved has the one note rewritten and the rest as the file had it; an undo gives the file's own bytes back.
+    void theWordsOfAnEndnoteAreEditedWhereTheyStand()
+    {
+        const QByteArray zip = notedDocx();
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *story = doc->story();
+        const QString text = savedBody(*doc);
+        const QTextBlock alpha = story->findBlockByNumber(3);
+        QCOMPARE(alpha.text().mid(1), QStringLiteral(" Alpha body note brwon"));
+        int id = 0;
+        QVERIFY(doc->endnoteIdOf(alpha, &id));
+        QCOMPARE(id, 2);
+        QVERIFY(!doc->endnoteIdOf(story->findBlockByNumber(2)));   // (the separator is no note's)
+        QVERIFY(!doc->endnoteIdOf(story->findBlockByNumber(1)));
+        QTextCursor c(story);
+        c.setPosition(alpha.position() + 2);
+        c.setPosition(alpha.position() + 7, QTextCursor::KeepAnchor);   // "Alpha"
+        insertText(*doc, c, QStringLiteral("ZZZ"));
+        insertText(*doc, c, QStringLiteral("!"));
+        QCOMPARE(story->findBlockByNumber(3).text().mid(1), QStringLiteral(" ZZZ! body note brwon"));
+        QCOMPARE(story->findBlockByNumber(4).text().mid(1), QStringLiteral(" Beta body note"));
+        QCOMPARE(story->findBlockByNumber(2).text(), QStringLiteral("Sources"));
+        QCOMPARE(savedBody(*doc), text);
+        const QByteArray saved = doc->toDocx();
+        const QByteArray part = notesPartOf(saved);
+        QVERIFY2(part.contains("ZZZ!") && !part.contains("Alpha"), part.constData());
+        QVERIFY2(part.contains(betaNote()) && part.contains(sourcesNote()), part.constData());
+        QVERIFY(rt::strictProblems(saved, zip).isEmpty());
+        // The words are the story's, in the one history: an undo takes them back, and the part is the file's own.
+        while (doc->canUndo()) doc->undo();
+        QCOMPARE(story->findBlockByNumber(3).text().mid(1), QStringLiteral(" Alpha body note brwon"));
+        QCOMPARE(notesPartOf(doc->toDocx()), notesPartOf(zip));
+        // Saved and read again, the note says what was typed.
+        doc->redo();
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QVERIFY(again->story()->findBlockByNumber(3).text().contains(QLatin1String("ZZZ!")));
+    }
+
+    // No edit takes an endnote's number, or reaches the separator, or another note: the caret is held after the number, a selection stops at the end of the note it began in, and Backspace
+    // and Delete at a note's edges join it to nothing.
+    void noEditReachesTheSeparatorTheNumberOrAnotherEndnote()
+    {
+        const QByteArray zip = notedDocx();
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *story = doc->story();
+        const QString mark(QChar::ObjectReplacementCharacter);
+        auto block = [&](int n) { return story->findBlockByNumber(n); };
+        // The separator: nothing is typed, made, or deleted there.
+        const QString before = story->toPlainText();
+        QTextCursor sep(story);
+        sep.setPosition(block(2).position() + 3);
+        insertText(*doc, sep, QStringLiteral("ZZZ"));
+        insertParagraph(*doc, sep);
+        deleteBack(*doc, sep, false);
+        deleteForward(*doc, sep, false);
+        QCOMPARE(story->toPlainText(), before);
+        // The number: typing before it goes after it; Backspace just after it does nothing; so does the word-wise one.
+        QTextCursor c(story);
+        c.setPosition(block(3).position());
+        insertText(*doc, c, QStringLiteral("X"));
+        QCOMPARE(block(3).text(), mark + QStringLiteral("X Alpha body note brwon"));
+        c.setPosition(block(3).position() + 1);
+        deleteBack(*doc, c, false);
+        deleteBack(*doc, c, true);
+        QCOMPARE(block(3).text(), mark + QStringLiteral("X Alpha body note brwon"));
+        // A selection from inside the first note to inside the second stops at the end of the first: the second note is whole.
+        QTextCursor across(story);
+        across.setPosition(block(3).position() + 10);
+        across.setPosition(block(4).position() + 6, QTextCursor::KeepAnchor);
+        removeSelection(*doc, across);
+        QCOMPARE(block(3).text(), mark + QStringLiteral("X Alpha b"));
+        QCOMPARE(block(4).text(), mark + QStringLiteral(" Beta body note"));
+        QCOMPARE(story->blockCount(), 5);
+        // The same from the second note back into the first, and from a note into the separator: held to the note it began in.
+        QTextCursor back(story);
+        back.setPosition(block(4).position() + 6);
+        back.setPosition(block(3).position() + 3, QTextCursor::KeepAnchor);
+        removeSelection(*doc, back);
+        QCOMPARE(block(3).text(), mark + QStringLiteral("X Alpha b"));
+        QVERIFY(block(4).text().startsWith(mark));
+        QCOMPARE(story->blockCount(), 5);
+        // Backspace at the start of the second note's words, and Delete at the end of the first's, join neither.
+        QTextCursor edge(story);
+        edge.setPosition(block(4).position() + 1);
+        deleteBack(*doc, edge, false);
+        edge.setPosition(block(3).position() + block(3).length() - 1);
+        deleteForward(*doc, edge, false);
+        QCOMPARE(story->blockCount(), 5);
+        QVERIFY(block(3).text().endsWith(QLatin1String("Alpha b")));
+        // Every note's number is written as the file had it, and the separator is as it was.
+        const QByteArray part = notesPartOf(doc->toDocx());
+        QCOMPARE(int(part.count("<w:endnoteRef/>")), 2);
+        QVERIFY(part.contains(sourcesNote()));
+        QVERIFY(part.contains("body note"));
+        // A selection of all the words of a note, deleted, leaves the number and the paragraph: the note is empty and still there.
+        QTextCursor all(story);
+        all.setPosition(block(3).position());
+        all.setPosition(block(3).position() + block(3).length() - 1, QTextCursor::KeepAnchor);
+        removeSelection(*doc, all);
+        QCOMPARE(block(3).text(), mark);
+        QCOMPARE(story->blockCount(), 5);
+    }
+
+    // A note's words are edited as the text is: characters and paragraphs get their looks, Enter makes a paragraph that is the note's, the clipboard works inside a note, and what
+    // is copied out of a note and pasted in the text is the text's.
+    void anEndnoteIsEditedAsTheTextIs()
+    {
+        const QByteArray zip = notedDocx();
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *story = doc->story();
+        auto block = [&](int n) { return story->findBlockByNumber(n); };
+        QTextCursor c(story);
+        c.setPosition(block(3).position() + 2);
+        c.setPosition(block(3).position() + 7, QTextCursor::KeepAnchor);
+        toggleBold(*doc, c);
+        QVERIFY(allSelected(c, [](const QTextCharFormat &f) { return f.fontWeight() >= QFont::DemiBold; }));
+        setAlignment(*doc, c, Qt::AlignRight);
+        QCOMPARE(int(block(3).blockFormat().alignment() & Qt::AlignHorizontal_Mask), int(Qt::AlignRight));
+        QCOMPARE(int(block(4).blockFormat().alignment() & Qt::AlignHorizontal_Mask), int(Qt::AlignLeft));
+        // Enter in the middle of the first note: a second paragraph, the note's own.
+        c.setPosition(block(3).position() + 8);
+        insertParagraph(*doc, c);
+        QCOMPARE(story->blockCount(), 6);
+        int id = 0;
+        QVERIFY(doc->endnoteIdOf(block(4), &id) && id == 2);
+        QVERIFY(block(4).blockFormat().hasProperty(prop::EndnoteBlock));
+        QCOMPARE(tailOf(*doc), 4);
+        typeText(*doc, c, QStringLiteral("more"));
+        QVERIFY(block(4).text().startsWith(QLatin1String("more")));
+        // Backspace at the start of the second paragraph joins it to the first, as in the text.
+        c.setPosition(block(4).position());
+        deleteBack(*doc, c, false);
+        QCOMPARE(story->blockCount(), 5);
+        // The clipboard in the note: some words copied and pasted at the end of the note.
+        c.setPosition(block(3).position() + 2);
+        c.setPosition(block(3).position() + 4, QTextCursor::KeepAnchor);
+        const QString words = c.selectedText();
+        const QTextDocumentFragment held = selectionFragment(c);
+        QCOMPARE(plainTextOf(held), words);
+        c.setPosition(block(3).position() + block(3).length() - 1);
+        pasteFragment(*doc, c, held);
+        QVERIFY(block(3).text().endsWith(words));
+        QCOMPARE(tailOf(*doc), 3);
+        // Words of a note pasted in the text are the text's.
+        QTextCursor in(story);
+        in.setPosition(block(0).position() + 5);
+        pasteFragment(*doc, in, held);
+        QCOMPARE(tailOf(*doc), 3);
+        QVERIFY(savedBody(*doc).contains(words));
+        const QByteArray part = notesPartOf(doc->toDocx());
+        QVERIFY2(part.contains("<w:jc w:val=\"right\"/>") && part.contains("<w:b/>"), part.constData());
+        // Taken back, the part is the file's bytes.
+        while (doc->canUndo()) doc->undo();
+        QCOMPARE(notesPartOf(doc->toDocx()), notesPartOf(zip));
+        QCOMPARE(tailOf(*doc), 3);
+    }
+
+    // Insert > Endnote puts a reference in the text and a new note among the endnotes, in the order of the references, and numbers the others anew (the references and the notes' marks);
+    // the caret is in the new note's words. An undo takes the note, the reference, and the new numbers back; the file has the note once, and the others as they were.
+    void insertEndnoteMakesAReferenceAndANoteAndNumbersTheOthersAnew()
+    {
+        const QByteArray zip = notedDocx();
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *story = doc->story();
+        QCOMPARE(endnoteMarks(*doc), (QStringList{"2:1", "3:2"}));
+        QCOMPARE(endnoteReferenceNumbers(*doc), (QStringList{"2:1", "3:2"}));
+        QTextCursor c(story);
+        c.setPosition(5);   // (after "First")
+        QVERIFY(insertEndnote(*doc, c));
+        QCOMPARE(c.document(), story);
+        int id = 0;
+        QVERIFY(doc->endnoteIdOf(c.block(), &id));
+        QCOMPARE(id, 4);
+        QCOMPARE(c.position(), c.block().position() + c.block().length() - 1);   // (at the end of the note's words)
+        QCOMPARE(c.block().text(), QString(QChar::ObjectReplacementCharacter) + QStringLiteral(" "));
+        // The notes are in the order of their references, and each reference and each note shows its number.
+        QCOMPARE(endnoteMarks(*doc), (QStringList{"4:1", "2:2", "3:3"}));
+        QCOMPARE(endnoteReferenceNumbers(*doc), (QStringList{"4:1", "2:2", "3:3"}));
+        QCOMPARE(doc->endnoteReferences(4), (QVector<int>{5}));
+        QCOMPARE(tailOf(*doc), 4);
+        typeText(*doc, c, QStringLiteral("A new endnote."));
+        const QByteArray saved = doc->toDocx();
+        const QByteArray part = notesPartOf(saved);
+        QVERIFY2(part.contains("<w:endnote w:id=\"4\">") && part.contains("A new endnote."), part.constData());
+        QVERIFY(part.contains(betaNote()) && part.contains(sourcesNote()));
+        QCOMPARE(int(documentXml(saved).count("<w:endnoteReference w:id=\"4\"/>")), 1);
+        QCOMPARE(savedBody(*doc), QStringLiteral("First body paragraph|Second body paragraph"));
+        QVERIFY(rt::strictProblems(saved, zip).isEmpty());
+        // Undone (the words, then the note with its reference): as it was, to the byte.
+        doc->undo();
+        doc->undo();
+        QCOMPARE(endnoteMarks(*doc), (QStringList{"2:1", "3:2"}));
+        QCOMPARE(endnoteReferenceNumbers(*doc), (QStringList{"2:1", "3:2"}));
+        QCOMPARE(tailOf(*doc), 3);
+        QVERIFY(!doc->canUndo());
+        QCOMPARE(notesPartOf(doc->toDocx()), notesPartOf(zip));
+        QVERIFY(!doc->isModified());
+        // Done again, both are back, with the words.
+        doc->redo();
+        doc->redo();
+        QCOMPARE(endnoteMarks(*doc), (QStringList{"4:1", "2:2", "3:3"}));
+        QVERIFY(notesPartOf(doc->toDocx()).contains("A new endnote."));
+    }
+
+    // A reference taken out of the text takes its endnote with it, in the text and in the file, and the others are numbered anew; an undo brings both back, to the byte.
+    void deletingAnEndnoteReferenceDeletesItsNoteAndUndoBringsBothBack()
+    {
+        const QByteArray zip = notedDocx();
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *story = doc->story();
+        const QVector<int> refs = doc->endnoteReferences(2);
+        QCOMPARE(int(refs.size()), 1);
+        QTextCursor c(story);
+        c.setPosition(refs[0]);
+        c.setPosition(refs[0] + 1, QTextCursor::KeepAnchor);
+        removeSelection(*doc, c);
+        QVERIFY(doc->endnoteReferences(2).isEmpty());
+        QCOMPARE(endnoteMarks(*doc), (QStringList{"3:1"}));
+        QCOMPARE(endnoteReferenceNumbers(*doc), (QStringList{"3:1"}));
+        QCOMPARE(tailOf(*doc), 2);
+        QByteArray part = notesPartOf(doc->toDocx());
+        QVERIFY2(!part.contains("Alpha") && part.contains(betaNote()) && part.contains(sourcesNote()), part.constData());
+        QVERIFY(!documentXml(doc->toDocx()).contains("endnoteReference w:id=\"2\""));
+        doc->undo();
+        QCOMPARE(endnoteMarks(*doc), (QStringList{"2:1", "3:2"}));
+        QCOMPARE(endnoteReferenceNumbers(*doc), (QStringList{"2:1", "3:2"}));
+        QCOMPARE(tailOf(*doc), 3);
+        QCOMPARE(notesPartOf(doc->toDocx()), notesPartOf(zip));
+        doc->redo();
+        QVERIFY(!notesPartOf(doc->toDocx()).contains("Alpha"));
+        doc->undo();
+        // Backspace after a reference, and Delete before one, are the same; so is the whole text selected and deleted (no notes then, and all of them back with an undo).
+        QTextCursor key(story);
+        key.setPosition(doc->endnoteReferences(3).first() + 1);
+        deleteBack(*doc, key, false);
+        QVERIFY(doc->endnoteReferences(3).isEmpty());
+        QVERIFY(!notesPartOf(doc->toDocx()).contains("Beta"));
+        doc->undo();
+        key.select(QTextCursor::Document);
+        removeSelection(*doc, key);
+        QCOMPARE(tailOf(*doc), 0);
+        QVERIFY(!notesPartOf(doc->toDocx()).contains("Alpha"));
+        doc->undo();
+        QCOMPARE(tailOf(*doc), 3);
+        QCOMPARE(notesPartOf(doc->toDocx()), notesPartOf(zip));
+    }
+
+    // Cutting a reference and pasting it moves its note (with what had been written in it); copying one and pasting it makes a note of its own with the same words.
+    void cuttingAndPastingAnEndnoteReferenceMovesItsNote()
+    {
+        auto doc = open(notedDocx());
+        QVERIFY(doc);
+        QTextDocument *story = doc->story();
+        // Words typed in the first note, then its reference cut and pasted after the second's: the notes are in the other order, and the first says what was typed.
+        QTextCursor c(story);
+        c.setPosition(story->findBlockByNumber(3).position() + story->findBlockByNumber(3).length() - 1);
+        insertText(*doc, c, QStringLiteral(" edited"));
+        const int at = doc->endnoteReferences(2).first();
+        QTextCursor cut(story);
+        cut.setPosition(at);
+        cut.setPosition(at + 1, QTextCursor::KeepAnchor);
+        const QTextDocumentFragment held = selectionFragment(cut);
+        removeSelection(*doc, cut);
+        QVERIFY(doc->endnoteReferences(2).isEmpty());
+        QCOMPARE(endnoteMarks(*doc), (QStringList{"3:1"}));
+        QTextCursor into(story);
+        into.setPosition(story->findBlockByNumber(1).position() + story->findBlockByNumber(1).length() - 1);
+        pasteFragment(*doc, into, held);
+        QCOMPARE(endnoteMarks(*doc), (QStringList{"3:1", "2:2"}));
+        QCOMPARE(endnoteReferenceNumbers(*doc), (QStringList{"3:1", "2:2"}));
+        QVERIFY(endnoteParagraphs(*doc, 2).first().text().endsWith(QLatin1String("brwon edited")));
+        QByteArray part = notesPartOf(doc->toDocx());
+        QCOMPARE(int(part.count("Alpha")), 1);
+        QVERIFY(part.contains("brwon edited"));
+        // Copied: a note of its own, with the words.
+        QTextCursor copy(story);
+        const int first = doc->endnoteReferences(3).first();
+        copy.setPosition(first);
+        copy.setPosition(first + 1, QTextCursor::KeepAnchor);
+        const QTextDocumentFragment again = selectionFragment(copy);
+        QTextCursor start(story);
+        start.setPosition(0);
+        pasteFragment(*doc, start, again);
+        QCOMPARE(int(doc->endnoteReferences(3).size()), 1);
+        QCOMPARE(int(doc->endnoteReferences(4).size()), 1);
+        QCOMPARE(endnoteMarks(*doc), (QStringList{"4:1", "3:2", "2:3"}));
+        QVERIFY(endnoteParagraphs(*doc, 4).first().text().endsWith(QLatin1String("Beta body note")));
+        part = notesPartOf(doc->toDocx());
+        QCOMPARE(int(part.count("Beta body note")), 2);
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:endnoteReference w:id=\"4\"/>"));
+        doc->undo();
+        QVERIFY(doc->endnoteReferences(4).isEmpty());
+        QCOMPARE(endnoteMarks(*doc), (QStringList{"3:1", "2:2"}));
+    }
+
+    // Where the notes are set at the end of each section, an edit in a note is the note's (the section's break stays on its last paragraph), and a new endnote is set at the end of its section.
+    void endnotesAtTheEndOfASectionAreEditedAndMadeThere()
+    {
+        const QByteArray pr = "<w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>";
+        const QByteArray zip = sectionNotedDocx(pr, pr);
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *story = doc->story();
+        auto breaks = [&] {
+            QList<bool> out;
+            for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) out << b.blockFormat().boolProperty(flow::fp::SectionBreakAfter);
+            return out;
+        };
+        const QList<bool> was = breaks();
+        QTextCursor c(story);
+        const QTextBlock alpha = story->findBlockByNumber(3);
+        c.setPosition(alpha.position() + 2);
+        insertText(*doc, c, QStringLiteral("ZZZ"));
+        QCOMPARE(story->findBlockByNumber(3).text().mid(1, 4), QStringLiteral(" ZZZ"));
+        QCOMPARE(breaks(), was);
+        QCOMPARE(savedBody(*doc), QStringLiteral("First body|Second body|Third body"));
+        QVERIFY(notesPartOf(doc->toDocx()).contains("ZZZ"));
+        QCOMPARE(doc->sectionCount(), 2);
+        // A new endnote at the end of the first section's text: it is set with that section's notes, after the first of them (its reference is after the first's), and the break moves to the new last.
+        QTextCursor end(story);
+        end.setPosition(story->findBlockByNumber(1).position() + story->findBlockByNumber(1).length() - 1);
+        QVERIFY(insertEndnote(*doc, end));
+        QCOMPARE(doc->sectionCount(), 2);
+        int id = 0;
+        QVERIFY(doc->endnoteIdOf(end.block(), &id));
+        QCOMPARE(id, 4);
+        QCOMPARE(endnoteMarks(*doc), (QStringList{"2:1", "4:2", "3:3"}));
+        QVERIFY(story->findBlockByNumber(4).blockFormat().boolProperty(flow::fp::SectionBreakAfter));   // (the break is on the last note of the section)
+        QVERIFY(!story->findBlockByNumber(3).blockFormat().boolProperty(flow::fp::SectionBreakAfter));
+        QCOMPARE(savedBody(*doc), QStringLiteral("First body|Second body|Third body"));
+        QCOMPARE(documentXml(doc->toDocx()).count("<w:sectPr"), 2);
+        QVERIFY(notesPartOf(doc->toDocx()).contains("<w:endnote w:id=\"4\">"));
+        doc->undo();
+        QCOMPARE(breaks(), was);
+        QCOMPARE(endnoteMarks(*doc), (QStringList{"2:1", "3:2"}));
+    }
+
+    // A document with no endnotes gets an endnotes part when one is inserted: the part with its separators, its content type and relationship, the settings that name them, and the styles;
+    // it reads back; and one put in and taken back leaves the file as it was.
+    void aNewEndnotesPartIsValidAndReadsBack()
+    {
+        const QByteArray original = makeDocxWithParts(paragraphs(3, 20), pageSection(), {}, QByteArray(), kStyles);
+        auto doc = open(original);
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->findBlockByNumber(1).position() + 4);
+        QVERIFY(insertEndnote(*doc, c));
+        typeText(*doc, c, QStringLiteral("A new endnote."));
+        const QByteArray saved = doc->toDocx();
+        QStringList problems = rt::strictProblems(saved, original);
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QLatin1Char('\n'))));
+        QVERIFY(rt::danglingReferences(saved).isEmpty());
+        office::Package pkg;
+        QVERIFY(pkg.read(saved));
+        QVERIFY(pkg.hasPart(QStringLiteral("/word/endnotes.xml")));
+        QCOMPARE(pkg.contentType(QStringLiteral("/word/endnotes.xml")), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"));
+        QCOMPARE(int(pkg.relationshipsOfType(pkg.mainPart(), QStringLiteral("/endnotes")).size()), 1);
+        QVector<wml::NotePart> notes;
+        QVERIFY(wml::readNotes(pkg.part(QStringLiteral("/word/endnotes.xml")), &notes));
+        QCOMPARE(int(notes.size()), 3);
+        QCOMPARE(notes[0].type, QStringLiteral("separator"));
+        QCOMPARE(notes[1].type, QStringLiteral("continuationSeparator"));
+        QCOMPARE(notes[2].id, 1);
+        const QString settingsName = pkg.relationshipsOfType(pkg.mainPart(), QStringLiteral("/settings")).first().target;
+        QVERIFY(pkg.part(settingsName).contains("<w:endnotePr><w:endnote w:id=\"-1\"/><w:endnote w:id=\"0\"/></w:endnotePr>"));
+        const QByteArray styles = pkg.part(QStringLiteral("/word/styles.xml"));
+        QVERIFY(styles.contains("w:styleId=\"EndnoteText\"") && styles.contains("w:styleId=\"EndnoteReference\""));
+        QVERIFY(documentXml(saved).contains("<w:endnoteReference w:id=\"1\"/>"));
+        auto back = open(saved);
+        QVERIFY(back);
+        QCOMPARE(back->citedEndnotes(), (QVector<int>{1}));
+        QVERIFY(endnoteParagraphs(*back, 1).first().text().endsWith(QLatin1String("A new endnote.")));
+        QCOMPARE(notesPartOf(back->toDocx()), pkg.part(QStringLiteral("/word/endnotes.xml")));
+        QCOMPARE(documentXml(back->toDocx()), documentXml(saved));
+        // Put in and taken back: no part, no relationship, no styles.
+        auto other = open(original);
+        QVERIFY(other);
+        const QByteArray before = other->toDocx();
+        QTextCursor d(other->story());
+        d.setPosition(4);
+        QVERIFY(insertEndnote(*other, d));
+        typeText(*other, d, QStringLiteral("typed"));
+        while (other->canUndo()) other->undo();
+        QVERIFY(!other->isModified());
+        const QByteArray after = other->toDocx();
+        office::Package a, b;
+        QVERIFY(a.read(before));
+        QVERIFY(b.read(after));
+        QCOMPARE(b.partNames(), a.partNames());
+        QCOMPARE(b.part(QStringLiteral("/word/styles.xml")), a.part(QStringLiteral("/word/styles.xml")));
+        QCOMPARE(documentXml(after), documentXml(before));
+        QVERIFY(!b.hasPart(QStringLiteral("/word/endnotes.xml")));
+    }
+
+    // ---- footnotes: hostile files
+
+    // A file of thousands of notes (most of them cited from nowhere): opening it costs what it did, an edit costs no more than in a file of three, no note is made past the most the
+    // program has, and the part keeps every note, the ones not edited as they were.
+    void thousandsOfFootnotesAreEditedWithinBounds()
+    {
+        constexpr int count = 5200;
+        QByteArray body;
+        QList<std::pair<int, QByteArray>> notes;
+        for (int i = 1; i <= count; ++i) notes << std::make_pair(i, plainRun(" note " + QByteArray::number(i)));
+        for (int i = 1; i <= 40; ++i) body += citing("Paragraph " + QByteArray::number(i), i);
+        const QByteArray zip = notesDocx(body, footnotesPart(notes));
+        resetNoteStoriesMadeForTest();
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() >= 1);
+        QVERIFY2(noteStoriesMadeForTest() <= 60, qPrintable(QString::number(noteStoriesMadeForTest())));   // (the notes of the pages laid out, not the part's thousands)
+        QTextDocument *first = doc->editableFootnote(1);
+        QVERIFY(first);
+        const qint64 madeBefore = noteStoriesMadeForTest();
+        typeAtEnd(*doc, first, QStringLiteral(" edited"));
+        QCOMPARE(noteStoriesMadeForTest(), madeBefore);   // (typing in a note makes no other story)
+        QTextCursor c(doc->story());
+        c.setPosition(2);
+        QVERIFY(doc->roomForFootnote());   // (forty are cited: the part's other notes are no count)
+        QTextDocument *made = insertFootnote(*doc, c);
+        QVERIFY(made && made != first);
+        QCOMPARE(doc->undo(), doc->story());   // (the insertion is the last step: undone, the part is as it was)
+        const QByteArray saved = doc->toDocx();
+        QVERIFY(rt::strictProblems(saved, zip).isEmpty());
+        const QByteArray part = partOf(saved, QStringLiteral("/word/footnotes.xml"));
+        QCOMPARE(int(part.count("<w:footnoteRef/>")), count);
+        QVERIFY(part.contains(" note 1 edited"));
+        QVERIFY(part.contains("<w:footnote w:id=\"5150\"><w:p><w:pPr><w:pStyle w:val=\"FootnoteText\"/></w:pPr><w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> note 5150</w:t></w:r></w:p></w:footnote>"));
+    }
+
+    // A reference to a note the file lacks is kept and does nothing; a new note takes an Id that no reference uses.
+    void aReferenceToAMissingNoteIsKeptAndNoNewNoteTakesItsId()
+    {
+        const QByteArray body = citing("First", 2) + citing("Second", 9);
+        auto doc = open(notesDocx(body, footnotesPart({{2, plainRun(" two")}})));
+        QVERIFY(doc);
+        QCOMPARE(int(notesOnPage(*doc, 0).size()), 1);
+        QTextCursor c(doc->story());
+        c.setPosition(2);
+        QTextDocument *note = insertFootnote(*doc, c);
+        QVERIFY(note);
+        int id = 0;
+        QVERIFY(doc->footnoteIdOf(note, &id));
+        QCOMPARE(id, 10);
+        // (The reference to the missing note comes out and goes back without a note appearing or the file changing.)
+        QTextCursor gone(doc->story());
+        const QTextBlock second = doc->story()->findBlockByNumber(1);
+        const int at = second.position() + second.text().indexOf(QChar::ObjectReplacementCharacter);
+        QVERIFY(at >= second.position());
+        gone.setPosition(at);
+        gone.setPosition(at + 1, QTextCursor::KeepAnchor);
+        removeSelection(*doc, gone);
+        const QByteArray part = partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml"));
+        QVERIFY(part.contains("w:id=\"2\"") && part.contains("w:id=\"10\""));
+        doc->undo();
+        QVERIFY(documentXml(doc->toDocx()).contains("footnoteReference w:id=\"9\""));
+        QVERIFY(rt::strictProblems(doc->toDocx(), QByteArray()).isEmpty());
+    }
+
+    // A note of thousands of paragraphs and a table: the story holds the most the page shows, the rest is kept in it, and an edit of the first paragraph writes every one.
+    void aHugeFootnoteKeepsEveryParagraphWhenItIsEdited()
+    {
+        constexpr int paragraphsInNote = 1500;
+        QByteArray inner = "<w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>first</w:t></w:r></w:p>";
+        for (int i = 0; i < paragraphsInNote; ++i) inner += "<w:p><w:r><w:t>p" + QByteArray::number(i) + "</w:t></w:r></w:p>";
+        inner += "<w:tbl><w:tblPr><w:tblW w:w=\"4000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>cellA</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>cellB</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>last</w:t></w:r></w:p>";
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:id=\"2\">" + inner + "</w:footnote></w:footnotes>";
+        const QByteArray zip = notesDocx(citing("A paragraph", 2) + paragraphs(2, 20), notes);
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *note = doc->editableFootnote(2);
+        QVERIFY(note);
+        QVERIFY2(note->blockCount() <= 410, qPrintable(QString::number(note->blockCount())));
+        QTextCursor c(note);
+        c.setPosition(noteTextStart(note));
+        insertText(*doc, c, QStringLiteral(">"));
+        const QByteArray saved = doc->toDocx();
+        const QByteArray part = partOf(saved, QStringLiteral("/word/footnotes.xml"));
+        QCOMPARE(int(part.count("<w:p>")) + int(part.count("<w:p ")), paragraphsInNote + 5);   // (the separator's, the first, the 1500, the two cells', and the last)
+        QVERIFY(part.contains("&gt;first"));
+        QVERIFY(part.contains("p1499") && part.contains("cellA") && part.contains("cellB") && part.contains("last"));
+        QVERIFY(part.indexOf("p1499") < part.indexOf("<w:tbl>") && part.indexOf("</w:tbl>") < part.indexOf("last"));
+        QVERIFY(rt::strictProblems(saved, zip).isEmpty());
+    }
+
+    // A note cited from a header (and nowhere in the text) is the program's to keep: it is not shown on the pages, deleting its reference there takes nothing from the file, and the note edits
+    // and saves. A note cited in a table's cell is shown and edited, and a note that holds a table keeps it.
+    void notesInAHeaderAndInATableAreKeptAndEdited()
+    {
+        const QByteArray header = headerPart("hdr", {"<w:r><w:t>Head</w:t></w:r><w:r><w:footnoteReference w:id=\"7\"/></w:r>"});
+        const QByteArray cell = "<w:tbl><w:tblPr><w:tblW w:w=\"5000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"5000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t xml:space=\"preserve\">In a cell </w:t></w:r>"
+                                "<w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr><w:footnoteReference w:id=\"2\"/></w:r></w:p></w:tc></w:tr></w:tbl><w:p/>";
+        const QByteArray tableNote = "<w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>with a table</w:t></w:r></w:p><w:tbl><w:tblPr><w:tblW w:w=\"3000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"1500\"/><w:gridCol w:w=\"1500\"/></w:tblGrid>"
+                                     "<w:tr><w:tc><w:p><w:r><w:t>c1</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>c2</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>after</w:t></w:r></w:p>";
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:id=\"2\">" + tableNote +
+                                 "</w:footnote><w:footnote w:id=\"7\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>in the header</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        const QByteArray zip = makeDocxWithParts(cell + paragraphs(2, 20), sectionNaming({{"default", "rIdheader1"}}),
+                                                 {{QStringLiteral("/word/header1.xml"), header}, {QStringLiteral("/word/footnotes.xml"), notes}}, QByteArray(), noteStyles());
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QCOMPARE(int(notesOnPage(*doc, 0).size()), 1);   // (the cell's; the header's is not set at the foot)
+        QTextDocument *headed = doc->editableFootnote(7);
+        QVERIFY(headed);
+        typeAtEnd(*doc, headed, QStringLiteral("!"));
+        QTextDocument *tabled = doc->editableFootnote(2);
+        QVERIFY(tabled);
+        QTextCursor c(tabled);
+        c.setPosition(noteTextStart(tabled) + 2);
+        insertText(*doc, c, QStringLiteral("X"));
+        // The header's reference taken out: nothing of the file goes.
+        QTextDocument *head = doc->editableHeaderFooter(0, false, WriteDoc::kDefaultSlot);
+        QVERIFY(head);
+        QTextCursor hc(head);
+        hc.select(QTextCursor::Document);
+        removeSelection(*doc, hc);
+        const QByteArray saved = doc->toDocx();
+        const QByteArray part = partOf(saved, QStringLiteral("/word/footnotes.xml"));
+        QVERIFY2(part.contains("in the header!"), part.constData());
+        QVERIFY(part.contains("c1") && part.contains("c2") && part.contains("after") && part.contains("<w:tbl>"));
+        QVERIFY(part.contains("wiXth a table"));
+        QVERIFY(rt::strictProblems(saved, zip).isEmpty());
+        // A footnote inserted in the cell is shown and written.
+        auto doc2 = open(zip);
+        QVERIFY(doc2);
+        QTextCursor in(doc2->story());
+        in.setPosition(3);
+        QTextDocument *made = insertFootnote(*doc2, in);
+        QVERIFY(made);
+        typeAtEnd(*doc2, made, QStringLiteral("cell note"));
+        QVERIFY(partOf(doc2->toDocx(), QStringLiteral("/word/footnotes.xml")).contains("cell note"));
+        QVERIFY(layoutDiffersFromFresh(*doc2).isEmpty());
+    }
+
+    // A footnotes part that is not XML is left as it is: no note is made over it, and it is written back untouched.
+    void anUnreadableFootnotesPartIsLeftAsItIsAndNoNoteIsMadeInIt()
+    {
+        const QByteArray junk = "<w:footnotes not xml at all";
+        auto doc = open(notesDocx(citing("A paragraph", 2) + paragraphs(2, 20), junk));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(3);
+        QVERIFY(!insertFootnote(*doc, c));
+        QVERIFY(!doc->editableFootnote(2));
+        QCOMPARE(partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")), xml(junk));
+        QVERIFY(!doc->canUndo());
+    }
+
+    // Two notes with one Id: the first is the note, and is the one that is edited and written; the other is kept as it was.
+    void twoNotesWithOneIdAreOnlyTheFirstEditedAndTheOtherIsKept()
+    {
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>first</w:t></w:r></w:p></w:footnote>"
+                                 "<w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>second</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        auto doc = open(notesDocx(citing("A paragraph", 2) + paragraphs(2, 20), notes));
+        QVERIFY(doc);
+        QTextDocument *note = doc->editableFootnote(2);
+        QVERIFY(note);
+        QVERIFY(note->toPlainText().endsWith(QStringLiteral("first")));
+        typeAtEnd(*doc, note, QStringLiteral("!"));
+        const QByteArray part = partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml"));
+        QVERIFY2(part.contains("first!") && part.contains("<w:t>second</w:t>"), part.constData());
+        QCOMPARE(int(part.count("<w:footnote ")), 2);
+        // The reference taken out: the first goes, the second (which no reference can name) stays.
+        QTextCursor c(doc->story());
+        const int at = doc->footnoteReferences(2).first();
+        c.setPosition(at);
+        c.setPosition(at + 1, QTextCursor::KeepAnchor);
+        removeSelection(*doc, c);
+        const QByteArray after = partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml"));
+        QVERIFY2(!after.contains("first") && after.contains("<w:t>second</w:t>"), after.constData());
+        QVERIFY(rt::strictProblems(doc->toDocx(), QByteArray()).isEmpty());
+    }
+
+    // ---- endnotes: hostile files
+
+    // A file of thousands of endnotes (most of them cited from nowhere): opening it costs what it did, an edit costs no more than in a file of three, no endnote is made past the most the
+    // program has, and the part keeps every note, the ones not edited as they were.
+    void thousandsOfEndnotesAreEditedWithinBounds()
+    {
+        constexpr int count = 5200;
+        QByteArray notes = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote();
+        for (int i = 1; i <= count; ++i) notes += "<w:endnote w:id=\"" + QByteArray::number(i) + "\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> note " + QByteArray::number(i) + "</w:t></w:r></w:p></w:endnote>";
+        notes += "</w:endnotes>";
+        QByteArray body;
+        for (int i = 1; i <= 40; ++i) body += "<w:p><w:r><w:t>Paragraph " + QByteArray::number(i) + "</w:t></w:r><w:r><w:endnoteReference w:id=\"" + QByteArray::number(i) + "\"/></w:r></w:p>";
+        const QByteArray zip = makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>");
+        resetEndnoteParagraphsMadeForTest();
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() >= 1);
+        QVERIFY2(endnoteParagraphsMadeForTest() <= 200, qPrintable(QString::number(endnoteParagraphsMadeForTest())));   // (the forty notes the text cites, not the part's thousands)
+        QCOMPARE(tailOf(*doc), 41);
+        int from = 0, to = 0;
+        QVERIFY(doc->endnoteWords(1, &from, &to));
+        const qint64 madeBefore = endnoteParagraphsMadeForTest();
+        QTextCursor c(doc->story());
+        c.setPosition(to);
+        for (const QChar ch : QStringLiteral(" edited")) insertText(*doc, c, QString(ch));
+        QCOMPARE(endnoteParagraphsMadeForTest(), madeBefore);   // (typing in a note sets no note again)
+        QTextCursor at(doc->story());
+        at.setPosition(2);
+        QVERIFY(doc->roomForEndnote());   // (forty are cited: the part's other notes are no count)
+        QVERIFY(insertEndnote(*doc, at));
+        doc->undo();   // (taken back at once: the part is as it was)
+        const QByteArray saved = doc->toDocx();
+        QVERIFY(rt::strictProblems(saved, zip).isEmpty());
+        const QByteArray part = notesPartOf(saved);
+        QCOMPARE(int(part.count("<w:endnoteRef/>")), count);
+        QVERIFY(part.contains(" note 1 edited"));
+        QVERIFY(part.contains("<w:endnote w:id=\"5150\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> note 5150</w:t></w:r></w:p></w:endnote>"));
+        QVERIFY(part.contains("<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> note 2</w:t></w:r></w:p></w:endnote>"));
+    }
+
+    // A reference to an endnote the file lacks is kept and does nothing; a new note takes an Id that no reference uses.
+    void aReferenceToAMissingEndnoteIsKeptAndNoNewNoteTakesItsId()
+    {
+        const QByteArray body = "<w:p><w:r><w:t>First</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p><w:p><w:r><w:t>Second</w:t></w:r><w:r><w:endnoteReference w:id=\"9\"/></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote() + "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> two</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        const QByteArray zip = makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>");
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QCOMPARE(endnoteMarks(*doc), (QStringList{"2:1"}));
+        QTextCursor c(doc->story());
+        c.setPosition(2);
+        QVERIFY(insertEndnote(*doc, c));
+        int id = 0;
+        QVERIFY(doc->endnoteIdOf(c.block(), &id));
+        QCOMPARE(id, 10);
+        // (The reference to the missing note comes out and goes back without a note appearing or the file changing.)
+        const QByteArray before = notesPartOf(doc->toDocx());
+        QTextBlock second = doc->story()->findBlockByNumber(1);
+        const int at = second.position() + second.text().indexOf(QChar::ObjectReplacementCharacter);
+        QVERIFY(at >= second.position());
+        QTextCursor gone(doc->story());
+        gone.setPosition(at);
+        gone.setPosition(at + 1, QTextCursor::KeepAnchor);
+        removeSelection(*doc, gone);
+        QCOMPARE(notesPartOf(doc->toDocx()), before);
+        doc->undo();
+        QVERIFY(documentXml(doc->toDocx()).contains("endnoteReference w:id=\"9\""));
+        QVERIFY(rt::strictProblems(doc->toDocx(), QByteArray()).isEmpty());
+    }
+
+    // A note cited twice is set twice: the first copy's words are edited and written, and the second is shown and left alone; the reference of the first taken out, the second is the note's
+    // and is edited (what was written in the first is in it).
+    void anEndnoteCitedTwiceIsEditedInItsFirstCopyOnly()
+    {
+        const QByteArray body = "<w:p><w:r><w:t>First</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p><w:p><w:r><w:t>Second</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote() + "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> shared</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        const QByteArray zip = makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>");
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *story = doc->story();
+        QCOMPARE(endnoteMarks(*doc), (QStringList{"2:1", "2:2"}));
+        QCOMPARE(tailOf(*doc), 3);
+        const QTextBlock first = story->findBlockByNumber(3), second = story->findBlockByNumber(4);
+        QVERIFY(first.blockFormat().intProperty(prop::EndnoteNote) > 0 && second.blockFormat().intProperty(prop::EndnoteNote) < 0);
+        // The second copy: nothing is typed in it. The first: typed in, and written once.
+        QTextCursor c(story);
+        c.setPosition(second.position() + 3);
+        insertText(*doc, c, QStringLiteral("ZZZ"));
+        QCOMPARE(story->findBlockByNumber(4).text().mid(1), QStringLiteral(" shared"));
+        c.setPosition(first.position() + first.length() - 1);
+        insertText(*doc, c, QStringLiteral("!"));
+        QCOMPARE(story->findBlockByNumber(3).text().mid(1), QStringLiteral(" shared!"));
+        QByteArray part = notesPartOf(doc->toDocx());
+        QCOMPARE(int(part.count("<w:endnote w:id=\"2\">")), 1);
+        QVERIFY(part.contains("shared!"));
+        // The first reference taken out: the note goes on from the second, with the words that were written, and the copy is the first of its note now.
+        QTextCursor gone(story);
+        const int at = doc->endnoteReferences(2).first();
+        gone.setPosition(at);
+        gone.setPosition(at + 1, QTextCursor::KeepAnchor);
+        removeSelection(*doc, gone);
+        QCOMPARE(endnoteMarks(*doc), (QStringList{"2:1"}));
+        const QTextBlock now = story->findBlockByNumber(3);
+        QCOMPARE(now.text().mid(1), QStringLiteral(" shared!"));
+        QVERIFY(now.blockFormat().intProperty(prop::EndnoteNote) > 0);
+        c.setPosition(now.position() + now.length() - 1);
+        insertText(*doc, c, QStringLiteral("?"));
+        QVERIFY(notesPartOf(doc->toDocx()).contains("shared!?"));
+        QVERIFY(rt::strictProblems(doc->toDocx(), zip).isEmpty());
+    }
+
+    // An endnote of thousands of paragraphs and a table: all of it is set (as many as the pages set), an edit of one paragraph writes every one, and the table stays where it was.
+    void aHugeEndnoteKeepsEveryParagraphWhenItIsEdited()
+    {
+        constexpr int paragraphsInNote = 1500;
+        QByteArray inner = "<w:p><w:r><w:endnoteRef/></w:r><w:r><w:t>first</w:t></w:r></w:p>";
+        for (int i = 0; i < paragraphsInNote; ++i) inner += "<w:p><w:r><w:t>p" + QByteArray::number(i) + "</w:t></w:r></w:p>";
+        inner += "<w:tbl><w:tblPr><w:tblW w:w=\"4000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>cellA</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>cellB</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>last</w:t></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote() + "<w:endnote w:id=\"2\">" + inner + "</w:endnote></w:endnotes>";
+        const QByteArray zip = makeDocxWithParts("<w:p><w:r><w:t>A paragraph</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>", sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), notes}});
+        auto doc = open(zip);
+        QVERIFY(doc);
+        int from = 0, to = 0;
+        QVERIFY(doc->endnoteWords(2, &from, &to));
+        QTextCursor c(doc->story());
+        c.setPosition(from);
+        insertText(*doc, c, QStringLiteral(">"));
+        const QByteArray saved = doc->toDocx();
+        const QByteArray part = notesPartOf(saved);
+        QCOMPARE(int(part.count("<w:p>")) + int(part.count("<w:p ")), paragraphsInNote + 5);
+        QVERIFY2(part.contains("&gt;") && part.indexOf("&gt;") < part.indexOf("first"), "the typed character");
+        QVERIFY2(part.contains("p1499"), "the last of the paragraphs");
+        QVERIFY2(part.contains("cellA") && part.contains("cellB"), "the table's cells");
+        QVERIFY2(part.contains("last"), "the paragraph after the table");
+        QVERIFY(part.indexOf("p1499") < part.indexOf("<w:tbl>") && part.indexOf("</w:tbl>") < part.indexOf("last"));
+        QVERIFY(rt::strictProblems(saved, zip).isEmpty());
+    }
+
+    // An endnotes part that is not XML is left as it is: no endnote is made over it; and a reference to a note in a table's cell, and one made there, work.
+    void anUnreadableEndnotesPartIsLeftAsItIsAndANoteInATableCellWorks()
+    {
+        const QByteArray junk = "<w:endnotes not xml at all";
+        auto doc = open(makeDocxWithParts("<w:p><w:r><w:t>A paragraph</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>", sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), junk}}));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(3);
+        QVERIFY(!insertEndnote(*doc, c));
+        QCOMPARE(partOf(doc->toDocx(), QStringLiteral("/word/endnotes.xml")), xml(junk));
+        QVERIFY(!doc->canUndo());
+        // A table's cell: an endnote is made in it and set at the end of the document.
+        const QByteArray cell = "<w:tbl><w:tblPr><w:tblW w:w=\"5000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"5000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t xml:space=\"preserve\">In a cell </w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>after</w:t></w:r></w:p>";
+        const QByteArray zip = makeDocxWithParts(cell, sectionXml(6000, 6000, 720), {});
+        auto other = open(zip);
+        QVERIFY(other);
+        QTextCursor in(other->story());
+        in.setPosition(5);
+        QVERIFY(insertEndnote(*other, in));
+        typeText(*other, in, QStringLiteral("cell note"));
+        const QByteArray saved = other->toDocx();
+        QVERIFY(notesPartOf(saved).contains("cell note"));
+        QVERIFY(rt::strictProblems(saved, zip).isEmpty());
+        auto back = open(saved);
+        QVERIFY(back);
+        QCOMPARE(back->citedEndnotes(), (QVector<int>{1}));
+    }
+
+    // ---- endnotes: in the window
+
+    // Clicking in an endnote's words puts the caret there (the notes are on the pages after the text); typing is the note's; Up from its first line and Down from its last, and Esc, leave it
+    // for the text just after its reference; the keys that move inside the note stay in it.
+    void clickingInAnEndnotePutsTheCaretInItsWordsAndTheKeysLeaveIt()
+    {
+        auto doc = open(notedDocx());
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 900);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        QTextDocument *story = doc->story();
+        int from = 0, to = 0;
+        QVERIFY(doc->endnoteWords(2, &from, &to));
+        // (Where the caret is drawn when it is in the first note, which is where the click goes.)
+        QTextCursor in(story);
+        in.setPosition(from + 6);
+        view.setCursor(in);
+        QRect caret;
+        QVERIFY(view.caretRect(&caret));
+        QTextCursor start(story);
+        start.setPosition(0);
+        view.setCursor(start);
+        QVERIFY(view.cursor().position() == 0);
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, caret.center());
+        const EndnoteSpan span = endnoteSpanAt(story, view.cursor().position());
+        QVERIFY2(span.valid && span.editable && span.textFrom == from, qPrintable(QString::number(view.cursor().position())));
+        QVERIFY(view.cursor().position() >= from && view.cursor().position() <= to);
+        QTest::keyClicks(&view, "xyz");
+        QVERIFY(story->findBlockByNumber(3).text().contains(QLatin1String("xyz")));
+        QCOMPARE(savedBody(*doc), QStringLiteral("First body paragraph|Second body paragraph"));
+        // Inside the note the keys stay: Home goes to the start of its words, and Left from there does not leave; End and Right at its end do not go on into the next note.
+        QTest::keyClick(&view, Qt::Key_Home);
+        QCOMPARE(view.cursor().position(), from);
+        QTest::keyClick(&view, Qt::Key_Left);
+        QCOMPARE(view.cursor().position(), from);
+        QTest::keyClick(&view, Qt::Key_End);
+        QTest::keyClick(&view, Qt::Key_Right);
+        QTest::keyClick(&view, Qt::Key_Right);
+        const EndnoteSpan same = endnoteSpanAt(story, view.cursor().position());
+        QVERIFY(same.valid && same.serial == span.serial);
+        // Esc leaves for the text, after the note's reference.
+        const int after = doc->endnoteReferences(2).first() + 1;
+        QTest::keyClick(&view, Qt::Key_Escape);
+        QCOMPARE(view.cursor().position(), after);
+        // Up from the first line of a note leaves it; Down from the last does too.
+        view.setCursor(in);
+        QTest::keyClick(&view, Qt::Key_Up);
+        QCOMPARE(view.cursor().position(), after);
+        QVERIFY(doc->endnoteWords(3, &from, &to));
+        QTextCursor last(story);
+        last.setPosition(to);
+        view.setCursor(last);
+        QTest::keyClick(&view, Qt::Key_Down);
+        QCOMPARE(view.cursor().position(), doc->endnoteReferences(3).first() + 1);
+        // From the text, Ctrl+End still stops where the text does.
+        QTest::keyClick(&view, Qt::Key_End, Qt::ControlModifier);
+        QCOMPARE(view.cursor().position(), editableEnd(story));
+    }
+
+    // Insert Endnote on the References tab and Ctrl+Alt+D: the note is made and the caret is in it, after the text of the document.
+    void insertEndnoteIsOnTheReferencesTabAndMovesTheCaretIntoTheNote()
+    {
+        WriteWindow w;
+        w.resize(1300, 1000);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        QVERIFY(w.act("refs.endnote"));
+        QCOMPARE(w.act("refs.endnote")->shortcut(), QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_D));
+        w.setDocument(open(makeDocxWithParts(paragraphs(4, 40), pageSection(), {}, QByteArray(), kStyles)), QString());
+        WriteDoc *doc = w.document();
+        w.view()->paginateAll();
+        w.view()->cursor().setPosition(doc->story()->findBlockByNumber(1).position() + 5);
+        QVERIFY(w.act("refs.endnote")->isEnabled());
+        w.act("refs.endnote")->trigger();
+        QCOMPARE(doc->citedEndnotes(), (QVector<int>{1}));
+        int id = 0;
+        QVERIFY(doc->endnoteIdOf(w.view()->cursor().block(), &id));
+        QCOMPARE(id, 1);
+        QTest::keyClicks(w.view(), "An endnote typed in the window");
+        QVERIFY(partOf(doc->toDocx(), QStringLiteral("/word/endnotes.xml")).contains("An endnote typed in the window"));
+        // The key combination does it too, from the text; not in a header (the command is gray there) and not in a note (it is not one's to make).
+        w.view()->cursor().setPosition(doc->story()->findBlockByNumber(0).position() + 3);
+        QTest::keyClick(w.view(), Qt::Key_D, Qt::ControlModifier | Qt::AltModifier);
+        QCOMPARE(doc->citedEndnotes(), (QVector<int>{1, 2}));
+        QVERIFY(doc->endnoteIdOf(w.view()->cursor().block(), &id) && id == 2);
+        w.act("refs.endnote")->trigger();   // (the caret is in a note: nothing is made)
+        QCOMPARE(doc->citedEndnotes(), (QVector<int>{1, 2}));
+        QVERIFY(w.view()->enterHeaderFooter(0, false, true));
+        QTRY_VERIFY(!w.act("refs.endnote")->isEnabled());
+    }
+
+    // The Find and Replace pane and the Spelling pane look through the text: opening them with a footnote open leaves it.
+    void findAndSpellingWithAFootnoteOpenLeaveIt()
+    {
+        WriteWindow w;
+        w.resize(1300, 1000);
+        w.show();
+        w.setDocument(open(threeNotesDocx()), QString());
+        w.view()->paginateAll();
+        QVERIFY(w.view()->enterFootnote(3));
+        w.showFindPane(false);
+        w.findPane()->findBox()->setText(QStringLiteral("zzzz"));
+        w.findPane()->findNext();
+        QVERIFY(!w.view()->inNote());
+        QVERIFY(w.view()->enterFootnote(2));
+        w.showSpelling();
+        QVERIFY(!w.view()->inNote());
     }
 
     // ---- what is written
@@ -12692,7 +14709,7 @@ private Q_SLOTS:
     // A file for the random commands with the tables, notes, headers, footers, and sections together: a first section of tables (the one of richTableDocx, a note cited in
     // the paragraph before them, one in a cell, and a long one after them), with headers and footers for the first, odd, and even pages of other heights; a continuous section
     // of two columns with a table in it and a note; and a section on a page of its own with a header of its own, a note, and a page break.
-    static QByteArray richMixedDocx()
+    static QByteArray richMixedDocx(int gammaWords = 220, bool endnotes = true)
     {
         const RichTables t = richTables(refTo(3));
         const QString rel = QStringLiteral("rId");
@@ -12710,20 +14727,21 @@ private Q_SLOTS:
                                                                        "<w:fldSimple w:instr=\" NUMPAGES \"><w:r><w:t>1</w:t></w:r></w:fldSimple>"});
         parts[QStringLiteral("/word/footer2.xml")] = headerPart("ftr", lines("FIRST FOOT", 2));
         parts[QStringLiteral("/word/footer3.xml")] = headerPart("ftr", lines("EVEN FOOT", 3));
-        parts[QStringLiteral("/word/footnotes.xml")] = notesPart({{2, "ALPHA note of the paragraph before the tables"}, {3, wordsOf("BETA", 25)}, {4, wordsOf("GAMMA", 220)}, {5, wordsOf("DELTA", 8)}, {6, wordsOf("EPSILON", 15)}});
+        parts[QStringLiteral("/word/footnotes.xml")] = notesPart({{2, "ALPHA note of the paragraph before the tables"}, {3, wordsOf("BETA", 25)}, {4, wordsOf("GAMMA", gammaWords)}, {5, wordsOf("DELTA", 8)}, {6, wordsOf("EPSILON", 15)}});
+        if (endnotes) parts[QStringLiteral("/word/endnotes.xml")] = endnotesOf({{12, "ENDNOTE ONE of the paragraph before the tables"}, {13, wordsOf("TWO", 30)}, {14, wordsOf("THREE", 12)}});
         const QByteArray refsOne = "<w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:headerReference w:type=\"first\" r:id=\"rIdheader2\"/><w:headerReference w:type=\"even\" r:id=\"rIdheader3\"/>"
                                    "<w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/><w:footerReference w:type=\"first\" r:id=\"rIdfooter2\"/><w:footerReference w:type=\"even\" r:id=\"rIdfooter3\"/>";
         const QByteArray one = sectionXml(7200, 6600, 720, refsOne, QByteArray(), "<w:titlePg/>");
         const QByteArray two = sectionXml(7200, 6600, 720, QByteArray(), "<w:type w:val=\"continuous\"/>", "<w:cols w:num=\"2\" w:space=\"360\"/>");
         const QByteArray three = sectionXml(7200, 6600, 900, "<w:headerReference w:type=\"default\" r:id=\"rIdheader4\"/>");
         // (Objects the text goes round: one of each kind among the notes, tables, and sections, so that the text goes round them across pages and columns.)
-        QByteArray body = plainP(wordsOf("before the tables", 14), refTo(2) + wallRun(0, 150, 4, 60, 50)) + t.styled + plainP(wordsOf("between them", 12), refTo(4) + wallRun(1, 40, 8, 50, 16)) + t.plain +
+        QByteArray body = plainP(wordsOf("before the tables", 14), refTo(2) + (endnotes ? endRef(12) : QByteArray()) + wallRun(0, 150, 4, 60, 50)) + t.styled + plainP(wordsOf("between them", 12), refTo(4) + wallRun(1, 40, 8, 50, 16)) + t.plain +
                           plainP("then one with space between its cells") + t.spaced + plainP("after the tables", QByteArray(), one);
         body += floatingTable(50) + plainP(wordsOf("after the table set at a place", 20)) + framedP("FRAME of the second section", "<w:framePr w:w=\"1400\" w:h=\"500\" w:hRule=\"exact\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"text\" w:xAlign=\"left\"/>") +
                 plainP(wordsOf("Second section", 18), wallRun(3, 110, 10, 50, 40)) + tableOfRows(9, 2, 1000, [](int r, int c) { return r == 4 && c == 1 ? plainP("cites", refTo(5)) : cellP("r" + QByteArray::number(r) + "c" + QByteArray::number(c)); }) +
                 plainP(wordsOf("end of the second", 30), wallRun(2, 60, 2, 40, 30), two);
-        body += plainP(wordsOf("Third section", 40), refTo(6) + wallRun(4, 160, 6, 70, 40) + wallRun(5, 200, 120, 60, 60)) + "<w:p><w:r><w:t>before a break</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>after it</w:t></w:r></w:p>" + plainP(wordsOf("Last", 60), wallRun(0, 20, 30, 50, 24));
-        return makeDocxWithParts(body, three, parts, "<w:evenAndOddHeaders/>", t.styles);
+        body += plainP(wordsOf("Third section", 40), refTo(6) + (endnotes ? endRef(14) : QByteArray()) + wallRun(4, 160, 6, 70, 40) + wallRun(5, 200, 120, 60, 60)) + "<w:p><w:r><w:t>before a break</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>after it</w:t></w:r></w:p>" + plainP(wordsOf("Last", 60), wallRun(0, 20, 30, 50, 24));
+        return makeDocxWithParts(body, three, parts, endnotes ? QByteArray("<w:evenAndOddHeaders/><w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>") : QByteArray("<w:evenAndOddHeaders/>"), t.styles);
     }
 
     // What a paginator that was told of the edits has that a new one on the same story does not (empty when there is nothing): the page count, and for each page its start,
@@ -12763,6 +14781,8 @@ private Q_SLOTS:
         QString out;
         for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
             out += QStringLiteral("[%1|%2|%3|%4]").arg(b.text()).arg(cellKeyOf(b)).arg(b.blockFormat().stringProperty(tp::StyleName)).arg(int(b.blockFormat().alignment()));
+        // (And the words of the notes the text cites: a note nothing cites is not the document's.)
+        for (const int id : doc.citedFootnotes()) out += QStringLiteral("{note %1: %2}").arg(id).arg(doc.editableFootnote(id)->toPlainText());
         return out;
     }
 
@@ -12781,11 +14801,15 @@ private Q_SLOTS:
         // (Two kinds of file: the tables alone, and then the tables with notes, headers, footers, and sections: a short run of those, whose edits also type where notes are
         // cited, put section breaks in, and change what the headers and footers are. JP_FUZZ=n: seeds 1 to n of the second, for a longer run.)
         for (const bool mixed : {false, true}) {
-            const QByteArray original = mixed ? richMixedDocx() : richTableDocx();
+            // (The file of the odd seeds has endnotes, and their commands edit and make notes, and they are shorter; the even seeds have the file and the commands the fuzz has always had.)
+            const QByteArray baseFile = mixed ? richMixedDocx(220, false) : richTableDocx();
+            const QByteArray notesFile = mixed ? richMixedDocx() : QByteArray();
             const int seeds = mixed ? (qEnvironmentVariableIntValue("JP_FUZZ") > 0 ? qEnvironmentVariableIntValue("JP_FUZZ") : 6)
                                     : (qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") > 0 ? qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") : 12);
             const int steps = qEnvironmentVariableIntValue("JW_FUZZ_STEPS") > 0 ? qEnvironmentVariableIntValue("JW_FUZZ_STEPS") : (mixed ? 40 : 70);
             for (unsigned seed = std::max(1, qEnvironmentVariableIntValue("JW_FUZZ_FROM")); seed <= unsigned(seeds); ++seed) {
+                const bool noteSeed = mixed && seed % 2 == 1;
+                const QByteArray &original = noteSeed ? notesFile : baseFile;
                 auto doc = open(original);
                 QVERIFY(doc);
                 ++seedsRun;
@@ -12802,8 +14826,19 @@ private Q_SLOTS:
                 };
                 static const char *const names[] = {"type", "enter", "insertRow", "insertCol", "tab", "delRow", "delCol", "delTable", "removeSel", "bigSel", "backspace", "delete", "copy", "paste", "undo", "redo",
                                                     "style", "bold", "align", "pageBreak", "list", "typeInCell", "removeAcross", "shiftTab", "typeNoted", "sectionBreak", "pageSetup", "headerSwap",
-                                                    "headerType", "headerEnter", "headerDelete", "headerOption", "pageNumber"};
+                                                    "headerType", "headerEnter", "headerDelete", "headerOption", "pageNumber", "noteType", "noteInsert", "noteDeleteReference", "noteCutPaste", "noteFormat", "endnoteType", "endnoteInsert", "endnoteDeleteReference", "endnoteCutPaste", "endnoteEdit"};
                 bool headersEdited = false;   // (a header or footer was edited: the file it makes is checked)
+                bool notesEdited = false;     // (a note was edited, made, or lost its reference: the file it makes is checked)
+                // The reference of a note the text cites, at random: the note's Id and the place of the reference character.
+                auto someReference = [&](int *id, int *at) {
+                    const QVector<int> ids = doc->citedFootnotes();
+                    if (ids.isEmpty()) return false;
+                    *id = ids[pick(int(ids.size()))];
+                    const QVector<int> refs = doc->footnoteReferences(*id);
+                    if (refs.isEmpty()) return false;
+                    *at = refs[pick(int(refs.size()))];
+                    return true;
+                };
                 // A header or footer story of a random section and slot, in the form it is edited in (null where there is none).
                 auto someHeader = [&]() -> QTextDocument * {
                     return doc->editableHeaderFooter(pick(doc->sectionCount()), pick(2), pick(3));
@@ -12822,8 +14857,8 @@ private Q_SLOTS:
                     c.setPosition(z.position() + pick(z.length()), QTextCursor::KeepAnchor);
                     return true;
                 };
-                for (int step = 0; step < steps; ++step) {
-                    const int op = pick(mixed ? 33 : 24);
+                for (int step = 0; step < (noteSeed && qEnvironmentVariableIntValue("JW_FUZZ_STEPS") <= 0 ? 30 : steps); ++step) {
+                    const int op = pick(mixed ? (noteSeed ? 43 : 33) : 24);   // (the commands that edit and make notes are those of the seeds that are odd: the seeds that are even have the commands the file has always had)
                     const QString before = storyState(*doc);
                     lastDump = qEnvironmentVariableIsSet("JW_FUZZ_DUMP") ? layoutDump(*doc) : QString();
                     auto place = [&] { c.setPosition(pick(doc->story()->characterCount() - 1)); };
@@ -12945,6 +14980,146 @@ private Q_SLOTS:
                         }
                         break;
                     }
+                    case 33: {   // words typed in a note, in the middle of it or at its end
+                        int id = 0, at = 0;
+                        if (someReference(&id, &at))
+                            if (QTextDocument *note = doc->editableFootnote(id)) {
+                                QTextCursor nc(note);
+                                nc.setPosition(noteTextStart(note) + pick(std::max(1, note->characterCount() - 1 - noteTextStart(note))));
+                                typeText(*doc, nc, QStringLiteral("note words "));
+                                notesEdited = one = true;
+                            }
+                        break;
+                    }
+                    case 34: {   // Insert Footnote somewhere in the text, and words typed in the note it makes
+                        place();
+                        QTextCursor ic = c;
+                        if (QTextDocument *note = insertFootnote(*doc, ic)) {
+                            typeText(*doc, ic, QStringLiteral("made note"));
+                            Q_UNUSED(note);
+                            notesEdited = one = true;
+                        }
+                        break;
+                    }
+                    case 35: {   // a reference taken out, with its note
+                        int id = 0, at = 0;
+                        if (someReference(&id, &at)) {
+                            QTextCursor rc(doc->story());
+                            rc.setPosition(at);
+                            rc.setPosition(at + 1, QTextCursor::KeepAnchor);
+                            removeSelection(*doc, rc);
+                            notesEdited = one = true;
+                        }
+                        break;
+                    }
+                    case 36: {   // a reference cut (or copied) and pasted somewhere else: the note moves (or is copied)
+                        int id = 0, at = 0;
+                        if (someReference(&id, &at)) {
+                            QTextCursor rc(doc->story());
+                            rc.setPosition(at);
+                            rc.setPosition(at + 1, QTextCursor::KeepAnchor);
+                            const QTextDocumentFragment taken = selectionFragment(rc);
+                            if (pick(2)) removeSelection(*doc, rc);
+                            place();
+                            pasteFragment(*doc, c, taken);
+                            notesEdited = true;
+                        }
+                        break;
+                    }
+                    case 37: {   // a note's words taken out, formatted, or joined (and the number never taken)
+                        int id = 0, at = 0;
+                        if (someReference(&id, &at))
+                            if (QTextDocument *note = doc->editableFootnote(id)) {
+                                QTextCursor nc(note);
+                                const int a = pick(std::max(1, note->characterCount() - 1));
+                                nc.setPosition(a);
+                                nc.setPosition(std::min(a + pick(40), note->characterCount() - 1), QTextCursor::KeepAnchor);
+                                switch (pick(4)) {
+                                case 0: removeSelection(*doc, nc); break;
+                                case 1: toggleBold(*doc, nc); break;
+                                case 2: deleteBack(*doc, nc, pick(2)); break;
+                                default: insertParagraph(*doc, nc); break;
+                                }
+                                if (note->characterAt(0) != QChar::ObjectReplacementCharacter) {
+                                    fail(QStringLiteral("a note's number was taken"), QString());
+                                    break;
+                                }
+                                notesEdited = one = true;
+                            }
+                        break;
+                    }
+                    case 38: {   // words typed in an endnote
+                        const QVector<int> ids = doc->citedEndnotes();
+                        int from = 0, to = 0;
+                        if (!ids.isEmpty() && doc->endnoteWords(ids[pick(int(ids.size()))], &from, &to)) {
+                            QTextCursor nc(doc->story());
+                            nc.setPosition(from + pick(to - from + 1));
+                            typeText(*doc, nc, QStringLiteral("end words "));
+                            notesEdited = one = true;
+                        }
+                        break;
+                    }
+                    case 39: {   // Insert Endnote somewhere in the text, and words typed in it
+                        place();
+                        QTextCursor ic = c;
+                        if (insertEndnote(*doc, ic)) {
+                            typeText(*doc, ic, QStringLiteral("made endnote"));
+                            notesEdited = one = true;
+                        }
+                        break;
+                    }
+                    case 40: {   // an endnote's reference taken out, with its note
+                        const QVector<int> ids = doc->citedEndnotes();
+                        if (!ids.isEmpty()) {
+                            const QVector<int> refs = doc->endnoteReferences(ids[pick(int(ids.size()))]);
+                            if (!refs.isEmpty()) {
+                                const int at = refs[pick(int(refs.size()))];
+                                QTextCursor rc(doc->story());
+                                rc.setPosition(at);
+                                rc.setPosition(at + 1, QTextCursor::KeepAnchor);
+                                removeSelection(*doc, rc);
+                                notesEdited = one = true;
+                            }
+                        }
+                        break;
+                    }
+                    case 41: {   // a reference to an endnote cut (or copied) and pasted somewhere else: the note moves (or is copied)
+                        const QVector<int> ids = doc->citedEndnotes();
+                        if (!ids.isEmpty()) {
+                            const QVector<int> refs = doc->endnoteReferences(ids[pick(int(ids.size()))]);
+                            if (!refs.isEmpty()) {
+                                const int at = refs[pick(int(refs.size()))];
+                                QTextCursor rc(doc->story());
+                                rc.setPosition(at);
+                                rc.setPosition(at + 1, QTextCursor::KeepAnchor);
+                                const QTextDocumentFragment taken = selectionFragment(rc);
+                                if (pick(2)) removeSelection(*doc, rc);
+                                place();
+                                pasteFragment(*doc, c, taken);
+                                notesEdited = true;
+                            }
+                        }
+                        break;
+                    }
+                    case 42: {   // an endnote's words taken out, formatted, joined, or cut by a selection that begins in them and goes anywhere (it stops at the note's end: nothing else is touched)
+                        const QVector<int> ids = doc->citedEndnotes();
+                        int from = 0, to = 0;
+                        if (!ids.isEmpty() && doc->endnoteWords(ids[pick(int(ids.size()))], &from, &to)) {
+                            QTextCursor nc(doc->story());
+                            const int a = from + pick(to - from + 1);
+                            nc.setPosition(a);
+                            nc.setPosition(pick(3) == 0 ? pick(doc->story()->characterCount() - 1) : std::min(a + pick(40), to), QTextCursor::KeepAnchor);
+                            switch (pick(5)) {
+                            case 0: removeSelection(*doc, nc); break;
+                            case 1: toggleBold(*doc, nc); break;
+                            case 2: deleteBack(*doc, nc, pick(2)); break;
+                            case 3: insertParagraph(*doc, nc); break;
+                            default: deleteForward(*doc, nc, pick(2)); break;
+                            }
+                            notesEdited = one = true;
+                        }
+                        break;
+                    }
                     default: {   // the headers a section names swapped for other parts (the odd pages' for the even pages', the third section's for the first page's)
                         const int index = pick(doc->sectionCount());
                         wml::SectionProps props = doc->sectionProps(index);
@@ -12964,6 +15139,19 @@ private Q_SLOTS:
                     log << QStringLiteral("%1@%2").arg(QLatin1String(names[op])).arg(c.position());
                 if (qEnvironmentVariableIsSet("JW_FUZZ_PAGES")) log.last() += QStringLiteral("(%1)").arg(doc->pager().pageCount());
                     const QString what = QLatin1String(names[op]);
+                    // Every endnote the text cites is set once, in the order of the references, and each begins with its number that no edit has taken.
+                    if (mixed && notesEdited) {
+                        QString lost;
+                        for (const int id : doc->citedEndnotes()) {
+                            int from = 0, to = 0;
+                            if (!doc->endnoteWords(id, &from, &to)) lost = QStringLiteral("endnote %1 is cited and not set").arg(id);
+                            else if (from < 1 || doc->story()->characterAt(from - 1) != QChar::ObjectReplacementCharacter) lost = QStringLiteral("endnote %1 has lost its number").arg(id);
+                        }
+                        if (!lost.isEmpty()) {
+                            fail(QStringLiteral("the endnotes after ") + what, lost);
+                            break;
+                        }
+                    }
                     // The paginator that was told of the edits has the pages and the rows' heights that a new one finds.
                     if (const QString d = layoutDiffersFromFresh(*doc); !d.isEmpty()) {
                         fail(QStringLiteral("layout differs from a new paginator's after ") + what, d);
@@ -13013,6 +15201,40 @@ private Q_SLOTS:
                         if (differs.isEmpty() && (back->differentOddEven() != doc->differentOddEven())) differs = QStringLiteral("different odd and even pages");
                         if (!differs.isEmpty()) {
                             fail(QStringLiteral("the headers after saving are not the headers that were edited"), differs);
+                            break;
+                        }
+                    }
+                    if (mixed && notesEdited) {
+                        // The file keeps the notes as edited: it is whole, it opens, and the notes the text cites say the same words.
+                        QString err;
+                        const QByteArray zip = doc->toDocx(&err);
+                        auto back = zip.isEmpty() ? nullptr : WriteDoc::fromDocx(zip, &err);
+                        if (!back) {
+                            fail(QStringLiteral("the file with the notes does not open again"), err);
+                            break;
+                        }
+                        if (const QStringList strict = rt::strictProblems(zip, original); !strict.isEmpty()) {
+                            fail(QStringLiteral("the file with the notes is not whole"), strict.first().left(120));
+                            break;
+                        }
+                        QString differs;
+                        const QVector<int> ids = doc->citedFootnotes();
+                        if (back->citedFootnotes() != ids) differs = QStringLiteral("the notes cited are %1 and %2 after saving").arg(ids.size()).arg(back->citedFootnotes().size());
+                        auto endText = [](WriteDoc &d, int id) {
+                            QStringList out;
+                            for (const QTextBlock &b : endnoteParagraphs(d, id)) out << b.text();
+                            return out.join(QLatin1Char('\n'));
+                        };
+                        if (back->citedEndnotes() != doc->citedEndnotes()) differs = QStringLiteral("the endnotes cited are %1 and %2 after saving").arg(doc->citedEndnotes().size()).arg(back->citedEndnotes().size());
+                        for (const int id : doc->citedEndnotes())
+                            if (differs.isEmpty() && endText(*doc, id) != endText(*back, id)) differs = QStringLiteral("endnote %1 reads %2 and not %3").arg(id).arg(endText(*back, id).left(40), endText(*doc, id).left(40));
+                        for (int i = 0; i < ids.size() && differs.isEmpty(); ++i) {
+                            QTextDocument *was = doc->editableFootnote(ids[i]), *now = back->editableFootnote(ids[i]);
+                            if (!now || was->toPlainText() != now->toPlainText()) differs = QStringLiteral("note %1 reads %2 and not %3").arg(ids[i]).arg(now ? now->toPlainText().left(40) : QStringLiteral("<none>"), was->toPlainText().left(40));
+                            else if (doc->footnoteReferences(ids[i]).size() != back->footnoteReferences(ids[i]).size()) differs = QStringLiteral("note %1 has other references after saving").arg(ids[i]);
+                        }
+                        if (!differs.isEmpty()) {
+                            fail(QStringLiteral("the notes after saving are not the notes that were edited"), differs);
                             break;
                         }
                     }
@@ -13591,6 +15813,15 @@ private Q_SLOTS:
 
     // ---- tables with the notes, headers and footers, and sections of a file (the two waves of JeffWrite together)
 
+    static QByteArray endRef(int id) { return "<w:r><w:rPr><w:rStyle w:val=\"EndnoteReference\"/></w:rPr><w:endnoteReference w:id=\"" + QByteArray::number(id) + "\"/></w:r>"; }
+    // An endnotes part of the notes given (an Id and a text each), with its separator.
+    static QByteArray endnotesOf(const QList<std::pair<int, QByteArray>> &notes)
+    {
+        QByteArray out = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:endnote>";
+        for (const auto &n : notes)
+            out += "<w:endnote w:id=\"" + QByteArray::number(n.first) + "\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> " + n.second + "</w:t></w:r></w:p></w:endnote>";
+        return out + "</w:endnotes>";
+    }
     static QByteArray refTo(int id) { return "<w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr><w:footnoteReference w:id=\"" + QByteArray::number(id) + "\"/></w:r>"; }
     static QByteArray plainP(const QByteArray &text, const QByteArray &after = QByteArray(), const QByteArray &pPr = QByteArray())
     {
@@ -14222,14 +16453,18 @@ private Q_SLOTS:
         QStringList lines;
         for (const auto &l : layout.lineInfo(0)) lines << l.text.trimmed();
         QCOMPARE(lines, (QStringList{QStringLiteral("First1"), QStringLiteral("Second2"), QStringLiteral("Sources"), QStringLiteral("1 Alpha note"), QStringLiteral("2 Beta note")}));
-        // Nothing types into them, and Delete at the end of the text does not join the first of them to it.
+        // Delete at the end of the text does not join the first of the notes to it; the end of the story is the end of the last note, and what is typed there is that note's.
         const QString before = doc->story()->toPlainText();
         QTextCursor c(doc->story());
-        c.movePosition(QTextCursor::End);
-        insertText(*doc, c, QStringLiteral("x"));
-        QCOMPARE(doc->story()->toPlainText(), before);
         c.setPosition(doc->story()->findBlockByNumber(1).position() + doc->story()->findBlockByNumber(1).length() - 1);
         deleteForward(*doc, c, false);
+        QCOMPARE(doc->story()->toPlainText(), before);
+        c.movePosition(QTextCursor::End);
+        insertText(*doc, c, QStringLiteral("x"));
+        QCOMPARE(doc->story()->toPlainText(), before + QStringLiteral("x"));
+        QCOMPARE(savedBody(*doc), QStringLiteral("First|Second"));
+        QVERIFY(notesPartOf(doc->toDocx()).contains("Beta notex"));
+        doc->undo();
         QCOMPARE(doc->story()->toPlainText(), before);
         // Saved, the document has its two paragraphs, and the endnotes part is as the file had it; read again, it shows the same.
         const QByteArray saved = doc->toDocx();
@@ -14464,14 +16699,13 @@ private Q_SLOTS:
         QCOMPARE(savedBody(*doc), QStringLiteral("X"));
         insertText(*doc, c, QStringLiteral("Y"));
         QCOMPARE(savedBody(*doc), QStringLiteral("XY"));   // (typing goes on)
-        bool last = false;
-        QCOMPARE(tailOf(*doc, &last), 3);
-        QVERIFY(last);
-        c.select(QTextCursor::Document);
-        removeSelection(*doc, c);
-        QCOMPARE(savedBody(*doc), QString());
-        insertText(*doc, c, QStringLiteral("Z"));
-        QCOMPARE(savedBody(*doc), QStringLiteral("Z"));
+        // (The selection ended where the text does, and the references that were in it went with it: their notes are gone from the pages and the file, and an undo brings them back.)
+        QCOMPARE(tailOf(*doc), 0);
+        QVERIFY(!notesPartOf(doc->toDocx()).contains("Alpha"));
+        while (doc->canUndo()) doc->undo();
+        QCOMPARE(tailOf(*doc), 3);
+        QCOMPARE(savedBody(*doc), QStringLiteral("First body paragraph|Second body paragraph"));
+        QCOMPARE(notesPartOf(doc->toDocx()), notesPartOf(zip));
         // From the start of the last paragraph to the end of the story.
         auto again = open(zip);
         QVERIFY(again);
@@ -14482,54 +16716,54 @@ private Q_SLOTS:
         QCOMPARE(savedBody(*again), QStringLiteral("First body paragraph|"));
         insertText(*again, d, QStringLiteral("Q"));
         QCOMPARE(savedBody(*again), QStringLiteral("First body paragraph|Q"));
-        QCOMPARE(tailOf(*again), 3);
-        QCOMPARE(notesPartOf(again->toDocx()), notesPartOf(zip));
+        QCOMPARE(tailOf(*again), 0);
     }
 
     // A selection from the middle of the last paragraph into the middle of an endnote, deleted, takes the text's part of it away and not the rest of the endnote's, which is not joined to the
     // text and saved there.
     void aSelectionIntoAnEndnoteIsDeletedAsFarAsTheTextGoes()
     {
-        const QByteArray zip = notedDocx();
+        const QByteArray body = "<w:p><w:r><w:t>First</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p><w:p><w:r><w:t>Second paragraph</w:t></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:t>Sources</w:t></w:r></w:p></w:endnote>"
+                                 "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Alpha body note brwon</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        const QByteArray zip = makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>");
         auto doc = open(zip);
         QVERIFY(doc);
         QTextDocument *story = doc->story();
+        QCOMPARE(tailOf(*doc), 2);
         QTextCursor c(story);
         c.setPosition(story->findBlockByNumber(1).position() + 6);   // (after "Second")
         c.setPosition(story->findBlockByNumber(3).position() + 8, QTextCursor::KeepAnchor);
         removeSelection(*doc, c);
-        QCOMPARE(savedBody(*doc), QStringLiteral("First body paragraph|Second"));
-        QCOMPARE(tailOf(*doc), 3);
+        QCOMPARE(savedBody(*doc), QStringLiteral("First|Second"));
+        QCOMPARE(tailOf(*doc), 2);
         QVERIFY2(story->toPlainText().contains(QLatin1String(" Alpha body note brwon")), "the note is whole");
         QCOMPARE(notesPartOf(doc->toDocx()), notesPartOf(zip));
     }
 
-    // Typing, deleting, and making a paragraph where the caret or the selection is wholly in an endnote does nothing: the story and what is saved are as they were.
-    void typingInAnEndnoteDoesNothing()
+    // Typing, deleting, and making a paragraph where the caret is in the separator of the endnotes does nothing: the story and what is saved are as they were.
+    void typingInTheSeparatorOfTheEndnotesDoesNothing()
     {
         const QByteArray zip = notedDocx();
         auto doc = open(zip);
         QVERIFY(doc);
         QTextDocument *story = doc->story();
         const QString before = story->toPlainText(), body = savedBody(*doc);
-        const QTextBlock note = story->findBlockByNumber(3);
-        QTextCursor word(story);   // (a word inside the endnote)
-        word.setPosition(note.position() + 2);
-        word.setPosition(note.position() + 7, QTextCursor::KeepAnchor);
-        insertText(*doc, word, QStringLiteral("ZZZ"));
-        QCOMPARE(story->toPlainText(), before);
+        const QTextBlock separator = story->findBlockByNumber(2);
         QTextCursor at(story);
-        at.setPosition(note.position() + 4);
+        at.setPosition(separator.position() + 3);
         insertText(*doc, at, QStringLiteral("ZZZ"));
         insertParagraph(*doc, at);
         deleteBack(*doc, at, false);
         deleteForward(*doc, at, false);
-        at.movePosition(QTextCursor::End);
-        insertText(*doc, at, QStringLiteral("ZZZ"));
-        insertParagraph(*doc, at);
+        QTextCursor word(story);   // (a word of it selected)
+        word.setPosition(separator.position() + 1);
+        word.setPosition(separator.position() + 4, QTextCursor::KeepAnchor);
+        insertText(*doc, word, QStringLiteral("ZZZ"));
         QCOMPARE(story->toPlainText(), before);
         QCOMPARE(savedBody(*doc), body);
         QCOMPARE(notesPartOf(doc->toDocx()), notesPartOf(zip));
+        QVERIFY(!doc->canUndo());
     }
 
     // The caret and the selection in the page view are held where the text ends: Ctrl+End, Select All, and a click or drag past it do not reach the endnotes, so what is typed there is typed
@@ -14604,7 +16838,7 @@ private Q_SLOTS:
         at.setPosition(story->findBlockByNumber(1).position());
         pasteClip(*doc, at, clip);
         bool last = false;
-        QCOMPARE(tailOf(*doc, &last), 3);
+        QCOMPARE(tailOf(*doc, &last), 5);   // (the pasted references cite copies of their notes: the separator, the two notes, and their copies)
         QVERIFY(last);
         QVERIFY(!savedBody(*doc).contains(QLatin1String("Alpha")) && !savedBody(*doc).contains(QLatin1String("Sources")));
         // A fragment of the endnotes themselves, pasted: its paragraphs are the text's.
@@ -14615,7 +16849,7 @@ private Q_SLOTS:
         QTextCursor into(story);
         into.setPosition(story->findBlockByNumber(1).position());
         pasteFragment(*doc, into, endnotes);
-        QCOMPARE(tailOf(*doc, &last), 3);
+        QCOMPARE(tailOf(*doc, &last), 5);
         QVERIFY(last);
         QVERIFY(savedBody(*doc).contains(QLatin1String("Alpha body note")));   // (what was pasted is text, and is saved as such)
     }
@@ -14737,8 +16971,8 @@ private Q_SLOTS:
         QVERIFY(doc);
         QTextDocument *story = doc->story();
         const QString before = story->toPlainText();
-        // In the endnotes: nothing happens (a caret in the separator or a note, a word of a note selected).
-        for (int number : {2, 3, 5, 6}) {
+        // In the separators: nothing happens (a caret in them, a word of one selected). The words of a note are the note's to edit (theWordsOfAnEndnoteAreEditedWhereTheyStand).
+        for (int number : {2, 5}) {
             const QTextBlock b = story->findBlockByNumber(number);
             QTextCursor at(story);
             at.setPosition(b.position() + std::min(2, b.length() - 1));
@@ -14749,8 +16983,8 @@ private Q_SLOTS:
             QCOMPARE(story->toPlainText(), before);
         }
         QTextCursor word(story);
-        word.setPosition(story->findBlockByNumber(3).position() + 2);
-        word.setPosition(story->findBlockByNumber(3).position() + 7, QTextCursor::KeepAnchor);
+        word.setPosition(story->findBlockByNumber(2).position() + 1);
+        word.setPosition(story->findBlockByNumber(2).position() + 5, QTextCursor::KeepAnchor);
         insertText(*doc, word, QStringLiteral("ZZZ"));
         QCOMPARE(story->toPlainText(), before);
         // At the edges Delete and Backspace join the paragraphs round the notes and end the section's break (deleteAndBackspaceAtTheEndnotesOfASectionEndTheBreak).
@@ -14764,14 +16998,14 @@ private Q_SLOTS:
         QCOMPARE(story->toPlainText(), before);
         // A selection from inside the first paragraph to inside the last: the text between goes, the notes stay where they are, and what is left on either side of them is not joined.
         QTextCursor over(story);
-        over.setPosition(story->findBlockByNumber(0).position() + 1);
+        over.setPosition(story->findBlockByNumber(1).position() + story->findBlockByNumber(1).length() - 1);   // (after the first section's last reference)
         over.setPosition(story->findBlockByNumber(4).position() + 1, QTextCursor::KeepAnchor);
         removeSelection(*doc, over);
-        QCOMPARE(storyParagraphs(*doc), (QStringList{QStringLiteral("F"), QStringLiteral("Sources"), QStringLiteral("Alpha body note brwon"), QStringLiteral("hird body"), QStringLiteral("Sources"),
-                                                     QStringLiteral("Beta body note")}));
+        QCOMPARE(storyParagraphs(*doc), (QStringList{QStringLiteral("First body"), QStringLiteral("Second body"), QStringLiteral("Sources"), QStringLiteral("Alpha body note brwon"), QStringLiteral("hird body"),
+                                                     QStringLiteral("Sources"), QStringLiteral("Beta body note")}));
         QCOMPARE(tailOf(*doc), 4);
         QCOMPARE(doc->sectionCount(), 2);
-        QCOMPARE(savedBody(*doc), QStringLiteral("F|hird body"));
+        QCOMPARE(savedBody(*doc), QStringLiteral("First body|Second body|hird body"));
         QCOMPARE(documentXml(doc->toDocx()).count("<w:sectPr"), 2);
         QCOMPARE(notesPartOf(doc->toDocx()), notesPartOf(zip));
         story->undo();
@@ -14826,9 +17060,14 @@ private Q_SLOTS:
         QTextCursor everything(story);
         everything.select(QTextCursor::Document);
         write::insertText(doc, everything, QStringLiteral("Z"));
+        QVERIFY(story->findBlockByNumber(0).text().startsWith(QLatin1Char('Z')));
+        // (The references went with the text they were in, and so did their notes; an undo brings both back.)
+        QCOMPARE(tailOf(doc), 0);
+        QCOMPARE(doc.sectionCount(), 2);
+        QVERIFY(!notesPartOf(doc.toDocx()).contains("Alpha"));
+        doc.undo();
         QCOMPARE(tailOf(doc), 4);
         QVERIFY(story->toPlainText().contains(QLatin1String(" Alpha body note brwon")) && story->toPlainText().contains(QLatin1String(" Beta body note")));
-        QVERIFY(story->findBlockByNumber(0).text().startsWith(QLatin1Char('Z')));
         QCOMPARE(notesPartOf(doc.toDocx()), notesPartOf(zip));
     }
 
@@ -14896,7 +17135,10 @@ private Q_SLOTS:
             return view.cursor().position();
         };
         QCOMPARE(click(2), lastReal);   // (the separator: the first of the notes)
-        QCOMPARE(click(3), nextFirst);  // (the note: the last)
+        // (A click in a note's words puts the caret in them: the notes' words are the person's to edit.)
+        const int inNote = click(3);
+        const EndnoteSpan span = endnoteSpanAt(story, inNote);
+        QVERIFY2(span.valid && span.editable && inNote >= span.textFrom && inNote <= span.textTo, qPrintable(QString::number(inNote)));
     }
 
     // What is done to the characters of a selection that goes over the endnotes of a section reaches the text and not the notes: bold, italic, underline, a size, a color, a highlight, a
@@ -15753,6 +17995,1674 @@ private Q_SLOTS:
         office::Package q;
         QVERIFY(q.read(bare->toDocx()));
         QVERIFY(q.part(QStringLiteral("/word/styles.xml")).contains("w:styleId=\"Heading2\""));
+    }
+
+    // ---- notes: the style and look commands
+
+    static QList<LookCommand> lookCommands()
+    {
+        return {
+            {"style Heading 1", [](WriteDoc &d, QTextCursor &c) { applyParagraphStyle(d, c, QStringLiteral("Heading1")); }},
+            {"style Normal", [](WriteDoc &d, QTextCursor &c) { applyParagraphStyle(d, c, d.defaultParagraphStyle()); }},
+            {"style Title", [](WriteDoc &d, QTextCursor &c) { applyParagraphStyle(d, c, QStringLiteral("Title")); }},
+            {"clear formatting", [](WriteDoc &d, QTextCursor &c) { clearFormatting(d, c); }},
+            {"center", [](WriteDoc &d, QTextCursor &c) { setAlignment(d, c, Qt::AlignHCenter); }},
+            {"indent", [](WriteDoc &d, QTextCursor &c) { changeIndent(d, c, 36); }},
+            {"indents", [](WriteDoc &d, QTextCursor &c) { setIndents(d, c, 20, 10, 5); }},
+            {"spacing", [](WriteDoc &d, QTextCursor &c) { setSpacing(d, c, 6, 6); }},
+            {"line spacing", [](WriteDoc &d, QTextCursor &c) { setLineSpacing(d, c, QTextBlockFormat::ProportionalHeight, 200); }},
+            {"bullets", [](WriteDoc &d, QTextCursor &c) { toggleList(d, c, false); }},
+            {"numbers", [](WriteDoc &d, QTextCursor &c) { toggleList(d, c, true); }},
+            {"paragraph dialog", [](WriteDoc &d, QTextCursor &c) { changeBlockFormat(d, c, [](QTextBlockFormat &bf) { bf.setAlignment(Qt::AlignRight); bf.setTopMargin(4); }); }},
+            {"bold", [](WriteDoc &d, QTextCursor &c) { toggleBold(d, c); }},
+            {"character style", [](WriteDoc &d, QTextCursor &c) { applyCharacterStyle(d, c, QStringLiteral("Strong")); }},
+            {"font size", [](WriteDoc &d, QTextCursor &c) { setFontSize(d, c, 14); }},
+        };
+    }
+
+    // Which paragraphs of the story are tails (endnotes the pages set), and of which copy, in order.
+    static QString tailShape(WriteDoc &doc)
+    {
+        QString out;
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+            out += b.blockFormat().hasProperty(prop::EndnoteBlock) ? QStringLiteral("E%1 ").arg(b.blockFormat().intProperty(prop::EndnoteNote)) : QStringLiteral("- ");
+        return out;
+    }
+
+    // The words of the note with this Id in a saved notes part, its runs joined; the elements of the part by tag ("footnote" or "endnote").
+    static QString notePartText(const QByteArray &part, const char *tag, int id)
+    {
+        const QString x = QString::fromUtf8(part);
+        const QRegularExpression note(QStringLiteral("<w:%1 w:id=\"%2\"[^>]*>(.*?)</w:%1>").arg(QLatin1String(tag)).arg(id), QRegularExpression::DotMatchesEverythingOption);
+        const QRegularExpressionMatch m = note.match(x);
+        if (!m.hasMatch()) return QString();
+        QString out;
+        static const QRegularExpression text(QStringLiteral("<w:t[^>]*>([^<]*)</w:t>"));
+        for (auto n = text.globalMatch(m.captured(1)); n.hasNext();) out += n.next().captured(1);
+        return out;
+    }
+
+    // Each command of the look, with the caret in an endnote's words or a selection in them: the paragraph stays one of its note (the text of the document is as it was, the file's text
+    // has none of the note's words, and the notes part has them), and an undo gives the file's own notes back.
+    void styleAndLookCommandsKeepAnEndnoteParagraphAnEndnote()
+    {
+        const QByteArray zip = notedDocx();
+        for (const LookCommand &command : lookCommands())
+            for (int selected = 0; selected < 2; ++selected) {
+                const QString what = QString::fromLatin1(command.name) + (selected ? QStringLiteral(" (selection)") : QStringLiteral(" (caret)"));
+                auto doc = open(zip);
+                QVERIFY(doc);
+                const QString body = savedBody(*doc);
+                const QString shape = tailShape(*doc);
+                QTextCursor c(doc->story());
+                const QTextBlock alpha = doc->story()->findBlockByNumber(3);
+                c.setPosition(alpha.position() + 4);
+                if (selected) c.setPosition(alpha.position() + 9, QTextCursor::KeepAnchor);
+                command.run(*doc, c);
+                QVERIFY2(tailShape(*doc) == shape, qPrintable(what + QStringLiteral(": the paragraphs of the notes are now ") + tailShape(*doc) + QStringLiteral(", were ") + shape));
+                QVERIFY2(savedBody(*doc) == body, qPrintable(what + QStringLiteral(": the text of the document is now ") + savedBody(*doc)));
+                const QByteArray saved = doc->toDocx();
+                QVERIFY2(!documentXml(saved).contains("<w:endnoteRef/>"), qPrintable(what + QStringLiteral(": a note's mark is in the text")));
+                QVERIFY2(!documentXml(saved).contains("Alpha"), qPrintable(what + QStringLiteral(": a note's words are in the text")));
+                QVERIFY2(notePartText(notesPartOf(saved), "endnote", 2).contains(QLatin1String(" Alpha body note brwon")), qPrintable(what + QStringLiteral(": ") + notePartText(notesPartOf(saved), "endnote", 2)));
+                QVERIFY2(rt::strictProblems(saved, zip).isEmpty(), qPrintable(what));
+                while (doc->canUndo()) doc->undo();
+                QVERIFY2(tailShape(*doc) == shape, qPrintable(what + QStringLiteral(" after undo")));
+                QVERIFY2(notesPartOf(doc->toDocx()) == notesPartOf(zip), qPrintable(what + QStringLiteral(": the notes part after undo")));
+            }
+    }
+
+    // The same with the caret in a footnote's words: the note keeps its mark and its place, the text of the page is as it was, and the notes part has the words.
+    void styleAndLookCommandsKeepAFootnoteWhole()
+    {
+        const QByteArray zip = threeNotesDocx();
+        for (const LookCommand &command : lookCommands())
+            for (int selected = 0; selected < 2; ++selected) {
+                const QString what = QString::fromLatin1(command.name) + (selected ? QStringLiteral(" (selection)") : QStringLiteral(" (caret)"));
+                auto doc = open(zip);
+                QVERIFY(doc);
+                QTextDocument *note = doc->editableFootnote(3);
+                QVERIFY(note);
+                const QString body = plain(*doc);
+                QTextCursor c(note);
+                c.setPosition(noteTextStart(note) + 3);
+                if (selected) c.setPosition(noteTextStart(note) + 8, QTextCursor::KeepAnchor);
+                command.run(*doc, c);
+                QVERIFY2(plain(*doc) == body, qPrintable(what + QStringLiteral(": the text changed")));
+                QVERIFY2(note->toPlainText().startsWith(noteMark()), qPrintable(what + QStringLiteral(": the note lost its mark: ") + note->toPlainText()));
+                const QByteArray saved = doc->toDocx();
+                QVERIFY2(!documentXml(saved).contains("<w:footnoteRef/>"), qPrintable(what + QStringLiteral(": a note's mark is in the text")));
+                QVERIFY2(!documentXml(saved).contains("note three"), qPrintable(what + QStringLiteral(": a note's words are in the text")));
+                const QByteArray part = partOf(saved, QStringLiteral("/word/footnotes.xml"));
+                QVERIFY2(notePartText(part, "footnote", 3).contains(QLatin1String(" note three text")), qPrintable(what + QStringLiteral(": ") + notePartText(part, "footnote", 3)));
+                QCOMPARE(int(part.count("<w:footnoteRef/>")), 3);
+                QVERIFY2(rt::strictProblems(saved, zip).isEmpty(), qPrintable(what));
+                while (doc->canUndo()) doc->undo();
+                QVERIFY2(partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")) == partOf(zip, QStringLiteral("/word/footnotes.xml")), qPrintable(what + QStringLiteral(": the notes part after undo")));
+            }
+    }
+
+    // A style chosen in a note is the note's: the note's paragraph is written with it, the other notes as they were; Ctrl+Shift+N and Clear All Formatting in the window do the same.
+    void aStyleChosenInANoteIsTheNotesAndIsSavedInIt()
+    {
+        {
+            const QByteArray zip = notedDocx();
+            auto doc = open(zip);
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            c.setPosition(doc->story()->findBlockByNumber(3).position() + 4);
+            applyParagraphStyle(*doc, c, QStringLiteral("Heading1"));
+            const QByteArray part = notesPartOf(doc->toDocx());
+            const int at = part.indexOf("<w:endnote w:id=\"2\"");
+            QVERIFY(at >= 0);
+            const QByteArray note = part.mid(at, part.indexOf("</w:endnote>", at) - at);
+            QVERIFY2(note.contains("<w:pStyle w:val=\"Heading1\"/>"), note.constData());
+            QVERIFY2(part.contains(betaNote()), part.constData());
+            QCOMPARE(endnoteParagraphs(*doc, 2).size(), 1);
+            QCOMPARE(endnoteParagraphs(*doc, 2).first().blockFormat().stringProperty(prop::EndnoteStyle), QStringLiteral("Heading1"));
+        }
+        {
+            const QByteArray zip = notedDocx();
+            WriteWindow w;
+            w.resize(1000, 900);
+            w.show();
+            w.setDocument(open(zip), QString());
+            WriteDoc *doc = w.document();
+            QTextCursor c(doc->story());
+            c.setPosition(doc->story()->findBlockByNumber(3).position() + 4);
+            w.view()->setCursor(c);
+            const QString shape = tailShape(*doc);
+            w.act("style.heading2")->trigger();
+            QCOMPARE(tailShape(*doc), shape);
+            w.act("style.normal")->trigger();
+            QCOMPARE(tailShape(*doc), shape);
+            w.act("fmt.clear")->trigger();
+            QCOMPARE(tailShape(*doc), shape);
+            const QByteArray saved = doc->toDocx();
+            QVERIFY(!documentXml(saved).contains("<w:endnoteRef/>"));
+            QVERIFY(!documentXml(saved).contains("Alpha"));
+            QVERIFY(notePartText(notesPartOf(saved), "endnote", 2).contains(QLatin1String(" Alpha body note brwon")));
+        }
+        {
+            const QByteArray zip = threeNotesDocx();
+            auto doc = open(zip);
+            QVERIFY(doc);
+            QTextDocument *note = doc->editableFootnote(3);
+            QTextCursor c(note);
+            c.setPosition(noteTextStart(note) + 3);
+            applyParagraphStyle(*doc, c, QStringLiteral("Heading1"));
+            const QByteArray part = partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml"));
+            const int at = part.indexOf("<w:footnote w:id=\"3\"");
+            QVERIFY(at >= 0);
+            QVERIFY(part.mid(at, part.indexOf("</w:footnote>", at) - at).contains("<w:pStyle w:val=\"Heading1\"/>"));
+        }
+    }
+
+    // ---- notes and headers: one mode at a time
+
+    // A document with notes, no header yet, for the tests of entering a header or a footer from a note.
+    static QByteArray notesAndHeaderDocx() { return threeNotesDocx(); }
+
+    // Insert > Header and Insert > Footer while a note is edited: the note is left, the header is entered, and the two Escapes that follow end in the text with its own caret.
+    void insertingAHeaderWhileAFootnoteIsEditedLeavesTheNote()
+    {
+        WriteWindow w;
+        w.resize(1300, 1000);
+        w.show();
+        w.setDocument(open(notesAndHeaderDocx()), QString());
+        PageView *v = w.view();
+        v->paginateAll();
+        QTextCursor at(w.document()->story());
+        at.setPosition(3);
+        v->setCursor(at);
+        for (const char *command : {"insert.header", "insert.footer"}) {
+            QVERIFY(v->enterFootnote(3));
+            QVERIFY(v->inNote());
+            w.act(command)->trigger();
+            QVERIFY2(!(v->inNote() && v->inHeaderFooter()), command);
+            QVERIFY2(v->inHeaderFooter(), command);
+            QVERIFY(!v->inNote());
+            QCOMPARE(v->cursor().document(), v->headerFooterEdit().story);
+            QTest::keyClick(v, Qt::Key_Escape);
+            QVERIFY(!v->inHeaderFooter());
+            QVERIFY(!v->inNote());
+            QCOMPARE(v->cursor().document(), w.document()->story());
+            QCOMPARE(v->cursor().position(), 3);   // (the place in the text that was left for the note)
+            QTest::keyClick(v, Qt::Key_Escape);
+            QCOMPARE(v->cursor().document(), w.document()->story());
+            QVERIFY(!v->inNote() && !v->inHeaderFooter());
+        }
+        // Typing after all that is typing in the text.
+        const QString before = plain(*w.document());
+        QTest::keyClicks(v, "Q");
+        QCOMPARE(plain(*w.document()).size(), before.size() + 1);
+    }
+
+    // Entering a header or footer, or a note, leaves the other: by the commands, and by the calls the view's other paths make.
+    void enteringANoteOrAHeaderLeavesTheOtherMode()
+    {
+        auto doc = open(notesAndHeaderDocx());
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 1200);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        QTextCursor at(doc->story());
+        at.setPosition(5);
+        view.setCursor(at);
+        QVERIFY(view.enterFootnote(2));
+        QVERIFY(view.inNote());
+        QVERIFY(view.enterHeaderFooter(0, false, true));
+        QVERIFY(view.inHeaderFooter());
+        QVERIFY(!view.inNote());
+        QVERIFY(view.enterFootnote(3));
+        QVERIFY(view.inNote());
+        QVERIFY(!view.inHeaderFooter());
+        QVERIFY(view.enterFootnote(2));
+        QVERIFY(view.enterHeaderFooterAtCaret(true));
+        QVERIFY(view.inHeaderFooter() && !view.inNote());
+        view.leaveHeaderFooter();
+        QCOMPARE(view.cursor().document(), doc->story());
+        QCOMPARE(view.cursor().position(), 5);
+        QVERIFY(view.enterFootnote(2));
+        view.leaveNote();
+        QCOMPARE(view.cursor().document(), doc->story());
+        view.leaveNote();
+        view.leaveHeaderFooter();
+        QCOMPARE(view.cursor().document(), doc->story());
+        // From the caret in an endnote's words (a place in the text) a header is entered and left as from any place.
+        auto ended = open(notedDocx());
+        QVERIFY(ended);
+        PageView other;
+        other.resize(1000, 1200);
+        other.show();
+        other.setDocument(ended.get());
+        other.paginateAll();
+        QTextCursor inNote(ended->story());
+        inNote.setPosition(ended->story()->findBlockByNumber(3).position() + 4);
+        other.setCursor(inNote);
+        QVERIFY(other.enterHeaderFooterAtCaret(false));
+        QVERIFY(other.inHeaderFooter());
+        other.leaveHeaderFooter();
+        QCOMPARE(other.cursor().document(), ended->story());
+        QCOMPARE(other.cursor().position(), inNote.position());
+    }
+
+    // Random keys, clicks, and commands in the window (the notes, the headers, the clipboard, and the history among them): after each, at most one of the note mode and the header mode is on,
+    // the caret is in the story of the mode it is in, and in a note the caret is drawn; and what is saved at the end is whole. JW_FUZZ_SEEDS says how many seeds.
+    void randomInputInTheWindowKeepsOneModeAtATime()
+    {
+        const int seeds = qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") > 0 ? qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") : 6;
+        auto lorem = [](int n) {
+            static const char *const w[] = {"alpha", "beta", "gamma", "delta"};
+            QByteArray out;
+            for (int i = 0; i < n; ++i) out += (i ? " " : "") + QByteArray(w[i % 4]) + QByteArray::number(i);
+            return out;
+        };
+        const QByteArray body = citing("First", 2) + paragraphs(8, 40) + citing("Second", 3) + "<w:p><w:r><w:t>Endnote cite</w:t></w:r><w:r><w:endnoteReference w:id=\"1\"/></w:r></w:p>" + paragraphs(30, 40) + citing("Third", 4);
+        const QByteArray notes = footnotesPart({{2, plainRun(" " + lorem(500))}, {3, plainRun(" short")}, {4, plainRun(" " + lorem(60))}});
+        const QByteArray ends = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:endnote>"
+                                "<w:endnote w:id=\"1\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> endnote words here</w:t></w:r></w:p><w:p><w:r><w:t>second endnote paragraph</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        const QByteArray header = headerPart("hdr", {"<w:r><w:t>Header</w:t></w:r>"});
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>" + QByteArray(kPage) + "</w:sectPr>";
+        const QByteArray zip = makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}, {QStringLiteral("/word/endnotes.xml"), ends}, {QStringLiteral("/word/header1.xml"), header}},
+                                                 "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>", noteStyles());
+        static const int keys[] = {Qt::Key_Left, Qt::Key_Right, Qt::Key_Up, Qt::Key_Down, Qt::Key_Home, Qt::Key_End, Qt::Key_PageUp, Qt::Key_PageDown, Qt::Key_Backspace, Qt::Key_Delete,
+                                   Qt::Key_Return, Qt::Key_Tab, Qt::Key_Escape};
+        for (int seed = 1; seed <= seeds; ++seed) {
+            auto doc = open(zip);
+            QVERIFY(doc);
+            WriteWindow w;
+            w.resize(1300, 1000);
+            w.show();
+            w.setDocument(std::move(doc), QString());
+            PageView *v = w.view();
+            WriteDoc *d = w.document();
+            v->paginateAll();
+            std::mt19937 rng(seed);
+            auto pick = [&](int n) { return int(rng() % unsigned(std::max(1, n))); };
+            QStringList log;
+            for (int step = 0; step < 120; ++step) {
+                switch (pick(12)) {
+                case 0:
+                case 1:
+                case 2: {
+                    const int k = keys[pick(int(sizeof(keys) / sizeof(keys[0])))];
+                    const Qt::KeyboardModifiers m = pick(3) == 0 ? Qt::ShiftModifier : pick(4) == 0 ? Qt::ControlModifier : Qt::NoModifier;
+                    QTest::keyClick(v, Qt::Key(k), m);
+                    log << QStringLiteral("key%1/%2").arg(k, 0, 16).arg(int(m));
+                    break;
+                }
+                case 3:
+                    QTest::keyClicks(v, QStringLiteral("ab c"));
+                    log << QStringLiteral("type");
+                    break;
+                case 4: {
+                    const int pg = pick(std::max(1, d->pager().pageCount()));
+                    const auto page = d->pager().materialize(pg);
+                    if (!page) break;
+                    if (!page->noteBoxes.isEmpty() && pick(3)) {
+                        const auto nb = page->noteBoxes[pick(int(page->noteBoxes.size()))];
+                        if (const Item *it = page->doc->item(nb.itemId)) {
+                            QTest::mouseClick(v->viewport(), Qt::LeftButton, pick(4) == 0 ? Qt::ShiftModifier : Qt::NoModifier,
+                                              pagePoint(*v, pg, it->rect.left() + 10 + pick(300), it->rect.top() + 3 + pick(std::max(1, int(it->rect.height()) - 4))));
+                            log << QStringLiteral("clickNote");
+                        }
+                    } else {
+                        QTest::mouseClick(v->viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(*v, pg, 72 + pick(450), 72 + pick(600)));
+                        log << QStringLiteral("clickPage");
+                    }
+                    break;
+                }
+                case 5: {
+                    const QVector<int> ids = d->citedFootnotes();
+                    if (!ids.isEmpty()) {
+                        v->enterFootnote(ids[pick(int(ids.size()))]);
+                        log << QStringLiteral("enterFootnote");
+                    }
+                    break;
+                }
+                case 6:
+                    w.act("refs.footnote")->trigger();
+                    log << QStringLiteral("insFootnote");
+                    break;
+                case 7:
+                    w.act("refs.endnote")->trigger();
+                    log << QStringLiteral("insEndnote");
+                    break;
+                case 8:
+                    v->undo();
+                    log << QStringLiteral("undo");
+                    break;
+                case 9:
+                    v->redo();
+                    log << QStringLiteral("redo");
+                    break;
+                case 10: {
+                    const int what = pick(6);
+                    if (what == 0) v->copy();
+                    else if (what == 1) v->cut();
+                    else if (what == 2) v->paste();
+                    else if (what == 3) v->selectAll();
+                    else if (what == 4) w.act("fmt.bold")->trigger();
+                    else w.act("style.normal")->trigger();
+                    log << QStringLiteral("edit%1").arg(what);
+                    break;
+                }
+                default:
+                    if (pick(2)) {
+                        w.act(pick(2) ? "insert.header" : "insert.footer")->trigger();
+                        log << QStringLiteral("hdrButton");
+                    } else {
+                        QTest::mouseDClick(v->viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(*v, 0, 300, 40));
+                        log << QStringLiteral("dblclickHeader");
+                    }
+                    break;
+                }
+                QCoreApplication::processEvents();
+                const QString trail = QStringLiteral("seed %1 step %2 after ").arg(seed).arg(step) + log.mid(std::max<qsizetype>(0, log.size() - 6)).join(QLatin1Char(' '));
+                const QTextDocument *cd = v->cursor().document();
+                QVERIFY2(v->sideModesExclusive(), qPrintable(trail + QStringLiteral(": both modes are on")));
+                if (v->inNote()) QVERIFY2(cd == v->noteEdit().story, qPrintable(trail + QStringLiteral(": in a note, the caret is elsewhere")));
+                else if (v->inHeaderFooter()) QVERIFY2(cd == v->headerFooterEdit().story, qPrintable(trail + QStringLiteral(": in a header, the caret is elsewhere")));
+                else QVERIFY2(cd == d->story(), qPrintable(trail + QStringLiteral(": in no mode, the caret is not in the text")));
+                if (v->inNote()) {
+                    QRect caret;
+                    QVERIFY2(v->caretRect(&caret), qPrintable(trail + QStringLiteral(": in a note, the caret has no place")));
+                }
+            }
+            QString err;
+            const QByteArray saved = d->toDocx(&err);
+            QVERIFY2(!saved.isEmpty(), qPrintable(QStringLiteral("seed %1: %2").arg(seed).arg(err)));
+            QVERIFY2(rt::strictProblems(saved, QByteArray()).isEmpty(), qPrintable(QStringLiteral("seed %1: ").arg(seed) + rt::strictProblems(saved, QByteArray()).join(QLatin1Char(' '))));
+            QVERIFY2(rt::danglingReferences(saved).isEmpty(), qPrintable(QStringLiteral("seed %1: ").arg(seed) + rt::danglingReferences(saved).join(QLatin1Char(' '))));
+        }
+    }
+
+    // ---- footnotes: the caret in a note that is cut over pages or cited twice
+
+    // The pages that hold a part of the note with this Id, and the box of each part, in order.
+    static QList<std::pair<int, QRectF>> partsOfNote(WriteDoc &doc, int id)
+    {
+        QList<std::pair<int, QRectF>> out;
+        for (int pg = 0; pg < doc.pager().pageCount(); ++pg) {
+            QRectF box;
+            if (noteBoxOf(doc, pg, id, &box)) out.push_back({pg, box});
+        }
+        return out;
+    }
+
+    // Whether the caret is drawn in the box of the note on the page the view says the note is edited on.
+    static bool caretIsInBoxOf(PageView &view, WriteDoc &doc, int id)
+    {
+        QRect caret;
+        QRectF box;
+        if (!view.caretRect(&caret) || !noteBoxOf(doc, view.noteEdit().page, id, &box)) return false;
+        const QRect inView(pagePoint(view, view.noteEdit().page, box.left(), box.top()), pagePoint(view, view.noteEdit().page, box.right(), box.bottom()));
+        return inView.adjusted(-3, -3, 3, 3).contains(caret);
+    }
+
+    // A note that goes on from one page to the next: a click in its second part puts the caret there, typing leaves the page and the caret where they are, Ctrl+End and Ctrl+Home go to the
+    // last and the first parts (the view follows), and Down at the last line of a part goes on into the next.
+    void theCaretStaysInThePartOfANoteThatContinuesOnAnotherPage()
+    {
+        QByteArray words;
+        for (int i = 0; i < 2600; ++i) words += " word" + QByteArray::number(i);
+        auto doc = open(notesDocx(citing("Start", 2) + paragraphs(4, 30), footnotesPart({{2, plainRun(words)}})));
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 1200);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        const auto parts = partsOfNote(*doc, 2);
+        QVERIFY2(parts.size() >= 2, qPrintable(QString::number(parts.size())));
+        const int page = parts.last().first;
+        const QRectF box = parts.last().second;
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, page, box.left() + 30, box.top() + 4));
+        QVERIFY(view.inNote());
+        QCOMPARE(view.noteEdit().page, page);
+        QTest::keyClicks(&view, "X");
+        QVERIFY(view.inNote());
+        QCOMPARE(view.noteEdit().page, page);
+        QVERIFY2(caretIsInBoxOf(view, *doc, 2), "typing in the second part");
+        QCOMPARE(view.currentPage(), page);
+        const auto after = partsOfNote(*doc, 2);
+        QTest::keyClick(&view, Qt::Key_Home, Qt::ControlModifier);
+        QVERIFY(view.inNote());
+        QCOMPARE(view.noteEdit().page, after.first().first);
+        QVERIFY2(caretIsInBoxOf(view, *doc, 2), "Ctrl+Home");
+        QTest::keyClick(&view, Qt::Key_End, Qt::ControlModifier);
+        QVERIFY(view.inNote());
+        QCOMPARE(view.noteEdit().page, after.last().first);
+        QVERIFY2(caretIsInBoxOf(view, *doc, 2), "Ctrl+End");
+        // Down from the first line to the last: every part of the note is visited, the caret is always drawn, and the note is not left until the last line is passed.
+        QTest::keyClick(&view, Qt::Key_Home, Qt::ControlModifier);
+        QSet<int> visited{view.noteEdit().page};
+        for (int press = 0; press < 400 && view.inNote(); ++press) {
+            QTest::keyClick(&view, Qt::Key_Down);
+            if (!view.inNote()) break;
+            visited.insert(view.noteEdit().page);
+            QVERIFY2(caretIsInBoxOf(view, *doc, 2), qPrintable(QStringLiteral("Down, press %1").arg(press)));
+        }
+        QCOMPARE(int(visited.size()), int(after.size()));
+        QVERIFY(!view.inNote());   // (the last line was passed: the caret is in the text, after the reference)
+        // And Up from the last line to the first, the same way.
+        QVERIFY(view.enterFootnote(2));
+        QTest::keyClick(&view, Qt::Key_End, Qt::ControlModifier);
+        visited = QSet<int>{view.noteEdit().page};
+        for (int press = 0; press < 400 && view.inNote(); ++press) {
+            QTest::keyClick(&view, Qt::Key_Up);
+            if (!view.inNote()) break;
+            visited.insert(view.noteEdit().page);
+            QVERIFY2(caretIsInBoxOf(view, *doc, 2), qPrintable(QStringLiteral("Up, press %1").arg(press)));
+        }
+        QCOMPARE(int(visited.size()), int(after.size()));
+        QVERIFY(!view.inNote());
+    }
+
+    // A note cited on two pages is edited on the copy that was clicked: typing and the keys leave the view on that copy, and the caret is drawn in it.
+    void theCaretStaysOnTheCopyOfANoteThatWasClicked()
+    {
+        auto doc = open(notesDocx(citing("First citation", 2) + paragraphs(60, 40) + citing("Second citation of the same note", 2), footnotesPart({{2, plainRun(" the one note cited twice")}})));
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 1200);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        const auto copies = partsOfNote(*doc, 2);
+        QVERIFY2(copies.size() >= 2, qPrintable(QString::number(copies.size())));
+        const int page = copies.last().first;
+        QVERIFY(page > copies.first().first);
+        const QRectF box = copies.last().second;
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, page, box.left() + 60, box.top() + 4));
+        QVERIFY(view.inNote());
+        QCOMPARE(view.noteEdit().page, page);
+        for (const char *typed : {"X", "Y"}) {
+            QTest::keyClicks(&view, typed);
+            QCOMPARE(view.noteEdit().page, page);
+            QCOMPARE(view.currentPage(), page);
+            QVERIFY2(caretIsInBoxOf(view, *doc, 2), typed);
+            QVERIFY(view.viewport()->rect().adjusted(-50, -50, 50, 50).intersects([&] { QRect r; view.caretRect(&r); return r; }()));
+        }
+        QTest::keyClick(&view, Qt::Key_Home);
+        QCOMPARE(view.noteEdit().page, page);
+        QTest::keyClick(&view, Qt::Key_End, Qt::ControlModifier);
+        QCOMPARE(view.noteEdit().page, page);
+        QVERIFY(caretIsInBoxOf(view, *doc, 2));
+        // An undo of what was typed there leaves the view where it was.
+        view.undo();
+        QCOMPARE(view.noteEdit().page, page);
+        QVERIFY(caretIsInBoxOf(view, *doc, 2));
+        // And Esc goes back to the reference on the page the note was edited on.
+        QTest::keyClick(&view, Qt::Key_Escape);
+        QVERIFY(!view.inNote());
+        QCOMPARE(doc->pager().pageOfPosition(view.cursor().position()), page);
+    }
+
+    // ---- notes: the Ids of a part
+
+    // The separator and the continuation separator of a notes part, with the Ids given (producers number them as they like).
+    static QByteArray separatorsAt(const char *tag, int separator, int continuation)
+    {
+        const QByteArray t(tag);
+        return "<w:" + t + " w:type=\"separator\" w:id=\"" + QByteArray::number(separator) + "\"><w:p><w:r><w:separator/></w:r></w:p></w:" + t + ">" +
+               "<w:" + t + " w:type=\"continuationSeparator\" w:id=\"" + QByteArray::number(continuation) + "\"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:" + t + ">";
+    }
+
+    // The elements of a notes part, each as its type and its Id ("separator:0", "normal:2").
+    static QStringList noteElementsOf(const QByteArray &part, const char *tag)
+    {
+        QStringList out;
+        QXmlStreamReader xml(part);
+        xml.setNamespaceProcessing(false);
+        while (!xml.atEnd()) {
+            xml.readNext();
+            if (!xml.isStartElement() || xml.qualifiedName() != QLatin1String("w:") + QLatin1String(tag)) continue;
+            const QString type = xml.attributes().value(QStringLiteral("w:type")).toString();
+            out << (type.isEmpty() ? QStringLiteral("normal") : type) + QLatin1Char(':') + xml.attributes().value(QStringLiteral("w:id")).toString();
+        }
+        return out;
+    }
+
+    // A part with separators at Ids 0 and 1 and no note: a note made in it takes an Id above them, the separators are as the file had them, and the note is edited again after the file is
+    // read again, with the words of the separators untouched.
+    void aNewNoteTakesAnIdAboveEveryIdOfItsPartTheSeparatorsToo()
+    {
+        for (const bool endnotes : {false, true}) {
+            const char *tag = endnotes ? "endnote" : "footnote";
+            const QString name = endnotes ? QStringLiteral("/word/endnotes.xml") : QStringLiteral("/word/footnotes.xml");
+            const QByteArray part = QByteArray("<w:") + (endnotes ? "endnotes " : "footnotes ") + kNs + ">" + separatorsAt(tag, 0, 1) + (endnotes ? "</w:endnotes>" : "</w:footnotes>");
+            const QByteArray zip = makeDocxWithParts("<w:p><w:r><w:t>One paragraph of text</w:t></w:r></w:p>", pageSection(), {{name, part}}, endnotes ? QByteArray("<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>") : QByteArray(), noteStyles());
+            auto doc = open(zip);
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            c.setPosition(5);
+            int id = 0;
+            if (endnotes) {
+                QVERIFY(insertEndnote(*doc, c));
+                QVERIFY(doc->endnoteIdOf(c.block(), &id));
+                typeText(*doc, c, QStringLiteral("typed"));
+            } else {
+                QTextDocument *note = insertFootnote(*doc, c);
+                QVERIFY(note);
+                QVERIFY(doc->footnoteIdOf(note, &id));
+                typeAtEnd(*doc, note, QStringLiteral("typed"));
+            }
+            QVERIFY2(id >= 2, qPrintable(QStringLiteral("%1: the new note is Id %2").arg(QLatin1String(tag)).arg(id)));
+            const QByteArray saved = doc->toDocx();
+            const QByteArray written = partOf(saved, name);
+            QCOMPARE(noteElementsOf(written, tag), (QStringList{"separator:0", "continuationSeparator:1", QStringLiteral("normal:%1").arg(id)}));
+            QVERIFY(written.contains(separatorsAt(tag, 0, 1)));
+            // Read again, the note is edited and saved again: the separators keep their bytes and none of the words.
+            auto again = open(saved);
+            QVERIFY(again);
+            if (endnotes) {
+                int from = 0, to = 0;
+                QVERIFY(again->endnoteWords(id, &from, &to));
+                QTextCursor e(again->story());
+                e.setPosition(to);
+                typeText(*again, e, QStringLiteral("more"));
+            } else {
+                QTextDocument *note = again->editableFootnote(id);
+                QVERIFY(note);
+                QVERIFY(note->toPlainText().contains(QLatin1String("typed")));
+                typeAtEnd(*again, note, QStringLiteral("more"));
+            }
+            const QByteArray second = partOf(again->toDocx(), name);
+            QVERIFY(second.contains(separatorsAt(tag, 0, 1)));
+            QCOMPARE(noteElementsOf(second, tag), noteElementsOf(written, tag));
+            QVERIFY2(notePartText(second, tag, id).contains(QLatin1String("typedmore")), qPrintable(notePartText(second, tag, id)));
+        }
+    }
+
+    // ---- notes: cited from other places
+
+    // A note that the text cites and a header, a text box, or another note cites too is still cited when the text's reference is taken out: it stays in the notes part (and the places
+    // that cite it still have their references); the note goes when the last place that cites it lets it go.
+    void aNoteStaysWhileAHeaderATextBoxOrAnotherNoteStillCitesIt()
+    {
+        for (const bool endnotes : {false, true})
+            for (int where = 0; where < 3; ++where) {
+                if (endnotes && where == 2) continue;   // (the endnote's own note-in-a-note case is the footnote's)
+                const QString name = endnotes ? QStringLiteral("endnote") : QStringLiteral("footnote");
+                const QByteArray ref = endnotes ? "<w:r><w:endnoteReference w:id=\"2\"/></w:r>" : "<w:r><w:footnoteReference w:id=\"2\"/></w:r>";
+                QByteArray body = endnotes ? "<w:p><w:r><w:t>Body one</w:t></w:r>" + ref + "</w:p><w:p><w:r><w:t>Body two</w:t></w:r><w:r><w:endnoteReference w:id=\"3\"/></w:r></w:p>"
+                                           : citing("Body one", 2) + citing("Body two", 3);
+                QByteArray sect = pageSection();
+                QMap<QString, QByteArray> parts;
+                if (where == 0) {
+                    parts[QStringLiteral("/word/header1.xml")] = headerPart("hdr", {"<w:r><w:t>Head</w:t></w:r>" + ref});
+                    sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>" + QByteArray(kPage) + "</w:sectPr>";
+                } else if (where == 1) {
+                    body = QByteArray("<w:p><w:r><w:t>Body one</w:t></w:r>") + ref + "<w:r><w:pict><v:shape xmlns:v=\"urn:schemas-microsoft-com:vml\" id=\"s1\" style=\"width:100pt;height:50pt\"><v:textbox><w:txbxContent><w:p><w:r><w:t>in the box</w:t></w:r>" +
+                           ref + "</w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r></w:p>" + (endnotes ? QByteArray("<w:p><w:r><w:t>Body two</w:t></w:r><w:r><w:endnoteReference w:id=\"3\"/></w:r></w:p>") : citing("Body two", 3));
+                }
+                const QByteArray notesXml = endnotes ? "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote() +
+                                                           "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> note two</w:t></w:r></w:p></w:endnote>"
+                                                           "<w:endnote w:id=\"3\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> note three</w:t></w:r></w:p></w:endnote></w:endnotes>"
+                                                     : footnotesPart({{2, plainRun(" note two")}, {3, plainRun(" note three") + (where == 2 ? ref : QByteArray())}});
+                parts[endnotes ? QStringLiteral("/word/endnotes.xml") : QStringLiteral("/word/footnotes.xml")] = notesXml;
+                const QByteArray zip = makeDocxWithParts(body, sect, parts, endnotes ? QByteArray("<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>") : QByteArray(), noteStyles());
+                auto doc = open(zip);
+                QVERIFY(doc);
+                const QString what = name + QStringLiteral(" cited from ") + (where == 0 ? QStringLiteral("a header") : where == 1 ? QStringLiteral("a text box") : QStringLiteral("a note"));
+                const QVector<int> refs = endnotes ? doc->endnoteReferences(2) : doc->footnoteReferences(2);
+                QVERIFY2(!refs.isEmpty(), qPrintable(what));
+                QTextCursor c(doc->story());
+                c.setPosition(refs.first());
+                c.setPosition(refs.first() + 1, QTextCursor::KeepAnchor);
+                removeSelection(*doc, c);
+                QVERIFY2((endnotes ? doc->endnoteReferences(2) : doc->footnoteReferences(2)).size() == refs.size() - 1, qPrintable(what + QStringLiteral(": the reference was not taken out")));
+                const QString partName = endnotes ? QStringLiteral("/word/endnotes.xml") : QStringLiteral("/word/footnotes.xml");
+                const QByteArray saved = doc->toDocx();
+                const QStringList kept = noteElementsOf(partOf(saved, partName), endnotes ? "endnote" : "footnote");
+                QVERIFY2(kept.contains(QStringLiteral("normal:2")), qPrintable(what + QStringLiteral(": the note went with the text's reference: ") + kept.join(QLatin1Char(' '))));
+                QVERIFY2(kept.contains(QStringLiteral("normal:3")), qPrintable(what));
+                QVERIFY2(rt::strictProblems(saved, zip).isEmpty(), qPrintable(what));
+                // An undo gives the reference back, and the file is as it was.
+                while (doc->canUndo()) doc->undo();
+                QCOMPARE(partOf(doc->toDocx(), partName), partOf(zip, partName));
+            }
+    }
+
+    // A note cited by a header only (its text's reference gone) goes when the header lets it go.
+    void aNoteGoesWhenTheLastPlaceThatCitesItLetsItGo()
+    {
+        const QByteArray ref = "<w:r><w:footnoteReference w:id=\"2\"/></w:r>";
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>" + QByteArray(kPage) + "</w:sectPr>";
+        const QByteArray zip = makeDocxWithParts(citing("Body one", 2) + citing("Body two", 3), sect,
+                                                 {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>Head</w:t></w:r>" + ref})}, {QStringLiteral("/word/footnotes.xml"), footnotesPart({{2, plainRun(" two")}, {3, plainRun(" three")}})}},
+                                                 QByteArray(), noteStyles());
+        auto doc = open(zip);
+        QVERIFY(doc);
+        const QVector<int> refs = doc->footnoteReferences(2);
+        QCOMPARE(int(refs.size()), 1);
+        QTextCursor c(doc->story());
+        c.setPosition(refs.first());
+        c.setPosition(refs.first() + 1, QTextCursor::KeepAnchor);
+        removeSelection(*doc, c);
+        QTextDocument *header = doc->editableHeaderFooter(0, false, 0);
+        QVERIFY(header);
+        const int at = header->toPlainText().indexOf(QChar::ObjectReplacementCharacter);
+        QVERIFY(at >= 0);
+        QTextCursor h(header);
+        h.setPosition(at);
+        h.setPosition(at + 1, QTextCursor::KeepAnchor);
+        removeSelection(*doc, h);
+        const QByteArray saved = doc->toDocx();
+        const QStringList kept = noteElementsOf(partOf(saved, QStringLiteral("/word/footnotes.xml")), "footnote");
+        QVERIFY2(!kept.contains(QStringLiteral("normal:2")) && kept.contains(QStringLiteral("normal:3")), qPrintable(kept.join(QLatin1Char(' '))));
+        QVERIFY(rt::strictProblems(saved, zip).isEmpty());
+    }
+
+    // ---- notes: the most the program holds
+
+    // Notes put in and taken back, over and over, use up nothing: after more cycles than the most notes, one more can still be put in, and what the document holds is a few.
+    void insertingAndUndoingNotesOverAndOverNeverFillsTheDocument()
+    {
+        for (const bool endnotes : {false, true}) {
+            auto doc = open(endnotes ? notedDocx() : threeNotesDocx());
+            QVERIFY(doc);
+            const QByteArray before = doc->toDocx();
+            for (int cycle = 0; cycle < int(kMostNoteStories) + 100; ++cycle) {
+                QTextCursor c(doc->story());
+                c.setPosition(3);
+                if (endnotes) QVERIFY2(insertEndnote(*doc, c), qPrintable(QStringLiteral("endnote cycle %1").arg(cycle)));
+                else QVERIFY2(insertFootnote(*doc, c), qPrintable(QStringLiteral("footnote cycle %1").arg(cycle)));
+                doc->undo();
+            }
+            QVERIFY(endnotes ? doc->roomForEndnote() : doc->roomForFootnote());
+            QVERIFY2((endnotes ? doc->heldEndnotesForTest() : doc->heldFootnotesForTest()) <= 5, qPrintable(QString::number(endnotes ? doc->heldEndnotesForTest() : doc->heldFootnotesForTest())));
+            QTextCursor c(doc->story());
+            c.setPosition(3);
+            QVERIFY(endnotes ? insertEndnote(*doc, c) : bool(insertFootnote(*doc, c)));
+            while (doc->canUndo()) doc->undo();
+            QCOMPARE(documentXml(doc->toDocx()), documentXml(before));
+            QCOMPARE(partOf(doc->toDocx(), endnotes ? QStringLiteral("/word/endnotes.xml") : QStringLiteral("/word/footnotes.xml")),
+                     partOf(before, endnotes ? QStringLiteral("/word/endnotes.xml") : QStringLiteral("/word/footnotes.xml")));
+            // (Taken back and put in again by a redo: the note is the one that was.)
+            QTextCursor d(doc->story());
+            d.setPosition(3);
+            QVERIFY(endnotes ? insertEndnote(*doc, d) : bool(insertFootnote(*doc, d)));
+            const QByteArray inserted = doc->toDocx();
+            doc->undo();
+            doc->redo();
+            QCOMPARE(documentXml(doc->toDocx()), documentXml(inserted));
+            QCOMPARE(partOf(doc->toDocx(), endnotes ? QStringLiteral("/word/endnotes.xml") : QStringLiteral("/word/footnotes.xml")),
+                     partOf(inserted, endnotes ? QStringLiteral("/word/endnotes.xml") : QStringLiteral("/word/footnotes.xml")));
+        }
+    }
+
+    // A document with the most notes the program holds (each cited): no more can be made; the commands are off, and the status bar says why. A document with that many notes in its part
+    // and only a few cited has room: a note can still be made.
+    void aDocumentWithTheMostNotesTurnsTheCommandsOffAndSaysWhy()
+    {
+        const int count = kMostNoteStories;
+        QByteArray body;
+        QList<std::pair<int, QByteArray>> notes;
+        for (int i = 1; i <= count; ++i) {
+            body += "<w:p><w:r><w:t>p" + QByteArray::number(i) + "</w:t></w:r><w:r><w:footnoteReference w:id=\"" + QByteArray::number(i) + "\"/></w:r></w:p>";
+            notes << std::make_pair(i, plainRun(" note " + QByteArray::number(i)));
+        }
+        const QByteArray zip = notesDocx(body, footnotesPart(notes));
+        {
+            auto doc = open(zip);
+            QVERIFY(doc);
+            QVERIFY(!doc->roomForFootnote());
+            QTextCursor c(doc->story());
+            c.setPosition(2);
+            QVERIFY(!insertFootnote(*doc, c));
+            QVERIFY(c.document() == doc->story());
+            QVERIFY(!doc->isModified());
+        }
+        WriteWindow w;
+        w.resize(1000, 900);
+        w.show();
+        w.setDocument(open(zip), QString());
+        QTRY_VERIFY(!w.act("refs.footnote")->isEnabled());
+        QTRY_VERIFY2(w.statusBar()->currentMessage().contains(QLocale().toString(count)), qPrintable(w.statusBar()->currentMessage()));
+        QVERIFY(w.act("refs.endnote")->isEnabled());   // (the document's endnotes are another count)
+        // The same count of endnotes.
+        QByteArray ends = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote();
+        QByteArray endBody;
+        for (int i = 1; i <= count; ++i) {
+            ends += "<w:endnote w:id=\"" + QByteArray::number(i) + "\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> e" + QByteArray::number(i) + "</w:t></w:r></w:p></w:endnote>";
+            endBody += "<w:p><w:r><w:t>q" + QByteArray::number(i) + "</w:t></w:r><w:r><w:endnoteReference w:id=\"" + QByteArray::number(i) + "\"/></w:r></w:p>";
+        }
+        ends += "</w:endnotes>";
+        const QByteArray endZip = makeDocxWithParts(endBody, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), ends}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>");
+        auto ended = open(endZip);
+        QVERIFY(ended);
+        QVERIFY(!ended->roomForEndnote());
+        QTextCursor c(ended->story());
+        c.setPosition(2);
+        QVERIFY(!insertEndnote(*ended, c));
+        QVERIFY(!ended->isModified());
+    }
+
+    // ---- endnotes: what an edit costs
+
+    // The ids of the endnotes the references of the text name, and of those the pages set, each in order (they are the same list when the notes are set as the text asks).
+    static QStringList endnoteIdsOfReferences(WriteDoc &doc)
+    {
+        QStringList out;
+        for (const QString &r : endnoteReferenceNumbers(doc)) out << r.section(QLatin1Char(':'), 0, 0);
+        return out;
+    }
+    static QStringList endnoteIdsOfTails(WriteDoc &doc)
+    {
+        QStringList out;
+        for (const QString &r : endnoteMarks(doc)) out << r.section(QLatin1Char(':'), 0, 0);
+        return out;
+    }
+
+    // Typing, Enter, and Backspace in a long text with an endnotes part cost what the edit touched: the story is not walked again to see whether the notes the text names are those the
+    // pages set (the references are followed as the story changes); and the notes are still set again, as the text asks, when an edit takes a reference out, puts one in, or moves one.
+    void settlingTheEndnotesCostsWhatTheEditTouchedNotWhatTheStoryHolds()
+    {
+        QByteArray body = paragraphs(3000, 8);
+        body += "<w:p><w:r><w:t>First cite</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>" + paragraphs(5, 8) + "<w:p><w:r><w:t>Second cite</w:t></w:r><w:r><w:endnoteReference w:id=\"3\"/></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote() + "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Alpha note</w:t></w:r></w:p></w:endnote>" + betaNote() + "</w:endnotes>";
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+        QVERIFY(doc);
+        QCOMPARE(endnoteIdsOfReferences(*doc), endnoteIdsOfTails(*doc));
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->findBlockByNumber(1500).position() + 3);
+        insertParagraph(*doc, c);   // (the first edits that can change the notes: the references are looked for once)
+        deleteBack(*doc, c, false);
+        resetEndnoteSettleWorkForTest();
+        for (int i = 0; i < 40; ++i) insertText(*doc, c, QStringLiteral("x"));
+        for (int i = 0; i < 20; ++i) insertParagraph(*doc, c);
+        for (int i = 0; i < 20; ++i) deleteBack(*doc, c, false);
+        for (int i = 0; i < 10; ++i) deleteForward(*doc, c, false);
+        QVERIFY2(endnoteSettleScansForTest() == 0, qPrintable(QStringLiteral("%1 walks over the story, %2 paragraphs looked at").arg(endnoteSettleScansForTest()).arg(endnoteSettleVisitedForTest())));
+        QVERIFY2(endnoteSettleVisitedForTest() < 400, qPrintable(QString::number(endnoteSettleVisitedForTest())));
+        QCOMPARE(endnoteIdsOfReferences(*doc), endnoteIdsOfTails(*doc));
+        // Edits that change the references are followed: taking one out, putting one in, and moving one set the notes again.
+        auto step = [&](const QString &what) {
+            const bool same = endnoteIdsOfReferences(*doc) == endnoteIdsOfTails(*doc);
+            if (!same)
+                QTest::qFail(qPrintable(what + QStringLiteral(": the references name ") + endnoteIdsOfReferences(*doc).join(QLatin1Char(' ')) + QStringLiteral(", the pages set ") + endnoteIdsOfTails(*doc).join(QLatin1Char(' '))), __FILE__, __LINE__);
+            const bool followed = doc->endnoteSequenceMatchesStoryForTest();
+            if (!followed) QTest::qFail(qPrintable(what + QStringLiteral(": the references followed are not those the story has")), __FILE__, __LINE__);
+            return same && followed;
+        };
+        QVERIFY(step(QStringLiteral("typing and Enter")));
+        const QVector<int> refs = doc->endnoteReferences(2);
+        QCOMPARE(int(refs.size()), 1);
+        QTextCursor d(doc->story());
+        d.setPosition(refs.first());
+        d.setPosition(refs.first() + 1, QTextCursor::KeepAnchor);
+        const Clip clip = copySelection(*doc, d);
+        removeSelection(*doc, d);
+        QVERIFY(step(QStringLiteral("a reference taken out")));
+        QCOMPARE(endnoteIdsOfTails(*doc), (QStringList{"3"}));
+        QTextCursor e(doc->story());
+        e.setPosition(doc->story()->findBlockByNumber(10).position() + 2);
+        pasteClip(*doc, e, clip);
+        QVERIFY(step(QStringLiteral("a reference pasted")));
+        QCOMPARE(int(endnoteIdsOfTails(*doc).size()), 2);
+        QTextCursor f(doc->story());
+        f.setPosition(doc->story()->findBlockByNumber(20).position() + 1);
+        QVERIFY(insertEndnote(*doc, f));
+        QVERIFY(step(QStringLiteral("a note inserted")));
+        QCOMPARE(int(endnoteIdsOfTails(*doc).size()), 3);
+        QVERIFY2(endnoteSettleScansForTest() >= 1, "the notes were not set again");
+        while (doc->canUndo()) {
+            doc->undo();
+            QVERIFY(step(QStringLiteral("an undo")));
+        }
+        while (doc->canRedo()) {
+            doc->redo();
+            QVERIFY(step(QStringLiteral("a redo")));
+        }
+        QCOMPARE(int(endnoteIdsOfTails(*doc).size()), 3);
+        // Random edits at and beside the references, and what undoes and does them again: the references followed are always those the story has, and the pages set the notes they name.
+        std::mt19937 rng(11);
+        for (int i = 0; i < 300; ++i) {
+            QVector<int> places;
+            for (QTextBlock b = doc->story()->begin(); b.isValid() && b.position() < editableEnd(doc->story()); b = b.next())
+                if (b.text().contains(QChar::ObjectReplacementCharacter)) places << b.position() + int(b.text().indexOf(QChar::ObjectReplacementCharacter));
+            auto somewhere = [&] {
+                const int end = std::max(1, editableEnd(doc->story()) - 1);
+                if (!places.isEmpty() && rng() % 3 != 0) return std::clamp(places[rng() % unsigned(places.size())] + int(rng() % 3) - 1, 0, end);
+                return int(rng() % unsigned(end));
+            };
+            QTextCursor r(doc->story());
+            r.setPosition(somewhere());
+            QString what;
+            switch (rng() % 9) {
+            case 0: what = QStringLiteral("type"); insertText(*doc, r, QStringLiteral("x")); break;
+            case 1: what = QStringLiteral("Enter"); insertParagraph(*doc, r); break;
+            case 2: what = QStringLiteral("Backspace"); deleteBack(*doc, r, false); break;
+            case 3: what = QStringLiteral("Delete"); deleteForward(*doc, r, false); break;
+            case 4: what = QStringLiteral("delete three"); r.setPosition(std::min(r.position() + 3, editableEnd(doc->story()) - 1), QTextCursor::KeepAnchor); removeSelection(*doc, r); break;
+            case 5: what = QStringLiteral("insert an endnote"); insertEndnote(*doc, r); break;
+            case 6: {
+                what = QStringLiteral("copy and paste a reference");
+                if (places.isEmpty()) break;
+                QTextCursor from(doc->story());
+                from.setPosition(places[rng() % unsigned(places.size())]);
+                from.setPosition(from.position() + 1, QTextCursor::KeepAnchor);
+                const Clip piece = copySelection(*doc, from);
+                pasteClip(*doc, r, piece);
+                break;
+            }
+            case 7: what = QStringLiteral("undo"); doc->undo(); break;
+            default: what = QStringLiteral("redo"); doc->redo(); break;
+            }
+            QVERIFY(step(QStringLiteral("random edit %1 (%2)").arg(i).arg(what)));
+        }
+    }
+
+    // ---- notes: a paragraph that carries the properties of a section
+
+    // The section properties a producer wrote into a note's paragraph (a note has no sections, but a file may say so), as the program writes them.
+    static QByteArray sectionAsWritten(const QByteArray &sectPr)
+    {
+        auto doc = open(makeDocx("<w:p><w:pPr>" + sectPr + "</w:pPr><w:r><w:t>a</w:t></w:r></w:p><w:p><w:r><w:t>b</w:t></w:r></w:p>"));
+        const QByteArray part = documentXml(doc->toDocx());
+        const int at = part.indexOf("<w:sectPr");
+        return part.mid(at, part.indexOf("</w:sectPr>", at) + 11 - at);
+    }
+    static QByteArray firstSectionIn(const QByteArray &xml)
+    {
+        const int at = xml.indexOf("<w:sectPr");
+        return at < 0 ? QByteArray() : xml.mid(at, xml.indexOf("</w:sectPr>", at) + 11 - at);
+    }
+
+    // A note's paragraph that has a section's properties keeps them when the note is edited and saved, as they were read (in a document of two sections, whose own are not put in their place),
+    // and the file the note makes is the same when it is read and saved again.
+    void aSectionInANotesParagraphIsKeptWhenTheNoteIsEdited()
+    {
+        const QByteArray landscape = "<w:sectPr><w:pgSz w:w=\"15840\" w:h=\"12240\" w:orient=\"landscape\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/><w:cols w:num=\"2\" w:space=\"360\"/></w:sectPr>";
+        const QByteArray kept = sectionAsWritten(landscape);
+        QVERIFY2(kept.contains("w:orient=\"landscape\""), kept.constData());
+        const QByteArray firstSection = "<w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr></w:pPr><w:r><w:t>One</w:t></w:r></w:p>";
+        for (const bool endnotes : {false, true}) {
+            const QString name = endnotes ? QStringLiteral("/word/endnotes.xml") : QStringLiteral("/word/footnotes.xml");
+            const QByteArray first = endnotes ? "<w:endnote w:id=\"2\">" : "<w:footnote w:id=\"2\">";
+            const QByteArray last = endnotes ? "</w:endnote>" : "</w:footnote>";
+            const QByteArray paragraphs = "<w:p><w:r><w:" + QByteArray(endnotes ? "endnoteRef" : "footnoteRef") + "/></w:r><w:r><w:t xml:space=\"preserve\"> first</w:t></w:r></w:p>"
+                                          "<w:p><w:pPr>" + kept + "</w:pPr><w:r><w:t>second</w:t></w:r></w:p>";
+            const QByteArray part = endnotes ? "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote() + first + paragraphs + last + "</w:endnotes>"
+                                             : "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>" + first + paragraphs + last + "</w:footnotes>";
+            const QByteArray body = firstSection + (endnotes ? QByteArray("<w:p><w:r><w:t>Two</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>") : citing("Two", 2));
+            const QByteArray zip = makeDocxWithParts(body, pageSection(), {{name, part}}, endnotes ? QByteArray("<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>") : QByteArray(), noteStyles());
+            auto doc = open(zip);
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            if (endnotes) {
+                int from = 0, to = 0;
+                QVERIFY(doc->endnoteWords(2, &from, &to));
+                c.setPosition(from + 2);
+                insertText(*doc, c, QStringLiteral("EDIT"));
+            } else {
+                QTextDocument *note = doc->editableFootnote(2);
+                QVERIFY(note);
+                c = QTextCursor(note);
+                c.setPosition(noteTextStart(note) + 2);
+                insertText(*doc, c, QStringLiteral("EDIT"));
+            }
+            const QByteArray saved = doc->toDocx();
+            const QByteArray written = partOf(saved, name);
+            const QByteArray what = endnotes ? "endnote: " : "footnote: ";
+            QVERIFY2(written.contains("EDIT"), what.constData());
+            QVERIFY2(firstSectionIn(written.mid(written.indexOf("w:id=\"2\""))) == kept, qPrintable(QString::fromLatin1(what) + QString::fromUtf8(firstSectionIn(written.mid(written.indexOf("w:id=\"2\""))))));
+            QCOMPARE(int(written.count("<w:sectPr")), 1);
+            QVERIFY2(!documentXml(saved).contains("w:orient=\"landscape\""), "the note's section went into the text");
+            QCOMPARE(int(documentXml(saved).count("<w:sectPr")), 2);   // (the first paragraph's, and the text's last)
+            auto again = open(saved);
+            QVERIFY(again);
+            QCOMPARE(partOf(again->toDocx(), name), written);
+            QVERIFY(rt::strictProblems(saved, zip).isEmpty());
+        }
+        // A header's paragraph is the same.
+        const QByteArray header = "<w:hdr " + QByteArray(kNs) + "><w:p><w:r><w:t>Head</w:t></w:r></w:p><w:p><w:pPr>" + kept + "</w:pPr><w:r><w:t>second</w:t></w:r></w:p></w:hdr>";
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>" + QByteArray(kPage) + "</w:sectPr>";
+        const QByteArray zip = makeDocxWithParts(firstSection + "<w:p><w:r><w:t>Two</w:t></w:r></w:p>", sect, {{QStringLiteral("/word/header1.xml"), header}});
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *story = doc->editableHeaderFooter(1, false, 0);   // (the header is the last section's)
+        QVERIFY(story);
+        QTextCursor h(story);
+        h.setPosition(2);
+        insertText(*doc, h, QStringLiteral("EDIT"));
+        const QByteArray written = partOf(doc->toDocx(), QStringLiteral("/word/header1.xml"));
+        QVERIFY(written.contains("EDIT"));
+        QVERIFY2(firstSectionIn(written) == kept, written.constData());
+    }
+
+    // ---- notes: lists
+
+    // Turning a list off in a note gives its paragraph what its style gives: a note's own style (its paragraphs of the endnotes the pages set keep it apart from the document's styles),
+    // not the style the document has by default.
+    void turningAListOffInANoteGivesBackTheNotesOwnStyle()
+    {
+        const QByteArray styles = kStyles +
+            "<w:style w:type=\"paragraph\" w:styleId=\"EndnoteText\"><w:name w:val=\"endnote text\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:ind w:left=\"720\"/></w:pPr></w:style>"
+            "<w:style w:type=\"paragraph\" w:styleId=\"FootnoteText\"><w:name w:val=\"footnote text\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:ind w:left=\"720\"/></w:pPr></w:style>"
+            "<w:style w:type=\"character\" w:styleId=\"FootnoteReference\"><w:name w:val=\"footnote reference\"/><w:rPr><w:vertAlign w:val=\"superscript\"/></w:rPr></w:style>";
+        {
+            const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote() +
+                                     "<w:endnote w:id=\"2\"><w:p><w:pPr><w:pStyle w:val=\"EndnoteText\"/></w:pPr><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Alpha note</w:t></w:r></w:p></w:endnote></w:endnotes>";
+            const QByteArray body = "<w:p><w:r><w:t>Body</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+            auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>", styles));
+            QVERIFY(doc);
+            const QTextBlock note = doc->story()->findBlockByNumber(2);
+            QCOMPARE(note.blockFormat().leftMargin(), 36.0);
+            QTextCursor c(doc->story());
+            c.setPosition(note.position() + 4);
+            toggleList(*doc, c, false);
+            QVERIFY(doc->story()->findBlockByNumber(2).blockFormat().hasProperty(prop::NumId));
+            toggleList(*doc, c, false);
+            const QTextBlock after = doc->story()->findBlockByNumber(2);
+            QVERIFY(!after.blockFormat().hasProperty(prop::NumId));
+            QCOMPARE(after.blockFormat().leftMargin(), 36.0);
+            QCOMPARE(after.blockFormat().stringProperty(prop::EndnoteStyle), QStringLiteral("EndnoteText"));
+        }
+        {
+            auto doc = open(makeDocxWithParts(citing("Body", 2), pageSection(), {{QStringLiteral("/word/footnotes.xml"), footnotesPart({{2, plainRun(" Alpha note")}})}}, QByteArray(), styles));
+            QVERIFY(doc);
+            QTextDocument *note = doc->editableFootnote(2);
+            QVERIFY(note);
+            QCOMPARE(note->firstBlock().blockFormat().leftMargin(), 36.0);
+            QTextCursor c(note);
+            c.setPosition(noteTextStart(note) + 3);
+            toggleList(*doc, c, true);
+            QVERIFY(note->firstBlock().blockFormat().hasProperty(prop::NumId));
+            toggleList(*doc, c, true);
+            QVERIFY(!note->firstBlock().blockFormat().hasProperty(prop::NumId));
+            QCOMPARE(note->firstBlock().blockFormat().leftMargin(), 36.0);
+        }
+    }
+
+    // ---- footnotes: copies of a note that share a page
+
+    // Every box that sets the note with this Id, on every page: the page, the box, and where in the note it begins.
+    static QList<NoteBox> boxesOfNote(WriteDoc &doc, int id)
+    {
+        QList<NoteBox> out;
+        for (int pg = 0; pg < doc.pager().pageCount(); ++pg) {
+            const auto page = doc.pager().materialize(pg);
+            if (!page) continue;
+            for (const auto &nb : page->noteBoxes) {
+                int found = 0;
+                if (!doc.footnoteIdOf(nb.source, &found) || found != id) continue;
+                if (const Item *item = page->doc->item(nb.itemId)) out.push_back({pg, item->rect, nb.from});
+            }
+        }
+        return out;
+    }
+
+    // A note cited twice whose first copy goes on over pages, the second citation put so that the second copy begins on a page that the first goes on to: each part is clicked, and the caret
+    // is in that part (its page, and its box) while the note is typed in and the keys move the caret.
+    void theCaretStaysInThePartClickedWhereOneCopyGoesOnAndAnotherBegins()
+    {
+        std::unique_ptr<WriteDoc> doc;
+        QList<NoteBox> boxes;
+        bool shared = false;
+        for (int attempt = 0; attempt < 80 && !shared; ++attempt) {
+            const int filler = 1 + attempt % 40, wordCount = attempt < 40 ? 1400 : 800;
+            QByteArray words;
+            for (int i = 0; i < wordCount; ++i) words += " word" + QByteArray::number(i);
+            doc = open(notesDocx(citing("First citation", 2) + paragraphs(filler, 40) + citing("Second citation", 2), footnotesPart({{2, plainRun(words)}})));
+            QVERIFY(doc);
+            PageView probe;
+            probe.resize(1000, 1200);
+            probe.setDocument(doc.get());
+            probe.paginateAll();
+            boxes = boxesOfNote(*doc, 2);
+            QSet<int> seen;
+            for (const NoteBox &b : boxes) {
+                if (seen.contains(b.page)) shared = true;
+                seen.insert(b.page);
+            }
+        }
+        QVERIFY2(shared, "no layout was found in which two copies of the note share a page");
+        PageView view;
+        view.resize(1000, 1200);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        boxes = boxesOfNote(*doc, 2);
+        QVERIFY(boxes.size() >= 3);
+        auto inView = [&](const QRectF &box, int page) { return QRect(pagePoint(view, page, box.left(), box.top()), pagePoint(view, page, box.right(), box.bottom())).adjusted(-3, -3, 3, 3); };
+        for (int index = 0; index < boxes.size(); ++index) {
+            const NoteBox box = boxesOfNote(*doc, 2).value(index);
+            QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, box.page, box.rect.left() + 50, box.rect.top() + 5));
+            const QString where = QStringLiteral("the part %1 of %2 (page %3, from %4)").arg(index).arg(boxes.size()).arg(box.page).arg(box.from);
+            QVERIFY2(view.inNote(), qPrintable(where));
+            QCOMPARE(view.noteEdit().page, box.page);
+            QRect caret;
+            QVERIFY2(view.caretRect(&caret) && inView(box.rect, box.page).contains(caret), qPrintable(where + QStringLiteral(": after the click")));
+            QTest::keyClicks(&view, "x");
+            const NoteBox again = boxesOfNote(*doc, 2).value(index);
+            QVERIFY2(view.caretRect(&caret) && inView(again.rect, again.page).contains(caret), qPrintable(where + QStringLiteral(": after typing")));
+            QCOMPARE(view.noteEdit().page, box.page);
+            QTest::keyClick(&view, Qt::Key_End);
+            QVERIFY2(view.caretRect(&caret) && inView(boxesOfNote(*doc, 2).value(index).rect, box.page).contains(caret), qPrintable(where + QStringLiteral(": after End")));
+            QTest::keyClick(&view, Qt::Key_Escape);
+            QVERIFY(!view.inNote());
+        }
+        // From the start of each copy, Down goes through all of it, a line at a time (a part that goes on is followed by the next part of the same copy, though another copy's part may be on
+        // its page), and leaves the note only after the note's last line.
+        QTextDocument *note = doc->editableFootnote(2);
+        QVERIFY(note);
+        const int end = note->characterCount() - 1;
+        for (int index = 0; index < boxes.size(); ++index) {
+            const NoteBox box = boxesOfNote(*doc, 2).value(index);
+            if (box.from != 0) continue;
+            QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, box.page, box.rect.left() + 50, box.rect.top() + 5));
+            QVERIFY(view.inNote());
+            QTest::keyClick(&view, Qt::Key_Home, Qt::ControlModifier);
+            int last = view.cursor().position();
+            for (int press = 0; press < 700 && view.inNote(); ++press) {
+                QTest::keyClick(&view, Qt::Key_Down);
+                if (!view.inNote()) break;
+                const int now = view.cursor().position();
+                const QString where = QStringLiteral("the copy at page %1, press %2: from %3 to %4").arg(box.page).arg(press).arg(last).arg(now);
+                QVERIFY2(now > last && now - last < 600, qPrintable(where));
+                last = now;
+            }
+            QVERIFY2(!view.inNote(), "the note was never left");
+            QVERIFY2(last >= end - 300, qPrintable(QStringLiteral("the copy at page %1 was left at %2 of %3").arg(box.page).arg(last).arg(end)));
+            view.setCursor(QTextCursor(doc->story()));
+        }
+    }
+
+    // ---- notes: what keeps a note in the file
+
+    // A header that was edited (it is in the form it is edited in) says what it cites now, not what the part it was read from said: the note it still cites stays when the text's reference goes,
+    // and the note whose reference was taken out of the header goes with the text's (the part as it was read still names both).
+    void aNoteStaysWhileAnEditedHeaderStillCitesIt()
+    {
+        const QByteArray ref2 = "<w:r><w:footnoteReference w:id=\"2\"/></w:r>", ref3 = "<w:r><w:footnoteReference w:id=\"3\"/></w:r>";
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/>" + QByteArray(kPage) + "</w:sectPr>";
+        const QByteArray zip = makeDocxWithParts(citing("Body one", 2) + citing("Body two", 3), sect,
+                                                 {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>Head</w:t></w:r>" + ref2 + ref3})}, {QStringLiteral("/word/footnotes.xml"), footnotesPart({{2, plainRun(" two")}, {3, plainRun(" three")}})}},
+                                                 QByteArray(), noteStyles());
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextDocument *header = doc->editableHeaderFooter(0, false, 0);
+        QVERIFY(header);
+        typeAtEnd(*doc, header, QStringLiteral(" edited"));
+        // The header's reference to note 3 is taken out.
+        const int at = header->toPlainText().lastIndexOf(QChar::ObjectReplacementCharacter);
+        QVERIFY(at >= 0);
+        QTextCursor h(header);
+        h.setPosition(at);
+        h.setPosition(at + 1, QTextCursor::KeepAnchor);
+        removeSelection(*doc, h);
+        for (const int id : {2, 3}) {
+            const QVector<int> refs = doc->footnoteReferences(id);
+            QCOMPARE(int(refs.size()), 1);
+            QTextCursor c(doc->story());
+            c.setPosition(refs.first());
+            c.setPosition(refs.first() + 1, QTextCursor::KeepAnchor);
+            removeSelection(*doc, c);
+        }
+        const QByteArray saved = doc->toDocx();
+        const QStringList kept = noteElementsOf(partOf(saved, QStringLiteral("/word/footnotes.xml")), "footnote");
+        QVERIFY2(kept.contains(QStringLiteral("normal:2")), qPrintable(kept.join(QLatin1Char(' ')) + QStringLiteral(": the note went while the edited header cites it")));
+        QVERIFY2(!kept.contains(QStringLiteral("normal:3")), qPrintable(kept.join(QLatin1Char(' ')) + QStringLiteral(": the note stayed though the edited header no longer cites it")));
+        QVERIFY(partOf(saved, QStringLiteral("/word/header1.xml")).contains("footnoteReference w:id=\"2\""));
+        QVERIFY(!partOf(saved, QStringLiteral("/word/header1.xml")).contains("footnoteReference w:id=\"3\""));
+        QVERIFY(partOf(saved, QStringLiteral("/word/header1.xml")).contains(" edited"));
+        QVERIFY(rt::strictProblems(saved, zip).isEmpty());
+    }
+
+    // Notes that cite only one another are let go with the text's last reference to them: a note that only a note that is let go cites goes too (A cites B and B cites A; A cites B; a footnote
+    // and an endnote that cite one another), and one that a note that stays cites stays.
+    void notesThatCiteOnlyOneAnotherGoWithTheTextsLastReference()
+    {
+        const QByteArray fnRef2 = "<w:r><w:footnoteReference w:id=\"2\"/></w:r>", fnRef3 = "<w:r><w:footnoteReference w:id=\"3\"/></w:r>", enRef1 = "<w:r><w:endnoteReference w:id=\"1\"/></w:r>";
+        auto savedNotes = [](WriteDoc &doc, const QByteArray &zip, const QString &part, const char *tag) {
+            const QByteArray saved = doc.toDocx();
+            [&] { QVERIFY(rt::strictProblems(saved, zip).isEmpty()); }();
+            return noteElementsOf(partOf(saved, part), tag);
+        };
+        auto dropBodyReference = [](WriteDoc &doc, int id) {
+            const QVector<int> refs = doc.footnoteReferences(id);
+            QCOMPARE(int(refs.size()), 1);
+            QTextCursor c(doc.story());
+            c.setPosition(refs.first());
+            c.setPosition(refs.first() + 1, QTextCursor::KeepAnchor);
+            removeSelection(doc, c);
+        };
+        {
+            // A cites B and B cites A; the text cites A.
+            const QByteArray zip = notesDocx(citing("Body", 2) + citing("Other", 4), footnotesPart({{2, plainRun(" two") + fnRef3}, {3, plainRun(" three") + fnRef2}, {4, plainRun(" four")}}));
+            auto doc = open(zip);
+            QVERIFY(doc);
+            QCOMPARE(savedNotes(*doc, zip, QStringLiteral("/word/footnotes.xml"), "footnote"), (QStringList{"separator:-1", "continuationSeparator:0", "normal:2", "normal:3", "normal:4"}));
+            dropBodyReference(*doc, 2);
+            QCOMPARE(savedNotes(*doc, zip, QStringLiteral("/word/footnotes.xml"), "footnote"), (QStringList{"separator:-1", "continuationSeparator:0", "normal:4"}));
+            while (doc->canUndo()) doc->undo();
+            QCOMPARE(partOf(doc->toDocx(), QStringLiteral("/word/footnotes.xml")), partOf(zip, QStringLiteral("/word/footnotes.xml")));
+        }
+        {
+            // A cites B; the text cites A; B cites nothing.
+            const QByteArray zip = notesDocx(citing("Body", 2), footnotesPart({{2, plainRun(" two") + fnRef3}, {3, plainRun(" three")}}));
+            auto doc = open(zip);
+            QVERIFY(doc);
+            dropBodyReference(*doc, 2);
+            QCOMPARE(savedNotes(*doc, zip, QStringLiteral("/word/footnotes.xml"), "footnote"), (QStringList{"separator:-1", "continuationSeparator:0"}));
+        }
+        {
+            // The text cites B, and A and B cite one another: when the text lets A go, A stays, for B (which the text cites) cites it.
+            const QByteArray zip = notesDocx(citing("Body", 2) + citing("Other", 3), footnotesPart({{2, plainRun(" two") + fnRef3}, {3, plainRun(" three") + fnRef2}}));
+            auto doc = open(zip);
+            QVERIFY(doc);
+            dropBodyReference(*doc, 2);
+            QCOMPARE(savedNotes(*doc, zip, QStringLiteral("/word/footnotes.xml"), "footnote"), (QStringList{"separator:-1", "continuationSeparator:0", "normal:2", "normal:3"}));
+        }
+        {
+            // A footnote and an endnote that cite one another.
+            const QByteArray body = citing("Body", 2);
+            const QByteArray notes = footnotesPart({{2, plainRun(" two") + enRef1}});
+            const QByteArray ends = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote() + "<w:endnote w:id=\"1\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> one</w:t></w:r>" + fnRef2 + "</w:p></w:endnote></w:endnotes>";
+            const QByteArray zip = makeDocxWithParts(body, pageSection(), {{QStringLiteral("/word/footnotes.xml"), notes}, {QStringLiteral("/word/endnotes.xml"), ends}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>", noteStyles());
+            auto doc = open(zip);
+            QVERIFY(doc);
+            dropBodyReference(*doc, 2);
+            const QByteArray saved = doc->toDocx();
+            QCOMPARE(noteElementsOf(partOf(saved, QStringLiteral("/word/footnotes.xml")), "footnote"), (QStringList{"separator:-1", "continuationSeparator:0"}));
+            QCOMPARE(noteElementsOf(partOf(saved, QStringLiteral("/word/endnotes.xml")), "endnote"), (QStringList{"separator:-1"}));
+            QVERIFY(rt::strictProblems(saved, zip).isEmpty());
+        }
+    }
+
+    // ---- endnotes: the most notes, in the window
+
+    // A document with the most endnotes the program holds (each cited): in the window Insert Endnote is off, the status bar says why, and Insert Footnote (another count) is on.
+    void aDocumentWithTheMostEndnotesTurnsInsertEndnoteOffInTheWindow()
+    {
+        const int count = kMostNoteStories;
+        QByteArray ends = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote();
+        QByteArray body;
+        for (int i = 1; i <= count; ++i) {
+            ends += "<w:endnote w:id=\"" + QByteArray::number(i) + "\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> e" + QByteArray::number(i) + "</w:t></w:r></w:p></w:endnote>";
+            body += "<w:p><w:r><w:t>q" + QByteArray::number(i) + "</w:t></w:r><w:r><w:endnoteReference w:id=\"" + QByteArray::number(i) + "\"/></w:r></w:p>";
+        }
+        ends += "</w:endnotes>";
+        const QByteArray zip = makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), ends}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>");
+        WriteWindow w;
+        w.resize(1000, 900);
+        w.show();
+        w.setDocument(open(zip), QString());
+        QTRY_VERIFY(!w.act("refs.endnote")->isEnabled());
+        QTRY_VERIFY2(w.statusBar()->currentMessage().contains(QLocale().toString(count)), qPrintable(w.statusBar()->currentMessage()));
+        QVERIFY(w.act("refs.footnote")->isEnabled());
+        QVERIFY(w.act("refs.endnote")->statusTip().contains(QLocale().toString(count)));
+        // Triggered all the same (a shortcut can be): nothing is made.
+        const int blocks = w.document()->story()->blockCount();
+        w.act("refs.endnote")->trigger();
+        QCOMPARE(w.document()->story()->blockCount(), blocks);
+    }
+
+    // ---- endnotes: a keystroke and the references after it
+
+    // A keystroke before the references of a long text costs the same, whatever their number: the places of the references are not all moved on for each (the work is counted in the
+    // places that are read or written).
+    void aKeystrokeCostsAboutTheSameWhateverTheNumberOfEndnoteReferencesAfterIt()
+    {
+        auto workPerKey = [&](int references) {
+            QByteArray body = paragraphs(40, 8), notes = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote();
+            for (int i = 1; i <= references; ++i) {
+                body += "<w:p><w:r><w:t>r" + QByteArray::number(i) + "</w:t></w:r><w:r><w:endnoteReference w:id=\"" + QByteArray::number(i) + "\"/></w:r></w:p>";
+                notes += "<w:endnote w:id=\"" + QByteArray::number(i) + "\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> n" + QByteArray::number(i) + "</w:t></w:r></w:p></w:endnote>";
+            }
+            notes += "</w:endnotes>";
+            auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+            [&] { QVERIFY(doc); }();
+            QTextCursor c(doc->story());
+            c.setPosition(5);   // (before every reference)
+            insertParagraph(*doc, c);   // (the first edits that can change the notes: the references are looked for once)
+            deleteBack(*doc, c, false);
+            resetEndnoteSequenceWorkForTest();
+            for (int i = 0; i < 100; ++i) insertText(*doc, c, QStringLiteral("x"));
+            for (int i = 0; i < 20; ++i) deleteBack(*doc, c, false);
+            const bool followed = doc->endnoteSequenceMatchesStoryForTest();
+            [&] { QVERIFY(followed); }();
+            return double(endnoteSequenceWorkForTest()) / 120;
+        };
+        const double few = workPerKey(20), many = workPerKey(1000);
+        QVERIFY2(many <= 60, qPrintable(QStringLiteral("%1 places read or written for a keystroke with 1000 references after it, %2 with 20").arg(many).arg(few)));
+        QVERIFY2(many <= few + 40, qPrintable(QStringLiteral("%1 places for a keystroke with 1000 references after it, %2 with 20").arg(many).arg(few)));
+    }
+
+    // ---- endnotes: the caret across pages and copies
+
+    // An endnote that goes on over several pages: a click on any page puts the caret there (its page, and the place drawn), typing leaves it, Ctrl+End and Ctrl+Home go to the end and the
+    // start of the note's words, and Down from the first line to the last goes through every page that has the note.
+    void theCaretStaysOnThePageOfAnEndnoteThatContinuesOnAnotherPage()
+    {
+        QByteArray words;
+        for (int i = 0; i < 2600; ++i) words += " word" + QByteArray::number(i);
+        const QByteArray ends = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:endnote><w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\">" +
+                                words + "</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        const QByteArray body = "<w:p><w:r><w:t>Body text</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+        auto doc = open(makeDocxWithParts(body, pageSection(), {{QStringLiteral("/word/endnotes.xml"), ends}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 1200);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        int from = 0, to = 0;
+        QVERIFY(doc->endnoteWords(2, &from, &to));
+        const int firstPage = doc->pager().pageOfPosition(from), lastPage = doc->pager().pageOfPosition(to);
+        QVERIFY2(lastPage - firstPage >= 2, qPrintable(QString::number(lastPage - firstPage)));
+        auto caretOnPage = [&](int page) {
+            QRect caret;
+            return view.caretRect(&caret) && view.pageRect(page).adjusted(-3, -3, 3, 3).contains(caret) && view.currentPage() == page;
+        };
+        auto scrollTo = [&](int page) {
+            view.verticalScrollBar()->setValue(view.verticalScrollBar()->value() + view.pageRect(page).top());
+            QCoreApplication::processEvents();
+        };
+        for (int page = firstPage; page <= lastPage; ++page) {
+            scrollTo(page);
+            // (Not at the same place as the click before, or the clicks go for a double and a triple click, which select a word and the paragraph.)
+            QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, page, 200 + 40 * (page - firstPage), page == firstPage ? 600 : 300));
+            const EndnoteSpan span = endnoteSpanAt(doc->story(), view.cursor().position());
+            int noteId = 0;
+            QVERIFY2(span.valid && span.editable && doc->endnoteIdOf(doc->story()->findBlock(view.cursor().position()), &noteId) && noteId == 2, qPrintable(QStringLiteral("a click on page %1: the caret is at %2").arg(page).arg(view.cursor().position())));
+            QVERIFY2(caretOnPage(page), qPrintable(QStringLiteral("a click on page %1").arg(page)));
+            QTest::keyClicks(&view, "x");
+            QVERIFY2(caretOnPage(page), qPrintable(QStringLiteral("typing on page %1").arg(page)));
+        }
+        QTest::keyClick(&view, Qt::Key_End, Qt::ControlModifier);
+        QVERIFY(doc->endnoteWords(2, &from, &to));
+        QCOMPARE(view.cursor().position(), to);
+        QVERIFY(caretOnPage(doc->pager().pageOfPosition(to)));
+        QTest::keyClick(&view, Qt::Key_Home, Qt::ControlModifier);
+        QCOMPARE(view.cursor().position(), from);
+        QVERIFY(caretOnPage(doc->pager().pageOfPosition(from)));
+        QSet<int> visited{view.currentPage()};
+        for (int press = 0; press < 500; ++press) {
+            QTest::keyClick(&view, Qt::Key_Down);
+            const EndnoteSpan span = endnoteSpanAt(doc->story(), view.cursor().position());
+            if (!(span.valid && span.editable)) break;
+            visited.insert(view.currentPage());
+            QRect caret;
+            QVERIFY2(view.caretRect(&caret), qPrintable(QStringLiteral("Down, press %1").arg(press)));
+        }
+        QCOMPARE(int(visited.size()), doc->pager().pageOfPosition(to) - doc->pager().pageOfPosition(from) + 1);
+    }
+
+    // An endnote cited twice is set twice, and only the first copy is edited, though the second shows it: a click in the second copy is a click at the same place in the first, the note's own, and
+    // the view goes there; what is typed, taken out, or split there is in both copies, as one step with it; an undo gives both back; and a click in the first copy is in it, on the page clicked.
+    void aClickInALaterCopyOfAnEndnoteIsInTheFirstCopyAndTypingUpdatesBoth()
+    {
+        QByteArray words;
+        for (int i = 0; i < 1500; ++i) words += " word" + QByteArray::number(i);
+        const QByteArray ends = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:endnote><w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\">" +
+                                words + "</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        const QByteArray body = "<w:p><w:r><w:t>First</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p><w:p><w:r><w:t>Second</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+        auto doc = open(makeDocxWithParts(body, pageSection(), {{QStringLiteral("/word/endnotes.xml"), ends}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 1200);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        // The words of each copy, as the paragraphs of the story that are its own.
+        auto copyText = [&](bool first) {
+            QStringList out;
+            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) {
+                const int serial = b.blockFormat().intProperty(prop::EndnoteNote);
+                if (b.blockFormat().hasProperty(prop::EndnoteBlock) && (first ? serial > 0 : serial < 0)) out << b.text();
+            }
+            return out.join(QLatin1Char('\n'));
+        };
+        QTextBlock copyOne, copyTwo;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) {
+            const int serial = b.blockFormat().intProperty(prop::EndnoteNote);
+            if (b.blockFormat().hasProperty(prop::EndnoteBlock) && serial > 0) copyOne = b;
+            if (b.blockFormat().hasProperty(prop::EndnoteBlock) && serial < 0) copyTwo = b;
+        }
+        QVERIFY(copyOne.isValid() && copyTwo.isValid());
+        QCOMPARE(copyText(true), copyText(false));
+        const int copyOneLast = doc->pager().pageOfPosition(copyOne.position() + copyOne.length() - 1);
+        const int copyTwoLast = doc->pager().pageOfPosition(copyTwo.position() + copyTwo.length() - 1);
+        const int page = copyOneLast + 1;   // (a page that has the second copy's words only)
+        QVERIFY2(page <= copyTwoLast, qPrintable(QStringLiteral("pages %1 to %2").arg(copyOneLast).arg(copyTwoLast)));
+        // The caret is in the text; the view is then put at the page, and the top of its first line is clicked.
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, 0, 74, 80));
+        QVERIFY(!endnoteSpanAt(doc->story(), view.cursor().position()).valid);
+        view.verticalScrollBar()->setValue(view.verticalScrollBar()->value() + view.pageRect(page).top());
+        QCoreApplication::processEvents();
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, page, 80, 75));
+        const int pageStart = doc->pager().page(page).start.pos;
+        const int expected = copyOne.position() + (pageStart - copyTwo.position());
+        int id = 0;
+        const int at = view.cursor().position();
+        QVERIFY2(endnoteSpanAt(doc->story(), at).editable && doc->endnoteIdOf(doc->story()->findBlock(at), &id) && id == 2, qPrintable(QStringLiteral("the caret is at %1").arg(at)));
+        QVERIFY2(std::abs(at - expected) <= 20, qPrintable(QStringLiteral("the caret is at %1, the same place of the first copy is %2").arg(at).arg(expected)));
+        QRect caret;
+        QVERIFY(view.caretRect(&caret) && view.viewport()->rect().contains(caret));   // (the view shows it, where it is: pages from the page that was clicked)
+        QCOMPARE(view.currentPage(), doc->pager().pageOfPosition(at));
+        // Typed, and taken out, and split: both copies say the same, in one step.
+        QTest::keyClicks(&view, "ZZ ");
+        QVERIFY(copyText(true).contains(QLatin1String("ZZ ")));
+        QCOMPARE(copyText(false), copyText(true));
+        QTest::keyClick(&view, Qt::Key_Backspace);
+        QCOMPARE(copyText(false), copyText(true));
+        QTest::keyClick(&view, Qt::Key_Return);
+        QCOMPARE(copyText(false), copyText(true));
+        QCOMPARE(copyText(true).count(QLatin1Char('\n')), 1);
+        const QByteArray part = notesPartOf(doc->toDocx());
+        QCOMPARE(int(part.count("<w:endnote w:id=\"2\"")), 1);
+        QVERIFY(part.contains("ZZ"));
+        view.undo();   // (the paragraph that was split)
+        QCOMPARE(copyText(false), copyText(true));
+        QCOMPARE(copyText(true).count(QLatin1Char('\n')), 0);
+        while (doc->canUndo()) doc->undo();
+        QCOMPARE(copyText(false), copyText(true));
+        QVERIFY(!copyText(true).contains(QLatin1String("ZZ ")));
+        // A click in the first copy is in it, on the page clicked.
+        const int firstPage = doc->pager().pageOfPosition(copyOne.position());
+        view.verticalScrollBar()->setValue(view.verticalScrollBar()->value() + view.pageRect(firstPage + 1).top());
+        QCoreApplication::processEvents();
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, firstPage + 1, 200, 300));
+        const EndnoteSpan span = endnoteSpanAt(doc->story(), view.cursor().position());
+        QVERIFY(span.valid && span.editable);
+        QCOMPARE(view.currentPage(), firstPage + 1);
+    }
+
+    // ---- notes: what an ordinary edit costs
+
+    // The same ordinary edits (typing, Enter, Backspace, Delete, bold, copy and paste, taking text out, a style) at the top of a text that has no note, a few, and hundreds, the references being
+    // after the places of the edits: counted in what the notes' bookkeeping looks at, there is none of it without notes, and with them it does not grow with their number.
+    void ordinaryEditsCostTheSameWorkWhateverTheNumberOfNotes()
+    {
+        constexpr int edits = 300;
+        auto workWith = [&](int notes) {
+            QByteArray body = paragraphs(300, 8);
+            QList<std::pair<int, QByteArray>> footnotes;
+            QByteArray ends = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote();
+            for (int i = 1; i <= notes; ++i) {
+                const QByteArray n = QByteArray::number(i);
+                body += "<w:p><w:r><w:t>cites " + n + "</w:t></w:r><w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr><w:footnoteReference w:id=\"" + n + "\"/></w:r><w:r><w:endnoteReference w:id=\"" + n + "\"/></w:r></w:p>";
+                footnotes << std::make_pair(i, plainRun(" note " + n));
+                ends += "<w:endnote w:id=\"" + n + "\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> end " + n + "</w:t></w:r></w:p></w:endnote>";
+            }
+            ends += "</w:endnotes>";
+            const QByteArray zip = notes == 0 ? makeDocx(body, kStyles)
+                                              : makeDocxWithParts(body, pageSection(), {{QStringLiteral("/word/footnotes.xml"), footnotesPart(footnotes)}, {QStringLiteral("/word/endnotes.xml"), ends}},
+                                                                  "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>", noteStyles());
+            auto doc = open(zip);
+            [&] { QVERIFY(doc); }();
+            QTextCursor c(doc->story());
+            c.setPosition(5);
+            insertParagraph(*doc, c);   // (the first edits that can change the notes: the references are looked for once)
+            deleteBack(*doc, c, false);
+            resetNoteWorkForTest();
+            QTextDocumentFragment held;
+            for (int i = 0; i < edits; ++i) {
+                const int at = 5 + (i * 211) % 1200;
+                c.setPosition(at);
+                switch (i % 8) {
+                case 0: insertText(*doc, c, QStringLiteral("x")); break;
+                case 1: insertParagraph(*doc, c); break;
+                case 2: deleteBack(*doc, c, false); break;
+                case 3: deleteForward(*doc, c, false); break;
+                case 4: c.setPosition(at + 40, QTextCursor::KeepAnchor); toggleBold(*doc, c); break;
+                case 5: c.setPosition(at + 30, QTextCursor::KeepAnchor); held = selectionFragment(c); c.setPosition(at + 50); pasteFragment(*doc, c, held); break;
+                case 6: c.setPosition(at + 20, QTextCursor::KeepAnchor); removeSelection(*doc, c); break;
+                default: c.setPosition(at + 60, QTextCursor::KeepAnchor); applyParagraphStyle(*doc, c, QStringLiteral("Heading2")); break;
+                }
+            }
+            return noteWorkForTest();
+        };
+        const qint64 none = workWith(0), few = workWith(10), many = workWith(400);
+        QVERIFY2(none == 0, qPrintable(QStringLiteral("%1 places looked at in a text with no note").arg(none)));
+        QVERIFY2(many <= 40 * edits, qPrintable(QStringLiteral("%1 places looked at for %2 edits with 400 notes (%3 with 10)").arg(many).arg(edits).arg(few)));
+        QVERIFY2(many <= few + 12 * edits, qPrintable(QStringLiteral("%1 places looked at for %2 edits with 400 notes, %3 with 10").arg(many).arg(edits).arg(few)));
+    }
+
+    // ---- endnotes: a keystroke in a note that has copies
+
+    // A keystroke in an endnote that is cited twice sets its other copy again, and that copy only: counted in what the notes' bookkeeping looks at and the endnote paragraphs it makes, it does not
+    // grow with the number of other endnotes (a keystroke that set all of them again would make as many paragraphs as the notes there are), and the copies say the same.
+    void aKeystrokeInAnEndnoteWithCopiesCostsWhatTheNoteIsNotWhatTheOthersAre()
+    {
+        constexpr int keys = 40;
+        auto workPerKey = [&](int others) {
+            QByteArray body, ends = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote();
+            for (int i = 1; i <= others; ++i) {
+                const QByteArray n = QByteArray::number(i);
+                body += "<w:p><w:r><w:t>cites " + n + "</w:t></w:r><w:r><w:endnoteReference w:id=\"" + n + "\"/></w:r></w:p>";
+                ends += "<w:endnote w:id=\"" + n + "\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> end " + n + "</w:t></w:r></w:p></w:endnote>";
+            }
+            const QByteArray twice = QByteArray::number(others + 1);
+            body += "<w:p><w:r><w:t>twice</w:t></w:r><w:r><w:endnoteReference w:id=\"" + twice + "\"/></w:r></w:p><w:p><w:r><w:t>again</w:t></w:r><w:r><w:endnoteReference w:id=\"" + twice + "\"/></w:r></w:p>";
+            ends += "<w:endnote w:id=\"" + twice + "\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> the note cited twice</w:t></w:r></w:p><w:p><w:r><w:t>and its second paragraph</w:t></w:r></w:p></w:endnote></w:endnotes>";
+            auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), ends}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+            [&] { QVERIFY(doc); }();
+            int from = 0, to = 0;
+            [&] { QVERIFY(doc->endnoteWords(others + 1, &from, &to)); }();
+            QTextCursor c(doc->story());
+            c.setPosition(to);
+            insertText(*doc, c, QStringLiteral("x"));   // (the first edit: the references are looked for once)
+            resetNoteWorkForTest();
+            resetEndnoteParagraphsMadeForTest();
+            for (int i = 0; i < keys; ++i) insertText(*doc, c, QStringLiteral("y"));
+            const qint64 work = noteWorkForTest() + endnoteParagraphsMadeForTest();
+            // The copies say the same, in the story and in what is saved.
+            auto copy = [&](bool first) {
+                QStringList out;
+                for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) {
+                    const int serial = b.blockFormat().intProperty(prop::EndnoteNote);
+                    int found = 0;
+                    if (b.blockFormat().hasProperty(prop::EndnoteBlock) && (first ? serial > 0 : serial < 0) && doc->endnoteIdOf(b, &found) && found == others + 1) out << b.text();
+                }
+                return out.join(QLatin1Char('\n'));
+            };
+            const QString typed = QString(QLatin1Char('x')) + QString(keys, QLatin1Char('y'));
+            [&] {
+                QVERIFY2(copy(true).contains(typed), qPrintable(copy(true)));
+                QCOMPARE(copy(false), copy(true));
+                QVERIFY(notePartText(notesPartOf(doc->toDocx()), "endnote", others + 1).contains(typed));
+            }();
+            return double(work) / keys;
+        };
+        const double few = workPerKey(20), many = workPerKey(2500);
+        QVERIFY2(many <= 60, qPrintable(QStringLiteral("%1 places and paragraphs for a keystroke with 2500 other endnotes, %2 with 20").arg(many).arg(few)));
+        QVERIFY2(many <= few + 30, qPrintable(QStringLiteral("%1 places and paragraphs for a keystroke with 2500 other endnotes, %2 with 20").arg(many).arg(few)));
+    }
+
+    // The copies set again alone give the story that setting every note again gives: after typing, a paragraph made, one left empty, one taken out, in a note cited three times between others.
+    void theCopiesOfAnEditedEndnoteSetAgainAloneAreWhatSettingAllOfThemAgainGives()
+    {
+        QByteArray body, ends = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote();
+        for (int i = 1; i <= 4; ++i) {
+            const QByteArray n = QByteArray::number(i);
+            body += "<w:p><w:r><w:t>cites " + n + "</w:t></w:r><w:r><w:endnoteReference w:id=\"" + n + "\"/></w:r></w:p><w:p><w:r><w:t>and the note cited more than once</w:t></w:r><w:r><w:endnoteReference w:id=\"9\"/></w:r></w:p>";
+            ends += "<w:endnote w:id=\"" + n + "\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> end " + n + "</w:t></w:r></w:p></w:endnote>";
+        }
+        ends += "<w:endnote w:id=\"9\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> the first paragraph of it</w:t></w:r></w:p><w:p/><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>the last one, in bold</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        // (Three references to it are the three copies: the body above cites it four times, so drop the fourth.)
+        const int cut = body.lastIndexOf("<w:p><w:r><w:t>and the note cited more than once");
+        body.remove(cut, body.indexOf("</w:p>", cut) + 6 - cut);
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), ends}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+        QVERIFY(doc);
+        // The notes' paragraphs: their text, and every property of their paragraphs' and fragments' formats, with the copies' numbers by the order they come in.
+        auto dump = [](WriteDoc &w) {
+            auto props = [](const QTextFormat &f) {
+                QString s;
+                const QMap<int, QVariant> all = f.properties();
+                for (auto it = all.cbegin(); it != all.cend(); ++it)
+                    s += QString::number(it.key()) + QLatin1Char('=') + (it.value().typeId() == QMetaType::QByteArray ? QString::fromLatin1(it.value().toByteArray().toHex()) : it.value().toString()) + QLatin1Char(';');
+                return s;
+            };
+            QString out;
+            QHash<int, int> order;
+            for (QTextBlock b = w.story()->begin(); b.isValid(); b = b.next()) {
+                if (!b.blockFormat().hasProperty(prop::EndnoteBlock)) continue;
+                QTextBlockFormat bf = b.blockFormat();
+                const int serial = bf.intProperty(prop::EndnoteNote);
+                if (serial != 0) {
+                    if (!order.contains(std::abs(serial))) order.insert(std::abs(serial), order.size() + 1);
+                    bf.setProperty(prop::EndnoteNote, serial < 0 ? -order.value(-serial) : order.value(serial));
+                }
+                out += QStringLiteral("[%1|%2]").arg(b.text(), props(bf));
+                for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) out += QStringLiteral("{%1|%2}").arg(it.fragment().text(), props(it.fragment().charFormat()));
+                out += QLatin1Char('\n');
+            }
+            return out;
+        };
+        auto cursorAt = [&](bool end) {
+            int from = 0, to = 0;
+            [&] { QVERIFY(doc->endnoteWords(9, &from, &to)); }();
+            QTextCursor c(doc->story());
+            c.setPosition(end ? to : from + 3);
+            return c;
+        };
+        resetEndnoteParagraphsMadeForTest();
+        auto same = [&](const char *what) {
+            // (The edit made no endnote paragraph by setting the notes: the copies were set again alone, which is what is looked at.)
+            QVERIFY2(endnoteParagraphsMadeForTest() == 0, what);
+            QVERIFY2(doc->endnoteSequenceMatchesStoryForTest(), what);   // (and the places of the references are followed through it)
+            const QString alone = dump(*doc);
+            doc->rebuildEndnoteTails();   // (every note set again)
+            resetEndnoteParagraphsMadeForTest();
+            const QString all = dump(*doc);
+            QVERIFY2(alone == all, qPrintable(QStringLiteral("after %1:\n%2\nagainst setting them all again:\n%3").arg(QLatin1String(what), alone, all)));
+        };
+        {
+            QSet<int> copies;
+            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) {
+                int id = 0;
+                if (doc->endnoteIdOf(b, &id) && id == 9) copies.insert(b.blockFormat().intProperty(prop::EndnoteNote));
+            }
+            QCOMPARE(int(copies.size()), 3);
+        }
+        { QTextCursor c = cursorAt(true); insertText(*doc, c, QStringLiteral("ab")); }
+        same("typing at the end");
+        { QTextCursor c = cursorAt(true); insertParagraph(*doc, c); insertText(*doc, c, QStringLiteral("new")); }
+        same("a paragraph made");
+        { QTextCursor c = cursorAt(true); insertParagraph(*doc, c); }
+        same("a paragraph left empty at the end");
+        { QTextCursor c = cursorAt(false); insertText(*doc, c, QStringLiteral("z")); }
+        same("typing inside the first paragraph");
+        { QTextCursor c = cursorAt(false); deleteBack(*doc, c, false); deleteBack(*doc, c, false); }
+        same("taking two out");
+        { QTextCursor c = cursorAt(true); deleteBack(*doc, c, false); insertText(*doc, c, QStringLiteral("again")); }
+        same("the empty paragraph taken out and typed in");
+    }
+
+    // Where notes are set at the end of their sections, a copy cannot be found by its number among the story's last paragraphs: an edit in the first copy sets the notes again, and the other copy says the same.
+    void aCopyOfAnEndnoteAtTheEndOfASectionStillShowsWhatTheFirstCopySays()
+    {
+        const QByteArray pr = "<w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>";
+        const QByteArray body = "<w:p><w:r><w:t>First body</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>"
+                                "<w:p><w:pPr>" + sectionXml(6000, 6000, 720, pr) + "</w:pPr><w:r><w:t>Second body</w:t></w:r></w:p>"
+                                "<w:p><w:r><w:t>Third body</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:t>Sources</w:t></w:r></w:p></w:endnote>"
+                                 "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Alpha body note</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720, pr), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+        QVERIFY(doc);
+        int from = 0, to = 0;
+        QVERIFY(doc->endnoteWords(2, &from, &to));
+        resetEndnoteParagraphsMadeForTest();
+        QTextCursor c(doc->story());
+        c.setPosition(to);
+        insertText(*doc, c, QStringLiteral("XY"));
+        QVERIFY2(endnoteParagraphsMadeForTest() > 0, "the notes were set again");
+        int shown = 0;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            if (b.blockFormat().hasProperty(prop::EndnoteBlock) && b.text().contains(QLatin1String("Alpha body noteXY"))) ++shown;
+        QCOMPARE(shown, 2);
+        QCOMPARE(doc->sectionCount(), 2);
+        QVERIFY(notePartText(notesPartOf(doc->toDocx()), "endnote", 2).contains(QLatin1String("Alpha body noteXY")));
+    }
+
+    // ---- endnotes: the undo steps of an edit in a note that has copies
+
+    // An edit in an endnote that has copies and the setting again of the copies are one step of the undo stack: one undo puts every copy back as it was (the first copy and the others
+    // together, never one without the other), and one redo does it again.
+    void undoAndRedoTakeEveryCopyOfAnEditedEndnoteTogether_data()
+    {
+        QTest::addColumn<bool>("atSectionEnds");
+        QTest::newRow("at the end of the story") << false;
+        QTest::newRow("at the end of each section") << true;
+    }
+    void undoAndRedoTakeEveryCopyOfAnEditedEndnoteTogether()
+    {
+        QFETCH(bool, atSectionEnds);
+        const QByteArray pr = "<w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>";
+        const QByteArray body = "<w:p><w:r><w:t>First body</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>"
+                                "<w:p><w:pPr>" + (atSectionEnds ? sectionXml(6000, 6000, 720, pr) : sectionXml(6000, 6000, 720)) + "</w:pPr><w:r><w:t>Second body</w:t></w:r></w:p>"
+                                "<w:p><w:r><w:t>Third body</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote() + "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> shared</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720, atSectionEnds ? pr : QByteArray()), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+        QVERIFY(doc);
+        // The notes' paragraphs, copy by copy: the first copy's, then the shown ones'.
+        auto copies = [&] {
+            QStringList first, others;
+            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) {
+                const int serial = b.blockFormat().intProperty(prop::EndnoteNote);
+                if (!b.blockFormat().hasProperty(prop::EndnoteBlock) || serial == 0) continue;
+                (serial > 0 ? first : others) << b.text();
+            }
+            return std::make_pair(first.join(QLatin1Char('|')), others.join(QLatin1Char('|')));
+        };
+        auto state = [&] {
+            const auto both = copies();
+            return both.first + QStringLiteral(" // ") + both.second;
+        };
+        auto cursorAt = [&](int back) {
+            int from = 0, to = 0;
+            [&] { QVERIFY(doc->endnoteWords(2, &from, &to)); }();
+            QTextCursor c(doc->story());
+            c.setPosition(to - back);
+            return c;
+        };
+        QStringList states{state()};
+        auto step = [&](const QString &what, const std::function<void()> &edit) {
+            edit();
+            const auto both = copies();
+            QVERIFY2(both.first == both.second, qPrintable(what + QStringLiteral(": ") + state()));   // (every copy says what the first says)
+            states << state();
+        };
+        step(QStringLiteral("a character typed"), [&] { QTextCursor c = cursorAt(0); insertText(*doc, c, QStringLiteral("X")); });
+        step(QStringLiteral("another typed"), [&] { QTextCursor c = cursorAt(0); insertText(*doc, c, QStringLiteral("Y")); });
+        step(QStringLiteral("Backspace"), [&] { QTextCursor c = cursorAt(0); deleteBack(*doc, c, false); });
+        step(QStringLiteral("Delete"), [&] { QTextCursor c = cursorAt(1); deleteForward(*doc, c, false); });
+        step(QStringLiteral("Enter"), [&] { QTextCursor c = cursorAt(0); insertParagraph(*doc, c); });
+        step(QStringLiteral("typed in the new paragraph"), [&] { QTextCursor c = cursorAt(0); insertText(*doc, c, QStringLiteral("Q")); });
+        // Each undo puts back the story as it was before the edit, copies and all, and each redo as it was after.
+        for (int i = int(states.size()) - 2; i >= 0; --i) {
+            QVERIFY(doc->undo());
+            QCOMPARE(state(), states[i]);
+        }
+        for (int i = 1; i < states.size(); ++i) {
+            QVERIFY(doc->redo());
+            QCOMPARE(state(), states[i]);
+        }
+    }
+
+    // Typing where there are no copies is as it was: consecutive characters are one step of the undo stack.
+    void consecutiveCharactersTypedInAnEndnoteWithoutCopiesAreOneUndoStep()
+    {
+        const QByteArray body = "<w:p><w:r><w:t>First</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote() + "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> alone</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+        QVERIFY(doc);
+        int from = 0, to = 0;
+        QVERIFY(doc->endnoteWords(2, &from, &to));
+        QTextCursor c(doc->story());
+        c.setPosition(to);
+        for (const QString &typed : {QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c")}) insertText(*doc, c, typed);
+        QVERIFY(doc->story()->toPlainText().contains(QLatin1String(" alone" "abc")));
+        QVERIFY(doc->undo());
+        QVERIFY2(!doc->story()->toPlainText().contains(QLatin1String("alonea")), qPrintable(doc->story()->toPlainText()));
     }
 };
 

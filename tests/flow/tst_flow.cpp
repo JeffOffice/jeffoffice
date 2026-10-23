@@ -12145,7 +12145,8 @@ private Q_SLOTS:
         }
     }
 
-    // A cell of eight thousand paragraphs is laid out once for the pages that show it: asking for the pages one after the other does not lay it out again for each.
+    // A cell of eight thousand paragraphs is laid out once for the pages that show it: asking for the pages one after the other does not lay it out again for each. (Counted, not timed: the
+    // cells laid out for forty more pages are few, where laying the cell out for each would be as many as the pages.)
     void aCellOfThousandsOfParagraphsIsNotLaidOutAgainForEachPage()
     {
         FlowDocument fd;
@@ -12161,19 +12162,13 @@ private Q_SLOTS:
             return t;
         };
         addTable(fd, spec);
-        std::unique_ptr<Paginator> pg;
-        const auto fresh = [&] {
-            pg.reset();
-            pg = std::make_unique<Paginator>(&fd);
-            pg->pageCount();
-        };
-        const qint64 first = bestNanoseconds([&] { pg->materialize(0); }, 3, fresh) / 1000000;
-        const qint64 forty = bestNanoseconds([&] { for (int k = 1; k <= 40; ++k) QVERIFY(pg->materialize(k)); }, 3, [&] {
-            fresh();
-            pg->materialize(0);
-        }) / 1000000;
-        // (A cell of this size takes a good part of a second to lay out: forty more pages that each laid it out would take forty times that.)
-        QVERIFY2(forty < 8 * std::max<qint64>(first, 50) + 500, qPrintable(QStringLiteral("the first page %1 ms, forty more %2 ms").arg(first).arg(forty)));
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() > 41);
+        QVERIFY(pg.materialize(0));
+        const qint64 first = pg.tableCellsLaidOut();
+        for (int k = 1; k <= 40; ++k) QVERIFY(pg.materialize(k));
+        const qint64 more = pg.tableCellsLaidOut() - first;
+        QVERIFY2(more <= 10, qPrintable(QStringLiteral("%1 cells laid out for the first page, %2 more for forty pages after it").arg(first).arg(more)));
     }
 
     // A cell is laid out once to find the heights of the rows (in a pass over all of them) and once more for a page that shows it, and a header's cells, which every page of the

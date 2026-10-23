@@ -17,6 +17,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 
 - [Change how text looks](font)
 - [Add headers, footers, and page numbers](headers-footers)
+- [Add footnotes and endnotes](footnotes-endnotes)
 - [Find and replace words](find-replace)
 
 ## Work faster

@@ -29,6 +29,7 @@
 #include <QMessageBox>
 #include <QPainter>
 #include <QSlider>
+#include <QLocale>
 #include <QStatusBar>
 #include <QTextBlock>
 #include <QTextDocument>
@@ -84,6 +85,7 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     connect(m_view, &write::PageView::pagesChanged, this, queue);
     connect(m_view, &write::PageView::contextMenuWanted, this, &WriteWindow::showContextMenu);
     connect(m_view, &write::PageView::headerFooterModeChanged, this, &WriteWindow::headerFooterModeChanged);
+    connect(m_view, &write::PageView::noteModeChanged, this, queue);
     connect(m_view, &write::PageView::zoomChanged, this, [this](double z) {
         m_zoomLabel->setText(QStringLiteral("%1%").arg(std::lround(z * 100)));
         const QSignalBlocker block(m_zoomSlider);
@@ -181,6 +183,7 @@ void WriteWindow::createActions()
     createHelpActions();
     createEditingActions();
     createHeaderFooterActions();
+    createNoteActions();
 }
 
 namespace {
@@ -251,7 +254,7 @@ void WriteWindow::createFormatActions()
 void WriteWindow::changeSection(const std::function<void(flow::Section &)> &change)
 {
     if (!m_doc) return;
-    const int index = m_view->inHeaderFooter() ? m_view->headerFooterEdit().section : m_doc->sectionAt(m_view->cursor().position());
+    const int index = m_view->cursorSection();
     office::wml::SectionProps props = m_doc->sectionProps(index);
     flow::Section s = flow::Section(m_doc->flow().section(index));
     const flow::Section was = s;
@@ -349,7 +352,7 @@ void WriteWindow::showContextMenu(const QPoint &globalPos)
     menu.addAction(act("para.dialog"));
     menu.addAction(act("edit.selectAll"));
     // In a table: its rows and columns.
-    if (m_doc && !m_view->inHeaderFooter() && write::cellPlace(*m_doc, m_view->cursor()).inTable) {
+    if (m_doc && !m_view->inHeaderFooter() && !m_view->inNote() && write::cellPlace(*m_doc, m_view->cursor()).inTable) {
         menu.addSeparator();
         auto table = [&](const QString &text, const std::function<void(write::WriteDoc &, QTextCursor &)> &command) {
             menu.addAction(text, this, [this, command] {
@@ -421,7 +424,7 @@ void WriteWindow::refreshUi()
     for (ColorButton *b : m_colorButtons) b->setScheme(m_doc->flow().env.colors);
 
     // Page setup of the section the caret is in.
-    const int section = m_view->inHeaderFooter() ? m_view->headerFooterEdit().section : m_doc->sectionAt(c.position());
+    const int section = m_view->cursorSection();
     const flow::Section s = m_doc->flow().section(section);
     act("layout.portrait")->setChecked(s.orientation == flow::Section::Orientation::Portrait);
     act("layout.landscape")->setChecked(s.orientation == flow::Section::Orientation::Landscape);
@@ -449,9 +452,27 @@ void WriteWindow::refreshUi()
         const bool editing = m_view->inHeaderFooter();
         const write::PageView::HeaderFooterEdit &e = m_view->headerFooterEdit();
         for (const char *id : {"hf.close", "hf.pageNumber", "hf.differentFirst", "hf.differentOddEven"}) act(QString::fromLatin1(id))->setEnabled(editing);
-        // (A header or footer takes no break of a page or a section.)
-        if (editing)
+        // (A header, a footer, or a note takes no break of a page or a section.)
+        if (editing || m_view->inNote())
             for (const char *id : {"insert.pageBreak", "layout.sectionBreak"}) act(QString::fromLatin1(id))->setEnabled(false);
+        // (And no note.)
+        const bool inNoteWords = write::inEndnoteWords(c);
+        const bool noteAllowed = !editing && !m_view->inNote() && !inNoteWords;
+        // (A document with the most notes it holds: the commands are off, and the status bar says why.)
+        const bool footnoteRoom = !noteAllowed || m_doc->roomForFootnote(), endnoteRoom = !noteAllowed || m_doc->roomForEndnote();
+        const QString full = tr("This document has the most notes JeffWrite can hold (%1), so no more can be added.").arg(QLocale().toString(write::kMostNoteStories));
+        act("refs.footnote")->setEnabled(noteAllowed && footnoteRoom);
+        act("refs.endnote")->setEnabled(noteAllowed && endnoteRoom);
+        act("refs.footnote")->setStatusTip(footnoteRoom ? QString() : full);
+        act("refs.endnote")->setStatusTip(endnoteRoom ? QString() : full);
+        act("refs.footnote")->setToolTip(footnoteRoom ? QString() : full);
+        act("refs.endnote")->setToolTip(endnoteRoom ? QString() : full);
+        if (!footnoteRoom || !endnoteRoom) {
+            if (!m_noteLimitShown) statusBar()->showMessage(full, 8000);
+            m_noteLimitShown = true;
+        } else {
+            m_noteLimitShown = false;
+        }
         act("hf.differentFirst")->setChecked(editing && m_doc->differentFirstPage(e.section));
         act("hf.differentOddEven")->setChecked(m_doc->differentOddEven());
         act("hf.linkPrevious")->setEnabled(editing && e.section > 0);

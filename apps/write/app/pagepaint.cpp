@@ -141,33 +141,38 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
         }
         if (!words.isEmpty()) ctx.opt.misspelled.insert(bodyId, words);
     }
-    // The header or footer being edited: the selection and the misspelled words in the boxes that show it.
-    if (d.editedStory)
-        for (const auto &fb : page.furniture) {
-            if (fb.source != d.editedStory) continue;
-            const Item *item = page.doc->item(fb.itemId);
-            if (!item || item->type() != ItemType::Text) continue;
-            const QString id = static_cast<const TextItem *>(item)->storyId;
-            const Story *shown = page.doc->story(id);
-            if (!shown || !shown->doc) continue;
-            const int length = shown->doc->characterCount();
-            if (d.editSelFrom >= 0 && d.editSelTo > d.editSelFrom && ctx.opt.editStory.isEmpty()) {
-                const int from = std::max(0, d.editSelFrom - fb.from), to = std::min(length - 1, d.editSelTo - fb.from);
-                if (to > from) {
-                    ctx.opt.editStory = id;
-                    ctx.opt.selFrom = from;
-                    ctx.opt.selTo = to;
+    // The header, footer, or note being edited: the selection and the misspelled words in the boxes that show it.
+    if (d.editedStory) {
+        auto inBoxes = [&](const QVector<flow::MaterializedPage::FurnitureBox> &boxes) {
+            for (const auto &fb : boxes) {
+                if (fb.source != d.editedStory) continue;
+                const Item *item = page.doc->item(fb.itemId);
+                if (!item || item->type() != ItemType::Text) continue;
+                const QString id = static_cast<const TextItem *>(item)->storyId;
+                const Story *shown = page.doc->story(id);
+                if (!shown || !shown->doc) continue;
+                const int length = shown->doc->characterCount();
+                if (d.editSelFrom >= 0 && d.editSelTo > d.editSelFrom && ctx.opt.editStory.isEmpty()) {
+                    const int from = std::max(0, d.editSelFrom - fb.from), to = std::min(length - 1, d.editSelTo - fb.from);
+                    if (to > from) {
+                        ctx.opt.editStory = id;
+                        ctx.opt.selFrom = from;
+                        ctx.opt.selTo = to;
+                    }
+                }
+                if (d.editSpelling && !d.output) {
+                    QVector<QPair<int, int>> words;
+                    for (const auto &w : d.editSpelling->misspelledIn(fb.from, fb.from + length)) {
+                        if (d.editTypingAt >= w.first && d.editTypingAt <= w.second) continue;
+                        words << qMakePair(std::max(0, w.first - fb.from), std::min(length, w.second - fb.from));
+                    }
+                    if (!words.isEmpty()) ctx.opt.misspelled.insert(id, words);
                 }
             }
-            if (d.editSpelling && !d.output) {
-                QVector<QPair<int, int>> words;
-                for (const auto &w : d.editSpelling->misspelledIn(fb.from, fb.from + length)) {
-                    if (d.editTypingAt >= w.first && d.editTypingAt <= w.second) continue;
-                    words << qMakePair(std::max(0, w.first - fb.from), std::min(length, w.second - fb.from));
-                }
-                if (!words.isEmpty()) ctx.opt.misspelled.insert(id, words);
-            }
-        }
+        };
+        inBoxes(page.furniture);
+        inBoxes(page.noteBoxes);
+    }
     Renderer::paintPage(p, ctx, 0);
     flow::TablePaint tables;
     tables.output = d.textOutput;
@@ -176,7 +181,7 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
     tables.selTo = d.selectionTo;
     flow::paintTables(p, page, tables);
     if (d.spelling && !d.output) paintCellWaves(p, page, d);
-    if (d.editedStory && !d.output) paintEditedEdge(p, page, d);
+    if (d.editedStory && !d.output && !d.editIsNote) paintEditedEdge(p, page, d);
 }
 
 } // namespace jp::write

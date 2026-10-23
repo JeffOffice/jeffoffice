@@ -315,6 +315,7 @@ void WriteDoc::build(office::wml::Document &&doc)
     loadNotes();
     loadEndnotes();
     buildStory(body);
+    spreadCitationsAtOpen();
     measureNoteSeparator();
     settleTables();
     syncSections();
@@ -401,7 +402,11 @@ void WriteDoc::setUpEnvironment()
 
 void WriteDoc::storyChanged(int position, int removed, int added)
 {
-    if (m_syncing) return;
+    m_footnoteRefsValid = false;
+    m_endnoteRefIndexValid = false;
+    if (m_endnotesPart == NotesPart::Readable) followEndnoteReferences(position, removed, added);
+    if (m_endnotesPart == NotesPart::Readable && !m_buildingEndnotes && !m_syncing) touchEndnotes(position, removed, added);
+    if (m_syncing || m_refreshingCopies) return;   // (a copy of a note set again alone moves no section's break)
     const int blocks = story()->blockCount();
     if (blocks != m_blockCount || removed > 1 || added > 1) {
         m_blockCount = blocks;

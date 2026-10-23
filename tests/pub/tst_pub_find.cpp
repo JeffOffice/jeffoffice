@@ -381,7 +381,7 @@ private Q_SLOTS:
     // not sixteen (every text box once asked the whole document for the frame before it).
     void findStoriesTakesTimeInProportionToThePages()
     {
-        auto timeFor = [](int pages) {
+        auto documentOf = [](int pages) {
             auto doc = jp::Document::blank(QSizeF(960, 540));
             for (int p = 0; p < pages; ++p) {
                 if (p) doc->addPage();
@@ -392,16 +392,25 @@ private Q_SLOTS:
                     doc->pages[p]->items.push_back(t);
                 }
             }
-            bool found = true;
-            const qint64 best = bestNanoseconds([&] {
-                const auto stories = jp::findStories(*doc);
+            return doc;
+        };
+        const auto smallDoc = documentOf(500), bigDoc = documentOf(4000);
+        bool found = true;
+        auto timeOf = [&](const jp::Document &doc, int pages) {
+            return bestNanoseconds([&] {
+                const auto stories = jp::findStories(doc);
                 found = found && stories.size() == pages * 2;
-            });
-            return found ? best : qint64(-1);
+            }, 1);
         };
         // Eight times the pages: linear work grows about 8 times (up to about 30 on a busy machine, where the bigger set spills out of the caches), the old
-        // quadratic walk 64 times.
-        const qint64 small = timeFor(500), big = timeFor(4000);
+        // quadratic walk 64 times. The two sizes take turns, the fastest of five rounds of each, so a load that comes or goes partway through slows
+        // both alike (timed one after the other, a busy spell over the bigger set alone failed a linear walk under the parallel gates).
+        qint64 small = std::numeric_limits<qint64>::max(), big = small;
+        for (int round = 0; round < 5; ++round) {
+            small = std::min(small, timeOf(*smallDoc, 500));
+            big = std::min(big, timeOf(*bigDoc, 4000));
+        }
+        QVERIFY(found);
         QVERIFY(small > 0 && big > 0);
         QVERIFY2(big < small * 40, qPrintable(QStringLiteral("500 pages: %1 us, 4000 pages: %2 us").arg(small / 1000).arg(big / 1000)));
     }

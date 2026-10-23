@@ -230,6 +230,7 @@ QVector<FindStory> WriteFindPane::stories() const
 bool WriteFindPane::selectionIsMatch()
 {
     m_win->view()->leaveHeaderFooter();   // (the search is of the text: its caret is the text's)
+    m_win->view()->leaveNote();
     const QTextCursor &sel = m_win->view()->cursor();
     StoryWords *text = storyWords();
     if (!text || !sel.hasSelection() || m_find->text().isEmpty()) return false;
@@ -241,6 +242,7 @@ bool WriteFindPane::selectionIsMatch()
 bool WriteFindPane::findNext()
 {
     m_win->view()->leaveHeaderFooter();
+    m_win->view()->leaveNote();
     const QString q = m_find->text();
     StoryWords *text = storyWords();
     if (!text || q.isEmpty()) return false;
@@ -262,6 +264,7 @@ void WriteFindPane::replaceOne()
 {
     if (!m_win->document() || m_find->text().isEmpty()) return;
     m_win->view()->leaveHeaderFooter();
+    m_win->view()->leaveNote();
     if (selectionIsMatch()) {
         StoryWords *text = storyWords();
         const QTextCursor &sel = m_win->view()->cursor();
@@ -283,6 +286,7 @@ void WriteFindPane::replaceAll()
     const QString q = m_find->text();
     if (!m_win->document() || q.isEmpty()) return;
     m_win->view()->leaveHeaderFooter();
+    m_win->view()->leaveNote();
     // Each swap is a step of its own; the edit block makes them one.
     QTextCursor block(m_win->document()->story());
     block.beginEditBlock();
