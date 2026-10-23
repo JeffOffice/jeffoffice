@@ -953,6 +953,11 @@ bool SheetReader::endFormula()
 
 bool SheetReader::endCell()
 {
+    if (m_skipCells) {
+        // (a row the view has left above it: its cells are not kept, and not worked out; what a shared formula's first cell tells has been told by now; the read can still be stopped)
+        if (++m_skipped % kProgressEvery == 0 && m_options.progress && !m_options.progress(m_cells + m_skipped)) return fail(translate("The read was stopped."));
+        return true;
+    }
     Cell &c = m_cell;
     const QString type = m_type;
     auto number = [&](CellType t) {
@@ -1022,11 +1027,7 @@ bool SheetReader::endCell()
         if (c.type != CellType::Empty) ++m_sheet.storedResults;
     }
     if (!room) return false;
-    if (m_skipCells) {
-        // (a row the view has left above it: its cells are not kept; the read can still be stopped as they go by)
-        if (++m_skipped % kProgressEvery == 0 && m_options.progress && !m_options.progress(m_cells + m_skipped)) return fail(translate("The read was stopped."));
-        return true;
-    }
+
     if (m_cells >= m_limits.cellsPerSheet) return fail(translate("The sheet has more cells than any real file has."));
     if (!take(kCellBytes)) return false;
     ++m_cells;
