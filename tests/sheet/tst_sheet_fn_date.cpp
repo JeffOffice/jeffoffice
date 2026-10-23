@@ -311,6 +311,46 @@ private Q_SLOTS:
         CHECK_EVALS(cases, Grid(), Settings());
     }
 
+    // The clock is read once for a whole evaluation: NOW is the same however many times it is asked, and the days of TODAY and the time of NOW are of one moment, though a
+    // midnight comes between them.
+    void theClockIsReadOncePerEvaluation()
+    {
+        using namespace jp::calc;
+        ParseOptions options;
+        options.row = 9;
+        options.col = 9;
+        const ParseResult same = parseFormula("NOW()=NOW()", options);
+        const ParseResult parts = parseFormula("AND(NOW()-TODAY()>=0,NOW()-TODAY()<1,NOW()-TODAY()+TODAY()=NOW())", options);
+        QVERIFY(same.ok() && parts.ok());
+        Grid g;
+        EvalContext ctx;
+        ctx.source = &g;
+        ctx.row = 9;
+        ctx.col = 9;
+        ctx.now = 0;   // the clock
+        Evaluator evaluator;
+        int different = 0, split = 0;
+        for (int i = 0; i < 300000; ++i) {
+            if (evaluator.evaluate(*same.program, ctx).debug() != QStringLiteral("b:1")) ++different;
+            if (i % 8 == 0 && evaluator.evaluate(*parts.program, ctx).debug() != QStringLiteral("b:1")) ++split;
+        }
+        QVERIFY2(different == 0 && split == 0, qPrintable(QStringLiteral("NOW()=NOW() was false %1 times of 300000, and the parts of one moment did not agree %2 times").arg(different).arg(split)));
+        // a time that is given stays as given
+        Settings given;
+        given.now = 45366.5;
+        QCOMPARE(ev("NOW()=NOW()", Grid(), given), QStringLiteral("b:1"));
+        // and the next evaluation reads it again
+        ctx.now = 45366.25;
+        QCOMPARE(evaluator.evaluate(*same.program, ctx).debug(), QStringLiteral("b:1"));
+        const ParseResult time = parseFormula("NOW()", options);
+        QCOMPARE(evaluator.evaluate(*time.program, ctx).debug(), num(45366.25));
+        ctx.now = 45367.75;
+        QCOMPARE(evaluator.evaluate(*time.program, ctx).debug(), num(45367.75));
+        ctx.now = 0;
+        const double first = evaluator.evaluate(*time.program, ctx).number();
+        QVERIFY(first > 45292);
+    }
+
     void nowAndTodayAreTheClockAsTheContextSaysIt()
     {
         Settings s;

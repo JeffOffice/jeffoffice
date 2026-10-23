@@ -228,6 +228,7 @@ public:
     int sheetCount() const { return ctx.source->sheetCount(); }
     // The last row and column that hold anything, plus one.
     void usedExtent(int sheet, quint32 *rows, quint32 *cols) const { ctx.source->usedExtent(sheet, rows, cols); }
+    // The moment NOW and TODAY give: the context's, else the clock read once for the evaluation.
     double now() const;
     std::mt19937_64 &random() { return rng; }
 
@@ -238,6 +239,8 @@ public:
     std::mt19937_64 rng;
     int nameDepth = 0;
     int unsupported = 0;
+    mutable double m_clock = 0;
+    mutable bool m_clockRead = false;
     bool wrapRefs = false;   // the references that move are those of a defined name: past the edge of the sheet they come round to the other side
 
 private:

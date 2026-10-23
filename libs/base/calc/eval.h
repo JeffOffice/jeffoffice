@@ -49,8 +49,12 @@ struct EvalContext {
     quint32 row = 0, col = 0;
     int shiftRows = 0, shiftCols = 0;    // how far that cell is from the one the formula's text was written for (a shared formula)
     DateSystem dateSystem = DateSystem::Date1900;
-    double now = 0;                      // the day number NOW() and TODAY() give; 0 reads the clock
+    double now = 0;                      // the day number NOW() and TODAY() give; 0 reads the clock, once for the evaluation (see clockSerial)
 };
+
+// The clock as a day number with the time as its fraction, in the date system. A recalculation of many formulas reads it once and gives it to each as EvalContext::now,
+// so every NOW in it is the same moment.
+double clockSerial(DateSystem system);
 
 enum class EvalStatus : quint8 { Ok, TooMuchWork, TooLarge, TooDeep };
 

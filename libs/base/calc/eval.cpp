@@ -36,13 +36,22 @@ Machine::Machine()
     rng.seed((quint64(device()) << 32) ^ quint64(device()));
 }
 
+double clockSerial(DateSystem system)
+{
+    const QDateTime t = QDateTime::currentDateTime();
+    double serial = 0;
+    if (!dateToSerial(t.date().year(), t.date().month(), t.date().day(), system, &serial)) return 0;
+    return serial + double(t.time().msecsSinceStartOfDay()) / 86400000.0;
+}
+
 double Machine::now() const
 {
     if (ctx.now > 0) return ctx.now;
-    const QDateTime t = QDateTime::currentDateTime();
-    double serial = 0;
-    if (!dateToSerial(t.date().year(), t.date().month(), t.date().day(), ctx.dateSystem, &serial)) return 0;
-    return serial + double(t.time().msecsSinceStartOfDay()) / 86400000.0;
+    if (!m_clockRead) {
+        m_clock = clockSerial(ctx.dateSystem);
+        m_clockRead = true;
+    }
+    return m_clock;
 }
 
 bool Machine::bindSheets(const Program &p)
@@ -573,6 +582,7 @@ Value Machine::run(const Program &p, const EvalContext &c)
     status = EvalStatus::Ok;
     nameDepth = 0;
     unsupported = 0;
+    m_clockRead = false;
     stack.clear();
     if (!ctx.source) return Value::error(ErrorKind::Value);
     const Item r = runProgram(p, p.arrayFormula);
