@@ -291,7 +291,7 @@ std::atomic<qint64> g_longestJoinedParagraphs{0};
 std::atomic<qint64> g_hyphenationLetters{0};
 std::atomic<qint64> g_paragraphCharsRead{0};
 std::atomic<qint64> g_formatRangesMade{0};
-std::atomic<qint64> g_unbreakableParagraphs{0}, g_defaultTabStopsListed{0}, g_runsPassed{0};
+std::atomic<qint64> g_unbreakableParagraphs{0}, g_defaultTabStopsListed{0}, g_defaultTabStopsMade{0}, g_runsPassed{0};
 inline void noteJoinedParagraphs(int n)
 {
     qint64 seen = g_longestJoinedParagraphs.load(std::memory_order_relaxed);
@@ -1491,6 +1491,7 @@ qint64 StoryLayout::paragraphCharsReadForTest() { return g_paragraphCharsRead.lo
 qint64 StoryLayout::formatRangesMadeForTest() { return g_formatRangesMade.load(); }
 qint64 StoryLayout::unbreakableParagraphsForTest() { return g_unbreakableParagraphs.load(); }
 qint64 StoryLayout::defaultTabStopsListedForTest() { return g_defaultTabStopsListed.load(); }
+qint64 StoryLayout::defaultTabStopsMadeForTest() { return g_defaultTabStopsMade.load(); }
 qint64 StoryLayout::runsPassedForTest() { return g_runsPassed.load(); }
 
 // The absolute position tabs of the runs of a paragraph (the tp::AlignTab of each tab character), in order, as many as a paragraph may have, from the paragraph's start to the first run that
@@ -3896,8 +3897,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             auto hangStop = [&](double from, bool hangLine) { return hangLine && hangs && !env.wordNoHangStop && B->marker.isEmpty() && leftM > from + 0.01; };
             // The first stop past `pen`, measured from the text area's edge.
             auto nextStop = [&](double pen, bool hangLine) { return hangStop(pen, hangLine) ? leftM : (std::floor((pen + 0.01) / step) + 1) * step; };
-            // (A character the paragraph's text has none of, for the default stops of a word processor's lines.)
-            const QChar noDelimiter = wordTabs && gridTabs ? charNotIn(B->disp) : QChar();
+            // (A character the paragraph's text has none of, for the default stops of a word processor's lines. Not for a paragraph that Qt reads right to left, as it does one whose
+            // text begins with a letter that reads that way whatever the direction the paragraph is set to: Qt turns the left stops of its list into right stops, and a stop for text that
+            // ends at a delimiter it does not: the default stops of such a paragraph are left stops, as they were.)
+            const QChar noDelimiter = wordTabs && gridTabs && !B->disp.isRightToLeft() ? charNotIn(B->disp) : QChar();
             // The list for a line that starts `off` from the edge and is `w` wide, measured from its start.
             auto stopsFor = [&](double off, double w, bool hangLine) {
                 QList<QTextOption::Tab> tabs;
@@ -3930,6 +3933,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // the others, so the stops are ones for text that ends at a delimiter the paragraph has none of: they take a tab to their position, and Qt reads no more of the text.)
                     for (double pen = std::max(off, last); tabs.size() < 1000;) {
                         const double stop = (std::floor((pen + 0.01) / step) + 1) * step;
+                        ++g_defaultTabStopsMade;
                         if (noDelimiter.isNull()) {
                             tabs << QTextOption::Tab((stop - off) * kFine, QTextOption::LeftTab);
                             ++g_defaultTabStopsListed;

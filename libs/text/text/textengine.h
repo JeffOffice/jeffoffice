@@ -414,6 +414,8 @@ public:
     // began: cost tests.
     static qint64 unbreakableParagraphsForTest();
     static qint64 defaultTabStopsListedForTest();
+    // How many default stops of either kind a word processor's lines were given for Qt's tabs since the program began (none for a paragraph set right to left, whose tabs are Qt's own).
+    static qint64 defaultTabStopsMadeForTest();
     // How many runs of paragraphs were passed over by a layout (or a count) to reach the place in a paragraph that a page begins at, or to look for what a paragraph's runs say of their tabs,
     // since the program began: a cost test, for a paragraph of hundreds of thousands of runs over hundreds of pages passes each run a few times in all, not once for each page.
     static qint64 runsPassedForTest();

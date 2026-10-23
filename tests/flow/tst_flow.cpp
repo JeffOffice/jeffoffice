@@ -1205,10 +1205,12 @@ double millisecondsToPaginate(const std::function<void(FlowDocument &, TestNotes
 struct TabPara {
     QList<QTextOption::Tab> stops;
     double left = 0, indent = 0;
+    bool rtl = false;   // set right to left
     QList<std::pair<QString, QTextCharFormat>> runs;
 };
 
-QList<TabPara> randomTabParas(unsigned seed)
+// `script`: 0 Latin letters; 1 Hebrew first, and Hebrew and Latin words after; 2 the same in Arabic; 3 a Latin word first, and Hebrew and Latin words after. `rtl`: the paragraphs are set right to left.
+QList<TabPara> randomTabParas(unsigned seed, int script = 0, bool rtl = false)
 {
     std::mt19937 rng(seed * 2654435761u + 17u);
     auto pick = [&](int n) { return int(rng() % unsigned(n)); };
@@ -1217,6 +1219,7 @@ QList<TabPara> randomTabParas(unsigned seed)
     const int count = 1 + pick(3);
     for (int n = 0; n < count; ++n) {
         TabPara p;
+        p.rtl = rtl;
         const int stops = 1 + pick(3);
         double at = 6 + pick(40) + pick(10) / 10.0;
         for (int k = 0; k < stops; ++k) {
@@ -1236,10 +1239,19 @@ QList<TabPara> randomTabParas(unsigned seed)
             if (k == 0 || pick(5) == 0) {
                 cf = QTextCharFormat();
                 cf.setFontFamilies({pick(2) ? QStringLiteral("Arimo") : QStringLiteral("Tinos")});
+                if (script == 2) cf.setFontFamilies({QStringLiteral("DejaVu Sans")});   // (the program's own face that has the Arabic letters)
                 cf.setFontPointSize(9 + pick(17) * 0.25);
                 if (pick(6) == 0) cf.setFontWeight(QFont::Bold);
             }
             QString text = QString::fromLatin1(words[pick(int(sizeof words / sizeof *words))]);
+            if (script != 0) {
+                static const QString hebrew[] = {QStringLiteral("\u05E9\u05DC\u05D5\u05DD"), QStringLiteral("\u05E2\u05D5\u05DC\u05DD"), QStringLiteral("\u05DE\u05E1\u05DE\u05DA"),
+                                                 QStringLiteral("\u05D8\u05E7\u05E1\u05D8"), QStringLiteral("\u05D0\u05D1")};
+                static const QString arabic[] = {QStringLiteral("\u0645\u0631\u062D\u0628\u0627"), QStringLiteral("\u0627\u0644\u0639\u0627\u0644\u0645"), QStringLiteral("\u0643\u062A\u0627\u0628"),
+                                                 QStringLiteral("\u0646\u0635")};
+                const bool inScript = k == 0 ? script != 3 : pick(5) != 0;
+                if (inScript) text = script == 2 ? arabic[pick(4)] : hebrew[pick(5)];
+            }
             if (pick(4) != 0) text += QLatin1Char('\t');
             else if (pick(2)) text += QLatin1Char(' ');
             p.runs << std::make_pair(text, cf);
@@ -1271,6 +1283,7 @@ TabPlaces tabPlaces(const QList<TabPara> &paras, double step, double width, bool
         bf.setTabPositions(stops);
         bf.setLeftMargin(p.left);
         bf.setTextIndent(p.indent);
+        if (p.rtl) bf.setLayoutDirection(Qt::RightToLeft);
         if (n == 0) c.setBlockFormat(bf); else c.insertBlock(bf);
         for (const auto &run : p.runs) c.insertText(run.first, run.second);
     }
@@ -1305,12 +1318,12 @@ QString tabPlacesDiffer(const TabPlaces &a, const TabPlaces &b)
 
 // The first of `stories` stories (made of the seeds 0 on) that is laid out differently with the default stops `step` points apart left to the engine than with them listed, told by its
 // seed and what differs; none: an empty string.
-QString firstTabStoryThatDiffers(double step, unsigned stories)
+QString firstTabStoryThatDiffers(double step, unsigned stories, int script = 0)
 {
     for (unsigned seed = 0; seed < stories; ++seed) {
-        const QList<TabPara> paras = randomTabParas(seed);
+        const QList<TabPara> paras = randomTabParas(seed, script);
         const QString why = tabPlacesDiffer(tabPlaces(paras, step, 468, false), tabPlaces(paras, step, 468, true));
-        if (!why.isEmpty()) return QStringLiteral("story %1 with stops %2 apart: %3").arg(seed).arg(step).arg(why);
+        if (!why.isEmpty()) return QStringLiteral("story %1 (script %2) with stops %3 apart: %4").arg(seed).arg(script).arg(step).arg(why);
     }
     return QString();
 }
@@ -3395,6 +3408,33 @@ private Q_SLOTS:
             const QString why = firstTabStoryThatDiffers(step, 150);
             QVERIFY2(why.isEmpty(), qPrintable(why));
         }
+    }
+
+    // A paragraph whose text begins with a letter that reads right to left (Hebrew, Arabic) is laid out right to left by Qt whatever the direction it is set to, and Qt turns the left stops of its
+    // list into right stops: its tabs go where the list of its stops, the default ones too as left stops, puts them. (So do those of a paragraph that begins with a Latin word.)
+    void tabsOfParagraphsThatReadRightToLeftGoWhereTheListOfDefaultStopsPutsThem()
+    {
+        QVERIFY(QFontDatabase::hasFamily(QStringLiteral("DejaVu Sans")));
+        for (const int script : {1, 2, 3})
+            for (const double step : {36.0, 35.45}) {
+                const QString why = firstTabStoryThatDiffers(step, 60, script);
+                QVERIFY2(why.isEmpty(), qPrintable(why));
+            }
+    }
+
+    // A paragraph set right to left has Qt's own tabs, as it always had: no default stops are made for its lines, whatever stops of its own it has.
+    void aParagraphSetRightToLeftIsGivenNoDefaultStops()
+    {
+        for (const int script : {1, 2})
+            for (const double step : {36.0, 35.45})
+                for (unsigned seed = 0; seed < 30; ++seed) {
+                    const QList<TabPara> paras = randomTabParas(seed, script, true);
+                    const qint64 before = StoryLayout::defaultTabStopsMadeForTest();
+                    const TabPlaces places = tabPlaces(paras, step, 468, false);
+                    const qint64 made = StoryLayout::defaultTabStopsMadeForTest() - before;
+                    QVERIFY(places.lines.size() >= 1);
+                    QVERIFY2(made == 0, qPrintable(QStringLiteral("script %1, story %2, stops %3 apart: %4 default stops were made").arg(script).arg(seed).arg(step).arg(made)));
+                }
     }
 
     // The default stops past a paragraph's own are not listed in the form that makes Qt read the rest of the paragraph for every tab it answers (a left stop does: a paragraph of 100,000
