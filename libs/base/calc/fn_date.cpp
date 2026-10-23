@@ -247,7 +247,7 @@ Value monthsFrom(Call &c, bool endOfMonth)
 Value fnEdate(Call &c) { return monthsFrom(c, false); }
 Value fnEomonth(Call &c) { return monthsFrom(c, true); }
 
-// The holidays of an argument: whole serial numbers.
+// The holidays of an argument: whole serial numbers, in order, each once, so that a day is looked up by halving. The sorting is counted.
 bool holidays(Call &c, int i, std::vector<double> *out)
 {
     if (i >= c.argc() || c.missing(i)) return true;
@@ -266,15 +266,24 @@ bool holidays(Call &c, int i, std::vector<double> *out)
         c.error(ok ? ErrorKind::Value : error.errorKind());
         return false;
     }
+    qint64 bits = 0;
+    for (size_t n = out->size(); n; n >>= 1) ++bits;
+    if (!c.machine().charge(qint64(out->size()) * bits / 16)) {
+        c.error(ErrorKind::Value);
+        return false;
+    }
+    std::sort(out->begin(), out->end());
+    out->erase(std::unique(out->begin(), out->end()), out->end());
     return true;
 }
 
-bool isWorkday(double serial, DateSystem sys, const std::vector<double> &off)
+bool isWeekday(double serial, DateSystem sys)
 {
     const int dow = weekdayOf(serial, sys);
-    if (dow == 0 || dow == 6) return false;
-    return std::find(off.begin(), off.end(), serial) == off.end();
+    return dow != 0 && dow != 6;
 }
+
+bool isWorkday(double serial, DateSystem sys, const std::vector<double> &off) { return isWeekday(serial, sys) && !std::binary_search(off.begin(), off.end(), serial); }
 
 Value fnWorkday(Call &c)
 {
@@ -286,15 +295,21 @@ Value fnWorkday(Call &c)
     days = std::trunc(days);
     if (std::fabs(days) > 1e6) return c.error(ErrorKind::Num);
     const int step = days < 0 ? -1 : 1;
+    // each day is a step, and looking it up among the holidays is a step more for every eight halvings it takes
+    qint64 halvings = 0;
+    for (size_t n = off.size(); n; n >>= 1) ++halvings;
+    const qint64 perDay = 1 + halvings / 8;
     for (qint64 left = qint64(std::fabs(days)); left > 0;) {
         d += step;
         if (d < 0 || d > kLastSerial) return c.error(ErrorKind::Num);
-        if (!c.machine().charge(1)) return c.error(ErrorKind::Value);
+        if (!c.machine().charge(perDay)) return c.error(ErrorKind::Value);
         if (isWorkday(d, sys, off)) --left;
     }
     return Value::number(d);
 }
 
+// The weekdays from one day to the other (both counted) that are not holidays; negative if the first is the later. Whole weeks are counted as five, and only the
+// holidays in the range are looked at, not each day.
 Value fnNetworkDays(Call &c)
 {
     double a, b;
@@ -305,11 +320,14 @@ Value fnNetworkDays(Call &c)
     b = std::floor(b);
     const double lo = std::min(a, b), hi = std::max(a, b);
     if (hi - lo > 1e7) return c.error(ErrorKind::Num);
-    qint64 n = 0;
-    for (double d = lo; d <= hi; d += 1) {
-        if (!c.machine().charge(1)) return c.error(ErrorKind::Value);
-        if (isWorkday(d, sys, off)) ++n;
-    }
+    const qint64 total = qint64(hi - lo) + 1;
+    qint64 n = total / 7 * 5;
+    for (qint64 k = total / 7 * 7; k < total; ++k)
+        if (isWeekday(lo + double(k), sys)) ++n;
+    const auto first = std::lower_bound(off.begin(), off.end(), lo), last = std::upper_bound(off.begin(), off.end(), hi);
+    if (!c.machine().charge(2 + qint64(last - first))) return c.error(ErrorKind::Value);
+    for (auto it = first; it != last; ++it)
+        if (isWeekday(*it, sys)) --n;
     return Value::number(a <= b ? double(n) : -double(n));
 }
 

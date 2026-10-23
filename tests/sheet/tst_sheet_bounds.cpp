@@ -201,6 +201,44 @@ private Q_SLOTS:
         QVERIFY2(fewShort.text == "n:2000" && fewShort.work < 2100, qPrintable(said(fewShort)));
     }
 
+    // The holidays of NETWORKDAYS and WORKDAY are sorted once and looked up by halving, and the lookup is counted; NETWORKDAYS counts the weeks without going over every
+    // day of them.
+    void holidaysAreSortedAndCounted()
+    {
+        Grid g;
+        QVariantList holidays;
+        std::set<qint64> off;
+        for (int i = 1; i <= 2000; ++i) {
+            const qint64 day = qint64(i) * 997 + (i % 7);
+            holidays << double(day) + 0.25;
+            off.insert(day);
+        }
+        g.column("A1", holidays);
+        auto weekday = [](qint64 serial) { return (serial - 1) % 7 >= 1 && (serial - 1) % 7 <= 5; };   // the 1900 system: day 1 is a Sunday
+        qint64 expected = 0;
+        for (qint64 d = 1; d <= 2958465; ++d)
+            if (weekday(d) && !off.count(d)) ++expected;
+        const Outcome network = evOutcome("NETWORKDAYS(1,2958465,A1:A2000)", g);
+        QVERIFY2(network.text == QStringLiteral("n:%1").arg(expected) && network.work < 40000, qPrintable(said(network) + QStringLiteral(", expected ") + QString::number(expected)));
+        // backwards, from the middle, with no holidays
+        QCOMPARE(ev("NETWORKDAYS(45373,45366)"), num(-6));
+        QCOMPARE(ev("NETWORKDAYS(45366,45373,A1:A2000)", g), num(6));
+        QCOMPARE(ev("NETWORKDAYS(1,7)"), num(5));
+        QCOMPARE(ev("NETWORKDAYS(2,2)"), num(1));
+        QCOMPARE(ev("NETWORKDAYS(1,1)"), num(0));
+        QCOMPARE(ev("NETWORKDAYS(8,1)"), num(-5));
+        // WORKDAY
+        qint64 day = 1;
+        for (qint64 left = 300000; left > 0;) {
+            ++day;
+            if (weekday(day) && !off.count(day)) --left;
+        }
+        const Outcome workday = evOutcome("WORKDAY(1,300000,A1:A2000)", g);
+        QVERIFY2(workday.text == QStringLiteral("n:%1").arg(day), qPrintable(said(workday) + QStringLiteral(", expected ") + QString::number(day)));
+        // the lookup of each day in the holidays is counted
+        QVERIFY2(workday.work >= (day - 1) * 3 / 2, qPrintable(said(workday) + QStringLiteral(", days ") + QString::number(day - 1)));
+    }
+
 };
 
 JP_TEST_CLASS(SheetBoundsTests)
