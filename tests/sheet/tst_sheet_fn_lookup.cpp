@@ -106,6 +106,99 @@ private Q_SLOTS:
         CHECK_EVALS(cases, g, Settings());
     }
 
+    // The halving stops at a cell equal to the value and takes the last of the equal cells that follow it (a run), instead of going on to cells after it that are less:
+    // in a file of the practice workbooks, VLOOKUP(37104, ...) over 36251, 36951, 37104, 37012, 37377, ... gave the row of 37104, not the row of 37012 that the
+    // halving met after it (12 cells, and no cell of the 4,176 other lookups of data out of order told otherwise).
+    void approximateModeStopsAtACellEqualToTheValue()
+    {
+        Grid g;
+        g.column("A1", {1, 2, 20, 10, 15});            // 20 is met first, and 10 and 15 are less than it
+        g.column("B1", {QString("a"), QString("b"), QString("c"), QString("d"), QString("e")});
+        g.column("C1", {1, 5, 20, 20, 30});            // in order, with equal cells
+        g.column("D1", {20, 20, 20, 5, 20});           // the run of equal cells ends at the first cell that is not equal
+        g.column("E1", {5, 9, 7, 8, 6});               // for MATCH -1
+        g.column("F1", {QString("a"), QString("z"), QString("m"), QString("b"), QString("c")});
+        g.column("H1", {1, 2, 3, 4, 5});
+        g.column("I1", {QString("a"), QString("b"), QString("c"), QString("d"), QString("e")});
+        const E cases[] = {
+            {"VLOOKUP(20,A1:B5,2)", "s:c"},
+            {"VLOOKUP(20,A1:B5,2,TRUE)", "s:c"},
+            {"MATCH(20,A1:A5,1)", "n:3"},
+            {"MATCH(20,A1:A5)", "n:3"},
+            {"LOOKUP(20,A1:A5,B1:B5)", "s:c"},
+            {"LOOKUP(20,A1:A5)", "n:20"},
+            {"HLOOKUP(20,{1,2,20,10,15;\"a\",\"b\",\"c\",\"d\",\"e\"},2)", "s:c"},
+            {"VLOOKUP(20,{1,\"a\";2,\"b\";20,\"c\";10,\"d\";15,\"e\"},2)", "s:c"},
+            // equal cells in order: the last of them (the search reaches the first at the middle and goes on to the next)
+            {"MATCH(20,C1:C5,1)", "n:4"},
+            {"VLOOKUP(20,C1:D5,2)", "n:5"},       // (the second of the cells of 20 in C is in row 4, where D holds 5)
+            // the run is cut where a cell that is not equal comes
+            {"MATCH(20,D1:D5,1)", "n:3"},
+            // descending: the smallest cell not less than the value, stopping at an equal one
+            {"MATCH(7,E1:E5,-1)", "n:3"},
+            {"MATCH(50,{50,40,30,20,10},-1)", "n:1"},
+            {"MATCH(30,{50,40,30,30,10},-1)", "n:4"},
+            // text
+            {"MATCH(\"m\",F1:F5,1)", "n:3"},
+            {"VLOOKUP(\"M\",F1:F5,1)", "s:m"},
+            // a value that is not met keeps the rule of the last cell not after it
+            {"MATCH(12,A1:A5,1)", "n:2"},       // (20 is greater, then 1 and 2 are not: the 10 and the 15 are not met)
+            {"MATCH(3,H1:H5,1)", "n:3"},
+            {"MATCH(3.5,H1:H5,1)", "n:3"},
+        };
+        CHECK_EVALS(cases, g, Settings());
+    }
+
+    // Cells at the end of the range that hold nothing, and cells that are errors or another kind than the value, are passed over: the range of the lookup is the cells
+    // that can be compared (215 cells of the practice workbooks: a table of 21 rows and one empty, looked up by a value past the last, gave the last row, not the empty one).
+    void emptyCellsAndOtherKindsAreNotMet()
+    {
+        Grid g;
+        g.column("A1", {1, 5, 9, QString(), QString()});
+        g.column("B1", {QString("one"), QString("five"), QString("nine"), QString(), QString()});
+        g.column("D1", {QString("hdr"), 1, 5, 9, QString("total")});
+        g.column("E1", {QString("h"), QString("a"), QString("b"), QString("c"), QString("t")});
+        g.e("G1", ErrorKind::NA).n("G2", 1).e("G3", ErrorKind::Div0).n("G4", 3).e("G5", ErrorKind::NA);
+        const E cases[] = {
+            {"MATCH(100,A1:A5,1)", "n:3"},
+            {"VLOOKUP(100,A1:B5,2)", "s:nine"},
+            {"VLOOKUP(6,A1:B5,2)", "s:five"},
+            {"VLOOKUP(0,A1:B5,2)", "e:#N/A"},
+            {"MATCH(100,A1:A8,1)", "n:3"},                      // empty cells past the data
+            {"MATCH(7,D1:D5,1)", "n:3"},                        // a heading before, a total after
+            {"VLOOKUP(7,D1:E5,2)", "s:b"},
+            {"VLOOKUP(100,D1:E5,2)", "s:c"},
+            {"MATCH(\"zzz\",D1:D5,1)", "n:5"},                  // the last text: numbers before it are another kind
+            {"MATCH(\"a\",D1:D5,1)", "e:#N/A"},                 // "a" is before "hdr", and the only text before it is none
+            {"MATCH(2,G1:G5,1)", "n:2"},                        // errors passed over
+            {"MATCH(9.99E+307,G1:G5)", "n:4"},
+            {"LOOKUP(2,1/(G1:G5>0),G1:G5)", "n:3"},
+            {"MATCH(TRUE,D1:D5,1)", "e:#N/A"},                  // no logical value among the cells
+        };
+        CHECK_EVALS(cases, g, Settings());
+    }
+
+    // The end of a run of equal cells is found by doubling and halving, not by looking at each cell (a lookup of a date in a sorted column of a hundred thousand
+    // rows with one date each of a thousand times must not take the steps of the rows).
+    void aLongRunOfEqualCellsCostsNoMoreThanItsLogarithm()
+    {
+        Grid g;
+        QVariantList values;
+        for (int i = 0; i < 40000; ++i) values << (i < 10 ? 1 : (i < 39990 ? 5 : 9));
+        g.column("A1", values);
+        const E cases[] = {
+            {"MATCH(5,A1:A40000,1)", "n:39990"},
+            {"MATCH(5,A1:A40000,-1)", "n:39990"},
+            {"LOOKUP(5,A1:A40000)", "n:5"},
+            {"VLOOKUP(5,A1:A40000,1)", "n:5"},
+        };
+        for (const auto &c : cases) {
+            const Outcome o = evOutcome(QString::fromUtf8(c.formula), g);
+            QVERIFY2(o.text == QString::fromUtf8(c.value), qPrintable(QString::fromUtf8(c.formula) + QStringLiteral(" gave ") + o.text));
+            QVERIFY2(o.work < 400, qPrintable(QString::fromUtf8(c.formula) + QStringLiteral(" took ") + QString::number(o.work) + QStringLiteral(" steps")));
+        }
+    }
+
     void matchInItsThreeModes()
     {
         const Grid g = sample();
