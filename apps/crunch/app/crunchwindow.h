@@ -69,6 +69,8 @@ public:
     // The longest time (the thread's own, in microseconds) the window has spent in taking one batch of values from the calculation: what the calculation costs the window's thread.
     qint64 longestBatchMicros() const { return m_longestBatchMicros; }
     qint64 batchesTaken() const { return m_batches; }
+    // The most values one batch had (what taking a batch costs the window is in proportion to it, whatever the machine's speed).
+    qint64 longestBatchItems() const { return m_longestBatchItems; }
     // For tests: slows the worker (see WorkbookLoader::setPace).
     void setWorkerPace(int micros) { m_loader.setPace(micros); }
     const crunch::LoadedBook *loaded() const { return m_loaded.get(); }
@@ -161,7 +163,7 @@ private:
     QTimer m_copyTimer;
     // the values the calculation (on the worker) has told
     jp::grid::ValueStore m_values;
-    qint64 m_longestBatchMicros = 0, m_batches = 0;
+    qint64 m_longestBatchMicros = 0, m_batches = 0, m_longestBatchItems = 0;
     std::function<void(const QString &, const QString &)> m_notifier;
     QString m_loadProblem;
     QString m_formulaFull;    // what the cell with the cursor holds, whole (the formula bar shows a part of a long text until it has the focus)

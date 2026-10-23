@@ -51,7 +51,7 @@ bool CrunchWindow::openFile(const QString &path)
     m_haveFirstScreen = m_haveCalc = false;
     m_calculating = false;
     m_values.clear();
-    m_longestBatchMicros = m_batches = 0;
+    m_longestBatchMicros = m_batches = m_longestBatchItems = 0;
     m_loadProblem.clear();
     m_loader.start(path);
     setStatus(tr("Opening %1…").arg(name));
@@ -103,9 +103,12 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     for (int i = 0; i < m_tabs->count(); ++i) m_tabs->setTabEnabled(i, true);
     // the stripes the sheets ask for, now that every sheet is read
     const jp::office::sheet::Styles &styles = m_loaded->book->styles();
-    for (int tab = 0; tab < m_tabSheets.size(); ++tab) {
-        const auto &color = m_loaded->calc->sheet(m_tabSheets[tab]).tabColor;   // (m_haveCalc is set above: the worker has put the calculation there)
-        if (color.isSet()) m_tabs->setStripe(tab, QColor::fromRgb(styles.resolve(color, 0x808080)));
+    // (the calculation is the worker's until the read is told to be over: it is looked at only once m_haveCalc says so, as everywhere else)
+    if (m_haveCalc && m_loaded->calc) {
+        for (int tab = 0; tab < m_tabSheets.size(); ++tab) {
+            const auto &color = m_loaded->calc->sheet(m_tabSheets[tab]).tabColor;
+            if (color.isSet()) m_tabs->setStripe(tab, QColor::fromRgb(styles.resolve(color, 0x808080)));
+        }
     }
     // the sheet read whole takes the place of its first rows (what the person did with the view stays)
     showSheet(m_sheet, true);
@@ -210,6 +213,7 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
 {
     if (!m_loaded || !batch) return;
     const qint64 cpu0 = jp::threadCpuMicros();
+    m_longestBatchItems = std::max<qint64>(m_longestBatchItems, qint64(batch->items.size()));
     m_values.apply(batch->items);
     const bool active = m_view->valuesChanged(m_sheet, batch->items);
     if (active) updateBars();

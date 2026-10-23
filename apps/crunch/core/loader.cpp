@@ -214,6 +214,7 @@ void WorkbookLoader::calculate(const std::shared_ptr<LoadedBook> &result, const 
         }, Qt::QueuedConnection);
     };
     state->calcActive = true;
+    result->calcThread = quintptr(QThread::currentThreadId());
     bool again = invalidateFirst;
     for (;;) {
         std::vector<jp::grid::ValueStore::Item> items;

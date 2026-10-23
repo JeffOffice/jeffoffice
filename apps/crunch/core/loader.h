@@ -37,6 +37,7 @@ struct LoadedBook {
     qint64 firstScreenMs = 0, loadMs = 0;                   // how long each took
     std::atomic<qint64> cellsRead{0};                       // cells of the sheets read so far (set by the worker as it reads, and read by anyone)
     std::atomic<bool> workerEnded{false};                   // the worker has gone: it will touch nothing of this again
+    std::atomic<quintptr> calcThread{0};                    // the thread that worked the formulas out (QThread::currentThreadId), 0 if none has: a test checks it is not the window's
 };
 
 // What the calculation has worked out since the last batch: the values (which the window puts in its store), how far it has come, and whether it is the last.
