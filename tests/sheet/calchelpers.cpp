@@ -175,6 +175,14 @@ Outcome evOutcome(const QString &formula, const Grid &grid, const Settings &sett
     return out;
 }
 
+QString said(const Outcome &o, qint64 growthMegabytes)
+{
+    static const char *const statuses[] = {"Ok", "TooMuchWork", "TooLarge", "TooDeep"};
+    QString s = QStringLiteral("%1 (status %2, work %3, most cells held %4").arg(o.text.left(40), QLatin1String(statuses[int(o.status)])).arg(o.work).arg(o.peakCells);
+    if (growthMegabytes >= 0) s += QStringLiteral(", memory grew %1 MB").arg(growthMegabytes);
+    return s + QLatin1Char(')');
+}
+
 QString evStatus(const QString &formula, const Grid &grid, const Settings &settings, jp::calc::EvalStatus *status, qint64 limit)
 {
     const Outcome out = evOutcome(formula, grid, settings, limit);

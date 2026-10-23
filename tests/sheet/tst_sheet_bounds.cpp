@@ -12,25 +12,6 @@ using namespace jp::calc;
 
 namespace {
 
-QString statusName(EvalStatus s)
-{
-    switch (s) {
-    case EvalStatus::Ok: return QStringLiteral("Ok");
-    case EvalStatus::TooMuchWork: return QStringLiteral("TooMuchWork");
-    case EvalStatus::TooLarge: return QStringLiteral("TooLarge");
-    case EvalStatus::TooDeep: return QStringLiteral("TooDeep");
-    }
-    return {};
-}
-
-// What an outcome says, in one line, for a failure to show.
-QString said(const Outcome &o, qint64 growthMegabytes = -1)
-{
-    QString s = QStringLiteral("%1 (status %2, work %3, most cells held %4").arg(o.text.left(40), statusName(o.status)).arg(o.work).arg(o.peakCells);
-    if (growthMegabytes >= 0) s += QStringLiteral(", memory grew %1 MB").arg(growthMegabytes);
-    return s + QLatin1Char(')');
-}
-
 QString repeatedArguments(const QString &argument, int count)
 {
     QStringList list;

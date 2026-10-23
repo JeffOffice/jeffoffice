@@ -487,19 +487,23 @@ private Q_SLOTS:
         QVERIFY(ev("SUM(LEN(A1:A3000))", texts, array) == num(3000 * 15));
     }
 
-    // Formulas as hostile as a file can make them (within the length a formula may have) are worked out, or refused, in bounded time and memory.
+    // Formulas as hostile as a file can make them (within the length a formula may have) are worked out, or refused, within the steps and the cells they are allowed: each
+    // case says which error it ends in, and what it counted before it did.
     void hostileFormulasAreBounded()
     {
         QCOMPARE(ev("SUM(" + QString("1,").repeated(999) + "1)"), num(1000));
         QCOMPARE(ev(QString("ABS(").repeated(100) + "-1" + QString(")").repeated(100)), num(1));
         QCOMPARE(ev(QString("(").repeated(100) + "7" + QString(")").repeated(100)), num(7));
         QCOMPARE(ev(QString("IF(TRUE,").repeated(100) + "9" + QString(",0)").repeated(100)), num(9));
-        // names that call themselves, through INDIRECT as well
+        // names that call themselves, through INDIRECT as well: the circle is met once, and is the error such a name always gave
         Grid loops;
         loops.name("Selfie", "INDIRECT(\"Selfie\")+1");
         loops.name("Ping", "Pong+1");
         loops.name("Pong", "Ping+1");
-        for (const char *f : {"Selfie", "Ping", "Selfie+Ping", "SUM(Pong)"}) QVERIFY2(ev(f, loops).startsWith("e:"), f);
+        for (const char *f : {"Selfie", "Ping", "Selfie+Ping", "SUM(Pong)"}) {
+            const Outcome o = evOutcome(QString::fromLatin1(f), loops);
+            QVERIFY2(o.text == "e:#REF!" && o.status == EvalStatus::TooDeep && o.work < 100, f);
+        }
         // arrays of the most that a formula can write, and of a column of the grid
         Settings array;
         array.array = true;
@@ -517,30 +521,80 @@ private Q_SLOTS:
         QCOMPARE(ev("SUM(Sheet1:Sheet200!A:A)", sheets), num(200));
         // a pattern that makes the matching backtrack as much as it can, over a long text: it runs out of steps, and does not run on
         const QString pattern = QString("a*").repeated(100) + "b";
-        EvalStatus status = EvalStatus::Ok;
-        const QString searched = evStatus("SEARCH(\"" + pattern + "\",REPT(\"a\",30000))", Grid(), Settings(), &status, 5000000);
-        QVERIFY2(searched.startsWith("e:"), qPrintable(searched));
-        QCOMPARE(status, EvalStatus::TooMuchWork);
+        const Outcome searched = evOutcome("SEARCH(\"" + pattern + "\",REPT(\"a\",30000))", Grid(), Settings(), 5000000);
+        QVERIFY2(searched.text == "e:#VALUE!" && searched.status == EvalStatus::TooMuchWork && searched.work > 5000000 && searched.work < 5100000, qPrintable(searched.text + QString::number(searched.work)));
         QCOMPARE(ev("SEARCH(\"" + QString("a*").repeated(200) + "b\",REPT(\"a\",100))"), QStringLiteral("e:#VALUE!"));   // a pattern of more than 255 characters is none
         QCOMPARE(ev("SEARCH(\"a*b\",\"xxaxxxbxx\")"), num(3));
-        // a lookup of a million values in a million, most of them empty, and a mode of a great many numbers: they run out of steps, or are quick, and do not run on
+        // a lookup of a million values in a million, most of them empty: it runs out of its steps, in the twenty millions it was given, and the cells it held were counted
         Grid wide;
         QVariantList names;
         for (int i = 0; i < 1000; ++i) names << QStringLiteral("name%1").arg(i);
         wide.column("B1", names);
-        QElapsedTimer clock;
-        clock.start();
-        const QString lookedUp = evStatus("SUM(IFERROR(MATCH(B:B,B:B&0),0))", wide, array, &status, 20000000);
-        QVERIFY2(clock.elapsed() < 30000, qPrintable(QString::number(clock.elapsed())));
-        QVERIFY2(lookedUp.startsWith("e:") || lookedUp.startsWith("n:"), qPrintable(lookedUp));
-        clock.restart();
-        QCOMPARE(ev("MODE(ROW(1:200000))", Grid(), array), QStringLiteral("e:#N/A"));
-        QVERIFY2(clock.elapsed() < 30000, qPrintable(QString::number(clock.elapsed())));
+        const Outcome lookedUp = evOutcome("SUM(IFERROR(MATCH(B:B,B:B&0),0))", wide, array, 20000000);
+        QVERIFY2(lookedUp.text == "e:#VALUE!" && lookedUp.status == EvalStatus::TooMuchWork && lookedUp.work >= 20000000 && lookedUp.work < 21000000, qPrintable(said(lookedUp)));
+        QVERIFY2(lookedUp.peakCells > 0 && lookedUp.peakCells <= kMaxLiveArrayCells + kMaxArrayCells, qPrintable(said(lookedUp)));
+        // a mode of two hundred thousand numbers is no mode, and takes a few steps for each
+        const Outcome mode = evOutcome("MODE(ROW(1:200000))", Grid(), array);
+        QVERIFY2(mode.text == "e:#N/A" && mode.status == EvalStatus::Ok && mode.work < 1000000, qPrintable(said(mode)));
         QCOMPARE(ev("MODE({3,1,2,1,3,2,3})", Grid(), array), num(3));
         QCOMPARE(ev("MODE({1,2,2,1})"), num(1));    // the first of those that come equally often
         // a long text, built and cut
         QCOMPARE(ev("LEN(REPT(\"ab\",16000)&\"x\")"), num(32001));
         QCOMPARE(ev("LEN(REPT(\"ab\",16000)&REPT(\"c\",800))"), QStringLiteral("e:#VALUE!"));
+        // the same from whole columns, as the arrays of the bounds tests are built: a sum of forty of them runs out of steps (each is a million cells to read and add), and
+        // twenty-one arrays of the rows of a column are more cells than a formula may hold at once
+        Grid column;
+        column.n("A1", 1);
+        const Outcome columns = evOutcome("SUM(" + QString("A:A+").repeated(40) + "A:A)", column, array);
+        QVERIFY2(columns.text == "e:#VALUE!" && columns.status == EvalStatus::TooMuchWork && columns.work > kMaxEvalWork, qPrintable(said(columns)));
+        QVERIFY2(columns.peakCells <= kMaxLiveArrayCells + kMaxArrayCells, qPrintable(said(columns)));
+        const Outcome rows = evOutcome("SUMPRODUCT(" + QString("ROW(A:A),").repeated(20) + "ROW(A:A))", column);
+        QVERIFY2(rows.text == "e:#VALUE!" && rows.status == EvalStatus::TooLarge, qPrintable(said(rows)));
+    }
+
+    // The same calls with whole columns and rows, a column of long texts, and what is built from them among the arguments, at the engine's own limit of steps: the arrays
+    // and texts that the bounds tests build are met here by every function, and every call ends inside the steps and the cells it is allowed.
+    void randomFunctionCallsOnWholeColumnsEndInsideTheirBounds()
+    {
+        Grid g = sample();
+        g.s("C1", "text").s("C2", "").e("C3", ErrorKind::NA).b("D1", true);
+        QVariantList texts;
+        const QString big(8000, QLatin1Char('x'));
+        for (int i = 0; i < 200; ++i) texts << (i % 3 ? big : QStringLiteral("short"));
+        g.column("H1", texts);
+        g.n("A1048576", 5).n("XFD1", 7);
+        static const char *const args[] = {"A:A", "B:B", "H:H", "1:1", "5:5", "A:C", "A1:A1048576", "ROW(A:A)", "COLUMN(A:C)", "A:A&A:A", "H:H&H:H", "A:A=B1", "--(A:A>1)", "A1:B3",
+                                           "H1:H200", "H1:H200&H1:H200", "1", "-1", "2.5", "\"a\"", "\"\"", "TRUE", "A1", "{1,2;3,4}", "\"x*\"", "\">1\"", "100", "0", "H1", "45366",
+                                           "\"R1C1\"", "A1:XFD1", "#N/A", "1E308"};
+        const int nargs = int(sizeof(args) / sizeof(args[0]));
+        QRandomGenerator rng(20261023);
+        Settings plain;
+        Settings array;
+        array.array = true;
+        const MemoryWatch watch;
+        qint64 tooLarge = 0, tooMuch = 0, ok = 0;
+        for (int i = 0; i < functionCount(); ++i) {
+            const FunctionInfo &f = functionAt(i);
+            const int most = f.maxArgs == 255 ? 6 : int(f.maxArgs);
+            for (int trial = 0; trial < 3; ++trial) {
+                const int n = int(f.minArgs) + int(rng.bounded(quint32(qMax(1, most - int(f.minArgs) + 1))));
+                QString text = QString::fromLatin1((f.flags & kFnFuture) ? "_xlfn." : "") + QString::fromLatin1(f.name) + QLatin1Char('(');
+                for (int k = 0; k < n; ++k) {
+                    if (k) text += QLatin1Char(',');
+                    if (n == 1 || rng.bounded(12) != 0) text += QString::fromLatin1(args[rng.bounded(quint32(nargs))]);
+                }
+                text += QLatin1Char(')');
+                const Outcome o = evOutcome(text, g, trial % 2 ? array : plain);
+                QVERIFY2(!o.text.isEmpty() && !o.text.startsWith("!parse"), qPrintable(text + QStringLiteral(" -> ") + said(o)));
+                // it ended inside the steps it was given, or said that it did not: and held no more cells than it may
+                QVERIFY2(o.status != EvalStatus::Ok ? o.text.startsWith("e:") : o.work <= kMaxEvalWork, qPrintable(text + QStringLiteral(" -> ") + said(o)));
+                QVERIFY2(o.peakCells <= kMaxLiveArrayCells + kMaxArrayCells, qPrintable(text + QStringLiteral(" -> ") + said(o)));
+                (o.status == EvalStatus::TooLarge ? tooLarge : o.status == EvalStatus::TooMuchWork ? tooMuch : ok) += 1;
+            }
+        }
+        const qint64 grew = watch.growthMegabytes();
+        QVERIFY2(grew < 0 || grew < 900, qPrintable(QStringLiteral("memory grew %1 MB").arg(grew)));
+        qInfo("whole-column calls: %lld ended in their work, %lld past the steps, %lld past the cells", static_cast<long long>(ok), static_cast<long long>(tooMuch), static_cast<long long>(tooLarge));
     }
 
     void randomFunctionCallsNeverCrashOrLoop()

@@ -81,6 +81,8 @@ struct Outcome {
     qint64 peakCells = 0;
 };
 Outcome evOutcome(const QString &formula, const Grid &grid, const Settings &settings = Settings(), qint64 limit = 0);
+// What an outcome says in one line, for a failure to show; with the megabytes the process grew by, if they are known (not -1).
+QString said(const Outcome &outcome, qint64 growthMegabytes = -1);
 // The formula in each of the cells in turn (`cells` are references, as Settings::at is), all worked out by one evaluator, as a recalculation does: what one evaluation
 // remembers for the next shows. The other settings are the same for all.
 QStringList evInCells(const QString &formula, const Grid &grid, const QStringList &cells, const Settings &settings = Settings());
