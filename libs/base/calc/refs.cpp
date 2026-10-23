@@ -19,6 +19,7 @@ ProgramTraits traitsOf(const Program &program)
         const FunctionInfo &f = functionAt(call.first);
         if (std::strcmp(f.name, "INDIRECT") == 0 || std::strcmp(f.name, "OFFSET") == 0) t.dynamic = true;
         else if (f.flags & kFnVolatile) t.changesByItself = true;
+        if (f.flags & kFnIterative) t.iterative = true;
     }
     return t;
 }

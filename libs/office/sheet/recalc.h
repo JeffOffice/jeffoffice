@@ -71,6 +71,7 @@ enum class RecalcClass : char {
     Tainted = 'Z',       // (full recalculation) worked out from a formula that was kept apart: not counted, but told whether it matches
     Iterative = 'I',     // (full recalculation) in a circle of a workbook that asks for iterative calculation
     Circular = 'C',      // (full recalculation) in a circle: the file's value is kept (what the last calculation left), and marks what reads it
+    Iterated = 'R',      // (full recalculation) calls a function found by trying numbers (IRR, XIRR): the file's digits are those of one program's iteration, so it is kept apart
 };
 
 struct RecalcCell {
@@ -122,7 +123,7 @@ struct FullOptions {
 
 struct FullReport {
     qint64 formulaCells = 0;
-    QMap<char, qint64> byClass;                   // M X U V E T P N D L I C Z S
+    QMap<char, qint64> byClass;                   // M X U V E T P N D L I C R Z S
     QMap<QString, FunctionTally> functions;       // for the formulas that were checked
     QMap<QString, qint64> unsupportedFunctions;
     QMap<QString, qint64> patterns;

@@ -79,7 +79,7 @@ public:
     bool isTainted(int sheet, quint32 row, quint32 col) const;
     bool isCascaded(int sheet, quint32 row, quint32 col) const;   // reads (through others) a formula that `verify` called a mismatch
     // For a formula kept apart: why, as the yardstick's classes say (U a function it lacks, V changes by itself, E another workbook, T a table's columns, P not parsed, N no
-    // result stored or no formula, D a data table, L past the bounds, I circular in a workbook that iterates, C circular); 0 for a formula that was worked out.
+    // result stored or no formula, D a data table, L past the bounds, I circular in a workbook that iterates, C circular, R a rate found by iteration); 0 for a formula that was worked out.
     char keptClass(int sheet, quint32 row, quint32 col) const;
 
     // Every formula cell, in the order of the sheets and cells: what the yardstick compares.
@@ -116,7 +116,7 @@ private:
         QString error;
         bool tried = false;
         bool traitsKnown = false;
-        bool usesNames = false, dynamic = false, changesByItself = false;
+        bool usesNames = false, dynamic = false, changesByItself = false, iterative = false;
         std::vector<qint32> bound;
     };
     struct SheetState {

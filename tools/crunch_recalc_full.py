@@ -30,7 +30,7 @@ from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from crunch_scan import LIMIT_SECONDS, SetupFailed, check_systemd_run, need_linux  # noqa: E402
 
-CLASSES = "MXUVETPNDLICZS"
+CLASSES = "MXUVETPNDLICRZS"
 MEMORY = "6G"
 
 
@@ -70,7 +70,7 @@ def run_one(tool, path, matches, seconds):
             unsup.append((unescape(f[1]), int(f[2])))
         elif f[0] == "pat" and len(f) == 3:
             pats.append((unescape(f[1]), int(f[2])))
-        elif f[0] == "fullbook" and len(f) >= 31:
+        elif f[0] == "fullbook" and len(f) >= 32:
             book = f[1:]
     return path, code, rows, fns, unsup, pats, book, message, wall
 
@@ -134,13 +134,14 @@ def main():
             else:
                 opened += 1
             if book is None:
-                books.write("%s\t%d\t%s%.1f\n" % (escape(path), code, "\t" * 30, wall))
+                books.write("%s\t%d\t%s%.1f\n" % (escape(path), code, "\t" * (len(CLASSES) + 16), wall))
                 continue
-            counts = [int(x) for x in book[:15]]   # formula cells, then the 14 classes
-            vc, vm, tm, circ, circ0, roots = int(book[15]), int(book[16]), int(book[17]), int(book[18]), int(book[19]), int(book[20])
-            manual, whole = int(book[21]), int(book[22])
-            seconds, load, calc, peak, sheet_mb = float(book[23]), book[24], book[25], float(book[26]), float(book[27])
-            graph_entries, evaluations = int(book[28]), int(book[29])
+            n = len(CLASSES) + 1
+            counts = [int(x) for x in book[:n]]   # formula cells, then the classes
+            vc, vm, tm, circ, circ0, roots = (int(x) for x in book[n:n + 6])
+            manual, whole = int(book[n + 6]), int(book[n + 7])
+            seconds, load, calc, peak, sheet_mb = float(book[n + 8]), book[n + 9], book[n + 10], float(book[n + 11]), float(book[n + 12])
+            graph_entries, evaluations = int(book[n + 13]), int(book[n + 14])
             books.write("%s\t%d\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2f\t%s\t%s\t%.0f\t%.1f\t%d\t%d\t%.1f\n" % (escape(path), code, "\t".join(map(str, counts)), vc, vm, tm, circ, circ0, roots, manual, whole,
                                                                                                          seconds, load, calc, peak, sheet_mb, graph_entries, evaluations, wall))
             timing.append((max(seconds, wall), peak, sheet_mb, counts[0], path))
@@ -181,7 +182,7 @@ def main():
     print(f"recalc-full: workbooks {len(paths)} (opened {opened}, not opened {not_opened}, crashed {crashed}, timed out {timed_out}); formula cells {totals['formula cells']}, "
           f"checked {checked} of which matched {totals['M']} ({pct(totals['M'], checked)}); kept apart: unknown function {totals['U']}, volatile {totals['V']} "
           f"(OFFSET and INDIRECT worked out: {volatile_checked}, matched {volatile_matched}), another workbook {totals['E']}, table columns {totals['T']}, not parsed {totals['P']}, "
-          f"no result stored {totals['N']}, data table {totals['D']}, work bound {totals['L']}, circle in an iterative workbook {totals['I']}, circle {totals['C']}, out of time {totals['S']}; "
+          f"no result stored {totals['N']}, data table {totals['D']}, work bound {totals['L']}, circle in an iterative workbook {totals['I']}, circle {totals['C']}, rate found by iteration {totals['R']}, out of time {totals['S']}; "
           f"mismatches that follow another {totals['X'] - root_mismatches}; tainted (read a formula kept apart) {totals['Z']} (of which match the file {tainted_matched}); circular cells {circular} (of which the file stored 0 for {circular_zero}); workbooks with formulas {formula_books}, "
           f"with something checked {checked_books}, matched whole {whole_books} ({pct(whole_books, checked_books)}); of those on manual calculation {manual_books}, {manual_mismatch} with "
           f"mismatches; {time.time() - started:.0f} s")

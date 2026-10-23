@@ -21,6 +21,7 @@ class Call;
 constexpr quint8 kFnVolatile = 1;   // NOW, TODAY, RAND, RANDBETWEEN, OFFSET, INDIRECT: the value changes with no cell changing
 constexpr quint8 kFnLazy = 2;       // IF, IFERROR, IFNA, CHOOSE: the arguments not needed are not worked out
 constexpr quint8 kFnFuture = 4;     // added after the first release of the format: a file writes it with the prefix _xlfn. (and without it, it is some other function of that name)
+constexpr quint8 kFnIterative = 8;  // IRR, XIRR: found by trying numbers, so that the last digits are those of the program's iteration, which a file's results show and this does not reproduce
 
 struct FunctionInfo {
     const char *name;           // upper case, without the prefix a newer function carries in a file

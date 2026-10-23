@@ -16,6 +16,7 @@ struct ProgramTraits {
     bool usesNames = false;       // a defined name stands for a block of cells or a formula: where it reads is found as it is worked out
     bool dynamic = false;         // calls INDIRECT or OFFSET: where it reads depends on values
     bool changesByItself = false; // calls NOW, TODAY, RAND, or RANDBETWEEN: its value changes with no cell changing
+    bool iterative = false;       // calls a function found by trying numbers (IRR, XIRR): the digits are those of one program's iteration
     // Whether where it reads is told as it is worked out, besides what its references name.
     bool readsWhereItIsTold() const { return usesNames || dynamic; }
 };

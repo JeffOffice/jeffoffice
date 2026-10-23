@@ -144,6 +144,229 @@ Value fnNominal(Call &c)
     return numberResult(periods * (std::exp(std::log(1 + effective) / periods) - 1));
 }
 
+// ---- depreciation by the declining balance
+
+// The depreciation of one period by the fixed declining balance: `factor` over the life is the rate; never below what leaves the salvage value.
+double decliningBalance(double cost, double salvage, double life, double period, double factor)
+{
+    double rate = factor / life, before, after;
+    if (rate >= 1) {
+        rate = 1;
+        before = period == 1 ? cost : 0;
+    } else {
+        before = cost * std::pow(1 - rate, period - 1);
+    }
+    after = cost * std::pow(1 - rate, period);
+    const double d = after < salvage ? before - salvage : before - after;
+    return d < 0 ? 0 : d;
+}
+
+Value fnDdb(Call &c)
+{
+    double cost, salvage, life, period, factor;
+    if (!c.number(0, &cost) || !c.number(1, &salvage) || !c.number(2, &life) || !c.number(3, &period) || !c.numberOr(4, 2, &factor)) return c.failure();
+    if (cost < 0 || salvage < 0 || life <= 0 || period <= 0 || period > life || factor <= 0) return c.error(ErrorKind::Num);
+    return numberResult(decliningBalance(cost, salvage, life, period, factor));
+}
+
+// What the declining balance (or the straight line, once that gives more) takes off in the first `period` periods: whole periods, and the part of the last.
+double variableBalance(double cost, double salvage, double life, double lifeLeft, double period, double factor)
+{
+    double total = 0, left = cost - salvage, line = 0;
+    bool straight = false;
+    const double last = std::ceil(period);
+    for (qint64 i = 1; i <= qint64(last); ++i) {
+        double term;
+        if (!straight) {
+            const double declining = decliningBalance(cost, salvage, life, double(i), factor);
+            line = left / (lifeLeft - double(i - 1));
+            if (line > declining) {
+                term = line;
+                straight = true;
+            } else {
+                term = declining;
+                left -= declining;
+            }
+        } else {
+            term = line;
+        }
+        if (double(i) == last) term *= period + 1 - last;
+        total += term;
+    }
+    return total;
+}
+
+Value fnVdb(Call &c)
+{
+    double cost, salvage, life, start, end, factor;
+    bool noSwitch;
+    if (!c.number(0, &cost) || !c.number(1, &salvage) || !c.number(2, &life) || !c.number(3, &start) || !c.number(4, &end) || !c.numberOr(5, 2, &factor) || !c.booleanOr(6, false, &noSwitch))
+        return c.failure();
+    if (cost < 0 || salvage < 0 || life <= 0 || start < 0 || end < start || end > life || factor <= 0) return c.error(ErrorKind::Num);
+    if (!c.machine().charge(qint64(std::min(life, 1e7)) + 1)) return c.error(ErrorKind::Value);
+    if (noSwitch) {
+        const double first = std::floor(start), last = std::ceil(end);
+        double total = 0;
+        for (qint64 i = qint64(first) + 1; i <= qint64(last); ++i) {
+            double term = decliningBalance(cost, salvage, life, double(i), factor);
+            if (double(i) == first + 1) term *= std::min(end, first + 1) - start;
+            else if (double(i) == last) term *= end + 1 - last;
+            total += term;
+        }
+        return numberResult(total);
+    }
+    double lifeLeft = life;
+    if (start != std::floor(start) && factor > 1 && start >= life / 2) {
+        const double part = start - life / 2;
+        start = life / 2;
+        end -= part;
+        lifeLeft += 1;
+    }
+    cost -= variableBalance(cost, salvage, life, lifeLeft, start, factor);
+    return numberResult(variableBalance(cost, salvage, life, life - start, end - start, factor));
+}
+
+// ---- cash flows: IRR and XIRR are found by Newton's method from a guess; XNPV is a sum
+
+Value fnIrr(Call &c)
+{
+    double guess = 0.1;
+    if (c.argc() > 1 && !c.missing(1) && !c.number(1, &guess)) return c.failure();
+    std::vector<double> v;
+    Value error;
+    bool bad = false;
+    const bool done = c.each(0, [&](const Value &x, bool typed) {
+        if (x.isError()) {
+            error = x;
+            bad = true;
+            return false;
+        }
+        double n;
+        ErrorKind e = ErrorKind::Value;
+        if (x.isNumber() || x.isBool()) v.push_back(x.number());
+        else if (typed && coerceNumber(x, c.context().dateSystem, &n, &e)) v.push_back(n);
+        else if (typed) {
+            error = Value::error(e);
+            bad = true;
+            return false;
+        }
+        return true;
+    });
+    if (!done) return bad ? error : c.error(ErrorKind::Value);
+    bool positive = false, negative = false;
+    for (const double x : v) {
+        positive = positive || x > 0;
+        negative = negative || x < 0;
+    }
+    if (!positive || !negative) return c.error(ErrorKind::Num);
+    if (!c.machine().charge(qint64(v.size()) * 20 + 1)) return c.error(ErrorKind::Value);
+    double rate = guess;
+    for (int iteration = 0; iteration < 20; ++iteration) {
+        double value = 0, slope = 0;
+        for (size_t i = 0; i < v.size(); ++i) {
+            const double g = std::pow(1 + rate, double(i));
+            value += v[i] / g;
+            slope -= double(i) * v[i] / (g * (1 + rate));
+        }
+        const double next = rate - value / slope;
+        if (!std::isfinite(next)) return c.error(ErrorKind::Num);
+        const bool converged = std::fabs(next - rate) <= 1e-7;
+        rate = next;
+        if (converged) return rate > -1 ? numberResult(rate) : c.error(ErrorKind::Num);
+    }
+    return c.error(ErrorKind::Num);
+}
+
+// The values and the dates (whole days) of XNPV and XIRR: as many of each; false, with the error, if they are not.
+bool datedFlows(Call &c, int valuesAt, int datesAt, std::vector<double> *v, std::vector<double> *d, Value *error)
+{
+    for (int pass = 0; pass < 2; ++pass) {
+        std::vector<double> &out = pass == 0 ? *v : *d;
+        bool bad = false;
+        const bool done = c.each(pass == 0 ? valuesAt : datesAt, [&](const Value &x, bool typed) {
+            if (x.isError()) {
+                *error = x;
+                bad = true;
+                return false;
+            }
+            double n;
+            ErrorKind e = ErrorKind::Value;
+            if (x.isNumber() || x.isBool()) out.push_back(pass == 0 ? x.number() : std::floor(x.number()));
+            else if (typed && coerceNumber(x, c.context().dateSystem, &n, &e)) out.push_back(pass == 0 ? n : std::floor(n));
+            else if (typed || pass == 1) {
+                *error = Value::error(typed ? e : ErrorKind::Value);
+                bad = true;
+                return false;
+            }
+            return true;
+        });
+        if (!done) {
+            if (!bad) *error = c.error(ErrorKind::Value);
+            return false;
+        }
+    }
+    if (v->size() != d->size() || v->empty()) {
+        *error = c.error(ErrorKind::Num);
+        return false;
+    }
+    return true;
+}
+
+double datedValue(double rate, const std::vector<double> &v, const std::vector<double> &d)
+{
+    double sum = 0;
+    for (size_t i = 0; i < v.size(); ++i) sum += v[i] / powerOf(1 + rate, (d[i] - d[0]) / 365);
+    return sum;
+}
+
+Value fnXnpv(Call &c)
+{
+    double rate;
+    if (!c.number(0, &rate)) return c.failure();
+    std::vector<double> v, d;
+    Value error;
+    if (!datedFlows(c, 1, 2, &v, &d, &error)) return error;
+    if (rate <= -1) return c.error(ErrorKind::Num);
+    for (const double day : d)
+        if (day < d[0]) return c.error(ErrorKind::Num);
+    if (!c.machine().charge(qint64(v.size()) + 1)) return c.error(ErrorKind::Value);
+    return numberResult(datedValue(rate, v, d));
+}
+
+Value fnXirr(Call &c)
+{
+    double guess = 0.1;
+    if (c.argc() > 2 && !c.missing(2) && !c.number(2, &guess)) return c.failure();
+    std::vector<double> v, d;
+    Value error;
+    if (!datedFlows(c, 0, 1, &v, &d, &error)) return error;
+    bool positive = false, negative = false;
+    for (const double x : v) {
+        positive = positive || x > 0;
+        negative = negative || x < 0;
+    }
+    if (!positive || !negative || guess <= -1) return c.error(ErrorKind::Num);
+    for (const double day : d)
+        if (day < d[0]) return c.error(ErrorKind::Num);
+    if (!c.machine().charge(qint64(v.size()) * 100 + 1)) return c.error(ErrorKind::Value);
+    double rate = guess;
+    for (int iteration = 0; iteration < 100; ++iteration) {
+        double value = 0, slope = 0;
+        for (size_t i = 0; i < v.size(); ++i) {
+            const double years = (d[i] - d[0]) / 365;
+            const double g = std::pow(1 + rate, years);
+            value += v[i] / g;
+            slope -= years * v[i] / (g * (1 + rate));
+        }
+        const double next = rate - value / slope;
+        if (!std::isfinite(next) || next <= -1) return c.error(ErrorKind::Num);
+        const bool converged = std::fabs(next - rate) <= 1e-10;
+        rate = next;
+        if (converged) return numberResult(rate);
+    }
+    return c.error(ErrorKind::Num);
+}
+
 } // namespace
 
 void registerFinanceFunctions(std::vector<FunctionInfo> &r)
@@ -159,6 +382,11 @@ void registerFinanceFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"SYD", 4, 4, "vvvv", 0, fnSyd});
     r.push_back({"EFFECT", 2, 2, "vv", 0, fnEffect});
     r.push_back({"NOMINAL", 2, 2, "vv", 0, fnNominal});
+    r.push_back({"DDB", 4, 5, "vvvvv", 0, fnDdb});
+    r.push_back({"VDB", 5, 7, "vvvvvvv", 0, fnVdb});
+    r.push_back({"IRR", 1, 2, "rv", kFnIterative, fnIrr});
+    r.push_back({"XNPV", 3, 3, "vrr", 0, fnXnpv});
+    r.push_back({"XIRR", 2, 3, "rrv", kFnIterative, fnXirr});
 }
 
 } // namespace jp::calc

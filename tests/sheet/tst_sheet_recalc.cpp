@@ -210,6 +210,24 @@ private Q_SLOTS:
         QVERIFY(run.report.patterns.contains(QStringLiteral("number -> number: ")));
     }
 
+    // A rate found by trying numbers (IRR, XIRR) is worked out by the engine, but the file's digits are those of one program's iteration: it is kept apart with the file's
+    // value, and what reads it is told apart.
+    void aRateFoundByIterationIsKeptApart()
+    {
+        const QString rows = row(1, plain("A1", "-100") + plain("B1", "110") + cell("C1", "IRR(A1:B1)", "0.10000000012") + cell("D1", "C1+1", "1.10000000012")
+                                     + cell("E1", "XNPV(0.1,A1:B1,F1:G1)", "-0.000000001") + plain("F1", "40000") + plain("G1", "40365"));
+        FullRun run;
+        FullOptions options;
+        options.keepMatches = 10;
+        QVERIFY(runFull(buildXlsx({worksheet(rows)}), &run, options));
+        QCOMPARE(run.cellText("Sheet1", "C1").left(2), QStringLiteral("R|"));
+        QCOMPARE(run.cellText("Sheet1", "D1"), QStringLiteral("Z|C1+1|1.1000000001200001|1.1000000001200001"));
+        QCOMPARE(run.report.byClass.value('R'), qint64(1));
+        QCOMPARE(run.report.byClass.value('Z'), qint64(1));
+        // what is closed in form is checked
+        QVERIFY(run.report.byClass.value('M') + run.report.byClass.value('X') == 1);
+    }
+
     // A recalculation that runs out of the time it was given keeps the rest apart; so does a formula past the work it may take, with what reads it.
     void whatTheFullRecalculationDoesNotReachIsKeptApart()
     {

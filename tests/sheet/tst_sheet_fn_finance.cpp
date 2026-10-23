@@ -24,6 +24,42 @@ class SheetFnFinanceTests : public QObject {
     Q_OBJECT
 
 private Q_SLOTS:
+    // Depreciation by the declining balance (DDB, and VDB, which goes over to the straight line when that is more) with the figures of the function descriptions, and the
+    // rates and values of cash flows that are found by trying (IRR, XIRR) or counted by the day (XNPV): worked out by hand and by bisection, rounded to the places given.
+    void declinesAndFlows()
+    {
+        const E cases[] = {
+            {"ROUND(DDB(2400,300,3650,1),6)", "n:1.315068"},          // the first day of ten years
+            {"DDB(2400,300,120,1,2)", "n:40"},
+            {"ROUND(DDB(2400,300,10,2,1.5),6)", "n:306"},
+            {"ROUND(DDB(2400,300,10,10),6)", "n:22.122547"},
+            {"DDB(2400,300,10,11)", "e:#NUM!"},
+            {"DDB(-1,300,10,1)", "e:#NUM!"},
+            {"ROUND(VDB(2400,300,3650,0,1),6)", "n:1.315068"},
+            {"VDB(2400,300,120,0,1)", "n:40"},
+            {"VDB(2400,300,10,0,1)", "n:480"},
+            {"ROUND(VDB(2400,300,120,6,18),6)", "n:396.306053"},
+            {"ROUND(VDB(2400,300,120,6,18,1.5),6)", "n:311.808937"},
+            {"ROUND(VDB(2400,300,10,0,0.875,1.5),6)", "n:315"},
+            {"ROUND(VDB(2400,300,10,0,10),6)", "n:2100"},               // all of it, down to the salvage value
+            {"VDB(2400,300,10,5,3)", "e:#NUM!"},
+            {"VDB(2400,300,10,0,11)", "e:#NUM!"},
+            {"ROUND(IRR({-70000,12000,15000,18000,21000,26000}),6)", "n:0.086631"},
+            {"ROUND(IRR({-70000,12000,15000,18000,21000}),6)", "n:-0.021245"},
+            {"ROUND(IRR({-70000,12000,15000},-0.5),6)", "n:-0.443507"},   // from a guess below it, the one rate there is
+            {"IRR({1,-2,3})", "e:#NUM!"},                                // a sum that never comes to nothing
+            {"IRR({1,2,3})", "e:#NUM!"},                                 // no sign changes
+            {"ROUND(XNPV(0.09,{-10000,2750,4250,3250,2750},{39448,39508,39751,39859,39904}),4)", "n:2086.6476"},
+            {"ROUND(XIRR({-10000,2750,4250,3250,2750},{39448,39508,39751,39859,39904}),6)", "n:0.373363"},
+            {"XNPV(0,{100,100},{40000,40365})", "n:200"},
+            {"XNPV(0.1,{100,100},{40000,39999})", "e:#NUM!"},             // a date before the first
+            {"XNPV(-1,{100,100},{40000,40365})", "e:#NUM!"},
+            {"XIRR({1,2},{40000,40365})", "e:#NUM!"},
+            {"XIRR({-1,2},{40000})", "e:#NUM!"},                         // as many dates as values
+        };
+        CHECK_EVALS(cases, Grid(), Settings());
+    }
+
     void loansAndSavings()
     {
         const E cases[] = {

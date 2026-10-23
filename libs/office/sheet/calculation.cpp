@@ -51,6 +51,7 @@ Calculation::Compiled &Calculation::compiled(int sheet, qint32 text, bool array)
             slot.usesNames = t.usesNames;
             slot.dynamic = t.dynamic;
             slot.changesByItself = t.changesByItself;
+            slot.iterative = t.iterative;
             slot.bound = bindSheetNames(*slot.program, *this);
         }
         slot.traitsKnown = true;
@@ -107,6 +108,7 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
                 else if (p.external) kept = 'E';
                 else if (p.structured) kept = 'T';
                 else if (slot.changesByItself) kept = 'V';
+                else if (slot.iterative) kept = 'R';
                 else if (!cell.hasResult()) kept = 'N';
             }
         }

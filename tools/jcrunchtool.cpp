@@ -362,7 +362,7 @@ int recalcFullOne(const QString &path, int keepMatches, double seconds)
     for (auto it = report.unsupportedFunctions.cbegin(); it != report.unsupportedFunctions.cend(); ++it) out() << "unsup\t" << escapeField(it.key()) << '\t' << it.value() << "\n";
     for (auto it = report.patterns.cbegin(); it != report.patterns.cend(); ++it) out() << "pat\t" << escapeField(it.key()) << '\t' << it.value() << "\n";
     out() << "fullbook\t" << report.formulaCells;
-    for (const char cls : {'M', 'X', 'U', 'V', 'E', 'T', 'P', 'N', 'D', 'L', 'I', 'C', 'Z', 'S'}) out() << '\t' << report.byClass.value(cls);
+    for (const char cls : {'M', 'X', 'U', 'V', 'E', 'T', 'P', 'N', 'D', 'L', 'I', 'C', 'R', 'Z', 'S'}) out() << '\t' << report.byClass.value(cls);
     out() << '\t' << report.volatileChecked << '\t' << report.volatileMatched << '\t' << report.taintedMatched << '\t' << report.circular << '\t' << report.circularStoredZero << '\t' << report.rootMismatches << '\t' << (report.manualCalc ? 1 : 0) << '\t'
           << (report.whole ? 1 : 0) << '\t' << QString::number(report.seconds, 'f', 2) << '\t' << QString::number(report.loadSeconds, 'f', 2) << '\t' << QString::number(report.calcSeconds, 'f', 2)
           << '\t' << QString::number(peakMegabytes(), 'f', 0) << '\t' << QString::number(double(report.sheetXmlBytes) / 1048576.0, 'f', 1) << '\t' << report.graphEntries << '\t' << report.evaluations << "\n";
