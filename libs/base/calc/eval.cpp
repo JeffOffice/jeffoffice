@@ -282,6 +282,11 @@ Item Machine::binary(Op op, quint8 flags, const Item &ia, const Item &ib)
     return Item::ofValue(r);
 }
 
+void Machine::noteRefs(const Item &item)
+{
+    for (int i = 0; i < item.areaCount(); ++i) ctx.touched->push_back(item.areaAt(i));
+}
+
 Item Machine::referenceOp(Op op, const Item &a, const Item &b)
 {
     if (!a.isRef() || !b.isRef()) {
@@ -342,6 +347,7 @@ Item Machine::callFunction(const FunctionInfo &f, std::vector<Item> &args, bool 
     if (!lift) {
         Call call(*this, args, arrayMode, f);
         const Value r = f.impl(call);
+        if (call.hasResult() && ctx.touched) noteRefs(call.result());   // (OFFSET, INDIRECT, INDEX, and the others that give a reference: where it points is read)
         return call.hasResult() ? call.result() : Item::ofValue(r);
     }
     // A function of values, given arrays: one call for each element, the arrays that have one row or one column stretched to the others.
@@ -413,9 +419,10 @@ Item Machine::runProgram(const Program &p, bool)
         case Op::PushRef: {
             RefArea area;
             ErrorKind e = ErrorKind::Ref;
-            if (resolveRef(p, p.refs[size_t(in.operand)], &area, &e))
+            if (resolveRef(p, p.refs[size_t(in.operand)], &area, &e)) {
+                if (ctx.touched) ctx.touched->push_back(area);
                 stack.push_back(Item::ofRef(area));
-            else
+            } else
                 stack.push_back(Item::ofError(e));
             break;
         }

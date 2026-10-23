@@ -7,6 +7,7 @@
 // kMaxArrayCells cells and has no more than kMaxLiveArrayCells alive at once, nests no name or INDIRECT deeper than kMaxNameDepth, and makes no text of more than
 // kMaxValueTextChars characters, nor in all kMaxMadeTextChars characters of them in arrays. Past a bound the evaluation stops and status() says which; the value is then an error.
 
+#include "calc/area.h"
 #include "calc/formula.h"
 #include "calc/value.h"
 
@@ -14,6 +15,7 @@
 
 #include <functional>
 #include <memory>
+#include <vector>
 
 namespace jp::calc {
 
@@ -52,6 +54,9 @@ struct EvalContext {
     int shiftRows = 0, shiftCols = 0;    // how far that cell is from the one the formula's text was written for (a shared formula)
     DateSystem dateSystem = DateSystem::Date1900;
     double now = 0;                      // the day number NOW() and TODAY() give; 0 reads the clock, once for the evaluation (see clockSerial)
+    // If set, every block of cells the evaluation names is added to it: what the formula's own references name (as they were worked out), what a name or a text given
+    // to INDIRECT stands for, and what OFFSET and the like give. What a formula that reads where its values say it reads, is told to the dependency graph with.
+    std::vector<CellArea> *touched = nullptr;
 };
 
 // The clock as a day number with the time as its fraction, in the date system. A recalculation of many formulas reads it once and gives it to each as EvalContext::now,

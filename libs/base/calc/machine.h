@@ -1,6 +1,7 @@
 #pragma once
 // What the evaluator and the functions share (internal to calc/): the stack machine's items, and Call, which is what a function sees of its arguments.
 
+#include "calc/area.h"
 #include "calc/budget.h"
 #include "calc/eval.h"
 #include "calc/functions.h"
@@ -16,14 +17,7 @@
 namespace jp::calc {
 
 // A block of cells of one sheet (or of several, for a 3-D reference: sheets sheet1 through sheet2 by their place).
-struct RefArea {
-    qint32 sheet1 = 0, sheet2 = 0;
-    quint32 row1 = 0, col1 = 0, row2 = 0, col2 = 0;
-    qint64 rows() const { return qint64(row2) - qint64(row1) + 1; }
-    qint64 cols() const { return qint64(col2) - qint64(col1) + 1; }
-    qint64 cells() const { return rows() * cols() * (qint64(sheet2) - qint64(sheet1) + 1); }
-    bool single() const { return row1 == row2 && col1 == col2 && sheet1 == sheet2; }
-};
+using RefArea = CellArea;
 
 // What is on the machine's stack: a value, a reference (one area, or several for a union), or an argument that was left out.
 struct Item {
@@ -280,6 +274,7 @@ private:
     Item binary(Op op, quint8 flags, const Item &a, const Item &b);
     Item unaryOp(Op op, quint8 flags, const Item &a);
     Item referenceOp(Op op, const Item &a, const Item &b);
+    void noteRefs(const Item &item);
     bool resolveRef(const Program &p, const RefLit &r, RefArea *area, ErrorKind *error);
     bool bindSheets(const Program &p);
 
