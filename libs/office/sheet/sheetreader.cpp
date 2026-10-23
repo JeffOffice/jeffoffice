@@ -662,7 +662,8 @@ bool SheetReader::startRow(const QXmlStreamReader &r)
     const uint style = attribute(r, "s").toUInt(&styleOk);
     spec.style = styleOk && spec.customFormat ? style : 0;
     const bool otherHeight = spec.height >= 0 && std::abs(spec.height - m_sheet.format.defaultRowHeight) > 0.001;
-    if (spec.hidden || spec.customFormat || otherHeight) {
+    // (a sheet that hides the rows it does not list needs to know which it lists)
+    if (spec.hidden || spec.customFormat || otherHeight || m_sheet.format.zeroHeight) {
         if (m_sheet.stats.rowSpecs >= m_limits.rowSpecs) return fail(translate("The sheet has more rows with their own height or format than any real file has."));
         if (!take(kRowSpecBytes)) return false;
         ++m_sheet.stats.rowSpecs;
@@ -1009,6 +1010,10 @@ bool SheetReader::endCell()
     if (m_cells >= m_limits.cellsPerSheet) return fail(translate("The sheet has more cells than any real file has."));
     if (!take(kCellBytes)) return false;
     ++m_cells;
+    if (c.type != CellType::Empty || c.hasFormula() || c.style != 0) {
+        m_sheet.extentRows = std::max(m_sheet.extentRows, c.row + 1);
+        m_sheet.extentCols = std::max(m_sheet.extentCols, quint32(c.col) + 1);
+    }
     m_sheet.cells.add(c);
     if (m_cells % kProgressEvery == 0 && m_options.progress && !m_options.progress(m_cells)) return fail(translate("The read was stopped."));
     return true;

@@ -291,6 +291,8 @@ struct Sheet {
     SheetView view;
     ColorSpec tabColor;               // the color of the sheet's tab
     bool partial = false;             // the read was stopped at a row asked for (ReadOptions::stopAfterRow): the cells of the rows after it, and what follows the cells (the merged ranges), are not here
+    quint32 extentRows = 0;           // the rows and columns the cells reach: the most of a cell that holds a value or a formula or has a format of its own (a style other than the first)
+    quint32 extentCols = 0;
     qint64 formulaCells = 0;          // cells with a formula
     qint64 storedResults = 0;         // of them, those the file stored a result for
     SheetStats stats;

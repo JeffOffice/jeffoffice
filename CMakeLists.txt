@@ -180,6 +180,7 @@ qt_add_executable(sheettests
   tests/sheet/sheethelpers.cpp
   tests/sheet/calchelpers.cpp
   tests/sheet/tst_grid_axis.cpp
+  tests/sheet/tst_grid_cells.cpp
   tests/sheet/tst_grid_layout.cpp
   tests/sheet/tst_sheet_bounds.cpp
   tests/sheet/tst_sheet_calculation.cpp

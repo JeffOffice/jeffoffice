@@ -228,14 +228,14 @@ private Q_SLOTS:
         QVERIFY(readSheetXml(worksheet(row(2, cell("A2", 1), QStringLiteral("ht=\"30\" customHeight=\"1\"")) + row(3, QString(), QStringLiteral("hidden=\"1\"")) +
                                            row(5, QString(), QStringLiteral("s=\"2\" customFormat=\"1\" ht=\"18.75\"")) + row(7, cell("A7", 3), QStringLiteral("ht=\"18.75\"")),
                                        QString(),
-                                       QStringLiteral("<sheetFormatPr defaultRowHeight=\"18.75\" defaultColWidth=\"11.5\" baseColWidth=\"9\" zeroHeight=\"1\" customHeight=\"1\"/>"
+                                       QStringLiteral("<sheetFormatPr defaultRowHeight=\"18.75\" defaultColWidth=\"11.5\" baseColWidth=\"9\" customHeight=\"1\"/>"
                                                       "<cols><col min=\"1\" max=\"2\" width=\"12.7109375\" customWidth=\"1\" style=\"3\"/><col min=\"4\" max=\"4\" width=\"0\" hidden=\"1\"/>"
                                                       "<col min=\"6\" max=\"20000\" width=\"9\"/></cols>")),
                              &sheet));
         QCOMPARE(sheet.format.defaultRowHeight, 18.75);
         QCOMPARE(sheet.format.defaultColWidth, 11.5);
         QCOMPARE(sheet.format.baseColWidth, 9);
-        QVERIFY(sheet.format.zeroHeight && sheet.format.customHeight);
+        QVERIFY(!sheet.format.zeroHeight && sheet.format.customHeight);
         QCOMPARE(sheet.columns.size(), 3);
         QCOMPARE(sheet.columns[0].first, 0u);
         QCOMPARE(sheet.columns[0].last, 1u);
@@ -377,6 +377,39 @@ private Q_SLOTS:
         QVERIFY(!sheet.partial);
         QCOMPARE(sheet.cells.cellCount(), qint64(10));
         QCOMPARE(sheet.merges.size(), 1);
+    }
+
+    // The rows and columns the cells reach: cells with a value, a formula, or a format of their own count; plain empty cells do not. A row element with nothing in it is no cell.
+    void theReachOfTheCellsIsKept()
+    {
+        Sheet sheet;
+        QVERIFY(readSheetXml(worksheet(row(3, cell("C3", 1)) + row(9, QStringLiteral("<c r=\"B9\"/><c r=\"F9\"/>")) + row(12, QStringLiteral("<c r=\"D12\" s=\"2\"/>")) +
+                                           row(20, QStringLiteral("<c r=\"E20\"><f>A1</f></c>")) + row(30, QString())),
+                             &sheet));
+        QCOMPARE(sheet.extentRows, 20u);
+        QCOMPARE(sheet.extentCols, 5u);
+        QVERIFY(readSheetXml(worksheet(QString()), &sheet));
+        QCOMPARE(sheet.extentRows, 0u);
+        QCOMPARE(sheet.extentCols, 0u);
+        QVERIFY(readSheetXml(worksheet(row(5, QStringLiteral("<c r=\"B5\" s=\"1\"/>"))), &sheet));
+        QCOMPARE(sheet.extentRows, 5u);
+        QCOMPARE(sheet.extentCols, 2u);
+    }
+
+    // A sheet that hides the rows that have no element keeps every row that has one, so that the rows the file shows can be told from those it hides.
+    void aSheetThatHidesUnlistedRowsKeepsTheListedOnes()
+    {
+        Sheet sheet;
+        QVERIFY(readSheetXml(worksheet(row(1, cell("A1", 1)) + row(2, cell("A2", 1), QStringLiteral("ht=\"30\" customHeight=\"1\"")) + row(4, cell("A4", 1)), QString(),
+                                       QStringLiteral("<sheetFormatPr defaultRowHeight=\"15\" zeroHeight=\"1\"/>")),
+                             &sheet));
+        QCOMPARE(sheet.rowSpecs.size(), 3);
+        QCOMPARE(sheet.rowSpecs[0].row, 0u);
+        QVERIFY(!sheet.rowSpecs[0].hidden);
+        QCOMPARE(sheet.rowSpecs[2].row, 3u);
+        // without it, rows as the default are not kept
+        QVERIFY(readSheetXml(worksheet(row(1, cell("A1", 1))), &sheet));
+        QCOMPARE(sheet.rowSpecs.size(), 0);
     }
 
     // The theme part gives the colors the styles name by place, and the workbook says which sheet was open.
