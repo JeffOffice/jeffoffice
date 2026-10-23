@@ -1077,9 +1077,24 @@ private Q_SLOTS:
         QCOMPARE(s, 43904.0);
         QVERIFY(dateValueOf(QStringLiteral("1/1/1904"), DateSystem::Date1904, &s));
         QCOMPARE(s, 0.0);
-        for (const char *bad : {"", "abc", "2/30/2024", "13/1/2024", "0/1/2024", "1/0/2024", "3/15", "3/15/2024/1", "3/15-2024", "1/1/1899", "12/31/10000", "Mar 15", "Foo 15, 2024",
+        for (const char *bad : {"", "abc", "2/30/2024", "13/1/2024", "0/1/2024", "1/0/2024", "3/", "/15", "3/15x", "3/15/2024/1", "3/15-2024", "1/1/1899", "12/31/10000", "Mar 15", "Foo 15, 2024",
                                 "15-Foo-2024", "3/15/20x4", "3//2024", "3/15/", "-3/15/2024", "3/15/2024 abc"})
             QVERIFY2(!dateValueOf(QString::fromLatin1(bad), DateSystem::Date1900, &s), bad);
+        // A month and a day alone are that day of the year setDefaultYear gives (the year of the clock if it is 0).
+        setDefaultYear(2024);
+        QVERIFY(dateValueOf(QStringLiteral("3/15"), DateSystem::Date1900, &s));
+        QCOMPARE(s, 45366.0);
+        QVERIFY(dateValueOf(QStringLiteral(" 3-15 "), DateSystem::Date1900, &s));
+        QCOMPARE(s, 45366.0);
+        QVERIFY(dateValueOf(QStringLiteral("2/29"), DateSystem::Date1900, &s));
+        QCOMPARE(s, 45351.0);
+        setDefaultYear(2023);
+        QVERIFY(!dateValueOf(QStringLiteral("2/29"), DateSystem::Date1900, &s));
+        QVERIFY(dateValueOf(QStringLiteral("2/28"), DateSystem::Date1900, &s));
+        QCOMPARE(s, 44985.0);
+        setDefaultYear(0);
+        QVERIFY(dateValueOf(QStringLiteral("1/1"), DateSystem::Date1900, &s));
+        QCOMPARE(int(s) / 365 + 1900 >= 2024, true);
         // What a format writes reads back as the same day.
         for (const char *code : {"mm/dd/yy", "m/d/yyyy", "dd-mmm-yy", "d-mmm-yyyy", "mmmm d, yyyy", "mmm d, yyyy", "mm-dd-yyyy"}) {
             for (double day : {36585.0, 45366.0, 44927.0, 25569.0}) {

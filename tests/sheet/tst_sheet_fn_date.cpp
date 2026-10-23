@@ -311,6 +311,50 @@ private Q_SLOTS:
         CHECK_EVALS(cases, Grid(), Settings());
     }
 
+    // A month and a day with no year are that date in the year of the clock: VALUE and DATEVALUE read them so, and so does arithmetic on the text.
+    void aMonthAndDayWithNoYearAreThatDateInTheYearOfTheClock()
+    {
+        Settings in2024;
+        in2024.now = 45366.5;   // March 15, 2024
+        const E cases[] = {
+            {"VALUE(\"1/2\")", "n:45293"},               // January 2, 2024
+            {"\"1/2\"+0", "n:45293"},
+            {"DATEVALUE(\"1/2\")", "n:45293"},
+            {"VALUE(\"12/31\")", "n:45657"},
+            {"VALUE(\"3-15\")", "n:45366"},
+            {"VALUE(\" 1/2 \")", "n:45293"},
+            {"VALUE(\"2/29\")", "n:45351"},              // 2024 has a February 29
+            {"VALUE(\"1/2/2023\")", "n:44928"},          // with a year, as ever
+            {"YEAR(VALUE(\"6/1\"))", "n:2024"},
+            {"VALUE(\"13/1\")", "e:#VALUE!"},
+            {"VALUE(\"0/5\")", "e:#VALUE!"},
+            {"VALUE(\"1/32\")", "e:#VALUE!"},
+            {"VALUE(\"4/31\")", "e:#VALUE!"},
+            {"VALUE(\"1/\")", "e:#VALUE!"},
+            {"VALUE(\"/2\")", "e:#VALUE!"},
+            {"VALUE(\"1/2/\")", "e:#VALUE!"},
+            {"VALUE(\"1.2\")", "n:1.2"},                 // a point is a decimal point
+            {"VALUE(\"1/2 10:30\")", "n:45293.4375"},
+        };
+        CHECK_EVALS(cases, Grid(), in2024);
+        Settings in2023;
+        in2023.now = 45078.5;   // June 1, 2023
+        const E cases2023[] = {
+            {"VALUE(\"1/2\")", "n:44928"},
+            {"VALUE(\"2/29\")", "e:#VALUE!"},            // 2023 has none
+            {"\"2/28\"+1", "n:44986"},
+        };
+        CHECK_EVALS(cases2023, Grid(), in2023);
+        Settings in1904;
+        in1904.system = DateSystem::Date1904;
+        in1904.now = 43904.5;   // March 15, 2024 counted from 1904
+        const E cases1904[] = {
+            {"VALUE(\"1/2\")", "n:43831"},
+            {"VALUE(\"1/2/2024\")", "n:43831"},
+        };
+        CHECK_EVALS(cases1904, Grid(), in1904);
+    }
+
     // The clock is read once for a whole evaluation: NOW is the same however many times it is asked, and the days of TODAY and the time of NOW are of one moment, though a
     // midnight comes between them.
     void theClockIsReadOncePerEvaluation()

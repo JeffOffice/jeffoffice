@@ -585,6 +585,14 @@ Value Machine::run(const Program &p, const EvalContext &c)
     m_clockRead = false;
     stack.clear();
     if (!ctx.source) return Value::error(ErrorKind::Value);
+    // a date written as a month and a day alone is in the year of the clock this evaluation reads
+    struct YearScope {
+        explicit YearScope(int year) { setDefaultYear(year); }
+        ~YearScope() { setDefaultYear(0); }
+    };
+    int clockYear = 0, clockMonth = 0, clockDay = 0;
+    serialToDate(std::floor(now()), ctx.dateSystem, &clockYear, &clockMonth, &clockDay);
+    const YearScope yearScope(clockYear);
     const Item r = runProgram(p, p.arrayFormula);
     if (over) return Value::error(ErrorKind::Value);
     Value v;

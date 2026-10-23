@@ -22,10 +22,15 @@ bool serialToDate(double serial, DateSystem system, int *year, int *month, int *
 // The day number it comes to; false if it is none of these.
 bool parseIsoDate(const QString &text, DateSystem system, double *serial);
 
+// The year a date written as a month and a day alone ("3/15") is in. The evaluator sets it to the year of its clock while it works a formula out (and back to 0 after);
+// 0 is the year of the system's clock.
+void setDefaultYear(int year);
+
 // DATEVALUE: the day number of a date written as text: month, day, and year as numbers with "/", "-", or "." between ("3/15/2024", "03-15-24"), the year
 // first with "/" or "-" ("2024-03-15", "2024/3/5"), or with the month in English ("15-Mar-2024", "15 March 2024", "Mar 15, 2024"). A year of two digits is
 // 2000 to 2029 for 00 to 29 and 1930 to 1999 for 30 to 99. A time of day after the date ("10:30", "10:30:15.5", "10:30 PM") is read and ignored. False if the
-// text is none of these or not a date. A month's name and a year of four digits ("Sep-2000", "March 2024") is the first day of the month.
+// text is none of these or not a date. A month's name and a year of four digits ("Sep-2000", "March 2024") is the first day of the month. A month and a day with "/" or
+// "-" between ("3/15", "3-15") is that day of the year setDefaultYear gave.
 bool dateValueOf(const QString &text, DateSystem system, double *serial);
 
 } // namespace jp::calc

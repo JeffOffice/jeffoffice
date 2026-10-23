@@ -1,5 +1,6 @@
 #include "calc/dates.h"
 
+#include <QDate>
 #include <QVector>
 
 #include <cmath>
@@ -269,6 +270,12 @@ bool timeOfDayText(const QString &t)
 
 } // namespace
 
+namespace {
+thread_local int g_defaultYear = 0;
+}
+
+void setDefaultYear(int year) { g_defaultYear = year; }
+
 bool dateValueOf(const QString &text, DateSystem system, double *serial)
 {
     QString t = text.trimmed();
@@ -317,6 +324,11 @@ bool dateValueOf(const QString &text, DateSystem system, double *serial)
         int k = 3;
         if (isSep(p[k], QLatin1Char(','))) ++k;
         if (k >= p.size() || !isSep(p[k], QLatin1Char(' ')) || k + 2 != p.size() || !month || !yearOf(p[k + 1], &year)) return false;
+    } else if (p.size() == 3 && small(p[0]) && small(p[2]) && (isSep(p[1], QLatin1Char('/')) || isSep(p[1], QLatin1Char('-')))) {
+        // month and day: that day of this year
+        month = p[0].value;
+        day = p[2].value;
+        year = g_defaultYear > 0 ? g_defaultYear : QDate::currentDate().year();
     } else {
         return false;
     }
