@@ -626,6 +626,11 @@ void insertText(WriteDoc &doc, QTextCursor &c, const QString &typed)
         f = typingFormat(c);
         c.insertText(text, f);
         c.endEditBlock();
+    } else if (doc.endnoteHasCopies(c.block())) {
+        // (In an edit block: the others' copies set again after it join its undo step, and Qt joins a step only to one that is a block. Typing elsewhere is left to merge with the characters before it.)
+        c.beginEditBlock();
+        c.insertText(text, f);
+        c.endEditBlock();
     } else {
         c.insertText(text, f);
     }

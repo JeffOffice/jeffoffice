@@ -238,6 +238,9 @@ public:
     // ---- endnotes (the notes the pages set after the text, or at the end of a section: paragraphs of the story that are marked as theirs; their words are edited where they stand)
     // Whether the paragraph is one of a note's among them, and the Id of the note (a note cited again is set again: its copies have the one Id).
     bool endnoteIdOf(const QTextBlock &block, int *id = nullptr) const;
+    // Whether the paragraph is one of a note whose words are edited in place that the pages set more than once (the edit of its words is one step of the undo stack with the setting again of the
+    // others, which Qt joins to the edit when the edit is a block).
+    bool endnoteHasCopies(const QTextBlock &block) const;
     // Whether the document has an endnote by that Id (one of the file's, or one made since).
     bool hasEndnote(int id) const { return m_endnoteBlocks.contains(QString::number(id)); }
     // The positions in the text of the characters that cite endnote `id`, in order; and the Ids of the notes the text cites now (in order of Id).

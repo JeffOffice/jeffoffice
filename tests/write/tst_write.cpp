@@ -19582,6 +19582,88 @@ private Q_SLOTS:
         QCOMPARE(doc->sectionCount(), 2);
         QVERIFY(notePartText(notesPartOf(doc->toDocx()), "endnote", 2).contains(QLatin1String("Alpha body noteXY")));
     }
+
+    // ---- endnotes: the undo steps of an edit in a note that has copies
+
+    // An edit in an endnote that has copies and the setting again of the copies are one step of the undo stack: one undo puts every copy back as it was (the first copy and the others
+    // together, never one without the other), and one redo does it again.
+    void undoAndRedoTakeEveryCopyOfAnEditedEndnoteTogether_data()
+    {
+        QTest::addColumn<bool>("atSectionEnds");
+        QTest::newRow("at the end of the story") << false;
+        QTest::newRow("at the end of each section") << true;
+    }
+    void undoAndRedoTakeEveryCopyOfAnEditedEndnoteTogether()
+    {
+        QFETCH(bool, atSectionEnds);
+        const QByteArray pr = "<w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>";
+        const QByteArray body = "<w:p><w:r><w:t>First body</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>"
+                                "<w:p><w:pPr>" + (atSectionEnds ? sectionXml(6000, 6000, 720, pr) : sectionXml(6000, 6000, 720)) + "</w:pPr><w:r><w:t>Second body</w:t></w:r></w:p>"
+                                "<w:p><w:r><w:t>Third body</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote() + "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> shared</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720, atSectionEnds ? pr : QByteArray()), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+        QVERIFY(doc);
+        // The notes' paragraphs, copy by copy: the first copy's, then the shown ones'.
+        auto copies = [&] {
+            QStringList first, others;
+            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) {
+                const int serial = b.blockFormat().intProperty(prop::EndnoteNote);
+                if (!b.blockFormat().hasProperty(prop::EndnoteBlock) || serial == 0) continue;
+                (serial > 0 ? first : others) << b.text();
+            }
+            return std::make_pair(first.join(QLatin1Char('|')), others.join(QLatin1Char('|')));
+        };
+        auto state = [&] {
+            const auto both = copies();
+            return both.first + QStringLiteral(" // ") + both.second;
+        };
+        auto cursorAt = [&](int back) {
+            int from = 0, to = 0;
+            [&] { QVERIFY(doc->endnoteWords(2, &from, &to)); }();
+            QTextCursor c(doc->story());
+            c.setPosition(to - back);
+            return c;
+        };
+        QStringList states{state()};
+        auto step = [&](const QString &what, const std::function<void()> &edit) {
+            edit();
+            const auto both = copies();
+            QVERIFY2(both.first == both.second, qPrintable(what + QStringLiteral(": ") + state()));   // (every copy says what the first says)
+            states << state();
+        };
+        step(QStringLiteral("a character typed"), [&] { QTextCursor c = cursorAt(0); insertText(*doc, c, QStringLiteral("X")); });
+        step(QStringLiteral("another typed"), [&] { QTextCursor c = cursorAt(0); insertText(*doc, c, QStringLiteral("Y")); });
+        step(QStringLiteral("Backspace"), [&] { QTextCursor c = cursorAt(0); deleteBack(*doc, c, false); });
+        step(QStringLiteral("Delete"), [&] { QTextCursor c = cursorAt(1); deleteForward(*doc, c, false); });
+        step(QStringLiteral("Enter"), [&] { QTextCursor c = cursorAt(0); insertParagraph(*doc, c); });
+        step(QStringLiteral("typed in the new paragraph"), [&] { QTextCursor c = cursorAt(0); insertText(*doc, c, QStringLiteral("Q")); });
+        // Each undo puts back the story as it was before the edit, copies and all, and each redo as it was after.
+        for (int i = int(states.size()) - 2; i >= 0; --i) {
+            QVERIFY(doc->undo());
+            QCOMPARE(state(), states[i]);
+        }
+        for (int i = 1; i < states.size(); ++i) {
+            QVERIFY(doc->redo());
+            QCOMPARE(state(), states[i]);
+        }
+    }
+
+    // Typing where there are no copies is as it was: consecutive characters are one step of the undo stack.
+    void consecutiveCharactersTypedInAnEndnoteWithoutCopiesAreOneUndoStep()
+    {
+        const QByteArray body = "<w:p><w:r><w:t>First</w:t></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>";
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote() + "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> alone</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+        QVERIFY(doc);
+        int from = 0, to = 0;
+        QVERIFY(doc->endnoteWords(2, &from, &to));
+        QTextCursor c(doc->story());
+        c.setPosition(to);
+        for (const QString &typed : {QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c")}) insertText(*doc, c, typed);
+        QVERIFY(doc->story()->toPlainText().contains(QLatin1String(" alone" "abc")));
+        QVERIFY(doc->undo());
+        QVERIFY2(!doc->story()->toPlainText().contains(QLatin1String("alonea")), qPrintable(doc->story()->toPlainText()));
+    }
 };
 
 QTEST_MAIN(WriteTests)

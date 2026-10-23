@@ -450,6 +450,12 @@ bool WriteDoc::endnoteIdOf(const QTextBlock &block, int *id) const
     return true;
 }
 
+bool WriteDoc::endnoteHasCopies(const QTextBlock &block) const
+{
+    int id = 0;
+    return endnoteIdOf(block, &id) && block.blockFormat().intProperty(prop::EndnoteNote) > 0 && m_endnoteCopyCount.value(id) > 1;
+}
+
 // The references of the text to endnotes, by Id (a reference to a note the file lacks is one too).
 void WriteDoc::indexEndnoteReferences()
 {
@@ -670,6 +676,7 @@ bool WriteDoc::refreshEndnoteCopiesInPlace(const QSet<int> &ids)
             QTextCursor edit(d);
             edit.joinPreviousEditBlock();
             const QTextBlock before = run.first.previous();
+            const int beforeAt = before.position();
             const QTextBlockFormat beforeFormat = before.blockFormat();
             const QTextCharFormat beforeMark = before.charFormat();
             fillStory(d, shown, true, m_endnotePart, false, true, run.last.position() + run.last.length() - 1, true);
@@ -680,9 +687,10 @@ bool WriteDoc::refreshEndnoteCopiesInPlace(const QSet<int> &ids)
             gone.setPosition(before.position() + before.length() - 1);
             gone.setPosition(run.last.position() + run.last.length() - 1, QTextCursor::KeepAnchor);
             gone.removeSelectedText();
-            // (The paragraph before is as it was, whatever it held.)
-            if (before.blockFormat() != beforeFormat) QTextCursor(before).setBlockFormat(beforeFormat);
-            if (before.charFormat() != beforeMark) QTextCursor(before).setBlockCharFormat(beforeMark);
+            // (The paragraph before is as it was, whatever it held: when it is empty the engine gives it the format of the paragraph that went, and may keep the other's block of the two.)
+            const QTextBlock left = d->findBlock(beforeAt);
+            if (left.blockFormat() != beforeFormat) QTextCursor(left).setBlockFormat(beforeFormat);
+            if (left.charFormat() != beforeMark) QTextCursor(left).setBlockCharFormat(beforeMark);
             edit.endEditBlock();
         }
     }
