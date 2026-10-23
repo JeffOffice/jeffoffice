@@ -8,6 +8,8 @@
 
 #include <QString>
 
+#include <vector>
+
 namespace jp::grid {
 
 struct Stats {
@@ -21,21 +23,25 @@ struct Stats {
 
 class StatsWalk {
 public:
-    // Rows looked at in each look at the cells (a few thousand: a fraction of a millisecond).
-    static constexpr qint64 kRowsPerSlice = 4096;
+    // The work of each look at the cells (a row is one, and so is each cell in it: a few thousand, a fraction of a millisecond).
+    static constexpr qint64 kWorkPerSlice = 4096;
     StatsWalk(const GridSheet *sheet, const GridRange &range);
-    // Looks at rows until about `budget` have been looked at (0 for all of them); true when every row has been.
+    // Looks at rows until about `budget` of work has been done (0 for all of it; a row's cells are not split, so a look is a budget and a row more); true when every row has been.
     bool step(qint64 budget);
     const Stats &stats() const { return m_stats; }
     // Rows looked at so far (not counting those that are hidden), and the cells stepped over: what a test counts.
     qint64 rowsLooked() const { return m_rowsLooked; }
+    // The cells of the sheet looked at so far, and the times the hidden columns of the range were worked out (a test counts them).
+    qint64 cellsLooked() const { return m_cellsLooked; }
+    qint64 hiddenBuilds() const { return m_hiddenBuilds; }
 
 private:
     const GridSheet *m_sheet;
     GridRange m_range;
     qint64 m_next;
     Stats m_stats;
-    qint64 m_rowsLooked = 0;
+    qint64 m_rowsLooked = 0, m_cellsLooked = 0, m_hiddenBuilds = 0;
+    std::vector<char> m_hidden;   // by column of the range: 1 when hidden
 };
 
 // All of it at once.

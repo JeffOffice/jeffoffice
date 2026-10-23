@@ -15,8 +15,14 @@ public:
     // The most cells a selection may have for its text to be made (a million).
     static constexpr qint64 kMaxCells = 1000000;
     TextWalk(const GridSheet *sheet, const GridRange &range);
+    // The most characters of text a copy may hold (a cell may hold a text of any length up to a file's limit, and a million of them are too many to put on a clipboard).
+    static constexpr qint64 kMaxChars = 64000000;
     // True when the selection has more cells than kMaxCells (nothing is made).
     bool tooMany() const { return m_tooMany; }
+    // True when the text made came to kMaxChars and the walk stopped: what is in text() is not the whole of it, and should not be copied.
+    bool tooLarge() const { return m_tooLarge; }
+    // The characters of text made so far.
+    qint64 chars() const { return m_chars; }
     // Looks at about `budget` cells (0 for all of them); true when every cell has been looked at.
     bool step(qint64 budget);
     const QString &text() const { return m_text; }
@@ -26,7 +32,8 @@ public:
 private:
     const GridSheet *m_sheet;
     GridRange m_range;
-    bool m_tooMany = false, m_done = false, m_firstInLine = true;
+    bool m_tooMany = false, m_done = false, m_firstInLine = true, m_tooLarge = false;
+    qint64 m_chars = 0;
     qint64 m_row, m_col;
     QString m_text, m_line;
     qint64 m_looked = 0;

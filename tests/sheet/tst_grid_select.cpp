@@ -577,7 +577,7 @@ private Q_SLOTS:
             if (done) break;
         }
         QVERIFY2(slices >= 50, qPrintable(QString::number(slices)));
-        QVERIFY2(most <= 10000 + StatsWalk::kRowsPerSlice, qPrintable(QString::number(most)));
+        QVERIFY2(most <= 10000 + StatsWalk::kWorkPerSlice, qPrintable(QString::number(most)));
         QCOMPARE(w.stats().numbers, n);
         QCOMPARE(w.stats().sum, sum);
         QCOMPARE(w.rowsLooked(), qint64(1048576));
@@ -586,6 +586,72 @@ private Q_SLOTS:
         QCOMPARE(all.numbers, n);
         QCOMPARE(all.sum, sum);
         QCOMPARE(all.min, 0.0);
+    }
+
+    // A walk does its work in slices of the cells it looks at, not of rows (a row may be sixteen thousand cells): a slice of a thousand looks at about a thousand cells and a row
+    // more, and the columns of the range that are hidden are worked out once.
+    void aSliceIsBoundedByCellsAndNotRows()
+    {
+        Sheet sheet;
+        for (quint32 r = 0; r < 200; ++r)
+            for (quint32 c = 0; c < 2000; ++c) {
+                Cell x;
+                x.row = r;
+                x.col = quint16(c);
+                x.type = CellType::Number;
+                x.number = 1;
+                sheet.cells.add(x);
+            }
+        sheet.cells.finish();
+        sheet.extentRows = 200;
+        sheet.extentCols = 2000;
+        jp::office::sheet::Styles styles;
+        styles.fonts = {jp::office::sheet::FontSpec()};
+        styles.formats = {jp::office::sheet::CellFormat()};
+        GridData d;
+        d.styles = &styles;
+        d.sheet = &sheet;
+        GridSheet g;
+        g.setData(d);
+        g.layout().cols.setSize(7, 0);
+        StatsWalk w(&g, rangeOf(0, 0, 199, 1999));
+        qint64 most = 0, slices = 0;
+        for (;;) {
+            const qint64 before = w.cellsLooked();
+            const bool done = w.step(1000);
+            most = std::max(most, w.cellsLooked() - before);
+            ++slices;
+            if (done) break;
+        }
+        QVERIFY2(most <= 1000 + 2000, qPrintable(QStringLiteral("a slice looked at %1 cells").arg(most)));
+        QVERIFY2(slices >= 100, qPrintable(QString::number(slices)));
+        QCOMPARE(w.stats().numbers, qint64(200 * 1999));   // (one column hidden)
+        QCOMPARE(w.stats().sum, 200.0 * 1999);
+        QCOMPARE(w.hiddenBuilds(), qint64(1));
+    }
+
+    // The numbers of a selection read as the General number format and the user's locale write them: a sum of twelve billion is written out and grouped, not in the scientific way.
+    void sumsAreWrittenAsNumbersAreInTheUsersLocale()
+    {
+        const QLocale saved = QLocale();
+        QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+        Stats s;
+        s.count = 2;
+        s.numbers = 2;
+        s.sum = 12345678901.0;
+        QCOMPARE(statsText(s), QStringLiteral("Average: 6,172,839,450.5    Count: 2    Sum: 12,345,678,901"));
+        s.count = 1234567;
+        s.numbers = 4;
+        s.sum = 0.1 + 0.2;
+        QCOMPARE(statsText(s), QStringLiteral("Average: 0.075    Count: 1,234,567    Sum: 0.3"));
+        s.count = s.numbers = 3;
+        s.sum = -4500.25;
+        QCOMPARE(statsText(s), QStringLiteral("Average: -1,500.08333333333    Count: 3    Sum: -4,500.25"));
+        QLocale::setDefault(QLocale(QLocale::German, QLocale::Germany));
+        s.count = s.numbers = 2;
+        s.sum = 1234.5;
+        QCOMPARE(statsText(s), QStringLiteral("Average: 617,25    Count: 2    Sum: 1.234,5"));
+        QLocale::setDefault(saved);
     }
 };
 
@@ -693,6 +759,51 @@ private Q_SLOTS:
         QVERIFY(huge.tooMany());
         QVERIFY(huge.step(0));
         QVERIFY(huge.text().isEmpty());
+    }
+
+    // A copy of cells whose texts are very long stops at a bound of characters (and says so), where it would have gone on to an allocation no program survives; and each slice is of
+    // about the work it was given, a long text counting for its length.
+    void aCopyOfVeryLongTextsStopsAtABound()
+    {
+        Sheet sheet;
+        sheet.texts.append(QString(100000, QLatin1Char('x')));
+        for (quint32 r = 0; r < 1000; ++r) {
+            Cell x;
+            x.row = r;
+            x.col = 0;
+            x.type = CellType::InlineString;
+            x.number = 0;   // (every cell has the same text: 100 million characters in all)
+            sheet.cells.add(x);
+        }
+        sheet.cells.finish();
+        sheet.extentRows = 1000;
+        sheet.extentCols = 1;
+        jp::office::sheet::Styles styles;
+        styles.fonts = {jp::office::sheet::FontSpec()};
+        styles.formats = {jp::office::sheet::CellFormat()};
+        GridData d;
+        d.styles = &styles;
+        d.sheet = &sheet;
+        GridSheet g;
+        g.setData(d);
+        TextWalk w(&g, GridRange{0, 0, 999, 0});
+        QVERIFY(!w.tooMany());
+        qint64 most = 0;
+        for (;;) {
+            const qint64 before = w.looked();
+            const bool done = w.step(20000);
+            most = std::max(most, w.looked() - before);
+            if (done) break;
+        }
+        QVERIFY(w.tooLarge());
+        QVERIFY2(w.chars() <= TextWalk::kMaxChars + 100002, qPrintable(QString::number(w.chars())));
+        QVERIFY(w.text().size() <= TextWalk::kMaxChars + 100002);
+        QVERIFY2(most <= 20000 + 8 + 100000 / 64 + 100, qPrintable(QStringLiteral("a slice did %1 of work").arg(most)));
+        // a copy of what fits is whole
+        TextWalk small(&g, GridRange{0, 0, 9, 0});
+        QVERIFY(small.step(0));
+        QVERIFY(!small.tooLarge());
+        QCOMPARE(small.text().size(), qint64(10 * 100001));
     }
 };
 

@@ -31,6 +31,16 @@ bool TextWalk::step(qint64 budget)
             }
             m_looked += 8;
             QString text = m_sheet->textOf(*c);
+            m_looked += text.size() / 64;   // (a long text takes its length's time to copy)
+            m_chars += text.size() + 1;
+            if (m_chars > kMaxChars) {
+                // more text than a clipboard is given: the walk ends, with nothing to copy
+                m_tooLarge = true;
+                m_done = true;
+                m_text = QString();
+                m_line = QString();
+                return true;
+            }
             if (text.contains(QLatin1Char('\t')) || text.contains(QLatin1Char('\n')) || text.contains(QLatin1Char('"')))
                 text = QLatin1Char('"') + text.replace(QLatin1Char('"'), QLatin1String("\"\"")) + QLatin1Char('"');
             m_line += text;
