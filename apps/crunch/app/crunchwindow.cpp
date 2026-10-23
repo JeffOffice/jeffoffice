@@ -447,6 +447,18 @@ void CrunchWindow::dropEvent(QDropEvent *e)
         if (u.isLocalFile()) openFile(u.toLocalFile());
 }
 
+// Esc stops the calculation (what is not worked out keeps the result the file stored); with the File screen over the window it closes the screen instead.
+void CrunchWindow::keyPressEvent(QKeyEvent *e)
+{
+    if (e->key() == Qt::Key_Escape && m_calculating && !m_fileScreen->isVisible()) {
+        stopCalculation();
+        setStatus(tr("Calculation stopped"));
+        e->accept();
+        return;
+    }
+    AppWindow::keyPressEvent(e);
+}
+
 void CrunchWindow::closeEvent(QCloseEvent *e)
 {
     stopCalculation();

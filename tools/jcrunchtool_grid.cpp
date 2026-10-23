@@ -117,9 +117,8 @@ int gridOne(const QString &path, bool full)
         sheet.setData(data);
         sheet.layout().setViewport(QSize(1280, 800));
         draw();
-        // the formulas, a slice at a time as the window works them
+        // the formulas, a slice at a time as the window works them (a few milliseconds each, by the clock)
         Calculation *calc = book.calc.get();
-        qint64 budget = 20000;
         double longest = 0, total = 0;
         int slices = 0;
         QElapsedTimer calcTimer;
@@ -127,16 +126,20 @@ int gridOne(const QString &path, bool full)
         while (calcTimer.elapsed() < 120000) {
             QElapsedTimer s;
             s.start();
-            const Calculation::Progress pr = calc->recalculate(budget);
+            const Calculation::Progress pr = calc->recalculate(0, nullptr, crunch::kSliceMicros);
             const double sliceMs = double(s.nsecsElapsed()) / 1e6;
+            if (qEnvironmentVariableIsSet("JC_GRID_SLICES")) err() << "slice " << slices << ": work " << pr.work << ", " << ms(sliceMs) << " ms, " << pr.evaluated << " formulas\n";
             longest = std::max(longest, sliceMs);
             total += sliceMs;
             ++slices;
-            if (sliceMs < 3) budget = std::min<qint64>(budget * 2, 4000000);
-            else if (sliceMs > 10) budget = std::max<qint64>(budget / 2, 2000);
             if (pr.finished) break;
         }
-        fullFields = QStringLiteral("\t%1\t%2\t%3\t%4").arg(ms(loadMs), ms(total), ms(longest)).arg(slices);
+        // formulas that took more steps than one may (they keep the result the file stored)
+        qint64 bounded = 0;
+        calc->forEachFormula([&](const Calculation::FormulaCell &f) {
+            if (f.kept == 'L') ++bounded;
+        });
+        fullFields = QStringLiteral("\t%1\t%2\t%3\t%4\t%5").arg(ms(loadMs), ms(total), ms(longest)).arg(slices).arg(bounded);
         if (!book.problem.isEmpty()) exit = 2;
     }
     out() << path << '\t' << exit << '\t' << ms(firstMs) << '\t' << ms(percentile(warm, 0.5)) << '\t' << ms(percentile(warm, 0.95)) << '\t' << stats.rowsVisited << '\t' << stats.colsVisited << '\t'

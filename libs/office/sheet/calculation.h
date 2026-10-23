@@ -67,7 +67,9 @@ public:
     };
     // Works out what is to be worked out (and the formulas that change by themselves): all of it, or about `workBudget` steps of it, then stops with `finished` false and the
     // rest to be done by the next call. If `cancel` is set it stops at once, with `cancelled` true.
-    Progress recalculate(qint64 workBudget = 0, const std::atomic<bool> *cancel = nullptr);
+    // `timeBudgetMicros` ends a slice by the clock as well: it stops, after a formula that has been worked out (at least one in every call, so that a call always gets on), once
+    // that many microseconds have passed (0 for no limit). The work of one formula is bounded (CalcOptions::workLimit), so a slice is that long and one formula more.
+    Progress recalculate(qint64 workBudget = 0, const std::atomic<bool> *cancel = nullptr, qint64 timeBudgetMicros = 0);
     // The day number NOW and TODAY give from the next recalculation (0: the clock is read at each, as it is when the calculation is made without a time).
     void setNow(double serial) { m_options.now = serial; }
     // Marks every formula to be worked out again (the next recalculation is a whole one).

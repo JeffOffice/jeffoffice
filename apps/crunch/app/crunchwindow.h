@@ -85,6 +85,7 @@ Q_SIGNALS:
 
 protected:
     void closeEvent(QCloseEvent *e) override;
+    void keyPressEvent(QKeyEvent *e) override;
     void resizeEvent(QResizeEvent *e) override;
     bool eventFilter(QObject *o, QEvent *e) override;
     void dragEnterEvent(QDragEnterEvent *e) override;
@@ -149,8 +150,6 @@ private:
     QTimer m_copyTimer;
     // the calculation, in slices
     QTimer m_calcTimer;
-    qint64 m_budget = 20000;
-    qint64 m_calcStarted = 0;
     QElapsedTimer m_sinceRepaint;
     std::atomic<bool> m_stopCalc{false};
     std::function<void(const QString &, const QString &)> m_notifier;

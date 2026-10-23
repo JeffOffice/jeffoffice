@@ -10,7 +10,7 @@ out-dir/grid.tsv has a line for each workbook, in the order of the list:
 
     path, exit, seconds, peak MB, then what grid-one says: milliseconds to the first screen drawn, to draw it again (the middle and the 95th percentile of 30), the rows and
     columns visited, cells looked at, runs of text, and whether a bound was reached; with JC_GRID_FULL also the milliseconds to read the whole workbook, to work its formulas
-    out, the longest slice of that work (what the window would wait for), and the slices
+    out, the longest slice of that work (what the window would wait for), the slices, and the formulas that took more steps than one may
 
 exit is that of `grid-one` (0 drawn, 1 not opened, 2 opened with a sheet in part), 124 for a workbook that took more than 120 seconds, and 128 and more for a program that was
 stopped (139 is a crash; 137 is a kill, which is the memory cap if the peak is near 4 GB). It prints how many crashed or timed out, and the times of the first screen.
@@ -44,7 +44,7 @@ def check_systemd_run():
 
 FULL = bool(os.environ.get("JC_GRID_FULL"))
 HEADER = ("path\texit\tseconds\tpeak MB\tfirst screen ms\tdraw again ms (middle)\tdraw again ms (95th)\trows\tcolumns\tcells looked at\truns of text\ttruncated"
-          + ("\tread whole ms\tcalculate ms\tlongest slice ms\tslices" if FULL else ""))
+          + ("\tread whole ms\tcalculate ms\tlongest slice ms\tslices\tformulas past the bound" if FULL else ""))
 
 
 def run_one(tool, path):
@@ -64,7 +64,7 @@ def run_one(tool, path):
     if code in (126, 127) or (code == 1 and message and not output and path not in message):
         raise SetupFailed("the sweep could not run the program (exit %d): %s" % (code, message or "no message"))
     fields = output.decode("utf-8", "replace").rstrip("\n").split("\t")
-    width = 12 if FULL else 8
+    width = 13 if FULL else 8
     values = fields[2:2 + width] if code in (0, 2) and len(fields) >= 2 + width else ["-"] * width
     peak = usage.ru_maxrss / 1024.0
     return [path, str(code), f"{seconds:.2f}", f"{peak:.0f}"] + values, message

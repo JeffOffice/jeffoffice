@@ -8,6 +8,7 @@
 #include <QDateTime>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 
 namespace jp::office::sheet {
@@ -759,11 +760,12 @@ void Calculation::leaveGroup(quint32 node, quint32 parent)
     for (size_t i = woken.size(); i-- > 0;) m_stack.push_back({woken[i], parent});
 }
 
-Calculation::Progress Calculation::recalculate(qint64 budget, const std::atomic<bool> *cancel)
+Calculation::Progress Calculation::recalculate(qint64 budget, const std::atomic<bool> *cancel, qint64 timeBudgetMicros)
 {
     Progress pr;
     if (!m_running) beginRecalculation();
     qint64 spent = 0;
+    const auto started = std::chrono::steady_clock::now();
     for (;;) {
         if (cancel && cancel->load(std::memory_order_relaxed)) {
             abandon();
@@ -785,6 +787,7 @@ Calculation::Progress Calculation::recalculate(qint64 budget, const std::atomic<
             m_stack.push_back({root, kNone});
         }
         if (budget > 0 && spent >= budget) return pr;
+        if (timeBudgetMicros > 0 && pr.evaluated > 0 && std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started).count() >= timeBudgetMicros) return pr;
         const Frame frame = m_stack.back();
         const quint32 id = frame.node;
         {

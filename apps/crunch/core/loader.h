@@ -34,6 +34,11 @@ struct LoadedBook {
     qint64 firstScreenMs = 0, loadMs = 0;                   // how long each took
 };
 
+// A slice of the calculation: the clock ends it after a formula once this many microseconds have passed (a slice is then that, and one formula more), so that a window never waits
+// for long. The steps one formula may take are bounded to match: a formula past it keeps the result the file stored.
+constexpr qint64 kSliceMicros = 4000;
+constexpr qint64 kFormulaSteps = 60000;
+
 // The sheet to show first: the one the file says was open if it is a worksheet that is shown, else the first that is; -1 for none.
 int firstSheetToShow(const jp::office::sheet::WorkbookInfo &info);
 // The rows read for the first screen (the most any screen shows, at the smallest zoom, and a good many more).

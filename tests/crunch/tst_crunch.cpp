@@ -524,6 +524,34 @@ private Q_SLOTS:
         QVERIFY(win.w.view()->lastPaintStats().rowsVisited <= 4 * grid::GridPainter::kMaxRows);
     }
 
+    // Esc stops the calculation: what is not worked out keeps the result the file stored; the window says so and is ready.
+    void escStopsTheCalculation()
+    {
+        QString rows;
+        rows.reserve(200000 * 90);
+        for (int r = 1; r <= 200000; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><f>A%1*2</f><v>-1</v></c></row>").arg(r);
+        Folder folder;
+        Window win;
+        QSignalSpy loaded(&win.w, &CrunchWindow::loadFinished), done(&win.w, &CrunchWindow::calculationFinished);
+        QVERIFY(win.w.openFile(folder.write(QStringLiteral("formulas.xlsx"), buildXlsx({worksheet(rows)}))));
+        QVERIFY(loaded.wait(60000));
+        QVERIFY(win.w.isCalculating());   // (two hundred thousand formulas take longer than a slice)
+        QTest::keyClick(&win.w, Qt::Key_Escape);
+        QVERIFY(!win.w.isCalculating());
+        QCOMPARE(win.w.statusText(), QStringLiteral("Calculation stopped"));
+        QTest::qWait(50);
+        QCOMPARE(done.count(), 0);
+        // the cells not reached show what the file stored
+        const grid::GridView *v = win.w.view();
+        const grid::Cell *last = v->sheet().cellAt(199999, 1);
+        QVERIFY(last);
+        QVERIFY(v->sheet().valueOf(*last).debug() == QStringLiteral("n:-1") || v->sheet().valueOf(*last).debug() == QStringLiteral("n:399998"));
+        // and Calculate Now works everything out again
+        win.w.act("formulas.calculate")->trigger();
+        QVERIFY(done.wait(60000));
+        QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(199999, 1)).debug(), QStringLiteral("n:400000"));
+    }
+
     // The window drawn with a workbook that looks like a real one: the title merged over the columns, a green header and a frozen row and column, fills and borders, number formats, a
     // number too wide for its cell as "#", wrapped notes. The picture is saved when JC_SCREENSHOT names a file.
     void theWindowShowsAWorkbookThatLooksLikeARealOne()

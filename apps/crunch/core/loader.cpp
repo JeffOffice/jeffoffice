@@ -116,7 +116,7 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
     total.start();
     CalcOptions options;
     options.keepApart = true;          // what the engine cannot work out keeps the result the file stored
-    options.workLimit = 2000000;       // steps one formula may take (about as long as a screen may wait for it)
+    options.workLimit = kFormulaSteps;   // steps one formula may take (about as long as a window may wait for it)
     auto calc = std::make_unique<Calculation>(*out->book, options);
     QElapsedTimer sinceTold;
     sinceTold.start();

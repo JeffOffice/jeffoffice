@@ -90,6 +90,34 @@ private Q_SLOTS:
         QVERIFY(!b.calc->isDirty());
     }
 
+    // A slice can be ended by the clock as well as by work: with a time that has passed at once, each call works out one formula and goes on from there, and the values it ends with are
+    // those of a whole recalculation; with a long time it is whole in one call.
+    void aSliceCanBeGivenATimeAsWellAsWork()
+    {
+        QString rows;
+        for (int i = 1; i <= 400; ++i) rows += rowXml(i, constant(QStringLiteral("A%1").arg(i), QString::number(i)) + cellXml(QStringLiteral("B%1").arg(i), QStringLiteral("A%1*2").arg(i)));
+        Book whole, sliced, quick;
+        QVERIFY(whole.open(buildXlsx({worksheet(rows)})) && sliced.open(buildXlsx({worksheet(rows)})) && quick.open(buildXlsx({worksheet(rows)})));
+        QVERIFY(whole.calc->recalculate().finished);
+        int slices = 0;
+        qint64 evaluated = 0;
+        while (true) {
+            const Calculation::Progress p = sliced.calc->recalculate(0, nullptr, 1);   // (a microsecond: gone before the next formula)
+            ++slices;
+            evaluated += p.evaluated;
+            QVERIFY(p.evaluated >= 1 || p.finished);
+            if (p.finished) break;
+            QVERIFY(slices < 100000);
+        }
+        QVERIFY2(slices >= 100, qPrintable(QString::number(slices)));   // (the clock is read every formula, and a few take a microsecond)
+        QCOMPARE(evaluated, whole.calc->formulaCount());
+        for (int i = 1; i <= 400; ++i) QCOMPARE(sliced.at(QStringLiteral("B%1").arg(i)), whole.at(QStringLiteral("B%1").arg(i)));
+        // a long time: all of it in one call
+        const Calculation::Progress p = quick.calc->recalculate(0, nullptr, 60 * 1000 * 1000);
+        QVERIFY(p.finished);
+        QCOMPARE(p.evaluated, quick.calc->formulaCount());
+    }
+
     // A running balance of a hundred thousand rows, each reading the one below it, so that the first has to wait for all the others: the stack is explicit, and each formula is
     // worked out twice at the most.
     void aRunningBalanceOfAHundredThousandRowsDoesNotOverflowTheStack()

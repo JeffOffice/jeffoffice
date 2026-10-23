@@ -193,7 +193,6 @@ void CrunchWindow::startCalculation()
     if (!m_loaded || !m_loaded->calc) return;
     m_calculating = true;
     m_stopCalc = false;
-    m_budget = 20000;
     m_sinceRepaint.start();
     setStatus(tr("Calculating…"));
     m_calcTimer.start(0);
@@ -213,13 +212,8 @@ void CrunchWindow::calculationStep()
 {
     if (!m_loaded || !m_loaded->calc || !m_calculating) return;
     jp::office::sheet::Calculation *calc = m_loaded->calc.get();
-    QElapsedTimer t;
-    t.start();
-    const jp::office::sheet::Calculation::Progress p = calc->recalculate(m_budget, &m_stopCalc);
-    const qint64 ms = t.elapsed();
-    // a slice of about six milliseconds: the work of the next is more when this one was quick, less when it was long
-    if (ms < 3) m_budget = std::min<qint64>(m_budget * 2, 4000000);
-    else if (ms > 10) m_budget = std::max<qint64>(m_budget / 2, 2000);
+    // a slice of a few milliseconds, by the clock
+    const jp::office::sheet::Calculation::Progress p = calc->recalculate(0, &m_stopCalc, crunch::kSliceMicros);
     const bool done = p.finished || p.cancelled;
     if (done || m_sinceRepaint.elapsed() > 250) {
         m_view->invalidateValues();
