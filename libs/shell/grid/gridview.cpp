@@ -229,13 +229,11 @@ void GridView::scrollColumns(int columns)
 
 bool GridView::ensureVisible(qint64 row, qint64 col)
 {
-    GridLayout &L = m_sheet.layout();
-    const qint64 ox = L.scrollX(), oy = L.scrollY();
-    // (the scroll is set by hand, so that the pixels already drawn are moved and not drawn again)
-    GridLayout probe = L;
-    if (!probe.ensureVisible(row, col)) return false;
-    L.setScroll(ox, oy);
-    scrollTo(probe.scrollX(), probe.scrollY());
+    const GridLayout &L = m_sheet.layout();
+    qint64 x = L.scrollX(), y = L.scrollY();
+    if (!L.scrollToShow(row, col, &x, &y)) return false;
+    // (the scroll is set by scrollTo, so that the pixels already drawn are moved and not drawn again)
+    scrollTo(x, y);
     return true;
 }
 

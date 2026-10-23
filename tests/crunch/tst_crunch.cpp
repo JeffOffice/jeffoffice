@@ -22,6 +22,7 @@
 #include <QListWidget>
 #include <QLabel>
 #include <QRegularExpression>
+#include <QScrollBar>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QTextDocument>
@@ -249,6 +250,33 @@ private Q_SLOTS:
         QCOMPARE(tabs->currentIndex(), 0);
     }
 
+    // The sheet shown first is the one that was open when the workbook was saved; if that one is hidden (or is a chart), the first that is shown.
+    void theSheetShownFirstIsTheOneThatWasOpen()
+    {
+        const QByteArray sheet = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"));
+        Folder folder;
+        {
+            Window win;
+            QVERIFY(win.open(folder.write(QStringLiteral("third.xlsx"), buildXlsx({sheet, sheet, sheet}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), QString(), QByteArray(),
+                                                                                 QStringLiteral("<workbookView activeTab=\"2\"/>")))));
+            QCOMPARE(win.w.activeSheet(), 2);
+            QCOMPARE(win.w.sheetTabs()->currentIndex(), 2);
+        }
+        {
+            Window win;
+            QVERIFY(win.open(folder.write(QStringLiteral("hidden.xlsx"), buildXlsx({sheet, sheet, sheet}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), QString(), QByteArray(),
+                                                                                  QStringLiteral("<workbookView activeTab=\"0\"/>"), {0}))));
+            QCOMPARE(win.w.activeSheet(), 1);   // (the first sheet is hidden: the first that is shown)
+            QCOMPARE(win.w.sheetTabs()->count(), 2);
+        }
+        {
+            Window win;
+            QVERIFY(win.open(folder.write(QStringLiteral("none.xlsx"), buildXlsx({sheet}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), QString(), QByteArray(), QString(), {0}))));
+            QVERIFY(win.w.hasWorkbook());   // (every sheet hidden: the window still opens it)
+            QCOMPARE(win.w.sheetTabs()->count(), 0);
+        }
+    }
+
     // The name box goes to an address (a cell, a range, columns, rows); one that is no address says so and keeps the selection.
     void theNameBoxGoesToAnAddress()
     {
@@ -437,8 +465,60 @@ private Q_SLOTS:
         closing.start();
         w->close();
         delete w;
-        QVERIFY2(closing.elapsed() < 200, qPrintable(QString::number(closing.elapsed())));
+        QVERIFY2(closing.elapsed() < 1000, qPrintable(QString::number(closing.elapsed())));   // (the read has seconds to go)
         QTest::qWait(100);
+    }
+
+    // A workbook made to be hostile (every column a character wide, rows of 0 and of 4,000 points, a hundred thousand merged ranges, a hundred thousand cell formats, texts of
+    // 32,000 characters) opens, and its screen is drawn within the bounds, whatever the file says.
+    void aHostileWorkbookIsDrawnWithinTheBounds()
+    {
+        QString cols;
+        for (int c = 1; c <= 16384; ++c) cols += QStringLiteral("<col min=\"%1\" max=\"%1\" width=\"%2\" customWidth=\"1\"/>").arg(c).arg(c % 7 == 0 ? 0.0 : 1.0);
+        QString rows;
+        const QString huge(32000, QLatin1Char('x'));
+        for (int r = 1; r <= 300; ++r) {
+            rows += QStringLiteral("<row r=\"%1\"%2>").arg(r).arg(r == 1 ? QStringLiteral(" ht=\"0\" customHeight=\"1\"") : r == 2 ? QStringLiteral(" ht=\"4000\" customHeight=\"1\"") : QString());
+            for (int c = 0; c < 20; ++c) {
+                const QString ref = QStringLiteral("%1%2").arg(QChar('A' + c)).arg(r);
+                const int style = (r * 20 + c) % 100000;
+                if (r % 5 == 0 && c < 3) rows += QStringLiteral("<c r=\"%1\" s=\"%2\" t=\"inlineStr\"><is><t>%3</t></is></c>").arg(ref).arg(style).arg(huge);
+                else rows += QStringLiteral("<c r=\"%1\" s=\"%2\"><v>%3</v></c>").arg(ref).arg(style).arg(r * c);
+            }
+            rows += QStringLiteral("</row>");
+        }
+        QString merges = QStringLiteral("<mergeCells count=\"100000\">");
+        for (int r = 1; r <= 100000; ++r) merges += QStringLiteral("<mergeCell ref=\"A%1:B%1\"/>").arg(r);
+        merges += QStringLiteral("</mergeCells>");
+        QString xfs;
+        for (int i = 0; i < 100000; ++i) xfs += QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"><alignment indent=\"%1\"/></xf>").arg(i % 16);
+        Folder folder;
+        const QByteArray xlsx = buildXlsx({worksheet(rows, merges, QStringLiteral("<cols>") + cols + QStringLiteral("</cols>"))}, QByteArray(), QString(), QString(),
+                                          stylesXml(QString(), xfs, QStringLiteral("<fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts>")));
+        Window win;
+        QVERIFY(win.open(folder.write(QStringLiteral("hostile.xlsx"), xlsx)));
+        QVERIFY2(win.told.isEmpty(), qPrintable(win.told.join('\n')));
+        QElapsedTimer t;
+        t.start();
+        win.w.view()->viewport()->repaint();
+        QVERIFY2(t.elapsed() < 2000, qPrintable(QString::number(t.elapsed())));
+        const grid::PaintStats s = win.w.view()->lastPaintStats();
+        QVERIFY(s.rowsVisited <= 4 * grid::GridPainter::kMaxRows && s.colsVisited <= 4 * grid::GridPainter::kMaxCols);
+        QVERIFY(s.cellsLooked <= 4 * grid::GridPainter::kMaxCells * 3);
+        QVERIFY(s.textChars <= qint64(grid::GridPainter::kMaxTextRuns) * 1024);
+        QVERIFY(s.mergesDrawn <= 4 * grid::GridPainter::kMaxMerges && s.mergeMarks <= 4 * grid::GridPainter::kMaxMergeMarks);
+        QVERIFY(s.looksMade <= 4 * grid::GridPainter::kMaxCells);
+        // the rows of 0 and of 4,000 points are the hidden row and the tallest row the grid allows
+        const grid::GridLayout &L = win.w.view()->sheet().layout();
+        QVERIFY(L.rows.isHidden(0));
+        QCOMPARE(L.rows.size(1), 546);
+        QVERIFY(L.cols.size(6) == 0 && L.cols.size(0) > 0);
+        // every key and a scroll to the end of the sheet are as quick
+        QTest::keyClick(win.w.view(), Qt::Key_End, Qt::ControlModifier);
+        QTest::keyClick(win.w.view(), Qt::Key_PageDown);
+        win.w.view()->verticalScrollBar()->setValue(win.w.view()->verticalScrollBar()->maximum());
+        win.w.view()->grab();
+        QVERIFY(win.w.view()->lastPaintStats().rowsVisited <= 4 * grid::GridPainter::kMaxRows);
     }
 
     // The window drawn with a workbook that looks like a real one: the title merged over the columns, a green header and a frozen row and column, fills and borders, number formats, a

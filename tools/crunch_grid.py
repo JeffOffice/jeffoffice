@@ -2,13 +2,15 @@
 """Runs `jcrunchtool grid-one` on each workbook in a list, each in a child process, and writes a table of the results.
 
     python3 tools/crunch_grid.py build/jcrunchtool keys.txt out-dir [jobs]
+    JC_GRID_FULL=1 python3 tools/crunch_grid.py ...   also reads each workbook whole and works its formulas out in slices, as the window does
 
 keys.txt has one path to a workbook on each line (paths may have spaces). Each workbook runs under
 `systemd-run --user --scope -p MemoryMax=4G`, with 120 seconds, so that one that takes too much is killed and no other is touched.
 out-dir/grid.tsv has a line for each workbook, in the order of the list:
 
     path, exit, seconds, peak MB, then what grid-one says: milliseconds to the first screen drawn, to draw it again (the middle and the 95th percentile of 30), the rows and
-    columns visited, cells looked at, runs of text, and whether a bound was reached
+    columns visited, cells looked at, runs of text, and whether a bound was reached; with JC_GRID_FULL also the milliseconds to read the whole workbook, to work its formulas
+    out, the longest slice of that work (what the window would wait for), and the slices
 
 exit is that of `grid-one` (0 drawn, 1 not opened, 2 opened with a sheet in part), 124 for a workbook that took more than 120 seconds, and 128 and more for a program that was
 stopped (139 is a crash; 137 is a kill, which is the memory cap if the peak is near 4 GB). It prints how many crashed or timed out, and the times of the first screen.
@@ -40,11 +42,13 @@ def check_systemd_run():
         raise SetupFailed("systemd-run could not start a memory-capped scope (%s): %s" % (done.returncode, (done.stderr or "").strip() or "no message"))
 
 
-HEADER = "path\texit\tseconds\tpeak MB\tfirst screen ms\tdraw again ms (middle)\tdraw again ms (95th)\trows\tcolumns\tcells looked at\truns of text\ttruncated"
+FULL = bool(os.environ.get("JC_GRID_FULL"))
+HEADER = ("path\texit\tseconds\tpeak MB\tfirst screen ms\tdraw again ms (middle)\tdraw again ms (95th)\trows\tcolumns\tcells looked at\truns of text\ttruncated"
+          + ("\tread whole ms\tcalculate ms\tlongest slice ms\tslices" if FULL else ""))
 
 
 def run_one(tool, path):
-    command = ["systemd-run", "--user", "--scope", "-p", "MemoryMax=4G", "-p", "MemorySwapMax=0", "-q", "timeout", "-k", "5", str(LIMIT_SECONDS), tool, "grid-one", path]
+    command = ["systemd-run", "--user", "--scope", "-p", "MemoryMax=4G", "-p", "MemorySwapMax=0", "-q", "timeout", "-k", "5", str(LIMIT_SECONDS), tool, "grid-one"] + (["--full"] if FULL else []) + [path]
     started = time.time()
     env = dict(os.environ, JP_NO_TELEMETRY="1", QT_QPA_PLATFORM="offscreen")
     with tempfile.TemporaryFile() as errors:
@@ -60,7 +64,8 @@ def run_one(tool, path):
     if code in (126, 127) or (code == 1 and message and not output and path not in message):
         raise SetupFailed("the sweep could not run the program (exit %d): %s" % (code, message or "no message"))
     fields = output.decode("utf-8", "replace").rstrip("\n").split("\t")
-    values = fields[2:10] if code in (0, 2) and len(fields) >= 10 else ["-"] * 8
+    width = 12 if FULL else 8
+    values = fields[2:2 + width] if code in (0, 2) and len(fields) >= 2 + width else ["-"] * width
     peak = usage.ru_maxrss / 1024.0
     return [path, str(code), f"{seconds:.2f}", f"{peak:.0f}"] + values, message
 
@@ -114,11 +119,14 @@ def main():
     first = [float(r[4]) for r, _ in results if r[1] in ("0", "2") and r[4] != "-"]
     again = [float(r[6]) for r, _ in results if r[1] in ("0", "2") and r[6] != "-"]
     wall = [float(r[2]) for r, _ in results]
+    slices = [float(r[14]) for r, _ in results if FULL and r[1] in ("0", "2") and r[14] != "-"]
     print(f"{len(results)} workbooks: {codes.count('0')} drawn, {codes.count('2')} drawn with a sheet in part, {refused} not opened, {crashed} crashed or killed, {hung} timed out")
     if first:
         print("first screen (ms): middle %.1f, 95th percentile %.1f, 99th %.1f, longest %.1f" % (percentile(first, 0.5), percentile(first, 0.95), percentile(first, 0.99), max(first)))
         print("drawing the screen again (ms, the 95th percentile of each workbook's 30): middle %.2f, 95th percentile %.2f, longest %.2f" % (percentile(again, 0.5), percentile(again, 0.95), max(again)))
         print("whole process (s): middle %.2f, 95th percentile %.2f, longest %.2f" % (percentile(wall, 0.5), percentile(wall, 0.95), max(wall)))
+    if slices:
+        print("the longest slice of calculation in each workbook (ms): middle %.2f, 95th percentile %.2f, 99th %.2f, longest %.2f" % (percentile(slices, 0.5), percentile(slices, 0.95), percentile(slices, 0.99), max(slices)))
     print(f"wrote {os.path.join(out_dir, 'grid.tsv')}", flush=True)
     return 0 if crashed == 0 and hung == 0 else 1
 

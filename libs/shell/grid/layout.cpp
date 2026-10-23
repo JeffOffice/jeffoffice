@@ -78,10 +78,10 @@ QRect GridLayout::rangeRectIn(Pane pane, qint64 row1, qint64 col1, qint64 row2, 
     return QRect(left, top, std::max(0, right - left), std::max(0, bottom - top));
 }
 
-bool GridLayout::ensureVisible(qint64 row, qint64 col)
+bool GridLayout::scrollToShow(qint64 row, qint64 col, qint64 *x, qint64 *y) const
 {
     if (row < 0 || col < 0 || row >= rows.count() || col >= cols.count()) return false;
-    const qint64 x0 = m_scrollX, y0 = m_scrollY;
+    const qint64 x0 = *x, y0 = *y;
     auto fit = [&](const Axis &axis, qint64 index, qint64 frozen, int total, int headers, qint64 *scroll) {
         if (index < frozen || axis.isHidden(index)) return;
         const qint64 frozenPos = axis.position(frozen);
@@ -91,10 +91,19 @@ bool GridLayout::ensureVisible(qint64 row, qint64 col)
         if (start < origin || end - start > shown) *scroll = start - frozenPos;
         else if (end > origin + shown) *scroll = end - shown - frozenPos;
     };
-    fit(rows, row, m_frozenRows, m_viewport.height(), m_headerH, &m_scrollY);
-    fit(cols, col, m_frozenCols, m_viewport.width(), m_headerW, &m_scrollX);
-    setScroll(m_scrollX, m_scrollY);
-    return m_scrollX != x0 || m_scrollY != y0;
+    fit(rows, row, m_frozenRows, m_viewport.height(), m_headerH, y);
+    fit(cols, col, m_frozenCols, m_viewport.width(), m_headerW, x);
+    *x = clampTo(*x, 0, maxScrollX());
+    *y = clampTo(*y, 0, maxScrollY());
+    return *x != x0 || *y != y0;
+}
+
+bool GridLayout::ensureVisible(qint64 row, qint64 col)
+{
+    qint64 x = m_scrollX, y = m_scrollY;
+    if (!scrollToShow(row, col, &x, &y)) return false;
+    setScroll(x, y);
+    return true;
 }
 
 QRect GridLayout::rangeRect(qint64 row1, qint64 col1, qint64 row2, qint64 col2) const

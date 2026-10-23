@@ -341,7 +341,7 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
         QList<quint32> glyphs;
         QList<QPointF> positions;
         double w = 0;
-        if (face.layout(text, &glyphs, &positions, &w)) {
+        if (face.raw().isValid() && face.layout(text, &glyphs, &positions, &w) && !glyphs.isEmpty()) {
             const double x = left ? r.left() : right ? r.right() + 1 - w : r.left() + (r.width() - w) / 2;
             const double ascent = face.ascent(), descent = face.descent();
             const double y = (flags & Qt::AlignTop) ? r.top() + ascent : (flags & Qt::AlignVCenter) ? r.top() + (r.height() - (ascent + descent)) / 2 + ascent : r.bottom() + 1 - descent;
@@ -589,6 +589,14 @@ marked:
             const CellLook &look = looks.look(cell->style);
             const Spill sp = spillOfCell(*cell, look, sh, rs.index);
             QRect box(w.cols[j].start, rs.start, w.cols[j].size, rs.size);
+            if (o.gridlines && sp.left + sp.right > 0) {
+                // the gridlines between the cells the text runs over are under it: they are not drawn (those of cells with a fill are covered already)
+                auto plain = [&](size_t k) { return !w.looks[i * C + k] || !w.looks[i * C + k]->hasFill(); };
+                for (size_t k = j; k + 1 < c1 && sp.right > 0 && w.cols[k + 1].index <= qint64(cell->col) + sp.right; ++k)
+                    if (plain(k) && plain(k + 1)) p->fillRect(QRect(w.cols[k].start + w.cols[k].size - 1, rs.start, 1, rs.size - 1), o.paper);
+                for (size_t k = j; k > c0 && sp.left > 0 && w.cols[k - 1].index >= qint64(cell->col) - sp.left; --k)
+                    if (plain(k) && plain(k - 1)) p->fillRect(QRect(w.cols[k - 1].start + w.cols[k - 1].size - 1, rs.start, 1, rs.size - 1), o.paper);
+            }
             if (sp.left + sp.right > 0) {
                 const int x0 = L.xEdge(qint64(cell->col) - sp.left, frozenCols), x1 = L.xEdge(qint64(cell->col) + sp.right + 1, frozenCols);
                 box = QRect(x0, rs.start, x1 - x0, rs.size);

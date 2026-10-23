@@ -53,6 +53,7 @@
 
 #ifdef JC_GRID
 #include "app/crunchinfo.h"
+#include "app/crash.h"
 #include "core/fonts.h"
 #include <QApplication>
 #endif
@@ -698,6 +699,8 @@ int main(int argc, char **argv)
         Q_INIT_RESOURCE(crunch);
         ::jp::setAppInfo(::jp::crunchAppInfo());
         QApplication gui(argc, argv);
+        // (JC_CRASH_REPORT names a file for the report of a crash: where the program stopped, which addr2line turns to lines)
+        if (!qEnvironmentVariableIsEmpty("JC_CRASH_REPORT")) ::jp::crash::install(qEnvironmentVariable("JC_CRASH_REPORT"));
         ::jp::initCore();   // the program's own fonts, as JeffCrunch loads them
         const int code = ::jp::crunchtool::gridMain(gui.arguments().mid(1));
         return code >= 0 ? code : usage();

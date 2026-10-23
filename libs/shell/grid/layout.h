@@ -67,8 +67,9 @@ public:
     qint64 maxScrollX() const;
     qint64 maxScrollY() const;
     // Scrolls as little as it takes for the cell to be whole in the part that scrolls (a cell in a frozen row or column needs none in that direction; one too large to fit
-    // has its start in view); true if it moved.
+    // has its start in view); true if it moved. scrollToShow() only says where it would go: the scroll that would show it, from the one given (true if that is another).
     bool ensureVisible(qint64 row, qint64 col);
+    bool scrollToShow(qint64 row, qint64 col, qint64 *x, qint64 *y) const;
 
     // The rectangle of the cell on the screen (it may be partly or wholly outside the window), and of a block of cells. The cell of a merged range is the range's.
     QRect cellRect(qint64 row, qint64 col) const;

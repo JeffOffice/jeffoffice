@@ -329,6 +329,17 @@ private Q_SLOTS:
         QVERIFY(inkIn(img, QRect(4 * 64, 60, 64, 20)) > 50);
         QVERIFY(inkIn(img, QRect(3 * 64, 60, 64, 20)) > 50);
         QCOMPARE(inkIn(img, QRect(5 * 64, 60, 64, 20)), 0);
+        // the gridline between a cell and the empty cell its text runs into is not drawn (the cells are one to the eye); the line at the end of the text, and between cells whose text is
+        // cut, stay
+        Fixture h;
+        h.text(0, 0, wide);
+        h.text(1, 0, wide);
+        h.text(1, 1, QStringLiteral(" "));
+        h.build();
+        const QImage lines = h.render();
+        QCOMPARE(px(lines, 63, 1), kWhite);                           // (row 0: the line between A1 and B1 is under the text)
+        QCOMPARE(px(lines, 63, 21), h.options.gridColor.rgb());       // (row 1: B2 holds something: the line stays)
+        QCOMPARE(px(lines, 3 * 64 + 63, 1), kWhite);                  // (the text of 40 W's runs over the next five or six cells)
         // the text's color is the font's
         Fixture g;
         FontSpec red;
@@ -599,6 +610,55 @@ private Q_SLOTS:
         f.render();
         const PaintStats s = f.painter->stats();
         QVERIFY2(s.looksMade <= 20 * 10 + 5 && s.looksMade >= 100, qPrintable(QString::number(s.looksMade)));
+    }
+
+    // A text with nothing in it (a cell that holds the empty string), a font the machine does not have, and letters of other scripts than Latin are drawn, and never fail.
+    void emptyTextsMissingFontsAndOtherScriptsAreDrawn()
+    {
+        Fixture f;
+        FontSpec absent;
+        absent.name = QStringLiteral("No Such Font Anywhere 123");
+        absent.size = 12;
+        f.styles.fonts.append(absent);
+        CellFormat fmt;
+        fmt.font = 1;
+        const quint32 style = f.format(fmt);
+        FontSpec underlined;
+        underlined.name = QStringLiteral("Arial");
+        underlined.size = 8;
+        underlined.underline = Underline::Single;
+        underlined.strike = true;
+        f.styles.fonts.append(underlined);
+        CellFormat under;
+        under.font = 2;
+        const quint32 underStyle = f.format(under);
+        f.text(0, 0, QString());                                   // the empty string
+        f.text(2, 0, QString(), underStyle);                       // the empty string, underlined (a run of no glyphs with a line under it)
+        f.text(2, 1, QStringLiteral(" "), underStyle);
+        f.text(0, 1, QStringLiteral("text"), style);               // a font that is not there
+        f.text(0, 2, QString::fromUtf8("日本語のテキスト"));           // other letters
+        f.text(0, 3, QString::fromUtf8("مرحبا بالعالم"));
+        f.text(0, 4, QStringLiteral("\t\x01 control letters"));
+        f.text(1, 0, QString(500, QChar(0x00E9)));                 // letters of the Latin set that are not ASCII
+        f.number(1, 1, 5, style);
+        f.options.gridlines = false;
+        f.build();
+        const QImage img = f.render();
+        QVERIFY(inkIn(img, QRect(0, 0, 64 * 5, 20)) > 20);
+        QVERIFY(inkIn(img, QRect(0, 20, 64, 20)) > 20);
+        QVERIFY(inkIn(img, QRect(64, 20, 64, 20)) > 0);
+        QCOMPARE(f.painter->stats().textRuns >= 5, true);
+        // the same at a zoom that makes the letters small
+        f.grid.layout().setZoom(0.7);
+        const QImage small = f.render();
+        QVERIFY(inkIn(small, QRect(0, 0, 45 * 5, 14)) > 5);
+        f.grid.layout().setZoom(2.5);
+        f.render();
+        // in rows too low for the letters, which are then cut to the row
+        f.grid.layout().setZoom(1.0);
+        f.grid.layout().rows.setDefaultSize(9);
+        const QImage low = f.render();
+        QVERIFY(inkIn(low, QRect(0, 0, 64 * 5, 9)) > 3);
     }
 
     // The headers: the letters along the top and the numbers down the side, counted, and the corner.
