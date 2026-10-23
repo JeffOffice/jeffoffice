@@ -270,6 +270,86 @@ private Q_SLOTS:
         }
     }
 
+    // What the arguments may be, and what a lookup gives back for the cell it finds. In the practice workbooks: the first of equal cells in 3,116 exact lookups, a
+    // difference of case only in 2,653, an empty cell found (0, or "" joined to text) in 65,701, an error cell found in 1,573, and a "" looked up in cells that hold "" in 328.
+    void argumentsAndWhatIsFound()
+    {
+        Grid g = sample();
+        g.column("S1", {QString("k1"), QString("k2"), QString("k3"), QString("k4"), QString("k5")});
+        g.column("T1", {QString("v1"), QString(), QString(), 5});   // (T2 is empty)
+        g.e("T3", ErrorKind::Div0).s("T5", QString());              // and T5 holds a text of no characters
+        g.column("V1", {1, 2, 2, 3});
+        g.column("W1", {QString("p"), QString("q"), QString("r"), QString("s")});
+        const E cases[] = {
+            // the column number: cut toward zero, a text read as a number, true as 1; under 1 is #VALUE!, past the table #REF!
+            {"VLOOKUP(\"b\",A1:C4,2.9,FALSE)", "n:2"},
+            {"VLOOKUP(\"b\",A1:C4,\"2\",FALSE)", "n:2"},
+            {"VLOOKUP(\"b\",A1:C4,TRUE,FALSE)", "s:b"},
+            {"VLOOKUP(\"b\",A1:C4,0.5,FALSE)", "e:#VALUE!"},
+            {"VLOOKUP(\"b\",A1:C4,-1,FALSE)", "e:#VALUE!"},
+            {"VLOOKUP(\"b\",A1:C4,Z9,FALSE)", "e:#VALUE!"},
+            {"VLOOKUP(\"b\",A1:C4,\"a\",FALSE)", "e:#VALUE!"},
+            {"VLOOKUP(\"b\",A1:C4,4,FALSE)", "e:#REF!"},
+            {"VLOOKUP(\"zz\",A1:C4,4,FALSE)", "e:#REF!"},       // (the column is looked at before the value is found)
+            {"HLOOKUP(\"c\",N1:Q2,2.5,FALSE)", "n:3"},
+            // the last argument: a number is true unless it is 0, a text must be TRUE or FALSE, an empty cell is false
+            {"VLOOKUP(25,E1:F5,2,2)", "s:twenty"},
+            {"VLOOKUP(25,E1:F5,2,-1)", "s:twenty"},
+            {"VLOOKUP(25,E1:F5,2,0)", "e:#N/A"},
+            {"VLOOKUP(25,E1:F5,2,\"TRUE\")", "s:twenty"},
+            {"VLOOKUP(25,E1:F5,2,\"false\")", "e:#N/A"},
+            {"VLOOKUP(25,E1:F5,2,\"abc\")", "e:#VALUE!"},
+            {"VLOOKUP(25,E1:F5,2,Z9)", "e:#N/A"},
+            {"VLOOKUP(25,E1:F5,2)", "s:twenty"},
+            // a table of one column or one row
+            {"VLOOKUP(2,V1:V4,1,FALSE)", "n:2"},
+            {"VLOOKUP(2,V1:V4,2,FALSE)", "e:#REF!"},
+            {"HLOOKUP(\"c\",N1:Q1,1,FALSE)", "s:c"},
+            {"VLOOKUP(2,V:W,2,FALSE)", "s:q"},
+            {"MATCH(3,V:V,1)", "n:4"},
+            // the first of equal cells, whatever the case
+            {"VLOOKUP(2,V1:W4,2,FALSE)", "s:q"},
+            {"MATCH(2,V1:V4,0)", "n:2"},
+            {"MATCH(\"K2\",S1:S5,0)", "n:2"},
+            // kinds: a number is not the same text, a text not the same number, a truth value neither
+            {"MATCH(5,{\"5\",5},0)", "n:2"},
+            {"MATCH(\"5\",{5,\"5\"},0)", "n:2"},
+            {"MATCH(1,{TRUE,1},0)", "n:2"},
+            {"MATCH(TRUE,{1,TRUE},0)", "n:2"},
+            {"MATCH(\"\",{\"\",\"a\"},0)", "n:1"},               // "" is a text
+            {"MATCH(\"\",T1:T5,0)", "n:5"},                      // T2 is empty, and an empty cell is not "" (T5 is)
+            // wildcards in a text looked up for an exact match, not in the other mode, not in a number
+            {"MATCH(\"k?\",S1:S5,0)", "n:1"},
+            {"MATCH(\"*5\",S1:S5,0)", "n:5"},
+            {"MATCH(\"k~?\",{\"k?\",\"k1\"},0)", "n:1"},
+            {"MATCH(\"c*\",{\"b\",\"cat\",\"d\"},1)", "n:1"},      // (plain text in this mode: "c*" is before "cat")
+            {"VLOOKUP(\"c*\",H1:I4,2,TRUE)", "n:2"},
+            {"MATCH(1*5,{\"5*\",5},0)", "n:2"},
+            // an error looked up is the result; an error cell is never found
+            {"VLOOKUP(#DIV/0!,T1:T5,1,FALSE)", "e:#DIV/0!"},
+            {"MATCH(#N/A,{#N/A,1},0)", "e:#N/A"},
+            {"MATCH(1,{#N/A,1},0)", "n:2"},
+            // what is found: an empty cell is 0 as a result and "" joined to text; an error cell is its error; a formula that is "" is ""
+            {"VLOOKUP(\"k2\",S1:T5,2,FALSE)", "n:0"},
+            {"VLOOKUP(\"k2\",S1:T5,2,FALSE)&\"|\"", "s:|"},
+            {"VLOOKUP(\"k2\",S1:T5,2,FALSE)+1", "n:1"},
+            {"VLOOKUP(\"k3\",S1:T5,2,FALSE)", "e:#DIV/0!"},
+            {"VLOOKUP(\"k5\",S1:T5,2,FALSE)", "s:"},
+            {"VLOOKUP(\"k4\",S1:T5,2,FALSE)", "n:5"},
+            // around the result
+            {"IF(ISNA(VLOOKUP(\"zz\",A1:C4,2,FALSE)),\"none\",VLOOKUP(\"zz\",A1:C4,2,FALSE))", "s:none"},
+            {"IF(ISNA(VLOOKUP(\"c\",A1:C4,3,FALSE)),\"none\",VLOOKUP(\"c\",A1:C4,3,FALSE))", "s:z"},
+            {"IF(ISNA(VLOOKUP(\"k3\",S1:T5,2,FALSE)),\"none\",VLOOKUP(\"k3\",S1:T5,2,FALSE))", "e:#DIV/0!"},
+            {"IF(ISNA(VLOOKUP(\"k2\",S1:T5,2,FALSE)),\"none\",VLOOKUP(\"k2\",S1:T5,2,FALSE))", "n:0"},
+            {"ISNA(VLOOKUP(\"k3\",S1:T5,2,FALSE))", "b:0"},
+            {"ISERROR(VLOOKUP(\"k3\",S1:T5,2,FALSE))", "b:1"},
+            {"IFERROR(VLOOKUP(\"zz\",A1:C4,3,FALSE),\"none\")", "s:none"},
+            {"ISNA(MATCH(\"zz\",A1:A4,0))", "b:1"},
+            {"ISNA(VLOOKUP(\"zz\",A1:C4,9,FALSE))", "b:0"},      // (#REF!, not #N/A)
+        };
+        CHECK_EVALS(cases, g, Settings());
+    }
+
     void matchInItsThreeModes()
     {
         const Grid g = sample();
