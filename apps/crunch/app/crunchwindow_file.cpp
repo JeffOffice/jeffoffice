@@ -227,6 +227,7 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
     const qint64 cpu0 = jp::threadCpuMicros();
     m_longestBatchItems = std::max<qint64>(m_longestBatchItems, qint64(batch->items.size()));
     m_values.apply(batch->items);
+    m_workerCpuMicros = batch->workerCpuMicros;
     if (m_session) m_session->noteResults(batch->items);
     const bool active = m_view->valuesChanged(m_sheet, batch->items);
     if (active) updateBars();

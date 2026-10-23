@@ -202,6 +202,7 @@ private:
     jp::calc::CellArea areaOf(const Node &n) const;
     void markDependents(std::vector<jp::calc::CellArea> *changed);
     void queueDependents(const jp::calc::CellArea &area);
+    void giveName(quint32 id, std::vector<jp::calc::CellArea> *changed);
     void markDirty(quint32 id, std::vector<jp::calc::CellArea> *changed);
     void beginRecalculation();
     // The parts of a recalculation that are done in slices of the time they are given: each does some of its work, and says whether it is all done. `timeUp` is asked every

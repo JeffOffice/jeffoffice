@@ -1,5 +1,7 @@
 #include "app/celleditor.h"
 
+#include "app/icons.h"
+
 #include <QKeyEvent>
 
 namespace jp {
@@ -10,6 +12,8 @@ CellEditor::CellEditor(QWidget *parent) : QLineEdit(parent)
     setFrame(false);
     setMaxLength(1 << 20);   // (a line holds 32,767 characters by default and cuts what is typed or pasted past that; a cell's limit is told to the person when the entry is finished)
     setContextMenuPolicy(Qt::DefaultContextMenu);
+    // over the cell: the program's accent round it, and the window's own base inside (a cell is white in a light window and dark in a dark one)
+    setStyleSheet(QStringLiteral("QLineEdit#cellEditor { border: 2px solid %1; background: palette(base); color: palette(text); padding: 0px 2px; }").arg(uiAccent().name()));
 }
 
 void CellEditor::keyPressEvent(QKeyEvent *e)

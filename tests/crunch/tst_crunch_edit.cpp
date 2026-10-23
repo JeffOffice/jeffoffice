@@ -688,6 +688,36 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.undoStack()->count(), crunch::kUndoSteps);
     }
 
+    // A cell being edited in the window of a workbook that looks like a real one: its line is over the cell with the cell's formula, the formula bar shows the same, and the line has the accent
+    // round it. The picture is saved when JC_SCREENSHOT_EDIT names a file.
+    void aCellBeingEditedShowsItsFormulaInTheCellAndTheBar()
+    {
+        Folder folder;
+        Window win;
+        win.w.resize(1100, 640);
+        QVERIFY(win.open(folder.write(QStringLiteral("budget.xlsx"), budgetWorkbook())));
+        win.w.view()->setZoom(1.0);
+        win.w.view()->selectCell(8, 2);   // C9: the total of the second month
+        QTest::keyClick(win.w.view(), Qt::Key_F2);
+        QVERIFY(win.w.isEditing());
+        QApplication::processEvents();
+        CellEditor *editor = win.w.cellEditor();
+        QVERIFY(editor->isVisible());
+        QCOMPARE(editor->text(), QStringLiteral("=SUM(C3:C8)"));
+        QCOMPARE(win.w.formulaBar()->text(), QStringLiteral("=SUM(C3:C8)"));
+        QCOMPARE(win.w.nameBox()->text(), QStringLiteral("C9"));
+        QImage shot = win.w.grab().toImage();
+        QVERIFY(!shot.isNull());
+        // the line is over C9: the accent runs round it
+        const QPoint at = editor->mapTo(&win.w, QPoint(0, 0));
+        QCOMPARE(QColor(shot.pixel(at.x() + 1, at.y() + editor->height() / 2)), QColor(0x13, 0x77, 0x3A));
+        QCOMPARE(QColor(shot.pixel(at.x() + editor->width() / 2, at.y() + 1)), QColor(0x13, 0x77, 0x3A));
+        QCOMPARE(editor->geometry().size(), win.w.view()->cellRect(8, 2).size() + QSize(editor->width() - win.w.view()->cellRect(8, 2).width(), 0));
+        const QString out = qEnvironmentVariable("JC_SCREENSHOT_EDIT");
+        if (!out.isEmpty()) QVERIFY(shot.save(out));
+        QTest::keyClick(editor, Qt::Key_Escape);
+    }
+
     // ---- saving
 
     // Save writes the workbook as it was read with the edit in it: the edited cell, the formulas that read it with their new results, the new text and format; every part that did not

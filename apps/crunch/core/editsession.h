@@ -98,6 +98,9 @@ public:
     // How many cells have been changed since the file was read or saved, and how many formulas' results differ from the file's (for tests and the status).
     qint64 changedCells() const { return qint64(m_touched.size()); }
     qint64 changedResults() const { return qint64(m_results.size()); }
+    // The longest the window waited for the worker to let go (microseconds, by the wall), and the last wait: what an edit costs besides the work of putting the cell in.
+    qint64 longestHoldWaitMicros() const { return m_longestHoldWait; }
+    qint64 lastHoldWaitMicros() const { return m_lastHoldWait; }
     // For tests: called with the calculation while the worker is held, before the changes of an edit are put in and after (so that a test can count what the edit did to it).
     void setHoldHook(const std::function<void(jp::office::sheet::Calculation *calc, bool after)> &hook) { m_holdHook = hook; }
     // Edits are held off (a save is going on).
@@ -126,6 +129,7 @@ private:
     QDate m_today;
     bool m_busy = false;
     std::function<void(jp::office::sheet::Calculation *, bool)> m_holdHook;
+    qint64 m_longestHoldWait = 0, m_lastHoldWait = 0;
     bool m_tracking = false;               // an edit has been made: results are compared with the file's
     std::set<quint64> m_touched;           // cells changed by the person (written whole), by sheet, row, column
     std::map<quint64, jp::calc::Value> m_results;      // formulas whose value is not the file's

@@ -95,6 +95,8 @@ public:
     // The longest time (the thread's own, in microseconds) the window has spent in taking one batch of values from the calculation: what the calculation costs the window's thread.
     qint64 longestBatchMicros() const { return m_longestBatchMicros; }
     qint64 batchesTaken() const { return m_batches; }
+    // The worker thread's own processor time since it began, as the last batch said (microseconds).
+    qint64 workerCpuMicros() const { return m_workerCpuMicros; }
     // The most values one batch had (what taking a batch costs the window is in proportion to it, whatever the machine's speed).
     qint64 longestBatchItems() const { return m_longestBatchItems; }
     // For tests: slows the worker (see WorkbookLoader::setPace).
@@ -206,7 +208,7 @@ private:
     QTimer m_copyTimer;
     // the values the calculation (on the worker) has told
     jp::grid::ValueStore m_values;
-    qint64 m_longestBatchMicros = 0, m_batches = 0, m_longestBatchItems = 0;
+    qint64 m_longestBatchMicros = 0, m_batches = 0, m_longestBatchItems = 0, m_workerCpuMicros = 0;
     std::function<void(const QString &, const QString &)> m_notifier;
     QString m_loadProblem;
     // editing

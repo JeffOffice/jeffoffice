@@ -237,6 +237,44 @@ private Q_SLOTS:
         QCOMPARE(b.calc->sheet(0).extentCols, 21u);   // (the format of U21 reached that far, and went; the extent does not shrink)
     }
 
+    // A formula with a function the engine lacks keeps the result the file stored until something it reads changes; then it has #NAME?, and what reads it is worked out from that. One
+    // typed in a cell has #NAME? at once.
+    void aFormulaWithAFunctionTheEngineLacksHasNameWhenWhatItReadsChanges()
+    {
+        const QString rows = rowXml(1, constant("A1", "1") + cellXml("B1", "NOSUCHFUNCTION(A1)", "42") + cellXml("C1", "B1+1") + cellXml("D1", "NOSUCHFUNCTION(5)", "7"));
+        for (const auto marking : {Calculation::Marking::Later, Calculation::Marking::Now}) {
+            Book b;
+            CalcOptions options;
+            options.keepApart = true;
+            options.workOutWhatHasNoResult = true;
+            QString why;
+            QVERIFY(b.package.readLazy(buildXlsx({worksheet(rows)}), &why) && b.book.open(b.package, &why));
+            b.calc.reset(new Calculation(b.book, options));
+            QVERIFY(b.calc->load());
+            b.finish();
+            QCOMPARE(b.at("B1"), QStringLiteral("n:42"));      // as the file stored it
+            QCOMPARE(b.at("C1"), QStringLiteral("n:43"));      // and what reads it is worked out from that
+            QVERIFY(b.calc->setValue(0, 0, 3, Value::number(9), marking));    // D1 is read by nothing, and reads nothing: left alone
+            b.finish();
+            QCOMPARE(b.at("B1"), QStringLiteral("n:42"));
+            QVERIFY(b.calc->setValue(0, 0, 0, Value::number(2), marking));
+            b.finish();
+            QCOMPARE(b.at("B1"), QStringLiteral("e:#NAME?"));
+            QCOMPARE(b.at("C1"), QStringLiteral("e:#NAME?"));
+            QVERIFY(b.calc->isTainted(0, 0, 1));
+            QVERIFY(b.calc->setValue(0, 0, 0, Value::number(3), marking));      // (changed again: nothing more to say)
+            b.finish();
+            QCOMPARE(b.at("B1"), QStringLiteral("e:#NAME?"));
+            // one typed has the error at once, and what reads it
+            QVERIFY(b.calc->setFormula(0, 5, 0, QStringLiteral("NOSUCHFUNCTION(1)"), marking));
+            QVERIFY(b.calc->setFormula(0, 5, 1, QStringLiteral("A6&\"x\""), marking));
+            b.finish();
+            QCOMPARE(b.at("A6"), QStringLiteral("e:#NAME?"));
+            QCOMPARE(b.at("B6"), QStringLiteral("e:#NAME?"));
+            QCOMPARE(b.calc->keptCount() >= 2, true);
+        }
+    }
+
     // The cells of an array and a data table are not changed alone.
     void aCellOfAnArrayIsNotChangedAlone()
     {

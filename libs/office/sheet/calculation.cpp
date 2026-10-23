@@ -174,6 +174,8 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
         if (m_options.keepApart) n.flags |= NodeTainted;
         keepStored(n, kept);
         n.state = Done;
+        // A formula with a function the engine lacks keeps the result the file stored until something it reads changes: then it has #NAME?. It is told to the graph, so that an edit finds it.
+        if (kept == 'U') registerNode(id, nullptr);
         return;
     }
     if (always) {
@@ -549,6 +551,16 @@ void Calculation::markDirty(quint32 id, std::vector<CellArea> *changed)
     changed->push_back(areaOf(n));
 }
 
+// A formula with a function the engine lacks, found to read a cell that has changed: its result is #NAME? from now (what the file stored is no longer right, and the engine can't say what is), and
+// what reads it is to be worked out again. One that has the error already is left (nothing it gives has changed).
+void Calculation::giveName(quint32 id, std::vector<CellArea> *changed)
+{
+    Node &n = m_nodes[id];
+    if (n.kind == KindError && int(n.number) == int(ErrorKind::Name)) return;
+    storeResult(n, id, Value::error(ErrorKind::Name));
+    changed->push_back(areaOf(n));
+}
+
 void Calculation::markDependents(std::vector<CellArea> *changed)
 {
     std::vector<quint32> found;
@@ -559,8 +571,13 @@ void Calculation::markDependents(std::vector<CellArea> *changed)
         if (a.single()) m_graph->dependentsOfCell(a.sheet1, a.row1, a.col1, &found);
         else m_graph->dependentsOfArea(a, &found);
         for (const quint32 id : found) {
-            const Node &n = m_nodes[id];
-            if ((n.flags & (Dead | Kept)) || n.state != Done) continue;
+            Node &n = m_nodes[id];
+            if (n.flags & Dead) continue;
+            if ((n.flags & Kept) && n.kept == 'U' && n.state == Done) {
+                giveName(id, changed);
+                continue;
+            }
+            if ((n.flags & Kept) || n.state != Done) continue;
             markDirty(id, changed);
         }
     }
@@ -603,8 +620,13 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
         while (j.foundAt < j.found.size()) {
             if (!ck.next()) return false;
             const quint32 id = j.found[j.foundAt++];
-            const Node &n = m_nodes[id];
-            if ((n.flags & (Dead | Kept)) || n.state != Done) continue;
+            Node &n = m_nodes[id];
+            if (n.flags & Dead) continue;
+            if ((n.flags & Kept) && n.kept == 'U' && n.state == Done) {
+                giveName(id, &j.changed);
+                continue;
+            }
+            if ((n.flags & Kept) || n.state != Done) continue;
             markDirty(id, &j.changed);
         }
         if (j.changed.empty()) break;
@@ -1256,12 +1278,16 @@ bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString 
     s.extentCols = std::max<quint32>(s.extentCols, col + 1);
     const quint32 id = addNode(sheet, c, c.formula);
     const CellArea a = areaOf(m_nodes[id]);
+    // a formula typed with a function the engine lacks has no result to keep: it has #NAME?, which the recalculation gives it
+    const bool needsName = m_nodes[id].kept == 'U' && !c.hasResult();
     if (marking == Marking::Later) {
         queueDependents(a);
+        if (needsName) m_begin.found.push_back(id);
         return true;
     }
     std::vector<CellArea> changed;
     changed.push_back(a);
+    if (needsName) giveName(id, &changed);
     markDependents(&changed);
     return true;
 }

@@ -10,11 +10,11 @@
 //                                           milliseconds each took.
 //   jcrunchtool roundtrip <keys.txt> <out-dir> [jobs]   runs roundtrip-one on each workbook listed, each in a child process that has 300 seconds and 6 GB, and writes <out-dir>/roundtrip.tsv; prints the
 //                                           summary (tools/crunch_roundtrip.py does the work)
-//   (to come) jcrunchtool edit-bench <file.xlsx> [edits=200]   opens the workbook in the model of the window and makes that many edits, each in a cell a few rows apart, as a person typing; for each, the
+//   jcrunchtool edit-bench <file.xlsx> [edits=200]   opens the workbook in the model of the window and makes that many edits, each in a cell a few rows apart, as a person typing; for each, the
 //                                           time the window's thread takes to put the cell in (and the time it waits for the worker to let go), to draw it again, and the time the worker takes to
 //                                           the first values and to work out all that depends: the middle, the 95th percentile, the 99th, and the longest of each, by the thread's own processor time
 //                                           where there is one and by the wall's besides
-//   jcrunchtool edit-bench-make [rows=100000] [cols=20] [readers=0]   the same on a workbook made here: numbers in rows and columns, a formula in the last column of each row that reads the
+//   jcrunchtool edit-bench-make [rows=100000] [cols=20] [readers=0] [edits=200]   the same on a workbook made here: numbers in rows and columns, a formula in the last column of each row that reads the
 //                                           first, and, with readers, a cell that that many formulas read
 
 #include "core/editsession.h"
@@ -27,8 +27,13 @@
 #include "office/package.h"
 #include "sheet/xlsxsave.h"
 
+#include "app/crunchwindow.h"
+#include "grid/gridview.h"
+
 #include <QApplication>
 #include <QElapsedTimer>
+#include <QEventLoop>
+#include <QKeyEvent>
 #include <QFile>
 #include <QFileInfo>
 #include <QProcess>
@@ -486,10 +491,182 @@ int roundtripSweep(const QString &keys, const QString &outDir, const QString &jo
 
 } // namespace
 
+// ---- how fast an edit is on the screen
+
+namespace {
+
+// A workbook made here: `rows` by `cols` numbers, a formula in the column after them that adds the row up, and, with `readers`, a cell Z1 (the column 26) that that many formulas read.
+QByteArray benchWorkbook(int rows, int cols, int readers)
+{
+    QString xml;
+    xml.reserve(qsizetype(rows) * cols * 28);
+    const QString last = columnName(quint32(cols - 1)), sumColumn = columnName(quint32(cols));
+    for (int r = 1; r <= std::max(rows, readers + 1); ++r) {
+        const QString n = QString::number(r);
+        xml += QStringLiteral("<row r=\"") + n + QStringLiteral("\">");
+        if (r <= rows) {
+            for (int c = 0; c < cols; ++c) xml += QStringLiteral("<c r=\"") + columnName(quint32(c)) + n + QStringLiteral("\"><v>") + QString::number((r * 7 + c * 13) % 1000) + QStringLiteral("</v></c>");
+            xml += QStringLiteral("<c r=\"") + sumColumn + n + QStringLiteral("\"><f>SUM(A") + n + QLatin1Char(':') + last + n + QStringLiteral(")</f><v>0</v></c>");
+        }
+        if (r == 1 && readers > 0) xml += QStringLiteral("<c r=\"Z1\"><v>1</v></c>");
+        if (r <= readers) xml += QStringLiteral("<c r=\"AB") + n + QStringLiteral("\"><f>$Z$1+") + n + QStringLiteral("</f><v>0</v></c>");
+        xml += QStringLiteral("</row>");
+    }
+    const QByteArray sheet = ("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>" + xml + "</sheetData></worksheet>").toUtf8();
+    PackageWriter w;
+    const QString relBase = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    w.addPart(QStringLiteral("/xl/workbook.xml"), QByteArray(), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"));
+    w.addRelationship(QStringLiteral("/"), relBase + "officeDocument", QStringLiteral("/xl/workbook.xml"));
+    w.addPart(QStringLiteral("/xl/worksheets/sheet1.xml"), sheet, QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"));
+    const QString id = w.addRelationship(QStringLiteral("/xl/workbook.xml"), relBase + "worksheet", QStringLiteral("/xl/worksheets/sheet1.xml"));
+    const QByteArray workbook = ("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"" + relBase.chopped(1)
+                                 + "\"><sheets><sheet name=\"Sheet1\" sheetId=\"1\" r:id=\"" + id + "\"/></sheets></workbook>").toUtf8();
+    w.addPart(QStringLiteral("/xl/workbook.xml"), workbook, QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"));
+    return w.finish();
+}
+
+void printStat(const char *what, const std::vector<double> &v)
+{
+    out() << "  " << what << ": middle " << QString::number(percentile(v, 0.5), 'f', 3) << " ms, 95th " << QString::number(percentile(v, 0.95), 'f', 3) << " ms, 99th " << QString::number(percentile(v, 0.99), 'f', 3)
+          << " ms, longest " << QString::number(percentile(v, 1.0), 'f', 3) << " ms\n";
+}
+
+// Edits in the window: each is a number typed over a cell that is on the screen, as a person types it, and finished with Enter. What is measured is what a person waits for: from the Enter key to
+// the cell drawn again (the window's thread: its own processor time, and the wall besides, which has the wait for the worker to let go in it), and the worker's: its processor time, and the wall
+// until every formula that depends has its value.
+int editBench(const QString &pathIn, int edits, int rows, int cols, int readers)
+{
+    QTemporaryDir dir;
+    QString path = pathIn;
+    if (path.isEmpty()) {
+        const QString keep = qEnvironmentVariable("JC_BENCH_FILE");
+        path = keep.isEmpty() ? dir.filePath(QStringLiteral("bench.xlsx")) : keep;
+        if (keep.isEmpty() || !QFile::exists(keep)) {
+            QElapsedTimer made;
+            made.start();
+            const QByteArray bytes = benchWorkbook(rows, cols, readers);
+            QFile f(path);
+            if (!f.open(QIODevice::WriteOnly) || f.write(bytes) != bytes.size()) {
+                err() << "edit-bench: the workbook could not be written\n";
+                return 1;
+            }
+            f.close();
+            out() << "workbook of " << rows << " rows by " << cols << " columns" << (readers ? QStringLiteral(", and a cell that %1 formulas read").arg(readers) : QString()) << ": " << bytes.size() / 1048576
+                  << " MB, made in " << made.elapsed() << " ms\n";
+        }
+    }
+    CrunchWindow w;
+    w.setNotifier([](const QString &, const QString &) {});
+    w.resize(1280, 800);
+    w.show();
+    QEventLoop none;
+    bool done = false;
+    QObject::connect(&w, &CrunchWindow::calculationFinished, &w, [&] { done = true; });
+    QElapsedTimer open;
+    open.start();
+    if (!w.openFile(path)) return 1;
+    while (!done && open.elapsed() < 280000) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+    if (!done) {
+        err() << "edit-bench: the workbook was not worked out in time\n";
+        return 1;
+    }
+    out() << "opened and worked out by " << open.elapsed() << " ms\n";
+    // the cells: in a made workbook, spread over the sheet (one cell for the readers); in a file, numbers that formulas read, from the first sheet that has them
+    struct Target {
+        quint32 row, col;
+    };
+    std::vector<Target> targets;
+    const int sheet = w.activeSheet();
+    const Calculation *calc = w.calculation();
+    if (readers > 0 && pathIn.isEmpty()) {
+        for (int i = 0; i < edits; ++i) targets.push_back({0, 25});
+    } else if (pathIn.isEmpty()) {
+        for (int i = 0; i < edits; ++i) targets.push_back({quint32((i * 7919) % rows), quint32((i * 5) % cols)});
+    } else {
+        std::vector<Target> candidates;
+        qint64 looked = 0;
+        calc->sheet(sheet).cells.forEach([&](const Cell &c) {
+            if (candidates.size() >= 100000 || ++looked > 5000000) return;
+            if (c.type != CellType::Number || c.hasFormula() || (c.flags & (ArrayMember | ArrayFormula))) return;
+            std::vector<quint32> r;
+            calc->graph().dependentsOfCell(sheet, c.row, c.col, &r);
+            if (!r.empty()) candidates.push_back({c.row, c.col});
+        });
+        if (candidates.empty()) {
+            err() << "edit-bench: no number that a formula reads\n";
+            return 1;
+        }
+        for (int i = 0; i < edits; ++i) targets.push_back(candidates[size_t(i) * candidates.size() / size_t(edits)]);
+    }
+    grid::GridView *v = w.view();
+    std::vector<double> commitCpu, paintCpu, totalCpu, totalWall, holdWait, workerCpu, allValues;
+    qint64 dependentsMax = 0;
+    for (size_t i = 0; i < targets.size(); ++i) {
+        const Target t = targets[i];
+        v->selectCell(t.row, t.col);
+        v->ensureVisible(t.row, t.col);
+        QCoreApplication::processEvents();
+        v->viewport()->repaint();
+        // a number typed over the cell (the first key at the grid, which starts the entry, and the rest in the cell's line)
+        const QString text = QString::number(1000 + int(i));
+        QKeyEvent first(QEvent::KeyPress, Qt::Key_0 + (text[0].unicode() - '0'), Qt::NoModifier, QString(text[0]));
+        QApplication::sendEvent(v, &first);
+        w.cellEditor()->setText(text);
+        if (!w.isEditing()) {
+            err() << "edit-bench: the entry did not begin\n";
+            return 1;
+        }
+        const qint64 workerBefore = w.workerCpuMicros();
+        QElapsedTimer wall;
+        wall.start();
+        const qint64 c0 = jp::threadCpuMicros();
+        QKeyEvent enter(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier);
+        QApplication::sendEvent(w.cellEditor(), &enter);
+        const qint64 c1 = jp::threadCpuMicros();
+        // (what the window draws for a changed cell: the strip of its row)
+        {
+            const QRect r = v->cellRect(t.row, t.col);
+            v->viewport()->repaint(QRect(0, r.top(), v->viewport()->width(), std::max(1, r.height())));
+        }
+        const qint64 c2 = jp::threadCpuMicros();
+        const double wallMs = double(wall.nsecsElapsed()) / 1e6;
+        commitCpu.push_back(double(c1 - c0) / 1000.0);
+        paintCpu.push_back(double(c2 - c1) / 1000.0);
+        totalCpu.push_back(double(c2 - c0) / 1000.0);
+        totalWall.push_back(wallMs);
+        holdWait.push_back(double(w.session()->lastHoldWaitMicros()) / 1000.0);
+        // until every formula that depends has its value
+        QElapsedTimer waiting;
+        waiting.start();
+        while (w.isCalculating() && waiting.elapsed() < 120000) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+        allValues.push_back(double(wall.nsecsElapsed()) / 1e6);
+        workerCpu.push_back(double(w.workerCpuMicros() - workerBefore) / 1000.0);
+        dependentsMax = std::max<qint64>(dependentsMax, w.batchesTaken());
+    }
+    out() << targets.size() << " edits (the window's thread, by its own processor time, and by the wall):\n";
+    printStat("the Enter key to the cell drawn again, processor time", totalCpu);
+    printStat("   of it putting the cell in", commitCpu);
+    printStat("   of it drawing", paintCpu);
+    printStat("the Enter key to the cell drawn again, wall (the wait for the worker to let go is in it)", totalWall);
+    printStat("   the wait for the worker to let go, wall", holdWait);
+    printStat("the worker's processor time for what depends on the cell", workerCpu);
+    printStat("until every formula that depends has its value, wall", allValues);
+    const double within = double(std::count_if(totalWall.begin(), totalWall.end(), [](double x) { return x <= 16.0; })) / double(totalWall.size());
+    const double withinCpu = double(std::count_if(totalCpu.begin(), totalCpu.end(), [](double x) { return x <= 16.0; })) / double(totalCpu.size());
+    out() << "edits repainted within 16 ms: " << QString::number(withinCpu * 100, 'f', 1) << "% by the processor time, " << QString::number(within * 100, 'f', 1) << "% by the wall (the bar: 99%)\n";
+    Q_UNUSED(dependentsMax);
+    return 0;
+}
+
+} // namespace
+
 namespace jp::crunchtool {
 
 int editMain(const QStringList &args)
 {
+    if (args.size() >= 2 && args.size() <= 3 && args[0] == QLatin1String("edit-bench")) return editBench(args[1], args.value(2, QStringLiteral("200")).toInt(), 0, 0, 0);
+    if (args.size() >= 1 && args.size() <= 5 && args[0] == QLatin1String("edit-bench-make"))
+        return editBench(QString(), args.value(4, QStringLiteral("200")).toInt(), args.value(1, QStringLiteral("100000")).toInt(), args.value(2, QStringLiteral("20")).toInt(), args.value(3, QStringLiteral("0")).toInt());
     if (args.size() == 2 && args[0] == QLatin1String("roundtrip-one")) return roundtripOne(args[1]);
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("roundtrip")) return roundtripSweep(args[1], args[2], args.value(3));
     return -1;

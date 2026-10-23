@@ -4,6 +4,7 @@
 #include "sheet/cellref.h"
 
 #include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QUndoCommand>
 
 #include <algorithm>
@@ -269,7 +270,11 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
 
 bool EditSession::apply(std::vector<CellChange> *changes, bool forward)
 {
+    QElapsedTimer waited;
+    waited.start();
     std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+    m_lastHoldWait = waited.nsecsElapsed() / 1000;
+    m_longestHoldWait = std::max(m_longestHoldWait, m_lastHoldWait);
     if (!hold) return false;
     Calculation *calc = hold->calculation();
     Workbook &book = *m_book->book;
