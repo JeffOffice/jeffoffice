@@ -124,6 +124,37 @@ private Q_SLOTS:
         CHECK_EVALS(cases, g, Settings());
     }
 
+    // A table of many fields is worked out in time in proportion to its fields: the name of the field and of each column of the criteria is looked for in one pass over the
+    // table's first row, and the steps are counted (a table of sixteen thousand fields, with criteria that name every one of them, took seventeen seconds, and counted ten).
+    void aDatabaseOfManyFieldsIsWorkedOutInTimeInProportionToItsFields()
+    {
+        Grid g;
+        const int fields = 16384;
+        auto column = [](int c) {
+            QString name;
+            for (int n = c + 1; n > 0; n = (n - 1) / 26) name.prepend(QChar(QLatin1Char('A' + (n - 1) % 26)));
+            return name;
+        };
+        for (int c = 0; c < fields; ++c) {
+            g.s(column(c) + "1", QStringLiteral("h%1").arg(c));
+            g.n(column(c) + "2", 1);
+        }
+        QElapsedTimer clock;
+        clock.start();
+        const Outcome o = evOutcome("DSUM(A1:XFD3,1,A1:XFD3)", g);
+        QVERIFY2(o.text == QStringLiteral("n:1"), qPrintable(said(o)));
+        QVERIFY2(o.work >= fields && o.work <= 20 * qint64(fields), qPrintable(said(o)));
+        QVERIFY2(clock.elapsed() < 5000, qPrintable(QStringLiteral("%1 ms").arg(clock.elapsed())));
+        // two fields of one name: the first is the field
+        Grid d;
+        d.row("A1", {QString("x"), QString("X"), QString("y")});
+        d.row("A2", {1, 2, 3});
+        d.row("A3", {4, 5, 6});
+        d.s("E1", "X").s("E2", ">1");
+        QCOMPARE(ev("DSUM(A1:C3,\"x\",E1:E2)", d), QStringLiteral("n:4"));
+        QCOMPARE(ev("DSUM(A1:C3,\"Y\",E1:E2)", d), QStringLiteral("n:6"));
+    }
+
     void conditionsOnSeveralRanges()
     {
         const E cases[] = {

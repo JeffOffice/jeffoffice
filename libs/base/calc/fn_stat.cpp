@@ -739,13 +739,21 @@ Value databaseFunction(Call &c, Db what)
     const Value fieldArg = c.scalar(1);
     if (fieldArg.isError()) return fieldArg;
     if (db.cols() < 1) return c.error(ErrorKind::Value);
-    // the field: its name in the first row (without regard to case), or its number from 1
+    // the names of the fields, in the first row without regard to case, each with the first column that has it: found for each name asked for in one look at the row, not by
+    // going over it for each (the table's columns and the criteria's are counted as steps)
+    if (!m.charge(db.cols() + crit.cols() + crit.rows() * crit.cols())) return c.error(ErrorKind::Value);
+    QHash<QString, qint64> columnOf;
+    columnOf.reserve(int(std::min<qint64>(db.cols(), 1 << 16)));
+    for (qint64 j = 0; j < db.cols(); ++j) {
+        const Value h = db.at(0, j);
+        if (!h.isText()) continue;
+        const QString key = h.text().toCaseFolded();
+        if (!columnOf.contains(key)) columnOf.insert(key, j);   // (the first column with a name is the field)
+    }
+    // the field: its name in the first row, or its number from 1
     qint64 field = -1;
     if (fieldArg.isText()) {
-        for (qint64 j = 0; j < db.cols() && field < 0; ++j) {
-            const Value name = db.at(0, j);
-            if (name.isText() && name.text().compare(fieldArg.text(), Qt::CaseInsensitive) == 0) field = j;
-        }
+        field = columnOf.value(fieldArg.text().toCaseFolded(), -1);
     } else if (fieldArg.isNumber()) {
         const double k = std::trunc(fieldArg.number());
         if (k >= 1 && k <= double(db.cols())) field = qint64(k) - 1;
@@ -757,13 +765,7 @@ Value databaseFunction(Call &c, Db what)
         const Value label = crit.at(0, k);
         if (label.isEmpty()) continue;
         const QString name = label.isText() ? label.text() : numberToText(label.isNumber() ? label.number() : 0);
-        for (qint64 j = 0; j < db.cols(); ++j) {
-            const Value h = db.at(0, j);
-            if (h.isText() && h.text().compare(name, Qt::CaseInsensitive) == 0) {
-                fieldOf[size_t(k)] = j;
-                break;
-            }
-        }
+        fieldOf[size_t(k)] = columnOf.value(name.toCaseFolded(), -1);
     }
     struct Condition {
         qint64 field;
@@ -784,13 +786,17 @@ Value databaseFunction(Call &c, Db what)
         rows.push_back(std::move(row));
     }
     bool matchesAll = rows.empty();
-    for (const auto &row : rows) matchesAll = matchesAll || row.empty();
+    qint64 conditions = 0;
+    for (const auto &row : rows) {
+        matchesAll = matchesAll || row.empty();
+        conditions += qint64(row.size());
+    }
     qint64 matched = 0, numbers = 0, nonEmpty = 0;
     double sum = 0, product = 1, best = 0;
     std::vector<double> values;   // (for the spread: worked out as STDEV works it out)
     Value only, error;
     for (qint64 i = 1; i < db.rows(); ++i) {
-        if (!m.charge(1 + qint64(rows.size()))) return c.error(ErrorKind::Value);
+        if (!m.charge(1 + conditions)) return c.error(ErrorKind::Value);   // (each record is tried against the conditions of each row of criteria)
         bool met = matchesAll;
         for (size_t r = 0; r < rows.size() && !met; ++r) {
             bool all = true;
