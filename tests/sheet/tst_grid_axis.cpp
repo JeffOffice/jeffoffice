@@ -143,6 +143,33 @@ private Q_SLOTS:
         QCOMPARE(a.total(), a.position(count));
     }
 
+    // A run of half a million hidden rows at the end of the sheet is stepped over backward in one step too: the last shown row (which every scroll asks for) costs a few steps.
+    void aHiddenRunAtTheEndIsSteppedOverBackwardInOneStep()
+    {
+        const qint64 count = 1048576;
+        Axis a(count, 20);
+        std::vector<Axis::Place> places;
+        for (qint64 i = 500000; i < count; ++i) places.push_back({i, 0});
+        a.assign(places);
+        a.total();
+        const qint64 before = a.probes();
+        QCOMPARE(a.lastVisible(), qint64(499999));
+        QVERIFY2(a.probes() - before < 50, qPrintable(QString::number(a.probes() - before)));
+        const qint64 before2 = a.probes();
+        QCOMPARE(a.previousVisible(count - 10), qint64(499999));
+        QCOMPARE(a.previousVisible(500000), qint64(499999));
+        QCOMPARE(a.previousVisible(499999), qint64(499998));
+        QVERIFY2(a.probes() - before2 < 100, qPrintable(QString::number(a.probes() - before2)));
+        // and a run that begins at the first row
+        Axis b(1000, 20);
+        std::vector<Axis::Place> front;
+        for (qint64 i = 0; i < 700; ++i) front.push_back({i, 0});
+        b.assign(front);
+        QCOMPARE(b.previousVisible(700), qint64(-1));
+        QCOMPARE(b.previousVisible(701), qint64(700));
+        QCOMPARE(b.firstVisible(), qint64(700));
+    }
+
     // Edits and changes of the default keep every answer right.
     void editsAndANewDefaultKeepTheAnswersRight()
     {

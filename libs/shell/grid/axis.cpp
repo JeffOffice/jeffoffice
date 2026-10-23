@@ -66,6 +66,7 @@ void Axis::rebuild() const
 {
     m_before.resize(m_places.size() + 1);
     m_hiddenEnd.resize(m_places.size());
+    m_hiddenStart.resize(m_places.size());
     qint64 sum = 0;
     for (size_t k = 0; k < m_places.size(); ++k) {
         m_before[k] = sum;
@@ -76,6 +77,11 @@ void Axis::rebuild() const
     for (size_t k = m_places.size(); k-- > 0;) {
         const Place &p = m_places[k];
         m_hiddenEnd[k] = p.size == 0 && k + 1 < m_places.size() && m_places[k + 1].size == 0 && m_places[k + 1].index == p.index + 1 ? m_hiddenEnd[k + 1] : p.index + 1;
+    }
+    // and the first row of the run each hidden place is in, from the first place on
+    for (size_t k = 0; k < m_places.size(); ++k) {
+        const Place &p = m_places[k];
+        m_hiddenStart[k] = p.size == 0 && k > 0 && m_places[k - 1].size == 0 && m_places[k - 1].index == p.index - 1 ? m_hiddenStart[k - 1] : p.index;
     }
     m_dirty = false;
 }
@@ -142,17 +148,14 @@ qint64 Axis::nextVisible(qint64 index) const
 qint64 Axis::previousVisible(qint64 index) const
 {
     qint64 prev = std::min(index, m_count) - 1;
+    if (prev < 0) return -1;
+    if (m_dirty || m_before.size() != m_places.size() + 1) rebuild();
+    // a hidden row is stepped over with the run it is in, back to the run's first
     while (prev >= 0) {
         ++m_probes;
         const int k = find(prev);
         if (k < 0 || m_places[size_t(k)].size != 0) return prev;
-        // (the run of hidden rows it is in, to its first)
-        qint64 first = prev, at = k;
-        while (at > 0 && m_places[size_t(at - 1)].size == 0 && m_places[size_t(at - 1)].index == first - 1) {
-            --at;
-            --first;
-        }
-        prev = first - 1;
+        prev = m_hiddenStart[size_t(k)] - 1;
     }
     return -1;
 }

@@ -63,6 +63,7 @@ private:
     mutable bool m_dirty = false;
     mutable std::vector<qint64> m_before;     // for place k, how much the places before it differ from the default, together: the sum of (size - default)
     mutable std::vector<qint64> m_hiddenEnd;  // for a hidden place, the index of the first row after the run of hidden rows it begins (its own index + 1 for a place of its own size)
+    mutable std::vector<qint64> m_hiddenStart; // for a hidden place, the index of the first row of the run of hidden rows it is in
     mutable qint64 m_probes = 0;
 };
 
