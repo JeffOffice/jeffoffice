@@ -246,7 +246,7 @@ void GridPainter::drawFill(QPainter *p, const QRect &rect, const CellLook &look,
 
 // A border on the edge that begins at (x, y) and goes `length` pixels, down (vertical) or right. A line's own pixels lie on the side of the edge before it (the last pixel of
 // the cell above or to the left, where a gridline is), thicker ones reaching over it.
-void GridPainter::drawEdge(QPainter *p, const LineLook &line, int x, int y, int length, bool vertical)
+void GridPainter::drawEdge(QPainter *p, const LineLook &line, int x, int y, int length, bool vertical, const QRect &clip)
 {
     if (line.style == BorderStyle::None || length <= 0) return;
     ++m_stats.borderSegments;
@@ -271,7 +271,15 @@ void GridPainter::drawEdge(QPainter *p, const LineLook &line, int x, int y, int 
     case BorderStyle::Double: two = true; thickness = 1; break;
     case BorderStyle::None: return;
     }
-    auto rect = [&](int offset, int width) { return vertical ? QRect(x + offset, y, width, length) : QRect(x, y + offset, length, width); };
+    // Only the part of the edge that is in the clip is drawn: along the edge, from `lo` to `hi` (the edge may be as long as a range of a million rows), and across it, the edge's own pixels.
+    const int along = vertical ? y : x, alongLo = vertical ? clip.top() : clip.left(), alongHi = vertical ? clip.bottom() + 1 : clip.right() + 1;
+    const int across = vertical ? x : y, acrossLo = vertical ? clip.left() : clip.top(), acrossHi = vertical ? clip.right() + 1 : clip.bottom() + 1;
+    const qint64 lo = std::max<qint64>(0, qint64(alongLo) - along), hi = std::min<qint64>(length, qint64(alongHi) - along);
+    if (lo >= hi) return;
+    const int reach = two ? 3 : std::abs(first) + thickness;   // (the pixels of the line lie within this of the edge)
+    if (across + 2 < acrossLo - reach || across - reach > acrossHi) return;
+    const int from = int(lo), size = int(hi - lo);
+    auto rect = [&](int offset, int width) { return vertical ? QRect(x + offset, y + from, width, size) : QRect(x + from, y + offset, size, width); };
     if (two) {
         p->fillRect(rect(-2, 1), color);
         p->fillRect(rect(0, 1), color);
@@ -282,14 +290,17 @@ void GridPainter::drawEdge(QPainter *p, const LineLook &line, int x, int y, int 
         p->fillRect(rect(first, thickness), color);
         return;
     }
-    // a dashed line: dashes of the pattern's lengths along the edge
-    int at = 0;
+    // a dashed line: dashes of the pattern's lengths along the edge, from the whole pattern that the part in the clip begins in
+    int period = 0;
+    for (qreal d : dashes) period += int(d);
+    qint64 at = (lo / period) * period;
     size_t step = 0;
-    while (at < length) {
+    while (at < hi) {
+        ++m_stats.dashSteps;
         const int run = int(dashes[int(step % size_t(dashes.size()))]);
         if (step % 2 == 0) {
-            const int len = std::min(run, length - at);
-            p->fillRect(vertical ? QRect(x + first, y + at, thickness, len) : QRect(x + at, y + first, len, thickness), color);
+            const qint64 begin = std::max(at, lo), end = std::min(at + run, hi);
+            if (end > begin) p->fillRect(vertical ? QRect(x + first, y + int(begin), thickness, int(end - begin)) : QRect(x + int(begin), y + first, int(end - begin), thickness), color);
         }
         at += run;
         ++step;
@@ -526,6 +537,8 @@ marked:
         }
     // ---- each row: fills, borders, text
     qint64 textBudget = kMaxTextRuns - m_stats.textRuns;
+    // (a font too small to read is not drawn, so a cell in one has no text made for it)
+    auto tooSmall = [&](const CellLook &look) { return fontFor(look, L.zoom()).pixelSize() < kMinFontPixels; };
     auto spillOfCell = [&](const Cell &cell, const CellLook &look, const Shown &sh, qint64 row) {
         const double width = colsAxis.size(cell.col);
         const bool centerContinuous = sh.align == HAlign::CenterContinuous;
@@ -562,12 +575,12 @@ marked:
                 const CellLook *a = k > 0 ? w.looks[i * C + k - 1] : nullptr, *b = k < C ? w.looks[i * C + k] : nullptr;
                 const LineLook &line = heavier(a ? &a->right : nullptr, b ? &b->left : nullptr);
                 const int x = k < c1 ? w.cols[k].start : w.cols[c1 - 1].start + w.cols[c1 - 1].size;
-                drawEdge(p, line, x, rs.start, rs.size, true);
+                drawEdge(p, line, x, rs.start, rs.size, true, area);
             }
             for (size_t j = c0; j < c1; ++j) {
                 if (!w.covered.empty() && w.covered[i * C + j] && i > 0 && w.covered[(i - 1) * C + j]) continue;
                 const CellLook *above = i > 0 ? w.looks[(i - 1) * C + j] : nullptr, *here = w.looks[i * C + j];
-                drawEdge(p, heavier(above ? &above->bottom : nullptr, here ? &here->top : nullptr), w.cols[j].start, rs.start, w.cols[j].size, false);
+                drawEdge(p, heavier(above ? &above->bottom : nullptr, here ? &here->top : nullptr), w.cols[j].start, rs.start, w.cols[j].size, false, area);
                 if (here && here->diagonal.style != BorderStyle::None && (here->diagonalUp || here->diagonalDown)) {
                     p->save();
                     p->setClipRect(QRect(w.cols[j].start, rs.start, w.cols[j].size, rs.size) & area);
@@ -584,9 +597,10 @@ marked:
             const Cell *cell = w.cells[i * C + j];
             if (!cell || (!w.covered.empty() && w.covered[i * C + j])) continue;
             if (cell->type == CellType::Empty && !cell->hasFormula()) continue;
+            const CellLook &look = looks.look(cell->style);
+            if (tooSmall(look)) continue;   // (before the text is made, and its neighbors looked at: nothing of it would be drawn)
             const Shown sh = m_sheet->shown(cell->row, cell->col, *cell);
             if (sh.kind == Kind::Empty && !sh.hashes) continue;
-            const CellLook &look = looks.look(cell->style);
             const Spill sp = spillOfCell(*cell, look, sh, rs.index);
             QRect box(w.cols[j].start, rs.start, w.cols[j].size, rs.size);
             if (o.gridlines && sp.left + sp.right > 0) {
@@ -607,9 +621,10 @@ marked:
         if (textBudget <= 0 && !m_stats.truncated) m_stats.truncated = true;
         for (const Cell *cand : {w.leftCandidate[i], w.rightCandidate[i]}) {
             if (!cand || textBudget <= 0) continue;
+            const CellLook &look = looks.look(cand->style);
+            if (tooSmall(look)) continue;
             const Shown sh = m_sheet->shown(cand->row, cand->col, *cand);
             if (sh.kind != Kind::Text || sh.hashes) continue;
-            const CellLook &look = looks.look(cand->style);
             const Spill sp = spillOfCell(*cand, look, sh, rs.index);
             if (sp.left + sp.right == 0) continue;
             const int cx0 = L.xEdge(cand->col, frozenCols), cx1 = L.xEdge(qint64(cand->col) + 1, frozenCols);
@@ -625,7 +640,7 @@ marked:
         for (size_t j = c0; j < c1; ++j) {
             const CellLook *here = w.looks[(r1 - 1) * C + j], *below = r1 < R ? w.looks[r1 * C + j] : nullptr;
             const Span &rs = w.rows[r1 - 1];
-            drawEdge(p, heavier(here ? &here->bottom : nullptr, below ? &below->top : nullptr), w.cols[j].start, rs.start + rs.size, w.cols[j].size, false);
+            drawEdge(p, heavier(here ? &here->bottom : nullptr, below ? &below->top : nullptr), w.cols[j].start, rs.start + rs.size, w.cols[j].size, false, area);
         }
     // ---- merged ranges, each as one cell: its fill (over the gridlines inside it, but not those that bound it), its borders from the cells at its corners, and its first cell's text
     for (int id : merges) {
@@ -644,12 +659,12 @@ marked:
                 return x && x->style ? &looks.look(x->style) : nullptr;
             };
             const CellLook *tl = lookOf(m.row1, m.col1), *tr = lookOf(m.row1, m.col2), *bl = lookOf(m.row2, m.col1), *br = lookOf(m.row2, m.col2);
-            drawEdge(p, heavier(tl ? &tl->left : nullptr, bl ? &bl->left : nullptr), rect.left(), rect.top(), rect.height(), true);
-            drawEdge(p, heavier(tr ? &tr->right : nullptr, br ? &br->right : nullptr), rect.right() + 1, rect.top(), rect.height(), true);
-            drawEdge(p, heavier(tl ? &tl->top : nullptr, tr ? &tr->top : nullptr), rect.left(), rect.top(), rect.width(), false);
-            drawEdge(p, heavier(bl ? &bl->bottom : nullptr, br ? &br->bottom : nullptr), rect.left(), rect.bottom() + 1, rect.width(), false);
+            drawEdge(p, heavier(tl ? &tl->left : nullptr, bl ? &bl->left : nullptr), rect.left(), rect.top(), rect.height(), true, area);
+            drawEdge(p, heavier(tr ? &tr->right : nullptr, br ? &br->right : nullptr), rect.right() + 1, rect.top(), rect.height(), true, area);
+            drawEdge(p, heavier(tl ? &tl->top : nullptr, tr ? &tr->top : nullptr), rect.left(), rect.top(), rect.width(), false, area);
+            drawEdge(p, heavier(bl ? &bl->bottom : nullptr, br ? &br->bottom : nullptr), rect.left(), rect.bottom() + 1, rect.width(), false, area);
         }
-        if (anchor && textBudget > 0) {
+        if (anchor && textBudget > 0 && !tooSmall(look)) {
             const Shown sh = m_sheet->shown(anchor->row, anchor->col, *anchor);
             if (sh.kind != Kind::Empty || sh.hashes) {
                 drawText(p, rect, rect, area, look, sh, o);

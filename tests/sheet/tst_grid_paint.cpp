@@ -683,6 +683,71 @@ private Q_SLOTS:
         g.render();
         QCOMPARE(g.painter->stats().headersDrawn, qint64(0));
     }
+
+    // A hair border round a merged range of a hundred thousand rows is drawn as the dashes of the part that is on the screen: the steps a paint takes are those of the window,
+    // not of the length of the range (which is two million pixels).
+    void aDashedBorderOfATallMergeCostsWhatIsOnTheScreen()
+    {
+        Fixture f;
+        BorderSpec b;
+        b.left = Fixture::side(BorderStyle::Hair, 0x000000);
+        b.right = Fixture::side(BorderStyle::Hair, 0x000000);
+        b.top = Fixture::side(BorderStyle::Hair, 0x000000);
+        b.bottom = Fixture::side(BorderStyle::Hair, 0x000000);
+        const quint32 hair = f.border(b);
+        for (quint32 r : {0u, 99999u})
+            for (quint32 c : {0u, 1u}) f.blank(r, c, hair);
+        f.sheet.merges.append(mergeOf(0, 0, 99999, 1));
+        f.build();
+        f.render();
+        const PaintStats s = f.painter->stats();
+        QVERIFY2(s.dashSteps <= 3000, qPrintable(QStringLiteral("%1 dash steps").arg(s.dashSteps)));
+        QVERIFY(s.borderSegments >= 2);
+    }
+
+    // The tallest default row (409.5 points) at the largest zoom, with a hair border on every cell: each edge is drawn for the part of it that is on the screen.
+    void dashedBordersAtTheLargestRowsAndZoomCostTheWindow()
+    {
+        Fixture f;
+        BorderSpec b;
+        b.left = Fixture::side(BorderStyle::Dashed, 0x000000);
+        b.right = Fixture::side(BorderStyle::Dashed, 0x000000);
+        b.top = Fixture::side(BorderStyle::Dashed, 0x000000);
+        b.bottom = Fixture::side(BorderStyle::Dashed, 0x000000);
+        const quint32 dashed = f.border(b);
+        for (quint32 r = 0; r < 3; ++r)
+            for (quint32 c = 0; c < 4; ++c) f.blank(r, c, dashed);
+        f.build();
+        f.grid.layout().rows.setDefaultSize(546);   // (409.5 points)
+        f.grid.layout().setZoom(4.0);
+        f.grid.layout().setViewport(f.size);
+        f.render();
+        const PaintStats s = f.painter->stats();
+        QVERIFY2(s.dashSteps <= 4000, qPrintable(QStringLiteral("%1 dash steps").arg(s.dashSteps)));
+        QVERIFY(s.borderSegments >= 4);
+    }
+
+    // A font too small to read is not drawn, and costs nothing: no text is made for the cell, and no neighbor is looked at for it to spill into.
+    void textTooSmallToReadMakesNoText()
+    {
+        Fixture f;
+        f.size = QSize(1280, 800);
+        for (quint32 r = 0; r < 100; ++r)
+            for (quint32 c = 0; c < 10; ++c) f.text(r, c, QStringLiteral("a text that does not fit its cell"));
+        f.build();
+        f.grid.layout().setZoom(0.1);
+        f.grid.layout().setViewport(f.size);
+        f.render();
+        const PaintStats s = f.painter->stats();
+        QCOMPARE(s.textRuns, qint64(0));
+        QCOMPARE(s.textsMade, qint64(0));
+        QCOMPARE(s.spillProbes, qint64(0));
+        // (and the same cells at 100% have their text)
+        f.grid.layout().setZoom(1.0);
+        f.painter->resetFonts();
+        f.render();
+        QVERIFY(f.painter->stats().textRuns > 100);
+    }
 };
 
 JP_TEST_CLASS(GridPaintTests)

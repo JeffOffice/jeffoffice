@@ -47,6 +47,7 @@ struct PaintStats {
     qint64 spillProbes = 0;      // cells looked at to see whether text may go into them
     qint64 fills = 0;
     qint64 borderSegments = 0;
+    qint64 dashSteps = 0;        // the dashes and gaps of dashed borders stepped over
     qint64 gridLines = 0;
     qint64 textRuns = 0;         // texts drawn
     qint64 textChars = 0;        // their characters
@@ -93,7 +94,7 @@ private:
     void paintHeaders(QPainter *p, const QRect &clip, const PaintOptions &o);
     void paintSelection(QPainter *p, Pane which, const QRect &area, const PaintOptions &o);
     void drawFill(QPainter *p, const QRect &rect, const CellLook &look, const PaintOptions &o);
-    void drawEdge(QPainter *p, const LineLook &line, int x, int y, int length, bool vertical);
+    void drawEdge(QPainter *p, const LineLook &line, int x, int y, int length, bool vertical, const QRect &clip);
     void drawText(QPainter *p, const QRect &cell, const QRect &box, const QRect &area, const CellLook &look, const Shown &shown, const PaintOptions &o);
     const QFont &fontFor(const CellLook &look, double scale);
     QBrush patternBrush(PatternKind kind, QRgb fg, QRgb bg);
