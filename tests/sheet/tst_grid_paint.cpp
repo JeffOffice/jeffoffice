@@ -2,6 +2,10 @@
 // where it is cut or spills, merged ranges, frozen panes, the selection, the headers), and the work a paint does, counted as it is done, for sheets of a million rows and for
 // hostile ones (rows of one pixel, hidden rows, a hundred thousand merged ranges, texts of 32,000 characters, a million cell formats). Cells are made here; the checks are on
 // colors and on counts, never on the shape of a letter, so they hold on every system's fonts.
+#include <QRawFont>
+#include <QFontInfo>
+#include <QFontMetricsF>
+#include "core/fonts.h"
 #include "sheethelpers.h"
 
 #include "grid/painter.h"
@@ -160,10 +164,29 @@ CellRange mergeOf(quint32 r1, quint32 c1, quint32 r2, quint32 c2)
 
 } // namespace
 
+// What the fixture's font is on this computer, for a failure that depends on it: the family the system gave, its size, and the width of a text by the font's
+// metrics and by the glyphs the painter draws with (the two should agree).
+static QString fontReport(const QString &text)
+{
+    QFont f(QStringLiteral("Calibri"));
+    f.setPixelSize(15);   // (11 points at 96 a inch, as the painter makes it)
+    f.setKerning(false);
+    f.setHintingPreference(QFont::PreferNoHinting);
+    const QRawFont raw = QRawFont::fromFont(f);
+    qreal glyphs = 0;
+    for (const QPointF &a : raw.advancesForGlyphIndexes(raw.glyphIndexesForString(text))) glyphs += a.x();
+    return QStringLiteral("font %1 (asked Calibri), pixel size %2, raw pixel size %3; \"%4\" is %5 px by metrics, %6 px by glyphs")
+        .arg(QFontInfo(f).family()).arg(QFontInfo(f).pixelSize()).arg(raw.pixelSize()).arg(text).arg(QFontMetricsF(f).horizontalAdvance(text)).arg(glyphs);
+}
+
 class GridPaintTests : public QObject {
     Q_OBJECT
 
 private Q_SLOTS:
+    // The program's own fonts and their stand-ins, as JeffCrunch loads them at its start: without them a computer with no Calibri (and, under the offscreen platform on
+    // Windows, with no fonts at all) draws every letter as wide as the font is tall.
+    void initTestCase() { jp::initCore(); }
+
     // The gridlines are the last pixel of each cell's right and bottom, and a fill covers the cell whole, so a filled cell has none; with gridlines off there are none.
     void gridlinesAreTheLastPixelAndAFillCoversThem()
     {
@@ -318,7 +341,7 @@ private Q_SLOTS:
         f.build();
         const QImage img = f.render();
         QVERIFY(inkIn(img, QRect(0, 0, 64, 20)) > 5);
-        QCOMPARE(inkIn(img, QRect(64, 0, 64, 20)), 0);
+        QVERIFY2(inkIn(img, QRect(64, 0, 64, 20)) == 0, qPrintable(fontReport(QStringLiteral("Hello"))));
         // cut: ink in the first cell, none in the second
         QVERIFY(inkIn(img, QRect(0, 20, 64, 20)) > 50);
         QCOMPARE(inkIn(img, QRect(64, 20, 64, 20)), 0);
@@ -371,7 +394,7 @@ private Q_SLOTS:
         f.options.gridlines = false;
         f.build();
         const QImage img = f.render();
-        QCOMPARE(f.painter->stats().hashed, qint64(1));
+        QVERIFY2(f.painter->stats().hashed == 1, qPrintable(QString::number(f.painter->stats().hashed) + QStringLiteral(" hashed; ") + fontReport(QStringLiteral("5.00"))));
         QVERIFY(inkIn(img, QRect(0, 0, 64, 20)) > 20);
         QCOMPARE(inkIn(img, QRect(64, 0, 64, 20)), 0);   // (not spilled)
         QVERIFY(inkIn(img, QRect(0, 20, 64, 20)) > 5);

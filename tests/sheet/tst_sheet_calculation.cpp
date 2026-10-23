@@ -115,7 +115,9 @@ private Q_SLOTS:
             if (p.finished) break;
             QVERIFY(slices < 100000);
         }
-        QVERIFY2(slices >= 100, qPrintable(QString::number(slices)));   // (the clock is read every formula, and a few take a microsecond)
+        // (The clock ends the slices: more than one call was needed. How many depends on how many formulas a machine works out within a microsecond: about 400 here, 82 on a
+        // faster one; so the count is not held to more than that.)
+        QVERIFY2(slices >= 2, qPrintable(QString::number(slices)));
         QCOMPARE(evaluated, whole.calc->formulaCount());
         for (int i = 1; i <= 400; ++i) QCOMPARE(sliced.at(QStringLiteral("B%1").arg(i)), whole.at(QStringLiteral("B%1").arg(i)));
         // a long time: all of it in one call
