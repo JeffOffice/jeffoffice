@@ -37,12 +37,15 @@ bool isSpace(QChar c) { return c == QLatin1Char(' ') || c == QLatin1Char('\t') |
 
 const char *const kErrorLiterals[] = {"#NULL!", "#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#GETTING_DATA", "#SPILL!", "#CALC!", "#FIELD!", "#BLOCKED!", "#CONNECT!", "#EXTERNAL!", "#UNKNOWN!"};
 
-QString stripFunctionPrefix(QString name)
+// The name without the prefixes a newer function carries in a file; `prefixed` says whether it had _xlfn. in front.
+QString stripFunctionPrefix(QString name, bool *prefixed = nullptr)
 {
+    if (prefixed) *prefixed = false;
     for (bool stripped = true; stripped;) {
         stripped = false;
         for (const char *prefix : {"_xlfn.", "_xlws."})
             if (name.startsWith(QLatin1String(prefix), Qt::CaseInsensitive)) {
+                if (prefixed && prefix[3] == 'f') *prefixed = true;
                 name.remove(0, int(strlen(prefix)));
                 stripped = true;
             }
@@ -523,6 +526,22 @@ private:
                     int w = close;
                     if (s[w] != QLatin1Char('!')) w = wordEnd(w);
                     if (w < n && s[w] == QLatin1Char('!')) {
+                        // [1]!'a name in quotes', and [0]!Function(...) of an add-in or a macro of another workbook
+                        if (w + 1 < n && s[w + 1] == QLatin1Char('\'')) {
+                            const int e = quotedEnd(w + 1, nullptr);
+                            if (e < 0) return fail(w + 1, QStringLiteral("The name in quotes is never closed."));
+                            t.kind = T::External;
+                            t.text = s.mid(i, e - i);
+                            if (!push(t, i, e)) return fail(i, QStringLiteral("The formula is longer than any real one."));
+                            continue;
+                        }
+                        const int fe = wordEnd(w + 1);
+                        if (fe > w + 1 && fe < n && s[fe] == QLatin1Char('(')) {
+                            t.kind = T::Func;
+                            t.text = s.mid(i, fe - i);
+                            if (!push(t, i, fe)) return fail(i, QStringLiteral("The formula is longer than any real one."));
+                            continue;
+                        }
                         int end;
                         Token body;
                         if (!lexBody(w + 1, &body, &end, -1, -1)) return error.isEmpty() ? fail(w + 1, QStringLiteral("There is no reference after the sheet.")) : false;
@@ -959,8 +978,11 @@ private:
         advance();   // the name
         advance();   // "("
         if (!enter()) return false;
-        QString name = stripFunctionPrefix(t.text).toUpper();
-        const int fi = functionIndex(name);
+        bool prefixed = false;
+        QString name = stripFunctionPrefix(t.text, &prefixed).toUpper();
+        int fi = functionIndex(name);
+        // a function that came later is written with its prefix; without it, the name is some other function's
+        if (fi >= 0 && (functionAt(fi).flags & kFnFuture) && !prefixed) fi = -1;
         const FunctionInfo *fn = fi >= 0 ? &functionAt(fi) : nullptr;
         if (name == QLatin1String("SINGLE") && !fn) {
             // the form in which a newer file writes "@"

@@ -264,11 +264,11 @@ void registerLogicFunctions(std::vector<FunctionInfo> &r)
 {
     r.push_back({"IF", 2, 3, "nnn", kFnLazy, fnIf});
     r.push_back({"IFERROR", 2, 2, "nn", kFnLazy, fnIfErrorF});
-    r.push_back({"IFNA", 2, 2, "nn", kFnLazy, fnIfNaF});
+    r.push_back({"IFNA", 2, 2, "nn", kFnLazy | kFnFuture, fnIfNaF});
     r.push_back({"CHOOSE", 2, 254, "nn", kFnLazy, fnChoose});
     r.push_back({"AND", 1, 255, "r", 0, fnAnd});
     r.push_back({"OR", 1, 255, "r", 0, fnOr});
-    r.push_back({"XOR", 1, 255, "r", 0, fnXor});
+    r.push_back({"XOR", 1, 255, "r", kFnFuture, fnXor});
     r.push_back({"NOT", 1, 1, "v", 0, fnNot});
     r.push_back({"TRUE", 0, 0, "", 0, fnTrue});
     r.push_back({"FALSE", 0, 0, "", 0, fnFalse});

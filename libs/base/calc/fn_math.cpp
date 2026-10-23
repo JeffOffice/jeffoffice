@@ -146,7 +146,7 @@ Value fnSum(Call &c)
 {
     double sum = 0;
     Value error;
-    if (!eachNumber(c, 0, kSkipText, &error, [&](double x) { sum += x; })) return error;
+    if (!eachNumber(c, 0, kSkipText, &error, [&](double x) { sum = snappedSum(sum, x); })) return error;
     return numberResult(sum);
 }
 
@@ -194,7 +194,7 @@ Value average(Call &c, int mode)
     qint64 n = 0;
     Value error;
     if (!eachNumber(c, 0, mode, &error, [&](double x) {
-            sum += x;
+            sum = snappedSum(sum, x);
             ++n;
         }))
         return error;
@@ -328,7 +328,7 @@ Value fnPower(Call &c)
     if (x == 0 && y == 0) return c.error(ErrorKind::Num);
     if (x == 0 && y < 0) return c.error(ErrorKind::Div0);
     if (x < 0 && y != std::floor(y)) return c.error(ErrorKind::Num);
-    return numberResult(std::pow(x, y));
+    return numberResult(powerOf(x, y));
 }
 
 Value fnMod(Call &c)

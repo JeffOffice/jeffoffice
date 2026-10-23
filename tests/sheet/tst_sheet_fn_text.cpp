@@ -119,11 +119,13 @@ private Q_SLOTS:
         const E cases[] = {
             {"CONCATENATE(\"a\",1,TRUE)", "s:a1TRUE"},
             {"CONCATENATE(\"a\")", "s:a"},
+            // CONCAT, newer than the first release, is a function of its own only with its prefix: a file that writes CONCAT without one means some other function
+            {"CONCAT(\"a\")", "!unsupported: CONCAT"},
             {"CONCATENATE(A1,A2,A9)", "s:x2.5"},
             {"CONCATENATE(\"a\",#N/A)", "e:#N/A"},
             {"CONCATENATE(,\"a\")", "s:a"},
-            {"CONCAT(\"a\",\"b\",1)", "s:ab1"},
-            {"CONCAT(A1:A2)", "s:x2.5"},
+            {"_xlfn.CONCAT(\"a\",\"b\",1)", "s:ab1"},
+            {"_xlfn.CONCAT(A1:A2)", "s:x2.5"},
             {"UPPER(\"abC\")", "s:ABC"},
             {"LOWER(\"AbC\")", "s:abc"},
             {"PROPER(\"hello wORLD\")", "s:Hello World"},
@@ -142,8 +144,8 @@ private Q_SLOTS:
             {"CODE(\"A\")", "n:65"},
             {"CODE(\"abc\")", "n:97"},
             {"CODE(\"\")", "e:#VALUE!"},
-            {"TEXTJOIN(\", \",TRUE,\"a\",\"\",\"b\")", "s:a, b"},
-            {"TEXTJOIN(\"-\",FALSE,\"a\",\"\",\"b\")", "s:a--b"},
+            {"_xlfn.TEXTJOIN(\", \",TRUE,\"a\",\"\",\"b\")", "s:a, b"},
+            {"_xlfn.TEXTJOIN(\"-\",FALSE,\"a\",\"\",\"b\")", "s:a--b"},
         };
         CHECK_EVALS(cases, g, Settings());
     }

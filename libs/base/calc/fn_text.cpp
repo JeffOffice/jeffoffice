@@ -375,8 +375,8 @@ void registerTextFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"SEARCH", 2, 3, "vvv", 0, fnSearch});
     r.push_back({"EXACT", 2, 2, "vv", 0, fnExact});
     r.push_back({"CONCATENATE", 1, 255, "v", 0, fnConcatenate});
-    r.push_back({"CONCAT", 1, 255, "r", 0, fnConcat});
-    r.push_back({"TEXTJOIN", 3, 255, "vvr", 0, fnTextJoin});
+    r.push_back({"CONCAT", 1, 255, "r", kFnFuture, fnConcat});
+    r.push_back({"TEXTJOIN", 3, 255, "vvr", kFnFuture, fnTextJoin});
     r.push_back({"UPPER", 1, 1, "v", 0, fnUpper});
     r.push_back({"LOWER", 1, 1, "v", 0, fnLower});
     r.push_back({"PROPER", 1, 1, "v", 0, fnProper});

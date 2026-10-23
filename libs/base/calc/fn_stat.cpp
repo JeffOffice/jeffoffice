@@ -230,12 +230,16 @@ Value fnSumProduct(Call &c)
 
 // ---- the statistics
 
-// The numbers of arguments from `first` on: in a reference or array the numbers; typed, a text read as a number, a boolean as 1 or 0. An error stops it.
-bool gatherNumbers(Call &c, int first, std::vector<double> *out, Value *error)
+// The numbers of arguments from `first` on: in a reference or array the numbers; typed, a text read as a number, a boolean as 1 or 0. An error stops it. With
+// `skipSubtotals` the cells of references that hold a SUBTOTAL are left out.
+bool gatherNumbers(Call &c, int first, std::vector<double> *out, Value *error, bool skipSubtotals = false)
 {
     for (int i = first; i < c.argc(); ++i) {
         bool ok = true;
-        const bool done = c.each(i, [&](const Value &v, bool typed) {
+        const bool typedArgument = !c.missing(i) && c.item(i).kind == Item::Kind::Value && !c.item(i).value.isArray();
+        const bool done = c.eachCell(i, [&](const Value &v, int sheet, quint32 row, quint32 col) {
+            const bool typed = typedArgument;
+            if (skipSubtotals && sheet >= 0 && c.machine().source().isSubtotal(sheet, row, col)) return true;
             double x;
             switch (v.kind()) {
             case Value::Kind::Number: out->push_back(v.number()); break;
@@ -368,7 +372,8 @@ Value fnSubtotal(Call &c)
     if (fn == 3) {
         qint64 n = 0;
         for (int i = 1; i < c.argc(); ++i)
-            if (!c.each(i, [&](const Value &, bool) {
+            if (!c.eachCell(i, [&](const Value &, int sheet, quint32 row, quint32 col) {
+                    if (sheet >= 0 && c.machine().source().isSubtotal(sheet, row, col)) return true;
                     ++n;
                     return true;
                 }))
@@ -377,8 +382,7 @@ Value fnSubtotal(Call &c)
     }
     std::vector<double> x;
     Value error;
-    // cells only: a typed value counts the same, but references are what SUBTOTAL is given
-    if (!gatherNumbers(c, 1, &x, &error)) return error;
+    if (!gatherNumbers(c, 1, &x, &error, true)) return error;
     const size_t n = x.size();
     double sum = 0;
     for (const double v : x) sum += v;
@@ -480,13 +484,13 @@ void registerStatFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"SUBTOTAL", 2, 255, "vr", 0, fnSubtotal});
     r.push_back({"MEDIAN", 1, 255, "r", 0, fnMedian});
     r.push_back({"STDEV", 1, 255, "r", 0, fnStdev});
-    r.push_back({"STDEV.S", 1, 255, "r", 0, fnStdev});
+    r.push_back({"STDEV.S", 1, 255, "r", kFnFuture, fnStdev});
     r.push_back({"STDEVP", 1, 255, "r", 0, fnStdevP});
-    r.push_back({"STDEV.P", 1, 255, "r", 0, fnStdevP});
+    r.push_back({"STDEV.P", 1, 255, "r", kFnFuture, fnStdevP});
     r.push_back({"VAR", 1, 255, "r", 0, fnVar});
-    r.push_back({"VAR.S", 1, 255, "r", 0, fnVar});
+    r.push_back({"VAR.S", 1, 255, "r", kFnFuture, fnVar});
     r.push_back({"VARP", 1, 255, "r", 0, fnVarP});
-    r.push_back({"VAR.P", 1, 255, "r", 0, fnVarP});
+    r.push_back({"VAR.P", 1, 255, "r", kFnFuture, fnVarP});
     r.push_back({"LARGE", 2, 2, "rv", 0, fnLarge});
     r.push_back({"SMALL", 2, 2, "rv", 0, fnSmall});
     r.push_back({"RANK", 2, 3, "vrv", 0, fnRank});

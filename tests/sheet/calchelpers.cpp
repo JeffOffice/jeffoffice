@@ -59,6 +59,16 @@ Grid &Grid::name(const QString &name, const QString &formula, int sheet)
     return *this;
 }
 
+Grid &Grid::subtotal(const QString &ref, int sheet)
+{
+    quint32 row = 0, col = 0;
+    if (!jp::office::sheet::parseCellRef(ref, &row, &col)) qFatal("bad reference in a test: %s", qPrintable(ref));
+    m_subtotals.insert(QStringLiteral("%1|%2|%3").arg(sheet).arg(row).arg(col));
+    return *this;
+}
+
+bool Grid::isSubtotal(int sheet, quint32 row, quint32 col) const { return m_subtotals.contains(QStringLiteral("%1|%2|%3").arg(sheet).arg(row).arg(col)); }
+
 int Grid::sheetCount() const { return int(m_sheets.size()); }
 
 int Grid::sheetIndex(const QString &name) const

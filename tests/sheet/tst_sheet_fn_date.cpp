@@ -145,9 +145,11 @@ private Q_SLOTS:
             {"EOMONTH(DATE(2024,1,31),1)", "n:45351"}, {"EOMONTH(\"x\",1)", "e:#VALUE!"},
             {"EDATE(45366,1)", "n:45397"}, {"EDATE(DATE(2024,1,31),1)", "n:45351"}, {"EDATE(45366,-1)", "n:45337"}, {"EDATE(45366,0)", "n:45366"},
             {"EDATE(\"x\",1)", "e:#VALUE!"},
+            // February 1900 has 28 days to these functions (the calendar's), though day 60 is called February 29 by the others
+            {"EOMONTH(DATE(1900,2,10),0)", "n:59"}, {"EOMONTH(31,0)", "n:31"}, {"EOMONTH(31,1)", "n:59"}, {"EDATE(DATE(1900,1,31),1)", "n:59"},
             {"WORKDAY(45366,1)", "n:45369"}, {"WORKDAY(45366,5)", "n:45373"}, {"WORKDAY(45366,0)", "n:45366"}, {"WORKDAY(45369,-1)", "n:45366"},
             {"NETWORKDAYS(45366,45373)", "n:6"}, {"NETWORKDAYS(45373,45366)", "n:-6"}, {"NETWORKDAYS(45367,45368)", "n:0"},
-            {"DAYS(45400,45366)", "n:34"},
+            {"_xlfn.DAYS(45400,45366)", "n:34"},
             {"DAYS360(DATE(2024,1,1),DATE(2024,12,31))", "n:360"}, {"DAYS360(DATE(2024,1,1),DATE(2024,12,31),TRUE)", "n:359"},
             {"DAYS360(DATE(2024,1,31),DATE(2024,3,31))", "n:60"},
             {"YEARFRAC(DATE(2024,1,1),DATE(2024,7,1))", "n:0.5"},

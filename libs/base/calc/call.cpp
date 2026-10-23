@@ -91,6 +91,28 @@ bool wildcardMatch(const QString &text, int ti, const QString &pat, int pi, bool
     return prefix || ti == text.size();
 }
 
+double powerOf(double x, double y)
+{
+    if (x == 0) return y > 0 ? 0.0 : INFINITY;
+    const bool whole = y == std::floor(y);
+    if (x < 0 && !whole) return NAN;
+    const double base = std::fabs(x);
+    double r;
+    if (whole && std::fabs(y) <= 2147483648.0) {
+        double acc = 1, b = base;
+        qint64 n = qint64(std::fabs(y));
+        while (n) {
+            if (n & 1) acc *= b;
+            b *= b;
+            n >>= 1;
+        }
+        r = y < 0 ? 1 / acc : acc;
+    } else {
+        r = std::exp(y * std::log(base));
+    }
+    return x < 0 && whole && std::fmod(y, 2.0) != 0 ? -r : r;
+}
+
 Value Table::at(qint64 row, qint64 col) const
 {
     if (m_isRef) {
@@ -157,6 +179,11 @@ bool Call::each(int i, const std::function<bool(const Value &, bool)> &f)
 
 bool Call::eachAt(int i, const std::function<bool(const Value &, quint32, quint32)> &f)
 {
+    return eachCell(i, [&](const Value &v, int, quint32 row, quint32 col) { return f(v, row, col); });
+}
+
+bool Call::eachCell(int i, const std::function<bool(const Value &, int, quint32, quint32)> &f)
+{
     if (i >= argc()) return true;
     const Item &it = m_args[size_t(i)];
     switch (it.kind) {
@@ -167,11 +194,11 @@ bool Call::eachAt(int i, const std::function<bool(const Value &, quint32, quint3
                 for (int c = 0; c < it.value.cols(); ++c) {
                     const Value &v = it.value.at(r, c);
                     if (v.isEmpty()) continue;
-                    if (!m.charge(1) || !f(v, quint32(r), quint32(c))) return false;
+                    if (!m.charge(1) || !f(v, -1, quint32(r), quint32(c))) return false;
                 }
             return true;
         }
-        return f(it.value, 0, 0);
+        return f(it.value, -1, 0, 0);
     case Item::Kind::Ref:
         for (int a = 0; a < it.areaCount(); ++a) {
             const RefArea &area = it.areaAt(a);
@@ -183,7 +210,7 @@ bool Call::eachAt(int i, const std::function<bool(const Value &, quint32, quint3
                         return false;
                     }
                     if (v.isEmpty()) return true;
-                    if (!f(v, r, c)) {
+                    if (!f(v, s, r, c)) {
                         go = false;
                         return false;
                     }

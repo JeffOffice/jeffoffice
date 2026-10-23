@@ -11,9 +11,6 @@ namespace jp::calc {
 
 namespace {
 
-// A sum or difference within this much (relative to the larger term) of zero is zero: 2^-48, the nearest the original gets before it says the terms are equal.
-constexpr double kZeroSnap = 3.552713678800501e-15;
-
 bool isErr(const Value &v) { return v.kind() == Value::Kind::Error; }
 
 } // namespace
@@ -182,7 +179,7 @@ Value scalarBinary(Op op, const Value &a, const Value &b, bool final, DateSystem
             if (x == 0 && y == 0) return Value::error(ErrorKind::Num);
             if (x == 0 && y < 0) return Value::error(ErrorKind::Div0);
             if (x < 0 && y != std::floor(y)) return Value::error(ErrorKind::Num);
-            r = std::pow(x, y);
+            r = powerOf(x, y);
             break;
         }
         return numberResult(r);
@@ -387,8 +384,8 @@ Item Machine::runProgram(const Program &p, bool)
             stack.push_back(evaluateText(formula, false, true, sheet));
             break;
         }
-        case Op::PushTable:
-        case Op::PushExternal: stack.push_back(Item::ofError(ErrorKind::Ref)); break;
+        case Op::PushTable: unsupported |= 2; stack.push_back(Item::ofError(ErrorKind::Ref)); break;
+        case Op::PushExternal: unsupported |= 1; stack.push_back(Item::ofError(ErrorKind::Ref)); break;
         case Op::Add: case Op::Sub: case Op::Mul: case Op::Div: case Op::Pow: case Op::Concat:
         case Op::Eq: case Op::Ne: case Op::Lt: case Op::Le: case Op::Gt: case Op::Ge: {
             if (!have(2)) return bad();
@@ -419,6 +416,7 @@ Item Machine::runProgram(const Program &p, bool)
         case Op::Spill: {
             if (!have(1)) return bad();
             pop();
+            unsupported |= 2;
             stack.push_back(Item::ofError(ErrorKind::Ref));
             break;
         }
@@ -428,6 +426,7 @@ Item Machine::runProgram(const Program &p, bool)
             std::vector<Item> args(argc);
             for (size_t k = argc; k-- > 0;) args[k] = pop();
             if (in.operand < 0) {
+                unsupported |= 4;
                 stack.push_back(Item::ofError(ErrorKind::Name));
                 break;
             }
@@ -523,6 +522,9 @@ Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, in
     }
     if (!it->program) return Item::ofError(relativeToA1 ? ErrorKind::Name : ErrorKind::Ref);
     const std::shared_ptr<const Program> program = it->program;
+    if (program->external) unsupported |= 1;
+    if (program->structured) unsupported |= 2;
+    if (!program->unknownFunctions.isEmpty()) unsupported |= 4;
     const int savedRows = ctx.shiftRows, savedCols = ctx.shiftCols;
     ctx.shiftRows = relativeToA1 ? int(ctx.row) : 0;
     ctx.shiftCols = relativeToA1 ? int(ctx.col) : 0;
@@ -541,6 +543,7 @@ Value Machine::run(const Program &p, const EvalContext &c)
     over = false;
     status = EvalStatus::Ok;
     nameDepth = 0;
+    unsupported = 0;
     stack.clear();
     if (!ctx.source) return Value::error(ErrorKind::Value);
     const Item r = runProgram(p, p.arrayFormula);
@@ -568,6 +571,7 @@ Evaluator::~Evaluator() = default;
 
 Value Evaluator::evaluate(const Program &program, const EvalContext &context) { return d->machine.run(program, context); }
 EvalStatus Evaluator::status() const { return d->machine.status; }
+int Evaluator::unsupportedKinds() const { return d->machine.unsupported; }
 qint64 Evaluator::work() const { return d->machine.work; }
 void Evaluator::setWorkLimit(qint64 steps) { d->machine.limit = steps; }
 void Evaluator::seedRandom(quint64 seed) { d->machine.rng.seed(seed); }

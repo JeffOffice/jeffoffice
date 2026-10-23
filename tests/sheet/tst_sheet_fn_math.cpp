@@ -316,6 +316,44 @@ private Q_SLOTS:
         CHECK_EVALS(cases, g, Settings());
     }
 
+    // A sum of numbers that cancel is zero where the rounding error of the terms is all that is left of it (SUM does it at each step); a real small sum is kept.
+    void sumsThatCancelAreZero()
+    {
+        Grid g;
+        g.column("A1", {2.3, -1.5, -0.8});
+        const E cases[] = {
+            {"SUM(2.3,-1.5,-0.8)", "n:0"},
+            {"SUM(0.1,0.2,-0.3)", "n:0"},
+            {"SUM(A1:A3)", "n:0"},
+            {"AVERAGE(A1:A3)", "n:0"},
+            {"SUM(1,-1)", "n:0"},
+            {"SUM(1E20,-1E20,1)", "n:1"},
+            {"SUM(1000,-999.5)", "n:0.5"},
+            {"SUM(1E-20,1)", "n:1"},
+            {"SUM(1E-20,-1E-20)", "n:0"},
+            {"SUM(1E-20,2E-20)", "n:3e-20"},
+        };
+        CHECK_EVALS(cases, g, Settings());
+    }
+
+    // SUBTOTAL leaves out the cells of its range that are SUBTOTALs themselves, so that a list with subtotals in it is not added twice.
+    void subtotalLeavesOutSubtotals()
+    {
+        Grid g;
+        g.column("A1", {1, 2, 10, 3});
+        g.subtotal("A3");
+        const E cases[] = {
+            {"SUBTOTAL(9,A1:A4)", "n:6"},
+            {"SUBTOTAL(109,A1:A4)", "n:6"},
+            {"SUBTOTAL(1,A1:A4)", "n:2"},
+            {"SUBTOTAL(2,A1:A4)", "n:3"},
+            {"SUBTOTAL(3,A1:A4)", "n:3"},
+            {"SUBTOTAL(4,A1:A4)", "n:3"},
+            {"SUM(A1:A4)", "n:16"},                // SUM leaves out nothing
+        };
+        CHECK_EVALS(cases, g, Settings());
+    }
+
     void randomNumbersAreInTheirRange()
     {
         const E cases[] = {

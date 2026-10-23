@@ -61,7 +61,7 @@ private Q_SLOTS:
             {"10/4", "n:2.5"},
             {"10/2/5", "n:1"},
             {"1+2=3", "b:1"},
-            {"2^0.5", "n:1.4142135623731"},
+            {"2^0.5", "n:1.41421356237309"},       // a power is exp(0.5 ln 2) in doubles, one unit of the last place under the square root
             {"1/3*3", "n:1"},
             {"(1+2)*(3+4)", "n:21"},
             {"200%", "n:2"},
@@ -370,9 +370,9 @@ private Q_SLOTS:
             {"IFERROR(3,1/0)", "n:3"},
             {"IFERROR(A1,\"x\")", "s:x"},
             {"IFERROR(#N/A,1)+1", "n:2"},
-            {"IFNA(#N/A,7)", "n:7"},
-            {"IFNA(#DIV/0!,7)", "e:#DIV/0!"},
-            {"IFNA(4,7)", "n:4"},
+            {"_xlfn.IFNA(#N/A,7)", "n:7"},
+            {"_xlfn.IFNA(#DIV/0!,7)", "e:#DIV/0!"},
+            {"_xlfn.IFNA(4,7)", "n:4"},
             {"CHOOSE(2,\"a\",\"b\",\"c\")", "s:b"},
             {"CHOOSE(1,5,1/0)", "n:5"},
             {"CHOOSE(4,\"a\",\"b\",\"c\")", "e:#VALUE!"},
@@ -485,7 +485,7 @@ private Q_SLOTS:
             const int most = f.maxArgs == 255 ? 6 : int(f.maxArgs);
             for (int trial = 0; trial < 120; ++trial) {
                 const int n = int(f.minArgs) + int(rng.bounded(quint32(qMax(1, most - int(f.minArgs) + 1))));
-                QString text = QString::fromLatin1(f.name) + QLatin1Char('(');
+                QString text = QString::fromLatin1((f.flags & kFnFuture) ? "_xlfn." : "") + QString::fromLatin1(f.name) + QLatin1Char('(');
                 for (int k = 0; k < n; ++k) {
                     if (k) text += QLatin1Char(',');
                     // (an argument is left out now and then, but one alone would make the call look as if it had none)

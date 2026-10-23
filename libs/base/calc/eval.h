@@ -36,6 +36,8 @@ public:
     // What a defined name stands for, as formula text ("Sheet1!$A$1:$B$9", "0.05", "OFFSET(...)"): the name of the sheet if it has one for that sheet, else the
     // workbook's. Empty if there is none.
     virtual QString definedName(int sheet, const QString &name) const { Q_UNUSED(sheet); Q_UNUSED(name); return {}; }
+    // The cell holds a formula that is a SUBTOTAL, which SUBTOTAL leaves out of what it adds up.
+    virtual bool isSubtotal(int sheet, quint32 row, quint32 col) const { Q_UNUSED(sheet); Q_UNUSED(row); Q_UNUSED(col); return false; }
     // Changes when the sheets or their names do, so a program re-reads which sheet each name is.
     virtual qint64 generation() const { return 0; }
 };
@@ -63,6 +65,9 @@ public:
     Value evaluate(const Program &program, const EvalContext &context);
     // How the last evaluation ended.
     EvalStatus status() const;
+    // What the last evaluation met that is not worked out, through a defined name or a text given to INDIRECT as well as in the formula: 1 a reference to another
+    // workbook, 2 the columns of a table, 4 a function that is not in the registry. 0 when it met none; the value is then right as far as the engine can say.
+    int unsupportedKinds() const;
     // The steps the last evaluation took.
     qint64 work() const;
     void setWorkLimit(qint64 steps);

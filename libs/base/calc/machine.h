@@ -6,6 +6,7 @@
 
 #include <QHash>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <random>
@@ -70,6 +71,22 @@ bool coerceBool(const Value &v, bool *out, ErrorKind *error);
 // With `prefix` the pattern need only match the start of what is left of the text (SEARCH); else all of it.
 bool wildcardMatch(const QString &text, int ti, const QString &pattern, int pi, bool prefix = false);
 bool hasWildcards(const QString &s);
+
+// x to the power y once the cases with no answer are out (0^0, 0 to a negative power, a negative number to a fraction), as the original works it out: a whole
+// exponent by squaring and multiplying, any other as exp(y ln x) in double arithmetic. (A correctly rounded pow gives other last digits in one cell of a few hundred, and
+// the files kept the digits of the original: with these two rules 21 cells in 3.1 million of the practice workbooks, instead of 1,900, differ by more than a few units of the last place.)
+double powerOf(double x, double y);
+
+// A sum or difference within 2^-50 (relative to the larger term) of zero is zero: a smaller one than that is the rounding error of numbers that cancel, and the
+// original does not keep it (found by comparing with the results of the files: a wider limit makes a zero of sums it keeps, a narrower one keeps the rounding error of
+// sums it makes zero). SUM applies it to each step.
+constexpr double kZeroSnap = 8.881784197001252e-16;
+inline double snappedSum(double a, double b)
+{
+    const double r = a + b;
+    if (r != 0 && a != 0 && b != 0 && (a < 0) != (b < 0) && std::fabs(r) <= std::max(std::fabs(a), std::fabs(b)) * kZeroSnap) return 0;
+    return r;
+}
 
 inline Value numberResult(double r)
 {
@@ -147,6 +164,8 @@ public:
     bool each(int i, const std::function<bool(const Value &, bool typed)> &f);
     // The same, with the place of each: the row and column of a cell on its sheet, or of an element in its array (from 0).
     bool eachAt(int i, const std::function<bool(const Value &, quint32 row, quint32 col)> &f);
+    // The same, with the sheet of each cell as well (-1 for an element of an array).
+    bool eachCell(int i, const std::function<bool(const Value &, int sheet, quint32 row, quint32 col)> &f);
 
     // Argument i as a rectangle of values; false (and failure() the error) if it is several blocks, 3-D, or too large.
     bool table(int i, Table *out, bool clip = true);
@@ -211,6 +230,7 @@ public:
     EvalStatus status = EvalStatus::Ok;
     std::mt19937_64 rng;
     int nameDepth = 0;
+    int unsupported = 0;
 
 private:
     friend class Evaluator;

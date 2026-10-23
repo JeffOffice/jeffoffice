@@ -12,11 +12,11 @@ constexpr double kLastSerial = 2958465;   // December 31, 9999
 
 bool isLeap(int y) { return (y % 4 == 0 && y % 100 != 0) || y % 400 == 0; }
 
-// The days of a month; the 1900 system has a February 29, 1900.
-int monthDays(int y, int m, DateSystem system)
+// The days of a month in the calendar: the February 29, 1900 of the 1900 system is no day of it, and EDATE, EOMONTH, and the days of a year count February 1900 as the calendar does.
+int monthDays(int y, int m, DateSystem)
 {
     static const int days[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-    if (m == 2 && (isLeap(y) || (system == DateSystem::Date1900 && y == 1900))) return 29;
+    if (m == 2 && isLeap(y)) return 29;
     return days[m - 1];
 }
 
@@ -386,7 +386,7 @@ void registerDateFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"EOMONTH", 2, 2, "vv", 0, fnEomonth});
     r.push_back({"WORKDAY", 2, 3, "vvr", 0, fnWorkday});
     r.push_back({"NETWORKDAYS", 2, 3, "vvr", 0, fnNetworkDays});
-    r.push_back({"DAYS", 2, 2, "vv", 0, fnDays});
+    r.push_back({"DAYS", 2, 2, "vv", kFnFuture, fnDays});
     r.push_back({"DAYS360", 2, 3, "vvv", 0, fnDays360});
     r.push_back({"YEARFRAC", 2, 3, "vvv", 0, fnYearFrac});
 }

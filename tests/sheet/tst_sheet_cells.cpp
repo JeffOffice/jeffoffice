@@ -1,6 +1,8 @@
 // Tests of the cells a worksheet is read into: the store, every type of cell, the shared strings, and the shape the part declares.
 #include "sheethelpers.h"
 
+#include <random>
+
 namespace {
 
 Cell makeCell(quint32 row, quint32 col, double number = 0)
@@ -122,6 +124,35 @@ private Q_SLOTS:
     }
 
     // A store that was moved from is empty and has nothing of the one it was moved to: cells added to either go where they should.
+    // A rectangle of a sheet is visited cell by cell in order, and only its own cells: the same as asking every cell whether it is inside.
+    void aRectangleOfTheStoreVisitsExactlyItsCells()
+    {
+        std::mt19937 rng(20261023);
+        CellStore store;
+        for (int i = 0; i < 6000; ++i) store.add(makeCell(rng() % 400, rng() % 40, i));
+        // a few whole rows, so that rows with many cells meet rows with few
+        for (quint32 col = 0; col < 40; ++col) store.add(makeCell(100, col, 1));
+        store.finish();
+        for (int trial = 0; trial < 3000; ++trial) {
+            quint32 r1 = rng() % 420, r2 = rng() % 420, c1 = rng() % 45, c2 = rng() % 45;
+            if (r1 > r2) std::swap(r1, r2);
+            if (c1 > c2) std::swap(c1, c2);
+            QVector<QPair<quint32, quint32>> expected, got;
+            store.forEach([&](const Cell &c) {
+                if (c.row >= r1 && c.row <= r2 && c.col >= c1 && c.col <= c2) expected.append({c.row, c.col});
+            });
+            store.forEachInRange(r1, c1, r2, c2, [&](const Cell &c) {
+                got.append({c.row, c.col});
+                return true;
+            });
+            QVERIFY2(got == expected, qPrintable(QStringLiteral("rows %1-%2, columns %3-%4: %5 cells, expected %6").arg(r1).arg(r2).arg(c1).arg(c2).arg(got.size()).arg(expected.size())));
+        }
+        // and it stops when asked
+        int seen = 0;
+        store.forEachInRange(0, 0, 399, 39, [&](const Cell &) { return ++seen < 5; });
+        QCOMPARE(seen, 5);
+    }
+
     void aStoreMovedFromAndTheOneItWentToAreSeparate()
     {
         CellStore a;

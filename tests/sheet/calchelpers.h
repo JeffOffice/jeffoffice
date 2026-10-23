@@ -8,6 +8,7 @@
 
 #include <QHash>
 #include <QMap>
+#include <QSet>
 #include <QString>
 #include <QtTest>
 
@@ -35,6 +36,8 @@ public:
     // Numbers down a column from `ref` (a number, or text for a string, or "" for an empty cell).
     Grid &column(const QString &ref, const QVariantList &values, int sheet = 0);
     Grid &row(const QString &ref, const QVariantList &values, int sheet = 0);
+    // Marks a cell as one that holds a SUBTOTAL formula (which SUBTOTAL leaves out of what it adds up).
+    Grid &subtotal(const QString &ref, int sheet = 0);
     // A defined name; `sheet` -1 for the workbook's.
     Grid &name(const QString &name, const QString &formula, int sheet = -1);
 
@@ -44,6 +47,7 @@ public:
     void visit(int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2, const std::function<bool(quint32, quint32, const Value &)> &f) const override;
     void usedExtent(int sheet, quint32 *rows, quint32 *cols) const override;
     QString definedName(int sheet, const QString &name) const override;
+    bool isSubtotal(int sheet, quint32 row, quint32 col) const override;
 
 private:
     struct Sheet {
@@ -52,6 +56,7 @@ private:
     };
     std::vector<Sheet> m_sheets;
     QMap<QString, QString> m_names;   // "<sheet>|<NAME>" -> formula
+    QSet<QString> m_subtotals;        // "<sheet>|<row>|<col>"
 };
 
 struct Settings {

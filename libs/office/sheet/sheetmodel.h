@@ -131,7 +131,11 @@ public:
                 key.col = quint16(col1);
                 pos = std::lower_bound(pos, cells.end(), key, [](const Cell &a, const Cell &b) { return a.row != b.row ? a.row < b.row : a.col < b.col; });
                 if (pos == cells.end() || pos->row > last) break;
-                r = pos->row;
+                if (pos->row != r) {
+                    // that row has no cell at or after the first column: look for the first column again in the row that has one
+                    r = pos->row;
+                    continue;
+                }
                 while (pos != cells.end() && pos->row == r && pos->col <= col2) {
                     if (!f(*pos)) return;
                     ++pos;

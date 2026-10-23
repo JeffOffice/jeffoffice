@@ -135,6 +135,8 @@ private Q_SLOTS:
             // the prefixes newer files write are not part of the name
             {"_xlfn.STDEV.S(A1:A3)", "A1:A3 STDEV.S/1"}, {"_xlfn._xlws.SORT(A1)", "A1 SORT/1?"}, {"_xlws.FILTER(A1:A3,B1:B3)", "A1:A3 B1:B3 FILTER/2?"},
             {"_XLFN.IFNA(A1,0)", "A1 trynajump 3 0"},
+            // (a function newer than the first release, written without the prefix, is some other function)
+            {"IFNA(A1,0)", "A1 0 IFNA/2?"},
             // a function that is not in the registry
             {"FOO(1)", "1 FOO/1?"}, {"Foo.Bar(1,2)", "1 2 FOO.BAR/2?"},
             // a single value of a reference

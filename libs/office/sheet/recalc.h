@@ -3,7 +3,8 @@
 // cell it refers to from the values the file stored, and the answer compared with the formula's own stored result. This checks each formula on its own; recalculating
 // a whole workbook from its inputs is the dependency graph's business.
 //
-// A number matches to 15 significant digits; a text, true or false, and the kind of an error match exactly. Kept apart, as no mismatch: a formula that calls a function the
+// A number matches to 15 significant digits (or when they are a few units of the last place apart: two math libraries differ there); a text, true or false, and the kind
+// of an error match exactly. Kept apart, as no mismatch: a formula that calls a function the
 // registry lacks, one that calls a function whose value changes with no cell changing (NOW, TODAY, RAND, RANDBETWEEN, OFFSET, INDIRECT), one that refers to another
 // workbook or to the columns of a table, a data table, a formula the parser does not take, a formula the file stored no result for, and one the work bound or the time given
 // stopped.
@@ -34,6 +35,7 @@ public:
     void visit(int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2, const std::function<bool(quint32, quint32, const jp::calc::Value &)> &f) const override;
     void usedExtent(int sheet, quint32 *rows, quint32 *cols) const override;
     QString definedName(int sheet, const QString &name) const override;
+    bool isSubtotal(int sheet, quint32 row, quint32 col) const override;
 
     const Sheet &sheet(int i) const { return m_sheets[size_t(i)]; }
     const SharedStrings &shared() const { return m_book.sharedStrings(); }
@@ -43,6 +45,7 @@ private:
     const Workbook &m_book;
     std::vector<Sheet> m_sheets;
     std::vector<quint32> m_rows, m_cols;
+    mutable std::vector<std::vector<char>> m_subtotalTexts;   // for each sheet, for each text of a formula: 1 if it calls SUBTOTAL, 0 if not, -1 not yet asked
     QHash<QString, int> m_byName;
     QHash<QString, QString> m_names;   // "<sheet>|<NAME>" -> what it stands for; the sheet counted from 0, or -1
     QStringList m_notWhole;
@@ -56,7 +59,7 @@ enum class RecalcClass : char {
     External = 'E',
     Structured = 'T',
     ParseError = 'P',
-    NoResult = 'N',
+    NoResult = 'N',      // the file stored no result for it, or the formula element holds no formula
     DataTable = 'D',
     Limit = 'L',
     Skipped = 'S',       // not looked at: the time given ran out

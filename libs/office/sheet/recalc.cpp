@@ -99,6 +99,21 @@ void WorkbookSource::usedExtent(int sheet, quint32 *rows, quint32 *cols) const
     *cols = m_cols[size_t(sheet)];
 }
 
+bool WorkbookSource::isSubtotal(int sheet, quint32 row, quint32 col) const
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return false;
+    const Sheet &s = m_sheets[size_t(sheet)];
+    const Cell *c = s.cells.find(row, col);
+    if (!c || !c->hasFormula() || c->formula < 0 || c->formula >= s.formulas.size()) return false;
+    const qint32 text = s.formulas[c->formula].text;
+    if (text < 0 || text >= s.formulaTexts.size()) return false;
+    if (m_subtotalTexts.size() != m_sheets.size()) m_subtotalTexts.resize(m_sheets.size());
+    std::vector<char> &known = m_subtotalTexts[size_t(sheet)];
+    if (known.size() != size_t(s.formulaTexts.size())) known.assign(size_t(s.formulaTexts.size()), -1);
+    if (known[size_t(text)] < 0) known[size_t(text)] = s.formulaTexts[text].contains(QLatin1String("SUBTOTAL("), Qt::CaseInsensitive) ? 1 : 0;
+    return known[size_t(text)] == 1;
+}
+
 QString WorkbookSource::definedName(int sheet, const QString &name) const
 {
     const QString upper = name.toUpper();
@@ -139,11 +154,19 @@ QString kindOf(const Value &v)
     }
 }
 
+// Two numbers are the same if they agree to 15 significant digits, or are a few units of the last place apart: two math libraries differ there, and a pair of
+// numbers that round to 15 digits on either side of a boundary would be called different for one unit in the 17th.
+bool sameNumber(double a, double b)
+{
+    if (sameTo15Digits(a, b)) return true;
+    return std::isfinite(a) && std::isfinite(b) && std::fabs(a - b) <= 4 * 2.220446049250313e-16 * std::max(std::fabs(a), std::fabs(b));
+}
+
 bool sameResult(const Value &ours, const Value &stored, bool storedIsDate)
 {
     Q_UNUSED(storedIsDate);
     switch (stored.kind()) {
-    case Value::Kind::Number: return ours.isNumber() && sameTo15Digits(ours.number(), stored.number());
+    case Value::Kind::Number: return ours.isNumber() && sameNumber(ours.number(), stored.number());
     case Value::Kind::Bool: return ours.isBool() && ours.boolean() == stored.boolean();
     case Value::Kind::Error: return ours.isError() && ours.errorKind() == stored.errorKind();
     case Value::Kind::Text: return ours.isText() && ours.text() == stored.text();
@@ -222,7 +245,8 @@ bool recalcWorkbook(const Workbook &book, const RecalcOptions &options, const st
             }
             const Formula &f = c.formula >= 0 && c.formula < sheet.formulas.size() ? sheet.formulas[c.formula] : Formula();
             if (f.text < 0 || f.text >= sheet.formulaTexts.size() || sheet.formulaTexts[f.text].trimmed().isEmpty()) {
-                finish(RecalcClass::ParseError);
+                // an element that holds no formula (the file marks the cell, but there is nothing to work out)
+                finish(RecalcClass::NoResult);
                 return;
             }
             Compiled &slot = (c.flags & ArrayFormula) ? array[size_t(f.text)] : plain[size_t(f.text)];
@@ -281,6 +305,12 @@ bool recalcWorkbook(const Workbook &book, const RecalcOptions &options, const st
             ctx.shiftCols = f.dCol;
             Value ours = evaluator.evaluate(p, ctx);
             storedValue = stored;
+            if (const int met = evaluator.unsupportedKinds()) {
+                oursValue = ours;
+                haveValues = true;
+                finish(met & 1 ? RecalcClass::External : met & 2 ? RecalcClass::Structured : RecalcClass::Unsupported);
+                return;
+            }
             if (evaluator.status() != EvalStatus::Ok) {
                 oursValue = Value();
                 haveValues = true;
