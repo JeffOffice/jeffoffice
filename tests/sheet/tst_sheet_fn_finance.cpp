@@ -60,6 +60,28 @@ private Q_SLOTS:
         CHECK_EVALS(cases, Grid(), Settings());
     }
 
+    // The rate of IRR and XIRR is where the value of the flows is nothing: a guess close to -1 does not end the search early because the steps there are small (a step of a
+    // billionth is not a rate found), and the search does not leave the rates above -1.
+    void aRateIsFoundWhereTheValueIsNothingFromAGuessNearMinusOne()
+    {
+        const E cases[] = {
+            {"ROUND(IRR({-100,110},-0.999999999),6)", "n:0.1"},
+            {"ROUND(IRR({-100,110},-0.9999999),6)", "n:0.1"},
+            {"ROUND(IRR({-100,50,60},-0.99999999),6)", "n:0.063941"},
+            {"ROUND(IRR({-100,50,60},-0.999),6)", "n:0.063941"},
+            {"ROUND(IRR({-100,50,60},-0.99),6)", "n:0.063941"},
+            {"ROUND(IRR({-100,50,60},0.5),6)", "n:0.063941"},
+            {"ROUND(IRR({-100,50,60},100),6)", "n:0.063941"},
+            {"ROUND(XIRR({-100,110},{40000,40365},-0.999999999),6)", "n:0.1"},
+            {"ROUND(XIRR({-100,110},{40000,40365},-0.9999),6)", "n:0.1"},
+            {"ROUND(XIRR({-100,50,60},{40000,40365,40730},-0.99999999),6)", "n:0.063941"},
+            {"ROUND(-100+110/(1+IRR({-100,110},-0.999999999)),9)", "n:0"},   // the value at the rate it gives is nothing
+            {"IRR({1,-2,3})", "e:#NUM!"},                                  // a rate where there is none
+            {"IRR({1,2,3},-0.5)", "e:#NUM!"},
+        };
+        CHECK_EVALS(cases, Grid(), Settings());
+    }
+
     // A logical or a text in a reference is not a flow: IRR and XIRR leave it out, as they do from an array (a logical is not counted as 1).
     void referencesIgnoreLogicalsAndText()
     {

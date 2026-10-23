@@ -212,6 +212,94 @@ Value fnVdb(Call &c)
 
 // ---- cash flows: IRR and XIRR are found by Newton's method from a guess; XNPV is a sum
 
+namespace {
+
+// The value of the flows at a rate: the sum of each flow over (1 + rate) to the power of its time, the slope of that, and the sum of their sizes (what the value is measured
+// against: a rate is found where the value is nothing next to that, not where a step is small).
+struct RateTerms {
+    double value = 0, slope = 0, scale = 0;
+};
+
+RateTerms termsAt(const std::vector<double> &v, const std::vector<double> &t, double rate)
+{
+    RateTerms x;
+    const double base = 1 + rate;
+    for (size_t i = 0; i < v.size(); ++i) {
+        const double term = v[i] / std::pow(base, t[i]);
+        x.value += term;
+        x.scale += std::fabs(term);
+        x.slope -= t[i] * term / base;
+    }
+    return x;
+}
+
+bool isRoot(const RateTerms &x) { return std::isfinite(x.value) && std::isfinite(x.scale) && std::fabs(x.value) <= 1e-12 * x.scale; }
+
+// The rate where the value of the flows is nothing, from a guess: Newton's method, which never goes to -1 or below (it goes half the way there), and when that does not come
+// to a rate in sixty steps, the rate nearest the guess between two of a set of rates from just above -1 to a million at which the value changes sign, by halving. False if there
+// is none. `c` is charged for each time the flows are worked out.
+bool solveRate(Call &c, const std::vector<double> &v, const std::vector<double> &t, double guess, double *out)
+{
+    const qint64 n = qint64(v.size());
+    double rate = guess;
+    for (int iteration = 0; iteration < 60; ++iteration) {
+        if (!c.machine().charge(n)) return false;
+        const RateTerms x = termsAt(v, t, rate);
+        if (!std::isfinite(x.value) || !std::isfinite(x.slope)) break;
+        if (isRoot(x)) {
+            *out = rate;
+            return true;
+        }
+        if (x.slope == 0) break;
+        double next = rate - x.value / x.slope;
+        if (!std::isfinite(next)) break;
+        if (next <= -1) next = (rate - 1) / 2;
+        if (next == rate) break;
+        rate = next;
+    }
+    static const double samples[] = {-0.999999999, -0.9999999, -0.99999, -0.999, -0.99, -0.9, -0.75, -0.5, -0.25, -0.1, -0.01, 0, 0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 100, 1e3, 1e4, 1e6};
+    const int count = int(sizeof(samples) / sizeof(samples[0]));
+    double at[sizeof(samples) / sizeof(samples[0])];
+    for (int i = 0; i < count; ++i) {
+        if (!c.machine().charge(n)) return false;
+        at[i] = termsAt(v, t, samples[i]).value;
+    }
+    double best = 0, bestDistance = 0;
+    bool found = false;
+    for (int i = 0; i + 1 < count; ++i) {
+        if (!std::isfinite(at[i]) || !std::isfinite(at[i + 1]) || !((at[i] <= 0) != (at[i + 1] <= 0) || at[i] == 0)) continue;
+        // (nearest the guess, as the rates are spaced: by the logarithm of what is added to 1)
+        const double distance = std::fabs(std::log((1 + samples[i]) / (1 + std::max(guess, -0.999999999999))));
+        if (!found || distance < bestDistance) {
+            found = true;
+            bestDistance = distance;
+            best = double(i);
+        }
+    }
+    if (!found) return false;
+    double lo = samples[int(best)], hi = samples[int(best) + 1];
+    double flo = at[int(best)];
+    for (int iteration = 0; iteration < 200; ++iteration) {
+        if (!c.machine().charge(n)) return false;
+        const double mid = (lo + hi) / 2;
+        const RateTerms x = termsAt(v, t, mid);
+        if (isRoot(x) || mid == lo || mid == hi) {
+            *out = mid;
+            return true;
+        }
+        if ((x.value <= 0) == (flo <= 0)) {
+            lo = mid;
+            flo = x.value;
+        } else {
+            hi = mid;
+        }
+    }
+    *out = (lo + hi) / 2;
+    return true;
+}
+
+} // namespace
+
 Value fnIrr(Call &c)
 {
     double guess = 0.1;
@@ -244,23 +332,12 @@ Value fnIrr(Call &c)
         positive = positive || x > 0;
         negative = negative || x < 0;
     }
-    if (!positive || !negative) return c.error(ErrorKind::Num);
-    if (!c.machine().charge(qint64(v.size()) * 20 + 1)) return c.error(ErrorKind::Value);
-    double rate = guess;
-    for (int iteration = 0; iteration < 20; ++iteration) {
-        double value = 0, slope = 0;
-        for (size_t i = 0; i < v.size(); ++i) {
-            const double g = std::pow(1 + rate, double(i));
-            value += v[i] / g;
-            slope -= double(i) * v[i] / (g * (1 + rate));
-        }
-        const double next = rate - value / slope;
-        if (!std::isfinite(next)) return c.error(ErrorKind::Num);
-        const bool converged = std::fabs(next - rate) <= 1e-7;
-        rate = next;
-        if (converged) return rate > -1 ? numberResult(rate) : c.error(ErrorKind::Num);
-    }
-    return c.error(ErrorKind::Num);
+    if (!positive || !negative || guess <= -1) return c.error(ErrorKind::Num);
+    std::vector<double> times(v.size());
+    for (size_t i = 0; i < v.size(); ++i) times[i] = double(i);
+    double rate;
+    if (!solveRate(c, v, times, guess, &rate)) return c.machine().stopped() ? c.error(ErrorKind::Value) : c.error(ErrorKind::Num);
+    return rate > -1 ? numberResult(rate) : c.error(ErrorKind::Num);
 }
 
 // The values and the dates (whole days) of XNPV and XIRR: as many of each; false, with the error, if they are not.
@@ -335,23 +412,11 @@ Value fnXirr(Call &c)
     if (!positive || !negative || guess <= -1) return c.error(ErrorKind::Num);
     for (const double day : d)
         if (day < d[0]) return c.error(ErrorKind::Num);
-    if (!c.machine().charge(qint64(v.size()) * 100 + 1)) return c.error(ErrorKind::Value);
-    double rate = guess;
-    for (int iteration = 0; iteration < 100; ++iteration) {
-        double value = 0, slope = 0;
-        for (size_t i = 0; i < v.size(); ++i) {
-            const double years = (d[i] - d[0]) / 365;
-            const double g = std::pow(1 + rate, years);
-            value += v[i] / g;
-            slope -= years * v[i] / (g * (1 + rate));
-        }
-        const double next = rate - value / slope;
-        if (!std::isfinite(next) || next <= -1) return c.error(ErrorKind::Num);
-        const bool converged = std::fabs(next - rate) <= 1e-10;
-        rate = next;
-        if (converged) return numberResult(rate);
-    }
-    return c.error(ErrorKind::Num);
+    std::vector<double> years(v.size());
+    for (size_t i = 0; i < v.size(); ++i) years[i] = (d[i] - d[0]) / 365;
+    double rate;
+    if (!solveRate(c, v, years, guess, &rate)) return c.machine().stopped() ? c.error(ErrorKind::Value) : c.error(ErrorKind::Num);
+    return rate > -1 ? numberResult(rate) : c.error(ErrorKind::Num);
 }
 
 } // namespace
