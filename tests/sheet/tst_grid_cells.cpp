@@ -488,6 +488,78 @@ private Q_SLOTS:
         QCOMPARE(l.rows.count(), qint64(1048576));
     }
 
+    // The geometry of a sheet can be made ahead (by a worker, from the sheet and the styles alone) and given to the model, which then shows what it would have made itself.
+    void aGeometryMadeAheadIsTheOneTheModelMakes()
+    {
+        Sheet sheet;
+        ColumnSpan c;
+        c.first = 1;
+        c.last = 2;
+        c.width = 20;
+        c.style = 4;
+        ColumnSpan hidden;
+        hidden.first = 5;
+        hidden.last = 5;
+        hidden.hidden = true;
+        sheet.columns = {c, hidden};
+        RowSpec tall;
+        tall.row = 3;
+        tall.height = 45;
+        RowSpec hiddenRow;
+        hiddenRow.row = 6;
+        hiddenRow.hidden = true;
+        RowSpec styled;
+        styled.row = 8;
+        styled.customFormat = true;
+        styled.style = 2;
+        sheet.rowSpecs = {tall, hiddenRow, styled};
+        CellRange m;
+        m.row1 = 0;
+        m.col1 = 0;
+        m.row2 = 1;
+        m.col2 = 1;
+        m.valid = true;
+        sheet.merges = {m};
+        sheet.view.frozen = true;
+        sheet.view.frozenRows = 2;
+        sheet.view.frozenCols = 1;
+        sheet.view.paneRow = 20;
+        sheet.view.paneCol = 3;
+        sheet.view.zoom = 80;
+        Styles styles;
+        styles.fonts = {FontSpec()};
+        styles.formats = {CellFormat()};
+        const std::shared_ptr<GridGeometry> ahead = GridSheet::makeGeometry(sheet, styles);
+        QVERIFY(ahead);
+        GridData own;
+        own.styles = &styles;
+        own.sheet = &sheet;
+        GridSheet a;
+        a.setData(own);
+        GridData given = own;
+        given.geometry = ahead;
+        GridSheet b;
+        b.setData(given);
+        for (qint64 i = 0; i < 30; ++i) {
+            QCOMPARE(b.layout().rows.position(i), a.layout().rows.position(i));
+            QCOMPARE(b.layout().cols.position(i), a.layout().cols.position(i));
+        }
+        QCOMPARE(b.layout().rows.total(), a.layout().rows.total());
+        QVERIFY(b.layout().rows.total() > 0);
+        QCOMPARE(b.layout().merges.count(), 1);
+        QCOMPARE(b.layout().frozenRows(), qint64(2));
+        QCOMPARE(b.layout().frozenCols(), qint64(1));
+        QCOMPARE(b.layout().zoom(), 0.8);
+        QCOMPARE(b.layout().scrollY(), a.layout().scrollY());
+        QVERIFY(b.layout().scrollY() > 0);
+        QCOMPARE(b.styleOf(8, 0, nullptr), 2u);
+        QCOMPARE(b.styleOf(0, 1, nullptr), 4u);
+        // the model owns what it was given: a change to its layout is not the geometry's
+        b.layout().rows.setSize(0, 99);
+        QCOMPARE(a.layout().rows.size(0), 20);
+        QCOMPARE(ahead->layout.rows.size(0), 20);
+    }
+
     // A sheet that hides the rows it does not list shows those it lists; a column run that is hostile (a hundred thousand runs on top of one another) costs a sort.
     void rowsTheFileDoesNotListAreHiddenWhenItSaysSoAndColumnRunsAreTrimmed()
     {
@@ -652,6 +724,42 @@ private Q_SLOTS:
         QCOMPARE(g.shown(0, 0, *g.cellAt(0, 0)).text, QStringLiteral("5"));
         g.setShowFormulas(false);
         QCOMPARE(g.shown(0, 1, *g.cellAt(0, 1)).text, QStringLiteral("10"));
+    }
+
+    // The text of a cell for a copy is not cut to its cell: a number never shows as "#", a text keeps its line breaks and all its letters.
+    void aCopyOfACellIsNotCutToItsCell()
+    {
+        Sheet sheet;
+        sheet.texts = {QString(3000, QLatin1Char('x')) + QStringLiteral("\nend")};
+        Cell wide = numberCell(0, 0, 1234567.891, 1);
+        sheet.cells.add(wide);
+        Cell longText;
+        longText.row = 1;
+        longText.col = 0;
+        longText.type = CellType::InlineString;
+        longText.number = 0;
+        sheet.cells.add(longText);
+        sheet.cells.finish();
+        Styles styles;
+        styles.fonts = {FontSpec()};
+        CellFormat plain, money;
+        money.numFmtId = 164;
+        styles.formats = {plain, money};
+        styles.cellXfs = {0, 164};
+        styles.numFmts.insert(164, QStringLiteral("#,##0.00"));
+        GridData data;
+        data.styles = &styles;
+        data.sheet = &sheet;
+        GridSheet g;
+        g.setMeter(&kMeter);
+        g.setData(data);
+        g.layout().cols.setSize(0, 30);
+        QVERIFY(g.shown(0, 0, *g.cellAt(0, 0)).hashes);
+        QCOMPARE(g.textOf(*g.cellAt(0, 0)), QStringLiteral("1,234,567.89"));
+        const QString text = g.textOf(*g.cellAt(1, 0));
+        QCOMPARE(text.size(), 3004);
+        QVERIFY(text.endsWith(QStringLiteral("\nend")));
+        QVERIFY(g.shown(1, 0, *g.cellAt(1, 0)).text.size() <= 1024);
     }
 
     // The cache is bounded: a hundred thousand cells shown one after another leave no more than it holds.

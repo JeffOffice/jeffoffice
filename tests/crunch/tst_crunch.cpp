@@ -156,6 +156,9 @@ private Q_SLOTS:
         QCOMPARE(loaded.first().first().toBool(), true);
         QVERIFY(win.w.calculation() != nullptr);
         QCOMPARE(win.w.statusText(), QStringLiteral("Ready"));
+        // the grid's geometry of each sheet was made by the worker (the chart sheet of a workbook has none)
+        QCOMPARE(int(win.w.loaded()->geometry.size()), 3);
+        for (const auto &g : win.w.loaded()->geometry) QVERIFY(g);
         // the file's own view is kept: the panes it froze, and the cell it was left on
         const grid::GridLayout &layout = win.w.view()->sheet().layout();
         QCOMPARE(layout.frozenRows(), qint64(2));
@@ -310,7 +313,7 @@ private Q_SLOTS:
         QVERIFY(win.open(folder.write(QStringLiteral("budget.xlsx"), budgetWorkbook())));
         win.w.view()->selectRange(1, 0, 3, 2);   // A2:C4
         win.w.act("edit.copy")->trigger();
-        QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("Category\tJan\tFeb\nRent\t$100.00\t$111.50\nGroceries\t$137.00\t$148.50\n"));
+        QTRY_COMPARE(QApplication::clipboard()->text(), QStringLiteral("Category\tJan\tFeb\nRent\t$100.00\t$111.50\nGroceries\t$137.00\t$148.50\n"));
     }
 
     // The view commands: gridlines, headings, the formula bar, show formulas, zoom, and freezing panes.

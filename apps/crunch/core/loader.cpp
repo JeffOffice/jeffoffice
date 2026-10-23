@@ -105,6 +105,7 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
     book->readSheet(shownSheet, preview.get(), [&cancelled](qint64) { return !cancelled(); }, kFirstScreenRows - 1);
     out->preview = preview;
     out->previewSheet = shownSheet;
+    out->previewGeometry = jp::grid::GridSheet::makeGeometry(*preview, book->styles());
     out->firstScreenMs = total.elapsed();
     return true;
 }
@@ -130,6 +131,12 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
     const bool whole = calc->load();
     if (cancelled()) return false;
     if (!whole) out->problem = tr("Some of the workbook could not be read whole: %1.").arg(calc->notWhole().join(QStringLiteral(", ")));
+    // the grid's geometry of each sheet
+    out->geometry.assign(size_t(out->book->info().sheets.size()), nullptr);
+    for (int i = 0; i < out->book->info().sheets.size(); ++i) {
+        if (cancelled()) return false;
+        if (out->book->info().sheets[i].kind != SheetKind::Chartsheet) out->geometry[size_t(i)] = jp::grid::GridSheet::makeGeometry(calc->sheet(i), out->book->styles());
+    }
     out->calc = std::move(calc);
     out->loadMs = out->firstScreenMs + total.elapsed();
     return true;

@@ -1,6 +1,7 @@
 #include "grid/gridview.h"
 
 #include "app/icons.h"
+#include "grid/textwalk.h"
 #include "sheet/cellref.h"
 
 #include <QApplication>
@@ -384,36 +385,26 @@ QString GridView::activeCellText() const
 QString GridView::selectionAsText(bool *tooMany) const
 {
     if (tooMany) *tooMany = false;
+    const std::unique_ptr<TextWalk> walk = copyWalk();
+    if (!walk) return QString();
+    if (walk->tooMany()) {
+        if (tooMany) *tooMany = true;
+        return QString();
+    }
+    walk->step(0);
+    return walk->text();
+}
+
+std::unique_ptr<TextWalk> GridView::copyWalk() const
+{
     GridRange r = m_selection.range;
     quint32 usedRows = 0, usedCols = 0;
     m_sheet.usedExtent(&usedRows, &usedCols);
     // (rows and columns past the last cell hold nothing: a whole column is its used rows)
     r.row2 = std::min<qint64>(r.row2, std::max<qint64>(0, qint64(usedRows) - 1));
     r.col2 = std::min<qint64>(r.col2, std::max<qint64>(0, qint64(usedCols) - 1));
-    if (r.row2 < r.row1 || r.col2 < r.col1) return QString();
-    if ((r.row2 - r.row1 + 1) * (r.col2 - r.col1 + 1) > 1000000) {
-        if (tooMany) *tooMany = true;
-        return QString();
-    }
-    const GridLayout &L = m_sheet.layout();
-    QString out;
-    for (qint64 row = r.row1; row <= r.row2; row = L.rows.nextVisible(row)) {
-        if (row >= L.rows.count()) break;
-        QString line;
-        bool first = true;
-        for (qint64 col = r.col1; col <= r.col2; col = L.cols.nextVisible(col)) {
-            if (col >= L.cols.count()) break;
-            if (!first) line += QLatin1Char('\t');
-            first = false;
-            const Cell *c = m_sheet.cellAt(quint32(row), quint32(col));
-            if (!c || (c->type == jp::office::sheet::CellType::Empty && !c->hasFormula())) continue;
-            QString text = m_sheet.shown(quint32(row), quint32(col), *c).text;
-            if (text.contains(QLatin1Char('\t')) || text.contains(QLatin1Char('\n')) || text.contains(QLatin1Char('"'))) text = QLatin1Char('"') + text.replace(QLatin1Char('"'), QLatin1String("\"\"")) + QLatin1Char('"');
-            line += text;
-        }
-        out += line + QLatin1Char('\n');
-    }
-    return out;
+    if (r.row2 < r.row1 || r.col2 < r.col1) return nullptr;
+    return std::make_unique<TextWalk>(&m_sheet, r);
 }
 
 // ---- the numbers of the selection, and the walk for the edge of the data

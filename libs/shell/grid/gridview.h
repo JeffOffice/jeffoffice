@@ -8,6 +8,7 @@
 #include "grid/painter.h"
 #include "grid/selection.h"
 #include "grid/stats.h"
+#include "grid/textwalk.h"
 
 #include <QAbstractScrollArea>
 #include <QElapsedTimer>
@@ -65,8 +66,10 @@ public:
     QString selectionName() const;
     QString rangeName() const;
     QString activeCellText() const;
-    // The cells of the selection as tab-separated text (what is shown in them), for the clipboard; empty, with `tooMany` set, past a million cells.
+    // The cells of the selection as tab-separated text (what is shown in them), for the clipboard; empty, with `tooMany` set, past a million cells. All at once: for a large
+    // selection copyWalk() is the way (a walk to be stepped a little at a time; null when the selection holds nothing).
     QString selectionAsText(bool *tooMany = nullptr) const;
+    std::unique_ptr<TextWalk> copyWalk() const;
     // The text of the numbers of the selection for the status bar ("" when there are none to show); empty while they are being added up.
     QString statsText() const { return m_statsText; }
 

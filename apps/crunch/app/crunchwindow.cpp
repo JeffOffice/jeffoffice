@@ -91,6 +91,8 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     connect(&m_loader, &crunch::WorkbookLoader::finished, this, &CrunchWindow::onFinished);
     m_calcTimer.setSingleShot(true);
     connect(&m_calcTimer, &QTimer::timeout, this, &CrunchWindow::calculationStep);
+    m_copyTimer.setSingleShot(true);
+    connect(&m_copyTimer, &QTimer::timeout, this, &CrunchWindow::copyStep);
     connect(m_tabs, &QTabBar::currentChanged, this, [this](int tab) {
         if (m_switchingTabs || tab < 0 || tab >= m_tabSheets.size()) return;
         setActiveSheet(m_tabSheets[tab]);
@@ -298,13 +300,35 @@ void CrunchWindow::createDisabledActions()
 
 void CrunchWindow::copySelection()
 {
-    bool tooMany = false;
-    const QString text = m_view->selectionAsText(&tooMany);
-    if (tooMany) {
+    m_copy = m_view->copyWalk();
+    if (!m_copy) {
+        QApplication::clipboard()->clear();
+        return;
+    }
+    if (m_copy->tooMany()) {
+        m_copy.reset();
         notice(tr("Copy"), tr("That is more than a million cells, which JeffCrunch doesn't copy as text. Select fewer cells."), false);
         return;
     }
-    QApplication::clipboard()->setText(text);
+    // (a large selection is turned to text a few milliseconds at a time, and put on the clipboard when it is all text)
+    setStatus(tr("Copying…"));
+    m_copyTimer.start(0);
+}
+
+void CrunchWindow::copyStep()
+{
+    if (!m_copy) return;
+    QElapsedTimer t;
+    t.start();
+    bool done = false;
+    while (!done && t.elapsed() < 4) done = m_copy->step(20000);
+    if (!done) {
+        m_copyTimer.start(0);
+        return;
+    }
+    QApplication::clipboard()->setText(m_copy->text());
+    m_copy.reset();
+    if (!m_calculating && !m_loading) setStatus(tr("Ready"));
 }
 
 void CrunchWindow::freezeAtSelection()

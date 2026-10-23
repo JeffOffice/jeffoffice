@@ -3,6 +3,7 @@
 // rows of the sheet that was open, which the window shows at once (the first screen); then it reads every sheet whole and puts the formulas in the calculation, which the window
 // then works out a few milliseconds at a time. The window shows the first rows while the rest is read, and stops the worker when it is closed or asked for another file.
 
+#include "grid/gridsheet.h"
 #include "sheet/calculation.h"
 #include "sheet/sheetreader.h"
 
@@ -25,6 +26,10 @@ struct LoadedBook {
     std::shared_ptr<jp::office::sheet::Sheet> preview;     // the first rows of one sheet
     int previewSheet = -1;                                  // which (from 0, in the workbook's order)
     std::unique_ptr<jp::office::sheet::Calculation> calc;   // every sheet, whole, with its formulas
+    // What the grid makes of each sheet's file (sizes, merged ranges, frozen panes), made here, on the worker, so that showing a sheet takes the window a moment: of the first rows
+    // (made with them), and of every sheet by its place in the workbook (made with the whole read).
+    std::shared_ptr<const jp::grid::GridGeometry> previewGeometry;
+    std::vector<std::shared_ptr<const jp::grid::GridGeometry>> geometry;
     QString problem;                                        // what could not be read whole, in words ("" when all of it was)
     qint64 firstScreenMs = 0, loadMs = 0;                   // how long each took
 };

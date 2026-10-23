@@ -140,6 +140,7 @@ void CrunchWindow::fillTabs()
 void CrunchWindow::showSheet(int sheetIndex, bool keepView)
 {
     if (!m_loaded || !m_loaded->book) return;
+    if (!keepView) m_copy.reset();   // (a copy being made is of the sheet that was shown)
     grid::GridData d;
     d.styles = &m_loaded->book->styles();
     d.strings = &m_loaded->book->sharedStrings();
@@ -148,8 +149,10 @@ void CrunchWindow::showSheet(int sheetIndex, bool keepView)
     if (m_loaded->calc && m_haveCalc) {
         d.sheet = &m_loaded->calc->sheet(sheetIndex);
         d.calc = m_loaded->calc.get();
+        if (size_t(sheetIndex) < m_loaded->geometry.size()) d.geometry = m_loaded->geometry[size_t(sheetIndex)];
     } else if (m_loaded->preview && sheetIndex == m_loaded->previewSheet) {
         d.sheet = m_loaded->preview.get();
+        d.geometry = m_loaded->previewGeometry;
     } else {
         d.sheet = &m_emptySheet;
     }

@@ -6,6 +6,7 @@
 #include "grid/gridsheet.h"
 #include "grid/selection.h"
 #include "grid/stats.h"
+#include "grid/textwalk.h"
 
 #include <functional>
 #include <set>
@@ -588,6 +589,114 @@ private Q_SLOTS:
     }
 };
 
+class GridTextWalkTests : public QObject {
+    Q_OBJECT
+
+private Q_SLOTS:
+    // The cells of a block as text: tabs between cells, a line to a row, what each cell shows; a text with a tab, a line break, or a quote is quoted; hidden rows and columns are left out.
+    void aBlockIsTextWithTabsAndLines()
+    {
+        Sheet sheet;
+        auto num = [&](quint32 r, quint32 c, double v) {
+            Cell x;
+            x.row = r;
+            x.col = quint16(c);
+            x.type = CellType::Number;
+            x.number = v;
+            sheet.cells.add(x);
+        };
+        auto text = [&](quint32 r, quint32 c, const QString &t) {
+            Cell x;
+            x.row = r;
+            x.col = quint16(c);
+            x.type = CellType::InlineString;
+            x.number = sheet.texts.size();
+            sheet.texts.append(t);
+            sheet.cells.add(x);
+        };
+        num(0, 0, 1);
+        num(0, 2, 3);
+        text(1, 1, QStringLiteral("a\tb \"q\"\nline"));
+        num(2, 0, 7);   // (in a hidden row)
+        num(3, 3, 9);   // (in a hidden column)
+        num(3, 1, 4);
+        sheet.cells.finish();
+        sheet.extentRows = 4;
+        sheet.extentCols = 4;
+        jp::office::sheet::Styles styles;
+        styles.fonts = {jp::office::sheet::FontSpec()};
+        styles.formats = {jp::office::sheet::CellFormat()};
+        GridData d;
+        d.styles = &styles;
+        d.sheet = &sheet;
+        GridSheet g;
+        g.setData(d);
+        g.layout().rows.setSize(2, 0);
+        g.layout().cols.setSize(3, 0);
+        TextWalk w(&g, GridRange{0, 0, 3, 3});
+        QVERIFY(!w.tooMany());
+        QVERIFY(w.step(0));
+        QCOMPARE(w.text(), QStringLiteral("1\t\t3\n\t\"a\tb \"\"q\"\"\nline\"\t\n\t4\t\n"));
+        // a block with nothing in it
+        TextWalk none(&g, GridRange{10, 10, 12, 12});
+        QVERIFY(none.step(0));
+        QCOMPARE(none.text(), QStringLiteral("\t\t\n\t\t\n\t\t\n"));
+    }
+
+    // More than a million cells are not made into text; a column of a million rows is made a few thousand cells at a time, into the same text as all at once.
+    void aLongBlockIsMadeInSlices()
+    {
+        Sheet sheet;
+        for (quint32 r = 0; r < 200000; ++r) {
+            Cell x;
+            x.row = r;
+            x.col = 0;
+            x.type = CellType::Number;
+            x.number = r;
+            sheet.cells.add(x);
+        }
+        sheet.cells.finish();
+        sheet.extentRows = 200000;
+        sheet.extentCols = 1;
+        jp::office::sheet::Styles styles;
+        styles.fonts = {jp::office::sheet::FontSpec()};
+        styles.formats = {jp::office::sheet::CellFormat()};
+        GridData d;
+        d.styles = &styles;
+        d.sheet = &sheet;
+        GridSheet g;
+        g.setData(d);
+        TextWalk sliced(&g, GridRange{0, 0, 199999, 0});
+        int slices = 0;
+        qint64 most = 0;
+        while (true) {
+            const qint64 before = sliced.looked();
+            const bool done = sliced.step(5000);
+            most = std::max(most, sliced.looked() - before);
+            ++slices;
+            if (done) break;
+        }
+        QVERIFY2(slices >= 30, qPrintable(QString::number(slices)));
+        QVERIFY2(most <= 5000 + 8, qPrintable(QString::number(most)));
+        TextWalk whole(&g, GridRange{0, 0, 199999, 0});
+        QVERIFY(whole.step(0));
+        QCOMPARE(sliced.text(), whole.text());
+        QVERIFY(whole.text().startsWith(QStringLiteral("0\n1\n2\n")));
+        QVERIFY(whole.text().endsWith(QStringLiteral("\n199999\n")));
+        // a wide row is sliced inside the row
+        TextWalk wide(&g, GridRange{0, 0, 2, 5000});
+        int wideSlices = 0;
+        while (!wide.step(1000)) ++wideSlices;
+        QVERIFY(wideSlices >= 5);
+        // too many
+        TextWalk huge(&g, GridRange{0, 0, 1048575, 16383});
+        QVERIFY(huge.tooMany());
+        QVERIFY(huge.step(0));
+        QVERIFY(huge.text().isEmpty());
+    }
+};
+
 JP_TEST_CLASS(GridSelectionTests)
+JP_TEST_CLASS(GridTextWalkTests)
 JP_TEST_CLASS(GridStatsTests)
 #include "tst_grid_select.moc"

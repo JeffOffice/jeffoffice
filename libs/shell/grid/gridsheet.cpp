@@ -47,23 +47,24 @@ void GridSheet::setData(const GridData &data)
     m_data = data;
     m_looks.setStyles(data.styles);
     m_texts.clear();
-    m_columnStyles.clear();
-    m_rowStyles.clear();
-    buildGeometry();
+    std::shared_ptr<const GridGeometry> g = data.geometry;
+    if (!g) g = (data.sheet && data.styles) ? makeGeometry(*data.sheet, *data.styles) : std::make_shared<GridGeometry>();
+    m_layout = g->layout;
+    m_columnStyles = g->columnStyles;
+    m_rowStyles = g->rowStyles;
 }
 
-void GridSheet::buildGeometry()
+std::shared_ptr<GridGeometry> GridSheet::makeGeometry(const Sheet &sheet, const Styles &styles)
 {
-    m_layout = GridLayout();
-    if (!m_data.sheet) return;
-    const Sheet &sheet = *m_data.sheet;
-    const int mdw = m_looks.maxDigitWidth();
+    auto geometry = std::make_shared<GridGeometry>();
+    GridLayout &layout = geometry->layout;
+    const int mdw = LookTable(&styles).maxDigitWidth();
     // ---- columns: the sheet's default, then each run (sorted; a run that overlaps one before it keeps what that one left)
     int defaultCol = 0;
     if (sheet.format.defaultColWidth > 0) defaultCol = columnPixels(sheet.format.defaultColWidth, mdw);
     if (defaultCol <= 0) defaultCol = (sheet.format.baseColWidth * mdw + 5 + 7) / 8 * 8;
-    m_layout.cols.setCount(qint64(kMaxColumns));
-    m_layout.cols.setDefaultSize(std::max(1, defaultCol));
+    layout.cols.setCount(qint64(kMaxColumns));
+    layout.cols.setDefaultSize(std::max(1, defaultCol));
     std::vector<ColumnSpan> runs(sheet.columns.begin(), sheet.columns.end());
     std::stable_sort(runs.begin(), runs.end(), [](const ColumnSpan &a, const ColumnSpan &b) { return a.first < b.first; });
     std::vector<Axis::Place> places;
@@ -80,14 +81,14 @@ void GridSheet::buildGeometry()
             ColumnSpan kept = run;
             kept.first = first;
             kept.last = last;
-            m_columnStyles.push_back(kept);
+            geometry->columnStyles.push_back(kept);
         }
     }
-    m_layout.cols.assign(std::move(places));
+    layout.cols.assign(std::move(places));
     // ---- rows
     const int defaultRow = std::max(1, rowPixels(sheet.format.defaultRowHeight > 0 ? sheet.format.defaultRowHeight : 15));
-    m_layout.rows.setCount(qint64(jp::office::sheet::kMaxRows));
-    m_layout.rows.setDefaultSize(defaultRow);
+    layout.rows.setCount(qint64(jp::office::sheet::kMaxRows));
+    layout.rows.setDefaultSize(defaultRow);
     std::vector<RowSpec> specs(sheet.rowSpecs.begin(), sheet.rowSpecs.end());
     std::stable_sort(specs.begin(), specs.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; });
     // (a row the file gives twice has its last)
@@ -101,7 +102,7 @@ void GridSheet::buildGeometry()
     if (sheet.format.zeroHeight && !unique.empty()) {
         // the rows the file does not list are hidden, and the sheet ends at its last listed row
         const qint64 last = qint64(unique.back().row);
-        m_layout.rows.setCount(last + 1);
+        layout.rows.setCount(last + 1);
         size_t at = 0;
         for (qint64 r = 0; r <= last; ++r) {
             if (at < unique.size() && qint64(unique[at].row) == r) places.push_back({r, sizeOf(unique[at++])});
@@ -110,21 +111,24 @@ void GridSheet::buildGeometry()
     } else {
         for (const RowSpec &s : unique) places.push_back({qint64(s.row), sizeOf(s)});
     }
-    m_layout.rows.assign(std::move(places));
+    layout.rows.assign(std::move(places));
     for (const RowSpec &s : unique)
-        if (s.customFormat && s.style != 0) m_rowStyles.push_back(s);
+        if (s.customFormat && s.style != 0) geometry->rowStyles.push_back(s);
     // ---- merged ranges, frozen panes, zoom, and where it was scrolled to
-    m_layout.merges.assign(sheet.merges);
+    layout.merges.assign(sheet.merges);
     const SheetView &v = sheet.view;
-    m_layout.setZoom(v.zoom / 100.0);
-    m_layout.setHeaders(v.showHeadings, 40, 20);
+    layout.setZoom(v.zoom / 100.0);
+    layout.setHeaders(v.showHeadings, 40, 20);
     if (v.frozen) {
-        m_layout.setFrozen(qint64(v.frozenRows), qint64(v.frozenCols));
-        m_layout.setScroll(m_layout.cols.position(qint64(v.paneCol)) - m_layout.cols.position(m_layout.frozenCols()),
-                           m_layout.rows.position(qint64(v.paneRow)) - m_layout.rows.position(m_layout.frozenRows()));
+        layout.setFrozen(qint64(v.frozenRows), qint64(v.frozenCols));
+        layout.setScroll(layout.cols.position(qint64(v.paneCol)) - layout.cols.position(layout.frozenCols()), layout.rows.position(qint64(v.paneRow)) - layout.rows.position(layout.frozenRows()));
     } else {
-        m_layout.setScroll(m_layout.cols.position(qint64(v.leftCol)), m_layout.rows.position(qint64(v.topRow)));
+        layout.setScroll(layout.cols.position(qint64(v.leftCol)), layout.rows.position(qint64(v.topRow)));
     }
+    // (what a search would build on the first look is built now, by whoever makes it, and goes with the copy)
+    layout.rows.total();
+    layout.cols.total();
+    return geometry;
 }
 
 const Cell *GridSheet::cellAt(quint32 row, quint32 col) const { return m_data.sheet && col < kMaxColumns ? m_data.sheet->cells.find(row, col) : nullptr; }
@@ -184,6 +188,29 @@ Shown GridSheet::shown(quint32 row, quint32 col, const Cell &cell) const
     if (m_texts.size() >= kMaxTexts) m_texts.clear();
     m_texts.emplace(key, s);
     return s;
+}
+
+QString GridSheet::textOf(const Cell &cell) const
+{
+    using jp::calc::Value;
+    const Value v = valueOf(cell);
+    const CellLook &look = m_looks.look(cell.style);
+    switch (v.kind()) {
+    case Value::Kind::Text: {
+        if (look.hasFormat) {
+            const jp::calc::Formatted f = look.format.formatText(v.text());
+            if (!f.failed) return f.text;
+        }
+        return v.text();
+    }
+    case Value::Kind::Number: {
+        const jp::calc::Formatted f = look.format.format(v.number(), m_data.dateSystem, 0);
+        return f.failed ? jp::calc::numberToText(v.number()) : f.text;
+    }
+    case Value::Kind::Bool: return v.boolean() ? QStringLiteral("TRUE") : QStringLiteral("FALSE");
+    case Value::Kind::Error: return jp::calc::errorKindText(v.errorKind());
+    default: return QString();
+    }
 }
 
 void GridSheet::invalidateTexts() const { m_texts.clear(); }

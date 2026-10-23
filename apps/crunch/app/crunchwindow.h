@@ -113,6 +113,7 @@ private:
     void setStatus(const QString &text);
     void goToName();
     void copySelection();
+    void copyStep();
     void freezeAtSelection();
     void notice(const QString &title, const QString &text, bool warning = true);
     QString helpContext() const;
@@ -143,6 +144,9 @@ private:
     jp::office::sheet::Sheet m_emptySheet;
     jp::office::sheet::Styles m_emptyStyles;
     jp::office::sheet::SharedStrings m_emptyStrings;
+    // a copy of a large selection, made a few milliseconds at a time
+    std::unique_ptr<grid::TextWalk> m_copy;
+    QTimer m_copyTimer;
     // the calculation, in slices
     QTimer m_calcTimer;
     qint64 m_budget = 20000;

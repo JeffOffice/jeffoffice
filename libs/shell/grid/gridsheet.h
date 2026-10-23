@@ -10,6 +10,7 @@
 #include "sheet/sheetmodel.h"
 #include "sheet/styles.h"
 
+#include <memory>
 #include <unordered_map>
 
 namespace jp::grid {
@@ -18,6 +19,14 @@ using jp::office::sheet::Cell;
 using jp::office::sheet::Sheet;
 using jp::office::sheet::SharedStrings;
 using jp::office::sheet::Styles;
+
+// What a sheet's file says about its rows, columns, merged ranges, frozen panes, zoom, and scroll, as the grid has it, and the formats that rows and columns give the cells that are
+// not there. It is made from the sheet and the styles alone, so a worker can make it ahead and the window take it in a moment (a sheet may name a million rows and a million merges).
+struct GridGeometry {
+    GridLayout layout;
+    std::vector<jp::office::sheet::ColumnSpan> columnStyles;
+    std::vector<jp::office::sheet::RowSpec> rowStyles;
+};
 
 // What the model reads. The sheet, styles, and strings must stay where they are while it does. With a calculation, a cell shows its value (a formula still to be worked out, the
 // result the file stored); without, what the file stored.
@@ -28,6 +37,7 @@ struct GridData {
     const jp::office::sheet::Calculation *calc = nullptr;
     int sheetIndex = 0;
     jp::calc::DateSystem dateSystem = jp::calc::DateSystem::Date1900;
+    std::shared_ptr<const GridGeometry> geometry;   // the sheet's geometry, made ahead by GridSheet::makeGeometry; none: setData makes it
 };
 
 class GridSheet {
@@ -57,6 +67,8 @@ public:
 
     // What the cell shows. The width it is shown in is its column's, or its merged range's. Cached by the cell's place.
     Shown shown(quint32 row, quint32 col, const Cell &cell) const;
+    // The text of a cell for a copy: what it holds as its format shows it, not cut to its cell (a number is never "#", a text keeps its line breaks and all its letters).
+    QString textOf(const Cell &cell) const;
     // Forgets the texts (values or formats changed).
     void invalidateTexts() const;
     // Shows the formula of a cell that has one in place of its value ("=SUM(A1:A3)", as text).
@@ -72,12 +84,14 @@ public:
     // The sheet has rows or columns with a format of their own (which the cells that are not there have).
     bool hasImplicitStyles() const { return !m_columnStyles.empty() || !m_rowStyles.empty(); }
 
+    // The geometry a sheet's file gives (the sheet's own view: its zoom, frozen panes, and where it was scrolled to); the work setData does when it is not given one.
+    static std::shared_ptr<GridGeometry> makeGeometry(const Sheet &sheet, const Styles &styles);
+
     // The column (row) a sheet's width (height) in characters (points) is, in the grid's units; the conversions the file's numbers go through.
     static int columnPixels(double chars, int maxDigitWidth);
     static int rowPixels(double points);
 
 private:
-    void buildGeometry();
     GridData m_data;
     GridLayout m_layout;
     LookTable m_looks;
