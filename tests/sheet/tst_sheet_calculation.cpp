@@ -969,6 +969,98 @@ private Q_SLOTS:
         QCOMPARE(b.at("C1"), QStringLiteral("n:100"));
         QVERIFY2(p.work >= qint64(rows) * rows / 8, qPrintable(QStringLiteral("%1 steps for %2 sums of a column of %3 rows").arg(p.work).arg(rows).arg(rows)));
     }
+
+    // A recalculation has a bound on the steps it takes in all (counted, whatever its slices): what is not worked out by then has the error #VALUE!, and the next recalculation,
+    // after an edit, has the whole bound again. Formulas that wait for others over and over (nested INDIRECT) are worked out again each time, and are held to it too.
+    void aRecalculationHasABoundOnItsTotalWork()
+    {
+        const int n = 400;
+        QString rows;
+        for (int i = 1; i <= 1000; ++i) rows += rowXml(i, constant(QStringLiteral("A%1").arg(i), "2") + (i <= n ? cellXml(QStringLiteral("C%1").arg(i), QStringLiteral("SUMPRODUCT(A1:A1000*A1:A1000)+%1").arg(i)) : QString()));
+        CalcOptions options;
+        options.recalcWorkLimit = 200000;
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)}), options));
+        const Calculation::Progress p = settle(b);
+        QVERIFY(p.finished);
+        QVERIFY2(p.overBudget, qPrintable(QStringLiteral("%1 steps, none refused").arg(p.work)));
+        QVERIFY2(p.work <= options.recalcWorkLimit + 20000, qPrintable(QString::number(p.work)));
+        QVERIFY2(p.refused > 0 && p.refused < n, qPrintable(QString::number(p.refused)));
+        QCOMPARE(b.at("C1"), QStringLiteral("n:%1").arg(4000 + 1));
+        QCOMPARE(b.at(QStringLiteral("C%1").arg(n)), QStringLiteral("e:#VALUE!"));
+        QVERIFY(!b.calc->isDirty());
+        // the same in slices: the same bound for all of them
+        Book c;
+        QVERIFY(c.open(buildXlsx({worksheet(rows)}), options));
+        qint64 work = 0, refused = 0;
+        bool over = false;
+        for (int slices = 0; slices < 100000; ++slices) {
+            const Calculation::Progress q = c.calc->recalculate(5000);
+            work += q.work;
+            refused += q.refused;
+            over = over || q.overBudget;
+            if (q.finished) break;
+        }
+        QVERIFY2(over && work <= options.recalcWorkLimit + 20000, qPrintable(QStringLiteral("%1 steps in slices").arg(work)));
+        QCOMPARE(refused, p.refused);
+        QCOMPARE(c.at(QStringLiteral("C%1").arg(n)), QStringLiteral("e:#VALUE!"));
+        // an edit starts a recalculation with the whole bound
+        QVERIFY(c.set("A1", Value::number(3)));
+        const Calculation::Progress r = settle(c);
+        QVERIFY(r.finished && r.overBudget);
+        QCOMPARE(c.at("C1"), QStringLiteral("n:4006"));   // 9 and 999 fours, and 1
+        // formulas that read where a text says, nested forty deep, over a formula that takes many steps, are worked out again after each: the bound is on all of them
+        QString chain;
+        for (int i = 1; i <= 1000; ++i) chain += rowXml(i, constant(QStringLiteral("A%1").arg(i), "2") + (i <= 40 ? cellXml(QStringLiteral("B%1").arg(i), QStringLiteral("\"B%1\"").arg(i + 1)) : QString()));
+        QString nest = QStringLiteral("\"B1\"");
+        for (int i = 0; i < 40; ++i) nest = QStringLiteral("INDIRECT(%1)").arg(nest);
+        chain += rowXml(1001, cellXml("D1", QStringLiteral("SUMPRODUCT(A1:A1000*A1:A1000)*0+LEN(%1)").arg(nest)));
+        CalcOptions tight;
+        tight.recalcWorkLimit = 20000;
+        Book d;
+        QVERIFY(d.open(buildXlsx({worksheet(chain)}), tight));
+        const Calculation::Progress t = settle(d);
+        QVERIFY2(t.finished && t.overBudget && t.work <= tight.recalcWorkLimit + 20000, qPrintable(QStringLiteral("%1 steps, %2 worked out").arg(t.work).arg(t.evaluated)));
+    }
+
+    // The texts and arrays that formulas gave are held to a bound for the workbook: a formula whose value would pass it has the error #VALUE! (and the work goes on), and an array
+    // formula of one cell holds one value, not the array its formula made.
+    void whatFormulasHoldIsHeldToABound()
+    {
+        const int n = 3000;
+        QString rows;
+        for (int i = 1; i <= n; ++i) rows += rowXml(i, cellXml(QStringLiteral("A%1").arg(i), QStringLiteral("REPT(\"x\",30000)&%1").arg(i)));
+        CalcOptions options;
+        options.maxHeldBytes = qint64(40) << 20;
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)}), options));
+        const Calculation::Progress p = settle(b);
+        QVERIFY(p.finished);
+        QVERIFY2(b.calc->heldBytes() <= options.maxHeldBytes, qPrintable(QStringLiteral("%1 MB held of %2").arg(b.calc->heldBytes() >> 20).arg(options.maxHeldBytes >> 20)));
+        QVERIFY2(p.refused > n / 2 && p.refused < n, qPrintable(QString::number(p.refused)));
+        QCOMPARE(b.calc->cell(0, 0, 0).text().size(), 30001);
+        QCOMPARE(b.at(QStringLiteral("A%1").arg(n)), QStringLiteral("e:#VALUE!"));
+        // one-cell array formulas, each made of an array of a million cells
+        QString arrays;
+        for (int i = 1; i <= 40; ++i) arrays += rowXml(i, QStringLiteral("<c r=\"A%1\"><f t=\"array\" ref=\"A%1\">ROW(INDIRECT(\"1:1000000\"))</f></c>").arg(i));
+        Book c;
+        QVERIFY(c.open(buildXlsx({worksheet(arrays)})));
+        const Calculation::Progress q = settle(c);
+        QVERIFY(q.finished);
+        QCOMPARE(c.at("A1"), QStringLiteral("n:1"));
+        QCOMPARE(c.at("A40"), QStringLiteral("n:1"));
+        QVERIFY2(c.calc->heldBytes() <= (qint64(1) << 20), qPrintable(QStringLiteral("%1 bytes held").arg(c.calc->heldBytes())));
+        QCOMPARE(q.refused, qint64(0));
+        // an array formula of a range keeps what the range holds, the rest of its array is cut
+        const QString range = rowXml(1, QStringLiteral("<c r=\"A1\"><f t=\"array\" ref=\"A1:B2\">ROW(INDIRECT(\"1:50\"))*COLUMN(A1:C1)</f></c>"));
+        Book d;
+        QVERIFY(d.open(buildXlsx({worksheet(range)})));
+        settle(d);
+        QCOMPARE(d.at("B1"), QStringLiteral("n:2"));
+        QCOMPARE(d.at("A2"), QStringLiteral("n:2"));
+        QCOMPARE(d.at("B2"), QStringLiteral("n:4"));
+        QVERIFY2(d.calc->heldBytes() <= 2048, qPrintable(QString::number(d.calc->heldBytes())));
+    }
 };
 
 JP_TEST_CLASS(SheetCalculationTests)

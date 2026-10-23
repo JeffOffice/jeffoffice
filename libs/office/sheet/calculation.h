@@ -24,9 +24,18 @@
 
 namespace jp::office::sheet {
 
+// What one recalculation may take, in steps (all its slices together), and what the formulas of a workbook may hold of texts and arrays, in bytes: past them the formulas still
+// to be worked out, or whose values would not fit, have the error #VALUE! (kept apart, they keep what the file stored and are of the class L, past the bounds).
+constexpr qint64 kMaxRecalcWork = 1000000000;
+// A cell of an array that a formula builds takes the time of a few steps (the cells alive at once, at the peak of an evaluation, are counted this many steps each, besides the steps).
+constexpr qint64 kArrayCellSteps = 5;
+constexpr qint64 kMaxHeldBytes = qint64(512) << 20;
+
 struct CalcOptions {
     bool keepApart = false;           // formulas the engine cannot work out keep the stored result (and mark what reads them): see the class
     qint64 workLimit = 0;             // steps for one formula; 0: the engine's own
+    qint64 recalcWorkLimit = 0;       // the most steps a recalculation takes in all its slices; 0: kMaxRecalcWork
+    qint64 maxHeldBytes = 0;          // the most bytes the texts and arrays that formulas gave may take together; 0: kMaxHeldBytes
     qint64 maxGraphBytes = jp::calc::DependencyGraph::kDefaultBytes;   // what the graph may take; the formulas past it are not tracked and are worked out in every recalculation
     double now = 0;                   // 0: the clock is read at each recalculation; else the day number NOW and TODAY give
     qint64 workbookBytes = kMaxWorkbookBytes;
@@ -51,6 +60,8 @@ public:
         qint64 work = 0;            // steps taken
         qint64 circular = 0;        // formulas found circular
         qint64 deepest = 0;         // the most formulas waiting for others at once
+        bool overBudget = false;    // the recalculation took the steps it may; the formulas it had not worked out have the error #VALUE! (or, kept apart, keep what the file stored)
+        qint64 refused = 0;         // formulas that were given that error for want of steps, or because the values held would pass the bound
         qint64 circleWork = 0;      // steps taken to place what a formula waits for, and the formulas of the groups that wait for each other (counted: a test can see that a circle is not found
                                     // by going over the stack again and again)
     };
@@ -77,6 +88,7 @@ public:
     // About the formulas.
     qint64 formulaCount() const { return m_formulaCount; }
     qint64 untrackedCount() const { return m_untracked; }      // formulas the graph was too full to hold
+    qint64 heldBytes() const { return m_heldBytes; }   // what the texts and arrays that formulas gave take (the bound: CalcOptions::maxHeldBytes)
     qint64 alwaysListed() const { return qint64(m_always.size()); }   // formulas on the list of those worked out in every recalculation
     const jp::calc::DependencyGraph &graph() const { return *m_graph; }
     // The number of the formula in the cell (the graph's name for it); 0xFFFFFFFF if the cell holds none.
@@ -177,7 +189,15 @@ private:
     void closeGroup(quint32 root, quint32 parent, Progress &pr);
     void leaveGroup(quint32 node, quint32 parent);
     void markCircular(quint32 id, Progress &pr);
-    void finishNode(Node &n, quint32 id, const jp::calc::Value &v);
+    bool finishNode(Node &n, quint32 id, const jp::calc::Value &v);   // true if the value was not held for want of room
+    void giveError(Node &n, quint32 id);
+    void refuseNode(quint32 id, Progress &pr);
+    void refuseTheRest(Progress &pr);
+    qint64 heldBy(const Node &n, quint32 id) const;
+    static qint64 heldByValue(const jp::calc::Value &v);
+    jp::calc::Value fitToRange(const Node &n, const jp::calc::Value &v) const;
+    qint64 m_workUsed = 0, m_workLimit = kMaxRecalcWork;   // the steps this recalculation has taken in all its slices, and the most it may
+    qint64 m_heldBytes = 0, m_heldLimit = kMaxHeldBytes;
     bool m_running = false;
     double m_now = 0;
     qint64 m_notDone = 0, m_formulaCount = 0, m_untracked = 0;

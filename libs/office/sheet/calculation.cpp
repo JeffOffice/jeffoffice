@@ -27,6 +27,8 @@ Calculation::Calculation(const Workbook &book, const CalcOptions &options) : Wor
     if (options.workLimit > 0) m_evaluator.setWorkLimit(options.workLimit);
     m_iterate = book.info().iterate;
     m_ctx.dateSystem = book.info().dateSystem;
+    if (options.recalcWorkLimit > 0) m_workLimit = options.recalcWorkLimit;
+    if (options.maxHeldBytes > 0) m_heldLimit = options.maxHeldBytes;
 }
 
 Calculation::~Calculation() = default;
@@ -214,8 +216,45 @@ Value Calculation::nodeValue(const Node &n, quint32 id) const
     }
 }
 
-void Calculation::storeResult(Node &n, quint32 id, const Value &v)
+qint64 Calculation::heldByValue(const Value &v)
 {
+    if (v.isText()) return qint64(v.text().size()) * 2 + 64;
+    if (v.isArray()) return qint64(v.rows()) * v.cols() * qint64(sizeof(Value)) + 96;
+    return 0;
+}
+
+qint64 Calculation::heldBy(const Node &n, quint32 id) const
+{
+    if (n.kind == KindText && n.text >= 0) return qint64(m_texts.value(n.text).size()) * 2 + 64;
+    if (n.kind == KindArray) return heldByValue(m_arrays.value(id));
+    return 0;
+}
+
+// An array formula's cells are those of its range: the rest of the array it made is not held (a formula of one cell holds one value).
+Value Calculation::fitToRange(const Node &n, const Value &v) const
+{
+    if (!(n.flags & Array) || !v.isArray()) return v;
+    const CellArea a = areaOf(n);
+    const int rows = int(std::min<qint64>(a.rows(), v.rows())), cols = int(std::min<qint64>(a.cols(), v.cols()));
+    if (rows == v.rows() && cols == v.cols()) return v;
+    if (rows == 1 && cols == 1) return v.at(0, 0);
+    Value out = Value::array(rows, cols);
+    for (int i = 0; i < rows; ++i)
+        for (int j = 0; j < cols; ++j) out.set(i, j, v.at(i, j));
+    return out;
+}
+
+void Calculation::storeResult(Node &n, quint32 id, const Value &given)
+{
+    const Value v = fitToRange(n, given);
+    const qint64 held = heldBy(n, id);
+    struct Account {
+        Calculation *c;
+        Node &n;
+        quint32 id;
+        qint64 before;
+        ~Account() { c->m_heldBytes += c->heldBy(n, id) - before; }
+    } account{this, n, id, held};
     if (n.kind == KindText && n.text >= 0 && !v.isText()) {
         m_freeTexts.push_back(n.text);
         n.text = -1;
@@ -410,6 +449,8 @@ void Calculation::markDependents(std::vector<CellArea> *changed)
         found.clear();
         if (a.single()) m_graph->dependentsOfCell(a.sheet1, a.row1, a.col1, &found);
         else m_graph->dependentsOfArea(a, &found);
+        std::sort(found.begin(), found.end());   // (in the order of their numbers, which is the order of the cells: what is worked out first is the same each time)
+        found.erase(std::unique(found.begin(), found.end()), found.end());
         for (const quint32 id : found) {
             const Node &n = m_nodes[id];
             if ((n.flags & (Dead | Kept)) || n.state != Done) continue;
@@ -421,6 +462,7 @@ void Calculation::markDependents(std::vector<CellArea> *changed)
 void Calculation::beginRecalculation()
 {
     m_running = true;
+    m_workUsed = 0;
     m_now = m_options.now > 0 ? m_options.now : clockSerial(m_ctx.dateSystem);
     std::vector<CellArea> changed;
     // (the list is kept to the formulas that are on it: one that is gone, or not volatile now, is left off)
@@ -504,13 +546,14 @@ Value Calculation::runFormula(quint32 id, qint64 *work)
     m_evaluating = true;
     const Value v = m_evaluator.evaluate(*slot.program, m_ctx);
     m_evaluating = false;
-    *work = m_evaluator.work();
+    *work = m_evaluator.work() + kArrayCellSteps * m_evaluator.peakArrayCells();
     return v;
 }
 
 // What a formula worked out is: its result, whether it read anything kept apart, and whether it is a mismatch with what the file stored (or reads one).
-void Calculation::finishNode(Node &n, quint32 id, const Value &v)
+bool Calculation::finishNode(Node &n, quint32 id, const Value &v)
 {
+    bool refused = false;
     const EvalStatus status = m_evaluator.status();
     const int unsupported = m_evaluator.unsupportedKinds();
     if (m_options.keepApart && unsupported) {
@@ -521,6 +564,10 @@ void Calculation::finishNode(Node &n, quint32 id, const Value &v)
         n.flags |= Kept | NodeTainted;
         n.kept = 'L';
         keepStored(n, 'L');
+    } else if (m_heldBytes - heldBy(n, id) + heldByValue(fitToRange(n, v)) > m_heldLimit) {
+        // what the formulas hold would pass its bound: this one has the error (kept apart, the file's value), and the work goes on
+        giveError(n, id);
+        refused = true;
     } else {
         storeResult(n, id, v);
         n.flags &= quint16(~Circular);
@@ -535,6 +582,51 @@ void Calculation::finishNode(Node &n, quint32 id, const Value &v)
         }
     }
     n.flags &= quint16(~Retried);
+    return refused;
+}
+
+// The error a formula has that is not worked out for want of steps or room: #VALUE! (kept apart, the file's value, of the class L).
+void Calculation::giveError(Node &n, quint32 id)
+{
+    if (m_options.keepApart) {
+        n.flags |= Kept | NodeTainted;
+        n.kept = 'L';
+        keepStored(n, 'L');
+    } else {
+        storeResult(n, id, Value::error(ErrorKind::Value));
+        n.flags &= quint16(~(Circular | NodeTainted | Mismatch | Cascade));
+    }
+}
+
+// A formula that is not worked out for want of steps: it has the error, and is done.
+void Calculation::refuseNode(quint32 id, Progress &pr)
+{
+    Node &n = m_nodes[id];
+    if ((n.flags & Dead) || n.state == Done) return;
+    giveError(n, id);
+    n.flags &= quint16(~Retried);
+    n.state = Done;
+    --m_notDone;
+    ++pr.recalculated;
+    ++pr.refused;
+}
+
+// The recalculation has taken the steps it may: every formula still to be worked out has the error, and the recalculation is over.
+void Calculation::refuseTheRest(Progress &pr)
+{
+    for (const Frame &f : m_stack) refuseNode(f.node, pr);
+    for (const quint32 x : m_comp) {
+        refuseNode(x, pr);
+        m_index[x] = m_low[x] = 0;
+    }
+    for (size_t i = m_dirtyCursor; i < m_dirty.size(); ++i) refuseNode(m_dirty[i], pr);
+    m_stack.clear();
+    m_comp.clear();
+    m_running = false;
+    m_dirty.clear();
+    m_dirtyCursor = 0;
+    pr.overBudget = true;
+    pr.finished = true;
 }
 
 // A formula in a circle has the result 0 (kept apart, the file's value, which marks what reads it).
@@ -640,16 +732,21 @@ Calculation::Progress Calculation::recalculate(qint64 budget, const std::atomic<
                 continue;
             }
         }
+        if (m_workUsed >= m_workLimit) {
+            refuseTheRest(pr);
+            return pr;
+        }
         qint64 work = 0;
         const Value v = runFormula(id, &work);
         Node &n = m_nodes[id];
         spent += work;
         pr.work += work;
+        m_workUsed += work;
         ++pr.evaluated;
         // (what it read through a name, INDIRECT, or OFFSET is told each time it is worked out, whether or not it can be finished: a circle it closes is broken by an edit to that)
         if (n.flags & Told) registerNode(id, &m_touched);
         if (m_pending.empty()) {
-            finishNode(n, id, v);
+            if (finishNode(n, id, v)) ++pr.refused;
             n.state = Done;
             --m_notDone;
             ++pr.recalculated;
@@ -711,6 +808,7 @@ void Calculation::dropNode(quint32 id)
     Node &n = m_nodes[id];
     if (n.flags & Dead) return;
     if (!(n.flags & Kept) && n.state != Done) --m_notDone;
+    m_heldBytes -= heldBy(n, id);
     if (n.kind == KindText && n.text >= 0) m_freeTexts.push_back(n.text);
     m_arrays.remove(id);
     m_graph->clearPrecedents(id);
