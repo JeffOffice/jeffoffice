@@ -14,6 +14,7 @@
 #include <memory>
 
 class QMenu;
+class QTextDocument;
 
 namespace jp {
 class LayoutCache;
@@ -71,7 +72,8 @@ public:
     void setShowMarks(bool on);
     bool showMarks() const { return m_marks; }
     // Spelling as you type: misspelled words get a red wave on the screen. The checking is the document's own, found a paragraph at a time for the pages in view.
-    SpellCheck *spelling() const { return m_spell.get(); }
+    // (The check of what is being edited: the header's or footer's while one is, else the text's.)
+    SpellCheck *spelling() const { return m_hf.active && m_hfSpell ? m_hfSpell.get() : m_spell.get(); }
     bool spellingEnabled() const { return m_spellOn; }
     // The place a menu is for: where the last right click was (a click inside a selection leaves the selection and the caret as they were), else the caret.
     int contextPosition() const { return m_contextAt >= 0 ? m_contextAt : m_cursor.position(); }
@@ -87,6 +89,27 @@ public:
     void insertText(const QString &text);
     void typeKey(int key, Qt::KeyboardModifiers modifiers);   // the keys that edit and move, as the keyboard sends them
 
+    // ---- headers and footers
+    // A header or footer being edited: the text of the page dims, the caret and every edit are in its story, and Esc, a double click in the text of a page, or leaveHeaderFooter ends it.
+    struct HeaderFooterEdit {
+        bool active = false;
+        int section = 0, slot = 0, page = 0;   // the section and slot it is of, and the page it is edited on
+        bool footer = false;
+        QTextDocument *story = nullptr;
+    };
+    // The part of a page a point is in: the text, the area of the header above it, or the area of the footer below it.
+    enum class Area { Body, Header, Footer };
+    bool inHeaderFooter() const { return m_hf.active; }
+    const HeaderFooterEdit &headerFooterEdit() const { return m_hf; }
+    // Edits the header (footer) a page uses: its section's, in the slot that the page's number and place in the section choose. A blank one is made where there is none.
+    bool enterHeaderFooter(int page, bool footer);
+    bool enterHeaderFooterFor(int section, bool footer, int slot, int page);
+    bool enterHeaderFooterAtCaret(bool footer);   // for the page the caret is on
+    void leaveHeaderFooter();
+    // After a change to the sections or to their options: the header (footer) being edited is the one that its page uses now (else the one that is, made blank if `create`, else editing ends).
+    void refreshHeaderFooter(bool create);
+    Area areaAt(const QPoint &viewportPos);
+
     // Lays out every page now (for the count).
     void paginateAll();
     // The pages the window is set to show, laid out and drawn once more.
@@ -98,6 +121,7 @@ Q_SIGNALS:
     void caretChanged();                    // the caret moved or the selection changed
     void contentChanged();                  // the text was edited
     void contextMenuWanted(const QPoint &globalPos);
+    void headerFooterModeChanged();         // a header or footer is edited now, or none is any more
 
 protected:
     void paintEvent(QPaintEvent *e) override;
@@ -134,6 +158,18 @@ private:
     struct FrameSpot;
     bool frameSpotAt(Rendered &r, int position, FrameSpot *spot);
     int moveVertical(int position, int direction);
+    // The same, for the header or footer that is being edited: where its boxes on the page being edited put a position, and which position a point is at.
+    bool hfCaretLine(int position, int *page, QLineF *line);
+    bool hfSpotAt(Rendered &r, int position, FrameSpot *spot);
+    int hfPositionAt(const Hit &hit);
+    int hfLineEdge(int position, bool end);
+    int hfMoveVertical(int position, int direction);
+    Area areaOf(const Hit &hit);
+    // The header (footer) clicked: the one being edited, or another that the click goes to.
+    bool takeFurnitureAt(const Hit &hit, bool footer);
+    int pageShowing(int section, bool footer, int slot);
+    // After an undo or a redo that was in `story`: the view shows where it was done.
+    void followHistory(QTextDocument *story, const QTextCursor &at);
     int lineEdge(int position, bool end);
     void caretMoved(bool keepWanted = false);
     int m_movedFrom = -1;   // where the caret (or the end of a drag) was before the key or the drag that moved it, for the way it went; -1 when it is not known (a click)
@@ -176,6 +212,10 @@ private:
     bool m_spellOn = true;
     int m_contextAt = -1;           // where the right click was, until the caret moves or the menu is gone
     int m_editEnd = -1;             // where the last edit left off (a word being typed ends the caret's way)
+    HeaderFooterEdit m_hf;
+    QTextCursor m_bodyCursor;       // the text's cursor while a header or footer is edited
+    std::unique_ptr<SpellCheck> m_hfSpell;
+    QMetaObject::Connection m_hfEdit;
 };
 
 } // namespace jp::write

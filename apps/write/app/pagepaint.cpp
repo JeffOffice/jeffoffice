@@ -3,6 +3,8 @@
 #include "core/spellcheck.h"
 #include "core/tableops.h"
 
+#include <QCoreApplication>
+#include <QFontMetricsF>
 #include <QPainter>
 #include <QPainterPath>
 #include <QTextDocument>
@@ -70,6 +72,37 @@ void paintCellWaves(QPainter *p, const flow::MaterializedPage &page, const PageD
     }
 }
 
+// While a header or footer is edited the text of the page is dimmed (the headers and footers are not), and the edge of the one being edited is a dashed line with its name.
+void paintEditedEdge(QPainter *p, const flow::MaterializedPage &page, const PageDrawing &d)
+{
+    QPainterPath dim;
+    dim.addRect(QRectF(QPointF(0, 0), page.size));
+    auto keepClear = [&](const QRectF &r) {
+        QPainterPath hole;
+        hole.addRect(r);
+        dim = dim.subtracted(hole);
+    };
+    for (const auto &fb : page.furniture)
+        if (const Item *item = page.doc->item(fb.itemId)) keepClear(item->rect);
+    for (const auto &fragment : page.furnitureTables) keepClear(fragment->rect());
+    p->save();
+    p->setRenderHint(QPainter::Antialiasing, false);
+    p->fillPath(dim, QColor(255, 255, 255, 150));
+    const double y = d.editFooter ? page.bodyArea.bottom() : page.bodyArea.top();
+    p->setPen(QPen(QColor(90, 90, 90), 0.6, Qt::DashLine));
+    p->drawLine(QPointF(0, y), QPointF(page.size.width(), y));
+    // The name, on the dimmed side of the line.
+    const QString name = d.editFooter ? QCoreApplication::translate("jp::write::PageView", "Footer") : QCoreApplication::translate("jp::write::PageView", "Header");
+    QFont f;
+    f.setPixelSize(9);
+    p->setFont(f);
+    const QRectF label(page.bodyArea.left(), d.editFooter ? y - 13.5 : y + 0.5, 15 + QFontMetricsF(f).horizontalAdvance(name), 13);
+    p->fillRect(label, QColor(0xE8, 0xE8, 0xE8));
+    p->setPen(QColor(0x40, 0x40, 0x40));
+    p->drawText(label, Qt::AlignCenter, name);
+    p->restore();
+}
+
 } // namespace
 
 void setPaintObserver(const std::function<void(const flow::MaterializedPage &, const PageDrawing &)> &observer) { s_observer = observer; }
@@ -108,6 +141,33 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
         }
         if (!words.isEmpty()) ctx.opt.misspelled.insert(bodyId, words);
     }
+    // The header or footer being edited: the selection and the misspelled words in the boxes that show it.
+    if (d.editedStory)
+        for (const auto &fb : page.furniture) {
+            if (fb.source != d.editedStory) continue;
+            const Item *item = page.doc->item(fb.itemId);
+            if (!item || item->type() != ItemType::Text) continue;
+            const QString id = static_cast<const TextItem *>(item)->storyId;
+            const Story *shown = page.doc->story(id);
+            if (!shown || !shown->doc) continue;
+            const int length = shown->doc->characterCount();
+            if (d.editSelFrom >= 0 && d.editSelTo > d.editSelFrom && ctx.opt.editStory.isEmpty()) {
+                const int from = std::max(0, d.editSelFrom - fb.from), to = std::min(length - 1, d.editSelTo - fb.from);
+                if (to > from) {
+                    ctx.opt.editStory = id;
+                    ctx.opt.selFrom = from;
+                    ctx.opt.selTo = to;
+                }
+            }
+            if (d.editSpelling && !d.output) {
+                QVector<QPair<int, int>> words;
+                for (const auto &w : d.editSpelling->misspelledIn(fb.from, fb.from + length)) {
+                    if (d.editTypingAt >= w.first && d.editTypingAt <= w.second) continue;
+                    words << qMakePair(std::max(0, w.first - fb.from), std::min(length, w.second - fb.from));
+                }
+                if (!words.isEmpty()) ctx.opt.misspelled.insert(id, words);
+            }
+        }
     Renderer::paintPage(p, ctx, 0);
     flow::TablePaint tables;
     tables.output = d.textOutput;
@@ -116,6 +176,7 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
     tables.selTo = d.selectionTo;
     flow::paintTables(p, page, tables);
     if (d.spelling && !d.output) paintCellWaves(p, page, d);
+    if (d.editedStory && !d.output) paintEditedEdge(p, page, d);
 }
 
 } // namespace jp::write

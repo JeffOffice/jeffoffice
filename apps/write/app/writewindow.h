@@ -121,6 +121,8 @@ private:
     void createHelpActions();
     void createReviewActions();
     void createEditingActions();
+    void createHeaderFooterActions();
+    void headerFooterModeChanged();
     void buildRibbon();
     void ribbonParts(RibbonParts &parts);
     void buildStatusBar();
