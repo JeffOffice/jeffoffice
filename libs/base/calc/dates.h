@@ -4,7 +4,7 @@
 
 #include <QString>
 
-namespace jp::office::sheet {
+namespace jp::calc {
 
 enum class DateSystem {
     Date1900,   // day 1 is January 1, 1900; the days from March 1, 1900 are one more than the true count, because day 60 is the February 29, 1900 that never was
@@ -22,4 +22,4 @@ bool serialToDate(double serial, DateSystem system, int *year, int *month, int *
 // The day number it comes to; false if it is none of these.
 bool parseIsoDate(const QString &text, DateSystem system, double *serial);
 
-} // namespace jp::office::sheet
+} // namespace jp::calc

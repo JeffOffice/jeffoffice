@@ -1,8 +1,8 @@
-#include "sheet/dates.h"
+#include "calc/dates.h"
 
 #include <cmath>
 
-namespace jp::office::sheet {
+namespace jp::calc {
 
 namespace {
 
@@ -162,4 +162,4 @@ bool parseIsoDate(const QString &text, DateSystem system, double *serial)
     return true;
 }
 
-} // namespace jp::office::sheet
+} // namespace jp::calc

@@ -6,7 +6,7 @@
 // the memory it takes to hold its XML is read in the memory its cells take.
 
 #include "office/package.h"
-#include "sheet/dates.h"
+#include "calc/dates.h"
 #include "sheet/sheetmodel.h"
 
 #include <QIODevice>
@@ -16,6 +16,8 @@
 #include <functional>
 
 namespace jp::office::sheet {
+
+using jp::calc::DateSystem;
 
 // What the files control, bounded. Each is at least ten times what any real
 // workbook has; the most found in the 8,371 public workbooks used for tuning

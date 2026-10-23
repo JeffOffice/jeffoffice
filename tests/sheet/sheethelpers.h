@@ -5,7 +5,7 @@
 #include "io/zip.h"
 #include "office/package.h"
 #include "sheet/cellref.h"
-#include "sheet/dates.h"
+#include "calc/dates.h"
 #include "sheet/sheetmodel.h"
 #include "sheet/sheetreader.h"
 
@@ -20,6 +20,7 @@
 
 using namespace jp::office;
 using namespace jp::office::sheet;
+using namespace jp::calc;
 
 namespace sheettest {
 

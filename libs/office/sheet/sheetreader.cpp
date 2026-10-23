@@ -538,7 +538,7 @@ bool SheetReader::endCell()
             c.number = double(int(errorFromText(QStringView(m_value).trimmed())));
         } else if (type == QLatin1String("d")) {
             double serial = 0;
-            if (parseIsoDate(m_value, m_options.dateSystem, &serial) || toNumber(m_value, &serial)) {
+            if (calc::parseIsoDate(m_value, m_options.dateSystem, &serial) || toNumber(m_value, &serial)) {
                 c.type = CellType::Date;
                 c.number = serial;
             } else if (!m_value.trimmed().isEmpty()) {
