@@ -496,7 +496,7 @@ private Q_SLOTS:
     // ends, a table) comes out as it was, at its place.
     void aHeaderPartIsWrittenBackFromItsBlocks()
     {
-        const QByteArray root = QByteArray("<w:hdr ") + kW + R"( xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="w14" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml">)";
+        const QByteArray root = QByteArray("<w:hdr ") + kW + R"( xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="w14" xmlns:w14="urn:example:extension">)";
         const QByteArray drawing = R"(<w:drawing><wp:inline><wp:extent cx="95250" cy="95250"/><wp:docPr id="1" name="Logo"/><a:graphic><a:graphicData uri="x"><a:blip r:embed="rId9"/></a:graphicData></a:graphic></wp:inline></w:drawing>)";
         const QByteArray part = xmlDoc(root + R"(<w:p><w:pPr><w:pStyle w:val="Header"/></w:pPr><w:bookmarkStart w:id="3" w:name="top"/><w:r><w:t>Top</w:t></w:r><w:r>)" + drawing +
                                        R"(</w:r><w:bookmarkEnd w:id="3"/></w:p><w:sdt><w:sdtPr><w:alias w:val="x"/></w:sdtPr><w:sdtContent><w:p><w:r><w:t>In control</w:t></w:r></w:p></w:sdtContent></w:sdt></w:hdr>)");
