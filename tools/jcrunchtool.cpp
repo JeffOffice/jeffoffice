@@ -33,7 +33,8 @@
 //   jcrunchtool mutate <file.xlsx> [count=3000] [seed=1] [seconds=60]   the formulas of the workbook, each damaged in a few places (a character changed, taken out, or put in, a piece
 //                                                repeated or moved), some grown by repeating them as the arguments of a sum or the parts of a text up to the 32,768 characters a formula
 //                                                may have, and parsed and worked out against the workbook's cells with the engine's own bounds on steps and cells, as a sweep for crashes
-//                                                and hangs; prints how many were parsed and worked out
+//                                                and hangs; then edits (values, texts, errors, cleared cells, the damaged formulas put in cells) to the calculation of the workbook,
+//                                                each followed by a recalculation, some in slices and some stopped; prints how many of each
 //   jcrunchtool eval <file.xlsx> <sheet> <cell> <formula>   the formula worked out as if it were in that cell of that sheet (a name, or a number counting from 1), reading the values the file stored:
 //                                                the value, as `n:1.5`, `s:text`, `b:1`, `e:#N/A`, or `a:2x2[...]`
 //   jcrunchtool recalc <keys.txt> <out-dir> [jobs]   runs `recalc-one` on each workbook listed under the same limits as `scan`, writes <out-dir>/cells.tsv (workbook, sheet, cell, formula,
@@ -44,6 +45,7 @@
 #include "office/package.h"
 #include "calc/functions.h"
 #include "calc/numfmt.h"
+#include "sheet/calculation.h"
 #include "sheet/cellref.h"
 #include "sheet/formatcases.h"
 #include "sheet/recalc.h"
@@ -59,6 +61,7 @@
 #include <QTextStream>
 
 #include <algorithm>
+#include <atomic>
 #include <random>
 
 using namespace jp::office;
@@ -389,11 +392,8 @@ int mutate(const QString &path, int count, quint32 seed, double seconds)
                                          "1E-308", "SUM(", "IF(", "INDEX(", "OFFSET(", "INDIRECT(", "VLOOKUP(", "REPT(", "SEARCH(", "Sheet1!", "'x'!", "TRUE", "#N/A", "{1,2;3,4}", "\\", "?", "*?", "~"};
     const int nPieces = int(sizeof(pieces) / sizeof(pieces[0]));
     std::mt19937 rng(seed);
-    QElapsedTimer timer;
-    timer.start();
-    jp::calc::Evaluator evaluator;   // (with the engine's own limit on steps: a sweep with a smaller one never reaches what the real limit lets through)
-    qint64 parsed = 0, worked = 0, tried = 0;
-    for (int i = 0; i < count && timer.elapsed() < seconds * 1000.0; ++i) {
+    // one of the workbook's formulas, damaged in a few places, and now and then grown to the most characters a formula may have
+    const auto damaged = [&]() {
         QString f = formulas[int(rng() % quint32(formulas.size()))];
         const int edits = 1 + int(rng() % 4);
         for (int k = 0; k < edits; ++k) {
@@ -415,6 +415,14 @@ int mutate(const QString &path, int count, quint32 seed, double seconds)
             else f = (f + QLatin1Char('&')).repeated(copies) + QStringLiteral("\"\"");
             if (f.size() > jp::calc::kMaxFormulaChars + 8) f.truncate(jp::calc::kMaxFormulaChars + 8);
         }
+        return f;
+    };
+    QElapsedTimer timer;
+    timer.start();
+    jp::calc::Evaluator evaluator;   // (with the engine's own limit on steps: a sweep with a smaller one never reaches what the real limit lets through)
+    qint64 parsed = 0, worked = 0, tried = 0;
+    for (int i = 0; i < count && timer.elapsed() < seconds * 500.0; ++i) {
+        const QString f = damaged();
         ++tried;
         for (int mode = 0; mode < 2; ++mode) {
             jp::calc::ParseOptions po;
@@ -434,7 +442,53 @@ int mutate(const QString &path, int count, quint32 seed, double seconds)
             ++worked;
         }
     }
-    out() << "mutate: " << tried << " formulas damaged, " << parsed << " parsed, " << worked << " worked out, " << QString::number(timer.elapsed() / 1000.0, 'f', 1) << " s\n";
+    // the calculation over the workbook: its formulas worked out, then edits (values, text, errors, cleared cells, the damaged formulas put in cells) each followed by a
+    // recalculation, some in slices and some stopped, as a sweep for crashes and hangs
+    qint64 edits = 0, sliced = 0;
+    {
+        CalcOptions options;
+        options.now = 45366.5;
+        Calculation calc(book, options);
+        calc.load();
+        calc.recalculate();
+        struct At {
+            int sheet;
+            quint32 row, col;
+        };
+        std::vector<At> places;
+        for (int si = 0; si < source.sheetCount() && places.size() < 4000; ++si)
+            calc.sheet(si).cells.forEach([&](const Cell &c) {
+                if (c.hasFormula() && places.size() < 4000) places.push_back({si, c.row, c.col});
+            });
+        if (places.empty()) places.push_back({0, 0, 0});
+        std::atomic<bool> stop{false};
+        while (timer.elapsed() < seconds * 1000.0 && edits < count) {
+            At at = places[rng() % places.size()];
+            if (rng() % 4 == 0) at = {int(rng() % quint32(source.sheetCount())), rng() % 300, rng() % 40};
+            switch (rng() % 6) {
+            case 0: calc.setValue(at.sheet, at.row, at.col, jp::calc::Value::number(double(int(rng() % 2000)) / 7.0)); break;
+            case 1: calc.setValue(at.sheet, at.row, at.col, jp::calc::Value::text(QStringLiteral("t%1").arg(rng() % 100))); break;
+            case 2: calc.setValue(at.sheet, at.row, at.col, jp::calc::Value::error(jp::calc::ErrorKind(rng() % 7))); break;
+            case 3: calc.clearCell(at.sheet, at.row, at.col); break;
+            default: calc.setFormula(at.sheet, at.row, at.col, damaged()); break;
+            }
+            ++edits;
+            if (rng() % 3 == 0) {
+                ++sliced;
+                stop = false;
+                calc.recalculate(1 + qint64(rng() % 4000), &stop);
+                if (rng() % 2) {
+                    stop = true;
+                    calc.recalculate(0, &stop);
+                }
+            }
+            if (rng() % 2) calc.recalculate();
+        }
+        stop = false;
+        calc.recalculate();
+    }
+    out() << "mutate: " << tried << " formulas damaged, " << parsed << " parsed, " << worked << " worked out, " << edits << " edits in " << sliced << " slices, "
+          << QString::number(timer.elapsed() / 1000.0, 'f', 1) << " s\n";
     return 0;
 }
 

@@ -16,6 +16,7 @@ using namespace jp::calc;
 namespace {
 
 constexpr qint64 kMaxArrayCellsMarked = 1000000;   // an array formula's range larger than this is not made members of (no real one is)
+constexpr qint64 kMaxMembersAdded = 200000;        // the cells of arrays that the file has no cell for, which are put in (each costs the cells after it in its block of rows)
 
 } // namespace
 
@@ -316,6 +317,7 @@ bool Calculation::load()
         m_cols[size_t(si)] = cols;
     }
     // the cells of an array formula's range, but its first, are its: they read its value (a data table's, and those of an array that is kept apart, are the file's, marked)
+    qint64 added = 0;
     for (const quint32 id : masters) {
         Node &n = m_nodes[id];
         Sheet &s = m_sheets[size_t(n.sheet)];
@@ -327,8 +329,10 @@ bool Calculation::load()
             for (quint32 col = r.col1; col <= r.col2; ++col) {
                 if (row == n.row && col == n.col) continue;
                 Cell member;
-                if (const Cell *have = s.cells.find(row, col)) member = *have;
-                else {
+                if (const Cell *have = s.cells.find(row, col)) {
+                    member = *have;
+                } else {
+                    if (++added > kMaxMembersAdded) continue;
                     member.row = row;
                     member.col = quint16(col);
                 }
