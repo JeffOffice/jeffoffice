@@ -166,6 +166,13 @@ jobs:
           echo "--- officetests-results.txt"; cat officetests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
           echo "officetests exit code: $ocode"
           if [ "$code" -eq 0 ]; then code=$ocode; fi
+          # The spreadsheet readers' tests (libs/office/sheet), and those of the package reader that inflates a part when it is asked for.
+          if [ "$RUNNER_OS" = "Windows" ]; then S=build/sheettests.exe; else S=build/sheettests; fi
+          "$S" -v1 -o sheettests-results.txt,txt -o -,txt
+          scode=$?
+          echo "--- sheettests-results.txt"; cat sheettests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
+          echo "sheettests exit code: $scode"
+          if [ "$code" -eq 0 ]; then code=$scode; fi
           # JeffDeck's tests.
           if [ "$RUNNER_OS" = "Windows" ]; then D=build/jdtests.exe; else D=build/jdtests; fi
           "$D" -v1 -o jdtests-results.txt,txt -o -,txt

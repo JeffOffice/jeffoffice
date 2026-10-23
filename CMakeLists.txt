@@ -174,6 +174,20 @@ set_target_properties(officetests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME officetests COMMAND officetests)
 set_tests_properties(officetests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+# The tests of the spreadsheet readers (libs/office/sheet) and of the package reader that inflates parts as they are asked for.
+qt_add_executable(sheettests
+  tests/testrunner.cpp
+  tests/sheet/sheethelpers.cpp
+  tests/sheet/tst_sheet_cells.cpp
+  tests/sheet/tst_sheet_formulas.cpp
+  tests/sheet/tst_sheet_limits.cpp
+  tests/sheet/tst_sheet_package.cpp
+  tests/sheet/tst_sheet_workbook.cpp)
+target_link_libraries(sheettests PRIVATE jo_office Qt6::Test)
+set_target_properties(sheettests PROPERTIES WIN32_EXECUTABLE OFF)
+add_test(NAME sheettests COMMAND sheettests)
+set_tests_properties(sheettests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
 # The tests of the word processing XML (libs/office/wml): the tree it is read into, and reading and writing a .docx.
 qt_add_executable(wmltests tests/office/tst_wml.cpp)
 target_link_libraries(wmltests PRIVATE jo_office Qt6::Test)
@@ -396,6 +410,12 @@ if(JP_BUILD_WRITE)
   target_compile_definitions(writetool PRIVATE JW_DOCX=1)
 endif()
 set_target_properties(writetool PROPERTIES WIN32_EXECUTABLE OFF)
+
+# Developer tool for JeffCrunch's readers and its yardstick: what a workbook holds, and a table of that for a list of workbooks.
+qt_add_executable(jcrunchtool tools/jcrunchtool.cpp)
+target_link_libraries(jcrunchtool PRIVATE jo_office)
+target_compile_definitions(jcrunchtool PRIVATE JCRUNCH_TOOLS_DIR="${CMAKE_SOURCE_DIR}/tools")
+set_target_properties(jcrunchtool PROPERTIES WIN32_EXECUTABLE OFF)
 
 # Developer tool for rendering and converting publications from the command line.
 qt_add_executable(jpubtool tools/jpubtool.cpp)

@@ -17,6 +17,10 @@
 #include <QStringList>
 #include <QVector>
 
+#include <memory>
+
+class QIODevice;
+
 namespace jp::office {
 
 // One link from a part (or from the package) to another part or to an
@@ -71,6 +75,23 @@ public:
     // are the same.
     bool readOpenDocument(const QByteArray &zip, QString *error = nullptr);
 
+    // The same refusals and the same names, but a part is kept compressed in
+    // the file's bytes until it is asked for, and inflated then: part() gives
+    // it whole and openPart() as a stream. [Content_Types].xml and the
+    // relationship parts are read now, as they are what a package is made of.
+    // The total size, the parts count, and the names are refused as read()
+    // refuses them; what read() finds wrong with a part while inflating it (a
+    // size or CRC that doesn't match the directory) is found only when the
+    // part is asked for, which gives an empty part and (openPart) a failed
+    // stream. For a package whose parts may be far larger than the rest of
+    // the file needs, such as the sheets of a spreadsheet.
+    // What all the parts of a lazy package may come to, together and over its life: at least ten times the most that
+    // real workbooks have (302 MB). Nothing is held in memory but what a caller asks to be (part()); openPart() streams.
+    static constexpr qint64 kLazyMaxInflated = qint64(4) << 30;
+    bool readLazy(const QByteArray &zip, QString *error = nullptr, qint64 maxInflated = kLazyMaxInflated);
+    bool readLazyFile(const QString &path, QString *error = nullptr);
+    bool isLazy() const;
+
     // How many parts and relationships the last read left out as unusable.
     int skippedCount() const;
 
@@ -78,8 +99,21 @@ public:
     // parts are not listed: they have their own accessors below.
     QStringList partNames() const;
     bool hasPart(const QString &name) const;
-    // The part's bytes; empty if there is no such part.
+    // The part's bytes; empty if there is no such part, or if a lazy package could not inflate it (it is damaged, or past what a part or the package may
+    // come to). A lazy package inflates it now, each time it is asked for, and keeps nothing: a caller that needs it twice keeps what it was given. The whole
+    // part is held in memory, so a part that may be large is read with openPart.
     QByteArray part(const QString &name) const;
+    // How many bytes the part holds once inflated; -1 if there is no such part.
+    qint64 partSize(const QString &name) const;
+    // The part as a stream, inflated as it is read (see ZipEntryDevice); null
+    // if there is no such part. The package must outlive the stream.
+    std::unique_ptr<QIODevice> openPart(const QString &name) const;
+    // How many bytes a lazy package has inflated so far: what read() did at
+    // once, counted as it happens, and the most it may come to over the package's whole life
+    // is what it was allowed to open with (maxInflated): a part asked for again and again, or
+    // many parts that are one, can't multiply the work; what would pass it is refused.
+    // (For a package read whole, all its parts' bytes.)
+    qint64 inflatedBytes() const;
     // The Override for the part, else the Default for its extension; empty if
     // the package says neither.
     QString contentType(const QString &name) const;
@@ -97,7 +131,8 @@ public:
     QString mainPart() const;
 
 private:
-    bool load(const QByteArray &zip, QString *error, bool opc, qint64 maxInflated);
+    struct Lazy;
+    bool load(const QByteArray &zip, QString *error, bool opc, qint64 maxInflated, bool lazy = false);
 
     QMap<QString, QByteArray> m_parts;              // by part name, relationship parts too
     QHash<QString, QString> m_names;                // lower-cased part name -> name as stored
@@ -106,6 +141,7 @@ private:
     QHash<QString, QVector<Relationship>> m_rels;   // lower-cased source ("/" or part name) -> its links
     QHash<QString, QHash<QString, int>> m_relIds;   // lower-cased source -> each link's Id -> where it is in m_rels
     int m_skipped = 0;                              // parts and relationships left out as unusable
+    std::shared_ptr<Lazy> m_lazy;                   // the file's bytes and where each part is in them, for a lazy package
 };
 
 // Builds a package: add the parts and their relationships, then finish().
