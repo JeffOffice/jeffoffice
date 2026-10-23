@@ -954,6 +954,21 @@ private Q_SLOTS:
         QCOMPARE(b.at("B1", 0), QStringLiteral("n:21"));
         QCOMPARE(b.at("A2", 1), QStringLiteral("n:%1").arg(1 + 20 + 2 + 21));
     }
+
+    // A walk over a whole column of a sheet of many rows is work, counted: a thousand formulas that sum a column holding a hundred numbers, in a sheet of three thousand rows,
+    // take steps in proportion to the rows they walk over, not to the hundred cells they find (forty thousand of them took twenty seconds, and counted a few millions).
+    void aWalkOverAWholeColumnIsWorkThatIsCounted()
+    {
+        const int rows = 3000;
+        QString sheet;
+        for (int i = 1; i <= rows; ++i) sheet += rowXml(i, (i <= 100 ? constant(QStringLiteral("A%1").arg(i), "1") : QString()) + cellXml(QStringLiteral("C%1").arg(i), "SUM(A:A)"));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(sheet)})));
+        const Calculation::Progress p = settle(b);
+        QVERIFY(p.finished);
+        QCOMPARE(b.at("C1"), QStringLiteral("n:100"));
+        QVERIFY2(p.work >= qint64(rows) * rows / 8, qPrintable(QStringLiteral("%1 steps for %2 sums of a column of %3 rows").arg(p.work).arg(rows).arg(rows)));
+    }
 };
 
 JP_TEST_CLASS(SheetCalculationTests)

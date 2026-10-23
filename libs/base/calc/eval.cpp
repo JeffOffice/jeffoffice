@@ -653,6 +653,11 @@ Value Machine::run(const Program &p, const EvalContext &c)
     };
     const BudgetScope budgetScope(kMaxLiveArrayCells);
     const Item r = runProgram(p, p.arrayFormula);
+    work += budget::takeWork();   // (what the last function walked over to find its cells is work too)
+    if (work > limit && !over) {
+        over = true;
+        if (status == EvalStatus::Ok) status = EvalStatus::TooMuchWork;
+    }
     peakCells = budget::peakCells();
     if (!over && budget::refused()) tooLarge();
     if (over) return Value::error(ErrorKind::Value);

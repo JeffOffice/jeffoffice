@@ -2,6 +2,7 @@
 
 #include "sheet/calculation.h"
 
+#include "calc/budget.h"
 #include "calc/formula.h"
 #include "calc/functions.h"
 
@@ -93,10 +94,12 @@ void WorkbookSource::visit(int sheet, quint32 row1, quint32 col1, quint32 row2, 
 {
     if (sheet < 0 || sheet >= int(m_sheets.size())) return;
     const Sheet &s = m_sheets[size_t(sheet)];
+    CellStore::RangeWalk walk;
     s.cells.forEachInRange(row1, col1, row2, std::min<quint32>(col2, kMaxColumns - 1), [&](const Cell &c) {
         if (c.type == CellType::Empty) return true;
         return f(c.row, c.col, valueOf(s, c));
-    });
+    }, &walk);
+    jp::calc::budget::addWork((walk.compared + walk.stepped) / 4);   // (the rows walked over to find the cells are work too)
 }
 
 void WorkbookSource::usedExtent(int sheet, quint32 *rows, quint32 *cols) const
