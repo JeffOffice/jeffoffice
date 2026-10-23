@@ -572,7 +572,7 @@ private Q_SLOTS:
         Settings array;
         array.array = true;
         const MemoryWatch watch;
-        qint64 tooLarge = 0, tooMuch = 0, ok = 0;
+        qint64 tooLarge = 0, tooMuch = 0, ok = 0, unsupported = 0, calls = 0;
         for (int i = 0; i < functionCount(); ++i) {
             const FunctionInfo &f = functionAt(i);
             const int most = f.maxArgs == 255 ? 6 : int(f.maxArgs);
@@ -586,12 +586,19 @@ private Q_SLOTS:
                 text += QLatin1Char(')');
                 const Outcome o = evOutcome(text, g, trial % 2 ? array : plain);
                 QVERIFY2(!o.text.isEmpty() && !o.text.startsWith("!parse"), qPrintable(text + QStringLiteral(" -> ") + said(o)));
+                ++calls;
+                if (o.text.startsWith("!unsupported")) {
+                    ++unsupported;   // (a call the engine did not work out: it says nothing of the bounds, so it must be few)
+                    continue;
+                }
                 // it ended inside the steps it was given, or said that it did not: and held no more cells than it may
                 QVERIFY2(o.status != EvalStatus::Ok ? o.text.startsWith("e:") : o.work <= kMaxEvalWork, qPrintable(text + QStringLiteral(" -> ") + said(o)));
                 QVERIFY2(o.peakCells <= kMaxLiveArrayCells + kMaxArrayCells, qPrintable(text + QStringLiteral(" -> ") + said(o)));
                 (o.status == EvalStatus::TooLarge ? tooLarge : o.status == EvalStatus::TooMuchWork ? tooMuch : ok) += 1;
             }
         }
+        QVERIFY2(unsupported * 20 <= calls, qPrintable(QStringLiteral("%1 of %2 calls were not worked out (a function the registry lacks)").arg(unsupported).arg(calls)));
+        QVERIFY2(tooLarge + tooMuch > 0, "no call reached a bound: the arguments no longer build what the bounds are for");
         const qint64 grew = watch.growthMegabytes();
         QVERIFY2(grew < 0 || grew < 900, qPrintable(QStringLiteral("memory grew %1 MB").arg(grew)));
         qInfo("whole-column calls: %lld ended in their work, %lld past the steps, %lld past the cells", static_cast<long long>(ok), static_cast<long long>(tooMuch), static_cast<long long>(tooLarge));
@@ -609,6 +616,7 @@ private Q_SLOTS:
         Settings plain;
         Settings array;
         array.array = true;
+        qint64 unsupported = 0, calls = 0;
         for (int i = 0; i < functionCount(); ++i) {
             const FunctionInfo &f = functionAt(i);
             const int most = f.maxArgs == 255 ? 6 : int(f.maxArgs);
@@ -624,8 +632,11 @@ private Q_SLOTS:
                 EvalStatus status = EvalStatus::Ok;
                 const QString a = evStatus(text, g, trial % 2 ? array : plain, &status, 200000);
                 QVERIFY2(!a.isEmpty() && !a.startsWith("!parse"), qPrintable(text + QStringLiteral(" -> ") + a));
+                ++calls;
+                if (a.startsWith("!unsupported")) ++unsupported;
             }
         }
+        QVERIFY2(unsupported * 20 <= calls, qPrintable(QStringLiteral("%1 of %2 calls were not worked out (a function the registry lacks)").arg(unsupported).arg(calls)));
     }
 };
 
