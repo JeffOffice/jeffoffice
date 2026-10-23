@@ -104,6 +104,152 @@ HeaderRefs headerRefsOf(const SectionProps &section)
     return out;
 }
 
+void setHeaderReference(SectionProps *section, bool footer, int slot, const QString &relationshipId)
+{
+    static const QRegularExpression tag(QStringLiteral("^<(?:[\\w.-]+:)?(header|footer)Reference\\b([^>]*)>"));
+    static const QRegularExpression type(QStringLiteral("[\\s:]type\\s*=\\s*[\"']([^\"']*)[\"']"));
+    slot = std::clamp(slot, 0, 2);
+    const char *const kinds[] = {"default", "first", "even"};
+    const char *element = footer ? "footer" : "header";
+    // The references of this kind and slot go (a file may state one twice); the new one goes after the last of its element's, the header ones before the footer ones.
+    int lastHeader = -1, lastOfKind = -1;
+    for (int i = 0; i < section->extra.size();) {
+        const QRegularExpressionMatch m = tag.match(QString::fromUtf8(section->extra[i].xml.left(2000)));
+        if (!m.hasMatch()) {
+            ++i;
+            continue;
+        }
+        const QString kind = type.match(m.captured(2)).captured(1);
+        const int at = kind == QLatin1String("first") ? 1 : kind == QLatin1String("even") ? 2 : 0;
+        if (m.captured(1) == QLatin1String(element) && at == slot) {
+            section->extra.removeAt(i);
+            continue;
+        }
+        if (m.captured(1) == QLatin1String("header")) lastHeader = i;
+        if (m.captured(1) == QLatin1String(element)) lastOfKind = i;
+        ++i;
+    }
+    if (relationshipId.isEmpty()) return;
+    RawChild ref;
+    ref.rank = 0;
+    ref.xml = QByteArray("<w:") + element + "Reference w:type=\"" + kinds[slot] + "\" r:id=\"" + relationshipId.toUtf8() + "\"/>";
+    int where = 0;
+    if (lastOfKind >= 0) where = lastOfKind + 1;
+    else if (footer && lastHeader >= 0) where = lastHeader + 1;
+    // (Before anything else of the same rank that is not a reference of either kind: they are the first of the section's children.)
+    section->extra.insert(where, ref);
+}
+
+namespace {
+// The children of a settings part's root, in order, with where each is: [begin, end) in the bytes, and its local name.
+struct SettingsChild {
+    QByteArray name;
+    qsizetype begin, end;
+};
+
+bool settingsChildren(const QByteArray &xml, QVector<SettingsChild> *out, qsizetype *rootEndStart, QByteArray *prefix)
+{
+    qsizetype i = 0;
+    const qsizetype n = xml.size();
+    // The root's start tag (past the declaration and comments).
+    while (i < n) {
+        const qsizetype lt = xml.indexOf('<', i);
+        if (lt < 0 || lt + 1 >= n) return false;
+        if (xml[lt + 1] == '?') { i = xml.indexOf("?>", lt); if (i < 0) return false; i += 2; continue; }
+        if (xml[lt + 1] == '!') { i = xml.indexOf("-->", lt); if (i < 0) return false; i += 3; continue; }
+        i = lt;
+        break;
+    }
+    if (i >= n) return false;
+    qsizetype nameEnd = i + 1;
+    while (nameEnd < n && xml[nameEnd] != ' ' && xml[nameEnd] != '>' && xml[nameEnd] != '/' && xml[nameEnd] != '\t' && xml[nameEnd] != '\r' && xml[nameEnd] != '\n') ++nameEnd;
+    const QByteArray qname = xml.mid(i + 1, nameEnd - i - 1);
+    const qsizetype colon = qname.indexOf(':');
+    *prefix = colon >= 0 ? qname.left(colon + 1) : QByteArray();
+    const qsizetype rootClose = xml.indexOf('>', nameEnd);
+    if (rootClose < 0 || xml[rootClose - 1] == '/') return false;
+    i = rootClose + 1;
+    while (i < n) {
+        const qsizetype lt = xml.indexOf('<', i);
+        if (lt < 0) return false;
+        if (xml[lt + 1] == '/') {
+            *rootEndStart = lt;
+            return true;
+        }
+        if (xml[lt + 1] == '!' || xml[lt + 1] == '?') {
+            const qsizetype close = xml.indexOf(xml[lt + 1] == '!' ? "-->" : "?>", lt);
+            if (close < 0) return false;
+            i = close + (xml[lt + 1] == '!' ? 3 : 2);
+            continue;
+        }
+        // A child: to the end of its tag, then (unless it is self-closing) to the end that matches.
+        qsizetype e = lt + 1;
+        while (e < n && xml[e] != ' ' && xml[e] != '>' && xml[e] != '/' && xml[e] != '\t' && xml[e] != '\r' && xml[e] != '\n') ++e;
+        QByteArray name = xml.mid(lt + 1, e - lt - 1);
+        if (const qsizetype c = name.indexOf(':'); c >= 0) name = name.mid(c + 1);
+        qsizetype depth = 0, at = lt;
+        for (;;) {
+            const qsizetype open = xml.indexOf('<', at);
+            if (open < 0) return false;
+            if (xml[open + 1] == '!' || xml[open + 1] == '?') {
+                const qsizetype close = xml.indexOf(xml[open + 1] == '!' ? "-->" : "?>", open);
+                if (close < 0) return false;
+                at = close + (xml[open + 1] == '!' ? 3 : 2);
+                continue;
+            }
+            const qsizetype gt = xml.indexOf('>', open);
+            if (gt < 0) return false;
+            if (xml[open + 1] == '/') --depth;
+            else if (xml[gt - 1] != '/') ++depth;
+            at = gt + 1;
+            if (depth == 0) break;
+        }
+        out->push_back(SettingsChild{name, lt, at});
+        i = at;
+    }
+    return false;
+}
+} // namespace
+
+QByteArray settingsWithEvenAndOddHeaders(const QByteArray &settings, bool on)
+{
+    static const char kXml[] = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n";
+    if (settings.trimmed().isEmpty()) {
+        if (!on) return QByteArray();
+        return QByteArray(kXml) + "<w:settings xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><w:evenAndOddHeaders/></w:settings>";
+    }
+    QVector<SettingsChild> children;
+    qsizetype rootEnd = 0;
+    QByteArray prefix;
+    if (!settingsChildren(settings, &children, &rootEnd, &prefix)) return settings;
+    const QByteArray element = "<" + prefix + "evenAndOddHeaders/>";
+    // The elements the schema puts after it.
+    static const char *const later[] = {"bookFoldRevPrinting", "bookFoldPrinting", "bookFoldPrintingSheets", "drawingGridHorizontalSpacing", "drawingGridVerticalSpacing", "displayHorizontalDrawingGridEvery",
+                                        "displayVerticalDrawingGridEvery", "doNotUseMarginsForDrawingGridOrigin", "drawingGridHorizontalOrigin", "drawingGridVerticalOrigin", "doNotShadeFormData",
+                                        "noPunctuationKerning", "characterSpacingControl", "printTwoOnOne", "strictFirstAndLastChars", "noLineBreaksAfter", "noLineBreaksBefore", "savePreviewPicture",
+                                        "doNotValidateAgainstSchema", "saveInvalidXml", "ignoreMixedContent", "alwaysShowPlaceholderText", "doNotDemarcateInvalidXml", "saveXmlDataOnly", "useXSLTWhenSaving",
+                                        "saveThroughXslt", "showXMLTags", "alwaysMergeEmptyNamespace", "updateFields", "hdrShapeDefaults", "footnotePr", "endnotePr", "compat", "docVars", "rsids", "mathPr",
+                                        "attachedSchema", "themeFontLang", "clrSchemeMapping", "doNotIncludeSubdocsInStats", "doNotAutoCompressPictures", "forceUpgrade", "captions", "readModeInkLockDown",
+                                        "smartTagType", "schemaLibrary", "shapeDefaults", "doNotEmbedSmartTags", "decimalSymbol", "listSeparator"};
+    for (const SettingsChild &c : children) {
+        if (c.name != "evenAndOddHeaders") continue;
+        if (!on) return settings.left(c.begin) + settings.mid(c.end);
+        if (settings.mid(c.begin, c.end - c.begin) == element) return settings;
+        return settings.left(c.begin) + element + settings.mid(c.end);
+    }
+    if (!on) return settings;
+    qsizetype at = rootEnd;
+    for (const SettingsChild &c : children) {
+        bool after = false;
+        for (const char *name : later) after = after || c.name == name;
+        if (after) {
+            at = c.begin;
+            break;
+        }
+    }
+    return settings.left(at) + element + settings.mid(at);
+}
+
 // ---- Fonts
 
 bool Fonts::operator==(const Fonts &o) const

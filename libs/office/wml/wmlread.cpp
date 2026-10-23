@@ -1404,10 +1404,11 @@ CompatOptions readCompatOptions(const QByteArray &settings)
     return o;
 }
 
-bool readBlocks(const QByteArray &xml, QVector<Block> *blocks, bool tables)
+bool readBlocks(const QByteArray &xml, QVector<Block> *blocks, bool tables, QByteArray *rootStart)
 {
     XmlTree tree;
     if (!tree.parse(xml, nullptr)) return false;
+    if (rootStart) *rootStart = tree.startTag(tree.root());
     Reader reader(tree);
     reader.tablesAsStandIns = !tables;
     reader.bodyContent(tree.root(), blocks, 0, nullptr, nullptr);

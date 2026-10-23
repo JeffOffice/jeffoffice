@@ -492,6 +492,157 @@ private Q_SLOTS:
         QVERIFY(!readBlocks("<w:hdr", &blocks));
     }
 
+    // A header part is written back from its blocks with the root it was read with, and what the program does not edit (a drawing in a run, a bookmark, a content control's
+    // ends, a table) comes out as it was, at its place.
+    void aHeaderPartIsWrittenBackFromItsBlocks()
+    {
+        const QByteArray root = QByteArray("<w:hdr ") + kW + R"( xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="w14" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml">)";
+        const QByteArray drawing = R"(<w:drawing><wp:inline><wp:extent cx="95250" cy="95250"/><wp:docPr id="1" name="Logo"/><a:graphic><a:graphicData uri="x"><a:blip r:embed="rId9"/></a:graphicData></a:graphic></wp:inline></w:drawing>)";
+        const QByteArray part = xmlDoc(root + R"(<w:p><w:pPr><w:pStyle w:val="Header"/></w:pPr><w:bookmarkStart w:id="3" w:name="top"/><w:r><w:t>Top</w:t></w:r><w:r>)" + drawing +
+                                       R"(</w:r><w:bookmarkEnd w:id="3"/></w:p><w:sdt><w:sdtPr><w:alias w:val="x"/></w:sdtPr><w:sdtContent><w:p><w:r><w:t>In control</w:t></w:r></w:p></w:sdtContent></w:sdt></w:hdr>)");
+        QVector<Block> blocks;
+        QByteArray read;
+        QVERIFY(readBlocks(part, &blocks, true, &read));
+        QCOMPARE(read, root);
+        // Edited: the first text changes; everything else is as it was.
+        for (Inline &in : blocks[0].para.content)
+            if (in.kind == Inline::Text) in.text = QStringLiteral("Changed");
+        const QByteArray written = blocksPartXml(blocks, read, "w:hdr");
+        QVERIFY2(written.startsWith("<?xml"), written.left(80).constData());
+        QVERIFY2(written.contains(root), written.left(400).constData());
+        QVERIFY(written.contains("<w:t xml:space=\"preserve\">Changed</w:t>"));
+        QVERIFY(written.contains(drawing));
+        QVERIFY(written.contains("<w:bookmarkStart w:id=\"3\" w:name=\"top\"/>"));
+        QVERIFY(written.contains("<w:bookmarkEnd w:id=\"3\"/>"));
+        QVERIFY(written.contains("<w:sdtPr><w:alias w:val=\"x\"/></w:sdtPr>"));
+        QVERIFY(written.contains("In control"));
+        QVERIFY(written.endsWith("</w:hdr>"));
+        // And it reads again as the same blocks.
+        QVector<Block> again;
+        QVERIFY(readBlocks(written, &again, true));
+        QCOMPARE(blocksFingerprint(again, 0, again.size()), blocksFingerprint(blocks, 0, blocks.size()));
+    }
+
+    // A part with no root of its own gets the usual one, and the prefixes its pieces use are declared on it.
+    void aNewHeaderPartHasTheUsualRoot()
+    {
+        Block p;
+        Inline atom;
+        atom.kind = Inline::ParaAtom;
+        atom.tag = QStringLiteral("drawingHolder");
+        atom.raw = "<w:r><w:drawing><wp:inline><wp:extent cx=\"1\" cy=\"1\"/></wp:inline></w:drawing></w:r>";
+        p.para.content.push_back(atom);
+        const QByteArray out = blocksPartXml({p}, QByteArray(), "w:ftr");
+        QVERIFY2(out.contains("<w:ftr ") && out.contains("xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\""), out.constData());
+        QVERIFY(out.contains("xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\""));
+        QVERIFY(out.contains("xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\""));
+        QVERIFY(out.endsWith("</w:ftr>"));
+        QVector<Block> back;
+        QVERIFY(readBlocks(out, &back));
+        QCOMPARE(int(back.size()), 1);
+    }
+
+    // A field that is edited as one piece is written as the runs it is made of, each with the properties of its atom.
+    void aFieldGroupIsWrittenWithThePropertiesOfItsAtom()
+    {
+        Block p;
+        Inline field;
+        field.kind = Inline::ParaAtom;
+        field.tag = kFieldGroupTag;
+        field.raw = "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        field.props.bold = true;
+        p.para.content.push_back(field);
+        const QByteArray xml = inlinesXml(p.para.content, 0, p.para.content.size());
+        QCOMPARE(count(xml, "<w:r><w:rPr><w:b/></w:rPr>"), 5);
+        QVERIFY(xml.contains("<w:instrText xml:space=\"preserve\"> PAGE </w:instrText>"));
+        // The same field in a part, with no properties: as it is.
+        field.props = RunProps();
+        p.para.content[0] = field;
+        QVERIFY(blocksPartXml({p}, QByteArray(), "w:hdr").contains(field.raw));
+    }
+
+    // A section's reference to a header or footer is set, replaced, and taken out by its slot.
+    void aSectionsHeaderReferencesAreSetAndTakenOut()
+    {
+        SectionProps s;
+        s.pageW = 12240;
+        QVERIFY(!headerRefsOf(s).any());
+        setHeaderReference(&s, false, 0, QStringLiteral("rId5"));
+        setHeaderReference(&s, false, 1, QStringLiteral("rId6"));
+        setHeaderReference(&s, true, 2, QStringLiteral("rId7"));
+        HeaderRefs refs = headerRefsOf(s);
+        QCOMPARE(refs.header[0], QStringLiteral("rId5"));
+        QCOMPARE(refs.header[1], QStringLiteral("rId6"));
+        QCOMPARE(refs.header[2], QString());
+        QCOMPARE(refs.footer[2], QStringLiteral("rId7"));
+        // Replaced, not added again.
+        setHeaderReference(&s, false, 0, QStringLiteral("rId8"));
+        QCOMPARE(headerRefsOf(s).header[0], QStringLiteral("rId8"));
+        QCOMPARE(count(sectionPropsXml(s), "headerReference"), 2);
+        // The references come before the page size, as the schema has it.
+        const QByteArray xml = sectionPropsXml(s);
+        QVERIFY(xml.indexOf("<w:headerReference") < xml.indexOf("<w:pgSz"));
+        QVERIFY(xml.indexOf("<w:footerReference") < xml.indexOf("<w:pgSz"));
+        QVERIFY(xml.contains("w:type=\"first\""));
+        // Taken out with an empty Id; the rest stay.
+        setHeaderReference(&s, false, 0, QString());
+        refs = headerRefsOf(s);
+        QCOMPARE(refs.header[0], QString());
+        QCOMPARE(refs.header[1], QStringLiteral("rId6"));
+        QCOMPARE(refs.footer[2], QStringLiteral("rId7"));
+        // Other things the section kept as written are not touched.
+        SectionProps t;
+        t.extra.push_back(RawChild{sectionChildRank("pgBorders"), "<w:pgBorders><w:top w:val=\"single\"/></w:pgBorders>"});
+        setHeaderReference(&t, false, 0, QStringLiteral("rId1"));
+        QVERIFY(sectionPropsXml(t).contains("<w:pgBorders>"));
+    }
+
+    // evenAndOddHeaders goes in the place the settings' schema gives it, is put right if it is there, and goes out when off.
+    void evenAndOddHeadersAreSetInTheSettings()
+    {
+        const QByteArray settings = xmlDoc(QByteArray("<w:settings ") + kW + "><w:zoom w:percent=\"100\"/><w:defaultTabStop w:val=\"720\"/><w:characterSpacingControl w:val=\"doNotCompress\"/><w:compat/></w:settings>");
+        QByteArray on = settingsWithEvenAndOddHeaders(settings, true);
+        QVERIFY2(on.contains("<w:evenAndOddHeaders/>"), on.constData());
+        QVERIFY(on.indexOf("<w:defaultTabStop") < on.indexOf("<w:evenAndOddHeaders/>"));
+        QVERIFY(on.indexOf("<w:evenAndOddHeaders/>") < on.indexOf("<w:characterSpacingControl"));
+        QCOMPARE(settingsWithEvenAndOddHeaders(on, true), on);
+        QVERIFY(!settingsWithEvenAndOddHeaders(on, false).contains("evenAndOddHeaders"));
+        QCOMPARE(settingsWithEvenAndOddHeaders(settings, false), settings);
+        // One that says it is off is put right; the rest of the part is as it was.
+        const QByteArray off = xmlDoc(QByteArray("<w:settings ") + kW + "><w:evenAndOddHeaders w:val=\"0\"/><w:compat/></w:settings>");
+        QByteArray fixed = settingsWithEvenAndOddHeaders(off, true);
+        QVERIFY(fixed.contains("<w:evenAndOddHeaders/>"));
+        QVERIFY(!fixed.contains("w:val=\"0\""));
+        QVERIFY(fixed.contains("<w:compat/>"));
+        // With no settings, a minimal part that reads back.
+        const QByteArray fresh = settingsWithEvenAndOddHeaders(QByteArray(), true);
+        QVERIFY2(fresh.contains("<w:settings") && fresh.contains("<w:evenAndOddHeaders/>"), fresh.constData());
+        QCOMPARE(settingsWithEvenAndOddHeaders(QByteArray(), false), QByteArray());
+        // A part with none of the later elements puts it last.
+        const QByteArray bare = xmlDoc(QByteArray("<w:settings ") + kW + "><w:zoom w:percent=\"100\"/></w:settings>");
+        const QByteArray last = settingsWithEvenAndOddHeaders(bare, true);
+        QVERIFY(last.indexOf("<w:zoom") < last.indexOf("<w:evenAndOddHeaders/>"));
+        QVERIFY(last.endsWith("</w:settings>"));
+    }
+
+    // Header and Footer are styles a document may lack and a person gets by making a header.
+    void headerAndFooterStylesAreBuiltIn()
+    {
+        for (const char *id : {"Header", "Footer"}) {
+            const Style s = builtinStyle(QString::fromLatin1(id));
+            QCOMPARE(s.id, QString::fromLatin1(id));
+            QCOMPARE(s.basedOn, QStringLiteral("Normal"));
+            QVERIFY(s.pPr.tabs && s.pPr.tabs->size() == 2);
+            QCOMPARE(s.pPr.tabs->at(0).val, QStringLiteral("center"));
+            QCOMPARE(s.pPr.tabs->at(0).pos, 4680);
+            QCOMPARE(s.pPr.tabs->at(1).val, QStringLiteral("right"));
+            QCOMPARE(s.pPr.tabs->at(1).pos, 9360);
+            QVERIFY(!s.qFormat);
+        }
+        // (A new document does not carry them until a header is made.)
+        QVERIFY(!builtinStyleIds().contains(QStringLiteral("Header")));
+    }
+
     // The drawn objects of a run: the pictures, rules, boxes, and text boxes of VML, with where they are set and how text goes round them; and the
     // pictures of DrawingML.
     void readsTheShapesOfARun()

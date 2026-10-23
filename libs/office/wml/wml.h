@@ -456,7 +456,21 @@ HeaderRefs headerRefsOf(const SectionProps &section);
 
 // The paragraphs of a header, footer, or note part, and the elements kept as written (a table, a content control's ends), read as the body
 // is. False, with nothing read, when the part isn't XML. The tables are stand-ins, or (`tables`) the blocks of their parts, as the body's are.
-bool readBlocks(const QByteArray &xml, QVector<Block> *blocks, bool tables = false);
+// (`rootStart`, if given, gets the part's start tag as written, with the namespaces its pieces kept as XML use.)
+bool readBlocks(const QByteArray &xml, QVector<Block> *blocks, bool tables = false, QByteArray *rootStart = nullptr);
+// A header, footer, or note part from its blocks, written as the body is (a tag whose partner is missing is left out). `rootStart` is the start tag the part was read with (empty:
+// the usual one for `rootName`, "w:hdr" or "w:ftr"); the prefixes the pieces kept as XML use are declared on it.
+QByteArray blocksPartXml(const QVector<Block> &blocks, const QByteArray &rootStart, const QByteArray &rootName);
+// The content [from, to) of a paragraph as XML, the way a paragraph is written.
+QByteArray inlinesXml(const QVector<Inline> &content, qsizetype from, qsizetype to);
+// A complex field that a program shows and edits as one piece is a ParaAtom of this tag: `raw` is the runs that make the field (begin mark, code, separator, result, end mark)
+// with no properties of their own, and the atom's `props` are every run's.
+inline const QLatin1String kFieldGroupTag("jwfield");
+// Makes the section's reference of this kind (slot 0 the ordinary pages', 1 the first page's, 2 the even pages') name the relationship `relationshipId`; with an empty Id, takes the
+// reference out (the section then has the section before's).
+void setHeaderReference(SectionProps *section, bool footer, int slot, const QString &relationshipId);
+// The settings part with the use of different headers on odd and even pages (w:evenAndOddHeaders) on or off, in the place the schema gives it. An empty part gives a minimal one.
+QByteArray settingsWithEvenAndOddHeaders(const QByteArray &settings, bool on);
 
 // A drawn object of a run: a picture, a rule, a box, or a text box, read from the VML of a w:pict (or an object) or the DrawingML of a w:drawing. Sizes are
 // points. An object is `floating` where its style says it is set at a place (anchored to a paragraph, the margin, or the page), else it is in the line.
