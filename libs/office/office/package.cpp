@@ -3,6 +3,7 @@
 #include "io/zip.h"
 #include "io/zipindex.h"
 #include "office/xml.h"
+#include "office/xmlstream.h"
 
 #include <QBuffer>
 #include <QCoreApplication>
@@ -277,7 +278,7 @@ bool Package::readOpenDocument(const QByteArray &zip, QString *error) { return l
 struct Package::Lazy {
     QByteArray zip;
     QHash<QString, jp::ZipEntry> entries;           // by part name
-    jp::InflateCounter inflated = std::make_shared<std::atomic<qint64>>(0);
+    jp::InflateCounter inflated = std::make_shared<jp::InflateBudget>();
 };
 
 bool Package::readLazy(const QByteArray &zip, QString *error, qint64 maxInflated) { return load(zip, error, true, maxInflated, true); }
@@ -325,6 +326,7 @@ bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxIn
         if (!jp::readZipDirectory(zip, &directory)) return fail(translate("The file is damaged, or is not a package of the kind this program opens."));
         state = std::make_shared<Lazy>();
         state->zip = zip;
+        state->inflated->limit = maxInflated;
         for (const jp::ZipEntry &e : std::as_const(directory)) {
             items.insert(e.name, QByteArray());
             directoryEntries.insert(e.name, e);
@@ -342,11 +344,14 @@ bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxIn
     // What an entry holds now: for a lazy package, the entries the package is
     // made of (the content types, the relationships) are inflated here, and a
     // damaged one is refused as it would be if every entry had been inflated.
-    bool damaged = false;
+    bool damaged = false, unguarded = false;
     auto dataOf = [&](const QString &entry) {
         if (!lazy) return items.value(entry);
         QByteArray bytes;
         if (!jp::inflateZipEntry(zip, directoryEntries.value(entry), &bytes, state->inflated)) damaged = true;
+        // A lazy package's XML that is read whole is passed through the guard that a sheet's is: no parser takes time in proportion to the square of the
+        // attributes of an element, or reads UTF-16 as the bytes the guard counts.
+        else if (!xmlPassesGuard(bytes)) unguarded = true;
         return bytes;
     };
 
@@ -370,6 +375,7 @@ bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxIn
             }
             types = dataOf(entry);
             if (damaged) return fail(translate("The file is damaged, or is not a package of the kind this program opens."));
+            if (unguarded) return fail(translate("The file's [Content_Types].xml is damaged."));
             haveTypes = true;
             continue;
         }
@@ -385,6 +391,7 @@ bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxIn
         if (isRelationshipPart(name)) {
             relationshipParts.insert(name, dataOf(entry));
             if (damaged) return fail(translate("The file is damaged, or is not a package of the kind this program opens."));
+            if (unguarded) return fail(translate("A part that holds the file's relationships, %1, is damaged.").arg(name));
         } else {
             m_parts.insert(name, lazy ? QByteArray() : items.value(entry));
             m_names.insert(name.toLower(), name);
@@ -482,7 +489,7 @@ std::unique_ptr<QIODevice> Package::openPart(const QString &name) const
 
 qint64 Package::inflatedBytes() const
 {
-    if (m_lazy) return m_lazy->inflated->load();
+    if (m_lazy) return m_lazy->inflated->inflated.load();
     qint64 total = 0;
     for (const QByteArray &data : m_parts) total += data.size();
     return total;

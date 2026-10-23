@@ -85,7 +85,10 @@ public:
     // part is asked for, which gives an empty part and (openPart) a failed
     // stream. For a package whose parts may be far larger than the rest of
     // the file needs, such as the sheets of a spreadsheet.
-    bool readLazy(const QByteArray &zip, QString *error = nullptr, qint64 maxInflated = kDefaultMaxInflated);
+    // What all the parts of a lazy package may come to, together and over its life: at least ten times the most that
+    // real workbooks have (302 MB). Nothing is held in memory but what a caller asks to be (part()); openPart() streams.
+    static constexpr qint64 kLazyMaxInflated = qint64(4) << 30;
+    bool readLazy(const QByteArray &zip, QString *error = nullptr, qint64 maxInflated = kLazyMaxInflated);
     bool readLazyFile(const QString &path, QString *error = nullptr);
     bool isLazy() const;
 
@@ -96,9 +99,9 @@ public:
     // parts are not listed: they have their own accessors below.
     QStringList partNames() const;
     bool hasPart(const QString &name) const;
-    // The part's bytes; empty if there is no such part. A lazy package
-    // inflates it now, each time it is asked for, and keeps nothing: a caller
-    // that needs it twice keeps what it was given.
+    // The part's bytes; empty if there is no such part, or if a lazy package could not inflate it (it is damaged, or past what a part or the package may
+    // come to). A lazy package inflates it now, each time it is asked for, and keeps nothing: a caller that needs it twice keeps what it was given. The whole
+    // part is held in memory, so a part that may be large is read with openPart.
     QByteArray part(const QString &name) const;
     // How many bytes the part holds once inflated; -1 if there is no such part.
     qint64 partSize(const QString &name) const;
@@ -106,8 +109,10 @@ public:
     // if there is no such part. The package must outlive the stream.
     std::unique_ptr<QIODevice> openPart(const QString &name) const;
     // How many bytes a lazy package has inflated so far: what read() did at
-    // once, counted as it happens. (For a package read whole, all its parts'
-    // bytes.)
+    // once, counted as it happens, and the most it may come to over the package's whole life
+    // is what it was allowed to open with (maxInflated): a part asked for again and again, or
+    // many parts that are one, can't multiply the work; what would pass it is refused.
+    // (For a package read whole, all its parts' bytes.)
     qint64 inflatedBytes() const;
     // The Override for the part, else the Default for its extension; empty if
     // the package says neither.

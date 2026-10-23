@@ -44,7 +44,7 @@ bool readZipDirectory(const QByteArray &zip, QVector<ZipEntry> *out)
         if (p + 46 + qint64(nlen) + xlen + clen > zip.size()) return false;
         e.name = QString::fromUtf8(zip.constData() + p + 46, nlen);
         p += 46 + qint64(nlen) + xlen + clen;
-        if (local + 30 > zip.size()) return false;
+        if (local + 30 > zip.size() || get32(zip, local) != 0x04034b50) return false;
         e.dataAt = local + 30 + get16(zip, local + 26) + get16(zip, local + 28);
         if (e.method != 0 && e.method != 8) return false;
         if (e.dataAt + e.csize > zip.size()) return false;
@@ -54,19 +54,48 @@ bool readZipDirectory(const QByteArray &zip, QVector<ZipEntry> *out)
     return true;
 }
 
-bool inflateZipEntry(const QByteArray &zip, const ZipEntry &entry, QByteArray *out, const InflateCounter &counter)
+namespace {
+
+// No deflate stream makes more than about 1,032 bytes of each byte it has; a size past this is no size one of that length could have.
+bool couldBeMadeOf(qint64 compressed, qint64 inflated) { return inflated <= compressed * 1100 + 1024; }
+
+quint32 crcOf(quint32 crc, const char *data, qint64 size)
+{
+    while (size > 0) {
+        const uInt n = uInt(std::min<qint64>(size, qint64(1) << 30));
+        crc = quint32(::crc32(crc, reinterpret_cast<const Bytef *>(data), n));
+        data += n;
+        size -= n;
+    }
+    return crc;
+}
+
+} // namespace
+
+bool inflateZipEntry(const QByteArray &zip, const ZipEntry &entry, QByteArray *out, const InflateCounter &budget, ZipFailure *why)
 {
     out->clear();
-    if (entry.dataAt < 0 || entry.csize < 0 || entry.dataAt + entry.csize > zip.size()) return false;
+    auto fail = [&](ZipFailure reason) {
+        if (why) *why = reason;
+        return false;
+    };
+    if (why) *why = ZipFailure::None;
+    if (entry.dataAt < 0 || entry.csize < 0 || entry.dataAt + entry.csize > zip.size()) return fail(ZipFailure::Damaged);
+    if (entry.method != 0 && entry.method != 8) return fail(ZipFailure::Damaged);
+    const qint64 size = entry.method == 0 ? entry.csize : entry.usize;
+    if (size < 0) return fail(ZipFailure::Damaged);
+    if (size > kMaxZipEntryBytes) return fail(ZipFailure::TooLarge);
+    if (budget && budget->limit >= 0 && budget->inflated.load() + size > budget->limit) return fail(ZipFailure::OverBudget);
     if (entry.method == 0) {
+        if (crcOf(quint32(::crc32(0, nullptr, 0)), zip.constData() + entry.dataAt, entry.csize) != entry.crc) return fail(ZipFailure::Damaged);
         *out = zip.mid(qsizetype(entry.dataAt), qsizetype(entry.csize));
-        if (counter) counter->fetch_add(out->size());
+        if (budget) budget->inflated.fetch_add(out->size());
         return true;
     }
-    if (entry.method != 8 || entry.usize < 0 || entry.usize > kMaxZipEntryBytes) return false;
-    if (entry.usize == 0) return ::crc32(0, nullptr, 0) == entry.crc;
+    if (entry.usize == 0) return ::crc32(0, nullptr, 0) == entry.crc ? true : fail(ZipFailure::Damaged);
+    if (!couldBeMadeOf(entry.csize, entry.usize)) return fail(ZipFailure::Damaged);
     z_stream zs{};
-    if (inflateInit2(&zs, -15) != Z_OK) return false;
+    if (inflateInit2(&zs, -15) != Z_OK) return fail(ZipFailure::Damaged);
     QByteArray bytes(qsizetype(entry.usize), Qt::Uninitialized);
     zs.next_in = reinterpret_cast<Bytef *>(const_cast<char *>(zip.constData() + entry.dataAt));
     zs.avail_in = uInt(entry.csize);
@@ -75,8 +104,8 @@ bool inflateZipEntry(const QByteArray &zip, const ZipEntry &entry, QByteArray *o
     const int r = ::inflate(&zs, Z_FINISH);
     const bool good = r == Z_STREAM_END && qint64(zs.total_out) == entry.usize;
     inflateEnd(&zs);
-    if (counter) counter->fetch_add(qint64(zs.total_out));
-    if (!good || quint32(::crc32(0, reinterpret_cast<const Bytef *>(bytes.constData()), uInt(bytes.size()))) != entry.crc) return false;
+    if (budget) budget->inflated.fetch_add(qint64(zs.total_out));
+    if (!good || crcOf(quint32(::crc32(0, nullptr, 0)), bytes.constData(), bytes.size()) != entry.crc) return fail(ZipFailure::Damaged);
     *out = bytes;
     return true;
 }
@@ -90,65 +119,79 @@ struct ZipEntryDevice::Inflater {
     }
 };
 
-ZipEntryDevice::ZipEntryDevice(const QByteArray &zip, const ZipEntry &entry, const InflateCounter &counter)
-    : m_zip(zip), m_entry(entry), m_counter(counter), m_crc(quint32(::crc32(0, nullptr, 0)))
+ZipEntryDevice::ZipEntryDevice(const QByteArray &zip, const ZipEntry &entry, const InflateCounter &budget)
+    : m_zip(zip), m_entry(entry), m_budget(budget), m_crc(quint32(::crc32(0, nullptr, 0)))
 {
     setOpenMode(QIODevice::ReadOnly);
-    if (entry.dataAt < 0 || entry.csize < 0 || entry.dataAt + entry.csize > zip.size()) {
-        fail(QStringLiteral("The entry is not inside the file."));
+    if (entry.dataAt < 0 || entry.csize < 0 || entry.dataAt + entry.csize > zip.size() || (entry.method != 0 && entry.method != 8)) {
+        fail(Failure::Damaged, QStringLiteral("The entry is not inside the file, or is not stored or deflated."));
         return;
     }
-    if (entry.method == 8) {
-        if (entry.usize < 0 || entry.usize > kMaxZipEntryBytes) {
-            fail(QStringLiteral("The entry is too large."));
+    const qint64 size = entry.method == 0 ? entry.csize : entry.usize;
+    if (size < 0) {
+        fail(Failure::Damaged, QStringLiteral("The entry's size is wrong."));
+    } else if (size > kMaxZipEntryBytes) {
+        fail(Failure::TooLarge, QStringLiteral("The entry is larger than any real entry is."));
+    } else if (budget && budget->limit >= 0 && budget->inflated.load() + size > budget->limit) {
+        fail(Failure::OverBudget, QStringLiteral("The file's entries, read together, would come to more than the most that is read."));
+    } else if (entry.method == 8) {
+        // A size that no deflate stream of this length could make is damage, found before the stream is begun.
+        if (!couldBeMadeOf(entry.csize, entry.usize)) {
+            fail(Failure::Damaged, QStringLiteral("The entry says it is larger than its data could make."));
             return;
         }
         m_z = std::make_unique<Inflater>();
         if (inflateInit2(&m_z->zs, -15) != Z_OK) {
             m_z.reset();
-            fail(QStringLiteral("The inflater could not start."));
+            fail(Failure::Damaged, QStringLiteral("The inflater could not start."));
             return;
         }
         m_z->open = true;
         m_z->zs.next_in = reinterpret_cast<Bytef *>(const_cast<char *>(m_zip.constData() + entry.dataAt));
         m_z->zs.avail_in = uInt(entry.csize);
-    } else if (entry.method != 0) {
-        fail(QStringLiteral("The entry's compression is not one this program reads."));
     }
 }
 
 ZipEntryDevice::~ZipEntryDevice() = default;
 
-bool ZipEntryDevice::fail(const QString &why)
+bool ZipEntryDevice::fail(Failure why, const QString &message)
 {
-    m_failed = true;
-    setErrorString(why);
+    m_failure = why;
+    setErrorString(message);
     return false;
 }
 
 qint64 ZipEntryDevice::readData(char *data, qint64 maxlen)
 {
-    if (m_failed) return -1;
+    if (failed()) return -1;
     if (m_done || maxlen <= 0) return 0;
+    qint64 produced = 0;
+    // What has come out so far is given on; the failure is found by the next read.
+    auto bad = [&](Failure why, const QString &message) {
+        fail(why, message);
+        return produced > 0 ? produced : qint64(-1);
+    };
+    // Counts what was made; the budget may not be passed even by a stream that makes more than it said.
+    auto count = [&](qint64 n) {
+        return !m_budget || (m_budget->inflated.fetch_add(n) + n <= m_budget->limit || m_budget->limit < 0);
+    };
     if (m_entry.method == 0) {
         // Stored: the bytes as they are, in the piece asked for.
         const qint64 n = std::min(maxlen, m_entry.csize - m_out);
-        if (n <= 0) {
-            m_done = true;
-            return 0;
+        if (n > 0) {
+            std::memcpy(data, m_zip.constData() + m_entry.dataAt + m_out, size_t(n));
+            m_crc = crcOf(m_crc, data, n);
+            m_out += n;
+            produced = n;
+            if (!count(n)) return bad(Failure::OverBudget, QStringLiteral("The file's entries, read together, came to more than the most that is read."));
         }
-        std::memcpy(data, m_zip.constData() + m_entry.dataAt + m_out, size_t(n));
-        m_out += n;
-        if (m_counter) m_counter->fetch_add(n);
-        return n;
+        if (m_out >= m_entry.csize) {
+            m_done = true;
+            if (m_crc != m_entry.crc) return bad(Failure::Damaged, QStringLiteral("The entry is damaged: its checksum is wrong."));
+        }
+        return produced;
     }
     z_stream &zs = m_z->zs;
-    qint64 produced = 0;
-    // What has come out so far is given on; the failure is found by the next read.
-    auto bad = [&](const QString &why) {
-        fail(why);
-        return produced > 0 ? produced : qint64(-1);
-    };
     while (produced < maxlen) {
         // Never more than the directory said: a stream that runs on is damage.
         const qint64 room = std::min<qint64>({maxlen - produced, m_entry.usize - m_out, qint64(1) << 30});
@@ -158,7 +201,7 @@ qint64 ZipEntryDevice::readData(char *data, qint64 maxlen)
             zs.next_out = &probe;
             zs.avail_out = 1;
             const int r = ::inflate(&zs, Z_NO_FLUSH);
-            if (r != Z_STREAM_END || zs.avail_out != 1) return bad(QStringLiteral("The entry inflates to more than its directory says."));
+            if (r != Z_STREAM_END || zs.avail_out != 1) return bad(Failure::Damaged, QStringLiteral("The entry inflates to more than its directory says."));
             m_done = true;
             break;
         }
@@ -166,19 +209,19 @@ qint64 ZipEntryDevice::readData(char *data, qint64 maxlen)
         zs.avail_out = uInt(room);
         const int r = ::inflate(&zs, Z_NO_FLUSH);
         const qint64 got = room - qint64(zs.avail_out);
-        m_crc = quint32(::crc32(m_crc, reinterpret_cast<const Bytef *>(data + produced), uInt(got)));
+        m_crc = crcOf(m_crc, data + produced, got);
         produced += got;
         m_out += got;
-        if (m_counter) m_counter->fetch_add(got);
+        if (!count(got)) return bad(Failure::OverBudget, QStringLiteral("The file's entries, read together, came to more than the most that is read."));
         if (r == Z_STREAM_END) {
             m_done = true;
             break;
         }
         // With room to write and no progress, the input has run out before the stream ended.
         if ((r != Z_OK && r != Z_BUF_ERROR) || got == 0)
-            return bad(r != Z_OK && r != Z_BUF_ERROR ? QStringLiteral("The entry's data is damaged.") : QStringLiteral("The entry's data ends early."));
+            return bad(Failure::Damaged, r != Z_OK && r != Z_BUF_ERROR ? QStringLiteral("The entry's data is damaged.") : QStringLiteral("The entry's data ends early."));
     }
-    if (m_done && (m_out != m_entry.usize || m_crc != m_entry.crc)) return bad(QStringLiteral("The entry is damaged: its size or checksum is wrong."));
+    if (m_done && (m_out != m_entry.usize || m_crc != m_entry.crc)) return bad(Failure::Damaged, QStringLiteral("The entry is damaged: its size or checksum is wrong."));
     return produced;
 }
 

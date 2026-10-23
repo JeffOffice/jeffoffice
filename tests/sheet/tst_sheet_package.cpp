@@ -187,10 +187,16 @@ private Q_SLOTS:
         // A directory that claims 1 GB for each of three parts is refused from what it says, before anything is inflated.
         Entries lying = smallEntries();
         for (int i = 1; i <= 3; ++i) lying.append({QStringLiteral("xl/big%1.bin").arg(i), "x"});
+        for (int i = 4; i <= 5; ++i) lying.append({QStringLiteral("xl/big%1.bin").arg(i), "x"});
         QByteArray lyingZip = zipOf(lying, false);
         patchEntry(lyingZip, QStringLiteral("xl/big"), 24, 0x40000000u);
-        compareModes(lyingZip, "directory claims 3 GB");
-        QVERIFY(!Package().readLazy(lyingZip));
+        // Five parts of 1 GB are more than a lazy package may come to (4 GB) as they are more than one read whole may (2 GB), each by its own limit.
+        Package eagerLying, lazyLying;
+        QString eagerLyingWhy, lazyLyingWhy;
+        QVERIFY(!eagerLying.read(lyingZip, &eagerLyingWhy));
+        QVERIFY(!lazyLying.readLazy(lyingZip, &lazyLyingWhy));
+        QVERIFY2(lazyLyingWhy.contains(QStringLiteral("4")), qPrintable(lazyLyingWhy));
+        QVERIFY(lazyLying.partNames().isEmpty());
     }
 
     // What read() finds wrong inside a part (a CRC, a size that isn't the directory's) is found when the part is asked for: an empty part, a failed stream.
@@ -277,6 +283,127 @@ private Q_SLOTS:
         auto one = whole.openPart(QStringLiteral("/xl/worksheets/sheet1.xml"));
         QVERIFY(one);
         QCOMPARE(one->readAll(), QByteArray("<worksheet>one</worksheet>"));
+    }
+
+    // However many times parts are asked for, what is inflated over the package's life comes to no more than the package was allowed at the start: no list of
+    // parts, and no part asked for again and again, can multiply the work.
+    void theTotalInflatedOverAPackagesLifeIsBounded()
+    {
+        const int size = 1 << 20;
+        Entries e = smallEntries();
+        e.append({QStringLiteral("xl/worksheets/big.xml"), QByteArray(size, 'a')});
+        const QByteArray zip = zipOf(e);
+        Package p;
+        QString why;
+        // The parts come to a little over 1 MB; 2.5 MB is allowed.
+        QVERIFY2(p.readLazy(zip, &why, qint64(size) * 5 / 2), qPrintable(why));
+        QCOMPARE(p.part(QStringLiteral("/xl/worksheets/big.xml")).size(), size);
+        QCOMPARE(p.part(QStringLiteral("/xl/worksheets/big.xml")).size(), size);
+        // A third time would take it past, so it is refused, as a stream too.
+        QVERIFY(p.part(QStringLiteral("/xl/worksheets/big.xml")).isEmpty());
+        QVERIFY(p.inflatedBytes() <= qint64(size) * 5 / 2);
+        auto device = p.openPart(QStringLiteral("/xl/worksheets/big.xml"));
+        QVERIFY(device);
+        QVERIFY(device->readAll().size() < size);
+        auto *entry = dynamic_cast<jp::ZipEntryDevice *>(device.get());
+        QVERIFY(entry && entry->failed());
+        QVERIFY(entry->failure() == jp::ZipEntryDevice::Failure::OverBudget);
+        QVERIFY(p.inflatedBytes() <= qint64(size) * 5 / 2);
+        // What still fits is still given.
+        QCOMPARE(p.part(QStringLiteral("/xl/worksheets/sheet1.xml")), QByteArray("<worksheet>one</worksheet>"));
+    }
+
+    // Each entry's local header starts with its signature; one that doesn't is no entry.
+    void aLocalHeaderThatIsNoLocalHeaderIsRefused()
+    {
+        QByteArray zip = zipOf(smallEntries());
+        QVERIFY(Package().readLazy(zip));
+        qsizetype wrecked = 0;
+        for (qsizetype at = zip.indexOf(QByteArray("PK\x01\x02", 4)); at >= 0; at = zip.indexOf(QByteArray("PK\x01\x02", 4), at + 4)) {
+            const quint16 nameLength = qFromLittleEndian<quint16>(zip.constData() + at + 28);
+            if (QString::fromUtf8(zip.mid(at + 46, nameLength)) != QLatin1String("xl/worksheets/sheet2.xml")) continue;
+            const quint32 local = qFromLittleEndian<quint32>(zip.constData() + at + 42);
+            QCOMPARE(zip.mid(int(local), 4), QByteArray("PK\x03\x04", 4));
+            zip.replace(int(local), 4, "XXXX");
+            ++wrecked;
+        }
+        QCOMPARE(wrecked, qsizetype(1));
+        Package p;
+        QVERIFY(!p.readLazy(zip));
+        QVERIFY(p.partNames().isEmpty());
+    }
+
+    // A stored entry has its CRC checked when it is asked for, as a deflated one does.
+    void aStoredEntrysChecksumIsChecked()
+    {
+        QByteArray zip = zipOf(smallEntries(), false);
+        QVERIFY(Package().read(zip));
+        patchEntry(zip, QStringLiteral("xl/worksheets/sheet2.xml"), 16, 0x12345678u);
+        Package p;
+        QVERIFY(p.readLazy(zip));
+        QCOMPARE(p.part(QStringLiteral("/xl/worksheets/sheet1.xml")), QByteArray("<worksheet>one</worksheet>"));
+        QVERIFY(p.part(QStringLiteral("/xl/worksheets/sheet2.xml")).isEmpty());
+        auto device = p.openPart(QStringLiteral("/xl/worksheets/sheet2.xml"));
+        QVERIFY(device);
+        device->readAll();
+        auto *entry = dynamic_cast<jp::ZipEntryDevice *>(device.get());
+        QVERIFY(entry && entry->failed());
+        QVERIFY(entry->failure() == jp::ZipEntryDevice::Failure::Damaged);
+    }
+
+    // The most one part may inflate to, and all together, are at least ten times the most that real workbooks have (a sheet of 151 MB, and 302 MB in all).
+    void theSizesAreTenTimesTheLargestFound()
+    {
+        QVERIFY(jp::kMaxZipEntryBytes >= 10 * qint64(151222800));
+        QVERIFY(Package::kLazyMaxInflated >= 10 * qint64(302000000));
+    }
+
+    // A part past the most it may inflate to is said to be too large, not damaged.
+    void aPartTooLargeIsSaidToBeTooLarge()
+    {
+        QByteArray zip = zipOf(smallEntries());
+        patchEntry(zip, QStringLiteral("xl/worksheets/sheet2.xml"), 24, 0xF0000000u);
+        Package p;
+        QString why;
+        QVERIFY2(p.readLazy(zip, &why, qint64(8) << 30), qPrintable(why));
+        QVERIFY(p.part(QStringLiteral("/xl/worksheets/sheet2.xml")).isEmpty());
+        auto device = p.openPart(QStringLiteral("/xl/worksheets/sheet2.xml"));
+        QVERIFY(device);
+        device->readAll();
+        auto *entry = dynamic_cast<jp::ZipEntryDevice *>(device.get());
+        QVERIFY(entry && entry->failed());
+        QVERIFY(entry->failure() == jp::ZipEntryDevice::Failure::TooLarge);
+        // Nothing was inflated for it.
+        QVERIFY(p.inflatedBytes() < 4096);
+    }
+
+    // The XML a lazy package reads whole (its content types and relationships) passes the guard a sheet's does: UTF-16, and elements with more attributes than
+    // any file has, are refused without the parser having them.
+    void aPackagesOwnXmlIsGuardedAsASheetsIs()
+    {
+        QString attributes;
+        for (int i = 0; i < 20000; ++i) attributes += QStringLiteral(" a\u0122%1=\"v\u0122\"").arg(i);
+        QStringEncoder little(QStringConverter::Utf16LE, QStringConverter::Flag::Default);
+        const QByteArray typesUtf16 = QByteArray("\xff\xfe", 2) + QByteArray(little(QString::fromUtf8(typesXml()).replace(QLatin1String("<Default Extension=\"xml\""), "<Default" + attributes + " Extension=\"xml\"")));
+        Entries e = smallEntries();
+        e[0].second = typesUtf16;
+        Package p;
+        QString why;
+        QVERIFY(!p.readLazy(zipOf(e), &why));
+        QVERIFY2(why.contains(QStringLiteral("Content_Types")), qPrintable(why));
+        QVERIFY(p.partNames().isEmpty());
+        // The same crowded in UTF-8, in the content types and in a relationship part.
+        QString crowd;
+        for (int i = 0; i < 2000; ++i) crowd += QStringLiteral(" a%1=\"v\"").arg(i);
+        Entries f = smallEntries();
+        f[0].second = QString::fromUtf8(typesXml()).replace(QLatin1String("<Default Extension=\"xml\""), "<Default" + crowd + " Extension=\"xml\"").toUtf8();
+        QVERIFY(!Package().readLazy(zipOf(f), &why));
+        Entries g = smallEntries();
+        g[1].second = relsXml("<Relationship Id=\"rId1\" Type=\"" + kOfficeDoc + "\" Target=\"xl/workbook.xml\"" + crowd + "/>");
+        QVERIFY(!Package().readLazy(zipOf(g), &why));
+        QVERIFY2(why.contains(QStringLiteral("relationships")), qPrintable(why));
+        // What a package read whole accepts of ordinary XML, a lazy one does.
+        QVERIFY(Package().readLazy(zipOf(smallEntries())));
     }
 
     // A failed lazy read leaves the package empty, as a failed read does; and the same package is read again.
