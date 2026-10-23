@@ -141,6 +141,37 @@ private Q_SLOTS:
         QVERIFY(!t2.look(2).hasFill());
     }
 
+    // Every look with the same font (family, size, and style) has the same font id, and each other font its own: the drawing keys its fonts by it.
+    void looksWithTheSameFontShareAFontId()
+    {
+        Styles s;
+        FontSpec a, b, c;
+        a.name = QStringLiteral("Arial");
+        a.size = 10;
+        b = a;
+        c = a;
+        c.bold = true;
+        s.fonts = {a, b, c};
+        CellFormat x, y, z, w;
+        x.font = 0;
+        y.font = 1;   // another font entry of the same font
+        z.font = 2;
+        w.font = 0;
+        w.fill = 0;
+        s.formats = {x, y, z, w};
+        s.cellXfs = {0, 0, 0, 0};
+        LookTable t(&s);
+        QCOMPARE(t.look(0).fontId, t.look(1).fontId);
+        QCOMPARE(t.look(0).fontId, t.look(3).fontId);
+        QVERIFY(t.look(0).fontId != t.look(2).fontId);
+        // (and still the same after the looks were let go of)
+        const quint32 id = t.look(2).fontId;
+        t.trim();
+        for (quint32 i = 0; i < 6000; ++i) t.look(i % 4 == 0 ? 0 : i % 4);
+        t.trim();
+        QCOMPARE(t.look(2).fontId, id);
+    }
+
     // A table of a million cell formats holds only as many looks as a screen shows: the looks are let go of at the start of a screen, and are right after that.
     void aDeepTableOfCellFormatsHoldsFewLooks()
     {

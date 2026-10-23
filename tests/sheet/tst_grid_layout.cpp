@@ -307,6 +307,33 @@ private Q_SLOTS:
         QCOMPARE(scrolled.col, qint64(0));
     }
 
+    // A merged range across the edge of the frozen part is drawn by each part as its own coordinates put it; the edges of rows and columns are the same either way up to it.
+    void aRangeIsPlacedAsEachPartOfTheGridDrawsIt()
+    {
+        GridLayout g = plain();
+        g.setFrozen(0, 1);
+        g.setScroll(128, 0);
+        // columns 0 to 3 from the frozen part: from its left to four columns on; from the part that scrolls: the same four, 192 to the left of where it begins
+        const QRect inFrozen = g.rangeRectIn(Pane::Left, 0, 0, 0, 3);
+        QCOMPARE(inFrozen, QRect(40, 20, 256, 20));
+        const QRect inScrolling = g.rangeRectIn(Pane::Body, 0, 0, 0, 3);
+        QCOMPARE(inScrolling, QRect(40 + 64 - 192, 20, 256, 20));
+        QCOMPARE(g.rangeRectIn(Pane::Corner, 0, 0, 0, 3), g.rangeRectIn(Pane::Left, 0, 0, 0, 3));
+        QCOMPARE(g.rangeRectIn(Pane::Top, 0, 0, 0, 3), g.rangeRectIn(Pane::Body, 0, 0, 0, 3));
+        // edges: the end of a column is the start of the next, and a hidden one between has no width
+        QCOMPARE(g.xEdge(1, true), 40 + 64);
+        QCOMPARE(g.xEdge(1, false), 40 + 64 + (64 - 192));
+        g.cols.setSize(5, 0);
+        QCOMPARE(g.xEdge(5, false), g.xEdge(6, false));
+        QCOMPARE(g.yEdge(3, false), 20 + 60);
+        // rows
+        g.setFrozen(2, 0);
+        g.setScroll(0, 100);
+        QCOMPARE(g.rangeRectIn(Pane::Top, 0, 0, 3, 0).height(), 80);
+        QCOMPARE(g.rangeRectIn(Pane::Body, 0, 0, 3, 0), QRect(40, 20 + 40 + (0 - 140), 64, 80));
+        QCOMPARE(g.yEdge(2, true), 20 + 40);
+    }
+
     // The scroll is kept where the last row can be the first, and a cell is scrolled into view by the least that shows it.
     void scrollIsKeptInRangeAndACellIsBroughtIntoView()
     {

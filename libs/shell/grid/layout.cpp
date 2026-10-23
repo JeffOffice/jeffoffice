@@ -7,7 +7,8 @@ namespace jp::grid {
 
 namespace {
 // The place on the screen of a place of the grid's: the same rounding for the end of a cell and the start of the next.
-int scaled(qint64 logical, double zoom) { return int(std::llround(double(logical) * zoom)); }
+// (a place far outside any screen is kept to what an int holds, so that a sheet of a million tall rows at the largest zoom does not overflow)
+int scaled(qint64 logical, double zoom) { return int(std::max(-1e9, std::min(1e9, std::round(double(logical) * zoom)))); }
 qint64 clampTo(qint64 v, qint64 low, qint64 high) { return std::max(low, std::min(v, high)); }
 } // namespace
 
@@ -66,6 +67,16 @@ int GridLayout::screenY(qint64 logical, bool frozen) const
 
 int GridLayout::xOf(qint64 col) const { return screenX(cols.position(col), col < m_frozenCols); }
 int GridLayout::yOf(qint64 row) const { return screenY(rows.position(row), row < m_frozenRows); }
+
+int GridLayout::xEdge(qint64 col, bool frozen) const { return screenX(cols.position(col), frozen); }
+int GridLayout::yEdge(qint64 row, bool frozen) const { return screenY(rows.position(row), frozen); }
+
+QRect GridLayout::rangeRectIn(Pane pane, qint64 row1, qint64 col1, qint64 row2, qint64 col2) const
+{
+    const bool fr = pane == Pane::Corner || pane == Pane::Top, fc = pane == Pane::Corner || pane == Pane::Left;
+    const int left = xEdge(col1, fc), right = xEdge(col2 + 1, fc), top = yEdge(row1, fr), bottom = yEdge(row2 + 1, fr);
+    return QRect(left, top, std::max(0, right - left), std::max(0, bottom - top));
+}
 
 bool GridLayout::ensureVisible(qint64 row, qint64 col)
 {

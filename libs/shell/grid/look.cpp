@@ -68,6 +68,17 @@ const CellLook &LookTable::look(quint32 xf) const
     return *it->second;
 }
 
+quint32 LookTable::fontIdOf(const CellLook &l) const
+{
+    const std::string signature = l.family.toStdString() + '|' + std::to_string(l.pointSize) + '|' + char('0' + l.bold) + char('0' + l.italic) + char('0' + l.strike) +
+                                  char('0' + int(l.underline)) + char('0' + l.vertAlign);
+    const auto it = m_fontIds.find(signature);
+    if (it != m_fontIds.end()) return it->second;
+    const quint32 id = quint32(m_fontIds.size());
+    m_fontIds.emplace(signature, id);
+    return id;
+}
+
 CellLook LookTable::make(quint32 xf) const
 {
     CellLook l;
@@ -83,6 +94,7 @@ CellLook LookTable::make(quint32 xf) const
     l.underline = font.underline;
     l.vertAlign = font.vertAlign;
     l.textColor = opaque(s.resolve(font.color, 0x000000));
+    l.fontId = fontIdOf(l);
     const jp::office::sheet::FillSpec &fill = s.fill(f.fill);
     if (fill.pattern == PatternKind::Solid && !fill.fg.isSet()) {
         l.pattern = PatternKind::None;   // (a solid fill that names no color is not drawn)

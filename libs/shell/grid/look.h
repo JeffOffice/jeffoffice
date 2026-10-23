@@ -10,6 +10,7 @@
 #include <QString>
 
 #include <memory>
+#include <string>
 #include <unordered_map>
 
 namespace jp::grid {
@@ -33,6 +34,7 @@ struct CellLook {
     Underline underline = Underline::None;
     quint8 vertAlign = 0;     // 0 baseline, 1 superscript, 2 subscript
     QRgb textColor = 0xFF000000;
+    quint32 fontId = 0;       // a number for this font (family, size, and style), the same for every look that has it: what the drawing keys its fonts by
     // the fill: none, a solid color (fg), or a pattern of fg over bg
     PatternKind pattern = PatternKind::None;
     QRgb fg = 0, bg = 0;
@@ -75,9 +77,11 @@ public:
 
 private:
     CellLook make(quint32 xf) const;
+    quint32 fontIdOf(const CellLook &look) const;
     const jp::office::sheet::Styles *m_styles = nullptr;
     mutable std::unordered_map<quint32, std::unique_ptr<CellLook>> m_looks;
     mutable qint64 m_made = 0;
+    mutable std::unordered_map<std::string, quint32> m_fontIds;   // by the font's signature
 };
 
 } // namespace jp::grid

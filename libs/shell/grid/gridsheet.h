@@ -66,6 +66,9 @@ public:
     // The rows and columns the cells reach (the most of a cell with a value, a formula, or a format of its own), for Ctrl+End.
     void usedExtent(quint32 *rows, quint32 *cols) const;
 
+    // The sheet has rows or columns with a format of their own (which the cells that are not there have).
+    bool hasImplicitStyles() const { return !m_columnStyles.empty() || !m_rowStyles.empty(); }
+
     // The column (row) a sheet's width (height) in characters (points) is, in the grid's units; the conversions the file's numbers go through.
     static int columnPixels(double chars, int maxDigitWidth);
     static int rowPixels(double points);

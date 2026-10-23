@@ -76,6 +76,13 @@ public:
     // The place of a row's top (columns' left) edge on the screen, in the part the row (column) is in.
     int yOf(qint64 row) const;
     int xOf(qint64 col) const;
+    // The edge where a column (row) begins, as the frozen part or the part that scrolls puts it; `col` may be count(), the end of the last. A row (column) ends where the next begins,
+    // hidden ones between them having no size.
+    int xEdge(qint64 col, bool frozen) const;
+    int yEdge(qint64 row, bool frozen) const;
+    // The rectangle of a block of cells as one part of the grid draws it: a merged range across the edge of the frozen part is drawn by both parts, each as its own coordinates put it
+    // (the rectangle may be wholly or partly outside the part, which clips it).
+    QRect rangeRectIn(Pane pane, qint64 row1, qint64 col1, qint64 row2, qint64 col2) const;
     // The cell, or header, at a point of the window; a point past the last row or column (or on a hidden one's edge) is none.
     Hit hit(const QPoint &point) const;
     PaneView pane(Pane which) const;
