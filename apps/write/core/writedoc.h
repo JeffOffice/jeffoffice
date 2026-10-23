@@ -112,6 +112,10 @@ void resetEndnoteParagraphsMadeForTest();
 qint64 endnoteSettleScansForTest();
 qint64 endnoteSettleVisitedForTest();
 void resetEndnoteSettleWorkForTest();
+// How many places of the references that are followed as the story changes have been read or written since the count was reset (a cost test: a keystroke touches a few, whatever the
+// number of the references).
+qint64 endnoteSequenceWorkForTest();
+void resetEndnoteSequenceWorkForTest();
 // How many footnote stories have been made since the count was reset: a cost test (only the notes that are shown or edited have one).
 qint64 noteStoriesMadeForTest();
 void resetNoteStoriesMadeForTest();
@@ -439,14 +443,23 @@ private:
     QVector<std::pair<bool, int>> m_noteStepPending;   // (endnote?, Id) of the notes made since the last step: the next step is theirs
     int m_footnoteIdFloor = 0, m_endnoteIdFloor = 0;   // the highest Id made in this session
     void reclaimDeadNotes(bool endnotes, int keep);
-    // The references to endnotes that the settling counts (those that name a note the document has, and are not what a tracked change deleted), each by its place and Id, in order: kept as
-    // the story changes (followEndnoteReferences), so that an edit that touches none of them does not look through the story again. Valid once the settling has looked through it, and
-    // until the notes are set again, an undo or a redo is done, or the story is made anew.
+    // The references to endnotes that the settling counts (those that name a note the document has, and are not what a tracked change deleted), kept as the story changes, so that an edit that
+    // touches none of them does not look through the story again. Each is kept by its distance from the one before it (the first from the start of the story) and the Id it names, with the
+    // sums of the distances in a tree (a Fenwick tree): a change of the story moves the places of all the references after it by changing one distance, and a place is found in a few steps,
+    // whatever the number of the references. Valid once the settling has looked through the story, until a change takes a reference out, puts one in, or moves the notes they name, the notes
+    // are set again, an undo or a redo is done, or the story is made anew.
     struct EndnoteSeqEntry {
         int position = 0, id = 0;
     };
-    QVector<EndnoteSeqEntry> m_endnoteRefSeq;
-    bool m_endnoteSeqValid = false, m_endnoteSeqChanged = false;
+    struct EndnoteSeq {
+        QVector<int> gap, id, tree;   // by the order of the references; the tree has a place more than the references, counted from 1
+    };
+    EndnoteSeq m_endnoteSeq;
+    bool m_endnoteSeqValid = false;
+    void setEndnoteSeq(const QVector<EndnoteSeqEntry> &references);
+    // How many references are before a place (their places are less than it), and the place of the last of them (0 for none).
+    qsizetype endnoteSeqBefore(int position, int *last) const;
+    void endnoteSeqMove(qsizetype rank, int by);
     void followEndnoteReferences(int position, int removed, int added);
     QVector<EndnoteSeqEntry> endnoteReferencesIn(int from, int to);
     bool countedEndnoteReference(const QTextCharFormat &format, int *id) const;

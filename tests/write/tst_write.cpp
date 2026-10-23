@@ -19200,6 +19200,36 @@ private Q_SLOTS:
         QCOMPARE(w.document()->story()->blockCount(), blocks);
     }
 
+    // ---- endnotes: a keystroke and the references after it
+
+    // A keystroke before the references of a long text costs the same, whatever their number: the places of the references are not all moved on for each (the work is counted in the
+    // places that are read or written).
+    void aKeystrokeCostsAboutTheSameWhateverTheNumberOfEndnoteReferencesAfterIt()
+    {
+        auto workPerKey = [&](int references) {
+            QByteArray body = paragraphs(40, 8), notes = "<w:endnotes " + QByteArray(kNs) + ">" + sourcesNote();
+            for (int i = 1; i <= references; ++i) {
+                body += "<w:p><w:r><w:t>r" + QByteArray::number(i) + "</w:t></w:r><w:r><w:endnoteReference w:id=\"" + QByteArray::number(i) + "\"/></w:r></w:p>";
+                notes += "<w:endnote w:id=\"" + QByteArray::number(i) + "\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t> n" + QByteArray::number(i) + "</w:t></w:r></w:p></w:endnote>";
+            }
+            notes += "</w:endnotes>";
+            auto doc = open(makeDocxWithParts(body, sectionXml(6000, 6000, 720), {{QStringLiteral("/word/endnotes.xml"), notes}}, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"));
+            [&] { QVERIFY(doc); }();
+            QTextCursor c(doc->story());
+            c.setPosition(5);   // (before every reference)
+            insertParagraph(*doc, c);   // (the first edits that can change the notes: the references are looked for once)
+            deleteBack(*doc, c, false);
+            resetEndnoteSequenceWorkForTest();
+            for (int i = 0; i < 100; ++i) insertText(*doc, c, QStringLiteral("x"));
+            for (int i = 0; i < 20; ++i) deleteBack(*doc, c, false);
+            const bool followed = doc->endnoteSequenceMatchesStoryForTest();
+            [&] { QVERIFY(followed); }();
+            return double(endnoteSequenceWorkForTest()) / 120;
+        };
+        const double few = workPerKey(20), many = workPerKey(1000);
+        QVERIFY2(many <= 60, qPrintable(QStringLiteral("%1 places read or written for a keystroke with 1000 references after it, %2 with 20").arg(many).arg(few)));
+        QVERIFY2(many <= few + 40, qPrintable(QStringLiteral("%1 places for a keystroke with 1000 references after it, %2 with 20").arg(many).arg(few)));
+    }
 
 };
 
