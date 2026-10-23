@@ -90,6 +90,7 @@ public:
     qint64 untrackedCount() const { return m_untracked; }      // formulas the graph was too full to hold
     qint64 textSlotBytes() const;   // what the strings in the slots that hold the formulas' texts take, the free slots' too (a free slot holds none)
     qint64 heldBytes() const { return m_heldBytes; }   // what the texts and arrays that formulas gave take (the bound: CalcOptions::maxHeldBytes)
+    qint64 registrations() const { return m_registrations; }   // times a formula has told the graph what it reads (counted, so that a test can see that one that reads the same is not told again)
     qint64 alwaysListed() const { return qint64(m_always.size()); }   // formulas on the list of those worked out in every recalculation
     const jp::calc::DependencyGraph &graph() const { return *m_graph; }
     // The number of the formula in the cell (the graph's name for it); 0xFFFFFFFF if the cell holds none.
@@ -185,6 +186,8 @@ private:
     // search): a formula that waits is given a number when it first does, and a formula worked out that waits only for those on the way to it, or in its own group, is left
     // suspended on the stack of the group until the group is complete. m_index and m_low are 0 for a formula not on that stack.
     std::vector<quint32> m_index, m_low;
+    std::vector<quint64> m_toldHash;   // by node: a number that says what it touched the last time it was worked out, as the graph was told (0: not told)
+    std::vector<jp::calc::CellArea> m_toldSet;
     std::vector<quint32> m_comp;
     quint32 m_counter = 0;
     void closeGroup(quint32 root, quint32 parent, Progress &pr);
@@ -198,6 +201,7 @@ private:
     void freeTextSlot(qint32 slot);
     static qint64 heldByValue(const jp::calc::Value &v);
     jp::calc::Value fitToRange(const Node &n, const jp::calc::Value &v) const;
+    qint64 m_registrations = 0;
     qint64 m_workUsed = 0, m_workLimit = kMaxRecalcWork;   // the steps this recalculation has taken in all its slices, and the most it may
     qint64 m_heldBytes = 0, m_heldLimit = kMaxHeldBytes;
     bool m_running = false;

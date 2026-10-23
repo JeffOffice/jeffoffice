@@ -773,6 +773,47 @@ private Q_SLOTS:
         QVERIFY2(b.calc->textSlotBytes() < (1 << 20), qPrintable(QStringLiteral("%1 bytes of strings in the slots, %2 held").arg(b.calc->textSlotBytes()).arg(b.calc->heldBytes())));
     }
 
+    // A formula that reads where its values say tells the graph what it read only when that is not what it told the last time: the formulas of a recalculation whose
+    // references are as they were tell it nothing (counted, not timed), and one whose references moved tells it.
+    void aFormulaWhoseReferencesAreAsTheyWereTellsTheGraphNothing()
+    {
+        const int n = 200;
+        QString rows;
+        for (int i = 1; i <= n; ++i) {
+            QString cells = constant(QStringLiteral("A%1").arg(i), "1");
+            cells += cellXml(QStringLiteral("M%1").arg(i), QStringLiteral("SUM(A1:INDEX(E:E,3))+%1").arg(i));    // the range operator over a reference a function gives
+            cells += cellXml(QStringLiteral("N%1").arg(i), QStringLiteral("SUMIF(A1:A3,\">0\",B1)+%1").arg(i));    // a sum range of the shape of the range
+            cells += cellXml(QStringLiteral("O%1").arg(i), QStringLiteral("SUM(blk)+%1").arg(i));                  // a name
+            cells += cellXml(QStringLiteral("P%1").arg(i), QStringLiteral("INDIRECT(\"A\"&$K$1)+%1").arg(i));      // INDIRECT (volatile)
+            rows += rowXml(i, cells + (i == 1 ? constant("K1", "2") + constant("B1", "5") + constant("E2", "3") : QString()));
+        }
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), QStringLiteral("<definedName name=\"blk\">Sheet1!$A$1:$A$3</definedName>"))));
+        settle(b);
+        const qint64 first = b.calc->registrations();
+        QVERIFY2(first >= 4 * n, qPrintable(QString::number(first)));   // each told what it read, as it was worked out
+        // a recalculation of the volatile ones, and an edit to a cell the others read: everything is worked out again where it read the same
+        const Calculation::Progress p = settle(b);
+        QVERIFY(p.evaluated >= n);
+        QVERIFY(b.set("A2", Value::number(7)));
+        const Calculation::Progress q = settle(b);
+        QVERIFY2(q.evaluated >= 4 * n, qPrintable(QString::number(q.evaluated)));
+        QVERIFY2(b.calc->registrations() == first, qPrintable(QStringLiteral("%1 formulas told the graph what they read again").arg(b.calc->registrations() - first)));
+        QCOMPARE(b.at("M1"), QStringLiteral("n:18"));
+        QCOMPARE(b.at("N1"), QStringLiteral("n:6"));                            // SUMIF(A1:A3,">0",B1): B1 is 5, B2 and B3 are empty; and 1
+        // INDIRECT pointing elsewhere is told again, by the formulas whose reference moved
+        QVERIFY(b.set("K1", Value::number(3)));
+        settle(b);
+        QVERIFY2(b.calc->registrations() - first >= n, qPrintable(QString::number(b.calc->registrations() - first)));
+        const quint32 p1 = b.calc->nodeAt(0, b.row("P1"), b.col("P1"));
+        std::vector<quint32> found;
+        b.calc->graph().dependentsOfCell(0, b.row("A3"), b.col("A3"), &found);
+        QVERIFY(std::find(found.begin(), found.end(), p1) != found.end());
+        found.clear();
+        b.calc->graph().dependentsOfCell(0, b.row("A2"), b.col("A2"), &found);
+        QVERIFY(std::find(found.begin(), found.end(), p1) == found.end());
+    }
+
     // A graph that is full at a realistic size (thirty thousand formulas, seventeen cells each, a graph of about half that) says no at once to the rest: it is not gone over
     // again for each of the formulas it refuses (counted), and every value is still right.
     void aFullGraphAtARealisticSizeIsNotGoneOverForEachFormulaItRefuses()

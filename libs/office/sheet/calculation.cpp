@@ -16,6 +16,23 @@ using namespace jp::calc;
 
 namespace {
 
+// A number that says which blocks these are (in the order given): two lists with the same number are taken to be the same, as the graph takes them.
+quint64 hashOfAreas(const std::vector<CellArea> &areas)
+{
+    quint64 h = 1469598103934665603ull ^ quint64(areas.size());
+    auto mix = [&](quint64 v) {
+        h ^= v + 0x9E3779B97F4A7C15ull + (h << 6) + (h >> 2);
+        h *= 0xFF51AFD7ED558CCDull;
+        h ^= h >> 32;
+    };
+    for (const CellArea &a : areas) {
+        mix((quint64(quint32(a.sheet1)) << 32) | quint64(quint32(a.sheet2)));
+        mix((quint64(a.row1) << 32) | quint64(a.row2));
+        mix((quint64(a.col1) << 32) | quint64(a.col2));
+    }
+    return h ? h : 1;
+}
+
 constexpr qint64 kMaxArrayCellsMarked = 1000000;   // an array formula's range larger than this is not made members of (no real one is)
 constexpr qint64 kMaxMembersAdded = 200000;        // the cells of arrays that the file has no cell for, which are put in (each costs the cells after it in its block of rows)
 
@@ -73,11 +90,13 @@ quint32 Calculation::addNode(int sheet, const Cell &cell, qint32 formulaIndex)
         const quint16 listed = m_nodes[id].flags & AlwaysListed;   // (a gone node may still be on the list of those worked out each time)
         m_nodes[id] = Node();
         m_nodes[id].flags = listed;
+        m_toldHash[id] = 0;
     } else {
         id = quint32(m_nodes.size());
         m_nodes.emplace_back();
         m_index.push_back(0);
         m_low.push_back(0);
+        m_toldHash.push_back(0);
     }
     Node &n = m_nodes[id];
     n.sheet = sheet;
@@ -164,15 +183,27 @@ void Calculation::keepStored(Node &n, char cls)
 void Calculation::registerNode(quint32 id, const std::vector<CellArea> *told)
 {
     Node &n = m_nodes[id];
+    // (what a formula's own references name does not change; what it touched as it was worked out is told only if it is not what it touched the last time)
+    quint64 toldHash = 0;
+    if (told) {
+        m_toldSet.assign(told->begin(), told->end());
+        std::sort(m_toldSet.begin(), m_toldSet.end());
+        m_toldSet.erase(std::unique(m_toldSet.begin(), m_toldSet.end()), m_toldSet.end());
+        toldHash = hashOfAreas(m_toldSet);
+        if (m_toldHash[id] == toldHash) return;
+    }
     const Sheet &s = m_sheets[size_t(n.sheet)];
     const Formula &f = s.formulas[n.formula];
     const Compiled &slot = compiled(n.sheet, f.text, n.flags & Array);
     m_areas.clear();
     if (slot.program) resolveReferences(*slot.program, slot.bound, sheetCount(), n.sheet, f.dRow, f.dCol, &m_areas);
-    if (told) m_areas.insert(m_areas.end(), told->begin(), told->end());
+    if (told) m_areas.insert(m_areas.end(), m_toldSet.begin(), m_toldSet.end());
     std::sort(m_areas.begin(), m_areas.end());
     m_areas.erase(std::unique(m_areas.begin(), m_areas.end()), m_areas.end());
-    if (!m_graph->setPrecedents(id, m_areas)) {
+    ++m_registrations;
+    const bool tracked = m_graph->setPrecedents(id, m_areas);
+    m_toldHash[id] = tracked ? toldHash : 0;   // (a formula the graph refused is told again next time)
+    if (!tracked) {
         if (!(n.flags & Untracked)) {
             n.flags |= Untracked;
             ++m_untracked;
@@ -369,6 +400,7 @@ bool Calculation::load()
     m_nodes.clear();
     m_index.clear();
     m_low.clear();
+    m_toldHash.clear();
     m_comp.clear();
     m_counter = 0;
     m_dirty.clear();
