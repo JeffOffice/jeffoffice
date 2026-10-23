@@ -819,6 +819,17 @@ static bool breaksNowhere(const QString &text)
     });
 }
 
+// A character that is not in the text: one of the 32 noncharacters U+FDD0 to U+FDEF, which no text of a file has (a null one is returned for a text that has them all).
+static QChar charNotIn(const QString &text)
+{
+    quint32 seen = 0;
+    for (const QChar ch : text)
+        if (ch.unicode() >= 0xFDD0 && ch.unicode() <= 0xFDEF) seen |= quint32(1) << (ch.unicode() - 0xFDD0);
+    for (int i = 0; i < 32; ++i)
+        if (!(seen & (quint32(1) << i))) return QChar(ushort(0xFDD0 + i));
+    return QChar();
+}
+
 void ParagraphLayout::resetTabs()
 {
     m_sets.clear();
@@ -3886,6 +3897,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             auto hangStop = [&](double from, bool hangLine) { return hangLine && hangs && !env.wordNoHangStop && B->marker.isEmpty() && leftM > from + 0.01; };
             // The first stop past `pen`, measured from the text area's edge.
             auto nextStop = [&](double pen, bool hangLine) { return hangStop(pen, hangLine) ? leftM : (std::floor((pen + 0.01) / step) + 1) * step; };
+            // (A character the paragraph's text has none of, for the default stops of a word processor's lines.)
+            const QChar noDelimiter = wordTabs && gridTabs ? charNotIn(B->disp) : QChar();
             // The list for a line that starts `off` from the edge and is `w` wide, measured from its start.
             auto stopsFor = [&](double off, double w, bool hangLine) {
                 QList<QTextOption::Tab> tabs;
@@ -3912,16 +3925,21 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         tabs << QTextOption::Tab((leftM - off) * kFine, QTextOption::LeftTab);
                         last = std::max(last, leftM);
                     }
-                    // (A line that starts at a default stop has them from Qt, the next past where its text is, which is the same: the stops listed for it make Qt read the rest of the
-                    // paragraph for the width of the text of every tab that goes to one, a paragraph of thousands of tabs having each of them cost all the others.)
-                    if (std::abs(off - std::round(off / step) * step) >= 0.01)
-                        for (double pen = std::max(off, last); tabs.size() < 1000;) {
-                            const double stop = (std::floor((pen + 0.01) / step) + 1) * step;
+                    // (The default stops are listed for the line as far as it reaches, so that a tab goes to the stop that follows where it starts, as it goes to a stop of the paragraph's own:
+                    // Qt's own default stops are not the same, they pass over a stop that a tab starts a fraction of a point before, and are at multiples of a distance it rounds. A left
+                    // stop makes Qt read the rest of the paragraph for the width of the text of each tab that goes to it, a paragraph of thousands of tabs having each of them cost all
+                    // the others, so the stops are ones for text that ends at a delimiter the paragraph has none of: they take a tab to their position, and Qt reads no more of the text.)
+                    for (double pen = std::max(off, last); tabs.size() < 1000;) {
+                        const double stop = (std::floor((pen + 0.01) / step) + 1) * step;
+                        if (noDelimiter.isNull()) {
                             tabs << QTextOption::Tab((stop - off) * kFine, QTextOption::LeftTab);
                             ++g_defaultTabStopsListed;
-                            if (stop - off > w) break;
-                            pen = stop;
+                        } else {
+                            tabs << QTextOption::Tab((stop - off) * kFine, QTextOption::DelimiterTab, noDelimiter);
                         }
+                        if (stop - off > w) break;
+                        pen = stop;
+                    }
                     return tabs;
                 }
                 if (!hangStop(off, hangLine) && std::abs(off - std::round(off / step) * step) < 0.01) return tabs;
