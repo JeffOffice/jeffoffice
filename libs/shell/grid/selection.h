@@ -46,7 +46,7 @@ class Navigator;
 // A search for the edge of the data, a little at a time. step() does at most about `budget` cell looks and says whether it is done; the cell it stands on is where it is.
 class JumpWalk {
 public:
-    JumpWalk(const Navigator *nav, qint64 row, qint64 col, int dRow, int dCol);
+    JumpWalk(const GridLayout *layout, const NavSource *source, qint64 row, qint64 col, int dRow, int dCol);
     // True when the walk has found its place. A budget of 0 is no limit.
     bool step(qint64 budget);
     qint64 row() const { return m_row; }
@@ -54,7 +54,8 @@ public:
     qint64 looks() const { return m_looks; }
 
 private:
-    const Navigator *m_nav;
+    const GridLayout *m_layout;
+    const NavSource *m_source;
     qint64 m_row, m_col;
     int m_dRow, m_dCol;
     enum class Phase { Start, Run, Seek, Done } m_phase = Phase::Start;

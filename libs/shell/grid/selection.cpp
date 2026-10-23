@@ -328,15 +328,18 @@ JumpWalk Navigator::jump(const Selection &s, int dRow, int dCol, bool extend) co
         if (dCol > 0) col = r.col2;
         else if (dCol < 0) col = r.col1;
     }
-    return JumpWalk(this, row, col, dRow, dCol);
+    return JumpWalk(m_layout, m_source, row, col, dRow, dCol);
 }
 
-JumpWalk::JumpWalk(const Navigator *nav, qint64 row, qint64 col, int dRow, int dCol) : m_nav(nav), m_row(row), m_col(col), m_dRow(dRow), m_dCol(dCol) {}
+JumpWalk::JumpWalk(const GridLayout *layout, const NavSource *source, qint64 row, qint64 col, int dRow, int dCol)
+    : m_layout(layout), m_source(source), m_row(row), m_col(col), m_dRow(dRow), m_dCol(dCol)
+{
+}
 
 bool JumpWalk::step(qint64 budget)
 {
-    const Axis &rows = m_nav->layout().rows, &cols = m_nav->layout().cols;
-    const NavSource &src = m_nav->source();
+    const Axis &rows = m_layout->rows, &cols = m_layout->cols;
+    const NavSource &src = *m_source;
     const qint64 start = m_looks;
     // The next shown cell in the direction (false at the edge of the sheet).
     auto next = [&](qint64 *row, qint64 *col) {
