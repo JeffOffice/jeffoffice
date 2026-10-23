@@ -65,7 +65,9 @@ quint32 Calculation::addNode(int sheet, const Cell &cell, qint32 formulaIndex)
     if (!m_freeNodes.empty()) {
         id = m_freeNodes.back();
         m_freeNodes.pop_back();
+        const quint16 listed = m_nodes[id].flags & AlwaysListed;   // (a gone node may still be on the list of those worked out each time)
         m_nodes[id] = Node();
+        m_nodes[id].flags = listed;
     } else {
         id = quint32(m_nodes.size());
         m_nodes.emplace_back();
@@ -88,7 +90,7 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
     Node &n = m_nodes[id];
     const Sheet &s = m_sheets[size_t(n.sheet)];
     const bool array = cell.flags & ArrayFormula;
-    n.flags = array ? Array : 0;
+    n.flags = quint16((n.flags & AlwaysListed) | (array ? Array : 0));
     char kept = 0;
     bool always = false, told = false;
     if (cell.flags & DataTable) {
@@ -123,13 +125,21 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
     }
     if (always) {
         n.flags |= Always;
-        m_always.push_back(id);
+        listAlways(id);
     }
     if (told) n.flags |= Told;
     n.state = Dirty;
     ++m_notDone;
     m_dirty.push_back(id);
     registerNode(id, nullptr);
+}
+
+void Calculation::listAlways(quint32 id)
+{
+    Node &n = m_nodes[id];
+    if (n.flags & AlwaysListed) return;
+    n.flags |= AlwaysListed;
+    m_always.push_back(id);
 }
 
 void Calculation::keepStored(Node &n, char cls)
@@ -162,7 +172,7 @@ void Calculation::registerNode(quint32 id, const std::vector<CellArea> *told)
         }
         if (!(n.flags & Always)) {
             n.flags |= Always;
-            m_always.push_back(id);
+            listAlways(id);
         }
     }
 }
@@ -402,11 +412,20 @@ void Calculation::beginRecalculation()
     m_running = true;
     m_now = m_options.now > 0 ? m_options.now : clockSerial(m_ctx.dateSystem);
     std::vector<CellArea> changed;
-    for (const quint32 id : m_always) {
-        const Node &n = m_nodes[id];
-        if ((n.flags & (Dead | Kept)) || !(n.flags & Always) || n.state != Done) continue;
+    // (the list is kept to the formulas that are on it: one that is gone, or not volatile now, is left off)
+    size_t listed = 0;
+    for (size_t i = 0; i < m_always.size(); ++i) {
+        const quint32 id = m_always[i];
+        Node &n = m_nodes[id];
+        if ((n.flags & Dead) || !(n.flags & Always)) {
+            n.flags &= quint16(~AlwaysListed);
+            continue;
+        }
+        m_always[listed++] = id;
+        if ((n.flags & Kept) || n.state != Done) continue;
         markDirty(id, &changed);
     }
+    m_always.resize(listed);
     markDependents(&changed);
     m_dirtyCursor = 0;
 }
@@ -602,7 +621,7 @@ void Calculation::dropNode(quint32 id)
     m_graph->clearPrecedents(id);
     SheetState &st = m_state[size_t(n.sheet)];
     if (size_t(n.formula) < st.nodeOf.size()) st.nodeOf[size_t(n.formula)] = kNone;
-    n.flags = Dead;
+    n.flags = quint16(Dead | (n.flags & AlwaysListed));
     n.state = Done;
     n.kind = KindEmpty;
     n.text = -1;

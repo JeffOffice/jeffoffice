@@ -608,6 +608,24 @@ private Q_SLOTS:
         QCOMPARE(b.at("B1", 0), QStringLiteral("n:21"));
         QCOMPARE(b.at("A2", 1), QStringLiteral("n:%1").arg(1 + 20 + 2 + 21));
     }
+
+    // A volatile formula edited over and over is on the list of those worked out in every recalculation once, and a formula that is not volatile any more is not on it.
+    void aVolatileFormulaEditedManyTimesIsListedOnce()
+    {
+        const QString rows = rowXml(1, constant("A1", "1") + cellXml("B1", "RAND()") + cellXml("C1", "NOW()"));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        settle(b);
+        for (int i = 0; i < 2000; ++i) QVERIFY(b.setFormula("B1", QStringLiteral("RAND()+%1").arg(i)));
+        settle(b);
+        QVERIFY2(b.calc->alwaysListed() <= 2, qPrintable(QString::number(b.calc->alwaysListed())));
+        QVERIFY(b.setFormula("B1", "1+1"));
+        QVERIFY(b.setFormula("C1", "A1+1"));
+        settle(b);
+        QCOMPARE(b.calc->alwaysListed(), qint64(0));
+        const Calculation::Progress p = settle(b);
+        QCOMPARE(p.evaluated, qint64(0));
+    }
 };
 
 JP_TEST_CLASS(SheetCalculationTests)

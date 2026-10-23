@@ -72,6 +72,7 @@ public:
     // About the formulas.
     qint64 formulaCount() const { return m_formulaCount; }
     qint64 untrackedCount() const { return m_untracked; }      // formulas the graph was too full to hold
+    qint64 alwaysListed() const { return qint64(m_always.size()); }   // formulas on the list of those worked out in every recalculation
     const jp::calc::DependencyGraph &graph() const { return *m_graph; }
     // The number of the formula in the cell (the graph's name for it); 0xFFFFFFFF if the cell holds none.
     quint32 nodeAt(int sheet, quint32 row, quint32 col) const;
@@ -97,7 +98,7 @@ public:
 
 private:
     enum : quint8 { Dirty = 0, Queued = 1, Waiting = 2, Done = 3 };
-    enum : quint16 { Kept = 1, NodeTainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128, Mismatch = 256, Cascade = 512 };
+    enum : quint16 { Kept = 1, NodeTainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128, Mismatch = 256, Cascade = 512, AlwaysListed = 1024 };
     enum : quint8 { KindEmpty = 0, KindNumber, KindText, KindBool, KindError, KindArray };
     struct Node {
         double number = 0;
@@ -152,7 +153,8 @@ private:
     QVector<QString> m_texts;
     std::vector<qint32> m_freeTexts;
     QHash<quint32, jp::calc::Value> m_arrays;
-    std::vector<quint32> m_always;            // formulas worked out in every recalculation
+    std::vector<quint32> m_always;            // formulas worked out in every recalculation, each once (a node on it has AlwaysListed); those that are not, or are gone, are left out at the next
+    void listAlways(quint32 id);
     std::vector<quint32> m_dirty;             // formulas to start from, and where in it the recalculation is
     size_t m_dirtyCursor = 0;
     struct Frame {
