@@ -11,11 +11,13 @@
 #include <QPaintEvent>
 #include <QPainter>
 #include <QScrollBar>
+#include <QSet>
 #include <QTimer>
 #include <QTextBlock>
 #include <QTextDocument>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace jp::write {
 
@@ -38,6 +40,14 @@ struct PageView::FrameSpot {
     int inFrame = 0;     // the position in the box's own text
     int from = 0;        // where the frame's text begins in the story
 };
+
+// Whether the place is on the first (dir < 0) or the last (dir > 0) line of the frame's text.
+bool PageView::onEdgeLine(const FrameSpot &spot, int dir)
+{
+    // (The frame's end is a place of its own, after the last character: the last line is the one that has that character.)
+    const int edge = dir < 0 ? spot.fl.layout->firstPosition(0) : std::max(spot.fl.layout->firstPosition(0), spot.fl.layout->lastPosition(0) - 1);
+    return spot.fl.layout->lineStart(spot.inFrame) == spot.fl.layout->lineStart(edge);
+}
 
 bool PageView::frameSpotAt(Rendered &r, int position, FrameSpot *spot)
 {
@@ -854,6 +864,7 @@ void PageView::caretMoved(bool keepWanted)
     if (m_movedFrom >= 0 && m_cursor.document()) direction = m_cursor.position() > m_movedFrom ? 1 : m_cursor.position() < m_movedFrom ? -1 : 0;
     m_movedFrom = -1;
     if (m_doc && m_cursor.document() && !holdInEndnote(movedFrom)) holdInBody(m_cursor, direction);
+    syncNotePage();
     m_contextAt = -1;
     if (!keepWanted) m_wantedX = -1;
     m_caretOn = true;
@@ -1234,6 +1245,15 @@ int PageView::hfMoveVertical(int position, int direction)
         QRectF rect;
         if (spot.fl.layout->caretRect(spot.inFrame, &frame, &rect)) m_wantedX = rect.x();
     }
+    // A note's line at the edge of a part that goes on goes on into the next part (the first line of it) or back to the last line of the part before.
+    if (m_note.active) {
+        if (onEdgeLine(spot, direction)) {
+            const QVector<NotePart> parts = partsOfEditedNote(m_note.page);
+            const int at = partIndexAt(parts, position);
+            if (direction > 0 && at + 1 < parts.size()) return parts[at + 1].from;
+            if (direction < 0 && at > 0) return std::max(0, parts[at].from - 1);
+        }
+    }
     return spot.from + spot.fl.layout->moveVertical(spot.inFrame, direction, m_wantedX);
 }
 
@@ -1300,7 +1320,9 @@ bool PageView::enterNote(QTextDocument *story, int id, int page)
     m_editEnd = -1;
     viewport()->update();
     Q_EMIT noteModeChanged();
+    m_notePinned = true;   // (the caret is at the start of the note's text, which is not on the page that was clicked, if the note goes on from page to page)
     caretMoved();
+    m_notePinned = false;
     return true;
 }
 
@@ -1340,10 +1362,80 @@ void PageView::leaveNote(bool atReference)
     caretMoved();
 }
 
+QVector<PageView::NotePart> PageView::partsOfEditedNote(int hintPage)
+{
+    QVector<NotePart> all;
+    if (!m_note.active || !m_doc) return all;
+    flow::Paginator &pg = m_doc->pager();
+    const QVector<int> refs = m_doc->footnoteReferences(m_note.id);
+    auto partsOn = [&](int page) {
+        QVector<int> froms;
+        const auto r = rendered(page);
+        if (r && r->page)
+            for (const auto &nb : r->page->noteBoxes)
+                if (nb.source == m_note.story) froms << nb.from;
+        return froms;
+    };
+    // (Each citation: the page that has its note's first part is its own page or one of the next two; the rest of the note is on the pages that follow, one after another.)
+    QSet<int> done;
+    for (int k = 0; k < refs.size() && k < 8; ++k) {
+        const int home = pg.pageOfPosition(std::clamp(refs[k], 0, std::max(0, m_doc->story()->characterCount() - 1)));
+        int start = -1;
+        for (int page = home; page <= home + 2 && start < 0; ++page)
+            if (done.contains(page) || !partsOn(page).isEmpty()) start = page;
+        if (start < 0) continue;
+        for (int page = start; page < start + 64 && !done.contains(page); ++page) {
+            const QVector<int> froms = partsOn(page);
+            if (froms.isEmpty()) break;
+            done.insert(page);
+            for (const int from : froms) all.push_back({page, from});
+        }
+    }
+    std::sort(all.begin(), all.end(), [](const NotePart &a, const NotePart &b) { return a.page != b.page ? a.page < b.page : a.from < b.from; });
+    // The copies: a part that begins no later in the note than the one before it is the start of another copy.
+    QVector<QVector<NotePart>> copies;
+    for (const NotePart &part : std::as_const(all)) {
+        if (copies.isEmpty() || part.from <= copies.last().last().from) copies.push_back({});
+        copies.last().push_back(part);
+    }
+    const QVector<NotePart> *best = nullptr;
+    int bestDistance = std::numeric_limits<int>::max();
+    for (const QVector<NotePart> &copy : std::as_const(copies)) {
+        int distance = std::numeric_limits<int>::max();
+        for (const NotePart &part : copy) distance = std::min(distance, std::abs(part.page - hintPage));
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = &copy;
+        }
+    }
+    return best ? *best : QVector<NotePart>();
+}
+
+int PageView::partIndexAt(const QVector<NotePart> &parts, int position)
+{
+    int at = 0;
+    for (int i = 0; i < parts.size(); ++i)
+        if (parts[i].from <= position) at = i;
+    return at;
+}
+
+int PageView::pageOfNotePosition(int position)
+{
+    const QVector<NotePart> parts = partsOfEditedNote(m_note.page);
+    return parts.isEmpty() ? -1 : parts[partIndexAt(parts, position)].page;
+}
+
+void PageView::syncNotePage()
+{
+    if (!m_note.active || m_notePinned || m_cursor.document() != m_note.story) return;
+    const int page = pageOfNotePosition(m_cursor.position());
+    if (page >= 0) m_note.page = page;
+}
+
 void PageView::settleNote()
 {
     if (!m_note.active || !m_doc) return;
-    const int page = pageShowingNote(m_note.story);
+    const int page = pageOfNotePosition(m_cursor.document() == m_note.story ? m_cursor.position() : 0);
     if (page < 0) leaveNote();
     else m_note.page = page;
 }
@@ -1354,7 +1446,11 @@ bool PageView::noteLineAtEdge(int dir)
     const auto r = rendered(m_note.page);
     FrameSpot spot;
     if (!r || !r->page || !hfSpotAt(*r, m_cursor.position(), &spot)) return true;
-    return dir < 0 ? spot.fl.layout->lineStart(spot.inFrame) <= spot.fl.layout->firstPosition(0) : spot.fl.layout->lineEnd(spot.inFrame) >= spot.fl.layout->lastPosition(0);
+    if (!onEdgeLine(spot, dir)) return false;
+    // (The first line of a part that goes on from the page before, or the last of one that goes on to the next page, is not the note's edge.)
+    const QVector<NotePart> parts = partsOfEditedNote(m_note.page);
+    const int at = partIndexAt(parts, m_cursor.position());
+    return dir < 0 ? at <= 0 : at + 1 >= parts.size();
 }
 
 int PageView::cursorSection()

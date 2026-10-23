@@ -18346,6 +18346,127 @@ private Q_SLOTS:
         }
     }
 
+    // ---- footnotes: the caret in a note that is cut over pages or cited twice
+
+    // The pages that hold a part of the note with this Id, and the box of each part, in order.
+    static QList<std::pair<int, QRectF>> partsOfNote(WriteDoc &doc, int id)
+    {
+        QList<std::pair<int, QRectF>> out;
+        for (int pg = 0; pg < doc.pager().pageCount(); ++pg) {
+            QRectF box;
+            if (noteBoxOf(doc, pg, id, &box)) out.push_back({pg, box});
+        }
+        return out;
+    }
+
+    // Whether the caret is drawn in the box of the note on the page the view says the note is edited on.
+    static bool caretIsInBoxOf(PageView &view, WriteDoc &doc, int id)
+    {
+        QRect caret;
+        QRectF box;
+        if (!view.caretRect(&caret) || !noteBoxOf(doc, view.noteEdit().page, id, &box)) return false;
+        const QRect inView(pagePoint(view, view.noteEdit().page, box.left(), box.top()), pagePoint(view, view.noteEdit().page, box.right(), box.bottom()));
+        return inView.adjusted(-3, -3, 3, 3).contains(caret);
+    }
+
+    // A note that goes on from one page to the next: a click in its second part puts the caret there, typing leaves the page and the caret where they are, Ctrl+End and Ctrl+Home go to the
+    // last and the first parts (the view follows), and Down at the last line of a part goes on into the next.
+    void theCaretStaysInThePartOfANoteThatContinuesOnAnotherPage()
+    {
+        QByteArray words;
+        for (int i = 0; i < 2600; ++i) words += " word" + QByteArray::number(i);
+        auto doc = open(notesDocx(citing("Start", 2) + paragraphs(4, 30), footnotesPart({{2, plainRun(words)}})));
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 1200);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        const auto parts = partsOfNote(*doc, 2);
+        QVERIFY2(parts.size() >= 2, qPrintable(QString::number(parts.size())));
+        const int page = parts.last().first;
+        const QRectF box = parts.last().second;
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, page, box.left() + 30, box.top() + 4));
+        QVERIFY(view.inNote());
+        QCOMPARE(view.noteEdit().page, page);
+        QTest::keyClicks(&view, "X");
+        QVERIFY(view.inNote());
+        QCOMPARE(view.noteEdit().page, page);
+        QVERIFY2(caretIsInBoxOf(view, *doc, 2), "typing in the second part");
+        QCOMPARE(view.currentPage(), page);
+        const auto after = partsOfNote(*doc, 2);
+        QTest::keyClick(&view, Qt::Key_Home, Qt::ControlModifier);
+        QVERIFY(view.inNote());
+        QCOMPARE(view.noteEdit().page, after.first().first);
+        QVERIFY2(caretIsInBoxOf(view, *doc, 2), "Ctrl+Home");
+        QTest::keyClick(&view, Qt::Key_End, Qt::ControlModifier);
+        QVERIFY(view.inNote());
+        QCOMPARE(view.noteEdit().page, after.last().first);
+        QVERIFY2(caretIsInBoxOf(view, *doc, 2), "Ctrl+End");
+        // Down from the first line to the last: every part of the note is visited, the caret is always drawn, and the note is not left until the last line is passed.
+        QTest::keyClick(&view, Qt::Key_Home, Qt::ControlModifier);
+        QSet<int> visited{view.noteEdit().page};
+        for (int press = 0; press < 400 && view.inNote(); ++press) {
+            QTest::keyClick(&view, Qt::Key_Down);
+            if (!view.inNote()) break;
+            visited.insert(view.noteEdit().page);
+            QVERIFY2(caretIsInBoxOf(view, *doc, 2), qPrintable(QStringLiteral("Down, press %1").arg(press)));
+        }
+        QCOMPARE(int(visited.size()), int(after.size()));
+        QVERIFY(!view.inNote());   // (the last line was passed: the caret is in the text, after the reference)
+        // And Up from the last line to the first, the same way.
+        QVERIFY(view.enterFootnote(2));
+        QTest::keyClick(&view, Qt::Key_End, Qt::ControlModifier);
+        visited = QSet<int>{view.noteEdit().page};
+        for (int press = 0; press < 400 && view.inNote(); ++press) {
+            QTest::keyClick(&view, Qt::Key_Up);
+            if (!view.inNote()) break;
+            visited.insert(view.noteEdit().page);
+            QVERIFY2(caretIsInBoxOf(view, *doc, 2), qPrintable(QStringLiteral("Up, press %1").arg(press)));
+        }
+        QCOMPARE(int(visited.size()), int(after.size()));
+        QVERIFY(!view.inNote());
+    }
+
+    // A note cited on two pages is edited on the copy that was clicked: typing and the keys leave the view on that copy, and the caret is drawn in it.
+    void theCaretStaysOnTheCopyOfANoteThatWasClicked()
+    {
+        auto doc = open(notesDocx(citing("First citation", 2) + paragraphs(60, 40) + citing("Second citation of the same note", 2), footnotesPart({{2, plainRun(" the one note cited twice")}})));
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 1200);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        const auto copies = partsOfNote(*doc, 2);
+        QVERIFY2(copies.size() >= 2, qPrintable(QString::number(copies.size())));
+        const int page = copies.last().first;
+        QVERIFY(page > copies.first().first);
+        const QRectF box = copies.last().second;
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, pagePoint(view, page, box.left() + 60, box.top() + 4));
+        QVERIFY(view.inNote());
+        QCOMPARE(view.noteEdit().page, page);
+        for (const char *typed : {"X", "Y"}) {
+            QTest::keyClicks(&view, typed);
+            QCOMPARE(view.noteEdit().page, page);
+            QCOMPARE(view.currentPage(), page);
+            QVERIFY2(caretIsInBoxOf(view, *doc, 2), typed);
+            QVERIFY(view.viewport()->rect().adjusted(-50, -50, 50, 50).intersects([&] { QRect r; view.caretRect(&r); return r; }()));
+        }
+        QTest::keyClick(&view, Qt::Key_Home);
+        QCOMPARE(view.noteEdit().page, page);
+        QTest::keyClick(&view, Qt::Key_End, Qt::ControlModifier);
+        QCOMPARE(view.noteEdit().page, page);
+        QVERIFY(caretIsInBoxOf(view, *doc, 2));
+        // An undo of what was typed there leaves the view where it was.
+        view.undo();
+        QCOMPARE(view.noteEdit().page, page);
+        QVERIFY(caretIsInBoxOf(view, *doc, 2));
+        // And Esc goes back to the reference on the page the note was edited on.
+        QTest::keyClick(&view, Qt::Key_Escape);
+        QVERIFY(!view.inNote());
+        QCOMPARE(doc->pager().pageOfPosition(view.cursor().position()), page);
+    }
 
 
 
