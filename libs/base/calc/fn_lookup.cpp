@@ -1,5 +1,6 @@
 // The lookup and reference functions. A lookup in sorted data (the approximate mode of VLOOKUP, HLOOKUP, MATCH, and LOOKUP) halves the range, as the original does,
-// so what it finds in data that is not in order is what the halving meets; a cell of another type than the value looked for is passed over.
+// so what it finds in data that is not in order is what the halving meets: it stops at the first cell equal to the value (and takes the last of the equal cells that
+// follow it), else it gives the last cell not after the value that it met; a cell of another kind than the value looked for, an error, and an empty cell are passed over.
 #include "calc/machine.h"
 
 #include <algorithm>
@@ -38,8 +39,50 @@ struct Line {
     Value at(qint64 i) const { return column ? table.at(i, 0) : table.at(0, i); }
 };
 
-// The position of the last cell of a column or row of n not after (ascending) or not before (descending) the value, found by halving; -1 for none, and -2 if the
-// work gave out. Each cell looked at counts as a step, and so does each run of empty cells passed over.
+// The last cell of the run of cells equal to the value that starts at j (and goes on to hi at the most): the run ends at the first cell that is not equal; cells that
+// hold nothing are passed over. The end is found by doubling the steps and then halving, so a run of a million equal cells costs about forty looks; for a run that is
+// not whole (equal cells after one that is not) it is the end of the first piece it meets. -2 if the work gave out.
+qint64 endOfEqualRun(Call &c, const Value &key, qint64 j, qint64 hi, const Line &line)
+{
+    Machine &m = c.machine();
+    // is the first cell at or after p (up to hi) that holds something equal to the value?
+    auto equalAt = [&](qint64 p, qint64 *at) {
+        if (p > hi) return false;
+        const qint64 q = line.table.nextFilled(line.column, p, hi);
+        if (q > hi) return false;
+        *at = q;
+        return compareForLookup(key, line.at(q)) == 0;
+    };
+    qint64 last = j, step = 1, at = j;
+    qint64 bad = -1;   // the first place where the run was seen to be over
+    while (true) {
+        if (!m.charge(1)) return -2;
+        const qint64 p = last + step;
+        if (p > hi) {
+            bad = hi + 1;
+            break;
+        }
+        if (equalAt(p, &at)) {
+            last = at;
+            step *= 2;
+        } else {
+            bad = p;
+            break;
+        }
+    }
+    // the run goes on to somewhere in [last, bad): halve
+    while (bad - last > 1) {
+        if (!m.charge(1)) return -2;
+        const qint64 mid = last + (bad - last) / 2;
+        if (equalAt(mid, &at) && at < bad) last = at;
+        else bad = mid;
+    }
+    return last;
+}
+
+// The position of the cell a lookup in a column or row of n gives, found by halving: the first cell met that is equal to the value (and the last of the equal cells
+// that follow it), else the last cell met that is not after (ascending) or not before (descending) the value; -1 for none, and -2 if the work gave out. Each cell
+// looked at counts as a step, and so does each run of empty cells passed over.
 qint64 searchSorted(Call &c, const Value &key, qint64 n, bool descending, const Line &line)
 {
     qint64 lo = 0, hi = n - 1, result = -1;
@@ -75,6 +118,7 @@ qint64 searchSorted(Call &c, const Value &key, qint64 n, bool descending, const 
                 if (!m.charge(1)) return -2;
             }
             if (j < lo) break;
+            if (order == 0) return endOfEqualRun(c, key, j, hi, line);
             // everything after j in the range is passed over
             const bool notAfter = descending ? order <= 0 : order >= 0;
             if (notAfter) {
@@ -85,6 +129,7 @@ qint64 searchSorted(Call &c, const Value &key, qint64 n, bool descending, const 
             continue;
         }
         if (!m.charge(1)) return -2;
+        if (order == 0) return endOfEqualRun(c, key, j, hi, line);
         const bool notAfter = descending ? order <= 0 : order >= 0;   // the cell is not after (not before) the value
         if (notAfter) {
             result = j;
@@ -108,12 +153,17 @@ qint64 searchExact(Call &c, const Value &key, qint64 n, const Line &line)
     return -1;
 }
 
-// The value looked for: an empty one is 0; an error is the result.
-bool lookupKey(Call &c, int i, Value *key)
+// The value looked for: an empty one is 0; an error is the result. With `limited` a text of more than 255 characters is a #VALUE! (VLOOKUP, HLOOKUP, and MATCH
+// cannot look for one, in any of their modes).
+bool lookupKey(Call &c, int i, Value *key, bool limited = false)
 {
     *key = c.scalar(i);
     if (key->isError()) {
         c.error(key->errorKind());
+        return false;
+    }
+    if (limited && key->isText() && key->text().size() > 255) {
+        c.error(ErrorKind::Value);
         return false;
     }
     if (key->isEmpty()) *key = Value::number(0);
@@ -127,7 +177,7 @@ Value tableLookup(Call &c, bool vertical)
     Value key;
     Table t;
     double index;
-    if (!lookupKey(c, 0, &key) || !c.table(1, &t) || !c.number(2, &index)) return c.failure();
+    if (!lookupKey(c, 0, &key, true) || !c.table(1, &t) || !c.number(2, &index)) return c.failure();
     bool exact = false;
     if (c.argc() > 3) {
         if (c.item(3).isMissing()) {
@@ -165,7 +215,7 @@ Value fnMatch(Call &c)
     Value key;
     Table t;
     double type;
-    if (!lookupKey(c, 0, &key)) return c.failure();
+    if (!lookupKey(c, 0, &key, true)) return c.failure();
     if (!c.table(1, &t) || !c.numberOr(2, 1, &type)) return c.failure();
     if (c.argc() > 2 && c.item(2).isMissing()) type = 0;   // (an empty argument is not an argument left off: it is 0)
     if (t.fullRows() != 1 && t.fullCols() != 1) return c.error(ErrorKind::NA);

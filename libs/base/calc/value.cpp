@@ -325,6 +325,47 @@ bool textToNumber(const QString &text, DateSystem system, double *out)
     return false;
 }
 
+namespace {
+
+// A text taken apart for comparing: the keys of its letters, digits, and symbols, and after each the accents (marks) that follow it.
+struct Decomposed {
+    std::vector<quint32> keys;
+    std::vector<QString> marks;
+};
+
+Decomposed decompose(const QString &s)
+{
+    Decomposed d;
+    const QString n = s.normalized(QString::NormalizationForm_D);
+    for (const QChar ch : n) {
+        const QChar::Category cat = ch.category();
+        const bool mark = cat == QChar::Mark_NonSpacing || cat == QChar::Mark_SpacingCombining || cat == QChar::Mark_Enclosing;
+        if (mark && !d.keys.empty()) {
+            d.marks.back() += ch;
+            continue;
+        }
+        d.keys.push_back(CollationKey::of(ch));
+        d.marks.emplace_back();
+    }
+    return d;
+}
+
+// The order of two texts with a character that is not ASCII, where the characters of the first difference are: the keys of the characters without their accents
+// first, and the accents (from the left) if the keys are the same.
+int compareDecomposed(const QString &a, const QString &b)
+{
+    const Decomposed x = decompose(a), y = decompose(b);
+    const size_t n = std::min(x.keys.size(), y.keys.size());
+    for (size_t i = 0; i < n; ++i)
+        if (x.keys[i] != y.keys[i]) return x.keys[i] < y.keys[i] ? -1 : 1;
+    if (x.keys.size() != y.keys.size()) return x.keys.size() < y.keys.size() ? -1 : 1;
+    for (size_t i = 0; i < n; ++i)
+        if (x.marks[i] != y.marks[i]) return x.marks[i] < y.marks[i] ? -1 : 1;
+    return 0;
+}
+
+} // namespace
+
 int compareText(const QString &a, const QString &b)
 {
     const qsizetype n = std::min(a.size(), b.size());
@@ -332,6 +373,11 @@ int compareText(const QString &a, const QString &b)
     int order = 0;
     for (; i < n; ++i) {
         if (a[i] == b[i]) continue;
+        // (letters with accents: the keys of the letters first, and a text that is not ASCII is compared whole)
+        if (a[i].unicode() > 127 || b[i].unicode() > 127) {
+            budget::addWork(qint64((a.size() + b.size()) / 32));
+            return compareDecomposed(a, b);
+        }
         const quint32 x = CollationKey::of(a[i]), y = CollationKey::of(b[i]);
         if (x != y) {
             order = x < y ? -1 : 1;
