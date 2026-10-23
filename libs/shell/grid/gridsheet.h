@@ -82,7 +82,7 @@ public:
     void usedExtent(quint32 *rows, quint32 *cols) const;
 
     // The sheet has rows or columns with a format of their own (which the cells that are not there have).
-    bool hasImplicitStyles() const { return !m_columnStyles.empty() || !m_rowStyles.empty(); }
+    bool hasImplicitStyles() const { return m_geometry && (!m_geometry->columnStyles.empty() || !m_geometry->rowStyles.empty()); }
 
     // The geometry a sheet's file gives (the sheet's own view: its zoom, frozen panes, and where it was scrolled to); the work setData does when it is not given one.
     static std::shared_ptr<GridGeometry> makeGeometry(const Sheet &sheet, const Styles &styles);
@@ -99,8 +99,7 @@ private:
     mutable std::unordered_map<quint64, Shown> m_texts;
     mutable qint64 m_textsMade = 0;
     bool m_showFormulas = false;
-    std::vector<jp::office::sheet::ColumnSpan> m_columnStyles;   // by place of the run: the cell formats of columns, in order of first column (for places with no cell)
-    std::vector<jp::office::sheet::RowSpec> m_rowStyles;         // the rows with a format of their own, in order
+    std::shared_ptr<const GridGeometry> m_geometry;   // what the sheet's file gave (the layout above begins as a copy of its layout, which shares its places and merges), and the cell formats of the rows and columns, held where they were made
 };
 
 } // namespace jp::grid

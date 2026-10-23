@@ -351,7 +351,7 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
                 else if (isElement(r, "i")) f.italic = flagOf(r);
                 else if (isElement(r, "strike")) f.strike = flagOf(r);
                 else if (isElement(r, "sz")) f.size = boundedNumber(attribute(r, "val"), 1, 409.5, 11);
-                else if (isElement(r, "name")) f.name = attribute(r, "val").toString();
+                else if (isElement(r, "name")) f.name = attribute(r, "val").left(kMaxFontNameChars).toString();
                 else if (isElement(r, "color")) f.color = colorOf(r);
                 else if (isElement(r, "u")) {
                     const QStringView v = attribute(r, "val");

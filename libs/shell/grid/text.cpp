@@ -2,12 +2,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 
 namespace jp::grid {
 
 namespace {
 
-constexpr int kMaxShownChars = 1024;
 constexpr double kIndentWidth = 9;
 
 double indentPixels(const CellLook &look) { return look.indent * kIndentWidth; }
@@ -66,14 +66,12 @@ Shown showValue(const jp::calc::Value &given, const CellLook &look, jp::calc::Da
         break;
     case Value::Kind::Text: {
         s.kind = Kind::Text;
-        QString text = v.text();
+        // (what a cell shows is cut first: a text of millions of characters costs no more than a short one, in its number format's text section too)
+        QString text = shownLine(v.text(), look.wrap);
         if (look.hasFormat) {
             const jp::calc::Formatted f = look.format.formatText(text);
-            if (!f.failed) text = f.text;
+            if (!f.failed) text = shownLine(f.text, look.wrap);
         }
-        // (a line break shows as a space in a text that is not wrapped; a cell shows at most this many characters)
-        if (!look.wrap) text.replace(QLatin1Char('\n'), QLatin1Char(' ')).remove(QLatin1Char('\r'));
-        if (text.size() > kMaxShownChars) text.truncate(kMaxShownChars);
         s.text = text;
         s.width = meter.width(s.text, look);
         break;
@@ -81,6 +79,74 @@ Shown showValue(const jp::calc::Value &given, const CellLook &look, jp::calc::Da
     }
     s.align = look.horizontal != HAlign::General ? look.horizontal : s.kind == Kind::Number ? HAlign::Right : s.kind == Kind::Text ? HAlign::Left : HAlign::Center;
     return s;
+}
+
+QString displayFormula(const QString &formula)
+{
+    if (!formula.contains(QLatin1String("_xl"), Qt::CaseInsensitive)) return formula;
+    static const char *const kPrefixes[] = {"_xlfn.", "_xlws.", "_xludf.", "_xlpm."};
+    auto identChar = [](QChar c) { return c.isLetterOrNumber() || c == QLatin1Char('_') || c == QLatin1Char('.'); };
+    QString out;
+    out.reserve(formula.size());
+    QChar quote;   // the quote of a text ("...") or a sheet's name ('...') that the formula is in
+    const int n = formula.size();
+    for (int i = 0; i < n;) {
+        const QChar c = formula.at(i);
+        if (!quote.isNull()) {
+            out += c;
+            if (c == quote) {
+                if (i + 1 < n && formula.at(i + 1) == quote) out += formula.at(++i);   // (a doubled quote is one inside)
+                else quote = QChar();
+            }
+            ++i;
+            continue;
+        }
+        if (c == QLatin1Char('"') || c == QLatin1Char('\'')) {
+            quote = c;
+            out += c;
+            ++i;
+            continue;
+        }
+        if (c == QLatin1Char('_') && (i == 0 || !identChar(formula.at(i - 1)))) {
+            int skip = 0;
+            for (const char *prefix : kPrefixes) {
+                const int len = int(strlen(prefix));
+                if (formula.mid(i, len).compare(QLatin1String(prefix), Qt::CaseInsensitive) == 0) {
+                    skip = len;
+                    break;
+                }
+            }
+            if (skip) {
+                i += skip;
+                continue;
+            }
+        }
+        out += c;
+        ++i;
+    }
+    return out;
+}
+
+QString shownLine(const QString &given, bool wrap, qint64 *scanned)
+{
+    const qsizetype n = given.size();
+    if (wrap) {
+        // (line breaks stay in a text that wraps; only the cut)
+        if (scanned) *scanned = std::min<qint64>(n, kMaxShownChars);
+        return n > kMaxShownChars ? given.left(kMaxShownChars) : given;
+    }
+    // the cut is made as the text is cleaned, so that a text of millions of characters costs what is shown of it (a return left out does not count toward what is shown)
+    QString out;
+    out.reserve(int(std::min<qsizetype>(n, kMaxShownChars)));
+    qint64 looked = 0;
+    for (qsizetype i = 0; i < n && out.size() < kMaxShownChars; ++i) {
+        ++looked;
+        const QChar c = given.at(i);
+        if (c == QLatin1Char('\r')) continue;
+        out.append(c == QLatin1Char('\n') ? QLatin1Char(' ') : c);
+    }
+    if (scanned) *scanned = looked;
+    return out;
 }
 
 Spill spillOf(const Shown &shown, const CellLook &look, double cellWidth, const std::function<double(int step)> &neighbor)

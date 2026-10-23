@@ -815,6 +815,145 @@ private Q_SLOTS:
         h.setData(stored);
         QCOMPARE(h.valueOf(*b1).debug(), QStringLiteral("n:99"));
     }
+
+    // The text a cell shows is made from what it shows: a text of millions of characters is cut before its line breaks are turned to spaces and its returns taken out, and what is
+    // left is what cleaning the whole of it and then cutting it would leave.
+    void aLongTextIsCutBeforeItIsCleaned()
+    {
+        auto reference = [](QString t, bool wrap) {
+            if (!wrap) t.replace(QLatin1Char('\n'), QLatin1Char(' ')).remove(QLatin1Char('\r'));
+            if (t.size() > kMaxShownChars) t.truncate(kMaxShownChars);
+            return t;
+        };
+        QRandomGenerator rng(7);
+        const QString alphabet = QStringLiteral("ab \n\r\tcd\r\r");
+        for (int i = 0; i < 300; ++i) {
+            QString t;
+            const int n = int(rng.bounded(0u, 6000u));
+            for (int k = 0; k < n; ++k) t += alphabet[int(rng.bounded(0u, quint32(alphabet.size())))];
+            for (bool wrap : {false, true}) QCOMPARE(shownLine(t, wrap), reference(t, wrap));
+        }
+        // returns past what is shown still count toward it: a text that is half returns shows its first thousand letters
+        QString halves;
+        for (int k = 0; k < 5000; ++k) halves += QStringLiteral("x\r");
+        QCOMPARE(shownLine(halves, false), QString(kMaxShownChars, QLatin1Char('x')));
+        // a text of twenty million characters: only what is shown is looked at
+        QString huge(20000000, QLatin1Char('x'));
+        for (int k = 0; k < 20000000; k += 3) huge[k] = k % 2 ? QLatin1Char('\n') : QLatin1Char('\r');
+        qint64 scanned = 0;
+        const QString shown = shownLine(huge, false, &scanned);
+        QCOMPARE(shown, reference(huge, false));
+        QVERIFY2(scanned <= 4 * kMaxShownChars, qPrintable(QString::number(scanned)));
+        scanned = 0;
+        shownLine(huge, true, &scanned);
+        QVERIFY2(scanned <= 4 * kMaxShownChars, qPrintable(QString::number(scanned)));
+    }
+
+    // A look is made from its cell format's font by its number: the name of the font is not copied for every look (a font may have a very long one, and a file a million formats).
+    void aLookCostsNoCopyOfItsFontsName()
+    {
+        Styles s;
+        FontSpec f;
+        f.name = QString(100000, QLatin1Char('A'));
+        f.size = 11;
+        s.fonts = {f};
+        s.fills = {FillSpec()};
+        s.borders = {BorderSpec()};
+        s.formats = {CellFormat()};
+        s.cellXfs = {0};
+        for (int i = 1; i < 3000; ++i) {
+            CellFormat c;
+            c.indent = quint8(i % 16);
+            s.formats.append(c);
+            s.cellXfs.append(0);
+        }
+        LookTable looks(&s);
+        for (quint32 i = 0; i < 3000; ++i) looks.look(i);
+        QCOMPARE(looks.made(), qint64(3000));
+        QVERIFY2(looks.signaturesMade() <= 1, qPrintable(QString::number(looks.signaturesMade())));
+        // looks of two fonts that are alike share a font number, and two that are not do not
+        FontSpec g = f;
+        g.bold = true;
+        s.fonts.append(g);
+        CellFormat bold;
+        bold.font = 1;
+        s.formats.append(bold);
+        s.cellXfs.append(0);
+        LookTable more(&s);
+        QCOMPARE(more.look(0).fontId, more.look(5).fontId);
+        QVERIFY(more.look(3000).fontId != more.look(0).fontId);
+    }
+
+    // The formula bar and Show Formulas leave out the prefixes a file writes before the functions that are newer than its format (and before names of its own).
+    void formulasAreShownWithoutTheFilesPrefixes()
+    {
+        QCOMPARE(displayFormula(QStringLiteral("_xlfn.XLOOKUP(A1,B:B,C:C)")), QStringLiteral("XLOOKUP(A1,B:B,C:C)"));
+        QCOMPARE(displayFormula(QStringLiteral("SUM(_xlfn.STDEV.S(A1:A9),1)+_xlfn.IFS(A1>1,2)")), QStringLiteral("SUM(STDEV.S(A1:A9),1)+IFS(A1>1,2)"));
+        QCOMPARE(displayFormula(QStringLiteral("_xlws.SORT(A1:A9)+_xludf.mine(1)+_xlpm.x")), QStringLiteral("SORT(A1:A9)+mine(1)+x"));
+        // not in a text, in the name of a sheet, or in a longer name
+        QCOMPARE(displayFormula(QStringLiteral("\"_xlfn.text\"&A1&\"\"\"_xlfn.X\"")), QStringLiteral("\"_xlfn.text\"&A1&\"\"\"_xlfn.X\""));
+        QCOMPARE(displayFormula(QStringLiteral("'_xlfn.sheet'!A1+my_xlfn.x")), QStringLiteral("'_xlfn.sheet'!A1+my_xlfn.x"));
+        QCOMPARE(displayFormula(QStringLiteral("SUM(A1:A3)")), QStringLiteral("SUM(A1:A3)"));
+        QCOMPARE(displayFormula(QString()), QString());
+        // and the sheet shows formulas without them
+        Sheet sheet;
+        QVERIFY(readSheetXml(worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><f>_xlfn.XLOOKUP(1,B1,C1)</f><v>3</v></c></row>")), &sheet));
+        sheet.cells.finish();
+        Styles styles;
+        styles.fonts = {FontSpec()};
+        styles.formats = {CellFormat()};
+        styles.cellXfs = {0};
+        GridData d;
+        d.styles = &styles;
+        d.sheet = &sheet;
+        GridSheet g;
+        g.setData(d);
+        g.setShowFormulas(true);
+        const Cell *c = g.cellAt(0, 0);
+        QVERIFY(c);
+        QCOMPARE(g.shown(0, 0, *c).text, QStringLiteral("=XLOOKUP(1,B1,C1)"));
+    }
+
+    // A sheet takes the geometry a worker made for it without copying it: the sizes and the merged ranges of the layout are the geometry's own, shared, until one of them is changed.
+    void aSheetTakesItsGeometryWithoutCopyingIt()
+    {
+        Sheet sheet;
+        for (quint32 r = 0; r < 5000; ++r) {
+            RowSpec spec;
+            spec.row = r * 3;
+            spec.height = 30;
+            spec.customHeight = true;
+            sheet.rowSpecs.append(spec);
+        }
+        CellRange m;
+        m.row1 = 1;
+        m.col1 = 1;
+        m.row2 = 3;
+        m.col2 = 4;
+        m.valid = true;
+        sheet.merges.append(m);
+        sheet.cells.finish();
+        Styles styles;
+        styles.fonts = {FontSpec()};
+        styles.formats = {CellFormat()};
+        styles.cellXfs = {0};
+        const std::shared_ptr<const GridGeometry> geometry = GridSheet::makeGeometry(sheet, styles);
+        GridData d;
+        d.styles = &styles;
+        d.sheet = &sheet;
+        d.geometry = geometry;
+        GridSheet g;
+        g.setData(d);
+        QVERIFY(g.layout().rows.sharesStorageWith(geometry->layout.rows));
+        QVERIFY(g.layout().cols.sharesStorageWith(geometry->layout.cols));
+        QVERIFY(g.layout().merges.sharesStorageWith(geometry->layout.merges));
+        QCOMPARE(g.layout().rows.size(3), 40);
+        // a change to the sheet's own layout leaves the geometry as it was
+        g.layout().rows.setSize(3, 7);
+        QCOMPARE(g.layout().rows.size(3), 7);
+        QCOMPARE(geometry->layout.rows.size(3), 40);
+        QVERIFY(!g.layout().rows.sharesStorageWith(geometry->layout.rows));
+    }
 };
 
 JP_TEST_CLASS(GridCellTests)

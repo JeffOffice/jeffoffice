@@ -207,6 +207,30 @@ private Q_SLOTS:
             QVERIFY(i >= 0 && !b.isHidden(i) && b.position(i) <= pos && pos < b.position(i) + b.size(i));
         }
     }
+
+    // A copy of an axis is the same sizes without a copy of the list of them (a million rows with their own sizes are forty megabytes), until one of the two is changed.
+    void aCopyOfAnAxisSharesItsPlacesUntilItChanges()
+    {
+        Axis a(1048576, 20);
+        std::vector<Axis::Place> places;
+        for (qint64 i = 0; i < 1048576; i += 2) places.push_back({i, 33});
+        a.assign(places);
+        a.total();
+        Axis b = a;
+        QVERIFY(b.sharesStorageWith(a));
+        QCOMPARE(b.position(1000), a.position(1000));
+        b.setSize(10, 50);
+        QVERIFY(!b.sharesStorageWith(a));
+        QCOMPARE(a.size(10), 33);
+        QCOMPARE(b.size(10), 50);
+        QCOMPARE(b.position(11), a.position(11) + 17);
+        // a copy of an axis that was changed and not yet asked anything is the same as the axis
+        Axis c(1000, 20);
+        c.setSize(5, 7);
+        Axis d = c;
+        QCOMPARE(d.position(6), c.position(6));
+        QCOMPARE(d.position(6), qint64(5 * 20 + 7));
+    }
 };
 
 JP_TEST_CLASS(GridAxisTests)

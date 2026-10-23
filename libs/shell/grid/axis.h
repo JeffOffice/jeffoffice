@@ -8,6 +8,7 @@
 
 #include <QtGlobal>
 
+#include <memory>
 #include <vector>
 
 namespace jp::grid {
@@ -23,6 +24,10 @@ public:
     };
 
     explicit Axis(qint64 count = 0, int defaultSize = 20);
+    // A copy shares the list of places with the axis it is made from (a million rows with sizes of their own are forty megabytes), until either is changed.
+    Axis(const Axis &other);
+    Axis &operator=(const Axis &other);
+    ~Axis();
 
     qint64 count() const { return m_count; }
     int defaultSize() const { return m_default; }
@@ -34,7 +39,7 @@ public:
     // Replaces every place that differs with these, which are in order of index with none twice (a place that is not, or past the count, or with a size equal to the
     // default, is dropped).
     void assign(std::vector<Place> places);
-    int placeCount() const { return int(m_places.size()); }
+    int placeCount() const;
 
     int size(qint64 index) const;
     bool isHidden(qint64 index) const { return size(index) == 0; }
@@ -49,21 +54,22 @@ public:
     qint64 firstVisible() const { return nextVisible(-1); }
     qint64 lastVisible() const { return previousVisible(m_count); }
 
+    // True if the two hold the same list of places (a copy of an axis shares it until one is changed).
+    bool sharesStorageWith(const Axis &other) const;
     // Steps the searches have taken (a test counts them to see that a lookup costs the logarithm of the places, whatever the count).
     qint64 probes() const { return m_probes; }
 
 private:
+    struct Data;
     void rebuild() const;
+    void ensureBuilt() const;
+    Data &writable();
     // The place with this index, or -1.
     int find(qint64 index) const;
 
     qint64 m_count = 0;
     int m_default = 20;
-    std::vector<Place> m_places;
-    mutable bool m_dirty = false;
-    mutable std::vector<qint64> m_before;     // for place k, how much the places before it differ from the default, together: the sum of (size - default)
-    mutable std::vector<qint64> m_hiddenEnd;  // for a hidden place, the index of the first row after the run of hidden rows it begins (its own index + 1 for a place of its own size)
-    mutable std::vector<qint64> m_hiddenStart; // for a hidden place, the index of the first row of the run of hidden rows it is in
+    std::shared_ptr<Data> m_d;   // the places that differ, and what is worked out from them
     mutable qint64 m_probes = 0;
 };
 

@@ -450,6 +450,20 @@ private Q_SLOTS:
         QCOMPARE(b2.styles().theme[0], 0xFFFFFFu);
         QCOMPARE(b2.styles().theme[1], 0x000000u);
     }
+
+    // A font's name is kept to its limit (31 characters in the format, 255 kept): a styles part of a hundred thousand fonts with names of a million characters does not hold them.
+    void aFontsNameIsKeptToItsLimit()
+    {
+        Styles s;
+        const QString huge(1000000, QLatin1Char('N'));
+        QString why;
+        QVERIFY2(readStylesXml(stylesDoc(QStringLiteral("<fonts count=\"2\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font><font><sz val=\"11\"/><name val=\"%1\"/></font></fonts>"
+                                                          "<cellXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"1\"/></cellXfs>").arg(huge)), &s, &why), qPrintable(why));
+        QCOMPARE(s.fonts.size(), 2);
+        QCOMPARE(s.fonts[0].name, QStringLiteral("Calibri"));
+        QCOMPARE(s.fonts[1].name.size(), kMaxFontNameChars);
+        QCOMPARE(s.fonts[1].name, huge.left(kMaxFontNameChars));
+    }
 };
 
 JP_TEST_CLASS(SheetLookTests)

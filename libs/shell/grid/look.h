@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace jp::grid {
 
@@ -74,14 +75,18 @@ public:
     int maxDigitWidth() const;
     // Looks made so far (a test counts them).
     qint64 made() const { return m_made; }
+    // Font signatures built so far (a test counts them to see that a look costs no copy of its font's name).
+    qint64 signaturesMade() const { return m_signaturesMade; }
 
 private:
     CellLook make(quint32 xf) const;
-    quint32 fontIdOf(const CellLook &look) const;
+    quint32 fontIdOf(quint32 fontIndex, const CellLook &look) const;
     const jp::office::sheet::Styles *m_styles = nullptr;
     mutable std::unordered_map<quint32, std::unique_ptr<CellLook>> m_looks;
     mutable qint64 m_made = 0;
+    mutable qint64 m_signaturesMade = 0;
     mutable std::unordered_map<std::string, quint32> m_fontIds;   // by the font's signature
+    mutable std::vector<qint64> m_fontIdOfFont;                    // by the font's place in the styles: its number here, or -1 when not made yet
 };
 
 } // namespace jp::grid

@@ -49,9 +49,8 @@ void GridSheet::setData(const GridData &data)
     m_texts.clear();
     std::shared_ptr<const GridGeometry> g = data.geometry;
     if (!g) g = (data.sheet && data.styles) ? makeGeometry(*data.sheet, *data.styles) : std::make_shared<GridGeometry>();
-    m_layout = g->layout;
-    m_columnStyles = g->columnStyles;
-    m_rowStyles = g->rowStyles;
+    m_layout = g->layout;   // (a copy that shares the sizes and merges with the geometry's until one is changed)
+    m_geometry = g;
 }
 
 std::shared_ptr<GridGeometry> GridSheet::makeGeometry(const Sheet &sheet, const Styles &styles)
@@ -153,11 +152,13 @@ jp::calc::Value GridSheet::valueOf(const Cell &cell) const
 
 quint32 GridSheet::styleOf(quint32 row, quint32 col, const Cell *cell) const
 {
-    if (cell) return cell->style;
-    const auto r = std::lower_bound(m_rowStyles.begin(), m_rowStyles.end(), row, [](const RowSpec &s, quint32 v) { return s.row < v; });
-    if (r != m_rowStyles.end() && r->row == row) return r->style;
-    auto c = std::upper_bound(m_columnStyles.begin(), m_columnStyles.end(), col, [](quint32 v, const ColumnSpan &s) { return v < s.first; });
-    if (c != m_columnStyles.begin()) {
+    if (cell || !m_geometry) return cell ? cell->style : 0;
+    const std::vector<RowSpec> &rowStyles = m_geometry->rowStyles;
+    const std::vector<ColumnSpan> &columnStyles = m_geometry->columnStyles;
+    const auto r = std::lower_bound(rowStyles.begin(), rowStyles.end(), row, [](const RowSpec &s, quint32 v) { return s.row < v; });
+    if (r != rowStyles.end() && r->row == row) return r->style;
+    auto c = std::upper_bound(columnStyles.begin(), columnStyles.end(), col, [](quint32 v, const ColumnSpan &s) { return v < s.first; });
+    if (c != columnStyles.begin()) {
         --c;
         if (col <= c->last) return c->style;
     }
@@ -182,7 +183,7 @@ Shown GridSheet::shown(quint32 row, quint32 col, const Cell &cell) const
     }
     Shown s;
     if (m_showFormulas && cell.hasFormula() && m_data.sheet && !m_data.sheet->formulaText(cell).isEmpty())
-        s = showValue(jp::calc::Value::text(QLatin1Char('=') + m_data.sheet->formulaText(cell)), m_looks.look(cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter);
+        s = showValue(jp::calc::Value::text(QLatin1Char('=') + displayFormula(m_data.sheet->formulaText(cell))), m_looks.look(cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter);
     else
         s = showValue(valueOf(cell), m_looks.look(cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter);
     if (m_texts.size() >= kMaxTexts) m_texts.clear();

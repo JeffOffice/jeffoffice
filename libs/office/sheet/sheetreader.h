@@ -57,8 +57,10 @@ constexpr qint64 kMaxSharedStringChars = 50000000;
 constexpr qint64 kMaxNumFmts = 100000;
 constexpr qint64 kMaxCellXfs = 1000000;
 constexpr qint64 kMaxNumFmtChars = 4000000;
-// Fonts, fills, and borders in the styles (cell formats have their own limit above).
+// Fonts, fills, and borders in the styles (cell formats have their own limit above). A font's name is 31 characters at the most in the format; 255 are kept, so that a styles part
+// of a hundred thousand fonts each with a name of a million characters holds no more than the 4 GB budget says (the fonts take 50 MB at the most).
 constexpr qint64 kMaxFonts = 100000;
+constexpr int kMaxFontNameChars = 255;
 constexpr qint64 kMaxFills = 100000;
 constexpr qint64 kMaxBorders = 100000;
 // `col` elements in one sheet (the columns that hold one each are 16,384 at the most), rows kept as not the default (a sheet has 1,048,576 rows; one a file names more

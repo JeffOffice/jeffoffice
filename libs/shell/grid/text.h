@@ -43,6 +43,16 @@ Shown showValue(const jp::calc::Value &value, const CellLook &look, jp::calc::Da
 // The characters of the widest digit that fit in a column of this width.
 int charsFor(double cellWidth, int maxDigitWidth);
 
+// A formula as the formula bar and Show Formulas give it: the prefixes a file writes before the functions that are newer than its format and before names of its own are left
+// out (they are kept in the model, for saving).
+QString displayFormula(const QString &formula);
+
+// A cell shows at most this many characters of a text.
+constexpr int kMaxShownChars = 1024;
+// The text of a text cell as the grid shows it: line breaks are spaces (or kept, when the cell wraps), carriage returns go, and no more than kMaxShownChars remain. `scanned`, if
+// given, is told how many characters of the text were looked at.
+QString shownLine(const QString &text, bool wrap, qint64 *scanned = nullptr);
+
 // How far the text of a cell goes into the cells beside it: how many columns on each side (0 for none).
 struct Spill {
     int left = 0, right = 0;
