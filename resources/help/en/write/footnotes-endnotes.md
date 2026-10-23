@@ -18,11 +18,11 @@ Click where the reference should go, then click **References > Insert Endnote**,
 
 ## Edit a note
 
-Click in the words of a note at the foot of the page, or after the last text for an endnote. The caret goes there. Type, select, cut, copy, paste, and change how the words look, as you do in the text. A note can have more than one paragraph.
+Click in the words of a note at the foot of the page, or after the last text for an endnote. The caret goes there. Type, select, cut, copy, paste, and change how the words look, as you do in the text, and choose a style for its paragraph: the paragraph stays part of the note. A note can have more than one paragraph.
 
 Two parts of a note are not text, and no edit can change them: the number that begins the note, and the short line above the notes. If you press **Backspace** just after the number, nothing happens. A selection that would run from one note into another stops at the end of the note you began in.
 
-To leave a note, press **Esc**, press **Up** at its first line or **Down** at its last line, or click in the text of the page. The caret goes back to the text, just after the note's reference.
+To leave a note, press **Esc**, press **Up** at its first line or **Down** at its last line, or click in the text of the page. The caret goes back to the text, just after the note's reference. A long note can carry on at the foot of the next page; the arrow keys go on from one part to the next, and the note is left only at its very first and very last lines. A note that has two references is set on both pages, and the page you clicked is the one you edit on.
 
 ## Remove or move a note
 
@@ -36,6 +36,8 @@ To leave a note, press **Esc**, press **Up** at its first line or **Down** at it
 - A part of the file that you did not change is saved exactly as it was. When you change a note, only the notes you changed are written again, and anything in them that JeffWrite can't edit (a picture, a bookmark, a link, a field) stays where it was.
 - The line above the notes, and the line that goes above a note that carries on from the page before, are kept as the file has them.
 - If the file has no notes, the first one you add also adds what a notes part needs, so that other programs open the file without a message.
+- A note stays in the file as long as anything cites it: the text, a header or footer, a text box, or another note. When the last of these lets it go, the note goes.
+- A document can hold up to 5,000 notes of each kind that its text cites. When it has that many, **Insert Footnote** and **Insert Endnote** are off, and the status bar says why. Notes you put in and then undo do not count.
 - **Find and Replace** and the **Spelling** pane (F7) look through the text of the document, not in its notes.
 
 ## Undo

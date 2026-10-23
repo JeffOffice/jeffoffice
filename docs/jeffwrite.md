@@ -179,6 +179,14 @@ replaces a note of `endnotes.xml` only when its blocks differ from those it was 
 have, and when they differ (a reference was added, deleted, cut, or pasted, or a section break moved) `rebuildEndnoteTails` takes the notes back, sets the tails and the numbers again, and joins all of it to the edit's undo step.
 Insert > Endnote (Ctrl+Alt+D; `insertEndnote`), deleting a reference, and moving or copying one work as they do for footnotes. Find, spelling, select-all, and copy keep to the text the person has (`editableEnd`).
 
+Notes, after the review of October 23, 2026. A paragraph of an endnote keeps its note under every style and look command (`applyStyleToBlock` copies `EndnoteBlock`, `EndnoteNote`, and sets `EndnoteStyle`, which `paragraphStyleAt` reads); a header and a note
+are never edited together (`PageView::leaveSideModeFor` is the one place the modes meet, `restoreBodyCursor` the one that gives the caret back); the page a note is edited on is the page of the copy being edited
+that has the caret's place (`partsOfEditedNote`, a part for each page the note goes on over, a copy for each citation; `syncNotePage` follows the caret, and Up and Down at the edge of a part go on into
+the next or the earlier part); a new note takes an Id above every Id of its part (`readNotes` says the highest, the separators and the notes past the most that are read included), and the writer matches a note by its Id
+and its type; a note is cited while the text, a header or footer, a text box or drawing kept as XML, or another note cites it (`notesCitedBeyondTheText`); the most notes is counted by the notes the text cites, a note that
+no step of the history can bring back is let go with its slot (`reclaimDeadNotes`: its history step is in neither log), and at the most both commands are off with the reason in the status bar; and settling the endnotes
+follows the references as the story changes (`followEndnoteReferences`), so an edit that touches none of them costs nothing more than it does without an endnotes part.
+
 ## Checking it
 
 - Reference pages of documents, and every file JeffWrite saves opened and re-saved without a repair
