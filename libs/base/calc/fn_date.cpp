@@ -103,6 +103,31 @@ Value fnWeekday(Call &c)
     return c.error(ErrorKind::Num);
 }
 
+// The serial number of January 1 of a year, in the days of the system: for a year before the system's first (the year a week of the first days may belong to) or after
+// 9999, the calendar's count of days from or to a year it has.
+qint64 firstDayOf(int year, DateSystem sys)
+{
+    double serial;
+    if (dateToSerial(year, 1, 1, sys, &serial)) return qint64(serial);
+    if (year < 5000) return firstDayOf(year + 1, sys) - (isLeap(year) ? 366 : 365);
+    return firstDayOf(year - 1, sys) + (isLeap(year - 1) ? 366 : 365);
+}
+
+// The week of ISO 8601: weeks begin on Monday, and week 1 of a year is the one with its first Thursday, so the days at the turn of a year may be in the last week of the
+// year before or the first of the year after. The Thursday of a day's week gives the year, and the weeks from the year's first day give the number.
+bool isoWeekOf(double serial, DateSystem sys, int *week)
+{
+    int y, m, d;
+    if (!dateOf(serial, sys, &y, &m, &d)) return false;
+    const int dow = (weekdayOf(serial, sys) + 6) % 7;   // Monday = 0
+    const qint64 thursday = qint64(std::floor(serial)) - dow + 3;
+    int year = y;
+    if (thursday < firstDayOf(y, sys)) year = y - 1;
+    else if (thursday >= firstDayOf(y + 1, sys)) year = y + 1;
+    *week = int((thursday - firstDayOf(year, sys)) / 7 + 1);
+    return true;
+}
+
 Value fnWeekNum(Call &c)
 {
     double s, type;
@@ -111,30 +136,15 @@ Value fnWeekNum(Call &c)
     int y, m, d;
     if (!dateOf(s, sys, &y, &m, &d)) return c.error(ErrorKind::Num);
     const int t = int(std::trunc(type));
+    if (t == 21) {
+        int week;
+        if (!isoWeekOf(s, sys, &week)) return c.error(ErrorKind::Num);
+        return Value::number(week);
+    }
     double jan1;
     if (!dateToSerial(y, 1, 1, sys, &jan1)) return c.error(ErrorKind::Num);
     const double doy = std::floor(s) - jan1;   // from 0
     const int jan1Dow = weekdayOf(jan1, sys);
-    if (t == 21) {
-        // ISO 8601: weeks start on Monday and week 1 has the first Thursday
-        const int dow = (weekdayOf(s, sys) + 6) % 7;   // Monday = 0
-        int week = int(std::floor((doy + 1 - (dow + 1) + 10) / 7.0));
-        if (week < 1) {
-            // the last week of the year before
-            double prevJan1;
-            dateToSerial(y - 1, 1, 1, sys, &prevJan1);
-            const double pdoy = std::floor(s) - prevJan1;
-            return Value::number(std::floor((pdoy + 1 - (dow + 1) + 10) / 7.0));
-        }
-        if (week == 53) {
-            double nextJan1;
-            if (dateToSerial(y + 1, 1, 1, sys, &nextJan1)) {
-                const int nextDow = (weekdayOf(nextJan1, sys) + 6) % 7;   // Monday = 0
-                if (nextDow <= 3) week = 1;
-            }
-        }
-        return Value::number(week);
-    }
     int start;   // the day weeks start on, 0 for Sunday
     if (t == 1) start = 0;
     else if (t == 2) start = 1;
@@ -142,6 +152,15 @@ Value fnWeekNum(Call &c)
     else return c.error(ErrorKind::Num);
     const int offset = (jan1Dow - start + 7) % 7;
     return Value::number(std::floor((doy + offset) / 7.0) + 1);
+}
+
+Value fnIsoWeekNum(Call &c)
+{
+    double s;
+    if (!serialArg(c, 0, &s)) return c.failure();
+    int week;
+    if (!isoWeekOf(s, c.context().dateSystem, &week)) return c.error(ErrorKind::Num);
+    return Value::number(week);
 }
 
 // The seconds of a day of a serial number's fraction, to the nearest second.
@@ -412,6 +431,7 @@ void registerDateFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"DAY", 1, 1, "v", 0, fnDay});
     r.push_back({"WEEKDAY", 1, 2, "vv", 0, fnWeekday});
     r.push_back({"WEEKNUM", 1, 2, "vv", 0, fnWeekNum});
+    r.push_back({"ISOWEEKNUM", 1, 1, "v", kFnFuture, fnIsoWeekNum});
     r.push_back({"HOUR", 1, 1, "v", 0, fnHour});
     r.push_back({"MINUTE", 1, 1, "v", 0, fnMinute});
     r.push_back({"SECOND", 1, 1, "v", 0, fnSecond});

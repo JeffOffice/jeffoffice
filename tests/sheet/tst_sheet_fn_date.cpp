@@ -119,6 +119,86 @@ private Q_SLOTS:
         CHECK_EVALS(cases, Grid(), Settings());
     }
 
+    // ISO 8601 weeks (type 21, and ISOWEEKNUM): weeks start on Monday and the first has the year's first Thursday; the days before it are the last week of the year before.
+    void isoWeeksBelongToTheYearOfTheirThursday()
+    {
+        const E cases[] = {
+            {"WEEKNUM(45366,21)", "n:11"},                        // Friday, March 15, 2024
+            {"WEEKNUM(DATE(2024,1,1),21)", "n:1"},                // a Monday
+            {"WEEKNUM(DATE(2024,12,29),21)", "n:52"},             // a Sunday
+            {"WEEKNUM(DATE(2024,12,30),21)", "n:1"},              // the Monday that begins week 1 of 2025
+            {"WEEKNUM(DATE(2021,1,1),21)", "n:53"},               // a Friday, in the last week of 2020
+            {"WEEKNUM(DATE(2021,1,3),21)", "n:53"},
+            {"WEEKNUM(DATE(2021,1,4),21)", "n:1"},
+            {"WEEKNUM(DATE(2020,12,31),21)", "n:53"},
+            {"WEEKNUM(DATE(2016,1,3),21)", "n:53"},
+            {"WEEKNUM(DATE(2015,12,31),21)", "n:53"},
+            {"WEEKNUM(DATE(2018,12,31),21)", "n:1"},
+            {"WEEKNUM(DATE(2008,12,29),21)", "n:1"},
+            {"WEEKNUM(DATE(2010,1,3),21)", "n:53"},
+            {"WEEKNUM(DATE(2025,12,29),21)", "n:1"},
+            {"WEEKNUM(DATE(2026,12,31),21)", "n:53"},
+            {"WEEKNUM(DATE(2027,1,1),21)", "n:53"},
+            {"WEEKNUM(DATE(2027,1,4),21)", "n:1"},
+            {"WEEKNUM(DATE(2024,2,29),21)", "n:9"},
+            {"WEEKNUM(DATE(9999,12,31),21)", "n:52"},
+            // the first days of the 1900 system: day 1 is a Sunday, which closes the week before the one that begins on Monday, day 2
+            {"WEEKNUM(1,21)", "n:52"},
+            {"WEEKNUM(0,21)", "n:52"},
+            {"WEEKNUM(2,21)", "n:1"},
+            {"WEEKNUM(8,21)", "n:1"},
+            {"WEEKNUM(9,21)", "n:2"},
+            {"WEEKNUM(60,21)", "n:9"},
+            {"WEEKNUM(61,21)", "n:9"},
+        };
+        CHECK_EVALS(cases, Grid(), Settings());
+        // the 1904 system: day 0 is Friday, January 1, 1904, in the last week of 1903 (which has 53), and Monday, day 3, begins the first of 1904
+        Settings system1904;
+        system1904.system = DateSystem::Date1904;
+        const E cases1904[] = {
+            {"WEEKNUM(0,21)", "n:53"},
+            {"WEEKNUM(1,21)", "n:53"},
+            {"WEEKNUM(2,21)", "n:53"},
+            {"WEEKNUM(3,21)", "n:1"},
+            {"WEEKNUM(9,21)", "n:1"},
+            {"WEEKNUM(10,21)", "n:2"},
+            {"WEEKNUM(365,21)", "n:52"},                          // Saturday, December 31, 1904
+            {"WEEKNUM(DATE(2024,1,1),21)", "n:1"},
+            {"WEEKNUM(DATE(2021,1,1),21)", "n:53"},
+            {"WEEKNUM(DATE(1904,1,1),21)", "n:53"},
+            {"WEEKNUM(DATE(1905,1,1),21)", "n:52"},               // a Sunday
+            {"WEEKNUM(DATE(1905,1,2),21)", "n:1"},
+            {"WEEKNUM(0)", "n:1"},                                // (the other types never looked back a year)
+            {"WEEKNUM(0,2)", "n:1"},
+        };
+        CHECK_EVALS(cases1904, Grid(), system1904);
+    }
+
+    // ISOWEEKNUM is the week of type 21 of WEEKNUM, in either system.
+    void isoWeekNumIsTheIsoWeek()
+    {
+        const E cases[] = {
+            {"_xlfn.ISOWEEKNUM(45366)", "n:11"},
+            {"_xlfn.ISOWEEKNUM(DATE(2021,1,1))", "n:53"},
+            {"_xlfn.ISOWEEKNUM(DATE(2024,12,30))", "n:1"},
+            {"_xlfn.ISOWEEKNUM(\"2024-03-15\")", "n:11"},
+            {"_xlfn.ISOWEEKNUM(1)", "n:52"},
+            {"_xlfn.ISOWEEKNUM(2)", "n:1"},
+            {"_xlfn.ISOWEEKNUM(-1)", "e:#NUM!"},
+            {"_xlfn.ISOWEEKNUM(\"x\")", "e:#VALUE!"},
+            {"ISOWEEKNUM(45366)", "!unsupported: ISOWEEKNUM"},    // (a newer function is written with its _xlfn. in a file)
+        };
+        CHECK_EVALS(cases, Grid(), Settings());
+        Settings system1904;
+        system1904.system = DateSystem::Date1904;
+        const E cases1904[] = {
+            {"_xlfn.ISOWEEKNUM(0)", "n:53"},
+            {"_xlfn.ISOWEEKNUM(3)", "n:1"},
+            {"_xlfn.ISOWEEKNUM(DATE(2024,12,30))", "n:1"},
+        };
+        CHECK_EVALS(cases1904, Grid(), system1904);
+    }
+
     void timesAreFractionsOfADay()
     {
         const E cases[] = {
