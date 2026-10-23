@@ -9,9 +9,17 @@
 //   jcrunchtool scan <keys.txt> <out-dir> [jobs]   runs `info` on each workbook listed (one path to a line), each in a child process that has 120 seconds and 4 GB,
 //                                                  and writes <out-dir>/books.tsv: path, exit, seconds, peak MB, sheets, cells, formula cells, stored results, and
 //                                                  functions used. (tools/crunch_scan.py does the work; tools/crunch_summary.py <out-dir> sums the table up.)
+//   jcrunchtool format <code> <number> [1904]   a number in a format code, as the engine shows it: the text, then the color, where a fill goes, and "failed" if it can't be shown
+//   jcrunchtool formats-one <file.xlsx>          the number formats checked in one workbook: a line `case` for each formula that is TEXT, FIXED, or DOLLAR of
+//                                                a number (sheet!cell, function, value, code, the text the file stored, ours, 1 if they are the same), and a
+//                                                line `use` for each format code the cells use (the code, how many cells with a value, 1 if it parses)
+//   jcrunchtool formats <keys.txt> <out-dir> [jobs]   runs `formats-one` on each workbook listed under the same limits as `scan`, writes <out-dir>/formats.tsv
+//                                                  and codes.tsv, and prints the share of cases that match (tools/crunch_formats.py does the work)
 
 #include "office/package.h"
+#include "calc/numfmt.h"
 #include "sheet/cellref.h"
+#include "sheet/formatcases.h"
 #include "sheet/sheetreader.h"
 
 #include <QCoreApplication>
@@ -188,6 +196,97 @@ int dump(const QString &path, int sheetNumber, qint64 most)
     return sheet.error.isEmpty() ? 0 : 2;
 }
 
+int formatOne(const QString &code, const QString &number, bool date1904)
+{
+    bool ok = false;
+    const double v = number.toDouble(&ok);
+    if (!ok) {
+        err() << "jcrunchtool: not a number: " << number << "\n";
+        return 2;
+    }
+    const jp::calc::NumberFormat f(code);
+    const jp::calc::Formatted r = f.format(v, date1904 ? jp::calc::DateSystem::Date1904 : jp::calc::DateSystem::Date1900);
+    out() << (f.isValid() ? "" : "(not valid: shown as General) ") << '[' << r.text << "]\tcolor " << r.color << "\tfill " << r.fillAt << (r.failed ? "\tfailed" : "") << "\n";
+    return 0;
+}
+
+// Tabs and line ends in a field are written as \t, \n, \r, and the backslash as \\.
+QString escapeField(const QString &s)
+{
+    QString r = s;
+    r.replace(QLatin1Char('\\'), QLatin1String("\\\\"));
+    r.replace(QLatin1Char('\t'), QLatin1String("\\t"));
+    r.replace(QLatin1Char('\n'), QLatin1String("\\n"));
+    r.replace(QLatin1Char('\r'), QLatin1String("\\r"));
+    return r;
+}
+
+int formatsOne(const QString &path)
+{
+    Package package;
+    QString why;
+    if (!package.readLazyFile(path, &why)) {
+        err() << path << ": " << why << "\n";
+        return 1;
+    }
+    Workbook book;
+    if (!book.open(package, &why)) {
+        err() << path << ": " << why << "\n";
+        return 1;
+    }
+    FormatCaseFinder finder(book);
+    QHash<quint32, qint64> styleCells;
+    bool whole = true;
+    for (int i = 0; i < book.info().sheets.size(); ++i) {
+        if (book.info().sheets[i].kind == SheetKind::Chartsheet) continue;
+        Sheet sheet;
+        if (!book.readSheet(i, &sheet)) whole = false;
+        sheet.cells.forEach([&](const Cell &c) {
+            if (c.type != CellType::Empty) ++styleCells[c.style];
+        });
+        finder.addSheet(i, sheet);
+    }
+    QHash<QString, qint64> codeCells;
+    for (auto it = styleCells.cbegin(); it != styleCells.cend(); ++it) codeCells[book.styles().formatCode(it.key())] += it.value();
+    for (const FormatCase &c : finder.finish())
+        out() << "case\t" << escapeField(c.sheet + QLatin1Char('!') + c.cell) << '\t' << c.function << '\t' << QString::number(c.value, 'g', 17) << '\t' << escapeField(c.code) << '\t'
+              << escapeField(c.stored) << '\t' << escapeField(c.ours) << '\t' << (c.match ? '1' : '0') << "\n";
+    for (auto it = codeCells.cbegin(); it != codeCells.cend(); ++it)
+        out() << "use\t" << escapeField(it.key()) << '\t' << it.value() << '\t' << (jp::calc::NumberFormat(it.key()).isValid() ? '1' : '0') << "\n";
+    return whole ? 0 : 2;
+}
+
+int formats(const QString &keys, const QString &outDir, const QString &jobs)
+{
+#ifndef Q_OS_LINUX
+    Q_UNUSED(keys);
+    Q_UNUSED(outDir);
+    Q_UNUSED(jobs);
+    err() << "jcrunchtool: formats runs on Linux only (it caps each workbook's memory with systemd-run); formats-one works on every system.\n";
+    return 2;
+#else
+    QString script = QCoreApplication::applicationDirPath() + QStringLiteral("/../tools/crunch_formats.py");
+#ifdef JCRUNCH_TOOLS_DIR
+    if (!QFileInfo::exists(script)) script = QStringLiteral(JCRUNCH_TOOLS_DIR) + QStringLiteral("/crunch_formats.py");
+#endif
+    if (!QFileInfo::exists(script)) {
+        err() << "jcrunchtool: crunch_formats.py is not beside the program\n";
+        return 1;
+    }
+    QProcess python;
+    python.setProcessChannelMode(QProcess::ForwardedChannels);
+    QStringList args = {script, QCoreApplication::applicationFilePath(), keys, outDir};
+    if (!jobs.isEmpty()) args << jobs;
+    python.start(QStringLiteral("python3"), args);
+    if (!python.waitForStarted()) {
+        err() << "jcrunchtool: python3 could not be started, which formats needs\n";
+        return 1;
+    }
+    python.waitForFinished(-1);
+    return python.exitStatus() == QProcess::NormalExit ? python.exitCode() : 1;
+#endif
+}
+
 int scan(const QString &keys, const QString &outDir, const QString &jobs)
 {
 #ifndef Q_OS_LINUX
@@ -223,7 +322,10 @@ int usage()
 {
     err() << "usage: jcrunchtool info [--tsv] <file.xlsx>\n"
              "       jcrunchtool dump <file.xlsx> [sheet=1] [max=100]\n"
-             "       jcrunchtool scan <keys.txt> <out-dir> [jobs]\n";
+             "       jcrunchtool scan <keys.txt> <out-dir> [jobs]\n"
+             "       jcrunchtool format <code> <number> [1904]\n"
+             "       jcrunchtool formats-one <file.xlsx>\n"
+             "       jcrunchtool formats <keys.txt> <out-dir> [jobs]\n";
     return 2;
 }
 
@@ -240,5 +342,8 @@ int main(int argc, char **argv)
     }
     if (args.size() >= 2 && args.size() <= 4 && args[0] == QLatin1String("dump")) return dump(args[1], args.value(2, QStringLiteral("1")).toInt(), args.value(3, QStringLiteral("100")).toLongLong());
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("scan")) return scan(args[1], args[2], args.value(3));
+    if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("format")) return formatOne(args[1], args[2], args.value(3) == QLatin1String("1904"));
+    if (args.size() == 2 && args[0] == QLatin1String("formats-one")) return formatsOne(args[1]);
+    if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("formats")) return formats(args[1], args[2], args.value(3));
     return usage();
 }

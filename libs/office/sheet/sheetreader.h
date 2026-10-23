@@ -8,6 +8,7 @@
 #include "office/package.h"
 #include "calc/dates.h"
 #include "sheet/sheetmodel.h"
+#include "sheet/styles.h"
 
 #include <QIODevice>
 #include <QString>
@@ -51,6 +52,14 @@ constexpr int kMaxSheetNameChars = 1000;
 // Shared strings (66,608 found), and all their characters together (547,609 found).
 constexpr qint64 kMaxSharedStrings = 2000000;
 constexpr qint64 kMaxSharedStringChars = 50000000;
+// Number formats a workbook defines (1,736 found), cell formats (1,887 found; the format allows 64,000), and the characters of all the number formats' codes
+// (a code is 233 characters at the most, and 4,096 are read).
+constexpr qint64 kMaxNumFmts = 100000;
+constexpr qint64 kMaxCellXfs = 1000000;
+constexpr qint64 kMaxNumFmtChars = 4000000;
+// Defined names in a workbook (3,295 found), and the characters of all their names and what they stand for (a name stands for 4,553 characters at the most).
+constexpr qint64 kMaxDefinedNames = 100000;
+constexpr qint64 kMaxDefinedNameChars = 20000000;
 
 struct Limits {
     qint64 cellsPerSheet = kMaxCellsPerSheet;
@@ -63,6 +72,11 @@ struct Limits {
     int sheets = kMaxSheets;
     qint64 sharedStrings = kMaxSharedStrings;
     qint64 sharedStringChars = kMaxSharedStringChars;
+    qint64 numFmts = kMaxNumFmts;
+    qint64 cellXfs = kMaxCellXfs;
+    qint64 numFmtChars = kMaxNumFmtChars;
+    qint64 definedNames = kMaxDefinedNames;
+    qint64 definedNameChars = kMaxDefinedNameChars;
 };
 
 enum class CalcMode { Auto, AutoNoTable, Manual };
@@ -78,8 +92,16 @@ struct SheetEntry {
     SheetKind kind = SheetKind::Worksheet;
 };
 
+struct DefinedName {
+    QString name;
+    QString ref;            // what it stands for, as written: "Sheet1!$A$1", "'My Sheet'!$B$2:$C$9", or a formula
+    int localSheet = -1;    // the place (counting from 0) of the sheet it belongs to; -1 for the whole workbook
+    bool hidden = false;
+};
+
 struct WorkbookInfo {
     QVector<SheetEntry> sheets;   // in the order the workbook has them
+    QVector<DefinedName> definedNames;
     DateSystem dateSystem = DateSystem::Date1900;
     CalcMode calcMode = CalcMode::Auto;
     bool fullCalcOnLoad = false;
@@ -94,6 +116,10 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
 // Reads the shared strings part. False, with a message, if the XML is
 // damaged or something is past a limit; the strings read before it stay.
 bool readSharedStrings(QIODevice *in, const Limits &limits, SharedStrings *out, QString *error = nullptr);
+
+// Reads the styles part: the number formats it defines and the format of each cell format. False, with a message, if the XML is damaged or something is
+// past a limit; what was read before it stays.
+bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error = nullptr);
 
 struct ReadOptions {
     Limits limits;
@@ -122,6 +148,9 @@ public:
     const WorkbookInfo &info() const { return m_info; }
     const SharedStrings &sharedStrings() const { return m_shared; }
     QString sharedStringsError() const { return m_sharedError; }
+    // The number formats: empty (everything General) if the workbook has no styles part or it is damaged, which stylesError() then says.
+    const Styles &styles() const { return m_styles; }
+    QString stylesError() const { return m_stylesError; }
     // Reads sheet `index`. A sheet of a chart, and one with no relationship to a part, is read as an empty sheet; false, with the sheet's error saying why, if
     // there is no such sheet or its part is missing, or if the part could not be read whole.
     bool readSheet(int index, Sheet *out, const std::function<bool(qint64)> &progress = nullptr) const;
@@ -132,6 +161,8 @@ private:
     WorkbookInfo m_info;
     SharedStrings m_shared;
     QString m_sharedError;
+    Styles m_styles;
+    QString m_stylesError;
     Limits m_limits;
 };
 

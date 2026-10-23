@@ -77,6 +77,50 @@ private Q_SLOTS:
         QCOMPARE(names.sheets.size(), 1);
     }
 
+    // Defined names: the name, what it stands for, the sheet it belongs to by position, and whether it is hidden.
+    void definedNamesAreRead()
+    {
+        WorkbookInfo info;
+        QString why;
+        const QString sheets = "<sheets><sheet name=\"A\" sheetId=\"1\" r:id=\"rId1\"/><sheet name=\"B\" sheetId=\"2\" r:id=\"rId2\"/></sheets>";
+        QVERIFY2(readWorkbookXml(workbookXml(sheets + "<definedNames><definedName name=\"Rate\">Sheet1!$A$1</definedName>"
+                                                       "<definedName name=\"Local\" localSheetId=\"1\">B!$C$3</definedName>"
+                                                       "<definedName name=\"_xlnm.Print_Area\" localSheetId=\"0\" hidden=\"1\">A!$A$1:$D$9</definedName>"
+                                                       "<definedName name=\"Total\" comment=\"x\">SUM(A!$A$1:$A$9)&amp;&quot;t&quot;</definedName>"
+                                                       "<definedName name=\"Empty\"/></definedNames>"),
+                                 &info, &why),
+                 qPrintable(why));
+        QCOMPARE(info.sheets.size(), 2);
+        QCOMPARE(info.definedNames.size(), 5);
+        QCOMPARE(info.definedNames[0].name, QStringLiteral("Rate"));
+        QCOMPARE(info.definedNames[0].ref, QStringLiteral("Sheet1!$A$1"));
+        QCOMPARE(info.definedNames[0].localSheet, -1);
+        QVERIFY(!info.definedNames[0].hidden);
+        QCOMPARE(info.definedNames[1].localSheet, 1);
+        QCOMPARE(info.definedNames[2].name, QStringLiteral("_xlnm.Print_Area"));
+        QCOMPARE(info.definedNames[2].localSheet, 0);
+        QVERIFY(info.definedNames[2].hidden);
+        QCOMPARE(info.definedNames[3].ref, QStringLiteral("SUM(A!$A$1:$A$9)&\"t\""));
+        QCOMPARE(info.definedNames[4].ref, QString());
+        // A workbook with none has none; more than the limit, or more characters, is refused with what came before kept.
+        QVERIFY(readWorkbookXml(workbookXml(sheets), &info, &why));
+        QVERIFY(info.definedNames.isEmpty());
+        const QByteArray three = workbookXml(sheets + "<definedNames><definedName name=\"a\">A!$A$1</definedName><definedName name=\"b\">A!$A$2</definedName>"
+                                                      "<definedName name=\"c\">A!$A$3</definedName></definedNames>");
+        Limits few;
+        few.definedNames = 2;
+        why.clear();
+        QVERIFY(!readWorkbookXml(three, &info, &why, few));
+        QVERIFY(!why.isEmpty());
+        QCOMPARE(info.definedNames.size(), 2);
+        Limits fewChars;
+        fewChars.definedNameChars = 10;
+        why.clear();
+        QVERIFY(!readWorkbookXml(three, &info, &why, fewChars));
+        QVERIFY(!why.isEmpty());
+        QVERIFY(info.definedNames.size() < 3);
+    }
+
     // The 1900 system counts February 29, 1900, which never was, as day 60; the 1904 system starts at January 1, 1904.
     void bothDateSystemsAreCounted()
     {

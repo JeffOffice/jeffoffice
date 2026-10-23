@@ -179,6 +179,7 @@ qt_add_executable(sheettests
   tests/testrunner.cpp
   tests/sheet/sheethelpers.cpp
   tests/sheet/tst_sheet_cells.cpp
+  tests/sheet/tst_sheet_formats.cpp
   tests/sheet/tst_sheet_formulas.cpp
   tests/sheet/tst_sheet_limits.cpp
   tests/sheet/tst_sheet_numfmt.cpp
