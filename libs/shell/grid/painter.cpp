@@ -669,6 +669,10 @@ void GridPainter::paintHeaders(QPainter *p, const QRect &clip, const PaintOption
 void GridPainter::paint(QPainter *p, const QRect &clip, const PaintOptions &o)
 {
     m_stats = PaintStats();
+    if (!m_sheet->data().sheet) {
+        p->fillRect(clip, o.backdrop);   // (no sheet to show)
+        return;
+    }
     const qint64 textsBefore = m_sheet->textsMade(), looksBefore = m_sheet->looks().made();
     m_sheet->looks().trim();
     const double zoom = m_sheet->layout().zoom();

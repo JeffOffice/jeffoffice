@@ -31,6 +31,18 @@ public:
     // zoom, the selection) is kept instead, for the same sheet read whole after its first rows were shown.
     void setData(const GridData &data, bool keepView = false);
 
+    // What the person has done to the view: where it is scrolled, the zoom, the panes held, the gridlines and headings, and the selection.
+    struct ViewState {
+        Selection selection;
+        qint64 scrollX = 0, scrollY = 0;
+        qint64 frozenRows = 0, frozenCols = 0;
+        double zoom = 1.0;
+        bool gridlines = true, headings = true;
+        bool valid = false;
+    };
+    ViewState viewState() const;
+    void setViewState(const ViewState &state);
+
     double zoom() const { return m_sheet.layout().zoom(); }
     void setZoom(double zoom);
     bool showGridlines() const { return m_gridlines; }

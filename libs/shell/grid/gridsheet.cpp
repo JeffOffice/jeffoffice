@@ -176,13 +176,24 @@ Shown GridSheet::shown(quint32 row, quint32 col, const Cell &cell) const
         // (a merge of many columns is counted to the most the grid ever shows)
         for (quint32 c = r.col1; c <= r.col2 && c < r.col1 + 1024; ++c) width += columnWidth(c);
     }
-    const Shown s = showValue(valueOf(cell), m_looks.look(cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter);
+    Shown s;
+    if (m_showFormulas && cell.hasFormula() && m_data.sheet && !m_data.sheet->formulaText(cell).isEmpty())
+        s = showValue(jp::calc::Value::text(QLatin1Char('=') + m_data.sheet->formulaText(cell)), m_looks.look(cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter);
+    else
+        s = showValue(valueOf(cell), m_looks.look(cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter);
     if (m_texts.size() >= kMaxTexts) m_texts.clear();
     m_texts.emplace(key, s);
     return s;
 }
 
 void GridSheet::invalidateTexts() const { m_texts.clear(); }
+
+void GridSheet::setShowFormulas(bool on)
+{
+    if (on == m_showFormulas) return;
+    m_showFormulas = on;
+    m_texts.clear();
+}
 
 void GridSheet::usedExtent(quint32 *rows, quint32 *cols) const
 {

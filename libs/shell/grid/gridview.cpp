@@ -68,13 +68,48 @@ GridView::~GridView() = default;
 
 // ---- the data, the view, and the scroll
 
+GridView::ViewState GridView::viewState() const
+{
+    ViewState v;
+    v.selection = m_selection;
+    v.scrollX = m_sheet.layout().scrollX();
+    v.scrollY = m_sheet.layout().scrollY();
+    v.frozenRows = m_sheet.layout().frozenRows();
+    v.frozenCols = m_sheet.layout().frozenCols();
+    v.zoom = zoom();
+    v.gridlines = m_gridlines;
+    v.headings = m_headings;
+    v.valid = true;
+    return v;
+}
+
+void GridView::setViewState(const ViewState &v)
+{
+    if (!v.valid) return;
+    GridLayout &L = m_sheet.layout();
+    m_gridlines = v.gridlines;
+    m_headings = v.headings;
+    L.setZoom(v.zoom);
+    L.setFrozen(v.frozenRows, v.frozenCols);
+    L.setScroll(v.scrollX, v.scrollY);
+    // (clamped to the sheet it is now: a sheet read whole may have fewer rows than the one the state was made for, never more than a sheet can have)
+    m_selection = v.selection;
+    m_selection.activeRow = std::min(m_selection.activeRow, L.rows.count() - 1);
+    m_selection.activeCol = std::min(m_selection.activeCol, L.cols.count() - 1);
+    m_selection.headRow = std::min(m_selection.headRow, L.rows.count() - 1);
+    m_selection.headCol = std::min(m_selection.headCol, L.cols.count() - 1);
+    m_selection.range.row2 = std::min(m_selection.range.row2, L.rows.count() - 1);
+    m_selection.range.col2 = std::min(m_selection.range.col2, L.cols.count() - 1);
+    m_painter->resetFonts();
+    layoutChanged();
+    Q_EMIT zoomChanged(zoom());
+    Q_EMIT selectionChanged();
+    startStats();
+}
+
 void GridView::setData(const GridData &data, bool keepView)
 {
-    const Selection selection = m_selection;
-    const double z = zoom();
-    const qint64 sx = m_sheet.layout().scrollX(), sy = m_sheet.layout().scrollY();
-    const qint64 fr = m_sheet.layout().frozenRows(), fc = m_sheet.layout().frozenCols();
-    const bool grid = m_gridlines, headings = m_headings;
+    const ViewState kept = viewState();
     m_jump.reset();
     m_statsWalk.reset();
     m_sheet.setData(data);
@@ -84,19 +119,13 @@ void GridView::setData(const GridData &data, bool keepView)
         m_headings = data.sheet->view.showHeadings;
     }
     m_sheet.layout().setViewport(viewport()->size());
-    Navigator nav(&m_sheet.layout(), m_nav.get());
     if (keepView) {
-        m_gridlines = grid;
-        m_headings = headings;
-        m_sheet.layout().setZoom(z);
-        m_sheet.layout().setFrozen(fr, fc);
-        m_sheet.layout().setScroll(sx, sy);
-        m_selection = selection;
-        // (the selection is kept as it was, in the sheet read whole)
-    } else {
-        const jp::office::sheet::SheetView v = data.sheet ? data.sheet->view : jp::office::sheet::SheetView();
-        m_selection = nav.click(qint64(v.activeRow), qint64(v.activeCol));
+        setViewState(kept);
+        return;
     }
+    Navigator nav(&m_sheet.layout(), m_nav.get());
+    const jp::office::sheet::SheetView v = data.sheet ? data.sheet->view : jp::office::sheet::SheetView();
+    m_selection = nav.click(qint64(v.activeRow), qint64(v.activeCol));
     layoutChanged();
     Q_EMIT zoomChanged(zoom());
     Q_EMIT selectionChanged();

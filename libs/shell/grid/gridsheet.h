@@ -59,6 +59,9 @@ public:
     Shown shown(quint32 row, quint32 col, const Cell &cell) const;
     // Forgets the texts (values or formats changed).
     void invalidateTexts() const;
+    // Shows the formula of a cell that has one in place of its value ("=SUM(A1:A3)", as text).
+    void setShowFormulas(bool on);
+    bool showFormulas() const { return m_showFormulas; }
     // Texts made (not found in the cache) so far, and held now.
     qint64 textsMade() const { return m_textsMade; }
     size_t textsHeld() const { return m_texts.size(); }
@@ -81,6 +84,7 @@ private:
     const TextMeter *m_meter = nullptr;
     mutable std::unordered_map<quint64, Shown> m_texts;
     mutable qint64 m_textsMade = 0;
+    bool m_showFormulas = false;
     std::vector<jp::office::sheet::ColumnSpan> m_columnStyles;   // by place of the run: the cell formats of columns, in order of first column (for places with no cell)
     std::vector<jp::office::sheet::RowSpec> m_rowStyles;         // the rows with a format of their own, in order
 };

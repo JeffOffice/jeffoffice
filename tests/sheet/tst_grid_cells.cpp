@@ -619,6 +619,41 @@ private Q_SLOTS:
         QVERIFY(!g.cellAt(60, 4));
     }
 
+    // With "show formulas" on, a cell that has a formula shows it as text ("=" and the formula as written for the cell), and a cell that has none shows what it did.
+    void showFormulasShowsTheFormulaOfFormulaCells()
+    {
+        Sheet sheet;
+        Cell constant = numberCell(0, 0, 5);
+        sheet.cells.add(constant);
+        Cell f = numberCell(0, 1, 10);
+        f.flags = jp::office::sheet::HasFormula;
+        f.formula = 0;
+        sheet.cells.add(f);
+        sheet.cells.finish();
+        sheet.formulaTexts.append(QStringLiteral("A1*2"));
+        jp::office::sheet::Formula fx;
+        fx.text = 0;
+        sheet.formulas.append(fx);
+        Styles styles;
+        styles.fonts = {FontSpec()};
+        styles.formats = {CellFormat()};
+        GridData data;
+        data.styles = &styles;
+        data.sheet = &sheet;
+        GridSheet g;
+        g.setMeter(&kMeter);
+        g.setData(data);
+        QCOMPARE(g.shown(0, 1, *g.cellAt(0, 1)).text, QStringLiteral("10"));
+        g.setShowFormulas(true);
+        QVERIFY(g.showFormulas());
+        const Shown s = g.shown(0, 1, *g.cellAt(0, 1));
+        QCOMPARE(s.text, QStringLiteral("=A1*2"));
+        QVERIFY(s.align == HAlign::Left);
+        QCOMPARE(g.shown(0, 0, *g.cellAt(0, 0)).text, QStringLiteral("5"));
+        g.setShowFormulas(false);
+        QCOMPARE(g.shown(0, 1, *g.cellAt(0, 1)).text, QStringLiteral("10"));
+    }
+
     // The cache is bounded: a hundred thousand cells shown one after another leave no more than it holds.
     void theTextCacheIsBounded()
     {
