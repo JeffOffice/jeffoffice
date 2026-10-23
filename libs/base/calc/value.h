@@ -125,7 +125,9 @@ QString numberToText(double v);
 // time. False for anything else, and for the empty text.
 bool textToNumber(const QString &text, DateSystem system, double *out);
 
-// Case-insensitive order of two texts: -1, 0, or 1. Symbols come before digits and digits before letters.
+// Case-insensitive order of two texts: -1, 0, or 1. Symbols come before digits and digits before letters. A letter with an accent is a difference after the letters
+// of the whole text: the order is that of the letters without accents (e, é, f), and of the accents only where the letters are the same (cote, coté, côte, côté);
+// a letter and the accent that follows it are the letter with the accent. (Texts of the ASCII characters are compared one character at a time.)
 int compareText(const QString &a, const QString &b);
 
 // The order of two values that are not errors and not arrays, as the comparison operators see them: -1, 0, or 1. A number is less than a text, and a text less

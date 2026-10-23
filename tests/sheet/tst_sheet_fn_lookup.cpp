@@ -221,6 +221,55 @@ private Q_SLOTS:
         CHECK_EVALS(cases, g, Settings());
     }
 
+    // A letter with an accent sorts with its letter (after the plain one when the rest is the same), not after z: e, é, f, z is in order. The accent is a difference
+    // in a lookup for an exact match (é is not e), as the case is not.
+    void lettersWithAccentsSortNextToTheirLetters()
+    {
+        const QString eAcute(QChar(0xE9)), capEAcute(QChar(0xC9)), oCirc(QChar(0xF4)), aDiaer(QChar(0xE4));
+        Grid g;
+        g.column("A1", {QStringLiteral("e"), eAcute, QStringLiteral("f"), QStringLiteral("z")});
+        g.column("B1", {1, 2, 3, 4});
+        g.column("D1", {QStringLiteral("cote"), QStringLiteral("cot") + eAcute, QStringLiteral("c") + oCirc + QStringLiteral("te"), QStringLiteral("c") + oCirc + QStringLiteral("t") + eAcute});
+        g.column("F1", {QStringLiteral("a"), aDiaer + QStringLiteral("b"), QStringLiteral("ac")});
+        const auto q = [&](const QString &s) { return QStringLiteral("\"") + s + QStringLiteral("\""); };
+        struct C {
+            QString formula, value;
+        };
+        const C cases[] = {
+            {QStringLiteral("MATCH(\"f\",A1:A4,1)"), QStringLiteral("n:3")},
+            {QStringLiteral("MATCH(\"e\",A1:A4,1)"), QStringLiteral("n:1")},
+            {QStringLiteral("MATCH(") + q(eAcute) + QStringLiteral(",A1:A4,1)"), QStringLiteral("n:2")},
+            {QStringLiteral("MATCH(") + q(capEAcute) + QStringLiteral(",A1:A4,1)"), QStringLiteral("n:2")},
+            {QStringLiteral("MATCH(\"ez\",A1:A4,1)"), QStringLiteral("n:2")},                    // after é: the letters first, then the accents
+            {QStringLiteral("VLOOKUP(\"g\",A1:B4,2)"), QStringLiteral("n:3")},
+            {QStringLiteral("MATCH(") + q(eAcute) + QStringLiteral(",A1:A4,0)"), QStringLiteral("n:2")},
+            {QStringLiteral("MATCH(") + q(capEAcute) + QStringLiteral(",A1:A4,0)"), QStringLiteral("n:2")},    // the case is not a difference
+            {QStringLiteral("MATCH(\"e\",{") + q(eAcute) + QStringLiteral("},0)"), QStringLiteral("e:#N/A")},  // the accent is
+            {QStringLiteral("MATCH(") + q(eAcute) + QStringLiteral(",{\"e\"},0)"), QStringLiteral("e:#N/A")},
+            // the first accent that differs decides, after the letters: cote, coté, côte, côté
+            {QStringLiteral("MATCH(") + q(QStringLiteral("cot") + eAcute) + QStringLiteral(",D1:D4,1)"), QStringLiteral("n:2")},
+            {QStringLiteral("MATCH(") + q(QStringLiteral("c") + oCirc + QStringLiteral("te")) + QStringLiteral(",D1:D4,1)"), QStringLiteral("n:3")},
+            {QStringLiteral("MATCH(") + q(QStringLiteral("c") + oCirc + QStringLiteral("t") + eAcute) + QStringLiteral(",D1:D4,1)"), QStringLiteral("n:4")},
+            // the letters decide before the accents: a, äb, ac
+            {QStringLiteral("MATCH(\"ac\",F1:F3,1)"), QStringLiteral("n:3")},
+            {QStringLiteral("MATCH(") + q(aDiaer + QStringLiteral("b")) + QStringLiteral(",F1:F3,1)"), QStringLiteral("n:2")},
+            // the same order for the operators
+            {q(eAcute) + QStringLiteral("<\"f\""), QStringLiteral("b:1")},
+            {q(eAcute) + QStringLiteral(">\"e\""), QStringLiteral("b:1")},
+            {q(eAcute) + QStringLiteral(">\"z\""), QStringLiteral("b:0")},
+            {q(aDiaer + QStringLiteral("b")) + QStringLiteral(">\"ac\""), QStringLiteral("b:0")},
+            {q(eAcute) + QStringLiteral("=") + q(capEAcute), QStringLiteral("b:1")},
+            {q(eAcute) + QStringLiteral("=\"e\""), QStringLiteral("b:0")},
+            // e and the combining accent that follows it are the é that is one character
+            {QStringLiteral("\"e") + QString(QChar(0x301)) + QStringLiteral("\"=") + q(eAcute), QStringLiteral("b:1")},
+            {QStringLiteral("MATCH(") + q(QStringLiteral("e") + QString(QChar(0x301))) + QStringLiteral(",A1:A4,0)"), QStringLiteral("n:2")},
+        };
+        for (const C &c : cases) {
+            const QString got = ev(c.formula, g, Settings());
+            QVERIFY2(got == c.value, qPrintable(c.formula + QStringLiteral(" gave [") + got + QStringLiteral("], expected [") + c.value + QLatin1Char(']')));
+        }
+    }
+
     void matchInItsThreeModes()
     {
         const Grid g = sample();
