@@ -437,6 +437,62 @@ private Q_SLOTS:
         b.view->verticalScrollBar()->setValue(b.view->verticalScrollBar()->maximum());
         b.view->grab();
     }
+
+    // Page Down moves the cursor a screen of rows and scrolls the sheet a screen: the cursor stays where it was in the window. Page Up goes back.
+    void pageKeysMoveTheCursorAndTheSheetAScreen()
+    {
+        Book b;
+        for (quint32 r = 0; r < 300; ++r) b.number(r, 0, r);
+        b.show(QSize(640, 420));
+        const int screen = int(b.layout().pane(Pane::Body).rect.height() / b.layout().rows.defaultSize());   // (whole rows)
+        QVERIFY(screen >= 15);
+        key(*b.view, Qt::Key_PageDown);
+        QCOMPARE(b.view->selection().activeRow, qint64(screen));
+        QCOMPARE(b.layout().pane(Pane::Body).firstRow, qint64(screen));
+        QCOMPARE(b.layout().scrollY(), qint64(screen * 20));
+        key(*b.view, Qt::Key_PageDown);
+        QCOMPARE(b.view->selection().activeRow, qint64(2 * screen));
+        QCOMPARE(b.layout().pane(Pane::Body).firstRow, qint64(2 * screen));
+        key(*b.view, Qt::Key_PageUp);
+        QCOMPARE(b.view->selection().activeRow, qint64(screen));
+        QCOMPARE(b.layout().pane(Pane::Body).firstRow, qint64(screen));
+        key(*b.view, Qt::Key_PageUp);
+        QCOMPARE(b.view->selection().activeRow, qint64(0));
+        QCOMPARE(b.layout().pane(Pane::Body).firstRow, qint64(0));
+        key(*b.view, Qt::Key_PageUp);   // (at the top: nowhere to go)
+        QCOMPARE(b.view->selection().activeRow, qint64(0));
+        // the cursor part way down the window keeps its place in it
+        for (int i = 0; i < 5; ++i) key(*b.view, Qt::Key_Down);
+        key(*b.view, Qt::Key_PageDown);
+        QCOMPARE(b.view->selection().activeRow, qint64(5 + screen));
+        QCOMPARE(b.layout().pane(Pane::Body).firstRow, qint64(screen));
+    }
+
+    // At a zoom where a scroll of whole rows moves every row by whole pixels (any zoom the scroll's size comes to whole pixels at), the pixels already drawn are moved, and not the
+    // window drawn again.
+    void scrollsAtOtherZoomsMoveThePixelsToo()
+    {
+        Book b;
+        for (quint32 r = 0; r < 1000; ++r)
+            for (quint32 c = 0; c < 10; ++c) b.number(r, c, r * 10.0 + c);
+        b.show();
+        QApplication::processEvents();
+        b.view->setZoom(0.5);
+        QApplication::processEvents();
+        const qint64 blits = b.view->blitScrolls(), fulls = b.view->fullScrolls();
+        QWheelEvent wheel(QPointF(100, 100), QPointF(100, 100), QPoint(), QPoint(0, -120), Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+        QApplication::sendEvent(b.view->viewport(), &wheel);
+        QCOMPARE(b.layout().scrollY(), qint64(60));   // (three rows of 20: 30 pixels at half size)
+        QCOMPARE(b.view->blitScrolls(), blits + 1);
+        QCOMPARE(b.view->fullScrolls(), fulls);
+        // at a zoom where it does not (three rows of 20 at 1.01 are 60.6 pixels: the edges are not all moved alike), the window is drawn again
+        b.view->setZoom(1.01);
+        QApplication::processEvents();
+        const qint64 blits2 = b.view->blitScrolls(), fulls2 = b.view->fullScrolls();
+        QApplication::sendEvent(b.view->viewport(), &wheel);
+        QCOMPARE(b.view->blitScrolls(), blits2);
+        QCOMPARE(b.view->fullScrolls(), fulls2 + 1);
+    }
 };
 
 JP_TEST_CLASS(GridViewTests)

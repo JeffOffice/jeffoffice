@@ -193,9 +193,11 @@ void GridView::scrollTo(qint64 x, qint64 y)
     updateHeaderWidth();
     updateScrollBars();
     const double z = L.zoom();
-    const int dx = int(std::lround(double(L.scrollX() - ox) * z)), dy = int(std::lround(double(L.scrollY() - oy) * z));
+    const double exactX = double(L.scrollX() - ox) * z, exactY = double(L.scrollY() - oy) * z;
+    const int dx = int(std::lround(exactX)), dy = int(std::lround(exactY));
     const PaneView body = L.pane(Pane::Body);
-    const bool exact = z == 1.0 && digits == m_headerDigits;
+    // (the pixels already drawn are the pixels that are wanted when the scroll is a whole number of them at this zoom: every edge is then where it was, that far on; at 100% always)
+    const bool exact = digits == m_headerDigits && std::abs(exactX - dx) < 1e-9 && std::abs(exactY - dy) < 1e-9;
     if (exact && dx == 0 && dy != 0 && std::abs(dy) < body.rect.height()) {
         viewport()->scroll(0, -dy, bodyScrollRect(true));
         ++m_blits;
@@ -220,6 +222,16 @@ void GridView::scrollRows(int rows)
         top = next;
     }
     scrollTo(L.scrollX(), L.rows.position(top) - L.rows.position(L.frozenRows()));
+}
+
+int GridView::wholeRowsInView() const
+{
+    const GridLayout &L = m_sheet.layout();
+    const PaneView body = L.pane(Pane::Body);
+    int rows = 0;
+    for (qint64 r = body.firstRow; !body.isEmpty() && r <= body.lastRow && rows < 4096; r = L.rows.nextVisible(r))
+        if (L.yEdge(r, false) >= body.rect.top() && L.yEdge(r + 1, false) <= body.rect.bottom() + 1) ++rows;
+    return std::max(1, rows);
 }
 
 void GridView::scrollColumns(int columns)
@@ -368,7 +380,7 @@ QString GridView::activeCellText() const
     if (!cell || !m_sheet.data().sheet) return QString();
     using jp::calc::Value;
     if (cell->hasFormula() || (cell->flags & jp::office::sheet::ArrayMember)) {
-        const QString f = m_sheet.data().sheet->formulaText(*cell);
+        const QString f = displayFormula(m_sheet.data().sheet->formulaText(*cell));
         if (!f.isEmpty()) return (cell->flags & jp::office::sheet::ArrayFormula) ? QStringLiteral("{=%1}").arg(f) : QStringLiteral("=%1").arg(f);
     }
     const Value v = m_sheet.valueOf(*cell);
@@ -442,7 +454,7 @@ void GridView::stepStats()
     QElapsedTimer t;
     t.start();
     bool done = false;
-    while (!done && t.elapsed() < 4) done = m_statsWalk->step(StatsWalk::kRowsPerSlice);
+    while (!done && t.elapsed() < 4) done = m_statsWalk->step(StatsWalk::kWorkPerSlice);
     if (!done) {
         m_walkTimer.start(0);
         return;
@@ -666,10 +678,10 @@ void GridView::keyPressEvent(QKeyEvent *e)
         return;
     case Qt::Key_PageDown:
     case Qt::Key_PageUp: {
-        const PaneView body = m_sheet.layout().pane(Pane::Body);
-        int rows = 0;
-        for (qint64 r = body.firstRow; !body.isEmpty() && r <= body.lastRow && rows < 4096; r = m_sheet.layout().rows.nextVisible(r)) ++rows;
-        go(nav.page(m_selection, e->key() == Qt::Key_PageDown ? 1 : -1, std::max(1, rows - 1), shift));
+        // a screen of rows: the sheet goes that far, and the cursor with it (it stays where it was in the window)
+        const int direction = e->key() == Qt::Key_PageDown ? 1 : -1, rows = wholeRowsInView();
+        scrollRows(direction * rows);
+        go(nav.page(m_selection, direction, rows, shift));
         break;
     }
     case Qt::Key_Tab: go(nav.tab(m_selection, false)); break;

@@ -75,6 +75,8 @@ public:
 
     // Scrolls so that the cell is in view; true if it moved.
     bool ensureVisible(qint64 row, qint64 col);
+    // The shown rows that are whole in the part of the grid that scrolls (at least one): what Page Down moves by.
+    int wholeRowsInView() const;
     void invalidateValues();   // values (or formats) changed: draw again
 
     // For measuring: the time of each paint, in milliseconds, since the last clear; and the work the last paint did.
