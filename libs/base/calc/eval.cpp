@@ -515,7 +515,10 @@ Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, in
         if (status == EvalStatus::Ok) status = EvalStatus::TooDeep;
         return Item::ofError(ErrorKind::Ref);
     }
-    const QString key = QString(r1c1 ? QLatin1Char('R') : QLatin1Char('A')) + (relativeToA1 ? QLatin1Char('n') : QLatin1Char('t')) + text;
+    // (A text in R1C1 form means what it says relative to the cell it is worked out for, so it is kept for that cell.)
+    QString key = QString(r1c1 ? QLatin1Char('R') : QLatin1Char('A')) + (relativeToA1 ? QLatin1Char('n') : QLatin1Char('t'));
+    if (r1c1) key += QString::number(ctx.row) + QLatin1Char(',') + QString::number(ctx.col) + QLatin1Char(':');
+    key += text;
     auto it = m_texts.find(key);
     if (it == m_texts.end()) {
         if (m_texts.size() > 4096) m_texts.clear();

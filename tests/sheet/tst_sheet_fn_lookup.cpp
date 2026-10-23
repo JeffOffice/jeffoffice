@@ -291,6 +291,29 @@ private Q_SLOTS:
         CHECK_EVALS(cases, g, Settings());
     }
 
+    // The text of R1C1 relative to a cell is read from the cell it is in: one evaluator working out the same formula in B1, B2, and B3 gives each its own.
+    void indirectOfRelativeR1C1IsReadFromItsOwnCell()
+    {
+        Grid g;
+        g.column("A1", {11, 22, 33, 44});
+        const QStringList cells = {"B1", "B2", "B3"};
+        QCOMPARE(evInCells("INDIRECT(\"R[1]C[-1]\",FALSE)", g, cells), (QStringList{"n:22", "n:33", "n:44"}));
+        QCOMPARE(evInCells("INDIRECT(\"RC[-1]\",FALSE)", g, {"B1", "B2", "B3", "B4"}), (QStringList{"n:11", "n:22", "n:33", "n:44"}));
+        QCOMPARE(evInCells("SUM(INDIRECT(\"R[0]C[-1]:R[1]C[-1]\",FALSE))", g, cells), (QStringList{"n:33", "n:55", "n:77"}));
+        QCOMPARE(evInCells("INDIRECT(\"R[-1]C[-1]\",FALSE)", g, {"B2", "B3", "B4"}), (QStringList{"n:11", "n:22", "n:33"}));
+        // the same text in A1 style, and in R1C1 with the cell given whole, are the same at every cell
+        QCOMPARE(evInCells("INDIRECT(\"A\"&ROW()+1)", g, cells), (QStringList{"n:22", "n:33", "n:44"}));
+        QCOMPARE(evInCells("INDIRECT(\"R2C1\",FALSE)", g, cells), (QStringList{"n:22", "n:22", "n:22"}));
+        QCOMPARE(evInCells("INDIRECT(\"A2\")", g, cells), (QStringList{"n:22", "n:22", "n:22"}));
+        // and the formula itself written in R1C1
+        Settings r1c1;
+        r1c1.r1c1 = true;
+        QCOMPARE(evInCells("INDIRECT(\"R[1]C[-1]\",FALSE)", g, cells, r1c1), (QStringList{"n:22", "n:33", "n:44"}));
+        // a name that moves with the cell is a different thing: it is written for A1
+        g.name("NextToLeft", "Sheet1!A2");
+        QCOMPARE(evInCells("INDIRECT(\"NextToLeft\")", g, {"A1", "B1"}), (QStringList{"n:22", "n:0"}));
+    }
+
     void rowsColumnsAndAddresses()
     {
         const Grid g = sample();

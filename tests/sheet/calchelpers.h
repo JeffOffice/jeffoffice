@@ -73,6 +73,9 @@ QString ev(const QString &formula, const Grid &grid, const Settings &settings = 
 QString ev(const QString &formula);
 // The same, and how the evaluation ended; `limit` is the most steps it may take (0: the engine's own).
 QString evStatus(const QString &formula, const Grid &grid, const Settings &settings, jp::calc::EvalStatus *status, qint64 limit = 0);
+// The formula in each of the cells in turn (`cells` are references, as Settings::at is), all worked out by one evaluator, as a recalculation does: what one evaluation
+// remembers for the next shows. The other settings are the same for all.
+QStringList evInCells(const QString &formula, const Grid &grid, const QStringList &cells, const Settings &settings = Settings());
 // The same for a number, to 15 digits: "n:" and the digits.
 QString num(double v);
 

@@ -122,20 +122,22 @@ QString ev(const QString &formula, const Grid &grid, const Settings &settings)
     return evStatus(formula, grid, settings, &status);
 }
 
-QString evStatus(const QString &formula, const Grid &grid, const Settings &settings, jp::calc::EvalStatus *status, qint64 limit)
+static jp::calc::ParseResult parseAt(const QString &formula, const Settings &settings, quint32 *row, quint32 *col)
 {
     using namespace jp::calc;
     ParseOptions options;
     options.r1c1 = settings.r1c1;
     options.arrayFormula = settings.array;
-    quint32 row = 0, col = 0;
-    jp::office::sheet::parseCellRef(settings.at, &row, &col);
-    options.row = row;
-    options.col = col;
-    const ParseResult parsed = parseFormula(formula, options);
-    if (!parsed.ok()) return QStringLiteral("!parse: ") + parsed.error;
-    if (!parsed.program->supported()) return QStringLiteral("!unsupported: ") + parsed.program->unknownFunctions.join(QLatin1Char(','));
-    EvalContext ctx;
+    *row = *col = 0;
+    jp::office::sheet::parseCellRef(settings.at, row, col);
+    options.row = *row;
+    options.col = *col;
+    return parseFormula(formula, options);
+}
+
+static jp::calc::EvalContext contextAt(const Grid &grid, const Settings &settings, quint32 row, quint32 col)
+{
+    jp::calc::EvalContext ctx;
     ctx.source = &grid;
     ctx.sheet = 0;
     ctx.row = row;
@@ -144,12 +146,42 @@ QString evStatus(const QString &formula, const Grid &grid, const Settings &setti
     ctx.shiftCols = settings.shiftCols;
     ctx.dateSystem = settings.system;
     ctx.now = settings.now;
+    return ctx;
+}
+
+QString evStatus(const QString &formula, const Grid &grid, const Settings &settings, jp::calc::EvalStatus *status, qint64 limit)
+{
+    using namespace jp::calc;
+    quint32 row = 0, col = 0;
+    const ParseResult parsed = parseAt(formula, settings, &row, &col);
+    if (!parsed.ok()) return QStringLiteral("!parse: ") + parsed.error;
+    if (!parsed.program->supported()) return QStringLiteral("!unsupported: ") + parsed.program->unknownFunctions.join(QLatin1Char(','));
     Evaluator evaluator;
     evaluator.seedRandom(1);
     if (limit > 0) evaluator.setWorkLimit(limit);
-    const QString result = evaluator.evaluate(*parsed.program, ctx).debug();
+    const QString result = evaluator.evaluate(*parsed.program, contextAt(grid, settings, row, col)).debug();
     *status = evaluator.status();
     return result;
+}
+
+QStringList evInCells(const QString &formula, const Grid &grid, const QStringList &cells, const Settings &settings)
+{
+    using namespace jp::calc;
+    QStringList results;
+    Evaluator evaluator;
+    evaluator.seedRandom(1);
+    for (const QString &cell : cells) {
+        Settings here = settings;
+        here.at = cell;
+        quint32 row = 0, col = 0;
+        const ParseResult parsed = parseAt(formula, here, &row, &col);
+        if (!parsed.ok()) {
+            results << QStringLiteral("!parse: ") + parsed.error;
+            continue;
+        }
+        results << evaluator.evaluate(*parsed.program, contextAt(grid, here, row, col)).debug();
+    }
+    return results;
 }
 
 QString ev(const QString &formula) { return ev(formula, Grid()); }
