@@ -67,6 +67,18 @@ struct CellFormat {
     quint8 indent = 0;
     quint8 rotation = 0;             // 0 to 90 turns the text up, 91 to 180 down (that many less 90), 255 sets it upright one letter under another
     bool locked = true;              // the cell is locked: on a protected sheet it can't be changed (every cell is, unless its format says it is not)
+    // For a workbook of the old binary form, which keeps the formats of its named styles among the cell formats: the style format this one follows (its place in `formats`), and
+    // whether this is the format of a named style (and not of cells).
+    static constexpr quint32 kNoParent = 0xFFFFFFFF;
+    quint32 parent = kNoParent;
+    bool isStyle = false;
+};
+
+// A named cell style ("Normal", "Comma", "Heading 4"): the number of the built-in style it is (-1 for one a person named), the name, and the format that holds its look.
+struct NamedStyle {
+    QString name;
+    qint32 builtin = -1;
+    quint32 format = 0;
 };
 
 // The colors of the theme in the order the styles name them by number: light 1, dark 1, light 2, dark 2, accent 1 to 6, hyperlink, followed hyperlink.
@@ -80,6 +92,7 @@ struct Styles {
     QVector<FillSpec> fills;
     QVector<BorderSpec> borders;
     QVector<CellFormat> formats;    // each cell format whole, in order (as cellXfs)
+    QVector<NamedStyle> namedStyles; // the named cell styles the file keeps (none for a file that was read from XML: the styles part is kept as it is)
     QVector<quint32> indexed;       // the palette the file defines for indexed colors (0xRRGGBB); empty for the usual one
     quint32 theme[kThemeColors];    // the workbook's theme colors (0xRRGGBB), set when the workbook is opened; the usual ones until then
 

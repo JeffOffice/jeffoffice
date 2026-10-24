@@ -4,6 +4,7 @@
 
 #include "app/crunchwindow.h"
 
+#include "app/oldformat.h"
 #include "app/settings.h"
 #include "app/telemetry.h"
 #include "core/appinfo.h"
@@ -40,6 +41,12 @@ bool CrunchWindow::save()
     if (m_path.isEmpty()) {
         act("file.saveAs")->trigger();
         return false;
+    }
+    // A workbook read from the older binary form is saved under a new name, as .xlsx: the person is told, and asked for the name (the file it came from is never written).
+    if (savesAsANewFile()) {
+        if (!commitEdit()) return false;
+        const QString path = pathToSave();
+        return !path.isEmpty() && saveAs(path);
     }
     return startSave(m_path);
 }
@@ -84,6 +91,11 @@ bool CrunchWindow::startSave(const QString &path)
     if (!m_session || m_saving) return false;
     if (!commitEdit()) return false;
     const bool samePath = QFileInfo(path).absoluteFilePath() == QFileInfo(m_path).absoluteFilePath();
+    // a workbook read from the older binary form is never written over the file it came from, whatever that file is called
+    if (samePath && savesAsANewFile()) {
+        notice(tr("Save"), crunch::originalNotWrittenNotice(QFileInfo(path).fileName()));
+        return false;
+    }
     // nothing to save over the file it was read from
     if (samePath && !m_session->isModified()) {
         setStatus(tr("Nothing to save: %1 is as it was.").arg(QFileInfo(path).fileName()));

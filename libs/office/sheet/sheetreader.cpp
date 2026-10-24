@@ -7,8 +7,12 @@
 #include "office/xml.h"
 #include "io/zipindex.h"
 #include "office/xmlstream.h"
+#include "io/cfb.h"
+#include "sheet/xls.h"
+#include "sheet/xlsxbase.h"
 
 #include <QCoreApplication>
+#include <QFile>
 #include <QSet>
 #include <QXmlStreamReader>
 #include <algorithm>
@@ -108,6 +112,12 @@ bool toNumber(const QString &text, double *value)
 
 // ---- the shared strings
 
+namespace {
+bool flagOf(const QXmlStreamReader &r);
+double boundedNumber(QStringView text, double low, double high, double fallback);
+ColorSpec colorOf(const QXmlStreamReader &r);
+} // namespace
+
 bool readSharedStrings(QIODevice *in, const Limits &limits, SharedStrings *out, QString *error)
 {
     *out = SharedStrings();
@@ -120,6 +130,24 @@ bool readSharedStrings(QIODevice *in, const Limits &limits, SharedStrings *out, 
     int depth = 0, phonetic = 0;
     bool inItem = false, inText = false, rootSeen = false;
     QString text;
+    // The runs of a rich string, when they are asked for: where each begins, and the font its properties name (the same font once among the strings).
+    const bool wantRuns = limits.richText;
+    RichRuns runs;
+    bool inRun = false, inProps = false, haveProps = false, anyOwnFont = false;
+    quint32 runStart = 0;
+    qint64 runCount = 0;
+    FontSpec runFont;
+    QHash<QByteArray, quint32> fontIds;
+    auto internFont = [&](const FontSpec &f) {
+        QByteArray key = f.name.toUtf8() + '|' + QByteArray::number(f.size) + '|' + char('0' + f.bold) + char('0' + f.italic) + char('0' + f.strike) + char('0' + int(f.underline)) + char('0' + f.vertAlign)
+            + '|' + QByteArray::number(int(f.color.kind)) + ',' + QByteArray::number(f.color.rgb) + ',' + QByteArray::number(f.color.index) + ',' + QByteArray::number(f.color.tint);
+        auto it = fontIds.constFind(key);
+        if (it == fontIds.cend()) {
+            out->richFonts.append(f);
+            it = fontIds.insert(key, quint32(out->richFonts.size() - 1));
+        }
+        return it.value();
+    };
     while (!r.atEnd()) {
         switch (r.readNext()) {
         case QXmlStreamReader::DTD:
@@ -133,20 +161,67 @@ bool readSharedStrings(QIODevice *in, const Limits &limits, SharedStrings *out, 
                 if (out->strings.size() >= limits.sharedStrings) return fail(translate("The file has more shared strings than any real file has."));
                 inItem = true;
                 text.clear();
+                runs.clear();
+                anyOwnFont = false;
             } else if (inItem && !phonetic) {
                 // The text of a string is its <t> and the <t> of its runs; the phonetic runs (rPh) are not text.
                 if (isElement(r, "rPh") || isElement(r, "phoneticPr")) phonetic = depth;
                 else if (isElement(r, "t") && (depth == 3 || depth == 4)) inText = true;
+                else if (wantRuns && depth == 3 && isElement(r, "r")) {
+                    inRun = true;
+                    haveProps = false;
+                    runFont = FontSpec();
+                    runStart = quint32(text.size());
+                } else if (wantRuns && inRun && depth == 4 && isElement(r, "rPr")) {
+                    inProps = true;
+                    haveProps = true;
+                } else if (wantRuns && inProps && depth == 5) {
+                    if (isElement(r, "b")) runFont.bold = flagOf(r);
+                    else if (isElement(r, "i")) runFont.italic = flagOf(r);
+                    else if (isElement(r, "strike")) runFont.strike = flagOf(r);
+                    else if (isElement(r, "sz")) runFont.size = boundedNumber(attribute(r, "val"), 1, 409.5, 11);
+                    else if (isElement(r, "rFont")) runFont.name = attribute(r, "val").left(kMaxFontNameChars).toString();
+                    else if (isElement(r, "color")) runFont.color = colorOf(r);
+                    else if (isElement(r, "u")) {
+                        const QStringView v = attribute(r, "val");
+                        runFont.underline = v == QLatin1String("none") ? Underline::None : v == QLatin1String("double") ? Underline::Double
+                                            : v == QLatin1String("singleAccounting") ? Underline::SingleAccounting : v == QLatin1String("doubleAccounting") ? Underline::DoubleAccounting : Underline::Single;
+                    } else if (isElement(r, "vertAlign")) {
+                        const QStringView v = attribute(r, "val");
+                        runFont.vertAlign = v == QLatin1String("superscript") ? 1 : v == QLatin1String("subscript") ? 2 : 0;
+                    }
+                }
             }
             break;
         case QXmlStreamReader::EndElement:
             if (phonetic == depth) phonetic = 0;
             if (inText && isElement(r, "t")) inText = false;
+            if (wantRuns && inProps && depth == 4) inProps = false;
+            if (wantRuns && inRun && depth == 3 && !phonetic) {
+                inRun = false;
+                if (haveProps) anyOwnFont = true;
+                if (runCount < limits.richRuns) {
+                    RichRun run;
+                    run.start = runStart;
+                    run.font = haveProps ? internFont(runFont) : RichRun::kCellFont;
+                    runs.append(run);
+                    ++runCount;
+                }
+            }
             if (depth == 2 && inItem) {
                 inItem = false;
+                // (the runs were counted in the text as written; where it has escapes, they are counted again in the text they stand for)
+                if (wantRuns && !runs.isEmpty() && text.contains(QLatin1String("_x"))) {
+                    for (RichRun &run : runs) {
+                        QString before = text.left(int(run.start));
+                        decodeEscapes(&before);
+                        run.start = quint32(before.size());
+                    }
+                }
                 decodeEscapes(&text);
                 out->chars += text.size();
                 if (out->chars > limits.sharedStringChars) return fail(translate("The shared strings have more characters than any real file has."));
+                if (wantRuns && anyOwnFont && !runs.isEmpty()) out->rich.insert(qint32(out->strings.size()), runs);
                 out->strings.append(text);
                 text.clear();
             }
@@ -609,6 +684,7 @@ private:
     CellRange m_ref;
     bool m_haveRef = false;
     QString m_r1, m_r2;
+    bool m_dtr = false;   // a table of one input: its input is a row input cell
     // shared formulas
     QHash<qint64, Master> m_masters;
     QHash<qint64, QVector<Pending>> m_pending;
@@ -870,6 +946,7 @@ bool SheetReader::startFormula(const QXmlStreamReader &r)
     if (m_kind == Table) {
         m_r1 = attribute(r, "r1").toString();
         m_r2 = attribute(r, "r2").toString();
+        m_dtr = parseBool(attribute(r, "dtr").toString());
     }
     m_formula.clear();
     return true;
@@ -885,7 +962,8 @@ bool SheetReader::endFormula()
     qint32 text = -1;
     if (m_kind == Table) {
         m_cell.flags |= DataTable;
-        m_formula = QStringLiteral("TABLE(") + m_r1 + (m_r2.isEmpty() ? QString() : QStringLiteral(",") + m_r2) + QLatin1Char(')');
+        // as the formula of a table is written: the row input cell, then the column input cell; a table of one input has the other empty
+        m_formula = QStringLiteral("TABLE(") + (!m_r2.isEmpty() ? m_r1 + QLatin1Char(',') + m_r2 : m_dtr ? m_r1 + QLatin1Char(',') : QLatin1Char(',') + m_r1) + QLatin1Char(')');
         if (!take(stringBytes(m_formula.size()))) return false;
         m_sheet.formulaTexts.append(m_formula);
         text = qint32(m_sheet.formulaTexts.size() - 1);
@@ -1280,6 +1358,142 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
     return true;
 }
 
+bool Workbook::openStream(const QByteArray &stream, bool hasMacros, QString *error, const Limits &limits)
+{
+    *this = Workbook();
+    m_limits = limits;
+    const auto xls = XlsBook::open(stream, hasMacros, limits, &m_info, &m_shared, &m_styles, error);
+    if (!xls) {
+        *this = Workbook();
+        return false;
+    }
+    m_xls = xls;
+    // The workbook is saved as a package of XML parts that is written from what was read (see xlsxbase.h): its parts are named from the start, with the strings and cell formats it was
+    // read with already in the file, so that what an edit adds goes after them.
+    m_mainPart = baseMainPart();
+    m_sharedPart = baseSharedStringsPart();
+    m_stylesPart = baseStylesPart();
+    for (int i = 0; i < m_info.sheets.size(); ++i) {
+        m_info.sheets[i].part = baseSheetPart(i);
+        m_info.sheets[i].relId = QStringLiteral("rId%1").arg(i + 1);
+    }
+    m_sharedInFile = m_shared.strings.size();
+    m_formatsInFile = m_styles.formats.size();
+    return true;
+}
+
+namespace {
+
+QString tooLargeMessage() { return QCoreApplication::translate("jp::office::doc", "The file is larger than this program can open."); }
+
+// Whether a compound file holds a macro project, by whether the streams a project has are there: one function for the two ways a file is opened.
+bool holdsMacroProject(const std::function<bool(const QString &)> &hasStream)
+{
+    static const char *const paths[] = {"_VBA_PROJECT_CUR/VBA/dir", "_VBA_PROJECT_CUR/VBA/_VBA_PROJECT", "VBA/dir", "VBA/_VBA_PROJECT"};
+    for (const char *path : paths)
+        if (hasStream(QString::fromLatin1(path))) return true;
+    return false;
+}
+
+// What a file that is not a workbook of either kind says it is, from its first bytes, in words for the person: a page of the web or an XML spreadsheet saved with the name of a
+// workbook; empty if it says neither.
+QString plainKindOfText(const QByteArray &bytes)
+{
+    QByteArray head = bytes.left(1024);
+    if (head.startsWith("\xEF\xBB\xBF")) head.remove(0, 3);
+    head = head.trimmed().toLower();
+    if (head.isEmpty() || head[0] != '<') return QString();
+    if (head.startsWith("<html") || head.startsWith("<!doctype html") || head.contains("<html"))
+        return translate("This file is a web page that was saved with an .xls name. This program can't open that kind of file yet.");
+    if (head.contains("<workbook") && head.contains("spreadsheet"))
+        return translate("This file is an XML spreadsheet that was saved with an .xls name. This program can't open that kind of file yet.");
+    return QString();
+}
+
+} // namespace
+
+bool Workbook::openBinary(const QByteArray &file, QString *error, const Limits &limits)
+{
+    if (file.size() > limits.fileBytes) {
+        if (error) *error = tooLargeMessage();
+        return false;
+    }
+    if (!startsCompoundFile(file)) {
+        // (a stream with no container: the forms before BIFF5, which says so; or not a workbook of this kind at all)
+        const bool stream = file.size() >= 4 && quint8(file[0]) == 0x09 && (quint8(file[1]) == 0x00 || quint8(file[1]) == 0x02 || quint8(file[1]) == 0x04 || quint8(file[1]) == 0x08);
+        if (!stream) {
+            const QString kind = plainKindOfText(file);
+            if (!kind.isEmpty()) {
+                if (error) *error = kind;
+                return false;
+            }
+        }
+        return openStream(file, false, error, limits);
+    }
+    jp::cfb::File container;
+    QString why;
+    if (!jp::cfb::read(file, &container, &why)) {
+        if (error) *error = translate("The file is damaged: %1").arg(why);
+        return false;
+    }
+    QByteArray stream = container.stream(QStringLiteral("Workbook"));
+    if (stream.isEmpty()) stream = container.stream(QStringLiteral("Book"));
+    if (stream.isEmpty()) {
+        if (error) *error = translate("The file has no workbook in it.");
+        return false;
+    }
+    const bool macros = holdsMacroProject([&](const QString &path) { return !container.stream(path).isEmpty(); });
+    return openStream(stream, macros, error, limits);
+}
+
+bool Workbook::openFile(const QString &path, QString *error, const Limits &limits)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        if (error) *error = file.errorString();
+        return false;
+    }
+    // (a file past the limit is refused before any of it is read)
+    if (file.size() > limits.fileBytes) {
+        if (error) *error = tooLargeMessage();
+        return false;
+    }
+    const QByteArray head = file.read(1024);
+    file.close();
+    // (a stream with no container: the forms before BIFF5, and a bare BIFF8 or BIFF5 stream, begin with the record of the start of a workbook)
+    const bool raw = head.size() >= 4 && quint8(head[0]) == 0x09 && (quint8(head[1]) == 0x00 || quint8(head[1]) == 0x02 || quint8(head[1]) == 0x04 || quint8(head[1]) == 0x08);
+    if (startsCompoundFile(head)) {
+        QString why;
+        QByteArray stream = jp::cfb::readStream(path, QStringLiteral("Workbook"), &why);
+        if (stream.isEmpty()) stream = jp::cfb::readStream(path, QStringLiteral("Book"));
+        if (stream.isEmpty()) {
+            if (error) *error = why.startsWith(QLatin1String("no stream")) || why.isEmpty() ? translate("The file has no workbook in it.") : translate("The file is damaged: %1").arg(why);
+            return false;
+        }
+        const bool macros = holdsMacroProject([&](const QString &stream) { return !jp::cfb::readStream(path, stream).isEmpty(); });
+        return openStream(stream, macros, error, limits);
+    }
+    if (raw) {
+        QByteArray whole;
+        if (!readWholeFile(path, &whole, error, limits.fileBytes)) return false;
+        return openStream(whole, false, error, limits);
+    }
+    if (!head.startsWith("PK")) {
+        const QString kind = plainKindOfText(head);
+        if (!kind.isEmpty()) {
+            if (error) *error = kind;
+            return false;
+        }
+    }
+    QByteArray bytes;
+    if (!readWholeFile(path, &bytes, error, limits.fileBytes)) return false;
+    Package package;
+    if (!package.readLazy(bytes, error)) return false;
+    return open(package, error, limits);
+}
+
+QStringList Workbook::skippedFeatures() const { return m_xls ? m_xls->skipped() : QStringList(); }
+
 // ---- changes
 
 qint32 Workbook::addSharedString(const QString &text)
@@ -1391,6 +1605,7 @@ bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)
         out->error = translate("There is no such sheet.");
         return false;
     }
+    if (m_xls) return m_xls->readSheet(index, m_limits, progress, out);
     const SheetEntry &entry = m_info.sheets[index];
     // A sheet of a chart has no cells, nor has one the file names with no part to hold it (a module of macros that is listed as a sheet has no relationship).
     if (entry.kind == SheetKind::Chartsheet || entry.relId.isEmpty()) return true;

@@ -13,6 +13,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QString>
+#include <QStringList>
 
 #include <atomic>
 #include <condition_variable>
@@ -36,6 +37,7 @@ struct LoadedBook {
     std::shared_ptr<const jp::grid::GridGeometry> previewGeometry;
     std::vector<std::shared_ptr<const jp::grid::GridGeometry>> geometry;
     QString problem;                                        // what could not be read whole, in words ("" when all of it was)
+    QStringList notRead;                                    // what a workbook of the older binary form has that is not read (charts, pictures, ...), in words
     qint64 firstScreenMs = 0, loadMs = 0;                   // how long each took
     std::atomic<qint64> cellsRead{0};                       // cells of the sheets read so far (set by the worker as it reads, and read by anyone)
     std::atomic<bool> workerEnded{false};                   // the worker has gone: it will touch nothing of this again

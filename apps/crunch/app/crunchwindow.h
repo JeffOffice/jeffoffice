@@ -58,6 +58,10 @@ public:
     // reason shown, if the file can't be read at all.
     bool openFile(const QString &path);
     bool isLoading() const { return m_loading; }
+    // The path a Save writes to: the file's own for a workbook of the XML form. For one read from the older binary form (.xls) it is a new name with the ending .xlsx: the person is told
+    // in plain words that workbooks are saved as .xlsx and the file is not changed, and asked for the name (the file dialog, or the picker a test sets); the file it was read from is never
+    // the answer. Empty if there is no workbook or the person cancels.
+    QString pathToSave();
     // The loader that reads the workbook and works it out (a test holds its worker back to make what it checks independent of speed).
     crunch::WorkbookLoader &workbookLoader() { return m_loader; }
     bool isCalculating() const { return m_calculating; }
@@ -179,6 +183,8 @@ private:
     void onSaved(bool ok, const QString &message, const QString &path, const QByteArray &bytes, const std::shared_ptr<crunch::EditSession::Snapshot> &snapshot);
     bool askAboutChanges();
     QString saveKind() const;
+    // Whether the workbook has no file of its own form to be saved over yet: it was read from the older binary form, and no .xlsx has been written from it.
+    bool savesAsANewFile() const;
     void setStatus(const QString &text);
     void goToName();
     void copySelection();

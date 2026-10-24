@@ -2,6 +2,7 @@
 
 #include "app/crunchwindow.h"
 
+#include "app/oldformat.h"
 #include "app/settings.h"
 #include "app/sheettabs.h"
 #include "app/telemetry.h"
@@ -129,6 +130,7 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     m_calculating = true;
     setStatus(tr("Calculating…"));
     if (!m_loadProblem.isEmpty()) notice(tr("Open"), m_loadProblem, true);
+    if (!m_loaded->notRead.isEmpty()) notice(tr("Open"), crunch::notReadNotice(m_loaded->notRead));
     Q_EMIT loadFinished(true);
 }
 
