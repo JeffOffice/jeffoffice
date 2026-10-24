@@ -198,6 +198,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_grid_view.cpp
   tests/sheet/tst_sheet_bounds.cpp
   tests/sheet/tst_sheet_calculation.cpp
+  tests/sheet/tst_sheet_chartdata.cpp
   tests/sheet/tst_sheet_drawing.cpp
   tests/sheet/tst_sheet_cells.cpp
   tests/sheet/tst_sheet_edit.cpp

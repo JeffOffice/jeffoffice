@@ -65,6 +65,8 @@ struct ChartTitle {
     bool overlay = false;           // drawn over the plot, not above it
     bool hasRotation = false;       // the file turns it (degrees clockwise); an axis title's usual turn is not written here
     double rotation = 0;
+    QString ref;                    // the cells the text is read from (c:strRef's c:f), else empty
+    bool automatic = false;         // a chart title with no text of its own, named for its series
 };
 
 struct ChartMarker {
@@ -100,6 +102,10 @@ struct ChartSeries {
     bool noFill = false;            // the file says no fill
     ChartLine outline;              // the border of bars, areas, and slices; the stroke of a line
     QMap<int, QColor> pointColors;  // a point (or a slice) of another color, by its place
+    // Where a chart in a workbook reads the series' data (the c:f of its name, its categories, and its values, or of a scatter's x and y values); empty when
+    // the file gives a literal or says nothing. The name, categories, and values above are what the file stored; a program that has the cells puts theirs in.
+    QString nameRef, categoryRef, valueRef, xRef;
+    bool categoryRefNumeric = false;    // the categories are numbers (c:numRef), shown through the format of the cache
     ChartMarker marker;
     bool smooth = false;
     ChartDataLabels labels;
@@ -178,6 +184,7 @@ struct Chart {
     bool plotManual = false, plotInner = true;
     double plotX = 0, plotY = 0, plotW = 0, plotH = 0;
     QString blanksAs = QStringLiteral("gap");   // c:dispBlanksAs: "gap", "zero", or "span"
+    bool plotVisibleOnly = true;                // c:plotVisOnly: the cells in hidden rows and columns are left out
 
     // The first plot's kind; Bar for a chart with none.
     ChartType type() const { return plots.isEmpty() ? ChartType::Bar : plots.first().type; }

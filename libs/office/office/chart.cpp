@@ -27,6 +27,8 @@ constexpr int kMaxSeries = 256, kMaxPoints = 10000, kMaxPlots = 16, kMaxAxes = 1
 constexpr int kMaxChartPoints = 100000;
 // A number format code is at most 255 characters in a spreadsheet; a longer one is none, and the numbers show as they are.
 constexpr int kMaxFormatCode = 255;
+// The text of a reference to cells (a list of areas can be long, but a few thousand characters is far more than a chart has).
+constexpr int kMaxRefChars = 4096;
 // A title and the like: a paragraph or two.
 constexpr int kMaxTitle = 1000;
 
@@ -400,6 +402,7 @@ struct Data {
     QString format = QStringLiteral("General");
     bool numeric = false;   // the file stores numbers
     bool present = false;
+    QString ref;            // the c:f of the c:numRef or c:strRef the cache is of
 };
 
 class Reader {
@@ -532,6 +535,7 @@ ChartTitle Reader::readTitle(const QDomElement &e) const
         t.text = richText(r, &t.font, &t.hasRotation, &t.rotation);
     } else if (const QDomElement ref = cChild(tx, "strRef"); !ref.isNull()) {
         t.text = cChild(cChild(cChild(ref, "strCache"), "pt"), "v").text().left(kMaxTitle);
+        t.ref = cChild(ref, "f").text().trimmed().left(kMaxRefChars);
     }
     t.overlay = flagOf(cChild(e, "overlay"), false);
     const ChartFont fromProps = readTxPr(cChild(e, "txPr"), &t.hasRotation, &t.rotation);
@@ -555,6 +559,7 @@ Data Reader::readData(const QDomElement &parent) const
         if (const QDomElement ref = cChild(parent, k.ref); !ref.isNull()) {
             cache = cChild(ref, k.cache);
             data.numeric = k.numeric;
+            data.ref = cChild(ref, "f").text().trimmed().left(kMaxRefChars);
             break;
         }
     if (cache.isNull())
@@ -641,6 +646,7 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
     if (const QDomElement ref = cChild(tx, "strRef"); !ref.isNull()) {
         const QDomElement pt = cChild(cChild(ref, "strCache"), "pt");
         s.name = cChild(pt, "v").text().left(kChartMaxLabel);
+        s.nameRef = cChild(ref, "f").text().trimmed().left(kMaxRefChars);
     } else if (!tx.isNull()) {
         s.name = cChild(tx, "v").text().left(kChartMaxLabel);
     }
@@ -674,6 +680,9 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
     const Data categories = readData(cChild(ser, scatter ? "xVal" : "cat"));
     s.values = values.numbers;
     s.format = values.format;
+    s.valueRef = values.ref;
+    (scatter ? s.xRef : s.categoryRef) = categories.ref;
+    s.categoryRefNumeric = categories.numeric;
     if (scatter) {
         s.xValues = categories.numbers;
         if (!categories.numeric && categories.present) {
@@ -893,9 +902,11 @@ bool Reader::read(const QDomElement &root, QString *error)
         c.legend.font = readTxPr(cChild(legend, "txPr"));
     }
     c.blanksAs = valOf(cChild(chart, "dispBlanksAs"), QStringLiteral("gap"));
+    c.plotVisibleOnly = flagOf(cChild(chart, "plotVisOnly"), true);
     applyStyleColors();
     // A title with no text of its own is named for the series, or has the usual words.
     if (c.title.present && c.title.text.isEmpty()) {
+        c.title.automatic = c.title.ref.isEmpty();
         int count = 0;
         QString only;
         for (const ChartPlot &p : std::as_const(c.plots))
