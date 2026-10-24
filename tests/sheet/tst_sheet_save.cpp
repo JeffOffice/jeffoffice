@@ -653,6 +653,104 @@ private Q_SLOTS:
         QVERIFY(out.contains("<styleSheet xmlns=\"" + kMainNs.toUtf8() + "\"><numFmts count=\"1\"><numFmt numFmtId=\"164\" formatCode=\"0.00\"/></numFmts><cellStyleXfs"));
     }
 
+    // Fonts, fills, borders, and cell formats that a person's formatting made are put at the ends of their lists, each cell format a copy of the one it was made from with the places of its
+    // font, fill, and border, its alignment and protection, and what the file said of it besides (the style it follows) kept.
+    void stylesGetNewFontsFillsBordersAndWholeFormats()
+    {
+        const QString lists = QStringLiteral("<fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/><family val=\"2\"/><scheme val=\"minor\"/></font></fonts>"
+                                             "<fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills>"
+                                             "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>");
+        const QByteArray xml = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" xfId=\"0\" customAttribute=\"keep\"><alignment horizontal=\"center\" justifyLastLine=\"1\"/></xf>"), lists);
+        SaveChanges changes;
+        FontSpec font;
+        font.name = QStringLiteral("Georgia");
+        font.size = 14;
+        font.bold = true;
+        font.underline = Underline::Double;
+        font.color = ColorSpec::fromRgb(0xC00000);
+        changes.newFonts.append(font);
+        changes.fontsBefore = 1;
+        FillSpec fill;
+        fill.pattern = PatternKind::Solid;
+        fill.fg = ColorSpec::fromRgb(0xFFFF00);
+        changes.newFills.append(fill);
+        changes.fillsBefore = 2;
+        BorderSpec border;
+        border.bottom.style = BorderStyle::Double;
+        border.bottom.color = ColorSpec::fromRgb(0x0000FF);
+        changes.newBorders.append(border);
+        changes.bordersBefore = 1;
+        CellFormat one;
+        one.font = 1;
+        one.fill = 2;
+        one.border = 1;
+        one.horizontal = HAlign::Right;
+        one.vertical = VAlign::Top;
+        one.wrap = true;
+        one.indent = 3;
+        one.rotation = 90;
+        one.readingOrder = 2;
+        one.locked = false;
+        one.formulaHidden = true;
+        changes.newCellFormats.append({0, 0, true, one});
+        CellFormat two = one;
+        two.horizontal = HAlign::General;
+        two.wrap = false;
+        two.indent = 0;
+        two.rotation = 0;
+        two.readingOrder = 0;
+        two.locked = true;
+        two.formulaHidden = false;
+        two.vertical = VAlign::Bottom;
+        changes.newCellFormats.append({1, 0, true, two});   // a copy of the first, made plain again
+        changes.cellFormatsBefore = 1;
+        CellStyleName good;
+        good.name = QStringLiteral("Good");
+        good.builtin = 26;
+        CellFormat goodFormat;
+        goodFormat.font = 1;
+        goodFormat.fill = 2;
+        changes.newStyles.append({goodFormat, good});
+        changes.styleXfsBefore = 1;
+        QByteArray out;
+        QString why;
+        QVERIFY2(patchStyles(xml, changes, &out, &why), qPrintable(why));
+        QVERIFY(out.contains("<fonts count=\"2\">"));
+        QVERIFY(out.contains("<fills count=\"3\">"));
+        QVERIFY(out.contains("<borders count=\"2\">"));
+        QVERIFY(out.contains("<cellXfs count=\"3\">"));
+        QVERIFY(out.contains("<cellStyleXfs count=\"2\">"));
+        QVERIFY(out.contains("<cellStyles count=\"2\">"));
+        QVERIFY2(out.contains("customAttribute=\"keep\""), out.constData());   // (what the file said of the format besides stays)
+        Styles read;
+        QBuffer in(&out);
+        in.open(QIODevice::ReadOnly);
+        QVERIFY(readStyles(&in, Limits(), &read));
+        QCOMPARE(read.fonts.size(), 2);
+        QVERIFY(read.fonts[1] == font);
+        QCOMPARE(read.fonts[0].scheme, QStringLiteral("minor"));
+        QCOMPARE(read.fonts[0].family, 2);
+        QCOMPARE(read.fills.size(), 3);
+        QVERIFY(read.fills[2] == fill);
+        QCOMPARE(read.borders.size(), 2);
+        QVERIFY(read.borders[1] == border);
+        QCOMPARE(read.formats.size(), 3);
+        const CellFormat &a = read.formats[1], &b = read.formats[2];
+        QCOMPARE(a.font, 1u);
+        QCOMPARE(a.fill, 2u);
+        QCOMPARE(a.border, 1u);
+        QVERIFY(a.horizontal == HAlign::Right && a.vertical == VAlign::Top && a.wrap && a.indent == 3 && a.rotation == 90 && a.readingOrder == 2 && !a.locked && a.formulaHidden);
+        QVERIFY(b.horizontal == HAlign::General && b.vertical == VAlign::Bottom && !b.wrap && b.indent == 0 && b.rotation == 0 && b.readingOrder == 0 && b.locked && !b.formulaHidden);
+        QCOMPARE(b.font, 1u);
+        QCOMPARE(read.styleXfs.size(), 2);
+        QCOMPARE(read.styleXfs[1].fill, 2u);
+        QCOMPARE(read.cellStyles.size(), 2);
+        QCOMPARE(read.cellStyles[1].name, QStringLiteral("Good"));
+        QCOMPARE(read.cellStyles[1].builtin, 26);
+        QCOMPARE(read.cellStyles[1].xfId, 1u);
+        QVERIFY2(out.contains("justifyLastLine=\"1\""), "an alignment attribute the program does not know stays on the format that was copied from the first");
+    }
+
     // ---- the whole file
 
     void aFileWithNothingChangedIsTheSameFile()

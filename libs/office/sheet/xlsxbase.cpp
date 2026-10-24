@@ -82,6 +82,9 @@ QByteArray fontElement(const FontSpec &f)
     e += "<sz val=\"" + real(f.size) + "\"/>";
     e += colorElement("color", f.color);
     e += "<name val=\"" + attributeValue(f.name.isEmpty() ? QStringLiteral("Arial") : f.name) + "\"/>";
+    if (f.family >= 0) e += "<family val=\"" + num(f.family) + "\"/>";
+    if (f.charset >= 0) e += "<charset val=\"" + num(f.charset) + "\"/>";
+    if (!f.scheme.isEmpty()) e += "<scheme val=\"" + attributeValue(f.scheme) + "\"/>";
     return e + "</font>";
 }
 
@@ -160,11 +163,12 @@ QByteArray xfElement(const CellFormat &f, int xfId, bool cellFormat)
 {
     QByteArray e = "<xf" + attr("numFmtId", num(f.numFmtId)) + attr("fontId", num(f.font)) + attr("fillId", num(f.fill)) + attr("borderId", num(f.border)) + attr("xfId", num(xfId));
     if (cellFormat) e += attr("applyNumberFormat", "1") + attr("applyFont", "1") + attr("applyFill", "1") + attr("applyBorder", "1") + attr("applyAlignment", "1");
-    if (!f.locked) e += attr("applyProtection", "1");
+    if (!f.locked || f.formulaHidden) e += attr("applyProtection", "1");
+    if (f.quotePrefix) e += attr("quotePrefix", "1");
     QByteArray inner;
     const char *h = horizontalName(f.horizontal);
     const char *v = verticalName(f.vertical);
-    if (h || v || f.wrap || f.shrink || f.indent || f.rotation) {
+    if (h || v || f.wrap || f.shrink || f.indent || f.rotation || f.readingOrder) {
         inner += "<alignment";
         if (h) inner += attr("horizontal", h);
         if (v) inner += attr("vertical", v);
@@ -172,9 +176,10 @@ QByteArray xfElement(const CellFormat &f, int xfId, bool cellFormat)
         if (f.wrap) inner += attr("wrapText", "1");
         if (f.indent) inner += attr("indent", num(f.indent));
         if (f.shrink) inner += attr("shrinkToFit", "1");
+        if (f.readingOrder) inner += attr("readingOrder", num(f.readingOrder));
         inner += "/>";
     }
-    if (!f.locked) inner += "<protection locked=\"0\"/>";
+    if (!f.locked || f.formulaHidden) inner += QByteArray("<protection") + (f.locked ? "" : " locked=\"0\"") + (f.formulaHidden ? " hidden=\"1\"" : "") + "/>";
     return inner.isEmpty() ? e + "/>" : e + ">" + inner + "</xf>";
 }
 
@@ -671,6 +676,20 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
     zip.add(QStringLiteral("xl/sharedStrings.xml"), sharedStringsPart(book.sharedStrings(), qsizetype(book.sharedStringsInFile()), references), true);
     *out = zip.finish();
     return true;
+}
+
+
+QByteArray fontXml(const FontSpec &f) { return fontElement(f); }
+QByteArray fillXml(const FillSpec &f) { return fillElement(f); }
+QByteArray borderXml(const BorderSpec &b) { return borderElement(b); }
+QByteArray xfXml(const CellFormat &f, int xfId, bool cellFormat) { return xfElement(f, xfId, cellFormat); }
+QByteArray alignmentXml(const CellFormat &f)
+{
+    const QByteArray xf = xfElement(f, 0, false);
+    const qsizetype at = xf.indexOf("<alignment");
+    if (at < 0) return QByteArray();
+    const qsizetype end = xf.indexOf("/>", at);
+    return end < 0 ? QByteArray() : xf.mid(at, end + 2 - at);
 }
 
 } // namespace jp::office::sheet

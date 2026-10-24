@@ -859,11 +859,23 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     out->strings = int(changes.newSharedStrings.size());
     if (hasStyles) {
         for (const Workbook::AddedNumberFormat &f : book.addedNumberFormats()) changes.newNumberFormats.append({f.id, f.code});
-        for (const Workbook::AddedCellFormat &f : book.addedCellFormats()) changes.newCellFormats.append({f.base, f.numFmtId});
+        for (const Workbook::AddedCellFormat &f : book.addedCellFormats()) changes.newCellFormats.append({f.base, f.format.numFmtId, true, f.format});
         changes.cellFormatsBefore = book.cellFormatsInFile();
+        changes.newFonts = book.addedFonts();
+        changes.fontsBefore = book.fontsInFile();
+        changes.newFills = book.addedFills();
+        changes.fillsBefore = book.fillsInFile();
+        changes.newBorders = book.addedBorders();
+        changes.bordersBefore = book.bordersInFile();
+        for (const Workbook::AddedStyle &s : book.addedStyles()) changes.newStyles.append({s.format, s.name});
+        changes.styleXfsBefore = book.styleXfsInFile();
     }
     out->numberFormats = int(changes.newNumberFormats.size());
     out->cellFormats = int(changes.newCellFormats.size());
+    out->fonts = int(changes.newFonts.size());
+    out->fills = int(changes.newFills.size());
+    out->borders = int(changes.newBorders.size());
+    out->styles = int(changes.newStyles.size());
     // The other program is asked to work every formula out again when this program could not: a formula it keeps apart that may read what changed, a result it did not get to, or a
     // formula it gave no result.
     changes.fullCalcOnLoad = (!m_touched.empty() || !m_results.empty()) && (calc->isDirty() || resultMissing || calc->keptCount() > 0);
@@ -872,7 +884,15 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
 
 void EditSession::saved(const Snapshot &snapshot, const Package &package)
 {
-    m_book->book->savedTo(package, snapshot.strings, snapshot.numberFormats, snapshot.cellFormats);
+    Workbook::SavedCounts counts;
+    counts.strings = snapshot.strings;
+    counts.numberFormats = snapshot.numberFormats;
+    counts.cellFormats = snapshot.cellFormats;
+    counts.fonts = snapshot.fonts;
+    counts.fills = snapshot.fills;
+    counts.borders = snapshot.borders;
+    counts.styles = snapshot.styles;
+    m_book->book->savedTo(package, counts);
     for (const auto &[key, v] : snapshot.results) m_fileResults[key] = v;
     for (const auto &[key, v] : snapshot.touchedResults) m_fileResults[key] = v;
     m_touched.clear();

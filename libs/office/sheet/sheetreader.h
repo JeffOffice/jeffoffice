@@ -18,6 +18,7 @@
 #include <functional>
 #include <memory>
 #include <map>
+#include <unordered_map>
 #include <vector>
 
 namespace jp::office::sheet {
@@ -230,6 +231,11 @@ public:
     // format (the one it is already, or one made).
     int numberFormatId(const QString &code);
     quint32 formatWithNumberFormat(quint32 base, int numFmtId);
+    // The place of the cell format that is `base` with the change: one of the workbook's that is exactly that (a cell format is never made twice), else a new one at the end, with the
+    // font, fill, and border it needs found among the workbook's or added. `base` itself when the change changes nothing (or the workbook can take no more cell formats).
+    quint32 formatWith(quint32 base, const FormatChange &change);
+    // The place of the style format a named style has (by its name), made when the workbook does not have it and it is one of the built-in styles (see builtinStyleNames); -1 if there is none.
+    qint32 styleNamed(const QString &name);
     // The additions since the file was read or saved, for saving them: the strings, the number formats (id and code), and the cell formats (the one each is a copy of, and its number format).
     QStringList addedSharedStrings() const { return m_sharedAdded; }
     struct AddedNumberFormat {
@@ -237,13 +243,38 @@ public:
         QString code;
     };
     struct AddedCellFormat {
-        quint32 base;
-        int numFmtId;
+        quint32 base;        // the cell format it is a copy of (in the file, or added before)
+        CellFormat format;   // and what it is: the places of its number format, font, fill, and border are the ones in the file as it will be written
     };
     QVector<AddedNumberFormat> addedNumberFormats() const { return m_numFmtsAdded; }
     QVector<AddedCellFormat> addedCellFormats() const { return m_formatsAdded; }
-    // The file has been written with the first `strings`, `numberFormats`, and `cellFormats` of what was added: the package is the new file's, and those are in it.
-    void savedTo(const Package &package, int strings, int numberFormats, int cellFormats);
+    QVector<FontSpec> addedFonts() const { return m_fontsAdded; }
+    QVector<FillSpec> addedFills() const { return m_fillsAdded; }
+    QVector<BorderSpec> addedBorders() const { return m_bordersAdded; }
+    // The named styles added (built-in ones the file did not have): the style format of each, and the name.
+    struct AddedStyle {
+        CellFormat format;
+        CellStyleName name;
+    };
+    QVector<AddedStyle> addedStyles() const { return m_stylesAdded; }
+    qint64 fontsInFile() const { return m_fontsInFile; }
+    qint64 fillsInFile() const { return m_fillsInFile; }
+    qint64 bordersInFile() const { return m_bordersInFile; }
+    qint64 styleXfsInFile() const { return m_styleXfsInFile; }
+    // The file has been written with the first `strings`, `numberFormats`, and `cellFormats` (and the fonts, fills, borders, and styles) of what was added: the package is the new file's, and
+    // those are in it.
+    struct SavedCounts {
+        int strings = 0, numberFormats = 0, cellFormats = 0, fonts = 0, fills = 0, borders = 0, styles = 0;
+    };
+    void savedTo(const Package &package, const SavedCounts &counts);
+    void savedTo(const Package &package, int strings, int numberFormats, int cellFormats)
+    {
+        SavedCounts c;
+        c.strings = strings;
+        c.numberFormats = numberFormats;
+        c.cellFormats = cellFormats;
+        savedTo(package, c);
+    }
 
     // ---- tables (see sheet/tables.h): read from the package when first asked for
     const QVector<Table> &tables() const;
@@ -271,6 +302,17 @@ private:
     QHash<QString, qint32> m_sharedAddedAt;
     QVector<AddedNumberFormat> m_numFmtsAdded;
     QVector<AddedCellFormat> m_formatsAdded;
+    QVector<FontSpec> m_fontsAdded;
+    QVector<FillSpec> m_fillsAdded;
+    QVector<BorderSpec> m_bordersAdded;
+    QVector<AddedStyle> m_stylesAdded;
+    qint64 m_fontsInFile = 0, m_fillsInFile = 0, m_bordersInFile = 0, m_styleXfsInFile = 0;
+    std::unordered_multimap<quint64, quint32> m_formatIndex;   // the cell formats by a hash of what they are, to find an equal one (made when first needed)
+    bool m_formatIndexMade = false;
+    quint32 fontPlace(const FontSpec &font);
+    quint32 fillPlace(const FillSpec &fill);
+    quint32 borderPlace(const BorderSpec &border);
+    quint32 findOrAddFormat(quint32 base, const CellFormat &format);
     WorkbookInfo m_info;
     SharedStrings m_shared;
     QString m_sharedError;

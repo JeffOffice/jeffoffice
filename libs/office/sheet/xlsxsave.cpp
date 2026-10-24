@@ -125,6 +125,204 @@ bool patchSharedStrings(const QByteArray &xml, const QStringList &added, QByteAr
 
 // ---- the styles
 
+namespace {
+
+// The XML with a prefix put in front of every element name (a styles part whose elements have one).
+QByteArray prefixed(const QByteArray &xml, const QByteArray &prefix)
+{
+    if (prefix.isEmpty()) return xml;
+    QByteArray out;
+    out.reserve(xml.size() + xml.size() / 8);
+    for (qsizetype i = 0; i < xml.size(); ++i) {
+        out += xml[i];
+        if (xml[i] == '<' && i + 1 < xml.size()) {
+            if (xml[i + 1] == '/') {
+                out += '/';
+                ++i;
+            }
+            out += prefix + ":";
+        }
+    }
+    return out;
+}
+
+// Removes an attribute from a start tag.
+void removeAttr(QByteArray *tag, const char *name)
+{
+    qsizetype vs = 0, ve = 0;
+    if (!xmlscan::attributeValue(*tag, name, &vs, &ve)) return;
+    qsizetype n = vs - 2;   // before the quote, the "="
+    while (n >= 0 && isSpace((*tag)[n])) --n;
+    if (n >= 0 && (*tag)[n] == '=') --n;
+    while (n >= 0 && isSpace((*tag)[n])) --n;
+    qsizetype nameStart = n;
+    while (nameStart > 0 && !isSpace((*tag)[nameStart - 1])) --nameStart;
+    qsizetype a = nameStart;
+    while (a > 0 && isSpace((*tag)[a - 1])) --a;
+    tag->remove(a, ve + 1 - a);
+}
+
+// An attribute set to a value, or taken away when the value is empty.
+void setOrRemove(QByteArray *tag, const char *name, const QByteArray &value)
+{
+    if (value.isEmpty()) removeAttr(tag, name);
+    else setAttribute(tag, name, value);
+}
+
+const char *horizontalText(HAlign a)
+{
+    switch (a) {
+    case HAlign::Left: return "left";
+    case HAlign::Center: return "center";
+    case HAlign::Right: return "right";
+    case HAlign::Fill: return "fill";
+    case HAlign::Justify: return "justify";
+    case HAlign::CenterContinuous: return "centerContinuous";
+    case HAlign::Distributed: return "distributed";
+    default: return "";
+    }
+}
+
+const char *verticalText(VAlign a)
+{
+    switch (a) {
+    case VAlign::Center: return "center";
+    case VAlign::Top: return "top";
+    case VAlign::Justify: return "justify";
+    case VAlign::Distributed: return "distributed";
+    default: return "";
+    }
+}
+
+// A raw xf element made to be `f`: its attributes (the places of the number format, font, fill, and border, the style it follows) and its alignment and protection children, with
+// anything else the file said of it (an extension, an attribute this program does not know) kept.
+bool xfMadeInto(const QByteArray &raw, const CellFormat &f, const QByteArray &prefix, QByteArray *out)
+{
+    Tag open;
+    if (!xmlscan::nextTag(raw, 0, &open) || open.closing) return false;
+    QByteArray tag = raw.left(open.end);
+    const bool selfClosing = open.selfClosing;
+    if (selfClosing) {
+        tag.chop(2);
+        while (!tag.isEmpty() && isSpace(tag.back())) tag.chop(1);
+        tag += ">";
+    }
+    setAttribute(&tag, "numFmtId", QByteArray::number(f.numFmtId));
+    setAttribute(&tag, "fontId", QByteArray::number(f.font));
+    setAttribute(&tag, "fillId", QByteArray::number(f.fill));
+    setAttribute(&tag, "borderId", QByteArray::number(f.border));
+    setAttribute(&tag, "xfId", QByteArray::number(f.xfId));
+    for (const char *apply : {"applyNumberFormat", "applyFont", "applyFill", "applyBorder", "applyAlignment", "applyProtection"}) setAttribute(&tag, apply, "1");
+    setOrRemove(&tag, "quotePrefix", f.quotePrefix ? "1" : "");
+    // the children: those that are not the alignment and protection are kept
+    QByteArray alignment, protection, others;
+    if (!selfClosing) {
+        const qsizetype innerStart = open.end;
+        qsizetype innerEnd = raw.lastIndexOf("</");
+        if (innerEnd < innerStart) innerEnd = raw.size();
+        const QByteArray inner = raw.mid(innerStart, innerEnd - innerStart);
+        qsizetype pos = 0;
+        Tag t;
+        int depth = 0;
+        qsizetype keepFrom = 0;
+        while (xmlscan::nextTag(inner, pos, &t)) {
+            pos = t.end;
+            if (t.closing) {
+                --depth;
+                continue;
+            }
+            if (depth == 0 && (t.local == "alignment" || t.local == "protection")) {
+                qsizetype end = t.end;
+                if (!t.selfClosing) {
+                    Tag close;
+                    if (!findEnd(inner, t, &close)) return false;
+                    end = close.end;
+                }
+                others += inner.mid(keepFrom, t.start - keepFrom);
+                (t.local == "alignment" ? alignment : protection) = inner.mid(t.start, end - t.start);
+                keepFrom = end;
+                pos = end;
+                continue;
+            }
+            if (!t.selfClosing) ++depth;
+        }
+        others += inner.mid(keepFrom);
+    }
+    // the alignment: the attributes this program knows are set to the format's, the others stay
+    QByteArray al = alignment.isEmpty() ? QByteArray("<alignment/>") : alignment;
+    Tag alTag;
+    if (!xmlscan::nextTag(al, 0, &alTag)) return false;
+    QByteArray alOpen = al.left(alTag.end);
+    if (alTag.selfClosing) {
+        alOpen.chop(2);
+        while (!alOpen.isEmpty() && isSpace(alOpen.back())) alOpen.chop(1);
+        alOpen += "/>";
+    }
+    setOrRemove(&alOpen, "horizontal", horizontalText(f.horizontal));
+    setOrRemove(&alOpen, "vertical", verticalText(f.vertical));
+    setOrRemove(&alOpen, "textRotation", f.rotation ? QByteArray::number(f.rotation) : QByteArray());
+    setOrRemove(&alOpen, "wrapText", f.wrap ? "1" : "");
+    setOrRemove(&alOpen, "indent", f.indent ? QByteArray::number(f.indent) : QByteArray());
+    setOrRemove(&alOpen, "shrinkToFit", f.shrink ? "1" : "");
+    setOrRemove(&alOpen, "readingOrder", f.readingOrder ? QByteArray::number(f.readingOrder) : QByteArray());
+    QByteArray alignmentNow = alTag.selfClosing ? alOpen : alOpen + al.mid(alTag.end);
+    // (an alignment that says nothing is left out)
+    Tag check;
+    xmlscan::nextTag(alignmentNow, 0, &check);
+    {
+        QByteArray bare = alOpen;
+        bare.replace("<alignment", "").replace("/>", "").replace(">", "");
+        if (bare.trimmed().isEmpty() && alTag.selfClosing) alignmentNow.clear();
+    }
+    QByteArray protectionNow;
+    if (!f.locked || f.formulaHidden || !protection.isEmpty()) {
+        QByteArray pr = protection.isEmpty() ? QByteArray("<protection/>") : protection;
+        Tag prTag;
+        if (!xmlscan::nextTag(pr, 0, &prTag)) return false;
+        QByteArray prOpen = pr.left(prTag.end);
+        if (prTag.selfClosing) {
+            prOpen.chop(2);
+            while (!prOpen.isEmpty() && isSpace(prOpen.back())) prOpen.chop(1);
+            prOpen += "/>";
+        }
+        setOrRemove(&prOpen, "locked", f.locked ? "" : "0");
+        setOrRemove(&prOpen, "hidden", f.formulaHidden ? "1" : "");
+        protectionNow = prTag.selfClosing ? prOpen : prOpen + pr.mid(prTag.end);
+    }
+    Q_UNUSED(prefix);
+    const QByteArray inner = alignmentNow + protectionNow + others;
+    if (inner.isEmpty()) {
+        tag.chop(1);
+        *out = tag + "/>";
+    } else {
+        *out = tag + inner + QByteArray("</") + (prefix.isEmpty() ? QByteArray() : prefix + ":") + "xf>";
+    }
+    return true;
+}
+
+// The container (an element that holds a list) with `n` items put at its end and its count raised; false if it is not in the part.
+bool appendToList(QByteArray *xml, const char *container, const QByteArray &items, qint64 n)
+{
+    if (n <= 0) return true;
+    Tag open;
+    if (!findStart(*xml, container, &open)) return false;
+    QByteArray openTag = xml->mid(open.start, open.end - open.start);
+    addToCount(&openTag, "count", n);
+    if (open.selfClosing) {
+        const QByteArray p(xmlscan::prefixOf(open.name));
+        openTag.chop(2);
+        while (!openTag.isEmpty() && isSpace(openTag.back())) openTag.chop(1);
+        *xml = xml->left(open.start) + openTag + ">" + items + "</" + (p.isEmpty() ? QByteArray() : p + ":") + container + ">" + xml->mid(open.end);
+        return true;
+    }
+    Tag close;
+    if (!findEnd(*xml, open, &close)) return false;
+    *xml = xml->left(open.start) + openTag + xml->mid(open.end, close.start - open.end) + items + xml->mid(close.start);
+    return true;
+}
+
+} // namespace
+
 bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *out, QString *error)
 {
     auto bad = [&] {
@@ -179,12 +377,17 @@ bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *
             if (qint64(f.base) < changes.cellFormatsBefore) base = raw.value(f.base);
             else if (qint64(f.base) - changes.cellFormatsBefore < made.size()) base = made[int(qint64(f.base) - changes.cellFormatsBefore)];
             if (base.isEmpty()) return bad();
-            Tag baseTag;
-            if (!xmlscan::nextTag(base, 0, &baseTag)) return bad();
-            QByteArray tag = base.left(baseTag.end);
-            setAttribute(&tag, "numFmtId", QByteArray::number(f.numFmtId));
-            setAttribute(&tag, "applyNumberFormat", "1");
-            const QByteArray one = tag + base.mid(baseTag.end);
+            QByteArray one;
+            if (f.full) {
+                if (!xfMadeInto(base, f.format, p, &one)) return bad();
+            } else {
+                Tag baseTag;
+                if (!xmlscan::nextTag(base, 0, &baseTag)) return bad();
+                QByteArray tag = base.left(baseTag.end);
+                setAttribute(&tag, "numFmtId", QByteArray::number(f.numFmtId));
+                setAttribute(&tag, "applyNumberFormat", "1");
+                one = tag + base.mid(baseTag.end);
+            }
             made.append(one);
             added += one;
         }
@@ -192,25 +395,42 @@ bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *
         addToCount(&openTag, "count", changes.newCellFormats.size());
         result = result.left(open.start) + openTag + result.mid(open.end, close.start - open.end) + added + result.mid(close.start);
     }
+    // the named styles: their formats among the style formats, and their names
+    if (!changes.newStyles.isEmpty()) {
+        QByteArray xfs, names;
+        qint64 at = changes.styleXfsBefore;
+        for (const SaveChanges::StyleAdded &s : changes.newStyles) {
+            xfs += prefixed(xfXml(s.format, 0, false), p);
+            names += prefixed("<cellStyle name=\"" + xmlscan::escapeAttribute(s.name.name) + "\" xfId=\"" + QByteArray::number(at++) + "\"" + (s.name.builtin >= 0 ? " builtinId=\"" + QByteArray::number(s.name.builtin) + "\"" : QByteArray()) + "/>", p);
+        }
+        if (!appendToList(&result, "cellStyleXfs", xfs, changes.newStyles.size())) return bad();
+        if (!appendToList(&result, "cellStyles", names, changes.newStyles.size())) return bad();
+    }
+    // the borders, fills, and fonts (before the cell formats in the part; each is found again, so that the places do not matter)
+    if (!changes.newBorders.isEmpty()) {
+        QByteArray items;
+        for (const BorderSpec &b : changes.newBorders) items += prefixed(borderXml(b), p);
+        if (!appendToList(&result, "borders", items, changes.newBorders.size())) return bad();
+    }
+    if (!changes.newFills.isEmpty()) {
+        QByteArray items;
+        for (const FillSpec &f : changes.newFills) items += prefixed(fillXml(f), p);
+        if (!appendToList(&result, "fills", items, changes.newFills.size())) return bad();
+    }
+    if (!changes.newFonts.isEmpty()) {
+        QByteArray items;
+        for (const FontSpec &f : changes.newFonts) items += prefixed(fontXml(f), p);
+        if (!appendToList(&result, "fonts", items, changes.newFonts.size())) return bad();
+    }
     if (!changes.newNumberFormats.isEmpty()) {
         QByteArray added;
         for (const SaveChanges::NumberFormat &f : changes.newNumberFormats)
-            added += "<" + p + "numFmt numFmtId=\"" + QByteArray::number(f.id) + "\" formatCode=\"" + xmlscan::escapeAttribute(f.code) + "\"/>";
+            added += "<" + (p.isEmpty() ? QByteArray() : p + ":") + "numFmt numFmtId=\"" + QByteArray::number(f.id) + "\" formatCode=\"" + xmlscan::escapeAttribute(f.code) + "\"/>";
         Tag open;
         if (findStart(result, "numFmts", &open, root.end)) {
-            QByteArray openTag = result.mid(open.start, open.end - open.start);
-            addToCount(&openTag, "count", changes.newNumberFormats.size());
-            if (open.selfClosing) {
-                openTag.chop(2);
-                while (!openTag.isEmpty() && isSpace(openTag.back())) openTag.chop(1);
-                result = result.left(open.start) + openTag + ">" + added + "</" + p + "numFmts>" + result.mid(open.end);
-            } else {
-                Tag close;
-                if (!findEnd(result, open, &close)) return bad();
-                result = result.left(open.start) + openTag + result.mid(open.end, close.start - open.end) + added + result.mid(close.start);
-            }
+            if (!appendToList(&result, "numFmts", added, changes.newNumberFormats.size())) return bad();
         } else {
-            const QByteArray element = "<" + p + "numFmts count=\"" + QByteArray::number(changes.newNumberFormats.size()) + "\">" + added + "</" + p + "numFmts>";
+            const QByteArray element = "<" + (p.isEmpty() ? QByteArray() : p + ":") + "numFmts count=\"" + QByteArray::number(changes.newNumberFormats.size()) + "\">" + added + "</" + (p.isEmpty() ? QByteArray() : p + ":") + "numFmts>";
             Tag again;
             if (!findStart(result, "styleSheet", &again)) return bad();
             result.insert(again.end, element);
@@ -418,7 +638,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
         replaced.insert(index, patched);
     }
     // ---- the styles
-    if (!changes.newCellFormats.isEmpty() || !changes.newNumberFormats.isEmpty()) {
+    if (!changes.newCellFormats.isEmpty() || !changes.newNumberFormats.isEmpty() || !changes.newFonts.isEmpty() || !changes.newFills.isEmpty() || !changes.newBorders.isEmpty() || !changes.newStyles.isEmpty()) {
         const int index = entryOfPart(book.stylesPart());
         QByteArray xml, patched;
         if (index < 0 || !inflate(index, &xml)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The styles part is not in the file."));

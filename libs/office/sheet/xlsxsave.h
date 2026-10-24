@@ -92,10 +92,25 @@ struct SaveChanges {
     struct CellFormatAdded {
         quint32 base = 0;       // the cell format it is a copy of
         int numFmtId = 0;
+        // With `full`, the new cell format is `format`, whole (its number format, font, fill, border, alignment, and protection; the places are those of the file as it will be written),
+        // and the copy of `base` has only what the file says besides (a link to a named style, say) kept. Without, it is `base` with the number format `numFmtId`.
+        bool full = false;
+        CellFormat format;
     };
     QVector<NumberFormat> newNumberFormats;
     QVector<CellFormatAdded> newCellFormats;
     qint64 cellFormatsBefore = 0;
+    // And fonts, fills, and borders added (each list begins at the place the `...Before` says), and named styles with their formats among the style formats (cellStyleXfs).
+    QVector<FontSpec> newFonts;
+    QVector<FillSpec> newFills;
+    QVector<BorderSpec> newBorders;
+    qint64 fontsBefore = 0, fillsBefore = 0, bordersBefore = 0;
+    struct StyleAdded {
+        CellFormat format;
+        CellStyleName name;
+    };
+    QVector<StyleAdded> newStyles;
+    qint64 styleXfsBefore = 0;
     // Parts to be written anew whole, by the part's name (the table parts whose columns were renamed).
     std::map<QString, QByteArray> replacedParts;
     // Rows, columns, and cells inserted and deleted since the file was read, in the order they were made. Every part of the file that has cells in it, or names them, is changed by them

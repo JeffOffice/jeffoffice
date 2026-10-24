@@ -260,7 +260,7 @@ public:
     // What the file needs to be made, taken now (nothing is held on to): false, with a message, if it can't be made.
     struct Snapshot {
         jp::office::sheet::SaveChanges changes;
-        int strings = 0, numberFormats = 0, cellFormats = 0;   // how many of the workbook's additions are in it
+        int strings = 0, numberFormats = 0, cellFormats = 0, fonts = 0, fills = 0, borders = 0, styles = 0;   // how many of the workbook's additions are in it
         std::map<quint64, jp::calc::Value> results;            // the results it holds (to be the file's, once it is written)
         std::vector<quint64> touchedFormulas;                  // the formula cells it holds whole, with the results they were given
         std::map<quint64, jp::calc::Value> touchedResults;
