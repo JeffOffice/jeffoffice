@@ -272,10 +272,13 @@ Shown GridSheet::shown(quint32 row, quint32 col, const Cell &cell) const
         for (quint32 c = r.col1; c <= r.col2 && c < r.col1 + 1024; ++c) width += columnWidth(c);
     }
     Shown s;
-    if (m_showFormulas && cell.hasFormula() && m_data.sheet && !m_data.sheet->formulaText(cell).isEmpty())
+    if (m_showFormulas && cell.hasFormula() && m_data.sheet && !m_data.sheet->formulaText(cell).isEmpty()) {
         s = showValue(jp::calc::Value::text(QLatin1Char('=') + displayFormula(m_data.sheet->formulaText(cell))), m_looks.look(cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter);
-    else
-        s = showValue(valueOf(cell), m_looks.look(cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter);
+    } else {
+        jp::calc::Value v = valueOf(cell);
+        if (m_errors != ErrorDisplay::Shown && v.isError()) v = m_errors == ErrorDisplay::Blank ? jp::calc::Value() : m_errors == ErrorDisplay::Dash ? jp::calc::Value::text(QStringLiteral("--")) : jp::calc::Value::error(jp::calc::ErrorKind::NA);
+        s = showValue(v, m_looks.look(cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter);
+    }
     if (m_texts.size() >= kMaxTexts) m_texts.clear();
     m_texts.emplace(key, s);
     return s;
@@ -305,6 +308,13 @@ QString GridSheet::textOf(const Cell &cell) const
 }
 
 void GridSheet::invalidateTexts() const { m_texts.clear(); }
+
+void GridSheet::setErrorDisplay(ErrorDisplay mode)
+{
+    if (mode == m_errors) return;
+    m_errors = mode;
+    m_texts.clear();
+}
 
 void GridSheet::setShowFormulas(bool on)
 {

@@ -239,7 +239,7 @@ QBrush GridPainter::patternBrush(PatternKind kind, QRgb fg, QRgb bg)
 
 void GridPainter::drawFill(QPainter *p, const QRect &rect, const CellLook &look, const PaintOptions &)
 {
-    if (look.pattern == PatternKind::None) return;
+    if (look.pattern == PatternKind::None || m_mono) return;
     ++m_stats.fills;
     if (look.pattern == PatternKind::Solid) {
         p->fillRect(rect, QColor::fromRgba(look.fg));
@@ -256,7 +256,7 @@ void GridPainter::drawEdge(QPainter *p, const LineLook &line, int x, int y, int 
 {
     if (line.style == BorderStyle::None || length <= 0) return;
     ++m_stats.borderSegments;
-    const QColor color = QColor::fromRgba(line.color);
+    const QColor color = m_mono ? QColor(Qt::black) : QColor::fromRgba(line.color);
     int thickness = 1;
     int first = -1;      // where its first pixel is, from the edge
     QList<qreal> dashes;
@@ -348,7 +348,7 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
     ++m_stats.textRuns;
     m_stats.textChars += text.size();
     if (sh.hashes) ++m_stats.hashed;
-    const QRgb ink = sh.color ? sh.color : look.textColor;
+    const QRgb ink = m_mono ? 0xFF000000u : sh.color ? sh.color : look.textColor;
     // A line of text with nothing special (not turned, not wrapped, not shrunk) is drawn from its baseline as a run of glyphs, where no layout of a box is needed.
     if (look.rotation == 0 && !look.wrap && font.pixelSize() == fontFor(look, z).pixelSize()) {
         const size_t id = look.fontId;
@@ -592,7 +592,7 @@ marked:
                 if (here && here->diagonal.style != BorderStyle::None && (here->diagonalUp || here->diagonalDown)) {
                     p->save();
                     p->setClipRect(QRect(w.cols[j].start, rs.start, w.cols[j].size, rs.size) & area);
-                    p->setPen(QColor::fromRgba(here->diagonal.color));
+                    p->setPen(m_mono ? QColor(Qt::black) : QColor::fromRgba(here->diagonal.color));
                     if (here->diagonalUp) p->drawLine(w.cols[j].start, rs.start + rs.size - 1, w.cols[j].start + w.cols[j].size - 1, rs.start);
                     if (here->diagonalDown) p->drawLine(w.cols[j].start, rs.start, w.cols[j].start + w.cols[j].size - 1, rs.start + rs.size - 1);
                     p->restore();
@@ -840,6 +840,7 @@ void GridPainter::paintHeaders(QPainter *p, const QRect &clip, const PaintOption
 void GridPainter::paint(QPainter *p, const QRect &clip, const PaintOptions &o)
 {
     m_stats = PaintStats();
+    m_mono = o.monochrome;
     if (!m_sheet->data().sheet) {
         p->fillRect(clip, o.backdrop);   // (no sheet to show)
         return;

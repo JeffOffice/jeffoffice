@@ -29,6 +29,7 @@ struct PaintOptions {
     bool headers = true;
     const Selection *selection = nullptr;
     bool fillHandle = false;                               // a small square at the corner of the selection to drag to fill
+    bool monochrome = false;                               // black text and lines, and no fills (a page printed in black and white)
     const GridRange *fillPreview = nullptr;                // where a fill that is being dragged would go: a dashed border
     const GridRange *copyRange = nullptr;                  // the cells that were copied or cut: a dashed border that moves
     int copyPhase = 0;                                     // where the dashes of it are (its animation step)
@@ -119,6 +120,7 @@ private:
     int m_lastFontId = -1;      // what the painter was last given, so a run in the same font and color sets neither again
     double m_lastFontZoom = 0;
     QRgb m_lastInk = 0;
+    bool m_mono = false;        // the paint in hand is in black and white (PaintOptions::monochrome)
 };
 
 } // namespace jp::grid

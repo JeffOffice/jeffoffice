@@ -74,6 +74,9 @@ public:
     // Forgets the texts (values or formats changed), or the text of one cell.
     void invalidateTexts() const;
     void invalidateText(quint32 row, quint32 col) const { m_texts.erase((quint64(row) << 16) | col); }
+    // How a cell that holds an error is shown (a printed page can show it as it is, blank, as "--", or as #N/A).
+    enum class ErrorDisplay { Shown, Blank, Dash, NA };
+    void setErrorDisplay(ErrorDisplay mode);
     // Shows the formula of a cell that has one in place of its value ("=SUM(A1:A3)", as text).
     void setShowFormulas(bool on);
     bool showFormulas() const { return m_showFormulas; }
@@ -116,6 +119,7 @@ private:
     mutable std::unordered_map<quint64, Shown> m_texts;
     mutable qint64 m_textsMade = 0;
     bool m_showFormulas = false;
+    ErrorDisplay m_errors = ErrorDisplay::Shown;
     std::shared_ptr<const GridGeometry> m_geometry;   // what the sheet's file gave (the layout above begins as a copy of its layout, which shares its places and merges), and the cell formats of the rows and columns, held where they were made
 };
 
