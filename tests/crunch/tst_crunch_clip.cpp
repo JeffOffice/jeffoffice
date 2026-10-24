@@ -378,6 +378,48 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.undoStack()->count(), 0);
     }
 
+    // A copy shows its moving dashed border, and a fill being dragged shows where it will go: both are drawn in a window of a workbook that looks like a real one. The picture is saved when
+    // JC_SCREENSHOT_CLIP names a file.
+    void aCopyAndAFillBeingDraggedShowTheirBorders()
+    {
+        Folder folder;
+        Window win;
+        win.w.resize(1100, 640);
+        QVERIFY(win.open(folder.write(QStringLiteral("budget.xlsx"), budgetWorkbook())));
+        grid::GridView *v = win.w.view();
+        v->setZoom(1.0);
+        // the cells copied: C3:C8, with the dashed accent round them
+        v->selectRange(2, 2, 7, 2);
+        win.w.act(QStringLiteral("edit.copy"))->trigger();
+        QTRY_VERIFY(v->hasCopyBorder());
+        // the cells being filled: E3:F4 dragged by the handle to the row 9
+        v->selectRange(2, 4, 3, 5);
+        QRect handle = v->fillHandleRect();
+        QVERIFY(!handle.isEmpty());
+        QTest::mousePress(v->viewport(), Qt::LeftButton, Qt::NoModifier, handle.center());
+        const QRect target = v->cellRect(8, 5);
+        QTest::mouseMove(v->viewport(), QPoint(target.center().x(), target.center().y()));
+        QApplication::processEvents();
+        QImage shot = win.w.grab().toImage();
+        QVERIFY(!shot.isNull());
+        // the fill's preview is dashed dark gray along the bottom of row 9, and the copy's border is dashed accent
+        const QPoint origin = v->viewport()->mapTo(&win.w, QPoint(0, 0));
+        int gray = 0, accent = 0;
+        for (int x = origin.x() + v->cellRect(8, 4).left(); x < origin.x() + v->cellRect(8, 5).right(); ++x)
+            for (int y = origin.y() + target.bottom() - 2; y <= origin.y() + target.bottom() + 1; ++y)
+                if (QColor(shot.pixel(x, y)) == QColor(0x44, 0x44, 0x44)) ++gray;
+        const QRect copied = v->cellRect(2, 2).united(v->cellRect(7, 2));
+        for (int y = origin.y() + copied.top(); y < origin.y() + copied.bottom(); ++y)
+            for (int x = origin.x() + copied.left() - 1; x <= origin.x() + copied.left() + 1; ++x)
+                if (QColor(shot.pixel(x, y)) == QColor(0x13, 0x77, 0x3A)) ++accent;
+        QVERIFY2(gray > 8, qPrintable(QString::number(gray)));
+        QVERIFY2(accent > 8, qPrintable(QString::number(accent)));
+        const QString out = qEnvironmentVariable("JC_SCREENSHOT_CLIP");
+        if (!out.isEmpty()) QVERIFY(shot.save(out));
+        QTest::mouseRelease(v->viewport(), Qt::LeftButton, Qt::NoModifier, target.center());
+        QVERIFY(win.w.isModified());
+    }
+
     // A pasted number widens a column that has its first width, in the step of the paste.
     void aPastedNumberWidensItsColumn()
     {

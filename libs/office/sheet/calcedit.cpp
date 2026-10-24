@@ -79,14 +79,14 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
         if (why) *why = text;
         return false;
     };
-    if (e.sheet < 0 || e.sheet >= int(m_sheets.size())) return refuse(say("There is no such sheet."));
+    if (e.sheet < 0 || e.sheet >= int(m_sheets.size())) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "There is no such sheet.")));
     if (e.kind == K::Move) return canMoveCells(e, why);
-    if (e.kind == K::Offset) return refuse(say("That is not done by inserting or deleting."));
+    if (e.kind == K::Offset) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "That is not done by inserting or deleting.")));
     const Sheet &s = m_sheets[size_t(e.sheet)];
-    if (m_untracked > 0) return refuse(say("This workbook has too many formulas for JeffCrunch to follow when rows, columns, or cells are inserted or deleted."));
-    if (s.isProtected) return refuse(say("This sheet is protected, so rows, columns, and cells can't be inserted or deleted. Take the protection off in the program that put it on."));
+    if (m_untracked > 0) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "This workbook has too many formulas for JeffCrunch to follow when rows, columns, or cells are inserted or deleted.")));
+    if (s.isProtected) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "This sheet is protected, so rows, columns, and cells can't be inserted or deleted. Take the protection off in the program that put it on.")));
     const quint32 count = shiftBy(e);
-    if (count == 0) return refuse(say("There is nothing to insert or delete."));
+    if (count == 0) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "There is nothing to insert or delete.")));
     const CellArea region = affectedArea(e);
     // the cells of an array formula or a data table are not cut through, nor are they deleted
     for (const CellRange &r : s.ranges) {
@@ -99,7 +99,7 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
         case K::DeleteColumns: hit = r.col2 >= e.first && r.col1 < e.first + count; break;
         default: hit = r.row2 >= region.row1 && r.row1 <= region.row2 && r.col2 >= region.col1 && r.col1 <= region.col2; break;
         }
-        if (hit) return refuse(say("That would change part of an array formula or a data table, which can't be done."));
+        if (hit) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "That would change part of an array formula or a data table, which can't be done.")));
     }
     // cells would be pushed off the edge of the sheet
     if (!deletes(e)) {
@@ -135,7 +135,7 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
                 if (c.col >= firstGone && (c.type != CellType::Empty || c.hasFormula())) pushed = true;
             });
         }
-        if (pushed) return refuse(say("That would push cells off the edge of the sheet. Delete the cells at the end first."));
+        if (pushed) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "That would push cells off the edge of the sheet. Delete the cells at the end first.")));
     }
     return true;
 }
