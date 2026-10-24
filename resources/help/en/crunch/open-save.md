@@ -1,9 +1,19 @@
 # Open and save workbooks
-<!-- keywords: open, save, save as, file, workbook, xlsx, xlsm, recent, pinned, drag, drop, loading, large, big, macros, unsaved, changes, close, copy, calculation chain -->
+<!-- keywords: open, save, save as, file, workbook, xlsx, xlsm, xls, ods, csv, tsv, text file, delimited, import, export, recent, pinned, drag, drop, loading, large, big, macros, unsaved, changes, close, copy, calculation chain -->
 
 To open a workbook, press **{key:Open}**, or click **File** and then **Open**, and choose **Browse**. You can also drag a workbook from your file manager onto the window. A workbook that is already open in a window is not opened a second time: that window comes to the front.
 
 JeffCrunch opens **.xlsx** workbooks and **.xlsm** workbooks (those that hold macros). It does not run macros, and it keeps them untouched.
+
+## Other kinds of files
+
+JeffCrunch also opens older **.xls** workbooks, OpenDocument spreadsheets (**.ods** and the flat **.fods**), and text files of values (**.csv**, **.tsv**, and **.txt**). A workbook opened from one of them is saved as a new **.xlsx** file: when you press **{key:Save}**, JeffCrunch tells you so and asks for a name, and the file you opened is never changed.
+
+An OpenDocument spreadsheet is read with its sheets, values, formulas (with the results the file kept), number formats, fonts, fills, borders, merged cells, column widths and row heights, hidden rows and columns, frozen panes, and names. Charts, pictures and other drawings, comments, pivot tables, macros, conditional formats, and data validation are not read yet; a message at the top tells you which of them the file has, and a copy saved from here will not have them. A spreadsheet that is protected with a password is not opened: open it in the program that made it and save a copy without the password.
+
+A text file is one sheet. JeffCrunch finds out how its values are separated (by commas, semicolons, tabs, or vertical bars) and how its letters are coded (UTF-8 or UTF-16, or else the code page of your language), and reads each value as you would type it in your language: a number such as 1.234,5 in German, a percent, an amount of money, a date, a time, TRUE or FALSE. A value that begins with an equals sign is a formula. Digits that begin with a zero (such as 007) and numbers of more than 15 digits stay text, so that a postal code or an account number is not changed. A sheet holds 1,048,576 rows and 16,384 columns; if the file has more, JeffCrunch opens what fits and tells you.
+
+To keep only the values of the sheet you are looking at, click **File**, then **Save As**, and choose the **.csv** kind of file. JeffCrunch writes the values as the cells show them, in UTF-8, with a semicolon between them where your language writes a comma in its numbers and a comma elsewhere, and text in quotes when it needs them. The other sheets, the formulas, the formats, and the settings are not in a .csv file, and your workbook is not changed by writing one.
 
 ## Large workbooks
 

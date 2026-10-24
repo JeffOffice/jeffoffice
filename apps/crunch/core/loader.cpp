@@ -228,7 +228,7 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
 
 QString fileKind(const QString &path)
 {
-    static const QStringList kinds = {QStringLiteral("xlsx"), QStringLiteral("xlsm"), QStringLiteral("xls")};
+    static const QStringList kinds = {QStringLiteral("xlsx"), QStringLiteral("xlsm"), QStringLiteral("xls"), QStringLiteral("ods"), QStringLiteral("fods"), QStringLiteral("csv"), QStringLiteral("tsv"), QStringLiteral("txt")};
     const QString ending = QFileInfo(path).suffix().toLower();
     return kinds.contains(ending) ? ending : QStringLiteral("other");
 }

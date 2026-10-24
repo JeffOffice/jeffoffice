@@ -4,6 +4,8 @@
 
 #include "app/crunchwindow.h"
 
+#include "app/otherformats.h"
+
 #include "app/oldformat.h"
 #include "app/settings.h"
 #include "app/telemetry.h"
@@ -54,6 +56,7 @@ bool CrunchWindow::save()
 bool CrunchWindow::saveAs(const QString &pathIn)
 {
     if (!m_session || !m_loaded) return false;
+    if (crunch::isCsvName(pathIn)) return startSave(pathIn);
     QString path = pathIn;
     const QString kind = saveKind();
     const QString ending = QFileInfo(path).suffix().toLower();
@@ -89,6 +92,7 @@ bool CrunchWindow::fileChangedOnDisk() const
 bool CrunchWindow::startSave(const QString &path)
 {
     if (!m_session || m_saving) return false;
+    if (crunch::isCsvName(path)) return exportCsv(path);
     if (!commitEdit()) return false;
     const bool samePath = QFileInfo(path).absoluteFilePath() == QFileInfo(m_path).absoluteFilePath();
     // a workbook read from the older binary form is never written over the file it came from, whatever that file is called

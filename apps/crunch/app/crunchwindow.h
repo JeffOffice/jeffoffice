@@ -80,6 +80,8 @@ public:
     // `saved` says when it is over. False if it did not begin (nothing to save, or the reason is shown).
     bool save();
     bool saveAs(const QString &path);
+    // Writes the values of the sheet in view as a .csv file (see crunchwindow_csv.cpp); `csvExported` says when it is over. A path ending in .csv given to save() or saveAs() comes here.
+    bool exportCsv(const QString &path);
     bool isModified() const { return m_session && m_session->isModified(); }
     bool isSaving() const { return m_saving; }
     // What the person is asked when the window is closed with changes that are not saved: Save, Don't Save, or Cancel (a message box, unless this stands in for it: tests).
@@ -132,6 +134,8 @@ public:
 Q_SIGNALS:
     // The workbook was saved (to the path), or could not be.
     void saved(const QString &path, bool ok);
+    // The values of the sheet in view were written in a .csv file, or could not be.
+    void csvExported(const QString &path, bool ok);
     // The first rows are on the screen.
     void firstScreenShown();
     // The workbook is read whole (or could not be opened).
@@ -242,6 +246,7 @@ private:
     bool m_saving = false, m_closeAfterSave = false, m_closing = false;
     QPointer<QThread> m_saveThread;
     QString m_saveAfterCalculation;
+    QPointer<QObject> m_csvRun;   // a .csv being written
     std::function<Answer(const QString &, const QString &)> m_asker;
     std::function<ChangedAnswer(const QString &)> m_changedAsker;
     std::function<QString(const QString &, const QString &)> m_savePicker;
