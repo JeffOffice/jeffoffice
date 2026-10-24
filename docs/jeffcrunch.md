@@ -16,7 +16,7 @@ JeffCrunch ships as a preview when, on public workbooks never used for tuning, i
 | Measure | Preview bar |
 |---|---|
 | Opening | Every file opens with no crash or hang; 99% of undamaged files keep their own cell count |
-| Recalculating every formula against its stored result (to 15 digits; text, true/false, and error kind exactly; volatile, external, and unsupported formulas listed apart) | 90% of formula workbooks match fully; 98% of formula cells match; each of the 50 most used functions matches 99% of the time |
+| Recalculating every formula against its stored result (to 15 digits; text, true/false, and error kind exactly; volatile, external, and unsupported formulas listed apart, and so are workbooks that say they were saved before their calculation finished, whose stored results are not their formulas' answers) | 90% of formula workbooks match fully; 98% of formula cells match; each of the 50 most used functions matches 99% of the time |
 | Function test files from the public LibreOffice test suite | All for the first 110 functions; 80% of the rest |
 | Number formats, checked against stored `TEXT()`, `FIXED`, and `DOLLAR` results | 98% |
 | Saving | No crashes; 99.5% of workbooks read back the same; 100% of parts JeffCrunch didn't touch written back identical |

@@ -47,7 +47,10 @@ Value fnFv(Call &c)
 {
     double rate, n, pmt, pv, type;
     if (!c.number(0, &rate) || !c.number(1, &n) || !c.number(2, &pmt) || !c.numberOr(3, 0, &pv) || !c.numberOr(4, 0, &type)) return c.failure();
-    return numberResult(double(futureValue(rate, n, pmt, pv, type != 0 ? 1 : 0)));
+    type = type != 0 ? 1 : 0;
+    if (rate == 0) return numberResult(-(pv + pmt * n));
+    const double g = powerOf(1 + rate, n);
+    return numberResult(-(pv * g + pmt * (1 + rate * type) * ((g - 1) / rate)));
 }
 
 Value fnPv(Call &c)
@@ -56,8 +59,10 @@ Value fnPv(Call &c)
     if (!c.number(0, &rate) || !c.number(1, &n) || !c.number(2, &pmt) || !c.numberOr(3, 0, &fv) || !c.numberOr(4, 0, &type)) return c.failure();
     type = type != 0 ? 1 : 0;
     if (rate == 0) return numberResult(-(fv + pmt * n));
-    const real g = growth(rate, n);
-    return numberResult(double(-(fv + pmt * (1 + rate * type) * (g - 1) / rate) / g));
+    // in double, with the power made as the ^ operator makes it, and (g - 1) / rate worked out before it is multiplied: the digits of 125 of 127 lookups of the practice
+    // workbooks (the same worked out in the widest type is off by some units of the last place in 68 of them)
+    const double g = powerOf(1 + rate, n);
+    return numberResult(-(fv + pmt * (1 + rate * type) * ((g - 1) / rate)) / g);
 }
 
 Value fnNper(Call &c)
@@ -105,9 +110,13 @@ Value fnNpv(Call &c)
     Value error;
     if (!gatherNumbers(c, 1, &values, &error)) return error;
     if (rate == -1) return c.error(ErrorKind::Div0);
-    real sum = 0;
-    for (size_t i = 0; i < values.size(); ++i) sum += values[i] / growth(rate, real(i + 1));
-    return numberResult(double(sum));
+    // Each value over the base to the power of its place (the base is 1 + rate as a double, as the original passes it on), the quotient kept in the widest type and
+    // rounded to a double, and the quotients added from the last to the first in double arithmetic: the digits of the files, where the sum of quotients all in the
+    // widest type is off by more than the last digits in 123 cells of the practice workbooks.
+    const real base = double(1 + rate);
+    double sum = 0;
+    for (size_t i = values.size(); i-- > 0;) sum += double(real(values[i]) / std::pow(base, real(i + 1)));
+    return numberResult(sum);
 }
 
 Value fnSln(Call &c)
@@ -169,16 +178,42 @@ Value fnDdb(Call &c)
     return numberResult(decliningBalance(cost, salvage, life, period, factor));
 }
 
+// The depreciation in period `period` of the declining balance at `rate`: the balance before it times the rate, or what is left down to the salvage if that would take
+// the balance under it.
+double decliningStep(double cost, double salvage, double rate, double period)
+{
+    double before;
+    if (rate >= 1) {
+        rate = 1;
+        before = period == 1 ? cost : 0;
+    } else {
+        before = cost * std::pow(1 - rate, period - 1);
+    }
+    const double after = cost * std::pow(1 - rate, period);
+    const double d = after < salvage ? before - salvage : before * rate;
+    return d < 0 ? 0 : d;
+}
+
 // The depreciation of the stretch of the asset's life from `start` to `end`, in periods: the declining balance in each period (or, once the straight line over what is left of
 // the life gives more, the straight line), and of a period the stretch begins or ends in, the part the stretch covers. The amounts of the periods are those from the first
-// period of the life whatever the stretch, so that stretches that make up a longer one make up its amount.
+// period of the life whatever the stretch, so that stretches that make up a longer one make up its amount, with one exception that the files show: when the start is inside a
+// period, the part of the first period before it (as long as the start is past the whole periods) is taken off the cost at the rate of that period, and the life, the start,
+// and the end move back by that part, so that the periods from the start on are whole again, with the rate of the declining balance (factor / life) as it was.
 double variableBalance(double cost, double salvage, double life, double start, double end, double factor, bool noSwitch)
 {
+    const double rate = factor / life;
+    const double part = start - std::floor(start);
+    if (part > 1e-12) {
+        cost -= decliningStep(cost, salvage, rate, 1) * part;
+        life -= part;
+        start -= part;
+        end -= part;
+    }
     double total = 0, left = cost - salvage, line = 0;
     bool straight = false;
     const qint64 last = qint64(std::ceil(end));
     for (qint64 i = 1; i <= last; ++i) {
-        const double declining = decliningBalance(cost, salvage, life, double(i), factor);
+        const double declining = decliningStep(cost, salvage, rate, double(i));
         double term = declining;
         if (!noSwitch) {
             if (!straight) {

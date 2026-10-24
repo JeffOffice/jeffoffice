@@ -134,7 +134,8 @@ private Q_SLOTS:
     }
 
     // VDB for a stretch that begins or ends part way through a period takes the part of the period's amount that the stretch covers, and the amounts of stretches that make
-    // up a longer one make up its amount, whatever the factor and whether or not the straight line is gone over to.
+    // up a longer one make up its amount, whatever the factor and whether or not the straight line is gone over to, where the stretches are cut at whole periods (a start
+    // inside a period moves the periods that follow it: see depreciationFromAStartInsideAPeriod).
     void depreciationOfPartsOfPeriodsAddsUp()
     {
         auto vdb = [](const QString &args) {
@@ -154,7 +155,7 @@ private Q_SLOTS:
             for (size_t i = 0; i < sizeof(points) / sizeof(points[0]); ++i)
                 for (size_t j = i + 1; j < sizeof(points) / sizeof(points[0]); ++j)
                     for (size_t k = j + 1; k < sizeof(points) / sizeof(points[0]); ++k) {
-                        if (points[k] > life) continue;
+                        if (points[k] > life || points[i] != std::floor(points[i]) || points[j] != std::floor(points[j])) continue;
                         const auto part = [&](double from, double to) { return vdb(QStringLiteral("%1,%2,%3%4").arg(QString::fromLatin1(a.asset)).arg(from).arg(to).arg(QString::fromLatin1(a.tail))); };
                         const double whole = part(points[i], points[k]), sum = part(points[i], points[j]) + part(points[j], points[k]);
                         QVERIFY2(std::fabs(whole - sum) <= 1e-9 * std::max(1.0, std::fabs(whole)),
@@ -163,8 +164,55 @@ private Q_SLOTS:
         }
         const E cases[] = {
             {"ROUND(VDB(2400,300,10,2,4),6)", "n:552.96"},
-            {"ROUND(VDB(2400,300,10,2,2.5)+VDB(2400,300,10,2.5,4),6)", "n:552.96"},
+            {"ROUND(VDB(2400,300,10,2,3)+VDB(2400,300,10,3,4),6)", "n:552.96"},
             {"ROUND(VDB(2400,300,10,0,0.875,1.5),6)", "n:315"},
+        };
+        CHECK_EVALS(cases, Grid(), Settings());
+    }
+
+    // VDB for a start inside a period, as a workbook of the practice set (a depreciation table of assets of 8 and 15 years at a factor of 1.5, the start and end of each
+    // year given as days over 365) stores it: the part of the first period before the start is taken off the cost at the rate of the first period, and the life, the
+    // start, and the end are moved back by that part, so that the years after it are whole periods again (the rate stays factor / life). Each expected value is a stored
+    // result, to 15 digits; 54 of the cells had been off by up to a third, from the third year on.
+    void depreciationFromAStartInsideAPeriod()
+    {
+        const E cases[] = {
+            {"VDB(78714.55552,0,15,0.0,0.41643835616438357,1.5)", "n:3277.97601069589"},
+            {"VDB(78714.55552,0,15,0.4191780821917808,1.4191780821917808,1.5)", "n:7541.50138776548"},
+            {"VDB(78714.55552,0,15,1.4219178082191781,2.419178082191781,1.5)", "n:6766.82017681956"},
+            {"VDB(78714.55552,0,15,2.421917808219178,3.419178082191781,1.5)", "n:6090.13815913761"},
+            {"VDB(78714.55552,0,15,3.421917808219178,4.419178082191781,1.5)", "n:5481.12434322385"},
+            {"VDB(78714.55552,0,15,4.421917808219178,5.421917808219178,1.5)", "n:4946.56413942042"},
+            {"VDB(78714.55552,0,15,5.424657534246576,6.421917808219178,1.5)", "n:4635.28149906788"},
+            {"VDB(78714.55552,0,15,6.424657534246576,7.421917808219178,1.5)", "n:4635.28149906788"},
+            {"VDB(78714.55552,0,15,7.424657534246576,8.421917808219177,1.5)", "n:4635.28149906787"},
+            {"VDB(78714.55552,0,15,8.424657534246576,9.424657534246576,1.5)", "n:4648.01578890048"},
+            {"VDB(78714.55552,0,15,9.427397260273972,10.424657534246576,1.5)", "n:4635.28149906788"},
+            {"VDB(78714.55552,0,15,10.427397260273972,11.424657534246576,1.5)", "n:4635.28149906788"},
+            {"VDB(1331.9046155778003,0,8,0.0,0.41643835616438357,1.5)", "n:103.998031627308"},
+            {"VDB(1331.9046155778003,0,8,0.4191780821917808,1.4191780821917808,1.5)", "n:230.104197445124"},
+            {"VDB(1331.9046155778003,0,8,1.4219178082191781,2.419178082191781,1.5)", "n:186.34349452236"},
+            {"VDB(1331.9046155778003,0,8,2.421917808219178,3.419178082191781,1.5)", "n:151.404089299418"},
+            {"VDB(1331.9046155778003,0,8,3.421917808219178,4.419178082191781,1.5)", "n:143.309875069965"},
+            {"VDB(1331.9046155778003,0,8,4.421917808219178,5.421917808219178,1.5)", "n:143.70358351796"},
+            {"VDB(1331.9046155778003,0,8,5.424657534246576,6.421917808219178,1.5)", "n:143.315699208717"},
+            {"VDB(1331.9046155778003,0,8,6.424657534246576,7.421917808219178,1.5)", "n:143.315699208717"},
+            {"VDB(1331.9046155778003,0,8,7.424657534246576,8.0,1.5)", "n:82.6821341588749"},
+            {"VDB(4611.739819795687,0,8,0.0,0.41643835616438357,1.5)", "n:360.09475305254"},
+            {"VDB(4611.739819795687,0,8,0.4191780821917808,1.4191780821917808,1.5)", "n:796.739254184094"},
+            {"VDB(4611.739819795687,0,8,1.4219178082191781,2.419178082191781,1.5)", "n:645.217160296303"},
+            {"VDB(4611.739819795687,0,8,2.421917808219178,3.419178082191781,1.5)", "n:524.238942740747"},
+            {"VDB(1870.655313977661,0,8,0.0,0.41643835616438357,1.5)", "n:146.064866981817"},
+            {"VDB(1870.655313977661,0,8,0.4191780821917808,1.4191780821917808,1.5)", "n:323.180530110674"},
+            {"VDB(1870.655313977661,0,8,1.4219178082191781,2.419178082191781,1.5)", "n:261.71877788876"},
+            {"VDB(1870.655313977661,0,8,2.421917808219178,3.419178082191781,1.5)", "n:212.646507034617"},
+            {"VDB(6463.75753668992,0,8,0.0,0.41643835616438357,1.5)", "n:504.704355604555"},
+            {"VDB(6463.75753668992,0,8,0.4191780821917808,1.4191780821917808,1.5)", "n:1116.69989206748"},
+            {"VDB(6463.75753668992,0,8,1.4219178082191781,2.419178082191781,1.5)", "n:904.328397878193"},
+            {"VDB(6463.75753668992,0,8,2.421917808219178,3.419178082191781,1.5)", "n:734.766823276032"},
+            {"VDB(1331.9046155778003,0,8,0.0,0.41643835616438357,1.5)", "n:103.998031627308"},
+            {"VDB(1331.9046155778003,0,8,0.4191780821917808,1.4191780821917808,1.5)", "n:230.104197445124"},
+            {"VDB(1331.9046155778003,0,8,1.4219178082191781,2.419178082191781,1.5)", "n:186.34349452236"},
         };
         CHECK_EVALS(cases, Grid(), Settings());
     }
@@ -189,6 +237,54 @@ private Q_SLOTS:
             {"ROUND(IPMT(0.1,2,3,1000)+PPMT(0.1,2,3,1000)-PMT(0.1,3,1000),6)", "n:0"},   // a payment is interest and principal
             {"PMT(0.1,0,1000)", "e:#NUM!"},
             {"PMT(\"x\",3,1000)", "e:#VALUE!"},
+        };
+        CHECK_EVALS(cases, Grid(), Settings());
+    }
+
+    // The loan and savings functions are worked out in the order the files show, to their last digits. PV is made in double arithmetic with the power made as the ^
+    // operator makes it, and (power - 1) / rate worked out before it is multiplied by the payment; NPV divides each value by the power of 1 + rate (a double) and adds the
+    // quotients, as doubles, from the last to the first. Each expected value is the result a workbook of the practice set stored with the formula, to 15 digits (a
+    // difference in the 16th and 17th is not seen here): the same worked out in the widest type, or in another order, differs in the 14th or 15th digit in 68 cells
+    // of PV and 123 of NPV.
+    void presentValuesAreWorkedOutInTheOrderOfTheFiles()
+    {
+        const E cases[] = {
+            {"-PV(0.057/12,30,339/30,,0)", "n:315.257709516189"},
+            {"-PV(0.0545/12,30,339/30,,0)", "n:316.249885806128"},
+            {"-PV(0.052000000000000005/12,30,339/30,,0)", "n:317.246412835253"},
+            {"-PV(0.059500000000000004/12,30,339/30,,0)", "n:314.26986184396"},
+            {"-PV(0.062/12,30,339/30,,0)", "n:313.286320791819"},
+            {"-PV(0.0645/12,30,339/30,,0)", "n:312.307064485212"},
+            {"PV(0.057/2,40,-0.35)", "n:8.2899809681198"},
+            {"PV(0.0545/2,40,-0.35)", "n:8.46220653613245"},
+            {"PV(0.052000000000000005/2,40,-0.35)", "n:8.63983757654465"},
+            {"PV(0.059500000000000004/2,40,-0.35)", "n:8.12296493652326"},
+            {"PV(0.062/2,40,-0.35)", "n:7.96097038706455"},
+            {"PV(0.0645/2,40,-0.35)", "n:7.80381680633254"},
+            // a payment at the start of the periods, a future value, and the rate 0
+            {"ROUND(PV(0.08/12,240,500,0,1),6)", "n:-60175.660157"},
+            {"PV(0,10,-100,-50)", "n:1050"},
+        };
+        CHECK_EVALS(cases, Grid(), Settings());
+    }
+
+    void netPresentValuesAreWorkedOutInTheOrderOfTheFiles()
+    {
+        const E cases[] = {
+            {"NPV(0.14,{2971.5999999999999,10608.611999999999,10290.353640000001,10187.450103600002,10187.450103600002,11024.27636211,11244.761889352201,11694.552364926289,12162.334459523341,12648.827837904277,8769.8539676136334,9559.1408246988613,10419.463498921759,11357.215213824717,12379.36458306894,40480.522186635426,38456.496077303651,36533.671273438464,34706.987709766538,32971.63832427821})-74290", "n:2873.4637848007"},
+            {"NPV(0.11,{0,0,0,0,0,0,0,0,0,0,0,20278.583448167043,20231.594449314605,20064.72572973022,20354.978254486396,20133.805406542218,20111.242048039556})", "n:27118.1236441402"},
+            {"NPV(0.09,{4160.6237265749805,4281.5267153076838,4225.3346116552439,4551.4995605436834,-8748.4574836101965,-10168.2499490586,-11242.348250328605,-10234.906857368949,-13158.936656617258,-17353.046990676015,-74729.634758884422,-165696.72772564122,-171987.28986387292,-169789.95196906009,-174953.57723573316,-225888.96993078798,-296591.66444099892,-307925.24552010681,-318511.75590712193,-307060.29120875947})", "n:-572770.015812095"},
+        };
+        CHECK_EVALS(cases, Grid(), Settings());
+    }
+
+    // FV in the same order (a model of the practice set stored 1023073.5273362342 where the widest type gave 1023073.5273362491).
+    void aFutureValueIsWorkedOutInTheOrderOfTheFiles()
+    {
+        const E cases[] = {
+            {"-FV(0.095/12,12,,(14200000+-160000)-3731703.4625126394)-(14200000+-160000-3731703.4625126394)", "n:1023073.52733623"},
+            {"FV(0,10,-100,-50)", "n:1050"},
+            {"ROUND(FV(0.06/12,10,-200,-500,1),2)", "n:2581.4"},
         };
         CHECK_EVALS(cases, Grid(), Settings());
     }

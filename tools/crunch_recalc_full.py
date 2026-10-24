@@ -15,7 +15,8 @@ out-dir/cells.tsv has a line for each formula cell that did not match, a few of 
 stored, ours, class (M match, X mismatch that reads no other mismatch, Y mismatch that reads one, U unknown function, V volatile, E external, T table columns, P not parsed, N no result, D data table, L work bound, I circle in an
 iterative workbook, Z tainted, S out of time). out-dir/books.tsv has a line for each workbook, with its seconds and peak memory; out-dir/unsupported.tsv lists the functions the
 engine lacks, with the cells that call each. The summary is printed: the cells and the share that matched, the workbooks that matched whole (against the bars of
-docs/jeffcrunch.md), how each of the commonest 50 functions fared, the commonest mismatches, the time and memory, and the commonest unsupported functions.
+docs/jeffcrunch.md), how each of the commonest 50 functions fared (a workbook that says it was saved before its calculation finished is kept apart whole: its
+cells are written with K before their class, and its counts are told on a line of their own), the commonest mismatches, the time and memory, and the commonest unsupported functions.
 """
 import os
 import re
@@ -75,6 +76,19 @@ def run_one(tool, path, matches, seconds):
     return path, code, rows, fns, unsup, pats, book, message, wall
 
 
+def calculation_not_completed(path):
+    """True when the workbook says it was saved before its calculation finished (calcPr calcCompleted="0", which a workbook on manual calculation that was changed and
+    not recalculated carries): the results it stored are not the program's answers to its own formulas, so they are no measure of ours."""
+    import zipfile
+    try:
+        with zipfile.ZipFile(path) as z, z.open("xl/workbook.xml") as f:
+            head = f.read(4 << 20).decode("utf-8", "replace")
+    except Exception:
+        return False
+    m = re.search(r"<(?:\w+:)?calcPr\b[^>]*>", head)
+    return bool(m and re.search(r'\bcalcCompleted\s*=\s*["\'](?:0|false)["\']', m.group(0)))
+
+
 def pct(a, b):
     return "%.2f%%" % (100.0 * a / b) if b else "n/a"
 
@@ -116,6 +130,7 @@ def main():
     patterns = Counter()
     formula_books = whole_books = checked_books = 0
     manual_books = manual_mismatch = 0
+    stale_books = stale_checked = stale_matched = 0   # saved before their calculation finished: kept apart
     timing = []   # (seconds, peak MB, sheet MB, formula cells, path)
     lost = []
     with open(os.path.join(out_dir, "cells.tsv"), "w", encoding="utf-8", errors="surrogateescape") as cells, \
@@ -145,6 +160,13 @@ def main():
             books.write("%s\t%d\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2f\t%s\t%s\t%.0f\t%.1f\t%d\t%d\t%.1f\n" % (escape(path), code, "\t".join(map(str, counts)), vc, vm, tm, circ, circ0, roots, manual, whole,
                                                                                                          seconds, load, calc, peak, sheet_mb, graph_entries, evaluations, wall))
             timing.append((max(seconds, wall), peak, sheet_mb, counts[0], path))
+            if calculation_not_completed(path):
+                stale_books += 1
+                stale_checked += counts[1] + counts[2]
+                stale_matched += counts[1]
+                for sheet, cell, cls, formula, stored, ours, fnlist in rows:
+                    cells.write("%s\t%s\t%s\t%s\t%s\t%s\tK%s\n" % (escape(path), escape(sheet), cell, escape(formula), escape(stored), escape(ours), cls))
+                continue
             totals["formula cells"] += counts[0]
             for k, c in zip(CLASSES, counts[1:]):
                 totals[k] += c
@@ -186,6 +208,8 @@ def main():
           f"mismatches that follow another {totals['X'] - root_mismatches}; tainted (read a formula kept apart) {totals['Z']} (of which match the file {tainted_matched}); circular cells {circular} (of which the file stored 0 for {circular_zero}); workbooks with formulas {formula_books}, "
           f"with something checked {checked_books}, matched whole {whole_books} ({pct(whole_books, checked_books)}); of those on manual calculation {manual_books}, {manual_mismatch} with "
           f"mismatches; {time.time() - started:.0f} s")
+    print(f"kept apart, saved before their calculation finished (calcCompleted 0): {stale_books} workbooks, {stale_checked} formula cells checked, "
+          f"{stale_matched} of them matching their stale results ({pct(stale_matched, stale_checked)}); not in the counts above or below")
     print("preview bar: cells %s (98%% asked), workbooks %s (90%% asked): %s" % (pct(totals["M"], checked), pct(whole_books, checked_books),
                                                                                 "met" if cells_ok >= 98 and books_ok >= 90 else "not met"))
     print("functions by calls (calls, share of calls in cells that matched, cells, share of cells that matched):")
