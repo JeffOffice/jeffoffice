@@ -163,6 +163,52 @@ private Q_SLOTS:
     }
 
     // The number buttons, in the language the window is set to; and the number format box shows the format of the cell with the cursor and sets it.
+    // The buttons are made to show a cell's format only when the format of the cell with the cursor is not the one they show: moving among cells of one format, and keeping an entry, cost
+    // them nothing (counted), and a move to a cell of another format, a format given, and Undo of it do.
+    void theButtonsAreOnlyMadeAgainWhenTheFormatChanges()
+    {
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));
+        e.win.w.setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
+        auto *box = e.win.w.findChild<QComboBox *>(QStringLiteral("fmt.numberFormat"));
+        QVERIFY(box);
+        QAction *bold = e.win.w.act(QStringLiteral("fmt.bold"));
+        e.select(QStringLiteral("B2"));
+        const int start = e.win.w.formatStateRuns();
+        // cells of the format General with no font changes: nothing is made again
+        e.select(QStringLiteral("B3"));
+        e.select(QStringLiteral("C2"));
+        e.select(QStringLiteral("B2"));
+        QCOMPARE(e.win.w.formatStateRuns(), start);
+        // an entry kept (the cell's value is changed, its format is not, and the cursor moves down)
+        e.enter(QStringLiteral("12"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.formatStateRuns(), start);
+        QCOMPARE(box->currentIndex(), 0);
+        // a format given is shown at once, by the command's own call
+        e.select(QStringLiteral("B2"));
+        run(e, "fmt.bold");
+        QVERIFY(bold->isChecked());
+        const int bolded = e.win.w.formatStateRuns();
+        QVERIFY(bolded > start);
+        // a move to a cell of another format shows it, and a move back shows this one
+        e.select(QStringLiteral("B3"));
+        QVERIFY(!bold->isChecked());
+        QVERIFY(e.win.w.formatStateRuns() > bolded);
+        e.select(QStringLiteral("B2"));
+        QVERIFY(bold->isChecked());
+        // Undo of the format, with the cursor on the cell: the buttons show the format it has now
+        e.win.w.undoStack()->undo();
+        QVERIFY(!bold->isChecked());
+        e.win.w.undoStack()->redo();
+        QVERIFY(bold->isChecked());
+        // the number box follows the language's marks too: a new language makes it be read again
+        const int before = e.win.w.formatStateRuns();
+        e.win.w.setLocale(QLocale(QLocale::German, QLocale::Germany));
+        QVERIFY(e.win.w.formatStateRuns() > before);
+        e.win.w.setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
+    }
+
     void theNumberButtonsAndBox()
     {
         EditWindow e;

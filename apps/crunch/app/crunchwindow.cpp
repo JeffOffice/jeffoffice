@@ -422,7 +422,7 @@ void CrunchWindow::updateBars()
     if (m_formulaFull.size() <= kShown || m_formulaBar->hasFocus()) m_formulaBar->setText(m_formulaFull);
     else m_formulaBar->setText(m_formulaFull.left(kShown) + QChar(0x2026));
     m_formulaBar->setCursorPosition(0);
-    updateFormatState();
+    updateFormatState(false);
 }
 
 void CrunchWindow::goToName()

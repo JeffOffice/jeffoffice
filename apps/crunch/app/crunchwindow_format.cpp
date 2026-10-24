@@ -142,20 +142,38 @@ void CrunchWindow::createFormatActions()
 }
 
 // Whether a command of formatting may be used: the workbook is open and nothing is being saved.
-void CrunchWindow::updateFormatState()
+void CrunchWindow::updateFormatState(bool force)
 {
     if (!m_actions.contains(QStringLiteral("fmt.painter"))) return;   // (the commands are not made yet)
     const bool open = m_session && !m_saving && m_loaded && m_loaded->problem.isEmpty();
-    for (const QString &id : m_formatActions)
-        if (QAction *a = act(id)) a->setEnabled(open);
-    for (const auto &c : m_fontCombos)
-        if (c) c->setEnabled(open);
-    for (const auto &c : m_sizeCombos)
-        if (c) c->setEnabled(open);
-    for (const QPointer<ColorButton> &b : {m_fillButton, m_fontColorButton})
-        if (b) b->setEnabled(open);
-    if (m_numberBox) m_numberBox->setEnabled(open);
+    if (force || int(open) != m_formatOpen) {
+        m_formatOpen = int(open);
+        for (const QString &id : m_formatActions)
+            if (QAction *a = act(id)) a->setEnabled(open);
+        for (const auto &c : m_fontCombos)
+            if (c) c->setEnabled(open);
+        for (const auto &c : m_sizeCombos)
+            if (c) c->setEnabled(open);
+        for (const QPointer<ColorButton> &b : {m_fillButton, m_fontColorButton})
+            if (b) b->setEnabled(open);
+        if (m_numberBox) m_numberBox->setEnabled(open);
+    }
     if (!open || m_formatting) return;
+    // (the format the buttons show is that of the cell format of the cell with the cursor, with whether it is merged and what the Format Painter is doing: a cell that has the same as the
+    // last one shown needs nothing done, and a person's edit, which keeps the cursor on cells of the same format, then costs the buttons nothing)
+    FormatShown shown;
+    shown.book = m_loaded ? m_loaded->book.get() : nullptr;
+    if (m_loaded && m_loaded->book) {
+        const grid::GridSheet &gs = m_view->sheet();
+        const grid::Selection &sel = m_view->selection();
+        const quint32 row = quint32(std::max<qint64>(0, sel.activeRow)), col = quint32(std::max<qint64>(0, sel.activeCol));
+        shown.xf = gs.styleOf(row, col, gs.cellAt(row, col));
+        const bool merged = gs.layout().merges.count() > 0 && gs.layout().merges.at(row, col) >= 0;
+        shown.flags = (merged ? 1u : 0u) | (quint32(m_painter.mode) << 1) | (quint32(m_sheet + 1) << 8);
+    }
+    if (!force && shown == m_formatShown) return;
+    m_formatShown = shown;
+    ++m_formatStateRuns;
     const FormatView v = viewOfActiveCell();
     auto check = [this](const char *id, bool on) {
         if (QAction *a = act(QString::fromLatin1(id))) {

@@ -21,6 +21,7 @@ QUndoStack *CrunchWindow::undoStack() const { return m_session ? m_session->undo
 void CrunchWindow::createEditing()
 {
     m_session = std::make_unique<crunch::EditSession>(&m_loader, m_loaded, &m_values, nullptr);
+    m_formatShown = FormatShown();   // (a workbook of its own: the buttons show its cell with the cursor)
     connect(m_session.get(), &crunch::EditSession::cellsChanged, this, &CrunchWindow::onCellsChanged);
     connect(m_session.get(), &crunch::EditSession::cellsMoved, this, &CrunchWindow::onCellsMoved);
     connect(m_session.get(), &crunch::EditSession::sizesChanged, this, &CrunchWindow::onSizesChanged);
@@ -34,7 +35,7 @@ void CrunchWindow::createEditing()
     connect(u, &QUndoStack::canRedoChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::indexChanged, this, &CrunchWindow::updateEditActions);   // (the oldest steps may be forgotten: Undo ends before them)
     connect(u, &QUndoStack::indexChanged, this, [this] { cancelCut(); });   // (any edit ends a cut)
-    connect(u, &QUndoStack::indexChanged, this, [this] { updateFormatState(); });   // (the buttons show the format the cell has now)
+    connect(u, &QUndoStack::indexChanged, this, [this] { updateFormatState(false); });   // (the buttons show the format the cell has now)
     connect(u, &QUndoStack::undoTextChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::redoTextChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::cleanChanged, this, [this](bool clean) {
@@ -51,6 +52,7 @@ void CrunchWindow::setLocale(const QLocale &locale)
     if (m_session) m_session->setLocale(locale);
     m_view->sheet().setNumberSymbols(jp::calc::NumberSymbols::of(locale));
     m_view->invalidateValues();
+    m_formatShown = FormatShown();   // (the number format box shows the marks of the language)
     updateBars();
 }
 
@@ -67,7 +69,7 @@ void CrunchWindow::updateEditActions()
     const bool canSave = open && m_loaded && m_loaded->problem.isEmpty();
     act("file.save")->setEnabled(canSave);
     act("file.saveAs")->setEnabled(canSave);
-    updateFormatState();
+    updateFormatState(false);
 }
 
 // Whether a cell can be changed now; if not, the person is told why (as a note in the status line while the workbook is still being opened, else in a message).

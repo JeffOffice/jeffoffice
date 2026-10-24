@@ -165,7 +165,8 @@ bool optionsOf(const QString &code, NumberCategory *category, NumberOptions *opt
         symbol = m.captured(1);
         symbol.replace(QStringLiteral("\"\""), QStringLiteral("\""));
         const int at = m.capturedStart();
-        const int digitAt = first.indexOf(QRegularExpression(QStringLiteral("[0#?]")));
+        static const QRegularExpression digit(QStringLiteral("[0#?]"));
+        const int digitAt = first.indexOf(digit);
         first1 = digitAt < 0 || at < digitAt;
     }
     o.symbol = symbol;
@@ -193,15 +194,22 @@ bool optionsOf(const QString &code, NumberCategory *category, NumberOptions *opt
     }
 }
 
-NumberCategory categoryOf(const QString &code)
+namespace {
+
+NumberCategory categoryOfUncached(const QString &code)
 {
     const QString trimmed = code.trimmed();
     if (trimmed.isEmpty() || trimmed.compare(QLatin1String("General"), Qt::CaseInsensitive) == 0) return NumberCategory::General;
     if (trimmed == QLatin1String("@")) return NumberCategory::Text;
-    for (const FormatType &t : typesFor(NumberCategory::Special, QLocale::c()))
-        if (t.code == trimmed) return NumberCategory::Special;
+    static const QStringList specialCodes = [] {
+        QStringList codes;
+        for (const FormatType &t : typesFor(NumberCategory::Special, QLocale::c())) codes << t.code;
+        return codes;
+    }();
+    if (specialCodes.contains(trimmed)) return NumberCategory::Special;
     // (a condition on a part, [<0], makes a format of the person's own)
-    if (trimmed.contains(QRegularExpression(QStringLiteral("\\[[<>=]")))) return NumberCategory::Custom;
+    static const QRegularExpression condition(QStringLiteral("\\[[<>=]"));
+    if (trimmed.contains(condition)) return NumberCategory::Custom;
     const QString first = firstSection(trimmed);
     const QString skel = skeleton(first);
     bool date = false, time = false;
@@ -210,9 +218,11 @@ NumberCategory categoryOf(const QString &code)
     if (skel.contains(QLatin1Char('*')) && skel.contains(QStringLiteral("#,##0"))) return NumberCategory::Accounting;
     if (skel.contains(QLatin1Char('%'))) return NumberCategory::Percentage;
     if (skel.contains(QStringLiteral("E+"), Qt::CaseInsensitive) || skel.contains(QStringLiteral("E-"), Qt::CaseInsensitive)) return NumberCategory::Scientific;
-    if (skel.contains(QRegularExpression(QStringLiteral("[?#0]/[?#0\\d]")))) return NumberCategory::Fraction;
+    static const QRegularExpression fraction(QStringLiteral("[?#0]/[?#0\\d]"));
+    if (skel.contains(fraction)) return NumberCategory::Fraction;
     if (skel.contains(QLatin1Char('@'))) return NumberCategory::Custom;
-    if (skel.contains(QRegularExpression(QStringLiteral("[0#?]")))) {
+    static const QRegularExpression digits(QStringLiteral("[0#?]"));
+    if (skel.contains(digits)) {
         // a currency: a symbol (anywhere, in quotes or not) or a short quoted text next to the digits; any longer text is the person's own
         static const QRegularExpression symbols(QStringLiteral("[$\u20AC\u00A3\u00A5\u20B9\u20A9]"));
         if (symbols.match(first).hasMatch()) return NumberCategory::Currency;
@@ -220,8 +230,25 @@ NumberCategory categoryOf(const QString &code)
         const auto m = word.match(first);
         if (m.hasMatch() && m.captured(1).size() <= 3 && m.captured(1) != QLatin1String("-") && !skel.contains(QLatin1Char('*'))) return NumberCategory::Currency;
     }
-    if (skel.contains(QRegularExpression(QStringLiteral("^[#,0]*0(\\.[0#?]+)?$"))) || skel.contains(QRegularExpression(QStringLiteral("^#,##0(\\.[0#?]+)?$")))) return NumberCategory::Number;
+    static const QRegularExpression plain(QStringLiteral("^[#,0]*0(\\.[0#?]+)?$")), grouped(QStringLiteral("^#,##0(\\.[0#?]+)?$"));
+    if (skel.contains(plain) || skel.contains(grouped)) return NumberCategory::Number;
     return NumberCategory::Custom;
+}
+
+} // namespace
+
+NumberCategory categoryOf(const QString &code)
+{
+    // (the buttons of formatting ask this each time the cursor goes to a cell of another format, so the patterns are made once, and the last answer is kept)
+    thread_local QString lastCode;
+    thread_local NumberCategory lastCategory = NumberCategory::General;
+    thread_local bool haveLast = false;
+    if (haveLast && code == lastCode) return lastCategory;
+    const NumberCategory category = categoryOfUncached(code);
+    lastCode = code;
+    lastCategory = category;
+    haveLast = true;
+    return category;
 }
 
 QVector<FormatType> typesFor(NumberCategory category, const QLocale &locale)

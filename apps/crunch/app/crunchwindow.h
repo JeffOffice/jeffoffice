@@ -142,6 +142,8 @@ public:
     // What is asked before a step that throws something away (merging cells that hold values): the title and the sentence; true goes on. A message box unless this stands in for it (tests).
     void setConfirmAsker(const std::function<bool(const QString &title, const QString &text)> &asker) { m_confirmAsker = asker; }
     // The Format Painter: whether it is waiting for cells to paint, and whether it stays on after painting (a double click).
+    // How many times the buttons of formatting were made to show a cell's format (they are not, for a cell that has the format they already show).
+    int formatStateRuns() const { return m_formatStateRuns; }
     bool formatPainterActive() const { return m_painter.mode != PainterMode::Off; }
     bool formatPainterLocked() const { return m_painter.mode == PainterMode::Locked; }
     // The format the dialog starts from (the cell with the cursor), and the dialog's changes made.
@@ -324,7 +326,9 @@ private:
     enum class PainterMode { Off, Once, Locked };
     void createFormatActions();
     void formatRibbonParts(RibbonParts &parts);
-    void updateFormatState();
+    // The buttons of formatting are made to show the format of the cell with the cursor. Unless `force`, nothing is done again for a cell that has the same cell format as the last one shown
+    // (the cursor moving down a column of cells, or an entry that is kept: the buttons already show it).
+    void updateFormatState(bool force = true);
     bool formatSelection(const jp::office::sheet::FormatChange &change, const QString &text);
     FormatView viewOfActiveCell() const;
     void toggleFont(int what);
@@ -366,6 +370,14 @@ private:
         crunch::ClipData clip;
         QElapsedTimer started;
     } m_painter;
+    struct FormatShown {                         // what the buttons of formatting show now: the workbook, the cell format of the cell with the cursor, and what else decides it
+        const void *book = nullptr;
+        quint32 xf = ~quint32(0);
+        quint32 flags = 0;
+        bool operator==(const FormatShown &o) const { return book == o.book && xf == o.xf && flags == o.flags; }
+    } m_formatShown;
+    int m_formatStateRuns = 0;
+    int m_formatOpen = -1;                       // whether the commands of formatting were last made usable (1), or not (0); -1 before the first time
     bool m_formatting = false;                   // a formatting command is working (the state of the buttons is not read back into it)
     void notice(const QString &title, const QString &text, bool warning = true);
     QString helpContext() const;
