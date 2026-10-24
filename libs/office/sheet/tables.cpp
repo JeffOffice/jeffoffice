@@ -257,6 +257,10 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info)
             t.col1 = range.col1;
             t.row2 = range.row2;
             t.col2 = range.col2;
+            t.fileRow1 = range.row1;
+            t.fileCol1 = range.col1;
+            t.fileRow2 = range.row2;
+            t.fileCol2 = range.col2;
             t.headerRows = headerRows > 0 ? 1 : 0;
             t.fileColumns = t.columns;
             tables.append(t);
@@ -375,7 +379,7 @@ TableFate tableAfter(const StructEdit &e, const Table &t, CellRange *out, QStrin
     }
 }
 
-bool renameTableXml(const QByteArray &xml, const QStringList &fileNames, const QStringList &names, const QString &table, QByteArray *out)
+bool renameTableXml(const QByteArray &xml, const QStringList &fileNames, const QStringList &names, const QString &table, QByteArray *out, const CellRange *range)
 {
     const QString text = QString::fromUtf8(xml);
     if (!text.contains(QLatin1String("<table"))) return false;
@@ -428,6 +432,30 @@ bool renameTableXml(const QByteArray &xml, const QStringList &fileNames, const Q
         at = m.capturedEnd();
     }
     final += result.mid(at);
+    if (range && range->valid) {
+        // the cells the table covers: its ref, and its filter's (which leaves out a row of totals)
+        static const QRegularExpression tableTag(QStringLiteral("<(?:\\w+:)?table\\b[^>]*>")), filterTag(QStringLiteral("<(?:\\w+:)?autoFilter\\b[^>]*>")), refAttribute(QStringLiteral("(\\sref=\")([^\"]*)(\")"));
+        static const QRegularExpression totals(QStringLiteral("\\stotalsRowCount=\"([1-9]\\d*)\""));
+        const QRegularExpressionMatch tm = tableTag.match(final);
+        if (tm.hasMatch()) {
+            QString tag = tm.captured();
+            const QRegularExpressionMatch rm = refAttribute.match(tag);
+            if (rm.hasMatch()) tag.replace(rm.capturedStart(2), rm.capturedLength(2), rangeName(*range));
+            final.replace(tm.capturedStart(), tm.capturedLength(), tag);
+            const bool hasTotals = totals.match(tm.captured()).hasMatch();
+            const QRegularExpressionMatch fm = filterTag.match(final, tm.capturedStart() + tag.size());
+            if (fm.hasMatch()) {
+                CellRange filter = *range;
+                if (hasTotals && filter.row2 > filter.row1) --filter.row2;
+                QString ftag = fm.captured();
+                const QRegularExpressionMatch frm = refAttribute.match(ftag);
+                if (frm.hasMatch()) {
+                    ftag.replace(frm.capturedStart(2), frm.capturedLength(2), rangeName(filter));
+                    final.replace(fm.capturedStart(), fm.capturedLength(), ftag);
+                }
+            }
+        }
+    }
     *out = final.toUtf8();
     return true;
 }

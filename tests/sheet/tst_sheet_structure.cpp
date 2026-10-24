@@ -4,6 +4,7 @@
 #include "sheethelpers.h"
 
 #include "sheet/calculation.h"
+#include "sheet/tables.h"
 
 #include <QRandomGenerator>
 
@@ -332,6 +333,74 @@ private Q_SLOTS:
         QVERIFY(p.openXml(worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"), QStringLiteral("<sheetProtection sheet=\"1\"/>"))));
         QVERIFY(!p.calc->canApply(StructEdit::insertRows(0, 0, 1), &why));
         QVERIFY2(why.contains(QLatin1String("protected")), qPrintable(why));
+    }
+
+    // Where a table is after rows, columns, and cells are inserted and deleted around it: it moves, grows, and shrinks with its rows, and is not cut through.
+    void aTableMovesGrowsShrinksOrRefusesTheEdit()
+    {
+        Table t;
+        t.sheet = 0;
+        t.row1 = 2;
+        t.col1 = 1;
+        t.row2 = 6;
+        t.col2 = 3;   // B3:D7
+        t.headerRows = 1;
+        auto fate = [&](const StructEdit &e, QString *place = nullptr) {
+            CellRange where;
+            QString why;
+            const TableFate f = tableAfter(e, t, &where, &why);
+            if (place) *place = f == TableFate::Refused ? why : rangeName(where);
+            return f;
+        };
+        QString place;
+        QCOMPARE(fate(StructEdit::insertRows(0, 0, 2), &place), TableFate::Moved);
+        QCOMPARE(place, QStringLiteral("B5:D9"));
+        QCOMPARE(fate(StructEdit::insertRows(0, 2, 1), &place), TableFate::Moved);   // above the header: it moves
+        QCOMPARE(place, QStringLiteral("B4:D8"));
+        QCOMPARE(fate(StructEdit::insertRows(0, 4, 3), &place), TableFate::Moved);   // inside: it grows
+        QCOMPARE(place, QStringLiteral("B3:D10"));
+        QCOMPARE(fate(StructEdit::insertRows(0, 7, 3)), TableFate::Same);            // below it
+        QCOMPARE(fate(StructEdit::insertRows(1, 0, 3)), TableFate::Same);            // on another sheet
+        QCOMPARE(fate(StructEdit::deleteRows(0, 0, 2), &place), TableFate::Moved);
+        QCOMPARE(place, QStringLiteral("B1:D5"));
+        QCOMPARE(fate(StructEdit::deleteRows(0, 4, 2), &place), TableFate::Moved);   // two data rows
+        QCOMPARE(place, QStringLiteral("B3:D5"));
+        QCOMPARE(fate(StructEdit::deleteRows(0, 6, 3), &place), TableFate::Moved);   // the last row, and below
+        QCOMPARE(place, QStringLiteral("B3:D6"));
+        QCOMPARE(fate(StructEdit::deleteRows(0, 2, 1), &place), TableFate::Refused);   // the header
+        QVERIFY(place.contains(QStringLiteral("names")));
+        QCOMPARE(fate(StructEdit::deleteRows(0, 1, 9)), TableFate::Refused);         // all of it
+        QCOMPARE(fate(StructEdit::insertColumns(0, 0, 2), &place), TableFate::Moved);
+        QCOMPARE(place, QStringLiteral("D3:F7"));
+        QCOMPARE(fate(StructEdit::insertColumns(0, 4, 2)), TableFate::Same);
+        QCOMPARE(fate(StructEdit::insertColumns(0, 2, 1)), TableFate::Refused);      // inside
+        QCOMPARE(fate(StructEdit::deleteColumns(0, 3, 1)), TableFate::Refused);
+        QCOMPARE(fate(StructEdit::deleteColumns(0, 0, 1), &place), TableFate::Moved);
+        QCOMPARE(place, QStringLiteral("A3:C7"));
+        CellRange block;
+        block.valid = true;
+        block.row1 = 0;
+        block.row2 = 1;
+        block.col1 = 1;
+        block.col2 = 3;
+        QCOMPARE(fate(StructEdit::insertCellsDown(0, block), &place), TableFate::Moved);   // all its columns: it moves whole
+        QCOMPARE(place, QStringLiteral("B5:D9"));
+        block.col2 = 2;
+        QCOMPARE(fate(StructEdit::insertCellsDown(0, block)), TableFate::Refused);         // only some of its columns
+        block.row1 = 8;
+        block.row2 = 9;
+        QCOMPARE(fate(StructEdit::insertCellsDown(0, block)), TableFate::Same);            // below it
+        block.row1 = 2;
+        block.row2 = 6;
+        block.col1 = 4;
+        block.col2 = 5;
+        QCOMPARE(fate(StructEdit::deleteCellsLeft(0, block)), TableFate::Same);            // right of it: its cells do not move
+        block.col1 = 0;
+        block.col2 = 0;
+        QCOMPARE(fate(StructEdit::deleteCellsLeft(0, block), &place), TableFate::Moved);   // left of it, in all its rows
+        QCOMPARE(place, QStringLiteral("A3:C7"));
+        block.row2 = 3;
+        QCOMPARE(fate(StructEdit::deleteCellsLeft(0, block)), TableFate::Refused);         // in some of its rows
     }
 
     // The cost is what moves and what reads it: an insert in the middle of a tall sheet moves the cells below it and writes again only the formulas that read them, and the search for

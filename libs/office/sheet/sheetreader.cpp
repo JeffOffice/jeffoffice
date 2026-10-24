@@ -1400,9 +1400,16 @@ std::map<QString, QByteArray> Workbook::changedTableParts() const
     std::map<QString, QByteArray> out;
     if (!m_tablesRead) return out;
     for (const Table &t : m_tables) {
-        if (t.columns == t.fileColumns) continue;
+        const bool moved = t.row1 != t.fileRow1 || t.col1 != t.fileCol1 || t.row2 != t.fileRow2 || t.col2 != t.fileCol2;
+        if (t.columns == t.fileColumns && !moved) continue;
         QByteArray renamed;
-        if (renameTableXml(m_package.part(t.part), t.fileColumns, t.columns, t.name, &renamed)) out[t.part] = renamed;
+        CellRange now;
+        now.valid = true;
+        now.row1 = t.row1;
+        now.col1 = t.col1;
+        now.row2 = t.row2;
+        now.col2 = t.col2;
+        if (renameTableXml(m_package.part(t.part), t.fileColumns, t.columns, t.name, &renamed, moved ? &now : nullptr)) out[t.part] = renamed;
     }
     return out;
 }

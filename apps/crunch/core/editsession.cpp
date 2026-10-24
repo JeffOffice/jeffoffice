@@ -602,7 +602,6 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     if (!m_book->problem.isEmpty() || !m_book->book->sharedStringsError().isEmpty() || !m_book->book->stylesError().isEmpty())
         return refuse(tr("Some of this workbook could not be read whole, so JeffCrunch does not save it."));
     if (!m_book->book->package().isLazy()) return refuse(tr("This workbook was not opened from a file JeffCrunch can save over."));
-    if (!m_edits.empty()) return refuse(tr("Inserted and deleted rows, columns, and cells can't be saved yet."));
     const Calculation *calc = m_book->calc.get();
     Workbook &book = *m_book->book;
     *out = Snapshot();
@@ -622,8 +621,11 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
             cell.isFormula = c.isFormula;
             if (c.isFormula) {
                 cell.formula = c.formula;
+                if (c.arrayRange.valid) cell.arrayRef = c.arrayRange.cellCount() > 1 ? rangeName(c.arrayRange) : cellName(c.arrayRange.row1, c.arrayRange.col1);
                 Value v;
-                if (m_values->find(sheet, row, col, &v)) {
+                // (a formula the engine keeps apart has the result it had, which the worker does not tell)
+                const bool known = m_values->find(sheet, row, col, &v) || (c.hasStored && ((v = c.stored), true));
+                if (known) {
                     cell.value = savedValue(v, -1);
                     out->touchedFormulas.push_back(key);
                     out->touchedResults[key] = v;
@@ -652,6 +654,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         changes.sharedStringsBefore = book.sharedStringsInFile();
     }
     changes.replacedParts = book.changedTableParts();
+    changes.edits = m_edits;
     out->strings = int(changes.newSharedStrings.size());
     if (hasStyles) {
         for (const Workbook::AddedNumberFormat &f : book.addedNumberFormats()) changes.newNumberFormats.append({f.id, f.code});

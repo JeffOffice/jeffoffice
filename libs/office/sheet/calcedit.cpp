@@ -290,7 +290,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
     {
         QVector<CellRange> kept;
         for (CellRange r : S.merges)
-            if (adjustRange(e, e.sheet, &r)) kept.append(r);
+            if (adjustRange(e, e.sheet, &r) && r.cellCount() > 1) kept.append(r);
             else --S.mergeCount;
         S.merges = kept;
     }
@@ -309,32 +309,8 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
     }
     if (e.kind == K::InsertColumns || e.kind == K::DeleteColumns) {
         QVector<ColumnSpan> spans;
-        for (ColumnSpan c : S.columns) {
-            if (e.kind == K::InsertColumns) {
-                if (c.first >= e.first) {
-                    c.first += count;
-                    c.last += count;
-                } else if (c.last >= e.first) {
-                    c.last += count;   // (a run with the new columns in it widens)
-                }
-            } else {
-                const quint32 end = e.first + count;
-                if (c.last < e.first) {
-                    // before: as it is
-                } else if (c.first >= end) {
-                    c.first -= count;
-                    c.last -= count;
-                } else {
-                    // overlapped: what is left of it
-                    const quint32 before = c.first < e.first ? e.first - c.first : 0, after = c.last >= end ? c.last - end + 1 : 0;
-                    if (before + after == 0) continue;
-                    const quint32 first = c.first < e.first ? c.first : e.first;
-                    c.first = first;
-                    c.last = first + before + after - 1;
-                }
-            }
-            if (c.first < kGridCols) spans.append(c);
-        }
+        for (ColumnSpan c : S.columns)
+            if (adjustColumnRun(e, &c.first, &c.last)) spans.append(c);
         S.columns = spans;
     }
     auto shiftExtent = [&](quint32 *extent, quint32 at, quint32 limit) {

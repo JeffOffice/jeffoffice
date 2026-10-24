@@ -96,7 +96,7 @@ QByteArray cellXml(const QByteArray &prefix, const SavedCell &c, bool hasShared)
     if (c.isFormula) {
         QString f = c.formula;
         if (f.startsWith(QLatin1Char('='))) f.remove(0, 1);
-        out += "<" + prefix + "f>" + xmlscan::escapeText(f) + "</" + prefix + "f>";
+        out += "<" + prefix + "f" + (c.arrayRef.isEmpty() ? QByteArray() : " t=\"array\" ref=\"" + c.arrayRef.toLatin1() + "\"") + ">" + xmlscan::escapeText(f) + "</" + prefix + "f>";
         if (c.hasResult) out += v.content;
     } else {
         out += v.content;

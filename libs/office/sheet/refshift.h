@@ -6,7 +6,6 @@
 // Everything here works on text and ranges, not on the model: the same rules rewrite the formulas of every sheet, the defined names, the validations and conditional formats, the tables,
 // the charts' ranges, and the hyperlinks, in the cells and in the file.
 
-#include "calc/formula.h"
 #include "sheet/cellref.h"
 
 #include <QString>
@@ -60,6 +59,10 @@ RefFate adjustBlock(const StructEdit &edit, const Block &in, Block *out);
 // Where a cell is after the edit (what a stored value, a mark on a cell, follows): Same, Moved (`row` and `col` are the new place; for a Move the sheet too, in `sheet`), or Gone (deleted,
 // pushed off the edge, or written over by a Move).
 RefFate adjustCell(const StructEdit &edit, int *sheet, quint32 *row, quint32 *col);
+
+// A run of columns [first, last] (the width a file gives to columns, say) after columns are inserted or deleted: false if all of it was deleted or went off the grid. A run that new columns
+// are inserted inside of grows to hold them.
+bool adjustColumnRun(const StructEdit &edit, quint32 *first, quint32 *last);
 
 // A range (a merged range, the cells of a validation) after the edit: false if it is gone.
 bool adjustRange(const StructEdit &edit, int sheet, CellRange *range);

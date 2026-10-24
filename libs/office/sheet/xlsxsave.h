@@ -10,6 +10,7 @@
 // on: nothing here reads the workbook's cells.
 
 #include "office/package.h"
+#include "sheet/refshift.h"
 #include "sheet/sheetreader.h"
 
 #include <QByteArray>
@@ -40,6 +41,7 @@ struct SavedCell {
     bool isFormula = false;
     QString formula;            // as the file writes it, with no "=" in front
     bool hasResult = true;      // a formula's result is known (else the cell has the formula and no value)
+    QString arrayRef;           // the first cell of an array formula: the cells it covers ("C3:C5"), else empty
 };
 
 // The result of a formula that the person did not change, worked out again after a change to what it reads.
@@ -74,6 +76,9 @@ struct SaveChanges {
     qint64 cellFormatsBefore = 0;
     // Parts to be written anew whole, by the part's name (the table parts whose columns were renamed).
     std::map<QString, QByteArray> replacedParts;
+    // Rows, columns, and cells inserted and deleted since the file was read, in the order they were made. Every part of the file that has cells in it, or names them, is changed by them
+    // (see structsave.h) before the cells above are put in, which are in the places the edits leave.
+    std::vector<StructEdit> edits;
     // Ask the program that opens the file to work every formula out again (a result that could not be worked out here is stale).
     bool fullCalcOnLoad = false;
 };

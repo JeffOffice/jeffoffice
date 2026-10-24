@@ -1,5 +1,7 @@
 #include "sheet/refshift.h"
 
+#include "calc/formula.h"
+
 #include <QRegularExpression>
 
 #include <algorithm>
@@ -214,6 +216,39 @@ RefFate adjustCell(const StructEdit &e, int *sheet, quint32 *row, quint32 *col)
         if (inDestination) return RefFate::Gone;
     }
     return RefFate::Same;
+}
+
+bool adjustColumnRun(const StructEdit &e, quint32 *first, quint32 *last)
+{
+    if (e.kind == StructEdit::Kind::InsertColumns) {
+        const quint32 count = e.count;
+        if (*first >= e.first) {
+            *first += count;
+            *last += count;
+        } else if (*last >= e.first) {
+            *last += count;
+        }
+        if (*first >= kGridCols) return false;
+        *last = std::min(*last, kGridCols - 1);
+        return true;
+    }
+    if (e.kind == StructEdit::Kind::DeleteColumns) {
+        const quint32 count = e.count, end = e.first + count;
+        if (*last < e.first) return true;
+        if (*first >= end) {
+            *first -= count;
+            *last -= count;
+            return true;
+        }
+        // overlapped: what is left of it
+        const quint32 before = *first < e.first ? e.first - *first : 0, after = *last >= end ? *last - end + 1 : 0;
+        if (before + after == 0) return false;
+        const quint32 start = *first < e.first ? *first : e.first;
+        *first = start;
+        *last = start + before + after - 1;
+        return true;
+    }
+    return true;
 }
 
 bool adjustRange(const StructEdit &e, int sheet, CellRange *range)

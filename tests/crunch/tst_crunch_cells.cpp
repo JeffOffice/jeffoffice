@@ -6,11 +6,14 @@
 #include "core/appinfo.h"
 #include "core/fonts.h"
 #include "crunchbooks.h"
+#include "../sheet/richbook.h"
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
 #include "grid/gridview.h"
 
 #include <QAction>
+#include <QRandomGenerator>
+#include <QRegularExpression>
 #include <QApplication>
 #include <QMenu>
 #include <QSettings>
@@ -22,6 +25,56 @@ using namespace jp;
 using namespace crunchtest;
 
 namespace {
+
+bool sameValue(const calc::Value &a, const calc::Value &b)
+{
+    if (a.isNumber() && b.isNumber()) return calc::sameTo15Digits(a.number(), b.number());
+    if ((a.isEmpty() && b.isNumber() && b.number() == 0) || (b.isEmpty() && a.isNumber() && a.number() == 0)) return true;
+    return a == b;
+}
+
+// What two calculations of the same workbook differ in: the cells (what they hold, their formats, and their values), the merged ranges, and the names. Empty if they agree.
+QString differences(const office::sheet::Calculation *a, const office::sheet::Calculation *b, const QStringList &names)
+{
+    using office::sheet::Calculation;
+    QStringList out;
+    if (a->sheetCount() != b->sheetCount()) return QStringLiteral("the number of sheets");
+    auto empty = [](const Calculation::CellContent &c) { return !c.exists || (!c.isFormula && c.value.isEmpty() && c.style == 0); };
+    // (formulas in a circle have no value to agree on, and what reads them neither: the values are left out then)
+    bool circular = false;
+    for (int s = 0; s < a->sheetCount(); ++s)
+        a->sheet(s).cells.forEach([&](const office::sheet::Cell &c) { circular = circular || a->isCircular(s, c.row, c.col); });
+    for (int s = 0; s < a->sheetCount() && out.size() < 12; ++s) {
+        auto compareAt = [&](quint32 row, quint32 col) {
+            const Calculation::CellContent x = a->content(s, row, col), y = b->content(s, row, col);
+            const QString where = QStringLiteral("%1!%2").arg(s).arg(cellName(row, col));
+            if (empty(x) && empty(y)) return;
+            // (a cell of an array holds the result the file had, which is no part of what it means: what it shows is compared below)
+            const bool member = !x.editable && !x.isFormula;
+            if (empty(x) != empty(y) || x.isFormula != y.isFormula || x.formula != y.formula || (!member && !sameValue(x.value, y.value)) || x.style != y.style) {
+                out << QStringLiteral("%1 holds %2 / %3 (%4) against %5 / %6 (%7)").arg(where, x.isFormula ? x.formula : x.value.debug(), QString::number(x.style), empty(x) ? "none" : "cell",
+                                                                                         y.isFormula ? y.formula : y.value.debug(), QString::number(y.style), empty(y) ? "none" : "cell");
+                return;
+            }
+            if (!circular && !sameValue(a->cell(s, row, col), b->cell(s, row, col))) out << QStringLiteral("%1 shows %2 against %3").arg(where, a->cell(s, row, col).debug(), b->cell(s, row, col).debug());
+        };
+        a->sheet(s).cells.forEach([&](const office::sheet::Cell &c) { compareAt(c.row, c.col); });
+        b->sheet(s).cells.forEach([&](const office::sheet::Cell &c) { compareAt(c.row, c.col); });
+        QVector<office::sheet::CellRange> ma = a->sheet(s).merges, mb = b->sheet(s).merges;
+        auto less = [](const office::sheet::CellRange &p, const office::sheet::CellRange &q) { return p.row1 != q.row1 ? p.row1 < q.row1 : p.col1 < q.col1; };
+        std::sort(ma.begin(), ma.end(), less);
+        std::sort(mb.begin(), mb.end(), less);
+        if (!(ma == mb)) {
+            QStringList x, y;
+            for (const auto &r : ma) x << rangeName(r);
+            for (const auto &r : mb) y << rangeName(r);
+            out << QStringLiteral("merges %1 against %2").arg(x.join(' '), y.join(' '));
+        }
+        for (const QString &name : names)
+            if (a->definedName(s, name) != b->definedName(s, name)) out << QStringLiteral("name %1: %2 against %3").arg(name, a->definedName(s, name), b->definedName(s, name));
+    }
+    return out.join(QStringLiteral("; "));
+}
 
 QString formulaOf(EditWindow &e, const QString &ref)
 {
@@ -261,6 +314,207 @@ private Q_SLOTS:
         e.enter(QStringLiteral("10"));
         QVERIFY(e.settle());
         QCOMPARE(e.valueAt(QStringLiteral("C2")), QStringLiteral("n:20"));
+    }
+
+    // The file that is saved after inserting and deleting means what the window shows: opened again, every cell, formula, value, merge, and name is what it was (the sheets' parts, the
+    // names, and the charts, drawings, and notes follow; what the edits did not touch is as it was).
+    void theSavedFileMeansWhatTheWindowShows()
+    {
+        EditWindow e;
+        QVERIFY(e.open(richBook()));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->insertRows(0, 2, 1).ok);
+        QVERIFY(s->deleteColumns(0, 3, 1).ok);                                   // column D (the sum is among its cells)
+        QVERIFY(s->insertColumns(0, 0, 2).ok);
+        QVERIFY(s->deleteRows(0, 5, 2).ok);
+        QVERIFY(e.settle());
+        // (the check sees a difference: the window is not what the file was)
+        {
+            Window original;
+            QVERIFY(original.open(e.folder.write(QStringLiteral("original.xlsx"), richBook())));
+            QVERIFY(!differences(e.win.w.calculation(), original.w.calculation(), {"Total"}).isEmpty());
+        }
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.wait(20000));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        const QString diff = differences(e.win.w.calculation(), second.w.calculation(), {"Total", "_xlnm.Print_Area"});
+        QVERIFY2(diff.isEmpty(), qPrintable(diff));
+        QCOMPARE(second.w.calculation()->definedName(0, QStringLiteral("Total")), e.win.w.calculation()->definedName(0, QStringLiteral("Total")));
+        // Undo after the save goes back no further than the moves it holds
+        QVERIFY(!e.win.w.isModified());
+        QVERIFY(!e.win.w.session()->canUndo());
+    }
+
+    // Many edits at random (rows, columns, and cells inserted and deleted on both sheets, with values and formulas typed between, some undone and done again), then saved and opened again:
+    // the file always means what the window showed.
+    void randomEditsSaveWhatTheWindowShows()
+    {
+        int moves = 0, refused = 0;
+        // (CRUNCH_SEED=n runs only that seed, and says what it does)
+        const quint32 only = qEnvironmentVariableIntValue("CRUNCH_SEED");
+        const quint32 seeds = qEnvironmentVariableIsSet("CRUNCH_SEEDS") ? qEnvironmentVariableIntValue("CRUNCH_SEEDS") : 40;
+        for (quint32 seed = only ? only : 1; seed <= (only ? only : seeds); ++seed) {
+            QRandomGenerator rng(seed);
+            EditWindow e;
+            QVERIFY(e.open(richBook()));
+            crunch::EditSession *s = e.win.w.session();
+            for (int step = 0; step < 10; ++step) {
+                const int sheet = rng.bounded(3) == 0 ? 1 : 0;
+                const quint32 at = quint32(rng.bounded(9)), count = 1 + quint32(rng.bounded(2));
+                office::sheet::CellRange block;
+                block.valid = true;
+                block.row1 = at;
+                block.row2 = at + count - 1;
+                block.col1 = quint32(rng.bounded(5));
+                block.col2 = block.col1 + quint32(rng.bounded(2));
+                const int which = rng.bounded(11);
+                if (only) qInfo() << "step" << step << "which" << which << "sheet" << sheet << "at" << at << "count" << count << "block" << rangeName(block);
+                switch (which) {
+                case 0: (void((s->insertRows(sheet, at, count)).ok ? ++moves : ++refused)); break;
+                case 1: (void((s->deleteRows(sheet, at, count)).ok ? ++moves : ++refused)); break;
+                case 2: (void((s->insertColumns(sheet, at % 6, count)).ok ? ++moves : ++refused)); break;
+                case 3: (void((s->deleteColumns(sheet, at % 6, count)).ok ? ++moves : ++refused)); break;
+                case 4: (void((s->insertCells(sheet, block, true)).ok ? ++moves : ++refused)); break;
+                case 5: (void((s->deleteCells(sheet, block, true)).ok ? ++moves : ++refused)); break;
+                case 6: (void((s->insertCells(sheet, block, false)).ok ? ++moves : ++refused)); break;
+                case 7: (void((s->deleteCells(sheet, block, false)).ok ? ++moves : ++refused)); break;
+                case 8: s->type(sheet, quint32(rng.bounded(10)), quint32(rng.bounded(6)), QString::number(rng.bounded(100))); break;
+                case 9: s->type(sheet, quint32(rng.bounded(10)), quint32(rng.bounded(6)), QStringLiteral("=Sheet1!A%1+Sheet2!A1").arg(1 + rng.bounded(6))); break;
+                default:
+                    if (s->canUndo()) pressUndo(&e.win.w);
+                    break;
+                }
+                QVERIFY(e.settle());
+            }
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            const bool modified = e.win.w.isModified();
+            QVERIFY(e.win.w.save() || !modified);
+            if (modified) QVERIFY(saved.wait(20000));
+            Window second;
+            QVERIFY(second.open(e.copyOfFile()));
+            const QString diff = differences(e.win.w.calculation(), second.w.calculation(), {"Total", "_xlnm.Print_Area"});
+            if (only) {
+                QMap<QString, QByteArray> parts;
+                QFile f(e.path);
+                if (f.open(QIODevice::ReadOnly)) jp::readZip(f.readAll(), parts);
+                qInfo().noquote() << QString::fromUtf8(parts.value(QStringLiteral("xl/worksheets/sheet1.xml")));
+            }
+            QVERIFY2(diff.isEmpty(), qPrintable(QStringLiteral("seed %1: %2").arg(seed).arg(diff)));
+        }
+        QVERIFY2(only || moves > 25 && refused < moves, qPrintable(QStringLiteral("%1 moves, %2 refused").arg(moves).arg(refused)));
+    }
+
+    // Tables: rows inserted inside one make it longer, rows or columns before it move it, the header row and the columns can't be cut through; the saved part has its place.
+    void tablesMoveWithTheirCellsAndRefuseToBeCut()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Region</t></is></c><c r=\"B1\" t=\"inlineStr\"><is><t>Q1</t></is></c><c r=\"C1\" t=\"inlineStr\"><is><t>Total</t></is></c><c r=\"E1\"><f>SUM(Sales[Q1])</f><v>6</v></c></row>"
+                                            "<row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>East</t></is></c><c r=\"B2\"><v>1</v></c><c r=\"C2\"><f>Sales[[#This Row],[Q1]]*2</f><v>2</v></c></row>"
+                                            "<row r=\"3\"><c r=\"A3\" t=\"inlineStr\"><is><t>West</t></is></c><c r=\"B3\"><v>2</v></c><c r=\"C3\"><f>Sales[[#This Row],[Q1]]*2</f><v>4</v></c></row>"
+                                            "<row r=\"4\"><c r=\"A4\" t=\"inlineStr\"><is><t>North</t></is></c><c r=\"B4\"><v>3</v></c><c r=\"C4\"><f>Sales[[#This Row],[Q1]]*2</f><v>6</v></c></row>");
+        const QString table = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" id=\"1\" name=\"Sales\" displayName=\"Sales\" ref=\"A1:C4\">"
+                                             "<autoFilter ref=\"A1:C4\"/><tableColumns count=\"3\"><tableColumn id=\"1\" name=\"Region\"/><tableColumn id=\"2\" name=\"Q1\"/>"
+                                             "<tableColumn id=\"3\" name=\"Total\"><calculatedColumnFormula>Sales[[#This Row],[Q1]]*2</calculatedColumnFormula></tableColumn></tableColumns></table>");
+        const QByteArray book = withTables(buildXlsx({worksheet(rows)}), {table});
+        auto tableRef = [](const QString &path) {
+            QFile f(path);
+            f.open(QIODevice::ReadOnly);
+            QMap<QString, QByteArray> parts;
+            jp::readZip(f.readAll(), parts);
+            const QString xml = QString::fromUtf8(parts.value(QStringLiteral("xl/tables/table1.xml")));
+            const QRegularExpressionMatch m = QRegularExpression(QStringLiteral("<table\\b[^>]* ref=\"([^\"]*)\"")).match(xml);
+            const QRegularExpressionMatch f2 = QRegularExpression(QStringLiteral("<autoFilter ref=\"([^\"]*)\"")).match(xml);
+            return m.captured(1) + QLatin1Char('|') + f2.captured(1);
+        };
+        EditWindow e;
+        QVERIFY(e.open(book));
+        crunch::EditSession *s = e.win.w.session();
+        auto saveNow = [&] {
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            QVERIFY(e.win.w.save());
+            QVERIFY(saved.wait(20000));
+        };
+        // refused: the header row, all of the table's rows, a column inside it, a block that takes part of it with it
+        QVERIFY(!s->deleteRows(0, 0, 1).ok);
+        QVERIFY(!s->deleteRows(0, 0, 4).ok);
+        QVERIFY(!s->insertColumns(0, 1, 1).ok);
+        QVERIFY(!s->deleteColumns(0, 1, 1).ok);
+        office::sheet::CellRange part;
+        part.valid = true;
+        part.row1 = 2;
+        part.row2 = 2;
+        part.col1 = 0;
+        part.col2 = 1;
+        QVERIFY(!s->insertCells(0, part, true).ok);
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+        // longer: a row inserted in the middle, then a row deleted from the end
+        QVERIFY(s->insertRows(0, 2, 1).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(formulaOf(e, QStringLiteral("E1")), QStringLiteral("=SUM(Sales[Q1])"));
+        saveNow();
+        QCOMPARE(tableRef(e.path), QStringLiteral("A1:C5|A1:C5"));
+        // the table is where the rows are: a header typed over renames its column
+        QVERIFY(s->insertRows(0, 0, 2).ok);                                       // before the table: it moves down
+        QVERIFY(e.settle());
+        QVERIFY(s->type(0, 2, 1, QStringLiteral("Quarter")).ok);                  // B3, the header of the second column
+        QVERIFY(e.settle());
+        QCOMPARE(formulaOf(e, QStringLiteral("E3")), QStringLiteral("=SUM(Sales[Quarter])"));
+        saveNow();
+        QCOMPARE(tableRef(e.path), QStringLiteral("A3:C7|A3:C7"));
+        // and the table is a table in the file written
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QCOMPARE(second.w.session()->editText(0, 2, 1), QStringLiteral("Quarter"));
+        QCOMPARE(differences(e.win.w.calculation(), second.w.calculation(), {}), QString());
+        // Undo goes back as far as the last move saved: over the renaming, which came after it
+        QVERIFY(s->canUndo());
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();                    // (the other window has the keys now)
+        QVERIFY(!s->canUndo());
+    }
+
+    // After a save, Undo does not go back over the rows, columns, and cells moved before it (the file has them), but goes on over what came after; Redo of what was undone works.
+    void undoAfterASaveStopsAtTheLastMoveSaved()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3", "B1==A3"})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->insertRows(0, 1, 1).ok);                                      // 1: a move, saved below
+        QVERIFY(s->type(0, 0, 0, QStringLiteral("10")).ok);                      // 2: typing
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.wait(20000));
+        QVERIFY(s->deleteRows(0, 0, 1).ok);                                      // 3: a move after the save
+        QVERIFY(s->type(0, 4, 0, QStringLiteral("7")).ok);                       // 4
+        QVERIFY(e.settle());
+        QVERIFY(s->canUndo());
+        pressUndo(&e.win.w);                                                     // 4 undone
+        pressUndo(&e.win.w);                                                     // 3 undone
+        QVERIFY(e.settle());
+        QCOMPARE(formulaOf(e, QStringLiteral("B1")), QStringLiteral("=A4"));
+        QVERIFY(!e.win.w.isModified());
+        QVERIFY(s->canUndo());                                                   // the typing (2) came after the move (1) and can be undone
+        pressUndo(&e.win.w);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+        QVERIFY(!s->canUndo());                                                  // the move (1) is in the file
+        pressUndo(&e.win.w);
+        QCOMPARE(e.win.w.undoStack()->index(), 1);
+        pressRedo(&e.win.w);
+        pressRedo(&e.win.w);
+        pressRedo(&e.win.w);
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.undoStack()->index(), 4);
+        QVERIFY(e.win.w.isModified());
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.wait(20000));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QCOMPARE(differences(e.win.w.calculation(), second.w.calculation(), {}), QString());
+        QCOMPARE(second.w.session()->editText(0, 0, 1), QString());             // (B1 was in the row that was deleted)
+        QCOMPARE(second.w.session()->editText(0, 2, 0), QStringLiteral("3"));
+        QCOMPARE(second.w.session()->editText(0, 4, 0), QStringLiteral("7"));
     }
 
     // Results worked out before cells moved name them by where they were; they are put where the cells are now (and dropped with the cells that are gone).

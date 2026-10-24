@@ -24,6 +24,7 @@ struct Table {
     int sheet = -1;                 // the sheet it is on
     QString name;                   // the name a formula calls it by (its displayName, else its name)
     quint32 row1 = 0, col1 = 0, row2 = 0, col2 = 0;   // the cells it covers, the header row first (when it has one)
+    quint32 fileRow1 = 0, fileCol1 = 0, fileRow2 = 0, fileCol2 = 0;   // and as the file has them
     int headerRows = 1;             // 1, or 0 for a table with no header row
     QStringList columns;            // the names of its columns as they are now
     QStringList fileColumns;        // and as the file has them
@@ -49,8 +50,8 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info);
 QString renameColumnInFormula(const QString &formula, const QString &table, const QString &oldName, const QString &newName, bool insideTable);
 
 // A table part with its columns named `names` (where they differ from `fileNames`, the names it has now), and the formulas it holds for its columns (calculatedColumnFormula and
-// totalsRowFormula) following the renames. False if the part is not a table's.
-bool renameTableXml(const QByteArray &xml, const QStringList &fileNames, const QStringList &names, const QString &table, QByteArray *out);
+// totalsRowFormula) following the renames; with a `range`, the cells it covers (its ref, and its filter's) are those. False if the part is not a table's.
+bool renameTableXml(const QByteArray &xml, const QStringList &fileNames, const QStringList &names, const QString &table, QByteArray *out, const CellRange *range = nullptr);
 
 // What a header cell's new text makes of the name of a column: the text as typed (no spaces at its ends), and one that another column of the table has (without regard to capitals)
 // is given a number after it, as the programs people know do ("Total" is "Total2" when there is a "Total"). Empty if there is no name to be made (nothing typed, or past the 255 characters
