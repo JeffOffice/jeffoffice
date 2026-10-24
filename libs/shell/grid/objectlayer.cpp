@@ -161,13 +161,31 @@ QRect ObjectLayer::rectIn(const GridLayout &layout, Pane pane, const Entry &e) c
             if (!first.deleted) return &first == &e && pane == Pane::Body ? layout.pane(Pane::Body).rect : QRect();
         return QRect();
     }
-    if (e.box.isEmpty()) return QRect();
+    if (e.object.thin ? e.box.isNothing() : e.box.isEmpty()) return QRect();
     const bool fr = pane == Pane::Corner || pane == Pane::Top, fc = pane == Pane::Corner || pane == Pane::Left;
     const qint64 x0 = std::llround(std::max(-1e12, std::min(1e12, e.box.x))), y0 = std::llround(std::max(-1e12, std::min(1e12, e.box.y)));
     const qint64 x1 = std::llround(std::max(-1e12, std::min(1e12, e.box.x + e.box.w))), y1 = std::llround(std::max(-1e12, std::min(1e12, e.box.y + e.box.h)));
     const int left = clampPlace(layout.screenXAt(x0, fc)), right = clampPlace(layout.screenXAt(x1, fc));
     const int top = clampPlace(layout.screenYAt(y0, fr)), bottom = clampPlace(layout.screenYAt(y1, fr));
     return QRect(left, top, std::max(1, right - left), std::max(1, bottom - top));
+}
+
+QRect ObjectLayer::drawRect(const QRect &box, const Entry &e, double zoom) const
+{
+    const int m = e.object.margin > 0 ? int(std::ceil(e.object.margin * zoom)) : 0;
+    return m > 0 ? box.adjusted(-m, -m, m, m) : box;
+}
+
+RenderRequest ObjectLayer::requestFor(const Entry &e, const QRect &box, const QSize &wanted, double zoom) const
+{
+    const QRect whole = drawRect(box, e, zoom);
+    RenderRequest q;
+    q.pixels = wanted;
+    q.zoom = zoom;
+    q.units = m_fills ? QSizeF(double(box.width()) / zoom, double(box.height()) / zoom) : QSizeF(e.box.w, e.box.h);
+    const double sx = double(wanted.width()) / double(whole.width()), sy = double(wanted.height()) / double(whole.height());
+    q.inner = QRectF((box.x() - whole.x()) * sx, (box.y() - whole.y()) * sy, box.width() * sx, box.height() * sy);
+    return q;
 }
 
 QSize ObjectLayer::capped(const QSize &wanted)
@@ -191,11 +209,11 @@ bool ObjectLayer::missing(const Entry &e, const QSize &wanted, double zoom) cons
     return std::abs(e.requested.width() - wanted.width()) > 2 || std::abs(e.requested.height() - wanted.height()) > 2 || e.zoom != zoom;
 }
 
-void ObjectLayer::render(Entry &e, const QSize &wanted, double zoom)
+void ObjectLayer::render(Entry &e, const QSize &wanted, double zoom, const RenderRequest &request)
 {
     m_bytes -= e.image.isNull() ? 0 : e.image.sizeInBytes();
     ++m_stats.renders;
-    QImage image = e.object.render ? e.object.render(wanted, zoom) : QImage();
+    QImage image = e.object.render ? e.object.render(request) : QImage();
     e.requested = wanted;
     e.zoom = zoom;
     e.stale = false;
@@ -240,12 +258,14 @@ void ObjectLayer::paint(QPainter *p, const GridLayout &layout, Pane pane, const 
     p->save();
     p->setClipRect(clip);
     for (Entry &e : m_entries) {
-        const QRect r = rectIn(layout, pane, e);
-        if (r.isEmpty() || !r.intersects(clip)) continue;
+        const QRect box = rectIn(layout, pane, e);
+        if (box.isEmpty()) continue;
+        const QRect r = drawRect(box, e, zoom);
+        if (!r.intersects(clip)) continue;
         const QSize wanted = sizeWanted(r, m_dpr);
         if (missing(e, wanted, zoom)) {
             if (made < kMaxRendersPerPaint) {
-                render(e, wanted, zoom);
+                render(e, wanted, zoom, requestFor(e, box, wanted, zoom));
                 ++made;
             } else {
                 later = true;
@@ -267,7 +287,7 @@ void ObjectLayer::paint(QPainter *p, const GridLayout &layout, Pane pane, const 
             // no picture yet (or none can be made): an outline in the object's place
             p->setPen(QPen(QColor(0x80, 0x80, 0x80), 1, Qt::DashLine));
             p->setBrush(Qt::NoBrush);
-            p->drawRect(r.adjusted(0, 0, -1, -1));
+            p->drawRect(box.adjusted(0, 0, -1, -1));
             ++m_stats.placeholders;
         }
     }
@@ -309,8 +329,10 @@ bool ObjectLayer::makePictures(bool all)
         const QRect area = layout.pane(pane).rect;
         if (area.isEmpty()) continue;
         for (Entry &e : m_entries) {
-            const QRect r = rectIn(layout, pane, e);
-            if (r.isEmpty() || !r.intersects(area)) continue;
+            const QRect box = rectIn(layout, pane, e);
+            if (box.isEmpty()) continue;
+            const QRect r = drawRect(box, e, zoom);
+            if (!r.intersects(area)) continue;
             const QSize wanted = sizeWanted(r, m_dpr);
             e.lastUsed = m_frame;
             if (!missing(e, wanted, zoom) && !e.stale) continue;
@@ -318,7 +340,7 @@ bool ObjectLayer::makePictures(bool all)
                 left = true;
                 continue;
             }
-            render(e, wanted, zoom);
+            render(e, wanted, zoom, requestFor(e, box, wanted, zoom));
             ++made;
             requestRepaint(r.intersected(area));
         }
@@ -348,8 +370,10 @@ int ObjectLayer::pendingRenders() const
         bool counted = false;
         for (const Pane pane : kPanes) {
             const QRect area = layout.pane(pane).rect;
-            const QRect r = counted || area.isEmpty() ? QRect() : rectIn(layout, pane, e);
-            if (r.isEmpty() || !r.intersects(area)) continue;
+            const QRect box = counted || area.isEmpty() ? QRect() : rectIn(layout, pane, e);
+            if (box.isEmpty()) continue;
+            const QRect r = drawRect(box, e, layout.zoom());
+            if (!r.intersects(area)) continue;
             if (missing(e, sizeWanted(r, m_dpr), layout.zoom()) || e.stale) ++pending;
             counted = true;
         }

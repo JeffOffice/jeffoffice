@@ -25,19 +25,32 @@ namespace jp::grid {
 struct ObjectBox {
     double x = 0, y = 0, w = 0, h = 0;
     bool isEmpty() const { return w < 0.5 || h < 0.5; }
+    bool isNothing() const { return w < 0.5 && h < 0.5; }
 };
 
 // The box of an anchor. A two-cell anchor runs from its first place to its second (a hidden row or column between them has no size, so an object whose rows are all hidden is empty);
 // a one-cell anchor has the size it says; an absolute one is where it says whatever the rows and columns are. A place in a cell is no further into it than the cell is wide or high.
 ObjectBox anchorBox(const jp::office::sheet::DrawingAnchor &anchor, const Axis &rows, const Axis &cols);
 
+// What an object is asked to draw: an image of `pixels`, for a grid at `zoom`. The object itself, `units` big at 100% (the grid's units), is in `inner` of the image (in its pixels): the image
+// is larger by the object's margin all round, for a stroke that is wider than the object's edge, so that nothing is cut off.
+struct RenderRequest {
+    QSize pixels;
+    double zoom = 1;
+    QSizeF units;
+    QRectF inner;
+};
+
 struct LayerObject {
     int id = 0;
     jp::office::sheet::DrawingAnchor anchor;
     jp::office::sheet::ObjectKind kind = jp::office::sheet::ObjectKind::Shape;
     QString name;
-    // Draws the object into an image of this many pixels; `zoom` is the grid's. Called on the window's thread. An empty image is a failure (the object is drawn as an outline).
-    std::function<QImage(const QSize &pixels, double zoom)> render;
+    // A line has no width or no height: it is still drawn (an object that is empty both ways is not). `margin` (the grid's units at 100%) is drawn around the object's box.
+    bool thin = false;
+    double margin = 0;
+    // Draws the object. Called on the window's thread. An empty image is a failure (the object is drawn as an outline).
+    std::function<QImage(const RenderRequest &)> render;
 };
 
 class ObjectLayer : public QObject, public GridOverlay {
@@ -121,9 +134,12 @@ private:
     void schedule(int millis);
     // Makes the pictures the screen needs (those with none first); `all` leaves out the time limit of a step. True if some are left.
     bool makePictures(bool all);
-    void render(Entry &e, const QSize &wanted, double zoom);
+    void render(Entry &e, const QSize &wanted, double zoom, const RenderRequest &request);
     void evict();
     void step();
+    // The rectangle drawn for the object (its box and the margin), and what it asks of the object's draw function when the picture is `wanted` pixels.
+    QRect drawRect(const QRect &box, const Entry &e, double zoom) const;
+    RenderRequest requestFor(const Entry &e, const QRect &box, const QSize &wanted, double zoom) const;
     static QSize capped(const QSize &wanted);
 
     std::vector<Entry> m_entries;

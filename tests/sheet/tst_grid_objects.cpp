@@ -59,6 +59,8 @@ constexpr qint64 px(qint64 n) { return n * kEmuPerPixel; }
 struct Painted {
     QVector<QSize> asked;
     QVector<double> zooms;
+    QVector<QSizeF> units;
+    QVector<QRectF> inner;
 };
 
 LayerObject colored(int id, const DrawingAnchor &anchor, QRgb color, Painted *log = nullptr)
@@ -66,12 +68,14 @@ LayerObject colored(int id, const DrawingAnchor &anchor, QRgb color, Painted *lo
     LayerObject o;
     o.id = id;
     o.anchor = anchor;
-    o.render = [color, log](const QSize &size, double zoom) {
+    o.render = [color, log](const RenderRequest &q) {
         if (log) {
-            log->asked.append(size);
-            log->zooms.append(zoom);
+            log->asked.append(q.pixels);
+            log->zooms.append(q.zoom);
+            log->units.append(q.units);
+            log->inner.append(q.inner);
         }
-        QImage img(size, QImage::Format_ARGB32_Premultiplied);
+        QImage img(q.pixels, QImage::Format_ARGB32_Premultiplied);
         img.fill(color);
         return img;
     };
@@ -215,6 +219,7 @@ private Q_SLOTS:
         QCOMPARE(s.objects.stats().renders, qint64(2));
         QCOMPARE(log.asked.last(), QSize(256, 120));
         QCOMPARE(log.zooms.last(), 2.0);
+        QCOMPARE(log.units.last(), QSizeF(128, 60));   // (the size at 100%, whatever the zoom)
         QCOMPARE(s.at(128, 80), kRed);
         QCOMPARE(s.at(127, 80), kWhite);
         s.draw();
@@ -363,12 +368,44 @@ private Q_SLOTS:
         QCOMPARE(s.at(10, 10), kRed);
     }
 
+    // A line has no width or no height and is still drawn; an object empty both ways is not. An object's margin is drawn around its box, and the draw function is told where the box is in it.
+    void thinObjectsAndMargins()
+    {
+        Scene s;
+        Painted log;
+        LayerObject line = colored(1, twoCell(1, 2, 4, 2), kRed, &log);   // (one row, no height)
+        line.thin = true;
+        line.margin = 3;
+        LayerObject flat = colored(2, twoCell(1, 5, 4, 5), kBlue);          // (the same, not a line: nothing)
+        LayerObject margined = colored(3, twoCell(1, 8, 2, 9), kGreen, &log);
+        margined.margin = 4;
+        s.objects.setObjects({line, flat, margined});
+        s.draw();
+        // the line: 192 wide and no high, 3 around it
+        QCOMPARE(log.asked.value(0), QSize(192 + 6, 1 + 6));
+        QCOMPARE(log.inner.value(0), QRectF(3, 3, 192, 1));
+        QCOMPARE(s.at(64 + 50, 40), kRed);
+        QCOMPARE(s.at(64 + 50, 40 - 3), kRed);
+        QCOMPARE(s.at(64 + 50, 40 - 4), kWhite);
+        QCOMPARE(s.at(64 - 3, 40), kRed);
+        QCOMPARE(s.at(64 - 4, 40), kWhite);
+        QCOMPARE(s.at(64 + 50, 100), kWhite);   // (the other, not thin, is not drawn)
+        // the margin: the box is where the anchor puts it, and the picture reaches 4 further
+        QCOMPARE(log.asked.value(1), QSize(64 + 8, 20 + 8));
+        QCOMPARE(log.inner.value(1), QRectF(4, 4, 64, 20));
+        QCOMPARE(s.at(64 - 4, 160), kGreen);
+        QCOMPARE(s.at(64 - 5, 160), kWhite);
+        // the margin is not the object's: a click on it misses
+        QCOMPARE(s.objects.objectAt(QPoint(64 - 2, 165)), -1);
+        QCOMPARE(s.objects.objectAt(QPoint(64 + 2, 165)), 3);
+    }
+
     // An object far outside the window, one that is not there, and a picture that cannot be made, cost nothing and draw nothing wrong.
     void objectsOutsideAndFailures()
     {
         Scene s;
         LayerObject failing = colored(3, twoCell(0, 0, 1, 1), kRed);
-        failing.render = [](const QSize &, double) { return QImage(); };
+        failing.render = [](const RenderRequest &) { return QImage(); };
         s.objects.setObjects({colored(1, twoCell(16000, 1000000, 16001, 1000001), kRed), colored(2, twoCell(0, 0, 0, 0), kRed), failing});
         s.draw();
         s.objects.prepareAll();
@@ -457,6 +494,7 @@ private Q_SLOTS:
         s.objects.setFillsView(true);
         s.draw();
         QCOMPARE(log.asked.value(0), QSize(400, 300));
+        QCOMPARE(log.units.value(0), QSizeF(400, 300));
         QCOMPARE(s.at(0, 0), kRed);
         QCOMPARE(s.at(399, 299), kRed);
         QCOMPARE(s.objects.stats().renders, qint64(1));
