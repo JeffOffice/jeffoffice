@@ -21,9 +21,10 @@ void CrunchWindow::buildRibbon()
     jp::buildRibbon(m_ribbon, json, parts, this, &m_ribbonErrors);
 }
 
-void CrunchWindow::ribbonParts(RibbonParts &)
+void CrunchWindow::ribbonParts(RibbonParts &parts)
 {
-    // (the ribbon's commands are all actions of the window)
+    // (the ribbon's commands are all actions of the window; the controls built in code are those of the Page Layout tab)
+    pageRibbonParts(parts);
 }
 
 } // namespace jp

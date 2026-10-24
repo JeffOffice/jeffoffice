@@ -19,7 +19,9 @@
 #include <functional>
 #include <memory>
 
+class QComboBox;
 class QDockWidget;
+class QSpinBox;
 class QThread;
 class QUndoStack;
 class QLabel;
@@ -29,6 +31,7 @@ class QSlider;
 namespace jp {
 
 class CrunchFileScreen;
+struct PageSetupRequest;
 class HelpView;
 class HelpWindow;
 class Ribbon;
@@ -154,6 +157,12 @@ public:
     const crunch::LoadedBook *loaded() const { return m_loaded.get(); }
     // The workbook as read so far, held by whoever keeps it (a test, after the window is gone).
     std::shared_ptr<crunch::LoadedBook> loadedBook() const { return m_loaded; }
+
+    // ---- how the sheets print (crunchwindow_page.cpp)
+    // What the Page Setup dialog is given and gives back: a dialog unless this stands in for it (tests); false gives it up.
+    void setPageSetupAsker(const std::function<bool(PageSetupRequest *)> &asker) { m_pageSetupAsker = asker; }
+    // Opens Page Setup on a tab (0 Page, 1 Margins, 2 Header and Footer, 3 Sheet); the change is one step of Undo.
+    void pageSetupDialog(int tab = 0);
 
     // ---- printing (crunchwindow_print.cpp)
     // A job for what the options say, of the workbook as it is now: the sheet in view is the active sheet, and the selection the grid's if the options name none. Null, with the reason in
@@ -300,6 +309,19 @@ private:
     void notice(const QString &title, const QString &text, bool warning = true);
     QString helpContext() const;
     HelpWindow *showHelpOver(const QString &topic);
+
+    // the page commands and the Page Layout tab (crunchwindow_page.cpp)
+    void createPageActions();
+    void pageRibbonParts(RibbonParts &parts);
+    void connectPageSetup();
+    void updatePageActions();
+    // Changes how the sheet in view prints: one step of Undo named `text`; what is wrong is told.
+    void changePage(const QString &text, const std::function<void(jp::office::sheet::PageSetup *)> &change);
+    std::function<bool(PageSetupRequest *)> m_pageSetupAsker;
+    QStringList m_pageActions;
+    bool m_updatingPage = false;
+    QComboBox *m_fitWidthBox = nullptr, *m_fitHeightBox = nullptr;
+    QSpinBox *m_scaleBox = nullptr;
 
     // the charts, pictures, and shapes over the cells (crunchwindow_drawings.cpp)
     void setupObjects();

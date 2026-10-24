@@ -26,6 +26,7 @@ void CrunchWindow::createEditing()
     connect(m_session.get(), &crunch::EditSession::cellsMoved, this, &CrunchWindow::onCellsMoved);
     connect(m_session.get(), &crunch::EditSession::sizesChanged, this, &CrunchWindow::onSizesChanged);
     connectObjects();
+    connectPageSetup();
     connect(m_session.get(), &crunch::EditSession::stepFailed, this, [this](const QString &what) {
         notice(tr("Undo"), what);
         updateEditActions();

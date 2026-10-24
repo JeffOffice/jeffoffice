@@ -58,14 +58,14 @@ private Q_SLOTS:
         QCOMPARE(appInfo().helpFolder, QStringLiteral("crunch"));
     }
 
-    // The window has its four tabs and builds clean; the commands that work are on, and those that come with editing are on the ribbon, dimmed.
+    // The window has its tabs and builds clean; the commands that work are on, and those that come with editing are on the ribbon, dimmed.
     void theWindowHasItsTabsAndItsCommands()
     {
         CrunchWindow w;
         QCOMPARE(w.ribbonErrors(), QString());
         QStringList tabs;
         for (int i = 0; i < w.ribbon()->tabCount(); ++i) tabs << w.ribbon()->tabName(i);
-        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Formulas", "View"}));
+        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Page Layout", "Formulas", "View"}));
         QCOMPARE(w.ribbon()->fileKeytip(), QStringLiteral("F"));
         QVERIFY(w.windowTitle().contains(QLatin1String("JeffCrunch")));
         QVERIFY(w.windowTitle().startsWith(QLatin1String("Book")));

@@ -362,6 +362,7 @@ void CrunchWindow::createActions()
     createOpsActions();
     createCellsActions();
     createClipboardActions();
+    createPageActions();
     createDisabledActions();
 }
 

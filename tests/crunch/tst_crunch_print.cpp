@@ -3,6 +3,7 @@
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/pagesetupdialog.h"
+#include "app/ribbon.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
@@ -570,6 +571,240 @@ private Q_SLOTS:
         hf.differentOddEven = true;
         HeaderFooterEditor three(false, hf, QStringLiteral("S"), QStringLiteral("f"));
         QCOMPARE(three.versionNames().size(), 3);
+    }
+
+    // ---- the commands of the Page Layout tab
+
+    // The tab is on the ribbon and its commands are there; they work when the workbook is open (and are off while it is not).
+    void thePageLayoutTabAndItsCommandsAreThere()
+    {
+        {
+            CrunchWindow bare;
+            QCOMPARE(bare.ribbonErrors(), QString());
+            bool tab = false;
+            for (int i = 0; i < bare.ribbon()->tabCount(); ++i) tab = tab || bare.ribbon()->tabName(i) == QStringLiteral("Page Layout");
+            QVERIFY(tab);
+            QVERIFY(!bare.act(QStringLiteral("orient.landscape"))->isEnabled());
+        }
+        EditWindow e;
+        QVERIFY(e.open(printBook()));
+        for (const char *id : {"pagesetup.dialog", "margins.standard", "margins.wide", "margins.narrow", "margins.custom", "orient.portrait", "orient.landscape", "size.1", "size.9", "size.more",
+                               "printarea.set", "printarea.add", "breaks.insert", "breaks.remove", "breaks.reset", "titles.dialog", "sheetopt.gridPrint", "sheetopt.headPrint", "sheetopt.gridView",
+                               "sheetopt.headView", "file.print"}) {
+            QVERIFY2(e.win.w.act(QString::fromLatin1(id)), id);
+            QVERIFY2(e.win.w.act(QString::fromLatin1(id))->isEnabled(), id);
+        }
+        QVERIFY(!e.win.w.act(QStringLiteral("printarea.clear"))->isEnabled());   // (there is no print area to clear)
+    }
+
+    void marginsOrientationAndPaperChangeTheSheetAndShowWhatItHas()
+    {
+        EditWindow e;
+        QVERIFY(e.open(printBook()));
+        crunch::EditSession *session = e.win.w.session();
+        CrunchWindow &w = e.win.w;
+        QVERIFY(w.act(QStringLiteral("margins.standard"))->isChecked());   // (the file says the usual)
+        QVERIFY(w.act(QStringLiteral("orient.portrait"))->isChecked());
+        QVERIFY(w.act(QStringLiteral("size.1"))->isChecked());
+        w.act(QStringLiteral("margins.wide"))->trigger();
+        QCOMPARE(session->pages().sheet(0).margins.left, 1.0);
+        QCOMPARE(session->pages().sheet(0).margins.header, 0.5);
+        QVERIFY(w.act(QStringLiteral("margins.wide"))->isChecked());
+        QVERIFY(!w.act(QStringLiteral("margins.standard"))->isChecked());
+        w.act(QStringLiteral("margins.narrow"))->trigger();
+        QCOMPARE(session->pages().sheet(0).margins.left, 0.25);
+        w.act(QStringLiteral("orient.landscape"))->trigger();
+        QVERIFY(session->pages().sheet(0).orientation == PageOrientation::Landscape);
+        QVERIFY(w.act(QStringLiteral("orient.landscape"))->isChecked());
+        QVERIFY(!w.act(QStringLiteral("orient.portrait"))->isChecked());
+        w.act(QStringLiteral("size.9"))->trigger();
+        QCOMPARE(session->pages().sheet(0).paperSize, 9);
+        QVERIFY(w.act(QStringLiteral("size.9"))->isChecked());
+        QVERIFY(!w.act(QStringLiteral("size.1"))->isChecked());
+        // each is a step; Undo shows the check marks of what it brings back
+        QCOMPARE(w.undoStack()->count(), 4);
+        w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(w.act(QStringLiteral("size.1"))->isChecked());
+        w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(w.act(QStringLiteral("orient.portrait"))->isChecked());
+        // another sheet has its own
+        w.setActiveSheet(1);
+        QVERIFY(w.act(QStringLiteral("orient.portrait"))->isChecked());
+        w.act(QStringLiteral("orient.landscape"))->trigger();
+        QVERIFY(session->pages().sheet(1).orientation == PageOrientation::Landscape);
+        QVERIFY(session->pages().sheet(0).orientation == PageOrientation::Default);
+    }
+
+    void thePrintAreaCommandsUseTheSelection()
+    {
+        EditWindow e;
+        QVERIFY(e.open(printBook()));
+        crunch::EditSession *session = e.win.w.session();
+        CrunchWindow &w = e.win.w;
+        e.view()->selectRange(1, 0, 4, 1);
+        w.act(QStringLiteral("printarea.set"))->trigger();
+        QCOMPARE(areaOf(session->pages().sheet(0)), QStringLiteral("A2:B5"));
+        QVERIFY(w.act(QStringLiteral("printarea.clear"))->isEnabled());
+        e.view()->selectRange(8, 0, 9, 1);
+        w.act(QStringLiteral("printarea.add"))->trigger();
+        QCOMPARE(areaOf(session->pages().sheet(0)), QStringLiteral("A2:B5 A9:B10"));
+        w.act(QStringLiteral("printarea.add"))->trigger();   // (the same block again adds nothing)
+        QCOMPARE(areaOf(session->pages().sheet(0)), QStringLiteral("A2:B5 A9:B10"));
+        e.view()->selectColumns(2, 3);
+        w.act(QStringLiteral("printarea.set"))->trigger();
+        QCOMPARE(areaOf(session->pages().sheet(0)), QStringLiteral("C1:D1048576"));
+        w.act(QStringLiteral("printarea.clear"))->trigger();
+        QVERIFY(!session->pages().sheet(0).hasPrintArea());
+        QVERIFY(!w.act(QStringLiteral("printarea.clear"))->isEnabled());
+        w.act(QStringLiteral("edit.undo"))->trigger();
+        QCOMPARE(areaOf(session->pages().sheet(0)), QStringLiteral("C1:D1048576"));
+        // adding when there is none sets
+        w.act(QStringLiteral("edit.undo"))->trigger();
+        w.act(QStringLiteral("edit.undo"))->trigger();
+        w.act(QStringLiteral("edit.undo"))->trigger();
+        w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(!session->pages().sheet(0).hasPrintArea());
+        e.view()->selectRange(0, 0, 1, 1);
+        w.act(QStringLiteral("printarea.add"))->trigger();
+        QCOMPARE(areaOf(session->pages().sheet(0)), QStringLiteral("A1:B2"));
+    }
+
+    void pageBreaksAreInsertedAndRemovedAtTheSelection()
+    {
+        EditWindow e;
+        QVERIFY(e.open(printBook()));
+        crunch::EditSession *session = e.win.w.session();
+        CrunchWindow &w = e.win.w;
+        // a break above the row and left of the column of the cell
+        e.view()->selectCell(5, 1);
+        w.act(QStringLiteral("breaks.insert"))->trigger();
+        QCOMPARE(session->pages().sheet(0).rowBreaks.size(), 1);
+        QCOMPARE(session->pages().sheet(0).rowBreaks[0].before, 5u);
+        QVERIFY(session->pages().sheet(0).rowBreaks[0].manual);
+        QCOMPARE(session->pages().sheet(0).colBreaks.size(), 1);
+        QCOMPARE(session->pages().sheet(0).colBreaks[0].before, 1u);
+        // a whole row: a break above it and no more; a whole column: one to its left
+        e.view()->selectRows(8, 8);
+        w.act(QStringLiteral("breaks.insert"))->trigger();
+        QCOMPARE(session->pages().sheet(0).rowBreaks.size(), 2);
+        QCOMPARE(session->pages().sheet(0).colBreaks.size(), 1);
+        e.view()->selectColumns(3, 3);
+        w.act(QStringLiteral("breaks.insert"))->trigger();
+        QCOMPARE(session->pages().sheet(0).colBreaks.size(), 2);
+        QCOMPARE(session->pages().sheet(0).rowBreaks.size(), 2);
+        // the first row and column have nothing above or left of them: nothing is inserted, and the window says so
+        const int steps = w.undoStack()->count();
+        e.view()->selectCell(0, 0);
+        w.act(QStringLiteral("breaks.insert"))->trigger();
+        QCOMPARE(w.undoStack()->count(), steps);
+        // removing: at the cell's row and column
+        e.view()->selectCell(5, 1);
+        w.act(QStringLiteral("breaks.remove"))->trigger();
+        QCOMPARE(session->pages().sheet(0).rowBreaks.size(), 1);
+        QCOMPARE(session->pages().sheet(0).rowBreaks[0].before, 8u);
+        QCOMPARE(session->pages().sheet(0).colBreaks.size(), 1);
+        QCOMPARE(session->pages().sheet(0).colBreaks[0].before, 3u);
+        e.view()->selectCell(11, 9);   // (no break there)
+        const int before = w.undoStack()->count();
+        w.act(QStringLiteral("breaks.remove"))->trigger();
+        QCOMPARE(w.undoStack()->count(), before);
+        w.act(QStringLiteral("breaks.reset"))->trigger();
+        QVERIFY(session->pages().sheet(0).rowBreaks.isEmpty());
+        QVERIFY(session->pages().sheet(0).colBreaks.isEmpty());
+    }
+
+    // The scale to fit boxes show the sheet's setting and change it: a number of pages across or down turns the fit on, Automatic in both leaves the scale; the scale box works only then.
+    void theScaleToFitBoxesShowAndChangeTheSheet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(printBook()));
+        crunch::EditSession *session = e.win.w.session();
+        QComboBox *width = e.win.w.findChild<QComboBox *>(QStringLiteral("fitWidthBox")), *height = e.win.w.findChild<QComboBox *>(QStringLiteral("fitHeightBox"));
+        QSpinBox *scale = e.win.w.findChild<QSpinBox *>(QStringLiteral("scaleBox"));
+        QVERIFY(width && height && scale);
+        QCOMPARE(width->currentData().toInt(), 0);
+        QCOMPARE(scale->value(), 100);
+        QVERIFY(scale->isEnabled());
+        scale->setValue(70);
+        QCOMPARE(session->pages().sheet(0).scale, 70);
+        QVERIFY(!session->pages().sheet(0).fitToPage);
+        Q_EMIT width->activated(width->findData(1));
+        QVERIFY(session->pages().sheet(0).fitToPage);
+        QCOMPARE(session->pages().sheet(0).fitToWidth, 1);
+        QCOMPARE(session->pages().sheet(0).fitToHeight, 0);
+        QVERIFY(!scale->isEnabled());   // (the cells are being shrunk to fit: the scale is not what is used)
+        Q_EMIT height->activated(height->findData(3));
+        QCOMPARE(session->pages().sheet(0).fitToHeight, 3);
+        Q_EMIT width->activated(width->findData(0));
+        Q_EMIT height->activated(height->findData(0));
+        QVERIFY(!session->pages().sheet(0).fitToPage);
+        QVERIFY(scale->isEnabled());
+        QCOMPARE(scale->value(), 70);
+        // the boxes follow Undo
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QCOMPARE(height->currentData().toInt(), 3);
+        QCOMPARE(width->currentData().toInt(), 1);
+    }
+
+    // The sheet options: printing gridlines and headings is a setting of the sheet, and the two that show them are the View tab's.
+    void gridlinesAndHeadingsCanBePrinted()
+    {
+        EditWindow e;
+        QVERIFY(e.open(printBook()));
+        crunch::EditSession *session = e.win.w.session();
+        CrunchWindow &w = e.win.w;
+        QVERIFY(!w.act(QStringLiteral("sheetopt.gridPrint"))->isChecked());
+        w.act(QStringLiteral("sheetopt.gridPrint"))->trigger();
+        QVERIFY(session->pages().sheet(0).gridLines);
+        w.act(QStringLiteral("sheetopt.headPrint"))->trigger();
+        QVERIFY(session->pages().sheet(0).headings);
+        QVERIFY(!w.act(QStringLiteral("view.gridlines"))->isChecked() == false);
+        w.act(QStringLiteral("sheetopt.gridView"))->trigger();   // (the same as the View tab's)
+        QVERIFY(!w.act(QStringLiteral("view.gridlines"))->isChecked());
+        QVERIFY(!w.act(QStringLiteral("sheetopt.gridView"))->isChecked());
+        w.act(QStringLiteral("view.gridlines"))->trigger();
+        QVERIFY(w.act(QStringLiteral("sheetopt.gridView"))->isChecked());
+        w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(!session->pages().sheet(0).headings);
+        QVERIFY(!w.act(QStringLiteral("sheetopt.headPrint"))->isChecked());
+    }
+
+    // The Page Setup command opens the dialog with the sheet's setup and the selection, on the tab asked for; what comes back is one step; a dialog given up changes nothing.
+    void thePageSetupCommandChangesTheSheetThroughTheDialog()
+    {
+        EditWindow e;
+        QVERIFY(e.open(printBook()));
+        crunch::EditSession *session = e.win.w.session();
+        CrunchWindow &w = e.win.w;
+        int asked = 0, tab = -1;
+        QString sheet, selection;
+        w.setPageSetupAsker([&](PageSetupRequest *r) {
+            ++asked;
+            tab = r->tab;
+            sheet = r->sheetName;
+            selection = r->selectionText;
+            r->setup.orientation = PageOrientation::Landscape;
+            r->setup.margins.top = 2;
+            return true;
+        });
+        e.view()->selectRange(0, 0, 2, 1);
+        w.act(QStringLiteral("pagesetup.dialog"))->trigger();
+        QCOMPARE(asked, 1);
+        QCOMPARE(tab, 0);
+        QCOMPARE(sheet, QStringLiteral("Data"));
+        QCOMPARE(selection, QStringLiteral("A1:B3"));
+        QVERIFY(session->pages().sheet(0).orientation == PageOrientation::Landscape);
+        QCOMPARE(session->pages().sheet(0).margins.top, 2.0);
+        QCOMPARE(w.undoStack()->count(), 1);
+        w.act(QStringLiteral("margins.custom"))->trigger();
+        QCOMPARE(tab, 1);
+        w.act(QStringLiteral("titles.dialog"))->trigger();
+        QCOMPARE(tab, 3);
+        w.setPageSetupAsker([&](PageSetupRequest *) { return false; });
+        const int steps = w.undoStack()->count();
+        w.act(QStringLiteral("pagesetup.dialog"))->trigger();
+        QCOMPARE(w.undoStack()->count(), steps);
     }
 
     // Rows inserted and the print area changed, then saved: the file has the area as the window shows it.

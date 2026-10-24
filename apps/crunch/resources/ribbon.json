@@ -135,6 +135,46 @@
       ]
     },
     {
+      "name": "Page Layout",
+      "keytip": "P",
+      "groups": [
+        {
+          "name": "Page Setup",
+          "keytip": "ZP",
+          "launcher": "pageSetup",
+          "launcherTip": "Page Setup",
+          "launcherKeytip": "SP",
+          "items": [
+            {"large": {"id": "ribbon.margins", "text": "Margins", "icon": "square-dashed"}, "keytip": "M", "menu": ["margins.standard", "margins.wide", "margins.narrow", "-", "margins.custom"]},
+            {"large": {"id": "ribbon.orientation", "text": "Orientation", "icon": "rotate-ccw-square"}, "keytip": "O", "menu": ["orient.portrait", "orient.landscape"]},
+            {"large": {"id": "ribbon.paperSize", "text": "Size", "icon": "file"}, "keytip": "SZ", "menu": ["size.1", "size.5", "size.3", "size.7", "size.6", "size.8", "size.9", "size.11", "size.12", "size.13", "size.14", "size.20", "size.27", "size.28", "-", "size.more"]},
+            {"large": {"id": "ribbon.printArea", "text": "Print Area", "icon": "printer"}, "keytip": "R", "menu": ["printarea.set", "printarea.add", "printarea.clear"]},
+            {"large": {"id": "ribbon.breaks", "text": "Breaks", "icon": "separator-horizontal"}, "keytip": "B", "menu": ["breaks.insert", "breaks.remove", "breaks.reset"]},
+            {"large": "titles.dialog", "keytip": "T"}
+          ]
+        },
+        {
+          "name": "Scale to Fit",
+          "keytip": "ZH",
+          "items": [
+            {"row": [{"label": "Width"}, {"widget": "fitWidth", "keytip": "W"}]},
+            {"row": [{"label": "Height"}, {"widget": "fitHeight", "keytip": "H"}]},
+            {"row": [{"label": "Scale"}, {"widget": "scalePercent", "keytip": "SC"}]}
+          ]
+        },
+        {
+          "name": "Sheet Options",
+          "keytip": "ZO",
+          "items": [
+            {"small": "sheetopt.gridView", "keytip": "GV"},
+            {"small": "sheetopt.gridPrint", "keytip": "GP"},
+            {"small": "sheetopt.headView", "keytip": "HV"},
+            {"small": "sheetopt.headPrint", "keytip": "HP"}
+          ]
+        }
+      ]
+    },
+    {
       "name": "Formulas",
       "keytip": "M",
       "groups": [
