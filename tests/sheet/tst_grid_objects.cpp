@@ -425,6 +425,20 @@ private Q_SLOTS:
         QCOMPARE(t.at(10, 10), kGreen);   // (the wide one is at the top, over the columns there)
     }
 
+    // What an object draws past its box (a thick line, a shadow: its margin) is found by the index too: an object whose box is just above the window, in another square of the index, is
+    // drawn at the top of the window by the margin that reaches into it; one with no margin is not drawn there.
+    void anObjectsMarginReachesIntoTheWindowFromOutsideItsBox()
+    {
+        Scene s;
+        LayerObject reaching = colored(1, twoCell(1, 24, 3, 25), kBlue);   // (its box is rows 24 (y from 480 to 500): above the window, which begins at 512, and in the square before the window's)
+        reaching.margin = 20;
+        s.objects.setObjects({reaching, colored(2, twoCell(5, 24, 6, 25), kGreen)});
+        s.layout.setScroll(0, 512);
+        s.draw();
+        QCOMPARE(s.at(64 + 10, 3), kBlue);    // (the margin: 20 units above the box's end at 500 reach to 520, 8 pixels into the window)
+        QCOMPARE(s.at(64 * 5 + 10, 3), kWhite);   // (no margin: nothing)
+    }
+
     // A paint makes no picture and gives none to a worker, and the count says so when it does: with the layer made to make them in its paint, the count is not 0.
     void aPaintsPicturesAreCounted()
     {
