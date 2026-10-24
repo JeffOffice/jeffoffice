@@ -1,6 +1,7 @@
 #include "grid/printlayout.h"
 
 #include "grid/gridsheet.h"
+#include "grid/look.h"
 
 #include <algorithm>
 #include <cmath>
@@ -18,6 +19,84 @@ using jp::office::sheet::PageOrder;
 double columnPoints(double fileWidth, int maxDigitWidth) { return GridSheet::pointsForPixels(GridSheet::columnPixels(fileWidth, maxDigitWidth)); }
 
 double rowPoints(double heightInPoints) { return GridSheet::pointsForPixels(GridSheet::rowPixels(heightInPoints)); }
+
+int printDigitPixels(const Styles &styles, int dpi)
+{
+    // (a workbook with no fonts has the usual one: the screen takes 7 pixels for it, and 46 is what that comes to on paper)
+    if (styles.fonts.isEmpty()) return int(std::max<long>(1, std::lround(11.0 * double(dpi) / 72.0 * digitWidthFactor(QStringLiteral("Calibri")))));
+    const jp::office::sheet::FontSpec &f = styles.font(0);
+    const double em = std::max(1.0, f.size) * double(dpi) / 72.0;
+    return int(std::max<long>(1, std::lround(em * digitWidthFactor(f.name))));
+}
+
+double printColumnPoints(double fileWidth, int digitPixels, int dpi)
+{
+    if (!(fileWidth > 0) || digitPixels <= 0) return 0;
+    const double px = std::floor((256.0 * fileWidth + std::floor(128.0 / digitPixels)) / 256.0 * digitPixels);
+    return px * 72.0 / double(dpi);
+}
+
+Axis printColumnAxis(const Sheet &sheet, const Styles &styles, int fine, int dpi)
+{
+    using jp::office::sheet::ColumnSpan;
+    fine = std::clamp(fine, 1, 64);
+    const int mdw = LookTable(&styles).maxDigitWidth();
+    const int mdwp = printDigitPixels(styles, dpi);
+    auto pixelsOf = [&](double fileWidth) { return int(std::lround(printColumnPoints(fileWidth, mdwp, dpi) / kPointsPerPixel * fine)); };
+    // the default width of a column: the file's, or the one its base width makes (in whole eighths of pixels of the screen, as the screen has it)
+    double defaultWidth = sheet.format.defaultColWidth;
+    if (!(defaultWidth > 0)) defaultWidth = std::floor(double((sheet.format.baseColWidth * mdw + 5 + 7) / 8 * 8) / std::max(1, mdw) * 256.0) / 256.0;
+    Axis cols(qint64(jp::office::sheet::kMaxColumns), std::max(1, pixelsOf(defaultWidth)));
+    std::vector<ColumnSpan> runs(sheet.columns.begin(), sheet.columns.end());
+    std::stable_sort(runs.begin(), runs.end(), [](const ColumnSpan &a, const ColumnSpan &b) { return a.first < b.first; });
+    std::vector<Axis::Place> places;
+    quint32 next = 0;
+    for (const ColumnSpan &run : runs) {
+        const quint32 first = std::max(run.first, next);
+        if (first > run.last || first >= jp::office::sheet::kMaxColumns) continue;
+        const quint32 last = std::min(run.last, jp::office::sheet::kMaxColumns - 1);
+        next = last + 1;
+        const int size = run.hidden ? 0 : run.width >= 0 ? pixelsOf(run.width) : -1;
+        if (size >= 0)
+            for (quint32 c = first; c <= last; ++c) places.push_back({qint64(c), size});
+    }
+    cols.assign(std::move(places));
+    cols.total();
+    return cols;
+}
+
+Axis printRowAxis(const Sheet &sheet, int fine)
+{
+    using jp::office::sheet::RowSpec;
+    fine = std::clamp(fine, 1, 64);
+    auto sizeFor = [&](double points) { return int(std::lround(std::clamp(points, 0.0, 1000.0) / kPointsPerPixel * fine)); };
+    const int defaultRow = std::max(1, sizeFor(sheet.format.defaultRowHeight > 0 ? sheet.format.defaultRowHeight : 15));
+    Axis rows(qint64(jp::office::sheet::kMaxRows), defaultRow);
+    std::vector<RowSpec> specs(sheet.rowSpecs.begin(), sheet.rowSpecs.end());
+    std::stable_sort(specs.begin(), specs.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; });
+    std::vector<RowSpec> unique;   // (a row the file gives twice has its last)
+    for (const RowSpec &s : specs) {
+        if (!unique.empty() && unique.back().row == s.row) unique.back() = s;
+        else unique.push_back(s);
+    }
+    auto sizeOf = [&](const RowSpec &s) { return s.hidden ? 0 : s.height >= 0 ? sizeFor(s.height) : defaultRow; };
+    std::vector<Axis::Place> places;
+    if (sheet.format.zeroHeight && !unique.empty()) {
+        // the rows the file does not list are hidden, and the sheet ends at its last listed row
+        const qint64 last = qint64(unique.back().row);
+        rows.setCount(last + 1);
+        size_t at = 0;
+        for (qint64 r = 0; r <= last; ++r) {
+            if (at < unique.size() && qint64(unique[at].row) == r) places.push_back({r, sizeOf(unique[at++])});
+            else places.push_back({r, 0});
+        }
+    } else {
+        for (const RowSpec &s : unique) places.push_back({qint64(s.row), sizeOf(s)});
+    }
+    rows.assign(std::move(places));
+    rows.total();
+    return rows;
+}
 
 namespace {
 
@@ -98,7 +177,7 @@ bool usedExtent(const PrintRequest &q, const Axis &rows, const Axis &cols, quint
     }
     for (const ObjectBox &b : q.objects) {
         if (b.isNothing()) continue;
-        const qint64 right = qint64(std::min(1e12, b.x + b.w)) - 1, bottom = qint64(std::min(1e12, b.y + b.h)) - 1;
+        const qint64 right = qint64(std::min(1e12, (b.x + b.w) * q.colFine)) - 1, bottom = qint64(std::min(1e12, (b.y + b.h) * q.rowFine)) - 1;
         qint64 oc = cols.indexAt(std::max<qint64>(0, right)), orow = rows.indexAt(std::max<qint64>(0, bottom));
         if (oc < 0) oc = cols.count() - 1;
         if (orow < 0) orow = rows.count() - 1;
@@ -195,7 +274,7 @@ struct Band {
 
 struct Titles {
     qint64 first = -1, last = -1;   // -1: none
-    double extent = 0;              // pixels
+    double extent = 0;              // the axis's units
 };
 
 // Cuts [first, last] of an axis into the bands that fit `capacity` pixels (less the titles' extent for a band after them), a new one at each break. Gives how many bands there are; the first
@@ -251,16 +330,17 @@ struct Context {
     Titles titleRows, titleCols;
     double contentW, contentH;   // pixels at 100% that a page holds at scale 1, less the headings
     bool headings;
+    int rowFine = 1, colFine = 1;
 };
 
-// The capacity of a page in the grid's pixels at the scale (a fraction).
-double capacityOf(double points, double scale, double headingPixels) { return points / kPointsPerPixel / scale - headingPixels; }
+// The capacity of a page in the axis's units (`fine` to the grid's pixel) at the scale (a fraction); the headings are in pixels.
+double capacityOf(double points, double scale, double headingPixels, int fine) { return (points / kPointsPerPixel / scale - headingPixels) * fine; }
 
 // How many bands the block needs each way at the scale (the breaks are not looked at).
 void bandCounts(const Context &c, const CellRange &b, double scale, qint64 *rowBands, qint64 *colBands)
 {
-    *rowBands = cutAxis(*c.rows, b.row1, b.row2, capacityOf(c.contentH, scale, c.headings ? kColumnHeadingPixels : 0), c.titleRows, {}, 0, nullptr);
-    *colBands = cutAxis(*c.cols, b.col1, b.col2, capacityOf(c.contentW, scale, c.headings ? kRowHeadingPixels : 0), c.titleCols, {}, 0, nullptr);
+    *rowBands = cutAxis(*c.rows, b.row1, b.row2, capacityOf(c.contentH, scale, c.headings ? kColumnHeadingPixels : 0, c.rowFine), c.titleRows, {}, 0, nullptr);
+    *colBands = cutAxis(*c.cols, b.col1, b.col2, capacityOf(c.contentW, scale, c.headings ? kRowHeadingPixels : 0, c.colFine), c.titleCols, {}, 0, nullptr);
 }
 
 } // namespace
@@ -291,6 +371,8 @@ SheetPrint paginate(const PrintRequest &request)
     c.contentW = out.paper.content().width();
     c.contentH = out.paper.content().height();
     c.headings = setup.headings;
+    c.rowFine = std::clamp(request.rowFine, 1, 64);
+    c.colFine = std::clamp(request.colFine, 1, 64);
     c.titleRows = titlesOf(rows, setup.titles.hasRows, setup.titles.row1, setup.titles.row2);
     c.titleCols = titlesOf(cols, setup.titles.hasCols, setup.titles.col1, setup.titles.col2);
 
@@ -332,8 +414,8 @@ SheetPrint paginate(const PrintRequest &request)
         const std::vector<qint64> rowBreaks = fit ? std::vector<qint64>() : breaksIn(setup.rowBreaks, b.row1, b.row2);
         const std::vector<qint64> colBreaks = fit ? std::vector<qint64>() : breaksIn(setup.colBreaks, b.col1, b.col2);
         std::vector<Band> rowBands, colBands;
-        const qint64 nr = cutAxis(rows, b.row1, b.row2, capacityOf(c.contentH, scale, c.headings ? kColumnHeadingPixels : 0), c.titleRows, rowBreaks, room, &rowBands);
-        const qint64 nc = cutAxis(cols, b.col1, b.col2, capacityOf(c.contentW, scale, c.headings ? kRowHeadingPixels : 0), c.titleCols, colBreaks, room, &colBands);
+        const qint64 nr = cutAxis(rows, b.row1, b.row2, capacityOf(c.contentH, scale, c.headings ? kColumnHeadingPixels : 0, c.rowFine), c.titleRows, rowBreaks, room, &rowBands);
+        const qint64 nc = cutAxis(cols, b.col1, b.col2, capacityOf(c.contentW, scale, c.headings ? kRowHeadingPixels : 0, c.colFine), c.titleCols, colBreaks, room, &colBands);
         out.pagesNeeded += nr * nc;
         auto add = [&](qint64 ri, qint64 ci) {
             if (qint64(out.pages.size()) >= room) {

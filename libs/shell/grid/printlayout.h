@@ -35,6 +35,23 @@ constexpr int kFitCeiling = 100;
 constexpr int kRowHeadingPixels = 36;
 constexpr int kColumnHeadingPixels = 20;
 
+// The resolution a page is laid out at: the printer's, not the screen's. A column's width in characters is counted in the width of the widest digit of the workbook's font, and on the
+// screen that is a whole number of pixels at 96 to the inch (7 for the usual fonts: 5.25 points), while on paper it is a whole number of printer pixels (46 at 600 to the inch: 5.52
+// points), so a column is a few percent wider on paper than on the screen and a page holds fewer of them.
+constexpr int kPrinterDpi = 600;
+// The width of the widest digit of the workbook's first font in printer pixels (at least 1).
+int printDigitPixels(const Styles &styles, int dpi = kPrinterDpi);
+// A column's width on paper in points: the file's width in characters (with its padding) is cut to whole printer pixels as the format says, then turned to points.
+double printColumnPoints(double fileWidth, int digitPixels, int dpi = kPrinterDpi);
+// The sizes of the sheet's columns on paper, in 1/`fine` of the grid's pixels (a pixel is three quarters of a point; each column is held to the nearest of those), for the page layout to
+// cut by (a fine axis cuts to a small part of a point, where whole pixels would be wrong by a third of a point in every column) and, with `fine` 1, for the painter to draw with;
+// hidden columns have none.
+Axis printColumnAxis(const Sheet &sheet, const Styles &styles, int fine = 1, int dpi = kPrinterDpi);
+// The sizes of the sheet's rows, the same way: the height in points the file gives, in 1/`fine` of a pixel (with `fine` 1, the rows the grid has).
+Axis printRowAxis(const Sheet &sheet, int fine = 1);
+// The finer axes the pages are cut by, as many to the pixel as that.
+constexpr int kCutFine = 8;
+
 // What a column or row comes to on paper, in points, exactly as the screen's sizes make it: the file's width in characters of the widest digit, with the padding the file adds, in pixels
 // (cut as the format says) and then in points; and a height in points through the pixels it is drawn in.
 double columnPoints(double fileWidth, int maxDigitWidth);
@@ -75,6 +92,7 @@ struct PrintRequest {
     const Styles *styles = nullptr;
     const Axis *rows = nullptr;               // the sheet's row and column sizes (copied; skipped rows are not counted)
     const Axis *cols = nullptr;
+    int rowFine = 1, colFine = 1;             // how many of the axes' units make a grid pixel (the sizes above are in them; the objects' boxes and the headings are in pixels)
     PageSetup setup;                          // what the job prints with (the sheet's own, with what the person chose for the job on top)
     std::vector<ObjectBox> objects;           // the boxes of the objects that print, in the grid's pixels from the first row and column
     bool ignorePrintArea = false;

@@ -141,6 +141,7 @@ private:
         jp::office::sheet::PageSetup setup;
         jp::grid::SheetPrint print;
         std::shared_ptr<const jp::grid::GridGeometry> geometry;
+        jp::grid::Axis cols;                    // the columns as they are on paper, in the grid's pixels (what the page is drawn by)
         int firstNumber = 1;
         int firstPage = 0;
     };

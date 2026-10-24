@@ -86,6 +86,159 @@ private Q_SLOTS:
         QCOMPARE(rowPoints(14.4), GridSheet::pointsForPixels(GridSheet::rowPixels(14.4)));
     }
 
+    // On paper a column's width in characters is counted in the widest digit in printer pixels (600 to the inch), which is a few percent wider than the screen's 7 pixels.
+    void theDigitAndTheColumnsAreWiderOnPaperThanOnTheScreen()
+    {
+        Styles calibri;
+        calibri.fonts = {FontSpec()};
+        calibri.fonts[0].name = QStringLiteral("Calibri");
+        calibri.fonts[0].size = 11;
+        QCOMPARE(printDigitPixels(calibri), 46);
+        Styles arial = calibri;
+        arial.fonts[0].name = QStringLiteral("Arial");
+        arial.fonts[0].size = 10;
+        QCOMPARE(printDigitPixels(arial), 46);
+        // the same digit at 96 to the inch is the 7 pixels of the screen
+        QCOMPARE(printDigitPixels(calibri, 96), 7);
+        // the usual column (9.140625 in the file) is 420 printer pixels, 50.4 points (the screen has 48), and 13.7109375 is 631, 75.72 points (the screen 72)
+        QCOMPARE(printColumnPoints(9.140625, 46), 420 * 72.0 / 600);
+        QCOMPARE(printColumnPoints(13.7109375, 46), 631 * 72.0 / 600);
+        QVERIFY(qFuzzyCompare(printColumnPoints(9.140625, 46), 50.4));
+        QVERIFY(qFuzzyCompare(printColumnPoints(13.7109375, 46), 75.72));
+        // at the screen's resolution the same call gives the screen's 48 and 72
+        QCOMPARE(printColumnPoints(9.140625, 7, 96), columnPoints(9.140625, 7));
+        QCOMPARE(printColumnPoints(13.7109375, 7, 96), columnPoints(13.7109375, 7));
+        // nothing for no width, and nothing for a digit that is not there
+        QCOMPARE(printColumnPoints(0, 46), 0.0);
+        QCOMPARE(printColumnPoints(-3, 46), 0.0);
+        QCOMPARE(printColumnPoints(9.140625, 0), 0.0);
+    }
+
+    // The columns of a sheet on paper: the default, the runs the file gives, the hidden ones, in the grid's pixels (three quarters of a point).
+    void aSheetsColumnsAreSizedForPaper()
+    {
+        Sheet sheet;
+        Styles styles;
+        styles.fonts = {FontSpec()};
+        styles.fonts[0].name = QStringLiteral("Calibri");
+        styles.fonts[0].size = 11;
+        sheet.format.defaultColWidth = 9.140625;
+        ColumnSpan wide;
+        wide.first = 2;
+        wide.last = 3;
+        wide.width = 13.7109375;
+        ColumnSpan hidden;
+        hidden.first = 5;
+        hidden.last = 5;
+        hidden.width = 9.140625;
+        hidden.hidden = true;
+        ColumnSpan plain;   // a run that says nothing of its width keeps the default
+        plain.first = 7;
+        plain.last = 7;
+        sheet.columns = {hidden, wide, plain};   // (out of order, as a file may have them)
+        const Axis cols = printColumnAxis(sheet, styles);
+        QCOMPARE(cols.size(0), 67);      // 50.4 points
+        QCOMPARE(cols.size(1), 67);
+        QCOMPARE(cols.size(2), 101);     // 75.72 points
+        QCOMPARE(cols.size(3), 101);
+        QCOMPARE(cols.size(4), 67);
+        QCOMPARE(cols.size(5), 0);
+        QCOMPARE(cols.size(7), 67);
+        QCOMPARE(cols.position(4), 67 + 67 + 101 + 101);
+        // the screen's own columns for the same sheet are narrower
+        QVERIFY(cols.size(0) > 64);
+        // a width the file does not give is made from the base width in characters, in whole eighths of the screen's pixels
+        Sheet bare;
+        const Axis base = printColumnAxis(bare, styles);
+        QVERIFY(base.size(0) > 0);
+        QCOMPARE(base.size(0), base.size(100));
+        QCOMPARE(base.count(), qint64(jp::office::sheet::kMaxColumns));
+    }
+
+    // The rows on paper are as tall as the file says, to a small part of a pixel (the screen's rows are held to whole pixels: 14.4 points is 19 of them, 14.25 points).
+    void theRowsOnPaperKeepTheirHeights()
+    {
+        Sheet sheet;
+        sheet.format.defaultRowHeight = 15;
+        RowSpec tall;
+        tall.row = 1;
+        tall.height = 14.4;
+        RowSpec hidden;
+        hidden.row = 3;
+        hidden.height = 20;
+        hidden.hidden = true;
+        RowSpec again;   // the last of two for a row is the one that counts
+        again.row = 1;
+        again.height = 30;
+        sheet.rowSpecs = {hidden, tall, again};
+        const Axis whole = printRowAxis(sheet);
+        QCOMPARE(whole.size(0), 20);
+        QCOMPARE(whole.size(1), 40);
+        QCOMPARE(whole.size(3), 0);
+        QCOMPARE(whole.size(2), 20);
+        // eighths of a pixel: 15 points is 160, 14.4 is 153.6 (154)
+        sheet.rowSpecs = {tall};
+        const Axis fine = printRowAxis(sheet, 8);
+        QCOMPARE(fine.size(0), 160);
+        QCOMPARE(fine.size(1), 154);
+        QCOMPARE(fine.position(2), 160 + 154);
+        QCOMPARE(printRowAxis(sheet).size(1), 19);   // (what the grid has)
+        QCOMPARE(printRowAxis(sheet).size(1), GridSheet::rowPixels(14.4));
+        // a sheet that hides the rows it does not list ends at the last it lists
+        Sheet zero;
+        zero.format.zeroHeight = true;
+        RowSpec shown;
+        shown.row = 2;
+        shown.height = 15;
+        zero.rowSpecs = {shown};
+        const Axis z = printRowAxis(zero);
+        QCOMPARE(z.count(), qint64(3));
+        QCOMPARE(z.size(0), 0);
+        QCOMPARE(z.size(2), 20);
+    }
+
+    // A finer axis cuts the page where the width really ends: ten columns of 50.4 points are 504, and a page with 503 points to print on holds nine, not the ten that columns held to whole pixels
+    // (67 of them, 50.25 points each) would say.
+    void aFinerAxisCutsToThePoint()
+    {
+        Fixture whole(99, 29);
+        whole.cols = Axis(16384, 67);
+        whole.request.cols = &whole.cols;
+        whole.request.setup.margins.left = 0.75;
+        whole.request.setup.margins.right = 55.0 / 72;   // 612 - 54 - 55 = 503 points
+        QCOMPARE(colsOf(whole.run()).section(QLatin1Char(' '), 0, 0), QStringLiteral("0-9"));
+        Fixture fine(99, 29);
+        fine.cols = Axis(16384, 538);   // 50.4 points in eighths of a pixel
+        fine.request.cols = &fine.cols;
+        fine.request.colFine = 8;
+        fine.request.setup.margins = whole.request.setup.margins;
+        QCOMPARE(colsOf(fine.run()).section(QLatin1Char(' '), 0, 0), QStringLiteral("0-8"));
+        // the headings (a number of pixels) take their room the same from a fine axis, and a margin that is not a close call gives the same cut either way
+        Fixture wide(99, 29), wideFine(99, 29);
+        wide.cols = Axis(16384, 64);
+        wide.request.cols = &wide.cols;
+        wide.request.setup.headings = true;
+        wideFine.cols = Axis(16384, 64 * 8);
+        wideFine.request.cols = &wideFine.cols;
+        wideFine.request.colFine = 8;
+        wideFine.request.setup.headings = true;
+        QCOMPARE(colsOf(wideFine.run()), colsOf(wide.run()));
+        // a sheet with an object past its last cell takes the object's box in pixels whatever the axis is
+        Fixture box(0, 0), boxFine(0, 0);
+        boxFine.cols = Axis(16384, 64 * 8);
+        boxFine.request.cols = &boxFine.cols;
+        boxFine.request.colFine = 8;
+        ObjectBox o;
+        o.x = 64 * 3 + 5;
+        o.y = 3;
+        o.w = 10;
+        o.h = 10;
+        box.request.objects = {o};
+        boxFine.request.objects = {o};
+        QCOMPARE(box.run().areas[0].col2, boxFine.run().areas[0].col2);
+        QCOMPARE(box.run().areas[0].col2, quint32(3));
+    }
+
     // The paper: letter and A4 upright and turned, a custom size, margins that are negative or leave no room.
     void thePaperAndItsMarginsAreHeldToWhatThePageCanHave()
     {

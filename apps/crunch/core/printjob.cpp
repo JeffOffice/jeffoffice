@@ -145,16 +145,20 @@ bool PrintJob::build(QString *why)
         GridData data = m_source->data(sheet);
         if (!data.sheet || !data.styles) continue;
         info.geometry = data.geometry ? data.geometry : std::shared_ptr<const jp::grid::GridGeometry>(GridSheet::makeGeometry(*data.sheet, *data.styles));
+        info.cols = jp::grid::printColumnAxis(*data.sheet, *data.styles);   // (what the page is drawn by; the cuts are made by the finer ones below)
+        const jp::grid::Axis cutRows = jp::grid::printRowAxis(*data.sheet, jp::grid::kCutFine);
+        const jp::grid::Axis cutCols = jp::grid::printColumnAxis(*data.sheet, *data.styles, jp::grid::kCutFine);
         std::vector<jp::grid::ObjectBox> boxes;
         {
-            PageObjectPainter objects(m_source->objects(sheet), info.geometry->layout.rows, info.geometry->layout.cols);
+            PageObjectPainter objects(m_source->objects(sheet), info.geometry->layout.rows, info.cols);
             if (!info.setup.draft) boxes = objects.boxes();
         }
         jp::grid::PrintRequest q;
         q.sheet = data.sheet;
         q.styles = data.styles;
-        q.rows = &info.geometry->layout.rows;
-        q.cols = &info.geometry->layout.cols;
+        q.rows = &cutRows;
+        q.cols = &cutCols;
+        q.rowFine = q.colFine = jp::grid::kCutFine;
         q.setup = info.setup;
         q.objects = boxes;
         q.ignorePrintArea = m_options.ignorePrintArea;
@@ -267,13 +271,14 @@ PrintJob::Context &PrintJob::contextFor(int infoIndex)
     data.geometry = info.geometry;
     c.grid = std::make_unique<GridSheet>();
     c.grid->setData(data);
+    c.grid->layout().cols = info.cols;
     c.grid->setErrorDisplay(info.setup.errors == jp::office::sheet::PrintErrors::Blank ? GridSheet::ErrorDisplay::Blank
                             : info.setup.errors == jp::office::sheet::PrintErrors::Dash  ? GridSheet::ErrorDisplay::Dash
                             : info.setup.errors == jp::office::sheet::PrintErrors::NA    ? GridSheet::ErrorDisplay::NA
                                                                                           : GridSheet::ErrorDisplay::Shown);
     c.painter = std::make_unique<PagePainter>(c.grid.get());
     c.painter->setBaseFont(m_source->baseFontFamily(), m_source->baseFontPoints());
-    if (!info.setup.draft) c.objects = std::make_unique<PageObjectPainter>(m_source->objects(info.sheet), info.geometry->layout.rows, info.geometry->layout.cols);
+    if (!info.setup.draft) c.objects = std::make_unique<PageObjectPainter>(m_source->objects(info.sheet), info.geometry->layout.rows, info.cols);
     return c;
 }
 

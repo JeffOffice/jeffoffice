@@ -6,7 +6,7 @@
 //                                                            of the pages against the reference pages compares); one line: sheets, pages, milliseconds
 //   jcrunchtool print-cuts <file> [N ...]                    the same lines as cuts.tsv, to the output
 //   jcrunchtool print-shots <out-dir> [file]                 pictures of the printing screens of a workbook (a report made here without a file): the Print screen with its preview, the Page Setup
-//                                                            dialog on each of its four tabs, and a printed page with a header and a footer
+//                                                            dialog on each of its four tabs, and the sheet with the lines where its pages begin, and a printed page with a header and a footer
 //   jcrunchtool print-bench [rows=100000] [cols=20]          a workbook made here (JC_BENCH_FILE names a file to keep it in and to use again), its pages cut, the first page drawn, 40 pages
 //                                                            drawn as a person turns them, and every page written to a PDF: the milliseconds each took
 
@@ -15,6 +15,7 @@
 #include "core/editsession.h"
 #include "core/loader.h"
 #include "core/printjob.h"
+#include "grid/gridview.h"
 #include "office/package.h"
 #include "core/sheetobjects.h"
 #include "sheet/cellref.h"
@@ -22,6 +23,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include <QDateTime>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QEventLoop>
@@ -68,6 +70,9 @@ struct Opened {
     {
         options.fileName = QFileInfo(path).fileName();
         options.folder = QFileInfo(path).absolutePath();
+        // JP_NOW (an ISO 8601 date and time, say 2026-10-15T19:31:36-04:00) is the moment the date and time fields show, so a page can be drawn again as of the day a reference was made
+        // (a tool's; the app does not read it).
+        if (const QDateTime moment = QDateTime::fromString(qEnvironmentVariable("JP_NOW"), Qt::ISODate); moment.isValid()) options.now = moment;
         auto source = std::make_unique<crunch::BookPrintSource>(&book, nullptr, nullptr, objects.get());
         auto j = std::make_unique<crunch::PrintJob>(std::move(source), options);
         if (!j->build(why)) return nullptr;
@@ -286,6 +291,9 @@ int printShots(const QString &dir, const QString &file)
     spin(600);
     w.grab().save(QDir(dir).filePath(QStringLiteral("print-screen.png")));
     w.hideFileScreen();
+    w.view()->ensureVisible(60, 0);
+    spin(400);
+    w.grab().save(QDir(dir).filePath(QStringLiteral("sheet-with-page-breaks.png")));
     static const char *const tabs[4] = {"page", "margins", "header-footer", "sheet"};
     for (int tab = 0; tab < 4; ++tab) {
         PageSetupRequest request;

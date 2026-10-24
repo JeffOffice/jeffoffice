@@ -7,7 +7,7 @@ The file you work on is called a **workbook**. A workbook holds one or more **sh
 
 ## JeffCrunch is an early Preview
 
-This version opens workbooks, lets you type in cells, and saves them. You can open a workbook, look at every sheet, select cells, copy them as text, zoom, and freeze rows and columns for your own view. You can type numbers, text, and formulas in cells, clear cells, undo and redo, and save the workbook. Formatting, cut and paste, inserting rows and columns, sorting, charts, and printing come in later versions. The ribbon shows those commands now, dimmed, so you can see where they will go.
+This version opens workbooks, lets you type in cells, and saves them. You can open a workbook, look at every sheet, select cells, copy them as text, zoom, and freeze rows and columns for your own view. You can type numbers, text, and formulas in cells, clear cells, undo and redo, and save the workbook. You can set up how a sheet is cut into pages, see the pages before they print, print them or save them as a PDF (see [Print and make a PDF](printing)). Formatting, sorting, and more come in later versions. The ribbon shows those commands now, dimmed, so you can see where they will go.
 
 ## Do these three things first
 

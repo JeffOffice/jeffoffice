@@ -975,10 +975,10 @@ private Q_SLOTS:
         QVERIFY(job->printOf(0)->areas[0].col2 >= 5);
         QImage img = job->preview(0, 612);   // (a pixel to the point)
         auto at = [&](double x, double y) { return img.pixel(int(x), int(y)); };
-        // column D begins 3 x 48 points past the margin; row 2 is 15 points below the top margin
-        const QRgb inRed = at(50.4 + 3 * 48 + 8, 54 + 15 + 5);
+        // column D begins 3 columns past the margin (a column is 67 of the grid's pixels, 50.25 points, on paper); row 2 is 15 points below the top margin
+        const QRgb inRed = at(50.4 + 3 * 50.25 + 8, 54 + 15 + 5);
         QVERIFY2(qRed(inRed) > 200 && qGreen(inRed) < 60 && qBlue(inRed) < 60, qPrintable(QString::number(inRed, 16)));
-        const QRgb inBlue = at(50.4 + 3 * 48 + 8, 54 + 7 * 15 + 5);
+        const QRgb inBlue = at(50.4 + 3 * 50.25 + 8, 54 + 7 * 15 + 5);
         QVERIFY2(qBlue(inBlue) > 200 ? qRed(inBlue) > 200 : true, qPrintable(QString::number(inBlue, 16)));   // (white: the shape stays off the paper)
         QVERIFY(qRed(inBlue) > 200 && qGreen(inBlue) > 200 && qBlue(inBlue) > 200);
         // at half scale the red shape is half the size
@@ -989,14 +989,14 @@ private Q_SLOTS:
         QVERIFY(e.win.w.session()->setPageSetup(0, p, QStringLiteral("Page")).ok);
         job = w.makePrintJob(crunch::PrintJobOptions(), &why);
         img = job->preview(0, 612);
-        const QRgb halfRed = at(50.4 + 3 * 24 + 8, 54 + 7 + 3);
+        const QRgb halfRed = at(50.4 + 3 * 25.125 + 8, 54 + 7 + 3);
         QVERIFY2(qRed(halfRed) > 200 && qGreen(halfRed) < 60, qPrintable(QString::number(halfRed, 16)));
         // a draft prints no objects
         p.draft = true;
         QVERIFY(e.win.w.session()->setPageSetup(0, p, QStringLiteral("Page")).ok);
         job = w.makePrintJob(crunch::PrintJobOptions(), &why);
         img = job->preview(0, 612);
-        const QRgb none = at(50.4 + 3 * 24 + 8, 54 + 7 + 3);
+        const QRgb none = at(50.4 + 3 * 25.125 + 8, 54 + 7 + 3);
         QVERIFY(qGreen(none) > 200);
     }
 

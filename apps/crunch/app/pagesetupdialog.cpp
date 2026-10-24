@@ -32,8 +32,6 @@ using namespace jp::office::sheet;
 
 namespace {
 
-QString tr_(const char *text) { return QCoreApplication::translate("jp::PageSetupDialog", text); }
-
 jp::office::sheet::HfContext sampleContext(const QString &sheet, const QString &file)
 {
     HfContext c;
@@ -263,7 +261,7 @@ QVector<QPair<QString, QString>> PageSetupDialog::headerFooterPresets(const QStr
                                QStringLiteral("&L&D&RPage &P"),
                                QStringLiteral("&L&F&C&A&R&D")};
     QVector<QPair<QString, QString>> out;
-    for (const QString &code : codes) out.append({code.isEmpty() ? tr_("(nothing)") : headerFooterPreview(code, c), code});
+    for (const QString &code : codes) out.append({code.isEmpty() ? tr("(nothing)") : headerFooterPreview(code, c), code});
     return out;
 }
 
