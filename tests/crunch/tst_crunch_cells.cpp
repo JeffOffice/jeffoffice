@@ -659,6 +659,62 @@ private Q_SLOTS:
         QVERIFY(e.win.told.isEmpty());
     }
 
+    // A step that moves cells and is bigger than Undo holds (more than the undo limit of bytes would be kept to undo it) is asked about before it is done, as in the programs people know:
+    // "this can't be undone"; if the person goes on it is done, and it and the steps before it are not undone. A step that fits is not asked about. While it is done the window says it is working.
+    void aStepBiggerThanTheUndoLimitIsAskedAboutAndTheWindowShowsItIsWorking()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        crunch::EditSession *s = e.win.w.session();
+        s->setUndoByteLimit(4000);
+        for (int i = 0; i < 40; ++i) QVERIFY(s->type(0, quint32(20 + i), 0, QString::number(i)).ok);   // forty cells in A21:A60 (typing is not asked about)
+        QVERIFY(e.settle());
+        QVERIFY(s->insertRows(0, 100, 1).ok);   // fits: nothing is lost by it
+        QVERIFY(e.settle());
+        const int steps = e.win.w.undoStack()->count();
+        // too big: not done, and the person is asked
+        crunch::EditSession::Outcome o = s->deleteRows(0, 19, 41);
+        QVERIFY(!o.ok && o.confirm);
+        QVERIFY2(o.problem.contains(QStringLiteral("can't be undone")), qPrintable(o.problem));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(e.valueAt(QStringLiteral("A21")), QStringLiteral("n:0"));
+        // through the window: asked, and said no to
+        QStringList asked;
+        bool answer = false;
+        e.win.w.setBigStepAsker([&](const QString &text) {
+            asked << text;
+            return answer;
+        });
+        bool cursorBusy = false;
+        QString statusDuring;
+        s->setHoldHook([&](jp::office::sheet::Calculation *, bool after) {
+            if (after) return;
+            cursorBusy = cursorBusy || QGuiApplication::overrideCursor() != nullptr;
+            statusDuring = e.win.w.statusText();
+        });
+        e.view()->selectRows(19, 59);
+        e.win.w.act(QStringLiteral("cells.delete"))->trigger();
+        QCOMPARE(asked.size(), 1);
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QVERIFY(!cursorBusy);   // (nothing was done)
+        // and yes
+        answer = true;
+        e.win.w.act(QStringLiteral("cells.delete"))->trigger();
+        QCOMPARE(asked.size(), 2);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A21")), QStringLiteral("-"));
+        QVERIFY(cursorBusy);
+        QVERIFY2(statusDuring.contains(QStringLiteral("Working")), qPrintable(statusDuring));
+        QVERIFY(QGuiApplication::overrideCursor() == nullptr);   // (and the cursor is back)
+        QVERIFY(!s->canUndo());                                  // it and what came before are not undone
+        // a step that fits is not asked about
+        s->setHoldHook(nullptr);
+        s->setUndoByteLimit(crunch::kUndoBytes);
+        QVERIFY(s->insertRows(0, 2, 1).ok);
+        QCOMPARE(asked.size(), 2);
+        QVERIFY(s->canUndo());
+    }
+
     // Tables: rows inserted inside one make it longer, rows or columns before it move it, the header row and the columns can't be cut through; the saved part has its place.
     void tablesMoveWithTheirCellsAndRefuseToBeCut()
     {

@@ -297,7 +297,7 @@ void CrunchWindow::pasteClipboard(const crunch::EditSession::PasteOptions &optio
         const bool mine = clip.token == m_session->token() && m_clip.valid() && clip.serial == m_clip.serial;
         if (clip.cut && mine && plain) {
             // a cut and paste moves the cells
-            result = m_session->moveCells(clip.sheet, clip.source, m_sheet, target.row1, target.col1);
+            result = doStructural([&] { return m_session->moveCells(clip.sheet, clip.source, m_sheet, target.row1, target.col1); });
             if (result.ok) {
                 result.range = clip.source;
                 result.range.row2 = target.row1 + (clip.source.row2 - clip.source.row1);
@@ -316,7 +316,7 @@ void CrunchWindow::pasteClipboard(const crunch::EditSession::PasteOptions &optio
     };
     crunch::EditSession::Outcome o = run(options);
     if (!o.ok) {
-        notice(tr("Paste"), o.problem);
+        if (!o.confirm) notice(tr("Paste"), o.problem);
         return;
     }
     if (m_loader.changesMade() != before) m_calculating = true;

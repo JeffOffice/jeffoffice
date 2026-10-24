@@ -2,12 +2,14 @@
 // step; the window makes its picture of the sheet again when the cells have moved.
 #include "app/crunchwindow.h"
 
+#include "core/appinfo.h"
 #include "sheet/cellref.h"
 
 #include <QAction>
 #include <QButtonGroup>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QApplication>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QMenu>
@@ -82,15 +84,51 @@ void CrunchWindow::deleteCommand()
     else insertOrDeleteCells(false);
 }
 
+crunch::EditSession::Outcome CrunchWindow::doStructural(const std::function<crunch::EditSession::Outcome()> &edit)
+{
+    // (an edit that moves cells is done by the window's own thread, and a large one takes a while: the window says it is working, and paints that before it begins)
+    struct Busy {
+        CrunchWindow *w;
+        explicit Busy(CrunchWindow *window) : w(window)
+        {
+            QApplication::setOverrideCursor(Qt::WaitCursor);
+            w->setStatus(tr("Working…"));
+            QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+        }
+        ~Busy()
+        {
+            QApplication::restoreOverrideCursor();
+            if (!w->m_calculating && !w->m_loading) w->setStatus(tr("Ready"));
+        }
+    };
+    crunch::EditSession::Outcome o;
+    {
+        Busy busy(this);
+        o = edit();
+    }
+    if (!o.ok && o.confirm) {
+        // (too big for Undo to hold: the person is asked, and may go on)
+        const bool goOn = m_bigStepAsker ? m_bigStepAsker(o.problem) : QMessageBox::question(this, appInfo().name, o.problem, QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
+        if (!goOn) {
+            o.problem.clear();   // (nothing is done, and nothing is said: it was the person's answer; `confirm` still says why)
+            return o;
+        }
+        m_session->allowNextBigStep();
+        Busy busy(this);
+        o = edit();
+    }
+    return o;
+}
+
 void CrunchWindow::insertLines(bool rows)
 {
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active || !editingAllowed()) return;
     const CellRange r = selectedRange();
     const qint64 before = m_loader.changesMade();
-    const crunch::EditSession::Outcome o = rows ? m_session->insertRows(m_sheet, r.row1, r.row2 - r.row1 + 1) : m_session->insertColumns(m_sheet, r.col1, r.col2 - r.col1 + 1);
+    const crunch::EditSession::Outcome o = doStructural([&] { return rows ? m_session->insertRows(m_sheet, r.row1, r.row2 - r.row1 + 1) : m_session->insertColumns(m_sheet, r.col1, r.col2 - r.col1 + 1); });
     if (!o.ok) {
-        notice(tr("Insert"), o.problem);
+        if (!o.confirm) notice(tr("Insert"), o.problem);
         return;
     }
     if (m_loader.changesMade() != before) m_calculating = true;
@@ -102,9 +140,9 @@ void CrunchWindow::deleteLines(bool rows)
     if (m_edit.active || !editingAllowed()) return;
     const CellRange r = selectedRange();
     const qint64 before = m_loader.changesMade();
-    const crunch::EditSession::Outcome o = rows ? m_session->deleteRows(m_sheet, r.row1, r.row2 - r.row1 + 1) : m_session->deleteColumns(m_sheet, r.col1, r.col2 - r.col1 + 1);
+    const crunch::EditSession::Outcome o = doStructural([&] { return rows ? m_session->deleteRows(m_sheet, r.row1, r.row2 - r.row1 + 1) : m_session->deleteColumns(m_sheet, r.col1, r.col2 - r.col1 + 1); });
     if (!o.ok) {
-        notice(tr("Delete"), o.problem);
+        if (!o.confirm) notice(tr("Delete"), o.problem);
         return;
     }
     if (m_loader.changesMade() != before) m_calculating = true;
@@ -130,10 +168,9 @@ void CrunchWindow::insertOrDeleteCells(bool inserting)
     const CellRange block = selectedRange();
     const qint64 before = m_loader.changesMade();
     crunch::EditSession::Outcome o;
-    if (inserting) o = m_session->insertCells(m_sheet, block, request.way == Way::Down);
-    else o = m_session->deleteCells(m_sheet, block, request.way == Way::Up);
+    o = doStructural([&] { return inserting ? m_session->insertCells(m_sheet, block, request.way == Way::Down) : m_session->deleteCells(m_sheet, block, request.way == Way::Up); });
     if (!o.ok) {
-        notice(inserting ? tr("Insert") : tr("Delete"), o.problem);
+        if (!o.confirm) notice(inserting ? tr("Insert") : tr("Delete"), o.problem);
         return;
     }
     if (m_loader.changesMade() != before) m_calculating = true;

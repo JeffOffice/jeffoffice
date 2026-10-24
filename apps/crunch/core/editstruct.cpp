@@ -75,10 +75,23 @@ EditSession::Outcome EditSession::structure(const StructEdit &edit, const QStrin
         out.problem = why;
         return out;
     }
+    // a step that would hold more than Undo can is asked about first (what it deletes or writes over, and what it writes again, are kept to undo it)
+    const bool big = m_book->calc->estimateUndoBytes(edit, m_undoByteLimit + 1) > m_undoByteLimit;
+    if (big && !m_bigStepAllowed) {
+        out.ok = false;
+        out.confirm = true;
+        out.problem = tr("This can't be undone, and neither can what you did before it. Do you want to go on?");
+        return out;
+    }
+    m_bigStepAllowed = false;
     Step step;
     step.structure = std::make_shared<StructChange>();
     step.structure->edit = edit;
     pushStep(std::move(step), text);
+    if (big) {
+        // (it is done, and what it holds is let go of with the steps before it: it is not kept, and Undo does not go back over it)
+        forgetStepsDone();
+    }
     return out;
 }
 

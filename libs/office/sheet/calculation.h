@@ -160,6 +160,14 @@ public:
             jp::calc::Value stored;
         };
         std::vector<FormulaWas> was;
+        // formulas of a shared family that were written again alike (one text for all of them, kept shared): the text they had (for the first cell the family was written for), and where
+        // each was before the edit
+        struct RewrittenGroup {
+            int sheet;
+            QString oldText;
+            std::vector<std::pair<quint32, quint32>> cells;
+        };
+        std::vector<RewrittenGroup> groups;
         // the sheet's other structures, as they were
         QVector<CellRange> ranges, merges;
         qint64 mergeCount = 0;
@@ -189,6 +197,9 @@ public:
     };
     // Whether the edit can be made; if not, why, in a sentence for the person (it would cut through an array formula or a data table, push cells off the sheet, or the sheet is protected).
     bool canApply(const StructEdit &edit, QString *why) const;
+    // About how many bytes the record that undoes the edit would hold (the cells it deletes or writes over, whole, and the formulas it writes again), worked out without doing it: it
+    // stops counting past `stopAt`, and says that much.
+    qint64 estimateUndoBytes(const StructEdit &edit, qint64 stopAt) const;
     // Makes the edit and says what is needed to undo it. False, with nothing changed, if it can't be made. `moved` is the number of cells shifted and `rewritten` the formulas written again
     // (in the record).
     bool applyEdit(const StructEdit &edit, EditRecord *record);
@@ -219,6 +230,10 @@ public:
     QStringList listChoices(int sheet, quint32 row, quint32 col, const Validation &rule) const;
     // How many times an entry was worked out against a rule of validation (for tests: what is not typed is not held to a rule).
     qint64 ruleEvaluations() const { return m_ruleEvaluations; }
+    // For tests: the texts and formulas of a sheet that are in use, and the programs worked out for them (what edits made and let go of must not grow what is held).
+    qint64 formulaTextsInUse(int sheet) const;
+    qint64 formulaEntriesInUse(int sheet) const;
+    qint64 programsHeld(int sheet) const;
     // And how many ranges were looked at to find the rules of cells (for tests: it does not grow with the number of rules).
     qint64 ruleLookupWork() const { return m_ruleLookupWork; }
 
@@ -293,12 +308,29 @@ private:
         bool usesNames = false, dynamic = false, reaches = false, changesByItself = false, iterative = false;
         std::vector<qint32> bound;
     };
+    static constexpr qint32 kFreeFormula = -2;   // the text of a formula's place that is free to be used again
     struct SheetState {
         std::vector<quint32> nodeOf;          // by the formula's place in Sheet::formulas
         std::vector<Compiled> plain, array;   // by the formula's text
+        // The texts and formulas that edits make are kept once and let go of when nothing has them: how many formulas have each text (made when an edit first needs it: textsCounted),
+        // the texts the edits made by their characters, and the places of the texts and formulas that are free to be used again.
+        std::vector<quint32> textRefs;
+        bool textsCounted = false;
+        QHash<QString, qint32> internOf;
+        std::vector<qint32> freeTexts, freeFormulas;
     };
 
     Compiled &compiled(int sheet, qint32 text, bool array);
+    // Texts and formulas, shared and let go of (see SheetState): the place of a text (a new one, or the one an edit made before with the same characters; it counts one more formula
+    // for it), a formula's place made with a text it keeps a hold of, a text that one formula less has, and a formula that is not any cell's now.
+    void countTexts(int sheet);
+    qint32 internText(int sheet, const QString &text);
+    void holdText(int sheet, qint32 text);
+    void releaseText(int sheet, qint32 text);
+    qint32 allocFormula(int sheet, const Formula &f);
+    void releaseFormula(int sheet, qint32 formula);
+    // The text of the formula of this cell is now `text` for the cell itself (in place: the formula keeps its place, and a shared formula's cell is its own text from now).
+    void retext(int sheet, Cell *cell, const QString &text);
     void classify(quint32 id, const Cell &cell, const Formula &f);
     quint32 addNode(int sheet, const Cell &cell, qint32 formulaIndex);
     // The text of an array formula's or a data table's first cell changed in place (its range's cells point to its formula); false if the cell is none.

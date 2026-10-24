@@ -142,8 +142,13 @@ public:
         // stop is refused; for the others the person is asked, and the same is done again with the rule left out (`checkRule` false). Only what is typed is held to the rules: a paste is not.
         bool rule = false;
         int ruleStyle = 0;
+        // The step is bigger than Undo can hold: it is not done, and `problem` asks whether to go on (the same call after allowNextBigStep is made, and then neither it nor the steps before it
+        // are undone).
+        bool confirm = false;
         QString ruleTitle;
     };
+    // The next step that moves cells is made though it is bigger than Undo holds (the person was asked, and said to go on).
+    void allowNextBigStep() { m_bigStepAllowed = true; }
     // Types text into a cell, as the person typed it: a number, a percent, a date, TRUE, a formula, or text; the cell takes the format the entry asks for if it has none of its own. The
     // change is one step on the undo stack. Not ok, and nothing changed, if the text is a formula that is not one, or is too long, or the cell cannot be changed.
     Outcome type(int sheet, quint32 row, quint32 col, const QString &typed, bool checkRule = true);
@@ -292,6 +297,8 @@ private:
     friend class ChangeCells;
     // A step could not be undone or done again: every step is forgotten (the workbook is not as the stack says), and `stepFailed` says so.
     void giveUpUndo(const QString &stepText, bool redoing);
+    // Forgets every step that is done (and what each holds): Undo does not go back over them.
+    void forgetStepsDone();
     // Makes the changes (forward: to `after`; else back to `before`) with the worker held back. False if the worker could not be held.
     bool apply(Step *step, bool forward);
     bool applyStructure(Step *step, bool forward);
@@ -352,6 +359,7 @@ private:
     std::vector<jp::office::sheet::StructEdit> m_log;  // every edit that moved cells (the place of a batch's results in time: see generation)
     std::vector<jp::office::sheet::StructEdit> m_edits;   // those since the file was read or saved that are done (not undone), for the file
     std::vector<jp::office::sheet::ColumnRename> m_renames;   // and the table columns renamed, for the names, validations, rules, and charts that name them
+    bool m_bigStepAllowed = false;     // see allowNextBigStep
     int m_saveGen = 0;                 // how many times the workbook has been saved
     int m_forgotBySave = 0;            // the steps the last save made Undo forget (see forgetDeletesInFile)
     std::map<quint64, jp::calc::Value> m_fileResults;  // what the file holds for formulas whose value there is not the one the workbook was read with (after a save)

@@ -12,6 +12,8 @@
 #include <QStringList>
 #include <QVector>
 
+#include <memory>
+
 namespace jp::office::sheet {
 
 struct StructEdit {
@@ -79,6 +81,38 @@ void setFastRowEdits(bool on);
 // `sheetNames` the names of the workbook's sheets in order. A reference to a sheet that is not in the list (another workbook) is left as it is. `changed`, if given, says whether the text
 // is not the one given. `definedName` is for the text of a defined name.
 QString adjustFormula(const QString &formula, int ownSheet, const QStringList &sheetNames, const StructEdit &edit, bool *changed = nullptr, bool definedName = false);
+// The references of one formula text, read once: what an edit of rows or columns does to the references of the cells that share the text (a shared formula's text is written for its first
+// cell, and each cell is a distance from it) is worked out for each cell from what happens to its own references, and the text it comes to is made once for all the cells that the edit
+// treats alike. It is made so that the text for a cell that is `dRow` rows and `dCol` columns from the one it was written for, offsetFormula(apply(key), dRow, dCol), is the same as
+// adjustFormula(offsetFormula(text, dRow, dCol), edit): a test compares them.
+class TextRewriter {
+public:
+    static constexpr int kMaxRefs = 6;
+    // What happens to each reference: unchanged, gone, or its four ends moved by so much (the same for every cell of the group).
+    struct Key {
+        qint32 v[kMaxRefs * 5] = {0};
+        bool operator==(const Key &o) const;
+        quint64 hash() const;
+    };
+    enum class Fate { Same, Changed, Unsupported };
+    TextRewriter(const QString &text, int ownSheet, const QStringList &sheetNames);
+    ~TextRewriter();
+    TextRewriter(TextRewriter &&) noexcept;
+    TextRewriter &operator=(TextRewriter &&) noexcept;
+    TextRewriter(const TextRewriter &) = delete;
+    // Whether the text can be handled this way (it is read, and has no more references than a key holds).
+    bool usable() const;
+    // What the edit (rows or columns inserted or deleted) does to the references of the cell at (dRow, dCol) from the cell the text was written for. Unsupported: leave it to adjustFormula
+    // (a reference that goes off the grid for the cell, or ends that cross, say).
+    Fate fate(const StructEdit &edit, qint32 dRow, qint32 dCol, Key *key) const;
+    // The text for the cells of the key (written for the same cell as before); empty if it can't be made (a reference that would be off the grid in it).
+    QString apply(const Key &key) const;
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> d;
+};
+
 // The formula of a cell that a cut moves (a Move edit): the references to cells that move with it follow them, and when the cell goes to another sheet the references to cells that stay
 // name the sheet it came from (the formula reads what it read), the others the sheet it is on now.
 QString adjustMovedFormula(const QString &formula, const QStringList &sheetNames, const StructEdit &move, bool *changed = nullptr);

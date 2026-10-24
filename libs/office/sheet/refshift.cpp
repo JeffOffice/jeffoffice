@@ -1,5 +1,7 @@
 #include "sheet/refshift.h"
 
+#include <cstring>
+
 #include "calc/formula.h"
 
 #include <QRegularExpression>
@@ -503,6 +505,134 @@ QString adjustFormula(const QString &formula, int ownSheet, const QStringList &s
     if (!any) return formula;
     out += formula.mid(at);
     if (changed) *changed = true;
+    return out;
+}
+
+struct TextRewriter::Impl {
+    struct Ref {
+        jp::calc::ReferenceAt at;
+        int sheet = -1;      // the place of the sheet it names (the formula's own if none is written); -1: not one of this workbook's
+        bool skip = false;   // not changed by an edit: another workbook, or through several sheets
+    };
+    QString text;
+    std::vector<Ref> refs;
+    bool usable = false;
+};
+
+bool TextRewriter::Key::operator==(const Key &o) const { return std::memcmp(v, o.v, sizeof(v)) == 0; }
+
+quint64 TextRewriter::Key::hash() const
+{
+    quint64 h = 1469598103934665603ull;
+    for (const qint32 x : v) h = (h ^ quint32(x)) * 1099511628211ull;
+    return h;
+}
+
+TextRewriter::TextRewriter(const QString &text, int ownSheet, const QStringList &sheetNames) : d(std::make_unique<Impl>())
+{
+    d->text = text;
+    jp::calc::ParseOptions po;
+    std::vector<jp::calc::ReferenceAt> refs;
+    if (!jp::calc::findReferences(text, po, &refs) || refs.size() > size_t(kMaxRefs)) return;
+    for (const jp::calc::ReferenceAt &r : refs) {
+        Impl::Ref ref;
+        ref.at = r;
+        ref.sheet = ownSheet;
+        if (!r.sheet1.isEmpty()) {
+            const int first = sheetIndexOf(sheetNames, r.sheet1);
+            const int last = r.sheet2.isEmpty() ? first : sheetIndexOf(sheetNames, r.sheet2);
+            ref.sheet = first;
+            ref.skip = first < 0 || last < 0 || first != last;
+        }
+        d->refs.push_back(std::move(ref));
+    }
+    d->usable = true;
+}
+
+TextRewriter::~TextRewriter() = default;
+TextRewriter::TextRewriter(TextRewriter &&) noexcept = default;
+TextRewriter &TextRewriter::operator=(TextRewriter &&) noexcept = default;
+
+bool TextRewriter::usable() const { return d && d->usable; }
+
+TextRewriter::Fate TextRewriter::fate(const StructEdit &edit, qint32 dRow, qint32 dCol, Key *key) const
+{
+    using K = StructEdit::Kind;
+    *key = Key();
+    if (!usable()) return Fate::Unsupported;
+    if (edit.kind != K::InsertRows && edit.kind != K::DeleteRows && edit.kind != K::InsertColumns && edit.kind != K::DeleteColumns) return Fate::Unsupported;
+    bool any = false;
+    for (size_t i = 0; i < d->refs.size(); ++i) {
+        const Impl::Ref &r = d->refs[i];
+        if (r.skip || r.sheet != edit.sheet) continue;
+        const jp::calc::RefLit &lit = r.at.ref;
+        const quint8 f = lit.flags;
+        const bool wholeCols = f & jp::calc::kRefWholeCols, wholeRows = f & jp::calc::kRefWholeRows;
+        // (the cells it names for this cell: the parts that are not fixed move with the cell, as a copy of the formula has them)
+        qint64 r1 = lit.row1, r2 = lit.row2, c1 = lit.col1, c2 = lit.col2;
+        if (!wholeCols) {
+            if (!(f & jp::calc::kRefRow1Abs)) r1 += dRow;
+            if (!(f & jp::calc::kRefRow2Abs)) r2 += dRow;
+        }
+        if (!wholeRows) {
+            if (!(f & jp::calc::kRefCol1Abs)) c1 += dCol;
+            if (!(f & jp::calc::kRefCol2Abs)) c2 += dCol;
+        }
+        if (r1 < 0 || r2 < 0 || c1 < 0 || c2 < 0 || r1 >= qint64(kGridRows) || r2 >= qint64(kGridRows) || c1 >= qint64(kGridCols) || c2 >= qint64(kGridCols) || r1 > r2 || c1 > c2) return Fate::Unsupported;
+        Block in;
+        in.sheet = r.sheet;
+        in.row1 = quint32(r1);
+        in.row2 = quint32(r2);
+        in.col1 = quint32(c1);
+        in.col2 = quint32(c2);
+        in.wholeColumns = wholeCols;
+        in.wholeRows = wholeRows;
+        Block moved;
+        const RefFate fate = adjustBlock(edit, in, &moved);
+        if (fate == RefFate::Same) continue;
+        qint32 *k = &key->v[i * 5];
+        any = true;
+        if (fate == RefFate::Gone) {
+            k[0] = 2;
+            continue;
+        }
+        if (moved.sheet != in.sheet) return Fate::Unsupported;
+        k[0] = 1;
+        k[1] = qint32(qint64(moved.row1) - qint64(in.row1));
+        k[2] = qint32(qint64(moved.row2) - qint64(in.row2));
+        k[3] = qint32(qint64(moved.col1) - qint64(in.col1));
+        k[4] = qint32(qint64(moved.col2) - qint64(in.col2));
+    }
+    return any ? Fate::Changed : Fate::Same;
+}
+
+QString TextRewriter::apply(const Key &key) const
+{
+    if (!usable()) return QString();
+    QString out;
+    int at = 0;
+    for (size_t i = 0; i < d->refs.size(); ++i) {
+        const qint32 *k = &key.v[i * 5];
+        if (k[0] == 0) continue;
+        const jp::calc::ReferenceAt &a = d->refs[i].at;
+        out += d->text.mid(at, a.body - at);
+        at = a.end;
+        if (k[0] == 2) {
+            out += QStringLiteral("#REF!");
+            continue;
+        }
+        jp::calc::RefLit lit = a.ref;
+        const qint64 r1 = qint64(lit.row1) + k[1], r2 = qint64(lit.row2) + k[2], c1 = qint64(lit.col1) + k[3], c2 = qint64(lit.col2) + k[4];
+        if (r1 < 0 || r2 < r1 || r2 >= qint64(kGridRows) || c1 < 0 || c2 < c1 || c2 >= qint64(kGridCols)) return QString();
+        lit.row1 = quint32(r1);
+        lit.row2 = quint32(r2);
+        lit.col1 = quint32(c1);
+        lit.col2 = quint32(c2);
+        // (a range that closed up to one cell is written as one cell)
+        if (lit.row1 == lit.row2 && lit.col1 == lit.col2 && (a.ref.row1 != a.ref.row2 || a.ref.col1 != a.ref.col2)) lit.flags &= quint8(~jp::calc::kRefArea);
+        out += jp::calc::referenceCellsText(lit);
+    }
+    out += d->text.mid(at);
     return out;
 }
 

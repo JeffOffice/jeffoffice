@@ -235,16 +235,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
                 was.stored = nodeValue(n0, r.id);
             }
             rec->was.push_back(std::move(was));
-            sn.formulaTexts.append(r.now);
-            if (c->flags & (ArrayFormula | DataTable)) {
-                sn.formulas[c->formula].text = qint32(sn.formulaTexts.size() - 1);   // (the cells of its range point to it: it keeps its place)
-            } else {
-                Formula f = sn.formulas[c->formula];
-                f.text = qint32(sn.formulaTexts.size() - 1);
-                f.dRow = f.dCol = 0;
-                sn.formulas.append(f);
-                c->formula = qint32(sn.formulas.size() - 1);
-            }
+            retext(sheet, c, r.now);   // (in place: the formula keeps its place, and a cell of a shared family has a text of its own from now)
             ++rec->formulasRewritten;
             rec->rewritten.push_back({sheet, c->row, c->col, bool(c->flags & DataTable)});
         }

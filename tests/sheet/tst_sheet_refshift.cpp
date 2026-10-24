@@ -253,6 +253,63 @@ private Q_SLOTS:
         }
         QVERIFY(fastDecided > 500);
     }
+
+    // What an edit does to the formulas of a shared family is worked out once for the text and the references of each cell: for every text, edit, and distance from the cell the text was
+    // written for, the text that TextRewriter makes (for the cells it treats alike), written for that cell, is the text adjustFormula makes for the cell. Written from the pieces of the
+    // other tests, with the distances and edits that make references go off the grid, cross, or vanish.
+    void aFamilysTextIsRewrittenOnceAndAgreesWithTheFullReading()
+    {
+        static const QStringList pieces = {"A1", "$A$1", "B$12:C34", "$B12:C$34", "A1:A5", "Sheet2!A1", "'My Sheet'!B2", "3:5", "A:A", "$A:$C", "B2", "C10", "D100", "$E7", "F$8", "AA3", "AB20:AC30",
+                                           "SUM(A1:A9)", "MAX(B2:B40,C3)", "(A7+B8)*2", "-A12", "SUM(Sheet2!A1:A3)", "Sheet1!B5", "IF(A5>1,B6,C7)", "#REF!", "1", "2.5", "\"A1\"", "Sheet1:Sheet2!A5", "$7:$9"};
+        static const QStringList joins = {"+", "-", "*", ",", ">"};
+        QRandomGenerator rng(777);
+        int changedChecked = 0, unsupported = 0, same = 0;
+        for (int round = 0; round < 12000; ++round) {
+            QString f;
+            const int count = 1 + int(rng.bounded(4));
+            for (int k = 0; k < count; ++k) f += (k ? joins[int(rng.bounded(joins.size()))] : QString()) + pieces[int(rng.bounded(pieces.size()))];
+            if (rng.bounded(4) == 0) f = QStringLiteral("SUM(") + f + QLatin1Char(')');
+            if (!jp::calc::parseFormula(f).ok()) continue;
+            const int which = int(rng.bounded(4));
+            const int sheet = rng.bounded(3) == 0 ? 1 : 0;
+            const quint32 first = quint32(rng.bounded(40)), n = 1 + quint32(rng.bounded(3));
+            const StructEdit e = which == 0 ? StructEdit::insertRows(sheet, first, n) : which == 1 ? StructEdit::deleteRows(sheet, first, n) : which == 2 ? StructEdit::insertColumns(sheet, first % 12, n) : StructEdit::deleteColumns(sheet, first % 12, n);
+            const int own = int(rng.bounded(2));
+            const qint32 dRow = qint32(rng.bounded(41)) - 10, dCol = qint32(rng.bounded(13)) - 3;
+            TextRewriter rewriter(f, own, kNames);
+            if (!rewriter.usable()) continue;
+            TextRewriter::Key key;
+            const TextRewriter::Fate fate = rewriter.fate(e, dRow, dCol, &key);
+            bool changed = false;
+            const QString effective = offsetFormula(f, dRow, dCol);
+            const QString expected = adjustFormula(effective, own, kNames, e, &changed);
+            if (fate == TextRewriter::Fate::Unsupported) {
+                ++unsupported;
+                continue;
+            }
+            if (fate == TextRewriter::Fate::Same) {
+                ++same;
+                QVERIFY2(!changed, qPrintable(QStringLiteral("%1 for %2,%3: the full reading changes %4 and the rewriter does not").arg(f).arg(dRow).arg(dCol).arg(effective)));
+                continue;
+            }
+            const QString text = rewriter.apply(key);
+            if (text.isEmpty()) continue;   // (a text it cannot make: left to the full reading)
+            const QString got = offsetFormula(text, dRow, dCol);
+            QVERIFY2(got == expected, qPrintable(QStringLiteral("%1 for %2,%3 with %4: made %5, which is %6 for the cell; the full reading makes %7").arg(f).arg(dRow).arg(dCol).arg(which).arg(text, got, expected)));
+            ++changedChecked;
+        }
+        QVERIFY2(changedChecked > 1500, qPrintable(QString::number(changedChecked)));
+        QVERIFY(same > 300);
+        QVERIFY(unsupported > 20);
+        // two cells of a family that the edit treats alike have the same key, and those it does not have another
+        TextRewriter family(QStringLiteral("A1*2"), 0, kNames);
+        TextRewriter::Key a, b, c;
+        QCOMPARE(family.fate(StructEdit::insertRows(0, 5, 1), 10, 0, &a), TextRewriter::Fate::Changed);   // the cell reads A11
+        QCOMPARE(family.fate(StructEdit::insertRows(0, 5, 1), 30, 0, &b), TextRewriter::Fate::Changed);   // and this one A31
+        QVERIFY(a == b);
+        QCOMPARE(family.fate(StructEdit::insertRows(0, 5, 1), 2, 0, &c), TextRewriter::Fate::Same);        // A3 is above the row inserted
+        QCOMPARE(family.apply(a), QStringLiteral("A2*2"));
+    }
 };
 
 JP_TEST_CLASS(SheetRefShiftTests)

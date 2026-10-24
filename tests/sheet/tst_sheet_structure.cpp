@@ -589,6 +589,84 @@ private Q_SLOTS:
         QCOMPARE(place, QStringLiteral("B3:D4"));
     }
 
+    // The formulas of a shared family stay a family through edits (one text and one program for the whole family, however many rows move, and what an edit splits by the references it
+    // changes is a few texts), and what edits make and Undo makes again does not pile up: twenty rounds of an edit and its Undo hold what the first did.
+    void aSharedFamilyStaysSharedAndEditsDoNotPileUpTextsAndFormulas()
+    {
+        const int n = 300;
+        QString rows;
+        for (int r = 1; r <= n; ++r) {
+            rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c>").arg(r);
+            if (r == 1) rows += QStringLiteral("<c r=\"B1\"><f t=\"shared\" ref=\"B1:B%1\" si=\"0\">A1*2</f><v>2</v></c>").arg(n);
+            else rows += QStringLiteral("<c r=\"B%1\"><f t=\"shared\" si=\"0\"/><v>%2</v></c>").arg(r).arg(r * 2);
+            rows += QStringLiteral("<c r=\"C%1\"><f>SUM(A1:A%1)</f><v>0</v></c></row>").arg(r);
+        }
+        Book b;
+        QVERIFY(b.openXml(worksheet(rows)));
+        QCOMPARE(b.at("B300"), QStringLiteral("n:600"));
+        const qint64 texts0 = b.calc->formulaTextsInUse(0), entries0 = b.calc->formulaEntriesInUse(0);
+        QCOMPARE(entries0, qint64(2 * n));
+        // rows inserted above all of it: the family is one text still (the old one is let go of), and its cells read the cells that moved
+        Calculation::EditRecord rec;
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 3), &rec));
+        QCOMPARE(b.formula("B4"), QStringLiteral("A4*2"));
+        QCOMPARE(b.formula("B303"), QStringLiteral("A303*2"));
+        QCOMPARE(b.at("B303"), QStringLiteral("n:600"));
+        QCOMPARE(b.calc->formulaEntriesInUse(0), entries0);
+        QCOMPARE(rec.formulasRewritten, qint64(2 * n));
+        QVERIFY2(b.calc->formulaTextsInUse(0) <= texts0 + 1 + n, qPrintable(QString::number(b.calc->formulaTextsInUse(0))));   // (the sums, each its own text, are written one by one; the family is one)
+        const qint64 familyPrograms = b.calc->programsHeld(0);
+        QVERIFY2(familyPrograms <= 1 + n + 1, qPrintable(QString::number(familyPrograms)));
+        // a row inserted in the middle of the family: the cells above it are as they were, those below read cells that moved; two texts
+        QVERIFY(b.apply(StructEdit::insertRows(0, 150, 1), nullptr));
+        QCOMPARE(b.formula("B100"), QStringLiteral("A100*2"));
+        QCOMPARE(b.formula("B200"), QStringLiteral("A200*2"));
+        QCOMPARE(b.at("B200"), QStringLiteral("n:392"));   // (it is the cell that was in row 196, and reads that row: 196 * 2)
+        // rows deleted from the middle: the cells that read them are #REF!, the others follow their cells
+        QVERIFY(b.apply(StructEdit::deleteRows(0, 20, 5), nullptr));
+        QCOMPARE(b.formula("B30"), QStringLiteral("A30*2"));
+        // twenty rounds of an edit and its Undo, at the top and in the middle: what is held does not grow
+        auto held = [&] { return QStringLiteral("%1/%2/%3").arg(b.calc->formulaTextsInUse(0)).arg(b.calc->formulaEntriesInUse(0)).arg(b.calc->programsHeld(0)); };
+        Calculation::EditRecord one;
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), &one));
+        QVERIFY(b.calc->undoEdit(one));
+        b.finish();
+        const QString afterFirst = held();
+        for (int round = 0; round < 20; ++round) {
+            Calculation::EditRecord top, middle, del;
+            QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1 + round % 3), &top));
+            QVERIFY(b.apply(StructEdit::insertRows(0, 100, 2), &middle));
+            QVERIFY(b.apply(StructEdit::deleteRows(0, 40, 3), &del));
+            QVERIFY(b.calc->undoEdit(del));
+            QVERIFY(b.calc->undoEdit(middle));
+            QVERIFY(b.calc->undoEdit(top));
+            b.finish();
+        }
+        QCOMPARE(held(), afterFirst);
+        QCOMPARE(b.formula("B30"), QStringLiteral("A30*2"));
+        QCOMPARE(b.at("B30"), QStringLiteral("n:64"));   // (the cell that was in row 32: three rows came in above it and five went)
+    }
+
+    // Formulas that are typed, written over, and cleared do not leave their texts and places behind.
+    void typedFormulasDoNotPileUp()
+    {
+        Book b;
+        QVERIFY(b.open({{"A1=1", "A2=2"}}));
+        const qint64 texts = b.calc->formulaTextsInUse(0), entries = b.calc->formulaEntriesInUse(0);
+        for (int i = 0; i < 200; ++i) {
+            QVERIFY(b.calc->setFormula(0, 0, 2, QStringLiteral("A1+%1").arg(i % 7)));
+            QVERIFY(b.calc->setFormula(0, 1, 2, QStringLiteral("A2+%1").arg(i % 5)));
+            if (i % 3 == 0) QVERIFY(b.calc->setValue(0, 0, 2, Value::number(1)));
+            b.finish();
+        }
+        QVERIFY(b.calc->setValue(0, 0, 2, Value::number(1)));
+        QVERIFY(b.calc->setValue(0, 1, 2, Value::number(1)));
+        b.finish();
+        QVERIFY2(b.calc->formulaTextsInUse(0) <= texts + 1, qPrintable(QString::number(b.calc->formulaTextsInUse(0))));
+        QVERIFY2(b.calc->formulaEntriesInUse(0) <= entries + 1, qPrintable(QString::number(b.calc->formulaEntriesInUse(0))));
+        QVERIFY(b.calc->programsHeld(0) <= 2);
+    }
+
     // A defined name with references that are not fixed keeps its offsets when rows or columns are inserted (it is read from the cell it is used in), and the fixed parts follow the cells.
     void aRelativeDefinedNameKeepsItsOffsets()
     {

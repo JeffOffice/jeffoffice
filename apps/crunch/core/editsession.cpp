@@ -180,6 +180,11 @@ void EditSession::forgetDeletesInFile()
     }
 }
 
+void EditSession::forgetStepsDone()
+{
+    for (int i = 0; i < m_undo.index(); ++i) const_cast<ChangeCells *>(static_cast<const ChangeCells *>(m_undo.command(i)))->forget();
+}
+
 void EditSession::giveUpUndo(const QString &stepText, bool redoing)
 {
     // (the workbook is not as the stack says: no step is undone or done again from here)

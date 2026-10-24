@@ -6,6 +6,7 @@
 #include <QCoreApplication>
 
 #include <algorithm>
+#include <unordered_map>
 
 namespace jp::office::sheet {
 
@@ -157,6 +158,43 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
     return true;
 }
 
+qint64 Calculation::estimateUndoBytes(const StructEdit &e, qint64 stopAt) const
+{
+    using K = StructEdit::Kind;
+    constexpr qint64 kPerCell = 320, kPerFormula = 320;   // (what a cell of the record and a formula written again take: see StructChange::bytes)
+    if (e.sheet < 0 || e.sheet >= int(m_sheets.size())) return 0;
+    qint64 bytes = 0;
+    auto countCells = [&](int sheet, quint32 r1, quint32 c1, quint32 r2, quint32 c2) {
+        if (sheet < 0 || sheet >= int(m_sheets.size())) return;
+        m_sheets[size_t(sheet)].cells.forEachInRange(r1, c1, r2, c2, [&](const Cell &) {
+            bytes += kPerCell;
+            return bytes < stopAt;
+        });
+    };
+    CellArea region = affectedArea(e);
+    if (e.kind == K::Move) {
+        const quint32 toRow2 = e.toRow + (e.row2 - e.row1), toCol2 = e.toCol + (e.col2 - e.col1);
+        countCells(e.sheet, e.row1, e.col1, e.row2, e.col2);
+        if (bytes < stopAt) countCells(e.toSheet, e.toRow, e.toCol, toRow2, toCol2);
+        region.row1 = e.row1;
+        region.row2 = e.row2;
+        region.col1 = e.col1;
+        region.col2 = e.col2;
+    } else if (deletes(e)) {
+        switch (e.kind) {
+        case K::DeleteRows: countCells(e.sheet, e.first, 0, e.first + e.count - 1, kGridCols - 1); break;
+        case K::DeleteColumns: countCells(e.sheet, 0, e.first, kGridRows - 1, e.first + e.count - 1); break;
+        default: countCells(e.sheet, e.row1, e.col1, e.row2, e.col2); break;
+        }
+    }
+    if (bytes >= stopAt) return bytes;
+    // the formulas that read what moves are written again: the graph says how many
+    std::vector<quint32> readers;
+    m_graph->dependentsOfArea(region, &readers);
+    bytes += (qint64(readers.size()) + qint64(m_special.size())) * kPerFormula;
+    return bytes;
+}
+
 // The formulas that are told where they read or are kept apart (not those with a function the engine lacks, which the graph holds), added to `out`.
 void Calculation::specialNodes(std::vector<quint32> *out)
 {
@@ -209,10 +247,29 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
     m_editWork += qint64(candidates.size()) + qint64(m_special.size());
     struct Rewrite {
         quint32 id;
-        QString was, now;
+        QString was, now;   // the text of the formula for its cell, and what it is to be (empty: as it was)
+        int group = -1;     // or the group of formulas of a shared family that are written again alike, and keep their share of one text
+    };
+    struct Group {
+        int sheet;
+        QString newText;
+        qint32 newIndex = -1;   // its place, once it is made
+        int record = -1;        // and where the group is in the record
+        bool failed = false;    // the text could not be made: the cells are written one by one
     };
     std::vector<Rewrite> rewrites;
     rewrites.reserve(candidates.size());
+    std::vector<Group> groups;
+    // (the formulas of a shared family are told apart by what the edit does to the references each has, and the new text is made once for those it does alike)
+    struct GroupKey {
+        int sheet;
+        qint32 text;
+        TextRewriter::Key key;
+    };
+    std::vector<GroupKey> groupKeys;
+    std::unordered_multimap<quint64, int> groupsByHash;
+    std::unordered_map<quint64, TextRewriter> rewriters;
+    const bool rowsOrColumns = e.kind == K::InsertRows || e.kind == K::DeleteRows || e.kind == K::InsertColumns || e.kind == K::DeleteColumns;
     for (const quint32 id : candidates) {
         const Node &n = m_nodes[id];
         if (n.flags & Dead) continue;
@@ -221,6 +278,44 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
         if (!c || !c->hasFormula()) continue;
         Rewrite r;
         r.id = id;
+        if (rowsOrColumns && !(c->flags & (ArrayFormula | DataTable)) && !(n.flags & Kept) && c->formula >= 0 && size_t(c->formula) < size_t(sn.formulas.size())) {
+            const Formula &f = sn.formulas[c->formula];
+            countTexts(n.sheet);
+            if (f.text >= 0 && (f.dRow != 0 || f.dCol != 0 || m_state[size_t(n.sheet)].textRefs[size_t(f.text)] > 1)) {
+                const quint64 textKey = (quint64(quint32(n.sheet)) << 32) | quint32(f.text);
+                auto rw = rewriters.find(textKey);
+                if (rw == rewriters.end()) rw = rewriters.emplace(textKey, TextRewriter(sn.formulaTexts[f.text], n.sheet, names)).first;
+                TextRewriter::Key key;
+                const TextRewriter::Fate fate = rw->second.fate(e, f.dRow, f.dCol, &key);
+                if (fate == TextRewriter::Fate::Same) {
+                    rewrites.push_back(std::move(r));
+                    continue;
+                }
+                if (fate == TextRewriter::Fate::Changed) {
+                    const quint64 hash = key.hash() ^ (textKey * 0x9E3779B97F4A7C15ull);
+                    int found = -1;
+                    for (auto range = groupsByHash.equal_range(hash); range.first != range.second && found < 0; ++range.first) {
+                        const GroupKey &k = groupKeys[size_t(range.first->second)];
+                        if (k.sheet == n.sheet && k.text == f.text && k.key == key) found = range.first->second;
+                    }
+                    if (found < 0) {
+                        Group g;
+                        g.sheet = n.sheet;
+                        g.newText = rw->second.apply(key);
+                        g.failed = g.newText.isEmpty();
+                        groups.push_back(std::move(g));
+                        groupKeys.push_back({n.sheet, f.text, key});
+                        found = int(groups.size()) - 1;
+                        groupsByHash.emplace(hash, found);
+                    }
+                    if (!groups[size_t(found)].failed) {
+                        r.group = found;
+                        rewrites.push_back(std::move(r));
+                        continue;
+                    }
+                }
+            }
+        }
         r.was = sn.formulaText(*c);
         bool changed = false;
         r.now = adjustFormula(r.was, n.sheet, names, e, &changed);
@@ -305,6 +400,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
         if (!c.hasFormula() || c.formula < 0 || size_t(c.formula) >= st.nodeOf.size()) continue;
         const quint32 id = st.nodeOf[size_t(c.formula)];
         if (id != kNone) dropNode(id);
+        releaseFormula(e.sheet, c.formula);   // (nothing has the formula of a cell that is gone; Undo makes it again from the record)
     }
 
     // ---- the sheet's other structures
@@ -386,12 +482,28 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
         Node &n0 = m_nodes[r.id];
         if (n0.flags & Dead) continue;
         const bool told = n0.flags & Told;
-        if (r.now.isEmpty() && !told && !namesChanged) continue;
+        if (r.now.isEmpty() && r.group < 0 && !told && !namesChanged) continue;
         const int sheet = n0.sheet;
         Sheet &sn = m_sheets[size_t(sheet)];
         Cell *c = sn.cells.findMutable(n0.row, n0.col);
         if (!c || !c->hasFormula()) continue;
-        if (!r.now.isEmpty()) {
+        if (r.group >= 0) {
+            // a formula of a shared family: it keeps its share of the family's text, which is made once, and it is as far from the cell it was written for as it was
+            Group &g = groups[size_t(r.group)];
+            Formula &f = sn.formulas[c->formula];
+            if (g.newIndex < 0) g.newIndex = internText(sheet, g.newText);
+            else holdText(sheet, g.newIndex);
+            if (g.record < 0) {
+                rec->groups.push_back({sheet, sn.formulaTexts[f.text], {}});
+                g.record = int(rec->groups.size()) - 1;
+            }
+            rec->groups[size_t(g.record)].cells.push_back({places[i].row, places[i].col});
+            const qint32 old = f.text;
+            f.text = g.newIndex;
+            releaseText(sheet, old);
+            ++rec->formulasRewritten;
+            rec->rewritten.push_back({sheet, c->row, c->col, false});
+        } else if (!r.now.isEmpty()) {
             EditRecord::FormulaWas was;
             was.sheet = places[i].sheet;
             was.row = places[i].row;
@@ -403,16 +515,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
                 was.stored = nodeValue(n0, r.id);
             }
             rec->was.push_back(std::move(was));
-            sn.formulaTexts.append(r.now);
-            if (c->flags & (ArrayFormula | DataTable)) {
-                sn.formulas[c->formula].text = qint32(sn.formulaTexts.size() - 1);   // (the cells of its range point to it: it keeps its place)
-            } else {
-                Formula f = sn.formulas[c->formula];
-                f.text = qint32(sn.formulaTexts.size() - 1);
-                f.dRow = f.dCol = 0;
-                sn.formulas.append(f);
-                c->formula = qint32(sn.formulas.size() - 1);
-            }
+            retext(sheet, c, r.now);   // (in place: the formula keeps its place, and a cell of a shared family has a text of its own from now)
             ++rec->formulasRewritten;
             rec->rewritten.push_back({sheet, c->row, c->col, bool(c->flags & DataTable)});
         }
@@ -444,8 +547,12 @@ bool Calculation::rewriteArrayText(int sheet, quint32 row, quint32 col, const QS
     abandonNow();
     SheetState &st = m_state[size_t(sheet)];
     if (size_t(c->formula) < st.nodeOf.size() && st.nodeOf[size_t(c->formula)] != kNone) dropNode(st.nodeOf[size_t(c->formula)]);
-    s.formulaTexts.append(text);
-    s.formulas[c->formula].text = qint32(s.formulaTexts.size() - 1);
+    {
+        Formula &f = s.formulas[c->formula];
+        const qint32 old = f.text;
+        f.text = internText(sheet, text);
+        releaseText(sheet, old);
+    }
     const quint32 id = addNode(sheet, *c, c->formula);
     queueDependents(areaOf(m_nodes[id]));
     return true;
@@ -495,6 +602,29 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
         const jp::calc::Value *stored = w.hasStored ? &w.stored : nullptr;
         if (rewriteArrayText(w.sheet, w.row, w.col, w.text)) continue;
         setFormula(w.sheet, w.row, w.col, w.text, Marking::Later, stored);
+    }
+    // the formulas of shared families have the text they had (the inverse edit has most of them so already: those that have it are left as they are)
+    for (const EditRecord::RewrittenGroup &g : rec.groups) {
+        if (g.sheet < 0 || g.sheet >= int(m_sheets.size())) continue;
+        Sheet &sg = m_sheets[size_t(g.sheet)];
+        qint32 index = -1;
+        for (const auto &place : g.cells) {
+            Cell *c = sg.cells.findMutable(place.first, place.second);
+            if (!c || !c->hasFormula() || c->formula < 0 || size_t(c->formula) >= size_t(sg.formulas.size())) continue;
+            Formula &f = sg.formulas[c->formula];
+            const qint32 old = f.text;
+            const bool already = old >= 0 && sg.formulaTexts[old] == g.oldText;
+            if (already) continue;
+            if (index < 0) index = internText(g.sheet, g.oldText);
+            else holdText(g.sheet, index);
+            f.text = index;
+            releaseText(g.sheet, old);
+            const quint32 id = nodeAt(g.sheet, place.first, place.second);
+            const qint32 formula = c->formula;
+            if (id != kNone) dropNode(id);
+            const quint32 now = addNode(g.sheet, *c, formula);
+            queueDependents(areaOf(m_nodes[now]));
+        }
     }
     for (const auto &entry : rec.validations)
         if (entry.first >= 0 && entry.first < int(m_sheets.size())) {

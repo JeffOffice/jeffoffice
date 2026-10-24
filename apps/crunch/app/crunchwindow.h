@@ -112,6 +112,8 @@ public:
     void setSizeAsker(const std::function<bool(SizeRequest *)> &asker) { m_sizeAsker = asker; }
     // What is asked when a value does not fit the rule of validation of its cell and the rule is a warning or only tells: the rule's title, its message, and its style (Validation::Style, 1
     // warning, 2 information); true goes on. A message box unless this stands in for it (tests). A rule that stops is only told (through the notifier).
+    // For tests: what asks whether to go on with a step that Undo cannot hold (its text), standing in for the question.
+    void setBigStepAsker(const std::function<bool(const QString &text)> &asker) { m_bigStepAsker = asker; }
     void setRuleAsker(const std::function<bool(const QString &title, const QString &text, int style)> &asker) { m_ruleAsker = asker; }
     // And Paste Special: how to paste. A dialog unless this stands in for it (tests); false gives it up.
     void setPasteAsker(const std::function<bool(crunch::EditSession::PasteOptions *)> &asker) { m_pasteOptionsAsker = asker; }
@@ -216,6 +218,9 @@ private:
     std::function<bool(ShiftRequest *)> m_shiftAsker;
     std::function<bool(SizeRequest *)> m_sizeAsker;
     std::function<bool(const QString &, const QString &, int)> m_ruleAsker;
+    std::function<bool(const QString &)> m_bigStepAsker;
+    // Does an edit that moves cells with the window saying it is working (the wait cursor, and the status), and, if the step is too big for Undo to hold, asks first.
+    crunch::EditSession::Outcome doStructural(const std::function<crunch::EditSession::Outcome()> &edit);
     bool askAboutRule(const crunch::EditSession::Outcome &outcome);
     // the list a rule offers on the cell with the cursor (crunchwindow_cells.cpp)
     void updateDropDown();
