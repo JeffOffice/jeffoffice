@@ -24,6 +24,8 @@
 #include <unordered_set>
 #include <vector>
 
+class QThread;
+
 namespace jp::office::sheet {
 
 // What one recalculation may take, in steps (all its slices together), and what the formulas of a workbook may hold of texts and arrays, in bytes: past them the formulas still
@@ -226,6 +228,7 @@ public:
 
     // ---- the rules of validation (see sheet/sheetmodel.h): the rule for a cell (the first that names it), whether an entry is allowed by it (`typed` is the text as typed; the rule's
     // formulas are worked out with the entry in the cell), and the choices a list offers.
+    // (Window thread only: the index it finds the rule with is made when first asked and held without a lock; a debug build checks that one thread asks.)
     const Validation *validationAt(int sheet, quint32 row, quint32 col) const;
     bool entryAllowed(int sheet, quint32 row, quint32 col, const Validation &rule, const jp::calc::Value &entry, const QString &typed) const;
     QStringList listChoices(int sheet, quint32 row, quint32 col, const Validation &rule) const;
@@ -405,7 +408,9 @@ private:
     const std::atomic<bool> *m_cancel = nullptr;
     ResultSink m_sink;
     struct RuleIndex;
-    mutable std::vector<std::shared_ptr<RuleIndex>> m_ruleIndex;   // by sheet: where the rules of validation are (made when first asked, and again after the rules change)
+    mutable std::vector<std::shared_ptr<RuleIndex>> m_ruleIndex;   // by sheet: where the rules of validation are (made when first asked, and again after the rules change); the window's thread only
+    mutable QThread *m_ruleThread = nullptr;                       // the thread that asked (a debug build checks that it is the only one)
+    void forgetRuleIndex() { m_ruleIndex.clear(); m_ruleThread = nullptr; }
     mutable qint64 m_ruleEvaluations = 0, m_ruleLookupWork = 0;
     std::unique_ptr<jp::calc::DependencyGraph> m_graph;
     jp::calc::Evaluator m_evaluator;

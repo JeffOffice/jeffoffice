@@ -6,8 +6,11 @@
 #include "calc/formula.h"
 #include "sheet/cellref.h"
 
+#include <QThread>
+
 #include <algorithm>
 #include <cmath>
+#include <queue>
 #include <unordered_map>
 
 namespace jp::office::sheet {
@@ -16,6 +19,16 @@ using jp::calc::CellArea;
 using jp::calc::Value;
 
 namespace {
+
+int bitsOf(size_t n)
+{
+    int bits = 0;
+    while (n) {
+        ++bits;
+        n >>= 1;
+    }
+    return bits;
+}
 
 // The cells of a source, except that one of them has another value: what the rule's formula is worked out over when the entry is not yet in the cell.
 class Overlay : public jp::calc::CellSource {
@@ -90,48 +103,103 @@ QString textOfValue(const Value &v)
 
 } // namespace
 
-// Where the rules of a sheet are, so that the rule for a cell is found without looking at every rule: the ranges are put in the blocks of 64 rows they cross (a range that crosses many
-// goes in a short list of its own). The rule that comes first in the file's order wins, as it did when every rule was looked at in turn.
+// Where the rules of a sheet are, so that the rule for a cell is found in a few steps whatever overlaps there: a tree over the rows (each range of rows is put in the few nodes of the tree
+// that cover it whole), and in each node the stretches of columns with the first rule, in the file's order, that covers each (the rule that comes first wins, as it did when every rule was
+// looked at in turn). A cell is looked for in the nodes on the way from the root to its row, and in each by a search among the stretches: the cost is the depth of the tree and the
+// logarithm of what is in a node, not the number of rules over the cell or the rows around it.
 struct Calculation::RuleIndex {
-    struct Entry {
-        quint32 row1, row2, col1, col2;
+    static constexpr int kDepth = 20;   // (the grid has 2^20 rows)
+    struct Stretches {
+        std::vector<quint32> starts;   // where each stretch of columns begins, rising
+        std::vector<int> rule;         // the first rule over the stretch that begins there (-1: none), until the next begins
+    };
+    std::unordered_map<quint32, Stretches> nodes;   // by the number of the node in the tree (the root is 1, the children of n are 2n and 2n+1)
+    quint32 depths = 0;                             // a bit for each depth that has a node (a cell is looked for at those only)
+
+    struct Piece {
+        quint32 col1, col2;
         int rule;
     };
-    std::unordered_map<quint32, std::vector<Entry>> blocks;
-    std::vector<Entry> tall;
-    static constexpr quint32 kBlockRows = 64, kTallBlocks = 256;
+    static void put(std::unordered_map<quint32, std::vector<Piece>> *pieces, quint32 node, quint32 lo, quint32 hi, quint32 row1, quint32 row2, const Piece &piece)
+    {
+        if (row1 <= lo && hi <= row2) {
+            (*pieces)[node].push_back(piece);
+            return;
+        }
+        const quint32 mid = lo + (hi - lo) / 2;
+        if (row1 <= mid) put(pieces, node * 2, lo, mid, row1, row2, piece);
+        if (row2 > mid) put(pieces, node * 2 + 1, mid + 1, hi, row1, row2, piece);
+    }
+    static Stretches stretchesOf(std::vector<Piece> pieces)
+    {
+        std::sort(pieces.begin(), pieces.end(), [](const Piece &a, const Piece &b) { return a.col1 < b.col1; });
+        std::vector<quint32> points;
+        points.reserve(pieces.size() * 2);
+        for (const Piece &p : pieces) {
+            points.push_back(p.col1);
+            points.push_back(p.col2 + 1);
+        }
+        std::sort(points.begin(), points.end());
+        points.erase(std::unique(points.begin(), points.end()), points.end());
+        // (the pieces that cover a stretch, the lowest rule first: the ones whose columns are past are taken off the top when they are found there)
+        auto later = [](const std::pair<int, quint32> &a, const std::pair<int, quint32> &b) { return a.first > b.first; };
+        std::priority_queue<std::pair<int, quint32>, std::vector<std::pair<int, quint32>>, decltype(later)> open(later);
+        Stretches out;
+        size_t next = 0;
+        for (const quint32 at : points) {
+            while (next < pieces.size() && pieces[next].col1 <= at) {
+                open.push({pieces[next].rule, pieces[next].col2});
+                ++next;
+            }
+            while (!open.empty() && open.top().second < at) open.pop();
+            const int rule = open.empty() ? -1 : open.top().first;
+            if (!out.rule.empty() && out.rule.back() == rule) continue;
+            out.starts.push_back(at);
+            out.rule.push_back(rule);
+        }
+        return out;
+    }
 };
 
 const Validation *Calculation::validationAt(int sheet, quint32 row, quint32 col) const
 {
+    // (Only the window's thread asks: the index is made when first asked and is held without a lock, and the worker never reads it.)
+    Q_ASSERT(!m_ruleThread || m_ruleThread == QThread::currentThread());
     if (sheet < 0 || sheet >= int(m_sheets.size())) return nullptr;
     const QVector<Validation> &rules = m_sheets[size_t(sheet)].validations;
     if (rules.isEmpty()) return nullptr;
     if (m_ruleIndex.size() != m_sheets.size()) m_ruleIndex.assign(m_sheets.size(), nullptr);
     std::shared_ptr<RuleIndex> &index = m_ruleIndex[size_t(sheet)];
     if (!index) {
+        m_ruleThread = QThread::currentThread();
         index = std::make_shared<RuleIndex>();
+        std::unordered_map<quint32, std::vector<RuleIndex::Piece>> pieces;
+        const quint32 last = (quint32(1) << RuleIndex::kDepth) - 1;
         for (int i = 0; i < rules.size(); ++i)
             for (const CellRange &r : rules[i].ranges) {
-                if (!r.valid) continue;
-                const RuleIndex::Entry entry{r.row1, r.row2, r.col1, r.col2, i};
-                const quint32 first = r.row1 / RuleIndex::kBlockRows, last = r.row2 / RuleIndex::kBlockRows;
-                if (last - first >= RuleIndex::kTallBlocks) {
-                    index->tall.push_back(entry);
-                    continue;
-                }
-                for (quint32 b = first; b <= last; ++b) index->blocks[b].push_back(entry);
+                if (!r.valid || r.row1 > last) continue;
+                RuleIndex::put(&pieces, 1, 0, last, r.row1, std::min(r.row2, last), RuleIndex::Piece{r.col1, r.col2, i});
             }
+        for (auto &entry : pieces) {
+            index->nodes.emplace(entry.first, RuleIndex::stretchesOf(std::move(entry.second)));
+            int depth = 0;
+            while ((entry.first >> (depth + 1)) != 0) ++depth;
+            index->depths |= quint32(1) << depth;
+        }
     }
     int best = -1;
-    auto look = [&](const std::vector<RuleIndex::Entry> &list) {
-        m_ruleLookupWork += qint64(list.size());
-        for (const RuleIndex::Entry &e : list)
-            if ((best < 0 || e.rule < best) && row >= e.row1 && row <= e.row2 && col >= e.col1 && col <= e.col2) best = e.rule;
-    };
-    const auto at = index->blocks.find(row / RuleIndex::kBlockRows);
-    if (at != index->blocks.end()) look(at->second);
-    look(index->tall);
+    for (int depth = 0; depth <= RuleIndex::kDepth; ++depth) {
+        if (!(index->depths & (quint32(1) << depth))) continue;
+        ++m_ruleLookupWork;
+        const auto found = index->nodes.find((quint32(1) << depth) | (row >> (RuleIndex::kDepth - depth)));
+        if (found == index->nodes.end()) continue;
+        const RuleIndex::Stretches &stretches = found->second;
+        const auto after = std::upper_bound(stretches.starts.begin(), stretches.starts.end(), col);
+        m_ruleLookupWork += 1 + qint64(bitsOf(stretches.starts.size()));   // (the steps of a search among them)
+        if (after == stretches.starts.begin()) continue;
+        const int rule = stretches.rule[size_t(after - stretches.starts.begin()) - 1];
+        if (rule >= 0 && (best < 0 || rule < best)) best = rule;
+    }
     return best < 0 ? nullptr : &rules[best];
 }
 

@@ -673,7 +673,7 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
     for (const auto &entry : rec.validations)
         if (entry.first >= 0 && entry.first < int(m_sheets.size())) {
             m_sheets[size_t(entry.first)].validations = entry.second;
-            m_ruleIndex.clear();
+            forgetRuleIndex();
         }
     S.ranges = rec.ranges;
     putBackKinds(rec);
@@ -784,7 +784,7 @@ void Calculation::adjustValidations(const StructEdit &e, const QStringList &name
         if (!changed) continue;
         rec->validations.push_back({si, sheet.validations});
         sheet.validations = now;
-        m_ruleIndex.clear();
+        forgetRuleIndex();
     }
 }
 

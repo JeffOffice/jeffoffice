@@ -124,6 +124,59 @@ private Q_SLOTS:
         QVERIFY2(work < 12000 * 30, qPrintable(QStringLiteral("%1 ranges looked at for 12,000 cells with %2 rules").arg(work).arg(n)));
     }
 
+    // Rules that overlap much: thousands of rules, each over a block of columns and many rows, so that a cell is in hundreds of them and a block of 64 rows is in thousands. The rule found
+    // for a cell is the first of the file's order that names it (as a check by looking at every rule says), and what is looked at for a cell does not grow with the rules that overlap there
+    // (counted: about seventy steps for 1,500 rules and for 6,000, where looking down the rules of the rows took 6,600).
+    void theRuleForACellIsFoundInAFewStepsWhateverOverlapsThere()
+    {
+        struct Box {
+            quint32 row1, row2, col1, col2, row3, row4, col3, col4;   // the second range (0, 0, 0, 0 if none)
+        };
+        auto build = [&](int n, std::vector<Box> *boxes) {
+            QString rules;
+            for (int i = 0; i < n; ++i) {
+                Box b{};
+                b.col1 = quint32(i % 90);
+                b.col2 = b.col1 + 40 + quint32(i % 7);
+                b.row1 = quint32((i % 13) * 50);
+                b.row2 = b.row1 + 4000 + quint32(i % 1000);
+                QString sqref = rangeName(CellRange{b.row1, b.col1, b.row2, b.col2, true});
+                if (i % 10 == 0) {
+                    b.row3 = 10;
+                    b.row4 = 90000 + quint32(i);
+                    b.col3 = 150 + quint32(i % 5);
+                    b.col4 = b.col3 + 3;
+                    sqref += QLatin1Char(' ') + rangeName(CellRange{b.row3, b.col3, b.row4, b.col4, true});
+                }
+                boxes->push_back(b);
+                rules += rule(QStringLiteral("decimal"), QStringLiteral("greaterThan"), sqref, QString::number(i));
+            }
+            return rules;
+        };
+        qint64 mostWork[2] = {0, 0};
+        const int sizes[2] = {1500, 6000};
+        for (int which = 0; which < 2; ++which) {
+            std::vector<Box> boxes;
+            Rules r;
+            QVERIFY(r.open(QString(), build(sizes[which], &boxes)));
+            QRandomGenerator rng(7 + quint32(which));
+            for (int trial = 0; trial < 3000; ++trial) {
+                const quint32 row = rng.bounded(rng.bounded(3) ? 6000u : 100000u), col = rng.bounded(rng.bounded(4) ? 140u : 170u);
+                int expected = -1;
+                for (int i = 0; i < int(boxes.size()) && expected < 0; ++i) {
+                    const Box &b = boxes[size_t(i)];
+                    if ((row >= b.row1 && row <= b.row2 && col >= b.col1 && col <= b.col2) || (b.col4 > 0 && row >= b.row3 && row <= b.row4 && col >= b.col3 && col <= b.col4)) expected = i;
+                }
+                const qint64 before = r.calc->ruleLookupWork();
+                const Validation *found = r.calc->validationAt(0, row, col);
+                mostWork[which] = std::max(mostWork[which], r.calc->ruleLookupWork() - before);
+                if (expected < 0) QVERIFY2(!found, qPrintable(QStringLiteral("rule %1 found for %2,%3, and none is there").arg(found ? found->formula1 : QString()).arg(row).arg(col)));
+                else QVERIFY2(found && found->formula1 == QString::number(expected), qPrintable(QStringLiteral("%1,%2 should have rule %3, and has %4").arg(row).arg(col).arg(expected).arg(found ? found->formula1 : QStringLiteral("none"))));
+            }
+        }
+        QVERIFY2(mostWork[1] <= 200, qPrintable(QStringLiteral("%1 steps for a cell with %2 rules").arg(mostWork[1]).arg(sizes[1])));
+        QVERIFY2(mostWork[1] <= mostWork[0] + 60, qPrintable(QStringLiteral("%1 steps with %2 rules, and %3 with %4").arg(mostWork[1]).arg(sizes[1]).arg(mostWork[0]).arg(sizes[0])));
+    }
 };
 
 JP_TEST_CLASS(SheetValidateTests)
