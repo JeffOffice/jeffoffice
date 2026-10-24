@@ -1624,6 +1624,8 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
                                                          Theme::Accent3, Theme::Accent4, Theme::Accent5, Theme::Accent6, Theme::Hyperlink, Theme::FollowedHyperlink};
         for (int i = 0; i < kThemeColors; ++i)
             if (theme.colors[order[i]].isValid()) m_styles.theme[i] = theme.colors[order[i]].rgb() & 0xFFFFFF;
+        m_styles.majorFont = theme.majorLatin;
+        m_styles.minorFont = theme.minorLatin;
         break;
     }
     return true;
@@ -2134,6 +2136,8 @@ qint32 Workbook::styleNamed(const QString &name)
     FontSpec font = m_styles.font(0);
     if (!def.fontName.isEmpty()) font.name = def.fontName;
     if (!def.scheme.isEmpty()) font.scheme = def.scheme;
+    // (a heading is set in the workbook's own heading font, which its theme names)
+    if (def.scheme == QLatin1String("major") && !m_styles.majorFont.isEmpty()) font.name = m_styles.majorFont;
     if (def.size > 0) font.size = def.size;
     if (def.bold) font.bold = true;
     if (def.italic) font.italic = true;

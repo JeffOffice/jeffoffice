@@ -201,6 +201,7 @@ struct Styles {
     QVector<DifferentialFormat> dxfs;  // the differential formats conditional formatting uses, by place
     QVector<quint32> indexed;       // the palette the file defines for indexed colors (0xRRGGBB); empty for the usual one
     quint32 theme[kThemeColors];    // the workbook's theme colors (0xRRGGBB), set when the workbook is opened; the usual ones until then
+    QString majorFont, minorFont;   // the typefaces the workbook's theme gives headings and body text (its fonts that say "major" or "minor" mean these); empty when it has no theme
 
     Styles();
 
@@ -215,6 +216,8 @@ struct Styles {
     const FontSpec &font(quint32 index) const;
     const FillSpec &fill(quint32 index) const;
     const BorderSpec &border(quint32 index) const;
+    // The typeface a font is set in: its own name; for one with no name that is the theme's (its scheme says which), the theme's; else the first font's (the workbook's usual); else empty.
+    QString fontNameOf(const FontSpec &font) const;
 
     // The color as 0xRRGGBB: a theme color with its tint, an indexed color through the palette, an RGB as it is. `automatic` is what the "automatic" color (and
     // an index that stands for the system's) is, and what a color that is not set is: the caller's own (text is dark, a border dark, a fill none).

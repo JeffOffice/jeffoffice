@@ -31,6 +31,21 @@ QByteArray plainBook(const QString &lists = kLists)
     return buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"))}, QByteArray(), QString(), QString(), styles);
 }
 
+
+// A theme that names only its fonts (its colors are the usual ones): the typefaces of headings and of body text.
+QByteArray themeWithFonts(const QString &major, const QString &minor)
+{
+    return QStringLiteral("<a:theme xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:themeElements><a:clrScheme name=\"Test\"/><a:fontScheme name=\"Test\">"
+                          "<a:majorFont><a:latin typeface=\"%1\"/></a:majorFont><a:minorFont><a:latin typeface=\"%2\"/></a:minorFont></a:fontScheme></a:themeElements></a:theme>")
+        .arg(major, minor)
+        .toUtf8();
+}
+
+QByteArray themedBook(const QByteArray &theme)
+{
+    const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/>"), kLists);
+    return buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"))}, QByteArray(), QString(), QString(), styles, QStringList(), QString(), theme);
+}
 } // namespace
 
 class SheetStyleTests : public QObject {
@@ -103,6 +118,43 @@ private Q_SLOTS:
         QCOMPARE(w.styles().formats[int(cell)].fill, sf.fill);
         QCOMPARE(w.formatWith(0, change), cell);
         QCOMPARE(w.formatWith(cell, change), cell);
+    }
+
+    // The typefaces are the workbook's, not the program's: a title is set in the heading face the workbook's theme names, a font that only says "minor" is the theme's body face, and a
+    // workbook with no theme keeps its own usual face for a title (no name of a face is built into the program).
+    void headingsAndBodyTextTakeTheTypefacesOfTheWorkbooksTheme()
+    {
+        Open o;
+        QVERIFY(o.open(themedBook(themeWithFonts(QStringLiteral("Cambria"), QStringLiteral("Candara")))));
+        Workbook &w = o.book;
+        QCOMPARE(w.styles().majorFont, QStringLiteral("Cambria"));
+        QCOMPARE(w.styles().minorFont, QStringLiteral("Candara"));
+        const qint32 title = w.styleNamed(QStringLiteral("Title"));
+        QVERIFY(title >= 0);
+        const FontSpec titleFont = w.styles().fonts[int(w.styles().styleXfs[title].font)];
+        QCOMPARE(titleFont.name, QStringLiteral("Cambria"));
+        QCOMPARE(titleFont.scheme, QStringLiteral("major"));
+        QCOMPARE(titleFont.size, 18.0);
+        QCOMPARE(w.styles().fontNameOf(titleFont), QStringLiteral("Cambria"));
+        // a font with a name is that name; one with only the theme's say is the theme's
+        FontSpec own;
+        own.name = QStringLiteral("Georgia");
+        QCOMPARE(w.styles().fontNameOf(own), QStringLiteral("Georgia"));
+        FontSpec byTheme;
+        byTheme.scheme = QStringLiteral("minor");
+        QCOMPARE(w.styles().fontNameOf(byTheme), QStringLiteral("Candara"));
+        byTheme.scheme = QStringLiteral("major");
+        QCOMPARE(w.styles().fontNameOf(byTheme), QStringLiteral("Cambria"));
+        // no theme: the title is in the workbook's own face, and nothing built in is named
+        Open plain;
+        QVERIFY(plain.open(plainBook()));
+        const qint32 plainTitle = plain.book.styleNamed(QStringLiteral("Title"));
+        QVERIFY(plainTitle >= 0);
+        const FontSpec plainFont = plain.book.styles().fonts[int(plain.book.styles().styleXfs[plainTitle].font)];
+        QCOMPARE(plainFont.name, plain.book.styles().fonts[0].name);
+        QVERIFY(plain.book.styles().majorFont.isEmpty() && plain.book.styles().minorFont.isEmpty());
+        FontSpec nameless;
+        QCOMPARE(plain.book.styles().fontNameOf(nameless), plain.book.styles().fonts[0].name);   // (the workbook's usual face)
     }
 
     // A file with no place for styles (no list of cell styles) is given none: the person's workbook is never made to be saved in a form this program does not write.

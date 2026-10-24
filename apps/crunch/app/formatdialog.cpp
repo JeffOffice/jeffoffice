@@ -615,7 +615,7 @@ void FormatCellsDialog::buildFont(QWidget *page)
     m_fontName->setObjectName(QStringLiteral("fontName"));
     m_fontName->setEditable(true);
     QStringList families = QFontDatabase::families();
-    if (!families.contains(v.fontName, Qt::CaseInsensitive)) families.prepend(v.fontName);
+    if (!v.fontName.isEmpty() && !families.contains(v.fontName, Qt::CaseInsensitive)) families.prepend(v.fontName);
     m_fontName->addItems(families);
     m_fontName->setCurrentText(v.fontName);
     form->addRow(tr("&Font:"), m_fontName);

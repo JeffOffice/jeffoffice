@@ -15,7 +15,7 @@ struct BuiltinStyle {
     bool bold = false, italic = false;
     Underline underline = Underline::None;
     double size = 0;              // 0 to keep the workbook's
-    QString fontName, scheme;     // "Calibri Light" and "major" for a heading
+    QString fontName, scheme;     // a typeface to use whatever the workbook has, and "major" or "minor" for the theme's own (a title is in the heading font)
     ColorSpec fontColor;
     FillSpec fill;
     BorderSpec border;

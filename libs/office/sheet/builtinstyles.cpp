@@ -121,8 +121,7 @@ QVector<BuiltinStyle> makeAll()
     {
         BuiltinStyle &s = add("Title", 15, 2);
         s.size = 18;
-        s.fontName = QStringLiteral("Calibri Light");
-        s.scheme = QStringLiteral("major");
+        s.scheme = QStringLiteral("major");   // (the workbook's heading font: its theme says which)
         s.fontColor = theme(3);
     }
     {

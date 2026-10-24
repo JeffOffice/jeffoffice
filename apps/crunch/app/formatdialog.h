@@ -30,7 +30,7 @@ class ColorButton;
 // The format of the cell with the cursor, as the dialog starts from it (colors resolved to RGB).
 struct FormatView {
     QString numberFormat = QStringLiteral("General");
-    QString fontName = QStringLiteral("Calibri");
+    QString fontName;                 // the typeface the cell is set in
     double fontSize = 11;
     bool bold = false, italic = false, strike = false;
     jp::office::sheet::Underline underline = jp::office::sheet::Underline::None;

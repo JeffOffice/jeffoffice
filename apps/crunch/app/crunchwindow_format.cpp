@@ -278,7 +278,8 @@ FormatView CrunchWindow::viewOfActiveCell() const
     const quint32 xf = gs.styleOf(row, col, gs.cellAt(row, col));
     const CellFormat f = xf < quint32(st.formats.size()) ? st.formats[int(xf)] : CellFormat();
     const FontSpec &font = st.font(f.font);
-    v.fontName = font.name.isEmpty() ? QStringLiteral("Calibri") : font.name;
+    v.fontName = st.fontNameOf(font);
+    if (v.fontName.isEmpty()) v.fontName = QFontDatabase::systemFont(QFontDatabase::GeneralFont).family();   // (a workbook with no usual font: this computer's)
     v.fontSize = font.size;
     v.bold = font.bold;
     v.italic = font.italic;
