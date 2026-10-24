@@ -67,6 +67,9 @@ struct ChartTitle {
     double rotation = 0;
     QString ref;                    // the cells the text is read from (c:strRef's c:f), else empty
     bool automatic = false;         // a chart title with no text of its own, named for its series
+    // Where the file puts the title (c:layout's c:manualLayout, from the chart's edges): its top left corner, as fractions of the chart.
+    bool manual = false;
+    double x = 0, y = 0;
 };
 
 struct ChartMarker {
@@ -165,6 +168,12 @@ struct ChartLegend {
     QString position = QStringLiteral("r");   // "r", "l", "t", "b", "tr"
     bool overlay = false;
     ChartFont font;
+    // Where the file puts the legend (c:layout's c:manualLayout), as fractions of the chart: its top left corner (`edge`), or how far it is moved from where its position puts it
+    // (not `edge`); `w` and `h` are its size, 0 if the file does not give one (the entries' own).
+    bool manual = false, edge = true;
+    double x = 0, y = 0, w = 0, h = 0;
+    QColor fill;                    // the legend's own fill; invalid for none
+    ChartLine border;               // and its border
 };
 
 struct Chart {

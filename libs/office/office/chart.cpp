@@ -525,6 +525,30 @@ QString Reader::richText(const QDomElement &rich, ChartFont *font, bool *hasRota
     return lines.join(QLatin1Char('\n')).left(kMaxTitle);
 }
 
+// c:layout's c:manualLayout of a legend or a title: where it is (`edge`: its corner, from the chart's edges; else how far it is moved from where it would be), and its size if given.
+struct Place {
+    bool valid = false, edge = true;
+    double x = 0, y = 0, w = 0, h = 0;
+};
+
+static Place readPlace(const QDomElement &layout)
+{
+    Place p;
+    const QDomElement manual = cChild(layout, "manualLayout");
+    if (manual.isNull() || cChild(manual, "x").isNull() || cChild(manual, "y").isNull()) return p;
+    p.edge = valOf(cChild(manual, "xMode"), QStringLiteral("factor")) == QLatin1String("edge") && valOf(cChild(manual, "yMode"), QStringLiteral("factor")) == QLatin1String("edge");
+    const double lowest = p.edge ? 0.0 : -1.0;
+    p.x = std::clamp(numberOf(cChild(manual, "x"), 0), lowest, 1.0);
+    p.y = std::clamp(numberOf(cChild(manual, "y"), 0), lowest, 1.0);
+    const double w = numberOf(cChild(manual, "w"), 0), h = numberOf(cChild(manual, "h"), 0);
+    if (w > 0 && h > 0) {
+        p.w = std::clamp(w, 0.01, 1.0);
+        p.h = std::clamp(h, 0.01, 1.0);
+    }
+    p.valid = true;
+    return p;
+}
+
 ChartTitle Reader::readTitle(const QDomElement &e) const
 {
     ChartTitle t;
@@ -545,6 +569,11 @@ ChartTitle Reader::readTitle(const QDomElement &e) const
     if (t.font.italic < 0) t.font.italic = fromProps.italic;
     if (!t.font.color.isValid()) t.font.color = fromProps.color;
     if (t.font.family.isEmpty()) t.font.family = fromProps.family;
+    if (const Place place = readPlace(cChild(e, "layout")); place.valid && place.edge) {
+        t.manual = true;
+        t.x = place.x;
+        t.y = place.y;
+    }
     return t;
 }
 
@@ -902,6 +931,19 @@ bool Reader::read(const QDomElement &root, QString *error)
         c.legend.position = valOf(cChild(legend, "legendPos"), QStringLiteral("r"));
         c.legend.overlay = flagOf(cChild(legend, "overlay"), false);
         c.legend.font = readTxPr(cChild(legend, "txPr"));
+        if (const Place place = readPlace(cChild(legend, "layout")); place.valid) {
+            c.legend.manual = true;
+            c.legend.edge = place.edge;
+            c.legend.x = place.x;
+            c.legend.y = place.y;
+            c.legend.w = place.w;
+            c.legend.h = place.h;
+        }
+        if (const QDomElement spPr = cChild(legend, "spPr"); !spPr.isNull()) {
+            bool none = false;
+            readFill(spPr, &c.legend.fill, &none);
+            c.legend.border = readLine(spPr);
+        }
     }
     // Numbers for categories (dates, say) are shown through the category axis's own number format when it is not linked to the source's.
     for (ChartPlot &plot : c.plots) {
