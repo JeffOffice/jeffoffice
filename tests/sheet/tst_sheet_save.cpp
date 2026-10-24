@@ -655,6 +655,23 @@ private Q_SLOTS:
         // a place that cannot be written to: false, with a message, and nothing made
         QVERIFY(!writeFileAtomically(dir.filePath(QStringLiteral("no/such/folder/book.xlsx")), QByteArray("x"), &why));
         QVERIFY(!why.isEmpty());
+        // a file that is there is replaced whole, however long it was (and a longer one by a shorter)
+        QVERIFY2(writeFileAtomically(path, QByteArray("short"), &why), qPrintable(why));
+        QVERIFY(now.open(QIODevice::ReadOnly));
+        QCOMPARE(now.readAll(), QByteArray("short"));
+        now.close();
+        QVERIFY2(writeFileAtomically(path, QByteArray(300000, 'x'), &why), qPrintable(why));
+        QCOMPARE(QFileInfo(path).size(), qint64(300000));
+        // a file that is there and cannot be written (read-only): false, with a message, the file as it was, and no stray file
+        QVERIFY(QFile::setPermissions(path, QFileDevice::ReadOwner));
+        if (!QFileInfo(path).isWritable()) {
+            why.clear();
+            QVERIFY(!writeFileAtomically(path, QByteArray("y"), &why));
+            QVERIFY(!why.isEmpty());
+            QCOMPARE(QFileInfo(path).size(), qint64(300000));
+            QCOMPARE(QDir(dir.path()).entryList(QDir::Files).size(), 1);
+        }
+        QFile::setPermissions(path, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
     }
 };
 

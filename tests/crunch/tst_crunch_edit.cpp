@@ -14,6 +14,7 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QDir>
 #include <QFileInfo>
 #include <QLineEdit>
 #include <QSettings>
@@ -98,6 +99,14 @@ struct EditWindow {
         key(Qt::Key_Return);
     }
 };
+
+// The keys that redo on this computer (Ctrl+Y on Windows, Cmd+Shift+Z on a Mac, Ctrl+Shift+Z or Ctrl+Y on Linux): the first the platform gives.
+void pressRedo(QWidget *w)
+{
+    const QKeySequence redo(QKeySequence::Redo);
+    const QKeyCombination k = redo[0];
+    QTest::keyClick(w, k.key(), k.keyboardModifiers());
+}
 
 } // namespace
 
@@ -997,14 +1006,14 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.undoStack()->index(), 0);
         QVERIFY(e.win.w.undoStack()->isClean());
         // Redo with Ctrl+Y puts them back one by one
-        QTest::keyClick(&e.win.w, Qt::Key_Y, Qt::ControlModifier);
-        QTest::keyClick(&e.win.w, Qt::Key_Y, Qt::ControlModifier);
+        pressRedo(&e.win.w);
+        pressRedo(&e.win.w);
         QVERIFY(e.settle());
         QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:50"));
         QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("s:typed"));
         QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("n:60"));
-        QTest::keyClick(&e.win.w, Qt::Key_Y, Qt::ControlModifier);
-        QTest::keyClick(&e.win.w, Qt::Key_Y, Qt::ControlModifier);
+        pressRedo(&e.win.w);
+        pressRedo(&e.win.w);
         QCOMPARE(e.shownAt(QStringLiteral("F1")), QStringLiteral("25%"));
         QCOMPARE(e.valueAt(QStringLiteral("D2")), QStringLiteral("n:7"));
         QVERIFY(!redo->isEnabled());
@@ -1289,6 +1298,33 @@ private Q_SLOTS:
         QVERIFY(e.win.w.isModified());                  // (still to be saved)
         QVERIFY(!e.win.w.isSaving());
         QCOMPARE(e.win.w.filePath(), e.path);
+        // a file that is there, and cannot be written (read-only): the save fails with a message and the file is as it was
+        const QString locked = e.folder.write(QStringLiteral("locked.xlsx"), QByteArray("not a workbook, and read-only"));
+        QVERIFY(QFile::setPermissions(locked, QFileDevice::ReadOwner));
+        if (!QFileInfo(locked).isWritable()) {
+            e.win.told.clear();
+            QVERIFY(e.win.w.saveAs(locked));
+            QVERIFY(saved.wait(20000));
+            QCOMPARE(saved.last().at(1).toBool(), false);
+            QCOMPARE(e.win.told.size(), 1);
+            QVERIFY2(e.win.told[0].contains(QLatin1String("couldn't save")), qPrintable(e.win.told[0]));
+            QFile now(locked);
+            QVERIFY(now.open(QIODevice::ReadOnly));
+            QCOMPARE(now.readAll(), QByteArray("not a workbook, and read-only"));
+            QCOMPARE(e.win.w.filePath(), e.path);
+            QVERIFY(e.win.w.isModified());
+            QCOMPARE(QDir(e.folder.dir.path()).entryList(QDir::Files, QDir::Name), (QStringList{QStringLiteral("book.xlsx"), QStringLiteral("locked.xlsx")}));   // (no stray file)
+        }
+        QFile::setPermissions(locked, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+        // a file that is there and can be written is written over, whole
+        const QString existing = e.folder.write(QStringLiteral("existing.xlsx"), QByteArray("an old file that is not a workbook"));
+        e.win.told.clear();
+        QVERIFY(e.win.w.saveAs(existing));
+        QVERIFY(saved.wait(20000));
+        QCOMPARE(saved.last().at(1).toBool(), true);
+        QCOMPARE(e.win.told.size(), 0);
+        QCOMPARE(savedCell(existing, QStringLiteral("A1")), QStringLiteral("n:3"));
+        QCOMPARE(e.win.w.filePath(), existing);
         // and it can be edited and saved again
         e.select(QStringLiteral("A2"));
         e.enter(QStringLiteral("4"));
