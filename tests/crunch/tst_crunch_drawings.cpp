@@ -763,6 +763,14 @@ private Q_SLOTS:
         QCOMPARE(objects.drawingsParsedApart(), 0);
         QTRY_COMPARE(objects.layer()->count(), n);   // (the worker's answer is let go, and the objects come in)
         QCOMPARE(objects.drawingsParsedApart(), 0);
+        // the window says the sheet's rows and columns are whole (a workbook that is read whole) while the drawing is still being parsed: that does not list it on the window's thread
+        crunch::SheetObjects third;
+        third.open(book);
+        third.show(0);
+        third.geometryKnown(0);
+        QVERIFY(!third.listed(0));
+        QTRY_COMPARE(third.layer()->count(), n);
+        QCOMPARE(third.drawingsParsedApart(), 1);
         // and a workbook opened again meanwhile is not given the answer of the one before (this one has fewer shapes, and is waited for as well)
         QString fewer;
         for (int i = 0; i < 2000; ++i) fewer += twoCell(i % 40, i % 300, i % 40 + 1, i % 300 + 1, shapeElement(2 + i, QStringLiteral("S"), QStringLiteral("rect"), QStringLiteral("some words to make it larger than a few bytes")));
