@@ -24,8 +24,6 @@ namespace jp::deck::odpw {
 
 namespace {
 
-QString tr(const char *text) { return QCoreApplication::translate("OdpExport", text); }
-
 QString attrOf(const char *name, const QString &value) { return QLatin1Char(' ') + QLatin1String(name) + QStringLiteral("=\"") + esc(value) + QLatin1Char('"'); }
 
 // Units of a path: hundredths of a millimeter, the unit of a view box.
@@ -198,7 +196,7 @@ void Exporter::writeItem(X &x, Scope &sc, const Item &it)
     case ItemType::Group: writeGroup(x, sc, static_cast<const GroupItem &>(it)); break;
     case ItemType::Table: writeTable(x, sc, static_cast<const TableItem &>(it)); break;
     case ItemType::TextArt:
-        sayOnce(QStringLiteral("textart"), tr("Text Art is saved as a picture."));
+        sayOnce(QStringLiteral("textart"), QCoreApplication::translate("OdpExport", "Text Art is saved as a picture."));
         writeAsPicture(x, sc, it);
         break;
     }
@@ -460,7 +458,7 @@ void Exporter::writePicture(X &x, Scope &sc, const PictureItem &p)
     }
     const QString part = addPicture(p.imageId);
     if (part.isEmpty()) {
-        sayOnce(QStringLiteral("nopicture"), tr("A picture that can't be read was left out."));
+        sayOnce(QStringLiteral("nopicture"), QCoreApplication::translate("OdpExport", "A picture that can't be read was left out."));
         return;
     }
     // A movie or sound the picture plays is kept in the package and played from the frame, with the picture as its poster.
@@ -472,7 +470,7 @@ void Exporter::writePicture(X &x, Scope &sc, const PictureItem &p)
             mediaPart = p.mediaLink;
             mediaType = QStringLiteral("application/vnd.sun.star.media");
         } else if (mediaPart.isEmpty()) {
-            sayOnce(QStringLiteral("media"), tr("A movie or sound that can't be read is saved as its picture."));
+            sayOnce(QStringLiteral("media"), QCoreApplication::translate("OdpExport", "A movie or sound that can't be read is saved as its picture."));
         }
     }
 

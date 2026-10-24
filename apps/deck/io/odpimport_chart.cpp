@@ -18,8 +18,6 @@ namespace jp::deck::odp {
 
 namespace {
 
-QString say(const char *text) { return QCoreApplication::translate("OdpImport", text); }
-
 constexpr int kMaxColumns = 256, kMaxRows = 10000, kMaxSeries = 64;
 // The drawings of charts a presentation makes (one for each chart and size a frame asks for). The real decks here hold five at the most (one
 // chart to a slide would be a big deck), and each drawing is kept as a picture of a few megabytes, so a file that frames charts without end
@@ -141,7 +139,7 @@ QString Reader::chartImage(const QDomElement &object, const QSizeF &size)
     const QString key = part + QLatin1Char('|') + QString::number(drawSize.width(), 'g', 17) + QLatin1Char('x') + QString::number(drawSize.height(), 'g', 17);
     if (const auto found = cache.images.constFind(key); found != cache.images.constEnd()) return found.value();
     if (cache.drawn >= kMaxChartDrawings) {
-        note(say("Only the first %1 charts are drawn; the rest are left out.").arg(kMaxChartDrawings));
+        note(QCoreApplication::translate("OdpImport", "Only the first %1 charts are drawn; the rest are left out.").arg(kMaxChartDrawings));
         return QString();
     }
     const QString id = drawChart(part, drawSize);
@@ -355,7 +353,7 @@ QString Reader::drawChart(const QString &part, const QSizeF &size)
     }
     bool coarser = false;
     const QByteArray svg = office::chartSvg(chart, size, &coarser);
-    if (coarser) note(say("A chart has more points than a picture of it can show, so its picture is drawn from some of them."));
+    if (coarser) note(QCoreApplication::translate("OdpImport", "A chart has more points than a picture of it can show, so its picture is drawn from some of them."));
     return svg.isEmpty() ? QString() : m_doc.addImage(svg, QStringLiteral("svg"));
 }
 

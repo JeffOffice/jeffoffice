@@ -79,7 +79,6 @@ constexpr double kPoints = 72.0 / 576.0;
 // A slide may be 56 inches across at most (the standard's limit), and is a point at least.
 constexpr double kMinSlide = 1, kMaxSlide = 56 * 72;
 
-QString say(const char *text) { return QCoreApplication::translate("PptImport", text); }
 
 // ---- Reading the bytes ----
 
@@ -776,19 +775,19 @@ LayoutDef layoutDef(int geom)
         return p;
     };
     switch (geom) {
-    case SlTitleSlide: return {QStringLiteral("title"), say("Title Slide"), {{QStringLiteral("ctrTitle"), 0}, {QStringLiteral("subTitle"), 1}}, 1};
-    case SlTitleBody: return {QStringLiteral("obj"), say("Title and Content"), objects(1), 1};
-    case SlTitleOnly: return {QStringLiteral("titleOnly"), say("Title Only"), {{title, 0}}, 0};
-    case SlTwoColumns: return {QStringLiteral("twoObj"), say("Two Content"), objects(2), 2};
-    case SlTwoRows: return {QStringLiteral("cust"), say("Content Over Content"), objects(2), 2};
-    case SlColumnTwoRows: return {QStringLiteral("cust"), say("Content and Two Rows"), objects(3), 3};
-    case SlTwoRowsColumn: return {QStringLiteral("cust"), say("Two Rows and Content"), objects(3), 3};
-    case SlRowTwoColumns: return {QStringLiteral("cust"), say("Content Over Two Columns"), objects(3), 3};
-    case SlTwoColumnsRow: return {QStringLiteral("cust"), say("Two Columns Over Content"), objects(3), 3};
-    case SlFourObjects: return {QStringLiteral("cust"), say("Four Content"), objects(4), 4};
-    case SlBigObject: return {QStringLiteral("objOnly"), say("Content"), objects(1), 1};
-    case SlBlank: return {QStringLiteral("blank"), say("Blank"), {}, 0};
-    default: return {QStringLiteral("cust"), say("Custom Layout"), objects(1), 1};
+    case SlTitleSlide: return {QStringLiteral("title"), QCoreApplication::translate("PptImport", "Title Slide"), {{QStringLiteral("ctrTitle"), 0}, {QStringLiteral("subTitle"), 1}}, 1};
+    case SlTitleBody: return {QStringLiteral("obj"), QCoreApplication::translate("PptImport", "Title and Content"), objects(1), 1};
+    case SlTitleOnly: return {QStringLiteral("titleOnly"), QCoreApplication::translate("PptImport", "Title Only"), {{title, 0}}, 0};
+    case SlTwoColumns: return {QStringLiteral("twoObj"), QCoreApplication::translate("PptImport", "Two Content"), objects(2), 2};
+    case SlTwoRows: return {QStringLiteral("cust"), QCoreApplication::translate("PptImport", "Content Over Content"), objects(2), 2};
+    case SlColumnTwoRows: return {QStringLiteral("cust"), QCoreApplication::translate("PptImport", "Content and Two Rows"), objects(3), 3};
+    case SlTwoRowsColumn: return {QStringLiteral("cust"), QCoreApplication::translate("PptImport", "Two Rows and Content"), objects(3), 3};
+    case SlRowTwoColumns: return {QStringLiteral("cust"), QCoreApplication::translate("PptImport", "Content Over Two Columns"), objects(3), 3};
+    case SlTwoColumnsRow: return {QStringLiteral("cust"), QCoreApplication::translate("PptImport", "Two Columns Over Content"), objects(3), 3};
+    case SlFourObjects: return {QStringLiteral("cust"), QCoreApplication::translate("PptImport", "Four Content"), objects(4), 4};
+    case SlBigObject: return {QStringLiteral("objOnly"), QCoreApplication::translate("PptImport", "Content"), objects(1), 1};
+    case SlBlank: return {QStringLiteral("blank"), QCoreApplication::translate("PptImport", "Blank"), {}, 0};
+    default: return {QStringLiteral("cust"), QCoreApplication::translate("PptImport", "Custom Layout"), objects(1), 1};
     }
 }
 
@@ -1018,7 +1017,7 @@ public:
     QString notesText() const
     {
         QStringList lines = m_notes;
-        if (m_extraNotes) lines << say("And %1 more.").arg(m_extraNotes);
+        if (m_extraNotes) lines << QCoreApplication::translate("PptImport", "And %1 more.").arg(m_extraNotes);
         return lines.join(QLatin1Char('\n'));
     }
 };
@@ -1034,7 +1033,7 @@ void Importer::noteShapeLimit()
 {
     if (!m_shapes.refused || m_shapeLimitSaid) return;
     m_shapeLimitSaid = true;
-    note(say("The presentation holds more shapes than can be read; the rest are left out."));
+    note(QCoreApplication::translate("PptImport", "The presentation holds more shapes than can be read; the rest are left out."));
 }
 
 // ---- The streams and the edits ----
@@ -1043,7 +1042,7 @@ bool Importer::openStreams(QString *why)
 {
     QString cfbWhy;
     if (!cfb::read(m_file, &m_cfb, &cfbWhy)) {
-        *why = say("This is not a presentation: %1").arg(cfbWhy);
+        *why = QCoreApplication::translate("PptImport", "This is not a presentation: %1").arg(cfbWhy);
         return false;
     }
     // The presentation's stream is named for the program that wrote it, ending " Document".
@@ -1057,9 +1056,9 @@ bool Importer::openStreams(QString *why)
     }
     if (!found) {
         if (m_cfb.find(QStringLiteral("EncryptedPackage")) >= 0)
-            *why = say("The presentation is protected with a password, which %1 can't open yet.").arg(appInfo().name);
+            *why = QCoreApplication::translate("PptImport", "The presentation is protected with a password, which %1 can't open yet.").arg(appInfo().name);
         else
-            *why = say("This file holds no presentation.");
+            *why = QCoreApplication::translate("PptImport", "This file holds no presentation.");
         return false;
     }
     m_ppt = Records(stream);
@@ -1072,14 +1071,14 @@ bool Importer::readEdits(QString *why)
     const QByteArray user = m_cfb.stream(QStringLiteral("Current User"));
     Rec cu;
     if (user.isEmpty() || !recAt(user, 0, user.size(), &cu) || cu.type != RT_CurrentUserAtom || cu.len < 16) {
-        *why = say("The presentation doesn't say which edit of it is the last, so it can't be read.");
+        *why = QCoreApplication::translate("PptImport", "The presentation doesn't say which edit of it is the last, so it can't be read.");
         return false;
     }
     Cursor c(user, cu.off, cu.end());
     c.u32();   // the size of the fixed part
     const quint32 token = c.u32();
     quint32 offset = c.u32();
-    const QString password = say("The presentation is protected with a password, which %1 can't open yet.").arg(appInfo().name);
+    const QString password = QCoreApplication::translate("PptImport", "The presentation is protected with a password, which %1 can't open yet.").arg(appInfo().name);
     if (token == 0xF3D1C4DF) {
         *why = password;
         return false;
@@ -1089,13 +1088,13 @@ bool Importer::readEdits(QString *why)
     bool first = true;
     for (;;) {
         if (seen.contains(offset)) {
-            *why = say("The edits of the presentation go round in a circle, so it can't be read.");
+            *why = QCoreApplication::translate("PptImport", "The edits of the presentation go round in a circle, so it can't be read.");
             return false;
         }
         seen.insert(offset);
         Rec e;
         if (seen.size() > kMaxEdits || !recAt(d, offset, d.size(), &e) || e.type != RT_UserEditAtom || e.len < 28) {
-            *why = say("The presentation is cut short or damaged: a record of one of its edits can't be found.");
+            *why = QCoreApplication::translate("PptImport", "The presentation is cut short or damaged: a record of one of its edits can't be found.");
             return false;
         }
         Cursor ec(d, e.off, e.end());
@@ -1111,11 +1110,11 @@ bool Importer::readEdits(QString *why)
         if (first) m_documentId = document;
         first = false;
         if (!readDirectory(directory)) {
-            *why = say("The presentation is cut short or damaged: the list of where its parts are can't be read.");
+            *why = QCoreApplication::translate("PptImport", "The presentation is cut short or damaged: the list of where its parts are can't be read.");
             return false;
         }
         if (m_persistFull) {
-            note(say("The presentation lists more of its parts than can be read, so its older edits are left out."));
+            note(QCoreApplication::translate("PptImport", "The presentation lists more of its parts than can be read, so its older edits are left out."));
             break;
         }
         if (lastEdit == 0) break;
@@ -1181,7 +1180,7 @@ void Importer::readDocumentAtom(const Rec &r)
             size = s;
             name = sizeName(type, s);
         } else {
-            note(say("The slide size in the file can't be used, so the slides are 13.333 by 7.5 inches."));
+            note(QCoreApplication::translate("PptImport", "The slide size in the file can't be used, so the slides are 13.333 by 7.5 inches."));
         }
         if (nx > 0 && ny > 0) m_doc.appData[QStringLiteral("notesSize")] = QJsonObject{{"w", nx * kPoints}, {"h", ny * kPoints}};
         m_doc.setup.firstPageNumber = std::clamp(firstNumber, 0, 9999);
@@ -1689,17 +1688,17 @@ void Importer::readMasters()
     const QByteArray &d = m_ppt.data();
     for (const SlideEntry &e : std::as_const(m_masterList)) {
         if (int(m_masters.size()) >= kMaxMasters) {
-            note(say("Only the first %1 slide masters are read.").arg(kMaxMasters));
+            note(QCoreApplication::translate("PptImport", "Only the first %1 slide masters are read.").arg(kMaxMasters));
             break;
         }
         Rec c;
         // A main master is kept in a master record, and a title master in a slide record.
         if (!containerAt(e.persist, RT_MainMaster, &c) && !containerAt(e.persist, RT_Slide, &c)) {
-            note(say("A slide master was left out: it can't be found in the file."));
+            note(QCoreApplication::translate("PptImport", "A slide master was left out: it can't be found in the file."));
             continue;
         }
         if (m_mastersRead.contains(c.off)) {
-            note(say("A slide master was left out: it holds the same contents as an earlier one."));
+            note(QCoreApplication::translate("PptImport", "A slide master was left out: it holds the same contents as an earlier one."));
             continue;
         }
         m_mastersRead.insert(c.off);
@@ -1807,7 +1806,7 @@ void Importer::makeMasterPage(MasterInfo &m, int number)
 {
     auto page = std::make_shared<MasterPage>();
     page->id = QStringLiteral("SM%1").arg(number);
-    page->name = !m.name.isEmpty() ? m.name : number == 1 ? say("Slide Master") : say("Slide Master %1").arg(number);
+    page->name = !m.name.isEmpty() ? m.name : number == 1 ? QCoreApplication::translate("PptImport", "Slide Master") : QCoreApplication::translate("PptImport", "Slide Master %1").arg(number);
     page->abbr = number == 1 ? QStringLiteral("SM") : QStringLiteral("SM%1").arg(number);
     page->props[QStringLiteral("kind")] = QStringLiteral("master");
     page->background = m.background;
@@ -1939,7 +1938,7 @@ std::shared_ptr<MasterPage> Importer::layoutFor(MasterInfo &main, const MasterIn
             it = t;
         }
         it->role = placeholderRole(type, index);
-        it->name = say("%1 Placeholder").arg(type);
+        it->name = QCoreApplication::translate("PptImport", "%1 Placeholder").arg(type);
         it->rect = rect;
         page->items.push_back(it);
     };
@@ -2052,7 +2051,7 @@ void Importer::finishItems(ItemList &items, PageState &st, bool slide)
         }
         // A placeholder with no place of its own stands where the master has its kind.
         if (it->rect.isEmpty() || it->rect == QRectF(72, 72, 144, 72)) it->rect = masterRect(source, type);
-        if (it->name.isEmpty()) it->name = say("%1 Placeholder").arg(type);
+        if (it->name.isEmpty()) it->name = QCoreApplication::translate("PptImport", "%1 Placeholder").arg(type);
         if (it->type() != ItemType::Text) continue;
         auto *t = static_cast<TextItem *>(it.get());
         t->hyphenate = false;
@@ -2079,7 +2078,7 @@ void Importer::finishItems(ItemList &items, PageState &st, bool slide)
         if (type.isEmpty() || !g.hasText) continue;
         auto t = std::make_shared<TextItem>();
         t->role = placeholderRole(type, isTitleType(type) ? 0 : ++st.contents);
-        t->name = say("%1 Placeholder").arg(type);
+        t->name = QCoreApplication::translate("PptImport", "%1 Placeholder").arg(type);
         t->rect = masterRect(source, type);
         t->insets = QMarginsF(7.2, 3.6, 7.2, 3.6);
         t->valign = isTitleType(type) ? VAlign::Middle : VAlign::Top;
@@ -2094,12 +2093,12 @@ void Importer::readSlide(int number, const SlideEntry &e)
 {
     Rec c;
     if (!containerAt(e.persist, RT_Slide, &c)) {
-        note(say("Slide %1 was left out: it can't be found in the file.").arg(number));
+        note(QCoreApplication::translate("PptImport", "Slide %1 was left out: it can't be found in the file.").arg(number));
         return;
     }
     // Entries of the list that name one slide would each have it read, and its drawing made, again.
     if (m_slidesRead.contains(c.off)) {
-        note(say("Slide %1 was left out: it holds the same contents as an earlier slide.").arg(number));
+        note(QCoreApplication::translate("PptImport", "Slide %1 was left out: it holds the same contents as an earlier slide.").arg(number));
         return;
     }
     m_slidesRead.insert(c.off);
@@ -2117,7 +2116,7 @@ void Importer::readSlide(int number, const SlideEntry &e)
     }
     MasterInfo *source = masterByRef(masterRef);
     if (!source) {
-        note(say("Slide %1 was left out: the presentation has no slide master.").arg(number));
+        note(QCoreApplication::translate("PptImport", "Slide %1 was left out: the presentation has no slide master.").arg(number));
         return;
     }
 
@@ -2521,7 +2520,7 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
     QString text = g.text;
     if (m_chars + text.size() > kMaxTotalChars) {
         text.truncate(qsizetype(std::max<qint64>(0, kMaxTotalChars - m_chars)));
-        if (!m_charLimitSaid) note(say("The presentation holds more text than can be read; the rest is left out."));
+        if (!m_charLimitSaid) note(QCoreApplication::translate("PptImport", "The presentation holds more text than can be read; the rest is left out."));
         m_charLimitSaid = true;
     }
     m_chars += text.size();
@@ -2555,7 +2554,7 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
     int paragraphs = 0;
     for (;;) {
         if (++paragraphs > kMaxParagraphs || ++m_paragraphs > kMaxTotalParagraphs) {
-            if (!m_paragraphLimitSaid) note(say("A text has more paragraphs than can be read; the rest is left out."));
+            if (!m_paragraphLimitSaid) note(QCoreApplication::translate("PptImport", "A text has more paragraphs than can be read; the rest is left out."));
             m_paragraphLimitSaid = true;
             break;
         }
@@ -2956,7 +2955,7 @@ bool Importer::run(QString *error)
     QString why;
     if (!openStreams(&why) || !readEdits(&why)) return fail(why);
     Rec docRec;
-    if (!containerAt(m_documentId, RT_Document, &docRec)) return fail(say("The presentation is cut short or damaged: its document can't be found."));
+    if (!containerAt(m_documentId, RT_Document, &docRec)) return fail(QCoreApplication::translate("PptImport", "The presentation is cut short or damaged: its document can't be found."));
 
     m_doc.masters.clear();
     m_doc.setup.size = m_doc.setup.sheet = QSizeF(kSlideWidth, kSlideHeight);
@@ -2981,7 +2980,7 @@ bool Importer::run(QString *error)
     readMasters();
     if (m_masters.empty()) {
         // Slides can still be shown on a master of the plainest kind.
-        note(say("The presentation has no slide master that can be read, so a plain one stands in."));
+        note(QCoreApplication::translate("PptImport", "The presentation has no slide master that can be read, so a plain one stands in."));
         auto m = std::make_unique<MasterInfo>();
         for (int i = 0; i < 8; ++i) m->scheme[i] = QColor(kDefaultScheme[i]);
         m->main = m.get();
@@ -2993,7 +2992,7 @@ bool Importer::run(QString *error)
     int number = 0;
     for (const SlideEntry &e : std::as_const(m_slides)) {
         if (++number > kMaxSlides) {
-            note(say("Only the first %1 slides are read.").arg(kMaxSlides));
+            note(QCoreApplication::translate("PptImport", "Only the first %1 slides are read.").arg(kMaxSlides));
             break;
         }
         readSlide(number, e);
@@ -3018,7 +3017,7 @@ bool Importer::run(QString *error)
             break;
         }
     DeckTheme theme = defaultTheme();
-    theme.name = first && !first->name.isEmpty() ? first->name : say("Theme");
+    theme.name = first && !first->name.isEmpty() ? first->name : QCoreApplication::translate("PptImport", "Theme");
     const QColor *s = first->scheme;
     const QColor white(Qt::white), black(Qt::black);
     const QColor colors[12] = {s[1], s[0], s[3], s[2], s[4], s[5], mix(s[4], white, 0.35), mix(s[5], white, 0.35), mix(s[4], black, 0.3), mix(s[5], black, 0.3), s[6], s[7]};

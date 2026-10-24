@@ -29,8 +29,6 @@ namespace jp {
 
 namespace {
 
-QString say(const char *text) { return QCoreApplication::translate("Animation", text); }
-
 constexpr int kBarWidth = 84;
 
 // ---- pictures ----
@@ -227,23 +225,23 @@ QColor effectColor(deck::EffectClass cls)
 QString effectClassLabel(deck::EffectClass cls)
 {
     switch (cls) {
-    case deck::EffectClass::Entrance: return say("Entrance");
-    case deck::EffectClass::Emphasis: return say("Emphasis");
-    case deck::EffectClass::Exit: return say("Exit");
-    case deck::EffectClass::MotionPath: return say("Motion Path");
-    default: return say("Other");
+    case deck::EffectClass::Entrance: return QCoreApplication::translate("Animation", "Entrance");
+    case deck::EffectClass::Emphasis: return QCoreApplication::translate("Animation", "Emphasis");
+    case deck::EffectClass::Exit: return QCoreApplication::translate("Animation", "Exit");
+    case deck::EffectClass::MotionPath: return QCoreApplication::translate("Animation", "Motion Path");
+    default: return QCoreApplication::translate("Animation", "Other");
     }
 }
 
 QString startLabel(deck::EffectStart start)
 {
-    return start == deck::EffectStart::WithPrevious ? say("With Previous") : start == deck::EffectStart::AfterPrevious ? say("After Previous") : say("On Click");
+    return start == deck::EffectStart::WithPrevious ? QCoreApplication::translate("Animation", "With Previous") : start == deck::EffectStart::AfterPrevious ? QCoreApplication::translate("Animation", "After Previous") : QCoreApplication::translate("Animation", "On Click");
 }
 
 QString effectLabel(const deck::Anim &a)
 {
     const deck::EffectKind *kind = a.custom() ? nullptr : deck::effectKind(a.kind);
-    if (!kind) return say("Custom");
+    if (!kind) return QCoreApplication::translate("Animation", "Custom");
     const deck::EffectVariant *v = kind->variant(a.variant);
     const bool named = v && kind->variants.size() > 1 && kind->amount == deck::EffectKind::Amount::None && (kind->cls == deck::EffectClass::MotionPath || v != &kind->variants.first());
     return named ? kind->name + QStringLiteral(": ") + v->name : kind->name;

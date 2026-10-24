@@ -18,8 +18,6 @@ namespace jp::deck {
 
 namespace {
 
-QString say(const char *text) { return QCoreApplication::translate("PptxFonts", text); }
-
 const QString kFontRel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/font");
 const QString kFontType = QStringLiteral("application/x-fontdata");
 const char *const kSlotNames[4] = {"regular", "bold", "italic", "boldItalic"};
@@ -288,10 +286,10 @@ QVector<EmbeddedFace> readEmbeddedFonts(const office::Package &pkg, const QStrin
         }
     }
     if (notes) {
-        if (unusable == 1) *notes << say("An embedded font in the file can't be used: %1").arg(firstReason);
-        else if (unusable > 1) *notes << say("%1 embedded fonts in the file can't be used: %2").arg(unusable).arg(firstReason);
-        if (tooMany) *notes << say("Only the first %1 embedded fonts are read.").arg(kMaxEmbeddedFonts);
-        if (tooLarge) *notes << say("Some embedded fonts are left out: they are too large.");
+        if (unusable == 1) *notes << QCoreApplication::translate("PptxFonts", "An embedded font in the file can't be used: %1").arg(firstReason);
+        else if (unusable > 1) *notes << QCoreApplication::translate("PptxFonts", "%1 embedded fonts in the file can't be used: %2").arg(unusable).arg(firstReason);
+        if (tooMany) *notes << QCoreApplication::translate("PptxFonts", "Only the first %1 embedded fonts are read.").arg(kMaxEmbeddedFonts);
+        if (tooLarge) *notes << QCoreApplication::translate("PptxFonts", "Some embedded fonts are left out: they are too large.");
     }
     return faces;
 }
@@ -335,8 +333,8 @@ QVector<EmbeddedFace> readEmbeddedFontFiles(const office::Package &pkg, const QS
     }
     if (notes) {
         if (unusable) *notes << QCoreApplication::translate("PptxFonts", "%n embedded font(s) in the file can't be used.", nullptr, unusable);
-        if (tooMany) *notes << say("Only the first %1 embedded fonts are read.").arg(kMaxEmbeddedFonts);
-        if (tooLarge) *notes << say("Some embedded fonts are left out: they are too large.");
+        if (tooMany) *notes << QCoreApplication::translate("PptxFonts", "Only the first %1 embedded fonts are read.").arg(kMaxEmbeddedFonts);
+        if (tooLarge) *notes << QCoreApplication::translate("PptxFonts", "Some embedded fonts are left out: they are too large.");
     }
     return faces;
 }

@@ -17,8 +17,6 @@ namespace jp::deck::odpw {
 
 namespace {
 
-QString tr(const char *text) { return QCoreApplication::translate("OdpExport", text); }
-
 QString attrOf(const char *name, const QString &value) { return QLatin1Char(' ') + QLatin1String(name) + QStringLiteral("=\"") + esc(value) + QLatin1Char('"'); }
 
 QString seconds(double ms) { return number(std::max(0.0, ms) / 1000.0, 3) + QLatin1Char('s'); }
@@ -481,14 +479,14 @@ void Exporter::writeAnimations(X &x, const Page &page)
             group += xml.replace(QStringLiteral("@@begin@@"), seconds(e.begin));
         }
         if (!usable) {
-            sayOnce(QStringLiteral("triggers"), tr("Effects that start when an object is clicked can't be saved in this kind of file, except those that play a movie or sound."));
+            sayOnce(QStringLiteral("triggers"), QCoreApplication::translate("OdpExport", "Effects that start when an object is clicked can't be saved in this kind of file, except those that play a movie or sound."));
             continue;
         }
         clicked.open("anim:seq").attr("smil:fill", "hold").attr("smil:restart", "whenNotActive").attr("smil:endsync", "all").attr("presentation:node-type", "interactive-sequence");
         clicked.open("anim:par").attr("smil:begin", shape.value() + QStringLiteral(".click+0s")).attr("smil:fill", "hold");
         clicked.open("anim:par").attr("smil:begin", "0s").attr("smil:fill", "hold").raw(group).close().close().close();
     }
-    if (lost > 0) say(tr("%1: animation effects that have no match in this kind of file were left out.").arg(m_where));
+    if (lost > 0) say(QCoreApplication::translate("OdpExport", "%1: animation effects that have no match in this kind of file were left out.").arg(m_where));
     if (steps.str().isEmpty() && clicked.str().isEmpty()) return;
     x.open("anim:par").attr("smil:dur", "indefinite").attr("smil:restart", "never").attr("presentation:node-type", "timing-root");
     x.open("anim:seq").attr("smil:dur", "indefinite").attr("presentation:node-type", "main-sequence");
@@ -515,7 +513,7 @@ void Exporter::writeComments(X &x, const Page &page)
         };
         note(c.author, c.initials, c.date, c.text);
         for (const CommentReply &r : c.replies) note(r.author, r.initials, r.date, r.text);
-        if (c.done) sayOnce(QStringLiteral("resolved"), tr("Comments marked as done are saved as plain comments."));
+        if (c.done) sayOnce(QStringLiteral("resolved"), QCoreApplication::translate("OdpExport", "Comments marked as done are saved as plain comments."));
     }
 }
 
@@ -526,7 +524,7 @@ void Exporter::writeShowSettings(X &x)
     const ShowSettings s = showSettingsOf(m_doc);
     const QVector<CustomShow> shows = customShowsOf(m_doc);
     const ShowSettings defaults;
-    if (!sectionsOf(m_doc).isEmpty()) say(tr("Sections can't be saved in this kind of file."));
+    if (!sectionsOf(m_doc).isEmpty()) say(QCoreApplication::translate("OdpExport", "Sections can't be saved in this kind of file."));
     if (s == defaults && shows.isEmpty()) return;
     x.open("presentation:settings");
     const bool kiosk = s.type == ShowSettings::Type::Kiosk;
@@ -538,7 +536,7 @@ void Exporter::writeShowSettings(X &x)
     x.attr("presentation:transition-on-click", kiosk ? "disabled" : "enabled");
     if (s.slides == ShowSettings::Slides::Range && s.from >= 1 && s.from <= m_slideNames.size()) {
         x.attr("presentation:start-page", m_slideNames[s.from - 1]);
-        if (s.to < m_slideNames.size()) sayOnce(QStringLiteral("range"), tr("The last slide of the range to show can't be saved; the show runs to the end."));
+        if (s.to < m_slideNames.size()) sayOnce(QStringLiteral("range"), QCoreApplication::translate("OdpExport", "The last slide of the range to show can't be saved; the show runs to the end."));
     } else if (s.slides == ShowSettings::Slides::Custom) {
         if (const CustomShow *show = customShowById(shows, s.customShow)) x.attr("presentation:show", show->name);
     }

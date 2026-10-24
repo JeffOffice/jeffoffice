@@ -30,7 +30,6 @@ constexpr int kMaxFormatCode = 255;
 // A title and the like: a paragraph or two.
 constexpr int kMaxTitle = 1000;
 
-QString say(const char *text) { return QCoreApplication::translate("Chart", text); }
 
 constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 
@@ -644,7 +643,7 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
     } else if (!tx.isNull()) {
         s.name = cChild(tx, "v").text().left(kChartMaxLabel);
     }
-    if (s.name.isEmpty()) s.name = say("Series%1").arg(idx + 1);
+    if (s.name.isEmpty()) s.name = QCoreApplication::translate("Chart", "Series%1").arg(idx + 1);
     // Its look.
     const QDomElement spPr = cChild(ser, "spPr");
     const bool stroked = plot.type == ChartType::Line || plot.type == ChartType::Scatter;
@@ -845,12 +844,12 @@ bool Reader::read(const QDomElement &root, QString *error)
 {
     Chart &c = *m_chart;
     if (!isElement(root, kChartNs, QStringLiteral("chartSpace")) && !isElement(root, kStrictChartNs, QStringLiteral("chartSpace"))) {
-        if (error) *error = say("The part is not a chart.");
+        if (error) *error = QCoreApplication::translate("Chart", "The part is not a chart.");
         return false;
     }
     const QDomElement chart = cChild(root, "chart");
     if (chart.isNull()) {
-        if (error) *error = say("The chart has no drawing in it.");
+        if (error) *error = QCoreApplication::translate("Chart", "The chart has no drawing in it.");
         return false;
     }
     if (const QDomElement over = cChild(root, "clrMapOvr"); !over.isNull()) m_map = readColorMap(over);
@@ -903,10 +902,10 @@ bool Reader::read(const QDomElement &root, QString *error)
                 ++count;
                 only = s.name;
             }
-        c.title.text = count == 1 ? only : say("Chart Title");
+        c.title.text = count == 1 ? only : QCoreApplication::translate("Chart", "Chart Title");
     }
     for (ChartAxis &a : c.axes)
-        if (a.title.present && a.title.text.isEmpty()) a.title.text = say("Axis Title");
+        if (a.title.present && a.title.text.isEmpty()) a.title.text = QCoreApplication::translate("Chart", "Axis Title");
     return true;
 }
 

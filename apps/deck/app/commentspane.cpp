@@ -33,7 +33,6 @@ namespace {
 
 const char *const kIdProperty = "commentId";
 
-QString say(const char *text) { return QCoreApplication::translate("CommentsPane", text); }
 
 QString whenText(const QDateTime &t) { return t.isValid() ? QLocale().toString(t.toLocalTime(), QLocale::ShortFormat) : QString(); }
 
@@ -56,9 +55,9 @@ bool askCommentAuthor(QWidget *parent)
     if (deck::commentAuthor().known()) return true;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("commentAuthorDialog"));
-    dlg.setWindowTitle(say("Your Name"));
+    dlg.setWindowTitle(QCoreApplication::translate("CommentsPane", "Your Name"));
     auto *form = new QFormLayout(&dlg);
-    auto *intro = new QLabel(say("Comments show who wrote them. Enter your name and initials; File > Options keeps them."), &dlg);
+    auto *intro = new QLabel(QCoreApplication::translate("CommentsPane", "Comments show who wrote them. Enter your name and initials; File > Options keeps them."), &dlg);
     intro->setWordWrap(true);
     form->addRow(intro);
     // The name the system knows the person by is offered.
@@ -66,8 +65,8 @@ bool askCommentAuthor(QWidget *parent)
     name->setObjectName(QStringLiteral("commentAuthorName"));
     auto *initials = new QLineEdit(deck::initialsFor(name->text()), &dlg);
     initials->setObjectName(QStringLiteral("commentAuthorInitials"));
-    form->addRow(say("Name:"), name);
-    form->addRow(say("Initials:"), initials);
+    form->addRow(QCoreApplication::translate("CommentsPane", "Name:"), name);
+    form->addRow(QCoreApplication::translate("CommentsPane", "Initials:"), initials);
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     form->addRow(buttons);
     auto typedInitials = std::make_shared<bool>(false);

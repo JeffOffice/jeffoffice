@@ -173,8 +173,8 @@ bool lzDecompress(const quint8 *data, qint64 size, qint64 *budget, Bytes *out, Q
     BitReader bits{data, size};
     const bool runLength = bits.bit();
     const qint64 length = bits.value(24);
-    if (bits.failed) return fail("The embedded font's data is cut off.");
-    if (length > kMaxBlock || length > *budget) return fail("The embedded font is larger than 32 MB.");
+    if (bits.failed) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font's data is cut off."));
+    if (length > kMaxBlock || length > *budget) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is larger than 32 MB."));
     int distanceRanges = 1;
     if (length > 8)
         for (distanceRanges = 2; length > (qint64(1) << (3 * distanceRanges)); ++distanceRanges) {}
@@ -186,7 +186,7 @@ bool lzDecompress(const quint8 *data, qint64 size, qint64 *budget, Bytes *out, Q
     qint64 at = 0;
     while (at < length) {
         const int symbol = symbols.read(bits);
-        if (symbol < 0 || bits.failed) return fail("The embedded font's data is cut off.");
+        if (symbol < 0 || bits.failed) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font's data is cut off."));
         if (symbol < 256) {
             window[at++] = quint8(symbol);
         } else if (symbol >= dup2) {
@@ -199,20 +199,20 @@ bool lzDecompress(const quint8 *data, qint64 size, qint64 *budget, Bytes *out, Q
             for (int chunks = 0;; ++chunks) {
                 copy = copy << 2 | (code & 3);
                 if (!(code & 4)) break;
-                if (chunks >= 12) return fail("The embedded font is damaged.");
+                if (chunks >= 12) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
                 code = lengths.read(bits);
-                if (code < 0) return fail("The embedded font's data is cut off.");
+                if (code < 0) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font's data is cut off."));
             }
             copy += 2;
             qint64 distance = 0;
             for (int i = 0; i < distanceSymbols; ++i) {
                 const int d = distances.read(bits);
-                if (d < 0) return fail("The embedded font's data is cut off.");
+                if (d < 0) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font's data is cut off."));
                 distance = distance << 3 | d;
             }
             distance += 1;
             if (distance > 0x1ff) ++copy;
-            if (copy > length - at || distance + copy - 1 > at + kHistoryPrefix) return fail("The embedded font is damaged.");
+            if (copy > length - at || distance + copy - 1 > at + kHistoryPrefix) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
             const quint8 *from = window + at - distance - copy + 1;
             for (qint64 i = 0; i < copy; ++i) window[at + i] = from[i];
             at += copy;
@@ -223,23 +223,23 @@ bool lzDecompress(const quint8 *data, qint64 size, qint64 *budget, Bytes *out, Q
         *budget -= length;
         return true;
     }
-    if (length < 1) return fail("The embedded font is damaged.");
+    if (length < 1) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
     const quint8 marker = window[0];
     for (qint64 i = 1; i < length;) {
         const quint8 b = window[i++];
         if (b != marker) {
             out->push_back(b);
         } else {
-            if (i >= length) return fail("The embedded font is damaged.");
+            if (i >= length) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
             const int count = window[i++];
             if (count == 0) {
                 out->push_back(marker);
             } else {
-                if (i >= length) return fail("The embedded font is damaged.");
+                if (i >= length) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
                 out->insert(out->end(), size_t(count), window[i++]);
             }
         }
-        if (qint64(out->size()) > kMaxBlock || qint64(out->size()) > *budget) return fail("The embedded font is larger than 32 MB.");
+        if (qint64(out->size()) > kMaxBlock || qint64(out->size()) > *budget) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is larger than 32 MB."));
     }
     *budget -= qint64(out->size());
     return true;
@@ -406,12 +406,12 @@ bool readGlyphs(const Bytes &outlines, const Bytes &pushed, const Bytes &code, i
         int contours = r.s16();
         QByteArray glyph;
         if (contours == 0) {
-            if (r.failed) return fail("The embedded font is damaged.");
+            if (r.failed) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
             continue;
         }
         QByteArray box;
         if (contours == -1) {
-            if (!r.take(8, &box)) return fail("The embedded font is damaged.");
+            if (!r.take(8, &box)) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
             QByteArray components;
             int flags;
             do {
@@ -422,7 +422,7 @@ bool readGlyphs(const Bytes &outlines, const Bytes &pushed, const Bytes &code, i
                 if (flags & 0x08) r.take(2, &components);
                 else if (flags & 0x40) r.take(4, &components);
                 else if (flags & 0x80) r.take(8, &components);
-                if (r.failed) return fail("The embedded font is damaged.");
+                if (r.failed) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
             } while (flags & 0x20);
             appendU16(&glyph, 0xFFFF);
             glyph += box + components;
@@ -430,9 +430,9 @@ bool readGlyphs(const Bytes &outlines, const Bytes &pushed, const Bytes &code, i
                 const int pushCount = r.u255(), codeSize = r.u255();
                 std::vector<int> values;
                 QByteArray program;
-                if (r.failed || !readPushedValues(pushes, pushCount, &values)) return fail("The embedded font is damaged.");
+                if (r.failed || !readPushedValues(pushes, pushCount, &values)) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
                 appendPushes(values, &program);
-                if (!instructions.take(size_t(codeSize), &program) || program.size() > 0xFFFF) return fail("The embedded font is damaged.");
+                if (!instructions.take(size_t(codeSize), &program) || program.size() > 0xFFFF) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
                 appendU16(&glyph, quint16(program.size()));
                 glyph += program;
             }
@@ -440,32 +440,32 @@ bool readGlyphs(const Bytes &outlines, const Bytes &pushed, const Bytes &code, i
             bool haveBox = false;
             if (contours == 0x7FFF) {
                 contours = r.s16();
-                if (!r.take(8, &box)) return fail("The embedded font is damaged.");
+                if (!r.take(8, &box)) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
                 haveBox = true;
             }
-            if (contours < 1) return fail("The embedded font is damaged.");
+            if (contours < 1) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
             std::vector<quint16> ends;
             int last = r.u255();
-            if (last > 0xFFFF) return fail("The embedded font is damaged.");
+            if (last > 0xFFFF) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
             ends.push_back(quint16(last));
             for (int c = 1; c < contours; ++c) {
                 const int count = r.u255();
-                if (r.failed || count < 1 || last + count > 0xFFFF) return fail("The embedded font is damaged.");
+                if (r.failed || count < 1 || last + count > 0xFFFF) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
                 last += count;
                 ends.push_back(quint16(last));
             }
             const int points = last + 1;
             QByteArray flagBytes;
-            if (!r.take(size_t(points), &flagBytes)) return fail("The embedded font is damaged.");
+            if (!r.take(size_t(points), &flagBytes)) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
             QByteArray flags, xs, ys;
             int x = 0, y = 0, xMin = 32767, yMin = 32767, xMax = -32768, yMax = -32768;
             for (int p = 0; p < points; ++p) {
                 const quint8 f = quint8(flagBytes[p]);
                 int dx, dy;
-                if (!readTriplet(r, f & 0x7f, &dx, &dy)) return fail("The embedded font is damaged.");
+                if (!readTriplet(r, f & 0x7f, &dx, &dy)) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
                 x += dx;
                 y += dy;
-                if (dx < -32768 || dx > 32767 || dy < -32768 || dy > 32767 || x < -32768 || x > 32767 || y < -32768 || y > 32767) return fail("The embedded font is damaged.");
+                if (dx < -32768 || dx > 32767 || dy < -32768 || dy > 32767 || x < -32768 || x > 32767 || y < -32768 || y > 32767) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
                 xMin = std::min(xMin, x);
                 yMin = std::min(yMin, y);
                 xMax = std::max(xMax, x);
@@ -493,9 +493,9 @@ bool readGlyphs(const Bytes &outlines, const Bytes &pushed, const Bytes &code, i
             const int pushCount = r.u255(), codeSize = r.u255();
             std::vector<int> values;
             QByteArray program;
-            if (r.failed || !readPushedValues(pushes, pushCount, &values)) return fail("The embedded font is damaged.");
+            if (r.failed || !readPushedValues(pushes, pushCount, &values)) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
             appendPushes(values, &program);
-            if (!instructions.take(size_t(codeSize), &program) || program.size() > 0xFFFF) return fail("The embedded font is damaged.");
+            if (!instructions.take(size_t(codeSize), &program) || program.size() > 0xFFFF) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
             if (!haveBox) {
                 appendU16(&box, quint16(xMin));
                 appendU16(&box, quint16(yMin));
@@ -509,10 +509,10 @@ bool readGlyphs(const Bytes &outlines, const Bytes &pushed, const Bytes &code, i
             glyph += program + flags + xs + ys;
         }
         if (glyph.size() % 2) glyph.append('\0');
-        if (glyf->size() + glyph.size() > kMaxBlock) return fail("The embedded font is larger than 32 MB.");
+        if (glyf->size() + glyph.size() > kMaxBlock) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is larger than 32 MB."));
         glyf->append(glyph);
     }
-    if (r.failed || !r.atEnd()) return fail("The embedded font is damaged.");
+    if (r.failed || !r.atEnd()) return fail(QT_TRANSLATE_NOOP("MicroTypeExpress", "The embedded font is damaged."));
     return true;
 }
 
@@ -559,10 +559,10 @@ bool mtxToTrueType(const QByteArray &mtx, QByteArray *font, QString *why)
         if (why) *why = reason;
         return false;
     };
-    auto damaged = [&] { return fail(say("The embedded font is damaged.")); };
-    if (mtx.size() < 10) return fail(say("The embedded font is too short to be a font."));
+    auto damaged = [&] { return fail(QCoreApplication::translate("MicroTypeExpress", "The embedded font is damaged.")); };
+    if (mtx.size() < 10) return fail(QCoreApplication::translate("MicroTypeExpress", "The embedded font is too short to be a font."));
     const auto u24 = [&](int at) { return qint64(quint8(mtx[at])) << 16 | quint8(mtx[at + 1]) << 8 | quint8(mtx[at + 2]); };
-    if (quint8(mtx[0]) != 3) return fail(say("The embedded font is compressed in a way that is not read."));
+    if (quint8(mtx[0]) != 3) return fail(QCoreApplication::translate("MicroTypeExpress", "The embedded font is compressed in a way that is not read."));
     const qint64 second = u24(4), third = u24(7);
     if (second < 10 || third < second || third > mtx.size()) return damaged();
     qint64 budget = kMaxDecoded;
@@ -660,7 +660,7 @@ bool mtxToTrueType(const QByteArray &mtx, QByteArray *font, QString *why)
     appendU16(&file, quint16(n * 16 - searchRange * 16));
     qint64 offset = 12 + 16 * qint64(n), total = offset;
     for (const auto &table : out) total += (table.second.size() + 3) & ~qsizetype(3);
-    if (total > kMaxEmbeddedFontBytes) return fail(say("The embedded font is larger than 32 MB."));
+    if (total > kMaxEmbeddedFontBytes) return fail(QCoreApplication::translate("MicroTypeExpress", "The embedded font is larger than 32 MB."));
     qint64 headAt = 0;
     for (const auto &table : out) {
         if (table.first == "head") headAt = offset;

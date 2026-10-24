@@ -48,7 +48,6 @@ constexpr int kMaxFamily = 100;            // characters of a font family (a nam
 constexpr int kMaxText = 1000;             // of any text drawn (a label is kChartMaxLabel)
 constexpr double kMaxMagnitude = 1e150;    // the largest number a scale is made of: its span, and the sums of a stack, stay numbers
 
-QString say(const char *text) { return QCoreApplication::translate("Chart", text); }
 
 // A text as a picture can write it: at most `most` characters, and none that XML has no place for (control characters, half a surrogate pair).
 QString writable(const QString &text, int most)
@@ -1717,7 +1716,7 @@ QByteArray drawOnce(const Chart &chart, const QSizeF &s, const Limits &limits, b
     gen.setResolution(72);
     gen.setSize(QSize(int(std::ceil(s.width())), int(std::ceil(s.height()))));
     gen.setViewBox(QRectF(QPointF(0, 0), s));
-    gen.setTitle(say("Chart"));
+    gen.setTitle(QCoreApplication::translate("Chart", "Chart"));
     gen.setDescription(QString());
     {
         QPainter p(&gen);

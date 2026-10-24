@@ -26,8 +26,6 @@ namespace odpw {
 
 namespace {
 
-QString tr(const char *text) { return QCoreApplication::translate("OdpExport", text); }
-
 constexpr const char *kPresentationType = "application/vnd.oasis.opendocument.presentation";
 constexpr const char *kTemplateType = "application/vnd.oasis.opendocument.presentation-template";
 
@@ -412,7 +410,7 @@ void Exporter::plan()
     };
     if (masters.isEmpty()) {
         MasterOut m;
-        m.display = tr("Slide Master");
+        m.display = QCoreApplication::translate("OdpExport", "Slide Master");
         m.name = uniqueName(m.display);
         m.prefix = m.name + QLatin1Char('-');
         m_masters.push_back(m);
@@ -421,7 +419,7 @@ void Exporter::plan()
     for (const MasterPage *master : std::as_const(masters)) {
         MasterOut m;
         m.master = master;
-        m.display = master->name.isEmpty() ? tr("Slide Master") : master->name;
+        m.display = master->name.isEmpty() ? QCoreApplication::translate("OdpExport", "Slide Master") : master->name;
         m.name = uniqueName(m.display);
         m.prefix = m.name + QLatin1Char('-');
         byId.insert(master->id, int(m_masters.size()));
@@ -438,7 +436,7 @@ void Exporter::plan()
         MasterOut m;
         m.master = m_masters[under].master;
         m.layout = l.get();
-        const QString layoutName = l->name.isEmpty() ? tr("Layout") : l->name;
+        const QString layoutName = l->name.isEmpty() ? QCoreApplication::translate("OdpExport", "Layout") : l->name;
         m.display = masters.size() > 1 ? m_masters[under].display + QStringLiteral(" - ") + layoutName : layoutName;
         m.name = uniqueName(m.display);
         m.prefix = m.name + QLatin1Char('-');
@@ -578,8 +576,8 @@ QString Exporter::pageStyle(const Page &page, const Footer &f, bool)
 void Exporter::writeThemeColors(X &x) const
 {
     static const char *const names[12] = {"dark1", "light1", "dark2", "light2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hyperlink", "followed-hyperlink"};
-    x.open("loext:theme").attr("loext:name", m_theme.name.isEmpty() ? tr("Theme") : m_theme.name);
-    x.open("loext:theme-colors").attr("loext:name", m_theme.name.isEmpty() ? tr("Theme") : m_theme.name);
+    x.open("loext:theme").attr("loext:name", m_theme.name.isEmpty() ? QCoreApplication::translate("OdpExport", "Theme") : m_theme.name);
+    x.open("loext:theme-colors").attr("loext:name", m_theme.name.isEmpty() ? QCoreApplication::translate("OdpExport", "Theme") : m_theme.name);
     for (int i = 0; i < 12; ++i) x.open("loext:color").attr("loext:name", names[i]).attr("loext:color", hexOf(m_theme.colors[i].isValid() ? m_theme.colors[i] : QColor(Qt::black))).close();
     x.close().close();
 }
@@ -609,7 +607,7 @@ void Exporter::writeMasterPage(X &x, const MasterOut &m, QString *presentationSt
     sc.master = true;
     sc.layer = QStringLiteral("backgroundobjects");
     sc.prefix = m.prefix;
-    sc.where = tr("Master page \"%1\"").arg(m.display);
+    sc.where = QCoreApplication::translate("OdpExport", "Master page \"%1\"").arg(m.display);
     Fill bg = m.master ? m.master->background : Fill();
     if (m.layout && !m.layout->background.isNone()) bg = m.layout->background;
     sc.background = bg.type == Fill::Solid && bg.color.kind() == ColorRef::Rgb ? bg.color.rgbValue() : (bg.isNone() ? QColor(Qt::white) : resolve(bg.color));
@@ -784,12 +782,12 @@ void Exporter::writeSlide(X &x, int index)
     const Page &page = *m_doc.pages[index];
     const MasterOut &master = pageOf(page);
     const Footer &f = m_footers[index];
-    const QString name = uniquePageName(page.title.isEmpty() ? tr("Slide %1").arg(index + 1) : page.title);
+    const QString name = uniquePageName(page.title.isEmpty() ? QCoreApplication::translate("OdpExport", "Slide %1").arg(index + 1) : page.title);
     Scope sc;
     sc.styles = &m_contentStyles;
     sc.layer = QStringLiteral("layout");
     sc.prefix = master.prefix;
-    sc.where = tr("Slide %1").arg(index + 1);
+    sc.where = QCoreApplication::translate("OdpExport", "Slide %1").arg(index + 1);
     sc.background = !page.background.isNone() ? (page.background.type == Fill::Gradient && !page.background.stops.isEmpty() ? resolve(page.background.stops.first().color) : resolve(page.background.color)) : QColor();
     if (!sc.background.isValid()) {
         const MasterOut &mo = master;
@@ -853,11 +851,11 @@ void Exporter::writeSlide(X &x, int index)
     // What this kind of file holds as a picture only.
     for (const QJsonValue &v : page.props.value(QStringLiteral("charts")).toArray()) {
         const QString kind = v.toObject().value(QStringLiteral("kind")).toString();
-        if (kind == QLatin1String("diagram")) sayOnce(QStringLiteral("diagram"), tr("SmartArt diagrams are saved as pictures: their parts can't be edited in this kind of file."));
-        else if (kind == QLatin1String("equation")) sayOnce(QStringLiteral("equation"), tr("Equations are saved as pictures."));
-        else sayOnce(QStringLiteral("chart"), tr("Charts are saved as pictures: their data can't be edited in this kind of file."));
+        if (kind == QLatin1String("diagram")) sayOnce(QStringLiteral("diagram"), QCoreApplication::translate("OdpExport", "SmartArt diagrams are saved as pictures: their parts can't be edited in this kind of file."));
+        else if (kind == QLatin1String("equation")) sayOnce(QStringLiteral("equation"), QCoreApplication::translate("OdpExport", "Equations are saved as pictures."));
+        else sayOnce(QStringLiteral("chart"), QCoreApplication::translate("OdpExport", "Charts are saved as pictures: their data can't be edited in this kind of file."));
     }
-    if (!page.props.value(QStringLiteral("unread")).toArray().isEmpty()) say(tr("%1: a table, chart, or other frame that can't be read was left out.").arg(sc.where));
+    if (!page.props.value(QStringLiteral("unread")).toArray().isEmpty()) say(QCoreApplication::translate("OdpExport", "%1: a table, chart, or other frame that can't be read was left out.").arg(sc.where));
 
     x.open("draw:page").attr("draw:name", name).attr("draw:style-name", pageStyle(page, f, true)).attr("draw:master-page-name", master.name);
     if (f.footer) x.attr("presentation:use-footer-name", QStringLiteral("ftr%1").arg(f.footerDecl + 1));
@@ -1010,7 +1008,7 @@ void Exporter::writeContent(const QString &body)
 QByteArray Exporter::run(QString *error)
 {
     if (m_doc.pages.isEmpty()) {
-        if (error) *error = tr("The presentation has no slides.");
+        if (error) *error = QCoreApplication::translate("OdpExport", "The presentation has no slides.");
         return QByteArray();
     }
     plan();
@@ -1049,7 +1047,7 @@ QByteArray Exporter::run(QString *error)
     }
     const QByteArray bytes = zip.finish();
     if (bytes.isEmpty()) {
-        if (error) *error = tr("The presentation file could not be put together.");
+        if (error) *error = QCoreApplication::translate("OdpExport", "The presentation file could not be put together.");
         return QByteArray();
     }
     if (m_callerSkipped) *m_callerSkipped += m_skipped;
