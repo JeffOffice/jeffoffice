@@ -169,6 +169,16 @@
     </message>
 </context>
 <context>
+    <name>jp::crunch::SheetObjects</name>
+    <message numerus="yes">
+        <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
+        <translation>
+            <numerusform>The file stores this object together with %n other object, so they can&apos;t be deleted one at a time.</numerusform>
+            <numerusform>The file stores this object together with %n other objects, so they can&apos;t be deleted one at a time.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>jp::office::wml</name>
     <message numerus="yes">
         <source>%n part or link of the file had a name that could not be used, and was left out.</source>
