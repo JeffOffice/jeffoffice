@@ -290,7 +290,7 @@ private Q_SLOTS:
     }
 
     // The whole list, one by one: every function the format prefixes is written with its prefix (in any case, and with a space before the bracket), and read back for a person without
-    // it; the list is sorted, has no name twice, and has every function this program knows that the format prefixes, and every function of Excel 2010 and later that the plan
+    // it; the list is sorted, has no name twice, and has every function this program knows that the format prefixes, and every later-edition function that the plan
     // (docs/features/jeffcrunch.md) names; none of the first release's functions is on it.
     void theWholeListOfPrefixedFunctionsIsChecked()
     {
@@ -314,7 +314,7 @@ private Q_SLOTS:
             QVERIFY2(all.contains(QString::fromLatin1(f.name)), f.name);
         }
         QVERIFY(future > 5);
-        // the functions of Excel 2010 and later that the plan names
+        // the later-edition functions that the plan names
         static const char *const newer[] = {
             "ACOT", "ACOTH", "AGGREGATE", "ARABIC", "ARRAYTOTEXT", "BASE", "BETA.DIST", "BETA.INV", "BINOM.DIST", "BINOM.DIST.RANGE", "BINOM.INV", "BYCOL", "BYROW", "CEILING.MATH",
             "CEILING.PRECISE", "CHISQ.DIST", "CHISQ.DIST.RT", "CHISQ.INV", "CHISQ.INV.RT", "CHISQ.TEST", "CHOOSECOLS", "CHOOSEROWS", "COMBINA", "CONCAT", "CONFIDENCE.NORM",

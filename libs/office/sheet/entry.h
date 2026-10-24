@@ -48,7 +48,7 @@ EntryResult readEntry(const QString &typed, const EntryOptions &options);
 // file format (without it the other programs take the name for a function of someone's own: STDEV.S is _xlfn.STDEV.S in a file). Text in quotes, names of sheets, and names a function
 // does not have are left as they are. Reading a formula back for a person (displayFormula in grid/text.h) takes the prefixes away.
 QString toFileFormula(const QString &typed);
-// The names (in capitals, sorted) of the functions that the file format writes with the prefix _xlfn. (those of Excel 2010 and later): what toFileFormula puts it before, whether or not
+// The names (in capitals, sorted) of the functions that the file format writes with the prefix _xlfn. (those added after the format's first edition): what toFileFormula puts it before, whether or not
 // this program has the function. FILTER and SORT are written with _xlfn._xlws.
 const QStringList &prefixedFunctionNames();
 

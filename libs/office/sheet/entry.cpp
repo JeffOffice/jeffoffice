@@ -495,7 +495,7 @@ bool readDateTime(const QString &typed, const EntryOptions &o, double *value, QS
 
 namespace {
 
-// The functions that the file format has with the prefix _xlfn. in front: those added after its first release, to Excel 2010 and later (a fixed list of the format's, whether or not
+// The functions that the file format has with the prefix _xlfn. in front: those added after its first edition (a fixed list of the format's, whether or not
 // this program has them: a formula that names one this program lacks is kept as the file has it). Sorted; FILTER and SORT, which only a sheet has, are written _xlfn._xlws.
 const char *const kPrefixedFunctions[] = {
     "ACOT", "ACOTH", "AGGREGATE", "ARABIC", "ARRAYTOTEXT", "BASE", "BETA.DIST", "BETA.INV", "BINOM.DIST", "BINOM.DIST.RANGE", "BINOM.INV", "BITAND", "BITLSHIFT", "BITOR", "BITRSHIFT",
