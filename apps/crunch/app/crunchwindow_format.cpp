@@ -868,6 +868,8 @@ void CrunchWindow::formatRibbonParts(RibbonParts &parts)
         m_numberBox = box;
         return box;
     };
+    parts.menus[QStringLiteral("tabColors")] = [this](QWidget *owner) { return buildTabColorMenu(owner); };
+    parts.menus[QStringLiteral("unhideSheets")] = [this](QWidget *owner) { return buildUnhideMenu(owner); };
     parts.menus[QStringLiteral("borders")] = [this](QWidget *owner) { return buildBordersMenu(owner); };
     parts.menus[QStringLiteral("orientation")] = [this](QWidget *owner) { return buildOrientationMenu(owner); };
     parts.menus[QStringLiteral("cellStyles")] = [this](QWidget *owner) { return buildStylesMenu(owner); };

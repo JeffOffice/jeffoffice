@@ -171,10 +171,33 @@ EditSession::~EditSession()
     m_undo.disconnect(this);
 }
 
+namespace {
+
+// The steps a command of the undo stack is: itself, or, for a macro (several steps a person sees as one: a dialog that changes the font and the borders), those it groups.
+template <class F>
+void eachStep(const QUndoCommand *command, const F &f)
+{
+    if (const auto *step = dynamic_cast<const ChangeCells *>(command)) f(const_cast<ChangeCells *>(step));
+    for (int k = 0; k < command->childCount(); ++k) eachStep(command->child(k), f);
+}
+
+// A command is forgotten when it holds steps and none of them is held.
+bool commandForgotten(const QUndoCommand *command)
+{
+    bool any = false, held = false;
+    eachStep(command, [&](ChangeCells *step) {
+        any = true;
+        held = held || !step->forgotten();
+    });
+    return any && !held;
+}
+
+} // namespace
+
 int EditSession::firstHeldStep() const
 {
     int i = 0;
-    while (i < m_undo.count() && static_cast<const ChangeCells *>(m_undo.command(i))->forgotten()) ++i;
+    while (i < m_undo.count() && commandForgotten(m_undo.command(i))) ++i;
     return i;
 }
 
@@ -186,24 +209,25 @@ void EditSession::forgetDeletesInFile()
     // move cells included, stays: Undo of it is made against the saved file.)
     int last = -1;
     for (int i = m_undo.index() - 1; i >= 0 && last < 0; --i)
-        if (static_cast<const ChangeCells *>(m_undo.command(i))->deletes() || static_cast<const ChangeCells *>(m_undo.command(i))->sheetStructure()) last = i;
+        eachStep(m_undo.command(i), [&](ChangeCells *step) {
+            if (step->deletes() || step->sheetStructure()) last = i;
+        });
     m_forgotBySave = 0;
     for (int i = 0; i <= last; ++i) {
-        auto *cmd = const_cast<ChangeCells *>(static_cast<const ChangeCells *>(m_undo.command(i)));
-        if (!cmd->forgotten()) ++m_forgotBySave;
-        cmd->forget();
+        if (!commandForgotten(m_undo.command(i))) ++m_forgotBySave;
+        eachStep(m_undo.command(i), [](ChangeCells *step) { step->forget(); });
     }
 }
 
 void EditSession::forgetStepsDone()
 {
-    for (int i = 0; i < m_undo.index(); ++i) const_cast<ChangeCells *>(static_cast<const ChangeCells *>(m_undo.command(i)))->forget();
+    for (int i = 0; i < m_undo.index(); ++i) eachStep(m_undo.command(i), [](ChangeCells *step) { step->forget(); });
 }
 
 void EditSession::giveUpUndo(const QString &stepText, bool redoing)
 {
     // (the workbook is not as the stack says: no step is undone or done again from here)
-    for (int i = 0; i < m_undo.count(); ++i) const_cast<ChangeCells *>(static_cast<const ChangeCells *>(m_undo.command(i)))->forget();
+    for (int i = 0; i < m_undo.count(); ++i) eachStep(m_undo.command(i), [](ChangeCells *step) { step->forget(); });
     Q_EMIT stepFailed(redoing ? tr("\"%1\" could not be done again, so Undo and Redo are not available any more for what came before it.").arg(stepText)
                               : tr("\"%1\" could not be undone, so Undo and Redo are not available any more for what came before it.").arg(stepText));
 }
@@ -220,7 +244,7 @@ void EditSession::trimUndo()
 {
     // the oldest steps first; the newest that is done is never forgotten, nor are those that were undone (they come after it, and are not the oldest)
     for (int i = firstHeldStep(); *m_undoBytes > m_undoByteLimit && i < m_undo.index() - 1; ++i)
-        const_cast<ChangeCells *>(static_cast<const ChangeCells *>(m_undo.command(i)))->forget();
+        eachStep(m_undo.command(i), [](ChangeCells *step) { step->forget(); });
 }
 
 void EditSession::cleanChanged(bool clean)
@@ -710,8 +734,8 @@ bool EditSession::apply(Step *step, bool forward)
 
 bool EditSession::widenLastStep(int index, int sheet, quint32 col, double width)
 {
-    auto *cmd = const_cast<ChangeCells *>(static_cast<const ChangeCells *>(m_undo.command(index)));
-    if (cmd->forgotten() || cmd->step()->structure || cmd->step()->cells.empty() || col >= kMaxColumns) return false;
+    auto *cmd = const_cast<ChangeCells *>(dynamic_cast<const ChangeCells *>(m_undo.command(index)));
+    if (!cmd || cmd->forgotten() || cmd->step()->structure || cmd->step()->cells.empty() || col >= kMaxColumns) return false;
     bool inColumn = false;
     for (const CellChange &c : cmd->step()->cells) inColumn = inColumn || (c.sheet == sheet && c.col == col);
     if (!inColumn) return false;

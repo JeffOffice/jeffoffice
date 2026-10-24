@@ -114,14 +114,7 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     createEditing();
     for (int i = 0; i < m_tabs->count(); ++i) m_tabs->setTabEnabled(i, true);
     // the stripes the sheets ask for, now that every sheet is read
-    const jp::office::sheet::Styles &styles = m_loaded->book->styles();
-    // (the calculation is the worker's until the read is told to be over: it is looked at only once m_haveCalc says so, as everywhere else)
-    if (m_haveCalc && m_loaded->calc) {
-        for (int tab = 0; tab < m_tabSheets.size(); ++tab) {
-            const auto &color = m_loaded->calc->sheet(m_tabSheets[tab]).tabColor;
-            if (color.isSet()) m_tabs->setStripe(tab, QColor::fromRgb(styles.resolve(color, 0x808080)));
-        }
-    }
+    refreshStripes();
     // the sheet read whole takes the place of its first rows (what the person did with the view stays)
     showSheet(m_sheet, true);
     m_loaded->preview.reset();
@@ -143,20 +136,19 @@ void CrunchWindow::fillTabs()
     m_tabSheets.clear();
     if (m_loaded && m_loaded->book) {
         const auto &sheets = m_loaded->book->info().sheets;
-        for (int i = 0; i < sheets.size(); ++i) {
-            if (sheets[i].state != SheetState::Visible) continue;   // (hidden and very hidden sheets are kept out)
+        for (const int i : m_loaded->book->info().order) {
+            if (i < 0 || i >= sheets.size() || sheets[i].deleted || sheets[i].state != SheetState::Visible) continue;   // (hidden and very hidden sheets are kept out)
             // (the name is shown as it is: a "&" in a tab's text makes the next letter a key, and a name that has one is shown without it, unless it is doubled)
             const int tab = m_tabs->addTab(QString(sheets[i].name).replace(QLatin1Char('&'), QStringLiteral("&&")));
+            m_tabs->setTabData(tab, sheets[i].name);
             m_tabSheets.append(i);
-            m_tabs->setTabEnabled(tab, i == m_sheet);
+            m_tabs->setTabEnabled(tab, m_haveCalc || i == m_sheet);
             if (i == m_sheet) m_tabs->setCurrentIndex(tab);
         }
-        if (m_loaded->preview && m_loaded->preview->tabColor.isSet() && m_sheet >= 0) {
-            const int tab = m_tabSheets.indexOf(m_sheet);
-            if (tab >= 0) m_tabs->setStripe(tab, QColor::fromRgb(m_loaded->book->styles().resolve(m_loaded->preview->tabColor, 0x808080)));
-        }
+        m_tabs->selectOnly(m_tabs->currentIndex());
+        refreshStripes();
     }
-    m_tabs->setVisible(!m_tabSheets.isEmpty());
+    m_sheetTabRow->setVisible(!m_tabSheets.isEmpty());
     m_switchingTabs = false;
 }
 

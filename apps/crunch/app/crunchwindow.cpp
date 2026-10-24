@@ -149,8 +149,13 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     connect(&m_loader, &crunch::WorkbookLoader::calcBatch, this, &CrunchWindow::onCalcBatch);
     m_copyTimer.setSingleShot(true);
     connect(&m_copyTimer, &QTimer::timeout, this, &CrunchWindow::copyStep);
+    connect(m_tabs, &crunch::SheetTabBar::contextRequested, this, [this](int tab, const QPoint &global) { showTabMenu(tab, global); });
+    connect(m_tabs, &crunch::SheetTabBar::renamed, this, [this](int tab, const QString &name) {
+        if (tab >= 0 && tab < m_tabSheets.size()) renameSheetTo(m_tabSheets[tab], name);
+    });
+    connect(m_tabs, &crunch::SheetTabBar::tabDragged, this, [this](int from, int to) { onTabMoved(from, to); });
     connect(m_tabs, &QTabBar::currentChanged, this, [this](int tab) {
-        if (m_switchingTabs || tab < 0 || tab >= m_tabSheets.size()) return;
+        if (m_switchingTabs || m_tabs->isDragging() || tab < 0 || tab >= m_tabSheets.size()) return;
         setActiveSheet(m_tabSheets[tab]);
     });
     showBlank();
@@ -161,6 +166,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
 
 CrunchWindow::~CrunchWindow()
 {
+    if (m_tabs) m_tabs->cancelRename();   // (a name being typed is given up with the window, not given to a window that is going)
     openWindows().removeAll(this);
     // (the session's undo stack tells the window as its steps go: it is let go of first, and the window is not told)
     if (m_session) {
@@ -245,8 +251,13 @@ void CrunchWindow::buildCentral()
     m_cellEditor->hide();
     m_cellEditor->setAccessibleName(tr("Cell editor"));
     m_cellEditor->setAccessibleDescription(tr("The cell being typed into. Enter and Tab finish the entry; Escape gives it up."));
-    m_tabs = new crunch::SheetTabBar(central);
-    v->addWidget(m_tabs);
+    m_sheetTabRow = new QWidget(central);
+    auto *tabLayout = new QHBoxLayout(m_sheetTabRow);
+    tabLayout->setContentsMargins(0, 0, 0, 0);
+    tabLayout->setSpacing(0);
+    m_tabs = new crunch::SheetTabBar(m_sheetTabRow);
+    tabLayout->addWidget(m_tabs, 1);
+    v->addWidget(m_sheetTabRow);
     setCentralWidget(central);
     connect(m_nameBox, &QLineEdit::returnPressed, this, &CrunchWindow::goToName);
     m_formulaBar->installEventFilter(this);
@@ -359,6 +370,7 @@ void CrunchWindow::createActions()
     createCellsActions();
     createClipboardActions();
     createFormatActions();
+    createSheetActions();
     createDisabledActions();
 }
 

@@ -7,7 +7,12 @@
 #include "editwindow.h"
 #include "grid/gridview.h"
 
+#include <QLineEdit>
+#include <QMenu>
 #include <QSignalSpy>
+#include <QToolButton>
+#include <QWidgetAction>
+#include "app/sheettabs.h"
 #include <QUndoStack>
 
 #include "../testrunner.h"
@@ -466,5 +471,358 @@ private Q_SLOTS:
     }
 };
 
+namespace {
+
+QStringList tabNames(EditWindow &e)
+{
+    QStringList out;
+    for (int i = 0; i < e.win.w.sheetTabs()->count(); ++i) out << e.win.w.sheetTabs()->tabData(i).toString();
+    return out;
+}
+
+void run(EditWindow &e, const char *id)
+{
+    QAction *a = e.win.w.act(QString::fromLatin1(id));
+    QVERIFY2(a && a->isEnabled(), id);
+    a->trigger();
+}
+
+QMenu *menuOf(EditWindow &e, const char *name)
+{
+    const auto menus = e.win.w.findChildren<QMenu *>(QString::fromLatin1(name));
+    return menus.isEmpty() ? nullptr : menus.first();
+}
+
+// The menu a tab's menu holds under the title, made ready to show.
+QMenu *submenuOf(QMenu *menu, const QString &title)
+{
+    for (QAction *a : menu->actions())
+        if (a->menu() && a->text() == title) {
+            Q_EMIT a->menu()->aboutToShow();
+            return a->menu();
+        }
+    return nullptr;
+}
+
+// The tab's menu, opened as a right click on a tab does.
+QMenu *openTabMenu(EditWindow &e, int tab)
+{
+    Q_EMIT e.win.w.sheetTabs()->contextRequested(tab, QPoint(10, 10));
+    return menuOf(e, "sheetMenu");
+}
+
+void clickTab(EditWindow &e, int tab, Qt::KeyboardModifiers m = Qt::NoModifier)
+{
+    crunch::SheetTabBar *tabs = e.win.w.sheetTabs();
+    QTest::mouseClick(tabs, Qt::LeftButton, m, tabs->tabRect(tab).center());
+}
+
+} // namespace
+
+class CrunchSheetTabsTests : public QObject {
+    Q_OBJECT
+
+private Q_SLOTS:
+    void initTestCase() { jp::initCore(); }
+
+    // The tabs are the sheets that are shown, in the order of the tabs; Insert Sheet puts a sheet before the one that is open and opens it, the New Sheet button puts one at the end, and
+    // Undo takes them away and opens a sheet that is there.
+    void theTabsFollowTheSheetsAdded()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetsBook()));
+        QCOMPARE(tabNames(e), QStringList({QStringLiteral("Sheet1"), QStringLiteral("Sheet2"), QStringLiteral("Sheet3")}));
+        QVERIFY(e.win.w.findChild<QToolButton *>(QStringLiteral("addSheet")));
+        clickTab(e, 1);
+        QCOMPARE(e.win.w.activeSheet(), 1);
+        run(e, "sheet.insert");
+        QCOMPARE(tabNames(e), QStringList({QStringLiteral("Sheet1"), QStringLiteral("Sheet4"), QStringLiteral("Sheet2"), QStringLiteral("Sheet3")}));
+        QCOMPARE(e.win.w.activeSheet(), 3);                      // (the new sheet is open)
+        QCOMPARE(e.win.w.sheetTabs()->currentIndex(), 1);
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Insert Sheet"));
+        run(e, "sheet.insertEnd");
+        QCOMPARE(tabNames(e).last(), QStringLiteral("Sheet5"));
+        QCOMPARE(e.win.w.activeSheet(), 4);
+        // Undo: the sheet that was open is gone, and the one beside where it was is open
+        e.win.w.undoStack()->undo();
+        QCOMPARE(tabNames(e), QStringList({QStringLiteral("Sheet1"), QStringLiteral("Sheet4"), QStringLiteral("Sheet2"), QStringLiteral("Sheet3")}));
+        QCOMPARE(e.win.w.activeSheet(), 2);
+        e.win.w.undoStack()->undo();
+        QCOMPARE(tabNames(e).size(), 3);
+        QVERIFY(e.win.w.activeSheet() >= 0 && e.win.w.activeSheet() < 3);
+        e.win.w.undoStack()->redo();
+        QCOMPARE(tabNames(e).size(), 4);
+        // typing into the sheet that is open goes to that sheet
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("B2"));
+        e.enter(QStringLiteral("12"));
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, e.win.w.activeSheet(), QStringLiteral("B2")), QStringLiteral("n:12"));
+    }
+
+    // Delete asks first when the sheet has cells (and says it can be undone), does nothing if the answer is no, and opens the sheet beside the one deleted; the last shown sheet is not deleted.
+    void deletingASheetAsksAndOpensANeighbor()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetsBook()));
+        QStringList asked;
+        bool yes = false;
+        e.win.w.setConfirmAsker([&](const QString &title, const QString &text) {
+            asked << title + QStringLiteral(": ") + text;
+            return yes;
+        });
+        clickTab(e, 1);
+        run(e, "sheet.delete");
+        QCOMPARE(asked.size(), 1);
+        QVERIFY2(asked.first().contains(QStringLiteral("Sheet2")) && asked.first().contains(QStringLiteral("#REF!")) && asked.first().contains(QStringLiteral("undo")), qPrintable(asked.first()));
+        QCOMPARE(tabNames(e).size(), 3);
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+        yes = true;
+        run(e, "sheet.delete");
+        QCOMPARE(tabNames(e), QStringList({QStringLiteral("Sheet1"), QStringLiteral("Sheet3")}));
+        QCOMPARE(e.win.w.activeSheet(), 2);   // (the one that was after it)
+        e.win.w.undoStack()->undo();
+        QCOMPARE(tabNames(e).size(), 3);
+        QCOMPARE(e.win.w.sheetTabs()->tabData(1).toString(), QStringLiteral("Sheet2"));
+        // an empty sheet is deleted without asking
+        run(e, "sheet.insert");
+        const int steps = e.win.w.undoStack()->count();
+        asked.clear();
+        run(e, "sheet.delete");
+        QVERIFY(asked.isEmpty());
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        // down to the last shown sheet
+        yes = true;
+        clickTab(e, 0);
+        run(e, "sheet.delete");
+        run(e, "sheet.delete");
+        QCOMPARE(tabNames(e).size(), 1);
+        e.win.told.clear();
+        run(e, "sheet.delete");
+        QCOMPARE(tabNames(e).size(), 1);
+        QVERIFY(!e.win.told.isEmpty() && e.win.told.last().contains(QStringLiteral("at least one")));
+    }
+
+    // Renaming by the tab: a double click opens a line over it, Enter makes the name (the formulas follow), Esc gives it up, and a name that is refused is told.
+    void aTabIsRenamedByItsLine()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetsBook()));
+        crunch::SheetTabBar *tabs = e.win.w.sheetTabs();
+        QTest::mouseDClick(tabs, Qt::LeftButton, Qt::NoModifier, tabs->tabRect(1).center());
+        QVERIFY(tabs->isRenaming());
+        QLineEdit *edit = tabs->editor();
+        QVERIFY(edit);
+        QCOMPARE(edit->text(), QStringLiteral("Sheet2"));
+        edit->setText(QStringLiteral("Q & A"));
+        QTest::keyClick(edit, Qt::Key_Return);
+        QVERIFY(!tabs->isRenaming());
+        QCOMPARE(e.win.w.loaded()->book->info().sheets[1].name, QStringLiteral("Q & A"));
+        QCOMPARE(tabs->tabText(1), QStringLiteral("Q && A"));   // (the & is shown, not made a key)
+        QVERIFY(e.settle());
+        QCOMPARE(textOf(e, 0, QStringLiteral("B1")), QStringLiteral("='Q & A'!A1+1"));
+        // Esc gives it up
+        tabs->beginRename(1);
+        edit = tabs->editor();
+        edit->setText(QStringLiteral("Nope"));
+        QTest::keyClick(edit, Qt::Key_Escape);
+        QVERIFY(!tabs->isRenaming());
+        QCOMPARE(e.win.w.loaded()->book->info().sheets[1].name, QStringLiteral("Q & A"));
+        // a name that is refused: told, and nothing changes
+        const int steps = e.win.w.undoStack()->count();
+        QVERIFY(!e.win.w.renameSheetTo(1, QStringLiteral("Sheet3")));
+        QVERIFY(!e.win.told.isEmpty() && e.win.told.last().contains(QStringLiteral("Sheet3")));
+        QVERIFY(!e.win.w.renameSheetTo(1, QStringLiteral("a:b")));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(tabNames(e)[1], QStringLiteral("Q & A"));
+        // by the command (the ribbon and the menu): the line opens on the tab that is open
+        clickTab(e, 2);
+        run(e, "sheet.rename");
+        QVERIFY(tabs->isRenaming());
+        QTest::keyClick(tabs->editor(), Qt::Key_Escape);
+    }
+
+    // Ctrl and Shift pick several tabs; Hide, Delete, Tab Color, and Move or Copy are for all of them, each as one step.
+    void severalTabsArePickedAndTheCommandsAreForAll()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetsBook()));
+        crunch::SheetTabBar *tabs = e.win.w.sheetTabs();
+        QCOMPARE(tabs->selectedTabs(), QVector<int>({0}));
+        clickTab(e, 2, Qt::ControlModifier);
+        QCOMPARE(tabs->selectedTabs(), QVector<int>({0, 2}));
+        QCOMPARE(e.win.w.selectedSheets(), QVector<int>({0, 2}));
+        QCOMPARE(e.win.w.activeSheet(), 0);                 // (Ctrl keeps the sheet that is open)
+        clickTab(e, 2, Qt::ControlModifier);                // (again: not picked)
+        QCOMPARE(tabs->selectedTabs(), QVector<int>({0}));
+        clickTab(e, 2, Qt::ShiftModifier);
+        QCOMPARE(tabs->selectedTabs(), QVector<int>({0, 1, 2}));
+        clickTab(e, 1);                                     // (a click on a tab among those picked keeps the group)
+        QCOMPARE(tabs->selectedTabs(), QVector<int>({0, 1, 2}));
+        QCOMPARE(e.win.w.activeSheet(), 1);
+        tabs->selectOnly(1);
+        clickTab(e, 2);                                     // (a click on a tab that is not picked picks it alone)
+        QCOMPARE(tabs->selectedTabs(), QVector<int>({2}));
+        QCOMPARE(e.win.w.activeSheet(), 2);
+
+        // two sheets colored in one step
+        clickTab(e, 0);
+        tabs->setSelectedTabs({0, 2});
+        QMenu *menu = openTabMenu(e, 0);
+        QVERIFY(menu);
+        QMenu *color = submenuOf(menu, QStringLiteral("Tab Color"));
+        QVERIFY(color);
+        QToolButton *red = nullptr;
+        for (QToolButton *b : color->findChildren<QToolButton *>())
+            if (b->accessibleName() == QStringLiteral("#C00000")) red = b;
+        QVERIFY(red);
+        const int steps = e.win.w.undoStack()->count();
+        red->click();
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QVERIFY(e.win.w.calculation()->sheet(0).tabColor.isSet() && e.win.w.calculation()->sheet(2).tabColor.isSet());
+        QVERIFY(!e.win.w.calculation()->sheet(1).tabColor.isSet());
+        QVERIFY(tabs->stripe(0).isValid() && tabs->stripe(2).isValid() && !tabs->stripe(1).isValid());
+        delete menu;
+        e.win.w.undoStack()->undo();
+        QVERIFY(!e.win.w.calculation()->sheet(0).tabColor.isSet() && !e.win.w.calculation()->sheet(2).tabColor.isSet());
+        QVERIFY(!tabs->stripe(0).isValid() && !tabs->stripe(2).isValid());
+
+        // two sheets hidden in one step
+        clickTab(e, 0);
+        tabs->setSelectedTabs({0, 1});
+        run(e, "sheet.hide");
+        QCOMPARE(tabNames(e), QStringList({QStringLiteral("Sheet3")}));
+        QCOMPARE(e.win.w.activeSheet(), 2);
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Hide Sheets"));
+        e.win.w.undoStack()->undo();
+        QCOMPARE(tabNames(e).size(), 3);
+
+        // and the last that is shown is not hidden
+        tabs->setSelectedTabs({0, 1, 2});
+        e.win.told.clear();
+        const int before = e.win.w.undoStack()->count();
+        run(e, "sheet.hide");
+        QVERIFY(!e.win.told.isEmpty() && e.win.told.last().contains(QStringLiteral("at least one")));
+        QCOMPARE(tabNames(e).size(), 3);
+        QCOMPARE(e.win.w.undoStack()->count(), before);
+
+        // two sheets deleted in one step; saving then forgets the step as one
+        bool asked = false;
+        e.win.w.setConfirmAsker([&](const QString &, const QString &text) {
+            asked = text.contains(QStringLiteral("2"));
+            return true;
+        });
+        clickTab(e, 0);
+        tabs->setSelectedTabs({0, 1});
+        run(e, "sheet.delete");
+        QVERIFY(asked);
+        QCOMPARE(tabNames(e), QStringList({QStringLiteral("Sheet3")}));
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Delete Sheets"));
+        QVERIFY(e.win.w.session()->canUndo());
+        e.win.w.undoStack()->undo();
+        QCOMPARE(tabNames(e).size(), 3);
+        e.win.w.undoStack()->redo();
+        QCOMPARE(tabNames(e).size(), 1);
+        QVERIFY(saveNow(e));
+        QVERIFY(!e.win.w.session()->canUndo());   // (the macro is forgotten whole)
+        QCOMPARE(tabNames(e).size(), 1);
+        Saved f;
+        QVERIFY(f.open(e.path));
+        QCOMPARE(f.names(), QStringList({QStringLiteral("Sheet3")}));
+    }
+
+    // Move or Copy: the sheets picked go before the sheet chosen (or to the end), or copies of them do; the copy is opened.
+    void sheetsAreMovedAndCopiedBeforeAnother()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetsBook()));
+        CrunchWindow::MoveCopyRequest seen;
+        CrunchWindow::MoveCopyRequest answer;
+        int asked = 0;
+        e.win.w.setMoveCopyAsker([&](CrunchWindow::MoveCopyRequest *r) {
+            seen = *r;
+            ++asked;
+            r->before = answer.before;
+            r->copy = answer.copy;
+            return true;
+        });
+        answer.before = -1;
+        run(e, "sheet.moveCopy");
+        QCOMPARE(asked, 1);
+        QCOMPARE(seen.sheets, QVector<int>({0}));
+        QCOMPARE(tabNames(e), QStringList({QStringLiteral("Sheet2"), QStringLiteral("Sheet3"), QStringLiteral("Sheet1")}));
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Move Sheet"));
+        // two sheets before the third
+        e.win.w.sheetTabs()->setSelectedTabs({1, 2});
+        answer.before = 1;   // (before Sheet2, the place of the first sheet of the book, which is not one of the two: Sheet3 and Sheet1 go before it)
+        run(e, "sheet.moveCopy");
+        QCOMPARE(tabNames(e), QStringList({QStringLiteral("Sheet3"), QStringLiteral("Sheet1"), QStringLiteral("Sheet2")}));
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Move Sheets"));
+        e.win.w.undoStack()->undo();
+        QCOMPARE(tabNames(e), QStringList({QStringLiteral("Sheet2"), QStringLiteral("Sheet3"), QStringLiteral("Sheet1")}));
+        // a copy, and the copy is open
+        clickTab(e, 0);
+        answer.before = 2;
+        answer.copy = true;
+        run(e, "sheet.moveCopy");
+        QCOMPARE(tabNames(e), QStringList({QStringLiteral("Sheet2"), QStringLiteral("Sheet2 (2)"), QStringLiteral("Sheet3"), QStringLiteral("Sheet1")}));
+        QCOMPARE(e.win.w.activeSheet(), 3);
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, 3, QStringLiteral("A1")), QStringLiteral("n:10"));
+        // asked and given up: nothing done
+        e.win.w.setMoveCopyAsker([](CrunchWindow::MoveCopyRequest *) { return false; });
+        const int steps = e.win.w.undoStack()->count();
+        run(e, "sheet.moveCopy");
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        // a tab dragged past the others to the end moves its sheet, as one step, and is the one shown and picked
+        crunch::SheetTabBar *tabs = e.win.w.sheetTabs();
+        const int before = e.win.w.undoStack()->count();
+        const QPoint start = tabs->tabRect(0).center();
+        const QPoint end = tabs->tabRect(3).center();
+        QTest::mousePress(tabs, Qt::LeftButton, Qt::NoModifier, start);
+        for (int i = 1; i <= 12; ++i) QTest::mouseMove(tabs, start + (end - start) * i / 12);
+        QTest::mouseRelease(tabs, Qt::LeftButton, Qt::NoModifier, end);
+        QCOMPARE(tabNames(e), QStringList({QStringLiteral("Sheet2 (2)"), QStringLiteral("Sheet3"), QStringLiteral("Sheet1"), QStringLiteral("Sheet2")}));
+        QCOMPARE(e.win.w.undoStack()->count(), before + 1);
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Move Sheet"));
+        QCOMPARE(tabs->selectedTabs(), QVector<int>({3}));
+        QCOMPARE(e.win.w.activeSheet(), 1);   // (Sheet2, which was dragged)
+        e.win.w.undoStack()->undo();
+        QCOMPARE(tabNames(e), QStringList({QStringLiteral("Sheet2"), QStringLiteral("Sheet2 (2)"), QStringLiteral("Sheet3"), QStringLiteral("Sheet1")}));
+    }
+
+    // The menu of a tab, and showing hidden sheets again from a menu of the hidden.
+    void theTabMenuAndUnhide()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetsBook()));
+        QVERIFY(e.win.w.session()->setSheetHidden(1, true).ok);
+        QCOMPARE(tabNames(e), QStringList({QStringLiteral("Sheet1"), QStringLiteral("Sheet3")}));
+        Q_EMIT e.win.w.sheetTabs()->contextRequested(1, QPoint(10, 10));
+        QMenu *menu = e.win.w.findChild<QMenu *>(QStringLiteral("sheetMenu"));
+        QVERIFY(menu);
+        QStringList items;
+        for (QAction *a : menu->actions()) items << a->text();
+        for (const QString &want : {QStringLiteral("Insert Sheet"), QStringLiteral("Delete Sheet"), QStringLiteral("Rename Sheet"), QStringLiteral("Move or Copy Sheet…"), QStringLiteral("Hide Sheet"),
+                                    QStringLiteral("Tab Color"), QStringLiteral("Unhide Sheet")})
+            QVERIFY2(items.contains(want), qPrintable(want));
+        QMenu *unhide = nullptr;
+        for (QAction *a : menu->actions())
+            if (a->menu() && a->text() == QStringLiteral("Unhide Sheet")) unhide = a->menu();
+        QVERIFY(unhide);
+        unhide->aboutToShow();
+        QCOMPARE(unhide->actions().size(), 1);
+        QCOMPARE(unhide->actions().first()->text(), QStringLiteral("Sheet2"));
+        unhide->actions().first()->trigger();
+        QCOMPARE(tabNames(e), QStringList({QStringLiteral("Sheet1"), QStringLiteral("Sheet2"), QStringLiteral("Sheet3")}));
+        unhide->aboutToShow();
+        QVERIFY(!unhide->actions().first()->isEnabled());   // (none are hidden: "No hidden sheets")
+        delete menu;
+        // the ribbon names the same menus, and every one of its parts is found
+        QCOMPARE(e.win.w.ribbonErrors(), QString());
+    }
+};
+
 JP_TEST_CLASS(CrunchSheetsTests)
+JP_TEST_CLASS(CrunchSheetTabsTests)
 #include "tst_crunch_sheets.moc"

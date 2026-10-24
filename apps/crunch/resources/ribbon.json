@@ -105,8 +105,8 @@
           "name": "Cells",
           "keytip": "ZL",
           "items": [
-            {"large": "cells.insert", "keytip": "I", "split": true, "menu": ["cells.insert.cells", "cells.insert.rows", "cells.insert.columns"]},
-            {"large": "cells.delete", "keytip": "D", "split": true, "menu": ["cells.delete.cells", "cells.delete.rows", "cells.delete.columns"]},
+            {"large": "cells.insert", "keytip": "I", "split": true, "menu": ["cells.insert.cells", "cells.insert.rows", "cells.insert.columns", "sheet.insert"]},
+            {"large": "cells.delete", "keytip": "D", "split": true, "menu": ["cells.delete.cells", "cells.delete.rows", "cells.delete.columns", "sheet.delete"]},
             {
               "large": "cells.format",
               "keytip": "O",
@@ -123,7 +123,13 @@
                 "format.unhideRows",
                 "format.unhideColumns",
                 "-",
-                "format.cells"
+                "format.cells",
+                {"section": "Organize Sheets"},
+                "sheet.rename",
+                "sheet.moveCopy",
+                {"submenu": "Tab Color", "icon": "palette", "menu": "@tabColors"},
+                "sheet.hide",
+                {"submenu": "Unhide Sheet", "icon": "eye", "menu": "@unhideSheets"}
               ]
             }
           ]

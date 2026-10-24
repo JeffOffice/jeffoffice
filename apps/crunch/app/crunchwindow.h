@@ -117,6 +117,18 @@ public:
         bool standard = false;   // the sheet's default (Default Width, Default Row Height), not the size of the selected columns or rows
     };
     void setSizeAsker(const std::function<bool(SizeRequest *)> &asker) { m_sizeAsker = asker; }
+    // What Move or Copy asks: which sheets (their places), before which sheet (its place; -1: at the end), and whether to make copies. A dialog unless this stands in for it (tests); false
+    // gives it up.
+    struct MoveCopyRequest {
+        QVector<int> sheets;
+        int before = -1;
+        bool copy = false;
+    };
+    void setMoveCopyAsker(const std::function<bool(MoveCopyRequest *)> &asker) { m_moveCopyAsker = asker; }
+    // The sheets the tabs have picked (their places in the workbook), the one with the cursor among them.
+    QVector<int> selectedSheets() const;
+    // Gives a sheet a new name (what the tab's name line does when it is finished): the formulas that name it follow. The reason is shown if the name is refused.
+    bool renameSheetTo(int sheet, const QString &name);
     // What is asked when a value does not fit the rule of validation of its cell and the rule is a warning or only tells: the rule's title, its message, and its style (Validation::Style, 1
     // warning, 2 information); true goes on. A message box unless this stands in for it (tests). A rule that stops is only told (through the notifier).
     // For tests: what asks whether to go on with a step that Undo cannot hold (its text), standing in for the question.
@@ -293,6 +305,21 @@ private:
     void widenForCells(int sheet, const jp::office::sheet::CellRange &cells);
     QString htmlOfClip(const crunch::ClipData &clip) const;
     void freezeAtSelection();
+    // the sheets (crunchwindow_sheets.cpp): the tabs, and the commands that add, copy, rename, delete, move, hide, and color them
+    void createSheetActions();
+    void onSheetsChanged();
+    void onTabMoved(int from, int to);
+    void refreshStripes();
+    void insertSheetCommand(bool atEnd);
+    void deleteSheetsCommand();
+    void moveCopyCommand();
+    void hideSheetsCommand();
+    void setTabColorCommand(const jp::office::sheet::ColorSpec &color);
+    void showTabMenu(int tab, const QPoint &globalPos);
+    QMenu *buildTabColorMenu(QWidget *owner);
+    QMenu *buildUnhideMenu(QWidget *owner);
+    std::function<bool(MoveCopyRequest *)> m_moveCopyAsker;
+    QWidget *m_sheetTabRow = nullptr;
     // formatting (crunchwindow_format.cpp): the commands of the Home tab and the Format Cells dialog
     enum class PainterMode { Off, Once, Locked };
     void createFormatActions();
