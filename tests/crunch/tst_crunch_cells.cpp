@@ -98,12 +98,19 @@ QString differences(const office::sheet::Calculation *a, const office::sheet::Ca
 QString storeDiffers(EditWindow &e)
 {
     // (the edits were made through the session, not the window's keys: the worker is waited for here)
+    // (not by a pause: the worker is idle and has nothing left to work out, seen with it held, and what it sent is taken. A worker that has not yet woken to an edit is idle too, but the
+    // edit has left formulas for it to work out)
     auto &loader = e.win.w.workbookLoader();
-    QTest::qWait(1);
     QElapsedTimer waited;
     waited.start();
-    while (!loader.result()->calcIdle.load() && waited.elapsed() < 20000) QTest::qWait(2);
-    QTest::qWait(5);
+    for (;;) {
+        QTest::qWait(1);   // (the batches that are on their way are taken)
+        bool done = false;
+        if (loader.result()->calcIdle.load())
+            if (auto hold = loader.hold()) done = !hold->calculation()->isDirty();
+        if (done || waited.elapsed() > 20000) break;
+    }
+    QCoreApplication::processEvents();
     const office::sheet::Calculation *calc = e.win.w.calculation();
     for (int s = 0; s < calc->sheetCount(); ++s) {
         bool circular = false;
