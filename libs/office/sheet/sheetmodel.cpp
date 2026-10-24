@@ -83,7 +83,9 @@ qint64 CellStore::shiftRows(quint32 first, qint64 delta, quint32 limit, const st
         current.clear();
     };
     const qint64 deletedEnd = delta < 0 ? qint64(first) - delta : 0;
-    for (Block &block : taken)
+    for (Block &block : taken) {
+        const size_t hint = block.cells.size();   // (the cells of a block are about as many in the block that is made of it: room for them at once, not a doubling at a time)
+        if (current.capacity() < hint) current.reserve(hint);
         for (Cell &c : block.cells) {
             const Cell before = c;
             if (c.row >= first) {
@@ -98,10 +100,14 @@ qint64 CellStore::shiftRows(quint32 first, qint64 delta, quint32 limit, const st
                 if (formulaMoved && (c.hasFormula() || (c.flags & ArrayMember))) formulaMoved(before, c);
             }
             const quint32 key = c.row / kBlockRows;
-            if (!current.empty() && key != currentKey) flush();
+            if (!current.empty() && key != currentKey) {
+                flush();
+                current.reserve(hint);
+            }
             currentKey = key;
             current.push_back(c);
         }
+    }
     flush();
     return moved;
 }
@@ -115,7 +121,7 @@ qint64 CellStore::shiftColumns(quint32 first, qint64 delta, quint32 limit, const
         std::vector<Cell> &cells = it->second.cells;
         size_t keep = 0;
         for (size_t i = 0; i < cells.size(); ++i) {
-            Cell c = cells[i];
+            Cell &c = cells[i];
             if (c.col >= first) {
                 const qint64 col = qint64(c.col) + delta;
                 if ((delta < 0 && qint64(c.col) < deletedEnd) || col >= qint64(limit) || col < 0) {
@@ -123,12 +129,17 @@ qint64 CellStore::shiftColumns(quint32 first, qint64 delta, quint32 limit, const
                     if (removed) removed->push_back(c);
                     continue;
                 }
-                const Cell before = c;
-                c.col = quint16(col);
+                if (formulaMoved && (c.hasFormula() || (c.flags & ArrayMember))) {
+                    const Cell before = c;
+                    c.col = quint16(col);
+                    formulaMoved(before, c);
+                } else {
+                    c.col = quint16(col);
+                }
                 ++moved;
-                if (formulaMoved && (c.hasFormula() || (c.flags & ArrayMember))) formulaMoved(before, c);
             }
-            cells[keep++] = c;
+            if (keep != i) cells[keep] = c;
+            ++keep;
         }
         cells.resize(keep);
         if (cells.empty()) it = m_blocks.erase(it);

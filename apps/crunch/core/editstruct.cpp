@@ -19,6 +19,7 @@ qint64 StructChange::bytes() const
     qint64 n = qint64(sizeof(*this));
     for (const Calculation::EditRecord::GoneCell &g : record.gone) n += qint64(sizeof(g)) + contentBytes(g.content);
     for (const Calculation::EditRecord::FormulaWas &w : record.was) n += qint64(sizeof(w)) + qint64(w.text.size()) * 2;
+    for (const Calculation::EditRecord::RewrittenGroup &g : record.groups) n += qint64(sizeof(g)) + qint64(g.oldText.size()) * 2 + qint64(g.cells.size()) * qint64(sizeof(std::pair<quint32, quint32>));
     n += qint64(record.ranges.size() + record.merges.size()) * qint64(sizeof(CellRange));
     n += qint64(record.columns.size()) * qint64(sizeof(ColumnSpan)) + qint64(record.rowSpecs.size()) * qint64(sizeof(RowSpec));
     for (const auto &name : record.names) n += qint64(name.first.size() + name.second.size()) * 2;

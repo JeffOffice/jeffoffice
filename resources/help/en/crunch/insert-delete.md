@@ -30,4 +30,5 @@ These follow the cells too: formulas on every sheet, names (such as print areas 
 - A **table** can't be cut across: you can't insert a column inside it, and you can't delete its header row or all of its rows. Insert or delete rows inside it, or change the cells around it.
 - A **protected sheet** can't have rows, columns, or cells inserted or deleted. Take the protection off in the program that put it on.
 - Cells at the end of the sheet that hold something can't be pushed off the edge. Delete them first.
-- After you save, **Undo** goes back as far as the last time cells were inserted or deleted. The file has those changes, and taking them out of the file is not done.
+- After you save, **Undo** still goes back over what you did before, rows and columns you inserted included (the next save has them taken out again). The one thing it cannot give back is rows, columns, or cells you **deleted**: the saved file has lost what was in them, so **Undo** stops at the last delete you saved, and the line at the bottom of the window says so when you save.
+- A step that moves or deletes so many cells that **Undo** could not hold it (more than about 128 MB) asks first, as the spreadsheet programs people know do: "This can't be undone." If you go on, it is done and **Undo** does not go back over it or what came before it.

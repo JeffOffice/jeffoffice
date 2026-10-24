@@ -3,7 +3,7 @@
 
 **Copy** (**{key:Copy}**) puts a copy of the selected cells on the clipboard, a place the computer keeps for one thing at a time. **Paste** (**{key:Paste}**) puts what is on the clipboard into the cells starting at the selected cell. **Cut** (**{key:Cut}**) is like copy, but when you paste, the cells are moved and the old place is emptied.
 
-A moving dashed border shows the cells that were copied or cut. Press **Esc** to take the border away; the cells are then no longer ready to paste.
+A moving dashed border shows the cells that were copied or cut. Press **Esc** to take the border away; the cells are then no longer ready to paste. Cut cells are also let go when you make any other change before pasting them (typing, inserting, undoing): cut them again if you still want to move them.
 
 ## Paste inside JeffCrunch
 
