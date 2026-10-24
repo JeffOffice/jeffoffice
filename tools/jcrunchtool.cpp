@@ -8,6 +8,8 @@
 //   jcrunchtool names <file.xlsx|file.xls>                the defined names, one to a line (the sheet it belongs to, its name, and what it stands for), and what a binary workbook holds that is not read
 //   jcrunchtool compare-one <ours.xls> <theirs.xlsx>   a workbook of the old form read here, and the same workbook saved in the XML form by another program, cell by cell (see jcrunchtool_compare.cpp;
 //                                                tools/crunch_xls_compare.py runs it over a list and sums it up)
+//   jcrunchtool xls-fuzz <file.xls> [count=500] [seed=1] [seconds=60]   the workbook damaged in a few places, `count` times, and each copy opened, read, and (some) worked out, as a sweep for crashes
+//                                                and hangs of the reader of the old binary form (see jcrunchtool_xlsfuzz.cpp)
 //   jcrunchtool dump <file.xlsx|file.xls> [sheet=1] [max=100]   the first cells of a sheet (counting from 1), one to a line: address, type, value, and formula
 //   jcrunchtool scan <keys.txt> <out-dir> [jobs]   runs `info` on each workbook listed (one path to a line), each in a child process that has 120 seconds and 4 GB,
 //                                                  and writes <out-dir>/books.tsv: path, exit, seconds, peak MB, sheets, cells, formula cells, stored results, and
@@ -676,6 +678,7 @@ int usage()
              "       jcrunchtool mutate <file.xlsx|file.xls> [count=3000] [seed=1] [seconds=60]\n"
              "       jcrunchtool names <file.xlsx|file.xls>\n"
              "       jcrunchtool compare-one <ours.xls> <theirs.xlsx>\n"
+             "       jcrunchtool xls-fuzz <file.xls> [count=500] [seed=1] [seconds=60]\n"
              "       jcrunchtool functions\n"
              "       jcrunchtool eval <file.xlsx|file.xls> <sheet> <cell> <formula>\n"
              "       jcrunchtool recalc <keys.txt> <out-dir> [jobs]\n"
@@ -692,6 +695,7 @@ int usage()
 
 namespace jp::crunchtool {
 int compareMain(const QStringList &args);   // (jcrunchtool_compare.cpp)
+int xlsFuzzMain(const QStringList &args);   // (jcrunchtool_xlsfuzz.cpp)
 }
 
 int main(int argc, char **argv)
@@ -720,6 +724,10 @@ int main(int argc, char **argv)
     }
     if (args.size() == 2 && args[0] == QLatin1String("names")) return names(args[1]);
     if (args.size() == 3 && args[0] == QLatin1String("compare-one")) return jp::crunchtool::compareMain(args.mid(1));
+    if (args.size() >= 2 && args.size() <= 5 && args[0] == QLatin1String("xls-fuzz")) {
+        const int code = jp::crunchtool::xlsFuzzMain(args.mid(1));
+        if (code >= 0) return code;
+    }
     if (args.size() >= 2 && args.size() <= 4 && args[0] == QLatin1String("dump")) return dump(args[1], args.value(2, QStringLiteral("1")).toInt(), args.value(3, QStringLiteral("100")).toLongLong());
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("scan")) return scan(args[1], args[2], args.value(3));
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("format")) return formatOne(args[1], args[2], args.value(3) == QLatin1String("1904"));

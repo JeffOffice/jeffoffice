@@ -129,11 +129,11 @@ private:
 
     QString bad() const { return translate("A formula has a token this program does not read."); }
 
-    bool push(const QString &s)
+    bool push(QString s)
     {
         m_chars += s.size();
         if (m_chars > m_opt.maxChars) return false;
-        m_stack.append(s);
+        m_stack.append(std::move(s));
         return true;
     }
     bool pop(QString *s)
@@ -424,8 +424,11 @@ private:
                 }
                 default:
                     if (ptg >= 0x03 && ptg <= 0x11) {
+                        // (the left operand grows in place: a chain of a thousand sums is read in time in proportion to its length, not its square)
                         QString a, b;
-                        if (!pop(&b) || !pop(&a) || !push(a + QLatin1String(binary[ptg - 3]) + b)) return bad();
+                        if (!pop(&b) || !pop(&a)) return bad();
+                        a.append(QLatin1String(binary[ptg - 3])).append(b);
+                        if (!push(std::move(a))) return bad();
                         continue;
                     }
                     return bad();

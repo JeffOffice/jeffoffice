@@ -822,6 +822,7 @@ private:
         info->activeTab = m_activeTab < m_sheets.size() ? m_activeTab : 0;
         info->firstSheet = m_firstTab < m_sheets.size() ? m_firstTab : 0;
         info->definedNames.clear();
+        qint64 refChars = 0;   // (what the names stand for, all together, is bounded as the XML form's are)
         for (const RawName &n : std::as_const(m_rawNames)) {
             DefinedName d;
             d.name = n.text;
@@ -832,8 +833,10 @@ private:
             opts.name = true;
             opts.sheet = d.localSheet;
             opts.maxChars = m_lim.formulaChars;
+            opts.maxChars = std::min<qint64>(opts.maxChars, std::max<qint64>(0, m_lim.definedNameChars - refChars));
             const XlsFormulaResult res = n.rgce.isEmpty() ? XlsFormulaResult() : xlsFormulaText(m_cx, n.rgce, n.extra, opts);
             d.ref = n.rgce.isEmpty() ? QString() : res.ok() ? res.text : QStringLiteral("#REF!");
+            refChars += d.ref.size();
             info->definedNames.append(d);
         }
         *shared = m_sst;
@@ -1498,6 +1501,7 @@ private:
             } else {
                 m_s.stats.longestFormula = std::max<qint64>(m_s.stats.longestFormula, conv.text.size());
                 m_s.stats.expandedFormulaChars += conv.text.size();
+                if (m_s.stats.expandedFormulaChars > m_lim.expandedFormulaChars) return fail(translate("The formulas, all together, are longer than any real file has."));
                 m_s.formulaTexts.append(conv.text);
                 f.text = qint32(m_s.formulaTexts.size() - 1);
                 m_s.formulas.append(f);
