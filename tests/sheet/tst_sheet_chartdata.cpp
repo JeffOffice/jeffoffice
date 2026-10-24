@@ -3,8 +3,10 @@
 #include "drawinghelpers.h"
 
 #include "core/fonts.h"
+#include "grid/chartcells.h"
 #include "office/theme.h"
 #include "sheet/chartdata.h"
+#include "sheet/recalc.h"
 
 #include <QMap>
 #include <cmath>
@@ -406,4 +408,89 @@ private Q_SLOTS:
 };
 
 JP_TEST_CLASS(SheetChartDataTests)
+
+// The cells of a real workbook: the values the file stored, the results the calculation told, the formats of the cells, hidden rows and columns, and names.
+class GridChartCellsTests : public QObject {
+    Q_OBJECT
+
+    struct Loaded {
+        Package package;
+        Workbook book;
+        std::unique_ptr<WorkbookSource> source;
+        Chart chart;
+    };
+    static bool load(Loaded *l, const QByteArray &xlsx, QString *why)
+    {
+        if (!l->package.readLazy(xlsx, why) || !l->book.open(l->package, why)) return false;
+        l->source = std::make_unique<WorkbookSource>(l->book);
+        if (!l->source->loadAll()) return false;
+        Theme theme;
+        return readChart(l->package.part(QStringLiteral("/xl/charts/chart1.xml")), theme, ColorMap(), &l->chart, why);
+    }
+    static QByteArray book(const QByteArray &sheet, const QVector<SeriesSpec> &series, bool plotVisOnly = true, const QString &names = QString(), const QByteArray &styles = QByteArray())
+    {
+        return bookWithDrawing({sheet}, drawingPart(twoCell(0, 5, 4, 15, chartFrame(2, QStringLiteral("rIdC")))), {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), series, QString(), plotVisOnly))},
+                               QStringList(), names, styles);
+    }
+
+private Q_SLOTS:
+    void initTestCase() { jp::initCore(); }
+
+    // A chart in a real workbook: the names and values are those of the cells, a formula's is the result the file stored until the window is told another, a date category shows as its
+    // format makes it, hidden rows and columns are left out, and a defined name stands for its cells.
+    void aWorkbooksChartReadsItsCells()
+    {
+        const QByteArray styles = stylesXml(QStringLiteral("<numFmt numFmtId=\"164\" formatCode=\"mmm d, yyyy\"/>"), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"164\"/>"));
+        auto text = [](const QString &ref, const QString &t) { return QStringLiteral("<c r=\"%1\" t=\"inlineStr\"><is><t>%2</t></is></c>").arg(ref, t); };
+        const QString rows = QStringLiteral("<row r=\"1\">") + text("A1", "When") + text("B1", "Sales") + QStringLiteral("</row>")
+                             + QStringLiteral("<row r=\"2\"><c r=\"A2\" s=\"1\"><v>45366</v></c><c r=\"B2\"><v>4</v></c></row>")
+                             + QStringLiteral("<row r=\"3\" hidden=\"1\"><c r=\"A3\" s=\"1\"><v>45367</v></c><c r=\"B3\"><v>5</v></c></row>")
+                             + QStringLiteral("<row r=\"4\"><c r=\"A4\" s=\"1\"><v>45368</v></c><c r=\"B4\"><f>B2*10</f><v>1</v></c></row>");
+        Loaded l;
+        QString why;
+        const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sales"), QStringLiteral("old"), {"x", "y", "z"}, {9, 9, 9}, QString()}};
+        QVERIFY2(load(&l, book(worksheet(rows), series, true, QStringLiteral("<definedName name=\"Sales\">Sheet1!$B$2:$B$4</definedName>"), styles), &why), qPrintable(why));
+        jp::grid::ValueStore store;
+        jp::grid::WorkbookChartCells cells(l.source.get(), &store, &l.book.styles(), l.book.info().dateSystem);
+        QCOMPARE(cells.sheetCount(), 1);
+        QCOMPARE(cells.sheetIndex(QStringLiteral("sheet1")), 0);
+        QVERIFY(cells.rowHidden(0, 2) && !cells.rowHidden(0, 1));
+        QCOMPARE(cells.text(0, 1, 0), QStringLiteral("Mar 15, 2024"));
+        QCOMPARE(cells.text(0, 0, 1), QStringLiteral("Sales"));
+        QCOMPARE(cells.value(0, 3, 1).number(), 1.0);   // (the result the file stored)
+        QCOMPARE(cells.definedName(QStringLiteral("sales"), 0), QStringLiteral("Sheet1!$B$2:$B$4"));
+        QVERIFY(cells.value(0, 9, 9).isEmpty());
+        QVERIFY(cells.text(0, 9, 9).isEmpty());
+        applyChartCells(&l.chart, 0, cells);
+        const ChartSeries &s = l.chart.plots[0].series[0];
+        QCOMPARE(s.name, QStringLiteral("Sales"));
+        QCOMPARE(s.categories, (QStringList{"Mar 15, 2024", "Mar 17, 2024"}));
+        QVERIFY(sameNumbers(s.values, {4, 1}));
+        // the calculation tells the window another result for the formula: the chart has it
+        store.apply({{0, 3, 1, Value::number(40)}});
+        applyChartCells(&l.chart, 0, cells);
+        QVERIFY(sameNumbers(l.chart.plots[0].series[0].values, {4, 40}));
+        // a row is shown again, and a column hidden
+        QVERIFY(chartReads(l.chart, 0, cells).size() == 3);
+    }
+
+    // A column hidden by the file, and one the sheet's own formats: the runs of columns are read.
+    void hiddenColumnsAreRead()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><v>2</v></c><c r=\"C1\"><v>3</v></c><c r=\"D1\"><v>4</v></c></row>");
+        Loaded l;
+        QString why;
+        QVERIFY2(load(&l, book(worksheet(rows, QString(), QStringLiteral("<cols><col min=\"2\" max=\"3\" width=\"9\" hidden=\"1\" customWidth=\"1\"/></cols>")),
+                                {SeriesSpec{QString(), QString(), QStringLiteral("Sheet1!$A$1:$D$1"), QString(), {}, {0}, QString()}}), &why), qPrintable(why));
+        jp::grid::WorkbookChartCells cells(l.source.get(), nullptr, &l.book.styles(), l.book.info().dateSystem);
+        QVERIFY(!cells.columnHidden(0, 0) && cells.columnHidden(0, 1) && cells.columnHidden(0, 2) && !cells.columnHidden(0, 3));
+        applyChartCells(&l.chart, 0, cells);
+        QVERIFY(sameNumbers(l.chart.plots[0].series[0].values, {1, 4}));
+        l.chart.plotVisibleOnly = false;
+        applyChartCells(&l.chart, 0, cells);
+        QVERIFY(sameNumbers(l.chart.plots[0].series[0].values, {1, 2, 3, 4}));
+    }
+};
+
+JP_TEST_CLASS(GridChartCellsTests)
 #include "tst_sheet_chartdata.moc"
