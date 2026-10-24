@@ -334,6 +334,26 @@ private Q_SLOTS:
         QCOMPARE(c.plots[0].series[1].categories, (QStringList{"p", "q"}));
     }
 
+    // An empty cell is a blank in the chart, and the chart draws it as it says (a gap, zero, or the line carried over it): three pictures.
+    void blankCellsAreDrawnAsTheChartSays()
+    {
+        FakeCells f;
+        for (int i : {1, 2, 4, 5}) f.set(0, QStringLiteral("A%1").arg(i), Value::number(i * 10));   // (A3 is empty)
+        auto svgFor = [&](const char *blanks) {
+            Chart c = readIt(chartPart(QStringLiteral("lineChart"), {SeriesSpec{QString(), QString(), QStringLiteral("Sheet1!$A$1:$A$5"), QStringLiteral("S"), {}, {1, 1, 1, 1, 1}, QString()}}, QString(), true, QLatin1String(blanks)));
+            applyChartCells(&c, 0, f);
+            [&] {
+                QVERIFY(std::isnan(c.plots[0].series[0].values[2]));
+                QCOMPARE(c.blanksAs, QLatin1String(blanks));
+            }();
+            return chartSvg(c, QSizeF(480, 288));
+        };
+        const QByteArray gap = svgFor("gap"), zero = svgFor("zero"), span = svgFor("span");
+        QVERIFY(gap != zero);
+        QVERIFY(gap != span);
+        QVERIFY(zero != span);
+    }
+
     // A title linked to a cell, and a title named for the only series, follow the cells.
     void titlesFollow()
     {
