@@ -15,9 +15,14 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Select cells and move around](select-and-move)
 - [Change the view](view)
 - [How formulas are shown and calculated](formulas)
+- [Conditional formats](conditional-formats)
 
 ## Change a workbook
 
+- [Format cells](format-cells)
+- [Number formats and your language](number-formats)
+- [Cell styles](cell-styles)
+- [Work with sheets](sheets)
 - [Insert and delete rows, columns, and cells](insert-delete)
 - [Change the width of columns and the height of rows](sizes)
 - [Cut, copy, and paste](clipboard)
