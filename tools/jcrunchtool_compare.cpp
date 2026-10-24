@@ -233,7 +233,6 @@ int compareMain(const QStringList &args)
             const bool anyFormula = mine.formula || other.formula;
             const bool exact = sameValue(mine, other);
             const bool near = !exact && nearNumbers(mine, other);
-            const bool same = exact || near;
             if (anyFormula) {
                 if (exact) ++fvalSame;
                 else if (near) ++fvalNear;

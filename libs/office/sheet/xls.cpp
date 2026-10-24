@@ -220,14 +220,6 @@ private:
     bool m_ok = true;
 };
 
-Logical single(const QByteArray &d, const Rec &r)
-{
-    Logical lg;
-    lg.data = d.mid(r.pos, r.len);
-    lg.ends << lg.data.size();
-    return lg;
-}
-
 // What the format spells out in a few bits.
 CellError cellErrorFromCode(int code)
 {
@@ -1108,7 +1100,7 @@ public:
         }
         m_view.zoom = m_scl ? m_scl : m_wScale ? m_wScale : 100;
         if (m_haveSelection) {
-            const Selection &sel = m_selections.contains(m_pane.active) ? m_selections[m_pane.active] : m_selections.cbegin().value();
+            const Selection sel = m_selections.contains(m_pane.active) ? m_selections.value(m_pane.active) : m_selections.cbegin().value();
             m_view.activeRow = sel.row;
             m_view.activeCol = sel.col;
         }

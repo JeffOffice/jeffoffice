@@ -66,9 +66,12 @@ def cfb_stream(data, names):
         name = dirdata[o:o + max(0, nl - 2)].decode("utf-16le", "replace")
         ents.append((name, dirdata[o + 66], struct.unpack_from("<I", dirdata, o + 116)[0], struct.unpack_from("<Q" if ss == 4096 else "<I", dirdata, o + 120)[0]))
     found = None
-    for e in ents:
-        if e[1] == 2 and e[0] in names:
-            found = e
+    for want in names:   # (a file saved for both the old and the new program holds two: the first name asked for is the one wanted)
+        for e in ents:
+            if e[1] == 2 and e[0] == want:
+                found = e
+                break
+        if found:
             break
     if not found:
         return None
@@ -83,30 +86,42 @@ def cfb_stream(data, names):
 
 
 def cfb_write(stream, name):
-    """A compound file of version 4 (sectors of 4,096 bytes) with the one stream."""
-    ss = 4096
+    """A compound file of version 3 (sectors of 512 bytes) with the one stream, with the sectors of the allocation table listed in the header and, past 109 of them, in sectors of their own."""
+    ss = 512
     if len(stream) < 4096:
         stream = stream + b"\0" * (4096 - len(stream))
     nstream = (len(stream) + ss - 1) // ss
-    nfat = 1
-    while nfat * 1024 < nfat + 1 + nstream:
+    nfat, ndifat = 1, 0
+    while True:
+        ndifat = (nfat - 109 + 126) // 127 if nfat > 109 else 0
+        if nfat * 128 >= nfat + ndifat + 1 + nstream:
+            break
         nfat += 1
-    if nfat > 109:
-        raise ValueError("too big")
-    fat = [FREE] * (nfat * 1024)
+    # the sectors: the allocation tables, then the sectors that list them, the directory, the stream
+    fat = [FREE] * (nfat * 128)
     for i in range(nfat):
         fat[i] = 0xFFFFFFFD
-    dirsec = nfat
+    for i in range(ndifat):
+        fat[nfat + i] = 0xFFFFFFFC
+    dirsec = nfat + ndifat
     fat[dirsec] = END
-    first = nfat + 1
+    first = dirsec + 1
     for i in range(nstream):
         fat[first + i] = first + i + 1 if i + 1 < nstream else END
     hdr = bytearray(ss)
     hdr[0:8] = SIG
-    struct.pack_into("<HHHHH", hdr, 24, 0x3E, 4, 0xFFFE, 12, 6)
-    struct.pack_into("<IIIIIIIII", hdr, 40, 1, nfat, dirsec, 0, 4096, END, 0, END, 0)
+    struct.pack_into("<HHHHH", hdr, 24, 0x3E, 3, 0xFFFE, 9, 6)
+    struct.pack_into("<IIIIIIIII", hdr, 40, 0, nfat, dirsec, 0, 4096, END, 0, END if ndifat == 0 else nfat, ndifat)
     for i in range(109):
         struct.pack_into("<I", hdr, 76 + 4 * i, i if i < nfat else FREE)
+    difat = bytearray()
+    for k in range(ndifat):
+        sec = [FREE] * 127
+        for m in range(127):
+            idx = 109 + k * 127 + m
+            if idx < nfat:
+                sec[m] = idx
+        difat += struct.pack("<127I", *sec) + struct.pack("<I", (nfat + k + 1) if k + 1 < ndifat else END)
     d = bytearray(ss)
     for o in range(0, ss, 128):
         struct.pack_into("<III", d, o + 68, NOSTREAM, NOSTREAM, NOSTREAM)
@@ -119,12 +134,12 @@ def cfb_write(stream, name):
         d[o + 67] = 1
         struct.pack_into("<III", d, o + 68, NOSTREAM, NOSTREAM, child)
         struct.pack_into("<I", d, o + 116, start)
-        struct.pack_into("<Q", d, o + 120, size)
+        struct.pack_into("<I", d, o + 120, size)
 
     ent(0, "Root Entry", 5, 1, END, 0)
     ent(128, name, 2, NOSTREAM, first, len(stream))
     padded = stream + b"\0" * (nstream * ss - len(stream))
-    return bytes(hdr) + struct.pack("<%dI" % len(fat), *fat) + bytes(d) + padded
+    return bytes(hdr) + struct.pack("<%dI" % len(fat), *fat) + bytes(difat) + bytes(d) + padded
 
 
 def records(st):
