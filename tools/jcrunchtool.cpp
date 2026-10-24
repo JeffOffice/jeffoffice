@@ -6,8 +6,9 @@
 //                                                range, formula characters expanded in a sheet, shared strings, their characters, sheets, bytes counted to hold the largest sheet). Exits 0 if all was read, 2 if it was opened
 //                                                but a sheet is only partly read, and 1 if it could not be opened.
 //   jcrunchtool names <file.xlsx|file.xls>                the defined names, one to a line (the sheet it belongs to, its name, and what it stands for), and what a binary workbook holds that is not read
-//   jcrunchtool compare-one <ours.xls> <theirs.xlsx>   a workbook of the old form read here, and the same workbook saved in the XML form by another program, cell by cell (see jcrunchtool_compare.cpp;
+//   jcrunchtool compare-one [--first-sheet] [--values-only] <ours.xls|.ods|.csv> <theirs.xlsx>   a workbook of the old form, an .ods, or a .csv read here, and the same workbook saved in the XML form by another program, cell by cell (see jcrunchtool_compare.cpp;
 //                                                tools/crunch_xls_compare.py runs it over a list and sums it up)
+//   jcrunchtool convert-fuzz <file.ods|file.fods|file.csv> [count=500] [seed=1] [seconds=60]   the same for an OpenDocument spreadsheet or a text file of values (see jcrunchtool_odsfuzz.cpp)
 //   jcrunchtool xls-fuzz <file.xls> [count=500] [seed=1] [seconds=60]   the workbook damaged in a few places, `count` times, and each copy opened, read, and (some) worked out, as a sweep for crashes
 //                                                and hangs of the reader of the old binary form (see jcrunchtool_xlsfuzz.cpp)
 //   jcrunchtool xls-save-check <file.xls>   the workbook written as the XML form, read back, and compared with itself, and written again with one cell changed (see jcrunchtool_xlssave.cpp;
@@ -681,7 +682,8 @@ int usage()
              "       jcrunchtool recalc-one <file.xlsx|file.xls> [matches=3] [seconds=100]\n"
              "       jcrunchtool mutate <file.xlsx|file.xls> [count=3000] [seed=1] [seconds=60]\n"
              "       jcrunchtool names <file.xlsx|file.xls>\n"
-             "       jcrunchtool compare-one <ours.xls> <theirs.xlsx>\n"
+             "       jcrunchtool compare-one [--first-sheet] [--values-only] <ours.xls|.ods|.csv> <theirs.xlsx>\n"
+             "       jcrunchtool convert-fuzz <file.ods|file.fods|file.csv> [count=500] [seed=1] [seconds=60]\n"
              "       jcrunchtool xls-fuzz <file.xls> [count=500] [seed=1] [seconds=60]\n"
              "       jcrunchtool xls-save-check <file.xls>\n"
              "       jcrunchtool functions\n"
@@ -701,6 +703,7 @@ int usage()
 namespace jp::crunchtool {
 int compareMain(const QStringList &args);   // (jcrunchtool_compare.cpp)
 int xlsFuzzMain(const QStringList &args);   // (jcrunchtool_xlsfuzz.cpp)
+int odsFuzzMain(const QStringList &args);   // (jcrunchtool_odsfuzz.cpp)
 int xlsSaveCheckMain(const QStringList &args);   // (jcrunchtool_xlssave.cpp)
 }
 
@@ -730,7 +733,11 @@ int main(int argc, char **argv)
         if (args.size() == (tsv ? 3 : 2)) return info(args.last(), tsv);
     }
     if (args.size() == 2 && args[0] == QLatin1String("names")) return names(args[1]);
-    if (args.size() == 3 && args[0] == QLatin1String("compare-one")) return jp::crunchtool::compareMain(args.mid(1));
+    if (args.size() >= 3 && args[0] == QLatin1String("compare-one")) return jp::crunchtool::compareMain(args.mid(1));
+    if (args.size() >= 2 && args.size() <= 5 && args[0] == QLatin1String("convert-fuzz")) {
+        const int code = jp::crunchtool::odsFuzzMain(args.mid(1));
+        if (code >= 0) return code;
+    }
     if (args.size() >= 2 && args.size() <= 5 && args[0] == QLatin1String("xls-fuzz")) {
         const int code = jp::crunchtool::xlsFuzzMain(args.mid(1));
         if (code >= 0) return code;
