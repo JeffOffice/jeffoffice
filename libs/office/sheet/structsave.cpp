@@ -834,7 +834,8 @@ private:
             pos = cellEnd;
             quint32 col = quint32(prevCol + 1);
             bool haveR = false;
-            const QByteArrayView r = xmlscan::attribute(cell.left(t.end - t.start), "r", &haveR);
+            const QByteArray cellOpen = cell.left(t.end - t.start);   // (kept: the view of an attribute is of these bytes)
+            const QByteArrayView r = xmlscan::attribute(cellOpen, "r", &haveR);
             if (haveR) {
                 quint32 rr = 0, cc = 0;
                 if (xmlscan::parseAddress(r, &rr, &cc)) col = cc;
