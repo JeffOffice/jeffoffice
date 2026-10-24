@@ -308,16 +308,16 @@ int sheetIndexOf(const QStringList &names, const QString &name)
     return -1;
 }
 
-// A sheet's name as a formula writes it in front of a reference: in apostrophes when it has anything but letters, digits, and underscores (or starts with a digit).
+// A sheet's name as a formula writes it in front of a reference: in apostrophes unless it is made of letters, digits, underscores, and periods and does not start with a digit, and could
+// not be read as something else in a formula (a cell such as A1 or XFD9, the rows and columns of the other way of writing references, R, C, R1, C1, R1C1, or TRUE or FALSE).
 QString sheetPrefix(const QString &name)
 {
     bool plain = !name.isEmpty() && !name.front().isDigit();
     for (const QChar c : name)
         if (!(c.isLetterOrNumber() || c == QLatin1Char('_') || c == QLatin1Char('.'))) plain = false;
     if (plain) {
-        // (a name that reads as a cell, or as R1C1, is quoted too)
-        static const QRegularExpression cell(QStringLiteral("^[A-Za-z]{1,3}[0-9]+$|^[Rr][0-9]*[Cc][0-9]*$"));
-        if (cell.match(name).hasMatch()) plain = false;
+        static const QRegularExpression readAsSomethingElse(QStringLiteral("^(?:[A-Z]{1,3}[0-9]+|R(?:[0-9]*C[0-9]*)?|C[0-9]*|TRUE|FALSE)$"), QRegularExpression::CaseInsensitiveOption);
+        if (readAsSomethingElse.match(name).hasMatch()) plain = false;
     }
     if (plain) return name + QLatin1Char('!');
     QString q = name;
@@ -452,6 +452,7 @@ QString adjustFormula(const QString &formula, int ownSheet, const QStringList &s
     int at = 0;
     bool any = false;
     for (const jp::calc::ReferenceAt &r : refs) {
+        if (r.afterWorkbook) continue;   // (the cells of another workbook, whatever its sheet is called)
         int first = ownSheet, last = ownSheet;
         if (!r.sheet1.isEmpty()) {
             first = sheetIndexOf(sheetNames, r.sheet1);
@@ -558,7 +559,7 @@ TextRewriter::TextRewriter(const QString &text, int ownSheet, const QStringList 
             const int first = sheetIndexOf(sheetNames, r.sheet1);
             const int last = r.sheet2.isEmpty() ? first : sheetIndexOf(sheetNames, r.sheet2);
             ref.sheet = first;
-            ref.skip = first < 0 || last < 0 || first != last;
+            ref.skip = first < 0 || last < 0 || first != last || r.afterWorkbook;
         }
         d->refs.push_back(std::move(ref));
     }
@@ -744,12 +745,12 @@ QString renameSheetInFormula(const QString &formula, const QString &oldName, con
     jp::calc::ParseOptions po;
     po.definedName = definedName;
     std::vector<jp::calc::ReferenceAt> refs;
-    if (!jp::calc::findReferences(formula, po, &refs) || refs.empty()) return formula;
+    if (!jp::calc::findReferences(formula, po, &refs, true) || refs.empty()) return formula;
     QString out;
     int at = 0;
     bool any = false;
     for (const jp::calc::ReferenceAt &r : refs) {
-        if (r.sheet1.isEmpty()) continue;
+        if (r.sheet1.isEmpty() || r.afterWorkbook) continue;   // (the cells of another workbook are not this one's sheet's)
         const bool first = sameSheet(r.sheet1, oldName), last = !r.sheet2.isEmpty() && sameSheet(r.sheet2, oldName);
         if (!first && !last) continue;
         out += formula.mid(at, r.start - at);
@@ -770,12 +771,12 @@ QString deleteSheetInFormula(const QString &formula, const QString &name, bool *
     jp::calc::ParseOptions po;
     po.definedName = definedName;
     std::vector<jp::calc::ReferenceAt> refs;
-    if (!jp::calc::findReferences(formula, po, &refs) || refs.empty()) return formula;
+    if (!jp::calc::findReferences(formula, po, &refs, true) || refs.empty()) return formula;
     QString out;
     int at = 0;
     bool any = false;
     for (const jp::calc::ReferenceAt &r : refs) {
-        if (r.sheet1.isEmpty() || !(sameSheet(r.sheet1, name) || (!r.sheet2.isEmpty() && sameSheet(r.sheet2, name)))) continue;
+        if (r.sheet1.isEmpty() || r.afterWorkbook || !(sameSheet(r.sheet1, name) || (!r.sheet2.isEmpty() && sameSheet(r.sheet2, name)))) continue;
         out += formula.mid(at, r.start - at);
         out += QStringLiteral("#REF!");
         at = r.end;
@@ -795,7 +796,7 @@ bool formulaHasThreeD(const QString &formula, bool definedName)
     std::vector<jp::calc::ReferenceAt> refs;
     if (!jp::calc::findReferences(formula, po, &refs)) return false;
     for (const jp::calc::ReferenceAt &r : refs)
-        if (!r.sheet2.isEmpty() && !sameSheet(r.sheet1, r.sheet2)) return true;
+        if (!r.sheet2.isEmpty() && !r.afterWorkbook && !sameSheet(r.sheet1, r.sheet2)) return true;
     return false;
 }
 

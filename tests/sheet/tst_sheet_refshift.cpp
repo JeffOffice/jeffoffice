@@ -364,10 +364,73 @@ private Q_SLOTS:
         }
     }
 
+    // A sheet's name is written in apostrophes when it could be read as something else in a formula: a cell (A1, XFD9), the rows and columns of the other way of writing references (R, C, R1, C1,
+    // RC, R1C1), or TRUE and FALSE, in any case; a name of letters, digits, underscores, and periods that begins with a letter is not, and a name with anything else, or with a digit first,
+    // is, with an apostrophe in it doubled.
+    void namesThatCouldBeReadAsSomethingElseAreQuoted()
+    {
+        const struct {
+            const char *name, *after;
+        } cases[] = {
+            {"C", "'C'!A1"},       {"c", "'c'!A1"},         {"R", "'R'!A1"},        {"r", "'r'!A1"},       {"R1", "'R1'!A1"},      {"C1", "'C1'!A1"},        {"RC", "'RC'!A1"},
+            {"R1C1", "'R1C1'!A1"}, {"r2c3", "'r2c3'!A1"},   {"RC2", "'RC2'!A1"},    {"R2C", "'R2C'!A1"},   {"TRUE", "'TRUE'!A1"},  {"false", "'false'!A1"},  {"A1", "'A1'!A1"},
+            {"XFD9", "'XFD9'!A1"}, {"Sheet1", "Sheet1!A1"},   {"Data", "Data!A1"},       {"My_Sheet", "My_Sheet!A1"},        {"Sheet.1", "Sheet.1!A1"},        {"Rows", "Rows!A1"},
+            {"Cat", "Cat!A1"},     {"Totals", "Totals!A1"},  {"2024", "'2024'!A1"},  {"My Sheet", "'My Sheet'!A1"},  {"My-Sheet", "'My-Sheet'!A1"},  {"O'Brien", "'O''Brien'!A1"},
+        };
+        for (const auto &c : cases) {
+            const QString got = renameSheetInFormula(QStringLiteral("Old!A1"), QStringLiteral("Old"), QString::fromUtf8(c.name));
+            QVERIFY2(got == QString::fromUtf8(c.after), qPrintable(QString::fromUtf8(c.name) + QStringLiteral(" was written ") + got + QStringLiteral(", expected ") + QString::fromUtf8(c.after)));
+        }
+    }
+
+    // The cells of another workbook are not this workbook's sheet's, whatever the sheet is called there: renaming or deleting a sheet, and rows inserted in it, leave what names another
+    // workbook as it is.
+    void anotherWorkbooksCellsAreLeftAlone()
+    {
+        const QString f = QStringLiteral("'[Book2.xlsx]Data'!A1+[Book2.xlsx]Data!B2+[1]Data!C3+Data!D4");
+        bool changed = false;
+        QCOMPARE(renameSheetInFormula(f, QStringLiteral("Data"), QStringLiteral("Totals"), &changed), QStringLiteral("'[Book2.xlsx]Data'!A1+[Book2.xlsx]Data!B2+[1]Data!C3+Totals!D4"));
+        QVERIFY(changed);
+        QCOMPARE(deleteSheetInFormula(f, QStringLiteral("Data"), &changed), QStringLiteral("'[Book2.xlsx]Data'!A1+[Book2.xlsx]Data!B2+[1]Data!C3+#REF!"));
+        QVERIFY(changed);
+        // another workbook's alone: nothing changes
+        QCOMPARE(renameSheetInFormula(QStringLiteral("[Book2.xlsx]Data!B2*2"), QStringLiteral("Data"), QStringLiteral("X"), &changed), QStringLiteral("[Book2.xlsx]Data!B2*2"));
+        QVERIFY(!changed);
+        QCOMPARE(deleteSheetInFormula(QStringLiteral("SUM([Book2.xlsx]Data!B2:B9)"), QStringLiteral("Data"), &changed), QStringLiteral("SUM([Book2.xlsx]Data!B2:B9)"));
+        QVERIFY(!changed);
+        // rows inserted in this workbook's Data move this workbook's cells, and not the other's
+        const QStringList names = {QStringLiteral("Sheet1"), QStringLiteral("Data")};
+        const StructEdit insert = StructEdit::insertRows(1, 2, 3);
+        QCOMPARE(adjustFormula(f, 0, names, insert), QStringLiteral("'[Book2.xlsx]Data'!A1+[Book2.xlsx]Data!B2+[1]Data!C3+Data!D7"));
+        QCOMPARE(adjustFormula(QStringLiteral("[Book2.xlsx]Data!B5"), 0, names, insert), QStringLiteral("[Book2.xlsx]Data!B5"));
+        // and a block of sheets of another workbook is not a block of this one's
+        QVERIFY(!formulaHasThreeD(QStringLiteral("SUM([Book2.xlsx]Sheet1:Sheet3!A1)")));
+    }
+
+    // A name that belongs to a sheet, written with its sheet (Data!MyName), follows the sheet when it is renamed, and is #REF! when it is deleted; the same name of another sheet, and a name
+    // that belongs to the workbook, are not touched. In a defined name too.
+    void aNameOfASheetFollowsTheSheet()
+    {
+        bool changed = false;
+        QCOMPARE(renameSheetInFormula(QStringLiteral("Data!MyName*2+Other!MyName+MyName"), QStringLiteral("Data"), QStringLiteral("Q 1"), &changed), QStringLiteral("'Q 1'!MyName*2+Other!MyName+MyName"));
+        QVERIFY(changed);
+        QCOMPARE(renameSheetInFormula(QStringLiteral("'My Data'!MyName+SUM('My Data'!A1:B2)"), QStringLiteral("My Data"), QStringLiteral("Totals"), &changed), QStringLiteral("Totals!MyName+SUM(Totals!A1:B2)"));
+        QCOMPARE(deleteSheetInFormula(QStringLiteral("Data!MyName*2+Other!MyName+MyName"), QStringLiteral("Data"), &changed), QStringLiteral("#REF!*2+Other!MyName+MyName"));
+        QVERIFY(changed);
+        QCOMPARE(deleteSheetInFormula(QStringLiteral("SUM(Data!MyName,Data!A1)"), QStringLiteral("data"), &changed), QStringLiteral("SUM(#REF!,#REF!)"));
+        QCOMPARE(renameSheetInFormula(QStringLiteral("Data!MyName"), QStringLiteral("Data"), QStringLiteral("Totals"), nullptr, true), QStringLiteral("Totals!MyName"));
+        QCOMPARE(deleteSheetInFormula(QStringLiteral("Data!MyName+Data!$A$1"), QStringLiteral("Data"), nullptr, true), QStringLiteral("#REF!+#REF!"));
+        // a name that is not written with a sheet is not a reference to one
+        QCOMPARE(renameSheetInFormula(QStringLiteral("MyName+Data"), QStringLiteral("Data"), QStringLiteral("X"), &changed), QStringLiteral("MyName+Data"));
+        QVERIFY(!changed);
+    }
+
     void aReferenceThroughSeveralSheetsIsFound()
     {
         QVERIFY(formulaHasThreeD(QStringLiteral("SUM(Sheet1:Sheet3!A1)")));
-        QVERIFY(formulaHasThreeD(QStringLiteral("'A 1:B 2'!C3+1")) || !formulaHasThreeD(QStringLiteral("'A 1:B 2'!C3+1")));   // (quoted together: either way it is no error)
+        QVERIFY(formulaHasThreeD(QStringLiteral("'A 1:B 2'!C3+1")));   // (two sheet names quoted together are a block of sheets, as unquoted ones are)
+        QVERIFY(!formulaHasThreeD(QStringLiteral("'A 1'!C3+'B 2'!C3")));   // (two names of one sheet each are not)
+        QVERIFY(!formulaHasThreeD(QStringLiteral("'[Book2.xlsx]A 1:B 2'!C3")));   // (another workbook's: not this one's sheets)
         QVERIFY(!formulaHasThreeD(QStringLiteral("Sheet1!A1:B2+Sheet2!C3")));
         QVERIFY(!formulaHasThreeD(QStringLiteral("A1+B2")));
     }
