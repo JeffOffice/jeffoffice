@@ -34,6 +34,8 @@ class HelpWindow;
 class Ribbon;
 struct RibbonParts;
 namespace crunch {
+class PrintJob;
+struct PrintJobOptions;
 class SheetObjects;
 class SheetTabBar;
 }
@@ -152,6 +154,13 @@ public:
     const crunch::LoadedBook *loaded() const { return m_loaded.get(); }
     // The workbook as read so far, held by whoever keeps it (a test, after the window is gone).
     std::shared_ptr<crunch::LoadedBook> loadedBook() const { return m_loaded; }
+
+    // ---- printing (crunchwindow_print.cpp)
+    // A job for what the options say, of the workbook as it is now: the sheet in view is the active sheet, and the selection the grid's if the options name none. Null, with the reason in
+    // `why`, when there is nothing to print or the workbook is not open whole.
+    std::unique_ptr<crunch::PrintJob> makePrintJob(crunch::PrintJobOptions options, QString *why = nullptr);
+    // Puts the job's pages (all, or those of the range text) in a PDF file; the work is done here, with the wait cursor. False, with the reason, if it could not be done.
+    bool exportPdfTo(const QString &path, crunch::PrintJobOptions options, const QString &pageRange = QString(), QString *why = nullptr);
 
     // ---- the File screen, Help
     void showFileScreen(const QString &page = QString());
