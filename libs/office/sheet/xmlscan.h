@@ -28,6 +28,8 @@ qsizetype tagEnd(QByteArrayView data, qsizetype start);
 // The value of the attribute `name` in the tag's bytes, as written (not unescaped), without its quotes; `found` says whether there was one. A prefix is part of the name asked for
 // ("xml:space").
 QByteArrayView attribute(QByteArrayView tag, QByteArrayView name, bool *found = nullptr);
+// (the view is of the bytes of the tag: a tag that is a temporary would be let go of before the view is read, so it is not taken)
+QByteArrayView attribute(QByteArray &&tag, QByteArrayView name, bool *found = nullptr) = delete;
 // Where the value of the attribute is in the tag's bytes ([start, end), inside the quotes); false if the tag has none.
 bool attributeValue(QByteArrayView tag, QByteArrayView name, qsizetype *start, qsizetype *end);
 
