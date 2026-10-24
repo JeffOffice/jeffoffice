@@ -81,6 +81,7 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
     if (e.sheet < 0 || e.sheet >= int(m_sheets.size())) return refuse(say("There is no such sheet."));
     if (e.kind == K::Move || e.kind == K::Offset) return refuse(say("That is not done by inserting or deleting."));
     const Sheet &s = m_sheets[size_t(e.sheet)];
+    if (m_untracked > 0) return refuse(say("This workbook has too many formulas for JeffCrunch to follow when rows, columns, or cells are inserted or deleted."));
     if (s.isProtected) return refuse(say("This sheet is protected, so rows, columns, and cells can't be inserted or deleted. Take the protection off in the program that put it on."));
     const quint32 count = shiftBy(e);
     if (count == 0) return refuse(say("There is nothing to insert or delete."));
@@ -409,6 +410,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
                 c->formula = qint32(sn.formulas.size() - 1);
             }
             ++rec->formulasRewritten;
+            rec->rewritten.push_back({sheet, c->row, c->col});
         }
         dropNode(r.id);
         const quint32 id = addNode(sheet, *c, c->formula);

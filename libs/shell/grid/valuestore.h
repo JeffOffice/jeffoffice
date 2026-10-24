@@ -11,6 +11,7 @@
 #include <QString>
 
 #include <deque>
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -36,6 +37,9 @@ public:
     void apply(const std::vector<Item> &items);
     // The value of a cell, if the store has one.
     bool find(int sheet, quint32 row, quint32 col, jp::calc::Value *out) const;
+    // Moves the values of a sheet's cells (rows or columns inserted or deleted): `where` is called with the place of each cell that has a value, and sets its new place; false for a
+    // cell that is gone (its value is let go). Returns how many values moved or went; nothing is touched when none did.
+    qint64 remap(int sheet, const std::function<bool(quint32 *row, quint32 *col)> &where);
     // How many cells have values.
     qint64 count() const { return m_count; }
 

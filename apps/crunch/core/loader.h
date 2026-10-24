@@ -51,6 +51,8 @@ struct CalcBatch {
     bool stopped = false;          // ... because it was stopped
     qint64 epoch = 0;              // for a last batch: how many changes the window had made when the calculation finished (WorkbookLoader::changesMade): all of them are worked out
     qint64 workerCpuMicros = 0;    // the worker thread's processor time since it began
+    int generation = 0;            // how many times rows, columns, or cells had been moved (WorkbookLoader::structureGeneration) when the values in it were worked out: cells they name are where
+                                   // they were then
 };
 
 // A slice of the calculation (on the worker): the clock ends it after a formula once this many microseconds have passed, and the worker tells the window what it has worked out (a batch
@@ -108,6 +110,8 @@ public:
         jp::office::sheet::Calculation *calculation() const { return m_calc; }
         // Cells were changed: the worker works out what that makes when the hold is let go, and sends the first of it at once.
         void changed() { m_changed = true; }
+        // Rows, columns, or cells were moved: values the worker has worked out and not yet told, and batches on their way, name cells by where they were (see CalcBatch::generation).
+        void structureChanged();
 
     private:
         friend class WorkbookLoader;
@@ -122,6 +126,8 @@ public:
     bool canHold() const;
     // How many changes have been made (holds let go with a change, and requests to work everything out again): a last batch whose epoch is this many has all of them worked out.
     qint64 changesMade() const;
+    // How many times cells have been moved by an edit (a hold let go after structureChanged).
+    int structureGeneration() const;
     // For tests: how long the worker waits (in microseconds) at each step of its work (every 4,096 cells read, and between slices of the calculation), so that a test can do what it does
     // while the worker is at work. 0 is no wait.
     void setPace(int micros);
@@ -154,6 +160,7 @@ private:
         std::atomic<int> holds{0};            // the window wants the model: the worker lets go of it at once and keeps off it
         std::atomic<bool> halt{false};        // the calculation's flag to stop: set while it is stopped (stopCalc) or a hold is wanted (holds)
         std::atomic<qint64> changes{0};       // changes made (see changesMade)
+        std::atomic<int> structure{0};        // times cells were moved (see structureGeneration)
         std::atomic<bool> urgent{false};      // a change was made: the first values it makes go to the window as soon as they are there
         void updateHalt() { halt.store(stopCalc.load() || holds.load() > 0 || cancel.load()); }
     };

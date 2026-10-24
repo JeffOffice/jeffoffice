@@ -57,6 +57,10 @@ struct Block {
 };
 RefFate adjustBlock(const StructEdit &edit, const Block &in, Block *out);
 
+// Where a cell is after the edit (what a stored value, a mark on a cell, follows): Same, Moved (`row` and `col` are the new place; for a Move the sheet too, in `sheet`), or Gone (deleted,
+// pushed off the edge, or written over by a Move).
+RefFate adjustCell(const StructEdit &edit, int *sheet, quint32 *row, quint32 *col);
+
 // A range (a merged range, the cells of a validation) after the edit: false if it is gone.
 bool adjustRange(const StructEdit &edit, int sheet, CellRange *range);
 // A list of ranges as a file writes it ("A1:B2 D4 F6:F9"): what is left of them after the edit, "" if all are gone.

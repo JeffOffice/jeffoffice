@@ -1356,6 +1356,45 @@ void Workbook::setTableColumnName(int table, int column, const QString &name)
     m_tables[table].columns[column] = name;
 }
 
+bool Workbook::tablesAllow(const StructEdit &edit, QString *why) const
+{
+    for (const Table &t : tables()) {
+        CellRange where;
+        if (tableAfter(edit, t, &where, why) == TableFate::Refused) return false;
+    }
+    return true;
+}
+
+std::vector<TablePlace> Workbook::moveTables(const StructEdit &edit)
+{
+    std::vector<TablePlace> before;
+    tables();
+    for (int i = 0; i < m_tables.size(); ++i) {
+        Table &t = m_tables[i];
+        CellRange where;
+        if (tableAfter(edit, t, &where, nullptr) != TableFate::Moved) continue;
+        before.push_back({i, t.row1, t.col1, t.row2, t.col2});
+        t.row1 = where.row1;
+        t.col1 = where.col1;
+        t.row2 = where.row2;
+        t.col2 = where.col2;
+    }
+    return before;
+}
+
+void Workbook::putTablesBack(const std::vector<TablePlace> &places)
+{
+    tables();
+    for (const TablePlace &p : places) {
+        if (p.table < 0 || p.table >= m_tables.size()) continue;
+        Table &t = m_tables[p.table];
+        t.row1 = p.row1;
+        t.col1 = p.col1;
+        t.row2 = p.row2;
+        t.col2 = p.col2;
+    }
+}
+
 std::map<QString, QByteArray> Workbook::changedTableParts() const
 {
     std::map<QString, QByteArray> out;

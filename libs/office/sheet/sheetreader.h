@@ -17,6 +17,7 @@
 
 #include <functional>
 #include <map>
+#include <vector>
 
 namespace jp::office::sheet {
 
@@ -226,6 +227,11 @@ public:
     int tableHeaderAt(int sheet, quint32 row, quint32 col, int *column) const;
     // Names a column (an edit, or its undoing); the table's part is written with the names when the workbook is saved.
     void setTableColumnName(int table, int column, const QString &name);
+    // Whether the tables allow the edit (not when it would cut through one, or remove one or its header row); if not, why.
+    bool tablesAllow(const StructEdit &edit, QString *why) const;
+    // Moves the tables for the edit (those it changes), and says where each was; putTablesBack puts them there again.
+    std::vector<TablePlace> moveTables(const StructEdit &edit);
+    void putTablesBack(const std::vector<TablePlace> &places);
     // The table parts whose names are not the file's, as they would be written, by the part's name.
     std::map<QString, QByteArray> changedTableParts() const;
 

@@ -90,6 +90,13 @@ public:
         crunch::EditSession::FillOptions options;
     };
     void setSeriesAsker(const std::function<bool(SeriesRequest *)> &asker) { m_seriesAsker = asker; }
+    // What Insert and Delete ask when cells are selected (not whole rows or columns): how the cells after the block move, or that the whole rows or columns go. A dialog unless this stands in
+    // for it (tests); false gives it up.
+    struct ShiftRequest {
+        bool inserting = true;
+        enum class Way { Right, Down, Left, Up, Rows, Columns } way = Way::Down;
+    };
+    void setShiftAsker(const std::function<bool(ShiftRequest *)> &asker) { m_shiftAsker = asker; }
     void setChangedAsker(const std::function<ChangedAnswer(const QString &name)> &asker) { m_changedAsker = asker; }
     // Where Save As writes: asked of a file dialog, unless this stands in for it (tests): the name it starts with, and the filter; an empty path gives it up.
     void setSavePicker(const std::function<QString(const QString &start, const QString &filter)> &picker) { m_savePicker = picker; }
@@ -177,6 +184,18 @@ private:
     void fillSelection(crunch::EditSession::FillDirection direction);
     void fillDragged(const jp::grid::GridRange &source, const jp::grid::GridRange &extent, bool ctrl);
     void fillSeriesDialog();
+    // inserting and deleting rows, columns, and cells (crunchwindow_cells.cpp)
+    void createCellsActions();
+    void insertCommand();
+    void deleteCommand();
+    void insertLines(bool rows);
+    void deleteLines(bool rows);
+    void insertOrDeleteCells(bool inserting);
+    bool askShift(ShiftRequest *request);
+    void onCellsMoved(const jp::office::sheet::StructEdit &edit);
+    void showContextMenu(const QPoint &globalPos);
+    jp::office::sheet::CellRange selectedRange() const;
+    std::function<bool(ShiftRequest *)> m_shiftAsker;
     // editing
     void createEditing();
     void beginEdit(const QString &initial, CellEditor::Mode mode, bool fromBar);

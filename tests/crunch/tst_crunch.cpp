@@ -276,7 +276,7 @@ private Q_SLOTS:
             if (a->isSeparator()) continue;
             (a->isEnabled() ? enabled : dimmed) << a->objectName();
         }
-        QCOMPARE(enabled, (QStringList{"edit.copy", "edit.selectAll"}));
+        QCOMPARE(enabled, (QStringList{"edit.copy", "cells.insert.cells", "cells.delete.cells", "edit.selectAll"}));
         QCOMPARE(dimmed, (QStringList{"edit.cut", "edit.paste"}));
         menu->close();
     }

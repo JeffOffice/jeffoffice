@@ -192,6 +192,30 @@ RefFate adjustBlock(const StructEdit &e, const Block &in, Block *out)
     return RefFate::Same;
 }
 
+RefFate adjustCell(const StructEdit &e, int *sheet, quint32 *row, quint32 *col)
+{
+    Block in;
+    in.sheet = *sheet;
+    in.row1 = in.row2 = *row;
+    in.col1 = in.col2 = *col;
+    Block out;
+    const RefFate fate = adjustBlock(e, in, &out);
+    if (fate == RefFate::Moved) {
+        *sheet = out.sheet;
+        *row = out.row1;
+        *col = out.col1;
+        return fate;
+    }
+    if (fate == RefFate::Gone) return fate;
+    // a cell that a Move writes over is gone (the cell that goes there came from the block)
+    if (e.kind == StructEdit::Kind::Move && *sheet == e.toSheet) {
+        const quint32 rows = e.row2 - e.row1 + 1, cols = e.col2 - e.col1 + 1;
+        const bool inDestination = *row >= e.toRow && *row < e.toRow + rows && *col >= e.toCol && *col < e.toCol + cols;
+        if (inDestination) return RefFate::Gone;
+    }
+    return RefFate::Same;
+}
+
 bool adjustRange(const StructEdit &e, int sheet, CellRange *range)
 {
     if (!range->valid) return true;

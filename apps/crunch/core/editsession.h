@@ -49,12 +49,27 @@ struct TableRename {
     QString before, after;
 };
 
+// Rows, columns, or cells inserted or deleted by a step: the edit, what the model needs to undo it (made when it is first done), and the marks the session keeps by cell that it moved.
+struct StructChange {
+    bool done = false;                                                   // the cells are as the edit leaves them
+    jp::office::sheet::StructEdit edit;
+    jp::office::sheet::Calculation::EditRecord record;
+    std::vector<jp::office::sheet::TablePlace> tables;                   // the tables it moved, where they were
+    std::vector<quint64> touchedGone, touchedAdded;                     // cells marked as changed that it deleted, and those it marked
+    std::vector<std::pair<quint64, jp::calc::Value>> resultsGone, engineGone, fileGone;   // the results kept by cell that it deleted
+    qint64 bytes() const;
+};
+
 // What one step of the undo stack changes: cells (as they were and as they are), and whatever goes with them.
 struct Step {
     std::vector<CellChange> cells;
     std::vector<TableRename> renames;
-    bool empty() const { return cells.empty() && renames.empty(); }
+    std::shared_ptr<StructChange> structure;   // or rows, columns, or cells inserted or deleted
+    bool empty() const { return cells.empty() && renames.empty() && !structure; }
 };
+
+// About how many bytes a cell's content takes in a step: the structure, and the texts in it.
+qint64 contentBytes(const jp::office::sheet::Calculation::CellContent &c);
 
 class EditSession : public QObject {
     Q_OBJECT
@@ -138,6 +153,23 @@ public:
 
 
 
+    // Inserts or deletes rows, columns, or cells: the cells after them move over (down, right, left, or up) and everything that refers to them follows (formulas on every sheet, defined
+    // names, merged cells, tables, and, in the file, conditional formats, validations, hyperlinks, charts, print areas, and the rest); a reference to cells that are deleted becomes #REF!.
+    // One step. Not ok, and nothing changed, if it would cut through an array formula or a table, push cells off the sheet, or the sheet is protected. Rows, columns, and cells are counted
+    // from 0; `block` is the cells that are made room for or closed up.
+    Outcome insertRows(int sheet, quint32 first, quint32 count);
+    Outcome deleteRows(int sheet, quint32 first, quint32 count);
+    Outcome insertColumns(int sheet, quint32 first, quint32 count);
+    Outcome deleteColumns(int sheet, quint32 first, quint32 count);
+    Outcome insertCells(int sheet, const jp::office::sheet::CellRange &block, bool shiftDown);
+    Outcome deleteCells(int sheet, const jp::office::sheet::CellRange &block, bool shiftUp);
+    // Whether the edit can be made now, and if not, why (a sentence).
+    bool canMove(const jp::office::sheet::StructEdit &edit, QString *why = nullptr) const;
+    // The generation of the cells' places: how many times cells have been moved by an edit (Undo and Redo too). A batch of results made at an earlier generation names the cells by where they
+    // were; `moveToNow` puts the places in it where the cells are now.
+    int generation() const { return int(m_log.size()); }
+    void moveToNow(std::vector<jp::grid::ValueStore::Item> *items, int generation) const;
+
     // The worker's results, as they reach the window (before the window's store has them: the store's value is the engine's before it): kept for saving, those that the engine changed and that
     // differ from what the file holds.
     void noteResults(const std::vector<jp::grid::ValueStore::Item> &items);
@@ -176,11 +208,19 @@ public:
 Q_SIGNALS:
     // Cells were changed by an edit, Undo, or Redo (the window draws them again).
     void cellsChanged(int sheet, const std::vector<jp::grid::ValueStore::Item> &cells);
+    // Rows, columns, or cells were inserted or deleted (or put back by Undo: `edit` is what was done to the cells then); the window makes its picture of the sheet again.
+    void cellsMoved(const jp::office::sheet::StructEdit &edit);
 
 private:
     friend class ChangeCells;
     // Makes the changes (forward: to `after`; else back to `before`) with the worker held back. False if the worker could not be held.
     bool apply(Step *step, bool forward);
+    bool applyStructure(Step *step, bool forward);
+    Outcome structure(const jp::office::sheet::StructEdit &edit, const QString &text);
+    // The marks kept by cell follow an edit (forward) or its undoing: `edit` is what was done to the cells.
+    void followEdit(const jp::office::sheet::StructEdit &edit, StructChange *change, bool forward);
+    // Forgets the steps up to the last one that moved cells (a save has put it in the file, and Undo would have to take it out of the file).
+    void forgetMovesInFile();
     // Puts a step on the undo stack (done, as pushed) and keeps the stack within its bytes.
     void pushStep(Step step, const QString &text);
     // A text typed in a cell of a table's header row: the column is renamed (the formulas that name it follow, and the table's part when the workbook is saved).
@@ -212,6 +252,8 @@ private:
     std::set<quint64> m_touched;           // cells changed by the person (written whole), by sheet, row, column
     std::map<quint64, jp::calc::Value> m_results;      // formulas whose value is not the file's
     std::map<quint64, jp::calc::Value> m_engineAtStart;  // for a formula whose result has changed: the engine's value before its first change since the file was read or saved
+    std::vector<jp::office::sheet::StructEdit> m_log;  // every edit that moved cells (the place of a batch's results in time: see generation)
+    std::vector<jp::office::sheet::StructEdit> m_edits;   // those since the file was read or saved that are done (not undone), for the file
     std::map<quint64, jp::calc::Value> m_fileResults;  // what the file holds for formulas whose value there is not the one the workbook was read with (after a save)
 };
 

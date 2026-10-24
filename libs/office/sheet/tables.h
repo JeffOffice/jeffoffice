@@ -5,6 +5,7 @@
 // What is read of a table is its name, where it is, and the names of its columns; the rest of the part is kept as it is, and written back with only the names changed.
 
 #include "office/package.h"
+#include "sheet/refshift.h"
 #include "sheet/sheetmodel.h"
 
 #include <QByteArray>
@@ -26,6 +27,17 @@ struct Table {
     int headerRows = 1;             // 1, or 0 for a table with no header row
     QStringList columns;            // the names of its columns as they are now
     QStringList fileColumns;        // and as the file has them
+};
+
+// Where a table is after rows, columns, or cells are inserted or deleted: Same, Moved (the whole table, or the data rows it has more or fewer of; `out` is where it is), or Refused (the edit
+// would cut through the table's columns or remove its header row or all of it; `why` says so in a sentence). A table on another sheet is Same.
+enum class TableFate : quint8 { Same, Moved, Refused };
+TableFate tableAfter(const StructEdit &edit, const Table &table, CellRange *out, QString *why);
+
+// A table's place in the sheet, for putting it back.
+struct TablePlace {
+    int table = 0;
+    quint32 row1 = 0, col1 = 0, row2 = 0, col2 = 0;
 };
 
 // The tables of the workbook, in the order of the sheets and of each sheet's relationships. Tables whose part can't be read are left out (and a table with no columns).

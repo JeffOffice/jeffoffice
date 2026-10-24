@@ -39,67 +39,6 @@ QByteArray numbersBook()
     return buildXlsx({worksheet(rows)});
 }
 
-CellRange rangeOf(const QString &ref)
-{
-    CellRange r;
-    parseRangeRef(ref, &r);
-    return r;
-}
-
-// A sheet from the cells' texts: "A1=1" a number, "B2=text", "C3==A1*2" a formula, "D4=@2024-01-15" a date (with the date format, style 1), "E5=%0.25" a number with the percent format
-// (style 2). The cells come in any order.
-QByteArray sheetOf(const QStringList &specs)
-{
-    struct Item {
-        quint32 row, col;
-        QString xml;
-    };
-    QVector<Item> items;
-    for (const QString &spec : specs) {
-        const int eq = int(spec.indexOf(QLatin1Char('=')));
-        const QString ref = spec.left(eq), value = spec.mid(eq + 1);
-        quint32 row = 0, col = 0;
-        parseCellRef(ref, &row, &col);
-        QString xml;
-        if (value.startsWith(QLatin1Char('='))) {
-            xml = QStringLiteral("<c r=\"%1\"><f>%2</f><v>0</v></c>").arg(ref, value.mid(1).toHtmlEscaped());
-        } else if (value.startsWith(QLatin1Char('@'))) {
-            const QDate d = QDate::fromString(value.mid(1), Qt::ISODate);
-            double serial = 0;
-            jp::calc::dateToSerial(d.year(), d.month(), d.day(), jp::calc::DateSystem::Date1900, &serial);
-            xml = QStringLiteral("<c r=\"%1\" s=\"1\"><v>%2</v></c>").arg(ref).arg(serial, 0, 'f', 0);
-        } else if (value.startsWith(QLatin1Char('%'))) {
-            xml = QStringLiteral("<c r=\"%1\" s=\"2\"><v>%2</v></c>").arg(ref, value.mid(1));
-        } else {
-            bool number = false;
-            value.toDouble(&number);
-            xml = number ? QStringLiteral("<c r=\"%1\"><v>%2</v></c>").arg(ref, value)
-                         : QStringLiteral("<c r=\"%1\" t=\"inlineStr\"><is><t>%2</t></is></c>").arg(ref, value.toHtmlEscaped());
-        }
-        items.append({row, col, xml});
-    }
-    std::sort(items.begin(), items.end(), [](const Item &a, const Item &b) { return a.row != b.row ? a.row < b.row : a.col < b.col; });
-    QString rows;
-    for (int i = 0; i < items.size();) {
-        const quint32 row = items[i].row;
-        rows += QStringLiteral("<row r=\"%1\">").arg(row + 1);
-        for (; i < items.size() && items[i].row == row; ++i) rows += items[i].xml;
-        rows += QStringLiteral("</row>");
-    }
-    const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"14\" applyNumberFormat=\"1\"/><xf numFmtId=\"9\" applyNumberFormat=\"1\"/>"));
-    return buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), styles);
-}
-
-// What the cells of a range show, in order of row and then column, joined with "|".
-QString shown(EditWindow &e, const QString &range)
-{
-    const CellRange r = rangeOf(range);
-    QStringList out;
-    for (quint32 row = r.row1; row <= r.row2; ++row)
-        for (quint32 col = r.col1; col <= r.col2; ++col) out << e.shownAt(cellName(row, col));
-    return out.join(QLatin1Char('|'));
-}
-
 } // namespace
 
 class CrunchOpsTests : public QObject {

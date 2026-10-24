@@ -125,6 +125,9 @@ public:
         // that an edit undone does not turn the result into #NAME?.
         bool hasStored = false;
         jp::calc::Value stored;
+        // The first cell of an array formula: the cells it covers (valid), else not valid. A data table's first cell is marked with `dataTable`.
+        CellRange arrayRange;
+        bool dataTable = false;
         bool operator==(const CellContent &o) const
         {
             return exists == o.exists && isFormula == o.isFormula && formula == o.formula && value == o.value && sharedString == o.sharedString && style == o.style;
@@ -164,6 +167,12 @@ public:
         // defined names whose text changed, with the text they had (by the key the source keeps them by)
         std::vector<std::pair<QString, QString>> names;
         qint64 cellsMoved = 0, formulasRewritten = 0;
+        // where the formulas that were written again are now (after the edit), for what saving must write whole
+        struct Place {
+            int sheet;
+            quint32 row, col;
+        };
+        std::vector<Place> rewritten;
     };
     // Whether the edit can be made; if not, why, in a sentence for the person (it would cut through an array formula or a data table, push cells off the sheet, or the sheet is protected).
     bool canApply(const StructEdit &edit, QString *why) const;

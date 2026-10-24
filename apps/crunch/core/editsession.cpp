@@ -59,7 +59,6 @@ SavedValue savedValue(const Value &v, qint32 sharedString)
 } // namespace
 
 // One step of the undo stack: cells put in the state they come to, and back.
-// About how many bytes a cell's content takes in a step: the structure, and the texts in it.
 qint64 contentBytes(const Calculation::CellContent &c)
 {
     qint64 n = qint64(sizeof(c)) + qint64(c.formula.size()) * 2;
@@ -72,20 +71,34 @@ class ChangeCells : public QUndoCommand {
 public:
     ChangeCells(EditSession *session, Step step, const QString &text, const std::shared_ptr<qint64> &total) : QUndoCommand(text), m_session(session), m_step(std::move(step)), m_total(total)
     {
-        for (const CellChange &c : m_step.cells) m_bytes += qint64(sizeof(c)) + contentBytes(c.before) + contentBytes(c.after) + qint64(c.formatCode.size()) * 2;
-        for (const TableRename &r : m_step.renames) m_bytes += qint64(sizeof(r)) + qint64(r.before.size() + r.after.size()) * 2;
-        *m_total += m_bytes;
+        recount();
     }
     ~ChangeCells() override { *m_total -= m_bytes; }
     void redo() override
     {
-        if (!m_forgotten) m_session->apply(&m_step, true);
+        if (m_forgotten) return;
+        m_session->apply(&m_step, true);
+        recount();
     }
     void undo() override
     {
-        if (!m_forgotten) m_session->apply(&m_step, false);
+        if (m_forgotten) return;
+        m_session->apply(&m_step, false);
+        recount();
     }
     bool forgotten() const { return m_forgotten; }
+    // Whether the step inserted or deleted rows, columns, or cells.
+    bool moves() const { return !m_forgotten && m_step.structure != nullptr; }
+    // The bytes the step holds (what a move of cells keeps is known when it is done).
+    void recount()
+    {
+        qint64 n = 0;
+        for (const CellChange &c : m_step.cells) n += qint64(sizeof(c)) + contentBytes(c.before) + contentBytes(c.after) + qint64(c.formatCode.size()) * 2;
+        for (const TableRename &r : m_step.renames) n += qint64(sizeof(r)) + qint64(r.before.size() + r.after.size()) * 2;
+        if (m_step.structure) n += m_step.structure->bytes();
+        *m_total += n - m_bytes;
+        m_bytes = n;
+    }
     // Lets go of what the step holds: it can't be undone (nor done again) any more.
     void forget()
     {
@@ -121,6 +134,15 @@ int EditSession::firstHeldStep() const
     int i = 0;
     while (i < m_undo.count() && static_cast<const ChangeCells *>(m_undo.command(i))->forgotten()) ++i;
     return i;
+}
+
+void EditSession::forgetMovesInFile()
+{
+    // (the file has the moves of cells that are done now; Undo of one would have to take it out of the file, which is not done: Undo goes back as far as the last move saved, no further)
+    int last = -1;
+    for (int i = m_undo.index() - 1; i >= 0 && last < 0; --i)
+        if (static_cast<const ChangeCells *>(m_undo.command(i))->moves()) last = i;
+    for (int i = 0; i <= last; ++i) const_cast<ChangeCells *>(static_cast<const ChangeCells *>(m_undo.command(i)))->forget();
 }
 
 bool EditSession::canUndo() const { return m_undo.canUndo() && m_undo.index() > firstHeldStep(); }
@@ -473,6 +495,7 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
 
 bool EditSession::apply(Step *step, bool forward)
 {
+    if (step->structure) return applyStructure(step, forward);
     QElapsedTimer waited;
     waited.start();
     std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
@@ -579,6 +602,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     if (!m_book->problem.isEmpty() || !m_book->book->sharedStringsError().isEmpty() || !m_book->book->stylesError().isEmpty())
         return refuse(tr("Some of this workbook could not be read whole, so JeffCrunch does not save it."));
     if (!m_book->book->package().isLazy()) return refuse(tr("This workbook was not opened from a file JeffCrunch can save over."));
+    if (!m_edits.empty()) return refuse(tr("Inserted and deleted rows, columns, and cells can't be saved yet."));
     const Calculation *calc = m_book->calc.get();
     Workbook &book = *m_book->book;
     *out = Snapshot();
@@ -649,6 +673,8 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     for (const auto &[key, v] : snapshot.touchedResults) m_fileResults[key] = v;
     m_touched.clear();
     m_engineAtStart.clear();
+    m_edits.clear();
+    forgetMovesInFile();
     // what differs from the file is what differs from the file just written
     for (auto it = m_results.begin(); it != m_results.end();) {
         const auto file = m_fileResults.find(it->first);

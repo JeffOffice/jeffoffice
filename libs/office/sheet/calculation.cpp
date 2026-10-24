@@ -1356,6 +1356,11 @@ Calculation::CellContent Calculation::content(int sheet, quint32 row, quint32 co
     if (c->hasFormula()) {
         out.isFormula = true;
         out.formula = s.formulaText(*c);
+        if ((c->flags & (ArrayFormula | DataTable)) && c->formula >= 0) {
+            const qint32 range = s.formulas[c->formula].range;
+            if (c->flags & DataTable) out.dataTable = true;
+            else if (range >= 0 && range < s.ranges.size() && s.ranges[range].valid) out.arrayRange = s.ranges[range];
+        }
         const quint32 id = nodeAt(sheet, row, col);
         if (id != kNone && (m_nodes[id].flags & Kept)) {
             out.hasStored = true;

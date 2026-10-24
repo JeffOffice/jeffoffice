@@ -723,6 +723,8 @@ void GridView::mousePressEvent(QMouseEvent *e)
     if (e->button() == Qt::RightButton) {
         // a right click inside the selection keeps it; outside, it selects what is under it
         if (h.kind == Hit::Kind::Cell && !m_selection.range.contains(h.row, h.col)) setSelectionInternal(nav.click(h.row, h.col));
+        else if (h.kind == Hit::Kind::RowHeader && !(m_selection.whole == Selection::Whole::Rows && h.row >= m_selection.range.row1 && h.row <= m_selection.range.row2)) setSelectionInternal(nav.selectRows(h.row, h.row));
+        else if (h.kind == Hit::Kind::ColumnHeader && !(m_selection.whole == Selection::Whole::Columns && h.col >= m_selection.range.col1 && h.col <= m_selection.range.col2)) setSelectionInternal(nav.selectColumns(h.col, h.col));
         Q_EMIT contextMenuRequested(e->globalPosition().toPoint());
         return;
     }

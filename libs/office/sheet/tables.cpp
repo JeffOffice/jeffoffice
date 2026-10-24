@@ -2,6 +2,7 @@
 
 #include "sheet/sheetreader.h"
 
+#include <QCoreApplication>
 #include <QRegularExpression>
 #include <QXmlStreamReader>
 
@@ -262,6 +263,116 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info)
         }
     }
     return tables;
+}
+
+TableFate tableAfter(const StructEdit &e, const Table &t, CellRange *out, QString *why)
+{
+    using K = StructEdit::Kind;
+    out->valid = true;
+    out->row1 = t.row1;
+    out->col1 = t.col1;
+    out->row2 = t.row2;
+    out->col2 = t.col2;
+    if (e.sheet != t.sheet) return TableFate::Same;
+    auto refuse = [&](const QString &text) {
+        if (why) *why = text;
+        return TableFate::Refused;
+    };
+    const QString inside = QCoreApplication::translate("jp::office::sheet::Tables", "That would cut through a table. Turn the table into a plain range first, or change cells outside it.");
+    const QString header = QCoreApplication::translate("jp::office::sheet::Tables", "That would remove a table, or the row of its column names. Select the rows below the names, or delete the table's cells another way.");
+    const quint32 f = e.first, c = e.count;
+    switch (e.kind) {
+    case K::InsertRows:
+        if (f <= t.row1) {
+            out->row1 += c;
+            out->row2 += c;
+            return TableFate::Moved;
+        }
+        if (f <= t.row2) {
+            out->row2 += c;
+            return TableFate::Moved;
+        }
+        return TableFate::Same;
+    case K::DeleteRows: {
+        const quint32 last = f + c - 1;
+        if (f > t.row2) return TableFate::Same;
+        if (last < t.row1) {
+            out->row1 -= c;
+            out->row2 -= c;
+            return TableFate::Moved;
+        }
+        if (f <= t.row1 && last >= t.row2) return refuse(header);
+        if (t.headerRows > 0 && f <= t.row1) return refuse(header);
+        const quint32 above = t.row1 > f ? std::min(t.row1, f + c) - f : 0;
+        const quint32 overlap = std::min(last, t.row2) - std::max(f, t.row1) + 1;
+        out->row1 = t.row1 - above;
+        out->row2 = t.row2 - above - overlap;
+        return TableFate::Moved;
+    }
+    case K::InsertColumns:
+        if (f <= t.col1) {
+            out->col1 += c;
+            out->col2 += c;
+            return TableFate::Moved;
+        }
+        if (f <= t.col2) return refuse(inside);
+        return TableFate::Same;
+    case K::DeleteColumns: {
+        const quint32 last = f + c - 1;
+        if (f > t.col2) return TableFate::Same;
+        if (last < t.col1) {
+            out->col1 -= c;
+            out->col2 -= c;
+            return TableFate::Moved;
+        }
+        return refuse(inside);
+    }
+    case K::InsertCellsDown:
+    case K::DeleteCellsUp: {
+        const bool columnsMeet = !(t.col2 < e.col1 || t.col1 > e.col2);
+        if (!columnsMeet) return TableFate::Same;
+        const quint32 n = e.row2 - e.row1 + 1;
+        if (e.kind == K::InsertCellsDown) {
+            if (t.row2 < e.row1) return TableFate::Same;
+            if (t.col1 >= e.col1 && t.col2 <= e.col2 && t.row1 >= e.row1) {
+                out->row1 += n;
+                out->row2 += n;
+                return TableFate::Moved;
+            }
+            return refuse(inside);
+        }
+        if (t.row2 < e.row1) return TableFate::Same;
+        if (t.col1 >= e.col1 && t.col2 <= e.col2 && t.row1 > e.row2) {
+            out->row1 -= n;
+            out->row2 -= n;
+            return TableFate::Moved;
+        }
+        return refuse(inside);
+    }
+    case K::InsertCellsRight:
+    case K::DeleteCellsLeft: {
+        const bool rowsMeet = !(t.row2 < e.row1 || t.row1 > e.row2);
+        if (!rowsMeet) return TableFate::Same;
+        const quint32 n = e.col2 - e.col1 + 1;
+        if (e.kind == K::InsertCellsRight) {
+            if (t.col2 < e.col1) return TableFate::Same;
+            if (t.row1 >= e.row1 && t.row2 <= e.row2 && t.col1 >= e.col1) {
+                out->col1 += n;
+                out->col2 += n;
+                return TableFate::Moved;
+            }
+            return refuse(inside);
+        }
+        if (t.col2 < e.col1) return TableFate::Same;
+        if (t.row1 >= e.row1 && t.row2 <= e.row2 && t.col1 > e.col2) {
+            out->col1 -= n;
+            out->col2 -= n;
+            return TableFate::Moved;
+        }
+        return refuse(inside);
+    }
+    default: return TableFate::Same;
+    }
 }
 
 bool renameTableXml(const QByteArray &xml, const QStringList &fileNames, const QStringList &names, const QString &table, QByteArray *out)

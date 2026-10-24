@@ -22,6 +22,7 @@ void CrunchWindow::createEditing()
 {
     m_session = std::make_unique<crunch::EditSession>(&m_loader, m_loaded, &m_values, nullptr);
     connect(m_session.get(), &crunch::EditSession::cellsChanged, this, &CrunchWindow::onCellsChanged);
+    connect(m_session.get(), &crunch::EditSession::cellsMoved, this, &CrunchWindow::onCellsMoved);
     QUndoStack *u = m_session->undoStack();
     connect(u, &QUndoStack::canUndoChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::canRedoChanged, this, &CrunchWindow::updateEditActions);

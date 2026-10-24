@@ -118,6 +118,48 @@ void ValueStore::apply(const std::vector<Item> &items)
     }
 }
 
+qint64 ValueStore::remap(int sheet, const std::function<bool(quint32 *row, quint32 *col)> &where)
+{
+    using jp::calc::Value;
+    if (sheet < 0 || size_t(sheet) >= m_sheets.size() || !m_sheets[size_t(sheet)]) return 0;
+    Table &t = *m_sheets[size_t(sheet)];
+    std::vector<Item> all;
+    qint64 changed = 0;
+    for (const Chunk &c : t.chunks)
+        for (const Slot &s : c.slots) {
+            if (s.key == kEmptyKey) continue;
+            Item it;
+            it.sheet = sheet;
+            it.row = quint32(s.key >> 16);
+            it.col = quint32(s.key & 0xFFFF);
+            quint32 row = it.row, col = it.col;
+            const bool keep = where(&row, &col);
+            if (!keep || row != it.row || col != it.col) ++changed;
+            if (!keep) continue;
+            it.row = row;
+            it.col = col;
+            switch (Value::Kind(s.kind)) {
+            case Value::Kind::Number: it.value = Value::number(s.number); break;
+            case Value::Kind::Bool: it.value = Value::boolean(s.number != 0); break;
+            case Value::Kind::Error: it.value = Value::error(jp::calc::ErrorKind(s.error)); break;
+            case Value::Kind::Text: it.value = Value::text(m_texts[size_t(s.text)]); break;
+            default: break;
+            }
+            all.push_back(std::move(it));
+        }
+    if (changed == 0) return 0;
+    for (const Chunk &c : t.chunks)
+        for (const Slot &s : c.slots)
+            if (s.key != kEmptyKey && s.text >= 0) {
+                m_texts[size_t(s.text)] = QString();
+                m_freeTexts.push_back(s.text);
+            }
+    for (const Chunk &c : t.chunks) m_count -= qint64(c.used);
+    m_sheets[size_t(sheet)].reset();
+    apply(all);
+    return changed;
+}
+
 bool ValueStore::find(int sheet, quint32 row, quint32 col, jp::calc::Value *out) const
 {
     using jp::calc::Value;
