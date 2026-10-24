@@ -12,6 +12,7 @@
 #include "app/sheettabs.h"
 #include "app/telemetry.h"
 #include "app/widgets.h"
+#include "core/sheetobjects.h"
 #include "core/appinfo.h"
 #include "sheet/cellref.h"
 
@@ -154,6 +155,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
         setActiveSheet(m_tabSheets[tab]);
     });
     showBlank();
+    setupObjects();
     resize(1280, 800);
     updateTitle();
     updateBars();
@@ -161,6 +163,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
 
 CrunchWindow::~CrunchWindow()
 {
+    if (m_view) m_view->setOverlay(nullptr);   // (the objects over the cells go before the grid does)
     openWindows().removeAll(this);
     // (the session's undo stack tells the window as its steps go: it is let go of first, and the window is not told)
     if (m_session) {

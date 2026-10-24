@@ -6,6 +6,7 @@
 #include "app/settings.h"
 #include "app/sheettabs.h"
 #include "app/telemetry.h"
+#include "core/sheetobjects.h"
 #include "core/appinfo.h"
 #include "core/threadtime.h"
 
@@ -77,6 +78,7 @@ void CrunchWindow::onFirstScreen()
     m_loaded = m_loader.result();
     if (!m_loaded || !m_loaded->book || !m_loaded->preview) return;
     m_haveFirstScreen = true;
+    openObjects();
     m_views.clear();
     m_sheet = m_loaded->previewSheet;
     fillTabs();
@@ -112,6 +114,7 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     m_loaded = m_loader.result();
     m_haveCalc = true;
     createEditing();
+    if (m_objects && m_loaded->calc) m_objects->setCells(m_loaded->calc.get(), &m_values);
     for (int i = 0; i < m_tabs->count(); ++i) m_tabs->setTabEnabled(i, true);
     // the stripes the sheets ask for, now that every sheet is read
     const jp::office::sheet::Styles &styles = m_loaded->book->styles();
@@ -182,6 +185,7 @@ void CrunchWindow::showSheet(int sheetIndex, bool keepView)
     m_view->setData(d, keepView);
     if (!keepView && m_views.contains(sheetIndex)) m_view->setViewState(m_views.value(sheetIndex));
     m_view->sheet().setShowFormulas(act("view.formulas")->isChecked());
+    prepareObjects(sheetIndex);
     act("view.gridlines")->setChecked(m_view->showGridlines());
     act("view.headings")->setChecked(m_view->showHeadings());
     updateBars();
@@ -215,8 +219,7 @@ void CrunchWindow::setActiveSheet(int sheetIndex)
         m_switchingTabs = false;
     }
     showSheet(sheetIndex, false);
-    if (m_loaded->book->info().sheets[sheetIndex].kind == SheetKind::Chartsheet) setStatus(tr("This is a chart sheet; JeffCrunch doesn't show charts yet."));
-    else if (!m_calculating && !m_loading) setStatus(tr("Ready"));
+    if (!m_calculating && !m_loading) setStatus(tr("Ready"));
 }
 
 // ---- the calculation, on the worker
@@ -249,6 +252,7 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
     if (m_session && batch->generation < m_session->generation()) m_session->moveToNow(&batch->items, batch->generation);   // (made before cells were moved: they are named by where they were)
     if (m_session) m_session->noteResults(batch->items);   // (before the store has them: it says what the engine had before)
     m_values.apply(batch->items);
+    if (m_objects) m_objects->cellsChanged(batch->items);
     m_workerCpuMicros = batch->workerCpuMicros;
     const bool active = m_view->valuesChanged(m_sheet, batch->items);
     if (active) updateBars();

@@ -7,6 +7,7 @@
 #include "app/oldformat.h"
 #include "app/settings.h"
 #include "app/telemetry.h"
+#include "core/sheetobjects.h"
 #include "core/appinfo.h"
 #include "core/loader.h"
 #include "sheet/xlsxsave.h"
@@ -177,6 +178,7 @@ void CrunchWindow::onSaved(bool ok, const QString &message, const QString &path,
             notice(tr("Save"), tr("%1 saved \"%2\", but could not read it back: %3").arg(appInfo().name, QFileInfo(path).fileName(), why));
         } else {
             m_session->saved(*snapshot, package);
+            if (m_objects) m_objects->saved();
             forgotten = m_session->stepsForgottenBySave();
         }
         if (QFileInfo(path).absoluteFilePath() != QFileInfo(m_path).absoluteFilePath()) {

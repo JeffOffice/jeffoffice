@@ -113,6 +113,17 @@ bool ObjectLayer::isDeleted(int id) const
     return false;
 }
 
+void ObjectLayer::setAnchor(int id, const DrawingAnchor &anchor)
+{
+    for (Entry &e : m_entries)
+        if (e.object.id == id) {
+            e.object.anchor = anchor;
+            m_boxesValid = false;
+            requestRepaint();
+            return;
+        }
+}
+
 void ObjectLayer::invalidate(int id)
 {
     for (Entry &e : m_entries)

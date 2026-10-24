@@ -4,6 +4,7 @@
 #include "app/crunchwindow.h"
 
 #include "app/sheettabs.h"
+#include "core/sheetobjects.h"
 #include "core/editsession.h"
 #include "grid/gridview.h"
 #include "sheet/cellref.h"
@@ -24,6 +25,7 @@ void CrunchWindow::createEditing()
     connect(m_session.get(), &crunch::EditSession::cellsChanged, this, &CrunchWindow::onCellsChanged);
     connect(m_session.get(), &crunch::EditSession::cellsMoved, this, &CrunchWindow::onCellsMoved);
     connect(m_session.get(), &crunch::EditSession::sizesChanged, this, &CrunchWindow::onSizesChanged);
+    connectObjects();
     connect(m_session.get(), &crunch::EditSession::stepFailed, this, [this](const QString &what) {
         notice(tr("Undo"), what);
         updateEditActions();
@@ -214,6 +216,7 @@ void CrunchWindow::cancelEdit()
 
 void CrunchWindow::onCellsChanged(int sheet, const std::vector<jp::grid::ValueStore::Item> &cells)
 {
+    if (m_objects) m_objects->cellsChanged(cells);
     if (sheet == m_sheet && m_view->valuesChanged(sheet, cells)) updateBars();
     if (m_undoing && !cells.empty()) {
         // Undo and Redo show the cell they changed

@@ -77,6 +77,8 @@ public:
     // An object is taken away (a person pressed Delete) or brought back (undone): it is not drawn or hit while it is.
     void setDeleted(int id, bool deleted);
     bool isDeleted(int id) const;
+    // The object's anchor changed (cells were inserted or deleted before it): it is placed again.
+    void setAnchor(int id, const jp::office::sheet::DrawingAnchor &anchor);
     // Its cells changed: the picture is made again, a moment later (the old one is drawn until it is, and a calculation that tells many changes makes one picture). invalidateAll for every object.
     void invalidate(int id);
     void invalidateAll();
