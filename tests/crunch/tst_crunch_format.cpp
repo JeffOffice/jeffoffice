@@ -38,6 +38,42 @@ QByteArray numbersBook()
     return buildXlsx({worksheet(rows, QString(), QStringLiteral("<cols><col min=\"1\" max=\"5\" width=\"16\" customWidth=\"1\"/></cols>"))}, QByteArray(), QString(), QString(), styles);
 }
 
+// A workbook with the lists a real file has (a font, two fills, a border), and some cells:
+//         A      B      C
+//   1     1      2      3
+//   2     4      5      6
+//   3     7      8      9
+QByteArray formatBook()
+{
+    const QString lists = QStringLiteral("<fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/><family val=\"2\"/></font></fonts>"
+                                         "<fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills>"
+                                         "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders>"
+                                         "<cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>");
+    const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/>"), lists);
+    QString rows;
+    for (int r = 1; r <= 3; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%2</v></c><c r=\"B%1\"><v>%3</v></c><c r=\"C%1\"><v>%4</v></c></row>").arg(r).arg(r * 3 - 2).arg(r * 3 - 1).arg(r * 3);
+    return buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), styles);
+}
+
+CellRange columns(quint32 first, quint32 last) { return CellRange{0, first, 1048575, last, true}; }
+CellRange rows(quint32 first, quint32 last) { return CellRange{first, 0, last, 16383, true}; }
+
+// The format of a cell of the grid, as the grid draws it.
+const grid::CellLook &lookAt(EditWindow &e, const QString &ref)
+{
+    quint32 r = 0, c = 0;
+    parseCellRef(ref, &r, &c);
+    const grid::Cell *cell = e.view()->sheet().cellAt(r, c);
+    return e.view()->sheet().looks().look(e.view()->sheet().styleOf(r, c, cell));
+}
+
+quint32 styleAt(EditWindow &e, const QString &ref)
+{
+    quint32 r = 0, c = 0;
+    parseCellRef(ref, &r, &c);
+    return e.view()->sheet().styleOf(r, c, e.view()->sheet().cellAt(r, c));
+}
+
 } // namespace
 
 class CrunchFormatTests : public QObject {
@@ -107,6 +143,232 @@ private Q_SLOTS:
         // a copy gives the text as shown
         e.win.w.setLocale(QLocale(QLocale::German, QLocale::Germany));
         QCOMPARE(e.view()->sheet().textOf(*e.view()->sheet().cellAt(1, 1)), QStringLiteral("-1.234.567,89"));
+    }
+
+    // A formatting command is one step: the cells have the font and fill, the format is the same for the same change (never made twice), Undo and Redo give it and take it back, and the
+    // saved file has the font, the fill, and the cell format, once.
+    void formattingIsOneStepAndSavedOnce()
+    {
+        EditWindow e;
+        QVERIFY(e.open(formatBook()));
+        crunch::EditSession *s = e.win.w.session();
+        const CellRange block = rangeOf(QStringLiteral("B2:C3"));
+        FormatChange bold;
+        bold.bold = true;
+        bold.fontSize = 14;
+        bold.fontName = QStringLiteral("Georgia");
+        FillSpec yellow;
+        yellow.pattern = PatternKind::Solid;
+        yellow.fg = ColorSpec::fromRgb(0xFFFF00);
+        bold.fill = yellow;
+        QVERIFY(s->formatCells(0, block, bold, QStringLiteral("Formatting")).ok);
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Formatting"));
+        QVERIFY(lookAt(e, QStringLiteral("B2")).bold && lookAt(e, QStringLiteral("C3")).bold);
+        QVERIFY(!lookAt(e, QStringLiteral("A1")).bold && !lookAt(e, QStringLiteral("B1")).bold);
+        QCOMPARE(lookAt(e, QStringLiteral("B2")).family, QStringLiteral("Georgia"));
+        QCOMPARE(lookAt(e, QStringLiteral("B2")).pointSize, 14.0);
+        QCOMPARE(lookAt(e, QStringLiteral("B2")).fg, QRgb(0xFFFFFF00));
+        QVERIFY(lookAt(e, QStringLiteral("B2")).pattern == PatternKind::Solid);
+        QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("n:5"));            // (the values are as they were)
+        const quint32 style = styleAt(e, QStringLiteral("B2"));
+        QCOMPARE(styleAt(e, QStringLiteral("C3")), style);                            // (one cell format for the cells)
+        // the same change on other cells is the same cell format
+        QVERIFY(s->formatCells(0, rangeOf(QStringLiteral("A1")), bold, QStringLiteral("Formatting")).ok);
+        QCOMPARE(styleAt(e, QStringLiteral("A1")), style);
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(!lookAt(e, QStringLiteral("A1")).bold);
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(!lookAt(e, QStringLiteral("B2")).bold);
+        QCOMPARE(styleAt(e, QStringLiteral("B2")), 0u);
+        e.win.w.act(QStringLiteral("edit.redo"))->trigger();
+        QVERIFY(lookAt(e, QStringLiteral("B2")).bold);
+        // a change that changes nothing is no step
+        const int steps = e.win.w.undoStack()->count();
+        QVERIFY(s->formatCells(0, block, bold, QStringLiteral("Formatting")).ok);
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        // saved, and read again
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(saved.wait(20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        const grid::GridSheet &g = second.w.view()->sheet();
+        const grid::Cell *cell = g.cellAt(1, 1);
+        QVERIFY(cell);
+        const grid::CellLook &look = g.looks().look(cell->style);
+        QVERIFY(look.bold);
+        QCOMPARE(look.family, QStringLiteral("Georgia"));
+        QCOMPARE(look.pointSize, 14.0);
+        QCOMPARE(look.fg, QRgb(0xFFFFFF00));
+        QCOMPARE(second.w.calculation()->sheet(0).cells.find(2, 2)->style, cell->style);
+        QCOMPARE(second.w.calculation()->sheet(0).cells.find(0, 0)->style, 0u);
+        QCOMPARE(second.w.calculation()->sheet(0).cells.find(1, 1)->style, second.w.calculation()->sheet(0).cells.find(2, 1)->style);
+        // a second save adds nothing the file has: the same change gives the same cell format
+        FormatChange again;
+        again.bold = true;
+        again.fontSize = 14;
+        again.fontName = QStringLiteral("Georgia");
+        again.fill = yellow;
+        QVERIFY(second.w.session()->formatCells(0, rangeOf(QStringLiteral("A3")), again, QStringLiteral("Formatting")).ok);
+        QCOMPARE(second.w.calculation()->sheet(0).cells.find(2, 0)->style, cell->style);
+    }
+
+    // Whole columns and rows are formatted as the columns' and rows' own (empty cells there have it, and a cell typed in later takes it), the cells in them that have formats of their own are
+    // changed too, it is saved as the column's and row's format, and Clear Formats takes it away.
+    void wholeColumnsAndRowsHaveTheFormatTheirOwn()
+    {
+        EditWindow e;
+        QVERIFY(e.open(formatBook()));
+        crunch::EditSession *s = e.win.w.session();
+        FormatChange italic;
+        italic.italic = true;
+        FillSpec green;
+        green.pattern = PatternKind::Solid;
+        green.fg = ColorSpec::fromRgb(0x00FF00);
+        italic.fill = green;
+        QVERIFY(s->formatCells(0, columns(1, 1), italic, QStringLiteral("Formatting")).ok);
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        QVERIFY(lookAt(e, QStringLiteral("B2")).italic);                 // (a cell the column has)
+        QVERIFY(lookAt(e, QStringLiteral("B500")).italic);               // (and one it does not)
+        QVERIFY(!lookAt(e, QStringLiteral("A500")).italic && !lookAt(e, QStringLiteral("C500")).italic);
+        QCOMPARE(lookAt(e, QStringLiteral("B500")).fg, QRgb(0xFF00FF00));
+        // a row over it: the row's format is the empty cells' (it is over the column's)
+        FormatChange bold;
+        bold.bold = true;
+        QVERIFY(s->formatCells(0, rows(4, 5), bold, QStringLiteral("Formatting")).ok);
+        QVERIFY(lookAt(e, QStringLiteral("F5")).bold && lookAt(e, QStringLiteral("F6")).bold && !lookAt(e, QStringLiteral("F7")).bold);
+        QVERIFY(lookAt(e, QStringLiteral("A1")).bold == false);
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(saved.wait(20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        const grid::GridSheet &g = second.w.view()->sheet();
+        QVERIFY(g.looks().look(g.styleOf(499, 1, nullptr)).italic);
+        QVERIFY(g.looks().look(g.styleOf(4, 7, nullptr)).bold);
+        QVERIFY(g.looks().look(g.styleOf(1, 1, g.cellAt(1, 1))).italic);
+        QVERIFY(!g.looks().look(g.styleOf(499, 2, nullptr)).italic);
+        // Clear Formats takes them away, with the formats of the cells
+        // a number typed in a cell of the column takes the column's format
+        e.select(QStringLiteral("B600"));
+        e.enter(QStringLiteral("7"));
+        QVERIFY(e.settle());
+        QVERIFY(lookAt(e, QStringLiteral("B600")).italic);
+        QCOMPARE(lookAt(e, QStringLiteral("B600")).fg, QRgb(0xFF00FF00));
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(s->clearFormats(0, columns(1, 1)).ok);
+        QVERIFY(!lookAt(e, QStringLiteral("B2")).italic && !lookAt(e, QStringLiteral("B500")).italic);
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(lookAt(e, QStringLiteral("B2")).italic && lookAt(e, QStringLiteral("B500")).italic);
+        QVERIFY(s->clearFormats(0, rangeOf(QStringLiteral("A1:C3"))).ok);
+        QVERIFY(!lookAt(e, QStringLiteral("B2")).italic);
+        QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("n:5"));   // (the values stay)
+        QVERIFY(s->formatCells(0, CellRange{0, 0, 1048575, 16383, true}, italic, QStringLiteral("Formatting")).ok);   // (the whole sheet is the columns')
+    }
+
+    // The borders of a block: the outside edges and the lines between its cells, the cells beside it that share an edge have the line on their side, and a line of no style takes them away.
+    void bordersAreDrawnOnTheEdgesOfABlock()
+    {
+        EditWindow e;
+        QVERIFY(e.open(formatBook()));
+        crunch::EditSession *s = e.win.w.session();
+        BorderSide thin;
+        thin.style = BorderStyle::Thin;
+        thin.color = ColorSpec::fromRgb(0x336699);
+        using E = crunch::EditSession;
+        QVERIFY(s->setBorders(0, rangeOf(QStringLiteral("B2:C3")), E::EdgeLeft | E::EdgeRight | E::EdgeTop | E::EdgeBottom, thin, QStringLiteral("Borders")).ok);
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        QVERIFY(lookAt(e, QStringLiteral("B2")).left.style == BorderStyle::Thin && lookAt(e, QStringLiteral("B2")).top.style == BorderStyle::Thin);
+        QVERIFY(lookAt(e, QStringLiteral("B2")).right.style == BorderStyle::None && lookAt(e, QStringLiteral("B2")).bottom.style == BorderStyle::None);   // (inside)
+        QVERIFY(lookAt(e, QStringLiteral("C3")).right.style == BorderStyle::Thin && lookAt(e, QStringLiteral("C3")).bottom.style == BorderStyle::Thin);
+        QCOMPARE(lookAt(e, QStringLiteral("B2")).left.color, QRgb(0xFF336699));
+        // the cells beside it
+        QVERIFY(lookAt(e, QStringLiteral("A2")).right.style == BorderStyle::Thin && lookAt(e, QStringLiteral("A3")).right.style == BorderStyle::Thin);
+        QVERIFY(lookAt(e, QStringLiteral("B1")).bottom.style == BorderStyle::Thin && lookAt(e, QStringLiteral("C1")).bottom.style == BorderStyle::Thin);
+        QVERIFY(lookAt(e, QStringLiteral("D2")).left.style == BorderStyle::Thin);
+        QVERIFY(lookAt(e, QStringLiteral("B4")).top.style == BorderStyle::Thin);
+        QVERIFY(lookAt(e, QStringLiteral("A1")).right.style == BorderStyle::None);
+        // the lines between
+        BorderSide dashed;
+        dashed.style = BorderStyle::Dashed;
+        QVERIFY(s->setBorders(0, rangeOf(QStringLiteral("B2:C3")), E::EdgeInsideHorizontal | E::EdgeInsideVertical, dashed, QStringLiteral("Borders")).ok);
+        QVERIFY(lookAt(e, QStringLiteral("B2")).right.style == BorderStyle::Dashed && lookAt(e, QStringLiteral("B2")).bottom.style == BorderStyle::Dashed);
+        QVERIFY(lookAt(e, QStringLiteral("C3")).left.style == BorderStyle::Dashed && lookAt(e, QStringLiteral("C3")).top.style == BorderStyle::Dashed);
+        QVERIFY(lookAt(e, QStringLiteral("B2")).left.style == BorderStyle::Thin);   // (the outside stays)
+        // none takes them away
+        QVERIFY(s->setBorders(0, rangeOf(QStringLiteral("B2:C3")), E::EdgeLeft | E::EdgeRight | E::EdgeTop | E::EdgeBottom | E::EdgeInsideHorizontal | E::EdgeInsideVertical, BorderSide(), QStringLiteral("Borders")).ok);
+        for (const char *ref : {"B2", "C3", "A2", "B1", "D2", "B4"}) {
+            const grid::CellLook &l = lookAt(e, QString::fromLatin1(ref));
+            QVERIFY2(!l.hasBorder(), ref);
+        }
+        // a diagonal
+        QVERIFY(s->setBorders(0, rangeOf(QStringLiteral("A1")), E::EdgeDiagonalUp, thin, QStringLiteral("Borders")).ok);
+        QVERIFY(lookAt(e, QStringLiteral("A1")).diagonalUp && lookAt(e, QStringLiteral("A1")).diagonal.style == BorderStyle::Thin);
+        // saved
+        QVERIFY(s->setBorders(0, rangeOf(QStringLiteral("B2:C3")), E::EdgeBottom, thin, QStringLiteral("Borders")).ok);
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(saved.wait(20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        const grid::GridSheet &g = second.w.view()->sheet();
+        QVERIFY(g.looks().look(g.cellAt(2, 1)->style).bottom.style == BorderStyle::Thin);
+        QVERIFY(g.looks().look(g.cellAt(0, 0)->style).diagonalUp);
+    }
+
+    // Cells are merged (the upper left keeps its value; the others are asked about when they hold something, and are emptied), merged and centered, merged across, and unmerged; one step
+    // each, undone, and saved.
+    void cellsAreMergedAndUnmerged()
+    {
+        EditWindow e;
+        QVERIFY(e.open(formatBook()));
+        crunch::EditSession *s = e.win.w.session();
+        using K = crunch::EditSession::MergeKind;
+        // the others hold numbers: asked first, and nothing changed
+        crunch::EditSession::Outcome o = s->mergeCells(0, rangeOf(QStringLiteral("A1:B2")), K::Merge);
+        QVERIFY(!o.ok && o.confirm);
+        QVERIFY(o.problem.contains(QStringLiteral("upper-left")));
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:2"));
+        o = s->mergeCells(0, rangeOf(QStringLiteral("A1:B2")), K::Merge, true);
+        QVERIFY(o.ok);
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        QCOMPARE(e.win.w.calculation()->mergesOf(0).size(), 1);
+        QVERIFY(e.view()->sheet().layout().merges.at(0, 1) >= 0 && e.view()->sheet().layout().merges.at(1, 0) >= 0);
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("-"));
+        QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("-"));
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QCOMPARE(e.win.w.calculation()->mergesOf(0).size(), 0);
+        QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("n:5"));
+        // merge and center
+        QVERIFY(s->mergeCells(0, rangeOf(QStringLiteral("B3:C3")), K::MergeAndCenter, true).ok);
+        QVERIFY(lookAt(e, QStringLiteral("B3")).horizontal == HAlign::Center);
+        QCOMPARE(e.valueAt(QStringLiteral("C3")), QStringLiteral("-"));
+        // across: each row of the block
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(s->mergeCells(0, rangeOf(QStringLiteral("A1:C3")), K::Across, true).ok);
+        QCOMPARE(e.win.w.calculation()->mergesOf(0).size(), 3);
+        QVERIFY(e.valueAt(QStringLiteral("A2")) == QStringLiteral("n:4") && e.valueAt(QStringLiteral("B2")) == QStringLiteral("-"));
+        // unmerge: the merges the block touches go; the values stay empty
+        QVERIFY(s->mergeCells(0, rangeOf(QStringLiteral("A2")), K::Unmerge).ok);
+        QCOMPARE(e.win.w.calculation()->mergesOf(0).size(), 2);
+        // saved: the merged ranges are in the file
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(saved.wait(20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QCOMPARE(second.w.calculation()->mergesOf(0), e.win.w.calculation()->mergesOf(0));
+        // a merge over a merge replaces it
+        o = s->mergeCells(0, rangeOf(QStringLiteral("A1:A3")), K::Merge, true);
+        QVERIFY(o.ok);
+        for (const CellRange &m : e.win.w.calculation()->mergesOf(0)) QVERIFY(m.row1 != m.row2 ? (m.col1 == 0 && m.col2 == 0) : m.col1 > 0);
     }
 };
 

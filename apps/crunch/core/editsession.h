@@ -42,6 +42,8 @@ struct CellChange {
     // is to go in the shared strings, and a number format (a code) the cell's format is to be given.
     bool textToShare = false;
     QString formatCode;
+    // Only the format of the cell changes (its value, formula, and the array it may be part of stay as they are).
+    bool styleOnly = false;
 };
 
 // A table's column renamed by a step (its header cell is one of the step's cells): the table by its place in the workbook's tables, the column by its place in the table.
@@ -248,6 +250,25 @@ public:
     // The most rows one resize changes.
     static constexpr qint64 kMaxRowsPerResize = 100000;
 
+    // ---- formatting (one step each; undone, redone, and saved as styles of the file with no format made twice)
+    // The cells of a range given a change of their formats: the font, the fill, the borders, the number format, the alignment, or protection (see FormatChange). Whole columns (or whole rows)
+    // are given the format as the columns' (rows') own, and the cells in them that have formats of their own are changed too; any other block must be no more than kMaxCellsPerEdit cells.
+    // Not ok, and nothing changed, if a cell in it is locked on a protected sheet. `text` is the name of the step in the Edit menu.
+    Outcome formatCells(int sheet, const jp::office::sheet::CellRange &range, const jp::office::sheet::FormatChange &change, const QString &text);
+    // The borders of a block: which of its edges (the sides on the outside of the block, the lines between its cells, a diagonal) are given the line; a line of no style takes them away. The
+    // cells beside the block that share its outer edges are given the same line on the side that meets it, as in the programs people know.
+    enum BorderEdge { EdgeLeft = 1, EdgeRight = 2, EdgeTop = 4, EdgeBottom = 8, EdgeInsideHorizontal = 16, EdgeInsideVertical = 32, EdgeDiagonalUp = 64, EdgeDiagonalDown = 128 };
+    Outcome setBorders(int sheet, const jp::office::sheet::CellRange &range, int edges, const jp::office::sheet::BorderSide &line, const QString &text);
+    // Clears the formats of the cells in the range (they show General in the first cell format, with no fill or border), the contents and the formats, or both of them.
+    Outcome clearFormats(int sheet, const jp::office::sheet::CellRange &range);
+    Outcome clearAll(int sheet, const jp::office::sheet::CellRange &range);
+    // Merges the cells of the range into one (the cell at the top left keeps its value; the others are emptied, which is asked about first when they hold anything: `confirm` in the outcome,
+    // and the same call again with `discard`), merges each row of the range alone (Across), or takes the merges of the range away. Merge and center also centers the cell.
+    enum class MergeKind { Merge, MergeAndCenter, Across, Unmerge };
+    Outcome mergeCells(int sheet, const jp::office::sheet::CellRange &range, MergeKind kind, bool discard = false);
+    // Gives the cells a named style (its place among the style formats: see Workbook::styleNamed), which sets their fonts, fills, borders, number format, alignment, and protection.
+    Outcome applyStyle(int sheet, const jp::office::sheet::CellRange &range, quint32 style, const QString &text);
+
     // The worker's results, as they reach the window (before the window's store has them: the store's value is the engine's before it): kept for saving, those that the engine changed and that
     // differ from what the file holds.
     void noteResults(const std::vector<jp::grid::ValueStore::Item> &items);
@@ -305,6 +326,17 @@ private:
     void applySizes(Step *step, bool forward, jp::office::sheet::Calculation *calc);
     bool widenLastStep(int index, int sheet, quint32 col, double width);
     Outcome resize(const SizeEdit &edit, const QString &text);
+    // The format a cell that holds nothing has: its row's when the row has one, else its column's, else the first.
+    quint32 implicitStyle(int sheet, quint32 row, quint32 col) const;
+    // The formats of cells changed: each target is a cell given a change (or its formats cleared); the formats are made with the worker held back, then the step is pushed. Whole columns
+    // and rows of the range get their own formats.
+    struct RestyleTarget {
+        quint32 row = 0, col = 0;
+        std::shared_ptr<const jp::office::sheet::FormatChange> change;   // the change, or none to clear the formats
+    };
+    using SizeBuilder = std::function<void(jp::office::sheet::Workbook &, const jp::office::sheet::Calculation &, Step *)>;
+    Outcome restyle(int sheet, const std::vector<RestyleTarget> &targets, const QString &text, const SizeBuilder &sizes = nullptr);
+    Outcome restyleRange(int sheet, const jp::office::sheet::CellRange &range, const std::shared_ptr<const jp::office::sheet::FormatChange> &change, const QString &text);
     Outcome structure(const jp::office::sheet::StructEdit &edit, const QString &text);
     // The changes a paste makes: the block (`blockRows` by `blockCols`) is put at the first cell of `target`, or over all of it when it is a whole number of times the block. `make` is
     // asked for the change at each place of the block, and says false, with the problem, if the paste can't be made. `merges` are those of the block (from its first cell), put with it.

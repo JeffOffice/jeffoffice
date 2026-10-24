@@ -327,7 +327,9 @@ bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString
 {
     const Calculation *calc = m_book->calc.get();
     const Calculation::CellContent before = calc->content(sheet, row, col);
-    const QString code = m_book->book->styles().formatCode(before.style, m_locale);
+    // (a cell that holds nothing has its row's or its column's format, and a cell typed in takes it)
+    const quint32 baseStyle = before.exists ? before.style : implicitStyle(sheet, row, col);
+    const QString code = m_book->book->styles().formatCode(baseStyle, m_locale);
     const EntryResult r = readEntry(typed, entryOptions(sheet, code == QLatin1String("@")));
     if (!r.ok) {
         problem->ok = false;
@@ -346,6 +348,7 @@ bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString
     ch.after.formula.clear();
     ch.after.value = Value();
     ch.after.sharedString = -1;
+    ch.after.style = baseStyle;
     const Entry &e = r.entry;
     switch (e.kind) {
     case Entry::Kind::Empty: break;
@@ -365,10 +368,20 @@ bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString
         ch.after.formula = e.text;
         break;
     }
-    if (ch.after.value.isEmpty() && !ch.after.isFormula && ch.after.style == 0) ch.after.exists = false;
+    if (ch.after.value.isEmpty() && !ch.after.isFormula && (ch.after.style == 0 || !before.exists)) ch.after.exists = false;
     *none = sameMeaning(ch.before, ch.after) && ch.formatCode.isEmpty();   // (nothing to change)
     *out = std::move(ch);
     return true;
+}
+
+quint32 EditSession::implicitStyle(int sheet, quint32 row, quint32 col) const
+{
+    const Calculation *calc = m_book->calc.get();
+    for (const RowSpec &r : calc->rowSpecsIn(sheet, row, row))
+        if (r.row == row && r.customFormat && r.style != 0) return r.style;
+    for (const ColumnSpan &c : calc->columnRuns(sheet, col, col))
+        if (c.first <= col && col <= c.last) return c.style;
+    return 0;
 }
 
 EditSession::Outcome EditSession::checkRule(int sheet, quint32 row, quint32 col, const Value &value, bool isFormula, const QString &typed) const
@@ -612,6 +625,17 @@ bool EditSession::apply(Step *step, bool forward)
                 }
             }
             const Calculation::CellContent &c = forward ? ch.after : ch.before;
+            if (ch.styleOnly) {
+                // only the cell's format changes: its value, its formula, and the array it may be part of are not touched
+                calc->setStyle(ch.sheet, ch.row, ch.col, c.style);
+                m_touched.insert(keyOf(ch.sheet, ch.row, ch.col));
+                ValueStore::Item styled;
+                styled.sheet = ch.sheet;
+                styled.row = ch.row;
+                styled.col = ch.col;
+                cells[ch.sheet].push_back(styled);
+                continue;
+            }
             calc->put(ch.sheet, ch.row, ch.col, c, Calculation::Marking::Later);
             m_touched.insert(keyOf(ch.sheet, ch.row, ch.col));
             ValueStore::Item it;
@@ -646,7 +670,10 @@ bool EditSession::apply(Step *step, bool forward)
         m_mergesChanged.insert(m.sheet);
     }
     if (m_holdHook) m_holdHook(calc, true);
-    if (!step->cells.empty() || !step->renames.empty()) hold->changed();
+    // (a change of formats alone leaves nothing for the worker to work out)
+    bool valuesChanged = !step->renames.empty();
+    for (const CellChange &ch : step->cells) valuesChanged = valuesChanged || !ch.styleOnly;
+    if (valuesChanged) hold->changed();
     hold.reset();   // (the worker has the model again, and works out what these changes make)
     m_tracking = true;
     // a formula put in a cell has no value until the worker gives it one: it shows nothing, not the value of what was there
@@ -829,6 +856,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         const std::vector<jp::office::sheet::RowSpec> specs = calc->rowSpecsIn(sheet, row, row);
         RowProps p;
         p.row = row;
+        p.styleKnown = true;
         if (specs.empty()) {
             // (a row that is back to the sheet's own height, shown: the file that has it taller, or hidden, from an earlier save is told so)
             p.height = calc->sheet(sheet).format.defaultRowHeight;
@@ -836,6 +864,8 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
             p.height = specs.front().height;
             p.hidden = specs.front().hidden;
             p.customHeight = specs.front().customHeight;
+            p.customFormat = specs.front().customFormat;
+            p.style = specs.front().style;
         }
         changes.sheets[sheet].rows.push_back(p);
     }

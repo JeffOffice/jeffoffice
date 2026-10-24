@@ -57,6 +57,9 @@ struct RowProps {
     double height = -1;         // points; -1: the file's stays
     bool hidden = false;
     bool customHeight = false;
+    bool styleKnown = false;    // `style` and `customFormat` are the row's own format (else the file's stays)
+    bool customFormat = false;
+    quint32 style = 0;
 };
 
 struct SheetChanges {
