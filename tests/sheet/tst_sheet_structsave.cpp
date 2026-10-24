@@ -325,6 +325,126 @@ private Q_SLOTS:
         QVERIFY2(sheet.contains(QStringLiteral("<c r=\"C4\"><f t=\"array\" ref=\"C4:C5\">A4:A5*2</f><v>6</v></c>")), qPrintable(sheet));
         QVERIFY(!sheet.contains(QStringLiteral("A3:A4*2")));
     }
+
+    // What the file says about conditional formats, hyperlinks, and chart series after rows and columns are inserted and deleted above, inside, and below them, with every expected text written
+    // out by hand (the yardstick of the roundtrip works the expected text out with the program's own adjustment of formulas, so a fault in it would not be seen there).
+    void aConditionalFormatFollowsRowsAndColumnsAsWrittenByHand()
+    {
+        QString rows;
+        for (int r = 1; r <= 12; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c></row>").arg(r);
+        const QString after = QStringLiteral("<conditionalFormatting sqref=\"B3:B6\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"1\"><formula>$A3&gt;$D$8</formula></cfRule></conditionalFormatting>"
+                                             "<conditionalFormatting sqref=\"C3:C6\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"2\"><formula>$A3&gt;$D$4</formula></cfRule></conditionalFormatting>");
+        const QByteArray book = buildXlsx({worksheet(rows, after)});
+        struct Case {
+            const char *what;
+            StructEdit edit;
+            QStringList expected;   // each must be in the sheet
+            QStringList absent;     // and none of these
+        };
+        const QVector<Case> cases = {
+            {"two rows inserted above both", StructEdit::insertRows(0, 0, 2),
+             {"sqref=\"B5:B8\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"1\"><formula>$A5&gt;$D$10</formula>", "sqref=\"C5:C8\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"2\"><formula>$A5&gt;$D$6</formula>"}, {"#REF!"}},
+            {"two rows inserted inside them", StructEdit::insertRows(0, 4, 2),
+             {"sqref=\"B3:B8\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"1\"><formula>$A3&gt;$D$10</formula>", "sqref=\"C3:C8\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"2\"><formula>$A3&gt;$D$4</formula>"}, {"#REF!"}},
+            {"two rows inserted below them", StructEdit::insertRows(0, 9, 2),
+             {"sqref=\"B3:B6\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"1\"><formula>$A3&gt;$D$8</formula>", "sqref=\"C3:C6\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"2\"><formula>$A3&gt;$D$4</formula>"}, {"#REF!"}},
+            {"two rows deleted above both", StructEdit::deleteRows(0, 0, 2),
+             {"sqref=\"B1:B4\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"1\"><formula>$A1&gt;$D$6</formula>", "sqref=\"C1:C4\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"2\"><formula>$A1&gt;$D$2</formula>"}, {"#REF!"}},
+            {"a row deleted inside them: the cell the second reads is gone", StructEdit::deleteRows(0, 3, 1),
+             {"sqref=\"B3:B5\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"1\"><formula>$A3&gt;$D$7</formula>", "sqref=\"C3:C5\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"2\"><formula>$A3&gt;#REF!</formula>"}, {}},
+            {"the first row of them deleted: the rule is written for the first row left", StructEdit::deleteRows(0, 2, 1),
+             {"sqref=\"B3:B5\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"1\"><formula>$A3&gt;$D$7</formula>", "sqref=\"C3:C5\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"2\"><formula>$A3&gt;$D$3</formula>"}, {"#REF!"}},
+            {"all their rows deleted", StructEdit::deleteRows(0, 2, 4), {}, {"conditionalFormatting", "cfRule", "#REF!"}},
+            {"a row deleted below them", StructEdit::deleteRows(0, 10, 1),
+             {"sqref=\"B3:B6\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"1\"><formula>$A3&gt;$D$8</formula>", "sqref=\"C3:C6\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"2\"><formula>$A3&gt;$D$4</formula>"}, {"#REF!"}},
+            {"a column inserted before them", StructEdit::insertColumns(0, 0, 1),
+             {"sqref=\"C3:C6\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"1\"><formula>$B3&gt;$E$8</formula>", "sqref=\"D3:D6\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"2\"><formula>$B3&gt;$E$4</formula>"}, {"#REF!"}},
+            {"the column the rules read deleted", StructEdit::deleteColumns(0, 3, 1),
+             {"sqref=\"B3:B6\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"1\"><formula>$A3&gt;#REF!</formula>", "sqref=\"C3:C6\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"2\"><formula>$A3&gt;#REF!</formula>"}, {}},
+        };
+        for (const Case &c : cases) {
+            const Saved s = saveWith(book, {c.edit});
+            QVERIFY2(s.error.isEmpty(), c.what);
+            const QString sheet = text(s, QStringLiteral("xl/worksheets/sheet1.xml"));
+            for (const QString &e : c.expected) QVERIFY2(sheet.contains(e), qPrintable(QStringLiteral("%1: expected %2 in %3").arg(QLatin1String(c.what), e, sheet)));
+            for (const QString &a : c.absent) QVERIFY2(!sheet.contains(a), qPrintable(QStringLiteral("%1: %2 should not be in %3").arg(QLatin1String(c.what), a, sheet)));
+        }
+    }
+
+    void aHyperlinkFollowsRowsAndColumnsAsWrittenByHand()
+    {
+        QString rows;
+        for (int r = 1; r <= 12; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c></row>").arg(r);
+        const QString after = QStringLiteral("<hyperlinks><hyperlink ref=\"A5\" location=\"Sheet1!B7\" display=\"one\"/><hyperlink ref=\"A9:A10\" location=\"Sheet1!B2\" display=\"two\"/></hyperlinks>");
+        const QByteArray book = buildXlsx({worksheet(rows, after)});
+        struct Case {
+            const char *what;
+            StructEdit edit;
+            QStringList expected;
+            QStringList absent;
+        };
+        const QVector<Case> cases = {
+            {"two rows inserted above", StructEdit::insertRows(0, 0, 2),
+             {"<hyperlink ref=\"A7\" location=\"Sheet1!B9\" display=\"one\"/>", "<hyperlink ref=\"A11:A12\" location=\"Sheet1!B4\" display=\"two\"/>"}, {"#REF!"}},
+            {"a row inserted between the first link and its target", StructEdit::insertRows(0, 5, 1),
+             {"<hyperlink ref=\"A5\" location=\"Sheet1!B8\" display=\"one\"/>", "<hyperlink ref=\"A10:A11\" location=\"Sheet1!B2\" display=\"two\"/>"}, {"#REF!"}},
+            {"a row inserted inside the second link's cells", StructEdit::insertRows(0, 9, 1),
+             {"<hyperlink ref=\"A5\" location=\"Sheet1!B7\" display=\"one\"/>", "<hyperlink ref=\"A9:A11\" location=\"Sheet1!B2\" display=\"two\"/>"}, {"#REF!"}},
+            {"the row of the first link deleted", StructEdit::deleteRows(0, 4, 1),
+             {"<hyperlink ref=\"A8:A9\" location=\"Sheet1!B2\" display=\"two\"/>"}, {"display=\"one\"", "#REF!"}},
+            {"the row the first link goes to deleted", StructEdit::deleteRows(0, 6, 1),
+             {"<hyperlink ref=\"A5\" location=\"Sheet1!#REF!\" display=\"one\"/>", "<hyperlink ref=\"A8:A9\" location=\"Sheet1!B2\" display=\"two\"/>"}, {}},
+            {"both rows of the second link deleted", StructEdit::deleteRows(0, 8, 2),
+             {"<hyperlink ref=\"A5\" location=\"Sheet1!B7\" display=\"one\"/>"}, {"display=\"two\"", "#REF!"}},
+            {"a column inserted before them", StructEdit::insertColumns(0, 0, 1),
+             {"<hyperlink ref=\"B5\" location=\"Sheet1!C7\" display=\"one\"/>", "<hyperlink ref=\"B9:B10\" location=\"Sheet1!C2\" display=\"two\"/>"}, {"#REF!"}},
+        };
+        for (const Case &c : cases) {
+            const Saved s = saveWith(book, {c.edit});
+            QVERIFY2(s.error.isEmpty(), c.what);
+            const QString sheet = text(s, QStringLiteral("xl/worksheets/sheet1.xml"));
+            for (const QString &e : c.expected) QVERIFY2(sheet.contains(e), qPrintable(QStringLiteral("%1: expected %2 in %3").arg(QLatin1String(c.what), e, sheet)));
+            for (const QString &a : c.absent) QVERIFY2(!sheet.contains(a), qPrintable(QStringLiteral("%1: %2 should not be in %3").arg(QLatin1String(c.what), a, sheet)));
+        }
+    }
+
+    void aChartSeriesFollowsRowsAndColumnsAsWrittenByHand()
+    {
+        QString rows;
+        for (int r = 1; r <= 12; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><v>%1</v></c></row>").arg(r);
+        const QByteArray chart = "<?xml version=\"1.0\"?><c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"><c:chart><c:plotArea><c:barChart><c:ser>"
+                                 "<c:tx><c:strRef><c:f>Sheet1!$B$1</c:f></c:strRef></c:tx><c:cat><c:numRef><c:f>Sheet1!$A$2:$A$9</c:f></c:numRef></c:cat><c:val><c:numRef><c:f>Sheet1!$B$2:$B$9</c:f></c:numRef></c:val></c:ser>"
+                                 "<c:ser><c:val><c:numRef><c:f>Sheet2!$A$1:$A$3</c:f></c:numRef></c:val></c:ser></c:barChart></c:plotArea></c:chart></c:chartSpace>";
+        QVector<ExtraPart> parts;
+        parts.append({QStringLiteral("xl/charts/chart1.xml"), chart, QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"), -1, QString(), QString(), QString()});
+        const QByteArray book = withParts(buildXlsx({worksheet(rows), worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"))}), parts);
+        struct Case {
+            const char *what;
+            StructEdit edit;
+            QString name, categories, values, other;   // the four formulas, as they are to be
+        };
+        const QString s2 = QStringLiteral("Sheet2!$A$1:$A$3");
+        const QVector<Case> cases = {
+            {"a row inserted above", StructEdit::insertRows(0, 0, 1), "Sheet1!$B$2", "Sheet1!$A$3:$A$10", "Sheet1!$B$3:$B$10", s2},
+            {"two rows inserted inside the series", StructEdit::insertRows(0, 4, 2), "Sheet1!$B$1", "Sheet1!$A$2:$A$11", "Sheet1!$B$2:$B$11", s2},
+            {"a row inserted below the series", StructEdit::insertRows(0, 9, 1), "Sheet1!$B$1", "Sheet1!$A$2:$A$9", "Sheet1!$B$2:$B$9", s2},
+            {"the first row deleted: the name's cell is gone", StructEdit::deleteRows(0, 0, 1), "Sheet1!#REF!", "Sheet1!$A$1:$A$8", "Sheet1!$B$1:$B$8", s2},
+            {"a row of the series deleted", StructEdit::deleteRows(0, 4, 1), "Sheet1!$B$1", "Sheet1!$A$2:$A$8", "Sheet1!$B$2:$B$8", s2},
+            {"all the rows of the series deleted", StructEdit::deleteRows(0, 1, 8), "Sheet1!$B$1", "Sheet1!#REF!", "Sheet1!#REF!", s2},
+            {"a row deleted below the series", StructEdit::deleteRows(0, 10, 1), "Sheet1!$B$1", "Sheet1!$A$2:$A$9", "Sheet1!$B$2:$B$9", s2},
+            {"a column inserted before them", StructEdit::insertColumns(0, 0, 1), "Sheet1!$C$1", "Sheet1!$B$2:$B$9", "Sheet1!$C$2:$C$9", s2},
+            {"the column of the categories deleted", StructEdit::deleteColumns(0, 0, 1), "Sheet1!$A$1", "Sheet1!#REF!", "Sheet1!$A$2:$A$9", s2},
+            {"a row inserted in the other sheet", StructEdit::insertRows(1, 0, 1), "Sheet1!$B$1", "Sheet1!$A$2:$A$9", "Sheet1!$B$2:$B$9", "Sheet2!$A$2:$A$4"},
+        };
+        for (const Case &c : cases) {
+            const Saved s = saveWith(book, {c.edit});
+            QVERIFY2(s.error.isEmpty(), c.what);
+            const QString xml = text(s, QStringLiteral("xl/charts/chart1.xml"));
+            const QString want = QStringLiteral("<c:tx><c:strRef><c:f>%1</c:f></c:strRef></c:tx><c:cat><c:numRef><c:f>%2</c:f></c:numRef></c:cat><c:val><c:numRef><c:f>%3</c:f></c:numRef></c:val></c:ser>"
+                                                "<c:ser><c:val><c:numRef><c:f>%4</c:f>").arg(c.name, c.categories, c.values, c.other);
+            QVERIFY2(xml.contains(want), qPrintable(QStringLiteral("%1: expected %2 in %3").arg(QLatin1String(c.what), want, xml)));
+        }
+    }
 };
 
 JP_TEST_CLASS(SheetStructSaveTests)
