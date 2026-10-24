@@ -21,6 +21,7 @@
 
 #include <atomic>
 #include <memory>
+#include <unordered_set>
 #include <vector>
 
 namespace jp::office::sheet {
@@ -251,6 +252,7 @@ public:
     qint64 formulaTextsInUse(int sheet) const;
     qint64 formulaEntriesInUse(int sheet) const;
     qint64 programsHeld(int sheet) const;
+    qint64 threeDFormulasHeld() const { return qint64(m_threeD.size()); }   // (the formulas over a block of several sheets that are kept apart: it is those that there are)
     // And how many ranges were looked at to find the rules of cells (for tests: it does not grow with the number of rules).
     qint64 ruleLookupWork() const { return m_ruleLookupWork; }
 
@@ -418,7 +420,7 @@ private:
     std::vector<qint32> m_freeTexts;
     QHash<quint32, jp::calc::Value> m_arrays;
     jp::calc::NameTraitsCache m_nameTraits;   // what each defined name calls (by its scope and name)
-    std::vector<quint32> m_threeD;            // formulas that read a block of several sheets (a node on it has ThreeD; those that are not, or are gone, are left out when it is looked at)
+    std::unordered_set<quint32> m_threeD;     // formulas that read a block of several sheets (a node on it has ThreeD); one leaves it when its formula goes or reads no more than one sheet
     std::vector<quint32> m_always;            // formulas worked out in every recalculation, each once (a node on it has AlwaysListed); those that are not, or are gone, are left out at the next
     void listAlways(quint32 id);
     std::vector<quint32> m_dirty;             // formulas to start from, and where in it the recalculation is

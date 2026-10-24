@@ -414,17 +414,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
     if (shiftedGraph) {
         m_graph->shiftRows(e.sheet, e.first, e.kind == K::InsertRows ? qint64(count) : -qint64(count), kGridRows);
         // (a formula that reads a block of several sheets is not rewritten for a change of one of them: it is made again, and tells the graph what it reads)
-        std::sort(m_threeD.begin(), m_threeD.end());
-        m_threeD.erase(std::unique(m_threeD.begin(), m_threeD.end()), m_threeD.end());
-        std::vector<quint32> again;
-        size_t keep = 0;
-        for (const quint32 id : m_threeD) {
-            const Node &n = m_nodes[id];
-            if ((n.flags & Dead) || !(n.flags & ThreeD)) continue;
-            m_threeD[keep++] = id;
-            again.push_back(id);
-        }
-        m_threeD.resize(keep);
+        const std::vector<quint32> again(m_threeD.begin(), m_threeD.end());   // (a copy: each is dropped and made again, which changes the set)
         for (const quint32 id : again) {
             const Node &n = m_nodes[id];
             Sheet &sn = m_sheets[size_t(n.sheet)];

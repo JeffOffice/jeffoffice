@@ -703,6 +703,27 @@ private Q_SLOTS:
         QVERIFY(b.calc->programsHeld(0) <= 2);
     }
 
+    // Formulas over a block of several sheets, typed, written over, and cleared, are not kept in the list of them once their formula is gone (it does not wait for the next edit of rows).
+    void typedThreeDFormulasDoNotPileUp()
+    {
+        Book b;
+        QVERIFY(b.open({{"A1=1", "A2=2"}, {"A1=5"}}));
+        QCOMPARE(b.calc->threeDFormulasHeld(), qint64(0));
+        for (int i = 0; i < 100; ++i) {
+            QVERIFY(b.calc->setFormula(0, 0, 2, QStringLiteral("SUM(Sheet1:Sheet2!A1)+%1").arg(i)));
+            QVERIFY(b.calc->setFormula(0, 1, 2, QStringLiteral("SUM(Sheet1:Sheet2!A2)+%1").arg(i)));
+            if (i % 2 == 0) QVERIFY(b.calc->setFormula(0, 1, 2, QStringLiteral("A2+%1").arg(i)));   // (a formula over one sheet: not one of them any more)
+            b.finish();
+        }
+        QCOMPARE(b.calc->threeDFormulasHeld(), qint64(2));   // (the last of the first, and the last of the second, which was not written over on that round)
+        QVERIFY(b.calc->setValue(0, 0, 2, Value::number(1)));
+        b.finish();
+        QCOMPARE(b.calc->threeDFormulasHeld(), qint64(1));
+        QVERIFY(b.calc->setValue(0, 1, 2, Value::number(1)));
+        b.finish();
+        QCOMPARE(b.calc->threeDFormulasHeld(), qint64(0));
+    }
+
     // A defined name with references that are not fixed keeps its offsets when rows or columns are inserted (it is read from the cell it is used in), and the fixed parts follow the cells.
     void aRelativeDefinedNameKeepsItsOffsets()
     {

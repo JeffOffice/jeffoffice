@@ -371,9 +371,10 @@ void Calculation::registerNode(quint32 id, const std::vector<CellArea> *told)
     for (const CellArea &a : m_areas) threeD = threeD || a.sheet1 != a.sheet2;
     if (threeD && !(n.flags & ThreeD)) {
         n.flags |= ThreeD;
-        m_threeD.push_back(id);
-    } else if (!threeD) {
+        m_threeD.insert(id);
+    } else if (!threeD && (n.flags & ThreeD)) {
         n.flags &= quint16(~ThreeD);
+        m_threeD.erase(id);
     }
     const bool tracked = m_graph->setPrecedents(id, m_areas);
     m_toldHash[id] = tracked ? toldHash : 0;   // (a formula the graph refused is told again next time)
@@ -615,6 +616,7 @@ bool Calculation::load()
     m_counter = 0;
     m_dirty.clear();
     m_always.clear();
+    m_threeD.clear();
     std::vector<quint32> masters;   // array formulas, whose cells are then made members of them
     bool cancelled = false;
     for (int si = 0; si < sheets; ++si) {
@@ -1347,6 +1349,7 @@ void Calculation::dropNode(quint32 id)
     if (n.kind == KindText && n.text >= 0) freeTextSlot(n.text);
     m_arrays.remove(id);
     m_graph->clearPrecedents(id);
+    if (n.flags & ThreeD) m_threeD.erase(id);
     SheetState &st = m_state[size_t(n.sheet)];
     if (size_t(n.formula) < st.nodeOf.size()) st.nodeOf[size_t(n.formula)] = kNone;
     n.flags = quint16(Dead | (n.flags & AlwaysListed));
