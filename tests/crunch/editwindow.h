@@ -211,4 +211,22 @@ inline QString shown(EditWindow &e, const QString &range)
 }
 
 
+// Selects the range and copies (or cuts) it, and waits until the copy is on the clipboard.
+inline void copyRange(EditWindow &e, const QString &range, const char *action = "edit.copy")
+{
+    const CellRange r = rangeOf(range);
+    e.view()->selectRange(r.row1, r.col1, r.row2, r.col2);
+    e.win.w.act(QString::fromLatin1(action))->trigger();
+    QTRY_VERIFY(!e.win.w.isCalculating());
+    QTRY_VERIFY(!e.win.w.isCopying());   // (a copy is turned to text a few milliseconds at a time, and is on the clipboard when it is done)
+}
+
+// Pastes at the cell and waits for what that makes.
+inline void paste(EditWindow &e, const QString &at, const char *action = "edit.paste")
+{
+    e.select(at);
+    e.win.w.act(QString::fromLatin1(action))->trigger();
+    QVERIFY(e.settle());
+}
+
 } // namespace crunchtest

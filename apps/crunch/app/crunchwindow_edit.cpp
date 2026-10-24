@@ -24,10 +24,15 @@ void CrunchWindow::createEditing()
     connect(m_session.get(), &crunch::EditSession::cellsChanged, this, &CrunchWindow::onCellsChanged);
     connect(m_session.get(), &crunch::EditSession::cellsMoved, this, &CrunchWindow::onCellsMoved);
     connect(m_session.get(), &crunch::EditSession::sizesChanged, this, &CrunchWindow::onSizesChanged);
+    connect(m_session.get(), &crunch::EditSession::stepFailed, this, [this](const QString &what) {
+        notice(tr("Undo"), what);
+        updateEditActions();
+    });
     QUndoStack *u = m_session->undoStack();
     connect(u, &QUndoStack::canUndoChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::canRedoChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::indexChanged, this, &CrunchWindow::updateEditActions);   // (the oldest steps may be forgotten: Undo ends before them)
+    connect(u, &QUndoStack::indexChanged, this, [this] { cancelCut(); });   // (any edit ends a cut)
     connect(u, &QUndoStack::undoTextChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::redoTextChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::cleanChanged, this, [this](bool clean) {

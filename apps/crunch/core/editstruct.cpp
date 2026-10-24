@@ -220,7 +220,20 @@ void followLines(std::set<quint64> *marks, const StructEdit &e, bool columns, st
 void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forward)
 {
     using K = StructEdit::Kind;
+    // cells moved one by one, across the rows or columns of the file's sheet, are written whole where they are now
+    auto markShifted = [&](const StructEdit &e, const std::function<void(quint64)> &mark) {
+        if (e.kind != K::InsertCellsDown && e.kind != K::DeleteCellsUp && e.kind != K::InsertCellsRight && e.kind != K::DeleteCellsLeft) return;
+        const Sheet &s = m_book->calc->sheet(e.sheet);
+        const bool vertical = e.kind == K::InsertCellsDown || e.kind == K::DeleteCellsUp;
+        const quint32 r1 = e.row1, c1 = e.col1;
+        const quint32 r2 = vertical ? kMaxRows - 1 : e.row2, c2 = vertical ? e.col2 : kMaxColumns - 1;
+        s.cells.forEachInRange(r1, c1, r2, c2, [&](const Cell &c) {
+            mark(keyOf(e.sheet, c.row, c.col));
+            return true;
+        });
+    };
     if (forward) {
+        sc->savedGen = m_saveGen;
         sc->touchedGone.clear();
         sc->resultsGone.clear();
         sc->engineGone.clear();
@@ -247,17 +260,7 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
             if (p.dataTable) continue;   // (the file's own formula is moved with its cell)
             mark(keyOf(p.sheet, p.row, p.col));
         }
-        // cells moved one by one, across the rows or columns of the file's sheet, are written whole where they are now
-        if (edit.kind == K::InsertCellsDown || edit.kind == K::DeleteCellsUp || edit.kind == K::InsertCellsRight || edit.kind == K::DeleteCellsLeft) {
-            const Sheet &s = calc->sheet(edit.sheet);
-            const bool vertical = edit.kind == K::InsertCellsDown || edit.kind == K::DeleteCellsUp;
-            const quint32 r1 = edit.row1, c1 = edit.col1;
-            const quint32 r2 = vertical ? kMaxRows - 1 : edit.row2, c2 = vertical ? edit.col2 : kMaxColumns - 1;
-            s.cells.forEachInRange(r1, c1, r2, c2, [&](const Cell &c) {
-                mark(keyOf(edit.sheet, c.row, c.col));
-                return true;
-            });
-        }
+        markShifted(edit, mark);
         if (edit.kind == K::Move) {
             // the places of the block and of what it went over are written whole: those that held cells, and the cells now in the new place
             for (const Calculation::EditRecord::GoneCell &g : sc->record.gone) mark(keyOf(g.sheet, g.row, g.col));
@@ -270,6 +273,38 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
             m_mergesChanged.insert(edit.toSheet);
         }
         m_edits.push_back(edit);
+    } else if (sc->savedGen != m_saveGen) {
+        // The file was saved since the edit was done, so it has the edit: the edit that undoes it is made against the saved file (it goes in the list for the file), and the cells that
+        // come back, and those that were written over, are written whole. (A step that deleted cells is not undone after a save: see forgetDeletesInFile.)
+        const StructEdit back = edit.inverse();
+        if (edit.kind != K::Move) {
+            followSet(&m_touched, back, nullptr);
+            followMap(&m_results, back, nullptr);
+            followMap(&m_engineAtStart, back, nullptr);
+            followMap(&m_fileResults, back, nullptr);
+            followLines(&m_columnsResized, back, true, nullptr);
+            followLines(&m_rowsResized, back, false, nullptr);
+        }
+        auto mark = [&](quint64 key) { m_touched.insert(key); };
+        for (const Calculation::EditRecord::GoneCell &g : sc->record.gone) mark(keyOf(g.sheet, g.row, g.col));
+        for (const Calculation::EditRecord::Place &p : sc->record.rewritten) {
+            // (the formulas that were written again have the text they had: where they are now, after the edit is undone)
+            int sheet = p.sheet;
+            quint32 row = p.row, col = p.col;
+            if (edit.kind == K::Move || adjustCell(back, &sheet, &row, &col) != RefFate::Gone) mark(keyOf(sheet, row, col));
+        }
+        markShifted(back, mark);
+        if (edit.kind == K::Move) {
+            // the cells that went to the new place are not there any more
+            const qint64 dRow = qint64(edit.toRow) - edit.row1, dCol = qint64(edit.toCol) - edit.col1;
+            for (const Calculation::EditRecord::GoneCell &g : sc->record.gone)
+                if (g.sheet == edit.sheet && g.row >= edit.row1 && g.row <= edit.row2 && g.col >= edit.col1 && g.col <= edit.col2) mark(keyOf(edit.toSheet, quint32(qint64(g.row) + dRow), quint32(qint64(g.col) + dCol)));
+            m_mergesChanged.insert(edit.sheet);
+            m_mergesChanged.insert(edit.toSheet);
+        } else {
+            m_mergesChanged.insert(edit.sheet);
+        }
+        m_edits.push_back(back);
     } else {
         // (the state before the undo is the one after the edit was done: nothing was done to the cells since)
         for (const quint64 key : sc->touchedAdded) m_touched.erase(key);

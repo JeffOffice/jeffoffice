@@ -78,19 +78,33 @@ public:
     void redo() override
     {
         if (m_forgotten) return;
-        m_session->apply(&m_step, true);
+        if (!m_session->apply(&m_step, true)) {
+            m_session->giveUpUndo(text(), true);
+            return;
+        }
         recount();
     }
     void undo() override
     {
         if (m_forgotten) return;
-        m_session->apply(&m_step, false);
+        if (!m_session->apply(&m_step, false)) {
+            m_session->giveUpUndo(text(), false);
+            return;
+        }
         recount();
     }
     bool forgotten() const { return m_forgotten; }
     Step *step() { return &m_step; }
     // Whether the step inserted or deleted rows, columns, or cells.
     bool moves() const { return !m_forgotten && m_step.structure != nullptr; }
+    // Whether the step deleted rows, columns, or cells.
+    bool deletes() const
+    {
+        if (m_forgotten || !m_step.structure) return false;
+        using K = jp::office::sheet::StructEdit::Kind;
+        const K k = m_step.structure->edit.kind;
+        return k == K::DeleteRows || k == K::DeleteColumns || k == K::DeleteCellsUp || k == K::DeleteCellsLeft;
+    }
     // The bytes the step holds (what a move of cells keeps is known when it is done).
     void recount()
     {
@@ -150,13 +164,28 @@ int EditSession::firstHeldStep() const
     return i;
 }
 
-void EditSession::forgetMovesInFile()
+void EditSession::forgetDeletesInFile()
 {
-    // (the file has the moves of cells that are done now; Undo of one would have to take it out of the file, which is not done: Undo goes back as far as the last move saved, no further)
+    // (the saved file has lost what was in the rows, columns, and cells that were deleted: the parts of it that name cells were made smaller, and what was on the deleted cells (a note, a
+    // link, a picture) is not in it, so an Undo of the delete could not give it back to the file. Undo goes back as far as the last delete saved, no further. Every other step, those that
+    // move cells included, stays: Undo of it is made against the saved file.)
     int last = -1;
     for (int i = m_undo.index() - 1; i >= 0 && last < 0; --i)
-        if (static_cast<const ChangeCells *>(m_undo.command(i))->moves()) last = i;
-    for (int i = 0; i <= last; ++i) const_cast<ChangeCells *>(static_cast<const ChangeCells *>(m_undo.command(i)))->forget();
+        if (static_cast<const ChangeCells *>(m_undo.command(i))->deletes()) last = i;
+    m_forgotBySave = 0;
+    for (int i = 0; i <= last; ++i) {
+        auto *cmd = const_cast<ChangeCells *>(static_cast<const ChangeCells *>(m_undo.command(i)));
+        if (!cmd->forgotten()) ++m_forgotBySave;
+        cmd->forget();
+    }
+}
+
+void EditSession::giveUpUndo(const QString &stepText, bool redoing)
+{
+    // (the workbook is not as the stack says: no step is undone or done again from here)
+    for (int i = 0; i < m_undo.count(); ++i) const_cast<ChangeCells *>(static_cast<const ChangeCells *>(m_undo.command(i)))->forget();
+    Q_EMIT stepFailed(redoing ? tr("\"%1\" could not be done again, so Undo and Redo are not available any more for what came before it.").arg(stepText)
+                              : tr("\"%1\" could not be undone, so Undo and Redo are not available any more for what came before it.").arg(stepText));
 }
 
 bool EditSession::canUndo() const { return m_undo.canUndo() && m_undo.index() > firstHeldStep(); }
@@ -778,12 +807,16 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         const int sheet = int(key >> 40);
         const quint32 row = quint32((key >> 16) & 0xFFFFFF);
         const std::vector<jp::office::sheet::RowSpec> specs = calc->rowSpecsIn(sheet, row, row);
-        if (specs.empty()) continue;
         RowProps p;
         p.row = row;
-        p.height = specs.front().height;
-        p.hidden = specs.front().hidden;
-        p.customHeight = specs.front().customHeight;
+        if (specs.empty()) {
+            // (a row that is back to the sheet's own height, shown: the file that has it taller, or hidden, from an earlier save is told so)
+            p.height = calc->sheet(sheet).format.defaultRowHeight;
+        } else {
+            p.height = specs.front().height;
+            p.hidden = specs.front().hidden;
+            p.customHeight = specs.front().customHeight;
+        }
         changes.sheets[sheet].rows.push_back(p);
     }
     for (const auto &[key, v] : m_results) {
@@ -829,7 +862,8 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_engineAtStart.clear();
     m_edits.clear();
     m_renames.clear();
-    forgetMovesInFile();
+    ++m_saveGen;
+    forgetDeletesInFile();
     // what differs from the file is what differs from the file just written
     for (auto it = m_results.begin(); it != m_results.end();) {
         const auto file = m_fileResults.find(it->first);

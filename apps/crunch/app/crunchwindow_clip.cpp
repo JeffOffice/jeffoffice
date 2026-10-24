@@ -84,6 +84,24 @@ void CrunchWindow::forgetClip()
     m_clip = ClipData();
 }
 
+// An edit made while cells are cut (typing, anything that moves or sizes cells, an Undo) ends the cut, as in the programs people know: its border goes, and the cells are no longer ready to
+// be pasted. (The paste of the cut is an edit too, and it ends the cut it moves.)
+void CrunchWindow::cancelCut()
+{
+    if (m_pendingClip.valid() && m_pendingClip.cut) {
+        m_copy.reset();
+        m_copyTimer.stop();
+        m_pendingClip = ClipData();
+        m_pendingHtml.clear();
+        m_view->clearCopyBorder();
+        if (!m_calculating && !m_loading) setStatus(tr("Ready"));
+    }
+    if (m_clip.valid() && m_clip.cut) {
+        forgetClip();
+        m_view->clearCopyBorder();
+    }
+}
+
 void CrunchWindow::copySelection() { copyOrCut(false); }
 void CrunchWindow::cutSelection() { copyOrCut(true); }
 

@@ -33,22 +33,6 @@ QString formulaOf(EditWindow &e, const QString &ref)
     return e.win.w.session()->editText(0, r, c);
 }
 
-void copyRange(EditWindow &e, const QString &range, const char *action = "edit.copy")
-{
-    const CellRange r = rangeOf(range);
-    e.view()->selectRange(r.row1, r.col1, r.row2, r.col2);
-    e.win.w.act(QString::fromLatin1(action))->trigger();
-    QTRY_VERIFY(!e.win.w.isCalculating());
-    QTRY_VERIFY(!e.win.w.isCopying());   // (a copy is turned to text a few milliseconds at a time, and is on the clipboard when it is done)
-}
-
-void paste(EditWindow &e, const QString &at, const char *action = "edit.paste")
-{
-    e.select(at);
-    e.win.w.act(QString::fromLatin1(action))->trigger();
-    QVERIFY(e.settle());
-}
-
 } // namespace
 
 class CrunchClipTests : public QObject {
@@ -170,6 +154,50 @@ private Q_SLOTS:
         e.win.w.act(QStringLiteral("edit.redo"))->trigger();
         QVERIFY(e.settle());
         QCOMPARE(formulaOf(e, QStringLiteral("B1")), QStringLiteral("=E4+E5"));
+    }
+
+    // A cut that has not been pasted is ended by any other edit (typing, cells inserted, an Undo): its border goes and what it put on the clipboard goes; a copy is not ended by them.
+    void aPendingCutIsEndedByAnyOtherEdit()
+    {
+        auto hasCells = [] { return QApplication::clipboard()->mimeData() && QApplication::clipboard()->mimeData()->hasFormat(QLatin1String(crunch::kClipMime)); };
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "B1==A1+A2"})));
+        // typing
+        copyRange(e, QStringLiteral("A1:A2"), "edit.cut");
+        QVERIFY(e.view()->hasCopyBorder() && hasCells());
+        e.select(QStringLiteral("D5"));
+        e.enter(QStringLiteral("5"));
+        QVERIFY(e.settle());
+        QVERIFY(!e.view()->hasCopyBorder());
+        QVERIFY(!hasCells());
+        paste(e, QStringLiteral("F1"));   // (nothing to paste)
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+        QCOMPARE(e.valueAt(QStringLiteral("F1")), QStringLiteral("-"));
+        // cells inserted
+        copyRange(e, QStringLiteral("A1:A2"), "edit.cut");
+        QVERIFY(e.view()->hasCopyBorder());
+        e.view()->selectRows(10, 10);
+        e.win.w.act(QStringLiteral("cells.insert"))->trigger();
+        QVERIFY(e.settle());
+        QVERIFY(!e.view()->hasCopyBorder() && !hasCells());
+        // an Undo
+        copyRange(e, QStringLiteral("A1:A2"), "edit.cut");
+        QVERIFY(e.view()->hasCopyBorder());
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(e.settle());
+        QVERIFY(!e.view()->hasCopyBorder() && !hasCells());
+        // a copy stays through them (it is not a cut)
+        copyRange(e, QStringLiteral("A1:A2"));
+        e.select(QStringLiteral("D6"));
+        e.enter(QStringLiteral("6"));
+        QVERIFY(e.settle());
+        QVERIFY(e.view()->hasCopyBorder() && hasCells());
+        // a cut that is pasted still moves the cells (the paste is an edit that ends it, after)
+        copyRange(e, QStringLiteral("A1:A2"), "edit.cut");
+        paste(e, QStringLiteral("F1"));
+        QCOMPARE(e.valueAt(QStringLiteral("F1")), QStringLiteral("n:1"));
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("-"));
+        QVERIFY(!e.view()->hasCopyBorder());
     }
 
     // Paste Special: values (a formula becomes its result), formulas, formats, the block turned over, the empty cells left, and an operation made with what is there.

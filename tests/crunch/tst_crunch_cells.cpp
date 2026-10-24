@@ -418,7 +418,7 @@ private Q_SLOTS:
                 block.row2 = at + count - 1;
                 block.col1 = quint32(rng.bounded(5));
                 block.col2 = block.col1 + quint32(rng.bounded(2));
-                const int which = rng.bounded(17);
+                const int which = rng.bounded(18);
                 if (only) qInfo() << "step" << step << "which" << which << "sheet" << sheet << "at" << at << "count" << count << "block" << rangeName(block);
                 switch (which) {
                 case 0: (void((s->insertRows(sheet, at, count)).ok ? ++moves : ++refused)); break;
@@ -479,6 +479,13 @@ private Q_SLOTS:
                     (void((s->pasteText(sheet, at1, table, crunch::EditSession::PasteOptions())).ok ? ++pastes : ++refused));
                     break;
                 }
+                case 17:   // a save in the middle: what comes after (an Undo of a step made before it too) is made against the saved file
+                    if (e.win.w.isModified()) {
+                        QSignalSpy midway(&e.win.w, &CrunchWindow::saved);
+                        QVERIFY(e.win.w.save());
+                        QVERIFY(midway.wait(20000));
+                    }
+                    break;
                 case 13: s->type(sheet, quint32(rng.bounded(10)), 0, QStringLiteral("123456789012345")); break;
                 case 9: s->type(sheet, quint32(rng.bounded(10)), quint32(rng.bounded(6)), QStringLiteral("=Sheet1!A%1+Sheet2!A1").arg(1 + rng.bounded(6))); break;
                 default:
@@ -531,6 +538,125 @@ private Q_SLOTS:
         const QString sheet = savedSheetText(e.path);
         QVERIFY2(sheet.contains(QStringLiteral("<f t=\"array\" ref=\"D5\">SUM(A1:A3*2)</f>")), qPrintable(sheet));
         QVERIFY2(sheet.contains(QStringLiteral("<c r=\"D6\"><v>9</v></c>")), qPrintable(sheet));
+    }
+
+    // Undo goes back past a save for everything the saved file can take: typing, rows inserted, and cells cut and pasted, done before the save, are undone after it, and the file saved
+    // again has them undone (the edit that undoes a step is made against the saved file).
+    void undoGoesBackPastASaveForWhatTheFileCanTake()
+    {
+        auto save = [](EditWindow &e) {
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            QVERIFY(e.win.w.save());
+            QVERIFY(saved.wait(20000));
+        };
+        auto agreeWithFile = [](EditWindow &e) {
+            Window second;
+            QVERIFY(second.open(e.copyOfFile()));
+            const QString diff = differences(e.win.w.calculation(), second.w.calculation(), {"Total"});
+            QVERIFY2(diff.isEmpty(), qPrintable(diff));
+        };
+        {
+            EditWindow e;
+            QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3", "B1==A1+A2", "B3==SUM(A1:A3)"})));
+            e.select(QStringLiteral("D1"));
+            e.enter(QStringLiteral("5"));                                  // step 1
+            QVERIFY(e.settle());
+            QVERIFY(e.win.w.session()->insertRows(0, 1, 2).ok);            // step 2: two rows above row 2
+            QVERIFY(e.settle());
+            QCOMPARE(e.valueAt(QStringLiteral("A4")), QStringLiteral("n:2"));
+            save(e);
+            QCOMPARE(e.win.w.session()->stepsForgottenBySave(), 0);
+            QVERIFY(e.win.w.session()->canUndo());
+            e.win.w.act(QStringLiteral("edit.undo"))->trigger();           // the rows inserted
+            QVERIFY(e.settle());
+            QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("n:3"));
+            QCOMPARE(e.valueAt(QStringLiteral("A4")), QStringLiteral("-"));
+            QCOMPARE(formulaOf(e, QStringLiteral("B3")), QStringLiteral("=SUM(A1:A3)"));
+            QVERIFY(e.win.w.isModified());
+            save(e);
+            agreeWithFile(e);
+            QCOMPARE(savedFormula(e.path, QStringLiteral("B3")), QStringLiteral("SUM(A1:A3)"));
+            e.win.w.act(QStringLiteral("edit.undo"))->trigger();           // the typing before the first save
+            QVERIFY(e.settle());
+            QCOMPARE(e.valueAt(QStringLiteral("D1")), QStringLiteral("-"));
+            save(e);
+            agreeWithFile(e);
+            QCOMPARE(savedCell(e.path, QStringLiteral("D1")), QStringLiteral("none"));
+            e.win.w.act(QStringLiteral("edit.redo"))->trigger();
+            e.win.w.act(QStringLiteral("edit.redo"))->trigger();           // both again
+            QVERIFY(e.settle());
+            QCOMPARE(e.valueAt(QStringLiteral("D1")), QStringLiteral("n:5"));
+            QCOMPARE(e.valueAt(QStringLiteral("A4")), QStringLiteral("n:2"));
+            save(e);
+            agreeWithFile(e);
+        }
+        {
+            // cells cut and pasted, the file saved, then Undo
+            EditWindow e;
+            QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "B1==A1+A2", "E4=old"})));
+            copyRange(e, QStringLiteral("A1:A2"), "edit.cut");
+            paste(e, QStringLiteral("E4"));
+            QCOMPARE(formulaOf(e, QStringLiteral("B1")), QStringLiteral("=E4+E5"));
+            save(e);
+            e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+            QVERIFY(e.settle());
+            QCOMPARE(formulaOf(e, QStringLiteral("B1")), QStringLiteral("=A1+A2"));
+            QCOMPARE(e.valueAt(QStringLiteral("E4")), QStringLiteral("s:old"));
+            save(e);
+            agreeWithFile(e);
+            QCOMPARE(savedFormula(e.path, QStringLiteral("B1")), QStringLiteral("A1+A2"));
+            QCOMPARE(savedCell(e.path, QStringLiteral("E4")), QStringLiteral("i:old"));
+        }
+    }
+
+    // A step that deleted rows, columns, or cells is the one thing the saved file cannot take back (what was on them is gone from it): after a save, Undo goes back as far as that step
+    // and no further, and the save says so; what is done after it is undone as ever.
+    void aDeleteBeforeASaveIsNotUndoneAfterItAndTheSaveSaysSo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3"})));
+        e.select(QStringLiteral("D1"));
+        e.enter(QStringLiteral("5"));
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.session()->deleteRows(0, 1, 1).ok);
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.wait(20000));
+        QVERIFY(e.win.w.session()->stepsForgottenBySave() > 0);
+        QVERIFY2(e.win.w.statusText().contains(QStringLiteral("can't be undone")), qPrintable(e.win.w.statusText()));
+        QVERIFY(!e.win.w.session()->canUndo());
+        // typing after the save is undone as ever
+        e.select(QStringLiteral("D2"));
+        e.enter(QStringLiteral("7"));
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.session()->canUndo());
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("D2")), QStringLiteral("-"));
+        QVERIFY(!e.win.w.session()->canUndo());
+    }
+
+    // A step that cannot be undone (the workbook cannot be held) does not leave Undo as if it had been: the person is told, Undo and Redo are given up, and the workbook is still modified.
+    void aStepThatCannotBeUndoneGivesUpUndoAndSaysSo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2"})));
+        e.select(QStringLiteral("C1"));
+        e.enter(QStringLiteral("5"));
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("C2"));
+        e.enter(QStringLiteral("6"));
+        QVERIFY(e.settle());
+        e.win.w.workbookLoader().cancel();   // (the worker is gone: nothing can be held any more)
+        e.win.told.clear();
+        e.win.w.undoStack()->undo();
+        QVERIFY2(!e.win.told.isEmpty() && e.win.told.last().contains(QStringLiteral("could not be undone")), qPrintable(e.win.told.join('|')));
+        QVERIFY(!e.win.w.session()->canUndo());
+        QVERIFY(e.win.w.isModified());
+        e.win.told.clear();
+        e.win.w.undoStack()->undo();   // (nothing more is tried)
+        QVERIFY(e.win.told.isEmpty());
     }
 
     // Tables: rows inserted inside one make it longer, rows or columns before it move it, the header row and the columns can't be cut through; the saved part has its place.

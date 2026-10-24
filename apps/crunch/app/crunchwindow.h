@@ -266,6 +266,7 @@ private:
     void pasteSpecial();
     void onClipboardChanged();
     void forgetClip();
+    void cancelCut();
     void widenForCells(int sheet, const jp::office::sheet::CellRange &cells);
     QString htmlOfClip(const crunch::ClipData &clip) const;
     void freezeAtSelection();

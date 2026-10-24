@@ -78,6 +78,7 @@ struct StructChange {
     std::vector<std::pair<quint64, jp::calc::Value>> resultsGone, engineGone, fileGone;   // the results kept by cell that it deleted
     std::vector<quint64> columnsGone, rowsGone;                          // the columns and rows marked as resized that it deleted
     qint64 bytes() const;
+    int savedGen = 0;                                                    // how many saves had been made when it was done (an Undo after a later save is made against the saved file)
 };
 
 // What one step of the undo stack changes: cells (as they were and as they are), and whatever goes with them.
@@ -107,6 +108,8 @@ public:
     QUndoStack *undoStack() { return &m_undo; }
     // Whether there is a step to undo that is still held (the oldest steps may have been forgotten: see kUndoBytes).
     bool canUndo() const;
+    // How many steps the last save made Undo forget (those up to a step that deleted rows, columns, or cells).
+    int stepsForgottenBySave() const { return m_forgotBySave; }
     // The bytes the steps hold, and the most they may (a test sets it).
     qint64 undoBytes() const { return *m_undoBytes; }
     qint64 undoByteLimit() const { return m_undoByteLimit; }
@@ -282,9 +285,13 @@ Q_SIGNALS:
     void cellsMoved(const jp::office::sheet::StructEdit &edit);
     // The width of columns or the height of rows of a sheet changed (by a step, Undo, or Redo): the window makes its picture of the sheet again.
     void sizesChanged(int sheet);
+    // A step of the undo stack could not be undone or done again (the workbook could not be held, or the edit was refused): Undo and Redo of every step are given up, and this says so.
+    void stepFailed(const QString &what);
 
 private:
     friend class ChangeCells;
+    // A step could not be undone or done again: every step is forgotten (the workbook is not as the stack says), and `stepFailed` says so.
+    void giveUpUndo(const QString &stepText, bool redoing);
     // Makes the changes (forward: to `after`; else back to `before`) with the worker held back. False if the worker could not be held.
     bool apply(Step *step, bool forward);
     bool applyStructure(Step *step, bool forward);
@@ -305,8 +312,9 @@ private:
     Outcome checkRule(int sheet, quint32 row, quint32 col, const jp::calc::Value &value, bool isFormula, const QString &typed) const;
     // The marks kept by cell follow an edit (forward) or its undoing: `edit` is what was done to the cells.
     void followEdit(const jp::office::sheet::StructEdit &edit, StructChange *change, bool forward);
-    // Forgets the steps up to the last one that moved cells (a save has put it in the file, and Undo would have to take it out of the file).
-    void forgetMovesInFile();
+    // After a save: forgets the steps up to the last one that deleted rows, columns, or cells (the saved file has lost what was in them, and Undo could not give it back to the file). Every
+    // other step stays: Undo of it is made against the saved file (the edit that undoes it goes in the list for the file).
+    void forgetDeletesInFile();
     // Puts a step on the undo stack (done, as pushed) and keeps the stack within its bytes.
     void pushStep(Step step, const QString &text);
     // A text typed in a cell of a table's header row: the column is renamed (the formulas that name it follow, and the table's part when the workbook is saved).
@@ -344,6 +352,8 @@ private:
     std::vector<jp::office::sheet::StructEdit> m_log;  // every edit that moved cells (the place of a batch's results in time: see generation)
     std::vector<jp::office::sheet::StructEdit> m_edits;   // those since the file was read or saved that are done (not undone), for the file
     std::vector<jp::office::sheet::ColumnRename> m_renames;   // and the table columns renamed, for the names, validations, rules, and charts that name them
+    int m_saveGen = 0;                 // how many times the workbook has been saved
+    int m_forgotBySave = 0;            // the steps the last save made Undo forget (see forgetDeletesInFile)
     std::map<quint64, jp::calc::Value> m_fileResults;  // what the file holds for formulas whose value there is not the one the workbook was read with (after a save)
 };
 
