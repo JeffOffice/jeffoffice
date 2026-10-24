@@ -330,6 +330,24 @@ private Q_SLOTS:
         QCOMPARE(s.objects.stats().renders, qint64(30));
     }
 
+    // After the grid stops, the objects a screenful beyond the window are made too (a scroll shows them next), and those further are not.
+    void theTimerMakesWhatTheNextScreenShows()
+    {
+        Scene s;
+        s.objects.setObjects({colored(1, twoCell(1, 2, 3, 4), kRed), colored(2, twoCell(1, 25, 3, 27), kGreen), colored(3, twoCell(1, 500, 3, 502), kBlue)});
+        s.draw();
+        QCOMPARE(s.objects.stats().renders, qint64(1));
+        QTRY_COMPARE(s.objects.stats().renders, qint64(2));    // (the second is below the 300 pixels the window shows, within another screenful)
+        QCOMPARE(s.objects.pendingRenders(), 0);
+        // scrolled to it: its picture is there already
+        s.layout.setScroll(0, 460);
+        s.draw();
+        QCOMPARE(s.at(64, 40), kGreen);
+        QCOMPARE(s.objects.stats().renders, qint64(2));
+        QCOMPARE(s.objects.stats().placeholders, qint64(0));
+        QTRY_COMPARE(s.objects.stats().renders, qint64(2));
+    }
+
     // Bounds: a picture is at most kMaxImagePixels however large the object, and the pictures held stay within the budget as the window moves over many large ones.
     void picturesAreBounded()
     {

@@ -134,8 +134,9 @@ private:
     QSize sizeWanted(const QRect &rect, double dpr) const;
     bool missing(const Entry &e, const QSize &wanted, double zoom) const;
     void schedule(int millis);
-    // Makes the pictures the screen needs (those with none first); `all` leaves out the time limit of a step. True if some are left.
-    bool makePictures(bool all);
+    // Makes the pictures the screen needs (those with none first); `all` leaves out the time limit of a step; `near` goes on to the objects a screenful away on each side (what a scroll
+    // will show next). True if some are left.
+    bool makePictures(bool all, bool near);
     void render(Entry &e, const QSize &wanted, double zoom, const RenderRequest &request);
     void evict();
     void step();
@@ -151,6 +152,7 @@ private:
     bool m_fills = false;
     int m_selected = -1;
     quint64 m_frame = 0;
+    std::vector<qint64> m_nearKey;   // where the grid was when the objects near the screen were last looked at
     qint64 m_bytes = 0;
     double m_dpr = 1.0;
     QTimer m_timer;

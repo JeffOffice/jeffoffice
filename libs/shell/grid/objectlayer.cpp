@@ -19,6 +19,7 @@ namespace {
 constexpr Pane kPanes[] = {Pane::Corner, Pane::Top, Pane::Left, Pane::Body};
 constexpr int kPicturesPerStep = 8;        // (a step also ends once this much time has passed)
 constexpr int kStepMillis = 8;
+constexpr int kNearDelayMillis = 30;      // the objects near the screen are made this long after the grid stops moving
 constexpr int kStaleDelayMillis = 120;     // a picture whose cells changed is made again this long after (a calculation tells many changes)
 constexpr qint64 kFarthest = qint64(1) << 29;   // a place on the screen is kept this near, so that a rectangle's arithmetic fits an int
 
@@ -323,9 +324,15 @@ void ObjectLayer::paint(QPainter *p, const GridLayout &layout, Pane pane, const 
     p->restore();
     evict();
     if (later) schedule(made >= kMaxRendersPerPaint ? 0 : kStaleDelayMillis);
+    // the grid has moved since the objects near the screen were looked at: they are, a moment after it stops
+    const std::vector<qint64> key = {layout.scrollX(), layout.scrollY(), qint64(layout.zoom() * 1000), layout.viewport().width(), layout.viewport().height(), layout.frozenRows(), layout.frozenCols()};
+    if (key != m_nearKey) {
+        m_nearKey = key;
+        m_timer.start(kNearDelayMillis);
+    }
 }
 
-bool ObjectLayer::makePictures(bool all)
+bool ObjectLayer::makePictures(bool all, bool near)
 {
     if (!m_layout || m_entries.empty()) return false;
     const GridLayout &layout = *m_layout;
@@ -336,24 +343,29 @@ bool ObjectLayer::makePictures(bool all)
     const double zoom = layout.zoom();
     int made = 0;
     bool left = false;
-    for (const Pane pane : kPanes) {
-        const QRect area = layout.pane(pane).rect;
-        if (area.isEmpty()) continue;
-        for (Entry &e : m_entries) {
-            const QRect box = rectIn(layout, pane, e);
-            if (box.isEmpty()) continue;
-            const QRect r = drawRect(box, e, zoom);
-            if (!r.intersects(area)) continue;
-            const QSize wanted = sizeWanted(r, m_dpr);
-            e.lastUsed = m_frame;
-            if (!missing(e, wanted, zoom) && !e.stale) continue;
-            if (!all && (made >= kPicturesPerStep || clock.elapsed() >= kStepMillis)) {
-                left = true;
-                continue;
+    // (the objects on the screen, and then those a screenful beyond it)
+    for (int pass = 0; pass < (near ? 2 : 1); ++pass) {
+        for (const Pane pane : kPanes) {
+            const QRect shown = layout.pane(pane).rect;
+            if (shown.isEmpty()) continue;
+            const QRect area = pass == 0 ? shown : shown.adjusted(-shown.width(), -shown.height(), shown.width(), shown.height());
+            for (Entry &e : m_entries) {
+                const QRect box = rectIn(layout, pane, e);
+                if (box.isEmpty()) continue;
+                const QRect r = drawRect(box, e, zoom);
+                if (!r.intersects(area)) continue;
+                const QSize wanted = sizeWanted(r, m_dpr);
+                e.lastUsed = m_frame;
+                if (!missing(e, wanted, zoom) && !e.stale) continue;
+                if (!all && (made >= kPicturesPerStep || clock.elapsed() >= kStepMillis)) {
+                    left = true;
+                    continue;
+                }
+                render(e, wanted, zoom, requestFor(e, box, wanted, zoom));
+                ++made;
+                const QRect now = r.intersected(shown);
+                if (!now.isEmpty()) requestRepaint(now);
             }
-            render(e, wanted, zoom, requestFor(e, box, wanted, zoom));
-            ++made;
-            requestRepaint(r.intersected(area));
         }
     }
     evict();
@@ -362,13 +374,13 @@ bool ObjectLayer::makePictures(bool all)
 
 void ObjectLayer::step()
 {
-    if (makePictures(false)) schedule(0);
+    if (makePictures(false, true)) schedule(0);
 }
 
 void ObjectLayer::prepareAll()
 {
     m_timer.stop();
-    makePictures(true);
+    makePictures(true, false);
 }
 
 int ObjectLayer::pendingRenders() const
