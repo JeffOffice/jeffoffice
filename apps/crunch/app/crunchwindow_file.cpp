@@ -38,6 +38,15 @@ bool CrunchWindow::openFile(const QString &path)
         notice(tr("Open"), tr("%1 can't open \"%2\".\nThe file isn't there.").arg(appInfo().name, name));
         return false;
     }
+    // A file that is open in a window is not opened again: that window is brought to the front
+    if (CrunchWindow *have = windowWith(path)) {
+        have->setWindowState(have->windowState() & ~Qt::WindowMinimized);
+        have->show();
+        have->raise();
+        have->activateWindow();
+        Q_EMIT have->broughtForward();
+        return true;
+    }
     // A window that shows a workbook, or is reading one, stays; the new one opens in a window of its own.
     if (m_loaded || m_loading) {
         auto *w = new CrunchWindow();

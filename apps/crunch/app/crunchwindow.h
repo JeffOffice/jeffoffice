@@ -79,6 +79,12 @@ public:
     // What the person is asked when the window is closed with changes that are not saved: Save, Don't Save, or Cancel (a message box, unless this stands in for it: tests).
     enum class Answer { Save, Discard, Cancel };
     void setAsker(const std::function<Answer(const QString &title, const QString &text)> &asker) { m_asker = asker; }
+    // What is asked when the file to be saved over was changed by another program since it was read: save a copy instead (Save As), write over it, or give the save up. The name is the
+    // file's. A message box with the three, unless this stands in for it (tests).
+    enum class ChangedAnswer { SaveCopy, Overwrite, Cancel };
+    void setChangedAsker(const std::function<ChangedAnswer(const QString &name)> &asker) { m_changedAsker = asker; }
+    // Where Save As writes: asked of a file dialog, unless this stands in for it (tests): the name it starts with, and the filter; an empty path gives it up.
+    void setSavePicker(const std::function<QString(const QString &start, const QString &filter)> &picker) { m_savePicker = picker; }
     // What a short message to the person is shown with: a message box, unless this stands in for it (tests): the title and the sentence.
     void setNotifier(const std::function<void(const QString &title, const QString &text)> &notifier) { m_notifier = notifier; }
 
@@ -126,6 +132,8 @@ Q_SIGNALS:
     void loadFinished(bool ok);
     // Every formula has its value.
     void calculationFinished();
+    // The window was asked to open a file it has open (or another window was), and has been brought to the front.
+    void broughtForward();
 
 protected:
     void closeEvent(QCloseEvent *e) override;
@@ -227,6 +235,12 @@ private:
     QPointer<QThread> m_saveThread;
     QString m_saveAfterCalculation;
     std::function<Answer(const QString &, const QString &)> m_asker;
+    std::function<ChangedAnswer(const QString &)> m_changedAsker;
+    std::function<QString(const QString &, const QString &)> m_savePicker;
+    // Whether the file at the window's path is not what was read (or last written): another program changed it.
+    bool fileChangedOnDisk() const;
+    // The window that has the file open (or is reading it), if any.
+    static CrunchWindow *windowWith(const QString &path);
     QString m_formulaFull;    // what the cell with the cursor holds, whole (the formula bar shows a part of a long text until it has the focus)
 };
 

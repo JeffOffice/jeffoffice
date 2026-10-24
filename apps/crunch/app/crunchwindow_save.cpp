@@ -13,11 +13,14 @@
 #include <QAction>
 #include <QApplication>
 #include <QFileDialog>
+#include <QFile>
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QPointer>
 #include <QThread>
+
+#include <cstring>
 
 namespace jp {
 
@@ -56,6 +59,26 @@ bool CrunchWindow::saveAs(const QString &pathIn)
     return startSave(path);
 }
 
+// Whether the file the workbook was read from (or last written to) is not as this program has it: its bytes are compared with the ones it holds (a file that is only touched, or
+// copied over itself, is not changed). A file that is gone is not: saving makes it again.
+bool CrunchWindow::fileChangedOnDisk() const
+{
+    if (!m_loaded || !m_loaded->book || m_path.isEmpty()) return false;
+    const QByteArray mine = m_loaded->book->package().fileBytes();
+    QFile f(m_path);
+    if (!f.exists()) return false;
+    if (f.size() != mine.size()) return true;
+    if (!f.open(QIODevice::ReadOnly)) return true;
+    constexpr qint64 kChunk = 1 << 20;
+    QByteArray chunk;
+    for (qint64 at = 0; at < mine.size(); at += kChunk) {
+        const qint64 n = std::min<qint64>(kChunk, mine.size() - at);
+        chunk = f.read(n);
+        if (chunk.size() != n || std::memcmp(chunk.constData(), mine.constData() + at, size_t(n)) != 0) return true;
+    }
+    return false;
+}
+
 bool CrunchWindow::startSave(const QString &path)
 {
     if (!m_session || m_saving) return false;
@@ -72,6 +95,34 @@ bool CrunchWindow::startSave(const QString &path)
         m_saveAfterCalculation = path;
         setStatus(tr("Saving when the calculation is done…"));
         return true;
+    }
+    // The new file is the one that was read with what changed put in: if another program changed the file since, saving over it would take that work out. The person is asked.
+    if (samePath && fileChangedOnDisk()) {
+        const QString name = QFileInfo(path).fileName();
+        ChangedAnswer answer = ChangedAnswer::Cancel;
+        if (m_changedAsker) {
+            answer = m_changedAsker(name);
+        } else {
+            QMessageBox box(QMessageBox::Warning, appInfo().name,
+                            tr("Another program changed \"%1\" after you opened it. If you save here, what it changed is lost.").arg(name), QMessageBox::NoButton, this);
+            box.setInformativeText(tr("You can save your work as a copy and keep both, or save over the file."));
+            QPushButton *copyButton = box.addButton(tr("Save a Copy…"), QMessageBox::AcceptRole);
+            QPushButton *overwriteButton = box.addButton(tr("Overwrite"), QMessageBox::DestructiveRole);
+            box.addButton(tr("Cancel"), QMessageBox::RejectRole);
+            box.setDefaultButton(copyButton);
+            box.exec();
+            QAbstractButton *clicked = box.clickedButton();
+            answer = clicked == copyButton ? ChangedAnswer::SaveCopy : clicked == overwriteButton ? ChangedAnswer::Overwrite : ChangedAnswer::Cancel;
+        }
+        if (answer != ChangedAnswer::Overwrite) {
+            m_closeAfterSave = false;
+            if (answer == ChangedAnswer::SaveCopy) {
+                act("file.saveAs")->trigger();
+            } else {
+                setStatus(tr("Not saved: %1 was changed by another program.").arg(name));
+            }
+            return false;
+        }
     }
     auto snapshot = std::make_shared<crunch::EditSession::Snapshot>();
     QString why;

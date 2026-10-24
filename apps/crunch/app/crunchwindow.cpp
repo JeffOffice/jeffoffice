@@ -48,8 +48,26 @@ namespace {
 int s_untitledCount = 0;
 }
 
+namespace {
+QList<CrunchWindow *> &openWindows()
+{
+    static QList<CrunchWindow *> windows;
+    return windows;
+}
+} // namespace
+
+CrunchWindow *CrunchWindow::windowWith(const QString &path)
+{
+    const QString wanted = QFileInfo(path).canonicalFilePath();
+    if (wanted.isEmpty()) return nullptr;
+    for (CrunchWindow *w : openWindows())
+        if (!w->m_path.isEmpty() && (w->m_loaded || w->m_loading) && QFileInfo(w->m_path).canonicalFilePath() == wanted) return w;
+    return nullptr;
+}
+
 CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
 {
+    openWindows().append(this);
     setObjectName(QStringLiteral("crunchWindow"));
     setAcceptDrops(true);
     setWindowIcon(drawnIcon([](QPainter *p, const QRectF &r) {
@@ -152,6 +170,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
 
 CrunchWindow::~CrunchWindow()
 {
+    openWindows().removeAll(this);
     // (the session's undo stack tells the window as its steps go: it is let go of first, and the window is not told)
     if (m_session) {
         m_session->undoStack()->disconnect(this);
@@ -299,7 +318,7 @@ void CrunchWindow::createActions()
         const QString kind = saveKind();
         const QString start = m_path.isEmpty() ? displayName() + QLatin1Char('.') + kind : m_path;
         const QString filter = kind == QLatin1String("xlsm") ? tr("Macro-enabled workbooks (*.xlsm)") : tr("Workbooks (*.xlsx)");
-        const QString p = QFileDialog::getSaveFileName(this, tr("Save Workbook As"), start, filter);
+        const QString p = m_savePicker ? m_savePicker(start, filter) : QFileDialog::getSaveFileName(this, tr("Save Workbook As"), start, filter);
         if (!p.isEmpty()) saveAs(p);
     }, false, false);
     mk("file.close", tr("Close"), "circle-x", QKeySequence::Close, [this] { close(); });

@@ -58,6 +58,14 @@ struct EditWindow {
         view()->selectCell(r, c);
     }
     QString selected() { return view()->selectionName(); }
+    // A copy of the file as it is now, under another name (a file that is open in a window is not opened in a second: the copy is).
+    QString copyOfFile()
+    {
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly)) return QString();
+        return folder.write(QStringLiteral("copy%1.xlsx").arg(++m_copies), f.readAll());
+    }
+    int m_copies = 0;
     // The value the grid shows for the cell, and the text it shows.
     QString valueAt(const QString &ref)
     {
@@ -348,7 +356,7 @@ private Q_SLOTS:
         QCOMPARE(savedFormula(e.path, QStringLiteral("F2")), QStringLiteral("_xlfn.LET(_xlpm.x,A1,_xlpm.x*2)"));
         // and F2 shows it as it was typed
         Window second;
-        QVERIFY(second.open(e.path));
+        QVERIFY(second.open(e.copyOfFile()));
         second.w.view()->selectCell(1, 5);
         QCOMPARE(second.w.formulaBar()->text(), QStringLiteral("=LET(x,A1,x*2)"));
     }
@@ -851,7 +859,7 @@ private Q_SLOTS:
             QVERIFY2(savedCell(e.path, QStringLiteral("C1")) == QStringLiteral("n:11"), qPrintable(QStringLiteral("variant %1: C1 is %2").arg(variant).arg(savedCell(e.path, QStringLiteral("C1")))));
             // and it opens with the same values
             Window second;
-            QVERIFY(second.open(e.path));
+            QVERIFY(second.open(e.copyOfFile()));
             QCOMPARE(second.w.view()->sheet().valueOf(*second.w.view()->sheet().cellAt(0, 2)).debug(), QStringLiteral("n:11"));
         }
     }
@@ -945,7 +953,7 @@ private Q_SLOTS:
         QCOMPARE(s.formulaText(*at(s, QStringLiteral("B1"))), QStringLiteral("A1*2"));
         // and it opens in this program, with the same values
         Window second;
-        QVERIFY(second.open(e.path));
+        QVERIFY(second.open(e.copyOfFile()));
         QCOMPARE(second.w.view()->sheet().valueOf(*second.w.view()->sheet().cellAt(0, 1)).debug(), QStringLiteral("n:200"));
     }
 
@@ -1135,6 +1143,128 @@ private Q_SLOTS:
         QVERIFY(b.readSheet(0, &s));
         QCOMPARE(show(s, b.sharedStrings(), QStringLiteral("B1")), QStringLiteral("n:3"));
         QCOMPARE(show(s, b.sharedStrings(), QStringLiteral("B%1").arg(n)), QStringLiteral("n:%1").arg(2 * n + 1));
+    }
+
+    // Saving over a file that another program changed since it was opened would put this program's copy of its untouched parts over that work: it is asked about first (Save a Copy,
+    // Overwrite, or Cancel). A file only touched (the same bytes), and one this program wrote itself, are saved over without a question.
+    void savingOverAFileThatChangedAsks()
+    {
+        const QByteArray other = buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>12345</v></c></row>"))});
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        int asked = 0;
+        CrunchWindow::ChangedAnswer answer = CrunchWindow::ChangedAnswer::Cancel;
+        QString shownName;
+        e.win.w.setChangedAsker([&](const QString &name) {
+            ++asked;
+            shownName = name;
+            return answer;
+        });
+        QString copyPath = e.folder.dir.filePath(QStringLiteral("copy.xlsx"));
+        e.win.w.setSavePicker([&](const QString &, const QString &) { return copyPath; });
+        auto disk = [&] {
+            QFile f(e.path);
+            f.open(QIODevice::ReadOnly);
+            return f.readAll();
+        };
+        const QByteArray original = disk();
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("100"));
+        QVERIFY(e.settle());
+        // another program changes it: the bytes differ
+        QVERIFY(e.folder.write(QStringLiteral("book.xlsx"), other) == e.path);
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        // Cancel: nothing is written, the changes stay
+        QVERIFY(!e.win.w.save());
+        QCOMPARE(asked, 1);
+        QCOMPARE(shownName, QStringLiteral("book.xlsx"));
+        QCOMPARE(saved.count(), 0);
+        QVERIFY(disk() == other);
+        QVERIFY(e.win.w.isModified());
+        // Save a Copy: the Save As is asked for (here answered with a path), the other program's file stays as it is
+        answer = CrunchWindow::ChangedAnswer::SaveCopy;
+        QVERIFY(!e.win.w.save());
+        QCOMPARE(asked, 2);
+        QTRY_COMPARE(saved.count(), 1);
+        QCOMPARE(saved.first().at(0).toString(), copyPath);
+        QVERIFY(disk() == other);
+        QVERIFY(QFileInfo::exists(copyPath));
+        QCOMPARE(e.win.w.filePath(), copyPath);   // (the window is that file now: saving it again asks nothing)
+        e.select(QStringLiteral("A2"));
+        e.enter(QStringLiteral("7"));
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.save());
+        QTRY_COMPARE(saved.count(), 2);
+        QCOMPARE(asked, 2);
+    }
+
+    // A file that is as this program read it is saved over without a question, and Overwrite saves over what the other program wrote.
+    void savingOverAFileThatIsAsItWasReadAsksNothingAndOverwriteWrites()
+    {
+        const QByteArray other = buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>12345</v></c></row>"))});
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        int asked = 0;
+        e.win.w.setChangedAsker([&](const QString &) {
+            ++asked;
+            return CrunchWindow::ChangedAnswer::Overwrite;
+        });
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("100"));
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.save());
+        QTRY_COMPARE(saved.count(), 1);
+        QCOMPARE(asked, 0);
+        e.select(QStringLiteral("A2"));
+        e.enter(QStringLiteral("200"));
+        QVERIFY(e.settle());
+        // touched only: the same bytes, a newer time (a backup program, a sync)
+        {
+            QFile f(e.path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const QByteArray bytes = f.readAll();
+            f.close();
+            QVERIFY(e.folder.write(QStringLiteral("book.xlsx"), bytes) == e.path);
+            QVERIFY(f.open(QIODevice::ReadWrite));
+            QVERIFY(f.setFileTime(QDateTime::currentDateTime().addSecs(120), QFileDevice::FileModificationTime));
+        }
+        QVERIFY(e.win.w.save());
+        QTRY_COMPARE(saved.count(), 2);
+        QCOMPARE(asked, 0);
+        e.select(QStringLiteral("A3"));
+        e.enter(QStringLiteral("300"));
+        QVERIFY(e.settle());
+        QVERIFY(e.folder.write(QStringLiteral("book.xlsx"), other) == e.path);
+        QVERIFY(e.win.w.save());
+        QTRY_COMPARE(saved.count(), 3);
+        QCOMPARE(asked, 1);
+        QCOMPARE(savedCell(e.path, QStringLiteral("A3")), QStringLiteral("n:300"));
+        QCOMPARE(savedCell(e.path, QStringLiteral("A2")), QStringLiteral("n:200"));
+        QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:100"));
+    }
+
+    // A file that is open in a window is not opened in another: the window that has it is brought forward.
+    void aFileThatIsOpenIsBroughtForwardNotOpenedAgain()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QSignalSpy forward(&e.win.w, &CrunchWindow::broughtForward);
+        Window second;
+        QVERIFY(second.w.openFile(e.path));
+        QCOMPARE(forward.count(), 1);
+        QVERIFY(!second.w.hasWorkbook() && !second.w.isLoading());
+        // by another spelling of the same path, and from the window that has it
+        QVERIFY(second.w.openFile(QFileInfo(e.path).absolutePath() + QStringLiteral("/../") + QFileInfo(QFileInfo(e.path).absolutePath()).fileName() + QLatin1Char('/') + QFileInfo(e.path).fileName()));
+        QCOMPARE(forward.count(), 2);
+        QVERIFY(e.win.w.openFile(e.path));
+        QCOMPARE(forward.count(), 3);
+        QVERIFY(e.win.w.hasWorkbook());
+        // another file opens in a window of its own (the window that has one)
+        const QString other = e.folder.write(QStringLiteral("other.xlsx"), editBook());
+        QVERIFY(second.w.openFile(other));
+        QCOMPARE(forward.count(), 3);
+        QVERIFY(second.w.isLoading() || second.w.hasWorkbook());
     }
 
     // Esc while a save waits for the calculation stops the calculation and cancels the save, and says so; the save does not happen later when something finishes a calculation. A close that
