@@ -1,6 +1,7 @@
 // Tests of the reader of the old binary workbook format (BIFF8 and BIFF5): the sheets of a workbook, the cell records, the string table with its
 // continuations, formula results, shared formulas, arrays and data tables, defined names, the styles, the layout of a sheet, BIFF5's own forms, what is refused,
 // and what is not read. Every workbook is built in memory by xlshelpers.
+#include <QScopeGuard>
 #include "xlshelpers.h"
 
 #include "io/cfb.h"
@@ -610,6 +611,10 @@ private Q_SLOTS:
     // built-in ones, alignment, borders, fills, and the palette; and the cell formats are in the file's order but for the first and the 16th, which exchange places.
     void stylesAreMapped()
     {
+        // (built-in format 14 is the short date of the person's own language: m/d/yyyy in American English, which this test sets, and puts back after)
+        const QLocale saved;
+        QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+        const auto restore = qScopeGuard([&] { QLocale::setDefault(saved); });
         Book b;
         b.noDefaultFormats();
         for (int i = 0; i < 5; ++i) b.globals(font(QStringLiteral("Arial"), 10));
