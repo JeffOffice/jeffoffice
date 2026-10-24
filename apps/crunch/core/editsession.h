@@ -64,6 +64,21 @@ struct SizeEdit {
     std::vector<jp::office::sheet::RowSpec> rowsBefore, rowsAfter;
 };
 
+// A sheet added, copied, renamed, deleted, moved, shown or hidden, or given a tab color by a step. The sheets are never renumbered (see Calculation::addSheet): `sheet` is the sheet's place for
+// good, and what a step changes of the order of the tabs is kept whole.
+struct SheetEdit {
+    enum class Kind : quint8 { Insert, Copy, Delete, Rename, Move, State, TabColor } kind = Kind::Insert;
+    int sheet = 0;
+    QString nameBefore, nameAfter;
+    QVector<int> orderBefore, orderAfter;
+    jp::office::sheet::SheetState stateBefore = jp::office::sheet::SheetState::Visible, stateAfter = jp::office::sheet::SheetState::Visible;
+    jp::office::sheet::ColorSpec colorBefore, colorAfter;
+    int copyOf = -1;                                       // Copy: the sheet it is a copy of
+    jp::office::sheet::Calculation::SheetRewrite rewrite;  // Rename and Delete: what the formulas were (made when the step is done)
+    // Whether the step changes what the file's parts name (and so can't be undone against a file that was saved after it).
+    bool structural() const { return kind == Kind::Insert || kind == Kind::Copy || kind == Kind::Delete || kind == Kind::Rename || kind == Kind::Move; }
+};
+
 // The default sizes of a sheet (the height of rows and the width of columns that have none of their own) changed by a step: as they were and as they are.
 struct FormatEdit {
     int sheet = 0;
@@ -97,8 +112,9 @@ struct Step {
     std::vector<SizeEdit> sizes;
     std::vector<MergeEdit> merges;
     std::vector<FormatEdit> formats;
+    std::vector<SheetEdit> sheets;
     std::shared_ptr<StructChange> structure;   // or rows, columns, or cells inserted or deleted
-    bool empty() const { return cells.empty() && renames.empty() && sizes.empty() && merges.empty() && formats.empty() && !structure; }
+    bool empty() const { return cells.empty() && renames.empty() && sizes.empty() && merges.empty() && formats.empty() && sheets.empty() && !structure; }
 };
 
 // About how many bytes a cell's content takes in a step: the structure, and the texts in it.
@@ -258,6 +274,29 @@ public:
     // The default width of the columns of a sheet and the default height of its rows (those that have no size of their own): one step. The width is as a SizeChange has it (characters
     // of the widest digit, with the padding), the height in points; one that is not given is left as it is.
     Outcome setDefaultSizes(int sheet, std::optional<double> columnWidth, std::optional<double> rowHeight, const QString &text);
+    // ---- the sheets (one step each, undone, redone, and saved: the formulas that name a sheet follow it when it is renamed, and have #REF! for it when it is deleted)
+    // The places of the sheets in the order of the tabs (those deleted are not among them, and hidden ones are).
+    QVector<int> sheetOrder() const;
+    // Whether a name can be a sheet's (not `except`'s own): 1 to 31 characters, none of : \ / ? * [ ], not beginning or ending with an apostrophe, not "History", and not another sheet's, in any
+    // case; else why.
+    bool validSheetName(const QString &name, int except, QString *why = nullptr) const;
+    // The name a new sheet is given ("Sheet4"), and a copy of `sheet` ("Data (2)").
+    QString newSheetName() const;
+    QString copyName(int sheet) const;
+    // A new sheet, or a copy of one, put before the sheet `before` in the order (-1: at the end); `made` is its place. `name` empty is the name given by newSheetName (copyName for a copy).
+    // A copy has the cells, formats, sizes, merged ranges, and rules of the sheet; what the sheet has of tables is not copied (a sheet with a table can't be copied), and its pictures, charts,
+    // and notes are not (the outcome's `problem` says so, with `ok` true).
+    Outcome insertSheet(int before, const QString &name, int *made = nullptr);
+    Outcome copySheet(int sheet, int before, const QString &name, int *made = nullptr);
+    // Deletes a sheet (the last that is shown, or one that has a table, can't be); the sheet and everything in it are kept for Undo.
+    Outcome deleteSheet(int sheet);
+    Outcome renameSheet(int sheet, const QString &name);
+    // Puts a sheet before another in the order of the tabs (-1: at the end).
+    Outcome moveSheet(int sheet, int before);
+    Outcome setSheetHidden(int sheet, bool hidden);
+    Outcome setTabColor(int sheet, const jp::office::sheet::ColorSpec &color);
+    // Whether a sheet holds any cells (what a person is asked about before it is deleted).
+    bool sheetHasCells(int sheet) const;
     // The most rows one resize changes.
     static constexpr qint64 kMaxRowsPerResize = 100000;
 
@@ -318,6 +357,8 @@ public:
     static quint64 keyOf(int sheet, quint32 row, quint32 col) { return (quint64(sheet) << 40) | (quint64(row) << 16) | quint64(col); }
 
 Q_SIGNALS:
+    // The sheets were changed (added, deleted, renamed, moved, shown, hidden, or given a color) by a step, Undo, or Redo: the window makes its tabs again.
+    void sheetsChanged();
     // Cells were changed by an edit, Undo, or Redo (the window draws them again).
     void cellsChanged(int sheet, const std::vector<jp::grid::ValueStore::Item> &cells);
     // Rows, columns, or cells were inserted or deleted (or put back by Undo: `edit` is what was done to the cells then); the window makes its picture of the sheet again.
@@ -400,6 +441,12 @@ private:
     std::map<quint64, jp::calc::Value> m_engineAtStart;  // for a formula whose result has changed: the engine's value before its first change since the file was read or saved
     qint64 m_token;
     std::set<int> m_formatsChanged;  // the sheets whose default sizes a step changed since the file was read or saved
+    bool m_sheetsListed = false;                          // a step changed the list of sheets since the file was read or saved
+    std::set<int> m_tabColorsChanged;                     // the sheets whose tab color a step changed
+    std::vector<jp::office::sheet::SheetOp> m_sheetOps;   // renames and deletes of sheets since the file was read or saved that are done (not undone), for the file
+    bool applySheetEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc, jp::office::sheet::Workbook &book);
+    Outcome pushSheetEdit(SheetEdit edit, const QString &text);
+    bool sheetStepsRefused(QString *why);
     std::set<int> m_mergesChanged;   // the sheets whose merged ranges a step changed since the file was read or saved
     std::set<quint64> m_columnsResized, m_rowsResized;   // the columns and rows (by sheet and place) whose size a step changed since the file was read or saved
     std::vector<jp::office::sheet::StructEdit> m_log;  // every edit that moved cells (the place of a batch's results in time: see generation)

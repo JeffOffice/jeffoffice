@@ -76,13 +76,25 @@ struct SheetChanges {
     bool replaceFormat = false;
     SheetFormat format;
     std::vector<RowProps> rows;         // sorted by row
-    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && rows.empty(); }
+    // The color of the sheet's tab, when a person changed it (none: the sheet has no color).
+    bool replaceTabColor = false;
+    ColorSpec tabColor;
+    // For a sheet a person added: the XML it begins as (its view, default sizes, rules, and no cells: the cells, sizes of rows and columns, and merged ranges above are put in it).
+    QByteArray skeleton;
+    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && skeleton.isEmpty() && rows.empty(); }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.
 struct ColumnRename {
     QString table, oldName, newName;
     bool operator==(const ColumnRename &o) const { return table == o.table && oldName == o.oldName && newName == o.newName; }
+};
+
+// A sheet renamed or deleted by a person (the formulas of the file that name it follow; see structsave.h): the name it had, and for a rename the name it has.
+struct SheetOp {
+    enum class Kind : quint8 { Rename, Delete } kind = Kind::Rename;
+    QString name, newName;
+    bool operator==(const SheetOp &o) const { return kind == o.kind && name == o.name && newName == o.newName; }
 };
 
 struct SaveChanges {
@@ -126,6 +138,11 @@ struct SaveChanges {
     std::vector<ColumnRename> renames;
     // Ask the program that opens the file to work every formula out again (a result that could not be worked out here is stale).
     bool fullCalcOnLoad = false;
+    // The sheets: when a person added, deleted, renamed, moved, hid, or showed one (the workbook's own list is then made from the Workbook's: names, states, and the order of the tabs, with the
+    // parts and relationships of the new sheets it has planned), and the renames and deletes in the order made (everything in the file that names a sheet follows them).
+    bool sheetsChanged = false;
+    std::vector<SheetOp> sheetOps;
+    int activeTab = 0;                           // the sheet that is open, by its place in the order of the tabs
 };
 
 struct SaveReport {

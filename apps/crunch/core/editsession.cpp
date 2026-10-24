@@ -100,6 +100,14 @@ public:
     Step *step() { return &m_step; }
     // Whether the step inserted or deleted rows, columns, or cells.
     bool moves() const { return !m_forgotten && m_step.structure != nullptr; }
+    // Whether the step added, copied, renamed, deleted, or moved a sheet (what the saved file's parts name was changed).
+    bool sheetStructure() const
+    {
+        if (m_forgotten) return false;
+        for (const SheetEdit &e : m_step.sheets)
+            if (e.structural()) return true;
+        return false;
+    }
     // Whether the step deleted rows, columns, or cells.
     bool deletes() const
     {
@@ -115,6 +123,7 @@ public:
         for (const CellChange &c : m_step.cells) n += qint64(sizeof(c)) + contentBytes(c.before) + contentBytes(c.after) + qint64(c.formatCode.size()) * 2;
         for (const TableRename &r : m_step.renames) n += qint64(sizeof(r)) + qint64(r.before.size() + r.after.size()) * 2;
         for (const MergeEdit &m : m_step.merges) n += qint64(sizeof(m)) + qint64(m.before.size() + m.after.size()) * qint64(sizeof(jp::office::sheet::CellRange));
+        for (const SheetEdit &e : m_step.sheets) n += qint64(sizeof(e)) + e.rewrite.bytes() + qint64(e.orderBefore.size() + e.orderAfter.size()) * qint64(sizeof(int));
         for (const SizeEdit &e : m_step.sizes)
             n += qint64(sizeof(e)) + qint64(e.columnsBefore.size() + e.columnsAfter.size()) * qint64(sizeof(jp::office::sheet::ColumnSpan)) + qint64(e.rowsBefore.size() + e.rowsAfter.size()) * qint64(sizeof(jp::office::sheet::RowSpec));
         if (m_step.structure) n += m_step.structure->bytes();
@@ -169,12 +178,13 @@ int EditSession::firstHeldStep() const
 
 void EditSession::forgetDeletesInFile()
 {
+    // (the same for the sheets added, copied, renamed, deleted, and moved: the saved file has them as they are, and the parts of it that name a sheet were written with the names of the time)
     // (the saved file has lost what was in the rows, columns, and cells that were deleted: the parts of it that name cells were made smaller, and what was on the deleted cells (a note, a
     // link, a picture) is not in it, so an Undo of the delete could not give it back to the file. Undo goes back as far as the last delete saved, no further. Every other step, those that
     // move cells included, stays: Undo of it is made against the saved file.)
     int last = -1;
     for (int i = m_undo.index() - 1; i >= 0 && last < 0; --i)
-        if (static_cast<const ChangeCells *>(m_undo.command(i))->deletes()) last = i;
+        if (static_cast<const ChangeCells *>(m_undo.command(i))->deletes() || static_cast<const ChangeCells *>(m_undo.command(i))->sheetStructure()) last = i;
     m_forgotBySave = 0;
     for (int i = 0; i <= last; ++i) {
         auto *cmd = const_cast<ChangeCells *>(static_cast<const ChangeCells *>(m_undo.command(i)));
@@ -222,6 +232,9 @@ void EditSession::cleanChanged(bool clean)
     m_rowsResized.clear();
     m_mergesChanged.clear();
     m_formatsChanged.clear();
+    m_sheetsListed = false;
+    m_tabColorsChanged.clear();
+    m_sheetOps.clear();
 }
 
 void EditSession::calculationFinished()
@@ -249,7 +262,7 @@ bool EditSession::canEditSheet(int sheet, QString *why) const
         if (why) *why = text;
         return false;
     };
-    if (!m_book || !m_book->book || sheet < 0 || sheet >= m_book->book->info().sheets.size()) return refuse(tr("There is no such sheet."));
+    if (!m_book || !m_book->book || sheet < 0 || sheet >= m_book->book->info().sheets.size() || m_book->book->info().sheets[sheet].deleted) return refuse(tr("There is no such sheet."));
     if (m_book->book->info().sheets[sheet].kind != SheetKind::Worksheet) return refuse(tr("This sheet has no cells to change."));
     return true;
 }
@@ -674,10 +687,12 @@ bool EditSession::apply(Step *step, bool forward)
         calc->setSheetFormat(f.sheet, forward ? f.after : f.before);
         m_formatsChanged.insert(f.sheet);
     }
+    if (!applySheetEdits(step, forward, calc, book)) return false;
     if (m_holdHook) m_holdHook(calc, true);
     // (a change of formats alone leaves nothing for the worker to work out)
     bool valuesChanged = !step->renames.empty();
     for (const CellChange &ch : step->cells) valuesChanged = valuesChanged || !ch.styleOnly;
+    for (const SheetEdit &e : step->sheets) valuesChanged = valuesChanged || e.kind == SheetEdit::Kind::Insert || e.kind == SheetEdit::Kind::Copy || e.kind == SheetEdit::Kind::Delete || e.kind == SheetEdit::Kind::Rename;
     if (valuesChanged) hold->changed();
     hold.reset();   // (the worker has the model again, and works out what these changes make)
     m_tracking = true;
@@ -687,6 +702,7 @@ bool EditSession::apply(Step *step, bool forward)
     for (const SizeEdit &e : step->sizes) Q_EMIT sizesChanged(e.sheet);
     for (const MergeEdit &m : step->merges) Q_EMIT sizesChanged(m.sheet);
     for (const FormatEdit &f : step->formats) Q_EMIT sizesChanged(f.sheet);
+    if (!step->sheets.empty()) Q_EMIT sheetsChanged();
     return true;
 }
 
@@ -941,6 +957,9 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_rowsResized.clear();
     m_mergesChanged.clear();
     m_formatsChanged.clear();
+    m_sheetsListed = false;
+    m_tabColorsChanged.clear();
+    m_sheetOps.clear();
     m_engineAtStart.clear();
     m_edits.clear();
     m_renames.clear();
