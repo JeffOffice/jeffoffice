@@ -74,7 +74,7 @@ double GridSheet::fitWidthOfCell(quint32 row, quint32 col) const
     const Cell *cell = cellAt(row, col);
     if (!cell) return 0;
     const CellLook &look = m_looks.look(cell->style);
-    const Shown s = showValue(valueOf(*cell), look, m_data.dateSystem, 1e9, m_looks.maxDigitWidth(), *m_meter);
+    const Shown s = showValue(valueOf(*cell), look, m_data.dateSystem, 1e9, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
     if (s.kind == Kind::Empty || s.width <= 0) return 0;
     return widthForPixels(int(std::ceil(neededPixels(s, look))), m_looks.maxDigitWidth());
 }
@@ -90,7 +90,7 @@ double GridSheet::fitWidth(quint32 col, qint64 limit) const
         if (m_layout.merges.at(cell.row, cell.col) >= 0) return true;   // (a merged cell does not decide)
         const CellLook &look = m_looks.look(cell.style);
         if (look.wrap) return true;
-        const Shown s = showValue(valueOf(cell), look, m_data.dateSystem, 1e9, m_looks.maxDigitWidth(), *m_meter);
+        const Shown s = showValue(valueOf(cell), look, m_data.dateSystem, 1e9, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
         if (s.kind != Kind::Empty && s.width > 0) widest = std::max(widest, neededPixels(s, look));
         return true;
     });
@@ -107,7 +107,7 @@ double GridSheet::fitHeight(quint32 row, qint64 limit) const
         if (cell.type == jp::office::sheet::CellType::Empty && !cell.hasFormula()) return true;
         if (m_layout.merges.at(cell.row, cell.col) >= 0) return true;
         const CellLook &look = m_looks.look(cell.style);
-        const Shown s = showValue(valueOf(cell), look, m_data.dateSystem, columnWidth(cell.col), m_looks.maxDigitWidth(), *m_meter);
+        const Shown s = showValue(valueOf(cell), look, m_data.dateSystem, columnWidth(cell.col), m_looks.maxDigitWidth(), *m_meter, &m_symbols);
         if (s.kind == Kind::Empty) return true;
         int lines = 1;
         if (look.wrap) {
@@ -273,9 +273,9 @@ Shown GridSheet::shown(quint32 row, quint32 col, const Cell &cell) const
     }
     Shown s;
     if (m_showFormulas && cell.hasFormula() && m_data.sheet && !m_data.sheet->formulaText(cell).isEmpty())
-        s = showValue(jp::calc::Value::text(QLatin1Char('=') + displayFormula(m_data.sheet->formulaText(cell))), m_looks.look(cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter);
+        s = showValue(jp::calc::Value::text(QLatin1Char('=') + displayFormula(m_data.sheet->formulaText(cell))), m_looks.look(cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
     else
-        s = showValue(valueOf(cell), m_looks.look(cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter);
+        s = showValue(valueOf(cell), m_looks.look(cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
     if (m_texts.size() >= kMaxTexts) m_texts.clear();
     m_texts.emplace(key, s);
     return s;
@@ -295,7 +295,7 @@ QString GridSheet::textOf(const Cell &cell) const
         return v.text();
     }
     case Value::Kind::Number: {
-        const jp::calc::Formatted f = look.format.format(v.number(), m_data.dateSystem, 0);
+        const jp::calc::Formatted f = look.format.format(v.number(), m_data.dateSystem, 0, &m_symbols);
         return f.failed ? jp::calc::numberToText(v.number()) : f.text;
     }
     case Value::Kind::Bool: return v.boolean() ? QStringLiteral("TRUE") : QStringLiteral("FALSE");
@@ -305,6 +305,13 @@ QString GridSheet::textOf(const Cell &cell) const
 }
 
 void GridSheet::invalidateTexts() const { m_texts.clear(); }
+
+void GridSheet::setNumberSymbols(const jp::calc::NumberSymbols &symbols)
+{
+    if (symbols.decimal == m_symbols.decimal && symbols.group == m_symbols.group) return;
+    m_symbols = symbols;
+    m_texts.clear();
+}
 
 void GridSheet::setShowFormulas(bool on)
 {

@@ -73,6 +73,8 @@ public:
     bool isEditing() const { return m_edit.active; }
     CellEditor *cellEditor() const { return m_cellEditor; }
     crunch::EditSession *session() const { return m_session.get(); }
+    // The person's language: how numbers are typed and shown (the decimal mark, the grouping of digits, the order of a date). The window begins with the system's.
+    void setLocale(const QLocale &locale);
     QUndoStack *undoStack() const;
     bool commitEdit(CellEditor::Way way = CellEditor::Way::Stay);
     void cancelEdit();

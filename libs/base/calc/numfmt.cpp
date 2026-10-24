@@ -887,6 +887,18 @@ struct Out {
     QChar fillChar;
     QVector<FormatPad> pads;
     bool over = false;
+    const NumberSymbols *symbols = nullptr;   // the person's marks, or none (the code's own: "." and ",")
+
+    void addDecimal()
+    {
+        if (symbols) add(QStringView(symbols->decimal));
+        else add(QLatin1Char('.'));
+    }
+    void addGroup()
+    {
+        if (symbols) add(QStringView(symbols->group));
+        else add(QLatin1Char(','));
+    }
 
     void add(QChar c)
     {
@@ -949,7 +961,7 @@ void renderPlaces(const Places &pl, int from, int to, Out *o)
     auto digit = [&](QChar d, int r) {
         // Groups of three: a comma before the digit that has two digits after it.
         if (s.group && r > 0 && r % 3 == 2) {
-            if (seen) o->add(QLatin1Char(','));
+            if (seen) o->addGroup();
             else if (spaced) o->add(QLatin1Char(' '));
         }
         o->add(d);
@@ -967,7 +979,7 @@ void renderPlaces(const Places &pl, int from, int to, Out *o)
         switch (k.kind) {
         case T::Point:
             if (!afterPoint && nInt == 0 && L > 0) extras();
-            o->add(QLatin1Char('.'));
+            o->addDecimal();
             afterPoint = true;
             break;
         case T::Digit:
@@ -1460,29 +1472,38 @@ Formatted finish(Out *o, int color)
     return f;
 }
 
-Formatted generalFormatted(double v, int maxChars, bool negativeShown)
+// A General number's text with the person's decimal mark (it has one "." at most, and no other mark).
+void localizeGeneral(QString *t, const NumberSymbols *symbols)
+{
+    if (symbols && symbols->decimal != QLatin1String(".")) t->replace(QLatin1Char('.'), symbols->decimal);
+}
+
+Formatted generalFormatted(double v, int maxChars, bool negativeShown, const NumberSymbols *symbols)
 {
     Dec d;
     toDec(v, &d);
     QString t;
     if (!generalText(d, negativeShown, maxChars, &t)) return failedResult();
+    localizeGeneral(&t, symbols);
     Formatted f;
     f.text = t;
     return f;
 }
 
-Formatted formatValue(const Parsed &p, double v, DateSystem system, int generalChars)
+Formatted formatValue(const Parsed &p, double v, DateSystem system, int generalChars, const NumberSymbols *symbols)
 {
     if (!std::isfinite(v)) return failedResult();
-    if (p.general || p.secs.isEmpty()) return generalFormatted(v, generalChars, v < 0);
+    if (symbols && symbols->isPlain()) symbols = nullptr;
+    if (p.general || p.secs.isEmpty()) return generalFormatted(v, generalChars, v < 0, symbols);
     Pick pk;
     if (!pick(p, v, &pk)) return failedResult();
     const Section &s = p.secs[pk.index];
     const bool negativeShown = v < 0 && !pk.dropSign;
     Out o;
+    o.symbols = symbols;
     switch (s.kind) {
     case Kind::Text: {
-        Formatted g = generalFormatted(v, generalChars, v < 0 && !pk.dropSign);
+        Formatted g = generalFormatted(v, generalChars, v < 0 && !pk.dropSign, symbols);
         g.color = s.color;
         return g;
     }
@@ -1491,6 +1512,7 @@ Formatted formatValue(const Parsed &p, double v, DateSystem system, int generalC
         toDec(v, &d);
         QString num;
         if (!generalText(d, false, generalChars, &num)) return failedResult();
+        localizeGeneral(&num, symbols);
         if (negativeShown) o.add(QLatin1Char('-'));
         for (const Tok &k : s.toks) {
             if (k.kind == T::General) o.add(num);
@@ -1579,7 +1601,16 @@ FormatKind NumberFormat::kind() const
     return FormatKind::General;
 }
 
-Formatted NumberFormat::format(double value, DateSystem system, int generalChars) const { return formatValue(d->parsed, value, system, generalChars); }
+Formatted NumberFormat::format(double value, DateSystem system, int generalChars, const NumberSymbols *symbols) const { return formatValue(d->parsed, value, system, generalChars, symbols); }
+
+NumberSymbols NumberSymbols::of(const QLocale &locale)
+{
+    NumberSymbols out;
+    const QString decimal = locale.decimalPoint(), group = locale.groupSeparator();
+    if (!decimal.isEmpty()) out.decimal = decimal;
+    if (!group.isEmpty()) out.group = group;
+    return out;
+}
 
 Formatted NumberFormat::formatText(const QString &text) const
 {

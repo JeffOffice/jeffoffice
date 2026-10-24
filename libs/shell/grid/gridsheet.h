@@ -75,6 +75,9 @@ public:
     void invalidateTexts() const;
     void invalidateText(quint32 row, quint32 col) const { m_texts.erase((quint64(row) << 16) | col); }
     // Shows the formula of a cell that has one in place of its value ("=SUM(A1:A3)", as text).
+    // The marks the person's language puts in numbers (the decimal mark, the grouping of digits): what a number cell shows and a copy gives. Plain ("." and ",") until set.
+    void setNumberSymbols(const jp::calc::NumberSymbols &symbols);
+    const jp::calc::NumberSymbols &numberSymbols() const { return m_symbols; }
     void setShowFormulas(bool on);
     bool showFormulas() const { return m_showFormulas; }
     // Texts made (not found in the cache) so far, and held now.
@@ -116,6 +119,7 @@ private:
     mutable std::unordered_map<quint64, Shown> m_texts;
     mutable qint64 m_textsMade = 0;
     bool m_showFormulas = false;
+    jp::calc::NumberSymbols m_symbols;
     std::shared_ptr<const GridGeometry> m_geometry;   // what the sheet's file gave (the layout above begins as a copy of its layout, which shares its places and merges), and the cell formats of the rows and columns, held where they were made
 };
 

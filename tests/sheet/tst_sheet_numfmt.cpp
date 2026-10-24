@@ -1320,6 +1320,68 @@ private Q_SLOTS:
         }
         QVERIFY2(timer.elapsed() < 60000 * std::max(1, qEnvironmentVariableIntValue("JP_FUZZ")), qPrintable(QString::number(timer.elapsed())));
     }
+
+    // The marks of a person's language: the decimal mark and the grouping of digits of a number (General or in a code) are the locale's, the code itself is never changed, and what is in
+    // quotes, a date, and a time are as the code has them. The locales are set explicitly, whatever this computer's is.
+    void numbersShowTheMarksOfTheLocale()
+    {
+        struct Locale {
+            QLocale locale;
+            QString decimal, group;
+        };
+        const QVector<Locale> locales = {
+            {QLocale(QLocale::English, QLocale::UnitedStates), QStringLiteral("."), QStringLiteral(",")},
+            {QLocale(QLocale::German, QLocale::Germany), QStringLiteral(","), QStringLiteral(".")},
+            {QLocale(QLocale::French, QLocale::France), QStringLiteral(","), QString()},                 // (the group is a no-break space; which one differs by system)
+            {QLocale(QLocale::German, QLocale::Switzerland), QStringLiteral("."), QString()},            // (an apostrophe; which one differs by system)
+            {QLocale(QLocale::Japanese, QLocale::Japan), QStringLiteral("."), QStringLiteral(",")},
+        };
+        for (const Locale &l : locales) {
+            const NumberSymbols sym = NumberSymbols::of(l.locale);
+            const QString name = l.locale.name();
+            QCOMPARE_NE(sym.decimal, QString());
+            QCOMPARE_NE(sym.group, QString());
+            QVERIFY2(sym.decimal == l.decimal, qPrintable(name + QStringLiteral(" decimal ") + sym.decimal));
+            if (!l.group.isEmpty()) QVERIFY2(sym.group == l.group, qPrintable(name + QStringLiteral(" group ") + sym.group));
+            auto f = [&](const QString &code, double v) { return NumberFormat(code).format(v, DateSystem::Date1900, 0, &sym).text; };
+            const QString d = sym.decimal, g = sym.group;
+            // General has the decimal mark and no grouping
+            QCOMPARE(f(QStringLiteral("General"), 1.5), QStringLiteral("1") + d + QStringLiteral("5"));
+            QCOMPARE(f(QStringLiteral("General"), 1234.5), QStringLiteral("1234") + d + QStringLiteral("5"));
+            QCOMPARE(f(QStringLiteral("General"), -0.25), QStringLiteral("-0") + d + QStringLiteral("25"));
+            QCOMPARE(f(QStringLiteral("General"), 12345678), QStringLiteral("12345678"));
+            QCOMPARE(f(QStringLiteral("General"), 1.5e20), QStringLiteral("1") + d + QStringLiteral("5E+20"));
+            // a code of numbers
+            QCOMPARE(f(QStringLiteral("#,##0.00"), 1234567.891), QStringLiteral("1") + g + QStringLiteral("234") + g + QStringLiteral("567") + d + QStringLiteral("89"));
+            QCOMPARE(f(QStringLiteral("#,##0.00"), -1234.5), QStringLiteral("-1") + g + QStringLiteral("234") + d + QStringLiteral("50"));
+            QCOMPARE(f(QStringLiteral("0.0"), 2.25), QStringLiteral("2") + d + QStringLiteral("3"));
+            QCOMPARE(f(QStringLiteral("0.00%"), 0.1234), QStringLiteral("12") + d + QStringLiteral("34%"));
+            QCOMPARE(f(QStringLiteral("0.00E+00"), 12345), QStringLiteral("1") + d + QStringLiteral("23E+04"));
+            QCOMPARE(f(QStringLiteral("#,##0"), 999), QStringLiteral("999"));
+            QCOMPARE(f(QStringLiteral("#,##0"), 1000), QStringLiteral("1") + g + QStringLiteral("000"));
+            QCOMPARE(f(QStringLiteral("#,###"), 1500000), QStringLiteral("1") + g + QStringLiteral("500") + g + QStringLiteral("000"));
+            QCOMPARE(f(QStringLiteral("#,##0.00;[Red]-#,##0.00"), -1234.5), QStringLiteral("-1") + g + QStringLiteral("234") + d + QStringLiteral("50"));
+            QCOMPARE(f(QStringLiteral("0.0,"), 12500), QStringLiteral("12") + d + QStringLiteral("5"));   // (a comma after the digits divides by a thousand; it is not a mark)
+            // what is in quotes is as written
+            QCOMPARE(f(QStringLiteral("\"a,b.c \"0.0"), 1.5), QStringLiteral("a,b.c 1") + d + QStringLiteral("5"));
+            QCOMPARE(f(QStringLiteral("0.0\" km.\""), 1.5), QStringLiteral("1") + d + QStringLiteral("5 km."));
+            // a date and a time are by their codes
+            QCOMPARE(f(QStringLiteral("d.m.yyyy"), 45000), QStringLiteral("15.3.2023"));
+            QCOMPARE(f(QStringLiteral("yyyy-mm-dd"), 45000), QStringLiteral("2023-03-15"));
+            QCOMPARE(f(QStringLiteral("h:mm:ss.00"), 0.5 + 0.25 / 86400), QStringLiteral("12:00:00.25"));
+            // a fraction has no marks
+            QCOMPARE(f(QStringLiteral("# ?/?"), 1.5), QStringLiteral("1 1/2"));
+            // the same numbers without symbols are the code's own
+            QCOMPARE(NumberFormat(QStringLiteral("#,##0.00")).format(1234.5).text, QStringLiteral("1,234.50"));
+        }
+        // the plain symbols are no change
+        const NumberSymbols plain;
+        QVERIFY(plain.isPlain());
+        QCOMPARE(NumberFormat(QStringLiteral("#,##0.00")).format(1234.5, DateSystem::Date1900, 0, &plain).text, QStringLiteral("1,234.50"));
+        // a General number in a narrow cell still gets the digits that fit
+        const NumberSymbols german = NumberSymbols::of(QLocale(QLocale::German, QLocale::Germany));
+        QCOMPARE(NumberFormat().format(3.14159265, DateSystem::Date1900, 5, &german).text, QStringLiteral("3,142"));
+    }
 };
 
 JP_TEST_CLASS(SheetNumberFormatTests)

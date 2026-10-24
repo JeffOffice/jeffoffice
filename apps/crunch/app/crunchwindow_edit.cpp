@@ -40,7 +40,16 @@ void CrunchWindow::createEditing()
         updateEditActions();
     });
     setWindowModified(false);
+    setLocale(QLocale());
     updateEditActions();
+}
+
+void CrunchWindow::setLocale(const QLocale &locale)
+{
+    if (m_session) m_session->setLocale(locale);
+    m_view->sheet().setNumberSymbols(jp::calc::NumberSymbols::of(locale));
+    m_view->invalidateValues();
+    updateBars();
 }
 
 void CrunchWindow::updateEditActions()
