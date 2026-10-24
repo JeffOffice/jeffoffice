@@ -457,6 +457,76 @@ private Q_SLOTS:
         QVERIFY(second.w.view()->sheet().conditional().at(5, 0).scale == QRgb(0xFF0000FF));
     }
 
+    // Default Width and Default Row Height: the columns and rows that have no size of their own take it (the others do not), it is one step each, Undo takes it back, and the file has it.
+    void theDefaultSizesAreSetUndoneAndSaved()
+    {
+        EditWindow e;
+        QVERIFY(e.open(formatBook()));
+        const grid::GridLayout &L = e.view()->sheet().layout();
+        const int widthBefore = L.cols.defaultSize(), heightBefore = L.rows.defaultSize();
+        CrunchWindow::SizeRequest seen;
+        int asked = 0;
+        double answer = 20;
+        e.win.w.setSizeAsker([&](CrunchWindow::SizeRequest *r) {
+            seen = *r;
+            ++asked;
+            r->value = answer;
+            return true;
+        });
+        // a column and a row of their own
+        QVERIFY(e.win.w.session()->resizeColumns(0, 1, 1, [] {
+            crunch::EditSession::SizeChange by;
+            by.setSize = true;
+            by.size = 30;
+            return by;
+        }(), QStringLiteral("Changing column width")).ok);
+        const int ownWidth = L.cols.size(1);
+        e.win.w.act(QStringLiteral("format.defaultWidth"))->trigger();
+        QCOMPARE(asked, 1);
+        QVERIFY(seen.column && seen.standard);
+        QVERIFY(L.cols.defaultSize() > widthBefore);                  // (20 characters is wider than the 8 and a bit it was)
+        QCOMPARE(L.cols.size(1), ownWidth);                            // (the column that has its own width keeps it)
+        QCOMPARE(L.cols.size(5), L.cols.defaultSize());
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Default Width"));
+        answer = 30;
+        e.win.w.act(QStringLiteral("format.defaultHeight"))->trigger();
+        QCOMPARE(asked, 2);
+        QVERIFY(!seen.column && seen.standard);
+        QVERIFY(L.rows.defaultSize() > heightBefore);
+        QCOMPARE(e.win.w.undoStack()->count(), 3);
+        // asked again, the dialog starts from what the sheet has (in the units a person is shown)
+        e.win.w.act(QStringLiteral("format.defaultHeight"))->trigger();
+        QCOMPARE(seen.value, 30.0);
+        QCOMPARE(e.win.w.undoStack()->count(), 3);   // (the same size is no step)
+        // Undo and Redo
+        e.win.w.undoStack()->undo();
+        QCOMPARE(L.rows.defaultSize(), heightBefore);
+        e.win.w.undoStack()->undo();
+        QCOMPARE(L.cols.defaultSize(), widthBefore);
+        e.win.w.undoStack()->redo();
+        e.win.w.undoStack()->redo();
+        QVERIFY(L.cols.defaultSize() > widthBefore && L.rows.defaultSize() > heightBefore);
+        // saved, and the file's sheet says it
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(saved.wait(20000), qPrintable(e.win.told.join('|')));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        const SheetFormat f = second.w.calculation()->sheetFormatOf(0);
+        QCOMPARE(f.defaultRowHeight, 30.0);
+        QVERIFY(f.customHeight);
+        QVERIFY(f.defaultColWidth > 20);   // (the width in the file has the padding)
+        QCOMPARE(second.w.view()->sheet().layout().cols.defaultSize(), L.cols.defaultSize());
+        QCOMPARE(second.w.view()->sheet().layout().rows.defaultSize(), L.rows.defaultSize());
+        // a size that is nothing is refused
+        answer = 0;
+        const int steps = e.win.w.undoStack()->count();
+        e.win.w.act(QStringLiteral("format.defaultWidth"))->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QVERIFY(!e.win.told.isEmpty());
+    }
+
     // The sheet with its rules drawn (JC_SCREENSHOT_COND names a file to keep the picture in): the color scale, the cells over three, the bars, and the icons are on the screen.
     void conditionalFormatsAreOnTheScreen()
     {

@@ -115,6 +115,8 @@
                 "format.fitRow",
                 "format.columnWidth",
                 "format.fitColumn",
+                "format.defaultWidth",
+                "format.defaultHeight",
                 "-",
                 "format.hideRows",
                 "format.hideColumns",

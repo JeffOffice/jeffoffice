@@ -127,6 +127,36 @@ EditSession::Outcome EditSession::resizeRows(int sheet, quint32 first, quint32 l
     return resize(e, text);
 }
 
+EditSession::Outcome EditSession::setDefaultSizes(int sheet, std::optional<double> columnWidth, std::optional<double> rowHeight, const QString &text)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why) || !canEditSheet(sheet, &why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    if ((columnWidth && (*columnWidth <= 0 || *columnWidth > 255)) || (rowHeight && (*rowHeight <= 0 || *rowHeight > 409.5))) {
+        out.ok = false;
+        out.problem = tr("A default width can be from 0 to 255 characters, and a default height from 0 to 409.5 points.");
+        return out;
+    }
+    FormatEdit e;
+    e.sheet = sheet;
+    e.before = m_book->calc->sheetFormatOf(sheet);
+    e.after = e.before;
+    if (columnWidth) e.after.defaultColWidth = *columnWidth;
+    if (rowHeight) {
+        e.after.defaultRowHeight = *rowHeight;
+        e.after.customHeight = true;
+    }
+    if (e.after.defaultColWidth == e.before.defaultColWidth && e.after.defaultRowHeight == e.before.defaultRowHeight && e.after.customHeight == e.before.customHeight) return out;   // (nothing to change)
+    Step step;
+    step.formats.push_back(e);
+    pushStep(std::move(step), text);
+    return out;
+}
+
 EditSession::Outcome EditSession::fitColumns(int sheet, const std::vector<std::pair<quint32, double>> &widths)
 {
     Outcome out;

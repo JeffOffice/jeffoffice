@@ -235,6 +235,12 @@ public:
         m_sheets[size_t(sheet)].merges = merges;
         m_sheets[size_t(sheet)].mergeCount = count;
     }
+    // The sheet's own default sizes (the default row height and column width its file gives), and putting them back.
+    SheetFormat sheetFormatOf(int sheet) const { return sheet >= 0 && sheet < int(m_sheets.size()) ? m_sheets[size_t(sheet)].format : SheetFormat(); }
+    void setSheetFormat(int sheet, const SheetFormat &format)
+    {
+        if (sheet >= 0 && sheet < int(m_sheets.size())) m_sheets[size_t(sheet)].format = format;
+    }
     // Puts these in their place (what the range had is let go of first): for making a change and for undoing it.
     void setColumnRuns(int sheet, quint32 first, quint32 last, const std::vector<ColumnSpan> &runs);
     void setRowSpecs(int sheet, quint32 first, quint32 last, const std::vector<RowSpec> &specs);

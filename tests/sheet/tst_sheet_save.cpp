@@ -653,6 +653,52 @@ private Q_SLOTS:
         QVERIFY(out.contains("<styleSheet xmlns=\"" + kMainNs.toUtf8() + "\"><numFmts count=\"1\"><numFmt numFmtId=\"164\" formatCode=\"0.00\"/></numFmts><cellStyleXfs"));
     }
 
+    // The default sizes: the file's element says them as the person left them (what else it says stays), one is made before the columns when the file has none, and a sheet whose sizes
+    // were not changed is as it was.
+    void theDefaultSizesAreWrittenInTheSheetsFormatElement()
+    {
+        const QByteArray with = "<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetViews><sheetView workbookViewId=\"0\"/></sheetViews>"
+                                "<sheetFormatPr baseColWidth=\"10\" defaultColWidth=\"9.5\" defaultRowHeight=\"15\" outlineLevelRow=\"1\"/><cols><col min=\"1\" max=\"1\" width=\"20\" customWidth=\"1\"/></cols>"
+                                "<sheetData><row r=\"1\"><c r=\"A1\"><v>1</v></c></row></sheetData></worksheet>";
+        SheetChanges c;
+        c.replaceFormat = true;
+        c.format.baseColWidth = 10;
+        c.format.defaultRowHeight = 24;
+        c.format.customHeight = true;
+        c.format.defaultColWidth = 14.7109375;
+        bool ok = false;
+        QString why;
+        QByteArray out = patch(with, c, true, &why, &ok);
+        QVERIFY2(ok, qPrintable(why));
+        QVERIFY2(out.contains("defaultRowHeight=\"24\"") && out.contains("customHeight=\"1\"") && out.contains("defaultColWidth=\"14.7109375\"") && out.contains("outlineLevelRow=\"1\"") && out.contains("baseColWidth=\"10\""), out.constData());
+        QVERIFY(out.contains("<cols><col min=\"1\" max=\"1\" width=\"20\" customWidth=\"1\"/></cols>"));
+        Sheet read;
+        QVERIFY(readSheetXml(out, &read));
+        QCOMPARE(read.format.defaultRowHeight, 24.0);
+        QVERIFY(read.format.customHeight);
+        QCOMPARE(read.format.defaultColWidth, 14.7109375);
+        // no default width: the attribute goes, and a height that is not a person's is not flagged
+        c.format.defaultColWidth = 0;
+        c.format.customHeight = false;
+        out = patch(with, c, true, &why, &ok);
+        QVERIFY(ok && !out.contains("defaultColWidth") && !out.contains("customHeight"));
+        // a file with no element is given one, before the columns
+        const QByteArray without = "<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetViews><sheetView workbookViewId=\"0\"/></sheetViews>"
+                                   "<cols><col min=\"1\" max=\"1\" width=\"20\" customWidth=\"1\"/></cols><sheetData/></worksheet>";
+        c.format.defaultColWidth = 11;
+        out = patch(without, c, true, &why, &ok);
+        QVERIFY2(ok, qPrintable(why));
+        QVERIFY2(out.indexOf("<sheetFormatPr") > 0 && out.indexOf("<sheetFormatPr") < out.indexOf("<cols>") && out.indexOf("</sheetViews>") < out.indexOf("<sheetFormatPr"), out.constData());
+        QVERIFY(readSheetXml(out, &read));
+        QCOMPARE(read.format.defaultColWidth, 11.0);
+        QCOMPARE(read.format.defaultRowHeight, 24.0);
+        // no change asked: the element is as the file had it
+        SheetChanges none;
+        none.cells.push_back(number(0, 0, 5));
+        out = patch(with, none);
+        QVERIFY(out.contains("<sheetFormatPr baseColWidth=\"10\" defaultColWidth=\"9.5\" defaultRowHeight=\"15\" outlineLevelRow=\"1\"/>"));
+    }
+
     // Fonts, fills, borders, and cell formats that a person's formatting made are put at the ends of their lists, each cell format a copy of the one it was made from with the places of its
     // font, fill, and border, its alignment and protection, and what the file said of it besides (the style it follows) kept.
     void stylesGetNewFontsFillsBordersAndWholeFormats()

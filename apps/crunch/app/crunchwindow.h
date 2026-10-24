@@ -114,6 +114,7 @@ public:
     struct SizeRequest {
         bool column = true;
         double value = 0;
+        bool standard = false;   // the sheet's default (Default Width, Default Row Height), not the size of the selected columns or rows
     };
     void setSizeAsker(const std::function<bool(SizeRequest *)> &asker) { m_sizeAsker = asker; }
     // What is asked when a value does not fit the rule of validation of its cell and the rule is a warning or only tells: the rule's title, its message, and its style (Validation::Style, 1
@@ -252,6 +253,7 @@ private:
     void resizeDragged(bool column, qint64 index, int size);
     void fitDragged(bool column, qint64 index);
     void setSizeDialog(bool column);
+    void defaultSizeDialog(bool column);
     void fitSelection(bool column);
     void hideSelection(bool column, bool hide);
     void widenForEntry(int sheet, quint32 row, quint32 col);

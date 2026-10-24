@@ -253,6 +253,41 @@ QByteArray columnsFromRuns(const QByteArray &head, const std::vector<ColumnSpan>
     return head + out;
 }
 
+// The head of a sheet with its `sheetFormatPr` made to say the sheet's default sizes: the file's element with those attributes changed (what else it says stays), or one made before the
+// columns (or before the cells) if the file has none.
+QByteArray formatFromChange(const QByteArray &head, const SheetFormat &f, const QByteArray &defaultPrefix)
+{
+    Tag t;
+    qsizetype pos = 0, found = -1, foundEnd = -1, colsAt = -1;
+    QByteArray prefix = defaultPrefix;
+    while (xmlscan::nextTag(head, pos, &t)) {
+        pos = t.end;
+        if (t.closing) continue;
+        if (t.local == "sheetFormatPr" && found < 0) {
+            found = t.start;
+            foundEnd = t.end;
+            prefix = QByteArray(xmlscan::prefixOf(t.name));
+        } else if (t.local == "cols" && colsAt < 0) {
+            colsAt = t.start;
+        }
+    }
+    auto apply = [&](QByteArray *tag) {
+        setAttr(tag, "defaultRowHeight", numberText(f.defaultRowHeight));
+        setFlag(tag, "customHeight", f.customHeight);
+        if (f.defaultColWidth > 0) setAttr(tag, "defaultColWidth", numberText(f.defaultColWidth));
+        else dropAttr(tag, "defaultColWidth");
+    };
+    if (found >= 0) {
+        QByteArray tag = head.mid(found, foundEnd - found);
+        apply(&tag);
+        return head.left(found) + tag + head.mid(foundEnd);
+    }
+    QByteArray tag = "<" + prefix + "sheetFormatPr baseColWidth=\"" + QByteArray::number(f.baseColWidth) + "\"/>";
+    apply(&tag);
+    const qsizetype at = colsAt >= 0 ? colsAt : head.size();
+    return head.left(at) + tag + head.mid(at);
+}
+
 // What follows a sheet's cells (from after "</sheetData>" to the end) with its merged ranges made from `merges`: in place of the element the file has, or where the format puts it.
 QByteArray tailWithMerges(const QByteArray &after, const std::vector<CellRange> &merges, const QByteArray &prefix)
 {
@@ -310,6 +345,7 @@ public:
         for (const RowProps &p : changes.rows) rowFor(p.row).props = &p;
         if (changes.replaceColumns) m_columns = &changes.columns;
         if (changes.replaceMerges) m_merges = &changes.merges;
+        if (changes.replaceFormat) m_format = &changes.format;
         for (RowEdits &r : m_rows) {
             std::stable_sort(r.items.begin(), r.items.end(), [](const Item &a, const Item &b) { return a.col < b.col; });
             // (one item for a cell: a changed cell stands over a result)
@@ -454,6 +490,7 @@ private:
         const qsizetype dataEnd = t.end;
         QByteArray before = m_buf.left(dataStart);
         if (dimStart >= 0 && !m_cells.empty()) before = withDimension(before, dimStart, dimEnd);
+        if (m_format) before = formatFromChange(before, *m_format, m_prefix);
         if (m_columns) before = columnsFromRuns(before, *m_columns, m_prefix);
         put(before);
         m_written = m_cur = dataStart;
@@ -848,6 +885,7 @@ private:
     quint32 m_sharedUntil = 0;
     const std::vector<ColumnSpan> *m_columns = nullptr;
     const std::vector<CellRange> *m_merges = nullptr;
+    const SheetFormat *m_format = nullptr;
 };
 
 } // namespace

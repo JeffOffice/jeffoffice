@@ -221,6 +221,7 @@ void EditSession::cleanChanged(bool clean)
     m_columnsResized.clear();
     m_rowsResized.clear();
     m_mergesChanged.clear();
+    m_formatsChanged.clear();
 }
 
 void EditSession::calculationFinished()
@@ -669,6 +670,10 @@ bool EditSession::apply(Step *step, bool forward)
         calc->setMerges(m.sheet, forward ? m.after : m.before, forward ? m.countAfter : m.countBefore);
         m_mergesChanged.insert(m.sheet);
     }
+    for (const FormatEdit &f : step->formats) {
+        calc->setSheetFormat(f.sheet, forward ? f.after : f.before);
+        m_formatsChanged.insert(f.sheet);
+    }
     if (m_holdHook) m_holdHook(calc, true);
     // (a change of formats alone leaves nothing for the worker to work out)
     bool valuesChanged = !step->renames.empty();
@@ -681,6 +686,7 @@ bool EditSession::apply(Step *step, bool forward)
     for (auto &entry : cells) Q_EMIT cellsChanged(entry.first, entry.second);
     for (const SizeEdit &e : step->sizes) Q_EMIT sizesChanged(e.sheet);
     for (const MergeEdit &m : step->merges) Q_EMIT sizesChanged(m.sheet);
+    for (const FormatEdit &f : step->formats) Q_EMIT sizesChanged(f.sheet);
     return true;
 }
 
@@ -843,6 +849,11 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
             }
         }
     }
+    for (const int sheet : m_formatsChanged) {
+        SheetChanges &sc = changes.sheets[sheet];
+        sc.replaceFormat = true;
+        sc.format = calc->sheetFormatOf(sheet);
+    }
     for (const int sheet : m_mergesChanged) {
         // (only when all the sheet's merged ranges are held: past the limit the file's are left as they are)
         if (calc->mergeCountOf(sheet) != qint64(calc->mergesOf(sheet).size())) continue;
@@ -929,6 +940,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_columnsResized.clear();
     m_rowsResized.clear();
     m_mergesChanged.clear();
+    m_formatsChanged.clear();
     m_engineAtStart.clear();
     m_edits.clear();
     m_renames.clear();

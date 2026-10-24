@@ -19,6 +19,7 @@
 
 #include <functional>
 #include <map>
+#include <optional>
 #include <memory>
 #include <set>
 #include <unordered_set>
@@ -63,6 +64,12 @@ struct SizeEdit {
     std::vector<jp::office::sheet::RowSpec> rowsBefore, rowsAfter;
 };
 
+// The default sizes of a sheet (the height of rows and the width of columns that have none of their own) changed by a step: as they were and as they are.
+struct FormatEdit {
+    int sheet = 0;
+    jp::office::sheet::SheetFormat before, after;
+};
+
 // The merged ranges of a sheet changed by a step (a paste with merges, cells moved): as they were and as they are.
 struct MergeEdit {
     int sheet = 0;
@@ -89,8 +96,9 @@ struct Step {
     std::vector<TableRename> renames;
     std::vector<SizeEdit> sizes;
     std::vector<MergeEdit> merges;
+    std::vector<FormatEdit> formats;
     std::shared_ptr<StructChange> structure;   // or rows, columns, or cells inserted or deleted
-    bool empty() const { return cells.empty() && renames.empty() && sizes.empty() && merges.empty() && !structure; }
+    bool empty() const { return cells.empty() && renames.empty() && sizes.empty() && merges.empty() && formats.empty() && !structure; }
 };
 
 // About how many bytes a cell's content takes in a step: the structure, and the texts in it.
@@ -247,6 +255,9 @@ public:
     // A number typed in a column that has the width it began with widens it to hold it: the width is added to the step of the entry (the last on the stack, which must be an entry in
     // that column); false if it was not.
     bool widenColumnWithEntry(int sheet, quint32 col, double width);
+    // The default width of the columns of a sheet and the default height of its rows (those that have no size of their own): one step. The width is as a SizeChange has it (characters
+    // of the widest digit, with the padding), the height in points; one that is not given is left as it is.
+    Outcome setDefaultSizes(int sheet, std::optional<double> columnWidth, std::optional<double> rowHeight, const QString &text);
     // The most rows one resize changes.
     static constexpr qint64 kMaxRowsPerResize = 100000;
 
@@ -388,6 +399,7 @@ private:
     std::map<quint64, jp::calc::Value> m_results;      // formulas whose value is not the file's
     std::map<quint64, jp::calc::Value> m_engineAtStart;  // for a formula whose result has changed: the engine's value before its first change since the file was read or saved
     qint64 m_token;
+    std::set<int> m_formatsChanged;  // the sheets whose default sizes a step changed since the file was read or saved
     std::set<int> m_mergesChanged;   // the sheets whose merged ranges a step changed since the file was read or saved
     std::set<quint64> m_columnsResized, m_rowsResized;   // the columns and rows (by sheet and place) whose size a step changed since the file was read or saved
     std::vector<jp::office::sheet::StructEdit> m_log;  // every edit that moved cells (the place of a batch's results in time: see generation)
