@@ -623,6 +623,7 @@ void Calculation::putBackKinds(const EditRecord &rec)
         if (id != kNone) dropNode(id);
         const quint32 now = addNode(g.sheet, *c, c->formula);
         queueDependents(areaOf(m_nodes[now]));
+        if (g.kind & ArrayFormula) markArrayMembers(g.sheet, g.row, g.col);   // (an array of more cells has its members back)
     }
 }
 

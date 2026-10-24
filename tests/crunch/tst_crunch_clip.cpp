@@ -350,6 +350,56 @@ private Q_SLOTS:
         QCOMPARE(shown(b, QStringLiteral("D3")), QStringLiteral("1/15/2024"));
     }
 
+    // A whole array formula is cut and pasted whole: its cells go, what reads it follows, Undo and Redo give it back, and the saved file has it where it went (and not where it was).
+    void aWholeArrayIsCutAndPastedAndSaved()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"C1\"><f t=\"array\" ref=\"C1:C3\">A1:A3*2</f><v>2</v></c><c r=\"G1\"><f>SUM(C1:C3)</f><v>12</v></c></row>"
+                                            "<row r=\"2\"><c r=\"A2\"><v>2</v></c><c r=\"C2\"><v>4</v></c></row><row r=\"3\"><c r=\"A3\"><v>3</v></c><c r=\"C3\"><v>6</v></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        copyRange(e, QStringLiteral("C1:C3"), "edit.cut");
+        e.win.told.clear();
+        paste(e, QStringLiteral("E5"));
+        QVERIFY2(e.win.told.isEmpty(), qPrintable(e.win.told.join('|')));
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Moving cells"));
+        QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("-"));
+        QCOMPARE(e.valueAt(QStringLiteral("E5")), QStringLiteral("n:2"));
+        QCOMPARE(e.valueAt(QStringLiteral("E6")), QStringLiteral("n:4"));
+        QCOMPARE(e.valueAt(QStringLiteral("E7")), QStringLiteral("n:6"));
+        QCOMPARE(formulaOf(e, QStringLiteral("G1")), QStringLiteral("=SUM(E5:E7)"));
+        QCOMPARE(e.valueAt(QStringLiteral("G1")), QStringLiteral("n:12"));
+        QVERIFY(e.win.w.calculation()->content(0, 4, 4).arrayRange.valid);
+        // a change to what the array reads reaches it where it is
+        e.select(QStringLiteral("A2"));
+        e.enter(QStringLiteral("20"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("E6")), QStringLiteral("n:40"));
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("E5")), QStringLiteral("-"));
+        QCOMPARE(e.valueAt(QStringLiteral("C2")), QStringLiteral("n:4"));
+        QVERIFY(e.win.w.calculation()->content(0, 0, 2).arrayRange.valid);
+        e.win.w.act(QStringLiteral("edit.redo"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("E7")), QStringLiteral("n:6"));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.wait(20000));
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QMap<QString, QByteArray> parts;
+        jp::readZip(f.readAll(), parts);
+        const QString xml = QString::fromUtf8(parts.value(QStringLiteral("xl/worksheets/sheet1.xml")));
+        QVERIFY2(xml.contains(QStringLiteral("<f t=\"array\" ref=\"E5:E7\">A1:A3*2</f>")), qPrintable(xml));
+        QVERIFY2(!xml.contains(QStringLiteral("C1:C3\"")) && !xml.contains(QStringLiteral("r=\"C2\"")), qPrintable(xml));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        const auto content = second.w.calculation()->content(0, 4, 4);
+        QVERIFY(content.isFormula && content.arrayRange.valid);
+        QCOMPARE(rangeName(content.arrayRange), QStringLiteral("E5:E7"));
+    }
+
     // Merged ranges go with the cells; a paste over a merge takes it away; the saved file has them.
     void mergesGoWithTheCellsAndAreSaved()
     {
@@ -393,8 +443,8 @@ private Q_SLOTS:
         paste(e, QStringLiteral("C2"));
         QCOMPARE(e.win.w.undoStack()->count(), 0);
         QVERIFY2(!e.win.told.isEmpty() && e.win.told.last().contains(QStringLiteral("array")), qPrintable(e.win.told.join('|')));
-        // cutting an array's cells is refused too
-        copyRange(e, QStringLiteral("C1:C3"), "edit.cut");
+        // cutting part of an array is refused too
+        copyRange(e, QStringLiteral("C1:C2"), "edit.cut");
         e.win.told.clear();
         paste(e, QStringLiteral("E1"));
         QCOMPARE(e.win.w.undoStack()->count(), 0);

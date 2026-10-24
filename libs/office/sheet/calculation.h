@@ -33,6 +33,8 @@ namespace jp::office::sheet {
 constexpr qint64 kMaxRecalcWork = 1000000000;
 // A cell of an array that a formula builds takes the time of a few steps (the cells alive at once, at the peak of an evaluation, are counted this many steps each, besides the steps).
 constexpr qint64 kArrayCellSteps = 5;
+// An array formula's range larger than this is not made members of (no real one is).
+constexpr qint64 kMaxArrayCellsMarked = 1000000;
 constexpr qint64 kMaxHeldBytes = qint64(512) << 20;
 
 struct CalcOptions {
@@ -197,6 +199,15 @@ public:
             quint32 fromRow, fromCol, toRow, toCol;
         };
         std::vector<MovedFormula> movedFormulas;
+        // a Move that carries whole arrays: the arrays it took apart (the place each had in the sheet's list of ranges, and the range), and the arrays it made where they went (and whether
+        // the place in the list was added, not one a taken array left free)
+        struct ArraySlot {
+            int sheet;
+            qint32 slot;
+            CellRange range;
+            bool added = false;
+        };
+        std::vector<ArraySlot> arraysTaken, arraysMade;
     };
     // Whether the edit can be made; if not, why, in a sentence for the person (it would cut through an array formula or a data table, push cells off the sheet, or the sheet is protected).
     bool canApply(const StructEdit &edit, QString *why) const;
@@ -361,6 +372,11 @@ private:
     quint32 addNode(int sheet, const Cell &cell, qint32 formulaIndex);
     // The text of an array formula's or a data table's first cell changed in place (its range's cells point to its formula); false if the cell is none.
     bool rewriteArrayText(int sheet, quint32 row, quint32 col, const QString &text);
+    // An array formula's cells made ordinary ones (the range at `slot` of the sheet's list is no longer valid), to be cleared or written over; made an array again at a place: the formula cell
+    // there becomes its first cell over `range`, in the place `slot` of the list if it is free (else a new one, whose number is given back), with the others its members.
+    void dissolveArray(int sheet, qint32 slot);
+    qint32 makeArray(int sheet, quint32 row, quint32 col, const CellRange &range, qint32 slot, bool *added);
+    void markArrayMembers(int sheet, quint32 row, quint32 col);
     void nameTextsChanged();
     void adjustValidations(const StructEdit &edit, const QStringList &sheetNames, EditRecord *record);
     // A cell that is deleted or written over, as it is, for Undo to put back (an array formula or a data table is put back as one: see putBackKinds).

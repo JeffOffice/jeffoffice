@@ -74,10 +74,11 @@ struct Book {
         return true;
     }
     // The first sheet as the XML of its part.
-    bool openXml(const QByteArray &sheet)
+    bool openXml(const QByteArray &sheet) { return openXmls({sheet}); }
+    bool openXmls(const QVector<QByteArray> &sheets)
     {
         QString why;
-        const QByteArray zip = buildXlsx({sheet});
+        const QByteArray zip = buildXlsx(sheets);
         if (!package.readLazy(zip, &why) || !book.open(package, &why)) return false;
         CalcOptions options;
         options.keepApart = true;
@@ -437,6 +438,133 @@ private Q_SLOTS:
         const Cell *cell = b.calc->sheet(0).cells.find(4, 3);
         QVERIFY(cell && (cell->flags & ArrayFormula));
         QCOMPARE(b.at("D6"), QStringLiteral("n:9"));
+    }
+
+    // A whole array formula is cut and pasted whole (a one-cell array too): its cells, its formula, and its results go where the cells go, what reads it follows, and Undo (and Redo) gives it
+    // back. Part of a bigger array is not cut; an array written over whole (one cell) is replaced, and part of a bigger one is not.
+    void aWholeArrayCanBeCutAndPartOfOneCannot()
+    {
+        const QString rows = QStringLiteral(
+            "<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"C1\"><f t=\"array\" ref=\"C1:C3\">A1:A3*2</f><v>2</v></c><c r=\"E1\"><f t=\"array\" ref=\"E1\">SUM(A1:A3)</f><v>6</v></c><c r=\"G1\"><v>5</v></c><c r=\"H1\"><f>SUM(C1:C3)</f><v>12</v></c></row>"
+            "<row r=\"2\"><c r=\"A2\"><v>2</v></c><c r=\"C2\"><v>4</v></c></row>"
+            "<row r=\"3\"><c r=\"A3\"><v>3</v></c><c r=\"C3\"><v>6</v></c></row>");
+        Book b;
+        QVERIFY(b.openXmls({worksheet(rows), worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>7</v></c></row>"))}));
+        QCOMPARE(b.at("C2"), QStringLiteral("n:4"));
+        auto block = [](const QString &first, const QString &last) {
+            CellRange r;
+            r.valid = true;
+            r.row1 = Book::row(first);
+            r.col1 = Book::col(first);
+            r.row2 = Book::row(last);
+            r.col2 = Book::col(last);
+            return r;
+        };
+        auto liveRanges = [&](int sheet) {
+            QStringList out;
+            for (const CellRange &r : b.calc->sheet(sheet).ranges)
+                if (r.valid) out << rangeName(r);
+            out.sort();
+            return out;
+        };
+        QCOMPARE(liveRanges(0), (QStringList{"C1:C3", "E1"}));
+        QString why;
+        // part of an array is not cut
+        QVERIFY(!b.calc->canApply(StructEdit::move(0, block("C1", "C2"), 0, 9, 9), &why));
+        QVERIFY2(why.contains(QLatin1String("array")), qPrintable(why));
+        QVERIFY(!b.calc->canApply(StructEdit::move(0, block("C2", "D3"), 0, 9, 9), &why));
+        // and not written over in part
+        QVERIFY(!b.calc->canApply(StructEdit::move(0, block("G1", "G1"), 0, 1, 2), &why));   // G1 onto C2
+        QVERIFY2(why.contains(QLatin1String("array")), qPrintable(why));
+        // the whole of it is
+        QVERIFY(b.calc->canApply(StructEdit::move(0, block("B1", "D3"), 0, 9, 9), &why));
+        Calculation::EditRecord first;
+        QVERIFY(b.apply(StructEdit::move(0, block("C1", "C3"), 0, 4, 5), &first));   // C1:C3 to F5:F7
+        QVERIFY(!b.has("C1") && !b.has("C2") && !b.has("C3"));
+        Calculation::CellContent master = b.calc->content(0, 4, 5);
+        QVERIFY(master.isFormula && master.arrayRange.valid);
+        QCOMPARE(rangeName(master.arrayRange), QStringLiteral("F5:F7"));
+        QCOMPARE(master.formula, QStringLiteral("A1:A3*2"));
+        QVERIFY(!b.calc->content(0, 5, 5).editable && !b.calc->content(0, 6, 5).editable);   // (the members are the array's)
+        QCOMPARE(b.at("F5"), QStringLiteral("n:2"));
+        QCOMPARE(b.at("F6"), QStringLiteral("n:4"));
+        QCOMPARE(b.at("F7"), QStringLiteral("n:6"));
+        QCOMPARE(b.formula("H1"), QStringLiteral("SUM(F5:F7)"));
+        QCOMPARE(b.at("H1"), QStringLiteral("n:12"));
+        QCOMPARE(liveRanges(0), (QStringList{"E1", "F5:F7"}));
+        QVERIFY(b.calc->setValue(0, 0, 0, Value::number(10)));   // A1 changed: the array at its new place is worked out again
+        b.finish();
+        QCOMPARE(b.at("F5"), QStringLiteral("n:20"));
+        QCOMPARE(b.at("F6"), QStringLiteral("n:4"));
+        QCOMPARE(b.at("H1"), QStringLiteral("n:30"));
+        QVERIFY(b.calc->setValue(0, 0, 0, Value::number(1)));
+        b.finish();
+        QVERIFY(b.calc->undoEdit(first));
+        b.finish();
+        QVERIFY(b.has("C1") && b.has("C3") && !b.has("F5") && !b.has("F6") && !b.has("F7"));
+        QCOMPARE(liveRanges(0), (QStringList{"C1:C3", "E1"}));
+        master = b.calc->content(0, 0, 2);
+        QVERIFY(master.isFormula && master.arrayRange.valid && !b.calc->content(0, 1, 2).editable);
+        QCOMPARE(rangeName(master.arrayRange), QStringLiteral("C1:C3"));
+        QCOMPARE(b.at("C2"), QStringLiteral("n:4"));
+        QCOMPARE(b.formula("H1"), QStringLiteral("SUM(C1:C3)"));
+        QVERIFY(b.calc->setValue(0, 1, 0, Value::number(20)));   // A2 changed: the array at its old place is worked out again
+        b.finish();
+        QCOMPARE(b.at("C2"), QStringLiteral("n:40"));
+        QVERIFY(b.calc->setValue(0, 1, 0, Value::number(2)));
+        b.finish();
+        // Redo
+        Calculation::EditRecord again;
+        QVERIFY(b.apply(StructEdit::move(0, block("C1", "C3"), 0, 4, 5), &again));
+        QCOMPARE(liveRanges(0), (QStringList{"E1", "F5:F7"}));
+        QCOMPARE(b.at("F7"), QStringLiteral("n:6"));
+        QVERIFY(b.calc->undoEdit(again));
+        b.finish();
+        // an array moved down over itself (C1:C3 to C2:C4)
+        QVERIFY(b.calc->canApply(StructEdit::move(0, block("C1", "C3"), 0, 1, 2), &why));
+        Calculation::EditRecord slide;
+        QVERIFY(b.apply(StructEdit::move(0, block("C1", "C3"), 0, 1, 2), &slide));
+        QVERIFY(!b.has("C1"));
+        QCOMPARE(liveRanges(0), (QStringList{"C2:C4", "E1"}));
+        QCOMPARE(b.at("C4"), QStringLiteral("n:6"));
+        QVERIFY(b.calc->undoEdit(slide));
+        b.finish();
+        QCOMPARE(liveRanges(0), (QStringList{"C1:C3", "E1"}));
+        // a one-cell array
+        Calculation::EditRecord one;
+        QVERIFY(b.apply(StructEdit::move(0, block("E1", "E1"), 0, 3, 8), &one));   // E1 to I4
+        master = b.calc->content(0, 3, 8);
+        QVERIFY(master.isFormula && master.arrayRange.valid);
+        QCOMPARE(rangeName(master.arrayRange), QStringLiteral("I4"));
+        QVERIFY(!b.has("E1"));
+        QCOMPARE(b.at("I4"), QStringLiteral("n:6"));
+        QVERIFY(b.calc->undoEdit(one));
+        b.finish();
+        QVERIFY(b.calc->content(0, 0, 4).arrayRange.valid && !b.has("I4"));
+        // to another sheet: what the formula reads stays where it is
+        Calculation::EditRecord across;
+        QVERIFY(b.apply(StructEdit::move(0, block("C1", "C3"), 1, 1, 1), &across));   // to Sheet2!B2:B4
+        QCOMPARE(b.formula("B2", 1), QStringLiteral("Sheet1!A1:A3*2"));
+        QCOMPARE(b.at("B3", 1), QStringLiteral("n:4"));
+        QCOMPARE(liveRanges(1), (QStringList{"B2:B4"}));
+        QCOMPARE(liveRanges(0), (QStringList{"E1"}));
+        QCOMPARE(b.formula("H1"), QStringLiteral("SUM(Sheet2!B2:B4)"));
+        QVERIFY(b.calc->undoEdit(across));
+        b.finish();
+        QCOMPARE(liveRanges(1), QStringList());
+        QCOMPARE(liveRanges(0), (QStringList{"C1:C3", "E1"}));
+        QVERIFY(!b.has("B2", 1));
+        // an array of one cell is written over whole
+        Calculation::EditRecord over;
+        QVERIFY(b.apply(StructEdit::move(0, block("G1", "G1"), 0, 0, 4), &over));   // G1 onto E1
+        QCOMPARE(b.at("E1"), QStringLiteral("n:5"));
+        QVERIFY(b.calc->content(0, 0, 4).editable);
+        QCOMPARE(liveRanges(0), (QStringList{"C1:C3"}));
+        QVERIFY(b.calc->undoEdit(over));
+        b.finish();
+        QCOMPARE(liveRanges(0), (QStringList{"C1:C3", "E1"}));
+        QCOMPARE(b.at("E1"), QStringLiteral("n:6"));
+        QVERIFY(!b.calc->content(0, 0, 4).editable);
     }
 
     // A cut to another sheet: a reference to cells that stay names the sheet the formula came from; one to cells that go with it follows them.

@@ -30,4 +30,4 @@ When you copy, JeffCrunch also puts the cells on the clipboard as text (cells ap
 
 ## What can't be pasted
 
-JeffCrunch tells you and changes nothing when the paste would reach into part of an **array formula**, over the row of column names of a **table**, into locked cells of a **protected sheet**, past the end of the sheet, or into more than 100,000 cells. Cells of an array or a table's header can't be cut and moved either.
+JeffCrunch tells you and changes nothing when the paste would reach into part of an **array formula**, over the row of column names of a **table**, into locked cells of a **protected sheet**, past the end of the sheet, or into more than 100,000 cells. A whole **array formula** can be cut and moved (select all of its cells); part of one, a data table, or the names row of a table can't.

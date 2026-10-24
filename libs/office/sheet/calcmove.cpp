@@ -36,11 +36,22 @@ bool Calculation::canMoveCells(const StructEdit &e, QString *why) const
     const Sheet &from = m_sheets[size_t(e.sheet)], &to = m_sheets[size_t(e.toSheet)];
     if (from.isProtected || to.isProtected) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "This sheet is protected, so cells can't be moved on it. Take the protection off in the program that put it on.")));
     const quint32 toRow2 = e.toRow + quint32(rows) - 1, toCol2 = e.toCol + quint32(cols) - 1;
-    const QString array = say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "Cells of an array formula or a data table can't be moved, or written over."));
-    for (const CellRange &r : from.ranges)
-        if (meets(r, e.row1, e.col1, e.row2, e.col2)) return refuse(array);
-    for (const CellRange &r : to.ranges)
-        if (r.cellCount() > 1 && meets(r, e.toRow, e.toCol, toRow2, toCol2)) return refuse(array);
+    const QString array = say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "Part of an array formula can't be moved or written over. Select the whole array, or none of it."));
+    const QString dataTable = say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "A data table can't be moved or written over."));
+    auto insideBlock = [&](const CellRange &r) { return r.row1 >= e.row1 && r.row2 <= e.row2 && r.col1 >= e.col1 && r.col2 <= e.col2; };
+    for (const CellRange &r : from.ranges) {
+        if (!meets(r, e.row1, e.col1, e.row2, e.col2)) continue;
+        // an array goes whole (an array of one cell too); part of one does not, and a data table does not go at all
+        const Cell *first = from.cells.find(r.row1, r.col1);
+        if (first && (first->flags & DataTable)) return refuse(dataTable);
+        if (!insideBlock(r) || !first || !(first->flags & ArrayFormula)) return refuse(array);
+    }
+    for (const CellRange &r : to.ranges) {
+        if (r.cellCount() <= 1 || !meets(r, e.toRow, e.toCol, toRow2, toCol2)) continue;
+        if (e.sheet == e.toSheet && insideBlock(r)) continue;   // (it goes with the block: it is not written over)
+        const Cell *first = to.cells.find(r.row1, r.col1);
+        return refuse(first && (first->flags & DataTable) ? dataTable : array);
+    }
     // merged cells go whole or not at all, and are not written over in part
     const QString merged = say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "Part of a merged cell can't be moved or written over. Select the whole merged cell, or none of it."));
     for (const CellRange &r : from.merges)
@@ -48,6 +59,90 @@ bool Calculation::canMoveCells(const StructEdit &e, QString *why) const
     for (const CellRange &r : to.merges)
         if (meets(r, e.toRow, e.toCol, toRow2, toCol2) && !(r.row1 >= e.toRow && r.row2 <= toRow2 && r.col1 >= e.toCol && r.col2 <= toCol2)) return refuse(merged);
     return true;
+}
+
+void Calculation::dissolveArray(int sheet, qint32 slot)
+{
+    Sheet &s = m_sheets[size_t(sheet)];
+    if (slot < 0 || slot >= s.ranges.size()) return;
+    const CellRange r = s.ranges[slot];
+    s.ranges[slot].valid = false;
+    if (!r.valid) return;
+    // (an array larger than the cells that were made members of has its first cell only)
+    const quint32 lastRow = r.cellCount() > kMaxArrayCellsMarked ? r.row1 : r.row2, lastCol = r.cellCount() > kMaxArrayCellsMarked ? r.col1 : r.col2;
+    for (quint32 row = r.row1; row <= lastRow; ++row)
+        for (quint32 col = r.col1; col <= lastCol; ++col) {
+            Cell *c = s.cells.findMutable(row, col);
+            if (!c) continue;
+            if (c->flags & ArrayMember) {
+                c->flags &= quint8(~ArrayMember);
+                c->formula = -1;
+            } else if (c->flags & ArrayFormula) {
+                c->flags &= quint8(~ArrayFormula);
+                if (c->formula >= 0 && c->formula < s.formulas.size()) s.formulas[c->formula].range = -1;
+            }
+        }
+}
+
+qint32 Calculation::makeArray(int sheet, quint32 row, quint32 col, const CellRange &range, qint32 slot, bool *added)
+{
+    Sheet &s = m_sheets[size_t(sheet)];
+    Cell *c = s.cells.findMutable(row, col);
+    if (!c || !c->hasFormula() || c->formula < 0 || c->formula >= s.formulas.size()) return -1;
+    CellRange placed = range;
+    placed.valid = true;
+    *added = false;
+    if (slot >= 0 && slot < s.ranges.size() && !s.ranges[slot].valid) {
+        s.ranges[slot] = placed;
+    } else {
+        slot = qint32(s.ranges.size());
+        s.ranges.append(placed);
+        *added = true;
+    }
+    c->flags |= ArrayFormula;
+    s.formulas[c->formula].range = slot;
+    const quint32 id = nodeAt(sheet, row, col);
+    if (id != kNone) dropNode(id);
+    const quint32 now = addNode(sheet, *c, c->formula);
+    queueDependents(areaOf(m_nodes[now]));
+    markArrayMembers(sheet, row, col);
+    return slot;
+}
+
+// The cells of an array's range, but its first, are its: they read its value (those of an array kept apart are marked, as the calculation's loading does).
+void Calculation::markArrayMembers(int sheet, quint32 row, quint32 col)
+{
+    Sheet &s = m_sheets[size_t(sheet)];
+    const Cell *first = s.cells.find(row, col);
+    if (!first || !first->hasFormula() || first->formula < 0 || first->formula >= s.formulas.size()) return;
+    const qint32 slot = s.formulas[first->formula].range;
+    if (slot < 0 || slot >= s.ranges.size() || !s.ranges[slot].valid) return;
+    const CellRange r = s.ranges[slot];
+    if (r.cellCount() <= 1 || r.cellCount() > kMaxArrayCellsMarked) return;
+    const qint32 formula = first->formula;
+    const quint32 id = nodeAt(sheet, row, col);
+    const bool kept = id != kNone && (m_nodes[id].flags & Kept);
+    for (quint32 rr = r.row1; rr <= r.row2; ++rr)
+        for (quint32 cc = r.col1; cc <= r.col2; ++cc) {
+            if (rr == row && cc == col) continue;
+            Cell member;
+            if (const Cell *have = s.cells.find(rr, cc)) {
+                member = *have;
+            } else {
+                member.row = rr;
+                member.col = quint16(cc);
+            }
+            if (member.hasFormula()) continue;
+            if (kept) {
+                member.flags |= Tainted;
+            } else {
+                member.flags |= ArrayMember;
+                member.formula = formula;
+            }
+            s.cells.set(member);
+            m_rows[size_t(sheet)] = std::max(m_rows[size_t(sheet)], rr + 1);
+            m_cols[size_t(sheet)] = std::max(m_cols[size_t(sheet)], cc + 1);
+        }
 }
 
 bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
@@ -147,6 +242,37 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
         rewrites.push_back(std::move(r));
     }
 
+    // ---- arrays: those whole in the block go with it (their cells are made ordinary here, and an array again where they land); an array of one cell that is written over is replaced
+    struct ArrayGoing {
+        quint32 row, col;   // the first cell, where it lands
+        CellRange range;    // and the range
+    };
+    std::vector<ArrayGoing> arrays;
+    std::vector<std::pair<int, qint32>> freeSlots;   // (the places in the lists of ranges that taken arrays left)
+    for (qint32 i = 0; i < S.ranges.size(); ++i) {
+        const CellRange r = S.ranges[i];
+        if (!r.valid || !meets(r, e.row1, e.col1, e.row2, e.col2)) continue;
+        ArrayGoing going;
+        going.row = quint32(qint64(r.row1) + dRow);
+        going.col = quint32(qint64(r.col1) + dCol);
+        going.range = r;
+        going.range.row1 = going.row;
+        going.range.col1 = going.col;
+        going.range.row2 = quint32(qint64(r.row2) + dRow);
+        going.range.col2 = quint32(qint64(r.col2) + dCol);
+        arrays.push_back(going);
+        rec->arraysTaken.push_back({e.sheet, i, r, false});
+        freeSlots.push_back({e.sheet, i});
+        dissolveArray(e.sheet, i);
+    }
+    for (qint32 i = 0; i < D.ranges.size(); ++i) {
+        const CellRange r = D.ranges[i];
+        if (!r.valid || !meets(r, e.toRow, e.toCol, toRow2, toCol2)) continue;
+        rec->arraysTaken.push_back({e.toSheet, i, r, false});
+        freeSlots.push_back({e.toSheet, i});
+        dissolveArray(e.toSheet, i);
+    }
+
     // ---- both places are emptied, and the cells put where they go
     auto clear = [&](int sheet, quint32 row, quint32 col) {
         setValue(sheet, row, col, Value(), Marking::Later);
@@ -157,6 +283,18 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     for (const Moving &m : moving) {
         put(e.toSheet, quint32(qint64(m.row) + dRow), quint32(qint64(m.col) + dCol), m.content, Marking::Later);
         if (m.content.isFormula) rec->movedFormulas.push_back({m.row, m.col, quint32(qint64(m.row) + dRow), quint32(qint64(m.col) + dCol)});
+    }
+    for (const ArrayGoing &going : arrays) {
+        qint32 slot = -1;
+        for (size_t k = 0; k < freeSlots.size(); ++k)
+            if (freeSlots[k].first == e.toSheet) {
+                slot = freeSlots[k].second;
+                freeSlots.erase(freeSlots.begin() + qint64(k));
+                break;
+            }
+        bool added = false;
+        const qint32 used = makeArray(e.toSheet, going.row, going.col, going.range, slot, &added);
+        if (used >= 0) rec->arraysMade.push_back({e.toSheet, used, going.range, added});
     }
 
     // ---- merged ranges
@@ -282,9 +420,20 @@ bool Calculation::undoMove(const EditRecord &rec, EditRecord *done)
             setStyle(sheet, p.first, p.second, 0);
         }
     };
+    // (the arrays that landed are taken apart so that their cells can be cleared, and their places in the lists go)
+    for (size_t k = rec.arraysMade.size(); k-- > 0;) {
+        const EditRecord::ArraySlot &made = rec.arraysMade[k];
+        dissolveArray(made.sheet, made.slot);
+        QVector<CellRange> &list = m_sheets[size_t(made.sheet)].ranges;
+        if (made.added && made.slot == list.size() - 1) list.removeLast();
+    }
     clearRange(e.toSheet, e.toRow, e.toCol, toRow2, toCol2);
     clearRange(e.sheet, e.row1, e.col1, e.row2, e.col2);
     for (const EditRecord::GoneCell &g : rec.gone) put(g.sheet, g.row, g.col, g.content, Marking::Later);
+    for (const EditRecord::ArraySlot &taken : rec.arraysTaken) {
+        QVector<CellRange> &list = m_sheets[size_t(taken.sheet)].ranges;
+        if (taken.slot >= 0 && taken.slot < list.size()) list[taken.slot] = taken.range;
+    }
     putBackKinds(rec);
     for (const EditRecord::FormulaWas &w : rec.was) {
         const Value *stored = w.hasStored ? &w.stored : nullptr;
