@@ -99,7 +99,11 @@ int drawingsOne(const QString &path, bool live)
         const grid::Axis rows(1048576, 20), cols(16384, 64);
         int drawnHere = 0;
         for (int i = 0; i < layer->count(); ++i) {
-            const grid::LayerObject &o = layer->object(i);
+            // (an object is made when its picture is first wanted: settled here, as the layer does it, and then drawn by the way it says: a chart takes what it needs and draws it apart)
+            grid::LayerObject o = layer->object(i);
+            QElapsedTimer t;
+            t.start();
+            if (o.settle) o.settle(&o);
             const grid::ObjectBox box = grid::anchorBox(o.anchor, rows, cols);
             grid::RenderRequest q;
             q.zoom = 1;
@@ -107,9 +111,13 @@ int drawingsOne(const QString &path, bool live)
             const double m = o.margin;
             q.pixels = QSize(int(q.units.width() + 2 * m + 0.5), int(q.units.height() + 2 * m + 0.5));
             q.inner = QRectF(m, m, q.units.width(), q.units.height());
-            QElapsedTimer t;
-            t.start();
-            const QImage img = o.render ? o.render(q) : QImage();
+            QImage img;
+            if (o.prepare) {
+                const std::function<QImage()> job = o.prepare(q);
+                if (job) img = job();
+            } else if (o.render) {
+                img = o.render(q);
+            }
             const double e = double(t.nsecsElapsed()) / 1e6;
             sumMs += e;
             maxMs = std::max(maxMs, e);
@@ -300,7 +308,7 @@ int drawingsBench(int charts, int shapes)
     report("scrolling, 3 rows at a time", v->paintTimes(), v->paintCpuTimes());
     const double scrollP95 = percentileOf(v->paintTimes(), 0.95);
     out() << "    pictures made during the scroll: " << layer->stats().renders - renders0 << ", objects drawn as an outline for want of a picture: " << layer->stats().placeholders - placeholders0 << "\n";
-    // the same, with no idle moment, the whole window drawn each time: every picture a scroll uncovers is made in its paint (at most six in each part of the grid)
+    // the same, with no idle moment, the whole window drawn each time: a paint makes nothing (the objects a scroll uncovers are outlines until their pictures come from the worker)
     v->verticalScrollBar()->setValue(0);
     spinFor(200);
     layer->invalidateAll();
