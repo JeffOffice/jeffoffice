@@ -840,8 +840,10 @@ EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
         const jp::calc::ParseResult p = jp::calc::parseFormula(fileText, po);
         if (!p.ok()) {
             r.ok = false;
-            r.problem = tr("The formula can't be read. %1").arg(p.error);
             r.problemAt = p.errorPos + (typed.startsWith(QLatin1Char('=')) ? 1 : 0);
+            // (what is wrong, and where: the character counted from 1, as the person counts them, "=" too)
+            r.problem = tr("The formula can't be read. %1").arg(p.error) + QLatin1Char(' ')
+                        + (r.problemAt >= typed.size() ? tr("Look at the end of what you typed.") : tr("Look at character %1.").arg(r.problemAt + 1));
             return r;
         }
         r.entry.kind = Entry::Kind::Formula;

@@ -7,6 +7,9 @@
 #include "sheet/entry.h"
 #include "sheet/styles.h"
 
+#include <QCoreApplication>
+#include <QTranslator>
+
 namespace {
 
 const QLocale en(QLocale::English, QLocale::UnitedStates);
@@ -385,6 +388,61 @@ private Q_SLOTS:
         QCOMPARE(word.entry.text, QString::fromUtf8("\u0663 \u0645\u0646"));
         // a text with an apostrophe in front is still a text
         QCOMPARE(read(QStringLiteral("'1'234"), options(ch)), QStringLiteral("t:1'234"));
+    }
+
+    // A formula that can't be read is told to the person in plain words that say what is wrong and where (no "token"), and the message is translatable (it has a context of its own).
+    void aFormulaThatIsNoneIsToldInPlainWords()
+    {
+        const EntryOptions o = options(en);
+        struct Case {
+            QString typed;
+            QString phrase;     // what the message says
+            int at;             // the character it points at (counting the "=")
+        };
+        const Case cases[] = {
+            {QStringLiteral("=1+2)"), QStringLiteral("There's a ) without a matching ("), 4},
+            {QStringLiteral("=(1+2"), QStringLiteral("( is never closed"), 5},
+            {QStringLiteral("=SUM(A1"), QStringLiteral("( is never closed"), 7},
+            {QStringLiteral("=SUM(A1 2)"), QStringLiteral("is missing here"), 8},
+            {QStringLiteral("=1+"), QStringLiteral("ends where a value is needed"), 3},
+            {QStringLiteral("=*3"), QStringLiteral("An operator is where a value is needed"), 1},
+            {QStringLiteral("=1,2"), QStringLiteral("comma"), 2},
+            {QStringLiteral("=A1 5"), QStringLiteral("operator is missing"), 4},
+            {QStringLiteral("=\"unclosed"), QStringLiteral("quote"), 1},
+            {QStringLiteral("='Sheet 1"), QStringLiteral("apostrophe"), 1},
+            {QStringLiteral("=#"), QStringLiteral("# starts an error"), 1},
+            {QStringLiteral("=A1+$"), QStringLiteral("$ belongs in a cell reference"), 4},
+            {QStringLiteral("=12abc"), QStringLiteral("can't run into letters"), 1},
+            {QStringLiteral("=1+~"), QStringLiteral("can't be in a formula"), 3},
+            {QStringLiteral("=NOW(1)"), QStringLiteral("NOW can't take the number of arguments given (1)"), 1},
+            {QStringLiteral("=SUM({1,A1})"), QStringLiteral("only be numbers, texts"), 8},
+            {QStringLiteral("=SUM({1,2;3})"), QStringLiteral("same number of values"), 12},
+        };
+        for (const Case &c : cases) {
+            const EntryResult r = readEntry(c.typed, o);
+            QVERIFY2(!r.ok, qPrintable(c.typed));
+            QVERIFY2(r.problem.contains(c.phrase), qPrintable(c.typed + QLatin1String(" -> ") + r.problem));
+            QVERIFY2(r.problem.contains(QLatin1String("character ") + QString::number(r.problemAt + 1)) || r.problem.contains(QLatin1String("end of what you typed")), qPrintable(c.typed + QLatin1String(" -> ") + r.problem));
+            for (const char *jargon : {"token", "Unexpected", "Expected", "any real one", "grid"}) QVERIFY2(!r.problem.contains(QLatin1String(jargon)), qPrintable(c.typed + QLatin1String(" -> ") + r.problem));
+            QVERIFY2(r.problem.endsWith(QLatin1Char('.')), qPrintable(r.problem));
+            QVERIFY2(r.problemAt == c.at, qPrintable(c.typed + QLatin1String(" at ") + QString::number(r.problemAt)));
+        }
+        // a formula that is too long, and one nested too deep, are told too
+        const EntryResult nested = readEntry(QStringLiteral("=") + QString(300, QLatin1Char('(')) + QStringLiteral("1") + QString(300, QLatin1Char(')')), o);
+        QVERIFY(!nested.ok);
+        QVERIFY2(nested.problem.contains(QLatin1String("too many")), qPrintable(nested.problem));
+        // the messages are looked up for translation, in a context of their own
+        class Translator : public QTranslator {
+        public:
+            QString translate(const char *context, const char *source, const char *, int) const override
+            {
+                return QLatin1String(context) == QLatin1String("jp::calc::Formula") ? QLatin1String("[x] ") + QLatin1String(source) : QString();
+            }
+        } translator;
+        QCoreApplication::installTranslator(&translator);
+        const EntryResult shown = readEntry(QStringLiteral("=1+2)"), o);
+        QCoreApplication::removeTranslator(&translator);
+        QVERIFY2(shown.problem.contains(QLatin1String("[x] ")), qPrintable(shown.problem));
     }
 
     void limits()
