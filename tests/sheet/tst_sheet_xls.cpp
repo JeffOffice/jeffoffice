@@ -208,6 +208,9 @@ private Q_SLOTS:
         const QByteArray left = tRefN(0, -1);
         cells += formulaExp(5, 0, 5, 0, 0) + shrfmla(5, 5, 0, 2, left) + formulaExp(5, 1, 5, 0, 0) + formulaExp(5, 2, 5, 0, 0);
         cells += formulaExp(7, 4, 7, 4, 0) + shrfmla(7, 7, 4, 6, left) + formulaExp(7, 5, 7, 4, 0) + formulaExp(7, 6, 7, 4, 0);
+        // D11:D13 = the cells three to the left, in the cell's own row and the row below it: the references move down with the cell
+        const QByteArray down = tRefN(0, -3) + tRefN(1, -3) + tOp(0x03);
+        cells += formulaExp(10, 3, 10, 3, 0) + shrfmla(10, 12, 3, 3, down) + formulaExp(11, 3, 10, 3, 0) + formulaExp(12, 3, 10, 3, 0);
         Book b;
         b.sheet(QStringLiteral("S"), cells);
         Workbook wb;
@@ -237,6 +240,10 @@ private Q_SLOTS:
         QCOMPARE(f("E8"), QStringLiteral("D8"));
         QCOMPARE(f("G8"), QStringLiteral("F8"));
         QVERIFY(sheettest::at(s, QStringLiteral("F8"))->flags & SharedFormula);
+        // moved down with the cell
+        QCOMPARE(f("D11"), QStringLiteral("A11+A12"));
+        QCOMPARE(f("D12"), QStringLiteral("A12+A13"));
+        QCOMPARE(f("D13"), QStringLiteral("A13+A14"));
     }
 
     // The record of a shared formula follows the first cell that uses it, which need not be the first cell of the range it covers; the cells that share it name that cell.
@@ -396,8 +403,8 @@ private Q_SLOTS:
         QByteArray cells = number(0, 2, 1) + number(0, 3, 2) + number(1, 2, 3) + number(1, 3, 4);
         const QByteArray times = tArea(0, 2, 1, 3) + tInt(2) + tOp(0x05);
         cells += formulaExp(2, 0, 2, 0, 2) + arrayRec(2, 3, 0, 1, times) + formulaExp(2, 1, 2, 0, 4) + formulaExp(3, 0, 2, 0, 6) + formulaExp(3, 1, 2, 0, 8);
-        // a data table over B6:C7 with the row input in A1: its first cell holds the table token and the record follows it; the other cells hold the same token
-        cells += formulaExp(5, 1, 5, 1, 10, 15, true) + tableRec(5, 6, 1, 2, 0, 0, 0) + formulaExp(5, 2, 5, 1, 11, 15, true) + formulaExp(6, 1, 5, 1, 12, 15, true) + formulaExp(6, 2, 5, 1, 13, 15, true);
+        // a data table over B6:C7 with the inputs in D3 (the row input) and F5 (the column input): its first cell holds the table token and the record follows it; the other cells hold the same token
+        cells += formulaExp(5, 1, 5, 1, 10, 15, true) + tableRec(5, 6, 1, 2, 0x08, 2, 3, 4, 5) + formulaExp(5, 2, 5, 1, 11, 15, true) + formulaExp(6, 1, 5, 1, 12, 15, true) + formulaExp(6, 2, 5, 1, 13, 15, true);
         Book b;
         b.sheet(QStringLiteral("S"), cells);
         Workbook wb;
@@ -418,7 +425,7 @@ private Q_SLOTS:
         const Cell *table = sheettest::at(s, QStringLiteral("B6"));
         QVERIFY(table && table->hasFormula());
         QVERIFY(table->flags & DataTable);
-        QCOMPARE(s.formulaText(*table), QStringLiteral("TABLE(A1)"));
+        QCOMPARE(s.formulaText(*table), QStringLiteral("TABLE(D3,F5)"));
         QCOMPARE(rangeName(s.formulaRange(*table)), QStringLiteral("B6:C7"));
         QCOMPARE(shown(wb, s, QStringLiteral("B6")), QStringLiteral("n:10"));
         QVERIFY(!sheettest::at(s, QStringLiteral("C7"))->hasFormula());
