@@ -274,6 +274,31 @@ QByteArray rewriteElementText(const QByteArray &xml, QByteArrayView local, const
     return out;
 }
 
+// The `val` of each value (`cfvo`) of a rule that is a formula (a cell such as $H$1, or a calculation) rewritten with `fn`; the others (a number, a percent, a percentile) are left.
+QByteArray rewriteValueFormulas(const QByteArray &xml, const std::function<QString(const QString &)> &fn)
+{
+    QByteArray out;
+    qsizetype copied = 0, pos = 0;
+    Tag t;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing || t.local != "cfvo") continue;
+        QByteArray tag = xml.mid(t.start, t.end - t.start);
+        bool hasType = false, hasVal = false;
+        if (attributeText(tag, "type", &hasType) != QLatin1String("formula") || !hasType) continue;
+        const QString val = attributeText(tag, "val", &hasVal);
+        if (!hasVal) continue;
+        const QString now = fn(val);
+        if (now == val) continue;
+        setAttribute(&tag, "val", xmlscan::escapeAttribute(now));
+        out += xml.mid(copied, t.start - copied) + tag;
+        copied = t.end;
+    }
+    if (copied == 0 && out.isEmpty()) return xml;
+    out += xml.mid(copied);
+    return out;
+}
+
 // ---- the part after a sheet's cells
 
 QByteArray movedTop(const QByteArray &xml, const Elem &e, const MoveContext &c, int sheet);
@@ -431,6 +456,8 @@ QByteArray movedTop(const QByteArray &xml, const Elem &e, const MoveContext &c, 
         if (found && now != sqref) setAttribute(&open, "sqref", xmlscan::escapeAttribute(now));
         QByteArray rest = whole.mid(e.open.end - e.open.start);
         rest = rewriteElementText(rest, "formula", [&](const QString &f) { return adjustRuleAll(f, sheet, c, sqref); });
+        // (the values of a color scale, a data bar, or a set of icons that are formulas follow the cells too)
+        rest = rewriteValueFormulas(rest, [&](const QString &f) { return adjustRuleAll(f, sheet, c, sqref); });
         return open + rest;
     }
     if (name == "dataValidations") {
@@ -1078,10 +1105,14 @@ bool movePivotCachePart(const QByteArray &xml, const MoveContext &ctx, QByteArra
         if (sheet < 0) continue;
         const QString was = ref;
         if (!adjustRangeAll(ctx, sheet, &ref, false)) ref = was;
-        // (a sheet renamed: the cache names it as it is called now)
+        // (a sheet renamed: the cache names it as it is called now. A sheet deleted: the cache keeps its records and the name of the sheet it was made from, as the programs people know leave
+        // it, so that a PivotTable still shows what it did and can't be refreshed until the data is put back; a name given later to another sheet is not the source's)
         QString nowSheet = sheetName;
-        for (const SheetOp &op : ctx.sheetOps)
-            if (op.kind == SheetOp::Kind::Rename && op.name.compare(nowSheet, Qt::CaseInsensitive) == 0) nowSheet = op.newName;
+        for (const SheetOp &op : ctx.sheetOps) {
+            if (op.name.compare(nowSheet, Qt::CaseInsensitive) != 0) continue;
+            if (op.kind == SheetOp::Kind::Delete) break;
+            nowSheet = op.newName;
+        }
         if (ref == was && nowSheet == sheetName) continue;
         setAttribute(&tag, "ref", ref.toLatin1());
         if (nowSheet != sheetName) setAttribute(&tag, "sheet", xmlscan::escapeAttribute(nowSheet));

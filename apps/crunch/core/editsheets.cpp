@@ -120,11 +120,26 @@ QVector<int> orderWith(QVector<int> order, int sheet, int before)
 
 } // namespace
 
+namespace {
+
+// The most sheets the program reads in a workbook (kMaxSheets): it does not write a file it would not read.
+bool sheetCapReached(const jp::office::sheet::Workbook &book, QString *why)
+{
+    int live = 0;
+    for (const SheetEntry &e : book.info().sheets)
+        if (!e.deleted) ++live;
+    if (live < jp::office::sheet::kMaxSheets) return false;
+    *why = EditSession::tr("A workbook can have up to %1 sheets, and this one has that many. Delete a sheet, and try again.").arg(jp::office::sheet::kMaxSheets);
+    return true;
+}
+
+} // namespace
+
 EditSession::Outcome EditSession::insertSheet(int before, const QString &name, int *made)
 {
     Outcome out;
     QString why;
-    if (!canEdit(&why) || sheetStepsRefused(&why)) {
+    if (!canEdit(&why) || sheetStepsRefused(&why) || sheetCapReached(*m_book->book, &why)) {
         out.ok = false;
         out.problem = why;
         return out;
@@ -149,7 +164,7 @@ EditSession::Outcome EditSession::copySheet(int sheet, int before, const QString
 {
     Outcome out;
     QString why;
-    if (!canEdit(&why) || !canEditSheet(sheet, &why) || sheetStepsRefused(&why)) {
+    if (!canEdit(&why) || !canEditSheet(sheet, &why) || sheetStepsRefused(&why) || sheetCapReached(*m_book->book, &why)) {
         out.ok = false;
         out.problem = why;
         return out;
@@ -429,7 +444,10 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
             }
             break;
         case SheetEdit::Kind::Move: book.setSheetOrder(forward ? e.orderAfter : e.orderBefore); break;
-        case SheetEdit::Kind::State: book.setSheetState(e.sheet, forward ? e.stateAfter : e.stateBefore); break;
+        case SheetEdit::Kind::State:
+            book.setSheetState(e.sheet, forward ? e.stateAfter : e.stateBefore);
+            m_statesChanged.insert(e.sheet);
+            break;
         case SheetEdit::Kind::TabColor:
             calc->setTabColor(e.sheet, forward ? e.colorAfter : e.colorBefore);
             m_tabColorsChanged.insert(e.sheet);

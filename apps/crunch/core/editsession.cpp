@@ -260,6 +260,7 @@ void EditSession::cleanChanged(bool clean)
     m_mergesChanged.clear();
     m_formatsChanged.clear();
     m_sheetsListed = false;
+    m_statesChanged.clear();
     m_tabColorsChanged.clear();
     m_sheetOps.clear();
 }
@@ -691,7 +692,6 @@ bool EditSession::apply(Step *step, bool forward)
             }
         }
     }
-    for (TableRename &r : step->renames) {
     {
         // the cells whose format alone changed: told one by one, or, when there are very many, as the whole sheet being drawn again
         const bool many = step->styles.size() > 20000;
@@ -710,6 +710,7 @@ bool EditSession::apply(Step *step, bool forward)
         if (many)
             for (const int sheet : sheetsStyled) m_sheetsRestyled.insert(sheet);
     }
+    for (TableRename &r : step->renames) {
         book.setTableColumnName(r.table, r.column, forward ? r.after : r.before);
         // the defined names that name the column follow, and the file's other parts that do are told at a save
         const QString table = r.table >= 0 && r.table < book.tables().size() ? book.tables()[r.table].name : QString();
@@ -745,9 +746,9 @@ bool EditSession::apply(Step *step, bool forward)
     if (!formulas.empty()) m_values->apply(formulas);
     for (auto &entry : cells) Q_EMIT cellsChanged(entry.first, entry.second);
     for (const SizeEdit &e : step->sizes) Q_EMIT sizesChanged(e.sheet);
-    for (const MergeEdit &m : step->merges) Q_EMIT sizesChanged(m.sheet);
     for (const int sheet : m_sheetsRestyled) Q_EMIT sizesChanged(sheet);
     m_sheetsRestyled.clear();
+    for (const MergeEdit &m : step->merges) Q_EMIT sizesChanged(m.sheet);
     for (const FormatEdit &f : step->formats) Q_EMIT sizesChanged(f.sheet);
     if (!step->sheets.empty()) Q_EMIT sheetsChanged();
     return true;
@@ -939,6 +940,22 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
             sc.replaceTabColor = true;
             sc.tabColor = calc->sheet(sheet).tabColor;
         }
+        // the sheet that is open has its tab selected, and a sheet that is hidden, or was the one that was open and is not now, does not (the workbook says which tab is open: where the
+        // file said, or the first that is shown if that sheet is hidden or gone)
+        {
+            const int wasAt = listed.activeTab >= 0 && listed.activeTab < listed.fileOrder.size() ? listed.fileOrder[listed.activeTab] : -1;
+            const int nowTab = book.activeTabNow();
+            const int nowAt = nowTab >= 0 && nowTab < listed.order.size() ? listed.order[nowTab] : -1;
+            for (int sheet = 0; sheet < listed.sheets.size(); ++sheet) {
+                const SheetEntry &entry = listed.sheets[sheet];
+                if (entry.deleted) continue;
+                int want = -1;
+                if (sheet == nowAt && nowAt != wasAt) want = 1;
+                else if ((entry.state != SheetState::Visible && m_statesChanged.count(sheet)) || (sheet == wasAt && sheet != nowAt)) want = 0;
+                if (want < 0 || (entry.isNew && want == 0)) continue;
+                changes.sheets[sheet].tabSelected = want;
+            }
+        }
     }
     // the runs of columns of the sheets whose columns were sized or inserted or deleted, as the sheet has them now; and the sizes of the rows a step changed
     {
@@ -1056,6 +1073,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_mergesChanged.clear();
     m_formatsChanged.clear();
     m_sheetsListed = false;
+    m_statesChanged.clear();
     m_tabColorsChanged.clear();
     m_sheetOps.clear();
     m_engineAtStart.clear();

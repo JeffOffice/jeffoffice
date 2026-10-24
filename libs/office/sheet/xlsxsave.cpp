@@ -140,7 +140,7 @@ QByteArray prefixed(const QByteArray &xml, const QByteArray &prefix)
                 out += '/';
                 ++i;
             }
-            out += prefix + ":";
+            out += prefix;   // (a prefix as xmlscan::prefixOf gives it has its colon)
         }
     }
     return out;
@@ -295,7 +295,7 @@ bool xfMadeInto(const QByteArray &raw, const CellFormat &f, const QByteArray &pr
         tag.chop(1);
         *out = tag + "/>";
     } else {
-        *out = tag + inner + QByteArray("</") + (prefix.isEmpty() ? QByteArray() : prefix + ":") + "xf>";
+        *out = tag + inner + QByteArray("</") + prefix + "xf>";
     }
     return true;
 }
@@ -312,7 +312,7 @@ bool appendToList(QByteArray *xml, const char *container, const QByteArray &item
         const QByteArray p(xmlscan::prefixOf(open.name));
         openTag.chop(2);
         while (!openTag.isEmpty() && isSpace(openTag.back())) openTag.chop(1);
-        *xml = xml->left(open.start) + openTag + ">" + items + "</" + (p.isEmpty() ? QByteArray() : p + ":") + container + ">" + xml->mid(open.end);
+        *xml = xml->left(open.start) + openTag + ">" + items + "</" + p + container + ">" + xml->mid(open.end);
         return true;
     }
     Tag close;
@@ -425,12 +425,12 @@ bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *
     if (!changes.newNumberFormats.isEmpty()) {
         QByteArray added;
         for (const SaveChanges::NumberFormat &f : changes.newNumberFormats)
-            added += "<" + (p.isEmpty() ? QByteArray() : p + ":") + "numFmt numFmtId=\"" + QByteArray::number(f.id) + "\" formatCode=\"" + xmlscan::escapeAttribute(f.code) + "\"/>";
+            added += "<" + p + "numFmt numFmtId=\"" + QByteArray::number(f.id) + "\" formatCode=\"" + xmlscan::escapeAttribute(f.code) + "\"/>";
         Tag open;
         if (findStart(result, "numFmts", &open, root.end)) {
             if (!appendToList(&result, "numFmts", added, changes.newNumberFormats.size())) return bad();
         } else {
-            const QByteArray element = "<" + (p.isEmpty() ? QByteArray() : p + ":") + "numFmts count=\"" + QByteArray::number(changes.newNumberFormats.size()) + "\">" + added + "</" + (p.isEmpty() ? QByteArray() : p + ":") + "numFmts>";
+            const QByteArray element = "<" + p + "numFmts count=\"" + QByteArray::number(changes.newNumberFormats.size()) + "\">" + added + "</" + p + "numFmts>";
             Tag again;
             if (!findStart(result, "styleSheet", &again)) return bad();
             result.insert(again.end, element);
@@ -522,15 +522,23 @@ void dropAttribute(QByteArray *tag, const char *name)
     tag->remove(a, ve + 1 - a);
 }
 
-// The name and value of the attribute of a sheet element that names its relationship (it ends in ":id": "r:id").
-bool relationshipAttribute(const QByteArray &tag, QByteArray *name, QString *value)
+// Whether a namespace is the one the attributes that name relationships are in (the usual form of the format, or the strict one).
+bool isRelationshipNamespace(const QString &uri)
 {
-    static const QRegularExpression re(QStringLiteral("\\s([A-Za-z0-9_]+:id)\\s*=\\s*\"([^\"]*)\""));
-    const QRegularExpressionMatch m = re.match(QString::fromLatin1(tag));
-    if (!m.hasMatch()) return false;
-    *name = m.captured(1).toLatin1();
-    *value = m.captured(2);
-    return true;
+    return uri == QLatin1String("http://schemas.openxmlformats.org/officeDocument/2006/relationships") || uri == QLatin1String("http://purl.oclc.org/ooxml/officeDocument/relationships");
+}
+
+// The prefix a tag declares for the relationships' namespace ("r" for xmlns:r="..."), or empty if it declares none. What an attribute is called does not say what it is: the prefix the
+// namespace is declared with does.
+QByteArray relationshipPrefixDeclaredIn(const QByteArray &tag)
+{
+    static const QRegularExpression re(QStringLiteral("\\sxmlns:([A-Za-z_][A-Za-z0-9_.-]*)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')"));
+    const QString text = QString::fromUtf8(tag);
+    for (auto it = re.globalMatch(text); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        if (isRelationshipNamespace(m.captured(2).isEmpty() ? m.captured(3) : m.captured(2))) return m.captured(1).toUtf8();
+    }
+    return QByteArray();
 }
 
 } // namespace
@@ -548,9 +556,13 @@ bool patchWorkbookSheets(const QByteArray &xml, const Workbook &book, QByteArray
     Tag open, close;
     if (!findStart(xml, "sheets", &open) || open.selfClosing || !findEnd(xml, open, &close)) return bad();
     const QByteArray p(xmlscan::prefixOf(open.name));
-    // the sheet elements the file has, by their relationships
-    QHash<QString, QByteArray> byRel;
-    QByteArray relAttribute = "r:id";
+    // the sheet elements the file has, in the order it has them (a sheet's place in the file is what ties it to its element: an element may have no relationship, or name it by any prefix)
+    QVector<QByteArray> inFile;
+    // the prefix the relationships' namespace has in the part: declared on the workbook element or on a sheet element; else "r", which is declared when a sheet that is added needs it
+    Tag rootTag;
+    if (!xmlscan::nextTag(xml, 0, &rootTag) || rootTag.closing) return bad();
+    QByteArray relPrefix = relationshipPrefixDeclaredIn(xml.mid(rootTag.start, rootTag.end - rootTag.start));
+    const bool declared = !relPrefix.isEmpty();   // (on the workbook element)
     {
         Tag t;
         qsizetype pos = open.end;
@@ -558,20 +570,21 @@ bool patchWorkbookSheets(const QByteArray &xml, const Workbook &book, QByteArray
             pos = t.end;
             if (t.closing || t.local != "sheet") continue;
             const QByteArray tag = xml.mid(t.start, t.end - t.start);
-            QByteArray name;
-            QString id;
-            if (!relationshipAttribute(tag, &name, &id)) continue;
-            relAttribute = name;
-            byRel.insert(id, tag);
+            if (relPrefix.isEmpty()) relPrefix = relationshipPrefixDeclaredIn(tag);
+            inFile.append(tag);
         }
     }
+    if (relPrefix.isEmpty()) relPrefix = "r";
+    const QByteArray relAttribute = relPrefix + ":id";
     QByteArray sheets;
     for (const int place : info.order) {
         const SheetEntry &e = info.sheets[place];
         QByteArray tag;
-        if (!e.isNew && byRel.contains(e.relId)) {
-            tag = byRel.value(e.relId);
-        } else if (e.isNew && !e.relId.isEmpty()) {
+        if (!e.isNew) {
+            const int at = int(info.fileOrder.indexOf(place));
+            if (at < 0 || at >= inFile.size()) return bad();
+            tag = inFile[at];
+        } else if (!e.relId.isEmpty()) {
             tag = "<" + p + "sheet name=\"x\" sheetId=\"" + QByteArray::number(e.sheetId) + "\" " + relAttribute + "=\"" + e.relId.toUtf8() + "\"/>";
         } else {
             return bad();
@@ -584,13 +597,12 @@ bool patchWorkbookSheets(const QByteArray &xml, const Workbook &book, QByteArray
     }
     QByteArray result = xml.left(open.end) + sheets + xml.mid(close.start);
     // the namespace the relationships' attribute is in must be declared (a new sheet's element names it)
-    {
-        const QByteArray prefix = relAttribute.left(relAttribute.indexOf(':'));
+    if (!declared) {
         Tag root;
-        if (!prefix.isEmpty() && xmlscan::nextTag(result, 0, &root) && !result.mid(root.start, root.end - root.start).contains("xmlns:" + prefix + "=")) {
-            QByteArray rootTag = result.mid(root.start, root.end - root.start);
-            setAttribute(&rootTag, ("xmlns:" + prefix).constData(), "http://schemas.openxmlformats.org/officeDocument/2006/relationships");
-            result = result.left(root.start) + rootTag + result.mid(root.end);
+        if (xmlscan::nextTag(result, 0, &root)) {
+            QByteArray rootText = result.mid(root.start, root.end - root.start);
+            setAttribute(&rootText, ("xmlns:" + relPrefix).constData(), "http://schemas.openxmlformats.org/officeDocument/2006/relationships");
+            result = result.left(root.start) + rootText + result.mid(root.end);
         }
     }
     // the names that belong to one sheet: by the place of the sheet in the list (or gone with it)

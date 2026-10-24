@@ -79,9 +79,11 @@ struct SheetChanges {
     // The color of the sheet's tab, when a person changed it (none: the sheet has no color).
     bool replaceTabColor = false;
     ColorSpec tabColor;
+    // Whether the sheet's tab is the one that is open (`tabSelected` of its first view), when the sheets a person changed make it so (-1: the file's stays, 0: not, 1: it is).
+    int tabSelected = -1;
     // For a sheet a person added: the XML it begins as (its view, default sizes, rules, and no cells: the cells, sizes of rows and columns, and merged ranges above are put in it).
     QByteArray skeleton;
-    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && skeleton.isEmpty() && rows.empty(); }
+    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && skeleton.isEmpty() && rows.empty(); }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.

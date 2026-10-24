@@ -344,6 +344,39 @@ QByteArray tabColorFromChange(const QByteArray &head, const ColorSpec &color, co
     return head.left(sheetPrEnd) + element + head.mid(sheetPrEnd);
 }
 
+// The head of a sheet with its first view said to be the one that is open (`tabSelected`), or not: the attribute put on or taken off the first `sheetView`; for a sheet that is to be
+// open and has no view, one made before the sizes of its columns (or before the cells).
+QByteArray tabSelectedFromChange(const QByteArray &head, bool selected, const QByteArray &defaultPrefix)
+{
+    Tag t;
+    qsizetype pos = 0, viewAt = -1, viewEnd = -1, insertAt = -1;
+    QByteArray prefix = defaultPrefix;
+    bool first = true;
+    while (xmlscan::nextTag(head, pos, &t)) {
+        pos = t.end;
+        if (t.closing) continue;
+        if (first) {
+            first = false;
+            prefix = QByteArray(xmlscan::prefixOf(t.name));
+            continue;
+        }
+        if (t.local == "sheetView" && viewAt < 0) {
+            viewAt = t.start;
+            viewEnd = t.end;
+        } else if ((t.local == "sheetFormatPr" || t.local == "cols" || t.local == "sheetData") && insertAt < 0) {
+            insertAt = t.start;
+        }
+    }
+    if (viewAt >= 0) {
+        QByteArray tag = head.mid(viewAt, viewEnd - viewAt);
+        setFlag(&tag, "tabSelected", selected);
+        return head.left(viewAt) + tag + head.mid(viewEnd);
+    }
+    if (!selected) return head;
+    const qsizetype at = insertAt >= 0 ? insertAt : head.size();
+    return head.left(at) + "<" + prefix + "sheetViews><" + prefix + "sheetView tabSelected=\"1\" workbookViewId=\"0\"/></" + prefix + "sheetViews>" + head.mid(at);
+}
+
 // What follows a sheet's cells (from after "</sheetData>" to the end) with its merged ranges made from `merges`: in place of the element the file has, or where the format puts it.
 QByteArray tailWithMerges(const QByteArray &after, const std::vector<CellRange> &merges, const QByteArray &prefix)
 {
@@ -403,6 +436,7 @@ public:
         if (changes.replaceMerges) m_merges = &changes.merges;
         if (changes.replaceFormat) m_format = &changes.format;
         if (changes.replaceTabColor) m_tabColor = &changes.tabColor;
+        m_tabSelected = changes.tabSelected;
         for (RowEdits &r : m_rows) {
             std::stable_sort(r.items.begin(), r.items.end(), [](const Item &a, const Item &b) { return a.col < b.col; });
             // (one item for a cell: a changed cell stands over a result)
@@ -548,6 +582,7 @@ private:
         QByteArray before = m_buf.left(dataStart);
         if (dimStart >= 0 && !m_cells.empty()) before = withDimension(before, dimStart, dimEnd);
         if (m_tabColor) before = tabColorFromChange(before, *m_tabColor, m_prefix);
+        if (m_tabSelected >= 0) before = tabSelectedFromChange(before, m_tabSelected != 0, m_prefix);
         if (m_format) before = formatFromChange(before, *m_format, m_prefix);
         if (m_columns) before = columnsFromRuns(before, *m_columns, m_prefix);
         put(before);
@@ -947,6 +982,7 @@ private:
     const std::vector<CellRange> *m_merges = nullptr;
     const SheetFormat *m_format = nullptr;
     const ColorSpec *m_tabColor = nullptr;
+    int m_tabSelected = -1;
 };
 
 } // namespace
