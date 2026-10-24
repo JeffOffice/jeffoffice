@@ -1296,9 +1296,54 @@ bool Workbook::openStream(const QByteArray &stream, bool hasMacros, QString *err
     return true;
 }
 
+namespace {
+
+QString tooLargeMessage() { return QCoreApplication::translate("jp::office::doc", "The file is larger than this program can open."); }
+
+// Whether a compound file holds a macro project, by whether the streams a project has are there: one function for the two ways a file is opened.
+bool holdsMacroProject(const std::function<bool(const QString &)> &hasStream)
+{
+    static const char *const paths[] = {"_VBA_PROJECT_CUR/VBA/dir", "_VBA_PROJECT_CUR/VBA/_VBA_PROJECT", "VBA/dir", "VBA/_VBA_PROJECT"};
+    for (const char *path : paths)
+        if (hasStream(QString::fromLatin1(path))) return true;
+    return false;
+}
+
+// What a file that is not a workbook of either kind says it is, from its first bytes, in words for the person: a page of the web or an XML spreadsheet saved with the name of a
+// workbook; empty if it says neither.
+QString plainKindOfText(const QByteArray &bytes)
+{
+    QByteArray head = bytes.left(1024);
+    if (head.startsWith("\xEF\xBB\xBF")) head.remove(0, 3);
+    head = head.trimmed().toLower();
+    if (head.isEmpty() || head[0] != '<') return QString();
+    if (head.startsWith("<html") || head.startsWith("<!doctype html") || head.contains("<html"))
+        return translate("This file is a web page that was saved with an .xls name. This program can't open that kind of file yet.");
+    if (head.contains("<workbook") && head.contains("spreadsheet"))
+        return translate("This file is an XML spreadsheet that was saved with an .xls name. This program can't open that kind of file yet.");
+    return QString();
+}
+
+} // namespace
+
 bool Workbook::openBinary(const QByteArray &file, QString *error, const Limits &limits)
 {
-    if (!startsCompoundFile(file)) return openStream(file, false, error, limits);   // (a stream with no container: the forms before BIFF5, which says so)
+    if (file.size() > limits.fileBytes) {
+        if (error) *error = tooLargeMessage();
+        return false;
+    }
+    if (!startsCompoundFile(file)) {
+        // (a stream with no container: the forms before BIFF5, which says so; or not a workbook of this kind at all)
+        const bool stream = file.size() >= 4 && quint8(file[0]) == 0x09 && (quint8(file[1]) == 0x00 || quint8(file[1]) == 0x02 || quint8(file[1]) == 0x04 || quint8(file[1]) == 0x08);
+        if (!stream) {
+            const QString kind = plainKindOfText(file);
+            if (!kind.isEmpty()) {
+                if (error) *error = kind;
+                return false;
+            }
+        }
+        return openStream(file, false, error, limits);
+    }
     jp::cfb::File container;
     QString why;
     if (!jp::cfb::read(file, &container, &why)) {
@@ -1311,7 +1356,7 @@ bool Workbook::openBinary(const QByteArray &file, QString *error, const Limits &
         if (error) *error = translate("The file has no workbook in it.");
         return false;
     }
-    const bool macros = container.find(QStringLiteral("_VBA_PROJECT_CUR")) >= 0 || container.find(QStringLiteral("VBA")) >= 0;
+    const bool macros = holdsMacroProject([&](const QString &path) { return !container.stream(path).isEmpty(); });
     return openStream(stream, macros, error, limits);
 }
 
@@ -1322,7 +1367,12 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
         if (error) *error = file.errorString();
         return false;
     }
-    const QByteArray head = file.read(8);
+    // (a file past the limit is refused before any of it is read)
+    if (file.size() > limits.fileBytes) {
+        if (error) *error = tooLargeMessage();
+        return false;
+    }
+    const QByteArray head = file.read(1024);
     file.close();
     // (a stream with no container: the forms before BIFF5, and a bare BIFF8 or BIFF5 stream, begin with the record of the start of a workbook)
     const bool raw = head.size() >= 4 && quint8(head[0]) == 0x09 && (quint8(head[1]) == 0x00 || quint8(head[1]) == 0x02 || quint8(head[1]) == 0x04 || quint8(head[1]) == 0x08);
@@ -1334,19 +1384,25 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
             if (error) *error = why.startsWith(QLatin1String("no stream")) || why.isEmpty() ? translate("The file has no workbook in it.") : translate("The file is damaged: %1").arg(why);
             return false;
         }
-        const bool macros = !jp::cfb::readStream(path, QStringLiteral("_VBA_PROJECT_CUR/VBA/dir")).isEmpty() || !jp::cfb::readStream(path, QStringLiteral("VBA/dir")).isEmpty();
+        const bool macros = holdsMacroProject([&](const QString &stream) { return !jp::cfb::readStream(path, stream).isEmpty(); });
         return openStream(stream, macros, error, limits);
     }
     if (raw) {
-        QFile whole(path);
-        if (!whole.open(QIODevice::ReadOnly)) {
-            if (error) *error = whole.errorString();
+        QByteArray whole;
+        if (!readWholeFile(path, &whole, error, limits.fileBytes)) return false;
+        return openStream(whole, false, error, limits);
+    }
+    if (!head.startsWith("PK")) {
+        const QString kind = plainKindOfText(head);
+        if (!kind.isEmpty()) {
+            if (error) *error = kind;
             return false;
         }
-        return openStream(whole.readAll(), false, error, limits);
     }
+    QByteArray bytes;
+    if (!readWholeFile(path, &bytes, error, limits.fileBytes)) return false;
     Package package;
-    if (!package.readLazyFile(path, error)) return false;
+    if (!package.readLazy(bytes, error)) return false;
     return open(package, error, limits);
 }
 

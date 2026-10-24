@@ -11,6 +11,7 @@
 #include <QVector>
 
 #include <functional>
+#include <memory>
 
 namespace jp::office::sheet {
 
@@ -62,6 +63,28 @@ struct XlsFormulaResult {
     QString why;               // when the formula could not be read
     bool ok() const { return why.isEmpty(); }
 };
+
+// A formula read from its tokens and not yet written as text: the operands and operators as a tree, with each reference as the fields the file stores. It is written for a base
+// cell when it is asked for (so the formula shared by cells is read once and written for each, where a relative reference leaves the sheet), in one pass over the tree: the time
+// is in proportion to the length of the text, whatever the operators are.
+class XlsFormulaTree {
+public:
+    XlsFormulaTree();
+    bool ok() const;
+    QString why() const;                  // when it is not
+    qint64 size() const;                  // the pieces it is made of: what writing it once costs, besides the characters
+    // The text written for the cell (`outside` of the result says a relative reference left the old form's sheet and wrapped round).
+    XlsFormulaResult render(quint32 baseRow, quint32 baseCol) const;
+
+    struct Impl;
+    explicit XlsFormulaTree(std::shared_ptr<const Impl> impl) : d(std::move(impl)) {}
+
+private:
+    std::shared_ptr<const Impl> d;
+};
+
+// The tokens read once into a tree (the options' base cell is only what render is given when asked for none).
+XlsFormulaTree xlsParseFormula(const XlsContext &context, const QByteArray &rgce, const QByteArray &extra, const XlsFormulaOptions &options);
 
 // `rgce` is the formula's tokens and `extra` the bytes that follow them in the record (the values of array constants, the cells that memory tokens remember).
 XlsFormulaResult xlsFormulaText(const XlsContext &context, const QByteArray &rgce, const QByteArray &extra, const XlsFormulaOptions &options);

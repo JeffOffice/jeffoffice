@@ -332,7 +332,6 @@ public:
             if (type != 0x0005) return fail(translate("The file has no workbook in it."));
         }
         m_cx.biff = m_biff;
-        m_cx.bytesToText = [this](const char *p, int n) { return text(p, n); };
         if (single) {
             SheetEntry e;
             e.name = QStringLiteral("Sheet1");
@@ -407,9 +406,21 @@ public:
                 if (!readSst(lg)) return fail(translate("The workbook has more strings than any real file has."));
                 break;
             }
-            case kSupBook: readSupBook(r); break;
-            case kExternSheet: readExternSheet(r); break;
-            case kExternName: readExternName(r); break;
+            case kSupBook: {
+                const Logical lg = joined(m_d, sc, r, true);
+                readSupBook(lg);
+                break;
+            }
+            case kExternSheet: {
+                const Logical lg = joined(m_d, sc, r, true);
+                readExternSheet(lg);
+                break;
+            }
+            case kExternName: {
+                const Logical lg = joined(m_d, sc, r, true);
+                readExternName(lg);
+                break;
+            }
             case kName: {
                 const Logical lg = joined(m_d, sc, r, true);
                 if (!readName(lg)) return fail(translate("The workbook has more names than any real file has."));
@@ -749,9 +760,9 @@ private:
         return true;
     }
 
-    void readSupBook(const Rec &r)
+    void readSupBook(const Logical &lg)
     {
-        Bytes b(m_d, r.pos, r.pos + r.len);
+        Bytes b(lg.data, 0, lg.data.size());
         XlsSupBook sb;
         if (m_biff < 8) return;
         const int sheets = b.u16();
@@ -779,9 +790,9 @@ private:
         m_cx.supbooks.append(sb);
     }
 
-    void readExternSheet(const Rec &r)
+    void readExternSheet(const Logical &lg)
     {
-        Bytes b(m_d, r.pos, r.pos + r.len);
+        Bytes b(lg.data, 0, lg.data.size());
         if (m_biff >= 8) {
             const int n = b.u16();
             for (int i = 0; i < n && b.left() >= 6; ++i) {
@@ -799,9 +810,9 @@ private:
         }
     }
 
-    void readExternName(const Rec &r)
+    void readExternName(const Logical &lg)
     {
-        Bytes b(m_d, r.pos, r.pos + r.len);
+        Bytes b(lg.data, 0, lg.data.size());
         b.skip(6);
         const QString name = readString(b, 1);
         if (m_biff < 8) {
@@ -920,6 +931,8 @@ private:
     // Everything read becomes the workbook's model.
     std::shared_ptr<const XlsBook> finish(bool hasMacros, WorkbookInfo *info, SharedStrings *shared, Styles *styles)
     {
+        // (the text of BIFF5 formulas is read long after this object is gone: what it needs is held by value)
+        m_cx.bytesToText = [codepage = m_codepage](const char *p, int n) { return xlsBytesToText(codepage, p, n); };
         // the names, now that the sheets, books, and names they refer to are known
         for (RawName &n : m_rawNames) {
             n.text = nameAsTheNewFormHasIt(n.text);
@@ -1139,7 +1152,7 @@ private:
         CellRange range;
         qint32 text = -1;
         bool expand = false;
-        QByteArray rgce, extra;
+        XlsFormulaTree tree;   // (kept for the cells that cannot share the text: it is written for each, not read for each)
     };
     struct ArrayDef {
         CellRange range;
@@ -1177,6 +1190,7 @@ private:
     Sheet &m_s;
     bool m_b8;
     qint64 m_cells = 0;
+    qint64 m_work = 0;
     qint64 m_held = 0;
     qint64 m_outside = 0;
     SheetFormat m_format;
@@ -1200,6 +1214,15 @@ private:
     {
         if (m_s.error.isEmpty()) m_s.error = why;
         return false;
+    }
+
+    // Work taken to read formulas (the bytes of tokens, the pieces made of them, the pieces written for a cell): counted, and bounded.
+    bool charge(qint64 units)
+    {
+        m_work += units;
+        m_s.stats.formulaWork = m_work;
+        if (m_work > m_lim.formulaWork) return fail(translate("The formulas of the sheet are more work to read than any real file's."));
+        return true;
     }
 
     QString text(const char *p, int n) const { return xlsBytesToText(m_book.m_codepage, p, n); }
@@ -1606,7 +1629,9 @@ private:
             opts.baseCol = col;
             opts.sheet = m_index;
             opts.maxChars = m_lim.formulaChars;
-            const XlsFormulaResult conv = xlsFormulaText(*m_cx, rgce, extra, opts);
+            const XlsFormulaTree tree = xlsParseFormula(*m_cx, rgce, extra, opts);
+            if (!charge(rgce.size() + 2 * tree.size())) return false;
+            const XlsFormulaResult conv = tree.ok() ? tree.render(row, col) : XlsFormulaResult{QString(), false, tree.why().isEmpty() ? translate("A formula has a token this program does not read.") : tree.why()};
             if (!conv.ok()) {
                 // (the result the file stored stays; the formula is not kept)
                 c.flags = 0;
@@ -1669,21 +1694,19 @@ private:
         opts.relative = true;
         opts.sheet = m_index;
         opts.maxChars = m_lim.formulaChars;
-        opts.baseRow = def.range.row1;
-        opts.baseCol = def.range.col1;
-        const XlsFormulaResult first = xlsFormulaText(*m_cx, rgce, extra, opts);
+        // read once; written for the first cell of the range and the last (a relative reference that leaves the sheet there wraps differently from one that does not)
+        const XlsFormulaTree tree = xlsParseFormula(*m_cx, rgce, extra, opts);
+        if (!charge(rgce.size() + 3 * tree.size())) return false;
+        const XlsFormulaResult first = tree.ok() ? tree.render(def.range.row1, def.range.col1) : XlsFormulaResult{QString(), false, QStringLiteral("x")};
         if (!first.ok()) {
             // none of its cells can have it
             registerShared(def);
             return true;
         }
-        opts.baseRow = def.range.row2;
-        opts.baseCol = def.range.col2;
-        const XlsFormulaResult last = xlsFormulaText(*m_cx, rgce, extra, opts);
+        const XlsFormulaResult last = tree.render(def.range.row2, def.range.col2);
         def.expand = first.outside || !last.ok() || last.outside;
         if (def.expand) {
-            def.rgce = rgce;
-            def.extra = extra;
+            def.tree = tree;
         } else {
             m_s.stats.longestFormula = std::max<qint64>(m_s.stats.longestFormula, first.text.size());
             m_s.formulaTexts.append(first.text);
@@ -1712,7 +1735,9 @@ private:
         opts.baseCol = def.range.col1;
         opts.sheet = m_index;
         opts.maxChars = m_lim.formulaChars;
-        const XlsFormulaResult conv = xlsFormulaText(*m_cx, rgce, extra, opts);
+        const XlsFormulaTree tree = xlsParseFormula(*m_cx, rgce, extra, opts);
+        if (!charge(rgce.size() + 2 * tree.size())) return false;
+        const XlsFormulaResult conv = tree.ok() ? tree.render(def.range.row1, def.range.col1) : XlsFormulaResult{QString(), false, QStringLiteral("x")};
         if (conv.ok()) {
             m_s.stats.longestFormula = std::max<qint64>(m_s.stats.longestFormula, conv.text.size());
             m_s.stats.expandedFormulaChars += conv.text.size();
@@ -1752,7 +1777,10 @@ private:
     // The cells that held only a pointer to a shared formula, an array, or a data table get what they point to.
     bool resolveExpressions()
     {
+        qint64 settled = 0;
         for (const Pending &p : m_pending) {
+            // (the read can be stopped here as it can while the records are read)
+            if (m_progress && ++settled % 4096 == 0 && !m_progress(m_cells + settled)) return fail(translate("The read was stopped."));
             Cell *c = m_s.cells.findMutable(p.row, p.col);
             if (!c || c->formula != p.formula) continue;
             auto plain = [&]() {
@@ -1785,18 +1813,16 @@ private:
                     m_s.stats.expandedFormulaChars += m_s.formulaTexts[sh->text].size();
                     if (m_s.stats.expandedFormulaChars > m_lim.expandedFormulaChars) return fail(translate("The formulas, all together, are longer than any real file has."));
                 } else if (sh->expand) {
-                    XlsFormulaOptions opts;
-                    opts.relative = true;
-                    opts.sheet = m_index;
-                    opts.maxChars = m_lim.formulaChars;
-                    opts.baseRow = p.row;
-                    opts.baseCol = p.col;
-                    const XlsFormulaResult conv = xlsFormulaText(*m_cx, sh->rgce, sh->extra, opts);
+                    // (written for this cell from the tree the formula was read into once)
+                    if (!charge(sh->tree.size())) return false;
+                    const XlsFormulaResult conv = sh->tree.render(p.row, p.col);
                     if (conv.ok()) {
                         m_s.formulaTexts.append(conv.text);
                         f.text = qint32(m_s.formulaTexts.size() - 1);
+                        m_held += conv.text.size() * 2 + 48;
                         m_s.stats.expandedFormulaChars += conv.text.size();
                         if (m_s.stats.expandedFormulaChars > m_lim.expandedFormulaChars) return fail(translate("The formulas, all together, are longer than any real file has."));
+                        if (m_held > m_lim.sheetBytes) return fail(translate("The sheet is larger than any real file's."));
                     } else {
                         plain();
                         ++m_s.stats.unreadFormulas;

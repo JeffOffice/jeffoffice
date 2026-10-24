@@ -5,9 +5,24 @@
 
 #include "io/cfb.h"
 #include "sheet/calculation.h"
+#include "sheet/xlscodepage.h"
 
 #include <QFile>
 #include <QTemporaryDir>
+
+namespace {
+
+// Writes over the stack below the caller's, so that a reference to something a finished call held there reads what it held no longer.
+#if defined(__GNUC__)
+__attribute__((noinline))
+#endif
+void scrubTheStack()
+{
+    volatile char junk[65536];
+    for (size_t i = 0; i < sizeof(junk); ++i) junk[i] = char(0xA5);
+}
+
+} // namespace
 
 class SheetXlsTests : public QObject {
     Q_OBJECT
@@ -250,7 +265,7 @@ private Q_SLOTS:
     }
 
     // BIFF5 keeps the list of external sheets and names in each sheet, and names its own workbook's sheets with a number below 0.
-    void excel5ListsExternalSheetsAndNamesInEachSheet()
+    void biff5ListsExternalSheetsAndNamesInEachSheet()
     {
         Book b(5);
         QByteArray one = externCount5(1) + externSheet5(QByteArray("\x03Two", 4)) + externName5(QStringLiteral("MYFUNC"));
@@ -269,6 +284,109 @@ private Q_SLOTS:
         QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A3"))), QStringLiteral("MYFUNC(1)"));
         QVERIFY(wb.readSheet(1, &s));
         QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A1"))), QStringLiteral("One!A1+1"));   // (the list of the second sheet is its own)
+    }
+
+    // A formula that many cells share is read once, whatever the number of cells, and is read in work in proportion to its length: a chain of parentheses is no worse than a chain of
+    // sums. The work is counted (in the sheet's statistics), not timed.
+    void aSharedFormulaIsReadOnceForAllItsCells()
+    {
+        auto workOf = [&](int tokens, int rows, int baseCol, bool *whole = nullptr) {
+            // the formula: the cell one column to the left (or, at column A, the last column: not shared), and `tokens` parentheses round it
+            QByteArray rgce = tRefN(0, -1);
+            for (int i = 0; i < tokens; ++i) rgce += tOp(0x15);
+            QByteArray cells = formulaExp(0, baseCol, 0, baseCol, 0) + shrfmla(0, rows - 1, baseCol, baseCol, rgce);
+            for (int r = 1; r < rows; ++r) cells += formulaExp(r, baseCol, 0, baseCol, 0);
+            Book b;
+            b.sheet(QStringLiteral("S"), cells);
+            Workbook wb;
+            QString why;
+            if (!openBook(b, &wb, &why)) return qint64(-1);
+            Sheet s;
+            const bool ok = wb.readSheet(0, &s);
+            if (whole) *whole = ok;
+            return s.stats.formulaWork;
+        };
+        // shared: the work does not grow with the cells that share
+        const qint64 few = workOf(500, 10, 2), many = workOf(500, 400, 2);
+        QVERIFY2(few > 0 && many > 0, "work is counted");
+        QVERIFY2(many < few + 3 * 400, qPrintable(QStringLiteral("%1 for 10 cells, %2 for 400").arg(few).arg(many)));
+        QVERIFY(many < 5 * 500);
+        // and grows with the length of the formula in proportion (twice the tokens, less than three times the work)
+        const qint64 longer = workOf(1000, 10, 2);
+        QVERIFY2(longer < 3 * few, qPrintable(QStringLiteral("%1 and %2").arg(few).arg(longer)));
+        // not shared (the left of column A wraps): read once and written for each cell; the work of writing is counted for each
+        const qint64 wrapped = workOf(500, 40, 0);
+        QVERIFY(wrapped > 0);
+        QVERIFY2(wrapped < 500 * 3 + 40 * 510 * 2, qPrintable(QString::number(wrapped)));
+        QVERIFY2(wrapped > 40 * 500, qPrintable(QString::number(wrapped)));
+    }
+
+    // The work of formulas is bounded: a small file that makes a formula of thousands of pieces for each of tens of thousands of cells is stopped at the bound, with what was read
+    // before it kept, and a long shared formula that need not be written for each cell is no trouble.
+    void theWorkOfFormulasIsBounded()
+    {
+        QByteArray rgce = tRefN(0, -1);
+        for (int i = 0; i < 2000; ++i) rgce += tOp(0x15);
+        const int rows = 3000;
+        auto book = [&](int baseCol) {
+            QByteArray cells = formulaExp(0, baseCol, 0, baseCol, 0) + shrfmla(0, rows - 1, baseCol, baseCol, rgce);
+            for (int r = 1; r < rows; ++r) cells += formulaExp(r, baseCol, 0, baseCol, 0);
+            Book b;
+            b.sheet(QStringLiteral("S"), cells);
+            return b;
+        };
+        Limits limits;
+        limits.formulaWork = 1000000;   // (6 million pieces would be written for the cells that cannot share the formula)
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(book(0), &wb, &why, limits), qPrintable(why));
+        Sheet s;
+        QVERIFY(!wb.readSheet(0, &s));
+        QVERIFY2(!s.error.isEmpty(), "the sheet says why");
+        QVERIFY(s.stats.formulaWork <= limits.formulaWork + 4100);
+        QVERIFY(s.cells.cellCount() > 0);
+        // the same formula in a column it can be shared in: read once, in the bound
+        QVERIFY2(openBook(book(2), &wb, &why, limits), qPrintable(why));
+        QVERIFY(wb.readSheet(0, &s));
+        QVERIFY(s.error.isEmpty());
+        QCOMPARE(s.cells.cellCount(), qint64(rows));
+        // a formula of a thousand names in a chain of a thousand cells, none shared, each read by itself: the work is the sum of the tokens, in proportion to the bytes
+        QByteArray each;
+        for (int r = 0; r < 200; ++r) each += formulaNumber(r, 0, tInt(1) + tOp(0x13) + tOp(0x13) + tOp(0x13) + tOp(0x14), 0);
+        Book c;
+        c.sheet(QStringLiteral("S"), each);
+        Workbook wc;
+        QVERIFY(openBook(c, &wc, &why));
+        QVERIFY(wc.readSheet(0, &s));
+        QVERIFY2(s.stats.formulaWork < 200 * 30, qPrintable(QString::number(s.stats.formulaWork)));
+    }
+
+    // The read can be stopped (the progress function says no) while the cells of shared formulas are settled, after the records are read: that phase asks too.
+    void theReadCanBeStoppedWhileSharedFormulasAreSettled()
+    {
+        // 20,000 cells that name one shared formula: the records are read in 4 asks (one for each 4,096 cells), and settling them asks again
+        const int rows = 20000;
+        QByteArray cells = formulaExp(0, 1, 0, 1, 0) + shrfmla(0, rows - 1, 1, 1, tRefN(0, -1) + tInt(1) + tOp(0x03));
+        for (int r = 1; r < rows; ++r) cells += formulaExp(r, 1, 0, 1, 0);
+        Book b;
+        b.sheet(QStringLiteral("S"), cells);
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        Sheet s;
+        qint64 asked = 0, largest = 0;
+        QVERIFY(wb.readSheet(0, &s, [&](qint64 cells) {
+            ++asked;
+            largest = std::max(largest, cells);
+            return true;
+        }));
+        const qint64 asksForTheRecords = rows / 4096;
+        QVERIFY2(asked > asksForTheRecords, qPrintable(QStringLiteral("asked %1 times").arg(asked)));
+        // stopped at the first ask after the records
+        qint64 calls = 0;
+        QVERIFY(!wb.readSheet(0, &s, [&](qint64) { return ++calls <= asksForTheRecords; }));
+        QVERIFY2(s.error.contains(QLatin1String("stopped")), qPrintable(s.error));
+        QCOMPARE(calls, asksForTheRecords + 1);
     }
 
     // An array formula is at the first cell of its range (with the range); the other cells of the range hold their results as values. A data table is at its first cell
@@ -648,6 +766,192 @@ private Q_SLOTS:
         QString why;
         QVERIFY(!wb.openBinary(rec(0x0009, W().u16(0).u16(0x10)) + rec(0x000A), &why));
         QVERIFY(!wb.openBinary(rec(0x0409, W().u16(0).u16(0x20)) + rec(0x000A), &why));
+    }
+
+    // Text in a BIFF5 formula is in the workbook's code page, and the formula is turned into text after the workbook has been opened and the stack it was opened on is long gone:
+    // the way to the code page must not be a reference to anything the opening held.
+    void biff5TextInAFormulaIsInTheCodePageOfTheWorkbook()
+    {
+        Book b(5);
+        b.codepage(1251);
+        // ="Привет", the bytes in code page 1251
+        const QByteArray tokens = W().u8(0x17).u8(6).raw(QByteArray("\xCF\xF0\xE8\xE2\xE5\xF2", 6)).bytes();
+        b.sheet(QStringLiteral("S"), formulaNumber(0, 0, tokens, 0));
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        scrubTheStack();
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A1"))), QString(QStringLiteral("\"")) + QString::fromUtf16(u"\u041F\u0440\u0438\u0432\u0435\u0442") + QStringLiteral("\""));
+    }
+
+    // The lists of external sheets, supporting books, and external names are records that go on in the records after them when they are long, as the string table does.
+    void listsOfExternalSheetsMayContinue()
+    {
+        // 2,000 entries of the list of sheets that formulas name, the first 8,222 bytes in the record and the rest in a CONTINUE record; entry 1,500 is the one that names the second sheet
+        W data;
+        data.u16(2000);
+        for (int i = 0; i < 2000; ++i) data.u16(0).u16(i == 1500 ? 1 : 0).u16(i == 1500 ? 1 : 0);
+        const QByteArray all = data.bytes();
+        const QByteArray list = rec(0x0017, all.left(8220)) + rec(0x003C, all.mid(8220));
+        QByteArray cells = formulaNumber(0, 0, tRef3d(1500, 0, 0), 0) + formulaNumber(1, 0, tRef3d(1999, 0, 0), 0) + formulaNumber(2, 0, tRef3d(0, 0, 0), 0);
+        Book b;
+        b.after(supbookInternal(2) + list);
+        b.sheet(QStringLiteral("One"), cells).sheet(QStringLiteral("Two"), QByteArray());
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A1"))), QStringLiteral("Two!A1"));
+        QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A2"))), QStringLiteral("One!A1"));
+        QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A3"))), QStringLiteral("One!A1"));
+        // a supporting book whose sheet names (and a name of it) go on in a record after
+        QStringList names;
+        for (int i = 0; i < 400; ++i) names << QStringLiteral("Sheet number %1").arg(i);
+        W book;
+        book.u16(int(names.size())).u16(9).u8(0).raw("other.xls");
+        for (const QString &n : names) book.str8(n, 2);
+        const QByteArray bookBytes = book.bytes();
+        const QByteArray supbook = rec(0x01AE, bookBytes.left(3000)) + rec(0x003C, bookBytes.mid(3000));
+        W twoLists;
+        twoLists.u16(2).u16(0).u16(0).u16(0).u16(1).u16(399).u16(399);
+        Book c;
+        c.after(supbookInternal(1) + supbook + rec(0x0017, twoLists.bytes()));
+        c.sheet(QStringLiteral("S"), formulaNumber(0, 0, tRef3d(1, 4, 4), 0));
+        Workbook wc;
+        QVERIFY2(openBook(c, &wc, &why), qPrintable(why));
+        QVERIFY(wc.readSheet(0, &s));
+        QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A1"))), QStringLiteral("'[1]Sheet number 399'!E5"));
+    }
+
+    // A file larger than the limit is refused with the plain words other formats use, before any of it is read: from a path, and from bytes.
+    void aFileLargerThanTheLimitIsRefusedBeforeItIsRead()
+    {
+        const QByteArray file = Book().sheet(QStringLiteral("S"), number(0, 0, 1)).file();
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("big.xls"));
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(file);
+        }
+        Limits limits;
+        limits.fileBytes = file.size();
+        Workbook wb;
+        QString why;
+        QVERIFY2(wb.openFile(path, &why, limits), qPrintable(why));
+        QVERIFY2(wb.openBinary(file, &why, limits), qPrintable(why));
+        limits.fileBytes = file.size() - 1;
+        QVERIFY(!wb.openFile(path, &why, limits));
+        QVERIFY2(why.contains(QLatin1String("larger than")), qPrintable(why));
+        QVERIFY(!wb.openBinary(file, &why, limits));
+        QVERIFY2(why.contains(QLatin1String("larger than")), qPrintable(why));
+        // a bare stream too, and a file of nothing but zeros that is longer than the limit (it is not read to find that out)
+        const QByteArray stream = Book().sheet(QStringLiteral("S"), number(0, 0, 1)).stream();
+        limits.fileBytes = stream.size() - 1;
+        QVERIFY(!wb.openBinary(stream, &why, limits));
+        QVERIFY2(why.contains(QLatin1String("larger than")), qPrintable(why));
+        const QString zeros = dir.filePath(QStringLiteral("zeros.xls"));
+        {
+            QFile f(zeros);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            QVERIFY(f.resize(limits.fileBytes + 10));
+        }
+        QVERIFY(!wb.openFile(zeros, &why, limits));
+        QVERIFY2(why.contains(QLatin1String("larger than")), qPrintable(why));
+        // and the limit is what the apps open for every kind
+        QCOMPARE(Limits().fileBytes, kMaxOpenFileBytes);
+    }
+
+    // A macro project in the file is told about the same way whether the file is opened from a path or from bytes, for each place the project may be kept.
+    void macrosAreFoundWhicheverWayTheFileIsOpened()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QList<QStringList> kinds = {{}, {QStringLiteral("_VBA_PROJECT_CUR/VBA/dir")}, {QStringLiteral("_VBA_PROJECT_CUR/VBA/_VBA_PROJECT")}, {QStringLiteral("VBA/dir")},
+                                          {QStringLiteral("VBA/_VBA_PROJECT")}, {QStringLiteral("Pictures/other")}};
+        const QList<bool> expected = {false, true, true, true, true, false};
+        for (int i = 0; i < kinds.size(); ++i) {
+            Book b;
+            b.sheet(QStringLiteral("S"), number(0, 0, 1));
+            const QByteArray file = b.file(kinds[i]);
+            const QString path = dir.filePath(QStringLiteral("m%1.xls").arg(i));
+            {
+                QFile f(path);
+                QVERIFY(f.open(QIODevice::WriteOnly));
+                f.write(file);
+            }
+            Workbook fromPath, fromBytes;
+            QString why;
+            QVERIFY2(fromPath.openFile(path, &why), qPrintable(why));
+            QVERIFY2(fromBytes.openBinary(file, &why), qPrintable(why));
+            QCOMPARE(fromPath.skippedFeatures().contains(QStringLiteral("macros")), expected[i]);
+            QCOMPARE(fromBytes.skippedFeatures().contains(QStringLiteral("macros")), expected[i]);
+        }
+    }
+
+    // A web page or an XML spreadsheet that has an .xls name is said to be what it is, in plain words, and that this program cannot open that kind; other text gets the general
+    // refusal.
+    void aWebPageOrAnXmlSpreadsheetNamedXlsSaysWhatItIs()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto open = [&](const QByteArray &bytes) {
+            const QString path = dir.filePath(QStringLiteral("f.xls"));
+            QFile f(path);
+            f.open(QIODevice::WriteOnly | QIODevice::Truncate);
+            f.write(bytes);
+            f.close();
+            Workbook wb;
+            QString why;
+            return wb.openFile(path, &why) ? QStringLiteral("opened") : why;
+        };
+        const QString page = open("<html><head><title>x</title></head><body><table><tr><td>1</td></tr></table></body></html>");
+        QVERIFY2(page.contains(QLatin1String("web page")) && page.contains(QLatin1String("can't open")), qPrintable(page));
+        QCOMPARE(open("\n  <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\"><HTML><BODY></BODY></HTML>"), page);
+        QCOMPARE(open("\xEF\xBB\xBF<?xml version=\"1.0\"?><HTML xmlns=\"http://www.w3.org/TR/REC-html40\"><BODY/></HTML>"), page);
+        const QString xml = open("<?xml version=\"1.0\"?>\n<?mso-application progid=\"Excel.Sheet\"?>\n<Workbook xmlns=\"urn:schemas-x:office:spreadsheet\"><Worksheet/></Workbook>");
+        QVERIFY2(xml.contains(QLatin1String("XML spreadsheet")) && xml.contains(QLatin1String("can't open")), qPrintable(xml));
+        QVERIFY(xml != page);
+        for (const QString &word : {QStringLiteral("Excel"), QStringLiteral("Microsoft")}) QVERIFY(!xml.contains(word) && !page.contains(word));
+        const QString other = open("AMTMIS 10 11 12");
+        QVERIFY(!other.contains(QLatin1String("web page")) && !other.contains(QLatin1String("XML spreadsheet")));
+        QVERIFY(other != QLatin1String("opened"));
+    }
+
+    // The double-byte code pages are read by the system's own converter (Windows', CoreFoundation's, or iconv), so that no platform depends on how Qt was built; Qt's, where Qt has
+    // one, says the same. A sample of each is decoded here, on every platform the tests run on.
+    void doubleBytePagesAreTheSystemsToConvert()
+    {
+        struct Sample {
+            int page;
+            QByteArray bytes;
+            QString text;
+        };
+        const QList<Sample> samples = {
+            {932, QByteArray::fromHex("93fa967b8ceab1"), QString::fromUtf16(u"\u65E5\u672C\u8A9E\uFF71")},
+            {936, QByteArray::fromHex("d6d0cec4"), QString::fromUtf16(u"\u4E2D\u6587")},
+            {949, QByteArray::fromHex("c7d1b1b9beee"), QString::fromUtf16(u"\uD55C\uAD6D\uC5B4")},
+            {950, QByteArray::fromHex("a4a4a4e5"), QString::fromUtf16(u"\u4E2D\u6587")},
+            {1361, QByteArray::fromHex("d0658a82b4e1"), QString::fromUtf16(u"\uD55C\uAD6D\uC5B4")},
+        };
+        for (const Sample &sample : samples) {
+            QVERIFY2(xlsCanConvert(sample.page, CodePageBackend::System), qPrintable(QStringLiteral("the system converts page %1").arg(sample.page)));
+            QVERIFY(xlsCanConvert(sample.page, CodePageBackend::Automatic));
+            QCOMPARE(xlsBytesToText(sample.page, sample.bytes.constData(), sample.bytes.size(), CodePageBackend::System), sample.text);
+            QCOMPARE(xlsBytesToText(sample.page, sample.bytes.constData(), sample.bytes.size()), sample.text);
+            if (xlsCanConvert(sample.page, CodePageBackend::Qt)) QCOMPARE(xlsBytesToText(sample.page, sample.bytes.constData(), sample.bytes.size(), CodePageBackend::Qt), sample.text);
+            // a character cut in two at the end does not take the rest with it, and a single-byte text is still ASCII
+            const QString cut = xlsBytesToText(sample.page, sample.bytes.constData(), sample.bytes.size() - 1);
+            QVERIFY(cut.size() >= 1);
+            QCOMPARE(xlsBytesToText(sample.page, "abc", 3), QStringLiteral("abc"));
+        }
+        // a page that is not one of them is a table of the program's own
+        QCOMPARE(xlsBytesToText(1251, "\xCF\xF0", 2), QString::fromUtf16(u"\u041F\u0440"));
+        QVERIFY(!xlsCanConvert(1252, CodePageBackend::System));
     }
 
     // What cannot be opened is refused with a message: a workbook that asks for a password, one of the forms before BIFF3, a compound file that holds no workbook, and a file that

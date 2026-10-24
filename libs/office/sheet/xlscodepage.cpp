@@ -2,6 +2,16 @@
 
 #include <QStringDecoder>
 
+#include <climits>
+#if defined(Q_OS_WIN)
+#include <windows.h>
+#elif defined(Q_OS_MACOS)
+#include <CoreFoundation/CoreFoundation.h>
+#else
+#include <cerrno>
+#include <iconv.h>
+#endif
+
 namespace jp::office::sheet {
 
 namespace {
@@ -404,7 +414,110 @@ constexpr Page kPages[] = {
 
 } // namespace
 
-QString xlsBytesToText(int codepage, const char *bytes, qsizetype count)
+namespace {
+
+const char *qtNameOf(int codepage)
+{
+    return codepage == 932 ? "Shift_JIS" : codepage == 936 ? "GBK" : codepage == 949 ? "EUC-KR" : codepage == 950 ? "Big5" : codepage == 1361 ? "Johab" : nullptr;
+}
+
+bool isDoubleByte(int codepage) { return codepage == 932 || codepage == 936 || codepage == 949 || codepage == 950 || codepage == 1361; }
+
+bool qtConvert(int codepage, const char *bytes, qsizetype count, QString *out)
+{
+    const char *name = qtNameOf(codepage);
+    if (!name) return false;
+    QStringDecoder decoder(name);
+    if (!decoder.isValid()) return false;
+    *out = decoder(QByteArrayView(bytes, count));
+    return true;
+}
+
+// The system's own conversion; false where it has none for the page. Windows converts with its own code pages, a Mac with CoreFoundation's encodings of the same, and the others
+// with iconv (the same names ICU knows, by the library's own spellings).
+#if defined(Q_OS_WIN)
+bool systemConvert(int codepage, const char *bytes, qsizetype count, QString *out)
+{
+    if (!isDoubleByte(codepage) || count <= 0 || count > INT_MAX / 2) return false;
+    const int length = MultiByteToWideChar(UINT(codepage), 0, bytes, int(count), nullptr, 0);
+    if (length <= 0) return false;
+    QString text(length, QChar(u' '));
+    if (MultiByteToWideChar(UINT(codepage), 0, bytes, int(count), reinterpret_cast<wchar_t *>(text.data()), length) != length) return false;
+    *out = text;
+    return true;
+}
+#elif defined(Q_OS_MACOS)
+bool systemConvert(int codepage, const char *bytes, qsizetype count, QString *out)
+{
+    CFStringEncoding encoding;
+    switch (codepage) {
+    case 932: encoding = kCFStringEncodingDOSJapanese; break;
+    case 936: encoding = kCFStringEncodingDOSChineseSimplif; break;
+    case 949: encoding = kCFStringEncodingDOSKorean; break;
+    case 950: encoding = kCFStringEncodingDOSChineseTrad; break;
+    case 1361: encoding = kCFStringEncodingWindowsKoreanJohab; break;
+    default: return false;
+    }
+    if (count <= 0 || count > INT_MAX / 2) return false;
+    CFStringRef string = CFStringCreateWithBytes(kCFAllocatorDefault, reinterpret_cast<const UInt8 *>(bytes), CFIndex(count), encoding, false);
+    if (!string) return false;
+    const CFIndex length = CFStringGetLength(string);
+    QString text(int(length), QChar(u' '));
+    CFStringGetCharacters(string, CFRangeMake(0, length), reinterpret_cast<UniChar *>(text.data()));
+    CFRelease(string);
+    *out = text;
+    return true;
+}
+#else
+bool systemConvert(int codepage, const char *bytes, qsizetype count, QString *out)
+{
+    const char *name = codepage == 932 ? "CP932" : codepage == 936 ? "CP936" : codepage == 949 ? "CP949" : codepage == 950 ? "CP950" : codepage == 1361 ? "JOHAB" : nullptr;
+    if (!name || count <= 0 || count > INT_MAX / 8) return false;
+    iconv_t converter = iconv_open("UTF-16LE", name);
+    if (converter == iconv_t(-1)) return false;
+    // (a character of these pages takes at least one byte and gives one unit of two bytes, or two units of four for one beyond the first plane: four bytes for each is enough)
+    QByteArray result(int(count) * 4 + 16, '\0');
+    char *in = const_cast<char *>(bytes);
+    size_t inLeft = size_t(count);
+    char *put = result.data();
+    size_t outLeft = size_t(result.size());
+    // (a byte that is none of the page's is passed over, as the other converters do)
+    while (inLeft > 0) {
+        const size_t done = iconv(converter, &in, &inLeft, &put, &outLeft);
+        if (done == size_t(-1)) {
+            if (errno == EILSEQ || errno == EINVAL) {
+                if (outLeft < 2) break;
+                put[0] = char(0xFD);
+                put[1] = char(0xFF);
+                put += 2;
+                outLeft -= 2;
+                ++in;
+                --inLeft;
+                continue;
+            }
+            break;
+        }
+    }
+    iconv_close(converter);
+    const qsizetype units = (result.size() - qsizetype(outLeft)) / 2;
+    *out = QString::fromUtf16(reinterpret_cast<const char16_t *>(result.constData()), units);
+    return true;
+}
+#endif
+
+} // namespace
+
+bool xlsCanConvert(int codepage, CodePageBackend backend)
+{
+    if (!isDoubleByte(codepage)) return false;
+    QString ignored;
+    const char sample[2] = {char(0x41), char(0x42)};
+    if (backend == CodePageBackend::Qt) return qtConvert(codepage, sample, 2, &ignored);
+    if (backend == CodePageBackend::System) return systemConvert(codepage, sample, 2, &ignored);
+    return qtConvert(codepage, sample, 2, &ignored) || systemConvert(codepage, sample, 2, &ignored);
+}
+
+QString xlsBytesToText(int codepage, const char *bytes, qsizetype count, CodePageBackend backend)
 {
     if (count <= 0) return QString();
     if (codepage == 65001) return QString::fromUtf8(bytes, count);
@@ -420,11 +533,20 @@ QString xlsBytesToText(int codepage, const char *bytes, qsizetype count)
         }
         return s;
     }
-    // The double-byte pages (Japanese, simplified and traditional Chinese, Korean) are read through the system's converters when it has them.
-    const char *name = codepage == 932 ? "Shift_JIS" : codepage == 936 ? "GBK" : codepage == 949 ? "EUC-KR" : codepage == 950 ? "Big5" : nullptr;
-    if (name) {
-        QStringDecoder decoder(name);
-        if (decoder.isValid()) return decoder(QByteArrayView(bytes, count));
+    QString out;
+    if (isDoubleByte(codepage)) {
+        if (backend == CodePageBackend::Qt) {
+            if (qtConvert(codepage, bytes, count, &out)) return out;
+        } else if (backend == CodePageBackend::System) {
+            if (systemConvert(codepage, bytes, count, &out)) return out;
+        } else {
+            // (Windows and a Mac use their own, as they have it always; elsewhere Qt's is tried first, which is ICU, and the system's iconv is what is left when Qt has none)
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
+            if (systemConvert(codepage, bytes, count, &out) || qtConvert(codepage, bytes, count, &out)) return out;
+#else
+            if (qtConvert(codepage, bytes, count, &out) || systemConvert(codepage, bytes, count, &out)) return out;
+#endif
+        }
     }
     return QString::fromLatin1(bytes, count);
 }

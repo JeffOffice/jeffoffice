@@ -229,6 +229,7 @@ struct SheetStats {
     qint64 largestRead = 0;          // the most bytes the parser asked for at one time
     qint64 columnSpans = 0;          // `col` elements
     qint64 rowSpecs = 0;             // rows that were kept as not the default
+    qint64 formulaWork = 0;          // the work reading the formulas of a binary workbook's sheet took (see kMaxFormulaWork), counted: a shared formula is read once, not for each cell
     qint64 unreadFormulas = 0;       // formulas of a binary workbook that could not be turned into text: their cells keep the result the file stored
 };
 

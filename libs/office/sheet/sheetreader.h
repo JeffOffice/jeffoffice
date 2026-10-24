@@ -73,11 +73,17 @@ constexpr qint64 kMaxBorders = 100000;
 constexpr qint64 kMaxColumnSpans = 163840;
 constexpr qint64 kMaxRowSpecs = 2097152;
 constexpr qint64 kMaxMerges = 1000000;
+// The work reading formulas takes in one sheet of a workbook of the old binary form: the bytes of tokens read, the pieces of text made of them, and the pieces written for each cell
+// of a formula that cannot be shared (a unit for each; 3,000,000 found in the largest of the practice workbooks, its 190,000 formulas).
+constexpr qint64 kMaxFormulaWork = 100000000;
 // Defined names in a workbook (3,295 found), and the characters of all their names and what they stand for (a name stands for 4,553 characters at the most).
 constexpr qint64 kMaxDefinedNames = 100000;
 constexpr qint64 kMaxDefinedNameChars = 20000000;
 
 struct Limits {
+    // The bytes of a workbook file (the most the apps open for every kind: office/package.h); a larger file is refused before any of it is read.
+    qint64 fileBytes = kMaxOpenFileBytes;
+    qint64 formulaWork = kMaxFormulaWork;
     qint64 cellsPerSheet = kMaxCellsPerSheet;
     qint64 sheetBytes = kMaxSheetBytes;
     qint64 stringChars = kMaxStringChars;
