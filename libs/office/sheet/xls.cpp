@@ -33,8 +33,12 @@ enum : quint16 {
     kIteration = 0x0011,
     kFilePass = 0x002F,
     kFont = 0x0031,
-    kFormat = 0x041E,
+    kFont4 = 0x0231,       // the font, in BIFF3 and BIFF4
+    kFormat = 0x041E,      // (BIFF4 writes it with the same number: a number for no index, and the format is the one in its place)
+    kFormat3 = 0x001E,
     kXf = 0x00E0,
+    kXf3 = 0x0243,
+    kXf4 = 0x0443,
     kPalette = 0x0092,
     kBoundSheet = 0x0085,
     kSst = 0x00FC,
@@ -60,6 +64,8 @@ enum : quint16 {
     kMulBlank = 0x00BE,
     kBoolErr = 0x0205,
     kFormula = 0x0006,
+    kFormula3 = 0x0206,
+    kFormula4 = 0x0406,
     kString = 0x0207,
     kShrFmla = 0x04BC,
     kArray = 0x0221,
@@ -75,6 +81,8 @@ enum : quint16 {
     kScl = 0x00A0,
     kSelection = 0x001D,
 };
+
+bool isBof(quint16 id) { return id == 0x0809 || id == 0x0409 || id == 0x0209 || id == 0x0009; }
 
 // The most nested substreams (charts inside a sheet) a sheet may hold: real files have one deep.
 constexpr int kMaxSubstreamDepth = 64;
@@ -313,11 +321,16 @@ public:
         Scanner sc(m_d, 0);
         Rec r;
         if (!sc.next(&r)) return fail(translate("The file has no workbook in it."));
-        if (r.id != kBof) {
-            if (r.id == 0x0009 || r.id == 0x0209 || r.id == 0x0409) return fail(translate("This workbook is in a file format older than this program reads."));
-            return fail(translate("The file has no workbook in it."));
-        }
-        {
+        bool single = false;   // BIFF3 and BIFF4 write a workbook of one sheet as one stream: its globals and its cells together
+        if (!isBof(r.id)) return fail(translate("The file has no workbook in it."));
+        if (r.id == 0x0009) return fail(translate("This workbook is in a file format older than this program reads."));
+        if (r.id == 0x0209 || r.id == 0x0409) {
+            Bytes b(m_d, r.pos, r.pos + r.len);
+            b.skip(2);
+            if (b.u16() != 0x0010) return fail(translate("The file has no workbook in it."));
+            m_biff = 4;
+            single = true;
+        } else {
             Bytes b(m_d, r.pos, r.pos + r.len);
             const quint16 vers = b.u16();
             const quint16 type = b.u16();
@@ -328,10 +341,31 @@ public:
         }
         m_cx.biff = m_biff;
         m_cx.bytesToText = [this](const char *p, int n) { return text(p, n); };
+        if (single) {
+            SheetEntry e;
+            e.name = QStringLiteral("Sheet1");
+            e.sheetId = 1;
+            e.relId = QStringLiteral("xls");
+            m_sheets.append(e);
+            XlsBook::Place p;
+            p.offset = 0;
+            p.type = 0x10;
+            m_places.append(p);
+            m_cx.sheetNames << e.name;
+        }
         bool done = false;
         qint64 records = 0;
+        int depth = 0;   // (the records of a chart, a sheet inside the sheet, are not the workbook's)
         while (!done && sc.next(&r)) {
             if (++records > 50000000) return fail(translate("The workbook has more records than any real file has."));
+            if (isBof(r.id)) {
+                if (++depth > kMaxSubstreamDepth) return fail(translate("A sheet is nested more deeply than any real file's."));
+                continue;
+            }
+            if (depth > 0) {
+                if (r.id == kEof) --depth;
+                continue;
+            }
             switch (r.id) {
             case kEof: done = true; break;
             case kFilePass: return fail(translate("The workbook is encrypted, and this program can't open an encrypted workbook yet."));
@@ -357,12 +391,19 @@ public:
                 break;
             }
             case kFont:
+            case kFont4:
+                if ((r.id == kFont4) == (m_biff >= 5)) break;
                 if (!readFont(r)) return fail(translate("The workbook has more fonts than any real file has."));
                 break;
             case kFormat:
+            case kFormat3:
+                if (r.id == kFormat3 && m_biff >= 5) break;
                 if (!readFormat(r)) return fail(translate("The workbook has more number formats than any real file has."));
                 break;
             case kXf:
+            case kXf3:
+            case kXf4:
+                if ((r.id == kXf) != (m_biff >= 5)) break;
                 if (!readXf(r)) return fail(translate("The workbook has more cell formats than any real file has."));
                 break;
             case kPalette: readPalette(r); break;
@@ -416,6 +457,7 @@ private:
     QVector<FontSpec> m_fonts;
     QHash<int, QString> m_formats;
     qint64 m_formatChars = 0;
+    int m_formatsSeen = 0;
     QVector<RawXf> m_xfs;
     QVector<quint32> m_palette;   // from place 8
     SharedStrings m_sst;
@@ -453,6 +495,23 @@ private:
         if (m_fonts.size() >= m_lim.fonts) return false;
         Bytes b(m_d, r.pos, r.pos + r.len);
         FontSpec f;
+        if (m_biff < 5) {
+            // BIFF3 and BIFF4: the height, the flags (bold, italic, underline, struck out), the color, and the name
+            const quint16 h = b.u16();
+            const quint16 flags = b.u16();
+            const quint16 color = b.u16();
+            const int n = b.u8();
+            const char *p = b.take(n);
+            f.name = p ? text(p, n).left(kMaxFontNameChars) : QString();
+            f.size = h / 20.0;
+            f.bold = flags & 0x01;
+            f.italic = flags & 0x02;
+            f.underline = (flags & 0x04) ? Underline::Single : Underline::None;
+            f.strike = flags & 0x08;
+            f.color = indexedColor(color);
+            m_fonts.append(f);
+            return true;
+        }
         const quint16 height = b.u16();
         const quint16 grbit = b.u16();
         const quint16 icv = b.u16();
@@ -492,7 +551,14 @@ private:
     {
         if (m_formats.size() >= m_lim.numFmts) return false;
         Bytes b(m_d, r.pos, r.pos + r.len);
-        const int id = b.u16();
+        // (BIFF3 and BIFF4 give no number: the formats come in order, from 0)
+        int id;
+        if (m_biff < 5) {
+            id = m_formatsSeen++;
+            if (r.id == kFormat) b.skip(2);   // (BIFF4's record has two bytes more than BIFF3's, before the text)
+        } else {
+            id = b.u16();
+        }
         QString code = readString(b, m_biff >= 8 ? 2 : 1);
         if (b.bad() && code.isEmpty()) return true;
         if (code.size() > 4096) code.truncate(4096);
@@ -507,6 +573,36 @@ private:
         if (m_xfs.size() >= m_lim.cellXfs) return false;
         Bytes b(m_d, r.pos, r.pos + r.len);
         RawXf x;
+        if (m_biff < 5) {
+            // BIFF3 and BIFF4 (12 bytes): a byte each for the font and the format, the type and protection, the alignment (its place of the vertical part is BIFF4's), the fill with
+            // colors of five bits, and the borders. Colors 24 and 25 are the automatic ones.
+            x.font = b.u8();
+            x.format = b.u8();
+            const quint16 type = b.u16();
+            x.style = type & 4;
+            const quint8 align = b.u8();
+            b.skip(1);
+            const quint16 area = b.u16();
+            const quint32 border = b.u32();
+            auto color = [](int c) -> quint16 { return c >= 24 ? quint16(64 + (c - 24)) : quint16(c); };
+            x.halign = align & 7;
+            x.wrap = align & 8;
+            static const quint8 vertical[] = {0, 1, 2, 3};
+            x.valign = vertical[(align >> 4) & 3];
+            x.pattern = area & 0x3F;
+            x.fore = color((area >> 6) & 0x1F);
+            x.back = color((area >> 11) & 0x1F);
+            x.top = border & 7;
+            x.colorTop = color((border >> 3) & 0x1F);
+            x.left = (border >> 8) & 7;
+            x.colorLeft = color((border >> 11) & 0x1F);
+            x.bottom = (border >> 16) & 7;
+            x.colorBottom = color((border >> 19) & 0x1F);
+            x.right = (border >> 24) & 7;
+            x.colorRight = color((border >> 27) & 0x1F);
+            m_xfs.append(x);
+            return true;
+        }
         x.font = b.u16();
         x.format = b.u16();
         const quint16 type = b.u16();
@@ -754,7 +850,7 @@ private:
             }
             Scanner sc(m_d, p.offset);
             Rec r;
-            if (!sc.next(&r) || r.id != kBof) continue;
+            if (!sc.next(&r) || !isBof(r.id)) continue;
             int depth = 0;
             bool nestedChart = false;
             bool ended = false;
@@ -766,7 +862,7 @@ private:
                     return false;
                 }
                 last = sc.offset();
-                if (r.id == kBof) {
+                if (isBof(r.id)) {
                     if (++depth > kMaxSubstreamDepth) {
                         m_placeProblem = translate("A sheet is nested more deeply than any real file's.");
                         return false;
@@ -971,7 +1067,7 @@ public:
         }
         Scanner sc(m_d, place.offset);
         Rec r;
-        if (!sc.next(&r) || r.id != kBof) {
+        if (!sc.next(&r) || !isBof(r.id)) {
             m_s.error = translate("The sheet's data is not where the workbook says it is.");
             m_s.cells.finish();
             return false;
@@ -980,7 +1076,7 @@ public:
         int depth = 0;
         while (ok && sc.next(&r)) {
             if (depth > 0) {
-                if (r.id == kBof) {
+                if (isBof(r.id)) {
                     if (++depth > kMaxSubstreamDepth) ok = fail(translate("The sheet is nested more deeply than any real file's."));
                 } else if (r.id == kEof) {
                     --depth;
@@ -989,7 +1085,7 @@ public:
             }
             if (m_holding && r.id != kString && r.id != kShrFmla && r.id != kArray && r.id != kTable && r.id != kContinue) ok = flushHeld();
             if (!ok) break;
-            if (r.id == kBof) {
+            if (isBof(r.id)) {
                 depth = 1;
                 continue;
             }
@@ -1272,6 +1368,8 @@ private:
             }
             return true;
         case kFormula: return handleFormula(sc, r);
+        case kFormula3:
+        case kFormula4: return handleFormula(sc, r);
         case kString: {
             if (!m_holding) return true;
             const Logical lg = joined(m_d, sc, r, true);
@@ -1433,7 +1531,7 @@ private:
         Bytes b(lg.data, 0, lg.data.size());
         const quint16 row = b.u16(), col = b.u16(), xf = b.u16();
         const char *res = b.take(8);
-        b.skip(6);   // flags and the chain
+        b.skip(m_book.m_biff < 5 ? 2 : 6);   // the flags (BIFF5 and BIFF8 then have the chain)
         const int cce = b.u16();
         if (b.bad() || !res) return true;
         Cell c = makeCell(row, col, xf);

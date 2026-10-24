@@ -480,7 +480,7 @@ private:
             }
             case 0x23: {
                 const int index = m_in.u16();
-                m_in.skip(m_b8 ? 2 : 12);
+                m_in.skip(m_b8 ? 2 : m_cx.biff >= 5 ? 12 : 5);
                 const QString n = nameText(index);
                 if (m_in.bad() || n.isEmpty() || !push(n)) return bad();
                 break;

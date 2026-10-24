@@ -408,6 +408,9 @@ QString xlsBytesToText(int codepage, const char *bytes, qsizetype count)
 {
     if (count <= 0) return QString();
     if (codepage == 65001) return QString::fromUtf8(bytes, count);
+    // (the old forms name the two usual systems 32768, a Macintosh's, and 32769, Windows' Latin-1)
+    if (codepage == 32768) codepage = 10000;
+    if (codepage == 32769) codepage = 1252;
     for (const Page &page : kPages) {
         if (page.id != codepage) continue;
         QString s = QString(int(count), QLatin1Char(' '));

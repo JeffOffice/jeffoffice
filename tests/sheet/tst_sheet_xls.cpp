@@ -564,7 +564,71 @@ private Q_SLOTS:
         QCOMPARE(int(bd.bottom.color.index), 13);
     }
 
-    // What cannot be opened is refused with a message: a workbook that asks for a password, one of a form older than BIFF5, a compound file that holds no workbook, and a file that
+    // BIFF3 and BIFF4 keep a workbook of one sheet as one stream with no container: the start of the stream is the start of the sheet, the formats are numbered by their order,
+    // the fonts and cell formats have forms of their own, and a formula's header has no chain.
+    void theFormsOfBiff3AndBiff4AreRead()
+    {
+        for (int version : {3, 4}) {
+            const quint16 bofId = version == 3 ? 0x0209 : 0x0409;
+            QByteArray stream = rec(bofId, W().u16(0).u16(0x10).u16(0x1234).u16(0x07C9));
+            stream += rec(0x0042, W().u16(32769));
+            // a font: the height, the flags, the color, and the name
+            stream += rec(0x0231, W().u16(240).u16(0x01).u16(0x7FFF).str5(QStringLiteral("Courier"), 1));
+            // the formats come in order from 0: General, 0, then the one the cell uses (BIFF4 has two words in front of the text)
+            auto fmt = [&](const QString &code) { return version == 3 ? rec(0x001E, W().str5(code, 1)) : rec(0x041E, W().u16(0).str5(code, 1)); };
+            stream += fmt(QStringLiteral("General")) + fmt(QStringLiteral("0")) + fmt(QStringLiteral("0.00 \\x"));
+            // the cell formats: 12 bytes (the font, the format, the type, the alignment, the fill with colors of 5 bits, and the borders); the 16th is the default
+            auto cellFormat = [&](int font, int format, bool style, int align, quint32 borders) {
+                return rec(version == 3 ? 0x0243 : 0x0443, W().u8(font).u8(format).u16(style ? 0xFFF5 : 0x0001).u8(align).u8(0).u16(0x0040 | (7 << 6)).u32(borders));
+            };
+            for (int i = 0; i < 15; ++i) stream += cellFormat(0, 0, true, 0, 0);
+            stream += cellFormat(0, 0, false, 0, 0);                                             // 15: the default
+            stream += cellFormat(0, 2, false, 0x2A, 1 | (2 << 8) | (5u << 16) | (6u << 24));    // 16: the format 2, centered (2), wrapped, and the sides top thin, left medium, bottom thick, right double
+            stream += rec(0x0200, W().u16(0).u16(4).u16(0).u16(3).u16(0));
+            stream += rec(0x0204, W().u16(0).u16(0).u16(15).u16(5).raw("Hello"));
+            stream += rec(0x0203, W().u16(0).u16(1).u16(16).f64(3.25));
+            stream += rec(0x027E, W().u16(1).u16(0).u16(15).u32((12u << 2) | 2));
+            stream += rec(0x0201, W().u16(1).u16(1).u16(16));
+            // =A2*2 with the stored result 99: 18 bytes and then the tokens
+            const QByteArray tokens = tRef(1, 0, true, true, 5) + tInt(2) + tOp(0x05);
+            stream += rec(version == 3 ? 0x0206 : 0x0406, W().u16(2).u16(0).u16(15).f64(99).u16(0).u16(int(tokens.size())).raw(tokens));
+            stream += rec(0x0208, W().u16(0).u16(0).u16(3).u16(300).u16(0).u16(0x100).u16(0x0F00 >> 8 << 8).u16(15));
+            stream += rec(0x000A);
+            Workbook wb;
+            QString why;
+            QVERIFY2(wb.openBinary(stream, &why), qPrintable(why));
+            QVERIFY(wb.isBinary());
+            QCOMPARE(wb.info().sheets.size(), 1);
+            Sheet s;
+            QVERIFY(wb.readSheet(0, &s));
+            QVERIFY2(s.error.isEmpty(), qPrintable(s.error));
+            QCOMPARE(shown(wb, s, QStringLiteral("A1")), QStringLiteral("i:Hello"));
+            QCOMPARE(shown(wb, s, QStringLiteral("B1")), QStringLiteral("n:3.25"));
+            QCOMPARE(shown(wb, s, QStringLiteral("A2")), QStringLiteral("n:12"));
+            QCOMPARE(shown(wb, s, QStringLiteral("A3")), QStringLiteral("n:99"));
+            QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A3"))), QStringLiteral("A2*2"));
+            QCOMPARE(int(sheettest::at(s, QStringLiteral("B1"))->style), 16);
+            QCOMPARE(int(sheettest::at(s, QStringLiteral("A1"))->style), 0);
+            QCOMPARE(wb.styles().formatCode(16), QStringLiteral("0.00 \\x"));
+            const CellFormat &cf = wb.styles().format(16);
+            QVERIFY(cf.horizontal == HAlign::Center);
+            QVERIFY(cf.wrap);
+            QVERIFY(cf.vertical == VAlign::Bottom);
+            const BorderSpec &bd = wb.styles().border(cf.border);
+            QVERIFY(bd.top.style == BorderStyle::Thin && bd.left.style == BorderStyle::Medium && bd.bottom.style == BorderStyle::Thick && bd.right.style == BorderStyle::Double);
+            QCOMPARE(wb.styles().font(0).name, QStringLiteral("Courier"));
+            QVERIFY(wb.styles().font(0).bold);
+            QCOMPARE(wb.styles().font(0).size, 12.0);
+            QCOMPARE(rangeName(s.dimension), QStringLiteral("A1:C4"));
+        }
+        // a stream of the form before BIFF3 is refused, and so is one that is not a worksheet
+        Workbook wb;
+        QString why;
+        QVERIFY(!wb.openBinary(rec(0x0009, W().u16(0).u16(0x10)) + rec(0x000A), &why));
+        QVERIFY(!wb.openBinary(rec(0x0409, W().u16(0).u16(0x20)) + rec(0x000A), &why));
+    }
+
+    // What cannot be opened is refused with a message: a workbook that asks for a password, one of the forms before BIFF3, a compound file that holds no workbook, and a file that
     // is not a workbook at all.
     void whatCannotBeOpenedIsRefusedInWords()
     {
@@ -576,8 +640,8 @@ private Q_SLOTS:
         QVERIFY(!openBook(locked, &wb, &why));
         QVERIFY2(why.contains(QLatin1String("encrypted")), qPrintable(why));
         QVERIFY(!wb.isBinary());
-        // a bare stream that begins as the forms before BIFF5 did
-        const QByteArray old = rec(0x0409, W().u16(0x0400).u16(0x10)) + rec(0x0203, W().u16(0).u16(0).raw(QByteArray(3, '\0')).f64(1)) + rec(0x000A);
+        // a bare stream that begins as the form before BIFF3 did
+        const QByteArray old = rec(0x0009, W().u16(0x0200).u16(0x10)) + rec(0x0003, W().u16(0).u16(0).raw(QByteArray(3, '\0')).u16(1)) + rec(0x000A);
         QVERIFY(!wb.openBinary(old, &why));
         QVERIFY2(why.contains(QLatin1String("older")), qPrintable(why));
         // a compound file with other streams in it
