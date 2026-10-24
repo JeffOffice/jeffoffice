@@ -6,6 +6,7 @@
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
 #include "grid/gridview.h"
+#include "io/zip.h"
 
 #include <QLineEdit>
 #include <QMenu>
@@ -468,6 +469,105 @@ private Q_SLOTS:
         QVERIFY(second.open(e.copyOfFile()));
         QCOMPARE(second.w.shownSheets().size(), 4);
         QCOMPARE(second.w.session()->valueAt(3, 1, 0).debug(), QStringLiteral("n:2"));
+    }
+
+    // A copy of a sheet taken away by Undo while the worker is still working out its formulas leaves nothing behind: the results that come for it are dropped (they named a sheet that was
+    // not there), and a sheet added at its place later starts with no values.
+    void aSheetUndoneWhileItsFormulasAreWorkedOutLeavesNothingBehind()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetsBook()));
+        crunch::EditSession *s = e.win.w.session();
+        int made = -1;
+        // at once, with no wait between (the worker may or may not have started on it)
+        QVERIFY(s->copySheet(1, -1, QString(), &made).ok);
+        QCOMPARE(made, 3);
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.calculation()->sheetCount(), 3);
+        // again, with the copy worked out first: its values are there, and then they are not
+        QVERIFY(s->copySheet(1, -1, QString(), &made).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, 3, QStringLiteral("A2")), QStringLiteral("n:2"));   // (the copy's A2 = Sheet1!A1*2)
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QVERIFY(s->insertSheet(-1, QString(), &made).ok);
+        QCOMPARE(made, 3);
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, 3, QStringLiteral("A2")), QStringLiteral("-"));
+        QVERIFY(s->type(3, 1, 0, QStringLiteral("=1+1")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, 3, QStringLiteral("A2")), QStringLiteral("n:2"));
+        QVERIFY(saveNow(e));
+        Saved f;
+        QVERIFY(f.open(e.path));
+        QCOMPARE(f.shown(3, QStringLiteral("A2")), QStringLiteral("n:2"));
+    }
+
+    // A sheet deleted takes its drawing, its chart, and its notes with it out of the saved package (and out of the list of content types); the sheet that is kept keeps its own, byte for
+    // byte. Copying a sheet that has them says that they are not copied.
+    void aDeletedSheetsDrawingsAndNotesAreLeftOutOfTheFile()
+    {
+        const QByteArray chart1 = "<?xml version=\"1.0\"?><c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"><c:chart/></c:chartSpace>";
+        const QByteArray chart2 = "<?xml version=\"1.0\"?><c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"><c:chart><c:autoTitleDeleted val=\"1\"/></c:chart></c:chartSpace>";
+        const QByteArray drawing = "<?xml version=\"1.0\"?><xdr:wsDr xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\"/>";
+        const QByteArray comments = "<?xml version=\"1.0\"?><comments xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><authors><author>a</author></authors><commentList/></comments>";
+        auto drawingRels = [](const QString &chart) {
+            return QStringLiteral("<?xml version=\"1.0\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                                  "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart\" Target=\"../charts/%1\"/></Relationships>").arg(chart).toUtf8();
+        };
+        const QString chartType = QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml");
+        const QString drawingType = QStringLiteral("application/vnd.openxmlformats-officedocument.drawing+xml");
+        QVector<ExtraPart> parts;
+        // Sheet2 (the second sheet): a drawing with a chart, and notes
+        parts.append({QStringLiteral("xl/drawings/drawing1.xml"), drawing, drawingType, 1, QStringLiteral("rIdD"), QStringLiteral("drawing"), QStringLiteral("../drawings/drawing1.xml")});
+        parts.append({QStringLiteral("xl/drawings/_rels/drawing1.xml.rels"), drawingRels(QStringLiteral("chart1.xml")), QString(), -1, QString(), QString(), QString()});
+        parts.append({QStringLiteral("xl/charts/chart1.xml"), chart1, chartType, -1, QString(), QString(), QString()});
+        parts.append({QStringLiteral("xl/comments1.xml"), comments, QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"), 1, QStringLiteral("rIdC"), QStringLiteral("comments"), QStringLiteral("../comments1.xml")});
+        // Sheet1: its own drawing and chart
+        parts.append({QStringLiteral("xl/drawings/drawing2.xml"), drawing, drawingType, 0, QStringLiteral("rIdD"), QStringLiteral("drawing"), QStringLiteral("../drawings/drawing2.xml")});
+        parts.append({QStringLiteral("xl/drawings/_rels/drawing2.xml.rels"), drawingRels(QStringLiteral("chart2.xml")), QString(), -1, QString(), QString(), QString()});
+        parts.append({QStringLiteral("xl/charts/chart2.xml"), chart2, chartType, -1, QString(), QString(), QString()});
+        EditWindow e;
+        QVERIFY(e.open(withParts(sheetsBook(), parts)));
+        // a copy of the sheet says what is not copied
+        crunch::EditSession *s = e.win.w.session();
+        int made = -1;
+        const crunch::EditSession::Outcome copied = s->copySheet(1, -1, QString(), &made);
+        QVERIFY(copied.ok);
+        QVERIFY2(copied.problem.contains(QStringLiteral("not copied")), qPrintable(copied.problem));
+        e.win.w.undoStack()->undo();
+        // and through the window's command, the person is told
+        e.win.w.setMoveCopyAsker([](CrunchWindow::MoveCopyRequest *r) {
+            r->copy = true;
+            r->before = -1;
+            return true;
+        });
+        e.win.w.sheetTabs()->selectOnly(1);
+        e.win.w.setActiveSheet(1);
+        e.win.told.clear();
+        e.win.w.act(QStringLiteral("sheet.moveCopy"))->trigger();
+        QVERIFY2(!e.win.told.isEmpty() && e.win.told.last().contains(QStringLiteral("not copied")), qPrintable(e.win.told.join(QLatin1Char('|'))));
+        e.win.w.undoStack()->undo();
+        // delete the sheet, and save
+        QVERIFY(s->deleteSheet(1).ok);
+        QVERIFY(saveNow(e));
+        QFile file(e.path);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QMap<QString, QByteArray> out;
+        QVERIFY(jp::readZip(file.readAll(), out));
+        for (const char *gone : {"xl/worksheets/sheet2.xml", "xl/worksheets/_rels/sheet2.xml.rels", "xl/drawings/drawing1.xml", "xl/drawings/_rels/drawing1.xml.rels", "xl/charts/chart1.xml", "xl/comments1.xml"})
+            QVERIFY2(!out.contains(QString::fromLatin1(gone)), gone);
+        for (const char *kept : {"xl/worksheets/sheet1.xml", "xl/worksheets/sheet3.xml", "xl/worksheets/_rels/sheet1.xml.rels", "xl/drawings/drawing2.xml", "xl/drawings/_rels/drawing2.xml.rels", "xl/charts/chart2.xml"})
+            QVERIFY2(out.contains(QString::fromLatin1(kept)), kept);
+        QCOMPARE(out.value(QStringLiteral("xl/charts/chart2.xml")), chart2);
+        const QString types = QString::fromUtf8(out.value(QStringLiteral("[Content_Types].xml")));
+        for (const char *gone : {"/xl/worksheets/sheet2.xml", "/xl/drawings/drawing1.xml", "/xl/charts/chart1.xml", "/xl/comments1.xml"})
+            QVERIFY2(!types.contains(QString::fromLatin1(gone)), gone);
+        QVERIFY(types.contains(QStringLiteral("/xl/charts/chart2.xml")) && types.contains(QStringLiteral("/xl/worksheets/sheet3.xml")));
+        Saved f;
+        QVERIFY(f.open(e.path));
+        QCOMPARE(f.names(), QStringList({QStringLiteral("Sheet1"), QStringLiteral("Sheet3")}));
     }
 };
 

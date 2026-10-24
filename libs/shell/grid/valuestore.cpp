@@ -151,6 +151,21 @@ bool ValueStore::erase(int sheet, quint32 row, quint32 col)
     return true;
 }
 
+void ValueStore::dropSheet(int sheet)
+{
+    if (sheet < 0 || size_t(sheet) >= m_sheets.size() || !m_sheets[size_t(sheet)]) return;
+    for (Chunk &c : m_sheets[size_t(sheet)]->chunks)
+        for (Slot &s : c.slots) {
+            if (s.key == kEmptyKey) continue;
+            if (s.text >= 0) {
+                m_texts[size_t(s.text)] = QString();
+                m_freeTexts.push_back(s.text);
+            }
+            --m_count;
+        }
+    m_sheets[size_t(sheet)].reset();
+}
+
 void ValueStore::erase(int sheet, const std::vector<std::pair<quint32, quint32>> &cells)
 {
     for (const auto &cell : cells) erase(sheet, cell.first, cell.second);

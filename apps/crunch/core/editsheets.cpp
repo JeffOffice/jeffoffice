@@ -339,6 +339,24 @@ EditSession::Outcome EditSession::setTabColor(int sheet, const ColorSpec &color)
     return pushSheetEdit(e, tr("Tab Color"));
 }
 
+// A sheet that was added is taken away: the values, results, and marks kept by cell for it are let go of, so that a sheet added later at its place starts with none.
+void EditSession::forgetSheet(int sheet)
+{
+    m_sheetRemoved = true;
+    if (m_values) m_values->dropSheet(sheet);
+    auto of = [sheet](quint64 key) { return int(key >> 40) == sheet; };
+    for (auto it = m_touched.begin(); it != m_touched.end();) it = of(*it) ? m_touched.erase(it) : std::next(it);
+    for (auto *map : {&m_results, &m_engineAtStart, &m_fileResults})
+        for (auto it = map->begin(); it != map->end();) it = of(it->first) ? map->erase(it) : std::next(it);
+}
+
+void EditSession::dropRemovedSheets(std::vector<jp::grid::ValueStore::Item> *items) const
+{
+    if (!m_sheetRemoved || !m_book || !m_book->calc) return;
+    const int count = m_book->calc->sheetCount();
+    items->erase(std::remove_if(items->begin(), items->end(), [count](const jp::grid::ValueStore::Item &it) { return it.sheet < 0 || it.sheet >= count; }), items->end());
+}
+
 // Makes a step's changes of the sheets, or takes them back (with the worker held back).
 bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, Workbook &book)
 {
@@ -356,6 +374,7 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
                 if (calc->sheetCount() != e.sheet + 1) return false;   // (the sheet added is the last: what was done after it was undone first)
                 calc->removeLastSheet();
                 book.removeLastSheetEntry();
+                forgetSheet(e.sheet);
                 if (m_book->geometry.size() > size_t(e.sheet)) m_book->geometry.resize(size_t(e.sheet));
                 book.setSheetOrder(e.orderBefore);
             }

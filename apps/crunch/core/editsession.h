@@ -231,6 +231,8 @@ public:
     // were; `moveToNow` puts the places in it where the cells are now.
     int generation() const { return int(m_log.size()); }
     void moveToNow(std::vector<jp::grid::ValueStore::Item> *items, int generation) const;
+    // Takes out of a batch of results those for a sheet that is not there any more (a sheet added and taken away by Undo while the worker was still working out its formulas).
+    void dropRemovedSheets(std::vector<jp::grid::ValueStore::Item> *items) const;
 
     // ---- the clipboard
     // What a paste puts: everything the cells have (All), their formulas or values, their values (a formula's result), or their formats; an operation made with the cells already there (the
@@ -436,6 +438,8 @@ private:
     std::function<void(jp::office::sheet::Calculation *, bool)> m_holdHook;
     qint64 m_longestHoldWait = 0, m_lastHoldWait = 0;
     bool m_tracking = false;               // an edit has been made: results are compared with the file's
+    bool m_sheetRemoved = false;                     // a sheet added was taken away by Undo (so results may come for sheets that are not there)
+    void forgetSheet(int sheet);                     // what is kept by cell for a sheet taken away is let go of
     std::unordered_set<quint64> m_touched;           // cells changed by the person (written whole), by sheet, row, column
     std::map<quint64, jp::calc::Value> m_results;      // formulas whose value is not the file's
     std::map<quint64, jp::calc::Value> m_engineAtStart;  // for a formula whose result has changed: the engine's value before its first change since the file was read or saved
