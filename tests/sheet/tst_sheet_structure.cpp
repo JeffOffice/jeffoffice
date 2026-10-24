@@ -662,6 +662,27 @@ private Q_SLOTS:
         QCOMPARE(b.at("C1"), QStringLiteral("n:8"));   // (and A1 is a SUM now: counted)
     }
 
+    // Undo of an edit that wrote thousands of formulas again, each with a text of its own, puts what waits to be worked out right once, not at each formula: the work grows with the
+    // formulas, not with the formulas and what has piled up (it was the square of them: forty-five seconds for a hundred thousand).
+    void undoOfManyFormulasPutsWhatWaitsRightOnce()
+    {
+        const int n = 4000;
+        QString rows;
+        for (int r = 1; r <= n; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><f>A%1*2+%1</f><v>0</v></c></row>").arg(r);
+        Book b;
+        QVERIFY(b.openXml(worksheet(rows)));
+        Calculation::EditRecord rec;
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), &rec));
+        QCOMPARE(rec.formulasRewritten, qint64(n));
+        const qint64 before = b.calc->abandonWork();
+        QVERIFY(b.calc->undoEdit(rec));
+        b.finish();
+        const qint64 work = b.calc->abandonWork() - before;
+        QVERIFY2(work < qint64(n) * 40, qPrintable(QStringLiteral("%1 entries put right to undo %2 formulas").arg(work).arg(n)));
+        QCOMPARE(b.formula("B1"), QStringLiteral("A1*2+1"));
+        QCOMPARE(b.at("B4000"), QStringLiteral("n:12000"));
+    }
+
     // Formulas that are typed, written over, and cleared do not leave their texts and places behind.
     void typedFormulasDoNotPileUp()
     {

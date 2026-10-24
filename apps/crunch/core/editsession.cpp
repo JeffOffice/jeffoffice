@@ -586,29 +586,32 @@ bool EditSession::apply(Step *step, bool forward)
     if (m_holdHook) m_holdHook(calc, false);
     std::map<int, std::vector<ValueStore::Item>> cells;
     std::vector<ValueStore::Item> formulas;
-    for (CellChange &ch : step->cells) {
-        if (forward) {
-            if (ch.textToShare) {
-                ch.after.sharedString = book.addSharedString(ch.after.value.text());
-                ch.textToShare = false;
+    {
+        Calculation::BulkEdit bulk(calc);   // (what waits to be worked out is put right once, not at each of the cells)
+        for (CellChange &ch : step->cells) {
+            if (forward) {
+                if (ch.textToShare) {
+                    ch.after.sharedString = book.addSharedString(ch.after.value.text());
+                    ch.textToShare = false;
+                }
+                if (!ch.formatCode.isEmpty()) {
+                    ch.after.style = book.formatWithNumberFormat(ch.after.style, book.numberFormatId(ch.formatCode));
+                    ch.formatCode.clear();
+                }
             }
-            if (!ch.formatCode.isEmpty()) {
-                ch.after.style = book.formatWithNumberFormat(ch.after.style, book.numberFormatId(ch.formatCode));
-                ch.formatCode.clear();
+            const Calculation::CellContent &c = forward ? ch.after : ch.before;
+            calc->put(ch.sheet, ch.row, ch.col, c, Calculation::Marking::Later);
+            m_touched.insert(keyOf(ch.sheet, ch.row, ch.col));
+            ValueStore::Item it;
+            it.sheet = ch.sheet;
+            it.row = ch.row;
+            it.col = ch.col;
+            cells[ch.sheet].push_back(it);
+            if (c.isFormula) {
+                // (a formula the engine keeps apart has the result it had, which the worker does not tell: the cell shows it at once)
+                if (c.hasStored) it.value = c.stored;
+                formulas.push_back(it);
             }
-        }
-        const Calculation::CellContent &c = forward ? ch.after : ch.before;
-        calc->put(ch.sheet, ch.row, ch.col, c, Calculation::Marking::Later);
-        m_touched.insert(keyOf(ch.sheet, ch.row, ch.col));
-        ValueStore::Item it;
-        it.sheet = ch.sheet;
-        it.row = ch.row;
-        it.col = ch.col;
-        cells[ch.sheet].push_back(it);
-        if (c.isFormula) {
-            // (a formula the engine keeps apart has the result it had, which the worker does not tell: the cell shows it at once)
-            if (c.hasStored) it.value = c.stored;
-            formulas.push_back(it);
         }
     }
     for (TableRename &r : step->renames) {

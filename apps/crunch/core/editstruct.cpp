@@ -77,7 +77,17 @@ EditSession::Outcome EditSession::structure(const StructEdit &edit, const QStrin
         return out;
     }
     // a step that would hold more than Undo can is asked about first (what it deletes or writes over, and what it writes again, are kept to undo it)
-    const bool big = m_book->calc->estimateUndoBytes(edit, m_undoByteLimit + 1) > m_undoByteLimit;
+    bool big = false;
+    {
+        // (the graph is asked how many formulas read what moves, with the worker held back: it works in the graph)
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (!hold) {
+            out.ok = false;
+            out.problem = tr("The workbook is busy. Try again in a moment.");
+            return out;
+        }
+        big = hold->calculation()->estimateUndoBytes(edit, m_undoByteLimit + 1) > m_undoByteLimit;
+    }
     if (big && !m_bigStepAllowed) {
         out.ok = false;
         out.confirm = true;

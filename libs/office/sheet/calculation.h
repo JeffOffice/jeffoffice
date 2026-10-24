@@ -229,6 +229,23 @@ public:
     bool entryAllowed(int sheet, quint32 row, quint32 col, const Validation &rule, const jp::calc::Value &entry, const QString &typed) const;
     QStringList listChoices(int sheet, quint32 row, quint32 col, const Validation &rule) const;
     // How many times an entry was worked out against a rule of validation (for tests: what is not typed is not held to a rule).
+    // Many cells changed one after another (Undo of a step, a paste, a cut): what is waiting to be worked out is put right once, before the first, not at each.
+    class BulkEdit {
+    public:
+        explicit BulkEdit(Calculation *c) : m_c(c)
+        {
+            m_c->abandonNow();
+            ++m_c->m_bulk;
+        }
+        ~BulkEdit() { --m_c->m_bulk; }
+        BulkEdit(const BulkEdit &) = delete;
+        BulkEdit &operator=(const BulkEdit &) = delete;
+
+    private:
+        Calculation *m_c;
+    };
+    // For tests: how many entries of the lists of what waits were put right (it grows with the edits, not with the edits and what waits).
+    qint64 abandonWork() const { return m_abandonWork; }
     qint64 ruleEvaluations() const { return m_ruleEvaluations; }
     // For tests: the texts and formulas of a sheet that are in use, and the programs worked out for them (what edits made and let go of must not grow what is held).
     qint64 formulaTextsInUse(int sheet) const;
@@ -369,6 +386,8 @@ private:
     // it at once, for an edit.
     void abandon();
     void abandonNow();
+    int m_bulk = 0;   // (more than 0: many edits are being made one after another, and what is waiting was put right before the first)
+    qint64 m_abandonWork = 0;
     void dropNode(quint32 id);
     void useExtent(int sheet, quint32 row, quint32 col);
     jp::calc::Value runFormula(quint32 id, qint64 *work);

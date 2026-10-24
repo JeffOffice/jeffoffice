@@ -595,6 +595,7 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
     EditRecord local;
     EditRecord &throwaway = done ? *done : local;
     if (!applyEdit(rec.edit.inverse(), &throwaway)) return false;
+    BulkEdit bulk(this);
     Sheet &S = m_sheets[size_t(rec.sheet)];
     // the cells that were deleted are put back, and the formulas that were written again have the text they had
     for (const EditRecord::GoneCell &g : rec.gone) put(g.sheet, g.row, g.col, g.content, Marking::Later);

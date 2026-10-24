@@ -893,6 +893,7 @@ bool Calculation::stepAbandon(const std::function<bool()> &timeUp, qint64 *spent
     }
     while (a.dirtyAt < a.dirty.size()) {
         if (!ck.next()) return false;
+        ++m_abandonWork;
         m_dirty.push_back(a.dirty[a.dirtyAt++]);
     }
     ck.finish();
@@ -902,6 +903,7 @@ bool Calculation::stepAbandon(const std::function<bool()> &timeUp, qint64 *spent
 
 void Calculation::abandonNow()
 {
+    if (m_bulk > 0) return;
     abandon();
     if (m_abandon.active) {
         qint64 spent = 0;

@@ -53,6 +53,7 @@ bool Calculation::canMoveCells(const StructEdit &e, QString *why) const
 bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
 {
     abandonNow();
+    BulkEdit bulk(this);
     *rec = EditRecord();
     rec->edit = e;
     rec->sheet = e.sheet;
@@ -267,6 +268,7 @@ bool Calculation::undoMove(const EditRecord &rec, EditRecord *done)
         for (const EditRecord::MovedFormula &m : rec.movedFormulas) done->gone.push_back({e.toSheet, m.toRow, m.toCol, CellContent()});
     }
     abandonNow();
+    BulkEdit bulk(this);
     const quint32 rows = e.row2 - e.row1 + 1, cols = e.col2 - e.col1 + 1;
     const quint32 toRow2 = e.toRow + rows - 1, toCol2 = e.toCol + cols - 1;
     auto clearRange = [&](int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2) {
