@@ -290,6 +290,39 @@ private Q_SLOTS:
         }
     }
 
+    // A reference with no sheet in it is the chart's own sheet's, in the file and on the screen alike: a chart on the second sheet that reads "$B$2:$B$4" moves with rows inserted on that sheet,
+    // and not with rows inserted on the first.
+    void sheetlessReferencesAreTheChartsOwnSheets()
+    {
+        const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("$B$1"), QStringLiteral("$A$2:$A$4"), QStringLiteral("$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {1, 2, 3}, QString()}};
+        const QByteArray xlsx = bookWithDrawing({dataSheet(), dataSheet()}, drawingPart(twoCell(4, 1, 11, 13, chartFrame(2, QStringLiteral("rIdC")))), {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), series))},
+                                                QStringList(), QString(), QByteArray(), 1);
+        Package p;
+        QString why;
+        QVERIFY(p.readLazy(xlsx, &why));
+        Workbook b;
+        QVERIFY2(b.open(p, &why), qPrintable(why));
+        Chart model;
+        Theme theme;
+        QVERIFY(readChart(p.part(QStringLiteral("/xl/charts/chart1.xml")), theme, ColorMap(), &model, &why));
+        for (int sheet = 0; sheet < 2; ++sheet) {
+            SaveChanges changes;
+            changes.edits.push_back(StructEdit::insertRows(sheet, 0, 2));
+            QByteArray saved;
+            QVERIFY2(saveXlsx(b, changes, &saved, &why), qPrintable(why));
+            Package q;
+            QVERIFY2(q.readLazy(saved, &why), qPrintable(why));
+            Chart after;
+            QVERIFY(readChart(q.part(QStringLiteral("/xl/charts/chart1.xml")), theme, ColorMap(), &after, &why));
+            Chart live = model;
+            moveChartRefs(&live, {QStringLiteral("Sheet1"), QStringLiteral("Sheet2")}, changes.edits, 1);
+            QCOMPARE(after.plots[0].series[0].valueRef, live.plots[0].series[0].valueRef);
+            QCOMPARE(after.plots[0].series[0].nameRef, live.plots[0].series[0].nameRef);
+            // (the chart is on the second sheet: rows inserted on it move the reference, rows inserted on the first do not)
+            QCOMPARE(after.plots[0].series[0].valueRef, sheet == 1 ? QStringLiteral("$B$4:$B$6") : QStringLiteral("$B$2:$B$4"));
+        }
+    }
+
     // A chart's references move as saving moves them in the chart part.
     void chartReferencesMoveAsSavingMovesThem()
     {

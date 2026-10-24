@@ -694,6 +694,8 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
     } else if (categories.numeric) {
         const NumberFormat format = readFormat(categories.format);
         for (double v : categories.numbers) s.categories << (std::isnan(v) ? QString() : formatWith(format, v).left(kChartMaxLabel));
+        s.categoryNumbers = categories.numbers;
+        s.categoryFormat = categories.format;
     } else {
         s.categories = categories.strings;
     }
@@ -900,6 +902,17 @@ bool Reader::read(const QDomElement &root, QString *error)
         c.legend.position = valOf(cChild(legend, "legendPos"), QStringLiteral("r"));
         c.legend.overlay = flagOf(cChild(legend, "overlay"), false);
         c.legend.font = readTxPr(cChild(legend, "txPr"));
+    }
+    // Numbers for categories (dates, say) are shown through the category axis's own number format when it is not linked to the source's.
+    for (ChartPlot &plot : c.plots) {
+        const ChartAxis *axis = c.axis(plot.axisIds[0]);
+        if (!axis || axis->formatLinked || (axis->kind != ChartAxis::Category && axis->kind != ChartAxis::Date)) continue;
+        const NumberFormat format = readFormat(axis->format);
+        for (ChartSeries &s : plot.series) {
+            if (s.categoryNumbers.isEmpty()) continue;
+            s.categories.clear();
+            for (double v : std::as_const(s.categoryNumbers)) s.categories << (std::isnan(v) ? QString() : formatWith(format, v).left(kChartMaxLabel));
+        }
     }
     c.blanksAs = valOf(cChild(chart, "dispBlanksAs"), QStringLiteral("gap"));
     c.plotVisibleOnly = flagOf(cChild(chart, "plotVisOnly"), true);

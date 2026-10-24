@@ -389,9 +389,16 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
             if (!inflate(index, &xml) || !fn(xml, &now, &changed) || !changed) return;
             replaced.insert(index, now);
         };
+        // the sheet each chart is on (the drawing of a sheet names it): what a reference with no sheet in it, or a name of the sheet, means in it
+        QHash<QString, int> chartSheet;
+        for (int sheet = 0; sheet < book.info().sheets.size(); ++sheet)
+            for (const Relationship &d : package.relationshipsOfType(book.info().sheets[sheet].part, QStringLiteral("/drawing")))
+                if (!d.external)
+                    for (const Relationship &c : package.relationshipsOfType(d.target, QStringLiteral("/chart")))
+                        if (!c.external) chartSheet.insert(c.target.toLower(), sheet);
         static const QRegularExpression chartPart(QStringLiteral("/charts/(chart|chartEx)\\d*\\.xml$")), cachePart(QStringLiteral("/pivotCacheDefinition\\d*\\.xml$"));
         for (const QString &part : package.partNames()) {
-            if (chartPart.match(part).hasMatch()) replacePart(part, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveChartPart(x, ctx, o, c); });
+            if (chartPart.match(part).hasMatch()) replacePart(part, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveChartPart(x, ctx, o, c, chartSheet.value(part.toLower(), 0)); });
             else if (cachePart.match(part).hasMatch()) replacePart(part, [&](const QByteArray &x, QByteArray *o, bool *c) { return movePivotCachePart(x, ctx, o, c); });
         }
         for (int sheet = 0; sheet < book.info().sheets.size(); ++sheet) {

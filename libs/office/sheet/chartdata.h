@@ -25,6 +25,10 @@ constexpr int kMaxChartSeriesCells = 10000;   // as many points as chart.cpp kee
 constexpr int kMaxChartCells = 100000;        // and of a chart
 constexpr int kMaxChartBlocks = 1000;
 constexpr int kMaxChartNameDepth = 4;
+// The areas (and names) one reference may visit in all, however its names list one another: a name that lists itself a hundred times, or names that each list a hundred more, stop here.
+constexpr int kMaxChartVisits = 4 * kMaxChartBlocks;
+// The blocks the cells of one chart are watched by (all its series and titles); past it the chart is watched by the smallest block that holds them all, on each sheet.
+constexpr int kMaxChartReadBlocks = 2000;
 
 // What a chart reads of a workbook.
 class ChartCells {
@@ -69,15 +73,48 @@ struct ChartRefData {
     qint64 rows = 0, cols = 0;   // of the first block
     bool cut = false;
 };
-bool readChartRef(const QString &ref, int ownSheet, const ChartCells &cells, int maxCells, ChartRefData *out);
+// `wantText` leaves the text of each point (what the sheet shows: a number formatted) unmade; a series of values needs only the numbers.
+bool readChartRef(const QString &ref, int ownSheet, const ChartCells &cells, int maxCells, ChartRefData *out, bool wantText = true);
 
 // Every block the chart reads (its series' names, categories, and values, and its linked titles), for deciding whether a change to the cells is one it draws. Blocks of a reference that
-// does not resolve are left out.
-QVector<ChartBlock> chartReads(const Chart &chart, int ownSheet, const ChartCells &cells);
+// does not resolve are left out. At most kMaxChartReadBlocks are given (`cut`, if given, says there were more: the rest are not in the list).
+QVector<ChartBlock> chartReads(const Chart &chart, int ownSheet, const ChartCells &cells, bool *cut = nullptr);
+
+// Which cells a chart reads, found without going over its blocks: they are kept by sheet, sorted by their first row with the largest last row so far, so that whether a cell is read
+// costs the blocks that hold it (and a few more), and the smallest block of each sheet that holds them all is a first test. A chart cut at the limit above is read as that smallest block.
+class ChartReadIndex {
+public:
+    ChartReadIndex() = default;
+    explicit ChartReadIndex(const QVector<ChartBlock> &blocks, bool cut = false);
+    bool isEmpty() const { return m_sheets.empty(); }
+    // Whether the chart reads the cell.
+    bool reads(int sheet, quint32 row, quint32 col) const;
+    // Whether the chart reads a cell of the sheet at all, and the smallest block of the sheet's cells that holds every cell it reads.
+    bool readsSheet(int sheet) const { return find(sheet) != nullptr; }
+    CellRange hull(int sheet) const;
+    // The blocks it was made from (sorted by sheet and first row).
+    int blockCount() const { return m_count; }
+    // Blocks looked at by reads() so far (a test counts them).
+    qint64 probes() const { return m_probes; }
+
+private:
+    struct Sheet {
+        int sheet = 0;
+        CellRange hull;
+        bool coarse = false;
+        std::vector<CellRange> blocks;        // by first row
+        std::vector<quint32> maxLastRow;      // the largest last row of the blocks up to this one
+    };
+    const Sheet *find(int sheet) const;
+    std::vector<Sheet> m_sheets;
+    int m_count = 0;
+    mutable qint64 m_probes = 0;
+};
 
 // The chart's references after the edits that insert and delete rows and columns, as saving rewrites the chart part's (so a chart follows its cells when they move): each reference of
 // each series and linked title. `sheetNames` are the workbook's, in order.
-void moveChartRefs(Chart *chart, const QStringList &sheetNames, const std::vector<StructEdit> &edits);
+// `ownSheet` is the sheet the chart is on: a reference with no sheet in it, and a name of that sheet, are its.
+void moveChartRefs(Chart *chart, const QStringList &sheetNames, const std::vector<StructEdit> &edits, int ownSheet = 0);
 
 // Puts the cells' contents in the chart: for each series that has the reference, its name, categories (or a scatter's x values), and values, without the points of hidden rows and
 // columns when the chart leaves them out (plotVisibleOnly); a point of an empty cell is a blank (NaN) and a text is 0. Linked titles take their cells' text. Returns the number of

@@ -105,7 +105,9 @@ struct ChartSeries {
     // Where a chart in a workbook reads the series' data (the c:f of its name, its categories, and its values, or of a scatter's x and y values); empty when
     // the file gives a literal or says nothing. The name, categories, and values above are what the file stored; a program that has the cells puts theirs in.
     QString nameRef, categoryRef, valueRef, xRef;
-    bool categoryRefNumeric = false;    // the categories are numbers (c:numRef), shown through the format of the cache
+    bool categoryRefNumeric = false;    // the categories are numbers (c:numRef): `categories` shows them through the category axis's number format when that is not linked to the source, else the source's
+    QVector<double> categoryNumbers;    // and these are the numbers (NaN for a blank); empty for text categories
+    QString categoryFormat;             // the number format of the source (c:formatCode of the cache)
     ChartMarker marker;
     bool smooth = false;
     ChartDataLabels labels;

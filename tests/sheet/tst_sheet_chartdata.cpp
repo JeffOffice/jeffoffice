@@ -9,6 +9,7 @@
 #include "sheet/recalc.h"
 
 #include <QMap>
+#include <QRandomGenerator>
 #include <cmath>
 
 using namespace drawtest;
@@ -27,7 +28,7 @@ public:
     };
     QVector<Sheet> sheets;
     QMap<QString, QString> bookNames;
-    mutable qint64 reads = 0;
+    mutable qint64 reads = 0, textCalls = 0, nameLookups = 0;
 
     FakeCells() { sheets.push_back(Sheet{QStringLiteral("Sheet1"), {}, {}, {}, {}, {}}); }
     int sheetCount() const override { return int(sheets.size()); }
@@ -50,6 +51,7 @@ public:
     }
     QString text(int sheet, quint32 row, quint32 col) const override
     {
+        ++textCalls;
         const Sheet &s = at(sheet);
         if (s.texts.contains({row, col})) return s.texts.value({row, col});
         const Value v = s.cells.value({row, col});
@@ -68,6 +70,7 @@ public:
     }
     QString definedName(const QString &name, int sheet) const override
     {
+        ++nameLookups;
         if (sheet >= 0 && at(sheet).names.contains(name.toUpper())) return at(sheet).names.value(name.toUpper());
         return bookNames.value(name.toUpper());
     }
@@ -352,6 +355,143 @@ private Q_SLOTS:
         QVERIFY(gap != zero);
         QVERIFY(gap != span);
         QVERIFY(zero != span);
+    }
+
+    // A name that lists itself eighty times is read once (a name is not read inside itself), and names that each list eighty more are visited up to a bound, however many they would be: the
+    // work is counted in the names looked up.
+    void namesThatListEachOtherCostBoundedWork()
+    {
+        FakeCells f = FakeCells::regional();
+        QStringList self;
+        for (int i = 0; i < 80; ++i) self << QStringLiteral("N");
+        f.bookNames[QStringLiteral("N")] = self.join(QLatin1Char(',')) + QStringLiteral(",Sheet1!$B$2:$B$4");
+        QVector<ChartBlock> blocks;
+        QVERIFY(chartBlocks(QStringLiteral("N"), 0, f, &blocks));
+        QCOMPARE(blocksText(blocks), QStringLiteral("0:B2:B4"));
+        QVERIFY2(f.nameLookups <= 2, qPrintable(QString::number(f.nameLookups)));
+        // A lists B_0 to B_79, each of which lists C_0 to C_79, none of which is defined: 6,400 names if all were looked at
+        QStringList bs, cs;
+        for (int i = 0; i < 80; ++i) {
+            bs << QStringLiteral("B_%1").arg(i);
+            cs << QStringLiteral("C_%1").arg(i);
+        }
+        f.bookNames[QStringLiteral("A")] = bs.join(QLatin1Char(','));
+        for (int i = 0; i < 80; ++i) f.bookNames[QStringLiteral("B_%1").arg(i)] = cs.join(QLatin1Char(','));
+        f.nameLookups = 0;
+        blocks.clear();
+        QVERIFY(!chartBlocks(QStringLiteral("A"), 0, f, &blocks));
+        QVERIFY2(f.nameLookups <= kMaxChartVisits, qPrintable(QString::number(f.nameLookups)));
+        QVERIFY(f.nameLookups > 80);
+        // the same through a chart: its reads, and the cells asked for
+        f.nameLookups = 0;
+        Chart c = readIt(chartPart(QStringLiteral("barChart"), {SeriesSpec{QStringLiteral("N"), QStringLiteral("A"), QStringLiteral("N"), QStringLiteral("n"), {"a"}, {1}, QString()}}));
+        bool cut = false;
+        chartReads(c, 0, f, &cut);
+        applyChartCells(&c, 0, f);
+        QVERIFY2(f.nameLookups <= 4 * kMaxChartVisits, qPrintable(QString::number(f.nameLookups)));
+    }
+
+    // Values are read as numbers, with no text made of them (a series of 10,000 numbers has no labels); names and categories do have theirs.
+    void valuesAreReadWithoutTheirText()
+    {
+        FakeCells f = FakeCells::regional();
+        ChartRefData d;
+        f.textCalls = 0;
+        QVERIFY(readChartRef(QStringLiteral("Sheet1!$B$2:$C$4"), 0, f, 100, &d, false));
+        QCOMPARE(int(d.points.size()), 6);
+        QCOMPARE(f.textCalls, qint64(0));
+        QVERIFY(d.points[0].isNumber && d.points[0].text.isEmpty());
+        QVERIFY(readChartRef(QStringLiteral("Sheet1!$B$2:$C$4"), 0, f, 100, &d));
+        QCOMPARE(f.textCalls, qint64(6));
+        f.textCalls = 0;
+        Chart c = readIt(chartPart(QStringLiteral("barChart"), eastWest()));
+        applyChartCells(&c, 0, f);
+        // two names (one cell each) and two columns of three categories: no text for the six values
+        QCOMPARE(f.textCalls, qint64(2 + 6));
+    }
+
+    // Which cells a chart reads is found without going over its blocks: the index agrees with asking each block, for blocks of any shape; one cell asked of two thousand stacked blocks costs
+    // a few probes; and a chart that reads more blocks than the limit is cut at it.
+    void whatAChartReadsIsIndexedAndCapped()
+    {
+        QRandomGenerator rng(2026);
+        QVector<ChartBlock> blocks;
+        for (int i = 0; i < 1500; ++i) {
+            ChartBlock b;
+            b.sheet = int(rng.bounded(3));
+            const quint32 r = rng.bounded(5000), c = rng.bounded(40);
+            b.range = CellRange{r, c, r + rng.bounded(60), c + rng.bounded(5), true};
+            blocks.push_back(b);
+        }
+        const ChartReadIndex index(blocks);
+        QCOMPARE(index.blockCount(), 1500);
+        qint64 hits = 0;
+        for (int i = 0; i < 20000; ++i) {
+            const int sheet = int(rng.bounded(4));
+            const quint32 row = rng.bounded(5100), col = rng.bounded(50);
+            bool want = false;
+            for (const ChartBlock &b : std::as_const(blocks))
+                if (b.sheet == sheet && b.range.contains(row, col)) want = true;
+            QCOMPARE(index.reads(sheet, row, col), want);
+            hits += want;
+        }
+        QVERIFY(hits > 1000);
+        QVERIFY(!index.readsSheet(3));
+        QVERIFY(index.readsSheet(0) && index.hull(0).valid);
+        // two thousand blocks of one row each, one under another: a cell is found in a few probes
+        QVector<ChartBlock> stack;
+        for (quint32 r = 0; r < 2000; ++r) stack.push_back(ChartBlock{0, CellRange{r, 0, r, 3, true}});
+        const ChartReadIndex tall(stack);
+        QVERIFY(tall.reads(0, 1234, 2));
+        QVERIFY(!tall.reads(0, 1234, 9));
+        QVERIFY2(tall.probes() <= 8, qPrintable(QString::number(tall.probes())));
+        // a chart of many series that each read hundreds of areas: its reads are cut at the limit, and the index still covers what was cut
+        FakeCells f = FakeCells::regional();
+        QStringList areas;
+        for (int i = 0; i < 300; ++i) areas << QStringLiteral("Sheet1!$B$%1").arg(2 + i % 3);
+        const QString many = QStringLiteral("(") + areas.join(QLatin1Char(',')) + QStringLiteral(")");
+        QVector<SeriesSpec> series;
+        for (int i = 0; i < 20; ++i) series.push_back(SeriesSpec{QString(), many, many, QStringLiteral("S"), {"a"}, {1}, QString()});
+        Chart c = readIt(chartPart(QStringLiteral("lineChart"), series));
+        bool cut = false;
+        const QVector<ChartBlock> reads = chartReads(c, 0, f, &cut);
+        QVERIFY(cut);
+        QCOMPARE(int(reads.size()), kMaxChartReadBlocks);
+        QVERIFY(ChartReadIndex(reads, cut).reads(0, 3, 1));
+    }
+
+    // Numbers as categories (dates) are shown through the category axis's own format when it is not linked to the source's, else as the source shows them: in the part, and from the cells.
+    void dateCategoriesFollowTheAxisFormat()
+    {
+        const SeriesSpec spec{QString(), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("S"), {"45366", "45397", "45427"}, {1, 2, 3}, QString(), true, QStringLiteral("m/d/yyyy")};
+        // from the numbers the part stores
+        const Chart own = readIt(chartPart(QStringLiteral("barChart"), {spec}, QString(), true, QStringLiteral("gap"), QStringLiteral("mmm-yy"), false));
+        QCOMPARE(own.plots[0].series[0].categories, (QStringList{"Mar-24", "Apr-24", "May-24"}));
+        QCOMPARE(own.plots[0].series[0].categoryNumbers, (QVector<double>{45366, 45397, 45427}));
+        QCOMPARE(own.plots[0].series[0].categoryFormat, QStringLiteral("m/d/yyyy"));
+        const Chart linked = readIt(chartPart(QStringLiteral("barChart"), {spec}, QString(), true, QStringLiteral("gap"), QStringLiteral("mmm-yy"), true));
+        QCOMPARE(linked.plots[0].series[0].categories, (QStringList{"3/15/2024", "4/15/2024", "5/15/2024"}));
+        QCOMPARE(readIt(chartPart(QStringLiteral("barChart"), {spec})).plots[0].series[0].categories, (QStringList{"3/15/2024", "4/15/2024", "5/15/2024"}));   // (an axis that says nothing)
+        // from the cells: their text is in the format of the cell
+        FakeCells f = FakeCells::regional();
+        f.set(0, QStringLiteral("A2"), Value::number(45366));
+        f.set(0, QStringLiteral("A3"), Value::number(45397));
+        f.set(0, QStringLiteral("A4"), Value::number(45427));
+        f.sheets[0].texts[{1, 0}] = QStringLiteral("15 Mar 2024");
+        f.sheets[0].texts[{2, 0}] = QStringLiteral("15 Apr 2024");
+        f.sheets[0].texts[{3, 0}] = QStringLiteral("15 May 2024");
+        Chart a = own, b = linked;
+        applyChartCells(&a, 0, f);
+        applyChartCells(&b, 0, f);
+        QCOMPARE(a.plots[0].series[0].categories, (QStringList{"Mar-24", "Apr-24", "May-24"}));
+        QCOMPARE(b.plots[0].series[0].categories, (QStringList{"15 Mar 2024", "15 Apr 2024", "15 May 2024"}));
+        QCOMPARE(a.plots[0].series[0].categoryNumbers, (QVector<double>{45366, 45397, 45427}));
+        // a text among the numbers is shown as the text it is
+        f.set(0, QStringLiteral("A3"), Value::text(QStringLiteral("n/a")));
+        f.sheets[0].texts.remove({2, 0});
+        applyChartCells(&a, 0, f);
+        QCOMPARE(a.plots[0].series[0].categories.value(1), QStringLiteral("n/a"));
+        QVERIFY(a.plots[0].series[0].categoryNumbers.isEmpty());
     }
 
     // A title linked to a cell, and a title named for the only series, follow the cells.

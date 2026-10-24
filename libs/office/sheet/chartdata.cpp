@@ -71,7 +71,14 @@ int columnOfLetters(const QString &letters)
     return int(col);
 }
 
-bool blocksOf(const QString &ref, int ownSheet, const ChartCells &cells, int depth, QVector<ChartBlock> *out)
+// What one resolution of a reference has done so far: the areas and names it has visited (the whole is bounded by that, however names list one another), and the names it is inside of
+// (a name is not read inside itself).
+struct Walk {
+    int visited = 0;
+    QStringList inside;   // "sheet|NAME" of the names being read
+};
+
+bool blocksOf(const QString &ref, int ownSheet, const ChartCells &cells, int depth, Walk *walk, QVector<ChartBlock> *out)
 {
     static const QRegularExpression columnsRe(QStringLiteral("^\\$?([A-Za-z]{1,3}):\\$?([A-Za-z]{1,3})$")), rowsRe(QStringLiteral("^\\$?(\\d{1,7}):\\$?(\\d{1,7})$")),
         nameRe(QStringLiteral("^[A-Za-z_\\\\][A-Za-z0-9_.\\\\]*$"));
@@ -80,7 +87,8 @@ bool blocksOf(const QString &ref, int ownSheet, const ChartCells &cells, int dep
     if (text.isEmpty()) return false;
     bool any = false;
     for (const QString &area : splitAreas(withoutOuterParentheses(text))) {
-        if (out->size() >= kMaxChartBlocks) break;
+        if (out->size() >= kMaxChartBlocks || walk->visited >= kMaxChartVisits) break;
+        ++walk->visited;
         if (area.isEmpty()) continue;
         // the sheet, up to the first "!" that is not in quotes
         int bang = -1;
@@ -117,10 +125,16 @@ bool blocksOf(const QString &ref, int ownSheet, const ChartCells &cells, int dep
             if (r1 < 1 || r2 < 1 || r1 > kMaxRows || r2 > kMaxRows) continue;
             b.range = CellRange{quint32(std::min(r1, r2) - 1), 0, quint32(std::max(r1, r2) - 1), kMaxColumns - 1, true};
         } else if (nameRe.match(tail).hasMatch()) {
-            // a name: what it stands for is read as a reference in its turn, a few levels down at most
+            // a name: what it stands for is read as a reference in its turn, a few levels down at most, and never inside itself
             if (depth >= kMaxChartNameDepth) continue;
+            const QString key = QString::number(sheet) + QLatin1Char('|') + tail.toUpper();
+            if (walk->inside.contains(key)) continue;
             const QString stands = cells.definedName(tail, sheet);
-            if (stands.isEmpty() || !blocksOf(stands, sheet, cells, depth + 1, out)) continue;
+            if (stands.isEmpty()) continue;
+            walk->inside.append(key);
+            const bool found = blocksOf(stands, sheet, cells, depth + 1, walk, out);
+            walk->inside.removeLast();
+            if (!found) continue;
             any = true;
             continue;
         } else {
@@ -137,10 +151,11 @@ bool blocksOf(const QString &ref, int ownSheet, const ChartCells &cells, int dep
 bool chartBlocks(const QString &ref, int ownSheet, const ChartCells &cells, QVector<ChartBlock> *out)
 {
     out->clear();
-    return blocksOf(ref, ownSheet, cells, 0, out);
+    Walk walk;
+    return blocksOf(ref, ownSheet, cells, 0, &walk, out);
 }
 
-bool readChartRef(const QString &ref, int ownSheet, const ChartCells &cells, int maxCells, ChartRefData *out)
+bool readChartRef(const QString &ref, int ownSheet, const ChartCells &cells, int maxCells, ChartRefData *out, bool wantText)
 {
     *out = ChartRefData();
     QVector<ChartBlock> blocks;
@@ -181,16 +196,16 @@ bool readChartRef(const QString &ref, int ownSheet, const ChartCells &cells, int
                     p.empty = false;
                     p.isNumber = true;
                     p.number = v.number();
-                    p.text = cells.text(b.sheet, row, col);
+                    if (wantText) p.text = cells.text(b.sheet, row, col);
                     break;
                 case jp::calc::Value::Kind::Text:
                     p.empty = false;
-                    p.text = cells.text(b.sheet, row, col);
+                    if (wantText) p.text = cells.text(b.sheet, row, col);
                     break;
                 case jp::calc::Value::Kind::Error:
                     p.empty = false;
                     p.isError = true;
-                    p.text = cells.text(b.sheet, row, col);
+                    if (wantText) p.text = cells.text(b.sheet, row, col);
                     break;
                 }
                 out->points.push_back(p);
@@ -225,42 +240,117 @@ bool textOf(const QString &ref, int ownSheet, const ChartCells &cells, int *budg
 
 } // namespace
 
-QVector<ChartBlock> chartReads(const Chart &chart, int ownSheet, const ChartCells &cells)
+QVector<ChartBlock> chartReads(const Chart &chart, int ownSheet, const ChartCells &cells, bool *cut)
 {
     QVector<ChartBlock> out;
+    bool over = false;
+    auto add = [&](const QString &ref) {
+        if (ref.isEmpty()) return;
+        QVector<ChartBlock> blocks;
+        chartBlocks(ref, ownSheet, cells, &blocks);
+        for (const ChartBlock &b : std::as_const(blocks)) {
+            if (out.size() >= kMaxChartReadBlocks) {
+                // (the rest are held in the hull of the last: a block is added only as far as the limit, and the cut is said)
+                over = true;
+                // keep the hull of everything past the limit on the sheet by widening the last block of that sheet, or adding nothing when there is none
+                for (int i = out.size() - 1; i >= 0; --i)
+                    if (out[i].sheet == b.sheet) {
+                        out[i].range.row1 = std::min(out[i].range.row1, b.range.row1);
+                        out[i].range.col1 = std::min(out[i].range.col1, b.range.col1);
+                        out[i].range.row2 = std::max(out[i].range.row2, b.range.row2);
+                        out[i].range.col2 = std::max(out[i].range.col2, b.range.col2);
+                        break;
+                    }
+                continue;
+            }
+            out.push_back(b);
+        }
+    };
     for (const ChartPlot &plot : chart.plots)
         for (const ChartSeries &s : plot.series) {
-            addReads(s.nameRef, ownSheet, cells, &out);
-            addReads(s.categoryRef, ownSheet, cells, &out);
-            addReads(s.valueRef, ownSheet, cells, &out);
-            addReads(s.xRef, ownSheet, cells, &out);
+            add(s.nameRef);
+            add(s.categoryRef);
+            add(s.valueRef);
+            add(s.xRef);
         }
-    addReads(chart.title.ref, ownSheet, cells, &out);
-    for (const ChartAxis &a : chart.axes) addReads(a.title.ref, ownSheet, cells, &out);
+    add(chart.title.ref);
+    for (const ChartAxis &a : chart.axes) add(a.title.ref);
+    if (cut) *cut = over;
     return out;
+}
+
+ChartReadIndex::ChartReadIndex(const QVector<ChartBlock> &blocks, bool cut)
+{
+    Q_UNUSED(cut);
+    std::vector<ChartBlock> sorted(blocks.begin(), blocks.end());
+    std::stable_sort(sorted.begin(), sorted.end(), [](const ChartBlock &a, const ChartBlock &b) { return a.sheet != b.sheet ? a.sheet < b.sheet : a.range.row1 < b.range.row1; });
+    for (const ChartBlock &b : sorted) {
+        if (m_sheets.empty() || m_sheets.back().sheet != b.sheet) {
+            Sheet s;
+            s.sheet = b.sheet;
+            s.hull = b.range;
+            s.hull.valid = true;
+            m_sheets.push_back(s);
+        }
+        Sheet &s = m_sheets.back();
+        s.hull.row1 = std::min(s.hull.row1, b.range.row1);
+        s.hull.col1 = std::min(s.hull.col1, b.range.col1);
+        s.hull.row2 = std::max(s.hull.row2, b.range.row2);
+        s.hull.col2 = std::max(s.hull.col2, b.range.col2);
+        s.blocks.push_back(b.range);
+        s.maxLastRow.push_back(std::max(s.maxLastRow.empty() ? 0u : s.maxLastRow.back(), b.range.row2));
+        ++m_count;
+    }
+}
+
+const ChartReadIndex::Sheet *ChartReadIndex::find(int sheet) const
+{
+    const auto it = std::lower_bound(m_sheets.begin(), m_sheets.end(), sheet, [](const Sheet &s, int v) { return s.sheet < v; });
+    return it != m_sheets.end() && it->sheet == sheet ? &*it : nullptr;
+}
+
+CellRange ChartReadIndex::hull(int sheet) const
+{
+    const Sheet *s = find(sheet);
+    return s ? s->hull : CellRange();
+}
+
+bool ChartReadIndex::reads(int sheet, quint32 row, quint32 col) const
+{
+    const Sheet *s = find(sheet);
+    if (!s || !s->hull.contains(row, col)) return false;
+    // the blocks that begin at or above the row, back from the last of them for as long as one of the blocks up to there reaches the row
+    auto it = std::upper_bound(s->blocks.begin(), s->blocks.end(), row, [](quint32 r, const CellRange &b) { return r < b.row1; });
+    for (size_t i = size_t(it - s->blocks.begin()); i-- > 0;) {
+        if (s->maxLastRow[i] < row) break;
+        ++m_probes;
+        const CellRange &b = s->blocks[i];
+        if (row <= b.row2 && col >= b.col1 && col <= b.col2) return true;
+    }
+    return false;
 }
 
 namespace {
 
-QString movedRef(const QString &ref, const QStringList &sheetNames, const std::vector<StructEdit> &edits)
+QString movedRef(const QString &ref, const QStringList &sheetNames, const std::vector<StructEdit> &edits, int ownSheet)
 {
     QString f = ref;
-    for (const StructEdit &e : edits) f = adjustFormula(f, 0, sheetNames, e, nullptr, true);
+    for (const StructEdit &e : edits) f = adjustFormula(f, ownSheet, sheetNames, e, nullptr, true);
     return f;
 }
 
 } // namespace
 
-void moveChartRefs(Chart *chart, const QStringList &sheetNames, const std::vector<StructEdit> &edits)
+void moveChartRefs(Chart *chart, const QStringList &sheetNames, const std::vector<StructEdit> &edits, int ownSheet)
 {
     if (edits.empty()) return;
     for (ChartPlot &plot : chart->plots)
         for (ChartSeries &s : plot.series)
             for (QString *ref : {&s.nameRef, &s.categoryRef, &s.valueRef, &s.xRef})
-                if (!ref->isEmpty()) *ref = movedRef(*ref, sheetNames, edits);
-    if (!chart->title.ref.isEmpty()) chart->title.ref = movedRef(chart->title.ref, sheetNames, edits);
+                if (!ref->isEmpty()) *ref = movedRef(*ref, sheetNames, edits, ownSheet);
+    if (!chart->title.ref.isEmpty()) chart->title.ref = movedRef(chart->title.ref, sheetNames, edits, ownSheet);
     for (ChartAxis &a : chart->axes)
-        if (!a.title.ref.isEmpty()) a.title.ref = movedRef(a.title.ref, sheetNames, edits);
+        if (!a.title.ref.isEmpty()) a.title.ref = movedRef(a.title.ref, sheetNames, edits, ownSheet);
 }
 
 int applyChartCells(Chart *chart, int ownSheet, const ChartCells &cells)
@@ -280,7 +370,7 @@ int applyChartCells(Chart *chart, int ownSheet, const ChartCells &cells)
             ChartRefData d;
             const int most = std::max(0, std::min(kMaxChartSeriesCells, budget));
             // the values
-            if (!s.valueRef.isEmpty() && readChartRef(s.valueRef, ownSheet, cells, most, &d)) {
+            if (!s.valueRef.isEmpty() && readChartRef(s.valueRef, ownSheet, cells, most, &d, false)) {
                 budget -= int(d.points.size());
                 QVector<double> values;
                 values.reserve(int(d.points.size()));
@@ -298,9 +388,12 @@ int applyChartCells(Chart *chart, int ownSheet, const ChartCells &cells)
                 QStringList labels;
                 QVector<double> xs;
                 bool allNumbers = true;
+                // numbers as categories (dates, say) are shown through the category axis's own format when it is not linked to the source's, else as the cells show them
+                const ChartAxis *axis = chart->axis(plot.axisIds[0]);
+                const bool byAxis = !scatter && s.categoryRefNumeric && axis && !axis->formatLinked && (axis->kind == ChartAxis::Category || axis->kind == ChartAxis::Date);
                 for (const ChartPoint &p : std::as_const(d.points)) {
                     if (p.hidden && chart->plotVisibleOnly) continue;
-                    labels << p.text.left(kChartMaxLabel);
+                    labels << (byAxis && p.isNumber ? formatChartNumber(p.number, axis->format) : p.text).left(kChartMaxLabel);
                     xs.push_back(p.empty ? kNaN : p.isNumber ? p.number : kNaN);
                     if (!p.empty && !p.isNumber) allNumbers = false;
                 }
@@ -312,6 +405,7 @@ int applyChartCells(Chart *chart, int ownSheet, const ChartCells &cells)
                     s.categories = allNumbers ? QStringList() : labels;
                 } else {
                     s.categories = labels;
+                    s.categoryNumbers = s.categoryRefNumeric && allNumbers ? xs : QVector<double>();
                 }
             }
         }

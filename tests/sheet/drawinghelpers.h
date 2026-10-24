@@ -78,6 +78,8 @@ struct SeriesSpec {
     QStringList categories;
     QVector<double> values;
     QString xRef;   // a scatter's x values (stored in `categories` as numbers)
+    bool numericCats = false;       // the categories are numbers (a numRef: `categories` holds them as text), stored with this format code
+    QString catFormat = QStringLiteral("General");
 };
 
 inline QString cacheOfStrings(const QStringList &items)
@@ -106,15 +108,21 @@ inline QString seriesElement(int index, const SeriesSpec &s, bool scatter = fals
         out += QStringLiteral("<c:xVal><c:numRef><c:f>%1</c:f><c:numCache>%2</c:numCache></c:numRef></c:xVal>").arg(s.xRef.toHtmlEscaped(), cacheOfNumbers(xs));
         out += QStringLiteral("<c:yVal><c:numRef><c:f>%1</c:f><c:numCache>%2</c:numCache></c:numRef></c:yVal>").arg(s.valRef.toHtmlEscaped(), cacheOfNumbers(s.values));
     } else {
-        if (!s.catRef.isEmpty() || !s.categories.isEmpty())
+        if (s.numericCats) {
+            QVector<double> nums;
+            for (const QString &c : s.categories) nums << c.toDouble();
+            out += QStringLiteral("<c:cat><c:numRef><c:f>%1</c:f><c:numCache>%2</c:numCache></c:numRef></c:cat>").arg(s.catRef.toHtmlEscaped(), cacheOfNumbers(nums, s.catFormat));
+        } else if (!s.catRef.isEmpty() || !s.categories.isEmpty()) {
             out += QStringLiteral("<c:cat><c:strRef><c:f>%1</c:f><c:strCache>%2</c:strCache></c:strRef></c:cat>").arg(s.catRef.toHtmlEscaped(), cacheOfStrings(s.categories));
+        }
         out += QStringLiteral("<c:val><c:numRef><c:f>%1</c:f><c:numCache>%2</c:numCache></c:numRef></c:val>").arg(s.valRef.toHtmlEscaped(), cacheOfNumbers(s.values));
     }
     return out + QStringLiteral("</c:ser>");
 }
 
 // A chart part: "barChart", "lineChart", "pieChart", "areaChart", or "scatterChart", the series, the title if any, and c:plotVisOnly and c:dispBlanksAs.
-inline QByteArray chartPart(const QString &kind, const QVector<SeriesSpec> &series, const QString &title = QString(), bool plotVisOnly = true, const QString &blanksAs = QStringLiteral("gap"))
+inline QByteArray chartPart(const QString &kind, const QVector<SeriesSpec> &series, const QString &title = QString(), bool plotVisOnly = true, const QString &blanksAs = QStringLiteral("gap"),
+                            const QString &catAxisFormat = QString(), bool catAxisLinked = false)
 {
     const bool scatter = kind == QLatin1String("scatterChart");
     QString plot = QStringLiteral("<c:%1>").arg(kind);
@@ -128,7 +136,8 @@ inline QByteArray chartPart(const QString &kind, const QVector<SeriesSpec> &seri
     plot += QStringLiteral("</c:%1>").arg(kind);
     if (!pie) {
         const QString first = scatter ? QStringLiteral("valAx") : QStringLiteral("catAx");
-        plot += QStringLiteral("<c:%1><c:axId val=\"111\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"b\"/><c:crossAx val=\"222\"/></c:%1>").arg(first);
+        const QString fmt = catAxisFormat.isEmpty() ? QString() : QStringLiteral("<c:numFmt formatCode=\"%1\" sourceLinked=\"%2\"/>").arg(catAxisFormat.toHtmlEscaped()).arg(catAxisLinked ? 1 : 0);
+        plot += QStringLiteral("<c:%1><c:axId val=\"111\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"b\"/>%2<c:crossAx val=\"222\"/></c:%1>").arg(first, fmt);
         plot += QStringLiteral("<c:valAx><c:axId val=\"222\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"l\"/><c:majorGridlines/><c:crossAx val=\"111\"/></c:valAx>");
     }
     return QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<c:chartSpace xmlns:c=\"%1\" xmlns:a=\"%2\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
@@ -163,11 +172,11 @@ struct DrawingTarget {
 
 // The workbook: `sheets` are the sheet parts (the first has the drawing), `drawing` is the drawing part, `targets` the parts it relates to. The drawing is related to the first sheet by `<drawing r:id>`.
 inline QByteArray bookWithDrawing(QVector<QByteArray> sheets, const QByteArray &drawing, const QVector<DrawingTarget> &targets, const QStringList &sheetNames = QStringList(), const QString &definedNames = QString(),
-                                  const QByteArray &styles = QByteArray())
+                                  const QByteArray &styles = QByteArray(), int onSheet = 0)
 {
-    sheets[0].replace("</worksheet>", "<drawing r:id=\"rIdD1\"/></worksheet>");
+    sheets[onSheet].replace("</worksheet>", "<drawing r:id=\"rIdD1\"/></worksheet>");
     QVector<sheettest::ExtraPart> parts;
-    parts.append({QStringLiteral("xl/drawings/drawing1.xml"), drawing, QStringLiteral("application/vnd.openxmlformats-officedocument.drawing+xml"), 0, QStringLiteral("rIdD1"), QStringLiteral("drawing"),
+    parts.append({QStringLiteral("xl/drawings/drawing1.xml"), drawing, QStringLiteral("application/vnd.openxmlformats-officedocument.drawing+xml"), onSheet, QStringLiteral("rIdD1"), QStringLiteral("drawing"),
                   QStringLiteral("../drawings/drawing1.xml")});
     QString rels = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">");
     for (const DrawingTarget &t : targets) {
