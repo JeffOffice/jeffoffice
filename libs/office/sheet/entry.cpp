@@ -6,7 +6,9 @@
 
 #include <QCoreApplication>
 #include <QRegularExpression>
+#include <QSet>
 #include <QStringList>
+#include <QVector>
 
 #include <algorithm>
 #include <cmath>
@@ -473,44 +475,186 @@ bool readDateTime(const QString &typed, const EntryOptions &o, double *value, QS
 
 } // namespace
 
+namespace {
+
+// The functions that the file format has with the prefix _xlfn. in front: those added after its first release (a fixed list of the format's, whether or not this program has them: a
+// formula that names one this program lacks is kept as the file has it).
+bool needsFilePrefix(const QString &upperName)
+{
+    static const QSet<QString> names = [] {
+        static const char *const list[] = {
+            "ACOT", "ACOTH", "AGGREGATE", "ARABIC", "ARRAYTOTEXT", "BASE", "BETA.DIST", "BETA.INV", "BINOM.DIST", "BINOM.DIST.RANGE", "BINOM.INV", "BITAND", "BITLSHIFT", "BITOR", "BITRSHIFT",
+            "BITXOR", "BYCOL", "BYROW", "CEILING.MATH", "CEILING.PRECISE", "CHISQ.DIST", "CHISQ.DIST.RT", "CHISQ.INV", "CHISQ.INV.RT", "CHISQ.TEST", "CHOOSECOLS", "CHOOSEROWS", "COMBINA",
+            "CONCAT", "CONFIDENCE.NORM", "CONFIDENCE.T", "COT", "COTH", "COVARIANCE.P", "COVARIANCE.S", "CSC", "CSCH", "DAYS", "DECIMAL", "DROP", "ENCODEURL", "ERF.PRECISE", "ERFC.PRECISE",
+            "EXPAND", "EXPON.DIST", "F.DIST", "F.DIST.RT", "F.INV", "F.INV.RT", "F.TEST", "FILTER", "FILTERXML", "FLOOR.MATH", "FLOOR.PRECISE", "FORECAST.ETS", "FORECAST.ETS.CONFINT",
+            "FORECAST.ETS.SEASONALITY", "FORECAST.ETS.STAT", "FORECAST.LINEAR", "FORMULATEXT", "GAMMA", "GAMMA.DIST", "GAMMA.INV", "GAMMALN.PRECISE", "GAUSS", "GROUPBY", "HSTACK",
+            "HYPGEOM.DIST", "IFNA", "IFS", "IMAGE", "IMCOSH", "IMCOT", "IMCSC", "IMCSCH", "IMSEC", "IMSECH", "IMSINH", "IMTAN", "ISFORMULA", "ISOMITTED", "ISOWEEKNUM", "LAMBDA", "LET",
+            "LOGNORM.DIST", "LOGNORM.INV", "MAKEARRAY", "MAP", "MAXIFS", "MINIFS", "MODE.MULT", "MODE.SNGL", "MUNIT", "NEGBINOM.DIST", "NETWORKDAYS.INTL", "NORM.DIST", "NORM.INV",
+            "NORM.S.DIST", "NORM.S.INV", "NUMBERVALUE", "PDURATION", "PERCENTILE.EXC", "PERCENTILE.INC", "PERCENTOF", "PERCENTRANK.EXC", "PERCENTRANK.INC", "PERMUTATIONA", "PHI", "PIVOTBY",
+            "POISSON.DIST", "QUARTILE.EXC", "QUARTILE.INC", "QUERYSTRING", "RANDARRAY", "RANK.AVG", "RANK.EQ", "REDUCE", "REGEXEXTRACT", "REGEXREPLACE", "REGEXTEST", "RRI", "SCAN", "SEC",
+            "SECH", "SEQUENCE", "SHEET", "SHEETS", "SINGLE", "SKEW.P", "SORT", "SORTBY", "STDEV.P", "STDEV.S", "SWITCH", "T.DIST", "T.DIST.2T", "T.DIST.RT", "T.INV", "T.INV.2T", "T.TEST",
+            "TAKE", "TEXTAFTER", "TEXTBEFORE", "TEXTJOIN", "TEXTSPLIT", "TOCOL", "TOROW", "TRIMRANGE", "UNICHAR", "UNICODE", "UNIQUE", "VALUETOTEXT", "VAR.P", "VAR.S", "VSTACK", "WEBSERVICE",
+            "WEIBULL.DIST", "WORKDAY.INTL", "WRAPCOLS", "WRAPROWS", "XLOOKUP", "XMATCH", "XOR", "Z.TEST"};
+        QSet<QString> set;
+        for (const char *name : list) set.insert(QLatin1String(name));
+        return set;
+    }();
+    return names.contains(upperName);
+}
+
+bool identStartChar(QChar c) { return c.isLetter() || c == QLatin1Char('_'); }
+bool identPartChar(QChar c) { return c.isLetterOrNumber() || c == QLatin1Char('_') || c == QLatin1Char('.'); }
+
+// The end of a text, a sheet's name, or a table's columns that begins at `i` (the index after its closing character).
+int quotedEnd(const QString &s, int i)
+{
+    const int n = int(s.size());
+    const QChar c = s[i];
+    const QChar close = c == QLatin1Char('[') ? QLatin1Char(']') : c;
+    int j = i + 1;
+    while (j < n) {
+        if (s[j] == close) {
+            if (close != QLatin1Char(']') && j + 1 < n && s[j + 1] == close) {
+                j += 2;
+                continue;
+            }
+            break;
+        }
+        ++j;
+    }
+    return std::min(n, j + 1);
+}
+
+// The index of the ")" that closes the "(" at `open`, or -1; the arguments between are split at the commas that are not inside a text, a name, brackets, braces, or another call.
+int callEnd(const QString &s, int open, QStringList *arguments)
+{
+    const int n = int(s.size());
+    int depth = 0, start = open + 1;
+    for (int i = open; i < n;) {
+        const QChar c = s[i];
+        if (c == QLatin1Char('"') || c == QLatin1Char('\'') || c == QLatin1Char('[')) {
+            i = quotedEnd(s, i);
+            continue;
+        }
+        if (c == QLatin1Char('(') || c == QLatin1Char('{')) ++depth;
+        else if (c == QLatin1Char(')') || c == QLatin1Char('}')) {
+            --depth;
+            if (depth == 0) {
+                if (arguments) arguments->append(s.mid(start, i - start));
+                return c == QLatin1Char(')') ? i : -1;
+            }
+        } else if (c == QLatin1Char(',') && depth == 1 && arguments) {
+            arguments->append(s.mid(start, i - start));
+            start = i + 1;
+        }
+        ++i;
+    }
+    return -1;
+}
+
+// The names a LET or a LAMBDA gives (parameters) are written in a file with _xlpm. in front, where they are given and where they are used; `scope` holds those in force (lower case).
+QString markParameters(const QString &s, const QStringList &scope)
+{
+    QString out;
+    out.reserve(s.size() + 8);
+    const int n = int(s.size());
+    for (int i = 0; i < n;) {
+        const QChar c = s[i];
+        if (c == QLatin1Char('"') || c == QLatin1Char('\'') || c == QLatin1Char('[')) {
+            const int end = quotedEnd(s, i);
+            out += s.mid(i, end - i);
+            i = end;
+            continue;
+        }
+        if (identStartChar(c) && (i == 0 || !identPartChar(s[i - 1]))) {
+            int j = i;
+            while (j < n && identPartChar(s[j])) ++j;
+            int k = j;
+            while (k < n && s[k].isSpace()) ++k;
+            const QString word = s.mid(i, j - i);
+            const bool call = k < n && s[k] == QLatin1Char('(');
+            const bool let = call && word.compare(QLatin1String("_xlfn.LET"), Qt::CaseInsensitive) == 0;
+            const bool lambda = call && word.compare(QLatin1String("_xlfn.LAMBDA"), Qt::CaseInsensitive) == 0;
+            QStringList arguments;
+            const int end = (let || lambda) ? callEnd(s, k, &arguments) : -1;
+            if (end >= 0 && !arguments.isEmpty()) {
+                // the names: every other argument of a LET but the last; all but the last of a LAMBDA
+                const int count = int(arguments.size());
+                QStringList inner = scope;
+                QVector<bool> isName(count, false);
+                for (int a = 0; a + 1 < count; a += let ? 2 : 1) {
+                    isName[a] = true;
+                    QString name = arguments[a].trimmed();
+                    if (name.startsWith(QLatin1String("_xlpm."), Qt::CaseInsensitive)) name = name.mid(6);
+                    inner.append(name.toLower());
+                }
+                out += s.mid(i, k - i + 1);
+                for (int a = 0; a < count; ++a) {
+                    if (a) out += QLatin1Char(',');
+                    if (isName[a]) {
+                        const QString &arg = arguments[a];
+                        int lead = 0, trail = int(arg.size());
+                        while (lead < trail && arg[lead].isSpace()) ++lead;
+                        while (trail > lead && arg[trail - 1].isSpace()) --trail;
+                        QString name = arg.mid(lead, trail - lead);
+                        if (!name.startsWith(QLatin1String("_xlpm."), Qt::CaseInsensitive)) name = QLatin1String("_xlpm.") + name;
+                        out += arg.left(lead) + name + arg.mid(trail);
+                    } else {
+                        out += markParameters(arguments[a], inner);
+                    }
+                }
+                out += QLatin1Char(')');
+                i = end + 1;
+                continue;
+            }
+            const bool after = k < n && s[k] == QLatin1Char('!');
+            const bool before = i > 0 && s[i - 1] == QLatin1Char('!');
+            if (!call && !after && !before && scope.contains(word.toLower())) out += QLatin1String("_xlpm.");
+            out += word;
+            i = j;
+            continue;
+        }
+        out += c;
+        ++i;
+    }
+    return out;
+}
+
+} // namespace
+
 QString toFileFormula(const QString &typed)
 {
     QString out;
     out.reserve(typed.size() + 8);
     const int n = typed.size();
-    auto identStart = [](QChar c) { return c.isLetter() || c == QLatin1Char('_'); };
-    auto identChar = [](QChar c) { return c.isLetterOrNumber() || c == QLatin1Char('_') || c == QLatin1Char('.'); };
     for (int i = 0; i < n;) {
         const QChar c = typed[i];
         if (c == QLatin1Char('"') || c == QLatin1Char('\'') || c == QLatin1Char('[')) {
             // a text, a sheet's name, or a table's columns: as it is, to its end (a doubled quote is one inside)
-            const QChar close = c == QLatin1Char('[') ? QLatin1Char(']') : c;
-            int j = i + 1;
-            while (j < n) {
-                if (typed[j] == close) {
-                    if (close != QLatin1Char(']') && j + 1 < n && typed[j + 1] == close) {
-                        j += 2;
-                        continue;
-                    }
-                    break;
-                }
-                ++j;
-            }
-            out += typed.mid(i, std::min(n, j + 1) - i);
-            i = j + 1;
+            const int end = quotedEnd(typed, i);
+            out += typed.mid(i, end - i);
+            i = end;
             continue;
         }
-        if (identStart(c) && (i == 0 || !identChar(typed[i - 1]))) {
+        if (identStartChar(c) && (i == 0 || !identPartChar(typed[i - 1]))) {
             int j = i;
-            while (j < n && identChar(typed[j])) ++j;
+            while (j < n && identPartChar(typed[j])) ++j;
             int k = j;
             while (k < n && typed[k].isSpace()) ++k;
             const QString word = typed.mid(i, j - i);
             if (k < n && typed[k] == QLatin1Char('(') && !word.startsWith(QLatin1String("_xl"), Qt::CaseInsensitive)) {
                 const jp::calc::FunctionInfo *f = jp::calc::findFunction(word);
+                const QString upper = f ? QString::fromLatin1(f->name) : word.toUpper();
+                if (needsFilePrefix(upper)) {
+                    // (the two that only a sheet has are marked so too)
+                    out += upper == QLatin1String("FILTER") || upper == QLatin1String("SORT") ? QLatin1String("_xlfn._xlws.") : QLatin1String("_xlfn.");
+                    out += upper;
+                    i = j;
+                    continue;
+                }
                 if (f) {
                     if (f->flags & jp::calc::kFnFuture) out += QLatin1String("_xlfn.");
-                    out += QString::fromLatin1(f->name);
+                    out += upper;
                     i = j;
                     continue;
                 }
@@ -522,6 +666,7 @@ QString toFileFormula(const QString &typed)
         out += c;
         ++i;
     }
+    if (out.contains(QLatin1String("_xlfn.LET"), Qt::CaseInsensitive) || out.contains(QLatin1String("_xlfn.LAMBDA"), Qt::CaseInsensitive)) return markParameters(out, QStringList());
     return out;
 }
 

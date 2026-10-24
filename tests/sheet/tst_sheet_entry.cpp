@@ -2,6 +2,7 @@
 // (and the plain message for one that is not); text and its limits; and the text a cell is edited as.
 #include "sheethelpers.h"
 
+#include "grid/text.h"
 #include "sheet/entry.h"
 
 namespace {
@@ -253,6 +254,30 @@ private Q_SLOTS:
         QCOMPARE(toFileFormula(QStringLiteral("Table1[Col (1)]+max(1)")), QStringLiteral("Table1[Col (1)]+MAX(1)"));
         // (a name that is not followed by a bracket is not a function)
         QCOMPARE(toFileFormula(QStringLiteral("sum+A1")), QStringLiteral("sum+A1"));
+    }
+
+    // A function the format prefixes is prefixed whether this program has it or not (a formula read back for a person, with the prefix taken away, is written the same way again), and
+    // the names a LET or a LAMBDA gives are marked in the file's way where they are given and where they are used.
+    void everyFunctionTheFormatPrefixesGetsItsPrefixAndParametersAreMarked()
+    {
+        QCOMPARE(toFileFormula(QStringLiteral("xlookup(A1,B:B,C:C,\"none\")")), QStringLiteral("_xlfn.XLOOKUP(A1,B:B,C:C,\"none\")"));
+        QCOMPARE(toFileFormula(QStringLiteral("unique(A1:A9)+sequence(3)+SORTBY(A1:A3,B1:B3)")), QStringLiteral("_xlfn.UNIQUE(A1:A9)+_xlfn.SEQUENCE(3)+_xlfn.SORTBY(A1:A3,B1:B3)"));
+        QCOMPARE(toFileFormula(QStringLiteral("filter(A1:A9,B1:B9>1)+sort(A1:A3)")), QStringLiteral("_xlfn._xlws.FILTER(A1:A9,B1:B9>1)+_xlfn._xlws.SORT(A1:A3)"));
+        QCOMPARE(toFileFormula(QStringLiteral("textsplit(A1,\",\")+IFS(A1,1,2,3)+maxifs(A1:A3,B1:B3,1)")), QStringLiteral("_xlfn.TEXTSPLIT(A1,\",\")+_xlfn.IFS(A1,1,2,3)+_xlfn.MAXIFS(A1:A3,B1:B3,1)"));
+        QCOMPARE(toFileFormula(QStringLiteral("_xlfn.XLOOKUP(A1,B:B,C:C)")), QStringLiteral("_xlfn.XLOOKUP(A1,B:B,C:C)"));   // (already as a file has it)
+        QCOMPARE(toFileFormula(QStringLiteral("xlookup+1")), QStringLiteral("xlookup+1"));                                    // (a name that is not called)
+        // parameters
+        QCOMPARE(toFileFormula(QStringLiteral("let(x,1,y,x+1,x+y)")), QStringLiteral("_xlfn.LET(_xlpm.x,1,_xlpm.y,_xlpm.x+1,_xlpm.x+_xlpm.y)"));
+        QCOMPARE(toFileFormula(QStringLiteral("LET( x , A1 , x*2 )")), QStringLiteral("_xlfn.LET( _xlpm.x , A1 , _xlpm.x*2 )"));
+        QCOMPARE(toFileFormula(QStringLiteral("lambda(a,b,a*b)(2,3)")), QStringLiteral("_xlfn.LAMBDA(_xlpm.a,_xlpm.b,_xlpm.a*_xlpm.b)(2,3)"));
+        QCOMPARE(toFileFormula(QStringLiteral("map(A1:A3,lambda(v,v*2))")), QStringLiteral("_xlfn.MAP(A1:A3,_xlfn.LAMBDA(_xlpm.v,_xlpm.v*2))"));
+        QCOMPARE(toFileFormula(QStringLiteral("let(x,\"x\",x&\"x\"&'x'!A1&Sheet2!x1)")), QStringLiteral("_xlfn.LET(_xlpm.x,\"x\",_xlpm.x&\"x\"&'x'!A1&Sheet2!x1)"));
+        QCOMPARE(toFileFormula(QStringLiteral("let(x,1,x+y)+x")), QStringLiteral("_xlfn.LET(_xlpm.x,1,_xlpm.x+y)+x"));                       // (a name is a parameter only inside)
+        QCOMPARE(toFileFormula(QStringLiteral("_xlfn.LET(_xlpm.x,1,_xlpm.x+1)")), QStringLiteral("_xlfn.LET(_xlpm.x,1,_xlpm.x+1)"));
+        QCOMPARE(toFileFormula(QStringLiteral("let(x,let(x,2,x*3),x+1)")), QStringLiteral("_xlfn.LET(_xlpm.x,_xlfn.LET(_xlpm.x,2,_xlpm.x*3),_xlpm.x+1)"));
+        // read back for a person, they are as typed (with the names of functions in capitals)
+        for (const QString &typed : {"XLOOKUP(A1,B:B,C:C)", "LET(x,1,y,x+1,x+y)", "MAP(A1:A3,LAMBDA(v,v*2))", "FILTER(A1:A9,B1:B9>1)", "SUM(UNIQUE(A1:A9))"})
+            QCOMPARE(jp::grid::displayFormula(toFileFormula(typed)), typed);
     }
 
     void limits()

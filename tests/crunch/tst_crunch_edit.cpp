@@ -291,6 +291,68 @@ private Q_SLOTS:
         e.key(Qt::Key_Escape);
     }
 
+    // F2 and then Enter (or a click on another cell) with nothing changed puts nothing in: a step is not made, the file has nothing to save, and a formula with a function this program lacks
+    // keeps the result the file stored (it was written over as this program reads it back: the prefix the format needs was dropped, and the cell had #NAME?).
+    void anEntryThatWasNotChangedCommitsNothing()
+    {
+        const QByteArray book = buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><f>_xludf.MYFUNC(B1)</f><v>77</v></c><c r=\"B1\"><v>5</v></c><c r=\"C1\"><f>_xlfn.IMAGE(\"x\")</f><v>88</v></c>"
+                                                                  "<c r=\"D1\" s=\"1\"><v>45293</v></c><c r=\"E1\"><f>B1*2</f><v>10</v></c></row>"))},
+                                           QByteArray(), QString(), QString(), stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"14\" applyNumberFormat=\"1\"/>")));
+        EditWindow e;
+        QVERIFY(e.open(book));
+        for (const QString &ref : {QStringLiteral("A1"), QStringLiteral("C1"), QStringLiteral("D1"), QStringLiteral("E1")}) {
+            e.select(ref);
+            QTest::keyClick(e.view(), Qt::Key_F2);
+            QVERIFY2(e.win.w.isEditing(), qPrintable(ref));
+            e.key(Qt::Key_Return);
+            QVERIFY2(!e.win.w.isEditing(), qPrintable(ref));
+            QCOMPARE(e.win.w.undoStack()->count(), 0);
+            QVERIFY(!e.win.w.isModified());
+        }
+        // (and a click on another cell, with the formula bar's text as it was)
+        e.select(QStringLiteral("C1"));
+        QTest::keyClick(e.view(), Qt::Key_F2);
+        QVERIFY(e.win.w.isEditing());
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, e.view()->cellRect(0, 1).center());
+        QVERIFY(!e.win.w.isEditing());
+        QCOMPARE(e.selected(), QStringLiteral("B1"));
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:77"));
+        QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("n:88"));
+        QCOMPARE(e.valueAt(QStringLiteral("E1")), QStringLiteral("n:10"));
+        // a change is a change
+        e.select(QStringLiteral("E1"));
+        QTest::keyClick(e.view(), Qt::Key_F2);
+        QTest::keyClicks(e.win.w.cellEditor(), QStringLiteral("+1"));
+        e.key(Qt::Key_Return);
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+    }
+
+    // A formula typed with a function the format prefixes (that this program lacks) is kept as a file has it: with the prefix, so that the other programs know the function; the cell
+    // shows #NAME? here, as it says.
+    void aFormulaTypedWithAPrefixedFunctionKeepsItsPrefixInTheFile()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        e.select(QStringLiteral("F1"));
+        e.enter(QStringLiteral("=image(\"x\")"));
+        e.select(QStringLiteral("F2"));
+        e.enter(QStringLiteral("=let(x,A1,x*2)"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("F1")), QStringLiteral("e:#NAME?"));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.wait(20000));
+        QCOMPARE(savedFormula(e.path, QStringLiteral("F1")), QStringLiteral("_xlfn.IMAGE(\"x\")"));
+        QCOMPARE(savedFormula(e.path, QStringLiteral("F2")), QStringLiteral("_xlfn.LET(_xlpm.x,A1,_xlpm.x*2)"));
+        // and F2 shows it as it was typed
+        Window second;
+        QVERIFY(second.open(e.path));
+        second.w.view()->selectCell(1, 5);
+        QCOMPARE(second.w.formulaBar()->text(), QStringLiteral("=LET(x,A1,x*2)"));
+    }
+
     // ---- what is typed becomes
 
     void typedNumbersGetTheFormatThatShowsThemAsTyped()
@@ -1114,6 +1176,19 @@ private Q_SLOTS:
     }
 
 private:
+    // The formula of a cell of a saved file, as the file holds it.
+    static QString savedFormula(const QString &path, const QString &ref, int sheet = 0)
+    {
+        Package p;
+        QString why;
+        if (!p.readLazyFile(path, &why)) return why;
+        Workbook b;
+        if (!b.open(p, &why)) return why;
+        Sheet s;
+        if (!b.readSheet(sheet, &s)) return QStringLiteral("unreadable");
+        const Cell *c = at(s, ref);
+        return c ? s.formulaText(*c) : QStringLiteral("-");
+    }
     // The cell of a saved file, as the file holds it.
     static QString savedCell(const QString &path, const QString &ref, int sheet = 0)
     {

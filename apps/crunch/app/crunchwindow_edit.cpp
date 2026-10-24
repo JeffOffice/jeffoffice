@@ -126,6 +126,12 @@ bool CrunchWindow::commitEdit(CellEditor::Way way)
 {
     if (!m_edit.active) return true;
     const QString text = m_cellEditor->text();
+    // What F2 showed, put in again as it is (Enter, or a click on another cell), is not a change: nothing is put in, there is nothing to undo, and the cell keeps what it had (a formula
+    // with a function this program lacks keeps the result the file stored, and is not written again as this program reads it back)
+    if (m_cellEditor->mode() == CellEditor::Mode::Editing && text == m_session->editText(m_edit.sheet, m_edit.row, m_edit.col)) {
+        finishEdit(way);
+        return true;
+    }
     const qint64 before = m_loader.changesMade();
     const crunch::EditSession::Outcome o = m_session->type(m_edit.sheet, m_edit.row, m_edit.col, text);
     if (!o.ok) {
