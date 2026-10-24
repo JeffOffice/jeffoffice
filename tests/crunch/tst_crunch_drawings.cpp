@@ -10,6 +10,9 @@
 #include "office/theme.h"
 #include "office/xml.h"
 
+#include <QProcess>
+#include <QStandardPaths>
+
 using namespace crunchtest;
 using namespace drawtest;
 
@@ -701,6 +704,36 @@ private Q_SLOTS:
         QCOMPARE(o->layer()->deviceRect(2, grid::Pane::Body).top(), L.cellRect(10, 0).top());
         // (an Undo is worked out from the objects as they were: each of the edits left, for each object)
         QCOMPARE(o->editSteps() - before, qint64(40 * 5 + 5 * 39));
+    }
+
+    // The program that saves a picture of its window and quits ends, with the window still open: the worker that calculates for the window is told to stop, or the program would wait
+    // for it for ever as it ended (the hang was in the end of the program, after the picture was written).
+    void aScreenshotRunEndsWithItsWindowOpen()
+    {
+        const QString exe = QStandardPaths::findExecutable(QStringLiteral("JeffCrunch"), {QCoreApplication::applicationDirPath()});
+        if (exe.isEmpty()) QSKIP("JeffCrunch is not built beside the tests");
+        Folder folder;
+        const QString book = folder.write(QStringLiteral("book.xlsx"), drawingBook());
+        const QString png = folder.dir.filePath(QStringLiteral("shot.png"));
+        QProcess child;
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+        env.insert(QStringLiteral("QT_QPA_PLATFORM"), QStringLiteral("offscreen"));
+        env.insert(QStringLiteral("JP_NO_TELEMETRY"), QStringLiteral("1"));
+        child.setProcessEnvironment(env);
+        child.start(exe, {QStringLiteral("--screenshot"), png, QStringLiteral("--size"), QStringLiteral("700x500"), book});
+        QVERIFY(child.waitForStarted());
+        // (a program that does not end is told by this bound; one that is right ends in a few seconds)
+        const bool ended = child.waitForFinished(120000);
+        if (!ended) {
+            child.kill();
+            child.waitForFinished();
+        }
+        QVERIFY2(ended, "the program did not end after saving its picture");
+        QCOMPARE(child.exitStatus(), QProcess::NormalExit);
+        QCOMPARE(child.exitCode(), 0);
+        const QImage img(png);
+        QVERIFY(!img.isNull());
+        QVERIFY(img.width() >= 700 && img.height() >= 500);
     }
 
     // A read that is told to have failed after the first screen was shown (the loader says so only before it, today, but the window must not depend on that) leaves no object over the

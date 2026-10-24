@@ -174,7 +174,9 @@ private:
     };
     static void run(const QString &path, std::shared_ptr<LoadedBook> result, std::shared_ptr<State> state, QPointer<WorkbookLoader> self);
     static void serve(const std::shared_ptr<LoadedBook> &result, const std::shared_ptr<State> &state, const QPointer<WorkbookLoader> &self);
-    void startThread(std::function<void()> work);
+    void startThread(std::function<void()> work, const std::shared_ptr<State> &state);
+    // Everything the worker does stops (and it is woken to see so).
+    static void stopAll(State &state);
     std::shared_ptr<QThread> m_thread;
     std::shared_ptr<LoadedBook> m_result;
     std::shared_ptr<State> m_state;
