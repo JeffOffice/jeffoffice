@@ -148,7 +148,7 @@ private Q_SLOTS:
         // a cell that is gone
         QCOMPARE(text(W().u8(0x2A).u16(0).u16(0)), QStringLiteral("#REF!"));
         QCOMPARE(text(W().u8(0x2B).u16(0).u16(0).u16(0).u16(0)), QStringLiteral("#REF!"));
-        // Excel 5: the rows are 14 bits and the columns a byte
+        // BIFF5: the rows are 14 bits and the columns a byte
         QCOMPARE(text(tRef(16383, 255, true, true, 5), QByteArray(), XlsFormulaOptions(), 5), QStringLiteral("IV16384"));
         QCOMPARE(text(tArea(0, 0, 16383, 2, false, true, 5), QByteArray(), XlsFormulaOptions(), 5), QStringLiteral("A:C"));
         QCOMPARE(text(tArea(1, 1, 3, 3, false, false, 5), QByteArray(), XlsFormulaOptions(), 5), QStringLiteral("$B$2:$D$4"));
@@ -178,7 +178,7 @@ private Q_SLOTS:
         QCOMPARE(text(tNameX(9, 1)), QStringLiteral("[1]!Rate"));
         QCOMPARE(text(tName(0)), QStringLiteral("!A formula has a token this program does not read."));
         QVERIFY(refused(tName(3)));
-        // Excel 5: a sheet by the number of a record of its list, or by a number below 0 for the workbook's own
+        // BIFF5: a sheet by the number of a record of its list, or by a number below 0 for the workbook's own
         XlsContext five = context(5);
         five.externSheet5 = {QByteArray(1, char(3)) + "Data", QByteArray(1, char(1)) + "other.xls" + QByteArray(1, char(3)) + "Prices"};
         XlsFormulaOptions none;
@@ -201,7 +201,7 @@ private Q_SLOTS:
         const QByteArray remembered = W().u16(1).raw(QByteArray(8, '\0')) + arrayValues({{5.0}});
         QCOMPARE(text(W().u8(0x26).raw(QByteArray(4, '\0')).u16(0) + tArray(), remembered), QStringLiteral("{5}"));
         QCOMPARE(text(tArray(), arrayValues({{QVariant()}})), QStringLiteral("{\"\"}"));
-        // Excel 5 writes the count of columns in a byte (0 for 256) and the texts with a byte of length
+        // BIFF5 writes the count of columns in a byte (0 for 256) and the texts with a byte of length
         QCOMPARE(text(tArray(), arrayValues({{1.0, QStringLiteral("x")}}, 5), XlsFormulaOptions(), 5), QStringLiteral("{1,\"x\"}"));
         // the values are missing, or claim more cells than there are bytes
         QVERIFY(refused(tArray(), QByteArray()));
@@ -251,7 +251,7 @@ private Q_SLOTS:
         QVERIFY(!r.ok());   // (a token cut short)
         r = xlsFormulaText(context(), tRefN(0, -2), QByteArray(), name);
         QCOMPARE(r.text, QStringLiteral("XFC1"));
-        // Excel 5 counts rows in 14 bits
+        // BIFF5 counts rows in 14 bits
         XlsFormulaOptions five;
         five.relative = true;
         five.baseRow = 3;
