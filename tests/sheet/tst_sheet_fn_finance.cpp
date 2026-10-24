@@ -230,6 +230,17 @@ private Q_SLOTS:
         CHECK_EVALS(cases, Grid(), Settings());
     }
 
+    // FV in the same order (a model of the practice set stored 1023073.5273362342 where the widest type gave 1023073.5273362491).
+    void aFutureValueIsWorkedOutInTheOrderOfTheFiles()
+    {
+        const E cases[] = {
+            {"-FV(0.095/12,12,,(14200000+-160000)-3731703.4625126394)-(14200000+-160000-3731703.4625126394)", "n:1023073.52733623"},
+            {"FV(0,10,-100,-50)", "n:1050"},
+            {"ROUND(FV(0.06/12,10,-200,-500,1),2)", "n:2581.4"},
+        };
+        CHECK_EVALS(cases, Grid(), Settings());
+    }
+
     void presentValuesAndDepreciation()
     {
         Grid g;

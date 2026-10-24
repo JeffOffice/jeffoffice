@@ -47,7 +47,10 @@ Value fnFv(Call &c)
 {
     double rate, n, pmt, pv, type;
     if (!c.number(0, &rate) || !c.number(1, &n) || !c.number(2, &pmt) || !c.numberOr(3, 0, &pv) || !c.numberOr(4, 0, &type)) return c.failure();
-    return numberResult(double(futureValue(rate, n, pmt, pv, type != 0 ? 1 : 0)));
+    type = type != 0 ? 1 : 0;
+    if (rate == 0) return numberResult(-(pv + pmt * n));
+    const double g = powerOf(1 + rate, n);
+    return numberResult(-(pv * g + pmt * (1 + rate * type) * ((g - 1) / rate)));
 }
 
 Value fnPv(Call &c)
