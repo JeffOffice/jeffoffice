@@ -32,6 +32,35 @@ QByteArray drawingBook()
                            {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), series)), imageTarget(QStringLiteral("rIdP"), 1, pngBytes(8, 4, Qt::red))});
 }
 
+// A PNG that says it is 100,000 by 100,000 pixels and holds no pixels (only its header and its end).
+QByteArray hugePng()
+{
+    auto crc = [](const QByteArray &data) {
+        quint32 c = 0xFFFFFFFFu;
+        for (const char ch : data) {
+            c ^= quint8(ch);
+            for (int k = 0; k < 8; ++k) c = (c >> 1) ^ (0xEDB88320u & (0u - (c & 1u)));
+        }
+        return c ^ 0xFFFFFFFFu;
+    };
+    auto be32 = [](quint32 v) {
+        QByteArray b;
+        for (int shift = 24; shift >= 0; shift -= 8) b.append(char((v >> shift) & 0xFF));
+        return b;
+    };
+    auto chunk = [&](const char *type, const QByteArray &body) {
+        const QByteArray typed = QByteArray(type) + body;
+        return be32(quint32(body.size())) + typed + be32(crc(typed));
+    };
+    QByteArray ihdr = be32(100000) + be32(100000);
+    ihdr.append(char(8));
+    ihdr.append(char(2));
+    ihdr.append(char(0));
+    ihdr.append(char(0));
+    ihdr.append(char(0));
+    return QByteArray("\x89PNG\r\n\x1a\n", 8) + chunk("IHDR", ihdr) + chunk("IEND", QByteArray());
+}
+
 } // namespace
 
 class CrunchDrawingTests : public QObject {
@@ -260,6 +289,64 @@ private Q_SLOTS:
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 4);
+    }
+
+    // Hostile drawings: more anchors than may be read, groups nested past the limit, a picture that says it has ten billion pixels, a chart of many series that read whole columns, and
+    // objects at the far corner of the sheet. The window opens each, makes what it can, and the work of a paint stays what the layer bounds it to.
+    void hostileDrawingsAreBounded()
+    {
+        {
+            QString many;
+            for (int i = 0; i < jp::office::sheet::kMaxDrawingAnchors + 2000; ++i) many += twoCell(i % 40, i % 300, i % 40 + 1, i % 300 + 1, shapeElement(2 + i, QStringLiteral("S")));
+            EditWindow e;
+            QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(many), {})));
+            QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0 && e.win.w.objects()->layer()->count() > 0);
+            crunch::SheetObjects *o = e.win.w.objects();
+            const crunch::DrawingCounts c = o->counts(0);
+            QCOMPARE(c.anchors, jp::office::sheet::kMaxDrawingAnchors + 2000);
+            QVERIFY(c.truncated);
+            QCOMPARE(c.shapes, jp::office::sheet::kMaxDrawingAnchors);
+            QVERIFY(!c.why.isEmpty());
+            const qint64 renders = o->layer()->stats().renders;
+            shot(e);   // (a paint of the window: at most what the layer lets one make, in each of its parts)
+            QVERIFY2(o->layer()->stats().renders - renders <= 4 * jp::grid::ObjectLayer::kMaxRendersPerPaint * 2, qPrintable(QString::number(o->layer()->stats().renders - renders)));
+        }
+        {
+            QString nest = shapeElement(9, QStringLiteral("Core"));
+            for (int i = 0; i < 120; ++i) nest = groupElement(10 + i, nest);
+            EditWindow e;
+            QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(twoCell(1, 1, 5, 5, nest)), {})));
+            QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+            const crunch::DrawingCounts c = e.win.w.objects()->counts(0);
+            QCOMPARE(c.groups, 1);
+            QVERIFY(c.shown + c.leftOut == 1);   // (drawn, or left out in words: no crash, no loop)
+            e.win.w.objects()->layer()->prepareAll();
+            shot(e);
+        }
+        {
+            EditWindow e;
+            const QString anchors = twoCell(1, 1, 5, 5, pictureElement(2, QStringLiteral("rIdP"))) + twoCell(7, 1, 9, 3, shapeElement(3, QStringLiteral("Box")));
+            QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {drawtest::DrawingTarget{QStringLiteral("rIdP"), QStringLiteral("xl/media/image1.png"), hugePng(), QStringLiteral("image/png"), QStringLiteral("image")}})));
+            QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+            e.win.w.objects()->layer()->prepareAll();
+            shot(e);   // (the picture is not decoded: nothing of its size is made)
+            QVERIFY(e.win.w.objects()->counts(0).pictures == 1);
+        }
+        {
+            // thirty series that read whole columns of a sheet that holds a few cells, and objects at the far corner
+            QVector<SeriesSpec> series;
+            for (int i = 0; i < 30; ++i) series.push_back(SeriesSpec{QString(), QStringLiteral("Sheet1!$A:$A"), QStringLiteral("Sheet1!$B:$B"), QStringLiteral("S"), {"a"}, {1}, QString()});
+            const QString anchors = twoCell(0, 5, 10, 15, chartFrame(2, QStringLiteral("rIdC"))) + twoCell(16383, 1048575, 16383, 1048575, shapeElement(3, QStringLiteral("Corner")), QString(), 9525 * 900, 9525 * 900, 9525 * 900, 9525 * 900)
+                                    + twoCell(99999999, 2000000000, 2147483647, 2147483647, shapeElement(4, QStringLiteral("Far")));
+            EditWindow e;
+            QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("lineChart"), series))})));
+            QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+            e.win.w.objects()->layer()->prepareAll();
+            shot(e);
+            const jp::office::Chart c = e.win.w.objects()->chartNow(0, 0);
+            QCOMPARE(int(c.plots[0].series.size()), 30);
+            QCOMPARE(int(c.plots[0].series[0].values.size()), 4);   // (the column read as far as the sheet's cells go)
+        }
     }
 };
 
