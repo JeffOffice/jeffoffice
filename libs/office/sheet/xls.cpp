@@ -1572,7 +1572,7 @@ private:
                 range.col1 = std::min(c1, c2);
                 range.col2 = std::max(c1, c2);
                 range.valid = true;
-                m_s.merges.append(range);
+                if (range.cellCount() >= 2) m_s.merges.append(range);   // (a range of one cell merges nothing; it is counted, as the XML form's reader counts it)
             }
             return true;
         }

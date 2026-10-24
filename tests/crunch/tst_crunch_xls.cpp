@@ -357,6 +357,12 @@ private Q_SLOTS:
         QVERIFY(o.originalIsUntouched());
         QCOMPARE(o.told.size(), 2);   // (the explanation, then that the name is the file's own)
         QVERIFY2(o.told.last().contains(QLatin1String("opened from")), qPrintable(o.told.last()));
+        // (and asked for outright, with that name, it is refused all the same)
+        QVERIFY(!o.win.w.saveAs(o.path));
+        QCOMPARE(saved.count(), 0);
+        QVERIFY(o.originalIsUntouched());
+        QCOMPARE(o.told.size(), 3);
+        QVERIFY2(o.told.last().contains(QLatin1String("opened from")), qPrintable(o.told.last()));
         o.answer = o.folder.dir.filePath(QStringLiteral("elsewhere.xlsx"));
         QVERIFY(o.win.w.save());
         QVERIFY(saved.wait(20000));

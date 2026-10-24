@@ -22,6 +22,9 @@ QString withWorkbookEnding(const QString &chosen);
 // not changed; and, if the file has parts this program does not read (charts, macros, ...), that they will not be in the copy.
 QString saveAsExplanation(const QString &fileName, const QStringList &notRead = QStringList());
 
+// What the person is told when the name given for the copy is the file the workbook was read from, which is never written to.
+QString originalNotWrittenNotice(const QString &fileName);
+
 // What the person is told when a workbook is opened that has parts JeffCrunch does not read yet (charts, pictures, ...); empty if there are none.
 QString notReadNotice(const QStringList &notRead);
 

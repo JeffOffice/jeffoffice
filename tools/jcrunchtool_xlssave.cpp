@@ -11,6 +11,9 @@
 #include "sheet/xlsxsave.h"
 
 #include <QElapsedTimer>
+#include <QHash>
+#include <QMap>
+#include <QSet>
 #include <QTextStream>
 
 #include <cmath>
@@ -48,7 +51,10 @@ void compareSheets(const Workbook &a, const Sheet &x, const Workbook &b, const S
             d->add(QStringLiteral("a cell is missing"));
             return;
         }
-        if (c.type != e->type) d->add(QStringLiteral("cell type"));
+        if (c.type != e->type) {
+            d->add(QStringLiteral("cell type"));
+            if (qEnvironmentVariableIsSet("XLS_SAVE_CHECK_VERBOSE")) QTextStream(stderr) << "cell " << cellName(c.row, c.col) << " type " << int(c.type) << " number " << c.number << " vs type " << int(e->type) << " number " << e->number << "\n";
+        }
         else if (c.type == CellType::SharedString || c.type == CellType::InlineString || c.type == CellType::FormulaString) {
             if (x.text(c, a.sharedStrings()) != y.text(*e, b.sharedStrings())) d->add(QStringLiteral("cell text"));
         } else if (!sameNumber(c.number, e->number)) {
@@ -59,16 +65,31 @@ void compareSheets(const Workbook &a, const Sheet &x, const Workbook &b, const S
         if ((c.flags & kept) != (e->flags & kept)) d->add(QStringLiteral("formula kind"));
         else if (c.hasFormula() && x.formulaText(c) != y.formulaText(*e)) d->add(QStringLiteral("formula text"));
     });
-    if (x.merges.size() != y.merges.size()) d->add(QStringLiteral("merges"));
+    if (x.merges.size() != y.merges.size()) {
+        d->add(QStringLiteral("merges"));
+        if (qEnvironmentVariableIsSet("XLS_SAVE_CHECK_VERBOSE")) QTextStream(stderr) << "merges " << x.merges.size() << " (" << x.mergeCount << ") vs " << y.merges.size() << " (" << y.mergeCount << ")\n";
+    }
     if (x.columns.size() != y.columns.size()) d->add(QStringLiteral("columns"));
-    // (a row that only says its height is the sheet's own, which the XML form does not say, is no row of its own there)
-    auto own = [](const Sheet &sh) {
-        qint64 n = 0;
-        for (const RowSpec &r : sh.rowSpecs)
-            if (r.hidden || r.customFormat || sh.format.zeroHeight || (r.height >= 0 && std::abs(r.height - sh.format.defaultRowHeight) > 0.001)) ++n;
-        return n;
+    // the rows as they look: hidden or not (a sheet can hide the rows it does not list), how tall, and the format their empty cells have
+    QHash<quint32, RowSpec> sx, sy;
+    for (const RowSpec &r : x.rowSpecs) sx.insert(r.row, r);
+    for (const RowSpec &r : y.rowSpecs) sy.insert(r.row, r);
+    QSet<quint32> rows;
+    for (auto it = sx.cbegin(); it != sx.cend(); ++it) rows.insert(it.key());
+    for (auto it = sy.cbegin(); it != sy.cend(); ++it) rows.insert(it.key());
+    x.cells.forEach([&](const Cell &c) { rows.insert(c.row); });
+    auto look = [](const Sheet &sh, const QHash<quint32, RowSpec> &specs, quint32 row) {
+        const auto it = specs.constFind(row);
+        if (it == specs.cend()) return QStringLiteral("%1/%2/0/0").arg(sh.format.zeroHeight).arg(sh.format.defaultRowHeight);
+        const RowSpec &r = *it;
+        return QStringLiteral("%1/%2/%3/%4").arg(r.hidden).arg(r.height >= 0 ? r.height : sh.format.defaultRowHeight).arg(r.customFormat).arg(r.customFormat ? r.style : 0);
     };
-    if (own(x) != own(y)) d->add(QStringLiteral("rows"));
+    for (const quint32 row : rows)
+        if (look(x, sx, row) != look(y, sy, row)) {
+            d->add(QStringLiteral("rows"));
+            if (qEnvironmentVariableIsSet("XLS_SAVE_CHECK_VERBOSE")) QTextStream(stderr) << "row " << row + 1 << ": " << look(x, sx, row) << " vs " << look(y, sy, row) << "\n";
+            break;
+        }
     if (x.view.frozen != y.view.frozen || x.view.frozenRows != y.view.frozenRows || x.view.frozenCols != y.view.frozenCols || x.view.zoom != y.view.zoom) d->add(QStringLiteral("view"));
     if (x.isProtected != y.isProtected) d->add(QStringLiteral("protection"));
 }
@@ -109,9 +130,13 @@ int xlsSaveCheckMain(const QStringList &args)
     if (ia.sheets.size() != ib.sheets.size()) diffs.add(QStringLiteral("sheet count"));
     if (ia.definedNames.size() != ib.definedNames.size()) diffs.add(QStringLiteral("names"));
     if (book.sharedStrings().strings != back.sharedStrings().strings) diffs.add(QStringLiteral("shared strings"));
-    if (book.styles().formats.size() != back.styles().formats.size()) diffs.add(QStringLiteral("cell formats"));
+    // (a workbook with no cell formats at all is written with the one every file has)
+    if (book.styles().formats.size() != back.styles().formats.size() && !book.styles().formats.isEmpty()) diffs.add(QStringLiteral("cell formats"));
     for (auto it = book.styles().numFmts.constBegin(); it != book.styles().numFmts.constEnd(); ++it)
-        if (back.styles().numFmts.value(it.key()) != it.value()) diffs.add(QStringLiteral("number formats"));
+        if (back.styles().numFmts.value(it.key()) != it.value()) {
+            diffs.add(QStringLiteral("number formats"));
+            if (qEnvironmentVariableIsSet("XLS_SAVE_CHECK_VERBOSE")) QTextStream(stderr) << "format " << it.key() << ": '" << it.value() << "' vs '" << back.styles().numFmts.value(it.key()) << "'\n";
+        }
     qint64 cells = 0;
     int firstSheetWithCell = -1;
     quint32 changeRow = 0, changeCol = 0;

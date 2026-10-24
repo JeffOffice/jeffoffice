@@ -28,7 +28,7 @@ QString CrunchWindow::pathToSave()
     // (whatever was answered, it ends as a workbook of the new form does, and it is not the file the workbook was read from)
     const QString path = crunch::withWorkbookEnding(chosen);
     if (QFileInfo(path).absoluteFilePath() == QFileInfo(m_path).absoluteFilePath() || QFileInfo(chosen).absoluteFilePath() == QFileInfo(m_path).absoluteFilePath()) {
-        notice(tr("Save"), tr("\"%1\" is the file this workbook was opened from, and it is not written to. Give the copy another name.").arg(QFileInfo(m_path).fileName()));
+        notice(tr("Save"), crunch::originalNotWrittenNotice(QFileInfo(m_path).fileName()));
         return QString();
     }
     return path;

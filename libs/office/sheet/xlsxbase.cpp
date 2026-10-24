@@ -36,7 +36,15 @@ const char kRelNs[] = "http://schemas.openxmlformats.org/officeDocument/2006/rel
 QByteArray num(qint64 v) { return QByteArray::number(v); }
 QByteArray real(double v) { return QByteArray::number(v, 'g', QLocale::FloatingPointShortest); }
 QByteArray attr(const char *name, const QByteArray &value) { return QByteArray(" ") + name + "=\"" + value + "\""; }
-QByteArray attrText(const char *name, const QString &value) { return attr(name, escapeAttribute(value)); }
+// An attribute's text: a tab or a line break in it is a character reference (a reader takes the raw ones for spaces).
+QByteArray attributeValue(const QString &value)
+{
+    QByteArray v = escapeAttribute(value);
+    v.replace('\t', "&#9;");
+    v.replace('\n', "&#10;");
+    return v;
+}
+QByteArray attrText(const char *name, const QString &value) { return attr(name, attributeValue(value)); }
 
 // ---- colors, fonts, fills, borders
 
@@ -73,7 +81,7 @@ QByteArray fontElement(const FontSpec &f)
     else if (f.vertAlign == 2) e += "<vertAlign val=\"subscript\"/>";
     e += "<sz val=\"" + real(f.size) + "\"/>";
     e += colorElement("color", f.color);
-    e += "<name val=\"" + escapeAttribute(f.name.isEmpty() ? QStringLiteral("Arial") : f.name) + "\"/>";
+    e += "<name val=\"" + attributeValue(f.name.isEmpty() ? QStringLiteral("Arial") : f.name) + "\"/>";
     return e + "</font>";
 }
 
@@ -422,6 +430,8 @@ private:
     void openRow(quint32 row, const RowSpec *spec)
     {
         QByteArray r = "<row" + attr("r", num(qint64(row) + 1));
+        // (a sheet that hides the rows it does not list: a row with cells and no row of its own is one of those, and says so)
+        if (!spec && m_sheet.format.zeroHeight) r += attr("hidden", "1");
         if (spec) {
             if (spec->style) r += attr("s", num(spec->style));
             if (spec->customFormat) r += attr("customFormat", "1");
@@ -480,7 +490,14 @@ private:
         QByteArray v;
         switch (c.type) {
         case CellType::Number:
-        case CellType::Date: v = "<v>" + real(c.number) + "</v>"; break;
+        case CellType::Date:
+            if (std::isfinite(c.number)) {
+                v = "<v>" + real(c.number) + "</v>";
+            } else {   // (the XML form has no such number)
+                e += attr("t", "e");
+                v = "<v>#NUM!</v>";
+            }
+            break;
         case CellType::Bool: e += attr("t", "b"); v = c.number != 0 ? "<v>1</v>" : "<v>0</v>"; break;
         case CellType::Error: e += attr("t", "e"); v = "<v>" + escapeText(errorText(CellError(quint8(c.number)))) + "</v>"; break;
         case CellType::SharedString:

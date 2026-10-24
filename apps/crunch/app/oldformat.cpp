@@ -42,6 +42,11 @@ QString saveAsExplanation(const QString &fileName, const QStringList &notRead)
     return text;
 }
 
+QString originalNotWrittenNotice(const QString &fileName)
+{
+    return tr("\"%1\" is the file this workbook was opened from, and it is not written to. Give the copy another name.").arg(fileName);
+}
+
 QString notReadNotice(const QStringList &notRead)
 {
     if (notRead.isEmpty()) return QString();

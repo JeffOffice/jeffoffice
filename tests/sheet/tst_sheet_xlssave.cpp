@@ -8,6 +8,7 @@
 #include <QSet>
 
 #include <atomic>
+#include <limits>
 
 namespace {
 
@@ -20,6 +21,7 @@ Book richBook()
     for (int i = 0; i < 5; ++i) b.globals(font(QStringLiteral("Arial"), 10));
     b.globals(font(QStringLiteral("Courier New"), 12.5, 700, true, true, 2, 10, 1));
     b.globals(format(164, QStringLiteral("0.000")) + format(165, QStringLiteral("#,##0 \"units\"")));
+    b.globals(format(166, QStringLiteral("0.0\t\"a\nb\"")));   // (a format with a tab and a line break in it, which an attribute keeps only as character references)
     XfSpec first;
     first.style = true;
     first.format = 9;
@@ -82,6 +84,8 @@ Book richBook()
     b.sheet(QStringLiteral("Data & <more>"), cells);
     b.sheet(QStringLiteral("Second"), number(0, 0, 7) + protect(true));
     b.sheet(QStringLiteral("Hidden"), number(0, 0, 9), 1);
+    // a sheet whose rows are hidden unless it lists them: the first and third have cells and no row of their own, so they stay hidden
+    b.sheet(QStringLiteral("Zero"), defaultRowHeight(0x02, 255) + rowRec(1, 300, 0x40) + number(0, 0, 1) + number(1, 0, 2) + number(2, 0, 3));
     return b;
 }
 
@@ -125,13 +129,20 @@ QString differences(const Workbook &a, const Sheet &x, const Workbook &b, const 
             if (p.first != q.first || p.last != q.last || p.hidden != q.hidden || p.style != q.style || std::abs(p.width - q.width) > 1e-6 || p.customWidth != q.customWidth)
                 out << QStringLiteral("column %1").arg(i);
         }
-    if (x.rowSpecs.size() != y.rowSpecs.size()) out << QStringLiteral("rows %1 vs %2").arg(x.rowSpecs.size()).arg(y.rowSpecs.size());
-    else
-        for (int i = 0; i < x.rowSpecs.size(); ++i) {
-            const RowSpec &p = x.rowSpecs[i], &q = y.rowSpecs[i];
-            if (p.row != q.row || p.hidden != q.hidden || p.style != q.style || p.customFormat != q.customFormat || std::abs(p.height - q.height) > 1e-6 || p.customHeight != q.customHeight)
-                out << QStringLiteral("row %1").arg(i);
-        }
+    // the rows as they look: hidden or not, how tall, and the format their empty cells have (a sheet can hide the rows it does not list, so a row with no spec of its own is not the same
+    // as one with a spec that says the defaults)
+    QSet<quint32> rows;
+    x.cells.forEach([&](const Cell &c) { rows.insert(c.row); });
+    y.cells.forEach([&](const Cell &c) { rows.insert(c.row); });
+    for (const RowSpec &r : x.rowSpecs) rows.insert(r.row);
+    for (const RowSpec &r : y.rowSpecs) rows.insert(r.row);
+    auto look = [](const Sheet &sh, quint32 row) {
+        for (const RowSpec &r : sh.rowSpecs)
+            if (r.row == row) return QStringLiteral("%1/%2/%3/%4").arg(r.hidden).arg(r.height >= 0 ? r.height : sh.format.defaultRowHeight).arg(r.customFormat).arg(r.customFormat ? r.style : 0);
+        return QStringLiteral("%1/%2/0/0").arg(sh.format.zeroHeight).arg(sh.format.defaultRowHeight);
+    };
+    for (const quint32 row : rows)
+        if (look(x, row) != look(y, row)) out << QStringLiteral("row %1: %2 vs %3").arg(row).arg(look(x, row), look(y, row));
     if (x.format.baseColWidth != y.format.baseColWidth || std::abs(x.format.defaultRowHeight - y.format.defaultRowHeight) > 1e-6) out << QStringLiteral("sheet format");
     const SheetView &v = x.view, &w = y.view;
     if (v.frozen != w.frozen || v.frozenRows != w.frozenRows || v.frozenCols != w.frozenCols || v.paneRow != w.paneRow || v.paneCol != w.paneCol || v.topRow != w.topRow || v.leftCol != w.leftCol
@@ -227,6 +238,16 @@ private Q_SLOTS:
         QVERIFY(first.cells.find(6, 2) && (first.cells.find(6, 2)->flags & ArrayFormula));
         QVERIFY(first.cells.find(9, 1) && (first.cells.find(9, 1)->flags & DataTable));
         QVERIFY(first.mergeCount == 1);
+        // the sheet that hides the rows it does not list: the rows it did not list are hidden in the file written, and the one it listed is not
+        Sheet zero;
+        QVERIFY(back.readSheet(3, &zero));
+        QVERIFY(zero.format.zeroHeight);
+        auto hidden = [&](quint32 row) {
+            for (const RowSpec &r : zero.rowSpecs)
+                if (r.row == row) return r.hidden;
+            return zero.format.zeroHeight;
+        };
+        QVERIFY(hidden(0) && !hidden(1) && hidden(2));
     }
 
     // The parts the writer made are the parts the workbook names, so that the changes of the window find them.
@@ -374,6 +395,31 @@ private Q_SLOTS:
         Workbook back;
         QVERIFY2(back.open(pkg, &why), qPrintable(why));
         QCOMPARE(back.info().sheets.size(), 1);
+    }
+
+    // A number that is not one (the file's bytes can spell it) is written as an error: the XML form has no such number.
+    void aNumberThatIsNotANumberIsWrittenAsAnError()
+    {
+        Book b;
+        b.sheet(QStringLiteral("S"), number(0, 0, std::numeric_limits<double>::quiet_NaN()) + number(0, 1, std::numeric_limits<double>::infinity())
+                    + number(0, 2, -std::numeric_limits<double>::infinity()) + number(0, 3, 2.5));
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        QByteArray bytes;
+        QVERIFY2(saveXlsx(wb, SaveChanges(), &bytes, &why), qPrintable(why));
+        Package pkg;
+        QVERIFY2(pkg.readLazy(bytes, &why), qPrintable(why));
+        QVERIFY(!pkg.part(QStringLiteral("/xl/worksheets/sheet1.xml")).contains("nan"));
+        QVERIFY(!pkg.part(QStringLiteral("/xl/worksheets/sheet1.xml")).contains("inf"));
+        Workbook back;
+        QVERIFY2(back.open(pkg, &why), qPrintable(why));
+        Sheet s;
+        QVERIFY(back.readSheet(0, &s));
+        QCOMPARE(show(s, back.sharedStrings(), QStringLiteral("A1")), QStringLiteral("e:#NUM!"));
+        QCOMPARE(show(s, back.sharedStrings(), QStringLiteral("B1")), QStringLiteral("e:#NUM!"));
+        QCOMPARE(show(s, back.sharedStrings(), QStringLiteral("C1")), QStringLiteral("e:#NUM!"));
+        QCOMPARE(show(s, back.sharedStrings(), QStringLiteral("D1")), QStringLiteral("n:2.5"));
     }
 
     // Text that XML cannot hold as it is (control characters, a lone surrogate) and text that looks like the escape the format uses are written so that they read back as they were.
