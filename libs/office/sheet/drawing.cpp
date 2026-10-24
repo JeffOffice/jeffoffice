@@ -171,13 +171,24 @@ QString drawingPartOf(const Package &package, const QString &sheetPart)
     return QString();
 }
 
-bool readDrawing(const Package &package, const QString &drawingPart, SheetDrawing *out, QString *error)
+std::shared_ptr<QDomDocument> parseDrawing(const QByteArray &xml, QString *error)
+{
+    auto doc = std::make_shared<QDomDocument>();
+    QString why;
+    if (!parseXml(xml, doc.get(), &why)) {
+        if (error) *error = why.isEmpty() ? QStringLiteral("the drawing is not XML") : why;
+        return nullptr;
+    }
+    return doc;
+}
+
+bool readDrawing(const Package &package, const QString &drawingPart, SheetDrawing *out, QString *error, const std::shared_ptr<QDomDocument> &parsed)
 {
     *out = SheetDrawing();
     out->part = drawingPart;
-    auto doc = std::make_shared<QDomDocument>();
     QString why;
-    if (!parseXml(package.part(drawingPart), doc.get(), &why)) {
+    std::shared_ptr<QDomDocument> doc = parsed ? parsed : parseDrawing(package.part(drawingPart), &why);
+    if (!doc) {
         if (error) *error = why.isEmpty() ? QStringLiteral("the drawing is not XML") : why;
         out->problem = why;
         return false;

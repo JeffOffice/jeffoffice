@@ -11,6 +11,7 @@
 #include "office/xml.h"
 
 #include <QProcess>
+#include <QThreadPool>
 #include <QStandardPaths>
 
 using namespace crunchtest;
@@ -167,6 +168,7 @@ private Q_SLOTS:
         QCOMPARE(c.connectors, 1);
         QCOMPARE(c.shown, 5);
         QCOMPARE(c.leftOut, 0);
+        QCOMPARE(o->drawingsParsedApart(), 0);   // (a small drawing is read where it is)
         o->layer()->prepareAll();
         const QImage img = shot(e);
         // the picture: red where the anchor puts it (A7 to B9, rows 6 to 8), the shape blue (A11 to B12)
@@ -379,6 +381,7 @@ private Q_SLOTS:
             crunch::SheetObjects *o = e.win.w.objects();
             // the sheet is listed, and an object is made when a picture of it is wanted: not the ten thousand, but those on and near the screen
             QCOMPARE(o->layer()->count(), jp::office::sheet::kMaxDrawingAnchors);
+            QCOMPARE(o->drawingsParsedApart(), 1);   // (a drawing of megabytes is parsed on a worker: the window's thread only reads what the parser made)
             QTRY_VERIFY(!o->layer()->busy());
             QVERIFY2(o->objectsMade() < jp::office::sheet::kMaxDrawingAnchors / 2, qPrintable(QString::number(o->objectsMade())));
             const qint64 renders = o->layer()->stats().renders;
@@ -734,6 +737,45 @@ private Q_SLOTS:
         const QImage img(png);
         QVERIFY(!img.isNull());
         QVERIFY(img.width() >= 700 && img.height() >= 500);
+    }
+
+    // A drawing that is parsed on a worker, and asked about before it is done (the sheet's counts want it now): it is listed there and then, the worker's answer is let go, and the
+    // objects still come into the layer when the answer arrives (they were wanted on the screen).
+    void aDrawingBeingParsedIsListedWhenAskedAndStillShown()
+    {
+        QString many;
+        const int n = 3000;
+        for (int i = 0; i < n; ++i) many += twoCell(i % 40, i % 300, i % 40 + 1, i % 300 + 1, shapeElement(2 + i, QStringLiteral("S"), QStringLiteral("rect"), QStringLiteral("some words to make it larger than a few bytes")));
+        const QByteArray bytes = bookWithDrawing({dataSheet()}, drawingPart(many), {});
+        Folder folder;
+        auto book = std::make_shared<office::sheet::Workbook>();
+        QString why;
+        QVERIFY2(book->openFile(folder.write(QStringLiteral("many.xlsx"), bytes), &why), qPrintable(why));
+        crunch::SheetObjects objects;
+        objects.open(book);
+        objects.show(0);   // (the parsing is given to a worker; the layer is empty and the sheet is the one shown)
+        QCOMPARE(objects.shownSheet(), 0);
+        QCOMPARE(objects.layer()->count(), 0);
+        QVERIFY(!objects.listed(0));
+        const crunch::DrawingCounts c = objects.counts(0);   // (wants the drawing now: listed here, with the events not yet run)
+        QCOMPARE(c.shapes, n);
+        QVERIFY(objects.listed(0));
+        QCOMPARE(objects.drawingsParsedApart(), 0);
+        QTRY_COMPARE(objects.layer()->count(), n);   // (the worker's answer is let go, and the objects come in)
+        QCOMPARE(objects.drawingsParsedApart(), 0);
+        // and a workbook opened again meanwhile is not given the answer of the one before (this one has fewer shapes, and is waited for as well)
+        QString fewer;
+        for (int i = 0; i < 2000; ++i) fewer += twoCell(i % 40, i % 300, i % 40 + 1, i % 300 + 1, shapeElement(2 + i, QStringLiteral("S"), QStringLiteral("rect"), QStringLiteral("some words to make it larger than a few bytes")));
+        crunch::SheetObjects second;
+        second.open(book);
+        second.show(0);
+        auto other = std::make_shared<office::sheet::Workbook>();
+        QVERIFY2(other->openFile(folder.write(QStringLiteral("other.xlsx"), bookWithDrawing({dataSheet()}, drawingPart(fewer), {})), &why), qPrintable(why));
+        second.open(other);
+        second.show(0);
+        QThreadPool::globalInstance()->waitForDone();   // (the worker has parsed both drawings, and posted its answers: the first is for the workbook before)
+        QTRY_COMPARE(second.layer()->count(), 2000);
+        QCOMPARE(second.drawingsParsedApart(), 1);
     }
 
     // A read that is told to have failed after the first screen was shown (the loader says so only before it, today, but the window must not depend on that) leaves no object over the

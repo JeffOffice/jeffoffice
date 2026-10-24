@@ -63,8 +63,11 @@ public:
     void setEditsSource(EditsSource edits) { m_edits = std::move(edits); }
 
     jp::grid::ObjectLayer *layer() { return &m_layer; }
-    // Puts the sheet's objects in the layer (listing the sheet's drawing if that has not been done); the objects are made as their pictures are wanted.
+    // Puts the sheet's objects in the layer (listing the sheet's drawing if that has not been done); the objects are made as their pictures are wanted. A drawing of more than
+    // kParseApartBytes is parsed on a worker thread (a drawing of ten thousand shapes takes the better part of a second to parse): the layer has no objects until then, and `shownSheet`
+    // is the sheet already.
     void show(int sheet);
+    static constexpr qint64 kParseApartBytes = 256 * 1024;
     int shownSheet() const { return m_shown; }
     // The rows and columns of the sheet in view are as the file has them, whole (the first rows were swapped for the sheet read whole): an object that keeps its size when cells are resized
     // (editAs "oneCell" or "absolute") is measured now, so that it keeps what the file gave it.
@@ -106,6 +109,8 @@ public:
     qint64 chartsDrawn() const { return m_chartsDrawn; }
     int objectsMade() const { return m_objectsMade; }
     int chartPartsRead() const { return m_chartPartsRead; }
+    // How many drawings were parsed on a worker thread (see show).
+    int drawingsParsedApart() const { return m_parsedApart; }
     // How many edits of rows and columns have been worked into objects (one for each object and edit; an Undo works the edits since the file's again, for each object).
     qint64 editSteps() const { return m_editSteps; }
     // Whether the sheet's drawing has been read (listed), and how many pictures the drawing code left out for their size or kept (what it holds of them is the file's bytes, never decoded here).
@@ -139,6 +144,9 @@ private:
     };
     struct Sheet {
         bool listed = false;
+        bool parsing = false;                          // its drawing part is being parsed on a worker
+        bool showPending = false;                      // and the sheet is to be shown when it is
+        std::shared_ptr<QDomDocument> parsedDoc;       // what the worker made, until the drawing is listed
         bool chartSheet = false;
         QString drawingPart;
         jp::office::sheet::SheetDrawing drawing;
@@ -150,6 +158,11 @@ private:
     };
     Sheet &sheetState(int sheet);
     void list(int sheet, Sheet &s);
+    // The sheet's objects into the layer, its drawing listed.
+    void showNow(int sheet);
+    // A large drawing is parsed on a worker (true): `parsed` is told when it is.
+    bool parseApart(int sheet, Sheet &s);
+    void parsed(int sheet, quint64 generation, const std::shared_ptr<QDomDocument> &doc, const QString &why);
     void ensureBuilt(int sheet, Object &o);
     void readContext();
     std::function<QImage()> prepareChart(int sheet, Object &o, const jp::grid::RenderRequest &q);
@@ -185,6 +198,8 @@ private:
     int m_shown = -1;
     int m_objectsMade = 0;
     int m_chartPartsRead = 0;
+    int m_parsedApart = 0;
+    quint64 m_generation = 0;                                // of the workbook open (a worker's answer for another is let go)
     qint64 m_chartsDrawn = 0;
     qint64 m_editSteps = 0;
 };

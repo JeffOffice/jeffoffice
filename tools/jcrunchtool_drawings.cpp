@@ -287,9 +287,10 @@ int drawingsBench(int charts, int shapes)
     }
     const double loadMs = double(clock.nsecsElapsed()) / 1e6;
     crunch::SheetObjects *objects = w.objects();
-    while (objects->shownSheet() != 0) spinFor(5);
-    const double shownMs = double(clock.nsecsElapsed()) / 1e6;
     grid::ObjectLayer *layer = objects->layer();
+    // (a large drawing is parsed on a worker: its objects are in the layer when it is done)
+    while ((objects->shownSheet() != 0 || layer->count() == 0) && clock.nsecsElapsed() < qint64(60) * 1000000000) spinFor(5);
+    const double shownMs = double(clock.nsecsElapsed()) / 1e6;
     layer->prepareAll();
     const double madeMs = double(clock.nsecsElapsed()) / 1e6;
     out() << "  the workbook is read and calculated by " << QString::number(loadMs, 'f', 0) << " ms, its " << layer->count() << " objects are shown by " << QString::number(shownMs, 'f', 0) << " ms, the ones on the screen are made by "

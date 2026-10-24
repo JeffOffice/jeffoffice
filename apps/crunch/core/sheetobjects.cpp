@@ -4,8 +4,12 @@
 #include "office/theme.h"
 #include "office/xml.h"
 
+#include <QCoreApplication>
+#include <QMetaObject>
 #include <QPainter>
+#include <QPointer>
 #include <QSvgRenderer>
+#include <QThreadPool>
 
 #include <algorithm>
 #include <cmath>
@@ -110,6 +114,7 @@ SheetObjects::~SheetObjects()
 
 void SheetObjects::open(const std::shared_ptr<Workbook> &book)
 {
+    ++m_generation;
     m_layer.setObjects({});
     m_book = book;
     m_cells.reset();
@@ -209,7 +214,9 @@ void SheetObjects::list(int sheet, Sheet &s)
     s.drawingPart = drawingPartOf(m_book->package(), entry.part);
     if (s.drawingPart.isEmpty()) return;
     QString why;
-    if (!readDrawing(m_book->package(), s.drawingPart, &s.drawing, &why)) {
+    const std::shared_ptr<QDomDocument> parsedApart = std::move(s.parsedDoc);   // (what a worker made, if one did)
+    s.parsedDoc.reset();
+    if (!readDrawing(m_book->package(), s.drawingPart, &s.drawing, &why, parsedApart)) {
         s.counts.why << tr("a drawing that could not be read (%1)").arg(why);
         return;
     }
@@ -417,7 +424,59 @@ LayerObject SheetObjects::layerObject(int sheet, const std::shared_ptr<Object> &
     return l;
 }
 
+bool SheetObjects::parseApart(int sheet, Sheet &s)
+{
+    if (s.listed) return false;
+    if (s.parsing) return true;
+    const QString part = drawingPartOf(m_book->package(), m_book->info().sheets[sheet].part);
+    if (part.isEmpty() || m_book->package().partSize(part) <= kParseApartBytes) return false;
+    s.parsing = true;
+    const QByteArray bytes = m_book->package().part(part);   // (inflated here, where the package is used; the parsing, which is most of the time, needs no package)
+    const QPointer<SheetObjects> self(this);
+    const quint64 generation = m_generation;
+    QThreadPool::globalInstance()->start([self, sheet, generation, bytes] {
+        QString why;
+        const std::shared_ptr<QDomDocument> doc = parseDrawing(bytes, &why);
+        QMetaObject::invokeMethod(QCoreApplication::instance(), [self, sheet, generation, doc, why] {
+            if (self) self->parsed(sheet, generation, doc, why);
+        }, Qt::QueuedConnection);
+    });
+    return true;
+}
+
+void SheetObjects::parsed(int sheet, quint64 generation, const std::shared_ptr<QDomDocument> &doc, const QString &why)
+{
+    Q_UNUSED(why);   // (a drawing that could not be parsed is read again by list, which says why)
+    if (generation != m_generation || sheet < 0 || size_t(sheet) >= m_sheets.size()) return;
+    Sheet &s = m_sheets[size_t(sheet)];
+    if (!s.parsing) return;
+    s.parsing = false;
+    if (!s.listed) {
+        s.parsedDoc = doc;
+        if (doc) ++m_parsedApart;
+        list(sheet, s);
+    }
+    if (s.showPending && m_shown == sheet) showNow(sheet);
+    s.showPending = false;
+}
+
 void SheetObjects::show(int sheet)
+{
+    if (m_book && sheet >= 0 && size_t(sheet) < m_sheets.size()) {
+        Sheet &s = m_sheets[size_t(sheet)];
+        if (parseApart(sheet, s)) {
+            // (nothing of the sheet before is left over its rows: the objects come when the drawing is read)
+            s.showPending = true;
+            m_layer.setObjects({});
+            m_layer.setFillsView(false);
+            m_shown = sheet;
+            return;
+        }
+    }
+    showNow(sheet);
+}
+
+void SheetObjects::showNow(int sheet)
 {
     Sheet &s = sheetState(sheet);
     std::vector<LayerObject> objects;
@@ -435,6 +494,8 @@ void SheetObjects::show(int sheet)
 void SheetObjects::geometryKnown(int sheet)
 {
     if (sheet != m_shown || !m_applied.empty()) return;
+    // (a drawing that is being parsed has no objects yet: they are measured when it is listed and shown)
+    if (!m_book || sheet < 0 || size_t(sheet) >= m_sheets.size() || !m_sheets[size_t(sheet)].listed) return;
     Sheet &s = sheetState(sheet);
     for (const std::shared_ptr<Object> &o : s.objects) {
         if (o->frozen || o->anchor.kind != AnchorKind::TwoCell || o->meta.anchor.editAs == AnchorKind::TwoCell) continue;

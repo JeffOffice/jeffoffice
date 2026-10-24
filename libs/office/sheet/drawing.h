@@ -76,7 +76,12 @@ DrawingAnchor movedAnchor(const DrawingAnchor &anchor, int sheet, const std::vec
 // The name of a sheet's drawing part, by the sheet part's relationships; empty if the sheet has none (or the part is not in the package).
 QString drawingPartOf(const Package &package, const QString &sheetPart);
 
-// Reads the drawing part. False, with a message in `error`, if it is not a drawing (damaged XML, a DOCTYPE, or past the limits of xml.h); `out` is then empty.
-bool readDrawing(const Package &package, const QString &drawingPart, SheetDrawing *out, QString *error = nullptr);
+// Parses the bytes of a drawing part (the first half of readDrawing, which needs no package: it may be done on another thread, and the document given to readDrawing). Null, with a
+// message in `error`, if they are damaged XML, have a DOCTYPE, or are past the limits of xml.h.
+std::shared_ptr<QDomDocument> parseDrawing(const QByteArray &xml, QString *error = nullptr);
+
+// Reads the drawing part (from `parsed`, if the bytes were parsed already). False, with a message in `error`, if it is not a drawing (damaged XML, a DOCTYPE, or past the limits of xml.h);
+// `out` is then empty.
+bool readDrawing(const Package &package, const QString &drawingPart, SheetDrawing *out, QString *error = nullptr, const std::shared_ptr<QDomDocument> &parsed = nullptr);
 
 } // namespace jp::office::sheet
