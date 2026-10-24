@@ -3,6 +3,7 @@
 #include "xlshelpers.h"
 
 #include "sheet/calculation.h"
+#include "sheet/xlsxsave.h"
 
 #include <random>
 
@@ -30,7 +31,8 @@ Book fullBook()
 
 // Reads whatever there is, as a window would (opens, reads every sheet, asks for every formula and string, and works the formulas out), and checks what must hold of every file,
 // whatever is in it: it is refused with a reason, or opened with every count within its limit and every cell inside the old form's sheet, and a sheet that was not read whole says why.
-// Gives what does not hold, in words; empty if all does.
+// With `calculate`, the formulas are worked out, and a workbook that was read whole is saved as the window saves it: the file written is a package that reads back with the sheets and
+// cells the workbook has. Gives what does not hold, in words; empty if all does.
 QString useAll(const QByteArray &bytes, const Limits &limits = Limits(), bool calculate = true)
 {
     Workbook wb;
@@ -42,9 +44,13 @@ QString useAll(const QByteArray &bytes, const Limits &limits = Limits(), bool ca
     if (info.definedNames.size() > limits.definedNames) return QStringLiteral("more names than the limit");
     if (wb.sharedStrings().strings.size() > limits.sharedStrings || wb.sharedStrings().chars > limits.sharedStringChars) return QStringLiteral("more strings than the limit");
     if (wb.styles().fonts.size() > limits.fonts + 1 || wb.styles().formats.size() > limits.cellXfs || wb.styles().numFmts.size() > limits.numFmts) return QStringLiteral("more styles than the limit");
+    bool wholeBook = wb.sharedStringsError().isEmpty() && wb.stylesError().isEmpty();
+    QVector<qint64> cellCounts;
     for (int s = 0; s < info.sheets.size(); ++s) {
         Sheet sheet;
         const bool whole = wb.readSheet(s, &sheet);
+        wholeBook = wholeBook && whole;
+        cellCounts.append(sheet.cells.cellCount());
         if (whole != sheet.error.isEmpty()) return QStringLiteral("a sheet's error and its verdict disagree");
         if (sheet.cells.cellCount() > limits.cellsPerSheet) return QStringLiteral("more cells than the limit");
         if (sheet.mergeCount > limits.merges || sheet.columns.size() > limits.columnSpans || sheet.rowSpecs.size() > limits.rowSpecs) return QStringLiteral("more merges, columns, or rows than the limit");
@@ -59,6 +65,19 @@ QString useAll(const QByteArray &bytes, const Limits &limits = Limits(), bool ca
             (void)sheet.text(c, wb.sharedStrings());
         });
         if (!problem.isEmpty()) return problem;
+    }
+    if (calculate && wholeBook) {
+        QByteArray written;
+        QString saveWhy;
+        if (!saveXlsx(wb, SaveChanges(), &written, &saveWhy)) return QStringLiteral("a workbook read whole is not saved: ") + saveWhy;
+        Package pkg;
+        Workbook back;
+        if (!pkg.readLazy(written, &saveWhy) || !back.open(pkg, &saveWhy)) return QStringLiteral("the file written does not open: ") + saveWhy;
+        if (back.info().sheets.size() != info.sheets.size()) return QStringLiteral("the file written has other sheets");
+        for (int s = 0; s < info.sheets.size(); ++s) {
+            Sheet again;
+            if (!back.readSheet(s, &again) || again.cells.cellCount() != cellCounts[s]) return QStringLiteral("the file written has other cells in sheet %1").arg(s);
+        }
     }
     if (calculate) {
         jp::office::sheet::CalcOptions options;

@@ -1505,7 +1505,7 @@ private:
             if (b.bad()) return true;
             RowSpec spec;
             spec.row = row;
-            spec.height = (height & 0x7FFF) / 20.0;
+            spec.height = std::min((height & 0x7FFF) / 20.0, 409.5);   // (the XML form allows no more, and its reader keeps no more)
             spec.hidden = grbit & 0x20;
             spec.customHeight = grbit & 0x40;
             spec.customFormat = grbit & 0x80;

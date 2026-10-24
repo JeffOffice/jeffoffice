@@ -51,11 +51,12 @@ void compareSheets(const Workbook &a, const Sheet &x, const Workbook &b, const S
             d->add(QStringLiteral("a cell is missing"));
             return;
         }
-        if (c.type != e->type) {
+        if (c.type == CellType::Number && !std::isfinite(c.number) && e->type == CellType::Error) {
+            // (a number that is not one is written as an error)
+        } else if (c.type != e->type) {
             d->add(QStringLiteral("cell type"));
             if (qEnvironmentVariableIsSet("XLS_SAVE_CHECK_VERBOSE")) QTextStream(stderr) << "cell " << cellName(c.row, c.col) << " type " << int(c.type) << " number " << c.number << " vs type " << int(e->type) << " number " << e->number << "\n";
-        }
-        else if (c.type == CellType::SharedString || c.type == CellType::InlineString || c.type == CellType::FormulaString) {
+        } else if (c.type == CellType::SharedString || c.type == CellType::InlineString || c.type == CellType::FormulaString) {
             if (x.text(c, a.sharedStrings()) != y.text(*e, b.sharedStrings())) d->add(QStringLiteral("cell text"));
         } else if (!sameNumber(c.number, e->number)) {
             d->add(QStringLiteral("cell number"));

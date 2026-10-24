@@ -657,7 +657,7 @@ private Q_SLOTS:
     {
         QByteArray cells = dimensions(10, 5) + defColWidth(10) + defaultRowHeight(0, 255);
         cells += colinfo(1, 2, 3072, 0, 0x02) + colinfo(4, 4, 2560, 16, 0x01);
-        cells += rowRec(3, 400, 0x40) + rowRec(5, 255, 0x20) + rowRec(6, 255, 0x80, 17) + rowRec(8, 255, 0);
+        cells += rowRec(3, 400, 0x40) + rowRec(5, 255, 0x20) + rowRec(6, 255, 0x80, 17) + rowRec(8, 255, 0) + rowRec(9, 8192, 0x40);
         cells += number(0, 0, 1);
         cells += mergedCells({{0, 0, 0, 2}, {3, 5, 1, 1}, {8, 8, 2, 2}});   // (the last is one cell, which merges nothing)
         cells += window2(0x02 | 0x04 | 0x08 | 0x10 | 0x200, 2, 1) + pane(2, 3, 5, 4, 0) + scl(3, 2) + selection(3, 1, 1) + selection(0, 7, 8);
@@ -690,6 +690,7 @@ private Q_SLOTS:
         QVERIFY(row(5) && row(5)->hidden);
         QVERIFY(row(6) && row(6)->customFormat && row(6)->style == 17);
         QVERIFY(!row(8));   // a row as the default is no row of its own
+        QVERIFY(row(9) && row(9)->height == 409.5);   // (no row is taller than the XML form allows, 409.5 points; the old form could say a little more)
         QCOMPARE(s.mergeCount, qint64(3));
         QCOMPARE(s.merges.size(), 2);
         QCOMPARE(rangeName(s.merges[0]), QStringLiteral("A1:C1"));
