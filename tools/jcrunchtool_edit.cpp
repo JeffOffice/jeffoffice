@@ -8,9 +8,10 @@
 //                                           for the untouched save: parts, parts the same, cells the same (1 or 0), differences; for the edit: the cell, formulas that depend on it, formulas whose
 //                                           result changed, differences that are unexpected, parts not meant to change, of them the same, whether the cell is right, differences; and the
 //                                           milliseconds each took.
-//                                           (3) then an edit script on the same open workbook (a row inserted, a column inserted, a block pasted below the cells, a fill, a row deleted, a column
-//                                           deleted: those the workbook allows), saved and read back, and compared with the model the window has: every cell (what it holds, its format, and
-//                                           what it shows), the merged ranges, and the parts that were not meant to change; the fields after the edit's: the steps made and refused, the cells
+//                                           (3) then an edit script on the same open workbook (a row inserted, a column inserted, a block pasted below the cells, a fill, a block given a font, fill,
+//                                           alignment, number format, and borders, two cells merged, a row deleted, a column deleted, and a sheet added, renamed, moved, and colored: those the
+//                                           workbook allows), saved and read back, and compared with the model the window has: every cell (what it holds, its format by place and by how it
+//                                           looks, and what it shows), the merged ranges, and the parts that were not meant to change; the fields after the edit's: the steps made and refused, the cells
 //                                           compared and right, the differences, the parts not meant to change and the same, and the milliseconds.
 //   jcrunchtool roundtrip <keys.txt> <out-dir> [jobs]   runs roundtrip-one on each workbook listed, each in a child process that has 300 seconds and 6 GB, and writes <out-dir>/roundtrip.tsv; prints the
 //                                           summary (tools/crunch_roundtrip.py does the work)
@@ -280,9 +281,31 @@ struct ScriptResult {
     bool ran = false;
 };
 
-// The model the window has, made again from the bytes of the file saved: the cells are compared one by one.
-void compareModels(const Calculation *live, const Calculation *saved, ScriptResult *r)
+// Whether two cell formats (of two workbooks' styles) look the same: the font, fill, border, number format code, and the alignment and protection, wherever each is kept.
+bool sameLook(const Styles &a, quint32 xa, const Styles &b, quint32 xb)
 {
+    if (xa >= quint32(a.formats.size()) || xb >= quint32(b.formats.size())) return xa == xb;
+    CellFormat fa = a.formats[int(xa)], fb = b.formats[int(xb)];
+    if (fa.font >= quint32(a.fonts.size()) || fb.font >= quint32(b.fonts.size()) || fa.fill >= quint32(a.fills.size()) || fb.fill >= quint32(b.fills.size()) || fa.border >= quint32(a.borders.size()) ||
+        fb.border >= quint32(b.borders.size()))
+        return false;
+    if (!(a.fonts[int(fa.font)] == b.fonts[int(fb.font)]) || !(a.fills[int(fa.fill)] == b.fills[int(fb.fill)]) || !(a.borders[int(fa.border)] == b.borders[int(fb.border)])) return false;
+    if (a.formatCode(xa, QLocale::c()) != b.formatCode(xb, QLocale::c())) return false;
+    fa.font = fb.font = fa.fill = fb.fill = fa.border = fb.border = 0;
+    fa.numFmtId = fb.numFmtId = 0;
+    return fa == fb;
+}
+
+// The model the window has, made again from the bytes of the file saved: the cells are compared one by one. `savedIndex` says where each sheet of the model is in the file saved (a sheet added
+// is put where the tabs show it, and a sheet moved is moved), and the formats are compared by how they look as well as by their place.
+void compareModels(const Calculation *live, const Calculation *saved, const std::vector<int> &savedIndex, const Styles &liveStyles, const Styles &savedStyles, ScriptResult *r)
+{
+    std::unordered_map<quint32, bool> looks;
+    auto looksSame = [&](quint32 xf) {
+        const auto it = looks.find(xf);
+        if (it != looks.end()) return it->second;
+        return looks[xf] = sameLook(liveStyles, xf, savedStyles, xf);
+    };
     // (JC_ROUNDTRIP_SHOW=1 writes the first cells that differ to the error output, with the two values)
     static const bool show = qEnvironmentVariableIntValue("JC_ROUNDTRIP_SHOW") != 0;
     int shown = 0;
@@ -297,13 +320,14 @@ void compareModels(const Calculation *live, const Calculation *saved, ScriptResu
     bool circular = false;
     for (int s = 0; s < live->sheetCount() && !circular; ++s)
         live->sheet(s).cells.forEach([&](const Cell &c) { circular = circular || live->isCircular(s, c.row, c.col); });
-    if (live->sheetCount() != saved->sheetCount()) {
+    if (live->sheetCount() != saved->sheetCount() || savedIndex.size() != size_t(live->sheetCount())) {
         r->differences.add(QStringLiteral("sheets"));
         return;
     }
     for (int s = 0; s < live->sheetCount(); ++s) {
+        const int t = savedIndex[size_t(s)];
         auto at = [&](quint32 row, quint32 col) {
-            const Calculation::CellContent x = live->content(s, row, col), y = saved->content(s, row, col);
+            const Calculation::CellContent x = live->content(s, row, col), y = saved->content(t, row, col);
             if (empty(x) && empty(y)) return;
             ++r->compared;
             // (a cell of an array holds the result the file had, which is no part of what it means: what it shows is compared)
@@ -314,10 +338,15 @@ void compareModels(const Calculation *live, const Calculation *saved, ScriptResu
                                    : x.style != y.style ? QStringLiteral("a format differs") : QStringLiteral("a value differs"));
                 return;
             }
-            if (!circular && !sameShown(live->cell(s, row, col), saved->cell(s, row, col))) {
+            if (!looksSame(x.style)) {
+                say(s, row, col, "look", x, y);
+                r->differences.add(QStringLiteral("a format looks different"));
+                return;
+            }
+            if (!circular && !sameShown(live->cell(s, row, col), saved->cell(t, row, col))) {
                 Calculation::CellContent a = x, b = y;
                 a.value = live->cell(s, row, col);
-                b.value = saved->cell(s, row, col);
+                b.value = saved->cell(t, row, col);
                 say(s, row, col, "result", a, b);
                 r->differences.add(QStringLiteral("a result differs"));
                 return;
@@ -325,10 +354,10 @@ void compareModels(const Calculation *live, const Calculation *saved, ScriptResu
             ++r->right;
         };
         live->sheet(s).cells.forEach([&](const Cell &c) { at(c.row, c.col); });
-        saved->sheet(s).cells.forEach([&](const Cell &c) {
+        saved->sheet(t).cells.forEach([&](const Cell &c) {
             if (!live->sheet(s).cells.find(c.row, c.col)) at(c.row, c.col);
         });
-        QVector<CellRange> ma = live->mergesOf(s), mb = saved->mergesOf(s);
+        QVector<CellRange> ma = live->mergesOf(s), mb = saved->mergesOf(t);
         auto less = [](const CellRange &p, const CellRange &q) { return p.row1 != q.row1 ? p.row1 < q.row1 : p.col1 < q.col1; };
         std::sort(ma.begin(), ma.end(), less);
         std::sort(mb.begin(), mb.end(), less);
@@ -392,8 +421,15 @@ QStringList chartSeriesOf(const QString &xml)
     return out;
 }
 
-void compareOthers(const Read &before, const Read &after, const Workbook &liveBook, const Calculation *live, const Calculation *saved, const std::vector<StructEdit> &edits, ScriptResult *r)
+void compareOthers(const Read &before, const Read &after, const Workbook &liveBook, const Calculation *live, const Calculation *saved, const std::vector<int> &savedIndex,
+                   const std::vector<StructEdit> &edits, const std::vector<SheetOp> &ops, ScriptResult *r)
 {
+    // (a sheet renamed: the formulas of the file that name it follow, in the same way)
+    auto renamed = [&](QString f) {
+        for (const SheetOp &op : ops)
+            if (op.kind == SheetOp::Kind::Rename) f = renameSheetInFormula(f, op.name, op.newName);
+        return f;
+    };
     auto note = [&](bool same, const char *what) {
         ++r->otherCompared;
         if (same) ++r->otherRight;
@@ -405,11 +441,21 @@ void compareOthers(const Read &before, const Read &after, const Workbook &liveBo
     {
         const QHash<QString, QString> &a = live->definedNameTexts(), &b = saved->definedNameTexts();
         note(a.size() == b.size(), "the number of defined names differs");
-        for (auto it = a.constBegin(); it != a.constEnd(); ++it) note(b.value(it.key()) == it.value(), "a defined name differs");
+        static const bool show = qEnvironmentVariableIntValue("JC_ROUNDTRIP_SHOW") != 0;
+        for (auto it = a.constBegin(); it != a.constEnd(); ++it) {
+            // (a name of one sheet is kept by the sheet's place, "3|Name": the sheet is where the file has it)
+            QString key = it.key();
+            const int bar = key.indexOf(QLatin1Char('|'));
+            bool numeric = false;
+            const int sheetOf = bar > 0 ? key.left(bar).toInt(&numeric) : -1;
+            if (numeric && sheetOf >= 0 && size_t(sheetOf) < savedIndex.size()) key = QString::number(savedIndex[size_t(sheetOf)]) + key.mid(bar);
+            note(b.value(key) == it.value(), "a defined name differs");
+            if (show && b.value(key) != it.value()) qWarning().noquote() << "defined name differs:" << it.key() << "live" << it.value() << "saved" << b.value(key);
+        }
     }
     // the rules of validation, by the model
-    for (int s = 0; s < live->sheetCount() && s < saved->sheetCount(); ++s) {
-        const QVector<Validation> &a = live->sheet(s).validations, &b = saved->sheet(s).validations;
+    for (int s = 0; s < live->sheetCount() && s < saved->sheetCount() && size_t(s) < savedIndex.size(); ++s) {
+        const QVector<Validation> &a = live->sheet(s).validations, &b = saved->sheet(savedIndex[size_t(s)]).validations;
         note(a.size() == b.size(), "the number of rules of validation differs");
         for (int i = 0; i < std::min(a.size(), b.size()); ++i)
             note(a[i].ranges == b[i].ranges && a[i].type == b[i].type && a[i].formula1 == b[i].formula1 && a[i].formula2 == b[i].formula2, "a rule of validation differs");
@@ -437,6 +483,7 @@ void compareOthers(const Read &before, const Read &after, const Workbook &liveBo
                 if (first.valid && !adjustRange(e, s, &first)) first = CellRange();
                 if (!sqref.isEmpty()) sqref = adjustSqref(sqref, e, s);
             }
+            for (QString &f : parts) f = renamed(f);
             if (!sqref.isEmpty()) expected << (QStringList{sqref} + parts).join(QLatin1Char('\t'));
         }
         QStringList got = conditionalFormatsOf(now);
@@ -450,6 +497,7 @@ void compareOthers(const Read &before, const Read &after, const Workbook &liveBo
                 if (!ref.isEmpty()) ref = adjustSqref(ref, e, s);
                 if (!location.isEmpty()) location = adjustFormula(location, s, names, e);
             }
+            location = renamed(location);
             if (!ref.isEmpty()) expected << ref + QLatin1Char('\t') + location;
         }
         got = hyperlinksOf(now);
@@ -463,8 +511,20 @@ void compareOthers(const Read &before, const Read &after, const Workbook &liveBo
         QStringList expected = chartSeriesOf(QString::fromUtf8(before.package.part(part)));
         for (QString &f : expected)
             for (const StructEdit &e : edits) f = adjustFormula(f, 0, names, e);
+        for (QString &f : expected) f = renamed(f);
         note(expected == chartSeriesOf(QString::fromUtf8(after.package.part(part))), "a chart's series differ");
     }
+}
+
+// Where each sheet of the model is in the file saved: the sheets are written in the order of the tabs (deleted ones are not written).
+std::vector<int> savedIndexes(const Workbook &book)
+{
+    const WorkbookInfo &info = book.info();
+    std::vector<int> out(size_t(info.sheets.size()), -1);
+    int at = 0;
+    for (const int i : info.order)
+        if (i >= 0 && i < int(info.sheets.size()) && !info.sheets[size_t(i)].deleted) out[size_t(i)] = at++;
+    return out;
 }
 
 // An edit script on the open workbook, saved and read back.
@@ -503,8 +563,40 @@ void runScript(Opened &w, const QByteArray &original, ScriptResult *r)
     const quint32 below = std::min<quint32>(calc->sheet(sheet).extentRows + 2, kMaxRows - 20);
     if (clip.valid()) step(session->paste(sheet, block(below, 0, below, 0), clip, crunch::EditSession::PasteOptions()));
     step(session->fill(sheet, block(below, 0, below, 0), crunch::EditSession::FillDirection::Down, 3));
+    // formatting: a block given a font, a fill, an alignment, a number format, and borders, and two empty cells merged (the edits that follow move the formats with the cells)
+    {
+        const CellRange shown = block(0, 0, std::min<quint32>(rows - 1, 3), std::min<quint32>(cols - 1, 3));
+        FormatChange change;
+        change.fontName = QStringLiteral("Georgia");
+        change.fontSize = 13;
+        change.bold = true;
+        change.italic = true;
+        change.underline = Underline::Double;
+        change.fontColor = ColorSpec::fromRgb(0xC00000);
+        FillSpec fill;
+        fill.pattern = PatternKind::Solid;
+        fill.fg = ColorSpec::fromRgb(0xFFEB9C);
+        change.fill = fill;
+        change.numberFormat = QStringLiteral("#,##0.00");
+        change.horizontal = HAlign::Center;
+        change.wrap = true;
+        step(session->formatCells(sheet, shown, change, QStringLiteral("Formatting")));
+        BorderSide line;
+        line.style = BorderStyle::Thin;
+        line.color = ColorSpec::fromRgb(0x0000FF);
+        using Session = crunch::EditSession;
+        step(session->setBorders(sheet, shown, Session::EdgeLeft | Session::EdgeRight | Session::EdgeTop | Session::EdgeBottom | Session::EdgeInsideHorizontal | Session::EdgeInsideVertical, line,
+                                 QStringLiteral("Borders")));
+        const quint32 mergeRow = std::min<quint32>(rows + 3, kMaxRows - 3), mergeCol = std::min<quint32>(cols + 3, 16000);
+        step(session->mergeCells(sheet, block(mergeRow, mergeCol, mergeRow, mergeCol + 1), Session::MergeKind::Merge));
+    }
     step(session->deleteRows(sheet, std::max<quint32>(1, rows / 3), 1));
     step(session->deleteColumns(sheet, std::max<quint32>(1, cols / 3), 1));
+    // sheets: one added before the sheet edited, that sheet renamed (the formulas that name it follow) and moved to the end, and its tab given a color
+    step(session->insertSheet(sheet, QStringLiteral("Added Sheet"), nullptr));
+    step(session->renameSheet(sheet, QStringLiteral("Edited Sheet")));
+    step(session->moveSheet(sheet, -1));
+    step(session->setTabColor(sheet, ColorSpec::fromRgb(0x00B050)));
     // saved, and read again
     crunch::EditSession::Snapshot snap;
     QByteArray bytes;
@@ -546,10 +638,11 @@ void runScript(Opened &w, const QByteArray &original, ScriptResult *r)
         return;
     }
     while (!saved.recalculate().finished) {}
-    compareModels(calc, &saved, r);
+    const std::vector<int> savedIndex = savedIndexes(*w.loader.result()->book);
+    compareModels(calc, &saved, savedIndex, w.loader.result()->book->styles(), after.book.styles(), r);
     {
         const Read orig(original);
-        if (orig.ok) compareOthers(orig, after, *w.loader.result()->book, calc, &saved, snap.changes.edits, r);
+        if (orig.ok) compareOthers(orig, after, *w.loader.result()->book, calc, &saved, savedIndex, snap.changes.edits, snap.changes.sheetOps, r);
     }
     r->ms = double(timer.nsecsElapsed()) / 1e6;
 }
