@@ -1613,7 +1613,8 @@ void ChartPainter::paint()
         QColor color;
         titleBlock(c.title, 18, &font, &color);
         const double h = heightOf(font, int(c.title.text.count(QLatin1Char('\n')) + 1));
-        drawText(c.title.text, font, color, QPointF(area.center().x(), area.top()), 0.5, 0, c.title.hasRotation ? c.title.rotation : 0);
+        // (across the top, or where the file puts its corner; the room it would take is kept either way, as the plot is laid out for it)
+        drawAxisTitle(c.title, font, color, QPointF(area.center().x(), area.top()), 0.0, 0);
         if (!c.title.overlay) area.setTop(area.top() + h + margin * 0.6);
     }
 

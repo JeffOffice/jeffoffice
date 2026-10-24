@@ -882,6 +882,37 @@ private Q_SLOTS:
                  qPrintable(QStringLiteral("%1,%2").arg(catPut.left()).arg(catPut.top())));
     }
 
+    // The title of the chart is across the top, or where its own layout puts its corner (as fractions of the chart); the plot is laid out the same either way.
+    void aChartTitleStandsWhereItsLayoutPutsIt()
+    {
+        auto titled = [](const QString &layout) {
+            return QStringLiteral("<c:title><c:tx><c:rich><a:bodyPr/><a:p><a:pPr><a:defRPr sz=\"1400\"/></a:pPr><a:r><a:rPr lang=\"en-US\" sz=\"1400\"><a:solidFill><a:srgbClr val=\"FF00FF\"/></a:solidFill></a:rPr><a:t>Sales</a:t></a:r></a:p></c:rich></c:tx>%1<c:overlay val=\"0\"/></c:title>")
+                .arg(layout);
+        };
+        const QString plot = oneSeriesPlot(QStringLiteral("0000FF"), {1, 0.5});
+        const QSizeF size(400, 300);
+        const QColor magenta(255, 0, 255), blue(0, 0, 255);
+        Chart usual = readOrFail(chartPart(plot, titled(QString())));
+        QVERIFY(usual.title.present && !usual.title.manual);
+        const QImage across = renderChart(usual, size, 2);
+        const QRect centered = colorBounds(across, magenta, false);
+        QVERIFY(!centered.isNull());
+        QVERIFY2(qAbs(centered.center().x() - int(size.width())) <= 8, qPrintable(QString::number(centered.center().x())));   // (the middle of the 800 pixels)
+        QVERIFY2(centered.top() < 40, qPrintable(QString::number(centered.top())));
+        Chart own = readOrFail(chartPart(plot, titled(manualLayout(0.55, 0.30, 0, 0))));
+        QVERIFY(own.title.manual);
+        QCOMPARE(own.title.x, 0.55);
+        QCOMPARE(own.title.y, 0.30);
+        const QImage placed = renderChart(own, size, 2);
+        const QRect put = colorBounds(placed, magenta, false);
+        QVERIFY(!put.isNull());
+        // (the box of the text starts at the corner; the letters a little in from it)
+        QVERIFY2(put.left() >= 0.55 * 2 * size.width() - 2 && put.left() <= 0.55 * 2 * size.width() + 12, qPrintable(QString::number(put.left())));
+        QVERIFY2(put.top() >= 0.30 * 2 * size.height() - 2 && put.top() <= 0.30 * 2 * size.height() + 14, qPrintable(QString::number(put.top())));
+        // the plot is where it was (the room the title would have taken is kept)
+        QCOMPARE(colorBounds(placed, blue, false), colorBounds(across, blue, false));
+    }
+
     // A pie of negative values is drawn by their size, as the common programs draw it: the same as the pie of their absolute values.
     void aPieOfNegativeValuesIsDrawnByTheirSize()
     {
