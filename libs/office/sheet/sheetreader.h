@@ -89,6 +89,8 @@ constexpr qint64 kMaxOdsContentBytes = qint64(768) << 20;
 // of them stay well inside the 4 GB a read may use.
 constexpr qint64 kMaxOdsStyles = 100000;
 constexpr qint64 kMaxOdsProperties = 1000000;
+constexpr qint64 kMaxOdsFonts = 10000;          // the fonts a document names
+constexpr qint64 kMaxOdsDataParts = 1000000;    // the parts of all the number formats of a document, together
 // Runs of formatting inside the strings of a workbook, all together (the runs of the strings are kept only when asked for, or for a workbook of the older binary form; past this the strings
 // are kept without their runs).
 constexpr qint64 kMaxRichRuns = 5000000;
@@ -125,6 +127,8 @@ struct Limits {
     qint64 odsContentBytes = kMaxOdsContentBytes;
     qint64 odsStyles = kMaxOdsStyles;
     qint64 odsProperties = kMaxOdsProperties;
+    qint64 odsFonts = kMaxOdsFonts;
+    qint64 odsDataParts = kMaxOdsDataParts;
     // Asked now and then while a file is read (a worker looks at its stop flag here): true stops the read, with the message that it was stopped. Optional.
     std::function<bool()> cancelled;
 };

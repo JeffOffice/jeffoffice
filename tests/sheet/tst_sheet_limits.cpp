@@ -323,7 +323,7 @@ private Q_SLOTS:
         for (int i = 0; i < 100000; ++i) attributes += QStringLiteral(" a%1=\"\"").arg(i);
         Sheet crowded;
         QVERIFY(!readSheetXml(worksheet("<row r=\"1\"><c r=\"A1\"" + attributes + "><v>1</v></c></row>"), &crowded));
-        QVERIFY2(crowded.error.contains(QStringLiteral("attributes")), qPrintable(crowded.error));
+        QVERIFY2(crowded.error.contains(QStringLiteral("settings")), qPrintable(crowded.error));
         // The work is what the parser is given: the first thousand attributes of 1.3 MB of them, never the rest.
         QVERIFY2(crowded.stats.xmlBytes > 0 && crowded.stats.xmlBytes < 20000, qPrintable(QString::number(crowded.stats.xmlBytes)));
         Sheet crowdedRoot;
@@ -341,7 +341,7 @@ private Q_SLOTS:
         Sheet doctype;
         QVERIFY(!readSheetXml("<?xml version=\"1.0\"?><!DOCTYPE worksheet [<!ENTITY x \"y\">]><worksheet><sheetData><row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>&x;</t></is></c></row></sheetData></worksheet>",
                               &doctype));
-        QVERIFY2(doctype.error.contains(QStringLiteral("DOCTYPE")), qPrintable(doctype.error));
+        QVERIFY2(doctype.error.contains(QStringLiteral("instructions")), qPrintable(doctype.error));
         // Not XML, and cut off: what came before is kept.
         Sheet cut;
         QByteArray xml = worksheet("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><v>2</v></c></row><row r=\"2\"><c r=\"A2\"><v>3</v></c></row>");
@@ -371,7 +371,7 @@ private Q_SLOTS:
         for (const QByteArray &bytes : {withMark, bigNoMark, littleNoMark}) {
             Sheet s;
             QVERIFY2(!readSheetXml(bytes, &s), bytes.left(8).toHex().constData());
-            QVERIFY2(s.error.contains(QStringLiteral("UTF-8")), qPrintable(s.error));
+            QVERIFY2(s.error.contains(QStringLiteral("not written in a form")), qPrintable(s.error));
             QVERIFY2(s.stats.xmlBytes < 4096, qPrintable(QString::number(s.stats.xmlBytes)));
             QCOMPARE(s.cells.cellCount(), qint64(0));
         }
@@ -433,13 +433,13 @@ private Q_SLOTS:
         for (const char *token : {"<!---->", "<!-- a - b -->", "<?pi >?>", "<?pi ?>", "<![CDATA[x]]]>", "<!-- <x a=\"> -->", "<?pi \"?>"}) {
             Sheet s;
             QVERIFY2(!readSheetXml(sheetWith(QString::fromLatin1(token)), &s), token);
-            QVERIFY2(s.error.contains(QStringLiteral("attributes")), qPrintable(QString::fromLatin1(token) + ": " + s.error));
+            QVERIFY2(s.error.contains(QStringLiteral("settings")), qPrintable(QString::fromLatin1(token) + ": " + s.error));
         }
         // Forms it doesn't have: refused as damaged, before anything after them is passed on.
         for (const char *token : {"<!--->", "<!-->", "<!-- a -- b -->", "<!--- x --->", "<!-- x --!>", "<!x>", "<![CDAT[x]]>", "<", "< x/>", "<x <y/>>", "<x a=\"<\"/>", "<?>", "<!>"}) {
             Sheet s;
             QVERIFY2(!readSheetXml(sheetWith(QString::fromLatin1(token)), &s), token);
-            QVERIFY2(s.error.contains(QStringLiteral("damaged")) || s.error.contains(QStringLiteral("DOCTYPE")), qPrintable(QString::fromLatin1(token) + ": " + s.error));
+            QVERIFY2(s.error.contains(QStringLiteral("damaged")) || s.error.contains(QStringLiteral("instructions")), qPrintable(QString::fromLatin1(token) + ": " + s.error));
             QVERIFY2(s.stats.xmlBytes < 4000, qPrintable(QString::fromLatin1(token) + ": " + QString::number(s.stats.xmlBytes)));
         }
     }

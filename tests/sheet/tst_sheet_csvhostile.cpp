@@ -11,7 +11,19 @@ class SheetCsvHostileTests : public QObject {
 
     static bool openCsv(const QByteArray &bytes, Workbook *wb, QString *why, const Limits &limits = Limits()) { return openBytes(bytes, QStringLiteral("hostile.csv"), wb, why, limits); }
 
+    QLocale m_before;
+
 private Q_SLOTS:
+    // The language is set for every test, whatever the system's is: the order in which delimiters are tried and the reading of numbers follow the decimal mark, and the answers must
+    // not (the suite gives the same ones under C.UTF-8, en_US, and de_DE).
+    void init()
+    {
+        m_before = QLocale();
+        QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+    }
+
+    void cleanup() { QLocale::setDefault(m_before); }
+
     // A line of a million columns: the first 16,384 are read and the sheet says the rest were not.
     void aMillionColumns()
     {

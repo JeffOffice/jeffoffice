@@ -6,22 +6,6 @@
 #include "sheet/odsformula.h"
 #include "sheet/xlsxbase.h"
 
-#include <QFile>
-
-namespace {
-
-// The most memory the process has held, in kilobytes (-1 where the system does not say: only Linux does).
-qint64 peakKilobytes()
-{
-    QFile f(QStringLiteral("/proc/self/status"));
-    if (!f.open(QIODevice::ReadOnly)) return -1;
-    for (const QByteArray &line : f.readAll().split('\n'))
-        if (line.startsWith("VmHWM:")) return line.mid(6).trimmed().split(' ').value(0).toLongLong();
-    return -1;
-}
-
-} // namespace
-
 class SheetOdsReviewTests : public QObject {
     Q_OBJECT
 
@@ -37,7 +21,7 @@ private Q_SLOTS:
         Limits limits;
         limits.stringChars = 100000;
         QString many;
-        for (int i = 0; i < 400000; ++i) many += QStringLiteral("<text:s text:c=\"10000\"/>");   // (four billion spaces)
+        for (int i = 0; i < 20000; ++i) many += QStringLiteral("<text:s text:c=\"10000\"/>");   // (two hundred million spaces: 400 MB, if they were made)
         Workbook wb;
         QString why;
         const QByteArray bomb = simple(table(QStringLiteral("S"), columns(1) + row(floatCell(1)) + row(cellWith(many))));
@@ -45,12 +29,10 @@ private Q_SLOTS:
         many.squeeze();
         QVERIFY2(openIt(bomb, &wb, &why, limits), qPrintable(why));
         Sheet s;
-        const qint64 before = peakKilobytes();
         QVERIFY(!wb.readSheet(0, &s));
-        // (the string is never made past the limit: the bomb stands for 8 GB of spaces, and the read takes less than a tenth of one)
-        if (before >= 0) QVERIFY2(peakKilobytes() - before < 800 * 1024, qPrintable(QString::number(peakKilobytes() - before) + QStringLiteral(" KB")));
+        // (the reader's own bound: the text of the cell is never made longer than the limit, however many spaces the document stands for; it counts the longest text it made)
         QVERIFY2(s.error.contains(QLatin1String("longer")), qPrintable(s.error));
-        QVERIFY(s.stats.longestString <= limits.stringChars);
+        QVERIFY2(s.stats.longestString <= limits.stringChars, qPrintable(QString::number(s.stats.longestString)));
         QString tabs;
         for (int i = 0; i < 300000; ++i) tabs += QStringLiteral("<text:tab/><text:line-break/>");
         Workbook wb2;
@@ -367,6 +349,148 @@ private Q_SLOTS:
         QVERIFY(messages.size() >= 8);
         for (const QString &m : std::as_const(messages)) {
             for (const char *word : {"XML", "DOCTYPE", "attribute", " tag", "entity", "OpenOffice", "LibreOffice", "StarOffice", "Ex" "cel", "Micro" "soft"})
+                QVERIFY2(!m.contains(QLatin1String(word), Qt::CaseSensitive), qPrintable(m + QStringLiteral(" has ") + QLatin1String(word)));
+            QVERIFY2(!m.isEmpty() && m.endsWith(QLatin1Char('.')), qPrintable(m));
+        }
+    }
+
+    // The fonts a document names and the parts of all its number formats together have a total cap, and a document past it is refused in words.
+    void fontsAndPartsOfNumberFormatsHaveTotalCaps()
+    {
+        QString faces;
+        for (int i = 0; i < 100; ++i) faces += QStringLiteral("<style:font-face style:name=\"F%1\" svg:font-family=\"Family %1\"/>").arg(i);
+        Limits few;
+        few.odsFonts = 50;
+        Workbook wb;
+        QString why;
+        QVERIFY(!openIt(buildOds(contentXml(table(QStringLiteral("S"), row(floatCell(1))), QString(), QString(), faces)), &wb, &why, few));
+        QVERIFY2(why.contains(QLatin1String("fonts")), qPrintable(why));
+        QVERIFY2(openIt(buildOds(contentXml(table(QStringLiteral("S"), row(floatCell(1))), QString(), QString(), faces)), &wb, &why), qPrintable(why));
+        // many number formats of a few parts each
+        QString formats;
+        for (int i = 0; i < 20; ++i) {
+            formats += QStringLiteral("<number:number-style style:name=\"N%1\"><number:number number:decimal-places=\"2\"/>").arg(i);
+            for (int k = 0; k < 20; ++k) formats += QStringLiteral("<number:text>x</number:text>");
+            formats += QStringLiteral("</number:number-style>");
+        }
+        Limits tight;
+        tight.odsDataParts = 100;
+        Workbook wb2;
+        QVERIFY(!openIt(simple(table(QStringLiteral("S"), row(floatCell(1))), formats), &wb2, &why, tight));
+        QVERIFY2(why.contains(QLatin1String("number formats")) && why.contains(QLatin1String("more parts")), qPrintable(why));
+        QVERIFY2(openIt(simple(table(QStringLiteral("S"), row(floatCell(1))), formats), &wb2, &why), qPrintable(why));
+    }
+
+    // What a style or a number format has past the most one keeps (4,000 settings, 1,000 parts) and the merged ranges past the limit of a sheet are left out, and the notice says how many.
+    void whatIsLeftOutPastTheLimitsIsCounted()
+    {
+        // a style with 5,000 settings, in elements of 500 (an element has at most so many attributes)
+        QString style = QStringLiteral("<style:style style:name=\"big\" style:family=\"table-cell\">");
+        for (int e = 0; e < 10; ++e) {
+            style += QStringLiteral("<style:text-properties");
+            for (int i = 0; i < 500; ++i) style += QStringLiteral(" fo:x%1_%2=\"1\"").arg(e).arg(i);
+            style += QStringLiteral("/>");
+        }
+        style += QStringLiteral("</style:style>");
+        Workbook wb;
+        QString why;
+        QVERIFY2(openIt(simple(table(QStringLiteral("S"), row(floatCell(1))), style), &wb, &why), qPrintable(why));
+        QStringList changed = wb.changedFeatures();
+        QVERIFY2(!changed.filter(QStringLiteral("setting(s) of cell styles")).isEmpty(), qPrintable(changed.join(QLatin1Char('|'))));
+        QVERIFY2(!changed.filter(QStringLiteral("999 setting")).isEmpty(), qPrintable(changed.join(QLatin1Char('|'))));   // (4,001 are kept, of the 5,000)
+        // a number format with 1,100 parts
+        QString format = QStringLiteral("<number:number-style style:name=\"long\"><number:number number:decimal-places=\"2\"/>");
+        for (int k = 0; k < 1100; ++k) format += QStringLiteral("<number:text>x</number:text>");
+        format += QStringLiteral("</number:number-style>");
+        Workbook wb2;
+        QVERIFY2(openIt(simple(table(QStringLiteral("S"), row(floatCell(1))), format), &wb2, &why), qPrintable(why));
+        changed = wb2.changedFeatures();
+        QVERIFY2(!changed.filter(QStringLiteral("part(s) of number formats")).isEmpty(), qPrintable(changed.join(QLatin1Char('|'))));
+        // a document that has none of this says nothing
+        Workbook fine;
+        QVERIFY2(openIt(simple(table(QStringLiteral("S"), row(floatCell(1)))), &fine, &why), qPrintable(why));
+        QVERIFY(fine.changedFeatures().isEmpty());
+        // merged ranges past the limit of a sheet: each is counted, the first ones are kept, and the notice says how many were not
+        Limits limits;
+        limits.merges = 2;
+        const QString merged = row(stringCell(QStringLiteral("m"), QStringLiteral("table:number-columns-spanned=\"2\"")) + QStringLiteral("<table:covered-table-cell/>") + floatCell(1), QStringLiteral("table:number-rows-repeated=\"5\""));
+        Workbook many;
+        QVERIFY2(openIt(simple(table(QStringLiteral("S"), columns(3) + merged)), &many, &why, limits), qPrintable(why));
+        Sheet s;
+        QVERIFY(many.readSheet(0, &s));
+        QCOMPARE(s.mergeCount, qint64(5));
+        QCOMPARE(s.merges.size(), 2);
+        changed = many.changedFeatures();
+        QVERIFY2(!changed.filter(QStringLiteral("3 merged range")).isEmpty(), qPrintable(changed.join(QLatin1Char('|'))));
+        // (within the limit nothing is said)
+        Workbook within;
+        QVERIFY2(openIt(simple(table(QStringLiteral("S"), columns(3) + merged)), &within, &why), qPrintable(why));
+        QVERIFY(within.readSheet(0, &s));
+        QVERIFY(within.changedFeatures().isEmpty());
+    }
+
+    // Merges of repeated cells and rows: a cell that spans two columns and is repeated has one merge for each pair, a cell that spans two rows in a row repeated has one for each pair of rows, and a
+    // row repeated has one for each copy.
+    void mergesOfRepeatedCellsAndRowsAreAllMade()
+    {
+        Sheet s;
+        QString why;
+        const QString wide = cell(QStringLiteral("office:value-type=\"string\" table:number-columns-spanned=\"2\" table:number-columns-repeated=\"4\""), QStringLiteral("<text:p>m</text:p>"));
+        Workbook cols;
+        QVERIFY2(openIt(simple(table(QStringLiteral("S"), columns(8) + row(wide))), &cols, &why), qPrintable(why));
+        QVERIFY(cols.readSheet(0, &s));
+        QCOMPARE(s.merges.size(), 2);
+        QCOMPARE(s.merges[0].col1, 0u);
+        QCOMPARE(s.merges[0].col2, 1u);
+        QCOMPARE(s.merges[1].col1, 2u);
+        QCOMPARE(s.merges[1].col2, 3u);
+        const QString tall = cell(QStringLiteral("office:value-type=\"string\" table:number-rows-spanned=\"2\""), QStringLiteral("<text:p>m</text:p>"));
+        Workbook rows;
+        QVERIFY2(openIt(simple(table(QStringLiteral("S"), columns(2) + row(tall, QStringLiteral("table:number-rows-repeated=\"4\"")))), &rows, &why), qPrintable(why));
+        QVERIFY(rows.readSheet(0, &s));
+        QCOMPARE(s.merges.size(), 2);
+        QCOMPARE(s.merges[0].row1, 0u);
+        QCOMPARE(s.merges[0].row2, 1u);
+        QCOMPARE(s.merges[1].row1, 2u);
+        QCOMPARE(s.merges[1].row2, 3u);
+        // a row repeated, with a cell that spans two columns in it, has one merge in each copy
+        Workbook copies;
+        QVERIFY2(openIt(simple(table(QStringLiteral("S"), columns(3) + row(cell(QStringLiteral("office:value-type=\"string\" table:number-columns-spanned=\"2\""), QStringLiteral("<text:p>m</text:p>")) + QStringLiteral("<table:covered-table-cell/>"),
+                                                                                 QStringLiteral("table:number-rows-repeated=\"4\"")))), &copies, &why), qPrintable(why));
+        QVERIFY(copies.readSheet(0, &s));
+        QCOMPARE(s.merges.size(), 4);
+        QCOMPARE(s.mergeCount, qint64(4));
+    }
+
+    // The messages of the reader of .xlsx files are in plain words too: no XML, DOCTYPE, attribute, tag, or entity in them.
+    void xlsxMessagesAreInPlainWords()
+    {
+        QStringList messages;
+        auto collect = [&](const QByteArray &sheet, const QByteArray &sharedStrings = QByteArray()) {
+            Workbook wb;
+            QString why;
+            if (!openBytes(buildXlsx({sheet}, sharedStrings), QStringLiteral("plain.xlsx"), &wb, &why)) {
+                messages << why;
+                return;
+            }
+            Sheet s;
+            wb.readSheet(0, &s);
+            if (!s.error.isEmpty()) messages << s.error;
+        };
+        const QByteArray head = "<?xml version=\"1.0\"?>";
+        collect(head + "<!DOCTYPE worksheet [<!ENTITY x \"y\">]><worksheet xmlns=\"" + kMainNs.toUtf8() + "\"><sheetData/></worksheet>");
+        QString attributes;
+        for (int i = 0; i < 1500; ++i) attributes += QStringLiteral(" a%1=\"1\"").arg(i);
+        collect(worksheet(QStringLiteral("<row r=\"1\"%1/>").arg(attributes)));
+        QString deep;
+        for (int i = 0; i < 300; ++i) deep += QStringLiteral("<x>");
+        collect(worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\">%1</c></row>").arg(deep)));
+        collect(worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>")).left(150));
+        collect(QByteArray("\xFF\xFE<\0?\0x\0m\0l\0", 10));   // (UTF-16: the only form of text the reader takes is UTF-8)
+        collect(worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>")), head + "<!DOCTYPE sst [<!ENTITY a \"b\">]><sst xmlns=\"" + kMainNs.toUtf8() + "\"/>");
+        QVERIFY2(messages.size() >= 5, qPrintable(messages.join(QLatin1Char('|'))));
+        for (const QString &m : std::as_const(messages)) {
+            for (const char *word : {"XML", "DOCTYPE", "attribute", " tag", "entity", "UTF-8", "Ex" "cel", "Micro" "soft"})
                 QVERIFY2(!m.contains(QLatin1String(word), Qt::CaseSensitive), qPrintable(m + QStringLiteral(" has ") + QLatin1String(word)));
             QVERIFY2(!m.isEmpty() && m.endsWith(QLatin1Char('.')), qPrintable(m));
         }

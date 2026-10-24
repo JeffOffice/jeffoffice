@@ -270,14 +270,14 @@ private Q_SLOTS:
         WorkbookInfo info;
         QString why;
         QVERIFY(!readWorkbookXml("<?xml version=\"1.0\"?>" + doctype + workbookXml("<sheets/>"), &info, &why));
-        QVERIFY2(why.contains(QStringLiteral("DOCTYPE")), qPrintable(why));
+        QVERIFY2(why.contains(QStringLiteral("instructions")), qPrintable(why));
         QByteArray sst = sharedStringsXml({QStringLiteral("<t>a</t>")});
         SharedStrings strings;
         QByteArray copy = "<?xml version=\"1.0\"?>" + doctype + sst.mid(sst.indexOf("<sst"));
         QBuffer in(&copy);
         in.open(QIODevice::ReadOnly);
         QVERIFY(!readSharedStrings(&in, Limits(), &strings, &why));
-        QVERIFY2(why.contains(QStringLiteral("DOCTYPE")), qPrintable(why));
+        QVERIFY2(why.contains(QStringLiteral("instructions")), qPrintable(why));
         // UTF-16, in each form the parser would know it by: a byte order mark, a "<" with a zero beside it, and what the declaration says.
         const auto utf16 = [](const QByteArray &utf8, bool bigEndian, bool bom) {
             QStringEncoder encode(bigEndian ? QStringConverter::Utf16BE : QStringConverter::Utf16LE, QStringConverter::Flag::Default);
@@ -295,13 +295,13 @@ private Q_SLOTS:
                                       "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>" + body}) {
             WorkbookInfo w;
             QVERIFY2(!readWorkbookXml(xml, &w, &why), xml.left(24).toHex().constData());
-            QVERIFY2(why.contains(QStringLiteral("UTF-8")), qPrintable(why));
+            QVERIFY2(why.contains(QStringLiteral("not written in a form")), qPrintable(why));
             QByteArray text = xml;
             QBuffer buffer(&text);
             buffer.open(QIODevice::ReadOnly);
             SharedStrings s;
             QVERIFY(!readSharedStrings(&buffer, Limits(), &s, &why));
-            QVERIFY2(why.contains(QStringLiteral("UTF-8")), qPrintable(why));
+            QVERIFY2(why.contains(QStringLiteral("not written in a form")), qPrintable(why));
         }
         // UTF-8, with or without its mark, and with the name in any letters, is what is read.
         for (const QByteArray &xml : {plain, "\xef\xbb\xbf" + plain, "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>" + body,

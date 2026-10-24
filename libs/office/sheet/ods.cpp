@@ -83,6 +83,8 @@ struct Found {
     bool charts = false, drawings = false, comments = false, pivots = false, macros = false, conditional = false, validation = false, hyperlinks = false;
     QString nullDate = QStringLiteral("1899-12-30");
     bool iterate = false;
+    // What a style may have of one thing at the most (4,000 settings; 1,000 parts of a number format) and the document had more of: said in the notice, not dropped without a word.
+    qint64 settingsLeftOut = 0, dataPartsLeftOut = 0;
 };
 
 class DocumentParser {
@@ -140,6 +142,7 @@ private:
         if (ns == NS_NUMBER) {
             startDataStyle(a, name);
             if (m_overStyles) return fail(error, QCoreApplication::translate("jp::office::sheet::Ods", "The file has more styles than any real file has."));
+            if (m_overParts) return fail(error, QCoreApplication::translate("jp::office::sheet::Ods", "The file has number formats made of more parts than any real file has."));
             return true;
         }
         if (ns == NS_OFFICE) {
@@ -219,7 +222,10 @@ private:
     {
         for (const QXmlStreamAttribute &at : a) {
             if (++m_properties > m_limits.odsProperties) return false;
-            if (props->size() > 4000) break;
+            if (props->size() > 4000) {
+                ++m_f.settingsLeftOut;
+                continue;
+            }
             props->insert(prefix + QLatin1Char(':') + ods::canonicalName(at.namespaceUri().toString(), at.name().toString()), at.value().toString());
         }
         return true;
@@ -241,7 +247,10 @@ private:
         if (name == QLatin1String("font-face")) {
             const QString face = attr(a, NS_STYLE, QLatin1String("name"));
             QString family = attr(a, NS_SVG, QLatin1String("font-family"));
-            if (!face.isEmpty()) m_f.store.addFont(face, family.isEmpty() ? face : family);
+            if (!face.isEmpty()) {
+                if (++m_fonts > m_limits.odsFonts) return fail(error, QCoreApplication::translate("jp::office::sheet::Ods", "The file names more fonts than any real file does."));
+                m_f.store.addFont(face, family.isEmpty() ? face : family);
+            }
             return true;
         }
         if (name == QLatin1String("map") && m_inData) {
@@ -275,7 +284,15 @@ private:
             if (++m_dataStyles > m_limits.odsStyles) m_overStyles = true;
             return;
         }
-        if (!m_inData || m_data.parts.size() > 1000) return;
+        if (!m_inData) return;
+        if (m_data.parts.size() > 1000) {
+            ++m_f.dataPartsLeftOut;
+            return;
+        }
+        if (++m_dataParts > m_limits.odsDataParts) {
+            m_overParts = true;
+            return;
+        }
         auto integer = [&](const char *n, int fallback) {
             bool ok = false;
             const int v = attr(a, NS_NUMBER, QLatin1String(n)).toInt(&ok);
@@ -472,7 +489,8 @@ private:
     bool m_inStyle = false, m_isDefaultStyle = false;
     qint64 m_properties = 0;   // all the properties of all the styles
     qint64 m_dataStyles = 0;
-    bool m_overStyles = false;
+    qint64 m_fonts = 0, m_dataParts = 0;   // the fonts a document names, and the parts of all its number formats
+    bool m_overStyles = false, m_overParts = false;
     // a data style being read
     ods::DataStyle m_data;
     bool m_inData = false, m_pendingText = false, m_pendingEmbedded = false;
@@ -714,6 +732,7 @@ struct OdsBook::Impl {
     int droppedNames = 0;                // the names whose expression could not be converted: they are left out
     mutable QMutex lock;                       // (the count below is set by whatever thread reads a sheet)
     mutable QVector<qint64> unconverted;       // by sheet: the formulas that could not be converted, when the sheet has been read whole (else -1)
+    mutable QVector<qint64> mergesLeftOut;     // by sheet: the merged ranges past the most a sheet keeps, when the sheet has been read whole (else 0)
     int maxDigitWidth = 7;
     Limits limits;
 };
@@ -930,6 +949,7 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
         e.name = valid;
         e.sheetId = i + 1;
         m.unconverted.append(-1);
+        m.mergesLeftOut.append(0);
         SheetShape shape;
         shape.name = original;   // (the settings of the sheet are kept by the name the document gave)
         shape.isProtected = t.isProtected;
@@ -1552,9 +1572,9 @@ private:
             if ((p.colSpan > 1 || p.rowSpan > 1) && k % p.colSpan == 0 && rowCopy % p.rowSpan == 0 && !p.covered) {
                 CellRange r;
                 r.row1 = row;
-                r.col1 = col;
+                r.col1 = col + k;
                 r.row2 = std::min<quint32>(row + p.rowSpan - 1, kMaxRows - 1);
-                r.col2 = std::min<quint32>(col + p.colSpan - 1, kMaxColumns - 1);
+                r.col2 = std::min<quint32>(col + k + p.colSpan - 1, kMaxColumns - 1);
                 r.valid = true;
                 ++m_s.mergeCount;
                 if (m_s.merges.size() < m_limits.merges) m_s.merges.append(r);
@@ -1745,6 +1765,7 @@ bool OdsBook::readSheet(int index, const Limits &limits, const std::function<boo
     if (done && !out->partial) {
         QMutexLocker locker(&m->lock);
         if (index < m->unconverted.size()) m->unconverted[index] = out->stats.unreadFormulas;
+        if (index < m->mergesLeftOut.size()) m->mergesLeftOut[index] = std::max<qint64>(0, out->mergeCount - qint64(out->merges.size()));
     }
     return done;
 }
@@ -1756,16 +1777,24 @@ QStringList OdsBook::changed() const
         out << QCoreApplication::translate("jp::office::sheet::Ods", "%n sheet name(s), made valid for an .xlsx file", nullptr, m->renamedSheets);
     if (m->droppedNames > 0)
         out << QCoreApplication::translate("jp::office::sheet::Ods", "%n name(s) the program could not convert, which are left out", nullptr, m->droppedNames);
-    qint64 formulas = 0;
+    // (the counts are made before the messages: the tool that gathers the messages for translation does not read a template argument inside the call)
+    auto capped = [](qint64 n) { return int(std::min<qint64>(n, 1000000000)); };
+    qint64 formulas = 0, merges = 0;
     {
         QMutexLocker locker(&m->lock);
         for (const qint64 n : std::as_const(m->unconverted))
             if (n > 0) formulas += n;
+        for (const qint64 n : std::as_const(m->mergesLeftOut)) merges += n;
     }
-    // (the count is made before the message: the tool that gathers the messages for translation does not read a template argument inside the call)
-    const int count = int(std::min<qint64>(formulas, 1000000000));
+    const int formulaCount = capped(formulas), mergeCount = capped(merges), settingCount = capped(m->found.settingsLeftOut), partCount = capped(m->found.dataPartsLeftOut);
     if (formulas > 0)
-        out << QCoreApplication::translate("jp::office::sheet::Ods", "%n formula(s) the program could not convert, which keep the value the file stored", nullptr, count);
+        out << QCoreApplication::translate("jp::office::sheet::Ods", "%n formula(s) the program could not convert, which keep the value the file stored", nullptr, formulaCount);
+    if (merges > 0)
+        out << QCoreApplication::translate("jp::office::sheet::Ods", "%n merged range(s), past the most a sheet keeps, which are left out", nullptr, mergeCount);
+    if (m->found.settingsLeftOut > 0)
+        out << QCoreApplication::translate("jp::office::sheet::Ods", "%n setting(s) of cell styles, past the most one style keeps, which are left out", nullptr, settingCount);
+    if (m->found.dataPartsLeftOut > 0)
+        out << QCoreApplication::translate("jp::office::sheet::Ods", "%n part(s) of number formats, past the most one format keeps, which are left out", nullptr, partCount);
     return out;
 }
 
