@@ -520,6 +520,156 @@ private Q_SLOTS:
         QCOMPARE(c.plots[0].series[0].name, QStringLiteral("A <b> & \"c\""));
     }
 
+
+
+    // What an object relates to goes with it when nothing else needs it: its link in the drawing's relationships, and the chart or picture part, with that part's own relationships, parts, and
+    // type, if no other relationship of the package goes to it (every relationships part is looked at); a picture two objects use stays until both are gone.
+    void aDeletedObjectsPartsGoWithIt()
+    {
+        const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}};
+        const QString anchors = twoCell(4, 1, 11, 13, chartFrame(2, QStringLiteral("rIdC"))) + twoCell(0, 6, 2, 9, pictureElement(3, QStringLiteral("rIdP"), QStringLiteral("One")))
+                                + twoCell(0, 10, 2, 12, pictureElement(4, QStringLiteral("rIdP"), QStringLiteral("Two"))) + twoCell(3, 14, 5, 16, shapeElement(5, QStringLiteral("Box")));
+        QVector<ExtraPart> extra;
+        extra.append({QStringLiteral("xl/charts/style1.xml"), QByteArray("<cs:chartStyle xmlns:cs=\"http://schemas.microsoft.com/office/drawing/2012/chartStyle\"/>"), QStringLiteral("application/vnd.ms-office.chartstyle+xml"), -1, QString(), QString(), QString()});
+        extra.append({QStringLiteral("xl/charts/_rels/chart1.xml.rels"),
+                      QByteArray("<?xml version=\"1.0\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rIdS\" Type=\"http://schemas.microsoft.com/office/2011/relationships/chartStyle\" Target=\"style1.xml\"/></Relationships>"),
+                      QString(), -1, QString(), QString(), QString()});
+        const QByteArray xlsx = withParts(bookWithDrawing({dataSheet()}, drawingPart(anchors), {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), series)), imageTarget(QStringLiteral("rIdP"), 1, pngBytes(8, 4, Qt::red))}), extra);
+        Package p;
+        QString why;
+        QVERIFY(p.readLazy(xlsx, &why));
+        Workbook b;
+        QVERIFY2(b.open(p, &why), qPrintable(why));
+        auto save = [&](const std::vector<int> &ordinals, QMap<QString, QByteArray> *parts, Workbook *book = nullptr) {
+            SaveChanges changes;
+            changes.removedObjects[QStringLiteral("/xl/drawings/drawing1.xml")] = ordinals;
+            QByteArray out;
+            QString error;
+            const bool ok = saveXlsx(book ? *book : b, changes, &out, &error);
+            parts->clear();
+            return ok && jp::readZip(out, *parts);
+        };
+        auto relationshipIds = [](const QByteArray &rels) {
+            QStringList ids;
+            QRegularExpressionMatchIterator it = QRegularExpression(QStringLiteral("Id=\"([^\"]+)\"")).globalMatch(QString::fromUtf8(rels));
+            while (it.hasNext()) ids << it.next().captured(1);
+            ids.sort();
+            return ids;
+        };
+        QMap<QString, QByteArray> parts;
+        // the chart: its part, its own relationships, the style part they name, and their types go; the pictures stay
+        QVERIFY(save({0}, &parts));
+        QVERIFY(!parts.contains(QStringLiteral("xl/charts/chart1.xml")) && !parts.contains(QStringLiteral("xl/charts/style1.xml")) && !parts.contains(QStringLiteral("xl/charts/_rels/chart1.xml.rels")));
+        QVERIFY(parts.contains(QStringLiteral("xl/media/image1.png")));
+        QCOMPARE(relationshipIds(parts.value(QStringLiteral("xl/drawings/_rels/drawing1.xml.rels"))), QStringList{QStringLiteral("rIdP")});
+        const QByteArray types = parts.value(QStringLiteral("[Content_Types].xml"));
+        QVERIFY2(!types.contains("/xl/charts/chart1.xml") && !types.contains("/xl/charts/style1.xml") && types.contains("/xl/drawings/drawing1.xml"), types.constData());
+        QCOMPARE(namesOf(parts.value(QStringLiteral("xl/drawings/drawing1.xml")), p), QStringLiteral("One,Two,Box"));
+        // one of the two objects that use a picture: it stays
+        QVERIFY(save({1}, &parts));
+        QVERIFY(parts.contains(QStringLiteral("xl/media/image1.png")) && parts.contains(QStringLiteral("xl/charts/chart1.xml")));
+        QCOMPARE(relationshipIds(parts.value(QStringLiteral("xl/drawings/_rels/drawing1.xml.rels"))), (QStringList{QStringLiteral("rIdC"), QStringLiteral("rIdP")}));
+        // both: it goes (the type of a picture is the extension's, which stays)
+        QVERIFY(save({1, 2}, &parts));
+        QVERIFY(!parts.contains(QStringLiteral("xl/media/image1.png")));
+        QCOMPARE(relationshipIds(parts.value(QStringLiteral("xl/drawings/_rels/drawing1.xml.rels"))), QStringList{QStringLiteral("rIdC")});
+        QVERIFY(parts.value(QStringLiteral("[Content_Types].xml")).contains("/xl/charts/chart1.xml"));
+        // everything: every part is left only for the shape
+        QVERIFY(save({0, 1, 2}, &parts));
+        QVERIFY(!parts.contains(QStringLiteral("xl/media/image1.png")) && !parts.contains(QStringLiteral("xl/charts/chart1.xml")));
+        QVERIFY(relationshipIds(parts.value(QStringLiteral("xl/drawings/_rels/drawing1.xml.rels"))).isEmpty());
+        // a picture that another part's relationship goes to stays: the sheet's own
+        QVector<ExtraPart> also;
+        also.append({QStringLiteral("xl/media/image1.png"), pngBytes(8, 4, Qt::red), QString(), 0, QStringLiteral("rIdX"), QStringLiteral("image"), QStringLiteral("../media/image1.png")});
+        QByteArray shared = withParts(xlsx, also);
+        Package p2;
+        QVERIFY(p2.readLazy(shared, &why));
+        Workbook b2;
+        QVERIFY2(b2.open(p2, &why), qPrintable(why));
+        QVERIFY(save({1, 2}, &parts, &b2));
+        QVERIFY(parts.contains(QStringLiteral("xl/media/image1.png")));
+        QCOMPARE(relationshipIds(parts.value(QStringLiteral("xl/drawings/_rels/drawing1.xml.rels"))), QStringList{QStringLiteral("rIdC")});
+        // a chart nothing but the drawing relates to, and no other object of its element: nothing else of the file changes
+        QVERIFY(save({3}, &parts));
+        for (const QString &name : p.partNames()) {
+            const QString entry = name.mid(1);
+            if (entry == QLatin1String("xl/drawings/drawing1.xml")) continue;
+            QVERIFY2(parts.value(entry) == p.part(name), qPrintable(name));
+        }
+        QMap<QString, QByteArray> original;
+        QVERIFY(jp::readZip(xlsx, original));
+        QCOMPARE(parts.value(QStringLiteral("xl/drawings/_rels/drawing1.xml.rels")), original.value(QStringLiteral("xl/drawings/_rels/drawing1.xml.rels")));   // (a shape uses none: the links are as they were)
+        QCOMPARE(parts.value(QStringLiteral("[Content_Types].xml")), original.value(QStringLiteral("[Content_Types].xml")));
+    }
+
+    // The anchors an object that keeps its size has are written again where they differ: the first two-cell anchor of the element at the place (a wrapped one too), nothing else.
+    void anchorsAreWrittenAgain()
+    {
+        const QString wrapped = QStringLiteral("<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice Requires=\"a14\">%1</mc:Choice><mc:Fallback/></mc:AlternateContent>")
+                                    .arg(twoCell(0, 0, 2, 2, shapeElement(4, QStringLiteral("Wrapped")), QStringLiteral("oneCell")));
+        const QByteArray drawing = drawingPart(twoCell(0, 0, 1, 1, shapeElement(2, QStringLiteral("First")), QStringLiteral("oneCell")) + twoCell(1, 1, 2, 2, shapeElement(3, QStringLiteral("Second"))) + wrapped
+                                               + oneCell(2, 2, 952500, 476250, shapeElement(5, QStringLiteral("Sized"))));
+        Package p;
+        QString why;
+        Opened o;
+        QVERIFY2(open(&o, bookWithDrawing({dataSheet()}, drawing, {}), &why), qPrintable(why));
+        std::map<int, DrawingAnchor> anchors;
+        DrawingAnchor a;
+        a.kind = AnchorKind::TwoCell;
+        a.from = {3, 4, 9525, 19050};
+        a.to = {6, 8, 28575, 38100};
+        anchors[0] = a;
+        anchors[2] = a;   // (the wrapper)
+        anchors[3] = a;   // (a one-cell anchor: left as it is)
+        anchors[9] = a;   // (a place that is not there)
+        QByteArray out;
+        bool changed = false;
+        QVERIFY(setDrawingAnchors(o.package.part(o.drawingPart), anchors, &out, &changed));
+        QVERIFY(changed);
+        Opened after;
+        QVERIFY2(open(&after, bookWithDrawing({dataSheet()}, out, {}), &why), qPrintable(why));
+        SheetDrawing was, now;
+        QVERIFY(readDrawing(o.package, o.drawingPart, &was, &why));
+        QVERIFY(readDrawing(after.package, after.drawingPart, &now, &why));
+        QCOMPARE(now.objects.size(), was.objects.size());
+        for (int i : {0, 2}) {
+            QCOMPARE(int(now.objects[i].anchor.from.col), 3);
+            QCOMPARE(int(now.objects[i].anchor.from.row), 4);
+            QCOMPARE(now.objects[i].anchor.from.colOff, qint64(9525));
+            QCOMPARE(now.objects[i].anchor.from.rowOff, qint64(19050));
+            QCOMPARE(int(now.objects[i].anchor.to.col), 6);
+            QCOMPARE(int(now.objects[i].anchor.to.row), 8);
+            QCOMPARE(now.objects[i].anchor.to.colOff, qint64(28575));
+            QCOMPARE(now.objects[i].anchor.to.rowOff, qint64(38100));
+            QCOMPARE(int(now.objects[i].anchor.editAs), int(AnchorKind::OneCell));   // (the rest of the anchor: as it was)
+            QCOMPARE(now.objects[i].name, was.objects[i].name);
+        }
+        for (int i : {1, 3}) {   // (the second, which was not asked for, and the one-cell anchor)
+            QCOMPARE(int(now.objects[i].anchor.from.col), int(was.objects[i].anchor.from.col));
+            QCOMPARE(int(now.objects[i].anchor.to.col), int(was.objects[i].anchor.to.col));
+            QCOMPARE(now.objects[i].anchor.cx, was.objects[i].anchor.cx);
+        }
+        // nothing to say: nothing changed
+        QVERIFY(setDrawingAnchors(o.package.part(o.drawingPart), {}, &out, &changed));
+        QVERIFY(!changed);
+    }
+
+    // The references of a chart part, as it writes them, and the ids a part names.
+    void referencesAndRelationshipIdsAreFound()
+    {
+        const QByteArray part = chartPart(QStringLiteral("barChart"), {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("(Sheet1!$A$2:$A$3,Sheet1!$A$5)"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"a"}, {1}, QString()}});
+        QCOMPARE(chartPartRefs(part), (QStringList{QStringLiteral("Sheet1!$B$1"), QStringLiteral("(Sheet1!$A$2:$A$3,Sheet1!$A$5)"), QStringLiteral("Sheet1!$B$2:$B$4")}));
+        QVERIFY(chartPartRefs(QByteArray("<a/>")).isEmpty());
+        const QByteArray drawing = drawingPart(twoCell(0, 0, 1, 1, pictureElement(3, QStringLiteral("rIdP"))) + twoCell(0, 0, 1, 1, chartFrame(2, QStringLiteral("rIdC"))));
+        QCOMPARE(namedRelationships(drawing), (QStringList{QStringLiteral("rIdP"), QStringLiteral("rIdC")}));
+        QStringList ids;
+        QByteArray out;
+        bool changed = false;
+        QVERIFY(removeDrawingObjects(drawing, {1}, &out, &changed, &ids));
+        QCOMPARE(ids, QStringList{QStringLiteral("rIdC")});
+        QCOMPARE(namedRelationships(out), QStringList{QStringLiteral("rIdP")});
+    }
+
     // A save with both: the drawing part has no deleted object, the chart part the new numbers, and every other part of the file is the old file's to the byte.
     void aSaveWritesBothAndCopiesTheRest()
     {
@@ -544,9 +694,11 @@ private Q_SLOTS:
         Theme theme;
         QVERIFY(readChart(q.part(QStringLiteral("/xl/charts/chart1.xml")), theme, ColorMap(), &c, &why));
         QCOMPARE(c.plots[0].series[0].values, (QVector<double>{10, 20, 77}));
-        QCOMPARE(report.partsChanged, 2);
+        // (the drawing, the chart, the drawing's relationships without the deleted picture's, and the types without its part's; the picture's part is gone)
+        QCOMPARE(report.partsChanged, 4);
+        QVERIFY(!q.hasPart(QStringLiteral("/xl/media/image1.png")));
         for (const QString &name : p.partNames()) {
-            if (name == QLatin1String("/xl/drawings/drawing1.xml") || name == QLatin1String("/xl/charts/chart1.xml")) continue;
+            if (name == QLatin1String("/xl/drawings/drawing1.xml") || name == QLatin1String("/xl/charts/chart1.xml") || name == QLatin1String("/xl/media/image1.png")) continue;
             QVERIFY2(q.part(name) == p.part(name), qPrintable(name));
         }
         // and nothing asked for changes nothing

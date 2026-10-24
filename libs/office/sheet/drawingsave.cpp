@@ -3,6 +3,7 @@
 #include "sheet/xmlscan.h"
 
 #include <QLocale>
+#include <QRegularExpression>
 
 #include <algorithm>
 #include <cmath>
@@ -12,15 +13,31 @@ namespace jp::office::sheet {
 
 using xmlscan::Tag;
 
-bool removeDrawingObjects(const QByteArray &xml, const std::vector<int> &ordinals, QByteArray *out, bool *changed)
+namespace {
+
+// The end (after its closing tag) of the element whose open tag is `open`.
+qsizetype elementEnd(const QByteArray &xml, const Tag &open)
 {
-    *out = xml;
-    *changed = false;
-    if (ordinals.empty()) return true;
-    const std::set<int> gone(ordinals.begin(), ordinals.end());
+    if (open.selfClosing) return open.end;
+    int depth = 1;
+    qsizetype pos = open.end;
+    Tag t;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth == 0) return t.end;
+        } else if (!t.selfClosing) {
+            ++depth;
+        }
+    }
+    return -1;
+}
+
+// The children of the root: where each starts and ends.
+bool childrenOfRoot(const QByteArray &xml, std::vector<std::pair<qsizetype, qsizetype>> *out)
+{
     Tag t;
     qsizetype pos = 0;
-    // the root
     bool haveRoot = false;
     while (xmlscan::nextTag(xml, pos, &t)) {
         pos = t.end;
@@ -28,34 +45,134 @@ bool removeDrawingObjects(const QByteArray &xml, const std::vector<int> &ordinal
         haveRoot = true;
         break;
     }
-    if (!haveRoot || t.selfClosing) return haveRoot;
-    int depth = 1, ordinal = -1;
+    if (!haveRoot) return false;
+    if (t.selfClosing) return true;
+    int depth = 1;
     qsizetype childStart = -1;
-    QByteArray result;
-    qsizetype copied = 0;
-    auto finishChild = [&](qsizetype end) {
-        if (gone.count(ordinal)) {
-            result += xml.mid(copied, childStart - copied);
-            copied = end;
-        }
-    };
     while (xmlscan::nextTag(xml, pos, &t)) {
         pos = t.end;
         if (depth == 1 && !t.closing) {
-            ++ordinal;
             childStart = t.start;
             if (t.selfClosing) {
-                finishChild(t.end);
+                out->emplace_back(childStart, t.end);
                 continue;
             }
             depth = 2;
             continue;
         }
         if (t.closing) {
-            if (--depth == 1) finishChild(t.end);
+            if (--depth == 1) out->emplace_back(childStart, t.end);
             if (depth == 0) break;
         } else if (!t.selfClosing) {
             ++depth;
+        }
+    }
+    return true;
+}
+
+const QRegularExpression &relAttributeRe()
+{
+    static const QRegularExpression re(QStringLiteral("\\b[A-Za-z_][\\w.-]*:(?:embed|link|id|pict)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')"));
+    return re;
+}
+
+} // namespace
+
+QStringList namedRelationships(const QByteArray &xml)
+{
+    QStringList out;
+    const QString text = QString::fromUtf8(xml);
+    QRegularExpressionMatchIterator it = relAttributeRe().globalMatch(text);
+    while (it.hasNext()) {
+        const QRegularExpressionMatch m = it.next();
+        const QString id = m.captured(1).isEmpty() ? m.captured(2) : m.captured(1);
+        if (!id.isEmpty() && !out.contains(id)) out << id;
+    }
+    return out;
+}
+
+bool removeDrawingObjects(const QByteArray &xml, const std::vector<int> &ordinals, QByteArray *out, bool *changed, QStringList *relIds)
+{
+    *out = xml;
+    *changed = false;
+    if (ordinals.empty()) return true;
+    const std::set<int> gone(ordinals.begin(), ordinals.end());
+    std::vector<std::pair<qsizetype, qsizetype>> children;
+    if (!childrenOfRoot(xml, &children)) return false;
+    QByteArray result;
+    qsizetype copied = 0;
+    bool any = false;
+    for (size_t i = 0; i < children.size(); ++i) {
+        if (!gone.count(int(i))) continue;
+        result += xml.mid(copied, children[i].first - copied);
+        copied = children[i].second;
+        any = true;
+        if (relIds)
+            for (const QString &id : namedRelationships(xml.mid(children[i].first, children[i].second - children[i].first)))
+                if (!relIds->contains(id)) *relIds << id;
+    }
+    if (!any) return true;
+    result += xml.mid(copied);
+    *out = result;
+    *changed = *out != xml;
+    return true;
+}
+
+bool setDrawingAnchors(const QByteArray &xml, const std::map<int, DrawingAnchor> &anchors, QByteArray *out, bool *changed)
+{
+    *out = xml;
+    *changed = false;
+    if (anchors.empty()) return true;
+    std::vector<std::pair<qsizetype, qsizetype>> children;
+    if (!childrenOfRoot(xml, &children)) return false;
+    QByteArray result;
+    qsizetype copied = 0;
+    auto point = [](const QByteArray &prefix, const char *tag, const AnchorPoint &p) {
+        return "<" + prefix + tag + "><" + prefix + "col>" + QByteArray::number(qulonglong(p.col)) + "</" + prefix + "col><" + prefix + "colOff>" + QByteArray::number(qlonglong(p.colOff)) + "</" + prefix + "colOff><" + prefix + "row>" +
+               QByteArray::number(qulonglong(p.row)) + "</" + prefix + "row><" + prefix + "rowOff>" + QByteArray::number(qlonglong(p.rowOff)) + "</" + prefix + "rowOff></" + prefix + tag + ">";
+    };
+    for (const auto &[ordinal, anchor] : anchors) {
+        if (ordinal < 0 || size_t(ordinal) >= children.size() || anchor.kind != AnchorKind::TwoCell) continue;
+        const qsizetype from0 = children[size_t(ordinal)].first, to0 = children[size_t(ordinal)].second;
+        // the first two-cell anchor of the child: its from and its to
+        Tag t;
+        qsizetype pos = from0;
+        bool inAnchor = false;
+        Tag fromTag, toTag;
+        qsizetype fromEnd = -1, toEnd = -1;
+        while (xmlscan::nextTag(xml, pos, &t) && t.start < to0) {
+            pos = t.end;
+            if (t.closing) continue;
+            if (!inAnchor) {
+                if (t.local == "twoCellAnchor") inAnchor = true;
+                continue;
+            }
+            if (t.local == "from" && fromEnd < 0) {
+                fromTag = t;
+                fromEnd = elementEnd(xml, t);
+                pos = fromEnd > 0 ? fromEnd : pos;
+            } else if (t.local == "to" && toEnd < 0) {
+                toTag = t;
+                toEnd = elementEnd(xml, t);
+                pos = toEnd > 0 ? toEnd : pos;
+            }
+            if (fromEnd >= 0 && toEnd >= 0) break;
+        }
+        if (fromEnd < 0 || toEnd < 0) continue;
+        const QByteArrayView pf = xmlscan::prefixOf(fromTag.name);
+        const QByteArray prefix(pf.data(), pf.size());
+        // (the from comes before the to in a well-formed anchor; the later block is replaced first so that the earlier one's places hold)
+        const QByteArray newFrom = point(prefix, "from", anchor.from), newTo = point(prefix, "to", anchor.to);
+        struct Part {
+            qsizetype start, end;
+            QByteArray text;
+        };
+        std::vector<Part> parts = {{fromTag.start, fromEnd, newFrom}, {toTag.start, toEnd, newTo}};
+        std::sort(parts.begin(), parts.end(), [](const Part &a, const Part &b) { return a.start < b.start; });
+        for (const Part &p : parts) {
+            if (p.start < copied) continue;
+            result += xml.mid(copied, p.start - copied) + p.text;
+            copied = p.end;
         }
     }
     if (copied == 0 && result.isEmpty()) return true;
@@ -63,6 +180,23 @@ bool removeDrawingObjects(const QByteArray &xml, const std::vector<int> &ordinal
     *out = result;
     *changed = *out != xml;
     return true;
+}
+
+QStringList chartPartRefs(const QByteArray &xml)
+{
+    QStringList out;
+    Tag t;
+    qsizetype pos = 0;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing || t.selfClosing || t.local != "f") continue;
+        Tag close;
+        if (!xmlscan::nextTag(xml, t.end, &close) || !close.closing || close.local != "f") continue;
+        const QString ref = xmlscan::unescape(QByteArrayView(xml).sliced(t.end, close.start - t.end)).trimmed();
+        if (!ref.isEmpty() && out.size() < 100000) out << ref;
+        pos = close.end;
+    }
+    return out;
 }
 
 namespace {

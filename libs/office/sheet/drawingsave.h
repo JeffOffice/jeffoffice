@@ -4,6 +4,7 @@
 // the part's bytes with the scanner of xmlscan.h, so everything else in the part stays as it was.
 
 #include "sheet/chartdata.h"
+#include "sheet/drawing.h"
 
 #include <QByteArray>
 #include <QString>
@@ -14,8 +15,19 @@
 namespace jp::office::sheet {
 
 // The drawing part without the children of its root (anchors, or what wraps them) at the given places (from 0, as DrawingObject::ordinal counts them). `changed` says whether the output
-// is not the input; false, with nothing read, if the part has no root element.
-bool removeDrawingObjects(const QByteArray &xml, const std::vector<int> &ordinals, QByteArray *out, bool *changed);
+// is not the input; false, with nothing read, if the part has no root element. `relIds`, if given, is told the relationship ids (the r:embed, r:link, r:id, and r:pict attributes) of what
+// was taken out.
+bool removeDrawingObjects(const QByteArray &xml, const std::vector<int> &ordinals, QByteArray *out, bool *changed, QStringList *relIds = nullptr);
+
+// The relationship ids (the values of r:embed, r:link, r:id, and r:pict attributes) a part names.
+QStringList namedRelationships(const QByteArray &xml);
+
+// The two-cell anchors at the given places (as DrawingObject::ordinal counts them; the first anchor of a wrapper) given the places `from` and `to` say, as the part writes them; every other byte
+// stays. A place that is not of a two-cell anchor is left as it is.
+bool setDrawingAnchors(const QByteArray &xml, const std::map<int, DrawingAnchor> &anchors, QByteArray *out, bool *changed);
+
+// The references a chart part reads (the text of each c:f), in order, as written (unescaped).
+QStringList chartPartRefs(const QByteArray &xml);
 
 // What a chart part stores for the references it reads, by the reference as the part writes it (its c:f): the cells' contents now.
 using ChartCaches = std::map<QString, ChartRefData>;
