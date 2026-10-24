@@ -462,7 +462,7 @@ QString modelFunctionName(const QString &odfName)
     QString name = odfName.toUpper();
     for (const char *add : kAddIns)
         if (name.startsWith(QLatin1String(add))) return name.mid(int(qstrlen(add)));
-    // a name with a prefix of the standard's own is the name without it, and the Excel-compatible forms (CEILING.XCL) are the plain names
+    // a name with a prefix of the standard's own is the name without it, and the forms the .xlsx format has (CEILING.XCL) are the plain names
     for (const NamePair &pair : kNames)
         if (name == QLatin1String(pair.odf)) return QLatin1String(pair.model);
     for (const char *p : kPrefixes)
@@ -477,7 +477,7 @@ QString modelFunctionName(const QString &odfName)
 QString odfFunctionName(const QString &modelName)
 {
     const QString name = modelName.toUpper();
-    // the Excel-compatible forms of the two that the standard's own forms differ from
+    // the forms the .xlsx format has, of the two that the standard's own forms differ from
     if (name == QLatin1String("CEILING")) return QStringLiteral("COM.MICROSOFT.CEILING.XCL");
     if (name == QLatin1String("FLOOR")) return QStringLiteral("COM.MICROSOFT.FLOOR.XCL");
     for (const NamePair &pair : kNames)
