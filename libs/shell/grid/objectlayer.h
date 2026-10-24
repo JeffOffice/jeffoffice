@@ -23,6 +23,7 @@
 
 #include <functional>
 #include <mutex>
+#include <unordered_map>
 #include <vector>
 
 namespace jp::grid {
@@ -130,7 +131,8 @@ public:
         qint64 placed = 0;         // places worked out from anchors
         qint64 evicted = 0;        // pictures let go of for the budget
         qint64 placeholders = 0;   // objects drawn as an outline for want of a picture
-        qint64 paintRenders = 0;   // pictures made inside a paint (none: a paint makes nothing)
+        qint64 paintRenders = 0;   // pictures made, or given to the worker, inside a paint (none: a paint makes nothing)
+        qint64 examined = 0;       // objects looked at to find what is on the screen (the index gives those near it: not every object of the sheet)
         qint64 shrunk = 0;         // times pictures were made smaller for the budget
     };
     const Stats &stats() const { return m_stats; }
@@ -175,6 +177,14 @@ private:
         QImage image;
     };
     void ensureBoxes(const GridLayout &layout) const;
+    // The objects (their places in the list, in order) that may be in `area` of the pane (device pixels): those the index finds by where the area is on the sheet, and the few that are
+    // too large to be indexed. Each is then asked for its own rectangle.
+    void candidates(const GridLayout &layout, Pane pane, const QRect &area, std::vector<size_t> *out) const;
+    // The same for the four panes of the window, each in the area given by `widen` around what it shows, with none twice.
+    void candidatesAll(const GridLayout &layout, double widen, std::vector<size_t> *out) const;
+    void buildIndex() const;
+    int firstLive() const;
+    size_t entryOf(int id) const;   // the place of the object in the list, or the list's size if there is none
     QRect rectIn(const GridLayout &layout, Pane pane, const Entry &e) const;
     // The rectangle drawn for the object (its box and the margin), and what it asks of the object's draw function when the picture is `wanted` pixels.
     QRect drawRect(const QRect &box, const Entry &e, double zoom) const;
@@ -195,7 +205,20 @@ private:
     bool inkAt(const Entry &e, const GridLayout &layout, Pane pane, const QPoint &point) const;
 
     std::vector<Entry> m_entries;
+    std::unordered_map<int, size_t> m_byId;   // an object's place in the list, by its id (the first, if the ids repeat)
+    // Where the objects are on the sheet: a grid of squares of kCell units, each holding the objects that touch it, made when the boxes are worked out.
+    struct Index {
+        std::unordered_map<quint64, std::vector<quint32>> squares;
+        std::vector<quint32> large;           // objects that touch more squares than are worth registering
+    };
+    mutable Index m_index;
+    mutable bool m_indexValid = false;
+    mutable std::vector<quint32> m_seen;      // for each object, the last query that found it (a query finds each once)
+    mutable quint32 m_query = 0;
+    double m_maxMargin = 0;                   // the largest margin of any object: what an area is widened by
+    mutable int m_firstLive = -2;             // the first object that is not deleted (what fills the view), -1 if there is none, -2 if it must be looked for
     const GridLayout *m_layout = nullptr;
+    bool m_painting = false;
     mutable std::vector<qint64> m_signature;   // of the rows and columns the boxes were worked out for
     mutable bool m_boxesValid = false;
     bool m_fills = false;

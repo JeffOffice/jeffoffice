@@ -25,6 +25,15 @@ constexpr int kNearDelayMillis = 30;      // the objects near the screen are mad
 constexpr int kStaleDelayMillis = 120;     // a picture whose cells changed is made again this long after (a calculation tells many changes)
 constexpr qint64 kFarthest = qint64(1) << 29;   // a place on the screen is kept this near, so that a rectangle's arithmetic fits an int
 constexpr double kBudgetShare = 0.6;       // the pictures of what is on the screen are made small enough to take this much of the budget
+constexpr double kCell = 256;              // a square of the index is this many units on a side
+constexpr qint64 kMostSquares = 64;        // an object that touches more squares than this is kept in a list of its own
+constexpr qint64 kMostQueried = 1 << 16;   // an area that reaches more squares than this (a window zoomed far out) looks at every object instead
+
+qint64 squareOf(double v)
+{
+    return qint64(std::floor(std::max(-1e12, std::min(1e12, v)) / kCell));
+}
+quint64 keyOf(qint64 sx, qint64 sy) { return (quint64(sx + (qint64(1) << 31)) << 32) | quint64(sy + (qint64(1) << 31)); }
 
 // A place along an axis: the start of the row or column, and how far into it (EMU), no further than it is high or wide.
 double placeOf(const Axis &axis, quint32 index, qint64 offsetEmu)
@@ -112,14 +121,24 @@ void ObjectLayer::setObjects(std::vector<LayerObject> objects)
     m_inflight = 0;
     m_selected = -1;
     m_boxesValid = false;
+    m_indexValid = false;
+    m_firstLive = -2;
+    m_maxMargin = 0;
     m_shrink = 1.0;
+    m_byId.clear();
+    m_painting = false;
     const size_t n = std::min<size_t>(objects.size(), size_t(kMaxObjects));
     m_entries.reserve(n);
+    m_byId.reserve(n);
     for (size_t i = 0; i < n; ++i) {
         Entry e;
         e.object = std::move(objects[i]);
+        m_maxMargin = std::max(m_maxMargin, e.object.margin);
+        m_byId.emplace(e.object.id, i);
         m_entries.push_back(std::move(e));
     }
+    m_seen.assign(n, 0);
+    m_query = 0;
     m_nearKey.clear();
     requestRepaint();
 }
@@ -137,43 +156,46 @@ void ObjectLayer::layoutChanged()
     requestRepaint();
 }
 
+size_t ObjectLayer::entryOf(int id) const
+{
+    const auto it = m_byId.find(id);
+    return it == m_byId.end() ? m_entries.size() : it->second;
+}
+
 void ObjectLayer::setDeleted(int id, bool deleted)
 {
-    for (Entry &e : m_entries)
-        if (e.object.id == id) {
-            if (e.deleted == deleted) return;
-            e.deleted = deleted;
-            if (deleted && m_selected == id) m_selected = -1;
-            requestRepaint();
-            return;
-        }
+    const size_t i = entryOf(id);
+    if (i >= m_entries.size()) return;
+    Entry &e = m_entries[i];
+    if (e.deleted == deleted) return;
+    e.deleted = deleted;
+    m_firstLive = -2;
+    if (deleted && m_selected == id) m_selected = -1;
+    requestRepaint();
 }
 
 bool ObjectLayer::isDeleted(int id) const
 {
-    for (const Entry &e : m_entries)
-        if (e.object.id == id) return e.deleted;
-    return false;
+    const size_t i = entryOf(id);
+    return i < m_entries.size() && m_entries[i].deleted;
 }
 
 void ObjectLayer::setAnchor(int id, const DrawingAnchor &anchor)
 {
-    for (Entry &e : m_entries)
-        if (e.object.id == id) {
-            e.object.anchor = anchor;
-            m_boxesValid = false;
-            requestRepaint();
-            return;
-        }
+    const size_t i = entryOf(id);
+    if (i >= m_entries.size()) return;
+    m_entries[i].object.anchor = anchor;
+    m_boxesValid = false;
+    requestRepaint();
 }
 
 ObjectBox ObjectLayer::lastBox(int id, bool *placed) const
 {
-    for (const Entry &e : m_entries)
-        if (e.object.id == id) {
-            if (placed) *placed = e.placed;
-            return e.box;
-        }
+    const size_t i = entryOf(id);
+    if (i < m_entries.size()) {
+        if (placed) *placed = m_entries[i].placed;
+        return m_entries[i].box;
+    }
     if (placed) *placed = false;
     return ObjectBox();
 }
@@ -183,23 +205,19 @@ ObjectBox ObjectLayer::boxNow(int id, bool *ok) const
     if (ok) *ok = false;
     if (!m_layout) return ObjectBox();
     ensureBoxes(*m_layout);
-    for (const Entry &e : m_entries)
-        if (e.object.id == id) {
-            if (ok) *ok = true;
-            return e.box;
-        }
-    return ObjectBox();
+    const size_t i = entryOf(id);
+    if (i >= m_entries.size()) return ObjectBox();
+    if (ok) *ok = true;
+    return m_entries[i].box;
 }
 
 void ObjectLayer::invalidate(int id)
 {
-    for (Entry &e : m_entries)
-        if (e.object.id == id) {
-            e.stale = true;
-            e.failed = false;
-            schedule(kStaleDelayMillis);
-            return;
-        }
+    const size_t i = entryOf(id);
+    if (i >= m_entries.size()) return;
+    m_entries[i].stale = true;
+    m_entries[i].failed = false;
+    schedule(kStaleDelayMillis);
 }
 
 void ObjectLayer::invalidateAll()
@@ -230,7 +248,102 @@ void ObjectLayer::ensureBoxes(const GridLayout &layout) const
         e.box = anchorBox(e.object.anchor, layout.rows, layout.cols);
         e.placed = true;
     }
+    m_indexValid = false;
     m_stats.placed += qint64(m_entries.size());
+}
+
+int ObjectLayer::firstLive() const
+{
+    if (m_firstLive == -2) {
+        m_firstLive = -1;
+        for (size_t i = 0; i < m_entries.size(); ++i)
+            if (!m_entries[i].deleted) {
+                m_firstLive = int(i);
+                break;
+            }
+    }
+    return m_firstLive;
+}
+
+void ObjectLayer::buildIndex() const
+{
+    m_index.squares.clear();
+    m_index.large.clear();
+    for (size_t i = 0; i < m_entries.size(); ++i) {
+        const ObjectBox &b = m_entries[i].box;
+        const qint64 x0 = squareOf(b.x), x1 = squareOf(b.x + b.w), y0 = squareOf(b.y), y1 = squareOf(b.y + b.h);
+        if ((x1 - x0 + 1) * (y1 - y0 + 1) > kMostSquares) {
+            m_index.large.push_back(quint32(i));
+            continue;
+        }
+        for (qint64 sx = x0; sx <= x1; ++sx)
+            for (qint64 sy = y0; sy <= y1; ++sy) m_index.squares[keyOf(sx, sy)].push_back(quint32(i));
+    }
+    m_indexValid = true;
+}
+
+void ObjectLayer::candidates(const GridLayout &layout, Pane pane, const QRect &area, std::vector<size_t> *out) const
+{
+    out->clear();
+    if (area.isEmpty() || m_entries.empty()) return;
+    ensureBoxes(layout);
+    if (m_fills) {
+        // (the object that fills the view is the first that is not deleted)
+        const int first = firstLive();
+        if (first >= 0 && pane == Pane::Body) out->push_back(size_t(first));
+        m_stats.examined += qint64(out->size());
+        return;
+    }
+    if (!m_indexValid) buildIndex();
+    // the area on the sheet (the grid's units): the screen's place less where the part's origin is, over the zoom; a margin around it for what an object draws past its box
+    const bool fr = pane == Pane::Corner || pane == Pane::Top, fc = pane == Pane::Corner || pane == Pane::Left;
+    const double zoom = std::max(1e-6, layout.zoom());
+    const double ox = layout.screenXAt(0, fc), oy = layout.screenYAt(0, fr);
+    const double pad = m_maxMargin + 3;
+    const double lx0 = (area.left() - ox) / zoom - pad, lx1 = (area.right() + 1 - ox) / zoom + pad;
+    const double ly0 = (area.top() - oy) / zoom - pad, ly1 = (area.bottom() + 1 - oy) / zoom + pad;
+    const qint64 x0 = squareOf(lx0), x1 = squareOf(lx1), y0 = squareOf(ly0), y1 = squareOf(ly1);
+    if ((x1 - x0 + 1) * (y1 - y0 + 1) > kMostQueried) {
+        // (a window that shows more of the sheet than the index can be asked about square by square: every object is looked at)
+        out->resize(m_entries.size());
+        for (size_t i = 0; i < m_entries.size(); ++i) (*out)[i] = i;
+        m_stats.examined += qint64(out->size());
+        return;
+    }
+    if (m_seen.size() != m_entries.size()) m_seen.assign(m_entries.size(), 0);
+    if (++m_query == 0) {
+        std::fill(m_seen.begin(), m_seen.end(), 0);
+        m_query = 1;
+    }
+    auto take = [&](quint32 i) {
+        if (m_seen[i] == m_query) return;
+        m_seen[i] = m_query;
+        out->push_back(i);
+    };
+    for (const quint32 i : m_index.large) take(i);
+    for (qint64 sx = x0; sx <= x1; ++sx)
+        for (qint64 sy = y0; sy <= y1; ++sy) {
+            const auto it = m_index.squares.find(keyOf(sx, sy));
+            if (it == m_index.squares.end()) continue;
+            for (const quint32 i : it->second) take(i);
+        }
+    std::sort(out->begin(), out->end());
+    m_stats.examined += qint64(out->size());
+}
+
+void ObjectLayer::candidatesAll(const GridLayout &layout, double widen, std::vector<size_t> *out) const
+{
+    out->clear();
+    std::vector<size_t> part;
+    for (const Pane pane : kPanes) {
+        const QRect shown = layout.pane(pane).rect;
+        if (shown.isEmpty()) continue;
+        const QRect area = widen <= 0 ? shown : shown.adjusted(-int(shown.width() * widen), -int(shown.height() * widen), int(shown.width() * widen), int(shown.height() * widen));
+        candidates(layout, pane, area, &part);
+        out->insert(out->end(), part.begin(), part.end());
+    }
+    std::sort(out->begin(), out->end());
+    out->erase(std::unique(out->begin(), out->end()), out->end());
 }
 
 QRect ObjectLayer::rectIn(const GridLayout &layout, Pane pane, const Entry &e) const
@@ -238,9 +351,8 @@ QRect ObjectLayer::rectIn(const GridLayout &layout, Pane pane, const Entry &e) c
     if (e.deleted) return QRect();
     if (m_fills) {
         // the first object that is not deleted fills the part that scrolls
-        for (const Entry &first : m_entries)
-            if (!first.deleted) return &first == &e && pane == Pane::Body ? layout.pane(Pane::Body).rect : QRect();
-        return QRect();
+        const int first = firstLive();
+        return first >= 0 && &m_entries[size_t(first)] == &e && pane == Pane::Body ? layout.pane(Pane::Body).rect : QRect();
     }
     if (e.object.thin ? e.box.isNothing() : e.box.isEmpty()) return QRect();
     const bool fr = pane == Pane::Corner || pane == Pane::Top, fc = pane == Pane::Corner || pane == Pane::Left;
@@ -295,6 +407,7 @@ void ObjectLayer::settle(Entry &e)
     if (e.settled) return;
     e.settled = true;
     if (e.object.settle) e.object.settle(&e.object);
+    m_maxMargin = std::max(m_maxMargin, e.object.margin);
 }
 
 void ObjectLayer::store(Entry &e, const QImage &image, const QSize &wanted, double zoom)
@@ -308,6 +421,7 @@ void ObjectLayer::store(Entry &e, const QImage &image, const QSize &wanted, doub
     m_bytes += e.image.isNull() ? 0 : e.image.sizeInBytes();
     e.lastUsed = m_frame;
     ++m_stats.renders;
+    if (m_painting) ++m_stats.paintRenders;
 }
 
 void ObjectLayer::evict()
@@ -351,11 +465,15 @@ void ObjectLayer::paint(QPainter *p, const GridLayout &layout, Pane pane, const 
     m_dpr = std::max(1.0, p->device()->devicePixelRatioF());
     ensureBoxes(layout);
     ++m_frame;
+    m_painting = true;   // (a picture made while this is set is counted: a paint makes none)
     const double zoom = layout.zoom();
     bool later = false;
     p->save();
     p->setClipRect(clip);
-    for (Entry &e : m_entries) {
+    std::vector<size_t> near;
+    candidates(layout, pane, clip, &near);
+    for (const size_t index : near) {
+        Entry &e = m_entries[index];
         const QRect box = rectIn(layout, pane, e);
         if (box.isEmpty()) continue;
         const QRect r = drawRect(box, e, zoom);
@@ -382,23 +500,21 @@ void ObjectLayer::paint(QPainter *p, const GridLayout &layout, Pane pane, const 
         }
     }
     // the object that is picked
-    if (m_selected >= 0)
-        for (const Entry &e : m_entries)
-            if (e.object.id == m_selected) {
-                const QRect r = rectIn(layout, pane, e);
-                if (r.isEmpty() || !r.intersects(clip)) break;
-                const QColor accent(0x13, 0x77, 0x3A);
-                p->setBrush(Qt::NoBrush);
-                p->setPen(QPen(accent, 2));
-                p->drawRect(r.adjusted(1, 1, -2, -2));
-                p->setPen(QPen(accent, 1));
-                p->setBrush(Qt::white);
-                const int h = 3;
-                const QPoint corners[] = {r.topLeft(), r.topRight(), r.bottomLeft(), r.bottomRight(), QPoint(r.center().x(), r.top()), QPoint(r.center().x(), r.bottom()),
-                                          QPoint(r.left(), r.center().y()), QPoint(r.right(), r.center().y())};
-                for (const QPoint &c : corners) p->drawRect(QRect(c.x() - h, c.y() - h, 2 * h, 2 * h));
-                break;
-            }
+    if (const size_t at = m_selected >= 0 ? entryOf(m_selected) : m_entries.size(); at < m_entries.size()) {
+        const QRect r = rectIn(layout, pane, m_entries[at]);
+        if (!r.isEmpty() && r.intersects(clip)) {
+            const QColor accent(0x13, 0x77, 0x3A);
+            p->setBrush(Qt::NoBrush);
+            p->setPen(QPen(accent, 2));
+            p->drawRect(r.adjusted(1, 1, -2, -2));
+            p->setPen(QPen(accent, 1));
+            p->setBrush(Qt::white);
+            const int h = 3;
+            const QPoint corners[] = {r.topLeft(), r.topRight(), r.bottomLeft(), r.bottomRight(), QPoint(r.center().x(), r.top()), QPoint(r.center().x(), r.bottom()),
+                                      QPoint(r.left(), r.center().y()), QPoint(r.right(), r.center().y())};
+            for (const QPoint &c : corners) p->drawRect(QRect(c.x() - h, c.y() - h, 2 * h, 2 * h));
+        }
+    }
     p->restore();
     if (later) schedule(0);
     // the grid has moved since the objects near the screen were looked at: they are, a moment after it stops
@@ -407,6 +523,7 @@ void ObjectLayer::paint(QPainter *p, const GridLayout &layout, Pane pane, const 
         m_nearKey = key;
         m_timer.start(kNearDelayMillis);
     }
+    m_painting = false;
 }
 
 void ObjectLayer::updateShrink(const GridLayout &layout)
@@ -416,7 +533,10 @@ void ObjectLayer::updateShrink(const GridLayout &layout)
     double bytes = 0;
     const double keep = m_shrink;
     m_shrink = 1.0;
-    for (const Entry &e : m_entries) {
+    std::vector<size_t> onScreen;
+    candidatesAll(layout, 0, &onScreen);
+    for (const size_t index : onScreen) {
+        const Entry &e = m_entries[index];
         bool seen = false;
         for (const Pane pane : kPanes) {
             const QRect shown = layout.pane(pane).rect;
@@ -442,6 +562,7 @@ void ObjectLayer::startJob(Entry &e, size_t index, const QSize &wanted, double z
         store(e, QImage(), wanted, zoom);
         return;
     }
+    if (m_painting) ++m_stats.paintRenders;
     ++e.token;
     e.pending = true;
     e.stale = false;
@@ -507,7 +628,9 @@ bool ObjectLayer::makePictures(bool all, bool near)
             const QRect shown = layout.pane(pane).rect;
             if (shown.isEmpty()) continue;
             const QRect area = pass == 0 ? shown : shown.adjusted(-shown.width(), -shown.height(), shown.width(), shown.height());
-            for (size_t i = 0; i < m_entries.size(); ++i) {
+            std::vector<size_t> found;
+            candidates(layout, pane, area, &found);
+            for (const size_t i : found) {
                 Entry &e = m_entries[i];
                 QRect box = rectIn(layout, pane, e);
                 if (box.isEmpty()) continue;
@@ -572,7 +695,10 @@ int ObjectLayer::pendingRenders() const
     const GridLayout &layout = *m_layout;
     ensureBoxes(layout);
     int pending = 0;
-    for (const Entry &e : m_entries) {
+    std::vector<size_t> onScreen;
+    candidatesAll(layout, 0, &onScreen);
+    for (const size_t index : onScreen) {
+        const Entry &e = m_entries[index];
         bool counted = false;
         for (const Pane pane : kPanes) {
             const QRect area = layout.pane(pane).rect;
@@ -591,12 +717,10 @@ QRect ObjectLayer::deviceRect(int id, Pane pane) const
 {
     if (!m_layout) return QRect();
     ensureBoxes(*m_layout);
-    for (const Entry &e : m_entries)
-        if (e.object.id == id) {
-            const QRect r = rectIn(*m_layout, pane, e);
-            return r.intersects(m_layout->pane(pane).rect) ? r : QRect();
-        }
-    return QRect();
+    const size_t i = entryOf(id);
+    if (i >= m_entries.size()) return QRect();
+    const QRect r = rectIn(*m_layout, pane, m_entries[i]);
+    return r.intersects(m_layout->pane(pane).rect) ? r : QRect();
 }
 
 bool ObjectLayer::inkAt(const Entry &e, const GridLayout &layout, Pane pane, const QPoint &point) const
@@ -621,8 +745,10 @@ int ObjectLayer::objectAt(const QPoint &point) const
     ensureBoxes(layout);
     for (const Pane pane : kPanes) {
         if (!layout.pane(pane).rect.contains(point)) continue;
-        for (size_t i = m_entries.size(); i-- > 0;) {
-            const Entry &e = m_entries[i];
+        std::vector<size_t> here;
+        candidates(layout, pane, QRect(point, QSize(1, 1)), &here);
+        for (size_t k = here.size(); k-- > 0;) {
+            const Entry &e = m_entries[here[k]];
             if (!rectIn(layout, pane, e).contains(point)) continue;
             if (!e.object.hitInk || inkAt(e, layout, pane, point)) return e.object.id;
         }

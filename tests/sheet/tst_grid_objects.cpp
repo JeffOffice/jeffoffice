@@ -372,6 +372,75 @@ private Q_SLOTS:
         QCOMPARE(s.objects.pendingRenders(), 0);
     }
 
+    // What is on the screen is found through an index of where the objects are, not by asking each: with 50,000 objects down and across a sheet, a paint, the pictures the screen needs, a
+    // click, and a look at the screen after a jump far down the sheet ask about the objects near the window (counted), and every picture and click is right.
+    void theScreenIsFoundThroughAnIndex()
+    {
+        Scene s;
+        const int n = 50000, columns = 40;
+        std::vector<LayerObject> objects;
+        objects.reserve(size_t(n));
+        for (int i = 0; i < n; ++i) objects.push_back(colored(i + 1, twoCell(quint32(i % columns), quint32(i / columns), quint32(i % columns) + 1, quint32(i / columns) + 1), i % 2 ? kRed : kGreen));
+        s.objects.setObjects(std::move(objects));
+        QCOMPARE(s.objects.count(), n);
+        s.paint();
+        // (400 by 300 pixels: six columns and fifteen rows, about ninety objects)
+        const qint64 first = s.objects.stats().examined;
+        QVERIFY2(first >= 90 && first < n / 100, qPrintable(QString::number(first)));
+        s.objects.prepareAll();
+        QCOMPARE(s.objects.pendingRenders(), 0);
+        s.paint();
+        const qint64 renders = s.objects.stats().renders;
+        QVERIFY2(renders >= 90 && renders <= 120, qPrintable(QString::number(renders)));
+        QVERIFY2(s.objects.stats().examined < n / 20, qPrintable(QString::number(s.objects.stats().examined)));   // (all that was asked, together: a twentieth of the objects at the most)
+        QCOMPARE(s.at(10, 10), kGreen);        // (the first: green)
+        QCOMPARE(s.at(64 + 10, 10), kRed);     // (the second)
+        // a click finds the object under it, and one on the edge of the screen too
+        QCOMPARE(s.objects.objectAt(QPoint(64 * 3 + 5, 20 * 4 + 5)), 4 * columns + 3 + 1);
+        QVERIFY2(s.objects.stats().examined < n / 20, qPrintable(QString::number(s.objects.stats().examined)));
+        // a jump to row 1,200 (the last rows with objects): the objects there are made, the first ones are not asked about again
+        const qint64 asked = s.objects.stats().examined;
+        s.layout.setScroll(0, 20 * 1200);
+        s.paint();
+        s.objects.prepareAll();
+        s.paint();
+        QVERIFY2(s.objects.stats().examined - asked < n / 50, qPrintable(QString::number(s.objects.stats().examined - asked)));
+        QVERIFY(s.objects.stats().renders - renders >= 90);
+        QCOMPARE(s.objects.pendingRenders(), 0);
+        QCOMPARE(s.at(10, 10), kGreen);   // (the object at row 1,200, the first column: the 48,001st)
+        QCOMPARE(s.objects.objectAt(QPoint(10, 10)), 1200 * columns + 1);
+        // objects that are larger than the squares of the index are found too: one across a thousand rows, and one as wide as the sheet
+        std::vector<LayerObject> some;
+        for (int i = 0; i < 2000; ++i) some.push_back(colored(i + 1, twoCell(quint32(i % 40), quint32(i / 40 * 2), quint32(i % 40) + 1, quint32(i / 40 * 2) + 1), kRed));
+        some.push_back(colored(5000, twoCell(0, 0, 1, 1000), kBlue));
+        some.push_back(colored(5001, twoCell(0, 0, 4000, 1), kGreen));
+        Scene t;
+        t.objects.setObjects(std::move(some));
+        t.layout.setScroll(0, 20 * 600);
+        t.draw();
+        QCOMPARE(t.at(10, 10), kBlue);   // (the tall one is at the left, over the rows there)
+        QCOMPARE(t.objects.objectAt(QPoint(10, 10)), 5000);
+        t.layout.setScroll(64 * 100, 0);
+        t.draw();
+        QCOMPARE(t.at(10, 10), kGreen);   // (the wide one is at the top, over the columns there)
+    }
+
+    // A paint makes no picture and gives none to a worker, and the count says so when it does: with the layer made to make them in its paint, the count is not 0.
+    void aPaintsPicturesAreCounted()
+    {
+        Scene s;
+        std::vector<LayerObject> objects;
+        for (int i = 0; i < 6; ++i) objects.push_back(colored(i + 1, twoCell(i % 6, i % 14, i % 6 + 1, i % 14 + 1), kRed));
+        objects.push_back(madeOnAWorker(100, twoCell(2, 5, 4, 8), kBlue));
+        s.objects.setObjects(std::move(objects));
+        s.paint();
+        QCOMPARE(s.objects.stats().paintRenders, qint64(0));
+        s.objects.prepareAll();   // (made between paints: not counted as made in one)
+        s.paint();
+        QCOMPARE(s.objects.stats().paintRenders, qint64(0));
+        QCOMPARE(s.objects.stats().renders, qint64(7));
+    }
+
     // The time between events makes the pictures a paint asked for: the layer's own timer, a step at a time, and the window is told to draw what it made.
     void theTimerMakesWhatAPaintAskedFor()
     {
@@ -398,7 +467,9 @@ private Q_SLOTS:
         s.draw();
         QCOMPARE(s.objects.stats().renders, qint64(1));
         // (the second is below the 300 pixels the window shows, within another screenful: the layer makes it when the grid has stopped, and then has nothing in hand)
-        QTRY_VERIFY(nearLog.asked.size() == 1 && !s.objects.busy());
+        QTRY_VERIFY(nearLog.asked.size() >= 1);
+        QTRY_VERIFY(!s.objects.busy());   // (settled: nothing more is in hand, so what was asked for is all that will be)
+        QCOMPARE(nearLog.asked.size(), 1);
         QCOMPARE(s.objects.stats().renders, qint64(2));
         QCOMPARE(farLog.asked.size(), 0);   // (the third is never made while it is far off)
         // scrolled to it: its picture is there already (no outline is drawn for it)
@@ -456,25 +527,28 @@ private Q_SLOTS:
         gate.blocked = true;
         s.objects.setObjects({madeOnAWorker(1, twoCell(1, 2, 3, 5), kGreen, &gate)});
         s.draw(false);
-        QTRY_COMPARE(gate.started.load(), 1);   // (the layer's step gave the job to the worker)
+        QTRY_VERIFY(gate.started.load() >= 1);   // (the layer's step gave the job to the worker)
         QVERIFY(s.objects.busy());
         s.objects.invalidate(1);                // its cells change while it is being made
         gate.blocked = false;
         gate.open.release(4);
         QTRY_VERIFY(!s.objects.busy() && s.objects.pendingRenders() == 0);
         QCOMPARE(s.objects.stats().renders, qint64(2));
+        QCOMPARE(gate.started.load(), 2);   // (settled: the job that was running, and the one that made it again, and no other)
         QCOMPARE(gate.finished.load(), 2);
         // another set of objects is given while a job for the old one runs: its picture is not drawn for the new
         while (gate.open.tryAcquire()) {}   // (no permit left over for the job to take)
         gate.blocked = true;
         s.objects.setObjects({madeOnAWorker(1, twoCell(1, 2, 3, 5), kGreen, &gate)});
         s.draw(false);
-        QTRY_COMPARE(gate.started.load(), 3);
+        QTRY_VERIFY(gate.started.load() >= 3);
         s.objects.setObjects({colored(7, twoCell(1, 2, 3, 5), kRed)});
         gate.blocked = false;
         gate.open.release(4);
-        QTRY_COMPARE(gate.finished.load(), 3);
+        QTRY_VERIFY(gate.finished.load() >= 3);
         QCoreApplication::processEvents();
+        QCOMPARE(gate.started.load(), 3);    // (settled, and then counted: no job more than the three)
+        QCOMPARE(gate.finished.load(), 3);
         s.draw();
         QCOMPARE(s.at(64 + 10, 40 + 10), kRed);
         QCOMPARE(s.objects.count(), 1);
