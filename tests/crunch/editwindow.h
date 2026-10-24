@@ -1,0 +1,129 @@
+// What the tests of JeffCrunch's editing share: the sheet most of them edit, a window with a folder of its own and the keys a person presses, and what a saved file holds of a cell.
+#pragma once
+
+#include "app/crunchwindow.h"
+#include "crunchbooks.h"
+#include "crunchwindowhelpers.h"
+#include "grid/gridview.h"
+
+#include <QAction>
+#include <QFile>
+#include <QKeySequence>
+#include <QTest>
+
+namespace crunchtest {
+
+using namespace jp;
+
+// The sheet most of these tests edit:
+//        A            B              C          D
+//   1    1            =A1*2 (999)    hello
+//   2    10           =SUM(A1:A2)    "          2024-01-02 shown as a date (a number with a date format)
+//   3    0.25 (0%)    =A3+1
+// with the styles: 1 percent, 2 a date, 3 text.
+inline QByteArray editBook(const QByteArray &extraRows = QByteArray())
+{
+    const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"9\" applyNumberFormat=\"1\"/><xf numFmtId=\"14\" applyNumberFormat=\"1\"/><xf numFmtId=\"49\" applyNumberFormat=\"1\"/>"));
+    const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><f>A1*2</f><v>999</v></c><c r=\"C1\" t=\"s\"><v>0</v></c></row>"
+                                        "<row r=\"2\"><c r=\"A2\"><v>10</v></c><c r=\"B2\"><f>SUM(A1:A2)</f><v>999</v></c><c r=\"D2\" s=\"2\"><v>45293</v></c></row>"
+                                        "<row r=\"3\"><c r=\"A3\" s=\"1\"><v>0.25</v></c><c r=\"B3\"><f>A3+1</f><v>999</v></c><c r=\"C3\" s=\"3\"><v>7</v></c></row>")
+        + QString::fromUtf8(extraRows);
+    return buildXlsx({worksheet(rows)}, sharedStringsXml({QStringLiteral("<t>hello</t>")}), QString(), QString(), styles);
+}
+
+struct EditWindow {
+    Folder folder;
+    Window win;
+    QString path;
+    bool open(const QByteArray &bytes, const QString &name = QStringLiteral("book.xlsx"))
+    {
+        path = folder.write(name, bytes);
+        return win.open(path);
+    }
+    grid::GridView *view() { return win.w.view(); }
+    void select(const QString &ref)
+    {
+        quint32 r = 0, c = 0;
+        parseCellRef(ref, &r, &c);
+        view()->selectCell(r, c);
+    }
+    QString selected() { return view()->selectionName(); }
+    // A copy of the file as it is now, under another name (a file that is open in a window is not opened in a second: the copy is).
+    QString copyOfFile()
+    {
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly)) return QString();
+        return folder.write(QStringLiteral("copy%1.xlsx").arg(++m_copies), f.readAll());
+    }
+    int m_copies = 0;
+    // The value the grid shows for the cell, and the text it shows.
+    QString valueAt(const QString &ref)
+    {
+        quint32 r = 0, c = 0;
+        parseCellRef(ref, &r, &c);
+        const grid::Cell *cell = view()->sheet().cellAt(r, c);
+        return cell ? view()->sheet().valueOf(*cell).debug() : QStringLiteral("-");
+    }
+    // The text of the cell in its format, whole (the cell may be too narrow to show it).
+    QString shownAt(const QString &ref)
+    {
+        quint32 r = 0, c = 0;
+        parseCellRef(ref, &r, &c);
+        const grid::Cell *cell = view()->sheet().cellAt(r, c);
+        return cell ? view()->sheet().textOf(*cell) : QString();
+    }
+    // Types text into the selected cell as a person does: the first character at the grid (which starts the entry), the rest into the cell's line.
+    void type(const QString &text)
+    {
+        QTest::keyClick(view(), text.at(0).toLatin1());
+        if (text.size() > 1) QTest::keyClicks(win.w.cellEditor(), text.mid(1));
+    }
+    void key(Qt::Key k, Qt::KeyboardModifiers m = Qt::NoModifier) { QTest::keyClick(win.w.cellEditor(), k, m); }
+    // Waits until the worker has worked out what the edits made.
+    bool settle() { return QTest::qWaitFor([&] { return !win.w.isCalculating(); }, 20000); }
+    void enter(const QString &text)
+    {
+        type(text);
+        key(Qt::Key_Return);
+    }
+};
+
+// The keys of a standard command on this computer (Cmd+Z on a Mac, Ctrl+Z elsewhere; redo is Ctrl+Y on Windows, Cmd+Shift+Z on a Mac, Ctrl+Shift+Z or Ctrl+Y on Linux): the first the
+// platform gives.
+inline void pressStandard(QWidget *w, QKeySequence::StandardKey command)
+{
+    const QKeySequence keys(command);
+    const QKeyCombination k = keys[0];
+    QTest::keyClick(w, k.key(), k.keyboardModifiers());
+}
+inline void pressUndo(QWidget *w) { pressStandard(w, QKeySequence::Undo); }
+inline void pressRedo(QWidget *w) { pressStandard(w, QKeySequence::Redo); }
+
+
+// The formula of a cell of a saved file, as the file holds it.
+inline QString savedFormula(const QString &path, const QString &ref, int sheet = 0)
+{
+    Package p;
+    QString why;
+    if (!p.readLazyFile(path, &why)) return why;
+    Workbook b;
+    if (!b.open(p, &why)) return why;
+    Sheet s;
+    if (!b.readSheet(sheet, &s)) return QStringLiteral("unreadable");
+    const Cell *c = at(s, ref);
+    return c ? s.formulaText(*c) : QStringLiteral("-");
+}
+// The cell of a saved file, as the file holds it.
+inline QString savedCell(const QString &path, const QString &ref, int sheet = 0)
+{
+    Package p;
+    QString why;
+    if (!p.readLazyFile(path, &why)) return why;
+    Workbook b;
+    if (!b.open(p, &why)) return why;
+    Sheet s;
+    if (!b.readSheet(sheet, &s)) return QStringLiteral("unreadable");
+    return show(s, b.sharedStrings(), ref);
+}
+
+} // namespace crunchtest

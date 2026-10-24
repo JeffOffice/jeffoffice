@@ -359,6 +359,7 @@ void CrunchWindow::createActions()
     // ---- help
     mk("help.show", tr("Help"), "circle-help", QKeySequence::HelpContents, [this] { showHelp(helpContext()); });
     connect(m_ribbon, &Ribbon::helpClicked, this, [this] { act("help.show")->trigger(); });
+    createOpsActions();
     createDisabledActions();
 }
 
@@ -371,7 +372,7 @@ void CrunchWindow::createDisabledActions()
     static const Command commands[] = {
         {"edit.cut", QT_TR_NOOP("Cut"), "scissors"}, {"edit.paste", QT_TR_NOOP("Paste"), "clipboard-paste"},
         {"edit.fill", QT_TR_NOOP("Fill"), "arrow-down-to-line"}, {"edit.clear", QT_TR_NOOP("Clear"), "eraser"},
-        {"edit.sort", QT_TR_NOOP("Sort and Filter"), "arrow-down-a-z"}, {"edit.find", QT_TR_NOOP("Find and Select"), "search"}, {"edit.autosum", QT_TR_NOOP("AutoSum"), "sigma"},
+        {"edit.sort", QT_TR_NOOP("Sort and Filter"), "arrow-down-a-z"}, {"edit.find", QT_TR_NOOP("Find and Select"), "search"},
         {"fmt.bold", QT_TR_NOOP("Bold"), "bold"}, {"fmt.italic", QT_TR_NOOP("Italic"), "italic"}, {"fmt.underline", QT_TR_NOOP("Underline"), "underline"},
         {"fmt.strike", QT_TR_NOOP("Strikethrough"), "strikethrough"}, {"fmt.fillColor", QT_TR_NOOP("Fill Color"), "paint-bucket"}, {"fmt.fontColor", QT_TR_NOOP("Font Color"), "baseline"},
         {"fmt.alignLeft", QT_TR_NOOP("Align Left"), "align-left"}, {"fmt.alignCenter", QT_TR_NOOP("Center"), "align-center"}, {"fmt.alignRight", QT_TR_NOOP("Align Right"), "align-right"},

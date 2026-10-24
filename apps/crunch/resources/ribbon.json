@@ -82,7 +82,7 @@
           "name": "Editing",
           "keytip": "ZE",
           "items": [
-            {"small": "edit.autosum", "keytip": "U"},
+            {"small": "edit.autosum", "keytip": "U", "split": true, "menu": ["edit.autosum.sum", "edit.autosum.average", "edit.autosum.count", "edit.autosum.max", "edit.autosum.min"]},
             {"small": "edit.fill", "keytip": "FI"},
             {"small": "edit.clear", "keytip": "E"},
             {"large": "edit.sort", "keytip": "SS"},
@@ -143,7 +143,7 @@
           "keytip": "ZU",
           "items": [
             {"large": "formulas.insertFunction", "keytip": "F"},
-            {"large": "edit.autosum", "keytip": "U"}
+            {"large": "edit.autosum", "keytip": "U", "split": true, "menu": ["edit.autosum.sum", "edit.autosum.average", "edit.autosum.count", "edit.autosum.max", "edit.autosum.min"]}
           ]
         },
         {

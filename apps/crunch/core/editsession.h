@@ -49,6 +49,13 @@ struct TableRename {
     QString before, after;
 };
 
+// What one step of the undo stack changes: cells (as they were and as they are), and whatever goes with them.
+struct Step {
+    std::vector<CellChange> cells;
+    std::vector<TableRename> renames;
+    bool empty() const { return cells.empty() && renames.empty(); }
+};
+
 class EditSession : public QObject {
     Q_OBJECT
 public:
@@ -77,6 +84,9 @@ public:
 
     // What a cell is edited as (see editTextOfValue); a formula with its "=".
     QString editText(int sheet, quint32 row, quint32 col) const;
+    // The value a cell shows (what the grid shows: the calculation's result for a formula, else what it holds); empty for no cell.
+    jp::calc::Value valueAt(int sheet, quint32 row, quint32 col) const;
+
     // What the formula bar shows for a cell: the text the grid gives for it (`gridText`), written as the person types in the locale (a formula with its separators, a number with its
     // decimal mark); the grid's text itself where the locale needs no change.
     QString barText(int sheet, quint32 row, quint32 col, const QString &gridText) const;
@@ -94,6 +104,19 @@ public:
     // Clears the contents of the cells in the range (their formats stay): one step. Not ok, and nothing changed, if a cell in it is part of an array, or there are more cells than
     // kMaxCellsPerEdit.
     Outcome clear(int sheet, qint64 row1, qint64 col1, qint64 row2, qint64 col2);
+
+    // AutoSum and the functions of its menu (`function` is SUM, AVERAGE, COUNT, MAX, or MIN) for what is selected. With one cell: the numbers above it, or if there are none left of it,
+    // are the range, and the formula is to be edited in the cell (`text`, with the cursor `cursorBack` characters before its end: inside the brackets of one with no range). With a
+    // block of cells: a formula for each column under it, or for each row to the right of one row, in the empty cells at its end if its last row (column) is empty; one step.
+    struct AutoSumResult {
+        enum class Kind { Nothing, Edit, Done } kind = Kind::Nothing;
+        quint32 row = 0, col = 0;
+        QString text;
+        int cursorBack = 0;
+        Outcome outcome;
+    };
+    AutoSumResult autoSum(int sheet, const jp::office::sheet::CellRange &selection, const QString &function);
+
 
     // The worker's results, as they reach the window (before the window's store has them: the store's value is the engine's before it): kept for saving, those that the engine changed and that
     // differ from what the file holds.
@@ -137,10 +160,14 @@ Q_SIGNALS:
 private:
     friend class ChangeCells;
     // Makes the changes (forward: to `after`; else back to `before`) with the worker held back. False if the worker could not be held.
-    bool apply(std::vector<CellChange> *changes, bool forward, const std::vector<TableRename> *renames = nullptr);
+    bool apply(Step *step, bool forward);
+    // Puts a step on the undo stack (done, as pushed) and keeps the stack within its bytes.
+    void pushStep(Step step, const QString &text);
     // A text typed in a cell of a table's header row: the column is renamed (the formulas that name it follow, and the table's part when the workbook is saved).
     Outcome typeInHeader(int sheet, quint32 row, quint32 col, int table, int column, const QString &typed);
     jp::office::sheet::EntryOptions entryOptions(int sheet, bool textFormat) const;
+    // The change typing `typed` into a cell makes (not a header cell's, not checked against the cell's rule): false, with the problem, if it can't be put in; `none` if it changes nothing.
+    bool typedChange(int sheet, quint32 row, quint32 col, const QString &typed, CellChange *change, bool *none, Outcome *problem);
     // Whether a cell of that format on the sheet can't be changed: the sheet is protected and the cell is locked.
     bool isLocked(int sheet, quint32 style) const;
     QString lockedMessage() const;

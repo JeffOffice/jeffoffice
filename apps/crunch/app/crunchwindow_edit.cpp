@@ -44,6 +44,8 @@ void CrunchWindow::updateEditActions()
     act("edit.redo")->setEnabled(open && u->canRedo());
     act("edit.undo")->setToolTip(u && m_session->canUndo() ? tr("Undo %1 (%2)").arg(u->undoText(), QKeySequence(QKeySequence::Undo).toString(QKeySequence::NativeText)) : tr("Undo"));
     act("edit.redo")->setToolTip(u && u->canRedo() ? tr("Redo %1 (%2)").arg(u->redoText(), QKeySequence(QKeySequence::Redo).toString(QKeySequence::NativeText)) : tr("Redo"));
+    for (const QString &id : m_opsActions)
+        if (QAction *a = act(id)) a->setEnabled(open && m_loaded && m_loaded->problem.isEmpty());
     const bool canSave = open && m_loaded && m_loaded->problem.isEmpty();
     act("file.save")->setEnabled(canSave);
     act("file.saveAs")->setEnabled(canSave);

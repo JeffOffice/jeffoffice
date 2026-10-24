@@ -164,6 +164,10 @@ private:
     void onFinished(bool ok, const QString &message);
     void onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch);
     bool stopCalculation();   // true if a save that was waiting for the calculation was cancelled
+    // the commands on a block of cells (crunchwindow_ops.cpp)
+    void createOpsActions();
+    QStringList m_opsActions;   // the commands that work when a workbook is open and nothing is being saved
+    void autoSum(const QString &function);
     // editing
     void createEditing();
     void beginEdit(const QString &initial, CellEditor::Mode mode, bool fromBar);

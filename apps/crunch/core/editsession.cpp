@@ -70,28 +70,26 @@ qint64 contentBytes(const Calculation::CellContent &c)
 
 class ChangeCells : public QUndoCommand {
 public:
-    ChangeCells(EditSession *session, std::vector<CellChange> changes, const QString &text, const std::shared_ptr<qint64> &total, std::vector<TableRename> renames = {})
-        : QUndoCommand(text), m_session(session), m_changes(std::move(changes)), m_renames(std::move(renames)), m_total(total)
+    ChangeCells(EditSession *session, Step step, const QString &text, const std::shared_ptr<qint64> &total) : QUndoCommand(text), m_session(session), m_step(std::move(step)), m_total(total)
     {
-        for (const CellChange &c : m_changes) m_bytes += qint64(sizeof(c)) + contentBytes(c.before) + contentBytes(c.after) + qint64(c.formatCode.size()) * 2;
-        for (const TableRename &r : m_renames) m_bytes += qint64(sizeof(r)) + qint64(r.before.size() + r.after.size()) * 2;
+        for (const CellChange &c : m_step.cells) m_bytes += qint64(sizeof(c)) + contentBytes(c.before) + contentBytes(c.after) + qint64(c.formatCode.size()) * 2;
+        for (const TableRename &r : m_step.renames) m_bytes += qint64(sizeof(r)) + qint64(r.before.size() + r.after.size()) * 2;
         *m_total += m_bytes;
     }
     ~ChangeCells() override { *m_total -= m_bytes; }
     void redo() override
     {
-        if (!m_forgotten) m_session->apply(&m_changes, true, &m_renames);
+        if (!m_forgotten) m_session->apply(&m_step, true);
     }
     void undo() override
     {
-        if (!m_forgotten) m_session->apply(&m_changes, false, &m_renames);
+        if (!m_forgotten) m_session->apply(&m_step, false);
     }
     bool forgotten() const { return m_forgotten; }
     // Lets go of what the step holds: it can't be undone (nor done again) any more.
     void forget()
     {
-        std::vector<CellChange>().swap(m_changes);
-        std::vector<TableRename>().swap(m_renames);
+        m_step = Step();
         *m_total -= m_bytes;
         m_bytes = 0;
         m_forgotten = true;
@@ -99,8 +97,7 @@ public:
 
 private:
     EditSession *m_session;
-    std::vector<CellChange> m_changes;
-    std::vector<TableRename> m_renames;
+    Step m_step;
     std::shared_ptr<qint64> m_total;
     qint64 m_bytes = 0;
     bool m_forgotten = false;
@@ -250,28 +247,17 @@ QString EditSession::barText(int sheet, quint32 row, quint32 col, const QString 
     return gridText;
 }
 
-EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, const QString &typed)
+bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString &typed, CellChange *out, bool *none, Outcome *problem)
 {
-    Outcome out;
-    QString why;
-    if (!canEdit(&why) || !canEditCell(sheet, row, col, &why)) {
-        out.ok = false;
-        out.problem = why;
-        return out;
-    }
-    // a cell of a table's header row names a column
-    int column = -1;
-    const int table = m_book->book->tableHeaderAt(sheet, row, col, &column);
-    if (table >= 0) return typeInHeader(sheet, row, col, table, column, typed);
     const Calculation *calc = m_book->calc.get();
     const Calculation::CellContent before = calc->content(sheet, row, col);
     const QString code = m_book->book->styles().formatCode(before.style, m_locale);
     const EntryResult r = readEntry(typed, entryOptions(sheet, code == QLatin1String("@")));
     if (!r.ok) {
-        out.ok = false;
-        out.problem = r.problem;
-        out.problemAt = r.problemAt;
-        return out;
+        problem->ok = false;
+        problem->problem = r.problem;
+        problem->problemAt = r.problemAt;
+        return false;
     }
     CellChange ch;
     ch.sheet = sheet;
@@ -304,12 +290,38 @@ EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, cons
         break;
     }
     if (ch.after.value.isEmpty() && !ch.after.isFormula && ch.after.style == 0) ch.after.exists = false;
-    if (sameMeaning(ch.before, ch.after) && ch.formatCode.isEmpty()) return out;   // (nothing to change)
-    std::vector<CellChange> changes;
-    changes.push_back(std::move(ch));
-    m_undo.push(new ChangeCells(this, std::move(changes), tr("Typing in %1").arg(cellName(row, col)), m_undoBytes));
-    trimUndo();
+    *none = sameMeaning(ch.before, ch.after) && ch.formatCode.isEmpty();   // (nothing to change)
+    *out = std::move(ch);
+    return true;
+}
+
+EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, const QString &typed)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why) || !canEditCell(sheet, row, col, &why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    // a cell of a table's header row names a column
+    int column = -1;
+    const int table = m_book->book->tableHeaderAt(sheet, row, col, &column);
+    if (table >= 0) return typeInHeader(sheet, row, col, table, column, typed);
+    CellChange ch;
+    bool none = false;
+    if (!typedChange(sheet, row, col, typed, &ch, &none, &out)) return out;
+    if (none) return out;
+    Step step;
+    step.cells.push_back(std::move(ch));
+    pushStep(std::move(step), tr("Typing in %1").arg(cellName(row, col)));
     return out;
+}
+
+void EditSession::pushStep(Step step, const QString &text)
+{
+    m_undo.push(new ChangeCells(this, std::move(step), text, m_undoBytes));
+    trimUndo();
 }
 
 EditSession::Outcome EditSession::typeInHeader(int sheet, quint32 row, quint32 col, int table, int column, const QString &typed)
@@ -377,10 +389,10 @@ EditSession::Outcome EditSession::typeInHeader(int sheet, quint32 row, quint32 c
             return out;
         }
     }
-    std::vector<TableRename> renames;
-    if (name != oldName) renames.push_back({table, column, oldName, name});
-    m_undo.push(new ChangeCells(this, std::move(changes), tr("Typing in %1").arg(cellName(row, col)), m_undoBytes, std::move(renames)));
-    trimUndo();
+    Step step;
+    step.cells = std::move(changes);
+    if (name != oldName) step.renames.push_back({table, column, oldName, name});
+    pushStep(std::move(step), tr("Typing in %1").arg(cellName(row, col)));
     return out;
 }
 
@@ -453,12 +465,13 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
     if (changes.empty()) return out;
     const QString what = changes.size() == 1 ? tr("Clearing %1").arg(cellName(changes[0].row, changes[0].col))
                                              : QCoreApplication::translate("jp::crunch::EditSession", "Clearing %n cell(s)", nullptr, int(changes.size()));
-    m_undo.push(new ChangeCells(this, std::move(changes), what, m_undoBytes));
-    trimUndo();
+    Step step;
+    step.cells = std::move(changes);
+    pushStep(std::move(step), what);
     return out;
 }
 
-bool EditSession::apply(std::vector<CellChange> *changes, bool forward, const std::vector<TableRename> *renames)
+bool EditSession::apply(Step *step, bool forward)
 {
     QElapsedTimer waited;
     waited.start();
@@ -471,7 +484,7 @@ bool EditSession::apply(std::vector<CellChange> *changes, bool forward, const st
     if (m_holdHook) m_holdHook(calc, false);
     std::map<int, std::vector<ValueStore::Item>> cells;
     std::vector<ValueStore::Item> formulas;
-    for (CellChange &ch : *changes) {
+    for (CellChange &ch : step->cells) {
         if (forward) {
             if (ch.textToShare) {
                 ch.after.sharedString = book.addSharedString(ch.after.value.text());
@@ -496,8 +509,7 @@ bool EditSession::apply(std::vector<CellChange> *changes, bool forward, const st
             formulas.push_back(it);
         }
     }
-    if (renames)
-        for (const TableRename &r : *renames) book.setTableColumnName(r.table, r.column, forward ? r.after : r.before);
+    for (const TableRename &r : step->renames) book.setTableColumnName(r.table, r.column, forward ? r.after : r.before);
     if (m_holdHook) m_holdHook(calc, true);
     hold->changed();
     hold.reset();   // (the worker has the model again, and works out what these changes make)
