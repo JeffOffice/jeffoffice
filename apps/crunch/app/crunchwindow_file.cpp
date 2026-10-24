@@ -236,6 +236,7 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
         // (a calculation that was stopped has been said to be: only one that finished says so now; and one that has not worked out all the changes made since is not over)
         if (!batch->stopped && m_calculating && batch->epoch >= m_loader.changesMade()) {
             m_calculating = false;
+            if (m_session) m_session->calculationFinished();
             if (!m_saving) setStatus(tr("Ready"));
             updateBars();
             m_longestBatchMicros = std::max(m_longestBatchMicros, jp::threadCpuMicros() - cpu0);

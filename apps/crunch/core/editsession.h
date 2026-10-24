@@ -80,6 +80,8 @@ public:
     // The worker's results, as they reach the window (before the window's store has them: the store's value is the engine's before it): kept for saving, those that the engine changed and that
     // differ from what the file holds.
     void noteResults(const std::vector<jp::grid::ValueStore::Item> &items);
+    // The worker has told every result there is to tell (the calculation is finished, with no change after it unworked).
+    void calculationFinished();
 
     // ---- saving
     // Whether there is anything the file lacks: the undo stack is not at the state that was last saved.

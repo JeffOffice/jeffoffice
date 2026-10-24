@@ -86,10 +86,16 @@ EditSession::~EditSession()
 void EditSession::cleanChanged(bool clean)
 {
     if (!clean) return;
-    // the workbook is as the file has it: what the file lacks is nothing
+    // the workbook is as the file has it: what the file lacks is nothing. What the engine had for a formula before the first change is kept: the results that follow an Undo are still to
+    // come, and they are compared with it (not with the values the store has, which are the edit's); it is let go when the worker has caught up (calculationFinished), or on a save.
     m_touched.clear();
     m_results.clear();
-    m_engineAtStart.clear();
+}
+
+void EditSession::calculationFinished()
+{
+    // everything the worker was to work out is told, and the workbook is as the file has it: no result is still to come that the engine's values before the edit would be needed for
+    if (m_undo.isClean()) m_engineAtStart.clear();
 }
 
 bool EditSession::canEdit(QString *why) const

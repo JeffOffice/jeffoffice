@@ -688,6 +688,44 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.undoStack()->count(), crunch::kUndoSteps);
     }
 
+    // Undo back to where the file was says the file lacks nothing, but the results that follow the undo are still to come, and a Redo after them (or the same number typed again) must be
+    // saved with the results it gives: the file has the old ones. (What was kept of the engine's value before the edit was lost with the undo, and the old edited value was taken for it.)
+    void anUndoAndARedoStillSaveTheResultsOfTheRedo()
+    {
+        const QByteArray book = buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><f>A1*2</f><v>2</v></c><c r=\"C1\"><f>B1+1</f><v>3</v></c></row>"))});
+        for (int variant = 0; variant < 4; ++variant) {
+            EditWindow e;
+            QVERIFY(e.open(book));
+            e.select(QStringLiteral("A1"));
+            e.enter(QStringLiteral("5"));
+            QVERIFY(e.settle());
+            QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("n:11"));
+            e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+            if (variant == 0 || variant == 2) QVERIFY(e.settle());            // (the results of the undo come before the redo, or they do not)
+            if (variant < 2) {
+                e.win.w.act(QStringLiteral("edit.redo"))->trigger();
+            } else {
+                e.select(QStringLiteral("A1"));
+                e.enter(QStringLiteral("5"));                                   // the same number typed again
+            }
+            QVERIFY(e.settle());
+            QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:10"));
+            QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("n:11"));
+            QVERIFY(e.win.w.isModified());
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            QVERIFY(e.win.w.save());
+            QVERIFY(saved.wait(20000));
+            QVERIFY2(saved.first().at(1).toBool(), qPrintable(QString::number(variant)));
+            QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:5"));
+            QVERIFY2(savedCell(e.path, QStringLiteral("B1")) == QStringLiteral("n:10"), qPrintable(QStringLiteral("variant %1: B1 is %2").arg(variant).arg(savedCell(e.path, QStringLiteral("B1")))));
+            QVERIFY2(savedCell(e.path, QStringLiteral("C1")) == QStringLiteral("n:11"), qPrintable(QStringLiteral("variant %1: C1 is %2").arg(variant).arg(savedCell(e.path, QStringLiteral("C1")))));
+            // and it opens with the same values
+            Window second;
+            QVERIFY(second.open(e.path));
+            QCOMPARE(second.w.view()->sheet().valueOf(*second.w.view()->sheet().cellAt(0, 2)).debug(), QStringLiteral("n:11"));
+        }
+    }
+
     // A cell being edited in the window of a workbook that looks like a real one: its line is over the cell with the cell's formula, the formula bar shows the same, and the line has the accent
     // round it. The picture is saved when JC_SCREENSHOT_EDIT names a file.
     void aCellBeingEditedShowsItsFormulaInTheCellAndTheBar()
@@ -1076,6 +1114,18 @@ private Q_SLOTS:
     }
 
 private:
+    // The cell of a saved file, as the file holds it.
+    static QString savedCell(const QString &path, const QString &ref, int sheet = 0)
+    {
+        Package p;
+        QString why;
+        if (!p.readLazyFile(path, &why)) return why;
+        Workbook b;
+        if (!b.open(p, &why)) return why;
+        Sheet s;
+        if (!b.readSheet(sheet, &s)) return QStringLiteral("unreadable");
+        return show(s, b.sharedStrings(), ref);
+    }
     // A workbook like a real one's package: the editBook, a calculation chain, a theme, and a part nothing reads.
     static QByteArray editBookWithParts()
     {
