@@ -447,6 +447,49 @@ bool systemConvert(int codepage, const char *bytes, qsizetype count, QString *ou
     return true;
 }
 #elif defined(Q_OS_MACOS)
+// Johab (page 1361), for a Mac, whose CoreFoundation has no table for it: a Hangul syllable is two bytes that spell its initial, medial, and final in
+// five bits each, so it is worked out; a lone initial, medial, or final is its compatibility letter; the symbols and Chinese characters (lead bytes
+// 0xD8 to 0xF9) need the table the Mac lacks, and are U+FFFD.
+static QString johabText(const char *bytes, qsizetype count)
+{
+    static const char16_t initials[19] = {0x3131, 0x3132, 0x3134, 0x3137, 0x3138, 0x3139, 0x3141, 0x3142, 0x3143, 0x3145,
+                                          0x3146, 0x3147, 0x3148, 0x3149, 0x314A, 0x314B, 0x314C, 0x314D, 0x314E};
+    static const char16_t finals[28] = {0,      0x3131, 0x3132, 0x3133, 0x3134, 0x3135, 0x3136, 0x3137, 0x3139, 0x313A,
+                                        0x313B, 0x313C, 0x313D, 0x313E, 0x313F, 0x3140, 0x3141, 0x3142, 0x3144, 0x3145,
+                                        0x3146, 0x3147, 0x3148, 0x314A, 0x314B, 0x314C, 0x314D, 0x314E};
+    auto initialOf = [](int v) { return v >= 2 && v <= 20 ? v - 2 : v == 1 ? -1 : -2; };   // -1 none, -2 not one
+    auto medialOf = [](int v) {
+        static const signed char m[32] = {-2, -2, -1, 0, 1, 2, 3, 4, -2, -2, 5, 6, 7, 8, 9, 10, -2, -2, 11, 12, 13, 14, 15, 16, -2, -2, 17, 18, 19, 20, -2, -2};
+        return int(m[v & 31]);
+    };
+    auto finalOf = [](int v) { return v == 1 ? 0 : v >= 2 && v <= 17 ? v - 1 : v >= 19 && v <= 29 ? v - 2 : -2; };
+    QString text;
+    text.reserve(count);
+    for (qsizetype i = 0; i < count; ++i) {
+        const uchar b = uchar(bytes[i]);
+        if (b < 0x80) {
+            text += QChar(char16_t(b));
+            continue;
+        }
+        if (i + 1 >= count) {
+            text += QChar(0xFFFD);
+            break;
+        }
+        const int v = (int(b) << 8) | uchar(bytes[++i]);
+        if (b >= 0x84 && b <= 0xD3) {
+            const int c = initialOf((v >> 10) & 31), m = medialOf((v >> 5) & 31), f = finalOf(v & 31);
+            if (c >= 0 && m >= 0 && f >= 0) text += QChar(char16_t(0xAC00 + (c * 21 + m) * 28 + f));
+            else if (c >= 0 && m == -1 && f == 0) text += QChar(initials[c]);
+            else if (c == -1 && m >= 0 && f == 0) text += QChar(char16_t(0x314F + m));
+            else if (c == -1 && m == -1 && f > 0) text += QChar(finals[f]);
+            else text += QChar(0xFFFD);
+        } else {
+            text += QChar(0xFFFD);
+        }
+    }
+    return text;
+}
+
 bool systemConvert(int codepage, const char *bytes, qsizetype count, QString *out)
 {
     CFStringEncoding encoding;
@@ -460,6 +503,10 @@ bool systemConvert(int codepage, const char *bytes, qsizetype count, QString *ou
     }
     if (count <= 0 || count > INT_MAX / 2) return false;
     CFStringRef string = CFStringCreateWithBytes(kCFAllocatorDefault, reinterpret_cast<const UInt8 *>(bytes), CFIndex(count), encoding, false);
+    if (!string && codepage == 1361) {
+        *out = johabText(bytes, count);
+        return true;
+    }
     if (!string) return false;
     const CFIndex length = CFStringGetLength(string);
     QString text(int(length), QChar(u' '));
