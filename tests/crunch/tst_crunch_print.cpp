@@ -1032,6 +1032,49 @@ private Q_SLOTS:
         QVERIFY(emptyWhy.contains(QStringLiteral("nothing to print")));
     }
 
+    // Hostile page settings in a file: numbers that are not numbers or are far out, a thousand breaks, a header of ten thousand codes, a paper of a thousand inches, on a sheet of a million
+    // rows. Opening, cutting, drawing a page, and writing a PDF of its first pages all finish with the work bounded: no page count past the bound, no empty page, no paper without a size.
+    void hostilePageSettingsAreBounded()
+    {
+        QString breaks;
+        for (int i = 1; i <= 6000; ++i) breaks += QStringLiteral("<brk id=\"%1\" max=\"16383\" man=\"1\"/>").arg(i * 150);
+        const QString codes(10000, QLatin1Char('&'));
+        const QString after = QStringLiteral("<printOptions horizontalCentered=\"x\" gridLines=\"1\" headings=\"1\"/>"
+                                             "<pageMargins left=\"-9\" right=\"1e300\" top=\"nan\" bottom=\"99999\" header=\"-1\" footer=\"1e9\"/>"
+                                             "<pageSetup paperSize=\"-5\" paperWidth=\"90000in\" paperHeight=\"1mm\" scale=\"-100\" firstPageNumber=\"99999999999\" fitToWidth=\"-1\" fitToHeight=\"99999999\" "
+                                             "orientation=\"sideways\" pageOrder=\"x\" errors=\"???\"/>"
+                                             "<headerFooter differentFirst=\"1\" differentOddEven=\"1\"><oddHeader>") + codes + QStringLiteral("&amp;P&amp;N&amp;D</oddHeader><oddFooter>&amp;C&amp;99999Big &amp;\"") + QString(5000, QLatin1Char('x'))
+                              + QStringLiteral("</oddFooter><firstHeader>&amp;L&amp;G&amp;G&amp;G</firstHeader></headerFooter><rowBreaks>") + breaks + QStringLiteral("</rowBreaks><colBreaks>") + breaks + QStringLiteral("</colBreaks>");
+        QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"1048576\"><c r=\"C1048576\"><v>2</v></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows, after)})));
+        CrunchWindow &w = e.win.w;
+        QString why;
+        crunch::PrintJobOptions options;
+        options.maxPages = 300;
+        const std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(options, &why);
+        QVERIFY2(job, qPrintable(why));
+        QVERIFY(job->pageCount() >= 1 && job->pageCount() <= 300);
+        QVERIFY(!job->messages().isEmpty());   // (it was cut short)
+        const jp::grid::SheetPrint *print = job->printOf(0);
+        QVERIFY(print->scalePercent >= 10 && print->scalePercent <= 400);
+        QVERIFY(print->paper.width >= 72 && print->paper.height >= 72);
+        QVERIFY(print->paper.content().width() >= 36 && print->paper.content().height() >= 36);
+        for (const jp::grid::PageCut &c : print->pages) {
+            QVERIFY(c.row2 >= c.row1);
+            QVERIFY(c.col2 >= c.col1);
+        }
+        QVERIFY(!job->preview(0, 300).isNull());
+        QVERIFY(!job->preview(job->pageCount() - 1, 300).isNull());
+        const QString pdf = e.folder.dir.filePath(QStringLiteral("hostile.pdf"));
+        QVERIFY2(job->exportPdf(pdf, {0, 1, 2}, &why), qPrintable(why));
+        QVERIFY(QFileInfo(pdf).size() > 1000);
+        // the setup of the sheet is the file's, bounded, and it is saved and read again as it is
+        QVERIFY(w.session()->pages().sheet(0).scale >= 10);
+        QVERIFY(w.session()->pages().sheet(0).rowBreaks.size() <= jp::office::sheet::kMaxPageBreaks);
+        QVERIFY(w.session()->pages().sheet(0).headerFooter.oddHeader.size() <= jp::office::sheet::kMaxHeaderFooterChars);
+    }
+
     // Rows inserted and the print area changed, then saved: the file has the area as the window shows it.
     void insertedRowsAndAPrintAreaAreSavedTogether()
     {

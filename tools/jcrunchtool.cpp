@@ -703,7 +703,9 @@ int usage()
              "       jcrunchtool grid-drawings <keys.txt> <out-dir> [jobs]\n"
              "       jcrunchtool print-pdf <file> <out.pdf> [--sheet N]\n"
              "       jcrunchtool print-sheets <file> <out-dir> [N ...]\n"
-             "       jcrunchtool print-cuts <file> [N ...]\n";
+             "       jcrunchtool print-cuts <file> [N ...]\n"
+             "       jcrunchtool print-shots <out-dir> [file]\n"
+             "       jcrunchtool print-bench [rows=100000] [cols=20]\n";
     return 2;
 }
 
