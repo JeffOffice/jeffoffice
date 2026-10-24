@@ -21,7 +21,6 @@ namespace {
 constexpr qint64 kProgressEvery = 4096;
 constexpr qint64 kReportEveryBytes = 65536;
 
-QString translate(const char *text) { return QCoreApplication::translate("Sheet", text); }
 
 // The text a file writes a character in the form _xHHHH_ as it stands for ("_x000D_" is a carriage return); an underscore before an "x" is written
 // _x005F_, so that what comes after it is not read again.
@@ -63,19 +62,19 @@ struct XmlSource {
     // Why the reading stopped short, in words; empty if it didn't.
     QString problem() const
     {
-        if (guard.crowded()) return translate("An element of the XML has more attributes than any real file has.");
-        if (guard.tooLong()) return translate("A piece of the XML (a text, a tag with its attributes, a comment) is longer than any real file has.");
-        if (guard.notUtf8()) return translate("The XML is not UTF-8, which is the only form this program reads.");
-        if (guard.doctype()) return translate("The XML has a DOCTYPE, which is not allowed.");
-        if (guard.malformed()) return translate("The XML is damaged: it is not written as XML is.");
+        if (guard.crowded()) return QCoreApplication::translate("Sheet", "An element of the XML has more attributes than any real file has.");
+        if (guard.tooLong()) return QCoreApplication::translate("Sheet", "A piece of the XML (a text, a tag with its attributes, a comment) is longer than any real file has.");
+        if (guard.notUtf8()) return QCoreApplication::translate("Sheet", "The XML is not UTF-8, which is the only form this program reads.");
+        if (guard.doctype()) return QCoreApplication::translate("Sheet", "The XML has a DOCTYPE, which is not allowed.");
+        if (guard.malformed()) return QCoreApplication::translate("Sheet", "The XML is damaged: it is not written as XML is.");
         if (guard.sourceFailed()) {
             if (const auto *entry = dynamic_cast<const jp::ZipEntryDevice *>(raw)) {
-                if (entry->failure() == jp::ZipFailure::TooLarge) return translate("The part is larger than any real file's part, so it is not read.");
-                if (entry->failure() == jp::ZipFailure::OverBudget) return translate("The file's parts, read together, come to more than this program reads.");
+                if (entry->failure() == jp::ZipFailure::TooLarge) return QCoreApplication::translate("Sheet", "The part is larger than any real file's part, so it is not read.");
+                if (entry->failure() == jp::ZipFailure::OverBudget) return QCoreApplication::translate("Sheet", "The file's parts, read together, come to more than this program reads.");
             }
-            return translate("The part is damaged: its data or its checksum is wrong.");
+            return QCoreApplication::translate("Sheet", "The part is damaged: its data or its checksum is wrong.");
         }
-        if (reader.hasError()) return translate("The XML is damaged: %1").arg(reader.errorString());
+        if (reader.hasError()) return QCoreApplication::translate("Sheet", "The XML is damaged: %1").arg(reader.errorString());
         return {};
     }
 };
@@ -123,14 +122,14 @@ bool readSharedStrings(QIODevice *in, const Limits &limits, SharedStrings *out, 
     while (!r.atEnd()) {
         switch (r.readNext()) {
         case QXmlStreamReader::DTD:
-            return fail(translate("The XML has a DOCTYPE, which is not allowed."));
+            return fail(QCoreApplication::translate("Sheet", "The XML has a DOCTYPE, which is not allowed."));
         case QXmlStreamReader::StartElement:
-            if (++depth > kMaxXmlDepth) return fail(translate("The XML is nested too deeply."));
+            if (++depth > kMaxXmlDepth) return fail(QCoreApplication::translate("Sheet", "The XML is nested too deeply."));
             if (depth == 1) {
-                if (!isElement(r, "sst")) return fail(translate("The part is not a list of shared strings."));
+                if (!isElement(r, "sst")) return fail(QCoreApplication::translate("Sheet", "The part is not a list of shared strings."));
                 rootSeen = true;
             } else if (depth == 2 && isElement(r, "si")) {
-                if (out->strings.size() >= limits.sharedStrings) return fail(translate("The file has more shared strings than any real file has."));
+                if (out->strings.size() >= limits.sharedStrings) return fail(QCoreApplication::translate("Sheet", "The file has more shared strings than any real file has."));
                 inItem = true;
                 text.clear();
             } else if (inItem && !phonetic) {
@@ -146,7 +145,7 @@ bool readSharedStrings(QIODevice *in, const Limits &limits, SharedStrings *out, 
                 inItem = false;
                 decodeEscapes(&text);
                 out->chars += text.size();
-                if (out->chars > limits.sharedStringChars) return fail(translate("The shared strings have more characters than any real file has."));
+                if (out->chars > limits.sharedStringChars) return fail(QCoreApplication::translate("Sheet", "The shared strings have more characters than any real file has."));
                 out->strings.append(text);
                 text.clear();
             }
@@ -155,7 +154,7 @@ bool readSharedStrings(QIODevice *in, const Limits &limits, SharedStrings *out, 
         case QXmlStreamReader::Characters:
             if (inText && !phonetic) {
                 text += r.text();
-                if (text.size() > limits.stringChars) return fail(translate("A string is longer than any real file has."));
+                if (text.size() > limits.stringChars) return fail(QCoreApplication::translate("Sheet", "A string is longer than any real file has."));
             }
             break;
         default:
@@ -164,7 +163,7 @@ bool readSharedStrings(QIODevice *in, const Limits &limits, SharedStrings *out, 
     }
     const QString why = src.problem();
     if (!why.isEmpty()) return fail(why);
-    if (!rootSeen) return fail(translate("The part is not a list of shared strings."));
+    if (!rootSeen) return fail(QCoreApplication::translate("Sheet", "The part is not a list of shared strings."));
     return true;
 }
 
@@ -300,11 +299,11 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
     while (!r.atEnd()) {
         switch (r.readNext()) {
         case QXmlStreamReader::DTD:
-            return fail(translate("The XML has a DOCTYPE, which is not allowed."));
+            return fail(QCoreApplication::translate("Sheet", "The XML has a DOCTYPE, which is not allowed."));
         case QXmlStreamReader::StartElement:
-            if (++depth > kMaxXmlDepth) return fail(translate("The XML is nested too deeply."));
+            if (++depth > kMaxXmlDepth) return fail(QCoreApplication::translate("Sheet", "The XML is nested too deeply."));
             if (depth == 1) {
-                if (!isElement(r, "styleSheet")) return fail(translate("The part is not a list of styles."));
+                if (!isElement(r, "styleSheet")) return fail(QCoreApplication::translate("Sheet", "The part is not a list of styles."));
                 rootSeen = true;
             } else if (depth == 2) {
                 where = isElement(r, "numFmts")   ? Where::NumFmts
@@ -315,15 +314,15 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
                         : isElement(r, "colors")  ? Where::Colors
                                                   : Where::Other;
             } else if (depth == 3 && where == Where::NumFmts && isElement(r, "numFmt")) {
-                if (++numFmtElements > limits.numFmts) return fail(translate("The file has more number formats than any real file has."));
+                if (++numFmtElements > limits.numFmts) return fail(QCoreApplication::translate("Sheet", "The file has more number formats than any real file has."));
                 bool ok = false;
                 const int id = attribute(r, "numFmtId").toInt(&ok);
                 const QString code = attribute(r, "formatCode").toString();
                 out->chars += code.size();
-                if (out->chars > limits.numFmtChars) return fail(translate("The number formats have more characters than any real file has."));
+                if (out->chars > limits.numFmtChars) return fail(QCoreApplication::translate("Sheet", "The number formats have more characters than any real file has."));
                 if (ok) out->numFmts.insert(id, code);
             } else if (depth == 3 && where == Where::CellXfs && isElement(r, "xf")) {
-                if (out->cellXfs.size() >= limits.cellXfs) return fail(translate("The file has more cell formats than any real file has."));
+                if (out->cellXfs.size() >= limits.cellXfs) return fail(QCoreApplication::translate("Sheet", "The file has more cell formats than any real file has."));
                 bool ok = false;
                 CellFormat f;
                 const int id = attribute(r, "numFmtId").toInt(&ok);
@@ -349,7 +348,7 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
                 const QStringView locked = attribute(r, "locked");
                 out->formats.last().locked = locked.isEmpty() ? true : parseBool(locked.toString());
             } else if (depth == 3 && where == Where::Fonts && isElement(r, "font")) {
-                if (out->fonts.size() >= limits.fonts) return fail(translate("The file has more fonts than any real file has."));
+                if (out->fonts.size() >= limits.fonts) return fail(QCoreApplication::translate("Sheet", "The file has more fonts than any real file has."));
                 out->fonts.append(FontSpec());
             } else if (depth == 4 && where == Where::Fonts && !out->fonts.isEmpty()) {
                 FontSpec &f = out->fonts.last();
@@ -368,7 +367,7 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
                     f.vertAlign = v == QLatin1String("superscript") ? 1 : v == QLatin1String("subscript") ? 2 : 0;
                 }
             } else if (depth == 3 && where == Where::Fills && isElement(r, "fill")) {
-                if (out->fills.size() >= limits.fills) return fail(translate("The file has more fills than any real file has."));
+                if (out->fills.size() >= limits.fills) return fail(QCoreApplication::translate("Sheet", "The file has more fills than any real file has."));
                 out->fills.append(FillSpec());
                 inGradient = false;
             } else if (depth == 4 && where == Where::Fills && !out->fills.isEmpty()) {
@@ -388,7 +387,7 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
                 out->fills.last().fg = colorOf(r);
                 gradientColorTaken = true;
             } else if (depth == 3 && where == Where::Borders && isElement(r, "border")) {
-                if (out->borders.size() >= limits.borders) return fail(translate("The file has more borders than any real file has."));
+                if (out->borders.size() >= limits.borders) return fail(QCoreApplication::translate("Sheet", "The file has more borders than any real file has."));
                 BorderSpec b;
                 b.diagonalUp = parseBool(attribute(r, "diagonalUp").toString());
                 b.diagonalDown = parseBool(attribute(r, "diagonalDown").toString());
@@ -424,7 +423,7 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
     }
     const QString why = src.problem();
     if (!why.isEmpty()) return fail(why);
-    if (!rootSeen) return fail(translate("The part is not a list of styles."));
+    if (!rootSeen) return fail(QCoreApplication::translate("Sheet", "The part is not a list of styles."));
     return true;
 }
 
@@ -446,11 +445,11 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
     while (!r.atEnd()) {
         switch (r.readNext()) {
         case QXmlStreamReader::DTD:
-            return fail(translate("The XML has a DOCTYPE, which is not allowed."));
+            return fail(QCoreApplication::translate("Sheet", "The XML has a DOCTYPE, which is not allowed."));
         case QXmlStreamReader::StartElement:
-            if (++depth > kMaxXmlDepth) return fail(translate("The XML is nested too deeply."));
+            if (++depth > kMaxXmlDepth) return fail(QCoreApplication::translate("Sheet", "The XML is nested too deeply."));
             if (depth == 1) {
-                if (!isElement(r, "workbook")) return fail(translate("The part is not a workbook."));
+                if (!isElement(r, "workbook")) return fail(QCoreApplication::translate("Sheet", "The part is not a workbook."));
                 rootSeen = true;
             } else if (depth == 2 && isElement(r, "workbookPr")) {
                 out->dateSystem = parseBool(attribute(r, "date1904").toString()) ? DateSystem::Date1904 : DateSystem::Date1900;
@@ -471,7 +470,7 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
             } else if (depth == 2 && isElement(r, "definedNames")) {
                 inNames = true;
             } else if (depth == 3 && inNames && isElement(r, "definedName")) {
-                if (out->definedNames.size() >= limits.definedNames) return fail(translate("The workbook has more names than any real file has."));
+                if (out->definedNames.size() >= limits.definedNames) return fail(QCoreApplication::translate("Sheet", "The workbook has more names than any real file has."));
                 name = DefinedName();
                 name.name = attribute(r, "name").toString();
                 bool ok = false;
@@ -479,15 +478,15 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
                 name.localSheet = ok ? local : -1;
                 name.hidden = parseBool(attribute(r, "hidden").toString());
                 nameChars += name.name.size();
-                if (nameChars > limits.definedNameChars) return fail(translate("The names have more characters than any real file has."));
+                if (nameChars > limits.definedNameChars) return fail(QCoreApplication::translate("Sheet", "The names have more characters than any real file has."));
                 inName = true;
             } else if (depth == 2 && isElement(r, "sheets")) {
                 inSheets = true;
             } else if (depth == 3 && inSheets && isElement(r, "sheet")) {
-                if (out->sheets.size() >= limits.sheets) return fail(translate("The workbook has more sheets than any real file has."));
+                if (out->sheets.size() >= limits.sheets) return fail(QCoreApplication::translate("Sheet", "The workbook has more sheets than any real file has."));
                 SheetEntry e;
                 e.name = attribute(r, "name").toString();
-                if (e.name.size() > kMaxSheetNameChars) return fail(translate("A sheet's name is longer than any real file has."));
+                if (e.name.size() > kMaxSheetNameChars) return fail(QCoreApplication::translate("Sheet", "A sheet's name is longer than any real file has."));
                 e.sheetId = int(attribute(r, "sheetId").toInt());
                 const QStringView state = attribute(r, "state");
                 e.state = state == QLatin1String("hidden") ? SheetState::Hidden : state == QLatin1String("veryHidden") ? SheetState::VeryHidden : SheetState::Visible;
@@ -500,7 +499,7 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
         case QXmlStreamReader::Characters:
             if (inName) {
                 nameChars += r.text().size();
-                if (nameChars > limits.definedNameChars) return fail(translate("The names have more characters than any real file has."));
+                if (nameChars > limits.definedNameChars) return fail(QCoreApplication::translate("Sheet", "The names have more characters than any real file has."));
                 name.ref += r.text();
             }
             break;
@@ -522,7 +521,7 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
     }
     const QString why = src.problem();
     if (!why.isEmpty()) return fail(why);
-    if (!rootSeen) return fail(translate("The part is not a workbook."));
+    if (!rootSeen) return fail(QCoreApplication::translate("Sheet", "The part is not a workbook."));
     return true;
 }
 
@@ -555,7 +554,7 @@ private:
     bool take(qint64 n)
     {
         m_bytes += n;
-        return m_bytes <= m_limits.sheetBytes || fail(translate("The sheet would take more memory to hold than any real file's does."));
+        return m_bytes <= m_limits.sheetBytes || fail(QCoreApplication::translate("Sheet", "The sheet would take more memory to hold than any real file's does."));
     }
     // What things cost to hold, as measured (the practice workbooks' largest sheet, and sheets made to be the worst case, read by jcrunchtool: the bytes the
     // process held at its peak against what was counted), rounded up. A cell is 24 bytes in a block that grows by doubling; a string is a slot of 24 in a list
@@ -639,11 +638,11 @@ bool SheetReader::startRow(const QXmlStreamReader &r)
     const qint64 given = present ? at.toLongLong(&ok) : 0;
     if (ok) {
         // A number that is no row of the sheet is refused; text that is no number is as no number (the row follows the one before).
-        if (given < 1 || given > qint64(kMaxRows)) return fail(translate("A row is outside the sheet."));
+        if (given < 1 || given > qint64(kMaxRows)) return fail(QCoreApplication::translate("Sheet", "A row is outside the sheet."));
         m_row = quint32(given - 1);
     } else {
         // A row with no number follows the one before.
-        if (m_haveRow && m_row + 1 >= kMaxRows) return fail(translate("A row is outside the sheet."));
+        if (m_haveRow && m_row + 1 >= kMaxRows) return fail(QCoreApplication::translate("Sheet", "A row is outside the sheet."));
         m_row = m_haveRow ? m_row + 1 : 0;
     }
     m_haveRow = true;
@@ -685,7 +684,7 @@ bool SheetReader::startRow(const QXmlStreamReader &r)
     const bool otherHeight = spec.height >= 0 && std::abs(spec.height - m_sheet.format.defaultRowHeight) > 0.001;
     // (a sheet that hides the rows it does not list needs to know which it lists)
     if (spec.hidden || spec.customFormat || otherHeight || m_sheet.format.zeroHeight) {
-        if (m_sheet.stats.rowSpecs >= m_limits.rowSpecs) return fail(translate("The sheet has more rows with their own height or format than any real file has."));
+        if (m_sheet.stats.rowSpecs >= m_limits.rowSpecs) return fail(QCoreApplication::translate("Sheet", "The sheet has more rows with their own height or format than any real file has."));
         if (!take(kRowSpecBytes)) return false;
         ++m_sheet.stats.rowSpecs;
         m_sheet.rowSpecs.append(spec);
@@ -697,7 +696,7 @@ bool SheetReader::startColumns(const QXmlStreamReader &r)
 {
     bool ok1 = false, ok2 = false;
     const qint64 min = attribute(r, "min").toLongLong(&ok1), max = attribute(r, "max").toLongLong(&ok2);
-    if (++m_sheet.stats.columnSpans > m_limits.columnSpans) return fail(translate("The sheet has more runs of columns than any real file has."));
+    if (++m_sheet.stats.columnSpans > m_limits.columnSpans) return fail(QCoreApplication::translate("Sheet", "The sheet has more runs of columns than any real file has."));
     if (!ok1 || !ok2 || min < 1 || max < min || min > qint64(kMaxColumns)) return true;
     ColumnSpan c;
     c.first = quint32(min - 1);
@@ -796,7 +795,7 @@ bool SheetReader::startMerge(const QXmlStreamReader &r)
     ++m_sheet.mergeCount;
     CellRange range;
     if (!parseRangeRef(attribute(r, "ref"), &range) || range.cellCount() < 2) return true;   // (a range of one cell merges nothing)
-    if (m_sheet.merges.size() >= m_limits.merges) return fail(translate("The sheet has more merged ranges than any real file has."));
+    if (m_sheet.merges.size() >= m_limits.merges) return fail(QCoreApplication::translate("Sheet", "The sheet has more merged ranges than any real file has."));
     if (!take(kMergeBytes)) return false;
     m_sheet.merges.append(range);
     return true;
@@ -828,10 +827,10 @@ bool SheetReader::startCell(const QXmlStreamReader &r)
         m_cell.col = quint16(col);
     } else if (present && looksLikeAddress(at)) {
         // An address, but of a place past the sheet's last row or column.
-        return fail(translate("A cell's address is outside the sheet."));
+        return fail(QCoreApplication::translate("Sheet", "A cell's address is outside the sheet."));
     } else {
         // No address, or one that is no address at all (some writers number cells another way): the cell follows the one before.
-        if (m_nextCol >= kMaxColumns) return fail(translate("A cell is outside the sheet."));
+        if (m_nextCol >= kMaxColumns) return fail(QCoreApplication::translate("Sheet", "A cell is outside the sheet."));
         m_cell.row = m_row;
         m_cell.col = quint16(m_nextCol);
     }
@@ -909,10 +908,10 @@ bool SheetReader::endFormula()
         if (m_kind == Shared) {
             m_cell.flags |= SharedFormula;
             if (!m_masters.contains(m_si)) {
-                if (m_sheet.stats.sharedFormulas >= m_limits.sharedFormulas) return fail(translate("The sheet has more shared formulas than any real file has."));
+                if (m_sheet.stats.sharedFormulas >= m_limits.sharedFormulas) return fail(QCoreApplication::translate("Sheet", "The sheet has more shared formulas than any real file has."));
                 ++m_sheet.stats.sharedFormulas;
                 if (m_haveRef) {
-                    if (m_ref.cellCount() > m_limits.sharedRangeCells) return fail(translate("A shared formula covers a range larger than any real file has."));
+                    if (m_ref.cellCount() > m_limits.sharedRangeCells) return fail(QCoreApplication::translate("Sheet", "A shared formula covers a range larger than any real file has."));
                     m_sheet.stats.largestSharedRange = std::max(m_sheet.stats.largestSharedRange, m_ref.cellCount());
                 }
                 if (!take(kMasterBytes)) return false;
@@ -932,7 +931,7 @@ bool SheetReader::endFormula()
             }
         }
     }
-    if (m_sheet.stats.expandedFormulaChars > m_limits.expandedFormulaChars) return fail(translate("The formulas, all together, are longer than any real file has."));
+    if (m_sheet.stats.expandedFormulaChars > m_limits.expandedFormulaChars) return fail(QCoreApplication::translate("Sheet", "The formulas, all together, are longer than any real file has."));
     f.text = text;
     if (!take(kFormulaBytes)) return false;
     if ((m_kind == Array || m_kind == Table) && m_haveRef) {
@@ -946,7 +945,7 @@ bool SheetReader::endFormula()
         // Waiting for the first cell of its formula: each such cell is held, and how many different formulas are waited for is bounded as those that have come.
         auto waiting = m_pending.find(m_si);
         if (waiting == m_pending.end()) {
-            if (m_pending.size() >= m_limits.sharedFormulas) return fail(translate("The sheet has more shared formulas than any real file has."));
+            if (m_pending.size() >= m_limits.sharedFormulas) return fail(QCoreApplication::translate("Sheet", "The sheet has more shared formulas than any real file has."));
             if (!take(kWaitingBytes)) return false;
             waiting = m_pending.insert(m_si, QVector<Pending>());
         } else if (!take(kWaitingCellBytes)) {
@@ -961,7 +960,7 @@ bool SheetReader::endCell()
 {
     if (m_skipCells) {
         // (a row the view has left above it: its cells are not kept, and not worked out; what a shared formula's first cell tells has been told by now; the read can still be stopped)
-        if (++m_skipped % kProgressEvery == 0 && m_options.progress && !m_options.progress(m_cells + m_skipped)) return fail(translate("The read was stopped."));
+        if (++m_skipped % kProgressEvery == 0 && m_options.progress && !m_options.progress(m_cells + m_skipped)) return fail(QCoreApplication::translate("Sheet", "The read was stopped."));
         return true;
     }
     Cell &c = m_cell;
@@ -1034,7 +1033,7 @@ bool SheetReader::endCell()
     }
     if (!room) return false;
 
-    if (m_cells >= m_limits.cellsPerSheet) return fail(translate("The sheet has more cells than any real file has."));
+    if (m_cells >= m_limits.cellsPerSheet) return fail(QCoreApplication::translate("Sheet", "The sheet has more cells than any real file has."));
     if (!take(kCellBytes)) return false;
     ++m_cells;
     if (c.type != CellType::Empty || c.hasFormula() || c.style != 0) {
@@ -1042,7 +1041,7 @@ bool SheetReader::endCell()
         m_sheet.extentCols = std::max(m_sheet.extentCols, quint32(c.col) + 1);
     }
     m_sheet.cells.add(c);
-    if (m_cells % kProgressEvery == 0 && m_options.progress && !m_options.progress(m_cells)) return fail(translate("The read was stopped."));
+    if (m_cells % kProgressEvery == 0 && m_options.progress && !m_options.progress(m_cells)) return fail(QCoreApplication::translate("Sheet", "The read was stopped."));
     return true;
 }
 
@@ -1062,19 +1061,19 @@ bool SheetReader::read(QIODevice *in)
     while (ok && !m_stop && !r.atEnd()) {
         if (src.guard.bytesPassed() >= nextReport) {
             nextReport = src.guard.bytesPassed() + kReportEveryBytes;
-            if (m_options.progress && !m_options.progress(m_cells)) ok = fail(translate("The read was stopped."));
+            if (m_options.progress && !m_options.progress(m_cells)) ok = fail(QCoreApplication::translate("Sheet", "The read was stopped."));
             if (!ok) break;
         }
         switch (r.readNext()) {
         case QXmlStreamReader::DTD:
-            ok = fail(translate("The XML has a DOCTYPE, which is not allowed."));
+            ok = fail(QCoreApplication::translate("Sheet", "The XML has a DOCTYPE, which is not allowed."));
             break;
         case QXmlStreamReader::StartElement:
             if (++depth > kMaxXmlDepth) {
-                ok = fail(translate("The XML is nested too deeply."));
+                ok = fail(QCoreApplication::translate("Sheet", "The XML is nested too deeply."));
             } else if (depth == 1) {
                 if (!(isElement(r, "worksheet") || isElement(r, "macrosheet") || isElement(r, "dialogsheet") || isElement(r, "chartsheet")))
-                    ok = fail(translate("The part is not a worksheet."));
+                    ok = fail(QCoreApplication::translate("Sheet", "The part is not a worksheet."));
                 rootSeen = true;
             } else if (depth == 2) {
                 if (isElement(r, "sheetData")) {
@@ -1167,13 +1166,13 @@ bool SheetReader::read(QIODevice *in)
         case QXmlStreamReader::Characters:
             if (inFormula) {
                 m_formula += r.text();
-                if (m_formula.size() > m_limits.formulaChars) ok = fail(translate("A formula is longer than any real file has."));
+                if (m_formula.size() > m_limits.formulaChars) ok = fail(QCoreApplication::translate("Sheet", "A formula is longer than any real file has."));
             } else if (inValue) {
                 m_value += r.text();
-                if (m_value.size() > m_limits.stringChars) ok = fail(translate("A string is longer than any real file has."));
+                if (m_value.size() > m_limits.stringChars) ok = fail(QCoreApplication::translate("Sheet", "A string is longer than any real file has."));
             } else if (inText && !phonetic) {
                 m_inline += r.text();
-                if (m_inline.size() > m_limits.stringChars) ok = fail(translate("A string is longer than any real file has."));
+                if (m_inline.size() > m_limits.stringChars) ok = fail(QCoreApplication::translate("Sheet", "A string is longer than any real file has."));
             }
             break;
         default:
@@ -1183,7 +1182,7 @@ bool SheetReader::read(QIODevice *in)
     if (ok) {
         const QString why = src.problem();
         if (!why.isEmpty()) ok = fail(why);
-        else if (!rootSeen) ok = fail(translate("The part is not a worksheet."));
+        else if (!rootSeen) ok = fail(QCoreApplication::translate("Sheet", "The part is not a worksheet."));
     }
     m_sheet.stats.xmlBytes = src.guard.bytesPassed();
     m_sheet.stats.largestToken = src.guard.largestToken();
@@ -1222,9 +1221,9 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
         return false;
     };
     const QString main = package.mainPart();
-    if (main.isEmpty() || !package.hasPart(main)) return fail(translate("The file has no workbook part."));
+    if (main.isEmpty() || !package.hasPart(main)) return fail(QCoreApplication::translate("Sheet", "The file has no workbook part."));
     if (main.endsWith(QLatin1String(".bin"), Qt::CaseInsensitive) || package.contentType(main).contains(QLatin1String("binary"), Qt::CaseInsensitive))
-        return fail(translate("The workbook is in the binary format, which this program doesn't read."));
+        return fail(QCoreApplication::translate("Sheet", "The workbook is in the binary format, which this program doesn't read."));
     {
         const auto device = package.openPart(main);
         QString why;
@@ -1236,7 +1235,7 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
     for (SheetEntry &e : m_info.sheets) {
         const Relationship rel = package.relationship(main, e.relId);
         if (rel.id.isEmpty() || rel.external || !package.hasPart(rel.target)) continue;
-        if (parts.contains(rel.target.toLower())) return fail(translate("Two sheets of the workbook share one part, which no real file has."));
+        if (parts.contains(rel.target.toLower())) return fail(QCoreApplication::translate("Sheet", "Two sheets of the workbook share one part, which no real file has."));
         parts.insert(rel.target.toLower());
         e.part = rel.target;
         if (rel.type.endsWith(QLatin1String("/chartsheet"))) e.kind = SheetKind::Chartsheet;
@@ -1388,19 +1387,19 @@ bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)
 {
     *out = Sheet();
     if (index < 0 || index >= m_info.sheets.size()) {
-        out->error = translate("There is no such sheet.");
+        out->error = QCoreApplication::translate("Sheet", "There is no such sheet.");
         return false;
     }
     const SheetEntry &entry = m_info.sheets[index];
     // A sheet of a chart has no cells, nor has one the file names with no part to hold it (a module of macros that is listed as a sheet has no relationship).
     if (entry.kind == SheetKind::Chartsheet || entry.relId.isEmpty()) return true;
     if (entry.part.isEmpty()) {
-        out->error = translate("The sheet's part is not in the file.");
+        out->error = QCoreApplication::translate("Sheet", "The sheet's part is not in the file.");
         return false;
     }
     const auto device = m_package.openPart(entry.part);
     if (!device) {
-        out->error = translate("The sheet's part is not in the file.");
+        out->error = QCoreApplication::translate("Sheet", "The sheet's part is not in the file.");
         return false;
     }
     ReadOptions options;

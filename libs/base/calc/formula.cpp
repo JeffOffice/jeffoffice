@@ -26,6 +26,8 @@ struct Token {
     bool space = false;      // white space came before it
     char op = 0;             // Op: + - * / ^ & = < > : % @ # and l (<=), g (>=), n (<>)
     int pos = 0;
+    int end = 0;             // after its last character
+    int body = -1;           // Ref: where the cells begin, after the sheet and "!" in front (-1: it has no sheet in front)
     double num = 0;
     QString text;            // Text: the text; Name, Func, Table, External: as written
     RefLit ref;              // Ref
@@ -81,6 +83,24 @@ public:
             if (last.op == Op::Add || last.op == Op::Sub) last.flags |= kInstrFinal;
         }
         if (prog.code.size() > size_t(kMaxFormulaInstructions)) return fail(n, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
+        return true;
+    }
+
+    // The references of the text, where they are in it (see findReferences); false if the text can't be read as a formula.
+    bool references(std::vector<ReferenceAt> *out)
+    {
+        if (n > kMaxFormulaChars || !lex()) return false;
+        for (const Token &t : toks) {
+            if (t.kind != T::Ref) continue;
+            ReferenceAt at;
+            at.start = t.pos;
+            at.end = t.end;
+            at.body = t.body >= 0 ? t.body : t.pos;
+            at.ref = t.ref;
+            if (t.ref.sheet1 >= 0 && size_t(t.ref.sheet1) < size_t(prog.sheetNames.size())) at.sheet1 = prog.sheetNames[t.ref.sheet1];
+            if (t.ref.sheet2 >= 0 && size_t(t.ref.sheet2) < size_t(prog.sheetNames.size())) at.sheet2 = prog.sheetNames[t.ref.sheet2];
+            out->push_back(std::move(at));
+        }
         return true;
     }
 
@@ -463,6 +483,7 @@ private:
         bool space = false;
         auto push = [&](Token t, int start, int end) {
             t.pos = start;
+            t.end = end;
             t.space = space;
             space = false;
             toks.push_back(std::move(t));
@@ -514,6 +535,7 @@ private:
                     s1 = internSheet(name);
                 }
                 int end;
+                t.body = e + 1;
                 if (!lexBody(e + 1, &t, &end, s1, s2)) return error.isEmpty() ? fail(e + 1, QCoreApplication::translate("jp::calc::Formula", "A sheet's name must be followed by a cell or a range, as in Sheet1!A1.")) : false;
                 if (!push(t, i, end)) return fail(i, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
                 continue;
@@ -629,6 +651,7 @@ private:
                     }
                     if (bang >= 0) {
                         int end;
+                        t.body = bang + 1;
                         if (!lexBody(bang + 1, &t, &end, s1, s2)) return error.isEmpty() ? fail(bang + 1, QCoreApplication::translate("jp::calc::Formula", "A sheet's name must be followed by a cell or a range, as in Sheet1!A1.")) : false;
                         if (!push(t, i, end)) return fail(i, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
                         continue;
@@ -1298,5 +1321,14 @@ ParseResult parseFormula(const QString &text, const ParseOptions &options)
     result.program = program;
     return result;
 }
+
+bool findReferences(const QString &text, const ParseOptions &options, std::vector<ReferenceAt> *out)
+{
+    Program program;
+    Parser parser(text, options, &program);
+    return parser.references(out);
+}
+
+QString referenceCellsText(const RefLit &ref) { return refText(ref); }
 
 } // namespace jp::calc

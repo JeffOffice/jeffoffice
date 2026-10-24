@@ -70,11 +70,10 @@ QString statsText(const Stats &s)
 {
     // (as the General number format writes a number, in the user's locale: up to fifteen digits, grouped, and in the scientific way only when it is very large or very small)
     auto number = [](double v) { return QLocale().toString(v, 'g', 15); };
-    auto label = [](const char *text) { return QCoreApplication::translate("jp::grid::Stats", text); };
     if (s.hasNumbers())
         return QStringLiteral("%1: %2    %3: %4    %5: %6")
-            .arg(label("Average"), number(s.average()), label("Count"), QLocale().toString(s.count), label("Sum"), number(s.sum));
-    if (s.count >= 2) return QStringLiteral("%1: %2").arg(label("Count"), QLocale().toString(s.count));
+            .arg(QCoreApplication::translate("jp::grid::Stats", "Average"), number(s.average()), QCoreApplication::translate("jp::grid::Stats", "Count"), QLocale().toString(s.count), QCoreApplication::translate("jp::grid::Stats", "Sum"), number(s.sum));
+    if (s.count >= 2) return QStringLiteral("%1: %2").arg(QCoreApplication::translate("jp::grid::Stats", "Count"), QLocale().toString(s.count));
     return QString();
 }
 

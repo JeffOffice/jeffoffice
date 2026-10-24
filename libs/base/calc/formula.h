@@ -122,6 +122,19 @@ struct ParseResult {
 
 ParseResult parseFormula(const QString &text, const ParseOptions &options = ParseOptions());
 
+// A reference of a formula and where it is in the text, for rewriting the text (a row inserted, a cell moved) with everything else in it left as it was.
+struct ReferenceAt {
+    int start = 0;            // the first character of what the text has for it (a sheet's name and "!" before the cells, if it has them)
+    int body = 0;             // where the cells begin (after the "!")
+    int end = 0;              // after its last character
+    RefLit ref;               // the cells as written (sheet1 and sheet2 are not set: the names are)
+    QString sheet1, sheet2;   // the sheet it names, and the last sheet of a 3-D reference (empty: none written)
+};
+// The references of a formula in the order of the text; false if it can't be read.
+bool findReferences(const QString &text, const ParseOptions &options, std::vector<ReferenceAt> *out);
+// The cells of a reference as a formula writes them: "$A$1", "B2:C9", "A:C", "3:5".
+QString referenceCellsText(const RefLit &ref);
+
 // The letters of a column counted from 0: "A", "Z", "AA", "XFD".
 QString columnLetters(quint32 col);
 
