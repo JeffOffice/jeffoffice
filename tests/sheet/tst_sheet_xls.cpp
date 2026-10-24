@@ -149,6 +149,8 @@ private Q_SLOTS:
         // a text that is written in two bytes a character is continued as such
         cells += formulaSpecial(8, 0, one, 0);
         cells += rec(0x0207, W().u16(2).u8(1).u16(0x4E2D).u16(0x6587)) + formulaNumber(9, 0, one, 1);
+        // a text in a LABEL record that goes on in a record after it
+        cells += rec(0x0204, W().u16(10).u16(0).u16(15).u16(300).u8(0).raw(QByteArray(100, 'y'))) + rec(0x003C, W().u8(0).raw(QByteArray(200, 'y')));
         Book b;
         b.sheet(QStringLiteral("S"), cells);
         Workbook wb;
@@ -157,6 +159,7 @@ private Q_SLOTS:
         Sheet s;
         QVERIFY(wb.readSheet(0, &s));
         auto at = [&](const QString &ref) { return shown(wb, s, ref); };
+        QCOMPARE(at("A11"), QStringLiteral("i:") + QString(300, QLatin1Char('y')));
         QCOMPARE(at("A1"), QStringLiteral("n:3.5"));
         QCOMPARE(sheettest::at(s, QStringLiteral("A1"))->hasFormula(), true);
         QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A1"))), QStringLiteral("1+2"));

@@ -1303,7 +1303,7 @@ private:
             if (b.bad()) return true;
             QString s;
             if (m_b8 && r.id == kLabel) {
-                Logical lg = single(m_d, r);
+                const Logical lg = joined(m_d, sc, r, true);   // (a long text goes on in the records that follow, as a string table's does)
                 Chars ch(lg, 6);
                 const int n = ch.u16();
                 const quint8 flags = ch.u8();
