@@ -15,10 +15,13 @@
 #include <QVector>
 
 #include <functional>
+#include <memory>
 
 namespace jp::office::sheet {
 
 using jp::calc::DateSystem;
+
+class XlsBook;
 
 // What the files control, bounded. Each is at least ten times what any real
 // workbook has; the most found in the 8,371 public workbooks used for tuning
@@ -172,6 +175,14 @@ public:
     // or it can't be read. A shared strings part that is damaged is not
     // fatal: sharedStringsError() says, and the strings before the damage stay.
     bool open(const Package &package, QString *error = nullptr, const Limits &limits = Limits());
+    // Opens a workbook file of either kind, told by its first bytes: the package of XML parts (.xlsx, .xlsm), or the older binary form (a compound file holding a
+    // workbook stream: Excel 5 to 2003). A package is read lazily, as readLazyFile does. False, with a message, if the file is neither, is damaged, or is encrypted.
+    bool openFile(const QString &path, QString *error = nullptr, const Limits &limits = Limits());
+    // The same for the bytes of a whole binary workbook file.
+    bool openBinary(const QByteArray &file, QString *error = nullptr, const Limits &limits = Limits());
+    // Whether the workbook was read from the older binary form, and what such a file holds that is not read (charts, pictures, ...), in words.
+    bool isBinary() const { return bool(m_xls); }
+    QStringList skippedFeatures() const;
     const WorkbookInfo &info() const { return m_info; }
     const SharedStrings &sharedStrings() const { return m_shared; }
     QString sharedStringsError() const { return m_sharedError; }
@@ -187,7 +198,9 @@ public:
     const Package &package() const { return m_package; }
 
 private:
+    bool openStream(const QByteArray &stream, bool hasMacros, QString *error, const Limits &limits);
     Package m_package;
+    std::shared_ptr<const XlsBook> m_xls;
     WorkbookInfo m_info;
     SharedStrings m_shared;
     QString m_sharedError;

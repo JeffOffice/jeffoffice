@@ -229,6 +229,7 @@ struct SheetStats {
     qint64 largestRead = 0;          // the most bytes the parser asked for at one time
     qint64 columnSpans = 0;          // `col` elements
     qint64 rowSpecs = 0;             // rows that were kept as not the default
+    qint64 unreadFormulas = 0;       // formulas of a binary workbook that could not be turned into text: their cells keep the result the file stored
 };
 
 // What the file says about a run of columns (a `col` element): its width in characters of the default font's widest digit (with the padding the format adds),

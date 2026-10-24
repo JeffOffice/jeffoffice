@@ -4,8 +4,11 @@
 #include "office/xml.h"
 #include "io/zipindex.h"
 #include "office/xmlstream.h"
+#include "io/cfb.h"
+#include "sheet/xls.h"
 
 #include <QCoreApplication>
+#include <QFile>
 #include <QSet>
 #include <QXmlStreamReader>
 #include <algorithm>
@@ -1259,6 +1262,75 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
     return true;
 }
 
+bool Workbook::openStream(const QByteArray &stream, bool hasMacros, QString *error, const Limits &limits)
+{
+    *this = Workbook();
+    m_limits = limits;
+    const auto xls = XlsBook::open(stream, hasMacros, limits, &m_info, &m_shared, &m_styles, error);
+    if (!xls) {
+        *this = Workbook();
+        return false;
+    }
+    m_xls = xls;
+    return true;
+}
+
+bool Workbook::openBinary(const QByteArray &file, QString *error, const Limits &limits)
+{
+    if (!startsCompoundFile(file)) return openStream(file, false, error, limits);   // (a stream with no container: the form before Excel 5, which says so)
+    jp::cfb::File container;
+    QString why;
+    if (!jp::cfb::read(file, &container, &why)) {
+        if (error) *error = translate("The file is damaged: %1").arg(why);
+        return false;
+    }
+    QByteArray stream = container.stream(QStringLiteral("Workbook"));
+    if (stream.isEmpty()) stream = container.stream(QStringLiteral("Book"));
+    if (stream.isEmpty()) {
+        if (error) *error = translate("The file has no workbook in it.");
+        return false;
+    }
+    const bool macros = container.find(QStringLiteral("_VBA_PROJECT_CUR")) >= 0 || container.find(QStringLiteral("VBA")) >= 0;
+    return openStream(stream, macros, error, limits);
+}
+
+bool Workbook::openFile(const QString &path, QString *error, const Limits &limits)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        if (error) *error = file.errorString();
+        return false;
+    }
+    const QByteArray head = file.read(8);
+    file.close();
+    // (a stream with no container: the forms before Excel 5, and a bare BIFF8 or BIFF5 stream, begin with the record of the start of a workbook)
+    const bool raw = head.size() >= 4 && quint8(head[0]) == 0x09 && (quint8(head[1]) == 0x00 || quint8(head[1]) == 0x02 || quint8(head[1]) == 0x04 || quint8(head[1]) == 0x08);
+    if (startsCompoundFile(head)) {
+        QString why;
+        QByteArray stream = jp::cfb::readStream(path, QStringLiteral("Workbook"), &why);
+        if (stream.isEmpty()) stream = jp::cfb::readStream(path, QStringLiteral("Book"));
+        if (stream.isEmpty()) {
+            if (error) *error = why.startsWith(QLatin1String("no stream")) || why.isEmpty() ? translate("The file has no workbook in it.") : translate("The file is damaged: %1").arg(why);
+            return false;
+        }
+        const bool macros = !jp::cfb::readStream(path, QStringLiteral("_VBA_PROJECT_CUR/VBA/dir")).isEmpty() || !jp::cfb::readStream(path, QStringLiteral("VBA/dir")).isEmpty();
+        return openStream(stream, macros, error, limits);
+    }
+    if (raw) {
+        QFile whole(path);
+        if (!whole.open(QIODevice::ReadOnly)) {
+            if (error) *error = whole.errorString();
+            return false;
+        }
+        return openStream(whole.readAll(), false, error, limits);
+    }
+    Package package;
+    if (!package.readLazyFile(path, error)) return false;
+    return open(package, error, limits);
+}
+
+QStringList Workbook::skippedFeatures() const { return m_xls ? m_xls->skipped() : QStringList(); }
+
 bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)> &progress, qint64 stopAfterRow, qint64 screenRows) const
 {
     *out = Sheet();
@@ -1266,6 +1338,7 @@ bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)
         out->error = translate("There is no such sheet.");
         return false;
     }
+    if (m_xls) return m_xls->readSheet(index, m_limits, progress, out);
     const SheetEntry &entry = m_info.sheets[index];
     // A sheet of a chart has no cells, nor has one the file names with no part to hold it (a module of macros that is listed as a sheet has no relationship).
     if (entry.kind == SheetKind::Chartsheet || entry.relId.isEmpty()) return true;
