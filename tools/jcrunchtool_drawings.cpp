@@ -5,10 +5,11 @@
 //                                                       with one, milliseconds to draw them all (the sum, and the longest), the chart sheets, the first sheet (from 1) that has an object
 //                                                       drawn, the references of the charts and how many name cells that are found (with --live: the whole workbook is read, so the
 //                                                       charts read its cells; else they have the numbers they store), and the reasons
-//   jcrunchtool grid-drawings-bench [charts=400]           a workbook made here (a sheet of numbers, that many charts down it, a picture and a shape beside each tenth) opened in the
+//   jcrunchtool grid-drawings-bench [charts=400] [shapes=0]           a workbook made here (a sheet of numbers, that many charts down it, a picture and a shape beside each tenth) opened in the
 //                                                       window (1,280 by 800, offscreen): the milliseconds to the first screen, to the objects shown, and the pictures made; then 400
 //                                                       scrolls of three rows with charts on the screen, with the cells the charts read changed as it goes, and a whole-window draw: the
 //                                                       milliseconds each paint took (the middle, the 95th percentile, the longest), and what was drawn
+//   jcrunchtool grid-drawings-shot <file.xlsx> <out.png> [sheet=first with objects] [WxH=1280x800]   the sheet in the window, scrolled to show its first objects, as a picture
 //   jcrunchtool grid-drawings <keys.txt> <out-dir> [jobs]   runs it on each workbook listed (each in a child process with 120 seconds and 4 GB), and writes <out-dir>/drawings.tsv
 //                                                       (tools/crunch_drawings.py does the work)
 
@@ -121,7 +122,10 @@ int drawingsOne(const QString &path, bool live)
             }
             if (o.kind == ObjectKind::Chart) {
                 int r = 0, f = 0;
-                objects.chartRefCounts(sheet, o.id, &r, &f);
+                QStringList missed;
+                objects.chartRefCounts(sheet, o.id, &r, &f, &missed);
+                if (!qEnvironmentVariableIsEmpty("JC_DRAWINGS_SHOW"))
+                    for (const QString &m : std::as_const(missed)) err() << "unresolved: " << m << "\n";
                 refs += r;
                 found += f;
             }
@@ -140,7 +144,7 @@ int drawingsOne(const QString &path, bool live)
 // ---- the bench
 
 // A workbook: a sheet of `rows` rows of three columns of numbers, and `charts` charts down it (each over ten rows, reading thirty cells of column B), with a picture and a shape beside each tenth.
-QByteArray benchWorkbook(int rows, int charts)
+QByteArray benchWorkbook(int rows, int charts, int manyShapes)
 {
     jp::ZipWriter zip;
     const char *xmlHead = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n";
@@ -204,6 +208,12 @@ QByteArray benchWorkbook(int rows, int charts)
                          .arg(top + 5).arg(top + 9).arg(6000 + k).arg(k + 1).toUtf8();
         }
     }
+    // (and a crowd of small shapes down the sheet, one to a row, for what a paint costs in objects it does not draw)
+    for (int i = 0; i < manyShapes; ++i)
+        drawing += QStringLiteral("<xdr:twoCellAnchor><xdr:from><xdr:col>14</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>%1</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>15</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>%2</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>"
+                                   "<xdr:sp macro=\"\" textlink=\"\"><xdr:nvSpPr><xdr:cNvPr id=\"%3\" name=\"Dot %3\"/><xdr:cNvSpPr/></xdr:nvSpPr><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1\" cy=\"1\"/></a:xfrm><a:prstGeom prst=\"ellipse\"><a:avLst/></a:prstGeom>"
+                                   "<a:solidFill><a:srgbClr val=\"CC3333\"/></a:solidFill></xdr:spPr></xdr:sp><xdr:clientData/></xdr:twoCellAnchor>")
+                     .arg(i % rows).arg(i % rows + 1).arg(10000 + i).toUtf8();
     drawing += "</xdr:wsDr>";
     drawingRels += "</Relationships>";
     zip.add(QStringLiteral("xl/drawings/drawing1.xml"), drawing, true);
@@ -233,21 +243,21 @@ void spinFor(int msec)
     loop.exec();
 }
 
-int drawingsBench(int charts)
+int drawingsBench(int charts, int shapes)
 {
     const int rows = std::max(2000, charts * 12 + 40);
     QTemporaryDir dir;
     const QString path = dir.filePath(QStringLiteral("drawings-bench.xlsx"));
     QElapsedTimer made;
     made.start();
-    const QByteArray bytes = benchWorkbook(rows, charts);
+    const QByteArray bytes = benchWorkbook(rows, charts, shapes);
     QFile f(path);
     if (!f.open(QIODevice::WriteOnly) || f.write(bytes) != bytes.size()) {
         err() << "grid-drawings-bench: the workbook could not be written\n";
         return 1;
     }
     f.close();
-    out() << "workbook of " << rows << " rows with " << charts << " charts, " << (charts + 9) / 10 << " pictures and " << (charts + 9) / 10 << " shapes: " << bytes.size() / 1024 << " KB, made in " << made.elapsed() << " ms\n";
+    out() << "workbook of " << rows << " rows with " << charts << " charts, " << (charts + 9) / 10 << " pictures and " << (charts + 9) / 10 << " shapes" << (shapes > 0 ? QStringLiteral(" and %1 small shapes").arg(shapes) : QString()) << ": " << bytes.size() / 1024 << " KB, made in " << made.elapsed() << " ms\n";
     CrunchWindow w;
     w.setNotifier([](const QString &, const QString &) {});
     w.resize(1280, 800);
@@ -328,6 +338,59 @@ int drawingsBench(int charts)
     return 0;
 }
 
+// A picture of the window with the sheet's objects in view: the sheet is the one asked for (from 1), or the first that has an object that can be drawn.
+int drawingsShot(const QString &path, const QString &png, int sheetAsked, const QSize &size)
+{
+    CrunchWindow w;
+    w.setNotifier([](const QString &, const QString &) {});
+    w.resize(size);
+    w.show();
+    bool done = false;
+    QEventLoop loop;
+    QObject::connect(&w, &CrunchWindow::calculationFinished, &loop, [&] {
+        done = true;
+        loop.quit();
+    });
+    QTimer::singleShot(120000, &loop, &QEventLoop::quit);
+    if (!w.openFile(path)) return 1;
+    loop.exec();
+    if (!done) {
+        err() << path << ": not read in 120 seconds\n";
+        return 1;
+    }
+    crunch::SheetObjects *objects = w.objects();
+    int sheet = sheetAsked - 1;
+    if (sheet < 0)
+        for (int i = 0; i < w.loadedBook()->book->info().sheets.size() && sheet < 0; ++i)
+            if (objects->counts(i).shown > 0) sheet = i;
+    if (sheet < 0) {
+        err() << path << ": no object that can be drawn\n";
+        return 3;
+    }
+    w.setActiveSheet(sheet);
+    while (objects->shownSheet() != sheet) spinFor(5);
+    grid::ObjectLayer *layer = objects->layer();
+    grid::GridView *v = w.view();
+    // scrolled so that the first object that is drawn is whole in the window if it fits: the end of it first, then its start
+    for (int i = 0; i < layer->count(); ++i) {
+        const jp::office::sheet::DrawingAnchor &a = layer->object(i).anchor;
+        if (a.kind != jp::office::sheet::AnchorKind::TwoCell) continue;
+        v->ensureVisible(a.to.row, a.to.col);
+        v->ensureVisible(a.from.row, a.from.col);
+        break;
+    }
+    layer->prepareAll();
+    spinFor(100);
+    layer->prepareAll();
+    const QPixmap shot = w.grab();
+    if (!shot.save(png)) {
+        err() << path << ": the picture could not be written\n";
+        return 1;
+    }
+    out() << path << "\tsheet " << sheet + 1 << "\t" << layer->count() << " objects\n";
+    return 0;
+}
+
 int drawingsSweep(const QString &keys, const QString &outDir, const QString &jobs)
 {
     const QString script = QStringLiteral(JCRUNCH_TOOLS_DIR) + QStringLiteral("/crunch_drawings.py");
@@ -354,7 +417,11 @@ int drawingsMain(const QStringList &args)
         const bool live = args[1] == QLatin1String("--live");
         if (args.size() == (live ? 3 : 2)) return drawingsOne(args.last(), live);
     }
-    if (args.size() >= 1 && args.size() <= 2 && args[0] == QLatin1String("grid-drawings-bench")) return drawingsBench(args.value(1, QStringLiteral("400")).toInt());
+    if (args.size() >= 3 && args.size() <= 5 && args[0] == QLatin1String("grid-drawings-shot")) {
+        const QStringList wh = args.value(4, QStringLiteral("1280x800")).split(QLatin1Char('x'));
+        return drawingsShot(args[1], args[2], args.value(3, QStringLiteral("0")).toInt(), QSize(wh.value(0).toInt() > 0 ? wh.value(0).toInt() : 1280, wh.value(1).toInt() > 0 ? wh.value(1).toInt() : 800));
+    }
+    if (args.size() >= 1 && args.size() <= 3 && args[0] == QLatin1String("grid-drawings-bench")) return drawingsBench(args.value(1, QStringLiteral("400")).toInt(), args.value(2, QStringLiteral("0")).toInt());
     if (args.size() >= 3 && args.size() <= 4 && args[0] == QLatin1String("grid-drawings")) return drawingsSweep(args[1], args[2], args.value(3));
     return -1;
 }

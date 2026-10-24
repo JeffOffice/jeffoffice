@@ -695,6 +695,8 @@ int usage()
              "       jcrunchtool grid-bench [rows=100000] [cols=20]\n"
              "       jcrunchtool grid-sweep <keys.txt> <out-dir> [jobs]\n"
              "       jcrunchtool grid-drawings-one [--live] <file.xlsx>\n"
+             "       jcrunchtool grid-drawings-shot <file.xlsx> <out.png> [sheet] [WxH]\n"
+             "       jcrunchtool grid-drawings-bench [charts=400] [shapes=0]\n"
              "       jcrunchtool grid-drawings <keys.txt> <out-dir> [jobs]\n";
     return 2;
 }
