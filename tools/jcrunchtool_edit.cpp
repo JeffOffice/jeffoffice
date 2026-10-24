@@ -362,6 +362,7 @@ int roundtripOne(const QString &path)
                 calc->sheet(si).cells.forEach([&](const Cell &c) {
                     if (sheet >= 0 || ++looked > 3000000) return;
                     if (c.type != CellType::Number || c.hasFormula() || (c.flags & (ArrayMember | ArrayFormula))) return;
+                    if (!w.session->canEditCell(si, c.row, c.col)) return;   // (a locked cell of a protected sheet is not changed)
                     if (pass == 0) {
                         std::vector<quint32> readers;
                         calc->graph().dependentsOfCell(si, c.row, c.col, &readers);
@@ -374,10 +375,10 @@ int roundtripOne(const QString &path)
             }
         if (sheet < 0)
             for (int si = 0; si < sheetCount && sheet < 0; ++si)
-                if (w.loader.result()->book->info().sheets[si].kind == SheetKind::Worksheet) sheet = si;
+                if (w.loader.result()->book->info().sheets[si].kind == SheetKind::Worksheet && w.session->canEditCell(si, 0, 0)) sheet = si;
         if (sheet < 0) {
-            cellRight = true;   // (a workbook of chart sheets has no cell to change)
-            cellName_ = QStringLiteral("(no sheet of cells)");
+            cellRight = true;   // (a workbook of chart sheets has no cell to change, nor has one whose sheets are protected and every cell locked)
+            cellName_ = QStringLiteral("(no cell that can be changed)");
         } else {
             cellName_ = w.loader.result()->book->info().sheets[sheet].name + QLatin1Char('!') + cellName(row, col);
             const Calculation::CellContent old = calc->content(sheet, row, col);
