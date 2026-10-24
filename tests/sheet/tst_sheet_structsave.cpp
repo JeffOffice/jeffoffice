@@ -6,6 +6,8 @@
 #include "sheet/structsave.h"
 #include "sheet/xlsxsave.h"
 
+#include <QProcess>
+
 namespace {
 
 struct Saved {
@@ -46,6 +48,45 @@ class SheetStructSaveTests : public QObject {
     Q_OBJECT
 
 private Q_SLOTS:
+    // The save reads nothing that has been let go of: the tests of this class are run again by a copy of this program whose C library scribbles on every block it frees and keeps none
+    // back to be given out again (a cell whose address was read from freed memory lost its column on a computer that does, and the next cell took its place). Where the C library
+    // cannot be asked to, the test is skipped.
+    void theSaveReadsNothingItHasLetGoOf()
+    {
+#ifdef __GLIBC__
+        if (qEnvironmentVariableIsSet("JP_TEST_SCRIBBLES")) return;   // (this is the copy: it runs the others)
+        QProcess child;
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+        env.insert(QStringLiteral("JP_TEST_SCRIBBLES"), QStringLiteral("1"));
+        env.insert(QStringLiteral("GLIBC_TUNABLES"), QStringLiteral("glibc.malloc.perturb=165:glibc.malloc.tcache_count=0"));
+        child.setProcessEnvironment(env);
+        child.setProcessChannelMode(QProcess::MergedChannels);
+        child.start(QCoreApplication::applicationFilePath(), {QStringLiteral("--class"), QStringLiteral("SheetStructSaveTests")});
+        QVERIFY(child.waitForStarted());
+        QVERIFY(child.waitForFinished(180000));
+        const QString output = QString::fromUtf8(child.readAll());
+        QVERIFY2(child.exitStatus() == QProcess::NormalExit && child.exitCode() == 0 && output.contains(QStringLiteral(" 0 failed")), qPrintable(output.right(3000)));
+#else
+        QSKIP("This needs the GNU C library, which can be asked to scribble on what it frees.");
+#endif
+    }
+
+    // Cells that are not next to each other keep their columns when the rows around them are deleted and inserted (the address of each is read from the file, since the cell before it does not
+    // say where it is).
+    void cellsThatAreNotNextToEachOtherKeepTheirColumns()
+    {
+        QString rows;
+        for (int r = 1; r <= 6; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><v>%1</v></c><c r=\"D%1\"><v>%2</v></c><c r=\"F%1\"><v>%3</v></c></row>").arg(r).arg(r * 10).arg(r * 100);
+        const QByteArray book = buildXlsx({worksheet(rows)});
+        for (int round = 0; round < 3; ++round) {
+            const Saved s = saveWith(book, {StructEdit::deleteRows(0, 1, 2), StructEdit::insertRows(0, 0, 1)});
+            QVERIFY2(s.error.isEmpty(), qPrintable(s.error));
+            const QString sheet = text(s, QStringLiteral("xl/worksheets/sheet1.xml"));
+            for (const char *cell : {"A2", "B2", "D2", "F2", "A3", "D3", "F5"}) QVERIFY2(sheet.contains(QStringLiteral("<c r=\"%1\"").arg(QLatin1String(cell))), qPrintable(QStringLiteral("%1 in %2").arg(QLatin1String(cell), sheet)));
+            QVERIFY2(!sheet.contains(QStringLiteral("<c r=\"C")) && !sheet.contains(QStringLiteral("<c r=\"E")), qPrintable(sheet));
+        }
+    }
+
     // A row inserted at row 3: the cells below move down, a shared formula is written out, the array's range follows, and what names rows follows.
     void aRowInsertedMovesTheCellsAndWhatNamesThem()
     {
