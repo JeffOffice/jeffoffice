@@ -796,6 +796,15 @@ void GridView::wheelEvent(QWheelEvent *e)
 
 // ---- the keys
 
+bool GridView::keyBeginsAnEntry(Qt::KeyboardModifiers m, const QString &text, bool macKeyboard)
+{
+    const bool ctrl = m & Qt::ControlModifier, alt = m & Qt::AltModifier, meta = m & Qt::MetaModifier;
+    // (on a Mac, Qt gives Cmd as Control and Ctrl as Meta, and Option alone gives the characters of the layout's second level: é, @, a bracket; Cmd or Ctrl with anything is a shortcut.
+    // Elsewhere AltGr arrives as Ctrl and Alt together, and Alt alone is a shortcut)
+    const bool characterKey = macKeyboard ? !ctrl && !meta : ((ctrl && alt && !meta) || (!ctrl && !alt && !meta));
+    return characterKey && !text.isEmpty() && text.front().isPrint();
+}
+
 void GridView::keyPressEvent(QKeyEvent *e)
 {
     const bool shift = e->modifiers() & Qt::ShiftModifier, ctrl = e->modifiers() & Qt::ControlModifier;
@@ -809,12 +818,13 @@ void GridView::keyPressEvent(QKeyEvent *e)
     auto go = [&](const Selection &s) { setSelectionInternal(s); };
     // a character that prints starts an entry
     auto typed = [&]() {
-        // (AltGr, which gives the characters some keyboards have on their letters, arrives as Ctrl and Alt together)
-        const bool altGr = ctrl && (e->modifiers() & Qt::AltModifier) && !(e->modifiers() & Qt::MetaModifier);
-        if (!altGr && (ctrl || !plain)) return false;
-        const QString text = e->text();
-        if (text.isEmpty() || !text.front().isPrint()) return false;
-        Q_EMIT typingStarted(text);
+#ifdef Q_OS_MACOS
+        constexpr bool kMacKeyboard = true;
+#else
+        constexpr bool kMacKeyboard = false;
+#endif
+        if (!keyBeginsAnEntry(e->modifiers(), e->text(), kMacKeyboard)) return false;
+        Q_EMIT typingStarted(e->text());
         e->accept();
         return true;
     };

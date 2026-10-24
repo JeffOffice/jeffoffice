@@ -1,6 +1,8 @@
 # Use JeffCrunch with the keyboard
 <!-- keywords: keyboard, shortcuts, keys, hotkeys, arrow, ctrl, shift, home, end, page up, page down, tab, enter, select all, copy, F9, F1, zoom, access keys, key tips -->
 
+On a Mac, the **Command** key (⌘) does what **Ctrl** does in the tables below, except where a table says otherwise.
+
 ## Moving and selecting
 
 | Keys | What they do |
@@ -17,7 +19,7 @@
 | Enter, Shift+Enter | Move down or up (through the selected cells, if there are several) |
 | Ctrl+Space | Select the whole column |
 | Shift+Space | Select the whole row |
-| Ctrl+A | Select everything |
+| {key:SelectAll} | Select everything |
 
 ## Changing cells
 
@@ -30,8 +32,8 @@
 | Esc | Give the entry up |
 | Alt+Enter | Start a new line in the cell |
 | Delete | Clear the selected cells |
-| Ctrl+Z, Ctrl+Y | Undo, redo |
-| Ctrl+S | Save |
+| {key:Undo}, {key:Redo} | Undo, redo |
+| {key:Save} | Save |
 
 ## Commands
 

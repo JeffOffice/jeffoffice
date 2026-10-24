@@ -326,6 +326,67 @@ private Q_SLOTS:
         }
     }
 
+    // In a locale that writes a comma for the decimal point, the arguments of a function are separated by a semicolon and a number has a comma in it: what is typed is read so, and the
+    // file always has the format's own (commas between arguments, dots in numbers). What is in quotes, in brackets, and in braces is left as it is.
+    void formulasUseTheSeparatorsOfTheLocale()
+    {
+        const EntryOptions o = options(de);
+        QCOMPARE(read(QStringLiteral("=SUM(A1;A2)"), o), QStringLiteral("f:SUM(A1,A2)"));
+        QCOMPARE(read(QStringLiteral("=A1*0,5"), o), QStringLiteral("f:A1*0.5"));
+        QCOMPARE(read(QStringLiteral("=SUM(1,5;2,5)+,5"), o), QStringLiteral("f:SUM(1.5,2.5)+.5"));
+        QCOMPARE(read(QStringLiteral("=IF(A1>1;\"a,b\";\"c;d\")"), o), QStringLiteral("f:IF(A1>1,\"a,b\",\"c;d\")"));
+        QCOMPARE(read(QStringLiteral("=1,5E3+LOG10(100)+STDEV.S(A1:A3)"), o), QStringLiteral("f:1.5E3+LOG10(100)+_xlfn.STDEV.S(A1:A3)"));
+        QCOMPARE(read(QStringLiteral("=Table1[[#This Row],[Q1]]*2,5+'a;b'!A1"), o), QStringLiteral("f:Table1[[#This Row],[Q1]]*2.5+'a;b'!A1"));
+        QCOMPARE(read(QStringLiteral("=SUM({1,2;3,4})"), o), QStringLiteral("f:SUM({1,2;3,4})"));
+        QCOMPARE(read(QStringLiteral("=$A$1+B$2*3,25"), o), QStringLiteral("f:$A$1+B$2*3.25"));
+        QCOMPARE(read(QStringLiteral("=-A1;"), o), QStringLiteral("!"));   // (not a formula)
+        // the United States: as it was
+        QCOMPARE(read(QStringLiteral("=SUM(A1,A2)*0.5"), options(en)), QStringLiteral("f:SUM(A1,A2)*0.5"));
+        // French and others with a comma
+        QCOMPARE(read(QStringLiteral("=SOMME(A1;A2)"), options(fr)), QStringLiteral("f:SOMME(A1,A2)"));
+        // and shown for editing the same way back
+        QCOMPARE(formulaToLocale(QStringLiteral("SUM(A1,A2)"), de), QStringLiteral("SUM(A1;A2)"));
+        QCOMPARE(formulaToLocale(QStringLiteral("A1*0.5"), de), QStringLiteral("A1*0,5"));
+        QCOMPARE(formulaToLocale(QStringLiteral("IF(A1>1,\"a,b\",\"c;d\")"), de), QStringLiteral("IF(A1>1;\"a,b\";\"c;d\")"));
+        QCOMPARE(formulaToLocale(QStringLiteral("STDEV.S(A1:A3)*1.5E3+LOG10(2.5)"), de), QStringLiteral("STDEV.S(A1:A3)*1,5E3+LOG10(2,5)"));
+        QCOMPARE(formulaToLocale(QStringLiteral("Table1[[#This Row],[Q1]]*2.5+'a,b'!A1"), de), QStringLiteral("Table1[[#This Row],[Q1]]*2,5+'a,b'!A1"));
+        QCOMPARE(formulaToLocale(QStringLiteral("SUM({1,2;3,4})+$A$1*.5"), de), QStringLiteral("SUM({1,2;3,4})+$A$1*,5"));
+        QCOMPARE(formulaToLocale(QStringLiteral("SUM(A1,A2)*0.5"), en), QStringLiteral("SUM(A1,A2)*0.5"));
+        for (const QString &f : {"SUM(A1,A2)*0.5", "IF(A1>1,\"a,b\",2.5E-3)", "A1+B1", "AVERAGE(A1:A3,.5,6.)", "SUM({1,2;3,4},1.5)"})
+            QCOMPARE(formulaFromLocale(formulaToLocale(f, de), de), f);
+    }
+
+    // The digits of other scripts and the apostrophe of Swiss German are read as numbers: ar-EG, fa-IR, and de-CH.
+    void nativeDigitsAndTheSwissApostropheAreRead()
+    {
+        const QLocale ar(QLocale::Arabic, QLocale::Egypt), fa(QLocale::Persian, QLocale::Iran), ch(QLocale::German, QLocale::Switzerland);
+        auto number = [&](const QString &typed, const QLocale &l) {
+            const EntryResult r = readEntry(typed, options(l));
+            return r.ok && r.entry.kind == Entry::Kind::Number ? r.entry.number : -12345.0;
+        };
+        QCOMPARE(number(QString::fromUtf8("\u0663\u066b\u0665"), ar), 3.5);            // ٣٫٥
+        QCOMPARE(number(QString::fromUtf8("\u0661\u0662\u0663"), ar), 123.0);
+        QCOMPARE(number(QString::fromUtf8("-\u0661\u0662"), ar), -12.0);
+        QCOMPARE(number(QString::fromUtf8("\u06f1\u06f2\u06f3"), fa), 123.0);          // ۱۲۳
+        QCOMPARE(number(QStringLiteral("123"), ar), 123.0);                                  // (the digits of the keyboard are read too)
+        const EntryResult percent = readEntry(QString::fromUtf8("\u0665\u066a"), options(ar));   // ٥٪
+        QVERIFY(percent.ok && percent.entry.kind == Entry::Kind::Number);
+        QCOMPARE(percent.entry.number, 0.05);
+        QVERIFY(percent.entry.formatCode.contains(QLatin1Char('%')));
+        // Swiss German: the apostrophe (typed as ' or as the right single quote the locale uses) groups the thousands, and the dot is the decimal point
+        QCOMPARE(number(QStringLiteral("1'234.5"), ch), 1234.5);
+        QCOMPARE(number(QString::fromUtf8("1\u2019234'567"), ch), 1234567.0);
+        QCOMPARE(number(QStringLiteral("1'23"), ch), -12345.0);                             // (not a group of three: not a number)
+        const EntryResult grouped = readEntry(QStringLiteral("1'234.50"), options(ch));
+        QCOMPARE(grouped.entry.formatCode, QStringLiteral("#,##0.00"));
+        // text that has digits of other scripts among letters is text, as it was typed
+        const EntryResult word = readEntry(QString::fromUtf8("\u0663 \u0645\u0646"), options(ar));
+        QVERIFY(word.ok && word.entry.kind == Entry::Kind::Text);
+        QCOMPARE(word.entry.text, QString::fromUtf8("\u0663 \u0645\u0646"));
+        // a text with an apostrophe in front is still a text
+        QCOMPARE(read(QStringLiteral("'1'234"), options(ch)), QStringLiteral("t:1'234"));
+    }
+
     void limits()
     {
         const EntryOptions o = options(en);

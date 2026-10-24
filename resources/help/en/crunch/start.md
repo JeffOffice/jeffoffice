@@ -11,7 +11,7 @@ This version opens workbooks, lets you type in cells, and saves them. You can op
 
 ## Do these three things first
 
-1. **Open a workbook.** Press **Ctrl+O**, or click **File** and then **Open**. The first rows appear at once, even in a very large workbook, while JeffCrunch reads the rest.
+1. **Open a workbook.** Press **{key:Open}**, or click **File** and then **Open**. The first rows appear at once, even in a very large workbook, while JeffCrunch reads the rest.
 2. **Look around.** Click a cell to select it. Its address is in the **Name box** at the top left, and what it holds is in the **formula bar** next to it. Use the arrow keys, the mouse wheel, and the scroll bars to move. See [Select cells and move around](select-and-move).
 3. **Change a cell.** Select a cell and type. Press **Enter** to keep what you typed. See [Type in cells](edit-cells).
 4. **Change the view.** Use the **View** tab to zoom, to turn the gridlines and headings on or off, and to freeze the top rows or the first columns. See [Change the view](view).

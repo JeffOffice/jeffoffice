@@ -49,6 +49,8 @@ To keep something that looks like a number as text, such as a code **007**, type
 
 A formula starts with an equals sign. For example, **=B2*2** doubles the number in B2. Type the names of functions in capitals or small letters; JeffCrunch writes them in capitals.
 
+The names of functions are always the English ones, in every language: type **SUM**, not the name your language gives it. The marks between them follow your computer's settings. Where the decimal mark is a comma, as in German and French, you separate the arguments of a function with a semicolon and write a comma in a number: **=SUM(A1;A2)*0,5**. The formula bar and **F2** show formulas the same way. Where the decimal mark is a point, you separate arguments with a comma: **=SUM(A1,A2)*0.5**. The file always keeps the form every program reads, with commas between arguments and points in numbers, so it opens the same everywhere.
+
 If a formula has a mistake, such as a bracket that is never closed, JeffCrunch tells you what is wrong, and the entry stays as you typed it, with the cursor near the mistake, so that you can fix it. Nothing is changed until the formula is right.
 
 A cell holds up to 32,767 characters, and a formula up to 8,192. JeffCrunch tells you when an entry is longer.
@@ -59,7 +61,7 @@ Select the cells and press **Delete**. This clears what the cells hold and keeps
 
 ## Undo and Redo
 
-**Ctrl+Z** undoes the last change, and **Ctrl+Y** does it again. They are also on the quick access bar at the top. Each cell you type in is one step, and so is each clearing. Undo puts the cell back the way it was: its value, its formula, its format, and the formulas that depend on it. JeffCrunch remembers the last 1,000 steps.
+**{key:Undo}** undoes the last change, and **{key:Redo}** does it again. They are also on the quick access bar at the top. Each cell you type in is one step, and so is each clearing. Undo puts the cell back the way it was: its value, its formula, its format, and the formulas that depend on it. JeffCrunch remembers up to 1,000 steps, fewer when they changed very many cells, so that it never takes much memory.
 
 ## While JeffCrunch works the formulas out
 
@@ -68,6 +70,8 @@ When you change a cell, JeffCrunch works out the formulas that depend on it in t
 ## What can't be changed
 
 - A cell that is part of an **array formula** or a data table can't be changed alone.
+- On a **protected sheet**, a cell that is locked can't be changed. Every cell is locked unless the workbook says it is not. JeffCrunch tells you when you try. To change the cell, take the protection off in the program that put it on.
+- The first row of a **table** holds the names of its columns. Type a new name in one of those cells to rename the column: the formulas that use the old name follow, and the table in the file stays valid. A name another column already has gets a number after it, a name can't be empty, and **Delete** doesn't clear that row.
 - A workbook that could not be read whole can be looked at but not changed or saved.
 - A function JeffCrunch does not have yet leaves a new formula without a value in the cell; the workbook asks the program that opens it next to work the formula out.
 - Formatting, inserting and deleting rows and columns, cut and paste, fill, sorting, and find and replace come in a later version.

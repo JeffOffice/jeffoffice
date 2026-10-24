@@ -173,9 +173,27 @@ QString EditSession::editText(int sheet, quint32 row, quint32 col) const
     if (!m_book || !m_book->calc) return {};
     const Calculation::CellContent c = m_book->calc->content(sheet, row, col);
     if (!c.exists) return {};
-    if (c.isFormula) return QLatin1Char('=') + jp::grid::displayFormula(c.formula);
+    if (c.isFormula) return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(c.formula), m_locale);
     const QString code = m_book->book->styles().formatCode(c.style, m_locale);
     return editTextOfValue(c.value, code, entryOptions(sheet, code == QLatin1String("@")));
+}
+
+QString EditSession::barText(int sheet, quint32 row, quint32 col, const QString &gridText) const
+{
+    // (a locale that writes the decimal point as a point has nothing to change: what the grid gives is what is typed)
+    if (!m_book || !m_book->calc || m_locale.decimalPoint() != QLatin1String(",")) return gridText;
+    const Calculation::CellContent c = m_book->calc->content(sheet, row, col);
+    if (c.isFormula) {
+        // "=formula" or "{=formula}" (an array's): the formula part in the locale's form
+        const int at = gridText.indexOf(QLatin1Char('='));
+        if (at < 0 || at > 1) return gridText;
+        const bool braces = at == 1 && gridText.endsWith(QLatin1Char('}'));
+        const QString formula = gridText.mid(at + 1, gridText.size() - at - 1 - (braces ? 1 : 0));
+        return gridText.left(at + 1) + formulaToLocale(formula, m_locale) + (braces ? QStringLiteral("}") : QString());
+    }
+    // a number the grid gave as it is stored (a date and a percent are given as their format shows them) is written with the locale's decimal mark
+    if (c.value.isNumber() && gridText == jp::calc::numberToText(c.value.number())) return editTextOfValue(c.value, QStringLiteral("General"), entryOptions(sheet, false));
+    return gridText;
 }
 
 EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, const QString &typed)

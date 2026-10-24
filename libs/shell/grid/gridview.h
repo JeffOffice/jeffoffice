@@ -24,6 +24,10 @@ namespace jp::grid {
 class GridView : public QAbstractScrollArea {
     Q_OBJECT
 public:
+    // Whether a key with these modifiers and this text begins an entry in the cell: one that prints, and is not a shortcut. Ctrl (and Cmd on a Mac) with a character is a shortcut. AltGr,
+    // which gives the characters some keyboards have on their letters, arrives as Ctrl and Alt together (Windows); on a Mac, Option gives them, and Cmd with Option is a shortcut.
+    // `macKeyboard` says which of the two the keys are of (the platform's, as the grid asks it).
+    static bool keyBeginsAnEntry(Qt::KeyboardModifiers modifiers, const QString &text, bool macKeyboard);
     explicit GridView(QWidget *parent = nullptr);
     ~GridView() override;
 

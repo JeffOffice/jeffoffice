@@ -48,6 +48,13 @@ EntryResult readEntry(const QString &typed, const EntryOptions &options);
 // does not have are left as they are. Reading a formula back for a person (displayFormula in grid/text.h) takes the prefixes away.
 QString toFileFormula(const QString &typed);
 
+// Formulas in a locale that writes a comma for the decimal point (German, French, Spanish, and many more): there the arguments of a function are separated by a semicolon, and a number
+// has a comma in it ("=SUM(A1;A2)*0,5"). The file always has the format's own (commas between arguments, dots in numbers). `formulaFromLocale` turns what was typed into the file's,
+// `formulaToLocale` the file's into what is typed; text in quotes, names of sheets, brackets, and braces are left as they are, and so is a formula in any other locale.
+// (Names of functions are English for now.)
+QString formulaFromLocale(const QString &typed, const QLocale &locale);
+QString formulaToLocale(const QString &formula, const QLocale &locale);
+
 // What a cell is shown as when it is edited: the value as it would be typed to give the same value (a percent with its "%", a date in the locale's short form), not cut to the
 // width of the cell. A text that would be read as something else (a number, a date, TRUE, a formula) has an apostrophe put in front.
 // `formatCode` is the cell's number format.

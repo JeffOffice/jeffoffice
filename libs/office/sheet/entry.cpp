@@ -46,6 +46,26 @@ QChar groupOf(const QLocale &l)
     return g.isEmpty() ? QLatin1Char(',') : g.front();
 }
 
+// What was typed with the digits of another script (Arabic-Indic, Persian, Devanagari, and the rest that are decimal digits) as the digits of the keyboard, the percent sign of Arabic
+// as "%", and without the marks that only set the direction of text. A text that is not a number is not changed by it: the caller keeps what was typed for that.
+QString normalizeNative(const QString &s)
+{
+    QString out;
+    out.reserve(s.size());
+    for (const QChar c : s) {
+        const ushort u = c.unicode();
+        if (u == 0x200E || u == 0x200F || u == 0x061C) continue;
+        if (u > 127 && c.isDigit() && c.digitValue() >= 0) {
+            out += QChar(ushort('0' + c.digitValue()));
+            continue;
+        }
+        out += u == 0x066A ? QChar('%') : c;
+    }
+    return out;
+}
+
+bool isApostrophe(QChar c) { return c == QLatin1Char('\'') || c == QChar(0x2019) || c == QChar(0x02BC); }
+
 // A number written with digits, the locale's decimal mark and thousands separator, and an exponent: no sign, no sign of money or percent.
 bool readUnsigned(const QString &s, const QLocale &locale, NumberRead *out)
 {
@@ -61,7 +81,7 @@ bool readUnsigned(const QString &s, const QLocale &locale, NumberRead *out)
         if (isDigit(c)) {
             intPart += c;
             ++current;
-        } else if (c == grp || (groupIsSpace && isSpaceLike(c)) ) {
+        } else if (c == grp || (groupIsSpace && isSpaceLike(c)) || (isApostrophe(grp) && isApostrophe(c))) {
             if (current == 0) return false;
             if (!sawGroup) firstGroupLen = current;
             else if (current != 3) return false;
@@ -670,6 +690,133 @@ QString toFileFormula(const QString &typed)
     return out;
 }
 
+namespace {
+
+bool commaDecimal(const QLocale &locale) { return locale.decimalPoint() == QLatin1String(","); }
+
+// The end (the index after) of what is copied as it is: a text, a name of a sheet, a bracket, or a pair of braces that begins at `i`.
+int verbatimEnd(const QString &f, int i)
+{
+    const int n = int(f.size());
+    const QChar c = f[i];
+    if (c == QLatin1Char('"') || c == QLatin1Char('\'')) {
+        int j = i + 1;
+        while (j < n) {
+            if (f[j] == c) {
+                if (j + 1 < n && f[j + 1] == c) {
+                    j += 2;
+                    continue;
+                }
+                break;
+            }
+            ++j;
+        }
+        return std::min(n, j + 1);
+    }
+    if (c == QLatin1Char('[')) {
+        int depth = 0;
+        for (int j = i; j < n; ++j) {
+            if (f[j] == QLatin1Char('\'') && j + 1 < n) {
+                ++j;
+                continue;
+            }
+            if (f[j] == QLatin1Char('[')) ++depth;
+            else if (f[j] == QLatin1Char(']') && --depth == 0) return j + 1;
+        }
+        return n;
+    }
+    // braces (an array's constants): to the matching one, over the texts in it
+    int depth = 0;
+    for (int j = i; j < n;) {
+        if (f[j] == QLatin1Char('"')) {
+            j = verbatimEnd(f, j);
+            continue;
+        }
+        if (f[j] == QLatin1Char('{')) ++depth;
+        else if (f[j] == QLatin1Char('}') && --depth == 0) return j + 1;
+        ++j;
+    }
+    return n;
+}
+
+} // namespace
+
+QString formulaFromLocale(const QString &typed, const QLocale &locale)
+{
+    if (!commaDecimal(locale) || !(typed.contains(QLatin1Char(';')) || typed.contains(QLatin1Char(',')))) return typed;
+    QString out;
+    out.reserve(typed.size());
+    for (int i = 0; i < typed.size();) {
+        const QChar c = typed[i];
+        if (c == QLatin1Char('"') || c == QLatin1Char('\'') || c == QLatin1Char('[') || c == QLatin1Char('{')) {
+            const int end = verbatimEnd(typed, i);
+            out += typed.mid(i, end - i);
+            i = end;
+            continue;
+        }
+        out += c == QLatin1Char(';') ? QLatin1Char(',') : c == QLatin1Char(',') ? QLatin1Char('.') : c;
+        ++i;
+    }
+    return out;
+}
+
+QString formulaToLocale(const QString &formula, const QLocale &locale)
+{
+    if (!commaDecimal(locale) || !(formula.contains(QLatin1Char('.')) || formula.contains(QLatin1Char(',')))) return formula;
+    auto digit = [](QChar c) { return c.unicode() >= '0' && c.unicode() <= '9'; };
+    auto identStart = [](QChar c) { return c.isLetter() || c == QLatin1Char('_') || c == QLatin1Char('\\'); };
+    auto identPart = [](QChar c) { return c.isLetterOrNumber() || c == QLatin1Char('_') || c == QLatin1Char('.') || c == QLatin1Char('\\'); };
+    QString out;
+    out.reserve(formula.size());
+    const int n = int(formula.size());
+    for (int i = 0; i < n;) {
+        const QChar c = formula[i];
+        if (c == QLatin1Char('"') || c == QLatin1Char('\'') || c == QLatin1Char('[') || c == QLatin1Char('{')) {
+            const int end = verbatimEnd(formula, i);
+            out += formula.mid(i, end - i);
+            i = end;
+            continue;
+        }
+        if (identStart(c)) {
+            // a name, a function, a cell (its digits and dots are its own)
+            int j = i;
+            while (j < n && identPart(formula[j])) ++j;
+            out += formula.mid(i, j - i);
+            i = j;
+            continue;
+        }
+        if (digit(c) || (c == QLatin1Char('.') && i + 1 < n && digit(formula[i + 1]))) {
+            // a number: digits, a decimal point and digits, an exponent
+            int j = i;
+            while (j < n && digit(formula[j])) ++j;
+            QString number = formula.mid(i, j - i);
+            if (j < n && formula[j] == QLatin1Char('.')) {
+                number += QLatin1Char(',');
+                ++j;
+                int k = j;
+                while (k < n && digit(formula[k])) ++k;
+                number += formula.mid(j, k - j);
+                j = k;
+            }
+            if (j < n && (formula[j] == QLatin1Char('E') || formula[j] == QLatin1Char('e'))) {
+                int k = j + 1;
+                if (k < n && (formula[k] == QLatin1Char('+') || formula[k] == QLatin1Char('-'))) ++k;
+                if (k < n && digit(formula[k])) {
+                    while (k < n && digit(formula[k])) ++k;
+                    number += formula.mid(j, k - j);
+                    j = k;
+                }
+            }
+            out += number;
+            i = j;
+            continue;
+        }
+        out += c == QLatin1Char(',') ? QLatin1Char(';') : c;
+        ++i;
+    }
+    return out;
+}
+
 EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
 {
     EntryResult r;
@@ -689,7 +836,8 @@ EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
         if (text.size() > kMaxFormulaTypedChars)
             return tooLong(kMaxFormulaTypedChars, tr("A formula can hold up to %1 characters, and this one has %2. Shorten it, and try again."));
         jp::calc::ParseOptions po;
-        const jp::calc::ParseResult p = jp::calc::parseFormula(text, po);
+        const QString fileText = formulaFromLocale(text, options.locale);
+        const jp::calc::ParseResult p = jp::calc::parseFormula(fileText, po);
         if (!p.ok()) {
             r.ok = false;
             r.problem = tr("The formula can't be read. %1").arg(p.error);
@@ -697,7 +845,7 @@ EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
             return r;
         }
         r.entry.kind = Entry::Kind::Formula;
-        r.entry.text = toFileFormula(text);
+        r.entry.text = toFileFormula(fileText);
         return r;
     };
     if (typed.front() == QLatin1Char('=') && typed.size() > 1) return formula(typed.mid(1));
@@ -726,13 +874,14 @@ EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
     if (typed.size() <= 64) {
         double v = 0;
         QString code;
-        if (readNumber(typed, options.locale, &v, &code)) {
+        const QString plain = normalizeNative(typed);
+        if (readNumber(plain, options.locale, &v, &code)) {
             r.entry.kind = Entry::Kind::Number;
             r.entry.number = v;
             r.entry.formatCode = code;
             return r;
         }
-        if (readDateTime(typed, options, &v, &code)) {
+        if (readDateTime(plain, options, &v, &code)) {
             r.entry.kind = Entry::Kind::Number;
             r.entry.number = v;
             r.entry.formatCode = code;

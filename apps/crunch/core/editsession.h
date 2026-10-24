@@ -69,6 +69,9 @@ public:
 
     // What a cell is edited as (see editTextOfValue); a formula with its "=".
     QString editText(int sheet, quint32 row, quint32 col) const;
+    // What the formula bar shows for a cell: the text the grid gives for it (`gridText`), written as the person types in the locale (a formula with its separators, a number with its
+    // decimal mark); the grid's text itself where the locale needs no change.
+    QString barText(int sheet, quint32 row, quint32 col, const QString &gridText) const;
     // The number format code of a cell as its format gives it ("General" for none).
     QString formatCodeOf(int sheet, quint32 row, quint32 col) const;
 

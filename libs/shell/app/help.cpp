@@ -18,6 +18,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QKeyEvent>
+#include <QKeySequence>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
@@ -298,9 +299,36 @@ QString shortcutTable(AppWindow *win)
 
 } // namespace
 
+// The keys of a standard command as this computer has them: "{key:Undo}" in a topic. A name that is none is left as it is.
+static QString replaceKeyTokens(QString md)
+{
+    static const QHash<QString, QKeySequence::StandardKey> standard = {
+        {QStringLiteral("Open"), QKeySequence::Open},   {QStringLiteral("Save"), QKeySequence::Save},       {QStringLiteral("SaveAs"), QKeySequence::SaveAs}, {QStringLiteral("Close"), QKeySequence::Close},
+        {QStringLiteral("Undo"), QKeySequence::Undo},   {QStringLiteral("Redo"), QKeySequence::Redo},       {QStringLiteral("Cut"), QKeySequence::Cut},       {QStringLiteral("Copy"), QKeySequence::Copy},
+        {QStringLiteral("Paste"), QKeySequence::Paste}, {QStringLiteral("SelectAll"), QKeySequence::SelectAll}, {QStringLiteral("Find"), QKeySequence::Find},   {QStringLiteral("Print"), QKeySequence::Print},
+        {QStringLiteral("New"), QKeySequence::New}};
+    static const QRegularExpression token(QStringLiteral("\\{key:([A-Za-z]+)\\}"));
+    QString out;
+    int at = 0;
+    for (QRegularExpressionMatchIterator it = token.globalMatch(md); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        out += md.mid(at, m.capturedStart() - at);
+        at = m.capturedEnd();
+        const auto found = standard.constFind(m.captured(1));
+        if (found == standard.constEnd()) {
+            out += m.captured();
+            continue;
+        }
+        QStringList keys;
+        for (const QKeySequence &k : QKeySequence::keyBindings(found.value())) keys << k.toString(QKeySequence::NativeText);
+        out += keys.isEmpty() ? m.captured(1) : keys.join(QCoreApplication::translate("Help", " or "));
+    }
+    return out + md.mid(at);
+}
+
 QString displayMarkdown(const Topic &t, AppWindow *win)
 {
-    QString md = t.markdown;
+    QString md = replaceKeyTokens(t.markdown);
     if (win && md.contains(QLatin1String("<!-- shortcuts -->"))) md.replace(QLatin1String("<!-- shortcuts -->"), shortcutTable(win));
     md.remove(QRegularExpression(QStringLiteral("<!--.*?-->"), QRegularExpression::DotMatchesEverythingOption));
     return md;

@@ -3,6 +3,7 @@
 // (Save, Save As, a save that fails, the question when a window with changes is closed). Every workbook is built here, in a temporary folder.
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "app/help.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
@@ -114,6 +115,24 @@ private Q_SLOTS:
         setAppInfo(crunchAppInfo());
         initCore();
         QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+    }
+
+    // Help shows the keys of this computer: {key:Open} and the rest in a topic are the platform's own (Ctrl+Z, or the Mac's), and none is left as it was written; the topics that talk about
+    // typing, formulas in other locales, protection, tables, and a file another program changed say so.
+    void helpShowsThePlatformsKeysAndSaysWhatTypingDoes()
+    {
+        Window win;
+        auto text = [&](const QString &id) { return help::displayMarkdown(help::topic(id), &win.w); };
+        for (const QString &id : help::topicIds()) QVERIFY2(!text(id).contains(QLatin1String("{key:")), qPrintable(id));
+        const QString keyboard = text(QStringLiteral("keyboard"));
+        for (const QKeySequence::StandardKey k : {QKeySequence::Undo, QKeySequence::Redo, QKeySequence::Save, QKeySequence::SelectAll})
+            QVERIFY2(keyboard.contains(QKeySequence::keyBindings(k).first().toString(QKeySequence::NativeText)), qPrintable(QKeySequence(k).toString(QKeySequence::NativeText)));
+        QVERIFY(text(QStringLiteral("start")).contains(QKeySequence(QKeySequence::Open).toString(QKeySequence::NativeText)));
+        QVERIFY(text(QStringLiteral("open-save")).contains(QKeySequence(QKeySequence::Save).toString(QKeySequence::NativeText)));
+        const QString typing = text(QStringLiteral("edit-cells"));
+        for (const char *phrase : {"English", "semicolon", "protected sheet", "table", "Redo", "1,000 steps"}) QVERIFY2(typing.contains(QLatin1String(phrase)), phrase);
+        const QString saving = text(QStringLiteral("open-save"));
+        for (const char *phrase : {"Save a Copy", "Overwrite", "already open", "Esc"}) QVERIFY2(saving.contains(QLatin1String(phrase)), phrase);
     }
 
     // ---- typing
@@ -359,6 +378,75 @@ private Q_SLOTS:
         QVERIFY(second.open(e.copyOfFile()));
         second.w.view()->selectCell(1, 5);
         QCOMPARE(second.w.formulaBar()->text(), QStringLiteral("=LET(x,A1,x*2)"));
+    }
+
+    // Backspace on a cell starts an entry with nothing in it (Enter then clears the cell, Esc leaves it as it was), on every platform.
+    void backspaceStartsAnEmptyEntry()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        e.select(QStringLiteral("A1"));
+        QTest::keyClick(e.view(), Qt::Key_Backspace);
+        QVERIFY(e.win.w.isEditing());
+        QCOMPARE(e.win.w.cellEditor()->text(), QString());
+        e.key(Qt::Key_Escape);
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+        QTest::keyClick(e.view(), Qt::Key_Backspace);
+        e.key(Qt::Key_Return);
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("-"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+    }
+
+    // In a locale with a comma for the decimal point, formulas are typed with semicolons between arguments and commas in numbers, and the formula bar and F2 show them that way; the file
+    // has the format's own. (Names of functions are English.)
+    void formulasAreTypedAndShownWithTheLocalesSeparators()
+    {
+        const QLocale de(QLocale::German, QLocale::Germany);
+        struct Restore {
+            ~Restore() { QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates)); }
+        } restore;
+        QLocale::setDefault(de);
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        e.win.w.session()->setLocale(de);
+        e.select(QStringLiteral("F1"));
+        e.enter(QStringLiteral("=SUM(A1;A2)"));
+        e.select(QStringLiteral("F2"));
+        e.enter(QStringLiteral("=A1*0,5+IF(A2>1;\"a,b\";\"c\")&\"\""));
+        e.select(QStringLiteral("F3"));
+        e.enter(QStringLiteral("2,5"));
+        e.select(QStringLiteral("F4"));
+        e.enter(QStringLiteral("=SUM(1,5;2,5)"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("F1")), QStringLiteral("n:11"));
+        QCOMPARE(e.valueAt(QStringLiteral("F3")), QStringLiteral("n:2.5"));
+        QCOMPARE(e.valueAt(QStringLiteral("F4")), QStringLiteral("n:4"));
+        // the formula bar, and F2
+        e.select(QStringLiteral("F1"));
+        QCOMPARE(e.win.w.formulaBar()->text(), QStringLiteral("=SUM(A1;A2)"));
+        e.select(QStringLiteral("F2"));
+        QCOMPARE(e.win.w.formulaBar()->text(), QStringLiteral("=A1*0,5+IF(A2>1;\"a,b\";\"c\")&\"\""));
+        QTest::keyClick(e.view(), Qt::Key_F2);
+        QCOMPARE(e.win.w.cellEditor()->text(), QStringLiteral("=A1*0,5+IF(A2>1;\"a,b\";\"c\")&\"\""));
+        e.key(Qt::Key_Return);                                                              // (put in again as it is: nothing changes)
+        QCOMPARE(e.win.w.undoStack()->count(), 4);
+        e.select(QStringLiteral("F3"));
+        QCOMPARE(e.win.w.formulaBar()->text(), QStringLiteral("2,5"));
+        e.select(QStringLiteral("F4"));
+        QCOMPARE(e.win.w.formulaBar()->text(), QStringLiteral("=SUM(1,5;2,5)"));
+        e.select(QStringLiteral("B1"));
+        QCOMPARE(e.win.w.formulaBar()->text(), QStringLiteral("=A1*2"));
+        // the file has the format's own
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.wait(20000));
+        QCOMPARE(savedFormula(e.path, QStringLiteral("F1")), QStringLiteral("SUM(A1,A2)"));
+        QCOMPARE(savedFormula(e.path, QStringLiteral("F2")), QStringLiteral("A1*0.5+IF(A2>1,\"a,b\",\"c\")&\"\""));
+        QCOMPARE(savedFormula(e.path, QStringLiteral("F4")), QStringLiteral("SUM(1.5,2.5)"));
+        QCOMPARE(savedCell(e.path, QStringLiteral("F3")), QStringLiteral("n:2.5"));
     }
 
     // ---- what is typed becomes

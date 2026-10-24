@@ -105,6 +105,32 @@ class GridViewTests : public QObject {
     Q_OBJECT
 
 private Q_SLOTS:
+    // Which keys begin an entry in the cell: those that print. Ctrl (or Cmd) with a character is a shortcut, and so is Alt (or Option and Cmd). AltGr, which gives the characters some
+    // keyboards have on their letters, arrives as Ctrl and Alt together on Windows; on a Mac, Option gives them (é, @, a bracket on some layouts) and Cmd with Option is a shortcut.
+    void whichKeysBeginAnEntry()
+    {
+        const Qt::KeyboardModifiers none = Qt::NoModifier, shift = Qt::ShiftModifier, ctrl = Qt::ControlModifier, alt = Qt::AltModifier, meta = Qt::MetaModifier;
+        for (const bool mac : {false, true}) {
+            QVERIFY(GridView::keyBeginsAnEntry(none, QStringLiteral("a"), mac));
+            QVERIFY(GridView::keyBeginsAnEntry(shift, QStringLiteral("A"), mac));
+            QVERIFY(GridView::keyBeginsAnEntry(none, QStringLiteral("5"), mac));
+            QVERIFY(!GridView::keyBeginsAnEntry(none, QString(), mac));
+            QVERIFY(!GridView::keyBeginsAnEntry(none, QStringLiteral("\t"), mac));
+            QVERIFY(!GridView::keyBeginsAnEntry(ctrl, QStringLiteral("c"), mac));              // (Cmd+C on a Mac)
+            QVERIFY(!GridView::keyBeginsAnEntry(ctrl | shift, QStringLiteral("C"), mac));
+            QVERIFY(!GridView::keyBeginsAnEntry(meta, QStringLiteral("a"), mac));
+            QVERIFY(!GridView::keyBeginsAnEntry(ctrl | alt | meta, QStringLiteral("a"), mac));
+        }
+        // Windows and Linux: AltGr is Ctrl and Alt; Alt alone is a shortcut
+        QVERIFY(GridView::keyBeginsAnEntry(ctrl | alt, QStringLiteral("@"), false));
+        QVERIFY(!GridView::keyBeginsAnEntry(alt, QStringLiteral("a"), false));
+        // a Mac: Option alone gives characters; Cmd and Option (Qt's Control and Alt) is a shortcut, whatever it prints
+        QVERIFY(GridView::keyBeginsAnEntry(alt, QStringLiteral("\u00e9"), true));
+        QVERIFY(GridView::keyBeginsAnEntry(alt | shift, QStringLiteral("\u00b6"), true));
+        QVERIFY(!GridView::keyBeginsAnEntry(ctrl | alt, QStringLiteral("\u2206"), true));
+        QVERIFY(!GridView::keyBeginsAnEntry(ctrl | alt | shift, QStringLiteral("v"), true));
+    }
+
     // A wheel turn scrolls three rows; at 100% the pixels already drawn are moved and only the strip it uncovers is drawn, a few rows of cells, not the screen.
     void scrollingDrawsOnlyTheStripItUncovers()
     {

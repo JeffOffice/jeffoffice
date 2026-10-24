@@ -453,6 +453,7 @@ void CrunchWindow::updateBars()
     // after it) until it is clicked into or tabbed to, and the whole of it then.
     constexpr int kShown = 2000;
     m_formulaFull = m_view->activeCellText();
+    if (m_session && m_loaded) m_formulaFull = m_session->barText(m_sheet, quint32(std::max<qint64>(0, m_view->selection().activeRow)), quint32(std::max<qint64>(0, m_view->selection().activeCol)), m_formulaFull);
     if (m_formulaFull.size() <= kShown || m_formulaBar->hasFocus()) m_formulaBar->setText(m_formulaFull);
     else m_formulaBar->setText(m_formulaFull.left(kShown) + QChar(0x2026));
     m_formulaBar->setCursorPosition(0);
