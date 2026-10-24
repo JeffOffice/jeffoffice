@@ -1029,9 +1029,12 @@ private Q_SLOTS:
 
     void randomEditsAndValuesChangedAfterThemKeepTheGraphRightWithEachFormulaTellingIt()
     {
-        Calculation::setGraphShifts(false);
+        // (the setting is put back whatever happens: a failed check returns from the test at once, and the tests after it would run without the graph shifts)
+        struct GraphShifts {
+            GraphShifts() { Calculation::setGraphShifts(false); }
+            ~GraphShifts() { Calculation::setGraphShifts(true); }
+        } shifts;
         runRandomEdits(qEnvironmentVariableIsSet("STRUCT_SEEDS") ? quint32(qEnvironmentVariableIntValue("STRUCT_SEEDS")) : 40, true, false);
-        Calculation::setGraphShifts(true);
     }
 
 private:

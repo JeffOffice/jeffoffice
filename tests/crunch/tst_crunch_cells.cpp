@@ -657,6 +657,28 @@ private Q_SLOTS:
         e.win.told.clear();
         e.win.w.undoStack()->undo();   // (nothing more is tried)
         QVERIFY(e.win.told.isEmpty());
+        // and one that cannot be done again (Redo) is told the same way, and is not taken for done
+        EditWindow f;
+        QVERIFY(f.open(sheetOf({"A1=1", "A2=2"})));
+        f.select(QStringLiteral("C1"));
+        f.enter(QStringLiteral("5"));
+        QVERIFY(f.settle());
+        f.select(QStringLiteral("C2"));
+        f.enter(QStringLiteral("6"));
+        QVERIFY(f.settle());
+        f.win.w.undoStack()->undo();   // (the worker is there)
+        QVERIFY(f.settle());
+        QCOMPARE(f.valueAt(QStringLiteral("C2")), QStringLiteral("-"));
+        f.win.w.workbookLoader().cancel();
+        f.win.told.clear();
+        f.win.w.undoStack()->redo();
+        QVERIFY2(!f.win.told.isEmpty() && f.win.told.last().contains(QStringLiteral("could not be done again")), qPrintable(f.win.told.join('|')));
+        QVERIFY(!f.win.w.session()->canUndo());
+        QVERIFY(f.win.w.isModified());
+        f.win.told.clear();
+        f.win.w.undoStack()->undo();   // (nothing more is tried, either way)
+        f.win.w.undoStack()->redo();
+        QVERIFY(f.win.told.isEmpty());
     }
 
     // A step that moves cells and is bigger than Undo holds (more than the undo limit of bytes would be kept to undo it) is asked about before it is done, as in the programs people know:
@@ -842,40 +864,46 @@ private Q_SLOTS:
         QCOMPARE(formulaOf(e, QStringLiteral("E1")), QStringLiteral("=SUM(Sales[Q1])"));
     }
 
-    // After a save, Undo does not go back over a delete of rows, columns, or cells made before it (the file has lost what was in them), but goes on over what came after; Redo of what was
-    // undone works.
+    // After a save, Undo does not go back over a delete of rows, columns, or cells made before it (the file has lost what was in them), but goes on over what came after, a row inserted among
+    // it included (that Undo is made against the saved file); Redo of what was undone works.
     void undoAfterASaveStopsAtTheLastDeleteSaved()
     {
         EditWindow e;
         QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3", "B1==A3"})));
         crunch::EditSession *s = e.win.w.session();
         QVERIFY(s->deleteRows(0, 1, 1).ok);                                      // 1: a delete, saved below
-        QVERIFY(s->type(0, 0, 0, QStringLiteral("10")).ok);                      // 2: typing
+        QVERIFY(s->insertRows(0, 20, 1).ok);                                     // 2: a row inserted after it, saved too
+        QVERIFY(s->type(0, 0, 0, QStringLiteral("10")).ok);                      // 3: typing
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.settle());
         QVERIFY(e.win.w.save());
         QVERIFY(saved.wait(20000));
-        QVERIFY(s->deleteRows(0, 0, 1).ok);                                      // 3: a delete after the save
-        QVERIFY(s->type(0, 4, 0, QStringLiteral("7")).ok);                       // 4
+        QVERIFY(s->deleteRows(0, 0, 1).ok);                                      // 4: a delete after the save
+        QVERIFY(s->type(0, 4, 0, QStringLiteral("7")).ok);                       // 5
         QVERIFY(e.settle());
         QVERIFY(s->canUndo());
+        pressUndo(&e.win.w);                                                     // 5 undone
         pressUndo(&e.win.w);                                                     // 4 undone
-        pressUndo(&e.win.w);                                                     // 3 undone
         QVERIFY(e.settle());
         QCOMPARE(formulaOf(e, QStringLiteral("B1")), QStringLiteral("=A2"));
         QVERIFY(!e.win.w.isModified());
-        QVERIFY(s->canUndo());                                                   // the typing (2) came after the delete (1) and can be undone
+        QVERIFY(s->canUndo());                                                   // the typing (3) came after the delete (1) and can be undone
         pressUndo(&e.win.w);
         QVERIFY(e.settle());
         QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+        QVERIFY2(s->canUndo(), "the row inserted (2) is undone against the saved file, though the file has it");
+        pressUndo(&e.win.w);
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.isModified());
         QVERIFY(!s->canUndo());                                                  // the delete (1) is in the file
         pressUndo(&e.win.w);
         QCOMPARE(e.win.w.undoStack()->index(), 1);
         pressRedo(&e.win.w);
         pressRedo(&e.win.w);
         pressRedo(&e.win.w);
+        pressRedo(&e.win.w);
         QVERIFY(e.settle());
-        QCOMPARE(e.win.w.undoStack()->index(), 4);
+        QCOMPARE(e.win.w.undoStack()->index(), 5);
         QVERIFY(e.win.w.isModified());
         QVERIFY(e.win.w.save());
         QVERIFY(saved.wait(20000));
