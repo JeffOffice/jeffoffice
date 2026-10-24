@@ -392,7 +392,7 @@ bool GridView::valuesChanged(int sheetIndex, const std::vector<ValueStore::Item>
     if (m_sheet.hasConditionalFormats() && !items.empty()) {
         // (a rule of conditional formatting can make any cell look different when a value changes: the figures it keeps are let go, the texts are made again as they are drawn, and
         // the whole of what is shown is drawn again)
-        m_sheet.invalidateTexts();
+        m_sheet.invalidateLooks();
         all = true;
     }
     if (all) viewport()->update();

@@ -197,6 +197,7 @@ void CondFormats::reset()
     if (!m_todayFixed) m_today = std::floor(jp::calc::clockSerial(jp::calc::DateSystem::Date1900));
     m_states.clear();
     m_cache.clear();
+    m_stale = false;
     m_formats.clear();
 }
 
@@ -208,7 +209,7 @@ bool CondFormats::any() const
 
 void CondFormats::valuesChanged()
 {
-    m_cache.clear();
+    m_stale = true;
     for (auto &st : m_states)
         if (st) st->statsReady = false;
 }
@@ -217,7 +218,7 @@ void CondFormats::valueChanged(quint32 row, quint32 col)
 {
     const jp::office::sheet::Sheet *s = m_owner->data().sheet;
     if (!s) return;
-    m_cache.clear();
+    m_stale = true;
     for (size_t i = 0; i < m_states.size() && i < size_t(s->conditionalFormats.size()); ++i) {
         if (!m_states[i] || !m_states[i]->statsReady) continue;
         for (const CellRange &r : s->conditionalFormats[int(i)].ranges)
@@ -412,6 +413,10 @@ bool CondFormats::testOf(size_t rule, quint32 row, quint32 col) const
 
 const CondCell &CondFormats::at(quint32 row, quint32 col) const
 {
+    if (m_stale) {
+        m_cache.clear();
+        m_stale = false;
+    }
     const quint64 key = (quint64(row) << 16) | col;
     const auto found = m_cache.find(key);
     if (found != m_cache.end()) return found->second;

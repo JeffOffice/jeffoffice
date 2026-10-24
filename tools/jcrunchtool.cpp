@@ -691,7 +691,7 @@ int usage()
              "       jcrunchtool recalc-full <keys.txt> <out-dir> [jobs]\n"
              "       jcrunchtool grid-one [--full] <file.xlsx|file.xls>\n"
              "       jcrunchtool grid-window <file.xlsx|file.xls>\n"
-             "       jcrunchtool grid-bench [rows=100000] [cols=20]\n"
+             "       jcrunchtool grid-bench [rows=100000] [cols=20] [ruled]\n"
              "       jcrunchtool grid-sweep <keys.txt> <out-dir> [jobs]\n";
     return 2;
 }

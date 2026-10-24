@@ -375,6 +375,12 @@ QString GridSheet::textOf(const Cell &cell) const
     }
 }
 
+void GridSheet::invalidateLooks() const
+{
+    m_texts.clear();
+    m_cond.resultsChanged();
+}
+
 void GridSheet::invalidateTexts() const
 {
     m_texts.clear();

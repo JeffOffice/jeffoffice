@@ -90,6 +90,9 @@ public:
     QString textOf(const Cell &cell) const;
     // Forgets the texts (values or formats changed), or the text of one cell.
     void invalidateTexts() const;
+    // Forgets the texts and what the rules of conditional formatting made of the cells, but not the figures they keep of all their cells (those are let go by `invalidateText` of a cell
+    // that is among theirs): for values that changed, one by one, that a rule's formula may read.
+    void invalidateLooks() const;
     void invalidateText(quint32 row, quint32 col) const
     {
         m_texts.erase((quint64(row) << 16) | col);

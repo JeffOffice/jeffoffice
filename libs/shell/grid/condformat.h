@@ -56,6 +56,8 @@ public:
     // Values changed: the results kept are let go, and so are the figures of the rules whose cells are among them.
     void valuesChanged();
     void valueChanged(quint32 row, quint32 col);
+    // What was worked out for the cells is let go, but not the figures of the rules (a value changed that no rule has among its cells, but a rule's formula may read it).
+    void resultsChanged() { m_stale = true; }
     // Whether the sheet has rules at all.
     bool any() const;
     // The day number TODAY() and the rules of dates read (the clock's day by default).
@@ -88,6 +90,7 @@ private:
     const GridSheet *m_owner;
     mutable std::vector<std::unique_ptr<RuleState>> m_states;
     mutable std::unordered_map<quint64, CondCell> m_cache;
+    mutable bool m_stale = false;   // the results kept are of values that have changed: let go when next asked for (clearing a big table for each of a batch of values would cost more than they do)
     mutable std::deque<jp::office::sheet::DifferentialFormat> m_formats;
     mutable qint64 m_tests = 0, m_passes = 0;
     double m_today = 0;
