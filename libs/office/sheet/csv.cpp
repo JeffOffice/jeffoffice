@@ -18,8 +18,6 @@ namespace jp::office::sheet {
 
 namespace {
 
-QString say(const char *text) { return QCoreApplication::translate("jp::office::sheet::Csv", text); }
-
 // ---- encodings
 
 bool validUtf8(const char *p, qsizetype n)
@@ -92,36 +90,48 @@ QString decodeSample(const QByteArray &bytes, qsizetype from, qsizetype count, c
 
 // ---- the delimiter
 
-// The number of fields in each of the first lines of the text, with `delimiter` (quotes respected).
-std::vector<int> fieldCounts(const QString &text, QChar delimiter, int maxRecords)
+// The number of fields in each of the first lines of the text, with `delimiter` (quotes respected); and in how many of the lines a quote stood where it opens nothing (inside a field
+// that did not begin with one), which a file read with the right delimiter has few of.
+std::vector<int> fieldCounts(const QString &text, QChar delimiter, int maxRecords, int *strayRecords = nullptr)
 {
     std::vector<int> counts;
     int fields = 1;
-    bool quoted = false, any = false;
+    bool any = false, stray = false;
+    int strays = 0;
+    // (as the reading of the fields does it: a quote opens a quoted field where a field starts, at the start of a record or after a delimiter, and is an ordinary mark anywhere else)
+    enum State { FieldStart, Plain, Quoted, AfterQuote } state = FieldStart;
     for (qsizetype i = 0; i < text.size() && int(counts.size()) < maxRecords; ++i) {
         const QChar c = text[i];
-        if (quoted) {
+        if (state == Quoted) {
             if (c == QLatin1Char('"')) {
                 if (i + 1 < text.size() && text[i + 1] == QLatin1Char('"')) ++i;
-                else quoted = false;
+                else state = AfterQuote;
             }
             continue;
         }
-        if (c == QLatin1Char('"') && !any) {
-            quoted = true;
-            any = true;
-        } else if (c == delimiter) {
+        if (c == delimiter) {
             ++fields;
             any = true;
+            state = FieldStart;
         } else if (c == QLatin1Char('\n') || c == QLatin1Char('\r')) {
             if (c == QLatin1Char('\r') && i + 1 < text.size() && text[i + 1] == QLatin1Char('\n')) ++i;
             if (any) counts.push_back(fields);
+            if (stray) ++strays;
+            stray = false;
             fields = 1;
             any = false;
-        } else {
+            state = FieldStart;
+        } else if (c == QLatin1Char('"') && state == FieldStart) {
+            state = Quoted;
             any = true;
+        } else {
+            if (c == QLatin1Char('"')) stray = true;
+            any = true;
+            if (state == FieldStart) state = Plain;
         }
     }
+    if (stray) ++strays;
+    if (strayRecords) *strayRecords = strays;
     if (any && int(counts.size()) < maxRecords) counts.push_back(fields);
     return counts;
 }
@@ -137,8 +147,10 @@ QChar chooseDelimiter(const QString &text, const QString &fileName, const QLocal
     order << QLatin1Char('\t') << QLatin1Char('|');
     QChar best = QLatin1Char(',');
     qint64 bestScore = 0;
+    int bestStrays = 0;
     for (const QChar d : std::as_const(order)) {
-        const std::vector<int> counts = fieldCounts(text, d, 100);
+        int strays = 0;
+        const std::vector<int> counts = fieldCounts(text, d, 100, &strays);
         if (counts.empty()) continue;
         std::map<int, int> histogram;
         for (const int n : counts) ++histogram[n];
@@ -150,9 +162,11 @@ QChar chooseDelimiter(const QString &text, const QString &fileName, const QLocal
             }
         if (mode < 2) continue;
         // a delimiter whose lines have the same number of fields wins; among those, the one that splits more
+        // (and a delimiter with which a quote stands in the middle of fields fewer times is the more likely: a quoted field full of commas is no reason to split a line at its commas)
         const qint64 score = qint64(modeCount) * 1000 + std::min(mode, 999);
-        if (score > bestScore) {
+        if (bestScore == 0 || strays < bestStrays || (strays == bestStrays && score > bestScore)) {
             bestScore = score;
+            bestStrays = strays;
             best = d;
         }
     }
@@ -169,18 +183,63 @@ bool allDigits(QStringView s)
     return true;
 }
 
-// Two numbers of one or two digits with a dash or a slash between (1-2, 3/4): a date the common program makes of them, but as often a range, a score, or a part number, and a date made of
-// a text cannot be made a text again.
-bool onlyTwoSmallNumbers(QStringView s)
+// TRUE and FALSE in the language of the person (the words the common spreadsheet programs write for them there), in the order of the languages' codes; English is read in every language.
+struct BooleanWords {
+    QLocale::Language language;
+    const char *yes;
+    const char *no;
+};
+const BooleanWords kBooleanWords[] = {
+    {QLocale::German, "WAHR", "FALSCH"},          {QLocale::French, "VRAI", "FAUX"},           {QLocale::Spanish, "VERDADERO", "FALSO"},
+    {QLocale::Catalan, "CERT", "FALS"},           {QLocale::Italian, "VERO", "FALSO"},         {QLocale::Dutch, "WAAR", "ONWAAR"},
+    {QLocale::Portuguese, "VERDADEIRO", "FALSO"}, {QLocale::Swedish, "SANT", "FALSKT"},        {QLocale::Danish, "SAND", "FALSK"},
+    {QLocale::NorwegianBokmal, "SANN", "USANN"},  {QLocale::NorwegianNynorsk, "SANN", "USANN"}, {QLocale::Finnish, "TOSI", "EPÄTOSI"},
+    {QLocale::Polish, "PRAWDA", "FAŁSZ"},         {QLocale::Czech, "PRAVDA", "NEPRAVDA"},      {QLocale::Slovak, "PRAVDA", "NEPRAVDA"},
+    {QLocale::Hungarian, "IGAZ", "HAMIS"},        {QLocale::Romanian, "ADEVĂRAT", "FALS"},     {QLocale::Russian, "ИСТИНА", "ЛОЖЬ"},
+    {QLocale::Turkish, "DOĞRU", "YANLIŞ"},        {QLocale::Greek, "ΑΛΗΘΕΣ", "ΨΕΥΔΕΣ"}};
+
+// The words for true and false in the person's language, folded to compare without regard to case; empty for a language that writes them in English.
+void booleanWordsFor(const QLocale &locale, QString *yes, QString *no)
 {
-    s = s.trimmed();
-    if (s.size() < 3 || s.size() > 5) return false;
-    int separators = 0;
-    for (const QChar c : s) {
-        if (c == QLatin1Char('-') || c == QLatin1Char('/')) ++separators;
-        else if (!c.isDigit()) return false;
+    yes->clear();
+    no->clear();
+    for (const BooleanWords &w : kBooleanWords)
+        if (w.language == locale.language()) {
+            *yes = QString::fromUtf8(w.yes).toCaseFolded();
+            *no = QString::fromUtf8(w.no).toCaseFolded();
+            return;
+        }
+}
+
+// Whether a day and a month typed as a date have a year with them. A date typed with a year has three parts (numbers, or a number and the name of a month) or a number of three digits or
+// more; two parts are a day and a month (3/4, 12.5, March 1, Dec 25, Sep-01), which the common program completes with the year of the day it is read on, and which are kept as typed because
+// a date made of a text cannot be made a text again. The time that follows a date is left out of the count.
+bool dateHasYear(const QString &typed, const QSet<QString> &months)
+{
+    QString date = typed.trimmed();
+    const qsizetype colon = date.indexOf(QLatin1Char(':'));
+    if (colon >= 0) {
+        qsizetype hour = colon;
+        while (hour > 0 && date[hour - 1].isDigit()) --hour;
+        date.truncate(hour);
     }
-    return separators == 1 && s.front().isDigit() && s.back().isDigit();
+    int parts = 0;
+    bool longNumber = false;
+    for (qsizetype i = 0; i < date.size();) {
+        qsizetype j = i;
+        if (date[i].isDigit()) {
+            while (j < date.size() && date[j].isDigit()) ++j;
+            ++parts;
+            if (j - i >= 3) longNumber = true;
+        } else if (date[i].isLetter()) {
+            while (j < date.size() && date[j].isLetter()) ++j;
+            if (months.contains(date.mid(i, j - i).toLower())) ++parts;
+        } else {
+            ++j;
+        }
+        i = j;
+    }
+    return longNumber || parts >= 3;
 }
 
 // A field that a number would damage: digits only, with a zero in front of more digits (007), or more than 15 of them (the 16th and later become zeros).
@@ -467,6 +526,7 @@ public:
         : m_formats(formats), m_words(words), m_months(months), m_limits(limits), m_progress(progress), m_stopAfter(stopAfterRow), m_s(*out)
     {
         m_options.locale = locale;
+        booleanWordsFor(locale, &m_true, &m_false);
         m_sign = currencySignOf(locale);
         for (const QChar c : m_sign)
             if (c.isLetter()) m_signHasLetters = true;
@@ -508,13 +568,13 @@ private:
     bool add(Cell c, qint64 extra)
     {
         if (++m_cells > m_limits.cellsPerSheet) {
-            m_s.error = say("The sheet has more cells than any real file has.");
+            m_s.error = QCoreApplication::translate("jp::office::sheet::Csv", "The sheet has more cells than any real file has.");
             m_failed = true;
             return false;
         }
         m_held += 32 + extra;
         if (m_held > m_limits.sheetBytes) {
-            m_s.error = say("The sheet is larger than any real file's.");
+            m_s.error = QCoreApplication::translate("jp::office::sheet::Csv", "The sheet is larger than any real file's.");
             m_failed = true;
             return false;
         }
@@ -522,7 +582,7 @@ private:
         m_s.extentRows = std::max(m_s.extentRows, c.row + 1);
         m_s.extentCols = std::max(m_s.extentCols, quint32(c.col) + 1);
         if (m_progress && m_cells % 4096 == 0 && !m_progress(m_cells)) {
-            m_s.error = say("The read was stopped.");
+            m_s.error = QCoreApplication::translate("jp::office::sheet::Csv", "The read was stopped.");
             m_failed = true;
             return false;
         }
@@ -566,7 +626,6 @@ private:
             before = c;
         }
         if (!known() || joined(false)) return false;
-        if (onlyTwoSmallNumbers(field)) return false;
         // (TRUE and FALSE are words and no digit; any other value has a digit)
         return digit || m_words.contains(field.trimmed().toString().toLower());
     }
@@ -579,6 +638,18 @@ private:
         // text that stays text: an apostrophe in front (kept as it is), and digits that a number would damage
         if (field.front() == QLatin1Char('\'') || keepsAsText(field)) return addText(c, field.toString());
         const bool formula = field.front() == QLatin1Char('=') && field.size() > 1;
+        // true and false in the person's language (in English they are read by the typed entry)
+        if (!m_true.isEmpty() && field.front().isLetter()) {
+            const QStringView word = field.trimmed();
+            if (word.size() == m_true.size() || word.size() == m_false.size()) {
+                const QString folded = word.toString().toCaseFolded();
+                if (folded == m_true || folded == m_false) {
+                    c.type = CellType::Bool;
+                    c.number = folded == m_true ? 1 : 0;
+                    return add(c, 0);
+                }
+            }
+        }
         if (!formula) {
             // (only what could be a number, a date, TRUE or FALSE, or an error is looked at; a text with a word of its own in it is text)
             if (field.size() > 64 || !couldBeValue(field)) return addText(c, field.toString());
@@ -588,6 +659,8 @@ private:
         if (!r.ok) return addText(c, typed);
         switch (r.entry.kind) {
         case Entry::Kind::Number:
+            // (a date is made of what was typed only when it has a year with it)
+            if (r.entry.formatCode.startsWith(QLatin1String("m/d/yyyy")) && !dateHasYear(typed, m_months)) return addText(c, typed);
             c.type = CellType::Number;
             c.number = r.entry.number;
             if (!r.entry.formatCode.isEmpty()) c.style = m_formats.value(r.entry.formatCode, 0);
@@ -622,6 +695,7 @@ private:
     const QSet<QString> &m_words;
     const QSet<QString> &m_months;
     QString m_sign;
+    QString m_true, m_false;   // (the words for true and false in the person's language)
     bool m_signHasLetters = false;
     Limits m_limits;
     std::function<bool(qint64)> m_progress;
@@ -731,7 +805,7 @@ std::shared_ptr<const CsvBook> CsvBook::open(const QByteArray &file, const QStri
     Q_UNUSED(limits)
     // (a zero byte in the first piece of a file that is not UTF-16: a binary file, not text)
     if (!file.startsWith("\xFF\xFE") && !file.startsWith("\xFE\xFF") && file.left(8192).contains('\0')) {
-        if (error) *error = say("This file is not a text file of values separated by commas, semicolons, or tabs.");
+        if (error) *error = QCoreApplication::translate("jp::office::sheet::Csv", "This file is not a text file of values separated by commas, semicolons, or tabs.");
         return nullptr;
     }
     std::shared_ptr<CsvBook> book(new CsvBook);
@@ -802,7 +876,7 @@ bool CsvBook::readSheet(int index, const Limits &limits, const std::function<boo
 {
     *out = Sheet();
     if (index != 0) {
-        out->error = say("There is no such sheet.");
+        out->error = QCoreApplication::translate("jp::office::sheet::Csv", "There is no such sheet.");
         return false;
     }
     qint64 stopAfter = stopAfterRow;
@@ -857,11 +931,11 @@ bool CsvBook::readSheet(int index, const Limits &limits, const std::function<boo
     }
     QStringList problems;
     if (!out->error.isEmpty()) problems << out->error;
-    if (sink.tooManyRows()) problems << say("This file has more rows than a sheet holds, which is 1,048,576. The rows after that were not read.");
-    if (sink.tooManyColumns()) problems << say("Some rows have more columns than a sheet holds, which is 16,384. The columns after that were not read.");
+    if (sink.tooManyRows()) problems << QCoreApplication::translate("jp::office::sheet::Csv", "This file has more rows than a sheet holds, which is 1,048,576. The rows after that were not read.");
+    if (sink.tooManyColumns()) problems << QCoreApplication::translate("jp::office::sheet::Csv", "Some rows have more columns than a sheet holds, which is 16,384. The columns after that were not read.");
     if (!out->partial) {
-        if (scanner.truncated()) problems << say("Some text is longer than a cell holds, which is 32,767 characters, and was cut.");
-        if (scanner.unclosedQuote()) problems << say("A quote in row %1 is never closed, so everything after it is in one cell.").arg(scanner.unclosedRow() + 1);
+        if (scanner.truncated()) problems << QCoreApplication::translate("jp::office::sheet::Csv", "Some text is longer than a cell holds, which is 32,767 characters, and was cut.");
+        if (scanner.unclosedQuote()) problems << QCoreApplication::translate("jp::office::sheet::Csv", "A quote in row %1 is never closed, so everything after it is in one cell.").arg(scanner.unclosedRow() + 1);
     }
     out->error = problems.join(QLatin1Char(' '));
     out->stats.heldBytes = sink.heldBytes();

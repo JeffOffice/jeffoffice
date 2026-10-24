@@ -232,7 +232,8 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_odshostile.cpp
   tests/sheet/tst_sheet_csv.cpp
   tests/sheet/tst_sheet_csvhostile.cpp
-  tests/sheet/tst_sheet_odsreview.cpp)
+  tests/sheet/tst_sheet_odsreview.cpp
+  tests/sheet/tst_sheet_csvreview.cpp)
 target_link_libraries(sheettests PRIVATE jo_shell Qt6::Test)
 set_target_properties(sheettests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME sheettests COMMAND sheettests)

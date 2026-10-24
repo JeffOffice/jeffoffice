@@ -299,7 +299,7 @@ private Q_SLOTS:
         QCOMPARE(at1(wb, s, "C1"), QStringLiteral("i:MARCH1"));
         QCOMPARE(at1(wb, s, "D1"), QStringLiteral("i:Sep2"));
         QCOMPARE(at1(wb, s, "E1"), QStringLiteral("i:12-25"));
-        QVERIFY2(at1(wb, s, "F1").startsWith(QLatin1String("n:")), qPrintable(at1(wb, s, "F1")));   // (March 1)
+        QCOMPARE(at1(wb, s, "F1"), QStringLiteral("i:March 1"));   // (a day and a month with no year stay text)
         double march15 = 0;
         QVERIFY(jp::calc::dateToSerial(2024, 3, 15, jp::calc::DateSystem::Date1900, &march15));
         QCOMPARE(at1(wb, s, "G1"), QStringLiteral("n:") + QString::number(march15, 'g', 17));
