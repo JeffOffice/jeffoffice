@@ -66,6 +66,99 @@ void CellStore::finish()
     m_last = nullptr;
 }
 
+qint64 CellStore::shiftRows(quint32 first, qint64 delta, quint32 limit, const std::function<void(const Cell &, const Cell &)> &formulaMoved, std::vector<Cell> *removed)
+{
+    m_last = nullptr;
+    // the blocks from the one that holds row `first` are taken out, and their cells (in order of row and column, which a shift keeps) are made into blocks again as they come
+    std::vector<Block> taken;
+    for (auto it = m_blocks.lower_bound(first / kBlockRows); it != m_blocks.end(); it = m_blocks.erase(it)) taken.push_back(std::move(it->second));
+    std::vector<Cell> current;
+    quint32 currentKey = 0;
+    qint64 moved = 0;
+    auto flush = [&]() {
+        if (current.empty()) return;
+        Block block;
+        block.cells = std::move(current);
+        m_blocks.emplace_hint(m_blocks.end(), currentKey, std::move(block));
+        current.clear();
+    };
+    const qint64 deletedEnd = delta < 0 ? qint64(first) - delta : 0;
+    for (Block &block : taken) {
+        const size_t hint = block.cells.size();   // (the cells of a block are about as many in the block that is made of it: room for them at once, not a doubling at a time)
+        if (current.capacity() < hint) current.reserve(hint);
+        for (Cell &c : block.cells) {
+            const Cell before = c;
+            if (c.row >= first) {
+                const qint64 row = qint64(c.row) + delta;
+                if ((delta < 0 && qint64(c.row) < deletedEnd) || row >= qint64(limit) || row < 0) {
+                    --m_count;
+                    if (removed) removed->push_back(before);
+                    continue;
+                }
+                c.row = quint32(row);
+                ++moved;
+                if (formulaMoved && (c.hasFormula() || (c.flags & ArrayMember))) formulaMoved(before, c);
+            }
+            const quint32 key = c.row / kBlockRows;
+            if (!current.empty() && key != currentKey) {
+                flush();
+                current.reserve(hint);
+            }
+            currentKey = key;
+            current.push_back(c);
+        }
+    }
+    flush();
+    return moved;
+}
+
+qint64 CellStore::shiftColumns(quint32 first, qint64 delta, quint32 limit, const std::function<void(const Cell &, const Cell &)> &formulaMoved, std::vector<Cell> *removed)
+{
+    m_last = nullptr;
+    qint64 moved = 0;
+    const qint64 deletedEnd = delta < 0 ? qint64(first) - delta : 0;
+    for (auto it = m_blocks.begin(); it != m_blocks.end();) {
+        std::vector<Cell> &cells = it->second.cells;
+        size_t keep = 0;
+        for (size_t i = 0; i < cells.size(); ++i) {
+            Cell &c = cells[i];
+            if (c.col >= first) {
+                const qint64 col = qint64(c.col) + delta;
+                if ((delta < 0 && qint64(c.col) < deletedEnd) || col >= qint64(limit) || col < 0) {
+                    --m_count;
+                    if (removed) removed->push_back(c);
+                    continue;
+                }
+                if (formulaMoved && (c.hasFormula() || (c.flags & ArrayMember))) {
+                    const Cell before = c;
+                    c.col = quint16(col);
+                    formulaMoved(before, c);
+                } else {
+                    c.col = quint16(col);
+                }
+                ++moved;
+            }
+            if (keep != i) cells[keep] = c;
+            ++keep;
+        }
+        cells.resize(keep);
+        if (cells.empty()) it = m_blocks.erase(it);
+        else ++it;
+    }
+    return moved;
+}
+
+void CellStore::reorder()
+{
+    for (auto &entry : m_blocks) {
+        Block &block = entry.second;
+        if (block.ordered) continue;
+        std::stable_sort(block.cells.begin(), block.cells.end(), before);
+        block.ordered = true;
+    }
+    m_last = nullptr;
+}
+
 const Cell *CellStore::find(quint32 row, quint32 col) const
 {
     const auto block = m_blocks.find(row / kBlockRows);

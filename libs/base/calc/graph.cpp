@@ -122,6 +122,53 @@ public:
         }
     }
 
+    // Every live interval of the node through `map(&lo, &hi)`, which says false for one that is gone (those of formulas that told again, dropped, are left out too). The runs stay in
+    // order of where the intervals begin as long as `map` keeps that order (it does for rows inserted or deleted). `recs` has the number of live intervals of each formula, which is made
+    // smaller for each that went; the number of those that went is added to `gone`.
+    template <class F>
+    void remap(F &&map, Ctx &ctx, std::vector<Rec> &recs, qint64 *gone)
+    {
+        size_t kept = 0;
+        for (const Item &it : m_buffer) {
+            Item x = it;
+            if (!ctx.live(x)) {
+                ++ctx.dropped;
+                continue;
+            }
+            if (!map(&x.lo, &x.hi)) {
+                --recs[x.node].items;
+                ++*gone;
+                continue;
+            }
+            if (x.lo != it.lo || x.hi != it.hi) recs[x.node].hash = 0;   // (what it told is not what its hash says now)
+            m_buffer[kept++] = x;
+        }
+        m_buffer.resize(kept);
+        for (Run &run : m_runs) {
+            size_t k = 0;
+            for (const Item &it : run.items) {
+                Item x = it;
+                if (!ctx.live(x)) {
+                    ++ctx.dropped;
+                    continue;
+                }
+                if (!map(&x.lo, &x.hi)) {
+                    --recs[x.node].items;
+                    ++*gone;
+                    continue;
+                }
+                if (x.lo != it.lo || x.hi != it.hi) recs[x.node].hash = 0;
+                run.items[k++] = x;
+            }
+            run.items.resize(k);
+            // (the order holds unless an interval that stays, one to the last row from the first, was after one that moved from the same row)
+            if (!std::is_sorted(run.items.begin(), run.items.end(), byLo)) std::sort(run.items.begin(), run.items.end(), byLo);
+            finishRun(run);
+        }
+        m_runs.erase(std::remove_if(m_runs.begin(), m_runs.end(), [](const Run &r) { return r.items.empty(); }), m_runs.end());
+        recount();
+    }
+
     // Everything in one run, with what was dropped left out. False if nothing is left.
     bool rebuild(Ctx &ctx)
     {
@@ -413,6 +460,57 @@ bool DependencyGraph::setPrecedents(Node node, const std::vector<CellArea> &area
     g.live += after.items;
     if (g.shouldLetGoOfTheDropped()) g.compactAll();
     return true;
+}
+
+void DependencyGraph::shiftRows(qint32 sheet, quint32 first, qint64 delta, quint32 limit)
+{
+    Impl &g = *d;
+    if (sheet < 0 || size_t(sheet) >= g.sheets.size() || delta == 0 || limit == 0) return;
+    SheetIndex &sh = g.sheets[size_t(sheet)];
+    const quint32 count = quint32(delta < 0 ? -delta : delta);
+    const quint32 end = first + count;   // (one past the last row deleted)
+    // The rows of an interval after rows are inserted at `first`, or deleted from it: what it reads is where it is now, a block that has a row inserted in it grows, and one that has
+    // rows deleted from it shrinks. An interval to the last row of the sheet (a whole column) stays one.
+    auto map = [&](quint32 *lo, quint32 *hi) -> bool {
+        if (*hi < first) return true;
+        const bool toTheEnd = *hi >= limit - 1;
+        if (toTheEnd && *lo == 0) return true;   // (a whole column is read as it was)
+        if (delta > 0) {
+            const quint64 nlo = *lo >= first ? quint64(*lo) + count : quint64(*lo);
+            if (nlo >= limit) return false;
+            quint64 nhi = quint64(*hi) + count;
+            if (toTheEnd || nhi >= limit) nhi = limit - 1;
+            *lo = quint32(nlo);
+            *hi = quint32(nhi);
+            return true;
+        }
+        if (*lo >= first && *hi < end) return false;
+        const quint32 nlo = *lo < first ? *lo : (*lo < end ? first : *lo - count);
+        quint32 nhi = *hi < end ? first - 1 : *hi - count;
+        if (toTheEnd) nhi = limit - 1;
+        *lo = nlo;
+        *hi = nhi;
+        return true;
+    };
+    qint64 held = 0, gone = 0;
+    sh.levels = 0;
+    for (auto it = sh.nodes.begin(); it != sh.nodes.end();) {
+        const qint64 before = it->second.held();
+        it->second.remap(map, g.ctx, g.rec, &gone);
+        g.stale -= g.ctx.dropped;
+        g.ctx.dropped = 0;
+        if (it->second.empty()) {
+            g.bytes -= before + kStructureBytes;
+            it = sh.nodes.erase(it);
+            continue;
+        }
+        g.bytes += it->second.held() - before;
+        sh.levels |= quint32(1) << (it->first >> 16);
+        held += it->second.held();
+        ++it;
+    }
+    (void)held;
+    g.live -= gone;
 }
 
 void DependencyGraph::clearPrecedents(Node node)

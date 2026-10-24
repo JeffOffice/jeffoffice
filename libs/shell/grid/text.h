@@ -18,6 +18,8 @@ class TextMeter {
 public:
     virtual ~TextMeter();
     virtual double width(const QString &text, const CellLook &look) const = 0;
+    // The height of a line of text in the cell's font (what a row is made high enough for).
+    virtual double lineHeight(const CellLook &look) const { return look.pointSize * 96.0 / 72.0 * 1.36; }
 };
 
 enum class Kind : quint8 { Empty, Text, Number, Bool, Error };

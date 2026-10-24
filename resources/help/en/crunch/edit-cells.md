@@ -74,4 +74,4 @@ When you change a cell, JeffCrunch works out the formulas that depend on it in t
 - The first row of a **table** holds the names of its columns. Type a new name in one of those cells to rename the column: the formulas that use the old name follow, and the table in the file stays valid. A name another column already has gets a number after it, a name can't be empty, and **Delete** doesn't clear that row.
 - A workbook that could not be read whole can be looked at but not changed or saved.
 - A function JeffCrunch does not have yet leaves a new formula without a value in the cell; the workbook asks the program that opens it next to work the formula out.
-- Formatting, inserting and deleting rows and columns, cut and paste, fill, sorting, and find and replace come in a later version.
+- Formatting, sorting, and find and replace come in a later version. Inserting and deleting, cut and paste, fill, and the sizes of rows and columns are in [Insert and delete rows, columns, and cells](insert-delete), [Cut, copy, and paste](clipboard), [Fill cells and add them up](fill-sum), and [Change the width of columns and the height of rows](sizes).

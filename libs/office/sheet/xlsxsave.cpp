@@ -4,14 +4,17 @@
 
 #include "io/zip.h"
 #include "io/zipindex.h"
+#include "sheet/structsave.h"
 #include "sheet/xlsxbase.h"
 #include "sheet/xmlscan.h"
 
 #include <QCoreApplication>
+#include <QBuffer>
 #include <QDir>
 #include <QFileInfo>
 #include <QHash>
 #include <QSaveFile>
+#include <QRegularExpression>
 #include <QSet>
 
 #include <algorithm>
@@ -293,6 +296,12 @@ private:
     ZipWriter *m_zip;
 };
 
+class BufferSink : public PartSink {
+public:
+    void write(const char *data, qsizetype size) override { bytes.append(data, size); }
+    QByteArray bytes;
+};
+
 } // namespace
 
 bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out, QString *error, SaveReport *report, const std::atomic<bool> *cancel)
@@ -346,6 +355,60 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
         rep.cellsChanged += qint64(sc.cells.size());
         rep.resultsChanged += qint64(sc.results.size());
     }
+    // ---- rows, columns, and cells inserted and deleted: the sheets they move cells on are renumbered, and any sheet (and chart, drawing, note, name, ...) that refers to cells follows
+    MoveContext ctx;
+    ctx.edits = changes.edits;
+    ctx.renames = changes.renames;
+    for (const SheetEntry &se : book.info().sheets) ctx.sheetNames << se.name;
+    const bool moves = !ctx.edits.empty() || !ctx.renames.empty();
+    QSet<int> moveSheets;   // the sheets (by their place) whose part is made by the mover
+    if (moves) {
+        anyCellChanged = true;
+        for (int sheet = 0; sheet < book.info().sheets.size(); ++sheet) {
+            if (book.info().sheets[sheet].kind != SheetKind::Worksheet) continue;
+            const int index = entryOfPart(book.info().sheets[sheet].part);
+            if (index < 0) continue;
+            if (cancel && cancel->load()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
+            bool needed = movesCellsOf(ctx, sheet);
+            if (!needed) {
+                // (a sheet the edits do not move cells on may still have what refers to cells that moved: looked at, and left as it is if not)
+                ZipEntryDevice device(bytes, directory[index]);
+                if (!device.open(QIODevice::ReadOnly)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A sheet of the file could not be read to be saved."));
+                if (!moveSheetPart(&device, nullptr, ctx, sheet, &needed, &why, cancel)) return fail(why);
+            }
+            if (!needed) continue;
+            moveSheets.insert(sheet);
+            sheetOfEntry.insert(index, sheet);
+        }
+        // the parts that name cells
+        auto replacePart = [&](const QString &part, const std::function<bool(const QByteArray &, QByteArray *, bool *)> &fn) {
+            const int index = entryOfPart(part);
+            if (index < 0 || replaced.contains(index)) return;
+            QByteArray xml, now;
+            bool changed = false;
+            if (!inflate(index, &xml) || !fn(xml, &now, &changed) || !changed) return;
+            replaced.insert(index, now);
+        };
+        static const QRegularExpression chartPart(QStringLiteral("/charts/(chart|chartEx)\\d*\\.xml$")), cachePart(QStringLiteral("/pivotCacheDefinition\\d*\\.xml$"));
+        for (const QString &part : package.partNames()) {
+            if (chartPart.match(part).hasMatch()) replacePart(part, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveChartPart(x, ctx, o, c); });
+            else if (cachePart.match(part).hasMatch()) replacePart(part, [&](const QByteArray &x, QByteArray *o, bool *c) { return movePivotCachePart(x, ctx, o, c); });
+        }
+        for (int sheet = 0; sheet < book.info().sheets.size(); ++sheet) {
+            if (book.info().sheets[sheet].kind != SheetKind::Worksheet) continue;
+            const QString sheetPart = book.info().sheets[sheet].part;
+            for (const Relationship &r : package.relationshipsOfType(sheetPart, QStringLiteral("/drawing")))
+                if (!r.external) replacePart(r.target, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveDrawingPart(x, ctx, sheet, o, c); });
+            for (const Relationship &r : package.relationshipsOfType(sheetPart, QStringLiteral("/comments")))
+                if (!r.external) replacePart(r.target, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveCommentsPart(x, ctx, sheet, o, c); });
+            for (const Relationship &r : package.relationshipsOfType(sheetPart, QStringLiteral("/threadedComment")))
+                if (!r.external) replacePart(r.target, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveThreadedCommentsPart(x, ctx, sheet, o, c); });
+            for (const Relationship &r : package.relationshipsOfType(sheetPart, QStringLiteral("/ctrlProp")))
+                if (!r.external) replacePart(r.target, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveControlPart(x, ctx, sheet, o, c); });
+            for (const Relationship &r : package.relationshipsOfType(sheetPart, QStringLiteral("/vmlDrawing")))
+                if (!r.external) replacePart(r.target, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveNotesDrawing(x, ctx, sheet, o, c); });
+        }
+    }
     // ---- the shared strings
     if (!changes.newSharedStrings.isEmpty()) {
         const int index = entryOfPart(book.sharedStringsPart());
@@ -395,11 +458,19 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
             }
         }
     }
-    // ---- the workbook part, when the other program is to work the formulas out again
-    if (changes.fullCalcOnLoad) {
+    // ---- the workbook part: the names follow the cells, and the other program is asked to work the formulas out again when it is to
+    if (changes.fullCalcOnLoad || moves) {
         const int index = entryOfPart(book.mainPart());
         QByteArray xml, patched;
-        if (index >= 0 && inflate(index, &xml) && setFullCalcOnLoad(xml, &patched)) replaced.insert(index, patched);
+        if (index >= 0 && inflate(index, &xml)) {
+            bool changed = false;
+            if (moves && moveWorkbookPart(xml, ctx, &patched, &changed) && changed) xml = patched;
+            if (changes.fullCalcOnLoad && setFullCalcOnLoad(xml, &patched)) {
+                xml = patched;
+                changed = true;
+            }
+            if (changed) replaced.insert(index, xml);
+        }
     }
 
     // ---- the new ZIP, entry by entry in the old order
@@ -420,9 +491,24 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
             ++rep.partsChanged;
         } else if (sheetOfEntry.contains(i)) {
             const int sheet = sheetOfEntry.value(i);
+            const auto changed = changes.sheets.find(sheet);
+            const bool patch = changed != changes.sheets.end() && !changed->second.empty();
+            const bool mover = moveSheets.contains(sheet);
             zip.beginStream(e.name, true);
             ZipEntryDevice device(bytes, e);
-            if (!device.open(QIODevice::ReadOnly) || !patchSheet(&device, &sink, changes.sheets.at(sheet), hasShared, &why, cancel)) {
+            bool ok = device.open(QIODevice::ReadOnly);
+            if (ok && mover && patch) {
+                // (the file's cells are put in the places the edits leave them, and then the cells that changed are put in)
+                BufferSink moved;
+                ok = moveSheetPart(&device, &moved, ctx, sheet, nullptr, &why, cancel);
+                QBuffer in(&moved.bytes);
+                ok = ok && in.open(QIODevice::ReadOnly) && patchSheet(&in, &sink, changed->second, hasShared, &why, cancel);
+            } else if (ok && mover) {
+                ok = moveSheetPart(&device, &sink, ctx, sheet, nullptr, &why, cancel);
+            } else if (ok) {
+                ok = patchSheet(&device, &sink, changes.sheets.at(sheet), hasShared, &why, cancel);
+            }
+            if (!ok) {
                 zip.endStream();
                 return fail(why.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "A sheet of the file could not be read to be saved.") : why);
             }

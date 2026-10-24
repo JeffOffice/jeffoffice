@@ -246,6 +246,7 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
     if (!m_loaded || !batch) return;
     const qint64 cpu0 = jp::threadCpuMicros();
     m_longestBatchItems = std::max<qint64>(m_longestBatchItems, qint64(batch->items.size()));
+    if (m_session && batch->generation < m_session->generation()) m_session->moveToNow(&batch->items, batch->generation);   // (made before cells were moved: they are named by where they were)
     if (m_session) m_session->noteResults(batch->items);   // (before the store has them: it says what the engine had before)
     m_values.apply(batch->items);
     m_workerCpuMicros = batch->workerCpuMicros;

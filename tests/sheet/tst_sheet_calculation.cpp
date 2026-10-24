@@ -1351,6 +1351,26 @@ private Q_SLOTS:
         QCOMPARE(plainTold.value("0:B2"), QStringLiteral("e:#NAME?"));
     }
 
+    // An array formula that gives one value, or an error, shows it in every cell of its range; but the cells of one kept apart (a formula the engine cannot read) are the file's, and the error of the
+    // master is not told to them.
+    void anArraysScalarIsToldToItsCellsUnlessItIsKeptApart()
+    {
+        const QString rows = rowXml(1, constant("A1", "2") + QStringLiteral("<c r=\"C1\"><f t=\"array\" ref=\"C1:C3\">1+</f><v>7</v></c><c r=\"E1\"><f t=\"array\" ref=\"E1:E3\">1/0</f><v>1</v></c>"))
+                             + rowXml(2, QStringLiteral("<c r=\"C2\"><v>8</v></c><c r=\"E2\"><v>1</v></c>")) + rowXml(3, QStringLiteral("<c r=\"C3\"><v>9</v></c><c r=\"E3\"><v>1</v></c>"));
+        Book b;
+        QString why;
+        QVERIFY(b.package.readLazy(buildXlsx({worksheet(rows)}), &why) && b.book.open(b.package, &why));
+        b.calc.reset(new Calculation(b.book, CalcOptions()));
+        QMap<QString, QString> told;
+        b.calc->setResultSink([&](int sheet, quint32 row, quint32 col, const Value &v) { told.insert(QStringLiteral("%1:%2").arg(sheet).arg(cellName(row, col)), v.debug()); });   // (before the load: the window's way)
+        QVERIFY(b.calc->load());
+        QVERIFY(settle(b).finished);
+        QCOMPARE(told.value("0:C1"), QStringLiteral("e:#NAME?"));
+        QVERIFY2(!told.contains("0:C2") && !told.contains("0:C3"), "the file's cells of an array kept apart are told the master's error");
+        QCOMPARE(b.at("C2"), QStringLiteral("n:8"));
+        for (const char *cell : {"0:E1", "0:E2", "0:E3"}) QCOMPARE(told.value(QString::fromLatin1(cell)), QStringLiteral("e:#DIV/0!"));
+    }
+
     // The closing of a circle of two hundred thousand formulas is done in slices of the work given: none does more than that and a chunk (the work is counted, so that the test is the
     // same on a machine of any speed; the thread's time of the longest slice is told, for the reader).
     void aCircleIsClosedInSlicesOfBoundedWork()

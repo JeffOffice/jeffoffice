@@ -93,6 +93,7 @@ public:
     const QRawFont &raw() const { return m_raw; }
     double ascent() const { return m_metrics.ascent(); }
     double descent() const { return m_metrics.descent(); }
+    double lineSpacing() const { return m_metrics.lineSpacing(); }
     // The glyphs and where each begins (from 0), and the width of the line; false if a letter of the line is not one of the simple ones.
     bool layout(const QString &text, QList<quint32> *glyphs, QList<QPointF> *positions, double *width) const
     {
@@ -153,6 +154,14 @@ public:
     double width(const QString &text, const CellLook &look) const override
     {
         if (text.isEmpty()) return 0;
+        return face(look)->width(text);
+    }
+    double lineHeight(const CellLook &look) const override { return face(look)->lineSpacing(); }
+    void reset() { m_faces.clear(); }
+
+private:
+    const GridPainter::GlyphFace *face(const CellLook &look) const
+    {
         const size_t id = look.fontId;
         if (id >= m_faces.size()) m_faces.resize(id + 1);
         std::unique_ptr<GridPainter::GlyphFace> &e = m_faces[id];
@@ -165,11 +174,8 @@ public:
             f.setHintingPreference(QFont::PreferNoHinting);
             e = std::make_unique<GridPainter::GlyphFace>(f);
         }
-        return e->width(text);
+        return e.get();
     }
-    void reset() { m_faces.clear(); }
-
-private:
     mutable std::vector<std::unique_ptr<GridPainter::GlyphFace>> m_faces;
 };
 
@@ -685,7 +691,9 @@ marked:
             }
         }
     }
+    if (o.copyRange) paintDashedRange(p, which, area, *o.copyRange, o.accent, o.copyPhase, false);
     paintSelection(p, which, area, o);
+    if (o.fillPreview) paintDashedRange(p, which, area, *o.fillPreview, QColor(0x44, 0x44, 0x44), 0, false);
     p->setClipping(false);
 }
 
@@ -715,6 +723,39 @@ void GridPainter::paintSelection(QPainter *p, Pane which, const QRect &area, con
     p->fillRect(QRect(range.left(), range.bottom() - 1, range.width(), 2), o.accent);
     p->fillRect(QRect(range.left(), range.top(), 2, range.height()), o.accent);
     p->fillRect(QRect(range.right() - 1, range.top(), 2, range.height()), o.accent);
+    // the fill handle: a square on the corner of the range, drawn in the part that has that corner
+    if (o.fillHandle && s.whole == Selection::Whole::None) {
+        const QRect corner = L.rangeRectIn(which, s.range.row2, s.range.col2, s.range.row2, s.range.col2);
+        if (!corner.isEmpty() && corner.intersects(area)) {
+            const QRect square(corner.right() - 3, corner.bottom() - 3, 7, 7);
+            p->fillRect(square, QColor(Qt::white));
+            p->fillRect(square.adjusted(1, 1, -1, -1), o.accent);
+        }
+    }
+}
+
+// A dashed border round a range of cells, in a pane: the cells that were copied (the dashes move as `phase` does), or where a fill would go.
+void GridPainter::paintDashedRange(QPainter *p, Pane which, const QRect &area, const GridRange &r, const QColor &color, int phase, bool outside)
+{
+    const GridLayout &L = m_sheet->layout();
+    const QRect range = L.rangeRectIn(which, r.row1, r.col1, r.row2, r.col2);
+    if (range.isEmpty() || !range.intersects(area)) return;
+    QPen pen(color, 1, Qt::CustomDashLine);
+    pen.setDashPattern({4, 3});
+    pen.setDashOffset(phase);
+    p->save();
+    p->setClipRect(area);
+    p->setPen(pen);
+    p->setBrush(Qt::NoBrush);
+    QRect line = range.adjusted(0, 0, -1, -1);
+    if (outside) line.adjust(-1, -1, 1, 1);
+    p->drawRect(line);
+    QPen white(QColor(Qt::white), 1, Qt::CustomDashLine);
+    white.setDashPattern({3, 4});
+    white.setDashOffset(phase + 4);
+    p->setPen(white);
+    p->drawRect(line);
+    p->restore();
 }
 
 void GridPainter::paintHeaders(QPainter *p, const QRect &clip, const PaintOptions &o)
@@ -815,6 +856,27 @@ void GridPainter::paint(QPainter *p, const QRect &clip, const PaintOptions &o)
     p->setRenderHint(QPainter::SmoothPixmapTransform, false);
     for (Pane which : {Pane::Body, Pane::Left, Pane::Top, Pane::Corner}) paintPane(p, which, clip, o);
     if (o.headers) paintHeaders(p, clip, o);
+    if (!o.dropDown.isEmpty() && o.dropDown.intersects(clip)) {
+        // a small button with an arrow
+        p->setPen(QPen(o.headerLine, 1));
+        p->setBrush(o.headerBackground);
+        p->drawRect(o.dropDown.adjusted(0, 0, -1, -1));
+        p->setPen(Qt::NoPen);
+        p->setBrush(o.headerText);
+        const QPoint c = o.dropDown.center();
+        const QPointF triangle[3] = {QPointF(c.x() - 4, c.y() - 2), QPointF(c.x() + 4, c.y() - 2), QPointF(c.x(), c.y() + 3)};
+        p->setRenderHint(QPainter::Antialiasing, true);
+        p->drawPolygon(triangle, 3);
+        p->setRenderHint(QPainter::Antialiasing, false);
+    }
+    if (o.resizeGuide >= 0) {
+        // the border of a row or column being dragged: a dashed line across the cells
+        QPen pen(o.accent, 1, Qt::DashLine);
+        p->setPen(pen);
+        const QRect all = clip;
+        if (o.resizeGuideColumn) p->drawLine(o.resizeGuide, all.top(), o.resizeGuide, all.bottom());
+        else p->drawLine(all.left(), o.resizeGuide, all.right(), o.resizeGuide);
+    }
     p->restore();
     m_stats.textsMade = m_sheet->textsMade() - textsBefore;
     m_stats.looksMade = m_sheet->looks().made() - looksBefore;

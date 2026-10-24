@@ -16,7 +16,7 @@
           "name": "Clipboard",
           "keytip": "ZC",
           "items": [
-            {"large": "edit.paste", "keytip": "V"},
+            {"large": "edit.paste", "keytip": "V", "split": true, "menu": ["edit.paste", "paste.formulas", "paste.values", "paste.formats", "paste.transpose", "-", "paste.special"]},
             {"small": "edit.cut", "keytip": "X"},
             {"small": "edit.copy", "keytip": "C"}
           ]
@@ -73,17 +73,17 @@
           "name": "Cells",
           "keytip": "ZL",
           "items": [
-            {"large": "cells.insert", "keytip": "I"},
-            {"large": "cells.delete", "keytip": "D"},
-            {"large": "cells.format", "keytip": "O"}
+            {"large": "cells.insert", "keytip": "I", "split": true, "menu": ["cells.insert.cells", "cells.insert.rows", "cells.insert.columns"]},
+            {"large": "cells.delete", "keytip": "D", "split": true, "menu": ["cells.delete.cells", "cells.delete.rows", "cells.delete.columns"]},
+            {"large": "cells.format", "keytip": "O", "menu": ["format.rowHeight", "format.fitRow", "format.columnWidth", "format.fitColumn", "-", "format.hideRows", "format.hideColumns", "format.unhideRows", "format.unhideColumns"]}
           ]
         },
         {
           "name": "Editing",
           "keytip": "ZE",
           "items": [
-            {"small": "edit.autosum", "keytip": "U"},
-            {"small": "edit.fill", "keytip": "FI"},
+            {"small": "edit.autosum", "keytip": "U", "split": true, "menu": ["edit.autosum.sum", "edit.autosum.average", "edit.autosum.count", "edit.autosum.max", "edit.autosum.min"]},
+            {"small": "edit.fill", "keytip": "FI", "split": true, "menu": ["fill.down", "fill.right", "fill.up", "fill.left", "-", "fill.series"]},
             {"small": "edit.clear", "keytip": "E"},
             {"large": "edit.sort", "keytip": "SS"},
             {"large": "edit.find", "keytip": "FD"}
@@ -143,7 +143,7 @@
           "keytip": "ZU",
           "items": [
             {"large": "formulas.insertFunction", "keytip": "F"},
-            {"large": "edit.autosum", "keytip": "U"}
+            {"large": "edit.autosum", "keytip": "U", "split": true, "menu": ["edit.autosum.sum", "edit.autosum.average", "edit.autosum.count", "edit.autosum.max", "edit.autosum.min"]}
           ]
         },
         {

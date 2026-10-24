@@ -11,6 +11,7 @@
 #include <QString>
 
 #include <deque>
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -36,6 +37,15 @@ public:
     void apply(const std::vector<Item> &items);
     // The value of a cell, if the store has one.
     bool find(int sheet, quint32 row, quint32 col, jp::calc::Value *out) const;
+    // Takes the values of cells away (the cost is that of the cells named, not of the sheet): `erase` lets them go, `relocate` puts each at another place on the same sheet (the value of
+    // a cell that has none there is none), `take` gives them back to put elsewhere (apply).
+    void erase(int sheet, const std::vector<std::pair<quint32, quint32>> &cells);
+    struct Move {
+        quint32 fromRow, fromCol, toRow, toCol;
+    };
+    void relocate(int sheet, const std::vector<Move> &moves);
+    // And a cell's value let go of, true if there was one.
+    bool erase(int sheet, quint32 row, quint32 col);
     // How many cells have values.
     qint64 count() const { return m_count; }
 

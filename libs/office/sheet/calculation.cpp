@@ -60,7 +60,6 @@ struct Chunker {
     }
 };
 
-constexpr qint64 kMaxArrayCellsMarked = 1000000;   // an array formula's range larger than this is not made members of (no real one is)
 constexpr qint64 kMaxMembersAdded = 200000;        // the cells of arrays that the file has no cell for, which are put in (each costs the cells after it in its block of rows)
 
 } // namespace
@@ -106,6 +105,138 @@ Calculation::Compiled &Calculation::compiled(int sheet, qint32 text, bool array)
         slot.traitsKnown = true;
     }
     return slot;
+}
+
+void Calculation::countTexts(int sheet)
+{
+    SheetState &st = m_state[size_t(sheet)];
+    if (st.textsCounted) return;
+    const Sheet &s = m_sheets[size_t(sheet)];
+    st.textRefs.assign(size_t(s.formulaTexts.size()), 0);
+    for (const Formula &f : s.formulas)
+        if (f.text >= 0 && f.text < s.formulaTexts.size()) ++st.textRefs[size_t(f.text)];
+    st.textsCounted = true;
+}
+
+qint32 Calculation::internText(int sheet, const QString &text)
+{
+    countTexts(sheet);
+    SheetState &st = m_state[size_t(sheet)];
+    Sheet &s = m_sheets[size_t(sheet)];
+    const auto found = st.internOf.constFind(text);
+    if (found != st.internOf.constEnd()) {
+        ++st.textRefs[size_t(*found)];
+        return *found;
+    }
+    qint32 index;
+    if (!st.freeTexts.empty()) {
+        index = st.freeTexts.back();
+        st.freeTexts.pop_back();
+        s.formulaTexts[index] = text;
+        st.textRefs[size_t(index)] = 1;
+    } else {
+        index = qint32(s.formulaTexts.size());
+        s.formulaTexts.append(text);
+        st.textRefs.push_back(1);
+    }
+    if (size_t(index) < st.plain.size()) st.plain[size_t(index)] = Compiled();
+    if (size_t(index) < st.array.size()) st.array[size_t(index)] = Compiled();
+    forgetTextFacts(sheet, index);
+    st.internOf.insert(text, index);
+    return index;
+}
+
+void Calculation::holdText(int sheet, qint32 text)
+{
+    if (text < 0) return;
+    countTexts(sheet);
+    ++m_state[size_t(sheet)].textRefs[size_t(text)];
+}
+
+void Calculation::releaseText(int sheet, qint32 text)
+{
+    if (text < 0) return;
+    countTexts(sheet);
+    SheetState &st = m_state[size_t(sheet)];
+    Sheet &s = m_sheets[size_t(sheet)];
+    if (size_t(text) >= st.textRefs.size() || st.textRefs[size_t(text)] == 0) return;
+    if (--st.textRefs[size_t(text)] > 0) return;
+    // (nothing has the text now: it and the program worked out for it are let go of, and the place is for the next text)
+    const auto at = st.internOf.find(s.formulaTexts[text]);
+    if (at != st.internOf.end() && *at == text) st.internOf.erase(at);
+    s.formulaTexts[text] = QString();
+    if (size_t(text) < st.plain.size()) st.plain[size_t(text)] = Compiled();
+    if (size_t(text) < st.array.size()) st.array[size_t(text)] = Compiled();
+    forgetTextFacts(sheet, text);
+    st.freeTexts.push_back(text);
+}
+
+void Calculation::forgetTextFacts(int sheet, qint32 text)
+{
+    // (what was found of a text is kept by its place, which is for another text now)
+    if (size_t(sheet) < m_subtotalTexts.size() && size_t(text) < m_subtotalTexts[size_t(sheet)].size()) m_subtotalTexts[size_t(sheet)][size_t(text)] = -1;
+}
+
+qint32 Calculation::allocFormula(int sheet, const Formula &f)
+{
+    SheetState &st = m_state[size_t(sheet)];
+    Sheet &s = m_sheets[size_t(sheet)];
+    qint32 index;
+    if (!st.freeFormulas.empty()) {
+        index = st.freeFormulas.back();
+        st.freeFormulas.pop_back();
+        s.formulas[index] = f;
+    } else {
+        index = qint32(s.formulas.size());
+        s.formulas.append(f);
+    }
+    if (st.nodeOf.size() <= size_t(index)) st.nodeOf.resize(size_t(index) + 1, kNone);
+    st.nodeOf[size_t(index)] = kNone;
+    return index;
+}
+
+void Calculation::releaseFormula(int sheet, qint32 formula)
+{
+    Sheet &s = m_sheets[size_t(sheet)];
+    if (formula < 0 || formula >= s.formulas.size()) return;
+    Formula &f = s.formulas[formula];
+    if (f.text == kFreeFormula) return;   // (it is free already)
+    if (f.text >= 0) releaseText(sheet, f.text);
+    f = Formula();
+    f.text = kFreeFormula;
+    SheetState &st = m_state[size_t(sheet)];
+    st.freeFormulas.push_back(formula);
+    if (size_t(formula) < st.nodeOf.size()) st.nodeOf[size_t(formula)] = kNone;
+}
+
+void Calculation::retext(int sheet, Cell *cell, const QString &text)
+{
+    Formula &f = m_sheets[size_t(sheet)].formulas[cell->formula];
+    const qint32 old = f.text;
+    f.text = internText(sheet, text);
+    f.dRow = f.dCol = 0;
+    releaseText(sheet, old);
+}
+
+qint64 Calculation::formulaTextsInUse(int sheet) const
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return 0;
+    return qint64(m_sheets[size_t(sheet)].formulaTexts.size()) - qint64(m_state[size_t(sheet)].freeTexts.size());
+}
+
+qint64 Calculation::formulaEntriesInUse(int sheet) const
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return 0;
+    return qint64(m_sheets[size_t(sheet)].formulas.size()) - qint64(m_state[size_t(sheet)].freeFormulas.size());
+}
+
+qint64 Calculation::programsHeld(int sheet) const
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return 0;
+    qint64 n = 0;
+    for (const Compiled &c : m_state[size_t(sheet)].plain) n += c.program ? 1 : 0;
+    for (const Compiled &c : m_state[size_t(sheet)].array) n += c.program ? 1 : 0;
+    return n;
 }
 
 quint32 Calculation::addNode(int sheet, const Cell &cell, qint32 formulaIndex)
@@ -169,6 +300,7 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
         }
     }
     if (kept) {
+        if (kept != 'U') m_special.push_back(id);
         n.flags |= Kept;
         n.kept = kept;
         if (m_options.keepApart) n.flags |= NodeTainted;
@@ -182,7 +314,10 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
         n.flags |= Always;
         listAlways(id);
     }
-    if (told) n.flags |= Told;
+    if (told) {
+        n.flags |= Told;
+        m_special.push_back(id);
+    }
     n.state = Dirty;
     ++m_notDone;
     m_dirty.push_back(id);
@@ -230,6 +365,16 @@ void Calculation::registerNode(quint32 id, const std::vector<CellArea> *told)
     std::sort(m_areas.begin(), m_areas.end());
     m_areas.erase(std::unique(m_areas.begin(), m_areas.end()), m_areas.end());
     ++m_registrations;
+    // (a formula that reads a block of several sheets is not rewritten for a change to one of them, so the graph is told again what it reads when rows move on one)
+    bool threeD = false;
+    for (const CellArea &a : m_areas) threeD = threeD || a.sheet1 != a.sheet2;
+    if (threeD && !(n.flags & ThreeD)) {
+        n.flags |= ThreeD;
+        m_threeD.insert(id);
+    } else if (!threeD && (n.flags & ThreeD)) {
+        n.flags &= quint16(~ThreeD);
+        m_threeD.erase(id);
+    }
     const bool tracked = m_graph->setPrecedents(id, m_areas);
     m_toldHash[id] = tracked ? toldHash : 0;   // (a formula the graph refused is told again next time)
     if (!tracked) {
@@ -325,6 +470,15 @@ void Calculation::storeResult(Node &n, quint32 id, const Value &given, bool publ
         if (v.isArray()) {
             for (int i = 0; i < v.rows(); ++i)
                 for (int j = 0; j < v.cols(); ++j) m_sink(n.sheet, n.row + quint32(i), quint32(n.col) + quint32(j), v.at(i, j));
+        } else if ((n.flags & Array) && !(n.flags & Kept)) {
+            // (an array formula whose result is no array, an error or a single value, shows it in every cell of its range; the cells of one that is kept apart are the file's, not its)
+            const CellArea a = areaOf(n);
+            if (a.rows() * a.cols() > 1 && a.rows() * a.cols() <= kMaxArrayCellsMarked) {
+                for (qint64 i = 0; i < a.rows(); ++i)
+                    for (qint64 j = 0; j < a.cols(); ++j) m_sink(n.sheet, n.row + quint32(i), quint32(n.col) + quint32(j), v);
+            } else {
+                m_sink(n.sheet, n.row, n.col, v);
+            }
         } else {
             m_sink(n.sheet, n.row, n.col, v);
         }
@@ -461,6 +615,7 @@ bool Calculation::load()
     m_counter = 0;
     m_dirty.clear();
     m_always.clear();
+    m_threeD.clear();
     std::vector<quint32> masters;   // array formulas, whose cells are then made members of them
     bool cancelled = false;
     for (int si = 0; si < sheets; ++si) {
@@ -748,6 +903,7 @@ bool Calculation::stepAbandon(const std::function<bool()> &timeUp, qint64 *spent
     }
     while (a.dirtyAt < a.dirty.size()) {
         if (!ck.next()) return false;
+        ++m_abandonWork;
         m_dirty.push_back(a.dirty[a.dirtyAt++]);
     }
     ck.finish();
@@ -757,6 +913,7 @@ bool Calculation::stepAbandon(const std::function<bool()> &timeUp, qint64 *spent
 
 void Calculation::abandonNow()
 {
+    if (m_bulk > 0) return;
     abandon();
     if (m_abandon.active) {
         qint64 spent = 0;
@@ -1191,6 +1348,7 @@ void Calculation::dropNode(quint32 id)
     if (n.kind == KindText && n.text >= 0) freeTextSlot(n.text);
     m_arrays.remove(id);
     m_graph->clearPrecedents(id);
+    if (n.flags & ThreeD) m_threeD.erase(id);
     SheetState &st = m_state[size_t(n.sheet)];
     if (size_t(n.formula) < st.nodeOf.size()) st.nodeOf[size_t(n.formula)] = kNone;
     n.flags = quint16(Dead | (n.flags & AlwaysListed));
@@ -1220,6 +1378,7 @@ bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v, 
     if (found && found->hasFormula()) {
         const SheetState &st = m_state[size_t(sheet)];
         if (found->formula >= 0 && size_t(found->formula) < st.nodeOf.size() && st.nodeOf[size_t(found->formula)] != kNone) dropNode(st.nodeOf[size_t(found->formula)]);
+        releaseFormula(sheet, found->formula);   // (it is a value now: nothing has the formula)
     }
     c.flags &= quint8(~(HasFormula | SharedFormula | DataTable | Tainted));
     c.formula = -1;
@@ -1278,13 +1437,14 @@ bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString 
     Cell c = found ? *found : Cell();
     c.row = row;
     c.col = quint16(col);
-    if (found && found->hasFormula() && found->formula >= 0 && size_t(found->formula) < st.nodeOf.size() && st.nodeOf[size_t(found->formula)] != kNone) dropNode(st.nodeOf[size_t(found->formula)]);
-    s.formulaTexts.append(formula);
+    if (found && found->hasFormula() && found->formula >= 0) {
+        if (size_t(found->formula) < st.nodeOf.size() && st.nodeOf[size_t(found->formula)] != kNone) dropNode(st.nodeOf[size_t(found->formula)]);
+        releaseFormula(sheet, found->formula);   // (the cell had a formula: nothing has it now)
+    }
     Formula f;
-    f.text = qint32(s.formulaTexts.size() - 1);
-    s.formulas.append(f);
+    f.text = internText(sheet, formula);
     c.flags = quint8((c.flags & ~(SharedFormula | DataTable | Tainted)) | HasFormula);
-    c.formula = qint32(s.formulas.size() - 1);
+    c.formula = allocFormula(sheet, f);
     c.type = CellType::Empty;
     c.number = 0;
     if (stored) {
@@ -1356,6 +1516,11 @@ Calculation::CellContent Calculation::content(int sheet, quint32 row, quint32 co
     if (c->hasFormula()) {
         out.isFormula = true;
         out.formula = s.formulaText(*c);
+        if ((c->flags & (ArrayFormula | DataTable)) && c->formula >= 0) {
+            const qint32 range = s.formulas[c->formula].range;
+            if (c->flags & DataTable) out.dataTable = true;
+            else if (range >= 0 && range < s.ranges.size() && s.ranges[range].valid) out.arrayRange = s.ranges[range];
+        }
         const quint32 id = nodeAt(sheet, row, col);
         if (id != kNone && (m_nodes[id].flags & Kept)) {
             out.hasStored = true;

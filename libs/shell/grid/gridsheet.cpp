@@ -42,6 +42,88 @@ int GridSheet::columnPixels(double chars, int maxDigitWidth)
 
 int GridSheet::rowPixels(double points) { return points > 0 ? int(std::lround(points * 96.0 / 72.0)) : 0; }
 
+double GridSheet::widthForPixels(int pixels, int maxDigitWidth)
+{
+    if (pixels <= 0 || maxDigitWidth <= 0) return 0;
+    return std::floor(double(pixels) / maxDigitWidth * 256.0) / 256.0;
+}
+
+double GridSheet::pointsForPixels(int pixels) { return pixels > 0 ? std::round(pixels * 72.0 / 96.0 * 100.0) / 100.0 : 0; }
+
+double GridSheet::shownWidth(double fileWidth, int maxDigitWidth)
+{
+    if (maxDigitWidth <= 0) return fileWidth;
+    return std::max(0.0, std::round((fileWidth - 5.0 / maxDigitWidth) * 100.0) / 100.0);
+}
+
+double GridSheet::widthOfShown(double shown, int maxDigitWidth)
+{
+    if (maxDigitWidth <= 0) return shown;
+    return std::floor((shown * maxDigitWidth + 5.0) / maxDigitWidth * 256.0) / 256.0;
+}
+
+namespace {
+
+// The width in pixels a cell's text needs, in a column wide enough for any text.
+double neededPixels(const Shown &s, const CellLook &look) { return s.width + 2 * kCellPadding + (look.indent > 0 ? look.indent * 9.0 : 0.0); }
+
+} // namespace
+
+double GridSheet::fitWidthOfCell(quint32 row, quint32 col) const
+{
+    const Cell *cell = cellAt(row, col);
+    if (!cell) return 0;
+    const CellLook &look = m_looks.look(cell->style);
+    const Shown s = showValue(valueOf(*cell), look, m_data.dateSystem, 1e9, m_looks.maxDigitWidth(), *m_meter);
+    if (s.kind == Kind::Empty || s.width <= 0) return 0;
+    return widthForPixels(int(std::ceil(neededPixels(s, look))), m_looks.maxDigitWidth());
+}
+
+double GridSheet::fitWidth(quint32 col, qint64 limit) const
+{
+    if (!m_data.sheet) return 0;
+    double widest = 0;
+    qint64 seen = 0;
+    m_data.sheet->cells.forEachInRange(0, col, jp::office::sheet::kMaxRows - 1, col, [&](const Cell &cell) {
+        if (++seen > limit) return false;
+        if (cell.type == jp::office::sheet::CellType::Empty && !cell.hasFormula()) return true;
+        if (m_layout.merges.at(cell.row, cell.col) >= 0) return true;   // (a merged cell does not decide)
+        const CellLook &look = m_looks.look(cell.style);
+        if (look.wrap) return true;
+        const Shown s = showValue(valueOf(cell), look, m_data.dateSystem, 1e9, m_looks.maxDigitWidth(), *m_meter);
+        if (s.kind != Kind::Empty && s.width > 0) widest = std::max(widest, neededPixels(s, look));
+        return true;
+    });
+    return widest > 0 ? widthForPixels(int(std::ceil(widest)), m_looks.maxDigitWidth()) : 0;
+}
+
+double GridSheet::fitHeight(quint32 row, qint64 limit) const
+{
+    if (!m_data.sheet) return 0;
+    double tallest = 0;
+    qint64 seen = 0;
+    m_data.sheet->cells.forEachInRange(row, 0, row, jp::office::sheet::kMaxColumns - 1, [&](const Cell &cell) {
+        if (++seen > limit) return false;
+        if (cell.type == jp::office::sheet::CellType::Empty && !cell.hasFormula()) return true;
+        if (m_layout.merges.at(cell.row, cell.col) >= 0) return true;
+        const CellLook &look = m_looks.look(cell.style);
+        const Shown s = showValue(valueOf(cell), look, m_data.dateSystem, columnWidth(cell.col), m_looks.maxDigitWidth(), *m_meter);
+        if (s.kind == Kind::Empty) return true;
+        int lines = 1;
+        if (look.wrap) {
+            const QString text = textOf(cell);
+            lines = int(text.count(QLatin1Char('\n'))) + 1;
+            const double room = std::max(1.0, textRoom(columnWidth(cell.col), look));
+            double longest = 0;
+            for (const QString &line : text.split(QLatin1Char('\n'))) longest = std::max(longest, m_meter->width(line, look));
+            lines = std::max(lines, int(std::ceil(longest / room)) + (text.contains(QLatin1Char('\n')) ? 0 : 0));
+        }
+        tallest = std::max(tallest, lines * m_meter->lineHeight(look) + 3);
+        return true;
+    });
+    return tallest > 0 ? pointsForPixels(int(std::ceil(tallest))) : 0;
+}
+
 void GridSheet::setData(const GridData &data)
 {
     m_data = data;

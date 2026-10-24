@@ -93,6 +93,20 @@ public:
     // The column (row) a sheet's width (height) in characters (points) is, in the grid's units; the conversions the file's numbers go through.
     static int columnPixels(double chars, int maxDigitWidth);
     static int rowPixels(double points);
+    // And the other way: the width a file gives a column of this many pixels (so that columnPixels gives them back), the height in points of a row, and the width a person is shown and
+    // types (the number of digits that fit: the file's width less the padding).
+    static double widthForPixels(int pixels, int maxDigitWidth);
+    static double pointsForPixels(int pixels);
+    static double shownWidth(double fileWidth, int maxDigitWidth);
+    static double widthOfShown(double shown, int maxDigitWidth);
+
+    // What a column needs to show what is in it (the width the file would give it, with its padding), and what a row needs (points): the widest text of the cells in the column that
+    // are not merged, and the tallest line or lines of the cells in the row. Zero when the column (row) holds nothing, the column's (row's) own size then standing. Texts that wrap do
+    // not widen a column. For a few thousand cells: the walk stops at `limit` cells.
+    double fitWidth(quint32 col, qint64 limit = 200000) const;
+    double fitHeight(quint32 row, qint64 limit = 20000) const;
+    // The width that shows one cell's text whole (a number typed in it), 0 for a cell that holds nothing.
+    double fitWidthOfCell(quint32 row, quint32 col) const;
 
 private:
     GridData m_data;

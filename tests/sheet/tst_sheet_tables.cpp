@@ -170,6 +170,44 @@ private Q_SLOTS:
         QCOMPARE(b.tables().first().columns.at(1), QStringLiteral("First quarter"));
         QVERIFY(b.changedTableParts().empty());
     }
+    // A table with a row of totals: the part keeps totalsRowCount while its row is the last, and a delete of that row takes the totals (and what the columns say about them) away, with
+    // the range of the filter (which leaves the totals out) following; Undo puts the part back as it was.
+    void theTotalsRowOfATableFollowsItsRows()
+    {
+        const QString part = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"%1\" id=\"1\" name=\"Sales\" displayName=\"Sales\" ref=\"A1:C5\" totalsRowCount=\"1\"><autoFilter ref=\"A1:C4\"/>"
+                                             "<tableColumns count=\"3\"><tableColumn id=\"1\" name=\"Region\" totalsRowLabel=\"Total\"/><tableColumn id=\"2\" name=\"Q1\" totalsRowFunction=\"sum\"/>"
+                                             "<tableColumn id=\"3\" name=\"Total\" totalsRowFunction=\"custom\"><totalsRowFormula>SUM(Sales[Total])</totalsRowFormula></tableColumn></tableColumns></table>")
+                                 .arg(QLatin1String(kNs));
+        const QString rows = QStringLiteral("<row r=\"1\">%1%2%3</row><row r=\"2\"><c r=\"B2\"><v>1</v></c></row><row r=\"3\"><c r=\"B3\"><v>2</v></c></row><row r=\"4\"><c r=\"B4\"><v>3</v></c></row><row r=\"5\"><c r=\"B5\"><f>SUBTOTAL(109,Sales[Q1])</f><v>6</v></c></row>")
+                                 .arg(inlineCell(QStringLiteral("A1"), QStringLiteral("Region")), inlineCell(QStringLiteral("B1"), QStringLiteral("Q1")), inlineCell(QStringLiteral("C1"), QStringLiteral("Total")));
+        Package p;
+        QString why;
+        QVERIFY(p.readLazy(withTables(buildXlsx({worksheet(rows)}), {part}), &why));
+        Workbook b;
+        QVERIFY2(b.open(p, &why), qPrintable(why));
+        QCOMPARE(b.tables().first().totalsRows, 1);
+        QVERIFY(b.changedTableParts().empty());
+        // a row inserted among the data: the table is longer, the totals stay
+        std::vector<TablePlace> before = b.moveTables(StructEdit::insertRows(0, 2, 2));
+        std::map<QString, QByteArray> changed = b.changedTableParts();
+        QString xml = QString::fromUtf8(changed.at(QStringLiteral("/xl/tables/table1.xml")));
+        QVERIFY2(xml.contains(QStringLiteral("ref=\"A1:C7\"")) && xml.contains(QStringLiteral("totalsRowCount=\"1\"")) && xml.contains(QStringLiteral("<autoFilter ref=\"A1:C6\"")), qPrintable(xml));
+        b.putTablesBack(before);
+        QVERIFY(b.changedTableParts().empty());
+        // the row of totals deleted: no totals, and nothing left of what the columns said about them
+        before = b.moveTables(StructEdit::deleteRows(0, 4, 1));
+        QCOMPARE(b.tables().first().totalsRows, 0);
+        changed = b.changedTableParts();
+        xml = QString::fromUtf8(changed.at(QStringLiteral("/xl/tables/table1.xml")));
+        QVERIFY2(xml.contains(QStringLiteral("ref=\"A1:C4\"")), qPrintable(xml));
+        QVERIFY2(!xml.contains(QStringLiteral("totalsRowCount")) && !xml.contains(QStringLiteral("totalsRowFunction")) && !xml.contains(QStringLiteral("totalsRowLabel")) && !xml.contains(QStringLiteral("totalsRowFormula")), qPrintable(xml));
+        QVERIFY2(xml.contains(QStringLiteral("<autoFilter ref=\"A1:C4\"")), qPrintable(xml));
+        QVERIFY(xml.contains(QStringLiteral("name=\"Region\"")) && xml.contains(QStringLiteral("id=\"3\"")));
+        b.putTablesBack(before);
+        QCOMPARE(b.tables().first().totalsRows, 1);
+        QVERIFY(b.changedTableParts().empty());
+    }
+
 };
 
 JP_TEST_CLASS(SheetTablesTests)

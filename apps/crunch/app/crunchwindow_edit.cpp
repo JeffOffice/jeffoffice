@@ -22,10 +22,17 @@ void CrunchWindow::createEditing()
 {
     m_session = std::make_unique<crunch::EditSession>(&m_loader, m_loaded, &m_values, nullptr);
     connect(m_session.get(), &crunch::EditSession::cellsChanged, this, &CrunchWindow::onCellsChanged);
+    connect(m_session.get(), &crunch::EditSession::cellsMoved, this, &CrunchWindow::onCellsMoved);
+    connect(m_session.get(), &crunch::EditSession::sizesChanged, this, &CrunchWindow::onSizesChanged);
+    connect(m_session.get(), &crunch::EditSession::stepFailed, this, [this](const QString &what) {
+        notice(tr("Undo"), what);
+        updateEditActions();
+    });
     QUndoStack *u = m_session->undoStack();
     connect(u, &QUndoStack::canUndoChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::canRedoChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::indexChanged, this, &CrunchWindow::updateEditActions);   // (the oldest steps may be forgotten: Undo ends before them)
+    connect(u, &QUndoStack::indexChanged, this, [this] { cancelCut(); });   // (any edit ends a cut)
     connect(u, &QUndoStack::undoTextChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::redoTextChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::cleanChanged, this, [this](bool clean) {
@@ -44,6 +51,8 @@ void CrunchWindow::updateEditActions()
     act("edit.redo")->setEnabled(open && u->canRedo());
     act("edit.undo")->setToolTip(u && m_session->canUndo() ? tr("Undo %1 (%2)").arg(u->undoText(), QKeySequence(QKeySequence::Undo).toString(QKeySequence::NativeText)) : tr("Undo"));
     act("edit.redo")->setToolTip(u && u->canRedo() ? tr("Redo %1 (%2)").arg(u->redoText(), QKeySequence(QKeySequence::Redo).toString(QKeySequence::NativeText)) : tr("Redo"));
+    for (const QString &id : m_opsActions)
+        if (QAction *a = act(id)) a->setEnabled(open && m_loaded && m_loaded->problem.isEmpty());
     const bool canSave = open && m_loaded && m_loaded->problem.isEmpty();
     act("file.save")->setEnabled(canSave);
     act("file.saveAs")->setEnabled(canSave);
@@ -134,7 +143,17 @@ bool CrunchWindow::commitEdit(CellEditor::Way way)
         return true;
     }
     const qint64 before = m_loader.changesMade();
-    const crunch::EditSession::Outcome o = m_session->type(m_edit.sheet, m_edit.row, m_edit.col, text);
+    crunch::EditSession::Outcome o = m_session->type(m_edit.sheet, m_edit.row, m_edit.col, text);
+    if (!o.ok && o.rule) {
+        // the rule for the cell does not allow it: a rule that stops is told, the others ask whether to go on
+        if (askAboutRule(o)) {
+            o = m_session->type(m_edit.sheet, m_edit.row, m_edit.col, text, false);
+        } else {
+            QLineEdit *w = m_formulaBar->hasFocus() ? static_cast<QLineEdit *>(m_formulaBar) : static_cast<QLineEdit *>(m_cellEditor);
+            w->setFocus(Qt::OtherFocusReason);
+            return false;
+        }
+    }
     if (!o.ok) {
         // the entry stays as it was typed, with the cursor where the fault is
         QLineEdit *w = m_formulaBar->hasFocus() ? static_cast<QLineEdit *>(m_formulaBar) : static_cast<QLineEdit *>(m_cellEditor);
@@ -144,6 +163,7 @@ bool CrunchWindow::commitEdit(CellEditor::Way way)
         return false;
     }
     if (m_loader.changesMade() != before) m_calculating = true;
+    widenForEntry(m_edit.sheet, m_edit.row, m_edit.col);
     finishEdit(way);
     return true;
 }
