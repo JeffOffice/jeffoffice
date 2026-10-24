@@ -1,5 +1,6 @@
 // Tests of the financial functions that have a closed form: loans and savings (PMT, PV, FV, NPER, IPMT, PPMT), NPV, and the rates and depreciation made from a
 // few numbers. The expected values are the figures in the function descriptions of the format and their definitions, written out by hand (rounded where the figure is).
+#include <cmath>
 #include "calchelpers.h"
 
 using namespace jp::calc;
@@ -16,6 +17,19 @@ struct E {
         const QString got = ev(QString::fromUtf8(c.formula), grid, settings);                                                                               \
         QVERIFY2(got == QString::fromUtf8(c.value), qPrintable(QString::fromUtf8(c.formula) + QStringLiteral(" gave [") + got + QStringLiteral("], expected [") \
                                                                    + QString::fromUtf8(c.value) + QLatin1Char(']')));                                      \
+    }
+
+// The same, for results that go through a power with a fraction in it (the depreciation of part of a period): the C library's pow is not the same to the last
+// bit on every platform (Windows' gave 4635.28149906787 where Linux's gives 4635.28149906788), so a number may be off by a few units in its fifteenth digit.
+#define CHECK_EVALS_TO_15_DIGITS(cases, grid, settings)                                                                                                     \
+    for (const auto &c : cases) {                                                                                                                           \
+        const QString got = ev(QString::fromUtf8(c.formula), grid, settings), want = QString::fromUtf8(c.value);                                             \
+        bool same = got == want;                                                                                                                            \
+        if (!same && got.startsWith(QLatin1String("n:")) && want.startsWith(QLatin1String("n:"))) {                                                         \
+            const double g = got.mid(2).toDouble(), w = want.mid(2).toDouble();                                                                             \
+            same = std::abs(g - w) <= 5e-15 * std::abs(w);                                                                                                  \
+        }                                                                                                                                                   \
+        QVERIFY2(same, qPrintable(QString::fromUtf8(c.formula) + QStringLiteral(" gave [") + got + QStringLiteral("], expected [") + want + QLatin1Char(']'))); \
     }
 
 } // namespace
@@ -214,7 +228,7 @@ private Q_SLOTS:
             {"VDB(1331.9046155778003,0,8,0.4191780821917808,1.4191780821917808,1.5)", "n:230.104197445124"},
             {"VDB(1331.9046155778003,0,8,1.4219178082191781,2.419178082191781,1.5)", "n:186.34349452236"},
         };
-        CHECK_EVALS(cases, Grid(), Settings());
+        CHECK_EVALS_TO_15_DIGITS(cases, Grid(), Settings());
     }
 
     void loansAndSavings()
